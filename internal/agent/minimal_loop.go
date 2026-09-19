@@ -162,8 +162,9 @@ func ExecuteMinimalLoop(
 				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
 			}
 		}
-		if _, err := prepareMinimalLoopRequestWithReasoning(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, addenda...); err != nil {
-			return result, req.Messages, err
+		prepared, prepareErr := prepareMinimalLoopRequestWithReasoning(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, addenda...)
+		if prepareErr != nil {
+			return result, req.Messages, prepareErr
 		}
 		var resp openai.ChatCompletionResponse
 		if dispatchCtx.DiscoveryRunID != "" {
@@ -232,6 +233,7 @@ func ExecuteMinimalLoop(
 		req.Messages = append(req.Messages, msg)
 
 		for _, tc := range msg.ToolCalls {
+			dispatchCtx.ToolDetailFits = toolDetailBudgetCheck(prepared.Budget, req)
 			toolResult := "Tool Output: {\"status\":\"error\",\"code\":\"tool_call_limit\"}"
 			if opts == nil || opts.MaxToolCalls <= 0 || result.ToolCalls < opts.MaxToolCalls {
 				toolResult = executeMinimalToolCall(ctx, tc, dispatchCtx, userPrompt, logger)

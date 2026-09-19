@@ -160,7 +160,7 @@ func (w *OptimizerWorker) runCreationCycle(ctx context.Context) {
 	rows, err := w.db.db.QueryContext(ctx, `
 		SELECT tool_name, CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) as success_rate, COUNT(*) as trace_count
 		FROM tool_traces
-		WHERE exposure_id IS NOT NULL AND prompt_version = 'v1' AND timestamp > datetime('now', '-7 days')
+		WHERE exposure_id IS NOT NULL AND action_identity<>'' AND prompt_version = 'v1' AND timestamp > datetime('now', '-7 days')
 		GROUP BY tool_name
 		HAVING success_rate < 0.8 AND trace_count >= 5
 		ORDER BY success_rate ASC LIMIT 3

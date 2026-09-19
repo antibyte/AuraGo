@@ -37,19 +37,19 @@ func (db *OptimizerDB) GetDashboardStats() (*OptimizationStats, error) {
 		return nil, fmt.Errorf("failed to fetch rejected mutations: %w", err)
 	}
 
-	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL`).Scan(&stats.TotalTraceEvents); err != nil {
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL AND action_identity<>''`).Scan(&stats.TotalTraceEvents); err != nil {
 		slog.Error("Failed to fetch total trace events", "error", err)
 		return nil, fmt.Errorf("failed to fetch total trace events: %w", err)
 	}
 
 	var recentTotal int
-	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL AND timestamp > datetime('now', '-7 days')`).Scan(&recentTotal); err != nil {
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL AND action_identity<>'' AND timestamp > datetime('now', '-7 days')`).Scan(&recentTotal); err != nil {
 		slog.Error("Failed to fetch recent total traces", "error", err)
 		return nil, fmt.Errorf("failed to fetch recent total traces: %w", err)
 	}
 	if recentTotal > 0 {
 		var succ int
-		if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL AND success = 1 AND timestamp > datetime('now', '-7 days')`).Scan(&succ); err != nil {
+		if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL AND action_identity<>'' AND success = 1 AND timestamp > datetime('now', '-7 days')`).Scan(&succ); err != nil {
 			slog.Error("Failed to fetch successful recent traces", "error", err)
 			return nil, fmt.Errorf("failed to fetch successful recent traces: %w", err)
 		}
@@ -61,7 +61,7 @@ func (db *OptimizerDB) GetDashboardStats() (*OptimizationStats, error) {
 	if err := db.db.QueryRow(`SELECT COUNT(*) FROM prompt_exposures`).Scan(&stats.Exposures); err != nil {
 		return nil, err
 	}
-	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NULL`).Scan(&stats.LegacyTraceEvents); err != nil {
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NULL OR action_identity=''`).Scan(&stats.LegacyTraceEvents); err != nil {
 		return nil, err
 	}
 	rows, err := db.db.Query(`SELECT tool_name,active,shadow,promotion_reason FROM prompt_overrides ORDER BY id DESC LIMIT 30`)

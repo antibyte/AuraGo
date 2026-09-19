@@ -12,11 +12,18 @@ type toolOutputPolicyResult struct {
 	ErrorSummary string
 }
 
-func applyToolOutputPolicy(result string, limit int, scope AgentTelemetryScope) toolOutputPolicyResult {
+func applyToolOutputPolicy(result string, limit int, scope AgentTelemetryScope, executionStatus ...ToolResultStatus) toolOutputPolicyResult {
+	status := classifyLegacyToolResult(result)
+	if len(executionStatus) > 0 {
+		status = executionStatus[0]
+	}
 	decision := toolOutputPolicyResult{
 		Content:      result,
 		WasError:     isToolError(result),
 		ErrorSummary: extractErrorMessage(result),
+	}
+	if len(executionStatus) > 0 {
+		decision.WasError = status.IsError()
 	}
 	if limit <= 0 {
 		limit = 50000
@@ -32,7 +39,7 @@ func applyToolOutputPolicy(result string, limit int, scope AgentTelemetryScope) 
 		if decision.WasError {
 			RecordToolRecoveryEventForScope(scope, "error_output_truncated_preserved")
 		}
-		decision.Content = boundedToolResult(result, limit, classifyLegacyToolResult(result))
+		decision.Content = boundedToolResult(result, limit, status)
 		return decision
 	}
 

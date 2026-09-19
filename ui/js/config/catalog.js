@@ -97,7 +97,7 @@
         }),
         // Fields rendered outside their YAML root belong to their visible Config section.
         searchSections: Object.freeze({
-            optimizations: ['agent.optimizer_enabled', 'agent.system_prompt_token_budget', 'agent.adaptive_system_prompt_token_budget', 'agent.context_window', 'agent.memory_compression_char_limit', 'agent.tool_output_limit', 'agent.discover_tools_snapshot_ttl_minutes', 'agent.max_tool_guides', 'agent.core_memory_max_entries', 'agent.core_memory_cap_mode', 'agent.adaptive_tools', 'agent.recovery', 'agent.background_tasks', 'circuit_breaker.max_tool_calls', 'circuit_breaker.llm_timeout_seconds', 'circuit_breaker.maintenance_timeout_minutes', 'circuit_breaker.retry_intervals'],
+            optimizations: ['agent.optimizer_enabled', 'agent.system_prompt_token_budget', 'agent.adaptive_system_prompt_token_budget', 'agent.context_window', 'agent.memory_compression_char_limit', 'agent.tool_output_limit', 'agent.max_tool_guides', 'agent.core_memory_max_entries', 'agent.core_memory_cap_mode', 'agent.adaptive_tools', 'agent.recovery', 'agent.background_tasks', 'circuit_breaker.max_tool_calls', 'circuit_breaker.llm_timeout_seconds', 'circuit_breaker.maintenance_timeout_minutes', 'circuit_breaker.retry_intervals'],
             info_tools: ['tools.wikipedia', 'tools.ddg_search', 'tools.pdf_extractor'],
             network_tools: ['tools.wol', 'tools.stop_process', 'tools.network_ping', 'tools.network_scan', 'tools.web_capture', 'tools.form_automation', 'tools.upnp_scan'],
             web_scraper: ['tools.web_scraper'],

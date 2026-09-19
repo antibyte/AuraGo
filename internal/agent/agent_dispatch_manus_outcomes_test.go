@@ -64,7 +64,7 @@ func TestManusOperationErrorOutputReportsPartialSuccess(t *testing.T) {
 	err := &manus.RemoteAppliedError{
 		Operation: "create_task", TaskID: "task-1", TaskURL: "https://manus.im/app/task-1", Err: errors.New("disk failed"),
 	}
-	out := manusOperationErrorOutput("create_task", err, map[string]interface{}{
+	out := manusOperationErrorOutput(context.Background(), "create_task", err, map[string]interface{}{
 		"task": manus.CreateTaskResult{TaskID: "task-1", TaskURL: "https://manus.im/app/task-1"},
 	})
 	decoded := html.UnescapeString(out)

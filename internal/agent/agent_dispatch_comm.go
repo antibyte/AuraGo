@@ -1056,7 +1056,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			)
 			identity := virtualcomputers.WorkspaceIdentity{SessionID: dc.SessionID, MissionID: dc.MissionID, Actor: "agent"}
 			output := tools.ExecuteVirtualBrowser(ctx, cfg, identity, tc.Params)
-			return "Tool Output: " + security.IsolateExternalData(output)
+			return externalToolOutput(ctx, output)
 
 		case "openscad_render":
 			logger.Info("LLM requested OpenSCAD render",

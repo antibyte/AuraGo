@@ -284,6 +284,7 @@ func (s *Server) initConfigSnapshot() {
 	if s == nil || s.Cfg == nil {
 		return
 	}
+	s.bindConfigAuthorization(s.Cfg)
 	s.cfgSnapshot.Store(s.Cfg)
 }
 
@@ -302,6 +303,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	s.bindConfigAuthorization(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
 	if s.LocalMusic != nil {
@@ -324,6 +326,12 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 			DockerReadOnly: cfg.Docker.ReadOnly,
 			Docker:         dockerutil.NewClient(cfg.Docker.Host, 30*time.Second),
 		})
+	}
+}
+
+func (s *Server) bindConfigAuthorization(cfg *config.Config) {
+	cfg.AuthorizationSnapshots = func() (*config.Config, *config.Config) {
+		return cfg, s.ConfigSnapshot()
 	}
 }
 

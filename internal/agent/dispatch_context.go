@@ -20,6 +20,8 @@ import (
 // It replaces the 30+ individual function parameters that were previously threaded
 // from DispatchToolCall → dispatchInner → dispatchExec/Comm/Services/Infra.
 type DispatchContext struct {
+	// ToolDetailFits checks a complete discovery detail against every route.
+	ToolDetailFits       func(string) bool
 	DiscoveryRunID       string
 	ExecutionHooks       *ExecutionHooks
 	Cfg                  *config.Config

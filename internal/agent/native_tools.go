@@ -910,9 +910,6 @@ func buildNativeToolSchemasUncached(skillsDir string, manifest *tools.Manifest, 
 			if skill.Executable != "__builtin__" && !ff.AllowPython {
 				continue
 			}
-			if skill.Executable != "__builtin__" && !ff.AllowPython {
-				continue
-			}
 			if skill.Executable == "__builtin__" && skill.Name == "virustotal_scan" && !ff.VirusTotalEnabled {
 				continue
 			}

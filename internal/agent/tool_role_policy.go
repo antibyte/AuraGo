@@ -69,7 +69,7 @@ func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
 		specialistRole = extractSpecialistRole(sessionID)
 	}
 	if specialistRole != "" {
-		if blocked := checkSpecialistToolRestriction(specialistRole, tc.Action, tc.Operation); blocked != "" {
+		if blocked := checkSpecialistToolRestriction(specialistRole, tc.Action, toolCallSnapshotOperation(tc)); blocked != "" {
 			return blocked
 		}
 	}

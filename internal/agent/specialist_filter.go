@@ -93,18 +93,31 @@ func checkDesignerRestriction(action string) string {
 // checkSecurityRestriction blocks tools not relevant for security analysis.
 // Allowed: execute_shell, execute_python, filesystem (read), execute_skill, query_memory, knowledge_graph (read), api_request
 func checkSecurityRestriction(action, operation string) string {
+	operation = strings.ToLower(strings.TrimSpace(operation))
 	switch action {
 	case "image_generation":
 		return `Tool Output: {"status": "policy_denied", "message": "Security specialist cannot generate images."}`
 	case "remote_control":
 		return `Tool Output: {"status": "policy_denied", "message": "Security specialist cannot use remote control."}`
-	case "filesystem":
-		if operation == "write" || operation == "delete" || operation == "move" || operation == "copy" {
-			return `Tool Output: {"status": "policy_denied", "message": "Security specialist has read-only filesystem access for analysis."}`
+	case "filesystem", "filesystem_op":
+		switch operation {
+		case "read", "read_file", "list", "ls", "list_dir", "stat", "info", "exists", "search", "tree":
+			return ""
 		}
+		return securityFilesystemDenied
+	case "file_editor":
+		return securityFilesystemDenied
+	case "json_editor", "yaml_editor", "toml_editor", "xml_editor":
+		switch operation {
+		case "read", "get", "query", "validate", "keys":
+			return ""
+		}
+		return securityFilesystemDenied
 	}
 	return ""
 }
+
+const securityFilesystemDenied = `Tool Output: {"status":"policy_denied","message":"Security specialist has read-only filesystem access for analysis."}`
 
 // checkWriterRestriction blocks tools not relevant for writing.
 // Allowed: query_memory, knowledge_graph (read), filesystem (read/write), execute_skill, api_request

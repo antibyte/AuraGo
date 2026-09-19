@@ -39,7 +39,7 @@ func dispatchComposioCall(ctx context.Context, req composioCallArgs, cfg *config
 		if err != nil {
 			return composioErrorOutput("search_toolkits", err)
 		}
-		return composioExternalOutput(map[string]interface{}{
+		return composioExternalOutput(ctx, map[string]interface{}{
 			"status":      "success",
 			"operation":   op,
 			"toolkits":    page.Items,
@@ -85,7 +85,7 @@ func dispatchComposioCall(ctx context.Context, req composioCallArgs, cfg *config
 			payload["query_relaxed"] = true
 			payload["message"] = "The first Composio search returned no tools, so AuraGo retried once without the narrow query. Use these returned tools if policy_decision allows them."
 		}
-		return composioExternalOutput(payload)
+		return composioExternalOutput(ctx, payload)
 
 	case "get_tool":
 		if strings.TrimSpace(req.ToolSlug) == "" {
@@ -96,7 +96,7 @@ func dispatchComposioCall(ctx context.Context, req composioCallArgs, cfg *config
 			return composioErrorOutput("get_tool", err)
 		}
 		decision := tools.EvaluateComposioToolPolicy(policy, toolInfo)
-		return composioExternalOutput(map[string]interface{}{
+		return composioExternalOutput(ctx, map[string]interface{}{
 			"status":          "success",
 			"operation":       op,
 			"tool":            toolInfo,
@@ -205,7 +205,7 @@ func dispatchComposioCapabilities(ctx context.Context, client *tools.ComposioCli
 		"toolkit_slug": toolkitSlug,
 		"tool_slug":    toolPreview[0]["tool_slug"],
 	}
-	return composioExternalOutput(payload)
+	return composioExternalOutput(ctx, payload)
 }
 
 func composioCapabilityToolkits(policy tools.ComposioPolicyConfig, onlySlug string) []map[string]interface{} {
@@ -358,7 +358,7 @@ func dispatchComposioExecute(ctx context.Context, client *tools.ComposioClient, 
 	if err != nil {
 		return composioErrorOutput("execute_tool", err)
 	}
-	return composioExternalOutput(map[string]interface{}{
+	return composioExternalOutput(ctx, map[string]interface{}{
 		"status":               "success",
 		"operation":            "execute_tool",
 		"tool_slug":            req.ToolSlug,
@@ -419,7 +419,7 @@ func composioJSONOutput(payload map[string]interface{}) string {
 	return "Tool Output: " + string(raw)
 }
 
-func composioExternalOutput(payload map[string]interface{}) string {
+func composioExternalOutput(ctx context.Context, payload map[string]interface{}) string {
 	raw, _ := json.Marshal(payload)
-	return "Tool Output: " + security.IsolateExternalData(security.Scrub(string(raw)))
+	return externalToolOutput(ctx, string(raw))
 }

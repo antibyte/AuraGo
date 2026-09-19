@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -71,6 +72,17 @@ func DispatchToolCall(ctx context.Context, tc *ToolCall, dc *DispatchContext, us
 // DispatchToolCallResult executes a tool and returns both its formatted output
 // and a stable error flag. Existing string-only callers use DispatchToolCall.
 func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchContext, userContext string) (result ToolDispatchResult) {
+	// Each call owns its effective policy and mutable dispatch metadata.
+	originalDC := dc
+	local := *dc
+	dc = &local
+	defer func() { originalDC.ExecutionTimeMs = dc.ExecutionTimeMs }()
+	defer func() { tc.DispatchStatus = result.Status }()
+	var authorized bool
+	dc.Cfg, authorized = dispatchAuthorization(dc.Cfg)
+	if !authorized {
+		return ToolDispatchResult{Output: authorizationChangedOutput, Status: ToolResultDenied, IsError: true}
+	}
 	// Standalone bridges own a short-lived catalog just like the main loop.
 	if dc.DiscoveryRunID == "" && GetToolCatalogState(dc.SessionID) == nil && (tc.Action == "invoke_tool" || tc.Action == "discover_tools") {
 		local := *dc
@@ -80,7 +92,6 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 		setRunDiscoverToolsState(dc, dispatchCatalogSchemas(dc), nil)
 	}
 	*tc = prepareToolCall(*tc, dc)
-	defer func() { tc.DispatchStatus = result.Status }()
 	if tc.PreparationError != "" {
 		return ToolDispatchResult{Output: tc.PreparationError, Status: classifyLegacyToolResult(tc.PreparationError), IsError: true}
 	}
@@ -132,9 +143,23 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 		}
 	}
 
+	// Guardian evaluation may have awaited a remote model. Recheck publication
+	// after that wait, immediately before any handler or execution hook runs.
+	dc.Cfg, authorized = dispatchAuthorization(originalDC.Cfg)
+	if !authorized {
+		return ToolDispatchResult{Output: authorizationChangedOutput, Status: ToolResultDenied, IsError: true}
+	}
+	if revokedNativeTools(originalDC.Cfg, dc.Cfg)[tc.Action] || (dc.ExecutionHooks != nil && originalDC.Cfg != dc.Cfg && authorizationGatesDiffer(reflect.ValueOf(originalDC.Cfg).Elem(), reflect.ValueOf(dc.Cfg).Elem())) {
+		return ToolDispatchResult{Output: authorizationChangedOutput, Status: ToolResultDenied, IsError: true}
+	}
 	startTime := time.Now()
+	trustedStatus := ToolResultUnknown
+	ctx = context.WithValue(ctx, toolOutcomeKey{}, &trustedStatus)
 	rawResult := dispatchInner(ctx, *tc, dc)
 	status := classifyLegacyToolResult(rawResult)
+	if trustedStatus != ToolResultUnknown {
+		status = trustedStatus
+	}
 	if ctx.Err() != nil && status != ToolResultSuccess {
 		status = ToolResultCancelled
 	}
@@ -143,7 +168,12 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	// Apply scrubbing and redaction to tool output.
 	// Scrub() removes registered runtime secrets (vault keys, API tokens, etc.).
 	// RedactSensitiveInfo() catches regex-identified patterns (key=value pairs, etc.).
-	sanitized := security.StripThinkingTags(security.RedactSensitiveInfo(security.Scrub(rawResult)))
+	sanitized := security.RedactSensitiveInfo(security.Scrub(rawResult))
+	// StripThinkingTags is for model prose and deliberately removes external_data
+	// wrappers. Handler-owned isolation must survive with or without Guardian.
+	if _, isolated := toolResultPayload(sanitized); !isolated {
+		sanitized = security.StripThinkingTags(sanitized)
+	}
 
 	// Guardian: Sanitize tool output (isolation + role-marker stripping)
 	if guardian != nil {

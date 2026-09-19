@@ -64,7 +64,16 @@ func applyCatalogScope(catalog *ToolCatalog, dc *DispatchContext) {
 }
 
 func applyCatalogEntryPolicies(catalog *ToolCatalog, dc *DispatchContext) {
+	local := *dc
+	var policyValid bool
+	local.Cfg, policyValid = dispatchAuthorization(dc.Cfg)
+	revoked := revokedNativeTools(dc.Cfg, local.Cfg)
+	dc = &local
 	for _, entry := range catalog.Entries() {
+		if !policyValid || revoked[entry.Name] || revoked[entry.Routing.NativeAction] {
+			entry.Enabled, entry.Active, entry.Status, entry.HiddenReason = false, false, ToolStatusDisabled, "authorization_changed"
+			continue
+		}
 		if !catalogEntryAllowed(dc, entry) {
 			entry.Enabled, entry.Active, entry.Status, entry.HiddenReason = false, false, ToolStatusDisabled, "out_of_scope"
 			continue

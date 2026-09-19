@@ -117,13 +117,16 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		if entry, ok := catalog.Get(resolveDiscoverToolName(name)); ok {
 			result := discoverResultFromEntry(entry, sessionID, true)
 			response := DiscoverToolsResponse{Status: "success", Revision: revision, Tool: &result, Summary: "Use get_manual to retrieve workflow guidance separately."}
-			budget = 16000
+			budget = 50000
 			if cfg != nil && cfg.Agent.ToolOutputLimit > 0 {
-				budget = min(budget, cfg.Agent.ToolOutputLimit)
+				budget = cfg.Agent.ToolOutputLimit
 			}
 			encoded := discoverToolsJSON(response)
 			if len(encoded) > budget {
-				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "error", Error: "schema_exceeds_output_budget", Summary: "The complete input schema does not fit this output budget. Increase tool_output_limit before using this tool."}, budget)
+				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "error", Error: "schema_exceeds_output_budget", Summary: fmt.Sprintf("The complete input schema requires %d bytes; the current tool output budget is %d bytes. Increase agent.tool_output_limit to at least %d, or select a smaller tool. An incomplete schema is never returned.", len(encoded), budget, len(encoded))}, budget)
+			}
+			if dc != nil && dc.ToolDetailFits != nil && !dc.ToolDetailFits(encoded) {
+				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "error", Error: "schema_exceeds_context_budget", Summary: "The complete input schema does not fit the remaining model context. Start a shorter request or use a route with more context. Increasing tool_output_limit alone cannot fix this limit."}, budget)
 			}
 			return encoded
 		}

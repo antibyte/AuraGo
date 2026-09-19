@@ -55,9 +55,9 @@ func TestDirtyMemorySnapshotBypassesToolResultThrottle(t *testing.T) {
 	}
 }
 
-func TestTurnGuidePreparationDoesNotConsumeCompactIneligibility(t *testing.T) {
-	if got := classifyTurnGuidePreparation(false, "compact", nil); got != turnGuidesNotEligible {
-		t.Fatalf("compact state = %v, want not eligible", got)
+func TestTurnGuidePreparationIncludesCompactHistory(t *testing.T) {
+	if got := classifyTurnGuidePreparation(false, "compact", nil); got != turnGuidesSearchEligible {
+		t.Fatalf("compact state = %v, want search eligible", got)
 	}
 	if got := classifyTurnGuidePreparation(false, "full", nil); got != turnGuidesSearchEligible {
 		t.Fatalf("full state = %v, want search eligible", got)

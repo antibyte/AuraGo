@@ -474,7 +474,7 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 
 		// In the context of the recovery state, we might not always have exec time, passing 0 for now.
 		if tc.DispatchStatus == "" || tc.DispatchStatus == ToolResultSuccess || tc.DispatchStatus == ToolResultFailed {
-			optimizer.LogToolTrace(tc.Action, !isToolError, consecutiveCount, promptVersion, errMsg, execTimeMs, tc.Operation)
+			optimizer.LogToolTrace(tc.Action, !isToolError, consecutiveCount, promptVersion, errMsg, execTimeMs, toolCallSnapshotOperation(tc), toolTraceActionIdentity(tc))
 		}
 	}()
 

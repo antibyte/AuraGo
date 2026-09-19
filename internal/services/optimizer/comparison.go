@@ -2,12 +2,12 @@ package optimizer
 
 import "context"
 
-// Compare matched source revisions and operations only. Each request exposure
-// contributes at most one observation per operation; both sides need evidence.
+// Compare matched source revisions, canonical actions and operations only. Each
+// exposure contributes one observation per action/operation; both need evidence.
 func (w *OptimizerWorker) comparableRates(ctx context.Context, manual, candidate, baseline string) (float64, float64, bool) {
-	rows, err := w.db.db.QueryContext(ctx, `SELECT t.prompt_version,t.operation,e.source_revision,t.success
+	rows, err := w.db.db.QueryContext(ctx, `SELECT t.prompt_version,t.action_identity,t.operation,e.source_revision,t.success
 	 FROM tool_traces t JOIN prompt_exposures e ON e.id=t.exposure_id
-	 WHERE t.tool_name=? AND t.prompt_version IN (?,?) AND t.timestamp>datetime('now','-7 days')
+	 WHERE t.tool_name=? AND t.action_identity<>'' AND t.prompt_version IN (?,?) AND t.timestamp>datetime('now','-7 days')
 	 ORDER BY t.id DESC LIMIT 500`, manual, candidate, baseline)
 	if err != nil {
 		return 0, 0, false
@@ -16,12 +16,12 @@ func (w *OptimizerWorker) comparableRates(ctx context.Context, manual, candidate
 	type sample struct{ n, successes int }
 	groups := map[string]map[string]*sample{}
 	for rows.Next() {
-		var version, operation, revision string
+		var version, action, operation, revision string
 		var success bool
-		if rows.Scan(&version, &operation, &revision, &success) != nil {
+		if rows.Scan(&version, &action, &operation, &revision, &success) != nil {
 			return 0, 0, false
 		}
-		key := operation + "\x00" + revision
+		key := action + "\x00" + operation + "\x00" + revision
 		if groups[key] == nil {
 			groups[key] = map[string]*sample{}
 		}

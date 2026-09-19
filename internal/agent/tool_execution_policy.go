@@ -163,7 +163,7 @@ func finalizeToolExecution(
 		limit = cfg.Agent.ToolOutputLimit
 	}
 
-	policyResult := applyToolOutputPolicy(rawContent, limit, scope)
+	policyResult := applyToolOutputPolicy(rawContent, limit, scope, status)
 	rawContent = policyResult.Content
 
 	// Apply compression after truncation so expensive filters only process the
@@ -204,7 +204,7 @@ func finalizeToolExecution(
 		payload, isolated := toolResultPayload(rawContent)
 		if isolated {
 			payload, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, payload, compCfg)
-			rawContent = security.IsolateExternalData(payload)
+			rawContent = toolResultPresentationPrefix(rawContent) + security.IsolateExternalData(payload) + toolResultPresentationSuffix(rawContent)
 		} else {
 			rawContent, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, rawContent, compCfg)
 		}
@@ -242,7 +242,7 @@ func finalizeToolExecution(
 	}
 
 	if limit > 0 && len(rawContent) > limit {
-		postCompressionPolicy := applyToolOutputPolicy(rawContent, limit, scope)
+		postCompressionPolicy := applyToolOutputPolicy(rawContent, limit, scope, status)
 		postCompressionPolicy.Truncated = postCompressionPolicy.Truncated || policyResult.Truncated
 		if postCompressionPolicy.ErrorSummary == "" {
 			postCompressionPolicy.ErrorSummary = policyResult.ErrorSummary

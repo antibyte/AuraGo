@@ -116,6 +116,7 @@ func withAgentLoopSlot(ctx context.Context, fn func()) error {
 
 // agentLoopState holds the mutable state for a single ExecuteAgentLoop invocation.
 type agentLoopState struct {
+	requestBudget         *RequestBudget
 	promptGuideVersions   map[string]string
 	ctx                   context.Context
 	stream                bool
@@ -210,6 +211,7 @@ type agentLoopState struct {
 // makeDispatchContext builds a DispatchContext from the current loop state.
 func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *DispatchContext {
 	return &DispatchContext{
+		ToolDetailFits:       toolDetailBudgetCheck(s.requestBudget, s.req),
 		DiscoveryRunID:       s.runCfg.DiscoveryRunID,
 		ExecutionHooks:       s.runCfg.ExecutionHooks,
 		Cfg:                  s.runCfg.Config,
@@ -630,6 +632,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			return openai.ChatCompletionResponse{}, budgetErr
 		}
 		requestBudget = budgeted
+		s.requestBudget = budgeted
 		req.MaxTokens = requestBudget.CompletionReserve
 		if len(budgetDroppedTools) > 0 {
 			req.Tools = budgetedTools

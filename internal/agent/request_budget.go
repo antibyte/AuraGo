@@ -682,7 +682,7 @@ func isTextModeToolResult(message openai.ChatCompletionMessage) bool {
 		return false
 	}
 	content := strings.TrimSpace(messageText(message))
-	return strings.HasPrefix(content, "Tool Output:") || strings.HasPrefix(content, "Tool Result:")
+	return strings.HasPrefix(content, "Tool Output:") || strings.HasPrefix(content, "[Tool Output]") || strings.HasPrefix(content, "Tool Result:")
 }
 
 func (b *RequestBudget) trimHistory(messages []openai.ChatCompletionMessage, tools []openai.Tool, importance bool, logger *slog.Logger, cache *tokenCountCache) ([]openai.ChatCompletionMessage, []openai.ChatCompletionMessage, error) {

@@ -444,6 +444,15 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
 
 ### Tool System
 
+- Server-published configs bind `AuthorizationSnapshots` before publication.
+  Scoped/delegated copies retain that runtime-only resolver. Dispatch intersects
+  Enabled/Allow/Sudo grants and ReadOnly restrictions immediately before execution;
+  new grants never widen an existing run. Compound allow/block-list and integration
+  membership changes require a new request. Hooks with tightened captured gates
+  require a fresh runner. Provider/model and native-schema snapshots stay fixed.
+  Keep authorization field naming and coverage in `live_tool_authorization.go`
+  synchronized when adding policy settings; Security filesystem access is a
+  positive read-operation allowlist, including aliases and editor tools.
 - Discovery belongs to an owned run ID, released on completion/cancellation;
   active runs cannot expire through orphan-cache pruning. Refresh the catalog
   against the actual scoped and budget-fitted request, including the lightweight
@@ -453,11 +462,16 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   namespaces. Bare aliases work only when unambiguous. Search/category/family
   pages are bounded summaries; `get_tool_info` returns one complete schema and
   `get_manual` reads revision-bound pages. Never byte-slice structured results.
+  Detail schemas use `agent.tool_output_limit` and the remaining request capacity
+  of every eligible route; report output and context limits separately.
   Missing local dependencies are `needs_setup`; account/connection state is
   distinct from configuration and never inferred from an enabled switch.
 - Execution status is captured before scrubbing/compression and kept separately
   from display text. Only confirmed success supports learning, issue resolution
   and context invalidation. Preserve external-data boundaries through compression.
+  Integration formatters capture trusted local envelope status before escaping;
+  external payload text cannot establish status. Text-mode prefixes and trailing
+  security guidance survive formatting so history grouping remains atomic.
   MCP transport failures never automatically replay an already-sent tool call.
   Discovery follows all pages atomically; notifications invalidate cached tools,
   and partial server failures must not erase healthy catalog results.
@@ -465,8 +479,9 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   Native schemas do not replace workflow guidance. Share manual family bindings,
   validated disk/embedded sources and content digests with the search index.
   Optimizer variants are chosen before fitting; only delivered, fitted guide
-  exposures with matched source and operation evidence support promotion. One
-  request/guide/operation contributes at most one observation; legacy traces do
+  exposures with matched source, canonical action/target and operation evidence
+  support promotion. One request/guide/action/operation contributes at most one
+  observation; legacy traces without action identity retain provenance but do
   not establish exposure. The optimizer worker follows live enable/disable state.
 - Configuration migrations share `NormalizeToolDisclosureConfig` across load,
   save, API and config-merger. Canonical values win; explicit false/empty lists

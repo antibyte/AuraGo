@@ -225,9 +225,17 @@ func (o *OptimizerDB) LogToolTrace(toolName string, success bool, recoveryLoops 
 	if strings.HasPrefix(promptVersion, "exposure:") {
 		op := ""
 		if len(operation) > 0 {
-			op = operation[0]
+			op = strings.ToLower(strings.TrimSpace(operation[0]))
 		}
-		return o.logExposedToolTrace(toolName, success, recoveryLoops, promptVersion, errMsg, execTimeMs, op)
+		action := strings.ToLower(strings.TrimSpace(toolName))
+		switch action {
+		case "mcp_call", "execute_skill", "run_tool", "composio_call":
+			action = "" // A bridge without its target cannot form a cohort.
+		}
+		if len(operation) > 1 {
+			action = operation[1]
+		}
+		return o.logExposedToolTrace(toolName, success, recoveryLoops, promptVersion, errMsg, execTimeMs, op, action)
 	}
 	query := `INSERT INTO tool_traces (tool_name, success, recovery_loops, prompt_version, error_message, execution_time_ms) VALUES (?, ?, ?, ?, ?, ?)`
 	_, err := o.db.Exec(query, toolName, success, recoveryLoops, promptVersion, errMsg, execTimeMs)

@@ -940,10 +940,13 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
-	ConfigPath     string               `yaml:"-"`          // runtime-only: absolute path to the config file
-	Runtime        Runtime              `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
-	Providers      []ProviderEntry      `yaml:"providers"`
-	RealtimeSpeech RealtimeSpeechConfig `yaml:"realtime_speech" json:"realtime_speech"`
+	// AuthorizationSnapshots preserves publication identity across scoped copies.
+	// It returns the source and current immutable configs; never serialize it.
+	AuthorizationSnapshots func() (*Config, *Config) `yaml:"-" json:"-"`
+	ConfigPath             string                    `yaml:"-"`          // runtime-only: absolute path to the config file
+	Runtime                Runtime                   `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
+	Providers              []ProviderEntry           `yaml:"providers"`
+	RealtimeSpeech         RealtimeSpeechConfig      `yaml:"realtime_speech" json:"realtime_speech"`
 	// SpeechLab integrates the external s2s-vulkan orchestrator for local ASR/TTS
 	// selection (catalog/suggestions) and stable gateway endpoints for chat/SIP.
 	SpeechLab     SpeechLabConfig    `yaml:"speech_lab" json:"speech_lab"`

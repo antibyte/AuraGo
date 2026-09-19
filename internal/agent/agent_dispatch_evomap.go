@@ -37,7 +37,7 @@ func dispatchEvomapCall(ctx context.Context, req evomapArgs, cfg *config.Config,
 		if err != nil {
 			return evomapErrorOutput("status", err)
 		}
-		return evomapExternalRaw(map[string]interface{}{
+		return evomapExternalRaw(ctx, map[string]interface{}{
 			"status":    "success",
 			"operation": "status",
 			"evomap":    json.RawMessage(status.Raw),
@@ -64,7 +64,7 @@ func dispatchEvomapCall(ctx context.Context, req evomapArgs, cfg *config.Config,
 		if err != nil {
 			return evomapErrorOutput(op, err)
 		}
-		return evomapExternalRaw(map[string]interface{}{
+		return evomapExternalRaw(ctx, map[string]interface{}{
 			"status":    "success",
 			"operation": op,
 			"capsules":  json.RawMessage(result.Raw),
@@ -79,7 +79,7 @@ func dispatchEvomapCall(ctx context.Context, req evomapArgs, cfg *config.Config,
 		if err != nil {
 			return evomapErrorOutput(op, err)
 		}
-		return evomapExternalRaw(map[string]interface{}{
+		return evomapExternalRaw(ctx, map[string]interface{}{
 			"status":    "success",
 			"operation": op,
 			"asset":     json.RawMessage(result.Raw),
@@ -108,7 +108,7 @@ func dispatchEvomapCall(ctx context.Context, req evomapArgs, cfg *config.Config,
 		if err != nil {
 			return evomapErrorOutput(op, err)
 		}
-		return evomapExternalRaw(map[string]interface{}{
+		return evomapExternalRaw(ctx, map[string]interface{}{
 			"status":    "success",
 			"operation": op,
 			"answer":    json.RawMessage(result.Raw),
@@ -199,7 +199,7 @@ func evomapJSONOutput(payload map[string]interface{}) string {
 	return "Tool Output: " + string(raw)
 }
 
-func evomapExternalRaw(payload map[string]interface{}) string {
+func evomapExternalRaw(ctx context.Context, payload map[string]interface{}) string {
 	raw, _ := json.Marshal(payload)
-	return "Tool Output: " + security.IsolateExternalData(security.Scrub(string(raw)))
+	return externalToolOutput(ctx, string(raw))
 }

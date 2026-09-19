@@ -228,7 +228,7 @@ func turnSnapshotMutationCategories(call ToolCall) turnSnapshotCategory {
 func toolCallSnapshotOperation(call ToolCall) string {
 	operation := strings.ToLower(strings.TrimSpace(firstNonEmpty(call.Operation, call.ActionType, call.SubOperation)))
 	if operation == "" && call.Params != nil {
-		for _, key := range []string{"operation", "action_type", "sub_operation"} {
+		for _, key := range []string{"operation", "op", "action_type", "sub_operation"} {
 			if raw, ok := call.Params[key].(string); ok && strings.TrimSpace(raw) != "" {
 				operation = strings.ToLower(strings.TrimSpace(raw))
 				break
@@ -250,10 +250,9 @@ func classifyTurnGuidePreparation(suppress bool, tier string, explicitTools []st
 	if suppress {
 		return turnGuidesResolvedWithoutSearch
 	}
-	if strings.EqualFold(strings.TrimSpace(tier), "full") || len(explicitTools) > 0 {
-		return turnGuidesSearchEligible
-	}
-	return turnGuidesNotEligible
+	// History tier controls prompt size, not access to relevant workflow help.
+	// The request fitter remains responsible for the optional guide budget.
+	return turnGuidesSearchEligible
 }
 
 func oneOf(value string, candidates ...string) bool {

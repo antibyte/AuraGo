@@ -1,9 +1,23 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
+
+	"aurago/internal/security"
 )
+
+type toolOutcomeKey struct{}
+
+// externalToolOutput receives a locally constructed result envelope, before any
+// presentation escaping. Remote payloads must remain nested inside that envelope.
+func externalToolOutput(ctx context.Context, raw string) string {
+	if outcome, ok := ctx.Value(toolOutcomeKey{}).(*ToolResultStatus); ok {
+		*outcome = classifyLegacyToolResult(raw)
+	}
+	return "Tool Output: " + security.IsolateExternalData(security.Scrub(raw))
+}
 
 // ToolResultStatus describes execution, independently of output presentation.
 type ToolResultStatus string

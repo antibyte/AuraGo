@@ -14,11 +14,12 @@ func boundedToolResult(output string, limit int, status ToolResultStatus) string
 		return output
 	}
 	value, isolated := toolResultPayload(output)
+	prefix := toolResultPresentationPrefix(output)
 	wrap := func(data []byte) string {
 		if isolated {
-			return security.IsolateExternalData(string(data))
+			return prefix + security.IsolateExternalData(string(data))
 		}
-		return string(data)
+		return prefix + string(data)
 	}
 	if json.Valid([]byte(value)) || isolated {
 		payload := map[string]interface{}{"status": status, "truncated": true, "message": "Result exceeds the output budget. Request a smaller page or more specific operation."}
@@ -44,6 +45,9 @@ func boundedToolResult(output string, limit int, status ToolResultStatus) string
 		}
 		// No external content remains in this generated minimal envelope.
 		data, _ := json.Marshal(map[string]interface{}{"status": status, "truncated": true})
+		if len(prefix)+len(data) <= limit {
+			return prefix + string(data)
+		}
 		if len(data) <= limit {
 			return string(data)
 		}
@@ -55,14 +59,41 @@ func boundedToolResult(output string, limit int, status ToolResultStatus) string
 	return truncateToolOutput(output, limit)
 }
 
+func toolResultPresentationPrefix(output string) string {
+	value := strings.TrimSpace(output)
+	if strings.HasPrefix(value, "[Tool Output]") {
+		return "[Tool Output]\n"
+	}
+	if strings.HasPrefix(value, "Tool Output:") {
+		return "Tool Output: "
+	}
+	return ""
+}
+
+func toolResultPresentationSuffix(output string) string {
+	if end := strings.Index(output, "\n</external_data>"); end >= 0 {
+		return output[end+len("\n</external_data>"):]
+	}
+	return ""
+}
+
 func toolResultPayload(output string) (string, bool) {
 	value := strings.TrimSpace(output)
-	isolated := strings.HasPrefix(value, "<external_data>\n") && strings.HasSuffix(value, "\n</external_data>")
-	if isolated {
-		value = html.UnescapeString(strings.TrimSuffix(strings.TrimPrefix(value, "<external_data>\n"), "\n</external_data>"))
+	for {
+		before := value
+		for _, prefix := range []string{"[Tool Output]", "Tool Output:"} {
+			value = strings.TrimSpace(strings.TrimPrefix(value, prefix))
+		}
+		if before == value {
+			break
+		}
 	}
-	for _, prefix := range []string{"[Tool Output]", "Tool Output:"} {
-		value = strings.TrimSpace(strings.TrimPrefix(value, prefix))
+	if strings.HasPrefix(value, "<external_data>\n") {
+		if end := strings.Index(value, "\n</external_data>"); end >= 0 {
+			// Recovery guidance may follow the trusted presentation envelope.
+			// It is replaceable when bounding; never clip the isolated body.
+			return html.UnescapeString(value[len("<external_data>\n"):end]), true
+		}
 	}
-	return value, isolated
+	return value, false
 }

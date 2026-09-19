@@ -22,6 +22,7 @@ func initializeExposureSchema(db *OptimizerDB) error {
 	}
 	for _, column := range []struct{ name, ddl string }{
 		{"exposure_id", "INTEGER REFERENCES prompt_exposures(id)"}, {"operation", "TEXT NOT NULL DEFAULT ''"},
+		{"action_identity", "TEXT NOT NULL DEFAULT ''"},
 	} {
 		var exists bool
 		if err := db.db.QueryRow(`SELECT count(*) > 0 FROM pragma_table_info('tool_traces') WHERE name=?`, column.name).Scan(&exists); err != nil {
@@ -42,14 +43,15 @@ func initializeExposureSchema(db *OptimizerDB) error {
 			return err
 		}
 	}
-	// Preserve duplicate rows as legacy; one exposure and operation is one unit.
-	if _, err := db.db.Exec(`UPDATE tool_traces SET exposure_id=NULL WHERE exposure_id IS NOT NULL AND id NOT IN (SELECT MIN(id) FROM tool_traces WHERE exposure_id IS NOT NULL GROUP BY exposure_id,operation)`); err != nil {
+	// Historical exposures have no recoverable action identity. Keep their
+	// provenance intact, but exclude them from verified comparisons.
+	if _, err := db.db.Exec(`DROP INDEX IF EXISTS idx_trace_exposure_operation`); err != nil {
 		return err
 	}
 	if _, err := db.db.Exec(`DROP INDEX IF EXISTS idx_trace_exposure`); err != nil {
 		return err
 	}
-	_, err := db.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_trace_exposure_operation ON tool_traces(exposure_id,operation)`)
+	_, err := db.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_trace_exposure_action_operation ON tool_traces(exposure_id,action_identity,operation) WHERE exposure_id IS NOT NULL AND action_identity<>''`)
 	return err
 }
 
@@ -119,15 +121,15 @@ func (o *OptimizerDB) recordPromptGuideExposures(guides []prompts.ToolGuideExpos
 	return result
 }
 
-func (o *OptimizerDB) logExposedToolTrace(tool string, success bool, recovery int, token, message string, duration int64, operation string) error {
+func (o *OptimizerDB) logExposedToolTrace(tool string, success bool, recovery int, token, message string, duration int64, operation, action string) error {
 	id, err := strconv.ParseInt(strings.TrimPrefix(token, "exposure:"), 10, 64)
 	if err != nil {
 		return err
 	}
-	_, err = o.db.Exec(`INSERT INTO tool_traces(tool_name,success,recovery_loops,prompt_version,error_message,execution_time_ms,exposure_id,operation)
-		SELECT manual, ?, ?, version, ?, ?, id, ? FROM prompt_exposures WHERE id=? AND manual=?
- ON CONFLICT(exposure_id,operation) DO UPDATE SET success=MIN(tool_traces.success,excluded.success),
+	_, err = o.db.Exec(`INSERT INTO tool_traces(tool_name,success,recovery_loops,prompt_version,error_message,execution_time_ms,exposure_id,operation,action_identity)
+		SELECT manual, ?, ?, version, ?, ?, id, ?, ? FROM prompt_exposures WHERE id=? AND manual=?
+ ON CONFLICT(exposure_id,action_identity,operation) WHERE exposure_id IS NOT NULL AND action_identity<>'' DO UPDATE SET success=MIN(tool_traces.success,excluded.success),
  recovery_loops=MAX(tool_traces.recovery_loops,excluded.recovery_loops),
- error_message=CASE WHEN excluded.success=0 THEN excluded.error_message ELSE tool_traces.error_message END`, success, recovery, message, duration, operation, id, prompts.ToolManualID(tool))
+ error_message=CASE WHEN excluded.success=0 THEN excluded.error_message ELSE tool_traces.error_message END`, success, recovery, message, duration, operation, action, id, prompts.ToolManualID(tool))
 	return err
 }

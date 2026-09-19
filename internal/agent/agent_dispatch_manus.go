@@ -16,24 +16,24 @@ import (
 
 func dispatchManusCall(ctx context.Context, req manusCallArgs, cfg *config.Config) string {
 	if cfg == nil || !cfg.Manus.Enabled {
-		return manusErrorOutput("Manus is disabled. Enable manus.enabled and configure the API key in the vault.")
+		return manusErrorOutput(ctx, "Manus is disabled. Enable manus.enabled and configure the API key in the vault.")
 	}
 	if strings.TrimSpace(cfg.Manus.APIKey) == "" {
-		return manusErrorOutput("Manus API key is not configured in the vault.")
+		return manusErrorOutput(ctx, "Manus API key is not configured in the vault.")
 	}
 	client, err := manus.NewClient(cfg.Manus.APIKey, manus.ClientConfig{
 		Timeout:        time.Duration(cfg.Manus.RequestTimeoutSeconds) * time.Second,
 		MaxResultBytes: int64(cfg.Manus.MaxResultBytes),
 	})
 	if err != nil {
-		return manusErrorOutput(err.Error())
+		return manusErrorOutput(ctx, err.Error())
 	}
 	return dispatchManusCallWithClient(ctx, req, cfg, client)
 }
 
 func dispatchManusCallWithClient(ctx context.Context, req manusCallArgs, cfg *config.Config, client *manus.Client) string {
 	if cfg == nil || !cfg.Manus.Enabled {
-		return manusErrorOutput("Manus is disabled.")
+		return manusErrorOutput(ctx, "Manus is disabled.")
 	}
 	op := strings.ToLower(strings.TrimSpace(req.Operation))
 	policy := manusPolicyFromConfig(cfg.Manus)
@@ -55,15 +55,15 @@ func dispatchManusCallWithClient(ctx context.Context, req manusCallArgs, cfg *co
 		})
 	}
 	if client == nil {
-		return manusErrorOutput("Manus client is unavailable.")
+		return manusErrorOutput(ctx, "Manus client is unavailable.")
 	}
 	if req.SchemaError != "" {
-		return manusErrorOutput("structured_output_schema is not valid JSON: " + req.SchemaError)
+		return manusErrorOutput(ctx, "structured_output_schema is not valid JSON: "+req.SchemaError)
 	}
 
 	ledger, err := manus.OpenLedger(manus.DefaultLedgerPath(cfg.Directories.DataDir))
 	if err != nil {
-		return manusErrorOutput(err.Error())
+		return manusErrorOutput(ctx, err.Error())
 	}
 	defer ledger.Close()
 	runtime := manus.NewRuntime(client, ledger, manus.RuntimeConfig{
@@ -79,33 +79,33 @@ func dispatchManusCallWithClient(ctx context.Context, req manusCallArgs, cfg *co
 	case "get_credits":
 		credits, err := client.AvailableCredits(ctx)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "credits": credits.Data})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "credits": credits.Data})
 	case "list_projects":
 		items, err := client.ListProjects(ctx)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "projects": annotateManusProjects(items, policy.AllowedProjectIDs)})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "projects": annotateManusProjects(items, policy.AllowedProjectIDs)})
 	case "list_connectors":
 		items, err := client.ListConnectors(ctx)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "connectors": annotateManusConnectors(items, policy.AllowedConnectorIDs)})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "connectors": annotateManusConnectors(items, policy.AllowedConnectorIDs)})
 	case "list_skills":
 		if req.ProjectID != "" && !manusIDAllowed(policy.AllowedProjectIDs, req.ProjectID) {
-			return manusErrorOutput(fmt.Sprintf("Manus project %q is not allowlisted.", req.ProjectID))
+			return manusErrorOutput(ctx, fmt.Sprintf("Manus project %q is not allowlisted.", req.ProjectID))
 		}
 		items, err := client.ListSkills(ctx, req.ProjectID)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "skills": annotateManusSkills(items, policy.AllowedSkillIDs)})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "skills": annotateManusSkills(items, policy.AllowedSkillIDs)})
 	case "create_task":
 		if strings.TrimSpace(req.Message) == "" {
-			return manusErrorOutput("message is required for create_task")
+			return manusErrorOutput(ctx, "message is required for create_task")
 		}
 		profile := strings.TrimSpace(req.AgentProfile)
 		if profile == "" {
@@ -122,36 +122,36 @@ func dispatchManusCallWithClient(ctx context.Context, req manusCallArgs, cfg *co
 			StructuredOutputSchema: req.StructuredOutputSchema,
 		}, req.LocalFilePaths)
 		if err != nil {
-			return manusOperationErrorOutput(op, err, map[string]interface{}{"task": result})
+			return manusOperationErrorOutput(ctx, op, err, map[string]interface{}{"task": result})
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "task": result})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "task": result})
 	case "list_tracked_tasks":
 		items, err := runtime.ListTrackedTasks(ctx, req.Limit)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "tasks": items})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "tasks": items})
 	case "get_task":
 		task, err := runtime.GetTask(ctx, req.TaskID)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "task": task})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "task": task})
 	case "list_messages":
 		page, err := runtime.ListMessages(ctx, manus.ListMessagesOptions{TaskID: req.TaskID, Cursor: req.Cursor, Limit: req.Limit})
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "page": page})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "page": page})
 	case "wait_for_task":
 		state, err := runtime.WaitForTask(ctx, req.TaskID, time.Duration(req.WaitSeconds)*time.Second)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "task_state": state})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "task_state": state})
 	case "send_message":
 		if strings.TrimSpace(req.Message) == "" {
-			return manusErrorOutput("message is required for send_message")
+			return manusErrorOutput(ctx, "message is required for send_message")
 		}
 		result, err := runtime.SendMessage(ctx, manus.SendMessageRequest{
 			TaskID: req.TaskID, Content: req.Message, Connectors: req.ConnectorIDs,
@@ -159,22 +159,22 @@ func dispatchManusCallWithClient(ctx context.Context, req manusCallArgs, cfg *co
 			AgentProfile: req.AgentProfile, StructuredOutputSchema: req.StructuredOutputSchema,
 		}, req.LocalFilePaths)
 		if err != nil {
-			return manusOperationErrorOutput(op, err, map[string]interface{}{"task": result})
+			return manusOperationErrorOutput(ctx, op, err, map[string]interface{}{"task": result})
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "task": result})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "task": result})
 	case "stop_task":
 		if err := runtime.StopTask(ctx, req.TaskID); err != nil {
-			return manusOperationErrorOutput(op, err, map[string]interface{}{"task_id": req.TaskID})
+			return manusOperationErrorOutput(ctx, op, err, map[string]interface{}{"task_id": req.TaskID})
 		}
 		return manusJSONOutput(map[string]interface{}{"status": "success", "operation": op, "task_id": req.TaskID})
 	case "download_attachments":
 		paths, err := runtime.DownloadAttachments(ctx, req.TaskID, req.EventID)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusErrorOutput(ctx, err.Error())
 		}
-		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "paths": paths})
+		return manusExternalOutput(ctx, map[string]interface{}{"status": "success", "operation": op, "paths": paths})
 	default:
-		return manusErrorOutput(fmt.Sprintf("unknown Manus operation %q", op))
+		return manusErrorOutput(ctx, fmt.Sprintf("unknown Manus operation %q", op))
 	}
 }
 
@@ -226,12 +226,12 @@ func manusJSONOutput(payload map[string]interface{}) string {
 	return "Tool Output: " + string(raw)
 }
 
-func manusExternalOutput(payload map[string]interface{}) string {
+func manusExternalOutput(ctx context.Context, payload map[string]interface{}) string {
 	raw, _ := json.Marshal(payload)
-	return "Tool Output: " + security.IsolateExternalData(security.Scrub(string(raw)))
+	return externalToolOutput(ctx, string(raw))
 }
 
-func manusOperationErrorOutput(operation string, err error, payload map[string]interface{}) string {
+func manusOperationErrorOutput(ctx context.Context, operation string, err error, payload map[string]interface{}) string {
 	var applied *manus.RemoteAppliedError
 	if errors.As(err, &applied) {
 		result := make(map[string]interface{}, len(payload)+8)
@@ -247,18 +247,18 @@ func manusOperationErrorOutput(operation string, err error, payload map[string]i
 			result["task_url"] = applied.TaskURL
 		}
 		result["message"] = security.Scrub(applied.Error())
-		return manusExternalOutput(result)
+		return manusExternalOutput(ctx, result)
 	}
 	var unknown *manus.OutcomeUnknownError
 	if errors.As(err, &unknown) {
-		return manusExternalOutput(map[string]interface{}{
+		return manusExternalOutput(ctx, map[string]interface{}{
 			"status": "error", "operation": operation, "outcome": "unknown",
 			"retry_safe": false, "message": security.Scrub(unknown.Error()),
 		})
 	}
-	return manusErrorOutput(err.Error())
+	return manusErrorOutput(ctx, err.Error())
 }
 
-func manusErrorOutput(message string) string {
-	return manusExternalOutput(map[string]interface{}{"status": "error", "message": security.Scrub(message)})
+func manusErrorOutput(ctx context.Context, message string) string {
+	return manusExternalOutput(ctx, map[string]interface{}{"status": "error", "message": security.Scrub(message)})
 }
