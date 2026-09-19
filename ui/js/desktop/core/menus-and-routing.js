@@ -1728,7 +1728,7 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.SysWorldApp.render === 'function') {
-                return window.SysWorldApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus }));
+                return window.SysWorldApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog, notify: showDesktopNotification, setWindowMenus, clearWindowMenus }));
             }
         }
         if (appId === 'nasscad') {

@@ -107,11 +107,12 @@
                     formatUptimePhrase('desktop.system_info_uptime_minutes',{minutes});
             }
             if(format==='date')return String(value).startsWith('0001-')?'—':new Date(value).toLocaleString();
-            if(format==='bytes'){
+            if(format==='bytes'||format==='rate'){
                 const units=['bytes','kib','mib','gib','tib'];let n=value,i=0;while(n>=1024&&i<4){n/=1024;i++;}
-                return n.toLocaleString(undefined,{maximumFractionDigits:1})+' '+L('desktop.'+units[i]);
+                return n.toLocaleString(undefined,{maximumFractionDigits:1})+' '+L('desktop.'+units[i])+(format==='rate'?'/s':'');
             }
             if(format==='percent')return Number(value).toLocaleString(undefined,{maximumFractionDigits:1})+'%';
+            if(format==='temperature')return Number(value).toLocaleString(undefined,{maximumFractionDigits:1})+' °C';
             if(format==='number')return Number(value).toLocaleString();
             return String(value);
         }

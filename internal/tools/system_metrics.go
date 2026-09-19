@@ -23,10 +23,11 @@ type MetricsResult struct {
 
 // SystemMetrics holds all collected metrics.
 type SystemMetrics struct {
-	CPU     CPUMetrics     `json:"cpu"`
-	Memory  MemoryMetrics  `json:"memory"`
-	Disk    DiskMetrics    `json:"disk"`
-	Network NetworkMetrics `json:"network"`
+	Available map[string]bool `json:"available"`
+	CPU       CPUMetrics      `json:"cpu"`
+	Memory    MemoryMetrics   `json:"memory"`
+	Disk      DiskMetrics     `json:"disk"`
+	Network   NetworkMetrics  `json:"network"`
 }
 
 type CPUMetrics struct {
@@ -143,12 +144,13 @@ func GetSystemMetrics(target string) string {
 	}
 
 	// "all", "cpu", "memory", "disk", "processes" — original behaviour
-	metrics := SystemMetrics{}
+	metrics := SystemMetrics{Available: map[string]bool{"cpu": false, "memory": false, "disk": false, "network": false}}
 
 	// CPU
 	if target == "all" || target == "cpu" || target == "" {
 		usage, err := cpu.Percent(time.Second, false)
 		if err == nil && len(usage) > 0 {
+			metrics.Available["cpu"] = true
 			metrics.CPU.UsagePercent = usage[0]
 		}
 		info, err := cpu.Info()
@@ -167,6 +169,7 @@ func GetSystemMetrics(target string) string {
 	if target == "all" || target == "memory" || target == "" {
 		vm, err := mem.VirtualMemory()
 		if err == nil {
+			metrics.Available["memory"] = true
 			metrics.Memory.Total = vm.Total
 			metrics.Memory.Available = vm.Available
 			metrics.Memory.Used = vm.Used
@@ -178,6 +181,7 @@ func GetSystemMetrics(target string) string {
 	if target == "all" || target == "disk" || target == "" {
 		usageDisk, err := disk.Usage("/")
 		if err == nil {
+			metrics.Available["disk"] = true
 			metrics.Disk.Total = usageDisk.Total
 			metrics.Disk.Free = usageDisk.Free
 			metrics.Disk.Used = usageDisk.Used
@@ -189,6 +193,7 @@ func GetSystemMetrics(target string) string {
 	if target == "all" || target == "" {
 		io, err := net.IOCounters(false)
 		if err == nil && len(io) > 0 {
+			metrics.Available["network"] = true
 			metrics.Network.BytesSent = io[0].BytesSent
 			metrics.Network.BytesRecv = io[0].BytesRecv
 		}

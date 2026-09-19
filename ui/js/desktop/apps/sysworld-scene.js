@@ -12,6 +12,9 @@ import { obstaclesFrom } from './sysworld-navigation.js';
 import { createMemoryHologram } from './sysworld-hologram.js';
 import { createAtmosphere } from './sysworld-atmosphere.js';
 import { createDrones } from './sysworld-drones.js';
+import { createExperience } from './sysworld-experience.js';
+import { createWeather } from './sysworld-weather.js';
+import { interiors } from './sysworld-exploration.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -85,7 +88,6 @@ export const placements = [];
   }
   place('skybridge', 39, -55, 15);
   place('server-rack', -55, -34, .5); place('server-rack', -49, -34, .5);
-  place('data-tram', 33, 59, .5); place('data-tram', -44, -77, .5);
   // Distant buildings are scenery, never presented as additional real entities.
   for (let i = 0; i < 48; i++) {
     const x = (i % 12 - 5.5) * 22, z = -143 - Math.floor(i / 12) * 29;
@@ -93,7 +95,7 @@ export const placements = [];
     place(i % 2 ? 'data-tower-a' : 'data-tower-b', x, z, -3, 0, [.8, s, .8]);
   }
 }
-export const obstacles = obstaclesFrom(placements);
+export const obstacles = [...obstaclesFrom(placements), ...interiors.flatMap(r=>[-3,3].flatMap(dx=>[-3,3].map(dz=>({x:r.x+dx,z:r.z+dz,r:4.25,asset:'interior'}))))];
 
 export async function createCity(host, options) {
   let disposed = false, visible = true, mode = 'orbit', quality = options.quality || 'auto';
@@ -123,7 +125,7 @@ export async function createCity(host, options) {
   const environment = pmrem.fromScene(room, .05);
   scene.environment = environment.texture; scene.environmentIntensity = .48;
   room.dispose(); pmrem.dispose();
-  scene.add(new THREE.HemisphereLight(0xc0dcff, 0x10202d, .8));
+  const hemisphere = new THREE.HemisphereLight(0xc0dcff, 0x10202d, .8);scene.add(hemisphere);
   const sun = new THREE.DirectionalLight(0xc8deff, 3.2);
   sun.position.set(-70, 145, 85); sun.castShadow = true;
   Object.assign(sun.shadow.camera, { left: -120, right: 120, top: 120, bottom: -120, near: 1, far: 360 });
@@ -151,6 +153,14 @@ export async function createCity(host, options) {
   const memoryDistrict = districts.find(d => d.id === 'memory');
   const hologram = createMemoryHologram(scene, memoryDistrict, { roof: 21, label: options.memoryLabel });
   const drones = createDrones(scene);
+  const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,ground});
+  const experience = createExperience(scene,{
+    camera,districts,tier,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced,
+    assetURL:file=>options.resourceURL('/3d/system-world/v2/'+file),
+    onInteraction:options.onInteraction,onDiscover:options.onDiscover,onSound:options.onSound,onTerminal:options.onTerminal,
+    onEnvironment:indoor=>{weather.setIndoor(indoor);options.onEnvironment?.(indoor);},
+    onError:options.onError,onReady:()=>{renderer.shadowMap.needsUpdate=true;},
+  });
   const selection = ownMesh(new THREE.RingGeometry(1, 1.035, 64),
     new THREE.MeshBasicMaterial({ color: 0x8ee8ee, transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide }));
   selection.rotation.x = -Math.PI / 2; selection.visible = false; world.add(selection);
@@ -257,7 +267,7 @@ export async function createCity(host, options) {
       sun.shadow.mapSize.set(config.shadow, config.shadow);
       sun.shadow.map?.dispose(); sun.shadow.map = null;
     }
-    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; atmosphere.setTier(tier);
+    renderer.shadowMap.needsUpdate = true; bloom.enabled = config.bloom; atmosphere.setTier(tier);experience.setTier(tier);weather.setTier(tier);drones.setTier(tier);
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
@@ -275,6 +285,7 @@ export async function createCity(host, options) {
     }
   }
   function setMode(value) {
+    experience.endRide();
     keys.clear(); flight = null; mode = value; controls.enabled = mode === 'orbit' || mode === 'tour';
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     if (mode === 'street') {
@@ -309,6 +320,7 @@ export async function createCity(host, options) {
   listen(canvas, 'pointercancel', () => { down = null; keys.clear(); });
   listen(canvas, 'keydown', e => {
     if (e.key === 'Escape') { setMode('orbit'); e.preventDefault(); return; }
+    if(mode==='street'&&e.code==='KeyE'&&!e.repeat){experience.interact();e.preventDefault();return;}
     if (mode === 'street' && ['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft'].includes(e.code)) {
       keys.add(e.code); e.preventDefault(); e.stopPropagation();
     }
@@ -323,15 +335,14 @@ export async function createCity(host, options) {
     let forward = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'));
     let right = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     if (!forward && !right) return;
+    if(experience.walkRide(forward,dt))return;
     const scale = speed / Math.hypot(forward, right);
     camera.getWorldDirection(v); v.y = 0; v.normalize();
     const dx = (v.x * forward - v.z * right) * scale, dz = (v.z * forward + v.x * right) * scale;
-    const allowed = (x, z) => Math.abs(x) < 82 && z > -88 && z < 76 &&
-      !districts.some(d => Math.abs(x-d.x) < d.radius+1 && Math.abs(z-d.z) < d.radius+1) &&
-      !(z < -42 && z > -73 && x > -10 && x < 60);
+    const allowed = (x,z)=>experience.move(x,z,camera.position);
     if (allowed(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
     if (allowed(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
-    camera.position.y = 2.4;
+    if(!experience.isRiding())camera.position.y = 2.4+experience.floor(camera.position.x,camera.position.z);
   }
   function update(dt, elapsed) {
     if (disposed || !visible || failed || mode === 'map') return;
@@ -351,6 +362,8 @@ export async function createCity(host, options) {
     camera.getWorldDirection(v);
     options.onListener?.(camera.position.x,camera.position.y,camera.position.z,v.x,v.z);
     const busy = !!options.busy?.();
+    experience.update(dt,!reduced,mode);
+    if(weather.update(dt,elapsed,!reduced))renderer.shadowMap.needsUpdate=true;
     reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
     life?.update(dt, !reduced);
     atmosphere.setBusy(busy); atmosphere.update(dt, elapsed, camera, !reduced);
@@ -377,7 +390,7 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose(); hologram.dispose(); drones.dispose(); atmosphere.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
+    life?.dispose();experience.dispose();weather.dispose(); hologram.dispose(); drones.dispose(); atmosphere.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
@@ -387,12 +400,15 @@ export async function createCity(host, options) {
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
   return {
     districts, canvas, update, focus(id) { cancelTour(); focus(id); }, setMode, setQuality, setData, dispose,
+    interact(){experience.interact();},visit(id){setMode('street');experience.visit(id);},enter(id){setMode('street');experience.destination(id);},
+    setEnvironment(value){weather.set(value);renderer.shadowMap.needsUpdate=true;},
     setVisible(value) { visible = value; if(!value) { keys.clear(); down = null; if(document.pointerLockElement===canvas) document.exitPointerLock(); } },
-    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value); if(value && mode === 'tour') setMode('orbit'); },
-    setHologram(texts, source) { hologram.setTexts(texts, source); },
+    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value);if(value)experience.endRide(); if(value && mode === 'tour') setMode('orbit'); },
+    setHologram(texts, source) { hologram.setTexts(texts, source); experience.setMemory(texts); },
+    setWorld(snapshot,replay) { experience.setWorld(snapshot,replay); },
     moveKey(key, pressed) { if(pressed) keys.add(key); else keys.delete(key); },
     lockPointer() { if(mode === 'street') return canvas.requestPointerLock(); },
     project(id) { const d = districts.find(d => d.id === id); if(!d) return null; v.set(d.x,d.height+4,d.z).project(camera); return { x:(v.x+1)*width/2,y:(1-v.y)*height/2,visible:v.z<1 && v.z>-1 }; },
-    stats() { return { life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), drones:drones.stats(), frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), drones:drones.stats(), frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes+experience.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

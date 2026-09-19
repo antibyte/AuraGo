@@ -23,11 +23,11 @@ Existing REST/SSE sources share one browser read model across open windows;
 source status and timestamps remain visible. Search, bounded live events,
 entity details and selected KG neighbourhoods are available in all 16 locales.
 
-Still planned: the server-side read model and persistent 24-hour history,
-timeline/replay, metric charts, deeper relationship-driven traffic, ambient
-occlusion and the large-installation stress acceptance. The current event feed
-is session-local metadata; it is not a substitute for recorded history.
-The sections below retain the complete target and its remaining acceptance.
+System World 2 now adds the shared server read model, persistent 24-hour history,
+timeline/replay, metric charts, accessible interiors, articulated residents and
+tram travel. See [System World 2](system-world-2.md) for the implemented contracts,
+asset budgets, test commands and acceptance boundaries. Ambient occlusion remains
+outside the current renderer. The sections below preserve the original design.
 
 Current checks: `node scripts/test-system-world.mjs`,
 `node scripts/build-system-world.js --check`, focused UI tests and the

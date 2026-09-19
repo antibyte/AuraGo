@@ -148,6 +148,14 @@ export function createAtmosphere(scene, options = {}) {
   let busy = false, tier = 'high';
   return {
     post, sea,
+    setLighting(day, evening, direction) {
+      sunDir.copy(direction).normalize();
+      zenith.set(0x05091a).lerp(new THREE.Color(0x286584),day);
+      horizon.set(0x14324c).lerp(new THREE.Color(0x9fb9bd),day);
+      warm.set(evening>.1?0xda713a:0x7a3d2a);
+      haze.copy(scene.fog.color);stars.visible=day<.35;
+      sea.material.uniforms.sky.value.copy(horizon).multiplyScalar(.7);
+    },
     setTier(value) {
       tier = value;
       const rich = tier !== 'low';

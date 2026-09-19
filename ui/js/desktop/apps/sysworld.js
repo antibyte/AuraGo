@@ -33,7 +33,7 @@
         };
         const syncVisibility=()=>{
             inst.visible=isVisible();inst.city?.setVisible(inst.visible&&inst.mode!=='map');
-            inst.sound?.setActive(inst.visible&&inst.mode!=='map'&&(!win||win.classList.contains('active')));
+            inst.sound?.setActive(!inst.replaying&&inst.visible&&inst.mode!=='map'&&(!win||win.classList.contains('active')));
             if(!inst.visible||inst.mode==='map'){cancelAnimationFrame(inst.raf);inst.raf=0;last=0;}
             else if(inst.city&&!inst.raf)inst.raf=requestAnimationFrame(tick);
         };
@@ -44,9 +44,9 @@
             inst.mode=mode;inst.city?.setMode(mode);inst.hud.mode(mode);syncVisibility();
             if(mode==='street')inst.city?.canvas.focus({preventScroll:true});
         };
-        inst.select=id=>{
+        inst.select=(id,move=true)=>{
             if(inst.disposed)return;const e=inst.entities.find(e=>e.id===id);if(!e)return;
-            inst.selected=id;inst.hud.select(id);inst.city?.focus(e.district);
+            inst.selected=id;inst.hud.select(id);if(move)inst.city?.focus(e.district);
             if(e.kind==='kgnode'&&id!=='graph')loadNeighborhood(e);
         };
         let detailRequest=null;
@@ -71,10 +71,23 @@
         root.addEventListener('pointerdown',unlockSound);
         inst.cleanup.push(()=>root.removeEventListener('pointerdown',unlockSound));
         inst.hud=NS().createHud(inst);inst.hud.mode('orbit');
+        inst.worldControls=NS().createWorldControls(inst);
+        inst.applyWorldSnapshot=snapshot=>{
+            syncVisibility();
+            if(snapshot){inst.artifacts?.request?.abort();inst.city?.setHologram([],'local');}
+            if(!snapshot){inst.entities=inst.liveEntities||[];inst.hud.update(inst.snapshot,inst.entities);inst.city?.setData(inst.entities,inst.snapshot.events);inst.city?.setWorld(inst.snapshot.sources.world?.data,false);return;}
+            const metricRows=NS().worldRows||(()=>[]);
+            const rows=snapshot.entities.map(e=>({...e,label:e.label||inst.L(NS().districts.find(d=>d[0]===e.id)?.[1]||'sysworld.city.unavailable'),at:e.at,source:e.source||'system-world/history',stale:snapshot.at-e.at>90000,rows:metricRows(e,snapshot.metrics),payload:{}}));
+            inst.entities=rows;
+            const metrics=snapshot.metrics;
+            const data={sources:{system:{data:{cpu:{usage_percent:metrics.cpu},memory:{used_percent:metrics.ram}},at:snapshot.at}},events:[]};
+            inst.hud.update(data,rows);inst.city?.setData(rows,[]);inst.city?.setWorld(snapshot,true);
+        };
         inst.cleanup.push(NS().data.subscribe(snapshot=>{
             if(inst.disposed)return;
-            const rows=NS().data.entities(snapshot,inst.L);inst.entities=rows;inst.snapshot=snapshot;
-            inst.hud.update(snapshot,rows);inst.city?.setData(rows,snapshot.events);inst.refreshArtifactFallback?.();
+            const rows=NS().data.entities(snapshot,inst.L);inst.liveEntities=rows;if(!inst.replaying)inst.entities=rows;inst.snapshot=snapshot;
+            if(!inst.replaying){inst.hud.update(snapshot,rows);inst.city?.setData(rows,snapshot.events);inst.city?.setWorld(snapshot.sources.world?.data,false);}inst.refreshArtifactFallback?.();
+            inst.worldControls?.update(snapshot.sources.world?.data);
             if(!inst.selected){inst.selected='agent';inst.hud.select('agent');}
         }));
         const visibility=()=>syncVisibility();
@@ -100,11 +113,11 @@
         const fallbackArtifacts=()=>(inst.entities.find(e=>e.id==='memory')?.rows||[])
             .filter(r=>typeof r.value==='number'&&Number.isFinite(r.value))
             .map(r=>inst.L(r.key)+' '+Number(r.value).toLocaleString());
-        const applyFallback=inst.refreshArtifactFallback=()=>{if(artifacts.source!=='live')inst.city?.setHologram(fallbackArtifacts(),'local');};
+        const applyFallback=inst.refreshArtifactFallback=()=>{if(!inst.replaying&&artifacts.source!=='live')inst.city?.setHologram(fallbackArtifacts(),'local');};
         const scheduleArtifacts=delay=>{if(inst.disposed)return;clearTimeout(artifacts.timer);artifacts.timer=setTimeout(pollArtifacts,delay);};
         async function pollArtifacts(){
             artifacts.timer=0;if(inst.disposed)return;
-            if(!inst.city||!inst.visible||inst.mode==='map'){scheduleArtifacts(5000);return;}
+            if(!inst.city||!inst.visible||inst.mode==='map'||inst.replaying){scheduleArtifacts(5000);return;}
             const controller=new AbortController();artifacts.request=controller;
             const timeout=setTimeout(()=>controller.abort(),10000);
             let delay=24000;
@@ -112,7 +125,7 @@
                 const response=await fetch('/api/desktop/system-world/memory-artifacts',{credentials:'same-origin',cache:'no-store',signal:controller.signal});
                 if(response.status!==429){
                     if(!response.ok)throw Error('artifacts unavailable');
-                    const data=await response.json();if(inst.disposed)return;
+                    const data=await response.json();if(inst.disposed||inst.replaying)return;
                     const list=Array.isArray(data?.artifacts)?data.artifacts.filter(a=>typeof a==='string'):[];
                     artifacts.failures=0;
                     if(list.length){artifacts.source='live';artifacts.count=list.length;inst.city?.setHologram(list,'live');}
@@ -134,9 +147,12 @@
                     label:ctx.t('desktop.app_system_world'),memoryLabel:ctx.t('sysworld.zone.memory'),quality:inst.quality,reducedMotion:motionOff(),signal:inst.load.signal,
                     assetURL:file=>versioned('/3d/system-world/v1/'+file),resourceURL:versioned,
                     onListener:(x,y,z,fx,fz)=>inst.sound?.setListener(x,y,z,fx,fz),
+                    onInteraction:(...args)=>inst.worldControls.interaction(...args),
+                    onDiscover:id=>inst.worldControls.discover(id),onTerminal:id=>inst.worldControls.terminal(id),
+                    onSound:(kind,x,y,z)=>inst.sound?.effect(kind,x,y,z),onEnvironment:value=>inst.worldControls.environment(value),
                     onRobotError:()=>{if(!inst.disposed){inst.robotError=true;inst.hud.error('sysworld.city.robot_error');}},
                     onTourFocus:id=>{if(!inst.disposed){inst.selected=id;inst.hud.select(id);}},
-                    onSelect:id=>inst.select(id),busy:()=>!!inst.snapshot?.sources.overview?.data?.agent?.busy,
+                    onSelect:id=>inst.select(id),busy:()=>inst.replaying?inst.entities.find(e=>e.id==='agent')?.state==='running':!!inst.snapshot?.sources.overview?.data?.agent?.busy,
                     onReady:()=>{if(!inst.disposed&&!inst.robotError)inst.hud.ready();},
                     onError:()=>{if(!inst.disposed)inst.hud.error('sysworld.city.asset_error');},
                     onQuality:(value,actual)=>{if(!inst.disposed)inst.hud.quality(value,actual);},
@@ -144,7 +160,7 @@
                     onContextLost:()=>{if(!inst.disposed){inst.setMode('map');inst.hud.error('sysworld.city.map_fallback');}},
                 });
                 if(inst.disposed){city.dispose();return;}
-                inst.city=city;city.setData(inst.entities,inst.snapshot?.events);city.setMode(inst.mode);syncVisibility();
+                inst.city=city;city.setData(inst.entities,inst.snapshot?.events);city.setWorld(inst.snapshot?.sources.world?.data,!!inst.replaying);city.setMode(inst.mode);inst.worldControls.ready();syncVisibility();
                 applyFallback();scheduleArtifacts(1500);
             }catch(_){
                 if(inst.disposed)return;inst.mode='map';inst.hud.mode('map');inst.hud.error('sysworld.city.map_fallback');syncVisibility();
@@ -155,7 +171,7 @@
     function dispose(windowId) {
         const inst=instances.get(windowId);if(!inst)return;
         inst.disposed=true;inst.load.abort();cancelAnimationFrame(inst.raf);
-        inst.cleanup.forEach(fn=>fn());inst.sound?.dispose();inst.city?.dispose();inst.hud.dispose();inst.root.remove();instances.delete(windowId);
+        inst.cleanup.forEach(fn=>fn());inst.worldControls?.dispose();inst.sound?.dispose();inst.city?.dispose();inst.hud.dispose();inst.root.remove();instances.delete(windowId);
     }
     // Bounded read-only diagnostics used by the rendering/lifecycle acceptance check.
     function inspect(windowId) {

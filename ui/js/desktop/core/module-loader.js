@@ -359,6 +359,7 @@
             scripts: [
                 '/js/desktop/apps/sysworld-data.js',
                 '/js/desktop/apps/sysworld-hud.js',
+                '/js/desktop/apps/sysworld-controls.js',
                 '/js/desktop/apps/sysworld.js'
             ]
         }

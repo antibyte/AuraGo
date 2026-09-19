@@ -6,9 +6,9 @@ import { createNavigator } from './sysworld-navigation.js';
 // Block loops run as right-turn circuits, so the right-hand lane hugs each block's own kerb and
 // residents turning at a shared crossing never sweep through its centre.
 export const routes = [
-  [[-67,13],[-18,13],[-18,59],[-67,59]],
-  [[-18,13],[18,13],[18,59],[-18,59]],
-  [[18,13],[67,13],[67,59],[18,59]],
+  [[-67,-77],[-18,-77],[-18,-32],[-67,-32]],
+  [[-18,-77],[18,-77],[18,-32],[-18,-32]],
+  [[18,-77],[67,-77],[67,-32],[18,-32]],
   [[18,13],[18,-32],[67,-32],[67,13]],
   [[-67,-77],[-18,-77],[-18,-32],[-67,-32]],
 ];

@@ -46,8 +46,9 @@ const (
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.
 type SSEBroadcaster struct {
-	mu      sync.RWMutex
-	clients map[chan string]string
+	mu            sync.RWMutex
+	clients       map[chan string]string
+	worldObserver func(SSEEventType, any)
 }
 
 // NewSSEBroadcaster creates a new broadcaster instance.
@@ -125,6 +126,12 @@ func (b *SSEBroadcaster) broadcastToSession(sessionID, msg string) int {
 // BroadcastType sends a typed SSE event with a structured payload to all clients.
 // Messages are formatted as {"type":"<eventType>","payload":<payload>}.
 func (b *SSEBroadcaster) BroadcastType(eventType SSEEventType, payload any) {
+	b.mu.RLock()
+	observer := b.worldObserver
+	b.mu.RUnlock()
+	if observer != nil {
+		observer(eventType, payload)
+	}
 	msg, err := json.Marshal(struct {
 		Type    SSEEventType `json:"type"`
 		Payload any          `json:"payload"`
@@ -138,6 +145,12 @@ func (b *SSEBroadcaster) BroadcastType(eventType SSEEventType, payload any) {
 // BroadcastToSession sends a typed event only to clients subscribed to the
 // exact session. It reports whether at least one matching client accepted it.
 func (b *SSEBroadcaster) BroadcastToSession(sessionID string, eventType SSEEventType, payload any) bool {
+	b.mu.RLock()
+	observer := b.worldObserver
+	b.mu.RUnlock()
+	if observer != nil {
+		observer(eventType, payload)
+	}
 	msg, err := json.Marshal(struct {
 		Type    SSEEventType `json:"type"`
 		Payload any          `json:"payload"`

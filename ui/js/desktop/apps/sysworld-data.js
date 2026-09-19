@@ -3,7 +3,7 @@
     const NS = window.SysWorld = window.SysWorld || {};
     const paths = {
         overview: ['/api/dashboard/overview', 10000],
-        system: ['/api/dashboard/system', 30000],
+        world: ['/api/desktop/system-world/snapshot', 10000],
         memory: ['/api/dashboard/memory', 30000],
         activity: ['/api/dashboard/activity', 15000],
         missions: ['/api/missions/v2', 15000],
@@ -16,19 +16,20 @@
         operations: ['/api/operational-issues?status=open&limit=100', 30000],
     };
     const subscribers = new Set(), sources = {}, inFlight = new Map(), events = [], actionStates = new Map();
-    let timer = 0, generation = 0, handlers = [], sequence = 0;
+    let timer = 0, pendingNotify = 0, generation = 0, handlers = [], sequence = 0;
     const number = (...values) => values.find(v => typeof v === 'number' && Number.isFinite(v));
     const list = (value, key) => Array.isArray(value) ? value : Array.isArray(value?.[key]) ? value[key] : Array.isArray(value?.items) ? value.items : [];
     function normalizeSystemMetrics(p) {
         if (!p || typeof p !== 'object') return {};
         return {
-            cpu: number(p.cpu?.usage_percent, p.cpu_percent, p.cpu),
-            ram: number(p.memory?.used_percent, p.memory_percent, p.memory),
-            disk: number(p.disk?.used_percent, p.disk_percent),
+            cpu: p.available?.cpu===false?undefined:number(p.cpu?.usage_percent, p.cpu_percent, p.cpu),
+            ram: p.available?.memory===false?undefined:number(p.memory?.used_percent, p.memory_percent, p.memory),
+            disk: p.available?.disk===false?undefined:number(p.disk?.used_percent, p.disk_percent),
             uptime: number(p.uptime_seconds, p.uptime),
         };
     }
     function notify() {
+        clearTimeout(pendingNotify);pendingNotify=0;
         for (const callback of subscribers) callback({ sources, events });
     }
     async function refresh(key, force = false) {
@@ -45,13 +46,17 @@
             const data = await response.json();
             if (!data || typeof data !== 'object' || data.status === 'error') throw Error('Unavailable');
             if (current !== generation || (key === 'system' && (sources.system?.revision || 0) !== sourceRevision)) return;
-            sources[key] = { data, at: Date.now(), attempt: Date.now(), failed: false, revision: sourceRevision + 1 };
+            sources[key] = { data, at: key==='world'&&Number.isFinite(data.at)?data.at:Date.now(), attempt: Date.now(), failed: false, revision: sourceRevision + 1 };
+            if(key==='world'&&data.at>0&&data.at>=(sources.system?.at||0)){
+                sources.system={data:{cpu:{usage_percent:data.metrics?.cpu,cores:data.metrics?.cores},memory:{used_percent:data.metrics?.ram,total:data.metrics?.memory_total,used:data.metrics?.memory_used},disk:{used_percent:data.metrics?.disk,free:data.metrics?.disk_free},uptime_seconds:data.metrics?.uptime},at:data.at,attempt:Date.now(),failed:false,revision:(sources.system?.revision||0)+1};
+            }
         } catch (_) {
             if (current === generation && (sources[key]?.revision || 0) === sourceRevision) sources[key] = { ...sources[key], failed: true };
         } finally {
             clearTimeout(timeout);
             if (inFlight.get(key) === controller) inFlight.delete(key);
-            if (current === generation) notify();
+            // Coalesce a REST refresh burst into one HTML/data update. SSE remains immediate.
+            if (current === generation&&!pendingNotify) pendingNotify=setTimeout(notify,0);
         }
     }
     function addEvent(kind, label, district, link = {}) {
@@ -124,27 +129,39 @@
         return () => {
             subscribers.delete(callback);
             if (subscribers.size) return;
-            generation++; clearInterval(timer); timer = 0;
+            generation++; clearInterval(timer);clearTimeout(pendingNotify);pendingNotify=0; timer = 0;
             inFlight.forEach(c => c.abort()); inFlight.clear();
             handlers.forEach(([type, fn]) => window.AuraSSE?.off(type, fn)); handlers = [];
             Object.keys(sources).forEach(k => delete sources[k]); events.length = 0; actionStates.clear();
         };
     }
+    NS.worldRows=function(entity,metrics={}){
+        const row=(key,value,format='number')=>({key,value,format}),v=entity.values||{},rows=[];
+        const labels={core_facts:'city.core_facts',chat_messages:'city.chat_messages',notes:'city.notes',vectors:'city.vectors',nodes:'world.total_nodes',relations:'panel.relations',total:'stats.missions',running:'state.running',queued:'state.queued',enabled:'panel.enabled',issues:'city.issues',occurrences:'panel.access_count'};
+        for(const [key,value] of Object.entries(v))if(labels[key])rows.push(row('sysworld.'+labels[key],value));
+        if(entity.id==='agent')rows.push(row('sysworld.panel.model',entity.model,'text'),row('sysworld.city.provider',entity.provider,'text'),row('sysworld.stats.budget',metrics.cost,'money'),row('sysworld.world.tokens_input',metrics.tokens_input),row('sysworld.world.tokens_output',metrics.tokens_output),row('sysworld.world.cache',metrics.cache_tokens));
+        if(entity.id==='infra')for(const[key,label,format]of[['cpu','stats.cpu','percent'],['ram','stats.ram','percent'],['disk','city.disk','percent'],['uptime','stats.uptime','uptime'],['disk_free','city.disk_free','bytes'],['network_sent','world.network_sent','rate'],['network_received','world.network_received','rate'],['temperature','world.temperature','temperature']])rows.push(row('sysworld.'+label,metrics[key],format));
+        return rows;
+    };
     function entities(snapshot, L) {
         const out = [], source = snapshot.sources;
         const get = key => source[key]?.data;
-        const age = key => !source[key]?.at || source[key].failed || Date.now() - source[key].at > Math.max(45000, paths[key][1] * 2.5);
+        const age = key => !source[key]?.at || source[key].failed || Date.now() - source[key].at > Math.max(45000, (paths[key]?.[1]||10000) * 2.5);
         const make = (id, district, kind, label, key, state, rows = [], payload = {}) => {
-            const value = { id, district, kind, label: String(label || id), source: paths[key][0], at: source[key]?.at,
+            const value = { id, district, kind, label: String(label || id), source: paths[key]?.[0]||'/api/desktop/system-world/snapshot', at: source[key]?.at,
                 stale: age(key), state: state || 'unknown', rows, payload };
             out.push(value); return value;
         };
         const row = (key, value, format) => ({ key, value, format });
         const overview = get('overview'), agent = overview?.agent, system = get('system'), metrics = normalizeSystemMetrics(system);
+        const worldMetrics=get('world')?.metrics||{},worldEntities=get('world')?.entities||[];
         make('agent', 'agent', 'core', L('sysworld.zone.core'), 'overview', typeof agent?.busy === 'boolean' ? (agent.busy ? 'running' : 'idle') : 'unknown', [
             row('sysworld.panel.model', agent?.model), row('sysworld.city.provider', agent?.provider),
             row('sysworld.city.personality', agent?.personality), row('sysworld.city.context', agent?.context_window, 'number'),
             row('sysworld.stats.budget', number(get('budget')?.spent, get('budget')?.spent_usd, get('budget')?.total_spent), 'money'),
+            row('sysworld.world.tokens_input',worldMetrics.tokens_input,'number'),row('sysworld.world.tokens_output',worldMetrics.tokens_output,'number'),
+            row('sysworld.world.cache',worldMetrics.cache_tokens,'number'),
+            row('sysworld.world.active_tools',worldEntities.filter(e=>e.kind==='tool'&&e.state==='started'&&Date.now()-e.at<300000).map(e=>e.label).join(', ')||undefined),
         ], agent);
         make('infra', 'infra', 'infrastructure', L('sysworld.zone.infra'), 'system', system ? 'idle' : 'unknown', [
             row('sysworld.stats.cpu', metrics.cpu, 'percent'), row('sysworld.stats.ram', metrics.ram, 'percent'),
@@ -152,6 +169,7 @@
             row('sysworld.panel.model', system?.cpu?.model_name), row('sysworld.city.cores', system?.cpu?.cores, 'number'),
             row('sysworld.city.memory_used', system?.memory?.used, 'bytes'), row('sysworld.city.memory_total', system?.memory?.total, 'bytes'),
             row('sysworld.city.disk_free', system?.disk?.free, 'bytes'),
+            row('sysworld.world.network_sent',worldMetrics.network_sent,'rate'),row('sysworld.world.network_received',worldMetrics.network_received,'rate'),row('sysworld.world.temperature',worldMetrics.temperature,'temperature'),
         ]);
         const integrations = overview?.integrations;
         make('integrations', 'integrations', 'integration', L('sysworld.zone.integrations'), 'overview', integrations ? 'idle' : 'unknown', [
@@ -172,6 +190,7 @@
         ]);
         const nodes = list(get('nodes'), 'nodes'), edges = list(get('edges'), 'edges');
         make('graph', 'graph', 'kgnode', L('sysworld.zone.graph'), 'nodes', get('nodes') ? 'idle' : 'unknown', [
+            row('sysworld.world.total_nodes', worldEntities.find(e=>e.id==='graph')?.values?.nodes, 'number'),
             row('sysworld.city.loaded_nodes', get('nodes') ? nodes.length : undefined, 'number'), row('sysworld.panel.relations', get('edges') ? edges.length : undefined, 'number'),
             row('sysworld.city.coverage', L('sysworld.city.graph_limit')),
         ]);
@@ -195,8 +214,8 @@
             ['daemon', 'infra', 'daemons', list(get('daemons'), 'daemons')], ['tool', 'agent', 'tools', list(get('tools'), 'top_tools')],
         ];
         for (const [kind, district, key, values] of records) for (const p of values) {
-            const id = p.id ?? p.name ?? p.tool; if (id == null) continue;
-            const name = p.name || p.title || (Array.isArray(p.names) ? p.names[0]?.replace(/^\//,'') : null) || id;
+            const id = p.id ?? p.skill_id ?? p.name ?? p.tool; if (id == null) continue;
+            const name = p.name || p.skill_name || p.title || (Array.isArray(p.names) ? p.names[0]?.replace(/^\//,'') : null) || id;
             const state = p.state || p.status || (p.enabled === false || p.disabled === true ? 'disabled' : 'unknown');
             const rate = number(p.success_rate, p.successRate);
             make(kind + ':' + id, district, kind, name, key, state, [
@@ -215,6 +234,11 @@
         for (const issue of issues) if (issue.id) make('issue:' + issue.id, 'operations', 'operations', issue.title || issue.summary || issue.category || issue.id,
             'operations', issue.severity === 'error' || issue.severity === 'critical' ? 'error' : 'waiting',
             [row('sysworld.panel.id',issue.id), row('sysworld.city.severity',issue.severity), row('sysworld.panel.access_count',issue.occurrences,'number')]);
+        // Extra metrics retain their real source and timestamp even when older dashboard
+        // catalog rows enrich the same inspector. Missing samples remain unknown.
+        for(const e of out)if(e.id==='agent'||e.id==='infra'){
+            if(source.world){e.source+=' + /api/desktop/system-world/snapshot';e.stale=e.stale||age('world');}
+        }
         return out;
     }
     NS.data = { subscribe, refresh: () => Object.keys(paths).forEach(k => void refresh(k, true)), entities, normalizeSystemMetrics };

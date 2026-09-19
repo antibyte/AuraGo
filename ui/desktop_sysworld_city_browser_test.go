@@ -90,6 +90,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
                 return Promise.resolve(new Response(JSON.stringify({artifacts:['Andi bevorzugt kurze Antworten auf Deutsch.','Der Homelab-Cluster nutzt Proxmox mit drei Knoten und ZFS-Spiegel.','Nightly maintenance läuft um 03:00 Uhr.','MQTT-Broker: mosquitto auf Port 1883.','<script>alert(1)</script> Gedächtnis darf nie als Markup gelten.']}),{headers:{'Content-Type':'application/json'}}));
             }
             const fixtures={
+                '/api/desktop/system-world/snapshot':{at:Date.now(),metrics:{cpu:12,ram:24,disk:38,uptime:60},entities:[{id:'mission:m1',kind:'mission',district:'missions',label:'Morning briefing',state:'running',at:Date.now(),actions:['cancel']}]},
                 '/api/dashboard/overview':{agent:{model:'AuraGo Spark',provider:'Local',personality:'Thinker',context_window:32768,busy:false},missions:{total:12,running:2,queued:3},integrations:{home_assistant:true,docker:true,telegram:false,mqtt:true,meshcore:true,proxmox:true}},
                 '/api/dashboard/memory':{vectordb_entries:4216,core_memory_facts:68,journal_entries:129,notes_count:48,chat_messages:1864},
                 '/api/dashboard/activity':{coagents:[{id:'c1',name:'Research',status:'running',model:'Spark'}],cron_jobs:[{id:'cron1',name:'Nightly care',expr:'0 3 * * *'}]},
@@ -123,7 +124,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId),dump=JSON.stringify(s);
         if(/Proxmox|alert\(1\)|Gedächtnis/.test(dump))throw Error('Diagnostics leak memory text');
         if(!(cityCalls['/api/desktop/system-world/memory-artifacts']>=1&&cityCalls['/api/desktop/system-world/memory-artifacts']<=2))throw Error('Artifact feed must poll once per interval');
-        if(s.hologram.source!=='live'||s.atmosphere.stars<1000||s.atmosphere.post!==true||s.drones.drones!==3)throw Error('Hologram, atmosphere or drones inactive: '+dump);
+        if(s.hologram.source!=='live'||s.atmosphere.stars<1000||s.atmosphere.post!==true||s.drones.drones!==6)throw Error('Hologram, atmosphere or drones inactive: '+dump);
         if(s.life.navigation.states.some(state=>state!=='cruise'&&state!=='turn'))throw Error('Unknown robot state');}`)
 	page.MustScreenshot(filepath.Join(dir, "city-overview-first.png"))
 	assertRenderedCity(t, filepath.Join(dir, "city-overview-first.png"))
@@ -131,6 +132,18 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 		t.Fatal(errors)
 	}
 	if os.Getenv("AURAGO_SYSTEM_WORLD_FIRST") == "1" {
+		return
+	}
+	if os.Getenv("AURAGO_SYSTEM_WORLD_MODELS") == "1" {
+		verifySystemWorldModels(t, page, dir)
+		return
+	}
+	if os.Getenv("AURAGO_SYSTEM_WORLD_STRESS") == "1" {
+		verifySystemWorldStress(t, page, dir)
+		return
+	}
+	if os.Getenv("AURAGO_SYSTEM_WORLD_EXPANSION") == "1" {
+		verifySystemWorldExpansion(t, page, dir)
 		return
 	}
 	for _, size := range []struct {
@@ -150,6 +163,20 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
                         if(b.left<r.left-1||b.right>r.right+1||b.bottom>r.bottom+1)throw Error('Outside city: '+s);
                     }
                 }`)
+				page.MustEval(`()=>{
+                    const panel=document.querySelector('.sw-world');panel.open=true;
+                    for(const section of panel.querySelectorAll('details'))section.open=true;
+                    const r=document.querySelector('.sysworld').getBoundingClientRect(),b=panel.getBoundingClientRect();
+                    if(b.left<r.left-1||b.right>r.right+1||b.bottom>r.bottom+1)throw Error('World controls overflow');
+                    const input=panel.querySelector('select');input.focus();
+                    if(document.activeElement!==input)throw Error('World controls cannot focus');
+                    const style=getComputedStyle(input);
+                    const lum=value=>{const c=value.match(/[\d.]+/g).slice(0,3).map(n=>Number(n)/255).map(n=>n<=.04045?n/12.92:((n+.055)/1.055)**2.4);return c[0]*.2126+c[1]*.7152+c[2]*.0722;};
+                    const fg=lum(style.color),bg=lum(style.backgroundColor);
+                    if((Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05)<4.5)throw Error('Focused world control lacks contrast: '+style.color+' / '+style.backgroundColor);
+                }`)
+				page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("world2-controls-%s-%s-%dx%d.png", theme, density, size.w, size.h)))
+				page.MustEval(`()=>{const p=document.querySelector('.sw-world');p.open=false;for(const s of p.querySelectorAll('details'))s.open=false;}`)
 			}
 		}
 	}
@@ -220,8 +247,10 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	time.Sleep(450 * time.Millisecond)
 	page.MustEval(`()=>{if(Math.abs(SysWorldApp.inspect(cityId).life.signals.find(s=>s.id==='operations').intensity-cityPulse)<.005)throw Error('Operation error does not pulse');}`)
 	page.MustScreenshot(filepath.Join(dir, "city-robots-alert.png"))
+	page.MustEval(`()=>{const weather=document.querySelectorAll('.sw-world select')[1];weather.value='rain';weather.dispatchEvent(new Event('change'));}`)
 	page.MustElement(`[data-sw-action="sound"]`).MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'&&SysWorldApp.inspect(cityId).sound.rms>.0001`)
+	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).sound.effects.weather!=='rain')throw Error('Audio lost the environment selected before unmute');const weather=document.querySelectorAll('.sw-world select')[1];weather.value='clear';weather.dispatchEvent(new Event('change'));}`)
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();}`)
 	time.Sleep(1200 * time.Millisecond)
 	page.MustEval(`()=>{window.cityDistantVoice=SysWorldApp.inspect(cityId).sound.voice.gain;document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)

@@ -33,6 +33,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerMeshCoreRoutes(mux, s)
 	sse := NewSSEBroadcaster()
 	s.SSE = sse // expose broadcaster for use by handlers and callbacks
+	sse.worldObserver = s.worldRuntime().observe
 	if s.ShortTermMem != nil {
 		s.ShortTermMem.SetAuditNotifier(func(update memory.AuditUpdate) {
 			sse.BroadcastType(EventAuditUpdate, update)
@@ -146,6 +147,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				}
 				if err := json.Unmarshal([]byte(raw), &metricsResult); err == nil {
 					payload := map[string]interface{}{
+						"available":      metricsResult.Data.Available,
 						"cpu":            metricsResult.Data.CPU,
 						"memory":         metricsResult.Data.Memory,
 						"disk":           metricsResult.Data.Disk,
@@ -157,6 +159,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 						payload["host_uptime_seconds"] = int(hostInfo.Uptime)
 					}
 					sse.BroadcastType(EventSystemMetrics, payload)
+					s.flushSystemWorld(serverCtx)
 					if s.CydHub != nil && s.CydHub.HasRecentDevice(2*time.Minute) {
 						s.refreshCydSnapshot()
 					}
@@ -186,17 +189,18 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				dockerCfg := tools.DockerConfig{Host: s.Cfg.Docker.Host}
 				s.CfgMu.RUnlock()
 				raw := tools.DockerListContainers(dockerCfg, true)
-				if raw == lastRaw {
-					continue
-				}
-				lastRaw = raw
 				var parsed struct {
 					Status     string        `json:"status"`
 					Containers []interface{} `json:"containers"`
 				}
 				if err := json.Unmarshal([]byte(raw), &parsed); err == nil && parsed.Status == "ok" {
-					sse.BroadcastType(EventContainerUpdate, parsed.Containers)
+					if raw == lastRaw {
+						s.worldRuntime().observe(EventContainerUpdate, parsed.Containers)
+					} else {
+						sse.BroadcastType(EventContainerUpdate, parsed.Containers)
+					}
 				}
+				lastRaw = raw
 			case <-serverCtx.Done():
 				return
 			}
@@ -551,6 +555,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/notes", handleDesktopNotes(s))
 	mux.HandleFunc("/api/desktop/system-world/voice", handleSystemWorldVoice(s))
 	mux.HandleFunc("/api/desktop/system-world/memory-artifacts", handleSystemWorldMemoryArtifacts(s))
+	mux.HandleFunc("/api/desktop/system-world/snapshot", handleSystemWorldRead(s, "snapshot"))
+	mux.HandleFunc("/api/desktop/system-world/history", handleSystemWorldRead(s, "history"))
+	mux.HandleFunc("/api/desktop/system-world/events", handleSystemWorldRead(s, "events"))
+	mux.HandleFunc("/api/desktop/system-world/entity", handleSystemWorldRead(s, "entity"))
+	mux.HandleFunc("/api/desktop/system-world/actions", handleSystemWorldAction(s))
 	mux.HandleFunc("/api/desktop/fritzbox/overview", handleDesktopFritzBoxOverview(s))
 	mux.HandleFunc("/api/desktop/files", handleDesktopFiles(s))
 	mux.HandleFunc("/api/desktop/search", handleDesktopSearch(s))

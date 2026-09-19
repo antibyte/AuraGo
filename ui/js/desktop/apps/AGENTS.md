@@ -1113,7 +1113,8 @@ registration lives in `internal/desktop/types.go`.
   `ui/lang/desktop/*.json` files.
 - Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
-- System World loads `sysworld-data.js`, `sysworld-hud.js`, then `sysworld.js`.
+- System World loads `sysworld-data.js`, `sysworld-hud.js`, `sysworld-controls.js`,
+  then `sysworld.js`.
   The first two expose `window.SysWorld.data/createHud`; the entry owns per-window
   instances and exports `SysWorldApp.render/dispose/inspect`. It imports
   versioned `/js/vendor/system-world/city.esm.js` only when opened.
@@ -1220,7 +1221,7 @@ registration lives in `internal/desktop/types.go`.
   mist/dust/lamp cones; the post pass runs on high/ultra only. Clamp every
   `pow()` base: multisampled edge extrapolation yields NaN otherwise, and bloom
   smears one NaN over the whole frame.
-- `sysworld-drones.js` flies three service-drone patrols on closed Catmull-Rom
+- `sysworld-drones.js` flies up to six service-drone patrols (two on low) on closed Catmull-Rom
   loops with spinning rotors, navigation lights and banking; the template is the
   cached kit GLB and instances share geometry.
 - `sysworld-scene.js` renders through `SceneCapturePass` (multisampled HDR scene
@@ -1252,6 +1253,23 @@ registration lives in `internal/desktop/types.go`.
   and map mode stop it. Close aborts loaders and frees GPU resources, listeners
   and observers. Context loss falls back to the usable map. Keep all models,
   local materials and licenses build-versioned; no remote textures or services.
+- System World 2 adds `sysworld-experience/exploration/weather/effects.js` to the
+  same renderer build and RAF. The v2 Blender manifest has 26 designs, three LODs,
+  articulated clips and navigation metadata. Keep the complete app payload below
+  48 MiB and first display below 12 MiB; interiors load by proximity. Five original
+  robots plus 19 new residents are the high-tier cap (eight total on low).
+- `sysworld-controls.js` owns destinations, discoveries, environment, three audio
+  buses, the typed terminal and 24-hour replay. UI hints must not mutate the DOM
+  every frame. Replay immediately disables system actions and private memory feeds;
+  missing history shows a gap, never substituted live values. Confirm stop/cancel/
+  restart with the concrete target and lock before opening the confirmation dialog.
+  Accepted actions remain pending until a newer matching state confirms the result.
+- Server `internal/systemworld` stores bounded telemetry in the Desktop database.
+  `/api/desktop/system-world/{snapshot,history,events,entity,actions}` requires admin
+  scope; reuse existing services/write gates. The shared ten-second metrics worker
+  owns collection, not windows. No prompts, reasoning, tool results, credentials or
+  memory excerpts belong in history. Detailed contracts and acceptance commands:
+  `documentation/system-world-2.md`.
 - Quality `auto/low/medium/high/ultra` persists under
   `aurago.desktop.sysworld.quality`. LODs are separately fetched and cached;
   instanced scenery uses shared geometry/materials, distant towers always LOD2.

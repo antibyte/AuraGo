@@ -187,6 +187,8 @@ type Server struct {
 	WebhookManager          *webhooks.Manager
 	WebhookHandler          *webhooks.Handler
 	SSE                     *SSEBroadcaster // shared SSE broadcaster, set by run()
+	systemWorldOnce         sync.Once
+	systemWorld             *systemWorldRuntime
 	MissionManagerV2        *tools.MissionManagerV2
 	missionRuns             *missionRunRegistry // cancellable contexts of in-flight local mission runs
 	missionRunsOnce         sync.Once

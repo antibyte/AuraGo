@@ -6,7 +6,7 @@ let delayed = null, failOverview = false, interval = null;
 const response = data => ({ ok: true, json: async () => data });
 const fixture = {
     '/api/dashboard/overview': { agent: { busy: false }, integrations: { enabled: true, disabled: false, undecided: {} }, missions: { total: 0 } },
-    '/api/dashboard/system': { cpu: { usage_percent: 12 }, memory: { used_percent: 24 }, uptime_seconds: 60 },
+    '/api/desktop/system-world/snapshot': { at:Date.now(),metrics:{cpu:12,ram:24,uptime:60},entities:[] },
     '/api/dashboard/memory': { vectordb_entries: 0, core_memory_facts: 0, journal_entries: 0, notes_count: 0 },
     '/api/knowledge-graph/nodes?limit=300': { nodes: [{ id: 'n1', label: '<img onerror=attack()>', type: 'person' }] },
     '/api/knowledge-graph/edges?limit=500': { edges: [] },
@@ -21,7 +21,7 @@ const context = vm.createContext({
     fetch: async (path, options) => {
         calls.set(path, (calls.get(path) || 0) + 1);
         if (failOverview && path === '/api/dashboard/overview') return { ok: false };
-        if (delayed && path === '/api/dashboard/system') return new Promise((resolve,reject) => {
+        if (delayed && path === '/api/desktop/system-world/snapshot') return new Promise((resolve,reject) => {
             delayed.resolve=resolve; options.signal.addEventListener('abort', () => reject(Error('Abort')));
         });
         return response(fixture[path] || { items: [] });
@@ -30,10 +30,10 @@ const context = vm.createContext({
 await vm.runInContext(await fs.readFile('ui/js/desktop/apps/sysworld-data.js', 'utf8'), context);
 const api = context.window.SysWorld.data;
 let snapshot;
-const flush = async () => { for(let n=0;n<5;n++)await new Promise(resolve=>setImmediate(resolve)); };
+const flush = async () => { for(let n=0;n<5;n++)await new Promise(resolve=>setTimeout(resolve,1)); };
 const off1 = api.subscribe(value => { snapshot=value; }), off2 = api.subscribe(() => {});
 await flush();
-assert.equal(calls.get('/api/dashboard/system'),1,'Two windows must share OS bootstrap');
+assert.equal(calls.get('/api/desktop/system-world/snapshot'),1,'Two windows must share OS bootstrap');
 assert.ok(interval);
 let entities=api.entities(snapshot,key=>key);
 const entity=id=>entities.find(e=>e.id===id);
@@ -81,7 +81,7 @@ handlers.get('memory_update')({});assert.equal(snapshot.events[0].from,undefined
 // A late REST bootstrap cannot replace a newer SSE sample.
 delayed={};api.refresh();await flush();
 handlers.get('system_metrics')({cpu:{usage_percent:81},memory:{used_percent:42}});
-delayed.resolve(response({cpu:{usage_percent:1}}));await flush();
+delayed.resolve(response({at:1,metrics:{cpu:1},entities:[]}));await flush();
 assert.equal(api.normalizeSystemMetrics(snapshot.sources.system.data).cpu,81);
 delayed={};api.refresh();await flush();
 handlers.get('system_metrics')({cpu:{usage_percent:82}});
@@ -93,8 +93,8 @@ off2();assert.equal(handlers.size,0);assert.equal(interval,null);
 assert.equal(Object.keys(snapshot.sources).length,0,'Last close releases retained data');
 // All city labels exist and retain placeholders in each supported language.
 const base=JSON.parse(await fs.readFile('ui/lang/desktop/en.json','utf8'));
-const keys=Object.keys(base).filter(k=>k.startsWith('sysworld.city.'));
-assert.equal(keys.length,51);
+const keys=Object.keys(base).filter(k=>k.startsWith('sysworld.city.')||k.startsWith('sysworld.world.'));
+assert.ok(keys.length>=102);
 for(const lang of ['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh']) {
     const data=JSON.parse(await fs.readFile('ui/lang/desktop/'+lang+'.json','utf8'));
     for(const key of keys) { assert.ok(data[key],lang+':'+key);

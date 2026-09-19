@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// Three decorative service drones on smooth closed patrol loops above the districts. They reuse
+// Six decorative service drones on smooth closed patrol loops above the districts. They reuse
 // the kit's LOD template from the scene cache; clones share geometry and materials.
 const patrols = [
   { points: [[-62, 34, -62], [8, 44, -74], [62, 38, -22], [56, 47, 42], [-8, 41, 62], [-64, 36, 12]], speed: 9.5 },
@@ -14,8 +14,8 @@ export function createDrones(scene, options = {}) {
   const lightGeometry = new THREE.SphereGeometry(.16, 8, 6); geometries.push(lightGeometry);
   const lightMaterial = color => { const m = new THREE.MeshBasicMaterial({ color, toneMapped: false }); materials.push(m); return m; };
   const red = lightMaterial(0xff4a3c), green = lightMaterial(0x4cff8a), strobe = lightMaterial(0xffffff);
-  patrols.forEach((patrol, i) => {
-    const curve = new THREE.CatmullRomCurve3(patrol.points.map(p => new THREE.Vector3(...p)), true, 'centripetal', .6);
+  [...patrols,...patrols].forEach((patrol, i) => {
+    const curve = new THREE.CatmullRomCurve3(patrol.points.map(p => new THREE.Vector3(p[0],p[1]+(i>=3?8:0),p[2])), true, 'centripetal', .6);
     const root = new THREE.Group(); root.name = 'city-drone-' + (i + 1); root.visible = false;
     const body = new THREE.Group(); root.add(body);
     const lights = [new THREE.Mesh(lightGeometry, red), new THREE.Mesh(lightGeometry, green), new THREE.Mesh(lightGeometry, strobe)];
@@ -23,7 +23,7 @@ export function createDrones(scene, options = {}) {
     root.add(...lights); group.add(root);
     drones.push({ root, body, lights, curve, length: curve.getLength(), speed: patrol.speed, t: i * .37, rotors: [], roll: 0 });
   });
-  let animated = true;
+  let animated = true, tier='high', ready=false;
   function place(drone, dt) {
     const { curve, root } = drone;
     drone.t = (drone.t + dt * drone.speed / drone.length) % 1;
@@ -39,19 +39,22 @@ export function createDrones(scene, options = {}) {
     drone.body.rotation.z = drone.roll;
   }
   return {
+    setTier(value){tier=value;},
     setTemplate(template) {
       if (!template) return;
-      for (const drone of drones) {
+      ready=true;
+      for (const [i,drone] of drones.entries()) {
         drone.body.clear(); drone.rotors.length = 0;
         const model = template.clone(true); model.scale.setScalar(1.9);
         model.traverse(n => { if (n.isMesh) { n.castShadow = false; n.receiveShadow = false; } if (/^rotor_/.test(n.name)) drone.rotors.push(n); });
-        drone.body.add(model); drone.root.visible = true;
+        drone.body.add(model); drone.root.visible = i<(tier==='low'?2:tier==='medium'?3:6);
       }
     },
     update(dt, time, active) {
       animated = active;
       const step = active ? Math.min(.1, Math.max(0, dt)) : 0;
       drones.forEach((drone, i) => {
+        drone.root.visible=ready&&i<(tier==='low'?2:tier==='medium'?3:6);if(!drone.root.visible)return;
         place(drone, step);
         drone.rotors.forEach((rotor, j) => { rotor.rotation.y += step * (j % 2 ? -46 : 46); });
         const blink = Math.sin(time * 5 + i * 1.7);
