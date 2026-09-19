@@ -1253,7 +1253,7 @@
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
-            if (context && context.path) recordRecentFile(context.path, appId);
+            if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }
         const title = windowTitle(appId);
@@ -1366,7 +1366,7 @@
         if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
         applySpaceVisibility();
         renderAppContent(id, appId, windowContext);
-        if (windowContext.path) recordRecentFile(windowContext.path, appId);
+        if (!sessionRestore && windowContext.path) recordRecentFile(windowContext.path, appId, windowContext.pathKind);
         renderTaskbar();
         scheduleSessionPersist();
     }

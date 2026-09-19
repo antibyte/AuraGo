@@ -19,6 +19,44 @@ function sourceBetween(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
+function testDesktopRecentFilesExcludeDirectoryContexts() {
+  const source = read('ui/js/desktop/core/session-runtime.js');
+  const helperSource = source.slice(source.indexOf("const RECENT_FILES_KEY ="));
+  const stored = new Map([['aurago.desktop.recentFiles.v2', [
+    { path: 'desktop', name: 'desktop', appId: 'files', openedAt: 1 },
+    { path: 'projects/demo', name: 'demo', appId: 'terminal', openedAt: 2 },
+    { path: 'documents/report.md', name: 'stale', appId: 'notes', openedAt: 3 }
+  ]]]);
+  const context = {
+    Set,
+    Date,
+    JSON,
+    normalizeDesktopPath: value => String(value || '').replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\//, '').trim(),
+    pathBaseName: value => String(value || '').split('/').filter(Boolean).pop() || '',
+    readJSONStorage: (key, fallback) => stored.has(key) ? stored.get(key) : fallback,
+    writeJSONStorage: (key, value) => stored.set(key, value)
+  };
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.readRecentFilesForTest = readRecentFiles; globalThis.recordRecentFileForTest = recordRecentFile;`, context);
+
+  assert.deepEqual(Array.from(context.readRecentFilesForTest(), entry => ({ path: entry.path, kind: entry.kind })), [
+    { path: 'documents/report.md', kind: 'file' }
+  ]);
+  context.recordRecentFileForTest('documents', 'files', 'directory');
+  context.recordRecentFileForTest('documents/guide.md', 'viewer');
+  assert.deepEqual(Array.from(context.readRecentFilesForTest(), entry => entry.path), [
+    'documents/guide.md',
+    'documents/report.md'
+  ]);
+  assert.equal(stored.get('aurago.desktop.recentFiles.v2').some(entry => entry.path === 'documents'), false);
+
+  const shell = read('ui/js/desktop/core/window-shell-runtime.js');
+  assert.match(shell, /recordRecentFile\(context\.path, appId, context\.pathKind\)/);
+  assert.match(shell, /if \(!sessionRestore && windowContext\.path\) recordRecentFile\(windowContext\.path, appId, windowContext\.pathKind\)/);
+  const gameMaker = read('ui/js/desktop/apps/game-maker-studio.js');
+  assert.match(gameMaker, /openApp\('code-studio', \{ path: state\.project\.project_key, pathKind: 'directory' \}\)/);
+}
+
 async function testBrowserAudioLeaseUsesExclusiveWebLock() {
   const source = read('ui/js/shared/browser-audio-lease.js');
   const values = new Map();
@@ -2202,6 +2240,7 @@ async function testStoreOperationFailuresRemainVisible() {
 }
 
 const tests = [
+  ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
   ['Game Maker reconnect and terminal job state remain consistent', testGameMakerEventConnectionLifecycle],

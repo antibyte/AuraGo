@@ -45,9 +45,15 @@
             }));
     }
 
-    function openDesktopPath(path) {
+    async function openDesktopPath(path) {
         const normalized = normalizeDesktopPath(path);
         if (!normalized) return;
+        const entry = await enrichDesktopFileEntry({ path: normalized, name: pathBaseName(normalized) });
+        if (entry.type === 'directory') {
+            recordRecentFile(normalized, 'files', 'directory');
+            openApp('files', { path: normalized, pathKind: 'directory' });
+            return;
+        }
         const ext = normalized.split('.').pop().toLowerCase();
         const defaultApp = defaultAppForExtension(ext);
         if (defaultApp) {

@@ -976,7 +976,7 @@
 
     function openInCodeStudio(state) {
         if (!state.project || !state.capabilities.code_studio || typeof state.context.openApp !== 'function') return;
-        state.context.openApp('code-studio', { path: state.project.project_key });
+        state.context.openApp('code-studio', { path: state.project.project_key, pathKind: 'directory' });
     }
 
     function exportProject(state) {

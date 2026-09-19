@@ -6039,7 +6039,7 @@
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
-            if (context && context.path) recordRecentFile(context.path, appId);
+            if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }
         const title = windowTitle(appId);
@@ -6152,7 +6152,7 @@
         if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
         applySpaceVisibility();
         renderAppContent(id, appId, windowContext);
-        if (windowContext.path) recordRecentFile(windowContext.path, appId);
+        if (!sessionRestore && windowContext.path) recordRecentFile(windowContext.path, appId, windowContext.pathKind);
         renderTaskbar();
         scheduleSessionPersist();
     }
@@ -8242,17 +8242,38 @@ function wireWindow(win, id) {
 
     const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';
     const RECENT_FILES_MAX = 12;
+    const RECENT_DIRECTORY_CONTEXT_APPS = new Set(['files', 'terminal']);
 
-    function readRecentFiles() {
-        return readJSONStorage(RECENT_FILES_KEY, []).filter(entry => entry && entry.path).slice(0, RECENT_FILES_MAX);
+    function normalizeRecentFileEntry(entry) {
+        if (!entry || !entry.path || entry.kind === 'directory' || RECENT_DIRECTORY_CONTEXT_APPS.has(entry.appId)) return null;
+        const path = normalizeDesktopPath(entry.path);
+        if (!path) return null;
+        return Object.assign({}, entry, {
+            path,
+            name: pathBaseName(path),
+            appId: entry.appId || '',
+            kind: 'file'
+        });
     }
 
-    function recordRecentFile(path, appId) {
+    function readRecentFiles() {
+        const stored = readJSONStorage(RECENT_FILES_KEY, []);
+        const source = Array.isArray(stored) ? stored : [];
+        const recent = source.map(normalizeRecentFileEntry).filter(Boolean).slice(0, RECENT_FILES_MAX);
+        if (JSON.stringify(source) !== JSON.stringify(recent)) writeJSONStorage(RECENT_FILES_KEY, recent);
+        return recent;
+    }
+
+    function recordRecentFile(path, appId, pathKind) {
         const normalized = normalizeDesktopPath(path);
         if (!normalized) return;
-        const name = pathBaseName(normalized);
         const recent = readRecentFiles().filter(entry => entry.path !== normalized);
-        recent.unshift({ path: normalized, name, appId: appId || '', openedAt: Date.now() });
+        if (pathKind === 'directory' || RECENT_DIRECTORY_CONTEXT_APPS.has(appId)) {
+            writeJSONStorage(RECENT_FILES_KEY, recent);
+            return;
+        }
+        const name = pathBaseName(normalized);
+        recent.unshift({ path: normalized, name, appId: appId || '', kind: 'file', openedAt: Date.now() });
         writeJSONStorage(RECENT_FILES_KEY, recent.slice(0, RECENT_FILES_MAX));
     }
 
@@ -9042,9 +9063,15 @@ function wireWindow(win, id) {
             }));
     }
 
-    function openDesktopPath(path) {
+    async function openDesktopPath(path) {
         const normalized = normalizeDesktopPath(path);
         if (!normalized) return;
+        const entry = await enrichDesktopFileEntry({ path: normalized, name: pathBaseName(normalized) });
+        if (entry.type === 'directory') {
+            recordRecentFile(normalized, 'files', 'directory');
+            openApp('files', { path: normalized, pathKind: 'directory' });
+            return;
+        }
         const ext = normalized.split('.').pop().toLowerCase();
         const defaultApp = defaultAppForExtension(ext);
         if (defaultApp) {
