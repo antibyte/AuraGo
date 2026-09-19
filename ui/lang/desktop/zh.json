@@ -4411,7 +4411,7 @@
   "personalRadio.region": "地区或城市",
   "personalRadio.timezone": "时区",
   "personalRadio.operation": "播放与限制",
-  "personalRadio.reserve_hint": "仅在备妥足够音乐后开播。生成较慢时需要更多储备，失败的请求也计入限额。",
+  "personalRadio.reserve_hint": "默认准备两首曲目，无需固定的分钟储备（0）。自动使用符合要求的已有音乐，并在后台生成新曲目。失败的请求也计入限额。",
   "personalRadio.reserve": "启动储备（分钟）",
   "personalRadio.min_tracks": "不同曲目最低数量",
   "personalRadio.repeat": "重复播放间隔（分钟）",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "正在生成欢迎语音…",
   "personalRadio.opening_playing": "正在播放欢迎词",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} 首曲目 · {{minutes}} / {{requiredMinutes}} 分钟已就绪",
-  "personalRadio.startup_hint": "准备好足够的曲目后，音乐将自动开始播放。生成可能需要几分钟。",
+  "personalRadio.startup_hint": "准备好足够的曲目后将自动播放。使用已有音乐的同时，在后台生成符合要求的新音乐。",
   "personalRadio.startup_local_hint": "请导入更多符合要求的音乐。准备好足够的曲目后，将自动开始播放。",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} 首曲目已就绪 · {{minutes}} 分钟音乐",
+  "personalRadio.library_searching": "正在搜索音乐库…",
+  "personalRadio.library_loading": "正在准备已有音乐…",
+  "personalRadio.radio_registry_unavailable": "无法加载音乐库，稍后将重试。",
   "desktop.app_personal_radio": "Personal Radio"
 }

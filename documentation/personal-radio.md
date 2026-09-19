@@ -29,45 +29,63 @@ as broadcasts. No microphone permission is required.
 
 The library imports browser files, desktop files or a selected desktop folder.
 Folder imports are paginated and cancellable by closing their app window.
-Select already generated music from the shared media registry as well. Imported
-originals remain untouched; the radio stores a decoded copy. Choose an import
-genre or leave it unspecified. Generated music retains its generated origin.
+At startup it also searches the shared media registry automatically, matching
+genre against style, prompt, tags and description, preferring the requested mood
+and respecting the source mode and known vocal/instrumental metadata. Preparation
+runs in the background; playback need not wait for the entire scan. You can also
+select registry titles manually. Originals remain untouched; the radio stores a
+decoded copy. Choose an import genre or leave it unspecified. Genres belong to
+the station association; generated music retains its generated origin.
 
 Supported inputs are MP3 and PCM/float WAV, one or two channels, 8–96 kHz, at
 most 128 MiB and 20 minutes per file. A complete decode validates each import.
 The app detects identical input files and reuses one stored copy.
 
-The default start reserve is **30 minutes and eight different music tracks**.
-A measured slow generator increases the time requirement. Running jobs and
-speech never count toward the reserve. Local mode waits for sufficient imports
-and does not generate music. The browser must also preload the first music
-transition. The configured start reserve may be 5–180 minutes.
+The default start requirement is **two different prepared music tracks**, with
+no fixed minimum number of minutes. Available matching registry music can satisfy
+this requirement even while new music is being generated slowly. The browser also
+preloads the first music transition. Running jobs and speech never count as ready
+music. Local mode uses existing music and does not generate new tracks. An optional
+start reserve may be configured from 0–180 minutes; 0 keeps only the track requirement.
+Generator latency never increases it. A one-time migration replaces the former
+factory setting of 30 minutes/eight tracks with 0/two; other settings are retained.
 
 With moderation enabled, each start first prepares one short spoken welcome
 using the station's LLM and active TTS. It introduces the station and explains
-any missing music using the actual available track count and duration. In local
-mode it asks for imports instead of claiming to generate music. Opening
+any missing music using the actual available track count and duration. While the
+registry scan is pending, the planner is told that existing music is being prepared
+and must not claim the library is empty. In local mode it asks for imports only
+when needed instead of claiming to generate music. Opening
 preparation has a 45-second limit before music generation takes priority; a
 speech failure does not block music preparation. The welcome can play before
 the music reserve is ready and music generation can continue while it plays.
 The welcome is not repeated to fill a longer wait. Moderation off skips it.
 
-The central player immediately shows the current preparation task, ready tracks
-and minutes against their requirements, and progress based on both. After the
+The central player immediately shows the current preparation task, including
+registry search and preparation, ready tracks and available minutes. With an
+optional minute reserve, progress accounts for both requirements. After the
 welcome it continues showing preparation until music starts automatically.
 These counts measure ready music, not the provider's internal progress or an ETA.
 
-The library grows toward 120 music minutes by default. Existing tracks are
-reused; the station does not continually buy new music once the target is met.
+The library grows toward 120 music minutes by default, using existing matching
+tracks first. Generated and mixed modes keep creating original music fitted to
+the station's genres, mood, tempo, vocals and themes. Even when the target is met,
+one new track is requested per start and then after every four music starts;
+pause suppresses this refresh. Existing music bridges slow generation and is
+reused under the rotation rules. The target is not a prerequisite for playback.
 Default daily limits are 20 music generations, 48 editorial requests and 30,000
 TTS characters. Counters reset at midnight UTC. Failed/uncertain requests retain
 their reservation because providers may still charge them. AuraGo's global
 budget checks apply as well. Counts and cost estimates are not billing totals.
 
-The radio saves originals through the existing music integration. If a produced
-file cannot yet be registered or imported, its durable receipt is retried before
-requesting another generation. An interrupted provider request with no known
-result is not automatically replayed as that old request.
+The radio saves originals through the existing music integration and registers
+each in the shared media registry. It retains the generation prompt, style/genre,
+lyrics when present, language, provider/model, duration, generation time, cost
+estimate and station/vocal tags. If the provider already registered the file,
+the radio enriches that same record and preserves existing tags. If registration
+or import fails, the file and metadata receipt survives restart and is retried
+before requesting another generation, including when the library target is met.
+An interrupted provider request with no known result is not automatically replayed.
 
 ## Playback and rotation
 
@@ -97,7 +115,9 @@ overhead; typical 44.1 kHz stereo uses substantially less). A limiter controls
 peaks; this is not an integrated loudness-normalization service.
 
 Library controls let you favour a track, play it less often, block it or remove
-its station association. Removing a station or association preserves originals.
+its station association. Automatic discovery respects blocks and removed registry
+associations; an explicit import can restore one. Removing a station or association
+preserves originals.
 **Free unused storage** explicitly deletes only radio copies no station uses;
 stop playback first. It never deletes shared generated originals or imports.
 The storage limit covers the radio's decoded library, not the shared media
@@ -138,8 +158,9 @@ The API is `/api/desktop/personal-radio/`, with existing desktop scopes, session
 authentication, CSRF origin checks and read-only controls. It exposes public
 asset IDs, never arbitrary filesystem paths for audio playback.
 
-Focused tests cover empty/generated startup, 90 minutes of simulated rotation,
-registration recovery without regeneration, quota persistence, ownership and
+Focused tests cover automatic registry matching/pagination, playback during slow
+generation, legacy reserve migration, empty/generated startup, 90 minutes of
+simulated rotation, metadata registration/recovery without regeneration, quota persistence, ownership and
 idempotence, corrupt audio, source validation, two news deadlines, DST, expired
 speech, active Speech Lab voice and authentication. Opt-in real-shell browser
 tests cover pause, close/reopen, settings and narrow Standard/Fruity windows.

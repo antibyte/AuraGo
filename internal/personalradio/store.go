@@ -30,7 +30,7 @@ func openStore(dir string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// The first migration only creates new, isolated tables; no existing data is changed.
+	// Radio migrations only touch the app's isolated database.
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS schema_meta(version INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS stations(id TEXT PRIMARY KEY, body TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS assets(id TEXT PRIMARY KEY, hash TEXT UNIQUE NOT NULL, body TEXT NOT NULL);
@@ -42,11 +42,38 @@ CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, station TEXT NOT NULL, kind
 CREATE INDEX IF NOT EXISTS jobs_day ON jobs(station,day,kind);
 CREATE TABLE IF NOT EXISTS news(id TEXT PRIMARY KEY, station TEXT NOT NULL, body TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS editorial(station TEXT NOT NULL, created TEXT NOT NULL, body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS registry_ignored(station TEXT NOT NULL REFERENCES stations(id) ON DELETE CASCADE, media_id INTEGER NOT NULL, PRIMARY KEY(station,media_id));
 INSERT INTO schema_meta(version) SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM schema_meta);
 UPDATE jobs SET status='interrupted' WHERE status='running';`)
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate radio store: %w", err)
+	}
+	var version int
+	if err = db.QueryRow("SELECT version FROM schema_meta").Scan(&version); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if version < 2 {
+		tx, e := db.Begin()
+		if e != nil {
+			db.Close()
+			return nil, e
+		}
+		// Correct only the old factory reserve once; retain customized profiles.
+		_, e = tx.Exec(`ALTER TABLE station_tracks ADD COLUMN genre TEXT NOT NULL DEFAULT '';
+UPDATE stations SET body=json_set(body,'$.reserve_minutes',0,'$.min_tracks',2,'$.revision',COALESCE(json_extract(body,'$.revision'),0)+1)
+WHERE json_extract(body,'$.reserve_minutes')=30 AND json_extract(body,'$.min_tracks')=8;
+UPDATE schema_meta SET version=2;`)
+		if e == nil {
+			e = tx.Commit()
+		} else {
+			tx.Rollback()
+		}
+		if e != nil {
+			db.Close()
+			return nil, fmt.Errorf("migrate radio startup: %w", e)
+		}
 	}
 	// Playback never resumes automatically after restart. Reap only app-owned
 	// temporary files; durable library assets and provider originals survive.
@@ -153,7 +180,7 @@ func (s *Service) DeleteStation(id string, revision int) error {
 	return err
 }
 func (s *Service) tracks(id string) ([]Track, error) {
-	rows, err := s.db.Query(`SELECT a.body,t.favorite,t.blocked,t.weight,
+	rows, err := s.db.Query(`SELECT a.body,t.favorite,t.blocked,t.weight,t.genre,
 (SELECT COUNT(*) FROM plays p WHERE p.station=t.station AND p.asset=t.asset),
 COALESCE((SELECT MAX(started) FROM plays p WHERE p.station=t.station AND p.asset=t.asset),'')
 FROM station_tracks t JOIN assets a ON a.id=t.asset WHERE t.station=? ORDER BY a.id`, id)
@@ -163,16 +190,19 @@ FROM station_tracks t JOIN assets a ON a.id=t.asset WHERE t.station=? ORDER BY a
 	defer rows.Close()
 	out := []Track{}
 	for rows.Next() {
-		var b, last string
+		var b, last, genre string
 		var t Track
 		var favorite, blocked, weight, plays int
-		if err = rows.Scan(&b, &favorite, &blocked, &weight, &plays, &last); err != nil {
+		if err = rows.Scan(&b, &favorite, &blocked, &weight, &genre, &plays, &last); err != nil {
 			return nil, err
 		}
 		if err = json.Unmarshal([]byte(b), &t); err != nil {
 			return nil, err
 		}
 		t.Favorite = favorite != 0
+		if genre != "" {
+			t.Genre = genre
+		}
 		t.Blocked = blocked != 0
 		t.Weight = weight
 		t.Plays = plays
@@ -213,6 +243,11 @@ func (s *Service) UpdateTrack(station, id string, favorite, blocked bool, weight
 func (s *Service) RemoveTrack(station, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO registry_ignored(station,media_id)
+SELECT t.station,json_extract(a.body,'$.media_id') FROM station_tracks t JOIN assets a ON a.id=t.asset
+WHERE t.station=? AND t.asset=? AND json_extract(a.body,'$.media_id')>0`, station, id); err != nil {
+		return err
+	}
 	_, err := s.db.Exec("DELETE FROM station_tracks WHERE station=? AND asset=?", station, id)
 	if s.state.StationID == station {
 		s.removeTrackLocked(id)

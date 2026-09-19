@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -61,6 +62,59 @@ func TestGeneratedColdStartRecoversRegistrationWithoutRegeneration(t *testing.T)
 	st := resumed.Snapshot()
 	if generated.Load() != 2 || st.GeneratedToday != 2 || st.Status != "ready" || st.BufferMS != 360000 {
 		t.Fatal("cold start failed", st, generated.Load())
+	}
+}
+
+func TestFullLibraryRecoversMetadataWithoutBuyingAnotherTrack(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "original.wav")
+	if err := os.WriteFile(path, testWave(180, 7), 0600); err != nil {
+		t.Fatal(err)
+	}
+	receipt := Production{Path: path, Title: "Original", Genre: "Lo-fi", MediaID: 99, Prompt: "Warm piano and soft drums", Style: "Lo-fi, warm", Lyrics: "Original words", Language: "de", Provider: "acestep", Model: "model", Tags: []string{"vocals", "station:test"}, DurationMS: 180000, GenerationTimeMS: 60000, CostEstimate: .05}
+	var generated, registered atomic.Int64
+	adapters := Adapters{Generate: func(context.Context, Station, string, string) (Production, error) {
+		generated.Add(1)
+		return receipt, nil
+	}, Register: func(ctx context.Context, got Production) (Production, error) {
+		if !reflect.DeepEqual(got, receipt) {
+			t.Errorf("durable metadata changed: %+v", got)
+		}
+		if registered.Add(1) <= 2 {
+			return got, errors.New("temporary metadata failure")
+		}
+		return got, nil
+	}}
+	s, clock := testService(t, adapters)
+	p := testProfile(t, s, "mixed")
+	testImport(t, s, p, 1)
+	testImport(t, s, p, 2)
+	s.Start(p.ID, testDevice, false)
+	s.Tick()
+	s.wg.Wait()
+	if generated.Load() != 1 || !s.Snapshot().MusicReady {
+		t.Fatal("full pool suppressed new music or blocked playback", s.Snapshot())
+	}
+	clock.Add(int64(time.Minute))
+	s.Tick()
+	s.wg.Wait()
+	if generated.Load() != 1 || registered.Load() != 2 {
+		t.Fatal("full pool suppressed retry or bought another track", generated.Load(), registered.Load())
+	}
+	dir := s.dir
+	s.Close()
+	r, err := New(Options{Directory: dir, Manual: true, Adapters: adapters, Now: func() time.Time { return time.Unix(0, clock.Load()) }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	r.Start(p.ID, testDevice, false)
+	r.Tick()
+	r.wg.Wait()
+	r.Tick()
+	r.wg.Wait()
+	tracks, err := r.Tracks(p.ID)
+	if err != nil || len(tracks) != 3 || generated.Load() != 1 || registered.Load() != 3 || r.Snapshot().GeneratedToday != 1 {
+		t.Fatal("full pool recovery regenerated or lost metadata", len(tracks), generated.Load(), registered.Load(), err)
 	}
 }
 

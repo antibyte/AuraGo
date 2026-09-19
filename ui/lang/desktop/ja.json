@@ -4411,7 +4411,7 @@
   "personalRadio.region": "地域または都市",
   "personalRadio.timezone": "タイムゾーン",
   "personalRadio.operation": "再生と上限",
-  "personalRadio.reserve_hint": "十分な音楽の準備後に開始します。生成が遅い場合は備蓄を増やします。失敗したリクエストも上限に含みます。",
+  "personalRadio.reserve_hint": "既定では2曲を準備し、固定の時間分の蓄積は不要です（0）。条件に合う既存の音楽を自動的に使い、新しい曲をバックグラウンドで生成します。失敗したリクエストも上限に含まれます。",
   "personalRadio.reserve": "開始時の備蓄（分）",
   "personalRadio.min_tracks": "異なる曲の最低数",
   "personalRadio.repeat": "繰り返し間隔（分）",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "挨拶の音声を作成しています…",
   "personalRadio.opening_playing": "挨拶を再生中",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} 曲 · {{minutes}} / {{requiredMinutes}} 分準備完了",
-  "personalRadio.startup_hint": "十分な曲が準備できると、音楽は自動的に始まります。生成には数分かかる場合があります。",
+  "personalRadio.startup_hint": "十分な曲が準備できると自動的に再生が始まります。既存の音楽を使いながら、条件に合う新しい曲をバックグラウンドで生成します。",
   "personalRadio.startup_local_hint": "条件に合う音楽を追加でインポートしてください。十分な曲が準備できると、自動的に再生が始まります。",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} 曲準備完了 · 音楽 {{minutes}} 分",
+  "personalRadio.library_searching": "音楽ライブラリを検索しています…",
+  "personalRadio.library_loading": "既存の音楽を準備しています…",
+  "personalRadio.radio_registry_unavailable": "音楽ライブラリを読み込めませんでした。再試行します。",
   "desktop.app_personal_radio": "Personal Radio"
 }

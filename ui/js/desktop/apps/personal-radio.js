@@ -25,7 +25,7 @@
         R.init(ctx).catch(err=>notice(s,err));
         if(ctx.setWindowMenus) ctx.setWindowMenus(id,[{label:t('station'),items:[{label:t('new_station'),action:()=>edit(s,true)},{label:t('settings'),action:()=>edit(s,false)},{label:t('stop'),action:()=>R.control('stop').catch(err=>notice(s,err))}]}]);
     }
-    function notice(s,err,persist=true) { const el=s.q('notice'); if(!el)return; el.hidden=false; const code=String(err.message||''); if(persist) s.error = code; const known=['radio_more_music_needed','radio_limit','radio_device_busy','radio_audio_unlock','radio_invalid_genres','radio_region_required','radio_conflict','radio_format_unsupported','radio_production_too_slow','radio_music_unavailable','radio_generation_failed','radio_tts_unavailable','radio_unavailable']; el.textContent=s.t(known.includes(code)?code:'error'); }
+    function notice(s,err,persist=true) { const el=s.q('notice'); if(!el)return; el.hidden=false; const code=String(err.message||''); if(persist) s.error = code; const known=['radio_more_music_needed','radio_limit','radio_device_busy','radio_audio_unlock','radio_invalid_genres','radio_region_required','radio_conflict','radio_format_unsupported','radio_production_too_slow','radio_music_unavailable','radio_registry_unavailable','radio_generation_failed','radio_tts_unavailable','radio_unavailable']; el.textContent=s.t(known.includes(code)?code:'error'); }
     function station(s) { return s.data && (s.data.stations||[]).find(x=>x.id===s.selected); }
     function draw(s,force) {
         if(!s.data)return;
@@ -37,8 +37,9 @@
         s.q('title').textContent=current?current.title:p?p.name:s.t('welcome'); s.q('kind').textContent=current?s.t(current.kind):s.t('now');
         s.q('theme').textContent=active&&st.theme?st.theme:p?p.topics:s.t('setup_hint');
         const position=R.position();s.q('progress').max=position.duration||1;s.q('progress').value=position.position||0;
-        s.q('reserve').textContent=(active?Math.floor(st.buffer_ms/60000):0)+' / '+(active?Math.ceil(st.required_ms/60000):p?p.reserve_minutes:30)+' '+s.t('minutes');
-        s.q('buffer').max=st.required_ms||1;s.q('buffer').value=active?st.buffer_ms:0;
+        const requiredMinutes=active?Math.ceil(st.required_ms/60000):p?p.reserve_minutes:0;
+        s.q('reserve').textContent=(active?Math.floor(st.buffer_ms/60000):0)+(requiredMinutes?' / '+requiredMinutes:'')+' '+s.t('minutes');
+        s.q('buffer').max=st.required_ms||(p?p.min_tracks:2);s.q('buffer').value=active?(st.required_ms?st.buffer_ms:st.track_count):0;
         s.q('jobs').textContent=active?(st.music_busy?s.t('generating'):st.editor_busy?s.t('editing'):st.relaxed?s.t('relaxed'):''):'';
         preparationStatus(s, p, st, active);
         const next=active&&st.next_news&&new Date(st.next_news);s.q('news-time').textContent=next&&next.getFullYear()>2000?s.t('next_news')+' '+next.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'';
@@ -53,7 +54,7 @@
         s.host.querySelector('[data-action="pause"]').disabled = readonly || !R.owned() || !active || st.status==='preparing' || s.busy;
         s.host.querySelector('[data-action="start"]').textContent=starting?s.t('starting'):active&&st.status==='paused'?'▶ '+s.t('resume'):'▶ '+s.t('start');
         s.host.querySelector('[data-action="start"]').setAttribute('aria-busy', String(starting));
-        if(!d.available)notice(s,Error('radio_unavailable'),false);else if(active&&st.code)notice(s,Error(st.code),false);else if(active&&st.editorial_code)notice(s,Error(st.editorial_code),false);else if(!s.busy&&!s.error)s.q('notice').hidden=true;
+        if(!d.available)notice(s,Error('radio_unavailable'),false);else if(active&&st.library_status==='failed')notice(s,Error('radio_registry_unavailable'),false);else if(active&&st.code)notice(s,Error(st.code),false);else if(active&&st.editorial_code)notice(s,Error(st.editorial_code),false);else if(!s.busy&&!s.error)s.q('notice').hidden=true;
         if(s.editing||s.subview)return;
         const signature=JSON.stringify([s.selected,s.tab,s.tab==='program'&&active?st.queue:[],s.tab==='news'&&active?st.news:[],st.news_code]);
         if(force||s.signature!==signature){s.signature=signature;content(s);}
@@ -70,17 +71,20 @@
         else if (st.opening_status === 'writing') key = 'opening_writing';
         else if (st.opening_status === 'synthesizing') key = 'opening_synthesizing';
         else if (st.opening_status === 'playing') key = 'opening_playing';
+        else if (st.library_status === 'searching') key = 'library_searching';
+        else if (st.library_status === 'importing') key = 'library_loading';
+        else if (st.library_status === 'failed') key = 'radio_registry_unavailable';
         else if (st.music_busy) key = 'generating';
         const tracks = active ? st.track_count || 0 : 0, requiredTracks = p.min_tracks;
         const milliseconds = active ? st.buffer_ms || 0 : 0, requiredMS = active && st.required_ms || p.reserve_minutes * 60000;
         const number = value => new Intl.NumberFormat(window.SYSTEM_LANG || 'en', { maximumFractionDigits: 1 }).format(value);
-        const counts = s.ctx.t('personalRadio.startup_counts', { tracks, requiredTracks, minutes: number(milliseconds / 60000), requiredMinutes: number(requiredMS / 60000) });
+        const counts = s.ctx.t('personalRadio.'+(requiredMS?'startup_counts':'startup_tracks'), { tracks, requiredTracks, minutes: number(milliseconds / 60000), requiredMinutes: number(requiredMS / 60000) });
         const text = (name, value) => { const el = s.q(name); if (el.textContent !== value) el.textContent = value; };
         text('preparation-title', s.t(key)); text('preparation-counts', counts);
         text('preparation-hint', s.t(p.mode === 'local' ? 'startup_local_hint' : 'startup_hint'));
-        s.q('preparation-progress').value = Math.min(1, milliseconds / requiredMS, tracks / requiredTracks);
+        s.q('preparation-progress').value = Math.min(1, requiredMS ? milliseconds / requiredMS : 1, tracks / requiredTracks);
         s.q('preparation-progress').setAttribute('aria-label', counts);
-        s.q('preparation').classList.toggle('is-busy', !!(starting || st.music_busy || st.editor_busy));
+        s.q('preparation').classList.toggle('is-busy', !!(starting || st.music_busy || st.editor_busy || ['searching','importing'].includes(st.library_status)));
     }
     function content(s) {
         const host=s.q('content'),p=station(s),st=s.data.state||{},t=s.t,e=s.esc;

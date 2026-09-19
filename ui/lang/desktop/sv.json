@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Region eller stad",
   "personalRadio.timezone": "Tidszon",
   "personalRadio.operation": "Uppspelning och gränser",
-  "personalRadio.reserve_hint": "Starta först med tillräckligt förberedd musik. Långsam generering kräver större reserv. Misslyckade försök räknas mot gränserna.",
+  "personalRadio.reserve_hint": "Standard: två förberedda låtar, ingen fast minutreserv (0). Passande befintlig musik används automatiskt. Nya låtar skapas i bakgrunden. Gränserna omfattar även misslyckade förfrågningar.",
   "personalRadio.reserve": "Startreserv (min)",
   "personalRadio.min_tracks": "Minsta antal olika spår",
   "personalRadio.repeat": "Upprepningsintervall (min)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Skapar den talade välkomsthälsningen…",
   "personalRadio.opening_playing": "Välkomsthälsningen spelas upp",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} låtar · {{minutes}} / {{requiredMinutes}} min klara",
-  "personalRadio.startup_hint": "Musiken startar automatiskt när tillräckligt många låtar är klara. Genereringen kan ta flera minuter.",
+  "personalRadio.startup_hint": "Uppspelningen startar automatiskt med tillräckligt många förberedda låtar. Befintlig musik används medan ny passande musik skapas i bakgrunden.",
   "personalRadio.startup_local_hint": "Importera mer passande musik. Uppspelningen startar automatiskt när tillräckligt många låtar är klara.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} låtar klara · {{minutes}} min musik",
+  "personalRadio.library_searching": "Söker i musikbiblioteket…",
+  "personalRadio.library_loading": "Förbereder befintlig musik…",
+  "personalRadio.radio_registry_unavailable": "Musikbiblioteket kunde inte laddas. Ett nytt försök följer.",
   "desktop.app_personal_radio": "Personal Radio"
 }

@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Region eller by",
   "personalRadio.timezone": "Tidssone",
   "personalRadio.operation": "Avspilling og grenser",
-  "personalRadio.reserve_hint": "Start først med nok klargjort musikk. Treg generering krever større reserve. Feil teller mot grensene.",
+  "personalRadio.reserve_hint": "Standard: to klargjorte spor, ingen fast minuttreserve (0). Passende eksisterende musikk brukes automatisk. Nye spor lages i bakgrunnen. Grensene inkluderer mislykkede forespørsler.",
   "personalRadio.reserve": "Startreserve (min)",
   "personalRadio.min_tracks": "Minst antall ulike spor",
   "personalRadio.repeat": "Gjentakelsesintervall (min)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Lager den talte velkomsten…",
   "personalRadio.opening_playing": "Velkomsten spilles av",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} spor · {{minutes}} / {{requiredMinutes}} min klare",
-  "personalRadio.startup_hint": "Musikken starter automatisk når nok spor er klare. Genereringen kan ta flere minutter.",
+  "personalRadio.startup_hint": "Avspillingen starter automatisk med nok klargjorte spor. Eksisterende musikk brukes mens ny passende musikk lages i bakgrunnen.",
   "personalRadio.startup_local_hint": "Importer mer passende musikk. Avspillingen starter automatisk når nok spor er klare.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} spor klare · {{minutes}} min musikk",
+  "personalRadio.library_searching": "Søker i musikkbiblioteket…",
+  "personalRadio.library_loading": "Forbereder eksisterende musikk…",
+  "personalRadio.radio_registry_unavailable": "Musikkbiblioteket kunne ikke lastes. Et nytt forsøk følger.",
   "desktop.app_personal_radio": "Personal Radio"
 }

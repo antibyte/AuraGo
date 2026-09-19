@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Region nebo město",
   "personalRadio.timezone": "Časové pásmo",
   "personalRadio.operation": "Přehrávání a limity",
-  "personalRadio.reserve_hint": "Start až s dostatkem připravené hudby. Pomalé generování vyžaduje větší rezervu. Neúspěšné pokusy se započítávají.",
+  "personalRadio.reserve_hint": "Výchozí: dvě připravené skladby, bez pevné časové rezervy (0). Vhodná existující hudba se použije automaticky. Nové skladby vznikají na pozadí. Limity zahrnují i neúspěšné požadavky.",
   "personalRadio.reserve": "Počáteční rezerva (min)",
   "personalRadio.min_tracks": "Minimum různých skladeb",
   "personalRadio.repeat": "Odstup opakování (min)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Vytváří se mluvené uvítání…",
   "personalRadio.opening_playing": "Přehrává se uvítání",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} skladeb · {{minutes}} / {{requiredMinutes}} min připraveno",
-  "personalRadio.startup_hint": "Hudba se spustí automaticky, jakmile bude připraven dostatek skladeb. Generování může trvat několik minut.",
+  "personalRadio.startup_hint": "Přehrávání se spustí automaticky s dostatkem připravených skladeb. Používá se existující hudba, zatímco na pozadí vzniká nová vhodná hudba.",
   "personalRadio.startup_local_hint": "Importujte další vhodnou hudbu. Přehrávání se spustí automaticky, jakmile bude připraven dostatek skladeb.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} skladeb připraveno · {{minutes}} min hudby",
+  "personalRadio.library_searching": "Prohledává se hudební knihovna…",
+  "personalRadio.library_loading": "Připravuje se existující hudba…",
+  "personalRadio.radio_registry_unavailable": "Hudební knihovnu se nepodařilo načíst. Bude následovat další pokus.",
   "desktop.app_personal_radio": "Personal Radio"
 }

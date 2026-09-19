@@ -5,6 +5,7 @@ package personalradio
 import (
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"time"
 )
@@ -56,7 +57,7 @@ type Station struct {
 }
 
 func DefaultStation() Station {
-	return Station{Name: "Personal Radio", Language: "de", Mode: "mixed", Genres: []Genre{{"Lo-fi", 1}}, Vocals: "instrumental", GeneratedPercent: 50, Moderation: "balanced", NewsMinutes: 0, NewsTopics: true, Timezone: "UTC", ReserveMinutes: 30, MinTracks: 8, RepeatMinutes: 60, RepeatTracks: 20, DailyGenerations: 20, DailyEditorial: 48, DailyTTSChars: 30000, LibraryMinutes: 120, LibraryMB: 2048}
+	return Station{Name: "Personal Radio", Language: "de", Mode: "mixed", Genres: []Genre{{"Lo-fi", 1}}, Vocals: "instrumental", GeneratedPercent: 50, Moderation: "balanced", NewsMinutes: 0, NewsTopics: true, Timezone: "UTC", ReserveMinutes: 0, MinTracks: 2, RepeatMinutes: 60, RepeatTracks: 20, DailyGenerations: 20, DailyEditorial: 48, DailyTTSChars: 30000, LibraryMinutes: 120, LibraryMB: 2048}
 }
 
 func (s Station) Validate() error {
@@ -100,7 +101,7 @@ func (s Station) Validate() error {
 			return errors.New("radio_invalid_genres")
 		}
 	}
-	if s.BPM < 0 || (s.BPM > 0 && s.BPM < 30) || s.BPM > 300 || s.GeneratedPercent < 0 || s.GeneratedPercent > 100 || s.ReserveMinutes < 5 || s.ReserveMinutes > 180 || s.MinTracks < 2 || s.MinTracks > 100 || s.RepeatMinutes < 0 || s.RepeatMinutes > 1440 || s.RepeatTracks < 0 || s.RepeatTracks > 200 {
+	if s.BPM < 0 || (s.BPM > 0 && s.BPM < 30) || s.BPM > 300 || s.GeneratedPercent < 0 || s.GeneratedPercent > 100 || s.ReserveMinutes < 0 || s.ReserveMinutes > 180 || s.MinTracks < 2 || s.MinTracks > 100 || s.RepeatMinutes < 0 || s.RepeatMinutes > 1440 || s.RepeatTracks < 0 || s.RepeatTracks > 200 {
 		return errors.New("radio_invalid_rotation")
 	}
 	if s.DailyGenerations < 0 || s.DailyGenerations > 200 || s.DailyEditorial < 0 || s.DailyEditorial > 200 || s.DailyTTSChars < 0 || s.DailyTTSChars > 200000 || s.LibraryMinutes < s.ReserveMinutes || s.LibraryMinutes > 1440 || s.LibraryMB < 100 || s.LibraryMB > 20000 {
@@ -174,22 +175,34 @@ type EditorialRequest struct {
 
 // OpeningContext is a factual startup snapshot, not an estimated completion time.
 type OpeningContext struct {
-	TrackCount int   `json:"track_count"`
-	MinTracks  int   `json:"min_tracks"`
-	BufferMS   int64 `json:"buffer_ms"`
-	RequiredMS int64 `json:"required_ms"`
+	LibraryPending bool  `json:"library_pending,omitempty"`
+	TrackCount     int   `json:"track_count"`
+	MinTracks      int   `json:"min_tracks"`
+	BufferMS       int64 `json:"buffer_ms"`
+	RequiredMS     int64 `json:"required_ms"`
 }
 
 // Production identifies a durable original. A zero MediaID needs registration.
 type Production struct {
-	Path, Title, Genre string
-	MediaID            int64
+	Path, Title, Genre                               string
+	MediaID                                          int64
+	Prompt, Style, Lyrics, Language, Provider, Model string
+	Tags                                             []string
+	DurationMS, GenerationTimeMS                     int64
+	CostEstimate                                     float64
+}
+
+// LibraryTrack identifies existing music; providers retain ownership of the original.
+type LibraryTrack struct {
+	MediaID                         int64
+	Title, Origin, Genre, Extension string
 }
 type Audio struct {
 	Data      []byte
 	Extension string
 }
 type Adapters struct {
+	Library  func(context.Context, Station, func(LibraryTrack, io.ReadSeeker) error) error
 	Generate func(context.Context, Station, string, string) (Production, error)
 	Register func(context.Context, Production) (Production, error)
 	Issue    func(string, bool)
@@ -199,6 +212,7 @@ type Adapters struct {
 }
 
 type State struct {
+	LibraryStatus  string    `json:"library_status"`
 	MusicReady     bool      `json:"music_ready"`
 	OpeningStatus  string    `json:"opening_status"`
 	StationID      string    `json:"station_id"`

@@ -18,8 +18,17 @@ User documentation: `documentation/personal-radio.md`.
 - Full bounded decode and durable registration precede airtime. Music reserve
   excludes in-flight jobs, duplicate files, speech and invalid files. Strict
   rotation must satisfy the start reserve using currently schedulable tracks.
+- Default startup needs two ready music tracks and no fixed minute reserve.
+  Generator latency must not increase the requirement. Migrate only the former
+  factory 30-minute/eight-track setting once; retain other explicit reserves.
+  Discover suitable registry music through the Library adapter before buying
+  more. Decode independently of the shared speech/music accelerator and allow
+  playback before the scan finishes. Preserve blocked/removed associations and
+  station-specific genres; repair missing cached copies from valid originals.
+  Generated/mixed modes still grow the library and, once full, request one fresh
+  track per start and after four more music starts, within the existing quotas.
 - Attempt one opening moderation per start epoch unless moderation is off.
-  Pass the actual eligible track count and music duration/requirements to the
+  Pass registry preparation status, actual eligible track count and music duration/requirements to the
   tool-free planner. Give opening planning/TTS up to 45 seconds before scheduling
   long music work on the shared accelerator; a failure releases music production.
   Only a fully prepared opening may play before `MusicReady`. It never counts
@@ -31,7 +40,9 @@ User documentation: `documentation/personal-radio.md`.
   count scheduled music as heard. No timer manufactures playback history.
 - Persist production quota reservations before requests, including failed or
   interrupted attempts. Persist successful provider file receipts before
-  registration/import; retry those stages without buying another generation.
+  registration/import, including prompt, style, lyrics, language, provider/model,
+  duration, generation time, cost and tags. Enrich an already registered media ID.
+  Retry these stages without buying another generation even when the pool is full.
   Daily allowances use UTC. No automatic durable music eviction.
 - `Issue` only records/resolves sanitized operational issues through the
   existing supervisor lifecycle. Never emit chat, SSE chat or Telegram notices.

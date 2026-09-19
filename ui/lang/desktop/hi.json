@@ -4411,7 +4411,7 @@
   "personalRadio.region": "क्षेत्र या शहर",
   "personalRadio.timezone": "समय क्षेत्र",
   "personalRadio.operation": "प्लेबैक और सीमाएँ",
-  "personalRadio.reserve_hint": "पर्याप्त तैयार संगीत पर ही शुरुआत होगी। धीमे निर्माण को अधिक भंडार चाहिए। विफल अनुरोध भी सीमा में गिने जाते हैं।",
+  "personalRadio.reserve_hint": "डिफ़ॉल्ट: दो तैयार ट्रैक, मिनटों का कोई निश्चित भंडार नहीं (0)। उपयुक्त मौजूदा संगीत अपने आप इस्तेमाल होता है। नए ट्रैक पृष्ठभूमि में बनते हैं। सीमाओं में असफल अनुरोध भी शामिल हैं।",
   "personalRadio.reserve": "शुरुआती भंडार (मिनट)",
   "personalRadio.min_tracks": "न्यूनतम अलग ट्रैक",
   "personalRadio.repeat": "दोहराव का अंतर (मिनट)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "स्वागत संदेश की आवाज़ तैयार हो रही है…",
   "personalRadio.opening_playing": "स्वागत संदेश चल रहा है",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} ट्रैक · {{minutes}} / {{requiredMinutes}} मिनट तैयार",
-  "personalRadio.startup_hint": "पर्याप्त ट्रैक तैयार होने पर संगीत अपने आप शुरू हो जाएगा। संगीत बनाने में कई मिनट लग सकते हैं।",
+  "personalRadio.startup_hint": "पर्याप्त ट्रैक तैयार होने पर प्लेबैक अपने आप शुरू होता है। मौजूदा संगीत बजता है और नया उपयुक्त संगीत पृष्ठभूमि में बनता है।",
   "personalRadio.startup_local_hint": "और उपयुक्त संगीत आयात करें। पर्याप्त ट्रैक तैयार होने पर प्लेबैक अपने आप शुरू हो जाएगा।",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} ट्रैक तैयार · {{minutes}} मिनट संगीत",
+  "personalRadio.library_searching": "संगीत लाइब्रेरी में खोज जारी है…",
+  "personalRadio.library_loading": "मौजूदा संगीत तैयार हो रहा है…",
+  "personalRadio.radio_registry_unavailable": "संगीत लाइब्रेरी लोड नहीं हो सकी। फिर से कोशिश की जाएगी।",
   "desktop.app_personal_radio": "Personal Radio"
 }

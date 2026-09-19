@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Περιοχή ή πόλη",
   "personalRadio.timezone": "Ζώνη ώρας",
   "personalRadio.operation": "Αναπαραγωγή και όρια",
-  "personalRadio.reserve_hint": "Έναρξη με αρκετή έτοιμη μουσική. Αργή δημιουργία απαιτεί μεγαλύτερο απόθεμα. Οι αποτυχίες μετρούν στα όρια.",
+  "personalRadio.reserve_hint": "Προεπιλογή: δύο έτοιμα κομμάτια, χωρίς σταθερό απόθεμα λεπτών (0). Η κατάλληλη υπάρχουσα μουσική χρησιμοποιείται αυτόματα. Νέα κομμάτια δημιουργούνται στο παρασκήνιο. Τα όρια περιλαμβάνουν και αποτυχημένα αιτήματα.",
   "personalRadio.reserve": "Αρχικό απόθεμα (λεπτά)",
   "personalRadio.min_tracks": "Ελάχιστα διαφορετικά κομμάτια",
   "personalRadio.repeat": "Διάστημα επανάληψης (λεπτά)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Δημιουργία φωνητικού καλωσορίσματος…",
   "personalRadio.opening_playing": "Αναπαραγωγή καλωσορίσματος",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} κομμάτια · {{minutes}} / {{requiredMinutes}} λεπτά έτοιμα",
-  "personalRadio.startup_hint": "Η μουσική ξεκινά αυτόματα όταν είναι έτοιμα αρκετά κομμάτια. Η δημιουργία μπορεί να διαρκέσει αρκετά λεπτά.",
+  "personalRadio.startup_hint": "Η αναπαραγωγή ξεκινά αυτόματα με αρκετά έτοιμα κομμάτια. Χρησιμοποιείται υπάρχουσα μουσική ενώ νέα κατάλληλη μουσική δημιουργείται στο παρασκήνιο.",
   "personalRadio.startup_local_hint": "Εισαγάγετε περισσότερη κατάλληλη μουσική. Η αναπαραγωγή ξεκινά αυτόματα όταν είναι έτοιμα αρκετά κομμάτια.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} κομμάτια έτοιμα · {{minutes}} λεπτά μουσικής",
+  "personalRadio.library_searching": "Αναζήτηση στη μουσική βιβλιοθήκη…",
+  "personalRadio.library_loading": "Προετοιμασία υπάρχουσας μουσικής…",
+  "personalRadio.radio_registry_unavailable": "Δεν ήταν δυνατή η φόρτωση της μουσικής βιβλιοθήκης. Θα γίνει νέα προσπάθεια.",
   "desktop.app_personal_radio": "Personal Radio"
 }

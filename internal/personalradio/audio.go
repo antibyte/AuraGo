@@ -266,10 +266,19 @@ func (s *Service) Import(ctx context.Context, station string, input io.ReadSeeke
 			os.Remove(path)
 		}
 	}()
+	if err = ctx.Err(); err != nil {
+		return t, err
+	}
 	var existing string
 	if s.db.QueryRow("SELECT body FROM assets WHERE hash=?", t.Hash).Scan(&existing) == nil {
 		if err = json.Unmarshal([]byte(existing), &t); err != nil {
 			return t, err
+		}
+		if mediaID > 0 && t.MediaID == 0 {
+			t.MediaID = mediaID
+			if origin == "generated" {
+				t.Origin = origin
+			}
 		}
 		// Re-importing a missing or truncated owned copy repairs it without
 		// changing its identity or playback history.
@@ -310,16 +319,22 @@ func (s *Service) Import(ctx context.Context, station string, input io.ReadSeeke
 	}
 	defer tx.Rollback()
 	b, _ := json.Marshal(t)
-	if _, err = tx.Exec("INSERT INTO assets(id,hash,body) VALUES(?,?,?) ON CONFLICT(hash) DO NOTHING", t.ID, t.Hash, string(b)); err != nil {
+	if _, err = tx.Exec("INSERT INTO assets(id,hash,body) VALUES(?,?,?) ON CONFLICT(hash) DO UPDATE SET body=excluded.body", t.ID, t.Hash, string(b)); err != nil {
 		return t, err
 	}
-	if _, err = tx.Exec("INSERT INTO station_tracks(station,asset) VALUES(?,?) ON CONFLICT DO NOTHING", station, t.ID); err != nil {
+	if _, err = tx.Exec("INSERT INTO station_tracks(station,asset,genre) VALUES(?,?,?) ON CONFLICT(station,asset) DO UPDATE SET genre=CASE WHEN excluded.genre!='' THEN excluded.genre ELSE station_tracks.genre END", station, t.ID, genre); err != nil {
+		return t, err
+	}
+	if _, err = tx.Exec("DELETE FROM registry_ignored WHERE station=? AND media_id=?", station, mediaID); err != nil {
 		return t, err
 	}
 	if err = tx.Commit(); err != nil {
 		return t, err
 	}
 	keep = t.ID == id
+	if genre != "" {
+		t.Genre = genre
+	}
 	return t, nil
 }
 

@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Région ou ville",
   "personalRadio.timezone": "Fuseau horaire",
   "personalRadio.operation": "Lecture et limites",
-  "personalRadio.reserve_hint": "Attendre assez de musique prête. Une génération lente exige plus de réserve. Les échecs comptent dans les limites.",
+  "personalRadio.reserve_hint": "Par défaut : deux titres préparés, sans réserve fixe en minutes (0). La musique existante adaptée est utilisée automatiquement. De nouveaux titres sont créés en arrière-plan. Les limites incluent les requêtes échouées.",
   "personalRadio.reserve": "Réserve initiale (min)",
   "personalRadio.min_tracks": "Titres différents minimum",
   "personalRadio.repeat": "Délai de répétition (min)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Création du message d’accueil vocal…",
   "personalRadio.opening_playing": "Lecture du message d’accueil",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} titres · {{minutes}} / {{requiredMinutes}} min prêts",
-  "personalRadio.startup_hint": "La musique démarre automatiquement dès que suffisamment de titres sont prêts. La génération peut prendre plusieurs minutes.",
+  "personalRadio.startup_hint": "La lecture démarre automatiquement avec suffisamment de titres préparés. La musique existante est utilisée pendant que de nouveaux titres adaptés sont créés en arrière-plan.",
   "personalRadio.startup_local_hint": "Importez davantage de musique adaptée. La lecture démarre automatiquement dès que suffisamment de titres sont prêts.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} titres prêts · {{minutes}} min de musique",
+  "personalRadio.library_searching": "Recherche dans la bibliothèque musicale…",
+  "personalRadio.library_loading": "Préparation de la musique existante…",
+  "personalRadio.radio_registry_unavailable": "Impossible de charger la bibliothèque musicale. Une nouvelle tentative suivra.",
   "desktop.app_personal_radio": "Personal Radio"
 }

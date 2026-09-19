@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Region oder Stadt",
   "personalRadio.timezone": "Zeitzone",
   "personalRadio.operation": "Wiedergabe & Grenzen",
-  "personalRadio.reserve_hint": "Start erst mit genügend vollständig vorbereiteter Musik. Langsame Erzeugung kann mehr Reserve erfordern. Limits zählen auch fehlgeschlagene Anfragen.",
+  "personalRadio.reserve_hint": "Standard: zwei vorbereitete Titel, keine feste Minutenreserve (0). Vorhandene passende Musik wird automatisch genutzt. Neue Titel entstehen im Hintergrund. Limits zählen auch fehlgeschlagene Anfragen.",
   "personalRadio.reserve": "Startreserve (Minuten)",
   "personalRadio.min_tracks": "Mindestzahl verschiedener Titel",
   "personalRadio.repeat": "Wiederholungsabstand (Minuten)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Begrüßung wird eingesprochen…",
   "personalRadio.opening_playing": "Begrüßung läuft",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} Titel · {{minutes}} / {{requiredMinutes}} min bereit",
-  "personalRadio.startup_hint": "Die Musik startet automatisch, sobald genügend Titel vorbereitet sind. Die Erzeugung kann einige Minuten dauern.",
+  "personalRadio.startup_hint": "Die Wiedergabe startet automatisch mit genügend vorbereiteten Titeln. Vorhandene Musik wird genutzt; neue passende Musik entsteht im Hintergrund.",
   "personalRadio.startup_local_hint": "Importiere weitere passende Musik. Sobald genügend Titel bereitstehen, startet die Wiedergabe automatisch.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} Titel bereit · {{minutes}} min Musik",
+  "personalRadio.library_searching": "Musikbibliothek wird durchsucht…",
+  "personalRadio.library_loading": "Vorhandene Musik wird vorbereitet…",
+  "personalRadio.radio_registry_unavailable": "Die Musikbibliothek konnte nicht geladen werden. Ein weiterer Versuch folgt.",
   "desktop.app_personal_radio": "Personal Radio"
 }

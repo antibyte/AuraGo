@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Region or city",
   "personalRadio.timezone": "Time zone",
   "personalRadio.operation": "Playback & limits",
-  "personalRadio.reserve_hint": "Start only with enough fully prepared music. A slow generator may require a larger reserve. Limits include failed requests.",
+  "personalRadio.reserve_hint": "Default: two prepared tracks, no fixed minute reserve (0). Matching existing music is used automatically. New tracks are created in the background. Limits include failed requests.",
   "personalRadio.reserve": "Start reserve (minutes)",
   "personalRadio.min_tracks": "Minimum distinct tracks",
   "personalRadio.repeat": "Minimum repeat gap (minutes)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Creating the spoken welcome…",
   "personalRadio.opening_playing": "Welcome is playing",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} tracks · {{minutes}} / {{requiredMinutes}} min ready",
-  "personalRadio.startup_hint": "Music starts automatically when enough tracks are ready. Generation can take several minutes.",
+  "personalRadio.startup_hint": "Playback starts automatically with enough prepared tracks. Existing music is used while new matching music is created in the background.",
   "personalRadio.startup_local_hint": "Import more matching music. Playback starts automatically when enough tracks are ready.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} tracks ready · {{minutes}} min of music",
+  "personalRadio.library_searching": "Searching the music library…",
+  "personalRadio.library_loading": "Preparing existing music…",
+  "personalRadio.radio_registry_unavailable": "The music library could not be loaded. Another attempt will follow.",
   "desktop.app_personal_radio": "Personal Radio"
 }

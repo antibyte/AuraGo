@@ -4,10 +4,12 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/i18n"
 	"aurago/internal/personalradio"
+	"aurago/internal/tools"
 	"aurago/ui"
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -79,8 +81,25 @@ func TestPersonalRadioBrowser(t *testing.T) {
 	cfg.VirtualDesktop.Enabled = true
 	cfg.Directories.DataDir = t.TempDir()
 	openingPlan := make(chan struct{})
+	libraryGate := make(chan struct{})
 	musicSteps := make(chan int, 2)
+	registry, err := tools.InitMediaRegistryDB(filepath.Join(cfg.Directories.DataDir, "registry.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer registry.Close()
+	server := &Server{Cfg: cfg, MediaRegistryDB: registry}
 	svc, err := personalradio.New(personalradio.Options{Directory: filepath.Join(cfg.Directories.DataDir, "personal-radio"), Adapters: personalradio.Adapters{
+		Library: func(ctx context.Context, p personalradio.Station, accept func(personalradio.LibraryTrack, io.ReadSeeker) error) error {
+			if p.Name == "Registry Radio" {
+				select {
+				case <-libraryGate:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+			return server.personalRadioLibrary(ctx, p, accept)
+		},
 		Plan: func(ctx context.Context, req personalradio.EditorialRequest) (personalradio.Plan, error) {
 			if req.Opening == nil {
 				return personalradio.Plan{}, nil
@@ -130,7 +149,7 @@ func TestPersonalRadioBrowser(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	server := &Server{Cfg: cfg, PersonalRadio: svc}
+	server.PersonalRadio = svc
 	i18n.Load(ui.Content, slog.Default())
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(read("desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
@@ -349,6 +368,35 @@ func TestPersonalRadioBrowser(t *testing.T) {
 	if errors := page.MustEval(`()=>JSON.stringify(radioErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}
+	for i := 21; i <= 22; i++ {
+		path := filepath.Join(cfg.Directories.DataDir, fmt.Sprintf("registry-%d.wav", i))
+		if err = os.WriteFile(path, personalRadioTestWave(8000, 3, i), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err = tools.RegisterMedia(registry, tools.MediaItem{MediaType: "music", SourceTool: "generate_music", Filename: filepath.Base(path), FilePath: path, Description: "Existing Lo-fi", Prompt: "Warm lo-fi instrumental", Tags: []string{"instrumental"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fromRegistry := personalradio.DefaultStation()
+	fromRegistry.Name = "Registry Radio"
+	fromRegistry, err = svc.SaveStation(fromRegistry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page.MustEval(`async id=>{await PersonalRadioRuntime.refresh();const select=document.querySelector('[data-pr=station]');select.value=id;select.dispatchEvent(new Event('change'));document.querySelector('[data-action=start]').click();}`, fromRegistry.ID)
+	wait(`()=>PersonalRadioRuntime.state.state.opening_status==='done'&&document.querySelector('[data-pr=preparation-title]').textContent===t('personalRadio.library_searching')`)
+	if got := page.MustElement("[data-pr=preparation-counts]").MustText(); got != "0 / 2 Titel bereit · 0 min Musik" {
+		t.Fatal("automatic reserve label", got)
+	}
+	captureLayouts("registry-")
+	close(libraryGate)
+	wait(`()=>PersonalRadioRuntime.state.state.music_ready&&PersonalRadioRuntime.position().position>200`)
+	wait(`()=>PersonalRadioRuntime.state.state.music_busy`)
+	if got := svc.Snapshot(); got.RequiredMS != 0 || got.BufferMS != 6000 || got.GeneratedToday != 1 {
+		t.Fatal("registry playback waited for generation", got)
+	}
+	page.MustElement(".pr-app [data-action=stop]").MustClick()
+	wait(`()=>PersonalRadioRuntime.state.state.status==='stopped'`)
 	page.MustNavigate(origin.URL + "/fixture?lang=en").MustWaitLoad()
 	page.MustEval(`async()=>await fixtureReady`)
 	wait(`()=>!!document.querySelector('.pr-app')`)

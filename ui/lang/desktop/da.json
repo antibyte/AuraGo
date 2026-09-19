@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Region eller by",
   "personalRadio.timezone": "Tidszone",
   "personalRadio.operation": "Afspilning og grænser",
-  "personalRadio.reserve_hint": "Start først med nok klargjort musik. Langsom generering kræver større reserve. Fejl tæller med i grænserne.",
+  "personalRadio.reserve_hint": "Standard: to klargjorte numre, ingen fast minutreserve (0). Passende eksisterende musik bruges automatisk. Nye numre skabes i baggrunden. Grænser omfatter også mislykkede anmodninger.",
   "personalRadio.reserve": "Startreserve (min)",
   "personalRadio.min_tracks": "Mindst antal forskellige numre",
   "personalRadio.repeat": "Gentagelsesinterval (min)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Opretter den talte velkomst…",
   "personalRadio.opening_playing": "Velkomsten afspilles",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} numre · {{minutes}} / {{requiredMinutes}} min klar",
-  "personalRadio.startup_hint": "Musikken starter automatisk, når nok numre er klar. Generering kan tage flere minutter.",
+  "personalRadio.startup_hint": "Afspilningen starter automatisk med nok klargjorte numre. Eksisterende musik bruges, mens ny passende musik skabes i baggrunden.",
   "personalRadio.startup_local_hint": "Importér mere passende musik. Afspilningen starter automatisk, når nok numre er klar.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} numre klar · {{minutes}} min musik",
+  "personalRadio.library_searching": "Søger i musikbiblioteket…",
+  "personalRadio.library_loading": "Forbereder eksisterende musik…",
+  "personalRadio.radio_registry_unavailable": "Musikbiblioteket kunne ikke indlæses. Et nyt forsøg følger.",
   "desktop.app_personal_radio": "Personal Radio"
 }

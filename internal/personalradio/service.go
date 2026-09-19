@@ -38,7 +38,9 @@ type Service struct {
 	enabled           func() bool
 	musicRetry        time.Time
 	editorRetry       time.Time
-	latencies         []time.Duration
+	libraryActive     bool
+	libraryRetry      time.Time
+	lastMusicPlay     int
 	preferred         []string
 	musicIdea         string
 	lastEditorialPlay int
@@ -149,6 +151,9 @@ func (s *Service) Start(id, device string, takeover bool) (State, error) {
 	s.newsAttempt = time.Time{}
 	s.musicRetry = time.Time{}
 	s.editorRetry = time.Time{}
+	s.libraryRetry = time.Time{}
+	s.lastMusicPlay = -1
+	s.musicIdea = ""
 	s.state.NextNews = nextNews(s.now(), p)
 	s.updateBufferLocked(p)
 	return s.snapshotLocked(), nil
@@ -366,12 +371,6 @@ func (s *Service) updateBufferLocked(p Station) []Track {
 	}
 	s.state.TrackCount = len(eligible)
 	s.state.RequiredMS = int64(p.ReserveMinutes) * 60000
-	if p.Mode != "local" && len(s.latencies) > 0 {
-		lat := slices.Clone(s.latencies)
-		slices.Sort(lat)
-		estimate := lat[int(float64(len(lat)-1)*0.95)]
-		s.state.RequiredMS = max(s.state.RequiredMS, (2*estimate + time.Minute).Milliseconds())
-	}
 	_ = s.db.QueryRow("SELECT COALESCE(SUM(amount),0) FROM jobs WHERE station=? AND kind='music' AND day=?", p.ID, s.now().UTC().Format("2006-01-02")).Scan(&s.state.GeneratedToday)
 	return eligible
 }
@@ -399,11 +398,8 @@ func (s *Service) Tick() {
 	}
 	tracks := s.updateBufferLocked(p)
 	s.discardExpiredLocked()
+	s.scheduleLibraryLocked(p)
 	if s.openingPendingLocked(p, tracks) {
-		return
-	}
-	if s.state.RequiredMS > 180*60000 {
-		s.state.Code = "radio_production_too_slow"
 		return
 	}
 	if !s.state.MusicReady {

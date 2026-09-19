@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Region lub miasto",
   "personalRadio.timezone": "Strefa czasowa",
   "personalRadio.operation": "Odtwarzanie i limity",
-  "personalRadio.reserve_hint": "Start po przygotowaniu zapasu muzyki. Wolne generowanie wymaga większego zapasu. Nieudane próby liczą się do limitów.",
+  "personalRadio.reserve_hint": "Domyślnie: dwa przygotowane utwory, bez stałej rezerwy minut (0). Pasująca istniejąca muzyka jest używana automatycznie. Nowe utwory powstają w tle. Limity obejmują także nieudane żądania.",
   "personalRadio.reserve": "Zapas początkowy (min)",
   "personalRadio.min_tracks": "Minimum różnych utworów",
   "personalRadio.repeat": "Odstęp powtórek (min)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Tworzenie głosowego powitania…",
   "personalRadio.opening_playing": "Odtwarzanie powitania",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} utworów · {{minutes}} / {{requiredMinutes}} min gotowych",
-  "personalRadio.startup_hint": "Muzyka rozpocznie się automatycznie, gdy będzie gotowych wystarczająco dużo utworów. Generowanie może potrwać kilka minut.",
+  "personalRadio.startup_hint": "Odtwarzanie rozpoczyna się automatycznie przy wystarczającej liczbie przygotowanych utworów. Istniejąca muzyka jest używana, a nowe pasujące utwory powstają w tle.",
   "personalRadio.startup_local_hint": "Zaimportuj więcej pasującej muzyki. Odtwarzanie rozpocznie się automatycznie, gdy będzie gotowych wystarczająco dużo utworów.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} utworów gotowych · {{minutes}} min muzyki",
+  "personalRadio.library_searching": "Przeszukiwanie biblioteki muzycznej…",
+  "personalRadio.library_loading": "Przygotowywanie istniejącej muzyki…",
+  "personalRadio.radio_registry_unavailable": "Nie udało się wczytać biblioteki muzycznej. Nastąpi kolejna próba.",
   "desktop.app_personal_radio": "Personal Radio"
 }

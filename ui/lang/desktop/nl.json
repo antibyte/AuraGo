@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Regio of stad",
   "personalRadio.timezone": "Tijdzone",
   "personalRadio.operation": "Afspelen en limieten",
-  "personalRadio.reserve_hint": "Wacht op genoeg voorbereide muziek. Trage generatie vraagt meer reserve. Mislukte verzoeken tellen mee.",
+  "personalRadio.reserve_hint": "Standaard: twee voorbereide nummers, geen vaste minutenreserve (0). Passende bestaande muziek wordt automatisch gebruikt. Nieuwe nummers worden op de achtergrond gemaakt. Limieten tellen ook mislukte verzoeken mee.",
   "personalRadio.reserve": "Startreserve (min)",
   "personalRadio.min_tracks": "Minimaal verschillende nummers",
   "personalRadio.repeat": "Herhaalafstand (min)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "Gesproken welkomstbericht maken…",
   "personalRadio.opening_playing": "Welkomstbericht wordt afgespeeld",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} nummers · {{minutes}} / {{requiredMinutes}} min gereed",
-  "personalRadio.startup_hint": "De muziek start automatisch zodra er genoeg nummers klaarstaan. Het genereren kan enkele minuten duren.",
+  "personalRadio.startup_hint": "Het afspelen start automatisch met genoeg voorbereide nummers. Bestaande muziek wordt gebruikt terwijl nieuwe passende muziek op de achtergrond wordt gemaakt.",
   "personalRadio.startup_local_hint": "Importeer meer passende muziek. Het afspelen start automatisch zodra er genoeg nummers klaarstaan.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} nummers gereed · {{minutes}} min muziek",
+  "personalRadio.library_searching": "Muziekbibliotheek doorzoeken…",
+  "personalRadio.library_loading": "Bestaande muziek voorbereiden…",
+  "personalRadio.radio_registry_unavailable": "De muziekbibliotheek kon niet worden geladen. Er volgt een nieuwe poging.",
   "desktop.app_personal_radio": "Personal Radio"
 }

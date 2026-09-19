@@ -4411,7 +4411,7 @@
   "personalRadio.region": "Região ou cidade",
   "personalRadio.timezone": "Fuso horário",
   "personalRadio.operation": "Reprodução e limites",
-  "personalRadio.reserve_hint": "Espera por música pronta suficiente. Geração lenta exige mais reserva. As falhas contam para os limites.",
+  "personalRadio.reserve_hint": "Por predefinição: duas faixas preparadas, sem reserva fixa de minutos (0). A música existente adequada é utilizada automaticamente. Novas faixas são criadas em segundo plano. Os limites incluem pedidos falhados.",
   "personalRadio.reserve": "Reserva inicial (min)",
   "personalRadio.min_tracks": "Mínimo de faixas distintas",
   "personalRadio.repeat": "Intervalo de repetição (min)",
@@ -4443,7 +4443,11 @@
   "personalRadio.opening_synthesizing": "A criar as boas-vindas faladas…",
   "personalRadio.opening_playing": "A reproduzir as boas-vindas",
   "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} faixas · {{minutes}} / {{requiredMinutes}} min prontos",
-  "personalRadio.startup_hint": "A música começa automaticamente quando houver faixas suficientes prontas. A geração pode demorar vários minutos.",
+  "personalRadio.startup_hint": "A reprodução começa automaticamente com faixas preparadas suficientes. A música existente é utilizada enquanto novas faixas adequadas são criadas em segundo plano.",
   "personalRadio.startup_local_hint": "Importe mais música adequada. A reprodução começa automaticamente quando houver faixas suficientes prontas.",
+  "personalRadio.startup_tracks": "{{tracks}} / {{requiredTracks}} faixas prontas · {{minutes}} min de música",
+  "personalRadio.library_searching": "A pesquisar na biblioteca de música…",
+  "personalRadio.library_loading": "A preparar música existente…",
+  "personalRadio.radio_registry_unavailable": "Não foi possível carregar a biblioteca de música. Será feita uma nova tentativa.",
   "desktop.app_personal_radio": "Personal Radio"
 }

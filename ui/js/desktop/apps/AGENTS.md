@@ -13,6 +13,10 @@
   actual ready tracks/minutes against both requirements, and the automatic-start
   explanation. Keep this visible throughout preparation, including after the
   opening. Do not use the small reserve/job label as the only startup feedback.
+  Expose registry search, preparation and failure states. A zero minute reserve
+  means automatic start with the required prepared track count; show available
+  minutes without an invented 30-minute target or division by zero. Explain that
+  matching existing music plays while new fitting music is produced in background.
 - Use one Web Audio clock, bounded PCM windows and two prepared segments for
   initial music playback. A typed opening may play alone before `music_ready`,
   without priming/bypassing music preparation. Fence asynchronous work by generation and server epoch.

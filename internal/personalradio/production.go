@@ -39,7 +39,7 @@ func (s *Service) openingPendingLocked(p Station, tracks []Track) bool {
 	s.state.OpeningStatus = "writing"
 	s.editorActive, s.state.EditorBusy = true, true
 	s.lastEditorialPlay = s.plays
-	req := EditorialRequest{Station: p, Tracks: slices.Clone(tracks[:min(40, len(tracks))]), Recent: s.recent(p.ID), Opening: &OpeningContext{TrackCount: len(tracks), MinTracks: p.MinTracks, BufferMS: s.state.BufferMS, RequiredMS: s.state.RequiredMS}}
+	req := EditorialRequest{Station: p, Tracks: slices.Clone(tracks[:min(40, len(tracks))]), Recent: s.recent(p.ID), Opening: &OpeningContext{LibraryPending: s.state.LibraryStatus == "searching" || s.state.LibraryStatus == "importing", TrackCount: len(tracks), MinTracks: p.MinTracks, BufferMS: s.state.BufferMS, RequiredMS: s.state.RequiredMS}}
 	s.wg.Add(1)
 	go s.produceEditorial(s.runCtx, s.state.Epoch, job, req, time.Time{})
 	return true
@@ -56,27 +56,34 @@ func (s *Service) scheduleProductionLocked(p Station, tracks []Track) {
 	if s.state.Status == "paused" {
 		goal = max(s.state.RequiredMS+15*60000, int64(p.ReserveMinutes)*60000)
 	}
-	if p.Mode != "local" && s.state.BufferMS < goal && !s.musicActive && !s.now().Before(s.musicRetry) {
+	libraryReady := s.state.LibraryStatus == "ready" || s.state.LibraryStatus == "off"
+	freshMusicDue := s.lastMusicPlay < 0 || s.plays-s.lastMusicPlay >= 4
+	if p.Mode != "local" && libraryReady && !s.musicActive && !s.now().Before(s.musicRetry) {
 		var pending Production
 		var pendingID, body string
 		if s.db.QueryRow("SELECT id,result FROM jobs WHERE station=? AND kind='music' AND status='ready_to_import' ORDER BY rowid LIMIT 1", p.ID).Scan(&pendingID, &body) == nil && json.Unmarshal([]byte(body), &pending) == nil {
+			s.lastMusicPlay = s.plays
 			s.musicActive = true
 			s.state.MusicBusy = true
 			s.wg.Add(1)
 			go s.produceMusic(s.runCtx, s.state.Epoch, pendingID, p, pending.Genre, "", &pending)
-		} else if s.adapters.Generate == nil {
-			s.state.Code = "radio_music_unavailable"
-		} else if id, err := s.reserve(p.ID, "music", 1, p.DailyGenerations); err != nil {
-			s.state.Code = errorCode(err, "radio_storage_error")
-			s.musicRetry = s.now().Add(time.Minute)
-		} else {
-			s.musicActive = true
-			s.state.MusicBusy = true
-			ctx, epoch := s.runCtx, s.state.Epoch
-			genre := generationGenre(p, tracks)
-			idea := s.musicIdea
-			s.wg.Add(1)
-			go s.produceMusic(ctx, epoch, id, p, genre, idea, nil)
+		} else if s.state.BufferMS < goal || len(tracks) < p.MinTracks || (s.state.Status != "paused" && freshMusicDue) {
+			if s.adapters.Generate == nil {
+				s.state.Code = "radio_music_unavailable"
+			} else if id, err := s.reserve(p.ID, "music", 1, p.DailyGenerations); err != nil {
+				s.state.Code = errorCode(err, "radio_storage_error")
+				s.musicRetry = s.now().Add(time.Minute)
+			} else {
+				s.lastMusicPlay = s.plays
+				s.state.GeneratedToday++
+				s.musicActive = true
+				s.state.MusicBusy = true
+				ctx, epoch := s.runCtx, s.state.Epoch
+				genre := generationGenre(p, tracks)
+				idea := s.musicIdea
+				s.wg.Add(1)
+				go s.produceMusic(ctx, epoch, id, p, genre, idea, nil)
+			}
 		}
 	}
 	if s.editorActive || s.now().Before(s.editorRetry) || s.state.Status == "paused" || !s.state.MusicReady || s.adapters.Plan == nil {
@@ -143,7 +150,6 @@ func (s *Service) produceMusic(parent context.Context, epoch, job string, p Stat
 	defer s.wg.Done()
 	ctx, cancel := context.WithTimeout(parent, 30*time.Minute)
 	defer cancel()
-	start := s.now()
 	var result Production
 	var err error
 	if pending != nil {
@@ -157,7 +163,7 @@ func (s *Service) produceMusic(parent context.Context, epoch, job string, p Stat
 		_, err = s.db.Exec("UPDATE jobs SET status='ready_to_import',result=? WHERE id=?", string(body), job)
 		s.mu.Unlock()
 	}
-	if err == nil && result.MediaID == 0 && s.adapters.Register != nil {
+	if err == nil && s.adapters.Register != nil {
 		result, err = s.adapters.Register(ctx, result)
 	}
 	var track Track
@@ -185,10 +191,6 @@ func (s *Service) produceMusic(parent context.Context, epoch, job string, p Stat
 		s.musicRetry = s.now().Add(time.Minute)
 	} else {
 		s.state.Code = ""
-		s.latencies = append(s.latencies, s.now().Sub(start))
-		if len(s.latencies) > 20 {
-			s.latencies = s.latencies[1:]
-		}
 	}
 	if s.adapters.Issue != nil && !errors.Is(err, context.Canceled) {
 		s.adapters.Issue("music", err != nil)
