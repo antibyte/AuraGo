@@ -35,6 +35,11 @@ func TestPersonalRadioTranslations(t *testing.T) {
 					}
 				}
 			}
+			for _, placeholder := range []string{"tracks", "requiredTracks", "minutes", "requiredMinutes"} {
+				if !strings.Contains(words["personalRadio.startup_counts"], "{{"+placeholder+"}}") {
+					t.Errorf("startup progress missing placeholder %s", placeholder)
+				}
+			}
 		})
 	}
 	literal := regexp.MustCompile(`\bt\('([a-z_]+)'\)`)

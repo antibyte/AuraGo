@@ -35,7 +35,7 @@ func (s *Service) fillQueueLocked(p Station, tracks []Track) {
 	for _, t := range tracks {
 		last[t.ID] = t.LastPlayed
 	}
-	if s.state.Status == "preparing" && p.Strict {
+	if !s.state.MusicReady && p.Strict {
 		remaining := slices.Clone(tracks)
 		simRecent := slices.Clone(recent)
 		simLast := map[string]time.Time{}

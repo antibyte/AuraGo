@@ -78,7 +78,37 @@ func TestPersonalRadioBrowser(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.VirtualDesktop.Enabled = true
 	cfg.Directories.DataDir = t.TempDir()
-	svc, err := personalradio.New(personalradio.Options{Directory: filepath.Join(cfg.Directories.DataDir, "personal-radio")})
+	openingPlan := make(chan struct{})
+	musicSteps := make(chan int, 2)
+	svc, err := personalradio.New(personalradio.Options{Directory: filepath.Join(cfg.Directories.DataDir, "personal-radio"), Adapters: personalradio.Adapters{
+		Plan: func(ctx context.Context, req personalradio.EditorialRequest) (personalradio.Plan, error) {
+			if req.Opening == nil {
+				return personalradio.Plan{}, nil
+			}
+			select {
+			case <-openingPlan:
+			case <-ctx.Done():
+				return personalradio.Plan{}, ctx.Err()
+			}
+			return personalradio.Plan{Moderation: "Willkommen! Deine Musik wird vorbereitet. Sobald genügend Titel bereit sind, geht es los."}, nil
+		},
+		Speak: func(context.Context, personalradio.Station, string) (personalradio.Audio, error) {
+			return personalradio.Audio{Data: personalRadioTestWave(8000, 3, 9), Extension: "wav"}, nil
+		},
+		Generate: func(ctx context.Context, _ personalradio.Station, _, _ string) (personalradio.Production, error) {
+			var seed int
+			select {
+			case seed = <-musicSteps:
+			case <-ctx.Done():
+				return personalradio.Production{}, ctx.Err()
+			}
+			path := filepath.Join(cfg.Directories.DataDir, fmt.Sprintf("generated-%d.wav", seed))
+			if err := os.WriteFile(path, personalRadioTestWave(8000, 180, seed), 0600); err != nil {
+				return personalradio.Production{}, err
+			}
+			return personalradio.Production{Path: path, Title: fmt.Sprintf("New music %d", seed)}, nil
+		},
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,22 +233,30 @@ func TestPersonalRadioBrowser(t *testing.T) {
 	}
 	page.MustElement(".pr-app [data-tab=library]").MustClick()
 	wait(`()=>document.querySelectorAll('.pr-track').length===2`)
-	for _, theme := range []string{"standard", "fruity"} {
-		for _, width := range []int{1060, 420} {
-			page.MustEval(`(theme,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode='light';const w=document.querySelector('[data-app-id="personal-radio"]');w.style.width=width+'px';w.style.height='800px';w.style.left='10px';w.style.top='10px';}`, theme, width)
-			if !page.MustEval(`()=>{const x=document.querySelector('.pr-app');return x.scrollWidth<=x.clientWidth+2}`).Bool() {
-				t.Fatal("horizontal overflow", theme, width)
-			}
-			if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
-				os.MkdirAll(dir, 0755)
-				png, err := page.Screenshot(false, &proto.PageCaptureScreenshot{Format: proto.PageCaptureScreenshotFormatPng})
-				if err != nil {
-					t.Fatal(err)
+	captureLayouts := func(prefix string) {
+		for _, theme := range []string{"standard", "fruity"} {
+			for _, width := range []int{1060, 420} {
+				page.MustEval(`(theme,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode='light';const w=document.querySelector('[data-app-id="personal-radio"]');w.style.width=width+'px';w.style.height='800px';w.style.left='10px';w.style.top='10px';}`, theme, width)
+				if !page.MustEval(`()=>{const x=document.querySelector('.pr-app');return x.scrollWidth<=x.clientWidth+2}`).Bool() {
+					t.Fatal("horizontal overflow", theme, width)
 				}
-				os.WriteFile(filepath.Join(dir, fmt.Sprintf("personal-radio-%s-%d.png", theme, width)), png, 0644)
+				if prefix != "" {
+					if !page.MustEval(`()=>{const box=document.querySelector('[data-pr=preparation]'),app=document.querySelector('.pr-app');return !box.hidden&&box.getBoundingClientRect().bottom<app.getBoundingClientRect().bottom;}`).Bool() {
+						t.Fatal("startup panel clipped", theme, width)
+					}
+				}
+				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+					os.MkdirAll(dir, 0755)
+					png, err := page.Screenshot(false, &proto.PageCaptureScreenshot{Format: proto.PageCaptureScreenshotFormatPng})
+					if err != nil {
+						t.Fatal(err)
+					}
+					os.WriteFile(filepath.Join(dir, fmt.Sprintf("personal-radio-%s%s-%d.png", prefix, theme, width)), png, 0644)
+				}
 			}
 		}
 	}
+	captureLayouts("")
 	page.MustElement(".pr-app [data-action=stop]").MustClick()
 	wait(`()=>PersonalRadioRuntime.state.state.status==='stopped'`)
 	page.MustElement(".pr-app [data-action=settings]").MustClick()
@@ -237,6 +275,76 @@ func TestPersonalRadioBrowser(t *testing.T) {
 		t.Fatal("failed stop request revived local playback")
 	}
 	page.MustEval(`async()=>{window.fetch=stopTestFetch;await PersonalRadioRuntime.control('stop');}`)
+	wait(`()=>PersonalRadioRuntime.state.state.status==='stopped'`)
+	other, err := svc.Start(p.ID, "another-radio-device", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.Tick()
+	page.MustEval(`async()=>await PersonalRadioRuntime.refresh()`)
+	wait(`()=>PersonalRadioRuntime.state.state.owner==='another-radio-device'`)
+	if page.MustElement(".pr-app [data-action=start]").MustProperty("disabled").Bool() {
+		t.Fatal("another device's station cannot be taken over")
+	}
+	if err = svc.Control("another-radio-device", other.Epoch, "stop", ""); err != nil {
+		t.Fatal(err)
+	}
+	page.MustEval(`async()=>await PersonalRadioRuntime.refresh()`)
+	// A cold station exercises the real startup UI and audio lifecycle while
+	// deterministic provider gates make each preparation phase observable.
+	cold := personalradio.DefaultStation()
+	cold.Name = "Startup Radio"
+	cold.Topics = "Jazz und leise Gedanken"
+	cold.Mode = "generated"
+	cold.ReserveMinutes, cold.MinTracks, cold.LibraryMinutes = 5, 2, 6
+	cold, err = svc.SaveStation(cold)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page.MustEval(`async id=>{await PersonalRadioRuntime.refresh();const select=document.querySelector('[data-pr=station]');select.value=id;select.dispatchEvent(new Event('change'));document.querySelector('[data-tab=program]').click();}`, cold.ID)
+	page.MustEval(`()=>{window.startFetch=window.fetch;window.fetch=(url,options)=>String(url).endsWith('/start')?Promise.reject(Error('radio_request_failed')):startFetch(url,options);}`)
+	page.MustElement(".pr-app [data-action=start]").MustClick()
+	wait(`()=>!PersonalRadioRuntime.startingStation&&!document.querySelector('[data-pr=notice]').hidden&&!document.querySelector('[data-action=start]').disabled`)
+	page.MustEval(`()=>{window.fetch=(url,options)=>String(url).endsWith('/start')?new Promise(resolve=>{window.releaseRadioStart=()=>resolve(startFetch(url,options));}):startFetch(url,options);document.querySelector('[data-action=start]').click();}`)
+	wait(`()=>!!window.releaseRadioStart`)
+	if !page.MustEval(`()=>{const box=document.querySelector('[data-pr=preparation]');return !box.hidden&&box.innerText.includes('Sender wird gestartet')&&document.querySelector('[data-action=start]').disabled&&document.querySelector('[data-action=start]').getAttribute('aria-busy')==='true';}`).Bool() {
+		t.Fatal("start has no immediate prominent pending feedback")
+	}
+	page.MustEval(`()=>{releaseRadioStart();window.fetch=startFetch;}`)
+	wait(`()=>document.querySelector('[data-pr=preparation-title]').textContent==='Begrüßung wird vorbereitet…'`)
+	if got := page.MustElement("[data-pr=preparation-counts]").MustText(); got != "0 / 2 Titel · 0 / 5 min bereit" {
+		t.Fatal("incorrect initial progress", got)
+	}
+	close(openingPlan)
+	wait(`()=>PersonalRadioRuntime.state.state.opening_status==='playing'&&PersonalRadioRuntime.position().position>0`)
+	if got := svc.Snapshot(); got.MusicReady || got.BufferMS != 0 || got.Current == "" {
+		t.Fatal("opening did not play before music readiness", got)
+	}
+	wait(`()=>PersonalRadioRuntime.state.state.opening_status==='done'&&PersonalRadioRuntime.state.state.music_busy&&document.querySelector('[data-pr=preparation-title]').textContent===t('personalRadio.generating')`)
+	if !page.MustEval(`()=>{const box=document.querySelector('[data-pr=preparation]'),app=document.querySelector('.pr-app'),button=document.querySelector('[data-action=stop]');const r=box.getBoundingClientRect(),a=app.getBoundingClientRect();return !box.hidden&&r.top>=a.top&&r.bottom<a.bottom&&parseFloat(getComputedStyle(document.querySelector('[data-pr=preparation-title]')).fontSize)>=18&&!button.disabled&&document.querySelector('[data-pr=preparation-hint]').innerText.includes('automatisch');}`).Bool() {
+		t.Fatal("preparation is not prominent and actionable after the opening")
+	}
+	assertLocalized()
+	captureLayouts("startup-")
+	page.MustEval(`()=>{document.querySelector('[data-app-id="personal-radio"]').style.height='600px';document.querySelector('[data-action=stop]').scrollIntoView({block:'nearest',behavior:'instant'});}`)
+	if !page.MustEval(`()=>{const button=document.querySelector('[data-action=stop]'),app=document.querySelector('.pr-app'),r=button.getBoundingClientRect(),a=app.getBoundingClientRect();return r.top>=a.top-1&&r.bottom<=a.bottom+1&&app.scrollWidth<=app.clientWidth+2;}`).Bool() {
+		t.Fatal("stop is unreachable in a small window", page.MustEval(`()=>{const app=document.querySelector('.pr-app');return JSON.stringify({button:document.querySelector('[data-action=stop]').getBoundingClientRect().toJSON(),app:app.getBoundingClientRect().toJSON(),scrollTop:app.scrollTop,scrollWidth:app.scrollWidth,clientWidth:app.clientWidth,scrollHeight:app.scrollHeight,clientHeight:app.clientHeight});}`).Str())
+	}
+	page.MustEval(`()=>{document.querySelector('[data-app-id="personal-radio"]').style.height='800px';document.querySelector('.pr-app').scrollTop=0;}`)
+	musicSteps <- 11
+	wait(`()=>document.querySelector('[data-pr=preparation-counts]').textContent==='1 / 2 Titel · 3 / 5 min bereit'`)
+	if got := svc.Snapshot(); got.MusicReady || got.Current != "" {
+		t.Fatal("music started before reserve", got)
+	}
+	if !page.MustEval(`()=>document.querySelector('[data-pr=preparation-progress]').value===0.5`).Bool() {
+		t.Fatal("progress does not reflect both track and duration requirements")
+	}
+	musicSteps <- 12
+	wait(`()=>PersonalRadioRuntime.state.state.music_ready&&PersonalRadioRuntime.position().position>500&&document.querySelector('[data-pr=preparation]').hidden`)
+	if got := svc.Snapshot(); got.Status != "playing" || got.Queue[0].Kind != "music" {
+		t.Fatal("music did not start automatically", got)
+	}
+	page.MustElement(".pr-app [data-action=stop]").MustClick()
 	wait(`()=>PersonalRadioRuntime.state.state.status==='stopped'`)
 	if errors := page.MustEval(`()=>JSON.stringify(radioErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
@@ -303,5 +411,20 @@ func TestPersonalRadioAudioContinuityBrowser(t *testing.T) {
 	failures, starts := recovery.Get("failures").Arr(), recovery.Get("starts").Arr()
 	if len(failures) != 1 || failures[0].Str() != "s0" || len(starts) != 2 || starts[0].Str() != "s0" || starts[1].Str() != "s1" || recovery.Get("resumedAt").Num() > 1.5 {
 		t.Fatal("failed audio retained its old transition time", recovery.String())
+	}
+	opening := page.MustEval(`async()=>{
+ const ctx=new OfflineAudioContext(1,7*8000,8000),starts=[],errors=[];
+ const segments=[{id:'intro',asset_id:'intro',kind:'moderation',opening:true,duration_ms:1000},{id:'m1',asset_id:'m1',kind:'music',duration_ms:2000},{id:'m2',asset_id:'m2',kind:'music',duration_ms:2000}];
+ const player=new PersonalRadioPlayer({audio:async id=>{const frames=segments.find(s=>s.id===id).duration_ms*8,a=new ArrayBuffer(44+frames*2),v=new DataView(a);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint16(34,16,true);v.setUint32(40,frames*2,true);for(let i=44;i<a.byteLength;i+=2)v.setInt16(i,3000,true);return a;},event:(id,kind)=>{if(kind==='started')starts.push(id);},error:e=>errors.push(e.message),progress:()=>{}});
+ player.context=new Proxy(ctx,{get(target,key){if(key==='state')return 'running';const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});player.master=ctx.createGain();player.master.connect(ctx.destination);player.running=true;
+ player.update(segments.slice(0,1));await player.pump();const openingStart=player.slots[0].start;let primedEarly=false,musicStartedEarly=false;
+ const steps=[.5,1.5,2,3,4,6];
+ const pump=async index=>{const at=steps[index];await ctx.suspend(at);if(at===.5)player.update(segments.slice(0,2));if(at===2)player.update(segments);await player.pump();if(at<2){primedEarly||=player.primed;musicStartedEarly||=player.slots.some(s=>s.segment.kind==='music'&&s.start!=null);}if(index+1<steps.length)pump(index+1);await ctx.resume();};pump(0);
+ const audio=await ctx.startRendering(),samples=audio.getChannelData(0);player.reset();
+ return {openingStart,primedEarly,musicStartedEarly,starts,errors,openingSample:samples[4000],waitingSample:samples[12000],musicSample:samples[20000]};
+ }`)
+	openingStarts := opening.Get("starts").Arr()
+	if opening.Get("openingStart").Num() != .15 || opening.Get("primedEarly").Bool() || opening.Get("musicStartedEarly").Bool() || len(openingStarts) != 3 || openingStarts[0].Str() != "intro" || openingStarts[1].Str() != "m1" || openingStarts[2].Str() != "m2" || opening.Get("errors").String() != "[]" || opening.Get("openingSample").Num() < .01 || opening.Get("waitingSample").Num() != 0 || opening.Get("musicSample").Num() < .01 {
+		t.Fatal("opening bypassed music preparation or failed to bridge startup", opening.String())
 	}
 }

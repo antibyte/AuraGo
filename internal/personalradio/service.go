@@ -204,6 +204,9 @@ func (s *Service) Control(device, epoch, action, current string) error {
 	case "resume":
 		if s.state.Status == "paused" {
 			s.state.Status = "ready"
+			if !s.state.MusicReady {
+				s.state.Status = "preparing"
+			}
 			if len(s.state.Queue) > 0 && s.state.Queue[0].ID == s.state.Current && !s.state.Queue[0].Expires.IsZero() && !s.now().Before(s.state.Queue[0].Expires) {
 				s.dropFirstLocked("expired")
 				s.state.Current = ""
@@ -231,6 +234,9 @@ func (s *Service) Control(device, epoch, action, current string) error {
 		s.state.Current = ""
 		if s.state.Status != "paused" {
 			s.state.Status = "ready"
+			if !s.state.MusicReady {
+				s.state.Status = "preparing"
+			}
 		}
 	default:
 		return ErrConflict
@@ -261,10 +267,10 @@ func (s *Service) Playback(device, epoch, id, kind string) error {
 		return ErrConflict
 	}
 	if kind == "started" {
-		if idx > 1 || s.state.Status == "preparing" || s.state.Status == "paused" {
+		x := s.state.Queue[idx]
+		if idx > 1 || (!s.state.MusicReady && !x.Opening) || s.state.Status == "paused" {
 			return ErrConflict
 		}
-		x := s.state.Queue[idx]
 		if !x.Expires.IsZero() && !s.now().Before(x.Expires) {
 			return ErrConflict
 		}
@@ -289,6 +295,9 @@ func (s *Service) Playback(device, epoch, id, kind string) error {
 		}
 		s.state.Current = id
 		s.state.Status = "playing"
+		if x.Opening {
+			s.state.OpeningStatus = "playing"
+		}
 		if x.Kind == "news" {
 			for i := range s.state.News {
 				if s.state.News[i].ID == id {
@@ -306,6 +315,9 @@ func (s *Service) Playback(device, epoch, id, kind string) error {
 		s.state.Current = ""
 		if s.state.Status != "paused" {
 			s.state.Status = "ready"
+			if !s.state.MusicReady {
+				s.state.Status = "preparing"
+			}
 		}
 	} else if kind == "failed" && idx >= 1 {
 		x := s.state.Queue[idx]
@@ -321,6 +333,9 @@ func (s *Service) dropFirstLocked(outcome string) {
 		return
 	}
 	x := s.state.Queue[0]
+	if x.Opening {
+		s.state.OpeningStatus = "done"
+	}
 	_, err := s.db.Exec("UPDATE plays SET ended=?,outcome=? WHERE segment=? AND ended IS NULL", s.now().UTC().Format(time.RFC3339Nano), outcome, x.ID)
 	if err != nil {
 		s.state.Code = "radio_storage_error"
@@ -384,15 +399,27 @@ func (s *Service) Tick() {
 	}
 	tracks := s.updateBufferLocked(p)
 	s.discardExpiredLocked()
+	if s.openingPendingLocked(p, tracks) {
+		return
+	}
 	if s.state.RequiredMS > 180*60000 {
 		s.state.Code = "radio_production_too_slow"
 		return
 	}
-	if s.state.Status == "preparing" {
+	if !s.state.MusicReady {
 		if s.state.BufferMS >= s.state.RequiredMS && len(tracks) >= p.MinTracks {
 			s.fillQueueLocked(p, tracks)
-			if len(s.state.Queue) >= 2 {
-				s.state.Status = "ready"
+			musicCount := 0
+			for _, segment := range s.state.Queue {
+				if segment.Kind == "music" {
+					musicCount++
+				}
+			}
+			if musicCount >= 2 {
+				s.state.MusicReady = true
+				if s.state.Status != "playing" && s.state.Status != "paused" {
+					s.state.Status = "ready"
+				}
 				s.state.Code = ""
 			} else {
 				s.state.Code = "radio_more_music_needed"
@@ -401,7 +428,7 @@ func (s *Service) Tick() {
 			s.state.Code = "radio_more_music_needed"
 		}
 	}
-	if s.state.Status != "preparing" {
+	if s.state.MusicReady {
 		s.fillQueueLocked(p, tracks)
 		if len(s.state.Queue) == 0 && s.state.Status != "paused" {
 			s.state.Status = "buffering"
@@ -416,6 +443,9 @@ func (s *Service) discardExpiredLocked() {
 	q := s.state.Queue[:0]
 	for _, x := range s.state.Queue {
 		if x.ID != s.state.Current && !x.Expires.IsZero() && !s.now().Before(x.Expires) {
+			if x.Opening {
+				s.state.OpeningStatus = "done"
+			}
 			_ = os.Remove(filepath.Join(s.dir, x.AssetID+".wav"))
 			continue
 		}

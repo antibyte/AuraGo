@@ -4438,5 +4438,12 @@
   "personalRadio.radio_unavailable": "Personal Radio is unavailable. Enable Virtual Desktop and restart AuraGo.",
   "personalRadio.import_genre": "Import genre",
   "personalRadio.any_genre": "Unspecified",
+  "personalRadio.starting": "Starting station…",
+  "personalRadio.opening_writing": "Preparing the welcome…",
+  "personalRadio.opening_synthesizing": "Creating the spoken welcome…",
+  "personalRadio.opening_playing": "Welcome is playing",
+  "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} tracks · {{minutes}} / {{requiredMinutes}} min ready",
+  "personalRadio.startup_hint": "Music starts automatically when enough tracks are ready. Generation can take several minutes.",
+  "personalRadio.startup_local_hint": "Import more matching music. Playback starts automatically when enough tracks are ready.",
   "desktop.app_personal_radio": "Personal Radio"
 }

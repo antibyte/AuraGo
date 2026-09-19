@@ -4438,5 +4438,12 @@
   "personalRadio.radio_unavailable": "Personal Radio není dostupné. Zapněte virtuální plochu a restartujte AuraGo.",
   "personalRadio.import_genre": "Žánr importu",
   "personalRadio.any_genre": "Neurčeno",
+  "personalRadio.starting": "Spouští se stanice…",
+  "personalRadio.opening_writing": "Připravuje se uvítání…",
+  "personalRadio.opening_synthesizing": "Vytváří se mluvené uvítání…",
+  "personalRadio.opening_playing": "Přehrává se uvítání",
+  "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} skladeb · {{minutes}} / {{requiredMinutes}} min připraveno",
+  "personalRadio.startup_hint": "Hudba se spustí automaticky, jakmile bude připraven dostatek skladeb. Generování může trvat několik minut.",
+  "personalRadio.startup_local_hint": "Importujte další vhodnou hudbu. Přehrávání se spustí automaticky, jakmile bude připraven dostatek skladeb.",
   "desktop.app_personal_radio": "Personal Radio"
 }

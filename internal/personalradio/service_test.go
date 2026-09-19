@@ -65,7 +65,7 @@ func TestColdStartPlaybackLeaseAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Tick()
-	if got := s.Snapshot(); got.Status != "preparing" || len(got.Queue) != 0 {
+	if got := s.Snapshot(); got.Status != "preparing" || len(got.Queue) != 0 || got.OpeningStatus != "off" {
 		t.Fatalf("empty start: %+v", got)
 	}
 	first := testImport(t, s, p, 1)

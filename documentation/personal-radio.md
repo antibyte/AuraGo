@@ -40,8 +40,22 @@ The app detects identical input files and reuses one stored copy.
 The default start reserve is **30 minutes and eight different music tracks**.
 A measured slow generator increases the time requirement. Running jobs and
 speech never count toward the reserve. Local mode waits for sufficient imports
-and does not generate music. The browser must also preload the first transition
-before sounding on air. The configured start reserve may be 5–180 minutes.
+and does not generate music. The browser must also preload the first music
+transition. The configured start reserve may be 5–180 minutes.
+
+With moderation enabled, each start first prepares one short spoken welcome
+using the station's LLM and active TTS. It introduces the station and explains
+any missing music using the actual available track count and duration. In local
+mode it asks for imports instead of claiming to generate music. Opening
+preparation has a 45-second limit before music generation takes priority; a
+speech failure does not block music preparation. The welcome can play before
+the music reserve is ready and music generation can continue while it plays.
+The welcome is not repeated to fill a longer wait. Moderation off skips it.
+
+The central player immediately shows the current preparation task, ready tracks
+and minutes against their requirements, and progress based on both. After the
+welcome it continues showing preparation until music starts automatically.
+These counts measure ready music, not the provider's internal progress or an ETA.
 
 The library grows toward 120 music minutes by default. Existing tracks are
 reused; the station does not continually buy new music once the target is met.

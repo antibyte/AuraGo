@@ -4,6 +4,7 @@
     const device = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'radio-' + Date.now() + '-' + Math.random().toString(36).slice(2);
     const listeners = new Set();
     let revision = 0, mutations = 0;
+    let startingStation = '';
     let ctx, snapshot, player, pollTimer, heartbeatAt = 0, inFlight = false, badge, wanted = false, events = Promise.resolve(), lastError = '';
     const owned = () => snapshot && snapshot.state && snapshot.state.owner === device && snapshot.state.status !== 'stopped';
     const tr = key => ctx && ctx.t ? ctx.t('personalRadio.' + key) : key;
@@ -32,6 +33,7 @@
                 const pause = badge.querySelector('[data-pr-mini="pause"]');
                 pause.textContent = snapshot.state.status === 'paused' ? '▶' : 'Ⅱ'; pause.title = tr(snapshot.state.status === 'paused' ? 'resume' : 'pause');
                 pause.setAttribute('aria-label', pause.title);
+                pause.disabled = snapshot.state.status === 'preparing';
                 const stop = badge.querySelector('[data-pr-mini="stop"]'); stop.title = tr('stop'); stop.setAttribute('aria-label', tr('stop'));
             }
         }
@@ -96,7 +98,7 @@
             if (owned() && wanted) {
                 const st = value.state; player.update(st.queue);
                 if (st.status === 'paused') { if (!player.paused) await player.pause(); }
-                else if (st.status === 'ready' || st.status === 'playing' || st.status === 'buffering') {
+                else if (st.status === 'ready' || st.status === 'playing' || st.status === 'buffering' || (st.status === 'preparing' && st.queue.some(x => x.opening))) {
                     if (!player.running || player.paused) { try { await player.play(); } catch (err) { lastError = 'radio_audio_unlock'; } }
                 }
                 if (Date.now() - heartbeatAt > 15000) {
@@ -109,6 +111,8 @@
         } finally { inFlight = false; }
     }
     async function start(id, takeover) {
+        if (startingStation) return;
+        startingStation = id; lastError = ''; publish();
         mutations++; try {
         await player.unlock(); lastError = '';
         revision++;
@@ -117,7 +121,7 @@
         if (snapshot.state.epoch !== state.epoch) player.reset();
         snapshot.state = state; wanted = true;
         publish();
-        } finally { mutations--; }
+        } finally { mutations--; startingStation = ''; publish(); }
         await refresh();
     }
     async function control(action) {
@@ -152,6 +156,7 @@
         position: () => player ? player.position() : { position: 0, duration: 0 },
         get volumeValue() { return player ? player.volume : 0.8; },
         get state() { return snapshot; },
+        get startingStation() { return startingStation; },
         get active() { return !!(wanted && owned()); }
     };
 })();

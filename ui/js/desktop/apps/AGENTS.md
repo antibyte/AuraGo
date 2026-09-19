@@ -9,8 +9,13 @@
   Window disposal cancels only window work. The singleton desktop runtime owns
   playback, listener heartbeat and the mini control until explicit stop or
   pagehide; reopening must not create a second player.
+- Show startup immediately in the central player with an explicit current task,
+  actual ready tracks/minutes against both requirements, and the automatic-start
+  explanation. Keep this visible throughout preparation, including after the
+  opening. Do not use the small reserve/job label as the only startup feedback.
 - Use one Web Audio clock, bounded PCM windows and two prepared segments for
-  initial playback. Fence asynchronous work by generation and server epoch.
+  initial music playback. A typed opening may play alone before `music_ready`,
+  without priming/bypassing music preparation. Fence asynchronous work by generation and server epoch.
   Never claim airtime from a server timer. Expired speech must not resume.
 - Keep Standard/Fruity tokens, reduced motion and all 16 locale dictionaries.
   The original Radio app, Noisemaker and Webamp retain their own lifecycles.

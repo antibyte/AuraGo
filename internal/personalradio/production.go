@@ -12,6 +12,39 @@ import (
 	"time"
 )
 
+// Prepare one opening before reserving the shared music/TTS accelerator for a
+// long music job. A bounded failure releases music production without a retry loop.
+func (s *Service) openingPendingLocked(p Station, tracks []Track) bool {
+	if s.state.OpeningStatus != "" {
+		return s.state.OpeningStatus == "writing" || s.state.OpeningStatus == "synthesizing"
+	}
+	if p.Moderation == "off" {
+		s.state.OpeningStatus = "off"
+		return false
+	}
+	if s.adapters.Plan == nil || s.adapters.Speak == nil {
+		s.state.OpeningStatus = "failed"
+		s.state.EditorialCode = "radio_tts_unavailable"
+		return false
+	}
+	if s.editorActive {
+		return true
+	}
+	job, err := s.reserve(p.ID, "editorial", 1, p.DailyEditorial)
+	if err != nil {
+		s.state.OpeningStatus = "failed"
+		s.state.EditorialCode = errorCode(err, "radio_storage_error")
+		return false
+	}
+	s.state.OpeningStatus = "writing"
+	s.editorActive, s.state.EditorBusy = true, true
+	s.lastEditorialPlay = s.plays
+	req := EditorialRequest{Station: p, Tracks: slices.Clone(tracks[:min(40, len(tracks))]), Recent: s.recent(p.ID), Opening: &OpeningContext{TrackCount: len(tracks), MinTracks: p.MinTracks, BufferMS: s.state.BufferMS, RequiredMS: s.state.RequiredMS}}
+	s.wg.Add(1)
+	go s.produceEditorial(s.runCtx, s.state.Epoch, job, req, time.Time{})
+	return true
+}
+
 func (s *Service) scheduleProductionLocked(p Station, tracks []Track) {
 	if s.musicActive {
 		s.state.MusicBusy = true
@@ -46,10 +79,11 @@ func (s *Service) scheduleProductionLocked(p Station, tracks []Track) {
 			go s.produceMusic(ctx, epoch, id, p, genre, idea, nil)
 		}
 	}
-	if s.editorActive || s.now().Before(s.editorRetry) || s.state.Status == "paused" || s.state.Status == "preparing" || s.adapters.Plan == nil {
+	if s.editorActive || s.now().Before(s.editorRetry) || s.state.Status == "paused" || !s.state.MusicReady || s.adapters.Plan == nil {
 		return
 	}
-	news := p.NewsMinutes > 0 && !s.state.NextNews.IsZero() && !s.now().Before(s.state.NextNews.Add(-8*time.Minute)) && s.newsAttempt != s.state.NextNews && s.state.Current != ""
+	musicPlaying := slices.ContainsFunc(s.state.Queue, func(x Segment) bool { return x.ID == s.state.Current && x.Kind == "music" })
+	news := p.NewsMinutes > 0 && !s.state.NextNews.IsZero() && !s.now().Before(s.state.NextNews.Add(-8*time.Minute)) && s.newsAttempt != s.state.NextNews && musicPlaying
 	if news && s.adapters.Research == nil {
 		s.state.NewsCode = "radio_news_unavailable"
 		s.newsAttempt = s.state.NextNews
@@ -162,7 +196,11 @@ func (s *Service) produceMusic(parent context.Context, epoch, job string, p Stat
 }
 func (s *Service) produceEditorial(parent context.Context, epoch, job string, req EditorialRequest, due time.Time) {
 	defer s.wg.Done()
-	ctx, cancel := context.WithTimeout(parent, 4*time.Minute)
+	timeout := 4 * time.Minute
+	if req.Opening != nil {
+		timeout = 45 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	var err error
 	var plan Plan
@@ -234,6 +272,9 @@ func (s *Service) produceEditorial(parent context.Context, epoch, job string, re
 			err = context.Canceled
 		} else {
 			ttsJob, err = s.reserve(req.Station.ID, "tts_chars", len([]rune(text)), req.Station.DailyTTSChars)
+			if req.Opening != nil && err == nil {
+				s.state.OpeningStatus = "synthesizing"
+			}
 		}
 		s.mu.Unlock()
 	}
@@ -250,6 +291,10 @@ func (s *Service) produceEditorial(parent context.Context, epoch, job string, re
 		track, err = prepareAudio(ctx, bytes.NewReader(audio.Data), audio.Extension, filepath.Join(s.dir, id+".wav"))
 		if err == nil {
 			segment = Segment{ID: newID(), AssetID: id, Kind: kind, Title: req.Station.Name, Text: text, DurationMS: track.DurationMS, Rate: track.Rate, Channels: track.Channels, Sources: sources, Expires: s.now().Add(30 * time.Minute)}
+			if req.Opening != nil {
+				segment.Opening = true
+				segment.Expires = s.now().Add(2 * time.Minute)
+			}
 			if req.News {
 				segment.Due = due
 				segment.Expires = due.Add(time.Duration(req.Station.NewsMinutes) * time.Minute)
@@ -260,6 +305,9 @@ func (s *Service) produceEditorial(parent context.Context, epoch, job string, re
 	defer s.mu.Unlock()
 	s.editorActive = false
 	s.state.EditorBusy = false
+	if err == nil {
+		err = ctx.Err()
+	}
 	s.finishJob(job, err, segment.ID)
 	if ttsJob != "" {
 		s.finishJob(ttsJob, err, segment.ID)
@@ -276,6 +324,9 @@ func (s *Service) produceEditorial(parent context.Context, epoch, job string, re
 			_ = os.Remove(filepath.Join(s.dir, segment.AssetID+".wav"))
 		}
 		if s.state.Epoch == epoch {
+			if req.Opening != nil {
+				s.state.OpeningStatus = "failed"
+			}
 			if req.News {
 				s.state.NewsCode = errorCode(err, "radio_editorial_failed")
 			} else {
@@ -321,11 +372,19 @@ func (s *Service) produceEditorial(parent context.Context, epoch, job string, re
 	}
 	if !s.now().Before(segment.Expires) {
 		os.Remove(filepath.Join(s.dir, segment.AssetID+".wav"))
+		if req.Opening != nil {
+			s.state.OpeningStatus = "done"
+		}
 		return
 	}
 	// Keep the current and next music transition immutable for the player's
 	// lookahead. Future news is retained separately until its due time.
-	s.pendingSpeech = append(s.pendingSpeech, segment)
+	if req.Opening != nil {
+		s.state.OpeningStatus = "ready"
+		s.state.Queue = append([]Segment{segment}, s.state.Queue...)
+	} else {
+		s.pendingSpeech = append(s.pendingSpeech, segment)
+	}
 	_, err = s.db.Exec("INSERT INTO editorial(station,created,body) VALUES(?,?,?)", req.Station.ID, s.now().UTC().Format(time.RFC3339Nano), bounded(text, 500))
 	if err != nil {
 		s.state.NewsCode = "radio_storage_error"

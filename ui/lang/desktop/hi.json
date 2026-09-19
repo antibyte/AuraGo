@@ -4438,5 +4438,12 @@
   "personalRadio.radio_unavailable": "Personal Radio उपलब्ध नहीं है। वर्चुअल डेस्कटॉप चालू करके AuraGo पुनः शुरू करें।",
   "personalRadio.import_genre": "आयात की शैली",
   "personalRadio.any_genre": "अनिर्दिष्ट",
+  "personalRadio.starting": "स्टेशन शुरू हो रहा है…",
+  "personalRadio.opening_writing": "स्वागत संदेश तैयार हो रहा है…",
+  "personalRadio.opening_synthesizing": "स्वागत संदेश की आवाज़ तैयार हो रही है…",
+  "personalRadio.opening_playing": "स्वागत संदेश चल रहा है",
+  "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} ट्रैक · {{minutes}} / {{requiredMinutes}} मिनट तैयार",
+  "personalRadio.startup_hint": "पर्याप्त ट्रैक तैयार होने पर संगीत अपने आप शुरू हो जाएगा। संगीत बनाने में कई मिनट लग सकते हैं।",
+  "personalRadio.startup_local_hint": "और उपयुक्त संगीत आयात करें। पर्याप्त ट्रैक तैयार होने पर प्लेबैक अपने आप शुरू हो जाएगा।",
   "desktop.app_personal_radio": "Personal Radio"
 }

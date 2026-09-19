@@ -4438,5 +4438,12 @@
   "personalRadio.radio_unavailable": "Personal Radio 不可用。请启用虚拟桌面并重启 AuraGo。",
   "personalRadio.import_genre": "导入流派",
   "personalRadio.any_genre": "未指定",
+  "personalRadio.starting": "正在启动电台…",
+  "personalRadio.opening_writing": "正在准备欢迎词…",
+  "personalRadio.opening_synthesizing": "正在生成欢迎语音…",
+  "personalRadio.opening_playing": "正在播放欢迎词",
+  "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} 首曲目 · {{minutes}} / {{requiredMinutes}} 分钟已就绪",
+  "personalRadio.startup_hint": "准备好足够的曲目后，音乐将自动开始播放。生成可能需要几分钟。",
+  "personalRadio.startup_local_hint": "请导入更多符合要求的音乐。准备好足够的曲目后，将自动开始播放。",
   "desktop.app_personal_radio": "Personal Radio"
 }

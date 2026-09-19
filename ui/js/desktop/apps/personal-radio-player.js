@@ -144,14 +144,19 @@
                 if (!this.slots.length) return;
                 const first = this.slots[0], next = this.slots[1];
                 if (first.start == null) {
-                    if (!first.buffers.size || (!this.primed && (!next || !next.buffers.size))) return;
+                    if (!first.buffers.size || (!first.segment.opening && !this.primed && (!next || !next.buffers.size))) return;
                     first.start = this.context.currentTime + 0.15;
-                    this.primed = true;
+                    if (!first.segment.opening) this.primed = true;
                 }
                 work = first; this.schedule(first);
                 for (let index = 1; index < this.slots.length; index++) {
                     const previous = this.slots[index-1], upcoming = this.slots[index];
                     if (upcoming.start == null && upcoming.buffers.size) {
+                        if (upcoming.segment.kind === 'music' && !this.primed) {
+                            const following = this.slots[index+1];
+                            if (!following || !following.buffers.size) break;
+                            this.primed = true;
+                        }
                         const overlap = previous.segment.kind === 'music' && upcoming.segment.kind === 'music' ? Math.min(2, previous.duration / 8, upcoming.duration / 8) : 0;
                         upcoming.start = previous.start + previous.duration - overlap;
                         previous.gain.gain.setValueAtTime(1, Math.max(this.context.currentTime, upcoming.start));

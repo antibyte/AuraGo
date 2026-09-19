@@ -9,6 +9,10 @@
         s.t = t; s.esc = esc; instances.set(id,s);
         host.innerHTML = '<div class="pr-app"><header class="pr-header"><div class="pr-brand"><span aria-hidden="true">◉</span><div><strong>Personal Radio</strong><small>' + esc(t('subtitle')) + '</small></div></div><div class="pr-header-actions"><select data-pr="station" aria-label="' + esc(t('station')) + '"></select><button type="button" data-action="new">＋ ' + esc(t('new_station')) + '</button><button type="button" data-action="settings">' + esc(t('settings')) + '</button></div></header><div class="pr-notice" data-pr="notice" role="status" hidden></div><div class="pr-deck"><div class="pr-air"><span data-pr="state">' + esc(t('stopped')) + '</span><div class="pr-record" aria-hidden="true"><i></i></div></div><div class="pr-now"><small data-pr="kind">' + esc(t('now')) + '</small><h1 data-pr="title">' + esc(t('welcome')) + '</h1><p data-pr="theme">' + esc(t('setup_hint')) + '</p><progress data-pr="progress" value="0" max="1"></progress><div class="pr-transport"><button type="button" class="pr-primary" data-action="start">▶ ' + esc(t('start')) + '</button><button type="button" data-action="pause" aria-label="' + esc(t('pause')) + '">Ⅱ</button><button type="button" data-action="skip" aria-label="' + esc(t('skip')) + '">▶|</button><button type="button" data-action="stop" aria-label="' + esc(t('stop')) + '">■</button><label class="pr-volume">' + esc(t('volume')) + '<input data-pr="volume" type="range" min="0" max="1" step="0.02" value="0.8"></label></div></div><aside class="pr-reserve"><strong data-pr="reserve">0 '+esc(t('minutes'))+'</strong><span>'+esc(t('prepared'))+'</span><progress data-pr="buffer" value="0" max="1"></progress><small data-pr="jobs"></small><small data-pr="news-time"></small></aside></div><nav class="pr-tabs">' + ['program','library','news'].map(tab => '<button type="button" data-tab="' + tab + '">' + esc(t(tab)) + '</button>').join('') + '</nav><main class="pr-content" data-pr="content"></main></div>';
         s.q = name => host.querySelector('[data-pr="'+name+'"]');
+        const preparation = document.createElement('section');
+        preparation.className = 'pr-preparation'; preparation.dataset.pr = 'preparation'; preparation.hidden = true;
+        preparation.innerHTML = '<div role="status" aria-live="polite" aria-atomic="true"><div class="pr-preparation-heading"><span class="pr-activity" aria-hidden="true"></span><strong data-pr="preparation-title"></strong></div><p data-pr="preparation-counts"></p></div><progress data-pr="preparation-progress" max="1" value="0"></progress><p data-pr="preparation-hint"></p>';
+        s.q('progress').before(preparation);
         s.q('volume').value = R.volumeValue;
         s.q('volume').addEventListener('input', e => R.volume(e.target.value));
         s.q('station').addEventListener('change', e => { s.selected = e.target.value; s.editing = false; s.subview = false; draw(s,true); });
@@ -36,17 +40,47 @@
         s.q('reserve').textContent=(active?Math.floor(st.buffer_ms/60000):0)+' / '+(active?Math.ceil(st.required_ms/60000):p?p.reserve_minutes:30)+' '+s.t('minutes');
         s.q('buffer').max=st.required_ms||1;s.q('buffer').value=active?st.buffer_ms:0;
         s.q('jobs').textContent=active?(st.music_busy?s.t('generating'):st.editor_busy?s.t('editing'):st.relaxed?s.t('relaxed'):''):'';
+        preparationStatus(s, p, st, active);
         const next=active&&st.next_news&&new Date(st.next_news);s.q('news-time').textContent=next&&next.getFullYear()>2000?s.t('next_news')+' '+next.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'';
         const readonly=s.ctx.readonly||d.capabilities&&d.capabilities.read_only;
         for(const name of ['new','settings','start'])s.host.querySelector('[data-action="'+name+'"]').disabled=readonly||!d.available||(name!=='new'&&!p)||s.busy;
+        const starting = !!R.startingStation;
+        s.q('station').disabled = starting;
+        for(const name of ['new','settings','start'])if(starting)s.host.querySelector('[data-action="'+name+'"]').disabled=true;
+        if(active && R.owned() && st.status!=='stopped' && st.status!=='paused')s.host.querySelector('[data-action="start"]').disabled=true;
         for(const name of ['pause','stop','skip'])s.host.querySelector('[data-action="'+name+'"]').disabled=readonly||!R.owned()||!active||s.busy;
+        if (!(st.queue || []).length) s.host.querySelector('[data-action="skip"]').disabled = true;
         s.host.querySelector('[data-action="pause"]').disabled = readonly || !R.owned() || !active || st.status==='preparing' || s.busy;
-        s.host.querySelector('[data-action="start"]').textContent=active&&st.status==='paused'?'▶ '+s.t('resume'):'▶ '+s.t('start');
+        s.host.querySelector('[data-action="start"]').textContent=starting?s.t('starting'):active&&st.status==='paused'?'▶ '+s.t('resume'):'▶ '+s.t('start');
+        s.host.querySelector('[data-action="start"]').setAttribute('aria-busy', String(starting));
         if(!d.available)notice(s,Error('radio_unavailable'),false);else if(active&&st.code)notice(s,Error(st.code),false);else if(active&&st.editorial_code)notice(s,Error(st.editorial_code),false);else if(!s.busy&&!s.error)s.q('notice').hidden=true;
         if(s.editing||s.subview)return;
         const signature=JSON.stringify([s.selected,s.tab,s.tab==='program'&&active?st.queue:[],s.tab==='news'&&active?st.news:[],st.news_code]);
         if(force||s.signature!==signature){s.signature=signature;content(s);}
         s.host.querySelectorAll('[data-tab]').forEach(el=>el.classList.toggle('is-active',el.dataset.tab===s.tab));
+    }
+    function preparationStatus(s, p, st, active) {
+        const starting = p && R.startingStation === p.id;
+        const visible = !!(starting || (active && st.status !== 'stopped' && !st.music_ready));
+        s.q('preparation').hidden = !visible;
+        if (!visible) return;
+        let key = 'preparing';
+        if (starting) key = 'starting';
+        else if (st.status === 'paused') key = 'paused';
+        else if (st.opening_status === 'writing') key = 'opening_writing';
+        else if (st.opening_status === 'synthesizing') key = 'opening_synthesizing';
+        else if (st.opening_status === 'playing') key = 'opening_playing';
+        else if (st.music_busy) key = 'generating';
+        const tracks = active ? st.track_count || 0 : 0, requiredTracks = p.min_tracks;
+        const milliseconds = active ? st.buffer_ms || 0 : 0, requiredMS = active && st.required_ms || p.reserve_minutes * 60000;
+        const number = value => new Intl.NumberFormat(window.SYSTEM_LANG || 'en', { maximumFractionDigits: 1 }).format(value);
+        const counts = s.ctx.t('personalRadio.startup_counts', { tracks, requiredTracks, minutes: number(milliseconds / 60000), requiredMinutes: number(requiredMS / 60000) });
+        const text = (name, value) => { const el = s.q(name); if (el.textContent !== value) el.textContent = value; };
+        text('preparation-title', s.t(key)); text('preparation-counts', counts);
+        text('preparation-hint', s.t(p.mode === 'local' ? 'startup_local_hint' : 'startup_hint'));
+        s.q('preparation-progress').value = Math.min(1, milliseconds / requiredMS, tracks / requiredTracks);
+        s.q('preparation-progress').setAttribute('aria-label', counts);
+        s.q('preparation').classList.toggle('is-busy', !!(starting || st.music_busy || st.editor_busy));
     }
     function content(s) {
         const host=s.q('content'),p=station(s),st=s.data.state||{},t=s.t,e=s.esc;

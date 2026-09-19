@@ -4438,5 +4438,12 @@
   "personalRadio.radio_unavailable": "Personal Radio er utilgængelig. Aktivér virtuelt skrivebord og genstart AuraGo.",
   "personalRadio.import_genre": "Importgenre",
   "personalRadio.any_genre": "Ikke angivet",
+  "personalRadio.starting": "Starter stationen…",
+  "personalRadio.opening_writing": "Forbereder velkomsten…",
+  "personalRadio.opening_synthesizing": "Opretter den talte velkomst…",
+  "personalRadio.opening_playing": "Velkomsten afspilles",
+  "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} numre · {{minutes}} / {{requiredMinutes}} min klar",
+  "personalRadio.startup_hint": "Musikken starter automatisk, når nok numre er klar. Generering kan tage flere minutter.",
+  "personalRadio.startup_local_hint": "Importér mere passende musik. Afspilningen starter automatisk, når nok numre er klar.",
   "desktop.app_personal_radio": "Personal Radio"
 }

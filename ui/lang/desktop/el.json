@@ -4438,5 +4438,12 @@
   "personalRadio.radio_unavailable": "Το Personal Radio δεν είναι διαθέσιμο. Ενεργοποιήστε την εικονική επιφάνεια και επανεκκινήστε το AuraGo.",
   "personalRadio.import_genre": "Είδος εισαγωγής",
   "personalRadio.any_genre": "Απροσδιόριστο",
+  "personalRadio.starting": "Εκκίνηση σταθμού…",
+  "personalRadio.opening_writing": "Προετοιμασία καλωσορίσματος…",
+  "personalRadio.opening_synthesizing": "Δημιουργία φωνητικού καλωσορίσματος…",
+  "personalRadio.opening_playing": "Αναπαραγωγή καλωσορίσματος",
+  "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} κομμάτια · {{minutes}} / {{requiredMinutes}} λεπτά έτοιμα",
+  "personalRadio.startup_hint": "Η μουσική ξεκινά αυτόματα όταν είναι έτοιμα αρκετά κομμάτια. Η δημιουργία μπορεί να διαρκέσει αρκετά λεπτά.",
+  "personalRadio.startup_local_hint": "Εισαγάγετε περισσότερη κατάλληλη μουσική. Η αναπαραγωγή ξεκινά αυτόματα όταν είναι έτοιμα αρκετά κομμάτια.",
   "desktop.app_personal_radio": "Personal Radio"
 }

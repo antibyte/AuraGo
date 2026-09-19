@@ -18,6 +18,13 @@ User documentation: `documentation/personal-radio.md`.
 - Full bounded decode and durable registration precede airtime. Music reserve
   excludes in-flight jobs, duplicate files, speech and invalid files. Strict
   rotation must satisfy the start reserve using currently schedulable tracks.
+- Attempt one opening moderation per start epoch unless moderation is off.
+  Pass the actual eligible track count and music duration/requirements to the
+  tool-free planner. Give opening planning/TTS up to 45 seconds before scheduling
+  long music work on the shared accelerator; a failure releases music production.
+  Only a fully prepared opening may play before `MusicReady`. It never counts
+  toward the music reserve, never promises an ETA and is not repeated while waiting.
+  Start normal editorial/news only after music readiness; research news during music.
 - Use one active owner and epoch. Window disposal does not stop radio. Explicit
   stop and lease expiry cancel production; late completions cannot revive it.
   Duplicated start, stop, skip and playback events cannot consume two tracks or
@@ -35,7 +42,8 @@ User documentation: `documentation/personal-radio.md`.
   does not stop music or assert that no news exists.
 - The browser fetches bounded sample-aligned WAV windows and schedules two
   music segments plus intervening speech on one Web Audio clock. Initial
-  playback requires a prepared next segment. Music crossfades; speech uses a
+  music playback requires a prepared next segment, including after an opening.
+  The one opening may play alone. Music crossfades; other speech uses a
   title boundary. Server queue updates
   cannot revive cancelled browser work. Explicitly retain the desktop runtime
   when disposing a window and restore other media handlers after stopping.

@@ -4438,5 +4438,12 @@
   "personalRadio.radio_unavailable": "Personal Radioを利用できません。仮想デスクトップを有効にしてAuraGoを再起動してください。",
   "personalRadio.import_genre": "取り込む曲のジャンル",
   "personalRadio.any_genre": "未指定",
+  "personalRadio.starting": "放送局を開始しています…",
+  "personalRadio.opening_writing": "挨拶を準備しています…",
+  "personalRadio.opening_synthesizing": "挨拶の音声を作成しています…",
+  "personalRadio.opening_playing": "挨拶を再生中",
+  "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} 曲 · {{minutes}} / {{requiredMinutes}} 分準備完了",
+  "personalRadio.startup_hint": "十分な曲が準備できると、音楽は自動的に始まります。生成には数分かかる場合があります。",
+  "personalRadio.startup_local_hint": "条件に合う音楽を追加でインポートしてください。十分な曲が準備できると、自動的に再生が始まります。",
   "desktop.app_personal_radio": "Personal Radio"
 }

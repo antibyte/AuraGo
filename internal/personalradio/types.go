@@ -137,6 +137,7 @@ type Source struct {
 }
 
 type Segment struct {
+	Opening    bool      `json:"opening,omitempty"`
 	ID         string    `json:"id"`
 	AssetID    string    `json:"asset_id"`
 	TrackID    string    `json:"track_id,omitempty"`
@@ -163,11 +164,20 @@ type Plan struct {
 }
 
 type EditorialRequest struct {
-	Station Station  `json:"station"`
-	Tracks  []Track  `json:"tracks"`
-	Recent  []string `json:"recent"`
-	Sources []Source `json:"sources,omitempty"`
-	News    bool     `json:"news"`
+	Opening *OpeningContext `json:"opening,omitempty"`
+	Station Station         `json:"station"`
+	Tracks  []Track         `json:"tracks"`
+	Recent  []string        `json:"recent"`
+	Sources []Source        `json:"sources,omitempty"`
+	News    bool            `json:"news"`
+}
+
+// OpeningContext is a factual startup snapshot, not an estimated completion time.
+type OpeningContext struct {
+	TrackCount int   `json:"track_count"`
+	MinTracks  int   `json:"min_tracks"`
+	BufferMS   int64 `json:"buffer_ms"`
+	RequiredMS int64 `json:"required_ms"`
 }
 
 // Production identifies a durable original. A zero MediaID needs registration.
@@ -189,6 +199,8 @@ type Adapters struct {
 }
 
 type State struct {
+	MusicReady     bool      `json:"music_ready"`
+	OpeningStatus  string    `json:"opening_status"`
 	StationID      string    `json:"station_id"`
 	Status         string    `json:"status"`
 	Epoch          string    `json:"epoch"`

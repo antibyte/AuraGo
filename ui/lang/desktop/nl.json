@@ -4438,5 +4438,12 @@
   "personalRadio.radio_unavailable": "Personal Radio niet beschikbaar. Activeer Virtual Desktop en herstart AuraGo.",
   "personalRadio.import_genre": "Genre voor import",
   "personalRadio.any_genre": "Niet opgegeven",
+  "personalRadio.starting": "Zender starten…",
+  "personalRadio.opening_writing": "Welkomstbericht voorbereiden…",
+  "personalRadio.opening_synthesizing": "Gesproken welkomstbericht maken…",
+  "personalRadio.opening_playing": "Welkomstbericht wordt afgespeeld",
+  "personalRadio.startup_counts": "{{tracks}} / {{requiredTracks}} nummers · {{minutes}} / {{requiredMinutes}} min gereed",
+  "personalRadio.startup_hint": "De muziek start automatisch zodra er genoeg nummers klaarstaan. Het genereren kan enkele minuten duren.",
+  "personalRadio.startup_local_hint": "Importeer meer passende muziek. Het afspelen start automatisch zodra er genoeg nummers klaarstaan.",
   "desktop.app_personal_radio": "Personal Radio"
 }
