@@ -2,13 +2,13 @@
 
 ## System World 2 expansion
 
-`build_expansion.py` authors 26 additional modular designs and their articulated
+`build_expansion.py` authors 27 additional modular designs and their articulated
 animation clips in Blender. It saves `production/aurago-world-2.blend` and exports
-78 self-contained GLBs (three separately loadable LODs per design) plus a versioned
+81 self-contained GLBs (three separately loadable LODs per design) plus a versioned
 manifest and MIT license to `ui/3d/system-world/v2/`. Sources are not shipped.
 
 The kit includes accessible floors, walls, ceilings, windows, sliding doors, lifts,
-stairs, ramps, bridges, arcades, gardens and quays; a tram, stop, service cart and
+stairs, ramps, bridges, gallery railings, arcades, gardens and quays; a tram, stop, service cart and
 landing pad; courier, technician and archivist robots; consoles, hologram tables,
 chargers, cargo, coolers, benches and archive shelves. Human-readable clip names,
 pivots, portals, colliders and walk surfaces are exported, not guessed at runtime.
@@ -17,12 +17,16 @@ The existing white robot and its provenance below are unchanged.
 ```powershell
 & 'D:/Blender 5.2/blender.exe' --background --factory-startup --python assets/system-world/build_expansion.py
 node scripts/test-system-world-expansion.mjs
+node scripts/test-system-world-layout.mjs
 node scripts/build-system-world.js
 ```
 
 The 48 MiB budget covers both city kits, the original white robot, renderer,
 classic app modules, stylesheet and System World labels in all sixteen locales.
-First display has a separate 12 MiB budget; interiors and alternate LODs are lazy.
+First display has a separate 12 MiB budget; interior furnishings and alternate
+LODs are lazy. Exterior shells are present at first display. Modular floor seams
+and lift landings use exact planar edges; the platform top matches its declared
+zero-height surface and its left side opens onto the gallery.
 Sound is synthesized locally through the opt-in mixer, with no external audio files.
 Use `scripts/build-system-world-review.mjs` and the `AURAGO_SYSTEM_WORLD_MODELS=1`
 browser test for contact sheets of every exported model, LOD and clip. Review

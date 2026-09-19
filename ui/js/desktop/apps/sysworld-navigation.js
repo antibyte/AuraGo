@@ -6,19 +6,23 @@ const SAMPLES = 512;
 // Corner handles of 7.5 m give a 90° apex radius of ~5.3 m, so every lane offset (up to 4.2 m)
 // stays on the inside of the curve without folding back on itself.
 const CORNER = 7.5;
-export function streetRoute(corners) {
+export function streetCurve(corners, corner = CORNER) {
   const path = new THREE.CurvePath(), points = corners.map(([x, z]) => new THREE.Vector3(x, 0, z));
   const arrivals = [], departures = [], count = points.length;
   for (let i = 0; i < count; i++) {
     const p = points[i], before = points[(i + count - 1) % count], after = points[(i + 1) % count];
-    arrivals.push(p.clone().addScaledVector(before.clone().sub(p).normalize(), CORNER));
-    departures.push(p.clone().addScaledVector(after.clone().sub(p).normalize(), CORNER));
+    const reach=Math.min(corner,p.distanceTo(before)/2,p.distanceTo(after)/2);
+    arrivals.push(p.clone().addScaledVector(before.clone().sub(p).normalize(), reach));
+    departures.push(p.clone().addScaledVector(after.clone().sub(p).normalize(), reach));
   }
   for (let i = 0; i < count; i++) {
     path.add(new THREE.QuadraticBezierCurve3(arrivals[i], points[i], departures[i]));
     path.add(new THREE.LineCurve3(departures[i], arrivals[(i + 1) % count]));
   }
-  const samples = path.getSpacedPoints(SAMPLES), tangents = [];
+  return path;
+}
+export function streetRoute(corners) {
+  const path=streetCurve(corners),samples = path.getSpacedPoints(SAMPLES), tangents = [];
   for (let i = 0; i < SAMPLES; i++) {
     const a = samples[(i + SAMPLES - 1) % SAMPLES], b = samples[(i + 1) % SAMPLES];
     tangents.push(new THREE.Vector3(b.x - a.x, 0, b.z - a.z).normalize());

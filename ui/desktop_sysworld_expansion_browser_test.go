@@ -3,6 +3,8 @@ package ui
 import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +13,9 @@ import (
 
 func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 	t.Helper()
+	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
+		t.Fatal(err)
+	}
 	page.MustEval(`()=>{document.body.dataset.animations='true';aurora.state.bootstrap.settings['appearance.animations']=true;localStorage.removeItem('aurago.desktop.sysworld.discoveries');}`)
 	page.MustSetViewport(1920, 1080, 1, false)
 	page.Timeout(40 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.residents===19&&SysWorldApp.inspect(cityId).experience.trams===2`)
@@ -32,14 +37,14 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 		t.Helper()
 		for n := 0; n < 40; n++ {
 			p := page.MustEval(`i=>SysWorldApp.inspect(cityId).position[i]`, index).Num()
-			if p > target-.65 && p < target+.65 {
+			if p > target-.35 && p < target+.35 {
 				return
 			}
 			key := positive
 			if p > target {
 				key = negative
 			}
-			hold(key, 85*time.Millisecond)
+			hold(key, time.Duration(math.Min(65, math.Max(20, math.Abs(p-target)/11*700)))*time.Millisecond)
 		}
 		page.MustScreenshot(filepath.Join(dir, "world2-navigation-failure.png"))
 		t.Fatalf("cannot reach axis %d %.1f: %s", index, target, page.MustEval(`()=>JSON.stringify(SysWorldApp.inspect(cityId))`).Str())
@@ -53,23 +58,36 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 	for _, id := range []string{"agent", "memory", "missions"} {
 		page.MustEval(`id=>{document.querySelector('.sw-world').open=true;document.querySelector('[data-world-room="'+id+'"]').click();}`, id)
 		page.Timeout(20*time.Second).MustWait(`id=>SysWorldApp.inspect(cityId).experience.rooms.includes(id)`, id)
-		doorZ := map[string]float64{"agent": 20, "memory": 18, "missions": 68}[id]
-		axis(2, doorZ+.8, input.KeyS, input.KeyW)
+		doorZ := 67.0
+		axis(2, doorZ-.4, input.KeyW, input.KeyS)
 		page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='door'`)
 		page.MustElement(".sw-interaction").MustClick()
 		time.Sleep(650 * time.Millisecond)
-		axis(2, doorZ-2, input.KeyS, input.KeyW)
+		axis(2, doorZ+2, input.KeyW, input.KeyS)
 		page.Timeout(10*time.Second).MustWait(`id=>SysWorldApp.inspect(cityId).experience.inside===id`, id)
 		page.MustScreenshot(filepath.Join(dir, "world2-interior-"+id+".png"))
 		if id == "agent" {
-			axis(0, 4, input.KeyD, input.KeyA)
-			axis(2, 11, input.KeyS, input.KeyW)
+			// Enter through the open LEFT side, not through the lift's guard rails.
+			axis(0, 1.5, input.KeyA, input.KeyD)
+			axis(2, 76, input.KeyW, input.KeyS)
+			axis(0, 4, input.KeyA, input.KeyD)
 			page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='lift'`)
 			page.MustElement(".sw-interaction").MustClick()
 			page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]>6.3&&SysWorldApp.inspect(cityId).experience.ride===null`)
+			// Arrival alone missed the original defect. Leave the lift, walk across
+			// the actual upper floor and return before requesting the descent.
+			axis(0, -2.5, input.KeyA, input.KeyD)
+			if y := page.MustEval(`()=>SysWorldApp.inspect(cityId).position[1]`).Num(); y < 6.5 {
+				t.Fatal("lost gallery floor after exiting lift", y)
+			}
+			page.Mouse.MustMoveTo(550, 400).MustDown(proto.InputMouseButtonLeft).MustMoveTo(1806, 600).MustUp(proto.InputMouseButtonLeft)
+			time.Sleep(150 * time.Millisecond)
 			page.MustScreenshot(filepath.Join(dir, "world2-lift-balcony.png"))
+			page.Mouse.MustDown(proto.InputMouseButtonLeft).MustMoveTo(550, 400).MustUp(proto.InputMouseButtonLeft)
+			axis(0, 4, input.KeyA, input.KeyD)
+			page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='lift'`)
 			page.MustElement(".sw-interaction").MustClick()
-			page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]<2.5&&SysWorldApp.inspect(cityId).experience.ride===null`)
+			page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]<2.6&&SysWorldApp.inspect(cityId).experience.ride===null`)
 		}
 	}
 	for _, id := range []string{"agent", "infra", "memory", "missions", "graph", "integrations", "operations"} {

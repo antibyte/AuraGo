@@ -49,7 +49,7 @@ def robot(g, kind):
 
 def module(g, kind):
     if kind in ('floor', 'ceiling'):
-        g.box((0, 0, -.1 if kind == 'floor' else .1), (4, 4, .2), 'stone' if kind == 'floor' else 'graphite')
+        g.box((0, 0, -.1 if kind == 'floor' else .1), (4, 4, .2), 'stone' if kind == 'floor' else 'graphite', 0)
         if kind == 'floor':
             for x in (-1.8, 1.8): g.box((x, 0, .012), (.035, 3.6, .02), 'bronze', 0)
         else:
@@ -77,10 +77,17 @@ def module(g, kind):
         for side in (-1, 1): g.beam((side*1.5,3,1),(side*1.5,-3,3), .08, 'bronze')
     elif kind == 'lift':
         for x in (-1.7, 1.7):
-            g.box((x, 0, 2.4), (.14, 3.6, 4.8), 'bronze')
+            for y in (-1.7, 1.7): g.box((x, y, 2.4), (.14, .14, 4.8), 'bronze')
         g.part = 'platform'
-        g.box((0, 0, .12), (3.2, 3.2, .24), 'titanium')
-        for x in (-1.5, 1.5): g.box((x, 0, 1), (.06, 3, 1.4), 'glass')
+        # The top is the declared walk surface at zero; the platform opens to
+        # the gallery on its left, with three guards travelling with the car.
+        g.box((0, 0, -.12), (3.2, 3.2, .24), 'titanium', 0)
+        g.box((1.5, 0, .7), (.06, 3, 1.4), 'glass')
+        for y in (-1.5, 1.5): g.box((0, y, .7), (3, .06, 1.4), 'glass')
+    elif kind == 'railing':
+        for x in (-1.94, 1.94): g.box((x, 0, .55), (.1, .12, 1.1), 'bronze')
+        g.box((0, 0, 1.1), (4, .12, .1), 'bronze')
+        g.box((0, 0, .55), (3.8, .06, .95), 'glass')
     elif kind == 'arcade':
         for x in (-3, 3): g.box((x, 0, 2.4), (.5, 2, 4.8), 'titanium')
         g.box((0, 0, 4.7), (6.5, 2.4, .45), 'bronze')
@@ -149,8 +156,15 @@ def furnishing(g, kind):
         g.box((0,0,.4),(2.8,length,.8),'graphite')
         g.box((0,0,.84),(2.8,length,.12),'stone')
         for y in (-length/2+.2,length/2-.2):
-            g.box((0,y,2),(2.8,.18,2.5),'ceramic')
-            g.box((0,y-.1,2.4),(2.4,.04,.8),'glass')
+            if kind == 'tram':
+                # Real sight line from the passenger camera through the end
+                # window; an opaque "glass" plate is not a usable windscreen.
+                g.box((0,y,1.35),(2.8,.18,1.3),'ceramic')
+                for x in (-1.28,1.28): g.box((x,y,2.55),(.24,.18,1.2),'ceramic')
+                g.box((0,y,3.16),(2.8,.18,.2),'ceramic')
+            else:
+                g.box((0,y,2),(2.8,.18,2.5),'ceramic')
+                g.box((0,y-.1,2.4),(2.4,.04,.8),'glass')
         for x in (-1.35,1.35):
             for y in (-length*.36,length*.36):
                 g.box((x,y,2),(.12,length*.23,2.5),'ceramic')
@@ -219,6 +233,7 @@ def navigation(asset):
         data['surfaces']=[{'rect':[-.55,-3.6,.55,3.6],'height':.9}]
         data['portals']=[{'name':'boarding-left','position':[-1.4,.9,0]},{'name':'boarding-right','position':[1.4,.9,0]}]
     elif asset in ('wall','window'): data['colliders']=[[-2,0,-.15,2,4,.15]]
+    elif asset=='railing': data['colliders']=[[-2,0,-.06,2,1.15,.06]]
     elif asset in ('console','cargo','hologram','bench','charger','cooler','archive-shelf'):
         size={'console':(.85,.6,.5),'cargo':(.9,.6,.65),'hologram':(1.3,1.25,1.3),'bench':(1.5,.75,.4),'charger':(.4,1.2,.3),'cooler':(1.5,1.5,1.25),'archive-shelf':(1.25,1.75,.5)}[asset]
         x,y,z=size;data['colliders']=[[-x,0,-z,x,y*2,z]]
@@ -231,7 +246,7 @@ def build():
     scene=bpy.context.scene;scene.render.fps=24;scene.frame_start=1;scene.frame_end=49
     collection=bpy.data.collections.new('AURAGO_WORLD_2');scene.collection.children.link(collection)
     mats=materials(); entries=[]; roots=[]
-    factories={k:(lambda g,k=k:module(g,k)) for k in ['arcade','bridge','stairs','ramp','garden','quay','floor','wall','ceiling','window','door','lift']}
+    factories={k:(lambda g,k=k:module(g,k)) for k in ['arcade','bridge','stairs','ramp','garden','quay','floor','wall','ceiling','window','door','lift','railing']}
     factories.update({k:(lambda g,k=k:furnishing(g,k)) for k in ['tram','station','service-cart','pad','console','hologram','charger','cargo','cooler','bench','archive-shelf']})
     factories.update({'robot-'+k:(lambda g,k=k:robot(g,k)) for k in ['courier','technician','archivist']})
     for asset,factory in factories.items():
@@ -266,7 +281,7 @@ def build():
         entries.append(entry);print('WORLD2',asset)
     manifest={'schema_version':2,'version':'2.0.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
               'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024}
-    (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8')
+    (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8',newline='\n')
     (OUT/'LICENSE.txt').write_text((ROOT/'LICENSE').read_text(encoding='utf8'),encoding='utf8')
     for i,root in enumerate(roots): root.location=((i%5)*16,(i//5)*16,0)
     source=ROOT/'assets/system-world/production';source.mkdir(exist_ok=True)

@@ -7,7 +7,7 @@ import {interiors,canWalk,groundHeight,daylight} from '../ui/js/desktop/apps/sys
 import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
 
 const base='ui/3d/system-world/v2',manifest=JSON.parse(await fs.readFile(base+'/manifest.json'));
-assert.equal(manifest.assets.length,26);
+assert.equal(manifest.assets.length,27);
 let models=0,bytes=0,warnings=0;
 for(const asset of manifest.assets){
   assert.deepEqual(asset.lods.map(l=>l.level),[0,1,2]);
@@ -36,10 +36,10 @@ for(const asset of manifest.assets){
   }
 }
 for(const room of interiors){
-  const outside={x:room.x,z:room.doorZ+2},inside={x:room.x,z:room.doorZ-.2};
-  assert.ok(canWalk(outside.x,outside.z,{x:outside.x,z:outside.z+1},()=>false,districts),'Door approach must be outside unrelated building collisions: '+room.id);
+  const outside={x:room.x,z:room.doorZ+room.front*2},inside={x:room.x,z:room.doorZ-room.front*.2};
+  assert.ok(canWalk(outside.x,outside.z,{x:outside.x,z:outside.z+room.front},()=>false,districts),'Door approach must be outside unrelated building collisions: '+room.id);
   assert.equal(canWalk(inside.x,inside.z,outside,()=>false,districts),false);
-  assert.equal(canWalk(inside.x,inside.z,{x:room.x,z:room.doorZ+.2},()=>true,districts),true);
+  assert.equal(canWalk(inside.x,inside.z,{x:room.x,z:room.doorZ+room.front*.2},()=>true,districts),true);
   assert.equal(canWalk(room.x+5.9,room.z,{x:room.x+5,z:room.z},()=>true,districts),false);
 }
 assert.equal(groundHeight(-80,52),0);assert.equal(groundHeight(-80,46),2);assert.equal(daylight('day').amount,1);assert.equal(daylight('night').amount,0);

@@ -33,7 +33,7 @@ worker. Keep packaging, recovery and offline instructions in
 - System World uses the Blender GLB kit in `3d/system-world/v1/` and its own
   MIT Three.js 0.185.1 ESM bundle; shared legacy Three.js remains unchanged.
   Run `node scripts/build-system-world.js --check` before packaging. The app
-  owns live read-only city exploration, five optimized ThreeDee robots that
+  owns city exploration, five optimized ThreeDee robots that
   steer around furniture and each other, state-driven effects, a night
   atmosphere (aurora sky, stars, moon, sea, mist, drones, lamp cones,
   vignette/grain). The moon is drawn in the sky dome, not as a billboard, so it
@@ -42,9 +42,12 @@ worker. Keep packaging, recovery and offline instructions in
   Optional Web Audio ambience pauses with the inactive scene. The same sound
   control includes quiet spatial tower TTS with echo/reverb;
   generation and playback stop on mute, hidden or inactive windows. Its responsive layout must fit the touch viewport; do not put it in
-  the mobile wide-window allowlist. Persistent history is a later stage.
+  the mobile wide-window allowlist. V2 adds a bounded 24-hour telemetry history
+  and confirmed terminal actions through existing server permissions.
   Rendering/lifecycle and real-shell test contracts live in
-  `js/desktop/apps/AGENTS.md`.
+  `js/desktop/apps/AGENTS.md`. The v2 expansion adds three waterfront interiors,
+  street-bound trams and recorded telemetry. `sysworld-layout.js` owns the shared
+  road/plot/surface contract; geometry acceptance uses actual exported GLBs.
 
 - Desktop UI sounds are opt-in shell feedback: `core/sound-runtime.js` in
   `main.bundle.js`, synthesis in lazy `bundles/desktop-sounds.bundle.js`

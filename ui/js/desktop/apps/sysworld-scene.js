@@ -15,6 +15,7 @@ import { createDrones } from './sysworld-drones.js';
 import { createExperience } from './sysworld-experience.js';
 import { createWeather } from './sysworld-weather.js';
 import { interiors } from './sysworld-exploration.js';
+import { streets, towers } from './sysworld-layout.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -64,17 +65,17 @@ const homeTarget = new THREE.Vector3(0, 22, -12);
 export const placements = [];
 {
   const place = (asset, x, z, y = 0, angle = 0, scale = [1, 1, 1]) => placements.push({ asset, x, z, y, angle, scale });
-  const xs = [-67, -18, 18, 67], zs = [-77, -32, 13, 59];
+  const {xs,zs} = streets;
   for (const z of zs) {
     for (const x of xs) place('street-crossing', x, z);
-    const edges = [-85, ...xs, 85];
+    const edges = [streets.minX, ...xs, streets.maxX];
     for (let i = 0; i < edges.length - 1; i++) {
       const a = edges[i] + (i ? 6 : 0), b = edges[i + 1] - (i < edges.length - 2 ? 6 : 0);
       place('street-tile', (a + b) / 2, z, 0, 0, [(b - a) / 16, 1, 1]);
     }
   }
   for (const x of xs) {
-    const edges = [-94, ...zs, 80];
+    const edges = [streets.minZ, ...zs, streets.maxZ];
     for (let i = 0; i < edges.length - 1; i++) {
       const a = edges[i] + (i ? 6 : 0), b = edges[i + 1] - (i < edges.length - 2 ? 6 : 0);
       place('street-tile', x, (a + b) / 2, 0, Math.PI / 2, [(b - a) / 16, 1, 1]);
@@ -83,11 +84,11 @@ export const placements = [];
   for (const z of zs) for (const x of [-55, -31, 31, 55]) {
     place('street-lamp', x, z - 4.5, .45); place('planter', x + 4, z - 4.5, .45);
   }
-  for (const [x, z, s] of [[29,-55,1],[49,-55,1.25],[-3,-57,1.2],[4,-73,.75]]) {
+  for (const {x,z,scale:s} of towers) {
     place('data-tower-a', x, z, 0, 0, [1,s,1]);
   }
-  place('skybridge', 39, -55, 15);
-  place('server-rack', -55, -34, .5); place('server-rack', -49, -34, .5);
+  place('skybridge', 39.75, -55, 15);
+  place('server-rack', -55, -36.7, .5); place('server-rack', -49, -36.7, .5);
   // Distant buildings are scenery, never presented as additional real entities.
   for (let i = 0; i < 48; i++) {
     const x = (i % 12 - 5.5) * 22, z = -143 - Math.floor(i / 12) * 29;
@@ -115,7 +116,7 @@ export async function createCity(host, options) {
   host.append(canvas);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x08121e); scene.fog = new THREE.FogExp2(0x08121e, .004);
-  const camera = new THREE.PerspectiveCamera(43, 1, .15, 1800);
+  const camera = new THREE.PerspectiveCamera(43, 1, .3, 1800);
   camera.position.copy(home);
   const controls = new OrbitControls(camera, canvas);
   controls.target.copy(homeTarget); controls.enableDamping = true; controls.dampingFactor = .085;

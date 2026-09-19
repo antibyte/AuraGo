@@ -7,12 +7,21 @@ system view. Exploration and decorative life never call an LLM.
 
 ## World and interaction
 
-The agent control room, memory archive and mission depot load within 32 metres.
-Sliding doors connect their real ground floors to the street. Each lift connects
-to an upper balcony. Collision uses ground solids and door apertures rather than
+The agent control room, memory archive and mission depot occupy separate
+waterfront plots south of the boulevard. Their exterior shells load with the city;
+furnishings and lifts load within 32 metres. Sliding doors connect their real ground
+floors to the street. Each lift opens left onto a six-metre-deep guarded gallery.
+Collision uses ground solids and door apertures rather than
 the enclosing bounds of an entire facade. The quay includes elevated walkways,
 stairs and ramps. View selection, district selection, map and HTML information
 remain available independently of 3D navigation.
+
+`sysworld-layout.js` owns the street grid, plots, station platforms and surface
+heights. The tram's bounded rounded circuit and its visible rails share the same
+curve on those streets. Check the full swept vehicle footprint, not just its
+centre. Quay and interior floors have distinct exposed heights; do not mask
+coplanar overlays with draw order or depth-test exceptions. Upper-floor navigation
+is limited to the actual gallery and a docked lift; the open atrium is not a floor.
 
 WASD/arrow keys move in focused street view; E or the visible interaction button
 opens a door, uses a lift, visits a discovery, boards a tram or starts a drone tour.
@@ -97,13 +106,13 @@ management app rather than claiming success. Rejected actions remain failures.
 
 ## Assets and lifecycle
 
-`assets/system-world/build_expansion.py` and its saved Blender scene produce 26
-designs and 78 GLBs under `ui/3d/system-world/v2/`. All LODs preserve stable pivot
+`assets/system-world/build_expansion.py` and its saved Blender scene produce 27
+designs and 81 GLBs under `ui/3d/system-world/v2/`. All LODs preserve stable pivot
 names and real articulated clips. Manifests include navigation, sizes and hashes.
 Original new content is MIT; the white robot retains its existing provenance.
 
 All System World runtime files together must remain below 48 MiB; first display
-must remain below 12 MiB. Interiors and alternate LODs load on demand. Static
+must remain below 12 MiB. Interior furnishings and alternate LODs load on demand. Static
 repetition is instanced, model clones share geometry/materials, mixers are owned
 per actor, and all animation uses the existing render loop. Disposal cancels loads
 and releases mixers, textures, GPU resources, listeners, timers and audio. A lost
@@ -120,6 +129,7 @@ service responses; the API tests separately exercise the actual service handlers
 python assets/system-world/check_assets.py
 node scripts/test-system-world.mjs
 node scripts/test-system-world-expansion.mjs
+node scripts/test-system-world-layout.mjs
 node scripts/test-system-world-voice.mjs
 node scripts/build-system-world.js --check
 node scripts/build-ui-bundles.js --check

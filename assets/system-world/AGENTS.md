@@ -5,7 +5,7 @@ Own the original Blender city kit, deterministic generator and source scene.
 
 ## Ownership
 - Authoring: this directory.
-- Runtime payload: `ui/3d/system-world/v1/` plus `white-robot.glb/json` in its parent.
+- Runtime payload: `ui/3d/system-world/v1/`, `v2/`, plus `white-robot.glb/json` in its parent.
 - Temporary tools: `disposable/system-world/`; visual checks: `reports/system-world-assets/`.
 
 ## Local Contracts
@@ -20,6 +20,11 @@ Own the original Blender city kit, deterministic generator and source scene.
   changes `ui/3d/robot.glb`, and exports tangents without runtime Draco.
 - Only runtime GLBs, manifest and license belong in the resource package.
 - Keep the planned cinematic city direction and street-level inspection quality.
+- `build_expansion.py` owns 27 v2 designs and `production/aurago-world-2.blend`.
+  Preserve matching LOD pivots and articulated clips. Modular floors have planar
+  joining edges; the lift platform top is zero with four metres of travel and an
+  open left side. Gallery guards use the `railing` module. Verify actual exported
+  floor/shaft alignment with `node scripts/test-system-world-layout.mjs`.
 
 ## Verification
 - `python assets/system-world/check_assets.py`.

@@ -1254,10 +1254,19 @@ registration lives in `internal/desktop/types.go`.
   and observers. Context loss falls back to the usable map. Keep all models,
   local materials and licenses build-versioned; no remote textures or services.
 - System World 2 adds `sysworld-experience/exploration/weather/effects.js` to the
-  same renderer build and RAF. The v2 Blender manifest has 26 designs, three LODs,
+  same renderer build and RAF. The v2 Blender manifest has 27 designs, three LODs,
   articulated clips and navigation metadata. Keep the complete app payload below
-  48 MiB and first display below 12 MiB; interiors load by proximity. Five original
+  48 MiB and first display below 12 MiB; exterior shells load with the city and
+  interior furnishings load by proximity. Five original
   robots plus 19 new residents are the high-tier cap (eight total on low).
+- `sysworld-layout.js` owns roads, clear building plots, station platforms and
+  exposed surface heights. Tram rails and motion share `streetCurve`; test the
+  swept vehicle body through bends. Do not use overshooting splines across plots.
+  Quay, ground and interior floors must not be coplanar. Upper navigation is
+  restricted to the rendered guarded gallery and docked lift platform. Verify
+  `node scripts/test-system-world-layout.mjs` against actual exported GLBs and
+  the browser expansion round including leaving, traversing and returning from
+  the upper floor; lift arrival alone does not prove a usable landing.
 - `sysworld-controls.js` owns destinations, discoveries, environment, three audio
   buses, the typed terminal and 24-hour replay. UI hints must not mutate the DOM
   every frame. Replay immediately disables system actions and private memory feeds;

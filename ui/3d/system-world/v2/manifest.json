@@ -476,8 +476,8 @@
         {
           "level": 0,
           "file": "floor.lod0.glb",
-          "bytes": 5936,
-          "sha256": "43d5752f56964860881e2d2f03c63b9ce3fbadfd265f6d5ad435d08de7278ad7",
+          "bytes": 4012,
+          "sha256": "31706ff41f857538c58a624a397a2523872cc16604e3620c75f14aa7a493b561",
           "bounds": {
             "min": [
               -2.0,
@@ -490,7 +490,7 @@
               2.0
             ]
           },
-          "triangles": 68
+          "triangles": 36
         },
         {
           "level": 1,
@@ -639,8 +639,8 @@
         {
           "level": 0,
           "file": "ceiling.lod0.glb",
-          "bytes": 6792,
-          "sha256": "e2cae09b29a1771e24a1651f44f66364988f1b81b8f004dc84383434cf1a07f1",
+          "bytes": 5256,
+          "sha256": "08102a13c0b3e13899aa77cb608d62894d48710bff3839eb06507d7c978db902",
           "bounds": {
             "min": [
               -2.0,
@@ -653,7 +653,7 @@
               2.0
             ]
           },
-          "triangles": 88
+          "triangles": 56
         },
         {
           "level": 1,
@@ -893,59 +893,59 @@
         {
           "level": 0,
           "file": "lift.lod0.glb",
-          "bytes": 16464,
-          "sha256": "6311ddce6b16483aa795ef07cbc795119d1d17703ce0f814ba41cd3bf327bc6f",
+          "bytes": 22900,
+          "sha256": "2f65e76fbd2232c175584e9f0f1089d7d292b26e1a085e4d0ca8981ef71f6294",
           "bounds": {
             "min": [
               -1.7700001001358032,
-              0.0,
-              -1.7999999523162842
+              -0.23999999463558197,
+              -1.7700001001358032
             ],
             "max": [
               1.7700001001358032,
               4.800000190734863,
-              1.7999999523162842
+              1.7700001001358032
             ]
           },
-          "triangles": 220
+          "triangles": 320
         },
         {
           "level": 1,
           "file": "lift.lod1.glb",
-          "bytes": 7236,
-          "sha256": "24c34d1bf94311b4c9db12fd022d07ad78c60c8ae635af6891145b87f424c8a1",
+          "bytes": 9456,
+          "sha256": "57624bcd0810bb89dc3a335d5c3f1b08b6ec1738de2bcffe1aacdfc75d141e43",
           "bounds": {
             "min": [
               -1.7700001001358032,
-              0.0,
-              -1.7999999523162842
+              -0.23999999463558197,
+              -1.7700001001358032
             ],
             "max": [
               1.7700001001358032,
               4.800000190734863,
-              1.7999999523162842
+              1.7700001001358032
             ]
           },
-          "triangles": 60
+          "triangles": 96
         },
         {
           "level": 2,
           "file": "lift.lod2.glb",
-          "bytes": 7236,
-          "sha256": "cb126f5e8f3cf5fba68da8e6ded0271a2de8b77f9c123f8ea27b2e5360e0964d",
+          "bytes": 9456,
+          "sha256": "4cab80901b8f72b270820b63409512c9579cac3bc6cdbe30a8775be7a7e97379",
           "bounds": {
             "min": [
               -1.7700001001358032,
-              0.0,
-              -1.7999999523162842
+              -0.23999999463558197,
+              -1.7700001001358032
             ],
             "max": [
               1.7700001001358032,
               4.800000190734863,
-              1.7999999523162842
+              1.7700001001358032
             ]
           },
-          "triangles": 60
+          "triangles": 96
         }
       ],
       "navigation": {
@@ -975,13 +975,94 @@
       ]
     },
     {
+      "id": "railing",
+      "lods": [
+        {
+          "level": 0,
+          "file": "railing.lod0.glb",
+          "bytes": 12380,
+          "sha256": "e47155ad9f24f2b7053c28acefcf72ba58faf97aa4472b8461e342e0c4c33d9e",
+          "bounds": {
+            "min": [
+              -2.0,
+              0.0,
+              -0.05999999865889549
+            ],
+            "max": [
+              2.0,
+              1.149999976158142,
+              0.05999999865889549
+            ]
+          },
+          "triangles": 176
+        },
+        {
+          "level": 1,
+          "file": "railing.lod1.glb",
+          "bytes": 4692,
+          "sha256": "7407eaeeb8dbc205cb33138c405c96008b5c51f088cb00c0d17daa2f8bde8d7f",
+          "bounds": {
+            "min": [
+              -2.0,
+              0.0,
+              -0.05999999865889549
+            ],
+            "max": [
+              2.0,
+              1.149999976158142,
+              0.05999999865889549
+            ]
+          },
+          "triangles": 48
+        },
+        {
+          "level": 2,
+          "file": "railing.lod2.glb",
+          "bytes": 4692,
+          "sha256": "5807b438ecda1d2db6826b84abc520bf3cf87f1d95eedf6143cc8888e16b69f4",
+          "bounds": {
+            "min": [
+              -2.0,
+              0.0,
+              -0.05999999865889549
+            ],
+            "max": [
+              2.0,
+              1.149999976158142,
+              0.05999999865889549
+            ]
+          },
+          "triangles": 48
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -2,
+            0,
+            -0.06,
+            2,
+            1.15,
+            0.06
+          ]
+        ],
+        "surfaces": [],
+        "portals": []
+      },
+      "animations": [],
+      "components": [
+        "nav_colliders_0",
+        "structure"
+      ]
+    },
+    {
       "id": "tram",
       "lods": [
         {
           "level": 0,
           "file": "tram.lod0.glb",
-          "bytes": 58348,
-          "sha256": "c3f3d9d410d1ce14b0493c68bfe65ae9e81a4fb9f9202561ef7c5afb31eb4fed",
+          "bytes": 70364,
+          "sha256": "8b9dbaeeca3250f789e18cf9531eae18314cca14849562c0bc15b4238cb68972",
           "bounds": {
             "min": [
               -1.5,
@@ -994,13 +1075,13 @@
               4.125
             ]
           },
-          "triangles": 924
+          "triangles": 1100
         },
         {
           "level": 1,
           "file": "tram.lod1.glb",
-          "bytes": 20308,
-          "sha256": "bdd8cf6700aadd5b1342d0a980418d0b4c516fc199b2fddd12a9510b63d1c2df",
+          "bytes": 23492,
+          "sha256": "9678892a80168b2654d05c587f934e77ed889f685c414b676f28f56b91279c5e",
           "bounds": {
             "min": [
               -1.5,
@@ -1013,13 +1094,13 @@
               4.125
             ]
           },
-          "triangles": 252
+          "triangles": 300
         },
         {
           "level": 2,
           "file": "tram.lod2.glb",
-          "bytes": 20308,
-          "sha256": "b794bd420187130fe925fae15b86fbd54cc7b07e5d135caacda2a65bf90643e4",
+          "bytes": 23492,
+          "sha256": "f5c77b5f500b7d427c1129755c0ec3931d620689026b7674bfddcc351420a62f",
           "bounds": {
             "min": [
               -1.5,
@@ -1032,7 +1113,7 @@
               4.125
             ]
           },
-          "triangles": 252
+          "triangles": 300
         }
       ],
       "navigation": {

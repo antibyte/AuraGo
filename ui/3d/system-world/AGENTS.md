@@ -4,7 +4,7 @@
 Versioned compact GLB assets for the integrated System World data metropolis.
 
 ## Ownership
-The `v1/` kit plus `white-robot.glb` and its provenance `white-robot.json` ship.
+The `v1/` and `v2/` kits plus `white-robot.glb` and its provenance `white-robot.json` ship.
 Authoring belongs to `assets/system-world/`; see its README and DOX contract.
 
 ## Local Contracts
@@ -17,6 +17,11 @@ Authoring belongs to `assets/system-world/`; see its README and DOX contract.
   Five residents share its geometry/materials/textures. Total kit plus robot
   remains below 8 MiB; hashes and source hashes must pass `check_assets.py`.
 - Manifest hashes, sizes, bounds and triangle counts must match actual GLBs.
+- `v2/` contains 27 Blender-authored designs and 81 GLBs with animation and
+  navigation metadata. Verify with `test-system-world-expansion.mjs` and
+  `test-system-world-layout.mjs`; upper floors must match actual rendered lift
+  landings. The complete app (models, renderer, scripts, locales) has a 48 MiB
+  budget; this directory retains its tighter 8 MiB model limit.
 - Load and instance models through the isolated renderer; do not mutate shared legacy Three.js.
 
 ## Verification
