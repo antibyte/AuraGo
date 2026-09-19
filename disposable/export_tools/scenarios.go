@@ -91,30 +91,22 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 	}
 
 	const (
-		directCount    = 2250
-		multiCount     = 1000
 		discoveryCount = 500
 		errorCount     = 750
 		noCallCount    = 500
 	)
-	if directCount+multiCount+discoveryCount+errorCount+noCallCount != targetScenarioCount {
-		return nil, nil, fmt.Errorf("scenario mix does not add up to %d", targetScenarioCount)
-	}
-
 	operationChoices := make([]fixtureChoice, 0)
 	for _, choice := range choices {
 		if choice.Selector != "" {
 			operationChoices = append(operationChoices, choice)
 		}
 	}
-	requiredDirect := len(operationChoices) * 2
-	if requiredDirect > directCount {
-		return nil, nil, fmt.Errorf(
-			"%d operations need %d bilingual direct scenarios, exceeding direct budget %d",
-			len(operationChoices),
-			requiredDirect,
-			directCount,
-		)
+	directCount, multiCount, err := scenarioOperationBudget(len(operationChoices))
+	if err != nil {
+		return nil, nil, err
+	}
+	if directCount+multiCount+discoveryCount+errorCount+noCallCount != targetScenarioCount {
+		return nil, nil, fmt.Errorf("scenario mix does not add up to %d", targetScenarioCount)
 	}
 
 	scenarios := make([]Scenario, 0, targetScenarioCount)

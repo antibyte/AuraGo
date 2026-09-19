@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
   "tool_count": 212,
-  "operation_count": 1125,
+  "operation_count": 1127,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -3490,15 +3490,25 @@
             "type": "string"
           },
           "category": {
-            "description": "Category to filter (for list_categories): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication",
+            "description": "Category to filter (for list_family): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication",
             "type": "string"
+          },
+          "cursor": {
+            "description": "Opaque next_cursor from the previous page, with the same operation and query",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum search or family results, from 1 to 5",
+            "type": "integer"
           },
           "operation": {
             "description": "Operation to perform",
             "enum": [
               "list_categories",
+              "list_family",
               "search",
-              "get_tool_info"
+              "get_tool_info",
+              "get_manual"
             ],
             "type": "string"
           },
@@ -3525,15 +3535,25 @@
           "type": "string"
         },
         "category": {
-          "description": "Category to filter (for list_categories): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication",
+          "description": "Category to filter (for list_family): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication",
           "type": "string"
+        },
+        "cursor": {
+          "description": "Opaque next_cursor from the previous page, with the same operation and query",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum search or family results, from 1 to 5",
+          "type": "integer"
         },
         "operation": {
           "description": "Operation to perform",
           "enum": [
             "list_categories",
+            "list_family",
             "search",
-            "get_tool_info"
+            "get_tool_info",
+            "get_manual"
           ],
           "type": "string"
         },
@@ -3550,11 +3570,19 @@
       "operations": [
         {
           "selector": "operation",
+          "value": "get_manual"
+        },
+        {
+          "selector": "operation",
           "value": "get_tool_info"
         },
         {
           "selector": "operation",
           "value": "list_categories"
+        },
+        {
+          "selector": "operation",
+          "value": "list_family"
         },
         {
           "selector": "operation",

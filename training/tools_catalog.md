@@ -3,7 +3,7 @@
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
 - Tools: **212**
-- Enumerated operations: **1125**
+- Enumerated operations: **1127**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
 
@@ -572,13 +572,15 @@ Search the tool catalog, including tools hidden by adaptive filtering; use get_t
 
 - Tier: `core`
 - Required: `operation`
-- Operations: 3
+- Operations: 5
 - Manual: `prompts/tools_manuals/discover_tools.md`
 
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
-| `category` | `string` | Category to filter (for list_categories): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication |
+| `category` | `string` | Category to filter (for list_family): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication |
+| `cursor` | `string` | Opaque next_cursor from the previous page, with the same operation and query |
+| `limit` | `integer` | Maximum search or family results, from 1 to 5 |
 | `operation` | `string` | Operation to perform |
 | `query` | `string` | Search keyword (for search operation) |
 | `tool_name` | `string` | Tool name to get full info for (for get_tool_info) |

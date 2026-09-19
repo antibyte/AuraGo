@@ -200,9 +200,13 @@ func validateBuildResult(result BuildResult) error {
 	if languages["de"] != targetScenarioCount*60/100 || languages["en"] != targetScenarioCount*40/100 {
 		return fmt.Errorf("language mix is de=%d en=%d, expected 3000/2000", languages["de"], languages["en"])
 	}
+	directCount, multiCount, err := scenarioOperationBudget(result.OperationCount)
+	if err != nil {
+		return err
+	}
 	expectedKinds := map[string]int{
-		"direct_success":  2250,
-		"multi_call":      1000,
+		"direct_success":  directCount,
+		"multi_call":      multiCount,
 		"discover_invoke": 500,
 		"tool_error":      375,
 		"tool_recovery":   375,

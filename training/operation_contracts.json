@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "4aa3058df1c5f63563b6b5d4d0327abd21b9c2ed7984657bb588936c16d5b45e",
+  "schema_sha256": "efca6a1ad7bd1caf3134e7ff2f0923a3b16a3f34a0b52aa7a6d6667e08a06d20",
   "tools": {
     "activate_agent_skill": {
       "default_arguments": {
@@ -1615,12 +1615,27 @@
       "operations": [
         {
           "selector": "operation",
-          "value": "get_tool_info",
+          "value": "get_manual",
           "arguments": {
-            "operation": "get_tool_info"
+            "operation": "get_manual",
+            "tool_name": "docker"
           },
           "required_fields": [
-            "operation"
+            "operation",
+            "tool_name"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "get_tool_info",
+          "arguments": {
+            "operation": "get_tool_info",
+            "tool_name": "docker"
+          },
+          "required_fields": [
+            "operation",
+            "tool_name"
           ],
           "excluded_fields": []
         },
@@ -1637,12 +1652,27 @@
         },
         {
           "selector": "operation",
-          "value": "search",
+          "value": "list_family",
           "arguments": {
-            "operation": "search"
+            "operation": "list_family",
+            "category": "system"
           },
           "required_fields": [
+            "category",
             "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "search",
+          "arguments": {
+            "operation": "search",
+            "query": "docker containers"
+          },
+          "required_fields": [
+            "operation",
+            "query"
           ],
           "excluded_fields": []
         }

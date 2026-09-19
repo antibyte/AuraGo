@@ -747,11 +747,19 @@
     "operations": [
       {
         "selector": "operation",
+        "value": "get_manual"
+      },
+      {
+        "selector": "operation",
         "value": "get_tool_info"
       },
       {
         "selector": "operation",
         "value": "list_categories"
+      },
+      {
+        "selector": "operation",
+        "value": "list_family"
       },
       {
         "selector": "operation",
