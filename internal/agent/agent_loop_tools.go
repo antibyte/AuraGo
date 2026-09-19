@@ -34,7 +34,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		s.pendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, s.pendingTCs, dispatchCtx, s.helperManager, lastUserMsg)
 	}
 
-	ptc := s.pendingTCs[0]
+	ptc := prepareToolCall(s.pendingTCs[0], dispatchCtx)
 	s.pendingTCs = s.pendingTCs[1:]
 	supervisorRouted := s.currentToolRoute.matches(ptc) && !s.currentToolRouteExecuted
 	s.toolCallCount++
@@ -68,7 +68,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	actionBlocked := false
 	circuitBreakerOpen := false
 	recoveryMessageStart := len(s.req.Messages)
-	if preload, blocked := ensureTaskRulesBeforeToolExecution(s, ptc, lastUserMsg); blocked {
+	if ptc.PreparationError != "" {
+		pResultContent = ptc.PreparationError
+	} else if preload, blocked := ensureTaskRulesBeforeToolExecution(s, ptc, lastUserMsg); blocked {
 		pResultContent = preload
 		actionBlocked = true
 	} else if precomputed, ok := s.pendingSummaryBatch[pendingSummaryBatchKey(ptc)]; ok {
@@ -97,14 +99,14 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	s.noteGameMakerToolProgress(policyResult.Failed, actionBlocked)
 	recordVirtualDesktopAppVerification(ptc, pResultContent, policyResult.Failed, &s.recoveryState)
 	deferredRecoveryMessages := detachNewSystemMessages(&s.req, recoveryMessageStart)
-	invalidateTurnSnapshotAfterTool(s, ptc, policyResult.Failed)
+	invalidateTurnSnapshotAfterTool(s, ptc, policyResult.Status != ToolResultSuccess)
 	pEventContent := policyResult.EventContent
 	if pEventContent == "" {
 		pEventContent = pResultContent
 	}
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, ptc, pResultContent, currentLogger)
-	} else {
+	} else if policyResult.Status == ToolResultSuccess {
 		resolveToolFailureOperationalIssue(s.runCfg, ptc, currentLogger)
 	}
 	if supervisorRouted && s.currentToolRoute.ExplicitRetry {
@@ -117,7 +119,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	}
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, ptc.Action, pResultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
-	recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, ptc.Action, policyResult.Failed, currentLogger)
+	if policyResult.Status == ToolResultSuccess || policyResult.Status == ToolResultFailed {
+		recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, ptc.Action, policyResult.Failed, currentLogger)
+	}
 	broker.Send("tool_output", pResultContent)
 	emitMediaSSEEvents(broker, ptc.Action, pEventContent, cfg.Directories.DataDir)
 	broker.Send("tool_end", ptc.Action)
@@ -213,6 +217,7 @@ func executeAgentToolTurn(
 	triggerValue string,
 	xmlFallbackHandledThisTurn bool,
 ) (openai.ChatCompletionResponse, error, bool) {
+	tc = prepareToolCall(tc, s.makeDispatchContext(s.currentLogger))
 	cfg := s.runCfg.Config
 	shortTermMem := s.runCfg.ShortTermMem
 	historyManager := s.runCfg.HistoryManager
@@ -289,7 +294,10 @@ func executeAgentToolTurn(
 		s.sessionUsedTools[tc.Action] = true
 	}
 
-	preloadedRules, rulesBlocked := ensureTaskRulesBeforeToolExecution(s, tc, lastUserMsg)
+	preloadedRules, rulesBlocked := tc.PreparationError, tc.PreparationError != ""
+	if !rulesBlocked {
+		preloadedRules, rulesBlocked = ensureTaskRulesBeforeToolExecution(s, tc, lastUserMsg)
+	}
 	if rulesBlocked {
 		resultContent := preloadedRules
 		toolAction = blockAgentToolAction(currentLogger, actionLedger, toolAction, resultContent)
@@ -405,20 +413,22 @@ func executeAgentToolTurn(
 	resultContent = policyResult.Content
 	s.noteGameMakerToolProgress(policyResult.Failed, false)
 	recordVirtualDesktopAppVerification(tc, resultContent, policyResult.Failed, &s.recoveryState)
-	invalidateTurnSnapshotAfterTool(s, tc, policyResult.Failed)
+	invalidateTurnSnapshotAfterTool(s, tc, policyResult.Status != ToolResultSuccess)
 	eventContent := policyResult.EventContent
 	if eventContent == "" {
 		eventContent = resultContent
 	}
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, tc, resultContent, currentLogger)
-	} else {
+	} else if policyResult.Status == ToolResultSuccess {
 		resolveToolFailureOperationalIssue(s.runCfg, tc, currentLogger)
 	}
 	toolAction = completeAgentToolAction(currentLogger, actionLedger, toolAction, policyResult, dispatchCtx.ExecutionTimeMs)
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, resultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
-	recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, tc.Action, policyResult.Failed, currentLogger)
+	if policyResult.Status == ToolResultSuccess || policyResult.Status == ToolResultFailed {
+		recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, tc.Action, policyResult.Failed, currentLogger)
+	}
 
 	broker.Send("tool_output", resultContent)
 	emitMediaSSEEvents(broker, tc.Action, eventContent, cfg.Directories.DataDir)
@@ -575,7 +585,7 @@ func executeAgentToolTurn(
 				nativePendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, s.pendingTCs, nativeDispatchCtx, s.helperManager, lastUserMsg)
 			}
 
-			btc := s.pendingTCs[0]
+			btc := prepareToolCall(s.pendingTCs[0], nativeDispatchCtx)
 			s.pendingTCs = s.pendingTCs[1:]
 			s.toolCallCount++
 			if isHomepageRuleTool(btc.Action) {
@@ -596,6 +606,8 @@ func executeAgentToolTurn(
 				bResult = notExecutedDueToCircuitBreakerResult()
 				batchedBlocked = true
 				notExecuted = true
+			} else if btc.PreparationError != "" {
+				bResult = btc.PreparationError
 			} else if preload, blocked := ensureTaskRulesBeforeToolExecution(s, btc, lastUserMsg); blocked {
 				bResult = preload
 				batchedBlocked = true
@@ -626,7 +638,7 @@ func executeAgentToolTurn(
 			s.noteGameMakerToolProgress(policyResult.Failed, batchedBlocked)
 			recordVirtualDesktopAppVerification(btc, bResult, policyResult.Failed, &s.recoveryState)
 			deferredRecoveryMessages = append(deferredRecoveryMessages, detachNewSystemMessages(&s.req, recoveryMessageStart)...)
-			invalidateTurnSnapshotAfterTool(s, btc, policyResult.Failed)
+			invalidateTurnSnapshotAfterTool(s, btc, policyResult.Status != ToolResultSuccess)
 			bEventContent := policyResult.EventContent
 			if bEventContent == "" {
 				bEventContent = bResult
@@ -636,7 +648,7 @@ func executeAgentToolTurn(
 				// was never dispatched and must not create a tool-failure issue.
 			} else if policyResult.Failed {
 				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)
-			} else {
+			} else if policyResult.Status == ToolResultSuccess {
 				resolveToolFailureOperationalIssue(s.runCfg, btc, currentLogger)
 			}
 			if batchedBlocked {
@@ -646,7 +658,9 @@ func executeAgentToolTurn(
 			}
 			trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, btc.Action, bResult)
 			recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)
-			recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, btc.Action, policyResult.Failed, currentLogger)
+			if policyResult.Status == ToolResultSuccess || policyResult.Status == ToolResultFailed {
+				recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, btc.Action, policyResult.Failed, currentLogger)
+			}
 			broker.Send("tool_output", bResult)
 			emitMediaSSEEvents(broker, btc.Action, bEventContent, cfg.Directories.DataDir)
 			broker.Send("tool_end", btc.Action)

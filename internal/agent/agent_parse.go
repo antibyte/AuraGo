@@ -55,6 +55,7 @@ func formatGuardianBlockedMessage(action, reason string, risk float64, _ bool, _
 // ToolDispatchResult preserves the model-facing output together with a
 // machine-readable execution status for protocol bridges such as MCP.
 type ToolDispatchResult struct {
+	Status  ToolResultStatus
 	Output  string
 	IsError bool
 }
@@ -69,7 +70,12 @@ func DispatchToolCall(ctx context.Context, tc *ToolCall, dc *DispatchContext, us
 
 // DispatchToolCallResult executes a tool and returns both its formatted output
 // and a stable error flag. Existing string-only callers use DispatchToolCall.
-func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchContext, userContext string) ToolDispatchResult {
+func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchContext, userContext string) (result ToolDispatchResult) {
+	*tc = prepareToolCall(*tc, dc)
+	defer func() { tc.DispatchStatus = result.Status }()
+	if tc.PreparationError != "" {
+		return ToolDispatchResult{Output: tc.PreparationError, Status: classifyLegacyToolResult(tc.PreparationError), IsError: true}
+	}
 	cfg := dc.Cfg
 	logger := dc.Logger
 	guardian := dc.Guardian
@@ -106,6 +112,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 				tc.GuardianBlocked = true
 				tc.GuardianBlockReason = result.Reason
 				return ToolDispatchResult{
+					Status:  ToolResultDenied,
 					Output:  formatGuardianBlockedMessage(tc.Action, result.Reason, result.RiskScore, cfg.LLMGuardian.AllowClarification, false),
 					IsError: true,
 				}
@@ -119,7 +126,10 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 
 	startTime := time.Now()
 	rawResult := dispatchInner(ctx, *tc, dc)
-	isError := isToolDispatchError(rawResult)
+	status := classifyLegacyToolResult(rawResult)
+	if ctx.Err() != nil {
+		status = ToolResultCancelled
+	}
 	dc.ExecutionTimeMs = time.Since(startTime).Milliseconds()
 
 	// Apply scrubbing and redaction to tool output.
@@ -141,46 +151,13 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 
 	return ToolDispatchResult{
 		Output:  formatToolOutputForModel(*tc, sanitized),
-		IsError: isError,
+		Status:  status,
+		IsError: status.IsError(),
 	}
 }
 
 func isToolDispatchError(output string) bool {
-	trimmed := strings.TrimSpace(output)
-	for _, prefix := range []string{"[Tool Output]", "Tool Output:"} {
-		if strings.HasPrefix(trimmed, prefix) {
-			trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
-		}
-	}
-
-	var envelope struct {
-		Status  string `json:"status"`
-		Success *bool  `json:"success"`
-	}
-	if json.Unmarshal([]byte(trimmed), &envelope) == nil {
-		if strings.EqualFold(strings.TrimSpace(envelope.Status), "error") {
-			return true
-		}
-		if envelope.Success != nil && !*envelope.Success {
-			return true
-		}
-	}
-
-	lower := strings.ToLower(trimmed)
-	for _, prefix := range []string{
-		"[error]",
-		"[execution error]",
-		"[permission denied]",
-		"[tool blocked]",
-		"error:",
-		"error ",
-		"timeout:",
-	} {
-		if strings.HasPrefix(lower, prefix) {
-			return true
-		}
-	}
-	return false
+	return classifyLegacyToolResult(output).IsError()
 }
 
 func formatToolOutputForModel(tc ToolCall, sanitized string) string {

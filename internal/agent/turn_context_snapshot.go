@@ -165,6 +165,7 @@ const (
 )
 
 func turnSnapshotMutationCategories(call ToolCall) turnSnapshotCategory {
+	call = toolCallForExecutionTracking(call)
 	action := strings.ToLower(strings.TrimSpace(call.Action))
 	operation := toolCallSnapshotOperation(call)
 	switch action {

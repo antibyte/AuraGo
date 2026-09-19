@@ -40,6 +40,7 @@ func (e ExecutionOutcome) String() string {
 }
 
 type toolExecutionResult struct {
+	Status       ToolResultStatus
 	Content      string
 	EventContent string
 	OutputRef    string
@@ -91,7 +92,11 @@ func toolCallForExecutionTracking(tc ToolCall) ToolCall {
 	}
 	tracking := tc
 	tracking.Action = toolName
-	if args := mapValueFromMap(tc.Params, "arguments", "params", "skill_args"); args != nil {
+	args := mapValueFromMap(tc.Params, "arguments", "params", "skill_args")
+	if args == nil {
+		args = flattenedInvokeArgs(tc.Params)
+	}
+	if args != nil {
 		tracking.Params = args
 		if op := stringValueFromMap(args, "operation"); op != "" {
 			tracking.Operation = op
@@ -133,6 +138,13 @@ func finalizeToolExecution(
 	runCfg RunConfig,
 ) toolExecutionResult {
 	trackingTC := toolCallForExecutionTracking(tc)
+	status := tc.DispatchStatus
+	if status == "" {
+		status = classifyLegacyToolResult(rawContent)
+	}
+	if guardianBlocked {
+		status = ToolResultDenied
+	}
 	eventContent := rawContent
 	limit := 0
 	if cfg != nil {
@@ -224,13 +236,13 @@ func finalizeToolExecution(
 		policyResult = postCompressionPolicy
 	} else {
 		policyResult.Content = rawContent
-		policyResult.WasError = isToolError(rawContent)
+		policyResult.WasError = status.IsError()
 		if summary := extractErrorMessage(rawContent); summary != "" {
 			policyResult.ErrorSummary = summary
 		}
 	}
 	resultContent := policyResult.Content
-	toolFailed := policyResult.WasError
+	toolFailed := status.IsError()
 	outcome := ExecutionOutcomeSuccess
 	if guardianBlocked {
 		outcome = ExecutionOutcomeGuardianBlocked
@@ -254,17 +266,21 @@ func finalizeToolExecution(
 			if outcome == ExecutionOutcomeSuccess {
 				outcome = ExecutionOutcomeSanitized
 			}
+
 		}
 	}
 
-	prompts.RecordToolUsage(trackingTC.Action, trackingTC.Operation, !toolFailed)
-	prompts.RecordAdaptiveToolUsage(trackingTC.Action, !toolFailed)
-	RecordScopedToolResultForTool(scope, trackingTC.Action, !toolFailed)
+	if status == ToolResultSuccess || status == ToolResultFailed {
+		prompts.RecordToolUsage(trackingTC.Action, trackingTC.Operation, !toolFailed)
+		prompts.RecordAdaptiveToolUsage(trackingTC.Action, !toolFailed)
+		RecordScopedToolResultForTool(scope, trackingTC.Action, !toolFailed)
 
-	if shortTermMem != nil {
-		if err := shortTermMem.UpsertToolUsage(trackingTC.Action, !toolFailed); err != nil {
-			logToolMemoryWarning(logger, "Failed to persist tool usage stats", trackingTC.Action, err)
+		if shortTermMem != nil {
+			if err := shortTermMem.UpsertToolUsage(trackingTC.Action, !toolFailed); err != nil {
+				logToolMemoryWarning(logger, "Failed to persist tool usage stats", trackingTC.Action, err)
+			}
 		}
+
 	}
 
 	if toolFailed && shortTermMem != nil {
@@ -314,7 +330,7 @@ func finalizeToolExecution(
 		}
 	}
 
-	if !toolFailed && recoveryState != nil && recoveryState.shouldRecordResolution() && shortTermMem != nil {
+	if status == ToolResultSuccess && recoveryState != nil && recoveryState.shouldRecordResolution() && shortTermMem != nil {
 		resolutionErr := extractErrorMessage(recoveryState.LastToolError)
 		if resolutionErr == "" {
 			resolutionErr = recoveryState.LastToolError
@@ -334,7 +350,8 @@ func finalizeToolExecution(
 	}
 
 	circuitBroken := false
-	if recoveryState != nil && req != nil {
+	if (status == ToolResultSuccess || status.IsError()) && recoveryState != nil && req != nil {
+		trackingTC.DispatchStatus = status
 		circuitBroken = recoveryState.updateToolErrorState(trackingTC, resultContent, req, logger, scope, promptVersion, execTimeMs)
 	}
 
@@ -349,6 +366,7 @@ func finalizeToolExecution(
 	}
 
 	return toolExecutionResult{
+		Status:       status,
 		Content:      resultContent,
 		EventContent: eventContent,
 		OutputRef:    outputRef,

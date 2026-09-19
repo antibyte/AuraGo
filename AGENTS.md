@@ -458,6 +458,8 @@ Tools are defined in `internal/tools/`:
 - Native OpenAI function calling format
 - Dynamic tool creation supported (agent writes Python tools)
 - `invoke_tool` may route any enabled native tool through its real handler, including an active catalog entry when the current model/runtime cannot emit the direct structured call. It must continue to reject disabled tools and self-invocation.
+- Resolve `invoke_tool` before task rules, role/scope policy, hooks and effect tracking; preserve the transport call ID. Hook handlers must not bypass role policy. Agent Skill scripts obey `AllowedAgentSkills` just like activation. Dispatch, Guardian and scrubbing run once for the effective action.
+- `ToolDispatchResult.Status` is captured before output sanitization and compression. Denied, setup-required, cancelled, deferred and unclassified results are not confirmed successes. Success learning, context mutation and issue resolution require a confirmed success; legacy string handlers must expose a recognizable result envelope before participating.
 - The `call_method` returned by `discover_tools` is binding. Use `invoke_tool` immediately when requested; `activate_tools` must reject any tool for which discovery did not explicitly return `activate_tools`.
 - Generated Virtual Desktop apps use the advertised `virtual_desktop_app_install` tool with one complete manifest-and-files payload; `virtual_desktop_apps(operation=install_app)` remains dispatch-compatible but is not advertised. Existing workspace files are never implicit install inputs.
 

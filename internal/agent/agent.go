@@ -350,6 +350,9 @@ func (s *StringOrJSON) UnmarshalJSON(data []byte) error {
 
 // ToolCall represents a parsed tool invocation from the LLM.
 type ToolCall struct {
+	TransportAction     string                   `json:"-"`
+	PreparationError    string                   `json:"-"`
+	DispatchStatus      ToolResultStatus         `json:"-"`
 	Action              string                   `json:"action"`
 	SubOperation        string                   `json:"sub_operation"`
 	Code                string                   `json:"code"`
@@ -1173,28 +1176,17 @@ type RunConfig struct {
 }
 
 func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (output string) {
-	if hooks := dc.ExecutionHooks; hooks != nil {
-		if hooks.BeforeTool != nil {
-			if err := hooks.BeforeTool(ctx, tc); err != nil {
-				return executionHookError(err)
-			}
-		}
-		if hooks.AfterTool != nil {
-			defer func() { output = hooks.AfterTool(ctx, tc, output) }()
-		}
+	tc = prepareToolCall(tc, dc)
+	if tc.PreparationError != "" {
+		return tc.PreparationError
 	}
 	sessionID := dc.SessionID
 	logger := dc.Logger
 	if !dispatchToolAllowed(dc, tc.Action) {
 		return toolScopeDeniedOutput(tc.Action)
 	}
-	if dc.ExecutionHooks != nil && dc.ExecutionHooks.HandleTool != nil {
-		if result, handled := dc.ExecutionHooks.HandleTool(ctx, tc); handled {
-			return result
-		}
-	}
-	if tc.Action == "brave_search" && dc.MessageSource == "meshcore_reply" {
-		return dispatchMeshCoreSearch(tc, dc)
+	if tc.TransportAction != "" && !dispatchToolAllowed(dc, tc.TransportAction) {
+		return toolScopeDeniedOutput(tc.TransportAction)
 	}
 
 	// Co-Agent blacklist: co-agents cannot access secrets,
@@ -1266,6 +1258,25 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 		if blocked := checkSpecialistToolRestriction(specialistRole, tc.Action, tc.Operation); blocked != "" {
 			return blocked
 		}
+	}
+
+	if hooks := dc.ExecutionHooks; hooks != nil {
+		if hooks.BeforeTool != nil {
+			if err := hooks.BeforeTool(ctx, tc); err != nil {
+				return executionHookError(err)
+			}
+		}
+		if hooks.AfterTool != nil {
+			defer func() { output = hooks.AfterTool(ctx, tc, output) }()
+		}
+		if hooks.HandleTool != nil {
+			if result, handled := hooks.HandleTool(ctx, tc); handled {
+				return result
+			}
+		}
+	}
+	if tc.Action == "brave_search" && dc.MessageSource == "meshcore_reply" {
+		return dispatchMeshCoreSearch(tc, dc)
 	}
 
 	// Route to sub-dispatchers

@@ -309,7 +309,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 		case "list_processes":
 			logger.Info("LLM requested process list")
-			return formatManagedProcessList(registry.List())
+			payload, _ := json.Marshal(map[string]interface{}{"status": "success", "output": formatManagedProcessList(registry.List())})
+			return "Tool Output: " + string(payload)
 
 		case "stop_process":
 			if !cfg.Tools.StopProcess.Enabled {

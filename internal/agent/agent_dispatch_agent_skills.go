@@ -113,6 +113,9 @@ func agentSkillAllowed(dc *DispatchContext, name string) bool {
 }
 
 func dispatchRunAgentSkillScript(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	if !agentSkillAllowed(dc, agentSkillNameFromToolCall(tc)) {
+		return `Tool Output: {"status":"policy_denied","message":"Agent Skill is outside this run's package scope."}`
+	}
 	cfg := dc.Cfg
 	mgr := tools.DefaultAgentSkillManager()
 	if mgr == nil {

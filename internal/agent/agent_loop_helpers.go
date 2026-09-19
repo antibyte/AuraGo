@@ -966,18 +966,7 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 // isToolError returns true if the tool result content indicates an error.
 // Used for tool usage tracking to distinguish successes from failures.
 func isToolError(resultContent string) bool {
-	if strings.Contains(resultContent, `"status": "error"`) ||
-		strings.Contains(resultContent, `"status":"error"`) ||
-		strings.Contains(resultContent, `[EXECUTION ERROR]`) {
-		return true
-	}
-	// Sandbox/shell failures with non-zero exit code
-	if strings.Contains(resultContent, `"exit_code":`) &&
-		!strings.Contains(resultContent, `"exit_code": 0`) &&
-		!strings.Contains(resultContent, `"exit_code":0`) {
-		return true
-	}
-	return false
+	return classifyLegacyToolResult(resultContent).IsError()
 }
 
 // toolResultFollowUpContent returns the message that should be fed back into the
