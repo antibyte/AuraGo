@@ -4,6 +4,8 @@
 
 - `personal-radio-player.js`, `personal-radio-runtime.js`,
   `personal-radio-settings.js` and `personal-radio.js` load in that order.
+  Register `personalRadio` in the module loader's `APP_I18N_SECTIONS`; the
+  desktop shell does not initially embed this app's translation prefix.
   Window disposal cancels only window work. The singleton desktop runtime owns
   playback, listener heartbeat and the mini control until explicit stop or
   pagehide; reopening must not create a second player.

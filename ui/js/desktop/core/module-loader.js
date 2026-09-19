@@ -478,6 +478,7 @@
         'live-speech': [],
         'sip-phone': ['sip_phone'],
         'mission-control': ['missions'],
+        'personal-radio': ['personalRadio'],
         'pixel': ['pixel'],
         'system-world': ['sysworld'],
         'viewer': ['viewer'],

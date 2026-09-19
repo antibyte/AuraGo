@@ -2,11 +2,13 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/personalradio"
 	"aurago/ui"
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,9 +27,10 @@ import (
 const personalRadioBrowserFixture = `
 window.radioErrors=[];window.addEventListener('error',e=>radioErrors.push(e.message));window.addEventListener('unhandledrejection',e=>radioErrors.push(String(e.reason)));
 const originalFetch=window.fetch.bind(window);
-window.fetch=(url,options)=>String(url).startsWith('/api/')&&!String(url).startsWith('/api/desktop/personal-radio/')?Promise.resolve(new Response('{}')):originalFetch(url,options);
+window.radioI18nRequests=[];
+window.fetch=(url,options)=>{const path=String(url);if(path.startsWith('/api/i18n?'))radioI18nRequests.push(path);return path.startsWith('/api/')&&!path.startsWith('/api/desktop/personal-radio/')&&!path.startsWith('/api/i18n?')?Promise.resolve(new Response('{}')):originalFetch(url,options);};
 window.fixtureReady=(async()=>{
- const words=await (await originalFetch('/lang/desktop/de.json')).json();window.i18n={t:key=>words[key]||key};window.t=key=>words[key]||key;
+ if(Object.keys(window.I18N).some(key=>key.startsWith('personalRadio.')))throw Error('Radio translations must load through the app loader');
  radioTest.state.bootstrap={enabled:true,builtin_apps:[{id:'personal-radio',name:'Personal Radio',icon:'radio'}],apps:[],widgets:[],shortcuts:[],desktop_files:[],settings:{'appearance.theme':'standard','windows.restore_session':false}};
  document.body.dataset.theme='standard';document.body.dataset.animations='false';document.getElementById('vd-disabled').hidden=true;
  await radioTest.loadIconManifest();radioTest.openApp('personal-radio');
@@ -98,18 +101,20 @@ func TestPersonalRadioBrowser(t *testing.T) {
 		}
 	}
 	server := &Server{Cfg: cfg, PersonalRadio: svc}
+	i18n.Load(ui.Content, slog.Default())
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(read("desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
-	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-personal-radio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := `<script src="/radio-shell.js"></script>`
-	for _, name := range []string{"player", "runtime", "settings", ""} {
-		file := "personal-radio"
-		if name != "" {
-			file += "-" + name
-		}
-		scripts += `<script src="/js/desktop/apps/` + file + `.js"></script>`
-	}
-	scripts += `<script src="/radio-fixture.js"></script>`
+	html = strings.Replace(html, "</head>", `<style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
+	// Keep production section filtering, translation lookup and lazy app loading.
+	// Reading the full locale JSON here would hide a missing loader registration.
+	scripts := `<script type="application/json" id="aurago-template-data">__RADIO_TEMPLATE_DATA__</script>
+<script src="/js/shared/template-data.js"></script>
+<script>window._auragoSharedInitialized=true;</script>
+<script src="/js/shared/shared-core.js"></script>
+<script src="/js/shared/lazy-assets.js"></script>
+<script src="/js/desktop/core/module-loader.js"></script>
+<script src="/radio-shell.js"></script>
+<script src="/radio-fixture.js"></script>`
 	html = strings.Replace(html, "</body>", scripts+"</body>", 1)
 	shell := read("js/desktop/bundles/main.bundle.js")
 	cut := strings.LastIndex(shell, "    ensureDesktopRadialMenuAnchor();")
@@ -120,9 +125,18 @@ func TestPersonalRadioBrowser(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(ui.Content)))
 	mux.HandleFunc("/api/desktop/personal-radio/", server.handlePersonalRadio)
+	mux.HandleFunc("/api/i18n", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"data":%s}`, getI18NJSONForSections(normalizeLang(r.URL.Query().Get("lang")), strings.Split(r.URL.Query().Get("sections"), ",")...))
+	})
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, html)
+		lang := r.URL.Query().Get("lang")
+		if lang == "" {
+			lang = "de"
+		}
+		data := uiTemplateData(normalizeLang(lang), "desktop")
+		fmt.Fprint(w, strings.Replace(html, "__RADIO_TEMPLATE_DATA__", fmt.Sprint(data["TemplateDataJSON"]), 1))
 	})
 	mux.HandleFunc("/radio-shell.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript")
@@ -150,7 +164,17 @@ func TestPersonalRadioBrowser(t *testing.T) {
 		}
 		t.Fatalf("condition failed: %s; errors: %s", js, page.MustEval(`()=>JSON.stringify(radioErrors)`).Str())
 	}
-	wait(`()=>PersonalRadioRuntime.state?.stations?.length===1 && !!document.querySelector('.pr-app')`)
+	wait(`()=>window.PersonalRadioRuntime?.state?.stations?.length===1 && !!document.querySelector('.pr-app')`)
+	assertLocalized := func() {
+		t.Helper()
+		if page.MustEval(`()=>document.querySelector('[data-app-id="personal-radio"]').outerHTML.includes('personalRadio.')`).Bool() {
+			t.Fatal("Personal Radio exposes untranslated keys after production app loading")
+		}
+	}
+	assertLocalized()
+	if got := page.MustElement(".pr-app [data-action=new]").MustText(); got != "＋ Neuer Sender" {
+		t.Fatal("German app label:", got)
+	}
 	page.MustElement(".pr-app [data-action=start]").MustClick()
 	wait(`()=>PersonalRadioRuntime.position().position>500`)
 	if got := svc.Snapshot(); got.Status != "playing" {
@@ -168,8 +192,15 @@ func TestPersonalRadioBrowser(t *testing.T) {
 	wait(`()=>PersonalRadioRuntime.state.state.status!=='paused'`)
 	page.MustEval(`async()=>{window.beforeClosePosition=PersonalRadioRuntime.position().position;await radioTest.closeWindow([...radioTest.state.windows.keys()][0]);}`)
 	wait(`()=>!document.querySelector('.pr-app')&&!document.querySelector('.pr-mini').hidden&&PersonalRadioRuntime.position().position>beforeClosePosition+150`)
+	if got := page.MustEval(`()=>document.querySelector('[data-pr-mini=stop]').getAttribute('aria-label')`).Str(); got != "Stoppen" {
+		t.Fatal("German mini-player label:", got)
+	}
 	page.MustElement("[data-pr-mini=open]").MustClick()
 	wait(`()=>!!document.querySelector('.pr-app')`)
+	assertLocalized()
+	if got := page.MustEval(`()=>radioI18nRequests.filter(url=>new URL(url,location.href).searchParams.get('sections')==='personalRadio').length`).Int(); got != 1 {
+		t.Fatal("radio section should load once across close/reopen:", got)
+	}
 	page.MustElement(".pr-app [data-tab=library]").MustClick()
 	wait(`()=>document.querySelectorAll('.pr-track').length===2`)
 	for _, theme := range []string{"standard", "fruity"} {
@@ -192,6 +223,7 @@ func TestPersonalRadioBrowser(t *testing.T) {
 	wait(`()=>PersonalRadioRuntime.state.state.status==='stopped'`)
 	page.MustElement(".pr-app [data-action=settings]").MustClick()
 	wait(`()=>!!document.querySelector('.pr-settings')`)
+	assertLocalized()
 	page.MustElement(".pr-settings [name=name]").MustSelectAllText().MustInput("Edited station")
 	page.MustElement(".pr-settings [type=submit]").MustClick()
 	wait(`()=>PersonalRadioRuntime.state.stations[0].name==='Edited station'`)
@@ -208,6 +240,13 @@ func TestPersonalRadioBrowser(t *testing.T) {
 	wait(`()=>PersonalRadioRuntime.state.state.status==='stopped'`)
 	if errors := page.MustEval(`()=>JSON.stringify(radioErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
+	}
+	page.MustNavigate(origin.URL + "/fixture?lang=en").MustWaitLoad()
+	page.MustEval(`async()=>await fixtureReady`)
+	wait(`()=>!!document.querySelector('.pr-app')`)
+	assertLocalized()
+	if got := page.MustElement(".pr-app [data-action=new]").MustText(); got != "＋ New station" {
+		t.Fatal("English app label:", got)
 	}
 }
 
