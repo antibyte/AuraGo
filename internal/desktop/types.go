@@ -749,6 +749,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "gallery", Name: "Gallery", Version: "1.0.0", Icon: "gallery", Entry: "builtin://gallery", Runtime: BuiltinRuntime, Description: "Browse AuraGo photos and videos."},
 		{ID: "music-player", Name: "Music Player", Version: "1.0.0", Icon: "audio-player", Entry: "builtin://music-player", Runtime: BuiltinRuntime, Description: "Winamp-style music player for workspace audio files."},
 		{ID: "radio", Name: "Radio", Version: "1.0.0", Icon: "radio", Entry: "builtin://radio", Runtime: BuiltinRuntime, Description: "Stream popular internet radio stations by category and search."},
+		{ID: "personal-radio", Name: "Personal Radio", Version: "1.0.0", Icon: "radio", Entry: "builtin://personal-radio", Runtime: BuiltinRuntime, Description: "Your own station with local or generated music, spoken moderation and researched news."},
 		{ID: "teevee", Name: "TeeVee", Version: "1.0.0", Icon: "teevee", Entry: "builtin://teevee", Runtime: BuiltinRuntime, Description: "Watch public IPTV channels from iptv-org with German-first filtering and global search."},
 		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "agent-chat", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
 		{ID: "live-speech", Name: "Live Speech", Version: "1.0.0", Icon: "audio", Entry: "builtin://live-speech", Runtime: BuiltinRuntime, Description: "Talk naturally with AuraGo through a realtime voice session."},

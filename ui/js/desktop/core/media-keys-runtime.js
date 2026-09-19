@@ -64,6 +64,7 @@
 
     function refreshDesktopMediaSessionHandlers() {
         if (!('mediaSession' in navigator)) return;
+        if (window.PersonalRadioRuntime && window.PersonalRadioRuntime.active) return;
         if (!webampMusicActive()) {
             clearDesktopMediaSessionHandlers();
             return;
@@ -77,6 +78,7 @@
     }
 
     function handleDesktopMediaKeydown(event) {
+        if (window.PersonalRadioRuntime && window.PersonalRadioRuntime.active) return false;
         if (!webampMusicActive() || isEditableTarget(event.target)) return false;
         let type = '';
         switch (event.code) {
@@ -106,6 +108,7 @@
     function initDesktopMediaKeysRuntime() {
         if (desktopMediaKeysWired) return;
         desktopMediaKeysWired = true;
+        window.addEventListener('personal-radio-stopped', refreshDesktopMediaSessionHandlers);
         refreshDesktopMediaSessionHandlers();
     }
 
@@ -114,5 +117,5 @@
     }
 
     function notifyWebampMediaSessionStopped() {
-        clearDesktopMediaSessionHandlers();
+        refreshDesktopMediaSessionHandlers();
     }

@@ -1171,6 +1171,7 @@ ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it afte
 ## Child DOX Index
 
 Current child AGENTS.md files:
+- `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
 - `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
 - `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
 - `assets/game-maker-low-poly/AGENTS.md` — Original 220-model Blender pack, animation contracts, compact exports and playable acceptance scenes.

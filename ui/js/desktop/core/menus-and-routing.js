@@ -1548,6 +1548,9 @@ function modalDialog(options) {
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
+        if (appId === 'personal-radio' && window.PersonalRadioApp) {
+            return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));
+        }
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
             return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }

@@ -365,6 +365,7 @@
         player: 'audio-player',
         noisemaker: 'audio',
         radio: 'radio',
+        'personal-radio': 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
         todo: 'forms',
@@ -489,6 +490,7 @@
         music: 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        'personal-radio': 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
         workflow: 'workflow',
@@ -800,6 +802,7 @@
 
     function appGlobalName(appId) {
         return {
+            'personal-radio': 'PersonalRadioApp',
             'ha-switchboard': 'HASwitchboardApp',
             files: 'FileManager',
             writer: 'WriterApp',
@@ -5784,6 +5787,7 @@
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
             radio: { width: 1320, height: 920 },
+            'personal-radio': { width: 1060, height: 780 },
             openscad: { width: 1240, height: 760 },
             teevee: { width: 1500, height: 845 },
             gallery: { width: 1040, height: 700 },
@@ -11590,6 +11594,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function refreshDesktopMediaSessionHandlers() {
         if (!('mediaSession' in navigator)) return;
+        if (window.PersonalRadioRuntime && window.PersonalRadioRuntime.active) return;
         if (!webampMusicActive()) {
             clearDesktopMediaSessionHandlers();
             return;
@@ -11603,6 +11608,7 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     function handleDesktopMediaKeydown(event) {
+        if (window.PersonalRadioRuntime && window.PersonalRadioRuntime.active) return false;
         if (!webampMusicActive() || isEditableTarget(event.target)) return false;
         let type = '';
         switch (event.code) {
@@ -11632,6 +11638,7 @@ function updateTaskbarSystemButtonsForMobile() {
     function initDesktopMediaKeysRuntime() {
         if (desktopMediaKeysWired) return;
         desktopMediaKeysWired = true;
+        window.addEventListener('personal-radio-stopped', refreshDesktopMediaSessionHandlers);
         refreshDesktopMediaSessionHandlers();
     }
 
@@ -11640,7 +11647,7 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     function notifyWebampMediaSessionStopped() {
-        clearDesktopMediaSessionHandlers();
+        refreshDesktopMediaSessionHandlers();
     }
 
 ;
@@ -14908,6 +14915,9 @@ function modalDialog(options) {
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
+        }
+        if (appId === 'personal-radio' && window.PersonalRadioApp) {
+            return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));
         }
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
             return window.TeeVeeApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));

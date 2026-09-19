@@ -136,6 +136,10 @@
             styles: appStyles('/css/radio.css'),
             scripts: ['/js/desktop/apps/radio.js']
         },
+        'personal-radio': {
+            styles: appStyles('/css/desktop-app-personal-radio.css'),
+            scripts: ['/js/desktop/apps/personal-radio-player.js', '/js/desktop/apps/personal-radio-runtime.js', '/js/desktop/apps/personal-radio-settings.js', '/js/desktop/apps/personal-radio.js']
+        },
         'teevee': {
             styles: appStyles('/css/teevee.css'),
             scripts: ['/js/vendor/hls.min.js', '/js/desktop/core/media-helpers.js', '/js/desktop/apps/teevee-crt.js', '/js/desktop/apps/teevee-catalog.js', '/js/desktop/apps/teevee.js']

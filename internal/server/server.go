@@ -44,6 +44,7 @@ import (
 	"aurago/internal/mqtt"
 	"aurago/internal/networkshares"
 	"aurago/internal/onvif"
+	"aurago/internal/personalradio"
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
@@ -233,6 +234,7 @@ type Server struct {
 	VirtualWorkspaceManager *virtualcomputers.WorkspaceManager
 	GameMaker               *gamemaker.Service
 	Detective               *detective.Service
+	PersonalRadio           *personalradio.Service
 	gameMakerSkills         []gamemaker.SkillInfo
 	gameMakerSkillsReady    bool
 	DesktopMu               sync.Mutex
@@ -433,6 +435,9 @@ func Start(opts StartOptions) error {
 		s.LocalMusic.Start()
 	}
 	defer func() {
+		if s.PersonalRadio != nil {
+			_ = s.PersonalRadio.Close()
+		}
 		if s.LocalMusic != nil {
 			s.LocalMusic.Close()
 		}
@@ -573,6 +578,7 @@ func Start(opts StartOptions) error {
 	installedSkills := s.initSkillManagers(serverCtx, installDir)
 	s.initGameMaker()
 	s.initDetective()
+	s.initPersonalRadio()
 	// Remote security scanners must not delay the core HTTP readiness check.
 	go s.syncAgentSkills(serverCtx, cfg, installedSkills)
 

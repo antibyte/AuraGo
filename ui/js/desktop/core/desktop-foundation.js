@@ -133,6 +133,7 @@
         player: 'audio-player',
         noisemaker: 'audio',
         radio: 'radio',
+        'personal-radio': 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
         todo: 'forms',
@@ -257,6 +258,7 @@
         music: 'audio-player',
         player: 'audio-player',
         radio: 'radio',
+        'personal-radio': 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
         workflow: 'workflow',
@@ -568,6 +570,7 @@
 
     function appGlobalName(appId) {
         return {
+            'personal-radio': 'PersonalRadioApp',
             'ha-switchboard': 'HASwitchboardApp',
             files: 'FileManager',
             writer: 'WriterApp',

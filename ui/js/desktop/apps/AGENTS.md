@@ -1,5 +1,20 @@
 # Desktop App Modules - Child DOX Contract
 
+## Personal Radio
+
+- `personal-radio-player.js`, `personal-radio-runtime.js`,
+  `personal-radio-settings.js` and `personal-radio.js` load in that order.
+  Window disposal cancels only window work. The singleton desktop runtime owns
+  playback, listener heartbeat and the mini control until explicit stop or
+  pagehide; reopening must not create a second player.
+- Use one Web Audio clock, bounded PCM windows and two prepared segments for
+  initial playback. Fence asynchronous work by generation and server epoch.
+  Never claim airtime from a server timer. Expired speech must not resume.
+- Keep Standard/Fruity tokens, reduced motion and all 16 locale dictionaries.
+  The original Radio app, Noisemaker and Webamp retain their own lifecycles.
+- Verify `TestPersonalRadioBrowser`, `TestPersonalRadioAudioContinuityBrowser`
+  and `TestPersonalRadioTranslations`. Backend: `internal/personalradio/AGENTS.md`.
+
 ## Detective
 - `detective-views.js` precedes `detective.js`; both use the native Desktop theme
   tokens and `desktop-app-detective.css`. Register the built-in `detective` app
