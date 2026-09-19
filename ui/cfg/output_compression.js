@@ -8,6 +8,12 @@
                 <div class="section-header">${section.label}</div>
                 <div class="section-desc">${section.desc}</div>`;
 
+            const agentSchema = schema.find(item => item.yaml_key === 'agent');
+            const compressionSchema = agentSchema?.children?.find(item => item.yaml_key === 'output_compression');
+            const sectionFields = name => compressionSchema?.children?.filter(item => item.yaml_key === name) || [];
+            // Archiving is independent of lossy compression and stays editable when disabled.
+            html += renderFields(sectionFields('reversible'), compCfg, 'agent.output_compression');
+
             // Master toggle
             html += `<div class="cfg-toggle-row-highlight">
                 <span class="cfg-toggle-label">${t('config.output_compression.enabled_label')}</span>
@@ -24,6 +30,7 @@
                 </div>`;
                 html += '</div>';
                 document.getElementById('content').innerHTML = html;
+                attachChangeListeners();
                 return;
             }
 
@@ -58,6 +65,7 @@
             </div>`;
 
             // Filter card
+            html += renderFields(sectionFields('smart_crusher'), compCfg, 'agent.output_compression');
             html += `<div class="field-group">
                 <div class="field-group-title">${t('config.output_compression.filters_title')}</div>
                 <div class="field-group-desc">${t('config.output_compression.filters_desc')}</div>`;
@@ -120,6 +128,10 @@
             </div>`;
 
             // Relationship note
+            for (const name of ['repetitive_substitution', 'toon_json']) {
+                const fields = sectionFields(name)[0]?.children?.filter(item => item.yaml_key !== 'enabled') || [];
+                html += renderFields(fields, compCfg[name] || {}, 'agent.output_compression.' + name);
+            }
             html += `<div class="wh-notice pw-u-mt-100 pw-u-muted-border">
                 <span>💡</span>
                 <div>
@@ -129,4 +141,5 @@
 
             html += '</div>';
             document.getElementById('content').innerHTML = html;
+            attachChangeListeners();
         }

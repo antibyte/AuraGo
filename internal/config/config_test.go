@@ -555,9 +555,6 @@ func TestLoadOutputCompressionAdvancedDefaults(t *testing.T) {
 	if !rs.LZWEnabled {
 		t.Fatal("repetitive_substitution.lzw_enabled must default to true")
 	}
-	if rs.LTSCLiteEnabled {
-		t.Fatal("repetitive_substitution.ltsc_lite_enabled must default to false")
-	}
 	if rs.MinPhraseChars != 15 {
 		t.Fatalf("min_phrase_chars = %d, want 15", rs.MinPhraseChars)
 	}
@@ -583,53 +580,6 @@ func TestLoadOutputCompressionAdvancedDefaults(t *testing.T) {
 	}
 	if toon.MaxRows != 200 {
 		t.Fatalf("toon_json.max_rows = %d, want 200", toon.MaxRows)
-	}
-	if cfg.Agent.DiscoverToolsSnapshotTTLMinutes != 5 {
-		t.Fatalf("discover_tools_snapshot_ttl_minutes = %d, want default 5", cfg.Agent.DiscoverToolsSnapshotTTLMinutes)
-	}
-}
-
-func TestLoadDiscoverToolsSnapshotTTLExplicitAndFallback(t *testing.T) {
-	for _, tc := range []struct {
-		name    string
-		content string
-		want    int
-	}{
-		{
-			name: "explicit",
-			content: `agent:
-  discover_tools_snapshot_ttl_minutes: 12
-`,
-			want: 12,
-		},
-		{
-			name: "zero falls back",
-			content: `agent:
-  discover_tools_snapshot_ttl_minutes: 0
-`,
-			want: 5,
-		},
-		{
-			name: "negative falls back",
-			content: `agent:
-  discover_tools_snapshot_ttl_minutes: -3
-`,
-			want: 5,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			configPath := filepath.Join(t.TempDir(), "config.yaml")
-			if err := os.WriteFile(configPath, []byte(tc.content), 0o644); err != nil {
-				t.Fatalf("write config: %v", err)
-			}
-			cfg, err := Load(configPath)
-			if err != nil {
-				t.Fatalf("Load() error = %v", err)
-			}
-			if cfg.Agent.DiscoverToolsSnapshotTTLMinutes != tc.want {
-				t.Fatalf("discover_tools_snapshot_ttl_minutes = %d, want %d", cfg.Agent.DiscoverToolsSnapshotTTLMinutes, tc.want)
-			}
-		})
 	}
 }
 
@@ -662,8 +612,8 @@ agent:
 	}
 
 	rs := cfg.Agent.OutputCompression.RepetitiveSubstitution
-	if !rs.Enabled || rs.LZWEnabled || !rs.LTSCLiteEnabled {
-		t.Fatalf("repetitive_substitution bools = %+v, want enabled true, lzw false, ltsc true", rs)
+	if !rs.Enabled || rs.LZWEnabled {
+		t.Fatalf("repetitive_substitution bools = %+v, want enabled true, lzw false", rs)
 	}
 	if rs.MinPhraseChars != 24 || rs.MinOccurrences != 5 || rs.MinSavingsPercent != 30 ||
 		rs.MaxInputChars != 12345 || rs.MaxDictionaryEntries != 7 {

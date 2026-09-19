@@ -1072,13 +1072,12 @@ type Config struct {
 		ShowToolResults                 bool   `yaml:"show_tool_results"`
 		WorkflowFeedback                bool   `yaml:"workflow_feedback"`
 		DebugMode                       bool   `yaml:"debug_mode"`
-		CoreMemoryMaxEntries            int    `yaml:"core_memory_max_entries"`             // 0 = default 80
-		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`                // "hard" (default) | "soft"
-		ToolOutputLimit                 int    `yaml:"tool_output_limit"`                   // max characters of a single tool result added to context (0 = unlimited, default: 50000)
-		DiscoverToolsSnapshotTTLMinutes int    `yaml:"discover_tools_snapshot_ttl_minutes"` // minutes to retain discover_tools snapshots (<=0 = default 5)
-		MaxConcurrentLoops              int    `yaml:"max_concurrent_loops"`                // maximum concurrent agent loop executions (0 = default 8)
-		SudoEnabled                     bool   `yaml:"sudo_enabled"`                        // allow execute_sudo tool (password must be stored in vault as "sudo_password")
-		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`                   // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
+		CoreMemoryMaxEntries            int    `yaml:"core_memory_max_entries"` // 0 = default 80
+		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`    // "hard" (default) | "soft"
+		ToolOutputLimit                 int    `yaml:"tool_output_limit"`       // max bytes of one tool result (0 = automatic 50000; negative invalid)
+		MaxConcurrentLoops              int    `yaml:"max_concurrent_loops"`    // maximum concurrent agent loop executions (0 = default 8)
+		SudoEnabled                     bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
+		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`       // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
 		// ── Danger Zone: tool capability gates (all default true) ──
 		AllowShell           bool   `yaml:"allow_shell"`            // allow execute_shell
 		AllowPython          bool   `yaml:"allow_python"`           // allow execute_python / save_tool / execute_skill
@@ -1096,7 +1095,7 @@ type Config struct {
 			MaxTotalTools             int      `yaml:"max_total_tools"`              // maximum final native tool schemas after required tools are kept (0 = unlimited, default: 20)
 			MaxSchemaTokens           int      `yaml:"max_schema_tokens"`            // schema-token budget for final native tool schemas (0 = unlimited, default: 6500)
 			ProviderProfilesEnabled   bool     `yaml:"provider_profiles_enabled"`    // apply provider-specific tool limits and transport stability defaults (default: true)
-			SessionToolRetentionTurns int      `yaml:"session_tool_retention_turns"` // turns to keep previously used tools visible as soft always-include tools (0 = current session, default: 8)
+			SessionToolRetentionTurns int      `yaml:"session_tool_retention_turns"` // turns to keep previously used tools visible as soft always-include tools (0 = automatic 8)
 			DecayHalfLifeDays         float64  `yaml:"decay_half_life_days"`         // usage score halves after this many days (default: 7)
 			AlwaysInclude             []string `yaml:"always_include"`               // user-configured tools kept visible before total-cap soft trimming
 			WeightSuccessRate         bool     `yaml:"weight_success_rate"`          // penalise tools with low success rate in scoring (default: true)
@@ -1134,7 +1133,6 @@ type Config struct {
 			RepetitiveSubstitution struct {
 				Enabled              bool `yaml:"enabled"`                // enable dictionary substitution for repetitive log-like output (default: false)
 				LZWEnabled           bool `yaml:"lzw_enabled"`            // enable long repeated phrase substitution when parent is enabled (default: true)
-				LTSCLiteEnabled      bool `yaml:"ltsc_lite_enabled"`      // reserved LTSC-lite toggle, disabled by default
 				MinPhraseChars       int  `yaml:"min_phrase_chars"`       // minimum repeated phrase length (default: 15)
 				MinOccurrences       int  `yaml:"min_occurrences"`        // minimum occurrences before substitution (default: 3)
 				MinSavingsPercent    int  `yaml:"min_savings_percent"`    // minimum net savings after dictionary overhead (default: 15)
@@ -1147,7 +1145,7 @@ type Config struct {
 				MaxRows           int  `yaml:"max_rows"`            // maximum homogeneous rows converted (default: 200)
 			} `yaml:"toon_json"`
 			SmartCrusher struct {
-				Enabled bool `yaml:"enabled"`  // enable generic JSON array-of-objects compression (default: false)
+				Enabled bool `yaml:"enabled"`  // enable generic JSON array-of-objects compression (default: true)
 				MaxRows int  `yaml:"max_rows"` // max rows to render before tail-truncation (default: 50)
 			} `yaml:"smart_crusher"`
 			Reversible struct {
@@ -1308,21 +1306,21 @@ type Config struct {
 		Model                string `yaml:"model"`                  // optional model override for nightly consolidation (empty = main llm model)
 	} `yaml:"consolidation"`
 	MemoryAnalysis struct {
-		Enabled               bool    `yaml:"enabled"`                 // deprecated compatibility flag; memory analysis is now adaptive and always active
-		Preset                string  `yaml:"preset"`                  // deprecated compatibility field; rollout is now adaptive
-		RealTime              bool    `yaml:"real_time"`               // deprecated compatibility field; real-time extraction is now adaptive
+		Enabled               bool    `yaml:"-" json:"-"`              // deprecated compatibility flag; memory analysis is now adaptive and always active
+		Preset                string  `yaml:"-" json:"-"`              // deprecated compatibility field; rollout is now adaptive
+		RealTime              bool    `yaml:"-" json:"-"`              // deprecated compatibility field; real-time extraction is now adaptive
 		Provider              string  `yaml:"provider"       json:"-"` // legacy provider entry; helper-owned runtime prefers llm.helper_*
 		Model                 string  `yaml:"model"          json:"-"` // model override (optional)
 		AutoConfirm           float64 `yaml:"auto_confirm_threshold"`  // confidence threshold for auto-store (default 0.92)
-		QueryExpansion        bool    `yaml:"query_expansion"`         // deprecated compatibility field; retrieval tuning is now adaptive
-		LLMReranking          bool    `yaml:"llm_reranking"`           // deprecated compatibility field; retrieval tuning is now adaptive
-		UnifiedMemoryBlock    bool    `yaml:"unified_memory_block"`    // deprecated compatibility field; unified memory context is always active
-		EffectivenessTracking bool    `yaml:"effectiveness_tracking"`  // deprecated compatibility field; effectiveness tracking is always active
+		QueryExpansion        bool    `yaml:"-" json:"-"`              // deprecated compatibility field; retrieval tuning is now adaptive
+		LLMReranking          bool    `yaml:"-" json:"-"`              // deprecated compatibility field; retrieval tuning is now adaptive
+		UnifiedMemoryBlock    bool    `yaml:"-" json:"-"`              // deprecated compatibility field; unified memory context is always active
+		EffectivenessTracking bool    `yaml:"-" json:"-"`              // deprecated compatibility field; effectiveness tracking is always active
 		ProviderType          string  `yaml:"-" json:"-"`              // resolved
 		BaseURL               string  `yaml:"-" json:"-"`              // resolved
 		APIKey                string  `yaml:"-" json:"-"`              // resolved
 		ResolvedModel         string  `yaml:"-" json:"-"`              // resolved
-		WeeklyReflection      bool    `yaml:"weekly_reflection"`       // deprecated compatibility field; weekly reflection scheduling is always active
+		WeeklyReflection      bool    `yaml:"-" json:"-"`              // deprecated compatibility field; weekly reflection scheduling is always active
 		ReflectionDay         string  `yaml:"reflection_day"`          // day for weekly reflection (default "sunday")
 	} `yaml:"memory_analysis"`
 	LLMGuardian struct {

@@ -149,8 +149,13 @@ func TestDiscoverToolsReturnsComposioServiceForSelectedToolkit(t *testing.T) {
 	if payload.Status != "success" || len(payload.Results) == 0 {
 		t.Fatalf("expected Composio service search result, got %+v raw=%s", payload, out)
 	}
-	got := payload.Results[0]
-	if got.Kind != "composio_service" || got.Name != "composio:gmail" || got.CallMethod != "composio_call" || !got.CallableNow {
+	var got DiscoverToolResult
+	for _, item := range payload.Results {
+		if item.Kind == "composio_service" {
+			got = item
+		}
+	}
+	if got.Kind != "composio_service" || got.Name != "composio:gmail" || got.CallMethod != "composio_call" || got.CallableNow || got.ToolStatus != "connection_unknown" {
 		t.Fatalf("unexpected Composio service result: %+v", got)
 	}
 	if !strings.Contains(got.Instruction, `"toolkit_slug":"gmail"`) || !strings.Contains(got.Instruction, "capabilities") {
@@ -168,8 +173,8 @@ func TestDiscoverToolsReturnsComposioServiceForSelectedToolkit(t *testing.T) {
 	if info.Status != "success" || info.Tool == nil || info.Tool.Kind != "composio_service" {
 		t.Fatalf("expected Composio service tool info, got %+v raw=%s", info, infoOut)
 	}
-	if !strings.Contains(info.Manual, "composio_call") {
-		t.Fatalf("expected composio_call manual for service info, got %q", info.Manual)
+	if info.Manual != "" {
+		t.Fatal("details must not include an unbounded manual")
 	}
 }
 
@@ -285,7 +290,7 @@ func TestDiscoverToolsReturnsCustomToolCallMethod(t *testing.T) {
 		t.Fatalf("results = %d, want 1: %s", len(payload.Results), out)
 	}
 	got := payload.Results[0]
-	if got.Name != "weather_helper.py" || got.Kind != string(ToolKindCustom) || got.CallMethod != "run_tool" || !got.CallableNow {
+	if got.Name != "tool__weather_helper.py" || got.Kind != string(ToolKindCustom) || got.CallMethod != "run_tool" || !got.CallableNow {
 		t.Fatalf("custom result = %+v, want run_tool callable", got)
 	}
 }
@@ -510,7 +515,7 @@ func TestBuildNativeToolSchemasUsesSkillManifestParameters(t *testing.T) {
 		t.Fatalf("write skill manifest: %v", err)
 	}
 
-	schemas := BuildNativeToolSchemas(skillsDir, nil, ToolFeatureFlags{}, nil)
+	schemas := BuildNativeToolSchemas(skillsDir, nil, ToolFeatureFlags{AllowPython: true}, nil)
 	var skillSchema *openai.FunctionDefinition
 	for _, s := range schemas {
 		if s.Function != nil && s.Function.Name == "skill__weather_lookup" {
@@ -718,6 +723,22 @@ func TestDiscoverToolsReturnsOfficeToolManuals(t *testing.T) {
 		if payload.Status != "success" || payload.Tool == nil || payload.Tool.Name != tc.toolName {
 			t.Fatalf("discover_tools get_tool_info for %s = %+v output=%s", tc.toolName, payload, out)
 		}
+		var manual strings.Builder
+		cursor := ""
+		for page := 0; page < 100; page++ {
+			out := handleDiscoverTools(ToolCall{Params: map[string]interface{}{"operation": "get_manual", "tool_name": tc.toolName, "cursor": cursor}}, cfg, logger, "sess-office-manuals")
+			var part DiscoverToolsResponse
+			decodeToolOutputJSON(t, out, &part)
+			if part.Status != "success" {
+				t.Fatal(out)
+			}
+			manual.WriteString(part.Manual)
+			cursor = part.NextCursor
+			if cursor == "" {
+				break
+			}
+		}
+		payload.Manual = manual.String()
 		for _, want := range tc.want {
 			if !strings.Contains(payload.Manual, want) {
 				t.Fatalf("discover_tools manual for %s missing %q: %s", tc.toolName, want, payload.Manual)

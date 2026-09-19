@@ -66,9 +66,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 	cfg := s.runCfg.Config
 	logger := s.runCfg.Logger
-	if cfg != nil {
-		SetDiscoverToolsSnapshotTTL(time.Duration(cfg.Agent.DiscoverToolsSnapshotTTLMinutes) * time.Minute)
-	}
+
 	client := s.runCfg.LLMClient
 	shortTermMem := s.runCfg.ShortTermMem
 	historyManager := s.runCfg.HistoryManager
@@ -287,7 +285,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	ragLastUserMsg := ""
 	ragToolIterationsSinceLastRefresh := 0
 	pendingTCs := make([]ToolCall, 0) // Queued tool calls from multi-tool responses (processed without a new LLM call)
-	pendingSummaryBatch := map[string]string(nil)
 	usedMemoryDocIDs := make(map[string]int)
 	turnToolNames := make([]string, 0, 8)
 	turnToolSummaries := make([]string, 0, 12)
@@ -452,7 +449,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			}
 			// Re-include hidden tools the agent explicitly inspected via discover_tools
 			// so the next turn can use native function-calling instead of improvising.
-			alwaysInclude = append(alwaysInclude, ConsumeDiscoverRequestedTools(sessionID)...)
+			alwaysInclude = append(alwaysInclude, ConsumeDiscoverRequestedTools(discoveryRunKey(runCfg))...)
 			alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
 
 			filterResult := filterToolSchemasWithReport(ntSchemas, toolSchemaFilterOptions{
@@ -483,7 +480,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		flags.ActiveNativeTools = activeNativeTools
 		flags.AdaptiveFilteredTools = append([]string(nil), adaptiveFilteredTools...)
 		// Update discover_tools state so the agent can browse hidden tools
-		SetDiscoverToolsState(sessionID, allSchemas, ntSchemas, cfg.Directories.PromptsDir)
+		SetDiscoverToolsState(discoveryRunKey(runCfg), allSchemas, ntSchemas, cfg.Directories.PromptsDir)
 
 		if len(ntSchemas) == 0 {
 			reconcileToolPromptModeWithSchemas(&flags, &toolingPolicy, &useNativeFunctions, len(ntSchemas), logger)
@@ -535,7 +532,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		// In those modes all enabled schemas are represented through text routing,
 		// so mark them active instead of reusing stale state from another session.
 		flags.ActiveNativeTools = enabledNativeTools
-		SetDiscoverToolsState(sessionID, allSchemas, allSchemas, cfg.Directories.PromptsDir)
+		SetDiscoverToolsState(discoveryRunKey(runCfg), allSchemas, nil, cfg.Directories.PromptsDir)
 	}
 
 	// Store mutable state back into struct
@@ -581,7 +578,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.ragLastUserMsg = ragLastUserMsg
 	s.ragToolIterationsSinceLastRefresh = ragToolIterationsSinceLastRefresh
 	s.pendingTCs = pendingTCs
-	s.pendingSummaryBatch = pendingSummaryBatch
 	s.usedMemoryDocIDs = usedMemoryDocIDs
 	s.turnToolNames = turnToolNames
 	s.turnToolSummaries = turnToolSummaries

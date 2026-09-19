@@ -71,6 +71,14 @@ func DispatchToolCall(ctx context.Context, tc *ToolCall, dc *DispatchContext, us
 // DispatchToolCallResult executes a tool and returns both its formatted output
 // and a stable error flag. Existing string-only callers use DispatchToolCall.
 func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchContext, userContext string) (result ToolDispatchResult) {
+	// Standalone bridges own a short-lived catalog just like the main loop.
+	if dc.DiscoveryRunID == "" && GetToolCatalogState(dc.SessionID) == nil && (tc.Action == "invoke_tool" || tc.Action == "discover_tools") {
+		local := *dc
+		dc = &local
+		dc.DiscoveryRunID = acquireDiscoveryRun()
+		defer releaseDiscoveryRun(dc.DiscoveryRunID)
+		setRunDiscoverToolsState(dc, dispatchCatalogSchemas(dc), nil)
+	}
 	*tc = prepareToolCall(*tc, dc)
 	defer func() { tc.DispatchStatus = result.Status }()
 	if tc.PreparationError != "" {
@@ -127,7 +135,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	startTime := time.Now()
 	rawResult := dispatchInner(ctx, *tc, dc)
 	status := classifyLegacyToolResult(rawResult)
-	if ctx.Err() != nil {
+	if ctx.Err() != nil && status != ToolResultSuccess {
 		status = ToolResultCancelled
 	}
 	dc.ExecutionTimeMs = time.Since(startTime).Milliseconds()

@@ -1,5 +1,5 @@
 ---
-description: form_automation: Fill and submit web forms using a headless Chromium browser.
+description: "form_automation: Fill and submit web forms using a headless Chromium browser."
 ---
 
 # `form_automation` Tool

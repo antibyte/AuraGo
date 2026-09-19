@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP सर्वर सक्षम",
   "config.mcp_server.require_auth": "प्रमाणीकरण आवश्यक",
   "config.mcp_server.allowed_tools": "अनुमत उपकरण",
-  "config.mcp_server.allowed_tools_desc": "MCP एंडपॉइंट के माध्यम से उपलब्ध उपकरण। सभी को उजागर करने के लिए खाली छोड़ें।",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Bearer टोकन",
   "config.mcp_server.generate_token": "टोकन जनरेट करें",
   "config.mcp_server.endpoint_url": "एंडपॉइंट URL",

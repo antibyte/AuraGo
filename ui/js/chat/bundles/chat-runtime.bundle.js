@@ -8803,6 +8803,12 @@ function connectSSE() {
         } else if (state === 'succeeded' || state === 'sanitized') {
             message = t('chat.sse_tool_end') + toolName;
             setStatusToolIcon(toolName);
+        } else if (state === 'unknown') {
+            message = t('chat.sse_tool_unknown') + toolName;
+        } else if (state === 'deferred') {
+            message = t('chat.sse_tool_deferred') + toolName;
+        } else if (state === 'needs_setup') {
+            message = t('chat.sse_tool_needs_setup') + toolName;
         } else if (state === 'failed' || state === 'blocked' || state === 'cancelled') {
             message = t('chat.sse_error_recovery');
             setStatusToolIcon(toolName || 'generic_tool');

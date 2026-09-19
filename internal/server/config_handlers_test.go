@@ -63,7 +63,6 @@ func TestOptimizationHelpKeysExistInAllLocales(t *testing.T) {
 		"help.agent.context_window",
 		"help.agent.memory_compression_char_limit",
 		"help.agent.tool_output_limit",
-		"help.agent.discover_tools_snapshot_ttl_minutes",
 		"help.agent.max_tool_guides",
 		"help.agent.core_memory_max_entries",
 		"help.agent.core_memory_cap_mode",

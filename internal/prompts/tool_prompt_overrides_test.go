@@ -95,8 +95,8 @@ func TestReadToolGuideOverrideRespectsManualConditionsWhenFlagsSet(t *testing.T)
 
 	enabled := ContextFlags{SudoEnabled: true}
 	guide, ok := readToolGuide(guidePath, &enabled)
-	if !ok || !strings.Contains(guide, "Use sudo carefully.") {
-		t.Fatalf("expected sudo override when sudo is enabled, got ok=%v guide=%q", ok, guide)
+	if !ok || !strings.Contains(guide, "Canonical manual.") {
+		t.Fatalf("expected canonical guide before request-local variant selection, got ok=%v guide=%q", ok, guide)
 	}
 }
 

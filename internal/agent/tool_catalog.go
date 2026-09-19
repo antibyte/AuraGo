@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"aurago/internal/prompts"
+	"encoding/json"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -12,18 +14,20 @@ import (
 type ToolKind string
 
 const (
-	ToolKindNative ToolKind = "native"
-	ToolKindSkill  ToolKind = "skill"
-	ToolKindCustom ToolKind = "custom"
-	ToolKindMCP    ToolKind = "mcp"
+	ToolKindNative  ToolKind = "native"
+	ToolKindSkill   ToolKind = "skill"
+	ToolKindCustom  ToolKind = "custom"
+	ToolKindMCP     ToolKind = "mcp"
+	ToolKindPackage ToolKind = "agent_skill"
 )
 
 type ToolStatus string
 
 const (
-	ToolStatusActive   ToolStatus = "active"
-	ToolStatusHidden   ToolStatus = "hidden"
-	ToolStatusDisabled ToolStatus = "disabled"
+	ToolStatusActive     ToolStatus = "active"
+	ToolStatusHidden     ToolStatus = "hidden"
+	ToolStatusDisabled   ToolStatus = "disabled"
+	ToolStatusNeedsSetup ToolStatus = "needs_setup"
 )
 
 type ToolRouting struct {
@@ -31,9 +35,11 @@ type ToolRouting struct {
 	SkillName    string `json:"skill_name,omitempty"`
 	CustomName   string `json:"custom_name,omitempty"`
 	MCPServer    string `json:"mcp_server,omitempty"`
+	MCPTool      string `json:"mcp_tool,omitempty"`
 }
 
 type ToolCatalogEntry struct {
+	ReadOnly     bool        `json:"read_only,omitempty"`
 	Name         string      `json:"name"`
 	Kind         ToolKind    `json:"kind"`
 	Aliases      []string    `json:"aliases,omitempty"`
@@ -124,17 +130,17 @@ func catalogEntryFromSchema(schema openai.Tool, active bool, promptsDir string) 
 	switch {
 	case strings.HasPrefix(name, "skill__"):
 		skillName := strings.TrimPrefix(name, "skill__")
-		entry.Name = skillName
+		entry.Name = name
 		entry.Kind = ToolKindSkill
-		entry.Aliases = []string{name}
+		entry.Aliases = []string{skillName}
 		entry.Category = "skills"
 		entry.ManualPath = manualPathFor(promptsDir, skillName)
 		entry.Routing = ToolRouting{SkillName: skillName}
 	case strings.HasPrefix(name, "tool__"):
 		toolName := strings.TrimPrefix(name, "tool__")
-		entry.Name = toolName
+		entry.Name = name
 		entry.Kind = ToolKindCustom
-		entry.Aliases = []string{name}
+		entry.Aliases = []string{toolName}
 		entry.Category = "custom"
 		entry.ManualPath = manualPathFor(promptsDir, toolName)
 		entry.Routing = ToolRouting{CustomName: toolName}
@@ -149,6 +155,12 @@ func catalogEntryFromSchema(schema openai.Tool, active bool, promptsDir string) 
 
 func toolSearchAliases(name string) []string {
 	switch name {
+	case "manage_notes":
+		return []string{"Notiz speichern", "Notizen lesen", "save note", "notes"}
+	case "home_assistant":
+		return []string{"Licht einschalten", "Licht ausschalten", "turn on lights", "smart home"}
+	case "manage_appointments":
+		return []string{"Kalender Termin", "Termin eintragen", "calendar appointment"}
 	case "system_metrics":
 		return []string{
 			"cpu temperature", "cpu temperatures", "cpu temperatur",
@@ -168,7 +180,11 @@ func (c *ToolCatalog) add(entry *ToolCatalogEntry) {
 	c.aliases[entry.Name] = entry.Name
 	for _, alias := range entry.Aliases {
 		if alias != "" {
-			c.aliases[alias] = entry.Name
+			if previous, exists := c.aliases[alias]; exists && previous != entry.Name {
+				c.aliases[alias] = ""
+			} else if !exists {
+				c.aliases[alias] = entry.Name
+			}
 		}
 	}
 }
@@ -178,6 +194,9 @@ func (c *ToolCatalog) Get(name string) (*ToolCatalogEntry, bool) {
 		return nil, false
 	}
 	name = strings.TrimSpace(name)
+	if entry, ok := c.entries[name]; ok {
+		return entry, true
+	}
 	if canonical, ok := c.aliases[name]; ok {
 		entry, ok := c.entries[canonical]
 		return entry, ok
@@ -217,6 +236,19 @@ func (c *ToolCatalog) Search(query string) []*ToolCatalogEntry {
 	for _, entry := range c.Entries() {
 		text := strings.ToLower(toolCatalogSearchText(entry))
 		score := 0
+		if strings.EqualFold(entry.Name, query) {
+			score += 10000
+		}
+		for _, alias := range entry.Aliases {
+			if strings.EqualFold(alias, query) {
+				score += 5000
+			}
+		}
+		for _, op := range toolCatalogOperations(entry) {
+			if strings.EqualFold(op, query) {
+				score += 2000
+			}
+		}
 		if strings.Contains(text, query) {
 			score += 100
 		}
@@ -292,6 +324,7 @@ func toolCatalogSearchText(entry *ToolCatalogEntry) string {
 	if entry.Schema.Function != nil {
 		b.WriteByte(' ')
 		b.WriteString(entry.Schema.Function.Description)
+		b.WriteString(" " + strings.Join(toolCatalogOperations(entry), " "))
 	}
 	return b.String()
 }
@@ -320,17 +353,22 @@ func manualPathFor(promptsDir, name string) string {
 	if promptsDir == "" || name == "" {
 		return ""
 	}
-	return filepath.Join(promptsDir, "tools_manuals", name+".md")
+	return filepath.Join(promptsDir, "tools_manuals", prompts.ToolManualID(name)+".md")
 }
 
 func callMethodForEntry(entry *ToolCatalogEntry) string {
 	if entry == nil {
 		return ""
 	}
+	if entry.Status == ToolStatusNeedsSetup {
+		return "needs_setup"
+	}
 	if entry.Status == ToolStatusDisabled || !entry.Enabled {
 		return "disabled"
 	}
 	switch entry.Kind {
+	case ToolKindPackage:
+		return "activate_agent_skill"
 	case ToolKindSkill:
 		return "execute_skill"
 	case ToolKindCustom:
@@ -343,4 +381,19 @@ func callMethodForEntry(entry *ToolCatalogEntry) string {
 	default:
 		return "unknown"
 	}
+}
+
+func toolCatalogOperations(entry *ToolCatalogEntry) []string {
+	params := schemaParameters(entry.Schema)
+	props, _ := params["properties"].(map[string]interface{})
+	var result []string
+	for _, key := range []string{"operation", "action", "mode", "sub_operation", "resource", "metric", "target"} {
+		property, _ := props[key].(map[string]interface{})
+		data, _ := json.Marshal(property["enum"])
+		var names []string
+		if json.Unmarshal(data, &names) == nil {
+			result = append(result, names...)
+		}
+	}
+	return result
 }

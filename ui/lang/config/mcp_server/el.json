@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server ενεργοποιημένος",
   "config.mcp_server.require_auth": "Απαίτηση ελέγχου ταυτότητας",
   "config.mcp_server.allowed_tools": "Επιτρεπόμενα εργαλεία",
-  "config.mcp_server.allowed_tools_desc": "Εργαλεία διαθέσιμα μέσω MCP. Αφήστε κενό για όλα.",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Διακριτικό bearer",
   "config.mcp_server.generate_token": "Δημιουργία διακριτικού",
   "config.mcp_server.endpoint_url": "URL του endpoint",

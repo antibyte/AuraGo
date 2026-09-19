@@ -36,7 +36,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 		return fail(toolScopeDeniedOutput("invoke_tool"))
 	}
 	name := stringValueFromMap(tc.Params, "tool_name", "name", "tool")
-	catalog := GetToolCatalogState(dc.SessionID)
+	catalog := GetToolCatalogState(dc.discoveryKey())
 	if catalog == nil {
 		return fail(`Tool Output: {"status":"error","code":"catalog_unavailable","message":"Tool catalog is unavailable for this run."}`)
 	}
@@ -44,10 +44,13 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	if !ok || name == "" {
 		return fail(`Tool Output: {"status":"error","code":"tool_not_found","message":"Use discover_tools to select an unambiguous tool name."}`)
 	}
+	if entry.Status == ToolStatusNeedsSetup {
+		return fail(toolSetupRequiredOutput(entry.HiddenReason))
+	}
 	if !entry.Enabled || entry.Status == ToolStatusDisabled || entry.Name == "invoke_tool" {
 		return fail(`Tool Output: {"status":"policy_denied","message":"Tool is disabled or cannot be invoked recursively."}`)
 	}
-	if !dispatchToolAllowed(dc, entry.Name) {
+	if !catalogEntryAllowed(dc, entry) {
 		return fail(toolScopeDeniedOutput(entry.Name))
 	}
 	args := mapValueFromMap(tc.Params, "arguments", "params", "skill_args")
@@ -56,7 +59,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 		logInvokeToolArgumentSource(dc.Logger, name, "flattened", tc.Params, args)
 	}
 	if entry.Kind == ToolKindNative && entry.Status == ToolStatusHidden {
-		MarkDiscoverRequestedTool(dc.SessionID, entry.Name)
+		MarkDiscoverRequestedTool(dc.discoveryKey(), entry.Name)
 	}
 	action := entry.Routing.NativeAction
 	if action == "" {
@@ -64,6 +67,12 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	}
 	routed := toolCallFromInvokeArgs(action, args)
 	switch entry.Kind {
+	case ToolKindPackage:
+		routed = toolCallFromInvokeArgs("activate_agent_skill", map[string]interface{}{"name": entry.Routing.SkillName})
+	case ToolKindMCP:
+		if entry.Routing.MCPTool != "" {
+			routed = toolCallFromInvokeArgs("mcp_call", map[string]interface{}{"operation": "call_tool", "server": entry.Routing.MCPServer, "tool_name": entry.Routing.MCPTool, "args": args})
+		}
 	case ToolKindSkill:
 		routed = ToolCall{Action: "execute_skill", Skill: entry.Routing.SkillName, SkillArgs: args, Params: args}
 	case ToolKindCustom:

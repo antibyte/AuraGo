@@ -275,7 +275,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return dispatchShell(tc, dc)
 
 		case "execute_python":
-			return dispatchPython(tc, dc)
+			return dispatchPython(tc, dc, ctx)
 
 		case "execute_shell":
 			return dispatchShell(tc, dc)
@@ -293,19 +293,19 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return dispatchPackageManager(tc, dc)
 
 		case "save_tool":
-			return dispatchPython(tc, dc)
+			return dispatchPython(tc, dc, ctx)
 
 		case "list_tools":
-			return dispatchPython(tc, dc)
+			return dispatchPython(tc, dc, ctx)
 
 		case "discover_tools":
-			return dispatchPython(tc, dc)
+			return dispatchPython(tc, dc, ctx)
 
 		case "activate_tools":
-			return dispatchPython(tc, dc)
+			return dispatchPython(tc, dc, ctx)
 
 		case "run_tool":
-			return dispatchPython(tc, dc)
+			return dispatchPython(tc, dc, ctx)
 
 		case "list_processes":
 			logger.Info("LLM requested process list")

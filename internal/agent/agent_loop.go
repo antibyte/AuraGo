@@ -15,6 +15,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
+	"aurago/internal/services/optimizer"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -115,6 +116,7 @@ func withAgentLoopSlot(ctx context.Context, fn func()) error {
 
 // agentLoopState holds the mutable state for a single ExecuteAgentLoop invocation.
 type agentLoopState struct {
+	promptGuideVersions   map[string]string
 	ctx                   context.Context
 	stream                bool
 	broker                FeedbackBroker
@@ -165,14 +167,13 @@ type agentLoopState struct {
 	ragToolIterationsSinceLastRefresh int
 	sessionTodoList                   string
 
-	sessionUsedTools    map[string]bool
-	recentTools         []string
-	explicitTools       []string
-	pendingTCs          []ToolCall
-	pendingSummaryBatch map[string]string
-	usedMemoryDocIDs    map[string]int
-	turnToolNames       []string
-	turnToolSummaries   []string
+	sessionUsedTools  map[string]bool
+	recentTools       []string
+	explicitTools     []string
+	pendingTCs        []ToolCall
+	usedMemoryDocIDs  map[string]int
+	turnToolNames     []string
+	turnToolSummaries []string
 
 	coreMemCache       string
 	coreMemUpdatedAt   time.Time
@@ -209,6 +210,7 @@ type agentLoopState struct {
 // makeDispatchContext builds a DispatchContext from the current loop state.
 func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *DispatchContext {
 	return &DispatchContext{
+		DiscoveryRunID:       s.runCfg.DiscoveryRunID,
 		ExecutionHooks:       s.runCfg.ExecutionHooks,
 		Cfg:                  s.runCfg.Config,
 		Logger:               s.currentLogger,
@@ -262,6 +264,8 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (response openai.ChatCompletionResponse, retErr error) {
+	runCfg.DiscoveryRunID = acquireDiscoveryRun()
+	defer releaseDiscoveryRun(runCfg.DiscoveryRunID)
 	releaseAgentLoopSlot, err := acquireAgentLoopSlot(ctx)
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
@@ -372,6 +376,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	coreMemLoadedAt := s.coreMemLoadedAt
 	coreMemDirty := s.coreMemDirty
 	tokenCache := s.tokenCache
+	var cachedGuideSections []prompts.PromptSection
 	cachedSysPromptKey := s.cachedSysPromptKey
 	cachedSysPrompt := s.cachedSysPrompt
 	cachedSysPromptAt := s.cachedSysPromptAt
@@ -567,6 +572,42 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		if useNativeFunctions && !toolLimitFinalizing && !runCfg.StableSystemPrompt && runCfg.NativeToolSchemas == nil {
+			ff := buildToolFeatureFlags(runCfg, toolingPolicy)
+			s.nativeSchemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, s.currentLogger)
+			all := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
+			requested := ConsumeDiscoverRequestedTools(runCfg.DiscoveryRunID)
+			available := stringSet(toolSchemaNames(all))
+			var retained []openai.Tool
+			for _, schema := range req.Tools {
+				if schema.Function != nil && available[schema.Function.Name] {
+					retained = append(retained, schema)
+				}
+			}
+			req.Tools = retained
+			wanted := stringSet(requested)
+			present := stringSet(toolSchemaNames(req.Tools))
+			for _, schema := range all {
+				if schema.Function != nil && wanted[schema.Function.Name] && !present[schema.Function.Name] {
+					req.Tools = append(req.Tools, schema)
+				}
+			}
+			maxAdaptive := toolingPolicy.EffectiveMaxAdaptiveTools
+			if !cfg.Agent.AdaptiveTools.Enabled {
+				maxAdaptive = 0
+			}
+			filtered := filterToolSchemasWithReport(req.Tools, toolSchemaFilterOptions{
+				PreferredTools:   append(requested, toolSchemaNames(req.Tools)...),
+				HardAlwaysTools:  channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff),
+				SoftAlwaysTools:  cfg.Agent.AdaptiveTools.AlwaysInclude,
+				MaxAdaptiveTools: maxAdaptive,
+				MaxTotalTools:    toolingPolicy.EffectiveMaxTotalTools,
+				MaxSchemaTokens:  toolingPolicy.EffectiveMaxSchemaTokens,
+			}, s.currentLogger)
+			req.Tools = filtered.Tools
+		}
+		req.Tools = scopedCatalogSchemas(req.Tools, s.makeDispatchContext(s.currentLogger))
+
 		// Resolve the budget for the exact request shape of this iteration. Tool
 		// schemas can disappear at the circuit breaker, which may make an
 		// additional (and smaller) failover route eligible. Re-resolving before
@@ -599,13 +640,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if runCfg.VaultSecretPrompter == nil {
 				allSchemas = filterSchemasByName(allSchemas, "request_vault_secret")
 			}
-			SetDiscoverToolsState(sessionID, allSchemas, req.Tools, cfg.Directories.PromptsDir)
+			setRunDiscoverToolsState(s.makeDispatchContext(s.currentLogger), allSchemas, req.Tools)
 			s.currentLogger.Info("[RequestBudget] Shed optional tool schemas before prompt construction",
 				"dropped_count", len(budgetDroppedTools), "remaining_count", len(req.Tools))
 		}
 		s.req = req
 		s.flags = flags
 		s.adaptiveFilteredTools = adaptiveFilteredTools
+		allCatalogSchemas := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
+		if runCfg.VaultSecretPrompter == nil {
+			allCatalogSchemas = filterSchemasByName(allCatalogSchemas, "request_vault_secret")
+		}
+		setRunDiscoverToolsState(s.makeDispatchContext(s.currentLogger), allCatalogSchemas, req.Tools)
 
 		flags.ActiveProcesses = GetActiveProcessStatus(registry)
 
@@ -643,7 +689,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Note: The call to PrepareDynamicGuides will happen after the response is received
 		// We initialize flags.PredictedGuides now with empty explicit tools to satisfy builder.go for the first prompt.
-		// Skip guide loading in minimal tier — the guides are never injected there (builder.go:443 checks Tier=="full").
+		// Relevant optional guides remain eligible in every prompt tier.
 		preliminaryTierFlags := prompts.ContextFlags{
 			MessageCount:      len(req.Messages),
 			IsErrorState:      flags.IsErrorState,
@@ -660,7 +706,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				// semantic search. Load only those local manuals and merge them at
 				// highest priority without issuing another vector/heuristic search.
 				incrementalStrategy := toolingPolicy.EffectiveGuideStrategy
-				incrementalStrategy.SkipTools = skipToolsForGuideSnapshot(req.Tools, adaptiveFilteredTools)
+				incrementalStrategy.SkipTools = nil
 				incrementalStrategy.AllowedTools = append([]string(nil), flags.EnabledNativeTools...)
 				incrementalStrategy.DisableRecentHeuristics = true
 				incrementalStrategy.DisableStatisticalHeuristics = true
@@ -673,23 +719,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				cachedTurnGuides = mergeTurnGuideSnapshot(explicitGuides, cachedTurnGuides, toolingPolicy.EffectiveMaxToolGuides)
 			}
 			preparedExplicitGuideKey = explicitGuideKey
+			flags.OptimizerEnabled = cfg.Agent.OptimizerEnabled
 			flags.PredictedGuides = append([]string(nil), cachedTurnGuides...)
 		} else if guidePreparation == turnGuidesResolvedWithoutSearch {
 			flags.PredictedGuides = nil
 		} else if guidePreparation == turnGuidesSearchEligible {
-			// Build skip list: tools that already have native OpenAI function schemas
-			// should not also get their guide content (saves tokens, avoids redundancy).
-			// Also skip tools that were removed by adaptive filtering — injecting a guide
-			// for a tool that no longer has a schema causes model confusion.
-			skipTools := make([]string, 0, len(req.Tools)+len(adaptiveFilteredTools))
-			for _, t := range req.Tools {
-				if t.Function != nil {
-					skipTools = append(skipTools, t.Function.Name)
-				}
-			}
-			skipTools = append(skipTools, adaptiveFilteredTools...)
+			// Keep relevant workflow guidance even when native schemas are present.
 			guideStrategy := toolingPolicy.EffectiveGuideStrategy
-			guideStrategy.SkipTools = skipTools
+			guideStrategy.SkipTools = nil
 			if len(flags.EnabledNativeTools) > 0 {
 				guideStrategy.AllowedTools = append([]string(nil), flags.EnabledNativeTools...)
 			}
@@ -1334,6 +1371,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			budgetHint = budgetTracker.GetPromptHint()
 		}
 
+		flags.OptimizerEnabled = cfg.Agent.OptimizerEnabled
+		flags.OptimizerRunID = discoveryRunKey(runCfg)
+		if flags.OptimizerEnabled {
+			flags.OptimizerRevision = optimizer.VariantRevision()
+		}
 		keyFlags := flags
 		keyFlags.MessageCount = 0 // MessageCount only affects tier selection & metrics, not the prompt content.
 		cacheKey, cacheKeyErr := buildSystemPromptCacheKey(cfg.Directories.PromptsDir, &keyFlags, coreMemCache, budgetHint)
@@ -1364,8 +1406,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				basePrompt, basePromptTokens = refreshCachedSystemPromptNowAndCount(cachedSysPrompt, time.Now(), req.Model, tokenCache)
 			}
 		} else {
+			flags.OptimizerEnabled = cfg.Agent.OptimizerEnabled
 			baseResult := prompts.BuildSystemPromptBaseDetailed(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
 			basePrompt, basePromptTokens = baseResult.Text, baseResult.Tokens
+			cachedGuideSections = baseResult.OptionalSections
 			if runCfg.StableSystemPrompt || (cacheKeyErr == nil && cacheKey != "") {
 				cachedSysPromptKey = cacheKey
 				cachedSysPrompt = basePrompt
@@ -1378,7 +1422,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		fitRequest := prompts.PromptFitRequest{
-			Text: basePrompt, Tokens: basePromptTokens, Model: req.Model, TokenBudget: flags.TokenBudget,
+			OptionalSections: cachedGuideSections,
+			Text:             basePrompt, Tokens: basePromptTokens, Model: req.Model, TokenBudget: flags.TokenBudget,
 			Addenda: append([]prompts.PromptAddendum(nil), s.runCfg.TrustedPromptAddenda...),
 		}
 		fitRequest.Addenda = append(fitRequest.Addenda, meshCorePromptAddenda(cfg)...)
@@ -1758,6 +1803,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			continue
 		}
+		s.promptGuideVersions = optimizer.RecordPromptGuideExposures(promptResult.GuideExposures, builderPromptRevision)
 		emptyRetried = false // reset only after confirmed non-empty response
 
 		// Safety Check: Strip "RECAP" hallucinations if the model is still stuck in the old pattern

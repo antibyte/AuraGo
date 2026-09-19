@@ -45,7 +45,6 @@ type Config struct {
 type RepetitiveSubstitutionConfig struct {
 	Enabled              bool
 	LZWEnabled           bool
-	LTSCLiteEnabled      bool
 	MinPhraseChars       int
 	MinOccurrences       int
 	MinSavingsPercent    int
@@ -72,7 +71,6 @@ func DefaultConfig() Config {
 		RepetitiveSubstitution: RepetitiveSubstitutionConfig{
 			Enabled:              false,
 			LZWEnabled:           true,
-			LTSCLiteEnabled:      false,
 			MinPhraseChars:       15,
 			MinOccurrences:       3,
 			MinSavingsPercent:    15,

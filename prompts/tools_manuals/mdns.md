@@ -1,5 +1,5 @@
 ---
-description: mdns_scan: Scan the local network for MDNS (ZeroConf/Bonjour) devices and services.
+description: "mdns_scan: Scan the local network for MDNS (ZeroConf/Bonjour) devices and services."
 ---
 
 # `mdns_scan` Tool

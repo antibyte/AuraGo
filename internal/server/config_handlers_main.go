@@ -7,6 +7,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/security"
 	"aurago/internal/services"
+	"aurago/internal/services/optimizer"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"context"
@@ -46,6 +47,13 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		if err != nil {
 			s.Logger.Error("Failed to read config file", "error", err)
 			jsonError(w, "Failed to read config", http.StatusInternalServerError)
+			return
+		}
+
+		migrationNotices := config.ToolDisclosureMigrationNotices(data)
+		data, err = config.NormalizeToolDisclosureConfig(data)
+		if err != nil {
+			jsonError(w, "Invalid configuration migration", http.StatusInternalServerError)
 			return
 		}
 
@@ -125,6 +133,9 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		// sections that are not functional in the current runtime.
 		injectFeatureAvailability(rawCfg, s.Cfg.Runtime, s.Cfg.Agent.SudoEnabled)
 		w.Header().Set("Content-Type", "application/json")
+		rawCfg["_config_migrations"] = migrationNotices
+		policy := agent.BuildToolingPolicy(s.Cfg, "")
+		rawCfg["_effective_tool_policy"] = map[string]interface{}{"provider_profile": policy.ProviderToolProfile, "max_tools": policy.EffectiveMaxTotalTools, "max_tool_calls": s.Cfg.CircuitBreaker.MaxToolCalls, "schema_tokens": policy.EffectiveMaxSchemaTokens, "max_guides": policy.EffectiveMaxToolGuides, "output_bytes": s.Cfg.Agent.ToolOutputLimit}
 		json.NewEncoder(w).Encode(rawCfg)
 	}
 }
@@ -379,6 +390,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
+		delete(patch, "_effective_tool_policy")
+		delete(patch, "_config_migrations")
+		if err := config.ValidateToolDisclosurePatch(patch); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		// Keep config, Vault extraction, validation, and publication in one
 		// transaction boundary. This prevents a rejected concurrent save from
 		// rolling back stream sources committed by another request.
@@ -438,6 +455,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
+		out, err = config.NormalizeToolDisclosureConfig(out)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		// Safety net: validate that the marshaled YAML can still be loaded
 		// into a Config struct. If not, reject the save and keep the old file.
 		validateCfg := *s.Cfg
@@ -451,6 +474,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		if err := config.ValidateToolDisclosureSettings(&validateCfg); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		if meshErr := validateCfg.MeshCore.Normalize(); meshErr != nil {
 			jsonError(w, meshErr.Error(), http.StatusBadRequest)
 			return
@@ -690,6 +718,15 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			go2RTCChanged, go2RTCRecreate = go2RTCRuntimeTransition(oldCfg, *newCfg)
 
 			// Detect sections that need restart
+			if oldCfg.Agent.MaxConcurrentLoops != newCfg.Agent.MaxConcurrentLoops {
+				needsRestart = true
+				restartReasons = append(restartReasons, "Agent concurrency")
+			}
+			if oldCfg.Tools.SkillManager.Enabled != newCfg.Tools.SkillManager.Enabled {
+				needsRestart = true
+				restartReasons = append(restartReasons, "Skill Manager")
+			}
+
 			if oldCfg.Server != newCfg.Server {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Server (Host/Port)")
@@ -994,7 +1031,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			newDograhRuntime.APIKey = ""
 			newDograhRuntime.AuraGoMCPToken = ""
 			dograhRuntimeChanged := !reflect.DeepEqual(oldDograhRuntime, newDograhRuntime) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
-			if dograhChanged {
+			if dograhChanged || oldCfg.Agent.AllowMCP != newCfg.Agent.AllowMCP || !reflect.DeepEqual(oldCfg.MCP, newCfg.MCP) {
 				syncMCPAfterUnlock = true
 			}
 			if dograhChanged && newCfg.Docker.Enabled && newCfg.Dograh.Enabled && newCfg.Dograh.AutoStart && strings.EqualFold(newCfg.Dograh.Mode, "managed") {
@@ -1387,6 +1424,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		if loadErr == nil && syncMCPAfterUnlock && newCfg != nil {
 			syncExternalMCPRuntime(newCfg, s.Vault, s.Logger)
+		}
+		if loadErr == nil && newCfg != nil {
+			optimizer.SetEnabled(newCfg.Agent.OptimizerEnabled)
 		}
 		if loadErr == nil && newCfg != nil && s.InventoryDB != nil {
 			created, updated, syncErr := services.SyncThreeDPrinterDevices(s.InventoryDB, newCfg.ThreeDPrinters)

@@ -348,11 +348,12 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                     body: JSON.stringify({ id: name })
                 });
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                if (!configData.agent) configData.agent = {};
-                configData.agent.core_personality = name;
+                setNestedValue(configData, 'personality.core_personality', name);
+                if (window.AuraConfigState) {
+                    window.AuraConfigState.markSaved('personality.core_personality', name);
+                    configData = window.AuraConfigState.snapshot().draft;
+                }
                 persState.active = name;
-                const cfgResp = await fetch('/api/config');
-                configData = await cfgResp.json();
                 const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'prompts_editor');
                 await renderPromptsSection(sectionMeta);
                 await persSelectForEdit(name);

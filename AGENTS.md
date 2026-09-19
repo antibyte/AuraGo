@@ -444,6 +444,36 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
 
 ### Tool System
 
+- Discovery belongs to an owned run ID, released on completion/cancellation;
+  active runs cannot expire through orphan-cache pruning. Refresh the catalog
+  against the actual scoped and budget-fitted request, including the lightweight
+  Looper. Tool-free callers stay tool-free. `invoke_tool` resolves before policy,
+  task rules, hooks and effect tracking and executes the real handler only once.
+- Catalog IDs preserve `skill__`, `tool__`, `package__` and deterministic MCP
+  namespaces. Bare aliases work only when unambiguous. Search/category/family
+  pages are bounded summaries; `get_tool_info` returns one complete schema and
+  `get_manual` reads revision-bound pages. Never byte-slice structured results.
+  Missing local dependencies are `needs_setup`; account/connection state is
+  distinct from configuration and never inferred from an enabled switch.
+- Execution status is captured before scrubbing/compression and kept separately
+  from display text. Only confirmed success supports learning, issue resolution
+  and context invalidation. Preserve external-data boundaries through compression.
+  MCP transport failures never automatically replay an already-sent tool call.
+  Discovery follows all pages atomically; notifications invalidate cached tools,
+  and partial server failures must not erase healthy catalog results.
+- Workflow guides are atomic optional prompt ledger sections in every tier.
+  Native schemas do not replace workflow guidance. Share manual family bindings,
+  validated disk/embedded sources and content digests with the search index.
+  Optimizer variants are chosen before fitting; only delivered, fitted guide
+  exposures with matched source and operation evidence support promotion. One
+  request/guide/operation contributes at most one observation; legacy traces do
+  not establish exposure. The optimizer worker follows live enable/disable state.
+- Configuration migrations share `NormalizeToolDisclosureConfig` across load,
+  save, API and config-merger. Canonical values win; explicit false/empty lists
+  stay authoritative. Removed controls are rejected in stale browser patches.
+  Runtime metadata from GET `/api/config` must never enter editable drafts.
+  Agent concurrency and Python skill-manager lifecycle changes require restart.
+
 - Game Maker `BuildJob` compiles without waiting; `ValidateJob` additionally
   requires a build-bound browser startup check through the authenticated Studio
   parent. Runtime errors feed the bounded repair loop; missing feedback prevents

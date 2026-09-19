@@ -2,7 +2,9 @@ package optimizer
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -24,9 +26,6 @@ func openOptimizerTestDB(t *testing.T) (*OptimizerDB, string) {
 	t.Cleanup(func() {
 		_ = db.Close()
 		defaultDB = nil
-		versionCache.Delete("shell")
-		versionCache.Delete("rollback_tool")
-		versionCache.Delete("promote_tool")
 	})
 	return db, dbPath
 }
@@ -110,16 +109,16 @@ func TestPromptOverrideLookupAndTraceLogging(t *testing.T) {
 		t.Fatalf("unexpected trace row: success=%v loops=%d version=%s err=%s ms=%d", success, loops, version, errMsg, execMS)
 	}
 
-	if _, err := db.db.Exec(`INSERT INTO prompt_overrides (tool_name, mutated_prompt, active, shadow) VALUES ('shell', 'active prompt', 1, 0)`); err != nil {
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(db.loadCanonicalManual("shell"))))
+	if _, err := db.db.Exec(`INSERT INTO prompt_overrides (tool_name, mutated_prompt, original_hash, active, shadow) VALUES ('shell', 'active prompt', ?, 1, 0)`, hash); err != nil {
 		t.Fatalf("insert active override: %v", err)
 	}
 	overrides := db.GetActivePromptOverrides()
 	if overrides["shell"] != "active prompt" {
 		t.Fatalf("active overrides = %#v", overrides)
 	}
-	versionCache.Delete("shell")
-	if got := db.GetToolPromptVersion("shell"); got != "optim-db" {
-		t.Fatalf("active prompt version = %q, want optim-db", got)
+	if got := db.GetToolPromptVersion("shell"); got != "unobserved" {
+		t.Fatalf("active prompt version = %q, want unobserved", got)
 	}
 
 	res, err := db.db.Exec(`INSERT INTO prompt_overrides (tool_name, mutated_prompt, active, shadow) VALUES ('shell', 'shadow prompt', 0, 1)`)
@@ -127,10 +126,9 @@ func TestPromptOverrideLookupAndTraceLogging(t *testing.T) {
 		t.Fatalf("insert shadow override: %v", err)
 	}
 	id, _ := res.LastInsertId()
-	versionCache.Delete("shell")
 	got := db.GetToolPromptVersion("shell")
-	if got != "v1" && got != "v2-shadow-"+itoa64(id) {
-		t.Fatalf("shadow prompt version = %q, want v1 or v2-shadow-%d", got, id)
+	if got != "unobserved" {
+		t.Fatalf("shadow prompt version = %q, must not infer exposure for shadow %d", got, id)
 	}
 }
 
@@ -141,13 +139,13 @@ func TestEvaluationCyclePromotesAndRollsBackShadowPrompts(t *testing.T) {
 	worker.evaluationLimit = 5
 
 	promoteID := insertPromptOverride(t, db, "promote_tool", "better prompt", false, true)
-	insertPromptOverride(t, db, "promote_tool", "old prompt", true, false)
-	insertTraces(t, db, "promote_tool", "v1", 5, 0)
-	insertTraces(t, db, "promote_tool", "v2-shadow-"+itoa64(promoteID), 5, 5)
+	oldID := insertPromptOverride(t, db, "promote_tool", "old prompt", true, false)
+	insertExposedTraces(t, db, "promote_tool", "active-"+itoa64(oldID), 5, 0)
+	insertExposedTraces(t, db, "promote_tool", "v2-shadow-"+itoa64(promoteID), 5, 5)
 
 	rollbackID := insertPromptOverride(t, db, "rollback_tool", "worse prompt", false, true)
-	insertTraces(t, db, "rollback_tool", "v1", 5, 5)
-	insertTraces(t, db, "rollback_tool", "v2-shadow-"+itoa64(rollbackID), 5, 0)
+	insertExposedTraces(t, db, "rollback_tool", "v1", 5, 5)
+	insertExposedTraces(t, db, "rollback_tool", "v2-shadow-"+itoa64(rollbackID), 5, 0)
 
 	generationBefore := promptbuilder.PromptCacheGeneration()
 	worker.runEvaluationCycle(ctx)
@@ -164,7 +162,7 @@ func TestEvaluationCyclePromotesAndRollsBackShadowPrompts(t *testing.T) {
 	}
 
 	var rollbackCount int
-	if err := db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE id = ?`, rollbackID).Scan(&rollbackCount); err != nil {
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE id = ? AND shadow=1`, rollbackID).Scan(&rollbackCount); err != nil {
 		t.Fatalf("count rollback row: %v", err)
 	}
 	if rollbackCount != 0 {
@@ -204,4 +202,26 @@ func insertTraces(t *testing.T, db *OptimizerDB, tool, version string, total, su
 
 func itoa64(v int64) string {
 	return strconv.FormatInt(v, 10)
+}
+
+func insertExposedTraces(t *testing.T, db *OptimizerDB, tool, version string, total, successes int) {
+	t.Helper()
+	for i := 0; i < total; i++ {
+		exposures := db.recordPromptGuideExposures([]promptbuilder.ToolGuideExposure{{Manual: tool, Version: version, SourceRevision: "source"}}, "request")
+		if err := db.LogToolTrace(tool, i < successes, 0, exposures[tool], "", 10); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestLegacyShadowLabelsNeverPromote(t *testing.T) {
+	db, _ := openOptimizerTestDB(t)
+	id := insertPromptOverride(t, db, "legacy", "candidate", false, true)
+	insertTraces(t, db, "legacy", "v1", 10, 0)
+	insertTraces(t, db, "legacy", "v2-shadow-"+itoa64(id), 10, 10)
+	NewOptimizerWorker(db, nil, nil, 0).runEvaluationCycle(context.Background())
+	var active bool
+	if err := db.db.QueryRow(`SELECT active FROM prompt_overrides WHERE id=?`, id).Scan(&active); err != nil || active {
+		t.Fatalf("legacy labels affected promotion: %v", err)
+	}
 }

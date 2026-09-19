@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/prompts"
 	"context"
 	"fmt"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"aurago/internal/i18n"
 	"aurago/internal/memory"
 	"aurago/internal/security"
-	"aurago/internal/services/optimizer"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -30,9 +30,6 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	currentLogger := s.currentLogger
 
 	dispatchCtx := s.makeDispatchContext(currentLogger)
-	if s.helperManager != nil && len(s.pendingSummaryBatch) == 0 && !s.runCfg.IsMission && !s.runCfg.IsCoAgent && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) {
-		s.pendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, s.pendingTCs, dispatchCtx, s.helperManager, lastUserMsg)
-	}
 
 	ptc := prepareToolCall(s.pendingTCs[0], dispatchCtx)
 	s.pendingTCs = s.pendingTCs[1:]
@@ -73,12 +70,6 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	} else if preload, blocked := ensureTaskRulesBeforeToolExecution(s, ptc, lastUserMsg); blocked {
 		pResultContent = preload
 		actionBlocked = true
-	} else if precomputed, ok := s.pendingSummaryBatch[pendingSummaryBatchKey(ptc)]; ok {
-		pResultContent = precomputed
-		delete(s.pendingSummaryBatch, pendingSummaryBatchKey(ptc))
-		if len(s.pendingSummaryBatch) == 0 {
-			s.pendingSummaryBatch = nil
-		}
 	} else if s.blockDuplicateToolCall(ptc) {
 		pResultContent = blockedToolOutputFromRequest(&s.req)
 		actionBlocked = true
@@ -93,7 +84,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		pResultContent = DispatchToolCall(ctx, &ptc, dispatchCtx, lastUserMsg)
 	}
 	policyResult := finalizeToolExecution(ctx, ptc, pResultContent, ptc.GuardianBlocked, cfg, shortTermMem, sessionID,
-		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(ptc.Action),
+		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, s.toolPromptVersion(ptc.Action),
 		dispatchCtx.ExecutionTimeMs, s.runCfg)
 	pResultContent = policyResult.Content
 	s.noteGameMakerToolProgress(policyResult.Failed, actionBlocked)
@@ -409,7 +400,7 @@ func executeAgentToolTurn(
 		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
 		resultContent = DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
 	}
-	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs, s.runCfg)
+	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, s.toolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs, s.runCfg)
 	resultContent = policyResult.Content
 	s.noteGameMakerToolProgress(policyResult.Failed, false)
 	recordVirtualDesktopAppVerification(tc, resultContent, policyResult.Failed, &s.recoveryState)
@@ -573,16 +564,12 @@ func executeAgentToolTurn(
 			ToolCallID: tc.NativeCallID,
 		})
 
-		var nativePendingSummaryBatch map[string]string
 		var deferredRecoveryMessages []openai.ChatCompletionMessage
 		circuitBreakerOpen := false
 		nativeDispatchCtx := s.makeDispatchContext(currentLogger)
 		for len(s.pendingTCs) > 0 && s.pendingTCs[0].NativeCallID != "" {
 			if finishCompletedRun(s) {
 				break
-			}
-			if s.helperManager != nil && len(nativePendingSummaryBatch) == 0 && !s.runCfg.IsMission && !s.runCfg.IsCoAgent && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) {
-				nativePendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, s.pendingTCs, nativeDispatchCtx, s.helperManager, lastUserMsg)
 			}
 
 			btc := prepareToolCall(s.pendingTCs[0], nativeDispatchCtx)
@@ -611,12 +598,6 @@ func executeAgentToolTurn(
 			} else if preload, blocked := ensureTaskRulesBeforeToolExecution(s, btc, lastUserMsg); blocked {
 				bResult = preload
 				batchedBlocked = true
-			} else if precomputed, ok := nativePendingSummaryBatch[pendingSummaryBatchKey(btc)]; ok {
-				bResult = precomputed
-				delete(nativePendingSummaryBatch, pendingSummaryBatchKey(btc))
-				if len(nativePendingSummaryBatch) == 0 {
-					nativePendingSummaryBatch = nil
-				}
 			} else if s.blockDuplicateToolCall(btc) {
 				bResult = blockedToolOutputFromRequest(&s.req)
 				batchedBlocked = true
@@ -632,7 +613,7 @@ func executeAgentToolTurn(
 			}
 			policyResult := toolExecutionResult{Content: bResult, Failed: true, Outcome: ExecutionOutcomeFailed}
 			if !notExecuted {
-				policyResult = finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
+				policyResult = finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, s.toolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
 			}
 			bResult = policyResult.Content
 			s.noteGameMakerToolProgress(policyResult.Failed, batchedBlocked)
@@ -740,7 +721,6 @@ func finishCompletedRun(s *agentLoopState) bool {
 	appendSkippedNativeResults(s, s.runCfg.ShortTermMem, s.runCfg.HistoryManager, s.runCfg.SessionID, s.broker,
 		`{"status":"skipped","code":"not_executed_after_run_completion","message":"The server completed this phase; remaining calls were not executed."}`)
 	s.pendingTCs = nil
-	s.pendingSummaryBatch = nil
 	return true
 }
 
@@ -780,4 +760,11 @@ func detachNewSystemMessages(req *openai.ChatCompletionRequest, start int) []ope
 	}
 	req.Messages = append(req.Messages[:start], kept...)
 	return deferred
+}
+
+func (s *agentLoopState) toolPromptVersion(tool string) string {
+	if id := s.promptGuideVersions[prompts.ToolManualID(tool)]; id != "" {
+		return id
+	}
+	return "unobserved"
 }

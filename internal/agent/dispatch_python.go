@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -12,7 +13,11 @@ import (
 	"aurago/internal/tools"
 )
 
-func dispatchPython(tc ToolCall, dc *DispatchContext) string {
+func dispatchPython(tc ToolCall, dc *DispatchContext, contexts ...context.Context) string {
+	ctx := context.Background()
+	if len(contexts) > 0 && contexts[0] != nil {
+		ctx = contexts[0]
+	}
 	cfg := dc.Cfg
 	configureToolRuntimePermissions(cfg)
 	logger := dc.Logger
@@ -163,10 +168,10 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 		return sb.String()
 
 	case "discover_tools":
-		return handleDiscoverTools(tc, cfg, logger, dc.SessionID)
+		return handleDiscoverToolsContext(ctx, tc, cfg, logger, dc.discoveryKey(), dc)
 
 	case "activate_tools":
-		return handleActivateTools(tc, logger, dc.SessionID)
+		return handleActivateTools(tc, logger, dc.discoveryKey())
 
 	case "run_tool":
 		if !cfg.Agent.AllowPython {

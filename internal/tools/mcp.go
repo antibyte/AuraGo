@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -77,6 +78,7 @@ type jsonRPCNotification struct {
 }
 
 type jsonRPCResponse struct {
+	Method  string          `json:"method,omitempty"`
 	JSONRPC string          `json:"jsonrpc"`
 	ID      *int64          `json:"id,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
@@ -131,16 +133,19 @@ func (b *safeBuffer) Len() int {
 }
 
 type mcpConn struct {
-	name      string
-	transport mcpTransport
-	mu        sync.Mutex
-	tools     []MCPToolInfo
-	ready     bool
-	closeOnce sync.Once
-	stderrBuf *safeBuffer // captures local MCP server stderr for diagnostics
-	runtime   string
-	hostDir   string
-	contDir   string
+	discoveryMu     sync.Mutex
+	toolsGeneration uint64
+	toolsRefreshed  time.Time
+	name            string
+	transport       mcpTransport
+	mu              sync.Mutex
+	tools           []MCPToolInfo
+	ready           bool
+	closeOnce       sync.Once
+	stderrBuf       *safeBuffer // captures local MCP server stderr for diagnostics
+	runtime         string
+	hostDir         string
+	contDir         string
 }
 
 var (
@@ -522,39 +527,77 @@ func (c *mcpConn) initialize(ctx context.Context, logger *slog.Logger) error {
 
 // discoverTools calls tools/list and caches the results.
 func (c *mcpConn) discoverTools(ctx context.Context, logger *slog.Logger) error {
-	resp, err := c.send(ctx, "tools/list", map[string]interface{}{})
-	if err != nil {
-		return fmt.Errorf("tools/list: %w", err)
-	}
-	if resp.Error != nil {
-		return fmt.Errorf("tools/list error: %s (code %d)", resp.Error.Message, resp.Error.Code)
-	}
+	c.discoveryMu.Lock()
+	defer c.discoveryMu.Unlock()
+	return c.discoverToolsLocked(ctx, logger)
+}
 
-	var result struct {
-		Tools []struct {
-			Name        string                 `json:"name"`
-			Description string                 `json:"description"`
-			InputSchema map[string]interface{} `json:"inputSchema"`
-		} `json:"tools"`
-	}
-	if err := json.Unmarshal(resp.Result, &result); err != nil {
-		return fmt.Errorf("parse tools/list result: %w", err)
-	}
-
-	newTools := make([]MCPToolInfo, len(result.Tools))
-	for i, t := range result.Tools {
-		newTools[i] = MCPToolInfo{
-			Server:      c.name,
-			Name:        t.Name,
-			Description: t.Description,
-			InputSchema: t.InputSchema,
+func (c *mcpConn) discoverToolsLocked(ctx context.Context, logger *slog.Logger) error {
+	generation := mcpToolsGeneration(c.transport)
+	cursor := ""
+	seen := map[string]bool{}
+	names := map[string]bool{}
+	var newTools []MCPToolInfo
+	for page := 0; ; page++ {
+		if page >= 128 {
+			return fmt.Errorf("tools/list exceeded page limit")
 		}
+		params := map[string]interface{}{}
+		if cursor != "" {
+			params["cursor"] = cursor
+		}
+		resp, err := c.send(ctx, "tools/list", params)
+		if err != nil {
+			return fmt.Errorf("tools/list: %w", err)
+		}
+		if resp == nil {
+			return fmt.Errorf("tools/list returned no response")
+		}
+		if resp.Error != nil {
+			return fmt.Errorf("tools/list error: %s (code %d)", resp.Error.Message, resp.Error.Code)
+		}
+		if len(resp.Result) > 16*1024*1024 {
+			return fmt.Errorf("tools/list exceeded page size limit")
+		}
+		var result struct {
+			Tools []struct {
+				Name        string                 `json:"name"`
+				Description string                 `json:"description"`
+				InputSchema map[string]interface{} `json:"inputSchema"`
+			} `json:"tools"`
+			NextCursor string `json:"nextCursor"`
+		}
+		if err := json.Unmarshal(resp.Result, &result); err != nil {
+			return fmt.Errorf("parse tools/list result: %w", err)
+		}
+		if result.Tools == nil {
+			return fmt.Errorf("tools/list result is missing tools")
+		}
+		for _, t := range result.Tools {
+			if t.Name == "" || names[t.Name] {
+				return fmt.Errorf("tools/list contains an empty or duplicate name")
+			}
+			names[t.Name] = true
+			newTools = append(newTools, MCPToolInfo{Server: c.name, Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
+		}
+		if len(newTools) > 10000 {
+			return fmt.Errorf("tools/list exceeded tool limit")
+		}
+		cursor = result.NextCursor
+		if cursor == "" {
+			break
+		}
+		if seen[cursor] {
+			return fmt.Errorf("tools/list repeated a pagination cursor")
+		}
+		seen[cursor] = true
 	}
 	c.mu.Lock()
-	c.tools = newTools
+	c.tools, c.toolsGeneration, c.toolsRefreshed = newTools, generation, time.Now()
 	c.mu.Unlock()
-
-	logger.Info("[MCP] Tools discovered", "server", c.name, "count", len(newTools))
+	if logger != nil {
+		logger.Info("[MCP] Tools discovered", "server", c.name, "count", len(newTools))
+	}
 	return nil
 }
 
@@ -569,6 +612,9 @@ func (c *mcpConn) callTool(ctx context.Context, toolName string, arguments map[s
 	if err != nil {
 		return "", fmt.Errorf("tools/call: %w", err)
 	}
+	if resp == nil {
+		return "", fmt.Errorf("tools/call returned no response")
+	}
 	if resp.Error != nil {
 		return "", fmt.Errorf("MCP server error: %s (code %d)", resp.Error.Message, resp.Error.Code)
 	}
@@ -579,11 +625,14 @@ func (c *mcpConn) callTool(ctx context.Context, toolName string, arguments map[s
 			Type string `json:"type"`
 			Text string `json:"text"`
 		} `json:"content"`
-		IsError bool `json:"isError"`
+		IsError           bool            `json:"isError"`
+		StructuredContent json.RawMessage `json:"structuredContent"`
 	}
 	if err := json.Unmarshal(resp.Result, &result); err != nil {
-		// Fallback: return raw result
-		return string(resp.Result), nil
+		return "", fmt.Errorf("invalid tools/call result: %w", err)
+	}
+	if result.Content == nil && len(result.StructuredContent) == 0 {
+		return "", fmt.Errorf("tools/call result is missing content")
 	}
 
 	if result.IsError {
@@ -593,7 +642,22 @@ func (c *mcpConn) callTool(ctx context.Context, toolName string, arguments map[s
 				texts = append(texts, item.Text)
 			}
 		}
-		return "", fmt.Errorf("tool returned error: %s", strings.Join(texts, "; "))
+		message := strings.Join(texts, "; ")
+		if message == "" {
+			message = "MCP tool reported an execution error"
+		}
+		return "", &MCPToolExecutionError{Message: message, Result: append(json.RawMessage(nil), resp.Result...)}
+	}
+
+	// Preserve all structured, resource, image and audio content when mixed.
+	mixed := len(result.StructuredContent) > 0
+	for _, item := range result.Content {
+		if item.Type != "text" {
+			mixed = true
+		}
+	}
+	if mixed {
+		return normalizeMCPResultText(string(resp.Result), c.hostDir, c.contDir), nil
 	}
 
 	var texts []string
@@ -801,20 +865,49 @@ func ShutdownMCPManager() {
 
 // ListTools returns all discovered tools, optionally filtered by server name.
 func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
-	if serverName != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
-		_, err := m.ensureServerConnected(ctx, serverName)
-		cancel()
-		if err != nil {
-			m.logger.Warn("[MCP] Failed to refresh server before listing tools", "server", serverName, "error", err)
-		}
-	} else {
-		m.ensureConfiguredServersConnected()
+	ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
+	defer cancel()
+	result, err := m.ListToolsWithStatus(ctx, serverName)
+	if err != nil && m.logger != nil {
+		m.logger.Warn("[MCP] Could not list tools", "error", err)
 	}
+	return result
+}
 
+// ListToolsWithStatus distinguishes an unavailable catalog from an empty one.
+func (m *MCPManager) ListToolsWithStatus(ctx context.Context, serverName string) ([]MCPToolInfo, error) {
+	m.mu.RLock()
+	var names []string
+	for name := range m.configs {
+		if serverName == "" || serverName == name {
+			names = append(names, name)
+		}
+	}
+	m.mu.RUnlock()
+	if serverName != "" && len(names) == 0 {
+		return nil, fmt.Errorf("MCP server %q is not configured", serverName)
+	}
+	sort.Strings(names)
+	var problems []error
+	for _, name := range names {
+		conn, err := m.ensureServerConnected(ctx, name)
+		if err == nil {
+			err = conn.refreshToolsIfNeeded(ctx, m.logger)
+		}
+		if err != nil {
+			problems = append(problems, fmt.Errorf("server %s catalog unavailable: %w", name, err))
+		}
+	}
+	if len(problems) > 0 {
+		return m.CachedTools(serverName), errors.Join(problems...)
+	}
+	return m.CachedTools(serverName), nil
+}
+
+// CachedTools is a nonblocking snapshot for prompt construction. It never starts a connection.
+func (m *MCPManager) CachedTools(serverName string) []MCPToolInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-
 	result := make([]MCPToolInfo, 0)
 	for name, conn := range m.conns {
 		if serverName != "" && name != serverName {
@@ -825,10 +918,10 @@ func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
 			continue
 		}
 		conn.mu.Lock()
-		if conn.ready {
-			for _, toolInfo := range conn.tools {
-				if mcpToolVisible(cfg, toolInfo.Name) {
-					result = append(result, toolInfo)
+		if cfg.Enabled && conn.ready && conn.toolsGeneration == mcpToolsGeneration(conn.transport) && (conn.transport == nil || time.Since(conn.toolsRefreshed) < time.Minute) {
+			for _, t := range conn.tools {
+				if mcpToolVisible(cfg, t.Name) {
+					result = append(result, t)
 				}
 			}
 		}
@@ -837,43 +930,36 @@ func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
 	return result
 }
 
-// ListServers returns a summary of all connected servers and their tool counts.
-func (m *MCPManager) ListServers() []map[string]interface{} {
-	m.ensureConfiguredServersConnected()
+// MCPToolExecutionError distinguishes a completed MCP error result from transport failure.
+type MCPToolExecutionError struct {
+	Message string
+	Result  json.RawMessage
+}
 
+func (e *MCPToolExecutionError) Error() string { return "tool returned error: " + e.Message }
+
+// ListServers reports configured servers without starting connections as a side effect.
+func (m *MCPManager) ListServers() []map[string]interface{} {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-
-	result := make([]map[string]interface{}, 0, len(m.conns))
-	for name, conn := range m.conns {
-		conn.mu.Lock()
-		ready := conn.ready
-		count := len(conn.tools)
-		conn.mu.Unlock()
-		result = append(result, map[string]interface{}{
-			"name":       name,
-			"ready":      ready,
-			"tool_count": count,
-		})
+	result := make([]map[string]interface{}, 0, len(m.configs))
+	for name, cfg := range m.configs {
+		ready, count := false, 0
+		if conn := m.conns[name]; conn != nil {
+			conn.mu.Lock()
+			ready, count = conn.ready, len(conn.tools)
+			conn.mu.Unlock()
+		}
+		result = append(result, map[string]interface{}{"name": name, "configured": true, "enabled": cfg.Enabled, "ready": ready, "tool_count": count})
 	}
+	sort.Slice(result, func(i, j int) bool { return result[i]["name"].(string) < result[j]["name"].(string) })
 	return result
 }
 
-// mcpCallToolTimeout is the maximum total duration for a single MCP tool call,
-// including reconnects and retry backoff.
 const mcpCallToolTimeout = 60 * time.Second
 
-// mcpMaxRetries is the maximum number of retries for a failed MCP tool call.
-const mcpMaxRetries = 3
-
-// mcpRetryDelays defines the backoff delays between retries (exponential backoff).
-var mcpRetryDelays = []time.Duration{
-	100 * time.Millisecond,
-	500 * time.Millisecond,
-	2 * time.Second,
-}
-
-// CallTool invokes a tool on a specific MCP server within one total timeout budget.
+// CallTool never replays a sent request: a transport failure cannot establish
+// whether a remote mutation completed. Reconnection is for a subsequent call.
 func (m *MCPManager) CallTool(ctx context.Context, serverName, toolName string, arguments map[string]interface{}) (string, error) {
 	if err := m.requireToolAllowed(serverName, toolName); err != nil {
 		return "", err
@@ -883,45 +969,26 @@ func (m *MCPManager) CallTool(ctx context.Context, serverName, toolName string, 
 	}
 	callCtx, cancel := context.WithTimeout(ctx, mcpCallToolTimeout)
 	defer cancel()
-
-	attempts := mcpMaxRetries + 1
-	for attempt := 0; attempt < attempts; attempt++ {
-		conn, err := m.ensureServerConnected(callCtx, serverName)
-		if err != nil {
-			return "", err
-		}
-
-		result, err := invokeMCPConnTool(callCtx, conn, toolName, arguments)
-		if err == nil {
-			return result, nil
-		}
-		if callCtx.Err() != nil {
-			m.invalidateConnection(serverName, callCtx.Err())
-			return "", fmt.Errorf("MCP tool call stopped (server=%s, tool=%s): %w", serverName, toolName, callCtx.Err())
-		}
-		if !isRetryableMCPTransportError(err) || attempt == attempts-1 {
-			return "", err
-		}
-		m.invalidateConnection(serverName, err)
-
-		delay := mcpRetryDelays[len(mcpRetryDelays)-1]
-		if attempt < len(mcpRetryDelays) {
-			delay = mcpRetryDelays[attempt]
-		}
-		timer := time.NewTimer(delay)
-		select {
-		case <-timer.C:
-		case <-callCtx.Done():
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-			return "", fmt.Errorf("MCP tool call stopped during retry backoff (server=%s, tool=%s): %w", serverName, toolName, callCtx.Err())
-		}
+	if err := callCtx.Err(); err != nil {
+		return "", err
 	}
-	return "", fmt.Errorf("MCP server %q not found or not connected", serverName)
+	conn, err := m.ensureServerConnected(callCtx, serverName)
+	if err != nil {
+		return "", err
+	}
+	if err := conn.refreshToolsIfNeeded(callCtx, m.logger); err != nil {
+		return "", err
+	}
+	// Recheck configuration after connection/discovery work.
+	if err := m.requireToolAllowed(serverName, toolName); err != nil {
+		return "", err
+	}
+	result, err := invokeMCPConnTool(callCtx, conn, toolName, arguments)
+	if err != nil && (callCtx.Err() != nil || isRetryableMCPTransportError(err)) {
+		m.invalidateConnection(serverName, err)
+		return "", fmt.Errorf("MCP call outcome uncertain; request was not replayed (server=%s, tool=%s): %w", serverName, toolName, err)
+	}
+	return result, err
 }
 
 func (m *MCPManager) requireToolAllowed(serverName, toolName string) error {
@@ -941,6 +1008,9 @@ func (m *MCPManager) requireToolAllowed(serverName, toolName string) error {
 	}
 	if !cfg.AllowDestructive && isMCPToolNameDestructive(toolName) {
 		return fmt.Errorf("MCP tool %q is blocked for server %q because allow_destructive is false", toolName, serverName)
+	}
+	if !cfg.Enabled {
+		return fmt.Errorf("MCP server %q is disabled", serverName)
 	}
 	return nil
 }
@@ -995,11 +1065,17 @@ func (m *MCPManager) Close() {
 
 // MCPListTools is a package-level shorthand for agent dispatch.
 func MCPListTools(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+	return MCPListToolsContext(context.Background(), serverName, logger)
+}
+
+func MCPListToolsContext(ctx context.Context, serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
 	mgr := GetMCPManager()
 	if mgr == nil {
 		return nil, fmt.Errorf("MCP manager not initialized")
 	}
-	return mgr.ListTools(serverName), nil
+	ctx, cancel := context.WithTimeout(ctx, mcpCallToolTimeout)
+	defer cancel()
+	return mgr.ListToolsWithStatus(ctx, serverName)
 }
 
 // MCPCallTool is a package-level shorthand for agent dispatch.

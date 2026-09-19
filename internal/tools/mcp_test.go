@@ -165,7 +165,7 @@ func TestMCPManagerListToolsReturnsEmptySlice(t *testing.T) {
 	}
 }
 
-func TestMCPManagerListServersReconnectsConfiguredServer(t *testing.T) {
+func TestMCPManagerListServersReportsUnavailableWithoutConnecting(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	oldStart := startManagedMCPConn
 	oldClose := closeManagedMCPConn
@@ -194,8 +194,8 @@ func TestMCPManagerListServersReconnectsConfiguredServer(t *testing.T) {
 	}
 
 	servers := mgr.ListServers()
-	if startCalls != 1 {
-		t.Fatalf("startCalls = %d, want 1", startCalls)
+	if startCalls != 0 {
+		t.Fatalf("startCalls = %d, want 0", startCalls)
 	}
 	if len(servers) != 1 {
 		t.Fatalf("len(servers) = %d, want 1", len(servers))
@@ -203,12 +203,12 @@ func TestMCPManagerListServersReconnectsConfiguredServer(t *testing.T) {
 	if servers[0]["name"] != "minimax" {
 		t.Fatalf("server name = %v, want minimax", servers[0]["name"])
 	}
-	if servers[0]["tool_count"] != 1 {
-		t.Fatalf("tool_count = %v, want 1", servers[0]["tool_count"])
+	if servers[0]["tool_count"] != 0 || servers[0]["ready"] != false {
+		t.Fatalf("tool_count = %v, want 0", servers[0]["tool_count"])
 	}
 }
 
-func TestMCPManagerCallToolReconnectsAfterTransportFailure(t *testing.T) {
+func TestMCPManagerCallToolDoesNotReplayAfterTransportFailure(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	oldStart := startManagedMCPConn
 	oldInvoke := invokeMCPConnTool
@@ -250,7 +250,11 @@ func TestMCPManagerCallToolReconnectsAfterTransportFailure(t *testing.T) {
 		logger: logger,
 	}
 
-	got, err := mgr.CallTool(context.Background(), "minimax", "tts", map[string]interface{}{"text": "Hallo"})
+	_, err := mgr.CallTool(context.Background(), "minimax", "tts", map[string]interface{}{"text": "Hallo"})
+	if err == nil || !strings.Contains(err.Error(), "not replayed") || startCalls != 1 {
+		t.Fatalf("uncertain call replayed: %v, starts=%d", err, startCalls)
+	}
+	got, err := mgr.CallTool(context.Background(), "minimax", "tts", map[string]interface{}{"text": "explicit subsequent call"})
 	if err != nil {
 		t.Fatalf("CallTool() error = %v", err)
 	}
@@ -341,7 +345,7 @@ func TestMCPManagerCallToolPropagatesCancellation(t *testing.T) {
 	}
 }
 
-func TestMCPManagerCallToolStopsDuringRetryBackoff(t *testing.T) {
+func TestMCPManagerCallToolReturnsUncertainOutcomeWithoutBackoff(t *testing.T) {
 	oldInvoke := invokeMCPConnTool
 	oldClose := closeManagedMCPConn
 	t.Cleanup(func() {
@@ -360,8 +364,8 @@ func TestMCPManagerCallToolStopsDuringRetryBackoff(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	time.AfterFunc(10*time.Millisecond, cancel)
 	started := time.Now()
-	if _, err := mgr.CallTool(ctx, "safe", "read", nil); err == nil || !strings.Contains(err.Error(), "retry backoff") {
-		t.Fatalf("CallTool error = %v, want retry backoff cancellation", err)
+	if _, err := mgr.CallTool(ctx, "safe", "read", nil); err == nil || !strings.Contains(err.Error(), "not replayed") {
+		t.Fatalf("CallTool error = %v, want explicit uncertain outcome", err)
 	}
 	if elapsed := time.Since(started); elapsed > 500*time.Millisecond {
 		t.Fatalf("CallTool cancellation took %s", elapsed)

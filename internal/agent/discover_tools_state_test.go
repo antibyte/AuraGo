@@ -119,8 +119,8 @@ func TestHandleDiscoverToolsFamilyNameSurfacesEnabledYepAPITools(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	out := handleDiscoverTools(ToolCall{
 		Params: map[string]interface{}{
-			"operation": "get_tool_info",
-			"tool_name": "yepapi",
+			"operation": "search",
+			"query":     "yepapi",
 		},
 	}, cfg, logger, "sess-yepapi")
 
@@ -452,8 +452,8 @@ func TestHandleLegacyActivateToolsReportsRequiredCallMethodsWithoutMutation(t *t
 	if payload.RequiredCallMethods["chromecast"] != "invoke_tool" {
 		t.Fatalf("chromecast call method = %q, want invoke_tool", payload.RequiredCallMethods["chromecast"])
 	}
-	if payload.RequiredCallMethods["weather_check"] != "execute_skill" {
-		t.Fatalf("weather call method = %q, want execute_skill", payload.RequiredCallMethods["weather_check"])
+	if payload.RequiredCallMethods["skill__weather_check"] != "execute_skill" {
+		t.Fatalf("weather call method = %q, want execute_skill", payload.RequiredCallMethods["skill__weather_check"])
 	}
 	if !containsName(payload.Disabled, "uptime_kuma") {
 		t.Fatalf("disabled = %v, want uptime_kuma", payload.Disabled)

@@ -30,6 +30,19 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- Tool configuration consumes `_effective_tool_policy` and `_config_migrations`
+  as response diagnostics only, through the shared config-response loader on
+  initial load and refresh/save paths. Never persist these keys. Removed discovery
+  TTL, LTSC-lite and legacy memory-analysis switches have no controls or help keys.
+  Skill settings use `tools.skill_manager` and `readonly`; personality activation
+  merges the canonical saved value without discarding unrelated drafts. An empty
+  MCP-server export allowlist selects no tools; select-all saves explicit names.
+  Output archiving remains editable while compression is off. Verify with
+  `TestConfigDisclosureSettingsBrowser`, the API/runtime round-trip tests and
+  the standard bundle check. Optimizer dashboard counts verified exposures and
+  shows variant decisions separately from legacy traces. Chat action indicators
+  distinguish unknown, deferred and needs-setup results from successful execution.
+
 - System World uses the Blender GLB kit in `3d/system-world/v1/` and its own
   MIT Three.js 0.185.1 ESM bundle; shared legacy Three.js remains unchanged.
   Run `node scripts/build-system-world.js --check` before packaging. The app

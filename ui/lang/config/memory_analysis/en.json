@@ -1,6 +1,6 @@
 {
-  "config.memory_analysis.auto_desc": "AuraGo automatically enables unified memory context, effectiveness tracking, real-time extraction, query expansion, and reranking based on live memory health and retrieval quality.",
-  "config.memory_analysis.auto_notice": "Adaptive memory strategy is always active",
+  "config.memory_analysis.auto_desc": "Memory analysis uses the central Helper LLM when available. Configure its provider in the Helper settings. These controls set the confidence threshold and reflection day.",
+  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
   "config.memory_analysis.day_friday": "Friday",
   "config.memory_analysis.day_monday": "Monday",
   "config.memory_analysis.day_saturday": "Saturday",

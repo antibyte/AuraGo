@@ -1,6 +1,6 @@
 {
-  "config.memory_analysis.auto_desc": "Το AuraGo ενεργοποιεί αυτόματα ενοποιημένο context μνήμης, παρακολούθηση αποτελεσματικότητας, εξαγωγή σε πραγματικό χρόνο, επέκταση ερωτήματος και επανακατάταξη με βάση τη ζωντανή υγεία μνήμης και την ποιότητα ανάκτησης.",
-  "config.memory_analysis.auto_notice": "Η προσαρμοστική στρατηγική μνήμης είναι πάντα ενεργή",
+  "config.memory_analysis.auto_desc": "Memory analysis uses the central Helper LLM when available. Configure its provider in the Helper settings. These controls set the confidence threshold and reflection day.",
+  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
   "config.memory_analysis.day_friday": "Παρασκευή",
   "config.memory_analysis.day_monday": "Δευτέρα",
   "config.memory_analysis.day_saturday": "Σάββατο",

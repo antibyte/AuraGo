@@ -1765,7 +1765,7 @@ func TestBuildNativeToolSchemasSkipsProviderInvalidDynamicShortcutNames(t *testi
 		t.Fatalf("write custom tool manifest: %v", err)
 	}
 
-	schemas := BuildNativeToolSchemas(skillsDir, tools.NewManifest(toolsDir), ToolFeatureFlags{}, nil)
+	schemas := BuildNativeToolSchemas(skillsDir, tools.NewManifest(toolsDir), ToolFeatureFlags{AllowPython: true}, nil)
 	names := make(map[string]bool, len(schemas))
 	for _, toolSchema := range schemas {
 		if toolSchema.Function == nil {
@@ -1807,7 +1807,7 @@ func TestBuildNativeToolSchemasSortsCustomToolsByName(t *testing.T) {
 	}
 
 	var got []string
-	for _, toolSchema := range BuildNativeToolSchemas(t.TempDir(), manifest, ToolFeatureFlags{}, nil) {
+	for _, toolSchema := range BuildNativeToolSchemas(t.TempDir(), manifest, ToolFeatureFlags{AllowPython: true}, nil) {
 		if toolSchema.Function != nil && strings.HasPrefix(toolSchema.Function.Name, "tool__") {
 			got = append(got, toolSchema.Function.Name)
 		}
@@ -2250,7 +2250,7 @@ func TestBuildNativeToolSchemasInjectsTodoOnlyForBuiltinTools(t *testing.T) {
 		t.Fatalf("register custom tool: %v", err)
 	}
 
-	schemas := BuildNativeToolSchemas(t.TempDir(), manifest, ToolFeatureFlags{AllowShell: true}, nil)
+	schemas := BuildNativeToolSchemas(t.TempDir(), manifest, ToolFeatureFlags{AllowShell: true, AllowPython: true}, nil)
 
 	var executeShellParams map[string]interface{}
 	var customParams map[string]interface{}

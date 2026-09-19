@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server ingeschakeld",
   "config.mcp_server.require_auth": "Authenticatie vereisen",
   "config.mcp_server.allowed_tools": "Toegestane tools",
-  "config.mcp_server.allowed_tools_desc": "Tools beschikbaar via het MCP-eindpunt. Laat leeg om alle ingeschakelde tools te tonen.",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Bearer-token",
   "config.mcp_server.generate_token": "Token genereren",
   "config.mcp_server.endpoint_url": "Eindpunt-URL",

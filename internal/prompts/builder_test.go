@@ -1306,7 +1306,7 @@ func TestBuildSystemPromptNativeModeSanitizesDynamicToolGuides(t *testing.T) {
 		},
 	}
 
-	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	prompt, _ := BuildSystemPrompt("", &flags, "", slog.Default())
 	if !strings.Contains(prompt, "# TOOL GUIDES") {
 		t.Fatalf("prompt missing dynamic tool guides")
 	}
@@ -1489,7 +1489,7 @@ func TestBuildSystemPromptTextJSONModeKeepsDynamicToolGuideExamples(t *testing.T
 		},
 	}
 
-	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	prompt, _ := BuildSystemPrompt("", &flags, "", slog.Default())
 	if !strings.Contains(prompt, `{"action":"invoke_tool"`) {
 		t.Fatalf("text JSON mode should keep raw JSON guide examples")
 	}

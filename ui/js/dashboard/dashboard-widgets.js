@@ -2487,12 +2487,14 @@
                     val: opt.rejected_mutations || 0
                 },
                 {
-                    lbl: t('dashboard.opt_total_trace_events'),
+                    lbl: t('dashboard.opt_verified_trace_events'),
                     val: opt.total_trace_events || 0
                 },
+                {lbl: t('dashboard.opt_exposures'), val: opt.exposures || 0},
+                {lbl: t('dashboard.opt_legacy'), val: opt.legacy_trace_events || 0},
                 {
                     lbl: t('dashboard.opt_global_success_rate'),
-                    val: `${(opt.global_success_rate || 0).toFixed(1)}%`
+                    val: opt.total_trace_events > 0 ? `${((opt.global_success_rate || 0) * 100).toFixed(1)}%` : '—'
                 }
             ];
 
@@ -2502,6 +2504,10 @@
                     <div class="stat-label">${s.lbl}</div>
                 </div>`
             ).join('');
+            if (Array.isArray(opt.variants) && opt.variants.length) {
+                const rows = opt.variants.slice(0, 10).map(v => `<li>${esc(v.manual)} · ${esc(t(v.active ? 'dashboard.opt_variant_active' : v.shadow ? 'dashboard.opt_variant_shadow' : 'dashboard.opt_variant_retired'))}: ${esc(t('dashboard.opt_reason_' + v.reason))}</li>`).join('');
+                el.insertAdjacentHTML('beforeend', `<details><summary>${esc(t('dashboard.opt_evidence'))}</summary><ul>${rows}</ul></details>`);
+            }
         }
 
         // ── Output Compression Stats ───────────────────────────────────────────

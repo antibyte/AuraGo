@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -49,8 +50,8 @@ func TestApplyToolOutputPolicyPreservesErrorSummaryWhenTruncated(t *testing.T) {
 	if !result.WasError {
 		t.Fatal("expected error result to be marked as error")
 	}
-	if !strings.Contains(result.Content, "[Preserved error summary]") {
-		t.Fatalf("expected preserved error summary block, got %q", result.Content)
+	if !json.Valid([]byte(result.Content)) {
+		t.Fatalf("expected valid bounded error JSON, got %q", result.Content)
 	}
 	if !strings.Contains(result.Content, "permission denied while deploying homepage") {
 		t.Fatalf("expected preserved message in truncated content, got %q", result.Content)
@@ -113,8 +114,8 @@ func TestApplyToolOutputPolicyPreservesErrorSummaryWithinLimit(t *testing.T) {
 	if !utf8.ValidString(result.Content) {
 		t.Fatalf("expected valid UTF-8 output, got %q", result.Content)
 	}
-	if !strings.Contains(result.Content, "[Preserved error summary]") {
-		t.Fatalf("expected preserved error summary block, got %q", result.Content)
+	if !json.Valid([]byte(result.Content)) {
+		t.Fatalf("expected valid bounded error JSON, got %q", result.Content)
 	}
 	if !strings.Contains(result.Content, "permission denied while deploying homepage") {
 		t.Fatalf("expected preserved error summary, got %q", result.Content)

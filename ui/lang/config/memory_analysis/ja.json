@@ -1,6 +1,6 @@
 {
-  "config.memory_analysis.auto_desc": "AuraGo は現在のメモリ健全性と検索品質に基づき、統合メモリコンテキスト、効果追跡、リアルタイム抽出、クエリ拡張、再ランキングを自動で有効化します。",
-  "config.memory_analysis.auto_notice": "適応型メモリ戦略は常に有効です",
+  "config.memory_analysis.auto_desc": "Memory analysis uses the central Helper LLM when available. Configure its provider in the Helper settings. These controls set the confidence threshold and reflection day.",
+  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
   "config.memory_analysis.day_friday": "金曜日",
   "config.memory_analysis.day_monday": "月曜日",
   "config.memory_analysis.day_saturday": "土曜日",

@@ -32,9 +32,6 @@ func TestInvalidNativeToolRecoveryDropsQueuedCallsFromSameResponse(t *testing.T)
 		pendingTCs: []ToolCall{
 			{Action: "tts", NativeCallID: "call_tts"},
 		},
-		pendingSummaryBatch: map[string]string{
-			pendingSummaryBatchKey(ToolCall{Action: "tts", NativeCallID: "call_tts"}): "precomputed audio",
-		},
 	}
 
 	tc := ToolCall{
@@ -58,9 +55,6 @@ func TestInvalidNativeToolRecoveryDropsQueuedCallsFromSameResponse(t *testing.T)
 	}
 	if len(s.pendingTCs) != 0 {
 		t.Fatalf("pendingTCs len = %d, want 0", len(s.pendingTCs))
-	}
-	if s.pendingSummaryBatch != nil {
-		t.Fatalf("pendingSummaryBatch = %#v, want nil", s.pendingSummaryBatch)
 	}
 	if len(s.req.Messages) == 0 {
 		t.Fatal("expected recovery feedback message to be appended")

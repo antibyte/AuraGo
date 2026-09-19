@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "Serveur MCP activé",
   "config.mcp_server.require_auth": "Exiger l'authentification",
   "config.mcp_server.allowed_tools": "Outils autorisés",
-  "config.mcp_server.allowed_tools_desc": "Outils exposés via le point de terminaison MCP. Laissez vide pour exposer tous les outils activés.",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Jeton Bearer",
   "config.mcp_server.generate_token": "Générer un jeton",
   "config.mcp_server.endpoint_url": "URL du point de terminaison",

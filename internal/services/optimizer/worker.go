@@ -15,6 +15,7 @@ import (
 
 func init() {
 	prompts.GetActivePromptOverrides = GetActivePromptOverrides
+	prompts.SelectToolGuideVariant = selectToolGuideVariant
 }
 
 type OptimizerWorker struct {
@@ -42,7 +43,13 @@ func (w *OptimizerWorker) Start(ctx context.Context) {
 	slog.Info("[Optimizer] Starting optimization background worker", "interval", w.checkInterval)
 
 	w.runEvaluationCycle(ctx)
+	if ctx.Err() != nil {
+		return
+	}
 	w.runCreationCycle(ctx)
+	if ctx.Err() != nil {
+		return
+	}
 	w.pruneTraces(ctx)
 
 	ticker := time.NewTicker(w.checkInterval)
@@ -54,7 +61,13 @@ func (w *OptimizerWorker) Start(ctx context.Context) {
 			return
 		case <-ticker.C:
 			w.runEvaluationCycle(ctx)
+			if ctx.Err() != nil {
+				return
+			}
 			w.runCreationCycle(ctx)
+			if ctx.Err() != nil {
+				return
+			}
 			w.pruneTraces(ctx)
 		}
 	}
@@ -100,34 +113,14 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 	for _, e := range entries {
 		id, toolName := e.id, e.toolName
 
-		// Check count of traces for this new prompt version
-		var count int
 		versionTag := fmt.Sprintf("v2-shadow-%d", id)
-		err = w.db.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM tool_traces WHERE tool_name = ? AND prompt_version = ?`, toolName, versionTag).Scan(&count)
-		if err != nil || count < w.evaluationLimit {
-			continue // Need more traces
+		baselineTag := "v1"
+		var activeID int
+		if w.db.db.QueryRowContext(ctx, `SELECT id FROM prompt_overrides WHERE tool_name=? AND active=1 ORDER BY id DESC LIMIT 1`, toolName).Scan(&activeID) == nil {
+			baselineTag = fmt.Sprintf("active-%d", activeID)
 		}
-
-		// Got enough traces. Let's compare performance
-		var newSuccessRate float64
-		err = w.db.db.QueryRowContext(ctx, `
-			SELECT CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) 
-			FROM tool_traces 
-			WHERE tool_name = ? AND prompt_version = ?`, toolName, versionTag).Scan(&newSuccessRate)
-		if err != nil {
-			continue
-		}
-
-		var baselineSuccessRate float64
-		err = w.db.db.QueryRowContext(ctx, `
-			SELECT CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) 
-                        FROM (
-                                SELECT success
-                                FROM tool_traces
-                                WHERE tool_name = ? AND prompt_version = 'v1'
-                                ORDER BY timestamp DESC LIMIT 50
-                        )`, toolName).Scan(&baselineSuccessRate)
-		if err != nil {
+		newSuccessRate, baselineSuccessRate, comparable := w.comparableRates(ctx, toolName, versionTag, baselineTag)
+		if !comparable {
 			continue
 		}
 
@@ -139,7 +132,7 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 				continue
 			}
 			if _, txErr = tx.ExecContext(ctx, "UPDATE prompt_overrides SET active = 0 WHERE tool_name = ? AND active = 1", toolName); txErr == nil {
-				_, txErr = tx.ExecContext(ctx, `UPDATE prompt_overrides SET active = 1, shadow = 0 WHERE id = ?`, id)
+				_, txErr = tx.ExecContext(ctx, `UPDATE prompt_overrides SET active = 1, shadow = 0, promotion_reason='comparable_exposures_gain_at_least_0.10' WHERE id = ?`, id)
 			}
 			if txErr == nil {
 				txErr = tx.Commit()
@@ -154,9 +147,9 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 			slog.Info("[Optimizer] Promoted shadow prompt to active", "tool", toolName, "gain", newSuccessRate-baselineSuccessRate)
 		} else {
 			// Rollback! Discard it
-			w.db.db.ExecContext(ctx, `DELETE FROM prompt_overrides WHERE id = ?`, id)
+			w.db.db.ExecContext(ctx, `UPDATE prompt_overrides SET shadow=0, promotion_reason='insufficient_comparable_gain' WHERE id=?`, id)
 			w.db.db.ExecContext(ctx, `UPDATE optimizer_metrics SET value = value + 1 WHERE key = 'rejected_mutations'`)
-			slog.Info("[Optimizer] Rolled back and deleted shadow prompt", "tool", toolName, "reason", "no significant improvement")
+			slog.Info("[Optimizer] Retired shadow prompt", "tool", toolName, "reason", "no significant improvement")
 		}
 	}
 }
@@ -167,7 +160,7 @@ func (w *OptimizerWorker) runCreationCycle(ctx context.Context) {
 	rows, err := w.db.db.QueryContext(ctx, `
 		SELECT tool_name, CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) as success_rate, COUNT(*) as trace_count
 		FROM tool_traces
-		WHERE prompt_version = 'v1' AND timestamp > datetime('now', '-7 days')
+		WHERE exposure_id IS NOT NULL AND prompt_version = 'v1' AND timestamp > datetime('now', '-7 days')
 		GROUP BY tool_name
 		HAVING success_rate < 0.8 AND trace_count >= 5
 		ORDER BY success_rate ASC LIMIT 3

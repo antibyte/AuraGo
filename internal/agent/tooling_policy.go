@@ -185,7 +185,7 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 	autoEnabled := !cfg.LLM.UseNativeFunctions && useNativeFunctions
 	effectiveMaxToolGuides := cfg.Agent.MaxToolGuides
 	if effectiveMaxToolGuides <= 0 {
-		effectiveMaxToolGuides = 5
+		effectiveMaxToolGuides = 3
 	}
 	telemetryProfile := "default"
 	guideStrategy := prompts.DynamicGuideStrategy{}

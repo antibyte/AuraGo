@@ -181,7 +181,7 @@ async function mcpLoadToolList(allowed) {
         const allowSet = new Set(allowed);
         let listHtml = '';
         for (const name of allToolNames) {
-            const checked = allowSet.size === 0 || allowSet.has(name) ? 'checked' : '';
+            const checked = allowSet.has(name) ? 'checked' : '';
             listHtml += `<label class="mcp-srv-tool-item">
                 <input type="checkbox" class="mcp-tool-cb" value="${escapeAttr(name)}" ${checked} onchange="mcpUpdateAllowedTools()">
                 <code class="mcp-srv-tool-code">${escapeAttr(name)}</code>
@@ -196,11 +196,7 @@ async function mcpLoadToolList(allowed) {
 
 function mcpUpdateAllowedTools() {
     const checkboxes = document.querySelectorAll('.mcp-tool-cb');
-    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-    const bridgeEnabled = configData?.mcp_server?.vscode_debug_bridge === true;
-    const selected = (allChecked && !bridgeEnabled)
-        ? []
-        : Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+    const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
     setNestedValue(configData, 'mcp_server.allowed_tools', selected);
     mcpSyncAllowedToolsState();
     setDirty(true);

@@ -20,6 +20,15 @@ func extractSpecialistRole(sessionID string) string {
 // checkSpecialistToolRestriction checks whether a specialist is allowed to use the given tool/operation.
 // Returns an error message if blocked, or "" if allowed.
 func checkSpecialistToolRestriction(role, action, operation string) string {
+	// Dedicated native names inherit the existing family restriction.
+	switch {
+	case action == "generate_image":
+		action = "image_generation"
+	case strings.HasPrefix(action, "homepage_"):
+		action = "homepage"
+	case strings.HasPrefix(action, "remote_control_"):
+		action = "remote_control"
+	}
 	switch role {
 	case "researcher":
 		return checkResearcherRestriction(action)
@@ -40,13 +49,13 @@ func checkSpecialistToolRestriction(role, action, operation string) string {
 func checkResearcherRestriction(action string) string {
 	switch action {
 	case "execute_shell":
-		return `Tool Output: {"status": "error", "message": "Researcher specialist cannot execute shell commands. Use execute_skill or execute_python for data processing."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Researcher specialist cannot execute shell commands. Use execute_skill or execute_python for data processing."}`
 	case "image_generation":
-		return `Tool Output: {"status": "error", "message": "Researcher specialist cannot generate images."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Researcher specialist cannot generate images."}`
 	case "remote_control":
-		return `Tool Output: {"status": "error", "message": "Researcher specialist cannot use remote control."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Researcher specialist cannot use remote control."}`
 	case "homepage":
-		return `Tool Output: {"status": "error", "message": "Researcher specialist cannot manage websites."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Researcher specialist cannot manage websites."}`
 	}
 	return ""
 }
@@ -56,9 +65,9 @@ func checkResearcherRestriction(action string) string {
 func checkCoderRestriction(action string) string {
 	switch action {
 	case "image_generation":
-		return `Tool Output: {"status": "error", "message": "Coder specialist cannot generate images."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Coder specialist cannot generate images."}`
 	case "remote_control":
-		return `Tool Output: {"status": "error", "message": "Coder specialist cannot use remote control."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Coder specialist cannot use remote control."}`
 	}
 	return ""
 }
@@ -70,13 +79,13 @@ func checkCoderRestriction(action string) string {
 func checkDesignerRestriction(action string) string {
 	switch action {
 	case "execute_shell":
-		return `Tool Output: {"status": "error", "message": "Designer specialist cannot execute shell commands."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Designer specialist cannot execute shell commands."}`
 	case "execute_python":
-		return `Tool Output: {"status": "error", "message": "Designer specialist cannot execute Python code."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Designer specialist cannot execute Python code."}`
 	case "remote_control":
-		return `Tool Output: {"status": "error", "message": "Designer specialist cannot use remote control."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Designer specialist cannot use remote control."}`
 	case "homepage":
-		return `Tool Output: {"status": "error", "message": "Designer specialist cannot manage or deploy homepage projects directly. Provide design assets or guidance for the main agent or coder specialist to implement."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Designer specialist cannot manage or deploy homepage projects directly. Provide design assets or guidance for the main agent or coder specialist to implement."}`
 	}
 	return ""
 }
@@ -86,12 +95,12 @@ func checkDesignerRestriction(action string) string {
 func checkSecurityRestriction(action, operation string) string {
 	switch action {
 	case "image_generation":
-		return `Tool Output: {"status": "error", "message": "Security specialist cannot generate images."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Security specialist cannot generate images."}`
 	case "remote_control":
-		return `Tool Output: {"status": "error", "message": "Security specialist cannot use remote control."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Security specialist cannot use remote control."}`
 	case "filesystem":
 		if operation == "write" || operation == "delete" || operation == "move" || operation == "copy" {
-			return `Tool Output: {"status": "error", "message": "Security specialist has read-only filesystem access for analysis."}`
+			return `Tool Output: {"status": "policy_denied", "message": "Security specialist has read-only filesystem access for analysis."}`
 		}
 	}
 	return ""
@@ -102,15 +111,15 @@ func checkSecurityRestriction(action, operation string) string {
 func checkWriterRestriction(action string) string {
 	switch action {
 	case "execute_shell":
-		return `Tool Output: {"status": "error", "message": "Writer specialist cannot execute shell commands."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot execute shell commands."}`
 	case "execute_python":
-		return `Tool Output: {"status": "error", "message": "Writer specialist cannot execute Python code."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot execute Python code."}`
 	case "image_generation":
-		return `Tool Output: {"status": "error", "message": "Writer specialist cannot generate images."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot generate images."}`
 	case "remote_control":
-		return `Tool Output: {"status": "error", "message": "Writer specialist cannot use remote control."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot use remote control."}`
 	case "homepage":
-		return `Tool Output: {"status": "error", "message": "Writer specialist cannot manage websites."}`
+		return `Tool Output: {"status": "policy_denied", "message": "Writer specialist cannot manage websites."}`
 	}
 	return ""
 }

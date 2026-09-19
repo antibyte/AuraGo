@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP 服务器已启用",
   "config.mcp_server.require_auth": "要求身份验证",
   "config.mcp_server.allowed_tools": "允许的工具",
-  "config.mcp_server.allowed_tools_desc": "通过 MCP 端点公开的工具。留空以公开所有已启用的工具。",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Bearer 令牌",
   "config.mcp_server.generate_token": "生成令牌",
   "config.mcp_server.endpoint_url": "端点 URL",

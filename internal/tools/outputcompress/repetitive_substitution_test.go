@@ -22,9 +22,6 @@ func TestDefaultConfig_AdvancedCompressionDisabledByDefault(t *testing.T) {
 	if !cfg.RepetitiveSubstitution.LZWEnabled {
 		t.Fatal("LZW-style substitution should be ready when the parent toggle is enabled")
 	}
-	if cfg.RepetitiveSubstitution.LTSCLiteEnabled {
-		t.Fatal("LTSC-lite must stay disabled by default")
-	}
 	if cfg.TOONJSON.Enabled {
 		t.Fatal("TOON JSON conversion must be disabled by default")
 	}

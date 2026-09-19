@@ -617,7 +617,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 
 			cleanSkillName := strings.TrimSuffix(skillName, ".py")
-			if catalog := GetToolCatalogState(dc.SessionID); catalog != nil {
+			if catalog := GetToolCatalogState(dc.discoveryKey()); catalog != nil {
 				if entry, ok := catalog.Get(cleanSkillName); ok && entry.Kind != ToolKindSkill {
 					return wrongToolKindForExecuteSkill(entry)
 				}

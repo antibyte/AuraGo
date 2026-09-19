@@ -6,14 +6,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
-	"time"
 
 	"aurago/internal/dbutil"
+	"aurago/internal/prompts"
+	"aurago/internal/promptsource"
 	promptsembed "aurago/prompts"
 
 	_ "modernc.org/sqlite"
@@ -25,15 +24,6 @@ type OptimizerDB struct {
 	db         *sql.DB
 	promptsDir string
 }
-
-type versionCacheEntry struct {
-	hasShadow bool
-	shadowID  int
-	hasActive bool
-	expireAt  time.Time
-}
-
-var versionCache sync.Map
 
 func InitDB(dbPath string) (*OptimizerDB, error) {
 	return InitDBWithPromptsDir(dbPath, "prompts")
@@ -168,6 +158,11 @@ func InitDBWithPromptsDir(dbPath, promptsDir string) (*OptimizerDB, error) {
 		promptsDir = "prompts"
 	}
 	defaultDB = &OptimizerDB{db: db, promptsDir: filepath.Clean(promptsDir)}
+	if err := initializeExposureSchema(defaultDB); err != nil {
+		_ = db.Close()
+		defaultDB = nil
+		return nil, fmt.Errorf("initialize prompt exposures: %w", err)
+	}
 	defaultDB.invalidateStaleOverrides()
 	return defaultDB, nil
 }
@@ -178,10 +173,12 @@ func (o *OptimizerDB) loadCanonicalManual(toolName string) string {
 		return "(No existing manual found)"
 	}
 	data, err := os.ReadFile(filepath.Join(o.promptsDir, "tools_manuals", safeToolName+".md"))
-	if err != nil {
+	_, _, _, framingErr := promptsource.Split(string(data))
+	if err != nil || framingErr != nil {
 		data, err = promptsembed.FS.ReadFile(filepath.ToSlash(filepath.Join("tools_manuals", safeToolName+".md")))
 	}
-	if err != nil {
+	_, _, _, framingErr = promptsource.Split(string(data))
+	if err != nil || framingErr != nil {
 		return "(No existing manual found)"
 	}
 	return string(data)
@@ -193,8 +190,7 @@ func (o *OptimizerDB) invalidateStaleOverrides() {
 		slog.Error("[Optimizer] Failed to check stale overrides", "error", err)
 		return
 	}
-	defer rows.Close()
-
+	var stale []int
 	for rows.Next() {
 		var id int
 		var toolName string
@@ -209,22 +205,30 @@ func (o *OptimizerDB) invalidateStaleOverrides() {
 		currentHashStr := hex.EncodeToString(hash[:])
 
 		if !originalHash.Valid || originalHash.String != currentHashStr {
-			_, err := o.db.Exec(`UPDATE prompt_overrides SET active = 0, shadow = 0 WHERE id = ?`, id)
-			if err == nil {
-				slog.Info("[Optimizer] Invalidated stale prompt override", "tool", toolName, "id", id)
-			}
+			stale = append(stale, id)
 		}
+	}
+	rows.Close()
+	for _, id := range stale {
+		_, _ = o.db.Exec(`UPDATE prompt_overrides SET active=0,shadow=0 WHERE id=?`, id)
 	}
 }
 
-func LogToolTrace(toolName string, success bool, recoveryLoops int, promptVersion, errMsg string, execTimeMs int64) error {
+func LogToolTrace(toolName string, success bool, recoveryLoops int, promptVersion, errMsg string, execTimeMs int64, operation ...string) error {
 	if defaultDB == nil {
 		return nil
 	}
-	return defaultDB.LogToolTrace(toolName, success, recoveryLoops, promptVersion, errMsg, execTimeMs)
+	return defaultDB.LogToolTrace(toolName, success, recoveryLoops, promptVersion, errMsg, execTimeMs, operation...)
 }
 
-func (o *OptimizerDB) LogToolTrace(toolName string, success bool, recoveryLoops int, promptVersion, errMsg string, execTimeMs int64) error {
+func (o *OptimizerDB) LogToolTrace(toolName string, success bool, recoveryLoops int, promptVersion, errMsg string, execTimeMs int64, operation ...string) error {
+	if strings.HasPrefix(promptVersion, "exposure:") {
+		op := ""
+		if len(operation) > 0 {
+			op = operation[0]
+		}
+		return o.logExposedToolTrace(toolName, success, recoveryLoops, promptVersion, errMsg, execTimeMs, op)
+	}
 	query := `INSERT INTO tool_traces (tool_name, success, recovery_loops, prompt_version, error_message, execution_time_ms) VALUES (?, ?, ?, ?, ?, ?)`
 	_, err := o.db.Exec(query, toolName, success, recoveryLoops, promptVersion, errMsg, execTimeMs)
 	if err != nil {
@@ -248,53 +252,11 @@ func GetToolPromptVersion(toolName string) string {
 	return defaultDB.GetToolPromptVersion(toolName)
 }
 
-func (o *OptimizerDB) GetToolPromptVersion(toolName string) string {
-	now := time.Now()
-	var entry versionCacheEntry
-
-	if val, ok := versionCache.Load(toolName); ok {
-		cached := val.(versionCacheEntry)
-		if now.Before(cached.expireAt) {
-			entry = cached
-		}
-	}
-
-	if entry.expireAt.IsZero() || now.After(entry.expireAt) {
-		// Fetch from DB
-		var id int
-		err := o.db.QueryRow(`SELECT id FROM prompt_overrides WHERE tool_name = ? AND shadow = 1 AND active = 0 ORDER BY id DESC LIMIT 1`, toolName).Scan(&id)
-		if err == nil {
-			entry.hasShadow = true
-			entry.shadowID = id
-		} else {
-			var count int
-			err = o.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE tool_name = ? AND active = 1`, toolName).Scan(&count)
-			if err == nil && count > 0 {
-				entry.hasActive = true
-			}
-		}
-
-		entry.expireAt = now.Add(60 * time.Second)
-		versionCache.Store(toolName, entry)
-	}
-
-	if entry.hasShadow {
-		// ~30% chance for shadow test (v2), ~70% for standard (v1)
-		if rand.Float64() < 0.3 {
-			return fmt.Sprintf("v2-shadow-%d", entry.shadowID)
-		}
-		return "v1"
-	}
-
-	if entry.hasActive {
-		return "optim-db"
-	}
-
-	return "v1"
-}
+// GetToolPromptVersion cannot prove exposure. Request construction owns version selection.
+func (o *OptimizerDB) GetToolPromptVersion(toolName string) string { return "unobserved" }
 
 func (o *OptimizerDB) GetActivePromptOverrides() map[string]string {
-	query := `SELECT tool_name, mutated_prompt FROM prompt_overrides WHERE active = 1`
+	query := `SELECT tool_name, mutated_prompt, coalesce(original_hash,'') FROM prompt_overrides WHERE active = 1 ORDER BY id`
 	rows, err := o.db.Query(query)
 	if err != nil {
 		slog.Error("Failed to load prompt overrides", "error", err)
@@ -304,9 +266,15 @@ func (o *OptimizerDB) GetActivePromptOverrides() map[string]string {
 
 	overrides := make(map[string]string)
 	for rows.Next() {
-		var name, prompt string
-		if err := rows.Scan(&name, &prompt); err == nil {
-			overrides[name] = prompt
+		var name, prompt, originalHash string
+		if err := rows.Scan(&name, &prompt, &originalHash); err == nil {
+			hash := sha256.Sum256([]byte(o.loadCanonicalManual(name)))
+			if originalHash != hex.EncodeToString(hash[:]) {
+				continue
+			}
+			if valid, ok := prompts.SanitizeToolGuideOverride(prompt); ok {
+				overrides[name] = valid
+			}
 		}
 	}
 	return overrides
@@ -325,12 +293,19 @@ func CleanupOldTraces(maxAgeDays int) error {
 }
 
 func (o *OptimizerDB) CleanupOldTraces(maxAgeDays int) error {
+	if maxAgeDays <= 0 {
+		return fmt.Errorf("trace retention must be positive")
+	}
 	_, err := o.db.Exec(
 		"DELETE FROM tool_traces WHERE timestamp < datetime('now', ? || ' days')",
 		fmt.Sprintf("-%d", maxAgeDays),
 	)
 	if err != nil {
 		return fmt.Errorf("cleanup old tool traces: %w", err)
+	}
+	_, err = o.db.Exec(`DELETE FROM prompt_exposures WHERE timestamp < datetime('now', ? || ' days') AND NOT EXISTS (SELECT 1 FROM tool_traces WHERE exposure_id=prompt_exposures.id)`, fmt.Sprintf("-%d", maxAgeDays))
+	if err != nil {
+		return fmt.Errorf("cleanup old prompt exposures: %w", err)
 	}
 	return nil
 }

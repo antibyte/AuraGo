@@ -15,11 +15,9 @@ agent:
     core_memory_cap_mode: hard
     core_memory_max_entries: 80
     debug_mode: false
-    max_tool_calls: 15
     memory_compression_char_limit: 60000
-    max_concurrent_loops: 8       # maximum concurrent agent loop executions
-    tool_output_limit: 50000  # max characters of a single tool result fed into context (0 = unlimited)
-    discover_tools_snapshot_ttl_minutes: 5  # minutes to retain discover_tools snapshots (<=0 = default 5)
+    max_concurrent_loops: 8       # maximum concurrent agent loop executions (restart required)
+    tool_output_limit: 50000  # max bytes of a single tool result fed into context (0 = automatic: 50000)
     show_tool_results: false
     step_delay_seconds: 0
     system_language: English
@@ -43,7 +41,6 @@ agent:
         repetitive_substitution:     # optional dictionary substitution for repetitive log-like output
             enabled: false           # disabled by default; exact/code-like outputs are skipped
             lzw_enabled: true         # replace long repeated phrases when enabled
-            ltsc_lite_enabled: false  # reserved for stricter LTSC-lite, off by default
             min_phrase_chars: 15
             min_occurrences: 3
             min_savings_percent: 15
@@ -53,6 +50,9 @@ agent:
             enabled: false           # disabled by default; api_request/file reads are skipped
             min_savings_percent: 10
             max_rows: 200
+        smart_crusher:
+            enabled: true            # compact large homogeneous object arrays
+            max_rows: 50
         reversible:
             enabled: true                 # archive original outputs so compact views can be expanded later
             max_age_hours: 24             # cleanup age for archived outputs
@@ -83,7 +83,7 @@ agent:
         max_total_tools: 20                                         # max final native schemas after hard-required tools are kept (0 = unlimited, default: 20)
         max_schema_tokens: 6500                                     # optional schema token cap for adaptive tools (0 = no extra cap; default: 6500)
         provider_profiles_enabled: true                             # apply provider-specific tool caps and response-header timeout defaults
-        session_tool_retention_turns: 8                              # keep tools used in recent turns visible as soft always-include tools
+        session_tool_retention_turns: 8                              # keep tools used in recent turns visible as soft preferences (0 = automatic: 8)
         decay_half_life_days: 7                                     # usage score halves after this many days
         always_include: [filesystem, query_memory, manage_memory, execute_shell]
     recovery:
@@ -102,7 +102,7 @@ agent:
         wait_default_timeout_secs: 600                              # default timeout for wait_for_event tasks
     # ── Announcement detector ──
     announcement_detector:
-        enabled: false                                              # recover structurally incomplete text-only continuations without tool calls
+        enabled: true                                               # recover structurally incomplete text-only continuations without tool calls
     # ── Reuse-First materialisation ──
     # Controls when the agent automatically creates cheatsheets / skills from successful runs.
     # Without these gates, runs that ended in errors but happened to use words like "fixed" or
@@ -114,16 +114,16 @@ agent:
         max_artifacts_per_session: 1                                # cap on auto-created cheatsheets+skills per session (default: 1 each)
     # ── Tool guide injection ──
     max_tool_guides: 3                                              # max tool guide documents injected into prompt (default: 3)
-    budget:
-        daily_limit_usd: 5
-        default_cost:
-            input_per_million: 0.4
-            output_per_million: 0.7
-        enabled: false
-        enforcement: warn
-        models: []
-        reset_hour: 0
-        warning_threshold: 0.8
+budget:
+    daily_limit_usd: 5
+    default_cost:
+        input_per_million: 0.4
+        output_per_million: 0.7
+    enabled: false
+    enforcement: warn
+    models: []
+    reset_hour: 0
+    warning_threshold: 0.8
 chromecast:
     enabled: false
     tts_port: 8090
@@ -1736,6 +1736,13 @@ mcp:
     #   url: http://host.docker.internal:9100/mcp
     #   allowed_tools: []
     #   allow_destructive: false
+    preferred_capabilities:
+        web_search:
+            server: ""
+            tool: ""
+        vision:
+            server: ""
+            tool: ""
 composio:
     enabled: false                                      # exposes the native composio_call entry point when an API key is in the vault
     base_url: https://backend.composio.dev/api/v3.1     # Composio REST API v3.1 base URL
@@ -1757,13 +1764,7 @@ composio:
     #   allow_natural_language_input: false
     #   allowed_tool_slugs: []                           # optional allowlist; empty = policy classifier decides
     #   blocked_tool_slugs: []                           # explicit denylist always wins
-    preferred_capabilities:
-        web_search:
-            server: ""
-            tool: ""
-        vision:
-            server: ""
-            tool: ""
+
 manus:
     enabled: false                                      # exposes the native manus tool only when a vault key is configured
     read_only: true                                     # overrides every modifying permission below

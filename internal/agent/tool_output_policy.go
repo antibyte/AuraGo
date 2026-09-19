@@ -1,6 +1,9 @@
 package agent
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type toolOutputPolicyResult struct {
 	Content      string
@@ -16,11 +19,7 @@ func applyToolOutputPolicy(result string, limit int, scope AgentTelemetryScope) 
 		ErrorSummary: extractErrorMessage(result),
 	}
 	if limit <= 0 {
-		// Zero or negative limit means no truncation, but errors still get metadata.
-		if decision.WasError && decision.ErrorSummary != "" {
-			decision.Content = result + "\n\n[Tool result: error occurred, see above for details]"
-		}
-		return decision
+		limit = 50000
 	}
 	if len(result) <= limit {
 		return decision
@@ -28,6 +27,14 @@ func applyToolOutputPolicy(result string, limit int, scope AgentTelemetryScope) 
 
 	decision.Truncated = true
 	RecordToolRecoveryEventForScope(scope, "tool_output_truncated")
+	value, isolated := toolResultPayload(result)
+	if json.Valid([]byte(value)) || isolated {
+		if decision.WasError {
+			RecordToolRecoveryEventForScope(scope, "error_output_truncated_preserved")
+		}
+		decision.Content = boundedToolResult(result, limit, classifyLegacyToolResult(result))
+		return decision
+	}
 
 	if decision.WasError {
 		RecordToolRecoveryEventForScope(scope, "error_output_truncated_preserved")

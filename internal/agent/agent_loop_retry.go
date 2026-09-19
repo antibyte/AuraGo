@@ -140,7 +140,6 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		}
 		if dropped := len(s.pendingTCs); dropped > 0 {
 			s.pendingTCs = nil
-			s.pendingSummaryBatch = nil
 			currentLogger.Warn("[Sync] Dropped queued native tool calls after malformed native call",
 				"action", tc.Action,
 				"dropped", dropped)

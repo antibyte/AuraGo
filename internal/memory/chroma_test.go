@@ -2,8 +2,6 @@ package memory
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"io"
 	"log/slog"
@@ -209,12 +207,9 @@ func TestComputeToolGuidesHash_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	cv := fakeCV(t)
 	hash := cv.computeToolGuidesHash(dir)
-	h := sha256.New()
-	h.Write([]byte(toolGuideIndexFingerprint()))
-	h.Write([]byte("\x00embedding="))
-	expected := hex.EncodeToString(h.Sum(nil))
-	if hash != expected {
-		t.Errorf("empty dir hash: got %q want %q", hash, expected)
+	missingHash := cv.computeToolGuidesHash(filepath.Join(dir, "missing"))
+	if hash == "" || hash != missingHash {
+		t.Fatalf("empty and missing directories must share embedded sources: %q %q", hash, missingHash)
 	}
 }
 
@@ -310,7 +305,8 @@ func TestComputeToolGuidesHash_MissingDir(t *testing.T) {
 }
 
 func TestLoadToolGuideFilesFallsBackToEmbeddedGuides(t *testing.T) {
-	guides, err := loadToolGuideFiles(filepath.Join(t.TempDir(), "missing-guides"))
+	root := filepath.Join(t.TempDir(), "missing-guides")
+	guides, err := loadToolGuideFiles(root)
 	if err != nil {
 		t.Fatalf("loadToolGuideFiles() error = %v", err)
 	}
@@ -319,8 +315,8 @@ func TestLoadToolGuideFilesFallsBackToEmbeddedGuides(t *testing.T) {
 	}
 	foundDocker := false
 	for _, guide := range guides {
-		if !strings.HasPrefix(filepath.ToSlash(guide.Path), "tools_manuals/") {
-			t.Fatalf("guide path = %q, want embedded tools_manuals path", guide.Path)
+		if filepath.Dir(guide.Path) != root {
+			t.Fatalf("guide path = %q, want canonical configured path", guide.Path)
 		}
 		if guide.Name == "docker.md" {
 			foundDocker = true
@@ -368,8 +364,9 @@ func TestIndexToolGuidesKeepsExistingCollectionWhenReindexAddFails(t *testing.T)
 	if err != nil {
 		t.Fatalf("GetOrCreateCollection tool_guides: %v", err)
 	}
-	if toolGuides.Count() != 1 {
-		t.Fatalf("initial tool guide count = %d, want 1", toolGuides.Count())
+	initialCount := toolGuides.Count()
+	if initialCount < 2 {
+		t.Fatal("embedded fallback sources missing")
 	}
 
 	if err := os.WriteFile(guidePath, []byte("---\ndescription: Docker changed\n---\n\n# Docker\n\nUpdated body."), 0o644); err != nil {
@@ -383,8 +380,8 @@ func TestIndexToolGuidesKeepsExistingCollectionWhenReindexAddFails(t *testing.T)
 	if err != nil {
 		t.Fatalf("GetOrCreateCollection tool_guides after failure: %v", err)
 	}
-	if toolGuides.Count() != 1 {
-		t.Fatalf("tool guide count after failed reindex = %d, want old guide preserved", toolGuides.Count())
+	if toolGuides.Count() != initialCount {
+		t.Fatalf("tool guide count after failed reindex = %d, want old guides preserved", toolGuides.Count())
 	}
 	doc, err := toolGuides.GetByID(context.Background(), "tool_docker")
 	if err != nil {

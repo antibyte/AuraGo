@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server aktiveret",
   "config.mcp_server.require_auth": "Kræv godkendelse",
   "config.mcp_server.allowed_tools": "Tilladte værktøjer",
-  "config.mcp_server.allowed_tools_desc": "Værktøjer eksponeret via MCP-endpointet. Lad være tom for at eksponere alle.",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Bearer-token",
   "config.mcp_server.generate_token": "Generér token",
   "config.mcp_server.endpoint_url": "Endpoint-URL",

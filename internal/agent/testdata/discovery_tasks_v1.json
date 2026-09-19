@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "query": "Notiz speichern",
+      "expected": [
+        "manage_notes"
+      ]
+    },
+    {
+      "query": "Notizen lesen",
+      "expected": [
+        "manage_notes"
+      ]
+    },
+    {
+      "query": "Bitte eine Notiz speichern",
+      "expected": [
+        "manage_notes"
+      ]
+    },
+    {
+      "query": "save note",
+      "expected": [
+        "manage_notes"
+      ]
+    },
+    {
+      "query": "save a note",
+      "expected": [
+        "manage_notes"
+      ]
+    },
+    {
+      "query": "read notes",
+      "expected": [
+        "manage_notes"
+      ]
+    },
+    {
+      "query": "Licht einschalten",
+      "expected": [
+        "home_assistant"
+      ]
+    },
+    {
+      "query": "Licht ausschalten",
+      "expected": [
+        "home_assistant"
+      ]
+    },
+    {
+      "query": "turn on lights",
+      "expected": [
+        "home_assistant"
+      ]
+    },
+    {
+      "query": "smart home",
+      "expected": [
+        "home_assistant"
+      ]
+    },
+    {
+      "query": "Kalender Termin",
+      "expected": [
+        "manage_appointments"
+      ]
+    },
+    {
+      "query": "Termin eintragen",
+      "expected": [
+        "manage_appointments"
+      ]
+    },
+    {
+      "query": "calendar appointment",
+      "expected": [
+        "manage_appointments"
+      ]
+    },
+    {
+      "query": "create calendar appointment",
+      "expected": [
+        "manage_appointments"
+      ]
+    },
+    {
+      "query": "disk_io",
+      "expected": [
+        "system_metrics"
+      ]
+    },
+    {
+      "query": "cpu temperature",
+      "expected": [
+        "system_metrics"
+      ]
+    },
+    {
+      "query": "CPU Temperatur",
+      "expected": [
+        "system_metrics"
+      ]
+    },
+    {
+      "query": "thermal sensors",
+      "expected": [
+        "system_metrics"
+      ]
+    },
+    {
+      "query": "hardware metrics",
+      "expected": [
+        "system_metrics"
+      ]
+    },
+    {
+      "query": "system monitor",
+      "expected": [
+        "system_metrics"
+      ]
+    },
+    {
+      "query": "docker containers",
+      "expected": [
+        "docker"
+      ]
+    },
+    {
+      "query": "filesystem read",
+      "expected": [
+        "filesystem"
+      ]
+    },
+    {
+      "query": "mcp tools",
+      "expected": [
+        "mcp_call"
+      ]
+    },
+    {
+      "query": "composio integrations",
+      "expected": [
+        "composio_call"
+      ]
+    }
+  ],
+  "negative": [
+    "zzzz_nonexistent_capability_987654321"
+  ],
+  "ambiguous": [
+    {
+      "query": "fixture_shared",
+      "expected": [
+        "skill__fixture_shared",
+        "tool__fixture_shared"
+      ]
+    }
+  ]
+}

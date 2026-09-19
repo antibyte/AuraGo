@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server aktiverad",
   "config.mcp_server.require_auth": "Kräv autentisering",
   "config.mcp_server.allowed_tools": "Tillåtna verktyg",
-  "config.mcp_server.allowed_tools_desc": "Verktyg exponerade via MCP-ändpunkten. Lämna tomt för att exponera alla.",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Bearer-token",
   "config.mcp_server.generate_token": "Generera token",
   "config.mcp_server.endpoint_url": "Ändpunkts-URL",

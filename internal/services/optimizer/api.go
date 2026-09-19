@@ -9,6 +9,10 @@ import (
 )
 
 type OptimizationStats struct {
+	Exposures         int                      `json:"exposures"`
+	LegacyTraceEvents int                      `json:"legacy_trace_events"`
+	Variants          []map[string]interface{} `json:"variants"`
+
 	ActiveOverrides   int     `json:"active_overrides"`
 	RunningShadows    int     `json:"running_shadows"`
 	RejectedMutations int     `json:"rejected_mutations"`
@@ -33,19 +37,19 @@ func (db *OptimizerDB) GetDashboardStats() (*OptimizationStats, error) {
 		return nil, fmt.Errorf("failed to fetch rejected mutations: %w", err)
 	}
 
-	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces`).Scan(&stats.TotalTraceEvents); err != nil {
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL`).Scan(&stats.TotalTraceEvents); err != nil {
 		slog.Error("Failed to fetch total trace events", "error", err)
 		return nil, fmt.Errorf("failed to fetch total trace events: %w", err)
 	}
 
 	var recentTotal int
-	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE timestamp > datetime('now', '-7 days')`).Scan(&recentTotal); err != nil {
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL AND timestamp > datetime('now', '-7 days')`).Scan(&recentTotal); err != nil {
 		slog.Error("Failed to fetch recent total traces", "error", err)
 		return nil, fmt.Errorf("failed to fetch recent total traces: %w", err)
 	}
 	if recentTotal > 0 {
 		var succ int
-		if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE success = 1 AND timestamp > datetime('now', '-7 days')`).Scan(&succ); err != nil {
+		if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NOT NULL AND success = 1 AND timestamp > datetime('now', '-7 days')`).Scan(&succ); err != nil {
 			slog.Error("Failed to fetch successful recent traces", "error", err)
 			return nil, fmt.Errorf("failed to fetch successful recent traces: %w", err)
 		}
@@ -54,7 +58,27 @@ func (db *OptimizerDB) GetDashboardStats() (*OptimizationStats, error) {
 		stats.GlobalSuccessRate = 0
 	}
 
-	return stats, nil
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM prompt_exposures`).Scan(&stats.Exposures); err != nil {
+		return nil, err
+	}
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE exposure_id IS NULL`).Scan(&stats.LegacyTraceEvents); err != nil {
+		return nil, err
+	}
+	rows, err := db.db.Query(`SELECT tool_name,active,shadow,promotion_reason FROM prompt_overrides ORDER BY id DESC LIMIT 30`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	stats.Variants = make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var name, reason string
+		var active, shadow bool
+		if err := rows.Scan(&name, &active, &shadow, &reason); err != nil {
+			return nil, err
+		}
+		stats.Variants = append(stats.Variants, map[string]interface{}{"manual": name, "active": active, "shadow": shadow, "reason": reason})
+	}
+	return stats, rows.Err()
 }
 
 func OptimizationDashboardHandler(w http.ResponseWriter, r *http.Request) {

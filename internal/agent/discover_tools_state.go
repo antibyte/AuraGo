@@ -27,10 +27,15 @@ var discoverToolsState struct {
 	mu        sync.RWMutex
 	snapshots map[string]discoverToolsSnapshot
 	requested map[string]map[string]int
+	liveRuns  map[string]bool
 }
 
 // SetDiscoverToolsState stores the current tool state for discover_tools lookups.
-func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSchemas []openai.Tool, promptsDir string) {
+func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSchemas []openai.Tool, promptsDir string, scopes ...*DispatchContext) {
+	catalog := BuildToolCatalog(allSchemas, activeSchemas, promptsDir)
+	if len(scopes) > 0 {
+		applyCatalogScope(catalog, scopes[0])
+	}
 	sessionID = normalizeDiscoverSessionID(sessionID)
 	now := time.Now()
 	active := make(map[string]bool, len(activeSchemas))
@@ -55,7 +60,7 @@ func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSch
 		activeNames:  active,
 		enabledNames: enabled,
 		promptsDir:   promptsDir,
-		catalog:      BuildToolCatalog(allSchemas, activeSchemas, promptsDir),
+		catalog:      catalog,
 		updatedAt:    now,
 	}
 	if discoverToolsState.requested == nil {
@@ -88,6 +93,9 @@ func pruneDiscoverToolsSnapshotsLocked(now time.Time) {
 	}
 	cutoff := now.Add(-discoverToolsSnapshotTTL)
 	for sessionID, snapshot := range discoverToolsState.snapshots {
+		if discoverToolsState.liveRuns[sessionID] {
+			continue
+		}
 		if snapshot.updatedAt.IsZero() {
 			// Zero time means the snapshot was never properly initialised; treat as expired.
 			delete(discoverToolsState.snapshots, sessionID)

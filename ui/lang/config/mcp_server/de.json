@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server aktiviert",
   "config.mcp_server.require_auth": "Authentifizierung erforderlich",
   "config.mcp_server.allowed_tools": "Erlaubte Werkzeuge",
-  "config.mcp_server.allowed_tools_desc": "Werkzeuge, die über den MCP-Endpunkt verfügbar sind. Leer lassen, um alle aktivierten Werkzeuge freizugeben.",
+  "config.mcp_server.allowed_tools_desc": "Nur ausgewählte Tools werden freigegeben. Eine leere Liste gibt keine Tools frei. Alle auswählen speichert die aktuellen Namen ausdrücklich.",
   "config.mcp_server.token": "Bearer-Token",
   "config.mcp_server.generate_token": "Token generieren",
   "config.mcp_server.endpoint_url": "Endpunkt-URL",

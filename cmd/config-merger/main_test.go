@@ -368,7 +368,7 @@ func TestApplyUpgradeSafetyDefaults_PreservesExplicitAuthEnabled(t *testing.T) {
 	}
 }
 
-func TestConfigTemplateBudgetBlockIsNestedUnderAgent(t *testing.T) {
+func TestConfigTemplateBudgetBlockUsesCanonicalRoot(t *testing.T) {
 	templatePath := filepath.Join("..", "..", "config_template.yaml")
 	content, err := readNormalized(templatePath)
 	if err != nil {
@@ -383,12 +383,15 @@ func TestConfigTemplateBudgetBlockIsNestedUnderAgent(t *testing.T) {
 	if !ok {
 		t.Fatal("template agent section missing or invalid")
 	}
-	budget, ok := asStringMap(agent["budget"])
+	if _, legacy := agent["budget"]; legacy {
+		t.Fatal("obsolete agent.budget block remains")
+	}
+	budget, ok := asStringMap(tmplMap["budget"])
 	if !ok {
-		t.Fatal("template agent.budget section missing or invalid")
+		t.Fatal("template budget section missing or invalid")
 	}
 	if budget["daily_limit_usd"] != 5 {
-		t.Fatalf("agent.budget.daily_limit_usd = %v, want 5", budget["daily_limit_usd"])
+		t.Fatalf("budget.daily_limit_usd = %v, want 5", budget["daily_limit_usd"])
 	}
 	if _, hasTopLevel := tmplMap["daily_limit_usd"]; hasTopLevel {
 		t.Fatal("template leaked daily_limit_usd to top level")

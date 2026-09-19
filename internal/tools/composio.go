@@ -320,6 +320,7 @@ func (c *ComposioClient) ListConnectedAccounts(ctx context.Context, toolkitSlug,
 	for i := range page.Items {
 		page.Items[i].normalize()
 	}
+	c.rememberConnections(toolkitSlug, userID, page)
 	return page, nil
 }
 

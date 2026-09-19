@@ -433,3 +433,41 @@ func TestCoAgentRunConfigSetsMessageSource(t *testing.T) {
 		t.Fatal("co-agent RunConfig must set MessageSource to co_agent for ledger attribution")
 	}
 }
+
+func TestActionLedgerNeverPromotesUnconfirmedDispatchToSuccess(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
+	ledger := newAgentActionLedger(stm, logger, nil, "status-parity", "web_chat")
+	for _, item := range []struct {
+		status  ToolResultStatus
+		outcome ExecutionOutcome
+		state   AgentActionState
+	}{
+		{ToolResultUnknown, ExecutionOutcomeUnknown, AgentActionStateUnknown},
+		{ToolResultDeferred, ExecutionOutcomeDeferred, AgentActionStateDeferred},
+		{ToolResultNeedsSetup, ExecutionOutcomeFailed, AgentActionStateNeedsSetup},
+		{ToolResultDenied, ExecutionOutcomeFailed, AgentActionStateBlocked},
+		{ToolResultCancelled, ExecutionOutcomeFailed, AgentActionStateCancelled},
+	} {
+		action, err := ledger.ProposeTool(string(item.status), ToolCall{Action: "fixture"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err = ledger.Accept(action, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err = ledger.Start(action)
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err = ledger.CompleteTool(action, toolExecutionResult{Status: item.status, Outcome: item.outcome, Failed: item.status.IsError()}, 0)
+		if err != nil || action.State != string(item.state) || action.Status == memory.AuditStatusSuccess || !isTerminalAgentActionState(item.state) {
+			t.Fatalf("status=%s action=%+v err=%v", item.status, action, err)
+		}
+	}
+}

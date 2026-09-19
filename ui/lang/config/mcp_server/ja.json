@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCPサーバー有効",
   "config.mcp_server.require_auth": "認証を要求",
   "config.mcp_server.allowed_tools": "許可されたツール",
-  "config.mcp_server.allowed_tools_desc": "MCPエンドポイントで公開するツール。空にすると全ての有効なツールを公開。",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Bearerトークン",
   "config.mcp_server.generate_token": "トークンを生成",
   "config.mcp_server.endpoint_url": "エンドポイントURL",

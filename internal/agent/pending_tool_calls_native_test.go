@@ -52,10 +52,9 @@ func TestProcessPendingToolCallsNativeAppendsOnlyToolResultToRequest(t *testing.
 		},
 		req:        openai.ChatCompletionRequest{Messages: append([]openai.ChatCompletionMessage(nil), initialMessages...)},
 		pendingTCs: []ToolCall{ptc},
-		pendingSummaryBatch: map[string]string{
-			pendingSummaryBatchKey(ptc): `{"status":"shell ok"}`,
-		},
 	}
+
+	s.runCfg.ExecutionHooks = &ExecutionHooks{HandleTool: func(context.Context, ToolCall) (string, bool) { return `{"status":"success"}`, true }}
 
 	beforeLen := len(s.req.Messages)
 	if !processPendingToolCalls(s, context.Background(), "run both tools") {
@@ -141,10 +140,9 @@ func TestProcessPendingNativeToolCallDefersRecoveryHintUntilAfterResult(t *testi
 			{Role: openai.ChatMessageRoleTool, Content: `{"status":"ok"}`, ToolCallID: "call_first"},
 		}},
 		pendingTCs: []ToolCall{second},
-		pendingSummaryBatch: map[string]string{
-			pendingSummaryBatchKey(second): errorResult,
-		},
 	}
+
+	s.runCfg.ExecutionHooks = &ExecutionHooks{HandleTool: func(context.Context, ToolCall) (string, bool) { return errorResult, true }}
 
 	if !processPendingToolCalls(s, context.Background(), "install app") {
 		t.Fatal("expected pending native tool call to be processed")

@@ -134,6 +134,10 @@ const (
 // ContextFlags dictate which secondary prompt files are appended
 // to the core system identity.
 type ContextFlags struct {
+	OptimizerEnabled               bool
+	OptimizerRunID                 string
+	OptimizerRevision              string
+	GuideSources                   map[string]string
 	IsErrorState                   bool
 	RequiresCoding                 bool
 	RetrievedMemories              string
@@ -394,10 +398,11 @@ func BuildSystemPromptDetailed(ctx context.Context, promptsDir string, flags *Co
 	flags = normalizePromptFlags(flags)
 	base := BuildSystemPromptBaseDetailed(ctx, promptsDir, flags, coreMemory, logger)
 	result, err := FitSystemPromptToBudget(ctx, PromptFitRequest{
-		Text:        base.Text,
-		Tokens:      base.Tokens,
-		Model:       flags.Model,
-		TokenBudget: flags.TokenBudget,
+		OptionalSections: base.OptionalSections,
+		Text:             base.Text,
+		Tokens:           base.Tokens,
+		Model:            flags.Model,
+		TokenBudget:      flags.TokenBudget,
 	}, logger)
 	if err != nil {
 		result.BuildError = err
@@ -413,6 +418,8 @@ func BuildSystemPromptBaseDetailed(ctx context.Context, promptsDir string, flags
 	logger = normalizePromptLogger(logger)
 	flags = normalizePromptFlags(flags)
 	baseFlags := *flags
+	optionalSections := ToolGuideSections(flags)
+	baseFlags.PredictedGuides = nil
 	resolvedPersonality, validPersonality := ResolvePersonalityID(baseFlags.CorePersonality)
 	if !validPersonality {
 		logger.Warn("[Personality] Invalid configured personality ID; using neutral",
@@ -425,7 +432,7 @@ func BuildSystemPromptBaseDetailed(ctx context.Context, promptsDir string, flags
 	if err := promptContextErr(ctx); err != nil {
 		logger.Warn("[Prompt] BuildSystemPrompt cancelled before build, using fallback", "error", err)
 		prompt, tokens := fallbackSystemPromptContext(ctx, promptsDir, &baseFlags, coreMemory, logger)
-		return PromptBaseResult{Text: prompt, Tokens: tokens, Revision: PromptRevision(prompt)}
+		return PromptBaseResult{Text: prompt, Tokens: tokens, Revision: PromptRevision(prompt), OptionalSections: optionalSections}
 	}
 
 	prompt, tokens, err := buildSystemPromptInnerContext(ctx, promptsDir, &baseFlags, coreMemory, logger)
@@ -433,7 +440,7 @@ func BuildSystemPromptBaseDetailed(ctx context.Context, promptsDir string, flags
 		logger.Warn("[Prompt] BuildSystemPrompt cancelled, using fallback", "error", err)
 		prompt, tokens = fallbackSystemPromptContext(ctx, promptsDir, &baseFlags, coreMemory, logger)
 	}
-	return PromptBaseResult{Text: prompt, Tokens: tokens, Revision: PromptRevision(prompt)}
+	return PromptBaseResult{Text: prompt, Tokens: tokens, Revision: PromptRevision(prompt), OptionalSections: optionalSections}
 }
 
 // FitSystemPromptToBudget appends trusted request-local addenda and sheds only
@@ -465,6 +472,15 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 		})
 	}
 
+	for _, section := range req.OptionalSections {
+		if strings.TrimSpace(section.Text) == "" {
+			continue
+		}
+		section.Required = false
+		text += section.Text
+		addendumSections = append(addendumSections, section)
+	}
+
 	tokens := req.Tokens
 	safeResult := func() PromptBuildResult {
 		return PromptBuildResult{
@@ -481,7 +497,7 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 	if strings.TrimSpace(req.Text) == "" {
 		return safeResult(), errors.New("system prompt fit input is empty")
 	}
-	if len(req.Addenda) > 0 || tokens < 0 {
+	if len(addendumSections) > 0 || tokens < 0 {
 		tokens = countTokensWithModelContext(ctx, text, req.Model)
 		if err := promptContextErr(ctx); err != nil {
 			return safeResult(), err
@@ -490,7 +506,7 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 	inputChars, inputTokens := len(text), tokens
 	if req.TokenBudget <= 0 {
 		return PromptBuildResult{
-			Text: text, Tokens: tokens, InputChars: inputChars, InputTokens: inputTokens, Revision: PromptRevision(text),
+			Text: text, Tokens: tokens, InputChars: inputChars, InputTokens: inputTokens, Revision: PromptRevision(text), GuideExposures: exposedToolGuides(text, req.OptionalSections), ExposedSections: exposedOptionalSections(text, req.OptionalSections),
 		}, nil
 	}
 
@@ -516,10 +532,11 @@ func FitSystemPromptToBudget(ctx context.Context, req PromptFitRequest, logger *
 	if err != nil && !errors.As(err, &budgetErr) {
 		logger.Warn("[Prompt] System prompt fit failed", "error", err)
 		return PromptBuildResult{
-			Text: text, Tokens: tokens, InputChars: inputChars, InputTokens: inputTokens, Revision: PromptRevision(text),
+			Text: text, Tokens: tokens, InputChars: inputChars, InputTokens: inputTokens, Revision: PromptRevision(text), GuideExposures: exposedToolGuides(text, req.OptionalSections), ExposedSections: exposedOptionalSections(text, req.OptionalSections),
 		}, err
 	}
 	return PromptBuildResult{
+		GuideExposures: exposedToolGuides(result, req.OptionalSections), ExposedSections: exposedOptionalSections(result, req.OptionalSections),
 		Text:            result,
 		Tokens:          fittedTokens,
 		InputChars:      inputChars,
@@ -960,28 +977,8 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		finalPrompt.WriteString("\n\n")
 	}
 
-	// Dynamic Tool Guides — only in full tier
-	posBeforeGuides := finalPrompt.Len()
-	if len(flags.PredictedGuides) > 0 && tier == "full" {
-		if err := promptContextErr(ctx); err != nil {
-			return "", 0, err
-		}
-		finalPrompt.WriteString("# TOOL GUIDES\n")
-		if flags.NativeToolsEnabled {
-			finalPrompt.WriteString("These manuals may include older examples from non-native tool modes. Treat any raw JSON, XML, tag-based, or markdown tool-call examples as legacy syntax. In this session, translate the tool name and parameters into native function calls instead.\n\n")
-		}
-		for _, guide := range flags.PredictedGuides {
-			if err := promptContextErr(ctx); err != nil {
-				return "", 0, err
-			}
-			if flags.NativeToolsEnabled {
-				guide = sanitizeDynamicToolGuideForNative(guide)
-			}
-			finalPrompt.WriteString(guide)
-			finalPrompt.WriteString("\n\n")
-		}
-	}
-	sectionGuides := finalPrompt.Len() - posBeforeGuides
+	// Tool guides are attached as typed optional sections during final fitting.
+	sectionGuides := 0
 
 	// Dynamic Outgoing Webhooks definition
 	if flags.WebhooksEnabled && flags.WebhooksDefinitions != "" && tier != "minimal" {

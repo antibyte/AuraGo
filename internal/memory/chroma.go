@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"aurago/internal/promptsource"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -60,7 +61,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	// the hash differs → full re-index. Pure count-based check was insufficient
 	// because it could not detect file content updates when the count stayed the same.
 	if !force && collection.Count() > 0 {
-		currentHash := cv.computeToolGuidesHash(toolsDir)
+		currentHash := "disclosure-v2:" + cv.computeToolGuidesHash(toolsDir)
 		hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
 		storedHashBytes, _ := os.ReadFile(hashFile)
 		if strings.TrimSpace(string(storedHashBytes)) == currentHash {
@@ -85,7 +86,10 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		description := ""
 
 		// Extract frontmatter and body using line-delimited split
-		frontmatter, body := splitFrontmatter(raw)
+		frontmatter, body, _, parseErr := promptsource.Split(raw)
+		if parseErr != nil {
+			continue
+		}
 
 		// Extract description from frontmatter
 		if frontmatter != "" {
@@ -102,6 +106,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 			staleDocIDs[fmt.Sprintf("tool_%s", toolName)] = struct{}{}
 		}
 		for _, doc := range guideDocs {
+			doc.Metadata["source_revision"] = fmt.Sprintf("%x", sha256.Sum256([]byte(strings.TrimSpace(body))))[:16]
 			newDocIDs[doc.ID] = struct{}{}
 			docs = append(docs, doc)
 		}
@@ -141,7 +146,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	}
 
 	// Persist the content hash so subsequent startups can skip re-indexing.
-	newHash := cv.computeToolGuidesHash(toolsDir)
+	newHash := "disclosure-v2:" + cv.computeToolGuidesHash(toolsDir)
 	hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
 	if err := os.WriteFile(hashFile, []byte(newHash), 0o644); err != nil {
 		cv.logger.Warn("Failed to write tool guides content hash", "path", hashFile, "error", err)
@@ -230,7 +235,18 @@ func (cv *ChromemVectorDB) SearchToolGuides(query string, topK int) ([]string, e
 }
 
 // SearchToolGuidesContext finds relevant tool guides and honors caller cancellation.
+type ToolGuideMatch struct{ Path, Content, Revision, ChunkID string }
+
 func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query string, topK int) ([]string, error) {
+	matches, err := cv.SearchToolGuideMatchesContext(ctx, query, topK)
+	var paths []string
+	for _, match := range matches {
+		paths = append(paths, match.Path)
+	}
+	return paths, err
+}
+
+func (cv *ChromemVectorDB) SearchToolGuideMatchesContext(ctx context.Context, query string, topK int) ([]ToolGuideMatch, error) {
 	if query == "" {
 		return nil, nil
 	}
@@ -284,7 +300,7 @@ func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query st
 		return nil, fmt.Errorf("failed to query tool guides: %w", err)
 	}
 
-	var guidePaths []string
+	var guidePaths []ToolGuideMatch
 	seenPaths := make(map[string]struct{})
 	for _, result := range results {
 		if result.Similarity > 0.3 {
@@ -294,7 +310,11 @@ func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query st
 					continue
 				}
 				seenPaths[key] = struct{}{}
-				guidePaths = append(guidePaths, path)
+				content := result.Content
+				if result.Metadata["chunk_total"] != "1" {
+					_, content, _ = strings.Cut(content, "\n\n")
+				}
+				guidePaths = append(guidePaths, ToolGuideMatch{Path: path, Content: content, Revision: result.Metadata["source_revision"], ChunkID: result.ID})
 				if len(guidePaths) >= topK {
 					break
 				}
@@ -639,52 +659,49 @@ func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
 }
 
 func loadToolGuideFilesWithWarnings(toolsDir string, logger *slog.Logger) ([]toolGuideFile, error) {
-	files, err := os.ReadDir(toolsDir)
-	if err == nil {
-		guides := make([]toolGuideFile, 0, len(files))
-		for _, file := range files {
-			if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
-				continue
-			}
-			path := filepath.Join(toolsDir, file.Name())
-			data, readErr := os.ReadFile(path)
-			if readErr != nil {
-				if logger != nil {
-					logger.Warn("Skipping unreadable tool guide", "path", path, "error", readErr)
+	embedded, err := fs.ReadDir(promptsembed.FS, "tools_manuals")
+	if err != nil {
+		return nil, err
+	}
+	sources := map[string][]byte{}
+	for _, file := range embedded {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".md") {
+			data, err := fs.ReadFile(promptsembed.FS, "tools_manuals/"+file.Name())
+			if err == nil {
+				if _, _, _, err = promptsource.Split(string(data)); err == nil {
+					sources[file.Name()] = data
 				}
-				continue
 			}
-			guides = append(guides, toolGuideFile{
-				Name: file.Name(),
-				Path: path,
-				Data: data,
-			})
 		}
-		return guides, nil
 	}
-
-	embedEntries, embedErr := fs.ReadDir(promptsembed.FS, "tools_manuals")
-	if embedErr != nil {
-		return nil, fmt.Errorf("failed to read tools directory: %w", err)
+	files, err := os.ReadDir(toolsDir)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
-	guides := make([]toolGuideFile, 0, len(embedEntries))
-	for _, entry := range embedEntries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+	for _, file := range files {
+		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
 			continue
 		}
-		embedPath := filepath.ToSlash(filepath.Join("tools_manuals", entry.Name()))
-		data, readErr := fs.ReadFile(promptsembed.FS, embedPath)
-		if readErr != nil {
+		data, err := os.ReadFile(filepath.Join(toolsDir, file.Name()))
+		if err == nil {
+			_, _, _, err = promptsource.Split(string(data))
+		}
+		if err != nil {
 			if logger != nil {
-				logger.Warn("Skipping unreadable embedded tool guide", "path", embedPath, "error", readErr)
+				logger.Warn("Invalid tool guide override; using embedded fallback if available", "name", file.Name())
 			}
 			continue
 		}
-		guides = append(guides, toolGuideFile{
-			Name: entry.Name(),
-			Path: embedPath,
-			Data: data,
-		})
+		sources[file.Name()] = data
+	}
+	names := make([]string, 0, len(sources))
+	for name := range sources {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	guides := make([]toolGuideFile, 0, len(names))
+	for _, name := range names {
+		guides = append(guides, toolGuideFile{Name: name, Path: filepath.Join(toolsDir, name), Data: sources[name]})
 	}
 	return guides, nil
 }

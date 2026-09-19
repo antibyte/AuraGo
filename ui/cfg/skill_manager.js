@@ -3,10 +3,10 @@
 let ptbCatalogCache = null;
 
 async function renderSkillManagerSection(section) {
-    const data = configData['skill_manager'] || {};
-    const enabledOn = data.enabled === true;
-    const allowUploadsOn = data.allow_uploads === true;
-    const readonlyOn = data.read_only === true;
+    const data = configData.tools?.skill_manager || {};
+    const enabledOn = data.enabled !== false;
+    const allowUploadsOn = data.allow_uploads !== false;
+    const readonlyOn = data.readonly === true;
     const requireScanOn = data.require_scan !== false;
     const requireSandboxOn = data.require_sandbox === true;
     const autoEnableOn = data.auto_enable_clean === true;
@@ -24,7 +24,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.enabled_label') + '</div>';
     if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" data-path="skill_manager.enabled" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" data-path="tools.skill_manager.enabled" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
@@ -34,7 +34,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.allow_uploads_label') + '</div>';
     if (helpUploads) html += '<div class="field-help">' + helpUploads + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (allowUploadsOn ? ' on' : '') + '" data-path="skill_manager.allow_uploads" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (allowUploadsOn ? ' on' : '') + '" data-path="tools.skill_manager.allow_uploads" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (allowUploadsOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
@@ -44,7 +44,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.read_only_label') + '</div>';
     if (helpReadonly) html += '<div class="field-help">' + helpReadonly + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="skill_manager.read_only" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="tools.skill_manager.readonly" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
@@ -54,7 +54,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.require_scan_label') + '</div>';
     if (helpScan) html += '<div class="field-help">' + helpScan + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (requireScanOn ? ' on' : '') + '" data-path="skill_manager.require_scan" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (requireScanOn ? ' on' : '') + '" data-path="tools.skill_manager.require_scan" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (requireScanOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
@@ -64,7 +64,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.require_sandbox_label') + '</div>';
     if (helpSandbox) html += '<div class="field-help">' + helpSandbox + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (requireSandboxOn ? ' on' : '') + '" data-path="skill_manager.require_sandbox" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (requireSandboxOn ? ' on' : '') + '" data-path="tools.skill_manager.require_sandbox" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (requireSandboxOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
@@ -74,7 +74,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.auto_enable_clean_label') + '</div>';
     if (helpAutoEnable) html += '<div class="field-help">' + helpAutoEnable + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (autoEnableOn ? ' on' : '') + '" data-path="skill_manager.auto_enable_clean" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (autoEnableOn ? ' on' : '') + '" data-path="tools.skill_manager.auto_enable_clean" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (autoEnableOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
@@ -84,7 +84,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.scan_with_guardian_label') + '</div>';
     if (helpGuardian) html += '<div class="field-help">' + helpGuardian + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (guardianOn ? ' on' : '') + '" data-path="skill_manager.scan_with_guardian" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (guardianOn ? ' on' : '') + '" data-path="tools.skill_manager.scan_with_guardian" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (guardianOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
@@ -93,7 +93,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.skill_manager.max_upload_size_mb_label') + '</div>';
     if (helpMaxSize) html += '<div class="field-help">' + helpMaxSize + '</div>';
-    html += '<input class="field-input" type="number" min="1" max="50" data-path="skill_manager.max_upload_size_mb" value="' + escapeAttr(data.max_upload_size_mb || 1) + '">';
+    html += '<input class="field-input" type="number" min="1" max="50" data-path="tools.skill_manager.max_upload_size_mb" value="' + escapeAttr(data.max_upload_size_mb || 1) + '">';
     html += '</div>';
 
     // ── SkillSpector ───────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.skillspector_enabled_label') + '</div>';
     if (helpSkillSpectorEnabled) html += '<div class="field-help">' + helpSkillSpectorEnabled + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (skillSpectorOn ? ' on' : '') + '" data-path="skill_manager.skillspector.enabled" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (skillSpectorOn ? ' on' : '') + '" data-path="tools.skill_manager.skillspector.enabled" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (skillSpectorOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
@@ -113,21 +113,21 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.skill_manager.skillspector_command_path_label') + '</div>';
     if (helpSkillSpectorCommand) html += '<div class="field-help">' + helpSkillSpectorCommand + '</div>';
-    html += '<input class="field-input" type="text" data-path="skill_manager.skillspector.command_path" value="' + escapeAttr(skillSpectorData.command_path || 'skillspector') + '">';
+    html += '<input class="field-input" type="text" data-path="tools.skill_manager.skillspector.command_path" value="' + escapeAttr(skillSpectorData.command_path || 'skillspector') + '">';
     html += '</div>';
 
     const helpSkillSpectorTimeout = t('help.skill_manager.skillspector.timeout_seconds');
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.skill_manager.skillspector_timeout_seconds_label') + '</div>';
     if (helpSkillSpectorTimeout) html += '<div class="field-help">' + helpSkillSpectorTimeout + '</div>';
-    html += '<input class="field-input" type="number" min="1" max="600" data-path="skill_manager.skillspector.timeout_seconds" value="' + escapeAttr(skillSpectorData.timeout_seconds || 60) + '">';
+    html += '<input class="field-input" type="number" min="1" max="600" data-path="tools.skill_manager.skillspector.timeout_seconds" value="' + escapeAttr(skillSpectorData.timeout_seconds || 60) + '">';
     html += '</div>';
 
     const helpSkillSpectorOutput = t('help.skill_manager.skillspector.max_output_kb');
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.skill_manager.skillspector_max_output_kb_label') + '</div>';
     if (helpSkillSpectorOutput) html += '<div class="field-help">' + helpSkillSpectorOutput + '</div>';
-    html += '<input class="field-input" type="number" min="16" max="4096" data-path="skill_manager.skillspector.max_output_kb" value="' + escapeAttr(skillSpectorData.max_output_kb || 512) + '">';
+    html += '<input class="field-input" type="number" min="16" max="4096" data-path="tools.skill_manager.skillspector.max_output_kb" value="' + escapeAttr(skillSpectorData.max_output_kb || 512) + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
@@ -167,6 +167,8 @@ async function renderSkillManagerSection(section) {
     html += renderPythonToolBridgeSQLConnectionsPicker(bridgeAllowedSQL);
     html += '</div>';
 
+    const managerSchema = schema.find(item => item.yaml_key === 'tools')?.children?.find(item => item.yaml_key === 'skill_manager');
+    html += renderFields(managerSchema?.children?.filter(item => ['allowed_script_languages', 'allow_binary_assets'].includes(item.yaml_key)) || [], data, 'tools.skill_manager');
     html += '</div>';
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();

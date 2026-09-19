@@ -330,6 +330,10 @@ func Load(path string) (*Config, error) {
 	// Pre-process: fix common YAML corruption issues
 	data = fixCommonConfigIssues(data)
 	data = normalizeFritzBoxLegacyKeys(data)
+	data, err = NormalizeToolDisclosureConfig(data)
+	if err != nil {
+		return nil, err
+	}
 
 	var cfg Config
 	ApplySIPDefaults(&cfg.SIP)
@@ -1714,12 +1718,13 @@ func Load(path string) (*Config, error) {
 	if cfg.Personality.V2TimeoutSecs <= 0 {
 		cfg.Personality.V2TimeoutSecs = 30
 	}
-	if cfg.Agent.ToolOutputLimit <= 0 {
+	if err := ValidateToolDisclosureSettings(&cfg); err != nil {
+		return nil, err
+	}
+	if cfg.Agent.ToolOutputLimit == 0 {
 		cfg.Agent.ToolOutputLimit = 50000
 	}
-	if cfg.Agent.DiscoverToolsSnapshotTTLMinutes <= 0 {
-		cfg.Agent.DiscoverToolsSnapshotTTLMinutes = 5
-	}
+
 	// Output compression defaults (enabled by default).
 	// Uses yamlHasPath to distinguish "not configured" from "explicitly disabled".
 	if !yamlHasPath(data, "agent", "output_compression", "enabled") {
@@ -1777,10 +1782,18 @@ func Load(path string) (*Config, error) {
 		cfg.Agent.OutputCompression.Reversible.MaxInlineChars = 6000
 	}
 	// Enable all headroom features by default — validated in production.
-	cfg.Agent.OutputCompression.SmartCrusher.Enabled = true
-	cfg.Agent.OutputCompression.Reversible.Enabled = true
-	cfg.Agent.ImportanceScoring.Enabled = true
-	cfg.Agent.AutoLearning.Enabled = true
+	if !yamlHasPath(data, "agent", "output_compression", "smart_crusher", "enabled") {
+		cfg.Agent.OutputCompression.SmartCrusher.Enabled = true
+	}
+	if !yamlHasPath(data, "agent", "output_compression", "reversible", "enabled") {
+		cfg.Agent.OutputCompression.Reversible.Enabled = true
+	}
+	if !yamlHasPath(data, "agent", "importance_scoring", "enabled") {
+		cfg.Agent.ImportanceScoring.Enabled = true
+	}
+	if !yamlHasPath(data, "agent", "auto_learning", "enabled") {
+		cfg.Agent.AutoLearning.Enabled = true
+	}
 	if cfg.Agent.ImportanceScoring.Mode == "" {
 		cfg.Agent.ImportanceScoring.Mode = "active"
 	}
@@ -1907,7 +1920,7 @@ func Load(path string) (*Config, error) {
 		!yamlHasPath(data, "agent", "adaptive_tools", "weight_success_rate") {
 		cfg.Agent.AdaptiveTools.WeightSuccessRate = true
 	}
-	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) == 0 && cfg.Agent.AdaptiveTools.Enabled {
+	if !yamlHasPath(data, "agent", "adaptive_tools", "always_include") && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
 			"filesystem", "query_memory", "manage_memory", "execute_shell",
 		}
@@ -2794,6 +2807,10 @@ func (c *Config) Save(path string) error {
 		return fmt.Errorf("failed to read config file for patching: %w", err)
 	}
 
+	original, err = NormalizeToolDisclosureConfig(original)
+	if err != nil {
+		return err
+	}
 	var root yaml.Node
 	if err := yaml.Unmarshal(original, &root); err != nil {
 		return fmt.Errorf("failed to unmarshal config for patching: %w", err)

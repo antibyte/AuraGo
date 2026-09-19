@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,7 +17,6 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/inventory"
-	"aurago/internal/security"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 )
@@ -1075,9 +1075,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + string(data)
 
 			case "list_tools":
-				mcpTools, err := tools.MCPListTools(req.Server, logger)
+				mcpTools, err := tools.MCPListToolsContext(ctx, req.Server, logger)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MCP list tools failed: %v"}`, err)
+					data, _ := json.Marshal(map[string]interface{}{"status": "error", "code": "mcp_catalog_unavailable", "message": err.Error(), "tools": mcpTools, "partial": len(mcpTools) > 0})
+					return "Tool Output: " + string(data)
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "success", "tools": mcpTools})
 				return "Tool Output: " + string(data)
@@ -1088,9 +1089,21 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				result, err := tools.MCPCallTool(ctx, req.Server, req.ToolName, req.Args, logger)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MCP call failed: %v"}`, err)
+					payload := map[string]interface{}{"status": "error", "code": "mcp_transport_error", "message": err.Error()}
+					var executionError *tools.MCPToolExecutionError
+					if errors.As(err, &executionError) {
+						payload["code"] = "mcp_tool_error"
+						payload["result"] = executionError.Result
+					}
+					data, _ := json.Marshal(payload)
+					return "Tool Output: " + string(data)
 				}
-				return "Tool Output: " + security.Scrub(result)
+				var content interface{} = result
+				if json.Valid([]byte(result)) {
+					content = json.RawMessage(result)
+				}
+				data, _ := json.Marshal(map[string]interface{}{"status": "success", "result": content})
+				return "Tool Output: " + string(data)
 
 			default:
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "unknown mcp_call operation '%s'. Use list_servers, list_tools, or call_tool."}`, op)

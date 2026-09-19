@@ -253,6 +253,18 @@ const helpTexts = new Proxy({}, {
     }
 });
 let schema = [];
+let effectiveToolPolicy = null;
+let configMigrationNotices = [];
+
+// Response diagnostics never enter the editable draft or a later save payload.
+function consumeConfigResponse(data) {
+    effectiveToolPolicy = data._effective_tool_policy || null;
+    configMigrationNotices = Array.isArray(data._config_migrations) ? data._config_migrations : [];
+    delete data._effective_tool_policy;
+    delete data._config_migrations;
+    return data;
+}
+
 let activeSection = (window.location.hash || '').replace(/^#/, '') || localStorage.getItem('aurago-cfg-section') || 'overview';
 let isDirty = false;
 let configSaveInFlight = false;
@@ -348,7 +360,7 @@ async function init() {
         if (handleConfigRedirectResponse(cfgResp) || handleConfigRedirectResponse(schemaResp) || handleConfigRedirectResponse(vaultResp)) {
             return;
         }
-        configData = await cfgResp.json();
+        configData = consumeConfigResponse(await cfgResp.json());
         if (window.AuraConfigState) {
             window.AuraConfigState.init(configData);
             window.AuraConfigState.bind(document);
@@ -1459,11 +1471,18 @@ function renderOptimizations() {
     // Group 2: Tool Context
     html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_context')}</div>`;
     html += renderFields(
-        agentF('tool_output_limit', 'discover_tools_snapshot_ttl_minutes', 'max_tool_guides', 'core_memory_max_entries', 'core_memory_cap_mode'),
+        agentF('tool_output_limit', 'max_tool_guides', 'core_memory_max_entries', 'core_memory_cap_mode'),
         agentData, 'agent'
     );
 
+    if (effectiveToolPolicy) {
+        const p = effectiveToolPolicy;
+        html += `<div class="wh-notice"><div><strong>${t('config.tool_policy.effective')}</strong><p>${escapeHtml(String(p.provider_profile || 'default'))} · ${t('config.tool_policy.tools')}: ${escapeHtml(String(p.max_tools))} · ${t('config.tool_policy.calls')}: ${escapeHtml(String(p.max_tool_calls))} · ${t('config.tool_policy.schema_tokens')}: ${escapeHtml(String(p.schema_tokens))} · ${t('config.tool_policy.guides')}: ${escapeHtml(String(p.max_guides))} · ${t('config.tool_policy.output_bytes')}: ${escapeHtml(String(p.output_bytes))}</p><small>${t('config.tool_policy.effective_help')}</small></div></div>`;
+    }
     // Group 3: Tool Visibility
+    if (configMigrationNotices.length) {
+        html += `<div class="wh-notice"><div><strong>${t('config.tool_policy.migrations')}</strong><ul>${configMigrationNotices.map(path => `<li>${escapeHtml(path)}</li>`).join('')}</ul><small>${t('config.tool_policy.migrations_help')}</small></div></div>`;
+    }
     html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_visibility')}</div>`;
     html += renderFields(
         agentF('adaptive_tools'),
@@ -1554,7 +1573,7 @@ async function renderSection(key) {
         // → Optimierungen section
         'optimizer_enabled', 'system_prompt_token_budget', 'adaptive_system_prompt_token_budget',
         'context_window', 'memory_compression_char_limit',
-        'tool_output_limit', 'discover_tools_snapshot_ttl_minutes', 'max_tool_guides',
+        'tool_output_limit', 'max_tool_guides',
         'core_memory_max_entries', 'core_memory_cap_mode',
         'adaptive_tools', 'recovery', 'background_tasks',
         'output_compression'       // → Output Compression section
@@ -2818,7 +2837,7 @@ async function saveConfig() {
                     if (cfgResp.ok) {
                         const ct = cfgResp.headers.get('content-type') || '';
                         if (ct.includes('json')) {
-                            configData = await cfgResp.json();
+                            configData = consumeConfigResponse(await cfgResp.json());
                             break;
                         }
                     }
@@ -3167,7 +3186,7 @@ async function vaultDeleteConfirm() {
             vaultExists = false;
             document.getElementById('vault-delete-overlay').classList.remove('active');
             const cfgResp = await fetch('/api/config');
-            configData = await cfgResp.json();
+            configData = consumeConfigResponse(await cfgResp.json());
             selectSection('server');
             const toast = document.createElement('div');
             toast.className = 'cfg-vault-toast';

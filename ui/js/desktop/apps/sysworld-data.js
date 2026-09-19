@@ -76,10 +76,10 @@
     function actionEvent(p) {
         const district = toolDistricts.get(p?.tool_name), state = p?.state;
         if (!district || typeof p.id !== 'string' || !/^[\w:-]{1,160}$/.test(p.id)) return;
-        if (!['proposed','accepted','started','succeeded','failed','sanitized','blocked','cancelled','needs_human_approval'].includes(state)) return;
+        if (!['proposed','accepted','started','succeeded','failed','sanitized','blocked','cancelled','unknown','deferred','needs_setup','needs_human_approval'].includes(state)) return;
         const stamp = Date.parse(p.updated_at), previous = actionStates.get(p.id);
         if (!Number.isFinite(stamp) || (previous && (stamp < previous.stamp || previous.state === state || previous.terminal))) return;
-        const terminal = ['succeeded','failed','sanitized','blocked','cancelled'].includes(state);
+        const terminal = ['succeeded','failed','sanitized','blocked','cancelled','unknown','deferred','needs_setup'].includes(state);
         actionStates.set(p.id,{stamp,state,terminal});
         if (actionStates.size > 256) actionStates.delete(actionStates.keys().next().value);
         if (state !== 'started' && !(['succeeded','failed','sanitized'].includes(state) &&

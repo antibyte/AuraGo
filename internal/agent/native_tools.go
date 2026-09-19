@@ -907,6 +907,12 @@ func buildNativeToolSchemasUncached(skillsDir string, manifest *tools.Manifest, 
 			return skills[i].Executable < skills[j].Executable
 		})
 		for _, skill := range skills {
+			if skill.Executable != "__builtin__" && !ff.AllowPython {
+				continue
+			}
+			if skill.Executable != "__builtin__" && !ff.AllowPython {
+				continue
+			}
 			if skill.Executable == "__builtin__" && skill.Name == "virustotal_scan" && !ff.VirusTotalEnabled {
 				continue
 			}
@@ -946,7 +952,7 @@ func buildNativeToolSchemasUncached(skillsDir string, manifest *tools.Manifest, 
 	}
 
 	// Add custom tools from manifest
-	if manifest != nil {
+	if manifest != nil && ff.AllowPython {
 		if entries, err := manifest.Load(); err == nil {
 			names := make([]string, 0, len(entries))
 			for name := range entries {

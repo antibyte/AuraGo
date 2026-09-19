@@ -917,9 +917,8 @@ func main() {
 	} else {
 		defer optDB.Close()
 		optWorker := optimizer.NewOptimizerWorker(optDB, llmClient, llmClient, 6*time.Hour)
-		if cfg.Agent.OptimizerEnabled {
-			go optWorker.Start(context.Background())
-		}
+		stopOptimizer := optWorker.StartManaged(context.Background(), cfg.Agent.OptimizerEnabled)
+		defer stopOptimizer()
 	}
 
 	// Enable semantic search if embeddings are enabled (kg was initialized earlier)

@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "Servidor MCP ativado",
   "config.mcp_server.require_auth": "Exigir autenticação",
   "config.mcp_server.allowed_tools": "Ferramentas permitidas",
-  "config.mcp_server.allowed_tools_desc": "Ferramentas expostas pelo endpoint MCP. Deixe vazio para expor todas.",
+  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
   "config.mcp_server.token": "Token bearer",
   "config.mcp_server.generate_token": "Gerar token",
   "config.mcp_server.endpoint_url": "URL do endpoint",

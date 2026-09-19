@@ -12,12 +12,13 @@ import (
 // PromptSection is one typed prompt ledger entry. Priority is lower for
 // sections that are shed earlier; Required sections are never section-shed.
 type PromptSection struct {
-	ID       string
-	GroupID  string
-	Text     string
-	Priority int
-	Required bool
-	Tokens   int
+	GuideExposure *ToolGuideExposure
+	ID            string
+	GroupID       string
+	Text          string
+	Priority      int
+	Required      bool
+	Tokens        int
 }
 
 // PromptDocument is the typed, token-accounted representation of a built
@@ -31,6 +32,8 @@ type PromptDocument struct {
 // PromptBuildResult extends the legacy text/token pair without changing the
 // existing BuildSystemPrompt APIs.
 type PromptBuildResult struct {
+	GuideExposures  []ToolGuideExposure
+	ExposedSections []string
 	Text            string
 	Tokens          int
 	InputChars      int
@@ -44,9 +47,10 @@ type PromptBuildResult struct {
 // PromptBaseResult is the budget-independent output of the expensive source
 // assembly stage. It is safe to cache only within the owning agent run.
 type PromptBaseResult struct {
-	Text     string
-	Tokens   int
-	Revision string
+	OptionalSections []PromptSection
+	Text             string
+	Tokens           int
+	Revision         string
 }
 
 // PromptAddendum is trusted request-local system context appended before the
@@ -66,11 +70,12 @@ const (
 
 // PromptFitRequest describes the cheap, request-local budget stage.
 type PromptFitRequest struct {
-	Text        string
-	Tokens      int
-	Model       string
-	TokenBudget int
-	Addenda     []PromptAddendum
+	OptionalSections []PromptSection
+	Text             string
+	Tokens           int
+	Model            string
+	TokenBudget      int
+	Addenda          []PromptAddendum
 }
 
 // PromptBudgetExceededError reports that the mandatory system-prompt

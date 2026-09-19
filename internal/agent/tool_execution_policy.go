@@ -10,6 +10,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 	"aurago/internal/tools/outputcompress"
 
 	"github.com/sashabaranov/go-openai"
@@ -22,6 +23,8 @@ const (
 	ExecutionOutcomeFailed                           // tool returned an error status
 	ExecutionOutcomeGuardianBlocked                  // LLM Guardian blocked the tool
 	ExecutionOutcomeSanitized                        // output was truncated/sanitized by policy
+	ExecutionOutcomeUnknown
+	ExecutionOutcomeDeferred
 )
 
 func (e ExecutionOutcome) String() string {
@@ -34,6 +37,8 @@ func (e ExecutionOutcome) String() string {
 		return "guardian_blocked"
 	case ExecutionOutcomeSanitized:
 		return "sanitized"
+	case ExecutionOutcomeDeferred:
+		return "deferred"
 	default:
 		return "unknown"
 	}
@@ -68,6 +73,13 @@ func augmentToolFailureContent(tc ToolCall, content string, errorSummary string)
 	}
 	if strings.Contains(content, "[Suggested next step]") {
 		return content
+	}
+	var payload map[string]interface{}
+	value := strings.TrimSpace(strings.TrimPrefix(content, "Tool Output: "))
+	if json.Unmarshal([]byte(value), &payload) == nil && payload != nil {
+		payload["suggested_next_step"] = hint
+		encoded, _ := json.Marshal(payload)
+		return string(encoded)
 	}
 	return content + "\n\n[Suggested next step]\n" + hint
 }
@@ -158,7 +170,7 @@ func finalizeToolExecution(
 	// retained content that can actually be added to the model context.
 	// Config defaults are applied in config.go via yamlHasPath, so the
 	// zero-value heuristic is no longer needed here.
-	if !guardianBlocked && cfg != nil {
+	if !guardianBlocked && cfg != nil && trackingTC.Action != "discover_tools" {
 		compCfg := outputcompress.Config{
 			Enabled:           cfg.Agent.OutputCompression.Enabled,
 			MinChars:          cfg.Agent.OutputCompression.MinChars,
@@ -169,7 +181,6 @@ func finalizeToolExecution(
 			RepetitiveSubstitution: outputcompress.RepetitiveSubstitutionConfig{
 				Enabled:              cfg.Agent.OutputCompression.RepetitiveSubstitution.Enabled,
 				LZWEnabled:           cfg.Agent.OutputCompression.RepetitiveSubstitution.LZWEnabled,
-				LTSCLiteEnabled:      cfg.Agent.OutputCompression.RepetitiveSubstitution.LTSCLiteEnabled,
 				MinPhraseChars:       cfg.Agent.OutputCompression.RepetitiveSubstitution.MinPhraseChars,
 				MinOccurrences:       cfg.Agent.OutputCompression.RepetitiveSubstitution.MinOccurrences,
 				MinSavingsPercent:    cfg.Agent.OutputCompression.RepetitiveSubstitution.MinSavingsPercent,
@@ -190,7 +201,13 @@ func finalizeToolExecution(
 		}
 		originalContent := rawContent
 		var compStats outputcompress.CompressionStats
-		rawContent, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, rawContent, compCfg)
+		payload, isolated := toolResultPayload(rawContent)
+		if isolated {
+			payload, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, payload, compCfg)
+			rawContent = security.IsolateExternalData(payload)
+		} else {
+			rawContent, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, rawContent, compCfg)
+		}
 
 		// CCR: archive original output when reversible compression is enabled,
 		// we are on the native tool path, and meaningful compression occurred.
@@ -244,12 +261,17 @@ func finalizeToolExecution(
 	resultContent := policyResult.Content
 	toolFailed := status.IsError()
 	outcome := ExecutionOutcomeSuccess
+	if status == ToolResultUnknown {
+		outcome = ExecutionOutcomeUnknown
+	} else if status == ToolResultDeferred {
+		outcome = ExecutionOutcomeDeferred
+	}
 	if guardianBlocked {
 		outcome = ExecutionOutcomeGuardianBlocked
 		toolFailed = true
 	} else if toolFailed {
 		outcome = ExecutionOutcomeFailed
-	} else if policyResult.Truncated {
+	} else if policyResult.Truncated && status == ToolResultSuccess {
 		outcome = ExecutionOutcomeSanitized
 	}
 	if toolFailed {
@@ -365,6 +387,8 @@ func finalizeToolExecution(
 		go GenerateLearnedRule(ctx, shortTermMem, trackingTC.Action, errMsg, "", logger)
 	}
 
+	resultContent = boundedToolResult(resultContent, effectiveToolOutputLimit(cfg), status)
+
 	return toolExecutionResult{
 		Status:       status,
 		Content:      resultContent,
@@ -428,8 +452,12 @@ func maybeStorePrimaryToolOutputVault(
 		logToolMemoryWarning(logger, "Failed to store primary output vault entry", trackingTC.Action, err)
 		return "", "", false
 	}
+	status := tc.DispatchStatus
+	if status == "" {
+		status = classifyLegacyToolResult(originalContent)
+	}
 	payload := outputVaultPayload{
-		Status:        "success",
+		Status:        string(status),
 		OutputRef:     out.OutputRef,
 		ToolName:      trackingTC.Action,
 		Summary:       summary,
@@ -495,4 +523,11 @@ func logToolMemoryWarning(logger *slog.Logger, message string, action string, er
 		return
 	}
 	logger.Warn(message, "action", action, "error", err)
+}
+
+func effectiveToolOutputLimit(cfg *config.Config) int {
+	if cfg != nil && cfg.Agent.ToolOutputLimit > 0 {
+		return cfg.Agent.ToolOutputLimit
+	}
+	return 50000
 }

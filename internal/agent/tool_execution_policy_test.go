@@ -12,10 +12,25 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/gamemaker"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"aurago/internal/tools/outputcompress"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+func TestCompressionPreservesExternalDataBoundary(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := &config.Config{}
+	cfg.Agent.ToolOutputLimit = 50000
+	cfg.Agent.OutputCompression.Enabled = true
+	cfg.Agent.OutputCompression.MinChars = 1
+	cfg.Agent.OutputCompression.ShellCompression = true
+	output := security.IsolateExternalData(strings.Repeat("PASS repeated log line\n", 500))
+	result := finalizeToolExecution(context.Background(), ToolCall{Action: "execute_shell", DispatchStatus: ToolResultSuccess}, output, false, cfg, nil, "test", nil, nil, logger, AgentTelemetryScope{}, "", 0, RunConfig{})
+	if _, isolated := toolResultPayload(result.Content); !isolated || result.Status != ToolResultSuccess {
+		t.Fatalf("compression lost boundary/status: %q", result.Content)
+	}
+}
 
 func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 	resetAgentTelemetryForTest()
@@ -180,7 +195,7 @@ func TestFinalizeToolExecutionAppendsSuggestedNextStep(t *testing.T) {
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}
-	if !strings.Contains(result.Content, "[Suggested next step]") {
+	if !strings.Contains(result.Content, "suggested_next_step") {
 		t.Fatalf("expected suggested next step in content, got: %s", result.Content)
 	}
 	if !strings.Contains(result.Content, "read_file") {
@@ -310,8 +325,8 @@ func TestFinalizeToolExecutionUsesPrimaryOutputVaultForLargeNativeOutput(t *test
 	if strings.Contains(result.Content, "line-20") {
 		t.Fatalf("compacted content should not inline the whole raw output, got: %s", result.Content)
 	}
-	if result.Outcome != ExecutionOutcomeSanitized {
-		t.Fatalf("Outcome = %v, want sanitized for vaulted context output", result.Outcome)
+	if result.Outcome != ExecutionOutcomeUnknown {
+		t.Fatalf("Outcome = %v, want unknown for vaulted context output", result.Outcome)
 	}
 
 	archived, err := stm.RetrieveCompressedOutputByRef(context.Background(), "default", wantRef)

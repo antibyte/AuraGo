@@ -1,5 +1,5 @@
 ---
-description: upnp_scan: Discover UPnP/SSDP devices on the local network.
+description: "upnp_scan: Discover UPnP/SSDP devices on the local network."
 ---
 
 # `upnp_scan` Tool

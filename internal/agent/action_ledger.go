@@ -31,6 +31,9 @@ const (
 	AgentActionStateCancelled          AgentActionState = "cancelled"
 	AgentActionStateNeedsHumanApproval AgentActionState = "needs_human_approval"
 	AgentActionStateSanitized          AgentActionState = "sanitized"
+	AgentActionStateUnknown            AgentActionState = "unknown"
+	AgentActionStateDeferred           AgentActionState = "deferred"
+	AgentActionStateNeedsSetup         AgentActionState = "needs_setup"
 )
 
 // AgentActionEvent is the public wire shape for action lifecycle updates.
@@ -171,6 +174,25 @@ func (l *agentActionLedger) CompleteTool(action AgentActionEvent, result toolExe
 	case memory.AuditStatusError:
 		state = AgentActionStateFailed
 		errText = result.Content
+	}
+	// A completed dispatch is not proof of successful execution.
+	switch result.Status {
+	case ToolResultDenied:
+		state = AgentActionStateBlocked
+	case ToolResultCancelled:
+		state = AgentActionStateCancelled
+	case ToolResultNeedsSetup:
+		state = AgentActionStateNeedsSetup
+	case ToolResultUnknown:
+		state = AgentActionStateUnknown
+	case ToolResultDeferred:
+		state = AgentActionStateDeferred
+	}
+	if result.Outcome == ExecutionOutcomeUnknown {
+		state = AgentActionStateUnknown
+	}
+	if result.Outcome == ExecutionOutcomeDeferred {
+		state = AgentActionStateDeferred
 	}
 	action.Outcome = result.Outcome.String()
 	action.DurationMS = durationMS
@@ -411,7 +433,7 @@ func auditStatusForAgentActionState(state AgentActionState) string {
 		return memory.AuditStatusBlocked
 	case AgentActionStateSanitized:
 		return memory.AuditStatusSanitized
-	case AgentActionStateCancelled:
+	case AgentActionStateCancelled, AgentActionStateUnknown, AgentActionStateDeferred, AgentActionStateNeedsSetup:
 		return memory.AuditStatusWarning
 	default:
 		return memory.AuditStatusRunning
@@ -420,7 +442,7 @@ func auditStatusForAgentActionState(state AgentActionState) string {
 
 func isTerminalAgentActionState(state AgentActionState) bool {
 	switch state {
-	case AgentActionStateSucceeded, AgentActionStateFailed, AgentActionStateBlocked, AgentActionStateCancelled, AgentActionStateSanitized:
+	case AgentActionStateSucceeded, AgentActionStateFailed, AgentActionStateBlocked, AgentActionStateCancelled, AgentActionStateSanitized, AgentActionStateUnknown, AgentActionStateDeferred, AgentActionStateNeedsSetup:
 		return true
 	default:
 		return false

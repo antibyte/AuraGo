@@ -933,8 +933,13 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 		prioritized = append(prioritized, name)
 	}
 
+	// Explicit discovery and adaptive selection share names, aliases and operations.
+	catalog := BuildToolCatalog(schemas, schemas, "")
+	for _, entry := range catalog.Search(userQuery) {
+		add(entry.Name)
+	}
 	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
-		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, 4, 5*time.Second, logger)
+		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, 4, 400*time.Millisecond, logger)
 		for _, path := range paths {
 			name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
 			add(name)
@@ -1267,35 +1272,18 @@ func buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder []string, consumed m
 			originalRank: i,
 		})
 	}
-	if tokenAware {
-		sort.SliceStable(candidates, func(i, j int) bool {
-			left := candidates[i]
-			right := candidates[j]
-			leftScore := left.utility * right.tokens
-			rightScore := right.utility * left.tokens
-			if leftScore != rightScore {
-				return leftScore > rightScore
-			}
-			if left.utility != right.utility {
-				return left.utility > right.utility
-			}
-			return left.originalRank < right.originalRank
-		})
-	} else {
-		sort.SliceStable(candidates, func(i, j int) bool {
-			left := candidates[i]
-			right := candidates[j]
-			leftPreferred := preferredRank[left.name] > 0
-			rightPreferred := preferredRank[right.name] > 0
-			if leftPreferred != rightPreferred {
-				return leftPreferred
-			}
-			if leftPreferred && left.utility != right.utility {
-				return left.utility > right.utility
-			}
-			return left.originalRank < right.originalRank
-		})
-	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		left, right := candidates[i], candidates[j]
+		lp, rp := preferredRank[left.name], preferredRank[right.name]
+		if lp != rp {
+			return lp > rp
+		}
+		if tokenAware && left.tokens != right.tokens {
+			return left.tokens < right.tokens
+		}
+		return left.originalRank < right.originalRank
+	})
+
 	out := make([]string, 0, len(candidates))
 	for _, candidate := range candidates {
 		out = append(out, candidate.name)

@@ -28,6 +28,7 @@ const mcpNetworkRequestTimeout = 60 * time.Second
 var errMCPTransportClosed = errors.New("MCP transport is closed")
 
 type stdioMCPTransport struct {
+	mcpNotificationState
 	cmd       *exec.Cmd
 	stdin     io.WriteCloser
 	stdout    *bufio.Reader
@@ -116,6 +117,7 @@ func (t *stdioMCPTransport) readResponse(id int64) (*jsonRPCResponse, error) {
 		if err := json.Unmarshal(line, &resp); err != nil {
 			continue
 		}
+		t.observeNotification(&resp)
 		if resp.ID != nil && *resp.ID == id {
 			return &resp, nil
 		}
@@ -205,6 +207,7 @@ func newNetworkMCPConn(ctx context.Context, srv MCPServerConfig, logger *slog.Lo
 }
 
 type httpMCPTransport struct {
+	mcpNotificationState
 	endpoint        string
 	headers         map[string]string
 	client          *http.Client
@@ -342,7 +345,7 @@ func (t *httpMCPTransport) postJSON(ctx context.Context, payload interface{}) (*
 	}
 	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	if mediaType == "text/event-stream" {
-		return readMCPStreamableHTTPResponse(resp.Body)
+		return readMCPStreamableHTTPResponse(resp.Body, t.observeNotification)
 	}
 	var rpcResp jsonRPCResponse
 	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
@@ -354,7 +357,7 @@ func (t *httpMCPTransport) postJSON(ctx context.Context, payload interface{}) (*
 	return &rpcResp, nil
 }
 
-func readMCPStreamableHTTPResponse(body io.Reader) (*jsonRPCResponse, error) {
+func readMCPStreamableHTTPResponse(body io.Reader, observers ...func(*jsonRPCResponse)) (*jsonRPCResponse, error) {
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	var dataLines []string
@@ -369,6 +372,9 @@ func readMCPStreamableHTTPResponse(body io.Reader) (*jsonRPCResponse, error) {
 			var resp jsonRPCResponse
 			if err := json.Unmarshal([]byte(data), &resp); err != nil {
 				continue
+			}
+			for _, observe := range observers {
+				observe(&resp)
 			}
 			if resp.ID != nil {
 				return &resp, nil
@@ -386,6 +392,7 @@ func readMCPStreamableHTTPResponse(body io.Reader) (*jsonRPCResponse, error) {
 }
 
 type websocketMCPTransport struct {
+	mcpNotificationState
 	conn      *websocket.Conn
 	mu        sync.Mutex
 	nextID    int64
@@ -489,6 +496,7 @@ func (t *websocketMCPTransport) readLoop() {
 			return
 		}
 		if resp.ID == nil {
+			t.observeNotification(&resp)
 			continue
 		}
 		t.mu.Lock()
@@ -502,6 +510,7 @@ func (t *websocketMCPTransport) readLoop() {
 }
 
 type sseMCPTransport struct {
+	mcpNotificationState
 	endpointReady chan string
 	endpoint      string
 	client        *http.Client
@@ -683,7 +692,11 @@ func (t *sseMCPTransport) readLoop(body io.Reader) {
 				return
 			}
 			var resp jsonRPCResponse
-			if err := json.Unmarshal([]byte(data), &resp); err != nil || resp.ID == nil {
+			if err := json.Unmarshal([]byte(data), &resp); err != nil {
+				return
+			}
+			if resp.ID == nil {
+				t.observeNotification(&resp)
 				return
 			}
 			t.mu.Lock()

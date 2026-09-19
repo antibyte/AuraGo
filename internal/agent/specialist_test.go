@@ -145,37 +145,37 @@ func TestDispatchInnerBlocksCoAgentSensitiveAliases(t *testing.T) {
 		{
 			name:      "blocks secrets vault access",
 			tc:        ToolCall{Action: "secrets_vault", Operation: "get", Key: "api_key"},
-			wantParts: []string{"error", "cannot access the secrets vault"},
+			wantParts: []string{"policy_denied", "cannot access the secrets vault"},
 		},
 		{
 			name:      "blocks remember writes",
 			tc:        ToolCall{Action: "remember", Content: "store this"},
-			wantParts: []string{"error", "cannot store new facts or memories"},
+			wantParts: []string{"policy_denied", "cannot store new facts or memories"},
 		},
 		{
 			name:      "blocks knowledge alias mutation",
 			tc:        ToolCall{Action: "manage_knowledge", Operation: "add"},
-			wantParts: []string{"error", "cannot modify the knowledge graph"},
+			wantParts: []string{"policy_denied", "cannot modify the knowledge graph"},
 		},
 		{
 			name:      "blocks notes alias mutation",
 			tc:        ToolCall{Action: "notes", Operation: "add"},
-			wantParts: []string{"error", "cannot modify notes"},
+			wantParts: []string{"policy_denied", "cannot modify notes"},
 		},
 		{
 			name:      "blocks journal alias mutation",
 			tc:        ToolCall{Action: "journal", Operation: "create"},
-			wantParts: []string{"error", "cannot modify journal entries"},
+			wantParts: []string{"policy_denied", "cannot modify journal entries"},
 		},
 		{
 			name:      "blocks mission execution",
 			tc:        ToolCall{Action: "manage_missions", Operation: "run"},
-			wantParts: []string{"error", "cannot modify or run missions"},
+			wantParts: []string{"policy_denied", "cannot modify or run missions"},
 		},
 		{
 			name:      "blocks mission creation",
 			tc:        ToolCall{Action: "manage_missions", Operation: "create"},
-			wantParts: []string{"error", "cannot modify or run missions"},
+			wantParts: []string{"policy_denied", "cannot modify or run missions"},
 		},
 	}
 
@@ -200,27 +200,27 @@ func TestDispatchInnerBlocksA2ASessionSensitiveTools(t *testing.T) {
 		{
 			name:      "blocks secrets vault access",
 			tc:        ToolCall{Action: "secrets_vault", Operation: "get", Key: "api_key"},
-			wantParts: []string{"error", "cannot access the secrets vault"},
+			wantParts: []string{"policy_denied", "cannot access the secrets vault"},
 		},
 		{
 			name:      "blocks memory writes",
 			tc:        ToolCall{Action: "manage_memory", Operation: "write"},
-			wantParts: []string{"error", "cannot modify memory"},
+			wantParts: []string{"policy_denied", "cannot modify memory"},
 		},
 		{
 			name:      "blocks nested co-agent spawning",
 			tc:        ToolCall{Action: "co_agent", Operation: "spawn"},
-			wantParts: []string{"error", "cannot spawn sub-agents"},
+			wantParts: []string{"policy_denied", "cannot spawn sub-agents"},
 		},
 		{
 			name:      "blocks cron scheduler",
 			tc:        ToolCall{Action: "cron_scheduler", Operation: "create"},
-			wantParts: []string{"error", "cannot manage cron jobs"},
+			wantParts: []string{"policy_denied", "cannot manage cron jobs"},
 		},
 		{
 			name:      "blocks mission run",
 			tc:        ToolCall{Action: "manage_missions", Operation: "run_now"},
-			wantParts: []string{"error", "cannot modify or run missions"},
+			wantParts: []string{"policy_denied", "cannot modify or run missions"},
 		},
 	}
 
@@ -627,4 +627,15 @@ func specialistTestConfig() *config.Config {
 
 func specialistTestLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+}
+
+func TestSpecialistNativeAliasesRetainFamilyPolicy(t *testing.T) {
+	for _, action := range []string{"generate_image", "homepage_deploy", "homepage_file", "remote_control_shell", "remote_control_desktop"} {
+		for _, role := range []string{"researcher", "writer"} {
+			result := checkSpecialistToolRestriction(role, action, "list")
+			if classifyLegacyToolResult(result) != ToolResultDenied {
+				t.Fatalf("role=%s action=%s bypassed family restriction: %s", role, action, result)
+			}
+		}
+	}
 }

@@ -322,9 +322,11 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_categories", "search", "get_tool_info"},
+					"enum":        []string{"list_categories", "list_family", "search", "get_tool_info", "get_manual"},
 				},
-				"category":  prop("string", "Category to filter (for list_categories): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication"),
+				"cursor":    prop("string", "Opaque next_cursor from the previous page, with the same operation and query"),
+				"limit":     prop("integer", "Maximum search or family results, from 1 to 5"),
+				"category":  prop("string", "Category to filter (for list_family): system, memory, files, network, media, smart_home, infrastructure, data_apis, communication"),
 				"query":     prop("string", "Search keyword (for search operation)"),
 				"tool_name": prop("string", "Tool name to get full info for (for get_tool_info)"),
 			}, "operation"),

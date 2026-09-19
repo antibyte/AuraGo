@@ -12,7 +12,7 @@ func TestPrepareDynamicGuidesSkipsSearchWhenAllowedSetIsFullySkipped(t *testing.
 	original := searchDynamicToolGuides
 	defer func() { searchDynamicToolGuides = original }()
 	var calls atomic.Int32
-	searchDynamicToolGuides = func(context.Context, memory.VectorDB, string, int) ([]string, error) {
+	searchDynamicToolGuides = func(context.Context, memory.VectorDB, string, int) ([]memory.ToolGuideMatch, error) {
 		calls.Add(1)
 		return nil, nil
 	}
@@ -39,7 +39,7 @@ func TestPrepareDynamicGuidesHonorsCancelledRequestBeforeSearch(t *testing.T) {
 	original := searchDynamicToolGuides
 	defer func() { searchDynamicToolGuides = original }()
 	var calls atomic.Int32
-	searchDynamicToolGuides = func(context.Context, memory.VectorDB, string, int) ([]string, error) {
+	searchDynamicToolGuides = func(context.Context, memory.VectorDB, string, int) ([]memory.ToolGuideMatch, error) {
 		calls.Add(1)
 		return nil, nil
 	}

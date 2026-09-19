@@ -20,6 +20,7 @@ import (
 // It replaces the 30+ individual function parameters that were previously threaded
 // from DispatchToolCall → dispatchInner → dispatchExec/Comm/Services/Infra.
 type DispatchContext struct {
+	DiscoveryRunID       string
 	ExecutionHooks       *ExecutionHooks
 	Cfg                  *config.Config
 	Logger               *slog.Logger

@@ -153,10 +153,6 @@ func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) str
 	if err := yaml.Unmarshal(raw, &configuration); err != nil {
 		t.Fatal(err)
 	}
-	// Runtime config exposes Budget at the root; the template's legacy placement
-	// under agent is not the schema consumed by this page.
-	configuration["budget"] = configuration["agent"].(map[string]any)["budget"]
-	delete(configuration["agent"].(map[string]any), "budget")
 	if populated {
 		// All requests remain on the fixture server. Enabled settings exercise the
 		// real conditional forms without contacting or changing an installation.
@@ -219,6 +215,8 @@ func configRefreshFixtureOrigin(t *testing.T, locale string, populated bool) str
 		"/api/sip/status": map[string]any{"registered": false}, "/api/sip/app/state": map[string]any{"blockers": []any{}},
 		"/api/local-llm/status": map[string]any{"state": "disabled", "release_manifest_ready": false},
 	}
+	configuration["_effective_tool_policy"] = map[string]any{"provider_profile": "fixture", "max_tools": 20, "max_tool_calls": 15, "schema_tokens": 6500, "max_guides": 3, "output_bytes": 50000}
+	configuration["_config_migrations"] = []string{"agent.max_tool_calls -> circuit_breaker.max_tool_calls"}
 	if populated {
 		fixtures["/api/realtime-speech/config"] = map[string]any{"enabled": true, "default_profile": "fixture-voice", "profiles": []any{map[string]any{"id": "fixture-voice", "name": "Home Lab · Sprachassistent", "provider": "openai", "model": "fixture-realtime", "voice": "fixture-voice", "enabled": true, "api_key_set": true}}}
 		fixtures["/api/realtime-speech/catalog"] = map[string]any{"providers": []any{map[string]any{"id": "openai", "label": "OpenAI", "models": []any{map[string]any{"id": "fixture-realtime", "label": "Realtime"}}, "voices": []any{map[string]any{"id": "fixture-voice", "label": "Home Lab"}}}}}

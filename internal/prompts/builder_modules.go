@@ -1,6 +1,7 @@
 package prompts
 
 import (
+	"aurago/internal/promptsource"
 	"context"
 	"crypto/sha256"
 	"fmt"
@@ -350,30 +351,16 @@ func ClearPromptCache() {
 }
 
 func parsePromptModule(raw string) (*PromptModule, error) {
-	// Strip UTF-8 BOM (\xEF\xBB\xBF) and leading blank lines so files saved by
-	// Windows editors or tools that prepend a BOM are accepted without error.
-	raw = strings.TrimPrefix(raw, "\xEF\xBB\xBF")
-	raw = strings.ReplaceAll(raw, "\r\n", "\n")
-	raw = strings.TrimLeft(raw, "\r\n ")
-	if !strings.HasPrefix(raw, "---") {
+	frontmatter, body, present, err := promptsource.Split(raw)
+	if err != nil {
+		return nil, err
+	}
+	if !present {
 		return nil, fmt.Errorf("no frontmatter found")
 	}
 
-	// Strip the leading "---\n" then split on the closing "\n---\n".
-	// This avoids false splits on horizontal rules (---) inside the body.
-	inner := raw[3:] // remove leading "---"
-	inner = strings.TrimLeft(inner, "\r\n")
-	idx := strings.Index(inner, "\n---\n")
-	if idx < 0 {
-		return nil, fmt.Errorf("invalid frontmatter format")
-	}
-
-	frontmatter := inner[:idx]
-	body := inner[idx+4:]
-	body = strings.TrimLeft(body, "\r\n")
-
 	meta := PromptMetadata{Meta: memory.DefaultPersonalityMeta()}
-	err := yaml.Unmarshal([]byte(frontmatter), &meta)
+	err = yaml.Unmarshal([]byte(frontmatter), &meta)
 	if err != nil {
 		return nil, err
 	}
@@ -688,7 +675,7 @@ func parseToolGuideRaw(filename, raw string, logger *slog.Logger) (content strin
 // to the embedded FS baked into the binary. When flags is nil, frontmatter
 // conditions are not enforced (used by explicit discover_tools lookups).
 func readToolGuide(path string, flags *ContextFlags) (string, bool) {
-	if content, ok := activeToolGuideOverride(path); ok {
+	if content, ok := activeToolGuideOverride(path); ok && flags == nil {
 		if flags != nil {
 			source, sourceFound := canonicalToolGuide(path)
 			conditions := source.conditions
@@ -702,7 +689,7 @@ func readToolGuide(path string, flags *ContextFlags) (string, bool) {
 	if !ok || !guideConditionsAllow(entry.conditions, flags) {
 		return "", false
 	}
-	return entry.content, true
+	return truncateGuide(entry.content, 2048), true
 }
 
 func canonicalToolGuide(path string) (guideCacheEntry, bool) {
@@ -756,7 +743,7 @@ func canonicalToolGuide(path string) (guideCacheEntry, bool) {
 		fromEmbed = true
 		fallbackFromMalformedDisk = true
 	}
-	content := truncateGuide(body, 2048)
+	content := body
 	now := time.Now()
 	entry := guideCacheEntry{content: content, conditions: conditions, source: guideSourceEmbed, lastUsed: now}
 	if fallbackFromMalformedDisk {
@@ -971,7 +958,7 @@ func normalizeToolGuidePathForContainment(path string) (string, error) {
 }
 
 // PrepareDynamicGuides orchestrates explicit, semantic, statistical, and recency-based prediction to find relevant tool documents.
-// maxTotalGuides caps the number of guides returned (default: 5 if <= 0).
+// maxTotalGuides caps the number of guides returned (default: 3 if <= 0).
 type DynamicGuideStrategy struct {
 	PreferSemantics              bool
 	DisableRecentHeuristics      bool
@@ -987,12 +974,12 @@ type DynamicGuideStrategy struct {
 	Flags *ContextFlags
 }
 
-var searchDynamicToolGuides = func(ctx context.Context, vdb memory.VectorDB, query string, topK int) ([]string, error) {
+var searchDynamicToolGuides = func(ctx context.Context, vdb memory.VectorDB, query string, topK int) ([]memory.ToolGuideMatch, error) {
 	chromemDB, ok := vdb.(*memory.ChromemVectorDB)
 	if !ok {
 		return nil, nil
 	}
-	return chromemDB.SearchToolGuidesContext(ctx, query, topK)
+	return chromemDB.SearchToolGuideMatchesContext(ctx, query, topK)
 }
 
 func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, logger *slog.Logger) []string {
@@ -1017,7 +1004,16 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 		return nil
 	}
 	if maxTotalGuides <= 0 {
-		maxTotalGuides = 5
+		maxTotalGuides = 3
+	}
+	bindGuide := func(content, path string) string {
+		if strategy.Flags != nil {
+			if strategy.Flags.GuideSources == nil {
+				strategy.Flags.GuideSources = map[string]string{}
+			}
+			strategy.Flags.GuideSources[PromptRevision(content)] = path
+		}
+		return content
 	}
 	var guides []string
 	guideMap := make(map[string]bool)
@@ -1037,7 +1033,7 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 	allowedSet := make(map[string]bool, len(strategy.AllowedTools))
 	for _, t := range strategy.AllowedTools {
 		if name := normalizeToolGuideOverrideName(t); name != "" {
-			allowedSet[name] = true
+			allowedSet[ToolManualID(name)] = true
 		}
 	}
 	if len(allowedSet) > 0 {
@@ -1056,7 +1052,7 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 		if len(allowedSet) == 0 {
 			return true
 		}
-		return allowedSet[normalizeToolGuideOverrideName(tool)]
+		return allowedSet[ToolManualID(normalizeToolGuideOverrideName(tool))]
 	}
 	isSkipped := func(tool string) bool {
 		tool = normalizeToolGuideOverrideName(tool)
@@ -1074,7 +1070,7 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 		if isSkipped(tool) {
 			continue
 		}
-		cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+		cleanPath := filepath.Clean(filepath.Join(toolsDir, ToolManualID(tool)+".md"))
 		if !isToolPathSafe(cleanPath, toolsDir) {
 			if logger != nil {
 				logger.Warn("[ToolGuides] Rejected unsafe explicit tool path", "tool", tool)
@@ -1084,7 +1080,7 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 		guideKey := guideMapKey(cleanPath)
 		if !guideMap[guideKey] {
 			if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
-				guides = append(guides, content)
+				guides = append(guides, bindGuide(content, cleanPath))
 				guideMap[guideKey] = true
 			}
 		}
@@ -1107,14 +1103,14 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 			if isSkipped(tool) {
 				continue
 			}
-			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+			cleanPath := filepath.Clean(filepath.Join(toolsDir, ToolManualID(tool)+".md"))
 			if !isToolPathSafe(cleanPath, toolsDir) {
 				continue
 			}
 			guideKey := guideMapKey(cleanPath)
 			if !guideMap[guideKey] {
 				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
-					guides = append(guides, content)
+					guides = append(guides, bindGuide(content, cleanPath))
 					guideMap[guideKey] = true
 				}
 			}
@@ -1132,7 +1128,8 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 			}
 			return
 		}
-		for _, p := range paths {
+		for _, match := range paths {
+			p := match.Path
 			if len(guides) >= limit {
 				break
 			}
@@ -1146,7 +1143,12 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 			guideKey := guideMapKey(cleanPath)
 			if !guideMap[guideKey] {
 				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
-					guides = append(guides, content)
+					// Only use a chunk while its canonical source revision still matches.
+					full, valid := canonicalToolGuide(cleanPath)
+					if valid && match.Revision == PromptRevision(full.content) && match.Content != "" {
+						content = truncateGuide(match.Content, 512)
+					}
+					guides = append(guides, bindGuide(content, cleanPath))
 					guideMap[guideKey] = true
 				}
 			}
@@ -1172,11 +1174,11 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 	if !strategy.DisableStatisticalHeuristics && stm != nil && lastTool != "" && len(guides) < 3 {
 		nextTool, err := stm.GetTopTransition(lastTool)
 		if err == nil && nextTool != "" && !isSkipped(nextTool) {
-			cleanPath := filepath.Clean(filepath.Join(toolsDir, nextTool+".md"))
+			cleanPath := filepath.Clean(filepath.Join(toolsDir, ToolManualID(nextTool)+".md"))
 			guideKey := guideMapKey(cleanPath)
 			if isToolPathSafe(cleanPath, toolsDir) && !guideMap[guideKey] {
 				if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
-					guides = append(guides, content)
+					guides = append(guides, bindGuide(content, cleanPath))
 					guideMap[guideKey] = true
 					if logger != nil {
 						logger.Info("Statistically predicted next tool", "from", lastTool, "predicted", nextTool)
@@ -1198,13 +1200,13 @@ func PrepareDynamicGuidesWithStrategyContext(ctx context.Context, vdb memory.Vec
 			if isSkipped(tool) {
 				continue
 			}
-			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+			cleanPath := filepath.Clean(filepath.Join(toolsDir, ToolManualID(tool)+".md"))
 			guideKey := guideMapKey(cleanPath)
 			if !isToolPathSafe(cleanPath, toolsDir) || guideMap[guideKey] {
 				continue
 			}
 			if content, ok := readToolGuide(cleanPath, strategy.Flags); ok {
-				guides = append(guides, content)
+				guides = append(guides, bindGuide(content, cleanPath))
 				guideMap[guideKey] = true
 			}
 		}

@@ -147,7 +147,13 @@ func readNormalized(path string) (string, error) {
 // parseYAMLMap unmarshals YAML content into a generic map.
 func parseYAMLMap(content string) (map[string]interface{}, error) {
 	var m map[string]interface{}
-	err := yaml.Unmarshal([]byte(content), &m)
+	// Migrate the user document before overlaying template defaults, otherwise a
+	// new default would incorrectly win over an explicit value on an old path.
+	normalized, err := config.NormalizeToolDisclosureConfig([]byte(content))
+	if err != nil {
+		return nil, err
+	}
+	err = yaml.Unmarshal(normalized, &m)
 	return m, err
 }
 

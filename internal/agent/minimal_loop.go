@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -87,6 +86,8 @@ func ExecuteMinimalLoop(
 	if logger == nil {
 		logger = slog.Default()
 	}
+	localDispatch := *dispatchCtx
+	dispatchCtx = &localDispatch
 	if dispatchCtx.Logger == nil {
 		dispatchCtx.Logger = logger
 	}
@@ -114,6 +115,15 @@ func ExecuteMinimalLoop(
 	if noTools || len(reqTools) == 0 {
 		reqTools = nil
 		maxRounds = 0
+	}
+	if len(reqTools) > 0 {
+		dispatchCtx.DiscoveryRunID = acquireDiscoveryRun()
+		defer releaseDiscoveryRun(dispatchCtx.DiscoveryRunID)
+		all := reqTools
+		if toolSchemaExists("discover_tools", reqTools) {
+			all = dispatchCatalogSchemas(dispatchCtx)
+		}
+		setRunDiscoverToolsState(dispatchCtx, all, reqTools)
 	}
 	var addenda []prompts.PromptAddendum
 	if dispatchCtx.MessageSource == "meshcore_reply" && !noTools {
@@ -156,6 +166,14 @@ func ExecuteMinimalLoop(
 			return result, req.Messages, err
 		}
 		var resp openai.ChatCompletionResponse
+		if dispatchCtx.DiscoveryRunID != "" {
+			req.Tools = scopedCatalogSchemas(req.Tools, dispatchCtx)
+			all := reqTools
+			if toolSchemaExists("discover_tools", reqTools) {
+				all = dispatchCatalogSchemas(dispatchCtx)
+			}
+			setRunDiscoverToolsState(dispatchCtx, all, req.Tools)
+		}
 		var err error
 		if opts != nil && opts.StreamText && noTools {
 			resp, err = minimalLoopStreamText(ctx, client, req)
@@ -307,37 +325,17 @@ func executeMinimalToolCall(
 		logger = slog.Default()
 	}
 
-	name := tc.Function.Name
-	args := tc.Function.Arguments
-
-	logger.Debug("[MinimalLoop] executing tool", "name", name)
-
-	// Build a minimal tool call representation matching the agent's ToolCall struct
-	toolCall := ToolCall{
-		Action:        name,
-		NativeCallID:  tc.ID,
-		NativeArgsRaw: args,
-		IsTool:        true,
+	toolCall := NativeToolCallToToolCall(tc, logger)
+	if toolCall.NativeArgsMalformed {
+		return `{"status":"error","code":"invalid_arguments","message":"Supply a complete JSON object matching the tool schema."}`
 	}
-
-	// Parse arguments into Params so builtin dispatchers can read them
-	if args != "" {
-		var rawMap map[string]interface{}
-		if err := json.Unmarshal([]byte(args), &rawMap); err == nil {
-			toolCall.Params = rawMap
-		}
+	dispatched := DispatchToolCallResult(ctx, &toolCall, dispatchCtx, userContext)
+	limit := 50000
+	if dispatchCtx.Cfg != nil && dispatchCtx.Cfg.Agent.ToolOutputLimit > 0 {
+		limit = dispatchCtx.Cfg.Agent.ToolOutputLimit
 	}
+	return boundedToolResult(dispatched.Output, limit, dispatched.Status)
 
-	// Use the existing dispatch infrastructure
-	result := DispatchToolCall(ctx, &toolCall, dispatchCtx, userContext)
-
-	// Truncate very large results to avoid context explosion
-	const maxResultLen = 4000
-	if len(result) > maxResultLen {
-		result = result[:maxResultLen] + fmt.Sprintf("\n... (%d more chars)", len(result)-maxResultLen)
-	}
-
-	return result
 }
 
 // GetBuiltinToolSchemas returns the cached builtin tool schemas for the given config.
@@ -372,9 +370,6 @@ func GetLooperToolSchemas(cfg *config.Config) []openai.Tool {
 	if len(filtered) == 0 {
 		return all
 	}
-
-	SetDiscoverToolsSnapshotTTL(time.Duration(cfg.Agent.DiscoverToolsSnapshotTTLMinutes) * time.Minute)
-	SetDiscoverToolsState("looper", all, filtered, cfg.Directories.PromptsDir)
 
 	return filtered
 }

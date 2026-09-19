@@ -1258,6 +1258,8 @@ registration lives in `internal/desktop/types.go`.
   blocked proposals and metric snapshots must not invent building-to-building traffic.
   Keep only route/state/tool-name metadata, never arguments, result/error text or
   session content. Deduplicate action states in a bounded map and clear it on close.
+  Unknown, deferred and needs-setup results close the tracked action without
+  emitting successful execution traffic.
   `sysworld-life.js` shares twelve wave packets and six route curves on its existing
   RAF. Coalesce bursts, expire by wall time, discard hidden/map/reduced-motion starts,
   and never replay retained events when a window opens or resumes. Robot geometry
