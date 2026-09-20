@@ -10,12 +10,22 @@ import (
 
 type toolOutcomeKey struct{}
 
+// setToolOutcome records a handler-owned execution result. This keeps success
+// and failure semantics independent from the model-facing prose returned by
+// legacy string handlers.
+func setToolOutcome(ctx context.Context, status ToolResultStatus) {
+	if ctx == nil || status == ToolResultUnknown {
+		return
+	}
+	if outcome, ok := ctx.Value(toolOutcomeKey{}).(*ToolResultStatus); ok && outcome != nil {
+		*outcome = status
+	}
+}
+
 // externalToolOutput receives a locally constructed result envelope, before any
 // presentation escaping. Remote payloads must remain nested inside that envelope.
 func externalToolOutput(ctx context.Context, raw string) string {
-	if outcome, ok := ctx.Value(toolOutcomeKey{}).(*ToolResultStatus); ok {
-		*outcome = classifyLegacyToolResult(raw)
-	}
+	setToolOutcome(ctx, classifyLegacyToolResult(raw))
 	return "Tool Output: " + security.IsolateExternalData(security.Scrub(raw))
 }
 

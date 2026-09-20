@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -272,22 +273,22 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: [ERROR] Unknown operation: " + op
 
 		case "execute_sandbox":
-			return dispatchShell(tc, dc)
+			return dispatchShellWithContext(ctx, tc, dc)
 
 		case "execute_python":
 			return dispatchPython(tc, dc, ctx)
 
 		case "execute_shell":
-			return dispatchShell(tc, dc)
+			return dispatchShellWithContext(ctx, tc, dc)
 
 		case "service_manager":
-			return dispatchShell(tc, dc)
+			return dispatchShellWithContext(ctx, tc, dc)
 
 		case "execute_sudo":
-			return dispatchShell(tc, dc)
+			return dispatchShellWithContext(ctx, tc, dc)
 
 		case "install_package":
-			return dispatchShell(tc, dc)
+			return dispatchShellWithContext(ctx, tc, dc)
 
 		case "package_manager":
 			return dispatchPackageManager(tc, dc)
@@ -2036,28 +2037,35 @@ func resolveDeviceSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, 
 	}, nil
 }
 
-// isBlockedEnvRead returns true if the shell command appears to read an AURAGO_*
-// environment variable. These variables include the master vault key and must never
-// be accessible through the shell tool.
+var (
+	auragoEnvReferencePattern = regexp.MustCompile(`(?i)(?:\$\{?AURAGO_[A-Z0-9_]+\}?|\$env:\s*AURAGO_[A-Z0-9_]+|%AURAGO_[A-Z0-9_]+%)`)
+	auragoEnvAPIPattern       = regexp.MustCompile(`(?i)(?:getenv|lookupenv|getenvironmentvariable)\s*\(\s*["']AURAGO_[A-Z0-9_]+["']`)
+	auragoEnvMapPattern       = regexp.MustCompile(`(?i)(?:os\.environ|process\.env|environ|env)\s*(?:\.\s*AURAGO_[A-Z0-9_]+|\[\s*["']AURAGO_[A-Z0-9_]+["']\s*\])`)
+	envEnumerationPattern     = regexp.MustCompile(`(?i)(?:^|[;&|]\s*|\b(?:sudo|command|exec|xargs|watch|cmd\s+/c)\s+)(?:/usr/bin/)?(?:env|printenv)(?:\s|$|[;&|])`)
+	powerShellEnvPattern      = regexp.MustCompile(`(?i)\b(?:get-childitem|get-item|gci|gi|dir)\s+(?:-path\s+)?env:`)
+	procEnvironPattern        = regexp.MustCompile(`(?i)/proc/(?:self|[0-9]+|\$\{?[A-Z_][A-Z0-9_]*\}?)/environ\b`)
+)
+
+// blockedEnvReadReason returns a stable reason code only for commands that
+// actually access process environment data. AuraGo resource names such as
+// aurago_ollama_managed remain ordinary inert arguments.
+func blockedEnvReadReason(command string) string {
+	switch {
+	case auragoEnvReferencePattern.MatchString(command):
+		return "aurago_variable_reference"
+	case auragoEnvAPIPattern.MatchString(command), auragoEnvMapPattern.MatchString(command):
+		return "aurago_environment_api"
+	case envEnumerationPattern.MatchString(command), powerShellEnvPattern.MatchString(command):
+		return "environment_enumeration"
+	case procEnvironPattern.MatchString(command):
+		return "process_environment_file"
+	default:
+		return ""
+	}
+}
+
+// isBlockedEnvRead returns true when a shell command reads a sensitive variable
+// or enumerates a process environment.
 func isBlockedEnvRead(command string) bool {
-	upper := strings.ToUpper(command)
-	if !strings.Contains(upper, "AURAGO_") {
-		return false
-	}
-	lower := strings.ToLower(command)
-	// Match common env-reading patterns across sh/bash/zsh/PowerShell/scripting languages
-	patterns := []string{
-		"printenv", "echo", "$env:", "get-item", "get-childitem",
-		"getenvironmentvariable", "[system.environment]", "environ", "export",
-		"env ", " env", "/usr/bin/env",
-		"set ", "awk", "python", "ruby", "perl", "node ",
-		"hexdump", " od ", "od ", " busybox", "busybox ", " less ", " more ", "xxd ",
-		"cat /proc", "strings /proc", "/proc/self", "/proc/1/",
-	}
-	for _, p := range patterns {
-		if strings.Contains(lower, p) {
-			return true
-		}
-	}
-	return false
+	return blockedEnvReadReason(command) != ""
 }

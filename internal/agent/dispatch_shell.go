@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -15,6 +16,10 @@ var (
 )
 
 func dispatchShell(tc ToolCall, dc *DispatchContext) string {
+	return dispatchShellWithContext(context.Background(), tc, dc)
+}
+
+func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
 	cfg := dc.Cfg
 	configureToolRuntimePermissions(cfg)
 	logger := dc.Logger
@@ -94,37 +99,46 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 
 	case "execute_shell":
 		if !cfg.Agent.AllowShell {
+			setToolOutcome(ctx, ToolResultDenied)
 			return formatToolPermissionDenied("execute_shell", "runtime_permissions", "agent.allow_shell", "execute_shell is disabled in Danger Zone settings")
 		}
 		req := decodeShellExecutionArgs(tc)
 		if strings.TrimSpace(req.Command) == "" {
+			setToolOutcome(ctx, ToolResultFailed)
 			return "Tool Output: [EXECUTION ERROR] 'command' is required for execute_shell."
 		}
 		if isDesktopChatSource(dc.MessageSource) {
 			if isVirtualDesktopWorkspaceShellCommand(req.Command) || isRelativeVirtualDesktopWorkspaceShellCommand(req.Command) || isCodeStudioWorkspaceShellCommand(req.Command) {
+				setToolOutcome(ctx, ToolResultDenied)
 				return "Tool Output: [PERMISSION DENIED] This command targets the virtual desktop workspace. Use the virtual_desktop tool instead, for example operation read_file, search_file, read_file_excerpt, patch_file, write_file, open_app, or open_in_app with the same Apps/ or Widgets/ path."
 			}
 			if isHomepageDataShellCommand(req.Command) {
+				setToolOutcome(ctx, ToolResultDenied)
 				return "Tool Output: [PERMISSION DENIED] This command targets the homepage workspace, not a Virtual Desktop file. Use the homepage tool for homepage projects, or use virtual_desktop with an Apps/ or Widgets/ path for desktop apps."
 			}
 		}
 		if isVirtualDesktopWorkspaceShellCommand(req.Command) {
+			setToolOutcome(ctx, ToolResultDenied)
 			return "Tool Output: [PERMISSION DENIED] This command targets the virtual desktop workspace. Use the virtual_desktop tool instead with operation read_file, search_file, read_file_excerpt, patch_file, write_file, open_app, or open_in_app."
 		}
 		if isHomepageWorkspaceShellCommand(req.Command) {
+			setToolOutcome(ctx, ToolResultDenied)
 			return "Tool Output: [PERMISSION DENIED] This command targets the homepage container workspace (/workspace). Use the homepage tool instead, for example homepage exec with a concrete command and project_dir/list_files/read_file/build for homepage projects. execute_shell runs in agent_workspace/workdir, not inside the homepage container."
 		}
-		// Block commands that attempt to read AURAGO_* environment variables (contains vault master key etc.)
-		if isBlockedEnvRead(req.Command) {
-			logger.Warn("[Security] Blocked attempt to read sensitive environment variable", "command", Truncate(req.Command, 200))
+		// Block commands that access process environments (which may contain vault material).
+		if reason := blockedEnvReadReason(req.Command); reason != "" {
+			setToolOutcome(ctx, ToolResultDenied)
+			logger.Warn("[Security] Blocked attempt to read process environment", "reason_code", reason, "command_preview", security.Scrub(Truncate(req.Command, 200)))
 			return "Tool Output: [PERMISSION DENIED] Reading AURAGO_ environment variables via shell is not permitted."
 		}
 		logger.Info("LLM requested shell execution", "command", Truncate(req.Command, 200), "background", req.Background)
 		if req.Background {
 			pid, err := tools.ExecuteShellBackground(req.Command, cfg.Directories.WorkspaceDir, registry)
 			if err != nil {
+				setToolOutcome(ctx, ToolResultFailed)
 				return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background shell process: %v", err)
 			}
+			setToolOutcome(ctx, ToolResultSuccess)
 			return backgroundProcessStartedOutput("Shell process", pid)
 		}
 		stdout, stderr, err := tools.ExecuteShell(req.Command, cfg.Directories.WorkspaceDir)
@@ -140,9 +154,12 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 			sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
 		}
 		if err != nil {
+			setToolOutcome(ctx, ToolResultFailed)
 			sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %s\n", security.Scrub(err.Error())))
 			// Hint: shell is /bin/sh (POSIX), not bash — process substitution <(...) is not available.
 			sb.WriteString("[Shell: /bin/sh (POSIX sh). Bash-specific syntax (e.g. process substitution <(...), [[ ]], arrays) is NOT available. Use POSIX-compatible alternatives.]\n")
+		} else {
+			setToolOutcome(ctx, ToolResultSuccess)
 		}
 		return sb.String()
 

@@ -565,3 +565,29 @@ func TestToolFailureOperationalIssuesAreScopedByOperationAndInstallAlias(t *test
 		t.Fatalf("install issue status after dedicated install success = %q, want done", status)
 	}
 }
+
+func TestSuccessfulShellOutcomeResolvesMissionToolFailure(t *testing.T) {
+	db := newPlannerTestDB(t)
+	defer db.Close()
+	runCfg := RunConfig{PlannerDB: db, IsMission: true, MissionID: "mission-shell", MessageSource: "mission"}
+	tc := ToolCall{Action: "execute_shell", Params: map[string]interface{}{"command": "echo shell-recovered"}}
+	recordToolFailureOperationalIssue(runCfg, tc, "Tool Output: [PERMISSION DENIED] blocked", slog.Default())
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	result := DispatchToolCallResult(context.Background(), &tc, &DispatchContext{Cfg: cfg, Logger: slog.Default()}, "")
+	if result.Status != ToolResultSuccess {
+		t.Fatalf("shell status = %q, want success; output=%s", result.Status, result.Output)
+	}
+	resolveToolFailureOperationalIssue(runCfg, tc, slog.Default())
+
+	fingerprint := "mission|mission-shell|tool|execute_shell"
+	var status string
+	if err := db.QueryRow(`SELECT status FROM operational_issues WHERE fingerprint=?`, fingerprint).Scan(&status); err != nil {
+		t.Fatalf("query shell issue: %v", err)
+	}
+	if status != "done" {
+		t.Fatalf("shell issue status = %q, want done", status)
+	}
+}
