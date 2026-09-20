@@ -1,6 +1,7 @@
 package virtualcomputers
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"embed"
 	"encoding/base64"
@@ -31,23 +32,42 @@ const (
 var workspaceAssets embed.FS
 
 func WorkspaceAssetFingerprint() string {
+	return workspaceRuntimeAssetFingerprint(workspaceAssets)
+}
+
+func workspaceRuntimeAssetFingerprint(assets fs.FS) string {
 	hash := sha256.New()
 	_, _ = hash.Write([]byte(PinnedUpstreamRevision + "\n" + workspacePatchVersion + "\n" + workspaceRootfsLayoutVersion + "\n" + WorkspaceProtocolVersion + "\n"))
 	for _, directory := range []string{"patches", "guest_workspace_agent"} {
-		entries, _ := fs.ReadDir(workspaceAssets, directory)
+		entries, _ := fs.ReadDir(assets, directory)
 		sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 		for _, entry := range entries {
-			if entry.IsDir() {
+			if entry.IsDir() || strings.HasSuffix(entry.Name(), "_test.go") {
 				continue
 			}
 			name := directory + "/" + entry.Name()
-			data, _ := workspaceAssets.ReadFile(name)
+			data, _ := fs.ReadFile(assets, name)
 			_, _ = hash.Write([]byte(name + "\n"))
-			_, _ = hash.Write(data)
+			_, _ = hash.Write(bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n")))
 			_, _ = hash.Write([]byte("\n"))
 		}
 	}
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func compatibleWorkspaceAssetFingerprint(current, reported string) bool {
+	if current == reported {
+		return true
+	}
+	// These two legacy stamps include tests, but their patches, guest runtime,
+	// dependencies, protocol and rootfs layout are byte-identical after CRLF
+	// normalization. Bind the migration to that exact runtime: a future runtime
+	// edit must never inherit this compatibility allowance.
+	if current != "ff9258da6a93b45bae13eadec9db9f4a4053dfc41e5c5ca1a8202d78585813b5" {
+		return false
+	}
+	return reported == "ffb4211a9f999e7c97ee34ff9e89f348c2e5a6417e087d0dd7f9dbab868ad018" ||
+		reported == "e98a3f8d79bd236c0830883d671b68adfd8b56500d161a4f1be48c594be15786"
 }
 
 func workspacePatchInstallSnippet() string {

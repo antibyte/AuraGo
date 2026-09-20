@@ -1158,6 +1158,7 @@ func (m *WorkspaceManager) Reconcile(ctx context.Context, cfg ToolConfig) error 
 		m.reportIssue(WorkspaceOperationalIssue{Kind: "guest_protocol", Detail: err.Error(), Severity: "error"})
 		return err
 	}
+	m.reportIssue(WorkspaceOperationalIssue{Kind: "guest_protocol", Resolved: true, Detail: "Workspace control-plane protocol and runtime assets are compatible."})
 	transport := m.transportFactory(client)
 	for _, workspace := range workspaces {
 		if workspace.State != WorkspaceStateOpening && workspace.State != WorkspaceStateReady && workspace.State != WorkspaceStateClosing {
@@ -1385,7 +1386,7 @@ func requireWorkspaceControlPlane(ctx context.Context, client *Client) error {
 		return WorkspaceRPCError{Code: "workspace_agent_upgrade_required", Message: "workspace control plane is unavailable"}
 	}
 	status, err := client.WorkspaceCapabilities(ctx)
-	if err != nil || status.ProtocolVersion != WorkspaceProtocolVersion || status.AssetFingerprint != WorkspaceAssetFingerprint() {
+	if err != nil || status.ProtocolVersion != WorkspaceProtocolVersion || !compatibleWorkspaceAssetFingerprint(WorkspaceAssetFingerprint(), status.AssetFingerprint) {
 		return WorkspaceRPCError{Code: "workspace_agent_upgrade_required", Message: "boringd, rootfs, and guest workspace assets must be upgraded together"}
 	}
 	return nil

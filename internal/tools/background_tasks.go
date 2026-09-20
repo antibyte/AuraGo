@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -37,6 +38,7 @@ const (
 
 type BackgroundTask struct {
 	ID                 string          `json:"id"`
+	ExecutionID        string          `json:"execution_id,omitempty"`
 	Type               string          `json:"type"`
 	Status             string          `json:"status"`
 	Source             string          `json:"source,omitempty"`
@@ -104,7 +106,7 @@ type BackgroundTaskManager struct {
 	logger        *slog.Logger
 	httpClient    *http.Client
 	registry      atomic.Pointer[ProcessRegistry]
-	executor      func(prompt string, timeout time.Duration) error
+	executor      func(executionID, taskType, prompt string, timeout time.Duration) error
 	notifier      func(title, body string)
 	internalToken string // crypto token for loopback auth (set by main, read by server)
 	ctx           context.Context
@@ -154,7 +156,7 @@ func NewBackgroundTaskManager(dataDir string, logger *slog.Logger) *BackgroundTa
 	return mgr
 }
 
-func (m *BackgroundTaskManager) SetLoopbackExecutor(fn func(prompt string, timeout time.Duration) error) {
+func (m *BackgroundTaskManager) SetLoopbackExecutor(fn func(executionID, taskType, prompt string, timeout time.Duration) error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.executor = fn
@@ -288,6 +290,7 @@ func (m *BackgroundTaskManager) RetryTask(id string) bool {
 	task.Result = ""
 	task.NextAttemptAt = now
 	task.RetryCount = 0
+	task.ExecutionID = ""
 	_ = m.saveLocked()
 	m.signal()
 	return true
@@ -440,7 +443,16 @@ func (m *BackgroundTaskManager) executePromptTask(task *BackgroundTask) {
 		return
 	}
 
-	if err := executor(payload.Prompt, timeout); err != nil {
+	executionID, err := m.promptExecutionID(task.ID)
+	if err != nil {
+		m.failTask(task.ID, "could not persist background execution identity", false)
+		return
+	}
+	if err := executor(executionID, task.Type, payload.Prompt, timeout); err != nil {
+		if errors.Is(err, ErrBackgroundTaskPending) {
+			m.rescheduleWaiting(task.ID, 10*time.Second, "agent execution is still running")
+			return
+		}
 		m.retryOrFail(task.ID, fmt.Sprintf("loopback execution failed: %v", err))
 		return
 	}
@@ -499,6 +511,21 @@ func (m *BackgroundTaskManager) executeWaitTask(task *BackgroundTask) {
 		return
 	}
 	promptTask.Payload = promptPayload
+	// Once the event fires, persist its prompt so polling a pending execution
+	// cannot re-evaluate a changed event and submit different content under its ID.
+	m.mu.Lock()
+	stored := m.tasks[task.ID]
+	if stored == nil || stored.Status != BackgroundTaskStatusRunning {
+		m.mu.Unlock()
+		return
+	}
+	stored.Type, stored.Payload = promptTask.Type, promptPayload
+	err = m.saveLocked()
+	m.mu.Unlock()
+	if err != nil {
+		m.failTask(task.ID, "could not persist triggered event prompt", false)
+		return
+	}
 	m.executePromptTask(&promptTask)
 }
 
@@ -729,10 +756,7 @@ func (m *BackgroundTaskManager) load() error {
 				if task == nil {
 					continue
 				}
-				if task.Status == BackgroundTaskStatusRunning {
-					task.Status = BackgroundTaskStatusQueued
-					task.StartedAt = nil
-				}
+				reconcileInterruptedBackgroundTask(task)
 				if task.NextAttemptAt.IsZero() {
 					task.NextAttemptAt = time.Now().UTC()
 				}
@@ -759,10 +783,7 @@ func (m *BackgroundTaskManager) load() error {
 		if task == nil {
 			continue
 		}
-		if task.Status == BackgroundTaskStatusRunning {
-			task.Status = BackgroundTaskStatusQueued
-			task.StartedAt = nil
-		}
+		reconcileInterruptedBackgroundTask(task)
 		if task.NextAttemptAt.IsZero() {
 			task.NextAttemptAt = time.Now().UTC()
 		}

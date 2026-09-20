@@ -1026,6 +1026,9 @@ func ledgerBuildDirFromDeployPath(projectDir, deployPath string) string {
 		return ""
 	}
 	if projectDir != "" && projectDir != "." {
+		if deployPath == projectDir {
+			return "."
+		}
 		prefix := projectDir + "/"
 		if strings.HasPrefix(deployPath, prefix) {
 			return strings.TrimPrefix(deployPath, prefix)

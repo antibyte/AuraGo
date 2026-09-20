@@ -238,7 +238,7 @@ func isActiveContentExtension(filename string) bool {
 func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 	// Pre-create manifest once — it caches internally and auto-reloads on file changes
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
-	return func(w http.ResponseWriter, r *http.Request) {
+	return withBackgroundCompletionReplay(s, func(w http.ResponseWriter, r *http.Request) {
 		// Maintenance check: Inform the log but allow interaction via agent loop
 		inMaintenance := tools.IsBusy()
 		if inMaintenance {
@@ -272,6 +272,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		followUpKey := "default"
 		if missionID != "" {
 			followUpKey = "mission-" + missionID
+		} else if executionID := r.Header.Get("X-Background-Execution-ID"); isFollowUp && executionID != "" && r.Header.Get("X-Session-ID") == "background-"+executionID {
+			followUpKey = "background-" + executionID
 		}
 		muFollowUp.Lock()
 		if !isFollowUp {
@@ -690,7 +692,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)
 		}
-	}
+	})
 }
 
 func handleArchiveMemory(s *Server) http.HandlerFunc {

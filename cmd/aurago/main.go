@@ -757,7 +757,7 @@ func main() {
 	loopbackToken := base64.StdEncoding.EncodeToString(loopbackTokenBytes)
 	backgroundTaskManager.SetInternalToken(loopbackToken)
 
-	backgroundTaskManager.SetLoopbackExecutor(func(prompt string, timeout time.Duration) error {
+	backgroundTaskManager.SetLoopbackExecutor(func(executionID, taskType, prompt string, timeout time.Duration) error {
 		url := server.InternalAPIURL(cfg) + "/v1/chat/completions"
 		payload := map[string]interface{}{
 			"model":  "aurago",
@@ -778,11 +778,18 @@ func main() {
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Internal-FollowUp", "true")
 		req.Header.Set("X-Internal-Token", loopbackToken)
+		req.Header.Set("X-Background-Execution-ID", executionID)
+		if taskType == tools.BackgroundTaskTypeCronPrompt {
+			req.Header.Set("X-Session-ID", "background-"+executionID)
+		}
 		resp, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("execute background loopback request: %w", err)
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusAccepted {
+			return tools.ErrBackgroundTaskPending
+		}
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
 			return fmt.Errorf("background loopback returned %d: %s", resp.StatusCode, string(body))

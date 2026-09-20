@@ -219,7 +219,7 @@ func compressPersistentHistory(
 		}
 	}
 
-	groups := buildConversationGroups(plain)
+	groups := persistentCompressionGroups(plain)
 	if len(groups) < 2 {
 		return result
 	}
@@ -229,6 +229,13 @@ func compressPersistentHistory(
 		protectedStart = groups[i].start
 		protectedCount = len(history) - protectedStart
 	}
+	// Keep both newest complete tool rounds even when a round has many results.
+	if rounds := findCompleteNativeToolRounds(plain); len(rounds) >= 2 {
+		if start := rounds[len(rounds)-2].start; start < protectedStart {
+			protectedStart = start
+		}
+	}
+	currentUser := latestGenuineUserIndex(plain)
 
 	selected := make([]memory.HistoryMessage, 0, protectedStart)
 	selectedChars := 0
@@ -238,7 +245,7 @@ func compressPersistentHistory(
 		}
 		eligible := true
 		for i := group.start; i < group.end; i++ {
-			if history[i].Pinned || history[i].ID <= 0 {
+			if history[i].Pinned || history[i].ID <= 0 || i == currentUser {
 				eligible = false
 				break
 			}

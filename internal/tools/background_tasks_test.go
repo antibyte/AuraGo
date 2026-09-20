@@ -21,7 +21,7 @@ func TestBackgroundTaskManagerFollowUpExecutesAndPersists(t *testing.T) {
 	t.Cleanup(func() { _ = mgr.Close() })
 
 	executed := make(chan string, 1)
-	mgr.SetLoopbackExecutor(func(prompt string, timeout time.Duration) error {
+	mgr.SetLoopbackExecutor(func(executionID, taskType, prompt string, timeout time.Duration) error {
 		executed <- prompt
 		return nil
 	})
@@ -78,7 +78,7 @@ func TestBackgroundTaskManagerWaitForEventFileChanged(t *testing.T) {
 	}
 
 	executed := make(chan string, 1)
-	mgr.SetLoopbackExecutor(func(prompt string, timeout time.Duration) error {
+	mgr.SetLoopbackExecutor(func(executionID, taskType, prompt string, timeout time.Duration) error {
 		executed <- prompt
 		return nil
 	})

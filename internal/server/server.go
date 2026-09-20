@@ -249,6 +249,8 @@ type Server struct {
 	loopbackSrv     *http.Server // plain-HTTP server on 127.0.0.1 for cloudflared (HTTPS loopback port)
 	loopbackHandler http.Handler // stored handler so hot-reload can restart the listener without a full restart
 	spaceAgentHTTPS *http.Server // HTTPS reverse proxy for the managed Space Agent web UI
+
+	backgroundCompletions backgroundCompletionCache
 }
 
 func (s *Server) accessLogger() *slog.Logger {

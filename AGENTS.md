@@ -557,6 +557,11 @@ Tools are defined in `internal/tools/`:
   animation/disposal; refusal or errors leave the window open.
 
 ### Operational Issue Notification Contract
+
+- Persist a background prompt execution ID before dispatch. Internal HTTP retries
+  poll/replay that same execution and never start another tool chain. A pending
+  result does not spend retry allowance; uncertain executions after a process
+  restart require explicit retry. Cron prompts use their own background session.
 - Background and maintenance contexts only record operational issues; they never send user notices themselves.
 - New or changed issue revisions are surfaced by the supervisor at the next direct chat contact, with at most two issues ordered by severity, change, and recency. A one-off `tool_failure` warning stays internal until its second occurrence. High-severity open issues may repeat after 24 hours only after another occurrence or while explicitly awaiting a user decision.
 - Supported brokers receive `operational_issue_notice`; other channels receive the same localized text as a deterministic final-answer prefix. Mark a revision notified only after broker delivery or durable final-message persistence.
@@ -570,6 +575,13 @@ Tools are defined in `internal/tools/`:
 - Weekly reflection has its own maintenance phase; skipped runs cannot resolve its failures. Use route-aware reasoning/output limits, reject empty/truncated/invalid completions, and retry once with fewer source records. Persist only parsed results; successful persistence may resolve the matching issue. Never store raw failed output or emit separate reflection notifications.
 
 ### Prompt and Runtime Drift Contract
+
+- Persistent history compression must make bounded progress through oversized
+  conversations at complete tool-round boundaries. Preserve the current human
+  request, pinned records and the two newest native tool rounds.
+- Workspace asset fingerprints cover runtime sources, patches and dependencies,
+  with normalized LF endings, excluding Go test files. Legacy compatibility
+  must be bound to a verified exact runtime fingerprint, never a blanket bypass.
 - PromptSec structure provenance must come from guard metadata, never a textual
   comparison with the current dynamic system prompt. A full structure envelope
   cannot replace a chat user message. Chunked security scans provide diagnostics
