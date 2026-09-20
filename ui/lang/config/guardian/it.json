@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "Testo aggiuntivo di policy inviato all'LLM judge.",
   "config.guardian.output_title": "Output",
   "config.guardian.output_desc": "Controlla se l'output sanificato di promptsec viene inoltrato all'agente.",
-  "config.guardian.use_sanitized_output_label": "Usa output sanificato"
+  "config.guardian.use_sanitized_output_label": "Usa output sanificato",
+  "config.guardian.max_scan_bytes_help": "Impostazioni di base per la scansione locale di prompt injection.",
+  "config.guardian.scan_edge_bytes_help": "Impostazioni di base per la scansione locale di prompt injection.",
+  "config.guardian.sanitizer_normalize_help": "Pulisce l'input prima della scansione: normalizzazione Unicode, sostituzione omoglifi e decodifica di payload offuscati.",
+  "config.guardian.sanitizer_dehomoglyph_help": "Pulisce l'input prima della scansione: normalizzazione Unicode, sostituzione omoglifi e decodifica di payload offuscati.",
+  "config.guardian.sanitizer_decode_help": "Pulisce l'input prima della scansione: normalizzazione Unicode, sostituzione omoglifi e decodifica di payload offuscati.",
+  "config.guardian.embedding_enabled_help": "Confronta l'input localmente tramite similarità coseno con vettori di attacco noti. Non richiede un modello esterno.",
+  "config.guardian.policy_help": "Blocca i cambi di compito in base al contesto dell'app (ad es. traduzioni in un bot RAG).",
+  "config.guardian.taint_enabled_help": "Marca l'origine dei dati (utente, web, output strumento) con livelli di fiducia.",
+  "config.guardian.taint_level_help": "Marca l'origine dei dati (utente, web, output strumento) con livelli di fiducia.",
+  "config.guardian.structure_enabled_help": "Inquadra gli input utente ed esterni con il system prompt per rendere più difficile il prompt injection.",
+  "config.guardian.structure_mode_help": "Inquadra gli input utente ed esterni con il system prompt per rendere più difficile il prompt injection.",
+  "config.guardian.llm_judge_enabled_help": "Scala input incerti o sensibili alla policy all'LLM Guardian per una revisione più approfondita.",
+  "config.guardian.llm_judge_mode_help": "Scala input incerti o sensibili alla policy all'LLM Guardian per una revisione più approfondita.",
+  "config.guardian.llm_judge_timeout_help": "Scala input incerti o sensibili alla policy all'LLM Guardian per una revisione più approfondita.",
+  "config.guardian.use_sanitized_output_help": "Controlla se l'output sanificato di promptsec viene inoltrato all'agente."
 }

@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "Yderligere politiktekst sendt til LLM judge.",
   "config.guardian.output_title": "Output",
   "config.guardian.output_desc": "Styrer om den saniterede promptsec-output videresendes til agenten.",
-  "config.guardian.use_sanitized_output_label": "Brug saniteret output"
+  "config.guardian.use_sanitized_output_label": "Brug saniteret output",
+  "config.guardian.max_scan_bytes_help": "Grundindstillinger for lokal prompt-injection-scanning.",
+  "config.guardian.scan_edge_bytes_help": "Grundindstillinger for lokal prompt-injection-scanning.",
+  "config.guardian.sanitizer_normalize_help": "Renser input før scanning: Unicode-normalisering, homoglyf-erstatning og afkodning af slørede payloads.",
+  "config.guardian.sanitizer_dehomoglyph_help": "Renser input før scanning: Unicode-normalisering, homoglyf-erstatning og afkodning af slørede payloads.",
+  "config.guardian.sanitizer_decode_help": "Renser input før scanning: Unicode-normalisering, homoglyf-erstatning og afkodning af slørede payloads.",
+  "config.guardian.embedding_enabled_help": "Sammenligner input lokalt via cosinus-lighed med kendte angrebsvektorer. Kræver ingen ekstern model.",
+  "config.guardian.policy_help": "Blokerer opgaveskift baseret på applikationskontekst (f.eks. oversættelser i en RAG-bot).",
+  "config.guardian.taint_enabled_help": "Markerer dataoprindelse (bruger, web, værktøjsoutput) med tillidsniveauer.",
+  "config.guardian.taint_level_help": "Markerer dataoprindelse (bruger, web, værktøjsoutput) med tillidsniveauer.",
+  "config.guardian.structure_enabled_help": "Indrammer bruger- og eksternt input med system prompt for at gøre prompt-injection sværere.",
+  "config.guardian.structure_mode_help": "Indrammer bruger- og eksternt input med system prompt for at gøre prompt-injection sværere.",
+  "config.guardian.llm_judge_enabled_help": "Eskalerer usikker eller politisk følsom input til LLM Guardian for dybere gennemgang.",
+  "config.guardian.llm_judge_mode_help": "Eskalerer usikker eller politisk følsom input til LLM Guardian for dybere gennemgang.",
+  "config.guardian.llm_judge_timeout_help": "Eskalerer usikker eller politisk følsom input til LLM Guardian for dybere gennemgang.",
+  "config.guardian.use_sanitized_output_help": "Styrer om den saniterede promptsec-output videresendes til agenten."
 }

@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "发送给 LLM judge 的额外策略文本。",
   "config.guardian.output_title": "输出",
   "config.guardian.output_desc": "控制是否将 sanitized 的 promptsec 输出转发给 agent。",
-  "config.guardian.use_sanitized_output_label": "使用 sanitized 输出"
+  "config.guardian.use_sanitized_output_label": "使用 sanitized 输出",
+  "config.guardian.max_scan_bytes_help": "本地 prompt injection 扫描的基础设置。",
+  "config.guardian.scan_edge_bytes_help": "本地 prompt injection 扫描的基础设置。",
+  "config.guardian.sanitizer_normalize_help": "扫描前清理输入：Unicode 规范化、同形异义字替换、解码混淆负载。",
+  "config.guardian.sanitizer_dehomoglyph_help": "扫描前清理输入：Unicode 规范化、同形异义字替换、解码混淆负载。",
+  "config.guardian.sanitizer_decode_help": "扫描前清理输入：Unicode 规范化、同形异义字替换、解码混淆负载。",
+  "config.guardian.embedding_enabled_help": "通过余弦相似度在本地将输入与已知攻击向量进行比较。无需外部模型。",
+  "config.guardian.policy_help": "根据应用上下文阻止任务切换（例如 RAG 机器人中的翻译）。",
+  "config.guardian.taint_enabled_help": "用信任等级标记数据来源（用户、网页、工具输出）。",
+  "config.guardian.taint_level_help": "用信任等级标记数据来源（用户、网页、工具输出）。",
+  "config.guardian.structure_enabled_help": "用系统提示包围用户和外部输入，使 prompt injection 更难成功。",
+  "config.guardian.structure_mode_help": "用系统提示包围用户和外部输入，使 prompt injection 更难成功。",
+  "config.guardian.llm_judge_enabled_help": "将不确定或策略敏感的输入升级到 LLM Guardian 进行更深入审查。",
+  "config.guardian.llm_judge_mode_help": "将不确定或策略敏感的输入升级到 LLM Guardian 进行更深入审查。",
+  "config.guardian.llm_judge_timeout_help": "将不确定或策略敏感的输入升级到 LLM Guardian 进行更深入审查。",
+  "config.guardian.use_sanitized_output_help": "控制是否将 sanitized 的 promptsec 输出转发给 agent。"
 }

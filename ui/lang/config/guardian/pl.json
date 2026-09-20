@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "Dodatkowy tekst polityki przekazywany do LLM judge.",
   "config.guardian.output_title": "Output",
   "config.guardian.output_desc": "Kontroluje, czy zsanityzowany output promptsec jest przekazywany do agenta.",
-  "config.guardian.use_sanitized_output_label": "Użyj outputu sanitizer"
+  "config.guardian.use_sanitized_output_label": "Użyj outputu sanitizer",
+  "config.guardian.max_scan_bytes_help": "Podstawowe ustawienia lokalnego skanowania prompt injection.",
+  "config.guardian.scan_edge_bytes_help": "Podstawowe ustawienia lokalnego skanowania prompt injection.",
+  "config.guardian.sanitizer_normalize_help": "Czyści dane wejściowe przed skanowaniem: normalizacja Unicode, zamiana homoglifów i dekodowanie zaciemnionych payloadów.",
+  "config.guardian.sanitizer_dehomoglyph_help": "Czyści dane wejściowe przed skanowaniem: normalizacja Unicode, zamiana homoglifów i dekodowanie zaciemnionych payloadów.",
+  "config.guardian.sanitizer_decode_help": "Czyści dane wejściowe przed skanowaniem: normalizacja Unicode, zamiana homoglifów i dekodowanie zaciemnionych payloadów.",
+  "config.guardian.embedding_enabled_help": "Porównuje dane wejściowe lokalnie za pomocą podobieństwa cosinusowego ze znanymi wektorami ataków. Nie wymaga zewnętrznego modelu.",
+  "config.guardian.policy_help": "Blokuje zmiany zadań w zależności od kontekstu aplikacji (np. tłumaczenia w botcie RAG).",
+  "config.guardian.taint_enabled_help": "Oznacza pochodzenie danych (użytkownik, web, wynik narzędzia) poziomami zaufania.",
+  "config.guardian.taint_level_help": "Oznacza pochodzenie danych (użytkownik, web, wynik narzędzia) poziomami zaufania.",
+  "config.guardian.structure_enabled_help": "Obramowuje dane użytkownika i zewnętrzne system promptem, aby utrudnić prompt injection.",
+  "config.guardian.structure_mode_help": "Obramowuje dane użytkownika i zewnętrzne system promptem, aby utrudnić prompt injection.",
+  "config.guardian.llm_judge_enabled_help": "Eskaluje niepewne lub wrażliwe politycznie dane wejściowe do LLM Guardian w celu głębszej analizy.",
+  "config.guardian.llm_judge_mode_help": "Eskaluje niepewne lub wrażliwe politycznie dane wejściowe do LLM Guardian w celu głębszej analizy.",
+  "config.guardian.llm_judge_timeout_help": "Eskaluje niepewne lub wrażliwe politycznie dane wejściowe do LLM Guardian w celu głębszej analizy.",
+  "config.guardian.use_sanitized_output_help": "Kontroluje, czy zsanityzowany output promptsec jest przekazywany do agenta."
 }

@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "LLM judge को भेजी जाने वाली अतिरिक्त policy text।",
   "config.guardian.output_title": "Output",
   "config.guardian.output_desc": "नियंत्रित करता है कि क्या sanitized promptsec output agent को भेजा जाता है।",
-  "config.guardian.use_sanitized_output_label": "Sanitised output का उपयोग करें"
+  "config.guardian.use_sanitized_output_label": "Sanitised output का उपयोग करें",
+  "config.guardian.max_scan_bytes_help": "स्थानीय prompt injection स्कैनिंग के लिए बुनियादी सेटिंग्स।",
+  "config.guardian.scan_edge_bytes_help": "स्थानीय prompt injection स्कैनिंग के लिए बुनियादी सेटिंग्स।",
+  "config.guardian.sanitizer_normalize_help": "स्कैन से पहले इनपुट साफ करता है: Unicode normalisation, homoglyph replacement और obfuscated payloads को decode करना।",
+  "config.guardian.sanitizer_dehomoglyph_help": "स्कैन से पहले इनपुट साफ करता है: Unicode normalisation, homoglyph replacement और obfuscated payloads को decode करना।",
+  "config.guardian.sanitizer_decode_help": "स्कैन से पहले इनपुट साफ करता है: Unicode normalisation, homoglyph replacement और obfuscated payloads को decode करना।",
+  "config.guardian.embedding_enabled_help": "ज्ञात attack vectors के साथ cosine similarity के माध्यम से इनपुट की स्थानीय तुलना करता है। कोई बाहरी model आवश्यक नहीं।",
+  "config.guardian.policy_help": "Application context के आधार पर task switches को रोकता है (जैसे RAG bot में अनुवाद)।",
+  "config.guardian.taint_enabled_help": "Data origin (user, web, tool output) को trust levels के साथ mark करता है।",
+  "config.guardian.taint_level_help": "Data origin (user, web, tool output) को trust levels के साथ mark करता है।",
+  "config.guardian.structure_enabled_help": "User और external inputs को system prompt से घेरता है ताकि prompt injection कठिन हो।",
+  "config.guardian.structure_mode_help": "User और external inputs को system prompt से घेरता है ताकि prompt injection कठिन हो।",
+  "config.guardian.llm_judge_enabled_help": "अनिश्चित या policy-sensitive inputs को गहन समीक्षा के लिए LLM Guardian को भेजता है।",
+  "config.guardian.llm_judge_mode_help": "अनिश्चित या policy-sensitive inputs को गहन समीक्षा के लिए LLM Guardian को भेजता है।",
+  "config.guardian.llm_judge_timeout_help": "अनिश्चित या policy-sensitive inputs को गहन समीक्षा के लिए LLM Guardian को भेजता है।",
+  "config.guardian.use_sanitized_output_help": "नियंत्रित करता है कि क्या sanitized promptsec output agent को भेजा जाता है।"
 }

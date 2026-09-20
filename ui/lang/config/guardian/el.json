@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "Πρόσθετο κείμενο πολιτικής που αποστέλλεται στο LLM judge.",
   "config.guardian.output_title": "Output",
   "config.guardian.output_desc": "Ελέγχει αν η sanitized έξοδος του promptsec προωθείται στον agent.",
-  "config.guardian.use_sanitized_output_label": "Χρήση sanitized εξόδου"
+  "config.guardian.use_sanitized_output_label": "Χρήση sanitized εξόδου",
+  "config.guardian.max_scan_bytes_help": "Βασικές ρυθμίσεις για τοπική σάρωση prompt injection.",
+  "config.guardian.scan_edge_bytes_help": "Βασικές ρυθμίσεις για τοπική σάρωση prompt injection.",
+  "config.guardian.sanitizer_normalize_help": "Καθαρίζει την είσοδο πριν τη σάρωση: κανονικοποίηση Unicode, αντικατάσταση ομογλύφων και αποκωδικοποίηση συσκοτισμένων payloads.",
+  "config.guardian.sanitizer_dehomoglyph_help": "Καθαρίζει την είσοδο πριν τη σάρωση: κανονικοποίηση Unicode, αντικατάσταση ομογλύφων και αποκωδικοποίηση συσκοτισμένων payloads.",
+  "config.guardian.sanitizer_decode_help": "Καθαρίζει την είσοδο πριν τη σάρωση: κανονικοποίηση Unicode, αντικατάσταση ομογλύφων και αποκωδικοποίηση συσκοτισμένων payloads.",
+  "config.guardian.embedding_enabled_help": "Συγκρίνει τοπικά την είσοδο με συνημίτονο ομοιότητα με γνωστά διανύσματα επίθεσης. Δεν απαιτεί εξωτερικό μοντέλο.",
+  "config.guardian.policy_help": "Αποκλείει αλλαγές εργασιών ανάλογα με το πλαίσιο της εφαρμογής (π.χ. μεταφράσεις σε bot RAG).",
+  "config.guardian.taint_enabled_help": "Σημειώνει την προέλευση δεδομένων (χρήστης, ιστός, έξοδος εργαλείου) με επίπεδα εμπιστοσύνης.",
+  "config.guardian.taint_level_help": "Σημειώνει την προέλευση δεδομένων (χρήστης, ιστός, έξοδος εργαλείου) με επίπεδα εμπιστοσύνης.",
+  "config.guardian.structure_enabled_help": "Πλαισιώνει τις εισόδους χρήστη και εξωτερικές με το system prompt για να δυσκολέψει το prompt injection.",
+  "config.guardian.structure_mode_help": "Πλαισιώνει τις εισόδους χρήστη και εξωτερικές με το system prompt για να δυσκολέψει το prompt injection.",
+  "config.guardian.llm_judge_enabled_help": "Κλιμακώνει αβέβαιες ή ευαίσθητες στην πολιτική εισόδους στο LLM Guardian για βαθύτερη ανασκόπηση.",
+  "config.guardian.llm_judge_mode_help": "Κλιμακώνει αβέβαιες ή ευαίσθητες στην πολιτική εισόδους στο LLM Guardian για βαθύτερη ανασκόπηση.",
+  "config.guardian.llm_judge_timeout_help": "Κλιμακώνει αβέβαιες ή ευαίσθητες στην πολιτική εισόδους στο LLM Guardian για βαθύτερη ανασκόπηση.",
+  "config.guardian.use_sanitized_output_help": "Ελέγχει αν η sanitized έξοδος του promptsec προωθείται στον agent."
 }

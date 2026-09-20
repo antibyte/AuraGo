@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "Texto de política adicional enviado al LLM judge.",
   "config.guardian.output_title": "Output",
   "config.guardian.output_desc": "Controla si la salida sanitizada de promptsec se reenvía al agente.",
-  "config.guardian.use_sanitized_output_label": "Usar salida sanitizada"
+  "config.guardian.use_sanitized_output_label": "Usar salida sanitizada",
+  "config.guardian.max_scan_bytes_help": "Configuración básica del escaneo local de prompt injection.",
+  "config.guardian.scan_edge_bytes_help": "Configuración básica del escaneo local de prompt injection.",
+  "config.guardian.sanitizer_normalize_help": "Limpia la entrada antes del escaneo: normalización Unicode, sustitución de homoglifos y decodificación de payloads ofuscados.",
+  "config.guardian.sanitizer_dehomoglyph_help": "Limpia la entrada antes del escaneo: normalización Unicode, sustitución de homoglifos y decodificación de payloads ofuscados.",
+  "config.guardian.sanitizer_decode_help": "Limpia la entrada antes del escaneo: normalización Unicode, sustitución de homoglifos y decodificación de payloads ofuscados.",
+  "config.guardian.embedding_enabled_help": "Compara la entrada localmente por similitud coseno con vectores de ataque conocidos. No requiere modelo externo.",
+  "config.guardian.policy_help": "Bloquea cambios de tarea según el contexto de la aplicación (por ej., traducciones en un bot RAG).",
+  "config.guardian.taint_enabled_help": "Marca el origen de los datos (usuario, web, salida de herramienta) con niveles de confianza.",
+  "config.guardian.taint_level_help": "Marca el origen de los datos (usuario, web, salida de herramienta) con niveles de confianza.",
+  "config.guardian.structure_enabled_help": "Enmarca las entradas del usuario y externas con el system prompt para dificultar el prompt injection.",
+  "config.guardian.structure_mode_help": "Enmarca las entradas del usuario y externas con el system prompt para dificultar el prompt injection.",
+  "config.guardian.llm_judge_enabled_help": "Escala entradas inciertas o sensibles a la política al LLM Guardian para revisión más profunda.",
+  "config.guardian.llm_judge_mode_help": "Escala entradas inciertas o sensibles a la política al LLM Guardian para revisión más profunda.",
+  "config.guardian.llm_judge_timeout_help": "Escala entradas inciertas o sensibles a la política al LLM Guardian para revisión más profunda.",
+  "config.guardian.use_sanitized_output_help": "Controla si la salida sanitizada de promptsec se reenvía al agente."
 }

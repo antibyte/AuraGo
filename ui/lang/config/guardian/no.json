@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "Ekstra policytekst sendt til LLM judge.",
   "config.guardian.output_title": "Output",
   "config.guardian.output_desc": "Styrer om sanitisert promptsec-output videresendes til agenten.",
-  "config.guardian.use_sanitized_output_label": "Bruk sanitisert output"
+  "config.guardian.use_sanitized_output_label": "Bruk sanitisert output",
+  "config.guardian.max_scan_bytes_help": "Grunnleggende innstillinger for lokal prompt-injection-skanning.",
+  "config.guardian.scan_edge_bytes_help": "Grunnleggende innstillinger for lokal prompt-injection-skanning.",
+  "config.guardian.sanitizer_normalize_help": "Renser inndata før skanning: Unicode-normalisering, homoglyf-erstatning og dekoding av tilslørte payloads.",
+  "config.guardian.sanitizer_dehomoglyph_help": "Renser inndata før skanning: Unicode-normalisering, homoglyf-erstatning og dekoding av tilslørte payloads.",
+  "config.guardian.sanitizer_decode_help": "Renser inndata før skanning: Unicode-normalisering, homoglyf-erstatning og dekoding av tilslørte payloads.",
+  "config.guardian.embedding_enabled_help": "Sammenligner inndata lokalt via cosinus-likhet med kjente angrepsvektorer. Krever ingen ekstern modell.",
+  "config.guardian.policy_help": "Blokkerer oppgaveendringer basert på app-kontekst (f.eks. oversettelser i en RAG-bot).",
+  "config.guardian.taint_enabled_help": "Markerer dataopprinnelse (bruker, web, verktøysutdata) med tillitsnivåer.",
+  "config.guardian.taint_level_help": "Markerer dataopprinnelse (bruker, web, verktøysutdata) med tillitsnivåer.",
+  "config.guardian.structure_enabled_help": "Innrammer bruker- og eksternt inndata med system prompt for å gjøre prompt-injection vanskeligere.",
+  "config.guardian.structure_mode_help": "Innrammer bruker- og eksternt inndata med system prompt for å gjøre prompt-injection vanskeligere.",
+  "config.guardian.llm_judge_enabled_help": "Eskalerer usikker eller policy-sensitiv inndata til LLM Guardian for dypere gjennomgang.",
+  "config.guardian.llm_judge_mode_help": "Eskalerer usikker eller policy-sensitiv inndata til LLM Guardian for dypere gjennomgang.",
+  "config.guardian.llm_judge_timeout_help": "Eskalerer usikker eller policy-sensitiv inndata til LLM Guardian for dypere gjennomgang.",
+  "config.guardian.use_sanitized_output_help": "Styrer om sanitisert promptsec-output videresendes til agenten."
 }

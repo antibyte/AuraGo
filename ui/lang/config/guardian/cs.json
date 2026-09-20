@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "Dodatečný text politiky odeslaný do LLM judge.",
   "config.guardian.output_title": "Výstup",
   "config.guardian.output_desc": "Určuje, zda se sanitizovaný výstup promptsec předá agentovi.",
-  "config.guardian.use_sanitized_output_label": "Použít sanitizovaný výstup"
+  "config.guardian.use_sanitized_output_label": "Použít sanitizovaný výstup",
+  "config.guardian.max_scan_bytes_help": "Základní nastavení lokálního skenování prompt injection.",
+  "config.guardian.scan_edge_bytes_help": "Základní nastavení lokálního skenování prompt injection.",
+  "config.guardian.sanitizer_normalize_help": "Před skenováním vyčistí vstup: normalizace Unicode, nahrazení homoglyfů a dekódování zastřených payloadů.",
+  "config.guardian.sanitizer_dehomoglyph_help": "Před skenováním vyčistí vstup: normalizace Unicode, nahrazení homoglyfů a dekódování zastřených payloadů.",
+  "config.guardian.sanitizer_decode_help": "Před skenováním vyčistí vstup: normalizace Unicode, nahrazení homoglyfů a dekódování zastřených payloadů.",
+  "config.guardian.embedding_enabled_help": "Porovnává vstup lokálně pomocí kosinové podobnosti se známými útočnými vektory. Nevyžaduje externí model.",
+  "config.guardian.policy_help": "Blokuje změny úkolů podle kontextu aplikace (např. překlady v RAG botovi).",
+  "config.guardian.taint_enabled_help": "Označuje původ dat (uživatel, web, výstup nástroje) úrovněmi důvěry.",
+  "config.guardian.taint_level_help": "Označuje původ dat (uživatel, web, výstup nástroje) úrovněmi důvěry.",
+  "config.guardian.structure_enabled_help": "Rámuje vstupy od uživatele a externí zdroje systémovým promptem, aby se ztížilo prompt injection.",
+  "config.guardian.structure_mode_help": "Rámuje vstupy od uživatele a externí zdroje systémovým promptem, aby se ztížilo prompt injection.",
+  "config.guardian.llm_judge_enabled_help": "Předává nejisté nebo politicky citlivé vstupy LLM Guardian pro hlubší kontrolu.",
+  "config.guardian.llm_judge_mode_help": "Předává nejisté nebo politicky citlivé vstupy LLM Guardian pro hlubší kontrolu.",
+  "config.guardian.llm_judge_timeout_help": "Předává nejisté nebo politicky citlivé vstupy LLM Guardian pro hlubší kontrolu.",
+  "config.guardian.use_sanitized_output_help": "Určuje, zda se sanitizovaný výstup promptsec předá agentovi."
 }

@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "LLM judge に送信する追加のポリシーテキスト。",
   "config.guardian.output_title": "出力",
   "config.guardian.output_desc": "sanitized された promptsec 出力を agent に転送するかどうかを制御します。",
-  "config.guardian.use_sanitized_output_label": "sanitized 出力を使用"
+  "config.guardian.use_sanitized_output_label": "sanitized 出力を使用",
+  "config.guardian.max_scan_bytes_help": "ローカルの prompt injection スキャンの基本設定。",
+  "config.guardian.scan_edge_bytes_help": "ローカルの prompt injection スキャンの基本設定。",
+  "config.guardian.sanitizer_normalize_help": "スキャン前に入力をクリーニングします：Unicode 正規化、homoglyph 置換、難読化されたペイロードのデコード。",
+  "config.guardian.sanitizer_dehomoglyph_help": "スキャン前に入力をクリーニングします：Unicode 正規化、homoglyph 置換、難読化されたペイロードのデコード。",
+  "config.guardian.sanitizer_decode_help": "スキャン前に入力をクリーニングします：Unicode 正規化、homoglyph 置換、難読化されたペイロードのデコード。",
+  "config.guardian.embedding_enabled_help": "既知の攻撃ベクトルとのコサイン類似度で入力をローカルに比較します。外部モデルは不要です。",
+  "config.guardian.policy_help": "アプリケーションのコンテキストに基づいてタスク切り替えをブロックします（例：RAG ボットでの翻訳）。",
+  "config.guardian.taint_enabled_help": "データの発生源（ユーザー、Web、ツール出力）に信頼レベルを付与してマークします。",
+  "config.guardian.taint_level_help": "データの発生源（ユーザー、Web、ツール出力）に信頼レベルを付与してマークします。",
+  "config.guardian.structure_enabled_help": "ユーザー入力と外部入力を system prompt で囲み、prompt injection を困難にします。",
+  "config.guardian.structure_mode_help": "ユーザー入力と外部入力を system prompt で囲み、prompt injection を困難にします。",
+  "config.guardian.llm_judge_enabled_help": "不確実またはポリシーに敏感な入力を、より深いレビューのために LLM Guardian にエスカレートします。",
+  "config.guardian.llm_judge_mode_help": "不確実またはポリシーに敏感な入力を、より深いレビューのために LLM Guardian にエスカレートします。",
+  "config.guardian.llm_judge_timeout_help": "不確実またはポリシーに敏感な入力を、より深いレビューのために LLM Guardian にエスカレートします。",
+  "config.guardian.use_sanitized_output_help": "sanitized された promptsec 出力を agent に転送するかどうかを制御します。"
 }

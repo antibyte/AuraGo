@@ -28,10 +28,12 @@ async function renderGuardianSection(section) {
     html += `<div class="field-grid two-cols">
         <div class="field-group">
             <div class="field-label">${t('config.guardian.max_scan_bytes_label')}</div>
+            <div class="field-help">${guardianHelp('config.guardian.max_scan_bytes_help', 'config.guardian.scan_desc')}</div>
             <input type="number" class="field-input" data-path="guardian.max_scan_bytes" value="${cfg.max_scan_bytes != null ? cfg.max_scan_bytes : 16384}" min="1024" max="1048576" step="1024">
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.guardian.scan_edge_bytes_label')}</div>
+            <div class="field-help">${guardianHelp('config.guardian.scan_edge_bytes_help', 'config.guardian.scan_desc')}</div>
             <input type="number" class="field-input" data-path="guardian.scan_edge_bytes" value="${cfg.scan_edge_bytes != null ? cfg.scan_edge_bytes : 6144}" min="0" max="524288" step="1024">
         </div>
     </div>`;
@@ -42,9 +44,9 @@ async function renderGuardianSection(section) {
         <div class="field-group-desc">${t('config.guardian.sanitizer_desc')}</div>`;
 
     const sanitizer = ps.sanitizer || {};
-    html += renderGuardianToggle('guardian.promptsec.sanitizer.normalize', sanitizer.normalize !== false, t('config.guardian.sanitizer_normalize_label'));
-    html += renderGuardianToggle('guardian.promptsec.sanitizer.dehomoglyph', sanitizer.dehomoglyph !== false, t('config.guardian.sanitizer_dehomoglyph_label'));
-    html += renderGuardianToggle('guardian.promptsec.sanitizer.decode', sanitizer.decode !== false, t('config.guardian.sanitizer_decode_label'));
+    html += renderGuardianToggle('guardian.promptsec.sanitizer.normalize', sanitizer.normalize !== false, t('config.guardian.sanitizer_normalize_label'), guardianHelp('config.guardian.sanitizer_normalize_help', 'config.guardian.sanitizer_desc'));
+    html += renderGuardianToggle('guardian.promptsec.sanitizer.dehomoglyph', sanitizer.dehomoglyph !== false, t('config.guardian.sanitizer_dehomoglyph_label'), guardianHelp('config.guardian.sanitizer_dehomoglyph_help', 'config.guardian.sanitizer_desc'));
+    html += renderGuardianToggle('guardian.promptsec.sanitizer.decode', sanitizer.decode !== false, t('config.guardian.sanitizer_decode_label'), guardianHelp('config.guardian.sanitizer_decode_help', 'config.guardian.sanitizer_desc'));
     html += `</div>`;
 
     html += `<div class="field-group">
@@ -52,7 +54,7 @@ async function renderGuardianSection(section) {
         <div class="field-group-desc">${t('config.guardian.embedding_desc')}</div>`;
 
     const embeddingEnabled = ps.embedding && ps.embedding.enabled === true;
-    html += renderGuardianToggle('guardian.promptsec.embedding.enabled', embeddingEnabled, t('config.guardian.embedding_enabled_label'));
+    html += renderGuardianToggle('guardian.promptsec.embedding.enabled', embeddingEnabled, t('config.guardian.embedding_enabled_label'), guardianHelp('config.guardian.embedding_enabled_help', 'config.guardian.embedding_desc'));
 
     const threshold = (ps.embedding && ps.embedding.threshold != null) ? ps.embedding.threshold : 0.65;
     html += `<div class="field-group">
@@ -70,6 +72,7 @@ async function renderGuardianSection(section) {
     const policies = ['', 'rag', 'support', 'coding', 'translation', 'custom'];
     html += `<div class="field-group">
         <div class="field-label">${t('config.guardian.policy_label')}</div>
+        <div class="field-help">${guardianHelp('config.guardian.policy_help', 'config.guardian.policy_desc')}</div>
         <select class="field-select" data-path="guardian.promptsec.policy" onchange="guardianSetPolicy(this.value)">`;
     policies.forEach(p => {
         const sel = (curPolicy === p) ? ' selected' : '';
@@ -109,12 +112,13 @@ async function renderGuardianSection(section) {
         <div class="field-group-desc">${t('config.guardian.taint_desc')}</div>`;
 
     const taintEnabled = ps.taint && ps.taint.enabled === true;
-    html += renderGuardianToggle('guardian.promptsec.taint.enabled', taintEnabled, t('config.guardian.taint_enabled_label'));
+    html += renderGuardianToggle('guardian.promptsec.taint.enabled', taintEnabled, t('config.guardian.taint_enabled_label'), guardianHelp('config.guardian.taint_enabled_help', 'config.guardian.taint_desc'));
 
     const taintLevel = (ps.taint && ps.taint.default_level) || 'untrusted';
     const levels = ['untrusted', 'suspicious', 'trusted'];
     html += `<div class="field-group">
         <div class="field-label">${t('config.guardian.taint_level_label')}</div>
+        <div class="field-help">${guardianHelp('config.guardian.taint_level_help', 'config.guardian.taint_desc')}</div>
         <select class="field-select" data-path="guardian.promptsec.taint.default_level">`;
     levels.forEach(l => {
         const sel = (taintLevel === l) ? ' selected' : '';
@@ -128,12 +132,13 @@ async function renderGuardianSection(section) {
         <div class="field-group-desc">${t('config.guardian.structure_desc')}</div>`;
 
     const structureEnabled = ps.structure && ps.structure.enabled === true;
-    html += renderGuardianToggle('guardian.promptsec.structure.enabled', structureEnabled, t('config.guardian.structure_enabled_label'));
+    html += renderGuardianToggle('guardian.promptsec.structure.enabled', structureEnabled, t('config.guardian.structure_enabled_label'), guardianHelp('config.guardian.structure_enabled_help', 'config.guardian.structure_desc'));
 
     const structureMode = (ps.structure && ps.structure.mode) || 'sandwich';
     const modes = ['sandwich', 'xml', 'random'];
     html += `<div class="field-group">
         <div class="field-label">${t('config.guardian.structure_mode_label')}</div>
+        <div class="field-help">${guardianHelp('config.guardian.structure_mode_help', 'config.guardian.structure_desc')}</div>
         <select class="field-select" data-path="guardian.promptsec.structure.mode">`;
     modes.forEach(m => {
         const sel = (structureMode === m) ? ' selected' : '';
@@ -147,12 +152,13 @@ async function renderGuardianSection(section) {
         <div class="field-group-desc">${t('config.guardian.llm_judge_desc')}</div>`;
 
     const judgeEnabled = ps.llm_judge && ps.llm_judge.enabled === true;
-    html += renderGuardianToggle('guardian.promptsec.llm_judge.enabled', judgeEnabled, t('config.guardian.llm_judge_enabled_label'));
+    html += renderGuardianToggle('guardian.promptsec.llm_judge.enabled', judgeEnabled, t('config.guardian.llm_judge_enabled_label'), guardianHelp('config.guardian.llm_judge_enabled_help', 'config.guardian.llm_judge_desc'));
 
     const judgeMode = (ps.llm_judge && ps.llm_judge.mode) || 'uncertain';
     const judgeModes = ['uncertain', 'always', 'threat_detected', 'no_threat'];
     html += `<div class="field-group">
         <div class="field-label">${t('config.guardian.llm_judge_mode_label')}</div>
+        <div class="field-help">${guardianHelp('config.guardian.llm_judge_mode_help', 'config.guardian.llm_judge_desc')}</div>
         <select class="field-select" data-path="guardian.promptsec.llm_judge.mode">`;
     judgeModes.forEach(m => {
         const sel = (judgeMode === m) ? ' selected' : '';
@@ -163,6 +169,7 @@ async function renderGuardianSection(section) {
     const judgeTimeout = (ps.llm_judge && ps.llm_judge.timeout_secs != null) ? ps.llm_judge.timeout_secs : 2;
     html += `<div class="field-group">
         <div class="field-label">${t('config.guardian.llm_judge_timeout_label')}</div>
+        <div class="field-help">${guardianHelp('config.guardian.llm_judge_timeout_help', 'config.guardian.llm_judge_desc')}</div>
         <input type="number" class="field-input" data-path="guardian.promptsec.llm_judge.timeout_secs" value="${judgeTimeout}" min="0" max="60" step="1">
     </div>`;
 
@@ -179,7 +186,7 @@ async function renderGuardianSection(section) {
         <div class="field-group-desc">${t('config.guardian.output_desc')}</div>`;
 
     const useSanitized = ps.use_sanitized_output === true;
-    html += renderGuardianToggle('guardian.promptsec.use_sanitized_output', useSanitized, t('config.guardian.use_sanitized_output_label'));
+    html += renderGuardianToggle('guardian.promptsec.use_sanitized_output', useSanitized, t('config.guardian.use_sanitized_output_label'), guardianHelp('config.guardian.use_sanitized_output_help', 'config.guardian.output_desc'));
     html += `</div>`;
 
     html += `</div>`;
@@ -187,11 +194,19 @@ async function renderGuardianSection(section) {
     attachChangeListeners();
 }
 
-function renderGuardianToggle(path, on, label) {
-    return `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${on ? 'on' : ''}" data-path="${path}" onclick="toggleBool(this);setNestedValue(configData,'${path}',this.classList.contains('on'));setDirty(true)"></div>
-        <span class="cfg-toggle-label">${label}</span>
+function renderGuardianToggle(path, on, label, help) {
+    return `<div class="field-group">
+        <div class="field-label">${label}</div>
+        <div class="field-help">${help}</div>
+        <div class="toggle-wrap">
+            <div class="toggle ${on ? 'on' : ''}" data-path="${path}" onclick="toggleBool(this);setNestedValue(configData,'${path}',this.classList.contains('on'));setDirty(true)"></div>
+            <span class="toggle-label">${t(on ? 'config.toggle.active' : 'config.toggle.inactive')}</span>
+        </div>
     </div>`;
+}
+
+function guardianHelp(key, fallbackKey) {
+    return escapeHtml(tOr(key, t(fallbackKey)));
 }
 
 function guardianSetPolicy(value) {

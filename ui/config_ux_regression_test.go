@@ -181,6 +181,55 @@ func TestConfigUXGuardianPolicySelectPersistsBeforeRerender(t *testing.T) {
 	}
 }
 
+func TestConfigUXGuardianFieldsHaveExplanations(t *testing.T) {
+	t.Parallel()
+
+	guardianJS := normalizeAssetText(mustReadUIFile(t, "cfg/guardian.js"))
+	locales := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	translations := make(map[string]map[string]string, len(locales))
+	for _, locale := range locales {
+		translations[locale] = mustReadJSONMap(t, "lang/config/guardian/"+locale+".json")
+	}
+
+	for _, key := range []string{
+		"max_scan_bytes_help",
+		"scan_edge_bytes_help",
+		"sanitizer_normalize_help",
+		"sanitizer_dehomoglyph_help",
+		"sanitizer_decode_help",
+		"embedding_enabled_help",
+		"policy_help",
+		"taint_enabled_help",
+		"taint_level_help",
+		"structure_enabled_help",
+		"structure_mode_help",
+		"llm_judge_enabled_help",
+		"llm_judge_mode_help",
+		"llm_judge_timeout_help",
+		"use_sanitized_output_help",
+	} {
+		marker := "config.guardian." + key
+		if !strings.Contains(guardianJS, marker) {
+			t.Fatalf("guardian.js missing field explanation %q", marker)
+		}
+		for _, locale := range locales {
+			if strings.TrimSpace(translations[locale][marker]) == "" {
+				t.Fatalf("guardian %s locale missing field explanation %q", locale, marker)
+			}
+		}
+	}
+
+	for _, marker := range []string{
+		`function guardianHelp(key, fallbackKey) {`,
+		`tOr(key, t(fallbackKey))`,
+		`<div class="field-help">${help}</div>`,
+	} {
+		if !strings.Contains(guardianJS, marker) {
+			t.Fatalf("guardian.js missing accessible help marker %q", marker)
+		}
+	}
+}
+
 func TestConfigUXLLMSectionAvoidsInfoBannerFlood(t *testing.T) {
 	t.Parallel()
 

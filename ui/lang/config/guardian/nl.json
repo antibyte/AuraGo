@@ -64,5 +64,20 @@
   "config.guardian.llm_judge_policy_help": "Extra beleidstekst verzonden naar LLM judge.",
   "config.guardian.output_title": "Output",
   "config.guardian.output_desc": "Bepaalt of de gesaneerde promptsec-output wordt doorgestuurd naar de agent.",
-  "config.guardian.use_sanitized_output_label": "Gesaneerde output gebruiken"
+  "config.guardian.use_sanitized_output_label": "Gesaneerde output gebruiken",
+  "config.guardian.max_scan_bytes_help": "Basisinstellingen voor lokale prompt-injection-scanning.",
+  "config.guardian.scan_edge_bytes_help": "Basisinstellingen voor lokale prompt-injection-scanning.",
+  "config.guardian.sanitizer_normalize_help": "Schoont invoer op voor de scan: Unicode-normalisatie, homoglief-vervanging en decodering van verduisterde payloads.",
+  "config.guardian.sanitizer_dehomoglyph_help": "Schoont invoer op voor de scan: Unicode-normalisatie, homoglief-vervanging en decodering van verduisterde payloads.",
+  "config.guardian.sanitizer_decode_help": "Schoont invoer op voor de scan: Unicode-normalisatie, homoglief-vervanging en decodering van verduisterde payloads.",
+  "config.guardian.embedding_enabled_help": "Vergelijkt invoer lokaal via cosinus-gelijkenis met bekende aanvalsvectoren. Vereist geen extern model.",
+  "config.guardian.policy_help": "Blokkeert taakveranderingen op basis van app-context (bijv. vertalingen in een RAG-bot).",
+  "config.guardian.taint_enabled_help": "Markeert herkomst van gegevens (gebruiker, web, tool-output) met vertrouwensniveaus.",
+  "config.guardian.taint_level_help": "Markeert herkomst van gegevens (gebruiker, web, tool-output) met vertrouwensniveaus.",
+  "config.guardian.structure_enabled_help": "Kadert gebruikers- en externe invoer in met system prompt om prompt-injection moeilijker te maken.",
+  "config.guardian.structure_mode_help": "Kadert gebruikers- en externe invoer in met system prompt om prompt-injection moeilijker te maken.",
+  "config.guardian.llm_judge_enabled_help": "Escaleert onzekere of beleidsgevoelige invoer naar LLM Guardian voor diepgaandere controle.",
+  "config.guardian.llm_judge_mode_help": "Escaleert onzekere of beleidsgevoelige invoer naar LLM Guardian voor diepgaandere controle.",
+  "config.guardian.llm_judge_timeout_help": "Escaleert onzekere of beleidsgevoelige invoer naar LLM Guardian voor diepgaandere controle.",
+  "config.guardian.use_sanitized_output_help": "Bepaalt of de gesaneerde promptsec-output wordt doorgestuurd naar de agent."
 }
