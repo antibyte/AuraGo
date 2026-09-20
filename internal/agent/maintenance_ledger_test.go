@@ -74,6 +74,54 @@ func TestMaintenanceContextClaimGateRequiresSeventyFiveSeconds(t *testing.T) {
 	}
 }
 
+func TestMaintenanceContextWithReserveProtectsTailBudget(t *testing.T) {
+	parent, cancelParent := context.WithTimeout(context.Background(), time.Second)
+	defer cancelParent()
+	child, cancelChild, available := maintenanceContextWithReserve(parent, 200*time.Millisecond)
+	defer cancelChild()
+	if !available {
+		t.Fatal("one-second parent should provide a reserved child context")
+	}
+	parentDeadline, _ := parent.Deadline()
+	childDeadline, ok := child.Deadline()
+	if !ok {
+		t.Fatal("reserved child context has no deadline")
+	}
+	reserved := parentDeadline.Sub(childDeadline)
+	if reserved < 190*time.Millisecond || reserved > 210*time.Millisecond {
+		t.Fatalf("reserved tail = %s, want about 200ms", reserved)
+	}
+
+	shortParent, cancelShort := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancelShort()
+	_, cancelUnavailable, available := maintenanceContextWithReserve(shortParent, 100*time.Millisecond)
+	cancelUnavailable()
+	if available {
+		t.Fatal("short parent should defer work that would consume the protected tail")
+	}
+}
+
+func TestMaintenanceLedgerSeparatesConsolidationAndMemoryOptimization(t *testing.T) {
+	ledger := newMaintenanceRunLedger()
+	ledger.beginPhase("consolidation")
+	ledger.addProcessed("consolidation", 4)
+	ledger.finishPhase("consolidation", false)
+	ledger.beginPhase("memory_optimization")
+	ledger.addDeferred("memory_optimization", 1)
+	ledger.finishPhase("memory_optimization", true)
+
+	results := ledger.results()
+	if len(results.Phases) != 2 {
+		t.Fatalf("phases = %#v, want consolidation and memory_optimization", results.Phases)
+	}
+	if results.Phases[0].Name != "consolidation" || results.Phases[0].Status != "completed" {
+		t.Fatalf("consolidation phase = %#v", results.Phases[0])
+	}
+	if results.Phases[1].Name != "memory_optimization" || results.Phases[1].Status != "partial" || results.Phases[1].Deferred != 1 {
+		t.Fatalf("memory optimization phase = %#v", results.Phases[1])
+	}
+}
+
 func TestMaintenanceFinishPhaseMismatchKeepsActivePhase(t *testing.T) {
 	ledger := newMaintenanceRunLedger()
 	ledger.beginPhase("consolidation")

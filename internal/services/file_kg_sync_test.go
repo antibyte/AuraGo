@@ -608,6 +608,66 @@ func TestFileKGSyncer_SyncCollection_SerializesKGWrites(t *testing.T) {
 	}
 }
 
+func TestFileKGSyncer_SyncCollectionCountsCanceledRemainderAsDeferred(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	for _, path := range []string{"/docs/a.md", "/docs/b.md", "/docs/c.md"} {
+		if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-" + path}); err != nil {
+			t.Fatalf("UpdateFileIndexWithDocs(%s): %v", path, err)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var calls atomic.Int32
+	syncer := NewFileKGSyncer(cfg, logger, nil, nil, stm, nil)
+	syncer.syncFile = func(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+		calls.Add(1)
+		cancel()
+		return FileKGSyncResult{FilesProcessed: 1}
+	}
+
+	result := syncer.SyncCollectionWithContext(ctx, IndexerCollection, FileKGSyncOptions{})
+	if calls.Load() != 1 || result.FilesProcessed != 1 || result.FilesDeferred != 2 {
+		t.Fatalf("result = %#v, calls=%d; want one processed and two deferred", result, calls.Load())
+	}
+}
+
+func TestFileKGSyncer_SyncCollectionDefersBeforeStartingWithoutEnoughTime(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	for _, path := range []string{"/docs/a.md", "/docs/b.md", "/docs/c.md"} {
+		if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-" + path}); err != nil {
+			t.Fatalf("UpdateFileIndexWithDocs(%s): %v", path, err)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	var calls atomic.Int32
+	syncer := NewFileKGSyncer(cfg, logger, nil, nil, stm, nil)
+	syncer.syncFile = func(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+		calls.Add(1)
+		return FileKGSyncResult{FilesProcessed: 1}
+	}
+
+	result := syncer.SyncCollectionWithContext(ctx, IndexerCollection, FileKGSyncOptions{MinRemaining: 100 * time.Millisecond})
+	if calls.Load() != 0 || result.FilesProcessed != 0 || result.FilesDeferred != 3 || len(result.Errors) != 0 {
+		t.Fatalf("result = %#v, calls=%d; want three cleanly deferred files", result, calls.Load())
+	}
+}
+
 func TestFileKGSyncer_SyncCollectionAggregatesParallelResults(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := &config.Config{}

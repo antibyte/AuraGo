@@ -215,6 +215,15 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if maintenanceContextDone(taskCtx, ledger, logger, "profile_cleanup") {
 		return
 	}
+	ledger.beginPhase("memory_hygiene")
+	if cfg.Consolidation.Enabled && shortTermMem != nil {
+		runNightlyMemoryBaselineWithContext(taskCtx, cfg, logger, shortTermMem, longTermMem)
+		if maintenanceContextDone(taskCtx, ledger, logger, "memory_hygiene") {
+			return
+		}
+	} else {
+		ledger.skipPhase("memory_hygiene")
+	}
 	ledger.beginPhase("daily_summary")
 
 	maintenanceBatchDone := false
@@ -342,46 +351,59 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	ledger.beginPhase("entity_extraction")
 
 	// Knowledge Graph: incremental file-based KG sync
-	if kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
+	entityCtx, cancelEntity, entityBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
+	if !entityBudgetAvailable {
+		ledger.addDeferred("entity_extraction", 1)
+	} else if kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
 		syncer := services.NewFileKGSyncer(cfg, logger, client, longTermMem, shortTermMem, kg)
 		opts := services.FileKGSyncOptions{
-			DryRun:   false,
-			Backfill: false,
-			MaxFiles: 50, // conservative nightly limit for first draft
+			DryRun:       false,
+			Backfill:     false,
+			MaxFiles:     50, // conservative nightly limit for first draft
+			MinRemaining: 30 * time.Second,
 		}
-		kgResult := syncer.SyncAllWithContext(taskCtx, opts)
+		kgResult := syncer.SyncAllWithContext(entityCtx, opts)
 		logFileKGSyncResult(logger, kgResult)
 		ledger.phaseResults.KGFilesProcessed = kgResult.FilesProcessed
 		ledger.phaseResults.KGNodesExtracted = kgResult.NodesExtracted
 		ledger.addProcessed("entity_extraction", kgResult.FilesProcessed)
+		ledger.addDeferred("entity_extraction", kgResult.FilesDeferred)
+		budgetExpired := entityCtx.Err() != nil && taskCtx.Err() == nil
 		for _, syncErr := range kgResult.Errors {
+			if budgetExpired && isContextCancellationText(syncErr) {
+				continue
+			}
 			ledger.addError("file_kg_sync: " + syncErr)
+		}
+		if budgetExpired && kgResult.FilesDeferred == 0 {
+			ledger.addDeferred("entity_extraction", 1)
 		}
 	}
 
 	// Knowledge Graph: nightly batch entity extraction from recent conversations
-	if !maintenanceBatchDone && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
-		extractKGEntities(taskCtx, cfg, logger, client, shortTermMem, kg)
+	if entityBudgetAvailable && entityCtx.Err() == nil && !maintenanceBatchDone && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
+		extractKGEntities(entityCtx, cfg, logger, client, shortTermMem, kg)
 	}
+	cancelEntity()
 	if maintenanceContextDone(taskCtx, ledger, logger, "entity_extraction") {
 		return
 	}
 	ledger.beginPhase("consolidation")
 
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
-	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
-		totalStored, messagesConsolidated := consolidateSTMtoLTMWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
+	totalStored := 0
+	consolidationCtx, cancelConsolidation, consolidationBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
+	if !consolidationBudgetAvailable {
+		ledger.addDeferred("consolidation", 1)
+	} else if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
+		var messagesConsolidated int
+		totalStored, messagesConsolidated = consolidateSTMtoLTMWithContext(consolidationCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
 		ledger.phaseResults.ConsolidationFacts = totalStored
 		ledger.addProcessed("consolidation", messagesConsolidated)
-		memoryMaintenanceResult := runNightlyMemoryMaintenanceWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
-		if memoryMaintenanceResult.KGOptimizeErr != nil {
-			ledger.addError("kg_optimize: " + memoryMaintenanceResult.KGOptimizeErr.Error())
-		}
-		if maintenanceContextDone(taskCtx, ledger, logger, "memory_maintenance") {
-			return
-		}
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
 	}
+	consolidationBudgetExpired := consolidationCtx.Err() != nil && taskCtx.Err() == nil
+	cancelConsolidation()
 	if shortTermMem != nil {
 		if deferred, err := shortTermMem.CountConsolidationCandidates(3); err == nil {
 			ledger.addDeferred("consolidation", deferred)
@@ -390,8 +412,27 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			}
 		}
 	}
+	if consolidationBudgetExpired && ledger.phaseDeferred("consolidation") == 0 {
+		ledger.addDeferred("consolidation", 1)
+	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "consolidation") {
 		return
+	}
+	ledger.beginPhase("memory_optimization")
+	if cfg.Consolidation.Enabled && cfg.Consolidation.AutoOptimize && totalStored > 0 {
+		if !maintenanceContextHasAtLeast(taskCtx, maintenanceOptimizationMinimum) {
+			ledger.addDeferred("memory_optimization", 1)
+		} else {
+			memoryMaintenanceResult := runPostConsolidationMemoryOptimizationWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
+			if memoryMaintenanceResult.KGOptimizeErr != nil {
+				ledger.addError("kg_optimize: " + memoryMaintenanceResult.KGOptimizeErr.Error())
+			}
+		}
+		if maintenanceContextDone(taskCtx, ledger, logger, "memory_optimization") {
+			return
+		}
+	} else {
+		ledger.skipPhase("memory_optimization")
 	}
 	ledger.beginPhase("agent_loop")
 
@@ -1256,6 +1297,9 @@ func resolveMaintenanceRetention(cfg *config.Config) maintenanceRetentionDays {
 const nightlyMemoryMetaFetchLimit = 50000
 const nightlyMemoryConflictScanLimit = 250
 
+const maintenanceProtectedTailReserve = 90 * time.Second
+const maintenanceOptimizationMinimum = 30 * time.Second
+
 type nightlyMemoryMaintenanceResult struct {
 	KGOptimizeErr error
 }
@@ -1274,6 +1318,32 @@ func runNightlyMemoryMaintenanceWithContext(ctx context.Context, cfg *config.Con
 	}
 	if stm == nil {
 		return result
+	}
+	metas := loadNightlyMemoryMeta(ctx, cfg, logger, stm, ltm)
+	if cfg != nil && cfg.Consolidation.AutoOptimize && totalStored > 0 && ctx.Err() == nil {
+		optimizeResult := autoOptimizeMemoryWithContext(ctx, cfg, logger, client, ltm, stm, kg, metas)
+		result.KGOptimizeErr = optimizeResult.KGOptimizeErr
+	}
+	runNightlyMemoryHygieneWithContext(ctx, cfg, logger, stm, ltm, metas)
+	return result
+}
+
+// runNightlyMemoryBaselineWithContext performs the bounded deterministic memory
+// work before LLM-heavy maintenance phases can consume the run deadline.
+func runNightlyMemoryBaselineWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if ctx.Err() != nil || stm == nil {
+		return
+	}
+	metas := loadNightlyMemoryMeta(ctx, cfg, logger, stm, ltm)
+	runNightlyMemoryHygieneWithContext(ctx, cfg, logger, stm, ltm, metas)
+}
+
+func loadNightlyMemoryMeta(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) []memory.MemoryMeta {
+	if stm == nil || ctx.Err() != nil {
+		return nil
 	}
 	metas, err := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 	if err != nil {
@@ -1294,20 +1364,36 @@ func runNightlyMemoryMaintenanceWithContext(ctx context.Context, cfg *config.Con
 			}
 		}
 	}
-	if cfg != nil && cfg.Consolidation.AutoOptimize && totalStored > 0 {
-		optimizeResult := autoOptimizeMemoryWithContext(ctx, cfg, logger, client, ltm, stm, kg, metas)
-		result.KGOptimizeErr = optimizeResult.KGOptimizeErr
-	}
+	return metas
+}
+
+func runNightlyMemoryHygieneWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, metas []memory.MemoryMeta) {
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Maintenance] Stopping nightly memory maintenance: maintenance context canceled", "error", err)
-		return result
+		return
 	}
 	autoCurateMemory(cfg, logger, stm, metas)
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Maintenance] Stopping memory conflict scan: maintenance context canceled", "error", err)
+		return
+	}
+	detectMemoryConflictsAcrossLTMWithContext(ctx, logger, stm, ltm, metas)
+	return
+}
+
+func runPostConsolidationMemoryOptimizationWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) (result nightlyMemoryMaintenanceResult) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if ctx.Err() != nil || cfg == nil || stm == nil || !cfg.Consolidation.AutoOptimize || totalStored <= 0 {
 		return result
 	}
-	detectMemoryConflictsAcrossLTM(logger, stm, ltm, metas)
+	metas, err := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
+	if err != nil {
+		logger.Warn("[Maintenance] Failed to fetch memory metadata for post-consolidation optimization", "error", err)
+	}
+	optimizeResult := autoOptimizeMemoryWithContext(ctx, cfg, logger, client, ltm, stm, kg, metas)
+	result.KGOptimizeErr = optimizeResult.KGOptimizeErr
 	return result
 }
 
@@ -1358,6 +1444,10 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Consolidation] STM->LTM consolidation skipped: maintenance context canceled", "error", err)
+		return 0, 0
+	}
+	if !maintenanceContextHasAtLeast(ctx, 75*time.Second) {
+		logger.Info("[Consolidation] STM->LTM consolidation deferred: insufficient maintenance time remains")
 		return 0, 0
 	}
 
@@ -1565,6 +1655,36 @@ func maintenanceContextHasAtLeast(ctx context.Context, minimum time.Duration) bo
 	return time.Until(deadline) >= minimum
 }
 
+func maintenanceContextWithReserve(parent context.Context, reserve time.Duration) (context.Context, context.CancelFunc, bool) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	if reserve < 0 {
+		reserve = 0
+	}
+	if err := parent.Err(); err != nil {
+		ctx, cancel := context.WithCancel(parent)
+		return ctx, cancel, false
+	}
+	deadline, ok := parent.Deadline()
+	if !ok {
+		ctx, cancel := context.WithCancel(parent)
+		return ctx, cancel, true
+	}
+	phaseDeadline := deadline.Add(-reserve)
+	if !time.Now().Before(phaseDeadline) {
+		ctx, cancel := context.WithCancel(parent)
+		return ctx, cancel, false
+	}
+	ctx, cancel := context.WithDeadline(parent, phaseDeadline)
+	return ctx, cancel, true
+}
+
+func isContextCancellationText(message string) bool {
+	lower := strings.ToLower(message)
+	return strings.Contains(lower, context.Canceled.Error()) || strings.Contains(lower, context.DeadlineExceeded.Error())
+}
+
 func resolveConsolidationModel(cfg *config.Config) string {
 	if cfg == nil {
 		return ""
@@ -1672,8 +1792,15 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 }
 
 func detectMemoryConflictsAcrossLTM(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, prefetchedMetas []memory.MemoryMeta) {
+	detectMemoryConflictsAcrossLTMWithContext(context.Background(), logger, stm, ltm, prefetchedMetas)
+}
+
+func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, prefetchedMetas []memory.MemoryMeta) {
 	if stm == nil || ltm == nil || ltm.IsDisabled() {
 		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	metas := prefetchedMetas
 	if metas == nil {
@@ -1686,6 +1813,9 @@ func detectMemoryConflictsAcrossLTM(logger *slog.Logger, stm *memory.SQLiteMemor
 		metas = metas[:nightlyMemoryConflictScanLimit]
 	}
 	for _, meta := range metas {
+		if ctx.Err() != nil {
+			return
+		}
 		detectMemoryConflictsForDocIDs(logger, stm, ltm, []string{meta.DocID}, "")
 	}
 }

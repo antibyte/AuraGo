@@ -21,15 +21,17 @@ import (
 
 // FileKGSyncOptions controls the behavior of the file-to-KG sync operation.
 type FileKGSyncOptions struct {
-	DryRun   bool // If true, log what would be done without modifying the KG.
-	Backfill bool // If true, process all tracked files regardless of prior sync state.
-	MaxFiles int  // Limit the number of files to process (0 = unlimited).
+	DryRun       bool          // If true, log what would be done without modifying the KG.
+	Backfill     bool          // If true, process all tracked files regardless of prior sync state.
+	MaxFiles     int           // Limit the number of files to process (0 = unlimited).
+	MinRemaining time.Duration // Minimum context time required before starting another file.
 }
 
 // FileKGSyncResult reports the outcome of a sync run.
 type FileKGSyncResult struct {
 	FilesProcessed int
 	FilesSkipped   int
+	FilesDeferred  int
 	NodesExtracted int
 	EdgesExtracted int
 	Errors         []string
@@ -97,6 +99,7 @@ func (s *FileKGSyncer) SyncAllWithContext(ctx context.Context, opts FileKGSyncOp
 		colResult := s.SyncCollectionWithContext(ctx, collection, opts)
 		result.FilesProcessed += colResult.FilesProcessed
 		result.FilesSkipped += colResult.FilesSkipped
+		result.FilesDeferred += colResult.FilesDeferred
 		result.NodesExtracted += colResult.NodesExtracted
 		result.EdgesExtracted += colResult.EdgesExtracted
 		result.Errors = append(result.Errors, colResult.Errors...)
@@ -109,6 +112,7 @@ func (s *FileKGSyncer) SyncAllWithContext(ctx context.Context, opts FileKGSyncOp
 	s.logger.Info("[FileKGSync] Sync complete",
 		"files_processed", result.FilesProcessed,
 		"files_skipped", result.FilesSkipped,
+		"files_deferred", result.FilesDeferred,
 		"nodes_extracted", result.NodesExtracted,
 		"edges_extracted", result.EdgesExtracted,
 		"errors", len(result.Errors))
@@ -157,17 +161,30 @@ func (s *FileKGSyncer) SyncCollectionWithContext(ctx context.Context, collection
 
 	workerCount := s.fileSyncWorkerCount(len(files))
 	if workerCount <= 1 {
-		for _, path := range files {
+		for i, path := range files {
 			if err := ctx.Err(); err != nil {
+				result.FilesDeferred += len(files) - i
 				result.Errors = append(result.Errors, fmt.Sprintf("sync collection %s canceled: %v", collection, err))
+				break
+			}
+			if !fileKGContextHasAtLeast(ctx, opts.MinRemaining) {
+				result.FilesDeferred += len(files) - i
 				break
 			}
 			fileResult := s.runSyncFileWithContext(ctx, path, collection, opts)
 			result.FilesProcessed += fileResult.FilesProcessed
 			result.FilesSkipped += fileResult.FilesSkipped
+			result.FilesDeferred += fileResult.FilesDeferred
 			result.NodesExtracted += fileResult.NodesExtracted
 			result.EdgesExtracted += fileResult.EdgesExtracted
 			result.Errors = append(result.Errors, fileResult.Errors...)
+			if err := ctx.Err(); err != nil {
+				if fileResult.FilesProcessed == 0 && fileResult.FilesSkipped == 0 && fileResult.FilesDeferred == 0 {
+					result.FilesDeferred++
+				}
+				result.FilesDeferred += len(files) - i - 1
+				break
+			}
 		}
 		return result
 	}
@@ -212,6 +229,7 @@ func (s *FileKGSyncer) SyncCollectionWithContext(ctx context.Context, collection
 	for fileResult := range results {
 		result.FilesProcessed += fileResult.FilesProcessed
 		result.FilesSkipped += fileResult.FilesSkipped
+		result.FilesDeferred += fileResult.FilesDeferred
 		result.NodesExtracted += fileResult.NodesExtracted
 		result.EdgesExtracted += fileResult.EdgesExtracted
 		result.Errors = append(result.Errors, fileResult.Errors...)
@@ -220,6 +238,17 @@ func (s *FileKGSyncer) SyncCollectionWithContext(ctx context.Context, collection
 		result.Errors = append(result.Errors, fmt.Sprintf("sync collection %s canceled: %v", collection, err))
 	}
 	return result
+}
+
+func fileKGContextHasAtLeast(ctx context.Context, minimum time.Duration) bool {
+	if ctx == nil || minimum <= 0 {
+		return true
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return true
+	}
+	return time.Until(deadline) >= minimum
 }
 
 // SyncFile synchronizes a single tracked file into the Knowledge Graph.
