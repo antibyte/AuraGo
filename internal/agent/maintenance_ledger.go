@@ -142,6 +142,19 @@ func (l *maintenanceRunLedger) finishPhase(name string, deferred bool) {
 
 var maintenanceErrorCodePattern = regexp.MustCompile(`[^a-z0-9_]+`)
 
+func (l *maintenanceRunLedger) skipPhase(name string) {
+	if l == nil || l.currentPhase != name {
+		return
+	}
+	l.finishPhase(name, false)
+	for i := range l.phaseResults.Phases {
+		phase := &l.phaseResults.Phases[i]
+		if phase.Name == name && phase.Status == "completed" {
+			phase.Status = "skipped"
+		}
+	}
+}
+
 func sanitizeMaintenanceErrorCode(message string) string {
 	code := strings.TrimSpace(message)
 	if colon := strings.IndexByte(code, ':'); colon >= 0 {

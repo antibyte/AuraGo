@@ -1138,24 +1138,7 @@ func main() {
 		credentialProvider := virtualcomputers.NewDatabaseWorkspaceCredentialProvider(inventoryDB, vault)
 		workspaceManager, workspaceErr := virtualcomputers.NewWorkspaceManager(virtualComputersLedger, appLog, virtualcomputers.WorkspaceManagerOptions{
 			CredentialProvider: credentialProvider,
-			IssueReporter: func(issue virtualcomputers.WorkspaceOperationalIssue) {
-				if plannerDB == nil {
-					return
-				}
-				contextID := strings.TrimSpace(issue.WorkspaceID)
-				fingerprint := "virtual_workspace|" + strings.TrimSpace(issue.Kind)
-				if contextID != "" {
-					fingerprint += "|" + contextID
-				}
-				if _, recordErr := planner.RecordOperationalIssue(plannerDB, planner.OperationalIssue{
-					Source: "virtual_workspace", Context: contextID,
-					Title:  "Virtual workspace " + strings.ReplaceAll(strings.TrimSpace(issue.Kind), "_", " "),
-					Detail: issue.Detail, Severity: issue.Severity, Kind: planner.OperationalIssueKindRuntimeFailure,
-					Reference: strings.TrimSpace(issue.Kind), Fingerprint: fingerprint, OccurredAt: time.Now(),
-				}); recordErr != nil {
-					appLog.Warn("Failed to record virtual workspace operational issue", "error", recordErr)
-				}
-			},
+			IssueReporter:      virtualWorkspaceIssueReporter(plannerDB, appLog),
 		})
 		if workspaceErr != nil {
 			appLog.Warn("Virtual workspace manager is unavailable", "error", workspaceErr)

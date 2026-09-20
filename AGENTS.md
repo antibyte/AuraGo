@@ -567,6 +567,7 @@ Tools are defined in `internal/tools/`:
 - Tool-failure fingerprints include the normalized operation when one exists. A success resolves only the same operation; dedicated and legacy aliases for Virtual Desktop app installation share one semantic fingerprint.
 - Repeated route-specific `context_budget_exceeded`, Telegram long-poll failures, and reproducible maintenance-phase failures use this lifecycle and resolve only after a success on the same route or phase. Telegram polling records its first issue after three consecutive failures and exposes only sanitized runtime codes.
 - The nightly maintenance task emits one idempotent typed `morning_briefing` notification per run after persisting its phase ledger and current local integration checks. Disabled components are `skipped`; deferred retryable work makes the run `partial`, while only critical initialization or persistence failures make it `failed`. Background checks never send Telegram messages.
+- Weekly reflection has its own maintenance phase; skipped runs cannot resolve its failures. Use route-aware reasoning/output limits, reject empty/truncated/invalid completions, and retry once with fewer source records. Persist only parsed results; successful persistence may resolve the matching issue. Never store raw failed output or emit separate reflection notifications.
 
 ### Prompt and Runtime Drift Contract
 - PromptSec structure provenance must come from guard metadata, never a textual
@@ -718,6 +719,7 @@ Tools are defined in `internal/tools/`:
 - Standard Docker, `NoNewPrivileges`, `ProtectSystem=strict`, and insufficient elevation must disable host mutations without hiding otherwise readable status.
 
 ### Virtual Computers Storage / Managed Garage Contract
+- Workspace close treats boringd's JSON `404 {"error":"not found"}` as completed deletion, clears stale errors, closes jobs/browser sessions/grants and resolves only that workspace's `lease_close_failed` issue. Router/proxy 404s, authentication failures and server errors remain failures; closed workspaces must leave lease reconciliation.
 - Default `virtual_computers.storage.mode` is `managed_garage`; `external_s3` remains supported. Legacy configs without `mode` normalize to `external_s3` when an endpoint is set, otherwise `managed_garage`.
 - Managed Garage runs on the boringd control-plane host (`local_host` or `ssh_host`), never as a general AuraGo Compose service. Image is pinned `dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690`. Only S3 binds `127.0.0.1:3900`. Data lives under `${install_dir}/data/sidecars/garage`.
 - Docker is required for managed volumes but is not installed by AuraGo. Missing Docker is a storage warning and must not set core preflight `Supported=false`.

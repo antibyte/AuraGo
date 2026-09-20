@@ -6,9 +6,12 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/url"
 	"path"
 	"sort"
@@ -165,6 +168,7 @@ type WorkspaceOperationalIssue struct {
 	WorkspaceID string
 	Detail      string
 	Severity    string
+	Resolved    bool
 }
 
 type WorkspaceManager struct {
@@ -450,8 +454,21 @@ func (m *WorkspaceManager) CloseWorkspace(ctx context.Context, cfg ToolConfig, i
 	_ = transport.Call(closeCtx, workspace.MachineID, "workspace.close", map[string]interface{}{"revoke_credentials": true}, nil)
 	cancel()
 	destroyErr := client.DestroyMachine(ctx, workspace.MachineID)
+	// The guest can expire in boringd before the local lease reaper runs.
+	// Only boringd's resource-missing response confirms that cleanup is done;
+	// a proxy/router 404 must remain an error.
+	var restErr RESTError
+	if errors.As(destroyErr, &restErr) && restErr.StatusCode == http.StatusNotFound {
+		var body struct {
+			Error string `json:"error"`
+		}
+		if json.Unmarshal([]byte(restErr.Body), &body) == nil && strings.EqualFold(strings.TrimSpace(body.Error), "not found") {
+			destroyErr = nil
+		}
+	}
 	now := m.now()
 	workspace.State = WorkspaceStateClosed
+	workspace.LastError = ""
 	workspace.UpdatedAt = now
 	workspace.LastActivityAt = now
 	if destroyErr != nil {
@@ -464,8 +481,15 @@ func (m *WorkspaceManager) CloseWorkspace(ctx context.Context, cfg ToolConfig, i
 	_ = m.ledger.InterruptActiveWorkspaceJobs(ctx, workspace.ID, "workspace closed")
 	m.closeBrowserSessions(ctx, workspace.ID)
 	m.revokeWorkspaceGrants(ctx, workspace.ID, now)
+	if destroyErr != nil {
+		return destroyErr
+	}
 	_ = m.recordEvent(ctx, workspace.ID, "workspace_closed", "Agent workspace closed", nil)
-	return destroyErr
+	m.reportIssue(WorkspaceOperationalIssue{
+		Kind: "lease_close_failed", WorkspaceID: workspace.ID,
+		Detail: "The workspace was closed and its machine is absent.", Resolved: true,
+	})
+	return nil
 }
 
 type workspaceExecRPCResult struct {
