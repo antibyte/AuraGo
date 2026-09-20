@@ -65,6 +65,27 @@ if errorlevel 1 (
 )
 echo.
 
+REM -- Capture reviewed source identity before generated assets modify the tree.
+set "BUILD_ID="
+set "BUILD_VCS_TIME="
+set "BUILD_DIRTY="
+for /f "delims=" %%G in ('git rev-parse --verify HEAD 2^>nul') do set "BUILD_ID=%%G"
+for /f "delims=" %%G in ('git show -s --format^=%%cI HEAD 2^>nul') do set "BUILD_VCS_TIME=%%G"
+for /f "delims=" %%G in ('git status --porcelain --untracked-files^=normal') do set "BUILD_DIRTY=1"
+if not defined BUILD_ID (
+    echo [ERROR] Unable to resolve release commit identity.
+    exit /b 1
+)
+if not defined BUILD_VCS_TIME (
+    echo [ERROR] Unable to resolve release commit time.
+    exit /b 1
+)
+if defined BUILD_DIRTY (
+    echo [ERROR] Refusing to build release artifacts from a dirty worktree.
+    exit /b 1
+)
+set "MAIN_LDFLAGS=-s -w -X aurago/internal/buildinfo.BuildID=!BUILD_ID! -X aurago/internal/buildinfo.BuildVCSRevision=!BUILD_ID! -X aurago/internal/buildinfo.BuildVCSTime=!BUILD_VCS_TIME! -X aurago/internal/buildinfo.BuildVCSModified=false"
+
 REM -- Version tag
 REM  Compute default date into temp file to avoid single-quote issues in for/f
 powershell -nologo -noprofile -command "Get-Date -Format 'yyyy.MM.dd'" > "%TEMP%\aurago_date.txt"
@@ -161,39 +182,39 @@ set CGO_ENABLED=0
 
 echo   Linux amd64...
 set "GOOS=linux" & set "GOARCH=amd64"
-go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "bin\aurago_linux"          ./cmd/aurago/        || goto :build_error
+go build -buildvcs=false -trimpath -ldflags="!MAIN_LDFLAGS! !ASSET_LDFLAGS!" -o "bin\aurago_linux"          ./cmd/aurago/        || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux"   ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux"   ./cmd/remote/        || goto :build_error
 echo     [OK] Linux amd64
 
 echo   Linux arm64...
 set "GOOS=linux" & set "GOARCH=arm64"
-go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "bin\aurago_linux_arm64"        ./cmd/aurago/        || goto :build_error
+go build -buildvcs=false -trimpath -ldflags="!MAIN_LDFLAGS! !ASSET_LDFLAGS!" -o "bin\aurago_linux_arm64"        ./cmd/aurago/        || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux_arm64" ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux_arm64" ./cmd/remote/        || goto :build_error
 echo     [OK] Linux arm64
 
 echo   macOS amd64...
 set "GOOS=darwin" & set "GOARCH=amd64"
-go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "deploy\aurago_darwin_amd64"        ./cmd/aurago/ || goto :build_error
+go build -buildvcs=false -trimpath -ldflags="!MAIN_LDFLAGS! !ASSET_LDFLAGS!" -o "deploy\aurago_darwin_amd64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_amd64" ./cmd/remote/ || goto :build_error
 echo     [OK] macOS amd64
 
 echo   macOS arm64...
 set "GOOS=darwin" & set "GOARCH=arm64"
-go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "deploy\aurago_darwin_arm64"        ./cmd/aurago/ || goto :build_error
+go build -buildvcs=false -trimpath -ldflags="!MAIN_LDFLAGS! !ASSET_LDFLAGS!" -o "deploy\aurago_darwin_arm64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_arm64" ./cmd/remote/ || goto :build_error
 echo     [OK] macOS arm64
 
 echo   Windows amd64...
 set "GOOS=windows" & set "GOARCH=amd64"
-go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "deploy\aurago_windows_amd64.exe"        ./cmd/aurago/ || goto :build_error
+go build -buildvcs=false -trimpath -ldflags="!MAIN_LDFLAGS! !ASSET_LDFLAGS!" -o "deploy\aurago_windows_amd64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_amd64.exe" ./cmd/remote/ || goto :build_error
 echo     [OK] Windows amd64
 
 echo   Windows arm64...
 set "GOOS=windows" & set "GOARCH=arm64"
-go build -trimpath -ldflags="-s -w !ASSET_LDFLAGS!" -o "deploy\aurago_windows_arm64.exe"        ./cmd/aurago/ || goto :build_error
+go build -buildvcs=false -trimpath -ldflags="!MAIN_LDFLAGS! !ASSET_LDFLAGS!" -o "deploy\aurago_windows_arm64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_arm64.exe" ./cmd/remote/ || goto :build_error
 echo     [OK] Windows arm64
 

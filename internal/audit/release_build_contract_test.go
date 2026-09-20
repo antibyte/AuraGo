@@ -52,6 +52,10 @@ func TestMakeDeployNormalizesTargetsAndCanSkipPublishing(t *testing.T) {
 		"${AURAGO_REMOTE_TARGETS+x}",
 		"--no-publish",
 		"PUBLISH_RELEASE=false",
+		"--allow-dirty",
+		"ALLOW_DIRTY=false",
+		"--allow-dirty requires --no-publish",
+		"Refusing to build release artifacts from a dirty worktree.",
 		"Skipping publish (--no-publish).",
 		"while [ \"$#\" -gt 0 ]; do",
 		"cp \"$OUT\" \"bin/aurago-remote_linux_arm64\"",
@@ -62,6 +66,28 @@ func TestMakeDeployNormalizesTargetsAndCanSkipPublishing(t *testing.T) {
 	}
 	if strings.Contains(script, "duplicate target in") {
 		t.Fatal("make_deploy.sh must deduplicate repeated targets instead of rejecting them")
+	}
+}
+
+func TestMakeReleaseRequiresCleanExplicitBuildIdentity(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "make_release.bat"))
+	if err != nil {
+		t.Fatalf("read make_release.bat: %v", err)
+	}
+	script := string(data)
+	for _, marker := range []string{
+		"git status --porcelain --untracked-files^=normal",
+		"Refusing to build release artifacts from a dirty worktree.",
+		"aurago/internal/buildinfo.BuildID=!BUILD_ID!",
+		"aurago/internal/buildinfo.BuildVCSRevision=!BUILD_ID!",
+		"aurago/internal/buildinfo.BuildVCSModified=false",
+		"go build -buildvcs=false -trimpath -ldflags=\"!MAIN_LDFLAGS! !ASSET_LDFLAGS!\"",
+	} {
+		if !strings.Contains(script, marker) {
+			t.Fatalf("make_release.bat missing clean build identity contract %q", marker)
+		}
 	}
 }
 

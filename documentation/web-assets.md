@@ -49,6 +49,11 @@ to pin its immutable GitHub release download URL. `make_release.bat` does this
 with its selected tag; `make_deploy.sh` uses `AURAGO_RELEASE_TAG` when provided.
 Local builds have no download URL. Never substitute a `latest` resource set.
 
+The release builders require a clean worktree so the binary identity matches
+the reviewed commit. A local `make_deploy.sh` diagnostic build from modified
+sources must opt in with `--no-publish --allow-dirty`; it remains stamped as
+modified and cannot be published as a release artifact.
+
 The default root is `assets/web` alongside the executable, or alongside `bin/`
 for the standard installer layout. Override with `--assets-dir` or
 `AURAGO_ASSETS_DIR`. This path must stay outside the agent workspace. Docker

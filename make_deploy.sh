@@ -24,19 +24,28 @@ cd "$(dirname "$0")"
 DEPLOY_DIR="./deploy"
 RESOURCES="resources.dat"
 PUBLISH_RELEASE=true
+ALLOW_DIRTY=false
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --no-publish)
       PUBLISH_RELEASE=false
       ;;
+    --allow-dirty)
+      ALLOW_DIRTY=true
+      ;;
     *)
-      echo "Usage: $0 [--no-publish]" >&2
+      echo "Usage: $0 [--no-publish] [--allow-dirty]" >&2
       exit 2
       ;;
   esac
   shift
 done
+
+if [ "$ALLOW_DIRTY" = true ] && [ "$PUBLISH_RELEASE" = true ]; then
+  echo "--allow-dirty requires --no-publish; dirty artifacts cannot be published." >&2
+  exit 2
+fi
 
 if [ "${AURAGO_TARGETS+x}" = "x" ]; then
   read -ra TARGETS <<< "$AURAGO_TARGETS"
@@ -48,8 +57,6 @@ if [ "${AURAGO_REMOTE_TARGETS+x}" = "x" ]; then
 else
   read -ra REMOTE_TARGETS <<< "linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64"
 fi
-GO_DIST_TARGETS="$(go tool dist list)"
-
 # Capture release identity before any generated assets are refreshed. Go's
 # automatic VCS stamping can resolve the enclosing repository instead of the
 # active linked worktree, and generated UI files can make an otherwise clean
@@ -63,8 +70,15 @@ if [ -z "$BUILD_ID" ] || [ -z "$BUILD_VCS_TIME" ]; then
 fi
 if [ -n "$(git status --porcelain --untracked-files=normal)" ]; then
   BUILD_VCS_MODIFIED=true
+  if [ "$ALLOW_DIRTY" != true ]; then
+    echo "Refusing to build release artifacts from a dirty worktree." >&2
+    echo "Commit or clean the reviewed changes, or use --no-publish --allow-dirty for an explicitly marked local test artifact." >&2
+    exit 1
+  fi
+  echo "WARNING: building an explicitly allowed dirty local test artifact." >&2
 fi
 MAIN_LDFLAGS="-s -w -X aurago/internal/buildinfo.BuildID=$BUILD_ID -X aurago/internal/buildinfo.BuildVCSRevision=$BUILD_ID -X aurago/internal/buildinfo.BuildVCSTime=$BUILD_VCS_TIME -X aurago/internal/buildinfo.BuildVCSModified=$BUILD_VCS_MODIFIED"
+GO_DIST_TARGETS="$(go tool dist list)"
 
 normalize_targets() {
   local target_set="$1"
