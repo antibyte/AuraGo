@@ -495,7 +495,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 		}
 	}
 	if len(p.Scenarios) > min(8, 16-len(requiredScenarios(p.Template))) {
-		return bad("scenarios", "provide at most 8 additional observable checks; template minimums run automatically")
+		return bad("scenarios", "provide at most 8 targeted observable checks; matching schema 4 checks replace only the starter behavior they prove")
 	}
 	seen := map[string]bool{}
 	duration := 0
@@ -512,7 +512,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 		}
 	}
 	if duration > 25000 {
-		return bad("scenarios", "additional scenarios must total at most 25 seconds")
+		return bad("scenarios", "targeted scenarios must total at most 25 seconds")
 	}
 	return nil
 }

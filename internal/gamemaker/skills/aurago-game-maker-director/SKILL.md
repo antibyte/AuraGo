@@ -214,10 +214,12 @@ Search one role at a time within a known pack (for example `query: "ball"`,
 `pack_id: "blocks-and-balls"`), then describe the returned exact ID.
 
 Use `scenarios: []` when existing checks cover the implemented behavior.
-Legacy templates retain their existing checks; scene-based games use relevant
-mechanics, actual objects, outcomes and lifecycle observations. Omitted timer,
-combat or primary-action mechanics do not need dummy counters or fake effects.
-Add at most eight scenarios for additional deterministic behavior. A complete scenario:
+Legacy templates retain their existing checks. For custom rules outside the base's
+normal item/goal/enemy loop, add targeted schema 4 scenarios using actual objects,
+outcomes and metrics. Each scenario replaces only the starter behavior it proves;
+lifecycle and unrelated checks remain. Omitted timer, combat or primary-action
+mechanics do not need dummy counters or fake effects. Add at most eight scenarios.
+A complete scenario:
 ```json
 {"id":"shooting","steps":[{"action":"key","key":"SPACE","ms":500}],"metric":"actions","compare":"increased","value":0}
 ```
@@ -240,11 +242,17 @@ collision. Use a sufficient bounded interval, for example Space 200 ms then wait
 2200 ms. Keep an easy first target reachable in that interval; do not require a
 random power-up drop in a deterministic check. Count hits in the collision handler,
 even when a durable block needs multiple hits to be destroyed.
-Allowed steps: key, pointer (logical x/y), wait, observe. Keys: LEFT/RIGHT/UP/DOWN,
-W/A/S/D/SPACE/R/ESC/ENTER. Maximum eight steps and six seconds per scenario,
+Targeted steps use an exact scene node ID or runtime role, for example
+`{"action":"target","target":"switch","mode":"interact","ms":1000}`. In free
+Phaser source expose that exact role through `body(..., role)` or `object.__gmRole`;
+never add counters merely to satisfy validation. Other steps are key, pointer
+(logical x/y), wait and observe. Keys: LEFT/RIGHT/UP/DOWN, W/A/S/D/SPACE/R/ESC/ENTER.
+Maximum eight steps and six seconds per scenario,
 25 seconds combined. Compare increased/decreased/changed/equals. Metrics:
-player_x/player_y, actions, score, hits, spawns, turns, ticks, ended, object_count,
-timer_count, listener_count, invalid_assets, assets_used, elapsed_ms.
+player_x/player_y/player_distance, actions, score, hits, spawns, turns, ticks,
+ended, health, lives, goal_remaining, outcome, hit_events, pickup_events,
+win_events, lose_events, object_count, timer_count, listener_count,
+invalid_assets, assets_used and elapsed_ms.
 Define observable results, not a `passed` flag. Preserve a chosen legacy
 template's controls, or declare and test the custom controls of a scene-based
 game. A passing startup test does not certify unobserved custom gameplay.

@@ -100,6 +100,9 @@ func TestGameVisualResponseBounds(t *testing.T) {
 	if f, err := decodeGameVisualReview("<think>Inspect the frame.</think>\n```json\n{\"findings\":[]}\n```", 1); err != nil || len(f) != 0 {
 		t.Fatalf("wrapped JSON rejected: %v", err)
 	}
+	if f, err := decodeGameVisualReview(`[{"image":0,"observation":"cropped player","region":"bottom","severity":"defect","confidence":0.9,"suggestion":"keep the player in frame"}]`, 1); err != nil || len(f) != 1 {
+		t.Fatalf("bounded array response rejected: %v", err)
+	}
 }
 
 func TestGameVisualFormatRecovery(t *testing.T) {
@@ -126,7 +129,8 @@ func TestGameVisualFormatRecovery(t *testing.T) {
 					t.Error(err)
 				}
 				calls++
-				if req.Model != "selected-multimodal-model" || len(req.Tools) != 0 || (req.ResponseFormat != nil) != test.structured {
+				expectFormat := test.structured && calls == 1
+				if req.Model != "selected-multimodal-model" || len(req.Tools) != 0 || (req.ResponseFormat != nil) != expectFormat {
 					t.Errorf("wrong route, tools or unsupported JSON mode: model=%s tools=%d format=%+v", req.Model, len(req.Tools), req.ResponseFormat)
 				}
 				images := 0

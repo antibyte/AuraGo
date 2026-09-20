@@ -248,10 +248,25 @@ func requiredScenarios(template string) []GameScenario {
 func gameScenarios(plan *GamePlan) []GameScenario {
 	out := requiredScenarios(plan.Template)
 	// Schema 4 compositions use their declared scenarios for special mechanics.
-	// The starter's genre loop must not become a requirement of the new game.
+	// An explicit scenario replaces only the starter behavior it actually proves;
+	// lifecycle, resource and unrelated gameplay checks remain server-owned.
 	if plan.SchemaVersion >= 4 && (plan.Scene != nil || plan.Template == "minimal" || plan.Template == "three") {
 		out = slices.DeleteFunc(out, func(s GameScenario) bool {
 			return s.ID == "required_input" || s.ID == "required_rules" || s.ID == "required_primary" || s.ID == "required_aim" || s.ID == "required_reload" || s.ID == "required_models"
+		})
+	} else if plan.SchemaVersion >= 4 && len(plan.Scenarios) > 0 {
+		input, primary, rules := customScenarioCoverage(plan.Scenarios)
+		out = slices.DeleteFunc(out, func(s GameScenario) bool {
+			switch s.ID {
+			case "required_input":
+				return input
+			case "required_primary":
+				return primary
+			case "required_rules":
+				return rules
+			default:
+				return false
+			}
 		})
 	}
 	for i := range out {
@@ -260,6 +275,26 @@ func gameScenarios(plan *GamePlan) []GameScenario {
 		}
 	}
 	return append(out, plan.Scenarios...)
+}
+
+func customScenarioCoverage(scenarios []GameScenario) (input, primary, rules bool) {
+	for _, scenario := range scenarios {
+		driven := slices.ContainsFunc(scenario.Steps, func(step GameTestStep) bool {
+			return step.Action == "key" || step.Action == "pointer" || step.Action == "target"
+		})
+		if !driven {
+			continue
+		}
+		switch scenario.Metric {
+		case "player_x", "player_y", "player_distance":
+			input = true
+		case "actions":
+			primary = true
+		case "score", "hits", "turns", "health", "lives", "goal_remaining", "outcome", "hit_events", "pickup_events", "win_events", "lose_events":
+			rules = true
+		}
+	}
+	return input, primary, rules
 }
 
 func compareGameObservations(scenarios []GameScenario, observations []GameObservation) []CheckResult {

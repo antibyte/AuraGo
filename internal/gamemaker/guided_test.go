@@ -477,3 +477,19 @@ func TestDesignCarriesOptionalSceneAndMechanics(t *testing.T) {
 		t.Fatal("unsupported test control accepted")
 	}
 }
+
+func TestDesignScenariosSelectCompositionSchema(t *testing.T) {
+	service := newTestService(t)
+	design := GameDesign{
+		Base: "topdown", Objective: "Open the puzzle door",
+		Features:  []string{"A switch opens the door"},
+		Scenarios: []GameScenario{{ID: "open_door", Metric: "goal_remaining", Compare: "decreased", Steps: []GameTestStep{{Action: "target", Target: "switch", Mode: "interact", MS: 1000}}}},
+	}
+	plan, err := service.planFromDesign(context.Background(), "", Project{ID: "project", Dimension: "2d"}, design)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.SchemaVersion != 4 {
+		t.Fatalf("targeted design retained starter schema: %+v", plan)
+	}
+}

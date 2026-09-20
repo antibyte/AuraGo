@@ -53,8 +53,17 @@ func decodeGameVisualReview(text string, images int) ([]gamemaker.VisualFinding,
 	var body struct {
 		Findings []gamemaker.VisualFinding `json:"findings"`
 	}
-	if err := json.Unmarshal([]byte(text), &body); err != nil {
-		return nil, err
+	if err := json.Unmarshal([]byte(text), &body); err != nil || body.Findings == nil {
+		// Some OpenAI-compatible multimodal routes ignore the requested object
+		// wrapper but still return the exact bounded findings array.
+		var findings []gamemaker.VisualFinding
+		if arrayErr := json.Unmarshal([]byte(text), &findings); arrayErr != nil {
+			if err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("missing findings")
+		}
+		body.Findings = findings
 	}
 	if body.Findings == nil {
 		return nil, fmt.Errorf("missing findings")
@@ -139,7 +148,14 @@ func (r *gameMakerAgentRunner) reviewGameImages(ctx context.Context, cfg *config
 	}
 	format := llm.JSONResponseFormat(llm.ResolveProviderCapabilities(route, fallback).StructuredOutputs)
 	for attempt := 0; attempt < 2; attempt++ {
-		response, _, err := agent.ExecuteMinimalLoop(ctx, client, route.Model, "", "Return bounded JSON visual observations only.", nil, &agent.DispatchContext{Cfg: &reviewCfg, ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}, history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, ResponseFormat: format})
+		responseFormat := format
+		if attempt > 0 {
+			// A route may advertise structured outputs while rejecting or mangling
+			// multimodal structured requests. Keep the same direct vision route and
+			// images, but make the single correction a plain JSON request.
+			responseFormat = nil
+		}
+		response, _, err := agent.ExecuteMinimalLoop(ctx, client, route.Model, "", "Return bounded JSON visual observations only.", nil, &agent.DispatchContext{Cfg: &reviewCfg, ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}, history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, ResponseFormat: responseFormat})
 		if err != nil || response.FinishReason != openai.FinishReasonStop {
 			review.Status = "failed"
 			review.Reason = "analysis_failed"

@@ -322,7 +322,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 		p.SchemaVersion = 3
 		p.Presentation.Version = PresentationVersion
 	}
-	if p.Scene != nil || p.Mechanics != nil {
+	if p.Scene != nil || p.Mechanics != nil || len(p.Scenarios) > 0 {
 		p.SchemaVersion = 4
 	}
 	return p, nil
