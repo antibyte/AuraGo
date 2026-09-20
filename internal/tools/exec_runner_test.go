@@ -166,7 +166,10 @@ func TestBackgroundRunner_BasicExecution(t *testing.T) {
 	// Check process is in registry (may have been cleaned up by supervisor by now)
 	info, ok := registry.Get(pid)
 	if ok {
-		t.Logf("process %d is in registry with state %v", pid, info.State)
+		info.mu.Lock()
+		state := info.State
+		info.mu.Unlock()
+		t.Logf("process %d is in registry with state %v", pid, state)
 	} else {
 		t.Logf("process %d has already been cleaned up by supervisor", pid)
 	}

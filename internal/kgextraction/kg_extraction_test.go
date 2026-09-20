@@ -203,6 +203,36 @@ func TestExtractKGFromText_RetriesTruncatedResponseWithCompactRequest(t *testing
 	}
 }
 
+func TestExtractKGFromTextReasoningOutputBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name                  string
+		output, context, want int
+		reject                bool
+	}{
+		{"reasoning", 0, 0, 8192, false},
+		{"provider_output_override", 2048, 0, 2048, false},
+		{"context_cap", 0, 4096, 0, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.LLM.Provider, cfg.LLM.ProviderType, cfg.LLM.Model = "main", "openai", "step-3.7-flash"
+			cfg.Agent.ContextWindow = tc.context
+			cfg.Providers = []config.ProviderEntry{{ID: "main", MaxOutputTokens: tc.output}}
+			client := &mockChatClient{response: openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: `{"nodes":[],"edges":[]}`}}}}}
+			_, _, err := ExtractKGFromText(cfg, slog.Default(), client, strings.Repeat("Synthetic example for extraction. ", 5), "")
+			if tc.reject {
+				if err == nil || !strings.Contains(err.Error(), "json_completion_context_budget") || len(client.requests) != 0 {
+					t.Fatalf("oversized request: calls=%d err=%v", len(client.requests), err)
+				}
+				return
+			}
+			if err != nil || len(client.requests) != 1 || client.requests[0].MaxTokens != tc.want {
+				t.Fatalf("requests=%#v err=%v; want output=%d", client.requests, err, tc.want)
+			}
+		})
+	}
+}
+
 func TestExtractKGFromText_StopsAfterTwoTruncatedResponses(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.Model = "test-model"

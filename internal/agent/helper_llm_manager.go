@@ -16,6 +16,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -252,6 +253,8 @@ type helperLLMManager struct {
 	model         string
 	providerID    string
 	providerType  string
+	route         llm.ModelRoute
+	contextWindow int
 	logger        *slog.Logger
 	cacheMu       sync.RWMutex
 	responseCache map[string]string
@@ -268,10 +271,14 @@ var (
 )
 
 type helperInstanceConfig struct {
-	ProviderType string
-	BaseURL      string
-	APIKey       string
-	Model        string
+	ProviderType            string
+	BaseURL                 string
+	APIKey                  string
+	Model                   string
+	ProviderID              string
+	ContextWindowOverride   int
+	MaxOutputTokensOverride int
+	GlobalContextWindow     int
 }
 
 type HelperLLMOperationStats struct {
@@ -436,10 +443,16 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	}
 	helperCfg := llm.ResolveHelperLLM(cfg)
 	newInstCfg := helperInstanceConfig{
-		ProviderType: strings.TrimSpace(helperCfg.ProviderType),
-		BaseURL:      strings.TrimSpace(helperCfg.BaseURL),
-		APIKey:       strings.TrimSpace(helperCfg.APIKey),
-		Model:        strings.TrimSpace(helperCfg.Model),
+		ProviderType:        strings.TrimSpace(helperCfg.ProviderType),
+		BaseURL:             strings.TrimSpace(helperCfg.BaseURL),
+		APIKey:              strings.TrimSpace(helperCfg.APIKey),
+		Model:               strings.TrimSpace(helperCfg.Model),
+		ProviderID:          helperCfg.ProviderID,
+		GlobalContextWindow: cfg.Agent.ContextWindow,
+	}
+	if provider := cfg.FindProvider(helperCfg.ProviderID); provider != nil {
+		newInstCfg.ContextWindowOverride = provider.ContextWindow
+		newInstCfg.MaxOutputTokensOverride = provider.MaxOutputTokens
 	}
 	if newInstCfg.ProviderType == "" || newInstCfg.Model == "" {
 		return nil
@@ -455,10 +468,14 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	}
 
 	inst := &helperLLMManager{
-		client:        client,
-		model:         newInstCfg.Model,
-		providerID:    newInstCfg.ProviderType + "|" + newInstCfg.BaseURL,
-		providerType:  newInstCfg.ProviderType,
+		client:       client,
+		model:        newInstCfg.Model,
+		providerID:   newInstCfg.ProviderType + "|" + newInstCfg.BaseURL,
+		providerType: newInstCfg.ProviderType,
+		route: llm.ModelRoute{ProviderID: newInstCfg.ProviderID, ProviderType: newInstCfg.ProviderType,
+			BaseURL: newInstCfg.BaseURL, Model: newInstCfg.Model,
+			ContextWindowOverride: newInstCfg.ContextWindowOverride, MaxOutputTokensOverride: newInstCfg.MaxOutputTokensOverride},
+		contextWindow: newInstCfg.GlobalContextWindow,
 		logger:        logger,
 		responseCache: make(map[string]string),
 		cacheKeys:     make([]string, 0, helperResponseCacheMaxSize),
@@ -656,6 +673,16 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 		}
 	}
 
+	route := m.route
+	if route.Model == "" {
+		route.Model, route.ProviderType = m.model, m.providerType
+	}
+	limits := llm.ResolveModelLimitsCached(route, m.contextWindow)
+	inputTokens := prompts.CountTokensForModel(systemPrompt, m.model) + prompts.CountTokensForModel(userPrompt, m.model) + 32
+	maxTokens, budgetErr := llm.JSONCompletionOutputBudget(limits, maxTokens, inputTokens)
+	if budgetErr != nil {
+		return "", budgetErr
+	}
 	if m.sem != nil {
 		select {
 		case m.sem <- struct{}{}:

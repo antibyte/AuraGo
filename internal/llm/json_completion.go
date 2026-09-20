@@ -18,6 +18,24 @@ var (
 
 var jsonThinkingBlock = regexp.MustCompile(`(?is)<(?:think|thinking)(?:\s[^>]*)?>.*?</(?:think|thinking)>`)
 
+// JSONCompletionOutputBudget reserves reasoning as well as visible JSON, while
+// honoring the route's output and context limits. Never truncate source records
+// to make an auxiliary request fit: the caller can retry a smaller unit of work.
+func JSONCompletionOutputBudget(limits ModelLimits, requested, inputTokens int) (int, error) {
+	if requested <= 0 {
+		requested = ConservativeOutputTokens
+	}
+	if limits.Reasoning {
+		requested = max(requested, ReasoningOutputTokens)
+	}
+	output := min(requested, limits.MaxOutputTokens)
+	const protocolSafety = 256
+	if output <= 0 || inputTokens+output+protocolSafety > limits.ContextWindow {
+		return 0, fmt.Errorf("json_completion_context_budget: input=%d output=%d safety=%d context=%d", inputTokens, output, protocolSafety, limits.ContextWindow)
+	}
+	return output, nil
+}
+
 // JSONResponseFormat requests provider-side JSON mode only when catalog or
 // configured capability metadata confirms support.
 func JSONResponseFormat(supported bool) *openai.ChatCompletionResponseFormat {

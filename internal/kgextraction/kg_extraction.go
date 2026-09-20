@@ -17,6 +17,7 @@ import (
 	"aurago/internal/kgquality"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -83,9 +84,15 @@ Inputs:
 	defer kgCancel()
 
 	providerType := cfg.LLM.ProviderType
+	route := llm.ModelRoute{ProviderID: cfg.LLM.Provider, ProviderType: providerType, BaseURL: cfg.LLM.BaseURL, Model: kgModel, Primary: true}
 	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model == kgModel {
 		providerType = helperCfg.ProviderType
+		route = llm.ModelRoute{ProviderID: helperCfg.ProviderID, ProviderType: helperCfg.ProviderType, BaseURL: helperCfg.BaseURL, Model: kgModel}
 	}
+	if provider := cfg.FindProvider(route.ProviderID); provider != nil {
+		route.ContextWindowOverride, route.MaxOutputTokensOverride = provider.ContextWindow, provider.MaxOutputTokens
+	}
+	limits := llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
 	structured := false
 	if caps, ok := llm.CapabilitiesFromRegistry(providerType, kgModel); ok {
 		structured = caps.StructuredOutputs
@@ -102,16 +109,23 @@ Inputs:
 			attemptInput = string(runes[:retryLen])
 			maxNodes, maxEdges = 6, 8
 		}
+		messages := []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "You are an entity extraction engine. Output ONLY valid JSON, no markdown fences."},
+			{Role: openai.ChatMessageRoleUser, Content: buildPrompt(attemptInput, maxNodes, maxEdges)},
+		}
+		inputTokens := prompts.CountTokensForModel(messages[0].Content, kgModel) + prompts.CountTokensForModel(messages[1].Content, kgModel) + 32
+		maxTokens, budgetErr := llm.JSONCompletionOutputBudget(limits, 1500, inputTokens)
+		if budgetErr != nil {
+			lastErr = budgetErr
+			continue
+		}
 		resp, err := llm.ExecuteWithRetry(
 			kgCtx,
 			kgClient,
 			openai.ChatCompletionRequest{
-				Model: kgModel,
-				Messages: []openai.ChatCompletionMessage{
-					{Role: openai.ChatMessageRoleSystem, Content: "You are an entity extraction engine. Output ONLY valid JSON, no markdown fences."},
-					{Role: openai.ChatMessageRoleUser, Content: buildPrompt(attemptInput, maxNodes, maxEdges)},
-				},
-				MaxTokens:      1500,
+				Model:          kgModel,
+				Messages:       messages,
+				MaxTokens:      maxTokens,
 				ResponseFormat: llm.JSONResponseFormat(structured),
 			},
 			logger,
