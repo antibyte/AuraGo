@@ -569,6 +569,10 @@ Tools are defined in `internal/tools/`:
 - The nightly maintenance task emits one idempotent typed `morning_briefing` notification per run after persisting its phase ledger and current local integration checks. Disabled components are `skipped`; deferred retryable work makes the run `partial`, while only critical initialization or persistence failures make it `failed`. Background checks never send Telegram messages.
 
 ### Prompt and Runtime Drift Contract
+- PromptSec structure provenance must come from guard metadata, never a textual
+  comparison with the current dynamic system prompt. A full structure envelope
+  cannot replace a chat user message. Chunked security scans provide diagnostics
+  only; a partial scan window must never replace the complete human request.
 - Prompt logs must include provider/model, build and VCS identifiers, prompt revision, sorted active tools, tool-catalog hash, and recovery counters.
 - `/api/system/info` exposes the running build identifier and VCS metadata. Deployment acceptance requires its `build_id` to match the reviewed commit; a `-dirty` identifier is not a clean release artifact.
 - Every LLM request must fit every eligible primary/failover route after reserving output and protocol safety tokens. Resolve limits in this order: provider override, model registry, cached provider probe, configured global cap for an unknown primary model, then conservative 32768/4096 defaults; `agent.context_window` is always an upper cap.

@@ -51,12 +51,13 @@ func (t ThreatLevel) String() string {
 
 // ScanResult contains the analysis of a text for injection patterns.
 type ScanResult struct {
-	Level       ThreatLevel
-	Patterns    []string // matched pattern names
-	Message     string   // human-readable summary
-	Sanitized   string   // promptsec sanitized output, when enabled
-	TaintSource string   // promptsec taint provenance source, when enabled
-	TaintLevel  string   // promptsec taint trust level, when enabled
+	Level            ThreatLevel
+	Patterns         []string // matched pattern names
+	Message          string   // human-readable summary
+	Sanitized        string   // promptsec sanitized output, when enabled
+	StructuredPrompt bool     // output is a complete prompt envelope, never a user-message replacement
+	TaintSource      string   // promptsec taint provenance source, when enabled
+	TaintLevel       string   // promptsec taint trust level, when enabled
 }
 
 // PromptSecSanitizerOptions mirrors the sanitizer configuration.
@@ -565,10 +566,14 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 
 	for _, scanText := range scanWindows {
 		analysis := protector.Analyze(scanText)
+		if _, structured := analysis.Metadata["structured_prompt"].(string); structured {
+			result.StructuredPrompt = true
+		}
 
-		// Collect sanitized output from the first window when requested.
-		// Some guards (e.g. structure) rewrite the output without adding threats.
-		if (useSanitized || opts.returnSanitized) && result.Sanitized == "" {
+		// Only a complete-input transformation may replace a message. Scan
+		// windows are diagnostic samples and would silently drop user content.
+		// Structure provenance comes from guard metadata, not prompt text matching.
+		if !chunked && (useSanitized || opts.returnSanitized) && result.Sanitized == "" {
 			result.Sanitized = analysis.Output
 		}
 		if result.TaintSource == "" {
