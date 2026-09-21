@@ -11,11 +11,16 @@ Water every 24–36 hours and fertilize weekly. Neglect first stops growth, then
 causes wilting and eventually death. Water and nutrients can restore a living
 plant; a dead plant needs replanting. Frequent watering does not accelerate time.
 
-Use **Prune** to select a stem on the desktop, inspect its highlighted growth and
-confirm **Cut here**. The branch selector also supports keyboard operation.
+Use **Prune** to pick up the large scissors cursor. Point at a stem to preview
+the highlighted growth, then click or tap that spot to cut it directly. The
+preview stays selected when you move away; the branch selector and **Cut here**
+remain available for keyboard operation. Empty clicks do not cut anything.
+After the cut is saved, the detached branch and its leaves fall behind the taskbar.
+Reduced motion or disabled animations skip this effect. Click **Prune** again or
+press Esc to put the scissors away.
 **Trim to pot** cuts all vines after confirmation. A cut can be undone for
 30 seconds; healthy cut stems produce new shoots after six biological hours.
-Esc puts the scissors away. Drag the pot or the grip below it with mouse or
+Drag the pot or the grip below it with mouse or
 touch to reposition the plant. A short click or tap on the pot opens care.
 You can also focus the grip and use arrow keys to move the plant.
 
@@ -43,6 +48,10 @@ one plant; pot placement is saved separately in each browser.
   changes, never per animation frame.
 - Without WebGL, or after context loss, Canvas 2D uses the local atlas baked from
   the same botanical textures and procedural models. Care and pruning use the same state and geometry.
+- A successful cut captures only the complete removed geometry, including
+  offscreen foliage, into one temporary canvas capped at four million pixels
+  and animates its fall for 1.5 seconds without a renderer loop. Completion,
+  undo, hiding, resize, dragging, context loss and disposal release the canvas.
 - Versioned JSON in existing SQLite `desktop_meta`, key `leafy.state.v1`.
   No new database, cron job, LLM request or external notification.
 - `GET /api/desktop/plant` computes the current snapshot without storing a

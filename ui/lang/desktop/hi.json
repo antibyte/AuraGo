@@ -945,7 +945,7 @@
   "desktop.leafy_close": "बंद करें",
   "desktop.leafy_conflict": "Leafy में कहीं और बदलाव हुआ है। वर्तमान स्थिति लोड हो गई है।",
   "desktop.leafy_cut": "यहाँ काटें",
-  "desktop.leafy_cut_hint": "एक डाली चुनें, फिर चिह्नित हिस्सा काटें। Esc कैंची बंद करता है।",
+  "desktop.leafy_cut_hint": "चिह्नित हिस्सा काटने के लिए कैंची से डाली पर क्लिक करो। Esc कैंची बंद करता है। सूची से भी डाली चुन सकते हो।",
   "desktop.leafy_dead": "एक नई शुरुआत",
   "desktop.leafy_error": "Leafy से संपर्क नहीं हो सका। उसी क्रिया को सुरक्षित रूप से फिर आज़माएँ।",
   "desktop.leafy_fallback": "कम ऊर्जा वाला चित्रण",

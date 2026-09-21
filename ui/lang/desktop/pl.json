@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Zamknij",
   "desktop.leafy_conflict": "Leafy zmieniła się gdzie indziej. Wczytano aktualny stan.",
   "desktop.leafy_cut": "Tnij tutaj",
-  "desktop.leafy_cut_hint": "Wybierz pęd i odetnij zaznaczoną część. Esc odkłada nożyczki.",
+  "desktop.leafy_cut_hint": "Kliknij nożyczkami pęd, aby odciąć zaznaczoną część. Esc odkłada nożyczki. Możesz też wybrać pęd z listy.",
   "desktop.leafy_dead": "Czas na nowy początek",
   "desktop.leafy_error": "Leafy jest niedostępna. Możesz bezpiecznie powtórzyć tę samą czynność.",
   "desktop.leafy_fallback": "Oszczędne renderowanie",

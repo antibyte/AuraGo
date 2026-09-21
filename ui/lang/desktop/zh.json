@@ -945,7 +945,7 @@
   "desktop.leafy_close": "关闭",
   "desktop.leafy_conflict": "Leafy 已在别处更改，已加载最新状态。",
   "desktop.leafy_cut": "在此剪断",
-  "desktop.leafy_cut_hint": "选择藤蔓，再剪掉高亮部分。按 Esc 收起剪刀。",
+  "desktop.leafy_cut_hint": "用剪刀点击藤蔓，即可剪掉高亮部分。按 Esc 收起剪刀。也可以从列表中选择藤蔓。",
   "desktop.leafy_dead": "新的开始",
   "desktop.leafy_error": "无法连接 Leafy。你可以安全地重试同一操作。",
   "desktop.leafy_fallback": "节能渲染",

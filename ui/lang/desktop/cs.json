@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Zavřít",
   "desktop.leafy_conflict": "Leafy se změnila jinde. Byl načten aktuální stav.",
   "desktop.leafy_cut": "Střihnout zde",
-  "desktop.leafy_cut_hint": "Vyber výhon a odstřihni zvýrazněnou část. Esc odloží nůžky.",
+  "desktop.leafy_cut_hint": "Klikni nůžkami na výhon a odstřihni zvýrazněnou část. Esc odloží nůžky. Výhon můžeš také vybrat ze seznamu.",
   "desktop.leafy_dead": "Čas na nový začátek",
   "desktop.leafy_error": "Leafy není dostupná. Stejnou akci můžeš bezpečně zopakovat.",
   "desktop.leafy_fallback": "Úsporné vykreslování",

@@ -278,13 +278,71 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.MustEval(`async()=>{await new Promise(r=>setTimeout(r,300))}`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-dpr2.png"))
 	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-panel').hidden)document.querySelector('.vd-leafy-shell').click();}`)
+	page.MustEval(`()=>{
+        document.body.dataset.animations='true';
+        window.leafyCutPoint=()=>{const c=document.querySelector('.vd-leafy-canvas'),r=c.getBoundingClientRect();for(const b of AuraLeafy.active.layout.branches)for(let i=2;i<b.points.length;i++){const a=b.points[i-1],p=b.points[i],x=r.x+(a.x+p.x)/2,y=r.bottom-(a.y+p.y)/2;if(x>10&&x<innerWidth-10&&y>50&&y<innerHeight-80&&document.elementFromPoint(x,y)===c)return{x,y};}throw Error('No reachable stem');};
+        window.leafyFetch=window.fetch;window.leafyActionRequests=[];window.leafyHoldCut=true;
+        window.fetch=async(url,options)=>{
+            if(String(url)==='/api/desktop/plant/actions'){
+                const action=JSON.parse(options.body);leafyActionRequests.push(action);
+                if(action.action==='prune'&&leafyHoldCut)await new Promise(resolve=>window.leafyReleaseCut=resolve);
+            }
+            return leafyFetch(url,options);
+        };
+        window.leafyAnimate=Element.prototype.animate;window.leafyPauseFalls=true;
+        Element.prototype.animate=function(...args){const animation=leafyAnimate.apply(this,args);if(this.classList.contains('vd-leafy-cutting-fall')&&leafyPauseFalls){animation.pause();window.leafyFall=animation;}return animation;};
+    }`)
 	page.Timeout(10 * time.Second).MustElement("[data-action='scissors']").MustClick()
-	point := page.MustEval(`()=>{const c=document.querySelector('.vd-leafy-canvas'),r=c.getBoundingClientRect();for(const b of AuraLeafy.active.layout.branches)for(const p of b.points.slice(2)){const x=r.x+p.x,y=r.bottom-p.y;if(x>10&&x<innerWidth-10&&y>50&&y<innerHeight-80&&document.elementFromPoint(x,y)===c)return{x,y};}throw Error('No reachable stem')}`)
+	point := page.MustEval(`()=>leafyCutPoint()`)
+	page.Mouse.MustMoveTo(point.Get("x").Num(), point.Get("y").Num())
+	page.MustEval(`()=>{
+        const cursor=document.querySelector('.vd-leafy-scissors-cursor');
+        if(cursor.hidden||cursor.getBoundingClientRect().width!==64||getComputedStyle(document.querySelector('.vd-leafy-canvas')).cursor!=='none')throw Error('Large scissors cursor missing');
+        window.leafySelected=document.querySelector('[data-branch]').value;
+        if(!leafySelected||document.querySelector('[data-action="cut"]').disabled)throw Error('Hover did not enable the keyboard cut alternative');
+    }`)
+	page.MustScreenshot(filepath.Join(dir, "desktop-scissors.png"))
+	empty := page.MustEval(`()=>{const c=document.querySelector('.vd-leafy-canvas'),r=c.getBoundingClientRect();for(let y=r.top+20;y<r.bottom;y+=30)for(let x=20;x<innerWidth;x+=30)if(document.elementFromPoint(x,y)===c&&!AuraLeafyGeometry.pick(AuraLeafy.active.layout,x-r.left,r.bottom-y))return{x,y};throw Error('No empty point');}`)
+	page.Mouse.MustMoveTo(empty.Get("x").Num(), empty.Get("y").Num()).MustClick(proto.InputMouseButtonLeft)
+	page.MustEval(`()=>{if(document.querySelector('[data-branch]').value!==leafySelected||document.querySelector('[data-action="cut"]').disabled||leafyActionRequests.length)throw Error('Moving away lost the preview or empty click cut a stale selection');}`)
 	page.Mouse.MustMoveTo(point.Get("x").Num(), point.Get("y").Num()).MustClick(proto.InputMouseButtonLeft)
-	page.MustEval(`()=>{if(!document.querySelector('[data-branch]').value)throw Error('Pointer did not select stem')}`)
+	page.Mouse.MustClick(proto.InputMouseButtonLeft)
+	page.MustEval(`()=>{
+        if(leafyActionRequests.length!==1||document.querySelector('.vd-leafy-cutting-fall')||!document.querySelector('[data-action="cut"]').disabled||document.querySelector('[data-selection-marquee]'))throw Error('Pending cut duplicated, animated early or selected desktop icons');
+        window.leafyBeforeCut=AuraLeafy.active.layout.branches.map(b=>({id:b.id,nodes:b.points.length,parent:b.parent,attach:b.attach}));
+        window.leafyHoldCut=false;leafyReleaseCut();
+    }`)
+	page.Timeout(10 * time.Second).MustWait(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)
+	page.MustEval(`()=>{
+        const action=leafyActionRequests[0],b=AuraLeafy.active.layout.branches.find(b=>b.id===action.branch);
+        if(!b||b.points.length!==action.node||!document.querySelector('[data-action="undo_prune"]'))throw Error('Direct click did not commit the pointed cut');
+        const image=document.querySelector('.vd-leafy-cutting-fall'),pixels=image.getContext('2d').getImageData(0,0,image.width,image.height).data;
+        let opaque=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i])opaque++;
+        if(opaque<100||opaque>image.width*image.height*.95||getComputedStyle(image).pointerEvents!=='none'||getComputedStyle(image.parentElement).overflow!=='hidden')throw Error('Cutting is blank, opaque or not clipped behind the footer');
+        for(let x=0;x<image.width;x++)if(pixels[x*4+3]||pixels[((image.height-1)*image.width+x)*4+3])throw Error('Cutting clips foliage at its top or bottom');
+        leafyFall.currentTime=0;
+    }`)
+	page.MustScreenshot(filepath.Join(dir, "desktop-cut-start.png"))
+	page.MustEval(`()=>{leafyFall.currentTime=600;}`)
+	page.MustScreenshot(filepath.Join(dir, "desktop-cut-falling.png"))
+	page.MustEval(`()=>{const image=document.querySelector('.vd-leafy-cutting-fall');if(new DOMMatrixReadOnly(getComputedStyle(image).transform).m42<50)throw Error('Detached branch did not fall');leafyFall.currentTime=1400;}`)
+	page.MustScreenshot(filepath.Join(dir, "desktop-cut-footer.png"))
+	page.MustEval(`()=>leafyFall.finish()`)
+	page.Timeout(5 * time.Second).MustWait(`()=>!document.querySelector('.vd-leafy-cutting-fall')`)
+	page.Timeout(10 * time.Second).MustElement("[data-action='undo_prune']").MustClick()
+	page.Timeout(10 * time.Second).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')`)
+	page.MustEval(`()=>{if(JSON.stringify(AuraLeafy.active.layout.branches.map(b=>({id:b.id,nodes:b.points.length,parent:b.parent,attach:b.attach})))!==JSON.stringify(leafyBeforeCut))throw Error('Undo did not restore the complete branch tree');}`)
+	// A competing write must refresh the state without animating a rejected cut.
+	page.MustEval(`async()=>{const p=await(await nativeFetch('/api/desktop/plant')).json();const r=await nativeFetch('/api/desktop/plant/actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'water',action_id:crypto.randomUUID(),revision:p.plant.revision})});window.leafyConflictRevision=(await r.json()).plant.revision;}`)
+	point = page.MustEval(`()=>leafyCutPoint()`)
+	page.Mouse.MustMoveTo(point.Get("x").Num(), point.Get("y").Num()).MustClick(proto.InputMouseButtonLeft)
+	page.Timeout(10 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().revision===leafyConflictRevision`)
+	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-cutting-fall')||document.querySelector('[data-action="undo_prune"]'))throw Error('Rejected cut animated or mutated the plant');document.body.dataset.animations='false';}`)
+	// Preserve list-based cutting without motion as a keyboard alternative.
 	page.Timeout(10 * time.Second).MustElement("[data-branch]").MustSelect("Ranke 1")
 	page.Timeout(10 * time.Second).MustElement("[data-action='cut']").MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>!!document.querySelector('[data-action="undo_prune"]')`)
+	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-cutting-fall'))throw Error('Disabled animations still fell');}`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-pruned.png"))
 	page.Timeout(10 * time.Second).MustElement("[data-action='undo_prune']").MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')`)
@@ -301,6 +359,21 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.MustEval(`async()=>{await new Promise(r=>setTimeout(r,300))}`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-fallback.png"))
 	page.MustEval(`async()=>{const rev=AuraLeafy.active.metrics().revision;document.querySelector('[data-action="water"]').click();for(let i=0;i<50&&AuraLeafy.active.metrics().revision===rev;i++)await new Promise(r=>setTimeout(r,20));if(AuraLeafy.active.metrics().revision!==rev+1)throw Error('Fallback care failed');}`)
+	page.MustEval(`()=>{document.body.dataset.animations='true';document.querySelector('[data-action="scissors"]').click();}`)
+	point = page.MustEval(`()=>leafyCutPoint()`)
+	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
+		t.Fatal(err)
+	}
+	page.Touch.MustTap(point.Get("x").Num(), point.Get("y").Num())
+	page.Timeout(10 * time.Second).MustWait(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)
+	page.MustEval(`()=>{if(!document.querySelector('.vd-leafy-scissors-cursor').hidden)throw Error('Touch left a floating mouse cursor');leafyFall.currentTime=500;}`)
+	page.MustScreenshot(filepath.Join(dir, "desktop-fallback-cut.png"))
+	page.MustElement("[data-action='undo_prune']").MustClick()
+	page.Timeout(10 * time.Second).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')&&!document.querySelector('.vd-leafy-cutting-fall')`)
+	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page); err != nil {
+		t.Fatal(err)
+	}
+	page.MustEval(`()=>{document.querySelector('[data-action="scissors"]').click();if(getComputedStyle(document.querySelector('.vd-leafy-canvas')).pointerEvents!=='none'||!document.querySelector('.vd-leafy-scissors-cursor').hidden)throw Error('Putting scissors away kept capture');window.fetch=leafyFetch;Element.prototype.animate=leafyAnimate;}`)
 
 	page.MustEval(`()=>{window.lastLeafy=AuraLeafy.active;aurora.switchSpace(2);aurora.switchSpace(1);if(AuraLeafy.active!==lastLeafy)throw Error('Spaces recreated plant');}`)
 	t.Log(page.MustEval(`()=>JSON.stringify(AuraLeafy.active.metrics())`).Str())

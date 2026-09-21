@@ -58,10 +58,29 @@
     function pick(layout,x,y) {
         let best=null,distance=24;
         for(const b of layout.branches)for(let i=1;i<b.points.length;i++){
-            const p=b.points[i],d=Math.hypot(p.x-x,p.y-y);
+            const a=b.points[i-1],p=b.points[i],dx=p.x-a.x,dy=p.y-a.y;
+            const t=Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/(dx*dx+dy*dy||1)));
+            const d=Math.hypot(a.x+t*dx-x,a.y+t*dy-y);
             if(d<distance){distance=d;best={branch:b.id,node:i};}
         }
         return best;
     }
-    window.AuraLeafyGeometry={random,layout,descendants,pick};
+    // Compare with the acknowledged state, keeping the original screen positions.
+    function removed(model,state) {
+        const kept=new Map((state.branches||[]).map(b=>[b.id,b.nodes.length]));
+        const cut=item=>item.node>=(kept.get(item.branch)||0);
+        return {...model,
+            branches:model.branches.filter(b=>b.points.length>(kept.get(b.id)||0))
+                .map(b=>({...b,points:b.points.slice(Math.max(0,(kept.get(b.id)||0)-1))})),
+            leaves:model.leaves.filter(cut),flowers:model.flowers.filter(cut)};
+    }
+    function cuttingBounds(model) {
+        let left=Infinity,right=-Infinity,bottom=Infinity,top=-Infinity;
+        const include=(x,y,r)=>{left=Math.min(left,x-r);right=Math.max(right,x+r);bottom=Math.min(bottom,y-r);top=Math.max(top,y+r);};
+        for(const branch of model.branches)for(const point of branch.points)include(point.x,point.y,20*model.scale);
+        for(const leaf of model.leaves)include(leaf.x,leaf.y,leaf.size*1.6);
+        for(const flower of model.flowers)include(flower.x,flower.y,flower.size*2);
+        return {left:Math.floor(left),top:Math.floor(model.height-top),width:Math.ceil(right-left)+2,height:Math.ceil(top-bottom)+2};
+    }
+    window.AuraLeafyGeometry={random,layout,descendants,pick,removed,cuttingBounds};
 })();

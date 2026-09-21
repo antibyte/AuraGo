@@ -112,6 +112,15 @@ worker. Keep packaging, recovery and offline instructions in
   Drag the pot or its grip with mouse/touch; a click/tap still opens care.
   Keep desktop selection out of these gestures, persist the local anchor on
   release, and clear drag capture/offsets on cancellation, blur and disposal.
+  Pruning uses a 64px scissors cursor and a direct primary click/tap on a stem.
+  Keep the segment preview when leaving foliage; the branch list and Cut here
+  remain keyboard alternatives. Empty clicks never cut the last selection.
+  Only acknowledged cuts animate removed stems/leaves/flowers down behind the
+  taskbar, in both renderers. Capture the complete removed geometry, including
+  offscreen foliage, within four million pixels. Bound the transient canvas to
+  one and dispose it on completion, undo, hiding, resize, dragging, context loss
+  or widget cleanup.
+  Reduced motion and disabled animations skip the fall; pending writes block cuts.
   See `documentation/leafy.md` for care, atlas baking and browser checks.
 - The opt-in `builtin-printer` widget lives in `js/desktop/core/widget-printer-runtime.js`.
   Keep missing printer metrics unknown, render filenames as text, and stop status

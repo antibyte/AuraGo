@@ -151,7 +151,7 @@
         const key=new T.DirectionalLight(0xffefd0,1.1);key.position.set(-500,900,800);scene.add(key);
         const fill=new T.DirectionalLight(0xcde6fd,.35);fill.position.set(700,400,300);scene.add(fill);
         const texture=new T.Texture(artwork.image);texture.encoding=T.sRGBEncoding;texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());texture.needsUpdate=true;
-        const wind={value:0};let group=null,model=null,disposed=false,highlight=null,frames=0;
+        const wind={value:0};let group=null,model=null,plant=null,disposed=false,highlight=null,frames=0;
         function clear(){
             if(!group)return;
             group.traverse(o=>{o.geometry?.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material]){if(m.map&&m.map!==texture)m.map.dispose();m.dispose();}}});
@@ -159,9 +159,13 @@
         }
         function mesh(g,m){const o=new T.Mesh(g,m);group.add(o);return o;}
         function update(state,width,height,anchor,light=false){
-            clear();group=new T.Group();scene.add(group);model=G.layout(state,width,height,anchor);
+            clear();plant=state;model=G.layout(state,width,height,anchor);
             renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5,Math.sqrt(4000000/(width*height))));
             renderer.setSize(width,height,false);camera.right=width;camera.top=height;camera.updateProjectionMatrix();
+            build(state,model,light);render();
+        }
+        function build(state,model,light,withPot=true){
+            group=new T.Group();scene.add(group);
             const stem=new T.MeshStandardMaterial({color:new T.Color(state.dead?0x675339:0x527630).convertSRGBToLinear(),roughness:.75,envMapIntensity:.12});
             const tubes=[];
             for(const b of model.branches){
@@ -207,10 +211,31 @@
                     dummy.position.set(f.x,f.y,f.z+3);dummy.rotation.set(0,0,0);dummy.scale.setScalar(f.size*.18);dummy.updateMatrix();centers.setMatrixAt(i,dummy.matrix);
                 });group.add(petals,centers);
             }
+            if(!withPot)return;
             const pot=potGroup(light,model.scale*1.35,state.moisture);pot.position.set(model.root.x,model.root.y-151*model.scale,55);group.add(pot);
             const c=document.createElement('canvas');c.width=256;c.height=64;const ctx=c.getContext('2d'),gradient=ctx.createRadialGradient(128,32,4,128,32,118);gradient.addColorStop(0,'rgba(0,0,0,.4)');gradient.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=gradient;ctx.fillRect(0,0,256,64);
             const shadow=mesh(new T.PlaneGeometry(175*model.scale,36*model.scale),new T.MeshBasicMaterial({map:new T.CanvasTexture(c),transparent:true,depthWrite:false}));shadow.position.set(model.root.x,model.root.y-155*model.scale,0);
-            render();
+        }
+        function cutout(state){
+            if(disposed||!model||!group)return null;
+            const cut=G.removed(model,state);
+            if(!cut.branches.length)return null;
+            const bounds=G.cuttingBounds(cut),ratio=renderer.getPixelRatio();
+            const saved=group,savedHighlight=highlight;saved.visible=false;group=null;highlight=null;
+            try {
+                // Include offscreen foliage so it enters the viewport intact as it falls.
+                renderer.setPixelRatio(Math.min(ratio,Math.sqrt(4000000/(bounds.width*bounds.height))));
+                renderer.setSize(bounds.width,bounds.height,false);
+                camera.left=bounds.left;camera.right=bounds.left+bounds.width;
+                camera.top=model.height-bounds.top;camera.bottom=camera.top-bounds.height;camera.updateProjectionMatrix();
+                build(plant,cut,false,false);render();
+                const image=document.createElement('canvas');image.width=canvas.width;image.height=canvas.height;
+                image.getContext('2d').drawImage(canvas,0,0);return {image,...bounds};
+            } finally {
+                clear();group=saved;highlight=savedHighlight;saved.visible=true;
+                renderer.setPixelRatio(ratio);renderer.setSize(model.width,model.height,false);
+                camera.left=0;camera.right=model.width;camera.top=model.height;camera.bottom=0;camera.updateProjectionMatrix();render();
+            }
         }
         function render(value=0){if(disposed)return;wind.value=value;renderer.render(scene,camera);frames++;}
         function select(selection){
@@ -232,7 +257,7 @@
             items.forEach((o,i)=>{scene.add(o);renderer.render(scene,cam);ctx.drawImage(canvas,(i%4)*256,Math.floor(i/4)*256,256,256);scene.remove(o);o.traverse(m=>{m.geometry?.dispose();m.material?.dispose();});});
             old.visible=true;return atlas.toDataURL('image/png');
         }
-        return {update,render,select,bake,get layout(){return model;},metrics:()=>({frames,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}),
+        return {update,render,select,bake,cutout,get layout(){return model;},metrics:()=>({frames,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}),
             dispose(){if(disposed)return;disposed=true;clear();texture.dispose();environment.dispose();renderer.dispose();renderer.forceContextLoss();}};
     }
     window.AuraLeafyRenderer={prepare,create:make};

@@ -945,7 +945,7 @@
   "desktop.leafy_close": "閉じる",
   "desktop.leafy_conflict": "別の場所でLeafyが変更されました。現在の状態を読み込みました。",
   "desktop.leafy_cut": "ここで切る",
-  "desktop.leafy_cut_hint": "つるを選び、強調された部分を切ります。Escではさみをしまいます。",
+  "desktop.leafy_cut_hint": "はさみでつるをクリックすると、強調された部分を切れます。Escではさみをしまいます。一覧からつるを選ぶこともできます。",
   "desktop.leafy_dead": "新しい始まりの時間",
   "desktop.leafy_error": "Leafyに接続できません。同じ操作を安全に再試行できます。",
   "desktop.leafy_fallback": "省電力描画",

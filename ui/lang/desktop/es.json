@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Cerrar",
   "desktop.leafy_conflict": "Leafy cambió en otro lugar. Se ha cargado el estado actual.",
   "desktop.leafy_cut": "Cortar aquí",
-  "desktop.leafy_cut_hint": "Elige un tallo y corta la parte resaltada. Esc guarda las tijeras.",
+  "desktop.leafy_cut_hint": "Haz clic con las tijeras en un tallo para cortar la parte resaltada. Esc guarda las tijeras. También puedes elegir un tallo de la lista.",
   "desktop.leafy_dead": "Un nuevo comienzo",
   "desktop.leafy_error": "Leafy no responde. Puedes reintentar la misma acción sin duplicarla.",
   "desktop.leafy_fallback": "Renderizado de bajo consumo",

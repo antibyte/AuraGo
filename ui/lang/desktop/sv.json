@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Stäng",
   "desktop.leafy_conflict": "Leafy ändrades på annat håll. Aktuellt tillstånd har laddats.",
   "desktop.leafy_cut": "Klipp här",
-  "desktop.leafy_cut_hint": "Välj en ranka och klipp den markerade delen. Esc lägger undan saxen.",
+  "desktop.leafy_cut_hint": "Klicka med saxen på en ranka för att klippa av den markerade delen. Esc lägger undan saxen. Du kan också välja en ranka i listan.",
   "desktop.leafy_dead": "Dags för en ny början",
   "desktop.leafy_error": "Leafy kan inte nås. Du kan tryggt försöka med samma åtgärd igen.",
   "desktop.leafy_fallback": "Strömsnål rendering",

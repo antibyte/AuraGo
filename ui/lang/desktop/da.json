@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Luk",
   "desktop.leafy_conflict": "Leafy blev ændret et andet sted. Den aktuelle tilstand er indlæst.",
   "desktop.leafy_cut": "Klip her",
-  "desktop.leafy_cut_hint": "Vælg en ranke, og klip den markerede del af. Esc lægger saksen væk.",
+  "desktop.leafy_cut_hint": "Klik med saksen på en ranke for at klippe den markerede del af. Esc lægger saksen væk. Du kan også vælge en ranke på listen.",
   "desktop.leafy_dead": "Tid til en ny begyndelse",
   "desktop.leafy_error": "Leafy kan ikke nås. Den samme handling kan trygt prøves igen.",
   "desktop.leafy_fallback": "Strømbesparende visning",

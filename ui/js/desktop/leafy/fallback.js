@@ -2,7 +2,7 @@
 (function () {
     'use strict';
     function create(canvas) {
-        const ctx = canvas.getContext('2d'), atlas = new Image();
+        const atlas = new Image();let ctx = canvas.getContext('2d');
         let model = null, plant = null, light = false, selection = null, disposed = false, frames = 0;
         atlas.onload = () => { if (!disposed && model) render(); };
         atlas.src = window.AuraLazyAssets.versionedURL('/img/leafy/fallback.png');
@@ -12,7 +12,7 @@
             ctx.drawImage(atlas, index % 4 * 256, Math.floor(index / 4) * 256, 256, 256, -size * aspect / 2, -size * .86, size * aspect, size);
             ctx.restore();
         }
-        function render() {
+        function render(withPot=true) {
             if (disposed || !model) return;
             frames++; ctx.clearRect(0, 0, model.width, model.height);
             const ids = selection ? window.AuraLeafyGeometry.descendants(model, selection.branch, selection.node) : new Set();
@@ -31,7 +31,21 @@
             for (const l of model.leaves) sprite(l.variant%4,l.x,model.height-l.y,l.size*1.43,-l.angle+(plant.moisture<20?.35:0),l.aspect);
             ctx.filter = 'none';
             for (const f of model.flowers) sprite(6+f.variant,f.x,model.height-f.y,f.size*3*f.open);
-            sprite(light?5:4,model.root.x,model.height-model.root.y+145*model.scale,218*model.scale);
+            if(withPot)sprite(light?5:4,model.root.x,model.height-model.root.y+145*model.scale,218*model.scale);
+        }
+        function cutout(state) {
+            if(disposed||!model)return null;
+            const cut=window.AuraLeafyGeometry.removed(model,state);
+            if(!cut.branches.length)return null;
+            const bounds=window.AuraLeafyGeometry.cuttingBounds(cut);
+            const saved=model,savedSelection=selection,savedContext=ctx;
+            try {
+                const image=document.createElement('canvas'),ratio=Math.min(devicePixelRatio||1,1.5,Math.sqrt(4000000/(bounds.width*bounds.height)));
+                image.width=Math.ceil(bounds.width*ratio);image.height=Math.ceil(bounds.height*ratio);ctx=image.getContext('2d');
+                ctx.setTransform(ratio,0,0,ratio,-bounds.left*ratio,-bounds.top*ratio);
+                model=cut;selection=null;render(false);
+                return {image,...bounds};
+            } finally {model=saved;selection=savedSelection;ctx=savedContext;}
         }
         return {
             update(state,width,height,anchor,isLight) {
@@ -39,7 +53,7 @@
                 const dpr=Math.min(devicePixelRatio||1,1.5,Math.sqrt(4000000/(width*height)));
                 canvas.width=Math.ceil(width*dpr); canvas.height=Math.ceil(height*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); render();
             },
-            render, select(value) {selection=value;render();}, get layout() {return model;},
+            render, cutout, select(value) {selection=value;render();}, get layout() {return model;},
             metrics:()=>({frames,calls:0,triangles:0,textures:1}),
             dispose() {disposed=true;atlas.onload=null;canvas.width=canvas.height=1;}
         };

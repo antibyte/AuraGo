@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Schließen",
   "desktop.leafy_conflict": "Leafy wurde anderswo gepflegt. Der aktuelle Stand wurde geladen.",
   "desktop.leafy_cut": "Hier schneiden",
-  "desktop.leafy_cut_hint": "Wähle eine Ranke und schneide den markierten Teil ab. Esc legt die Schere weg.",
+  "desktop.leafy_cut_hint": "Klicke mit der Schere auf eine Ranke, um den markierten Teil abzuschneiden. Esc legt die Schere weg. Du kannst eine Ranke auch über die Liste wählen.",
   "desktop.leafy_dead": "Zeit für einen Neuanfang",
   "desktop.leafy_error": "Leafy ist nicht erreichbar. Dieselbe Aktion lässt sich sicher erneut versuchen.",
   "desktop.leafy_fallback": "Sparsame Darstellung",

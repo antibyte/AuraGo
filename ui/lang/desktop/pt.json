@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Fechar",
   "desktop.leafy_conflict": "Leafy mudou em outro lugar. O estado atual foi carregado.",
   "desktop.leafy_cut": "Cortar aqui",
-  "desktop.leafy_cut_hint": "Escolha um ramo e corte a parte destacada. Esc guarda a tesoura.",
+  "desktop.leafy_cut_hint": "Clica com a tesoura num ramo para cortar a parte destacada. Esc guarda a tesoura. Também podes escolher um ramo na lista.",
   "desktop.leafy_dead": "Um novo começo",
   "desktop.leafy_error": "Leafy está inacessível. Você pode repetir a mesma ação sem duplicá-la.",
   "desktop.leafy_fallback": "Renderização econômica",

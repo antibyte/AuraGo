@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Sluiten",
   "desktop.leafy_conflict": "Leafy is elders veranderd. De huidige toestand is geladen.",
   "desktop.leafy_cut": "Hier knippen",
-  "desktop.leafy_cut_hint": "Kies een rank en knip het gemarkeerde deel af. Esc bergt de schaar op.",
+  "desktop.leafy_cut_hint": "Klik met de schaar op een rank om het gemarkeerde deel af te knippen. Esc bergt de schaar op. Je kunt ook een rank uit de lijst kiezen.",
   "desktop.leafy_dead": "Tijd voor een nieuw begin",
   "desktop.leafy_error": "Leafy is niet bereikbaar. Dezelfde actie kan veilig opnieuw worden geprobeerd.",
   "desktop.leafy_fallback": "Zuinige weergave",

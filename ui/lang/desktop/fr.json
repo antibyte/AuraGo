@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Fermer",
   "desktop.leafy_conflict": "Leafy a changé ailleurs. L’état actuel a été chargé.",
   "desktop.leafy_cut": "Couper ici",
-  "desktop.leafy_cut_hint": "Choisissez une tige, puis coupez la partie surlignée. Échap range les ciseaux.",
+  "desktop.leafy_cut_hint": "Clique avec les ciseaux sur une tige pour couper la partie surlignée. Échap range les ciseaux. Tu peux aussi choisir une tige dans la liste.",
   "desktop.leafy_dead": "Un nouveau départ",
   "desktop.leafy_error": "Leafy est inaccessible. Vous pouvez réessayer la même action sans risque.",
   "desktop.leafy_fallback": "Rendu économique",

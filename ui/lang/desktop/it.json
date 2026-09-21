@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Chiudi",
   "desktop.leafy_conflict": "Leafy è cambiata altrove. È stato caricato lo stato attuale.",
   "desktop.leafy_cut": "Taglia qui",
-  "desktop.leafy_cut_hint": "Scegli un ramo, poi taglia la parte evidenziata. Esc ripone le forbici.",
+  "desktop.leafy_cut_hint": "Fai clic con le forbici su un ramo per tagliare la parte evidenziata. Esc ripone le forbici. Puoi anche scegliere un ramo dall’elenco.",
   "desktop.leafy_dead": "Un nuovo inizio",
   "desktop.leafy_error": "Leafy non è raggiungibile. Puoi riprovare la stessa azione senza duplicarla.",
   "desktop.leafy_fallback": "Rendering a basso consumo",

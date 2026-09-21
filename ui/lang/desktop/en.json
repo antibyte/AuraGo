@@ -945,7 +945,7 @@
   "desktop.leafy_close": "Close",
   "desktop.leafy_conflict": "Leafy changed elsewhere. The current state has been loaded.",
   "desktop.leafy_cut": "Cut here",
-  "desktop.leafy_cut_hint": "Choose a stem, then cut the highlighted growth. Esc puts the scissors away.",
+  "desktop.leafy_cut_hint": "Click a stem with the scissors to cut off the highlighted growth. Esc puts the scissors away. You can also choose a stem from the list.",
   "desktop.leafy_dead": "Time for a new beginning",
   "desktop.leafy_error": "Could not reach Leafy. Retry safely with the same action.",
   "desktop.leafy_fallback": "Power-saving rendering",
