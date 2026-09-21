@@ -48,11 +48,13 @@ func completeMaintenanceRun(cfg *config.Config, logger *slog.Logger, stm *memory
 		Message:  formatMorningBriefing(cfg, finishedAt, status, results, openIssues),
 		SourceID: "maintenance:" + startedAt.UTC().Format(time.RFC3339Nano),
 		Data: map[string]interface{}{
-			"maintenance_status": status,
-			"processed":          results.Processed,
-			"deferred":           results.Deferred,
-			"open_issues":        openIssues,
-			"finished_at":        finishedAt.UTC().Format(time.RFC3339),
+			"maintenance_status":     status,
+			"processed":              results.Processed,
+			"deferred":               results.Deferred,
+			"consolidation_backlog":  results.ConsolidationBacklog,
+			"consolidation_excluded": results.ConsolidationExcluded,
+			"open_issues":            openIssues,
+			"finished_at":            finishedAt.UTC().Format(time.RFC3339),
 		},
 	}
 	if _, _, err := stm.AddSystemNotification(notification); err != nil && logger != nil {
@@ -220,6 +222,20 @@ func formatMorningBriefing(cfg *config.Config, finishedAt time.Time, status stri
 		fmt.Fprintf(&b, "Stand: %s\nWartung: %s; verarbeitet: %d; aufgeschoben: %d.\n", finishedAt.Local().Format(time.RFC3339), status, results.Processed, results.Deferred)
 	} else {
 		fmt.Fprintf(&b, "As of: %s\nMaintenance: %s; processed: %d; deferred: %d.\n", finishedAt.Local().Format(time.RFC3339), status, results.Processed, results.Deferred)
+	}
+	if results.ConsolidationBacklog > 0 || results.ConsolidationExcluded > 0 {
+		if german {
+			fmt.Fprintf(&b, "Konsolidierung: Rückstand %d", results.ConsolidationBacklog)
+			if results.ConsolidationExcluded > 0 {
+				fmt.Fprintf(&b, "; interne Einträge in diesem Lauf ausgeschlossen: %d", results.ConsolidationExcluded)
+			}
+		} else {
+			fmt.Fprintf(&b, "Consolidation: backlog %d", results.ConsolidationBacklog)
+			if results.ConsolidationExcluded > 0 {
+				fmt.Fprintf(&b, "; internal entries excluded during this run: %d", results.ConsolidationExcluded)
+			}
+		}
+		b.WriteString(".\n")
 	}
 	for _, check := range results.IntegrationChecks {
 		fmt.Fprintf(&b, "- %s: %s", check.ID, check.Status)

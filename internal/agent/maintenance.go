@@ -392,28 +392,40 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
 	totalStored := 0
+	consolidationClaimed := 0
 	consolidationCtx, cancelConsolidation, consolidationBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
 	if !consolidationBudgetAvailable {
 		ledger.addDeferred("consolidation", 1)
+		ledger.addPhaseCode("consolidation", "phase_budget_exhausted")
 	} else if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
-		var messagesConsolidated int
-		totalStored, messagesConsolidated = consolidateSTMtoLTMWithContext(consolidationCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
+		consolidationResult := consolidateSTMtoLTMWithContext(consolidationCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
+		totalStored = consolidationResult.FactsStored
+		consolidationClaimed = consolidationResult.MessagesClaimed
 		ledger.phaseResults.ConsolidationFacts = totalStored
-		ledger.addProcessed("consolidation", messagesConsolidated)
+		ledger.phaseResults.ConsolidationExcluded = consolidationResult.MessagesExcluded
+		ledger.addProcessed("consolidation", consolidationResult.MessagesConsolidated)
+		if deferred := consolidationResult.MessagesClaimed - consolidationResult.MessagesConsolidated; deferred > 0 {
+			ledger.addDeferred("consolidation", deferred)
+		}
 		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
 	}
 	consolidationBudgetExpired := consolidationCtx.Err() != nil && taskCtx.Err() == nil
 	cancelConsolidation()
 	if shortTermMem != nil {
-		if deferred, err := shortTermMem.CountConsolidationCandidates(3); err == nil {
-			ledger.addDeferred("consolidation", deferred)
-			if deferred > 0 {
-				ledger.finishPhase("consolidation", true)
+		if backlog, err := shortTermMem.CountConsolidationCandidates(3); err == nil {
+			ledger.phaseResults.ConsolidationBacklog = backlog
+			if backlog > 0 && consolidationClaimed == 0 && ledger.phaseDeferred("consolidation") == 0 {
+				ledger.addDeferred("consolidation", 1)
 			}
+		} else {
+			ledger.addError("consolidation_backlog: " + err.Error())
 		}
 	}
 	if consolidationBudgetExpired && ledger.phaseDeferred("consolidation") == 0 {
 		ledger.addDeferred("consolidation", 1)
+	}
+	if consolidationBudgetExpired {
+		ledger.addPhaseCode("consolidation", "phase_budget_exhausted")
 	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "consolidation") {
 		return
@@ -1418,7 +1430,8 @@ func cleanConsolidationArchivedMessages(cfg *config.Config, logger *slog.Logger,
 // consolidateSTMtoLTM extracts knowledge from archived STM messages and stores it in the VectorDB.
 // This bridges the gap between the sliding-window short-term memory and the persistent long-term memory.
 func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (totalStored int, messagesConsolidated int) {
-	return consolidateSTMtoLTMWithContext(context.Background(), cfg, logger, client, stm, ltm, kg)
+	result := consolidateSTMtoLTMWithContext(context.Background(), cfg, logger, client, stm, ltm, kg)
+	return result.FactsStored, result.MessagesConsolidated
 }
 
 type consolidationRunBudget struct {
@@ -1427,7 +1440,14 @@ type consolidationRunBudget struct {
 
 type consolidationRunBudgetContextKey struct{}
 
-func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (totalStored int, messagesConsolidated int) {
+type consolidationRunResult struct {
+	FactsStored          int
+	MessagesConsolidated int
+	MessagesClaimed      int
+	MessagesExcluded     int
+}
+
+func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (result consolidationRunResult) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1441,20 +1461,27 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		budget = &consolidationRunBudget{remaining: maxMessages}
 		ctx = context.WithValue(ctx, consolidationRunBudgetContextKey{}, budget)
 		defer cleanConsolidationArchivedMessages(cfg, logger, stm)
+		excluded, excludeErr := stm.FinalizeIneligibleConsolidationCandidates()
+		if excludeErr != nil {
+			logger.Warn("[Consolidation] Failed to exclude internal archive rows", "error", excludeErr)
+		} else if excluded > 0 {
+			result.MessagesExcluded = int(excluded)
+			logger.Info("[Consolidation] Excluded internal archive rows", "count", excluded)
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Consolidation] STM->LTM consolidation skipped: maintenance context canceled", "error", err)
-		return 0, 0
+		return result
 	}
 	if !maintenanceContextHasAtLeast(ctx, 75*time.Second) {
 		logger.Info("[Consolidation] STM->LTM consolidation deferred: insufficient maintenance time remains")
-		return 0, 0
+		return result
 	}
 
 	consolidationClient, consolidationModel := resolveHelperBackedLLM(cfg, client, resolveConsolidationModel(cfg))
 	if consolidationClient == nil || consolidationModel == "" {
 		logger.Warn("[Consolidation] STM->LTM consolidation skipped: no helper/main LLM available")
-		return 0, 0
+		return result
 	}
 
 	if rootClaim {
@@ -1471,18 +1498,19 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		claimLimit = 40
 	}
 	if claimLimit <= 0 {
-		return 0, 0
+		return result
 	}
 	archived, err := stm.ClaimConsolidationCandidates(claimLimit, 3)
 	if err != nil {
 		logger.Error("[Consolidation] Failed to fetch unconsolidated messages", "error", err)
-		return 0, 0
+		return result
 	}
 	if len(archived) == 0 {
 		logger.Debug("[Consolidation] No unconsolidated archived messages")
-		return 0, 0
+		return result
 	}
 	budget.remaining -= len(archived)
+	result.MessagesClaimed += len(archived)
 
 	logger.Info("[Consolidation] Starting STM→LTM consolidation", "messages", len(archived))
 
@@ -1531,8 +1559,8 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			return
 		}
 		if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, batchIndex, len(workItems)); ok {
-			totalStored += storedCount
-			messagesConsolidated += len(item.messageIDs)
+			result.FactsStored += storedCount
+			result.MessagesConsolidated += len(item.messageIDs)
 		}
 	}
 
@@ -1565,7 +1593,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		}
 
 		consolidationCtx, consolidationCancel := context.WithTimeout(ctx, 60*time.Second)
-		result, err := helperManager.AnalyzeConsolidationBatches(consolidationCtx, inputs)
+		batchAnalysis, err := helperManager.AnalyzeConsolidationBatches(consolidationCtx, inputs)
 		consolidationCancel()
 		if err != nil {
 			helperManager.ObserveFallback("consolidation_batches", err.Error())
@@ -1591,16 +1619,16 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 					continue
 				}
 				if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems)); ok {
-					totalStored += storedCount
-					messagesConsolidated += len(item.messageIDs)
+					result.FactsStored += storedCount
+					result.MessagesConsolidated += len(item.messageIDs)
 				}
 			}
 			i = end
 			continue
 		}
 
-		byID := make(map[string][]helperConsolidationFact, len(result.Batches))
-		for _, batchResult := range result.Batches {
+		byID := make(map[string][]helperConsolidationFact, len(batchAnalysis.Batches))
+		for _, batchResult := range batchAnalysis.Batches {
 			byID[batchResult.BatchID] = batchResult.Facts
 		}
 		for offset, item := range group {
@@ -1612,36 +1640,37 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 				continue
 			}
 			if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems)); ok {
-				totalStored += storedCount
-				messagesConsolidated += len(item.messageIDs)
+				result.FactsStored += storedCount
+				result.MessagesConsolidated += len(item.messageIDs)
 			}
 		}
 		i = end
 	}
 
 	if budget.remaining > 0 && len(archived) == claimLimit && maintenanceContextHasAtLeast(ctx, 75*time.Second) {
-		moreStored, moreMessages := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, ltm, kg)
-		totalStored += moreStored
-		messagesConsolidated += moreMessages
+		more := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, ltm, kg)
+		result.FactsStored += more.FactsStored
+		result.MessagesConsolidated += more.MessagesConsolidated
+		result.MessagesClaimed += more.MessagesClaimed
 	}
 
 	// Create one journal entry for the complete consolidation run.
-	if rootClaim && cfg.Tools.Journal.Enabled && totalStored > 0 {
+	if rootClaim && cfg.Tools.Journal.Enabled && result.FactsStored > 0 {
 		_, _ = stm.InsertJournalEntry(memory.JournalEntry{
 			EntryType: "system",
 			Title:     "Nightly STM→LTM Consolidation",
-			Content:   fmt.Sprintf("Consolidated %d archived messages into %d LTM facts.", messagesConsolidated, totalStored),
+			Content:   fmt.Sprintf("Consolidated %d archived messages into %d LTM facts.", result.MessagesConsolidated, result.FactsStored),
 			Tags:      []string{"consolidation", "maintenance", "memory"},
 		})
 	}
 
 	if rootClaim {
 		logger.Info("[Consolidation] STM→LTM consolidation complete",
-			"messages_processed", messagesConsolidated,
-			"facts_stored", totalStored,
+			"messages_processed", result.MessagesConsolidated,
+			"facts_stored", result.FactsStored,
 			"remaining_claim_budget", budget.remaining)
 	}
-	return totalStored, messagesConsolidated
+	return result
 }
 
 func maintenanceContextHasAtLeast(ctx context.Context, minimum time.Duration) bool {

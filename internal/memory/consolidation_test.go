@@ -77,19 +77,57 @@ func TestDeleteOldMessagesArchivesToolMessages(t *testing.T) {
 		t.Fatalf("DeleteOldMessages: %v", err)
 	}
 
-	archived, err := stm.GetUnconsolidatedMessages(100)
+	var archivedTools int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM archived_messages WHERE role = 'tool'`).Scan(&archivedTools); err != nil {
+		t.Fatalf("count archived tools: %v", err)
+	}
+	if archivedTools != 1 {
+		t.Fatalf("archived tool rows = %d, want 1", archivedTools)
+	}
+	candidates, err := stm.GetUnconsolidatedMessages(100)
 	if err != nil {
 		t.Fatalf("GetUnconsolidatedMessages: %v", err)
 	}
-
-	var toolArchived bool
-	for _, msg := range archived {
+	for _, msg := range candidates {
 		if msg.Role == "tool" {
-			toolArchived = true
+			t.Fatalf("tool message entered consolidation candidates: %+v", candidates)
 		}
 	}
-	if !toolArchived {
-		t.Fatalf("expected tool messages to be archived before deletion, got %+v", archived)
+}
+
+func TestFinalizeIneligibleConsolidationCandidates(t *testing.T) {
+	stm := newTestConsolidationDB(t)
+	for _, row := range []struct{ session, role, content string }{
+		{"default", "user", "remember the NAS backup target"},
+		{"default", "tool", "untrusted command output"},
+		{"heartbeat", "assistant", "background heartbeat result"},
+		{"maintenance", "assistant", "maintenance output"},
+		{"mission-mission_123", "assistant", "mission result"},
+		{"space-agent-bridge", "user", "autonomous bridge prompt"},
+	} {
+		if _, err := stm.db.Exec(`INSERT INTO archived_messages (session_id, role, content, original_timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, row.session, row.role, row.content); err != nil {
+			t.Fatalf("insert archived candidate: %v", err)
+		}
+	}
+
+	before, err := stm.CountConsolidationCandidates(3)
+	if err != nil || before != 1 {
+		t.Fatalf("eligible candidates before finalization = %d, err=%v, want 1", before, err)
+	}
+	excluded, err := stm.FinalizeIneligibleConsolidationCandidates()
+	if err != nil || excluded != 5 {
+		t.Fatalf("FinalizeIneligibleConsolidationCandidates = %d, err=%v, want 5", excluded, err)
+	}
+	after, err := stm.CountConsolidationCandidates(3)
+	if err != nil || after != 1 {
+		t.Fatalf("eligible candidates after finalization = %d, err=%v, want 1", after, err)
+	}
+	var finalized int
+	if err := stm.db.QueryRow(`SELECT COUNT(*) FROM archived_messages WHERE consolidated = 1 AND consolidation_status = 'excluded'`).Scan(&finalized); err != nil {
+		t.Fatalf("count excluded rows: %v", err)
+	}
+	if finalized != 5 {
+		t.Fatalf("finalized excluded rows = %d, want 5", finalized)
 	}
 }
 

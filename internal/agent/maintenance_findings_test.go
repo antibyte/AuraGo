@@ -102,9 +102,9 @@ func TestConsolidateSTMtoLTMSkipsCanceledMaintenanceContext(t *testing.T) {
 	cfg.Consolidation.ArchiveRetainDays = 30
 	client := &countingMaintenanceLLMClient{}
 
-	totalStored, messagesConsolidated := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, &hierarchyVectorDB{}, nil)
-	if totalStored != 0 || messagesConsolidated != 0 {
-		t.Fatalf("stored=%d messages=%d, want 0/0 after cancellation", totalStored, messagesConsolidated)
+	result := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, &hierarchyVectorDB{}, nil)
+	if result.FactsStored != 0 || result.MessagesConsolidated != 0 {
+		t.Fatalf("stored=%d messages=%d, want 0/0 after cancellation", result.FactsStored, result.MessagesConsolidated)
 	}
 	if client.calls != 0 {
 		t.Fatalf("LLM calls = %d, want 0 after maintenance context cancellation", client.calls)

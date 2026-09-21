@@ -296,7 +296,31 @@ func (s *SQLiteMemory) GetUnconsolidatedMessages(limit int) ([]ArchivedMessage, 
 	return s.GetConsolidationCandidates(limit, 3)
 }
 
-// GetConsolidationCandidates returns archived messages that should be processed now.
+const consolidationCandidateEligibilitySQL = `
+	LOWER(TRIM(COALESCE(role, ''))) IN ('user', 'assistant')
+	AND LOWER(TRIM(COALESCE(session_id, ''))) NOT IN ('heartbeat', 'maintenance', 'space-agent-bridge')
+	AND LOWER(TRIM(COALESCE(session_id, ''))) NOT LIKE 'mission-%'`
+
+// FinalizeIneligibleConsolidationCandidates removes internal/background messages
+// from the LLM consolidation queue. The archive row remains available until the
+// configured archive retention removes it.
+func (s *SQLiteMemory) FinalizeIneligibleConsolidationCandidates() (int64, error) {
+	res, err := s.db.Exec(`UPDATE archived_messages
+		SET consolidated = 1,
+		    consolidation_status = 'excluded',
+		    consolidation_last_error = '',
+		    consolidation_claimed_at = NULL
+		WHERE consolidated = 0
+		  AND NOT (` + consolidationCandidateEligibilitySQL + `)`)
+	if err != nil {
+		return 0, fmt.Errorf("finalize ineligible consolidation candidates: %w", err)
+	}
+	return res.RowsAffected()
+}
+
+// GetConsolidationCandidates returns user-visible conversation messages that
+// should be processed now. Tool output and autonomous/background sessions are
+// deliberately excluded from long-term-memory extraction.
 // Includes pending messages and failed messages whose retry cooldown elapsed.
 // Deprecated: Prefer ClaimConsolidationCandidates which atomically claims rows to
 // prevent duplicate processing by concurrent consolidation runs.
@@ -311,6 +335,7 @@ func (s *SQLiteMemory) GetConsolidationCandidates(limit int, maxRetries int) ([]
 		SELECT id, session_id, role, content, original_timestamp, consolidation_status, consolidation_retries
 		FROM archived_messages
 		WHERE consolidated = 0
+		  AND `+consolidationCandidateEligibilitySQL+`
 		  AND (
 		    consolidation_status = 'pending'
 		    OR (
@@ -361,6 +386,7 @@ func (s *SQLiteMemory) ClaimConsolidationCandidates(limit int, maxRetries int) (
 	rows, err := tx.Query(`
 		SELECT id FROM archived_messages
 		WHERE consolidated = 0
+		  AND `+consolidationCandidateEligibilitySQL+`
 		  AND (
 		    consolidation_status = 'pending'
 		    OR (
@@ -518,7 +544,7 @@ func (s *SQLiteMemory) ReleaseConsolidationClaims(ids []int64) error {
 	return err
 }
 
-// CountConsolidationCandidates reports retryable deferred work.
+// CountConsolidationCandidates reports the eligible conversation backlog.
 func (s *SQLiteMemory) CountConsolidationCandidates(maxRetries int) (int, error) {
 	if maxRetries <= 0 {
 		maxRetries = 3
@@ -527,6 +553,7 @@ func (s *SQLiteMemory) CountConsolidationCandidates(maxRetries int) (int, error)
 	err := s.db.QueryRow(`
 		SELECT COUNT(*) FROM archived_messages
 		WHERE consolidated = 0
+		  AND `+consolidationCandidateEligibilitySQL+`
 		  AND (
 		    consolidation_status = 'pending'
 		    OR (consolidation_status = 'failed' AND consolidation_retries < ?)

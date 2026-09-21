@@ -110,6 +110,22 @@ func (l *maintenanceRunLedger) phaseDeferred(name string) int {
 	return 0
 }
 
+func (l *maintenanceRunLedger) addPhaseCode(phase, code string) {
+	if l == nil {
+		return
+	}
+	code = sanitizeMaintenanceErrorCode(code)
+	if code == "" {
+		return
+	}
+	for i := range l.phaseResults.Phases {
+		if l.phaseResults.Phases[i].Name == phase {
+			l.phaseResults.Phases[i].ErrorCodes = appendUniqueMaintenanceCode(l.phaseResults.Phases[i].ErrorCodes, code)
+			return
+		}
+	}
+}
+
 func (l *maintenanceRunLedger) finishPhase(name string, deferred bool) {
 	if l == nil {
 		return
@@ -131,6 +147,9 @@ func (l *maintenanceRunLedger) finishPhase(name string, deferred bool) {
 			phase.Status = "partial"
 		default:
 			phase.Status = "completed"
+		}
+		if phase.Status == "partial" && len(phase.ErrorCodes) == 0 {
+			phase.ErrorCodes = append(phase.ErrorCodes, "deferred_work")
 		}
 		matched = true
 		break

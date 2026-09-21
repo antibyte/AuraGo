@@ -18,14 +18,16 @@ func TestMaintenanceRunLedgerRoundTrip(t *testing.T) {
 	started := time.Date(2026, 6, 10, 4, 0, 0, 0, time.UTC)
 	finished := started.Add(12 * time.Minute)
 	results := MaintenancePhaseResults{
-		JournalRemoved:     2,
-		NotesArchived:      1,
-		ConsolidationFacts: 4,
-		CompressedDeleted:  3,
-		KGFilesProcessed:   5,
-		Errors:             []string{"file_kg_sync"},
-		Processed:          9,
-		Deferred:           2,
+		JournalRemoved:        2,
+		NotesArchived:         1,
+		ConsolidationFacts:    4,
+		ConsolidationBacklog:  17,
+		ConsolidationExcluded: 23,
+		CompressedDeleted:     3,
+		KGFilesProcessed:      5,
+		Errors:                []string{"file_kg_sync"},
+		Processed:             9,
+		Deferred:              2,
 		Phases: []MaintenancePhaseResult{{
 			Name: "entity_extraction", Status: "partial", DurationMS: 300, Processed: 5, Deferred: 2, ErrorCodes: []string{"file_kg_sync"},
 		}},
@@ -50,7 +52,7 @@ func TestMaintenanceRunLedgerRoundTrip(t *testing.T) {
 	if record.Status != "partial" {
 		t.Fatalf("status = %q, want partial", record.Status)
 	}
-	if record.PhaseResults.JournalRemoved != 2 || record.PhaseResults.ConsolidationFacts != 4 {
+	if record.PhaseResults.JournalRemoved != 2 || record.PhaseResults.ConsolidationFacts != 4 || record.PhaseResults.ConsolidationBacklog != 17 || record.PhaseResults.ConsolidationExcluded != 23 {
 		t.Fatalf("phase results = %+v", record.PhaseResults)
 	}
 	if len(record.PhaseResults.Errors) != 1 {

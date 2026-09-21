@@ -9,22 +9,24 @@ import (
 
 // MaintenancePhaseResults captures deterministic nightly maintenance outcomes.
 type MaintenancePhaseResults struct {
-	JournalRemoved       int                      `json:"journal_removed"`
-	NotesArchived        int                      `json:"notes_archived"`
-	ConsolidationFacts   int                      `json:"consolidation_facts"`
-	CompressedDeleted    int                      `json:"compressed_deleted"`
-	KGFilesProcessed     int                      `json:"kg_files_processed"`
-	KGNodesExtracted     int                      `json:"kg_nodes_extracted"`
-	Errors               []string                 `json:"errors,omitempty"`
-	Processed            int                      `json:"processed"`
-	Deferred             int                      `json:"deferred"`
-	Phases               []MaintenancePhaseResult `json:"phases,omitempty"`
-	IntegrationChecks    []IntegrationCheckResult `json:"integration_checks,omitempty"`
-	SkillsReviewed       int                      `json:"skills_reviewed"`
-	SkillsImproved       int                      `json:"skills_improved"`
-	SkillsDeleted        int                      `json:"skills_deleted"`
-	SkillsReviewRequired int                      `json:"skills_review_required"`
-	SkillActions         []MaintenanceSkillAction `json:"skill_actions,omitempty"`
+	JournalRemoved        int                      `json:"journal_removed"`
+	NotesArchived         int                      `json:"notes_archived"`
+	ConsolidationFacts    int                      `json:"consolidation_facts"`
+	ConsolidationBacklog  int                      `json:"consolidation_backlog"`
+	ConsolidationExcluded int                      `json:"consolidation_excluded"`
+	CompressedDeleted     int                      `json:"compressed_deleted"`
+	KGFilesProcessed      int                      `json:"kg_files_processed"`
+	KGNodesExtracted      int                      `json:"kg_nodes_extracted"`
+	Errors                []string                 `json:"errors,omitempty"`
+	Processed             int                      `json:"processed"`
+	Deferred              int                      `json:"deferred"`
+	Phases                []MaintenancePhaseResult `json:"phases,omitempty"`
+	IntegrationChecks     []IntegrationCheckResult `json:"integration_checks,omitempty"`
+	SkillsReviewed        int                      `json:"skills_reviewed"`
+	SkillsImproved        int                      `json:"skills_improved"`
+	SkillsDeleted         int                      `json:"skills_deleted"`
+	SkillsReviewRequired  int                      `json:"skills_review_required"`
+	SkillActions          []MaintenanceSkillAction `json:"skill_actions,omitempty"`
 }
 
 // MaintenancePhaseResult is a sanitized per-phase ledger entry.

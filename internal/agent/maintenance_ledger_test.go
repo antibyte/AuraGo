@@ -43,15 +43,17 @@ func TestMorningBriefingUsesOnlyCurrentStructuredResults(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Server.UILanguage = "de"
 	results := memory.MaintenancePhaseResults{
-		Processed: 7,
-		Deferred:  2,
+		Processed:             7,
+		Deferred:              2,
+		ConsolidationBacklog:  11,
+		ConsolidationExcluded: 13,
 		IntegrationChecks: []memory.IntegrationCheckResult{
 			{ID: "sandbox", Status: "passed"},
 			{ID: "telegram", Status: "skipped", Code: "disabled"},
 		},
 	}
 	got := formatMorningBriefing(cfg, time.Date(2026, 8, 29, 4, 5, 0, 0, time.UTC), "partial", results, 3)
-	for _, want := range []string{"Wartung: partial", "verarbeitet: 7", "aufgeschoben: 2", "sandbox: passed", "telegram: skipped (disabled)", "Offene operative Probleme: 3"} {
+	for _, want := range []string{"Wartung: partial", "verarbeitet: 7", "aufgeschoben: 2", "Konsolidierung: Rückstand 11", "interne Einträge in diesem Lauf ausgeschlossen: 13", "sandbox: passed", "telegram: skipped (disabled)", "Offene operative Probleme: 3"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("briefing missing %q: %s", want, got)
 		}
@@ -119,6 +121,18 @@ func TestMaintenanceLedgerSeparatesConsolidationAndMemoryOptimization(t *testing
 	}
 	if results.Phases[1].Name != "memory_optimization" || results.Phases[1].Status != "partial" || results.Phases[1].Deferred != 1 {
 		t.Fatalf("memory optimization phase = %#v", results.Phases[1])
+	}
+}
+
+func TestMaintenanceLedgerAddsFallbackCodeForDeferredPhase(t *testing.T) {
+	ledger := newMaintenanceRunLedger()
+	ledger.beginPhase("memory_optimization")
+	ledger.addDeferred("memory_optimization", 1)
+	ledger.finishPhase("memory_optimization", true)
+
+	phase := ledger.results().Phases[0]
+	if len(phase.ErrorCodes) != 1 || phase.ErrorCodes[0] != "deferred_work" {
+		t.Fatalf("phase error codes = %#v, want deferred_work", phase.ErrorCodes)
 	}
 }
 
