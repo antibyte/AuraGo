@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "efca6a1ad7bd1caf3134e7ff2f0923a3b16a3f34a0b52aa7a6d6667e08a06d20",
+  "schema_sha256": "0662f4233462d810d1510a474efd06bbb674cc224ec92f0e5e986ee5287a37f2",
   "tools": {
     "activate_agent_skill": {
       "default_arguments": {
@@ -10764,6 +10764,166 @@
       "default_arguments": {
         "tool_call_id": "example-id"
       }
+    },
+    "rtl_sdr": {
+      "default_arguments": {
+        "operation": "status"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "delete_schedule",
+          "arguments": {
+            "operation": "delete_schedule",
+            "id": "0123456789abcdef0123456789abcdef"
+          },
+          "required_fields": [
+            "id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "record",
+          "arguments": {
+            "operation": "record",
+            "tuning": {
+              "mode": "wfm",
+              "frequency_hz": 100000000
+            },
+            "duration_seconds": 600,
+            "transcribe": true
+          },
+          "required_fields": [
+            "duration_seconds",
+            "operation",
+            "transcribe",
+            "tuning"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "recordings",
+          "arguments": {
+            "operation": "recordings"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "result",
+          "arguments": {
+            "operation": "result",
+            "id": "0123456789abcdef0123456789abcdef"
+          },
+          "required_fields": [
+            "id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "scan",
+          "arguments": {
+            "operation": "scan"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "schedule",
+          "arguments": {
+            "operation": "schedule",
+            "tuning": {
+              "mode": "wfm",
+              "frequency_hz": 100000000
+            },
+            "duration_seconds": 600,
+            "transcribe": true,
+            "start_at": "2030-01-02T12:00:00+01:00",
+            "timezone": "Europe/Berlin",
+            "repeat": "daily"
+          },
+          "required_fields": [
+            "duration_seconds",
+            "operation",
+            "repeat",
+            "start_at",
+            "timezone",
+            "transcribe",
+            "tuning"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "schedules",
+          "arguments": {
+            "operation": "schedules"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "stations",
+          "arguments": {
+            "operation": "stations"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "status",
+          "arguments": {
+            "operation": "status"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "stop_recording",
+          "arguments": {
+            "operation": "stop_recording",
+            "id": "0123456789abcdef0123456789abcdef"
+          },
+          "required_fields": [
+            "id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "transcribe",
+          "arguments": {
+            "operation": "transcribe",
+            "id": "0123456789abcdef0123456789abcdef"
+          },
+          "required_fields": [
+            "id",
+            "operation"
+          ],
+          "excluded_fields": []
+        }
+      ]
     },
     "run_agent_skill_script": {
       "default_arguments": {

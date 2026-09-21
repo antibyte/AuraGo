@@ -132,6 +132,7 @@ type ToolFeatureFlags struct {
 	ProxmoxEnabled          bool
 	FrigateEnabled          bool
 	Go2RTCEnabled           bool
+	RTLSDREnabled           bool
 	ThreeDPrinterEnabled    bool
 	OllamaEnabled           bool
 	TailscaleEnabled        bool

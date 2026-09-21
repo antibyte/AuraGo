@@ -1,8 +1,8 @@
 {
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
-  "tool_count": 212,
-  "operation_count": 1127,
+  "tool_count": 213,
+  "operation_count": 1138,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -25208,6 +25208,305 @@
         }
       },
       "tier": "rare"
+    },
+    {
+      "name": "rtl_sdr",
+      "description": "Receive and record radio on the server's configured RTL-SDR dongle. Start durable recordings or timezone-aware schedules and transcribe using AuraGo's configured ASR. Long work returns an ID; poll result. No LLM is needed when a schedule fires. Never invent a frequency or DAB service ID.",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "description": "5..7200 seconds; default 600.",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Existing recording/schedule ID for item operations.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Short user-visible title.",
+            "type": "string"
+          },
+          "offset": {
+            "description": "Pagination offset from the previous response; default 0.",
+            "type": "integer"
+          },
+          "operation": {
+            "enum": [
+              "status",
+              "stations",
+              "scan",
+              "record",
+              "schedule",
+              "recordings",
+              "schedules",
+              "result",
+              "stop_recording",
+              "transcribe",
+              "delete_schedule"
+            ],
+            "type": "string"
+          },
+          "repeat": {
+            "enum": [
+              "once",
+              "daily",
+              "weekly"
+            ],
+            "type": "string"
+          },
+          "start_at": {
+            "description": "Schedule first start, RFC3339 with UTC offset.",
+            "type": "string"
+          },
+          "timezone": {
+            "description": "IANA timezone, e.g. Europe/Berlin; repeat follows local wall time.",
+            "type": "string"
+          },
+          "transcribe": {
+            "description": "Transcribe after recording.",
+            "type": "boolean"
+          },
+          "tuning": {
+            "additionalProperties": false,
+            "properties": {
+              "agc": {
+                "description": "Automatic gain; usually true.",
+                "type": "boolean"
+              },
+              "bandwidth_hz": {
+                "description": "Demodulator bandwidth; omit for mode default.",
+                "type": "integer"
+              },
+              "dab_block": {
+                "description": "DAB Band III block returned by scan.",
+                "type": "string"
+              },
+              "frequency_hz": {
+                "description": "RF frequency in Hz; bounded by the detected tuner.",
+                "type": "integer"
+              },
+              "gain_db": {
+                "description": "One supported gain from status.",
+                "type": "number"
+              },
+              "label": {
+                "description": "Optional station label.",
+                "type": "string"
+              },
+              "mode": {
+                "enum": [
+                  "wfm",
+                  "nfm",
+                  "am",
+                  "usb",
+                  "lsb",
+                  "dab"
+                ],
+                "type": "string"
+              },
+              "ppm": {
+                "description": "Frequency correction, -200 to 200.",
+                "type": "integer"
+              },
+              "service_id": {
+                "description": "Exact DAB service ID returned by stations; required for DAB recording.",
+                "type": "string"
+              },
+              "squelch_db": {
+                "description": "Squelch threshold in dB; -100 for broadcast radio.",
+                "type": "number"
+              },
+              "stereo": {
+                "description": "Enable stereo for WFM.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "mode"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "type": "object"
+      },
+      "required": [
+        "operation"
+      ],
+      "properties": {
+        "_todo": {
+          "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": "string"
+        },
+        "duration_seconds": {
+          "description": "5..7200 seconds; default 600.",
+          "type": "integer"
+        },
+        "id": {
+          "description": "Existing recording/schedule ID for item operations.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Short user-visible title.",
+          "type": "string"
+        },
+        "offset": {
+          "description": "Pagination offset from the previous response; default 0.",
+          "type": "integer"
+        },
+        "operation": {
+          "enum": [
+            "status",
+            "stations",
+            "scan",
+            "record",
+            "schedule",
+            "recordings",
+            "schedules",
+            "result",
+            "stop_recording",
+            "transcribe",
+            "delete_schedule"
+          ],
+          "type": "string"
+        },
+        "repeat": {
+          "enum": [
+            "once",
+            "daily",
+            "weekly"
+          ],
+          "type": "string"
+        },
+        "start_at": {
+          "description": "Schedule first start, RFC3339 with UTC offset.",
+          "type": "string"
+        },
+        "timezone": {
+          "description": "IANA timezone, e.g. Europe/Berlin; repeat follows local wall time.",
+          "type": "string"
+        },
+        "transcribe": {
+          "description": "Transcribe after recording.",
+          "type": "boolean"
+        },
+        "tuning": {
+          "additionalProperties": false,
+          "properties": {
+            "agc": {
+              "description": "Automatic gain; usually true.",
+              "type": "boolean"
+            },
+            "bandwidth_hz": {
+              "description": "Demodulator bandwidth; omit for mode default.",
+              "type": "integer"
+            },
+            "dab_block": {
+              "description": "DAB Band III block returned by scan.",
+              "type": "string"
+            },
+            "frequency_hz": {
+              "description": "RF frequency in Hz; bounded by the detected tuner.",
+              "type": "integer"
+            },
+            "gain_db": {
+              "description": "One supported gain from status.",
+              "type": "number"
+            },
+            "label": {
+              "description": "Optional station label.",
+              "type": "string"
+            },
+            "mode": {
+              "enum": [
+                "wfm",
+                "nfm",
+                "am",
+                "usb",
+                "lsb",
+                "dab"
+              ],
+              "type": "string"
+            },
+            "ppm": {
+              "description": "Frequency correction, -200 to 200.",
+              "type": "integer"
+            },
+            "service_id": {
+              "description": "Exact DAB service ID returned by stations; required for DAB recording.",
+              "type": "string"
+            },
+            "squelch_db": {
+              "description": "Squelch threshold in dB; -100 for broadcast radio.",
+              "type": "number"
+            },
+            "stereo": {
+              "description": "Enable stereo for WFM.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "type": "object"
+        }
+      },
+      "tier": "extended",
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "delete_schedule"
+        },
+        {
+          "selector": "operation",
+          "value": "record"
+        },
+        {
+          "selector": "operation",
+          "value": "recordings"
+        },
+        {
+          "selector": "operation",
+          "value": "result"
+        },
+        {
+          "selector": "operation",
+          "value": "scan"
+        },
+        {
+          "selector": "operation",
+          "value": "schedule"
+        },
+        {
+          "selector": "operation",
+          "value": "schedules"
+        },
+        {
+          "selector": "operation",
+          "value": "stations"
+        },
+        {
+          "selector": "operation",
+          "value": "status"
+        },
+        {
+          "selector": "operation",
+          "value": "stop_recording"
+        },
+        {
+          "selector": "operation",
+          "value": "transcribe"
+        }
+      ],
+      "manual_path": "prompts/tools_manuals/rtl_sdr.md",
+      "manual_snippet": "# RTL-SDR radio\n\nUse `rtl_sdr` for the configured server USB receiver. Call `status` first. If\nsetup is missing, direct the user to RTL-SDR in the Virtual Desktop; do not\ninstall drivers, change USB permissions, or start competing receiver processes\nthrough shell tools.\n\n`stations` returns DAB services and favorites, 20 per page; follow `next_offset`\nuntil `total`. `scan` starts a Band III search;\npoll `status` for completion. Use the exact block/service ID from `stations`.\nFor analog reception use a user-supplied frequency in Hz and one of `wfm`,\n`nfm`, `am`, `usb`, `lsb`. Check the detected tuner's frequency and gain limits.\nUse `agc: true`, `squelch_db: -100`, `stereo: true` for ordinary WFM broadcast\nlistening. Never invent station frequencies or assume a station was received.\n\n`record…"
     },
     {
       "name": "run_agent_skill_script",

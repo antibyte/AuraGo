@@ -163,6 +163,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"cloudflare_tunnel", "Manage Cloudflare Tunnel connections"},
 	},
 	"media": {
+		{"rtl_sdr", "Receive radio, record scheduled broadcasts, and transcribe recordings"},
 		{"generate_image", "Generate images using AI (DALL-E, Stable Diffusion, etc.)"},
 		{"generate_music", "Generate music tracks using AI"},
 		{"generate_video", "Generate short videos using AI"},

@@ -307,6 +307,11 @@
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'rtl_sdr_recording_soon') {
+            await window.AuraDesktopModules.loadAppI18nSections('rtl-sdr');
+            showDesktopNotification({ title: 'RTL-SDR', message: t('rtlSdr.recording_soon'), appId: 'rtl-sdr' });
+            return;
+        }
         if (event.type === 'plant_changed' || event.type === 'welcome') {
             document.dispatchEvent(new CustomEvent('aurago:plant-change', { detail: event.payload || {} }));
             if (event.type === 'plant_changed') return;

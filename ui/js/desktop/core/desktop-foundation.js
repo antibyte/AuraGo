@@ -134,6 +134,7 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'radio',
+        'rtl-sdr': 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
         todo: 'forms',
@@ -259,6 +260,7 @@
         player: 'audio-player',
         radio: 'radio',
         'personal-radio': 'radio',
+        'rtl-sdr': 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
         workflow: 'workflow',
@@ -571,6 +573,7 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'rtl-sdr': 'RTLSDRApp',
             'ha-switchboard': 'HASwitchboardApp',
             files: 'FileManager',
             writer: 'WriterApp',

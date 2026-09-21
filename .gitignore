@@ -153,6 +153,7 @@ disposable/
 /.github/workflows/*
 !/.github/workflows/web-assets.yml
 !/.github/workflows/training-dataset.yml
+!/.github/workflows/rtl-sdr.yml
 !/disposable/
 /disposable/*
 !/disposable/export_tools/

@@ -195,6 +195,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/desktopstore/", Classification: "allowlisted-catalog-logo-fetch", RequiresSSRF: true},
 		{Path: "internal/discord/", Classification: "configured-messaging", Credentialed: true},
 		{Path: "internal/dockerutil/", Classification: "local-docker-engine-control-for-aurago-owned-services", AllowsLocalNet: true},
+		{Path: "internal/rtlsdr/", Classification: "owned-unix-socket-receiver-and-managed-docker-image", AllowsLocalNet: true},
 		{Path: "internal/embeddings/", Classification: "pinned-model-runtime-download-and-managed-local-sidecar", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/fritzbox/", Classification: "local-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/huggingface/", Classification: "configured-huggingface-api", Credentialed: true},
@@ -249,6 +250,7 @@ func DBMigrationManifest() []DBMigrationDomain {
 		{Domain: "skills-registry", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "system-tasks", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "virtual-desktop", PackagePath: "internal/desktop", SchemaVersioned: true, OwnsRuntimeData: true},
+		{Domain: "rtl-sdr", PackagePath: "internal/rtlsdr", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "virtual-computers", PackagePath: "internal/virtualcomputers", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "workspace-search", PackagePath: "internal/services", SchemaVersioned: false, OwnsRuntimeData: true},
 	}

@@ -2,8 +2,8 @@
 
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
-- Tools: **212**
-- Enumerated operations: **1127**
+- Tools: **213**
+- Enumerated operations: **1138**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
 
@@ -2945,6 +2945,29 @@ Return archived original output for a compressed native tool result when details
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
 | `reason` | `string` | Why you need the original output (helps improve compression filters) |
 | `tool_call_id` | `string` | The tool_call_id of the compressed tool result you want to expand |
+
+## `rtl_sdr`
+
+Receive and record radio on the server's configured RTL-SDR dongle. Start durable recordings or timezone-aware schedules and transcribe using AuraGo's configured ASR. Long work returns an ID; poll result. No LLM is needed when a schedule fires. Never invent a frequency or DAB service ID.
+
+- Tier: `extended`
+- Required: `operation`
+- Operations: 11
+- Manual: `prompts/tools_manuals/rtl_sdr.md`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
+| `duration_seconds` | `integer` | 5..7200 seconds; default 600. |
+| `id` | `string` | Existing recording/schedule ID for item operations. |
+| `name` | `string` | Short user-visible title. |
+| `offset` | `integer` | Pagination offset from the previous response; default 0. |
+| `operation` | `string` |  |
+| `repeat` | `string` |  |
+| `start_at` | `string` | Schedule first start, RFC3339 with UTC offset. |
+| `timezone` | `string` | IANA timezone, e.g. Europe/Berlin; repeat follows local wall time. |
+| `transcribe` | `boolean` | Transcribe after recording. |
+| `tuning` | `object` |  |
 
 ## `run_agent_skill_script`
 

@@ -999,6 +999,7 @@
             'music-player': { width: 430, height: 260 },
             radio: { width: 1320, height: 920 },
             'personal-radio': { width: 1060, height: 780 },
+            'rtl-sdr': { width: 1000, height: 760 },
             openscad: { width: 1240, height: 760 },
             teevee: { width: 1500, height: 845 },
             gallery: { width: 1040, height: 700 },

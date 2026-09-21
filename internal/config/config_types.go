@@ -1813,6 +1813,7 @@ type Config struct {
 		MQTTTopicPrefix string `yaml:"mqtt_topic_prefix"`   // default: "frigate"
 	} `yaml:"frigate"`
 	Go2RTC         Go2RTCConfig         `yaml:"go2rtc" json:"go2rtc"`
+	RTLSDR         RTLSDRConfig         `yaml:"rtl_sdr" json:"rtl_sdr"`
 	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`
 	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
 	Ollama         struct {

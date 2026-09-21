@@ -1397,6 +1397,15 @@ frigate:
     review_relay: false
     store_media: true
     mqtt_topic_prefix: "frigate"
+# Optional Linux USB radio; configure the selected receiver in the RTL-SDR app.
+# The native decoder runs in a separate managed container. Docker must be enabled.
+rtl_sdr:
+  enabled: false
+  read_only: false
+  allow_agent: false
+  device: ""                       # Enumerated USB port ID; empty selects the only dongle
+  quota_gb: 10                     # 1-1000 GB; recordings are never automatically deleted
+
 go2rtc:
     enabled: false
     auto_start: true

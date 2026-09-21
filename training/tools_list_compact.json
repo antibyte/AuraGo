@@ -4519,6 +4519,60 @@
     "tier": "rare"
   },
   {
+    "name": "rtl_sdr",
+    "description": "Receive and record radio on the server's configured RTL-SDR dongle. Start durable recordings or timezone-aware schedules and transcribe using AuraGo's configured ASR. Long work returns an ID; poll result. No LLM is needed when a schedule fires. Never invent a frequency or DAB service ID.",
+    "required": [
+      "operation"
+    ],
+    "tier": "extended",
+    "operations": [
+      {
+        "selector": "operation",
+        "value": "delete_schedule"
+      },
+      {
+        "selector": "operation",
+        "value": "record"
+      },
+      {
+        "selector": "operation",
+        "value": "recordings"
+      },
+      {
+        "selector": "operation",
+        "value": "result"
+      },
+      {
+        "selector": "operation",
+        "value": "scan"
+      },
+      {
+        "selector": "operation",
+        "value": "schedule"
+      },
+      {
+        "selector": "operation",
+        "value": "schedules"
+      },
+      {
+        "selector": "operation",
+        "value": "stations"
+      },
+      {
+        "selector": "operation",
+        "value": "status"
+      },
+      {
+        "selector": "operation",
+        "value": "stop_recording"
+      },
+      {
+        "selector": "operation",
+        "value": "transcribe"
+      }
+    ]
+  },
+  {
     "name": "run_agent_skill_script",
     "description": "Run an approved Python script from an enabled Agent Skill package with JSON arguments. Only scripts/*.py can be executed and no secrets are injected.",
     "required": [

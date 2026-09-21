@@ -661,6 +661,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerGameMakerRoutes(mux, s)
 	registerDetectiveRoutes(mux, s)
 	mux.HandleFunc("/api/desktop/personal-radio/", s.handlePersonalRadio)
+	mux.HandleFunc("/api/desktop/rtl-sdr/", s.handleRTLSDR)
 
 	// Pixel image editor endpoints
 	mux.HandleFunc("/api/pixel/config", handlePixelConfig(s))

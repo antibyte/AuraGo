@@ -1,0 +1,20 @@
+# Offline decoder acceptance only. Never published or used by the application.
+ARG RECEIVER_IMAGE=ghcr.io/antibyte/aurago-rtl-sdr:1
+FROM ${RECEIVER_IMAGE}
+USER 0
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf automake libtool libzmq3-dev libcurl4-openssl-dev \
+    odr-dabmod=2.6.0+ds-1build2 && rm -rf /var/lib/apt/lists/*
+WORKDIR /build/odr-mux
+RUN curl -fsSL https://codeload.github.com/Opendigitalradio/ODR-DabMux/tar.gz/ce22f5bd3f1ac39d4a8a225b96045033244e0b43 | tar xz --strip-components=1 \
+    && ./bootstrap.sh && ./configure --disable-zeromq --disable-output-zeromq \
+    && make -j2 && make install
+WORKDIR /build/odr-audio
+RUN curl -fsSL https://codeload.github.com/Opendigitalradio/ODR-AudioEnc/tar.gz/e2d2ce7c3837e45a70e3b8880a05d17a68dc6302 | tar xz --strip-components=1 \
+    && ./bootstrap && ./configure --disable-alsa --disable-vlc --disable-jack --disable-gst \
+    && make -j2 && make install
+COPY internal/rtlsdr/runtime/tests /opt/aurago-rtl-sdr/tests
+COPY internal/rtlsdr/runtime/receiver.py /opt/aurago-rtl-sdr/receiver.py
+WORKDIR /opt/aurago-rtl-sdr
+USER 10001:10001
+ENTRYPOINT ["python3", "tests/iq_acceptance.py"]

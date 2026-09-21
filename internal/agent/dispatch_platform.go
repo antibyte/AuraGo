@@ -629,6 +629,16 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"Unknown proxmox operation. Use: overview, list_nodes, list_vms, list_containers, status, start, stop, shutdown, reboot, node_status, cluster_resources, storage, create_snapshot, list_snapshots, task_log"}`
 			}
 
+		case "rtl_sdr":
+			var request tools.RTLSDRRequest
+			payload, err := json.Marshal(tc.Params)
+			if err != nil || json.Unmarshal(payload, &request) != nil {
+				return `Tool Output: {"status":"error","error":"sdr_invalid_request"}`
+			}
+			request.Operation = firstNonEmptyToolString(tc.Operation, request.Operation)
+			request.ID = firstNonEmptyToolString(tc.ID, request.ID)
+			request.Name = firstNonEmptyToolString(tc.Name, request.Name)
+			return tools.ExecuteRTLSDR(ctx, cfg, request)
 		case "go2rtc":
 			manager := tools.DefaultGo2RTCManager()
 			if manager == nil || !cfg.Go2RTC.Enabled || !cfg.Go2RTC.AgentAccess || !manager.Available() {

@@ -366,6 +366,7 @@
         noisemaker: 'audio',
         radio: 'radio',
         'personal-radio': 'radio',
+        'rtl-sdr': 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
         todo: 'forms',
@@ -491,6 +492,7 @@
         player: 'audio-player',
         radio: 'radio',
         'personal-radio': 'radio',
+        'rtl-sdr': 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
         workflow: 'workflow',
@@ -803,6 +805,7 @@
     function appGlobalName(appId) {
         return {
             'personal-radio': 'PersonalRadioApp',
+            'rtl-sdr': 'RTLSDRApp',
             'ha-switchboard': 'HASwitchboardApp',
             files: 'FileManager',
             writer: 'WriterApp',
@@ -5788,6 +5791,7 @@
             'music-player': { width: 430, height: 260 },
             radio: { width: 1320, height: 920 },
             'personal-radio': { width: 1060, height: 780 },
+            'rtl-sdr': { width: 1000, height: 760 },
             openscad: { width: 1240, height: 760 },
             teevee: { width: 1500, height: 845 },
             gallery: { width: 1040, height: 700 },
@@ -14916,6 +14920,9 @@ function modalDialog(options) {
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
         }
+        if (appId === 'rtl-sdr' && window.RTLSDRApp) {
+            return window.RTLSDRApp.render(contentEl(id), id, { esc, api, t, iconMarkup, openApp, confirmDialog, readonly: desktopReadonly() });
+        }
         if (appId === 'personal-radio' && window.PersonalRadioApp) {
             return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));
         }
@@ -18311,6 +18318,11 @@ if (appId === 'pixel') {
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'rtl_sdr_recording_soon') {
+            await window.AuraDesktopModules.loadAppI18nSections('rtl-sdr');
+            showDesktopNotification({ title: 'RTL-SDR', message: t('rtlSdr.recording_soon'), appId: 'rtl-sdr' });
+            return;
+        }
         if (event.type === 'plant_changed' || event.type === 'welcome') {
             document.dispatchEvent(new CustomEvent('aurago:plant-change', { detail: event.payload || {} }));
             if (event.type === 'plant_changed') return;

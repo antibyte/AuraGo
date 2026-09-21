@@ -136,6 +136,10 @@
             styles: appStyles('/css/radio.css'),
             scripts: ['/js/desktop/apps/radio.js']
         },
+        'rtl-sdr': {
+            styles: appStyles('/css/desktop-app-rtl-sdr.css'),
+            scripts: ['/js/desktop/apps/rtl-sdr-runtime.js', '/js/desktop/apps/rtl-sdr.js']
+        },
         'personal-radio': {
             styles: appStyles('/css/desktop-app-personal-radio.css'),
             scripts: ['/js/desktop/apps/personal-radio-player.js', '/js/desktop/apps/personal-radio-runtime.js', '/js/desktop/apps/personal-radio-settings.js', '/js/desktop/apps/personal-radio.js']
@@ -479,6 +483,7 @@
         'sip-phone': ['sip_phone'],
         'mission-control': ['missions'],
         'personal-radio': ['personalRadio'],
+        'rtl-sdr': ['rtlSdr'],
         'pixel': ['pixel'],
         'system-world': ['sysworld'],
         'viewer': ['viewer'],

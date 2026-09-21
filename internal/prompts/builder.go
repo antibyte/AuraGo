@@ -188,6 +188,7 @@ type ContextFlags struct {
 	ProxmoxEnabled           bool
 	FrigateEnabled           bool
 	Go2RTCEnabled            bool
+	RTLSDREnabled            bool
 	ThreeDPrinterEnabled     bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool
@@ -2524,6 +2525,7 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"proxmox", "proxmox", func(f *ContextFlags) bool { return f.ProxmoxEnabled }},
 	{"frigate", "frigate", func(f *ContextFlags) bool { return f.FrigateEnabled }},
 	{"go2rtc", "go2rtc", func(f *ContextFlags) bool { return f.Go2RTCEnabled }},
+	{"rtl_sdr", "rtl_sdr", func(f *ContextFlags) bool { return f.RTLSDREnabled }},
 	{"three_d_printer", "three_d_printer", func(f *ContextFlags) bool { return f.ThreeDPrinterEnabled }},
 	{"tailscale", "tailscale", func(f *ContextFlags) bool { return f.TailscaleEnabled }},
 	{"ansible", "ansible", func(f *ContextFlags) bool { return f.AnsibleEnabled }},
