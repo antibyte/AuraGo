@@ -93,6 +93,19 @@ func TestConfigUXSidebarSearchWiring(t *testing.T) {
 			t.Fatalf("config.css missing sidebar search marker %q", marker)
 		}
 	}
+
+	catalog := normalizeAssetText(mustReadUIFile(t, "js/config/catalog.js"))
+	for _, marker := range []string{
+		`'auth.session_timeout_hours': { type: 'number', min: 1, max: 8760 }`,
+		`web_config: ['web_config', 'auth']`,
+	} {
+		if !strings.Contains(catalog, marker) {
+			t.Fatalf("config catalog missing auth session search contract %q", marker)
+		}
+	}
+	if strings.Contains(catalog, "web_config.session_timeout_minutes") {
+		t.Fatal("config catalog still references the removed session-timeout path")
+	}
 }
 
 func TestConfigUXSidebarSearchI18nInSectionLocales(t *testing.T) {

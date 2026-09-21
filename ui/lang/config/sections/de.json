@@ -257,7 +257,7 @@
   "config.section.virustotal.label": "VirusTotal",
   "config.section.vision.desc": "Bildanalyse-Konfiguration",
   "config.section.vision.label": "Vision",
-  "config.section.web_config.desc": "Sicherheitseinstellungen, Login-Schutz und 2FA",
+  "config.section.web_config.desc": "Automatische Abmeldung, Login-Schutz und 2FA",
   "config.section.web_config.label": "Web-Konfiguration & Login",
   "config.section.web_scraper.desc": "Webseiten abrufen und Textinhalte extrahieren",
   "config.section.web_scraper.label": "Web-Scraper",

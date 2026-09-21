@@ -57,7 +57,7 @@
 
     const validationRules = Object.freeze({
         'server.port': { type: 'number', min: 1, max: 65535, required: true },
-        'web_config.session_timeout_minutes': { type: 'number', min: 1 },
+        'auth.session_timeout_hours': { type: 'number', min: 1, max: 8760 },
         'agent.context_window': { type: 'number', min: 0 },
         'circuit_breaker.max_tool_calls': { type: 'number', min: 1 },
         'circuit_breaker.llm_timeout_seconds': { type: 'number', min: 1 }
@@ -97,6 +97,7 @@
         }),
         // Fields rendered outside their YAML root belong to their visible Config section.
         searchSections: Object.freeze({
+            web_config: ['web_config', 'auth'],
             optimizations: ['agent.optimizer_enabled', 'agent.system_prompt_token_budget', 'agent.adaptive_system_prompt_token_budget', 'agent.context_window', 'agent.memory_compression_char_limit', 'agent.tool_output_limit', 'agent.max_tool_guides', 'agent.core_memory_max_entries', 'agent.core_memory_cap_mode', 'agent.adaptive_tools', 'agent.recovery', 'agent.background_tasks', 'circuit_breaker.max_tool_calls', 'circuit_breaker.llm_timeout_seconds', 'circuit_breaker.maintenance_timeout_minutes', 'circuit_breaker.retry_intervals'],
             info_tools: ['tools.wikipedia', 'tools.ddg_search', 'tools.pdf_extractor'],
             network_tools: ['tools.wol', 'tools.stop_process', 'tools.network_ping', 'tools.network_scan', 'tools.web_capture', 'tools.form_automation', 'tools.upnp_scan'],
@@ -115,7 +116,6 @@
         sectionTiers: Object.freeze({
             'server.debug_mode': 'advanced',
             'agent.debug_mode': 'advanced',
-            'web_config.session_timeout_minutes': 'advanced',
             'circuit_breaker.llm_timeout_seconds': 'advanced'
         })
     });
