@@ -245,10 +245,17 @@ Für IoT-Geräte und Smart-Home-Automation.
 ```yaml
 mqtt:
   enabled: true
-  broker: "mqtt.example.com"
+  broker: "mqtts://mqtt.example.com:8883"
   topics:
     - "home/+/sensors"
 ```
+
+Sichere URL-Schemata verwenden immer TLS. Der TLS-Schalter zusammen mit einer
+Klartext-URL wird abgelehnt; Schema und Port werden nicht automatisch geändert.
+CA-Dateien müssen gültig sein, Client-Zertifikate benötigen den passenden Schlüssel.
+Passwörter werden einschließlich Leerzeichen gespeichert. Die Reihenfolge ist
+Vault → `MQTT_PASSWORD` → leer; nach Löschen des Vault-Eintrags gilt wieder der
+Umgebungswert. Weitere Details: [MQTT-Betrieb](../../mqtt.md).
 
 ## Docker Integration
 

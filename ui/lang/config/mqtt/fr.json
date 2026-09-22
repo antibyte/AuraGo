@@ -43,6 +43,8 @@
   "config.mqtt.test_ok": "Succès",
   "config.mqtt.testing": "Test…",
   "config.mqtt.tls_enabled_label": "Activer TLS",
+  "config.mqtt.credential_source": "Identifiants",
+  "config.mqtt.tls_plaintext_error": "TLS nécessite une URL de broker sécurisée (mqtts://, ssl://, tls://, tcps:// ou wss://).",
   "config.mqtt.tls_title": "TLS / SSL",
   "config.mqtt.topics_label": "Sujets",
   "config.mqtt.username_label": "Nom d'utilisateur",

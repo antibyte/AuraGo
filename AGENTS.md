@@ -444,6 +444,20 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   Verify with Store/handler/Tailscale `TestGodsEye*`, the UI browser contract,
   and anonymous image pulls for both architectures before claiming publication.
 
+### MQTT Configuration Contract
+
+- MQTT config API patches are typed and validated before Vault or YAML writes.
+  Topics are arrays, QoS is numeric and zero remains valid. Config validation
+  must clone mutable values before unmarshalling over an existing snapshot.
+- The broker URL selects the transport. Secure schemes always install TLS;
+  `tls.enabled` with a plaintext scheme is rejected without rewriting the URL
+  or port. Explicit CA and client certificate material must validate before
+  publication. Client certificates require both certificate and key.
+- MQTT credentials resolve from Vault `mqtt_password`, then raw `MQTT_PASSWORD`,
+  then empty. Preserve whitespace and never retain stale credentials after a
+  deletion. Vault mutations publish a fresh config snapshot; expose credential
+  source only, never the value.
+
 ### Tool System
 
 - Server-published configs bind `AuthorizationSnapshots` before publication.

@@ -14,6 +14,23 @@ import (
 )
 
 func newClientOptions(cfg *config.Config, log *slog.Logger) (*pahomqtt.ClientOptions, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("MQTT configuration is required")
+	}
+	if err := config.ValidateMQTTConfig(cfg); err != nil {
+		return nil, err
+	}
+	effectiveTLS, err := config.MQTTEffectiveTLS(cfg)
+	if err != nil {
+		return nil, err
+	}
+	// Validate configured files before accepting the candidate, even when the
+	// broker currently uses a plaintext transport. This prevents an invalid or
+	// partial TLS configuration from being persisted and taking effect later.
+	tlsConfig, err := mqttTLSConfig(cfg, log)
+	if err != nil {
+		return nil, err
+	}
 	clientID := cfg.MQTT.ClientID
 	if clientID == "" {
 		clientID = "aurago"
@@ -25,6 +42,7 @@ func newClientOptions(cfg *config.Config, log *slog.Logger) (*pahomqtt.ClientOpt
 		SetConnectRetry(true).
 		SetConnectRetryInterval(10 * time.Second).
 		SetKeepAlive(30 * time.Second).
+		SetConnectTimeout(mqttConnectTimeout(cfg)).
 		SetCleanSession(mqttCleanSession(cfg)).
 		SetOrderMatters(false)
 
@@ -39,11 +57,7 @@ func newClientOptions(cfg *config.Config, log *slog.Logger) (*pahomqtt.ClientOpt
 			return nil, err
 		}
 	}
-	if cfg.MQTT.TLS.Enabled {
-		tlsConfig, err := mqttTLSConfig(cfg, log)
-		if err != nil {
-			return nil, err
-		}
+	if effectiveTLS {
 		opts.SetTLSConfig(tlsConfig)
 		if log != nil {
 			log.Info("[MQTT] TLS enabled", "ca_file", cfg.MQTT.TLS.CAFile,
@@ -51,6 +65,20 @@ func newClientOptions(cfg *config.Config, log *slog.Logger) (*pahomqtt.ClientOpt
 		}
 	}
 	return opts, nil
+}
+
+// ValidateConfig validates the MQTT transport and any explicitly configured
+// TLS material without opening a broker connection.
+func ValidateConfig(cfg *config.Config) error {
+	_, err := newClientOptions(cfg, nil)
+	return err
+}
+
+func mqttConnectTimeout(cfg *config.Config) time.Duration {
+	if cfg == nil || cfg.MQTT.ConnectTimeout <= 0 {
+		return 15 * time.Second
+	}
+	return time.Duration(cfg.MQTT.ConnectTimeout) * time.Second
 }
 
 func mqttCleanSession(cfg *config.Config) bool {
@@ -87,10 +115,13 @@ func mqttTLSConfig(cfg *config.Config, log *slog.Logger) (*tls.Config, error) {
 		if caCertPool == nil {
 			caCertPool = x509.NewCertPool()
 		}
-		if !caCertPool.AppendCertsFromPEM(caCert) && log != nil {
-			log.Warn("[MQTT] No certificates appended from CA file")
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			return nil, fmt.Errorf("parse CA certificate %s: no PEM certificates found", cfg.MQTT.TLS.CAFile)
 		}
 		tlsConfig.RootCAs = caCertPool
+	}
+	if (cfg.MQTT.TLS.CertFile == "") != (cfg.MQTT.TLS.KeyFile == "") {
+		return nil, fmt.Errorf("MQTT client certificate and key must be configured together")
 	}
 	if cfg.MQTT.TLS.CertFile != "" && cfg.MQTT.TLS.KeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(cfg.MQTT.TLS.CertFile, cfg.MQTT.TLS.KeyFile)
@@ -150,7 +181,7 @@ func validateQoS(qos int) error {
 }
 
 func publishAvailability(c pahomqtt.Client, cfg *config.Config, log *slog.Logger) {
-	if !cfg.MQTT.Availability.Enabled || c == nil || !c.IsConnected() {
+	if !cfg.MQTT.Availability.Enabled || c == nil || !c.IsConnectionOpen() {
 		return
 	}
 	topic := mqttAvailabilityTopic(cfg)
@@ -183,7 +214,7 @@ func publishAvailability(c pahomqtt.Client, cfg *config.Config, log *slog.Logger
 }
 
 func publishOfflineAvailability(c pahomqtt.Client, availability *mqttAvailabilitySnapshot, log *slog.Logger) {
-	if availability == nil || !availability.Enabled || c == nil || !c.IsConnected() {
+	if availability == nil || !availability.Enabled || c == nil || !c.IsConnectionOpen() {
 		return
 	}
 	topic := availability.Topic

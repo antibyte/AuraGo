@@ -287,6 +287,13 @@ mqtt:
 
 `trigger_min_interval_seconds` limits how often MQTT events can start missions (0 = disabled).
 
+Secure broker URL schemes always use TLS. Enabling TLS with a plaintext URL is
+rejected; AuraGo never rewrites the scheme or port. Explicit CA and client
+certificate files must validate, and client certificates require their matching
+key. Password whitespace is preserved. Credential precedence is Vault,
+`MQTT_PASSWORD`, then empty; deleting the Vault entry restores the environment
+fallback. See [MQTT operation](../../mqtt.md) for details.
+
 ---
 
 ## Docker Integration

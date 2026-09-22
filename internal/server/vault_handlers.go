@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -69,7 +70,8 @@ func vaultSecretDeleteKeys(key string) []string {
 // handleVaultSecrets dispatches GET / POST / DELETE for /api/vault/secrets.
 func handleVaultSecrets(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !vaultAllowRequest(r, s.Cfg.Server.HTTPS.BehindProxy) {
+		cfg := s.ConfigSnapshot()
+		if !vaultAllowRequest(r, cfg != nil && cfg.Server.HTTPS.BehindProxy) {
 			jsonError(w, "Too many requests", http.StatusTooManyRequests)
 			return
 		}
@@ -134,6 +136,13 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Secret value must not be empty", http.StatusBadRequest)
 		return
 	}
+	if req.Key == config.MQTTPasswordVaultKey {
+		// Serialize with config save/extraction so an older password cannot be
+		// published after a newer Vault change.
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+		security.RegisterSensitive(req.Value)
+	}
 	if isTsNetAuthVaultKey(req.Key) {
 		req.Value = strings.TrimSpace(req.Value)
 		if err := validateTsNetAuthKey(req.Value); err != nil {
@@ -150,9 +159,18 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 
 	// Immediately inject the new secret into the live config so it takes effect
 	// without requiring a full config save / hot-reload cycle.
-	if s.Cfg != nil {
+	if req.Key == config.MQTTPasswordVaultKey {
+		if err := s.refreshMQTTPassword(); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "MQTT credential refresh failed", "[MQTT] Credential refresh failed", err)
+			return
+		}
+	} else {
 		s.CfgMu.Lock()
-		s.Cfg.ApplyVaultSecrets(s.Vault)
+		if current := s.ConfigSnapshot(); current != nil {
+			next := current.Clone()
+			next.ApplyVaultSecrets(s.Vault)
+			s.replaceConfigSnapshot(next)
+		}
 		s.CfgMu.Unlock()
 	}
 	applyTsNetCredentialMutation(s, req.Key, req.Value)
@@ -173,10 +191,21 @@ func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "Missing ?key= parameter", http.StatusBadRequest)
 		return
 	}
+	key = canonicalVaultSecretKey(key)
+	if key == config.MQTTPasswordVaultKey {
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+	}
 
 	for _, deleteKey := range vaultSecretDeleteKeys(key) {
 		if err := s.Vault.DeleteSecret(deleteKey); err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete secret", "[Vault] Failed to delete secret", err, "key", deleteKey)
+			return
+		}
+	}
+	if key == config.MQTTPasswordVaultKey {
+		if err := s.refreshMQTTPassword(); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "MQTT credential refresh failed", "[MQTT] Credential refresh failed", err)
 			return
 		}
 	}
@@ -185,4 +214,23 @@ func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) 
 	s.Logger.Info("[Vault] Secret deleted via Web UI", "key", key)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "key": key})
+}
+
+// refreshMQTTPassword publishes only a scalar change; all shared collections in
+// the old snapshot remain untouched. Missing credentials never retain old data.
+// The caller holds CfgSaveMu, consistently with config-file publication.
+func (s *Server) refreshMQTTPassword() error {
+	password, _, err := config.ResolveMQTTPassword(s.Vault)
+	if err != nil {
+		password = "" // Fail closed if storage cannot establish the current credential.
+	}
+	security.RegisterSensitive(password)
+	s.CfgMu.Lock()
+	defer s.CfgMu.Unlock()
+	if current := s.ConfigSnapshot(); current != nil {
+		next := *current
+		next.MQTT.Password = password
+		s.replaceConfigSnapshot(&next)
+	}
+	return err
 }

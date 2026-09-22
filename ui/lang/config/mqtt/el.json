@@ -43,6 +43,8 @@
   "config.mqtt.test_ok": "Επιτυχία",
   "config.mqtt.testing": "Δοκιμή…",
   "config.mqtt.tls_enabled_label": "Ενεργοποίηση TLS",
+  "config.mqtt.credential_source": "Διαπιστευτήρια",
+  "config.mqtt.tls_plaintext_error": "Το TLS απαιτεί ασφαλή διεύθυνση broker (mqtts://, ssl://, tls://, tcps:// ή wss://).",
   "config.mqtt.tls_title": "TLS / SSL",
   "config.mqtt.topics_label": "Θέματα",
   "config.mqtt.username_label": "Όνομα χρήστη",

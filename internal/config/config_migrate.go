@@ -819,6 +819,15 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 // After calling this, ResolveProviders() should be called again to propagate
 // provider API keys into the resolved LLM/Vision/etc. slots.
 func (c *Config) ApplyVaultSecrets(vault SecretReader) {
+	if c == nil {
+		return
+	}
+	password, _, err := ResolveMQTTPassword(vault)
+	if err != nil {
+		slog.Warn("[Config] Could not resolve MQTT password; using an empty value")
+		password = ""
+	}
+	c.MQTT.Password = password
 	if vault == nil {
 		return
 	}
@@ -940,7 +949,6 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("frigate_api_token", &c.Frigate.APIToken)
 	apply("github_token", &c.GitHub.Token)
 	apply("rocketchat_auth_token", &c.RocketChat.AuthToken)
-	apply("mqtt_password", &c.MQTT.Password)
 	apply("adguard_password", &c.AdGuard.Password)
 	apply("uptime_kuma_api_key", &c.UptimeKuma.APIKey)
 	apply("grafana_api_key", &c.Grafana.APIKey)

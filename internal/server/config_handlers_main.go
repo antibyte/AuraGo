@@ -396,6 +396,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateMQTTPatch(patch); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		// Keep config, Vault extraction, validation, and publication in one
 		// transaction boundary. This prevents a rejected concurrent save from
 		// rolling back stream sources committed by another request.
@@ -427,6 +431,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 		rawCfg = normalizeConfigYAMLMap(rawCfg)
+
+		if err := validateMQTTConfigPatch(rawCfg, patch); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		// Deep merge the patch into the existing config, skipping masked password values.
 		// Before merging, extract any secrets from the patch and write them to the vault
@@ -463,7 +472,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 		// Safety net: validate that the marshaled YAML can still be loaded
 		// into a Config struct. If not, reject the save and keep the old file.
-		validateCfg := *s.Cfg
+		// Validation must not share slices or pointers with a published snapshot.
+		validateCfg := *s.ConfigSnapshot().Clone()
 		if valErr := yaml.Unmarshal(out, &validateCfg); valErr != nil {
 			s.Logger.Error("[Config] Pre-write validation failed — save rejected to protect config", "error", valErr)
 			w.Header().Set("Content-Type", "application/json")

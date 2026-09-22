@@ -43,6 +43,8 @@
   "config.mqtt.test_ok": "सफल",
   "config.mqtt.testing": "टेस्ट हो रहा है…",
   "config.mqtt.tls_enabled_label": "TLS सक्षम करें",
+  "config.mqtt.credential_source": "क्रेडेंशियल",
+  "config.mqtt.tls_plaintext_error": "TLS के लिए सुरक्षित ब्रोकर URL आवश्यक है (mqtts://, ssl://, tls://, tcps:// या wss://)।",
   "config.mqtt.tls_title": "TLS / SSL",
   "config.mqtt.topics_label": "विषय",
   "config.mqtt.username_label": "उपयोगकर्ता नाम",

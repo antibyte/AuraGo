@@ -43,6 +43,8 @@
   "config.mqtt.test_ok": "Úspěšné",
   "config.mqtt.testing": "Testuji…",
   "config.mqtt.tls_enabled_label": "Povolit TLS",
+  "config.mqtt.credential_source": "Přihlašovací údaje",
+  "config.mqtt.tls_plaintext_error": "TLS vyžaduje zabezpečenou adresu brokeru (mqtts://, ssl://, tls://, tcps:// nebo wss://).",
   "config.mqtt.tls_title": "TLS / SSL",
   "config.mqtt.topics_label": "Témata",
   "config.mqtt.username_label": "Uživatelské jméno",

@@ -43,6 +43,8 @@
   "config.mqtt.test_ok": "Lyckades",
   "config.mqtt.testing": "Testar…",
   "config.mqtt.tls_enabled_label": "Aktivera TLS",
+  "config.mqtt.credential_source": "Inloggningsuppgifter",
+  "config.mqtt.tls_plaintext_error": "TLS kräver en säker broker-URL (mqtts://, ssl://, tls://, tcps:// eller wss://).",
   "config.mqtt.tls_title": "TLS / SSL",
   "config.mqtt.topics_label": "Ämnen",
   "config.mqtt.username_label": "Användarnamn",

@@ -33,6 +33,7 @@ async function renderMQTTSection(section) {
         <div class="field-label">${t('config.mqtt.broker_label')}</div>
         <div class="field-help">${t('help.mqtt.broker')}</div>
         <input class="field-input" type="text" data-path="mqtt.broker" value="${escapeAttr(data.broker || '')}" placeholder="tcp://localhost:1883">
+        <div id="mqtt-tls-transport-message" class="adg-test-result is-danger" role="alert" hidden></div>
     </div>`;
 
     // Client ID
@@ -66,7 +67,7 @@ async function renderMQTTSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.topics_label')}</div>
         <div class="field-help">${t('help.mqtt.topics')}</div>
-        <input class="field-input" type="text" data-path="mqtt.topics" value="${escapeAttr(Array.isArray(data.topics) ? data.topics.join(', ') : (data.topics || ''))}" placeholder="home/#, sensors/+">
+        <input class="field-input" type="text" data-type="array" data-path="mqtt.topics" value="${escapeAttr(Array.isArray(data.topics) ? data.topics.join(', ') : (data.topics || ''))}" placeholder="home/#, sensors/+">
     </div>`;
 
     // QoS dropdown
@@ -74,7 +75,7 @@ async function renderMQTTSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.qos_label')}</div>
         <div class="field-help">${t('help.mqtt.qos')}</div>
-        <select class="field-select" data-path="mqtt.qos">
+        <select class="field-select" data-type="number" data-path="mqtt.qos">
             <option value="0"${qos === 0 ? ' selected' : ''}>${t('config.mqtt.qos_0')}</option>
             <option value="1"${qos === 1 ? ' selected' : ''}>${t('config.mqtt.qos_1')}</option>
             <option value="2"${qos === 2 ? ' selected' : ''}>${t('config.mqtt.qos_2')}</option>
@@ -201,7 +202,7 @@ async function renderMQTTSection(section) {
     </div>`;
 
     if (availability.enabled) {
-        const availabilityQos = availability.qos || 1;
+        const availabilityQos = availability.qos == null ? 1 : availability.qos;
         html += `<div class="field-group">
             <div class="field-label">${t('config.mqtt.availability_topic_label')}</div>
             <div class="field-help">${t('help.mqtt.availability_topic')}</div>
@@ -224,7 +225,7 @@ async function renderMQTTSection(section) {
         html += `<div class="field-group">
             <div class="field-label">${t('config.mqtt.availability_qos_label')}</div>
             <div class="field-help">${t('help.mqtt.availability_qos')}</div>
-            <select class="field-select" data-path="mqtt.availability.qos">
+            <select class="field-select" data-type="number" data-path="mqtt.availability.qos">
                 <option value="0"${availabilityQos === 0 ? ' selected' : ''}>${t('config.mqtt.qos_0')}</option>
                 <option value="1"${availabilityQos === 1 ? ' selected' : ''}>${t('config.mqtt.qos_1')}</option>
                 <option value="2"${availabilityQos === 2 ? ' selected' : ''}>${t('config.mqtt.qos_2')}</option>
@@ -260,6 +261,27 @@ async function renderMQTTSection(section) {
     html += `</div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+    const mqttTransportMessage = document.getElementById('mqtt-tls-transport-message');
+    const mqttBrokerInput = document.querySelector('[data-path="mqtt.broker"]');
+    const mqttTLSToggle = document.querySelector('[data-path="mqtt.tls.enabled"]');
+    const refreshMQTTTLSMessage = () => {
+        if (!mqttTransportMessage) return;
+        const broker = mqttBrokerInput ? String(mqttBrokerInput.value || '') : '';
+        const schemeMatch = broker.match(/^([a-z][a-z0-9+.-]*):/i);
+        const scheme = schemeMatch ? schemeMatch[1].toLowerCase() : '';
+        const plaintext = ['tcp', 'mqtt', 'ws', 'unix'].includes(scheme);
+        const tlsEnabledNow = !!(mqttTLSToggle && mqttTLSToggle.classList.contains('on'));
+        mqttTransportMessage.hidden = !(tlsEnabledNow && plaintext);
+        if (tlsEnabledNow && plaintext) {
+            mqttTransportMessage.textContent = t('config.mqtt.tls_plaintext_error');
+        }
+    };
+    if (mqttBrokerInput) {
+        mqttBrokerInput.addEventListener('input', refreshMQTTTLSMessage);
+        mqttBrokerInput.addEventListener('change', refreshMQTTTLSMessage);
+    }
+    if (mqttTLSToggle) mqttTLSToggle.addEventListener('click', refreshMQTTTLSMessage);
+    refreshMQTTTLSMessage();
 
     if (enabled) {
         if (data.broker) {
@@ -296,11 +318,20 @@ function mqttCheckStatus() {
             }
             if (res.connected) {
                 const tlsInfo = res.tls_enabled ? ' (TLS)' : '';
+                const activeBroker = res.active_broker || res.broker || '';
+                const brokerInfo = activeBroker && res.broker && activeBroker !== res.broker
+                    ? `${activeBroker} ← ${res.broker}` : activeBroker;
+                const stateInfo = res.connection_state ? ` · ${res.connection_state}` : '';
+                const sourceInfo = res.credential_source
+                    ? ` · ${t('config.mqtt.credential_source')}: ${res.credential_source}` : '';
                 const buffered = Number(res.buffer_len || 0);
-                mqttSetBanner('success', `🟢 ${t('config.mqtt.status_connected')} — ${res.broker || ''}${tlsInfo} · ${buffered} ${t('config.mqtt.buffered_suffix')}`);
+                mqttSetBanner('success', `🟢 ${t('config.mqtt.status_connected')} — ${brokerInfo}${tlsInfo}${stateInfo}${sourceInfo} · ${buffered} ${t('config.mqtt.buffered_suffix')}`);
             } else {
                 const lastError = res.stats && res.stats.last_error ? ` — ${res.stats.last_error}` : '';
-                mqttSetBanner('danger', '🔴 ' + t('config.mqtt.status_disconnected') + lastError);
+                const stateInfo = res.connection_state ? ` (${res.connection_state})` : '';
+                const sourceInfo = res.credential_source
+                    ? ` · ${t('config.mqtt.credential_source')}: ${res.credential_source}` : '';
+                mqttSetBanner('danger', '🔴 ' + t('config.mqtt.status_disconnected') + stateInfo + sourceInfo + lastError);
             }
         })
         .catch(() => mqttSetBanner('danger', '🔴 ' + t('config.mqtt.status_error')));
@@ -373,8 +404,8 @@ function mqttRefreshMessages() {
 // Save password to vault
 function mqttSavePassword() {
     const input = document.getElementById('mqtt-password');
-    const pw = input ? input.value.trim() : '';
-    if (!pw) { showToast(t('config.mqtt.password_empty'), 'error'); return; }
+    const pw = input ? input.value : '';
+    if (pw === '') { showToast(t('config.mqtt.password_empty'), 'error'); return; }
 
     fetch('/api/vault/secrets', {
         method: 'POST',

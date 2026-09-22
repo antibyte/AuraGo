@@ -43,6 +43,8 @@
   "config.mqtt.test_ok": "成功",
   "config.mqtt.testing": "テスト中…",
   "config.mqtt.tls_enabled_label": "TLSを有効にする",
+  "config.mqtt.credential_source": "認証情報",
+  "config.mqtt.tls_plaintext_error": "TLS には安全なブローカー URL（mqtts://、ssl://、tls://、tcps://、wss://）が必要です。",
   "config.mqtt.tls_title": "TLS / SSL",
   "config.mqtt.topics_label": "トピック",
   "config.mqtt.username_label": "ユーザー名",

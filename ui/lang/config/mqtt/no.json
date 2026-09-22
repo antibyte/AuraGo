@@ -43,6 +43,8 @@
   "config.mqtt.test_ok": "Suksess",
   "config.mqtt.testing": "Tester…",
   "config.mqtt.tls_enabled_label": "Aktiver TLS",
+  "config.mqtt.credential_source": "Påloggingsinformasjon",
+  "config.mqtt.tls_plaintext_error": "TLS krever en sikker broker-URL (mqtts://, ssl://, tls://, tcps:// eller wss://).",
   "config.mqtt.tls_title": "TLS / SSL",
   "config.mqtt.topics_label": "Emner",
   "config.mqtt.username_label": "Brukernavn",

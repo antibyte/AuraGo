@@ -43,6 +43,8 @@
   "config.mqtt.test_ok": "成功",
   "config.mqtt.testing": "测试中…",
   "config.mqtt.tls_enabled_label": "启用TLS",
+  "config.mqtt.credential_source": "凭据",
+  "config.mqtt.tls_plaintext_error": "TLS 需要安全的代理 URL（mqtts://、ssl://、tls://、tcps:// 或 wss://）。",
   "config.mqtt.tls_title": "TLS / SSL",
   "config.mqtt.topics_label": "主题",
   "config.mqtt.username_label": "用户名",
