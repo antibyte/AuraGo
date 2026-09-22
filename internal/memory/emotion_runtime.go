@@ -75,53 +75,11 @@ func (es *EmotionSynthesizer) endSynthesis() {
 // numerical emotional change. Full synthesizer observations use the atomic
 // history/affect write below.
 func (s *SQLiteMemory) ApplyMoodSuggestion(mood Mood, now time.Time) error {
-	if now.IsZero() {
-		now = time.Now()
-	}
-	s.affectMu.Lock()
-	defer s.affectMu.Unlock()
-	current, err := s.GetAffectStateAt(now)
-	if err != nil {
-		return fmt.Errorf("load affect for mood: %w", err)
-	}
-	current.Mood = selectAffectMood(current.Valence, current.Arousal, mood)
-	current.UpdatedAt = now
-	if err := s.saveAffectState(current); err != nil {
-		return err
-	}
-	return s.LogMood(current.Mood, "semantic mood")
+	_, err := s.ApplyPersonalityObservation(PersonalityObservation{Source: "mood", Target: "task", Mood: mood, At: now})
+	return err
 }
 
 func (s *SQLiteMemory) persistSynthesizedEmotion(state *EmotionState, trigger string) error {
-	s.affectMu.Lock()
-	defer s.affectMu.Unlock()
-	now := time.Now()
-	current, err := s.loadRawAffectState()
-	if err != nil {
-		return fmt.Errorf("load affect for synthesis: %w", err)
-	}
-	next := IntegrateEmotionAffect(current, *state, now)
-	state.Valence, state.Arousal, state.PrimaryMood = next.Valence, next.Arousal, next.Mood
-	state.Timestamp = now
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("begin emotion update: %w", err)
-	}
-	defer tx.Rollback()
-	if err := saveAffectStateWith(tx, next); err != nil {
-		return err
-	}
-	if err := insertEmotionStateHistoryWith(tx, *state, trigger); err != nil {
-		return fmt.Errorf("store emotion history: %w", err)
-	}
-	if err := insertMoodLogWith(tx, next.Mood, trigger); err != nil {
-		return fmt.Errorf("store emotion mood: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit emotion update: %w", err)
-	}
-	s.personalityCacheMu.Lock()
-	s.moodCacheAt = time.Time{}
-	s.personalityCacheMu.Unlock()
-	return nil
+	_, err := s.ApplyPersonalityObservation(PersonalityObservation{Source: "synthesis", Target: "task", Semantic: true, Emotion: state})
+	return err
 }

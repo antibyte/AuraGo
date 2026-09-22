@@ -45,7 +45,7 @@ func (s *SQLiteMemory) InitAffectTables() error {
 	if err != nil {
 		return fmt.Errorf("seed affect state: %w", err)
 	}
-	return nil
+	return s.InitPersonalityDynamics()
 }
 
 // GetAffectState returns the persisted affect, decayed to now.
@@ -81,8 +81,6 @@ func (s *SQLiteMemory) GetAffectStateAt(now time.Time) (AffectState, error) {
 
 // ApplyAffectEvent integrates one world/conversation event and persists the result.
 func (s *SQLiteMemory) ApplyAffectEvent(event AffectEvent, now time.Time) (AffectState, error) {
-	s.affectMu.Lock()
-	defer s.affectMu.Unlock()
 	if now.IsZero() {
 		if !event.At.IsZero() {
 			now = event.At
@@ -94,21 +92,10 @@ func (s *SQLiteMemory) ApplyAffectEvent(event AffectEvent, now time.Time) (Affec
 		return AffectState{}, fmt.Errorf("affect event cause is required")
 	}
 
-	current, err := s.loadRawAffectState()
-	if err != nil {
-		return AffectState{}, err
-	}
-	next := IntegrateAffect(current, event, now)
-	if err := s.saveAffectState(next); err != nil {
-		return AffectState{}, err
-	}
-	if err := s.insertAffectEvent(event, now); err != nil {
-		return next, fmt.Errorf("persist affect event: %w", err)
-	}
-	if next.Mood != "" && next.Mood != current.Mood {
-		_ = s.LogMood(next.Mood, event.CauseCode)
-	}
-	return next, nil
+	snapshot, err := s.ApplyPersonalityObservation(PersonalityObservation{
+		Source: event.Source, Target: "task", At: now, Event: &event,
+	})
+	return snapshot.Affect, err
 }
 
 func (s *SQLiteMemory) loadRawAffectState() (AffectState, error) {
@@ -155,7 +142,7 @@ func saveAffectStateWith(db affectExecer, state AffectState) error {
 		state.Arousal,
 		string(state.Mood),
 		state.CauseCode,
-		state.UpdatedAt.UTC().Format("2006-01-02 15:04:05"),
+		state.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	)
 	if err != nil {
 		return fmt.Errorf("save affect state: %w", err)
@@ -164,11 +151,15 @@ func saveAffectStateWith(db affectExecer, state AffectState) error {
 }
 
 func (s *SQLiteMemory) insertAffectEvent(event AffectEvent, now time.Time) error {
+	return insertAffectEventWith(s.db, event, now)
+}
+
+func insertAffectEventWith(db affectExecer, event AffectEvent, now time.Time) error {
 	detail := strings.TrimSpace(event.Detail)
 	if utf8.RuneCountInString(detail) > 200 {
 		detail = string([]rune(detail)[:200])
 	}
-	_, err := s.db.Exec(
+	_, err := db.Exec(
 		`INSERT INTO affect_events (event_type, cause_code, valence, arousal, weight, source, detail, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		event.CauseCode,
