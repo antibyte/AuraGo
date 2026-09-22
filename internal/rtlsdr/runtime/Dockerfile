@@ -33,12 +33,19 @@ RUN mkdir -p /opt/licenses/sdrangel /opt/licenses/welle /opt/licenses/rtl-sdr \
 FROM native AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends libqt5multimedia5-plugins \
     && rm -rf /var/lib/apt/lists/*
+# The upstream AGC switch controls only digital gain. Include RF tuner AGC so
+# the application's default automatic mode does not leave the tuner at 0 dB.
+COPY internal/rtlsdr/runtime/tuner_agc.patch /build/tuner_agc.patch
+RUN cd /build/sdrangel && git apply --check /build/tuner_agc.patch \
+    && git apply /build/tuner_agc.patch \
+    && cmake --build out --target inputrtlsdrsrv -j2 \
+    && cmake --install out/pluginssrv/samplesource/rtlsdr
 ENV PATH="/opt/sdrangel/bin:/opt/welle/bin:/usr/local/bin:${PATH}" \
     LD_LIBRARY_PATH="/opt/sdrangel/lib:/usr/local/lib" \
     HOME=/tmp/rtl-sdr XDG_RUNTIME_DIR=/tmp/rtl-sdr/run QT_QPA_PLATFORM=offscreen
 COPY internal/rtlsdr/runtime/*.py /opt/aurago-rtl-sdr/
 WORKDIR /opt/aurago-rtl-sdr
-COPY internal/rtlsdr/runtime/tests/test_receiver.py tests/test_receiver.py
+COPY internal/rtlsdr/runtime/tests/test_*.py tests/
 RUN python3 -m unittest discover -s tests -p 'test_*.py'
 USER 10001:10001
 ENTRYPOINT ["python3", "worker.py"]

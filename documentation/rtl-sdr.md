@@ -60,6 +60,11 @@ The receiver supports WFM stereo/RDS, NFM, AM, USB, LSB and DAB+. Frequency entr
 individual digits, the tuning knob, keyboard arrows and spectrum clicks control
 the same receiver. Available frequency limits and gain steps come from the tuner.
 Advanced controls provide bandwidth, gain, AGC, PPM correction and squelch.
+During live listening, committing a frequency entry or changing modulation and
+advanced controls tunes immediately. The player discards old buffered audio on
+each successful retune. AGC controls both RF tuner and digital gain; switch it
+off to choose a manual tuner gain. Runtime image `:2` includes the RF AGC fix
+against the pinned SDRangel source (upstream's AGC controls digital gain only).
 Unsupported frequencies are rejected. DAB+ service names, radiotext and reception
 quality come from the ensemble; scanning can take several minutes.
 
@@ -129,7 +134,7 @@ Build the currently expected image locally on the server:
 
 ```sh
 docker build -f internal/rtlsdr/runtime/Dockerfile \
-  -t ghcr.io/antibyte/aurago-rtl-sdr:1 .
+  -t ghcr.io/antibyte/aurago-rtl-sdr:2 .
 docker build -f internal/rtlsdr/runtime/Dockerfile.fixtures \
   -t aurago-rtl-sdr-fixtures .
 docker run --rm --network none --cap-drop ALL \

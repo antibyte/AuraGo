@@ -34,7 +34,9 @@
               <details class="sdr-settings"><summary>${t('advanced')}</summary><div class="sdr-fields">${field(s,'bandwidth','<input data-sdr="bandwidth" type="number" min="1000" max="1536000" step="100">')}${field(s,'gain','<select data-sdr="gain"></select>')}${field(s,'agc','<input data-sdr="agc" type="checkbox">')}${field(s,'ppm','<input data-sdr="ppm" type="number" min="-200" max="200">')}${field(s,'squelch','<input data-sdr="squelch" type="range" min="-140" max="0">')}${field(s,'stereo','<input data-sdr="stereo" type="checkbox">')}</div>${button(s,'apply','apply')}<div class="sdr-setup" data-sdr="setup"></div></details>`;
             const on = (name, type, fn) => s.q(name).addEventListener(type, fn, { signal: s.abort.signal });
             on('volume','input',e=>R.volume(e.target.value)); on('frequency','keydown',e=>{if(e.key==='Enter')action(s,{dataset:{action:'apply'}}).catch(err=>notice(s,err));});
-            on('mode','change',e=>{s.tuning.mode=e.target.value;s.tuning.bandwidth_hz={wfm:180000,nfm:12500,am:9000,usb:2800,lsb:2800,dab:1536000}[e.target.value];controls(s);});
+            on('frequency','change',()=>{readTuning(s);controls(s);retune(s);});
+            on('mode','change',e=>{readTuning(s);s.tuning.bandwidth_hz={wfm:180000,nfm:12500,am:9000,usb:2800,lsb:2800,dab:1536000}[e.target.value];controls(s);update(s);retune(s);});
+            for(const name of ['bandwidth','gain','agc','ppm','squelch','stereo'])on(name,'change',()=>{readTuning(s);controls(s);retune(s);});
             on('knob','wheel',e=>{e.preventDefault();step(s,e.deltaY<0?1:-1);});
             on('knob','keydown',e=>{if(['ArrowUp','ArrowRight','ArrowDown','ArrowLeft','Home','End'].includes(e.key)){e.preventDefault();if(e.key==='Home')s.tuning.frequency_hz=s.receiver.minimum_hz||24e6;else if(e.key==='End')s.tuning.frequency_hz=s.receiver.maximum_hz||1766e6;else step(s,['ArrowUp','ArrowRight'].includes(e.key)?1:-1);controls(s);retune(s);}});
             let drag; on('knob','pointerdown',e=>{drag={y:e.clientY,f:s.tuning.frequency_hz};e.target.setPointerCapture(e.pointerId);}); on('knob','pointermove',e=>{if(!drag)return;s.tuning.frequency_hz=clamp(s,drag.f+Math.round((drag.y-e.clientY)/3)*increment(s));controls(s);}); on('knob','pointerup',()=>{if(drag){drag=null;retune(s);}}); on('knob','pointercancel',()=>{drag=null;});
@@ -54,10 +56,21 @@
     function increment(s){return {wfm:100000,nfm:12500,am:9000,usb:100,lsb:100,dab:0}[s.tuning.mode]||0;}
     function clamp(s,f){return Math.max(s.receiver.minimum_hz||100000,Math.min(s.receiver.maximum_hz||2200000000,f));}
     function step(s,n){if(s.tuning.mode==='dab'||s.data?.state?.active_job||s.data?.state?.read_only)return;s.tuning.frequency_hz=clamp(s,s.tuning.frequency_hz+n*increment(s));controls(s);retune(s);}
-    function retune(s){if(!R.playing||s.data?.state?.active_job||s.data?.state?.read_only||s.tuning.mode==='dab'&&!s.tuning.service_id)return;clearTimeout(s.tuneTimer);s.tuneTimer=setTimeout(()=>run(s,()=>R.tune(s.tuning)).catch(err=>notice(s,err)),400);}
+    function retune(s){
+        clearTimeout(s.tuneTimer);
+        const allowed=()=>!s.disposed&&R.playing&&!s.data?.state?.active_job&&!s.data?.state?.scanning&&!s.ctx.readonly&&!s.data?.state?.read_only&&(s.tuning.mode!=='dab'||!!s.tuning.service_id);
+        if(!allowed())return;
+        s.tuneTimer=setTimeout(()=>{
+            if(!allowed())return;
+            // Changes made while the decoder switches mode must not be lost.
+            if(s.pending){retune(s);return;}
+            run(s,()=>R.tune({...s.tuning})).catch(err=>notice(s,err));
+        },400);
+    }
     function controls(s){
         if(s.tab!=='receive')return;const tune=s.tuning;
         s.q('frequency').value=(tune.frequency_hz/1e6).toFixed(6);s.q('mode').value=tune.mode;s.q('bandwidth').value=tune.bandwidth_hz;s.q('agc').checked=tune.agc;s.q('stereo').checked=tune.stereo;s.q('ppm').value=tune.ppm;s.q('squelch').value=tune.squelch_db;
+        s.q('gain').disabled=tune.agc;
         digits(s,tune);
         for(const name of ['knob','spectrum']){s.q(name).setAttribute('aria-valuenow',String(tune.frequency_hz/1e6));s.q(name).setAttribute('aria-valuetext',(tune.frequency_hz/1e6).toFixed(6)+' MHz');}
         s.q('knob').style.setProperty('--sdr-angle',((tune.frequency_hz/Math.max(1,increment(s)))*8%360)+'deg');
@@ -104,8 +117,8 @@
     async function result(s,id){const r=await R.request('recordings/'+id);if(s.disposed||!s.q('result'))return;const box=s.q('result');box.hidden=false;box.innerHTML='<div class="sdr-result-head"><h3>'+s.esc(r.name||s.t('untitled'))+'</h3>'+button(s,'close-result','close')+'</div>'+(r.bytes?'<audio controls preload="metadata" src="/api/desktop/rtl-sdr/recordings/'+id+'/audio"></audio><a class="sdr-download" href="/api/desktop/rtl-sdr/recordings/'+id+'/audio?download=1">'+s.esc(s.t('download'))+'</a>'+button(s,'transcribe','retry_asr','data-id="'+id+'"'):'')+'<div class="sdr-transcript">'+(r.segments||[]).map(seg=>'<p><time>'+Math.floor(seg.start_seconds/60)+':'+String(Math.floor(seg.start_seconds%60)).padStart(2,'0')+'</time><span>'+s.esc(seg.error?s.t('asr_failed'):seg.text||s.t('no_speech'))+'</span></p>').join('')+'</div>';s.preview=box.querySelector('audio');box.scrollIntoView({block:'nearest'});}
     async function action(s,b){if(b.dataset.action==='show-setup'){s.tab='receive';content(s);const section=s.host.querySelector('.sdr-settings');section.open=true;section.scrollIntoView({block:'start'});return;}const a=b.dataset.action,id=b.dataset.id;if(a==='mute'){R.mute();return;}if(a==='up'||a==='down'){step(s,a==='up'?1:-1);return;}if(a==='close-result'){s.preview?.pause();s.q('result').hidden=true;return;}if(a==='result')return result(s,id);
         return run(s,async()=>{
-            if(a==='play'||a==='apply'){readTuning(s);await R.tune(s.tuning);}
-            else if(a==='stop')await R.stop();
+            if(a==='play'||a==='apply'){clearTimeout(s.tuneTimer);readTuning(s);controls(s);await R.tune({...s.tuning});}
+            else if(a==='stop'){clearTimeout(s.tuneTimer);await R.stop();}
             else if(a==='scan')await R.request('scan','POST',{});
             else if(a==='cancel-scan')await R.request('scan','DELETE');
             else if(a==='favorite'){readTuning(s);await R.request('favorites','POST',{name:s.receiver.label?.trim()||s.tuning.label||((s.tuning.frequency_hz/1e6).toFixed(3)+' MHz'),tuning:s.tuning});}

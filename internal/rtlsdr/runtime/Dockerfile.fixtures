@@ -1,5 +1,5 @@
 # Offline decoder acceptance only. Never published or used by the application.
-ARG RECEIVER_IMAGE=ghcr.io/antibyte/aurago-rtl-sdr:1
+ARG RECEIVER_IMAGE=ghcr.io/antibyte/aurago-rtl-sdr:2
 FROM ${RECEIVER_IMAGE}
 USER 0
 RUN apt-get update && apt-get install -y --no-install-recommends \

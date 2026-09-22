@@ -81,6 +81,29 @@ func TestRTLSDRDesktopBrowser(t *testing.T) {
 	}
 	page.MustElement(`[data-action="play"]`).MustClick()
 	wait(`()=>RTLSDRRuntime.playing`)
+	// Observe actual media starts as well as the real HTTP service state. Display
+	// changes alone do not prove that the shared receiver was retuned.
+	page.MustEval(`()=>{window.sdrStreams=[];const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){sdrStreams.push(this.getAttribute('src'));return play.call(this)};}`)
+	page.MustEval(`()=>{const input=document.querySelector('[data-sdr="frequency"]');input.value='105.2';input.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>RTLSDRRuntime.currentTuning()?.frequency_hz===105200000&&sdrStreams.length===1`)
+	if got := s.RTLSDR.Snapshot().Tuning.Frequency; got != 105200000 {
+		t.Fatalf("frequency control did not retune receiver: %d", got)
+	}
+	// Hold a successful response long enough to edit again during a mode switch.
+	page.MustEval(`()=>{const send=fetch;window.fetch=async(url,options)=>{const response=await send(url,options);if(String(url).endsWith('/rtl-sdr/tune')&&JSON.parse(options.body).tuning.mode==='am'){window.sdrTuneWaiting=true;await new Promise(resolve=>setTimeout(resolve,1200));}return response;};const mode=document.querySelector('[data-sdr="mode"]');mode.value='am';mode.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>window.sdrTuneWaiting===true`)
+	page.MustEval(`()=>{const mode=document.querySelector('[data-sdr="mode"]');mode.value='nfm';mode.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>RTLSDRRuntime.currentTuning()?.mode==='nfm'&&sdrStreams.length===3`)
+	if tuning := s.RTLSDR.Snapshot().Tuning; tuning.Mode != "nfm" || tuning.Bandwidth != 12500 || tuning.Frequency != 105200000 {
+		t.Fatalf("latest mode change was dropped during retune: %+v", tuning)
+	}
+	if !page.MustEval(`()=>new Set(sdrStreams).size===3&&sdrStreams.every(url=>url.includes('/stream?client=')&&url.includes('&v='))`).Bool() {
+		t.Fatal("retuning retained the previous buffered audio stream")
+	}
+	page.MustEval(`()=>{const mode=document.querySelector('[data-sdr="mode"]');mode.value='wfm';mode.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>RTLSDRRuntime.currentTuning()?.mode==='wfm'&&sdrStreams.length===4`)
+	page.MustEval(`()=>{const agc=document.querySelector('[data-sdr="agc"]');agc.checked=false;agc.dispatchEvent(new Event('change',{bubbles:true}));const gain=document.querySelector('[data-sdr="gain"]');gain.value='40';gain.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	wait(`()=>RTLSDRRuntime.currentTuning()?.agc===false&&RTLSDRRuntime.currentTuning()?.gain_db===40`)
 	windowID := page.MustEval(`()=>[...sdrTest.state.windows.keys()][0]`).Str()
 	page.MustEval(`async(id)=>await sdrTest.closeWindow(id)`, windowID)
 	wait(`()=>!document.querySelector('.sdr-app')`)
@@ -93,8 +116,13 @@ func TestRTLSDRDesktopBrowser(t *testing.T) {
 	}
 	page.MustElement(`[data-sdr-mini="open"]`).MustClick()
 	wait(`()=>!!document.querySelector('.sdr-app')`)
+	page.MustEval(`()=>{const input=document.querySelector('[data-sdr="frequency"]');input.value='107.4';input.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustElement(`[data-action="stop"]`).MustClick()
 	wait(`()=>!RTLSDRRuntime.playing`)
+	page.MustEval(`async()=>await new Promise(resolve=>setTimeout(resolve,700))`)
+	if page.MustEval(`()=>RTLSDRRuntime.playing`).Bool() || s.RTLSDR.Snapshot().Tuning.Frequency != 105200000 {
+		t.Fatal("queued tuning restarted playback after Stop")
+	}
 	page.MustElement(`[data-tab="recordings"]`).MustClick()
 	page.MustElement(`[data-sdr="name"]`).MustInput("Noon news")
 	page.MustElement(`[data-sdr="transcribe"]`).MustClick()

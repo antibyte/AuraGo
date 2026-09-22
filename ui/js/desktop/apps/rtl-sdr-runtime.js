@@ -48,7 +48,11 @@
         await request('tune', 'POST', { client, tuning });
         if (epoch !== generation) { if (!wanted) await request('stop', 'POST', { client }); return; }
         wanted = true; heartbeat = Date.now();
-        if (!audio.getAttribute('src')) audio.src = base + 'stream?client=' + encodeURIComponent(client);
+        // Discard buffered audio from the previous frequency or demodulator.
+        clearTimeout(retry);
+        audio.pause();
+        audio.src = base + 'stream?client=' + encodeURIComponent(client) + '&v=' + epoch;
+        audio.load();
         try { await audio.play(); } catch (_) { error = 'sdr_audio_unlock'; }
         if ('mediaSession' in navigator) {
             try { navigator.mediaSession.metadata = new MediaMetadata({ title: tuning.label || (tuning.frequency_hz / 1e6).toFixed(3) + ' MHz', artist: 'RTL-SDR' });

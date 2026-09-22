@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Build pinned native receivers and run unit tests
-        run: docker build -f internal/rtlsdr/runtime/Dockerfile -t ghcr.io/antibyte/aurago-rtl-sdr:1 .
+        run: docker build -f internal/rtlsdr/runtime/Dockerfile -t ghcr.io/antibyte/aurago-rtl-sdr:2 .
       - name: Build offline IQ fixtures
         run: docker build -f internal/rtlsdr/runtime/Dockerfile.fixtures -t aurago-rtl-sdr-fixtures .
       - name: Decode analog, stereo and DAB+ IQ without USB or network
@@ -58,7 +58,7 @@ jobs:
           file: internal/rtlsdr/runtime/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/aurago-rtl-sdr:1
+          tags: ghcr.io/${{ github.repository_owner }}/aurago-rtl-sdr:2
           provenance: true
           sbom: true
       - uses: sigstore/cosign-installer@v4.1.2

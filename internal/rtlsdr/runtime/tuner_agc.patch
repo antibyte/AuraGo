@@ -1,0 +1,30 @@
+--- a/plugins/samplesource/rtlsdr/rtlsdrthread.cpp
++++ b/plugins/samplesource/rtlsdr/rtlsdrthread.cpp
+@@ -494,13 +494,18 @@
+-    if ((settingsKeys.contains("gain") && (settings.m_gain != m_settings.m_gain)) || force)
++    if ((settingsKeys.contains("gain") && (settings.m_gain != m_settings.m_gain))
++        || (settingsKeys.contains("agc") && (settings.m_agc != m_settings.m_agc)) || force)
+     {
+-        // Nooelec E4000 SDRs appear to require tuner_gain_mode to be reset to manual before
+-        // each call to set_tuner_gain, otherwise tuner AGC seems to be reenabled
+-        if (rtlsdr_set_tuner_gain_mode(m_dev, 1) < 0) {
+-            qCritical("RTLSDRThread::applySettings: error setting tuner gain mode to manual");
++        // AuraGo's AGC control includes the RF tuner, not only the RTL2832 digital AGC.
++        // Reapply manual mode before each manual gain write (required by E4000 tuners).
++        if (rtlsdr_set_tuner_gain_mode(m_dev, settings.m_agc ? 0 : 1) < 0) {
++            qCritical("RTLSDRThread::applySettings: error setting tuner gain mode");
++        } else {
++            qDebug("RTLSDRThread::applySettings: tuner AGC %s", settings.m_agc ? "on" : "off");
+         }
+-        if (rtlsdr_set_tuner_gain(m_dev, settings.m_gain) != 0) {
+-            qCritical("RTLSDRThread::applySettings: rtlsdr_set_tuner_gain() failed");
+-        } else {
+-            qDebug("RTLSDRThread::applySettings: rtlsdr_set_tuner_gain() to %d", settings.m_gain);
++        if (!settings.m_agc) {
++            if (rtlsdr_set_tuner_gain(m_dev, settings.m_gain) != 0) {
++                qCritical("RTLSDRThread::applySettings: rtlsdr_set_tuner_gain() failed");
++            } else {
++                qDebug("RTLSDRThread::applySettings: rtlsdr_set_tuner_gain() to %d", settings.m_gain);
++            }
+         }
+     }
