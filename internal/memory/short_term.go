@@ -517,7 +517,7 @@ func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) erro
 		    	WHEN consolidation_retries < 2 THEN 30
 		    	ELSE 120
 		    END) || ' minutes')
-		WHERE id IN (%s)`, strings.Join(placeholders, ","))
+		WHERE consolidated = 0 AND id IN (%s)`, strings.Join(placeholders, ","))
 	_, err := s.db.Exec(query, args...)
 	return err
 }

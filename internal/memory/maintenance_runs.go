@@ -114,6 +114,22 @@ func (s *SQLiteMemory) InsertMaintenanceRun(startedAt, finishedAt time.Time, sta
 	return nil
 }
 
+// UpdateMaintenanceRunResults records a final persistence failure discovered
+// after the run ledger was inserted (for example, a notification write).
+func (s *SQLiteMemory) UpdateMaintenanceRunResults(startedAt time.Time, status string, results MaintenancePhaseResults) error {
+	payload, err := json.Marshal(results)
+	if err != nil {
+		return fmt.Errorf("marshal maintenance run update: %w", err)
+	}
+	_, err = s.db.Exec(`UPDATE maintenance_runs SET status = ?, phase_results = ?
+		WHERE id = (SELECT MAX(id) FROM maintenance_runs WHERE started_at = ?)`,
+		status, string(payload), startedAt.UTC().Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("update maintenance run results: %w", err)
+	}
+	return nil
+}
+
 // GetLatestMaintenanceRun returns the most recent maintenance run, if any.
 func (s *SQLiteMemory) GetLatestMaintenanceRun() (*MaintenanceRunRecord, error) {
 	if s == nil || s.db == nil {

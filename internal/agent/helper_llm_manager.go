@@ -350,6 +350,7 @@ type helperTurnInnerVoice struct {
 
 type helperMaintenanceBatchResult struct {
 	DailySummary string `json:"daily_summary"`
+	KGValid      bool   `json:"-"`
 	KGExtraction struct {
 		Nodes []memory.Node `json:"nodes"`
 		Edges []memory.Edge `json:"edges"`
@@ -970,8 +971,17 @@ func (m *helperLLMManager) AnalyzeMaintenanceSummaryAndKG(ctx context.Context, t
 func parseHelperMaintenanceBatchResult(raw string) (helperMaintenanceBatchResult, error) {
 	raw = trimJSONResponse(raw)
 	var result helperMaintenanceBatchResult
-	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
 		return helperMaintenanceBatchResult{}, fmt.Errorf("parse helper maintenance batch response: %w", err)
+	}
+	// Decode independently: a usable summary must survive a malformed KG part,
+	// and a valid empty extraction is different from an omitted extraction.
+	_ = json.Unmarshal(fields["daily_summary"], &result.DailySummary)
+	var kgFields map[string]json.RawMessage
+	if json.Unmarshal(fields["kg_extraction"], &kgFields) == nil && kgFields != nil {
+		nodes, edges := kgFields["nodes"], kgFields["edges"]
+		result.KGValid = len(nodes) > 0 && len(edges) > 0 && strings.HasPrefix(strings.TrimSpace(string(nodes)), "[") && strings.HasPrefix(strings.TrimSpace(string(edges)), "[") && json.Unmarshal(fields["kg_extraction"], &result.KGExtraction) == nil
 	}
 	result.DailySummary = strings.TrimSpace(result.DailySummary)
 	return result, nil

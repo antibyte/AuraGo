@@ -252,7 +252,10 @@ func TestFinalizeConsolidationBatchRejectsEmptyFacts(t *testing.T) {
 		{"user", "remember nas"},
 	})
 
-	ok, storedCount := finalizeConsolidationBatch(logger, stm, item, nil, 0, 0, nil, 1, 1)
+	ok, storedCount, err := finalizeConsolidationBatch(logger, stm, item, nil, 0, 0, nil, 1, 1)
+	if err != nil {
+		t.Fatalf("finalizeConsolidationBatch: %v", err)
+	}
 	if ok {
 		t.Fatal("expected empty facts batch to fail finalization")
 	}
@@ -268,6 +271,9 @@ func TestFinalizeConsolidationBatchAcceptsDedupOnlyFacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSQLiteMemory: %v", err)
 	}
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
 	t.Cleanup(func() { _ = stm.Close() })
 
 	item := archiveConsolidationFixture(t, stm, "s1", []struct{ role, content string }{
@@ -277,7 +283,10 @@ func TestFinalizeConsolidationBatchAcceptsDedupOnlyFacts(t *testing.T) {
 	})
 	facts := []helperConsolidationFact{{Concept: "nas-backup", Content: "Backup target is the NAS."}}
 
-	ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, 0, 1, nil, 1, 1)
+	ok, storedCount, err := finalizeConsolidationBatch(logger, stm, item, facts, 0, 1, nil, 1, 1)
+	if err != nil {
+		t.Fatalf("finalizeConsolidationBatch: %v", err)
+	}
 	if !ok {
 		t.Fatal("expected dedup-only batch to finalize successfully")
 	}
@@ -312,7 +321,10 @@ func TestFinalizeConsolidationBatchReturnsFalseWhenMarkSuccessFails(t *testing.T
 		t.Fatalf("Close: %v", err)
 	}
 
-	ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, 1, 0, nil, 1, 1)
+	ok, storedCount, err := finalizeConsolidationBatch(logger, stm, item, facts, 1, 0, nil, 1, 1)
+	if err == nil {
+		t.Fatal("expected finalize error when MarkConsolidationSuccess cannot run")
+	}
 	if ok {
 		t.Fatal("expected finalize to fail when MarkConsolidationSuccess cannot run")
 	}

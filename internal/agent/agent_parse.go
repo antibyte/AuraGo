@@ -374,7 +374,7 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 				logger.Warn("[MemoryMaintenance] Missing metadata snapshot for compressed memory", "doc_id", docID)
 				continue
 			}
-			if _, err := shortTermMem.ReplaceMemoryDocument(
+			_, replaceErr := shortTermMem.ReplaceMemoryDocument(
 				longTermMem,
 				docID,
 				concept,
@@ -383,9 +383,12 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 				expectedMeta,
 				"memory maintenance compressed into replacement memory",
 				"agent",
-			); err != nil {
+			)
+			// Refresh metadata even when the replacement commits but retirement fails.
+			InvalidateMemoryMetaCache()
+			if replaceErr != nil {
 				partial = true
-				logger.Warn("[MemoryMaintenance] Failed to replace compressed memory", "doc_id", docID, "error", err)
+				logger.Warn("[MemoryMaintenance] Failed to replace compressed memory", "doc_id", docID, "error", replaceErr)
 				continue
 			}
 			mediumCount++

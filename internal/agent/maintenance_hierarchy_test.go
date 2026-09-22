@@ -206,3 +206,32 @@ func TestConsolidateEpisodicHierarchyPromotesLevelOneEpisodes(t *testing.T) {
 		t.Fatal("expected hierarchical consolidation to store a synthesis document")
 	}
 }
+
+func TestConsolidateEpisodicHierarchyKGFailureDoesNotRepeatSynthesis(t *testing.T) {
+	stm, logger := maintenanceRegressionStores(t)
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = kg.Close()
+	for _, title := range []string{"Deploy", "Fix"} {
+		if err := stm.InsertEpisodicMemoryWithDetails("2026-09-21", title, "Completed useful work", nil, 3, "consolidation", memory.EpisodicMemoryDetails{SessionID: "direct", HierarchyLevel: 1, Participants: []string{"agent"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	vdb := &hierarchyVectorDB{}
+	if err := consolidateEpisodicHierarchy(logger, stm, vdb, kg); err == nil {
+		t.Fatal("KG failure was hidden")
+	}
+	before, err := stm.GetEpisodicMemoriesByHierarchyLevel(2, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := consolidateEpisodicHierarchy(logger, stm, vdb, nil); err != nil {
+		t.Fatal(err)
+	}
+	after, err := stm.GetEpisodicMemoriesByHierarchyLevel(2, 20)
+	if err != nil || len(before) != len(after) || len(before) != 3 {
+		t.Fatalf("synthesis repeated: before=%d after=%d err=%v", len(before), len(after), err)
+	}
+}

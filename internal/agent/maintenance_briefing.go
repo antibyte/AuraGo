@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,22 +21,42 @@ import (
 func completeMaintenanceRun(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, plannerDB *sql.DB, startedAt time.Time, ledger *maintenanceRunLedger) {
 	finishedAt := time.Now()
 	if ledger != nil && ledger.currentPhase != "" {
-		ledger.finishPhase(ledger.currentPhase, false)
+		// A return without explicit phase completion is never evidence of success.
+		ledger.addError("phase_interrupted")
+		ledger.finishPhase(ledger.currentPhase, true)
 	}
 	results := ledger.results()
 	results.IntegrationChecks = runMaintenanceIntegrationChecks(cfg, logger, finishedAt)
 	ledger.phaseResults = results
-	reconcileMaintenancePhaseIssues(plannerDB, results.Phases, finishedAt, logger)
 	if stm == nil {
+		ledger.markFailed()
+		reconcileMaintenancePhaseIssues(plannerDB, results.Phases, finishedAt, logger)
 		return
 	}
 	status := ledger.status()
 	if err := stm.InsertMaintenanceRun(startedAt, finishedAt, status, results); err != nil {
+		ledger.beginPhase("ledger_persist")
+		ledger.addError("maintenance_ledger_persist")
+		ledger.markFailed()
+		ledger.finishPhase("ledger_persist", false)
+		// Failures remain actionable even if the run ledger could not be saved.
+		// Success resolution still requires durable run evidence.
+		for _, phase := range ledger.results().Phases {
+			if phase.Status == "partial" || phase.Status == "failed" {
+				reconcileMaintenancePhaseIssues(plannerDB, []memory.MaintenancePhaseResult{phase}, finishedAt, logger)
+			}
+		}
 		if logger != nil {
 			logger.Warn("[Maintenance] Failed to persist maintenance run ledger", "error_code", "maintenance_ledger_persist")
 		}
 		return
 	}
+	promptPath := ""
+	if cfg != nil {
+		promptPath = filepath.Join(cfg.Directories.PromptsDir, "maintenance.md")
+	}
+	reconcileMaintenancePhaseIssues(plannerDB, results.Phases, finishedAt, logger, promptPath)
+	reconcileMaintenancePhaseIssues(plannerDB, []memory.MaintenancePhaseResult{{Name: "ledger_persist", Status: "completed"}}, finishedAt, logger)
 	openIssues := 0
 	if plannerDB != nil {
 		if page, err := planner.ListOperationalIssues(plannerDB, planner.OperationalIssueListFilter{Status: "active", Limit: 1}); err == nil {
@@ -57,8 +78,20 @@ func completeMaintenanceRun(cfg *config.Config, logger *slog.Logger, stm *memory
 			"finished_at":            finishedAt.UTC().Format(time.RFC3339),
 		},
 	}
-	if _, _, err := stm.AddSystemNotification(notification); err != nil && logger != nil {
-		logger.Warn("[Maintenance] Failed to store morning briefing", "error_code", "morning_briefing_persist")
+	if _, _, err := stm.AddSystemNotification(notification); err != nil {
+		ledger.beginPhase("briefing_persist")
+		ledger.addError("morning_briefing_persist")
+		ledger.markFailed()
+		ledger.finishPhase("briefing_persist", false)
+		if updateErr := stm.UpdateMaintenanceRunResults(startedAt, ledger.status(), ledger.results()); updateErr != nil && logger != nil {
+			logger.Warn("[Maintenance] Failed to persist final run failure", "error_code", "maintenance_ledger_persist")
+		}
+		reconcileMaintenancePhaseIssues(plannerDB, []memory.MaintenancePhaseResult{ledger.results().Phases[len(ledger.results().Phases)-1]}, finishedAt, logger)
+		if logger != nil {
+			logger.Warn("[Maintenance] Failed to store morning briefing", "error_code", "morning_briefing_persist")
+		}
+	} else {
+		reconcileMaintenancePhaseIssues(plannerDB, []memory.MaintenancePhaseResult{{Name: "briefing_persist", Status: "completed"}}, finishedAt, logger)
 	}
 }
 
@@ -187,14 +220,23 @@ func runModelLimitsIntegrationCheck(cfg *config.Config, now time.Time) memory.In
 	return result
 }
 
-func reconcileMaintenancePhaseIssues(db *sql.DB, phases []memory.MaintenancePhaseResult, now time.Time, logger *slog.Logger) {
+func reconcileMaintenancePhaseIssues(db *sql.DB, phases []memory.MaintenancePhaseResult, now time.Time, logger *slog.Logger, promptPaths ...string) {
 	if db == nil {
 		return
 	}
 	for _, phase := range phases {
 		fingerprint := "maintenance|phase|" + phase.Name
 		if phase.Status == "completed" {
-			_, _ = planner.ResolveOperationalIssue(db, fingerprint, "The maintenance phase completed successfully.", now)
+			if _, err := planner.ResolveOperationalIssue(db, fingerprint, "The maintenance phase completed successfully.", now); err != nil && logger != nil {
+				logger.Warn("[Maintenance] Failed to resolve phase issue", "phase", phase.Name, "error_code", "operational_issue_persist")
+			}
+			promptPath := ""
+			if len(promptPaths) > 0 {
+				promptPath = promptPaths[0]
+			}
+			if err := planner.ResolveLegacyMaintenanceIssues(db, phase.Name, promptPath, now); err != nil && logger != nil {
+				logger.Warn("[Maintenance] Failed to resolve legacy phase issue", "phase", phase.Name, "error_code", "operational_issue_persist")
+			}
 			continue
 		}
 		if phase.Status != "partial" && phase.Status != "failed" {

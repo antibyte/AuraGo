@@ -147,8 +147,8 @@ func TestMaintenanceTaskRecordsDeterministicPhaseErrorsInLedger(t *testing.T) {
 		"operational_issue_cleanup:",
 		"daily_summary:",
 	} {
-		if !strings.Contains(text, "ledger.addError(\""+marker) {
-			t.Fatalf("maintenance.go is missing ledger.addError for %s", marker)
+		if !strings.Contains(text, "ledger.addError(\""+marker) && !strings.Contains(text, "ledger.recordError(\""+strings.TrimSuffix(marker, ":")+"\"") {
+			t.Fatalf("maintenance.go is missing ledger error propagation for %s", marker)
 		}
 	}
 }

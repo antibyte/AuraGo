@@ -21,6 +21,32 @@ func newTestConsolidationDB(t *testing.T) *SQLiteMemory {
 	return stm
 }
 
+func TestMarkConsolidationFailurePreservesCommittedSuccess(t *testing.T) {
+	stm := newTestConsolidationDB(t)
+	result, err := stm.db.Exec(`INSERT INTO archived_messages(session_id, role, content) VALUES('direct', 'user', 'remember this fact')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stm.MarkConsolidationSuccess([]int64{id}); err != nil {
+		t.Fatal(err)
+	}
+	if err := stm.MarkConsolidationFailure([]int64{id}, "uncertain prior response"); err != nil {
+		t.Fatal(err)
+	}
+	var status string
+	var consolidated, retries int
+	if err := stm.db.QueryRow(`SELECT consolidated, consolidation_status, consolidation_retries FROM archived_messages WHERE id = ?`, id).Scan(&consolidated, &status, &retries); err != nil {
+		t.Fatal(err)
+	}
+	if consolidated != 1 || status != "done" || retries != 0 {
+		t.Fatalf("successful consolidation regressed: %d %s %d", consolidated, status, retries)
+	}
+}
+
 func TestDeleteOldMessagesArchives(t *testing.T) {
 	stm := newTestConsolidationDB(t)
 

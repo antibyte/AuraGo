@@ -85,6 +85,25 @@ func TestMemoryReflectionRetriesUnusableCompletions(t *testing.T) {
 	}
 }
 
+func TestMemoryReflectionFailsWhenSTMSourceCannotBeRead(t *testing.T) {
+	stm := newReflectionTestDB(t)
+	if err := stm.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	client := &reflectionResponseClient{completions: []openai.ChatCompletionResponse{
+		reflectionCompletion(validReflectionJSON, openai.FinishReasonStop),
+	}}
+	_, err := runMemoryReflection(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), stm, nil, nil, client, nil, memoryReflectionRequest{})
+	if err == nil || !strings.Contains(err.Error(), "build reflection input") {
+		t.Fatalf("runMemoryReflection error = %v, want source-read failure", err)
+	}
+	if len(client.requests) != 0 {
+		t.Fatalf("LLM calls = %d, want 0 when source reads fail", len(client.requests))
+	}
+}
+
 func TestWeeklyReflectionFailureDoesNotPersistOrConsumeDailyClaim(t *testing.T) {
 	releaseWeeklyReflectionClaim()
 	t.Cleanup(releaseWeeklyReflectionClaim)

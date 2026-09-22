@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -22,15 +23,18 @@ Rules:
 - Stay consistent with the named core personality.
 - If nothing durable changed, return {"notes":[]}.`
 
-func runCharacterReflection(ctx context.Context, cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) {
+func runCharacterReflection(ctx context.Context, cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) (resultErr error) {
 	if stm == nil || cfg == nil || !cfg.Personality.Engine {
 		return
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if _, err := stm.DecayUnprotectedCharacterNotes(time.Now()); err != nil && logger != nil {
-		logger.Warn("[Character] Decay failed", "error", err)
+	if _, err := stm.DecayUnprotectedCharacterNotes(time.Now()); err != nil {
+		resultErr = errors.Join(resultErr, err)
+		if logger != nil {
+			logger.Warn("[Character] Decay failed", "error", err)
+		}
 	}
 	input := stm.BuildCharacterReflectionInput(cfg.Personality.CorePersonality)
 	proposals := memory.ProposeCharacterNotesDeterministic(input)
@@ -42,13 +46,17 @@ func runCharacterReflection(ctx context.Context, cfg *config.Config, stm *memory
 		}
 	}
 	applied, err := stm.ApplyCharacterNoteProposals(cfg.Personality.CorePersonality, proposals, time.Now())
-	if err != nil && logger != nil {
-		logger.Warn("[Character] Failed to apply notes", "error", err)
+	if err != nil {
+		resultErr = errors.Join(resultErr, err)
+		if logger != nil {
+			logger.Warn("[Character] Failed to apply notes", "error", err)
+		}
 		return
 	}
 	if logger != nil && applied > 0 {
 		logger.Info("[Character] Applied lived notes", "count", applied)
 	}
+	return errors.Join(resultErr, ctx.Err())
 }
 
 func (m *helperLLMManager) ProposeCharacterNotes(ctx context.Context, input memory.CharacterReflectionInput) ([]memory.CharacterNoteProposal, error) {

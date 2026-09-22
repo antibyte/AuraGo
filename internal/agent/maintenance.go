@@ -85,9 +85,16 @@ func parseTime(t string) (int, int, error) {
 func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) {
 	startedAt := time.Now()
 	ledger := newMaintenanceRunLedger()
+	maintenanceBatch := maintenanceSummaryKGResult{}
 	ledger.beginPhase("short_term_cleanup")
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if cfg == nil || shortTermMem == nil {
+		ledger.addError("maintenance_initialization")
+		ledger.markFailed()
+		completeMaintenanceRun(cfg, logger, shortTermMem, plannerDB, startedAt, ledger)
+		return
 	}
 	timeout := time.Duration(cfg.CircuitBreaker.MaintenanceTimeoutMinutes) * time.Minute
 	if timeout <= 0 {
@@ -96,13 +103,14 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	taskCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	defer func() {
+		ledger.recordNamedError("entity_extraction", "batched_kg_persist", maintenanceBatch.KGErr)
 		completeMaintenanceRun(cfg, logger, shortTermMem, plannerDB, startedAt, ledger)
 	}()
 
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
 	retention := resolveMaintenanceRetention(cfg)
 
-	RunSTMPRetentionMaintenance(cfg, logger, shortTermMem)
+	ledger.recordError("stm_retention", RunSTMPRetentionMaintenance(cfg, logger, shortTermMem))
 
 	// Phase A5: Clean up old interaction patterns
 	if shortTermMem != nil {
@@ -177,7 +185,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Phase D8: Personality Engine maintenance — trait decay + journal
 	if cfg.Personality.Engine && shortTermMem != nil {
-		personalityMaintenance(taskCtx, cfg, shortTermMem, logger)
+		ledger.recordError("personality_maintenance", personalityMaintenance(taskCtx, cfg, shortTermMem, logger))
 	}
 
 	// User Profile cleanup: remove stale low-confidence entries
@@ -194,18 +202,22 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if cheatsheetDB != nil {
 		expired, err := tools.CheatsheetGetExpiredUnused(cheatsheetDB)
 		if err != nil {
+			ledger.recordError("cheatsheet_query", err)
 			logger.Error("[Maintenance] Failed to find expired cheat sheets", "error", err)
 		} else {
 			for _, sheet := range expired {
 				if err := tools.CheatsheetMarkUnused(cheatsheetDB, sheet.ID); err != nil {
+					ledger.recordError("cheatsheet_update", err)
 					logger.Error("[Maintenance] Failed to mark cheat sheet unused", "id", sheet.ID, "name", sheet.Name, "error", err)
 					continue
 				}
 				if err := tools.ReindexCheatsheetInVectorDB(cheatsheetDB, longTermMem, sheet.ID); err != nil {
+					ledger.recordError("cheatsheet_reindex", err)
 					logger.Warn("[Maintenance] Failed to remove inactive cheat sheet from vector DB", "id", sheet.ID, "name", sheet.Name, "error", err)
 				}
 				if missionManagerV2 != nil {
 					if err := tools.InvalidatePreparedMissionsByCheatsheet(missionManagerV2.GetPreparedDB(), missionManagerV2, sheet.ID); err != nil {
+						ledger.recordError("cheatsheet_missions", err)
 						logger.Warn("[Maintenance] Failed to invalidate prepared missions for expired cheat sheet", "id", sheet.ID, "name", sheet.Name, "error", err)
 					}
 				}
@@ -218,7 +230,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	ledger.beginPhase("memory_hygiene")
 	if cfg.Consolidation.Enabled && shortTermMem != nil {
-		runNightlyMemoryBaselineWithContext(taskCtx, cfg, logger, shortTermMem, longTermMem)
+		ledger.recordError("memory_baseline", runNightlyMemoryBaselineWithContext(taskCtx, cfg, logger, shortTermMem, longTermMem))
 		if maintenanceContextDone(taskCtx, ledger, logger, "memory_hygiene") {
 			return
 		}
@@ -227,28 +239,27 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	ledger.beginPhase("daily_summary")
 
-	maintenanceBatchDone := false
-	if shortTermMem != nil && kg != nil && cfg.Tools.Journal.Enabled && cfg.Journal.DailySummary && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
-		maintenanceBatchDone = runBatchedMaintenanceSummaryAndKG(taskCtx, cfg, logger, shortTermMem, kg)
-	}
-
-	// Journal: generate daily summary from today's journal entries
-	if !maintenanceBatchDone && cfg.Tools.Journal.Enabled && cfg.Journal.DailySummary && shortTermMem != nil {
-		if err := generateDailySummary(taskCtx, cfg, logger, client, shortTermMem); err != nil {
-			ledger.addError("daily_summary: " + err.Error())
+	today := startedAt.Format("2006-01-02")
+	if !cfg.Tools.Journal.Enabled || !cfg.Journal.DailySummary {
+		ledger.skipPhase("daily_summary")
+	} else {
+		if kg != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
+			maintenanceBatch = runBatchedMaintenanceSummaryAndKG(taskCtx, cfg, logger, shortTermMem, kg, today)
+			ledger.recordError("daily_summary_batch", maintenanceBatch.SummaryErr)
+		}
+		if !maintenanceBatch.SummaryStored {
+			ledger.recordError("daily_summary", generateDailySummary(taskCtx, cfg, logger, client, shortTermMem, today))
 		}
 	}
-
-	if shortTermMem != nil {
-		if rollup, err := shortTermMem.GenerateDailyActivityRollup(time.Now().Format("2006-01-02")); err != nil {
-			logger.Error("[Activity] Failed to generate daily activity rollup", "error", err)
-			ledger.addError("activity_rollup: " + err.Error())
-		} else if rollup.Date != "" {
-			logger.Info("[Activity] Daily activity rollup stored", "date", rollup.Date)
-		}
-	}
-
 	if maintenanceContextDone(taskCtx, ledger, logger, "daily_summary") {
+		return
+	}
+	ledger.beginPhase("activity_rollup")
+	if shortTermMem != nil {
+		_, err := shortTermMem.GenerateDailyActivityRollup(today)
+		ledger.recordError("activity_rollup", err)
+	}
+	if maintenanceContextDone(taskCtx, ledger, logger, "activity_rollup") {
 		return
 	}
 	ledger.beginPhase("weekly_reflection")
@@ -278,6 +289,10 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	if shortTermMem != nil {
 		hygieneStats := runAutomaticMemoryHygiene(cfg, logger, shortTermMem, longTermMem)
+		for _, err := range hygieneStats.Errors {
+			ledger.recordError("memory_hygiene", err)
+		}
+		ledger.addDeferred("knowledge_graph", hygieneStats.Deferred)
 		ledger.phaseResults.JournalRemoved = hygieneStats.JournalRemoved
 		ledger.phaseResults.NotesArchived = hygieneStats.NotesArchived
 		ledger.addProcessed("knowledge_graph", hygieneStats.JournalRemoved+hygieneStats.NotesArchived)
@@ -322,10 +337,10 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Sync contacts and core memory
 	if kg != nil {
-		SyncContactsToKnowledgeGraph(taskCtx, contactsDB, kg, logger)
+		ledger.recordError("contacts_kg_sync", SyncContactsToKnowledgeGraph(taskCtx, contactsDB, kg, logger))
 	}
 	if kg != nil {
-		SyncPlannerToKnowledgeGraph(taskCtx, plannerDB, kg, logger)
+		ledger.recordError("planner_kg_sync", SyncPlannerToKnowledgeGraph(taskCtx, plannerDB, kg, logger))
 	}
 	if plannerDB != nil {
 		if archived, err := planner.ArchiveStaleOperationalIssues(plannerDB, time.Now()); err != nil {
@@ -342,7 +357,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		}
 	}
 	if kg != nil && shortTermMem != nil {
-		SyncCoreMemoryToKnowledgeGraph(taskCtx, shortTermMem, kg, logger)
+		ledger.recordError("core_kg_sync", SyncCoreMemoryToKnowledgeGraph(taskCtx, shortTermMem, kg, logger))
 		recordKnowledgeGraphSparseIssue(plannerDB, shortTermMem, kg, logger)
 		recordKnowledgeGraphQualityIssues(plannerDB, kg, logger)
 	}
@@ -353,7 +368,10 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// Knowledge Graph: incremental file-based KG sync
 	entityCtx, cancelEntity, entityBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
-	if !entityBudgetAvailable {
+	entityEnabled := kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction
+	if !entityEnabled {
+		ledger.skipPhase("entity_extraction")
+	} else if !entityBudgetAvailable {
 		ledger.addDeferred("entity_extraction", 1)
 	} else if kg != nil && shortTermMem != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
 		syncer := services.NewFileKGSyncer(cfg, logger, client, longTermMem, shortTermMem, kg)
@@ -382,8 +400,8 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 
 	// Knowledge Graph: nightly batch entity extraction from recent conversations
-	if entityBudgetAvailable && entityCtx.Err() == nil && !maintenanceBatchDone && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
-		extractKGEntities(entityCtx, cfg, logger, client, shortTermMem, kg)
+	if entityBudgetAvailable && entityCtx.Err() == nil && !maintenanceBatch.KGStored && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
+		ledger.recordError("kg_extraction", extractKGEntities(entityCtx, cfg, logger, client, shortTermMem, kg))
 	}
 	cancelEntity()
 	if maintenanceContextDone(taskCtx, ledger, logger, "entity_extraction") {
@@ -393,39 +411,45 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 
 	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
 	totalStored := 0
-	consolidationClaimed := 0
 	consolidationCtx, cancelConsolidation, consolidationBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
-	if !consolidationBudgetAvailable {
+	consolidationEnabled := cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled()
+	if !cfg.Consolidation.Enabled {
+		ledger.skipPhase("consolidation")
+	} else if !consolidationEnabled {
+		ledger.addError("consolidation_unavailable")
+	} else if !consolidationBudgetAvailable {
 		ledger.addDeferred("consolidation", 1)
 		ledger.addPhaseCode("consolidation", "phase_budget_exhausted")
 	} else if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
 		consolidationResult := consolidateSTMtoLTMWithContext(consolidationCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
+		for _, err := range consolidationResult.Errors {
+			ledger.recordError("consolidation", err)
+		}
 		totalStored = consolidationResult.FactsStored
-		consolidationClaimed = consolidationResult.MessagesClaimed
 		ledger.phaseResults.ConsolidationFacts = totalStored
 		ledger.phaseResults.ConsolidationExcluded = consolidationResult.MessagesExcluded
 		ledger.addProcessed("consolidation", consolidationResult.MessagesConsolidated)
 		if deferred := consolidationResult.MessagesClaimed - consolidationResult.MessagesConsolidated; deferred > 0 {
 			ledger.addDeferred("consolidation", deferred)
 		}
-		consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg)
+		ledger.recordError("episodic_hierarchy", consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg))
 	}
 	consolidationBudgetExpired := consolidationCtx.Err() != nil && taskCtx.Err() == nil
 	cancelConsolidation()
-	if shortTermMem != nil {
+	if cfg.Consolidation.Enabled && shortTermMem != nil {
 		if backlog, err := shortTermMem.CountConsolidationCandidates(3); err == nil {
 			ledger.phaseResults.ConsolidationBacklog = backlog
-			if backlog > 0 && consolidationClaimed == 0 && ledger.phaseDeferred("consolidation") == 0 {
-				ledger.addDeferred("consolidation", 1)
+			if outstanding := backlog - ledger.phaseDeferred("consolidation"); outstanding > 0 {
+				ledger.addDeferred("consolidation", outstanding)
 			}
 		} else {
 			ledger.addError("consolidation_backlog: " + err.Error())
 		}
 	}
-	if consolidationBudgetExpired && ledger.phaseDeferred("consolidation") == 0 {
+	if consolidationEnabled && consolidationBudgetExpired && ledger.phaseDeferred("consolidation") == 0 {
 		ledger.addDeferred("consolidation", 1)
 	}
-	if consolidationBudgetExpired {
+	if consolidationEnabled && consolidationBudgetExpired {
 		ledger.addPhaseCode("consolidation", "phase_budget_exhausted")
 	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "consolidation") {
@@ -437,6 +461,9 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			ledger.addDeferred("memory_optimization", 1)
 		} else {
 			memoryMaintenanceResult := runPostConsolidationMemoryOptimizationWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
+			for _, err := range memoryMaintenanceResult.Errors {
+				ledger.recordError("memory_optimization", err)
+			}
 			if memoryMaintenanceResult.KGOptimizeErr != nil {
 				ledger.addError("kg_optimize: " + memoryMaintenanceResult.KGOptimizeErr.Error())
 			}
@@ -447,7 +474,7 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	} else {
 		ledger.skipPhase("memory_optimization")
 	}
-	ledger.beginPhase("agent_loop")
+	ledger.beginPhase("skill_quality")
 
 	// Deterministic skill quality review runs before the free-form maintenance
 	// agent. It is provenance-gated and never exposes source in the run ledger.
@@ -457,10 +484,19 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	ledger.phaseResults.SkillsDeleted = skillResult.Deleted
 	ledger.phaseResults.SkillsReviewRequired = skillResult.ReviewRequired
 	ledger.phaseResults.SkillActions = skillResult.Actions
+	skillOutcome := maintenancePhaseOutcome{Skipped: skillResult.Skipped, Processed: skillResult.Reviewed}
+	if skillResult.Deferred {
+		skillOutcome.Deferred = 1
+	}
+	for range skillResult.Errors {
+		skillOutcome.ErrorCodes = appendUniqueMaintenanceCode(skillOutcome.ErrorCodes, "skill_quality_failed")
+	}
+	ledger.applyOutcome("skill_quality", skillOutcome)
 	if maintenanceContextDone(taskCtx, ledger, logger, "skill_quality") {
 		return
 	}
 
+	ledger.beginPhase("prompt_load")
 	// 1. Load Maintenance Prompt
 	promptPath := filepath.Join(cfg.Directories.PromptsDir, "maintenance.md")
 	maintenancePrompt, err := os.ReadFile(promptPath)
@@ -468,17 +504,11 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		logger.Error("[Maintenance] Failed to read maintenance prompt", "error", err)
 		ledger.markFailed()
 		ledger.addError("maintenance_prompt: " + err.Error())
-		recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, planner.OperationalIssue{
-			Source:     "maintenance",
-			Title:      "Maintenance prompt could not be read",
-			Detail:     err.Error(),
-			Severity:   "error",
-			Reference:  promptPath,
-			OccurredAt: time.Now(),
-		}, logger)
 		return
 	}
 
+	ledger.finishPhase("prompt_load", false)
+	ledger.beginPhase("agent_loop")
 	// 2. Prepare the request
 	req := openai.ChatCompletionRequest{
 		Model: cfg.LLM.Model,
@@ -490,7 +520,8 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	sessionID := "maintenance"
 
 	// 3. Execute reasoning loop
-	if maintenanceContextDone(taskCtx, ledger, logger, "agent_loop") {
+	if taskCtx.Err() != nil {
+		maintenanceContextDone(taskCtx, ledger, logger, "agent_loop")
 		return
 	}
 
@@ -524,15 +555,6 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if err != nil {
 		logger.Error("[Maintenance] Agent loop failed", "error", err)
 		ledger.addError("agent_loop: " + err.Error())
-		recordOperationalIssue(runCfg, planner.OperationalIssue{
-			Source:     "maintenance",
-			Context:    sessionID,
-			Title:      "Maintenance agent loop failed",
-			Detail:     err.Error(),
-			Severity:   "error",
-			Reference:  "daily_maintenance",
-			OccurredAt: time.Now(),
-		}, logger)
 		return
 	}
 
@@ -541,15 +563,6 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	} else {
 		logger.Warn("[Maintenance] Agent returned no choices")
 		ledger.addError("agent_loop: no assistant choices returned")
-		recordOperationalIssue(runCfg, planner.OperationalIssue{
-			Source:     "maintenance",
-			Context:    sessionID,
-			Title:      "Maintenance agent returned no response",
-			Detail:     "The daily maintenance agent loop completed without any assistant choices.",
-			Severity:   "warning",
-			Reference:  "daily_maintenance",
-			OccurredAt: time.Now(),
-		}, logger)
 	}
 	ledger.finishPhase("agent_loop", false)
 }
@@ -581,7 +594,7 @@ func maintenanceContextDone(ctx context.Context, ledger *maintenanceRunLedger, l
 }
 
 // personalityMaintenance performs daily trait decay and appends a character journal entry.
-func personalityMaintenance(ctx context.Context, cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) {
+func personalityMaintenance(ctx context.Context, cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) (resultErr error) {
 	// 1. Trait decay: nudge all traits toward 0.5, respecting the personality profile's decay rate
 	meta := prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality)
 	// Decay amount was previously 0.002 which is practically invisible (250 days to decay from 1.0 to 0.5).
@@ -589,12 +602,14 @@ func personalityMaintenance(ctx context.Context, cfg *config.Config, stm *memory
 	// developed personality when interactions are frequent.
 	decayAmount := 0.02 * meta.TraitDecayRate
 	if err := stm.DecayAllTraitsWeighted(decayAmount, meta); err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Personality] Trait decay failed", "error", err)
 	} else {
 		logger.Info("[Personality] Daily weighted trait decay applied", "amount", decayAmount, "decay_rate", meta.TraitDecayRate)
 	}
 
 	if deleted, err := stm.CleanupAffectEvents(30, 200); err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Affect] Event log cleanup failed", "error", err)
 	} else if deleted > 0 {
 		logger.Info("[Affect] Event log cleaned up", "deleted", deleted)
@@ -604,30 +619,34 @@ func personalityMaintenance(ctx context.Context, cfg *config.Config, stm *memory
 	if cfg.Personality.EmotionSynthesizer.Enabled {
 		deleted, err := stm.CleanupEmotionHistory(30, cfg.Personality.EmotionSynthesizer.MaxHistoryEntries)
 		if err != nil {
+			resultErr = errors.Join(resultErr, err)
 			logger.Error("[EmotionSynthesizer] Emotion history cleanup failed", "error", err)
 		} else if deleted > 0 {
 			logger.Info("[EmotionSynthesizer] Emotion history cleaned up", "deleted", deleted)
 		}
 	}
 
-	runCharacterReflection(ctx, cfg, stm, logger)
+	resultErr = errors.Join(resultErr, runCharacterReflection(ctx, cfg, stm, logger))
 
 	// 3. Character journal: append today's snapshot to data/character_journal.md
 	traits, err := stm.GetTraits()
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Personality] Cannot read traits for journal", "error", err)
 		return
 	}
 	mood := stm.GetCurrentMood()
-	milestones, _ := stm.GetMilestones(3)
+	milestones, milestoneErr := stm.GetMilestones(3)
+	resultErr = errors.Join(resultErr, milestoneErr)
 
 	journalPath := filepath.Join(cfg.Directories.DataDir, "character_journal.md")
 	f, err := os.OpenFile(journalPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Personality] Cannot open character journal", "error", err)
 		return
 	}
-	defer f.Close()
+	defer func() { resultErr = errors.Join(resultErr, f.Close()) }()
 
 	entry := fmt.Sprintf("\n## %s\n**Mood:** %s\n**Traits:** C:%.2f T:%.2f Cr:%.2f E:%.2f Co:%.2f A:%.2f L:%.2f\n",
 		time.Now().Format("2006-01-02"),
@@ -648,14 +667,16 @@ func personalityMaintenance(ctx context.Context, cfg *config.Config, stm *memory
 	}
 
 	if _, err := f.WriteString(entry); err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Personality] Failed to write journal entry", "error", err)
 	} else {
 		logger.Info("[Personality] Character journal updated")
 	}
+	return resultErr
 }
 
-// generateDailySummary creates an LLM-generated summary for today based on journal entries.
-func generateDailySummary(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory) error {
+// generateDailySummary summarizes the requested journal date.
+func generateDailySummary(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, dates ...string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -664,9 +685,14 @@ func generateDailySummary(ctx context.Context, cfg *config.Config, logger *slog.
 		return err
 	}
 	today := time.Now().Format("2006-01-02")
+	if len(dates) > 0 {
+		today = dates[0]
+	}
 
 	// Check if a summary already exists for today
-	if existing, _ := stm.GetDailySummary(today); existing != nil {
+	if existing, err := stm.GetDailySummary(today); err != nil {
+		return err
+	} else if existing != nil {
 		logger.Debug("[Journal] Daily summary already exists", "date", today)
 		return nil
 	}
@@ -683,7 +709,7 @@ func generateDailySummary(ctx context.Context, cfg *config.Config, logger *slog.
 
 	journalInput := buildDailySummaryJournalInput(entries)
 
-	prompt := fmt.Sprintf(`Summarize the following activity log from today (%s) in 2-3 concise sentences.
+	prompt := fmt.Sprintf(`Summarize the following activity log for the completed date %s in 2-3 concise sentences.
 Focus on: what was accomplished, key decisions, and notable events.
 Output ONLY the summary text, no JSON or formatting.
 
@@ -693,7 +719,7 @@ Activity log:
 	summaryClient, summaryModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 	if summaryClient == nil || summaryModel == "" {
 		logger.Warn("[Journal] Daily summary skipped: no helper/main LLM available")
-		return nil
+		return fmt.Errorf("daily summary LLM unavailable")
 	}
 
 	resp, err := llm.ExecuteWithRetry(
@@ -718,8 +744,11 @@ Activity log:
 		return fmt.Errorf("daily summary llm returned no choices")
 	}
 
-	storeDailySummaryText(stm, logger, today, entries, resp.Choices[0].Message.Content)
-	return nil
+	if resp.Choices[0].FinishReason == openai.FinishReasonLength {
+		return fmt.Errorf("daily summary completion truncated")
+	}
+	_, err = storeDailySummaryText(stm, logger, today, entries, resp.Choices[0].Message.Content)
+	return err
 }
 
 func uniqueTopics(in []string) []string {
@@ -799,10 +828,10 @@ func buildKGExtractionInput(messages []openai.ChatCompletionMessage, entries []m
 	return strings.TrimSpace(strings.Join(sections, "\n\n"))
 }
 
-func storeDailySummaryText(stm *memory.SQLiteMemory, logger *slog.Logger, today string, entries []memory.JournalEntry, summaryText string) {
+func storeDailySummaryText(stm *memory.SQLiteMemory, logger *slog.Logger, today string, entries []memory.JournalEntry, summaryText string) (bool, error) {
 	summaryText = strings.TrimSpace(summaryText)
 	if stm == nil || summaryText == "" {
-		return
+		return false, fmt.Errorf("daily summary is empty or store unavailable")
 	}
 
 	summary := memory.DailySummary{
@@ -824,9 +853,12 @@ func storeDailySummaryText(stm *memory.SQLiteMemory, logger *slog.Logger, today 
 	summary.ToolUsage = toolUsage
 	summary.KeyTopics = uniqueTopics(topics)
 
-	if err := stm.InsertDailySummary(summary); err != nil {
-		logger.Error("[Journal] Failed to store daily summary", "error", err)
-		return
+	inserted, err := stm.InsertMaintenanceDailySummary(summary)
+	if err != nil {
+		return false, err
+	}
+	if !inserted {
+		return true, nil
 	}
 
 	logger.Info("[Journal] Daily summary stored", "date", today)
@@ -839,16 +871,18 @@ func storeDailySummaryText(stm *memory.SQLiteMemory, logger *slog.Logger, today 
 	}
 	if err := stm.UpsertDayAnchor(today, anchor); err != nil {
 		logger.Warn("[Journal] Failed to store day anchor", "error", err)
+		return true, err
 	}
+	return true, nil
 }
 
-func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []memory.Node, edges []memory.Edge, contentLength int) {
+func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []memory.Node, edges []memory.Edge, contentLength int) error {
 	if kg == nil {
-		return
+		return nil
 	}
 	if len(nodes) == 0 && len(edges) == 0 {
 		logger.Debug("[KG] No entities extracted")
-		return
+		return nil
 	}
 
 	// Compute extraction confidence based on heuristics.
@@ -879,48 +913,62 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 
 	if err := kg.BulkMergeExtractedEntities(nodes, edges); err != nil {
 		logger.Error("[KG] Failed to bulk-add extracted entities", "error", err)
-		return
+		return err
 	}
 
 	logger.Info("[KG] Nightly entity extraction complete", "nodes", len(nodes), "edges", len(edges), "confidence", confidenceStr)
+	return nil
 }
 
-func runBatchedMaintenanceSummaryAndKG(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) bool {
+func runBatchedMaintenanceSummaryAndKG(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, today string) maintenanceSummaryKGResult {
+	var outcome maintenanceSummaryKGResult
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[HelperLLM] Maintenance summary/KG batch skipped: maintenance context canceled", "error", err)
-		return false
+		outcome.SummaryErr, outcome.KGErr = err, err
+		return outcome
 	}
 	helperManager := newHelperLLMManager(cfg, logger)
 	if helperManager == nil || stm == nil || kg == nil {
-		return false
+		return outcome
 	}
 
-	today := time.Now().Format("2006-01-02")
-	if existing, _ := stm.GetDailySummary(today); existing != nil {
-		return false
+	if existing, err := stm.GetDailySummary(today); err != nil {
+		outcome.SummaryErr = err
+		return outcome
+	} else if existing != nil {
+		return outcome
 	}
 
 	entries, err := stm.GetJournalEntries(today, today, nil, 50)
 	if err != nil || len(entries) == 0 {
-		return false
+		outcome.SummaryErr = err
+		return outcome
 	}
 	messages, err := stm.GetRecentMessagesAcrossSessions(100)
 	if err != nil || len(messages) == 0 {
-		return false
+		outcome.KGErr = err
+		return outcome
 	}
-	turns, _ := stm.GetActivityTurnsForDate(today, 20)
+	turns, err := stm.GetActivityTurnsForDate(today, 20)
+	if err != nil {
+		outcome.KGErr = err
+		return outcome
+	}
 
 	journalInput := buildDailySummaryJournalInput(entries)
 	conversationInput := buildKGExtractionInput(messages, entries, turns)
 	if journalInput == "" || len(conversationInput) < 50 {
-		return false
+		return outcome
 	}
 
 	existingNodesString := ""
-	if existingNodes, err := kg.GetAllNodes(150); err == nil && len(existingNodes) > 0 {
+	if existingNodes, err := kg.GetAllNodes(150); err != nil {
+		outcome.KGErr = err
+		return outcome
+	} else if len(existingNodes) > 0 {
 		var contexts []string
 		for _, n := range existingNodes {
 			contexts = append(contexts, fmt.Sprintf("- ID: %s, Label: %s", n.ID, n.Label))
@@ -935,49 +983,53 @@ func runBatchedMaintenanceSummaryAndKG(ctx context.Context, cfg *config.Config, 
 	if err != nil {
 		helperManager.ObserveFallback("maintenance_summary_kg", err.Error())
 		logger.Warn("[HelperLLM] Maintenance summary/KG batch failed, falling back", "error", err)
-		return false
+		outcome.SummaryErr, outcome.KGErr = err, err
+		return outcome
 	}
-	if result.DailySummary == "" {
-		helperManager.ObserveFallback("maintenance_summary_kg", "empty daily summary")
-		logger.Warn("[HelperLLM] Maintenance batch returned empty daily summary, falling back")
-		return false
-	}
-
-	storeDailySummaryText(stm, logger, today, entries, result.DailySummary)
-	storeKGExtraction(logger, kg, result.KGExtraction.Nodes, result.KGExtraction.Edges, len(conversationInput))
-	return true
+	return persistMaintenanceSummaryAndKG(stm, kg, logger, today, entries, result, len(conversationInput))
 }
 
 // extractKGEntities performs nightly batch entity extraction from the past 24h of messages.
 // Uses an LLM call to extract entities and relationships, then bulk-adds to the knowledge graph.
 // This is a conversation-specific adapter around ExtractKGFromText.
-func extractKGEntities(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
+func extractKGEntities(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[KG] Entity extraction skipped: maintenance context canceled", "error", err)
-		return
+		return err
 	}
 	today := time.Now().Format("2006-01-02")
 
 	// Collect recent messages across all sessions.
 	messages, err := stm.GetRecentMessagesAcrossSessions(100)
-	if err != nil || len(messages) == 0 {
-		logger.Debug("[KG] No recent messages for entity extraction")
-		return
+	if err != nil {
+		return err
 	}
-	entries, _ := stm.GetJournalEntries(today, today, nil, 30)
-	turns, _ := stm.GetActivityTurnsForDate(today, 20)
+	if len(messages) == 0 {
+		logger.Debug("[KG] No recent messages for entity extraction")
+		return nil
+	}
+	entries, err := stm.GetJournalEntries(today, today, nil, 30)
+	if err != nil {
+		return err
+	}
+	turns, err := stm.GetActivityTurnsForDate(today, 20)
+	if err != nil {
+		return err
+	}
 
 	conversationExcerpt := buildKGExtractionInput(messages, entries, turns)
 	if len(conversationExcerpt) < 50 {
 		logger.Debug("[KG] Not enough conversation content for entity extraction")
-		return
+		return nil
 	}
 
 	existingNodesString := ""
-	if existingNodes, err := kg.GetAllNodes(150); err == nil && len(existingNodes) > 0 {
+	if existingNodes, err := kg.GetAllNodes(150); err != nil {
+		return fmt.Errorf("read existing KG extraction nodes: %w", err)
+	} else if len(existingNodes) > 0 {
 		var contexts []string
 		for _, n := range existingNodes {
 			contexts = append(contexts, fmt.Sprintf("- ID: %s, Label: %s", n.ID, n.Label))
@@ -988,10 +1040,10 @@ func extractKGEntities(ctx context.Context, cfg *config.Config, logger *slog.Log
 	nodes, edges, err := kgextraction.ExtractKGFromTextWithContext(ctx, cfg, logger, client, conversationExcerpt, existingNodesString)
 	if err != nil {
 		logger.Warn("[KG] Entity extraction failed", "error", err)
-		return
+		return err
 	}
 
-	storeKGExtraction(logger, kg, nodes, edges, len(conversationExcerpt))
+	return storeKGExtraction(logger, kg, nodes, edges, len(conversationExcerpt))
 }
 
 const helperConsolidationBatchSize = 2
@@ -1179,32 +1231,37 @@ func finalizeConsolidationBatch(
 	stored, skipped int,
 	storeErr error,
 	batchIndex, batchTotal int,
-) (success bool, storedCount int) {
+) (success bool, storedCount int, resultErr error) {
 	if storeErr != nil {
-		return false, 0
+		return false, 0, storeErr
 	}
 	validFacts := countValidConsolidationFacts(facts)
 	ok, reason := shouldMarkConsolidationSuccess(stored, skipped, len(facts), validFacts)
 	if !ok {
 		logger.Warn("[Consolidation] Batch not consolidated", "batch", batchIndex, "reason", reason, "stored", stored, "skipped", skipped, "facts", len(facts), "valid_facts", validFacts)
-		_ = stm.MarkConsolidationFailure(item.messageIDs, reason)
-		return false, 0
+		if err := stm.MarkConsolidationFailure(item.messageIDs, reason); err != nil {
+			return false, 0, fmt.Errorf("mark consolidation failure: %w", err)
+		}
+		return false, 0, nil
 	}
 	if reason == "all_duplicates" {
 		logger.Info("[Consolidation] Batch consolidated with duplicate-only facts", "batch", batchIndex, "skipped", skipped, "facts", len(facts), "valid_facts", validFacts)
 	}
 	if err := stm.MarkConsolidationSuccess(item.messageIDs); err != nil {
 		logger.Error("[Consolidation] Failed to mark batch as consolidated", "batch", batchIndex, "error", err)
-		_ = stm.MarkConsolidationFailure(item.messageIDs, fmt.Sprintf("mark_success_failed: %v", err))
-		return false, 0
+		failureErr := stm.MarkConsolidationFailure(item.messageIDs, fmt.Sprintf("mark_success_failed: %v", err))
+		return false, 0, errors.Join(fmt.Errorf("mark consolidation success: %w", err), failureErr)
 	}
-	recordConsolidationBatchEpisode(stm, item.messages, stored, skipped, len(facts), batchIndex, batchTotal)
-	return true, stored
+	if err := recordConsolidationBatchEpisode(stm, item.messages, stored, skipped, len(facts), batchIndex, batchTotal); err != nil {
+		logger.Warn("[Consolidation] Failed to record batch episode", "batch", batchIndex, "error", err)
+		return true, stored, fmt.Errorf("record consolidation batch episode: %w", err)
+	}
+	return true, stored, nil
 }
 
-func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.ArchivedMessage, stored, skipped, factsCount, batchIndex, batchTotal int) {
+func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.ArchivedMessage, stored, skipped, factsCount, batchIndex, batchTotal int) error {
 	if stm == nil || len(batch) == 0 {
-		return
+		return nil
 	}
 	eventDate := time.Now().Format("2006-01-02")
 	if len(batch[0].Timestamp) >= 10 {
@@ -1216,7 +1273,7 @@ func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.Ar
 		"session_id": batch[0].SessionID,
 		"batch":      fmt.Sprintf("%d/%d", batchIndex, batchTotal),
 	}
-	_ = stm.InsertEpisodicMemoryWithDetails(eventDate, episodeTitle, episodeSummary, episodeDetails, 2, "consolidation", memory.EpisodicMemoryDetails{
+	return stm.InsertEpisodicMemoryWithDetails(eventDate, episodeTitle, episodeSummary, episodeDetails, 2, "consolidation", memory.EpisodicMemoryDetails{
 		SessionID:        batch[0].SessionID,
 		HierarchyLevel:   1,
 		Participants:     []string{"user", "agent"},
@@ -1323,6 +1380,7 @@ const maintenanceProtectedTailReserve = 90 * time.Second
 const maintenanceOptimizationMinimum = 30 * time.Second
 
 type nightlyMemoryMaintenanceResult struct {
+	Errors        []error
 	KGOptimizeErr error
 }
 
@@ -1341,44 +1399,58 @@ func runNightlyMemoryMaintenanceWithContext(ctx context.Context, cfg *config.Con
 	if stm == nil {
 		return result
 	}
-	metas := loadNightlyMemoryMeta(ctx, cfg, logger, stm, ltm)
+	metas, err := loadNightlyMemoryMeta(ctx, cfg, logger, stm, ltm)
+	if err != nil {
+		result.Errors = append(result.Errors, err)
+		return result
+	}
 	if cfg != nil && cfg.Consolidation.AutoOptimize && totalStored > 0 && ctx.Err() == nil {
 		optimizeResult := autoOptimizeMemoryWithContext(ctx, cfg, logger, client, ltm, stm, kg, metas)
 		result.KGOptimizeErr = optimizeResult.KGOptimizeErr
+		result.Errors = append(result.Errors, optimizeResult.Errors...)
 	}
-	runNightlyMemoryHygieneWithContext(ctx, cfg, logger, stm, ltm, metas)
+	if err := runNightlyMemoryHygieneWithContext(ctx, cfg, logger, stm, ltm, metas); err != nil {
+		result.Errors = append(result.Errors, err)
+	}
 	return result
 }
 
 // runNightlyMemoryBaselineWithContext performs the bounded deterministic memory
 // work before LLM-heavy maintenance phases can consume the run deadline.
-func runNightlyMemoryBaselineWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) {
+func runNightlyMemoryBaselineWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if ctx.Err() != nil || stm == nil {
-		return
+		return ctx.Err()
 	}
-	metas := loadNightlyMemoryMeta(ctx, cfg, logger, stm, ltm)
-	runNightlyMemoryHygieneWithContext(ctx, cfg, logger, stm, ltm, metas)
+	metas, err := loadNightlyMemoryMeta(ctx, cfg, logger, stm, ltm)
+	if err != nil {
+		return err
+	}
+	return runNightlyMemoryHygieneWithContext(ctx, cfg, logger, stm, ltm, metas)
 }
 
-func loadNightlyMemoryMeta(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) []memory.MemoryMeta {
+func loadNightlyMemoryMeta(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB) ([]memory.MemoryMeta, error) {
+	var resultErr error
 	if stm == nil || ctx.Err() != nil {
-		return nil
+		return nil, ctx.Err()
 	}
 	metas, err := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Warn("[Maintenance] Failed to fetch memory metadata for nightly memory maintenance", "error", err)
 	}
 	if cfg != nil && cfg.Consolidation.MemoryMetaBudget > 0 && ltm != nil {
 		if evicted, err := stm.ApplyMemoryBudgetEnforcement(cfg.Consolidation.MemoryMetaBudget, ltm); err != nil {
+			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[Maintenance] Memory meta budget enforcement failed", "error", err, "budget", cfg.Consolidation.MemoryMetaBudget)
 		} else if evicted > 0 {
 			logger.Info("[Maintenance] Memory meta budget enforced", "evicted", evicted, "budget", cfg.Consolidation.MemoryMetaBudget)
 			InvalidateMemoryMetaCache()
 			refreshed, refreshErr := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 			if refreshErr != nil {
+				resultErr = errors.Join(resultErr, refreshErr)
 				logger.Warn("[Maintenance] Failed to refresh memory metadata after budget enforcement", "error", refreshErr)
 				metas = nil
 			} else {
@@ -1386,21 +1458,20 @@ func loadNightlyMemoryMeta(ctx context.Context, cfg *config.Config, logger *slog
 			}
 		}
 	}
-	return metas
+	return metas, resultErr
 }
 
-func runNightlyMemoryHygieneWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, metas []memory.MemoryMeta) {
+func runNightlyMemoryHygieneWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, metas []memory.MemoryMeta) error {
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Maintenance] Stopping nightly memory maintenance: maintenance context canceled", "error", err)
-		return
+		return err
 	}
-	autoCurateMemory(cfg, logger, stm, metas)
+	curationErr := autoCurateMemory(cfg, logger, stm, metas)
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Maintenance] Stopping memory conflict scan: maintenance context canceled", "error", err)
-		return
+		return err
 	}
-	detectMemoryConflictsAcrossLTMWithContext(ctx, logger, stm, ltm, metas)
-	return
+	return errors.Join(curationErr, detectMemoryConflictsAcrossLTMWithContext(ctx, logger, stm, ltm, metas))
 }
 
 func runPostConsolidationMemoryOptimizationWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) (result nightlyMemoryMaintenanceResult) {
@@ -1413,9 +1484,12 @@ func runPostConsolidationMemoryOptimizationWithContext(ctx context.Context, cfg 
 	metas, err := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 	if err != nil {
 		logger.Warn("[Maintenance] Failed to fetch memory metadata for post-consolidation optimization", "error", err)
+		result.Errors = append(result.Errors, err)
+		return result
 	}
 	optimizeResult := autoOptimizeMemoryWithContext(ctx, cfg, logger, client, ltm, stm, kg, metas)
 	result.KGOptimizeErr = optimizeResult.KGOptimizeErr
+	result.Errors = append(result.Errors, optimizeResult.Errors...)
 	return result
 }
 
@@ -1423,18 +1497,19 @@ func runPostConsolidationMemoryMaintenance(cfg *config.Config, logger *slog.Logg
 	runNightlyMemoryMaintenance(cfg, logger, client, stm, ltm, kg, totalStored)
 }
 
-func cleanConsolidationArchivedMessages(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) {
+func cleanConsolidationArchivedMessages(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory) error {
 	if cfg == nil || stm == nil || cfg.Consolidation.ArchiveRetainDays <= 0 {
-		return
+		return nil
 	}
 	cleaned, err := stm.CleanOldArchivedMessages(cfg.Consolidation.ArchiveRetainDays)
 	if err != nil {
 		logger.Error("[Consolidation] Failed to clean old archived messages", "error", err)
-		return
+		return err
 	}
 	if cleaned > 0 {
 		logger.Info("[Consolidation] Cleaned old archived messages", "deleted", cleaned)
 	}
+	return nil
 }
 
 // consolidateSTMtoLTM extracts knowledge from archived STM messages and stores it in the VectorDB.
@@ -1451,6 +1526,7 @@ type consolidationRunBudget struct {
 type consolidationRunBudgetContextKey struct{}
 
 type consolidationRunResult struct {
+	Errors               []error
 	FactsStored          int
 	MessagesConsolidated int
 	MessagesClaimed      int
@@ -1470,9 +1546,14 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		}
 		budget = &consolidationRunBudget{remaining: maxMessages}
 		ctx = context.WithValue(ctx, consolidationRunBudgetContextKey{}, budget)
-		defer cleanConsolidationArchivedMessages(cfg, logger, stm)
+		defer func() {
+			if err := cleanConsolidationArchivedMessages(cfg, logger, stm); err != nil {
+				result.Errors = append(result.Errors, err)
+			}
+		}()
 		excluded, excludeErr := stm.FinalizeIneligibleConsolidationCandidates()
 		if excludeErr != nil {
+			result.Errors = append(result.Errors, excludeErr)
 			logger.Warn("[Consolidation] Failed to exclude internal archive rows", "error", excludeErr)
 		} else if excluded > 0 {
 			result.MessagesExcluded = int(excluded)
@@ -1480,6 +1561,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		}
 	}
 	if err := ctx.Err(); err != nil {
+		result.Errors = append(result.Errors, err)
 		logger.Warn("[Consolidation] STM->LTM consolidation skipped: maintenance context canceled", "error", err)
 		return result
 	}
@@ -1496,6 +1578,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 
 	if rootClaim {
 		if reclaimed, reclaimErr := stm.ReclaimStaleConsolidationClaims(30 * time.Minute); reclaimErr != nil {
+			result.Errors = append(result.Errors, reclaimErr)
 			logger.Warn("[Consolidation] Failed to reclaim stale in_progress rows", "error", reclaimErr)
 		} else if reclaimed > 0 {
 			logger.Info("[Consolidation] Reclaimed stale in_progress rows", "count", reclaimed)
@@ -1512,6 +1595,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 	}
 	archived, err := stm.ClaimConsolidationCandidates(claimLimit, 3)
 	if err != nil {
+		result.Errors = append(result.Errors, err)
 		logger.Error("[Consolidation] Failed to fetch unconsolidated messages", "error", err)
 		return result
 	}
@@ -1552,23 +1636,36 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 
 	processWorkItem := func(item consolidationWorkItem, batchIndex int) {
 		if err := ctx.Err(); err != nil {
+			result.Errors = append(result.Errors, err)
 			logger.Warn("[Consolidation] Batch skipped: maintenance context canceled", "batch", batchIndex, "error", err)
-			_ = stm.ReleaseConsolidationClaims(item.messageIDs)
+			if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
+				result.Errors = append(result.Errors, releaseErr)
+			}
 			return
 		}
 		facts, err := extractConsolidationFactsWithLLM(ctx, logger, consolidationClient, consolidationModel, item.conversation)
 		if err != nil {
+			result.Errors = append(result.Errors, err)
 			logger.Warn("[Consolidation] LLM extraction failed for batch", "batch", batchIndex, "error", err)
-			_ = stm.MarkConsolidationFailure(item.messageIDs, err.Error())
+			if markErr := stm.MarkConsolidationFailure(item.messageIDs, err.Error()); markErr != nil {
+				result.Errors = append(result.Errors, markErr)
+			}
 			return
 		}
 		stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
 		if storeErr != nil {
+			result.Errors = append(result.Errors, storeErr)
 			logger.Warn("[Consolidation] LTM storage failed for batch", "batch", batchIndex, "error", storeErr)
-			_ = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
+			if markErr := stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error()); markErr != nil {
+				result.Errors = append(result.Errors, markErr)
+			}
 			return
 		}
-		if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, batchIndex, len(workItems)); ok {
+		ok, storedCount, finalizeErr := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, batchIndex, len(workItems))
+		if finalizeErr != nil {
+			result.Errors = append(result.Errors, finalizeErr)
+		}
+		if ok {
 			result.FactsStored += storedCount
 			result.MessagesConsolidated += len(item.messageIDs)
 		}
@@ -1576,9 +1673,12 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 
 	for i := 0; i < len(workItems); {
 		if err := ctx.Err(); err != nil {
+			result.Errors = append(result.Errors, err)
 			logger.Warn("[Consolidation] Stopping STM->LTM consolidation: maintenance context canceled", "error", err)
 			for _, item := range workItems[i:] {
-				_ = stm.ReleaseConsolidationClaims(item.messageIDs)
+				if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
+					result.Errors = append(result.Errors, releaseErr)
+				}
 			}
 			break
 		}
@@ -1610,7 +1710,10 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			logger.Warn("[HelperLLM] Consolidation batch failed, splitting into single batches", "start_batch", i+1, "error", err)
 			for offset, item := range group {
 				if ctx.Err() != nil {
-					_ = stm.ReleaseConsolidationClaims(item.messageIDs)
+					result.Errors = append(result.Errors, ctx.Err())
+					if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
+						result.Errors = append(result.Errors, releaseErr)
+					}
 					continue
 				}
 				singleCtx, singleCancel := context.WithTimeout(ctx, 45*time.Second)
@@ -1619,16 +1722,26 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 				}})
 				singleCancel()
 				if singleErr != nil {
-					_ = stm.MarkConsolidationFailure(item.messageIDs, singleErr.Error())
+					result.Errors = append(result.Errors, singleErr)
+					if markErr := stm.MarkConsolidationFailure(item.messageIDs, singleErr.Error()); markErr != nil {
+						result.Errors = append(result.Errors, markErr)
+					}
 					continue
 				}
 				facts := singleResult.Batches[0].Facts
 				stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
 				if storeErr != nil {
-					_ = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
+					result.Errors = append(result.Errors, storeErr)
+					if markErr := stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error()); markErr != nil {
+						result.Errors = append(result.Errors, markErr)
+					}
 					continue
 				}
-				if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems)); ok {
+				ok, storedCount, finalizeErr := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems))
+				if finalizeErr != nil {
+					result.Errors = append(result.Errors, finalizeErr)
+				}
+				if ok {
 					result.FactsStored += storedCount
 					result.MessagesConsolidated += len(item.messageIDs)
 				}
@@ -1645,11 +1758,18 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			facts := byID[item.batchID]
 			stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
 			if storeErr != nil {
+				result.Errors = append(result.Errors, storeErr)
 				logger.Warn("[Consolidation] LTM storage failed for helper batch", "batch_id", item.batchID, "error", storeErr)
-				_ = stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error())
+				if markErr := stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error()); markErr != nil {
+					result.Errors = append(result.Errors, markErr)
+				}
 				continue
 			}
-			if ok, storedCount := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems)); ok {
+			ok, storedCount, finalizeErr := finalizeConsolidationBatch(logger, stm, item, facts, stored, skipped, nil, i+offset+1, len(workItems))
+			if finalizeErr != nil {
+				result.Errors = append(result.Errors, finalizeErr)
+			}
+			if ok {
 				result.FactsStored += storedCount
 				result.MessagesConsolidated += len(item.messageIDs)
 			}
@@ -1662,16 +1782,19 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		result.FactsStored += more.FactsStored
 		result.MessagesConsolidated += more.MessagesConsolidated
 		result.MessagesClaimed += more.MessagesClaimed
+		result.Errors = append(result.Errors, more.Errors...)
 	}
 
 	// Create one journal entry for the complete consolidation run.
 	if rootClaim && cfg.Tools.Journal.Enabled && result.FactsStored > 0 {
-		_, _ = stm.InsertJournalEntry(memory.JournalEntry{
+		if _, err := stm.InsertJournalEntry(memory.JournalEntry{
 			EntryType: "system",
 			Title:     "Nightly STM→LTM Consolidation",
 			Content:   fmt.Sprintf("Consolidated %d archived messages into %d LTM facts.", result.MessagesConsolidated, result.FactsStored),
 			Tags:      []string{"consolidation", "maintenance", "memory"},
-		})
+		}); err != nil {
+			result.Errors = append(result.Errors, fmt.Errorf("store consolidation journal: %w", err))
+		}
 	}
 
 	if rootClaim {
@@ -1792,8 +1915,9 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 			logger.Warn("[Hierarchy] Failed to store episodic synthesis", "group", groupKey, "error", err)
 			continue
 		}
+		var metadataErr error
 		for _, id := range owned.CreatedIDs {
-			resultErr = errors.Join(resultErr, stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+			metadataErr = errors.Join(metadataErr, stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
 				ExtractionConfidence: 0.88,
 				VerificationStatus:   "unverified",
 				SourceType:           "hierarchical_consolidation",
@@ -1801,10 +1925,11 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 			}))
 		}
 		for _, id := range owned.UnknownIDs {
-			resultErr = errors.Join(resultErr, stm.EnsureMemoryMeta(id))
+			metadataErr = errors.Join(metadataErr, stm.EnsureMemoryMeta(id))
 		}
-		if resultErr != nil {
-			return resultErr
+		if metadataErr != nil {
+			resultErr = errors.Join(resultErr, metadataErr, rollbackStoredConsolidationFacts(logger, stm, ltm, owned.CreatedIDs))
+			continue
 		}
 		if kg != nil {
 			uniqueParticipants := uniqueHierarchyStrings(nil)
@@ -1832,13 +1957,14 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 			episodeIDs = append(episodeIDs, episode.ID)
 			related = append(related, episode.RelatedDocIDs...)
 		}
-		resultErr = errors.Join(resultErr, stm.InsertEpisodicMemoryWithDetails(group[0].EventDate, "Hierarchical memory synthesis", truncateHierarchySummary(summary, 240), map[string]string{"group": groupKey}, 3, "hierarchical_consolidation", memory.EpisodicMemoryDetails{
+		episodeErr := stm.InsertEpisodicMemoryWithDetails(group[0].EventDate, "Hierarchical memory synthesis", truncateHierarchySummary(summary, 240), map[string]string{"group": groupKey}, 3, "hierarchical_consolidation", memory.EpisodicMemoryDetails{
 			SessionID:      group[0].SessionID,
 			HierarchyLevel: 2,
 			Participants:   uniqueHierarchyParticipants(group),
 			RelatedDocIDs:  uniqueHierarchyStrings(related),
-		}))
-		if resultErr == nil {
+		})
+		resultErr = errors.Join(resultErr, episodeErr)
+		if episodeErr == nil {
 			resultErr = errors.Join(resultErr, stm.MarkEpisodicMemoriesHierarchy(episodeIDs, 2))
 		}
 	}
@@ -1849,9 +1975,9 @@ func detectMemoryConflictsAcrossLTM(logger *slog.Logger, stm *memory.SQLiteMemor
 	detectMemoryConflictsAcrossLTMWithContext(context.Background(), logger, stm, ltm, prefetchedMetas)
 }
 
-func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, prefetchedMetas []memory.MemoryMeta) {
+func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, prefetchedMetas []memory.MemoryMeta) error {
 	if stm == nil || ltm == nil || ltm.IsDisabled() {
-		return
+		return nil
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -1861,17 +1987,19 @@ func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog
 		var err error
 		metas, err = stm.GetAllMemoryMeta(nightlyMemoryConflictScanLimit, 0)
 		if err != nil {
-			return
+			return err
 		}
 	} else if len(metas) > nightlyMemoryConflictScanLimit {
 		metas = metas[:nightlyMemoryConflictScanLimit]
 	}
+	var resultErr error
 	for _, meta := range metas {
 		if ctx.Err() != nil {
-			return
+			return errors.Join(resultErr, ctx.Err())
 		}
-		detectMemoryConflictsForDocIDs(logger, stm, ltm, []string{meta.DocID}, "")
+		resultErr = errors.Join(resultErr, detectMemoryConflictsForDocIDs(logger, stm, ltm, []string{meta.DocID}, ""))
 	}
+	return resultErr
 }
 
 func buildHierarchicalEpisodeSummary(group []memory.EpisodicMemory) string {
@@ -1933,11 +2061,14 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 }
 
 func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, prefetchedMetas []memory.MemoryMeta) (result autoOptimizeMemoryResult) {
+	// A partial replacement may have committed metadata even if retirement fails.
+	defer InvalidateMemoryMetaCache()
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[AutoOptimize] Memory optimization skipped: maintenance context canceled", "error", err)
+		result.Errors = append(result.Errors, err)
 		return result
 	}
 	threshold := cfg.Consolidation.OptimizeThreshold
@@ -2000,7 +2131,11 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 	workItems := make([]compressionWorkItem, 0, len(mediumDocs))
 	for _, docID := range mediumDocs {
 		content, err := ltm.GetByID(docID)
-		if err != nil || len(content) < 300 {
+		if err != nil {
+			result.Errors = append(result.Errors, err)
+			continue
+		}
+		if len(content) < 300 {
 			continue
 		}
 		meta, err := stm.GetMemoryMeta(docID)
@@ -2025,6 +2160,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 	compressOne := func(item compressionWorkItem) {
 		if err := ctx.Err(); err != nil {
 			logger.Warn("[AutoOptimize] Memory compression skipped: maintenance context canceled", "doc_id", item.docID, "error", err)
+			result.Errors = append(result.Errors, err)
 			return
 		}
 		compressCtx, compressCancel := context.WithTimeout(ctx, 60*time.Second)
@@ -2070,6 +2206,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 	for i := 0; i < len(workItems); {
 		if err := ctx.Err(); err != nil {
 			logger.Warn("[AutoOptimize] Stopping memory compression: maintenance context canceled", "error", err)
+			result.Errors = append(result.Errors, err)
 			break
 		}
 		if helperManager == nil {
@@ -2150,7 +2287,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 	return result
 }
 
-func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, prefetchedMetas []memory.MemoryMeta) {
+func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, prefetchedMetas []memory.MemoryMeta) (resultErr error) {
 	if cfg == nil || stm == nil {
 		return
 	}
@@ -2159,12 +2296,14 @@ func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLit
 		var err error
 		metas, err = stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 		if err != nil {
+			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[MemoryCurator] Failed to fetch memory metadata", "error", err)
 			return
 		}
 	}
 	usage, err := stm.GetMemoryUsageStats(30, 500)
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Warn("[MemoryCurator] Failed to fetch memory usage stats", "error", err)
 		usage = memory.MemoryUsageStats{WindowDays: 30}
 	}
@@ -2180,6 +2319,7 @@ func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLit
 	appliedArchive := 0
 	for _, action := range plan.AutoConfirm {
 		if err := stm.ApplyMemoryCurationAction(action, "system", false); err != nil {
+			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[MemoryCurator] Failed to confirm memory", "doc_id", action.DocID, "error", err)
 			continue
 		}
@@ -2187,6 +2327,7 @@ func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLit
 	}
 	for _, action := range plan.AutoArchive {
 		if err := stm.ApplyMemoryCurationAction(action, "system", false); err != nil {
+			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[MemoryCurator] Failed to archive memory", "doc_id", action.DocID, "error", err)
 			continue
 		}
@@ -2201,10 +2342,11 @@ func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLit
 			"archived", appliedArchive,
 			"review_required", plan.ReviewRequiredCount)
 	}
+	return resultErr
 }
 
 // SyncContactsToKnowledgeGraph synchronizes contacts to the knowledge graph.
-func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) (resultErr error) {
 	if contactsDB == nil || kg == nil {
 		return
 	}
@@ -2213,6 +2355,7 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 
 	rows, err := contactsDB.QueryContext(ctx, "SELECT id, name, email, phone, mobile, relationship, birthday FROM contacts")
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Maintenance] Failed to query contacts for KG sync", "error", err)
 		return
 	}
@@ -2222,6 +2365,7 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 		var id, name string
 		var email, phone, mobile, relationship, birthday sql.NullString
 		if err := rows.Scan(&id, &name, &email, &phone, &mobile, &relationship, &birthday); err != nil {
+			resultErr = errors.Join(resultErr, err)
 			logger.Error("[Maintenance] Failed to scan contact", "error", err)
 			continue
 		}
@@ -2248,6 +2392,7 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 
 		err := kg.AddNode(nodeID, name, props)
 		if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			resultErr = errors.Join(resultErr, err)
 			logger.Debug("[Maintenance] AddNode returned error", "nodeID", nodeID, "error", err)
 		}
 
@@ -2256,6 +2401,7 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 			relNodeID := "org_" + relSlug
 
 			if _, err := kg.PruneOutgoingRelationEdges(nodeID, "belongs_to", map[string]struct{}{relNodeID: {}}); err != nil {
+				resultErr = errors.Join(resultErr, err)
 				logger.Warn("[Maintenance] Failed to prune stale contact relationship edges",
 					"contact_node_id", nodeID,
 					"relationship_node_id", relNodeID,
@@ -2263,12 +2409,14 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 			}
 
 			if err := kg.AddNode(relNodeID, relationship.String, map[string]string{"type": "organization"}); err != nil {
+				resultErr = errors.Join(resultErr, err)
 				logger.Warn("[Maintenance] Failed to sync relationship org node to KG",
 					"contact_node_id", nodeID,
 					"relationship_node_id", relNodeID,
 					"relationship", relationship.String,
 					"error", err)
 			} else if err := kg.AddEdge(nodeID, relNodeID, "belongs_to", nil); err != nil {
+				resultErr = errors.Join(resultErr, err)
 				logger.Warn("[Maintenance] Failed to sync relationship edge to KG",
 					"contact_node_id", nodeID,
 					"relationship_node_id", relNodeID,
@@ -2277,10 +2425,11 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 			}
 		}
 	}
+	return errors.Join(resultErr, rows.Err(), ctx.Err())
 }
 
 // SyncPlannerToKnowledgeGraph synchronizes appointments and todos to the knowledge graph.
-func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg planner.KnowledgeGraph, logger *slog.Logger) {
+func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg planner.KnowledgeGraph, logger *slog.Logger) (resultErr error) {
 	if plannerDB == nil || kg == nil {
 		return
 	}
@@ -2289,11 +2438,13 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 
 	tracker := planner.NewKGSyncTracker()
 	if err := planner.EnsurePlannerWorkspaceHub(kg, tracker); err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Debug("[Maintenance] Failed to ensure planner workspace hub", "error", err)
 	}
 
 	appointments, err := planner.ListAppointments(plannerDB, "", "")
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Maintenance] Failed to list appointments for KG sync", "error", err)
 	} else {
 		for _, a := range appointments {
@@ -2302,10 +2453,12 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 			}
 			contactIDs, contactErr := planner.GetAppointmentContactIDs(plannerDB, a.ID)
 			if contactErr != nil {
+				resultErr = errors.Join(resultErr, contactErr)
 				logger.Debug("[Maintenance] Failed to load appointment contacts for KG sync", "appointment_id", a.ID, "error", contactErr)
 				continue
 			}
 			if err := planner.SyncAppointmentKGRecord(kg, a, contactIDs, tracker); err != nil {
+				resultErr = errors.Join(resultErr, err)
 				logger.Debug("[Maintenance] Failed to sync appointment to KG", "nodeID", a.KGNodeID, "error", err)
 			}
 		}
@@ -2313,36 +2466,45 @@ func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg plan
 
 	todos, err := planner.ListTodos(plannerDB, "", "")
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Maintenance] Failed to list todos for KG sync", "error", err)
 		return
 	}
 	for _, t := range todos {
 		if err := planner.SyncTodoKGRecord(kg, t, tracker); err != nil {
+			resultErr = errors.Join(resultErr, err)
 			logger.Debug("[Maintenance] Failed to sync todo to KG", "nodeID", t.KGNodeID, "error", err)
 		}
 	}
 
+	if resultErr != nil || ctx.Err() != nil {
+		return errors.Join(resultErr, ctx.Err())
+	}
 	if removed, err := kg.DeleteStalePlannerSyncEdges(tracker.ExpectedEdges, tracker.ActivePlannerNodes); err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Warn("[Maintenance] Failed to clean stale planner KG edges", "error", err)
 	} else if removed > 0 {
 		logger.Info("[Maintenance] Removed stale planner KG edges", "removed", removed)
 	}
 
 	if removed, err := kg.PruneStalePlannerRootNodes(tracker.ActivePlannerNodes); err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Warn("[Maintenance] Failed to prune stale planner KG nodes", "error", err)
 	} else if removed > 0 {
 		logger.Info("[Maintenance] Removed stale planner KG nodes", "removed", removed)
 	}
 
 	if removed, err := kg.PruneStalePlannerItemNodes(tracker.ActivePlannerNodes); err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Warn("[Maintenance] Failed to prune stale planner KG item nodes", "error", err)
 	} else if removed > 0 {
 		logger.Info("[Maintenance] Removed stale planner KG item nodes", "removed", removed)
 	}
+	return resultErr
 }
 
 // SyncCoreMemoryToKnowledgeGraph synchronizes core memory facts to the knowledge graph.
-func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger) (resultErr error) {
 	if stm == nil || kg == nil {
 		return
 	}
@@ -2351,6 +2513,7 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 
 	facts, err := stm.GetCoreMemoryFacts()
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Error("[Maintenance] Failed to get core memory facts for KG sync", "error", err)
 		return
 	}
@@ -2371,12 +2534,17 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 
 		err := kg.AddNode(nodeID, label, props)
 		if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			resultErr = errors.Join(resultErr, err)
 			logger.Debug("[Maintenance] AddNode returned error", "nodeID", nodeID, "error", err)
 		}
 	}
 
+	if resultErr != nil || ctx.Err() != nil {
+		return errors.Join(resultErr, ctx.Err())
+	}
 	nodes, err := kg.ListNodesByIDPrefix("core_fact_", 10000)
 	if err != nil {
+		resultErr = errors.Join(resultErr, err)
 		logger.Debug("[Maintenance] Failed to list core memory KG nodes", "error", err)
 		return
 	}
@@ -2385,7 +2553,9 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 			continue
 		}
 		if err := kg.DeleteNode(node.ID); err != nil {
+			resultErr = errors.Join(resultErr, err)
 			logger.Debug("[Maintenance] Failed to delete stale core memory KG node", "nodeID", node.ID, "error", err)
 		}
 	}
+	return resultErr
 }

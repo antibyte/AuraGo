@@ -16,6 +16,61 @@ type maintenanceRunLedger struct {
 	phaseStarted time.Time
 }
 
+// maintenancePhaseOutcome is internal; the persisted ledger remains stable.
+// Helpers report observed work and failures without deciding public run status.
+type maintenancePhaseOutcome struct {
+	Skipped    bool
+	Failed     bool
+	Processed  int
+	Deferred   int
+	ErrorCodes []string
+}
+
+func (l *maintenanceRunLedger) applyOutcome(name string, outcome maintenancePhaseOutcome) {
+	if outcome.Skipped {
+		l.skipPhase(name)
+		return
+	}
+	l.addProcessed(name, outcome.Processed)
+	l.addDeferred(name, outcome.Deferred)
+	for _, code := range outcome.ErrorCodes {
+		l.addError(code)
+	}
+	if outcome.Failed {
+		l.markFailed()
+	}
+	l.finishPhase(name, false)
+}
+
+func (l *maintenanceRunLedger) recordError(code string, err error) {
+	if err != nil {
+		l.addError(code + ": " + err.Error())
+	}
+}
+
+// recordNamedError preserves failures from combined work even when cancellation
+// prevents reaching the phase that owns the failed half.
+func (l *maintenanceRunLedger) recordNamedError(name, code string, err error) {
+	if l == nil || err == nil {
+		return
+	}
+	code = sanitizeMaintenanceErrorCode(code)
+	l.phaseResults.Errors = appendUniqueMaintenanceCode(l.phaseResults.Errors, code)
+	for i := range l.phaseResults.Phases {
+		phase := &l.phaseResults.Phases[i]
+		if phase.Name == name {
+			phase.ErrorCodes = appendUniqueMaintenanceCode(phase.ErrorCodes, code)
+			if phase.Status != "failed" {
+				phase.Status = "partial"
+			}
+			return
+		}
+	}
+	l.phaseResults.Phases = append(l.phaseResults.Phases, memory.MaintenancePhaseResult{
+		Name: name, Status: "partial", ErrorCodes: []string{code},
+	})
+}
+
 func newMaintenanceRunLedger() *maintenanceRunLedger {
 	return &maintenanceRunLedger{phaseStarted: time.Now()}
 }
@@ -41,6 +96,11 @@ func (l *maintenanceRunLedger) markFailed() {
 		return
 	}
 	l.failed = true
+	for i := range l.phaseResults.Phases {
+		if l.phaseResults.Phases[i].Name == l.currentPhase {
+			l.phaseResults.Phases[i].Status = "failed"
+		}
+	}
 }
 
 func (l *maintenanceRunLedger) status() string {
@@ -56,6 +116,11 @@ func (l *maintenanceRunLedger) status() string {
 	if l.phaseResults.Deferred > 0 {
 		return "partial"
 	}
+	for _, phase := range l.phaseResults.Phases {
+		if phase.Status == "partial" || phase.Status == "running" {
+			return "partial"
+		}
+	}
 	return "completed"
 }
 
@@ -64,6 +129,10 @@ func (l *maintenanceRunLedger) beginPhase(name string) {
 		return
 	}
 	name = sanitizeMaintenanceErrorCode(name)
+	if l.currentPhase != "" && l.currentPhase != name {
+		l.addError("phase_not_finished")
+		l.finishPhase(l.currentPhase, true)
+	}
 	l.currentPhase = name
 	l.phaseStarted = time.Now()
 	for _, phase := range l.phaseResults.Phases {
@@ -137,10 +206,14 @@ func (l *maintenanceRunLedger) finishPhase(name string, deferred bool) {
 		if phase.Name != name {
 			continue
 		}
+		if phase.Status != "running" && phase.Status != "failed" {
+			return
+		}
 		if phase.DurationMS == 0 {
 			phase.DurationMS = now.Sub(l.phaseStarted).Milliseconds()
 		}
 		switch {
+		case phase.Status == "failed":
 		case deferred || phase.Deferred > 0:
 			phase.Status = "partial"
 		case len(phase.ErrorCodes) > 0:
@@ -204,6 +277,8 @@ type memoryHygieneStats struct {
 	JournalRemoved    int
 	NotesArchived     int
 	CanonicalRepaired int
+	Errors            []error
+	Deferred          int
 }
 
 // ComputeNextMaintenanceRun returns the next scheduled maintenance time in local time.

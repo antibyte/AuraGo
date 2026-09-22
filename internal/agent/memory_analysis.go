@@ -1116,7 +1116,7 @@ func normalizeMemoryReflectionRequest(req memoryReflectionRequest) memoryReflect
 	return memoryReflectionRequest{Scope: scope, Focus: focus, OutputFormat: outputFormat}
 }
 
-func buildMemoryReflectionInput(stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, _ memory.VectorDB, req memoryReflectionRequest) memoryReflectionInput {
+func buildMemoryReflectionInput(stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, _ memory.VectorDB, req memoryReflectionRequest) (memoryReflectionInput, error) {
 	req = normalizeMemoryReflectionRequest(req)
 	input := memoryReflectionInput{
 		Scope:        req.Scope,
@@ -1129,9 +1129,11 @@ func buildMemoryReflectionInput(stm *memory.SQLiteMemory, kg *memory.KnowledgeGr
 
 	if stm != nil {
 		from, to, limit := reflectionJournalWindow(req.Scope)
-		if entries, err := stm.GetJournalEntries(from, to, nil, limit); err == nil {
-			input.JournalEntries = entries
+		entries, err := stm.GetJournalEntries(from, to, nil, limit)
+		if err != nil {
+			return input, fmt.Errorf("read reflection journal entries: %w", err)
 		}
+		input.JournalEntries = entries
 		if req.Scope == "recent" || req.Scope == "day" || req.Scope == "monthly" || req.Scope == "session" || req.Scope == "project" {
 			days := 7
 			if req.Scope == "day" {
@@ -1139,30 +1141,48 @@ func buildMemoryReflectionInput(stm *memory.SQLiteMemory, kg *memory.KnowledgeGr
 			} else if req.Scope == "monthly" {
 				days = 30
 			}
-			if overview, err := stm.BuildRecentActivityOverview(days, true); err == nil && overview != nil {
+			overview, err := stm.BuildRecentActivityOverview(days, true)
+			if err != nil {
+				return input, fmt.Errorf("read reflection activity overview: %w", err)
+			}
+			if overview != nil {
 				input.RecentActivity = overview
 			}
 		}
-		if facts, err := stm.GetCoreMemoryFacts(); err == nil {
-			input.CoreMemoryFacts = facts
+		facts, err := stm.GetCoreMemoryFacts()
+		if err != nil {
+			return input, fmt.Errorf("read reflection core memory: %w", err)
 		}
-		if frequent, err := stm.GetFrequentErrors("", 10); err == nil {
-			input.FrequentErrors = frequent
+		input.CoreMemoryFacts = facts
+		frequent, err := stm.GetFrequentErrors("", 10)
+		if err != nil {
+			return input, fmt.Errorf("read reflection frequent errors: %w", err)
 		}
-		if recent, err := stm.GetRecentErrors(10); err == nil {
-			input.RecentErrors = recent
+		input.FrequentErrors = frequent
+		recent, err := stm.GetRecentErrors(10)
+		if err != nil {
+			return input, fmt.Errorf("read reflection recent errors: %w", err)
 		}
-		if rules, err := stm.GetLearnedRulesForTools(nil, 10); err == nil {
-			input.LearnedRules = rules
+		input.RecentErrors = recent
+		rules, err := stm.GetLearnedRulesForTools(nil, 10)
+		if err != nil {
+			return input, fmt.Errorf("read reflection learned rules: %w", err)
 		}
-		if previous, err := stm.GetJournalEntries("", "", []string{"reflection"}, 4); err == nil {
-			input.PreviousReflections = previous
+		input.LearnedRules = rules
+		previous, err := stm.GetJournalEntries("", "", []string{"reflection"}, 4)
+		if err != nil {
+			return input, fmt.Errorf("read previous reflections: %w", err)
 		}
-		if usageStats, usageErr := stm.GetMemoryUsageStats(14, 5); usageErr == nil {
-			if metas, metaErr := stm.GetAllMemoryMeta(50000, 0); metaErr == nil {
-				input.CuratorDryRun = memory.BuildMemoryHealthReport(metas, usageStats).Curator
-			}
+		input.PreviousReflections = previous
+		usageStats, err := stm.GetMemoryUsageStats(14, 5)
+		if err != nil {
+			return input, fmt.Errorf("read reflection memory usage: %w", err)
 		}
+		metas, err := stm.GetAllMemoryMeta(50000, 0)
+		if err != nil {
+			return input, fmt.Errorf("read reflection memory metadata: %w", err)
+		}
+		input.CuratorDryRun = memory.BuildMemoryHealthReport(metas, usageStats).Curator
 	}
 
 	if kg != nil {
@@ -1180,7 +1200,7 @@ func buildMemoryReflectionInput(stm *memory.SQLiteMemory, kg *memory.KnowledgeGr
 		len(input.PreviousReflections) > 0 ||
 		strings.TrimSpace(input.KnowledgeGraph) != "(unavailable)" ||
 		input.RecentActivity != nil
-	return input
+	return input, nil
 }
 
 func reflectionJournalWindow(scope string) (string, string, int) {
@@ -1545,7 +1565,10 @@ func runMemoryReflection(
 		return memoryReflectionResult{}, fmt.Errorf("config is nil")
 	}
 	req = normalizeMemoryReflectionRequest(req)
-	input := buildMemoryReflectionInput(stm, kg, ltm, req)
+	input, err := buildMemoryReflectionInput(stm, kg, ltm, req)
+	if err != nil {
+		return memoryReflectionResult{}, fmt.Errorf("build reflection input: %w", err)
+	}
 
 	llmCfg := resolveMemoryAnalysisLLMConfig(cfg)
 	analysisClient := mainClient

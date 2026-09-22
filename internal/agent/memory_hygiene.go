@@ -48,6 +48,8 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 	if cfg == nil || stm == nil {
 		return memoryHygieneStats{}
 	}
+	var failures []error
+	deferred := 0
 	journalRemoved := 0
 	if cfg.Tools.Journal.Enabled {
 		removed, err := runJournalDuplicateConsolidation(stm, memory.JournalConsolidationOptions{
@@ -58,6 +60,7 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 			Actor:         "maintenance",
 		})
 		if err != nil {
+			failures = append(failures, err)
 			logger.Warn("[MemoryHygiene] Failed to consolidate duplicate journal errors", "error", err)
 		} else {
 			journalRemoved = removed
@@ -69,21 +72,28 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 	if cfg.Tools.Notes.Enabled {
 		plan, err := stm.BuildNotesCurationPlan(memory.NotesCurationOptions{Now: time.Now().UTC(), MaxActions: maxNotesAutoArchivePerHygieneRun})
 		if err != nil {
+			failures = append(failures, err)
 			logger.Warn("[MemoryHygiene] Failed to build notes curation plan", "error", err)
 		} else {
 			notesReview = plan.ReviewRequiredCount
 			for _, action := range plan.AutoArchive {
 				targetID := fmt.Sprintf("note:%d", action.NoteID)
 				if stm.ShouldSkipMemoryMaintenanceAction("note_archive", targetID, 3) {
+					deferred++
 					logger.Warn("[MemoryHygiene] Skipping stale note archive after repeated failures", "note_id", action.NoteID)
 					continue
 				}
 				if err := stm.ApplyNoteCurationAction(action, "maintenance", false); err != nil {
+					failures = append(failures, err)
 					logger.Warn("[MemoryHygiene] Failed to archive stale note", "note_id", action.NoteID, "error", err)
-					_ = stm.RecordMemoryMaintenanceFailure("note_archive", targetID, err)
+					if recordErr := stm.RecordMemoryMaintenanceFailure("note_archive", targetID, err); recordErr != nil {
+						failures = append(failures, fmt.Errorf("record note archive failure: %w", recordErr))
+					}
 					continue
 				}
-				_ = stm.ClearMemoryMaintenanceFailure("note_archive", targetID)
+				if clearErr := stm.ClearMemoryMaintenanceFailure("note_archive", targetID); clearErr != nil {
+					failures = append(failures, fmt.Errorf("clear note archive failure: %w", clearErr))
+				}
 				notesArchived++
 			}
 		}
@@ -96,7 +106,13 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 			Actor:  "maintenance",
 			DryRun: false,
 		})
+		canonicalRepaired = report.RepairedCount
+		if len(report.Items) > 0 {
+			// Metadata can be committed even when retiring an old vector fails.
+			InvalidateMemoryMetaCache()
+		}
 		if err != nil {
+			failures = append(failures, err)
 			logger.Warn("[MemoryHygiene] Failed to repair canonical memory names", "error", err)
 			for _, item := range report.Items {
 				if strings.TrimSpace(item.Error) == "" {
@@ -106,16 +122,16 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 				if targetID == "" {
 					targetID = strings.Join(item.NewDocIDs, ",")
 				}
-				_ = stm.RecordMemoryMaintenanceFailure("canonical_repair", targetID, errors.New(item.Error))
+				if recordErr := stm.RecordMemoryMaintenanceFailure("canonical_repair", targetID, errors.New(item.Error)); recordErr != nil {
+					failures = append(failures, fmt.Errorf("record canonical repair failure: %w", recordErr))
+				}
 			}
 		} else {
-			canonicalRepaired = report.RepairedCount
-			if canonicalRepaired > 0 {
-				InvalidateMemoryMetaCache()
-			}
 			for _, item := range report.Items {
 				if item.OldDocID != "" && strings.TrimSpace(item.Error) == "" {
-					_ = stm.ClearMemoryMaintenanceFailure("canonical_repair", item.OldDocID)
+					if clearErr := stm.ClearMemoryMaintenanceFailure("canonical_repair", item.OldDocID); clearErr != nil {
+						failures = append(failures, fmt.Errorf("clear canonical repair failure: %w", clearErr))
+					}
 				}
 			}
 		}
@@ -127,6 +143,7 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 			JournalRemoved:    journalRemoved,
 			NotesArchived:     notesArchived,
 			CanonicalRepaired: canonicalRepaired,
+			Errors:            failures, Deferred: deferred,
 		}
 	}
 	logger.Info("[MemoryHygiene] Maintenance run complete",
@@ -135,19 +152,23 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 		"notes_review_required", notesReview,
 		"canonical_repaired", canonicalRepaired)
 	if cfg.Tools.Journal.Enabled && totalApplied > 0 {
-		_, _ = stm.InsertJournalEntry(memory.JournalEntry{
+		if _, err := stm.InsertJournalEntry(memory.JournalEntry{
 			EntryType:     "system_event",
 			Title:         "Memory hygiene maintenance",
 			Content:       fmt.Sprintf("Applied memory hygiene: journal_duplicates_removed=%d, notes_archived=%d, canonical_repairs=%d, notes_review_required=%d.", journalRemoved, notesArchived, canonicalRepaired, notesReview),
 			Tags:          []string{"memory", "maintenance", "hygiene"},
 			Importance:    2,
 			AutoGenerated: true,
-		})
+		}); err != nil {
+			failures = append(failures, fmt.Errorf("store memory hygiene journal: %w", err))
+			logger.Warn("[MemoryHygiene] Failed to record maintenance journal entry", "error", err)
+		}
 	}
 	return memoryHygieneStats{
 		JournalRemoved:    journalRemoved,
 		NotesArchived:     notesArchived,
 		CanonicalRepaired: canonicalRepaired,
+		Errors:            failures, Deferred: deferred,
 	}
 }
 

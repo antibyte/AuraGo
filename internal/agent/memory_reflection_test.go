@@ -83,10 +83,13 @@ func TestBuildMemoryReflectionInputIncludesErrorLearningAndRules(t *testing.T) {
 		t.Fatalf("UpsertLearnedRule: %v", err)
 	}
 
-	input := buildMemoryReflectionInput(stm, nil, nil, memoryReflectionRequest{
+	input, err := buildMemoryReflectionInput(stm, nil, nil, memoryReflectionRequest{
 		Scope: "week",
 		Focus: "errors",
 	})
+	if err != nil {
+		t.Fatalf("build reflection input: %v", err)
+	}
 	payload, err := json.Marshal(input)
 	if err != nil {
 		t.Fatalf("Marshal input: %v", err)
