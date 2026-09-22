@@ -531,6 +531,17 @@ func (s *SQLiteMemory) SetTraitBound(trait string, floor, ceiling, decayResistan
 
 // LogMood stores a mood change event.
 func (s *SQLiteMemory) LogMood(mood Mood, triggerText string) error {
+	err := insertMoodLogWith(s.db, mood, triggerText)
+	if err == nil {
+		// Invalidate mood cache on successful write.
+		s.personalityCacheMu.Lock()
+		s.moodCacheAt = time.Time{}
+		s.personalityCacheMu.Unlock()
+	}
+	return err
+}
+
+func insertMoodLogWith(db affectExecer, mood Mood, triggerText string) error {
 	if strings.Contains(triggerText, "Tool Output:") || strings.Contains(triggerText, "STDERR:") {
 		triggerText = "[System Event]"
 	}
@@ -538,13 +549,7 @@ func (s *SQLiteMemory) LogMood(mood Mood, triggerText string) error {
 		runes := []rune(triggerText)
 		triggerText = string(runes[:200])
 	}
-	_, err := s.db.Exec(`INSERT INTO mood_log (mood, trigger_text) VALUES (?, ?)`, string(mood), triggerText)
-	if err == nil {
-		// Invalidate mood cache on successful write
-		s.personalityCacheMu.Lock()
-		s.moodCacheAt = time.Time{}
-		s.personalityCacheMu.Unlock()
-	}
+	_, err := db.Exec(`INSERT INTO mood_log (mood, trigger_text) VALUES (?, ?)`, string(mood), triggerText)
 	return err
 }
 
@@ -794,6 +799,18 @@ func (s *SQLiteMemory) GetPersonalityLineWithMeta(useV2 bool, meta PersonalityMe
 
 	// Mood-specific behavioral directive (new moods + overrides for existing ones)
 	switch mood {
+	case MoodCurious:
+		b.WriteString("Sound interested and engaged; let the active persona's curiosity show in natural phrasing. ")
+	case MoodFocused:
+		b.WriteString("Use the active persona's brisk, purposeful voice, not a generic status-report voice. ")
+	case MoodCreative:
+		b.WriteString("Let the active persona sound imaginative and energized; use a fresh turn of phrase when it fits. ")
+	case MoodAnalytical:
+		b.WriteString("Explain clearly and thoughtfully in the active persona's own vocabulary; precision need not sound impersonal. ")
+	case MoodPlayful:
+		b.WriteString("Let a little wit, lightness or shared celebration show in the active persona's voice without distracting from the answer. ")
+	case MoodCautious:
+		b.WriteString("Use the active persona's measured voice; express concrete uncertainty without becoming cold or evasive. ")
 	case MoodFrustrated:
 		b.WriteString("Acknowledge setbacks calmly in the active persona's voice. Inspect the last error and make one concrete correction; clarify only when missing information blocks progress. ")
 	case MoodConcerned:

@@ -86,8 +86,6 @@ func TestBudgetShedRecognizesAllDynamicOptionalHeadings(t *testing.T) {
 		return charRatioEncoder{}, nil
 	}, time.Second, time.Second)
 	headings := []string{
-		"# PERSONA (ACTIVE PROFILE: NEUTRAL)",
-		"### PERSONA STATE",
 		"### PERSONA CHARACTER",
 		"### ACTIVE REMINDERS (high-priority notes) ###",
 		"### PLANNER CONTEXT ###",

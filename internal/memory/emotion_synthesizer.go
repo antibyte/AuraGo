@@ -11,14 +11,12 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
-	"golang.org/x/sync/singleflight"
 )
 
 // ── Emotion Synthesizer ──────────────────────────────────────────────────────
@@ -107,12 +105,9 @@ type emotionSynthesisResult struct {
 
 // EmotionSynthesizer manages LLM-based emotion generation.
 type EmotionSynthesizer struct {
+	*emotionSynthesisRuntime
 	client      PersonalityAnalyzerClient
 	modelName   string
-	lastState   *EmotionState
-	mu          sync.RWMutex
-	sfGroup     singleflight.Group
-	lastCall    time.Time
 	minInterval time.Duration
 	maxHistory  int
 	language    string
@@ -131,12 +126,13 @@ func NewEmotionSynthesizer(client PersonalityAnalyzerClient, modelName string, m
 		language = "English"
 	}
 	return &EmotionSynthesizer{
-		client:      client,
-		modelName:   modelName,
-		minInterval: time.Duration(minIntervalSecs) * time.Second,
-		maxHistory:  maxHistory,
-		language:    language,
-		logger:      logger,
+		emotionSynthesisRuntime: &emotionSynthesisRuntime{},
+		client:                  client,
+		modelName:               modelName,
+		minInterval:             time.Duration(minIntervalSecs) * time.Second,
+		maxHistory:              maxHistory,
+		language:                language,
+		logger:                  logger,
 	}
 }
 
@@ -163,18 +159,20 @@ func (es *EmotionSynthesizer) CanSynthesizeNow(now time.Time) (bool, *EmotionSta
 	}
 	es.mu.RLock()
 	defer es.mu.RUnlock()
-	if es.lastState == nil {
-		return true, nil
+	var state *EmotionState
+	if es.lastState != nil {
+		copy := *es.lastState
+		state = &copy
 	}
-	stateCopy := *es.lastState
-	if now.Sub(es.lastCall) < es.minInterval {
-		return false, &stateCopy
-	}
-	return true, &stateCopy
+	return !es.inFlight && (es.lastCall.IsZero() || now.Sub(es.lastCall) >= es.minInterval), state
 }
 
 // ApplyExternalState validates, caches, and persists an already synthesized emotion state.
 func (es *EmotionSynthesizer) ApplyExternalState(stm *SQLiteMemory, state *EmotionState, triggerSummary string) error {
+	return es.applyExternalState(stm, state, triggerSummary, false)
+}
+
+func (es *EmotionSynthesizer) applyExternalState(stm *SQLiteMemory, state *EmotionState, triggerSummary string, reserved bool) error {
 	if es == nil {
 		return fmt.Errorf("emotion synthesizer is nil")
 	}
@@ -186,28 +184,26 @@ func (es *EmotionSynthesizer) ApplyExternalState(stm *SQLiteMemory, state *Emoti
 	if stateCopy.Timestamp.IsZero() {
 		stateCopy.Timestamp = time.Now()
 	}
-	if stm != nil {
-		if affect, affectErr := stm.GetAffectState(); affectErr == nil {
-			BindEmotionStateToAffect(&stateCopy, affect)
-		}
-	}
 	if err := validateEmotionState(&stateCopy); err != nil {
 		return fmt.Errorf("validate external emotion state: %w", err)
 	}
 
+	es.mu.Lock()
+	defer es.mu.Unlock()
+	if !reserved && (es.inFlight || (!es.lastCall.IsZero() && time.Since(es.lastCall) < es.minInterval)) {
+		return nil
+	}
 	if stm != nil {
 		if utf8.RuneCountInString(triggerSummary) > 200 {
 			triggerSummary = string([]rune(triggerSummary)[:200])
 		}
-		if err := stm.InsertEmotionStateHistory(stateCopy, triggerSummary); err != nil {
+		if err := stm.persistSynthesizedEmotion(&stateCopy, triggerSummary); err != nil {
 			return fmt.Errorf("persist external emotion state: %w", err)
 		}
 	}
 
-	es.mu.Lock()
 	es.lastCall = time.Now()
 	es.lastState = &stateCopy
-	es.mu.Unlock()
 
 	return nil
 }
@@ -228,16 +224,13 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 	}
 
 	// Slow path: deduplicate concurrent LLM calls so only one runs at a time.
-	sfKey := emotionSynthesisKey(input)
+	sfKey := es.modelName + ":" + emotionSynthesisKey(input)
 	v, _, _ := es.sfGroup.Do(sfKey, func() (interface{}, error) {
 		// Re-check inside singleflight and lock early to enforce rate-limit on concurrent calls.
-		if ok, last := es.CanSynthesizeNow(time.Now()); !ok {
-			return &sfEmotionResult{state: last}, nil
+		if !es.beginSynthesis(time.Now()) {
+			return &sfEmotionResult{state: es.GetLastEmotion()}, nil
 		}
-		// Claim the rate limit slot immediately so concurrent misses are blocked.
-		es.mu.Lock()
-		es.lastCall = time.Now()
-		es.mu.Unlock()
+		defer es.endSynthesis()
 
 		prompt := es.buildPrompt(input)
 
@@ -282,7 +275,10 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 			es.mu.Unlock()
 			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis validation failed: %w", parseErr)}, nil
 		}
-		if err := es.ApplyExternalState(stm, state, input.UserMessage); err != nil {
+		if err := llmCtx.Err(); err != nil {
+			return &sfEmotionResult{state: es.GetLastEmotion(), err: err}, nil
+		}
+		if err := es.applyExternalState(stm, state, input.UserMessage, true); err != nil {
 			es.logger.Warn("[EmotionSynthesizer] Failed to apply emotion state", "error", err)
 			es.mu.Lock()
 			es.lastCall = time.Now()
@@ -306,7 +302,11 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 	if !ok || res == nil {
 		return nil, fmt.Errorf("emotion synthesis: unexpected nil result from singleflight")
 	}
-	return res.state, res.err
+	if res.state == nil {
+		return nil, res.err
+	}
+	stateCopy := *res.state
+	return &stateCopy, res.err
 }
 
 func emotionLLMContext(ctx context.Context, maxDuration time.Duration) (context.Context, context.CancelFunc) {
@@ -716,7 +716,11 @@ func (s *SQLiteMemory) InsertEmotionStateHistory(state EmotionState, triggerSumm
 	if err := validateEmotionState(&state); err != nil {
 		return err
 	}
-	_, err := s.db.Exec(
+	return insertEmotionStateHistoryWith(s.db, state, triggerSummary)
+}
+
+func insertEmotionStateHistoryWith(db affectExecer, state EmotionState, triggerSummary string) error {
+	_, err := db.Exec(
 		`INSERT INTO emotion_history (
 			description, primary_mood, secondary_mood, valence, arousal, confidence,
 			cause, source, recommended_response_style, trigger_summary

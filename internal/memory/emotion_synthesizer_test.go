@@ -102,8 +102,8 @@ func TestSynthesizeEmotion_Success(t *testing.T) {
 	if state.SecondaryMood != "optimistic" {
 		t.Errorf("expected secondary mood optimistic, got %q", state.SecondaryMood)
 	}
-	if state.Valence != 0.7 {
-		t.Errorf("expected valence 0.7, got %f", state.Valence)
+	if state.Valence != AffectLLMValenceDelta {
+		t.Errorf("expected bounded valence %f, got %f", AffectLLMValenceDelta, state.Valence)
 	}
 	if mock.calls != 1 {
 		t.Errorf("expected 1 LLM call, got %d", mock.calls)

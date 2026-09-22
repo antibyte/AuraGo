@@ -177,6 +177,12 @@ func splitPromptSections(text string) []PromptSection {
 	}
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
+		// The builder closes the compact profile with TURN CONTEXT. Its own
+		// Markdown headings must not turn selected voice instructions optional.
+		if currentGroupID == promptSectionPersona && trimmed != "# TURN CONTEXT" {
+			current.WriteString(line)
+			continue
+		}
 		level := markdownHeadingLevel(trimmed)
 		if level > 0 {
 			flush()
@@ -218,6 +224,9 @@ func markdownHeadingLevel(line string) int {
 
 func promptSectionDirectPolicy(id string) (int, bool, bool) {
 	id = canonicalPromptSectionID(id)
+	if id == promptSectionPersona || id == promptSectionPersonaState {
+		return 1000, true, true
+	}
 	for priority, header := range promptOptionalHeaders(false) {
 		if id == header {
 			return priority, false, true
@@ -376,9 +385,7 @@ func promptOptionalHeaders(unifiedMemory bool) []string {
 		promptSectionHomepageDesign,
 		promptSectionAgentSkills,
 		promptSectionPersonaSignals,
-		promptSectionPersonaState,
 		promptSectionPersonaCharacter,
-		promptSectionPersona,
 		promptSectionAvailableContextIndex,
 	)
 }

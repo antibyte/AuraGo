@@ -81,6 +81,8 @@ func (s *SQLiteMemory) GetAffectStateAt(now time.Time) (AffectState, error) {
 
 // ApplyAffectEvent integrates one world/conversation event and persists the result.
 func (s *SQLiteMemory) ApplyAffectEvent(event AffectEvent, now time.Time) (AffectState, error) {
+	s.affectMu.Lock()
+	defer s.affectMu.Unlock()
 	if now.IsZero() {
 		if !event.At.IsZero() {
 			now = event.At
@@ -132,7 +134,15 @@ func (s *SQLiteMemory) loadRawAffectState() (AffectState, error) {
 }
 
 func (s *SQLiteMemory) saveAffectState(state AffectState) error {
-	_, err := s.db.Exec(
+	return saveAffectStateWith(s.db, state)
+}
+
+type affectExecer interface {
+	Exec(string, ...any) (sql.Result, error)
+}
+
+func saveAffectStateWith(db affectExecer, state AffectState) error {
+	_, err := db.Exec(
 		`INSERT INTO affect_state (id, valence, arousal, mood, cause_code, updated_at)
 		 VALUES (1, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET

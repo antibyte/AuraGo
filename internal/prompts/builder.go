@@ -1360,8 +1360,8 @@ const (
 	coreMemoryHeadEntries            = 20
 	maxCorePersonalityRunes          = 1000
 	maxPersonaStateChars             = 1200
-	maxPersonaSignalsChars           = 280
-	maxPersonaSignalFieldChars       = 80
+	maxPersonaSignalsChars           = 2400
+	maxPersonaSignalFieldChars       = 1000
 	maxUnifiedMemoryBlockChars       = 1500
 	maxUnifiedMemorySectionBodyChars = 520
 	maxTaskRulesPromptChars          = 900

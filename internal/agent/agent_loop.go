@@ -401,6 +401,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 	loopStartedAt := time.Now()
 	loopIterationCount := 0
+	personalityPrepared := false
 	for {
 		if runCfg.Checkpoint != nil {
 			if err := runCfg.Checkpoint(req.Messages); err != nil {
@@ -544,11 +545,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if personalityEnabled {
 			meta = prompts.GetCorePersonalityMeta(cfg.Directories.PromptsDir, flags.CorePersonality)
 		}
-		if personalityEnabled && shortTermMem != nil {
+		if personalityEnabled && shortTermMem != nil && !personalityPrepared {
+			personalityPrepared = true
 			syncEnvironmentAffect(shortTermMem, cfg, runCfg.PlannerDB, isAutonomousRun, userInactivityHours, s.currentLogger)
 			if userEmotionTrigger != "" {
 				emitAffectFromTrigger(shortTermMem, cfg, s.currentLogger, userEmotionTrigger, userEmotionTriggerDetail, "chat")
 			}
+			prepareTurnEmotion(ctx, runCfg, flags, lastUserMsg, meta, s.currentLogger)
 		}
 		emotionPolicy := emotionBehaviorPolicy{}
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {

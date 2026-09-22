@@ -27,6 +27,11 @@ type SQLiteMemory struct {
 	traitsCacheAt      time.Time
 	moodCache          Mood
 	moodCacheAt        time.Time
+
+	// Affect updates and synthesis continuity belong to this memory store.
+	affectMu         sync.Mutex
+	emotionRuntimeMu sync.Mutex
+	emotionRuntime   *emotionSynthesisRuntime
 }
 
 // openSQLiteDB was removed - it was dead code that duplicated dbutil.Open().

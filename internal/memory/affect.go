@@ -91,7 +91,7 @@ func DeriveMoodFromAffect(valence, arousal float64) Mood {
 		return MoodCautious
 	case valence <= -0.20:
 		return MoodConcerned
-	case valence >= 0.35 && arousal <= 0.40:
+	case valence >= 0.15 && arousal <= 0.50:
 		return MoodRelaxed
 	case valence >= 0.30 && arousal >= 0.55:
 		return MoodPlayful
@@ -112,13 +112,17 @@ func DecayAffect(state AffectState, now time.Time) AffectState {
 	}
 	elapsed := now.Sub(state.UpdatedAt)
 	if elapsed <= 0 {
-		state.Mood = DeriveMoodFromAffect(state.Valence, state.Arousal)
 		return state
 	}
 	remain := math.Pow(0.5, elapsed.Seconds()/AffectHalfLife.Seconds())
 	state.Valence = AffectRestValence + (state.Valence-AffectRestValence)*remain
 	state.Arousal = AffectRestArousal + (state.Arousal-AffectRestArousal)*remain
-	state.Mood = DeriveMoodFromAffect(state.Valence, state.Arousal)
+	state.Mood = selectAffectMood(state.Valence, state.Arousal, state.Mood)
+	if elapsed >= AffectHalfLife && math.Abs(state.Valence-AffectRestValence) <= 0.05 &&
+		math.Abs(state.Arousal-AffectRestArousal) <= 0.05 {
+		state.CauseCode = ""
+		state.Mood = DeriveMoodFromAffect(state.Valence, state.Arousal)
+	}
 	return state
 }
 
@@ -147,7 +151,53 @@ func IntegrateAffect(current AffectState, event AffectEvent, now time.Time) Affe
 		current.CauseCode = code
 	}
 	current.UpdatedAt = now
-	current.Mood = DeriveMoodFromAffect(current.Valence, current.Arousal)
+	if current.CauseCode == AffectCauseConversation {
+		// An ordinary next message is not evidence that a semantic working
+		// style has ended. Explicit feedback/world events may change it.
+		current.Mood = selectAffectMood(current.Valence, current.Arousal, current.Mood)
+	} else {
+		current.Mood = DeriveMoodFromAffect(current.Valence, current.Arousal)
+	}
+	return current
+}
+
+// selectAffectMood admits semantic working styles without letting an LLM erase
+// strong adverse affect. The returned vocabulary is always owned by Go.
+func selectAffectMood(valence, arousal float64, suggested Mood) Mood {
+	derived := DeriveMoodFromAffect(valence, arousal)
+	if valence <= -0.20 {
+		return derived
+	}
+	switch suggested {
+	case MoodCreative, MoodAnalytical, MoodFocused, MoodCurious:
+		return suggested
+	case MoodPlayful:
+		if valence >= 0 {
+			return suggested
+		}
+	case MoodRelaxed:
+		if valence >= 0 && arousal <= 0.55 {
+			return suggested
+		}
+	case MoodConcerned, MoodCautious, MoodFrustrated:
+		return suggested
+	}
+	return derived
+}
+
+// IntegrateEmotionAffect incorporates one validated semantic observation. Its
+// numerical contribution is bounded even when starting from an inactive state.
+func IntegrateEmotionAffect(current AffectState, state EmotionState, now time.Time) AffectState {
+	current = DecayAffect(current, now)
+	current.Valence = clampFinite(state.Valence, math.Max(-1, current.Valence-AffectLLMValenceDelta),
+		math.Min(1, current.Valence+AffectLLMValenceDelta), current.Valence)
+	current.Arousal = clampFinite(state.Arousal, math.Max(0, current.Arousal-AffectLLMArousalDelta),
+		math.Min(1, current.Arousal+AffectLLMArousalDelta), current.Arousal)
+	current.Mood = selectAffectMood(current.Valence, current.Arousal, state.PrimaryMood)
+	if current.CauseCode == "" {
+		current.CauseCode = "emotion_synthesis"
+	}
+	current.UpdatedAt = now
 	return current
 }
 

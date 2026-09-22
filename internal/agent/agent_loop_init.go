@@ -326,13 +326,16 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		esClient := resolvePersonalityAnalyzerClient(cfg, client)
 		esModel := resolvePersonalityModel(cfg)
 		emotionSynthesizer = memory.NewEmotionSynthesizer(
-			esClient,
+			&emotionCompletionClient{client: esClient, cfg: cfg},
 			esModel,
 			cfg.Personality.EmotionSynthesizer.MinIntervalSecs,
 			cfg.Personality.EmotionSynthesizer.MaxHistoryEntries,
 			cfg.Agent.SystemLanguage,
 			currentLogger,
 		)
+		if err := emotionSynthesizer.BindMemory(shortTermMem); err != nil {
+			logger.Warn("[EmotionSynthesizer] Failed to restore continuity", "error", err)
+		}
 		logger.Info("[EmotionSynthesizer] Initialized", "model", esModel, "interval_secs", cfg.Personality.EmotionSynthesizer.MinIntervalSecs)
 		if cfg.Personality.InnerVoice.Enabled {
 			logger.Info("[InnerVoice] Enabled", "min_interval_secs", cfg.Personality.InnerVoice.MinIntervalSecs, "max_per_session", cfg.Personality.InnerVoice.MaxPerSession, "decay_turns", cfg.Personality.InnerVoice.DecayTurns)
