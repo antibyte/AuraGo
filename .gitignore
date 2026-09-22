@@ -172,6 +172,7 @@ terminals/
 # Generated, immutable browser resource sets (cmd/assetpack).
 /assets/web/
 /.aurago-update/
+/data/update_cleanup_status.json
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/

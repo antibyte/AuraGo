@@ -117,8 +117,11 @@ For the transition release, `resources.dat` also carries the unpacked set under
 `assets/web`. Old updater scripts already copy `assets/` before refreshing
 themselves, so they can migrate to a thin executable. The new updater uses a
 verified, atomic directory import. Do not remove this compatibility copy until
-old-updater migration is no longer required. Retained sets are not automatically
-deleted; remove obsolete versions deliberately after rollback is no longer needed.
+old-updater migration is no longer required. Healthy Linux updates now retain
+the current version and two verified rollback generations, collecting obsolete
+update artifacts automatically. Explicit release/rollback pins stay protected.
+See [update retention](update-retention.md) for previews, legacy adoption and
+recovery of interrupted updates.
 
 `node scripts/check-web-assets.mjs <stripped-binary>...` enforces an initial
 120 MB executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap

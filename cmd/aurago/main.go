@@ -121,12 +121,16 @@ func main() {
 	flag.BoolVar(&printTsNetStateDirOnly, "print-tsnet-state-dir", false, "Print the configured tsnet state directory and exit")
 	assetsDir := flag.String("assets-dir", os.Getenv("AURAGO_ASSETS_DIR"), "Versioned web asset root (default: <binary directory>/assets/web)")
 	assetsInfo := flag.Bool("assets-info", false, "Print this binary's pinned asset metadata and exit")
-	flag.Bool("update-maintenance", false, "Preview update artifact cleanup; use as first argument with --root and optional --apply")
+	maintenance := flag.Bool("update-maintenance", false, "Preview update artifact cleanup; use as first argument with --root and optional --apply")
 	assetsCheck := flag.Bool("check-assets", false, "Verify the matching installed resource set and exit")
 	assetsArchive := flag.String("install-assets", "", "Verify and install an offline resource archive, then exit")
 	assetsImport := flag.String("import-assets-dir", "", "Verify and atomically import an unpacked resource root, then exit")
 	recoveryAddress := flag.String("recovery-address", "127.0.0.1:8088", "Listen address for a fresh binary without config or web resources")
 	flag.Parse()
+	if *maintenance {
+		fmt.Fprintln(os.Stderr, "--update-maintenance must be the first argument; specify --root and optionally --apply")
+		os.Exit(2)
+	}
 
 	appLog := logger.Setup(debug)
 	slog.SetDefault(appLog)

@@ -202,6 +202,87 @@ remove_regular_file_if_present() {
     return 1
 }
 
+# Update retention helpers are deliberately self-contained: update.sh also runs
+# in binary installations and from a detached copy while the checkout changes.
+update_json_string() {
+    local value="$1"
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    value="${value//$'\n'/\\n}"
+    value="${value//$'\r'/\\r}"
+    value="${value//$'\t'/\\t}"
+    printf '"%s"' "$value"
+}
+
+update_manifest() {
+    local status="$1" tmp
+    [ -n "${BACKUP_DIR:-}" ] || return 0
+    tmp="$(mktemp "$BACKUP_DIR/.manifest.XXXXXX")" || return 1
+    {
+        printf '{"version":1,"root":'; update_json_string "$DIR"
+        printf ',"id":'; update_json_string "${BACKUP_DIR##*/}"
+        printf ',"created":%s,"status":' "$UPDATE_CREATED"; update_json_string "$status"
+        printf ',"previous_version":"%s","previous_asset":"%s","new_asset":"%s","new_version":"%s","backup_complete":%s}\n' \
+            "$UPDATE_PREVIOUS_VERSION" "$UPDATE_PREVIOUS_ASSET" "${UPDATE_NEW_ASSET:-}" "${UPDATE_NEW_VERSION:-}" "${UPDATE_BACKUP_COMPLETE:-false}"
+    } > "$tmp"
+    chmod 600 "$tmp"
+    mv -f -- "$tmp" "$BACKUP_DIR/manifest.json"
+    UPDATE_OUTCOME="$status"
+}
+
+update_asset_id() {
+    local metadata id
+    metadata="$("$1" --assets-info)" || return 1
+    id="$(printf '%s' "$metadata" | sed -n 's/.*"asset_set_id"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{64\}\)".*/\1/p')"
+    [[ "$id" =~ ^[a-f0-9]{64}$ ]] || return 1
+    printf '%s' "$id"
+}
+
+update_space_check() {
+    local needed="$1" available
+    available="$(df -Pk "$DIR" | awk 'NR==2 {print $4}')"
+    [[ "$available" =~ ^[0-9]+$ ]] || { echo "Cannot determine free update space." >&2; return 1; }
+    [ "$available" -ge "$needed" ] || { echo "Not enough free space for update (need at least $((needed / 1024)) MiB); retained rollback data will not be deleted." >&2; return 1; }
+}
+
+update_safe_remove_work() {
+    local path="$1" parent
+    [ -d "$path" ] && [ ! -L "$path" ] || return 0
+    parent="$(cd -- "$(dirname -- "$path")" && pwd -P)" || return 1
+    [ "$parent" = "$UPDATE_STATE" ] && [[ "${path##*/}" == work.* ]] || return 1
+    rm -rf -- "$path"
+}
+
+update_exit_cleanup() {
+    local rc=$?
+    trap - EXIT
+    # Unexpected exit leaves the transaction unresolved and blocks a new update.
+    if [ "${UPDATE_OUTCOME:-}" = pending ]; then update_manifest uncertain || true; fi
+    if [ -n "${UPDATE_WORK:-}" ]; then update_safe_remove_work "$UPDATE_WORK" || warn "Temporary update cleanup failed."; fi
+    if [ -d "${GOCACHE:-/nonexistent}" ] && [ "${GOCACHE:-}" = "$UPDATE_STATE/go-cache" ] && command -v go >/dev/null 2>&1; then
+        local cache_kib
+        cache_kib="$(du -sk "$GOCACHE" 2>/dev/null | awk '{print $1}')"
+        if [[ "$cache_kib" =~ ^[0-9]+$ ]] && [ "$cache_kib" -gt 4194304 ]; then
+            go clean -cache || warn "Dedicated Go cache cleanup failed."
+        fi
+    fi
+    remove_regular_file_if_present "$_AU_LOCK" >/dev/null || true
+    # Match the service account after root-run updates as for data/bin above.
+    if [ -n "${_svc_user:-}" ] && [ -n "${_svc_group:-}" ]; then
+        $SUDO chown -R "${_svc_user}:${_svc_group}" "$UPDATE_STATE" 2>/dev/null || warn "Update state ownership could not be restored."
+    fi
+    remove_regular_file_if_present "${BASH_SOURCE[0]}" >/dev/null || true
+    [ -z "${RELEASE_CHECKSUMS_FILE:-}" ] || remove_regular_file_if_present "$RELEASE_CHECKSUMS_FILE" >/dev/null || true
+    exit "$rc"
+}
+
+update_retention_cleanup() {
+    local binary="$1"
+    if ! "$binary" --update-maintenance --root "$DIR" --apply --adopt-legacy; then
+        warn "Update is healthy, but artifact cleanup failed; retained data is safe. See the maintenance result above."
+    fi
+}
+
 mark_executable_if_present() {
     local path="$1"
     [ -f "$path" ] || return 0
@@ -227,6 +308,8 @@ else
     DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 cd "$DIR"
+DIR="$(pwd -P)"
+if printf '%s' "$DIR" | LC_ALL=C grep -q '[[:cntrl:]]'; then die "Installation path contains control characters."; fi
 
 if [ ! -f "$DIR/go.mod" ] && [ ! -f "$DIR/bin/aurago_linux" ]; then
     die "Could not find AuraGo installation at $DIR. Is update.sh in the right place?"
@@ -682,7 +765,7 @@ restore_untracked_merge_collisions_after_failure() {
             continue
         fi
         mkdir -p "$(dirname "$destination")"
-        cp -p -- "$backup_path" "$destination" || warn "Could not restore untracked merge collision: $rel"
+        cp -p -- "$backup_path" "$destination" || return 1
     done < <(find "$collision_backup" -type f -print0)
 }
 
@@ -782,8 +865,35 @@ fi
 # Running from temp copy: claim the single-instance lock and schedule cleanup.
 _AU_RUNTIME_DIR="$(ensure_private_update_runtime_dir)"
 _AU_LOCK="${_AU_RUNTIME_DIR}/update.lock"
+# A kernel lock, shared with the maintenance CLI, closes the old PID-file race.
+UPDATE_STATE="$DIR/.aurago-update"
+[ ! -L "$UPDATE_STATE" ] || die "Unsafe update state symlink."
+mkdir -p "$UPDATE_STATE"
+chmod 700 "$UPDATE_STATE"
+[ ! -L "$UPDATE_STATE/update.lock" ] || die "Unsafe update lock symlink."
+command -v flock >/dev/null 2>&1 || die "flock is required for safe updates."
+exec 9>"$UPDATE_STATE/update.lock"
+flock -n 9 || die "Another update or cleanup is running."
+export AURAGO_UPDATE_LOCK_FD=9
+export GOCACHE="$UPDATE_STATE/go-cache"
+[ ! -L "$GOCACHE" ] || die "Unsafe Go cache symlink."
+mkdir -p "$UPDATE_STATE/transactions"
+[ ! -L "$UPDATE_STATE/transactions" ] || die "Unsafe transaction directory."
+UPDATE_OWNER_ID="$(printf '%s' "$DIR" | sha256sum | cut -c1-16)"
+shopt -s dotglob
+for _pending in "$UPDATE_STATE/transactions/"*; do
+    [ -e "$_pending" ] || continue
+    [[ "${_pending##*/}" =~ ^\.txn-[a-zA-Z0-9]+\.aurago-retired-${UPDATE_OWNER_ID}$ ]] && continue
+    [ ! -L "$_pending" ] && [ -f "$_pending/manifest.json" ] && \
+        grep -Eq '"status"[[:space:]]*:[[:space:]]*"(confirmed|rolled_back)"' "$_pending/manifest.json" || \
+        die "An unresolved update blocks further updates: $_pending. Verify recovery and use --update-maintenance --resolve."
+done
+shopt -u dotglob
+UPDATE_WORK="$(mktemp -d "$UPDATE_STATE/work.XXXXXX")"
 echo $$ > "$_AU_LOCK"
-trap 'remove_regular_file_if_present "$_AU_LOCK" >/dev/null || true; remove_regular_file_if_present "${BASH_SOURCE[0]}" >/dev/null || true; [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && remove_regular_file_if_present "$RELEASE_CHECKSUMS_FILE" >/dev/null || true' EXIT
+trap update_exit_cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # ── Banner ─────────────────────────────────────────────────────────────
 G1='\033[38;5;39m'
@@ -964,6 +1074,28 @@ fi
 info "Pre-update readiness: core=${CORE_WAS_READY}, tsnet=${TSNET_WAS_READY}"
 
 # ── Stop running instances BEFORE any file changes ────────────────────
+[ ! -L "$DIR/assets" ] && [ ! -L "$DIR/assets/web" ] || die "Linked asset directories cannot be updated safely."
+if binary_supports_option "$CURRENT_AURAGO_BIN" update-maintenance; then
+    "$CURRENT_AURAGO_BIN" --update-maintenance --root "$DIR" --check-pending || die "Update state requires recovery before another update."
+fi
+UPDATE_PREVIOUS_ASSET="$(update_asset_id "$CURRENT_AURAGO_BIN")" || die "Cannot identify current web assets; no update files were changed."
+"$CURRENT_AURAGO_BIN" --assets-dir "$DIR/assets/web" --check-assets || die "Current web assets failed validation."
+UPDATE_PREVIOUS_VERSION="$(sha256sum "$CURRENT_AURAGO_BIN" | awk '{print $1}')"
+# Budget the protected files plus staging/build overhead before stopping AuraGo.
+_backup_kib=0
+for _path in "${DATA_FILES[@]}" "${PROTECTED_DIRS[@]}"; do
+    [ ! -e "$DIR/$_path" ] || _backup_kib=$((_backup_kib + $(du -sk "$DIR/$_path" | awk '{print $1}')))
+done
+if $BINARY_ONLY; then
+    for _path in prompts agent_workspace ui; do
+        [ ! -e "$DIR/$_path" ] || _backup_kib=$((_backup_kib + $(du -sk "$DIR/$_path" | awk '{print $1}')))
+    done
+    for _asset in "$DIR/assets/"*; do
+        [ -e "$_asset" ] && [ "${_asset##*/}" != web ] || continue
+        _backup_kib=$((_backup_kib + $(du -sk "$_asset" | awk '{print $1}')))
+    done
+fi
+update_space_check "$((_backup_kib + 8388608))" || die "Free-space preflight failed before shutdown."
 # This must happen early so the binary file is not locked and lock files
 # are cleaned up before git-pull/build overwrites anything.
 section "Stopping running instances"
@@ -1078,7 +1210,7 @@ restart_unchanged_after_failed_stop() {
                 AURAGO_MASTER_KEY="$(read_master_key_from_env "$DIR/.env")"
                 export AURAGO_MASTER_KEY
             fi
-            nohup "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" >>"$DIR/log/aurago.log" 2>&1 &
+            nohup env -u AURAGO_UPDATE_LOCK_FD "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" 9>&- >>"$DIR/log/aurago.log" 2>&1 &
             launch_pid=$!
             sleep 3
             kill -0 "$launch_pid" 2>/dev/null || return 1
@@ -1176,7 +1308,11 @@ ok "AuraGo-owned instances stopped"
 
 # ── Backup protected user data ─────────────────────────────────────────
 section "Backing up user data"
-BACKUP_DIR="$(mktemp -d /tmp/aurago-backup-XXXXXX)"
+BACKUP_DIR="$(mktemp -d "$UPDATE_STATE/transactions/txn-XXXXXX")"
+UPDATE_CREATED="$(date +%s%3N)"
+UPDATE_BACKUP_COMPLETE=false
+UPDATE_NEW_ASSET=""
+update_manifest pending
 info "Backup location: $BACKUP_DIR"
 SYSTEMD_DROPIN_DIR="/etc/systemd/system/aurago.service.d"
 SYSTEMD_STOP_TIMEOUT_DROPIN="${SYSTEMD_DROPIN_DIR}/20-aurago-stop-timeout.conf"
@@ -1314,14 +1450,14 @@ restore_critical_user_data_after_failure() {
     for f in "${PROTECTED_FILES[@]}"; do
         local bak="$BACKUP_DIR/$(basename "$f")"
         [ -f "$bak" ] || continue
-        safe_restore_file "$bak" "$DIR/$f" || warn "Could not restore $f during rollback."
+        safe_restore_file "$bak" "$DIR/$f" || return 1
     done
     if [ -d "$BACKUP_DIR/data" ]; then
         mkdir -p "$DIR/data"
         for f in "${DATA_FILES[@]}"; do
             local bak="$BACKUP_DIR/data/$(basename "$f")"
             [ -f "$bak" ] || continue
-            safe_restore_file "$bak" "$DIR/$f" || warn "Could not restore $f during rollback."
+            safe_restore_file "$bak" "$DIR/$f" || return 1
         done
     fi
 }
@@ -1331,22 +1467,29 @@ backup_binary_update_resources() {
     BINARY_RESOURCE_BACKUP_DIR="$BACKUP_DIR/binary_update_resources"
     mkdir -p "$BINARY_RESOURCE_BACKUP_DIR"
     : > "$BINARY_RESOURCE_BACKUP_DIR/missing.txt"
-    for rel in prompts agent_workspace assets ui update.sh config.yaml.new_template; do
+    for rel in prompts agent_workspace ui update.sh config.yaml.new_template; do
         if [ -e "$DIR/$rel" ]; then
             mkdir -p "$BINARY_RESOURCE_BACKUP_DIR/$(dirname "$rel")"
             cp -a "$DIR/$rel" "$BINARY_RESOURCE_BACKUP_DIR/$rel" 2>/dev/null || \
                 copy_tree_merge "$DIR/$rel/" "$BINARY_RESOURCE_BACKUP_DIR/$rel/" || \
-                warn "Could not fully back up $rel for binary rollback."
+                abort_before_file_changes "Could not fully back up $rel for binary rollback."
         else
             printf '%s\n' "$rel" >> "$BINARY_RESOURCE_BACKUP_DIR/missing.txt"
         fi
+    done
+    # Immutable web sets are shared by ID, never recursively copied per update.
+    mkdir -p "$BINARY_RESOURCE_BACKUP_DIR/assets"
+    for asset in "$DIR/assets/"*; do
+        [ -e "$asset" ] || continue
+        [ "${asset##*/}" != web ] || continue
+        cp -a -- "$asset" "$BINARY_RESOURCE_BACKUP_DIR/assets/" || abort_before_file_changes "Asset backup failed."
     done
 }
 
 restore_binary_update_resources_after_failure() {
     $BINARY_ONLY || return 0
     [ -n "${BINARY_RESOURCE_BACKUP_DIR:-}" ] && [ -d "$BINARY_RESOURCE_BACKUP_DIR" ] || return 0
-    for rel in prompts agent_workspace assets ui update.sh config.yaml.new_template; do
+    for rel in prompts agent_workspace ui update.sh config.yaml.new_template; do
         if grep -Fxq "$rel" "$BINARY_RESOURCE_BACKUP_DIR/missing.txt" 2>/dev/null; then
             rm -rf "$DIR/$rel"
             continue
@@ -1356,8 +1499,15 @@ restore_binary_update_resources_after_failure() {
         mkdir -p "$DIR/$(dirname "$rel")"
         cp -a "$BINARY_RESOURCE_BACKUP_DIR/$rel" "$DIR/$rel" 2>/dev/null || \
             copy_tree_merge "$BINARY_RESOURCE_BACKUP_DIR/$rel/" "$DIR/$rel/" || \
-            warn "Could not fully restore $rel during binary rollback."
+            return 1
     done
+    # Restore non-web resources without replacing the versioned web root.
+    for asset in "$DIR/assets/"*; do
+        [ -e "$asset" ] || continue
+        [ "${asset##*/}" != web ] || continue
+        rm -rf -- "$asset"
+    done
+    copy_tree_merge "$BINARY_RESOURCE_BACKUP_DIR/assets/" "$DIR/assets/" || return 1
 }
 
 restart_previous_after_rollback() {
@@ -1394,22 +1544,31 @@ restore_service_stop_timeout_dropin() {
 
 abort_update() {
     local msg="$1"
+    local rollback_ok=true
     warn "Update failed after shutdown; rolling back to the previous working state."
     if command -v systemctl >/dev/null 2>&1; then
         timeout 60s $SUDO systemctl stop aurago >/dev/null 2>&1 || true
     fi
     _kill_proc "updated AuraGo" "bin/aurago_linux" "bin/aurago" >/dev/null 2>&1 || true
-    restore_previous_aurago_binary || true
+    restore_previous_aurago_binary || rollback_ok=false
     if [ -n "${PRE_UPDATE_REF:-}" ] && [ -d "$DIR/.git" ]; then
-        git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || warn "Could not reset git checkout to $PRE_UPDATE_REF during rollback."
+        git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || rollback_ok=false
     fi
-    restore_untracked_merge_collisions_after_failure
-    restore_binary_update_resources_after_failure
-    restore_critical_user_data_after_failure
-    restore_tsnet_state_backup || warn "Could not restore the pre-update tsnet state automatically."
-    restore_service_stop_timeout_dropin || warn "Could not restore the previous systemd stop-timeout drop-in automatically."
+    restore_untracked_merge_collisions_after_failure || rollback_ok=false
+    restore_binary_update_resources_after_failure || rollback_ok=false
+    restore_critical_user_data_after_failure || rollback_ok=false
+    restore_tsnet_state_backup || rollback_ok=false
+    restore_service_stop_timeout_dropin || rollback_ok=false
     if ! restart_previous_after_rollback; then
+        update_manifest uncertain
         die "${msg} The previous files were restored, but AuraGo is stopped; start it manually with 'sudo systemctl start aurago' or './start.sh'."
+    fi
+    if $rollback_ok && [ "$TSNET_WAS_READY" = ready ]; then
+        "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 30s --healthcheck-require-tsnet || rollback_ok=false
+    fi
+    if $rollback_ok && ! $NO_RESTART && "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 30s; then
+        update_manifest rolled_back
+        if binary_supports_option "$CURRENT_AURAGO_BIN" update-maintenance; then update_retention_cleanup "$CURRENT_AURAGO_BIN"; fi
     fi
     die "$msg"
 }
@@ -1441,7 +1600,7 @@ mkdir -p "$BACKUP_DIR/data"
 for f in "${DATA_FILES[@]}"; do
     if [ -f "$DIR/$f" ]; then
         if ! safe_restore_file "$DIR/$f" "$BACKUP_DIR/data/$(basename "$f")"; then
-            warn "Could not back up $f (permission denied — try running with sudo)"
+            abort_before_file_changes "Could not back up $f; update aborted before changing files."
         fi
     fi
 done
@@ -1450,7 +1609,7 @@ ok "Backed up: data/ (critical files)"
 for d in "${PROTECTED_DIRS[@]}"; do
     if [ -d "$DIR/$d" ]; then
         local_name="${d//\//__}"      # replace / with __ for flat backup name
-        copy_tree_merge "$DIR/$d/" "$BACKUP_DIR/$local_name/" || warn "Could not fully back up $d/."
+        copy_tree_merge "$DIR/$d/" "$BACKUP_DIR/$local_name/" || abort_before_file_changes "Could not fully back up $d/."
         ok "Backed up: $d/"
     fi
 done
@@ -1477,7 +1636,7 @@ if [ -d "$PROMPTS_DIR" ]; then
             if cp -p "$DIR/$fp" "$dest_dir/"; then
                 CUSTOM_COUNT=$((CUSTOM_COUNT + 1))
             else
-                warn "Could not back up prompt file: $fp"
+                abort_before_file_changes "Could not back up prompt file: $fp"
             fi
         done < <(git -C "$DIR" ls-files -z --others --modified -- "prompts/")
     fi
@@ -1485,6 +1644,8 @@ if [ -d "$PROMPTS_DIR" ]; then
 fi
 
 backup_binary_update_resources
+UPDATE_BACKUP_COMPLETE=true
+update_manifest pending
 
 # Add common Go install locations to PATH (in case the shell was not re-sourced after install)
 for _godir in /usr/local/go/bin "$HOME/go/bin" /usr/local/bin; do
@@ -1506,7 +1667,7 @@ REQUIRED_BINS=()
 OPTIONAL_BINS=()
 if $BINARY_ONLY && ! $GO_FOUND; then
     select_release_bins_for_arch
-    STAGED_RELEASE_DIR="$(mktemp -d "${_AU_RUNTIME_DIR}/release.XXXXXX")"
+    STAGED_RELEASE_DIR="$(mktemp -d "$UPDATE_WORK/release.XXXXXX")"
     for BIN_NAME in "${REQUIRED_BINS[@]}"; do
         info "Staging required $BIN_NAME from GitHub Releases..."
         if _download_release_bin "$BIN_NAME" "$STAGED_RELEASE_DIR/$BIN_NAME"; then
@@ -1529,11 +1690,11 @@ fi
 if $BINARY_ONLY; then
     # Binary-only: download resources.dat and extract
     info "Downloading resources.dat ..."
-    TMPRES=$(mktemp)
+    TMPRES=$(mktemp "$UPDATE_WORK/resources.XXXXXX")
     if ! download_release_asset "resources.dat" "$TMPRES"; then
         die "Failed to download or verify resources.dat from the release."
     fi
-    TMPEXT=$(mktemp -d)
+    TMPEXT=$(mktemp -d "$UPDATE_WORK/resources.XXXXXX")
     tar -xzf "$TMPRES" -C "$TMPEXT"
     rm -f "$TMPRES"
 
@@ -1565,6 +1726,8 @@ if $BINARY_ONLY; then
     ASSET_BIN="$STAGED_RELEASE_DIR/aurago_linux"
     [ "$GOARCH" != "arm64" ] || ASSET_BIN="$STAGED_RELEASE_DIR/aurago_linux_arm64"
     chmod +x "$ASSET_BIN"
+    UPDATE_NEW_ASSET="$(update_asset_id "$ASSET_BIN")" || abort_update "Cannot identify staged assets."
+    update_manifest pending
     if [ -d "$TMPEXT/assets/web" ]; then
         "$ASSET_BIN" --assets-dir "$DIR/assets/web" --import-assets-dir "$TMPEXT/assets/web" || abort_update "Failed to import matching web resources."
     fi
@@ -1877,8 +2040,12 @@ if $GO_FOUND; then
     fi
 
     info "Building aurago_linux ($GOARCH)..."
-    go run ./cmd/assetpack -out deploy -stage assets/web || abort_update "Failed to package web resources."
-    ASSET_LDFLAGS="$(cat deploy/web-assets.ldflags)"
+    update_space_check 6291456 || abort_update "Insufficient staging/build space."
+    go run ./cmd/assetpack -out "$UPDATE_WORK/packed" -stage assets/web || abort_update "Failed to package web resources."
+    UPDATE_NEW_ASSET="$(sed -n 's/.*"asset_set_id"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{64\}\)".*/\1/p' "$UPDATE_WORK/packed/web-assets.json")"
+    [[ "$UPDATE_NEW_ASSET" =~ ^[a-f0-9]{64}$ ]] || abort_update "Invalid packed asset identity."
+    update_manifest pending
+    ASSET_LDFLAGS="$(cat "$UPDATE_WORK/packed/web-assets.ldflags")"
     if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags="-s -w $ASSET_LDFLAGS" -o bin/aurago_linux ./cmd/aurago; then
         ok "bin/aurago_linux built from source"
     else
@@ -1933,7 +2100,7 @@ else
     select_release_bins_for_arch
 
     if [ -z "${STAGED_RELEASE_DIR:-}" ]; then
-        STAGED_RELEASE_DIR="$(mktemp -d "${_AU_RUNTIME_DIR}/release.XXXXXX")"
+        STAGED_RELEASE_DIR="$(mktemp -d "$UPDATE_WORK/release.XXXXXX")"
         for BIN_NAME in "${REQUIRED_BINS[@]}"; do
             info "Downloading required $BIN_NAME from GitHub Releases..."
             if _download_release_bin "$BIN_NAME" "$STAGED_RELEASE_DIR/$BIN_NAME"; then
@@ -1955,6 +2122,8 @@ else
     ASSET_BIN="$STAGED_RELEASE_DIR/aurago_linux"
     [ "$GOARCH" != "arm64" ] || ASSET_BIN="$STAGED_RELEASE_DIR/aurago_linux_arm64"
     chmod +x "$ASSET_BIN"
+    UPDATE_NEW_ASSET="$(update_asset_id "$ASSET_BIN")" || abort_update "Cannot identify downloaded assets."
+    update_manifest pending
     # Source checkouts without Go also need the release's pinned resource set.
     # Reuse an already verified local set before downloading its shared archive.
     if ! "$ASSET_BIN" --assets-dir "$DIR/assets/web" --check-assets >/dev/null 2>&1; then
@@ -1981,7 +2150,7 @@ else
     # Download aurago-remote client binaries for all platforms so the
     # /api/remote/download/{os}/{arch} endpoint can serve them.
     mkdir -p "$DIR/deploy"
-    STAGED_DEPLOY_DIR="$(mktemp -d "${_AU_RUNTIME_DIR}/deploy.XXXXXX")"
+    STAGED_DEPLOY_DIR="$(mktemp -d "$UPDATE_WORK/deploy.XXXXXX")"
     info "Downloading aurago-remote client binaries for all platforms..."
     for _t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
         _ros="${_t%/*}"; _rarch="${_t#*/}"; _rext=""
@@ -2131,6 +2300,9 @@ section "Restart"
 
 LAUNCH_BIN="$DIR/bin/aurago_linux"
 [ -x "$LAUNCH_BIN" ] || LAUNCH_BIN="$DIR/bin/aurago"
+UPDATE_NEW_ASSET="$(update_asset_id "$LAUNCH_BIN")" || abort_update "Cannot identify updated assets."
+UPDATE_NEW_VERSION="$(sha256sum "$LAUNCH_BIN" | awk '{print $1}')"
+update_manifest pending
 "$LAUNCH_BIN" --assets-dir "$DIR/assets/web" --check-assets || abort_update "Installed web resource validation failed."
 STARTED_AFTER_UPDATE=false
 START_MODE=""
@@ -2142,7 +2314,7 @@ start_updated_directly() {
         AURAGO_MASTER_KEY="$(read_master_key_from_env "$DIR/.env")"
         export AURAGO_MASTER_KEY
     fi
-    nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
+    nohup env -u AURAGO_UPDATE_LOCK_FD "$LAUNCH_BIN" --config "$DIR/config.yaml" 9>&- >>"${DIR}/log/aurago.log" 2>&1 &
     LAUNCH_PID=$!
     START_MODE="direct"
     STARTED_AFTER_UPDATE=true
@@ -2198,6 +2370,15 @@ if $STARTED_AFTER_UPDATE; then
     fi
 fi
 
+if $STARTED_AFTER_UPDATE; then
+    update_manifest confirmed
+    update_retention_cleanup "$LAUNCH_BIN"
+else
+    # A manually deferred restart is not evidence of a successful update.
+    update_manifest pending
+    warn "Retention is deferred until the installed version has passed readiness checks."
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────
 echo ""
 echo -e " ${GREEN}╭──────────────────────────────────────────────────╮${NC}"
@@ -2205,7 +2386,7 @@ echo -e " ${GREEN}│${NC}   ${BOLD}AuraGo updated successfully! 🚀${NC}      
 echo -e " ${GREEN}╰──────────────────────────────────────────────────╯${NC}"
 echo ""
 info "Backup of your data kept at: $BACKUP_DIR"
-info "To remove backup:            rm -rf $BACKUP_DIR"
+info "Retention:                   current version plus two verified rollback versions"
 if $BINARY_ONLY; then
     info "Version:                     $RELEASE_TAG"
 else
