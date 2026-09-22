@@ -789,10 +789,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if s.GameMaker != nil {
 				s.GameMaker.UpdatePolicy(gameMakerPolicy(newCfg.GameMaker))
 			}
-			*s.Cfg = *newCfg
-			newCfg = s.Cfg
 			if s.TsNetManager != nil {
-				s.TsNetManager.UpdateConfig(s.Cfg)
+				s.TsNetManager.UpdateConfig(newCfg)
 			}
 
 			// Reconfigure the live LLM client when model, API key, base URL,
@@ -1379,7 +1377,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			bluetoothStatus := s.Bluetooth.Reprobe(probeCtx)
 			cancelProbe()
 			s.CfgMu.Lock()
-			newCfg.Runtime.Bluetooth = bluetoothStatus
+			updatedCfg := *newCfg
+			updatedCfg.Runtime.Bluetooth = bluetoothStatus
+			newCfg = &updatedCfg
 			s.replaceConfigSnapshot(newCfg)
 			s.CfgMu.Unlock()
 			s.Logger.Info("[Config UI] Bluetooth runtime hot-reloaded",
@@ -1397,7 +1397,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			networkSharesStatus := s.NetworkShares.Reprobe(probeCtx)
 			cancelProbe()
 			s.CfgMu.Lock()
-			newCfg.Runtime.NetworkShares = networkSharesStatus
+			updatedCfg := *newCfg
+			updatedCfg.Runtime.NetworkShares = networkSharesStatus
+			newCfg = &updatedCfg
 			s.replaceConfigSnapshot(newCfg)
 			s.CfgMu.Unlock()
 			s.Logger.Info("[Config UI] Network shares runtime hot-reloaded",

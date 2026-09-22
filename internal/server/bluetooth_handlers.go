@@ -208,8 +208,11 @@ func refreshBluetoothRuntime(parent context.Context, s *Server) (bluetooth.Statu
 	cancel()
 
 	s.CfgMu.Lock()
-	s.Cfg.Runtime.Bluetooth = status
-	s.replaceConfigSnapshot(s.Cfg)
+	if current := s.ConfigSnapshot(); current != nil {
+		updated := *current
+		updated.Runtime.Bluetooth = status
+		s.replaceConfigSnapshot(&updated)
+	}
 	s.CfgMu.Unlock()
 	return status, nil
 }

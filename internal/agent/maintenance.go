@@ -27,40 +27,15 @@ import (
 )
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
-func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) {
-	startPendingMemoryWriteRetryLoop(ctx, logger, shortTermMem, longTermMem)
-	if !cfg.Maintenance.Enabled {
-		logger.Info("Daily maintenance is disabled in config")
-		return
-	}
-
-	hour, minute, err := parseTime(cfg.Maintenance.Time)
-	if err != nil {
-		logger.Error("Failed to parse maintenance time, defaulting to 04:00", "error", err, "input", cfg.Maintenance.Time)
-		hour, minute = 4, 0
-	}
-
-	go func() {
-		logger.Info("Started System-Level Maintenance Loop", "time", fmt.Sprintf("%02d:%02d", hour, minute))
-		for {
-			now := time.Now()
-			nextRun := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
-			if now.After(nextRun) || now.Equal(nextRun) {
-				nextRun = nextRun.Add(24 * time.Hour)
-			}
-
-			sleepDuration := nextRun.Sub(now)
-			logger.Debug("Maintenance loop sleeping", "next_run", nextRun, "duration_hours", sleepDuration.Hours())
-
-			select {
-			case <-time.After(sleepDuration):
-				runMaintenanceTask(ctx, cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, contactsDB, plannerDB, cheatsheetDB, missionManagerV2, guardian, daemonSupervisor)
-			case <-ctx.Done():
-				logger.Info("Maintenance loop shutting down")
-				return
-			}
-		}
-	}()
+func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) *MaintenanceController {
+	return StartMaintenanceController(ctx, cfg, MaintenanceControllerDependencies{
+		Logger: logger, LLMClient: llmClient, Vault: vault, Registry: registry,
+		Manifest: manifest, CronManager: cronManager, LongTermMem: longTermMem,
+		ShortTermMem: shortTermMem, HistoryManager: historyMgr, KG: kg,
+		InventoryDB: inventoryDB, ContactsDB: contactsDB, PlannerDB: plannerDB,
+		CheatsheetDB: cheatsheetDB, MissionManagerV2: missionManagerV2,
+		Guardian: guardian, DaemonSupervisor: daemonSupervisor,
+	})
 }
 
 func parseTime(t string) (int, int, error) {
@@ -83,7 +58,10 @@ func parseTime(t string) (int, int, error) {
 }
 
 func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor) {
-	startedAt := time.Now()
+	startedAt := maintenanceRunStartedAt(ctx)
+	if startedAt.IsZero() {
+		startedAt = time.Now()
+	}
 	ledger := newMaintenanceRunLedger()
 	maintenanceBatch := maintenanceSummaryKGResult{}
 	ledger.beginPhase("short_term_cleanup")
@@ -239,16 +217,40 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	ledger.beginPhase("daily_summary")
 
-	today := startedAt.Format("2006-01-02")
+	yesterday := startedAt.AddDate(0, 0, -1).Format("2006-01-02")
 	if !cfg.Tools.Journal.Enabled || !cfg.Journal.DailySummary {
 		ledger.skipPhase("daily_summary")
+	} else if shortTermMem == nil {
+		ledger.addError("daily_summary_unavailable")
 	} else {
-		if kg != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
-			maintenanceBatch = runBatchedMaintenanceSummaryAndKG(taskCtx, cfg, logger, shortTermMem, kg, today)
-			ledger.recordError("daily_summary_batch", maintenanceBatch.SummaryErr)
+		dates, err := shortTermMem.MissingMaintenanceSummaryDates(startedAt)
+		ledger.recordError("daily_summary_dates", err)
+		summaryCtx, cancelSummary, available := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
+		for i, date := range dates {
+			if !available || summaryCtx.Err() != nil {
+				ledger.addDeferred("daily_summary", len(dates)-i)
+				break
+			}
+			if date == yesterday && kg != nil && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction {
+				maintenanceBatch = runBatchedMaintenanceSummaryAndKG(summaryCtx, cfg, logger, shortTermMem, kg, date)
+				ledger.recordError("daily_summary_batch", maintenanceBatch.SummaryErr)
+			}
+			if date == yesterday && maintenanceBatch.SummaryStored {
+				ledger.recordError("daily_summary_persist", maintenanceBatch.SummaryErr)
+				ledger.addProcessed("daily_summary", 1)
+				continue
+			}
+			if err := generateDailySummary(summaryCtx, cfg, logger, client, shortTermMem, date); err != nil {
+				ledger.recordError("daily_summary", err)
+			} else {
+				ledger.addProcessed("daily_summary", 1)
+			}
 		}
-		if !maintenanceBatch.SummaryStored {
-			ledger.recordError("daily_summary", generateDailySummary(taskCtx, cfg, logger, client, shortTermMem, today))
+		cancelSummary()
+		if backlog, err := shortTermMem.CountMissingMaintenanceSummaries(startedAt); err != nil {
+			ledger.recordError("daily_summary_backlog", err)
+		} else if pending := backlog - ledger.phaseDeferred("daily_summary"); pending > 0 {
+			ledger.addDeferred("daily_summary", pending)
 		}
 	}
 	if maintenanceContextDone(taskCtx, ledger, logger, "daily_summary") {
@@ -256,9 +258,10 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	ledger.beginPhase("activity_rollup")
 	if shortTermMem != nil {
-		_, err := shortTermMem.GenerateDailyActivityRollup(today)
+		_, err := shortTermMem.GenerateDailyActivityRollup(yesterday)
 		ledger.recordError("activity_rollup", err)
 	}
+
 	if maintenanceContextDone(taskCtx, ledger, logger, "activity_rollup") {
 		return
 	}
@@ -675,7 +678,7 @@ func personalityMaintenance(ctx context.Context, cfg *config.Config, stm *memory
 	return resultErr
 }
 
-// generateDailySummary summarizes the requested journal date.
+// generateDailySummary summarizes a completed local date, defaulting to yesterday.
 func generateDailySummary(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, dates ...string) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -684,7 +687,7 @@ func generateDailySummary(ctx context.Context, cfg *config.Config, logger *slog.
 		logger.Warn("[Journal] Daily summary skipped: maintenance context canceled", "error", err)
 		return err
 	}
-	today := time.Now().Format("2006-01-02")
+	today := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	if len(dates) > 0 {
 		today = dates[0]
 	}

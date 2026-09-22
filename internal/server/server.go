@@ -204,6 +204,7 @@ type Server struct {
 	tsNetHandler            http.Handler // stored so the UI can restart tsnet without a full server restart
 	FileIndexer             *services.FileIndexer
 	WorkspaceSearch         *services.WorkspaceSearchService
+	MaintenanceScheduler    *agent.MaintenanceController
 	HeartbeatScheduler      *heartbeat.Scheduler
 	UptimeKumaPoller        *tools.UptimeKumaPoller
 	AgentMailService        *agentmail.Service
@@ -311,6 +312,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	s.bindConfigAuthorization(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.MaintenanceScheduler != nil {
+		s.MaintenanceScheduler.UpdateConfig(cfg)
+	}
 	if s.LocalMusic != nil {
 		s.LocalMusic.Configure(cfg)
 	}
@@ -1620,6 +1624,15 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		// Shut down Heartbeat scheduler
 		if s.HeartbeatScheduler != nil {
 			s.HeartbeatScheduler.Stop()
+		}
+		if s.MaintenanceScheduler != nil {
+			// Maintenance owns database-backed ledgers and must finish cancelling
+			// its active run before closeRuntimeResources closes those databases.
+			// The HTTP shutdown deadline is intentionally not used here: timing
+			// out would let a run outlive its storage dependencies.
+			if err := s.MaintenanceScheduler.Stop(context.Background()); err != nil {
+				s.Logger.Warn("Maintenance scheduler shutdown did not complete cleanly", "error", err)
+			}
 		}
 		if s.UptimeKumaPoller != nil {
 			s.UptimeKumaPoller.Stop()

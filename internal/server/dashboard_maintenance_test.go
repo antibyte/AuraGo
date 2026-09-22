@@ -69,3 +69,29 @@ func TestDashboardMaintenanceStatusEndpoint(t *testing.T) {
 		t.Fatalf("skill phase results = %#v", phaseResults)
 	}
 }
+
+func TestDashboardMaintenanceStatusOmitsNextRunWhenDisabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Maintenance.Time = "04:00"
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	rec := httptest.NewRecorder()
+	handleDashboardMaintenanceStatus(s).ServeHTTP(rec, httptest.NewRequest("GET", "/api/dashboard/maintenance/status", nil))
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	maintenance, ok := body["maintenance"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("maintenance payload = %#v", body["maintenance"])
+	}
+	if maintenance["enabled"] != false {
+		t.Fatalf("enabled = %#v, want false", maintenance["enabled"])
+	}
+	if maintenance["next_run"] != "" {
+		t.Fatalf("next_run = %#v, want empty", maintenance["next_run"])
+	}
+}

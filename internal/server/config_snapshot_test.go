@@ -25,4 +25,12 @@ func TestReplaceConfigStoresNewSnapshotWithoutMutatingOldConfig(t *testing.T) {
 	if oldCfg.Server.Port != 1111 {
 		t.Fatalf("old config was mutated: port=%d", oldCfg.Server.Port)
 	}
+	resolver := s.ConfigSnapshot().AuthorizationSnapshots
+	if resolver == nil {
+		t.Fatal("published config lost authorization snapshot resolver")
+	}
+	baseline, current := resolver()
+	if baseline != newCfg || current != newCfg {
+		t.Fatalf("authorization resolver = (%p, %p), want (%p, %p)", baseline, current, newCfg, newCfg)
+	}
 }

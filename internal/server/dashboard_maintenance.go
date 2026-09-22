@@ -10,11 +10,24 @@ import (
 )
 
 func buildMaintenanceStatusSummary(s *Server, cfg *config.Config) map[string]interface{} {
+	enabled := cfg != nil && cfg.Maintenance.Enabled
+	nextRun := time.Time{}
+	if s != nil && s.MaintenanceScheduler != nil {
+		status := s.MaintenanceScheduler.Status()
+		enabled = status.Enabled
+		nextRun = status.NextRun
+	} else if enabled {
+		nextRun = agent.ComputeNextMaintenanceRun(cfg, time.Now())
+	}
+	nextRunText := ""
+	if !nextRun.IsZero() {
+		nextRunText = nextRun.UTC().Format(time.RFC3339)
+	}
 	summary := map[string]interface{}{
-		"enabled":     cfg != nil && cfg.Maintenance.Enabled,
+		"enabled":     enabled,
 		"last_run":    "",
 		"last_status": "never",
-		"next_run":    agent.ComputeNextMaintenanceRun(cfg, time.Now()).UTC().Format(time.RFC3339),
+		"next_run":    nextRunText,
 	}
 	if cfg == nil {
 		return summary
@@ -35,9 +48,7 @@ func handleDashboardMaintenanceStatus(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
+		cfg := s.ConfigSnapshot()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":      "ok",

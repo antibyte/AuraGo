@@ -60,6 +60,7 @@ func TestMaintenanceRunLedgerStatus(t *testing.T) {
 
 func TestComputeNextMaintenanceRun(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Maintenance.Enabled = true
 	cfg.Maintenance.Time = "04:00"
 	now := time.Date(2026, 6, 10, 5, 0, 0, 0, time.Local)
 	next := ComputeNextMaintenanceRun(cfg, now)

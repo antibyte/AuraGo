@@ -599,9 +599,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			return
 		}
 
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
+		cfg := s.ConfigSnapshot()
 		effectivePersonality, _ := prompts.ResolvePersonalityID(cfg.Personality.CorePersonality)
 
 		// ── Agent Info ─────────────────────────────────────────

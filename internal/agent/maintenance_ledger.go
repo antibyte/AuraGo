@@ -283,17 +283,5 @@ type memoryHygieneStats struct {
 
 // ComputeNextMaintenanceRun returns the next scheduled maintenance time in local time.
 func ComputeNextMaintenanceRun(cfg *config.Config, now time.Time) time.Time {
-	if cfg == nil {
-		now = time.Now()
-		return time.Date(now.Year(), now.Month(), now.Day(), 4, 0, 0, 0, now.Location()).Add(24 * time.Hour)
-	}
-	hour, minute, err := parseTime(cfg.Maintenance.Time)
-	if err != nil {
-		hour, minute = 4, 0
-	}
-	nextRun := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
-	if !now.Before(nextRun) {
-		nextRun = nextRun.Add(24 * time.Hour)
-	}
-	return nextRun
+	return computeNextMaintenanceRunCalendar(cfg, now)
 }

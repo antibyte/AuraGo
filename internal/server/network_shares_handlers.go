@@ -206,8 +206,11 @@ func refreshNetworkSharesRuntime(parent context.Context, s *Server) (networkshar
 	cancel()
 
 	s.CfgMu.Lock()
-	s.Cfg.Runtime.NetworkShares = status
-	s.replaceConfigSnapshot(s.Cfg)
+	if current := s.ConfigSnapshot(); current != nil {
+		updated := *current
+		updated.Runtime.NetworkShares = status
+		s.replaceConfigSnapshot(&updated)
+	}
 	s.CfgMu.Unlock()
 	return status, nil
 }

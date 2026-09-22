@@ -134,6 +134,27 @@ func TestMaintenanceHelperAcknowledgesIndependentPersistence(t *testing.T) {
 	}
 }
 
+func TestMaintenanceSummaryUsesCompletedDate(t *testing.T) {
+	stm, logger := maintenanceRegressionStores(t)
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	if _, err := stm.InsertJournalEntry(memory.JournalEntry{Date: yesterday, EntryType: "activity", Title: "Yesterday", Content: "Completed maintenance activity."}); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	client := &countingMaintenanceLLMClient{}
+	if err := generateDailySummary(t.Context(), cfg, logger, client, stm); err != nil {
+		t.Fatal(err)
+	}
+	summary, err := stm.GetDailySummary(yesterday)
+	if err != nil || summary == nil || client.calls != 1 {
+		t.Fatalf("summary=%v calls=%d err=%v", summary, client.calls, err)
+	}
+	if err := generateDailySummary(t.Context(), cfg, logger, client, stm); err != nil || client.calls != 1 {
+		t.Fatalf("stored summary repeated: %d %v", client.calls, err)
+	}
+}
+
 func TestMaintenanceUnfinishedPhaseCannotResolveIssue(t *testing.T) {
 	ledger := newMaintenanceRunLedger()
 	ledger.beginPhase("first")
