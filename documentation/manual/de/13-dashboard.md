@@ -223,7 +223,7 @@ Operational Issues sind dauerhafte Datensätze für Probleme aus Hintergrundvera
 ### Hinweise und Zustellung
 
 - Hintergrund- und Maintenance-Code erfasst das Problem, verschickt aber selbst keinen Benutzerhinweis.
-- Beim nächsten direkten Chatkontakt wählt der Supervisor höchstens zwei geänderte Issues nach Schweregrad, Revisionsänderung und Aktualität aus. Das Modell erhält den vorbereiteten Diagnosekontext und entscheidet nicht, ob der Nutzer den Hinweis sieht.
+- Nur beim ersten direkten Chatkontakt pro lokalem Kalendertag wählt der Supervisor höchstens zwei geänderte Issues nach Schweregrad, Revisionsänderung und Aktualität aus. Es gibt höchstens eine solche Meldung pro Tag, gemeinsam für alle Sitzungen und Chatkanäle und auch nach einem Neustart. Sind beim Erstkontakt keine Probleme fällig, erscheinen später hinzugekommene Probleme frühestens beim Erstkontakt am Folgetag. Weitere offene Probleme bleiben im Dashboard sichtbar. Das Modell erhält den vorbereiteten Diagnosekontext und entscheidet nicht, ob der Nutzer den Hinweis sieht.
 - Unterstützte Notification-Broker können das Event `operational_issue_notice` erhalten. Andere Kanäle bekommen denselben lokalisierten Text als deterministischen Prefix der finalen Antwort. Eine Revision wird erst nach Broker-Zustellung oder dauerhafter Final-Message-Speicherung als benachrichtigt markiert.
 - Eine einmalige `tool_failure`-Warnung bleibt bis zum zweiten Vorkommen intern. Schwere offene Issues dürfen nach 24 Stunden nur nach einem weiteren Vorkommen oder während einer ausstehenden Nutzerentscheidung erneut erscheinen.
 

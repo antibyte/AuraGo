@@ -166,10 +166,33 @@ func operationalIssueContext(runCfg RunConfig) string {
 }
 
 func prepareOperationalIssueNotice(runCfg RunConfig, initialUserMsg string, logger *slog.Logger) operationalIssueNoticeState {
+	return prepareOperationalIssueNoticeAt(runCfg, initialUserMsg, time.Now(), logger)
+}
+
+func prepareOperationalIssueNoticeAt(runCfg RunConfig, initialUserMsg string, now time.Time, logger *slog.Logger) operationalIssueNoticeState {
 	if !shouldConsiderOperationalIssueReminder(runCfg, initialUserMsg) {
 		return operationalIssueNoticeState{}
 	}
-	issues, err := planner.ListPendingOperationalIssueNotices(runCfg.PlannerDB, time.Now(), 2)
+	// Reserve the first direct contact even when no issue is pending. Subsequent
+	// messages and other channels must not drain the backlog in two-item batches.
+	claimed, err := planner.ClaimOperationalIssueReminderForDay(runCfg.PlannerDB, now)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("Failed to claim daily operational issue notice", "error", err)
+		}
+		return operationalIssueNoticeState{}
+	}
+	if !claimed {
+		return operationalIssueNoticeState{}
+	}
+	return pendingOperationalIssueNotice(runCfg, initialUserMsg, now, logger)
+}
+
+func pendingOperationalIssueNotice(runCfg RunConfig, initialUserMsg string, now time.Time, logger *slog.Logger) operationalIssueNoticeState {
+	if !shouldConsiderOperationalIssueReminder(runCfg, initialUserMsg) {
+		return operationalIssueNoticeState{}
+	}
+	issues, err := planner.ListPendingOperationalIssueNotices(runCfg.PlannerDB, now, 2)
 	if err != nil {
 		if logger != nil {
 			logger.Warn("Failed to load operational issue notices", "error", err)
@@ -332,7 +355,7 @@ func markPersistedOperationalIssueNotice(state operationalIssueNoticeState, runC
 // operationalIssueReminderText remains as a compatibility helper for prompt
 // tests and callers outside the loop. It no longer claims or marks a notice.
 func operationalIssueReminderText(runCfg RunConfig, initialUserMsg string, _ bool, logger *slog.Logger) string {
-	return prepareOperationalIssueNotice(runCfg, initialUserMsg, logger).PromptContext
+	return pendingOperationalIssueNotice(runCfg, initialUserMsg, time.Now(), logger).PromptContext
 }
 
 func shouldConsiderOperationalIssueReminder(runCfg RunConfig, initialUserMsg string) bool {

@@ -387,36 +387,41 @@ func prioritizeOperationalIssueReminderTodos(todos []Todo) []Todo {
 	return out
 }
 
-// ClaimOperationalIssueReminderForDay marks the operational issue reminder as
-// shown for the local day. It returns false when the day was already claimed.
+// ClaimOperationalIssueReminderForDay reserves the first direct-contact notice
+// opportunity for the local calendar day across sessions, channels and restarts.
+// Claiming never marks an issue revision as delivered.
 func ClaimOperationalIssueReminderForDay(db *sql.DB, now time.Time) (bool, error) {
 	if db == nil {
 		return false, nil
 	}
-	tx, err := db.Begin()
-	if err != nil {
-		return false, fmt.Errorf("begin operational issue reminder claim: %w", err)
+	if now.IsZero() {
+		now = time.Now()
 	}
-	defer tx.Rollback()
-
 	dayKey := reminderDayKey(now)
-	lastSeen, err := getPlannerMetaTx(tx, operationalIssueReminderMetaKey)
+	// A single conditional write serializes concurrent callers, including
+	// separate SQLite connections. Older values can be RFC3339 timestamps.
+	result, err := db.Exec(`
+		INSERT INTO planner_meta (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value=excluded.value
+		WHERE substr(trim(planner_meta.value), 1, 10) < excluded.value`,
+		operationalIssueReminderMetaKey, dayKey)
 	if err != nil {
+		return false, fmt.Errorf("claim daily operational issue notice: %w", err)
+	}
+	claimed, err := result.RowsAffected()
+	if err != nil || claimed == 0 {
 		return false, err
 	}
-	if reminderMatchesDay(lastSeen, dayKey) {
-		if err := tx.Commit(); err != nil {
-			return false, fmt.Errorf("commit operational issue reminder no-op: %w", err)
-		}
-		return false, nil
+	// Honor deliveries made earlier today by versions that did not claim the
+	// daily slot. Persisting the slot above also survives later issue cleanup.
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	var alreadyDelivered bool
+	if err := db.QueryRow(`SELECT EXISTS(
+		SELECT 1 FROM operational_issues WHERE last_notified_at >= ? AND last_notified_at < ?
+	)`, start.UTC().Format(time.RFC3339), start.AddDate(0, 0, 1).UTC().Format(time.RFC3339)).Scan(&alreadyDelivered); err != nil {
+		return false, fmt.Errorf("check previous operational issue delivery: %w", err)
 	}
-	if err := upsertPlannerMetaTx(tx, operationalIssueReminderMetaKey, dayKey); err != nil {
-		return false, err
-	}
-	if err := tx.Commit(); err != nil {
-		return false, fmt.Errorf("commit operational issue reminder claim: %w", err)
-	}
-	return true, nil
+	return !alreadyDelivered, nil
 }
 
 func compactOperationalIssuePromptDetail(detail string) string {

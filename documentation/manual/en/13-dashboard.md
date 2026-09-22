@@ -223,7 +223,7 @@ Operational Issues are durable records for problems found during background work
 ### Notices and delivery
 
 - Background and maintenance code records the issue; it never sends a user notice directly.
-- At the next direct chat contact, the supervisor selects at most two changed issues, ordered by severity, revision change, and recency. The model receives already-prepared diagnostic context and does not decide whether a notice is shown.
+- Only at the first direct chat contact of each local calendar day, the supervisor selects at most two changed issues, ordered by severity, revision change, and recency. At most one such notice is sent per day across sessions, chat channels and restarts. If no issues are due at first contact, issues added later wait until first contact the following day. Remaining open issues stay visible in the Dashboard. The model receives already-prepared diagnostic context and does not decide whether a notice is shown.
 - Supported notification brokers can receive the `operational_issue_notice` event. Other channels get the same localized text as a deterministic final-answer prefix. A revision is marked notified only after broker delivery or durable final-message persistence.
 - A one-off `tool_failure` warning remains internal until its second occurrence. High-severity open issues can repeat after 24 hours only after another occurrence or while waiting for a user decision.
 
