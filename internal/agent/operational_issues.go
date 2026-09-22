@@ -70,7 +70,7 @@ func resolveToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, logger *s
 		logger.Warn("[OperationalIssue] Failed to resolve internal issue", "tool", reference, "error", err)
 	}
 	resolveSupersededToolFailureIssue(runCfg, source, context, reference, legacyReference, logger)
-	if runCfg.ShortTermMem != nil && runCfg.Config != nil {
+	if !runCfg.SuppressTurnSideEffects && runCfg.ShortTermMem != nil && runCfg.Config != nil {
 		syncOperationalIssueAffect(runCfg.ShortTermMem, runCfg.Config, runCfg.PlannerDB, logger)
 	}
 }
@@ -115,7 +115,7 @@ func recordOperationalIssue(runCfg RunConfig, issue planner.OperationalIssue, lo
 	if _, err := planner.RecordOperationalIssue(runCfg.PlannerDB, issue); err != nil && logger != nil {
 		logger.Warn("[OperationalIssue] Failed to record internal issue", "source", issue.Source, "title", issue.Title, "error", err)
 	}
-	if runCfg.ShortTermMem != nil && runCfg.Config != nil {
+	if !runCfg.SuppressTurnSideEffects && runCfg.ShortTermMem != nil && runCfg.Config != nil {
 		syncOperationalIssueAffect(runCfg.ShortTermMem, runCfg.Config, runCfg.PlannerDB, logger)
 	}
 }
@@ -133,7 +133,7 @@ func shouldRecordOperationalIssueForRun(runCfg RunConfig) bool {
 		return false
 	case "":
 		return strings.TrimSpace(runCfg.SessionID) != "" && runCfg.SessionID != "default"
-	case "mission", "maintenance", "planner_notification", "cron", "daemon", "webhook", "mqtt", "email", "a2a":
+	case "mission", "maintenance", "planner_notification", "cron", "daemon", "webhook", "mqtt", "frigate", "email", "a2a":
 		return true
 	default:
 		return source != ""
@@ -345,7 +345,7 @@ func shouldConsiderOperationalIssueReminder(runCfg RunConfig, initialUserMsg str
 	switch strings.ToLower(strings.TrimSpace(runCfg.MessageSource)) {
 	case "", "web_chat", "telegram", "discord", "sms", "rocketchat", "agodesk_chat", "virtual_desktop_chat":
 		return true
-	case "mission", "maintenance", "a2a", "planner_notification", "cron", "daemon", "heartbeat", "follow_up", "uptime_kuma", "webhook", "mqtt":
+	case "mission", "maintenance", "a2a", "planner_notification", "cron", "daemon", "heartbeat", "follow_up", "uptime_kuma", "webhook", "mqtt", "frigate":
 		return false
 	default:
 		return false

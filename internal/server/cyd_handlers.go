@@ -172,7 +172,9 @@ func (s *Server) refreshCydSnapshot() {
 	if cfg.Cyd.MQTTMirror && cfg.MQTT.Enabled {
 		body, err := json.Marshal(hub.Snapshot())
 		if err == nil {
-			_ = tools.MQTTPublish("aurago/cyd/snapshot", string(body), 0, true, s.Logger)
+			if publishErr := tools.MQTTPublish("aurago/cyd/snapshot", string(body), 0, true, s.Logger); publishErr != nil && s.Logger != nil {
+				s.Logger.Warn("[CYD] MQTT snapshot publish failed", "error", cyd.Truncate(publishErr.Error(), 160))
+			}
 		}
 	}
 }

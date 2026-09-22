@@ -8,11 +8,17 @@ import (
 
 func isAutonomousMessageSource(source string) bool {
 	switch strings.ToLower(strings.TrimSpace(source)) {
-	case "heartbeat", "planner_notification", "uptime_kuma", "space_agent_bridge", "follow_up", "cron", "cron_prompt":
+	case "heartbeat", "planner_notification", "uptime_kuma", "space_agent_bridge", "follow_up", "cron", "cron_prompt", "mqtt", "frigate":
 		return true
 	default:
 		return false
 	}
+}
+
+func isRelayAutonomousRun(runCfg RunConfig, sessionID string) bool {
+	source := strings.ToLower(strings.TrimSpace(runCfg.MessageSource))
+	session := strings.ToLower(strings.TrimSpace(sessionID))
+	return source == "mqtt" || source == "frigate" || session == "mqtt" || session == "frigate"
 }
 
 func isAutonomousAgentRun(runCfg RunConfig, sessionID string) bool {

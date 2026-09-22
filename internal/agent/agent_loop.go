@@ -547,8 +547,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		if personalityEnabled && shortTermMem != nil && !personalityPrepared {
 			personalityPrepared = true
-			syncEnvironmentAffect(shortTermMem, cfg, runCfg.PlannerDB, isAutonomousRun, userInactivityHours, s.currentLogger)
-			if userEmotionTrigger != "" {
+			if !runCfg.SuppressTurnSideEffects {
+				syncEnvironmentAffect(shortTermMem, cfg, runCfg.PlannerDB, isAutonomousRun, userInactivityHours, s.currentLogger)
+			}
+			if !runCfg.SuppressTurnSideEffects && userEmotionTrigger != "" {
 				emitAffectFromTrigger(shortTermMem, cfg, s.currentLogger, userEmotionTrigger, userEmotionTriggerDetail, "chat")
 			}
 			prepareTurnEmotion(ctx, runCfg, flags, lastUserMsg, meta, s.currentLogger)
@@ -2092,7 +2094,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && runTurnSideEffects
 		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2
 
-		if isAutonomousRun && personalityEnabled && shortTermMem != nil {
+		if isAutonomousRun && !isRelayAutonomousRun(runCfg, sessionID) && personalityEnabled && shortTermMem != nil {
 			emitAutonomousRunAffect(shortTermMem, cfg, s.currentLogger, recoveryState.ConsecutiveErrorCount, s.toolCallCount)
 		}
 

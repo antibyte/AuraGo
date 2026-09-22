@@ -26,7 +26,7 @@ func shouldInjectDailyTodoReminder(runCfg RunConfig, initialUserMsg string) bool
 	if runCfg.PlannerDB == nil || strings.TrimSpace(initialUserMsg) == "" {
 		return false
 	}
-	if runCfg.IsCoAgent || runCfg.IsMission || runCfg.IsMaintenance {
+	if runCfg.IsCoAgent || runCfg.IsMission || runCfg.IsMaintenance || isRelayAutonomousRun(runCfg, runCfg.SessionID) {
 		return false
 	}
 	switch strings.ToLower(strings.TrimSpace(runCfg.MessageSource)) {

@@ -62,6 +62,50 @@ func TestCYDSnapshotIncludesAlerts(t *testing.T) {
 	}
 }
 
+func TestCYDMQTTPublishUsesAuthoritativeLiveReadOnlyResolver(t *testing.T) {
+	s, _ := testCYDServer(t)
+	s.Cfg.MQTT.Enabled = true
+	s.Cfg.MQTT.ReadOnly = true
+	s.Cfg.Cyd.MQTTMirror = true
+	s.initConfigSnapshot()
+
+	publishCalls := 0
+	tools.RegisterMQTTBridge(func(string, string, int, bool, *slog.Logger) error {
+		publishCalls++
+		return nil
+	}, nil, nil, nil)
+	t.Cleanup(func() {
+		tools.RegisterMQTTBridge(nil, nil, nil, nil)
+		tools.SetMQTTPermissionResolver(nil)
+		tools.ClearRuntimePermissionsForTest()
+	})
+	// Simulate an agent-scoped snapshot that still permits publishing. CYD
+	// must consult the server's live snapshot through the resolver first.
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{MQTTEnabled: true})
+	s.bindMQTTPermissions()
+
+	s.refreshCydSnapshot()
+	if publishCalls != 0 {
+		t.Fatalf("CYD published while authoritative MQTT read-only gate was active: %d calls", publishCalls)
+	}
+
+	updated := s.ConfigSnapshot().Clone()
+	updated.MQTT.ReadOnly = false
+	s.replaceConfigSnapshot(updated)
+	s.refreshCydSnapshot()
+	if publishCalls != 1 {
+		t.Fatalf("CYD publish calls after live read-only removal = %d, want 1", publishCalls)
+	}
+
+	updated = s.ConfigSnapshot().Clone()
+	updated.EggMode.Enabled = true
+	s.replaceConfigSnapshot(updated)
+	s.refreshCydSnapshot()
+	if publishCalls != 1 {
+		t.Fatalf("CYD published while authoritative EggMode gate was active: %d calls", publishCalls)
+	}
+}
+
 func TestCYDSnapshotAuth(t *testing.T) {
 	s, raw := testCYDServer(t)
 	h := handleCYDSnapshot(s)

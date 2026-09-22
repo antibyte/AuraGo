@@ -700,7 +700,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		rocketchat.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 
 		// MQTT Client: connect to broker and register bridge
-		s.configureMQTTRelay()
 		if s.MQTTController != nil {
 			s.MQTTController.UpdateConfig(mqttRuntimeSnapshot(s.ConfigSnapshot()))
 		}

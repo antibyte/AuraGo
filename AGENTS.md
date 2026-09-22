@@ -476,6 +476,19 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
 - Mission dispatch uses one worker and at most 256 waiting jobs. Drop new work
   on overload and recheck registration/generation before execution; dropped or
   stale jobs never consume a trigger interval.
+- MQTT and Frigate relays use separate internal autonomous sessions, exclude
+  global chat history and suppress derived conversation, memory, personality
+  and planner-reminder effects. Keep explicit authorized tools and operational
+  issue recording available. Relay registration is synchronized and delivery
+  uses the controller's cancellable context and bounded queue.
+- Build direct runtime gates with `tools.RuntimePermissionsFromConfig` at
+  startup, reload and agent dispatch. MQTT bridge/CYD gates resolve the live
+  server snapshot independently of earlier agent turns; dispatch also retains
+  the current run's stricter limits. Record CYD publication failures.
+- Serialize native MQTT results as JSON. New Python MQTT skills must check
+  CONNACK, immediate return codes, per-topic SUBACK and completed publication,
+  bound reception buffers and clean up on failure. Never rewrite existing
+  generated skills when updating the bundled template.
 
 ### Tool System
 

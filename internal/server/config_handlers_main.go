@@ -823,18 +823,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Apply hot-reload by publishing a new immutable config snapshot after
 			// all synchronous auto-detection adjustments are complete.
 			s.replaceConfigSnapshot(newCfg)
-			tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
-				AllowShell:           newCfg.Agent.AllowShell,
-				AllowPython:          newCfg.Agent.AllowPython,
-				AllowFilesystemWrite: newCfg.Agent.AllowFilesystemWrite,
-				AllowNetworkRequests: newCfg.Agent.AllowNetworkRequests,
-				DockerEnabled:        newCfg.Docker.Enabled,
-				DockerReadOnly:       newCfg.Docker.ReadOnly,
-				SchedulerEnabled:     newCfg.Tools.Scheduler.Enabled,
-				SchedulerReadOnly:    newCfg.Tools.Scheduler.ReadOnly,
-				MissionsEnabled:      newCfg.Tools.Missions.Enabled,
-				MissionsReadOnly:     newCfg.Tools.Missions.ReadOnly,
-			})
+			tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(newCfg))
 			if s.CronManager != nil {
 				if err := s.CronManager.RefreshRuntimePermissions(); err != nil {
 					if s.Logger != nil {

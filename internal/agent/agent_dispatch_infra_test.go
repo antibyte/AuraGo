@@ -13,6 +13,8 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func TestDispatchInfraManageWebhooksUsesActionAlias(t *testing.T) {
@@ -103,6 +105,113 @@ func TestDispatchInfraMQTTReadOnlyBlocksSubscriptions(t *testing.T) {
 				t.Fatalf("expected read-only denial, got %s", out)
 			}
 		})
+	}
+}
+
+func TestDispatchInfraMQTTPerRunGatesIntersectLiveResolver(t *testing.T) {
+	tools.SetMQTTPermissionResolver(func() (bool, bool) { return true, false })
+	t.Cleanup(func() { tools.SetMQTTPermissionResolver(nil) })
+
+	tests := []struct {
+		name       string
+		invoke     bool
+		enabled    bool
+		readOnly   bool
+		wantSubstr string
+	}{
+		{name: "native disabled", enabled: false, wantSubstr: "MQTT is not enabled"},
+		{name: "native readonly", enabled: true, readOnly: true, wantSubstr: "MQTT is in read-only mode"},
+		{name: "invoke disabled", invoke: true, enabled: false, wantSubstr: "MQTT is not enabled"},
+		{name: "invoke readonly", invoke: true, enabled: true, readOnly: true, wantSubstr: "MQTT is in read-only mode"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.MQTT.Enabled = tt.enabled
+			cfg.MQTT.ReadOnly = tt.readOnly
+			sessionID := "mqtt-per-run-gate-" + strings.ReplaceAll(tt.name, " ", "-")
+			if tt.invoke {
+				t.Cleanup(func() { ClearDiscoverToolsState(sessionID) })
+				SetDiscoverToolsState(sessionID, []openai.Tool{testToolSchema("mqtt_publish", "Publish MQTT message")}, nil, "")
+			}
+			var out string
+			var handled bool
+			dc := &DispatchContext{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionID: sessionID}
+			if tt.invoke {
+				out, handled = dispatchComm(context.Background(), ToolCall{
+					Action: "invoke_tool",
+					Params: map[string]interface{}{
+						"tool_name": "mqtt_publish",
+						"arguments": map[string]interface{}{"topic": "home/test", "payload": "payload"},
+					},
+				}, dc)
+			} else {
+				out, handled = dispatchInfra(context.Background(), ToolCall{
+					Action: "mqtt_publish",
+					Params: map[string]interface{}{"topic": "home/test", "payload": "payload"},
+				}, dc)
+			}
+			if !handled || !strings.Contains(out, tt.wantSubstr) {
+				t.Fatalf("handled=%v output=%s, want %q", handled, out, tt.wantSubstr)
+			}
+		})
+	}
+}
+
+func TestDispatchInfraMQTTUnsubscribeIncludesRemainingOwners(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{MQTTEnabled: true})
+	tools.RegisterMQTTUnsubscribeDetail(func(topic string, _ *slog.Logger) (tools.MQTTUnsubscribeResult, error) {
+		return tools.MQTTUnsubscribeResult{
+			Topic:   topic,
+			Removed: false,
+			RemainingOwners: []tools.MQTTUnsubscribeOwner{{
+				Kind: "config",
+				Key:  topic,
+				QoS:  1,
+			}},
+		}, nil
+	})
+	t.Cleanup(func() {
+		tools.RegisterMQTTUnsubscribeDetail(nil)
+		tools.RegisterMQTTBridge(nil, nil, nil, nil)
+		tools.ClearRuntimePermissionsForTest()
+	})
+
+	cfg := &config.Config{}
+	cfg.MQTT.Enabled = true
+	out, ok := dispatchInfra(context.Background(), ToolCall{
+		Action: "mqtt_unsubscribe",
+		Params: map[string]interface{}{"topic": "home/shared"},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchInfra to handle mqtt_unsubscribe")
+	}
+	if !strings.Contains(out, `"remaining_owners"`) || !strings.Contains(out, `"kind":"config"`) {
+		t.Fatalf("unsubscribe output omitted remaining owners: %s", out)
+	}
+}
+
+func TestMQTTToolOutputMarshalsQuotesAndBackslashes(t *testing.T) {
+	raw := mqttToolOutput("error", map[string]interface{}{
+		"message": `MQTT publish failed: broker said "bad"\\path`,
+		"topic":   `home/"quoted"`,
+	})
+	const prefix = "Tool Output: "
+	if !strings.HasPrefix(raw, prefix) {
+		t.Fatalf("output = %q, want Tool Output prefix", raw)
+	}
+	var envelope map[string]interface{}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(raw, prefix)), &envelope); err != nil {
+		t.Fatalf("MQTT output is not valid JSON: %v; output=%s", err, raw)
+	}
+	if got, want := envelope["message"], `MQTT publish failed: broker said "bad"\\path`; got != want {
+		t.Fatalf("message = %#v, want %q", got, want)
+	}
+	if got, want := envelope["topic"], `home/"quoted"`; got != want {
+		t.Fatalf("topic = %#v, want %q", got, want)
 	}
 }
 

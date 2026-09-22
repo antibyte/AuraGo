@@ -3,13 +3,16 @@ package agent
 import (
 	"context"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 	"aurago/internal/prompts"
 	"aurago/internal/tools"
 
@@ -48,6 +51,8 @@ func TestIsAutonomousLoopback(t *testing.T) {
 		{name: "planner notification source", runCfg: RunConfig{MessageSource: "planner_notification"}, sessionID: "default", want: true},
 		{name: "uptime kuma source", runCfg: RunConfig{MessageSource: "uptime_kuma"}, sessionID: "default", want: true},
 		{name: "space agent bridge source", runCfg: RunConfig{MessageSource: "space_agent_bridge"}, sessionID: "default", want: true},
+		{name: "mqtt relay source", runCfg: RunConfig{MessageSource: "mqtt"}, sessionID: "mqtt", want: true},
+		{name: "frigate relay source", runCfg: RunConfig{MessageSource: "frigate"}, sessionID: "frigate", want: true},
 		{name: "sms loopback remains visible", runCfg: RunConfig{MessageSource: "sms"}, sessionID: "default", want: false},
 	}
 
@@ -216,6 +221,71 @@ func TestLoopbackContextUsesAgentLoopSystemPromptAndDoesNotDuplicateCurrentMessa
 	}
 	if countCurrent != 1 {
 		t.Fatalf("current prompt count = %d, want 1: %#v", countCurrent, client.lastReq.Messages)
+	}
+}
+
+func TestRelayLoopbackIsolatesGlobalHistoryAndPlannerInjectionButKeepsExplicitPlannerTools(t *testing.T) {
+	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, "mqtt", "mqtt")
+	defer cleanup()
+
+	plannerDB, err := planner.InitDB(filepath.Join(t.TempDir(), "planner.db"))
+	if err != nil {
+		t.Fatalf("planner.InitDB: %v", err)
+	}
+	defer plannerDB.Close()
+	runCfg.PlannerDB = plannerDB
+	runCfg.SuppressTurnSideEffects = true
+	runCfg.Config.Tools.Planner.Enabled = true
+	runCfg.Config.Personality.Engine = true
+	if _, err := planner.CreateTodo(plannerDB, planner.Todo{Title: "relay planner secret"}); err != nil {
+		t.Fatalf("planner.CreateTodo: %v", err)
+	}
+	if err := runCfg.HistoryManager.Add(openai.ChatMessageRoleUser, "global user history secret", 1, false, false); err != nil {
+		t.Fatalf("history add: %v", err)
+	}
+	historyBefore := len(runCfg.HistoryManager.Get())
+	affectBefore, err := runCfg.ShortTermMem.GetAffectState()
+	if err != nil {
+		t.Fatalf("initial affect state: %v", err)
+	}
+
+	LoopbackContext(context.Background(), runCfg, "what is open?", NoopBroker{})
+
+	if got := len(runCfg.HistoryManager.Get()); got != historyBefore {
+		t.Fatalf("relay changed global history length from %d to %d", historyBefore, got)
+	}
+	activity, err := runCfg.ShortTermMem.GetActivityTurnsForDate(time.Now().Format("2006-01-02"), 20)
+	if err != nil {
+		t.Fatalf("relay activity lookup: %v", err)
+	}
+	if len(activity) != 0 {
+		t.Fatalf("relay wrote shared memory activity: %+v", activity)
+	}
+	for _, message := range client.lastReq.Messages {
+		if strings.Contains(message.Content, "global user history secret") || strings.Contains(message.Content, "relay planner secret") {
+			t.Fatalf("relay prompt leaked shared context: %#v", message)
+		}
+	}
+	if shouldInjectPlannerContext(runCfg, "what is open?", true) {
+		t.Fatal("relay must not inject planner context even with a planner-intent prompt")
+	}
+	if got := dailyTodoReminderText(runCfg, "what is open?", time.Now(), slog.Default()); got != "" {
+		t.Fatalf("relay received daily planner reminder: %q", got)
+	}
+	affectAfter, err := runCfg.ShortTermMem.GetAffectState()
+	if err != nil {
+		t.Fatalf("final affect state: %v", err)
+	}
+	if affectAfter.CauseCode != affectBefore.CauseCode || math.Abs(affectAfter.Valence-affectBefore.Valence) > 1e-9 || math.Abs(affectAfter.Arousal-affectBefore.Arousal) > 1e-9 {
+		t.Fatalf("relay changed shared affect state: before=%+v after=%+v", affectBefore, affectAfter)
+	}
+
+	plannerOutput, handled := dispatchComm(context.Background(), ToolCall{
+		Action:    "manage_todos",
+		Operation: "list",
+	}, &DispatchContext{Cfg: runCfg.Config, Logger: slog.Default(), PlannerDB: runCfg.PlannerDB, SessionID: runCfg.SessionID, MessageSource: runCfg.MessageSource})
+	if !handled || !strings.Contains(plannerOutput, "relay planner secret") {
+		t.Fatalf("explicit planner tool unavailable in relay run: handled=%v output=%s", handled, plannerOutput)
 	}
 }
 

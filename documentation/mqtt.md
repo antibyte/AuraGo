@@ -70,3 +70,28 @@ outside the current desired filters are ignored.
 MQTT missions use a single dispatch worker with up to 256 waiting jobs. When
 full, new jobs are dropped and counted. A dropped job does not consume the
 mission's trigger interval.
+
+## Relay processing and permissions
+
+MQTT and Frigate messages run in their own internal background sessions. They
+do not inherit normal chat history or create automatic conversation summaries,
+memory extraction, personality changes or planner reminders. Their existing
+tools remain available under the current configuration and the run's own
+restrictions. Background operational failures remain recorded for diagnosis.
+
+The controller runs one relay worker with at most 100 waiting messages. Disabling
+MQTT or stopping the server cancels its current relay and joins the workers.
+`/api/mqtt/status` exposes subscription failures and dropped relay/mission work
+through `runtime.subscriptions` and `stats`; overload drops newly arriving work.
+
+CYD publishing uses the live server permissions even before the first agent
+turn. Disabled MQTT, read-only mode and Egg Mode continue to restrict publishing;
+publication failures are recorded in the server log.
+
+## Generated Python skills
+
+The bundled MQTT publisher template requires successful connection and broker
+acknowledgements, checks publication completion and bounds its receive buffer to
+50 messages. Timeouts and rejected subscriptions produce an error result. Client
+cleanup runs on every return path. These checks apply when generating a new
+skill; existing generated skills remain unchanged.

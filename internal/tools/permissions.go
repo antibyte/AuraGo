@@ -1,9 +1,13 @@
 package tools
 
 import (
-	"aurago/internal/sandbox"
 	"fmt"
+	"path/filepath"
 	"sync/atomic"
+
+	"aurago/internal/config"
+	"aurago/internal/desktop"
+	"aurago/internal/sandbox"
 )
 
 // RuntimePermissions are the direct execution gates enforced inside high-risk tools.
@@ -29,6 +33,64 @@ type RuntimePermissions struct {
 }
 
 var runtimePermissions atomic.Pointer[RuntimePermissions]
+
+// mqttPermissionResolverState keeps server-owned MQTT gates independent from
+// the process-wide snapshot used by agent dispatch. Agent turns may update the
+// latter for their scoped config; the live bridge must still consult the
+// authoritative server snapshot.
+type mqttPermissionResolverState struct {
+	resolve func() (enabled, readOnly bool)
+}
+
+var mqttPermissionResolver atomic.Pointer[mqttPermissionResolverState]
+
+// SetMQTTPermissionResolver binds the live MQTT bridge to the server's
+// immutable config snapshot. Passing nil restores the test/standalone fallback
+// to RuntimePermissions.
+func SetMQTTPermissionResolver(resolve func() (enabled, readOnly bool)) {
+	if resolve == nil {
+		mqttPermissionResolver.Store(nil)
+		return
+	}
+	mqttPermissionResolver.Store(&mqttPermissionResolverState{resolve: resolve})
+}
+
+// RuntimePermissionsFromConfig builds a complete runtime gate snapshot from a
+// config. Keep this as the single conversion used at startup, reload, and
+// agent dispatch so omitted fields cannot silently disable an integration.
+func RuntimePermissionsFromConfig(cfg *config.Config) RuntimePermissions {
+	if cfg == nil {
+		return RuntimePermissions{}
+	}
+	packageManagerEnabled := cfg.Agent.AllowPackageManager && cfg.PackageManager.Enabled && (!cfg.Runtime.IsDocker || cfg.Agent.SudoEnabled)
+	var protectedNotes []string
+	if cfg.VirtualDesktop.WorkspaceDir != "" {
+		protectedNotes = []string{
+			filepath.Join(cfg.VirtualDesktop.WorkspaceDir, filepath.FromSlash(desktop.NotesDirectory)),
+			filepath.Join(cfg.VirtualDesktop.WorkspaceDir, filepath.FromSlash(desktop.NotesTrashDirectory)),
+		}
+	}
+	return RuntimePermissions{
+		ProtectedNotesRoots:        protectedNotes,
+		AllowShell:                 cfg.Agent.AllowShell,
+		AllowPython:                cfg.Agent.AllowPython,
+		AllowFilesystemWrite:       cfg.Agent.AllowFilesystemWrite,
+		AllowNetworkRequests:       cfg.Agent.AllowNetworkRequests,
+		DockerEnabled:              cfg.Docker.Enabled,
+		DockerReadOnly:             cfg.Docker.ReadOnly,
+		SchedulerEnabled:           cfg.Tools.Scheduler.Enabled,
+		SchedulerReadOnly:          cfg.Tools.Scheduler.ReadOnly,
+		MissionsEnabled:            cfg.Tools.Missions.Enabled,
+		MissionsReadOnly:           cfg.Tools.Missions.ReadOnly,
+		MQTTEnabled:                cfg.MQTT.Enabled,
+		MQTTReadOnly:               cfg.MQTT.ReadOnly,
+		PackageManagerEnabled:      packageManagerEnabled,
+		PackageManagerReadOnly:     cfg.PackageManager.ReadOnly,
+		PackageManagerAllowInstall: cfg.PackageManager.AllowInstall,
+		PackageManagerAllowRemove:  cfg.PackageManager.AllowRemove,
+		PackageManagerAllowUpgrade: cfg.PackageManager.AllowUpgrade,
+	}
+}
 
 func ConfigureRuntimePermissions(perms RuntimePermissions) {
 	copy := perms
@@ -136,33 +198,48 @@ func requireMissionMutationPermission() error {
 }
 
 func requireMQTTPermission() error {
-	perms, configured := currentRuntimePermissions()
+	enabled, _, configured := currentMQTTPermissions()
 	if !configured {
 		return requireRuntimePermission("mqtt", false)
 	}
-	return requireRuntimePermission("mqtt", perms.MQTTEnabled)
+	return requireRuntimePermission("mqtt", enabled)
 }
 
 func requireMQTTPublishPermission() error {
-	if err := requireMQTTPermission(); err != nil {
+	enabled, readOnly, configured := currentMQTTPermissions()
+	if !configured {
+		return requireRuntimePermission("mqtt", false)
+	}
+	if err := requireRuntimePermission("mqtt", enabled); err != nil {
 		return err
 	}
-	perms, _ := currentRuntimePermissions()
-	if perms.MQTTReadOnly {
+	if readOnly {
 		return fmt.Errorf("mqtt publish is disabled by runtime permissions")
 	}
 	return nil
 }
 
 func requireMQTTMutationPermission() error {
-	if err := requireMQTTPermission(); err != nil {
+	enabled, readOnly, configured := currentMQTTPermissions()
+	if !configured {
+		return requireRuntimePermission("mqtt", false)
+	}
+	if err := requireRuntimePermission("mqtt", enabled); err != nil {
 		return err
 	}
-	perms, _ := currentRuntimePermissions()
-	if perms.MQTTReadOnly {
+	if readOnly {
 		return fmt.Errorf("mqtt mutation is disabled by runtime permissions")
 	}
 	return nil
+}
+
+func currentMQTTPermissions() (enabled, readOnly, configured bool) {
+	if resolver := mqttPermissionResolver.Load(); resolver != nil && resolver.resolve != nil {
+		enabled, readOnly = resolver.resolve()
+		return enabled, readOnly, true
+	}
+	perms, configured := currentRuntimePermissions()
+	return perms.MQTTEnabled, perms.MQTTReadOnly, configured
 }
 
 func requirePackageManagerPermission() error {

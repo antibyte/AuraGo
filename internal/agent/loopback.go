@@ -28,6 +28,10 @@ func isAutonomousLoopback(runCfg RunConfig, sessionID string) bool {
 	return isAutonomousAgentRun(runCfg, sessionID)
 }
 
+func isRelayLoopback(runCfg RunConfig, sessionID string) bool {
+	return isRelayAutonomousRun(runCfg, sessionID)
+}
+
 func buildLoopbackConversationMessages(base []openai.ChatCompletionMessage, historyManager *memory.HistoryManager, safeMessage string, includeGlobalHistory bool) []openai.ChatCompletionMessage {
 	finalMessages := append([]openai.ChatCompletionMessage(nil), base...)
 	currentMsg := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: safeMessage}
@@ -164,7 +168,9 @@ func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, brok
 		logger.Error("[Loopback] Failed to insert message", "error", err)
 		return
 	}
-	NoteInnerVoiceUserTurn(sessionID)
+	if !isRelayLoopback(runCfg, sessionID) {
+		NoteInnerVoiceUserTurn(sessionID)
+	}
 	if shouldPersistLoopbackHistory(sessionID) && !isInternalMessage && ShouldAppendHistoryMessage(mid, err) {
 		historyManager.Add(openai.ChatMessageRoleUser, safeMessage, mid, false, false)
 	}

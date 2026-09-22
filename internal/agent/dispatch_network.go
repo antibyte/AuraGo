@@ -24,6 +24,27 @@ func isGrafanaMutation(operation string) bool {
 	}
 }
 
+func mqttToolOutput(status string, fields map[string]interface{}) string {
+	envelope := make(map[string]interface{}, len(fields)+1)
+	envelope["status"] = status
+	for key, value := range fields {
+		envelope[key] = value
+	}
+	data, err := json.Marshal(envelope)
+	if err != nil {
+		return `Tool Output: {"status":"error","message":"failed to encode MQTT result"}`
+	}
+	return "Tool Output: " + string(data)
+}
+
+func mqttToolError(operation string, err error) string {
+	message := operation
+	if err != nil {
+		message += ": " + err.Error()
+	}
+	return mqttToolOutput("error", map[string]interface{}{"message": message})
+}
+
 func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
 	cfg := dc.Cfg
 	logger := dc.Logger
@@ -147,15 +168,15 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 
 		case "mqtt_publish":
 			if !cfg.MQTT.Enabled {
-				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
+				return mqttToolError("MQTT is not enabled. Configure the mqtt section in config.yaml", nil)
 			}
 			if cfg.MQTT.ReadOnly {
-				return `Tool Output: {"status":"error","message":"MQTT is in read-only mode. Disable mqtt.read_only to allow changes."}`
+				return mqttToolError("MQTT is in read-only mode. Disable mqtt.readonly to allow changes", nil)
 			}
 			req := decodeMQTTArgs(tc)
 			topic := req.Topic
 			if topic == "" {
-				return `Tool Output: {"status": "error", "message": "'topic' is required"}`
+				return mqttToolError("'topic' is required", nil)
 			}
 			qos := req.QoS
 			if qos < 0 || qos > 2 {
@@ -163,21 +184,21 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 			}
 			logger.Info("LLM requested MQTT publish", "topic", topic, "retain", req.Retain, "payload_len", len(req.Payload))
 			if err := tools.MQTTPublish(topic, req.Payload, qos, req.Retain, logger); err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MQTT publish failed: %v"}`, err)
+				return mqttToolError("MQTT publish failed", err)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Published to topic '%s'"}`, topic)
+			return mqttToolOutput("success", map[string]interface{}{"message": fmt.Sprintf("Published to topic '%s'", topic), "topic": topic, "qos": qos, "retained": req.Retain})
 
 		case "mqtt_subscribe":
 			if !cfg.MQTT.Enabled {
-				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
+				return mqttToolError("MQTT is not enabled. Configure the mqtt section in config.yaml", nil)
 			}
 			if cfg.MQTT.ReadOnly {
-				return `Tool Output: {"status":"error","message":"MQTT is in read-only mode. Disable mqtt.read_only to allow changes."}`
+				return mqttToolError("MQTT is in read-only mode. Disable mqtt.readonly to allow changes", nil)
 			}
 			req := decodeMQTTArgs(tc)
 			topic := req.Topic
 			if topic == "" {
-				return `Tool Output: {"status": "error", "message": "'topic' is required"}`
+				return mqttToolError("'topic' is required", nil)
 			}
 			qos := req.QoS
 			if qos < 0 || qos > 2 {
@@ -185,31 +206,41 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 			}
 			logger.Info("LLM requested MQTT subscribe", "topic", topic, "qos", qos)
 			if err := tools.MQTTSubscribe(topic, qos, logger); err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MQTT subscribe failed: %v"}`, err)
+				return mqttToolError("MQTT subscribe failed", err)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Subscribed to topic '%s' with QoS %d"}`, topic, qos)
+			return mqttToolOutput("success", map[string]interface{}{"message": fmt.Sprintf("Subscribed to topic '%s' with QoS %d", topic, qos), "topic": topic, "qos": qos})
 
 		case "mqtt_unsubscribe":
 			if !cfg.MQTT.Enabled {
-				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
+				return mqttToolError("MQTT is not enabled. Configure the mqtt section in config.yaml", nil)
 			}
 			if cfg.MQTT.ReadOnly {
-				return `Tool Output: {"status":"error","message":"MQTT is in read-only mode. Disable mqtt.read_only to allow changes."}`
+				return mqttToolError("MQTT is in read-only mode. Disable mqtt.readonly to allow changes", nil)
 			}
 			req := decodeMQTTArgs(tc)
 			topic := req.Topic
 			if topic == "" {
-				return `Tool Output: {"status": "error", "message": "'topic' is required"}`
+				return mqttToolError("'topic' is required", nil)
 			}
 			logger.Info("LLM requested MQTT unsubscribe", "topic", topic)
-			if err := tools.MQTTUnsubscribe(topic, logger); err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MQTT unsubscribe failed: %v"}`, err)
+			result, err := tools.MQTTUnsubscribeWithDetails(topic, logger)
+			if err != nil {
+				return mqttToolError("MQTT unsubscribe failed", err)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Unsubscribed from topic '%s'"}`, topic)
+			fields := map[string]interface{}{
+				"message": fmt.Sprintf("Unsubscribed from topic '%s'", topic),
+				"topic":   topic,
+				"removed": result.Removed,
+			}
+			if len(result.RemainingOwners) > 0 {
+				fields["remaining_owners"] = result.RemainingOwners
+				fields["message"] = fmt.Sprintf("Removed the manual subscription for topic '%s'; the broker filter remains active for other owners", topic)
+			}
+			return mqttToolOutput("success", fields)
 
 		case "mqtt_get_messages":
 			if !cfg.MQTT.Enabled {
-				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
+				return mqttToolError("MQTT is not enabled. Configure the mqtt section in config.yaml", nil)
 			}
 			req := decodeMQTTArgs(tc)
 			topic := req.Topic // empty = all topics
@@ -220,14 +251,9 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 			logger.Info("LLM requested MQTT get messages", "topic", topic, "limit", limit)
 			msgs, err := tools.MQTTGetMessages(topic, limit, logger)
 			if err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MQTT get messages failed: %v"}`, err)
+				return mqttToolError("MQTT get messages failed", err)
 			}
-			data, _ := json.Marshal(map[string]interface{}{
-				"status": "success",
-				"count":  len(msgs),
-				"data":   msgs,
-			})
-			return "Tool Output: " + string(data)
+			return mqttToolOutput("success", map[string]interface{}{"count": len(msgs), "data": msgs, "topic": topic, "limit": limit})
 
 		case "adguard", "adguard_home":
 			if !cfg.AdGuard.Enabled {

@@ -439,6 +439,8 @@ func Start(opts StartOptions) error {
 	s := newServerFromOptions(opts)
 	s.MQTTController = mqtt.NewMQTTController(logger)
 	mqtt.SetDefaultController(s.MQTTController)
+	s.bindMQTTPermissions()
+	s.configureMQTTRelay()
 	defer s.MQTTController.Stop(context.Background())
 	s.localLLMLifecycleCtx = serverCtx
 	if s.SpeechLabDeployer != nil {
@@ -1359,18 +1361,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 		cancelProbe()
 		networkshares.SetDefaultManager(networkSharesManager)
 	}
-	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
-		AllowShell:           cfg.Agent.AllowShell,
-		AllowPython:          cfg.Agent.AllowPython,
-		AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
-		AllowNetworkRequests: cfg.Agent.AllowNetworkRequests,
-		DockerEnabled:        cfg.Docker.Enabled,
-		DockerReadOnly:       cfg.Docker.ReadOnly,
-		SchedulerEnabled:     cfg.Tools.Scheduler.Enabled,
-		SchedulerReadOnly:    cfg.Tools.Scheduler.ReadOnly,
-		MissionsEnabled:      cfg.Tools.Missions.Enabled,
-		MissionsReadOnly:     cfg.Tools.Missions.ReadOnly,
-	})
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(cfg))
 	if opts.CronManager != nil {
 		if err := opts.CronManager.RefreshRuntimePermissions(); err != nil && logger != nil {
 			logger.Warn("Failed to refresh cron runtime permissions", "error", err)
@@ -1620,6 +1611,14 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
 
+		// Relay runs can own network, database and tool activity. Cancel and
+		// join them before shutting down any of their dependencies.
+		if s.MQTTController != nil {
+			if err := s.MQTTController.Stop(context.Background()); err != nil {
+				s.Logger.Warn("MQTT shutdown did not complete cleanly", "error", err)
+			}
+		}
+
 		// Shut down tsnet node
 		if s.TsNetManager != nil {
 			if err := s.TsNetManager.Shutdown(ctx); err != nil {
@@ -1645,13 +1644,6 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		}
 		if s.AgentMailService != nil {
 			s.AgentMailService.Stop(ctx)
-		}
-		// Relay runs can own database and tool activity. Cancel and join them
-		// before shutting down their dependencies, even if the HTTP deadline expires.
-		if s.MQTTController != nil {
-			if err := s.MQTTController.Stop(context.Background()); err != nil {
-				s.Logger.Warn("MQTT shutdown did not complete cleanly", "error", err)
-			}
 		}
 		// Shut down MCP servers
 		tools.ShutdownMCPManager()
