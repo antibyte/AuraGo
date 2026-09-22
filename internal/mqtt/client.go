@@ -1,7 +1,7 @@
 package mqtt
 
 import (
-	"fmt"
+	"context"
 	"log/slog"
 	"strings"
 	"sync"
@@ -123,179 +123,31 @@ func UnregisterMissionTrigger(key string) {
 // StartClient connects to the MQTT broker and subscribes to configured topics.
 // It registers the MQTT bridge so the agent can use publish/subscribe/get tools.
 func StartClient(cfg *config.Config, log *slog.Logger) {
-	if !cfg.MQTT.Enabled || cfg.MQTT.Broker == "" {
-		setActiveConfig(nil)
-		return
+	if log != nil {
+		logger = log
 	}
-
-	logger = log
-	setActiveConfig(cfg)
-	buffer.Configure(cfg.MQTT.Buffer.MaxMessages, cfg.MQTT.Buffer.MaxAgeHours, cfg.MQTT.Buffer.MaxPayloadBytes)
-
-	logger.Info("[MQTT] Connecting", "broker", cfg.MQTT.Broker, "client_id", cfg.MQTT.ClientID)
-
-	opts, err := newClientOptions(cfg, logger)
-	if err != nil {
-		recordError(err)
-		logger.Error("[MQTT] Failed to configure client", "error", err)
-		return
-	}
-	startRelayWorker(defaultRelayQueueSize)
-	opts.SetOnConnectHandler(func(c pahomqtt.Client) {
-		logger.Info("[MQTT] Connected to broker")
-		recordConnected()
-		publishAvailability(c, cfg, logger)
-		subscribeConfiguredTopics(c, cfg)
-	}).SetConnectionLostHandler(func(c pahomqtt.Client, err error) {
-		recordDisconnected(err)
-		logger.Warn("[MQTT] Connection lost", "error", err)
-	})
-
-	connectTimeout := time.Duration(cfg.MQTT.ConnectTimeout) * time.Second
-	if connectTimeout <= 0 {
-		connectTimeout = 15 * time.Second
-	}
-
-	c := pahomqtt.NewClient(opts)
-	token := c.Connect()
-	go func() {
-		if token.WaitTimeout(connectTimeout) {
-			if token.Error() != nil {
-				recordError(token.Error())
-				logger.Error("[MQTT] Failed to connect", "error", token.Error())
-				return
-			}
-		} else {
-			err := fmt.Errorf("MQTT connect timed out after %s", connectTimeout)
-			recordError(err)
-			logger.Warn("[MQTT] Connect timed out, will retry in background")
-		}
-	}()
-
-	mu.Lock()
-	client = c
-	mu.Unlock()
-
-	// Register bridge functions
-	tools.RegisterMQTTBridge(publish, subscribe, unsubscribe, getMessages)
-	logger.Info("[MQTT] Bridge registered")
+	defaultControllerInstance().UpdateConfig(cfg)
 }
 
 // StopClient disconnects the MQTT client gracefully.
 func StopClient() {
-	mu.Lock()
-	c := client
-	client = nil
-	mu.Unlock()
-
-	if c != nil && c.IsConnected() {
-		publishOfflineAvailability(c, currentAvailabilitySnapshot(), logger)
-		c.Disconnect(1000)
-		recordDisconnected(nil)
-		if logger != nil {
-			logger.Info("[MQTT] Disconnected")
-		}
+	if err := defaultControllerInstance().Stop(context.Background()); err != nil && logger != nil {
+		logger.Warn("[MQTT] Stop failed", "error", err)
 	}
-	setActiveConfig(nil)
-	stopRelayWorker()
 }
 
 // ── Bridge implementations ──────────────────────────────────────────────────
 
 func publish(topic, payload string, qos int, retain bool, log *slog.Logger) error {
-	mu.RLock()
-	c := client
-	mu.RUnlock()
-
-	if c == nil || !c.IsConnected() {
-		return fmt.Errorf("MQTT client is not connected")
-	}
-	if err := validateQoS(qos); err != nil {
-		atomic.AddUint64(&stats.publishErrors, 1)
-		return err
-	}
-	if err := validatePublishTopic(topic); err != nil {
-		atomic.AddUint64(&stats.publishErrors, 1)
-		return err
-	}
-	if maxPayloadBytes := buffer.currentMaxPayloadBytes(); maxPayloadBytes > 0 && len([]byte(payload)) > maxPayloadBytes {
-		atomic.AddUint64(&stats.publishErrors, 1)
-		return fmt.Errorf("MQTT payload exceeds %d byte limit", maxPayloadBytes)
-	}
-
-	token := c.Publish(topic, byte(qos), retain, payload)
-	if !token.WaitTimeout(10 * time.Second) {
-		atomic.AddUint64(&stats.publishErrors, 1)
-		return fmt.Errorf("MQTT publish timed out")
-	}
-	if token.Error() != nil {
-		atomic.AddUint64(&stats.publishErrors, 1)
-		return fmt.Errorf("MQTT publish failed: %w", token.Error())
-	}
-
-	atomic.AddUint64(&stats.publishedMessages, 1)
-	log.Info("[MQTT] Published", "topic", topic, "retain", retain, "payload_len", len(payload))
-	return nil
+	return defaultControllerInstance().publish(topic, payload, qos, retain, log)
 }
 
 func subscribe(topic string, qos int, log *slog.Logger) error {
-	mu.RLock()
-	c := client
-	mu.RUnlock()
-
-	if c == nil || !c.IsConnected() {
-		return fmt.Errorf("MQTT client is not connected")
-	}
-	if err := validateQoS(qos); err != nil {
-		atomic.AddUint64(&stats.subscribeErrors, 1)
-		return err
-	}
-	if err := validateTopicFilter(topic); err != nil {
-		atomic.AddUint64(&stats.subscribeErrors, 1)
-		return err
-	}
-
-	token := c.Subscribe(topic, byte(qos), messageHandler)
-	if !token.WaitTimeout(10 * time.Second) {
-		atomic.AddUint64(&stats.subscribeErrors, 1)
-		return fmt.Errorf("MQTT subscribe timed out")
-	}
-	if token.Error() != nil {
-		atomic.AddUint64(&stats.subscribeErrors, 1)
-		return fmt.Errorf("MQTT subscribe failed: %w", token.Error())
-	}
-
-	rememberRuntimeSubscription(topic, byte(qos))
-	log.Info("[MQTT] Subscribed", "topic", topic, "qos", qos)
-	return nil
+	return defaultControllerInstance().subscribe(topic, qos, log)
 }
 
 func unsubscribe(topic string, log *slog.Logger) error {
-	mu.RLock()
-	c := client
-	mu.RUnlock()
-
-	if c == nil || !c.IsConnected() {
-		return fmt.Errorf("MQTT client is not connected")
-	}
-	if err := validateTopicFilter(topic); err != nil {
-		atomic.AddUint64(&stats.subscribeErrors, 1)
-		return err
-	}
-
-	token := c.Unsubscribe(topic)
-	if !token.WaitTimeout(10 * time.Second) {
-		atomic.AddUint64(&stats.subscribeErrors, 1)
-		return fmt.Errorf("MQTT unsubscribe timed out")
-	}
-	if token.Error() != nil {
-		atomic.AddUint64(&stats.subscribeErrors, 1)
-		return fmt.Errorf("MQTT unsubscribe failed: %w", token.Error())
-	}
-
-	forgetRuntimeSubscription(topic)
-	log.Info("[MQTT] Unsubscribed", "topic", topic)
-	return nil
+	return defaultControllerInstance().unsubscribe(topic, log)
 }
 
 func getMessages(topic string, limit int, log *slog.Logger) ([]tools.MQTTMessage, error) {
@@ -305,6 +157,13 @@ func getMessages(topic string, limit int, log *slog.Logger) ([]tools.MQTTMessage
 // ── Internal helpers ────────────────────────────────────────────────────────
 
 func subscribeConfiguredTopics(c pahomqtt.Client, cfg *config.Config) {
+	subscribeConfiguredTopicsWithHandler(c, cfg, messageHandler)
+}
+
+func subscribeConfiguredTopicsWithHandler(c pahomqtt.Client, cfg *config.Config, handler pahomqtt.MessageHandler) {
+	if handler == nil {
+		handler = messageHandler
+	}
 	topicMap := make(map[string]byte, len(cfg.MQTT.Topics))
 	for _, topic := range cfg.MQTT.Topics {
 		if err := validateTopicFilter(topic); err != nil {
@@ -339,36 +198,22 @@ func subscribeConfiguredTopics(c pahomqtt.Client, cfg *config.Config) {
 	if len(topicMap) == 0 {
 		return
 	}
-	token := c.SubscribeMultiple(topicMap, messageHandler)
-	if token.WaitTimeout(10*time.Second) && token.Error() == nil {
+	token := c.SubscribeMultiple(topicMap, handler)
+	if err := waitAndValidateSubscribe(token, topicMap, 10*time.Second); err == nil {
 		if logger != nil {
 			logger.Info("[MQTT] Subscribed to configured topics", "count", len(topicMap))
 		}
 	} else {
 		atomic.AddUint64(&stats.subscribeErrors, 1)
 		if logger != nil {
-			logger.Warn("[MQTT] Failed to subscribe configured topics", "error", token.Error())
+			logger.Warn("[MQTT] Failed to subscribe configured topics", "error", err)
 		}
 	}
 }
 
 func messageHandler(_ pahomqtt.Client, msg pahomqtt.Message) {
-	m := tools.MQTTMessage{
-		Topic:     msg.Topic(),
-		Payload:   string(msg.Payload()),
-		QoS:       int(msg.Qos()),
-		Retained:  msg.Retained(),
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	}
-	m = buffer.Add(m)
-	atomic.AddUint64(&stats.receivedMessages, 1)
-	if m.PayloadTruncated {
-		atomic.AddUint64(&stats.droppedPayloadMessages, 1)
-	}
-
-	if logger != nil {
-		logger.Debug("[MQTT] Message received", "topic", m.Topic, "payload_len", len(m.Payload))
-	}
+	m := makeMQTTMessage(msg)
+	m = storeMQTTMessage(m)
 
 	if RelayCallback != nil {
 		enqueueRelayMessage(m)
@@ -378,6 +223,28 @@ func messageHandler(_ pahomqtt.Client, msg pahomqtt.Message) {
 	for _, t := range triggers {
 		go t.callback(m.Topic, m.Payload)
 	}
+}
+
+func makeMQTTMessage(msg pahomqtt.Message) tools.MQTTMessage {
+	return tools.MQTTMessage{
+		Topic:     msg.Topic(),
+		Payload:   string(msg.Payload()),
+		QoS:       int(msg.Qos()),
+		Retained:  msg.Retained(),
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func storeMQTTMessage(m tools.MQTTMessage) tools.MQTTMessage {
+	m = buffer.Add(m)
+	atomic.AddUint64(&stats.receivedMessages, 1)
+	if m.PayloadTruncated {
+		atomic.AddUint64(&stats.droppedPayloadMessages, 1)
+	}
+	if logger != nil {
+		logger.Debug("[MQTT] Message received", "topic", m.Topic, "payload_len", len(m.Payload))
+	}
+	return m
 }
 
 func matchingMissionTriggers(topic, payload string) []missionTriggerEntry {
@@ -408,10 +275,7 @@ func matchingMissionTriggers(topic, payload string) []missionTriggerEntry {
 
 // IsConnected returns whether the MQTT client is currently connected to the broker.
 func IsConnected() bool {
-	mu.RLock()
-	c := client
-	mu.RUnlock()
-	return c != nil && c.IsConnected()
+	return defaultControllerInstance().Status().Connected
 }
 
 // BufferLen returns the number of messages currently held in the ring buffer.

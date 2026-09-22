@@ -17,7 +17,6 @@ import (
 	"aurago/internal/desktop"
 	"aurago/internal/discord"
 	"aurago/internal/memory"
-	"aurago/internal/mqtt"
 	"aurago/internal/planner"
 	"aurago/internal/rocketchat"
 	"aurago/internal/telegram"
@@ -702,7 +701,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 		// MQTT Client: connect to broker and register bridge
 		s.configureMQTTRelay()
-		mqtt.StartClient(s.Cfg, s.Logger)
+		if s.MQTTController != nil {
+			s.MQTTController.UpdateConfig(mqttRuntimeSnapshot(s.ConfigSnapshot()))
+		}
 
 		// Telnyx: register webhook endpoint for incoming SMS/calls
 		if s.Cfg.Telnyx.Enabled {

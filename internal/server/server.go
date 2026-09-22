@@ -205,6 +205,7 @@ type Server struct {
 	FileIndexer             *services.FileIndexer
 	WorkspaceSearch         *services.WorkspaceSearchService
 	MaintenanceScheduler    *agent.MaintenanceController
+	MQTTController          *mqtt.MQTTController
 	HeartbeatScheduler      *heartbeat.Scheduler
 	UptimeKumaPoller        *tools.UptimeKumaPoller
 	AgentMailService        *agentmail.Service
@@ -312,6 +313,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	s.bindConfigAuthorization(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.MQTTController != nil {
+		s.MQTTController.UpdateConfig(mqttRuntimeSnapshot(cfg))
+	}
 	if s.MaintenanceScheduler != nil {
 		s.MaintenanceScheduler.UpdateConfig(cfg)
 	}
@@ -433,6 +437,9 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	s.MQTTController = mqtt.NewMQTTController(logger)
+	mqtt.SetDefaultController(s.MQTTController)
+	defer s.MQTTController.Stop(context.Background())
 	s.localLLMLifecycleCtx = serverCtx
 	if s.SpeechLabDeployer != nil {
 		go func() {
@@ -1640,6 +1647,13 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		if s.AgentMailService != nil {
 			s.AgentMailService.Stop(ctx)
 		}
+		// Relay runs can own database and tool activity. Cancel and join them
+		// before shutting down their dependencies, even if the HTTP deadline expires.
+		if s.MQTTController != nil {
+			if err := s.MQTTController.Stop(context.Background()); err != nil {
+				s.Logger.Warn("MQTT shutdown did not complete cleanly", "error", err)
+			}
+		}
 		// Shut down MCP servers
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox
@@ -1648,8 +1662,6 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		shutdownLooper()
 		// Shut down Discord bot
 		discord.StopBot(s.Logger)
-		// Shut down MQTT client
-		mqtt.StopClient()
 		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)
 		if tools.IsTunnelRunning() {
 			tunnelCfg := tools.CloudflareTunnelConfig{DockerHost: s.Cfg.Docker.Host}

@@ -14,8 +14,9 @@ import (
 )
 
 type fakeMQTTToken struct {
-	err  error
-	done chan struct{}
+	err    error
+	done   chan struct{}
+	result map[string]byte
 }
 
 func newFakeMQTTToken(err error) *fakeMQTTToken {
@@ -24,12 +25,21 @@ func newFakeMQTTToken(err error) *fakeMQTTToken {
 	return &fakeMQTTToken{err: err, done: done}
 }
 
+func newFakeMQTTSubscribeToken(result map[string]byte) *fakeMQTTToken {
+	token := newFakeMQTTToken(nil)
+	token.result = result
+	return token
+}
+
 func (t *fakeMQTTToken) Wait() bool { return true }
 func (t *fakeMQTTToken) WaitTimeout(time.Duration) bool {
 	return true
 }
 func (t *fakeMQTTToken) Done() <-chan struct{} { return t.done }
 func (t *fakeMQTTToken) Error() error          { return t.err }
+func (t *fakeMQTTToken) Result() map[string]byte {
+	return t.result
+}
 
 type fakeMQTTPublish struct {
 	topic   string
@@ -72,14 +82,14 @@ func (c *fakeMQTTClient) Publish(topic string, qos byte, retained bool, payload 
 }
 func (c *fakeMQTTClient) Subscribe(topic string, qos byte, callback pahomqtt.MessageHandler) pahomqtt.Token {
 	c.subscriptions[topic] = qos
-	return newFakeMQTTToken(nil)
+	return newFakeMQTTSubscribeToken(map[string]byte{topic: qos})
 }
 func (c *fakeMQTTClient) SubscribeMultiple(filters map[string]byte, callback pahomqtt.MessageHandler) pahomqtt.Token {
 	c.subscribeMultipleRuns++
 	for topic, qos := range filters {
 		c.subscriptions[topic] = qos
 	}
-	return newFakeMQTTToken(nil)
+	return newFakeMQTTSubscribeToken(filters)
 }
 func (c *fakeMQTTClient) Unsubscribe(topics ...string) pahomqtt.Token {
 	c.unsubscribed = append(c.unsubscribed, topics...)

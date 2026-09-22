@@ -780,10 +780,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Webhooks (enabled/disabled)")
 			}
-			if !reflect.DeepEqual(oldCfg.MQTT, newCfg.MQTT) {
-				needsRestart = true
-				restartReasons = append(restartReasons, "MQTT")
-			}
 			if oldCfg.Tools.DaemonSkills != newCfg.Tools.DaemonSkills {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Daemon Skills")

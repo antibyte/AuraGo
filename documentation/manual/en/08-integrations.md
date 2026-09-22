@@ -250,7 +250,7 @@ Connect to an MQTT broker for IoT devices and smart-home automation. AuraGo can 
 4. Add **Topics** to subscribe to.
 5. Optionally enable **Relay to Agent** or **Availability** publishing.
 6. Store credentials in the Vault if needed.
-7. Save and restart.
+7. Save. MQTT settings and Vault password changes apply without a server restart.
 
 ### YAML Reference
 ```yaml

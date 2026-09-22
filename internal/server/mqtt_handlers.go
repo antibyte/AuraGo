@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"aurago/internal/config"
 	"aurago/internal/mqtt"
+	"aurago/internal/security"
 )
 
 // handleMQTTStatus returns the current MQTT connection status.
@@ -17,41 +19,51 @@ func handleMQTTStatus(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if !s.Cfg.MQTT.Enabled {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "disabled",
-				"message": "MQTT integration is not enabled",
-			})
+		cfg := s.ConfigSnapshot()
+		if cfg == nil {
+			jsonError(w, "MQTT configuration is unavailable", http.StatusServiceUnavailable)
 			return
 		}
-
-		if s.Cfg.MQTT.Broker == "" {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "no_broker",
-				"message": "MQTT broker URL is not configured",
-			})
-			return
+		runtime := mqtt.MQTTStatus{State: "disabled"}
+		if s.MQTTController != nil {
+			runtime = s.MQTTController.Status()
+		} else if cfg.MQTT.Enabled {
+			runtime.State = "disconnected"
 		}
-
-		connected := mqtt.IsConnected()
+		runtime.LastError = security.Scrub(runtime.LastError)
 		bufferLen := mqtt.BufferLen()
+		source, err := config.ResolveMQTTPasswordSource(s.Vault)
+		if err != nil {
+			source = "unavailable"
+		}
 
 		response := map[string]interface{}{
-			"status":            "disabled",
-			"connected":         connected,
-			"broker":            s.Cfg.MQTT.Broker,
-			"client_id":         s.Cfg.MQTT.ClientID,
-			"buffer_len":        bufferLen,
-			"max_buffer":        s.Cfg.MQTT.Buffer.MaxMessages,
-			"max_age_hours":     s.Cfg.MQTT.Buffer.MaxAgeHours,
-			"max_payload_bytes": s.Cfg.MQTT.Buffer.MaxPayloadBytes,
-			"tls_enabled":       s.Cfg.MQTT.TLS.Enabled,
-			"stats":             mqtt.RuntimeStats(),
+			"status":                  "disabled",
+			"connected":               runtime.Connected,
+			"broker":                  cfg.MQTT.Broker,
+			"client_id":               cfg.MQTT.ClientID,
+			"active_broker":           runtime.ActiveBroker,
+			"active_client_id":        runtime.ActiveClientID,
+			"connection_state":        runtime.State,
+			"effective_tls":           runtime.EffectiveTLS,
+			"transport_scheme":        runtime.ActiveTransport,
+			"config_revision":         runtime.DesiredRevision,
+			"applied_config_revision": runtime.ActiveRevision,
+			"credential_source":       source,
+			"runtime":                 runtime,
+			"buffer_len":              bufferLen,
+			"max_buffer":              cfg.MQTT.Buffer.MaxMessages,
+			"max_age_hours":           cfg.MQTT.Buffer.MaxAgeHours,
+			"max_payload_bytes":       cfg.MQTT.Buffer.MaxPayloadBytes,
+			"tls_enabled":             runtime.EffectiveTLS,
+			"stats":                   mqttSanitizedStats(),
 		}
 
-		if !s.Cfg.MQTT.Enabled {
+		if !cfg.MQTT.Enabled || cfg.EggMode.Enabled {
 			response["status"] = "disabled"
-		} else if connected {
+		} else if cfg.MQTT.Broker == "" {
+			response["status"] = "no_broker"
+		} else if runtime.Connected {
 			response["status"] = "connected"
 		} else {
 			response["status"] = "disconnected"
@@ -71,7 +83,8 @@ func handleMQTTTest(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if !s.Cfg.MQTT.Enabled {
+		cfg := s.ConfigSnapshot()
+		if cfg == nil || !cfg.MQTT.Enabled || cfg.EggMode.Enabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "MQTT integration is not enabled",
@@ -79,7 +92,7 @@ func handleMQTTTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if s.Cfg.MQTT.Broker == "" {
+		if cfg.MQTT.Broker == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "MQTT broker URL is not configured",
@@ -87,29 +100,28 @@ func handleMQTTTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if mqtt.IsConnected() {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "success",
-				"message": "MQTT broker connection is active",
-				"stats":   mqtt.RuntimeStats(),
-			})
-			return
-		}
-
-		if err := mqtt.TestConnection(s.Cfg, s.Logger); err != nil {
+		if err := mqtt.TestConnectionContext(r.Context(), cfg, s.Logger); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": err.Error(),
-				"stats":   mqtt.RuntimeStats(),
+				"message": security.Scrub(err.Error()),
+				"stats":   mqttSanitizedStats(),
 			})
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":  "success",
 			"message": "MQTT broker connection test succeeded",
-			"stats":   mqtt.RuntimeStats(),
+			"stats":   mqttSanitizedStats(),
 		})
 	}
+}
+
+func mqttSanitizedStats() map[string]interface{} {
+	stats := mqtt.RuntimeStats()
+	if message, ok := stats["last_error"].(string); ok {
+		stats["last_error"] = security.Scrub(message)
+	}
+	return stats
 }
 
 // handleMQTTMessages returns buffered MQTT messages.
@@ -122,7 +134,8 @@ func handleMQTTMessages(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if !s.Cfg.MQTT.Enabled {
+		cfg := s.ConfigSnapshot()
+		if cfg == nil || !cfg.MQTT.Enabled || cfg.EggMode.Enabled {
 			jsonError(w, "MQTT integration is not enabled", http.StatusBadRequest)
 			return
 		}

@@ -241,6 +241,10 @@ Für IoT-Geräte und Smart-Home-Automation.
 
 **Web-UI:** Config → Integrationen → MQTT → Broker-URL, Client-ID und optional Username/Passwort eingeben. Topics zur Subscription hinzufügen.
 
+MQTT-Einstellungen und Passwortänderungen im Vault werden ohne Serverneustart
+übernommen. Der Verbindungstest verwendet den gespeicherten Stand und einen
+eigenen kurzlebigen Client.
+
 ### YAML-Referenz
 ```yaml
 mqtt:

@@ -457,6 +457,14 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   then empty. Preserve whitespace and never retain stale credentials after a
   deletion. Vault mutations publish a fresh config snapshot; expose credential
   source only, never the value.
+- The server owns an `MQTTController` even when disabled. Snapshot publication
+  only enqueues immutable desired settings; network reconciliation is serialized
+  outside the config lock. Connection-affecting edits retire the old generation
+  before starting its replacement. Logical edits retain the open connection.
+- Status separates desired and applied revisions; `connected` requires an open
+  confirmed connection. Test connections use their own disposable client and a
+  context-bound socket, including TLS and WebSocket handshakes. Shutdown cancels
+  and joins MQTT workers before closing agent/database dependencies.
 
 ### Tool System
 
