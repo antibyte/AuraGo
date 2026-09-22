@@ -85,8 +85,7 @@ func openCancelableMQTTConnection(ctx context.Context, uri *url.URL, options pah
 		if tlsConfig == nil {
 			tlsConfig = &tls.Config{}
 		} else {
-			copyConfig := *tlsConfig
-			tlsConfig = &copyConfig
+			tlsConfig = tlsConfig.Clone()
 		}
 		if tlsConfig.ServerName == "" {
 			tlsConfig.ServerName = uri.Hostname()
@@ -115,8 +114,7 @@ func openCancelableMQTTConnection(ctx context.Context, uri *url.URL, options pah
 			if tlsConfig == nil {
 				tlsConfig = &tls.Config{}
 			} else {
-				copyConfig := *tlsConfig
-				tlsConfig = &copyConfig
+				tlsConfig = tlsConfig.Clone()
 			}
 			if tlsConfig.ServerName == "" {
 				tlsConfig.ServerName = uri.Hostname()

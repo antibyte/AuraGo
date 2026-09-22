@@ -326,6 +326,9 @@ func validateMQTTBrokerURL(broker string) error {
 	if err != nil {
 		return fmt.Errorf("invalid MQTT broker URL: %w", err)
 	}
+	if u.User != nil {
+		return fmt.Errorf("mqtt.broker must not contain credentials; use mqtt.username and the Vault password")
+	}
 	scheme := strings.ToLower(u.Scheme)
 	if !mqttSecureScheme(scheme) && !mqttPlainScheme(scheme) {
 		return fmt.Errorf("unsupported MQTT broker URL scheme %q", u.Scheme)

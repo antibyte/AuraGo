@@ -31,6 +31,9 @@ func handleMQTTStatus(s *Server) http.HandlerFunc {
 			runtime.State = "disconnected"
 		}
 		runtime.LastError = security.Scrub(runtime.LastError)
+		for i := range runtime.Subscriptions {
+			runtime.Subscriptions[i].LastError = security.Scrub(runtime.Subscriptions[i].LastError)
+		}
 		bufferLen := mqtt.BufferLen()
 		source, err := config.ResolveMQTTPasswordSource(s.Vault)
 		if err != nil {

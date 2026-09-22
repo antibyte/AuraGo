@@ -927,10 +927,9 @@ func Start(opts StartOptions) error {
 		s.MissionManagerV2.SetWebhookManager(&missionWebhookAdapter{mgr: s.WebhookManager, logger: logger})
 	}
 
-	// Set MQTT manager for MQTT message triggers
-	if cfg.MQTT.Enabled {
-		s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger, cfg: cfg})
-	}
+	// Register desired mission filters even while MQTT is disabled. The
+	// controller activates them when the integration is enabled later.
+	s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger})
 
 	// Set cheatsheet DB for mission prompt expansion
 	if s.CheatsheetDB != nil {

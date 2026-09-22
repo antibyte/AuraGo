@@ -8,7 +8,7 @@ Publish and subscribe to MQTT topics for IoT device communication.
 |-----------|-------------|------------|
 | `mqtt_publish` | Publish a message to a topic | `topic`, `payload`, `qos`, `retain` |
 | `mqtt_subscribe` | Subscribe to a topic | `topic`, `qos` |
-| `mqtt_unsubscribe` | Unsubscribe from a topic | `topic` |
+| `mqtt_unsubscribe` | Remove the manual subscription owner of a topic | `topic` |
 | `mqtt_get_messages` | Retrieve recently received messages | `topic`, `limit` |
 
 ## Parameters
@@ -67,7 +67,7 @@ mqtt:
   relay_to_agent: false  # forward incoming messages to agent
   connect_timeout: 15  # connection timeout in seconds
   tls:
-    enabled: false  # enable TLS encryption
+    enabled: false  # secure broker schemes always use TLS; true rejects plaintext URLs
     ca_file: ""  # path to CA certificate file
     cert_file: ""  # path to client certificate file
     key_file: ""  # path to client key file
@@ -84,3 +84,8 @@ mqtt:
 - **QoS levels**: 0 = fire-and-forget, 1 = at least once, 2 = exactly once.
 - **Retained messages**: Useful for sensor state (e.g. last temperature reading).
 - **Message buffer**: Messages are buffered for retrieval via `mqtt_get_messages`.
+- **Ownership**: Configured, Frigate and enabled MQTT mission filters subscribe automatically. Identical filters use the highest requested QoS. Manual unsubscribe preserves these owners and reports when the broker filter remains active.
+- **Confirmation**: Subscribe success requires an explicit broker SUBACK grant. Failed desired filters remain visible and retry on reconnect or a relevant settings change.
+- **Persistent sessions**: With `clean_session: false`, confirmed manual subscriptions survive server restarts through the broker/client subscription ledger.
+- **Read-only**: `mqtt.readonly` blocks publishing and manual subscription changes while keeping configured reception active.
+- **Live settings**: Saved MQTT settings and Vault credentials apply without restarting the server. Connection tests always use the saved snapshot.

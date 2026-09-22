@@ -465,6 +465,17 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
   confirmed connection. Test connections use their own disposable client and a
   context-bound socket, including TLS and WebSocket handshakes. Shutdown cancels
   and joins MQTT workers before closing agent/database dependencies.
+- Exact subscription filters have independent config, Frigate, manual and
+  mission-key owners; use their maximum requested QoS. Only a matching SUBACK
+  grant of 0, 1 or 2 establishes success. Preserve failed desired work and report
+  partial grants separately. Manual removal must preserve other owners.
+- Persistent-session ledgers contain ownership and confirmed/pending filter
+  changes only. Persist atomically per broker/client identity; never store
+  credentials or payloads. Restore confirmed manual owners, reconcile managed
+  owners from current configuration and reject traffic outside desired filters.
+- Mission dispatch uses one worker and at most 256 waiting jobs. Drop new work
+  on overload and recheck registration/generation before execution; dropped or
+  stale jobs never consume a trigger interval.
 
 ### Tool System
 

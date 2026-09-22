@@ -102,6 +102,23 @@ func TestValidateMQTTPatchRequiresTypedMQTTValues(t *testing.T) {
 	}
 }
 
+func TestValidateMQTTConfigRejectsBrokerCredentialOverrides(t *testing.T) {
+	for _, broker := range []string{"tcp://url-user:url-password@localhost:1883", "mqtts://url-user@localhost:8883"} {
+		cfg := &Config{}
+		cfg.MQTT.Enabled = true
+		cfg.MQTT.Broker = broker
+		cfg.MQTT.Username = "configured-user"
+		cfg.MQTT.Password = "vault-password"
+		err := ValidateMQTTConfig(cfg)
+		if err == nil || !strings.Contains(err.Error(), "mqtt.broker") {
+			t.Fatalf("URL credentials must not override configured credentials: %v", err)
+		}
+		if strings.Contains(err.Error(), "url-password") || strings.Contains(err.Error(), "vault-password") {
+			t.Fatalf("credential validation exposed a secret: %v", err)
+		}
+	}
+}
+
 func TestResolveMQTTPasswordPrecedencePreservesWhitespace(t *testing.T) {
 	t.Setenv("MQTT_PASSWORD", " env password ")
 	value, source, err := ResolveMQTTPassword(mqttValidationVault{value: " vault password "})

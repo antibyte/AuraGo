@@ -253,14 +253,16 @@ func TestMQTTControllerRelayHandlerDoesNotBlockIncomingCallbacks(t *testing.T) {
 	controller := &MQTTController{state: "connected"}
 	workCtx, cancelWork := context.WithCancel(context.Background())
 	gen := &mqttGeneration{
-		ctx:    workCtx,
-		cancel: cancelWork,
-		queue:  make(chan tools.MQTTMessage, 1),
-		done:   make(chan struct{}),
+		ctx:            workCtx,
+		cancel:         cancelWork,
+		queue:          make(chan tools.MQTTMessage, 1),
+		done:           make(chan struct{}),
+		desiredFilters: map[string]byte{"#": 0},
 	}
 	cfg := &config.Config{}
 	cfg.MQTT.Enabled = true
 	cfg.MQTT.RelayToAgent = true
+	cfg.MQTT.Topics = []string{"#"}
 	controller.current = gen
 	controller.active = cloneMQTTSnapshot(cfg)
 	started := make(chan struct{})

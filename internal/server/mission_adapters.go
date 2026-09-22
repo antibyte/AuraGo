@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/tools"
@@ -33,7 +32,6 @@ var _ tools.KeyedMQTTManagerInterface = (*missionMQTTAdapter)(nil)
 // missionMQTTAdapter adapts mqtt package to tools.MQTTManagerInterface
 type missionMQTTAdapter struct {
 	logger *slog.Logger
-	cfg    *config.Config
 }
 
 // RegisterMissionTrigger registers a callback for MQTT-triggered missions
@@ -43,9 +41,8 @@ func (a *missionMQTTAdapter) RegisterMissionTrigger(topicFilter string, payloadC
 
 // RegisterMissionTriggerForKey registers or replaces a keyed MQTT-triggered mission callback.
 func (a *missionMQTTAdapter) RegisterMissionTriggerForKey(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
-	if minIntervalSeconds <= 0 && a.cfg != nil && a.cfg.MQTT.TriggerMinIntervalSeconds > 0 {
-		minIntervalSeconds = a.cfg.MQTT.TriggerMinIntervalSeconds
-	}
+	// The controller resolves the default interval from its current snapshot.
+	// Capturing the startup config here would ignore later interval changes.
 	if key != "" {
 		mqtt.RegisterMissionTriggerForKey(key, topicFilter, payloadContains, minIntervalSeconds, callback)
 	} else {

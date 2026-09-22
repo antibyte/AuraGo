@@ -13,6 +13,7 @@ type runtimeStats struct {
 	subscribeErrors        uint64
 	reconnects             uint64
 	droppedRelayMessages   uint64
+	droppedMissionJobs     uint64
 	droppedPayloadMessages uint64
 
 	mu             sync.RWMutex
@@ -79,6 +80,7 @@ func RuntimeStats() map[string]interface{} {
 		"subscribe_errors":           atomic.LoadUint64(&stats.subscribeErrors),
 		"reconnects":                 atomic.LoadUint64(&stats.reconnects),
 		"dropped_relay_messages":     atomic.LoadUint64(&stats.droppedRelayMessages),
+		"dropped_mission_jobs":       atomic.LoadUint64(&stats.droppedMissionJobs),
 		"dropped_payload_messages":   atomic.LoadUint64(&stats.droppedPayloadMessages),
 		"truncated_payload_messages": atomic.LoadUint64(&stats.droppedPayloadMessages),
 		"connected_at":               connectedAt,

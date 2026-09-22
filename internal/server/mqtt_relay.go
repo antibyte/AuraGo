@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -71,10 +72,10 @@ func (l *mqttRelayLimiter) Dropped() uint64 {
 
 func (s *Server) configureMQTTRelay() {
 	if s == nil || s.Cfg == nil || !s.Cfg.MQTT.Enabled || (!s.Cfg.MQTT.RelayToAgent && !mqtt.FrigateRelayEnabled(s.Cfg)) {
-		mqtt.RelayCallback = nil
+		mqtt.SetRelayHandler(nil)
 		return
 	}
-	mqtt.RelayCallback = func(topic, payload string) {
+	mqtt.SetRelayHandler(func(ctx context.Context, topic, payload string) {
 		s.CfgMu.RLock()
 		genericRelayEnabled := s.Cfg != nil && s.Cfg.MQTT.Enabled && s.Cfg.MQTT.RelayToAgent
 		frigateKind, frigateRelayEnabled := mqtt.FrigateRelayKind(s.Cfg, topic)
@@ -130,6 +131,6 @@ func (s *Server) configureMQTTRelay() {
 			IsMaintenance:      tools.IsBusy(),
 			MessageSource:      messageSource,
 		}
-		agent.Loopback(runCfg, prompt, agent.NoopBroker{})
-	}
+		agent.LoopbackContext(ctx, runCfg, prompt, agent.NoopBroker{})
+	})
 }

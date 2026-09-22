@@ -21,6 +21,10 @@ empty value. Leading and trailing spaces are preserved. Deleting the Vault
 entry restores the environment fallback if present. The status view reports
 the source without exposing its value.
 
+Broker URLs must not contain `user:password@` credentials. Use the username
+field and Vault instead; URL credentials would override the selected password
+inside the MQTT driver and are rejected before saving or connecting.
+
 ## Applying changes and checking the connection
 
 Settings and Vault password changes take effect without a server restart.
@@ -39,3 +43,30 @@ Save edits before testing. Cancelling the request or reaching the connection
 timeout closes its socket. Disabling MQTT cancels relay work and closes the
 runtime connection. A graceful stop attempts the configured offline
 availability only while its connection is still open.
+
+## Subscriptions and missions
+
+Configuration, Frigate, each enabled MQTT mission and manual tools own their
+subscriptions independently. Identical filters share the highest requested QoS;
+overlapping wildcard filters remain distinct. Changing or deleting a mission
+updates its ownership automatically, including when MQTT is enabled later.
+
+`mqtt_unsubscribe` removes the manual owner only. If configuration, Frigate or a
+mission still needs the filter, its result says that the broker filter remains
+active. Read-only mode prevents publishing and manual subscription edits;
+configured and mission reception remains available.
+
+SUBACK results are checked for every requested filter. Rejected or missing
+grants remain visible as failed desired work and retry after a reconnect or a
+relevant settings change. A mixed response does not erase successful grants.
+
+With `clean_session: false`, an atomic local ledger tracks known filters and
+confirmed manual subscriptions for the broker/client identity. Keep this ledger
+with the AuraGo data directory when migrating or restoring an installation.
+It contains no message payloads or credentials. Unknown broker subscriptions
+from installations without a ledger are not deleted automatically; messages
+outside the current desired filters are ignored.
+
+MQTT missions use a single dispatch worker with up to 256 waiting jobs. When
+full, new jobs are dropped and counted. A dropped job does not consume the
+mission's trigger interval.

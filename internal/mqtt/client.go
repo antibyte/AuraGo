@@ -22,10 +22,6 @@ var (
 	buffer = newMessageBuffer()
 	logger *slog.Logger
 
-	// RelayCallback is called for every incoming message when relay_to_agent is enabled.
-	// Set by the server package before calling StartClient.
-	RelayCallback func(topic, payload string)
-
 	// Mission trigger callbacks
 	missionTriggerMu sync.RWMutex
 	missionTriggers  []missionTriggerEntry
@@ -39,6 +35,7 @@ var (
 
 // missionTriggerEntry holds a registered mission trigger filter + callback.
 type missionTriggerEntry struct {
+	id              uint64
 	key             string
 	topicFilter     string
 	payloadContains string
@@ -46,6 +43,8 @@ type missionTriggerEntry struct {
 	lastFired       time.Time
 	callback        func(topic, payload string)
 }
+
+var nextMissionTriggerID uint64
 
 // RegisterMissionTrigger registers a callback that fires when a message matches
 // the given topic filter and optional payload substring.
@@ -71,8 +70,8 @@ func registerMissionTrigger(key string, topicFilter string, payloadContains stri
 		minInterval = time.Duration(minIntervalSeconds) * time.Second
 	}
 	missionTriggerMu.Lock()
-	defer missionTriggerMu.Unlock()
 	entry := missionTriggerEntry{
+		id:              atomic.AddUint64(&nextMissionTriggerID, 1),
 		key:             key,
 		topicFilter:     topicFilter,
 		payloadContains: payloadContains,
@@ -86,6 +85,8 @@ func registerMissionTrigger(key string, topicFilter string, payloadContains stri
 				if logger != nil {
 					logger.Info("[MQTT] Mission trigger replaced", "key", key, "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval", minInterval.String())
 				}
+				missionTriggerMu.Unlock()
+				missionTriggerChanged()
 				return
 			}
 		}
@@ -94,6 +95,8 @@ func registerMissionTrigger(key string, topicFilter string, payloadContains stri
 	if logger != nil {
 		logger.Info("[MQTT] Mission trigger registered", "key", key, "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval", minInterval.String())
 	}
+	missionTriggerMu.Unlock()
+	missionTriggerChanged()
 }
 
 // UnregisterMissionTrigger removes a keyed mission trigger callback.
@@ -102,7 +105,6 @@ func UnregisterMissionTrigger(key string) {
 		return
 	}
 	missionTriggerMu.Lock()
-	defer missionTriggerMu.Unlock()
 	filtered := make([]missionTriggerEntry, 0, len(missionTriggers))
 	removed := 0
 	for _, trigger := range missionTriggers {
@@ -116,6 +118,10 @@ func UnregisterMissionTrigger(key string) {
 	if removed > 0 && logger != nil {
 		logger.Info("[MQTT] Mission trigger unregistered", "key", key, "removed", removed)
 	}
+	missionTriggerMu.Unlock()
+	if removed > 0 {
+		missionTriggerChanged()
+	}
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -126,7 +132,16 @@ func StartClient(cfg *config.Config, log *slog.Logger) {
 	if log != nil {
 		logger = log
 	}
-	defaultControllerInstance().UpdateConfig(cfg)
+	controller := defaultControllerInstance()
+	controller.mu.RLock()
+	stopped := controller.stopped
+	controller.mu.RUnlock()
+	if stopped {
+		controller = NewMQTTController(log)
+		controller.legacyBridge = true
+		SetDefaultController(controller)
+	}
+	controller.UpdateConfig(cfg)
 }
 
 // StopClient disconnects the MQTT client gracefully.
@@ -161,40 +176,14 @@ func subscribeConfiguredTopics(c pahomqtt.Client, cfg *config.Config) {
 }
 
 func subscribeConfiguredTopicsWithHandler(c pahomqtt.Client, cfg *config.Config, handler pahomqtt.MessageHandler) {
+	if c == nil || cfg == nil {
+		return
+	}
 	if handler == nil {
 		handler = messageHandler
 	}
-	topicMap := make(map[string]byte, len(cfg.MQTT.Topics))
-	for _, topic := range cfg.MQTT.Topics {
-		if err := validateTopicFilter(topic); err != nil {
-			atomic.AddUint64(&stats.subscribeErrors, 1)
-			if logger != nil {
-				logger.Warn("[MQTT] Skipping invalid configured topic", "topic", topic, "error", err)
-			}
-			continue
-		}
-		topicMap[topic] = mqttQoS(cfg.MQTT.QoS, 0)
-	}
-	for _, topic := range FrigateRelayTopics(cfg) {
-		if err := validateTopicFilter(topic); err != nil {
-			atomic.AddUint64(&stats.subscribeErrors, 1)
-			if logger != nil {
-				logger.Warn("[MQTT] Skipping invalid Frigate relay topic", "topic", topic, "error", err)
-			}
-			continue
-		}
-		topicMap[topic] = mqttQoS(cfg.MQTT.QoS, 0)
-	}
-	for topic, qos := range runtimeSubscriptionSnapshot() {
-		if err := validateTopicFilter(topic); err != nil {
-			atomic.AddUint64(&stats.subscribeErrors, 1)
-			if logger != nil {
-				logger.Warn("[MQTT] Skipping invalid runtime subscription topic", "topic", topic, "error", err)
-			}
-			continue
-		}
-		topicMap[topic] = qos
-	}
+	owners := subscriptionOwnersForConfig(cfg, runtimeSubscriptionSnapshot())
+	topicMap := mergeSubscriptionOwners(owners)
 	if len(topicMap) == 0 {
 		return
 	}
@@ -211,18 +200,23 @@ func subscribeConfiguredTopicsWithHandler(c pahomqtt.Client, cfg *config.Config,
 	}
 }
 
-func messageHandler(_ pahomqtt.Client, msg pahomqtt.Message) {
-	m := makeMQTTMessage(msg)
-	m = storeMQTTMessage(m)
-
-	if RelayCallback != nil {
-		enqueueRelayMessage(m)
+func messageHandler(clientRef pahomqtt.Client, msg pahomqtt.Message) {
+	controller := currentDefaultController()
+	if controller == nil {
+		return
 	}
-
-	triggers := matchingMissionTriggers(m.Topic, m.Payload)
-	for _, t := range triggers {
-		go t.callback(m.Topic, m.Payload)
+	controller.mu.RLock()
+	gen := controller.current
+	controller.mu.RUnlock()
+	if gen == nil || !controller.generationCurrent(gen) {
+		return
 	}
+	if clientRef != nil && gen.client != nil && clientRef != gen.client {
+		return
+	}
+	// Route legacy Paho callbacks through the active generation's bounded relay
+	// and mission queues. A callback without an active generation is dropped.
+	controller.messageHandler(gen)(clientRef, msg)
 }
 
 func makeMQTTMessage(msg pahomqtt.Message) tools.MQTTMessage {
@@ -267,10 +261,68 @@ func matchingMissionTriggers(topic, payload string) []missionTriggerEntry {
 			}
 			continue
 		}
-		trigger.lastFired = now
-		triggers = append(triggers, *trigger)
+		triggerID := trigger.id
+		triggerCallback := trigger.callback
+		entry := *trigger
+		entry.callback = func(matchedTopic, matchedPayload string) {
+			if !claimMissionTrigger(triggerID, nowUTC()) {
+				return
+			}
+			if triggerCallback != nil {
+				triggerCallback(matchedTopic, matchedPayload)
+			}
+		}
+		triggers = append(triggers, entry)
 	}
 	return triggers
+}
+
+func nowUTC() time.Time { return time.Now().UTC() }
+
+// claimMissionTrigger records the execution start time, rather than the
+// enqueue time. This keeps interval throttling correct when a bounded queue
+// is backlogged and rejects callbacks from replaced/unregistered entries.
+func claimMissionTrigger(id uint64, now time.Time) bool {
+	activeInterval := activeMissionTriggerInterval()
+	missionTriggerMu.Lock()
+	defer missionTriggerMu.Unlock()
+	for index := range missionTriggers {
+		trigger := &missionTriggers[index]
+		if trigger.id != id {
+			continue
+		}
+		interval := trigger.minInterval
+		if interval <= 0 {
+			interval = activeInterval
+		}
+		if interval > 0 && !trigger.lastFired.IsZero() && now.Sub(trigger.lastFired) < interval {
+			return false
+		}
+		trigger.lastFired = now
+		return true
+	}
+	return false
+}
+
+func activeMissionTriggerInterval() time.Duration {
+	controller := currentDefaultController()
+	if controller == nil {
+		return 0
+	}
+	controller.mu.RLock()
+	active := controller.active
+	controller.mu.RUnlock()
+	if active == nil || active.cfg.MQTT.TriggerMinIntervalSeconds <= 0 {
+		return 0
+	}
+	return time.Duration(active.cfg.MQTT.TriggerMinIntervalSeconds) * time.Second
+}
+
+func currentDefaultController() *MQTTController {
+	defaultControllerMu.RLock()
+	controller := defaultController
+	defaultControllerMu.RUnlock()
+	return controller
 }
 
 // IsConnected returns whether the MQTT client is currently connected to the broker.
@@ -291,6 +343,12 @@ func GetMessages(topic string, limit int) []tools.MQTTMessage {
 // topicMatches checks if an MQTT topic matches a filter pattern
 // supporting + (single level) and # (multi level) wildcards.
 func topicMatches(filter, topic string) bool {
+	if strings.HasPrefix(topic, "$") {
+		first := strings.SplitN(filter, "/", 2)[0]
+		if first == "#" || first == "+" {
+			return false
+		}
+	}
 	if filter == "#" {
 		return true
 	}
