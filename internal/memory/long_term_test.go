@@ -371,6 +371,37 @@ func TestStoreDocumentWithDomainDuplicateReturnsExistingDocID(t *testing.T) {
 	}
 }
 
+func TestStoreDocumentOwnedSeparatesCreatedAndReusedIDs(t *testing.T) {
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{1, 0, 0}, nil
+	})
+
+	first, err := cv.StoreDocumentOwned("owned concept", "owned content", VectorStoreDeduplicate)
+	if err != nil {
+		t.Fatalf("first owned store: %v", err)
+	}
+	if len(first.CreatedIDs) != 1 || len(first.ReusedIDs) != 0 {
+		t.Fatalf("first result = %+v, want one created ID", first)
+	}
+	second, err := cv.StoreDocumentOwned("owned concept", "owned content", VectorStoreDeduplicate)
+	if err != nil {
+		t.Fatalf("duplicate owned store: %v", err)
+	}
+	if len(second.ReusedIDs) != 1 || second.ReusedIDs[0] != first.CreatedIDs[0] || len(second.CreatedIDs) != 0 {
+		t.Fatalf("duplicate result = %+v, want reused original ID", second)
+	}
+	forced, err := cv.StoreDocumentOwned("owned concept", "owned content", VectorStoreForceCreate)
+	if err != nil {
+		t.Fatalf("force owned store: %v", err)
+	}
+	if len(forced.CreatedIDs) != 1 || len(forced.ReusedIDs) != 0 || forced.CreatedIDs[0] == first.CreatedIDs[0] {
+		t.Fatalf("force result = %+v, want a distinct created ID", forced)
+	}
+	if got := cv.Count(); got != 2 {
+		t.Fatalf("vector count = %d, want 2 after forced replacement store", got)
+	}
+}
+
 func TestGetQueryEmbeddingReturnsCanceledCallerWithoutWaitingForSingleflight(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})

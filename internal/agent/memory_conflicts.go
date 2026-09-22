@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -28,7 +29,7 @@ var conflictSignalPatterns = []struct {
 	{predicate: "port", re: regexp.MustCompile(`(?i)^(.+?)\s+(?:runs on port|listens on port|port is|port)\s+([0-9]{2,5})\b`)},
 }
 
-func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string, fallbackText string) {
+func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string, fallbackText string) (resultErr error) {
 	if stm == nil || ltm == nil || len(docIDs) == 0 {
 		return
 	}
@@ -37,6 +38,7 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 		if text == "" {
 			stored, err := ltm.GetByID(docID)
 			if err != nil {
+				resultErr = errors.Join(resultErr, err)
 				continue
 			}
 			text = stored
@@ -45,6 +47,7 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 		for _, signal := range signals {
 			ranked, err := searchRankedMemoriesOnly(context.Background(), ltm, stm, signal.Key, 8, nil, time.Now())
 			if err != nil {
+				resultErr = errors.Join(resultErr, err)
 				continue
 			}
 			for _, match := range ranked {
@@ -56,13 +59,17 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 						continue
 					}
 					reason := fmt.Sprintf("conflicting values for %s", signal.Key)
-					if err := stm.RegisterMemoryConflict(docID, match.docID, signal.Key, signal.Value, other.Value, reason); err != nil && logger != nil {
-						logger.Warn("failed to register memory conflict", "doc_id", docID, "other_doc_id", match.docID, "error", err)
+					if err := stm.RegisterMemoryConflict(docID, match.docID, signal.Key, signal.Value, other.Value, reason); err != nil {
+						resultErr = errors.Join(resultErr, err)
+						if logger != nil {
+							logger.Warn("failed to register memory conflict", "doc_id", docID, "other_doc_id", match.docID, "error", err)
+						}
 					}
 				}
 			}
 		}
 	}
+	return resultErr
 }
 
 func deriveConflictSignals(text string) []conflictSignal {

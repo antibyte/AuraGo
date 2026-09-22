@@ -71,6 +71,36 @@ type VectorDB interface {
 	RegisterCollections(collections []string)
 }
 
+// VectorStoreMode controls whether a write may reuse a similar existing
+// document. VectorDB deliberately remains unchanged for compatibility with
+// existing callers and test doubles; callers that need ownership information
+// should use OwnershipAwareVectorDB when it is available.
+type VectorStoreMode uint8
+
+const (
+	VectorStoreDeduplicate VectorStoreMode = iota
+	VectorStoreForceCreate
+)
+
+// VectorStoreResult reports ownership for every ID that a store operation
+// returned. CreatedIDs may be populated together with an error when a
+// chunked write partially reached the vector store, so callers can roll back
+// only artifacts created by their own operation.
+type VectorStoreResult struct {
+	CreatedIDs []string
+	ReusedIDs  []string
+	UnknownIDs []string
+}
+
+// OwnershipAwareVectorDB is an optional VectorDB extension. Implementations
+// must report IDs that were created by the current call separately from IDs
+// returned by deduplication. Force-create bypasses similarity deduplication
+// and is reserved for replacement workflows.
+type OwnershipAwareVectorDB interface {
+	StoreDocumentOwned(concept, content string, mode VectorStoreMode) (VectorStoreResult, error)
+	DeleteDocumentIfContentMatches(id, expectedSHA256 string) (bool, error)
+}
+
 // ScoredVectorDB is implemented by vector stores that can return raw similarity
 // scores without encoding them into user-visible memory text.
 type ScoredVectorDB interface {
@@ -676,7 +706,7 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 		}
 		if err := cv.collection.AddDocument(ctx, doc); err != nil {
 			cv.logger.Error("Failed to store document in vector DB", "error", err)
-			return nil, fmt.Errorf("failed to add document: %w", err)
+			return []string{docID}, fmt.Errorf("failed to add document: %w", err)
 		}
 		cv.logger.Info("Stored document in long-term memory", "id", docID, "concept", concept, "domain", domain)
 		return []string{docID}, nil
@@ -716,7 +746,7 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 	defer chunkCancel()
 	if err := cv.collection.AddDocuments(chunkCtx, docs, 1); err != nil {
 		cv.logger.Error("Failed to store chunked document", "error", err, "chunks", len(chunks))
-		return nil, fmt.Errorf("failed to add chunked document (%d chunks): %w", len(chunks), err)
+		return storedIDs, fmt.Errorf("failed to add chunked document (%d chunks): %w", len(chunks), err)
 	}
 
 	cv.logger.Info("Stored chunked document in long-term memory", "concept", concept, "domain", domain, "chunks", len(chunks), "total_chars", len(content))

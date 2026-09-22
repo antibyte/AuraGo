@@ -122,8 +122,8 @@ func TestStoreConsolidationFactsReportsStoreFailures(t *testing.T) {
 	if skipped != 0 {
 		t.Fatalf("skipped = %d, want 0", skipped)
 	}
-	if _, ok := vdb.stored["ok:backup"]; ok {
-		t.Fatal("expected partially stored fact to be rolled back from LTM")
+	if _, ok := vdb.stored["ok:backup"]; !ok {
+		t.Fatal("legacy backend ownership is unknown: partial writes must not be deleted")
 	}
 }
 

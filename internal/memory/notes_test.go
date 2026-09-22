@@ -2,6 +2,7 @@ package memory
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -284,6 +285,75 @@ func TestRepairCanonicalMemoryNamesRewritesTrackedMemoryMeta(t *testing.T) {
 	}
 }
 
+func TestRepairCanonicalMemoryNamesPropagatesSourceReadError(t *testing.T) {
+	stm := newTestNotesDB(t)
+	if err := stm.UpsertMemoryMeta("missing-doc"); err != nil {
+		t.Fatalf("UpsertMemoryMeta: %v", err)
+	}
+	fake := &fakeRepairVectorDB{docs: map[string]string{}}
+	report, err := stm.RepairCanonicalMemoryNames(fake, CanonicalRepairOptions{Limit: 10})
+	if err == nil || !strings.Contains(err.Error(), "read canonical repair source missing-doc") {
+		t.Fatalf("error = %v, want source read error", err)
+	}
+	if report.SkippedCount != 1 || report.RepairedCount != 0 {
+		t.Fatalf("report = %+v, want one skipped source error", report)
+	}
+}
+
+func TestRepairCanonicalMemoryNamesPersistsKeysetCursorAcrossRestart(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	dbPath := fmt.Sprintf("%s%cstm.db", t.TempDir(), os.PathSeparator)
+	stm, err := NewSQLiteMemory(dbPath, logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	fake := &fakeRepairVectorDB{docs: make(map[string]string)}
+	for i := 0; i < 105; i++ {
+		docID := fmt.Sprintf("doc-%03d", i)
+		if err := stm.UpsertMemoryMeta(docID); err != nil {
+			t.Fatalf("UpsertMemoryMeta(%s): %v", docID, err)
+		}
+		fake.docs[docID] = "stable memory content"
+	}
+	first, err := stm.RepairCanonicalMemoryNames(fake, CanonicalRepairOptions{Limit: 100})
+	if err != nil {
+		t.Fatalf("first canonical repair: %v", err)
+	}
+	if first.RepairedCount != 0 || first.SkippedCount != 0 {
+		t.Fatalf("first report = %+v, want no changes", first)
+	}
+	cursor, err := stm.GetMemoryMaintenanceState(canonicalRepairCursorKey)
+	if err != nil || cursor != "doc-099" {
+		t.Fatalf("first cursor = %q, err=%v, want doc-099", cursor, err)
+	}
+	if err := stm.Close(); err != nil {
+		t.Fatalf("close first memory DB: %v", err)
+	}
+
+	reopened, err := NewSQLiteMemory(dbPath, logger)
+	if err != nil {
+		t.Fatalf("reopen memory DB: %v", err)
+	}
+	if err := reopened.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables reopened: %v", err)
+	}
+	second, err := reopened.RepairCanonicalMemoryNames(fake, CanonicalRepairOptions{Limit: 100})
+	if err != nil {
+		t.Fatalf("second canonical repair: %v", err)
+	}
+	if second.RepairedCount != 0 || second.SkippedCount != 0 {
+		t.Fatalf("second report = %+v, want no changes", second)
+	}
+	cursor, err = reopened.GetMemoryMaintenanceState(canonicalRepairCursorKey)
+	if err != nil || cursor != "" {
+		t.Fatalf("second cursor = %q, err=%v, want cleared cursor", cursor, err)
+	}
+	_ = reopened.Close()
+}
+
 func TestRepairCanonicalMemoryNamesCleansNewVectorsWhenMetaUpsertFails(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	dbPath := fmt.Sprintf("%s%cstm.db", t.TempDir(), os.PathSeparator)
@@ -308,8 +378,8 @@ func TestRepairCanonicalMemoryNamesCleansNewVectorsWhenMetaUpsertFails(t *testin
 	}
 
 	report, err := stm.RepairCanonicalMemoryNames(fake, CanonicalRepairOptions{Limit: 10})
-	if err != nil {
-		t.Fatalf("RepairCanonicalMemoryNames: %v", err)
+	if err == nil {
+		t.Fatal("RepairCanonicalMemoryNames returned nil error after replacement failure and closed database")
 	}
 	if report.RepairedCount != 0 || report.SkippedCount != 1 {
 		t.Fatalf("repair report = %+v, want skipped failed repair", report)
@@ -362,8 +432,8 @@ func TestRepairCanonicalMemoryNamesReportsRollbackFailure(t *testing.T) {
 	}
 
 	report, err := stm.RepairCanonicalMemoryNames(fake, CanonicalRepairOptions{Limit: 10})
-	if err != nil {
-		t.Fatalf("RepairCanonicalMemoryNames: %v", err)
+	if err == nil {
+		t.Fatal("RepairCanonicalMemoryNames returned nil error after rollback failure")
 	}
 	if len(report.Items) != 1 || !strings.Contains(report.Items[0].Error, "rollback canonical repair artifacts") {
 		t.Fatalf("report item = %+v, want rollback failure context", report.Items)
@@ -413,6 +483,7 @@ type fakeRepairVectorDB struct {
 	afterStore  func()
 	afterDelete func()
 	deleteErr   map[string]error
+	storeOwned  func(string, string, VectorStoreMode) (VectorStoreResult, error)
 }
 
 func (f *fakeRepairVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -424,6 +495,28 @@ func (f *fakeRepairVectorDB) StoreDocument(concept, content string) ([]string, e
 		f.afterStore()
 	}
 	return []string{id}, nil
+}
+
+func (f *fakeRepairVectorDB) StoreDocumentOwned(concept, content string, mode VectorStoreMode) (VectorStoreResult, error) {
+	if f.storeOwned != nil {
+		return f.storeOwned(concept, content, mode)
+	}
+	ids, err := f.StoreDocument(concept, content)
+	return VectorStoreResult{CreatedIDs: ids}, err
+}
+
+func (f *fakeRepairVectorDB) DeleteDocumentIfContentMatches(id, expectedSHA256 string) (bool, error) {
+	content, err := f.GetByID(id)
+	if err != nil {
+		return false, err
+	}
+	if contentSHA256(content) != expectedSHA256 {
+		return false, nil
+	}
+	if err := f.DeleteDocument(id); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (f *fakeRepairVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {

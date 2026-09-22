@@ -65,6 +65,15 @@ type partialFailConsolidationVectorDB struct {
 	rolledBack []string
 }
 
+func (v *partialFailConsolidationVectorDB) StoreDocumentOwned(concept, content string, _ memory.VectorStoreMode) (memory.VectorStoreResult, error) {
+	ids, err := v.StoreDocument(concept, content)
+	return memory.VectorStoreResult{CreatedIDs: ids}, err
+}
+
+func (v *partialFailConsolidationVectorDB) DeleteDocumentIfContentMatches(id, _ string) (bool, error) {
+	return true, v.DeleteDocument(id)
+}
+
 func (v *partialFailConsolidationVectorDB) StoreDocument(concept, content string) ([]string, error) {
 	v.attempts++
 	if v.attempts >= 2 {

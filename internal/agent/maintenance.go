@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -1108,57 +1109,66 @@ func shouldMarkConsolidationSuccess(stored, skipped, factCount, validFacts int) 
 }
 
 func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) (stored int, skipped int, err error) {
-	var failed []string
-	var storedDocIDs []string
+	var createdIDs []string
+	var storeErrors []error
 	for _, fact := range facts {
-		concept := strings.TrimSpace(fact.Concept)
-		content := strings.TrimSpace(fact.Content)
+		concept, content := strings.TrimSpace(fact.Concept), strings.TrimSpace(fact.Content)
 		if concept == "" || content == "" {
 			continue
 		}
-		ids, storeErr := ltm.StoreDocument(concept, content)
+		owned, storeErr := memory.StoreDocumentWithOwnership(ltm, concept, content)
+		createdIDs = append(createdIDs, owned.CreatedIDs...)
 		if storeErr != nil {
-			logger.Warn("[Consolidation] Failed to store fact in LTM", "concept", concept, "error", storeErr)
-			failed = append(failed, concept)
+			storeErrors = append(storeErrors, storeErr)
 			continue
 		}
-		if len(ids) == 0 {
+		if len(owned.CreatedIDs) == 0 && len(owned.UnknownIDs) == 0 {
 			skipped++
 			continue
 		}
-		for _, id := range ids {
-			storedDocIDs = append(storedDocIDs, id)
-			_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-				ExtractionConfidence: 0.82,
-				VerificationStatus:   "unverified",
-				SourceType:           "consolidation",
-				SourceReliability:    0.82,
-			})
+		for _, id := range owned.CreatedIDs {
+			if err := stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+				ExtractionConfidence: 0.82, VerificationStatus: "unverified",
+				SourceType: "consolidation", SourceReliability: 0.82,
+			}); err != nil {
+				storeErrors = append(storeErrors, err)
+			}
 		}
-		detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, content)
+		// Legacy backends cannot establish ownership. Only insert missing metadata;
+		// never reset an existing record's provenance, verification, or protection.
+		for _, id := range owned.UnknownIDs {
+			if err := stm.EnsureMemoryMeta(id); err != nil {
+				storeErrors = append(storeErrors, err)
+			}
+		}
+		if err := detectMemoryConflictsForDocIDs(logger, stm, ltm, owned.CreatedIDs, content); err != nil {
+			storeErrors = append(storeErrors, err)
+		}
 		stored++
 	}
-	if len(failed) > 0 {
-		rollbackStoredConsolidationFacts(logger, stm, ltm, storedDocIDs)
-		return 0, skipped, fmt.Errorf("failed to store %d consolidation facts: %s", len(failed), strings.Join(failed, ", "))
+	if len(storeErrors) > 0 {
+		rollbackErr := rollbackStoredConsolidationFacts(logger, stm, ltm, createdIDs)
+		return 0, skipped, errors.Join(append(storeErrors, rollbackErr)...)
 	}
 	return stored, skipped, nil
 }
 
-func rollbackStoredConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string) {
-	if len(docIDs) == 0 {
-		return
-	}
+func rollbackStoredConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string) error {
+	var resultErr error
 	for _, docID := range docIDs {
-		if ltm != nil {
-			if err := ltm.DeleteDocument(docID); err != nil {
-				logger.Warn("[Consolidation] Failed to rollback stored fact from LTM", "doc_id", docID, "error", err)
-			}
+		if ltm == nil {
+			continue
+		}
+		if err := ltm.DeleteDocument(docID); err != nil {
+			resultErr = errors.Join(resultErr, err)
+			logger.Warn("[Consolidation] Failed to rollback created fact", "doc_id", docID, "error", err)
+			continue
 		}
 		if stm != nil {
-			_ = stm.DeleteDocumentCleanup(docID)
+			resultErr = errors.Join(resultErr, stm.DeleteDocumentCleanup(docID))
 		}
 	}
+	return resultErr
 }
 
 func finalizeConsolidationBatch(
@@ -1741,12 +1751,15 @@ func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, f
 	return fallbackClient, strings.TrimSpace(fallbackModel)
 }
 
-func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) {
+func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) (resultErr error) {
 	if stm == nil || ltm == nil || ltm.IsDisabled() {
 		return
 	}
 	episodes, err := stm.GetEpisodicMemoriesByHierarchyLevel(1, 40)
-	if err != nil || len(episodes) < 2 {
+	if err != nil {
+		return err
+	}
+	if len(episodes) < 2 {
 		return
 	}
 	groups := make(map[string][]memory.EpisodicMemory)
@@ -1772,18 +1785,26 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 			continue
 		}
 		concept := "Hierarchical memory synthesis " + groupKey
-		ids, err := ltm.StoreDocument(concept, summary)
+		owned, err := memory.StoreDocumentWithOwnership(ltm, concept, summary)
+		ids := append(append(append([]string{}, owned.CreatedIDs...), owned.ReusedIDs...), owned.UnknownIDs...)
 		if err != nil {
+			resultErr = errors.Join(resultErr, err, rollbackStoredConsolidationFacts(logger, stm, ltm, owned.CreatedIDs))
 			logger.Warn("[Hierarchy] Failed to store episodic synthesis", "group", groupKey, "error", err)
 			continue
 		}
-		for _, id := range ids {
-			_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+		for _, id := range owned.CreatedIDs {
+			resultErr = errors.Join(resultErr, stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
 				ExtractionConfidence: 0.88,
 				VerificationStatus:   "unverified",
 				SourceType:           "hierarchical_consolidation",
 				SourceReliability:    0.9,
-			})
+			}))
+		}
+		for _, id := range owned.UnknownIDs {
+			resultErr = errors.Join(resultErr, stm.EnsureMemoryMeta(id))
+		}
+		if resultErr != nil {
+			return resultErr
 		}
 		if kg != nil {
 			uniqueParticipants := uniqueHierarchyStrings(nil)
@@ -1795,6 +1816,7 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 					continue
 				}
 				if err := kg.AddEdge(participant, concept, "appears_in_memory_synthesis", map[string]string{"group": groupKey}); err != nil {
+					resultErr = errors.Join(resultErr, err)
 					logger.Warn("[Hierarchy] Failed to sync participant synthesis edge to KG",
 						"participant", participant,
 						"concept", concept,
@@ -1810,14 +1832,17 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 			episodeIDs = append(episodeIDs, episode.ID)
 			related = append(related, episode.RelatedDocIDs...)
 		}
-		_ = stm.InsertEpisodicMemoryWithDetails(group[0].EventDate, "Hierarchical memory synthesis", truncateHierarchySummary(summary, 240), map[string]string{"group": groupKey}, 3, "hierarchical_consolidation", memory.EpisodicMemoryDetails{
+		resultErr = errors.Join(resultErr, stm.InsertEpisodicMemoryWithDetails(group[0].EventDate, "Hierarchical memory synthesis", truncateHierarchySummary(summary, 240), map[string]string{"group": groupKey}, 3, "hierarchical_consolidation", memory.EpisodicMemoryDetails{
 			SessionID:      group[0].SessionID,
 			HierarchyLevel: 2,
 			Participants:   uniqueHierarchyParticipants(group),
 			RelatedDocIDs:  uniqueHierarchyStrings(related),
-		})
-		_ = stm.MarkEpisodicMemoriesHierarchy(episodeIDs, 2)
+		}))
+		if resultErr == nil {
+			resultErr = errors.Join(resultErr, stm.MarkEpisodicMemoriesHierarchy(episodeIDs, 2))
+		}
 	}
+	return resultErr
 }
 
 func detectMemoryConflictsAcrossLTM(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, prefetchedMetas []memory.MemoryMeta) {
@@ -1898,6 +1923,7 @@ func truncateHierarchySummary(value string, maxLen int) string {
 }
 
 type autoOptimizeMemoryResult struct {
+	Errors        []error
 	KGOptimizeErr error
 }
 
@@ -1921,6 +1947,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		var err error
 		metas, err = stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 		if err != nil {
+			result.Errors = append(result.Errors, err)
 			logger.Error("[AutoOptimize] Failed to fetch memory metadata", "error", err)
 			return result
 		}
@@ -1928,7 +1955,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 
 	var lowDocs, mediumDocs []string
 	for _, meta := range metas {
-		if meta.Protected || meta.KeepForever {
+		if meta.Protected || meta.KeepForever || memory.IsMemoryArchived(meta) {
 			continue
 		}
 		priority := adjustedMemoryPriority(meta, time.Now())
@@ -1939,22 +1966,27 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 	}
 
-	// Remove low-priority documents
+	// Low priority alone never requires physical destruction. Archive through
+	// the policy-aware metadata path and retain the vector for recovery.
 	for _, docID := range lowDocs {
-		if err := ltm.DeleteDocument(docID); err == nil {
-			_ = stm.CleanupDeletedVectorDocumentReferences(docID)
+		if err := ctx.Err(); err != nil {
+			result.Errors = append(result.Errors, err)
+			return result
 		}
-		_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
-			DocID:  docID,
-			Action: memory.MemoryCurationActionArchive,
-			Reason: "auto-optimize low priority",
-		}, "system", false)
+		if err := stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
+			DocID: docID, Action: memory.MemoryCurationActionArchive, Reason: "auto-optimize low priority",
+		}, "system", false); err != nil {
+			result.Errors = append(result.Errors, err)
+		}
 	}
 
 	// Compress medium-priority documents
 	optimizeClient, optimizeModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 	if optimizeClient == nil || optimizeModel == "" {
 		logger.Warn("[AutoOptimize] Compression skipped: no helper/main LLM available")
+		if len(mediumDocs) > 0 {
+			result.Errors = append(result.Errors, fmt.Errorf("memory compression LLM unavailable"))
+		}
 		return result
 	}
 	helperManager := newHelperLLMManager(cfg, logger)
@@ -1963,11 +1995,17 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		content  string
 		concept  string
 		memoryID string
+		meta     memory.MemoryMeta
 	}
 	workItems := make([]compressionWorkItem, 0, len(mediumDocs))
 	for _, docID := range mediumDocs {
 		content, err := ltm.GetByID(docID)
 		if err != nil || len(content) < 300 {
+			continue
+		}
+		meta, err := stm.GetMemoryMeta(docID)
+		if err != nil {
+			result.Errors = append(result.Errors, err)
 			continue
 		}
 		concept := "Compressed Memory"
@@ -1977,6 +2015,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 		workItems = append(workItems, compressionWorkItem{
 			docID:    docID,
+			meta:     meta,
 			content:  content,
 			concept:  concept,
 			memoryID: fmt.Sprintf("mem_%d", len(workItems)+1),
@@ -2006,26 +2045,25 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 			nil,
 		)
 		if err != nil || len(resp.Choices) == 0 {
+			if err == nil {
+				err = fmt.Errorf("compression completion empty")
+			}
+			result.Errors = append(result.Errors, err)
 			return
 		}
 		compressed := strings.TrimSpace(resp.Choices[0].Message.Content)
-		if compressed == "" {
+		if compressed == "" || resp.Choices[0].FinishReason == openai.FinishReasonLength {
+			result.Errors = append(result.Errors, fmt.Errorf("compression completion empty or truncated"))
 			return
 		}
-		newIDs, err2 := ltm.StoreDocument(item.concept, compressed)
-		if err2 == nil {
-			if err := ltm.DeleteDocument(item.docID); err == nil {
-				_ = stm.CleanupDeletedVectorDocumentReferences(item.docID)
-			}
-			_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
-				DocID:  item.docID,
-				Action: memory.MemoryCurationActionArchive,
-				Reason: "auto-optimize compressed into replacement memory",
-			}, "system", false)
-			for _, newID := range newIDs {
-				_ = stm.UpsertMemoryMeta(newID)
-			}
+		if err := ctx.Err(); err != nil {
+			result.Errors = append(result.Errors, err)
+			return
 		}
+		if _, err := stm.ReplaceMemoryDocument(ltm, item.docID, item.concept, item.content, compressed, item.meta, "auto-optimize compressed into replacement memory", "system"); err != nil {
+			result.Errors = append(result.Errors, err)
+		}
+
 	}
 
 	const helperCompressionBatchSize = 3
@@ -2054,7 +2092,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 
 		compressionCtx, compressionCancel := context.WithTimeout(ctx, 60*time.Second)
-		result, err := helperManager.CompressMemoryBatches(compressionCtx, inputs)
+		compressionResult, err := helperManager.CompressMemoryBatches(compressionCtx, inputs)
 		compressionCancel()
 		if err != nil {
 			helperManager.ObserveFallback("compress_memories", err.Error())
@@ -2066,8 +2104,8 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 			continue
 		}
 
-		byID := make(map[string]string, len(result.Memories))
-		for _, item := range result.Memories {
+		byID := make(map[string]string, len(compressionResult.Memories))
+		for _, item := range compressionResult.Memories {
 			byID[item.MemoryID] = item.Compressed
 		}
 		for _, item := range group {
@@ -2076,22 +2114,14 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 				compressOne(item)
 				continue
 			}
-			newIDs, err := ltm.StoreDocument(item.concept, compressed)
-			if err != nil {
-				logger.Warn("[AutoOptimize] Failed to store compressed memory", "doc_id", item.docID, "error", err)
-				continue
+			if err := ctx.Err(); err != nil {
+				result.Errors = append(result.Errors, err)
+				break
 			}
-			if err := ltm.DeleteDocument(item.docID); err == nil {
-				_ = stm.CleanupDeletedVectorDocumentReferences(item.docID)
+			if _, err := stm.ReplaceMemoryDocument(ltm, item.docID, item.concept, item.content, compressed, item.meta, "auto-optimize compressed into replacement memory", "system"); err != nil {
+				result.Errors = append(result.Errors, err)
 			}
-			_ = stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
-				DocID:  item.docID,
-				Action: memory.MemoryCurationActionArchive,
-				Reason: "auto-optimize compressed into replacement memory",
-			}, "system", false)
-			for _, newID := range newIDs {
-				_ = stm.UpsertMemoryMeta(newID)
-			}
+
 		}
 		i = end
 	}

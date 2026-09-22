@@ -111,6 +111,11 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	);
 	CREATE INDEX IF NOT EXISTS idx_memory_maintenance_failures_last_failed ON memory_maintenance_failures(last_failed_at DESC);
 
+	CREATE TABLE IF NOT EXISTS memory_maintenance_meta (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	);
+
 	CREATE TABLE IF NOT EXISTS interaction_patterns (
 		hour_of_day INTEGER,
 		day_of_week INTEGER,

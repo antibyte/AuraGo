@@ -263,8 +263,12 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 	highCount, mediumCount, lowCount := 0, 0, 0
 	var lowDocs []string
 	var mediumDocs []string
+	mediumMetaByID := make(map[string]memory.MemoryMeta)
 
 	for _, meta := range metas {
+		if memory.IsMemoryArchived(meta) {
+			continue
+		}
 		if meta.Protected || meta.KeepForever {
 			highCount++
 			continue
@@ -282,30 +286,42 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 		} else if priority < thresholdMedium {
 			mediumCount++
 			mediumDocs = append(mediumDocs, meta.DocID)
+			mediumMetaByID[meta.DocID] = meta
 		} else {
 			highCount++
 		}
 	}
+	lowCandidates, mediumCandidates := lowCount, mediumCount
+	partial := false
 
 	graphRemoved := 0
 	if !req.Preview {
-		// 1. Process VectorDB Low Priority
+		lowCount, mediumCount = 0, 0
+		// 1. Archive low-priority metadata while retaining the vector. Keeping the
+		// source allows later recall and makes the archive operation lossless.
 		for _, docID := range lowDocs {
-			if err := longTermMem.DeleteDocument(docID); err == nil {
-				_ = shortTermMem.CleanupDeletedVectorDocumentReferences(docID)
-			}
-			_ = shortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{
+			if err := shortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{
 				DocID:  docID,
 				Action: memory.MemoryCurationActionArchive,
 				Reason: "memory maintenance low priority",
-			}, "agent", false)
+			}, "agent", false); err != nil {
+				partial = true
+				logger.Warn("[MemoryMaintenance] Failed to archive low-priority memory", "doc_id", docID, "error", err)
+				continue
+			}
+			lowCount++
 		}
 
 		// 2. Process VectorDB Medium Priority (Compression)
 		compressionClient, compressionModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 		for _, docID := range mediumDocs {
 			content, err := longTermMem.GetByID(docID)
-			if err != nil || len(content) < 300 {
+			if err != nil {
+				partial = true
+				logger.Warn("[MemoryMaintenance] Failed to read medium-priority memory", "doc_id", docID, "error", err)
+				continue
+			}
+			if len(content) < 300 {
 				continue
 			}
 
@@ -329,49 +345,77 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 				nil,
 			)
 			cancelCompression()
-			if err == nil && len(resp.Choices) > 0 {
-				compressed := resp.Choices[0].Message.Content
-
-				parts := strings.SplitN(content, "\n\n", 2)
-				concept := "Compressed Memory"
-				if len(parts) == 2 {
-					concept = parts[0]
-				}
-
-				newIDs, err2 := longTermMem.StoreDocument(concept, compressed)
-				if err2 == nil {
-					if err := longTermMem.DeleteDocument(docID); err == nil {
-						_ = shortTermMem.CleanupDeletedVectorDocumentReferences(docID)
-					}
-					_ = shortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{
-						DocID:  docID,
-						Action: memory.MemoryCurationActionArchive,
-						Reason: "memory maintenance compressed into replacement memory",
-					}, "agent", false)
-					for _, newID := range newIDs {
-						_ = shortTermMem.UpsertMemoryMeta(newID)
-					}
-				}
+			if err != nil {
+				partial = true
+				logger.Warn("[MemoryMaintenance] Failed to compress medium-priority memory", "doc_id", docID, "error", err)
+				continue
 			}
+			if len(resp.Choices) == 0 {
+				partial = true
+				logger.Warn("[MemoryMaintenance] Compression returned no completion", "doc_id", docID)
+				continue
+			}
+			compressed := strings.TrimSpace(resp.Choices[0].Message.Content)
+			if compressed == "" || resp.Choices[0].FinishReason == openai.FinishReasonLength {
+				partial = true
+				logger.Warn("[MemoryMaintenance] Compression completion empty or truncated", "doc_id", docID)
+				continue
+			}
+
+			parts := strings.SplitN(content, "\n\n", 2)
+			concept := "Compressed Memory"
+			if len(parts) == 2 {
+				concept = parts[0]
+			}
+
+			expectedMeta, ok := mediumMetaByID[docID]
+			if !ok {
+				partial = true
+				logger.Warn("[MemoryMaintenance] Missing metadata snapshot for compressed memory", "doc_id", docID)
+				continue
+			}
+			if _, err := shortTermMem.ReplaceMemoryDocument(
+				longTermMem,
+				docID,
+				concept,
+				content,
+				compressed,
+				expectedMeta,
+				"memory maintenance compressed into replacement memory",
+				"agent",
+			); err != nil {
+				partial = true
+				logger.Warn("[MemoryMaintenance] Failed to replace compressed memory", "doc_id", docID, "error", err)
+				continue
+			}
+			mediumCount++
 		}
 
 		// 3. Process Graph Low Priority
 		if shouldOptimizeKnowledgeGraph(cfg, kg) {
 			removed, err := kg.OptimizeGraph(thresholdLow)
 			if err != nil {
+				partial = true
 				logger.Warn("[MemoryMaintenance] Knowledge graph optimization failed", "error", err)
 			} else {
 				graphRemoved = removed
 			}
 		}
-		if len(lowDocs) > 0 || len(mediumDocs) > 0 {
+		if lowCount > 0 || mediumCount > 0 {
 			InvalidateMemoryMetaCache()
 		}
 	}
+	status := "success"
+	if !req.Preview && partial {
+		status = "partial"
+	}
+	if req.Preview {
+		lowCount, mediumCount = lowCandidates, mediumCandidates
+	}
 
 	return fmt.Sprintf(
-		`{"status": "success", "preview": %v, "memory_rag": {"high_kept": %d, "medium_compressed": %d, "low_archived": %d}, "graph_nodes_archived": %d}`,
-		req.Preview, highCount, mediumCount, lowCount, graphRemoved,
+		`{"status": "%s", "preview": %v, "memory_rag": {"high_kept": %d, "medium_compressed": %d, "low_archived": %d}, "graph_nodes_archived": %d}`,
+		status, req.Preview, highCount, mediumCount, lowCount, graphRemoved,
 	)
 }
 
