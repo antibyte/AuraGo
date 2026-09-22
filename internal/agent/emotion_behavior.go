@@ -31,6 +31,7 @@ func latestEmotionState(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSyn
 				ts = parsed
 			}
 			state = &memory.EmotionState{
+				DynamicsEpoch:            latest.DynamicsEpoch,
 				Description:              strings.TrimSpace(latest.Description),
 				PrimaryMood:              memory.Mood(latest.PrimaryMood),
 				SecondaryMood:            strings.TrimSpace(latest.SecondaryMood),
@@ -45,7 +46,14 @@ func latestEmotionState(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSyn
 		}
 	}
 	if stm != nil {
-		if affect, err := stm.GetAffectState(); err == nil && affect.Active() {
+		snapshot, err := stm.GetPersonalitySnapshotAt(time.Now())
+		if err != nil {
+			return nil
+		}
+		if state != nil && state.DynamicsEpoch != snapshot.Epoch {
+			state = nil
+		}
+		if affect := snapshot.Affect; affect.Active() {
 			if state == nil {
 				state = &memory.EmotionState{
 					Description: "Current affect is driven by recent environment events.",
@@ -96,19 +104,17 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 		if state.Confidence > 0 && state.Confidence < 0.45 {
 			lowConfidence = true
 		}
-		style := strings.ToLower(state.RecommendedResponseStyle)
-		if strings.Contains(style, "precise") || strings.Contains(style, "focused") || strings.Contains(style, "careful") {
-			highThoroughness = true
-		}
-		if strings.Contains(style, "warm") || strings.Contains(style, "reassuring") || strings.Contains(style, "support") {
-			highEmpathy = true
-		}
 		if state.Confidence >= 0.45 && state.Valence <= -0.25 && state.Arousal >= 0.65 {
 			tenseRecovery = true
 		}
 	}
 
 	hints := make([]string, 0, 5)
+	if snapshot, err := stm.GetPersonalitySnapshotAt(time.Now()); err == nil {
+		if hint := memory.PersonalityDynamicsHint(snapshot); hint != "" {
+			hints = append(hints, hint)
+		}
+	}
 	if lowConfidence && ambiguousIntent {
 		hints = append(hints, "When a step could modify or delete data, verify the target first and ask one brief confirmation question if the user intent is ambiguous.")
 	} else if lowConfidence {

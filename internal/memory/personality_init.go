@@ -49,11 +49,8 @@ func (s *SQLiteMemory) InitPersonalityTables() error {
 		s.logger.Warn("Failed to seed loneliness trait", "error", err)
 	}
 
-	for _, trait := range []string{TraitCuriosity, TraitThoroughness, TraitCreativity, TraitEmpathy, TraitConfidence, TraitAffinity} {
-		if _, err := s.db.Exec(`UPDATE personality_traits SET value = ? WHERE trait = ? AND value = 0.0`, traitDefault, trait); err != nil {
-			s.logger.Warn("Failed to reset zeroed personality trait", "trait", trait, "error", err)
-		}
-	}
+	// Existing zero values are valid learned/user-configured state. Seeding
+	// missing rows must not reset them during migration or repeated startup.
 
 	if err := s.InitEmotionTables(); err != nil {
 		return fmt.Errorf("emotion tables: %w", err)

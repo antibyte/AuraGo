@@ -21,6 +21,70 @@ func observePersonality(t *testing.T, stm *SQLiteMemory, observation Personality
 	return snapshot
 }
 
+func TestPersonalityDynamicsReadDoesNotBypassHysteresis(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	now := time.Now().UTC()
+	event := AffectEvent{CauseCode: AffectCauseToolErrorStreak, Valence: -1, Arousal: 1, Weight: .6}
+	first := observePersonality(t, stm, PersonalityObservation{ID: "first", Source: "tool", At: now, Event: &event})
+	for _, elapsed := range []time.Duration{time.Second, time.Minute} {
+		read, err := stm.GetPersonalitySnapshotAt(now.Add(elapsed))
+		if err != nil {
+			t.Fatal(err)
+		}
+		affect, err := stm.GetAffectStateAt(now.Add(elapsed))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if read.Affect.Mood != first.Affect.Mood || affect.Mood != first.Affect.Mood {
+			t.Fatal("read bypassed mood confirmation")
+		}
+	}
+	creative := observePersonality(t, stm, PersonalityObservation{ID: "work", At: now.Add(time.Second), Mood: MoodCreative})
+	if creative.Affect.Mood != MoodCreative || creative.Affect.Valence >= 0 {
+		t.Fatal("working mode lost independence from negative affect")
+	}
+}
+
+func TestPersonalityDynamicsSemanticRelationshipHabituates(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	now := time.Now()
+	event, _ := affectEventByCause(AffectCauseConversation)
+	var firstGain, lastGain float64
+	for i := 0; i < 10; i++ {
+		id := fmt.Sprintf("turn-%d", i)
+		primary := observePersonality(t, stm, PersonalityObservation{ID: id, Source: "chat", Human: true, BeginTurn: true, At: now, Event: &event})
+		after := observePersonality(t, stm, PersonalityObservation{ID: id, Semantic: true, Basis: &primary, Source: "helper", Human: true, Signal: "criticism", Target: "agent", Confidence: 1, At: now})
+		gain := (after.Dynamics.Friction - primary.Dynamics.Friction) / (1 - primary.Dynamics.Friction)
+		if i == 0 {
+			firstGain = gain
+		}
+		lastGain = gain
+	}
+	if lastGain >= firstGain*.5 {
+		t.Fatalf("semantic repeats did not habituate: %f -> %f", firstGain, lastGain)
+	}
+}
+
+func TestPersonalityDynamicsSnapshotInvalidatesCachedNarration(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	if _, err := stm.ApplyPersonalityObservation(PersonalityObservation{Emotion: &EmotionState{Description: "Earlier emotion", Confidence: .8}, Semantic: true}); err != nil {
+		t.Fatal(err)
+	}
+	es := NewEmotionSynthesizer(nil, "", 60, 100, "English", slog.Default())
+	if err := es.BindMemory(stm); err != nil {
+		t.Fatal(err)
+	}
+	if es.GetLastEmotion() == nil {
+		t.Fatal("expected persisted narration")
+	}
+	if _, err := stm.ResetPersonalityDynamics(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if es.GetLastEmotion() != nil {
+		t.Fatal("reset left cached narration active")
+	}
+}
+
 func TestPersonalityDynamicsSeparatesFamiliarityFrictionAndOperationalLoad(t *testing.T) {
 	stm := newTestPersonalityDB(t)
 	if err := stm.SetTrait(TraitAffinity, 0.85); err != nil {
@@ -252,6 +316,50 @@ func TestPersonalityDynamicsConcurrentDuplicateIsAppliedOnce(t *testing.T) {
 	}
 }
 
+func TestPersonalityDynamicsConcurrentChannelsPreservePrimaryEvidence(t *testing.T) {
+	stm := newTestPersonalityDB(t)
+	if err := stm.SetPersonalityContext("friend", DefaultPersonalityMeta()); err != nil {
+		t.Fatal(err)
+	}
+	basis, err := stm.GetPersonalitySnapshotAt(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, _ := affectEventByCause(AffectCausePositiveFeedback)
+	var wg sync.WaitGroup
+	errs := make(chan error, 12)
+	for i := 0; i < 12; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			_, err := stm.ApplyPersonalityObservation(PersonalityObservation{ID: fmt.Sprintf("channel-%d", id), Human: true, BeginTurn: true, Basis: &basis, Event: &event})
+			errs <- err
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	after, _ := stm.GetPersonalitySnapshotAt(time.Now())
+	if after.Dynamics.Revision != basis.Dynamics.Revision+12 {
+		t.Fatalf("concurrent primary evidence lost: %+v", after.Dynamics)
+	}
+	_, err = stm.ApplyPersonalityObservation(PersonalityObservation{ID: "old-helper", Semantic: true, Basis: &basis})
+	if !errors.Is(err, ErrStalePersonalityObservation) {
+		t.Fatalf("superseded enrichment was accepted: %v", err)
+	}
+	if _, err = stm.ResetPersonalityDynamics(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	_, err = stm.ApplyPersonalityObservation(PersonalityObservation{ID: "old-primary", BeginTurn: true, Human: true, Basis: &after, Event: &event})
+	if !errors.Is(err, ErrStalePersonalityObservation) {
+		t.Fatalf("pre-reset primary evidence was accepted: %v", err)
+	}
+}
+
 func TestPersonalityDynamicsMigrationBacksUpAndRestartRetainsState(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "personality.db")
 	stm, err := NewSQLiteMemory(path, slog.Default())
@@ -259,6 +367,9 @@ func TestPersonalityDynamicsMigrationBacksUpAndRestartRetainsState(t *testing.T)
 		t.Fatal(err)
 	}
 	if err = stm.SetTrait(TraitAffinity, 0.83); err != nil {
+		t.Fatal(err)
+	}
+	if err = stm.SetTrait(TraitCuriosity, 0); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = stm.db.Exec(`DROP TABLE personality_dynamics; DROP TABLE personality_observations;`); err != nil {
@@ -288,6 +399,9 @@ func TestPersonalityDynamicsMigrationBacksUpAndRestartRetainsState(t *testing.T)
 	}
 	if after.Dynamics.Familiarity != 0.83 {
 		t.Fatal("migration changed affinity")
+	}
+	if after.Traits[TraitCuriosity] != 0 {
+		t.Fatal("restart reset an existing zero trait")
 	}
 	duplicate := observePersonality(t, reopened, PersonalityObservation{ID: "persistent", Event: &event, At: now})
 	if duplicate.Dynamics.Revision != before.Dynamics.Revision {

@@ -18,6 +18,21 @@ func TestRejectCharacterNoteBlocksSecretsAndOffProfile(t *testing.T) {
 	}
 }
 
+func TestPersonalityDynamicsReflectionNeedsRepeatedRecovery(t *testing.T) {
+	input := CharacterReflectionInput{CorePersonality: "neutral", AffectCause: AffectCauseOpsIssueOpened, Mood: MoodFrustrated}
+	for _, count := range []int{0, 1, 2} {
+		input.ConfirmedRecoveries = count
+		if notes := ProposeCharacterNotesDeterministic(input); len(notes) != 0 {
+			t.Fatalf("%d recoveries created a durable note: %+v", count, notes)
+		}
+	}
+	input.ConfirmedRecoveries = 3
+	notes := ProposeCharacterNotesDeterministic(input)
+	if len(notes) != 1 || !strings.Contains(notes[0].Text, "confirmed improvement") {
+		t.Fatalf("repeated recovery missing: %+v", notes)
+	}
+}
+
 func TestProposeCharacterNotesStayOnFriendProfile(t *testing.T) {
 	proposals := ProposeCharacterNotesDeterministic(CharacterReflectionInput{
 		CorePersonality: "friend",

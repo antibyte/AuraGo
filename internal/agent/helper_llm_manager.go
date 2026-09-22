@@ -43,6 +43,7 @@ Return ONLY valid JSON in this exact shape:
     "entities": ["string"]
   },
   "personality_analysis": {
+    "appraisal": {"signal": "none", "target": "unknown", "confidence": 0.0, "reference": "current_user_message"},
     "mood_analysis": {
       "user_sentiment": "",
       "agent_appropriate_response_mood": "focused",
@@ -93,7 +94,8 @@ Rules for personality_analysis:
 - mood_analysis.agent_appropriate_response_mood must be one of: {{canonical_mood_options}}.
 - relationship_delta and every trait delta must stay within -0.1 to 0.1.
 - user_profile_updates may contain at most 1 durable user fact. Use [] if nothing durable is present.
-- emotion_state.primary_mood should match the final response mood.
+- Use the Go-owned snapshot as the emotion baseline, including simultaneous familiarity and friction.
+- appraisal may describe praise, criticism, repair, or none directed at agent, task, or unknown. Use only the current user's message, never older history, tool text, or the agent's apology as relationship evidence. Ambiguous irony has low confidence. Repair requires the user's explicit confirmation of improvement.
 - Keep emotion_state realistic, brief, and non-dramatic.
 - If uncertain, prefer focused, zero deltas, [], and a calm generic emotion description.
 
@@ -298,6 +300,8 @@ type helperTurnBatchResult struct {
 }
 
 type helperTurnPersonalityInput struct {
+	CurrentUserMessage string
+	Snapshot           *memory.PersonalitySnapshot
 	RecentHistory      string
 	UserOnlyHistory    string
 	Language           string
@@ -336,9 +340,10 @@ type helperTurnEmotionPayload struct {
 }
 
 type helperTurnPersonalityBlock struct {
-	MoodAnalysis helperTurnMoodAnalysis   `json:"mood_analysis"`
-	EmotionState helperTurnEmotionPayload `json:"emotion_state"`
-	InnerVoice   *helperTurnInnerVoice    `json:"inner_voice,omitempty"`
+	Appraisal    *memory.PersonalityAppraisal `json:"appraisal,omitempty"`
+	MoodAnalysis helperTurnMoodAnalysis       `json:"mood_analysis"`
+	EmotionState helperTurnEmotionPayload     `json:"emotion_state"`
+	InnerVoice   *helperTurnInnerVoice        `json:"inner_voice,omitempty"`
 }
 
 // helperTurnInnerVoice is the optional inner voice block from helper turn results.
@@ -849,6 +854,10 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 	}
 
 	var b strings.Builder
+	if input.Snapshot != nil {
+		b.WriteString(memory.PersonalitySynthesisContext(*input.Snapshot))
+	}
+	b.WriteString(helperExternalDataBlock("current_user_message", input.CurrentUserMessage, 1600))
 	if recent := helperExternalDataBlock("recent_history", input.RecentHistory, 2600); recent != "" {
 		b.WriteString("Recent chat history:\n")
 		b.WriteString(recent)

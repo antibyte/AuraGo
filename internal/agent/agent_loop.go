@@ -402,6 +402,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	loopStartedAt := time.Now()
 	loopIterationCount := 0
 	personalityPrepared := false
+	var personalityBasis *memory.PersonalitySnapshot
 	for {
 		if runCfg.Checkpoint != nil {
 			if err := runCfg.Checkpoint(req.Messages); err != nil {
@@ -550,10 +551,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if !runCfg.SuppressTurnSideEffects {
 				syncEnvironmentAffect(shortTermMem, cfg, runCfg.PlannerDB, isAutonomousRun, userInactivityHours, s.currentLogger)
 			}
-			if !runCfg.SuppressTurnSideEffects && userEmotionTrigger != "" {
-				emitAffectFromTrigger(shortTermMem, cfg, s.currentLogger, userEmotionTrigger, userEmotionTriggerDetail, "chat")
-			}
-			prepareTurnEmotion(ctx, runCfg, flags, lastUserMsg, meta, s.currentLogger)
+			personalityBasis = prepareTurnEmotion(ctx, runCfg, flags, lastUserMsg, meta, s.currentLogger)
 		}
 		emotionPolicy := emotionBehaviorPolicy{}
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
@@ -2092,7 +2090,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 		runTurnSideEffects := shouldRunTurnSideEffects(runCfg, sessionID, flags)
 		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && runTurnSideEffects
-		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2
+		if personalityBasis != nil {
+			fresh, err := shortTermMem.GetPersonalitySnapshotAt(time.Now())
+			if err != nil || fresh.TurnID != personalityBasis.TurnID || fresh.Epoch != personalityBasis.Epoch {
+				personalityBasis = nil
+			} else {
+				personalityBasis = &fresh
+			}
+		}
+		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2 && personalityBasis != nil
 
 		if isAutonomousRun && !isRelayAutonomousRun(runCfg, sessionID) && personalityEnabled && shortTermMem != nil {
 			emitAutonomousRunAffect(shortTermMem, cfg, s.currentLogger, recoveryState.ConsecutiveErrorCount, s.toolCallCount)
@@ -2102,7 +2108,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Skip personality side-effects for missions, heartbeats, and maintenance —
 		// these are background/autonomous runs that should not update mood, traits,
 		// or trigger emotion synthesis.
-		if runTurnSideEffects && personalityEnabled && shortTermMem != nil && !isAutonomousRun && !runCfg.IsMission && !flags.IsMission && !runCfg.IsCoAgent && !runCfg.IsMaintenance && sessionID != "maintenance" {
+		if runTurnSideEffects && personalityEnabled && personalityBasis != nil && shortTermMem != nil && !isAutonomousRun && !runCfg.IsMission && !flags.IsMission && !runCfg.IsCoAgent && !runCfg.IsMaintenance && sessionID != "maintenance" {
 			if cfg.Personality.EngineV2 {
 				if !useBatchedTurnPersonality {
 					launchAsyncPersonalityV2Analysis(
@@ -2126,18 +2132,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						s.toolCallCount-recoveryState.ConsecutiveErrorCount,
 						flags.IsMission,
 						flags.IsCoAgent,
+						personalityBasis,
 					)
-				}
-			} else {
-				mood, traitDeltas := memory.DetectMood(lastUserMsg, "", meta)
-				currentTraits, _ := shortTermMem.GetTraits()
-				// O-08: Apply emotion bias from synthesizer to contextualize V1 detection.
-				if emotionSynthesizer != nil {
-					mood = memory.ApplyEmotionBias(mood, emotionSynthesizer.GetLastEmotion(), currentTraits)
-				}
-				_ = shortTermMem.LogMood(mood, moodTrigger())
-				for trait, delta := range traitDeltas {
-					_ = shortTermMem.UpdateTrait(trait, dampenTraitDelta(currentTraits[trait], delta))
 				}
 			}
 		}
@@ -2182,6 +2178,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 				turnPersonalityInput = &helperTurnPersonalityInput{
+					CurrentUserMessage: lastUserMsg,
+					Snapshot:           personalityBasis,
 					RecentHistory:      contextHistory,
 					UserOnlyHistory:    userHistory,
 					Language:           cfg.Agent.SystemLanguage,
@@ -2234,6 +2232,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
 							flags.IsMission,
 							flags.IsCoAgent,
+							personalityBasis,
 						)
 					}
 					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
@@ -2257,6 +2256,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				applyMemoryAnalysisResult(cfg, s.currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
 				if useBatchedTurnPersonality {
 					if personalityResult, ok := normalizeHelperTurnPersonalityResult(batchResult.PersonalityAnalysis, meta); ok {
+						personalityResult.Basis, personalityResult.ObservationID = personalityBasis, personalityBasis.TurnID
 						_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 						v2FailCount.Store(0)
 						applyPersonalityV2AnalysisResult(
@@ -2298,6 +2298,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
 							flags.IsMission,
 							flags.IsCoAgent,
+							personalityBasis,
 						)
 					}
 				}

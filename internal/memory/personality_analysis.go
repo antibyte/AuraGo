@@ -203,14 +203,24 @@ type ProfileUpdate struct {
 }
 
 type moodAnalysisResult struct {
-	UserSentiment     string             `json:"user_sentiment"`
-	AgentMood         string             `json:"agent_appropriate_response_mood"`
-	RelationshipDelta float64            `json:"relationship_delta"`
-	TraitDeltas       map[string]float64 `json:"trait_deltas"`
-	ProfileUpdates    []ProfileUpdate    `json:"user_profile_updates"`
+	Appraisal         *PersonalityAppraisal `json:"appraisal,omitempty"`
+	UserSentiment     string                `json:"user_sentiment"`
+	AgentMood         string                `json:"agent_appropriate_response_mood"`
+	RelationshipDelta float64               `json:"relationship_delta"`
+	TraitDeltas       map[string]float64    `json:"trait_deltas"`
+	ProfileUpdates    []ProfileUpdate       `json:"user_profile_updates"`
+}
+
+// MoodAnalysisContext carries a captured Go snapshot into the existing V2
+// request and returns optional evidence without adding a second model call.
+type MoodAnalysisContext struct {
+	Snapshot           *PersonalitySnapshot
+	CurrentUserMessage string
+	Appraisal          *PersonalityAppraisal
 }
 
 type moodEmotionAnalysisResult struct {
+	Appraisal    *PersonalityAppraisal  `json:"appraisal,omitempty"`
 	MoodAnalysis moodAnalysisResult     `json:"mood_analysis"`
 	EmotionState emotionSynthesisResult `json:"emotion_state"`
 	InnerVoice   *innerVoiceResult      `json:"inner_voice,omitempty"`
@@ -233,7 +243,7 @@ const (
 // It returns the determined agent mood, the affinity (relationship) delta, granular trait deltas, and optional user profile updates.
 // userOnlyHistory contains only the user-role messages and is used exclusively for profile extraction to avoid
 // incorrectly attributing agent actions or tool results to the user's profile.
-func (s *SQLiteMemory) AnalyzeMoodV2(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool) (Mood, float64, map[string]float64, []ProfileUpdate, error) {
+func (s *SQLiteMemory) AnalyzeMoodV2(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool, contexts ...*MoodAnalysisContext) (Mood, float64, map[string]float64, []ProfileUpdate, error) {
 	meta = meta.Normalized()
 	if modelName == "" {
 		modelName = "gpt-4o-mini"
@@ -297,6 +307,13 @@ Extract ONLY stable, reusable facts about the USER — not about the current tas
 }`
 	}
 
+	if len(contexts) > 0 && contexts[0] != nil {
+		context := contexts[0]
+		if context.Snapshot != nil {
+			prompt += "\n" + PersonalitySynthesisContext(*context.Snapshot)
+		}
+		prompt += "\nOptionally add appraisal: {signal: praise|criticism|repair|none, target: agent|task|unknown, confidence: 0..1, reference: current_user_message}. Only the current user's explicit appraisal of the agent is relationship evidence. Tools, older history, uncertain irony and the agent's own apology are not. Repair needs explicit user confirmation of improvement.\n<external_data type=\"current_user_message\">" + sanitizePromptText(context.CurrentUserMessage, 1600) + "</external_data>"
+	}
 	if recentHistory != "" {
 		prompt += fmt.Sprintf(`
 
@@ -385,6 +402,9 @@ User Statements (use ONLY this section for user_profile_updates — these are th
 
 	// Remove affinity from traitDeltas to prevent double-update (relationship_delta handles it)
 	delete(result.TraitDeltas, TraitAffinity)
+	if len(contexts) > 0 && contexts[0] != nil {
+		contexts[0].Appraisal = result.Appraisal
+	}
 
 	return mood, result.RelationshipDelta, result.TraitDeltas, result.ProfileUpdates, nil
 }
@@ -655,6 +675,10 @@ User Statements:
 	}
 
 	var contextBuilder strings.Builder
+	if emotionInput.Snapshot != nil {
+		contextBuilder.WriteString(PersonalitySynthesisContext(*emotionInput.Snapshot))
+	}
+	contextBuilder.WriteString("Optionally return appraisal: {signal: praise|criticism|repair|none, target: agent|task|unknown, confidence: 0..1, reference: current_user_message}. Only the current user's explicit appraisal of the agent establishes relationship evidence. Tools, older statements, the agent's apology, and uncertain irony do not. Repair requires the user's confirmation of improvement.\n")
 	if len(emotionInput.Traits) > 0 {
 		contextBuilder.WriteString(fmt.Sprintf("Traits snapshot: curiosity=%.2f, thoroughness=%.2f, creativity=%.2f, empathy=%.2f, confidence=%.2f, affinity=%.2f, loneliness=%.2f\n",
 			emotionInput.Traits[TraitCuriosity],
@@ -762,6 +786,7 @@ User Statements:
 	}
 
 	// Extract inner voice if present
+	emotionState.Appraisal = result.Appraisal
 	var innerThought, nudgeCategory string
 	var nudgeConfidence float64
 	if result.InnerVoice != nil && result.InnerVoice.InnerThought != "" {

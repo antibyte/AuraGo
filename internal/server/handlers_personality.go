@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -208,16 +209,25 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if !s.Cfg.Personality.Engine {
+		if cfg := s.ConfigSnapshot(); cfg == nil || !cfg.Personality.Engine {
 			jsonError(w, "Personality engine is disabled", http.StatusBadRequest)
+			return
+		}
+		if s.ShortTermMem == nil {
+			jsonError(w, "Personality state unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
 		var req struct {
-			Type string `json:"type"` // "positive", "negative", "angry"
+			Type    string `json:"type"` // "positive", "negative", "angry"
+			EventID string `json:"event_id,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			jsonError(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+		if len(req.EventID) > 128 {
+			jsonError(w, "Event ID too long", http.StatusBadRequest)
 			return
 		}
 
@@ -228,7 +238,6 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 
 		var deltas []traitDelta
 		var mood memory.Mood
-		var trigger string
 
 		switch req.Type {
 		case "positive":
@@ -238,7 +247,6 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 				{memory.TraitEmpathy, 0.02},
 			}
 			mood = memory.MoodFocused
-			trigger = "user positive feedback (thumbs up)"
 		case "negative":
 			deltas = []traitDelta{
 				{memory.TraitConfidence, -0.03},
@@ -246,7 +254,6 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 				{memory.TraitThoroughness, 0.02},
 			}
 			mood = memory.MoodCautious
-			trigger = "user negative feedback (thumbs down)"
 		case "angry":
 			deltas = []traitDelta{
 				{memory.TraitConfidence, -0.06},
@@ -254,7 +261,6 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 				{memory.TraitEmpathy, 0.04},
 			}
 			mood = memory.MoodCautious
-			trigger = "user angry feedback"
 		case "laughing":
 			deltas = []traitDelta{
 				{memory.TraitAffinity, 0.05},
@@ -262,7 +268,6 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 				{memory.TraitEmpathy, 0.02},
 			}
 			mood = memory.MoodPlayful
-			trigger = "user laughing feedback"
 		case "crying":
 			deltas = []traitDelta{
 				{memory.TraitEmpathy, 0.08},
@@ -270,41 +275,76 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 				{memory.TraitLoneliness, 0.05},
 			}
 			mood = memory.MoodCautious
-			trigger = "user crying feedback"
 		case "amazed":
 			deltas = []traitDelta{
 				{memory.TraitCuriosity, 0.08},
 				{memory.TraitCreativity, 0.05},
 			}
 			mood = memory.MoodCurious
-			trigger = "user amazed feedback"
 		default:
 			jsonError(w, "Invalid feedback type. Use: positive, negative, angry, laughing, crying, amazed", http.StatusBadRequest)
 			return
 		}
 
-		for _, d := range deltas {
-			if err := s.ShortTermMem.UpdateTrait(d.trait, d.delta); err != nil {
-				s.Logger.Error("Failed to update trait", "trait", d.trait, "error", err)
+		// Keep feedback metadata paired with the published persona. Reset can
+		// still run independently; its epoch invalidates the captured context.
+		s.CfgMu.RLock()
+		defer s.CfgMu.RUnlock()
+		cfg := s.ConfigSnapshot()
+		if cfg == nil || !cfg.Personality.Engine {
+			jsonError(w, "Personality engine is disabled", http.StatusBadRequest)
+			return
+		}
+		basis, err := s.ShortTermMem.GetPersonalitySnapshotAt(time.Now())
+		if err != nil {
+			jsonError(w, "Personality state unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		meta := promptbuilder.GetCorePersonalityMeta(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality)
+		traitDeltas := map[string]float64{}
+		affinityDelta := 0.0
+		for _, delta := range deltas {
+			if delta.trait == memory.TraitAffinity {
+				affinityDelta = delta.delta * meta.EmpathyBias
+			} else {
+				traitDeltas[delta.trait] = delta.delta * meta.Volatility
 			}
 		}
-
-		if err := s.ShortTermMem.LogMood(mood, trigger); err != nil {
-			s.Logger.Error("Failed to log mood", "error", err)
+		cause, signal := memory.AffectCausePositiveFeedback, ""
+		switch req.Type {
+		case "positive", "laughing":
+			signal = "praise"
+		case "negative", "angry":
+			cause, signal = memory.AffectCauseNegativeFeedback, "criticism"
+		case "crying":
+			cause = memory.AffectCauseNegativeFeedback
+		}
+		event, _ := memory.AffectEventForTrigger(memory.EmotionTriggerType(cause), "", "feedback")
+		id := req.EventID
+		if id != "" {
+			id = "feedback:" + id
+		}
+		snapshot, err := s.ShortTermMem.ApplyPersonalityObservation(memory.PersonalityObservation{
+			ID: id, Source: "feedback", Human: true, Explicit: true, Target: "agent", Confidence: 1, At: time.Now(),
+			Event: &event, Signal: signal, Mood: mood, TraitDeltas: traitDeltas, AffinityDelta: affinityDelta, Meta: &meta, Basis: &basis,
+		})
+		if err != nil {
+			jsonError(w, "Failed to apply personality feedback", http.StatusInternalServerError)
+			return
 		}
 
 		s.Logger.Info("Personality feedback applied", "type", req.Type, "mood", string(mood))
 
 		// Return updated state
-		traits, _ := s.ShortTermMem.GetTraits()
-		currentMood := s.ShortTermMem.GetCurrentMood()
+		traits, currentMood := snapshot.Traits, snapshot.Affect.Mood
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "ok",
-			"type":   req.Type,
-			"mood":   string(currentMood),
-			"traits": traits,
+			"status":   "ok",
+			"type":     req.Type,
+			"mood":     string(currentMood),
+			"traits":   traits,
+			"dynamics": snapshot.Dynamics,
 		})
 	}
 }
@@ -438,6 +478,18 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 		}
 		promptbuilder.ClearPromptCache()
 		s.Logger.Info("Personality file saved", "name", req.Name)
+		if s.ShortTermMem != nil {
+			s.CfgMu.RLock()
+			cfg := s.ConfigSnapshot()
+			active, _ := promptbuilder.ResolvePersonalityID(cfg.Personality.CorePersonality)
+			if active == req.Name {
+				meta := promptbuilder.GetCorePersonalityMeta(cfg.Directories.PromptsDir, active)
+				if err := s.ShortTermMem.SetPersonalityContext(active, meta, true); err != nil {
+					s.Logger.Warn("Failed to refresh personality context", "error", err)
+				}
+			}
+			s.CfgMu.RUnlock()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "name": req.Name})
 	}

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -187,7 +188,7 @@ func loadPersonalityTraits(db personalityReader) (PersonalityTraits, error) {
 }
 
 func makePersonalitySnapshot(affect AffectState, state personalityDynamicsState, traits PersonalityTraits, now time.Time) PersonalitySnapshot {
-	return PersonalitySnapshot{Affect: DecayAffect(affect, now), Traits: traits, Dynamics: projectPersonalityDynamics(state, now).view(traits), Epoch: state.Epoch, Persona: state.Persona, TurnID: state.TurnID}
+	return PersonalitySnapshot{Affect: projectPersonalityAffect(affect, now), Traits: traits, Dynamics: projectPersonalityDynamics(state, now).view(traits), Epoch: state.Epoch, Persona: state.Persona, TurnID: state.TurnID}
 }
 
 // GetPersonalitySnapshotAt is a pure read. Polling does not advance decay,
@@ -257,8 +258,17 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 	if err != nil {
 		return PersonalitySnapshot{}, err
 	}
-	if basis := observation.Basis; basis != nil && (basis.Dynamics.Revision != state.Revision || basis.Epoch != state.Epoch || basis.Persona != state.Persona || basis.TurnID != state.TurnID) {
-		return PersonalitySnapshot{}, ErrStalePersonalityObservation
+	if basis := observation.Basis; basis != nil {
+		// Primary events integrate into the serialized current state so parallel
+		// channels do not lose evidence. Only model-derived enrichment requires
+		// the exact revision/turn it analyzed. Both reject reset/persona changes.
+		if basis.Epoch != state.Epoch || basis.Persona != state.Persona ||
+			(observation.Semantic && (basis.Dynamics.Revision != state.Revision || basis.TurnID != state.TurnID)) {
+			return PersonalitySnapshot{}, ErrStalePersonalityObservation
+		}
+	}
+	if observation.OperationalIssueOpen != nil && *observation.OperationalIssueOpen == state.OperationalIssueOpen {
+		return makePersonalitySnapshot(current, state, traits, now), nil
 	}
 	var primary, semantic, relational bool
 	err = tx.QueryRow(`SELECT primary_applied,semantic_applied,relationship_applied FROM personality_observations WHERE id=?`, key).Scan(&primary, &semantic, &relational)
@@ -272,9 +282,13 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 		now = state.UpdatedAt
 	}
 	next, updated, affinityDelta := integratePersonalityObservation(current, state, observation, relational, now)
+	if observation.OperationalIssueOpen != nil {
+		updated.OperationalIssueOpen = *observation.OperationalIssueOpen
+	}
 	updated.Revision++
 	if observation.BeginTurn && observation.Human {
 		updated.TurnID = observation.ID
+		updated.TurnFamily = personalityStimulusKey(observation)
 	}
 	for trait, delta := range normalizeTraitMap(observation.TraitDeltas, -0.1, 0.1) {
 		if trait == TraitAffinity || trait == TraitLoneliness {
@@ -300,6 +314,9 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 		// The new ledger stores codes and numeric state only, never conversation
 		// fragments. The existing public event timeline remains compatible.
 		event.Detail = ""
+		event.Valence = clampFinite(event.Valence, -1, 1, 0)
+		event.Arousal = clampFinite(event.Arousal, 0, 1, AffectRestArousal)
+		event.Weight = clampFinite(event.Weight, 0, 0.6, AffectDefaultWeight)
 		if err = insertAffectEventWith(tx, event, now); err != nil {
 			return PersonalitySnapshot{}, fmt.Errorf("record personality affect event: %w", err)
 		}
@@ -311,8 +328,14 @@ func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObserv
 	if observation.Emotion != nil {
 		emotion = *observation.Emotion
 		emotion.Valence, emotion.Arousal, emotion.PrimaryMood, emotion.Timestamp = next.Valence, next.Arousal, next.Mood, now
+		emotion.DynamicsRevision, emotion.DynamicsEpoch = updated.Revision, updated.Epoch
 		if err = insertEmotionStateHistoryWith(tx, emotion, next.CauseCode); err != nil {
 			return PersonalitySnapshot{}, fmt.Errorf("record personality emotion: %w", err)
+		}
+		if observation.InnerThought != "" {
+			if _, err = tx.Exec(`UPDATE emotion_history SET inner_thought=?,nudge_category=? WHERE id=last_insert_rowid()`, observation.InnerThought, observation.NudgeCategory); err != nil {
+				return PersonalitySnapshot{}, fmt.Errorf("record personality inner voice: %w", err)
+			}
 		}
 	}
 	primary = primary || !observation.Semantic
@@ -354,7 +377,7 @@ func updateObservedTrait(db *sql.Tx, traits PersonalityTraits, trait string, del
 
 // SetPersonalityContext invalidates outstanding semantic work when the active
 // persona changes. The shared experience and familiarity intentionally survive.
-func (s *SQLiteMemory) SetPersonalityContext(persona string, meta PersonalityMeta) error {
+func (s *SQLiteMemory) SetPersonalityContext(persona string, meta PersonalityMeta, invalidate ...bool) error {
 	s.affectMu.Lock()
 	defer s.affectMu.Unlock()
 	state, err := loadPersonalityDynamics(s.db)
@@ -365,13 +388,14 @@ func (s *SQLiteMemory) SetPersonalityContext(persona string, meta PersonalityMet
 	if persona == "" {
 		persona = "neutral"
 	}
-	if state.Persona != persona {
+	if state.Persona != persona || !reflect.DeepEqual(state.Meta, meta.Normalized()) || (len(invalidate) > 0 && invalidate[0]) {
+		if state.Persona != "" {
+			state.Epoch++
+			state.TurnID = ""
+			state.PendingMood, state.PendingCount = "", 0
+		}
 		state.Persona = persona
-		state.Epoch++
 		state.Revision++
-		state.TurnID = ""
-		state.PendingMood = ""
-		state.PendingCount = 0
 	}
 	state.Meta = meta.Normalized()
 	return savePersonalityDynamics(s.db, state)

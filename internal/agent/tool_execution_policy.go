@@ -293,6 +293,7 @@ func finalizeToolExecution(
 	}
 
 	if status == ToolResultSuccess || status == ToolResultFailed {
+		emitConfirmedToolPersonality(shortTermMem, cfg, runCfg, tc, trackingTC, status, logger)
 		prompts.RecordToolUsage(trackingTC.Action, trackingTC.Operation, !toolFailed)
 		prompts.RecordAdaptiveToolUsage(trackingTC.Action, !toolFailed)
 		RecordScopedToolResultForTool(scope, trackingTC.Action, !toolFailed)

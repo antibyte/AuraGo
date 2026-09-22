@@ -466,58 +466,9 @@ func executeAgentToolTurn(
 		}
 	}
 
-	toolEmotionTrigger, toolEmotionDetail := detectToolEmotionTrigger(tc, s.recoveryState.ConsecutiveErrorCount, s.toolCallCount-s.recoveryState.ConsecutiveErrorCount)
-	if s.personalityEnabled && shortTermMem != nil && toolEmotionTrigger != "" {
-		emitAffectFromTrigger(shortTermMem, cfg, currentLogger, toolEmotionTrigger, toolEmotionDetail, "tool")
-	}
-
-	// Skip personality side-effects for missions, heartbeats, co-agents, and maintenance.
-	if s.personalityEnabled && shortTermMem != nil && !isAutonomousAgentRun(s.runCfg, sessionID) && !s.runCfg.IsMission && !s.flags.IsMission && !s.runCfg.IsCoAgent && !s.runCfg.IsMaintenance && sessionID != "maintenance" {
-		triggerInfo := triggerValue
-		if strings.Contains(resultContent, "ERROR") || strings.Contains(resultContent, "error") {
-			triggerInfo = triggerValue + " [tool error]"
-		}
-
-		if cfg.Personality.EngineV2 {
-			recentMsgs := s.req.Messages
-			launchAsyncPersonalityV2Analysis(
-				sessionID,
-				cfg,
-				currentLogger,
-				s.runCfg.LLMClient,
-				shortTermMem,
-				s.emotionSynthesizer,
-				recentMsgs,
-				triggerInfo,
-				toolEmotionTrigger,
-				toolEmotionDetail,
-				0,
-				"Tool Result",
-				resultContent,
-				s.meta,
-				cfg.Personality.UserProfiling,
-				s.recoveryState.ConsecutiveErrorCount,
-				s.recoveryState.TotalErrorCount,
-				s.toolCallCount-s.recoveryState.ConsecutiveErrorCount,
-				s.flags.IsMission,
-				s.flags.IsCoAgent,
-			)
-		} else {
-			mood, traitDeltas := memory.DetectMood(lastUserMsg, resultContent, s.meta)
-			currentTraits, _ := shortTermMem.GetTraits()
-			if s.emotionSynthesizer != nil {
-				mood = memory.ApplyEmotionBias(mood, s.emotionSynthesizer.GetLastEmotion(), currentTraits)
-			}
-			_ = shortTermMem.LogMood(mood, triggerInfo)
-			for trait, delta := range traitDeltas {
-				_ = shortTermMem.UpdateTrait(trait, dampenTraitDelta(currentTraits[trait], delta))
-			}
-		}
+	if s.personalityEnabled && shortTermMem != nil {
 		s.flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, s.meta)
-
-		if emotionDescription := latestEmotionDescription(shortTermMem, s.emotionSynthesizer); emotionDescription != "" {
-			s.flags.EmotionDescription = emotionDescription
-		}
+		s.flags.EmotionDescription = latestEmotionDescription(shortTermMem, s.emotionSynthesizer)
 	}
 
 	if tc.NotifyOnCompletion {

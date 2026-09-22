@@ -16,13 +16,14 @@ type CharacterNoteProposal struct {
 
 // CharacterReflectionInput is the bounded snapshot used to propose identity notes.
 type CharacterReflectionInput struct {
-	CorePersonality string
-	Mood            Mood
-	Traits          PersonalityTraits
-	AffectCause     string
-	Milestones      []string
-	InnerVoices     []string
-	ExistingNotes   []string
+	ConfirmedRecoveries int
+	CorePersonality     string
+	Mood                Mood
+	Traits              PersonalityTraits
+	AffectCause         string
+	Milestones          []string
+	InnerVoices         []string
+	ExistingNotes       []string
 }
 
 var characterNoteForbidden = []string{
@@ -133,8 +134,8 @@ func ProposeCharacterNotesDeterministic(input CharacterReflectionInput) []Charac
 			add(CharacterNoteCategoryHabit, "I ask one optional follow-up when it would actually help the task.", CharacterNoteSourceEvent, 0.64)
 		}
 	}
-	if input.AffectCause == AffectCauseOpsIssueOpened {
-		add(CharacterNoteCategoryCommitment, "When the homelab is failing I stay sober, specific, and skip small talk.", CharacterNoteSourceEvent, 0.7)
+	if input.ConfirmedRecoveries >= 3 {
+		add(CharacterNoteCategoryHabit, "After a setback I make a concrete correction and wait for confirmed improvement before moving on.", CharacterNoteSourceEvent, 0.7)
 	}
 	return out
 }
@@ -192,6 +193,9 @@ func (s *SQLiteMemory) BuildCharacterReflectionInput(corePersonality string) Cha
 	}
 	if traits, err := s.GetTraits(); err == nil {
 		input.Traits = traits
+	}
+	if snapshot, err := s.GetPersonalitySnapshotAt(time.Now()); err == nil {
+		input.ConfirmedRecoveries = snapshot.Dynamics.Recoveries
 	}
 	if affect, err := s.GetAffectState(); err == nil && affect.Active() {
 		input.AffectCause = affect.CauseCode

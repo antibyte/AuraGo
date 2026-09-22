@@ -292,6 +292,7 @@ func (s *Server) initConfigSnapshot() {
 		return
 	}
 	s.bindConfigAuthorization(s.Cfg)
+	s.syncPersonalityConfig(s.Cfg)
 	s.cfgSnapshot.Store(s.Cfg)
 }
 
@@ -311,6 +312,7 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		return
 	}
 	s.bindConfigAuthorization(cfg)
+	s.syncPersonalityConfig(cfg)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
 	if s.MQTTController != nil {

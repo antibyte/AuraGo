@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -124,6 +125,7 @@ func TestApplyPersonalityV2AnalysisResultPersistsPrecomputedBatch(t *testing.T) 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := &config.Config{}
 	cfg.Personality.UserProfiling = true
+	cfg.Personality.EmotionSynthesizer.Enabled = true
 	cfg.Personality.EmotionSynthesizer.TriggerAlways = true
 
 	es := memory.NewEmotionSynthesizer(nil, "", 60, 100, "English", logger)
@@ -192,6 +194,7 @@ func TestApplyPersonalityV2AnalysisResultSkipsBatchedEmotionInsideRateLimit(t *t
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.Enabled = true
 	cfg.Personality.EmotionSynthesizer.TriggerAlways = true
 	es := memory.NewEmotionSynthesizer(nil, "", 300, 100, "English", logger)
 
@@ -244,8 +247,8 @@ func TestApplyPersonalityV2AnalysisResultSkipsBatchedEmotionInsideRateLimit(t *t
 		},
 	)
 
-	if got := stm.GetCurrentMood(); got != memory.MoodConcerned {
-		t.Fatalf("GetCurrentMood() = %q, want %q", got, memory.MoodConcerned)
+	if got := stm.GetCurrentMood(); got != memory.MoodFocused {
+		t.Fatalf("semantic enrichment must not count as a second mood confirmation: %q", got)
 	}
 	traits, err := stm.GetTraits()
 	if err != nil {
@@ -284,6 +287,7 @@ func TestApplyPersonalityV2AnalysisResultStoresInnerVoiceOnNewEmotionRow(t *test
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.Enabled = true
 	cfg.Personality.EmotionSynthesizer.TriggerAlways = true
 	es := memory.NewEmotionSynthesizer(nil, "", 60, 100, "English", logger)
 
@@ -345,6 +349,10 @@ func TestApplyPersonalityV2AnalysisResultDampensAffinityNearCeiling(t *testing.T
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
+	basis, err := stm.GetPersonalitySnapshotAt(time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
 	applyPersonalityV2AnalysisResult(
 		"default",
 		&config.Config{},
@@ -360,6 +368,8 @@ func TestApplyPersonalityV2AnalysisResultDampensAffinityNearCeiling(t *testing.T
 		0,
 		1,
 		personalityV2AnalysisResult{
+			Basis:         &basis,
+			Appraisal:     &memory.PersonalityAppraisal{Signal: "praise", Target: "agent", Confidence: 1, Reference: "current_user_message"},
 			Mood:          memory.MoodFocused,
 			AffinityDelta: 0.1,
 		},

@@ -21,6 +21,7 @@ Rules:
 - No secrets, passwords, vault keys, sudo, or tool-policy changes.
 - Do not claim to be the user.
 - Stay consistent with the named core personality.
+- A current mood, a single setback, or an apology is not a lasting habit. Only repeated confirmed recovery supports a new observation about handling setbacks. Never infer a lasting user attribute from these observations.
 - If nothing durable changed, return {"notes":[]}.`
 
 func runCharacterReflection(ctx context.Context, cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger) (resultErr error) {
@@ -66,11 +67,8 @@ func (m *helperLLMManager) ProposeCharacterNotes(ctx context.Context, input memo
 	var b strings.Builder
 	b.WriteString("Core personality: ")
 	b.WriteString(strings.TrimSpace(input.CorePersonality))
-	b.WriteString("\nMood: ")
-	b.WriteString(string(input.Mood))
-	if input.AffectCause != "" {
-		b.WriteString("\nAffect cause: ")
-		b.WriteString(input.AffectCause)
+	if input.ConfirmedRecoveries >= 3 {
+		b.WriteString(fmt.Sprintf("\nRepeated confirmed recoveries: %d", input.ConfirmedRecoveries))
 	}
 	if len(input.Milestones) > 0 {
 		b.WriteString("\nMilestones: ")

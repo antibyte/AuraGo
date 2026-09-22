@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"aurago/internal/memory"
@@ -78,7 +79,8 @@ func fallbackPersonalityTraits() memory.PersonalityTraits {
 }
 
 func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
-	if !s.Cfg.Personality.Engine {
+	cfg := s.ConfigSnapshot()
+	if !cfg.Personality.Engine || s.ShortTermMem == nil {
 		return map[string]interface{}{"enabled": false}
 	}
 
@@ -108,7 +110,13 @@ func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 		"narrative_visible": s.ShortTermMem.NarrativeVisible(),
 		"needs_discussion":  milestones,
 	}
-	if affect, err := s.ShortTermMem.GetAffectState(); err == nil && affect.Active() {
+	snapshot, snapshotErr := s.ShortTermMem.GetPersonalitySnapshotAt(time.Now())
+	if snapshotErr == nil {
+		response["dynamics"] = snapshot.Dynamics
+		response["mood"], response["traits"] = string(snapshot.Affect.Mood), snapshot.Traits
+	}
+	if snapshotErr == nil && snapshot.Affect.Active() {
+		affect := snapshot.Affect
 		response["affect_cause"] = affect.CauseCode
 		response["affect_valence"] = affect.Valence
 		response["affect_arousal"] = affect.Arousal
@@ -122,8 +130,8 @@ func (s *Server) buildPersonalityStatePayload() map[string]interface{} {
 	}
 	response["affect_events"] = events
 
-	if s.Cfg.Personality.EmotionSynthesizer.Enabled {
-		if latest, err := s.ShortTermMem.GetLatestEmotion(); err == nil && latest != nil {
+	if cfg.Personality.EmotionSynthesizer.Enabled {
+		if latest, err := s.ShortTermMem.GetLatestEmotion(); err == nil && latest != nil && snapshotErr == nil && latest.DynamicsEpoch == snapshot.Epoch {
 			sanitized := *latest
 			sanitized.Description = sanitizeEmotionPreview(latest.Description, 220)
 			sanitized.Cause = sanitizeEmotionPreview(latest.Cause, 120)

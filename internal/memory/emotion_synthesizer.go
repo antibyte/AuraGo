@@ -25,16 +25,21 @@ import (
 
 // EmotionState represents the synthesized emotional state of the agent.
 type EmotionState struct {
-	Description              string    `json:"description"`                // 1-2 sentences describing the agent's current emotional state
-	PrimaryMood              Mood      `json:"primary_mood"`               // Primary mood from the existing mood system
-	SecondaryMood            string    `json:"secondary_mood"`             // Optional secondary nuance
-	Valence                  float64   `json:"valence"`                    // -1.0..1.0
-	Arousal                  float64   `json:"arousal"`                    // 0.0..1.0
-	Confidence               float64   `json:"confidence"`                 // 0.0..1.0
-	Cause                    string    `json:"cause"`                      // Short explanation of the trigger
-	Source                   string    `json:"source"`                     // llm_structured | llm_text_fallback
-	RecommendedResponseStyle string    `json:"recommended_response_style"` // Short style hint for UI/behavior
-	Timestamp                time.Time `json:"timestamp"`                  // When the emotion was synthesized
+	DynamicsRevision         uint64                `json:"dynamics_revision,omitempty"`
+	DynamicsEpoch            uint64                `json:"-"`
+	Basis                    *PersonalitySnapshot  `json:"-"`
+	ObservationID            string                `json:"-"`
+	Appraisal                *PersonalityAppraisal `json:"-"`
+	Description              string                `json:"description"`                // 1-2 sentences describing the agent's current emotional state
+	PrimaryMood              Mood                  `json:"primary_mood"`               // Primary mood from the existing mood system
+	SecondaryMood            string                `json:"secondary_mood"`             // Optional secondary nuance
+	Valence                  float64               `json:"valence"`                    // -1.0..1.0
+	Arousal                  float64               `json:"arousal"`                    // 0.0..1.0
+	Confidence               float64               `json:"confidence"`                 // 0.0..1.0
+	Cause                    string                `json:"cause"`                      // Short explanation of the trigger
+	Source                   string                `json:"source"`                     // llm_structured | llm_text_fallback
+	RecommendedResponseStyle string                `json:"recommended_response_style"` // Short style hint for UI/behavior
+	Timestamp                time.Time             `json:"timestamp"`                  // When the emotion was synthesized
 }
 
 type EmotionTriggerType string
@@ -64,6 +69,8 @@ const InnerVoiceNudgeCategories = "reflection, patience, focus, creativity, caut
 
 // EmotionInput collects the relevant data for emotion synthesis.
 type EmotionInput struct {
+	Snapshot           *PersonalitySnapshot
+	ObservationID      string
 	UserMessage        string            // Last user message
 	RecentConversation []string          // Last 3-5 messages for context
 	CurrentMood        Mood              // Current mood (from DetectMood / AnalyzeMoodV2)
@@ -106,6 +113,7 @@ type emotionSynthesisResult struct {
 // EmotionSynthesizer manages LLM-based emotion generation.
 type EmotionSynthesizer struct {
 	*emotionSynthesisRuntime
+	memory      *SQLiteMemory
 	client      PersonalityAnalyzerClient
 	modelName   string
 	minInterval time.Duration
@@ -139,12 +147,22 @@ func NewEmotionSynthesizer(client PersonalityAnalyzerClient, modelName string, m
 // GetLastEmotion returns a copy of the most recent emotion state (thread-safe).
 // Callers receive their own copy and cannot mutate the synthesizer's internal state.
 func (es *EmotionSynthesizer) GetLastEmotion() *EmotionState {
+	if es == nil {
+		return nil
+	}
 	es.mu.RLock()
-	defer es.mu.RUnlock()
 	if es.lastState == nil {
+		es.mu.RUnlock()
 		return nil
 	}
 	stateCopy := *es.lastState
+	es.mu.RUnlock()
+	if es.memory != nil {
+		snapshot, err := es.memory.GetPersonalitySnapshotAt(time.Now())
+		if err != nil || stateCopy.DynamicsEpoch != snapshot.Epoch {
+			return nil
+		}
+	}
 	return &stateCopy
 }
 
@@ -158,13 +176,9 @@ func (es *EmotionSynthesizer) CanSynthesizeNow(now time.Time) (bool, *EmotionSta
 		now = time.Now()
 	}
 	es.mu.RLock()
-	defer es.mu.RUnlock()
-	var state *EmotionState
-	if es.lastState != nil {
-		copy := *es.lastState
-		state = &copy
-	}
-	return !es.inFlight && (es.lastCall.IsZero() || now.Sub(es.lastCall) >= es.minInterval), state
+	allowed := !es.inFlight && (es.lastCall.IsZero() || now.Sub(es.lastCall) >= es.minInterval)
+	es.mu.RUnlock()
+	return allowed, es.GetLastEmotion()
 }
 
 // ApplyExternalState validates, caches, and persists an already synthesized emotion state.
@@ -203,6 +217,7 @@ func (es *EmotionSynthesizer) applyExternalState(stm *SQLiteMemory, state *Emoti
 	}
 
 	es.lastCall = time.Now()
+	stateCopy.Basis, stateCopy.ObservationID = nil, ""
 	es.lastState = &stateCopy
 
 	return nil
@@ -218,6 +233,13 @@ type sfEmotionResult struct {
 // It respects the minInterval rate limit and returns the cached state if called too soon.
 // Concurrent calls are deduplicated via singleflight to prevent simultaneous LLM calls (P-01).
 func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLiteMemory, input EmotionInput) (*EmotionState, error) {
+	if stm != nil && input.Snapshot == nil {
+		snapshot, err := stm.GetPersonalitySnapshotAt(time.Now())
+		if err != nil {
+			return nil, err
+		}
+		input.Snapshot = &snapshot
+	}
 	// Fast path: rate-limit check with read lock.
 	if ok, last := es.CanSynthesizeNow(time.Now()); !ok {
 		return last, nil
@@ -254,16 +276,16 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 			es.logger.Warn("[EmotionSynthesizer] LLM call failed, using fallback", "error", err)
 			es.mu.Lock()
 			es.lastCall = time.Now()
-			last := es.lastState
 			es.mu.Unlock()
+			last := es.GetLastEmotion()
 			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis LLM call failed: %w", err)}, nil
 		}
 
 		if len(resp.Choices) == 0 || resp.Choices[0].Message.Content == "" {
 			es.mu.Lock()
 			es.lastCall = time.Now()
-			last := es.lastState
 			es.mu.Unlock()
+			last := es.GetLastEmotion()
 			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis returned empty response")}, nil
 		}
 
@@ -271,19 +293,20 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		if parseErr != nil {
 			es.mu.Lock()
 			es.lastCall = time.Now()
-			last := es.lastState
 			es.mu.Unlock()
+			last := es.GetLastEmotion()
 			return &sfEmotionResult{state: last, err: fmt.Errorf("emotion synthesis validation failed: %w", parseErr)}, nil
 		}
 		if err := llmCtx.Err(); err != nil {
 			return &sfEmotionResult{state: es.GetLastEmotion(), err: err}, nil
 		}
+		state.Basis, state.ObservationID = input.Snapshot, input.ObservationID
 		if err := es.applyExternalState(stm, state, input.UserMessage, true); err != nil {
 			es.logger.Warn("[EmotionSynthesizer] Failed to apply emotion state", "error", err)
 			es.mu.Lock()
 			es.lastCall = time.Now()
-			last := es.lastState
 			es.mu.Unlock()
+			last := es.GetLastEmotion()
 			return &sfEmotionResult{state: last, err: err}, nil
 		}
 		state = es.GetLastEmotion()
@@ -330,6 +353,10 @@ func emotionSynthesisKey(input EmotionInput) string {
 		h.Write([]byte{0})
 	}
 	writeKeyPart("user", compactEmotionKeyText(input.UserMessage))
+	if input.Snapshot != nil {
+		writeKeyPart("revision", strconv.FormatUint(input.Snapshot.Dynamics.Revision, 10))
+		writeKeyPart("epoch", strconv.FormatUint(input.Snapshot.Epoch, 10))
+	}
 	writeKeyPart("mood", string(input.CurrentMood))
 	writeKeyPart("trigger_type", string(input.TriggerType))
 	writeKeyPart("trigger_detail", compactEmotionKeyText(input.TriggerDetail))
@@ -378,6 +405,9 @@ func (es *EmotionSynthesizer) buildPrompt(input EmotionInput) string {
 	var b strings.Builder
 
 	b.WriteString("You are an emotion synthesizer for an AI agent. Analyze the following data and generate a structured emotional state.\n\n")
+	if input.Snapshot != nil {
+		b.WriteString(PersonalitySynthesisContext(*input.Snapshot))
+	}
 
 	// Context data — user message wrapped for injection protection
 	b.WriteString("CONTEXT:\n")
@@ -683,6 +713,8 @@ func (s *SQLiteMemory) InitEmotionTables() error {
 		{Name: "cause", TypeDef: "TEXT DEFAULT ''"},
 		{Name: "source", TypeDef: "TEXT DEFAULT 'llm_structured'"},
 		{Name: "recommended_response_style", TypeDef: "TEXT DEFAULT ''"},
+		{Name: "dynamics_revision", TypeDef: "INTEGER NOT NULL DEFAULT 0"},
+		{Name: "dynamics_epoch", TypeDef: "INTEGER NOT NULL DEFAULT 0"},
 	}
 	for _, column := range columns {
 		var hasColumn bool
@@ -723,8 +755,8 @@ func insertEmotionStateHistoryWith(db affectExecer, state EmotionState, triggerS
 	_, err := db.Exec(
 		`INSERT INTO emotion_history (
 			description, primary_mood, secondary_mood, valence, arousal, confidence,
-			cause, source, recommended_response_style, trigger_summary
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			cause, source, recommended_response_style, trigger_summary, dynamics_revision, dynamics_epoch
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		state.Description,
 		string(state.PrimaryMood),
 		state.SecondaryMood,
@@ -735,12 +767,16 @@ func insertEmotionStateHistoryWith(db affectExecer, state EmotionState, triggerS
 		state.Source,
 		state.RecommendedResponseStyle,
 		triggerSummary,
+		state.DynamicsRevision,
+		state.DynamicsEpoch,
 	)
 	return err
 }
 
 // EmotionHistoryEntry is a single row from the emotion_history table.
 type EmotionHistoryEntry struct {
+	DynamicsRevision         uint64  `json:"dynamics_revision,omitempty"`
+	DynamicsEpoch            uint64  `json:"-"`
 	ID                       int     `json:"id"`
 	Description              string  `json:"description"`
 	PrimaryMood              string  `json:"primary_mood"`
@@ -763,7 +799,7 @@ func (s *SQLiteMemory) GetEmotionHistory(hours int) ([]EmotionHistoryEntry, erro
 	rows, err := s.db.Query(
 		`SELECT id, description, primary_mood, COALESCE(secondary_mood, ''), COALESCE(valence, 0),
 		        COALESCE(arousal, 0.5), COALESCE(confidence, 0.7), COALESCE(cause, ''),
-		        COALESCE(source, ''), COALESCE(recommended_response_style, ''), COALESCE(trigger_summary, ''), timestamp
+		        COALESCE(source, ''), COALESCE(recommended_response_style, ''), COALESCE(trigger_summary, ''), timestamp, dynamics_revision, dynamics_epoch
 		 FROM emotion_history
 		 WHERE timestamp >= datetime('now', ?)
 		 ORDER BY timestamp DESC, id DESC`,
@@ -790,6 +826,8 @@ func (s *SQLiteMemory) GetEmotionHistory(hours int) ([]EmotionHistoryEntry, erro
 			&e.RecommendedResponseStyle,
 			&e.TriggerSummary,
 			&e.Timestamp,
+			&e.DynamicsRevision,
+			&e.DynamicsEpoch,
 		); err != nil {
 			return nil, err
 		}
@@ -804,7 +842,7 @@ func (s *SQLiteMemory) GetLatestEmotion() (*EmotionHistoryEntry, error) {
 	err := s.db.QueryRow(
 		`SELECT id, description, primary_mood, COALESCE(secondary_mood, ''), COALESCE(valence, 0),
 		        COALESCE(arousal, 0.5), COALESCE(confidence, 0.7), COALESCE(cause, ''),
-		        COALESCE(source, ''), COALESCE(recommended_response_style, ''), COALESCE(trigger_summary, ''), timestamp
+		        COALESCE(source, ''), COALESCE(recommended_response_style, ''), COALESCE(trigger_summary, ''), timestamp, dynamics_revision, dynamics_epoch
 		 FROM emotion_history ORDER BY timestamp DESC, id DESC LIMIT 1`,
 	).Scan(
 		&e.ID,
@@ -819,6 +857,8 @@ func (s *SQLiteMemory) GetLatestEmotion() (*EmotionHistoryEntry, error) {
 		&e.RecommendedResponseStyle,
 		&e.TriggerSummary,
 		&e.Timestamp,
+		&e.DynamicsRevision,
+		&e.DynamicsEpoch,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

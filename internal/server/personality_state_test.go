@@ -166,8 +166,8 @@ func TestBuildPersonalityStatePayloadStripsChatAffectDetails(t *testing.T) {
 	for _, event := range events {
 		if event.CauseCode == memory.AffectCauseOpsIssueOpened {
 			foundOps = true
-			if event.Detail == "" {
-				t.Fatal("ops affect detail should remain visible")
+			if event.Detail != "" {
+				t.Fatal("new operational observations retain only cause codes")
 			}
 		}
 	}

@@ -18,26 +18,42 @@ const (
 	personalityMaxStimuli             = 32
 )
 
+// PersonalityAppraisal is the only model-supplied relationship evidence.
+// Provenance and authority always come from the host's observation envelope.
+type PersonalityAppraisal struct {
+	Reference  string  `json:"reference"`
+	Signal     string  `json:"signal"`
+	Target     string  `json:"target"`
+	Confidence float64 `json:"confidence"`
+}
+
+func PersonalitySynthesisContext(snapshot PersonalitySnapshot) string {
+	return fmt.Sprintf("Go-owned personality snapshot (revision %d): valence=%.2f, arousal=%.2f, load=%.2f, familiarity=%.2f, friction=%.2f, trend=%s. Familiarity and recent friction can coexist. Describe this state in the active persona's voice; do not invent a different numerical state, blame the user for technical failures, or claim feelings require action.\n", snapshot.Dynamics.Revision, snapshot.Affect.Valence, snapshot.Affect.Arousal, snapshot.Dynamics.Load, snapshot.Dynamics.Familiarity, snapshot.Dynamics.Friction, snapshot.Dynamics.Trend)
+}
+
 // PersonalityObservation is host-owned evidence. Model output may supply only
 // the bounded semantic fields, never provenance, identity, or revision guards.
 type PersonalityObservation struct {
-	ID            string
-	Source        string
-	Target        string
-	Confidence    float64
-	At            time.Time
-	Event         *AffectEvent
-	Mood          Mood
-	TraitDeltas   map[string]float64
-	AffinityDelta float64
-	Signal        string // praise, criticism, repair, or empty
-	Human         bool
-	Explicit      bool
-	BeginTurn     bool
-	Semantic      bool
-	Basis         *PersonalitySnapshot
-	Emotion       *EmotionState
-	Meta          *PersonalityMeta
+	ID                   string
+	Source               string
+	Target               string
+	Confidence           float64
+	At                   time.Time
+	Event                *AffectEvent
+	Mood                 Mood
+	TraitDeltas          map[string]float64
+	AffinityDelta        float64
+	Signal               string // praise, criticism, repair, or empty
+	Human                bool
+	Explicit             bool
+	BeginTurn            bool
+	Semantic             bool
+	Basis                *PersonalitySnapshot
+	Emotion              *EmotionState
+	Meta                 *PersonalityMeta
+	OperationalIssueOpen *bool
+	InnerThought         string
+	NudgeCategory        string
 }
 
 // PersonalityDynamics is the content-free, public view of the evolving state.
@@ -65,32 +81,47 @@ type PersonalitySnapshot struct {
 }
 
 type personalityStimulus struct {
-	Count float64   `json:"count"`
-	Gain  float64   `json:"gain"`
-	At    time.Time `json:"at"`
+	LastWeight float64   `json:"last_weight"`
+	Count      float64   `json:"count"`
+	Gain       float64   `json:"gain"`
+	At         time.Time `json:"at"`
 }
 
 type personalityDynamicsState struct {
-	Version      int                            `json:"version"`
-	Revision     uint64                         `json:"revision"`
-	Epoch        uint64                         `json:"epoch"`
-	Persona      string                         `json:"persona"`
-	TurnID       string                         `json:"turn_id"`
-	Load         float64                        `json:"load"`
-	Friction     float64                        `json:"friction"`
-	Trend        string                         `json:"trend"`
-	Reasons      []string                       `json:"reasons"`
-	Recoveries   int                            `json:"recoveries"`
-	HumanEvents  int                            `json:"human_events"`
-	UpdatedAt    time.Time                      `json:"updated_at"`
-	PendingMood  Mood                           `json:"pending_mood"`
-	PendingCount int                            `json:"pending_count"`
-	Stimuli      map[string]personalityStimulus `json:"stimuli"`
-	Meta         PersonalityMeta                `json:"meta"`
+	Version                  int                            `json:"version"`
+	Revision                 uint64                         `json:"revision"`
+	Epoch                    uint64                         `json:"epoch"`
+	Persona                  string                         `json:"persona"`
+	TurnID                   string                         `json:"turn_id"`
+	TurnFamily               string                         `json:"turn_family"`
+	Load                     float64                        `json:"load"`
+	Friction                 float64                        `json:"friction"`
+	Trend                    string                         `json:"trend"`
+	Reasons                  []string                       `json:"reasons"`
+	Recoveries               int                            `json:"recoveries"`
+	HumanEvents              int                            `json:"human_events"`
+	RecoveryObserved         bool                           `json:"recovery_observed"`
+	TechnicalRecoveryPending bool                           `json:"technical_recovery_pending"`
+	OperationalIssueOpen     bool                           `json:"operational_issue_open"`
+	UpdatedAt                time.Time                      `json:"updated_at"`
+	PendingMood              Mood                           `json:"pending_mood"`
+	PendingCount             int                            `json:"pending_count"`
+	Stimuli                  map[string]personalityStimulus `json:"stimuli"`
+	Meta                     PersonalityMeta                `json:"meta"`
 }
 
 func newPersonalityDynamics() personalityDynamicsState {
 	return personalityDynamicsState{Version: PersonalityDynamicsVersion, Trend: "steady", Reasons: []string{}, Meta: DefaultPersonalityMeta(), Stimuli: map[string]personalityStimulus{}}
+}
+
+// Reads preserve the last confirmed mood until affect has returned to rest.
+// Deriving a fresh mood on every dashboard poll would bypass hysteresis.
+func projectPersonalityAffect(state AffectState, now time.Time) AffectState {
+	projected := DecayAffect(state, now)
+	if now.Sub(state.UpdatedAt) < AffectHalfLife || projected.CauseCode != "" {
+		projected.Mood = state.Mood
+	}
+	return projected
 }
 
 func projectPersonalityDynamics(state personalityDynamicsState, now time.Time) personalityDynamicsState {
@@ -102,8 +133,12 @@ func projectPersonalityDynamics(state personalityDynamicsState, now time.Time) p
 	state.Stimuli = stimuli
 	elapsed := now.Sub(state.UpdatedAt)
 	if !state.UpdatedAt.IsZero() && elapsed > 0 {
+		previousLoad, previousFriction := state.Load, state.Friction
 		state.Load *= math.Exp2(-elapsed.Hours() / PersonalityLoadHalfLife.Hours())
 		state.Friction *= math.Exp2(-elapsed.Hours() / PersonalityFrictionHalfLife.Hours())
+		if previousLoad-state.Load > 0.005 || previousFriction-state.Friction > 0.005 {
+			state.Trend = "recovering"
+		}
 		if state.Load < 0.02 && state.Friction < 0.02 {
 			state.Trend = "steady"
 		}
@@ -150,6 +185,7 @@ func adaptivePersonalityWeight(state *personalityDynamicsState, observation Pers
 	}
 	trace.Gain = clampFinite(trace.Gain, personalityMinGain, personalityMaxGain, 1)
 	weight := trace.Gain / (1 + 0.35*trace.Count)
+	trace.LastWeight = clampFinite(weight, 0.1, personalityMaxGain, 1)
 	trace.Count = math.Min(20, trace.Count+1)
 	if trace.Count >= 4 {
 		trace.Gain = math.Max(personalityMinGain, trace.Gain*0.9)
@@ -208,6 +244,7 @@ func relationshipObservation(observation PersonalityObservation) bool {
 func integratePersonalityObservation(current AffectState, state personalityDynamicsState, observation PersonalityObservation, relationshipApplied bool, now time.Time) (AffectState, personalityDynamicsState, float64) {
 	state = projectPersonalityDynamics(state, now)
 	previousLoad := state.Load
+	previousFriction := state.Friction
 	meta := state.Meta.Normalized()
 	if observation.Meta != nil {
 		meta = observation.Meta.Normalized()
@@ -216,6 +253,11 @@ func integratePersonalityObservation(current AffectState, state personalityDynam
 	next := DecayAffect(current, now)
 	candidate := next.Mood
 	weightScale := 1.0
+	if observation.Semantic && observation.ID == state.TurnID {
+		if trace, ok := state.Stimuli[state.TurnFamily]; ok && trace.LastWeight > 0 {
+			weightScale = trace.LastWeight
+		}
+	}
 	if observation.Event != nil && !observation.Semantic {
 		weightScale = adaptivePersonalityWeight(&state, observation, now)
 		event := *observation.Event
@@ -236,8 +278,15 @@ func integratePersonalityObservation(current AffectState, state personalityDynam
 			}
 			if event.Valence < 0 {
 				state.Load += (1 - state.Load) * weight * math.Abs(event.Valence) * 0.8
+				if !observation.Human && state.Load >= 0.25 {
+					state.TechnicalRecoveryPending = true
+				}
 			} else {
 				state.Load *= 1 - weight*math.Max(0, event.Valence)*0.6
+				if !observation.Human && event.Valence > 0 && state.TechnicalRecoveryPending {
+					state.Recoveries = min(1000, state.Recoveries+1)
+					state.TechnicalRecoveryPending = false
+				}
 			}
 		}
 		state.Reasons = append(state.Reasons, event.CauseCode)
@@ -257,36 +306,50 @@ func integratePersonalityObservation(current AffectState, state personalityDynam
 	}
 	if observation.Mood != "" {
 		candidate = selectAffectMood(next.Valence, next.Arousal, observation.Mood)
+		if observation.Mood == MoodCreative || observation.Mood == MoodAnalytical {
+			candidate = observation.Mood
+		}
 	}
 	affinityDelta := 0.0
 	if !relationshipApplied && relationshipObservation(observation) && meta.Volatility > 0 {
-		amount := clampFinite(observation.Confidence, 0, 1, 0) * weightScale * math.Min(1, meta.Volatility)
+		amount := clampFinite(observation.Confidence, 0, 1, 0) * weightScale * math.Min(1, meta.Volatility) * math.Min(1, meta.EmpathyBias)
 		before := state.Friction
 		switch observation.Signal {
 		case "criticism":
+			state.RecoveryObserved = false
 			state.Friction += (1 - state.Friction) * 0.25 * amount
 		case "praise":
 			state.Friction *= 1 - 0.2*amount
 		case "repair":
 			state.Friction *= 1 - 0.45*amount
 		}
-		if before > 0.08 && state.Friction < before {
+		if before > 0.08 && state.Friction < before && !state.RecoveryObserved {
 			state.Recoveries = min(1000, state.Recoveries+1)
+			state.RecoveryObserved = true
 		}
 		affinityDelta = clampFinite(observation.AffinityDelta, -0.015, 0.03, 0) * amount
+		if observation.Signal == "criticism" {
+			affinityDelta = math.Min(0, affinityDelta)
+		} else {
+			affinityDelta = math.Max(0, affinityDelta)
+		}
 		state.HumanEvents = min(100000, state.HumanEvents+1)
 	}
 	state.Load = clampFinite(state.Load, 0, 1, 0)
 	state.Friction = clampFinite(state.Friction, 0, 1, 0)
 	switch {
-	case state.Load < previousLoad-0.005:
+	case state.Load < previousLoad-0.005 || state.Friction < previousFriction-0.005:
 		state.Trend = "recovering"
 	case state.Load >= 0.25 || state.Friction >= 0.2:
 		state.Trend = "strained"
 	default:
 		state.Trend = "steady"
 	}
-	next.Mood = personalityMoodTransition(&state, current.Mood, candidate, observation.Explicit, !observation.Semantic)
+	if meta.Volatility <= 0 && candidate != MoodCreative && candidate != MoodAnalytical && candidate != MoodFocused {
+		next.Mood = current.Mood
+	} else {
+		next.Mood = personalityMoodTransition(&state, current.Mood, candidate, observation.Explicit, !observation.Semantic)
+	}
 	next.UpdatedAt = now
 	state.UpdatedAt = now
 	return next, state, affinityDelta

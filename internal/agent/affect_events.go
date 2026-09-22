@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"log/slog"
 	"strings"
@@ -10,6 +11,36 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/planner"
 )
+
+func emitConfirmedToolPersonality(stm *memory.SQLiteMemory, cfg *config.Config, run RunConfig, tc, tracking ToolCall, status ToolResultStatus, logger *slog.Logger) {
+	if stm == nil || cfg == nil || !cfg.Personality.Engine || run.SuppressTurnSideEffects || isRelayAutonomousRun(run, run.SessionID) {
+		return
+	}
+	if cfg.AuthorizationSnapshots != nil {
+		_, live := cfg.AuthorizationSnapshots()
+		if live == nil || !live.Personality.Engine {
+			return
+		}
+	}
+	if status != ToolResultSuccess && status != ToolResultFailed {
+		return
+	}
+	cause := memory.AffectCauseToolSuccessStreak
+	if status == ToolResultFailed {
+		cause = memory.AffectCauseToolErrorStreak
+	}
+	event := mustAffectEvent(cause, "tool", tracking.Action+":"+tracking.Operation)
+	id := tc.NativeCallID
+	if id == "" {
+		id = rand.Text()
+	}
+	_, err := stm.ApplyPersonalityObservation(memory.PersonalityObservation{
+		ID: "tool:" + run.DiscoveryRunID + ":" + id, Source: "tool", Target: "task", Confidence: 1, At: time.Now(), Event: &event,
+	})
+	if err != nil && logger != nil {
+		logger.Debug("[Personality] Tool observation unavailable", "error", err)
+	}
+}
 
 func emitAffectFromTrigger(stm *memory.SQLiteMemory, cfg *config.Config, logger *slog.Logger, trigger memory.EmotionTriggerType, detail, source string) {
 	event, ok := memory.AffectEventForTrigger(trigger, detail, source)
@@ -42,16 +73,17 @@ func syncOperationalIssueAffect(stm *memory.SQLiteMemory, cfg *config.Config, pl
 	if plannerDB == nil {
 		return
 	}
-	openHigh := hasOpenHighSeverityOperationalIssue(plannerDB)
-	current, err := stm.GetAffectState()
+	openHigh, err := hasOpenHighSeverityOperationalIssue(plannerDB)
 	if err != nil {
 		return
 	}
-	switch {
-	case openHigh && current.CauseCode != memory.AffectCauseOpsIssueOpened:
-		applyAffectEvent(stm, cfg, logger, mustAffectEvent(memory.AffectCauseOpsIssueOpened, "ops", "open high-severity operational issue"))
-	case !openHigh && current.CauseCode == memory.AffectCauseOpsIssueOpened:
-		applyAffectEvent(stm, cfg, logger, mustAffectEvent(memory.AffectCauseOpsIssueResolved, "ops", "high-severity operational issues cleared"))
+	cause := memory.AffectCauseOpsIssueResolved
+	if openHigh {
+		cause = memory.AffectCauseOpsIssueOpened
+	}
+	event := mustAffectEvent(cause, "ops", "high-severity operational health")
+	if _, err := stm.ApplyPersonalityObservation(memory.PersonalityObservation{Source: "ops", Target: "task", Confidence: 1, At: time.Now(), Event: &event, OperationalIssueOpen: &openHigh}); err != nil && logger != nil {
+		logger.Debug("[Personality] Operational transition unavailable", "error", err)
 	}
 }
 
@@ -75,21 +107,21 @@ func emitAutonomousRunAffect(stm *memory.SQLiteMemory, cfg *config.Config, logge
 	}
 }
 
-func hasOpenHighSeverityOperationalIssue(db *sql.DB) bool {
+func hasOpenHighSeverityOperationalIssue(db *sql.DB) (bool, error) {
 	page, err := planner.ListOperationalIssues(db, planner.OperationalIssueListFilter{
 		Status: "active",
 		Limit:  20,
 	})
 	if err != nil {
-		return false
+		return false, err
 	}
 	for _, item := range page.Items {
 		switch strings.ToLower(strings.TrimSpace(item.Severity)) {
 		case "critical", "error", "high":
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func mustAffectEvent(cause, source, detail string) memory.AffectEvent {

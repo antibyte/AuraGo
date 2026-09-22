@@ -776,12 +776,17 @@ func (s *SQLiteMemory) GetPersonalityLineWithMeta(useV2 bool, meta PersonalityMe
 	meta = meta.Normalized()
 	mood := s.GetCurrentMood()
 	traits, err := s.GetTraits()
+	dynamicsHint := ""
+	if snapshot, snapshotErr := s.GetPersonalitySnapshotAt(time.Now()); snapshotErr == nil {
+		mood, traits = snapshot.Affect.Mood, snapshot.Traits
+		dynamicsHint = PersonalityDynamicsHint(snapshot)
+	}
 	if err != nil || len(traits) == 0 {
 		return fmt.Sprintf("[Self: mood=%s]", mood)
 	}
 
 	if !useV2 {
-		return fmt.Sprintf("[Self: mood=%s | C:%.2f T:%.2f Cr:%.2f E:%.2f Co:%.2f A:%.2f L:%.2f]",
+		return dynamicsHint + fmt.Sprintf(" [Self: mood=%s | C:%.2f T:%.2f Cr:%.2f E:%.2f Co:%.2f A:%.2f L:%.2f]",
 			mood,
 			traits[TraitCuriosity],
 			traits[TraitThoroughness],
@@ -795,6 +800,7 @@ func (s *SQLiteMemory) GetPersonalityLineWithMeta(useV2 bool, meta PersonalityMe
 
 	// ── V2 Prompt Translation ──
 	var b strings.Builder
+	b.WriteString(dynamicsHint + " ")
 	b.WriteString(fmt.Sprintf("\n### Current Personality State\nYour current mood is %s. Keep the active persona's voice; adjust its intensity, not its identity. ", strings.ToUpper(string(mood))))
 
 	// Mood-specific behavioral directive (new moods + overrides for existing ones)

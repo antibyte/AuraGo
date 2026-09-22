@@ -38,6 +38,7 @@ func (es *EmotionSynthesizer) BindMemory(stm *SQLiteMemory) error {
 				return fmt.Errorf("restore emotion timestamp: %w", err)
 			}
 			state := &EmotionState{
+				DynamicsRevision: latest.DynamicsRevision, DynamicsEpoch: latest.DynamicsEpoch,
 				Description: latest.Description, PrimaryMood: Mood(latest.PrimaryMood),
 				SecondaryMood: latest.SecondaryMood, Valence: latest.Valence, Arousal: latest.Arousal,
 				Confidence: latest.Confidence, Cause: latest.Cause, Source: latest.Source,
@@ -51,6 +52,7 @@ func (es *EmotionSynthesizer) BindMemory(stm *SQLiteMemory) error {
 		stm.emotionRuntime = runtime
 	}
 	es.emotionSynthesisRuntime = stm.emotionRuntime
+	es.memory = stm
 	return nil
 }
 
@@ -80,6 +82,38 @@ func (s *SQLiteMemory) ApplyMoodSuggestion(mood Mood, now time.Time) error {
 }
 
 func (s *SQLiteMemory) persistSynthesizedEmotion(state *EmotionState, trigger string) error {
-	_, err := s.ApplyPersonalityObservation(PersonalityObservation{Source: "synthesis", Target: "task", Semantic: true, Emotion: state})
+	_, err := s.ApplyPersonalityObservation(PersonalityObservation{ID: state.ObservationID, Basis: state.Basis, Source: "synthesis", Target: "task", Semantic: true, Emotion: state})
 	return err
+}
+
+// ApplyObservation commits a helper's mood, traits and optional narration as
+// one unit. A narration cooldown never prevents a valid personality update.
+func (es *EmotionSynthesizer) ApplyObservation(stm *SQLiteMemory, observation PersonalityObservation) (PersonalitySnapshot, bool, error) {
+	if es == nil {
+		observation.Emotion = nil
+		snapshot, err := stm.ApplyPersonalityObservation(observation)
+		return snapshot, false, err
+	}
+	es.mu.Lock()
+	defer es.mu.Unlock()
+	if es.inFlight || (!es.lastCall.IsZero() && time.Since(es.lastCall) < es.minInterval) {
+		observation.Emotion = nil
+	}
+	if observation.Emotion != nil {
+		copy := *observation.Emotion
+		if err := validateEmotionState(&copy); err != nil {
+			return PersonalitySnapshot{}, false, err
+		}
+		observation.Emotion = &copy
+	}
+	snapshot, err := stm.ApplyPersonalityObservation(observation)
+	if err != nil {
+		return PersonalitySnapshot{}, false, err
+	}
+	if observation.Emotion != nil {
+		state := *observation.Emotion
+		state.Basis, state.ObservationID = nil, ""
+		es.lastCall, es.lastState = time.Now(), &state
+	}
+	return snapshot, observation.Emotion != nil, nil
 }

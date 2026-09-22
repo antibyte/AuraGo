@@ -76,7 +76,7 @@ func (s *SQLiteMemory) GetAffectStateAt(now time.Time) (AffectState, error) {
 	if parsed, parseErr := parseAffectTimestamp(updatedAt); parseErr == nil {
 		state.UpdatedAt = parsed
 	}
-	return DecayAffect(state, now), nil
+	return projectPersonalityAffect(state, now), nil
 }
 
 // ApplyAffectEvent integrates one world/conversation event and persists the result.

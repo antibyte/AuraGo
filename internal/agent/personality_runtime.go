@@ -114,6 +114,9 @@ func v2RecordFailure(logger *slog.Logger) {
 }
 
 type personalityV2AnalysisResult struct {
+	Basis              *memory.PersonalitySnapshot
+	ObservationID      string
+	Appraisal          *memory.PersonalityAppraisal
 	Mood               memory.Mood
 	AffinityDelta      float64
 	TraitDeltas        map[string]float64
@@ -125,7 +128,7 @@ type personalityV2AnalysisResult struct {
 }
 
 func resolveHelperEmotionBatchState(cfg *config.Config, emotionSynthesizer *memory.EmotionSynthesizer) (bool, *memory.EmotionState) {
-	helperEmotionBatchEligible := llm.IsHelperLLMAvailable(cfg) && emotionSynthesizer != nil
+	helperEmotionBatchEligible := cfg.Personality.EmotionSynthesizer.Enabled && emotionSynthesizer != nil
 	var previousEmotion *memory.EmotionState
 	if helperEmotionBatchEligible {
 		canSynthesize, lastEmotion := emotionSynthesizer.CanSynthesizeNow(time.Now())
@@ -204,127 +207,59 @@ func applyPersonalityV2AnalysisResult(
 	successCount int,
 	result personalityV2AnalysisResult,
 ) {
-	if stm == nil {
+	if stm == nil || cfg == nil {
 		return
 	}
-
-	previousEmotionHistoryID := 0
-	if latest, err := stm.GetLatestEmotion(); err == nil && latest != nil {
-		previousEmotionHistoryID = latest.ID
-	}
-
-	if err := stm.ApplyMoodSuggestion(result.Mood, time.Now()); err != nil {
-		logger.Warn("[Personality V2] Failed to apply mood", "error", err)
-	}
-
-	// Fetch current traits so we can dampen deltas near the extremes.
-	currentTraits, _ := stm.GetTraits()
-	if currentTraits == nil {
-		currentTraits = memory.PersonalityTraits{}
-	}
-
-	for trait, delta := range result.TraitDeltas {
-		damped := dampenTraitDelta(currentTraits[trait], delta)
-		if err := stm.UpdateTrait(trait, damped); err != nil {
-			logger.Warn("[Personality V2] Failed to update trait", "trait", trait, "delta", damped, "error", err)
+	if cfg.AuthorizationSnapshots != nil {
+		_, current := cfg.AuthorizationSnapshots()
+		if current == nil || !current.Personality.Engine || !current.Personality.EngineV2 || personalityContextID(current.Personality.CorePersonality) != personalityContextID(cfg.Personality.CorePersonality) {
+			return
 		}
 	}
-	affinityDelta := dampenTraitDelta(currentTraits[memory.TraitAffinity], result.AffinityDelta)
-	if err := stm.UpdateTrait(memory.TraitAffinity, affinityDelta); err != nil {
-		logger.Warn("[Personality V2] Failed to update affinity trait", "delta", affinityDelta, "error", err)
+	// Runtime callers capture the snapshot before dispatching any background
+	// work. The fallback is for immediate, synchronous callers only.
+	basis := result.Basis
+	if basis == nil {
+		snapshot, err := stm.GetPersonalitySnapshotAt(time.Now())
+		if err != nil {
+			return
+		}
+		basis = &snapshot
 	}
-
-	if profilingEnabled && len(result.ProfileUpdates) > 0 {
+	observation := memory.PersonalityObservation{
+		ID: result.ObservationID, Source: "helper", Target: "task", At: time.Now(),
+		Basis: basis, Semantic: true, Human: result.Basis != nil,
+		Mood: result.Mood, TraitDeltas: result.TraitDeltas,
+	}
+	if appraisal := result.Appraisal; appraisal != nil && appraisal.Reference == "current_user_message" {
+		observation.Signal, observation.Target, observation.Confidence = appraisal.Signal, appraisal.Target, appraisal.Confidence
+		observation.AffinityDelta = result.AffinityDelta
+	}
+	moodChanged := previousEmotion == nil || previousEmotion.PrimaryMood != result.Mood
+	if cfg.Personality.EmotionSynthesizer.Enabled && (cfg.Personality.EmotionSynthesizer.TriggerAlways ||
+		(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) || previousEmotion == nil) {
+		observation.Emotion = result.SynthesizedEmotion
+	}
+	var acceptedThought, acceptedCategory string
+	var acceptedConfidence float64
+	if cfg.Personality.InnerVoice.Enabled && result.InnerThought != "" {
+		thought, category, confidence, accepted, _ := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
+		if accepted {
+			acceptedThought, acceptedCategory, acceptedConfidence = thought, category, confidence
+			observation.InnerThought, observation.NudgeCategory = thought, category
+		}
+	}
+	_, _, err := emotionSynthesizer.ApplyObservation(stm, observation)
+	if err != nil {
+		logger.Debug("[Personality V2] Observation not applied", "error", err)
+		return
+	}
+	if profilingEnabled {
 		applyPersonalityProfileUpdates(stm, logger, result.ProfileUpdates)
 	}
-
-	logger.Debug("[Personality V2] Asynchronous mood analysis complete", "mood", result.Mood, "affinity_delta", result.AffinityDelta)
-
-	var pendingInnerVoice *struct {
-		thought  string
-		category string
+	if acceptedThought != "" {
+		applyInnerVoiceResult(sessionID, acceptedThought, acceptedCategory, acceptedConfidence)
 	}
-	storePendingInnerVoice := func() {
-		if pendingInnerVoice == nil {
-			return
-		}
-		if err := stm.StoreInnerVoiceAfterEmotionID(pendingInnerVoice.thought, pendingInnerVoice.category, previousEmotionHistoryID); err != nil {
-			logger.Warn("[InnerVoice] Failed to store inner voice", "error", err)
-		}
-	}
-
-	// Apply inner voice result if present
-	if result.InnerThought != "" && cfg.Personality.InnerVoice.Enabled {
-		thought, category, confidence, accepted, reason := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
-		logger.Info("[InnerVoice] Candidate evaluated",
-			"session_id", sessionID,
-			"category", result.NudgeCategory,
-			"confidence", result.NudgeConfidence,
-			"accepted", accepted,
-			"reason", reason,
-			"thought_len", len(result.InnerThought))
-		if accepted {
-			applyInnerVoiceResult(sessionID, thought, category, confidence)
-			pendingInnerVoice = &struct {
-				thought  string
-				category string
-			}{thought: thought, category: category}
-			logger.Info("[InnerVoice] Inner voice generated",
-				"session_id", sessionID,
-				"category", category,
-				"confidence", confidence,
-				"thought_len", len(thought))
-		}
-	}
-
-	if emotionSynthesizer == nil {
-		return
-	}
-	prevMood := ""
-	if previousEmotion != nil {
-		prevMood = string(previousEmotion.PrimaryMood)
-	}
-	moodChanged := prevMood != string(result.Mood)
-	shouldSynthesize := cfg.Personality.EmotionSynthesizer.TriggerAlways ||
-		(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) ||
-		previousEmotion == nil
-	if !shouldSynthesize {
-		return
-	}
-	if canSynthesize, _ := emotionSynthesizer.CanSynthesizeNow(time.Now()); !canSynthesize {
-		return
-	}
-
-	if result.SynthesizedEmotion != nil {
-		if err := emotionSynthesizer.ApplyExternalState(stm, result.SynthesizedEmotion, triggerInfo); err == nil {
-			storePendingInnerVoice()
-			return
-		} else {
-			logger.Warn("[EmotionSynthesizer] Failed to apply batched helper emotion", "error", err)
-			return
-		}
-	}
-
-	traits, _ := stm.GetTraits()
-	esInput := memory.EmotionInput{
-		UserMessage:     triggerInfo,
-		CurrentMood:     result.Mood,
-		Traits:          traits,
-		LastEmotion:     previousEmotion,
-		ErrorCount:      errorCount,
-		SuccessCount:    successCount,
-		TimeOfDay:       memory.TimeOfDay(),
-		TriggerType:     triggerType,
-		TriggerDetail:   triggerDetail,
-		InactivityHours: inactivityHours,
-		PersonaName:     effectivePersonalityID(cfg.Personality.CorePersonality),
-		PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, effectivePersonalityID(cfg.Personality.CorePersonality), 300),
-	}
-	esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
-	if state, err := emotionSynthesizer.SynthesizeEmotion(esCtx, stm, esInput); err == nil && state != nil {
-		storePendingInnerVoice()
-	}
-	esCancel()
 }
 
 func normalizeHelperTurnPersonalityResult(payload helperTurnPersonalityBlock, meta memory.PersonalityMeta) (personalityV2AnalysisResult, bool) {
@@ -356,6 +291,7 @@ func normalizeHelperTurnPersonalityResult(payload helperTurnPersonalityBlock, me
 
 	return personalityV2AnalysisResult{
 		Mood:               mood,
+		Appraisal:          payload.Appraisal,
 		AffinityDelta:      affinityDelta,
 		TraitDeltas:        traitDeltas,
 		ProfileUpdates:     profileUpdates,
@@ -408,6 +344,7 @@ func launchAsyncPersonalityV2Analysis(
 	successCount int,
 	isMission bool,
 	isCoAgent bool,
+	basisSnapshots ...*memory.PersonalitySnapshot,
 ) {
 	if stm == nil {
 		return
@@ -419,6 +356,18 @@ func launchAsyncPersonalityV2Analysis(
 		return
 	}
 
+	var basis *memory.PersonalitySnapshot
+	if len(basisSnapshots) > 0 {
+		basis = basisSnapshots[0]
+	} else {
+		snapshot, err := stm.GetPersonalitySnapshotAt(time.Now())
+		if err == nil {
+			basis = &snapshot
+		}
+	}
+	if basis == nil {
+		return
+	}
 	contextHistory, userHistory := buildPersonalityHistories(recentMsgs, extraLabel, extraContent)
 	modelName := resolvePersonalityModel(cfg)
 	analyzerClient := resolvePersonalityAnalyzerClient(cfg, fallbackClient)
@@ -440,8 +389,9 @@ func launchAsyncPersonalityV2Analysis(
 
 		taskCompleted := consecutiveErrorCount == 0 && successCount > 0
 		if helperEmotionBatchEligible {
-			traits, _ := stm.GetTraits()
+			traits := basis.Traits
 			combinedInput := memory.EmotionInput{
+				Snapshot: basis, ObservationID: basis.TurnID,
 				UserMessage:     triggerInfo,
 				CurrentMood:     memory.MoodFocused,
 				Traits:          traits,
@@ -497,7 +447,9 @@ func launchAsyncPersonalityV2Analysis(
 
 		if !helperEmotionBatchEligible || err != nil {
 			result.SynthesizedEmotion = nil
-			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, err = stm.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, meta, profilingEnabled)
+			observationContext := &memory.MoodAnalysisContext{Snapshot: basis, CurrentUserMessage: triggerInfo}
+			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, err = stm.AnalyzeMoodV2(v2Ctx, analyzerClient, modelName, contextHistory, userHistory, meta, profilingEnabled, observationContext)
+			result.Appraisal = observationContext.Appraisal
 		}
 		if err != nil {
 			v2RecordFailure(logger)
@@ -518,6 +470,10 @@ func launchAsyncPersonalityV2Analysis(
 		}
 
 		// Success — reset circuit breaker failure count.
+		result.Basis, result.ObservationID = basis, basis.TurnID
+		if result.SynthesizedEmotion != nil {
+			result.Appraisal = result.SynthesizedEmotion.Appraisal
+		}
 		v2FailCount.Store(0)
 
 		applyPersonalityV2AnalysisResult(
