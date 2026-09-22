@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -43,6 +44,67 @@ type SkillQualityCandidate struct {
 	HasFixedReference   bool            `json:"has_fixed_reference"`
 	IsDaemon            bool            `json:"is_daemon,omitempty"`
 	VerifiedDuplicateOf string          `json:"verified_duplicate_of,omitempty"`
+	// SourceDrifted means the current disk content does not match the persisted
+	// registry hash. Drift is never sent to the classifier or treated as clean.
+	SourceDrifted bool `json:"source_drifted,omitempty"`
+}
+
+// SkillMutationState describes how much of a maintenance mutation is known to
+// have committed when an error is returned.
+type SkillMutationState string
+
+const (
+	SkillMutationNotCommitted SkillMutationState = "not_committed"
+	SkillMutationCommitted    SkillMutationState = "committed"
+	SkillMutationUnknown      SkillMutationState = "unknown"
+)
+
+// SkillMutationError preserves the commit state and backup location so callers
+// never restart a daemon or retry a mutation whose filesystem/DB state is
+// ambiguous.
+type SkillMutationError struct {
+	Operation string
+	State     SkillMutationState
+	Backup    string
+	Cause     error
+}
+
+func (e *SkillMutationError) Error() string {
+	if e == nil {
+		return ""
+	}
+	message := e.Operation + " (" + string(e.State) + ")"
+	if e.Cause != nil {
+		message += ": " + e.Cause.Error()
+	}
+	if e.Backup != "" && e.State == SkillMutationUnknown {
+		message += "; backup retained at " + e.Backup
+	}
+	return message
+}
+
+func (e *SkillMutationError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Cause
+}
+
+func skillMutationFailure(operation string, state SkillMutationState, backup string, cause error) error {
+	if cause == nil {
+		cause = errors.New("unknown mutation failure")
+	}
+	return &SkillMutationError{Operation: operation, State: state, Backup: backup, Cause: cause}
+}
+
+func restoreMovedSkillFiles(moved [][2]string) error {
+	var restoreErrs []error
+	for i := len(moved) - 1; i >= 0; i-- {
+		if err := os.Rename(moved[i][1], moved[i][0]); err != nil {
+			restoreErrs = append(restoreErrs, fmt.Errorf("restore %s: %w", moved[i][0], err))
+		}
+	}
+	return errors.Join(restoreErrs...)
 }
 
 func qualityCandidateLess(a, b SkillQualityCandidate) bool {
@@ -64,15 +126,20 @@ func (m *SkillManager) ListPythonQualityCandidates(limit int) ([]SkillQualityCan
 		return nil, err
 	}
 	out := make([]SkillQualityCandidate, 0, len(entries))
+	var candidateErrors []error
 	for _, entry := range entries {
 		if entry.Origin != OriginAgent || entry.Type == SkillTypeBuiltIn {
 			continue
 		}
-		if entry.LastQualityReviewAt != nil && entry.LastQualityHash == entry.FileHash && time.Since(*entry.LastQualityReviewAt) < skillQualityReviewInterval {
-			continue
-		}
 		code, readErr := m.GetSkillCode(entry.ID)
 		if readErr != nil {
+			candidateErrors = append(candidateErrors, fmt.Errorf("read Python skill %q: %w", entry.Name, readErr))
+			continue
+		}
+		currentHashBytes := sha256.Sum256([]byte(code))
+		currentHash := hex.EncodeToString(currentHashBytes[:])
+		sourceDrifted := currentHash != entry.FileHash
+		if !sourceDrifted && entry.LastQualityReviewAt != nil && entry.LastQualityHash == currentHash && time.Since(*entry.LastQualityReviewAt) < skillQualityReviewInterval {
 			continue
 		}
 		doc, _ := m.GetSkillDocumentation(entry.ID)
@@ -82,6 +149,7 @@ func (m *SkillManager) ListPythonQualityCandidates(limit int) ([]SkillQualityCan
 			"code": code, "documentation": doc,
 		})
 		if marshalErr != nil {
+			candidateErrors = append(candidateErrors, fmt.Errorf("marshal Python skill %q for quality review: %w", entry.Name, marshalErr))
 			continue
 		}
 		complete := len(payload) <= maxSkillQualityReviewBytes
@@ -90,11 +158,11 @@ func (m *SkillManager) ListPythonQualityCandidates(limit int) ([]SkillQualityCan
 			content = ""
 		}
 		out = append(out, SkillQualityCandidate{
-			Kind: "python", ID: entry.ID, Name: entry.Name, Origin: entry.Origin, ContentHash: entry.FileHash,
+			Kind: "python", ID: entry.ID, Name: entry.Name, Origin: entry.Origin, ContentHash: currentHash,
 			Content: content, ContentComplete: complete, Enabled: entry.Enabled, SecurityStatus: entry.SecurityStatus,
 			Usage: entry.Usage, CreatedAt: entry.CreatedAt, UpdatedAt: entry.UpdatedAt,
 			LastQualityReviewAt: entry.LastQualityReviewAt, LastQualityHash: entry.LastQualityHash,
-			HasFixedReference: len(entry.CheatsheetIDs) > 0, IsDaemon: entry.IsDaemon,
+			HasFixedReference: len(entry.CheatsheetIDs) > 0, IsDaemon: entry.IsDaemon, SourceDrifted: sourceDrifted,
 		})
 	}
 	markVerifiedPythonDuplicates(out, entries)
@@ -102,11 +170,14 @@ func (m *SkillManager) ListPythonQualityCandidates(limit int) ([]SkillQualityCan
 	if limit > 0 && len(out) > limit {
 		out = out[:limit]
 	}
-	return out, nil
+	return out, errors.Join(candidateErrors...)
 }
 
 func markVerifiedPythonDuplicates(candidates []SkillQualityCandidate, entries []SkillRegistryEntry) {
 	for i := range candidates {
+		if candidates[i].SourceDrifted {
+			continue
+		}
 		var sourceContract string
 		for _, source := range entries {
 			if source.ID == candidates[i].ID {
@@ -150,9 +221,6 @@ func (m *AgentSkillManager) ListAgentSkillQualityCandidates(limit int) ([]SkillQ
 		if entry.Origin != OriginAgent {
 			continue
 		}
-		if entry.LastQualityReviewAt != nil && entry.LastQualityHash == entry.PackageHash && time.Since(*entry.LastQualityReviewAt) < skillQualityReviewInterval {
-			continue
-		}
 		pkg, parseErr := ParseAgentSkillPackage(entry.Directory)
 		if parseErr != nil {
 			out = append(out, SkillQualityCandidate{
@@ -161,6 +229,10 @@ func (m *AgentSkillManager) ListAgentSkillQualityCandidates(limit int) ([]SkillQ
 				CreatedAt: entry.CreatedAt, UpdatedAt: entry.UpdatedAt, LastQualityReviewAt: entry.LastQualityReviewAt,
 				LastQualityHash: entry.LastQualityHash,
 			})
+			continue
+		}
+		sourceDrifted := pkg.PackageHash != entry.PackageHash
+		if !sourceDrifted && entry.LastQualityReviewAt != nil && entry.LastQualityHash == pkg.PackageHash && time.Since(*entry.LastQualityReviewAt) < skillQualityReviewInterval {
 			continue
 		}
 		content := buildAgentSkillGuardianText(pkg)
@@ -173,6 +245,7 @@ func (m *AgentSkillManager) ListAgentSkillQualityCandidates(limit int) ([]SkillQ
 			Content: content, ContentComplete: complete, Enabled: entry.Enabled, SecurityStatus: entry.SecurityStatus,
 			Usage: entry.Usage, CreatedAt: entry.CreatedAt, UpdatedAt: entry.UpdatedAt,
 			LastQualityReviewAt: entry.LastQualityReviewAt, LastQualityHash: entry.LastQualityHash,
+			SourceDrifted: sourceDrifted,
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return qualityCandidateLess(out[i], out[j]) })
@@ -232,6 +305,9 @@ func (m *SkillManager) ApplyPythonSkillQualityRevision(ctx context.Context, cand
 	}
 	m.qualityMutationMu.Lock()
 	defer m.qualityMutationMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	entry, err := m.GetSkill(candidate.ID)
 	if err != nil {
 		return err
@@ -252,6 +328,9 @@ func (m *SkillManager) ApplyPythonSkillQualityRevision(ctx context.Context, cand
 	}
 	report, err := m.validatePythonQualityRevision(ctx, entry, revisedCode, guardian, useGuardian, useVirusTotal, virusTotalAPIKey, skillSpector)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -263,58 +342,91 @@ func (m *SkillManager) ApplyPythonSkillQualityRevision(ctx context.Context, cand
 	}
 	stagedPath := codePath + fmt.Sprintf(".maintenance-%d", time.Now().UnixNano())
 	backupPath := stagedPath + ".rollback"
+	cleanupBackup := true
 	if err := os.WriteFile(stagedPath, []byte(revisedCode), 0o640); err != nil {
 		return err
 	}
-	defer os.Remove(stagedPath)
+	defer func() {
+		_ = os.Remove(stagedPath)
+		if cleanupBackup {
+			_ = os.Remove(backupPath)
+		}
+	}()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := os.Rename(codePath, backupPath); err != nil {
 		return fmt.Errorf("stage original skill: %w", err)
 	}
-	restore := func() {
-		_ = os.Remove(codePath)
-		_ = os.Rename(backupPath, codePath)
+	restore := func() error {
+		var restoreErrs []error
+		if err := os.Remove(codePath); err != nil && !os.IsNotExist(err) {
+			restoreErrs = append(restoreErrs, fmt.Errorf("remove replacement: %w", err))
+		}
+		if err := os.Rename(backupPath, codePath); err != nil {
+			restoreErrs = append(restoreErrs, fmt.Errorf("restore original skill: %w", err))
+		}
+		return errors.Join(restoreErrs...)
+	}
+	rollback := func(cause error, tx *sql.Tx) error {
+		rollbackUnknown := false
+		if tx != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				cause = errors.Join(cause, fmt.Errorf("database rollback: %w", rollbackErr))
+				rollbackUnknown = true
+			}
+		}
+		if rollbackUnknown {
+			cleanupBackup = false
+			return skillMutationFailure("Python skill improvement", SkillMutationUnknown, backupPath, cause)
+		}
+		if restoreErr := restore(); restoreErr != nil {
+			cleanupBackup = false
+			return skillMutationFailure("Python skill improvement", SkillMutationUnknown, backupPath, errors.Join(cause, restoreErr))
+		}
+		return cause
 	}
 	if err := os.Rename(stagedPath, codePath); err != nil {
-		restore()
-		return fmt.Errorf("activate staged skill: %w", err)
+		return rollback(fmt.Errorf("activate staged skill: %w", err), nil)
+	}
+	if err := ctx.Err(); err != nil {
+		return rollback(err, nil)
 	}
 	newHashBytes := sha256.Sum256([]byte(revisedCode))
 	newHash := hex.EncodeToString(newHashBytes[:])
 	reportJSON, _ := json.Marshal(report)
 	tx, err := m.db.Begin()
 	if err != nil {
-		restore()
-		return err
+		return rollback(err, nil)
 	}
 	defer tx.Rollback()
 	var nextVersion int
 	if err := tx.QueryRow("SELECT COALESCE(MAX(version_num),0)+1 FROM skill_versions WHERE skill_id = ?", entry.ID).Scan(&nextVersion); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if _, err := tx.Exec(`INSERT INTO skill_versions (skill_id, version_num, code_hash, code, created_by, change_note) VALUES (?, ?, ?, ?, 'maintenance', ?)`, entry.ID, nextVersion, newHash, revisedCode, reason); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if _, err := tx.Exec(`UPDATE skills_registry SET file_hash = ?, security_status = ?, security_report = ?, last_scan_at = CURRENT_TIMESTAMP,
 		updated_at = CURRENT_TIMESTAMP, last_quality_review_at = CURRENT_TIMESTAMP, last_quality_verdict = 'improved',
 		last_quality_confidence = ?, last_quality_hash = ?, enabled = ? WHERE id = ?`, newHash, string(SecurityClean), string(reportJSON), confidence, newHash, boolToInt(entry.Enabled), entry.ID); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if _, err := tx.Exec(`INSERT INTO skill_audit_log (skill_id, skill_name, action, actor, details) VALUES (?, ?, 'quality_improved', 'maintenance', ?)`, entry.ID, entry.Name, reason); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if err := insertQualityAction(tx, SkillQualityAction{SkillKind: "python", SkillID: entry.ID, SkillName: entry.Name, ContentHash: newHash, Origin: OriginAgent, Verdict: "improve", Confidence: confidence, Decision: "improved", Reason: reason}); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if err := tx.Commit(); err != nil {
-		restore()
-		return err
+		cleanupBackup = false
+		return skillMutationFailure("Python skill improvement commit", SkillMutationUnknown, backupPath, err)
 	}
-	_ = os.Remove(backupPath)
+	if err := os.Remove(backupPath); err != nil && !os.IsNotExist(err) {
+		cleanupBackup = false
+		InvalidateSkillsCache(m.skillsDir)
+		return skillMutationFailure("Python skill improvement cleanup", SkillMutationCommitted, backupPath, err)
+	}
 	InvalidateSkillsCache(m.skillsDir)
 	return nil
 }
@@ -457,12 +569,15 @@ print(json.dumps(out,sort_keys=True,separators=(",",":")))`
 
 // DeletePythonSkillForMaintenance permanently removes an agent-created skill
 // and its version history while retaining only the quality tombstone.
-func (m *SkillManager) DeletePythonSkillForMaintenance(candidate SkillQualityCandidate, confidence float64, reason string) error {
+func (m *SkillManager) DeletePythonSkillForMaintenance(ctx context.Context, candidate SkillQualityCandidate, confidence float64, reason string) error {
 	if confidence < MinimumSkillDeleteConfidence {
 		return fmt.Errorf("quality confidence is below the automatic deletion threshold")
 	}
 	m.qualityMutationMu.Lock()
 	defer m.qualityMutationMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	entry, err := m.GetSkill(candidate.ID)
 	if err != nil {
 		return err
@@ -478,11 +593,19 @@ func (m *SkillManager) DeletePythonSkillForMaintenance(candidate SkillQualityCan
 	if hex.EncodeToString(currentHash[:]) != candidate.ContentHash {
 		return fmt.Errorf("skill source changed on disk during review")
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	stageDir, err := os.MkdirTemp(m.skillsDir, ".quality-delete-*")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(stageDir)
+	cleanupStage := true
+	defer func() {
+		if cleanupStage {
+			_ = os.RemoveAll(stageDir)
+		}
+	}()
 	paths := []string{filepath.Join(m.skillsDir, entry.Executable), filepath.Join(m.skillsDir, strings.TrimSuffix(entry.Executable, filepath.Ext(entry.Executable))+".json")}
 	if doc := SkillDocumentationFilename(entry.Executable); doc != "" {
 		paths = append(paths, filepath.Join(m.skillsDir, doc))
@@ -492,40 +615,64 @@ func (m *SkillManager) DeletePythonSkillForMaintenance(candidate SkillQualityCan
 		if _, statErr := os.Stat(source); os.IsNotExist(statErr) {
 			continue
 		}
+		if len(moved) == 0 {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+		}
 		dest := filepath.Join(stageDir, filepath.Base(source))
 		if err := os.Rename(source, dest); err != nil {
-			for i := len(moved) - 1; i >= 0; i-- {
-				_ = os.Rename(moved[i][1], moved[i][0])
+			if restoreErr := restoreMovedSkillFiles(moved); restoreErr != nil {
+				cleanupStage = false
+				return skillMutationFailure("Python skill deletion", SkillMutationUnknown, stageDir, errors.Join(err, restoreErr))
 			}
 			return err
 		}
 		moved = append(moved, [2]string{source, dest})
 	}
-	restore := func() {
-		for i := len(moved) - 1; i >= 0; i-- {
-			_ = os.Rename(moved[i][1], moved[i][0])
+	restore := func() error {
+		return restoreMovedSkillFiles(moved)
+	}
+	rollback := func(cause error, tx *sql.Tx) error {
+		rollbackUnknown := false
+		if tx != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				cause = errors.Join(cause, fmt.Errorf("database rollback: %w", rollbackErr))
+				rollbackUnknown = true
+			}
 		}
+		if rollbackUnknown {
+			cleanupStage = false
+			return skillMutationFailure("Python skill deletion", SkillMutationUnknown, stageDir, cause)
+		}
+		if restoreErr := restore(); restoreErr != nil {
+			cleanupStage = false
+			return skillMutationFailure("Python skill deletion", SkillMutationUnknown, stageDir, errors.Join(cause, restoreErr))
+		}
+		return cause
+	}
+	if err := ctx.Err(); err != nil {
+		return rollback(err, nil)
 	}
 	tx, err := m.db.Begin()
 	if err != nil {
-		restore()
-		return err
+		return rollback(err, nil)
 	}
 	defer tx.Rollback()
 	if err := insertQualityAction(tx, SkillQualityAction{SkillKind: "python", SkillID: entry.ID, SkillName: entry.Name, ContentHash: entry.FileHash, Origin: OriginAgent, Verdict: "delete", Confidence: confidence, Decision: "deleted", Reason: reason}); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if _, err := tx.Exec("DELETE FROM skills_registry WHERE id = ?", entry.ID); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if err := tx.Commit(); err != nil {
-		restore()
-		return err
+		cleanupStage = false
+		return skillMutationFailure("Python skill deletion commit", SkillMutationUnknown, stageDir, err)
 	}
 	if err := os.RemoveAll(stageDir); err != nil {
-		return fmt.Errorf("remove deleted skill files: %w", err)
+		cleanupStage = false
+		InvalidateSkillsCache(m.skillsDir)
+		return skillMutationFailure("Python skill deletion cleanup", SkillMutationCommitted, stageDir, err)
 	}
 	InvalidateSkillsCache(m.skillsDir)
 	return nil
@@ -540,6 +687,9 @@ func (m *AgentSkillManager) ApplyAgentSkillQualityRevision(ctx context.Context, 
 	}
 	m.qualityMutationMu.Lock()
 	defer m.qualityMutationMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	entry, err := m.GetAgentSkill(candidate.ID)
 	if err != nil {
 		return err
@@ -558,8 +708,18 @@ func (m *AgentSkillManager) ApplyAgentSkillQualityRevision(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(stageBase)
 	stageDir := filepath.Join(stageBase, entry.Name)
+	cleanupStageBase := true
+	cleanupBackup := true
+	backupDir := ""
+	defer func() {
+		if cleanupStageBase {
+			_ = os.RemoveAll(stageBase)
+		}
+		if cleanupBackup && backupDir != "" {
+			_ = os.RemoveAll(backupDir)
+		}
+	}()
 	if err := copyAgentSkillDirectory(entry.Directory, stageDir); err != nil {
 		return err
 	}
@@ -593,6 +753,9 @@ func (m *AgentSkillManager) ApplyAgentSkillQualityRevision(ctx context.Context, 
 	}
 	report, status, scanErr := ScanAgentSkillPackage(ctx, staged, guardian, useGuardian, skillSpector)
 	if scanErr != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		return scanErr
 	}
 	if status != SecurityClean {
@@ -601,19 +764,52 @@ func (m *AgentSkillManager) ApplyAgentSkillQualityRevision(ctx context.Context, 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	backupDir := entry.Directory + fmt.Sprintf(".maintenance-%d", time.Now().UnixNano())
+	backupDir = entry.Directory + fmt.Sprintf(".maintenance-%d", time.Now().UnixNano())
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := os.Rename(entry.Directory, backupDir); err != nil {
 		return err
 	}
-	restore := func() { _ = os.RemoveAll(entry.Directory); _ = os.Rename(backupDir, entry.Directory) }
+	restore := func() error {
+		var restoreErrs []error
+		if err := os.RemoveAll(entry.Directory); err != nil && !os.IsNotExist(err) {
+			restoreErrs = append(restoreErrs, fmt.Errorf("remove replacement package: %w", err))
+		}
+		if err := os.Rename(backupDir, entry.Directory); err != nil {
+			restoreErrs = append(restoreErrs, fmt.Errorf("restore original package: %w", err))
+		}
+		return errors.Join(restoreErrs...)
+	}
+	rollback := func(cause error, tx *sql.Tx) error {
+		rollbackUnknown := false
+		if tx != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				cause = errors.Join(cause, fmt.Errorf("database rollback: %w", rollbackErr))
+				rollbackUnknown = true
+			}
+		}
+		if rollbackUnknown {
+			cleanupBackup = false
+			cleanupStageBase = false
+			return skillMutationFailure("Agent Skill improvement", SkillMutationUnknown, backupDir, cause)
+		}
+		if restoreErr := restore(); restoreErr != nil {
+			cleanupBackup = false
+			cleanupStageBase = false
+			return skillMutationFailure("Agent Skill improvement", SkillMutationUnknown, backupDir, errors.Join(cause, restoreErr))
+		}
+		return cause
+	}
 	if err := os.Rename(stageDir, entry.Directory); err != nil {
-		restore()
-		return err
+		return rollback(err, nil)
+	}
+	if err := ctx.Err(); err != nil {
+		return rollback(err, nil)
 	}
 	installed, err := ParseAgentSkillPackage(entry.Directory)
 	if err != nil {
-		restore()
-		return err
+		return rollback(err, nil)
 	}
 	resourcesJSON, _ := json.Marshal(installed.Resources)
 	scriptsJSON, _ := json.Marshal(installed.Scripts)
@@ -623,8 +819,7 @@ func (m *AgentSkillManager) ApplyAgentSkillQualityRevision(ctx context.Context, 
 	snapshot := buildAgentSkillGuardianText(installed)
 	tx, err := m.db.Begin()
 	if err != nil {
-		restore()
-		return err
+		return rollback(err, nil)
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`UPDATE agent_skills_registry SET description = ?, license = ?, compatibility = ?, metadata = ?, allowed_tools = ?,
@@ -634,31 +829,30 @@ func (m *AgentSkillManager) ApplyAgentSkillQualityRevision(ctx context.Context, 
 		WHERE id = ?`, installed.Description, installed.License, installed.Compatibility, string(metadataJSON), installed.AllowedTools,
 		installed.Directory, installed.SkillPath, string(resourcesJSON), string(scriptsJSON), string(agentsJSON), boolInt(entry.Enabled),
 		string(SecurityClean), string(reportJSON), installed.PackageHash, confidence, installed.PackageHash, entry.ID); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if _, err := tx.Exec(`INSERT INTO agent_skill_versions (skill_id, version_num, package_hash, package_snapshot, created_by, change_note)
 		VALUES (?, (SELECT COALESCE(MAX(version_num),0)+1 FROM agent_skill_versions WHERE skill_id = ?), ?, ?, 'maintenance', ?)`, entry.ID, entry.ID, installed.PackageHash, snapshot, reason); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if _, err := tx.Exec(`INSERT INTO agent_skill_scan_history (skill_id, scanner_type, score, verdict, details) VALUES (?, 'combined', ?, ?, ?)`, entry.ID, report.OverallScore, string(SecurityClean), string(reportJSON)); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if _, err := tx.Exec(`INSERT INTO agent_skill_audit_log (skill_id, skill_name, action, actor, details) VALUES (?, ?, 'quality_improved', 'maintenance', ?)`, entry.ID, entry.Name, reason); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if err := insertQualityAction(tx, SkillQualityAction{SkillKind: "agent_skill", SkillID: entry.ID, SkillName: entry.Name, ContentHash: installed.PackageHash, Origin: OriginAgent, Verdict: "improve", Confidence: confidence, Decision: "improved", Reason: reason}); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if err := tx.Commit(); err != nil {
-		restore()
-		return err
+		cleanupBackup = false
+		cleanupStageBase = false
+		return skillMutationFailure("Agent Skill improvement commit", SkillMutationUnknown, backupDir, err)
 	}
-	_ = os.RemoveAll(backupDir)
+	if err := os.RemoveAll(backupDir); err != nil {
+		cleanupBackup = false
+		return skillMutationFailure("Agent Skill improvement cleanup", SkillMutationCommitted, backupDir, err)
+	}
 	return nil
 }
 
@@ -678,12 +872,15 @@ func sameAgentSkillResourcePaths(a, b *AgentSkillPackage) bool {
 
 // DeleteAgentSkillForMaintenance permanently deletes package files, registry,
 // versions, and ordinary audits while preserving the quality tombstone.
-func (m *AgentSkillManager) DeleteAgentSkillForMaintenance(candidate SkillQualityCandidate, confidence float64, reason string) error {
+func (m *AgentSkillManager) DeleteAgentSkillForMaintenance(ctx context.Context, candidate SkillQualityCandidate, confidence float64, reason string) error {
 	if confidence < MinimumSkillDeleteConfidence {
 		return fmt.Errorf("quality confidence is below the automatic deletion threshold")
 	}
 	m.qualityMutationMu.Lock()
 	defer m.qualityMutationMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	entry, err := m.GetAgentSkill(candidate.ID)
 	if err != nil {
 		return err
@@ -698,31 +895,59 @@ func (m *AgentSkillManager) DeleteAgentSkillForMaintenance(candidate SkillQualit
 	if currentPackage.PackageHash != candidate.ContentHash {
 		return fmt.Errorf("Agent Skill package changed on disk during review")
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	stageDir := entry.Directory + fmt.Sprintf(".quality-delete-%d", time.Now().UnixNano())
 	if err := os.Rename(entry.Directory, stageDir); err != nil {
 		return err
 	}
-	restore := func() { _ = os.Rename(stageDir, entry.Directory) }
+	cleanupStage := true
+	defer func() {
+		if cleanupStage {
+			_ = os.RemoveAll(stageDir)
+		}
+	}()
+	restore := func() error { return os.Rename(stageDir, entry.Directory) }
+	rollback := func(cause error, tx *sql.Tx) error {
+		rollbackUnknown := false
+		if tx != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				cause = errors.Join(cause, fmt.Errorf("database rollback: %w", rollbackErr))
+				rollbackUnknown = true
+			}
+		}
+		if rollbackUnknown {
+			cleanupStage = false
+			return skillMutationFailure("Agent Skill deletion", SkillMutationUnknown, stageDir, cause)
+		}
+		if restoreErr := restore(); restoreErr != nil {
+			cleanupStage = false
+			return skillMutationFailure("Agent Skill deletion", SkillMutationUnknown, stageDir, errors.Join(cause, restoreErr))
+		}
+		return cause
+	}
+	if err := ctx.Err(); err != nil {
+		return rollback(err, nil)
+	}
 	tx, err := m.db.Begin()
 	if err != nil {
-		restore()
-		return err
+		return rollback(err, nil)
 	}
 	defer tx.Rollback()
 	if err := insertQualityAction(tx, SkillQualityAction{SkillKind: "agent_skill", SkillID: entry.ID, SkillName: entry.Name, ContentHash: entry.PackageHash, Origin: OriginAgent, Verdict: "delete", Confidence: confidence, Decision: "deleted", Reason: reason}); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if _, err := tx.Exec("DELETE FROM agent_skills_registry WHERE id = ?", entry.ID); err != nil {
-		restore()
-		return err
+		return rollback(err, tx)
 	}
 	if err := tx.Commit(); err != nil {
-		restore()
-		return err
+		cleanupStage = false
+		return skillMutationFailure("Agent Skill deletion commit", SkillMutationUnknown, stageDir, err)
 	}
 	if err := os.RemoveAll(stageDir); err != nil {
-		return fmt.Errorf("remove deleted Agent Skill files: %w", err)
+		cleanupStage = false
+		return skillMutationFailure("Agent Skill deletion cleanup", SkillMutationCommitted, stageDir, err)
 	}
 	return nil
 }

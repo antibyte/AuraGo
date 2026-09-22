@@ -17,6 +17,39 @@ import (
 
 type skillQualityTestClient struct{ response string }
 
+type cancelAfterClassifierClient struct {
+	response string
+	cancel   context.CancelFunc
+}
+
+type cancellationDaemonSupervisor struct {
+	cancel  context.CancelFunc
+	state   tools.DaemonState
+	stopped int
+	started int
+}
+
+func (s *cancellationDaemonSupervisor) GetDaemonState(string) (tools.DaemonState, bool) {
+	return s.state, true
+}
+
+func (s *cancellationDaemonSupervisor) StopDaemon(string) error {
+	s.stopped++
+	s.state.Status = tools.DaemonStopped
+	if s.cancel != nil {
+		s.cancel()
+	}
+	return nil
+}
+
+func (s *cancellationDaemonSupervisor) StartDaemon(string) error {
+	s.started++
+	s.state.Status = tools.DaemonRunning
+	return nil
+}
+
+func (*cancellationDaemonSupervisor) RefreshSkills() error { return nil }
+
 func (c skillQualityTestClient) CreateChatCompletion(context.Context, openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: c.response}}}}, nil
 }
@@ -25,7 +58,18 @@ func (skillQualityTestClient) CreateChatCompletionStream(context.Context, openai
 	return nil, nil
 }
 
-func setupSkillQualityMaintenanceTest(t *testing.T, code string) (*config.Config, *tools.SkillManager, tools.SkillQualityCandidate) {
+func (c cancelAfterClassifierClient) CreateChatCompletion(context.Context, openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	if c.cancel != nil {
+		c.cancel()
+	}
+	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: c.response}}}}, nil
+}
+
+func (cancelAfterClassifierClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+	return nil, nil
+}
+
+func setupSkillQualityMaintenanceTest(t *testing.T, code string) (*config.Config, *tools.SkillManager, tools.SkillQualityCandidate, string) {
 	t.Helper()
 	root := t.TempDir()
 	db, err := tools.InitSkillsDB(filepath.Join(root, "skills.db"))
@@ -57,7 +101,7 @@ func setupSkillQualityMaintenanceTest(t *testing.T, code string) (*config.Config
 	cfg := &config.Config{}
 	cfg.Tools.SkillManager.Enabled = true
 	cfg.LLM.Model = "quality-test"
-	return cfg, manager, candidates[0]
+	return cfg, manager, candidates[0], skillsDir
 }
 
 func decisionJSON(t *testing.T, candidate tools.SkillQualityCandidate, verdict string, confidence float64, codes []string) string {
@@ -73,7 +117,7 @@ func decisionJSON(t *testing.T, candidate tools.SkillQualityCandidate, verdict s
 }
 
 func TestSkillQualityMaintenanceReadOnlyNeverDeletes(t *testing.T) {
-	cfg, manager, candidate := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
+	cfg, manager, candidate, _ := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
 	cfg.Tools.SkillManager.ReadOnly = true
 	result := runSkillQualityMaintenance(context.Background(), cfg, slog.Default(), skillQualityTestClient{response: decisionJSON(t, candidate, "delete", 0.99, []string{"placeholder"})}, nil, nil, nil)
 	if result.Deleted != 0 || result.ReviewRequired != 1 || result.Reviewed != 1 {
@@ -91,7 +135,7 @@ func TestSkillQualityMaintenanceDeleteThresholdAndObjectiveEvidence(t *testing.T
 	if !hasObjectiveDeleteEvidence(tools.SkillQualityCandidate{Content: "TODO placeholder"}, skillQualityDecision{ReasonCodes: []string{"placeholder"}}) {
 		t.Fatal("deterministic placeholder evidence was not recognized")
 	}
-	cfg, manager, candidate := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
+	cfg, manager, candidate, _ := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
 	result := runSkillQualityMaintenance(context.Background(), cfg, slog.Default(), skillQualityTestClient{response: decisionJSON(t, candidate, "delete", 0.979, []string{"placeholder"})}, nil, nil, nil)
 	if result.Deleted != 0 || result.ReviewRequired != 1 {
 		t.Fatalf("below-threshold result=%+v", result)
@@ -102,7 +146,7 @@ func TestSkillQualityMaintenanceDeleteThresholdAndObjectiveEvidence(t *testing.T
 }
 
 func TestSkillQualityMaintenanceInvalidJSONMakesNoChange(t *testing.T) {
-	cfg, manager, candidate := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
+	cfg, manager, candidate, _ := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
 	result := runSkillQualityMaintenance(context.Background(), cfg, slog.Default(), skillQualityTestClient{response: "not-json"}, nil, nil, nil)
 	if result.Deleted != 0 || result.Improved != 0 || result.ReviewRequired != 1 {
 		t.Fatalf("result=%+v", result)
@@ -128,7 +172,7 @@ func TestSkillQualityMaintenanceReferenceDaemonAndConcurrencyGuards(t *testing.T
 	if !hasScheduledSkillReference(candidate, cronManager) {
 		t.Fatal("scheduled skill reference was not detected")
 	}
-	if _, err := stopMaintenanceDaemon(tools.SkillQualityCandidate{Name: "daemon-helper", IsDaemon: true}, nil); err == nil {
+	if _, err := stopMaintenanceDaemon(tools.SkillQualityCandidate{Name: "daemon-helper", IsDaemon: true}, nil, nil); err == nil {
 		t.Fatal("daemon mutation was allowed without a supervisor")
 	}
 
@@ -137,13 +181,61 @@ func TestSkillQualityMaintenanceReferenceDaemonAndConcurrencyGuards(t *testing.T
 	skillQualityMaintenanceMu.Lock()
 	result := runSkillQualityMaintenance(context.Background(), cfg, slog.Default(), nil, nil, nil, nil)
 	skillQualityMaintenanceMu.Unlock()
-	if result.ReviewRequired != 1 || len(result.Actions) != 1 {
+	if result.ReviewRequired != 1 || !result.Deferred || len(result.Actions) != 1 {
 		t.Fatalf("concurrent result=%+v", result)
 	}
 }
 
+func TestSkillQualityMaintenanceImprovementRestoresRunningDaemonWithNewApprovedHash(t *testing.T) {
+	cfg, manager, candidate, skillsDir := setupSkillQualityMaintenanceTest(t, "def run():\n    return 'original'\n")
+	manifest, err := json.Marshal(tools.SkillManifest{
+		Name: candidate.Name, Description: "placeholder skill", Executable: candidate.Name + ".py",
+		Daemon: &tools.DaemonManifest{Enabled: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillsDir, candidate.Name+".json"), manifest, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	tools.InvalidateSkillsCache(skillsDir)
+	if err := manager.SyncFromDisk(); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.EnableSkill(candidate.ID, true, "test"); err != nil {
+		t.Fatal(err)
+	}
+	candidates, err := manager.ListPythonQualityCandidates(10)
+	if err != nil || len(candidates) != 1 {
+		t.Fatalf("daemon candidates=%+v err=%v", candidates, err)
+	}
+	candidate = candidates[0]
+	revisedCode := "def run():\n    return 'improved'\n"
+	decision, err := json.Marshal(skillQualityDecision{
+		Kind: candidate.Kind, ID: candidate.ID, ContentHash: candidate.ContentHash,
+		Verdict: "improve", Confidence: 0.97, Reason: "improve useful behavior", RevisedCode: revisedCode,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	supervisor := &cancellationDaemonSupervisor{
+		state: tools.DaemonState{SkillID: candidate.ID, SkillName: candidate.Name, Status: tools.DaemonRunning},
+	}
+	result := runSkillQualityMaintenance(context.Background(), cfg, slog.Default(), skillQualityTestClient{response: string(decision)}, nil, supervisor, nil)
+	if result.Improved != 1 || result.Deferred || len(result.Errors) != 0 {
+		t.Fatalf("improvement result=%+v", result)
+	}
+	if supervisor.stopped != 1 || supervisor.started != 1 || supervisor.state.Status != tools.DaemonRunning {
+		t.Fatalf("daemon stop/start=%d/%d state=%s, want 1/1/running", supervisor.stopped, supervisor.started, supervisor.state.Status)
+	}
+	code, err := manager.GetSkillCode(candidate.ID)
+	if err != nil || code != revisedCode {
+		t.Fatalf("improved code=%q err=%v", code, err)
+	}
+}
+
 func TestSkillQualityMaintenanceCancellationMakesNoChange(t *testing.T) {
-	cfg, manager, candidate := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
+	cfg, manager, candidate, _ := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	result := runSkillQualityMaintenance(ctx, cfg, slog.Default(), skillQualityTestClient{response: decisionJSON(t, candidate, "delete", 0.99, []string{"placeholder"})}, nil, nil, nil)
@@ -152,5 +244,67 @@ func TestSkillQualityMaintenanceCancellationMakesNoChange(t *testing.T) {
 	}
 	if _, err := manager.GetSkill(candidate.ID); err != nil {
 		t.Fatalf("cancelled review changed skill: %v", err)
+	}
+}
+
+func TestSkillQualityMaintenanceCancellationImmediatelyAfterClassifierMakesNoChange(t *testing.T) {
+	cfg, manager, candidate, _ := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
+	beforeCode, err := manager.GetSkillCode(candidate.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	decision := decisionJSON(t, candidate, "delete", 0.99, []string{"placeholder"})
+	result := runSkillQualityMaintenance(ctx, cfg, slog.Default(), cancelAfterClassifierClient{response: decision, cancel: cancel}, nil, nil, nil)
+	if result.Deleted != 0 || result.Improved != 0 || !result.Deferred {
+		t.Fatalf("cancelled-after-classifier result=%+v", result)
+	}
+	if _, err := manager.GetSkill(candidate.ID); err != nil {
+		t.Fatalf("cancelled-after-classifier deleted skill: %v", err)
+	}
+	code, err := manager.GetSkillCode(candidate.ID)
+	if err != nil || code != beforeCode {
+		t.Fatalf("cancelled-after-classifier changed code=%q err=%v", code, err)
+	}
+}
+
+func TestSkillQualityMaintenanceCancellationAfterDaemonStopRestoresDaemon(t *testing.T) {
+	cfg, manager, candidate, skillsDir := setupSkillQualityMaintenanceTest(t, "# TODO placeholder\ndef run():\n    return 'hello world'\n")
+	manifest, err := json.Marshal(tools.SkillManifest{
+		Name: candidate.Name, Description: "placeholder skill", Executable: candidate.Name + ".py",
+		Daemon: &tools.DaemonManifest{Enabled: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillsDir, candidate.Name+".json"), manifest, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	tools.InvalidateSkillsCache(skillsDir)
+	if err := manager.SyncFromDisk(); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.EnableSkill(candidate.ID, true, "test"); err != nil {
+		t.Fatal(err)
+	}
+	candidates, err := manager.ListPythonQualityCandidates(10)
+	if err != nil || len(candidates) != 1 {
+		t.Fatalf("daemon candidates=%+v err=%v", candidates, err)
+	}
+	candidate = candidates[0]
+	ctx, cancel := context.WithCancel(context.Background())
+	supervisor := &cancellationDaemonSupervisor{
+		cancel: cancel,
+		state:  tools.DaemonState{SkillID: candidate.Name, SkillName: candidate.Name, Status: tools.DaemonRunning},
+	}
+	result := runSkillQualityMaintenance(ctx, cfg, slog.Default(), skillQualityTestClient{response: decisionJSON(t, candidate, "delete", 0.99, []string{"placeholder"})}, nil, supervisor, nil)
+	if result.Deleted != 0 || result.ReviewRequired != 1 || !result.Deferred {
+		t.Fatalf("cancelled result=%+v", result)
+	}
+	if supervisor.stopped != 1 || supervisor.started != 1 {
+		t.Fatalf("daemon stop/start=%d/%d, want 1/1", supervisor.stopped, supervisor.started)
+	}
+	if _, err := manager.GetSkill(candidate.ID); err != nil {
+		t.Fatalf("cancellation after daemon stop deleted skill: %v", err)
 	}
 }

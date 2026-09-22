@@ -2,7 +2,10 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -48,15 +51,27 @@ type skillQualityMaintenanceResult struct {
 	Deleted        int
 	ReviewRequired int
 	Actions        []memory.MaintenanceSkillAction
+	Errors         []error
+	Deferred       bool
+	Skipped        bool
 }
 
-func runSkillQualityMaintenance(ctx context.Context, cfg *config.Config, logger *slog.Logger, fallback llm.ChatClient, guardian *security.LLMGuardian, daemonSupervisor *tools.DaemonSupervisor, cronManager *tools.CronManager) skillQualityMaintenanceResult {
+type maintenanceDaemonSupervisor interface {
+	GetDaemonState(string) (tools.DaemonState, bool)
+	StopDaemon(string) error
+	StartDaemon(string) error
+	RefreshSkills() error
+}
+
+func runSkillQualityMaintenance(ctx context.Context, cfg *config.Config, logger *slog.Logger, fallback llm.ChatClient, guardian *security.LLMGuardian, daemonSupervisor maintenanceDaemonSupervisor, cronManager *tools.CronManager) skillQualityMaintenanceResult {
 	var result skillQualityMaintenanceResult
 	if cfg == nil || !cfg.Tools.SkillManager.Enabled {
+		result.Skipped = true
 		return result
 	}
 	if !skillQualityMaintenanceMu.TryLock() {
 		result.ReviewRequired = 1
+		result.Deferred = true
 		result.Actions = append(result.Actions, sanitizedSkillAction("skill quality maintenance", "system", "review_required", 0, "another quality review is already running"))
 		return result
 	}
@@ -65,12 +80,15 @@ func runSkillQualityMaintenance(ctx context.Context, cfg *config.Config, logger 
 	pythonManager := tools.DefaultSkillManager()
 	agentSkillManager := tools.DefaultAgentSkillManager()
 	if pythonManager == nil && agentSkillManager == nil {
+		result.Skipped = true
 		return result
 	}
 	candidates := make([]tools.SkillQualityCandidate, 0, maxSkillReviewsPerRun*2)
 	if pythonManager != nil {
 		if items, err := pythonManager.ListPythonQualityCandidates(maxSkillReviewsPerRun); err != nil {
 			logger.Warn("[Maintenance] Failed to list Python skill quality candidates", "error", err)
+			result.Errors = append(result.Errors, fmt.Errorf("list Python skill quality candidates: %w", err))
+			candidates = append(candidates, items...)
 		} else {
 			candidates = append(candidates, items...)
 		}
@@ -78,6 +96,8 @@ func runSkillQualityMaintenance(ctx context.Context, cfg *config.Config, logger 
 	if agentSkillManager != nil {
 		if items, err := agentSkillManager.ListAgentSkillQualityCandidates(maxSkillReviewsPerRun); err != nil {
 			logger.Warn("[Maintenance] Failed to list Agent Skill quality candidates", "error", err)
+			result.Errors = append(result.Errors, fmt.Errorf("list Agent Skill quality candidates: %w", err))
+			candidates = append(candidates, items...)
 		} else {
 			candidates = append(candidates, items...)
 		}
@@ -103,108 +123,204 @@ func runSkillQualityMaintenance(ctx context.Context, cfg *config.Config, logger 
 	reviewClient, reviewModel := resolveHelperBackedLLM(cfg, fallback, cfg.LLM.Model)
 	for _, candidate := range candidates {
 		if ctx.Err() != nil {
+			result.Deferred = true
 			break
 		}
 		result.Reviewed++
 		if candidate.Origin != tools.OriginAgent {
 			continue
 		}
+		if candidate.SourceDrifted {
+			recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "review", 0, "review_failed", "skill source changed on disk; security re-scan required")
+			result.add(candidate, "review_required", 0, "skill source changed on disk; security re-scan required")
+			continue
+		}
 		if !candidate.ContentComplete {
-			recordSkillReview(pythonManager, agentSkillManager, candidate, "review", 0, "review_required", "content is incomplete or package parsing failed")
+			recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "review", 0, "review_required", "content is incomplete or package parsing failed")
 			result.add(candidate, "review_required", 0, "content is incomplete or package parsing failed")
 			continue
 		}
 		if possibleCredentialPattern.MatchString(candidate.Content) {
-			recordSkillReview(pythonManager, agentSkillManager, candidate, "review", 0, "review_required", "possible embedded credentials")
+			recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "review", 0, "review_required", "possible embedded credentials")
 			result.add(candidate, "review_required", 0, "possible embedded credentials")
 			continue
 		}
 		if reviewClient == nil || strings.TrimSpace(reviewModel) == "" {
-			recordSkillReview(pythonManager, agentSkillManager, candidate, "review", 0, "review_failed", "quality review LLM is unavailable")
+			result.Errors = append(result.Errors, fmt.Errorf("quality review LLM is unavailable"))
+			recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "review", 0, "review_failed", "quality review LLM is unavailable")
 			result.add(candidate, "review_required", 0, "quality review LLM is unavailable")
 			continue
 		}
 		decision, err := evaluateSkillQualityCandidate(ctx, logger, reviewClient, reviewModel, candidate)
+		if ctx.Err() != nil {
+			result.Deferred = true
+			break
+		}
 		if err != nil {
-			recordSkillReview(pythonManager, agentSkillManager, candidate, "review", 0, "review_failed", "quality classifier returned no valid decision")
+			result.Errors = append(result.Errors, fmt.Errorf("quality classifier failed: %w", err))
+			recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "review", 0, "review_failed", "quality classifier returned no valid decision")
 			result.add(candidate, "review_required", 0, "quality classifier returned no valid decision")
 			continue
 		}
 		reason := sanitizedDecisionReason(decision)
+		if ctx.Err() != nil {
+			result.Deferred = true
+			break
+		}
 		switch decision.Verdict {
 		case "improve":
 			if decision.Confidence < tools.MinimumSkillImproveConfidence || candidate.HasFixedReference || hasScheduledSkillReference(candidate, cronManager) {
-				recordSkillReview(pythonManager, agentSkillManager, candidate, "improve", decision.Confidence, "review_required", reason)
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "improve", decision.Confidence, "review_required", reason)
 				result.add(candidate, "review_required", decision.Confidence, reason)
 				continue
 			}
 			if cfg.Tools.SkillManager.ReadOnly {
-				recordSkillReview(pythonManager, agentSkillManager, candidate, "improve", decision.Confidence, "review_required", "read-only mode: "+reason)
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "improve", decision.Confidence, "review_required", "read-only mode: "+reason)
 				result.add(candidate, "review_required", decision.Confidence, "read-only mode: "+reason)
 				continue
 			}
-			restart, stopErr := stopMaintenanceDaemon(candidate, daemonSupervisor)
+			if ctx.Err() != nil {
+				result.Deferred = true
+				break
+			}
+			restoreDaemon, stopErr := stopMaintenanceDaemon(candidate, daemonSupervisor, func() error {
+				return verifySkillQualityDaemonRestore(cfg, candidate, pythonManager, agentSkillManager, candidate.ContentHash, candidate.SecurityStatus)
+			})
 			if stopErr != nil {
-				recordSkillReview(pythonManager, agentSkillManager, candidate, "improve", decision.Confidence, "review_failed", "daemon could not be stopped")
+				result.Errors = append(result.Errors, fmt.Errorf("stop skill daemon for improvement: %w", stopErr))
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "improve", decision.Confidence, "review_failed", "daemon could not be stopped")
 				result.add(candidate, "review_required", decision.Confidence, "daemon could not be stopped")
+				continue
+			}
+			if ctx.Err() != nil {
+				result.Deferred = true
+				restoreMaintenanceDaemon(&result, restoreDaemon, nil)
+				result.add(candidate, "review_required", decision.Confidence, "maintenance cancelled before mutation")
 				continue
 			}
 			err = applySkillImprovement(ctx, cfg, guardian, pythonManager, agentSkillManager, candidate, decision, reason)
 			if err != nil {
 				logger.Warn("[Maintenance] Skill quality improvement rejected", "kind", candidate.Kind, "name", candidate.Name, "error", err)
-				recordSkillReview(pythonManager, agentSkillManager, candidate, "improve", decision.Confidence, "review_failed", "staged validation or atomic update failed")
-				result.add(candidate, "review_required", decision.Confidence, "staged validation or atomic update failed")
-				if restart && daemonSupervisor != nil {
-					_ = daemonSupervisor.RefreshSkills()
+				var mutationErr *tools.SkillMutationError
+				if errors.As(err, &mutationErr) && mutationErr.State == tools.SkillMutationCommitted {
+					result.Errors = append(result.Errors, err)
+					if daemonSupervisor != nil {
+						if refreshErr := daemonSupervisor.RefreshSkills(); refreshErr != nil {
+							result.Errors = append(result.Errors, fmt.Errorf("refresh skills after committed improvement: %w", refreshErr))
+						}
+					}
+					restoreMaintenanceDaemon(&result, restoreDaemon, func() error {
+						return verifyImprovedSkillQualityDaemonRestore(cfg, candidate, decision, pythonManager, agentSkillManager)
+					})
+					result.Improved++
+					result.Actions = append(result.Actions, sanitizedSkillAction(candidate.Name, candidate.Kind, "improved", decision.Confidence, reason))
+					continue
 				}
+				if errors.As(err, &mutationErr) && mutationErr.State == tools.SkillMutationUnknown {
+					result.Errors = append(result.Errors, err)
+					result.add(candidate, "review_required", decision.Confidence, "mutation state is unknown; manual review required")
+					continue
+				}
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					result.Deferred = true
+					restoreMaintenanceDaemon(&result, restoreDaemon, nil)
+					result.add(candidate, "review_required", decision.Confidence, "maintenance cancelled before mutation")
+					continue
+				}
+				result.Errors = append(result.Errors, err)
+				restoreMaintenanceDaemon(&result, restoreDaemon, nil)
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "improve", decision.Confidence, "review_failed", "staged validation or atomic update failed")
+				result.add(candidate, "review_required", decision.Confidence, "staged validation or atomic update failed")
 				continue
 			}
 			if daemonSupervisor != nil {
-				_ = daemonSupervisor.RefreshSkills()
+				if refreshErr := daemonSupervisor.RefreshSkills(); refreshErr != nil {
+					result.Errors = append(result.Errors, fmt.Errorf("refresh skills after improvement: %w", refreshErr))
+				}
 			}
+			restoreMaintenanceDaemon(&result, restoreDaemon, func() error {
+				return verifyImprovedSkillQualityDaemonRestore(cfg, candidate, decision, pythonManager, agentSkillManager)
+			})
 			result.Improved++
 			result.Actions = append(result.Actions, sanitizedSkillAction(candidate.Name, candidate.Kind, "improved", decision.Confidence, reason))
 		case "delete":
 			if decision.Confidence < tools.MinimumSkillDeleteConfidence || candidate.HasFixedReference || hasScheduledSkillReference(candidate, cronManager) || !hasObjectiveDeleteEvidence(candidate, decision) {
-				recordSkillReview(pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_required", reason)
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_required", reason)
 				result.add(candidate, "review_required", decision.Confidence, reason)
 				continue
 			}
 			if cfg.Tools.SkillManager.ReadOnly {
-				recordSkillReview(pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_required", "read-only mode: "+reason)
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_required", "read-only mode: "+reason)
 				result.add(candidate, "review_required", decision.Confidence, "read-only mode: "+reason)
 				continue
 			}
-			restart, stopErr := stopMaintenanceDaemon(candidate, daemonSupervisor)
+			if ctx.Err() != nil {
+				result.Deferred = true
+				break
+			}
+			restoreDaemon, stopErr := stopMaintenanceDaemon(candidate, daemonSupervisor, func() error {
+				return verifySkillQualityDaemonRestore(cfg, candidate, pythonManager, agentSkillManager, candidate.ContentHash, candidate.SecurityStatus)
+			})
 			if stopErr != nil {
-				recordSkillReview(pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_failed", "daemon could not be stopped")
+				result.Errors = append(result.Errors, fmt.Errorf("stop skill daemon for deletion: %w", stopErr))
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_failed", "daemon could not be stopped")
 				result.add(candidate, "review_required", decision.Confidence, "daemon could not be stopped")
 				continue
 			}
+			if ctx.Err() != nil {
+				result.Deferred = true
+				restoreMaintenanceDaemon(&result, restoreDaemon, nil)
+				result.add(candidate, "review_required", decision.Confidence, "maintenance cancelled before mutation")
+				continue
+			}
 			if candidate.Kind == "python" {
-				err = pythonManager.DeletePythonSkillForMaintenance(candidate, decision.Confidence, reason)
+				err = pythonManager.DeletePythonSkillForMaintenance(ctx, candidate, decision.Confidence, reason)
 			} else {
-				err = agentSkillManager.DeleteAgentSkillForMaintenance(candidate, decision.Confidence, reason)
+				err = agentSkillManager.DeleteAgentSkillForMaintenance(ctx, candidate, decision.Confidence, reason)
 			}
 			if err != nil {
 				logger.Warn("[Maintenance] Skill deletion failed", "kind", candidate.Kind, "name", candidate.Name, "error", err)
-				recordSkillReview(pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_failed", "atomic deletion failed")
-				result.add(candidate, "review_required", decision.Confidence, "atomic deletion failed")
-				if restart && daemonSupervisor != nil {
-					_ = daemonSupervisor.RefreshSkills()
+				var mutationErr *tools.SkillMutationError
+				if errors.As(err, &mutationErr) && mutationErr.State == tools.SkillMutationCommitted {
+					result.Errors = append(result.Errors, err)
+					if daemonSupervisor != nil {
+						if refreshErr := daemonSupervisor.RefreshSkills(); refreshErr != nil {
+							result.Errors = append(result.Errors, fmt.Errorf("refresh skills after committed deletion: %w", refreshErr))
+						}
+					}
+					result.Deleted++
+					result.Actions = append(result.Actions, sanitizedSkillAction(candidate.Name, candidate.Kind, "deleted", decision.Confidence, reason))
+					continue
 				}
+				if errors.As(err, &mutationErr) && mutationErr.State == tools.SkillMutationUnknown {
+					result.Errors = append(result.Errors, err)
+					result.add(candidate, "review_required", decision.Confidence, "mutation state is unknown; manual review required")
+					continue
+				}
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					result.Deferred = true
+					restoreMaintenanceDaemon(&result, restoreDaemon, nil)
+					result.add(candidate, "review_required", decision.Confidence, "maintenance cancelled before mutation")
+					continue
+				}
+				result.Errors = append(result.Errors, err)
+				restoreMaintenanceDaemon(&result, restoreDaemon, nil)
+				recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "delete", decision.Confidence, "review_failed", "atomic deletion failed")
+				result.add(candidate, "review_required", decision.Confidence, "atomic deletion failed")
 				continue
 			}
 			if daemonSupervisor != nil {
-				_ = daemonSupervisor.RefreshSkills()
+				if refreshErr := daemonSupervisor.RefreshSkills(); refreshErr != nil {
+					result.Errors = append(result.Errors, fmt.Errorf("refresh skills after deletion: %w", refreshErr))
+				}
 			}
 			result.Deleted++
 			result.Actions = append(result.Actions, sanitizedSkillAction(candidate.Name, candidate.Kind, "deleted", decision.Confidence, reason))
 		case "keep":
-			recordSkillReview(pythonManager, agentSkillManager, candidate, "keep", decision.Confidence, "kept", reason)
+			recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "keep", decision.Confidence, "kept", reason)
 			result.Actions = append(result.Actions, sanitizedSkillAction(candidate.Name, candidate.Kind, "kept", decision.Confidence, reason))
 		default:
-			recordSkillReview(pythonManager, agentSkillManager, candidate, "review", decision.Confidence, "review_required", reason)
+			recordSkillReviewOrIssue(&result, pythonManager, agentSkillManager, candidate, "review", decision.Confidence, "review_required", reason)
 			result.add(candidate, "review_required", decision.Confidence, reason)
 		}
 	}
@@ -291,24 +407,146 @@ func applySkillImprovement(ctx context.Context, cfg *config.Config, guardian *se
 	return agentSkillManager.ApplyAgentSkillQualityRevision(ctx, candidate, decision.RevisedFiles, decision.Confidence, reason, guardian, cfg.Tools.SkillManager.ScanWithGuardian, ss)
 }
 
-func stopMaintenanceDaemon(candidate tools.SkillQualityCandidate, supervisor *tools.DaemonSupervisor) (bool, error) {
+type maintenanceDaemonRestore func(check func() error) error
+
+func stopMaintenanceDaemon(candidate tools.SkillQualityCandidate, supervisor maintenanceDaemonSupervisor, restoreCheck func() error) (maintenanceDaemonRestore, error) {
 	if !candidate.IsDaemon {
-		return false, nil
+		return nil, nil
 	}
 	if supervisor == nil {
-		return false, fmt.Errorf("daemon supervisor unavailable")
+		return nil, fmt.Errorf("daemon supervisor unavailable")
 	}
 	state, found := supervisor.GetDaemonState(candidate.Name)
 	if !found {
-		return false, nil
+		return nil, nil
 	}
 	if state.Status != tools.DaemonRunning && state.Status != tools.DaemonStarting {
-		return false, nil
+		return nil, nil
 	}
 	if err := supervisor.StopDaemon(candidate.Name); err != nil {
-		return false, err
+		return nil, err
 	}
-	return true, nil
+	restored := false
+	return func(check func() error) error {
+		if restored {
+			return nil
+		}
+		if check == nil {
+			check = restoreCheck
+		}
+		if check != nil {
+			if err := check(); err != nil {
+				return err
+			}
+		}
+		current, found := supervisor.GetDaemonState(candidate.Name)
+		if !found {
+			return fmt.Errorf("daemon %q disappeared while maintenance was running", candidate.Name)
+		}
+		if current.SkillID != state.SkillID || current.SkillName != state.SkillName || current.AutoDisabled != state.AutoDisabled {
+			return fmt.Errorf("daemon %q state changed while maintenance was running", candidate.Name)
+		}
+		switch current.Status {
+		case tools.DaemonRunning, tools.DaemonStarting:
+			restored = true
+			return nil
+		case tools.DaemonStopped:
+			if err := supervisor.StartDaemon(candidate.Name); err != nil {
+				return err
+			}
+			restored = true
+			return nil
+		default:
+			return fmt.Errorf("daemon %q is no longer restartable: %s", candidate.Name, current.Status)
+		}
+	}, nil
+}
+
+func verifySkillQualityDaemonRestore(cfg *config.Config, candidate tools.SkillQualityCandidate, pythonManager *tools.SkillManager, agentSkillManager *tools.AgentSkillManager, expectedHash string, expectedSecurity tools.SecurityStatus) error {
+	if cfg == nil || cfg.Tools.SkillManager.ReadOnly || !candidate.Enabled {
+		return fmt.Errorf("skill quality daemon restore is no longer permitted")
+	}
+	if strings.TrimSpace(expectedHash) == "" {
+		expectedHash = candidate.ContentHash
+	}
+	if strings.TrimSpace(string(expectedSecurity)) == "" {
+		expectedSecurity = candidate.SecurityStatus
+	}
+	switch candidate.Kind {
+	case "python":
+		if pythonManager == nil {
+			return fmt.Errorf("Python skill manager unavailable during daemon restore")
+		}
+		entry, err := pythonManager.GetSkill(candidate.ID)
+		if err != nil {
+			return err
+		}
+		if entry.Origin != tools.OriginAgent || !entry.Enabled || entry.SecurityStatus != expectedSecurity || entry.FileHash != expectedHash {
+			return fmt.Errorf("Python skill permission or hash changed during daemon maintenance")
+		}
+		code, err := pythonManager.GetSkillCode(entry.ID)
+		if err != nil {
+			return err
+		}
+		currentHash := sha256.Sum256([]byte(code))
+		if hex.EncodeToString(currentHash[:]) != expectedHash {
+			return fmt.Errorf("Python skill source changed during daemon maintenance")
+		}
+	case "agent_skill":
+		if agentSkillManager == nil {
+			return fmt.Errorf("Agent Skill manager unavailable during daemon restore")
+		}
+		entry, err := agentSkillManager.GetAgentSkill(candidate.ID)
+		if err != nil {
+			return err
+		}
+		if entry.Origin != tools.OriginAgent || !entry.Enabled || entry.SecurityStatus != expectedSecurity || (entry.SecurityStatus == tools.SecurityWarning && !entry.WarningApproved) || entry.PackageHash != expectedHash {
+			return fmt.Errorf("Agent Skill permission or hash changed during daemon maintenance")
+		}
+		pkg, err := tools.ParseAgentSkillPackage(entry.Directory)
+		if err != nil {
+			return err
+		}
+		if pkg.PackageHash != expectedHash {
+			return fmt.Errorf("Agent Skill package changed during daemon maintenance")
+		}
+	default:
+		return fmt.Errorf("unknown skill kind %q during daemon restore", candidate.Kind)
+	}
+	return nil
+}
+
+func verifyImprovedSkillQualityDaemonRestore(cfg *config.Config, candidate tools.SkillQualityCandidate, decision skillQualityDecision, pythonManager *tools.SkillManager, agentSkillManager *tools.AgentSkillManager) error {
+	expectedHash, err := approvedImprovedSkillHash(candidate, decision, pythonManager, agentSkillManager)
+	if err != nil {
+		return err
+	}
+	return verifySkillQualityDaemonRestore(cfg, candidate, pythonManager, agentSkillManager, expectedHash, tools.SecurityClean)
+}
+
+func approvedImprovedSkillHash(candidate tools.SkillQualityCandidate, decision skillQualityDecision, pythonManager *tools.SkillManager, agentSkillManager *tools.AgentSkillManager) (string, error) {
+	switch candidate.Kind {
+	case "python":
+		if pythonManager == nil {
+			return "", fmt.Errorf("Python skill manager unavailable during daemon restore")
+		}
+		hash := sha256.Sum256([]byte(decision.RevisedCode))
+		return hex.EncodeToString(hash[:]), nil
+	case "agent_skill":
+		if agentSkillManager == nil {
+			return "", fmt.Errorf("Agent Skill manager unavailable during daemon restore")
+		}
+		entry, err := agentSkillManager.GetAgentSkill(candidate.ID)
+		if err != nil {
+			return "", err
+		}
+		if entry.Origin != tools.OriginAgent || strings.TrimSpace(entry.PackageHash) == "" {
+			return "", fmt.Errorf("Agent Skill improvement has no approved package hash")
+		}
+		return entry.PackageHash, nil
+	default:
+		return "", fmt.Errorf("unknown skill kind %q during daemon restore", candidate.Kind)
+	}
 }
 
 func hasObjectiveDeleteEvidence(candidate tools.SkillQualityCandidate, decision skillQualityDecision) bool {
@@ -332,11 +570,27 @@ func hasObjectiveDeleteEvidence(candidate tools.SkillQualityCandidate, decision 
 	return false
 }
 
-func recordSkillReview(pythonManager *tools.SkillManager, agentSkillManager *tools.AgentSkillManager, candidate tools.SkillQualityCandidate, verdict string, confidence float64, decision, reason string) {
+func recordSkillReview(pythonManager *tools.SkillManager, agentSkillManager *tools.AgentSkillManager, candidate tools.SkillQualityCandidate, verdict string, confidence float64, decision, reason string) error {
 	if candidate.Kind == "python" && pythonManager != nil {
-		_ = pythonManager.RecordPythonQualityReview(candidate, verdict, confidence, decision, reason)
+		return pythonManager.RecordPythonQualityReview(candidate, verdict, confidence, decision, reason)
 	} else if candidate.Kind == "agent_skill" && agentSkillManager != nil {
-		_ = agentSkillManager.RecordAgentSkillQualityReview(candidate, verdict, confidence, decision, reason)
+		return agentSkillManager.RecordAgentSkillQualityReview(candidate, verdict, confidence, decision, reason)
+	}
+	return nil
+}
+
+func recordSkillReviewOrIssue(result *skillQualityMaintenanceResult, pythonManager *tools.SkillManager, agentSkillManager *tools.AgentSkillManager, candidate tools.SkillQualityCandidate, verdict string, confidence float64, decision, reason string) {
+	if err := recordSkillReview(pythonManager, agentSkillManager, candidate, verdict, confidence, decision, reason); err != nil {
+		result.Errors = append(result.Errors, fmt.Errorf("record skill quality review: %w", err))
+	}
+}
+
+func restoreMaintenanceDaemon(result *skillQualityMaintenanceResult, restore maintenanceDaemonRestore, check func() error) {
+	if restore == nil {
+		return
+	}
+	if err := restore(check); err != nil {
+		result.Errors = append(result.Errors, fmt.Errorf("restore stopped skill daemon: %w", err))
 	}
 }
 

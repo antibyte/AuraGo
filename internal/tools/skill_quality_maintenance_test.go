@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,7 +69,7 @@ func TestPythonSkillQualityProvenanceUsageAndTombstone(t *testing.T) {
 	if len(candidates) != 1 || candidates[0].ID != agentEntry.ID {
 		t.Fatalf("candidates = %+v, want only proven agent skill", candidates)
 	}
-	if err := mgr.DeletePythonSkillForMaintenance(candidates[0], 0.99, "placeholder implementation"); err != nil {
+	if err := mgr.DeletePythonSkillForMaintenance(context.Background(), candidates[0], 0.99, "placeholder implementation"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := mgr.GetSkill(agentEntry.ID); err == nil {
@@ -190,6 +191,37 @@ func TestPythonSkillQualityRevisionRefusesDiskDrift(t *testing.T) {
 	}
 }
 
+func TestPythonSkillQualityRequeuesDiskDriftAfterKeepAndBlocksExecution(t *testing.T) {
+	mgr, skillsDir := setupTestSkillManager(t)
+	entry, err := mgr.CreateSkillEntry("agent_quality_drift_after_keep", "agent", "def run():\n    return 'original'\n", SkillTypeAgent, "agent", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, err := mgr.ListPythonQualityCandidates(10)
+	if err != nil || len(candidates) != 1 {
+		t.Fatalf("initial candidates=%+v err=%v", candidates, err)
+	}
+	if err := mgr.RecordPythonQualityReview(candidates[0], "keep", 1, "kept", "stable"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillsDir, entry.Executable), []byte("def run():\n    return 'external edit after keep'\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	drifted, err := mgr.ListPythonQualityCandidates(10)
+	if err != nil || len(drifted) != 1 || !drifted[0].SourceDrifted || drifted[0].ContentHash == entry.FileHash {
+		t.Fatalf("drifted candidates=%+v err=%v", drifted, err)
+	}
+	if err := mgr.EnableSkill(entry.ID, true, "test"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mgr.db.Exec("UPDATE skills_registry SET security_status = ? WHERE id = ?", string(SecurityClean), entry.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mgr.GetExecutableSkillByName(entry.Name); err == nil || !strings.Contains(err.Error(), "source changed on disk") {
+		t.Fatalf("stale clean approval was accepted: %v", err)
+	}
+}
+
 func TestPythonSkillQualityRevisionCommitsCleanVersion(t *testing.T) {
 	if findSystemPython() == "" {
 		t.Skip("system Python unavailable")
@@ -235,7 +267,9 @@ func TestPythonSkillQualityDeletionWaitsForActiveExecution(t *testing.T) {
 	}
 	release := mgr.AcquireSkillExecutionLease()
 	done := make(chan error, 1)
-	go func() { done <- mgr.DeletePythonSkillForMaintenance(candidates[0], 0.99, "placeholder") }()
+	go func() {
+		done <- mgr.DeletePythonSkillForMaintenance(context.Background(), candidates[0], 0.99, "placeholder")
+	}()
 	select {
 	case err := <-done:
 		t.Fatalf("deletion completed while execution lease was active: %v", err)
@@ -249,6 +283,50 @@ func TestPythonSkillQualityDeletionWaitsForActiveExecution(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("deletion did not resume after execution lease release")
+	}
+}
+
+func TestPythonSkillQualityDeletionCancellationWhileExecutionLeaseHeld(t *testing.T) {
+	mgr, _ := setupTestSkillManager(t)
+	entry, err := mgr.CreateSkillEntry("agent_execution_cancel", "agent", "def run():\n    return 'ok'\n", SkillTypeAgent, "agent", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, err := mgr.ListPythonQualityCandidates(10)
+	if err != nil || len(candidates) != 1 {
+		t.Fatalf("candidates=%+v err=%v", candidates, err)
+	}
+	beforeCode, err := mgr.GetSkillCode(entry.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := mgr.AcquireSkillExecutionLease()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- mgr.DeletePythonSkillForMaintenance(ctx, candidates[0], 0.99, "placeholder")
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("deletion completed while execution lease was active: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	cancel()
+	release()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancellation error=%v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("cancelled deletion did not resume after execution lease release")
+	}
+	if _, err := mgr.GetSkill(entry.ID); err != nil {
+		t.Fatalf("cancelled deletion removed registry entry: %v", err)
+	}
+	afterCode, err := mgr.GetSkillCode(entry.ID)
+	if err != nil || afterCode != beforeCode {
+		t.Fatalf("cancelled deletion changed code=%q err=%v", afterCode, err)
 	}
 }
 
@@ -275,7 +353,7 @@ func TestAgentSkillQualityProvenanceUsageAndTombstone(t *testing.T) {
 	if err != nil || len(candidates) != 1 || candidates[0].ID != agentEntry.ID {
 		t.Fatalf("candidates=%+v err=%v", candidates, err)
 	}
-	if err := mgr.DeleteAgentSkillForMaintenance(candidates[0], 0.99, "test-only placeholder"); err != nil {
+	if err := mgr.DeleteAgentSkillForMaintenance(context.Background(), candidates[0], 0.99, "test-only placeholder"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := mgr.GetAgentSkill(agentEntry.ID); err == nil {
@@ -302,6 +380,50 @@ func TestAgentSkillQualityProvenanceUsageAndTombstone(t *testing.T) {
 	}
 	if ordinaryAudits != 0 {
 		t.Fatalf("Agent Skill ordinary audits remain after deletion: %d", ordinaryAudits)
+	}
+}
+
+func TestAgentSkillQualityDeletionCancellationWhileExecutionLeaseHeld(t *testing.T) {
+	mgr, _ := setupAgentSkillManagerOnDisk(t)
+	entry, err := mgr.CreateAgentSkill(context.Background(), "agent-delete-cancel", "Agent deletion cancellation test skill.", "# Agent deletion cancellation\n\nDo useful work.", "agent", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, err := mgr.ListAgentSkillQualityCandidates(10)
+	if err != nil || len(candidates) != 1 || candidates[0].ID != entry.ID {
+		t.Fatalf("candidates=%+v err=%v", candidates, err)
+	}
+	mgr.qualityMutationMu.RLock()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- mgr.DeleteAgentSkillForMaintenance(ctx, candidates[0], 0.99, "placeholder")
+	}()
+	select {
+	case err := <-done:
+		mgr.qualityMutationMu.RUnlock()
+		t.Fatalf("deletion completed while execution lease was active: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	cancel()
+	mgr.qualityMutationMu.RUnlock()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancellation error=%v, want context.Canceled", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("cancelled deletion did not resume after execution lease release")
+	}
+	current, err := mgr.GetAgentSkill(entry.ID)
+	if err != nil {
+		t.Fatalf("cancelled deletion removed registry entry: %v", err)
+	}
+	if current.PackageHash != entry.PackageHash {
+		t.Fatalf("cancelled deletion changed package hash from %q to %q", entry.PackageHash, current.PackageHash)
+	}
+	if _, err := os.Stat(filepath.Join(entry.Directory, "SKILL.md")); err != nil {
+		t.Fatalf("cancelled deletion removed package files: %v", err)
 	}
 }
 

@@ -704,6 +704,14 @@ func (m *SkillManager) GetExecutableSkillByName(name string) (*SkillRegistryEntr
 	}
 	switch skill.SecurityStatus {
 	case SecurityClean, SecurityWarning:
+		code, readErr := m.GetSkillCode(skill.ID)
+		if readErr != nil {
+			return nil, fmt.Errorf("skill %q source cannot be verified: %w", skill.Name, readErr)
+		}
+		currentHash := sha256.Sum256([]byte(code))
+		if skill.FileHash == "" || hex.EncodeToString(currentHash[:]) != skill.FileHash {
+			return nil, fmt.Errorf("skill %q source changed on disk; security re-scan required", skill.Name)
+		}
 		return skill, nil
 	case SecurityPending:
 		return nil, fmt.Errorf("skill %q security status pending cannot execute", skill.Name)
