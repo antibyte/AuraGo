@@ -171,6 +171,7 @@ data/missions_v2.json
 terminals/
 # Generated, immutable browser resource sets (cmd/assetpack).
 /assets/web/
+/.aurago-update/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/

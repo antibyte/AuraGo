@@ -46,6 +46,7 @@ import (
 	"aurago/internal/setup"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+	"aurago/internal/upkeep"
 	"aurago/internal/virtualcomputers"
 	"aurago/internal/warnings"
 
@@ -71,6 +72,9 @@ func resolveInitialPassword(passwordFlag, passwordFile string) (string, error) {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--update-maintenance" {
+		os.Exit(upkeep.RunCLI(os.Args[2:], os.Stdout, os.Stderr))
+	}
 	if len(os.Args) > 1 && os.Args[1] == "--embedding-worker" {
 		os.Exit(embeddings.RunONNXWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
@@ -117,6 +121,7 @@ func main() {
 	flag.BoolVar(&printTsNetStateDirOnly, "print-tsnet-state-dir", false, "Print the configured tsnet state directory and exit")
 	assetsDir := flag.String("assets-dir", os.Getenv("AURAGO_ASSETS_DIR"), "Versioned web asset root (default: <binary directory>/assets/web)")
 	assetsInfo := flag.Bool("assets-info", false, "Print this binary's pinned asset metadata and exit")
+	flag.Bool("update-maintenance", false, "Preview update artifact cleanup; use as first argument with --root and optional --apply")
 	assetsCheck := flag.Bool("check-assets", false, "Verify the matching installed resource set and exit")
 	assetsArchive := flag.String("install-assets", "", "Verify and install an offline resource archive, then exit")
 	assetsImport := flag.String("import-assets-dir", "", "Verify and atomically import an unpacked resource root, then exit")
@@ -1157,6 +1162,8 @@ func main() {
 		}
 	}
 
+	stopUpdateCleanupMonitor := server.StartUpdateCleanupMonitor(shutdownCh, plannerDB, installDir, appLog)
+	defer stopUpdateCleanupMonitor()
 	if err := server.Start(server.StartOptions{
 		Cfg:                     cfg,
 		Logger:                  appLog,

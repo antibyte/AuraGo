@@ -49,4 +49,11 @@ func TestDeterministicProductionPack(t *testing.T) {
 	if string(after) != string(b) {
 		t.Fatal("line endings or repeat build changed resource identity")
 	}
+	if err := build("out", "installed", ""); err != nil {
+		t.Fatal(err)
+	}
+	marker, err := os.ReadFile(filepath.Join("out", "aurago-web-assets-"+first.ID+".release.json"))
+	if err != nil || string(marker) != string(b) {
+		t.Fatal("local packaging lost release ownership marker", err)
+	}
 }

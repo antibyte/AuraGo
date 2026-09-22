@@ -185,6 +185,13 @@ func build(out, stage, release string) error {
 		}
 	}
 	metadata, _ := json.MarshalIndent(pin, "", "  ")
+	// Release archives are intentional deliverables, not updater scratch output.
+	// Keep an immutable ownership marker even after web-assets.json is replaced.
+	if release != "" {
+		if err := os.WriteFile(filepath.Join(out, "aurago-web-assets-"+id+".release.json"), append(metadata, '\n'), 0644); err != nil {
+			return err
+		}
+	}
 	if err := os.WriteFile(filepath.Join(out, "web-assets.json"), append(metadata, '\n'), 0644); err != nil {
 		return err
 	}
