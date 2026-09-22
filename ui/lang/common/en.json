@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "Dashboard",
   "common.workspace_density_toggle": "Toggle workspace density",
   "common.workspace_density_comfortable": "Comfortable",
-  "common.workspace_density_compact": "Compact"
+  "common.workspace_density_compact": "Compact",
+  "personality_dynamics.title": "Current dynamics",
+  "personality_dynamics.load": "Load",
+  "personality_dynamics.familiarity": "Familiarity",
+  "personality_dynamics.friction": "Friction",
+  "personality_dynamics.trend": "Trend",
+  "personality_dynamics.steady": "Steady",
+  "personality_dynamics.recovering": "Recovering",
+  "personality_dynamics.strained": "Strained",
+  "personality_dynamics.reset": "Reset current dynamics",
+  "personality_dynamics.hint": "Load and friction fade over time. Reset preserves personality traits, familiarity and character notes.",
+  "personality_dynamics.disabled": "The personality engine is disabled.",
+  "personality_dynamics.unavailable": "State unavailable. Please try again.",
+  "personality_dynamics.loading": "Loading current dynamics...",
+  "personality_dynamics.reset_done": "Current dynamics reset."
 }

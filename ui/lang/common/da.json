@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "Dashboard",
   "common.workspace_density_toggle": "Skift arbejdsområdets tæthed",
   "common.workspace_density_comfortable": "Komfortabel",
-  "common.workspace_density_compact": "Kompakt"
+  "common.workspace_density_compact": "Kompakt",
+  "personality_dynamics.title": "Aktuel dynamik",
+  "personality_dynamics.load": "Belastning",
+  "personality_dynamics.familiarity": "Fortrolighed",
+  "personality_dynamics.friction": "Friktion",
+  "personality_dynamics.trend": "Udvikling",
+  "personality_dynamics.steady": "Stabil",
+  "personality_dynamics.recovering": "I bedring",
+  "personality_dynamics.strained": "Anspændt",
+  "personality_dynamics.reset": "Nulstil aktuel dynamik",
+  "personality_dynamics.hint": "Belastning og friktion aftager med tiden. Nulstilling bevarer personlighedstræk, fortrolighed og karakternoter.",
+  "personality_dynamics.disabled": "Personlighedsmotoren er deaktiveret.",
+  "personality_dynamics.unavailable": "Tilstand ikke tilgængelig. Prøv igen.",
+  "personality_dynamics.loading": "Indlæser aktuel dynamik...",
+  "personality_dynamics.reset_done": "Aktuel dynamik nulstillet."
 }

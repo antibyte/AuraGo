@@ -30,6 +30,8 @@
   <link href="/fonts/fonts.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/dashboard.css?v={{.BuildVersion}}">
+  <link rel="stylesheet" href="/css/personality-dynamics.css?v={{.BuildVersion}}">
+  <script src="/js/shared/personality-dynamics.js?v={{.BuildVersion}}"></script>
   <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
@@ -327,6 +329,7 @@
         <div id="personality-content" class="personality-layout">
           <canvas id="traits-chart"></canvas>
           <div class="mood-badge" id="mood-badge" data-i18n="dashboard.personality_default_mood"></div>
+          <section id="personality-dynamics"></section>
           <div class="mood-trigger-text" id="mood-trigger"></div>
           <div class="character-notes is-hidden" id="character-notes">
             <div class="character-notes-header">

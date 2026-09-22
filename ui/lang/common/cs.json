@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "Nástěnka",
   "common.workspace_density_toggle": "Přepnout hustotu pracovního prostoru",
   "common.workspace_density_comfortable": "Pohodlné",
-  "common.workspace_density_compact": "Kompaktní"
+  "common.workspace_density_compact": "Kompaktní",
+  "personality_dynamics.title": "Aktuální dynamika",
+  "personality_dynamics.load": "Zátěž",
+  "personality_dynamics.familiarity": "Důvěrnost",
+  "personality_dynamics.friction": "Napětí",
+  "personality_dynamics.trend": "Vývoj",
+  "personality_dynamics.steady": "Stabilní",
+  "personality_dynamics.recovering": "Zotavuje se",
+  "personality_dynamics.strained": "Napjatý",
+  "personality_dynamics.reset": "Obnovit aktuální dynamiku",
+  "personality_dynamics.hint": "Zátěž a napětí časem slábnou. Obnovení zachová osobnostní rysy, důvěrnost a poznámky o charakteru.",
+  "personality_dynamics.disabled": "Osobnostní modul je vypnutý.",
+  "personality_dynamics.unavailable": "Stav není dostupný. Zkuste to znovu.",
+  "personality_dynamics.loading": "Načítání aktuální dynamiky...",
+  "personality_dynamics.reset_done": "Aktuální dynamika obnovena."
 }

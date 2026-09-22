@@ -69,6 +69,7 @@
         }
 
         function renderMoodBadge(data) {
+            window.AuraPersonalityDynamics.render(document.getElementById('personality-dynamics'), data, renderMoodBadge);
             if (!data || !data.enabled) {
                 dashSetHidden(document.getElementById('personality-content'), true);
                 dashSetHidden(document.getElementById('personality-disabled'), false);
@@ -85,6 +86,8 @@
                 concerned: t('dashboard.personality_mood_concerned'),
                 relaxed: t('dashboard.personality_mood_relaxed')
             };
+            dashSetHidden(document.getElementById('personality-content'), false);
+            dashSetHidden(document.getElementById('personality-disabled'), true);
             const badge = document.getElementById('mood-badge');
             const trigger = document.getElementById('mood-trigger');
             const nameLocalized = moodNameMap[data.mood] || data.mood;

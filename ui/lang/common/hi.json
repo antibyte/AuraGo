@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "डैशबोर्ड",
   "common.workspace_density_toggle": "कार्यस्थान का घनत्व बदलें",
   "common.workspace_density_comfortable": "आरामदायक",
-  "common.workspace_density_compact": "सघन"
+  "common.workspace_density_compact": "सघन",
+  "personality_dynamics.title": "वर्तमान गतिशीलता",
+  "personality_dynamics.load": "दबाव",
+  "personality_dynamics.familiarity": "परिचितता",
+  "personality_dynamics.friction": "तनाव",
+  "personality_dynamics.trend": "रुझान",
+  "personality_dynamics.steady": "स्थिर",
+  "personality_dynamics.recovering": "सुधार जारी",
+  "personality_dynamics.strained": "तनावग्रस्त",
+  "personality_dynamics.reset": "वर्तमान गतिशीलता रीसेट करें",
+  "personality_dynamics.hint": "दबाव और तनाव समय के साथ कम होते हैं। रीसेट करने पर व्यक्तित्व के गुण, परिचितता और चरित्र संबंधी नोट बने रहते हैं।",
+  "personality_dynamics.disabled": "व्यक्तित्व इंजन बंद है।",
+  "personality_dynamics.unavailable": "स्थिति उपलब्ध नहीं है। फिर से प्रयास करें।",
+  "personality_dynamics.loading": "वर्तमान गतिशीलता लोड हो रही है...",
+  "personality_dynamics.reset_done": "वर्तमान गतिशीलता रीसेट हो गई।"
 }

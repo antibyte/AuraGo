@@ -1756,11 +1756,13 @@ async function renderSection(key) {
         </div>`;
     }
 
+    if (key === 'personality') html += '<section id="config-personality-dynamics"></section>';
     if (sectionBlocked) html += '</div>'; // End feature-unavailable-fields
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
 
+    if (key === 'personality') window.AuraPersonalityDynamics.load(document.getElementById('config-personality-dynamics'));
     _initArrayChipFields();
     if (integrationActions) integrationActions.bind(key);
 

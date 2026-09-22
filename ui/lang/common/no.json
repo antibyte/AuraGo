@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "Dashbord",
   "common.workspace_density_toggle": "Bytt tetthet i arbeidsområdet",
   "common.workspace_density_comfortable": "Romslig",
-  "common.workspace_density_compact": "Kompakt"
+  "common.workspace_density_compact": "Kompakt",
+  "personality_dynamics.title": "Gjeldende dynamikk",
+  "personality_dynamics.load": "Belastning",
+  "personality_dynamics.familiarity": "Fortrolighet",
+  "personality_dynamics.friction": "Friksjon",
+  "personality_dynamics.trend": "Utvikling",
+  "personality_dynamics.steady": "Stabil",
+  "personality_dynamics.recovering": "I bedring",
+  "personality_dynamics.strained": "Anspent",
+  "personality_dynamics.reset": "Tilbakestill gjeldende dynamikk",
+  "personality_dynamics.hint": "Belastning og friksjon avtar over tid. Tilbakestilling bevarer personlighetstrekk, fortrolighet og karakternotater.",
+  "personality_dynamics.disabled": "Personlighetsmotoren er deaktivert.",
+  "personality_dynamics.unavailable": "Tilstanden er utilgjengelig. Prøv igjen.",
+  "personality_dynamics.loading": "Laster gjeldende dynamikk...",
+  "personality_dynamics.reset_done": "Gjeldende dynamikk tilbakestilt."
 }

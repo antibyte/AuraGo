@@ -198,11 +198,13 @@ document.querySelectorAll('.mood-btn').forEach(btn => {
 
         // Send personality feedback to backend
         btn.disabled = true;
+        const eventID = window.crypto && typeof window.crypto.randomUUID === 'function'
+            ? window.crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
         try {
             const res = await fetch('/api/personality/feedback', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: feedbackType })
+                body: JSON.stringify({ type: feedbackType, event_id: eventID })
             });
             if (res.ok) {
                 btn.classList.add('flash-ok');

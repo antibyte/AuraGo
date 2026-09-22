@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "Ταμπλό",
   "common.workspace_density_toggle": "Εναλλαγή πυκνότητας χώρου εργασίας",
   "common.workspace_density_comfortable": "Άνετη",
-  "common.workspace_density_compact": "Συμπαγής"
+  "common.workspace_density_compact": "Συμπαγής",
+  "personality_dynamics.title": "Τρέχουσα δυναμική",
+  "personality_dynamics.load": "Επιβάρυνση",
+  "personality_dynamics.familiarity": "Οικειότητα",
+  "personality_dynamics.friction": "Τριβή",
+  "personality_dynamics.trend": "Εξέλιξη",
+  "personality_dynamics.steady": "Σταθερή",
+  "personality_dynamics.recovering": "Ανακάμπτει",
+  "personality_dynamics.strained": "Τεταμένη",
+  "personality_dynamics.reset": "Επαναφορά τρέχουσας δυναμικής",
+  "personality_dynamics.hint": "Η επιβάρυνση και η τριβή μειώνονται με τον χρόνο. Η επαναφορά διατηρεί τα γνωρίσματα προσωπικότητας, την οικειότητα και τις σημειώσεις χαρακτήρα.",
+  "personality_dynamics.disabled": "Η μηχανή προσωπικότητας είναι απενεργοποιημένη.",
+  "personality_dynamics.unavailable": "Η κατάσταση δεν είναι διαθέσιμη. Δοκιμάστε ξανά.",
+  "personality_dynamics.loading": "Φόρτωση τρέχουσας δυναμικής...",
+  "personality_dynamics.reset_done": "Η τρέχουσα δυναμική επαναφέρθηκε."
 }

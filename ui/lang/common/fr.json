@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "Tableau de bord",
   "common.workspace_density_toggle": "Modifier la densité de l’espace de travail",
   "common.workspace_density_comfortable": "Confortable",
-  "common.workspace_density_compact": "Compacte"
+  "common.workspace_density_compact": "Compacte",
+  "personality_dynamics.title": "Dynamique actuelle",
+  "personality_dynamics.load": "Charge",
+  "personality_dynamics.familiarity": "Familiarité",
+  "personality_dynamics.friction": "Friction",
+  "personality_dynamics.trend": "Évolution",
+  "personality_dynamics.steady": "Stable",
+  "personality_dynamics.recovering": "En récupération",
+  "personality_dynamics.strained": "Tendue",
+  "personality_dynamics.reset": "Réinitialiser la dynamique actuelle",
+  "personality_dynamics.hint": "La charge et la friction diminuent avec le temps. La réinitialisation conserve les traits de personnalité, la familiarité et les notes de caractère.",
+  "personality_dynamics.disabled": "Le moteur de personnalité est désactivé.",
+  "personality_dynamics.unavailable": "État indisponible. Réessayez.",
+  "personality_dynamics.loading": "Chargement de la dynamique actuelle...",
+  "personality_dynamics.reset_done": "Dynamique actuelle réinitialisée."
 }

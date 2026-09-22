@@ -1,0 +1,17 @@
+.personality-dynamics {
+    text-align: start;
+    margin-block: 1rem;
+    padding-block: 1rem;
+    border-block-start: 1px solid var(--border-color, #64748b55);
+}
+.personality-dynamics h3 { margin: 0 0 .8rem; font-size: 1rem; }
+.personality-dynamics-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.personality-dynamics-meter { display: grid; gap: .35rem; min-width: 0; font-size: .85rem; }
+.personality-dynamics-meter span { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .3rem; }
+.personality-dynamics-meter strong { font-variant-numeric: tabular-nums; }
+.personality-dynamics meter { width: 100%; height: .7rem; accent-color: var(--accent-color, #648bd4); }
+.personality-dynamics p { margin-block: .7rem; line-height: 1.5; font-size: .85rem; }
+.personality-dynamics-hint { color: var(--text-secondary, #8994a7); }
+.personality-dynamics .btn { max-width: 100%; white-space: normal; }
+.personality-dynamics-status { display: block; margin-block-start: .5rem; font-size: .85rem; }
+@media (max-width: 560px) { .personality-dynamics-meters { grid-template-columns: 1fr; } }

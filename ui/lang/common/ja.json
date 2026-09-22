@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "ダッシュボード",
   "common.workspace_density_toggle": "ワークスペースの表示密度を切り替え",
   "common.workspace_density_comfortable": "ゆったり",
-  "common.workspace_density_compact": "コンパクト"
+  "common.workspace_density_compact": "コンパクト",
+  "personality_dynamics.title": "現在のダイナミクス",
+  "personality_dynamics.load": "負荷",
+  "personality_dynamics.familiarity": "親しみ",
+  "personality_dynamics.friction": "摩擦",
+  "personality_dynamics.trend": "推移",
+  "personality_dynamics.steady": "安定",
+  "personality_dynamics.recovering": "回復中",
+  "personality_dynamics.strained": "緊張",
+  "personality_dynamics.reset": "現在のダイナミクスをリセット",
+  "personality_dynamics.hint": "負荷と摩擦は時間とともに和らぎます。リセットしても性格の特性、親しみ、性格メモは保持されます。",
+  "personality_dynamics.disabled": "パーソナリティエンジンは無効です。",
+  "personality_dynamics.unavailable": "状態を取得できません。もう一度お試しください。",
+  "personality_dynamics.loading": "現在のダイナミクスを読み込み中...",
+  "personality_dynamics.reset_done": "現在のダイナミクスをリセットしました。"
 }

@@ -81,5 +81,19 @@
   "notfound.go_dashboard": "Pannello",
   "common.workspace_density_toggle": "Cambia la densità dell’area di lavoro",
   "common.workspace_density_comfortable": "Comoda",
-  "common.workspace_density_compact": "Compatta"
+  "common.workspace_density_compact": "Compatta",
+  "personality_dynamics.title": "Dinamica attuale",
+  "personality_dynamics.load": "Carico",
+  "personality_dynamics.familiarity": "Familiarità",
+  "personality_dynamics.friction": "Attrito",
+  "personality_dynamics.trend": "Andamento",
+  "personality_dynamics.steady": "Stabile",
+  "personality_dynamics.recovering": "In ripresa",
+  "personality_dynamics.strained": "Tesa",
+  "personality_dynamics.reset": "Ripristina la dinamica attuale",
+  "personality_dynamics.hint": "Il carico e l’attrito diminuiscono nel tempo. Il ripristino conserva i tratti della personalità, la familiarità e le note sul carattere.",
+  "personality_dynamics.disabled": "Il motore della personalità è disattivato.",
+  "personality_dynamics.unavailable": "Stato non disponibile. Riprova.",
+  "personality_dynamics.loading": "Caricamento della dinamica attuale...",
+  "personality_dynamics.reset_done": "Dinamica attuale ripristinata."
 }
