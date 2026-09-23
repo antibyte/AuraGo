@@ -428,7 +428,9 @@ func TestPersonalRadioAudioContinuityBrowser(t *testing.T) {
   const rate=8000,total=120;
   const segments=Array.from({length:total},(_,i)=>({id:'s'+i,asset_id:'a'+i,kind:mixed&&i%7===3?'news':'music',duration_ms:mixed&&i%7===3?100:2500,rate:mixed?[8000,24000,44100][i%3]:8000}));
   let end=.15+segments[0].duration_ms/1000;
-  for(let i=1;i<total;i++){const a=segments[i-1],b=segments[i];const overlap=a.kind==='music'&&b.kind==='music'?Math.min(2,a.duration_ms/8000,b.duration_ms/8000):0;end+=b.duration_ms/1000-overlap;}
+  for(let i=1;i<total;i++){const a=segments[i-1],b=segments[i],aSec=a.duration_ms/1000,bSec=b.duration_ms/1000;
+   const overlap=a.kind==='music'&&b.kind==='music'?Math.min(2,aSec/8,bSec/8):a.kind==='music'?Math.min(1.25,aSec/8,bSec/5):b.kind==='music'?Math.min(1.4,aSec/5,bSec/8):0;
+   end+=bSec-overlap;}
   const ctx=new OfflineAudioContext(1,Math.ceil((end+1)*rate),rate);let starts=0,ends=0;const errors=[];
   const player=new PersonalRadioPlayer({audio:async id=>{const s=segments[Number(id.slice(1))],frames=s.duration_ms*s.rate/1000,a=new ArrayBuffer(44+frames*2),v=new DataView(a);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,s.rate,true);v.setUint16(34,16,true);v.setUint32(40,frames*2,true);for(let i=44;i<a.byteLength;i+=2)v.setInt16(i,3000,true);return a;},event:(id,kind)=>{if(kind==='started')starts++;if(kind==='ended')ends++;if(kind==='failed')errors.push(id);},error:e=>errors.push(e.message),progress:()=>{}});
   // The offline clock is real; expose its suspended scheduling boundary as a
@@ -474,5 +476,66 @@ func TestPersonalRadioAudioContinuityBrowser(t *testing.T) {
 	openingStarts := opening.Get("starts").Arr()
 	if opening.Get("openingStart").Num() != .15 || opening.Get("primedEarly").Bool() || opening.Get("musicStartedEarly").Bool() || len(openingStarts) != 3 || openingStarts[0].Str() != "intro" || openingStarts[1].Str() != "m1" || openingStarts[2].Str() != "m2" || opening.Get("errors").String() != "[]" || opening.Get("openingSample").Num() < .01 || opening.Get("waitingSample").Num() != 0 || opening.Get("musicSample").Num() < .01 {
 		t.Fatal("opening bypassed music preparation or failed to bridge startup", opening.String())
+	}
+}
+
+func TestPersonalRadioVoiceMixBrowser(t *testing.T) {
+	browser := personalRadioBrowser(t)
+	origin := httptest.NewServer(http.FileServer(http.FS(ui.Content)))
+	defer origin.Close()
+	page := browser.MustPage(origin.URL + "/desktop.html").Timeout(90 * time.Second)
+	defer page.Close()
+	page.MustWaitLoad()
+	source, err := ui.Content.ReadFile("js/desktop/apps/personal-radio-player.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := page.AddScriptTag("", string(source)); err != nil {
+		t.Fatal(err)
+	}
+	results := page.MustEval(`async()=>{
+ const results=[];
+ for(const extended of [false,true]) {
+  const rate=8000,segments=[{id:'music-in',asset_id:'music-in',kind:'music',duration_ms:32000},{id:'voice',asset_id:'voice',kind:'moderation',duration_ms:12000},{id:'music-out',asset_id:'music-out',kind:'music',duration_ms:10000}];
+  const ctx=new OfflineAudioContext(1,56*rate,rate),errors=[],events=[];
+  const player=new PersonalRadioPlayer({audio:async id=>{const segment=segments.find(s=>s.id===id),frames=segment.duration_ms*rate/1000,a=new ArrayBuffer(44+frames*2),v=new DataView(a),level=id==='voice'?10000:5000;
+   v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint16(34,16,true);v.setUint32(40,frames*2,true);
+   for(let i=44;i<a.byteLength;i+=2)v.setInt16(i,level,true);return a;},event:(id,kind)=>events.push(id+':'+kind),error:e=>errors.push(e.message),progress:()=>{}});
+  player.context=new Proxy(ctx,{get(target,key){if(key==='state')return 'running';const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});
+  player.master=ctx.createGain();player.master.connect(ctx.destination);player.running=true;
+  if(extended)player.moderationTransitions=2;
+  player.update(segments);await player.pump();
+  const [music,voice,next]=player.slots,overlap=music.start+music.duration-voice.start,returnOverlap=voice.start+voice.duration-next.start;
+  let onAir='';const checkpoints=[voice.start+.5,next.start+.2,voice.start+voice.duration+.2];
+  const sample=(samples,second)=>samples[Math.round(second*rate)];
+  const drive=async index=>{await ctx.suspend(checkpoints[index]);await player.pump();if(index===0)onAir=player.position().current;if(index+1<checkpoints.length)drive(index+1);await ctx.resume();};drive(0);
+  const audio=await ctx.startRendering();
+  const samples=audio.getChannelData(0),around=[];
+  for(let second of [voice.start-.2,voice.start,voice.start+.2,next.start-.2,next.start,next.start+.2,voice.start+voice.duration+.1])around.push(sample(samples,second));
+  results.push({extended,overlap,returnOverlap,onAir,underVoice:sample(samples,voice.start+2),around,errors,events});player.reset();
+ }
+ return results;
+ }`)
+	items := results.Arr()
+	if len(items) != 2 {
+		t.Fatal("missing mix renders", results.String())
+	}
+	normal, bed := items[0], items[1]
+	if normal.Get("overlap").Num() < 1 || normal.Get("overlap").Num() > 1.3 || bed.Get("overlap").Num() < 3.9 || bed.Get("overlap").Num() > 4.1 {
+		t.Fatal("moderation blend or occasional music bed timing", results.String())
+	}
+	for _, result := range items {
+		events := result.Get("events").Arr()
+		if result.Get("returnOverlap").Num() < 1.2 || result.Get("onAir").Str() != "voice" || result.Get("errors").String() != "[]" || len(events) != 3 || events[0].Str() != "music-in:started" || events[1].Str() != "voice:started" || events[2].Str() != "music-out:started" {
+			t.Fatal("voice/music transition state", result.String())
+		}
+		for _, sample := range result.Get("around").Arr() {
+			if sample.Num() < 0.01 {
+				t.Fatal("audio gap at speech boundary", result.String())
+			}
+		}
+	}
+	if normal.Get("underVoice").Num() < 0.30 || normal.Get("underVoice").Num() > 0.31 || bed.Get("underVoice").Num() < 0.315 || bed.Get("underVoice").Num() > 0.32 {
+		t.Fatal("music bed must remain quiet below intelligible speech", results.String())
 	}
 }

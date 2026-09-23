@@ -8,7 +8,7 @@
             this.slots = []; this.queue = []; this.generation = 0;
             this.loading = false; this.running = false; this.paused = false; this.completed = new Set();
             this.volume = 0.8; this.timer = null; this.abort = new AbortController();
-            this.primed = false;
+            this.primed = false; this.moderationTransitions = 0;
         }
         async unlock() {
             if (!this.context || this.context.state === 'closed') {
@@ -55,7 +55,7 @@
             slot.nodes.clear(); slot.buffers.clear(); slot.gain.disconnect();
         }
         reset(keepPrimed) {
-            if (!keepPrimed) this.primed = false;
+            if (!keepPrimed) { this.primed = false; this.moderationTransitions = 0; }
             this.generation++; this.running = false; this.paused = false;
             this.abort.abort(); this.abort = new AbortController();
             clearInterval(this.timer); this.timer = null;
@@ -64,8 +64,14 @@
         stop() { this.reset(); if (this.context) { this.context.close().catch(() => {}); this.context = null; } }
         position() {
             const now = this.context ? this.context.currentTime : 0;
-            const slot = this.slots.find(s => s.start != null && now >= s.start && now < s.start + s.duration);
-            return slot ? { current: slot.segment.id, position: Math.max(0, Math.round((now - slot.start) * 1000)), duration: slot.segment.duration_ms } : { current: '', position: 0, duration: 0 };
+            // During an overlap the newer segment owns the on-air title and heartbeat.
+            for (let i = this.slots.length - 1; i >= 0; i--) {
+                const slot = this.slots[i];
+                if (slot.start != null && now >= slot.start && now < slot.start + slot.duration) {
+                    return { current: slot.segment.id, position: Math.max(0, Math.round((now - slot.start) * 1000)), duration: slot.segment.duration_ms };
+                }
+            }
+            return { current: '', position: 0, duration: 0 };
         }
         pcm(data) {
             const view = new DataView(data);
@@ -101,6 +107,45 @@
                 slot.buffers.delete(offset);
             }
         }
+        transition(previous, upcoming) {
+            const fromMusic = previous.segment.kind === 'music', toMusic = upcoming.segment.kind === 'music';
+            const end = previous.start + previous.duration;
+            let overlap = 0;
+            if (fromMusic && toMusic) {
+                overlap = Math.min(2, previous.duration / 8, upcoming.duration / 8);
+            } else if (fromMusic) {
+                // Every third full moderation can carry the outgoing music quietly
+                // beneath its opening. News and short announcements use a short blend.
+                const longBed = upcoming.segment.kind === 'moderation' && upcoming.duration >= 8 && previous.duration >= 16 && ++this.moderationTransitions % 3 === 0;
+                overlap = Math.min(longBed ? 4.5 : 1.25, previous.duration / 8, upcoming.duration / (longBed ? 3 : 5));
+            } else if (toMusic) {
+                overlap = Math.min(1.4, previous.duration / 5, upcoming.duration / 8);
+            }
+            upcoming.start = end - overlap;
+            if (!overlap) {
+                upcoming.gain.gain.setValueAtTime(1, upcoming.start);
+                return;
+            }
+            if (fromMusic && toMusic) {
+                previous.gain.gain.setValueAtTime(1, upcoming.start);
+                previous.gain.gain.linearRampToValueAtTime(0, end);
+                upcoming.gain.gain.setValueAtTime(0, upcoming.start);
+                upcoming.gain.gain.linearRampToValueAtTime(1, end);
+            } else if (fromMusic) {
+                const fadeStart = Math.max(previous.start, upcoming.start - Math.min(0.65, overlap / 2));
+                previous.gain.gain.setValueAtTime(1, fadeStart);
+                previous.gain.gain.linearRampToValueAtTime(0.07, upcoming.start);
+                previous.gain.gain.setValueAtTime(0.07, Math.max(upcoming.start, end - Math.min(0.6, overlap / 2)));
+                previous.gain.gain.linearRampToValueAtTime(0, end);
+                upcoming.gain.gain.setValueAtTime(1, upcoming.start);
+            } else if (toMusic) {
+                previous.gain.gain.setValueAtTime(1, upcoming.start);
+                previous.gain.gain.linearRampToValueAtTime(0, end);
+                upcoming.gain.gain.setValueAtTime(0.12, upcoming.start);
+                upcoming.gain.gain.linearRampToValueAtTime(0.7, end);
+                upcoming.gain.gain.linearRampToValueAtTime(1, end + 0.45);
+            }
+        }
         async pump() {
             if (!this.running || this.paused || this.loading || !this.context || this.context.state !== 'running') return;
             this.loading = true;
@@ -108,12 +153,15 @@
             let work = null;
             try {
                 const now = this.context.currentTime;
-                for (const slot of this.slots) {
+                for (let index = 0; index < this.slots.length; index++) {
+                    const slot = this.slots[index];
                     if (slot.start != null && now >= slot.start && !slot.started) {
                         slot.started = true; this.deps.event(slot.segment.id, 'started');
                     }
                     if (slot.start != null && now >= slot.start + slot.duration && !slot.ended) {
-                        slot.ended = true; this.completed.add(slot.segment.id); this.deps.event(slot.segment.id, 'ended');
+                        slot.ended = true; this.completed.add(slot.segment.id);
+                        // A successor's real start already advanced the server queue.
+                        if (!this.slots.some((later, i) => i > index && later.started)) this.deps.event(slot.segment.id, 'ended');
                         if (this.completed.size > 128) this.completed.delete(this.completed.values().next().value);
                     }
                 }
@@ -157,12 +205,7 @@
                             if (!following || !following.buffers.size) break;
                             this.primed = true;
                         }
-                        const overlap = previous.segment.kind === 'music' && upcoming.segment.kind === 'music' ? Math.min(2, previous.duration / 8, upcoming.duration / 8) : 0;
-                        upcoming.start = previous.start + previous.duration - overlap;
-                        previous.gain.gain.setValueAtTime(1, Math.max(this.context.currentTime, upcoming.start));
-                        previous.gain.gain.linearRampToValueAtTime(0, previous.start + previous.duration);
-                        upcoming.gain.gain.setValueAtTime(overlap ? 0 : 1, upcoming.start);
-                        if (overlap) upcoming.gain.gain.linearRampToValueAtTime(1, upcoming.start + overlap);
+                        this.transition(previous, upcoming);
                     }
                     work = upcoming; this.schedule(upcoming);
                 }

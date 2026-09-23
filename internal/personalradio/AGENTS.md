@@ -54,8 +54,10 @@ User documentation: `documentation/personal-radio.md`.
 - The browser fetches bounded sample-aligned WAV windows and schedules two
   music segments plus intervening speech on one Web Audio clock. Initial
   music playback requires a prepared next segment, including after an opening.
-  The one opening may play alone. Music crossfades; other speech uses a
-  title boundary. Server queue updates
+  The one opening may play alone. Music crossfades; speech and music overlap
+  briefly with music ducked beneath speech. Every third eligible moderation
+  may carry the outgoing music quietly beneath its opening for up to 4.5 seconds;
+  the newer segment owns the browser's on-air position during overlaps. Server queue updates
   cannot revive cancelled browser work. Explicitly retain the desktop runtime
   when disposing a window and restore other media handlers after stopping.
 

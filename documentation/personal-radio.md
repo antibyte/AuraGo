@@ -107,7 +107,12 @@ programme. Soft mode relaxes cooldowns when necessary and shows that condition.
 It never repeats a track immediately or selects a blocked track. Strict mode
 waits when its rules cannot be met. Paused news is checked again before resume.
 
-Music uses a crossfade of up to two seconds. Speech starts at a track boundary.
+Music uses a crossfade of up to two seconds. Music fades down into moderation
+and news, and music returns underneath the end of speech before rising to full
+level. Every third sufficiently long moderation can carry the outgoing track
+quietly for up to 4.5 seconds beneath its opening; short speech and news use a
+shorter blend. The spoken segment takes over the current-title and playback
+position as soon as it begins.
 Two music segments plus intervening speech are reserved. Thirty-second PCM
 windows and 90 seconds of lookahead per segment bound browser
 audio memory (roughly 140 MiB at the maximum input rate/channels, plus transport

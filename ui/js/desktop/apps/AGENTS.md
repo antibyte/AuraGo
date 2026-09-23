@@ -21,9 +21,14 @@
   initial music playback. A typed opening may play alone before `music_ready`,
   without priming/bypassing music preparation. Fence asynchronous work by generation and server epoch.
   Never claim airtime from a server timer. Expired speech must not resume.
+- Blend music into and out of speech on that clock. Keep speech clear above the
+  ducked music; every third eligible moderation may retain a quiet outgoing music
+  bed for up to 4.5 seconds. During overlaps, the newer segment owns the title
+  and playback position.
 - Keep Standard/Fruity tokens, reduced motion and all 16 locale dictionaries.
   The original Radio app, Noisemaker and Webamp retain their own lifecycles.
-- Verify `TestPersonalRadioBrowser`, `TestPersonalRadioAudioContinuityBrowser`
+- Verify `TestPersonalRadioBrowser`, `TestPersonalRadioAudioContinuityBrowser`,
+  `TestPersonalRadioVoiceMixBrowser`
   and `TestPersonalRadioTranslations`. Backend: `internal/personalradio/AGENTS.md`.
 
 ## RTL-SDR
