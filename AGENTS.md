@@ -335,7 +335,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ### Release Process
 1. `./make_deploy.sh` builds cross-platform artifacts; by default it may commit/push `main` (`--no-publish` suppresses that). It does not create a tag or GitHub Release.
 2. On Windows, `make_release.bat` or `make_release.ps1` builds cross-platform artifacts, commits/pushes as needed, creates a versioned GitHub Release with binaries, and cleans up older releases while keeping the latest three.
-3. A pushed `v*` tag triggers `docker-publish.yml`; a push to `main` alone does not.
+3. Release builders pin `GOTOOLCHAIN=go1.26.6`; verify the selected compiler before publishing even when a newer system Go is installed.
+4. A pushed `v*` tag triggers `docker-publish.yml`; a push to `main` alone does not.
 
 ## Agent Rules & Guidelines
 

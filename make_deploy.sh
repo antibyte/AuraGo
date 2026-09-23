@@ -20,6 +20,8 @@
 #
 set -euo pipefail
 cd "$(dirname "$0")"
+# Go 1.27.0 breaks tsnet startup on the deployed host.
+export GOTOOLCHAIN=go1.26.6
 
 DEPLOY_DIR="./deploy"
 RESOURCES="resources.dat"
