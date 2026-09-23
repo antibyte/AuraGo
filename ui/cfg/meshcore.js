@@ -95,7 +95,7 @@ function renderMeshCoreSection(section) {
     }
     function lockActions() {
         if (!root.isConnected) { document.removeEventListener('cfg:statechange', lockActions); window.removeEventListener('aurago:config-saved', saved); return; }
-        const dirty = window.AuraConfigState.isDirty();
+        const dirty = window.AuraConfigState.isDirty() || configSaveInFlight;
         const reason = root.querySelector('#meshcore-saved-reason');
         reason.textContent = dirty ? tr('save_first') : '';
         reason.hidden = !dirty;
@@ -108,6 +108,10 @@ function renderMeshCoreSection(section) {
         root.querySelectorAll('[data-mesh-action="select_device"]').forEach(button => {
             button.disabled = busy;
             button.setAttribute('aria-pressed', String(draft().transport === 'ble' && draft().address === button.dataset.address));
+        });
+        root.querySelectorAll('[data-mesh-channel-remove="device"]').forEach(button => {
+            button.disabled = busy || dirty || runtime?.status.state !== 'connected'
+                || runtime.config.identity_key !== runtime.status.identity_key || !button.dataset.binding;
         });
     }
     async function scanDevices() {
@@ -141,9 +145,53 @@ function renderMeshCoreSection(section) {
         const timeout = setTimeout(() => controller.abort(), 25000);
         try {
             const response = await fetch('/api/meshcore/' + action, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, signal: controller.signal });
-            if (!response.ok) throw new Error('meshcore_request_failed');
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(typeof error.error === 'string' ? error.error : 'meshcore_request_failed');
+            }
             return await response.json();
         } finally { clearTimeout(timeout); }
+    }
+    async function removeDeviceChannel(channel) {
+        if (busy || window.AuraConfigState.isDirty() || configSaveInFlight) { status.textContent = tr('save_first'); return; }
+        if (runtime?.status.state !== 'connected' || runtime.config.identity_key !== runtime.status.identity_key || !channel.binding) {
+            status.textContent = tr('binding_required'); return;
+        }
+        const confirmed = await showModal(tr('channels'), tr('remove_channel_confirm').replace('{name}', channel.name), true,
+            { confirmText: tr('remove_channel') });
+        if (!confirmed || !root.isConnected) return;
+        if (window.AuraConfigState.isDirty() || configSaveInFlight) { status.textContent = tr('save_first'); return; }
+        busy = true;
+        status.textContent = t('config.common.loading');
+        status.setAttribute('aria-busy', 'true');
+        lockActions();
+        try {
+            const bootstrap = await request('messenger/bootstrap');
+            const current = bootstrap.status;
+            const conversation = (bootstrap.conversations || []).find(item => item.kind === 'channel' && item.active === true
+                && item.identity_key === current.identity_key && item.channel === channel.index && item.target === channel.binding);
+            if (current.state !== 'connected' || current.identity_key !== runtime.status.identity_key
+                || !conversation || !(current.channels || []).some(item => item.index === channel.index && item.binding === channel.binding)) {
+                throw new Error('binding_required');
+            }
+            await request('messenger/manage', { action: 'channel_remove', identity: current.identity_key, conversation: conversation.id });
+            const fresh = await request('status').catch(() => null);
+            runtime = fresh || {
+                ...runtime,
+                status: { ...runtime.status, channels: (runtime.status.channels || []).filter(item => item.index !== channel.index) },
+                config: { ...runtime.config, channels: (runtime.config.channels || []).filter(rule => rule.index !== channel.index) }
+            };
+            configData.meshcore = runtime.config;
+            window.AuraConfigState.markSaved('meshcore', configData.meshcore);
+            renderRuntime();
+            resetDirtySnapshot();
+            status.textContent = tr('success');
+        } catch (error) {
+            const fresh = await request('status').catch(() => null);
+            if (fresh) { runtime = fresh; renderRuntime(); }
+            status.textContent = tr(error.message === 'outcome_unknown' ? 'outcome_unknown'
+                : ['binding_required', 'invalid_target'].includes(error.message) ? 'binding_required' : 'failed');
+        } finally { busy = false; status.setAttribute('aria-busy', 'false'); lockActions(); }
     }
     function renderRuntime() {
         if (!root.isConnected || !runtime) return;
@@ -157,6 +205,7 @@ function renderMeshCoreSection(section) {
         const available = st.channels || [];
         const orphaned = (draft().channels || []).filter(rule => !available.some(channel => channel.index === rule.index));
         for (const channel of [...available, ...orphaned.map(rule => ({ index: rule.index, name: tr('binding_changed') }))]) {
+            const onDevice = available.some(item => item.index === channel.index);
             const rule = (draft().channels || []).find(r => r.index === channel.index) || { index: channel.index, mode: 'receive', prefix: '!aura' };
             const row = document.createElement('div');
             row.className = 'field-group meshcore-channel';
@@ -172,8 +221,15 @@ function renderMeshCoreSection(section) {
             }
             bind.disabled = !channel.binding;
             bind.addEventListener('click', () => { update({ binding: channel.binding }); binding.textContent = tr('bound'); });
-            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn-secondary'; remove.textContent = t('config.common.delete');
-            remove.addEventListener('click', () => { set('channels', (draft().channels || []).filter(rule => rule.index !== channel.index)); renderRuntime(); });
+            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn-secondary';
+            remove.textContent = tr(onDevice ? 'remove_channel' : 'remove_rule');
+            if (onDevice) {
+                remove.dataset.meshChannelRemove = 'device';
+                remove.dataset.binding = channel.binding || '';
+                remove.addEventListener('click', () => removeDeviceChannel(channel));
+            } else {
+                remove.addEventListener('click', () => { set('channels', (draft().channels || []).filter(rule => rule.index !== channel.index)); renderRuntime(); });
+            }
             const select = document.createElement('select'); select.className = 'field-select'; select.setAttribute('aria-label', tr('mode'));
             for (const value of ['receive', 'prefix', 'questions']) { const option = document.createElement('option'); option.value = value; option.textContent = tr(value); select.append(option); }
             select.value = rule.mode;

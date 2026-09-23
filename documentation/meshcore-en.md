@@ -54,6 +54,13 @@ require **Confirm channel assignment** and **Save** once. Existing histories
 remain available; permissions are never automatically transferred to a different
 channel binding.
 
+In **Settings → MeshCore → Channels**, **Remove channel from device** asks for
+confirmation, removes the channel from the connected Companion, and also removes
+its saved agent permissions. Save other pending Config changes first. If a saved
+rule no longer has a matching device channel, **Remove rule** changes only the
+Config draft; use **Save** to persist that cleanup. An uncertain device edit
+keeps the channel locked until its mapping is reconciled.
+
 On Linux, the one-line installer, `install_service_linux.sh`, and `update.sh`
 automatically grant the systemd service USB access through existing `dialout`/
 `uucp` groups. Permissions take effect when the service starts, without a new

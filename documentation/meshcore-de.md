@@ -60,6 +60,14 @@ Zuordnungen einmalig **Kanalzuordnung bestätigen** und **Speichern** nötig sei
 Alte Verläufe bleiben erhalten; Berechtigungen werden nicht automatisch auf eine
 abweichende Kanalbindung übertragen.
 
+Unter **Einstellungen → MeshCore → Kanäle** entfernt **Kanal vom Gerät entfernen**
+den Kanal nach einer Bestätigung vom verbundenen Companion und löscht auch seine
+gespeicherten Agentenrechte. Speichere andere ausstehende Config-Änderungen zuvor.
+Wenn zu einer gespeicherten Regel kein Gerätekanal mehr existiert, entfernt
+**Regel entfernen** nur die Regel aus dem Entwurf; **Speichern** übernimmt diese
+Bereinigung. Bei unklarem Geräteausgang bleibt der Kanal bis zum erneuten Abgleich
+gesperrt.
+
 Unter Linux richten der One-Liner-Installer, `install_service_linux.sh` und
 `update.sh` den USB-Zugriff für den systemd-Dienst automatisch über vorhandene
 `dialout`-/`uucp`-Gruppen ein. Die Berechtigung gilt ab dem Dienststart; eine

@@ -215,3 +215,96 @@ func TestConfigMeshCoreBrowser(t *testing.T) {
 	page.MustEval(`() => document.querySelector('[data-path="meshcore.additional_prompt"]').scrollIntoView({block:'center'})`)
 	capture("meshcore-agent-instructions.png")
 }
+
+func TestConfigMeshCoreRemoveChannelBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#overview")
+	page = page.Timeout(30 * time.Second)
+	page.MustWaitLoad()
+	defer func() {
+		_, _ = page.Eval(`() => window.removeEventListener('beforeunload', handleConfigBeforeUnload)`)
+		_ = page.Close()
+	}()
+	waitForJSBool(t, page, `() => !!document.querySelector('.pw-overview-card')`)
+	page.MustEval(`() => {
+        const original = window.fetch;
+        const identity = '11'.repeat(32), binding = '33'.repeat(32);
+        window.meshRemoveRequests = [];
+        window.meshRemoveFixture = {
+            settings: {...configData.meshcore, enabled:true, identity_key:identity,
+                channels:[{index:0, binding, mode:'receive', prefix:'!aura'}]},
+            state: {state:'connected', identity_key:identity, name:'Companion', firmware:'fixture',
+                channels:[{index:0, name:'#bot', binding}], contacts:[]},
+            fail:false, stale:false
+        };
+        configData.meshcore = structuredClone(meshRemoveFixture.settings);
+        AuraConfigState.init(configData);
+        window.fetch = async (url, options={}) => {
+            if (!String(url).startsWith('/api/meshcore/')) return original(url, options);
+            const action = String(url).replace('/api/meshcore/', '');
+            meshRemoveRequests.push({action, body:options.body ? JSON.parse(options.body) : null});
+            const fixture = meshRemoveFixture;
+            let body = {};
+            if (action === 'status') body = {status:structuredClone(fixture.state), config:structuredClone(fixture.settings), ble_supported:false};
+            if (action === 'devices') body = {ports:['COM3']};
+            if (action.startsWith('messages?')) body = {messages:[], has_more:false, max_messages:100};
+            if (action === 'messenger/bootstrap') body = {status:structuredClone(fixture.state), conversations:[{
+                id:'44'.repeat(32), identity_key:identity, kind:'channel', channel:0,
+                target:binding, active:!fixture.stale
+            }]};
+            if (action === 'messenger/manage') {
+                if (fixture.fail) return new Response(JSON.stringify({error:'outcome_unknown'}), {status:409, headers:{'Content-Type':'application/json'}});
+                fixture.state.channels = [];
+                fixture.settings.channels = [];
+                body = {ok:true};
+            }
+            return new Response(JSON.stringify(body), {status:200, headers:{'Content-Type':'application/json'}});
+        };
+    }`)
+	page.MustEval(`async () => { await selectSection('meshcore'); resetDirtySnapshot(); }`)
+	waitForJSBool(t, page, `() => !!document.querySelector('[data-mesh-channel-remove="device"]')`)
+	page.MustElement(`[data-mesh-channel-remove="device"]`).MustClick()
+	waitForJSBool(t, page, `() => document.querySelector('#shared-modal-overlay')?.classList.contains('active') === true`)
+	if !page.MustEval(`() => document.querySelector('#shared-modal-message').textContent.includes('#bot')`).Bool() {
+		t.Fatal("device-channel removal confirmation did not name the channel")
+	}
+	page.MustElement(`#shared-modal-cancel`).MustClick()
+	if !page.MustEval(`() => document.querySelectorAll('.meshcore-channel').length === 1 && !meshRemoveRequests.some(r => r.action === 'messenger/manage')`).Bool() {
+		t.Fatal("cancelled channel removal changed the device")
+	}
+	page.MustEval(`() => { const field = document.querySelector('[data-path="meshcore.additional_prompt"]'); field.value = 'unsaved'; field.dispatchEvent(new Event('input', {bubbles:true})); }`)
+	if !page.MustEval(`() => document.querySelector('[data-mesh-channel-remove="device"]').disabled && !meshRemoveRequests.some(r => r.action === 'messenger/manage')`).Bool() {
+		t.Fatalf("device-channel removal allowed an unsaved config draft: %s", page.MustEval(`() => JSON.stringify({dirty:AuraConfigState.isDirty(),disabled:document.querySelector('[data-mesh-channel-remove="device"]').disabled,requests:meshRemoveRequests})`).Str())
+	}
+	page.MustEval(`() => { const field = document.querySelector('[data-path="meshcore.additional_prompt"]'); field.value = meshRemoveFixture.settings.additional_prompt || ''; field.dispatchEvent(new Event('input', {bubbles:true})); }`)
+	page.MustEval(`() => meshRemoveFixture.stale = true`)
+	page.MustElement(`[data-mesh-channel-remove="device"]`).MustClick()
+	page.MustElement(`#shared-modal-confirm`).MustClick()
+	waitForJSBool(t, page, `() => meshRemoveRequests.some(r => r.action === 'messenger/bootstrap') && document.querySelector('#meshcore-status').textContent.includes(t('config.meshcore.binding_required'))`)
+	if page.MustEval(`() => meshRemoveRequests.some(r => r.action === 'messenger/manage')`).Bool() {
+		t.Fatal("stale channel conversation reached device mutation")
+	}
+	page.MustEval(`() => { meshRemoveFixture.stale = false; meshRemoveFixture.fail = true; }`)
+	page.MustElement(`[data-mesh-channel-remove="device"]`).MustClick()
+	page.MustElement(`#shared-modal-confirm`).MustClick()
+	waitForJSBool(t, page, `() => meshRemoveRequests.some(r => r.action === 'messenger/manage') && document.querySelector('#meshcore-status').textContent.includes(t('config.meshcore.outcome_unknown'))`)
+	if !page.MustEval(`() => document.querySelectorAll('.meshcore-channel').length === 1 && AuraConfigState.get('meshcore.channels').length === 1`).Bool() {
+		t.Fatal("failed device mutation erased the local channel")
+	}
+	page.MustEval(`() => meshRemoveFixture.fail = false`)
+	page.MustElement(`[data-mesh-channel-remove="device"]`).MustClick()
+	page.MustElement(`#shared-modal-confirm`).MustClick()
+	waitForJSBool(t, page, `() => document.querySelectorAll('.meshcore-channel').length === 0 && meshRemoveRequests.filter(r => r.action === 'messenger/manage').length === 2`)
+	if !page.MustEval(`() => {
+        const call = meshRemoveRequests.filter(r => r.action === 'messenger/manage').at(-1);
+        return call.body.action === 'channel_remove' && call.body.identity === '11'.repeat(32) &&
+            call.body.conversation === '44'.repeat(32) && !AuraConfigState.isDirty() &&
+            AuraConfigState.get('meshcore.channels').length === 0 &&
+            AuraConfigState.get('meshcore.channels', {saved:true}).length === 0 &&
+            configData.meshcore.channels.length === 0 &&
+            document.querySelector('#meshcore-status').getAttribute('aria-busy') === 'false';
+    }`).Bool() {
+		t.Fatal("confirmed channel removal did not synchronize device and saved config state")
+	}
+}
