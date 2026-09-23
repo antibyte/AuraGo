@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -542,6 +543,44 @@ func TestOverlaySpeechLabGPUEnvironment(t *testing.T) {
 	}
 	if _, err := overlaySpeechLabGPUEnvironment(nil, "amd"); err == nil {
 		t.Fatal("unsupported GPU backend was accepted by the environment overlay")
+	}
+}
+
+func TestSpeechLabGatewayHardwareEnvironment(t *testing.T) {
+	base := []string{"KEEP=1", "S2S_LAB_ACCELERATORS=stale", "S2S_LAB_GPU_VENDOR=stale"}
+	for _, tc := range []struct {
+		name, backend, vendor string
+		host                  map[string]any
+		want                  []string
+	}{
+		{"vulkan AMD", config.SpeechLabGPUBackendVulkan, "amd", map[string]any{}, []string{"KEEP=1", "S2S_LAB_ACCELERATORS=vulkan", "S2S_LAB_GPU_VENDOR=amd"}},
+		{"auto Intel Vulkan", config.SpeechLabGPUBackendAuto, "intel", map[string]any{}, []string{"KEEP=1", "S2S_LAB_ACCELERATORS=vulkan", "S2S_LAB_GPU_VENDOR=intel"}},
+		{"CUDA", config.SpeechLabGPUBackendCUDA, "", map[string]any{}, []string{"KEEP=1", "S2S_LAB_ACCELERATORS=cuda", "S2S_LAB_GPU_VENDOR=nvidia"}},
+		{"auto CPU fallback", config.SpeechLabGPUBackendAuto, "amd", nil, []string{"KEEP=1"}},
+		{"unknown Vulkan vendor", config.SpeechLabGPUBackendVulkan, "", map[string]any{}, []string{"KEEP=1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := speechLabGatewayHardwareEnvironment(base, tc.backend, tc.host, tc.vendor)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("gateway environment = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSpeechLabHostDRMVendor(t *testing.T) {
+	root := t.TempDir()
+	for device, value := range map[string]string{"renderD128": "0x1002\n", "renderD129": "0x8086\n"} {
+		path := filepath.Join(root, device, "device")
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "vendor"), []byte(value), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := speechLabHostDRMVendor(filepath.Join(root, "renderD*", "device", "vendor")); got != "amd" {
+		t.Fatalf("detected DRM vendor = %q, want amd", got)
 	}
 }
 

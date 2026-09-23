@@ -1500,7 +1500,8 @@ func controllerPolicy(manifest BundleManifest) (string, error) {
 const speechLabGPUGroupIDsEnv = "AURAGO_GPU_GROUP_IDS"
 
 func speechLabDeploymentFingerprint(manifestDigest, gpuBackend string) string {
-	input := manifestDigest + "\x00" + config.NormalizeSpeechLabGPUBackend(gpuBackend)
+	// Recreate existing gateways once so their catalog sees the host GPU profile.
+	input := manifestDigest + "\x00" + config.NormalizeSpeechLabGPUBackend(gpuBackend) + "\x00gateway-hardware-v2"
 	sum := sha256.Sum256([]byte(input))
 	return hex.EncodeToString(sum[:])
 }
@@ -1539,6 +1540,45 @@ func overlaySpeechLabGPUEnvironment(environment []string, gpuBackend string) ([]
 		result = append(result, "GGML_BACKEND=CPU")
 	}
 	return result, nil
+}
+
+func speechLabGatewayHardwareEnvironment(environment []string, gpuBackend string, gpuHostConfig map[string]any, drmVendor string) []string {
+	result := make([]string, 0, len(environment)+2)
+	for _, entry := range environment {
+		key := strings.TrimSpace(strings.SplitN(entry, "=", 2)[0])
+		if key != "S2S_LAB_ACCELERATORS" && key != "S2S_LAB_GPU_VENDOR" {
+			result = append(result, entry)
+		}
+	}
+	switch speechLabActiveGPUBackend(gpuBackend, gpuHostConfig) {
+	case config.SpeechLabGPUBackendCUDA:
+		return append(result, "S2S_LAB_ACCELERATORS=cuda", "S2S_LAB_GPU_VENDOR=nvidia")
+	case config.SpeechLabGPUBackendVulkan, config.SpeechLabGPUBackendAuto:
+		if drmVendor == "amd" || drmVendor == "intel" {
+			return append(result, "S2S_LAB_ACCELERATORS=vulkan", "S2S_LAB_GPU_VENDOR="+drmVendor)
+		}
+	}
+	return result
+}
+
+func speechLabHostDRMVendor(pattern string) string {
+	paths, err := filepath.Glob(pattern)
+	if err != nil {
+		return ""
+	}
+	for _, path := range paths {
+		value, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(string(value))) {
+		case "0x1002":
+			return "amd"
+		case "0x8086":
+			return "intel"
+		}
+	}
+	return ""
 }
 
 func speechLabGPUHostConfig(gpuBackend string) (map[string]any, error) {
@@ -1822,6 +1862,7 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 			return nil, false, &Error{Code: "speech_lab_bundle_incompatible", Err: err}
 		}
 		if role == "gateway" {
+			environment = speechLabGatewayHardwareEnvironment(environment, op.cfg.Deployment.GPUBackend, gpuHostConfig, speechLabHostDRMVendor("/sys/class/drm/renderD*/device/vendor"))
 			environment = append(environment, "S2S_BUNDLE_VERSION="+manifest.BundleVersion)
 			if manifest.SchemaVersion == 2 {
 				environment = append(environment,
