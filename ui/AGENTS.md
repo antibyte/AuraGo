@@ -84,6 +84,14 @@ worker. Keep packaging, recovery and offline instructions in
   choices and the disabled option remain editable. Keep all `lang/config/tts/` locales
   aligned; verify with `TestTTSConfigSanoDefaultsBrowser`.
 
+- Speech Lab Config keeps a persistent live action status for refresh, deployment,
+  hardware profile saves, and stack activation. Deployment actions poll the status API
+  for their real phase while pending, use an indeterminate progress bar because the
+  deployer does not report download percentages, and report completion or failure.
+  Disable concurrent action controls. Removal uses `DELETE /api/speech-lab/deployment`.
+  Keep `lang/config/speech_lab/` aligned across all 16 locales and verify with
+  `TestConfigSpeechLabFeedbackBrowser`.
+
 - The Chat integrations drawer omits `boring_computers` from its webhost list.
   The shared webhosts API remains available to other consumers.
 

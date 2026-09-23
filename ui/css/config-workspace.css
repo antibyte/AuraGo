@@ -740,6 +740,18 @@
     box-shadow: none;
 }
 
+.pw-page[data-workspace-page="config"] .speech-lab-section #speech-lab-action-status progress {
+    display: block;
+    width: min(100%, 28rem);
+    height: 0.6rem;
+    margin-top: 0.7rem;
+    accent-color: var(--pw-accent);
+}
+
+.pw-page[data-workspace-page="config"] .speech-lab-section #speech-lab-action-status[hidden] {
+    display: none;
+}
+
 .pw-page[data-workspace-page="config"] .speech-lab-section .speech-lab-capability-details {
     display: grid;
     gap: 0.35rem;
