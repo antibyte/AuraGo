@@ -191,6 +191,7 @@ type fakeContainer struct {
 	Labels      map[string]string
 	Running     bool
 	Attached    bool
+	Aliases     []string
 	RestartName string
 }
 
@@ -201,25 +202,27 @@ type fakeResource struct {
 }
 
 type fakeDocker struct {
-	mu                sync.Mutex
-	server            *httptest.Server
-	manifest          []byte
-	manifestSignature []byte
-	manifestPublicKey ed25519.PublicKey
-	ready             bool
-	pullError         string
-	pullStarted       chan struct{}
-	releasePull       chan struct{}
-	startNotModified  bool
-	readyOnRollback   bool
-	nextID            int
-	containers        map[string]*fakeContainer
-	networks          map[string]*fakeResource
-	volumes           map[string]*fakeResource
-	pulls             int
-	pullImages        []string
-	creates           int
-	createPayloads    []map[string]any
+	mu                     sync.Mutex
+	server                 *httptest.Server
+	manifest               []byte
+	manifestSignature      []byte
+	manifestPublicKey      ed25519.PublicKey
+	ready                  bool
+	pullError              string
+	pullStarted            chan struct{}
+	releasePull            chan struct{}
+	startNotModified       bool
+	readyOnRollback        bool
+	nextID                 int
+	containers             map[string]*fakeContainer
+	networks               map[string]*fakeResource
+	volumes                map[string]*fakeResource
+	pulls                  int
+	pullImages             []string
+	creates                int
+	createPayloads         []map[string]any
+	rejectDuplicateConnect bool
+	networkConnects        int
 }
 
 func newFakeDocker(t *testing.T, manifest BundleManifest) *fakeDocker {
@@ -347,14 +350,26 @@ func (f *fakeDocker) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		if container := f.find(body.Container); container != nil {
 			container.Attached = false
+			container.Aliases = nil
 		}
 		w.WriteHeader(http.StatusOK)
 		return
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/connect"):
-		var body struct{ Container string }
+		var body struct {
+			Container      string
+			EndpointConfig struct {
+				Aliases []string
+			}
+		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		if container := f.find(body.Container); container != nil {
+			if f.rejectDuplicateConnect && container.Attached {
+				http.Error(w, `{"message":"endpoint with name already exists"}`, http.StatusForbidden)
+				return
+			}
 			container.Attached = true
+			container.Aliases = append([]string(nil), body.EndpointConfig.Aliases...)
+			f.networkConnects++
 		}
 		w.WriteHeader(http.StatusOK)
 		return
@@ -432,7 +447,7 @@ func (f *fakeDocker) serveContainer(w http.ResponseWriter, r *http.Request, path
 	case r.Method == http.MethodGet && strings.HasSuffix(path, "/json"):
 		networks := map[string]any{}
 		if container.Attached {
-			networks["aurago-speech-lab"] = map[string]any{}
+			networks["aurago-speech-lab"] = map[string]any{"Aliases": container.Aliases}
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"Id": container.ID, "Name": "/" + container.Name, "Config": map[string]any{"Image": container.Image, "Labels": container.Labels}, "State": map[string]any{"Running": container.Running}, "NetworkSettings": map[string]any{"Networks": networks}})
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/start"):
@@ -830,6 +845,59 @@ func TestRecoverPersistedTransactionRestoresBackup(t *testing.T) {
 	restored := fake.find("backup")
 	if restored == nil || restored.Name != "aurago-speech-lab-gateway" || !restored.Running || !restored.Attached {
 		t.Fatalf("backup was not restored: %#v", restored)
+	}
+}
+
+func TestRecoverTransactionRestoresNetworkAliases(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		current     []string
+		saved       []string
+		want        []string
+		wantConnect int
+	}{
+		{
+			name: "already restored legacy journal", current: []string{"s2s", "s2s-vulkan", "gateway"},
+			want: []string{"s2s", "s2s-vulkan", "gateway"},
+		},
+		{
+			name: "missing aliases in legacy journal", want: []string{"s2s", "s2s-vulkan", "gateway"}, wantConnect: 1,
+		},
+		{
+			name: "saved aliases survive rollback", saved: []string{"original-gateway"}, want: []string{"original-gateway"}, wantConnect: 1,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			manifest := validManifest()
+			fake := newFakeDocker(t, manifest)
+			fake.rejectDuplicateConnect = true
+			fake.addContainer(&fakeContainer{
+				ID: "backup", Name: "aurago-speech-lab-gateway", Image: manifest.Images.Gateway,
+				Labels:  dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", "old"),
+				Running: true, Attached: true, Aliases: test.current,
+			})
+			manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
+			manager.state = State{
+				SchemaVersion: 2, Mode: "managed", Managed: true, State: "error", NetworkID: "network-id",
+				Transaction: &DeploymentTransaction{
+					ID: "tx", Phase: "rollback_pending", PreviousState: "ready", PreviousNetworkID: "network-id",
+					PreviousContainerIDs: []string{"backup"}, ReadinessBaseURL: fake.server.URL,
+					Backups: []ContainerBackup{{ID: "backup", StableName: "aurago-speech-lab-gateway", NetworkName: manifest.Network, Aliases: test.saved, WasRunning: true, WasAttached: true}},
+				},
+			}
+			if err := manager.recoverTransaction(context.Background(), manager.operationSnapshot()); err != nil {
+				t.Fatalf("recoverTransaction() error = %v", err)
+			}
+			if state := manager.Status(); state.Transaction != nil || state.State != "ready" {
+				t.Fatalf("recovered state = %#v", state)
+			}
+			if got := fake.find("backup"); got == nil || !reflect.DeepEqual(got.Aliases, test.want) {
+				t.Fatalf("restored aliases = %#v, want %#v", got, test.want)
+			}
+			if fake.networkConnects != test.wantConnect {
+				t.Fatalf("network connects = %d, want %d", fake.networkConnects, test.wantConnect)
+			}
+		})
 	}
 }
 
