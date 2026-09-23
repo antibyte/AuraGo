@@ -66,6 +66,7 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		"deployment.requested_bundle || ''",
 		"speech_lab.deployment.gpu_backend",
 		"speechLabHardwareProfileField",
+		"config.speech_lab.hardware_cuda",
 		"speechLabApplyHardwareProfile",
 		"hardware_save_first",
 		"hardware_auto_fallback",

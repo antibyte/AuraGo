@@ -13,6 +13,7 @@ const (
 	DefaultManagedSpeechLabBaseURL = "http://127.0.0.1:8765"
 	DefaultSpeechLabTimeoutSeconds = 60
 	SpeechLabGPUBackendAuto        = "auto"
+	SpeechLabGPUBackendCUDA        = "cuda"
 	SpeechLabGPUBackendVulkan      = "vulkan"
 	SpeechLabGPUBackendCPU         = "cpu"
 )
@@ -114,10 +115,10 @@ func NormalizeSpeechLabGPUBackend(value string) string {
 
 func ValidateSpeechLabGPUBackend(value string) error {
 	switch NormalizeSpeechLabGPUBackend(value) {
-	case SpeechLabGPUBackendAuto, SpeechLabGPUBackendVulkan, SpeechLabGPUBackendCPU:
+	case SpeechLabGPUBackendAuto, SpeechLabGPUBackendCUDA, SpeechLabGPUBackendVulkan, SpeechLabGPUBackendCPU:
 		return nil
 	default:
-		return fmt.Errorf("speech_lab.deployment.gpu_backend must be auto, vulkan, or cpu")
+		return fmt.Errorf("speech_lab.deployment.gpu_backend must be auto, cuda, vulkan, or cpu")
 	}
 }
 

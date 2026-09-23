@@ -47,28 +47,31 @@ const (
 var speechLabManifestPublicKeyB64 = "zNBMSpDXLlcTLrkRYAkIt095X5FN2SsxGI8zWPbOxZI="
 
 type ImageSet struct {
-	Gateway       string `json:"gateway"`
-	Controller    string `json:"controller"`
-	ASR           string `json:"asr,omitempty"`
-	TTS           string `json:"tts,omitempty"`
-	LLM           string `json:"llm,omitempty"`
-	Whisper       string `json:"whisper,omitempty"`
-	ParakeetCPU   string `json:"parakeet_cpu,omitempty"`
-	ParakeetCUDA  string `json:"parakeet_cuda,omitempty"`
-	VoxtralCPU    string `json:"voxtral_cpu,omitempty"`
-	VoxtralCUDA   string `json:"voxtral_cuda,omitempty"`
-	QwenSYCLAOT   string `json:"qwen_sycl_aot,omitempty"`
-	QwenSYCLJIT   string `json:"qwen_sycl_jit,omitempty"`
-	QwenVulkan    string `json:"qwen_vulkan,omitempty"`
-	QwenCUDA      string `json:"qwen_cuda,omitempty"`
-	Kokoro        string `json:"kokoro,omitempty"`
-	VibeVoiceCPU  string `json:"vibevoice_cpu,omitempty"`
-	VibeVoiceCUDA string `json:"vibevoice_cuda,omitempty"`
-	HiggsCUDA     string `json:"higgs_cuda,omitempty"`
-	LlamaCPU      string `json:"llama_cpu,omitempty"`
-	LlamaCUDA     string `json:"llama_cuda,omitempty"`
-	Web           string `json:"web"`
-	ModelInit     string `json:"model_init"`
+	Gateway         string `json:"gateway"`
+	Controller      string `json:"controller"`
+	ASR             string `json:"asr,omitempty"`
+	TTS             string `json:"tts,omitempty"`
+	LLM             string `json:"llm,omitempty"`
+	Whisper         string `json:"whisper,omitempty"`
+	ConfuciusCPU    string `json:"confucius_cpu,omitempty"`
+	ConfuciusCUDA   string `json:"confucius_cuda,omitempty"`
+	ConfuciusVulkan string `json:"confucius_vulkan,omitempty"`
+	ParakeetCPU     string `json:"parakeet_cpu,omitempty"`
+	ParakeetCUDA    string `json:"parakeet_cuda,omitempty"`
+	VoxtralCPU      string `json:"voxtral_cpu,omitempty"`
+	VoxtralCUDA     string `json:"voxtral_cuda,omitempty"`
+	QwenSYCLAOT     string `json:"qwen_sycl_aot,omitempty"`
+	QwenSYCLJIT     string `json:"qwen_sycl_jit,omitempty"`
+	QwenVulkan      string `json:"qwen_vulkan,omitempty"`
+	QwenCUDA        string `json:"qwen_cuda,omitempty"`
+	Kokoro          string `json:"kokoro,omitempty"`
+	VibeVoiceCPU    string `json:"vibevoice_cpu,omitempty"`
+	VibeVoiceCUDA   string `json:"vibevoice_cuda,omitempty"`
+	HiggsCUDA       string `json:"higgs_cuda,omitempty"`
+	LlamaCPU        string `json:"llama_cpu,omitempty"`
+	LlamaCUDA       string `json:"llama_cuda,omitempty"`
+	Web             string `json:"web"`
+	ModelInit       string `json:"model_init"`
 }
 
 type BundleService struct {
@@ -486,6 +489,10 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 	gpuBackend := config.NormalizeSpeechLabGPUBackend(op.cfg.Deployment.GPUBackend)
 	gpuHostConfig, err := speechLabGPUHostConfig(gpuBackend)
 	if err != nil {
+		m.fail(err)
+		return err
+	}
+	if err := selectSpeechLabASRImage(&manifest, speechLabActiveGPUBackend(gpuBackend, gpuHostConfig)); err != nil {
 		m.fail(err)
 		return err
 	}
@@ -1193,10 +1200,35 @@ func serviceImages(manifest BundleManifest) []string {
 	return result
 }
 
+// selectSpeechLabASRImage binds the signed bundle's default ASR role to the
+// requested GPU profile. Older bundles without Confucius keep their ASR image.
+func selectSpeechLabASRImage(manifest *BundleManifest, activeBackend string) error {
+	for index := range manifest.Services {
+		service := &manifest.Services[index]
+		if service.Role != "asr" || service.Image != "confucius_cpu" {
+			continue
+		}
+		key := "confucius_cpu"
+		switch activeBackend {
+		case config.SpeechLabGPUBackendCUDA:
+			key = "confucius_cuda"
+		case config.SpeechLabGPUBackendVulkan, config.SpeechLabGPUBackendAuto:
+			key = "confucius_vulkan"
+		}
+		if imageByKey(manifest.Images, key) == "" {
+			return &Error{Code: "speech_lab_bundle_incompatible", Err: fmt.Errorf("bundle has no %s ASR image", key)}
+		}
+		service.Image = key
+		break
+	}
+	return nil
+}
+
 func imageValues(images ImageSet) []string {
 	return []string{
 		images.Gateway, images.Controller, images.ASR, images.TTS, images.LLM,
-		images.Whisper, images.ParakeetCPU, images.ParakeetCUDA, images.VoxtralCPU,
+		images.Whisper, images.ConfuciusCPU, images.ConfuciusCUDA, images.ConfuciusVulkan,
+		images.ParakeetCPU, images.ParakeetCUDA, images.VoxtralCPU,
 		images.VoxtralCUDA, images.QwenSYCLAOT, images.QwenSYCLJIT, images.QwenVulkan,
 		images.QwenCUDA, images.Kokoro, images.VibeVoiceCPU, images.VibeVoiceCUDA,
 		images.HiggsCUDA, images.LlamaCPU, images.LlamaCUDA, images.Web, images.ModelInit,
@@ -1226,6 +1258,12 @@ func imageByKey(images ImageSet, key string) string {
 		return images.LlamaCPU
 	case "whisper":
 		return images.Whisper
+	case "confucius_cpu":
+		return images.ConfuciusCPU
+	case "confucius_cuda":
+		return images.ConfuciusCUDA
+	case "confucius_vulkan":
+		return images.ConfuciusVulkan
 	case "parakeet_cpu":
 		return images.ParakeetCPU
 	case "parakeet_cuda":
@@ -1433,7 +1471,7 @@ func networkAliases(role string) []string {
 	case "web":
 		return []string{"s2s-web", "web"}
 	case "asr":
-		return []string{"whisper-tiny"}
+		return []string{"whisper-tiny", "confucius-asr"}
 	case "tts":
 		return []string{"supertonic"}
 	case "llm":
@@ -1471,6 +1509,8 @@ func speechLabActiveGPUBackend(gpuBackend string, hostConfig map[string]any) str
 		return config.SpeechLabGPUBackendCPU
 	case config.SpeechLabGPUBackendVulkan:
 		return config.SpeechLabGPUBackendVulkan
+	case config.SpeechLabGPUBackendCUDA:
+		return config.SpeechLabGPUBackendCUDA
 	default:
 		if hostConfig == nil {
 			return config.SpeechLabGPUBackendCPU
@@ -1506,6 +1546,9 @@ func speechLabGPUHostConfig(gpuBackend string) (map[string]any, error) {
 	}
 	if gpuBackend == config.SpeechLabGPUBackendCPU {
 		return nil, nil
+	}
+	if gpuBackend == config.SpeechLabGPUBackendCUDA {
+		return map[string]any{"DeviceRequests": []map[string]any{{"Driver": "nvidia", "Count": -1, "Capabilities": [][]string{{"gpu"}}}}}, nil
 	}
 	if runtime.GOOS != "linux" {
 		if gpuBackend == config.SpeechLabGPUBackendVulkan {

@@ -103,11 +103,12 @@ function speechLabField(path, value, type, labelKey, helpKey, extra) {
 
 function speechLabHardwareBackend(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    return ['auto', 'vulkan', 'cpu'].includes(normalized) ? normalized : 'auto';
+    return ['auto', 'cuda', 'vulkan', 'cpu'].includes(normalized) ? normalized : 'auto';
 }
 
 function speechLabHardwareLabel(value) {
     switch (speechLabHardwareBackend(value)) {
+    case 'cuda': return t('config.speech_lab.hardware_cuda');
     case 'vulkan': return t('config.speech_lab.hardware_vulkan');
     case 'cpu': return t('config.speech_lab.hardware_cpu');
     default: return t('config.speech_lab.hardware_auto');
@@ -118,6 +119,7 @@ function speechLabHardwareProfileField(selected, disabled) {
     const value = speechLabHardwareBackend(selected);
     const options = [
         ['auto', t('config.speech_lab.hardware_auto')],
+        ['cuda', t('config.speech_lab.hardware_cuda')],
         ['vulkan', t('config.speech_lab.hardware_vulkan')],
         ['cpu', t('config.speech_lab.hardware_cpu')]
     ].map(([option, label]) => '<option value="' + option + '"' + (option === value ? ' selected' : '') + '>' + escapeHtml(label) + '</option>').join('');

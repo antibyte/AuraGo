@@ -511,6 +511,7 @@ func TestOverlaySpeechLabGPUEnvironment(t *testing.T) {
 		want    []string
 	}{
 		{config.SpeechLabGPUBackendAuto, []string{"KEEP=1", "NO_EQUALS", "S2S_GPU=auto"}},
+		{config.SpeechLabGPUBackendCUDA, []string{"KEEP=1", "NO_EQUALS", "S2S_GPU=cuda"}},
 		{config.SpeechLabGPUBackendVulkan, []string{"KEEP=1", "NO_EQUALS", "S2S_GPU=vulkan"}},
 		{config.SpeechLabGPUBackendCPU, []string{"KEEP=1", "NO_EQUALS", "S2S_GPU=cpu", "GGML_BACKEND=CPU"}},
 	} {
@@ -535,7 +536,7 @@ func TestSpeechLabDeploymentFingerprintIncludesHardwareProfile(t *testing.T) {
 	if auto != speechLabDeploymentFingerprint(digest, " AUTO ") {
 		t.Fatal("GPU backend normalization changed the stable fingerprint")
 	}
-	for _, backend := range []string{config.SpeechLabGPUBackendVulkan, config.SpeechLabGPUBackendCPU} {
+	for _, backend := range []string{config.SpeechLabGPUBackendCUDA, config.SpeechLabGPUBackendVulkan, config.SpeechLabGPUBackendCPU} {
 		if auto == speechLabDeploymentFingerprint(digest, backend) {
 			t.Fatalf("fingerprint did not change for %s", backend)
 		}
@@ -551,6 +552,53 @@ func TestSpeechLabActiveGPUBackendReportsAutoCPUFallback(t *testing.T) {
 	}
 	if got := speechLabActiveGPUBackend(config.SpeechLabGPUBackendVulkan, map[string]any{}); got != config.SpeechLabGPUBackendVulkan {
 		t.Fatalf("vulkan active profile = %q", got)
+	}
+	if got := speechLabActiveGPUBackend(config.SpeechLabGPUBackendCUDA, map[string]any{}); got != config.SpeechLabGPUBackendCUDA {
+		t.Fatalf("cuda active profile = %q", got)
+	}
+}
+
+func TestSpeechLabConfuciusDefaultSelectsPublishedAcceleratorImage(t *testing.T) {
+	manifest := validManifest()
+	manifest.Images.ConfuciusCPU = "ghcr.io/antibyte/confucius-cpu@sha256:" + strings.Repeat("1", 64)
+	manifest.Images.ConfuciusCUDA = "ghcr.io/antibyte/confucius-cuda@sha256:" + strings.Repeat("2", 64)
+	manifest.Images.ConfuciusVulkan = "ghcr.io/antibyte/confucius-vulkan@sha256:" + strings.Repeat("3", 64)
+	manifest.Services = []BundleService{{Role: "asr", Image: "confucius_cpu"}}
+	for _, tc := range []struct{ backend, key string }{
+		{config.SpeechLabGPUBackendCPU, "confucius_cpu"},
+		{config.SpeechLabGPUBackendCUDA, "confucius_cuda"},
+		{config.SpeechLabGPUBackendVulkan, "confucius_vulkan"},
+		{config.SpeechLabGPUBackendAuto, "confucius_vulkan"},
+	} {
+		t.Run(tc.backend, func(t *testing.T) {
+			selected := manifest
+			selected.Services = append([]BundleService(nil), manifest.Services...)
+			if err := selectSpeechLabASRImage(&selected, tc.backend); err != nil {
+				t.Fatal(err)
+			}
+			if selected.Services[0].Image != tc.key || serviceImages(selected)[0] != imageByKey(selected.Images, tc.key) {
+				t.Fatalf("selected ASR = %+v, images = %v", selected.Services[0], serviceImages(selected))
+			}
+		})
+	}
+	old := validManifest()
+	if err := selectSpeechLabASRImage(&old, config.SpeechLabGPUBackendCUDA); err != nil || old.Services[0].Image != "gateway" {
+		t.Fatalf("older bundle changed: %+v, %v", old.Services[0], err)
+	}
+	manifest.Images.ConfuciusCUDA = ""
+	if err := selectSpeechLabASRImage(&manifest, config.SpeechLabGPUBackendCUDA); err == nil {
+		t.Fatal("missing CUDA image was accepted")
+	}
+}
+
+func TestSpeechLabCUDAHostConfigRequestsNvidiaGPU(t *testing.T) {
+	host, err := speechLabGPUHostConfig(config.SpeechLabGPUBackendCUDA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []map[string]any{{"Driver": "nvidia", "Count": -1, "Capabilities": [][]string{{"gpu"}}}}
+	if !reflect.DeepEqual(host["DeviceRequests"], want) {
+		t.Fatalf("CUDA device request = %#v", host["DeviceRequests"])
 	}
 }
 

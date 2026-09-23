@@ -133,7 +133,7 @@ func TestValidateSpeechLabConfig(t *testing.T) {
 }
 
 func TestSpeechLabGPUBackendValidation(t *testing.T) {
-	for _, value := range []string{SpeechLabGPUBackendAuto, SpeechLabGPUBackendVulkan, SpeechLabGPUBackendCPU, " Vulkan "} {
+	for _, value := range []string{SpeechLabGPUBackendAuto, SpeechLabGPUBackendCUDA, SpeechLabGPUBackendVulkan, SpeechLabGPUBackendCPU, " CUDA ", " Vulkan "} {
 		if err := ValidateSpeechLabGPUBackend(value); err != nil {
 			t.Fatalf("valid GPU backend %q rejected: %v", value, err)
 		}

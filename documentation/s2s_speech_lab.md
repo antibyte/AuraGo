@@ -13,7 +13,7 @@ speech_lab:
   deployment:
     mode: managed       # managed provisions the signed GHCR bundle; external keeps an existing stack
     bundle: stable
-    gpu_backend: auto   # auto, vulkan, or cpu; AMD uses auto/Vulkan when the host exposes the GPU
+    gpu_backend: auto   # auto, cuda, vulkan, or cpu
     auto_start: true
     auto_update: false
   language: de
@@ -28,7 +28,9 @@ speech_lab:
 
 `AURAGO_SPEECH_LAB_BASE_URL` overrides `base_url` at runtime without rewriting YAML. The configuration UI marks the URL as environment-managed. AuraGo automatically opens the Browser Lab on `http://<current AuraGo host>:8766`; users do not have to discover or enter that address. `advanced_ui_url` remains an expert-only YAML override for non-standard reverse proxies or port mappings.
 
-In managed mode, choose the hardware profile in **Media → Speech Lab**. `Auto` is the recommended choice for AMD and lets s2s select Vulkan; `Vulkan` forces that path; `CPU` is intended only for compatibility tests. AuraGo never accepts arbitrary backend environment variables. On Linux, managed Vulkan containers receive `/dev/dri` and validated numeric `render`/`video` group IDs when available. If the host does not expose a GPU, `Auto` may fall back to CPU and the runtime capability remains authoritative.
+In managed mode, choose the hardware profile in **Media → Speech Lab**. `Auto` uses Vulkan when `/dev/dri` is available and otherwise falls back to CPU. Choose `CUDA` for NVIDIA, `Vulkan` for AMD or Intel, and `CPU` for compatibility tests. AuraGo never accepts arbitrary backend environment variables. CUDA uses a Docker NVIDIA GPU request; on Linux, managed Vulkan containers receive `/dev/dri` and validated numeric `render`/`video` group IDs when available. The runtime capability remains authoritative.
+
+The signed bundle's default ASR is [Confucius4-R2T2 GGUF](https://huggingface.co/mradermacher/Confucius4-R2T2-GGUF), with pinned Q4_K_M model and Q8_0 audio projector in each CPU, CUDA, and Vulkan image. The gateway uses the OpenAI-compatible transcription endpoint and keeps the selected ASR backend visible in `/ready`. The model is subject to the NetEase model use license. Faster Whisper and other catalog ASR backends remain optional. The GPU profile selects the matching Confucius image before AuraGo pulls and starts the bundle; older signed bundles retain their original ASR service.
 
 External stacks are not changed by AuraGo. Set `S2S_GPU=auto` or `S2S_GPU=vulkan` in the s2s stack, remove `GGML_BACKEND=CPU`, and use the Linux GPU Compose overlay where applicable.
 
