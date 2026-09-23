@@ -62,6 +62,12 @@ if errorlevel 1 (
         if not errorlevel 1 call npm ci --no-audit --no-fund || exit /b 1
     )
     node scripts\build-codemirror.js || exit /b 1
+    git diff --quiet -- ui/js/vendor/codemirror-bundle.esm.js
+    if errorlevel 1 (
+        echo [ERROR] CodeMirror bundle differs from committed source.
+        exit /b 1
+    )
+    git add -- ui/js/vendor/codemirror-bundle.esm.js || exit /b 1
 )
 echo.
 
