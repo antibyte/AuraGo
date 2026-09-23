@@ -4,21 +4,21 @@
 
 ## Project Overview
 
-**AuraGo** is a fully autonomous AI agent written in Go, designed for home lab environments. It ships as a single portable binary with a version-bound external Web UI and has zero external dependencies for the core functionality.
+**AuraGo** is a Go agent for home labs. Its portable, CGO-free backend uses embedded SQLite; the full Web UI is a verified, version-bound external resource set. Optional integrations and runtimes have their own dependencies.
 
 ### Key Characteristics
 - **Single binary deployment** - Pure Go with embedded SQLite (no CGO)
 - **Portable backend** - Small recovery UI embedded; full UI in a verified local resource set
-- **Home lab focused** - Docker, Proxmox, Home Assistant, SSH device management, and 50+ integrations
+- **Home lab focused** - Docker, Proxmox, Home Assistant, SSH device management, and other integrations
 - **Multi-platform** - Linux, macOS, Windows (amd64, arm64)
-- **50+ built-in tools** - Shell, Python execution, file system, HTTP requests, cron, and many more
+- **Built-in tools** - Shell, Python execution, file system, HTTP requests, cron, and more
 
 ## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
 | Language | Go 1.26.6+ |
-| Web Framework | Standard library `net/http` with gorilla/mux patterns |
+| Web Framework | Standard library `net/http` |
 | Database | SQLite (modernc.org/sqlite - pure Go, no CGO) |
 | Vector DB | chromem-go (embedded) |
 | Frontend | Vanilla JavaScript SPA (external versioned resource set) |
@@ -39,77 +39,13 @@
 
 ## Project Structure
 
-```
-AuraGo/
-├── cmd/                          # Application entry points
-│   ├── aurago/                   # Main agent binary
-│   │   ├── main.go               # Entry point with full initialization (~860 lines)
-│   │   ├── platform_unix.go      # Unix-specific code
-│   │   └── platform_windows.go   # Windows-specific code
-│   ├── remote/                   # Remote execution agent
-│   └── config-merger/            # Configuration merging utility
-├── internal/                     # Private application code
-│   ├── agent/                    # Core agent loop, tool dispatch, co-agents (30 files)
-│   ├── budget/                   # Token cost tracking
-│   ├── commands/                 # Slash commands (/reset, /budget, etc.)
-│   ├── config/                   # YAML config parsing & defaults
-│   ├── contacts/                 # Address book / contacts management
-│   ├── discord/                  # Discord bot integration
-│   ├── fritzbox/                 # Fritz!Box TR-064 integration
-│   ├── invasion/                 # Invasion Control (egg/nest distributed system)
-│   ├── inventory/                # SSH device inventory (SQLite)
-│   ├── llm/                      # LLM client, failover, retry, pricing
-│   ├── logger/                   # Structured logging setup
-│   ├── media/                    # Media file handling
-│   ├── memory/                   # STM, LTM, knowledge graph, personality
-│   ├── meshcentral/              # MeshCentral remote desktop integration
-│   ├── mqtt/                     # MQTT client integration
-│   ├── prompts/                  # Dynamic system prompt builder
-│   ├── remote/                   # SSH remote execution and protocol
-│   ├── rocketchat/               # Rocket.Chat bot integration
-│   ├── sandbox/                  # Sandboxed execution (Landlock on Linux)
-│   ├── scraper/                  # Web scraping utilities
-│   ├── security/                 # AES-GCM vault & token manager, LLM Guardian
-│   ├── server/                   # HTTP/HTTPS server, REST handlers (60+ files)
-│   ├── services/                 # Background services (indexer, ingestion)
-│   ├── setup/                    # First-time setup wizard
-│   ├── sqlconnections/           # External SQL database connections
-│   ├── telegram/                 # Telegram bot (text, voice, vision)
-│   ├── telnyx/                   # Telnyx SMS/voice integration
-│   ├── tools/                    # All tool implementations (90+ files)
-│   ├── tsnetnode/                # Tailscale tsnet embedded node
-│   └── webhooks/                 # Incoming & outgoing webhooks
-├── agent_workspace/              # Runtime workspace
-│   ├── skills/                   # Pre-built Python skills
-│   ├── tools/                    # Agent-created tools + manifest
-│   └── workdir/                  # Sandboxed execution directory (venv)
-├── prompts/                      # System prompt markdown files
-│   ├── identity.md               # Core identity prompt
-│   ├── rules.md                  # Agent behavior rules
-│   ├── personalities/            # Personality profiles
-│   ├── templates/                # Prompt templates
-│   └── tools_manuals/            # Tool documentation for RAG
-├── ui/                           # Web UI sources (external resource set)
-│   ├── *.html                    # Page templates (index.html, config.html, etc.)
-│   ├── css/                      # Stylesheets
-│   ├── js/                       # JavaScript modules
-│   ├── lang/                     # i18n translations (15 languages)
-│   └── embed.go                  # Source fixture access for frontend tests
-├── data/                         # Runtime data (databases, vault, state)
-├── documentation/                # Detailed setup guides
-├── bin/                          # Compiled binaries (git-ignored)
-├── deploy/                       # Deployment artifacts (git-ignored)
-├── reports/                      # Analysis reports (git-ignored, do not commit)
-├── config.yaml                   # Main configuration file
-├── config_template.yaml          # Configuration template (~600 lines)
-├── Dockerfile                    # Multi-stage build
-├── docker-compose.yml            # Docker Compose setup with sidecars
-├── Dockerfile.ansible            # Ansible sidecar image
-├── install.sh                    # Quick installer script
-├── update.sh                     # Self-update script
-├── make_deploy.sh                # Build script for Linux/macOS
-└── make_release.bat              # Build script for Windows
-```
+- `cmd/aurago` starts the agent (`main.go`, `platform_unix.go`, `platform_windows.go`); `cmd/remote`, `cmd/config-merger`, and `cmd/assetpack` provide remote execution, config merging, and Web UI packaging.
+- `internal/` core: `agent` (loop/dispatch/co-agents), `budget` (token cost), `commands` (slash commands), `config` (YAML/defaults), `llm` (client/failover/retry/pricing), `logger` (structured logs), `media` (files), `memory` (STM/LTM/KG/personality), `prompts` (dynamic prompts), `security` (vault/tokens/Guardian), `server` (HTTP/API), `services` (indexing/ingestion), `setup` (first run), and `tools` (implementations).
+- `internal/` integrations: `contacts` (address book), `discord` (bot), `fritzbox` (TR-064), `invasion` (egg/nest), `inventory` (SQLite SSH devices), `meshcentral` (remote desktop), `mqtt` (client), `remote` (SSH/protocol), `rocketchat` (bot), `scraper` (web), `sqlconnections` (external SQL), `telegram` (text/voice/vision), `telnyx` (SMS/voice), `tsnetnode` (Tailscale), and `webhooks` (incoming/outgoing). `sandbox` owns Linux Landlock execution.
+- `agent_workspace/skills` holds bundled Python skills; `agent_workspace/tools` holds agent-created tools and their manifest; `agent_workspace/workdir` is the sandbox/venv workdir.
+- `prompts/identity.md`, `rules.md`, `personalities/`, `templates/`, and `tools_manuals/` hold identity, rules, profiles, templates, and RAG-indexed manuals.
+- `ui/` holds external HTML, CSS, JavaScript, 16 locale translations, and `embed.go` source fixtures for frontend tests.
+- `data/` holds runtime state; `documentation/` holds guides; ignored `bin/` and `reports/` hold binaries and analysis reports. `deploy/` contains tracked deployment inputs and ignored generated artifacts. `config.yaml` is local config; `config_template.yaml` is the full reference. `Dockerfile`, `docker-compose.yml`, and `Dockerfile.ansible` define containers; `install.sh`, `update.sh`, `make_deploy.sh`, and `make_release.bat` handle installation, updates, and releases.
 
 ## Build Commands
 
@@ -199,8 +135,7 @@ providers:
     type: openrouter
     name: "Haupt-LLM"
     base_url: https://openrouter.ai/api/v1
-    api_key: "sk-or-..."  # Your API key
-    model: "google/gemini-2.0-flash-001"
+    model: "<supported-model-id>"
 
 llm:
   provider: main
@@ -217,7 +152,7 @@ llm:
 | `ANSIBLE_API_TOKEN` | Ansible sidecar authentication |
 
 ### Security Note
-API keys in `config.yaml` are NEVER exposed to the agent. They are managed by the application. Use the **Vault** via Web UI for storing sensitive credentials.
+Set the provider key through the Setup Wizard or Config UI, which stores it in the encrypted Vault (`provider_main_api_key` for the example). Do not put credentials in `config.yaml` or expose them to the agent.
 
 ## Code Style Guidelines
 
@@ -235,68 +170,9 @@ API keys in `config.yaml` are NEVER exposed to the agent. They are managed by th
 - **Functions**: `PascalCase` (exported), `camelCase` (unexported)
 - **Variables**: `camelCase`
 
-### Example Pattern
-```go
-// File: internal/tools/docker.go
-package tools
-
-import (
-    "context"
-    "fmt"
-    "log/slog"
-)
-
-// DockerManager handles Docker container operations
-type DockerManager struct {
-    client DockerClient
-    logger *slog.Logger
-}
-
-// NewDockerManager creates a new Docker manager instance
-func NewDockerManager(client DockerClient, logger *slog.Logger) (*DockerManager, error) {
-    if client == nil {
-        return nil, fmt.Errorf("docker client is required")
-    }
-    return &DockerManager{
-        client: client,
-        logger: logger,
-    }, nil
-}
-
-// ListContainers returns all running containers
-func (m *DockerManager) ListContainers(ctx context.Context) ([]Container, error) {
-    // Implementation
-}
-```
-
 ## Testing Strategy
 
-### Test Organization
-- Test files: `*_test.go` alongside source files
-- Test functions: `TestFunctionName` for unit tests
-- Table-driven tests preferred
-
-### Running Tests
-```bash
-# All tests
-go test ./...
-
-# Specific package with coverage
-go test -cover ./internal/memory/...
-
-# Race detection
-go test -race ./...
-
-# Benchmarks
-go test -bench=. ./internal/...
-```
-
-### Test Examples
-See existing test files:
-- `internal/config/config_test.go` - Configuration testing
-- `internal/tools/shell_test.go` - Tool testing
-- `internal/memory/history_test.go` - Memory subsystem testing
-- `internal/agent/agent_test.go` - Agent loop testing
+Use the commands above. Place `*_test.go` beside the source, name unit tests `TestFunctionName`, and prefer table-driven cases. Examples: `internal/config/config_test.go`, `internal/tools/shell_test.go`, `internal/memory/history_test.go`, and `internal/agent/agent_test.go`.
 
 ## Security Considerations
 
@@ -324,64 +200,16 @@ Use `security.RegisterSensitive(value)` to prevent values from appearing in logs
 
 ### Agent Reports & Analysis Files
 
-**CRITICAL:** When creating analysis reports, logs, or any files that may contain sensitive data:
+Keep analysis reports, logs, and files that may contain sensitive data under ignored `reports/`, never `documentation/`; do not commit them. Never stage master keys, Vault secrets, API keys, tokens, passwords, credentials, sensitive logs, memory dumps, or conversation history.
 
-1. **Create reports in `/reports/` directory** (NOT in `documentation/`)
-2. **The `/reports/` directory is in `.gitignore`** - files here are never committed
-3. **Never commit files containing:**
-   - Master keys or vault secrets
-   - API keys or tokens
-   - Passwords or credentials
-   - Log files with sensitive output
-   - Memory dumps or conversation history
-
-**Correct workflow:**
-```bash
-# Good: Report in non-versioned directory
-reports/log_analysis_2026-03-15.md
-
-# Bad: Report in versioned directory
-documentation/log_analysis_2026-03-15.md  # DON'T DO THIS
-```
-
-**Before committing, always check:**
-```bash
-git diff --cached  # Review all staged changes
-grep -r "AURAGO_MASTER_KEY\|sk-or-\|password\|secret" .  # Scan for secrets
-```
-
-**If you accidentally committed sensitive data:**
-1. Immediately rotate/change the exposed secret
-2. Use `git filter-branch` or BFG Repo-Cleaner to remove from history
-3. Force push to overwrite (coordinate with team)
-4. Assume the secret is compromised
+Before each commit, review the exact staged diff (`git diff --cached` and `git diff --cached --check`) and scan it contextually for secrets without publishing their values. If a secret was committed, assume compromise, rotate it immediately, and coordinate history removal (for example with BFG) and any required force push with the team.
 
 ## Deployment
 
-### Docker Deployment (Recommended)
-```bash
-# Using pre-built image
-docker-compose up -d
-
-# With custom config
-docker-compose -f docker-compose.yml up -d
-```
-
-### Binary Installation
-```bash
-# Quick install (Linux)
-curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
-
-# Manual binary download
-wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux_amd64
-chmod +x aurago_linux_amd64
-./aurago_linux_amd64
-```
-
-### Systemd Service
-```bash
-sudo ./install_service_linux.sh
-```
+- Docker deployment is recommended: use `docker-compose up -d` from Build Commands; `docker-compose -f docker-compose.yml up -d` explicitly selects the same default file.
+- Quick Linux install: `curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash`.
+- Manual Linux binary install: `wget https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux_amd64`, then `chmod +x aurago_linux_amd64` and `./aurago_linux_amd64`.
+- Systemd service: `sudo ./install_service_linux.sh`.
 
 ## Key Architecture Patterns
 
@@ -892,7 +720,7 @@ Tools are defined in `internal/tools/`:
 3. Add config types to `internal/config/config_types.go`
 4. Add config loading defaults in `internal/config/config.go`
 5. Add Web UI handlers in `internal/server/` if needed
-6. Add translations for all 15 supported languages in `ui/lang/` Never only use english for all languages !
+6. Add translations for all 16 supported languages in `ui/lang/`; do not copy English into other locales.
 7. Document in `documentation/`
 
 ### Database Migrations
@@ -933,55 +761,27 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 ### GitHub Actions
 - **docker-publish.yml**: Builds and publishes Docker images to GHCR
-- Triggered on push to `main` branch and version tags `v*`
+- Triggered by `v*` tags or manual dispatch (`image=all` or `image=gods-eye-view`)
 - Multi-arch builds: linux/amd64, linux/arm64
 
 ### Release Process
-1. Run `./make_deploy.sh` (Linux/macOS) or `make_release.bat` (Windows) to build cross-platform binaries
-2. Scripts auto-commit and push to trigger Docker build
-3. GitHub Release created with binary artifacts
-4. Old releases are cleaned up (keeping latest 3)
+1. `./make_deploy.sh` builds cross-platform artifacts; by default it may commit/push `main` (`--no-publish` suppresses that). It does not create a tag or GitHub Release.
+2. On Windows, `make_release.bat` or `make_release.ps1` builds cross-platform artifacts, commits/pushes as needed, creates a versioned GitHub Release with binaries, and cleans up older releases while keeping the latest three.
+3. A pushed `v*` tag triggers `docker-publish.yml`; a push to `main` alone does not.
 
 ## Agent Rules & Guidelines
 
 ### Security & Safety (Critical)
 
-#### Credentials & Sensitive Data
-- **Always store credentials and sensitive data directly in the secrets vault**, never in code or configuration files
-- **Never commit or store sensitive data, credentials, or personally identifiable information** in the repository - check before committing
-- The agent should normally NOT have access to passwords, tokens, or sensitive data
-- If a tool requires credentials, retrieve them securely from the vault at runtime
-- Exception: If the user provides credentials and the agent stores them in the vault for later use
-
-#### Prompt Injection Protection
-- **Always assume external content is potentially malicious**
-- Use the `<external_data>` wrapper for all untrusted content
-- Never allow external content to influence agent behavior or tool calls directly
-- Implement necessary safety measures when passing external content to the agent
-
-#### Tool Safety Requirements
-- Local process execution follows the selected shell sandbox policy across all chat channels. Disabled isolation or explicit unsafe fallback must not be overridden by the existence of Desktop Notes. Keep tool permission gates and native Notes/file mutation protection; unisolated code can bypass the latter, which the shell security hint and tool manual must state. Active Landlock still rejects writable-path overlap with Notes; unavailable required isolation stays blocked. See `documentation/desktop-notes.md`.
-- All tools and integrations should have a toggle to activate them (unless essential for system function)
-- Tools with potential to cause harm must NOT be enabled by default
-- Users must be able to disable potentially harmful tools via the UI
-- **Security by design**: Always consider security implications when adding new tools, integrations, or code
-- Avoid introducing vulnerabilities or exposing sensitive data
+- Store credentials in the Vault, never code/config/repository; do not commit sensitive data or PII. The agent normally has no direct access. Tools retrieve required credentials from the Vault at runtime; a user may supply a credential for Vault storage.
+- Treat external content as untrusted: wrap it in `<external_data>` and prevent it from directly steering behavior or tool calls.
+- Local process execution follows the selected shell sandbox policy on every chat channel. Desktop Notes do not override disabled isolation or unsafe fallback. Keep tool gates and native Notes/file mutation protection; unisolated code can bypass the latter, as the shell hint/manual must state. Active Landlock rejects writable-path overlap with Notes; unavailable required isolation stays blocked. See `documentation/desktop-notes.md`.
+- Give nonessential tools/integrations an activation toggle. Harmful capabilities default off and remain UI-disableable; assess security and data exposure when adding them.
 
 ### Tool Development Guidelines
 
-#### Permission Toggles
-- **Read-Only Toggle**: New tools/integrations that can change/delete data or perform critical operations should have a read-only toggle
-- **Granular Permissions**: If more granular permissions are needed, use separate toggles for:
-  - `read` - Read access
-  - `write` - Write/create access
-  - `change` - Modify/update access
-  - `delete` - Delete/remove access
-
-#### Tool Manuals & Prompts
-- **Do not forget to update tool manuals** in `prompts/tools_manuals/` when adding new tools
-- Update prompts if you add new integrations or tools for the agent
-- Keep documentation consistent with implementation
-- **For the Web-UI there is a help text file** - Keep it up to date
+- Mutating or critical tools/integrations need a read-only toggle; where needed, separate `read`, `write`/create, `change`/update, and `delete`/remove grants.
+- Update `prompts/tools_manuals/`, agent prompts, Web UI help text, and documentation when tools or integrations change.
 
 #### Skill Creation Rules
 - AuraGo has two skill families: Python skills for executable reusable capabilities, and Agent Skills for `SKILL.md` workflow/domain-guidance packages.
@@ -994,119 +794,60 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 ### Web UI Guidelines
 
-#### UX Design Principles
-- **User-friendly by default**: Avoid technical jargon, provide clear instructions and feedback
-- **Mandatory final step for every UI task**: Review the affected UI from the user's perspective before declaring the work complete. Verify that the flow, labels, controls and outcomes are logical and understandable, and that status changes and actions provide timely, visible feedback wherever useful (including pending/progress, success, failure and disabled states). Fix gaps found in this review before finishing.
-- Do not break the style of the UI - changes should fit seamlessly into the existing interface
-- Aim for **masterpiece UX design** that feels native to the existing interface
-- If you see bad UX in the existing UI, feel free to improve it while keeping overall style consistent
-- Virtual Desktop themes have distinct visual contracts: `fruity` should read as Apple-inspired with WhiteSur icons, topbar, floating dock, and soft window chrome; `standard` should read as a Windows/Ubuntu productivity crossover with Papirus icons, clear taskbar, structured start menu, and restrained dark surfaces.
-- **Always check if new features are relevant to the dashboard** and add them there if applicable
-- **User-friendly system design**: Always think ahead for the user and also add test connection buttons if this could help the user to diagnose issues with new tools or integrations
-- The system should be designed to be as user-friendly and intuitive as possible, with clear instructions and feedback for the user. Always consider the user experience when designing and implementing new features and tools for the agent
-
-#### Translations
-- **Always update translation files** in `ui/lang/` for **ALL supported languages** (15 languages: cs, da, de, el, en, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh) Never only use english for all languages !
-- Keep translations up to date and consistent with UI changes
-- If you add new features requiring new UI elements, provide translations for all supported languages
-- use the personal form if writing text eg. "Du" in german and not "Sie"
-- never use an alternative form for special characters like öäü, do not write ae ue oe
-
-#### Form Design
-- **If a field has options to choose, provide a dropdown**, not a text input field
-- **Fields that have default values should show those**, or be empty if a remark in the describing text states that default value X is used if field is empty
-- **Always create easy to use menus**
+- Aim for polished, native-feeling UX: use clear, jargon-free instructions and visible pending, success, failure, and disabled feedback. Fit the existing style, fix confusing flows, and review every changed UI flow from the user's perspective before finishing. Add new features to the Dashboard when relevant and connection-test controls when useful for diagnosis.
+- Keep Desktop themes distinct: `fruity` uses Apple-inspired WhiteSur icons, topbar, floating dock, and soft chrome; `standard` uses Papirus icons, a clear taskbar, structured start menu, and restrained dark surfaces.
+- Translate changed UI strings in all 16 locales (`cs`, `da`, `de`, `el`, `en`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `no`, `pl`, `pt`, `sv`, `zh`); do not fill other locales with English. In German use `Du` and real umlauts, never `Sie` or `ae`/`ue`/`oe` substitutes.
+- Use dropdowns for fields with defined options. Show defaults in fields or explicitly explain that an empty field selects the documented default. Keep menus easy to use.
 
 ### Code Organization & Quality
 
-#### File Management
-- **Keep files manageable**: If files get too big and unwieldy, split them into smaller pieces
-- Orient yourself on what an AI agent can handle with ease
-- If a file becomes too large to process effectively, break it down into smaller, more manageable files
-- Always aim for clarity and maintainability in your file structure
-
-#### Temporary Files
-- **Always cleanup temporary files and logs** after use
-- Don't leave behind orphaned temporary resources
-- On Windows, run clean build and release checks through `scripts/invoke-clean-worktree.ps1`; do not create ad-hoc clones or worktrees under `%TEMP%`. The wrapper removes the worktree in `finally` and prunes stale Git metadata after both successful and failed commands.
-
-#### UI Components
-- **Do not use `alert()`**, use a modal instead
-- **All LLMs that can be chosen must use the provider system**
+- Split files that become too large for an agent to process clearly; keep structure maintainable.
+- Clean up temporary files/logs. On Windows, use `scripts/invoke-clean-worktree.ps1` for isolated build/release checks instead of ad-hoc `%TEMP%` worktrees; its `finally` removes the worktree and prunes stale Git metadata on success or failure.
+- Use a modal instead of `alert()`. Selectable LLMs must use the provider system.
 
 ### Testing & Quality Assurance
 
-#### Testing Requirements
-- **Implement tests for critical functionality and new features**
-- Include unit tests for individual functions
-- Include integration tests for tools and workflows
-- Aim for good test coverage, especially for complex logic and critical operations
-- Tests help prevent regressions and ensure code works as expected
+- Test critical functionality and new features with focused unit tests and integration tests for tools/workflows; maintain good coverage for complex or critical paths to catch regressions.
 
 ### Database Management
 
-#### Schema Changes
-- **Always implement a migration strategy** when changing database schemas
-- Handle existing data properly during migrations
-- Backup the database before performing migrations
-- Test the migration process in a staging environment before applying to production
+- Schema changes need a backward-compatible migration strategy, existing-data handling, a backup before migration, and a staging migration test.
 
 ### Deployment & Maintenance
 
-#### Critical Files to Keep Updated
-- **`config.yaml` is holy**: No updates without careful consideration of implications
-- Keep **update scripts**, **install scripts**, and **Dockerfiles** up to date
-- Ensure consistency between system changes and deployment scripts
-- If you add new tools/integrations requiring installation changes, update relevant scripts accordingly
-- **All Docker containers are created and managed by the AuraGo backend fully automatically** - Never assume the user could manage this
-- The default `docker-compose.yml` Docker socket proxy must keep Docker build API access disabled (`BUILD=0`); managed Code Studio and sidecar flows should use published images with `IMAGES=1` and `POST=1` instead of requiring build permissions.
+- Treat `config.yaml` changes carefully. Keep update/install scripts and Dockerfiles aligned with system changes, including new installation needs. AuraGo manages its Docker containers; do not assume users will manage them.
+- The default Compose Docker socket proxy keeps `BUILD=0`; managed Code Studio and sidecars use published images with `IMAGES=1` and `POST=1` instead of build access.
+- For production releases use `make_deploy.sh` (Linux/macOS) or `make_release.bat`/`make_release.ps1` (Windows), not ad-hoc build commands. These scripts do not upload to a test server.
+- Register Vault secrets used by new tools/integrations in the denylist for Python-tool export; protect them from the agent environment.
 
-#### Build Process
-- **Use `make_deploy` script** to build binaries and upload to test server
-- Don't use manual build commands for production builds
+## Additional Product Contracts
 
-#### Vault Integration
-- **If you add a new tool or integration that uses the vault, add it to the list of secrets that are forbidden to be exported to Python tools!**
-- Always ensure sensitive data is properly protected from exposure to the agent environment
+- Keep `README.md` user-facing, English, playful, and geeky with the original AuraGo gopher. Use compact, casual copy naming real features and integrations, not corporate slogans. Keep claims source-aligned. `assets/readme/` artwork should depict real features, structure, and connections; verify labels/arrows, authentic screenshots, Markdown explanations, and light/dark desktop/mobile rendering.
+- TeeVee retains the supplied wood/metal CRT skin across themes. `documentation/teevee-retro-ui-plan.md` owns its source/render/validation contract. The video CRT filter and glass reflection switch independently; native playback survives blocked textures/WebGL. Keep one decoder and source-scoped explicit proxy reconnect. Hardware 1080p/60 and external live-stream acceptance remain distinct from local fixtures.
+- HA Switchboard (`ha-switchboard`) uses the existing HA integration/desktop shell, a walnut cabinet, and a silver lever for each selected `switch.*`. Admin-only routes preserve HA service policy and both read-only gates. Validated `ha_switchboard.board` stores order/selection/labels; live reads confirm explicit on/off writes. See `documentation/ha-switchboard-plan.md` and the owning UI/app contracts.
 
-## Resources
+## Work Habits
 
-- **README.md** - User-facing documentation
-- README presentation: English, playful and geeky, with the original AuraGo gopher mascot. Use compact, casual copy that names the broad feature set and distinctive integrations; avoid corporate positioning and business slogans. Keep claims aligned with current source.
-- README artwork lives in `assets/readme/`; illustrate actual features, system structure and meaningful connections rather than abstract decorative objects. Check diagram labels and arrows against the runtime, retain authentic screenshots, keep essential explanations in Markdown, and verify light/dark rendering at desktop and mobile widths.
-- TeeVee uses the supplied wood/metal CRT receiver as its theme-independent skin. `documentation/teevee-retro-ui-plan.md` records the source, renderer contract and validation. View independently switches the real video CRT filter and glass reflection; native playback survives blocked textures/WebGL failures. Preserve its single decoder and source-scoped explicit proxy reconnect. Hardware 1080p/60 and external live-stream acceptance remain separate from local fixture tests.
-- HA Switchboard (`ha-switchboard`) uses the existing HA integration and desktop shell, with a realistic walnut cabinet and one silver lever per selected `switch.*`. Its admin-only desktop routes retain HA service policy and both read-only gates. The validated shared `ha_switchboard.board` setting stores selection/order/labels; live reads confirm explicit on/off writes. See `documentation/ha-switchboard-plan.md` and the owning UI/app contracts.
-- **documentation/** - Detailed guides
-- **config_template.yaml** - Full configuration reference (~600 lines)
-- **prompts/tools_manuals/** - Tool documentation (RAG-indexed)
-- **ui/lang/** - Translation files for 15 languages
-
-COMMIT CHANGES !! Always commit your changes with clear and descriptive commit messages. This helps keep the project history organized and makes it easier for others to understand the changes you have made. Regularly committing your changes also helps prevent data loss and allows you to track your progress effectively.
-
-ALWAYS USE THE disposable FOLDER FOR SCRIPTS AND OTHER FILES YOU NEED FOR YOUR WORK !  This folder is NOT to be pushed to github !
+- Commit completed changes locally with a clear descriptive message; review only the intended staged files.
+- Use `disposable/` for temporary scripts/files and do not push them. Put analysis reports in ignored `reports/` as specified above.
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **AuraGo** (85152 symbols, 359227 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+GitNexus indexes this repository as **AuraGo**. Check index freshness before using its graph as evidence; refresh it when stale and verify conclusions against current source. Static symbol and relationship counts become outdated quickly.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
 ## Always Do
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows. For regression review, compare against the default branch: `detect_changes({scope: "compare", base_ref: "main"})`.
+- Before editing a function, class, or method, run `impact({target: "symbolName", direction: "upstream"})` and report direct callers, affected processes, and risk. If the index is stale, refresh it or verify the impact directly in current source and state the limitation.
+- Run `detect_changes()` before committing to check affected symbols and flows; for regression review, use `detect_changes({scope: "compare", base_ref: "main"})`. Confirm the staged diff directly, especially if the index is stale.
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `query({search_query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- For unfamiliar code, `query({search_query: "concept"})` returns ranked execution flows when the index is fresh; use current source when it is stale or incomplete.
 - When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `context({name: "symbolName"})`.
 - For security review, `explain({target: "fileOrSymbol"})` lists taint findings (source→sink flows; needs `analyze --pdg`).
 
-## Never Do
-
-- NEVER edit a function, class, or method without first running `impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
-- NEVER commit changes without running `detect_changes()` to check affected scope.
+For renames, use graph-aware `rename` rather than blind find-and-replace. Do not ignore HIGH or CRITICAL impact warnings.
 
 ## Resources
 
@@ -1271,17 +1012,10 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ### File Editing on Windows / PowerShell
 
-These rules prevent silent corruption when editing files viathe bash tool (PowerShell 7+) on Windows.
-
-- **Never use git checkout <file> to undo a single broken edit** — it discards every other working change in that file. Use git stash (file-level), git diff first, or surgically re-apply the failed patch.
-- **PowerShell [System.IO.File]::WriteAllText(..., [System.Text.Encoding]::UTF8) writes a UTF-8 BOM** by default. AuraGo files must be BOM-free. Use one of:
-  - [System.Text.Encoding]::UTF8 is wrong — use New-Object System.Text.UTF8Encoding(False) to omit the BOM.
-  - Or write bytes manually and strip the first 3 bytes (EF BB BF) afterwards.
-- **PowerShell here-strings (@'...'@) and Out-File -Encoding UTF8 use CRLF; PowerShell string concatenation in arrays can use LF** — the result is a file with mixed line endings. After every multi-line file edit, normalize to LF (the canonical form per .gitattributes's * text=auto) by stripping \r before each \n.
-- **Verify the encoding of modified files with 
-ode or git diff --stat** before running tests. [System.IO.File]::ReadAllBytes + hex-dump the first 3 bytes is the fastest check. JSON files in particular break Go's ncoding/json when a BOM is present.
-- **
-ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it after every non-trivial change before go test.
+- Never use `git checkout <file>` to undo one broken edit: it discards other work in that file. Inspect the diff and restore only the failed change.
+- `[System.Text.Encoding]::UTF8` writes a UTF-8 BOM. Use `[System.Text.UTF8Encoding]::new($false)` or another BOM-free writer; inspect the first three bytes when encoding matters. A BOM can break Go's `encoding/json`.
+- Multi-line PowerShell edits can mix CRLF and LF. Normalize edited text to LF as required by `.gitattributes`.
+- Check encoding and `git diff --check` before tests. Run `node --check <file.js>` for JavaScript; use `python -m json.tool <file.json>` or another JSON parser for JSON.
 
 ## Child DOX Index
 
@@ -1290,8 +1024,12 @@ Current child AGENTS.md files:
 - `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
 - `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
 - `assets/game-maker-low-poly/AGENTS.md` — Original 220-model Blender pack, animation contracts, compact exports and playable acceptance scenes.
+- `assets/game-maker-worlds/AGENTS.md` — Maritime and isometric Blender sources, catalog counts, exports and runtime limits.
+- `assets/game-maker-presentation/AGENTS.md` — Game Maker effects/audio sources, licensing, builds and runtime limits.
 - `internal/desktop/pets_assets/AGENTS.md` — OpenPets sprite format, persona catalog, source ownership and pixel validation.
+- `internal/detective/AGENTS.md` — Isolated Desktop research cases, evidence, budgets, revisions and exports.
 - `internal/gamemaker/AGENTS.md` — Game planning, runtime feedback/progression, lifecycle, validation and exports; owns the asset-pack child index.
+- `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
 - `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
@@ -1320,42 +1058,13 @@ Ignored/runtime areas such as `bin/`, `data/`, `reports/`, `node_modules/`, `.ve
 <!-- graft:start -->
 ## Graft — repo context graph
 
-This repo is indexed in `graft/`: small linked markdown nodes that explain each
-system and carry exact file:line spans. The graph is an ignored, regenerable
-local cache; refresh it with `graft build` rather than committing generated nodes.
+`graft/` is an ignored, regenerable local graph of linked system notes and exact `file:line` spans. It can lag behind the working tree: run deterministic, no-key `graft build` after major code changes when the CLI is available, and verify cited spans in current source. If the CLI or graph is unavailable, use `rg` and direct source inspection.
 
-For ANY task here — understanding how something works, finding where code lives,
-or scoping a change — get context from the graph before grepping or opening
-source files. Re-ask freely (it's cheap) and reuse literal identifiers you
-already have (symbol, error string, file name) as the query. New to this repo?
-Run `graft map` first — a token-budgeted orientation (dir clusters, hubs,
-hotspots), no LLM, no key.
+- `graft map` gives a token-budgeted, no-LLM/no-key orientation (directory clusters, hubs, hotspots).
+- `graft ask "<question>" --source` ranks nodes and inlines each hit's ≤8-line crux; reuse known symbols, errors, and file names as queries, and use `--full` for complete definitions. Follow `covers:` spans, but verify the current code before editing. Ranked hits are not exhaustive.
+- For exhaustive indexed matches grouped by enclosing symbol use `graft grep "<literal>"`; use `rg` for unindexed files or when Graft is unavailable. `graft skeleton <file>` lists definition signatures and spans.
+- `graft callers <symbol>` gives precomputed incoming edges; `--direction out` shows callees and `--depth N` walks transitively. Use it for structural questions when the graph is fresh.
+- Browse `graft/INDEX.md`; multi-repo results carry `[scope/]` labels and `graft ask "<task>" --in <scope>/` narrows the search.
 
-- Run `graft ask "<your question>" --source` → ranked nodes with the relevant
-  code spans inlined (each hit's ≤8-line crux by default; `--full` for whole
-  definitions when the crux isn't enough). Match the tool to the task shape:
-  for understanding or editing, the top node IS the answer — cite its
-  `covers:` file:line spans and edit straight from `--source`. For
-  exhaustive tasks ("every occurrence / every caller of this pattern"), ranked
-  results are top-N, not complete — run `graft grep "<literal>"` instead
-  (exhaustive over indexed files, grouped by enclosing symbol), falling back
-  to raw `grep -rn` only for unindexed files.
-- `graft skeleton <file>` → every definition's signature + span, ~10× cheaper
-  than reading the file; use it to skim an API surface.
-- `graft callers <symbol>` gives precomputed, exact edges — who calls this.
-  Add `--direction out` for what it calls, or `--depth N` to walk
-  transitively for the full blast radius. For structural questions, skip
-  ranking and use this directly.
-- Or browse: `graft/INDEX.md` lists every node; follow the links.
-- Monorepos and folders of multiple repos rank fairly across sub-projects —
-  hits carry `[scope/]` labels naming which one they're from. Narrow with
-  `graft ask "<task>" --in <scope>/` once you know where you're working.
-
-If a returned span is truncated ("+N more lines"), open the file at that exact
-range before finalizing. Only open source files when a node genuinely lacks a
-needed detail, and then at the exact file:line the node points to — never
-re-read whole files.
-
-After big code changes, refresh the graph with `graft build` (deterministic,
-no API key, $0).
+If a span is truncated (`+N more lines`), open that exact source range before deciding.
 <!-- graft:end -->
