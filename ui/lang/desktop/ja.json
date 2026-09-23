@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "既存の音楽を準備しています…",
   "personalRadio.radio_registry_unavailable": "音楽ライブラリを読み込めませんでした。再試行します。",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "電波を、美しくチューニング",
   "rtlSdr.receive": "受信",
   "rtlSdr.recordings": "録音",

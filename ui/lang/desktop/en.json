@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "Preparing existing music…",
   "personalRadio.radio_registry_unavailable": "The music library could not be loaded. Another attempt will follow.",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "The airwaves, beautifully tuned",
   "rtlSdr.receive": "Receive",
   "rtlSdr.recordings": "Recordings",

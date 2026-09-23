@@ -26,6 +26,13 @@
 - Verify `TestPersonalRadioBrowser`, `TestPersonalRadioAudioContinuityBrowser`
   and `TestPersonalRadioTranslations`. Backend: `internal/personalradio/AGENTS.md`.
 
+## RTL-SDR
+
+- `rtl-sdr.js` resolves local `t('key')` calls under `rtlSdr.`; the built-in app
+  name uses `desktop.app_rtl_sdr`. Keep both in all 16 desktop locales. The static
+  i18n checker must resolve the app-local prefix. Verify with
+  `TestRTLSDRTranslations` and `TestFrontend_StaticI18nKeysExistInEnglishBundle`.
+
 ## Detective
 - `detective-views.js` precedes `detective.js`; both use the native Desktop theme
   tokens and `desktop-app-detective.css`. Register the built-in `detective` app

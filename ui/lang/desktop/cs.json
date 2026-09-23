@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "Připravuje se existující hudba…",
   "personalRadio.radio_registry_unavailable": "Hudební knihovnu se nepodařilo načíst. Bude následovat další pokus.",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "Rádiové vlny, krásně naladěné",
   "rtlSdr.receive": "Příjem",
   "rtlSdr.recordings": "Nahrávky",

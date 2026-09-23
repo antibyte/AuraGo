@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "Preparando música existente…",
   "personalRadio.radio_registry_unavailable": "No se pudo cargar la biblioteca musical. Se volverá a intentar.",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "Las ondas, sintonizadas con estilo",
   "rtlSdr.receive": "Recepción",
   "rtlSdr.recordings": "Grabaciones",

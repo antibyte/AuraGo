@@ -454,6 +454,11 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 	skipFiles := map[string]bool{
 		filepath.ToSlash(filepath.Join("js", "chat", "bundles", "chat-vendor.bundle.js")): true,
 	}
+	localPrefixes := map[string]string{
+		"js/desktop/apps/personal-radio.js":          "personalRadio.",
+		"js/desktop/apps/personal-radio-settings.js": "personalRadio.",
+		"js/desktop/apps/rtl-sdr.js":                 "rtlSdr.",
+	}
 	referenced := make(map[string][]string)
 
 	for _, root := range []string{"js", "cfg"} {
@@ -482,7 +487,11 @@ func TestFrontend_StaticI18nKeysExistInEnglishBundle(t *testing.T) {
 				return nil
 			}
 			for _, match := range jsKeyPattern.FindAllStringSubmatch(string(content), -1) {
-				referenced[match[1]] = append(referenced[match[1]], relPath)
+				key := match[1]
+				if prefix := localPrefixes[relPath]; prefix != "" && !strings.Contains(key, ".") {
+					key = prefix + key
+				}
+				referenced[key] = append(referenced[key], relPath)
 			}
 			return nil
 		}); err != nil {

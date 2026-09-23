@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "Forbereder eksisterende musik…",
   "personalRadio.radio_registry_unavailable": "Musikbiblioteket kunne ikke indlæses. Et nyt forsøg følger.",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "Radiobølgerne, smukt indstillet",
   "rtlSdr.receive": "Modtagelse",
   "rtlSdr.recordings": "Optagelser",

@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "मौजूदा संगीत तैयार हो रहा है…",
   "personalRadio.radio_registry_unavailable": "संगीत लाइब्रेरी लोड नहीं हो सकी। फिर से कोशिश की जाएगी।",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "रेडियो तरंगें, सुंदर ढंग से ट्यून की गईं",
   "rtlSdr.receive": "रिसेप्शन",
   "rtlSdr.recordings": "रिकॉर्डिंग",

@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "正在准备已有音乐…",
   "personalRadio.radio_registry_unavailable": "无法加载音乐库，稍后将重试。",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "优雅调谐，畅听电波",
   "rtlSdr.receive": "接收",
   "rtlSdr.recordings": "录音",

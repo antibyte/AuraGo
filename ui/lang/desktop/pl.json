@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "Przygotowywanie istniejącej muzyki…",
   "personalRadio.radio_registry_unavailable": "Nie udało się wczytać biblioteki muzycznej. Nastąpi kolejna próba.",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "Fale radiowe, pięknie dostrojone",
   "rtlSdr.receive": "Odbiór",
   "rtlSdr.recordings": "Nagrania",

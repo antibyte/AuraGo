@@ -4450,6 +4450,7 @@
   "personalRadio.library_loading": "Προετοιμασία υπάρχουσας μουσικής…",
   "personalRadio.radio_registry_unavailable": "Δεν ήταν δυνατή η φόρτωση της μουσικής βιβλιοθήκης. Θα γίνει νέα προσπάθεια.",
   "desktop.app_personal_radio": "Personal Radio",
+  "desktop.app_rtl_sdr": "RTL-SDR",
   "rtlSdr.subtitle": "Τα ραδιοκύματα, όμορφα συντονισμένα",
   "rtlSdr.receive": "Λήψη",
   "rtlSdr.recordings": "Εγγραφές",
