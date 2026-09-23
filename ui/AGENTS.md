@@ -89,6 +89,8 @@ worker. Keep packaging, recovery and offline instructions in
   for their real phase while pending, use an indeterminate progress bar because the
   deployer does not report download percentages, and report completion or failure.
   Disable concurrent action controls. Removal uses `DELETE /api/speech-lab/deployment`.
+  Show stable ASR/TTS catalog entries even before their runtime is ready; mark those
+  choices unavailable and disable activation until the catalog reports them ready.
   Keep `lang/config/speech_lab/` aligned across all 16 locales and verify with
   `TestConfigSpeechLabFeedbackBrowser`.
 

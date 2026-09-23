@@ -511,8 +511,9 @@ function speechLabRenderSuggestions() {
 function speechLabRenderStack() {
     const node = document.getElementById('speech-lab-stack');
     if (!node || !speechLabCatalog) return;
-    const backends = (speechLabCatalog.backends || []).filter(item => item.available &&
-        (speechLabShowExperimental || item.stable === true || item.selected_variant?.stable === true));
+    const backends = (speechLabCatalog.backends || []).filter(item =>
+        speechLabShowExperimental || item.stable === true || item.selected_variant?.stable === true ||
+        (item.variants || []).some(variant => variant.stable === true));
     const tts = backends.filter(speechLabIsTTS);
     const asr = backends.filter(speechLabIsASR);
     let html = '<div class="cfg-card speech-lab-stack-editor"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.stack')) + '</div>';
@@ -540,8 +541,10 @@ function speechLabIsTTS(backend) {
 }
 
 function speechLabOptions(items, selected) {
-    return items.map(item => '<option value="' + escapeAttr(item.id) + '" ' + (item.id === selected ? 'selected' : '') + '>' +
-        escapeHtml(item.name || item.id) + '</option>').join('');
+    return items.map(item => '<option value="' + escapeAttr(item.id) + '"' +
+        (item.id === selected ? ' selected' : '') + (item.available === true ? '' : ' disabled') + '>' +
+        escapeHtml(item.name || item.id) +
+        (item.available === true ? '' : ' · ' + escapeHtml(t('config.speech_lab.not_ready'))) + '</option>').join('');
 }
 
 function speechLabUpdateVoices() {

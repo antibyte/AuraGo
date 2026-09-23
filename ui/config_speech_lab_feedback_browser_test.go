@@ -43,6 +43,8 @@ func TestConfigSpeechLabFeedbackBrowser(t *testing.T) {
             }
             if (path === '/api/speech-lab/catalog') return Promise.resolve(json({backends:[
                 {id:'asr', name:'ASR', stage:'asr', available:true, stable:true},
+                {id:'confucius4-r2t2', name:'Confucius4-R2T2 GGUF', stage:'asr', available:false,
+                 variants:[{id:'confucius4-r2t2-vulkan-windows', stable:true}]},
                 {id:'tts', name:'TTS', stage:'tts', available:true, stable:true, voices:['voice']}
             ]}));
             if (path.startsWith('/api/speech-lab/suggestions')) return Promise.resolve(json({suggested_pairs:[]}));
@@ -63,6 +65,13 @@ func TestConfigSpeechLabFeedbackBrowser(t *testing.T) {
         };
     }`)
 	page.MustEval(`async () => { await selectSection('speech_lab'); resetDirtySnapshot(); }`)
+	if !page.MustEval(`() => {
+        const option = document.querySelector('#speech-lab-asr option[value="confucius4-r2t2"]');
+        return !!option && option.disabled && option.textContent.includes(t('config.speech_lab.not_ready')) &&
+            document.getElementById('speech-lab-asr').value === 'asr';
+    }`).Bool() {
+		t.Fatal("stable but unavailable Confucius ASR must remain visible without becoming selectable")
+	}
 	if !page.MustEval(`() => document.getElementById('speech-lab-action-status').hidden`).Bool() {
 		t.Fatal("initial status load should not announce a user action")
 	}
