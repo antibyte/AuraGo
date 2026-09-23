@@ -14,6 +14,20 @@
 - Keep cancellation, private temporary WAV cleanup, bounded output, filtered child
   environment and option-safe text arguments. No GPU, Docker or heavy ML runtime.
 
+### Default Speech Output Contract
+
+- Fresh installations use `tts.provider: sanotts` and `tts.language: auto`.
+  Keep explicit existing provider/disabled settings intact. Setup profile credentials
+  may be prepared, but must not replace the local default. Config remains the owner
+  of later provider changes. Automatic speech language follows the user, with English
+  for unsupported local voice packages; TTS does not translate input text.
+- `internal/sanotts` owns the pinned CPU runtime wheel and shared CYD/WAV runner.
+  `internal/tools/sanotts.go` provisions its separate `data/sanotts/venv` on first use,
+  serializes CPU synthesis, and retains downloaded voice packs. Do not add GPU,
+  Docker, torch, or onnxruntime requirements. Python 3.10+ with venv/pip is required.
+  Current Python packs cover 13 languages including German `de-tiny`; hi/ne/zh remain
+  browser-only upstream. See `documentation/sanotts.md` for provenance and checks.
+
 ## Verification
 - `go test ./internal/sanotts ./internal/cyd` checks packaged voices and PCM handling.
 - `AURAGO_SANOTTS_SMOKE_DIR` opts into `TestSanoTTSCPUSmoke` in `internal/tools`.

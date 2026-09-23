@@ -1,0 +1,28 @@
+# Tool handlers
+
+## Purpose
+
+Agent filesystem and Docker tool safety boundaries.
+
+## Ownership
+
+`internal/tools` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
+
+## Local Contracts
+
+### Agent Filesystem Jail Contract
+- Agent filesystem, file_editor, and other `secureResolve` paths jail to `agent_workspace`, not the AuraGo install root. From `workdir`, `../skills` and `../tools` stay reachable; `../../config.yaml` and `data/` must fail resolution.
+- `isProtectedSystemPath` is defense-in-depth: case-insensitive, symlink-resolved, and blocks `directories.data_dir`, configured config/vault/sqlite paths, `.env` files, and `aurago_master.key`.
+- Media registry and video-download bounds still use the install root via `detectAuraGoInstallRoot`. Guardian must not label `../../` as a safe in-project path.
+
+### Agent Docker Inspect Contract
+- Agent `docker inspect` environment redacts `AURAGO_*` and keys ending in `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY`, or `_MASTER_KEY`. Administrator container APIs may still inspect the AuraGo app container.
+- The agent docker tool must hide and block inspect, lifecycle, log, exec, and copy access to the compose app container `aurago` (including compose-project prefixed replicas). Sidecars such as `aurago-local-llm`, `aurago_gotenberg`, and `aurago-homepage` keep their existing owner gates.
+
+## Verification
+
+- Run `go test ./internal/tools` and the named cross-component checks in the contracts above when those paths change.
+
+## Child DOX Index
+
+None.

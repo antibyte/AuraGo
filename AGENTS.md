@@ -221,461 +221,6 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
 4. Response streaming via SSE
 5. Error recovery and retry logic
 
-### Memory System
-- **Short-Term**: SQLite sliding-window conversation context
-- **Long-Term**: Vector database with semantic search (chromem-go)
-- **Knowledge Graph**: Entity-relationship store for structured facts
-- **Core Memory**: Permanent facts always included in context
-- **Native Chunking**: File, documentation, and tool-guide indexing use the Go `internal/chunking` package. `indexing.chunking` defaults to recursive chunking with 3,500 chars, 200 overlap, and 200 chunks per file; chunking parameters are part of index fingerprints so config changes trigger clean reindexing.
-- **On-Demand Context**: Auto-RAG and KG prompt injection keep only essential context in the prompt and expose additional `[memory:<id>]` / `[kg:<id>]` teasers for `recall_memory` and `explore_kg`.
-- **Memory Hygiene**: Dashboard and nightly maintenance can safely consolidate exact auto-generated journal error duplicates, archive stale low-priority notes with per-run limits and repeated-failure tracking, repair tracked canonical VectorDB names, and raise review issues for KG/Core Memory health. Automatically extracted claims that a tool, function, API, or endpoint is broken are transient and must not enter long-term memory; explicit user-managed memory remains available. Notes marked `protected` or `keep_forever` are excluded from auto-archive. Review-only/high-risk memory findings must not be auto-deleted.
-- **Skill Quality Maintenance**: Nightly maintenance reviews Python skills and `SKILL.md` packages only when persisted provenance is exactly `agent`. Unknown disk discoveries remain `legacy_unknown`; user/system/curated skills are immutable to this phase. Improvement requires classifier confidence at least 0.95 plus complete staging validation and a clean security result. Deletion requires confidence at least 0.98 plus deterministic objective evidence, permanently removes files/registry/versions, and retains only a source-free maintenance tombstone. Missing usage alone never justifies deletion; read-only, ambiguity, cancellation, credential signals, scan warnings, fixed references, or failed daemon stops always prevent mutation.
-- **FTS Migration State**: External-content FTS5 indexes for notes, journal entries, episodic memories, and activity turns use version `1` markers in `memory_schema_meta` (`fts.notes`, `fts.journal_entries`, `fts.episodic_memories`, `fts.activity_turns`). Missing or outdated markers require an FTS5 `rebuild`; write the marker only after a successful rebuild.
-- **Maintenance Safety**: Follow `documentation/maintenance.md`. Vector writes distinguish created, reused and unknown ownership; rollback never deletes reused/unknown IDs. Compression and canonical repair share force-new replacement with complete metadata comparison and transactional archive/copy. Preserve replacements after commit or uncertain commit. Canonical scans are capped at 100 rows with a persistent keyset cursor in `memory_maintenance_meta`.
-- **Maintenance Lifecycle**: Skill cancellation and mutation state must preserve recoverable files and safe daemon restoration; source drift cannot inherit security approval. Each phase has one stable issue fingerprint and resolves only after a persisted success. The server-owned controller follows immutable config snapshots, local calendar/DST scheduling, a durable started-day claim, and shutdown before database close. Summaries cover at most three missing journal dates from the last seven completed days, insert-only; current-day summaries are excluded.
-
-### God's Eye View Store Contract
-
-- `internal/desktopstore/gods_eye.go` owns app-specific setup for catalog ID
-  `gods-eye-view`. The admin GET/PUT `/api/desktop/store/apps/gods-eye-view/config`
-  uses existing authentication, CSRF, Desktop/Docker write gates and the exclusive
-  Store operation slot. GET returns configured flags, exact allowed HTTP(S)
-  origins and pending status only; PUT accepts known keys, explicit removals and
-  at most eight origins. Blank/omitted key fields preserve existing values.
-- Every Store catalog icon must pass the real Desktop icon allowlist before
-  app/shortcut registration. `gods-eye-view` is a dedicated allowed icon using
-  the packaged logo. Verify catalog icons and installation with the real
-  Desktop service/Vault, not only the Store's mock adapters.
-- Desired and previous active provider settings live only in encrypted Vault
-  `desktop_store_gods-eye-view_config`. SQLite and operation JSON contain no
-  provider values, only the active revision. Resolve credentials when creating
-  a container, never inherit AuraGo provider credentials, and preserve the old
-  runtime configuration on failed replacement. Retain settings on uninstall
-  unless `delete_data` explicitly removes both cache volume and Vault settings.
-- `internal/desktopstore/gods_eye_assets/` builds pinned upstream commit
-  `759652207fd1279ece97f0f19af566feb9a82146` with Node 24 and `npm ci`. The full
-  Vite service on 4173 retains live proxies, runs as non-root and mounts only
-  the named `.gev-cache` volume. Installations pull the published
-  `ghcr.io/antibyte/aurago-gods-eye-view:gev-7596522-1` image; never build locally
-  during installation. Catalog inclusion alone does not start the service.
-- The image adapter removes upstream POWER-UP settings and rejects `/api/setup`
-  writes. `frame-ancestors` allows only configured AuraGo origins and defaults
-  to none. The app-specific Tailscale proxy preserves that policy. Local, LAN
-  and Tailscale access keep the existing Store paths; LAN access is optional
-  and grants access to configured provider quotas. Google/Cesium keys remain
-  browser-visible by upstream design; other keys stay server-side.
-- The release workflow builds amd64/arm64, runs the adapter/provider mock test
-  within each image build, generates provenance/SBOM and signs the image digest.
-  Manual `docker-publish.yml` dispatch accepts `image=gods-eye-view` to publish
-  only this Store image with the workflow's package-write/OIDC credentials.
-  Keep cosign-installer on a verified release tag; the bare `v4` ref is absent.
-  Verify with Store/handler/Tailscale `TestGodsEye*`, the UI browser contract,
-  and anonymous image pulls for both architectures before claiming publication.
-
-### MQTT Configuration Contract
-
-- MQTT config API patches are typed and validated before Vault or YAML writes.
-  Topics are arrays, QoS is numeric and zero remains valid. Config validation
-  must clone mutable values before unmarshalling over an existing snapshot.
-- The broker URL selects the transport. Secure schemes always install TLS;
-  `tls.enabled` with a plaintext scheme is rejected without rewriting the URL
-  or port. Explicit CA and client certificate material must validate before
-  publication. Client certificates require both certificate and key.
-- MQTT credentials resolve from Vault `mqtt_password`, then raw `MQTT_PASSWORD`,
-  then empty. Preserve whitespace and never retain stale credentials after a
-  deletion. Vault mutations publish a fresh config snapshot; expose credential
-  source only, never the value.
-- The server owns an `MQTTController` even when disabled. Snapshot publication
-  only enqueues immutable desired settings; network reconciliation is serialized
-  outside the config lock. Connection-affecting edits retire the old generation
-  before starting its replacement. Logical edits retain the open connection.
-- Status separates desired and applied revisions; `connected` requires an open
-  confirmed connection. Test connections use their own disposable client and a
-  context-bound socket, including TLS and WebSocket handshakes. Shutdown cancels
-  and joins MQTT workers before closing agent/database dependencies.
-- Exact subscription filters have independent config, Frigate, manual and
-  mission-key owners; use their maximum requested QoS. Only a matching SUBACK
-  grant of 0, 1 or 2 establishes success. Preserve failed desired work and report
-  partial grants separately. Manual removal must preserve other owners.
-- Persistent-session ledgers contain ownership and confirmed/pending filter
-  changes only. Persist atomically per broker/client identity; never store
-  credentials or payloads. Restore confirmed manual owners, reconcile managed
-  owners from current configuration and reject traffic outside desired filters.
-- Mission dispatch uses one worker and at most 256 waiting jobs. Drop new work
-  on overload and recheck registration/generation before execution; dropped or
-  stale jobs never consume a trigger interval.
-- MQTT and Frigate relays use separate internal autonomous sessions, exclude
-  global chat history and suppress derived conversation, memory, personality
-  and planner-reminder effects. Keep explicit authorized tools and operational
-  issue recording available. Relay registration is synchronized and delivery
-  uses the controller's cancellable context and bounded queue.
-- Build direct runtime gates with `tools.RuntimePermissionsFromConfig` at
-  startup, reload and agent dispatch. MQTT bridge/CYD gates resolve the live
-  server snapshot independently of earlier agent turns; dispatch also retains
-  the current run's stricter limits. Record CYD publication failures.
-- Serialize native MQTT results as JSON. New Python MQTT skills must check
-  CONNACK, immediate return codes, per-topic SUBACK and completed publication,
-  bound reception buffers and clean up on failure. Never rewrite existing
-  generated skills when updating the bundled template.
-
-### Tool System
-
-- Server-published configs bind `AuthorizationSnapshots` before publication.
-  Scoped/delegated copies retain that runtime-only resolver. Dispatch intersects
-  Enabled/Allow/Sudo grants and ReadOnly restrictions immediately before execution;
-  new grants never widen an existing run. Compound allow/block-list and integration
-  membership changes require a new request. Hooks with tightened captured gates
-  require a fresh runner. Provider/model and native-schema snapshots stay fixed.
-  Keep authorization field naming and coverage in `live_tool_authorization.go`
-  synchronized when adding policy settings; Security filesystem access is a
-  positive read-operation allowlist, including aliases and editor tools.
-- Discovery belongs to an owned run ID, released on completion/cancellation;
-  active runs cannot expire through orphan-cache pruning. Refresh the catalog
-  against the actual scoped and budget-fitted request, including the lightweight
-  Looper. Tool-free callers stay tool-free. `invoke_tool` resolves before policy,
-  task rules, hooks and effect tracking and executes the real handler only once.
-- Catalog IDs preserve `skill__`, `tool__`, `package__` and deterministic MCP
-  namespaces. Bare aliases work only when unambiguous. Search/category/family
-  pages are bounded summaries; `get_tool_info` returns one complete schema and
-  `get_manual` reads revision-bound pages. Never byte-slice structured results.
-  Detail schemas use `agent.tool_output_limit` and the remaining request capacity
-  of every eligible route; report output and context limits separately.
-  Missing local dependencies are `needs_setup`; account/connection state is
-  distinct from configuration and never inferred from an enabled switch.
-- Execution status is captured before scrubbing/compression and kept separately
-  from display text. Only confirmed success supports learning, issue resolution
-  and context invalidation. Preserve external-data boundaries through compression.
-  Integration formatters capture trusted local envelope status before escaping;
-  external payload text cannot establish status. Text-mode prefixes and trailing
-  security guidance survive formatting so history grouping remains atomic.
-  MCP transport failures never automatically replay an already-sent tool call.
-  Discovery follows all pages atomically; notifications invalidate cached tools,
-  and partial server failures must not erase healthy catalog results.
-- Workflow guides are atomic optional prompt ledger sections in every tier.
-  Native schemas do not replace workflow guidance. Share manual family bindings,
-  validated disk/embedded sources and content digests with the search index.
-  Optimizer variants are chosen before fitting; only delivered, fitted guide
-  exposures with matched source, canonical action/target and operation evidence
-  support promotion. One request/guide/action/operation contributes at most one
-  observation; legacy traces without action identity retain provenance but do
-  not establish exposure. The optimizer worker follows live enable/disable state.
-- Configuration migrations share `NormalizeToolDisclosureConfig` across load,
-  save, API and config-merger. Canonical values win; explicit false/empty lists
-  stay authoritative. Removed controls are rejected in stale browser patches.
-  Runtime metadata from GET `/api/config` must never enter editable drafts.
-  Agent concurrency and Python skill-manager lifecycle changes require restart.
-
-- Game Maker `BuildJob` compiles without waiting; `ValidateJob` additionally
-  requires a build-bound browser startup check through the authenticated Studio
-  parent. Runtime errors feed the bounded repair loop; missing feedback prevents
-  publication. Diagnostics stay bounded, untrusted data and never become trusted
-  prompt instructions. Only the server boot's visible-canvas report establishes
-  readiness; engine console errors also fail validation. Procedural SVG assets
-  return `.svg` paths, never SVG bytes mislabeled as PNG. A passed startup check
-  does not certify all gameplay.
-Tools are defined in `internal/tools/`:
-- Each tool has a JSON schema definition
-- Tools are registered in the tool registry
-- Native OpenAI function calling format
-- Dynamic tool creation supported (agent writes Python tools)
-- `invoke_tool` may route any enabled native tool through its real handler, including an active catalog entry when the current model/runtime cannot emit the direct structured call. It must continue to reject disabled tools and self-invocation.
-- Resolve `invoke_tool` before task rules, role/scope policy, hooks and effect tracking; preserve the transport call ID. Hook handlers must not bypass role policy. Agent Skill scripts obey `AllowedAgentSkills` just like activation. Dispatch, Guardian and scrubbing run once for the effective action.
-- `ToolDispatchResult.Status` is captured before output sanitization and compression. Denied, setup-required, cancelled, deferred and unclassified results are not confirmed successes. Success learning, context mutation and issue resolution require a confirmed success; legacy string handlers must expose a recognizable result envelope before participating.
-- The `call_method` returned by `discover_tools` is binding. Use `invoke_tool` immediately when requested; `activate_tools` must reject any tool for which discovery did not explicitly return `activate_tools`.
-- Generated Virtual Desktop apps use the advertised `virtual_desktop_app_install` tool with one complete manifest-and-files payload; `virtual_desktop_apps(operation=install_app)` remains dispatch-compatible but is not advertised. Existing workspace files are never implicit install inputs.
-
-### System World Tower Voice
-- POST `/api/desktop/system-world/voice` returns one short transient audio clip.
-  Reuse the effective chat TTS configuration and in-memory synthesis, including
-  the active Speech Lab backend/voice snapshot. Require the desktop admin scope
-  for bearer clients; desktop readers must not gain global chat/memory access.
-- Randomly sample existing core/long-term memories, active notes and visible
-  user/assistant chat. Never expose tool/internal turns, file-index collections,
-  archived notes/memories, thinking blocks or registered secrets. Sampling must
-  not change source content or access metadata. No LLM, SSE publication, media
-  cache or text logging; one synthesis at a time with bounded request cadence.
-- GET `/api/desktop/system-world/memory-artifacts` feeds the memory-archive
-  hologram with at most eight excerpts of at most 96 runes from the same
-  sampler and scrubbing. Same admin desktop scope, Virtual Desktop must be
-  enabled, one request at a time with a 4 s cooldown (429 otherwise), `no-store`,
-  no LLM, SSE, caching or text logging. The client renders excerpts as canvas
-  text only and never exposes them in diagnostics.
-- Audio mixing, spatial attenuation, hologram, atmosphere and lifecycle
-  contracts live in `ui/js/desktop/apps/AGENTS.md`. Verify with
-  `TestSystemWorldVoice*` and `TestSystemWorldMemoryArtifacts*`.
-
-### Desktop Workbook Contract
-- Tabellen uses exactly Univer OSS 0.25.1, Chart.js 4.5.1 and Excelize 2.11.0.
-  Vendor assets/fonts stay local and permissive; never add Pro components.
-- `/api/desktop/office/workbook?representation=editor-v2` exposes typed native
-  snapshots. PATCH requires ETag or create-only preconditions, applies the
-  editor's structural journal atomically to the original package, and retains
-  opaque parts. Preserve images, macros (never execute them), chart XML and
-  unsupported extensions; reject edits that cannot retain their references.
-- Legacy Office/agent writes cannot silently flatten complex XLSX. Same-format
-  exports pass through complete packages; explicit simplified copies are separate.
-- Workbook assist is tool-free, uses only bounded explicit selection/context,
-  and returns revision-bound proposals. The client applies only after approval.
-- Both Office apps share revision-aware serial saves, asynchronous close guards
-  and explicit IndexedDB recovery. Conflict copies carry original source bytes.
-
-### Desktop Office Document Contract
-- Autor uses the exact Apache-2.0 DOCX core 2.16.0, local fonts/WASM, and an MIT
-  review extension; no paid Pro dependency. The UI remains Vanilla JavaScript.
-- `/api/desktop/office/document?representation=docx` reads complete DOCX bytes;
-  writes require `If-Match` or `If-None-Match: *` and use the desktop's atomic
-  conditional-write path. Keep the legacy JSON API compatible.
-- Legacy Office/agent writes must reject a DOCX they cannot preserve. Explicit
-  simpler-format copies are allowed; DOCX-to-DOCX exports pass through full bytes.
-- `/api/desktop/office/assist` is bounded, revision-bound and tool-free, without
-  general chat history or file access. Applying a suggestion is a client decision.
-- Desktop windows may install an asynchronous `beforeClose` guard. Await it before
-  animation/disposal; refusal or errors leave the window open.
-
-### Operational Issue Notification Contract
-
-- Persist a background prompt execution ID before dispatch. Internal HTTP retries
-  poll/replay that same execution and never start another tool chain. A pending
-  result does not spend retry allowance; uncertain executions after a process
-  restart require explicit retry. Cron prompts use their own background session.
-- Background and maintenance contexts only record operational issues; they never send user notices themselves.
-- Operational notices are limited to one batch at the first direct contact per local calendar day, across sessions/channels and restarts. Atomically claim the day even if no issues are pending; later contacts do not drain additional batches. New or changed issue revisions remain pending until the next day's first contact, with at most two issues ordered by severity, change, and recency. A one-off `tool_failure` warning stays internal until its second occurrence. High-severity open issues may repeat after 24 hours only after another occurrence or while explicitly awaiting a user decision.
-- Supported brokers receive `operational_issue_notice`; other channels receive the same localized text as a deterministic final-answer prefix. Mark a revision notified only after broker delivery or durable final-message persistence.
-- The model receives the notice only as already-delivered diagnostic context and must not be responsible for deciding whether the user sees it. Internal memory-reflection advice stays hidden unless blocked or awaiting a user decision.
-- Archive stale active history losslessly: single warnings after seven days, recurring warnings and errors after 30 days, and never explicit `review_required` decisions. Archived issues stay out of notices, reminders, active counts, and mission triggers; a recurrence atomically reopens the same fingerprint and retains its history.
-- The administrative operational-issues API and Dashboard expose only sanitized records with non-reversible public IDs. Retention deletes completed records only; archived records are not automatically deleted in v1.
-- Explicit retry requests permit at most one supervisor-selected safe retry. Guardian blocks, credential searches, secret environment access, and `_guardian_justification` retries are never eligible.
-- Tool-failure fingerprints include the normalized operation when one exists. A success resolves only the same operation; dedicated and legacy aliases for Virtual Desktop app installation share one semantic fingerprint.
-- Repeated route-specific `context_budget_exceeded`, Telegram long-poll failures, and reproducible maintenance-phase failures use this lifecycle and resolve only after a success on the same route or phase. Telegram polling records its first issue after three consecutive failures and exposes only sanitized runtime codes.
-- The nightly maintenance task emits one idempotent typed `morning_briefing` notification per run after persisting its phase ledger and current local integration checks. Disabled components are `skipped`; deferred retryable work makes the run `partial`, while only critical initialization or persistence failures make it `failed`. Background checks never send Telegram messages.
-- Weekly reflection has its own maintenance phase; skipped runs cannot resolve its failures. Use route-aware reasoning/output limits, reject empty/truncated/invalid completions, and retry once with fewer source records. Persist only parsed results; successful persistence may resolve the matching issue. Never store raw failed output or emit separate reflection notifications.
-
-### Prompt and Runtime Drift Contract
-
-- Persistent history compression must make bounded progress through oversized
-  conversations at complete tool-round boundaries. Preserve the current human
-  request, pinned records and the two newest native tool rounds.
-- Workspace asset fingerprints cover runtime sources, patches and dependencies,
-  with normalized LF endings, excluding Go test files. Legacy compatibility
-  must be bound to a verified exact runtime fingerprint, never a blanket bypass.
-- PromptSec structure provenance must come from guard metadata, never a textual
-  comparison with the current dynamic system prompt. A full structure envelope
-  cannot replace a chat user message. Chunked security scans provide diagnostics
-  only; a partial scan window must never replace the complete human request.
-- Prompt logs must include provider/model, build and VCS identifiers, prompt revision, sorted active tools, tool-catalog hash, and recovery counters.
-- `/api/system/info` exposes the running build identifier and VCS metadata. Deployment acceptance requires its `build_id` to match the reviewed commit; a `-dirty` identifier is not a clean release artifact.
-- Every LLM request must fit every eligible primary/failover route after reserving output and protocol safety tokens. Resolve limits in this order: provider override, model registry, cached provider probe, configured global cap for an unknown primary model, then conservative 32768/4096 defaults; `agent.context_window` is always an upper cap.
-- Carried chat history is additionally limited to `min(route history capacity, clamp(70% of model context, 65536, 131072))`. The current genuine user request is exempt from that history cap, the newest two tool rounds stay atomic and complete, older rounds compact first, and any automatic conversation recall is untrusted, capped at four same-session matches from Activity FTS plus active and archived messages and 4096 tokens.
-- Model registry files are generated artifacts. Refresh `models.dev` and `@oh-my-pi/pi-catalog` only through their `--write` generators, verify them with `--check`, retain upstream version/hash provenance, and surface `metadata_source` in limit diagnostics. Recompute route warnings after provider/model changes; an intentional global cap is informational and not an unknown-model fallback.
-- Helper and KG JSON completions request structured output only for supported routes, reserve reasoning output within effective provider/context caps, strip fenced/thinking wrappers defensively, reject empty/invalid/truncated (`finish_reason=length`) output before caching, and retry once with a smaller unit of work. Helper singleton identity includes provider limit overrides and the global context cap. File KG replacement is all-or-nothing across extraction segments.
-- Prompt Markdown without frontmatter remains a compatible plain source. A source that starts frontmatter but cannot parse is rejected in root modules, fallback identity/rules, personalities, tool guides, and delegated templates; a malformed disk override falls back to its valid embedded source. Prompt caches bind the selected source to a content digest so corrections are detected even when timestamp and size are unchanged.
-- `RunConfig.UserIntent` is the immutable human intent for one tool chain. Tool outputs remain in model history but must not retarget RAG, KG, dynamic guides, coding mode, task rules, or specialist selection. Recompute only explicitly invalidated turn-snapshot categories after successful mutations.
-- `RunConfig.TrustedPromptAddenda` is internal trusted execution context only. A2A and co-agent contracts are fitted as atomic required ledger sections into the generated prompt so nested Markdown headings cannot make part of an addendum optional; delegated requests have one leading system message, while user and external content remain in user messages or isolated context blocks.
-- The Writer specialist's `additional_prompt` defaults to compact multilingual Humanizer guidance. Keep `internal/config/config.go` and `config_template.yaml` synchronized; explicit empty/custom values remain authoritative. Preserve source claims, quotations, technical literals, requested voice and format; apply style cleanup silently. Attribution and license live in `THIRD_PARTY_NOTICES.md`.
-- Go-built `PERSONA STATE` directives may guide tone and working style only. LLM-generated emotion descriptions and inner-voice values stay untrusted advisory data isolated with `<external_data>` and may affect tone only. Neither path may change user intent, safety, or tool policy. Valence, arousal, and mood are owned by the Go affect integrator; helper/synthesizer output may narrate and move those numbers by at most a small clamped delta. Autonomous runs may emit affect events but must not inject persona side-effects into chat. Lived character notes are a trusted, clamped, user-reversible ledger distinct from Core Memory and user profile; helper reflection may propose at most two notes per day and must not restore a user-deleted note. Channel style may shorten or relax tone only; high thoroughness may add one verify step, never a free tool-call multiplier; destructive confirmation requires low confidence and an ambiguous target. Co-agents receive at most one temperament line and never inner voice or character notes. Dashboard and Config expose the affect timeline, last events, and lived notes; Config warns when V2, emotion synthesis, or notes need the Helper LLM. The lightweight Looper omits memory/RAG/personality but still uses route-aware fitting, atomic history trimming, final validation, and prompt logging on every LLM round.
-- Built-in persona bodies must fit the 1000-rune core-profile budget without truncation. Keep their voice recognizable in brief and technical replies; mood and channel modulate that voice rather than replacing it. Decode omitted metadata from `memory.DefaultPersonalityMeta()`; explicit zero volatility, empathy and loneliness modifiers remain zero. Missions and co-agents exclude the full persona and dynamic persona sections; delegated temperament remains separately bounded. Persona selection publishes a new config snapshot only after a successful save. Custom profile saves validate frontmatter before replacing files atomically and create the profile directory on first use; plain Markdown stays supported.
-- The selected compact persona and Go-built `PERSONA STATE` are required prompt sections; keep profile Markdown atomic through `TURN CONTEXT`. Optional emotion narration and character notes may be shed first. Apply a human message's affect once per run, and prepare its local mood before the first reply without another blocking model call. Synthesizers share continuity, cooldown and in-flight reservations through the owning SQLite memory store and restore the latest persisted state after restart. Persist bounded semantic affect, mood and emotion history atomically before publishing their shared snapshot; subsequent overlays must retain the accepted numerical contribution. Creative/analytical modes and positive feedback must remain visible in trusted tone guidance. Standalone synthesis uses route-aware JSON output budgets and rejects truncated completions.
-- Personality dynamics share the owning SQLite store and activate with the existing engine. `ApplyPersonalityObservation` owns atomic affect/dynamics/trait/history updates and durable observation receipts; semantic enrichment must retain its originating snapshot and cannot replay a primary event. Technical events affect load only, never familiarity or friction. Preserve the four-hour affect, twelve-hour load and twenty-four-hour friction half-lives, bounded family habituation, explicit zero modifiers, and two-event emotional hysteresis. Reads never advance state. Persona changes and resets invalidate pending analyses; resets preserve traits, familiarity and character notes. Back up existing on-disk personality data before the additive dynamics migration.
-- Promptsec structure guards are request-local and must never mutate the shared Guardian with a per-request system prompt. Before every send, preserve the newest tool-call reasoning block when any eligible primary or failover route requires continuation reasoning.
-- Native multi-tool assistant messages are persisted once. Every declared tool-call ID receives exactly one contiguous tool result before recovery or circuit-breaker system guidance is appended; sanitization remains defensive, not normal control flow.
-- An exact-duplicate tool circuit breaker terminates that tool chain. Persist the blocked result, emit `not_executed_due_to_circuit_breaker` for every remaining declared native call without dispatching it, remove tools, and request exactly one tool-free final response.
-- Internal chat control headers are trusted only from loopback with the process token. A mission ID additionally requires `X-Internal-FollowUp: true`; invalid internal headers fail with `invalid_internal_chat_headers` before normal authentication handling.
-- Persisted and manual history compression share the coordinated per-session path and apply one stable-ID update to the summary, in-memory history, and SQLite archive. Summaries are capped at 8192 tokens; failed summaries must leave raw data intact and fall back to bounded request-only recaps. Hard truncation must preserve valid UTF-8 and the final token limit.
-- `HistoryManager.CurrentSummary` belongs exclusively to chat context compression. Nightly maintenance must not use an LLM reflection loop to overwrite it; maintenance state is stored in the structured maintenance ledger and typed morning notification instead.
-
-### MeshCore Integration Contract
-- MeshCore native schemas live under `native_tools_*.go` for catalogue/audit discovery. Both direct calls and `invoke_tool` must reach the MeshCore handler through `dispatchComm`; registration alone is insufficient. Keep disabled-integration and proactive destination gates enforced.
-- Linux systemd installers and updates automatically grant existing `dialout`/`uucp` groups to the service for USB serial access, without changing login-account memberships or forwarding serial groups to GPU containers. Updates use the backed-up, verified service drop-in before restart; preserve rollback and `--no-restart` behavior.
-- USB Companion ports assert DTR at 115200 baud with RTS inactive: TinyUSB CDC firmware treats deasserted DTR as disconnected and suppresses serial replies. Do not use the 1200-baud bootloader touch sequence.
-- `internal/meshcore` owns one Companion device, versioned SQLite inbox/execution reservations, framed USB (115200 baud) and native Linux BlueZ BLE. Docker allows explicit USB passthrough only. Hardware acceptance remains unverified until real platform tests pass.
-- Bind permissions to the confirmed full device identity and keyed channel fingerprint. Trust is full-key, unambiguous synchronized chat contacts sending direct plain text only; names, channel senders, signed-plain and room-forwarded messages never authorize actions.
-- Channel fingerprints normalize only undefined name padding after the first NUL; device identity, slot, name bytes and the full channel secret remain binding. Persist the fingerprint salt across restarts. Legacy fingerprints made from nonzero padding require explicit reconfirmation, never automatic permission migration.
-- Every text input uses static injection checks and a strict successful Guardian content verdict, or an isolated tool-free main-model scan only when Guardian is disabled. Errors, truncation and tool calls quarantine input regardless of global `fail_safe: allow`. No global slash-command interception.
-- Channel replies use a fresh `ExecuteMinimalLoop` without private context, with at most two individual native Brave searches. Enforce scope in schemas and dispatch; MCP preferences, `invoke_tool`, skills and dynamic activation cannot bypass it.
-- Minimal-loop final answers must reject textual tool-call syntax, including escaped XML and JSON wrappers. Allow at most one format correction while native tools are available; never execute text as a tool call or relax schemas/call limits. Tool-free scans and summaries fail closed, and tool-round narration is never reused as a final answer.
-- Channel question detection includes open channel questions and radio checks without punctuation or assistant addressing. Reception replies may report the message's measured SNR and known flood hop count; never infer audio reception, other receivers, RSSI or a direct RF path. Radio checks use no web search. Statements and other bots' answers still receive no reply.
-- MeshCore-triggered agent turns receive persisted reception metadata in isolated external-data blocks: message/channel identity, sender and queue-retrieval timestamps, V3 SNR and decoded flood hops. Trusted direct turns also receive the reception-time contact/device snapshot, advertised position and cached outgoing route; public channel turns exclude those private snapshots. Names/positions/routes never grant authority. Unknown values stay unknown; direct-route 0xFF is not zero hops, cached outgoing paths are not inbound paths, and retrieval-minus-sender time is not propagation latency. Keep all available non-secret fields from existing Companion reads; never correlate unrelated RF logs or send automatic telemetry probes just to enrich a wakeup.
-- Automatic channel replies receive the runtime-enforced `[AuraGo KI]` prefix before byte splitting. Echo prevention recognizes this marker and legacy `[AuraGo]` replies.
-- Strip model reasoning before testing the exact `NO_REPLY` sentinel. The shared `security.StripThinkingTags` also removes implicit reasoning through an unmatched `</think>` or `</thinking>`; suppressed replies create neither radio text nor an outgoing Messenger entry. Verify with `TestStripThinkingTagsOrphanClosers`, `TestMeshCoreReplyStripsOrphanThinkingBeforeNoReply` and `TestChannelNoReplyDoesNotSendOrCreateOutgoingMessage`.
-- Automatic replies bind their destination internally. Proactive sending is separately disabled by default and requires destination allowlists. Permission publication cancels current work; interrupted executions and uncertain sends are not automatically replayed. Execution tombstones outlive the maximum command admission age even when inbox bodies are evicted.
-- Channel secrets and device BLE PIN fields never enter normal API responses, agent output or logs. The sole browser exception is an explicit administrator POST to the Messenger invitation endpoint: `no-store`, transient dialog only, no browser persistence or automatic clipboard copy. Pairing is explicit and PINs transient. Tests read saved settings and never send radio text or mutate radio parameters.
-- MeshCore messages never create general chat system notifications. The next direct-contact prompt contains fixed metadata only. Raw inbox text stays in the administrative API/UI. Connection and scan failures use Operational Issues. Setup and recheck routes are admin-only under `/api/meshcore/`.
-- MeshCore location disclosure is opt-in and may expose only the administrator-entered public description; device/contact positions, coordinates, routes and inferred locations remain private. The Config inbox exposes only the newest 100 records in a paginated scroll area without changing storage retention.
-- `meshcore.additional_prompt` is optional administrator guidance (at most 2000 Unicode characters) for MeshCore replies and tool use. Inject it as an atomic required prompt addendum only while MeshCore is enabled; never include it in the separate inbound security scan or treat it as permission to bypass existing gates. Empty text adds nothing.
-- Keep `documentation/meshcore-{en,de}.md`, `prompts/tools_manuals/meshcore.md`, config defaults and all Config translations synchronized. Verify MeshCore protocol/policy, strict scans, minimal-loop scope, API and UI contracts.
-- The builtin Desktop Messenger uses the same manager and administrative `/api/meshcore/messenger/` routes. Human sending is separate from agent permissions and invokes no LLM. Persistent request IDs reserve sends before radio I/O; per-part acceptance/ACK states survive restarts without automatic replay. Device edits stop automation and persist an uncertainty lock before mutation; only confirmed reconciliation and configuration publication clear it. Contact removal revokes trust; new channels are receive-only. No repeater administration, firmware or radio-parameter writes.
-- Messenger history is a separate sanitized projection (90 days/10,000 messages by default). Unreviewed bodies stay only in the protected inbox and require explicit reveal. Conversations bind full device/contact identities or keyed channel bindings, never names or retrospectively resolved prefixes. Clearing history preserves execution reservations. Desktop events contain references only; muting affects Messenger notifications, not agent notices. Migration backs up existing v1 databases before adding chat tables.
-- The opt-in `builtin-meshcore` desktop widget (hidden by default, added via the widget drawer) is read-only: it renders the sanitized conversation projection from `GET /api/meshcore/messenger/bootstrap`, refreshes on metadata-only `meshcore_changed` desktop events plus a visibility-gated poll, opens the Messenger app with a validated conversation ID on click, and never reveals protected text or sends messages.
-
-### Fritz!Box Desktop Widget Contract
-- The opt-in `builtin-fritzbox` Desktop widget (hidden by default, added via the widget drawer) is read-only and uses only `GET /api/desktop/fritzbox/overview?sections=system,connection,devices,telephony` (`internal/server/desktop_fritzbox_widget.go`). The route requires the admin desktop scope, Virtual Desktop enabled (503 `desktop_disabled`) and `fritzbox.enabled` with a host (403 `fritzbox_disabled`); it never invokes an LLM and performs no switching actions.
-- Section capabilities follow the Fritz!Box feature groups: system = `System.Enabled`, connection = `Network.Enabled`, devices = `Network.Enabled` plus `Hosts` or `WLAN`, telephony = `Telephony.Enabled` plus `CallLists` or `TAM`. Disabled sections are omitted; per-section failures return only the codes `auth_failed`, `timeout`, `unreachable` or `fetch_failed`, never raw errors.
-- The payload is sanitized: no MAC addresses, serial numbers, answering-machine file paths/URLs, port forwardings, credentials or raw TR-064 text. Host and caller names are truncated to 48 runes, at most 40 hosts and 8 calls are returned, and bandwidth values are bit/s. The router password stays under Vault key `fritzbox_password`, read only when the widget backend client is rebuilt.
-- One shared per-section TTL cache with single-flight serves all widget clients: system 5 min, connection 4 s (waits for a fresh value), devices/telephony 45 s (stale-while-revalidate), 10 s retry window after errors, backend client rebuilt after 10 min or on error, request wait capped at 15 s. Traffic history is a client-only ring buffer seeded from `X_AVM-DE_GetOnlineMonitor`; there is no server-side sampler or persistence.
-- WAN reads live in `internal/fritzbox/service_wan.go` (`GetWANStatus`, `GetWANLinkInfo`, `GetOnlineMonitor`; PPP first, then IP connection) and require the Network feature group. Verify with `go test ./internal/fritzbox ./internal/desktop`, `go test ./internal/server -run 'FritzBox'` and `go test ./ui -run TestDesktopFritzBoxWidget`.
-
-### 3D Printer Integration Contract
-- The opt-in `builtin-printer` Desktop widget uses authenticated GET `/api/3d-printers/status`: without `printer_id` it lists only configured IDs/names and the default, with an explicit ID it executes only `status`. Disabled integration blocks reads. Camera expansion reuses the existing same-origin camera stream; widget polling never stores camera snapshots or invokes an LLM.
-- Elegoo SDCP status/attributes reads wait for a nonempty matching `Status`/`Attributes` snapshot (top-level or under `Data`), not a command ACK or unrelated push. Negative ACKs fail; the whole command shares one deadline and honors cancellation. Verify with `go test ./internal/tools -run 'Elegoo|ThreeDPrinter'`.
-- Klipper/Moonraker API keys are vault-only. Store them under per-printer keys derived from the printer ID (`three_d_printer_klipper_<sanitized-id>_api_key`); never serialize them into `config.yaml`, API config responses, or tool output.
-- Normal 3D-printer operations require an explicit `printer_id` unless `three_d_printers.default_printer` is configured. `list_printers` and ad-hoc `/api/3d-printers/test` are the setup exceptions.
-- Camera snapshot and stream APIs must enforce `three_d_printers.enabled`. Klipper snapshots prefer Moonraker `snapshot_url`; live streams require a valid HTTP(S) `stream_url` on the configured printer host.
-
-### go2rtc Integration Contract
-- AuraGo manages only its own pinned go2rtc Docker sidecar. API/UI port 1984 is loopback-only for native AuraGo and Docker-internal for containerized AuraGo; RTSP port 8554 is never host-published.
-- Stream source URLs and the internal API password are Vault-only. Generated go2rtc configuration must contain neither sources nor plaintext credentials; inject enabled sources through the authenticated runtime stream API after startup.
-- Keep upstream go2rtc logging disabled because producer warnings can contain runtime source URLs. Bound snapshot memory and stored-media retention so viewer access cannot exhaust AuraGo memory or disk.
-- The managed container receives the internal password only for go2rtc startup. Docker inspect output must redact it; direct agent lifecycle, log, exec, copy, and process-list access to the go2rtc container is blocked; and `go2rtc_` Vault keys are forbidden for Python/skill export.
-- Accept one network source per stable stream ID and only `rtsp`, `rtsps`, `rtspx`, `http`, `https`, or `onvif`. Reject files, devices, exec, custom ffmpeg, arbitrary URLs, and agent-side stream mutation.
-- Keep viewer/proxy access scoped to configured enabled stream IDs. Strip caller authentication and cookies, block raw config/log/process/publishing/mutation routes, and use AuraGo's internal Basic authentication upstream.
-- Direct LAN WebRTC is opt-in and requires a concrete private bind/candidate IP before publishing 8555/TCP and 8555/UDP. The `network-cameras` desktop app must use `/api/go2rtc/viewer/{stream_id}`, `/api/go2rtc/thumbnail/{stream_id}.jpg`, and sanitized AuraGo APIs only.
-- ONVIF discovery is admin-only and available only with `Runtime.BroadcastOK`. Keep candidates and credentials memory-only, private-network scoped, bounded, short-lived, and single-use; never proxy go2rtc's raw `api/onvif` route.
-- Camera tiles must use the non-persistent snapshot-bytes path so `store_media` never registers periodic thumbnails. Viewer access remains `go2rtc.view`; setup and stream mutations remain administrator-only and same-origin.
-- Managed camera mutations publish a fully loaded and validated YAML/Vault desired state before runtime reconciliation. Pre-publication failures roll back Vault changes; post-publication reconciliation failures retain the desired state and return HTTP 202 for background retry. Reserve ONVIF setup tokens until publication and keep private ONVIF SOAP traffic proxy-free.
-- Enabling go2rtc must actively verify readable Docker container/image endpoints, the network endpoint when AuraGo runs in Docker, and mutation permission through a random nonexistent-container start probe that cannot create a resource.
-
-### Managed Local Model Contract
-- `spark` selects experimental AuraGo-Spark Q4_K_M with a fixed 64K context, Thinking on, one slot, and no speculative decoding or KVFlash. Config and Setup state at least 6 GB VRAM. Pin its Spark-capable hybrid engine independently; do not reuse Ling images or templates. Public CUDA/SYCL/Vulkan runtime digests are pinned and require explicit experimental selection. WSL CPU startup, tool rounds, streaming and cache reuse passed; filled-64K answer quality and native GPU acceptance remain unverified.
-- `local_llm.model_family` defaults to `qwen`; `ling` selects AuraGo-Ling Q4_K_L with MTP off and the full 16K context. Ling 32K requires separate qualification. Keep the reserved provider ID `aurago-qwen-local`; resolve display name and API model alias from the selected family.
-- Reuse the single local-model manager and its Vault credential, isolated container, resumable hash-verified downloads and routing gates. Family/engine changes invalidate attestation and prompt caches but preserve downloaded models.
-- Qwen runtime pins remain independent. Ling pins hybrid engine `f37a34cd4e502284ca297e141a6c4013bd151b18`; CUDA uses 2048/64 phase batches and Q8 KV, while SYCL/Vulkan use conservative F16 profiles. Apply SM75 tuning only to compute capability 7.5. Disable KVFlash, Thinking, draft decoding and context fitting for Ling.
-- Qwen's single-slot runtime uses and attests `--slot-prompt-similarity 0.999999`: only a complete input-prefix match at supported 16K/32K limits reuses the current slot directly. Partial matches compare saved RAM contexts; identical prompts must not trigger unnecessary full-state copies.
-- Model publication requires an anonymously verified HF revision/hash/size and digest-pinned images. A backend without native Linux GPU acceptance stays experimental and unavailable to automatic selection; Windows/WSL results never grant that qualification.
-- Local prompt reuse starts with the first attested request, including helper requests. Cache qualification runs only in idle time; ordinary misses and latency variance must not permanently disable reuse. Read actual reused tokens from `timings.cache_n` or OpenAI usage, never the native post-generation `tokens_cached` slot size. Ling keeps stable instructions in its first system message and moves `# TURN CONTEXT` into a second system message so its template renders stable tools before volatile context. Preserve all trusted instructions and ordered tool results.
-
-### AI Gateway Contract
-- Cloudflare AI Gateway routing must use provider-native segments where supported. In `auto` mode, unsupported providers must skip gateway routing and report a warning instead of silently falling back to `/openai`.
-- Workers AI uses the Cloudflare REST base (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) with `cf-aig-gateway-id`; provider-native routes use `cf-aig-authorization` for the optional authenticated-gateway token.
-- AI Gateway status checks must stay local and non-token-consuming; live Workers AI connection tests validate the Cloudflare API token/account via `/ai/models/search` and include `cf-aig-gateway-id`.
-- The privacy-safe default is `log_mode: metadata_only`; metadata headers must never contain secrets.
-
-### here.now Integration Contract
-- here.now uses only the fixed `https://here.now` API origin, Vault key `here_now_api_key`, authenticated permanent Sites, and explicit personal or workspace account resolution. Never fall back to anonymous publishing or claim flows.
-- Homepage publishing snapshots a relative workspace directory into a private temporary tree before the first provider request. Reject traversal, symlinks/reparse points, special files, credential material, and more than 1,000 publishable files; upload only the snapshot and always remove it afterward.
-- Retry reads, presigned upload PUTs, and idempotent finalize calls only. Never automatically replay create, update, duplicate, restore, metadata, access, refresh, or deletion mutations; ambiguous outcomes must be structured as `here_now_outcome_unknown` with `retry_safe`.
-- API, upload, and Site verification traffic uses strict public DNS-pinned transports that ignore the loopback SSRF escape hatch. Upload redirects are blocked; Site verification validates and repins every bounded redirect hop before accepting a final `2xx`, `401`, or `403`.
-- Access mutations require a complete current provider policy and preserve omitted allowlist fields. Site-password Vault keys bind canonical account ID plus slug, never use slug-only fallback, and are deleted only after verified password removal or successful Site deletion. The generic Homepage ledger records here.now only after finalize and URL verification.
-
-### Bluetooth Integration Contract
-- Linux Bluetooth uses BlueZ over the system D-Bus; startup detection must stay passive and must not start discovery, pair, connect, or alter audio defaults.
-- The native `bluetooth` tool exists only with a powered usable adapter. Pair/connect/disconnect require `bluetooth.readonly: false`; play/speak/status/stop require a usable PipeWire or PulseAudio backend and `bluetooth.allow_playback: true`.
-- Agent-side pairing is Just Works only. An optional numeric PIN may be passed transiently by the admin UI, but must never be stored, logged, or exposed in LLM tool schemas.
-- Bluetooth playback accepts workspace-local files or audio/music Media Registry IDs only, never URLs. It may connect an already paired target but must never pair implicitly.
-- Route only AuraGo's stream to the matched Bluetooth sink, keep the system default output unchanged, and allow at most one AuraGo-owned Bluetooth playback at a time.
-- Standard Docker installations must report Bluetooth unavailable unless a future explicit and security-reviewed host D-Bus/audio passthrough contract is added.
-
-### Default Speech Output Contract
-
-- Fresh installations use `tts.provider: sanotts` and `tts.language: auto`.
-  Keep explicit existing provider/disabled settings intact. Setup profile credentials
-  may be prepared, but must not replace the local default. Config remains the owner
-  of later provider changes. Automatic speech language follows the user, with English
-  for unsupported local voice packages; TTS does not translate input text.
-- `internal/sanotts` owns the pinned CPU runtime wheel and shared CYD/WAV runner.
-  `internal/tools/sanotts.go` provisions its separate `data/sanotts/venv` on first use,
-  serializes CPU synthesis, and retains downloaded voice packs. Do not add GPU,
-  Docker, torch, or onnxruntime requirements. Python 3.10+ with venv/pip is required.
-  Current Python packs cover 13 languages including German `de-tiny`; hi/ne/zh remain
-  browser-only upstream. See `documentation/sanotts.md` for provenance and checks.
-
-### Native SIP Telephony Contract
-
-- AuraGo owns one in-process Diago SIP endpoint, one Vault-backed account, and at most one active call. Keep Diago pinned to v0.31.0, sipgo pinned to v1.4.3, G.711-only media, and CGO-free builds; do not add Asterisk, FreeSWITCH, PJSIP, ffmpeg, or a SIP sidecar.
-- Registration and explicit connection tests remain available in read-only mode. Answering, dialing, DTMF, and agent hangup require both `readonly: false` and their granular permissions. Empty caller or destination allowlists deny all.
-- Trust incoming calls only when both the network peer matches a configured CIDR and the normalized caller matches the allowlist. Outgoing calls require canonical `sip:` URIs, an exact allowed domain, and an exact user or allowed E.164 prefix.
-- SIP config/setup persistence must reserve reconfiguration before any Vault or YAML mutation and return HTTP 409 while a call is active or being prepared. Legacy wildcard outbound allow entries remain loadable but authorize nothing, surface `outbound_policy_migration_required`, and must be replaced on the next save.
-- Keep the SIP password only under Vault key `sip_endpoint_password`; block every `sip_` secret from Python, skills, and agent export. Never log or store full SIP headers, RTP/audio, authentication data, or raw transcripts.
-- Both classic ASR/agent/TTS and server-side Gemini Live use `internal/voice` PCM contracts and the shared `VoiceActionRunner`. SIP turns always carry an explicit `AllowedTools` list whose empty form allows no native tools, including through `invoke_tool`.
-- `sip.voice` is the single Telephone agent profile for agent-led inbound and outbound calls. It selects explicit agent-LLM, classic ASR/mode/TTS, or Gemini Live references plus additive behavior, privacy, and duration rules. Legacy empty provider fields inherit the global LLM/Whisper/TTS choice only until the first Telephone agent save materializes the effective IDs.
-- Preflight agent routes before answer or outbound INVITE and fail closed on permission, provider, Vault, service, or tool-scope blockers. Never switch telephone pipelines or providers silently. Saving `/api/sip/agent` updates only future-call settings and must not restart SIP registration or browser media; every active call keeps its complete provider, tool, behavior, limit, and transcript-retention snapshot.
-- Keep Browser Realtime Speech on its established surface-specific streaming handlers; SIP must not replace browser SSE routing or inherit the Virtual Desktop provider selection. Transient SIP turns suppress derived memory, personality, activity, journal, and reuse-first side effects before their chat session is purged.
-- Terminate established local/outbound call failures with one BYE and close every dialog exactly once; cancellation while an outbound INVITE is pending must flow through its context-driven CANCEL. Keep provider audio and VAD buffers bounded, normalize external sample rates before the fixed 8/16/24 kHz media bus, and never write SIP ASR audio to disk.
-- The PCM `MediaPeer`, incoming-call handler, history schema, REST actions, and SSE events are compatibility anchors for the future authenticated WebRTC desktop phone and bounded Media-Registry answering machine; neither future feature may expose SIP credentials or raw RTP to the browser.
-
-### Speech Lab Integration Contract
-- Speech Lab owns its active ASR, TTS, and effective voice stack. AuraGo must read all three from one `/ready` snapshot for chat synthesis, new SIP calls, and Desktop Live Speech `speech_lab` profiles, then require both `X-S2S-TTS-ID` and `X-S2S-Voice` to match on synthesis; legacy `speech_lab.voice` values are load-only and never become runtime defaults. Desktop Live Speech may use the managed or external s2s container through the keyless `local_s2s` realtime provider; it must not send `llm_id` or replace OpenAI/xAI/Gemini streaming adapters.
-- AuraGo and the Browser Lab may both activate the shared stack, but AuraGo never sends `llm_id`. Voice choices come only from the selected TTS backend catalog, and active operations or calls keep their immutable start snapshot.
-- `speech_lab.chat_llm_provider_id` applies only to the next direct webchat turn marked after Speech Lab ASR. Resolve its static Vault key, unexpired OAuth token, Copilot auth manager, or supported keyless local runtime from the turn snapshot; disable helper and fallback routing for that full turn. Typed chat, browser speech recognition, internal follow-ups, missions, and SIP retain their existing provider routing; an unavailable selected provider fails closed without main-provider fallback.
-- Speech Lab ASR provenance uses a single-use five-minute token bound to the session and exact transcript; client-supplied booleans never activate Speech Lab chat routing. Realtime actions emit exactly one `final_response`, then a contentless `done`, and request-scoped cancellation must not interrupt sibling turns in the same session.
-- A successful Speech Lab ASR response with empty text is retryable user input, not a provider outage. Chat upload returns `speech_lab_no_speech` with HTTP 422, records only aggregate WAV duration, sample count, peak, and RMS diagnostics, and keeps expected no-speech events below warning level; never log audio or transcript content for this diagnosis.
-- When enabled, Speech Lab remains visible in the chat integrations drawer. `advanced_ui_url` is an optional external Browser Lab link; a missing URL is shown as a configuration warning and never blocks ASR/TTS activation.
-
-### Local Network Share Integration Contract
-- Local SMB/NFS capability probing must remain passive: never install packages, start services, enable Samba registry shares, or change global server configuration.
-- The native `network_shares` tool and Admin UI expose reads only when a configured protocol is actually readable. Mutations require the matching granular permission, `readonly: false`, a writable runtime backend, and an existing canonical directory inside an allowed root.
-- Only AuraGo-created shares reconciled through the ledger and a native marker where the backend supports markers may be updated or removed. Marker-less Windows NFS requires an exact ledger match on protocol, name, and canonical path. External, orphaned, unsafe, and drifted shares are read-only, out-of-root shares stay hidden, and removing a share must never remove its directory or files.
-- SMB access is limited to configured existing OS principals; no account or password management. NFS accepts only configured IP addresses/CIDRs and must use `sync,root_squash,no_subtree_check` plus `ro` or `rw`; Windows NFS host permissions are limited to individual IP addresses because AuraGo does not manage global client groups.
-- Linux Samba uses only `net conf` registry shares when `registry shares = yes` already exists. Linux NFS owns only `/etc/exports.d/aurago-<id>.exports`. Windows uses fixed JSON-driven PowerShell scripts and installed SMBShare/NFS cmdlets.
-- Standard Docker, `NoNewPrivileges`, `ProtectSystem=strict`, and insufficient elevation must disable host mutations without hiding otherwise readable status.
-
-### Virtual Computers Storage / Managed Garage Contract
-- Workspace close treats boringd's JSON `404 {"error":"not found"}` as completed deletion, clears stale errors, closes jobs/browser sessions/grants and resolves only that workspace's `lease_close_failed` issue. Router/proxy 404s, authentication failures and server errors remain failures; closed workspaces must leave lease reconciliation.
-- Default `virtual_computers.storage.mode` is `managed_garage`; `external_s3` remains supported. Legacy configs without `mode` normalize to `external_s3` when an endpoint is set, otherwise `managed_garage`.
-- Managed Garage runs on the boringd control-plane host (`local_host` or `ssh_host`), never as a general AuraGo Compose service. Image is pinned `dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690`. Only S3 binds `127.0.0.1:3900`. Data lives under `${install_dir}/data/sidecars/garage`.
-- Docker is required for managed volumes but is not installed by AuraGo. Missing Docker is a storage warning and must not set core preflight `Supported=false`.
-- Managed Garage Vault keys (`virtual_computers_garage_*`) are separate from external S3 keys. Never export them to Python/skills; never show them in the UI. Stop without delete retains container data and source objects.
-- Storage identity includes mode, endpoint/bucket/region/SSL and, for managed Garage, control-plane mode/host/install_dir. Source objects are never auto-deleted on switch. `previous_store` ledger volumes must not be removed by normal JSON-404 cleanup.
-- Config save must return HTTP 409 (`storage_switch_required`) when identity changes while available volumes exist, unless a single-use `X-AuraGo-Storage-Switch-Token` from `/api/virtual-computers/storage/switch/authorize` matches the target identity hash. Switch-without-migration marks volumes `previous_store` and may stop managed Garage; automated object-copy migration is optional/not required for the gate.
-- Agent Docker tools must hide and block lifecycle/inspect/exec/mount access to `aurago-boring-garage` and Garage data paths, same fail-closed pattern as Local LLM.
-
-### Agent Filesystem Jail Contract
-- Agent filesystem, file_editor, and other `secureResolve` paths jail to `agent_workspace`, not the AuraGo install root. From `workdir`, `../skills` and `../tools` stay reachable; `../../config.yaml` and `data/` must fail resolution.
-- `isProtectedSystemPath` is defense-in-depth: case-insensitive, symlink-resolved, and blocks `directories.data_dir`, configured config/vault/sqlite paths, `.env` files, and `aurago_master.key`.
-- Media registry and video-download bounds still use the install root via `detectAuraGoInstallRoot`. Guardian must not label `../../` as a safe in-project path.
-
-### Agent Docker Inspect Contract
-- Agent `docker inspect` environment redacts `AURAGO_*` and keys ending in `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY`, or `_MASTER_KEY`. Administrator container APIs may still inspect the AuraGo app container.
-- The agent docker tool must hide and block inspect, lifecycle, log, exec, and copy access to the compose app container `aurago` (including compose-project prefixed replicas). Sidecars such as `aurago-local-llm`, `aurago_gotenberg`, and `aurago-homepage` keep their existing owner gates.
-
-### GitHub Integration Contract
-- `github.allowed_repos` is a strict allowlist; prefer `owner/repo` entries. Legacy bare repo names only match the configured `github.owner`.
-- An empty `github.allowed_repos` list permits only repositories AuraGo created through the GitHub tool and tracks with `agent_created=true`.
-- Manual `track_project` entries are local inventory only and must never grant remote repository access.
-
-### Workspace Search System
-- `internal/services.WorkspaceSearchService` maintains a Pure Go resident index for the full agent workspace derived from `directories.workspace_dir`; it must stay single-binary friendly with no CGO, mmap, FFI, or fsnotify dependency.
-- The native `workspace_search` tool exposes `find`, `grep`, `glob`, `recent`, `rescan`, and `status`. Keep legacy `file_search` JSON shapes compatible when delegating to the resident index.
-- Do not persist file content for workspace search. Only frecency/access metadata belongs in `data/workspace_search.db`.
-
-### Homepage Managed Website Ledger
-- Managed homepage/web projects use `data/homepage_registry.db` as the system of record for project identity, local file state, structured events, revision links, deployment targets, deployment history, remote observations, and drift status.
-- Homepage project identity is the `project_dir` relative to `homepage.workspace_path`; avoid storing absolute workspace paths as the canonical project key.
-- Mutating homepage operations must keep the ledger current by recording structured events and, when files change, revisions plus file-state snapshots. Remote deploys must be linked to provider IDs/URLs and build artifact hashes when available.
-- Server APIs under `/api/homepage/sites` expose the managed-site read model, including detail `deploy_targets` and `remote_observations`, plus the reconciliation path. Keep these APIs additive and compatible with existing `/api/homepage/history`.
-
-### Game Maker Studio Contract
-- Game Maker streams use the configured per-call LLM timeout through a request-local retry override; the global chat retry timeout is unchanged. Require a complete stream marker before executing generated calls, retain interrupted reasoning privately, and distinguish timeout/truncation from empty completion. An empty new-game build can reach the existing bounded unchanged-starter recovery only with an accepted plan; all compiler/browser/publication gates still apply. Model progress events carry only allowlisted status codes, never reasoning or provider text.
-- Game Maker projects use `Games/<slug>` as their only persistent identity and live below the configured Virtual Desktop workspace. Never persist or return absolute host paths.
-- Game Maker continuations keep the original project request, recent user changes and a private provider-native conversation (including available reasoning and complete tool/result groups) in `gm_agent_context`, isolated by project and revision. Checkpoint at tool/phase boundaries and cancellation; rebuild current system/tool scope, never replay historical calls. Route budgets still bound restored history; only Game Maker opts into retaining completed reasoning. Provider changes keep reasoning as historical data rather than replaying provider-specific fields. Do not expose this state as Studio chat, assets, exports or general memory. Keep one failed/interrupted working copy per project until continuation succeeds or the project is deleted. Resume copies it into a new job and retains installed source; publication still requires all existing checks. Release the global writer only after working-copy cleanup. `StartJobRequest.resume` resumes directly without copying a prompt into the UI editor.
-- Jobs run in isolated staging directories with one global writer. A validated internal `.aurago/game-plan.json` is required before agent code/media/import mutations. Planning has an initial submission and at most two corrections. The selected model plans and builds; no user confirmation or stronger-model fallback is required.
-- Game Maker planning/building/repair use a server-owned per-run tool budget of `max(40, ceil(circuit_breaker.max_tool_calls * 1.25))`, rounded upward and logged at job start. It overrides personality/tool adjustments for that run only; the shared system setting, other agents, time/token limits and plan/repair attempt limits remain unchanged. Tool-free implementation/image review stays tool-free.
-- Provider schemas may encode `set_plan.plan` as a JSON object string. Native and XML fallback parsing must preserve the complete structured plan, including the legacy XML task-prompt alias. Keep field-specific validation errors across planning rounds and in the final failure; successful correction must not carry obsolete plan errors into building.
-- Plan submission rejects unknown JSON fields within the same correction budget and reports independent asset errors together. Each asset role uses singular pack/asset/assembly IDs; variants need distinct roles. Legacy plan perspective errors target root `plan.perspective`, never a writable asset `view`. Compact-design errors instead target `design.assets`, keep the requested base and return bounded compatible catalog alternatives; corrections retain the complete asset array. Asset search ranks content above pack names and excludes pack-name matches when already scoped to that pack.
-- Planning ends on server-owned acceptance or exhausted corrections through `RunConfig.RunComplete`, without another LLM request. Remaining declared native calls receive one skipped result each and are never dispatched; cancellation still fails the round. The orchestrator alone advances an accepted plan to building.
-- Exhausted repair budgets, unavailable browser feedback, and the first validation of each repair round also end the agent round through server-owned completion. Building can continue after core checks while budget remains. Exhaustion retains the last concrete failed check instead of replacing it with the budget error. Earlier rounds cannot complete a new round.
-- A rejected tool call in the tool-free limit response during Game Maker building/repair hands the saved source back to orchestrator validation. Never execute the extra call, retain its prose, increase budgets or mark the game successful without the existing checks. Planning failures, cancellation and other provider/agent errors still fail normally.
-- New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. Failed/cancelled jobs preserve the last playable revision; at most three repair passes are shared by tool and orchestrator validation.
-- Phaser 4.2.1 and Three.js 0.185.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
-- Phaser phase guidance must distinguish dynamic and static Arcade bodies from their game objects. Moving paddles remain dynamic and immovable; body `setVelocity`/`setPosition` runtime errors receive bounded repair hints without weakening validation or increasing the repair budget.
-- Dynamic gameplay checks use bounded `target` steps (move, aim, reach, interact, catch, avoid, select), driven only by normal keys/pointer input and read-only engine geometry. Keep roles/IDs independent of artwork. Never mutate actors, damage, randomness or counters to pass. Target reports require matching steps and physical effects; counter-only changes, missing targets, blocked routes and unsupported controls stay unavailable. Only observed contact/response contradictions fail. `player_distance` is derived from engine positions. Targeted input lives only in the injected preview driver; read-only 3D observations may ship with the common helper. Existing scenario/driver deadlines, lifecycle cleanup, export exclusion and publication gates remain binding.
-- Asset detail examples must include executable preload/setup methods and preserve the template lifecycle. Asset creation rejects unloaded textures or missing frames; test binding requires a live controlled object assigned by setup. Missing Phaser textures cannot pass asset validation.
-- New templates import and preload exact planned asset roles in common.ts. Every 2D template uses those roles through body(...,role), with uniformly fitted art and separate collision proxies; changes retain this wiring. The build guard rejects pack metadata as a texture key at the shared texture-manager boundary. Gameplay scenarios must allow actual travel time; hit counters represent collisions, including hits on durable targets.
-- Additional plan scenarios are optional (0–8); the server always retains its eight 2D minimums and eight/ten guided 3D minimums (maximum 16 total checks). Check results include the executed finite steps, so repairs distinguish launch/actions from collisions/hits and ESC end from natural defeat. New GameScene templates reject update overrides at startup with hook-specific guidance; preserve common.ts lifecycle and sprite following.
-- Script writes preflight literal built-in metadata imports with esbuild against complete project PNG/JSON pairs, resolving from the source file. Invalid imports leave source/preview and repair counts unchanged and return existing import paths; ordinary module writes retain their build-validation workflow. Arcade collider/overlap registration rejects wrapper records whose body is a GameObject; spawned collision objects belong in persistent groups. Repairs preserve passing sprite/input behavior and the accepted plan.
-- The isolated Game Maker agent receives phase-specific schemas for `game_maker_project`, `game_maker_file`, `game_maker_asset`, and `game_maker_validate`. Planning exposes only reads, asset discovery and `set_design`; build/repair omit plan mutation. Embedded guidance is already active; redundant skill activation is not advertised. `invoke_tool`, generic filesystem/shell/Python/network tools, and uncurated Agent Skills must remain unavailable.
-- Studio dispatch uses a server-owned job context, never a job inferred from session names or the globally active job. Omitted job IDs use this binding; mismatches fail. In bound runs only, a file content payload without an operation means write. Unbound calls retain explicit job/operation requirements and all policy/path/size gates remain enforced. Plan examples distinguish position metrics from primary-action counters.
-- `set_design` accepts a compact closed object (base, objective, features, optional assets/settings/preserve/scene/mechanics/presentation/scenarios). The server fills the canonical plan and exact catalog metadata. Only misplaced root `outcomes`, `lives`, `blocks` and `events` normalize into `mechanics`; conflicting simultaneous values are rejected and all normal value/size checks still apply. Schemas and examples advertise the canonical nested form. Corrections retain omitted/null fields and replace supplied arrays; a flat mechanic correction retains omitted sibling helpers. The initial-plus-two-corrections budget is shared with legacy `set_plan`. Guided 3D resolves default roles and validates FPS rigs/bindings; user-selected models cannot disappear. Goal/speed/duration settings apply only to guided 3D. On a non-guided base, a correction that omits settings or supplies settings:null removes incompatible carried settings from the failed draft, including after a base change; other fields and guided settings retain their omission/null semantics. Explicit unsupported settings still reject with a design.settings correction that preserves the requested base. Published guided settings must not be inherited into a non-guided edit.
-- File reads return bounded line ranges and a full-file SHA-256; native numeric and XML numeric-text `start_line`/`end_line` use the same finite nonnegative integer checks and range limits. Unique exact `replace` requires that digest. Writes return `written` and bounded `build.ok`/diagnostics separately. Preserve path/policy/import limits and reject stale edits before mutation. Imported 2D roles bind automatically in every template, with catalog-supported animation and separate collision proxies.
-- The browser test driver waits for asynchronous GLB initialization within its existing deadline. Guided 3D observations come from live input/state, including FPS aiming/reload; no model-provided code is evaluated. Pointer lock does not grant same-origin access. `TestGuidedBrowser` is opt-in with `GAMEMAKER_GUIDED_BROWSER=1`; `TestGameMakerLiveEvaluation` runs explicitly selected providers on their own host, synthetic projects only, without exporting credentials.
-- `SetPlanJSON` accepts a plan object or one JSON-string wrapper at the shared validation boundary. Malformed inner JSON returns its syntax position, not a string-to-struct error. All transports retain strict field/rule checks, size limits and the shared initial-plus-two-corrections budget; never guess missing plan content.
-- System-managed Game Maker Agent Skills must match the complete embedded package. Startup self-heals their `SKILL.md` and registers the exact single-file binary package through the Skill Manager before exposing Game Maker; Guardian/SkillSpector latency on unrelated packages must not delay it. Optional scanner warnings can be replaced by verified binary provenance. Explicitly blocked packages, extra files/directories, symlinks, missing content and hash mismatches still block readiness. Runtime package hashes remain checked before use; bundle registration is internal and never accepts model/user-provided trust claims.
-- Preview iframes omit `allow-same-origin`, use short-lived project/job-bound tokens, restrictive CSP including document `sandbox allow-scripts allow-pointer-lock` (so a top-level tab cannot ride the admin session), external-connect blocking, and a source/channel-validated bridge for bounded diagnostics and finite test inputs.
-- Preview tests accept only finite key/pointer/wait/observe steps, never model JavaScript. The authenticated parent forwards bounded numeric observations and at most two bounded PNGs. The server compares evidence; missing observations never pass. Runs are bound to a build and preview token, last at most 60 seconds, and reset gameplay afterwards. Optional image review uses only a confirmed image-capable selected model, is tool-free and cannot override technical checks.
-- Phase-specific verified embedded skills use `TrustedPromptAddenda`; human intent, model plans, project files and diagnostics stay separate untrusted data. Planning text is never streamed/persisted as chat; final player prose is held until publication. `.aurago/validation-report.json` binds results to the compiled bundle hash and is revisioned but excluded from ZIP export.
-- Image and music generation are optional project capabilities. Generator failure, disabled configuration, or exhausted budget must return a visible procedural fallback without claiming unsupported 3D model generation.
-- Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
-- ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio.
-
 ### Server Architecture
 - AgoDesk extracts `/files/...` references from prose before signing; Markdown,
   JSON escape, query and fragment delimiters must not become filename bytes.
@@ -695,10 +240,32 @@ Tools are defined in `internal/tools/`:
 - Full Web UI served from verified, version-bound external resource sets; only recovery/login is embedded.
 - TLS/HTTPS via Let's Encrypt (automated)
 
-### Configuration UI Integration Test Contract
-- Schema-rendered Telegram, Discord, Rocket.Chat, Home Assistant, Proxmox, S3, Frigate, and Ansible sections expose read-only connection tests through the shared registry in `ui/js/config/`.
-- Test actions are enabled only for saved configuration and available Vault-backed credentials. Their backend routes are POST-only and admin-protected; probes must not send messages, execute playbooks, mutate storage, or change remote state.
-- The probes use the integrations' documented read-only authentication/status requests. Any new production HTTP client must be classified in `internal/audit.NetworkClientInventory`, and action text must be present in every `ui/lang/config/common/` locale.
+### Cross-component contract routing
+
+Before changing any listed feature, read its canonical child `AGENTS.md` in addition to the normal DOX chain, even when editing server, UI, config, assets, tests, or workflows outside that child's subtree. The linked contracts apply across those components; moving them out of this root file does not narrow their scope.
+
+| Feature contracts | Canonical child DOX |
+| --- | --- |
+| Tool System; Prompt and Runtime Drift Contract | `internal/agent/AGENTS.md` |
+| Bluetooth Integration Contract | `internal/bluetooth/AGENTS.md` |
+| God's Eye View Store Contract | `internal/desktopstore/AGENTS.md` |
+| Fritz!Box Desktop Widget Contract | `internal/fritzbox/AGENTS.md` |
+| Game Maker Studio Contract; Game Maker tool validation contract; Game Maker sprite library contract | `internal/gamemaker/AGENTS.md` |
+| Managed Local Model Contract | `internal/localllm/AGENTS.md` |
+| Memory System | `internal/memory/AGENTS.md` |
+| MeshCore Integration Contract | `internal/meshcore/AGENTS.md` |
+| MQTT Configuration Contract | `internal/mqtt/AGENTS.md` |
+| Local Network Share Integration Contract | `internal/networkshares/AGENTS.md` |
+| Desktop Workbook Contract; Desktop Office Document Contract | `internal/office/AGENTS.md` |
+| Operational Issue Notification Contract | `internal/planner/AGENTS.md` |
+| Default Speech Output Contract | `internal/sanotts/AGENTS.md` |
+| System World Tower Voice; 3D Printer Integration Contract; go2rtc Integration Contract; AI Gateway Contract; here.now Integration Contract; GitHub Integration Contract; Homepage Managed Website Ledger; Configuration UI Integration Test Contract | `internal/server/AGENTS.md` |
+| Workspace Search System | `internal/services/AGENTS.md` |
+| Native SIP Telephony Contract | `internal/sipphone/AGENTS.md` |
+| Speech Lab Integration Contract | `internal/speechlab/AGENTS.md` |
+| Agent Filesystem Jail Contract; Agent Docker Inspect Contract | `internal/tools/AGENTS.md` |
+| Virtual Computers Storage / Managed Garage Contract | `internal/virtualcomputers/AGENTS.md` |
+| External browser resource contract | `internal/webassets/AGENTS.md` |
 
 ## Development Workflow
 
@@ -873,70 +440,10 @@ For renames, use graph-aware `rename` rather than blind find-and-replace. Do not
 
 # DOX framework
 
-## External browser resource contract
-
-- `internal/webassets/AGENTS.md` owns verified immutable resource sets and installation.
-- `assets/web-assets.json` is the production manifest; `cmd/assetpack` emits the shared archive, installed set and exact binary ldflags. Full UI, CAD, pets and Game Maker runtime/art must not be embedded.
-- Only the tiny recovery/login page remains in the server binary. Keep installer, updater, Docker, source builds, offline repair and size gates synchronized with `documentation/web-assets.md`.
-- Set BuildVersion to the resource digest. Keep configured auth/TOTP and CSRF intact in recovery; activate installations only after restart. Preserve user-edited workspace apps and rollback sets.
-
-## Game Maker sprite library contract
-
-- The same catalog includes `kind: model3d` pack `aurago-low-poly@1.0.0` with
-  220 original MIT Blender models. `assets/game-maker-low-poly/AGENTS.md` owns
-  editable sources, generators and acceptance fixtures. Runtime GLBs, previews,
-  metadata and licenses together must stay under 100 MiB uncompressed.
-- Model selection uses `model_asset_ids` (1–64) and plan schema 2 with metres,
-  metric scale and 3D colliders. Import only explicit IDs after plan acceptance,
-  including declared shared animation dependencies; never overwrite edited copies.
-  Sprite plan v1 and all eighteen sprite packs remain compatible.
-- Three.js stays at 0.185.1. Rebuild the local GLTFLoader/SkeletonUtils/OrbitControls
-  helper using `node scripts/build-game-maker-3d.js`. One game-owned clock advances
-  independent animated instances; static instances share geometry. Studio owns
-  one disposable viewer, never one render loop per catalog card.
-- Every 3D build/repair prompt includes the compact public model API and actual
-  per-import examples, including reconstructed imports from existing projects.
-  Asset detail examples precede bulky metadata so bounded tool outputs retain
-  them. Validation rejects unchanged 2D/3D scaffolds and plan-installed templates;
-  automatic imports and diagnostic injection are not implementations. Empty
-  provider completions fail the job unless a server-owned phase boundary ended
-  the round. Successful imports or starter gameplay checks alone are not a game.
-
-- `internal/gamemaker/asset_packs/` owns eighteen locally packaged 10×10 RGBA sheets (64px
-  cells), versioned JSON and a compact catalog. Original images and reviewed
-  crops remain in `production/` but are excluded from the binary. Rebuild with
-  `python scripts/pack_game_sprites.py`; verify with `--check` (Pillow 12.2).
-- Sprite operations stay inside `game_maker_asset`; omitted operation still
-  generates media. Selected `asset_pack_ids` import before the agent runs.
-  Imports publish PNG/JSON together, enforce edit policy and existing limits,
-  preserve differing copies, and record provenance. Revisions/exports use project
-  copies. Catalog reads are authenticated and disabled with Studio. No new tool
-  isolation exception or migration is permitted. Verify with `go test
-  ./internal/gamemaker ./internal/server -run 'TestSpritePack|TestGameMakerAssetPack'`
-  plus existing Game Maker UI checks.
-- Modular buildings and large vehicles expose `assemblies` with pixel bounds,
-  an origin and ordered numeric-frame parts. Slice one shared canvas to preserve
-  seams; animated parts start together. Pack selection limits follow the embedded
-  catalog. Keep assembly previews and import examples aligned with this metadata.
-- Pack version 2 explicitly records entity/action groups and transform permissions
-  in the production manifest. Radians are explicit; fixed assets cannot inherit
-  category-wide mirroring. `search_assets` returns six (max twelve) targeted hits;
-  `describe_asset` returns related actions/directions and missing actions.
-  `vendor/aurago-game-1.js` handles exact frames, animation holds and complete
-  assembly transforms. Physics proxies stay separate from visual containers.
-- Pack import/detail results include a concrete helper example; selected-pack
-  context stays compact. Built 2D games guard the loader against treating built-in
-  sheets as single images/atlases or using the wrong grid. Keep that guard at
-  the common loader boundary, including config arrays and variable URLs.
-  Browser startup must observe three seconds after visible-canvas readiness
-  to catch common delayed spawn errors. Verify with
-  `node scripts/test-game-maker-sprites.mjs` and Game Maker Go tests.
+## Core Contract
 
 - DOX is highly performant AGENTS.md hierarchy installed here
 - Agent must follow DOX instructions across any edits
-
-## Core Contract
-
 - AGENTS.md files are binding work contracts for their subtrees
 - Work products, source materials, instructions, records, assets, and durable docs must stay understandable from the nearest applicable AGENTS.md plus every parent AGENTS.md above it
 
@@ -1020,18 +527,35 @@ When the user requests a durable behavior change, record it here or in the relev
 ## Child DOX Index
 
 Current child AGENTS.md files:
-- `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
-- `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
-- `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
 - `assets/game-maker-low-poly/AGENTS.md` — Original 220-model Blender pack, animation contracts, compact exports and playable acceptance scenes.
-- `assets/game-maker-worlds/AGENTS.md` — Maritime and isometric Blender sources, catalog counts, exports and runtime limits.
 - `assets/game-maker-presentation/AGENTS.md` — Game Maker effects/audio sources, licensing, builds and runtime limits.
+- `assets/game-maker-worlds/AGENTS.md` — Maritime and isometric Blender sources, catalog counts, exports and runtime limits.
+- `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
+- `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
+- `internal/agent/AGENTS.md` — Runtime prompt, tool-discovery, dispatch, and context rules.
+- `internal/bluetooth/AGENTS.md` — Native Bluetooth discovery, permissions, and playback.
 - `internal/desktop/pets_assets/AGENTS.md` — OpenPets sprite format, persona catalog, source ownership and pixel validation.
+- `internal/desktopstore/AGENTS.md` — Store app configuration, runtime, assets, and publication.
 - `internal/detective/AGENTS.md` — Isolated Desktop research cases, evidence, budgets, revisions and exports.
+- `internal/fritzbox/AGENTS.md` — TR-064 integration and Desktop widget behavior.
 - `internal/gamemaker/AGENTS.md` — Game planning, runtime feedback/progression, lifecycle, validation and exports; owns the asset-pack child index.
+- `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
+- `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
+- `internal/meshcore/AGENTS.md` — USB/BLE radio, trust, messaging, and agent replies.
+- `internal/mqtt/AGENTS.md` — Broker configuration, subscriptions, relays, and mission dispatch.
+- `internal/networkshares/AGENTS.md` — SMB/NFS capability, ownership, and mutation policy.
+- `internal/office/AGENTS.md` — Workbook and document preservation, editing, and assist.
+- `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
+- `internal/planner/AGENTS.md` — Issue lifecycle, notification, and background retry policy.
 - `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.
-- `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
 - `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
+- `internal/server/AGENTS.md` — Server-owned HTTP and cross-component integration contracts.
+- `internal/services/AGENTS.md` — Background services and workspace search.
+- `internal/sipphone/AGENTS.md` — Native telephone registration, calls, media, and agent policy.
+- `internal/speechlab/AGENTS.md` — Active ASR/TTS snapshots and speech-driven chat routing.
+- `internal/tools/AGENTS.md` — Agent filesystem and Docker tool safety boundaries.
+- `internal/virtualcomputers/AGENTS.md` — Workspace lease and managed Garage storage lifecycle.
+- `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
 
 The root AGENTS.md owns the whole repository except where a subtree has its own local contract.

@@ -20,4 +20,15 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
 - `ui.Content` and per-package test fixtures are test inputs, never production
   fallback sources. Maintain missing-set behavior for Desktop and Game Maker.
 
-No child contracts.
+## Cross-component Contract
+
+### External browser resource contract
+
+- `internal/webassets/AGENTS.md` owns verified immutable resource sets and installation.
+- `assets/web-assets.json` is the production manifest; `cmd/assetpack` emits the shared archive, installed set and exact binary ldflags. Full UI, CAD, pets and Game Maker runtime/art must not be embedded.
+- Only the tiny recovery/login page remains in the server binary. Keep installer, updater, Docker, source builds, offline repair and size gates synchronized with `documentation/web-assets.md`.
+- Set BuildVersion to the resource digest. Keep configured auth/TOTP and CSRF intact in recovery; activate installations only after restart. Preserve user-edited workspace apps and rollback sets.
+
+## Child DOX Index
+
+None.

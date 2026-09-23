@@ -1,0 +1,43 @@
+# MeshCore
+
+## Purpose
+
+USB/BLE radio, trust, messaging, and agent replies.
+
+## Ownership
+
+`internal/meshcore` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
+
+## Local Contracts
+
+### MeshCore Integration Contract
+- MeshCore native schemas live under `native_tools_*.go` for catalogue/audit discovery. Both direct calls and `invoke_tool` must reach the MeshCore handler through `dispatchComm`; registration alone is insufficient. Keep disabled-integration and proactive destination gates enforced.
+- Linux systemd installers and updates automatically grant existing `dialout`/`uucp` groups to the service for USB serial access, without changing login-account memberships or forwarding serial groups to GPU containers. Updates use the backed-up, verified service drop-in before restart; preserve rollback and `--no-restart` behavior.
+- USB Companion ports assert DTR at 115200 baud with RTS inactive: TinyUSB CDC firmware treats deasserted DTR as disconnected and suppresses serial replies. Do not use the 1200-baud bootloader touch sequence.
+- `internal/meshcore` owns one Companion device, versioned SQLite inbox/execution reservations, framed USB (115200 baud) and native Linux BlueZ BLE. Docker allows explicit USB passthrough only. Hardware acceptance remains unverified until real platform tests pass.
+- Bind permissions to the confirmed full device identity and keyed channel fingerprint. Trust is full-key, unambiguous synchronized chat contacts sending direct plain text only; names, channel senders, signed-plain and room-forwarded messages never authorize actions.
+- Channel fingerprints normalize only undefined name padding after the first NUL; device identity, slot, name bytes and the full channel secret remain binding. Persist the fingerprint salt across restarts. Legacy fingerprints made from nonzero padding require explicit reconfirmation, never automatic permission migration.
+- Every text input uses static injection checks and a strict successful Guardian content verdict, or an isolated tool-free main-model scan only when Guardian is disabled. Errors, truncation and tool calls quarantine input regardless of global `fail_safe: allow`. No global slash-command interception.
+- Channel replies use a fresh `ExecuteMinimalLoop` without private context, with at most two individual native Brave searches. Enforce scope in schemas and dispatch; MCP preferences, `invoke_tool`, skills and dynamic activation cannot bypass it.
+- Minimal-loop final answers must reject textual tool-call syntax, including escaped XML and JSON wrappers. Allow at most one format correction while native tools are available; never execute text as a tool call or relax schemas/call limits. Tool-free scans and summaries fail closed, and tool-round narration is never reused as a final answer.
+- Channel question detection includes open channel questions and radio checks without punctuation or assistant addressing. Reception replies may report the message's measured SNR and known flood hop count; never infer audio reception, other receivers, RSSI or a direct RF path. Radio checks use no web search. Statements and other bots' answers still receive no reply.
+- MeshCore-triggered agent turns receive persisted reception metadata in isolated external-data blocks: message/channel identity, sender and queue-retrieval timestamps, V3 SNR and decoded flood hops. Trusted direct turns also receive the reception-time contact/device snapshot, advertised position and cached outgoing route; public channel turns exclude those private snapshots. Names/positions/routes never grant authority. Unknown values stay unknown; direct-route 0xFF is not zero hops, cached outgoing paths are not inbound paths, and retrieval-minus-sender time is not propagation latency. Keep all available non-secret fields from existing Companion reads; never correlate unrelated RF logs or send automatic telemetry probes just to enrich a wakeup.
+- Automatic channel replies receive the runtime-enforced `[AuraGo KI]` prefix before byte splitting. Echo prevention recognizes this marker and legacy `[AuraGo]` replies.
+- Strip model reasoning before testing the exact `NO_REPLY` sentinel. The shared `security.StripThinkingTags` also removes implicit reasoning through an unmatched `</think>` or `</thinking>`; suppressed replies create neither radio text nor an outgoing Messenger entry. Verify with `TestStripThinkingTagsOrphanClosers`, `TestMeshCoreReplyStripsOrphanThinkingBeforeNoReply` and `TestChannelNoReplyDoesNotSendOrCreateOutgoingMessage`.
+- Automatic replies bind their destination internally. Proactive sending is separately disabled by default and requires destination allowlists. Permission publication cancels current work; interrupted executions and uncertain sends are not automatically replayed. Execution tombstones outlive the maximum command admission age even when inbox bodies are evicted.
+- Channel secrets and device BLE PIN fields never enter normal API responses, agent output or logs. The sole browser exception is an explicit administrator POST to the Messenger invitation endpoint: `no-store`, transient dialog only, no browser persistence or automatic clipboard copy. Pairing is explicit and PINs transient. Tests read saved settings and never send radio text or mutate radio parameters.
+- MeshCore messages never create general chat system notifications. The next direct-contact prompt contains fixed metadata only. Raw inbox text stays in the administrative API/UI. Connection and scan failures use Operational Issues. Setup and recheck routes are admin-only under `/api/meshcore/`.
+- MeshCore location disclosure is opt-in and may expose only the administrator-entered public description; device/contact positions, coordinates, routes and inferred locations remain private. The Config inbox exposes only the newest 100 records in a paginated scroll area without changing storage retention.
+- `meshcore.additional_prompt` is optional administrator guidance (at most 2000 Unicode characters) for MeshCore replies and tool use. Inject it as an atomic required prompt addendum only while MeshCore is enabled; never include it in the separate inbound security scan or treat it as permission to bypass existing gates. Empty text adds nothing.
+- Keep `documentation/meshcore-{en,de}.md`, `prompts/tools_manuals/meshcore.md`, config defaults and all Config translations synchronized. Verify MeshCore protocol/policy, strict scans, minimal-loop scope, API and UI contracts.
+- The builtin Desktop Messenger uses the same manager and administrative `/api/meshcore/messenger/` routes. Human sending is separate from agent permissions and invokes no LLM. Persistent request IDs reserve sends before radio I/O; per-part acceptance/ACK states survive restarts without automatic replay. Device edits stop automation and persist an uncertainty lock before mutation; only confirmed reconciliation and configuration publication clear it. Contact removal revokes trust; new channels are receive-only. No repeater administration, firmware or radio-parameter writes.
+- Messenger history is a separate sanitized projection (90 days/10,000 messages by default). Unreviewed bodies stay only in the protected inbox and require explicit reveal. Conversations bind full device/contact identities or keyed channel bindings, never names or retrospectively resolved prefixes. Clearing history preserves execution reservations. Desktop events contain references only; muting affects Messenger notifications, not agent notices. Migration backs up existing v1 databases before adding chat tables.
+- The opt-in `builtin-meshcore` desktop widget (hidden by default, added via the widget drawer) is read-only: it renders the sanitized conversation projection from `GET /api/meshcore/messenger/bootstrap`, refreshes on metadata-only `meshcore_changed` desktop events plus a visibility-gated poll, opens the Messenger app with a validated conversation ID on click, and never reveals protected text or sends messages.
+
+## Verification
+
+- Run `go test ./internal/meshcore` and the named cross-component checks in the contracts above when those paths change.
+
+## Child DOX Index
+
+None.
