@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$env:GOTOOLCHAIN = 'go1.26.6' # Go 1.27.0 breaks tsnet startup on the deployed host.
 
 # ── Banner ────────────────────────────────────────────────────────────────
 Write-Host ""

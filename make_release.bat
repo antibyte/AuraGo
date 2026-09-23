@@ -14,6 +14,8 @@ REM   - tar       (built-in Windows 10 Build 17063+)
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 set "MIN_GO_VERSION=1.26.6"
+REM Pin the release compiler: Go 1.27.0 breaks tsnet startup on the deployed host.
+set "GOTOOLCHAIN=go1.26.6"
 
 echo.
 echo  +--------------------------------------------+
