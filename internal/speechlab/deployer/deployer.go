@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -178,12 +179,13 @@ type DeploymentTransaction struct {
 }
 
 type ContainerBackup struct {
-	ID          string `json:"id"`
-	StableName  string `json:"stable_name"`
-	BackupName  string `json:"backup_name"`
-	NetworkName string `json:"network_name,omitempty"`
-	WasRunning  bool   `json:"was_running"`
-	WasAttached bool   `json:"was_attached"`
+	ID          string   `json:"id"`
+	StableName  string   `json:"stable_name"`
+	BackupName  string   `json:"backup_name"`
+	NetworkName string   `json:"network_name,omitempty"`
+	Aliases     []string `json:"aliases,omitempty"`
+	WasRunning  bool     `json:"was_running"`
+	WasAttached bool     `json:"was_attached"`
 }
 
 // PublicState deliberately omits container and network identifiers from the
@@ -1917,7 +1919,9 @@ type containerInspect struct {
 		Running bool `json:"Running"`
 	} `json:"State"`
 	NetworkSettings struct {
-		Networks map[string]json.RawMessage `json:"Networks"`
+		Networks map[string]struct {
+			Aliases []string `json:"Aliases"`
+		} `json:"Networks"`
 	} `json:"NetworkSettings"`
 }
 
@@ -2022,7 +2026,9 @@ func (m *Manager) backupContainer(ctx context.Context, op operationSnapshot, net
 		ID: container.ID, StableName: stableName, BackupName: backupName, NetworkName: network,
 		WasRunning: container.State.Running,
 	}
-	_, record.WasAttached = container.NetworkSettings.Networks[network]
+	endpoint, attached := container.NetworkSettings.Networks[network]
+	record.WasAttached = attached
+	record.Aliases = append([]string(nil), endpoint.Aliases...)
 	m.mu.Lock()
 	m.state.Transaction.Backups = append(m.state.Transaction.Backups, record)
 	m.mu.Unlock()
@@ -2042,6 +2048,58 @@ func (m *Manager) backupContainer(ctx context.Context, op operationSnapshot, net
 	}
 	if _, err := op.docker.DoJSON(ctx, http.MethodPost, "/containers/"+url.PathEscape(container.ID)+"/rename?name="+url.QueryEscape(backupName), nil, nil); err != nil {
 		return &Error{Code: "speech_lab_start_failed", Err: err}
+	}
+	return nil
+}
+
+func backupNetworkAliases(backup ContainerBackup, container containerInspect) []string {
+	if len(backup.Aliases) > 0 {
+		return backup.Aliases
+	}
+	// Journals written before aliases were recorded still need the stable
+	// service names when a rollback reconnects an existing container.
+	return networkAliases(container.Config.Labels["aurago.role"])
+}
+
+func hasNetworkAliases(actual, required []string) bool {
+	for _, alias := range required {
+		if !slices.Contains(actual, alias) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *Manager) restoreBackupNetwork(ctx context.Context, op operationSnapshot, networkID string, backup ContainerBackup, container containerInspect) error {
+	if !backup.WasAttached || networkID == "" {
+		return nil
+	}
+	aliases := backupNetworkAliases(backup, container)
+	endpoint, attached := container.NetworkSettings.Networks[backup.NetworkName]
+	if attached && hasNetworkAliases(endpoint.Aliases, aliases) {
+		return nil
+	}
+	if attached {
+		status, err := op.docker.DoJSON(ctx, http.MethodPost, "/networks/"+url.PathEscape(networkID)+"/disconnect", map[string]any{"Container": backup.ID, "Force": true}, nil)
+		if err != nil && status != http.StatusNotFound {
+			return err
+		}
+	}
+	body := map[string]any{"Container": backup.ID}
+	if len(aliases) > 0 {
+		body["EndpointConfig"] = map[string]any{"Aliases": aliases}
+	}
+	_, connectErr := op.docker.DoJSON(ctx, http.MethodPost, "/networks/"+url.PathEscape(networkID)+"/connect", body, nil)
+	if connectErr != nil {
+		// A repeated Docker request may report an existing endpoint after it
+		// has already attached. Accept it only when the expected aliases exist.
+		verified, found, inspectErr := m.inspectContainer(ctx, op, backup.ID)
+		if inspectErr == nil && found {
+			if endpoint, attached := verified.NetworkSettings.Networks[backup.NetworkName]; attached && hasNetworkAliases(endpoint.Aliases, aliases) {
+				return nil
+			}
+		}
+		return connectErr
 	}
 	return nil
 }
@@ -2232,11 +2290,8 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 				continue
 			}
 		}
-		if backup.WasAttached && transaction.PreviousNetworkID != "" {
-			status, err := op.docker.DoJSON(ctx, http.MethodPost, "/networks/"+url.PathEscape(transaction.PreviousNetworkID)+"/connect", map[string]any{"Container": backup.ID}, nil)
-			if err != nil && status != http.StatusConflict {
-				rollbackErrors = append(rollbackErrors, err)
-			}
+		if err := m.restoreBackupNetwork(ctx, op, transaction.PreviousNetworkID, backup, current); err != nil {
+			rollbackErrors = append(rollbackErrors, err)
 		}
 		if backup.WasRunning {
 			if err := m.containerAction(ctx, op, http.MethodPost, "/containers/"+url.PathEscape(backup.ID)+"/start"); err != nil {
@@ -2250,8 +2305,9 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 			}
 			rollbackErrors = append(rollbackErrors, err)
 		} else {
-			_, attached := verified.NetworkSettings.Networks[backup.NetworkName]
-			if strings.TrimPrefix(verified.Name, "/") != backup.StableName || verified.State.Running != backup.WasRunning || (backup.NetworkName != "" && attached != backup.WasAttached) {
+			endpoint, attached := verified.NetworkSettings.Networks[backup.NetworkName]
+			if strings.TrimPrefix(verified.Name, "/") != backup.StableName || verified.State.Running != backup.WasRunning ||
+				(backup.NetworkName != "" && (attached != backup.WasAttached || (backup.WasAttached && !hasNetworkAliases(endpoint.Aliases, backupNetworkAliases(backup, verified))))) {
 				rollbackErrors = append(rollbackErrors, fmt.Errorf("backup container %q was not fully restored", backup.ID))
 			}
 		}
