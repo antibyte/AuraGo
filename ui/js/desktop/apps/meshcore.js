@@ -416,13 +416,23 @@
         for (const [value, key] of options) select.append(new Option(tr(s, key), value));
         const key = field(s, d.body, isChannel ? 'secret' : 'public_key', isChannel ? 'password' : 'text');
         if (isChannel) {
+            select.value = 'hashtag';
             const hint = node('p', tr(s, 'secret_hint'), 'mc-hint'); d.body.append(hint);
-            const syncKind = () => { key.parentElement.hidden = hint.hidden = select.value !== 'private'; };
+            let draftName = '';
+            const syncKind = () => {
+                const isPublic = select.value === 'public';
+                if (isPublic && !name.disabled) { draftName = name.value; name.value = 'Public'; }
+                if (!isPublic && name.disabled) name.value = draftName;
+                name.disabled = isPublic;
+                key.parentElement.hidden = hint.hidden = select.value !== 'private';
+            };
             select.addEventListener('change', syncKind); syncKind();
         }
         d.body.append(node('p', tr(s, 'trust_hint'), 'mc-hint'));
         dialogButton(s, d, 'save', async () => {
-            await manage(s, { action: isChannel ? 'channel_add' : 'contact_add', invitation: invite.value.trim(), name: name.value.trim(), key: isChannel ? '' : key.value.trim(), type: isChannel ? 0 : Number(select.value), kind: isChannel ? select.value : '', secret: isChannel ? key.value.trim() : '' });
+            const invitation = invite.value.trim();
+            const hashtag = isChannel && select.value === 'hashtag' && invitation.startsWith('#') && !name.value.trim();
+            await manage(s, { action: isChannel ? 'channel_add' : 'contact_add', invitation: hashtag ? '' : invitation, name: hashtag ? invitation : name.value.trim(), key: isChannel ? '' : key.value.trim(), type: isChannel ? 0 : Number(select.value), kind: isChannel ? select.value : '', secret: isChannel ? key.value.trim() : '' });
             key.value = ''; invite.value = ''; d.el.close();
         });
     }

@@ -41,6 +41,28 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
         window.startMessenger=()=>MeshCoreApp.render(document.getElementById('host'),'mesh-test',{t:key=>translations[key]||key,updateWindowContext:(_,ctx)=>window.savedContext=ctx});startMessenger();
     }`)
 	waitForJSBool(t, page, `() => document.querySelectorAll('.mc-conversation').length===2`)
+	page.MustElement(`[data-mc="add-channel"]`).MustClick()
+	if !page.MustEval(`() => document.querySelector('.mc-dialog select').value==='hashtag'`).Bool() {
+		t.Fatal("new channel did not default to hashtag")
+	}
+	page.MustEval(`() => {const name=document.querySelector('.mc-dialog input[maxlength="31"]');name.value='#bot';name.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('.mc-dialog .mc-primary').click();}`)
+	waitForJSBool(t, page, `() => requests.some(r=>r.url.endsWith('/manage') && r.body?.name==='#bot')`)
+	if !page.MustEval(`() => {const body=requests.find(r=>r.url.endsWith('/manage') && r.body?.name==='#bot')?.body;return body?.kind==='hashtag' && body.secret==='';}`).Bool() {
+		t.Fatal("#bot was not submitted as a hashtag channel")
+	}
+	waitForJSBool(t, page, `() => !document.querySelector('.mc-dialog')`)
+	page.MustElement(`[data-mc="add-channel"]`).MustClick()
+	page.MustEval(`() => {document.querySelector('.mc-dialog input').value='#bot';document.querySelector('.mc-dialog .mc-primary').click();}`)
+	waitForJSBool(t, page, `() => requests.filter(r=>r.url.endsWith('/manage') && r.body?.name==='#bot').length===2`)
+	if !page.MustEval(`() => {const body=requests.filter(r=>r.url.endsWith('/manage')).at(-1)?.body;return body?.invitation==='' && body.kind==='hashtag' && body.name==='#bot';}`).Bool() {
+		t.Fatal("#bot invitation shorthand was not submitted as a hashtag channel")
+	}
+	waitForJSBool(t, page, `() => !document.querySelector('.mc-dialog')`)
+	page.MustElement(`[data-mc="add-channel"]`).MustClick()
+	if !page.MustEval(`() => {const d=document.querySelector('.mc-dialog'),name=d.querySelector('input[maxlength="31"]'),type=d.querySelector('select');name.value='#bot';type.value='public';type.dispatchEvent(new Event('change'));const fixed=name.value==='Public' && name.disabled;type.value='hashtag';type.dispatchEvent(new Event('change'));return fixed && name.value==='#bot' && !name.disabled;}`).Bool() {
+		t.Fatal("public channel name was editable or hashtag draft was lost")
+	}
+	page.MustElement(`.mc-dialog header button`).MustClick()
 	page.MustElement(".mc-conversation").MustClick()
 	waitForJSBool(t, page, `() => document.querySelectorAll('.mc-message').length===3`)
 	if !page.MustEval(`() => savedContext.conversation_id===conv && document.querySelector('[data-message-id="protected"] .mc-message-text').textContent===translations['desktop.meshcore_protected']`).Bool() {

@@ -231,7 +231,10 @@ auf. Unter **Verbindung** bleiben Geräteidentität, Anschluss und Agentenrechte
   in direkter Reichweite oder über das Mesh an; dabei kann eine bereits im Gerät
   konfigurierte Position mitgesendet werden. Repeater, Rooms und Sensoren werden
   gekennzeichnet, erhalten aber keine Verwaltungsbefehle.
-- Öffentliche, Hashtag- und private Kanäle verwenden nur freie Slots. Private
+- Neue Kanäle sind zunächst Hashtag-Kanäle: `#bot` als Name oder allein im
+  Einladungsfeld erstellt den passenden Hashtag-Kanal. Beim Typ **Öffentlich**
+  ist der Name fest `Public`.
+  Öffentliche, Hashtag- und private Kanäle verwenden nur freie Slots. Private
   Schlüssel werden zufällig erzeugt oder als 32 Hex-Zeichen eingegeben. Ein
   erneuter Geräteabgleich bestätigt Änderungen. Neue Kanäle starten mit reinem
   Empfang; Kontaktentfernung widerruft Agentenrechte. Unklare Änderungen bleiben

@@ -214,7 +214,10 @@ identity and agent permissions remain under **Connection** (`/config#meshcore`).
   announces in direct range or through the mesh; this can also broadcast any
   location already configured on the radio. Repeater, Room and sensor contacts
   are labelled but have no device-management controls.
-- Create/join public, hashtag or private channels in free slots only. Private
+- New channels default to the hashtag type: entering `#bot` as the name or on
+  its own in the invitation field creates that hashtag channel. Selecting
+  **Public** fixes the name to `Public`.
+  Create/join public, hashtag or private channels in free slots only. Private
   keys are randomly generated unless explicitly supplied as 32 hexadecimal
   characters. Contact/channel changes are verified by another device read.
   New channels receive no agent permissions; removing contacts revokes trust.

@@ -310,11 +310,14 @@ func TestMessengerChannelAndContactAdministration(t *testing.T) {
 	for _, kind := range []string{"public", "hashtag"} {
 		name := "Public"
 		if kind == "hashtag" {
-			name = "#local"
+			name = "#bot"
 		}
 		if err = m.Edit(context.Background(), EditRequest{Action: "channel_add", Identity: deviceKey, Name: name, Kind: kind}, publish); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if channels := m.Status().Channels; len(channels) != 2 || channels[1].Name != "#bot" || channels[1].Kind != "hashtag" {
+		t.Fatalf("hashtag channel missing after device reconciliation: %+v", channels)
 	}
 	if err = m.Edit(context.Background(), req, publish); err == nil || err.Error() != "channels_full" {
 		t.Fatal("occupied slot overwritten")
