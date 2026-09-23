@@ -1,6 +1,7 @@
 package upkeep
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"os/exec"
@@ -16,28 +17,52 @@ func TestPinFromRealBuildMetadataWithoutExecution(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip(err)
 	}
+	f := newFixture(t)
 	d := t.TempDir()
 	files := map[string]string{
 		"go.mod":                    "module aurago\n\ngo 1.26\n",
-		"internal/webassets/pin.go": "package webassets\nvar SetID string\n",
-		"cmd/aurago/main.go":        "package main\nimport (\"aurago/internal/webassets\";\"fmt\")\nfunc main(){panic(fmt.Sprint(webassets.SetID))}\n",
+		"internal/webassets/pin.go": "package webassets\nvar SetID, ArchiveSHA256, ArchiveBytes string\n",
+		"cmd/aurago/main.go":        "package main\nimport (\"aurago/internal/webassets\";\"fmt\")\nfunc main(){panic(fmt.Sprint(webassets.SetID, webassets.ArchiveSHA256, webassets.ArchiveBytes))}\n",
 	}
 	for p, v := range files {
 		p = filepath.Join(d, p)
 		os.MkdirAll(filepath.Dir(p), 0700)
 		os.WriteFile(p, []byte(v), 0600)
 	}
-	id := strings.Repeat("a", 64)
-	target := filepath.Join(d, "fixture.exe")
-	c := exec.Command("go", "build", "-ldflags=-X aurago/internal/webassets.SetID="+id, "-o", target, "./cmd/aurago")
+	id := f.asset(0)
+	other := strings.Repeat("b", 64)
+	assetRoot := filepath.Join(f.root, "assets", "web")
+	target := filepath.Join(f.root, "bin", "aurago_linux")
+	if err := os.Remove(target); err != nil {
+		t.Fatal(err)
+	}
+	flags := "-s -w -X aurago/internal/webassets.SetID=" + id + " -X aurago/internal/webassets.ArchiveSHA256=" + other + " -X aurago/internal/webassets.ArchiveBytes=42"
+	c := exec.Command("go", "build", "-buildvcs=false", "-trimpath", "-ldflags="+flags, "-o", target, "./cmd/aurago")
 	c.Dir = d
-	c.Env = append(os.Environ(), "GOWORK=off")
+	c.Env = append(os.Environ(), "GOWORK=off", "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64")
 	if b, e := c.CombinedOutput(); e != nil {
 		t.Fatalf("fixture build: %v %s", e, b)
 	}
-	got, err := PinFromBinary(target)
+	got, err := PinFromBinary(target, assetRoot)
 	if err != nil || got != id {
 		t.Fatalf("pin=%q error=%v", got, err)
+	}
+	var preview bytes.Buffer
+	if code := RunCLI([]string{"--root", f.root}, &preview, io.Discard); code != 0 {
+		t.Fatalf("maintenance preview rejected trimmed binary: %s", preview.String())
+	}
+	if err := os.Mkdir(filepath.Join(assetRoot, other), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := PinFromBinary(target, assetRoot); err == nil {
+		t.Fatal("ambiguous binary pin accepted")
+	}
+	missingRoot := filepath.Join(d, "missing-assets")
+	if err := os.MkdirAll(filepath.Join(missingRoot, strings.Repeat("c", 64)), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := PinFromBinary(target, missingRoot); err == nil {
+		t.Fatal("binary without an installed pin accepted")
 	}
 }
 

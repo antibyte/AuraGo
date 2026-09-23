@@ -20,6 +20,12 @@ collection. A new version becomes confirmed only after asset verification,
 core readiness and the existing conditional tsnet readiness check. Cleanup
 failures do not roll back a healthy update.
 
+The maintenance CLI identifies resource pins from Go build metadata when
+available. Binaries built with `-trimpath` omit linker flags from that metadata;
+for those, the CLI matches linked IDs against installed resource sets without
+executing archived binaries. It stops before deletion if the match is missing
+or ambiguous.
+
 Unexpected termination, failed recovery or `--no-restart` leaves an unresolved
 transaction. Further updates and collection stop until an administrator has
 verified recovery. Temporary download/packaging directories are removed by the

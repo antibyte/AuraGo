@@ -176,7 +176,7 @@ func Resolve(ctx context.Context, root, id, outcome string) error {
 		if err != nil {
 			return err
 		}
-		pin, err := PinFromBinary(bin)
+		pin, err := PinFromBinary(bin, filepath.Join(root, "assets", "web"))
 		if err != nil {
 			return err
 		}

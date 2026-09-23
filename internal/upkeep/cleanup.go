@@ -189,7 +189,9 @@ func Cleanup(ctx context.Context, o Options) (r Report, err error) {
 	}
 	defer rootHandle.Close()
 	if o.ReadPin == nil {
-		o.ReadPin = PinFromBinary
+		o.ReadPin = func(name string) (string, error) {
+			return PinFromBinary(name, filepath.Join(root, "assets", "web"))
+		}
 	}
 	if o.Verify == nil {
 		o.Verify = verifyAssets

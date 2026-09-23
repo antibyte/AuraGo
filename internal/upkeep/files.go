@@ -24,9 +24,10 @@ var hashPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
 var transactionPattern = regexp.MustCompile(`^txn-[a-zA-Z0-9]+$`)
 var workPattern = regexp.MustCompile(`^work\.([a-zA-Z0-9]{6}|adopt-[0-9]+)$`)
 var embeddedID = regexp.MustCompile(`(?:^|[ =])aurago/internal/webassets.SetID=([a-f0-9]{64})(?:\s|$)`)
+var binaryID = regexp.MustCompile(`[a-f0-9]{64}`)
 
-// PinFromBinary reads Go build metadata without executing archived binaries.
-func PinFromBinary(name string) (string, error) {
+// PinFromBinary identifies a pin without executing archived binaries.
+func PinFromBinary(name, assetRoot string) (string, error) {
 	if err := regularPath(name); err != nil {
 		return "", err
 	}
@@ -44,8 +45,61 @@ func PinFromBinary(name string) (string, error) {
 			}
 		}
 	}
-	// Pre-resource-set binaries embedded their UI and need no external pin.
-	return "", nil
+	// Go omits -ldflags from build info when built with -trimpath. Match only
+	// IDs of installed resource sets against the binary's linked string data.
+	return pinFromBinaryStrings(name, assetRoot)
+}
+
+func pinFromBinaryStrings(name, assetRoot string) (string, error) {
+	if err := noLinks(assetRoot); err != nil {
+		return "", err
+	}
+	entries, err := os.ReadDir(assetRoot)
+	if err != nil {
+		return "", err
+	}
+	known := make(map[string]bool)
+	for _, entry := range entries {
+		if entry.IsDir() && hashPattern.MatchString(entry.Name()) {
+			known[entry.Name()] = true
+		}
+	}
+	if len(known) == 0 {
+		return "", fmt.Errorf("no installed asset IDs available to identify binary")
+	}
+	f, err := os.Open(name)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	buf := make([]byte, (1<<20)+63)
+	var found string
+	carry := 0
+	for {
+		n, readErr := f.Read(buf[carry:])
+		length := carry + n
+		for _, loc := range binaryID.FindAllIndex(buf[:length], -1) {
+			id := string(buf[loc[0]:loc[1]])
+			if !known[id] {
+				continue
+			}
+			if found != "" && found != id {
+				return "", fmt.Errorf("multiple possible asset IDs in binary")
+			}
+			found = id
+		}
+		if readErr == io.EOF {
+			if found == "" {
+				return "", fmt.Errorf("binary asset ID not found among installed sets")
+			}
+			return found, nil
+		}
+		if readErr != nil {
+			return "", readErr
+		}
+		carry = min(length, 63)
+		copy(buf[:carry], buf[length-carry:length])
+	}
 }
 
 func regularPath(name string) error {

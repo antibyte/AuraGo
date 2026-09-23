@@ -262,6 +262,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | System World Tower Voice; 3D Printer Integration Contract; go2rtc Integration Contract; AI Gateway Contract; here.now Integration Contract; GitHub Integration Contract; Homepage Managed Website Ledger; Configuration UI Integration Test Contract | `internal/server/AGENTS.md` |
 | Workspace Search System | `internal/services/AGENTS.md` |
 | Native SIP Telephony Contract | `internal/sipphone/AGENTS.md` |
+| Update artifact retention contract | `internal/upkeep/AGENTS.md` |
 | Speech Lab Integration Contract | `internal/speechlab/AGENTS.md` |
 | Agent Filesystem Jail Contract; Agent Docker Inspect Contract | `internal/tools/AGENTS.md` |
 | Virtual Computers Storage / Managed Garage Contract | `internal/virtualcomputers/AGENTS.md` |
@@ -554,6 +555,7 @@ Current child AGENTS.md files:
 - `internal/sipphone/AGENTS.md` — Native telephone registration, calls, media, and agent policy.
 - `internal/speechlab/AGENTS.md` — Active ASR/TTS snapshots and speech-driven chat routing.
 - `internal/tools/AGENTS.md` — Agent filesystem and Docker tool safety boundaries.
+- `internal/upkeep/AGENTS.md` — Update transactions, artifact retention, maintenance CLI and cleanup safeguards.
 - `internal/virtualcomputers/AGENTS.md` — Workspace lease and managed Garage storage lifecycle.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
