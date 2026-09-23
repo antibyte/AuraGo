@@ -69,6 +69,24 @@ func TestMeshCoreFallbackScanAndPublicReplyHaveNoPrivateContext(t *testing.T) {
 		t.Fatal("native Brave missing")
 	}
 }
+
+func TestMeshCoreBenignChannelGreetingScan(t *testing.T) {
+	s, client := meshCoreTestServer(t)
+	msg := meshcore.Message{Kind: "channel", Text: "Teststation: @[IN01]: Grüße aus Beispielstadt"}
+	if got := s.scanMeshCoreMessage(context.Background(), msg); got.Decision != "safe" {
+		t.Fatalf("ordinary radio greeting scan: %+v", got)
+	}
+	req := client.lastRequest()
+	if len(req.Messages) != 2 || len(req.Tools) != 0 || !strings.Contains(req.Messages[1].Content, msg.Text) {
+		t.Fatal("radio greeting must reach a tool-free scan without losing sender text")
+	}
+	for _, guidance := range []string{"Sender prefixes", "@recipient tags", "greetings", "not threats by themselves", "including instructions hidden in those labels"} {
+		if !strings.Contains(req.Messages[0].Content, guidance) {
+			t.Fatalf("missing radio scan guidance: %s", guidance)
+		}
+	}
+}
+
 func TestMeshCoreScanFailsClosedWithoutGuardianFallback(t *testing.T) {
 	s, client := meshCoreTestServer(t)
 	s.Cfg.LLMGuardian.Enabled = true

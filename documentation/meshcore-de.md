@@ -96,6 +96,11 @@ deaktiviert, prüft das Hauptmodell in einem eigenen werkzeuglosen Aufruf ohne
 Verlauf oder private Erinnerungen. Timeout, ungültige oder abgeschnittene
 Ausgabe und Werkzeugaufrufe führen zur Quarantäne. Auch sichere Nodes durchlaufen
 diese Prüfung und unterliegen weiterhin den bestehenden AuraGo-Sperren.
+Absendernamen, @Adressierungen, Grüße und Ortsnamen sind für sich genommen
+normale Funknachrichten und kein Verdachtsgrund. Der gesamte Text wird weiterhin
+geprüft. Bereits quarantänisierte Nachrichten bleiben geschützt, bis ein Admin
+die Ursache prüft und eine erneute Prüfung auslöst; sie werden nicht
+automatisch erneut verarbeitet.
 
 Kanalantworten starten in einem frischen Minimal-Kontext ohne Core Memory, RAG,
 Nutzerprofil oder Planner. Erlaubt ist allein native Brave-Websuche mit höchstens

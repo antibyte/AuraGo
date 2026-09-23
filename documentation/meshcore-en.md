@@ -88,6 +88,10 @@ allow`. An unavailable enabled Guardian never silently falls back. When Guardian
 is disabled, the main model scans with a fixed prompt, no tools, no history and
 no private memory. Invalid/truncated output, tool calls and timeouts quarantine
 the message. Trust never bypasses this check or AuraGo's existing tool gates.
+Sender labels, @recipient tags, greetings and place names are ordinary radio
+formatting, not threats on their own. The full text is still scanned. An old
+quarantined message stays protected until an administrator reviews the cause
+and requests a new check; it is never replayed automatically.
 
 Channel replies run in a fresh minimal context. They use public knowledge and
 optionally **native Brave web search**, capped at two individual calls, without
