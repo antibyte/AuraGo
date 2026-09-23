@@ -233,6 +233,8 @@
 .vd-logviewer-scroller {
     min-height: 0;
     overflow: auto;
+    /* Virtual rows are replaced during scrolling; anchoring would amplify wheel steps. */
+    overflow-anchor: none;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: var(--lv-font, 12px);
 }

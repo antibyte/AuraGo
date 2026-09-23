@@ -739,7 +739,9 @@ buttons and menu popovers remain excluded from those gestures.
   `window.LogViewerFilters = { create }`. Every window owns its
   `EventSource` (or 2s tail poll fallback), ring buffer, keyboard
   handlers, and timers and must close them in `dispose`. Styles are
-  scoped under `.vd-logviewer`. Visible strings use
+  scoped under `.vd-logviewer`. The virtualized log scroller must keep
+  native incremental wheel movement in both directions; disable browser
+  scroll anchoring where rows are replaced. Visible strings use
   `desktop.app_log_viewer` plus `desktop.log_viewer_*` in all 16
   `ui/lang/desktop/*.json` files. File-list sizes use `desktop.bytes`,
   `desktop.kib`, `desktop.mib`, `desktop.gib`, and `desktop.tib`.
