@@ -2356,7 +2356,7 @@ Managed Docker sidecar for [Space Agent](https://github.com/agent0ai/space-agent
 
 **Web UI:** Config → Integrations → Space Agent → Configure repository URL, host, port, and HTTPS. The admin password and AuraGo bridge token are stored in the Vault.
 
-When enabled, AuraGo builds the configured Space Agent Git ref with its authenticated `/api/message_async` instruction endpoint. **Recreate** fetches that ref and builds the new image before replacing the running container; a source or build failure leaves the existing container in place. Space Agent's own release auto-update is disabled so it cannot replace the AuraGo-injected endpoint. Auth keys and customware persist under `data_path` and `customware_path`.
+When enabled, AuraGo builds the configured Space Agent Git ref with its authenticated `/api/message_async` instruction endpoint. The default ref is pinned to upstream commit `10f4ffdaf50a8136cf8450d17c11286178fd58e6`; explicitly configured refs such as `main` remain in effect. **Recreate** fetches that ref and builds the new image before replacing the running container; a source or build failure leaves the existing container in place. Space Agent's own release auto-update is disabled so it cannot replace the AuraGo-injected endpoint. Auth keys and customware persist under `data_path` and `customware_path`.
 
 ### YAML Reference
 ```yaml
@@ -2364,7 +2364,7 @@ space_agent:
   enabled: true
   auto_start: true
   repo_url: ""
-  git_ref: ""
+  git_ref: "10f4ffdaf50a8136cf8450d17c11286178fd58e6"
   container_name: ""
   image: ""
   host: ""

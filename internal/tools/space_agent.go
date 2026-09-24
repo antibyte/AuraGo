@@ -24,7 +24,7 @@ import (
 
 const (
 	spaceAgentDefaultRepoURL       = "https://github.com/agent0ai/space-agent"
-	spaceAgentDefaultGitRef        = "main"
+	spaceAgentDefaultGitRef        = "10f4ffdaf50a8136cf8450d17c11286178fd58e6"
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100

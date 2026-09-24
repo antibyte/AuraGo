@@ -956,7 +956,7 @@ space_agent:
     enabled: false
     auto_start: true
     repo_url: "https://github.com/agent0ai/space-agent"
-    git_ref: main
+    git_ref: 10f4ffdaf50a8136cf8450d17c11286178fd58e6 # pinned upstream commit; set main for rolling updates
     container_name: aurago_space_agent
     image: aurago-space-agent:main
     host: "0.0.0.0"                                      # LAN exposure interface for the published Docker port

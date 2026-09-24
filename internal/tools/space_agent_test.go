@@ -17,6 +17,25 @@ import (
 	"aurago/internal/config"
 )
 
+func TestResolveSpaceAgentSidecarConfigGitRef(t *testing.T) {
+	cfg := &config.Config{}
+	resolved, err := ResolveSpaceAgentSidecarConfig(cfg, "")
+	if err != nil {
+		t.Fatalf("ResolveSpaceAgentSidecarConfig() error = %v", err)
+	}
+	if resolved.GitRef != "10f4ffdaf50a8136cf8450d17c11286178fd58e6" {
+		t.Fatalf("default git_ref = %q, want pinned upstream commit", resolved.GitRef)
+	}
+	cfg.SpaceAgent.GitRef = "main"
+	resolved, err = ResolveSpaceAgentSidecarConfig(cfg, "")
+	if err != nil {
+		t.Fatalf("ResolveSpaceAgentSidecarConfig() with explicit ref error = %v", err)
+	}
+	if resolved.GitRef != "main" {
+		t.Fatalf("explicit git_ref = %q, want main", resolved.GitRef)
+	}
+}
+
 func TestBuildSpaceAgentCreatePayload(t *testing.T) {
 	payload, err := buildSpaceAgentCreatePayload(SpaceAgentSidecarConfig{
 		Image:          "aurago-space-agent:test",

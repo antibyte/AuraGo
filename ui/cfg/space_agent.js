@@ -1,12 +1,13 @@
 // cfg/space_agent.js — Space Agent config section module
 
 let _spaceAgentSection = null;
+const SPACE_AGENT_DEFAULT_GIT_REF = '10f4ffdaf50a8136cf8450d17c11286178fd58e6';
 
 function spaceAgentEnsureData() {
     if (!configData.space_agent) configData.space_agent = {};
     const data = configData.space_agent;
     if (!data.repo_url) data.repo_url = 'https://github.com/agent0ai/space-agent';
-    if (!data.git_ref) data.git_ref = 'main';
+    if (!data.git_ref) data.git_ref = SPACE_AGENT_DEFAULT_GIT_REF;
     if (!data.container_name) data.container_name = 'aurago_space_agent';
     if (!data.image) data.image = 'aurago-space-agent:main';
     if (!data.host) data.host = '0.0.0.0';
@@ -81,7 +82,7 @@ async function renderSpaceAgentSection(section) {
     html += spaceAgentField('config.space_agent.repo_url_label', 'help.space_agent.repo_url',
         '<input class="field-input" type="url" value="' + escapeAttr(data.repo_url || 'https://github.com/agent0ai/space-agent') + '" data-path="space_agent.repo_url">');
     html += spaceAgentField('config.space_agent.git_ref_label', 'help.space_agent.git_ref',
-        '<input class="field-input" type="text" value="' + escapeAttr(data.git_ref || 'main') + '" data-path="space_agent.git_ref">');
+        '<input class="field-input" type="text" value="' + escapeAttr(data.git_ref || SPACE_AGENT_DEFAULT_GIT_REF) + '" data-path="space_agent.git_ref">');
     html += spaceAgentField('config.space_agent.container_name_label', 'help.space_agent.container_name',
         '<input class="field-input" type="text" value="' + escapeAttr(data.container_name || 'aurago_space_agent') + '" data-path="space_agent.container_name">');
     html += spaceAgentField('config.space_agent.image_label', 'help.space_agent.image',

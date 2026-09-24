@@ -1190,8 +1190,8 @@ func TestLoadSpaceAgentDefaults(t *testing.T) {
 	if cfg.SpaceAgent.RepoURL != "https://github.com/agent0ai/space-agent" {
 		t.Fatalf("repo_url = %q", cfg.SpaceAgent.RepoURL)
 	}
-	if cfg.SpaceAgent.GitRef != "main" {
-		t.Fatalf("git_ref = %q, want main", cfg.SpaceAgent.GitRef)
+	if cfg.SpaceAgent.GitRef != "10f4ffdaf50a8136cf8450d17c11286178fd58e6" {
+		t.Fatalf("git_ref = %q, want pinned upstream commit", cfg.SpaceAgent.GitRef)
 	}
 	if cfg.SpaceAgent.ContainerName != "aurago_space_agent" {
 		t.Fatalf("container_name = %q, want aurago_space_agent", cfg.SpaceAgent.ContainerName)
@@ -1231,6 +1231,16 @@ func TestLoadSpaceAgentDefaults(t *testing.T) {
 	}
 	if !filepath.IsAbs(cfg.SpaceAgent.DataPath) || !strings.Contains(cfg.SpaceAgent.DataPath, filepath.Join("data", "sidecars", "space-agent", "data")) {
 		t.Fatalf("data_path = %q, want absolute sidecar data path", cfg.SpaceAgent.DataPath)
+	}
+	if err := os.WriteFile(configPath, []byte("space_agent:\n  git_ref: main\n"), 0o644); err != nil {
+		t.Fatalf("failed to write explicit Space Agent ref: %v", err)
+	}
+	cfg, err = Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() with explicit ref error = %v", err)
+	}
+	if cfg.SpaceAgent.GitRef != "main" {
+		t.Fatalf("explicit git_ref = %q, want main", cfg.SpaceAgent.GitRef)
 	}
 }
 

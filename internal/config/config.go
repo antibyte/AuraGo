@@ -483,7 +483,7 @@ func Load(path string) (*Config, error) {
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
 	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
-	cfg.SpaceAgent.GitRef = "main"
+	cfg.SpaceAgent.GitRef = "10f4ffdaf50a8136cf8450d17c11286178fd58e6"
 	cfg.SpaceAgent.ContainerName = "aurago_space_agent"
 	cfg.SpaceAgent.Image = "aurago-space-agent:main"
 	cfg.SpaceAgent.Host = "0.0.0.0"
@@ -1125,7 +1125,7 @@ func Load(path string) (*Config, error) {
 		cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
 	}
 	if strings.TrimSpace(cfg.SpaceAgent.GitRef) == "" {
-		cfg.SpaceAgent.GitRef = "main"
+		cfg.SpaceAgent.GitRef = "10f4ffdaf50a8136cf8450d17c11286178fd58e6"
 	}
 	if strings.TrimSpace(cfg.SpaceAgent.ContainerName) == "" {
 		cfg.SpaceAgent.ContainerName = "aurago_space_agent"
