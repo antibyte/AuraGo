@@ -271,7 +271,12 @@
     runtime.addEventListener('state', refreshAll);
     runtime.addEventListener('config', refreshAll);
     runtime.addEventListener('mute', refreshAll);
-    runtime.addEventListener('action', refreshAll);
+    runtime.addEventListener('action', event => {
+        const detail = event.detail || {};
+        if (detail.phase === 'progress') updateCaption({ text: detail.message });
+        else if (['completed', 'cancelled', 'error'].includes(detail.phase)) updateCaption({ text: '' });
+        refreshAll();
+    });
     runtime.addEventListener('transcript', event => updateCaption(event.detail || {}));
     runtime.addEventListener('repeat', event => {
         mounts.forEach((_options, root) => {

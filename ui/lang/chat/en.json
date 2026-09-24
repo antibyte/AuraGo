@@ -231,6 +231,8 @@
   "stl_close": "Close",
   "stl_loading": "Loading 3D model...",
   "stl_download": "Download",
+  "chat.realtime_action_ack": "I will take a look. One moment.",
+  "chat.realtime_action_wait": "I am still working on it. This is taking a little longer.",
   "chat.realtime_cancel_task": "Cancel task",
   "chat.realtime_connection_lost": "The live speech connection was interrupted.",
   "chat.realtime_disabled": "Realtime Speech is disabled.",

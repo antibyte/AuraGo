@@ -231,6 +231,8 @@
   "stl_close": "बंद करें",
   "stl_loading": "3D मॉडल लोड हो रहा है...",
   "stl_download": "डाउनलोड",
+  "chat.realtime_action_ack": "मैं इसे देख रहा हूँ। एक क्षण।",
+  "chat.realtime_action_wait": "मैं अभी इस पर काम कर रहा हूँ। इसमें थोड़ा और समय लगेगा।",
   "chat.realtime_cancel_task": "कार्य रद्द करें",
   "chat.realtime_connection_lost": "लाइव वॉइस कनेक्शन टूट गया।",
   "chat.realtime_disabled": "रीयलटाइम वाणी बंद है।",

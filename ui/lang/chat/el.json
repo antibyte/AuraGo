@@ -231,6 +231,8 @@
   "stl_close": "Κλείσιμο",
   "stl_loading": "Φόρτωση τρισδιάστατου μοντέλου...",
   "stl_download": "Λήψη",
+  "chat.realtime_action_ack": "Θα το κοιτάξω. Μια στιγμή.",
+  "chat.realtime_action_wait": "Ακόμα το επεξεργάζομαι. Θα χρειαστεί λίγο περισσότερο.",
   "chat.realtime_cancel_task": "Ακύρωση εργασίας",
   "chat.realtime_connection_lost": "Η σύνδεση ζωντανής ομιλίας διακόπηκε.",
   "chat.realtime_disabled": "Η ομιλία σε πραγματικό χρόνο είναι απενεργοποιημένη.",

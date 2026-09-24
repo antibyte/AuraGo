@@ -231,6 +231,8 @@
   "stl_close": "关闭",
   "stl_loading": "正在加载 3D 模型...",
   "stl_download": "下载",
+  "chat.realtime_action_ack": "我来看看，请稍等。",
+  "chat.realtime_action_wait": "我还在处理，需要多一点时间。",
   "chat.realtime_cancel_task": "取消任务",
   "chat.realtime_connection_lost": "实时语音连接已中断。",
   "chat.realtime_disabled": "实时语音已禁用。",

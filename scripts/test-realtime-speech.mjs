@@ -120,10 +120,10 @@ function testAudioWorkletResampling() {
   assert.ok(total >= 15998 && total <= 16000, `one 48 kHz second must produce one 16 kHz second, got ${total} samples`);
 }
 
-function loadRuntimeForTimerTest(fetchImpl) {
+function loadRuntimeForTimerTest(fetchImpl, options = {}) {
   let now = 0;
-  let timer = null;
-  let timerDelay = null;
+  let nextTimerId = 0;
+  const timers = new Map();
   class FakeDate extends Date {
     static now() {
       return now;
@@ -131,6 +131,10 @@ function loadRuntimeForTimerTest(fetchImpl) {
   }
   const listeners = new Map();
   const window = {
+    t: options.t,
+    navigator: { language: options.language || 'de-DE' },
+    speechSynthesis: options.speechSynthesis,
+    SpeechSynthesisUtterance: options.SpeechSynthesisUtterance,
     AuraRealtimeProviderCommon: {
       randomID: prefix => `${prefix}-test`,
       safeJSON: JSON.parse
@@ -140,19 +144,18 @@ function loadRuntimeForTimerTest(fetchImpl) {
       listeners.set(type, handler);
     },
     dispatchEvent() {},
-    clearTimeout() {
-      timer = null;
-      timerDelay = null;
+    clearTimeout(timerId) {
+      timers.delete(timerId);
     },
     setTimeout(handler, delay) {
-      timer = handler;
-      timerDelay = delay;
-      return 1;
+      const timerId = ++nextTimerId;
+      timers.set(timerId, { handler, delay });
+      return timerId;
     }
   };
   const context = {
     window,
-    document: { createElement() { throw new Error('modal not expected'); }, body: {} },
+    document: { documentElement: { lang: options.language || 'de-DE' }, createElement() { throw new Error('modal not expected'); }, body: {} },
     localStorage: { getItem: () => '', setItem() {} },
     BroadcastChannel: undefined,
     CustomEvent: TestCustomEvent,
@@ -177,8 +180,15 @@ function loadRuntimeForTimerTest(fetchImpl) {
   vm.runInContext(read('ui/js/realtime-speech/core.js'), context);
   return {
     Runtime: window.AuraRealtimeSpeechRuntime,
-    timer: () => timer,
-    timerDelay: () => timerDelay,
+    timer: () => [...timers.values()][0]?.handler || null,
+    timerDelay: () => [...timers.values()][0]?.delay || null,
+    timers: () => [...timers.values()].map(timer => timer.delay),
+    runTimer(delay) {
+      const entry = [...timers].find(([, timer]) => timer.delay === delay);
+      assert.ok(entry, `expected a ${delay} ms timer`);
+      timers.delete(entry[0]);
+      entry[1].handler();
+    },
     setNow(value) {
       now = value;
     }
@@ -266,6 +276,118 @@ async function testActionResultDisplayDeduplication() {
   assert.equal(desktopDisplays.length, 1, 'desktop actions still need one local final display event');
   assert.equal(desktopDisplays[0].content, 'Das ist das Ergebnis.');
   assert.equal(desktopDisplays[0].kind, 'action');
+}
+
+async function testVoiceActionNotices() {
+  let resolveRead;
+  let reads = 0;
+  const actionFetch = async url => {
+    if (url.startsWith('/api/realtime-speech/sessions/')) return { ok: true };
+    assert.equal(url, '/api/realtime-speech/actions');
+    return {
+      ok: true,
+      body: {
+        getReader() {
+          return {
+            read() {
+              if (reads++ > 0) return Promise.resolve({ done: true, value: new Uint8Array() });
+              return new Promise(resolve => { resolveRead = resolve; });
+            }
+          };
+        }
+      }
+    };
+  };
+  const speechSynthesis = {
+    speaking: false,
+    pending: false,
+    spoken: [],
+    cancellations: 0,
+    getVoices: () => [{ lang: 'de-DE' }],
+    speak(utterance) {
+      this.spoken.push(utterance);
+      this.speaking = true;
+      utterance.onstart();
+    },
+    cancel() {
+      this.cancellations++;
+      this.speaking = false;
+    }
+  };
+  class MockUtterance {
+    constructor(text) { this.text = text; }
+  }
+  const translations = JSON.parse(read('ui/lang/chat/de.json'));
+  const harness = loadRuntimeForTimerTest(actionFetch, {
+    t: key => translations[key],
+    speechSynthesis,
+    SpeechSynthesisUtterance: MockUtterance
+  });
+  const runtime = new harness.Runtime();
+  const microphoneMutes = [];
+  const actionEvents = [];
+  const displays = [];
+  runtime.sessionId = 'session-test';
+  runtime.adapter = { connected: true };
+  runtime.audioGate = { setMuted: value => microphoneMutes.push(value) };
+  runtime.addEventListener('action', event => actionEvents.push(event.detail));
+  runtime.addEventListener('display', event => displays.push(event.detail));
+
+  const task = runtime.executeAction('Prüfe den Status');
+  assert.ok(harness.timers().includes(1500), 'a running voice action must schedule a short acknowledgement');
+  runtime.userSpeaking = true;
+  harness.runTimer(1500);
+  assert.equal(speechSynthesis.spoken.length, 0, 'the progress cue must not interrupt the user');
+  runtime.userSpeaking = false;
+  harness.runTimer(1500);
+  assert.equal(speechSynthesis.spoken[0].text, translations['chat.realtime_action_ack']);
+  assert.equal(speechSynthesis.spoken[0].lang, 'de-DE');
+  assert.equal(actionEvents.at(-1).phase, 'progress');
+  assert.equal(actionEvents.at(-1).message, translations['chat.realtime_action_ack']);
+  assert.equal(microphoneMutes.at(-1), true, 'the microphone must not echo the progress cue');
+  assert.ok(harness.timers().includes(30000), 'a running action must schedule a later update');
+
+  runtime.setMuted(true);
+  speechSynthesis.speaking = false;
+  speechSynthesis.spoken[0].onend();
+  assert.equal(microphoneMutes.at(-1), true, 'ending a cue must preserve the user mute choice');
+  runtime.setMuted(false);
+  harness.runTimer(30000);
+  assert.equal(speechSynthesis.spoken[1].text, translations['chat.realtime_action_wait']);
+  assert.equal(actionEvents.at(-1).phase, 'progress');
+
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(typeof resolveRead, 'function');
+  resolveRead({ done: false, value: new TextEncoder().encode('data: {"event":"final_response","detail":"Status geprüft."}\n\n') });
+  const result = await task;
+  assert.equal(result.text, 'Status geprüft.');
+  assert.equal(displays.length, 1, 'progress cues must not become answer messages');
+  assert.equal(displays[0].content, 'Status geprüft.');
+  assert.equal(speechSynthesis.cancellations, 1, 'the final answer must stop a still playing cue');
+  assert.equal(microphoneMutes.at(-1), false, 'the microphone must recover after the cue stops');
+  assert.ok(!harness.timers().includes(30000), 'the completed task must stop progress updates');
+}
+
+async function testNoticeFallbackAndCancellation() {
+  const harness = loadRuntimeForTimerTest(async () => { throw new Error('cancel request failed'); });
+  const runtime = new harness.Runtime();
+  const action = { requestId: 'voice-action-test', cancelled: false };
+  const notices = [];
+  runtime.sessionId = 'session-test';
+  runtime.adapter = { connected: true };
+  runtime.currentAction = action;
+  runtime.actionActive = true;
+  runtime.addEventListener('action', event => notices.push(event.detail));
+  runtime.startActionNotices(action);
+  harness.runTimer(1500);
+  assert.equal(notices[0].phase, 'progress', 'a browser without speech synthesis still gets a visible caption');
+
+  const cancellation = await runtime.cancelCurrentAction();
+  assert.equal(cancellation.status, 'error');
+  assert.equal(action.cancelled, false);
+  assert.ok(harness.timers().includes(1500), 'failed cancellation must resume progress updates');
+  runtime.stopActionNotices(action);
+  assert.ok(!harness.timers().includes(1500), 'stopping an action must clear its pending notice');
 }
 
 async function testTakeoverPeerProbeAndModalContrast() {
@@ -687,6 +809,8 @@ await testLocalAudioGate();
 testAudioWorkletResampling();
 await testParkingTimerAndGuards();
 await testActionResultDisplayDeduplication();
+await testVoiceActionNotices();
+await testNoticeFallbackAndCancellation();
 await testTakeoverPeerProbeAndModalContrast();
 await testGeminiBinarySetupFrames();
 testProviderContractAndSecurityBoundaries();

@@ -231,6 +231,8 @@
   "stl_close": "Zavřít",
   "stl_loading": "Načítání 3D modelu...",
   "stl_download": "Stáhnout",
+  "chat.realtime_action_ack": "Podívám se na to. Chvilku strpení.",
+  "chat.realtime_action_wait": "Stále na tom pracuji. Trvá to o něco déle.",
   "chat.realtime_cancel_task": "Zrušit úlohu",
   "chat.realtime_connection_lost": "Připojení živé řeči bylo přerušeno.",
   "chat.realtime_disabled": "Řeč v reálném čase je vypnutá.",

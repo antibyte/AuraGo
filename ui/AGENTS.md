@@ -288,8 +288,15 @@ worker. Keep packaging, recovery and offline instructions in
   streaming adapters. The app may poll `/api/speech-lab/status` and start a
   managed container via `/api/speech-lab/deployment/start`.
 - Realtime Speech consumes the answer from `final_response`; `done` is a
-  contentless terminator. SIP Phone surfaces
-  `outbound_policy_migration_required` as a localized setup blocker.
+  contentless terminator. While `aurago_execute` is running, Live Speech gives
+  a localized acknowledgement after 1.5 seconds and a brief progress update
+  every 30 seconds through browser speech synthesis and the live caption.
+  Progress cues are UI only: never add them to the chat transcript or tool
+  result. Do not speak over the user or provider, mute the microphone only
+  while a cue plays, and stop pending cues on completion, cancellation, or
+  session close.
+- SIP Phone surfaces `outbound_policy_migration_required` as a localized setup
+  blocker.
 - Live Speech remembers the selected/started profile ID in browser storage
   `aurago.realtimeSpeech.profileId.v1`, shared by Chat and Desktop. Restore only
   selectable profiles; otherwise use the available configured default or first

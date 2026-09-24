@@ -6,6 +6,9 @@
     const CLIENT_ID_KEY = 'aurago.realtimeSpeech.clientId.v1';
     const CHANNEL_NAME = 'aurago-realtime-speech-v1';
     const PEER_PROBE_TIMEOUT_MS = 500;
+    const ACTION_NOTICE_DELAY_MS = 1500;
+    const ACTION_NOTICE_INTERVAL_MS = 30000;
+    const ACTION_NOTICE_SPEECH_TIMEOUT_MS = 10000;
 
     function text(key, fallback, vars) {
         let value = typeof window.t === 'function' ? window.t(key, vars) : '';
@@ -115,6 +118,12 @@
             this.providerSpeaking = false;
             this.actionActive = false;
             this.currentAction = null;
+            this.actionNoticeAction = null;
+            this.actionNoticeTimer = null;
+            this.actionNoticeSpeechTimer = null;
+            this.actionNoticeUtterance = null;
+            this.actionNoticeSpeaking = false;
+            this.actionNoticeCount = 0;
             this.lastActivityAt = Date.now();
             this.parkTimer = null;
             this.wakeFrames = [];
@@ -507,7 +516,7 @@
 
         setMuted(muted) {
             this.muted = !!muted;
-            if (this.audioGate) this.audioGate.setMuted(this.muted);
+            if (this.audioGate) this.audioGate.setMuted(this.muted || this.actionNoticeSpeaking);
             this.emit('mute', { muted: this.muted });
             this.emit('state', { state: this.state, active: !!this.sessionId, muted: this.muted, profile: this.profile });
         }
@@ -607,6 +616,78 @@
             this.adapter.sendToolResult(call, result);
         }
 
+        scheduleActionNotice(action, delay) {
+            window.clearTimeout(this.actionNoticeTimer);
+            this.actionNoticeTimer = window.setTimeout(() => {
+                this.actionNoticeTimer = null;
+                if (this.actionNoticeAction !== action || this.currentAction !== action || !this.actionActive ||
+                    action.cancelled || !this.adapter || !this.adapter.connected) return;
+                if (this.userSpeaking || this.providerSpeaking || this.actionNoticeUtterance) {
+                    this.scheduleActionNotice(action, ACTION_NOTICE_DELAY_MS);
+                    return;
+                }
+                const message = this.actionNoticeCount === 0
+                    ? text('chat.realtime_action_ack', 'I will take a look. One moment.')
+                    : text('chat.realtime_action_wait', 'I am still working on it. This is taking a little longer.');
+                this.actionNoticeCount++;
+                this.emit('action', { phase: 'progress', requestId: action.requestId, message });
+                this.speakActionNotice(message);
+                this.scheduleActionNotice(action, ACTION_NOTICE_INTERVAL_MS);
+            }, delay);
+        }
+
+        startActionNotices(action) {
+            if (!this.sessionId || !this.adapter || !this.adapter.connected) return;
+            this.stopActionNotices();
+            this.actionNoticeAction = action;
+            this.actionNoticeCount = 0;
+            this.scheduleActionNotice(action, ACTION_NOTICE_DELAY_MS);
+        }
+
+        finishActionNoticeSpeech(utterance, cancel) {
+            if (this.actionNoticeUtterance !== utterance) return;
+            this.actionNoticeUtterance = null;
+            window.clearTimeout(this.actionNoticeSpeechTimer);
+            this.actionNoticeSpeechTimer = null;
+            this.actionNoticeSpeaking = false;
+            if (cancel) {
+                try { window.speechSynthesis.cancel(); } catch (_) { }
+            }
+            if (this.audioGate) this.audioGate.setMuted(this.muted);
+        }
+
+        speakActionNotice(message) {
+            const synth = window.speechSynthesis;
+            const Utterance = window.SpeechSynthesisUtterance;
+            if (!synth || typeof Utterance !== 'function' || synth.speaking || synth.pending) return;
+            const utterance = new Utterance(message);
+            const language = (document.documentElement && document.documentElement.lang) ||
+                (window.navigator && window.navigator.language) || 'en';
+            utterance.lang = language;
+            const voices = typeof synth.getVoices === 'function' ? synth.getVoices() : [];
+            const baseLanguage = language.toLowerCase().split('-')[0];
+            utterance.voice = voices.find(voice => String(voice.lang || '').toLowerCase() === language.toLowerCase()) ||
+                voices.find(voice => String(voice.lang || '').toLowerCase().split('-')[0] === baseLanguage) || null;
+            utterance.onstart = () => {
+                if (this.actionNoticeUtterance !== utterance) return;
+                this.actionNoticeSpeaking = true;
+                if (this.audioGate) this.audioGate.setMuted(true);
+            };
+            utterance.onend = utterance.onerror = () => this.finishActionNoticeSpeech(utterance, false);
+            this.actionNoticeUtterance = utterance;
+            this.actionNoticeSpeechTimer = window.setTimeout(
+                () => this.finishActionNoticeSpeech(utterance, true), ACTION_NOTICE_SPEECH_TIMEOUT_MS);
+            try { synth.speak(utterance); } catch (_) { this.finishActionNoticeSpeech(utterance, true); }
+        }
+
+        stopActionNotices(action) {
+            if (action && this.actionNoticeAction !== action) return;
+            window.clearTimeout(this.actionNoticeTimer);
+            this.actionNoticeTimer = null;
+            this.actionNoticeAction = null;
+            if (this.actionNoticeUtterance) this.finishActionNoticeSpeech(this.actionNoticeUtterance, true);
+        }
+
         async executeAction(request) {
             const requestId = Common.randomID('voice-action');
             const action = { requestId, request, cancelled: false };
@@ -614,6 +695,7 @@
             this.currentAction = action;
             this.setState('executing', { requestId });
             this.emit('action', { phase: 'started', requestId, request });
+            this.startActionNotices(action);
             let resultText = '';
             let finalText = '';
             let status = 'completed';
@@ -690,6 +772,7 @@
                 this.emit('action', { phase: status, requestId, status, error: message });
                 return { status, request_id: requestId, error: message, artifacts: [] };
             } finally {
+                this.stopActionNotices(action);
                 this.actionActive = false;
                 this.currentAction = null;
                 if (this.sessionId && this.state !== 'parked') this.setState(this.providerSpeaking ? 'speaking' : 'listening');
@@ -701,6 +784,7 @@
             const action = this.currentAction;
             if (!action) return { status: 'cancelled', request_id: '', text: 'There is no active AuraGo task.' };
             action.cancelled = true;
+            this.stopActionNotices(action);
             try {
                 const response = await fetch('/api/realtime-speech/actions/' + encodeURIComponent(action.requestId) +
                     '?client_id=' + encodeURIComponent(this.clientId), {
@@ -713,6 +797,7 @@
                 return { status: 'cancelled', request_id: action.requestId, text: 'The current task was cancelled.' };
             } catch (error) {
                 action.cancelled = false;
+                if (this.currentAction === action && this.actionActive) this.startActionNotices(action);
                 return { status: 'error', request_id: action.requestId, error: error.message };
             }
         }
@@ -802,6 +887,7 @@
 
         async stop(options) {
             options = Object.assign({ notifyServer: true }, options || {});
+            this.stopActionNotices();
             window.clearTimeout(this.parkTimer);
             window.clearTimeout(this.wakeDeadline);
             window.clearTimeout(this.directFinalizeTimer);
