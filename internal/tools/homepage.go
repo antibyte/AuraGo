@@ -312,7 +312,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 				if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 					return errJSON("Dev container is running but /workspace is not writable and automatic permission repair failed: %v", err)
 				}
-				return okJSON("Dev container already running", "container", homepageContainerName)
+				return homepageExistingContainerResult("Dev container already running", info, logger)
 			}
 		}
 		ensureHomepageNetwork(dockerCfg, logger)
@@ -325,7 +325,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 			return errJSON("Dev container started but /workspace is not writable and automatic permission repair failed: %v", err)
 		}
-		return okJSON("Dev container started", "container", homepageContainerName)
+		return homepageExistingContainerResult("Dev container started", info, logger)
 	}
 
 	// Create new container. On Unix, run as the current UID/GID so bind-mounted
@@ -339,6 +339,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		"HostConfig": map[string]interface{}{
 			"Binds":         []string{workspaceMount},
 			"ExtraHosts":    []string{"host.docker.internal:host-gateway"},
+			"Init":          true,
 			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
 		},
 	}
@@ -368,6 +369,28 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 
 	logger.Info("[Homepage] Dev container initialized and running", "container", homepageContainerName)
 	return okJSON("Dev container initialized and running", "container", homepageContainerName)
+}
+
+// Existing containers cannot gain Docker's init process without being recreated.
+// Keep them running because rebuilding also interrupts dev servers and quick tunnels.
+func homepageExistingContainerResult(message string, info map[string]interface{}, logger *slog.Logger) string {
+	if homepageContainerInitEnabled(info) {
+		return okJSON(message, "container", homepageContainerName)
+	}
+	logger.Warn("[Homepage] Dev container has no init process; rebuild required to reap orphaned browser processes", "container", homepageContainerName)
+	result, _ := json.Marshal(map[string]interface{}{
+		"status":           "ok",
+		"message":          message + "; run homepage rebuild to enable process reaping (active dev servers and quick tunnels will restart)",
+		"container":        homepageContainerName,
+		"rebuild_required": true,
+	})
+	return string(result)
+}
+
+func homepageContainerInitEnabled(info map[string]interface{}) bool {
+	hostConfig, _ := info["HostConfig"].(map[string]interface{})
+	enabled, _ := hostConfig["Init"].(bool)
+	return enabled
 }
 
 func homepageContainerUserSpec() string {

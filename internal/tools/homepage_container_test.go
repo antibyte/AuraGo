@@ -1,6 +1,9 @@
 package tools
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +28,92 @@ func TestHomepageContainerVersionsPinned(t *testing.T) {
 		if !strings.Contains(homepageDockerfile, snippet) {
 			t.Fatalf("expected homepageDockerfile to contain %q", snippet)
 		}
+	}
+}
+
+func TestHomepageInitCreatesContainerWithProcessReaper(t *testing.T) {
+	oldExec := homepageDockerExecInternalFunc
+	defer func() { homepageDockerExecInternalFunc = oldExec }()
+	homepageDockerExecInternalFunc = func(DockerConfig, string, string, string, []string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+
+	var createPayload map[string]interface{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
+		switch {
+		case r.Method == http.MethodGet && path == "/_ping":
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodGet && path == "/images/json":
+			writeDockerJSON(w, http.StatusOK, []map[string]string{{"Id": "homepage-image"}})
+		case r.Method == http.MethodGet && path == "/containers/"+homepageContainerName+"/json":
+			w.WriteHeader(http.StatusNotFound)
+		case r.Method == http.MethodPost && path == "/containers/create":
+			if err := json.NewDecoder(r.Body).Decode(&createPayload); err != nil {
+				t.Errorf("decode create payload: %v", err)
+			}
+			writeDockerJSON(w, http.StatusCreated, map[string]string{"Id": "homepage-container"})
+		case r.Method == http.MethodPost && path == "/containers/"+homepageContainerName+"/start":
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodGet && path == "/networks/"+homepageNetworkName:
+			writeDockerJSON(w, http.StatusOK, map[string]string{"Id": "homepage-network"})
+		case r.Method == http.MethodPost && path == "/networks/"+homepageNetworkName+"/connect":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected Docker request: %s %s", r.Method, path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	host := "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	result := HomepageInit(HomepageConfig{DockerHost: host, WorkspacePath: t.TempDir()}, slogDiscard())
+	if !strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("HomepageInit failed: %s", result)
+	}
+	hostConfig, _ := createPayload["HostConfig"].(map[string]interface{})
+	if hostConfig["Init"] != true {
+		t.Fatalf("homepage container must enable Docker init, HostConfig=%#v", hostConfig)
+	}
+}
+
+func TestHomepageInitKeepsRunningLegacyContainerUntilExplicitRebuild(t *testing.T) {
+	oldExec := homepageDockerExecInternalFunc
+	defer func() { homepageDockerExecInternalFunc = oldExec }()
+	homepageDockerExecInternalFunc = func(DockerConfig, string, string, string, []string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
+		switch {
+		case r.Method == http.MethodGet && path == "/_ping":
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodGet && path == "/images/json":
+			writeDockerJSON(w, http.StatusOK, []map[string]string{{"Id": "homepage-image"}})
+		case r.Method == http.MethodGet && path == "/containers/"+homepageContainerName+"/json":
+			writeDockerJSON(w, http.StatusOK, map[string]interface{}{
+				"State":      map[string]bool{"Running": true},
+				"HostConfig": map[string]interface{}{"Init": nil},
+			})
+		default:
+			t.Errorf("legacy container must not be replaced automatically: %s %s", r.Method, path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	host := "tcp://" + strings.TrimPrefix(server.URL, "http://")
+	result := HomepageInit(HomepageConfig{DockerHost: host, WorkspacePath: t.TempDir()}, slogDiscard())
+	var response struct {
+		Status          string `json:"status"`
+		RebuildRequired bool   `json:"rebuild_required"`
+	}
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatalf("parse HomepageInit result: %v", err)
+	}
+	if response.Status != "ok" || !response.RebuildRequired {
+		t.Fatalf("expected non-destructive migration warning, got %s", result)
 	}
 }
 
