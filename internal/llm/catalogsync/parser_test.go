@@ -21,38 +21,31 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 				},
 				"contextWindow": 128000,
 				"maxTokens": 16384
+			},
+			"no-tools": {
+				"id": "no-tools",
+				"api": "openai-completions",
+				"supportsTools": false
+			},
+			"image-only": {
+				"id": "image-only",
+				"api": "openai-images",
+				"kind": "image"
 			}
+		},
+		"model-only": {
+			"orphan-chat": {"id":"orphan-chat","api":"openai-completions"}
 		}
 	}`)
-	descriptorsTS := []byte(`export const CATALOG_PROVIDERS = [
-		{
-			id: "lm-studio",
-			defaultModel: "qwen3",
-			envVars: ["LM_STUDIO_API_KEY"],
-			allowUnauthenticated: true,
-			catalogDiscovery: { label: "LM Studio" },
-		},
-		{
-			id: "example-provider",
-			defaultModel: "example-model",
-			envVars: ["EXAMPLE_API_KEY"],
-			catalogDiscovery: { label: "Example Provider", oauthProvider: "example" },
-		},
-		{
-			id: "google",
-			defaultModel: "gemini-2.5-pro",
-			envVars: ["GEMINI_API_KEY"],
-			catalogDiscovery: { label: "Google" },
-		},
-		{
-			id: "xai-oauth",
-			defaultModel: "grok-4.3",
-			envVars: ["XAI_OAUTH_TOKEN", "XAI_API_KEY"],
-			catalogDiscovery: { label: "xAI Grok OAuth (SuperGrok)", oauthProvider: "xai-oauth" },
-		},
-	] satisfies ProviderCatalogEntry[];`)
+	rulesJSON := []byte(`{"providers": {
+		"openai": {"id":"openai","defaultModel":"gpt-4o","envVars":["OPENAI_API_KEY"]},
+		"lm-studio": {"id":"lm-studio","defaultModel":"qwen3","envVars":["LM_STUDIO_API_KEY"],"allowUnauthenticated":true,"discovery":{"label":"LM Studio"}},
+		"example-provider": {"id":"example-provider","defaultModel":"example-model","envVars":["EXAMPLE_API_KEY"],"discovery":{"label":"Example Provider","oauthProvider":"example"}},
+		"google": {"id":"google","defaultModel":"gemini-2.5-pro","envVars":["GEMINI_API_KEY"],"discovery":{"label":"Google"}},
+		"xai-oauth": {"id":"xai-oauth","defaultModel":"grok-4.3","envVars":["XAI_OAUTH_TOKEN","XAI_API_KEY"],"discovery":{"label":"xAI Grok OAuth (SuperGrok)","oauthProvider":"xai-oauth"}}
+	}}`)
 
-	snapshot, err := BuildSnapshot(modelsJSON, descriptorsTS, PackageMetadata{
+	snapshot, err := BuildSnapshot(modelsJSON, rulesJSON, PackageMetadata{
 		Name:          "@oh-my-pi/pi-catalog",
 		Version:       "16.1.10",
 		TarballURL:    "https://registry.npmjs.org/@oh-my-pi/pi-catalog/-/pi-catalog-16.1.10.tgz",
@@ -71,6 +64,9 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 	if len(snapshot.Metadata.SourceFiles) == 0 {
 		t.Fatal("expected source file metadata")
 	}
+	if snapshot.Metadata.SourceFiles[1] != "package/src/compat/rules.json" {
+		t.Fatalf("provider source = %q", snapshot.Metadata.SourceFiles[1])
+	}
 
 	model, ok := snapshot.FindModel("openai", "gpt-4o")
 	if !ok {
@@ -87,6 +83,17 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 	}
 	if model.Cost.Input != 2.5 || model.Cost.Output != 10 || model.Cost.CacheRead != 1.25 {
 		t.Fatalf("model cost not normalized: %+v", model.Cost)
+	}
+	noTools, ok := snapshot.FindModel("openai", "no-tools")
+	if !ok || noTools.SupportsTools || noTools.StructuredOutputs {
+		t.Fatalf("explicit supportsTools=false was not preserved: %+v, found=%v", noTools, ok)
+	}
+	if _, ok := snapshot.FindModel("openai", "image-only"); ok {
+		t.Fatal("image-only model should not appear in the LLM catalog")
+	}
+	modelOnly, ok := snapshot.FindProvider("model-only")
+	if !ok || !modelOnly.CatalogOnly {
+		t.Fatalf("model-only provider must stay catalog-only: %+v, found=%v", modelOnly, ok)
 	}
 
 	lmStudio, ok := snapshot.FindProvider("lm-studio")
@@ -157,13 +164,13 @@ func TestBuildSnapshotUsesDeterministicOrderForDuplicateModelKeys(t *testing.T) 
 		"provider-a":{"same":{"id":"same","name":"Same","api":"openai-completions","provider":"shared","contextWindow":100,"maxTokens":10,"cost":{"input":1,"output":1}}},
 		"provider-b":{"same":{"id":"same","name":"Same","api":"openai-completions","provider":"shared","contextWindow":100,"maxTokens":10,"cost":{"input":2,"output":1}}}
 	}`)
-	descriptors := []byte(`export const CATALOG_PROVIDERS = [{id:"shared", catalogDiscovery:{label:"Shared"}}];`)
+	rules := []byte(`{"providers":{"shared":{"id":"shared","discovery":{"label":"Shared"}}}}`)
 	metadata := PackageMetadata{Name: "@oh-my-pi/pi-catalog", Version: "test", License: "MIT"}
-	first, err := BuildSnapshot(modelsA, descriptors, metadata)
+	first, err := BuildSnapshot(modelsA, rules, metadata)
 	if err != nil {
 		t.Fatalf("BuildSnapshot first: %v", err)
 	}
-	second, err := BuildSnapshot(modelsB, descriptors, metadata)
+	second, err := BuildSnapshot(modelsB, rules, metadata)
 	if err != nil {
 		t.Fatalf("BuildSnapshot second: %v", err)
 	}
@@ -183,7 +190,7 @@ func TestBuildSnapshotUsesDeterministicOrderForDuplicateModelKeys(t *testing.T) 
 }
 
 func TestBuildSnapshotRejectsMissingLicenseMetadata(t *testing.T) {
-	_, err := BuildSnapshot([]byte(`{}`), []byte(`export const CATALOG_PROVIDERS = [];`), PackageMetadata{
+	_, err := BuildSnapshot([]byte(`{}`), []byte(`{"providers":{}}`), PackageMetadata{
 		Name:       "@oh-my-pi/pi-catalog",
 		Version:    "16.1.10",
 		TarballURL: "https://example.invalid/catalog.tgz",

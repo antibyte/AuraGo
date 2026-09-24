@@ -54,7 +54,7 @@ func run(version string, check, write bool) error {
 			pkg.mergeMissing(tarPkg)
 		}
 	}
-	snapshot, err := catalogsync.BuildSnapshot(files.modelsJSON, files.descriptorsTS, catalogsync.PackageMetadata{
+	snapshot, err := catalogsync.BuildSnapshot(files.modelsJSON, files.rulesJSON, catalogsync.PackageMetadata{
 		Name:          pkg.Name,
 		Version:       pkg.Version,
 		TarballURL:    pkg.Dist.Tarball,
@@ -231,9 +231,9 @@ func download(url string, maxBytes int64) ([]byte, error) {
 }
 
 type catalogSources struct {
-	modelsJSON    []byte
-	descriptorsTS []byte
-	packageJSON   []byte
+	modelsJSON  []byte
+	rulesJSON   []byte
+	packageJSON []byte
 }
 
 func extractCatalogSources(tarball []byte) (catalogSources, error) {
@@ -259,8 +259,8 @@ func extractCatalogSources(tarball []byte) (catalogSources, error) {
 		switch filepath.ToSlash(header.Name) {
 		case "package/src/models.json":
 			files.modelsJSON, err = io.ReadAll(io.LimitReader(tr, 64*1024*1024))
-		case "package/src/provider-models/descriptors.ts":
-			files.descriptorsTS, err = io.ReadAll(io.LimitReader(tr, 8*1024*1024))
+		case "package/src/compat/rules.json":
+			files.rulesJSON, err = io.ReadAll(io.LimitReader(tr, 8*1024*1024))
 		case "package/package.json":
 			files.packageJSON, err = io.ReadAll(io.LimitReader(tr, 1024*1024))
 		default:
@@ -273,8 +273,8 @@ func extractCatalogSources(tarball []byte) (catalogSources, error) {
 	if len(files.modelsJSON) == 0 {
 		return catalogSources{}, fmt.Errorf("tarball missing package/src/models.json")
 	}
-	if len(files.descriptorsTS) == 0 {
-		return catalogSources{}, fmt.Errorf("tarball missing package/src/provider-models/descriptors.ts")
+	if len(files.rulesJSON) == 0 {
+		return catalogSources{}, fmt.Errorf("tarball missing package/src/compat/rules.json")
 	}
 	if len(files.packageJSON) == 0 {
 		return catalogSources{}, fmt.Errorf("tarball missing package/package.json")

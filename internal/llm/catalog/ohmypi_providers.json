@@ -1,5 +1,18 @@
 [
   {
+    "id": "abliteration",
+    "aura_provider_type": "abliteration",
+    "name": "Abliteration",
+    "default_model": "abliterated-model",
+    "env_vars": [
+      "ABLITERATION_API_KEY",
+      "ABLIT_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "aiand",
     "aura_provider_type": "aiand",
     "name": "ai\u0026",
@@ -51,7 +64,7 @@
     "id": "amazon-bedrock",
     "aura_provider_type": "amazon-bedrock",
     "name": "Amazon Bedrock",
-    "default_model": "us.anthropic.claude-opus-4-8",
+    "default_model": "us.anthropic.claude-opus-5-5",
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -59,11 +72,20 @@
     "id": "anthropic",
     "aura_provider_type": "anthropic",
     "name": "Anthropic",
-    "default_model": "claude-opus-4-8",
+    "default_model": "claude-opus-5-5",
     "env_vars": [
       "ANTHROPIC_API_KEY"
     ],
     "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "apple",
+    "aura_provider_type": "apple",
+    "name": "Apple",
+    "default_model": "on-device",
+    "allow_unauthenticated": true,
+    "catalog_only": true,
     "source": "oh-my-pi"
   },
   {
@@ -113,13 +135,54 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "charm-hyper",
+    "aura_provider_type": "charm-hyper",
+    "name": "Charm Hyper",
+    "default_model": "glm-5.3",
+    "env_vars": [
+      "CHARM_HYPER_API_KEY",
+      "HYPER_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "cline-pass",
+    "aura_provider_type": "cline-pass",
+    "name": "ClinePass",
+    "default_model": "kimi-k3",
+    "env_vars": [
+      "CLINE_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "cloudflare-ai-gateway",
     "aura_provider_type": "cloudflare-ai-gateway",
     "name": "Cloudflare AI Gateway",
-    "default_model": "anthropic/claude-opus-4-8",
+    "default_model": "anthropic/claude-opus-5",
     "env_vars": [
       "CLOUDFLARE_AI_GATEWAY_API_KEY"
     ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "commandcode",
+    "aura_provider_type": "commandcode",
+    "name": "Command Code",
+    "default_model": "claude-sonnet-5",
+    "env_vars": [
+      "COMMAND_CODE_API_KEY",
+      "COMMANDCODE_API_KEY"
+    ],
+    "allow_unauthenticated": true,
+    "dynamic_models_authoritative": true,
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -140,7 +203,7 @@
     "id": "cursor",
     "aura_provider_type": "cursor",
     "name": "Cursor",
-    "default_model": "claude-4.6-opus-high",
+    "default_model": "claude-opus-5-high",
     "env_vars": [
       "CURSOR_ACCESS_TOKEN"
     ],
@@ -189,7 +252,7 @@
     "id": "firepass",
     "aura_provider_type": "firepass",
     "name": "Firepass",
-    "default_model": "kimi-k2.6-turbo",
+    "default_model": "glm-5.2-fast",
     "env_vars": [
       "FIREPASS_API_KEY"
     ],
@@ -358,7 +421,7 @@
     "id": "kilo",
     "aura_provider_type": "kilo",
     "name": "Kilo Gateway",
-    "default_model": "anthropic/claude-opus-4.8",
+    "default_model": "anthropic/claude-opus-5",
     "env_vars": [
       "KILO_API_KEY"
     ],
@@ -381,7 +444,7 @@
     "id": "litellm",
     "aura_provider_type": "litellm",
     "name": "LiteLLM",
-    "default_model": "claude-opus-4-8",
+    "default_model": "claude-opus-5-5",
     "env_vars": [
       "LITELLM_API_KEY"
     ],
@@ -399,6 +462,15 @@
     ],
     "allow_unauthenticated": true,
     "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "local",
+    "aura_provider_type": "local",
+    "name": "Local",
+    "default_model": "lfm2.5-230m",
+    "allow_unauthenticated": true,
+    "catalog_only": true,
     "source": "oh-my-pi"
   },
   {
@@ -422,6 +494,13 @@
       "MINIMAX_API_KEY"
     ],
     "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "minimax-cn",
+    "aura_provider_type": "minimax-cn",
+    "name": "Minimax Cn",
+    "catalog_only": true,
     "source": "oh-my-pi"
   },
   {
@@ -467,6 +546,15 @@
       "KIMI_API_KEY"
     ],
     "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "muse-code",
+    "aura_provider_type": "muse-code",
+    "name": "Muse Code",
+    "default_model": "muse-spark-1.3",
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
     "source": "oh-my-pi"
   },
   {
@@ -566,7 +654,7 @@
     "id": "opencode-zen",
     "aura_provider_type": "opencode-zen",
     "name": "Opencode Zen",
-    "default_model": "claude-opus-4-8",
+    "default_model": "claude-opus-5",
     "env_vars": [
       "OPENCODE_API_KEY"
     ],
@@ -648,10 +736,46 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "singularityapi-dev",
+    "aura_provider_type": "singularityapi-dev",
+    "name": "Singularityapi Dev",
+    "default_model": "deepseek-v4-flash",
+    "env_vars": [
+      "SINGULARITYAPI_DEV_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "singularityapi-tech",
+    "aura_provider_type": "singularityapi-tech",
+    "name": "Singularityapi Tech",
+    "default_model": "deepseek-ai/DeepSeek-V4.1-Flash",
+    "env_vars": [
+      "SINGULARITYAPI_TECH_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "stepfun",
+    "aura_provider_type": "stepfun",
+    "name": "StepFun",
+    "default_model": "step-5-preview",
+    "env_vars": [
+      "STEPFUN_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "synthetic",
     "aura_provider_type": "synthetic",
     "name": "Synthetic",
-    "default_model": "hf:zai-org/GLM-5.2",
+    "default_model": "hf:zai-org/GLM-5.3-Flash",
     "env_vars": [
       "SYNTHETIC_API_KEY"
     ],
@@ -666,6 +790,17 @@
     "default_model": "moonshotai/Kimi-K2.7-Code",
     "env_vars": [
       "TOGETHER_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "typesafe",
+    "aura_provider_type": "typesafe",
+    "name": "Typesafe",
+    "default_model": "jev-latest",
+    "env_vars": [
+      "TYPESAFE_API_KEY"
     ],
     "catalog_only": true,
     "source": "oh-my-pi"
@@ -699,7 +834,7 @@
     "id": "vercel-ai-gateway",
     "aura_provider_type": "vercel-ai-gateway",
     "name": "Vercel AI Gateway",
-    "default_model": "anthropic/claude-opus-4.8",
+    "default_model": "anthropic/claude-opus-5",
     "env_vars": [
       "AI_GATEWAY_API_KEY"
     ],
@@ -728,6 +863,15 @@
       "WAFER_SERVERLESS_API_KEY"
     ],
     "oauth_provider": "wafer-serverless",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "web",
+    "aura_provider_type": "web",
+    "name": "Web",
+    "default_model": "public",
+    "allow_unauthenticated": true,
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -853,7 +997,7 @@
     "id": "yolo-auto",
     "aura_provider_type": "yolo-auto",
     "name": "Yolo-Auto",
-    "default_model": "deepseek-flash-v4",
+    "default_model": "qwen3.8-flash",
     "env_vars": [
       "YOLO_AUTO_API_KEY"
     ],
@@ -876,7 +1020,7 @@
     "id": "zenmux",
     "aura_provider_type": "zenmux",
     "name": "ZenMux",
-    "default_model": "anthropic/claude-opus-4.8",
+    "default_model": "anthropic/claude-opus-5",
     "env_vars": [
       "ZENMUX_API_KEY"
     ],

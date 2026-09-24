@@ -296,6 +296,11 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 - Schema changes should be backward compatible
 - New DB files auto-initialize with current schema
 
+### Provider and Model Catalog Refresh
+- Regenerate `internal/llm/model_registry_data.go` from `https://models.dev/api.json` with `go run scripts/generate_model_registry.go --write`, then run `--check`.
+- Regenerate the bundled provider/model catalog with `go run scripts/sync_ohmypi_catalog.go --write`, then run `--check`. Its source package is `@oh-my-pi/pi-catalog`; import `src/models.json` and compiled `src/compat/rules.json` from the same npm tarball.
+- Keep the catalog focused on LLMs, preserve explicit upstream `supportsTools` values, mark model-only providers as catalog-only, and verify catalog, registry, and server tests after a refresh.
+
 ## Common Development Tasks
 
 ### Reset Development Environment
