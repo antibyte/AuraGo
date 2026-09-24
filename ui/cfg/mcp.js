@@ -337,6 +337,7 @@ function mcpServerAdd() {
         docker_image: '',
         docker_command: '',
         allow_local_fallback: false,
+        allow_private_network: false,
         host_workdir: '',
         container_workdir: '/workspace'
     }, -1);
@@ -441,6 +442,10 @@ function mcpServerShowModal(data, idx) {
             <input id="mcp-m-local-fallback" type="checkbox" ${data.allow_local_fallback ? 'checked' : ''}>
             <span class="mcp-modal-check-text">${t('config.mcp.field_allow_local_fallback')}</span>
         </label>
+        <label class="mcp-modal-check-row mcp-network-fields">
+            <input id="mcp-m-private-network" type="checkbox" ${data.allow_private_network ? 'checked' : ''}>
+            <span class="mcp-modal-check-text">${t('config.mcp.field_allow_private_network')}</span>
+        </label>
         <label class="mcp-modal-check-row">
             <input id="mcp-m-allow-destructive" type="checkbox" ${data.allow_destructive ? 'checked' : ''}>
             <span class="mcp-modal-check-text">${t('config.mcp.field_allow_destructive')}</span>
@@ -533,6 +538,7 @@ function mcpCollectServerModalEntry() {
         docker_image: document.getElementById('mcp-m-docker-image').value.trim(),
         docker_command: document.getElementById('mcp-m-docker-command').value.trim(),
         allow_local_fallback: document.getElementById('mcp-m-local-fallback').checked,
+        allow_private_network: document.getElementById('mcp-m-private-network').checked,
         allowed_tools: document.getElementById('mcp-m-allowed-tools').value.split('\n').map(l => l.trim()).filter(Boolean),
         allow_destructive: document.getElementById('mcp-m-allow-destructive').checked,
         host_workdir: document.getElementById('mcp-m-host-workdir').value.trim(),

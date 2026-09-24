@@ -10,6 +10,13 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+### Ingress Security and Browser Lab
+- Forwarded host, scheme, and client IP count only when `server.https.behind_proxy` is enabled and the immediate peer matches `server.https.trusted_proxy_cidrs`; other forwarding headers are removed before auth and URL construction.
+- An auth-disabled remote listener requires `auth.allow_unauthenticated_remote` before startup or config save. This exception never opens `/speech-lab/`.
+- `/speech-lab/` requires an AuraGo session, same-origin writes and WebSocket Origin, and a configuration-owned private backend. Strip AuraGo credentials before forwarding. No separate Tailscale port 8766 listener.
+- Desktop embed credentials travel only in `/desktop-ticket/<ticket>/...` paths, are stripped before access logging, and remain scoped to their exact desktop path or camera resource. Query tokens fail.
+- The main UI at `/` carries a report-only CSP without `unsafe-inline` while legacy inline handlers/styles are migrated; desktop app CSPs keep their separate contracts.
+
 ### System World Tower Voice
 - POST `/api/desktop/system-world/voice` returns one short transient audio clip.
   Reuse the effective chat TTS configuration and in-memory synthesis, including

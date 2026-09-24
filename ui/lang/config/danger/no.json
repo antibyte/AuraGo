@@ -20,5 +20,7 @@
   "config.danger.mcp.title": "MCP-servertilkoblinger (mcp_call)",
   "config.danger.mcp.desc": "Lar agenten koble til eksterne MCP-servere og bruke verktøyene deres. <strong style=\"color:#f87171;\">⚠ Legg bare til pålitelige servere!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemomfattende sudo-skrivetilgang",
-  "config.danger.sudo_unrestricted.desc": "Tillater agenten å skrive utenfor installasjonsmappen ved hjelp av sudo (f.eks. /etc.). Krever fjerning av ProtectSystem=strict fra systemd-tjenesteenheten."
+  "config.danger.sudo_unrestricted.desc": "Tillater agenten å skrive utenfor installasjonsmappen ved hjelp av sudo (f.eks. /etc.). Krever fjerning av ProtectSystem=strict fra systemd-tjenesteenheten.",
+  "config.danger.unsafe_host_execution.title": "Usikker kjøring på verten",
+  "config.danger.unsafe_host_execution.desc": "Tillater Python på verten og Windows-skall uten isolasjon. Hver bruk loggføres som en sikkerhetsadvarsel."
 }

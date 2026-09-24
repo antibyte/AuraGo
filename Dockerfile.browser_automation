@@ -7,6 +7,7 @@ COPY browser_automation_sidecar/package-lock.json /app/package-lock.json
 RUN npm ci --omit=dev
 
 COPY browser_automation_sidecar/server.js /app/server.js
+COPY browser_automation_sidecar/egress_policy.js /app/egress_policy.js
 RUN chown -R pwuser:pwuser /app
 
 # Pre-download the CloakBrowser binary into the runtime user's cache so the

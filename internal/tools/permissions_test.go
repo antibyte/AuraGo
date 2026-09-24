@@ -1,9 +1,28 @@
 package tools
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestUnsafeHostExecutionRequiresExplicitGrant(t *testing.T) {
+	perms := defaultRuntimePermissionsForTests()
+	perms.AllowUnsafeHostExecution = false
+	ConfigureRuntimePermissions(perms)
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+	if _, _, err := ExecutePython("print('blocked')", tempSystemTaskDir(t), tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+		t.Fatalf("foreground Python error = %v", err)
+	}
+	if _, err := ExecutePythonBackground("print('blocked')", tempSystemTaskDir(t), tempSystemTaskDir(t), NewProcessRegistry(nil)); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+		t.Fatalf("background Python error = %v", err)
+	}
+	if runtime.GOOS == "windows" {
+		if _, _, err := ExecuteShell("echo blocked", tempSystemTaskDir(t)); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+			t.Fatalf("Windows shell error = %v", err)
+		}
+	}
+}
 
 func TestHighRiskToolsDenyWithoutRuntimePolicy(t *testing.T) {
 	ClearRuntimePermissionsForTest()

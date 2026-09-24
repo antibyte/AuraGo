@@ -34,5 +34,7 @@
   "config.auth.update_password": "Ενημέρωση",
   "config.auth.web_config_title": "Διαμόρφωση Ιστού",
   "config.auth.https_forces_auth": "Το HTTPS είναι ενεργό. Η σύνδεση δεν μπορεί να απενεργοποιηθεί.",
-  "config.auth.totp_disable_confirm_title": "Απενεργοποίηση ελέγχου ταυτότητας δύο παραγόντων;"
+  "config.auth.totp_disable_confirm_title": "Απενεργοποίηση ελέγχου ταυτότητας δύο παραγόντων;",
+  "config.auth.unsafe_remote_title": "Μη ασφαλής απομακρυσμένη πρόσβαση χωρίς σύνδεση",
+  "config.auth.unsafe_remote_desc": "Επιτρέπει απομακρυσμένη πρόσβαση στο AuraGo χωρίς σύνδεση. Το Speech Lab παραμένει κλειδωμένο εξ αποστάσεως."
 }

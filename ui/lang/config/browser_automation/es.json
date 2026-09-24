@@ -22,7 +22,11 @@
   "config.browser_automation.cloak_human_preset_label": "Preset de comportamiento",
   "help.browser_automation.cloak_human_preset": "Velocidad de simulación: 'default' (normal) o 'careful' (más lento, más deliberado).",
   "config.browser_automation.cloak_proxy_label": "URL del proxy",
-  "help.browser_automation.cloak_proxy": "Servidor proxy opcional para sesiones del navegador (HTTP o SOCKS5).",
+  "help.browser_automation.cloak_proxy": "Dirección obligatoria del proxy de filtrado en la red aislada.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Semilla de huella",
-  "help.browser_automation.cloak_fingerprint_seed": "Semilla fija para huella de navegador determinista. Útil para identidad consistente entre sesiones."
+  "help.browser_automation.cloak_fingerprint_seed": "Semilla fija para huella de navegador determinista. Útil para identidad consistente entre sesiones.",
+  "config.browser_automation.egress_network_label": "Red Docker aislada",
+  "help.browser_automation.egress_network": "Red Docker interna para el navegador; el servicio no arranca sin ella.",
+  "config.browser_automation.private_origins_label": "Orígenes privados permitidos",
+  "help.browser_automation.private_origins": "Un origen HTTP(S) o WS(S) exacto por línea. Configura la misma lista en el proxy."
 }

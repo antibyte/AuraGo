@@ -2,6 +2,7 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
+const { parseAllowedOrigins, validateBrowserTarget } = require('./egress_policy');
 
 const PORT = parseInt(process.env.PORT || '7331', 10);
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || '/workspace';
@@ -11,7 +12,9 @@ const ALLOW_FILE_UPLOADS = process.env.ALLOW_FILE_UPLOADS !== 'false';
 const ALLOW_FILE_DOWNLOADS = process.env.ALLOW_FILE_DOWNLOADS !== 'false';
 const READ_ONLY = process.env.READ_ONLY === 'true';
 const RAW_SIDECAR_TOKEN = String(process.env.AURAGO_BROWSER_AUTOMATION_TOKEN || '').trim();
-const ALLOW_UNAUTH = /^(1|true|yes)$/i.test(String(process.env.AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH || '').trim());
+const EGRESS_ISOLATED = process.env.AURAGO_BROWSER_EGRESS_ISOLATED === 'true';
+const EGRESS_PROXY = String(process.env.AURAGO_BROWSER_EGRESS_PROXY || '').trim();
+const ALLOWED_PRIVATE_ORIGINS = parseAllowedOrigins(process.env.AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS || '[]');
 const PLACEHOLDER_TOKENS = new Set([
   'change_me_please',
   'changeme',
@@ -23,14 +26,11 @@ const PLACEHOLDER_TOKENS = new Set([
   'your_token_here',
 ]);
 const hasPlaceholderToken = PLACEHOLDER_TOKENS.has(RAW_SIDECAR_TOKEN.toLowerCase());
-if (RAW_SIDECAR_TOKEN && hasPlaceholderToken && !ALLOW_UNAUTH) {
-  console.error('AURAGO_BROWSER_AUTOMATION_TOKEN uses a known placeholder value. Set a strong random token, or use AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1 only for isolated development.');
+if (RAW_SIDECAR_TOKEN && hasPlaceholderToken) {
+  console.error('AURAGO_BROWSER_AUTOMATION_TOKEN uses a known placeholder value. Set a strong random token.');
   process.exit(1);
 }
-if (RAW_SIDECAR_TOKEN && hasPlaceholderToken && ALLOW_UNAUTH) {
-  console.warn('Ignoring placeholder AURAGO_BROWSER_AUTOMATION_TOKEN because explicit unauthenticated development mode is enabled.');
-}
-const SIDECAR_TOKEN = hasPlaceholderToken && ALLOW_UNAUTH ? '' : RAW_SIDECAR_TOKEN;
+const SIDECAR_TOKEN = RAW_SIDECAR_TOKEN;
 const SESSION_TTL_MS = Math.max(1, parseInt(process.env.SESSION_TTL_MINUTES || '30', 10)) * 60 * 1000;
 const MAX_SESSIONS = Math.max(1, parseInt(process.env.MAX_SESSIONS || '3', 10));
 const VIEWPORT_WIDTH = Math.max(320, parseInt(process.env.VIEWPORT_WIDTH || '1280', 10));
@@ -45,12 +45,31 @@ const FILE_RETENTION_MS = Math.max(SESSION_TTL_MS, parseInt(process.env.FILE_RET
 const DEFAULT_SCREENSHOT_DIR = path.join(WORKSPACE_ROOT, 'browser_screenshots');
 const CLOAK_HUMANIZE = process.env.CLOAK_HUMANIZE === 'true';
 const CLOAK_HUMAN_PRESET = String(process.env.CLOAK_HUMAN_PRESET || 'default').trim();
-const CLOAK_PROXY = String(process.env.CLOAK_PROXY || '').trim();
+const CLOAK_PROXY = EGRESS_PROXY;
 const CLOAK_FINGERPRINT_SEED = String(process.env.CLOAK_FINGERPRINT_SEED || '').trim();
 
-if (!SIDECAR_TOKEN && !ALLOW_UNAUTH) {
-  console.error('AURAGO_BROWSER_AUTOMATION_TOKEN is required unless AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1 is set.');
+if (!SIDECAR_TOKEN) {
+  console.error('AURAGO_BROWSER_AUTOMATION_TOKEN is required.');
   process.exit(1);
+}
+if (!EGRESS_ISOLATED || !EGRESS_PROXY) {
+  console.error('Browser automation requires an isolated egress network and a filtering proxy.');
+  process.exit(1);
+}
+const parsedEgressProxy = new URL(EGRESS_PROXY);
+if (parsedEgressProxy.protocol !== 'http:' || parsedEgressProxy.username || parsedEgressProxy.password ||
+    parsedEgressProxy.pathname !== '/' || parsedEgressProxy.search || parsedEgressProxy.hash) {
+  console.error('AURAGO_BROWSER_EGRESS_PROXY must be a credential-free HTTP origin.');
+  process.exit(1);
+}
+
+async function verifyEgressProxy() {
+  const response = await fetch(new URL('/health', parsedEgressProxy), { signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw new Error('filtering egress proxy is unavailable');
+  const status = await response.json();
+  if (status.policy_version !== 'egress-v1' || status.dns_pinned !== true) {
+    throw new Error('filtering egress proxy lacks DNS pinning');
+  }
 }
 
 const sessions = new Map();
@@ -74,7 +93,6 @@ function json(res, statusCode, payload) {
 }
 
 function hasValidSidecarToken(req) {
-  if (!SIDECAR_TOKEN) return ALLOW_UNAUTH;
   const provided = typeof req.headers['x-aurago-sidecar-token'] === 'string'
     ? req.headers['x-aurago-sidecar-token'].trim()
     : '';
@@ -161,6 +179,7 @@ function pushDownloadEntry(session, entry) {
 
 async function getBrowser() {
   if (!browserPromise) {
+    await verifyEgressProxy();
     const launchOptions = {
       headless: HEADLESS,
       humanize: CLOAK_HUMANIZE,
@@ -343,11 +362,33 @@ async function registerDownload(session, download) {
 }
 
 async function createSession(targetURL) {
+	if (targetURL) await validateBrowserTarget(targetURL, ALLOWED_PRIVATE_ORIGINS);
   await enforceSessionLimit();
   const browser = await getBrowser();
   const context = await browser.newContext({
     acceptDownloads: ALLOW_FILE_DOWNLOADS,
+    serviceWorkers: 'block',
     viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }
+  });
+  await context.route('**/*', async (route) => {
+    try {
+      await validateBrowserTarget(route.request().url(), ALLOWED_PRIVATE_ORIGINS);
+      await route.continue();
+    } catch (_) {
+      await route.abort('blockedbyclient');
+    }
+  });
+  if (typeof context.routeWebSocket !== 'function') {
+    await context.close();
+    throw new Error('browser runtime cannot enforce WebSocket egress policy');
+  }
+  await context.routeWebSocket('**/*', async (socket) => {
+    try {
+      await validateBrowserTarget(socket.url(), ALLOWED_PRIVATE_ORIGINS);
+      await socket.connectToServer();
+    } catch (_) {
+      await socket.close({ code: 1008, reason: 'egress policy denied target' });
+    }
   });
   const page = await context.newPage();
   const id = sessionId();
@@ -406,6 +447,7 @@ async function handleAutomation(body) {
       await destroySession(session.id);
       return { status: 'success', operation, session_id: session.id, message: 'session closed' };
     case 'navigate':
+      await validateBrowserTarget(String(body.url || ''), ALLOWED_PRIVATE_ORIGINS);
       await page.goto(String(body.url || ''), { waitUntil: 'load', timeout: timeoutMs });
       return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), message: `navigated to ${page.url()}` };
     case 'click':
@@ -557,6 +599,8 @@ const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req
           headless: HEADLESS,
           read_only: READ_ONLY,
           browser_version: version
+          ,policy_version: 'egress-v1'
+          ,egress_isolated: EGRESS_ISOLATED
         });
       } catch (error) {
         return json(res, 503, {

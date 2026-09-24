@@ -36,6 +36,7 @@ type SpeechLabConfig struct {
 	Enabled           bool                      `yaml:"enabled" json:"enabled"`
 	BaseURL           string                    `yaml:"base_url" json:"base_url"`
 	AdvancedUIURL     string                    `yaml:"advanced_ui_url,omitempty" json:"advanced_ui_url,omitempty"`
+	BrowserBackendURL string                    `yaml:"browser_backend_url,omitempty" json:"browser_backend_url,omitempty"`
 	Language          string                    `yaml:"language" json:"language"`
 	ChatLLMProviderID string                    `yaml:"chat_llm_provider_id,omitempty" json:"chat_llm_provider_id,omitempty"`
 	TimeoutSeconds    int                       `yaml:"timeout_seconds" json:"timeout_seconds"`
@@ -89,6 +90,7 @@ func NormalizeSpeechLabConfig(cfg *SpeechLabConfig, rawConfig []byte) {
 		cfg.BaseURL = DefaultSpeechLabBaseURL
 	}
 	cfg.AdvancedUIURL = strings.TrimRight(strings.TrimSpace(cfg.AdvancedUIURL), "/")
+	cfg.BrowserBackendURL = strings.TrimRight(strings.TrimSpace(cfg.BrowserBackendURL), "/")
 	cfg.Language = strings.TrimSpace(cfg.Language)
 	if cfg.Language == "" {
 		cfg.Language = "de"
@@ -139,6 +141,9 @@ func ValidateSpeechLabConfig(cfg SpeechLabConfig) error {
 		return err
 	}
 	if err := validateSpeechLabURL("advanced_ui_url", cfg.AdvancedUIURL, false); err != nil {
+		return err
+	}
+	if err := validateSpeechLabURL("browser_backend_url", cfg.BrowserBackendURL, false); err != nil {
 		return err
 	}
 	if cfg.TimeoutSeconds < 1 || cfg.TimeoutSeconds > DefaultSpeechLabTimeoutSeconds {
@@ -223,6 +228,12 @@ func validateSpeechLabURL(field, raw string, required bool) error {
 		return fmt.Errorf("speech_lab.%s must not contain an API path", field)
 	}
 	return nil
+}
+
+// ValidateSpeechLabBrowserBackendURL validates the fixed server-side browser
+// target. Its resolved address is checked again on every proxy connection.
+func ValidateSpeechLabBrowserBackendURL(raw string) error {
+	return validateSpeechLabURL("browser_backend_url", raw, true)
 }
 
 // Active reports whether Speech Lab is enabled and callable.

@@ -47,6 +47,9 @@ func ValidateAgentSkillScriptPolicy(cfg *config.Config, scriptPath string) error
 		if !cfg.Agent.AllowPython {
 			return fmt.Errorf("Python scripts require agent.allow_python to be enabled in Danger Zone settings")
 		}
+		if !cfg.Agent.AllowUnsafeHostExecution {
+			return fmt.Errorf("Python scripts require agent.allow_unsafe_host_execution to be enabled in Danger Zone settings")
+		}
 	case "bash":
 		if !cfg.Agent.AllowShell {
 			return fmt.Errorf("Bash scripts require agent.allow_shell to be enabled in Danger Zone settings")

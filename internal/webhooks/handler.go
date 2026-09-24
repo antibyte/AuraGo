@@ -140,33 +140,39 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Token validation
+	if r.URL.Query().Has("token") {
+		h.logEvent(wh.ID, wh.Name, 401, sourceIP, 0, false, "query token rejected")
+		http.Error(w, `{"error":"query token is not supported"}`, http.StatusUnauthorized)
+		return
+	}
 	rawToken := extractToken(r)
-	if rawToken == "" {
+	signatureAlgo := strings.ToLower(strings.TrimSpace(wh.Format.SignatureAlgo))
+	signedOnly := rawToken == "" && wh.Format.SignatureHeader != "" &&
+		wh.Format.SignatureSecret != "" && (signatureAlgo == "sha256" || signatureAlgo == "sha1")
+	if rawToken == "" && !signedOnly {
 		h.logEvent(wh.ID, wh.Name, 401, sourceIP, 0, false, "no token provided")
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
-
-	tokenMeta, valid := h.tokenManager.Validate(rawToken, "webhook")
-	if !valid {
-		h.logEvent(wh.ID, wh.Name, 401, sourceIP, 0, false, "invalid or expired token")
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-		return
+	rateKey := "signed:" + wh.ID + ":" + sourceIP
+	if !signedOnly {
+		tokenMeta, valid := h.tokenManager.Validate(rawToken, "webhook")
+		if !valid {
+			h.logEvent(wh.ID, wh.Name, 401, sourceIP, 0, false, "invalid or expired token")
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		if strings.TrimSpace(wh.TokenID) == "" || tokenMeta.ID != wh.TokenID {
+			h.logEvent(wh.ID, wh.Name, 403, sourceIP, 0, false, "token not allowed for webhook")
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			return
+		}
+		h.tokenManager.TouchLastUsed(tokenMeta.ID)
+		rateKey = tokenMeta.ID
 	}
-	if strings.TrimSpace(wh.TokenID) == "" {
-		h.logEvent(wh.ID, wh.Name, 403, sourceIP, 0, false, "webhook token not configured")
-		http.Error(w, `{"error":"webhook token not configured"}`, http.StatusForbidden)
-		return
-	}
-	if tokenMeta.ID != wh.TokenID {
-		h.logEvent(wh.ID, wh.Name, 403, sourceIP, 0, false, "token not allowed for webhook")
-		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
-		return
-	}
-	h.tokenManager.TouchLastUsed(tokenMeta.ID)
 
 	// 3. Rate limiting
-	if rateLimiter != nil && !rateLimiter.Allow(tokenMeta.ID) {
+	if rateLimiter != nil && !rateLimiter.Allow(rateKey) {
 		h.logEvent(wh.ID, wh.Name, 429, sourceIP, 0, false, "rate limit exceeded")
 		http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
 		return
@@ -409,7 +415,7 @@ func extractToken(r *http.Request) string {
 	if strings.HasPrefix(auth, "Bearer ") {
 		return strings.TrimPrefix(auth, "Bearer ")
 	}
-	return r.URL.Query().Get("token")
+	return ""
 }
 
 func requestSourceIP(r *http.Request, behindProxy bool) string {

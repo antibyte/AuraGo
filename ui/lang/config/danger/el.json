@@ -20,5 +20,7 @@
   "config.danger.mcp.title": "Συνδέσεις διακομιστών MCP (mcp_call)",
   "config.danger.mcp.desc": "Επιτρέπει στον πράκτορα να συνδέεται σε εξωτερικούς διακομιστές MCP και να χρησιμοποιεί τα εργαλεία τους. <strong style=\"color:#f87171;\">⚠ Προσθέστε μόνο αξιόπιστους διακομιστές!</strong>",
   "config.danger.sudo_unrestricted.title": "Καθολική πρόσβαση εγγραφής μέσω sudo",
-  "config.danger.sudo_unrestricted.desc": "Επιτρέπει στον πράκτορα να γράφει εκτός του καταλόγου εγκατάστασης χρησιμοποιώντας sudo (π.χ. /etc/). Απαιτεί την αφαίρεση του ProtectSystem=strict από τη μονάδα υπηρεσίας systemd."
+  "config.danger.sudo_unrestricted.desc": "Επιτρέπει στον πράκτορα να γράφει εκτός του καταλόγου εγκατάστασης χρησιμοποιώντας sudo (π.χ. /etc/). Απαιτεί την αφαίρεση του ProtectSystem=strict από τη μονάδα υπηρεσίας systemd.",
+  "config.danger.unsafe_host_execution.title": "Μη ασφαλής εκτέλεση στον κεντρικό υπολογιστή",
+  "config.danger.unsafe_host_execution.desc": "Επιτρέπει Python στον κεντρικό υπολογιστή και κέλυφος Windows χωρίς απομόνωση. Κάθε εκτέλεση καταγράφεται ως προειδοποίηση ασφαλείας."
 }

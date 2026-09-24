@@ -40,6 +40,8 @@
   "config.security_proxy.status_loading": "लोड हो रहा है…",
   "config.security_proxy.status_unknown": "अज्ञात स्थिति",
   "config.server.behind_proxy_label": "रिवर्स प्रॉक्सी के पीछे",
+  "config.server.trusted_proxy_cidrs_label": "विश्वसनीय प्रॉक्सी पते",
+  "config.server.trusted_proxy_cidrs_hint": "सीधे जुड़े रिवर्स प्रॉक्सी के IP पते या CIDR श्रेणियाँ अल्पविराम या नई पंक्ति से अलग करके दर्ज करें। अन्य स्रोत फ़ॉरवर्ड किए गए हेडर नहीं दे सकते।",
   "config.server.cert_auto_notice": "Let's Encrypt के माध्यम से स्वचालित प्रमाणपत्र। सार्वजनिक रूप से पहुंच योग्य डोमेन और पोर्ट 80/443 आवश्यक है।",
   "config.server.cert_custom_notice": "अपनी TLS प्रमाणपत्र फ़ाइलें (PEM प्रारूप) उपयोग करें। आप उन्हें नीचे अपलोड कर सकते हैं या फ़ाइल पथ निर्दिष्ट कर सकते हैं।",
   "config.server.cert_file_label": "प्रमाणपत्र फ़ाइल पथ",

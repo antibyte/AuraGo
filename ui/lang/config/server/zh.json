@@ -40,6 +40,8 @@
   "config.security_proxy.status_loading": "加载中…",
   "config.security_proxy.status_unknown": "未知状态",
   "config.server.behind_proxy_label": "位于反向代理后",
+  "config.server.trusted_proxy_cidrs_label": "可信代理地址",
+  "config.server.trusted_proxy_cidrs_hint": "输入直接反向代理的 IP 地址或 CIDR 范围，以逗号或换行分隔。其他来源提供的转发标头不会被信任。",
   "config.server.cert_auto_notice": "通过 Let's Encrypt 自动获取证书。需要公开可访问的域名和 80/443 端口。",
   "config.server.cert_custom_notice": "使用您自己的 TLS 证书文件（PEM 格式）。您可以在下方上传或指定文件路径。",
   "config.server.cert_file_label": "证书文件路径",

@@ -89,8 +89,8 @@ func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 	if !strings.Contains(statusRec.Body.String(), `"requested_gpu_backend":"vulkan"`) {
 		t.Fatalf("status did not expose the requested hardware profile: %s", statusRec.Body.String())
 	}
-	if !strings.Contains(statusRec.Body.String(), `"warnings":["advanced_ui_url_missing"]`) || strings.Contains(statusRec.Body.String(), `"advanced_ui_url"`) {
-		t.Fatalf("status did not report the missing explicit browser lab URL: %s", statusRec.Body.String())
+	if !strings.Contains(statusRec.Body.String(), `"advanced_ui_url":"/speech-lab/"`) || strings.Contains(statusRec.Body.String(), `"advanced_ui_url_missing"`) {
+		t.Fatalf("status did not report the authenticated browser route: %s", statusRec.Body.String())
 	}
 
 	adminRec := httptest.NewRecorder()
@@ -160,16 +160,16 @@ func TestSpeechLabDeploymentErrorMessageForMissingVulkan(t *testing.T) {
 	}
 }
 
-func TestSpeechLabBrowserURLRequiresExplicitExpertOverride(t *testing.T) {
+func TestSpeechLabBrowserURLUsesAuraGoRoute(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://192.168.1.42:8088/api/speech-lab/status", nil)
-	if got := speechLabBrowserURLForRequest("", req); got != "" {
+	if got := speechLabBrowserURLForRequest("", req); got != speechLabBrowserPath {
 		t.Fatalf("request host produced browser URL = %q", got)
 	}
-	if got := speechLabBrowserURLForRequest("https://speech.example.test:9443/", req); got != "https://speech.example.test:9443" {
+	if got := speechLabBrowserURLForRequest("https://speech.example.test:9443/", req); got != speechLabBrowserPath {
 		t.Fatalf("expert override = %q", got)
 	}
 	req.Host = "invalid/host"
-	if got := speechLabBrowserURLForRequest("", req); got != "" {
+	if got := speechLabBrowserURLForRequest("", req); got != speechLabBrowserPath {
 		t.Fatalf("invalid request host produced browser URL %q", got)
 	}
 }

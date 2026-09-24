@@ -20,5 +20,7 @@
   "config.danger.mcp.title": "MCP Server-Verbindungen (mcp_call)",
   "config.danger.mcp.desc": "Erlaubt dem Agenten, sich mit externen MCP-Servern zu verbinden und deren Tools zu nutzen. <strong style=\"color:#f87171;\">⚠ Nur vertrauenswürdige Server hinzufügen!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemweiter Sudo-Schreibzugriff",
-  "config.danger.sudo_unrestricted.desc": "Erlaubt dem Agenten, mit sudo auch außerhalb des Installationsverzeichnisses zu schreiben (z. B. /etc/). Erfordert das Entfernen von ProtectSystem=strict in der systemd-Service-Datei."
+  "config.danger.sudo_unrestricted.desc": "Erlaubt dem Agenten, mit sudo auch außerhalb des Installationsverzeichnisses zu schreiben (z. B. /etc/). Erfordert das Entfernen von ProtectSystem=strict in der systemd-Service-Datei.",
+  "config.danger.unsafe_host_execution.title": "Unsichere Ausführung auf dem Host",
+  "config.danger.unsafe_host_execution.desc": "Erlaubt Host-Python und die Windows-Shell ohne Isolation. Jede Ausführung wird als Sicherheitswarnung protokolliert. Nur bewusst aktivieren."
 }

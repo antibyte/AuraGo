@@ -22,7 +22,11 @@
   "config.browser_automation.cloak_human_preset_label": "動作プリセット",
   "help.browser_automation.cloak_human_preset": "シミュレーション速度: 'default' (通常) または 'careful' (遅く、慎重)。",
   "config.browser_automation.cloak_proxy_label": "プロキシURL",
-  "help.browser_automation.cloak_proxy": "ブラウザセッション用のオプションのプロキシサーバー（HTTPまたはSOCKS5）。",
+  "help.browser_automation.cloak_proxy": "隔離ネットワーク上のフィルタリングプロキシのアドレスが必要です。",
   "config.browser_automation.cloak_fingerprint_seed_label": "フィンガープリントシード",
-  "help.browser_automation.cloak_fingerprint_seed": "決定論的ブラウザフィンガープリントの固定シード。セッション間で一貫した識別に役立ちます。"
+  "help.browser_automation.cloak_fingerprint_seed": "決定論的ブラウザフィンガープリントの固定シード。セッション間で一貫した識別に役立ちます。",
+  "config.browser_automation.egress_network_label": "隔離された Docker ネットワーク",
+  "help.browser_automation.egress_network": "ブラウザ用の内部 Docker ネットワークです。設定しないとサービスは起動しません。",
+  "config.browser_automation.private_origins_label": "許可するプライベートオリジン",
+  "help.browser_automation.private_origins": "正確な HTTP(S) または WS(S) オリジンを1行に1つ入力します。プロキシにも同じ一覧を設定します。"
 }

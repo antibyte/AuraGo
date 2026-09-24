@@ -10,15 +10,16 @@ import (
 
 func defaultRuntimePermissionsForTests() RuntimePermissions {
 	return RuntimePermissions{
-		AllowShell:           true,
-		AllowPython:          true,
-		AllowFilesystemWrite: true,
-		AllowNetworkRequests: true,
-		DockerEnabled:        true,
-		DockerReadOnly:       false,
-		SchedulerEnabled:     true,
-		MissionsEnabled:      true,
-		MQTTEnabled:          true,
+		AllowShell:               true,
+		AllowPython:              true,
+		AllowUnsafeHostExecution: true,
+		AllowFilesystemWrite:     true,
+		AllowNetworkRequests:     true,
+		DockerEnabled:            true,
+		DockerReadOnly:           false,
+		SchedulerEnabled:         true,
+		MissionsEnabled:          true,
+		MQTTEnabled:              true,
 	}
 }
 

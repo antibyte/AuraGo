@@ -39,6 +39,7 @@ func registerSpeechLabRoutes(mux *http.ServeMux, s *Server) {
 		return
 	}
 	mux.HandleFunc("/api/speech-lab/status", handleSpeechLabStatus(s))
+	mux.Handle(speechLabBrowserPath, handleSpeechLabBrowser(s))
 	mux.Handle("/api/speech-lab/capability", requireAdmin(s, handleSpeechLabRaw(s, "capability")))
 	mux.Handle("/api/speech-lab/catalog", requireAdmin(s, handleSpeechLabRaw(s, "catalog")))
 	mux.Handle("/api/speech-lab/suggestions", requireAdmin(s, handleSpeechLabRaw(s, "suggestions")))
@@ -61,16 +62,23 @@ func handleSpeechLabStatus(s *Server) http.HandlerFunc {
 			jsonError(w, "Runtime configuration is unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		browserURL := ""
+		if cfg.Auth.Enabled {
+			browserURL = speechLabBrowserURLForRequest(cfg.SpeechLab.AdvancedUIURL, r)
+		}
 		result := speechLabStatusResponse{
 			Enabled: cfg.SpeechLab.Enabled, Language: cfg.SpeechLab.Language,
 			SIPEnabled: cfg.SpeechLab.SIPEnabled, ChatInputEnabled: cfg.SpeechLab.ChatInputEnabled,
 			ChatOutputEnabled:  cfg.SpeechLab.ChatOutputEnabled,
-			AdvancedUIURL:      speechLabBrowserURLForRequest(cfg.SpeechLab.AdvancedUIURL, r),
+			AdvancedUIURL:      browserURL,
 			EnvironmentManaged: strings.TrimSpace(os.Getenv("AURAGO_SPEECH_LAB_BASE_URL")) != "",
 			Warnings:           []string{},
 		}
-		if result.AdvancedUIURL == "" {
-			result.Warnings = append(result.Warnings, "advanced_ui_url_missing")
+		if cfg.SpeechLab.Deployment.Mode == "external" && cfg.SpeechLab.BrowserBackendURL == "" {
+			result.Warnings = append(result.Warnings, "browser_backend_url_missing")
+		}
+		if !cfg.Auth.Enabled {
+			result.Warnings = append(result.Warnings, "auth_required")
 		}
 		if s.SpeechLabDeployer != nil {
 			result.Deployment = s.SpeechLabDeployer.PublicStatus()
@@ -189,11 +197,10 @@ func speechLabDeploymentErrorMessage(code string) string {
 	}
 }
 
-// speechLabBrowserURLForRequest returns only the explicit browser-facing lab
-// address. Request hosts are not configuration and may be reverse-proxy or
-// attacker controlled, so the status endpoint never synthesizes a URL.
-func speechLabBrowserURLForRequest(configured string, _ *http.Request) string {
-	return strings.TrimRight(strings.TrimSpace(configured), "/")
+// speechLabBrowserURLForRequest returns the authenticated same-origin route.
+// The deprecated advanced_ui_url must never redirect users around AuraGo auth.
+func speechLabBrowserURLForRequest(_ string, _ *http.Request) string {
+	return speechLabBrowserPath
 }
 
 func handleSpeechLabRaw(s *Server, resource string) http.Handler {

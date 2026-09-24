@@ -22,7 +22,11 @@
   "config.browser_automation.cloak_human_preset_label": "Behavior preset",
   "help.browser_automation.cloak_human_preset": "Simulation speed: 'default' (normal) or 'careful' (slower, more deliberate).",
   "config.browser_automation.cloak_proxy_label": "Proxy URL",
-  "help.browser_automation.cloak_proxy": "Optional proxy server for browser sessions (HTTP or SOCKS5).",
+  "help.browser_automation.cloak_proxy": "Required filtering proxy address on the isolated network.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Fingerprint seed",
-  "help.browser_automation.cloak_fingerprint_seed": "Fixed seed for deterministic browser fingerprint. Useful for consistent identity across sessions."
+  "help.browser_automation.cloak_fingerprint_seed": "Fixed seed for deterministic browser fingerprint. Useful for consistent identity across sessions.",
+  "config.browser_automation.egress_network_label": "Isolated Docker network",
+  "help.browser_automation.egress_network": "Internal Docker network for the browser; the service will not start without it.",
+  "config.browser_automation.private_origins_label": "Allowed private origins",
+  "help.browser_automation.private_origins": "One exact HTTP(S) or WS(S) origin per line. Configure the same list in the proxy."
 }

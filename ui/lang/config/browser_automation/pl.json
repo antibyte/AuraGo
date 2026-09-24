@@ -22,7 +22,11 @@
   "config.browser_automation.cloak_human_preset_label": "Preset zachowania",
   "help.browser_automation.cloak_human_preset": "Prędkość symulacji: 'default' (normalna) lub 'careful' (wolniejsza, bardziej ostrożna).",
   "config.browser_automation.cloak_proxy_label": "URL proxy",
-  "help.browser_automation.cloak_proxy": "Opcjonalny serwer proxy dla sesji przeglądarki (HTTP lub SOCKS5).",
+  "help.browser_automation.cloak_proxy": "Wymagany adres filtrującego proxy w izolowanej sieci.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Ziarno odcisku palca",
-  "help.browser_automation.cloak_fingerprint_seed": "Stałe ziarno dla deterministycznego odcisku przeglądarki. Przydatne do spójnej tożsamości w sesjach."
+  "help.browser_automation.cloak_fingerprint_seed": "Stałe ziarno dla deterministycznego odcisku przeglądarki. Przydatne do spójnej tożsamości w sesjach.",
+  "config.browser_automation.egress_network_label": "Izolowana sieć Docker",
+  "help.browser_automation.egress_network": "Wewnętrzna sieć Docker dla przeglądarki; bez niej usługa nie uruchomi się.",
+  "config.browser_automation.private_origins_label": "Dozwolone prywatne źródła",
+  "help.browser_automation.private_origins": "Jeden dokładny adres źródłowy HTTP(S) lub WS(S) w wierszu. Ustaw tę samą listę w proxy."
 }

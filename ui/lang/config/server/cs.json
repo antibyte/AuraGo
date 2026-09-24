@@ -40,6 +40,8 @@
   "config.security_proxy.status_loading": "Načítám…",
   "config.security_proxy.status_unknown": "Neznámý stav",
   "config.server.behind_proxy_label": "Za reverse proxy",
+  "config.server.trusted_proxy_cidrs_label": "Důvěryhodné adresy proxy",
+  "config.server.trusted_proxy_cidrs_hint": "Zadej IP adresy nebo rozsahy CIDR bezprostřední reverzní proxy, oddělené čárkou nebo novým řádkem. Jiné zdroje nemohou určovat přeposlané hlavičky.",
   "config.server.cert_auto_notice": "Automatické certifikáty přes Let's Encrypt. Vyžaduje veřejně dostupnou doménu a porty 80/443.",
   "config.server.cert_custom_notice": "Použijte vlastní TLS certifikátové soubory (formát PEM). Můžete je nahrát níže nebo zadat cesty k souborům.",
   "config.server.cert_file_label": "Cesta k souboru certifikátu",

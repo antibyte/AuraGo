@@ -22,7 +22,11 @@
   "config.browser_automation.cloak_human_preset_label": "व्यवहार प्रीसेट",
   "help.browser_automation.cloak_human_preset": "सिमुलेशन गति: 'default' (सामान्य) या 'careful' (धीमा, अधिक सोच-समझकर)।",
   "config.browser_automation.cloak_proxy_label": "प्रॉक्सी URL",
-  "help.browser_automation.cloak_proxy": "ब्राउज़र सत्रों के लिए वैकल्पिक प्रॉक्सी सर्वर (HTTP या SOCKS5)।",
+  "help.browser_automation.cloak_proxy": "अलग नेटवर्क पर फ़िल्टर करने वाले प्रॉक्सी का पता आवश्यक है।",
   "config.browser_automation.cloak_fingerprint_seed_label": "फ़िंगरप्रिंट सीड",
-  "help.browser_automation.cloak_fingerprint_seed": "निर्धारक ब्राउज़र फ़िंगरप्रिंट के लिए निश्चित सीड। सत्रों में सुसंगत पहचान के लिए उपयोगी।"
+  "help.browser_automation.cloak_fingerprint_seed": "निर्धारक ब्राउज़र फ़िंगरप्रिंट के लिए निश्चित सीड। सत्रों में सुसंगत पहचान के लिए उपयोगी।",
+  "config.browser_automation.egress_network_label": "अलग Docker नेटवर्क",
+  "help.browser_automation.egress_network": "ब्राउज़र के लिए आंतरिक Docker नेटवर्क; इसके बिना सेवा शुरू नहीं होगी।",
+  "config.browser_automation.private_origins_label": "अनुमत निजी मूल पते",
+  "help.browser_automation.private_origins": "हर पंक्ति में एक सटीक HTTP(S) या WS(S) मूल पता। यही सूची प्रॉक्सी में भी रखें।"
 }

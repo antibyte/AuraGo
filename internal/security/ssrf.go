@@ -53,6 +53,10 @@ func isPrivateIP(ip net.IP) bool {
 	return false
 }
 
+// IsRestrictedNetworkIP reports whether an address is unsuitable for a
+// public-only outbound connection, including loopback, metadata and CGNAT.
+func IsRestrictedNetworkIP(ip net.IP) bool { return isPrivateIP(ip) }
+
 // allowSSRFLoopback checks the AURAGO_SSRF_ALLOW_LOOPBACK environment variable.
 // This is an ESCAPE HATCH for development and testing only.
 //
@@ -182,6 +186,7 @@ func validatedSSRFDialTarget(ctx context.Context, addr string) (networkAddr stri
 			}
 			return net.JoinHostPort(ip.String(), port), serverName, nil
 		}
+		return "", "", fmt.Errorf("unvalidated redirect target %q is blocked", host)
 	}
 
 	ips, err := resolvePublicIPs(ctx, host)
@@ -195,6 +200,7 @@ func validatedSSRFDialTarget(ctx context.Context, addr string) (networkAddr stri
 // revalidates redirects, and pins outbound dials to a public IP selected during validation.
 func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
 	dialer := &net.Dialer{Timeout: 15 * time.Second}
 
 	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -232,7 +238,12 @@ func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 		if len(via) >= 10 {
 			return fmt.Errorf("stopped after 10 redirects")
 		}
-		return ValidateSSRF(req.URL.String())
+		pinned, err := pinSSRFURL(req.Context(), req.URL)
+		if err != nil {
+			return err
+		}
+		*req = *req.WithContext(context.WithValue(req.Context(), ssrfPinnedIPsKey{}, pinned))
+		return nil
 	}
 	return client
 }
@@ -274,11 +285,14 @@ func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*ht
 	pinnedIPs := map[string]net.IP{host: ips[0]}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
 	dialer := &net.Dialer{Timeout: 15 * time.Second}
 
 	dialWithPin := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		// Inject pinned IPs so validatedSSRFDialTarget skips the second DNS lookup
-		pinnedCtx := context.WithValue(ctx, ssrfPinnedIPsKey{}, pinnedIPs)
+		pinnedCtx := ctx
+		if ctx.Value(ssrfPinnedIPsKey{}) == nil {
+			pinnedCtx = context.WithValue(ctx, ssrfPinnedIPsKey{}, pinnedIPs)
+		}
 		targetAddr, _, err := validatedSSRFDialTarget(pinnedCtx, addr)
 		if err != nil {
 			return nil, err
@@ -288,7 +302,10 @@ func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*ht
 
 	transport.DialContext = dialWithPin
 	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		pinnedCtx := context.WithValue(ctx, ssrfPinnedIPsKey{}, pinnedIPs)
+		pinnedCtx := ctx
+		if ctx.Value(ssrfPinnedIPsKey{}) == nil {
+			pinnedCtx = context.WithValue(ctx, ssrfPinnedIPsKey{}, pinnedIPs)
+		}
 		targetAddr, serverName, err := validatedSSRFDialTarget(pinnedCtx, addr)
 		if err != nil {
 			return nil, err
@@ -316,10 +333,32 @@ func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*ht
 		if len(via) >= 10 {
 			return fmt.Errorf("stopped after 10 redirects")
 		}
-		// Re-validate redirect targets; they get a fresh pinned client
-		return ValidateSSRF(req.URL.String())
+		pinned, err := pinSSRFURL(req.Context(), req.URL)
+		if err != nil {
+			return err
+		}
+		*req = *req.WithContext(context.WithValue(req.Context(), ssrfPinnedIPsKey{}, pinned))
+		return nil
 	}
 	return client, nil
+}
+
+func pinSSRFURL(ctx context.Context, target *url.URL) (map[string]net.IP, error) {
+	if target == nil || (target.Scheme != "http" && target.Scheme != "https") || target.Hostname() == "" {
+		return nil, fmt.Errorf("redirect target must use http or https")
+	}
+	host := target.Hostname()
+	if literal := net.ParseIP(host); literal != nil {
+		if isPrivateIP(literal) && !isAllowedPrivateIP(literal) {
+			return nil, fmt.Errorf("access to internal address %s is blocked (SSRF protection)", literal)
+		}
+		return map[string]net.IP{host: literal}, nil
+	}
+	ips, err := resolvePublicIPs(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("hostname resolution failed for %q: %w", host, err)
+	}
+	return map[string]net.IP{host: ips[0]}, nil
 }
 
 // NewStrictPublicHTTPClientForURL returns a DNS-pinned client for security-
@@ -368,6 +407,7 @@ func NewStrictPublicHTTPClientForURL(rawURL string, timeout time.Duration) (*htt
 	}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
 	dialer := &net.Dialer{Timeout: 15 * time.Second}
 	dialPinned := func(ctx context.Context, network, addr string) (net.Conn, string, error) {
 		dialHost, port, splitErr := net.SplitHostPort(addr)

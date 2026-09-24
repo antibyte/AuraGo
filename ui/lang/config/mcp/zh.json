@@ -94,5 +94,6 @@
   "config.mcp.test_connection": "测试连接",
   "config.mcp.test_connection_success": "连接正常。发现 {count} 个工具。",
   "config.mcp.test_connection_failed": "MCP 连接测试失败:",
-  "config.mcp.name_command_or_url_required": "需要名称以及命令或 URL。"
+  "config.mcp.name_command_or_url_required": "需要名称以及命令或 URL。",
+  "config.mcp.field_allow_private_network": "允许此 MCP 服务器访问私有地址"
 }

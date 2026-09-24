@@ -34,5 +34,7 @@
   "config.auth.update_password": "Ändern",
   "config.auth.web_config_title": "Web-Konfiguration",
   "config.auth.https_forces_auth": "HTTPS ist aktiv. Anmeldung kann nicht deaktiviert werden.",
-  "config.auth.totp_disable_confirm_title": "Zwei-Faktor-Authentifizierung deaktivieren?"
+  "config.auth.totp_disable_confirm_title": "Zwei-Faktor-Authentifizierung deaktivieren?",
+  "config.auth.unsafe_remote_title": "Unsicherer Fernzugriff ohne Anmeldung",
+  "config.auth.unsafe_remote_desc": "Erlaubt Fernzugriff auf AuraGo ohne Anmeldung. Speech Lab bleibt aus der Ferne gesperrt."
 }

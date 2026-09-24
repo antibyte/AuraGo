@@ -94,5 +94,6 @@
   "config.mcp.test_connection": "Testuj polaczenie",
   "config.mcp.test_connection_success": "Polaczenie OK. Wykryto {count} narzedzi.",
   "config.mcp.test_connection_failed": "Test polaczenia MCP nie powiodl sie:",
-  "config.mcp.name_command_or_url_required": "Wymagana jest nazwa oraz polecenie lub URL."
+  "config.mcp.name_command_or_url_required": "Wymagana jest nazwa oraz polecenie lub URL.",
+  "config.mcp.field_allow_private_network": "Zezwól na adresy prywatne dla tego serwera MCP"
 }

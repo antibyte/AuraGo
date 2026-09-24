@@ -126,11 +126,13 @@ func TestDesktopWidgetAutoResizeAddsDesktopTokenToStaticPrinterCameraProxy(t *te
 		t.Fatalf("issueDesktopEmbedToken: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Widgets/printer-camera/index.html?widget_id=printer-camera&desktop_token="+pageToken, nil)
+	req := httptest.NewRequest(http.MethodGet, desktopTicketPrefix+pageToken+"/files/desktop/Widgets/printer-camera/index.html?widget_id=printer-camera", nil)
 	rec := httptest.NewRecorder()
-	if !serveDesktopWidgetAutoResizeHTML(rec, req, root, cfg) {
-		t.Fatal("expected widget HTML to be served")
-	}
+	desktopTicketMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !serveDesktopWidgetAutoResizeHTML(w, r, root, cfg) {
+			t.Error("expected widget HTML to be served")
+		}
+	})).ServeHTTP(rec, req)
 	body := rec.Body.String()
 	for _, want := range []string{
 		desktopPrinterCameraRecoveryMarker,
@@ -144,15 +146,19 @@ func TestDesktopWidgetAutoResizeAddsDesktopTokenToStaticPrinterCameraProxy(t *te
 			t.Fatalf("served camera widget is missing stream recovery %q: %s", want, body)
 		}
 	}
-	if !strings.Contains(body, `/api/3d-printers/printer-1/camera/stream?desktop_token=`) {
-		t.Fatalf("served widget did not append desktop token to camera proxy: %s", rec.Body.String())
+	if !strings.Contains(body, `/api/3d-printers/printer-1/camera/stream`) || !strings.Contains(body, desktopTicketPrefix) {
+		t.Fatalf("served widget did not attach a resource ticket to camera proxy: %s", rec.Body.String())
 	}
 	if strings.Contains(body, pageToken) {
 		t.Fatalf("served widget reused generic page token for camera proxy: %s", body)
 	}
-	streamToken := strings.TrimPrefix(strings.Split(strings.Split(body, `desktop_token=`)[1], `"`)[0], "")
-	reqStream := httptest.NewRequest(http.MethodGet, "/api/3d-printers/printer-1/camera/stream?desktop_token="+streamToken, nil)
-	if !validDesktopEmbedResourceToken(reqStream, cfg.Auth.SessionSecret, time.Now()) {
+	streamToken := strings.Split(strings.Split(body, desktopTicketPrefix)[1], "/")[0]
+	reqStream := httptest.NewRequest(http.MethodGet, desktopTicketPrefix+streamToken+"/api/3d-printers/printer-1/camera/stream", nil)
+	valid := false
+	desktopTicketMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		valid = validDesktopEmbedResourceToken(r, cfg.Auth.SessionSecret, time.Now())
+	})).ServeHTTP(httptest.NewRecorder(), reqStream)
+	if !valid {
 		t.Fatalf("camera proxy token is not valid for its exact stream path: %s", body)
 	}
 }

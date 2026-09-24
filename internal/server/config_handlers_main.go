@@ -508,6 +508,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 		config.NormalizeSpeechLabConfig(&validateCfg.SpeechLab, out)
+		if exposureErr := validateRemoteAuthExposure(&validateCfg); exposureErr != nil {
+			jsonError(w, exposureErr.Error(), http.StatusBadRequest)
+			return
+		}
 		if speechLabErr := config.ValidateSpeechLabConfig(validateCfg.SpeechLab); speechLabErr != nil {
 			s.Logger.Error("[Config] Invalid Speech Lab settings — save rejected", "error", speechLabErr)
 			jsonError(w, speechLabErr.Error(), http.StatusBadRequest)
@@ -737,7 +741,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				restartReasons = append(restartReasons, "Skill Manager")
 			}
 
-			if oldCfg.Server != newCfg.Server {
+			if !reflect.DeepEqual(oldCfg.Server, newCfg.Server) {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Server (Host/Port)")
 			}
@@ -925,7 +929,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Auto-start Browser Automation sidecar when the integration becomes active
 			// or relevant sidecar settings change.
-			browserAutomationChanged := oldCfg.BrowserAutomation != newCfg.BrowserAutomation ||
+			browserAutomationChanged := !reflect.DeepEqual(oldCfg.BrowserAutomation, newCfg.BrowserAutomation) ||
 				oldCfg.Tools.BrowserAutomation.Enabled != newCfg.Tools.BrowserAutomation.Enabled ||
 				oldCfg.Directories.WorkspaceDir != newCfg.Directories.WorkspaceDir
 			if browserAutomationChanged &&

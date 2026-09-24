@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -132,7 +133,7 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 		//   - requireAuth=false AND main auth enabled  → fallback to session cookie so that
 		//     the endpoint is not reachable from the internet without any credential
 		needsAuth := requireAuth || mainAuthEnabled
-		if needsAuth && !mcpAuthenticate(s, r, sessionSecret) {
+		if (needsAuth || strings.TrimSpace(r.Header.Get("Authorization")) != "") && !mcpAuthenticate(s, r, sessionSecret) {
 			w.Header().Set("WWW-Authenticate", `Bearer`)
 			jsonError(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -228,15 +229,18 @@ func mcpProtocolVersionSupported(version string) bool {
 // mcpAuthenticate checks Bearer token or session cookie.
 func mcpAuthenticate(s *Server, r *http.Request, sessionSecret string) bool {
 	// Check Bearer token
-	auth := r.Header.Get("Authorization")
-	if strings.HasPrefix(auth, "Bearer ") {
-		token := strings.TrimPrefix(auth, "Bearer ")
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
+		token, present := bearerCredential(auth)
+		if !present {
+			return false
+		}
 		if token != "" && s.Vault != nil {
 			stored, err := s.Vault.ReadSecret(mcpVaultTokenKey)
-			if err == nil && stored != "" && stored == token {
+			if err == nil && stored != "" && subtle.ConstantTimeCompare([]byte(stored), []byte(token)) == 1 {
 				return true
 			}
 		}
+		return false
 	}
 
 	// Fall back to session cookie

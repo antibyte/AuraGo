@@ -28,23 +28,24 @@ import (
 
 // MCPServerConfig describes one MCP server from the config.
 type MCPServerConfig struct {
-	Name               string            `yaml:"name"                     json:"name"`
-	Transport          string            `yaml:"transport,omitempty"      json:"transport"`
-	URL                string            `yaml:"url,omitempty"            json:"url"`
-	Headers            map[string]string `yaml:"headers,omitempty"        json:"headers"`
-	Command            string            `yaml:"command"                  json:"command"`
-	Args               []string          `yaml:"args"                     json:"args"`
-	Env                map[string]string `yaml:"env"                      json:"env"`
-	Enabled            bool              `yaml:"enabled"                  json:"enabled"`
-	Runtime            string            `yaml:"runtime,omitempty"        json:"runtime"`
-	DockerImage        string            `yaml:"docker_image,omitempty"   json:"docker_image"`
-	DockerCommand      string            `yaml:"docker_command,omitempty" json:"docker_command"`
-	AllowLocalFallback bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
-	HostWorkdir        string            `yaml:"host_workdir,omitempty"   json:"host_workdir"`
-	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
-	AllowedTools       []string          `yaml:"allowed_tools,omitempty"  json:"allowed_tools,omitempty"`
-	AllowDestructive   bool              `yaml:"allow_destructive,omitempty" json:"allow_destructive,omitempty"`
-	Secrets            map[string]string `yaml:"-"                        json:"-"`
+	Name                string            `yaml:"name"                     json:"name"`
+	Transport           string            `yaml:"transport,omitempty"      json:"transport"`
+	URL                 string            `yaml:"url,omitempty"            json:"url"`
+	Headers             map[string]string `yaml:"headers,omitempty"        json:"headers"`
+	Command             string            `yaml:"command"                  json:"command"`
+	Args                []string          `yaml:"args"                     json:"args"`
+	Env                 map[string]string `yaml:"env"                      json:"env"`
+	Enabled             bool              `yaml:"enabled"                  json:"enabled"`
+	Runtime             string            `yaml:"runtime,omitempty"        json:"runtime"`
+	DockerImage         string            `yaml:"docker_image,omitempty"   json:"docker_image"`
+	DockerCommand       string            `yaml:"docker_command,omitempty" json:"docker_command"`
+	AllowLocalFallback  bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
+	AllowPrivateNetwork bool              `yaml:"allow_private_network,omitempty" json:"allow_private_network"`
+	HostWorkdir         string            `yaml:"host_workdir,omitempty"   json:"host_workdir"`
+	ContainerWorkdir    string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
+	AllowedTools        []string          `yaml:"allowed_tools,omitempty"  json:"allowed_tools,omitempty"`
+	AllowDestructive    bool              `yaml:"allow_destructive,omitempty" json:"allow_destructive,omitempty"`
+	Secrets             map[string]string `yaml:"-"                        json:"-"`
 }
 
 // MCPToolInfo describes a tool exposed by an MCP server.

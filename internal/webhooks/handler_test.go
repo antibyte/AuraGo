@@ -77,6 +77,23 @@ func TestHandlerUsesVaultBackedSignatureSecret(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
+	signedOnly := httptest.NewRequest(http.MethodPost, "/webhook/vault-hook", bytes.NewReader(body))
+	signedOnly.Header.Set("Content-Type", "application/json")
+	signedOnly.Header.Set("X-Signature", signature)
+	signedOnlyRec := httptest.NewRecorder()
+	handler.ServeHTTP(signedOnlyRec, signedOnly)
+	if signedOnlyRec.Code != http.StatusOK {
+		t.Fatalf("HMAC-only status = %d, want 200", signedOnlyRec.Code)
+	}
+	queryToken := httptest.NewRequest(http.MethodPost, "/webhook/vault-hook?token="+url.QueryEscape(rawToken), bytes.NewReader(body))
+	queryToken.Header.Set("Authorization", "Bearer "+rawToken)
+	queryToken.Header.Set("Content-Type", "application/json")
+	queryToken.Header.Set("X-Signature", signature)
+	queryTokenRec := httptest.NewRecorder()
+	handler.ServeHTTP(queryTokenRec, queryToken)
+	if queryTokenRec.Code != http.StatusUnauthorized {
+		t.Fatalf("legacy query token status = %d, want 401", queryTokenRec.Code)
+	}
 }
 
 func TestHandlerFailsClosedWhenSignatureSecretIsUnavailable(t *testing.T) {

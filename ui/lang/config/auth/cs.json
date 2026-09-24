@@ -34,5 +34,7 @@
   "config.auth.update_password": "Aktualizovat",
   "config.auth.web_config_title": "Webová konfigurace",
   "config.auth.https_forces_auth": "HTTPS je aktivní. Přihlášení nelze deaktivovat.",
-  "config.auth.totp_disable_confirm_title": "Vypnout dvoufázové ověření?"
+  "config.auth.totp_disable_confirm_title": "Vypnout dvoufázové ověření?",
+  "config.auth.unsafe_remote_title": "Nezabezpečený vzdálený přístup bez přihlášení",
+  "config.auth.unsafe_remote_desc": "Povolí vzdálené připojení k AuraGo bez přihlášení. Speech Lab zůstane vzdáleně uzamčený."
 }

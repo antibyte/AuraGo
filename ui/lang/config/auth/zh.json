@@ -34,5 +34,7 @@
   "config.auth.update_password": "更新",
   "config.auth.web_config_title": "Web 配置",
   "config.auth.https_forces_auth": "HTTPS 已启用，无法禁用登录。",
-  "config.auth.totp_disable_confirm_title": "要停用双重身份验证吗？"
+  "config.auth.totp_disable_confirm_title": "要停用双重身份验证吗？",
+  "config.auth.unsafe_remote_title": "无需登录的不安全远程访问",
+  "config.auth.unsafe_remote_desc": "允许无需登录即可远程访问 AuraGo。Speech Lab 仍禁止远程访问。"
 }

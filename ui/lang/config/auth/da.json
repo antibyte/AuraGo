@@ -34,5 +34,7 @@
   "config.auth.update_password": "Opdater",
   "config.auth.web_config_title": "Web konfiguration",
   "config.auth.https_forces_auth": "HTTPS er aktiv. Login kan ikke deaktiveres.",
-  "config.auth.totp_disable_confirm_title": "Deaktivér tofaktorgodkendelse?"
+  "config.auth.totp_disable_confirm_title": "Deaktivér tofaktorgodkendelse?",
+  "config.auth.unsafe_remote_title": "Usikker fjernadgang uden login",
+  "config.auth.unsafe_remote_desc": "Tillader fjernforbindelser til AuraGo uden login. Speech Lab forbliver låst for fjernadgang."
 }

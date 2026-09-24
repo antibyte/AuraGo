@@ -69,11 +69,12 @@ func TestMCPStreamableHTTPTransportInitializeListAndCall(t *testing.T) {
 	defer srv.Close()
 
 	conn, err := startMCPServerConnection(context.Background(), MCPServerConfig{
-		Name:      "remote-http",
-		Enabled:   true,
-		Transport: "streamable_http",
-		URL:       srv.URL,
-		Headers:   map[string]string{"Authorization": "Bearer dummy-token-value"},
+		Name:                "remote-http",
+		AllowPrivateNetwork: true,
+		Enabled:             true,
+		Transport:           "streamable_http",
+		URL:                 srv.URL,
+		Headers:             map[string]string{"Authorization": "Bearer dummy-token-value"},
 	}, testLogger())
 	if err != nil {
 		t.Fatalf("startMCPServerConnection: %v", err)
@@ -136,10 +137,11 @@ func TestMCPWebSocketTransportInitializeListAndCall(t *testing.T) {
 
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
 	conn, err := startMCPServerConnection(context.Background(), MCPServerConfig{
-		Name:      "remote-ws",
-		Enabled:   true,
-		Transport: "websocket",
-		URL:       wsURL,
+		Name:                "remote-ws",
+		AllowPrivateNetwork: true,
+		Enabled:             true,
+		Transport:           "websocket",
+		URL:                 wsURL,
 	}, testLogger())
 	if err != nil {
 		t.Fatalf("startMCPServerConnection: %v", err)
@@ -200,10 +202,11 @@ func TestMCPSSETransportInitializeListAndCall(t *testing.T) {
 
 	setupCtx, cancelSetup := context.WithCancel(context.Background())
 	conn, err := startMCPServerConnection(setupCtx, MCPServerConfig{
-		Name:      "remote-sse",
-		Enabled:   true,
-		Transport: "sse",
-		URL:       srv.URL + "/sse",
+		Name:                "remote-sse",
+		AllowPrivateNetwork: true,
+		Enabled:             true,
+		Transport:           "sse",
+		URL:                 srv.URL + "/sse",
 	}, testLogger())
 	if err != nil {
 		t.Fatalf("startMCPServerConnection: %v", err)
@@ -234,6 +237,19 @@ func TestMCPNetworkTransportRequiresURL(t *testing.T) {
 	}, testLogger())
 	if err == nil || !strings.Contains(err.Error(), "url is required") {
 		t.Fatalf("error = %v, want url is required", err)
+	}
+}
+
+func TestMCPPrivateNetworkRequiresPerServerGrant(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("private MCP endpoint was contacted without approval")
+	}))
+	defer srv.Close()
+	_, err := startMCPServerConnection(context.Background(), MCPServerConfig{
+		Name: "private", Enabled: true, Transport: "streamable_http", URL: srv.URL,
+	}, testLogger())
+	if err == nil || !strings.Contains(err.Error(), "allow_private_network") {
+		t.Fatalf("private MCP endpoint error = %v", err)
 	}
 }
 
@@ -284,7 +300,7 @@ func TestHTTPMCPTransportRejectsMissingAndMismatchedResponseIDs(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(jsonRPCResponse{JSONRPC: "2.0", ID: tt.id, Result: json.RawMessage(`{}`)})
 			}))
 			defer srv.Close()
-			transport, err := newHTTPMCPTransport(srv.URL, nil)
+			transport, err := newHTTPMCPTransport(srv.URL, nil, true)
 			if err != nil {
 				t.Fatalf("newHTTPMCPTransport: %v", err)
 			}
@@ -307,7 +323,7 @@ func TestHTTPMCPTransportAcceptsStreamableSSEResponse(t *testing.T) {
 		fmt.Fprintf(w, "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":{}}\n\n", req.ID)
 	}))
 	defer srv.Close()
-	transport, err := newHTTPMCPTransport(srv.URL, nil)
+	transport, err := newHTTPMCPTransport(srv.URL, nil, true)
 	if err != nil {
 		t.Fatalf("newHTTPMCPTransport: %v", err)
 	}
@@ -338,7 +354,7 @@ func TestHTTPMCPTransportAllowsConcurrentRequests(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(jsonRPCResponse{JSONRPC: "2.0", ID: &req.ID, Result: json.RawMessage(`{}`)})
 	}))
 	defer srv.Close()
-	transport, err := newHTTPMCPTransport(srv.URL, nil)
+	transport, err := newHTTPMCPTransport(srv.URL, nil, true)
 	if err != nil {
 		t.Fatalf("newHTTPMCPTransport: %v", err)
 	}
@@ -372,7 +388,7 @@ func TestHTTPMCPTransportDoesNotForwardSecretsAcrossRedirects(t *testing.T) {
 		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
 	}))
 	defer source.Close()
-	transport, err := newHTTPMCPTransport(source.URL, map[string]string{"X-MCP-Secret": "dummy-secret"})
+	transport, err := newHTTPMCPTransport(source.URL, map[string]string{"X-MCP-Secret": "dummy-secret"}, true)
 	if err != nil {
 		t.Fatalf("newHTTPMCPTransport: %v", err)
 	}
@@ -401,7 +417,7 @@ func TestMCPClientRejectsUnsupportedNegotiatedVersion(t *testing.T) {
 	}))
 	defer srv.Close()
 	_, err := startMCPServerConnection(context.Background(), MCPServerConfig{
-		Name: "future", Enabled: true, Transport: "streamable_http", URL: srv.URL,
+		Name: "future", Enabled: true, Transport: "streamable_http", URL: srv.URL, AllowPrivateNetwork: true,
 	}, testLogger())
 	if err == nil || !strings.Contains(err.Error(), "unsupported protocol version") {
 		t.Fatalf("startMCPServerConnection error = %v, want unsupported protocol version", err)

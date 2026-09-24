@@ -40,6 +40,8 @@
   "config.security_proxy.status_loading": "Ładowanie…",
   "config.security_proxy.status_unknown": "Nieznany status",
   "config.server.behind_proxy_label": "Za reverse proxy",
+  "config.server.trusted_proxy_cidrs_label": "Zaufane adresy proxy",
+  "config.server.trusted_proxy_cidrs_hint": "Wpisz adresy IP lub zakresy CIDR bezpośredniego serwera proxy, rozdzielone przecinkami albo nowymi wierszami. Inne źródła nie mogą podawać nagłówków przekierowania.",
   "config.server.cert_auto_notice": "Automatyczne certyfikaty przez Let's Encrypt. Wymaga publicznie dostępnej domeny i portów 80/443.",
   "config.server.cert_custom_notice": "Użyj własnych plików certyfikatu TLS (format PEM). Możesz je przesłać poniżej lub podać ścieżki plików.",
   "config.server.cert_file_label": "Ścieżka pliku certyfikatu",

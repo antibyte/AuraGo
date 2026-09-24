@@ -34,5 +34,7 @@
   "config.auth.update_password": "अद्यतन",
   "config.auth.web_config_title": "वेब कॉन्फ़िगरेशन",
   "config.auth.https_forces_auth": "HTTPS सक्रिय है। लॉगिन अक्षम नहीं किया जा सकता।",
-  "config.auth.totp_disable_confirm_title": "दो-कारक प्रमाणीकरण अक्षम करें?"
+  "config.auth.totp_disable_confirm_title": "दो-कारक प्रमाणीकरण अक्षम करें?",
+  "config.auth.unsafe_remote_title": "लॉगिन के बिना असुरक्षित दूरस्थ पहुँच",
+  "config.auth.unsafe_remote_desc": "बिना लॉगिन के AuraGo की दूरस्थ पहुँच देता है। Speech Lab दूर से बंद रहता है।"
 }

@@ -94,5 +94,6 @@
   "config.mcp.test_connection": "Testar conexao",
   "config.mcp.test_connection_success": "Conexao OK. {count} ferramentas encontradas.",
   "config.mcp.test_connection_failed": "Falha no teste de conexao MCP:",
-  "config.mcp.name_command_or_url_required": "Nome e comando ou URL sao obrigatorios."
+  "config.mcp.name_command_or_url_required": "Nome e comando ou URL sao obrigatorios.",
+  "config.mcp.field_allow_private_network": "Permitir endereços privados para este servidor MCP"
 }

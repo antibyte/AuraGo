@@ -458,10 +458,7 @@ func IsSecureRequest(r *http.Request) bool {
 	if r.TLS != nil {
 		return true
 	}
-	if r.Header.Get("X-Forwarded-Proto") == "https" {
-		return true
-	}
-	if r.Header.Get("X-Scheme") == "https" {
+	if trustedForwardedRequest(r) && r.Header.Get("X-Forwarded-Proto") == "https" {
 		return true
 	}
 	return false

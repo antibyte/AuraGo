@@ -261,27 +261,29 @@ type BrowserAutomationViewport struct {
 
 // BrowserAutomationConfig holds the settings for the optional browser automation sidecar.
 type BrowserAutomationConfig struct {
-	Enabled              bool                      `yaml:"enabled"`                // enable browser automation integration
-	Mode                 string                    `yaml:"mode"`                   // "sidecar" (default)
-	URL                  string                    `yaml:"url"`                    // sidecar base URL
-	ContainerName        string                    `yaml:"container_name"`         // managed Docker container name
-	Image                string                    `yaml:"image"`                  // sidecar Docker image
-	AutoStart            bool                      `yaml:"auto_start"`             // auto-start the sidecar container when enabled
-	AutoBuild            bool                      `yaml:"auto_build"`             // auto-build the sidecar image when missing locally
-	DockerfileDir        string                    `yaml:"dockerfile_dir"`         // build context containing Dockerfile.browser_automation
-	SessionTTLMinutes    int                       `yaml:"session_ttl_minutes"`    // session expiry in minutes
-	MaxSessions          int                       `yaml:"max_sessions"`           // max concurrent sessions
-	AllowFileUploads     bool                      `yaml:"allow_file_uploads"`     // allow upload_file operation
-	AllowFileDownloads   bool                      `yaml:"allow_file_downloads"`   // allow browser downloads
-	AllowedDownloadDir   string                    `yaml:"allowed_download_dir"`   // host/workspace dir for downloads
-	Viewport             BrowserAutomationViewport `yaml:"viewport"`               // default viewport for sessions
-	Headless             bool                      `yaml:"headless"`               // run browser headless
-	ReadOnly             bool                      `yaml:"readonly"`               // block mutating actions when true
-	ScreenshotsDir       string                    `yaml:"screenshots_dir"`        // workspace-relative screenshot directory
-	CloakHumanize        bool                      `yaml:"cloak_humanize"`         // enable human-like mouse/keyboard/scroll behavior
-	CloakHumanPreset     string                    `yaml:"cloak_human_preset"`     // "default" or "careful"
-	CloakProxy           string                    `yaml:"cloak_proxy"`            // proxy URL for CloakBrowser (optional)
-	CloakFingerprintSeed string                    `yaml:"cloak_fingerprint_seed"` // fixed fingerprint seed for consistent identity (optional)
+	Enabled               bool                      `yaml:"enabled"`                 // enable browser automation integration
+	Mode                  string                    `yaml:"mode"`                    // "sidecar" (default)
+	URL                   string                    `yaml:"url"`                     // sidecar base URL
+	ContainerName         string                    `yaml:"container_name"`          // managed Docker container name
+	Image                 string                    `yaml:"image"`                   // sidecar Docker image
+	AutoStart             bool                      `yaml:"auto_start"`              // auto-start the sidecar container when enabled
+	AutoBuild             bool                      `yaml:"auto_build"`              // auto-build the sidecar image when missing locally
+	DockerfileDir         string                    `yaml:"dockerfile_dir"`          // build context containing Dockerfile.browser_automation
+	SessionTTLMinutes     int                       `yaml:"session_ttl_minutes"`     // session expiry in minutes
+	MaxSessions           int                       `yaml:"max_sessions"`            // max concurrent sessions
+	AllowFileUploads      bool                      `yaml:"allow_file_uploads"`      // allow upload_file operation
+	AllowFileDownloads    bool                      `yaml:"allow_file_downloads"`    // allow browser downloads
+	AllowedDownloadDir    string                    `yaml:"allowed_download_dir"`    // host/workspace dir for downloads
+	Viewport              BrowserAutomationViewport `yaml:"viewport"`                // default viewport for sessions
+	Headless              bool                      `yaml:"headless"`                // run browser headless
+	ReadOnly              bool                      `yaml:"readonly"`                // block mutating actions when true
+	ScreenshotsDir        string                    `yaml:"screenshots_dir"`         // workspace-relative screenshot directory
+	CloakHumanize         bool                      `yaml:"cloak_humanize"`          // enable human-like mouse/keyboard/scroll behavior
+	CloakHumanPreset      string                    `yaml:"cloak_human_preset"`      // "default" or "careful"
+	CloakProxy            string                    `yaml:"cloak_proxy"`             // proxy URL for CloakBrowser (optional)
+	EgressNetwork         string                    `yaml:"egress_network"`          // Docker internal network for managed browser
+	AllowedPrivateOrigins []string                  `yaml:"allowed_private_origins"` // exact home-lab origins allowed by policy
+	CloakFingerprintSeed  string                    `yaml:"cloak_fingerprint_seed"`  // fixed fingerprint seed for consistent identity (optional)
 }
 
 const (
@@ -962,15 +964,16 @@ type Config struct {
 		DebugPProf           bool   `yaml:"debug_pprof"`             // expose /debug/pprof endpoints (default false)
 		MasterKey            string `yaml:"-"`                       // ENV-only (AURAGO_MASTER_KEY)
 		HTTPS                struct {
-			Enabled     bool   `yaml:"enabled"`
-			CertMode    string `yaml:"cert_mode"` // "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
-			Domain      string `yaml:"domain"`
-			Email       string `yaml:"email"`
-			CertFile    string `yaml:"cert_file"`    // custom mode: path to PEM certificate
-			KeyFile     string `yaml:"key_file"`     // custom mode: path to PEM private key
-			HTTPSPort   int    `yaml:"https_port"`   // default: 443
-			HTTPPort    int    `yaml:"http_port"`    // default: 80 (for redirect)
-			BehindProxy bool   `yaml:"behind_proxy"` // trust X-Forwarded-* headers
+			Enabled           bool     `yaml:"enabled"`
+			CertMode          string   `yaml:"cert_mode"` // "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
+			Domain            string   `yaml:"domain"`
+			Email             string   `yaml:"email"`
+			CertFile          string   `yaml:"cert_file"`           // custom mode: path to PEM certificate
+			KeyFile           string   `yaml:"key_file"`            // custom mode: path to PEM private key
+			HTTPSPort         int      `yaml:"https_port"`          // default: 443
+			HTTPPort          int      `yaml:"http_port"`           // default: 80 (for redirect)
+			BehindProxy       bool     `yaml:"behind_proxy"`        // accept forwarded headers only from configured trusted proxies
+			TrustedProxyCIDRs []string `yaml:"trusted_proxy_cidrs"` // explicit proxy source addresses/CIDRs
 		} `yaml:"https"`
 	} `yaml:"server"`
 	LLM struct {
@@ -1082,17 +1085,18 @@ type Config struct {
 		SudoEnabled                     bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
 		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`       // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
 		// ── Danger Zone: tool capability gates (all default true) ──
-		AllowShell           bool   `yaml:"allow_shell"`            // allow execute_shell
-		AllowPython          bool   `yaml:"allow_python"`           // allow execute_python / save_tool / execute_skill
-		AllowFilesystemWrite bool   `yaml:"allow_filesystem_write"` // allow filesystem write operations
-		AllowNetworkRequests bool   `yaml:"allow_network_requests"` // allow api_request
-		AllowRemoteShell     bool   `yaml:"allow_remote_shell"`     // allow execute_remote_shell
-		AllowSelfUpdate      bool   `yaml:"allow_self_update"`      // allow manage_updates
-		AllowPackageManager  bool   `yaml:"allow_package_manager"`  // allow package_manager tool
-		AllowMCP             bool   `yaml:"allow_mcp"`              // allow MCP (Model Context Protocol) server connections
-		AllowWebScraper      *bool  `yaml:"allow_web_scraper"`      // deprecated: migrated to tools.web_scraper.enabled
-		AdditionalPrompt     string `yaml:"additional_prompt"`      // extra instructions always appended to the system prompt
-		AdaptiveTools        struct {
+		AllowShell               bool   `yaml:"allow_shell"`                 // allow execute_shell
+		AllowPython              bool   `yaml:"allow_python"`                // allow execute_python / save_tool / execute_skill
+		AllowUnsafeHostExecution bool   `yaml:"allow_unsafe_host_execution"` // explicitly permit host Python and Windows shell without isolation
+		AllowFilesystemWrite     bool   `yaml:"allow_filesystem_write"`      // allow filesystem write operations
+		AllowNetworkRequests     bool   `yaml:"allow_network_requests"`      // allow api_request
+		AllowRemoteShell         bool   `yaml:"allow_remote_shell"`          // allow execute_remote_shell
+		AllowSelfUpdate          bool   `yaml:"allow_self_update"`           // allow manage_updates
+		AllowPackageManager      bool   `yaml:"allow_package_manager"`       // allow package_manager tool
+		AllowMCP                 bool   `yaml:"allow_mcp"`                   // allow MCP (Model Context Protocol) server connections
+		AllowWebScraper          *bool  `yaml:"allow_web_scraper"`           // deprecated: migrated to tools.web_scraper.enabled
+		AdditionalPrompt         string `yaml:"additional_prompt"`           // extra instructions always appended to the system prompt
+		AdaptiveTools            struct {
 			Enabled                   bool     `yaml:"enabled"`                      // enable adaptive tool filtering (default: true when omitted)
 			MaxTools                  int      `yaml:"max_tools"`                    // maximum adaptive/preferred tool schemas; always-include tools are added on top (0 = unlimited, default: 10)
 			MaxTotalTools             int      `yaml:"max_total_tools"`              // maximum final native tool schemas after required tools are kept (0 = unlimited, default: 20)
@@ -1756,15 +1760,16 @@ type Config struct {
 		} `yaml:"pushover"`
 	} `yaml:"notifications"`
 	Auth struct {
-		Enabled             bool   `yaml:"enabled"`                  // enable login page protection
-		PasswordHash        string `yaml:"-" vault:"password_hash"`  // bcrypt hash (vault-only)
-		SessionSecret       string `yaml:"-" vault:"session_secret"` // HMAC key for session cookies (vault-only)
-		SessionTimeoutHours int    `yaml:"session_timeout_hours"`    // how long a session stays valid (default 24h)
-		RequireOriginHeader bool   `yaml:"require_origin_header"`    // require Origin on authenticated state-changing requests
-		TOTPSecret          string `yaml:"-" vault:"totp_secret"`    // base32 TOTP secret for 2FA (vault-only)
-		TOTPEnabled         bool   `yaml:"totp_enabled"`             // whether TOTP 2FA is active
-		MaxLoginAttempts    int    `yaml:"max_login_attempts"`       // failed attempts before lockout (default 5)
-		LockoutMinutes      int    `yaml:"lockout_minutes"`          // lockout duration in minutes (default 15)
+		Enabled                    bool   `yaml:"enabled"`                      // enable login page protection
+		AllowUnauthenticatedRemote bool   `yaml:"allow_unauthenticated_remote"` // explicit unsafe remote exposure without login
+		PasswordHash               string `yaml:"-" vault:"password_hash"`      // bcrypt hash (vault-only)
+		SessionSecret              string `yaml:"-" vault:"session_secret"`     // HMAC key for session cookies (vault-only)
+		SessionTimeoutHours        int    `yaml:"session_timeout_hours"`        // how long a session stays valid (default 24h)
+		RequireOriginHeader        bool   `yaml:"require_origin_header"`        // require Origin on authenticated state-changing requests
+		TOTPSecret                 string `yaml:"-" vault:"totp_secret"`        // base32 TOTP secret for 2FA (vault-only)
+		TOTPEnabled                bool   `yaml:"totp_enabled"`                 // whether TOTP 2FA is active
+		MaxLoginAttempts           int    `yaml:"max_login_attempts"`           // failed attempts before lockout (default 5)
+		LockoutMinutes             int    `yaml:"lockout_minutes"`              // lockout duration in minutes (default 15)
 	} `yaml:"auth"`
 	WebConfig struct {
 		Enabled bool `yaml:"enabled"` // false = /config endpoint disabled for security
@@ -2598,22 +2603,23 @@ type A2ARemoteAgent struct {
 
 // MCPServer describes one external MCP server in the config.
 type MCPServer struct {
-	Name               string            `yaml:"name"                    json:"name"`
-	Transport          string            `yaml:"transport,omitempty"     json:"transport"`
-	URL                string            `yaml:"url,omitempty"           json:"url"`
-	Headers            map[string]string `yaml:"headers,omitempty"       json:"headers"`
-	Command            string            `yaml:"command"                 json:"command"`
-	Args               []string          `yaml:"args"                    json:"args"`
-	Env                map[string]string `yaml:"env"                     json:"env"`
-	Enabled            bool              `yaml:"enabled"                 json:"enabled"`
-	Runtime            string            `yaml:"runtime,omitempty"       json:"runtime"`
-	DockerImage        string            `yaml:"docker_image,omitempty"  json:"docker_image"`
-	DockerCommand      string            `yaml:"docker_command,omitempty" json:"docker_command"`
-	AllowLocalFallback bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
-	HostWorkdir        string            `yaml:"host_workdir,omitempty"  json:"host_workdir"`
-	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
-	AllowedTools       []string          `yaml:"allowed_tools,omitempty" json:"allowed_tools"` // optional allowlist; empty = all discovered non-destructive tools
-	AllowDestructive   bool              `yaml:"allow_destructive,omitempty" json:"allow_destructive"`
+	Name                string            `yaml:"name"                    json:"name"`
+	Transport           string            `yaml:"transport,omitempty"     json:"transport"`
+	URL                 string            `yaml:"url,omitempty"           json:"url"`
+	Headers             map[string]string `yaml:"headers,omitempty"       json:"headers"`
+	Command             string            `yaml:"command"                 json:"command"`
+	Args                []string          `yaml:"args"                    json:"args"`
+	Env                 map[string]string `yaml:"env"                     json:"env"`
+	Enabled             bool              `yaml:"enabled"                 json:"enabled"`
+	Runtime             string            `yaml:"runtime,omitempty"       json:"runtime"`
+	DockerImage         string            `yaml:"docker_image,omitempty"  json:"docker_image"`
+	DockerCommand       string            `yaml:"docker_command,omitempty" json:"docker_command"`
+	AllowLocalFallback  bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
+	AllowPrivateNetwork bool              `yaml:"allow_private_network,omitempty" json:"allow_private_network"`
+	HostWorkdir         string            `yaml:"host_workdir,omitempty"  json:"host_workdir"`
+	ContainerWorkdir    string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
+	AllowedTools        []string          `yaml:"allowed_tools,omitempty" json:"allowed_tools"` // optional allowlist; empty = all discovered non-destructive tools
+	AllowDestructive    bool              `yaml:"allow_destructive,omitempty" json:"allow_destructive"`
 }
 
 // MCPSecret stores a vault-backed MCP secret alias visible in the config UI.

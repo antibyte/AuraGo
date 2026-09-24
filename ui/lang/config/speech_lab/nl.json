@@ -1,4 +1,6 @@
 {
+  "config.speech_lab.auth_required": "Schakel aanmelden bij AuraGo in om Speech Lab in de browser te openen.",
+  "config.speech_lab.browser_backend_url_missing": "Stel speech_lab.browser_backend_url in voor een externe Speech Lab-installatie.",
   "config.speech_lab.action_running": "Bezig met: {action}…",
   "config.speech_lab.action_done": "{action}: voltooid.",
   "config.speech_lab.action_failed": "{action}: mislukt. {error}",
@@ -91,5 +93,7 @@
   "config.speech_lab.external_hardware_title": "Extern beheerde Speech Lab",
   "config.speech_lab.external_hardware_help": "AuraGo kan een extern gestarte s2s-stack niet wijzigen. Stel het profiel in de Compose- of opstartconfiguratie in.",
   "config.speech_lab.external_hardware_unset": "mag niet ingesteld zijn",
-  "config.speech_lab.external_hardware_linux": "Voor AMD op Linux: gebruik S2S_GPU=auto of S2S_GPU=vulkan, verwijder GGML_BACKEND=CPU en activeer de Linux GPU Compose-overlay."
+  "config.speech_lab.external_hardware_linux": "Voor AMD op Linux: gebruik S2S_GPU=auto of S2S_GPU=vulkan, verwijder GGML_BACKEND=CPU en activeer de Linux GPU Compose-overlay.",
+  "config.speech_lab.browser_backend_url": "Adres van browserbackend",
+  "config.speech_lab.browser_backend_url_help": "Adres van de webinterface van een externe Speech Lab. Alleen de AuraGo-server maakt verbinding."
 }

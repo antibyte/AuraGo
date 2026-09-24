@@ -37,6 +37,14 @@
                     badge: 'execute_python'
                 },
                 {
+                    path: 'agent.allow_unsafe_host_execution',
+                    val: agentCfg.allow_unsafe_host_execution === true,
+                    icon: '⚠️',
+                    title: t('config.danger.unsafe_host_execution.title'),
+                    desc: t('config.danger.unsafe_host_execution.desc'),
+                    badge: 'host Python / Windows shell'
+                },
+                {
                     path: 'agent.allow_filesystem_write',
                     val: agentCfg.allow_filesystem_write === true,
                     icon: '💾',

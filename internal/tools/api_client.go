@@ -22,6 +22,16 @@ var apiHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 // generic local-network fetch through 3xx responses.
 var apiLocalOllamaHTTPClient = &http.Client{
 	Timeout: 30 * time.Second,
+	Transport: &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(address)
+		if err != nil || !isLoopbackHostname(host) {
+			return nil, fmt.Errorf("local Ollama dial target is not loopback")
+		}
+		if strings.EqualFold(host, "localhost") {
+			return (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, network, net.JoinHostPort("127.0.0.1", port))
+		}
+		return (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, network, address)
+	}},
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		return fmt.Errorf("redirects are not allowed for local Ollama api_request targets")
 	},
@@ -153,7 +163,8 @@ func isAllowedLocalOllamaRequest(rawURL, baseURL string) bool {
 	if !strings.EqualFold(reqURL.Scheme, base.Scheme) {
 		return false
 	}
-	if !isLoopbackHostname(reqURL.Hostname()) || !isLoopbackHostname(base.Hostname()) {
+	if reqURL.User != nil || base.User != nil || reqURL.Fragment != "" ||
+		!isLoopbackHostname(base.Hostname()) || !strings.EqualFold(reqURL.Hostname(), base.Hostname()) {
 		return false
 	}
 	if normalizedURLPort(reqURL) != normalizedURLPort(base) {
@@ -182,6 +193,12 @@ func normalizedURLPort(u *url.URL) string {
 }
 
 func isOllamaAPIPath(path string) bool {
-	return path == "/api" || strings.HasPrefix(path, "/api/") ||
-		path == "/v1" || strings.HasPrefix(path, "/v1/")
+	switch path {
+	case "/api/generate", "/api/chat", "/api/embed", "/api/embeddings", "/api/tags",
+		"/api/show", "/api/ps", "/api/version", "/api/create", "/api/copy",
+		"/api/delete", "/api/pull", "/api/push", "/v1/chat/completions",
+		"/v1/completions", "/v1/embeddings", "/v1/models":
+		return true
+	}
+	return strings.HasPrefix(path, "/api/blobs/sha256:")
 }

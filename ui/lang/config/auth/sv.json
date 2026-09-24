@@ -34,5 +34,7 @@
   "config.auth.update_password": "Uppdatera",
   "config.auth.web_config_title": "Webbkonfiguration",
   "config.auth.https_forces_auth": "HTTPS är aktivt. Inloggning kan inte inaktiveras.",
-  "config.auth.totp_disable_confirm_title": "Inaktivera tvåfaktorsautentisering?"
+  "config.auth.totp_disable_confirm_title": "Inaktivera tvåfaktorsautentisering?",
+  "config.auth.unsafe_remote_title": "Osäker fjärråtkomst utan inloggning",
+  "config.auth.unsafe_remote_desc": "Tillåter fjärråtkomst till AuraGo utan inloggning. Speech Lab förblir spärrat på distans."
 }

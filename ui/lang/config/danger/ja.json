@@ -20,5 +20,7 @@
   "config.danger.mcp.title": "MCP サーバー接続 (mcp_call)",
   "config.danger.mcp.desc": "エージェントが外部 MCP サーバーに接続し、そのツールを使用できるようにします。 <strong style=\"color:#f87171;\">⚠ 信頼できるサーバーのみを追加してください。</strong>",
   "config.danger.sudo_unrestricted.title": "システム全体のSudo書き込みアクセス",
-  "config.danger.sudo_unrestricted.desc": "エージェントがsudoを使用してインストールディレクトリ外（例: /etc/）に書き込めるようにします。systemdサービスユニットからProtectSystem=strictを削除する必要があります。"
+  "config.danger.sudo_unrestricted.desc": "エージェントがsudoを使用してインストールディレクトリ外（例: /etc/）に書き込めるようにします。systemdサービスユニットからProtectSystem=strictを削除する必要があります。",
+  "config.danger.unsafe_host_execution.title": "ホストでの危険な実行",
+  "config.danger.unsafe_host_execution.desc": "分離せずにホストの Python と Windows シェルを実行できます。使用するたびにセキュリティ警告を記録します。"
 }

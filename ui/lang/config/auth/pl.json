@@ -34,5 +34,7 @@
   "config.auth.update_password": "Aktualizuj",
   "config.auth.web_config_title": "Konfiguracja Web",
   "config.auth.https_forces_auth": "HTTPS jest aktywne. Logowanie nie może zostać wyłączone.",
-  "config.auth.totp_disable_confirm_title": "Wyłączyć uwierzytelnianie dwuskładnikowe?"
+  "config.auth.totp_disable_confirm_title": "Wyłączyć uwierzytelnianie dwuskładnikowe?",
+  "config.auth.unsafe_remote_title": "Niebezpieczny dostęp zdalny bez logowania",
+  "config.auth.unsafe_remote_desc": "Pozwala na zdalny dostęp do AuraGo bez logowania. Speech Lab pozostaje zdalnie zablokowany."
 }

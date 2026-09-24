@@ -460,8 +460,10 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 				}
 			}
 			messageKey := ""
-			if strings.TrimSpace(cfg.SpeechLab.AdvancedUIURL) == "" {
-				messageKey = "chat.speech_lab_browser_url_missing"
+			browserURL := speechLabBrowserPath
+			if !cfg.Auth.Enabled {
+				browserURL = ""
+				messageKey = "chat.speech_lab_auth_required"
 			}
 			mu.Lock()
 			webhosts = append(webhosts, webhostIntegration{
@@ -470,7 +472,7 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 				Description: "Local ASR and TTS laboratory",
 				MessageKey:  messageKey,
 				Status:      status,
-				URL:         cfg.SpeechLab.AdvancedUIURL,
+				URL:         browserURL,
 				Icon:        "microphone",
 			})
 			mu.Unlock()
@@ -599,7 +601,7 @@ func resolveRequestWebhostURLs(webhosts []webhostIntegration, r *http.Request) [
 	resolved := make([]webhostIntegration, len(webhosts))
 	copy(resolved, webhosts)
 	for i := range resolved {
-		if resolved[i].ID != "speech_lab" || strings.TrimSpace(resolved[i].URL) != "" {
+		if resolved[i].ID != "speech_lab" || strings.TrimSpace(resolved[i].URL) != "" || resolved[i].MessageKey == "chat.speech_lab_auth_required" {
 			continue
 		}
 		resolved[i].URL = speechLabBrowserURLForRequest("", r)

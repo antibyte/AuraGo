@@ -1,4 +1,5 @@
 {
+  "chat.speech_lab_auth_required": "Otwarcie Speech Lab wymaga zalogowania do AuraGo.",
   "chat.speech_lab_browser_url_missing": "Skonfiguruj URL Speech Lab dla przeglądarki w Media → Speech Lab.",
   "chat.vault_secret_title": "Bezpiecznie zapisz sekret",
   "chat.vault_secret_notice": "Agent nigdy nie widzi wpisanej wartości. Jest ona zapisywana bezpośrednio w zaszyfrowanym Vault.",

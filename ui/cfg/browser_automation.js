@@ -145,7 +145,11 @@ async function renderBrowserAutomationSection(section) {
         '</select>');
 
     html += baFieldWithHelp('config.browser_automation.cloak_proxy_label', 'help.browser_automation.cloak_proxy',
-        '<input class="field-input" type="text" value="' + escapeAttr(data.cloak_proxy || '') + '" data-path="browser_automation.cloak_proxy" placeholder="http://user:pass@proxy:8080">');
+        '<input class="field-input" type="text" value="' + escapeAttr(data.cloak_proxy || '') + '" data-path="browser_automation.cloak_proxy" placeholder="http://browser-egress:7332">');
+    html += baFieldWithHelp('config.browser_automation.egress_network_label', 'help.browser_automation.egress_network',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.egress_network || '') + '" data-path="browser_automation.egress_network" placeholder="aurago-app">');
+    html += baFieldWithHelp('config.browser_automation.private_origins_label', 'help.browser_automation.private_origins',
+        '<textarea class="field-input" data-path="browser_automation.allowed_private_origins" data-type="array-lines" rows="3" placeholder="http://192.168.1.10:8123">' + escapeHtml(Array.isArray(data.allowed_private_origins) ? data.allowed_private_origins.join('\n') : '') + '</textarea>');
 
     html += baFieldWithHelp('config.browser_automation.cloak_fingerprint_seed_label', 'help.browser_automation.cloak_fingerprint_seed',
         '<input class="field-input" type="text" value="' + escapeAttr(data.cloak_fingerprint_seed || '') + '" data-path="browser_automation.cloak_fingerprint_seed" placeholder="e.g. 12345">');

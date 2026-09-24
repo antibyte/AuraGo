@@ -40,6 +40,8 @@
   "config.security_proxy.status_loading": "Laster…",
   "config.security_proxy.status_unknown": "Ukjent status",
   "config.server.behind_proxy_label": "Bak omvendt proxy",
+  "config.server.trusted_proxy_cidrs_label": "Pålitelige proxyadresser",
+  "config.server.trusted_proxy_cidrs_hint": "Angi IP-adresser eller CIDR-områder for den direkte reverse proxyen, atskilt med komma eller linjeskift. Andre kilder kan ikke angi videresendte headere.",
   "config.server.cert_auto_notice": "Automatiske sertifikater via Let's Encrypt. Krever et offentlig tilgjengelig domene og porter 80/443.",
   "config.server.cert_custom_notice": "Bruk dine egne TLS-sertifikatfiler (PEM-format). Du kan laste dem opp nedenfor eller angi filstier.",
   "config.server.cert_file_label": "Sertifikatfilsti",

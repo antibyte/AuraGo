@@ -319,18 +319,19 @@ func TestIntegrationWebhostsIncludesEnabledSpeechLab(t *testing.T) {
 	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{
 		Enabled: true, BaseURL: upstream.URL, AdvancedUIURL: "http://127.0.0.1:7860", TimeoutSeconds: 2,
 	}}
+	cfg.Auth.Enabled = true
 	client, err := speechlab.NewClient(cfg.SpeechLab)
 	if err != nil {
 		t.Fatal(err)
 	}
 	clearWebhostsCache()
 	got := integrationWebhostsForRequest(&Server{Cfg: cfg, SpeechLab: client, Logger: slog.Default()}, httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil))
-	if len(got) != 1 || got[0].ID != "speech_lab" || got[0].Status != "running" || got[0].URL != cfg.SpeechLab.AdvancedUIURL {
+	if len(got) != 1 || got[0].ID != "speech_lab" || got[0].Status != "running" || got[0].URL != speechLabBrowserPath {
 		t.Fatalf("Speech Lab webhost = %#v", got)
 	}
 }
 
-func TestIntegrationWebhostsRequiresExplicitSpeechLabBrowserURL(t *testing.T) {
+func TestIntegrationWebhostsRequiresAuthForSpeechLabBrowser(t *testing.T) {
 	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{Enabled: true, BaseURL: "http://127.0.0.1:1", TimeoutSeconds: 1}}
 	client, err := speechlab.NewClient(cfg.SpeechLab)
 	if err != nil {
@@ -339,13 +340,14 @@ func TestIntegrationWebhostsRequiresExplicitSpeechLabBrowserURL(t *testing.T) {
 	clearWebhostsCache()
 	req := httptest.NewRequest(http.MethodGet, "http://aurago.lan:8088/api/integrations/webhosts", nil)
 	got := integrationWebhostsForRequest(&Server{Cfg: cfg, SpeechLab: client, Logger: slog.Default()}, req)
-	if len(got) != 1 || got[0].Status != "offline" || got[0].URL != "" || got[0].MessageKey != "chat.speech_lab_browser_url_missing" {
+	if len(got) != 1 || got[0].Status != "offline" || got[0].URL != "" || got[0].MessageKey != "chat.speech_lab_auth_required" {
 		t.Fatalf("Speech Lab missing-URL webhost = %#v", got)
 	}
 }
 
 func TestIntegrationWebhostsIgnoresSpeechLabRequestHost(t *testing.T) {
 	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{Enabled: true, BaseURL: "http://127.0.0.1:1", TimeoutSeconds: 1}}
+	cfg.Auth.Enabled = true
 	client, err := speechlab.NewClient(cfg.SpeechLab)
 	if err != nil {
 		t.Fatal(err)
@@ -354,10 +356,10 @@ func TestIntegrationWebhostsIgnoresSpeechLabRequestHost(t *testing.T) {
 	s := &Server{Cfg: cfg, SpeechLab: client, Logger: slog.Default()}
 	first := integrationWebhostsForRequest(s, httptest.NewRequest(http.MethodGet, "http://first.lan:8088/api/integrations/webhosts", nil))
 	second := integrationWebhostsForRequest(s, httptest.NewRequest(http.MethodGet, "http://second.lan:8088/api/integrations/webhosts", nil))
-	if len(first) != 1 || first[0].URL != "" || first[0].MessageKey != "chat.speech_lab_browser_url_missing" {
+	if len(first) != 1 || first[0].URL != speechLabBrowserPath {
 		t.Fatalf("first Speech Lab URL = %#v", first)
 	}
-	if len(second) != 1 || second[0].URL != "" || second[0].MessageKey != "chat.speech_lab_browser_url_missing" {
+	if len(second) != 1 || second[0].URL != speechLabBrowserPath {
 		t.Fatalf("cached Speech Lab URL = %#v", second)
 	}
 }

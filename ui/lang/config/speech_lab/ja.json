@@ -1,4 +1,6 @@
 {
+  "config.speech_lab.auth_required": "ブラウザーで Speech Lab を開くには、AuraGo のログインを有効にしてください。",
+  "config.speech_lab.browser_backend_url_missing": "外部の Speech Lab には speech_lab.browser_backend_url を設定してください。",
   "config.speech_lab.action_running": "実行中: {action}…",
   "config.speech_lab.action_done": "{action}: 完了しました。",
   "config.speech_lab.action_failed": "{action}: 失敗しました。{error}",
@@ -91,5 +93,7 @@
   "config.speech_lab.external_hardware_title": "外部管理の Speech Lab",
   "config.speech_lab.external_hardware_help": "AuraGo は外部で起動した s2s スタックを変更できません。Compose または起動設定でプロファイルを指定してください。",
   "config.speech_lab.external_hardware_unset": "未設定にする必要があります",
-  "config.speech_lab.external_hardware_linux": "Linux の AMD では S2S_GPU=auto または S2S_GPU=vulkan を使用し、GGML_BACKEND=CPU を削除して Linux GPU Compose overlay を有効にします。"
+  "config.speech_lab.external_hardware_linux": "Linux の AMD では S2S_GPU=auto または S2S_GPU=vulkan を使用し、GGML_BACKEND=CPU を削除して Linux GPU Compose overlay を有効にします。",
+  "config.speech_lab.browser_backend_url": "ブラウザ用バックエンドのアドレス",
+  "config.speech_lab.browser_backend_url_help": "外部 Speech Lab の Web 画面のアドレスです。AuraGo サーバーだけが接続します。"
 }

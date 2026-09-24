@@ -222,11 +222,18 @@ func TestSanitizeRedirectTargetRejectsControlCharacters(t *testing.T) {
 func TestClearSessionCookieIncludesProxySecureAttribute(t *testing.T) {
 	t.Parallel()
 
+	cfg := &config.Config{}
+	cfg.Server.HTTPS.BehindProxy = true
+	cfg.Server.HTTPS.TrustedProxyCIDRs = []string{"192.0.2.10/32"}
+	s := &Server{Cfg: cfg}
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/auth/logout", nil)
+	req.RemoteAddr = "192.0.2.10:1234"
 	req.Header.Set("X-Forwarded-Proto", "https")
 	rec := httptest.NewRecorder()
 
-	ClearSessionCookie(rec, req)
+	trustedProxyMiddleware(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ClearSessionCookie(w, r)
+	})).ServeHTTP(rec, req)
 
 	headers := rec.Header().Values("Set-Cookie")
 	if len(headers) != 2 {
@@ -321,6 +328,7 @@ func TestHandleAuthLoginLocksOutAcrossAccountScope(t *testing.T) {
 	makeRequest := func(ip string) *httptest.ResponseRecorder {
 		body, _ := json.Marshal(map[string]string{"password": "wrong"})
 		req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
 		req.RemoteAddr = ip + ":12345"
 		rec := httptest.NewRecorder()
 		handleAuthLogin(s).ServeHTTP(rec, req)
@@ -454,6 +462,7 @@ func TestHandleAuthLoginReturnsSetupRedirectWhenPasswordMissing(t *testing.T) {
 
 	body, _ := json.Marshal(map[string]string{"password": "irrelevant"})
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handleAuthLogin(s).ServeHTTP(rec, req)
 
@@ -469,6 +478,36 @@ func TestHandleAuthLoginReturnsSetupRedirectWhenPasswordMissing(t *testing.T) {
 	}
 	if payload["setup_required"] != true {
 		t.Fatalf("setup_required = %v, want true", payload["setup_required"])
+	}
+}
+
+func TestHandleAuthLoginRejectsBrowserCrossOriginAndFormPosts(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = true
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	for _, tt := range []struct {
+		contentType string
+		origin      string
+		fetchSite   string
+		want        int
+	}{
+		{"application/x-www-form-urlencoded", "", "", http.StatusUnsupportedMediaType},
+		{"application/json", "https://evil.test", "cross-site", http.StatusForbidden},
+		{"application/json", "", "cross-site", http.StatusForbidden},
+	} {
+		req := httptest.NewRequest(http.MethodPost, "https://aurago.test/auth/login", strings.NewReader(`{"password":"unused"}`))
+		req.Header.Set("Content-Type", tt.contentType)
+		if tt.origin != "" {
+			req.Header.Set("Origin", tt.origin)
+		}
+		if tt.fetchSite != "" {
+			req.Header.Set("Sec-Fetch-Site", tt.fetchSite)
+		}
+		rec := httptest.NewRecorder()
+		handleAuthLogin(s).ServeHTTP(rec, req)
+		if rec.Code != tt.want {
+			t.Errorf("content type %q origin %q fetch site %q: status %d, want %d", tt.contentType, tt.origin, tt.fetchSite, rec.Code, tt.want)
+		}
 	}
 }
 
@@ -573,7 +612,7 @@ func TestAuthMiddlewareAllowsDesktopFileWithEmbedTokenWithoutSession(t *testing.
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	handler := authMiddleware(s, next)
+	handler := desktopTicketMiddleware(authMiddleware(s, next))
 
 	path := "Apps/weather_pforzheim/Widgets/weather_pforzheim.html"
 	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, path, time.Now())
@@ -581,7 +620,7 @@ func TestAuthMiddlewareAllowsDesktopFileWithEmbedTokenWithoutSession(t *testing.
 		t.Fatalf("issueDesktopEmbedToken: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/files/desktop/"+path+"?desktop_token="+url.QueryEscape(token), nil)
+	req := httptest.NewRequest(http.MethodGet, desktopTicketPrefix+token+"/files/desktop/"+path, nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNoContent {
@@ -627,7 +666,7 @@ func TestAuthMiddlewareAllowsPrinterCameraStreamWithResourceScopedDesktopEmbedTo
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	handler := authMiddleware(s, next)
+	handler := desktopTicketMiddleware(authMiddleware(s, next))
 
 	resourcePath := "/api/3d-printers/printer-1/camera/stream"
 	token, err := issueDesktopEmbedResourceToken(s.Cfg.Auth.SessionSecret, resourcePath, time.Now())
@@ -635,7 +674,7 @@ func TestAuthMiddlewareAllowsPrinterCameraStreamWithResourceScopedDesktopEmbedTo
 		t.Fatalf("issueDesktopEmbedResourceToken: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, resourcePath+"?desktop_token="+url.QueryEscape(token), nil)
+	req := httptest.NewRequest(http.MethodGet, desktopTicketPrefix+token+resourcePath, nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNoContent {
@@ -708,14 +747,14 @@ func TestAuthMiddlewareAllowsDesktopAppSiblingAssetWithEmbedToken(t *testing.T) 
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	handler := authMiddleware(s, next)
+	handler := desktopTicketMiddleware(authMiddleware(s, next))
 
 	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, "Apps/nasscad/index.html", time.Now())
 	if err != nil {
 		t.Fatalf("issueDesktopEmbedToken: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/nasscad/three.js?desktop_token="+url.QueryEscape(token), nil)
+	req := httptest.NewRequest(http.MethodGet, desktopTicketPrefix+token+"/files/desktop/Apps/nasscad/three.js", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNoContent {
@@ -734,14 +773,14 @@ func TestAuthMiddlewareRejectsDesktopAppSiblingAssetOutsideAppDir(t *testing.T) 
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	handler := authMiddleware(s, next)
+	handler := desktopTicketMiddleware(authMiddleware(s, next))
 
 	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, "Apps/nasscad/index.html", time.Now())
 	if err != nil {
 		t.Fatalf("issueDesktopEmbedToken: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/other-app/three.js?desktop_token="+url.QueryEscape(token), nil)
+	req := httptest.NewRequest(http.MethodGet, desktopTicketPrefix+token+"/files/desktop/Apps/other-app/three.js", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusTemporaryRedirect {
@@ -760,14 +799,14 @@ func TestAuthMiddlewareRejectsDesktopFileWithWrongEmbedTokenPath(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	handler := authMiddleware(s, next)
+	handler := desktopTicketMiddleware(authMiddleware(s, next))
 
 	token, err := issueDesktopEmbedToken(s.Cfg.Auth.SessionSecret, "Apps/weather/main.html", time.Now())
 	if err != nil {
 		t.Fatalf("issueDesktopEmbedToken: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/weather/Widgets/widget.html?desktop_token="+url.QueryEscape(token), nil)
+	req := httptest.NewRequest(http.MethodGet, desktopTicketPrefix+token+"/files/desktop/Apps/weather/Widgets/widget.html", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusTemporaryRedirect {
@@ -1103,14 +1142,21 @@ func TestCheckCSRFOriginMalformedReferer(t *testing.T) {
 	}
 }
 
-// TestCheckCSRFOriginWithXForwardedHost verifies that X-Forwarded-Host is respected.
+// TestCheckCSRFOriginWithXForwardedHost verifies that only a configured proxy can supply the public host.
 func TestCheckCSRFOriginWithXForwardedHost(t *testing.T) {
 	t.Parallel()
+	cfg := &config.Config{}
+	cfg.Server.HTTPS.BehindProxy = true
+	cfg.Server.HTTPS.TrustedProxyCIDRs = []string{"192.0.2.10/32"}
+	s := &Server{Cfg: cfg}
 	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.RemoteAddr = "192.0.2.10:1234"
 	req.Header.Set("Referer", "https://example.com/page")
 	req.Header.Set("X-Forwarded-Host", "example.com")
 	req.Host = "localhost" // actual host differs, but X-Forwarded-Host takes precedence
-	if !checkCSRFOrigin(req) {
-		t.Error("expected checkCSRFOrigin to return true when X-Forwarded-Host matches Referer host")
-	}
+	trustedProxyMiddleware(s, http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+		if !checkCSRFOrigin(request) {
+			t.Error("expected the trusted proxy host to match the Referer")
+		}
+	})).ServeHTTP(httptest.NewRecorder(), req)
 }

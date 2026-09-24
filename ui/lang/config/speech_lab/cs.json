@@ -1,4 +1,6 @@
 {
+  "config.speech_lab.auth_required": "Zapněte přihlášení do AuraGo, chcete-li otevřít Speech Lab v prohlížeči.",
+  "config.speech_lab.browser_backend_url_missing": "Pro externí Speech Lab nastavte speech_lab.browser_backend_url.",
   "config.speech_lab.action_running": "Probíhá: {action}…",
   "config.speech_lab.action_done": "{action}: dokončeno.",
   "config.speech_lab.action_failed": "{action}: selhalo. {error}",
@@ -91,5 +93,7 @@
   "config.speech_lab.external_hardware_title": "Externě spravovaný Speech Lab",
   "config.speech_lab.external_hardware_help": "AuraGo nemůže měnit externě spuštěný zásobník s2s. Profil nastavte v jeho Compose nebo konfiguraci spuštění.",
   "config.speech_lab.external_hardware_unset": "musí být prázdné",
-  "config.speech_lab.external_hardware_linux": "Pro AMD v Linuxu použijte S2S_GPU=auto nebo S2S_GPU=vulkan, odstraňte GGML_BACKEND=CPU a aktivujte Linux GPU Compose overlay."
+  "config.speech_lab.external_hardware_linux": "Pro AMD v Linuxu použijte S2S_GPU=auto nebo S2S_GPU=vulkan, odstraňte GGML_BACKEND=CPU a aktivujte Linux GPU Compose overlay.",
+  "config.speech_lab.browser_backend_url": "Adresa prohlížečového backendu",
+  "config.speech_lab.browser_backend_url_help": "Adresa webového rozhraní externího Speech Labu. Používá ji pouze server AuraGo."
 }

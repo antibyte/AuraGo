@@ -19,6 +19,10 @@ func TestSecurityHeadersAllowEmbedsForYouTubeAndDesktopStoreApps(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	csp := rec.Header().Get("Content-Security-Policy")
+	reportOnly := rec.Header().Get("Content-Security-Policy-Report-Only")
+	if reportOnly == "" || strings.Contains(reportOnly, "unsafe-inline") {
+		t.Fatalf("main UI report-only CSP must omit unsafe-inline: %q", reportOnly)
+	}
 	for _, marker := range []string{
 		"default-src 'self'",
 		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",

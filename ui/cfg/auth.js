@@ -62,6 +62,15 @@ async function renderWebConfigSection(section) {
                 </div>
             </div>`;
 
+    html += `<div class="field-group">
+                <div class="field-label">⚠️ ${t('config.auth.unsafe_remote_title')}</div>
+                <div class="field-help">${t('config.auth.unsafe_remote_desc')}</div>
+                <div class="toggle-wrap">
+                    <div class="toggle ${authCfg.allow_unauthenticated_remote === true ? 'on' : ''}" data-path="auth.allow_unauthenticated_remote" onclick="toggleBool(this)"></div>
+                    <span class="toggle-label">${authCfg.allow_unauthenticated_remote === true ? t('config.common.active') : t('config.common.inactive')}</span>
+                </div>
+            </div>`;
+
     // Session / rate limit settings
     html += `<div class="auth-session-grid">
                 <div class="field-group auth-field-group-flat">

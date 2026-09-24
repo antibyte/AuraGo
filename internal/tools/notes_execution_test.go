@@ -23,7 +23,7 @@ func TestShellWithNotesAndDisabledIsolation(t *testing.T) {
 			ClearRuntimePermissionsForTest()
 		}
 	})
-	perms := RuntimePermissions{AllowShell: true, AllowFilesystemWrite: true, ProtectedNotesRoots: []string{notes}}
+	perms := RuntimePermissions{AllowShell: true, AllowUnsafeHostExecution: true, AllowFilesystemWrite: true, ProtectedNotesRoots: []string{notes}}
 	ConfigureRuntimePermissions(perms)
 	out, stderr, err := ExecuteShell("echo notes-policy-ok", workspace)
 	if err != nil || !strings.Contains(out, "notes-policy-ok") {

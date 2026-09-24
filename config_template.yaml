@@ -5,6 +5,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 auth:
     enabled: true                 # login protection active by default
+    allow_unauthenticated_remote: false # unsafe: required when auth is off and any remote ingress is configured
     session_timeout_hours: 24
     require_origin_header: false  # stricter CSRF mode: require Origin on authenticated writes
     totp_enabled: false
@@ -68,6 +69,7 @@ agent:
     # ── Danger Zone ── disabled by default for fresh installs
     allow_shell: false
     allow_python: false
+    allow_unsafe_host_execution: false # explicit unsafe exception for host Python and Windows shell
     allow_filesystem_write: false
     allow_network_requests: false
     allow_remote_shell: false
@@ -801,6 +803,7 @@ server:
         https_port: 443
         http_port: 80
         behind_proxy: false
+        trusted_proxy_cidrs: []           # explicit immediate proxy source IPs/CIDRs when behind_proxy is true
 sqlite:
     short_term_path: ./data/short_term.db
     # Deprecated: long-term memory uses directories.vectordb_dir (chromem), not SQLite.
@@ -897,6 +900,7 @@ tts:
 speech_lab:
     enabled: false
     base_url: http://s2s-vulkan:8765
+    browser_backend_url: ""               # external mode only: admin-configured s2s web backend; browser uses /speech-lab/
     deployment:
         mode: managed                       # managed: AuraGo provisions the verified GHCR bundle; external: existing s2s stack
         bundle: stable
@@ -950,7 +954,9 @@ browser_automation:
     screenshots_dir: browser_screenshots
     cloak_humanize: false                                  # simulate human-like mouse, keyboard and scroll behavior
     cloak_human_preset: default                            # behavior preset: default (normal) or careful (slower)
-    cloak_proxy: ""                                        # optional proxy for browser sessions (http://user:pass@proxy:8080)
+    cloak_proxy: "http://browser-egress:7332"              # controlled proxy on the internal browser network
+    egress_network: aurago-app                             # existing Docker network; must have internal: true
+    allowed_private_origins: []                            # exact home-lab origins allowed by browser policy
     cloak_fingerprint_seed: ""                             # fixed seed for consistent browser fingerprint across sessions
 space_agent:
     enabled: false
@@ -1735,6 +1741,7 @@ mcp:
     #     X-Custom-Header: "{{custom-secret}}"
     #   allowed_tools: []
     #   allow_destructive: false
+    #   allow_private_network: false # explicit exception for private MCP destinations
     # host-local stdio bridge example for Docker deployments:
     # 1. Run this on the Docker host, not inside the AuraGo container:
     #    npx -y supergateway --stdio "uvx mcp-server-fetch" --port 9100 --outputTransport streamableHttp --streamableHttpPath /mcp

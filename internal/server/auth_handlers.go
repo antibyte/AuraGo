@@ -125,6 +125,24 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
+		mediaType, _, mediaErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if mediaErr != nil || mediaType != "application/json" {
+			jsonError(w, "application/json required", http.StatusUnsupportedMediaType)
+			return
+		}
+		if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" && !requestOriginMatches(r, origin) {
+			jsonError(w, "Login origin rejected", http.StatusForbidden)
+			return
+		}
+		if site := strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")); site != "" && site != "same-origin" && site != "none" {
+			jsonError(w, "Login origin rejected", http.StatusForbidden)
+			return
+		}
+		if r.Header.Get("Origin") == "" && r.Header.Get("Sec-Fetch-Site") == "" &&
+			(r.Header.Get("Sec-Fetch-Mode") != "" || r.Header.Get("Sec-Fetch-Dest") != "") {
+			jsonError(w, "Login origin required", http.StatusForbidden)
+			return
+		}
 
 		ip := ClientIP(r, s.Cfg.Server.HTTPS.BehindProxy)
 		accountKey := loginScopeKey("account", "admin")

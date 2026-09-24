@@ -20,5 +20,7 @@
   "config.danger.mcp.title": "MCP Server Verbindingen (mcp_call)",
   "config.danger.mcp.desc": "Staat de agent toe om verbinding te maken met externe MCP servers en hun tools te gebruiken. <strong style=\"color:#f87171;\">⚠ Voeg alleen vertrouwde servers toe!</strong>",
   "config.danger.sudo_unrestricted.title": "Systeembrede Sudo-schrijftoegang",
-  "config.danger.sudo_unrestricted.desc": "Staat de agent toe om buiten de installatiemap te schrijven met sudo (bijv. /etc.). Vereist het verwijderen van ProtectSystem=strict uit de systemd-service-unit."
+  "config.danger.sudo_unrestricted.desc": "Staat de agent toe om buiten de installatiemap te schrijven met sudo (bijv. /etc.). Vereist het verwijderen van ProtectSystem=strict uit de systemd-service-unit.",
+  "config.danger.unsafe_host_execution.title": "Onveilige uitvoering op de host",
+  "config.danger.unsafe_host_execution.desc": "Staat Python op de host en de Windows-shell zonder isolatie toe. Elk gebruik wordt als beveiligingswaarschuwing vastgelegd."
 }

@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -184,11 +185,11 @@ func newNetworkMCPConn(ctx context.Context, srv MCPServerConfig, logger *slog.Lo
 	var transport mcpTransport
 	switch mcpTransportMode(srv) {
 	case "streamable_http":
-		transport, err = newHTTPMCPTransport(endpoint, headers)
+		transport, err = newHTTPMCPTransport(endpoint, headers, srv.AllowPrivateNetwork)
 	case "sse":
-		transport, err = newSSEMCPTransport(ctx, endpoint, headers)
+		transport, err = newSSEMCPTransport(ctx, endpoint, headers, srv.AllowPrivateNetwork)
 	case "websocket":
-		transport, err = newWebSocketMCPTransport(ctx, endpoint, headers)
+		transport, err = newWebSocketMCPTransport(ctx, endpoint, headers, srv.AllowPrivateNetwork)
 	default:
 		err = fmt.Errorf("unsupported MCP network transport %q", srv.Transport)
 	}
@@ -219,11 +220,18 @@ type httpMCPTransport struct {
 	closeOnce       sync.Once
 }
 
-func newHTTPMCPTransport(endpoint string, headers map[string]string) (*httpMCPTransport, error) {
+func newHTTPMCPTransport(endpoint string, headers map[string]string, allowPrivateOverride ...bool) (*httpMCPTransport, error) {
 	if err := validateMCPURL(endpoint, "streamable_http"); err != nil {
 		return nil, err
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	allowPrivate := len(allowPrivateOverride) > 0 && allowPrivateOverride[0]
+	dial, err := mcpPinnedDialer(endpoint, allowPrivate)
+	if err != nil {
+		return nil, err
+	}
+	transport.Proxy = nil
+	transport.DialContext = dial
 	return &httpMCPTransport{
 		endpoint:  endpoint,
 		headers:   headers,
@@ -401,13 +409,20 @@ type websocketMCPTransport struct {
 	closeOnce sync.Once
 }
 
-func newWebSocketMCPTransport(ctx context.Context, endpoint string, headers map[string]string) (*websocketMCPTransport, error) {
+func newWebSocketMCPTransport(ctx context.Context, endpoint string, headers map[string]string, allowPrivate bool) (*websocketMCPTransport, error) {
 	if err := validateMCPURL(endpoint, "websocket"); err != nil {
 		return nil, err
 	}
 	header := http.Header{}
 	applyMCPHeaders(header, headers)
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, endpoint, header)
+	dial, err := mcpPinnedDialer(endpoint, allowPrivate)
+	if err != nil {
+		return nil, err
+	}
+	dialer := *websocket.DefaultDialer
+	dialer.Proxy = nil
+	dialer.NetDialContext = dial
+	conn, _, err := dialer.DialContext(ctx, endpoint, header)
 	if err != nil {
 		return nil, fmt.Errorf("connect websocket MCP transport: %s", security.Scrub(err.Error()))
 	}
@@ -523,7 +538,7 @@ type sseMCPTransport struct {
 	closeOnce     sync.Once
 }
 
-func newSSEMCPTransport(ctx context.Context, endpoint string, headers map[string]string) (*sseMCPTransport, error) {
+func newSSEMCPTransport(ctx context.Context, endpoint string, headers map[string]string, allowPrivate bool) (*sseMCPTransport, error) {
 	if err := validateMCPURL(endpoint, "sse"); err != nil {
 		return nil, err
 	}
@@ -534,6 +549,12 @@ func newSSEMCPTransport(ctx context.Context, endpoint string, headers map[string
 		return nil, err
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	dial, err := mcpPinnedDialer(endpoint, allowPrivate)
+	if err != nil {
+		return nil, err
+	}
+	transport.Proxy = nil
+	transport.DialContext = dial
 	transport.ResponseHeaderTimeout = 10 * time.Second
 	t := &sseMCPTransport{
 		endpointReady: make(chan string, 1),
@@ -739,7 +760,7 @@ func applyMCPHeaders(dst http.Header, headers map[string]string) {
 
 func validateMCPURL(rawURL, transport string) error {
 	parsed, err := url.Parse(strings.TrimSpace(rawURL))
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
 		return fmt.Errorf("invalid MCP %s url", transport)
 	}
 	switch transport {
@@ -755,13 +776,56 @@ func validateMCPURL(rawURL, transport string) error {
 	return nil
 }
 
+func mcpPinnedDialer(endpoint string, allowPrivate bool) (func(context.Context, string, string) (net.Conn, error), error) {
+	parsed, err := url.Parse(endpoint)
+	if err != nil || parsed.Hostname() == "" {
+		return nil, fmt.Errorf("invalid MCP network endpoint")
+	}
+	host := parsed.Hostname()
+	port := parsed.Port()
+	if port == "" {
+		if parsed.Scheme == "https" || parsed.Scheme == "wss" {
+			port = "443"
+		} else {
+			port = "80"
+		}
+	}
+	var ips []net.IP
+	if literal := net.ParseIP(host); literal != nil {
+		ips = []net.IP{literal}
+	} else {
+		lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		addresses, lookupErr := net.DefaultResolver.LookupIPAddr(lookupCtx, host)
+		if lookupErr != nil || len(addresses) == 0 {
+			return nil, fmt.Errorf("MCP endpoint DNS resolution failed: %v", lookupErr)
+		}
+		for _, address := range addresses {
+			ips = append(ips, address.IP)
+		}
+	}
+	for _, ip := range ips {
+		if ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return nil, fmt.Errorf("MCP endpoint address %s is blocked", ip)
+		}
+		if security.IsRestrictedNetworkIP(ip) && !allowPrivate {
+			return nil, fmt.Errorf("MCP private endpoint %s requires allow_private_network", ip)
+		}
+	}
+	pinned := net.JoinHostPort(ips[0].String(), port)
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		dialHost, dialPort, splitErr := net.SplitHostPort(address)
+		if splitErr != nil || !strings.EqualFold(dialHost, host) || dialPort != port {
+			return nil, fmt.Errorf("MCP transport redirected to an unapproved destination")
+		}
+		return (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, network, pinned)
+	}, nil
+}
+
 func resolveSSEMessageEndpoint(streamURL, endpoint string) string {
 	endpoint = strings.TrimSpace(endpoint)
 	if endpoint == "" {
 		return ""
-	}
-	if parsed, err := url.Parse(endpoint); err == nil && parsed.IsAbs() {
-		return endpoint
 	}
 	base, err := url.Parse(streamURL)
 	if err != nil {
@@ -771,7 +835,11 @@ func resolveSSEMessageEndpoint(streamURL, endpoint string) string {
 	if err != nil {
 		return ""
 	}
-	return base.ResolveReference(rel).String()
+	resolved := base.ResolveReference(rel)
+	if resolved.Scheme != base.Scheme || !strings.EqualFold(resolved.Host, base.Host) || resolved.User != nil || resolved.Fragment != "" {
+		return ""
+	}
+	return resolved.String()
 }
 
 func isJSONRPCNotification(payload interface{}) bool {

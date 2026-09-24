@@ -10,7 +10,6 @@ let speechLabProviders = [];
 let speechLabProviderLoadFailed = false;
 let speechLabPendingAction = null;
 let speechLabSavingProfile = false;
-const SPEECH_LAB_BROWSER_PORT = '8766';
 
 function speechLabEnsureData() {
     if (!configData.speech_lab) configData.speech_lab = {};
@@ -43,6 +42,7 @@ async function renderSpeechLabSection(section) {
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.speech_lab.connection')) + '</div>';
     if (data.deployment.mode !== 'managed') {
         html += speechLabField('speech_lab.base_url', data.base_url, 'url', 'config.speech_lab.base_url', 'config.speech_lab.base_url_help');
+        html += speechLabField('speech_lab.browser_backend_url', data.browser_backend_url || '', 'url', 'config.speech_lab.browser_backend_url', 'config.speech_lab.browser_backend_url_help');
     } else {
         html += '<div class="cfg-note-banner cfg-note-banner-info">' + escapeHtml(t('config.speech_lab.env_managed')) + '</div>';
     }
@@ -71,23 +71,13 @@ async function renderSpeechLabSection(section) {
 }
 
 function speechLabBrowserURL(configured) {
-    const override = String(configured || '').trim();
-    if (override) return override;
-    try {
-        const url = new URL(window.location.href);
-        if (!/^https?:$/.test(url.protocol) || !url.hostname) return '';
-        url.port = SPEECH_LAB_BROWSER_PORT;
-        url.pathname = '/';
-        url.search = '';
-        url.hash = '';
-        return url.toString();
-    } catch (_) {
-        return '';
-    }
+    return configData?.auth?.enabled === false ? '' : '/speech-lab/';
 }
 
 function speechLabWarningText(code) {
     if (code === 'advanced_ui_url_missing') return '';
+    if (code === 'browser_backend_url_missing') return t('config.speech_lab.browser_backend_url_missing');
+    if (code === 'auth_required') return t('config.speech_lab.auth_required');
     return String(code || '');
 }
 

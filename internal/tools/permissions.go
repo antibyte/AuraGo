@@ -2,7 +2,9 @@ package tools
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 
 	"aurago/internal/config"
@@ -15,6 +17,7 @@ type RuntimePermissions struct {
 	ProtectedNotesRoots        []string
 	AllowShell                 bool
 	AllowPython                bool
+	AllowUnsafeHostExecution   bool
 	AllowFilesystemWrite       bool
 	AllowNetworkRequests       bool
 	DockerEnabled              bool
@@ -74,6 +77,7 @@ func RuntimePermissionsFromConfig(cfg *config.Config) RuntimePermissions {
 		ProtectedNotesRoots:        protectedNotes,
 		AllowShell:                 cfg.Agent.AllowShell,
 		AllowPython:                cfg.Agent.AllowPython,
+		AllowUnsafeHostExecution:   cfg.Agent.AllowUnsafeHostExecution,
 		AllowFilesystemWrite:       cfg.Agent.AllowFilesystemWrite,
 		AllowNetworkRequests:       cfg.Agent.AllowNetworkRequests,
 		DockerEnabled:              cfg.Docker.Enabled,
@@ -128,7 +132,16 @@ func requireShellPermission() error {
 	if !configured {
 		return requireRuntimePermission("shell execution", false)
 	}
-	return requireRuntimePermission("shell execution", perms.AllowShell)
+	if err := requireRuntimePermission("shell execution", perms.AllowShell); err != nil {
+		return err
+	}
+	if runtime.GOOS == "windows" {
+		if !perms.AllowUnsafeHostExecution {
+			return fmt.Errorf("Windows host shell requires agent.allow_unsafe_host_execution")
+		}
+		slog.Warn("Unsafe host execution authorized", "kind", "windows_shell")
+	}
+	return nil
 }
 
 func requirePythonPermission() error {
@@ -136,7 +149,14 @@ func requirePythonPermission() error {
 	if !configured {
 		return requireRuntimePermission("python execution", false)
 	}
-	return requireRuntimePermission("python execution", perms.AllowPython)
+	if err := requireRuntimePermission("python execution", perms.AllowPython); err != nil {
+		return err
+	}
+	if !perms.AllowUnsafeHostExecution {
+		return fmt.Errorf("host Python requires agent.allow_unsafe_host_execution")
+	}
+	slog.Warn("Unsafe host execution authorized", "kind", "host_python")
+	return nil
 }
 
 func requireNetworkPermission() error {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -183,6 +184,11 @@ func TestExecuteBrowserAutomationValidatesOperationInputsBeforeSidecarRequest(t 
 
 func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
 	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"success","policy_version":"egress-v1","egress_isolated":true}`))
+			return
+		}
 		if r.URL.Path != "/automation" {
 			http.NotFound(w, r)
 			return
@@ -249,7 +255,7 @@ func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
 			t.Fatal("expected X-AuraGo-Sidecar-Token header")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"success","message":"ok","sessions":1}`))
+		_, _ = w.Write([]byte(`{"status":"success","message":"ok","sessions":1,"policy_version":"egress-v1","egress_isolated":true}`))
 	}))
 	defer srv.Close()
 
@@ -322,11 +328,27 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 func TestBrowserAutomationHTTPClientForUsesOverride(t *testing.T) {
 	override := &http.Client{Timeout: time.Second}
 	cfg := BrowserAutomationSidecarConfig{HTTPClient: override}
-	if got := browserAutomationHTTPClientFor(cfg); got != override {
-		t.Fatal("expected override client to be used")
+	if got := browserAutomationHTTPClientFor(cfg); got.Timeout != override.Timeout || got.CheckRedirect == nil {
+		t.Fatal("expected override settings with redirect protection")
 	}
-	if got := browserAutomationHTTPClientFor(BrowserAutomationSidecarConfig{}); got != browserAutomationDefaultHTTPClient {
-		t.Fatal("expected default client when no override is set")
+	if got := browserAutomationHTTPClientFor(BrowserAutomationSidecarConfig{}); got.Timeout != browserAutomationDefaultHTTPClient.Timeout || got.CheckRedirect == nil {
+		t.Fatal("expected default settings with redirect protection")
+	}
+}
+
+func TestBrowserAutomationSidecarTokenDoesNotFollowRedirect(t *testing.T) {
+	var reached bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached = true
+	}))
+	defer target.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
+	}))
+	defer source.Close()
+	_, err := browserAutomationSidecarRequest(context.Background(), BrowserAutomationSidecarConfig{URL: source.URL, AuthToken: "dummy-token"}, map[string]interface{}{"operation": "create_session"})
+	if err == nil || reached {
+		t.Fatalf("sidecar redirect err=%v target_reached=%v", err, reached)
 	}
 }
 

@@ -22,7 +22,11 @@
   "config.browser_automation.cloak_human_preset_label": "Atferdspreset",
   "help.browser_automation.cloak_human_preset": "Simuleringshastighet: 'default' (normal) eller 'careful' (tregere, mer forsiktig).",
   "config.browser_automation.cloak_proxy_label": "Proxy-URL",
-  "help.browser_automation.cloak_proxy": "Valgfri proxy-server for nettleserøkter (HTTP eller SOCKS5).",
+  "help.browser_automation.cloak_proxy": "Påkrevd adresse til filtrerende proxy på det isolerte nettverket.",
   "config.browser_automation.cloak_fingerprint_seed_label": "Fingeravtrykk-seed",
-  "help.browser_automation.cloak_fingerprint_seed": "Fast seed for deterministisk nettleser-fingeravtrykk. Nyttig for konsistent identitet på tvers av økter."
+  "help.browser_automation.cloak_fingerprint_seed": "Fast seed for deterministisk nettleser-fingeravtrykk. Nyttig for konsistent identitet på tvers av økter.",
+  "config.browser_automation.egress_network_label": "Isolert Docker-nettverk",
+  "help.browser_automation.egress_network": "Internt Docker-nettverk for nettleseren; tjenesten starter ikke uten det.",
+  "config.browser_automation.private_origins_label": "Tillatte private opphav",
+  "help.browser_automation.private_origins": "Ett nøyaktig HTTP(S)- eller WS(S)-opphav per linje. Bruk samme liste i proxyen."
 }

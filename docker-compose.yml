@@ -40,6 +40,9 @@ services:
       # installer detects these automatically; Compose deployments can set
       # AURAGO_GPU_GROUP_IDS to comma-separated render/video GIDs.
       - AURAGO_GPU_GROUP_IDS=${AURAGO_GPU_GROUP_IDS:-}
+      # Optional manual browser-automation profile: the app and sidecar must
+      # share this token. Managed sidecars derive their own token otherwise.
+      - AURAGO_BROWSER_AUTOMATION_TOKEN=${AURAGO_BROWSER_AUTOMATION_TOKEN:-}
       # Master key: prefer ./secrets/aurago_master.key mounted below or your
       # stack manager's Docker secret support. If no key exists, AuraGo
       # auto-generates one on first start and stores it in the persistent volume.
@@ -226,6 +229,9 @@ services:
     image: aurago-browser-automation:latest
     container_name: browser-automation
     restart: unless-stopped
+    depends_on:
+      browser-egress:
+        condition: service_healthy
     environment:
       - PORT=7331
       - WORKSPACE_ROOT=/workspace
@@ -237,14 +243,19 @@ services:
       # Required by default for manually started sidecars. Set a strong random token.
       # Managed AuraGo sidecars receive their token automatically from the backend.
       - AURAGO_BROWSER_AUTOMATION_TOKEN=${AURAGO_BROWSER_AUTOMATION_TOKEN:-}
-      # Development-only opt-in for isolated local testing without a token:
-      # - AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1
+      # A filtering proxy reachable on aurago-app is required; this profile
+      # remains unavailable until it is configured explicitly.
+      - AURAGO_BROWSER_EGRESS_ISOLATED=true
+      - AURAGO_BROWSER_EGRESS_PROXY=http://browser-egress:7332
+      - AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=${AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS:-[]}
       - SESSION_TTL_MINUTES=30
       - MAX_SESSIONS=3
       - VIEWPORT_WIDTH=1280
       - VIEWPORT_HEIGHT=720
     volumes:
       - aurago_workdir:/workspace
+    networks:
+      - aurago-app
     ports:
       - "127.0.0.1:7331:7331"
     shm_size: '512m'
@@ -263,6 +274,30 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  browser-egress:
+    profiles: ["browser-automation"]
+    build:
+      context: .
+      dockerfile: Dockerfile.browser_egress
+    image: aurago-browser-egress:latest
+    restart: unless-stopped
+    environment:
+      - PORT=7332
+      - AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS=${AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS:-[]}
+    networks:
+      - aurago-app
+      - default
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:7332/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   # ============================================================================
   # Ansible Sidecar  (OPTIONAL — uncomment the entire block to enable)

@@ -94,5 +94,6 @@
   "config.mcp.test_connection": "Test tilkobling",
   "config.mcp.test_connection_success": "Tilkobling OK. {count} verktøy funnet.",
   "config.mcp.test_connection_failed": "MCP-tilkoblingstest mislyktes:",
-  "config.mcp.name_command_or_url_required": "Navn og kommando eller URL kreves."
+  "config.mcp.name_command_or_url_required": "Navn og kommando eller URL kreves.",
+  "config.mcp.field_allow_private_network": "Tillat private adresser for denne MCP-serveren"
 }

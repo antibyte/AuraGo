@@ -31,17 +31,7 @@ window.IntegrationsDrawer = (function () {
     }
 
     function speechLabBrowserURL() {
-        try {
-            const url = new URL(window.location.href);
-            if (!/^https?:$/.test(url.protocol) || !url.hostname) return '';
-            url.port = '8766';
-            url.pathname = '/';
-            url.search = '';
-            url.hash = '';
-            return url.toString();
-        } catch (_) {
-            return '';
-        }
+        return '/speech-lab/';
     }
 
     function hasFreshWebhosts() {

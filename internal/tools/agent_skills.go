@@ -1416,6 +1416,9 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	var cmd *exec.Cmd
 	switch ext {
 	case ".py":
+		if err := requirePythonPermission(); err != nil {
+			return "", err
+		}
 		pythonBin := GetPythonBin(m.workspaceDir)
 		if _, err := os.Stat(pythonBin); err != nil {
 			if fallback := findSystemPython(); fallback != "" {
@@ -1427,12 +1430,18 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 		}
 		cmd = exec.CommandContext(ctx, pythonBin, "-u", filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
 	case ".sh":
+		if err := requireShellPermission(); err != nil {
+			return "", err
+		}
 		shellBin := findShellBinary()
 		if shellBin == "" {
 			return "", fmt.Errorf("shell interpreter (bash/sh) not found")
 		}
 		cmd = exec.CommandContext(ctx, shellBin, filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
 	case ".js":
+		if err := requireShellPermission(); err != nil {
+			return "", err
+		}
 		nodeBin := findNodeBinary()
 		if nodeBin == "" {
 			return "", fmt.Errorf("node.js interpreter not found")

@@ -115,6 +115,16 @@ func TestCYDSnapshotAuth(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("no token status = %d", rec.Code)
 	}
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/cyd/snapshot?token="+raw, nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("query token status = %d, want 401", rec.Code)
+	}
+	rec = httptest.NewRecorder()
+	handleCYDWebSocket(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/cyd/ws?token="+raw, nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("WebSocket query token status = %d, want 401", rec.Code)
+	}
 
 	rec = httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/cyd/snapshot", nil)

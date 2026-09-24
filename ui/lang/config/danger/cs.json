@@ -20,5 +20,7 @@
   "config.danger.mcp.title": "MCP Server připojení (mcp_call)",
   "config.danger.mcp.desc": "Umožňuje agentovi připojit se k externím MCP serverům a používat jejich nástroje. <strong style=\"color:#f87171;\">⚠ Přidejte pouze důvěryhodné servery!</strong>",
   "config.danger.sudo_unrestricted.title": "Systémový zápis přes sudo",
-  "config.danger.sudo_unrestricted.desc": "Umožňuje agentovi zapisovat mimo instalační adresář pomocí sudo (např. /etc/). Vyžaduje odstranění ProtectSystem=strict z jednotky systemd služby."
+  "config.danger.sudo_unrestricted.desc": "Umožňuje agentovi zapisovat mimo instalační adresář pomocí sudo (např. /etc/). Vyžaduje odstranění ProtectSystem=strict z jednotky systemd služby.",
+  "config.danger.unsafe_host_execution.title": "Nebezpečné spouštění na hostiteli",
+  "config.danger.unsafe_host_execution.desc": "Povolí Python přímo na hostiteli a prostředí Windows bez izolace. Zapíše se bezpečnostní upozornění; zapínejte jen vědomě."
 }

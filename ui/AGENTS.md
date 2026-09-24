@@ -93,6 +93,12 @@ worker. Keep packaging, recovery and offline instructions in
   choices unavailable and disable activation until the catalog reports them ready.
   Keep `lang/config/speech_lab/` aligned across all 16 locales and verify with
   `TestConfigSpeechLabFeedbackBrowser`.
+  Browser links remain relative `/speech-lab/`; external mode exposes the separate
+  server-side `browser_backend_url` and never links to legacy `advanced_ui_url`.
+
+- Server Config shows reverse-proxy trust independently of local HTTPS mode and
+  edits `server.https.trusted_proxy_cidrs` as a list of immediate proxy IPs or
+  CIDRs. Keep its labels in all 16 `lang/config/server/` locales.
 
 - The Chat integrations drawer omits `boring_computers` from its webhost list.
   The shared webhosts API remains available to other consumers.

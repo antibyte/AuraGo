@@ -363,7 +363,7 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 	if err != nil {
 		return false
 	}
-	content = prepareDesktopHTMLContentForEmbed(content, cfg, r.URL.Query().Get(desktopEmbedTokenParam))
+	content = prepareDesktopHTMLContentForEmbed(content, cfg, desktopTicketFromRequest(r))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", desktopWidgetWorkspaceCSP)
 	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopWidgetAutoResizeHTML(content)))
@@ -485,7 +485,7 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 		return true
 	}
 	content = inlineDesktopAppSiblingScripts(content, fullAbs)
-	embedToken := r.URL.Query().Get(desktopEmbedTokenParam)
+	embedToken := desktopTicketFromRequest(r)
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, embedToken)
 	content = rewriteDesktopAppResourceURLs(content, info.ModTime(), embedToken)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -553,12 +553,11 @@ func desktopPathWithinRoot(rootAbs, candidateAbs string) bool {
 	return true
 }
 
-func rewriteDesktopAppResourceURLs(content []byte, modTime time.Time, embedToken string) []byte {
+func rewriteDesktopAppResourceURLs(content []byte, modTime time.Time, _ string) []byte {
 	if len(content) == 0 {
 		return content
 	}
 	version := fmt.Sprintf("%d", modTime.UnixNano())
-	embedToken = strings.TrimSpace(embedToken)
 	rewritten := desktopAppResourceAttrPattern.ReplaceAllStringFunc(string(content), func(match string) string {
 		parts := desktopAppResourceAttrPattern.FindStringSubmatch(match)
 		if len(parts) != 5 {
@@ -573,9 +572,6 @@ func rewriteDesktopAppResourceURLs(content []byte, modTime time.Time, embedToken
 			separator = "&"
 		}
 		value = value + separator + "desktop_v=" + url.QueryEscape(version)
-		if embedToken != "" {
-			value += "&desktop_token=" + url.QueryEscape(embedToken)
-		}
 		return parts[1] + "=" + parts[2] + value + parts[4]
 	})
 	return []byte(rewritten)
@@ -622,9 +618,6 @@ func appendDesktopTokenToPrinterCameraProxies(content string, issueToken func(st
 		return content
 	}
 	return desktopPrinterCameraProxyPattern.ReplaceAllStringFunc(content, func(match string) string {
-		if strings.Contains(match, desktopEmbedTokenParam+"=") {
-			return match
-		}
 		parsed, err := url.Parse(match)
 		if err != nil || !isDesktopEmbedResourcePath(parsed.Path) {
 			return match
@@ -633,10 +626,7 @@ func appendDesktopTokenToPrinterCameraProxies(content string, issueToken func(st
 		if err != nil || strings.TrimSpace(token) == "" {
 			return match
 		}
-		query := parsed.Query()
-		query.Set(desktopEmbedTokenParam, token)
-		parsed.RawQuery = query.Encode()
-		return parsed.String()
+		return desktopTicketPrefix + url.PathEscape(token) + parsed.String()
 	})
 }
 

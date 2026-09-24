@@ -84,11 +84,6 @@ async function renderServerSection(section) {
             </div>
         </div>`;
 
-        html += `<div class="cfg-toggle-row">
-            <span class="cfg-toggle-label">${t('config.server.behind_proxy_label')}</span>
-            <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" onclick="toggleBool(this)"></div>
-        </div>`;
-
         if (certMode === 'auto') {
             html += `<div class="wh-notice">
                 <span>🌐</span>
@@ -178,11 +173,25 @@ async function renderServerSection(section) {
         </div>`;
     }
 
+    html += `<div class="cfg-toggle-row">
+        <span class="cfg-toggle-label">${t('config.server.behind_proxy_label')}</span>
+        <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" onclick="toggleBool(this)"></div>
+    </div>
+    <div class="field-group">
+        <div class="field-label">${t('config.server.trusted_proxy_cidrs_label')}</div>
+        <div class="field-help">${t('config.server.trusted_proxy_cidrs_hint')}</div>
+        <textarea id="server-trusted-proxy-cidrs" class="field-input" rows="2" placeholder="127.0.0.1/32, 172.18.0.2/32">${escapeHtml((https.trusted_proxy_cidrs || []).join(', '))}</textarea>
+    </div>`;
+
     html += `</div>`;
     html += `</div>`;
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+    document.getElementById('server-trusted-proxy-cidrs')?.addEventListener('input', event => {
+        setNestedValue(configData, 'server.https.trusted_proxy_cidrs', event.target.value.split(/[\s,]+/).map(value => value.trim()).filter(Boolean));
+        markDirty();
+    });
 
     if (httpsEnabled) {
         _srvRefreshCertStatus();

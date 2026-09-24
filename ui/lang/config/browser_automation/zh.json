@@ -22,7 +22,11 @@
   "config.browser_automation.cloak_human_preset_label": "行为预设",
   "help.browser_automation.cloak_human_preset": "模拟速度：'default'（正常）或 'careful'（更慢、更谨慎）。",
   "config.browser_automation.cloak_proxy_label": "代理 URL",
-  "help.browser_automation.cloak_proxy": "浏览器会话的可选代理服务器（HTTP 或 SOCKS5）。",
+  "help.browser_automation.cloak_proxy": "隔离网络中必需的过滤代理地址。",
   "config.browser_automation.cloak_fingerprint_seed_label": "指纹种子",
-  "help.browser_automation.cloak_fingerprint_seed": "确定性浏览器指纹的固定种子。有助于跨会话保持一致的标识。"
+  "help.browser_automation.cloak_fingerprint_seed": "确定性浏览器指纹的固定种子。有助于跨会话保持一致的标识。",
+  "config.browser_automation.egress_network_label": "隔离的 Docker 网络",
+  "help.browser_automation.egress_network": "浏览器使用的内部 Docker 网络；未配置时服务不会启动。",
+  "config.browser_automation.private_origins_label": "允许的私有源",
+  "help.browser_automation.private_origins": "每行填写一个准确的 HTTP(S) 或 WS(S) 源，并在代理中配置相同列表。"
 }

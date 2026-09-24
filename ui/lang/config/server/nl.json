@@ -40,6 +40,8 @@
   "config.security_proxy.status_loading": "Laden…",
   "config.security_proxy.status_unknown": "Onbekende status",
   "config.server.behind_proxy_label": "Achter Reverse Proxy",
+  "config.server.trusted_proxy_cidrs_label": "Vertrouwde proxyadressen",
+  "config.server.trusted_proxy_cidrs_hint": "Voer IP-adressen of CIDR-bereiken van de directe reverse proxy in, gescheiden door komma’s of nieuwe regels. Andere bronnen mogen geen doorgestuurde headers opgeven.",
   "config.server.cert_auto_notice": "Automatische certificaten via Let's Encrypt. Vereist een publiek bereikbaar domein en poorten 80/443.",
   "config.server.cert_custom_notice": "Gebruik je eigen TLS-certificaatbestanden (PEM-formaat). Je kunt ze hieronder uploaden of bestandspaden opgeven.",
   "config.server.cert_file_label": "Pad certificaatbestand",

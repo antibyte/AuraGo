@@ -73,23 +73,20 @@ func (s *Server) ensureCydHub() *cyd.Hub {
 	return s.CydHub
 }
 
-func cydBearerToken(r *http.Request, allowQuery bool) string {
+func cydBearerToken(r *http.Request) string {
 	auth := strings.TrimSpace(r.Header.Get("Authorization"))
 	if len(auth) >= 7 && strings.EqualFold(auth[:7], "Bearer ") {
 		return strings.TrimSpace(auth[7:])
 	}
-	if allowQuery {
-		return strings.TrimSpace(r.URL.Query().Get("token"))
-	}
 	return ""
 }
 
-func (s *Server) authorizeCYD(w http.ResponseWriter, r *http.Request, allowQuery bool) (tokenID, tokenName string, ok bool) {
+func (s *Server) authorizeCYD(w http.ResponseWriter, r *http.Request) (tokenID, tokenName string, ok bool) {
 	if s.TokenManager == nil {
 		jsonError(w, "cyd tokens are not available", http.StatusServiceUnavailable)
 		return "", "", false
 	}
-	raw := cydBearerToken(r, allowQuery)
+	raw := cydBearerToken(r)
 	if raw == "" {
 		jsonError(w, "unauthorized", http.StatusUnauthorized)
 		return "", "", false
@@ -192,7 +189,7 @@ func handleCYDSnapshot(s *Server) http.HandlerFunc {
 			jsonError(w, "cyd is disabled", http.StatusNotFound)
 			return
 		}
-		tokenID, name, ok := s.authorizeCYD(w, r, false)
+		tokenID, name, ok := s.authorizeCYD(w, r)
 		if !ok {
 			return
 		}
@@ -218,7 +215,7 @@ func handleCYDHeartbeat(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		tokenID, name, ok := s.authorizeCYD(w, r, false)
+		tokenID, name, ok := s.authorizeCYD(w, r)
 		if !ok {
 			return
 		}
@@ -236,7 +233,7 @@ func handleCYDAck(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if _, _, ok := s.authorizeCYD(w, r, false); !ok {
+		if _, _, ok := s.authorizeCYD(w, r); !ok {
 			return
 		}
 		var body struct {
@@ -443,7 +440,7 @@ func handleCYDSpeak(s *Server) http.HandlerFunc {
 			jsonError(w, "cyd is disabled", http.StatusNotFound)
 			return
 		}
-		if _, _, ok := s.authorizeCYD(w, r, true); !ok {
+		if _, _, ok := s.authorizeCYD(w, r); !ok {
 			return
 		}
 		id := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/cyd/speak/"), "/")
@@ -516,7 +513,7 @@ func handleCYDWebSocket(s *Server) http.HandlerFunc {
 			jsonError(w, "cyd is disabled", http.StatusNotFound)
 			return
 		}
-		tokenID, name, ok := s.authorizeCYD(w, r, true)
+		tokenID, name, ok := s.authorizeCYD(w, r)
 		if !ok {
 			return
 		}

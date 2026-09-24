@@ -411,6 +411,9 @@ type StartOptions struct {
 
 func Start(opts StartOptions) error {
 	cfg := opts.Cfg
+	if err := validateRemoteAuthExposure(cfg); err != nil {
+		return err
+	}
 	logger := opts.Logger
 	llmClient := opts.LLMClient
 	shortTermMem := opts.ShortTermMem
@@ -1564,7 +1567,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	// Apply security headers (relaxed for HTTP, but still present).
 	// Gzip sits outside access logging so static UI assets compress for clients
 	// without wrapping WebSocket/SSE (those are skipped inside gzipMiddleware).
-	handler := panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))
+	handler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))))
 
 	server := newAgentHTTPServer(addr, handler)
 
@@ -1577,7 +1580,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
 
 	// Apply security headers (strict for HTTPS)
-	handler := panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))
+	handler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, gzipMiddleware(accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)))))
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {
@@ -1724,7 +1727,11 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			w.Header().Set("X-Frame-Options", "DENY")
 		}
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		if desktopTicketFromRequest(r) != "" {
+			w.Header().Set("Referrer-Policy", "no-referrer")
+		} else {
+			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		}
 
 		// Content Security Policy
 		// NOTE: unsafe-inline is still required by legacy inline SPA handlers/styles.
@@ -1747,6 +1754,12 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			"frame-ancestors 'none'; " +
 			"base-uri 'self';"
 		w.Header().Set("Content-Security-Policy", csp)
+		if path == "/" {
+			// Measure the main UI's remaining inline usage without breaking legacy controls.
+			reportOnly := strings.Replace(csp, "script-src 'self' 'unsafe-inline'", "script-src 'self'", 1)
+			reportOnly = strings.Replace(reportOnly, "style-src 'self' 'unsafe-inline'", "style-src 'self'", 1)
+			w.Header().Set("Content-Security-Policy-Report-Only", reportOnly)
+		}
 
 		if tlsActive {
 			// Strict Transport Security (only for HTTPS)

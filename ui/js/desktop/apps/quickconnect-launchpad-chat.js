@@ -1373,9 +1373,9 @@
     async function desktopEmbedURL(path, params) {
         const body = await api('/api/desktop/embed-token?path=' + encodeURIComponent(path));
         const query = new URLSearchParams(params || {});
-        if (body.token) query.set('desktop_token', body.token);
         const suffix = query.toString();
-        return desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        const ticketPath = body.token ? '/desktop-ticket/' + encodeURIComponent(body.token) : '';
+        return ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
     }
 
     async function ensureDesktopEmbedHasContent(src) {

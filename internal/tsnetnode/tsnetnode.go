@@ -1845,7 +1845,8 @@ func (m *Manager) reconfigureExposure(ctx context.Context, handler http.Handler)
 	wantMain := cfg.Tailscale.TsNet.ServeHTTP
 	wantFunnel := wantMain && cfg.Tailscale.TsNet.Funnel
 	wantHomepage := cfg.Tailscale.TsNet.ExposeHomepage && cfg.Homepage.WebServerEnabled && cfg.Homepage.WebServerPort > 0
-	wantSpeechLab := cfg.Tailscale.TsNet.Enabled && cfg.SpeechLab.Enabled && cfg.SpeechLab.Managed && cfg.SpeechLab.Port > 0
+	// Browser Lab is now served only by the authenticated main AuraGo listener.
+	wantSpeechLab := false
 	wantManifest := cfg.Tailscale.TsNet.ExposeManifest && cfg.Manifest.Enabled && cfg.Manifest.Port > 0
 	wantSpaceAgent := cfg.Tailscale.TsNet.ExposeSpaceAgent && cfg.SpaceAgent.Enabled && cfg.SpaceAgent.Port > 0
 	desiredManifestHost := m.effectiveManifestHostname()
@@ -2279,7 +2280,7 @@ func (m *Manager) retrySpeechLabExposure() {
 		time.Sleep(speechLabExposureRetryDelay)
 		cfg := m.configSnapshot()
 		m.mu.Lock()
-		wanted := m.running && m.server != nil && !m.speechLabUp && cfg.Tailscale.TsNet.Enabled && cfg.SpeechLab.Enabled && cfg.SpeechLab.Managed && cfg.SpeechLab.Port > 0
+		wanted := false
 		srv := m.server
 		m.mu.Unlock()
 		if !wanted {

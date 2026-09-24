@@ -43,7 +43,7 @@ func TestServeDesktopExactIndexFileInlinesSiblingScripts(t *testing.T) {
 	}
 }
 
-func TestServeDesktopExactIndexFileInjectsEmbedTokenIntoSiblingAssets(t *testing.T) {
+func TestServeDesktopExactIndexFileKeepsSiblingAssetsUnderTicketPath(t *testing.T) {
 	t.Parallel()
 
 	desktopDir := t.TempDir()
@@ -60,19 +60,21 @@ func TestServeDesktopExactIndexFileInjectsEmbedTokenIntoSiblingAssets(t *testing
 		t.Fatalf("issueDesktopEmbedToken: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Apps/nasscad/index.html?desktop_token="+token, nil)
+	req := httptest.NewRequest(http.MethodGet, desktopTicketPrefix+token+"/files/desktop/Apps/nasscad/index.html", nil)
 	req.Host = "aurago.example.test"
 	req.TLS = &tls.ConnectionState{}
 	rec := httptest.NewRecorder()
-	if !serveDesktopExactIndexFile(rec, req, desktopDir, nil) {
-		t.Fatal("expected exact desktop index file to be served")
-	}
+	desktopTicketMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !serveDesktopExactIndexFile(w, r, desktopDir, nil) {
+			t.Error("expected exact desktop index file to be served")
+		}
+	})).ServeHTTP(rec, req)
 	body := rec.Body.String()
 	if !strings.Contains(body, `href="app.css?desktop_v=`) {
 		t.Fatalf("app.css URL was not cache-busted: %q", body)
 	}
-	if !strings.Contains(body, "desktop_token=") {
-		t.Fatalf("app.css URL did not inherit desktop embed token: %q", body)
+	if strings.Contains(body, "desktop_token=") || strings.Contains(body, token) {
+		t.Fatalf("app.css URL disclosed desktop ticket: %q", body)
 	}
 	csp := rec.Header().Get("Content-Security-Policy")
 	if !strings.Contains(csp, "script-src https://aurago.example.test") {

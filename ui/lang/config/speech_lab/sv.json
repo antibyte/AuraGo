@@ -1,4 +1,6 @@
 {
+  "config.speech_lab.auth_required": "Aktivera inloggning i AuraGo för att öppna Speech Lab i webbläsaren.",
+  "config.speech_lab.browser_backend_url_missing": "Konfigurera speech_lab.browser_backend_url för en extern Speech Lab-installation.",
   "config.speech_lab.action_running": "Pågår: {action}…",
   "config.speech_lab.action_done": "{action}: klart.",
   "config.speech_lab.action_failed": "{action}: misslyckades. {error}",
@@ -91,5 +93,7 @@
   "config.speech_lab.external_hardware_title": "Externt hanterat Speech Lab",
   "config.speech_lab.external_hardware_help": "AuraGo kan inte ändra en externt startad s2s-stack. Ställ in profilen i dess Compose- eller startkonfiguration.",
   "config.speech_lab.external_hardware_unset": "måste vara borttagen",
-  "config.speech_lab.external_hardware_linux": "För AMD på Linux: använd S2S_GPU=auto eller S2S_GPU=vulkan, ta bort GGML_BACKEND=CPU och aktivera Linux GPU Compose-overlayen."
+  "config.speech_lab.external_hardware_linux": "För AMD på Linux: använd S2S_GPU=auto eller S2S_GPU=vulkan, ta bort GGML_BACKEND=CPU och aktivera Linux GPU Compose-overlayen.",
+  "config.speech_lab.browser_backend_url": "Adress till webbläsarbackend",
+  "config.speech_lab.browser_backend_url_help": "Adress till webbgränssnittet för ett externt Speech Lab. Endast AuraGo-servern ansluter."
 }

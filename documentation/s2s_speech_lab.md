@@ -26,7 +26,7 @@ speech_lab:
 
 `use_for_sip`, `use_for_chat_voice`, and the former free-form `voice` value remain load-compatible for older configuration files. The voice value is ignored and removed on the next UI save because voice is owned by the active Speech Lab stack. API paths are fixed by contract and are not configurable.
 
-`AURAGO_SPEECH_LAB_BASE_URL` overrides `base_url` at runtime without rewriting YAML. The configuration UI marks the URL as environment-managed. AuraGo automatically opens the Browser Lab on `http://<current AuraGo host>:8766`; users do not have to discover or enter that address. `advanced_ui_url` remains an expert-only YAML override for non-standard reverse proxies or port mappings.
+`AURAGO_SPEECH_LAB_BASE_URL` overrides `base_url` at runtime without rewriting YAML. The configuration UI marks the URL as environment-managed. The Browser Lab opens at the signed-in AuraGo path `/speech-lab/`. In external mode, an administrator configures the separate `speech_lab.browser_backend_url`; the legacy `advanced_ui_url` remains load-compatible but never becomes a browser link.
 
 In managed mode, choose the hardware profile in **Media → Speech Lab**. `Auto` uses Vulkan when `/dev/dri` is available and otherwise falls back to CPU. Choose `CUDA` for NVIDIA, `Vulkan` for AMD or Intel, and `CPU` for compatibility tests. AuraGo never accepts arbitrary backend environment variables. CUDA uses a Docker NVIDIA GPU request; on Linux, managed Vulkan containers receive `/dev/dri` and validated numeric `render`/`video` group IDs when available. The runtime capability remains authoritative.
 
@@ -34,7 +34,7 @@ The signed bundle's default ASR is [Confucius4-R2T2 GGUF](https://huggingface.co
 
 External stacks are not changed by AuraGo. Set `S2S_GPU=auto` or `S2S_GPU=vulkan` in the s2s stack, remove `GGML_BACKEND=CPU`, and use the Linux GPU Compose overlay where applicable.
 
-Only credential-free HTTP(S) URLs without query or fragment are accepted. AuraGo resolves and connects only to loopback or private network addresses. It does not provide a general Speech Lab proxy.
+Only credential-free HTTP(S) URLs without query or fragment are accepted. AuraGo resolves and connects only to loopback or private network addresses. The Browser Lab proxy has a fixed path and configuration-owned target; it requires an AuraGo admin session even when general authentication is disabled.
 
 ## Channel selection
 
@@ -61,9 +61,9 @@ Every telephone call snapshots its selected providers, language, the active Spee
 
 AuraGo never sends `llm_id`. It validates backend IDs and voices against the catalog, checks the stack response `ok` field, and then checks `/ready`. A stack change is rejected while a Speech Lab operation or SIP call is active.
 
-The native configuration page under **Media → Speech Lab** displays connectivity, readiness, the active `ASR + TTS + voice` combination, capability, recommendations, and stable available catalog entries. Voice is selected only from the chosen TTS backend's `voices` or `default_voice` catalog values. The Browser Lab and AuraGo stack editor both update the same s2s runtime stack; the next refresh or preflight observes either change. Experimental entries require an explicit visible filter. Downloads, Hugging Face tokens, benchmarks, and expert model management stay in the Speech Lab UI. AuraGo derives its link from the current browser host and the standard Lab port `8766`.
+The native configuration page under **Media → Speech Lab** displays connectivity, readiness, the active `ASR + TTS + voice` combination, capability, recommendations, and stable available catalog entries. Voice is selected only from the chosen TTS backend's `voices` or `default_voice` catalog values. The Browser Lab and AuraGo stack editor both update the same s2s runtime stack; the next refresh or preflight observes either change. Experimental entries require an explicit visible filter. Downloads, Hugging Face tokens, benchmarks, and expert model management stay in the Speech Lab UI. The browser link is always `/speech-lab/`.
 
-When Speech Lab is enabled, the chat integrations drawer shows it as running, starting, or offline and opens the automatically derived Browser Lab URL. An expert `advanced_ui_url` override takes precedence when configured.
+When Speech Lab is enabled, the chat integrations drawer shows it as running, starting, or offline and opens `/speech-lab/`. The legacy `advanced_ui_url` does not override this link.
 
 ## s2s contract
 
@@ -134,14 +134,10 @@ cleanup.
 
 Containerized AuraGo should use [the Docker network overlay](../deploy/docker/docker-compose.s2s.yml). Port 8765 stays inside the shared Docker network and is not published to the LAN.
 
-The s2s Browser Lab uses host port `8766` in the AuraGo deployment (`WEB_PORT=8766`). AuraGo derives this browser-facing address from the hostname or IP through which the user opened AuraGo.
+The standalone s2s Browser Lab binds `127.0.0.1:${WEB_PORT:-8088}`; its controller has no published host port. Remote browsers reach the Lab solely through AuraGo's authenticated `/speech-lab/` path. In external mode, set `speech_lab.browser_backend_url` to `http://s2s-web:80` when AuraGo shares the s2s Docker network.
 
 For a native AuraGo process, managed mode publishes only `127.0.0.1:8765` and
-`127.0.0.1:8766`; AuraGo derives both addresses. When the embedded Tailscale
-node is enabled, AuraGo additionally exposes the Browser Lab through its own
-TLS listener on Tailscale port `8766`, reverse-proxied to the loopback web
-container. No LAN interface is opened. External mode can still use
-the optional host overlay and an explicit `base_url: http://127.0.0.1:8765`.
+`127.0.0.1:8766`. Tailscale uses the same AuraGo `/speech-lab/` route; it has no separate port 8766 listener. External mode can still use the optional host overlay and an explicit `base_url: http://127.0.0.1:8765`, with a separately configured `browser_backend_url`.
 
 For production chat or telephony, configure:
 

@@ -54,27 +54,29 @@ type BrowserAutomationRequest struct {
 }
 
 type BrowserAutomationSidecarConfig struct {
-	URL                  string
-	Image                string
-	ContainerName        string
-	AuthToken            string
-	HTTPClient           *http.Client
-	AutoBuild            bool
-	DockerfileDir        string
-	SessionTTL           int
-	MaxSessions          int
-	Headless             bool
-	AllowUploads         bool
-	AllowDownloads       bool
-	ReadOnly             bool
-	WorkspaceDir         string
-	DownloadDir          string
-	ViewportWidth        int
-	ViewportHeight       int
-	CloakHumanize        bool
-	CloakHumanPreset     string
-	CloakProxy           string
-	CloakFingerprintSeed string
+	URL                   string
+	Image                 string
+	ContainerName         string
+	AuthToken             string
+	HTTPClient            *http.Client
+	AutoBuild             bool
+	DockerfileDir         string
+	SessionTTL            int
+	MaxSessions           int
+	Headless              bool
+	AllowUploads          bool
+	AllowDownloads        bool
+	ReadOnly              bool
+	WorkspaceDir          string
+	DownloadDir           string
+	ViewportWidth         int
+	ViewportHeight        int
+	CloakHumanize         bool
+	CloakHumanPreset      string
+	CloakProxy            string
+	EgressNetwork         string
+	AllowedPrivateOrigins []string
+	CloakFingerprintSeed  string
 }
 
 var browserAutomationDefaultHTTPClient = &http.Client{Timeout: 60 * time.Second}
@@ -87,10 +89,13 @@ var browserAutomationRetryDelays = []time.Duration{
 }
 
 func browserAutomationHTTPClientFor(cfg BrowserAutomationSidecarConfig) *http.Client {
+	base := browserAutomationDefaultHTTPClient
 	if cfg.HTTPClient != nil {
-		return cfg.HTTPClient
+		base = cfg.HTTPClient
 	}
-	return browserAutomationDefaultHTTPClient
+	client := *base
+	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+	return &client
 }
 
 func browserAutomationJSON(result map[string]interface{}) string {
@@ -345,6 +350,9 @@ func browserAutomationDefaultScreenshotRel(req BrowserAutomationRequest) string 
 }
 
 func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationSidecarConfig, payload map[string]interface{}) (map[string]interface{}, error) {
+	if strings.TrimSpace(cfg.AuthToken) == "" {
+		return nil, fmt.Errorf("browser automation requires a sidecar token")
+	}
 	baseURL := strings.TrimRight(strings.TrimSpace(cfg.URL), "/")
 	if baseURL == "" {
 		return nil, fmt.Errorf("browser automation URL is not configured")
@@ -444,6 +452,9 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 			result["message"] = fmt.Sprintf("sidecar health returned HTTP %d", resp.StatusCode)
 		}
 	}
+	if result["policy_version"] != "egress-v1" || result["egress_isolated"] != true {
+		return map[string]interface{}{"status": "error", "message": "sidecar does not attest the required egress policy"}
+	}
 	return result
 }
 
@@ -488,6 +499,10 @@ func browserAutomationAuthToken(cfg *config.Config) string {
 	if cfg == nil {
 		return ""
 	}
+	if token := strings.TrimSpace(os.Getenv("AURAGO_BROWSER_AUTOMATION_TOKEN")); token != "" {
+		security.RegisterSensitive(token)
+		return token
+	}
 	masterKey := strings.TrimSpace(cfg.Server.MasterKey)
 	if masterKey == "" {
 		return ""
@@ -510,26 +525,28 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 	}
 	runningInDocker := cfg.Runtime.IsDocker || browserAutomationRunsInDocker()
 	return BrowserAutomationSidecarConfig{
-		URL:                  config.NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", browserAutomationContainerPort),
-		Image:                cfg.BrowserAutomation.Image,
-		ContainerName:        cfg.BrowserAutomation.ContainerName,
-		AuthToken:            browserAutomationAuthToken(cfg),
-		AutoBuild:            cfg.BrowserAutomation.AutoBuild,
-		DockerfileDir:        cfg.BrowserAutomation.DockerfileDir,
-		SessionTTL:           cfg.BrowserAutomation.SessionTTLMinutes,
-		MaxSessions:          cfg.BrowserAutomation.MaxSessions,
-		Headless:             cfg.BrowserAutomation.Headless,
-		AllowUploads:         cfg.BrowserAutomation.AllowFileUploads,
-		AllowDownloads:       cfg.BrowserAutomation.AllowFileDownloads,
-		ReadOnly:             cfg.BrowserAutomation.ReadOnly,
-		WorkspaceDir:         workspaceRoot,
-		DownloadDir:          downloadsRoot,
-		ViewportWidth:        cfg.BrowserAutomation.Viewport.Width,
-		ViewportHeight:       cfg.BrowserAutomation.Viewport.Height,
-		CloakHumanize:        cfg.BrowserAutomation.CloakHumanize,
-		CloakHumanPreset:     cfg.BrowserAutomation.CloakHumanPreset,
-		CloakProxy:           cfg.BrowserAutomation.CloakProxy,
-		CloakFingerprintSeed: cfg.BrowserAutomation.CloakFingerprintSeed,
+		URL:                   config.NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", browserAutomationContainerPort),
+		Image:                 cfg.BrowserAutomation.Image,
+		ContainerName:         cfg.BrowserAutomation.ContainerName,
+		AuthToken:             browserAutomationAuthToken(cfg),
+		AutoBuild:             cfg.BrowserAutomation.AutoBuild,
+		DockerfileDir:         cfg.BrowserAutomation.DockerfileDir,
+		SessionTTL:            cfg.BrowserAutomation.SessionTTLMinutes,
+		MaxSessions:           cfg.BrowserAutomation.MaxSessions,
+		Headless:              cfg.BrowserAutomation.Headless,
+		AllowUploads:          cfg.BrowserAutomation.AllowFileUploads,
+		AllowDownloads:        cfg.BrowserAutomation.AllowFileDownloads,
+		ReadOnly:              cfg.BrowserAutomation.ReadOnly,
+		WorkspaceDir:          workspaceRoot,
+		DownloadDir:           downloadsRoot,
+		ViewportWidth:         cfg.BrowserAutomation.Viewport.Width,
+		ViewportHeight:        cfg.BrowserAutomation.Viewport.Height,
+		CloakHumanize:         cfg.BrowserAutomation.CloakHumanize,
+		CloakHumanPreset:      cfg.BrowserAutomation.CloakHumanPreset,
+		CloakProxy:            cfg.BrowserAutomation.CloakProxy,
+		EgressNetwork:         cfg.BrowserAutomation.EgressNetwork,
+		AllowedPrivateOrigins: cfg.BrowserAutomation.AllowedPrivateOrigins,
+		CloakFingerprintSeed:  cfg.BrowserAutomation.CloakFingerprintSeed,
 	}, nil
 }
 
@@ -607,6 +624,9 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 		payload["download_name"] = req.DownloadName
 	}
 
+	if health := BrowserAutomationHealth(ctx, cfg); health["status"] != "success" {
+		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "browser automation egress policy is unavailable"})
+	}
 	resp, err := browserAutomationSidecarRequest(ctx, sidecarCfg, payload)
 	if err != nil {
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": err.Error()})
@@ -665,8 +685,16 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		logger.Info("[BrowserAutomation] Skipping auto-start because sidecar URL points to an external/container service", "url", sidecarCfg.URL)
 		return
 	}
+	if sidecarCfg.AuthToken == "" || sidecarCfg.CloakProxy == "" || sidecarCfg.EgressNetwork == "" {
+		logger.Error("[BrowserAutomation] Managed sidecar requires a token, filtering proxy, and internal egress network")
+		return
+	}
 
 	dockerCfg := DockerConfig{Host: dockerHost}
+	if !browserAutomationInternalNetwork(dockerCfg, sidecarCfg.EgressNetwork) {
+		logger.Error("[BrowserAutomation] Egress network is missing or is not Docker-internal", "network", sidecarCfg.EgressNetwork)
+		return
+	}
 
 	image := sidecarCfg.Image
 	if image == "" {
@@ -682,6 +710,11 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	if code == 200 {
 		var info map[string]interface{}
 		if json.Unmarshal(data, &info) == nil {
+			host, _ := info["HostConfig"].(map[string]interface{})
+			if host["NetworkMode"] != sidecarCfg.EgressNetwork {
+				logger.Error("[BrowserAutomation] Existing sidecar uses an untrusted network")
+				return
+			}
 			if state, ok := info["State"].(map[string]interface{}); ok {
 				if running, _ := state["Running"].(bool); running {
 					logger.Info("[BrowserAutomation] Sidecar container already running")
@@ -732,9 +765,12 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		fmt.Sprintf("CLOAK_HUMANIZE=%t", sidecarCfg.CloakHumanize),
 		fmt.Sprintf("CLOAK_HUMAN_PRESET=%s", sidecarCfg.CloakHumanPreset),
 	}
-	if sidecarCfg.CloakProxy != "" {
-		env = append(env, "CLOAK_PROXY="+sidecarCfg.CloakProxy)
-	}
+	allowedPrivateOrigins, _ := json.Marshal(sidecarCfg.AllowedPrivateOrigins)
+	env = append(env,
+		"AURAGO_BROWSER_EGRESS_ISOLATED=true",
+		"AURAGO_BROWSER_EGRESS_PROXY="+sidecarCfg.CloakProxy,
+		"AURAGO_BROWSER_ALLOWED_PRIVATE_ORIGINS="+string(allowedPrivateOrigins),
+	)
 	if sidecarCfg.CloakFingerprintSeed != "" {
 		env = append(env, "CLOAK_FINGERPRINT_SEED="+sidecarCfg.CloakFingerprintSeed)
 	}
@@ -748,17 +784,13 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): struct{}{},
 		},
 	}
+	hostConfig["NetworkMode"] = sidecarCfg.EgressNetwork
 	if browserAutomationIsLoopbackHost(managedHost) {
 		hostConfig["PortBindings"] = map[string]interface{}{
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", browserAutomationContainerPort)}},
 		}
 	} else {
-		networkName, networkErr := browserAutomationCurrentContainerNetwork(dockerCfg)
-		if networkErr != nil {
-			logger.Error("[BrowserAutomation] Failed to resolve current Docker network for managed sidecar", "error", networkErr, "url", sidecarCfg.URL)
-			return
-		}
-		hostConfig["NetworkMode"] = networkName
+		networkName := sidecarCfg.EgressNetwork
 		payload["NetworkingConfig"] = map[string]interface{}{
 			"EndpointsConfig": map[string]interface{}{
 				networkName: map[string]interface{}{
@@ -779,6 +811,17 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		return
 	}
 	logger.Info("[BrowserAutomation] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+func browserAutomationInternalNetwork(dockerCfg DockerConfig, name string) bool {
+	data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/networks/"+url.PathEscape(name), "")
+	if err != nil || code != http.StatusOK {
+		return false
+	}
+	var info struct {
+		Internal bool `json:"Internal"`
+	}
+	return json.Unmarshal(data, &info) == nil && info.Internal
 }
 
 func browserAutomationManagedHostConfig(sidecarCfg BrowserAutomationSidecarConfig) map[string]interface{} {

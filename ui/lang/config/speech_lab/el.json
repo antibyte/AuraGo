@@ -1,4 +1,6 @@
 {
+  "config.speech_lab.auth_required": "Ενεργοποίησε τη σύνδεση στο AuraGo για να ανοίξεις το Speech Lab στο πρόγραμμα περιήγησης.",
+  "config.speech_lab.browser_backend_url_missing": "Ρύθμισε το speech_lab.browser_backend_url για εξωτερική εγκατάσταση Speech Lab.",
   "config.speech_lab.action_running": "Σε εξέλιξη: {action}…",
   "config.speech_lab.action_done": "{action}: ολοκληρώθηκε.",
   "config.speech_lab.action_failed": "{action}: απέτυχε. {error}",
@@ -91,5 +93,7 @@
   "config.speech_lab.external_hardware_title": "Speech Lab υπό εξωτερική διαχείριση",
   "config.speech_lab.external_hardware_help": "Το AuraGo δεν μπορεί να αλλάξει μια εξωτερικά εκκινημένη στοίβα s2s. Ρυθμίστε το προφίλ στη διαμόρφωση Compose ή εκκίνησής της.",
   "config.speech_lab.external_hardware_unset": "δεν πρέπει να οριστεί",
-  "config.speech_lab.external_hardware_linux": "Για AMD σε Linux: χρησιμοποιήστε S2S_GPU=auto ή S2S_GPU=vulkan, αφαιρέστε το GGML_BACKEND=CPU και ενεργοποιήστε το Linux GPU Compose overlay."
+  "config.speech_lab.external_hardware_linux": "Για AMD σε Linux: χρησιμοποιήστε S2S_GPU=auto ή S2S_GPU=vulkan, αφαιρέστε το GGML_BACKEND=CPU και ενεργοποιήστε το Linux GPU Compose overlay.",
+  "config.speech_lab.browser_backend_url": "Διεύθυνση backend προγράμματος περιήγησης",
+  "config.speech_lab.browser_backend_url_help": "Διεύθυνση της διεπαφής ιστού του εξωτερικού Speech Lab. Χρησιμοποιείται μόνο από τον διακομιστή AuraGo."
 }

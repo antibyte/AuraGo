@@ -20,5 +20,7 @@
   "config.danger.mcp.title": "Connessioni Server MCP (mcp_call)",
   "config.danger.mcp.desc": "Permette all'agente di connettersi a server MCP esterni e usare i loro tool. <strong style=\"color:#f87171;\">⚠ Aggiungi solo server fidati!</strong>",
   "config.danger.sudo_unrestricted.title": "Accesso di Scrittura Sudo a Livello di Sistema",
-  "config.danger.sudo_unrestricted.desc": "Consente all'agente di scrivere al di fuori della directory di installazione utilizzando sudo (ad es. /etc.). Richiede la rimozione di ProtectSystem=strict dall'unità di servizio systemd."
+  "config.danger.sudo_unrestricted.desc": "Consente all'agente di scrivere al di fuori della directory di installazione utilizzando sudo (ad es. /etc.). Richiede la rimozione di ProtectSystem=strict dall'unità di servizio systemd.",
+  "config.danger.unsafe_host_execution.title": "Esecuzione non isolata sull’host",
+  "config.danger.unsafe_host_execution.desc": "Consente Python sull’host e la shell di Windows senza isolamento. Ogni utilizzo viene registrato come avviso di sicurezza."
 }

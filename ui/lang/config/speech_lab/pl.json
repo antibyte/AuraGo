@@ -1,4 +1,6 @@
 {
+  "config.speech_lab.auth_required": "Włącz logowanie do AuraGo, aby otworzyć Speech Lab w przeglądarce.",
+  "config.speech_lab.browser_backend_url_missing": "Skonfiguruj speech_lab.browser_backend_url dla zewnętrznej instalacji Speech Lab.",
   "config.speech_lab.action_running": "W toku: {action}…",
   "config.speech_lab.action_done": "{action}: ukończono.",
   "config.speech_lab.action_failed": "{action}: niepowodzenie. {error}",
@@ -91,5 +93,7 @@
   "config.speech_lab.external_hardware_title": "Speech Lab zarządzany zewnętrznie",
   "config.speech_lab.external_hardware_help": "AuraGo nie może zmieniać zewnętrznie uruchomionego stosu s2s. Ustaw profil w konfiguracji Compose lub startowej.",
   "config.speech_lab.external_hardware_unset": "musi być nieustawione",
-  "config.speech_lab.external_hardware_linux": "Dla AMD w systemie Linux użyj S2S_GPU=auto lub S2S_GPU=vulkan, usuń GGML_BACKEND=CPU i włącz nakładkę Linux GPU Compose."
+  "config.speech_lab.external_hardware_linux": "Dla AMD w systemie Linux użyj S2S_GPU=auto lub S2S_GPU=vulkan, usuń GGML_BACKEND=CPU i włącz nakładkę Linux GPU Compose.",
+  "config.speech_lab.browser_backend_url": "Adres zaplecza przeglądarki",
+  "config.speech_lab.browser_backend_url_help": "Adres interfejsu WWW zewnętrznego Speech Lab. Łączy się z nim tylko serwer AuraGo."
 }

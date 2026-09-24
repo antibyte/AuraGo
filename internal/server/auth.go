@@ -236,7 +236,7 @@ func validDesktopEmbedToken(r *http.Request, secret string, now time.Time) bool 
 	if r == nil || !strings.HasPrefix(r.URL.Path, "/files/desktop/") {
 		return false
 	}
-	payload, ok := parseDesktopEmbedToken(r.URL.Query().Get(desktopEmbedTokenParam), secret, now)
+	payload, ok := parseDesktopEmbedToken(desktopTicketFromRequest(r), secret, now)
 	if !ok {
 		return false
 	}
@@ -251,7 +251,7 @@ func validDesktopEmbedAppSiblingToken(r *http.Request, secret string, now time.T
 	if r == nil || !strings.HasPrefix(r.URL.Path, "/files/desktop/") {
 		return false
 	}
-	payload, ok := parseDesktopEmbedToken(r.URL.Query().Get(desktopEmbedTokenParam), secret, now)
+	payload, ok := parseDesktopEmbedToken(desktopTicketFromRequest(r), secret, now)
 	if !ok {
 		return false
 	}
@@ -292,7 +292,7 @@ func validDesktopEmbedResourceToken(r *http.Request, secret string, now time.Tim
 	if r == nil || !isSafeMethod(r.Method) || !isDesktopEmbedResourcePath(r.URL.Path) {
 		return false
 	}
-	token := strings.TrimSpace(r.URL.Query().Get(desktopEmbedTokenParam))
+	token := desktopTicketFromRequest(r)
 	payload, ok := parseDesktopEmbedToken(token, secret, now)
 	if !ok {
 		return false
@@ -636,21 +636,17 @@ func LoginBackoffDelay(keys ...string) time.Duration {
 }
 
 // ClientIP extracts the real client IP from the request.
-// When behindProxy is true the X-Forwarded-For header is consulted first;
-// otherwise only r.RemoteAddr is used to prevent IP spoofing by untrusted clients.
+// Forwarded addresses are accepted only after trustedProxyMiddleware verified
+// the immediate peer; behindProxy alone never grants that trust.
 func ClientIP(r *http.Request, behindProxy bool) string {
-	if behindProxy {
+	if behindProxy && trustedForwardedRequest(r) {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			if ip := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0]); ip != "" {
-				return ip
+			if ip := net.ParseIP(strings.TrimSpace(xff)); ip != nil {
+				return ip.String()
 			}
 		}
 	}
-	ip := r.RemoteAddr
-	if idx := strings.LastIndex(ip, ":"); idx > 0 {
-		return ip[:idx]
-	}
-	return ip
+	return remoteIP(r.RemoteAddr)
 }
 
 // ── Auth Middleware ──────────────────────────────────────────────────────────
@@ -685,7 +681,7 @@ var authBypassPrefixes = []string{
 	"/api/cyd/snapshot",                // CYD device snapshot — Bearer scope cyd
 	"/api/cyd/heartbeat",               // CYD device heartbeat — Bearer scope cyd
 	"/api/cyd/ack",                     // CYD overlay dismiss — Bearer scope cyd
-	"/api/cyd/ws",                      // CYD WebSocket — Bearer or ?token= scope cyd
+	"/api/cyd/ws",                      // CYD WebSocket — Bearer scope cyd
 	"/api/cyd/speak/",                  // CYD sanoTTS PCM — Bearer scope cyd
 	"/setup",
 	"/css/",
@@ -873,8 +869,13 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		if strings.HasPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ") &&
-			(isAdminProtectedPath(r.URL.Path) || isDesktopScopedAPIPath(r.URL.Path) || strings.HasPrefix(r.URL.Path, "/api/go2rtc/")) {
+		if raw, present := bearerCredential(r.Header.Get("Authorization")); present {
+			if !validRouteBearer(s, raw, r.URL.Path, r.Method) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{"error":"invalid_bearer_scope"}`))
+				return
+			}
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -998,39 +999,45 @@ func checkCSRFOriginWithPolicy(r *http.Request, requireOriginHeader bool) bool {
 			return false
 		}
 		parsedReferer, err := url.Parse(referer)
-		if err != nil || parsedReferer.Host == "" {
-			return false
-		}
-		// Defensive: also check scheme to prevent HTTP-downgrade attacks via Referer.
-		// If the request is HTTPS but the Referer is HTTP, reject it.
-		if r.TLS != nil && parsedReferer.Scheme == "http" {
-			return false
-		}
-		serverHost := r.Header.Get("X-Forwarded-Host")
-		if serverHost == "" {
-			serverHost = r.Host
-		}
-		return strings.EqualFold(parsedReferer.Host, serverHost)
+		return err == nil && requestOriginMatches(r, parsedReferer.Scheme+"://"+parsedReferer.Host)
 	}
+	return requestOriginMatches(r, originHeader)
+}
 
-	parsed, err := url.Parse(originHeader)
-	if err != nil || parsed.Host == "" {
-		// Malformed Origin header — reject.
+func bearerCredential(header string) (string, bool) {
+	fields := strings.Fields(strings.TrimSpace(header))
+	if len(fields) == 0 || !strings.EqualFold(fields[0], "Bearer") {
+		return "", false
+	}
+	if len(fields) != 2 {
+		return "", true
+	}
+	return fields[1], true
+}
+
+func validRouteBearer(s *Server, token, path, method string) bool {
+	if token == "" || s == nil || s.TokenManager == nil {
 		return false
 	}
-
-	// Determine the canonical server host: prefer X-Forwarded-Host (set by trusted
-	// reverse proxies) then fall back to the Host header.
-	serverHost := r.Header.Get("X-Forwarded-Host")
-	if serverHost == "" {
-		serverHost = r.Host
+	if isAdminProtectedPath(path) {
+		_, ok := s.TokenManager.Validate(token, "admin")
+		return ok
 	}
-	// Keep only the first host when X-Forwarded-Host contains a comma-separated list.
-	if idx := strings.IndexByte(serverHost, ','); idx >= 0 {
-		serverHost = strings.TrimSpace(serverHost[:idx])
+	if isDesktopScopedAPIPath(path) {
+		return desktopTokenHasScope(s, token, desktopMethodScope(method))
 	}
-
-	return strings.EqualFold(parsed.Host, serverHost)
+	if strings.HasPrefix(path, "/api/go2rtc/") {
+		if _, ok := s.TokenManager.Validate(token, "admin"); ok {
+			return true
+		}
+		if isSafeMethod(method) {
+			_, ok := s.TokenManager.Validate(token, go2RTCViewScope)
+			return ok
+		}
+		return false
+	}
+	_, ok := s.TokenManager.Validate(token, "admin")
+	return ok
 }
 
 // GenerateRandomHex returns a cryptographically random hex string of n bytes (2n hex chars).

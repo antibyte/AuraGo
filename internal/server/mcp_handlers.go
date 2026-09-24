@@ -213,6 +213,9 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 			if srv.AllowLocalFallback {
 				m["allow_local_fallback"] = true
 			}
+			if srv.AllowPrivateNetwork {
+				m["allow_private_network"] = true
+			}
 			if strings.TrimSpace(srv.HostWorkdir) != "" {
 				m["host_workdir"] = strings.TrimSpace(srv.HostWorkdir)
 			}

@@ -34,5 +34,7 @@
   "config.auth.update_password": "Actualizar",
   "config.auth.web_config_title": "Configuración Web",
   "config.auth.https_forces_auth": "HTTPS está activo. El inicio de sesión no se puede desactivar.",
-  "config.auth.totp_disable_confirm_title": "¿Desactivar la autenticación de dos factores?"
+  "config.auth.totp_disable_confirm_title": "¿Desactivar la autenticación de dos factores?",
+  "config.auth.unsafe_remote_title": "Acceso remoto inseguro sin iniciar sesión",
+  "config.auth.unsafe_remote_desc": "Permite acceder a AuraGo de forma remota sin iniciar sesión. Speech Lab sigue bloqueado a distancia."
 }

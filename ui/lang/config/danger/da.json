@@ -20,5 +20,7 @@
   "config.danger.mcp.title": "MCP-serverforbindelser (mcp_call)",
   "config.danger.mcp.desc": "Tillader agenten at oprette forbindelse til eksterne MCP-servere og bruge deres værktøjer. <strong style=\"color:#f87171;\">⚠ Tilføj kun servere, du har tillid til!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemomfattende sudo-skriveadgang",
-  "config.danger.sudo_unrestricted.desc": "Tillader agenten at skrive uden for installationsmappen ved hjælp af sudo (f.eks. /etc/). Kræver fjernelse af ProtectSystem=strict fra systemd-serviceenheden."
+  "config.danger.sudo_unrestricted.desc": "Tillader agenten at skrive uden for installationsmappen ved hjælp af sudo (f.eks. /etc/). Kræver fjernelse af ProtectSystem=strict fra systemd-serviceenheden.",
+  "config.danger.unsafe_host_execution.title": "Usikker kørsel på værten",
+  "config.danger.unsafe_host_execution.desc": "Tillader Python direkte på værten og Windows-shell uden isolation. En sikkerhedsadvarsel logges; aktiver kun bevidst."
 }

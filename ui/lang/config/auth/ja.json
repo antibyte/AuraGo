@@ -34,5 +34,7 @@
   "config.auth.update_password": "更新",
   "config.auth.web_config_title": "ウェブ設定",
   "config.auth.https_forces_auth": "HTTPSが有効です。ログインを無効にすることはできません。",
-  "config.auth.totp_disable_confirm_title": "二要素認証を無効にしますか？"
+  "config.auth.totp_disable_confirm_title": "二要素認証を無効にしますか？",
+  "config.auth.unsafe_remote_title": "ログインなしの危険なリモートアクセス",
+  "config.auth.unsafe_remote_desc": "ログインせずに AuraGo へリモートアクセスできます。Speech Lab のリモートアクセスは引き続き禁止されます。"
 }
