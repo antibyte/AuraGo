@@ -231,8 +231,6 @@
   "stl_close": "Stäng",
   "stl_loading": "Läser in 3D-modell...",
   "stl_download": "Ladda ner",
-  "chat.realtime_action_ack": "Jag tittar på det. Ett ögonblick.",
-  "chat.realtime_action_wait": "Jag arbetar fortfarande med det. Det tar lite längre tid.",
   "chat.realtime_cancel_task": "Avbryt uppgift",
   "chat.realtime_connection_lost": "Anslutningen för liveröst avbröts.",
   "chat.realtime_disabled": "Realtidstal är inaktiverat.",

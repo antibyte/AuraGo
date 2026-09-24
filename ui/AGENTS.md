@@ -288,13 +288,12 @@ worker. Keep packaging, recovery and offline instructions in
   streaming adapters. The app may poll `/api/speech-lab/status` and start a
   managed container via `/api/speech-lab/deployment/start`.
 - Realtime Speech consumes the answer from `final_response`; `done` is a
-  contentless terminator. While `aurago_execute` is running, Live Speech gives
-  a localized acknowledgement after 1.5 seconds and a brief progress update
-  every 30 seconds through browser speech synthesis and the live caption.
-  Progress cues are UI only: never add them to the chat transcript or tool
-  result. Do not speak over the user or provider, mute the microphone only
-  while a cue plays, and stop pending cues on completion, cancellation, or
-  session close.
+  contentless terminator. While `aurago_execute` runs, display backend `progress`
+  events as captions and play their server-synthesized audio through the active
+  Speech Lab voice or effective chat TTS. Never use browser speech synthesis or
+  add progress to the chat transcript/tool result. Do not speak over the user or
+  provider; stop in-flight audio on completion, cancellation, or session close.
+  Feed audible progress clips to the same analyser-driven Persona mouth motion.
 - SIP Phone surfaces `outbound_policy_migration_required` as a localized setup
   blocker.
 - Live Speech remembers the selected/started profile ID in browser storage

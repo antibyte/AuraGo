@@ -231,8 +231,6 @@
   "stl_close": "Sluiten",
   "stl_loading": "3D-model laden...",
   "stl_download": "Downloaden",
-  "chat.realtime_action_ack": "Ik kijk ernaar. Een moment.",
-  "chat.realtime_action_wait": "Ik ben er nog mee bezig. Het duurt iets langer.",
   "chat.realtime_cancel_task": "Taak annuleren",
   "chat.realtime_connection_lost": "De live-spraakverbinding is onderbroken.",
   "chat.realtime_disabled": "Realtime spraak is uitgeschakeld.",

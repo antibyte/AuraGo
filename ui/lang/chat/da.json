@@ -231,8 +231,6 @@
   "stl_close": "Luk",
   "stl_loading": "Indlæser 3D-model...",
   "stl_download": "Download",
-  "chat.realtime_action_ack": "Jeg ser på det. Et øjeblik.",
-  "chat.realtime_action_wait": "Jeg arbejder stadig på det. Det tager lidt længere tid.",
   "chat.realtime_cancel_task": "Annuller opgave",
   "chat.realtime_connection_lost": "Live-stemmeforbindelsen blev afbrudt.",
   "chat.realtime_disabled": "Tale i realtid er deaktiveret.",

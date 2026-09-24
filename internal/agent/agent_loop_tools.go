@@ -35,6 +35,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	s.pendingTCs = s.pendingTCs[1:]
 	supervisorRouted := s.currentToolRoute.matches(ptc) && !s.currentToolRouteExecuted
 	s.toolCallCount++
+	s.progressFeedback.StepStarted()
 	if isHomepageRuleTool(ptc.Action) {
 		s.homepageUsedInChain = true
 	}
@@ -217,6 +218,7 @@ func executeAgentToolTurn(
 	currentLogger := s.currentLogger
 
 	s.toolCallCount++
+	s.progressFeedback.StepStarted()
 	if isHomepageRuleTool(tc.Action) {
 		s.homepageUsedInChain = true
 	}
@@ -458,14 +460,6 @@ func executeAgentToolTurn(
 		}
 	}
 
-	if cfg.Agent.WorkflowFeedback && !s.flags.IsCoAgent && sessionID == "default" {
-		s.stepsSinceLastFeedback++
-		if s.stepsSinceLastFeedback >= 3 {
-			s.stepsSinceLastFeedback = 0
-			broker.Send("progress", i18n.T(cfg.Server.UILanguage, "backend.workflow_feedback"))
-		}
-	}
-
 	if s.personalityEnabled && shortTermMem != nil {
 		s.flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, s.meta)
 		s.flags.EmotionDescription = latestEmotionDescription(shortTermMem, s.emotionSynthesizer)
@@ -526,6 +520,7 @@ func executeAgentToolTurn(
 			btc := prepareToolCall(s.pendingTCs[0], nativeDispatchCtx)
 			s.pendingTCs = s.pendingTCs[1:]
 			s.toolCallCount++
+			s.progressFeedback.StepStarted()
 			if isHomepageRuleTool(btc.Action) {
 				s.homepageUsedInChain = true
 			}

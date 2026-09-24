@@ -133,11 +133,13 @@ function loadRuntimeForTimerTest(fetchImpl, options = {}) {
   const window = {
     t: options.t,
     navigator: { language: options.language || 'de-DE' },
+    AudioContext: options.AudioContext,
     speechSynthesis: options.speechSynthesis,
     SpeechSynthesisUtterance: options.SpeechSynthesisUtterance,
     AuraRealtimeProviderCommon: {
       randomID: prefix => `${prefix}-test`,
-      safeJSON: JSON.parse
+      safeJSON: JSON.parse,
+      analyserLevel: () => 0.4
     },
     AuraRealtimeAudio: { constants: { WAKE_BUFFER_SAMPLES: 48000 } },
     addEventListener(type, handler) {
@@ -174,7 +176,10 @@ function loadRuntimeForTimerTest(fetchImpl, options = {}) {
     console,
     TextDecoder,
     TextEncoder,
-    Uint8Array
+    Uint8Array,
+    Audio: options.Audio,
+    URL: options.URL,
+    AbortController
   };
   vm.createContext(context);
   vm.runInContext(read('ui/js/realtime-speech/core.js'), context);
@@ -278,116 +283,119 @@ async function testActionResultDisplayDeduplication() {
   assert.equal(desktopDisplays[0].kind, 'action');
 }
 
-async function testVoiceActionNotices() {
+async function testAgentProgressUsesConfiguredAudio() {
   let resolveRead;
   let reads = 0;
-  const actionFetch = async url => {
+  const audioRequests = [];
+  const audios = [];
+  const revoked = [];
+  const sources = [];
+  const browserSpeech = { speak() { throw new Error('browser speech must never run'); } };
+  class MockAudio {
+    constructor(url) { this.url = url; this.paused = false; this.played = false; audios.push(this); }
+    play() { this.played = true; return Promise.resolve(); }
+    pause() { this.paused = true; }
+  }
+  class MockAudioContext {
+    constructor() { this.state = 'running'; this.destination = {}; }
+    createAnalyser() { return { fftSize: 256, connect() {} }; }
+    createMediaElementSource() {
+      const source = { connect() {}, disconnect() { this.disconnected = true; } };
+      sources.push(source);
+      return source;
+    }
+    async resume() {}
+  }
+  const urlAPI = {
+    createObjectURL() { return 'blob:progress-test'; },
+    revokeObjectURL(value) { revoked.push(value); }
+  };
+  const actionFetch = async (url, options) => {
     if (url.startsWith('/api/realtime-speech/sessions/')) return { ok: true };
+    if (url === '/api/realtime-speech/progress-audio') {
+      audioRequests.push({ body: JSON.parse(options.body), signal: options.signal });
+      return { ok: true, blob: async () => ({ type: 'audio/wav' }) };
+    }
     assert.equal(url, '/api/realtime-speech/actions');
     return {
       ok: true,
-      body: {
-        getReader() {
-          return {
-            read() {
-              if (reads++ > 0) return Promise.resolve({ done: true, value: new Uint8Array() });
-              return new Promise(resolve => { resolveRead = resolve; });
-            }
-          };
-        }
-      }
+      body: { getReader() { return { read() {
+        if (reads++ === 0) return Promise.resolve({ done: false, value: new TextEncoder().encode(
+          'data: {"event":"progress","detail":"Ich schaue mir das an. Einen Moment."}\n\n'
+        ) });
+        if (reads > 2) return Promise.resolve({ done: true, value: new Uint8Array() });
+        return new Promise(resolve => { resolveRead = resolve; });
+      } }; } }
     };
   };
-  const speechSynthesis = {
-    speaking: false,
-    pending: false,
-    spoken: [],
-    cancellations: 0,
-    getVoices: () => [{ lang: 'de-DE' }],
-    speak(utterance) {
-      this.spoken.push(utterance);
-      this.speaking = true;
-      utterance.onstart();
-    },
-    cancel() {
-      this.cancellations++;
-      this.speaking = false;
-    }
-  };
-  class MockUtterance {
-    constructor(text) { this.text = text; }
-  }
-  const translations = JSON.parse(read('ui/lang/chat/de.json'));
-  const harness = loadRuntimeForTimerTest(actionFetch, {
-    t: key => translations[key],
-    speechSynthesis,
-    SpeechSynthesisUtterance: MockUtterance
-  });
+  const harness = loadRuntimeForTimerTest(actionFetch, { Audio: MockAudio, AudioContext: MockAudioContext, URL: urlAPI, speechSynthesis: browserSpeech });
   const runtime = new harness.Runtime();
   const microphoneMutes = [];
-  const actionEvents = [];
+  const events = [];
   const displays = [];
   runtime.sessionId = 'session-test';
   runtime.adapter = { connected: true };
   runtime.audioGate = { setMuted: value => microphoneMutes.push(value) };
-  runtime.addEventListener('action', event => actionEvents.push(event.detail));
+  runtime.addEventListener('action', event => events.push(event.detail));
   runtime.addEventListener('display', event => displays.push(event.detail));
 
   const task = runtime.executeAction('Prüfe den Status');
-  assert.ok(harness.timers().includes(1500), 'a running voice action must schedule a short acknowledgement');
-  runtime.userSpeaking = true;
-  harness.runTimer(1500);
-  assert.equal(speechSynthesis.spoken.length, 0, 'the progress cue must not interrupt the user');
-  runtime.userSpeaking = false;
-  harness.runTimer(1500);
-  assert.equal(speechSynthesis.spoken[0].text, translations['chat.realtime_action_ack']);
-  assert.equal(speechSynthesis.spoken[0].lang, 'de-DE');
-  assert.equal(actionEvents.at(-1).phase, 'progress');
-  assert.equal(actionEvents.at(-1).message, translations['chat.realtime_action_ack']);
-  assert.equal(microphoneMutes.at(-1), true, 'the microphone must not echo the progress cue');
-  assert.ok(harness.timers().includes(30000), 'a running action must schedule a later update');
-
-  runtime.setMuted(true);
-  speechSynthesis.speaking = false;
-  speechSynthesis.spoken[0].onend();
-  assert.equal(microphoneMutes.at(-1), true, 'ending a cue must preserve the user mute choice');
-  runtime.setMuted(false);
-  harness.runTimer(30000);
-  assert.equal(speechSynthesis.spoken[1].text, translations['chat.realtime_action_wait']);
-  assert.equal(actionEvents.at(-1).phase, 'progress');
-
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(typeof resolveRead, 'function');
+  assert.equal(events.find(event => event.phase === 'progress')?.message, 'Ich schaue mir das an. Einen Moment.');
+  assert.equal(audioRequests.length, 1);
+  assert.equal(audioRequests[0].body.kind, 'ack');
+  assert.equal(audioRequests[0].body.session_id, 'session-test');
+  assert.equal(audioRequests[0].body.request_id, 'voice-action-test');
+  assert.equal(audios.length, 1);
+  assert.equal(audios[0].played, true, 'progress uses server synthesized audio');
+  assert.equal(runtime.getProgressOutputLevel(), 0.4, 'progress audio feeds the Persona output analyser');
+  assert.equal(microphoneMutes.at(-1), true);
+  assert.equal(displays.length, 0, 'progress is not a final chat message');
+  assert.ok(!harness.timers().includes(1500), 'the browser must not invent a timed cue');
+
   resolveRead({ done: false, value: new TextEncoder().encode('data: {"event":"final_response","detail":"Status geprüft."}\n\n') });
   const result = await task;
   assert.equal(result.text, 'Status geprüft.');
-  assert.equal(displays.length, 1, 'progress cues must not become answer messages');
+  assert.equal(displays.length, 1);
   assert.equal(displays[0].content, 'Status geprüft.');
-  assert.equal(speechSynthesis.cancellations, 1, 'the final answer must stop a still playing cue');
-  assert.equal(microphoneMutes.at(-1), false, 'the microphone must recover after the cue stops');
-  assert.ok(!harness.timers().includes(30000), 'the completed task must stop progress updates');
+  assert.equal(audios[0].paused, true, 'final response stops progress audio');
+  assert.equal(sources[0].disconnected, true);
+  assert.equal(runtime.getProgressOutputLevel(), 0);
+  assert.equal(audioRequests[0].signal.aborted, true);
+  assert.deepEqual(revoked, ['blob:progress-test']);
+  assert.equal(microphoneMutes.at(-1), false);
 }
 
-async function testNoticeFallbackAndCancellation() {
-  const harness = loadRuntimeForTimerTest(async () => { throw new Error('cancel request failed'); });
+async function testProgressCancellationAndUserSpeech() {
+  let resolveAudio;
+  let audioRequests = 0;
+  let created = 0;
+  const harness = loadRuntimeForTimerTest(async url => {
+    if (url === '/api/realtime-speech/progress-audio') {
+      audioRequests++;
+      return new Promise(resolve => { resolveAudio = resolve; });
+    }
+    if (url.startsWith('/api/realtime-speech/actions/')) return { ok: true };
+    throw new Error('unexpected network request');
+  }, { Audio: class {}, URL: { createObjectURL() { created++; return 'blob:late'; }, revokeObjectURL() {} } });
   const runtime = new harness.Runtime();
   const action = { requestId: 'voice-action-test', cancelled: false };
-  const notices = [];
   runtime.sessionId = 'session-test';
   runtime.adapter = { connected: true };
   runtime.currentAction = action;
   runtime.actionActive = true;
-  runtime.addEventListener('action', event => notices.push(event.detail));
-  runtime.startActionNotices(action);
-  harness.runTimer(1500);
-  assert.equal(notices[0].phase, 'progress', 'a browser without speech synthesis still gets a visible caption');
-
+  runtime.userSpeaking = true;
+  await runtime.playActionProgress(action, 'ack');
+  assert.equal(audioRequests, 0, 'progress must not speak over the user');
+  runtime.userSpeaking = false;
+  const playback = runtime.playActionProgress(action, 'ack');
+  assert.equal(audioRequests, 1);
   const cancellation = await runtime.cancelCurrentAction();
-  assert.equal(cancellation.status, 'error');
-  assert.equal(action.cancelled, false);
-  assert.ok(harness.timers().includes(1500), 'failed cancellation must resume progress updates');
-  runtime.stopActionNotices(action);
-  assert.ok(!harness.timers().includes(1500), 'stopping an action must clear its pending notice');
+  assert.equal(cancellation.status, 'cancelled');
+  assert.equal(runtime.actionProgressPlayback, null);
+  resolveAudio({ ok: true, blob: async () => ({}) });
+  await playback;
+  assert.equal(created, 0, 'late synthesized audio must not play after cancellation');
 }
 
 async function testTakeoverPeerProbeAndModalContrast() {
@@ -809,8 +817,8 @@ await testLocalAudioGate();
 testAudioWorkletResampling();
 await testParkingTimerAndGuards();
 await testActionResultDisplayDeduplication();
-await testVoiceActionNotices();
-await testNoticeFallbackAndCancellation();
+await testAgentProgressUsesConfiguredAudio();
+await testProgressCancellationAndUserSpeech();
 await testTakeoverPeerProbeAndModalContrast();
 await testGeminiBinarySetupFrames();
 testProviderContractAndSecurityBoundaries();

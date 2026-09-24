@@ -210,9 +210,8 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	sessionTokens := 0
 	recoveryPolicy := buildRecoveryPolicy(cfg)
 	recoverySession := NewRecoverySessionState(logger, broker, cfg)
-	emptyRetried := false // Prevents infinite retry on persistent empty responses
-	retry422Count := 0    // Counts consecutive 422 retries — capped to prevent infinite loops
-	stepsSinceLastFeedback := 0
+	emptyRetried := false        // Prevents infinite retry on persistent empty responses
+	retry422Count := 0           // Counts consecutive 422 retries — capped to prevent infinite loops
 	homepageUsedInChain := false // Elevated circuit breaker once homepage tool is first used
 	// sessionUsedTools tracks every tool called in this conversation so AdaptiveTools
 	// always re-includes them next turn (Option 3: context-based alwaysInclude expansion).
@@ -564,7 +563,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.recoverySession = recoverySession
 	s.emptyRetried = emptyRetried
 	s.retry422Count = retry422Count
-	s.stepsSinceLastFeedback = stepsSinceLastFeedback
 	s.homepageUsedInChain = homepageUsedInChain
 	s.sessionUsedTools = sessionUsedTools
 	s.guardian = guardian

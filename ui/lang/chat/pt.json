@@ -231,8 +231,6 @@
   "stl_close": "Fechar",
   "stl_loading": "Carregando modelo 3D...",
   "stl_download": "Baixar",
-  "chat.realtime_action_ack": "Vou verificar. Um momento.",
-  "chat.realtime_action_wait": "Ainda estou a tratar disso. Está a demorar um pouco mais.",
   "chat.realtime_cancel_task": "Cancelar tarefa",
   "chat.realtime_connection_lost": "A ligação de voz ao vivo foi interrompida.",
   "chat.realtime_disabled": "A fala em tempo real está desativada.",

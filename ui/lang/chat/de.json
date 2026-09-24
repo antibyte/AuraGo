@@ -231,8 +231,6 @@
   "stl_close": "Schließen",
   "stl_loading": "3D-Modell wird geladen...",
   "stl_download": "Herunterladen",
-  "chat.realtime_action_ack": "Ich schaue mir das an. Einen Moment.",
-  "chat.realtime_action_wait": "Ich bin noch dran. Es dauert etwas länger.",
   "chat.realtime_cancel_task": "Auftrag abbrechen",
   "chat.realtime_connection_lost": "Die Live-Sprachverbindung wurde unterbrochen.",
   "chat.realtime_disabled": "Echtzeit-Sprache ist deaktiviert.",

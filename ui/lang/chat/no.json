@@ -231,8 +231,6 @@
   "stl_close": "Lukk",
   "stl_loading": "Laster 3D-modell...",
   "stl_download": "Last ned",
-  "chat.realtime_action_ack": "Jeg ser på det. Et øyeblikk.",
-  "chat.realtime_action_wait": "Jeg jobber fortsatt med det. Det tar litt lenger tid.",
   "chat.realtime_cancel_task": "Avbryt oppgave",
   "chat.realtime_connection_lost": "Taletilkoblingen ble avbrutt.",
   "chat.realtime_disabled": "Tale i sanntid er deaktivert.",

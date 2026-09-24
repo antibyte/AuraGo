@@ -94,6 +94,10 @@
             if (player && inputs) player.resizeDrawingSurfaceToCanvas(Math.min(2, window.devicePixelRatio || 1));
         }
         function outputLevel() {
+            if (typeof runtime.getProgressOutputLevel === 'function') {
+                const progress = clamp(runtime.getProgressOutputLevel());
+                if (progress > 0) return progress;
+            }
             const adapter = runtime.adapter;
             if (!adapter) return 0;
             try {

@@ -6,9 +6,6 @@
     const CLIENT_ID_KEY = 'aurago.realtimeSpeech.clientId.v1';
     const CHANNEL_NAME = 'aurago-realtime-speech-v1';
     const PEER_PROBE_TIMEOUT_MS = 500;
-    const ACTION_NOTICE_DELAY_MS = 1500;
-    const ACTION_NOTICE_INTERVAL_MS = 30000;
-    const ACTION_NOTICE_SPEECH_TIMEOUT_MS = 10000;
 
     function text(key, fallback, vars) {
         let value = typeof window.t === 'function' ? window.t(key, vars) : '';
@@ -118,12 +115,10 @@
             this.providerSpeaking = false;
             this.actionActive = false;
             this.currentAction = null;
-            this.actionNoticeAction = null;
-            this.actionNoticeTimer = null;
-            this.actionNoticeSpeechTimer = null;
-            this.actionNoticeUtterance = null;
-            this.actionNoticeSpeaking = false;
-            this.actionNoticeCount = 0;
+            this.actionProgressPlayback = null;
+            this.progressOutputContext = null;
+            this.progressOutputAnalyser = null;
+            this.progressOutputBuffer = null;
             this.lastActivityAt = Date.now();
             this.parkTimer = null;
             this.wakeFrames = [];
@@ -361,6 +356,7 @@
             adapter.addEventListener('audio', event => {
                 const active = !!(event.detail && event.detail.active);
                 this.providerSpeaking = active;
+                if (active) this.stopActionProgress();
                 if (active && !this.actionActive) this.setState('speaking');
                 else if (!active && !this.userSpeaking && !this.actionActive && this.state !== 'parked') this.setState('listening');
                 this.touch();
@@ -398,6 +394,7 @@
 
         async handleSpeechStart(audio) {
             if (this.muted || !this.adapter) return;
+            this.stopActionProgress();
             const needsResume = this.state === 'parked' || !this.adapter.connected;
             this.userSpeaking = true;
             this.touch();
@@ -516,7 +513,7 @@
 
         setMuted(muted) {
             this.muted = !!muted;
-            if (this.audioGate) this.audioGate.setMuted(this.muted || this.actionNoticeSpeaking);
+            if (this.audioGate) this.audioGate.setMuted(this.muted || !!(this.actionProgressPlayback && this.actionProgressPlayback.audio));
             this.emit('mute', { muted: this.muted });
             this.emit('state', { state: this.state, active: !!this.sessionId, muted: this.muted, profile: this.profile });
         }
@@ -616,76 +613,87 @@
             this.adapter.sendToolResult(call, result);
         }
 
-        scheduleActionNotice(action, delay) {
-            window.clearTimeout(this.actionNoticeTimer);
-            this.actionNoticeTimer = window.setTimeout(() => {
-                this.actionNoticeTimer = null;
-                if (this.actionNoticeAction !== action || this.currentAction !== action || !this.actionActive ||
-                    action.cancelled || !this.adapter || !this.adapter.connected) return;
-                if (this.userSpeaking || this.providerSpeaking || this.actionNoticeUtterance) {
-                    this.scheduleActionNotice(action, ACTION_NOTICE_DELAY_MS);
-                    return;
-                }
-                const message = this.actionNoticeCount === 0
-                    ? text('chat.realtime_action_ack', 'I will take a look. One moment.')
-                    : text('chat.realtime_action_wait', 'I am still working on it. This is taking a little longer.');
-                this.actionNoticeCount++;
-                this.emit('action', { phase: 'progress', requestId: action.requestId, message });
-                this.speakActionNotice(message);
-                this.scheduleActionNotice(action, ACTION_NOTICE_INTERVAL_MS);
-            }, delay);
-        }
-
-        startActionNotices(action) {
-            if (!this.sessionId || !this.adapter || !this.adapter.connected) return;
-            this.stopActionNotices();
-            this.actionNoticeAction = action;
-            this.actionNoticeCount = 0;
-            this.scheduleActionNotice(action, ACTION_NOTICE_DELAY_MS);
-        }
-
-        finishActionNoticeSpeech(utterance, cancel) {
-            if (this.actionNoticeUtterance !== utterance) return;
-            this.actionNoticeUtterance = null;
-            window.clearTimeout(this.actionNoticeSpeechTimer);
-            this.actionNoticeSpeechTimer = null;
-            this.actionNoticeSpeaking = false;
-            if (cancel) {
-                try { window.speechSynthesis.cancel(); } catch (_) { }
+        stopActionProgress() {
+            const playback = this.actionProgressPlayback;
+            if (!playback) return;
+            this.actionProgressPlayback = null;
+            playback.controller.abort();
+            if (playback.audio) {
+                try { playback.audio.pause(); } catch (_) { }
+                if (typeof playback.audio.onended === 'function') playback.audio.onended();
             }
+            if (playback.source) {
+                try { playback.source.disconnect(); } catch (_) { }
+            }
+            if (playback.url) URL.revokeObjectURL(playback.url);
             if (this.audioGate) this.audioGate.setMuted(this.muted);
         }
 
-        speakActionNotice(message) {
-            const synth = window.speechSynthesis;
-            const Utterance = window.SpeechSynthesisUtterance;
-            if (!synth || typeof Utterance !== 'function' || synth.speaking || synth.pending) return;
-            const utterance = new Utterance(message);
-            const language = (document.documentElement && document.documentElement.lang) ||
-                (window.navigator && window.navigator.language) || 'en';
-            utterance.lang = language;
-            const voices = typeof synth.getVoices === 'function' ? synth.getVoices() : [];
-            const baseLanguage = language.toLowerCase().split('-')[0];
-            utterance.voice = voices.find(voice => String(voice.lang || '').toLowerCase() === language.toLowerCase()) ||
-                voices.find(voice => String(voice.lang || '').toLowerCase().split('-')[0] === baseLanguage) || null;
-            utterance.onstart = () => {
-                if (this.actionNoticeUtterance !== utterance) return;
-                this.actionNoticeSpeaking = true;
-                if (this.audioGate) this.audioGate.setMuted(true);
-            };
-            utterance.onend = utterance.onerror = () => this.finishActionNoticeSpeech(utterance, false);
-            this.actionNoticeUtterance = utterance;
-            this.actionNoticeSpeechTimer = window.setTimeout(
-                () => this.finishActionNoticeSpeech(utterance, true), ACTION_NOTICE_SPEECH_TIMEOUT_MS);
-            try { synth.speak(utterance); } catch (_) { this.finishActionNoticeSpeech(utterance, true); }
+        async attachActionProgressTap(playback) {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+                if (!this.progressOutputContext) {
+                    this.progressOutputContext = new AudioContextClass({ latencyHint: 'interactive' });
+                    this.progressOutputAnalyser = this.progressOutputContext.createAnalyser();
+                    this.progressOutputAnalyser.fftSize = 256;
+                    this.progressOutputAnalyser.connect(this.progressOutputContext.destination);
+                    this.progressOutputBuffer = new Float32Array(this.progressOutputAnalyser.fftSize);
+                }
+                await this.progressOutputContext.resume();
+                if (this.progressOutputContext.state !== 'running' || this.actionProgressPlayback !== playback) return;
+                playback.source = this.progressOutputContext.createMediaElementSource(playback.audio);
+                playback.source.connect(this.progressOutputAnalyser);
+            } catch (_) {
+                if (playback.source && this.progressOutputContext) {
+                    try { playback.source.connect(this.progressOutputContext.destination); } catch (_) { }
+                }
+            }
         }
 
-        stopActionNotices(action) {
-            if (action && this.actionNoticeAction !== action) return;
-            window.clearTimeout(this.actionNoticeTimer);
-            this.actionNoticeTimer = null;
-            this.actionNoticeAction = null;
-            if (this.actionNoticeUtterance) this.finishActionNoticeSpeech(this.actionNoticeUtterance, true);
+        getProgressOutputLevel() {
+            const playback = this.actionProgressPlayback;
+            const audio = playback && playback.audio;
+            if (!playback || !playback.source || !audio || audio.paused || audio.ended || audio.muted ||
+                audio.volume === 0 || !this.progressOutputContext || this.progressOutputContext.state !== 'running') return 0;
+            return Common.analyserLevel(this.progressOutputAnalyser, this.progressOutputBuffer);
+        }
+
+        async playActionProgress(action, kind) {
+            if (!this.sessionId || !this.adapter || !this.adapter.connected || this.userSpeaking ||
+                this.providerSpeaking || this.actionProgressPlayback) return;
+            const playback = { controller: new AbortController(), audio: null, url: '' };
+            this.actionProgressPlayback = playback;
+            try {
+                const response = await fetch('/api/realtime-speech/progress-audio', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    signal: playback.controller.signal,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Realtime-Speech-Client-ID': this.clientId
+                    },
+                    body: JSON.stringify({ session_id: this.sessionId, client_id: this.clientId, request_id: action.requestId, kind })
+                });
+                if (!response.ok) return;
+                const blob = await response.blob();
+                if (this.actionProgressPlayback !== playback || this.currentAction !== action ||
+                    action.cancelled || this.userSpeaking || this.providerSpeaking) return;
+                playback.url = URL.createObjectURL(blob);
+                playback.audio = new Audio(playback.url);
+                await this.attachActionProgressTap(playback);
+                if (this.actionProgressPlayback !== playback) return;
+                if (this.audioGate) this.audioGate.setMuted(true);
+                await new Promise(resolve => {
+                    playback.audio.onended = resolve;
+                    playback.audio.onerror = resolve;
+                    void playback.audio.play().catch(resolve);
+                });
+            } catch (_) { /* captions remain available if synthesis or playback fails */ }
+            finally {
+                if (this.actionProgressPlayback === playback) this.stopActionProgress();
+            }
         }
 
         async executeAction(request) {
@@ -695,7 +703,6 @@
             this.currentAction = action;
             this.setState('executing', { requestId });
             this.emit('action', { phase: 'started', requestId, request });
-            this.startActionNotices(action);
             let resultText = '';
             let finalText = '';
             let status = 'completed';
@@ -739,6 +746,12 @@
                         const final = finalEventContent(payload);
                         if (final) finalText = final;
                         const eventName = String(payload.event || '').toLowerCase();
+                        if (eventName === 'progress' && typeof payload.detail === 'string' && payload.detail.trim()) {
+                            const kind = action.progressCount ? 'wait' : 'ack';
+                            action.progressCount = (action.progressCount || 0) + 1;
+                            this.emit('action', { phase: 'progress', requestId, message: payload.detail });
+                            void this.playActionProgress(action, kind);
+                        }
                         if (eventName.includes('question') || eventName.includes('needs_input')) status = 'needs_input';
                         else if (eventName.includes('cancel') || eventName.includes('interrupt')) status = 'cancelled';
                         else if (eventName.includes('error') || eventName.includes('failed')) status = 'error';
@@ -772,7 +785,7 @@
                 this.emit('action', { phase: status, requestId, status, error: message });
                 return { status, request_id: requestId, error: message, artifacts: [] };
             } finally {
-                this.stopActionNotices(action);
+                this.stopActionProgress();
                 this.actionActive = false;
                 this.currentAction = null;
                 if (this.sessionId && this.state !== 'parked') this.setState(this.providerSpeaking ? 'speaking' : 'listening');
@@ -784,7 +797,7 @@
             const action = this.currentAction;
             if (!action) return { status: 'cancelled', request_id: '', text: 'There is no active AuraGo task.' };
             action.cancelled = true;
-            this.stopActionNotices(action);
+            this.stopActionProgress();
             try {
                 const response = await fetch('/api/realtime-speech/actions/' + encodeURIComponent(action.requestId) +
                     '?client_id=' + encodeURIComponent(this.clientId), {
@@ -797,7 +810,6 @@
                 return { status: 'cancelled', request_id: action.requestId, text: 'The current task was cancelled.' };
             } catch (error) {
                 action.cancelled = false;
-                if (this.currentAction === action && this.actionActive) this.startActionNotices(action);
                 return { status: 'error', request_id: action.requestId, error: error.message };
             }
         }
@@ -887,7 +899,14 @@
 
         async stop(options) {
             options = Object.assign({ notifyServer: true }, options || {});
-            this.stopActionNotices();
+            this.stopActionProgress();
+            const progressContext = this.progressOutputContext;
+            this.progressOutputContext = null;
+            this.progressOutputAnalyser = null;
+            this.progressOutputBuffer = null;
+            if (progressContext) {
+                try { await progressContext.close(); } catch (_) { }
+            }
             window.clearTimeout(this.parkTimer);
             window.clearTimeout(this.wakeDeadline);
             window.clearTimeout(this.directFinalizeTimer);

@@ -16,6 +16,11 @@ Server-owned HTTP and cross-component integration contracts.
 - `/speech-lab/` requires an AuraGo session, same-origin writes and WebSocket Origin, and a configuration-owned private backend. Strip AuraGo credentials before forwarding. No separate Tailscale port 8766 listener.
 - Desktop embed credentials travel only in `/desktop-ticket/<ticket>/...` paths, are stripped before access logging, and remain scoped to their exact desktop path or camera resource. Query tokens fail.
 - The main UI at `/` carries a report-only CSP without `unsafe-inline` while legacy inline handlers/styles are migrated; desktop app CSPs keep their separate contracts.
+- POST `/api/realtime-speech/progress-audio` accepts only an active browser voice
+  session, its current action ID and a server-owned acknowledgement/wait kind. Use the active Speech Lab
+  TTS and voice snapshot for Speech Lab sessions, or effective chat TTS for other
+  profiles. Synthesize in memory with bounded concurrency/time/bytes; reject
+  foreign origins and sessions and never accept arbitrary client speech text.
 
 ### System World Tower Voice
 - POST `/api/desktop/system-world/voice` returns one short transient audio clip.

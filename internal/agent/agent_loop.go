@@ -149,8 +149,8 @@ type agentLoopState struct {
 	invalidNativeToolCount  int
 	sessionTokens           int
 	retry422Count           int
-	stepsSinceLastFeedback  int
 	workflowPlanCount       int
+	progressFeedback        *agentProgressFeedback
 
 	emptyRetried           bool
 	homepageUsedInChain    bool
@@ -291,6 +291,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		defer cancel()
 	}
+	progressFeedback := newAgentProgressFeedback(ctx, broker, runCfg.Config.Server.UILanguage,
+		stream && runCfg.Config.Agent.WorkflowFeedback && !runCfg.IsMission && !runCfg.IsCoAgent &&
+			!isCoAgentSession(runCfg.SessionID) && !runCfg.IsMaintenance && runCfg.SessionID != "maintenance" &&
+			!isAutonomousAgentRun(runCfg, runCfg.SessionID))
+	defer progressFeedback.Stop()
 
 	ackMeshCoreNotice := appendMeshCoreNotice(&runCfg)
 	defer func() {
@@ -299,6 +304,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 	}()
 	s := initAgentLoopState(req, runCfg, broker, VoiceOutputSuppressed(ctx))
+	s.progressFeedback = progressFeedback
 	s.turnSnapshot = &turnContextSnapshot{
 		UserIntent:        s.initialUserMsg,
 		PlannerReady:      true,
@@ -2083,6 +2089,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Fire "done" AFTER the message is persisted so that the UI can reliably
 		// fall back to /history if the HTTP response was lost (e.g. page refresh
 		// during a long-running agent run).
+		s.progressFeedback.Stop()
 		broker.Send("done", i18n.T(cfg.Server.UILanguage, "backend.stream_done"))
 
 		EnforceSTMPRetentionIfConfigured(cfg, shortTermMem, sessionID, s.currentLogger)

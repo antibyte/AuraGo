@@ -231,8 +231,6 @@
   "stl_close": "閉じる",
   "stl_loading": "3Dモデルを読み込み中...",
   "stl_download": "ダウンロード",
-  "chat.realtime_action_ack": "確認します。少々お待ちください。",
-  "chat.realtime_action_wait": "まだ作業中です。もう少し時間がかかります。",
   "chat.realtime_cancel_task": "タスクをキャンセル",
   "chat.realtime_connection_lost": "ライブ音声接続が中断されました。",
   "chat.realtime_disabled": "リアルタイム音声は無効です。",

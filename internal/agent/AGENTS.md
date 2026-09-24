@@ -10,6 +10,13 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- Interactive streamed agent turns send a transient localized `progress` event
+  after five seconds or when starting a fourth tool step, whichever comes first,
+  then at most every 30 seconds until completion. Respect `agent.workflow_feedback`;
+  missions, co-agents, maintenance and autonomous runs stay silent. Progress
+  never enters the assistant answer, tool result or persistent history, and
+  cancellation/completion stops it. Count queued and batched tool calls too.
+
 ### Tool System
 
 - Server-published configs bind `AuthorizationSnapshots` before publication.
