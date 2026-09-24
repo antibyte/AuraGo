@@ -1,8 +1,28 @@
 // Transient tower speech: the active TTS backend feeds a quiet spatial effects bus.
+export function towerVoiceInputGain(buffer) {
+  const windowSize=Math.max(64,Math.round(buffer.sampleRate*.03)||1440), windows=[];
+  let peak=0;
+  for(let c=0;c<buffer.numberOfChannels;c++){
+    const data=buffer.getChannelData(c);
+    for(let i=0;i<data.length;i+=windowSize){
+      let power=0;const end=Math.min(i+windowSize,data.length);
+      for(let j=i;j<end;j++){
+        const sample=data[j];if(!Number.isFinite(sample))throw Error('Invalid voice');
+        peak=Math.max(peak,Math.abs(sample));power+=sample*sample;
+      }
+      windows.push(Math.sqrt(power/(end-i)));
+    }
+  }
+  if(peak<.0001)throw Error('Silent voice');
+  // A single loud sample must not set the level of an otherwise quiet TTS voice.
+  const voiced=windows.filter(rms=>rms>Math.max(.003,peak*.003)).sort((a,b)=>a-b);
+  const activeRMS=voiced[Math.floor((voiced.length-1)*.7)]||peak*.5;
+  return Math.min(8,Math.max(1/peak,.26/Math.max(activeRMS,.001)));
+}
 export function createTowerVoice(context, output) {
   let active=false, disposed=false, timer=0, request=null, source=null, nodes=[], gain=null, filter=null, panner=null;
   let distance=250, pan=0, generation=0, phrases=0, state='idle', ir=null;
-  const level=()=>.03+.36/(1+(distance/48)**2);
+  const level=()=>.04+.46/(1+(distance/110)**2);
   function spatial() {
     const now=context.currentTime;
     gain?.gain.setTargetAtTime(level(),now,.18);
@@ -26,8 +46,16 @@ export function createTowerVoice(context, output) {
     ir=context.createBuffer(2,Math.ceil(context.sampleRate*.85),context.sampleRate);
     // Procedural stereo room impulse: fixed length, no audio assets or feedback loop.
     let seed=42;
-    for(let c=0;c<2;c++){const data=ir.getChannelData(c);
-      for(let i=0;i<data.length;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;data[i]=(seed/4294967296*2-1)*Math.pow(1-i/data.length,3);}
+    for(let c=0;c<2;c++){const data=ir.getChannelData(c),preDelay=Math.round(context.sampleRate*.015);
+      let power=0;
+      for(let i=0;i<data.length;i++){
+        seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+        const progress=(i-preDelay)/(data.length-preDelay);
+        data[i]=i<preDelay?0:(seed/4294967296*2-1)*Math.pow(1-progress,2.25);
+        power+=data[i]*data[i];
+      }
+      const scale=.65/Math.sqrt(power||1);
+      for(let i=0;i<data.length;i++)data[i]*=scale;
     }
     return ir;
   }
@@ -45,19 +73,17 @@ export function createTowerVoice(context, output) {
       const buffer=await context.decodeAudioData(bytes);
       if(token!==generation||!active||disposed)return;
       if(!Number.isFinite(buffer.duration)||buffer.duration<=0||buffer.duration>25||buffer.numberOfChannels>2)throw Error('Invalid voice');
-      // Normalize peaks once, then cap the complete dry/echo/reverb mix before distance gain.
-      let peak=0;
-      for(let c=0;c<buffer.numberOfChannels;c++){const data=buffer.getChannelData(c);for(const x of data)peak=Math.max(peak,Math.abs(x));}
-      if(!Number.isFinite(peak)||peak<.0001)throw Error('Silent voice');
+      // Match the voiced loudness across TTS backends; cap rare peaks after mixing.
+      const inputGain=towerVoiceInputGain(buffer);
       const own=n=>(nodes.push(n),n);
       source=own(context.createBufferSource());source.buffer=buffer;
       const input=own(context.createGain()), highpass=own(context.createBiquadFilter());
-      input.gain.value=1/peak;highpass.type='highpass';highpass.frequency.value=170;
+      input.gain.value=inputGain;highpass.type='highpass';highpass.frequency.value=90;
       filter=own(context.createBiquadFilter());filter.type='lowpass';filter.Q.value=.55;
       const dry=own(context.createGain()), echo=own(context.createGain()), room=own(context.createGain()), mix=own(context.createGain());
-      dry.gain.value=.74;echo.gain.value=.17;room.gain.value=.12;
+      dry.gain.value=.76;echo.gain.value=.22;room.gain.value=.28;
       const delay=own(context.createDelay(.2)), reverb=own(context.createConvolver());
-      delay.delayTime.value=.085;reverb.buffer=impulse();
+      delay.delayTime.value=.085;reverb.normalize=false;reverb.buffer=impulse();
       const limit=own(context.createWaveShaper()), curve=new Float32Array(1024);
       for(let i=0;i<curve.length;i++)curve[i]=Math.max(-.75,Math.min(.75,i*2/(curve.length-1)-1));
       limit.curve=curve;

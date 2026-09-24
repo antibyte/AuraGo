@@ -1,5 +1,17 @@
 import assert from 'node:assert/strict';
-import {createTowerVoice} from '../ui/js/desktop/apps/sysworld-voice.js';
+import {createTowerVoice,towerVoiceInputGain} from '../ui/js/desktop/apps/sysworld-voice.js';
+
+function voiceBuffer(amplitude,peak){
+  const data=new Float32Array(24000);
+  for(let i=0;i<data.length;i++)data[i]=amplitude*Math.sin(2*Math.PI*220*i/24000);
+  data[100]=peak;
+  return {sampleRate:24000,numberOfChannels:1,getChannelData:()=>data};
+}
+const qwenGain=towerVoiceInputGain(voiceBuffer(.124,.596));
+assert.ok(qwenGain>2.7&&qwenGain<3.2&&qwenGain>1/.596*1.6,'Qwen-like speech body rises beyond peak-only normalization');
+assert.ok(Math.abs(towerVoiceInputGain(voiceBuffer(.5,.8))-1.25)<.001,'Already strong speech is not boosted further');
+assert.equal(towerVoiceInputGain(voiceBuffer(.01,.9)),8,'Very quiet speech has a bounded boost');
+assert.throws(()=>towerVoiceInputGain(voiceBuffer(0,0)),/Silent voice/);
 
 const native={setTimeout,clearTimeout,fetch,random:Math.random};
 let tasks=new Map(),id=0,nodes=[],requests=0,response,decodeResolve;
@@ -25,15 +37,26 @@ try{
   };
   const voice=createTowerVoice(context,node('output'));
   voice.setListener(0,2.4,2,0,-1);const near=voice.stats().gain;
-  voice.setListener(200,150,250,0,-1);const far=voice.stats().gain;
-  assert.ok(near>far*5&&near<.6&&far>.03,'Whisper at distance, capped near tower');
-  assert.ok(near*.35*.75<.103,'Entire mixed voice remains well below full output');
-  voice.setListener(NaN,0,0,0,0);assert.equal(voice.stats().gain,far);
+  voice.setListener(85,2.4,80,0,-1);const far=voice.stats().gain;
+  voice.setListener(200,150,250,0,-1);const beyondCity=voice.stats().gain;
+  assert.ok(near>far&&near<.6&&far>.24&&far>beyondCity*2&&beyondCity>.04,'Speech remains audible across the road grid and falls off beyond it');
+  assert.ok(near*.35*.75<.14,'Entire mixed voice remains well below full output');
+  voice.setListener(NaN,0,0,0,0);assert.equal(voice.stats().gain,beyondCity);
   assert.equal(tasks.size,0,'No work before opt-in/focus');
   voice.setActive(true);assert.equal(tasks.size,1);run(5000);await flush();
   assert.equal(requests,1);assert.equal(voice.stats().state,'speaking');assert.equal(tasks.size,0);
   const source=nodes.find(n=>n.kind==='source'),delay=nodes.find(n=>n.kind==='delay'),room=nodes.find(n=>n.kind==='reverb'),limit=nodes.find(n=>n.kind==='limit');
+  assert.ok(Math.abs(source.links[0].gain.value-1.25)<.001,'Playback uses the measured input gain');
+  assert.equal(source.links[0].links[0].frequency.value,90,'Low voices retain their fundamental');
   assert.equal(delay.delayTime.value,.085);assert.equal(room.buffer.channels,2);assert.equal(room.buffer.length,6800);
+  assert.equal(room.normalize,false,'Room impulse uses calibrated energy, not browser-dependent auto normalization');
+  for(let c=0;c<2;c++){
+    const data=room.buffer.getChannelData(c);
+    assert.ok(data.subarray(0,120).every(x=>x===0),'Room has a short pre-delay');
+    let energy=0;for(const sample of data)energy+=sample*sample;
+    assert.ok(Math.abs(Math.sqrt(energy)-.65)<.001,'Room energy is calibrated');
+  }
+  assert.equal(room.links[0].gain.value,.28,'Room return stays audible below the direct voice');
   assert.ok(Math.max(...limit.curve)<=.75&&Math.min(...limit.curve)>=-.75);
   const panner=nodes.find(n=>n.kind==='pan');voice.setListener(30,2.4,-12,0,-1);const right=panner.pan.value;
   voice.setListener(-30,2.4,-12,0,-1);assert.ok(right*panner.pan.value<0,'Spatial direction follows tower');

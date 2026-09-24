@@ -1285,8 +1285,12 @@ registration lives in `internal/desktop/types.go`.
   cancellable POST `/api/desktop/system-world/voice`, 20–40 seconds of quiet after
   each short phrase, with 60-second failure backoff. Camera pose updates through
   the existing scene RAF; no extra render loop. Distance to the tower attenuates
-  the complete dry/85-ms echo/0.85-second stereo-room mix, with peak limiting before
-  gain and stereo placement. Master volume remains bounded to 35%; no media cache,
+  the complete dry/85-ms echo/0.85-second stereo-room mix while leaving speech
+  audible across the road grid. Normalize each decoded
+  phrase by voiced-window RMS with a bounded input gain so quiet TTS backends remain
+  intelligible; retain low voice fundamentals and a calibrated room impulse instead
+  of browser-dependent convolver normalization. Limit peaks before distance gain
+  and stereo placement. Master volume remains bounded to 35%; no media cache,
   raw text diagnostics, automatic retries without backoff or browser-TTS fallback.
   Hide, focus loss, map, mute/zero-volume and close abort requests, stop playback,
   release phrase nodes/tails and prevent late fetch/decode responses from replaying.
