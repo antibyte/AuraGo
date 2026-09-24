@@ -156,6 +156,8 @@ type State struct {
 type DeploymentTransaction struct {
 	ID                       string            `json:"id,omitempty"`
 	Phase                    string            `json:"phase"`
+	NewBundle                string            `json:"new_bundle,omitempty"`
+	NewFingerprint           string            `json:"new_fingerprint,omitempty"`
 	PreviousState            string            `json:"previous_state,omitempty"`
 	PreviousProgress         int               `json:"previous_progress,omitempty"`
 	PreviousBundle           string            `json:"previous_bundle,omitempty"`
@@ -165,6 +167,8 @@ type DeploymentTransaction struct {
 	PreviousContainerIDs     []string          `json:"previous_container_ids,omitempty"`
 	PreviousDockerHost       string            `json:"previous_docker_host,omitempty"`
 	PreviousReadinessBaseURL string            `json:"previous_readiness_base_url,omitempty"`
+	PreviousStack            *StackSelection   `json:"previous_stack,omitempty"`
+	PreviousModules          []ModuleSelection `json:"previous_modules,omitempty"`
 	Backups                  []ContainerBackup `json:"backups,omitempty"`
 	NewContainerIDs          []string          `json:"new_container_ids,omitempty"`
 	StartedContainerIDs      []string          `json:"started_container_ids,omitempty"`
@@ -176,6 +180,22 @@ type DeploymentTransaction struct {
 	AuraGoConnected          bool              `json:"aurago_connected,omitempty"`
 	DockerHost               string            `json:"docker_host,omitempty"`
 	ReadinessBaseURL         string            `json:"readiness_base_url,omitempty"`
+}
+
+type StackSelection struct {
+	ASRID string `json:"asr_id,omitempty"`
+	TTSID string `json:"tts_id,omitempty"`
+	LLMID string `json:"llm_id,omitempty"`
+	Voice string `json:"voice,omitempty"`
+}
+
+type ModuleSelection struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	BackendID string `json:"backend_id"`
+	VariantID string `json:"variant_id"`
+	Stage     string `json:"stage"`
+	Running   bool   `json:"running"`
 }
 
 type ContainerBackup struct {
@@ -373,6 +393,11 @@ func cloneState(in State) State {
 	if in.Transaction != nil {
 		copy := *in.Transaction
 		copy.PreviousContainerIDs = append([]string(nil), in.Transaction.PreviousContainerIDs...)
+		copy.PreviousModules = append([]ModuleSelection(nil), in.Transaction.PreviousModules...)
+		if in.Transaction.PreviousStack != nil {
+			stack := *in.Transaction.PreviousStack
+			copy.PreviousStack = &stack
+		}
 		copy.NewContainerIDs = append([]string(nil), in.Transaction.NewContainerIDs...)
 		copy.StartedContainerIDs = append([]string(nil), in.Transaction.StartedContainerIDs...)
 		copy.Backups = append([]ContainerBackup(nil), in.Transaction.Backups...)
@@ -523,8 +548,22 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 			m.fail(err)
 			return err
 		}
+		modules, err := m.listOwnedModuleContainers(ctx, op)
+		if err != nil {
+			m.fail(err)
+			return err
+		}
+		moduleIDs := make([]string, 0, len(modules))
+		runningModuleIDs := make([]string, 0, len(modules))
+		for _, module := range modules {
+			moduleIDs = append(moduleIDs, module.ID)
+			if strings.EqualFold(module.State, "running") {
+				runningModuleIDs = append(runningModuleIDs, module.ID)
+			}
+		}
 		m.mu.Lock()
 		m.state.Bundle, m.state.Digest, m.state.GPUBackend, m.state.ContainerIDs, m.state.DockerHost = manifest.BundleVersion, digest, speechLabActiveGPUBackend(gpuBackend, gpuHostConfig), ids, op.dockerHost
+		m.state.ModuleContainerIDs, m.state.RunningModuleContainerIDs = moduleIDs, runningModuleIDs
 		m.state.ReadinessBaseURL = op.readinessBaseURL
 		m.state.State, m.state.Progress, m.state.LastErrorCode, m.state.LastError = "ready", 100, "", ""
 		m.mu.Unlock()
@@ -541,10 +580,30 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 	if previousReadinessBaseURL == "" && (len(oldState.ContainerIDs) > 0 || oldState.NetworkID != "") {
 		previousReadinessBaseURL = op.readinessBaseURL
 	}
+	previousModules, err := m.listOwnedModuleContainers(ctx, op)
+	if err != nil {
+		return m.abortUpdatePreflight(oldState, err)
+	}
+	modules, err := captureModules(previousModules, manifest)
+	if err != nil {
+		wrapped := &Error{Code: "speech_lab_bundle_incompatible", Err: err}
+		return m.abortUpdatePreflight(oldState, wrapped)
+	}
+	var previousStack *StackSelection
+	if oldState.State == "ready" && oldState.Bundle != "" && len(oldState.ContainerIDs) > 0 {
+		selection, stackErr := m.readStack(ctx, previousReadinessBaseURL)
+		if stackErr != nil {
+			wrapped := &Error{Code: "speech_lab_not_ready", Err: fmt.Errorf("cannot save active stack before update: %w", stackErr)}
+			return m.abortUpdatePreflight(oldState, wrapped)
+		}
+		previousStack = &selection
+	}
 	transaction := &DeploymentTransaction{
-		ID: transactionID(), Phase: "preparing_resources", PreviousState: oldState.State, PreviousProgress: oldState.Progress,
+		ID: transactionID(), Phase: "preparing_resources", NewBundle: manifest.BundleVersion, NewFingerprint: fingerprint,
+		PreviousState: oldState.State, PreviousProgress: oldState.Progress,
 		PreviousBundle: oldState.Bundle, PreviousDigest: oldState.Digest, PreviousGPUBackend: oldState.GPUBackend,
 		PreviousNetworkID: oldState.NetworkID, PreviousContainerIDs: append([]string(nil), oldState.ContainerIDs...),
+		PreviousModules: modules, PreviousStack: previousStack,
 		PreviousDockerHost:       previousDockerHost,
 		PreviousReadinessBaseURL: previousReadinessBaseURL,
 		DockerHost:               op.dockerHost, ReadinessBaseURL: op.readinessBaseURL,
@@ -600,9 +659,42 @@ func (m *Manager) installLocked(ctx context.Context, op operationSnapshot, updat
 		return err
 	}
 	m.mu.Lock()
+	if m.state.Transaction != nil {
+		m.state.Transaction.Phase = "restoring_modules"
+	}
+	m.mu.Unlock()
+	if err := m.persist(); err != nil {
+		return &Error{Code: "speech_lab_state_persist_failed", Err: err}
+	}
+	moduleIDs, err := m.restoreModules(ctx, op, manifest, modules, fingerprint)
+	if err != nil {
+		return &Error{Code: "speech_lab_start_failed", Err: err}
+	}
+	if err := m.restoreStack(ctx, op.readinessBaseURL, previousStack); err != nil {
+		return &Error{Code: "speech_lab_start_failed", Err: err}
+	}
+	if previousStack != nil {
+		if err := m.waitReady(ctx, op); err != nil {
+			return err
+		}
+	}
+	runningModuleIDs := make([]string, 0, len(moduleIDs))
+	for _, id := range moduleIDs {
+		container, found, inspectErr := m.inspectContainer(ctx, op, id)
+		if inspectErr != nil {
+			return &Error{Code: "speech_lab_start_failed", Err: fmt.Errorf("inspect active module %q: %w", id, inspectErr)}
+		}
+		if !found {
+			return &Error{Code: "speech_lab_start_failed", Err: fmt.Errorf("active module %q is missing", id)}
+		}
+		if container.State.Running {
+			runningModuleIDs = append(runningModuleIDs, id)
+		}
+	}
+	m.mu.Lock()
 	m.state.Bundle, m.state.Digest, m.state.GPUBackend, m.state.ContainerIDs, m.state.DockerHost = manifest.BundleVersion, digest, speechLabActiveGPUBackend(gpuBackend, gpuHostConfig), append([]string(nil), ids...), op.dockerHost
-	m.state.ModuleContainerIDs = nil
-	m.state.RunningModuleContainerIDs = nil
+	m.state.ModuleContainerIDs = moduleIDs
+	m.state.RunningModuleContainerIDs = runningModuleIDs
 	m.state.ReadinessBaseURL = op.readinessBaseURL
 	m.state.State, m.state.Progress, m.state.LastErrorCode, m.state.LastError = "ready", 100, "", ""
 	if m.state.Transaction != nil {
@@ -1742,6 +1834,21 @@ func (m *Manager) replaceServices(ctx context.Context, op operationSnapshot, man
 	if err != nil {
 		return nil, false, err
 	}
+	if len(modules) != len(state.Transaction.PreviousModules) {
+		return nil, false, fmt.Errorf("Speech Lab modules changed during the update")
+	}
+	for _, module := range modules {
+		matched := false
+		for _, previous := range state.Transaction.PreviousModules {
+			if module.ID == previous.ID {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, false, fmt.Errorf("Speech Lab modules changed during the update")
+		}
+	}
 	for _, module := range modules {
 		inspected, found, inspectErr := m.inspectContainer(ctx, op, module.ID)
 		if inspectErr != nil {
@@ -2287,6 +2394,9 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 			rollbackErrors = append(rollbackErrors, err)
 		}
 	}
+	if err := m.removeNewModules(ctx, op, transaction); err != nil {
+		rollbackErrors = append(rollbackErrors, err)
+	}
 	for _, id := range transaction.StartedContainerIDs {
 		container, found, err := m.inspectContainer(ctx, op, id)
 		if err != nil {
@@ -2352,7 +2462,9 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 				rollbackErrors = append(rollbackErrors, fmt.Errorf("backup container %q was not fully restored", backup.ID))
 			}
 		}
-		restoredIDs = append(restoredIDs, backup.ID)
+		if current.Config.Labels["aurago.role"] != "module" {
+			restoredIDs = append(restoredIDs, backup.ID)
+		}
 	}
 	if transaction.AuraGoConnected && transaction.AuraGoContainerID != "" && transaction.AuraGoNetworkID != "" {
 		status, err := op.docker.DoJSON(ctx, http.MethodPost, "/networks/"+url.PathEscape(transaction.AuraGoNetworkID)+"/disconnect", map[string]any{"Container": transaction.AuraGoContainerID, "Force": true}, nil)
@@ -2376,9 +2488,17 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 		}
 	}
 	restoredIDs = uniqueOwnedContainerIDs(ctx, m, op, restoredIDs, &rollbackErrors)
+	if transaction.PreviousReadinessBaseURL != "" {
+		op.readinessBaseURL = transaction.PreviousReadinessBaseURL
+	}
 	if len(rollbackErrors) == 0 && transaction.PreviousState == "ready" && len(restoredIDs) > 0 {
 		if err := m.waitReady(ctx, op); err != nil {
 			rollbackErrors = append(rollbackErrors, fmt.Errorf("restored Speech Lab stack is not ready: %w", err))
+		}
+		if len(rollbackErrors) == 0 && transaction.PreviousStack != nil {
+			if err := m.restoreStack(ctx, op.readinessBaseURL, transaction.PreviousStack); err != nil {
+				rollbackErrors = append(rollbackErrors, fmt.Errorf("restore previous Speech Lab selection: %w", err))
+			}
 		}
 	}
 	if len(rollbackErrors) > 0 {
@@ -2397,6 +2517,14 @@ func (m *Manager) rollbackTransaction(ctx context.Context, op operationSnapshot)
 	m.state.GPUBackend = transaction.PreviousGPUBackend
 	m.state.NetworkID = transaction.PreviousNetworkID
 	m.state.ContainerIDs = restoredIDs
+	m.state.ModuleContainerIDs = nil
+	m.state.RunningModuleContainerIDs = nil
+	for _, module := range transaction.PreviousModules {
+		m.state.ModuleContainerIDs = append(m.state.ModuleContainerIDs, module.ID)
+		if module.Running {
+			m.state.RunningModuleContainerIDs = append(m.state.RunningModuleContainerIDs, module.ID)
+		}
+	}
 	m.state.DockerHost = transaction.PreviousDockerHost
 	m.state.ReadinessBaseURL = transaction.PreviousReadinessBaseURL
 	m.state.Transaction = nil

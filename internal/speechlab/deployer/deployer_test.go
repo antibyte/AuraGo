@@ -224,6 +224,9 @@ type fakeDocker struct {
 	createPayloads         []map[string]any
 	rejectDuplicateConnect bool
 	networkConnects        int
+	stack                  StackSelection
+	stackTransition        string
+	failModuleInstall      bool
 }
 
 func newFakeDocker(t *testing.T, manifest BundleManifest) *fakeDocker {
@@ -234,6 +237,7 @@ func newFakeDocker(t *testing.T, manifest BundleManifest) *fakeDocker {
 	}
 	fake := &fakeDocker{
 		manifest: raw, ready: true, containers: make(map[string]*fakeContainer),
+		stack: StackSelection{ASRID: "default-asr", TTSID: "default-tts", LLMID: "default-llm", Voice: "default-voice"},
 		networks: map[string]*fakeResource{
 			"aurago-speech-lab": {ID: "network-id", Name: "aurago-speech-lab", Labels: map[string]string{"aurago.managed": "speech-lab"}},
 		},
@@ -286,6 +290,67 @@ func (f *fakeDocker) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, _ = io.WriteString(w, `{"ready":true}`)
+		return
+	}
+	if r.URL.Path == "/api/v1/stack" {
+		if r.Method == http.MethodPut {
+			var selection StackSelection
+			if err := json.NewDecoder(r.Body).Decode(&selection); err != nil {
+				http.Error(w, "invalid stack", http.StatusBadRequest)
+				return
+			}
+			f.stack = selection
+			for _, container := range f.containers {
+				if container.Labels["aurago.role"] == "module" &&
+					(container.Labels["backend-id"] == selection.ASRID || container.Labels["backend-id"] == selection.TTSID || container.Labels["backend-id"] == selection.LLMID) {
+					container.Running = true
+				}
+			}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"asr":            map[string]string{"backend_id": f.stack.ASRID},
+			"tts":            map[string]string{"backend_id": f.stack.TTSID},
+			"llm":            map[string]string{"backend_id": f.stack.LLMID},
+			"runtime":        map[string]string{"asr": f.stack.ASRID, "tts": f.stack.TTSID, "llm": f.stack.LLMID, "voice": f.stack.Voice},
+			"tts_transition": map[string]string{"phase": f.stackTransition},
+			"ok":             true,
+		})
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/v1/modules/") {
+		var manifest BundleManifest
+		_ = json.Unmarshal(f.manifest, &manifest)
+		backendID := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/v1/modules/"), "/install")
+		for _, runtime := range manifest.Runtimes {
+			if runtime.BackendID != backendID {
+				continue
+			}
+			if r.Method == http.MethodPost {
+				if f.failModuleInstall {
+					http.Error(w, "module install failed", http.StatusConflict)
+					return
+				}
+				fingerprint := ""
+				if controller := f.find("aurago-speech-lab-controller"); controller != nil {
+					fingerprint = controller.Labels["aurago.fingerprint"]
+				}
+				id := fmt.Sprintf("module-new-%d", f.nextID)
+				f.nextID++
+				f.containers[id] = &fakeContainer{ID: id, Name: runtime.Container, Image: runtime.Image, Attached: true, Labels: map[string]string{
+					"aurago.managed": OwnerLabel, "aurago.component": "speech-lab", "aurago.role": "module",
+					"aurago.bundle": manifest.BundleVersion, "aurago.fingerprint": fingerprint,
+					"s2s.lab.managed": "true", "backend-id": runtime.BackendID,
+					"variant-id": runtime.VariantID, "stage": runtime.Stage, "s2s.image": runtime.Image,
+				}}
+			}
+			state := "missing"
+			if f.find(runtime.Container) != nil {
+				state = "ready"
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"variant_id": runtime.VariantID, "state": state, "runtime_state": state, "model_state": "installed"})
+			return
+		}
+		http.NotFound(w, r)
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/"+dockerutil.APIVersion)
@@ -415,6 +480,9 @@ func (f *fakeDocker) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		f.nextID++
 		name := r.URL.Query().Get("name")
 		f.containers[id] = &fakeContainer{ID: id, Name: name, Image: body.Image, Labels: body.Labels, Attached: true, RestartName: body.HostConfig.RestartPolicy.Name}
+		if body.Labels["aurago.role"] == "gateway" {
+			f.stack = StackSelection{ASRID: "default-asr", TTSID: "default-tts", LLMID: "default-llm", Voice: "default-voice"}
+		}
 		f.creates++
 		w.WriteHeader(http.StatusCreated)
 		_, _ = fmt.Fprintf(w, `{"Id":%q}`, id)
@@ -508,14 +576,20 @@ func TestUpdateIdenticalDeploymentIsNoOpAndAccepts304(t *testing.T) {
 	fake.startNotModified = true
 	fingerprint := speechLabDeploymentFingerprint(manifestDigest(t, manifest), config.SpeechLabGPUBackendAuto)
 	fake.addContainer(&fakeContainer{ID: "old", Name: "aurago-speech-lab-gateway", Image: manifest.Images.Gateway, Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", fingerprint), Running: true, Attached: true})
+	fake.addContainer(&fakeContainer{ID: "module", Name: "s2s-parakeet-cpu", Image: manifest.Images.ASR, Running: true, Labels: map[string]string{
+		"aurago.managed": OwnerLabel, "aurago.component": "speech-lab", "aurago.role": "module", "aurago.bundle": manifest.BundleVersion,
+		"s2s.lab.managed": "true", "backend-id": "parakeet", "variant-id": "parakeet-cpu", "stage": "asr", "s2s.image": manifest.Images.ASR,
+	}})
 	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
+	manager.state.Bundle = manifest.BundleVersion
 	if err := manager.Update(context.Background()); err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
 	if fake.pulls != 0 || fake.creates != 0 {
 		t.Fatalf("identical update pulled=%d created=%d, want zero", fake.pulls, fake.creates)
 	}
-	if state := manager.Status(); state.State != "ready" || !reflect.DeepEqual(state.ContainerIDs, []string{"old"}) {
+	if state := manager.Status(); state.State != "ready" || !reflect.DeepEqual(state.ContainerIDs, []string{"old"}) ||
+		!reflect.DeepEqual(state.ModuleContainerIDs, []string{"module"}) || !reflect.DeepEqual(state.RunningModuleContainerIDs, []string{"module"}) {
 		t.Fatalf("unexpected state: %#v", state)
 	}
 }
@@ -775,6 +849,145 @@ func TestManagedModuleContainersFollowStopStartAndRemove(t *testing.T) {
 	}
 	if fake.find("module-1") != nil {
 		t.Fatal("managed module remained after Remove")
+	}
+}
+
+func TestUpdateRestoresInstalledModulesAndActiveStack(t *testing.T) {
+	for _, failInstall := range []bool{false, true} {
+		name := "success"
+		if failInstall {
+			name = "rollback"
+		}
+		t.Run(name, func(t *testing.T) {
+			manifest := validV2Manifest()
+			manifest.BundleVersion = "new"
+			fake := newFakeDocker(t, manifest)
+			fake.failModuleInstall = failInstall
+			wanted := StackSelection{ASRID: "parakeet", TTSID: "kokoro", LLMID: "granite", Voice: "af_bella"}
+			fake.stack = wanted
+			fake.addContainer(&fakeContainer{
+				ID: "old-gateway", Name: "aurago-speech-lab-gateway", Image: manifest.Images.Gateway,
+				Running: true, Attached: true, Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", "old"),
+			})
+			fake.addContainer(&fakeContainer{
+				ID: "old-module", Name: "s2s-parakeet-cpu", Image: manifest.Images.ASR,
+				Running: true, Attached: true, Labels: map[string]string{
+					"aurago.managed": OwnerLabel, "aurago.component": "speech-lab", "aurago.role": "module", "aurago.bundle": "old",
+					"s2s.lab.managed": "true", "backend-id": "parakeet", "variant-id": "parakeet-cpu", "stage": "asr", "s2s.image": manifest.Images.ASR,
+				},
+			})
+			manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), t.TempDir())
+			manager.state = State{
+				SchemaVersion: 2, Mode: "managed", Managed: true, State: "ready", Bundle: "old", Digest: "old",
+				NetworkID: "network-id", ContainerIDs: []string{"old-gateway"},
+				ReadinessBaseURL: fake.server.URL,
+			}
+			err := manager.Update(context.Background())
+			if failInstall != (err != nil) {
+				t.Fatalf("Update() error = %v, failInstall = %v", err, failInstall)
+			}
+			state := manager.Status()
+			if fake.stack != wanted {
+				t.Fatalf("active stack = %#v, want %#v", fake.stack, wanted)
+			}
+			if state.Transaction != nil {
+				t.Fatalf("transaction was not cleared: %#v", state.Transaction)
+			}
+			if failInstall {
+				if state.Bundle != "old" || !reflect.DeepEqual(state.ContainerIDs, []string{"old-gateway"}) ||
+					!reflect.DeepEqual(state.ModuleContainerIDs, []string{"old-module"}) ||
+					!reflect.DeepEqual(state.RunningModuleContainerIDs, []string{"old-module"}) {
+					t.Fatalf("rollback state = %#v", state)
+				}
+				if old := fake.find("old-module"); old == nil || old.Name != "s2s-parakeet-cpu" || !old.Running {
+					t.Fatalf("old module was not restored: %#v", old)
+				}
+			} else {
+				if state.Bundle != "new" || len(state.ModuleContainerIDs) != 1 || state.ModuleContainerIDs[0] == "old-module" ||
+					len(state.RunningModuleContainerIDs) != 1 || fake.find("old-module") != nil {
+					t.Fatalf("updated module state = %#v", state)
+				}
+				if updated := fake.find(state.ModuleContainerIDs[0]); updated == nil || updated.Labels["aurago.bundle"] != "new" {
+					t.Fatalf("new module was not published: %#v", updated)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateWaitsForActiveStackTransition(t *testing.T) {
+	manifest := validV2Manifest()
+	fake := newFakeDocker(t, manifest)
+	fake.stackTransition = "starting"
+	fake.addContainer(&fakeContainer{
+		ID: "old-gateway", Name: "aurago-speech-lab-gateway", Image: manifest.Images.Gateway,
+		Running: true, Attached: true, Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", "old"),
+	})
+	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), t.TempDir())
+	manager.state = State{
+		SchemaVersion: 2, Mode: "managed", Managed: true, State: "ready", Bundle: "old", Digest: "old",
+		NetworkID: "network-id", ContainerIDs: []string{"old-gateway"}, ReadinessBaseURL: fake.server.URL,
+	}
+	if err := manager.Update(context.Background()); Code(err) != "speech_lab_not_ready" {
+		t.Fatalf("Update() error = %v, want speech_lab_not_ready", err)
+	}
+	if fake.creates != 0 || fake.pulls != 0 || manager.Status().Transaction != nil {
+		t.Fatalf("update changed containers during an active stack transition: creates=%d pulls=%d state=%#v", fake.creates, fake.pulls, manager.Status())
+	}
+	if old := fake.find("old-gateway"); old == nil || !old.Running || old.Name != "aurago-speech-lab-gateway" {
+		t.Fatalf("old gateway was changed: %#v", old)
+	}
+	if state := manager.Status(); state.State != "ready" || state.Bundle != "old" {
+		t.Fatalf("rejected update lost the prior ready state: %#v", state)
+	}
+	fake.stackTransition = ""
+	if err := manager.Update(context.Background()); err != nil {
+		t.Fatalf("Update() after transition completed: %v", err)
+	}
+}
+
+func TestRecoveryRemovesInterruptedNewModuleAndRestoresSelection(t *testing.T) {
+	manifest := validV2Manifest()
+	manifest.BundleVersion = "new"
+	fake := newFakeDocker(t, manifest)
+	wanted := StackSelection{ASRID: "parakeet", TTSID: "kokoro", LLMID: "granite", Voice: "af_bella"}
+	fake.addContainer(&fakeContainer{ID: "old-gateway", Name: "aurago-speech-lab-gateway-rollback", Image: manifest.Images.Gateway,
+		Labels: dockerutil.ManagedLabels(OwnerLabel, "speech-lab", "gateway", "old")})
+	fake.addContainer(&fakeContainer{ID: "old-module", Name: "s2s-parakeet-cpu-rollback", Image: manifest.Images.ASR,
+		Labels: map[string]string{"aurago.managed": OwnerLabel, "aurago.component": "speech-lab", "aurago.role": "module", "aurago.bundle": "old",
+			"s2s.lab.managed": "true", "backend-id": "parakeet", "variant-id": "parakeet-cpu", "stage": "asr", "s2s.image": manifest.Images.ASR}})
+	fake.addContainer(&fakeContainer{ID: "new-gateway", Name: "aurago-speech-lab-gateway", Image: manifest.Images.Gateway,
+		Labels: map[string]string{"aurago.managed": OwnerLabel, "aurago.role": "gateway", "aurago.transaction": "tx"}, Running: true, Attached: true})
+	fake.addContainer(&fakeContainer{ID: "new-module", Name: "s2s-parakeet-cpu", Image: manifest.Images.ASR,
+		Labels: map[string]string{"aurago.managed": OwnerLabel, "aurago.component": "speech-lab", "aurago.role": "module",
+			"aurago.bundle": "new", "aurago.fingerprint": "new-fingerprint", "s2s.lab.managed": "true",
+			"backend-id": "parakeet", "variant-id": "parakeet-cpu", "stage": "asr", "s2s.image": manifest.Images.ASR}})
+	dataDir := t.TempDir()
+	manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), dataDir)
+	manager.state = State{SchemaVersion: 2, Mode: "managed", Managed: true, State: "starting", Bundle: "old", NetworkID: "network-id",
+		Transaction: &DeploymentTransaction{
+			ID: "tx", Phase: "restoring_modules", NewBundle: "new", NewFingerprint: "new-fingerprint",
+			PreviousState: "ready", PreviousBundle: "old", PreviousNetworkID: "network-id", PreviousContainerIDs: []string{"old-gateway"},
+			PreviousReadinessBaseURL: fake.server.URL, PreviousStack: &wanted,
+			PreviousModules: []ModuleSelection{{ID: "old-module", Name: "s2s-parakeet-cpu", BackendID: "parakeet", VariantID: "parakeet-cpu", Stage: "asr", Running: true}},
+			NewContainerIDs: []string{"new-gateway"},
+			Backups: []ContainerBackup{
+				{ID: "old-module", StableName: "s2s-parakeet-cpu", NetworkName: manifest.Network, WasRunning: true, WasAttached: true},
+				{ID: "old-gateway", StableName: "aurago-speech-lab-gateway", NetworkName: manifest.Network, WasRunning: true, WasAttached: true},
+			},
+		},
+	}
+	if err := manager.persist(); err != nil {
+		t.Fatal(err)
+	}
+	restarted := fake.manager(t, managedSpeechLabConfig(fake.server.URL), dataDir)
+	if err := restarted.recoverTransaction(context.Background(), restarted.operationSnapshot()); err != nil {
+		t.Fatalf("recoverTransaction() error = %v", err)
+	}
+	state := restarted.Status()
+	if state.Transaction != nil || state.Bundle != "old" || !reflect.DeepEqual(state.ContainerIDs, []string{"old-gateway"}) ||
+		!reflect.DeepEqual(state.ModuleContainerIDs, []string{"old-module"}) || fake.find("new-module") != nil || fake.find("new-gateway") != nil || fake.stack != wanted {
+		t.Fatalf("recovered deployment = %#v; active stack = %#v", state, fake.stack)
 	}
 }
 
