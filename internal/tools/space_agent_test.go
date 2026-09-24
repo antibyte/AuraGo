@@ -5,11 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
@@ -60,6 +63,7 @@ func TestBuildSpaceAgentCreatePayload(t *testing.T) {
 		"XDG_CONFIG_HOME=/app/home/.config",
 		"XDG_DATA_HOME=/app/home/.local/share",
 		"CUSTOMWARE_PATH=/app/customware",
+		"SPACE_AUTH_DATA_DIR=/app/.space-agent/auth",
 		"SPACE_AGENT_ADMIN_USER=admin",
 		"SPACE_AGENT_ADMIN_PASSWORD=admin-secret",
 		"AURAGO_BRIDGE_URL=http://127.0.0.1:8088/api/space-agent/bridge/messages",
@@ -157,8 +161,8 @@ func TestSpaceAgentContainerNeedsRecreateWhenCustomwarePathEnvMissing(t *testing
 func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
-			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-reset"}
+			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "SPACE_AUTH_DATA_DIR=/app/.space-agent/auth"],
+			"Labels": {"org.aurago.space-agent.build-revision": "20260924-space-agent-auth-update"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -174,8 +178,8 @@ func TestSpaceAgentContainerNeedsRecreateWhenHomeEnvMissing(t *testing.T) {
 func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) {
 	inspect := []byte(`{
 		"Config": {
-			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-reset"}
+			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home", "SPACE_AUTH_DATA_DIR=/app/.space-agent/auth"],
+			"Labels": {"org.aurago.space-agent.build-revision": "20260924-space-agent-auth-update"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -185,6 +189,29 @@ func TestSpaceAgentContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T
 	}`)
 	if spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{Host: "127.0.0.1", Port: 3210}) {
 		t.Fatal("did not expect LAN-reachable existing container to require recreation")
+	}
+}
+
+func TestSpaceAgentContainerNeedsRecreateWithoutPersistentAuthKeys(t *testing.T) {
+	inspect := []byte(`{
+		"Config": {
+			"Env": ["HOST=0.0.0.0", "PORT=3210", "CUSTOMWARE_PATH=/app/customware", "HOME=/app/home"],
+			"Labels": {"org.aurago.space-agent.build-revision": "20260924-space-agent-auth-update"}
+		},
+		"HostConfig": {
+			"PortBindings": {
+				"3210/tcp": [{"HostIp": "0.0.0.0", "HostPort": "3210"}]
+			}
+		}
+	}`)
+	if !spaceAgentContainerNeedsRecreate(inspect, SpaceAgentSidecarConfig{Host: "0.0.0.0", Port: 3210}) {
+		t.Fatal("container without persistent auth key storage must be recreated")
+	}
+}
+
+func TestSpaceAgentContainerNeedsRecreateOnMalformedInspect(t *testing.T) {
+	if !spaceAgentContainerNeedsRecreate([]byte(`{`), SpaceAgentSidecarConfig{}) {
+		t.Fatal("malformed Docker inspect must not be accepted as current")
 	}
 }
 
@@ -213,10 +240,11 @@ func TestSpaceAgentContainerNeedsRecreateWhenBridgeEnvIsStale(t *testing.T) {
 				"PORT=3210",
 				"CUSTOMWARE_PATH=/app/customware",
 				"HOME=/app/home",
+				"SPACE_AUTH_DATA_DIR=/app/.space-agent/auth",
 				"AURAGO_BRIDGE_URL=https://old.example/api/bridge",
 				"AURAGO_BRIDGE_TOKEN=old-token"
 			],
-			"Labels": {"org.aurago.space-agent.build-revision": "20260502-aurago-onscreen-reset"}
+			"Labels": {"org.aurago.space-agent.build-revision": "20260924-space-agent-auth-update"}
 		},
 		"HostConfig": {
 			"PortBindings": {
@@ -245,10 +273,95 @@ func TestSpaceAgentDockerfileInstallsGit(t *testing.T) {
 
 func TestSpaceAgentDockerfileRunsAuraGoBootstrap(t *testing.T) {
 	dockerfile := spaceAgentDockerfile()
-	for _, want := range []string{"aurago_space_bootstrap.mjs", "node aurago_space_bootstrap.mjs", "--state-dir /app/supervisor"} {
+	for _, want := range []string{"aurago_space_bootstrap.mjs", "node aurago_space_bootstrap.mjs", "--state-dir /app/supervisor", "--auto-update-interval 0"} {
 		if !strings.Contains(dockerfile, want) {
 			t.Fatalf("Dockerfile missing %q:\n%s", want, dockerfile)
 		}
+	}
+}
+
+func TestSyncSpaceAgentSourceFetchesLatestRefAndPreservesCheckoutOnFailure(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for the managed Space Agent source")
+	}
+	root := t.TempDir()
+	t.Cleanup(func() {
+		for attempt := 0; attempt < 20; attempt++ {
+			if err := os.RemoveAll(root); err == nil {
+				return
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	})
+	remote := filepath.Join(root, "remote")
+	source := filepath.Join(root, "source")
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, output)
+		}
+	}
+	writeVersion := func(value string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(remote, "version.txt"), []byte(value), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		runGit("-C", remote, "add", "version.txt")
+		runGit("-C", remote, "-c", "user.name=AuraGo Test", "-c", "user.email=aurago@example.invalid", "-c", "commit.gpgsign=false", "commit", "-m", value)
+	}
+	readVersion := func() string {
+		t.Helper()
+		content, err := os.ReadFile(filepath.Join(source, "version.txt"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(content)
+	}
+	runGit("init", "-b", "main", remote)
+	writeVersion("first")
+	cfg := SpaceAgentSidecarConfig{RepoURL: remote, GitRef: "main", SourcePath: source}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	if err := syncSpaceAgentSource(cfg, logger); err != nil {
+		t.Fatalf("initial clone: %v", err)
+	}
+	if got := readVersion(); got != "first" {
+		t.Fatalf("initial checkout = %q", got)
+	}
+	writeVersion("second")
+	if err := syncSpaceAgentSource(cfg, logger); err != nil {
+		t.Fatalf("update source: %v", err)
+	}
+	if got := readVersion(); got != "second" {
+		t.Fatalf("updated checkout = %q, want second", got)
+	}
+	cfg.GitRef = "missing-ref"
+	if err := syncSpaceAgentSource(cfg, logger); err == nil {
+		t.Fatal("missing upstream ref must fail")
+	}
+	if got := readVersion(); got != "second" {
+		t.Fatalf("failed update changed checkout to %q", got)
+	}
+	commit, err := exec.Command("git", "-C", remote, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("resolve upstream commit: %v", err)
+	}
+	cfg.GitRef = strings.TrimSpace(string(commit))
+	cfg.SourcePath = filepath.Join(root, "source-by-commit")
+	if err := syncSpaceAgentSource(cfg, logger); err != nil {
+		t.Fatalf("initial checkout by commit: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(cfg.SourcePath, "version.txt"))
+	if err != nil || string(content) != "second" {
+		t.Fatalf("checkout by commit = %q, error = %v", content, err)
+	}
+}
+
+func TestRedactSpaceAgentCommandURL(t *testing.T) {
+	got := redactSpaceAgentCommandURL("https://user:secret@example.com/space-agent.git?token=secret#fragment")
+	if got != "https://example.com/space-agent.git" {
+		t.Fatalf("redacted command URL = %q", got)
 	}
 }
 
@@ -544,8 +657,10 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		"SPACE_AGENT_ADMIN_USER",
 		"SPACE_AGENT_ADMIN_PASSWORD",
 		"loadSupervisorAuthEnv",
+		"loadSupervisorAuthEnv({ env: process.env, projectRoot, stateDir })",
 		"aurago_managed_user.json",
 		"password_sha256",
+		"auth_keys_sha256",
 		"bridgeHelperContent(bridgeHelperESMTemplate)",
 		"bridgeConfigJSON()",
 		"bridgeURLUsesLoopback",
@@ -566,6 +681,21 @@ func TestSpaceAgentBootstrapScriptCreatesManagedAdminUser(t *testing.T) {
 		if !strings.Contains(script, want) {
 			t.Fatalf("bootstrap script missing %q:\n%s", want, script)
 		}
+	}
+}
+
+func TestSpaceAgentBootstrapScriptHasValidJavaScriptSyntax(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is required to parse the generated bootstrap script")
+	}
+	scriptPath := filepath.Join(t.TempDir(), "aurago_space_bootstrap.mjs")
+	if err := os.WriteFile(scriptPath, []byte(spaceAgentBootstrapScript()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output, err := exec.Command(node, "--check", scriptPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("generated bootstrap JavaScript is invalid: %v\n%s", err, output)
 	}
 }
 

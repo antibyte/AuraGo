@@ -1954,9 +1954,11 @@ Vault-Keys: `dograh_api_key`, `dograh_super_api_key`, `dograh_encryption_key`, `
 
 ## Space Agent Integration
 
-Verwalteter Docker-Sidecar für den Space Agent – eine eigenständige AuraGo-Instanz für isolierte Aufgaben.
+Verwalteter Docker-Sidecar für [Space Agent](https://github.com/agent0ai/space-agent), einen eigenständigen Browser-Workspace für isolierte Aufgaben. Seine Provider-Zugangsdaten werden getrennt von AuraGo im Space Agent eingerichtet.
 
-**Web-UI:** Config → Integrationen → Space Agent → Repository-URL, Host, Port und HTTPS konfigurieren.
+**Web-UI:** Config → Integrationen → Space Agent → Repository-URL, Host, Port und HTTPS konfigurieren. Admin-Passwort und AuraGo-Bridge-Token liegen im Vault.
+
+Wenn die Integration aktiviert ist, baut AuraGo den konfigurierten Space-Agent-Git-Ref mit dem authentifizierten Anweisungsendpunkt `/api/message_async`. **Neu erstellen** ruft den Ref ab und baut das neue Image, bevor der laufende Container ersetzt wird. Bei Fehlern beim Abruf oder Build bleibt der bisherige Container erhalten. Die automatische Release-Aktualisierung von Space Agent ist deaktiviert, damit sie den von AuraGo eingebundenen Endpunkt nicht ersetzt. Auth-Schlüssel und Customware bleiben unter `data_path` und `customware_path` erhalten.
 
 ### YAML-Referenz
 ```yaml

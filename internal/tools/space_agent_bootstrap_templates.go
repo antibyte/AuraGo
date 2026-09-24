@@ -14,7 +14,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev || npm install --omit=dev
 COPY . .
 EXPOSE 3000 3100
-CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --state-dir /app/supervisor HOST=${HOST:-0.0.0.0} PORT=${PORT:-3000}"]
+CMD ["sh", "-lc", "node aurago_space_bootstrap.mjs && node space supervise --state-dir /app/supervisor --auto-update-interval 0 HOST=${HOST:-0.0.0.0} PORT=${PORT:-3000}"]
 `
 }
 
@@ -196,12 +196,13 @@ function readManagedState() {
   }
 }
 
-function writeManagedState(usernameValue, passwordDigest) {
+function writeManagedState(usernameValue, passwordDigest, authDigest) {
   fs.mkdirSync(path.dirname(managedStatePath), { recursive: true, mode: 0o700 });
   fs.writeFileSync(
     managedStatePath,
     JSON.stringify({
       password_sha256: passwordDigest,
+      auth_keys_sha256: authDigest,
       updated_at: new Date().toISOString(),
       username: usernameValue
     }, null, 2) + "\n",
@@ -308,12 +309,15 @@ if (username && password) {
   writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge_config.json"), bridgeConfigJSON());
   writeFile(path.join(process.env.CUSTOMWARE_PATH, "aurago_bridge.md"), ` + strconv.Quote(spaceAgentBridgeHelperReadme()) + `);
   seedWorkspaceFiles(path.join(process.env.CUSTOMWARE_PATH, "L2", normalizedUsername));
-  const auth = await loadSupervisorAuthEnv({ env: process.env, stateDir });
+  const auth = await loadSupervisorAuthEnv({ env: process.env, projectRoot, stateDir });
   Object.assign(process.env, auth.env);
+  const authDigest = createHash("sha256")
+    .update(auth.env.SPACE_AUTH_PASSWORD_SEAL_KEY + ":" + auth.env.SPACE_AUTH_SESSION_HMAC_KEY)
+    .digest("hex");
 
   try {
     createUser(projectRoot, username, password, { fullName: username });
-    writeManagedState(normalizedUsername, passwordDigest);
+    writeManagedState(normalizedUsername, passwordDigest, authDigest);
     console.log("[aurago-bootstrap] Created managed Space Agent user " + username + ".");
   } catch (error) {
     if (!String(error?.message || "").startsWith("User already exists:")) {
@@ -322,13 +326,14 @@ if (username && password) {
     const managedState = readManagedState();
     if (
       managedState.username === normalizedUsername &&
-      managedState.password_sha256 === passwordDigest
+      managedState.password_sha256 === passwordDigest &&
+      managedState.auth_keys_sha256 === authDigest
     ) {
       console.log("[aurago-bootstrap] Managed Space Agent user " + username + " already current.");
     } else {
       setUserPassword(projectRoot, username, password);
       clearInvalidatedUserCrypto(normalizedUsername);
-      writeManagedState(normalizedUsername, passwordDigest);
+      writeManagedState(normalizedUsername, passwordDigest, authDigest);
       console.log("[aurago-bootstrap] Updated managed Space Agent user " + username + ".");
     }
   }

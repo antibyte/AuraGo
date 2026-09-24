@@ -2087,6 +2087,8 @@ GET /api/space-agent/status
 POST /api/space-agent/recreate
 ```
 
+Starts an asynchronous fetch and image build for the configured Git ref. The existing container is replaced only after a successful build.
+
 ### Send Message
 ```http
 POST /api/space-agent/send

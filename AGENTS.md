@@ -264,7 +264,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Native SIP Telephony Contract | `internal/sipphone/AGENTS.md` |
 | Update artifact retention contract | `internal/upkeep/AGENTS.md` |
 | Speech Lab Integration Contract | `internal/speechlab/AGENTS.md` |
-| Agent Filesystem Jail Contract; Agent Docker Inspect Contract | `internal/tools/AGENTS.md` |
+| Agent Filesystem Jail Contract; Agent Docker Inspect Contract; Managed Space Agent Contract | `internal/tools/AGENTS.md` |
 | Virtual Computers Storage / Managed Garage Contract | `internal/virtualcomputers/AGENTS.md` |
 | External browser resource contract | `internal/webassets/AGENTS.md` |
 

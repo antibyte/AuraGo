@@ -28,8 +28,9 @@ const (
 	spaceAgentDefaultImage         = "aurago-space-agent:main"
 	spaceAgentDefaultContainerName = "aurago_space_agent"
 	spaceAgentDefaultPort          = 3100
-	spaceAgentImageBuildRevision   = "20260502-aurago-onscreen-reset"
+	spaceAgentImageBuildRevision   = "20260924-space-agent-auth-update"
 	spaceAgentDataContainerPath    = "/app/.space-agent"
+	spaceAgentAuthContainerPath    = spaceAgentDataContainerPath + "/auth"
 	spaceAgentHomePath             = "/app/home"
 	spaceAgentSupervisorPath       = "/app/supervisor"
 	spaceAgentCustomwarePath       = "/app/customware"
@@ -143,6 +144,7 @@ func buildSpaceAgentCreatePayload(cfg SpaceAgentSidecarConfig) ([]byte, error) {
 		"XDG_CONFIG_HOME=" + spaceAgentHomePath + "/.config",
 		"XDG_DATA_HOME=" + spaceAgentHomePath + "/.local/share",
 		"CUSTOMWARE_PATH=" + spaceAgentCustomwarePath,
+		"SPACE_AUTH_DATA_DIR=" + spaceAgentAuthContainerPath,
 		"SPACE_AGENT_ADMIN_USER=" + strings.TrimSpace(cfg.AdminUser),
 		"SPACE_AGENT_ADMIN_PASSWORD=" + cfg.AdminPassword,
 		"AURAGO_BRIDGE_URL=" + strings.TrimSpace(cfg.BridgeURL),
@@ -194,6 +196,14 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 	Warn(string, ...any)
 	Error(string, ...any)
 }) {
+	ensureSpaceAgentSidecarRunning(dockerHost, cfg, logger, false)
+}
+
+func ensureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}, forceRecreate bool) {
 	if strings.TrimSpace(cfg.AdminPassword) == "" || strings.TrimSpace(cfg.BridgeToken) == "" {
 		logger.Warn("[SpaceAgent] Missing vault secrets, skipping auto-start")
 		return
@@ -203,12 +213,17 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 	if err := writeSpaceAgentBridgeCustomware(cfg.CustomwarePath, cfg.AdminUser, cfg.BridgeURL, cfg.BridgeToken); err != nil {
 		logger.Warn("[SpaceAgent] Host-side bridge customware seed skipped; container bootstrap will retry", "error", err)
 	}
+	containerExists := false
 	if data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+containerName+"/json", ""); err == nil && code == 200 {
-		if spaceAgentContainerNeedsRecreate(data, cfg) {
-			logger.Warn("[SpaceAgent] Existing sidecar container has outdated network settings; recreating")
-			_, _, _ = dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/stop?t=5", "")
-			_, _, _ = dockerRequest(dockerCfg, http.MethodDelete, "/containers/"+containerName+"?force=true", "")
-		} else {
+		var inspect struct {
+			Config json.RawMessage `json:"Config"`
+		}
+		if parseErr := json.Unmarshal(data, &inspect); parseErr != nil || len(inspect.Config) == 0 {
+			logger.Error("[SpaceAgent] Docker inspect returned invalid container data", "error", parseErr)
+			return
+		}
+		containerExists = true
+		if !forceRecreate && !spaceAgentContainerNeedsRecreate(data, cfg) {
 			_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/start", "")
 			if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
 				logger.Error("[SpaceAgent] Failed to start existing sidecar container", "code", startCode, "error", startErr)
@@ -225,14 +240,27 @@ func EnsureSpaceAgentSidecarRunning(dockerHost string, cfg SpaceAgentSidecarConf
 		return
 	}
 
-	if err := ensureSpaceAgentSourceAndImage(cfg, logger); err != nil {
-		logger.Error("[SpaceAgent] Failed to prepare sidecar image", "error", err)
-		return
-	}
 	body, err := buildSpaceAgentCreatePayload(cfg)
 	if err != nil {
 		logger.Error("[SpaceAgent] Invalid Docker create payload", "error", err)
 		return
+	}
+	if err := ensureSpaceAgentSourceAndImage(cfg, logger); err != nil {
+		logger.Error("[SpaceAgent] Failed to prepare sidecar image", "error", err)
+		return
+	}
+	if containerExists {
+		logger.Info("[SpaceAgent] Replacing existing sidecar after successful image build", "container", containerName)
+		_, stopCode, stopErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/stop?t=5", "")
+		if stopErr != nil || (stopCode != http.StatusNoContent && stopCode != http.StatusNotModified) {
+			logger.Error("[SpaceAgent] Failed to stop existing sidecar container", "code", stopCode, "error", stopErr)
+			return
+		}
+		_, deleteCode, deleteErr := dockerRequest(dockerCfg, http.MethodDelete, "/containers/"+containerName+"?force=true", "")
+		if deleteErr != nil || deleteCode != http.StatusNoContent {
+			logger.Error("[SpaceAgent] Failed to remove existing sidecar container", "code", deleteCode, "error", deleteErr)
+			return
+		}
 	}
 	_, createCode, createErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/create?name="+url.QueryEscape(containerName), string(body))
 	if createErr != nil || createCode != http.StatusCreated {
@@ -261,7 +289,7 @@ func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) 
 		} `json:"HostConfig"`
 	}
 	if err := json.Unmarshal(data, &info); err != nil {
-		return false
+		return true
 	}
 	port := cfg.Port
 	if port <= 0 {
@@ -274,6 +302,9 @@ func spaceAgentContainerNeedsRecreate(data []byte, cfg SpaceAgentSidecarConfig) 
 		return true
 	}
 	if !spaceAgentEnvContains(info.Config.Env, "HOME="+spaceAgentHomePath) {
+		return true
+	}
+	if !spaceAgentEnvContains(info.Config.Env, "SPACE_AUTH_DATA_DIR="+spaceAgentAuthContainerPath) {
 		return true
 	}
 	if info.Config.Labels["org.aurago.space-agent.build-revision"] != spaceAgentImageBuildRevision {
@@ -319,11 +350,7 @@ func RecreateSpaceAgentSidecar(dockerHost string, cfg SpaceAgentSidecarConfig, l
 	Warn(string, ...any)
 	Error(string, ...any)
 }) {
-	containerName := effectiveSpaceAgentContainerName(cfg)
-	dockerCfg := DockerConfig{Host: dockerHost}
-	_, _, _ = dockerRequest(dockerCfg, http.MethodPost, "/containers/"+containerName+"/stop?t=5", "")
-	_, _, _ = dockerRequest(dockerCfg, http.MethodDelete, "/containers/"+containerName+"?force=true", "")
-	EnsureSpaceAgentSidecarRunning(dockerHost, cfg, logger)
+	ensureSpaceAgentSidecarRunning(dockerHost, cfg, logger, true)
 }
 
 // SpaceAgentDockerStatus inspects the managed sidecar container.
@@ -661,13 +688,8 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 	if err := ensureSpaceAgentCustomwareUserHome(cfg.CustomwarePath, cfg.AdminUser); err != nil {
 		logger.Info("[SpaceAgent] Host-side customware workspace seed skipped; container bootstrap will retry", "error", err)
 	}
-	if _, err := os.Stat(filepath.Join(cfg.SourcePath, ".git")); os.IsNotExist(err) {
-		if err := runSpaceAgentCommand(logger, filepath.Dir(cfg.SourcePath), "git", "clone", "--depth", "1", "--branch", cfg.GitRef, cfg.RepoURL, cfg.SourcePath); err != nil {
-			return err
-		}
-	} else {
-		_ = runSpaceAgentCommand(logger, cfg.SourcePath, "git", "fetch", "--depth", "1", "origin", cfg.GitRef)
-		_ = runSpaceAgentCommand(logger, cfg.SourcePath, "git", "checkout", cfg.GitRef)
+	if err := syncSpaceAgentSource(cfg, logger); err != nil {
+		return err
 	}
 	dockerfilePath := filepath.Join(cfg.SourcePath, "Dockerfile.aurago")
 	if err := os.WriteFile(filepath.Join(cfg.SourcePath, "aurago_space_bootstrap.mjs"), []byte(spaceAgentBootstrapScript()), 0o600); err != nil {
@@ -680,6 +702,30 @@ func ensureSpaceAgentSourceAndImage(cfg SpaceAgentSidecarConfig, logger interfac
 		return fmt.Errorf("write Dockerfile.aurago: %w", err)
 	}
 	return runSpaceAgentCommand(logger, cfg.SourcePath, "docker", "build", "-f", dockerfilePath, "-t", cfg.Image, cfg.SourcePath)
+}
+
+func syncSpaceAgentSource(cfg SpaceAgentSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) error {
+	if _, err := os.Stat(filepath.Join(cfg.SourcePath, ".git")); os.IsNotExist(err) {
+		if err := runSpaceAgentCommand(logger, filepath.Dir(cfg.SourcePath), "git", "clone", "--depth", "1", "--no-checkout", cfg.RepoURL, cfg.SourcePath); err != nil {
+			return fmt.Errorf("clone Space Agent source: %w", err)
+		}
+	} else if err != nil {
+		return fmt.Errorf("inspect Space Agent source: %w", err)
+	}
+	if err := runSpaceAgentCommand(logger, cfg.SourcePath, "git", "remote", "set-url", "origin", cfg.RepoURL); err != nil {
+		return fmt.Errorf("update Space Agent remote: %w", err)
+	}
+	if err := runSpaceAgentCommand(logger, cfg.SourcePath, "git", "fetch", "--depth", "1", "origin", cfg.GitRef); err != nil {
+		return fmt.Errorf("fetch Space Agent ref %q: %w", cfg.GitRef, err)
+	}
+	if err := runSpaceAgentCommand(logger, cfg.SourcePath, "git", "checkout", "--detach", "FETCH_HEAD"); err != nil {
+		return fmt.Errorf("checkout Space Agent ref %q: %w", cfg.GitRef, err)
+	}
+	return nil
 }
 
 func writeSpaceAgentInstructionsAPIEndpoint(sourcePath string) error {
@@ -804,7 +850,11 @@ func runSpaceAgentCommand(logger interface {
 	Warn(string, ...any)
 	Error(string, ...any)
 }, dir string, name string, args ...string) error {
-	logger.Info("[SpaceAgent] Running command", "command", name, "args", args, "dir", dir)
+	loggedArgs := make([]string, len(args))
+	for i, arg := range args {
+		loggedArgs[i] = redactSpaceAgentCommandURL(arg)
+	}
+	logger.Info("[SpaceAgent] Running command", "command", name, "args", loggedArgs, "dir", dir)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -813,13 +863,30 @@ func runSpaceAgentCommand(logger interface {
 	_ = os.MkdirAll(dockerCfgDir, 0o700)
 	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "DOCKER_CONFIG="+dockerCfgDir)
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+	loggedOutput := strings.TrimSpace(string(out))
+	for i, arg := range args {
+		if arg != loggedArgs[i] {
+			loggedOutput = strings.ReplaceAll(loggedOutput, arg, loggedArgs[i])
+		}
 	}
-	if trimmed := strings.TrimSpace(string(out)); trimmed != "" {
-		logger.Info("[SpaceAgent] Command completed", "output", trimmed)
+	if err != nil {
+		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(loggedArgs, " "), err, loggedOutput)
+	}
+	if loggedOutput != "" {
+		logger.Info("[SpaceAgent] Command completed", "output", loggedOutput)
 	}
 	return nil
+}
+
+func redactSpaceAgentCommandURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return raw
+	}
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
 }
 
 func writeSpaceAgentBridgeCustomware(dir string, adminUser string, bridgeURL string, bridgeToken string) error {
