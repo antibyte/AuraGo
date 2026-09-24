@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"aurago/internal/llm"
 )
 
 func TestHandleModelCatalogDoesNotExposeSecretsAndMarksAvailability(t *testing.T) {
@@ -80,6 +82,43 @@ llm:
 		t.Fatal("expected at least one catalog_only provider")
 	} else if catalogOnly.Available {
 		t.Fatalf("catalog-only provider should not be runtime available: %+v", catalogOnly)
+	}
+}
+
+func TestHandleModelCatalogStructuredOutputMatchesModelsDev(t *testing.T) {
+	server, _ := newProviderTestServer(t, `
+model_catalog:
+  enabled: true
+  catalog_only_visible: true
+providers:
+  - id: openai-main
+    type: openai
+    model: gpt-4o
+llm:
+  provider: openai-main
+`)
+	rec := httptest.NewRecorder()
+	handleModelCatalog(server).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/models/catalog", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("catalog status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var body modelCatalogResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode catalog: %v", err)
+	}
+	matched := 0
+	for _, model := range body.Models {
+		entry, ok := llm.KnownModelRegistry[strings.ToLower(model.Provider+"/"+model.ID)]
+		if !ok {
+			continue
+		}
+		matched++
+		if model.Capabilities.StructuredOutputs != entry.SupportsStructuredOutput {
+			t.Fatalf("%s/%s structured output = %v, models.dev = %v", model.Provider, model.ID, model.Capabilities.StructuredOutputs, entry.SupportsStructuredOutput)
+		}
+	}
+	if matched == 0 {
+		t.Fatal("expected provider/model matches between both bundled registries")
 	}
 }
 

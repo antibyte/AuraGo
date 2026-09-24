@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/llm/catalog"
 )
 
@@ -106,6 +107,10 @@ func handleModelCatalog(s *Server) http.HandlerFunc {
 			if provider.CatalogOnly && cfg != nil && !cfg.ModelCatalog.CatalogOnlyVisible {
 				continue
 			}
+			structuredOutputs := model.StructuredOutputs
+			if registryEntry, ok := llm.KnownModelRegistry[strings.ToLower(model.Provider+"/"+model.ID)]; ok {
+				structuredOutputs = registryEntry.SupportsStructuredOutput
+			}
 			response.Models = append(response.Models, modelCatalogModelResponse{
 				ID:            model.ID,
 				Provider:      model.Provider,
@@ -116,7 +121,7 @@ func handleModelCatalog(s *Server) http.HandlerFunc {
 				MaxTokens:     model.MaxTokens,
 				Capabilities: modelCaps{
 					ToolCalling:       model.SupportsTools,
-					StructuredOutputs: model.StructuredOutputs,
+					StructuredOutputs: structuredOutputs,
 					Multimodal:        model.Multimodal,
 					Reasoning:         model.Reasoning,
 				},
