@@ -569,6 +569,7 @@ Current child AGENTS.md files:
 - `internal/upkeep/AGENTS.md` — Update transactions, artifact retention, maintenance CLI and cleanup safeguards.
 - `internal/virtualcomputers/AGENTS.md` — Workspace lease and managed Garage storage lifecycle.
 - `internal/webassets/AGENTS.md` — External resource integrity, installation, resolution and verification.
+- `training/needle3/AGENTS.md` — Standalone manual-routing data, pinned Needle training/runtime, API budgets and deferred RunPod lifecycle.
 - `ui/AGENTS.md` — External Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
 
 The root AGENTS.md owns the whole repository except where a subtree has its own local contract.
@@ -588,6 +589,7 @@ Top-level durable areas:
 - `plans/` and `openspec/` - Planning, specification, and change-management artifacts.
 - `prompts/` - Agent prompts, templates, personalities, and tool manuals.
 - `scripts/` and `tools/` - Developer and runtime helper tooling.
+- `training/` - Versioned synthetic tool-call datasets and validation; `training/needle3/` owns the separately gated manual selector.
 - `ui/` - External Web UI HTML, CSS, JavaScript, translations, and UI tests.
 
 Ignored/runtime areas such as `bin/`, `data/`, `reports/`, `node_modules/`, `.venv/`, `.worktrees/`, and `terminals/` are not child DOX owners.

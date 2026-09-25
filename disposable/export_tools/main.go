@@ -17,6 +17,8 @@ type options struct {
 	sourceDir          string
 	check              bool
 	bootstrapContracts bool
+	routerOut          string
+	routerSearch       bool
 }
 
 func parseFlags() options {
@@ -25,6 +27,8 @@ func parseFlags() options {
 	flag.StringVar(&opts.sourceDir, "source", "", "directory containing curated tier and operation manifests (default: --out)")
 	flag.BoolVar(&opts.check, "check", false, "regenerate in a temporary directory and fail when checked-in artifacts differ")
 	flag.BoolVar(&opts.bootstrapContracts, "bootstrap-contracts", false, "create deterministic manifests for review when native schemas changed")
+	flag.StringVar(&opts.routerOut, "manual-router-out", "", "export the canonical full manual-routing catalog to this JSON file")
+	flag.BoolVar(&opts.routerSearch, "manual-router-search", false, "serve read-only catalog searches as JSONL on stdin/stdout")
 	flag.Parse()
 	if opts.sourceDir == "" {
 		opts.sourceDir = opts.outDir
@@ -48,6 +52,12 @@ func run(opts options) error {
 	root, err := filepath.Abs(".")
 	if err != nil {
 		return fmt.Errorf("resolve repository root: %w", err)
+	}
+	if opts.routerOut != "" || opts.routerSearch {
+		if opts.bootstrapContracts || (opts.routerSearch && (opts.check || opts.routerOut != "")) {
+			return fmt.Errorf("manual-router modes cannot bootstrap contracts or combine search with export/check")
+		}
+		return runManualRouter(root, opts)
 	}
 	if opts.check {
 		return checkGeneratedArtifacts(root, opts)

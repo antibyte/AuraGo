@@ -8,6 +8,8 @@ on:
       - "disposable/export_tools/**"
       - "disposable/import_training_traces/**"
       - "internal/agent/native_tools*.go"
+      - "internal/agent/tool_catalog*.go"
+      - "internal/prompts/**"
       - "prompts/tools_manuals/**"
       - "training/**"
       - ".github/workflows/training-dataset.yml"
@@ -18,6 +20,8 @@ on:
       - "disposable/export_tools/**"
       - "disposable/import_training_traces/**"
       - "internal/agent/native_tools*.go"
+      - "internal/agent/tool_catalog*.go"
+      - "internal/prompts/**"
       - "prompts/tools_manuals/**"
       - "training/**"
       - ".github/workflows/training-dataset.yml"
@@ -58,6 +62,12 @@ jobs:
 
       - name: Validate datasets, contracts, splits, hashes, and secret patterns
         run: python training/validate_dataset.py --all
+
+      - name: Check canonical manual router catalog
+        run: go run ./disposable/export_tools --manual-router-out training/needle3/catalog.json --check
+
+      - name: Test offline manual selector contracts and spend guards
+        run: python -m unittest training.needle3.test_pipeline
 
       - name: Test loaders, templates, masking preconditions, and evaluation
         run: python -m unittest training.test_training_pipeline

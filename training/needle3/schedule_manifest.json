@@ -1,0 +1,75 @@
+{
+  "accepted_rows": 0,
+  "challenge_rows": 2800,
+  "groups": 17500,
+  "kind_groups": {
+    "confusable": 2625,
+    "context": 1750,
+    "multi": 3500,
+    "none": 2625,
+    "single": 7000
+  },
+  "requested_rows": 70000,
+  "schedule_sha256": "9a1ad3acf34a0a20dcb1d1f3da16eb97cda9993d4bbc2694544f5bdfec74c9c5",
+  "split_groups": {
+    "test": 1750,
+    "train": 14000,
+    "validation": 1750
+  },
+  "split_rows": {
+    "test": {
+      "cs": 125,
+      "da": 125,
+      "de": 3500,
+      "el": 125,
+      "en": 1750,
+      "es": 125,
+      "fr": 125,
+      "hi": 125,
+      "it": 125,
+      "ja": 125,
+      "nl": 125,
+      "no": 125,
+      "pl": 125,
+      "pt": 125,
+      "sv": 125,
+      "zh": 125
+    },
+    "train": {
+      "cs": 1000,
+      "da": 1000,
+      "de": 28000,
+      "el": 1000,
+      "en": 14000,
+      "es": 1000,
+      "fr": 1000,
+      "hi": 1000,
+      "it": 1000,
+      "ja": 1000,
+      "nl": 1000,
+      "no": 1000,
+      "pl": 1000,
+      "pt": 1000,
+      "sv": 1000,
+      "zh": 1000
+    },
+    "validation": {
+      "cs": 125,
+      "da": 125,
+      "de": 3500,
+      "el": 125,
+      "en": 1750,
+      "es": 125,
+      "fr": 125,
+      "hi": 125,
+      "it": 125,
+      "ja": 125,
+      "nl": 125,
+      "no": 125,
+      "pl": 125,
+      "pt": 125,
+      "sv": 125,
+      "zh": 125
+    }
+  }
+}

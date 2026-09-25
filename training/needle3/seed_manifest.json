@@ -1,0 +1,7 @@
+{
+  "accepted_rows": 0,
+  "contains_user_traces": false,
+  "rows": 5000,
+  "source": "training/dataset_native_fc.jsonl",
+  "source_sha256": "a3ce4d12415aea441ce02ccabcc31d27e3c40a86a74bcbdf40085650ceda986d"
+}

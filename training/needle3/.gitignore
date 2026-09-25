@@ -1,0 +1,12 @@
+.venv/
+.cache/
+__pycache__/
+generated/
+models/
+*.cact
+*.npz
+*.safetensors
+*.sqlite*
+*.tar.gz
+*.tar
+*.log
