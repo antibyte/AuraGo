@@ -214,7 +214,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/realtimespeech/", Classification: "fixed-realtime-speech-provider-api", Credentialed: true},
 		{Path: "internal/rocketchat/", Classification: "configured-messaging", Credentialed: true},
 		{Path: "internal/security/", Classification: "ssrf-policy-implementation", RequiresSSRF: true},
-		{Path: "internal/server/", Classification: "server-handler-loopback-and-configured-newspaper-smtp-telegram-delivery", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/server/", Classification: "server-handler-loopback-public-rss-retrieval-and-configured-newspaper-smtp-telegram-delivery", RequiresSSRF: true, AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/speechlab/", Classification: "configured-private-speech-sidecar", AllowsLocalNet: true},
 		{Path: "internal/telegram/", Classification: "telegram-api", Credentialed: true},
 		{Path: "internal/telnyx/", Classification: "telnyx-api", Credentialed: true},

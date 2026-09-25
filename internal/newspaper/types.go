@@ -45,24 +45,30 @@ var clockRE = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
 // Profile is the single installation-owned editorial and delivery preference.
 // EmailVerified is server-owned and cannot be set through a profile update.
 type Profile struct {
-	Version        int64    `json:"version"`
-	Name           string   `json:"name"`
-	Sections       []string `json:"sections"`
-	Interests      []string `json:"interests"`
-	Exclusions     []string `json:"exclusions"`
-	Language       string   `json:"language"`
-	Country        string   `json:"country"`
-	Region         string   `json:"region"`
-	City           string   `json:"city"`
-	TimeZone       string   `json:"time_zone"`
-	ReadyTime      string   `json:"ready_time"`
-	Length         string   `json:"length"`
-	Daily          bool     `json:"daily"`
-	EmailDaily     bool     `json:"email_daily"`
-	EmailAccountID string   `json:"email_account_id"`
-	EmailTo        string   `json:"email_to"`
-	EmailVerified  bool     `json:"email_verified"`
-	TelegramDaily  bool     `json:"telegram_daily"`
+	Version        int64     `json:"version"`
+	Name           string    `json:"name"`
+	Sections       []string  `json:"sections"`
+	Interests      []string  `json:"interests"`
+	Exclusions     []string  `json:"exclusions"`
+	RSSFeeds       []RSSFeed `json:"rss_feeds"`
+	Language       string    `json:"language"`
+	Country        string    `json:"country"`
+	Region         string    `json:"region"`
+	City           string    `json:"city"`
+	TimeZone       string    `json:"time_zone"`
+	ReadyTime      string    `json:"ready_time"`
+	Length         string    `json:"length"`
+	Daily          bool      `json:"daily"`
+	EmailDaily     bool      `json:"email_daily"`
+	EmailAccountID string    `json:"email_account_id"`
+	EmailTo        string    `json:"email_to"`
+	EmailVerified  bool      `json:"email_verified"`
+	TelegramDaily  bool      `json:"telegram_daily"`
+}
+
+type RSSFeed struct {
+	URL     string `json:"url"`
+	Section string `json:"section"`
 }
 
 func DefaultProfile() Profile {
@@ -100,6 +106,22 @@ func (p *Profile) Validate() error {
 	}
 	if len(p.Sections)+len(p.Interests) == 0 {
 		return errors.New("choose a section or interest")
+	}
+	if len(p.RSSFeeds) > 10 {
+		return errors.New("choose at most 10 RSS feeds")
+	}
+	feedURLs := map[string]bool{}
+	for i := range p.RSSFeeds {
+		feed := &p.RSSFeeds[i]
+		feed.URL = strings.TrimSpace(feed.URL)
+		u, err := url.Parse(feed.URL)
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.Fragment != "" || len(feed.URL) > 2048 || feedURLs[strings.ToLower(feed.URL)] {
+			return errors.New("RSS feeds need unique public HTTP(S) URLs")
+		}
+		if !contains(p.Sections, feed.Section) && !(feed.Section == "interests" && len(p.Interests) > 0) {
+			return errors.New("RSS feed section must be selected")
+		}
+		feedURLs[strings.ToLower(feed.URL)] = true
 	}
 	if contains(p.Sections, "regional") && strings.TrimSpace(p.Region+p.City) == "" {
 		return errors.New("regional news needs a city or region")
@@ -196,16 +218,17 @@ type Edition struct {
 }
 
 type Run struct {
-	ID        string    `json:"id"`
-	LocalDate string    `json:"local_date"`
-	Revision  int       `json:"revision"`
-	Status    string    `json:"status"`
-	Phase     string    `json:"phase"`
-	Sources   int       `json:"sources"`
-	Stories   int       `json:"stories"`
-	Reason    string    `json:"reason,omitempty"`
-	StartedAt time.Time `json:"started_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID             string    `json:"id"`
+	LocalDate      string    `json:"local_date"`
+	Revision       int       `json:"revision"`
+	Status         string    `json:"status"`
+	Phase          string    `json:"phase"`
+	Sources        int       `json:"sources"`
+	Stories        int       `json:"stories"`
+	Reason         string    `json:"reason,omitempty"`
+	CorrectionNote string    `json:"correction_note,omitempty"`
+	StartedAt      time.Time `json:"started_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type Event struct {

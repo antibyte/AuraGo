@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -164,6 +165,14 @@ func newID() (string, error) {
 }
 
 func (s *Store) Start(ctx context.Context, date string, newRevision bool, now time.Time) (Run, error) {
+	return s.StartCorrected(ctx, date, newRevision, "", now)
+}
+
+func (s *Store) StartCorrected(ctx context.Context, date string, newRevision bool, correction string, now time.Time) (Run, error) {
+	correction = strings.TrimSpace(correction)
+	if len([]rune(correction)) > 300 || strings.ContainsAny(correction, "\r\n\x00") {
+		return Run{}, errors.New("correction note must be single-line text up to 300 characters")
+	}
 	if _, err := time.Parse("2006-01-02", date); err != nil {
 		return Run{}, errors.New("invalid local edition date")
 	}
@@ -187,11 +196,20 @@ func (s *Store) Start(ctx context.Context, date string, newRevision bool, now ti
 	if revision > 0 && !newRevision {
 		return Run{}, ErrConflict
 	}
+	if correction != "" {
+		var published int
+		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM newspaper_editions WHERE local_date=?", date).Scan(&published); err != nil {
+			return Run{}, err
+		}
+		if !newRevision || published == 0 {
+			return Run{}, errors.New("a correction needs an existing edition and an explicit new revision")
+		}
+	}
 	id, err := newID()
 	if err != nil {
 		return Run{}, err
 	}
-	r := Run{ID: id, LocalDate: date, Revision: revision + 1, Status: "running", Phase: "finding", StartedAt: now.UTC(), UpdatedAt: now.UTC()}
+	r := Run{ID: id, LocalDate: date, Revision: revision + 1, Status: "running", Phase: "finding", CorrectionNote: correction, StartedAt: now.UTC(), UpdatedAt: now.UTC()}
 	b, _ := json.Marshal(r)
 	if _, err = tx.ExecContext(ctx, "INSERT INTO newspaper_runs(id,local_date,revision,status,body) VALUES(?,?,?,?,?)", id, date, r.Revision, r.Status, b); err != nil {
 		return Run{}, ErrBusy

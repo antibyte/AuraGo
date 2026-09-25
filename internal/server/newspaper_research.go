@@ -46,6 +46,33 @@ func newspaperQueries(p newspaper.Profile, date string) []newspaperQuery {
 	return queries
 }
 
+func newspaperCandidateOrder(p newspaper.Profile, queries []newspaperQuery, searchQueries int) []int {
+	buckets := make(map[string][]int, len(p.Sections)+1)
+	for i := searchQueries; i < len(queries); i++ {
+		buckets[queries[i].Section] = append(buckets[queries[i].Section], i)
+	}
+	for i := 0; i < searchQueries; i++ {
+		buckets[queries[i].Section] = append(buckets[queries[i].Section], i)
+	}
+	sections := append([]string(nil), p.Sections...)
+	if len(p.Interests) > 0 {
+		sections = append(sections, "interests")
+	}
+	order := make([]int, 0, len(queries))
+	for round := 0; len(order) < len(queries); round++ {
+		before := len(order)
+		for _, section := range sections {
+			if bucket := buckets[section]; round < len(bucket) {
+				order = append(order, bucket[round])
+			}
+		}
+		if len(order) == before {
+			break
+		}
+	}
+	return order
+}
+
 func canonicalNewspaperURL(raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
@@ -101,8 +128,12 @@ func newspaperExcluded(text string, terms []string) bool {
 func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cutoff time.Time, progress func(newspaper.Progress)) (newspaper.Draft, error) {
 	result := newspaper.Draft{Stories: []newspaper.Story{}, Sources: []newspaper.Source{}}
 	cfg := s.ConfigSnapshot()
-	if cfg == nil || !s.newspaperSkillReady || !cfg.Newspaper.Enabled || cfg.Newspaper.ReadOnly || !cfg.VirtualDesktop.Enabled || cfg.VirtualDesktop.ReadOnly || !cfg.Agent.AllowNetworkRequests || !cfg.BraveSearch.Enabled || cfg.BraveSearch.APIKey == "" || !cfg.Tools.WebScraper.Enabled || s.LLMClient == nil || cfg.LLM.Model == "" {
-		return result, errors.New("research needs an enabled model, Brave Search and page reading")
+	if cfg == nil || !s.newspaperSkillReady || !cfg.Newspaper.Enabled || cfg.Newspaper.ReadOnly || !cfg.VirtualDesktop.Enabled || cfg.VirtualDesktop.ReadOnly || !cfg.Agent.AllowNetworkRequests || !cfg.Tools.WebScraper.Enabled || s.LLMClient == nil || cfg.LLM.Model == "" {
+		return result, errors.New("research needs an enabled model, network access and page reading")
+	}
+	searchReady := cfg.BraveSearch.Enabled && cfg.BraveSearch.APIKey != ""
+	if !searchReady && len(p.RSSFeeds) == 0 {
+		return result, errors.New("research needs Brave Search or a curated RSS feed")
 	}
 	if s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("newspaper") {
 		return result, errors.New("provider spending policy blocks research")
@@ -110,10 +141,14 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 	loc, _ := time.LoadLocation(p.TimeZone)
 	date := cutoff.In(loc).Format("2006-01-02")
 	queries := newspaperQueries(p, date)
-	lists := make([][]newspaperHit, len(queries))
-	covered := make([]bool, len(queries))
+	searchQueries := len(queries)
+	lists := make([][]newspaperHit, searchQueries)
+	covered := make([]bool, searchQueries)
 	progress(newspaper.Progress{Phase: "finding", Message: "Finding current source pages"})
 	for i, q := range queries {
+		if !searchReady {
+			break
+		}
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
@@ -129,6 +164,22 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 		if json.Unmarshal([]byte(raw), &response) == nil && response.Status == "success" {
 			lists[i] = response.Results
 		}
+	}
+	for _, feed := range p.RSSFeeds {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
+		latest := s.ConfigSnapshot()
+		if latest == nil || !latest.Newspaper.Enabled || latest.Newspaper.ReadOnly || !latest.Agent.AllowNetworkRequests || !latest.Tools.WebScraper.Enabled {
+			return result, errors.New("research permission revoked")
+		}
+		hits, err := fetchNewspaperFeed(ctx, feed.URL)
+		if err != nil {
+			progress(newspaper.Progress{Phase: "finding", Message: "A configured RSS feed could not be read"})
+			continue
+		}
+		queries = append(queries, newspaperQuery{Section: feed.Section})
+		lists = append(lists, hits)
 	}
 	maxPages := cfg.Newspaper.MaxPages
 	if maxPages < 1 || maxPages > 60 {
@@ -146,8 +197,10 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 		}
 	}
 	attempts := 0
+	order := newspaperCandidateOrder(p, queries, searchQueries)
 	for index := 0; index < 4 && attempts < maxPages && len(result.Stories) < maxStories; index++ {
-		for qi, hits := range lists {
+		for _, qi := range order {
+			hits := lists[qi]
 			if index >= len(hits) || attempts >= maxPages || len(result.Stories) >= maxStories {
 				continue
 			}
@@ -206,7 +259,15 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 				continue
 			}
 			result.Stories = append(result.Stories, story)
-			covered[qi] = true
+			if qi < searchQueries {
+				covered[qi] = true
+			} else {
+				for i, query := range queries[:searchQueries] {
+					if query.Section == queries[qi].Section && query.Section != "interests" {
+						covered[i] = true
+					}
+				}
+			}
 		}
 	}
 	progress(newspaper.Progress{Phase: "checking", Sources: len(result.Sources), Stories: len(result.Stories), Message: "Checking citations and publication rules"})

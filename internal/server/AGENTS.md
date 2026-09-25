@@ -12,7 +12,7 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Newspaper integration
 - `/api/desktop/newspaper/` is admin-scoped and same-origin for session writes. The server owns research, delivery and configured destinations; source pages cannot set recipients or invoke send tools.
-- Research requires the enabled model, Brave Search, web scraper and network permission. Persist fetched source evidence before model editing, and publish only validated immutable revisions. Expose bounded run progress and sanitized capabilities.
+- Research requires the enabled model, web scraper and network permission, plus Brave Search or profile-selected RSS feeds. RSS retrieval pins a strictly public IP at each redirect and bounds XML input; feed entries remain leads until the guarded scraper reads the original page. Consider candidates across selected sections before filling the issue. Persist fetched source evidence before model editing, and publish only validated immutable revisions. Expose bounded run progress and sanitized capabilities.
 - Email uses a writable configured SMTP account or AgentMail with POST retries disabled. Telegram uses only the configured user ID. Unknown send outcomes remain uncertain in the ledger and must not be replayed automatically.
 - Verify with `go test ./internal/server -run TestNewspaper` and the Newspaper browser test. Core state contracts live in `internal/newspaper/AGENTS.md`.
 

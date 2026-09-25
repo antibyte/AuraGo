@@ -33,6 +33,15 @@ func TestProfileAndDraftValidation(t *testing.T) {
 	}
 	p = DefaultProfile()
 	d := testDraft(time.Now().UTC())
+	p.RSSFeeds = []RSSFeed{{URL: "https://example.org/feed.xml", Section: "culture"}}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("valid RSS feed: %v", err)
+	}
+	p.RSSFeeds[0].Section = "regional"
+	if p.Validate() == nil {
+		t.Fatal("RSS feed for an unselected section accepted")
+	}
+	p.RSSFeeds = nil
 	if err := ValidateDraft(d, p, time.Now().UTC()); err != nil {
 		t.Fatal(err)
 	}
@@ -230,5 +239,68 @@ func TestDeliveryFailureReceiptDistinguishesSafeAndUncertain(t *testing.T) {
 	_, err = s.Deliver(ctx, e.ID, "telegram", "manual", "unknown-request-1")
 	if err != nil || calls != 2 {
 		t.Fatalf("idempotent replay sent again: calls=%d err=%v", calls, err)
+	}
+}
+
+func TestCorrectionCreatesLabeledImmutableRevision(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	s, err := New(Options{
+		Path:   filepath.Join(t.TempDir(), "newspaper.db"),
+		Policy: func() Policy { return Policy{Enabled: true} },
+		Now:    func() time.Time { return now },
+		Research: func(context.Context, Profile, time.Time, func(Progress)) (Draft, error) {
+			return testDraft(now), nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	date := now.Format("2006-01-02")
+	if _, err := s.Store().StartCorrected(ctx, date, false, "Incorrect date", now); err == nil {
+		t.Fatal("correction without a published edition was accepted")
+	}
+	first, err := s.Store().Start(ctx, date, false, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.execute(ctx, first, DefaultProfile())
+	note := "The earlier headline stated the wrong opening date."
+	revised, err := s.Store().StartCorrected(ctx, date, true, note, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.execute(ctx, revised, DefaultProfile())
+	previous, err := s.Get(ctx, first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	corrected, err := s.Get(ctx, revised.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if revised.CorrectionNote != note || corrected.Revision != 2 || len(corrected.Corrections) != 1 || corrected.Corrections[0] != note || len(previous.Corrections) != 0 || previous.Hash == corrected.Hash {
+		t.Fatalf("correction revision: run=%+v previous=%+v corrected=%+v", revised, previous.Corrections, corrected.Corrections)
+	}
+}
+
+func TestRSSProfileRequiresSelectedSectionAndPlainURL(t *testing.T) {
+	p := DefaultProfile()
+	p.RSSFeeds = []RSSFeed{{URL: "https://news.example/feed.xml", Section: "science"}}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("valid RSS feed rejected: %v", err)
+	}
+	for _, feeds := range [][]RSSFeed{
+		{{URL: "https://news.example/feed.xml#entry", Section: "science"}},
+		{{URL: "https://user:pass@news.example/feed.xml", Section: "science"}},
+		{{URL: "https://news.example/feed.xml", Section: "regional"}},
+		{{URL: "https://news.example/feed.xml", Section: "science"}, {URL: "https://NEWS.example/feed.xml", Section: "science"}},
+	} {
+		invalid := DefaultProfile()
+		invalid.RSSFeeds = feeds
+		if err := invalid.Validate(); err == nil {
+			t.Fatalf("invalid RSS configuration accepted: %+v", feeds)
+		}
 	}
 }

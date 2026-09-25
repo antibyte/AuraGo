@@ -54,6 +54,8 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		t.Fatal("Chrome or Edge required")
 	}
 	var mu sync.Mutex
+	correctionRequest := ""
+	localDate := "2026-09-25"
 	p := newspaper.DefaultProfile()
 	p.Version = 1
 	p.Name = "Der Morgen"
@@ -81,7 +83,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/desktop/newspaper/")
 		switch path {
 		case "capabilities":
-			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{}, "daily": false})
+			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{}, "daily": false, "local_date": localDate})
 		case "profile":
 			if r.Method == http.MethodPut {
 				if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -91,6 +93,17 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 			}
 			json.NewEncoder(w).Encode(p)
 		case "editions":
+			if r.Method == http.MethodPost {
+				var req struct {
+					CorrectionNote string `json:"correction_note"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					t.Error(err)
+				}
+				correctionRequest = req.CorrectionNote
+				json.NewEncoder(w).Encode(newspaper.Run{ID: "run-2", Status: "running"})
+				return
+			}
 			json.NewEncoder(w).Encode(map[string]any{"editions": []any{map[string]any{"id": e.ID, "local_date": e.LocalDate, "revision": 1, "title": e.Title, "lead": e.Stories[0].Headline, "headlines": []string{e.Stories[0].Headline}, "sections": []string{"culture"}, "stories": len(e.Stories)}}, "latest_run": newspaper.Run{}})
 		case "editions/issue_1":
 			json.NewEncoder(w).Encode(e)
@@ -129,6 +142,19 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		}
 	}
 	page.MustSetViewport(1440, 900, 1, false)
+	page.MustElement(".np-revision summary").MustClick()
+	if !page.MustEval(`()=>document.querySelector('.np-revision').open`).Bool() {
+		t.Fatal("revision correction editor did not open")
+	}
+	page.MustElement("[name=correction_note]").MustInput("Falsches Eröffnungsdatum")
+	page.MustElement(`[data-action=revision-submit]`).MustClick()
+	page.MustElement(".np-banner")
+	mu.Lock()
+	correctionSent := correctionRequest == "Falsches Eröffnungsdatum"
+	mu.Unlock()
+	if !correctionSent {
+		t.Fatal("correction note was not sent with the new revision")
+	}
 	page.MustElement(".np-teaser").MustClick()
 	page.MustElement(".np-source summary").MustClick()
 	if page.MustEval(`()=>!!window.injected`).Bool() {
@@ -140,15 +166,30 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	page.MustElement(`[data-view=archive]`).MustClick()
 	page.MustElement(".np-archive-list button")
 	page.MustElement(`[data-view=preferences]`).MustClick()
+	page.MustEval(`()=>{document.querySelector('[name=name]').value='Der Neue Morgen';document.querySelector('[name=rss_url]').value='https://example.org/culture.xml'}`)
 	page.MustElement(`[name=interests_input]`).MustInput("Lokales Theater")
 	page.MustElement(`[data-add=interests]`).MustClick()
 	if !strings.Contains(page.MustElement(".np-chips").MustText(), "Lokales Theater") {
 		t.Fatal("interest chip was not added")
 	}
+	if !page.MustEval(`()=>document.querySelector('[name=name]').value==='Der Neue Morgen'&&document.querySelector('[name=rss_url]').value==='https://example.org/culture.xml'`).Bool() {
+		t.Fatal("unsaved preferences were lost when adding an interest")
+	}
+	page.MustEval(`()=>{const input=document.querySelector('[name=rss_url]');input.value='file:///private.xml';input.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	page.MustElement(`[data-action=add-rss]`).MustClick()
+	if page.MustElement(".np-rss-error").MustText() == "" || page.MustEval(`()=>document.querySelectorAll('.np-rss .np-chips>span').length`).Int() != 0 {
+		t.Fatal("invalid RSS address was accepted without feedback")
+	}
+	page.MustEval(`()=>{const input=document.querySelector('[name=rss_url]');input.value='https://example.org/culture.xml';input.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	page.MustEval(`()=>{document.querySelector('[name=rss_section]').value='culture'}`)
+	page.MustElement(`[data-action=add-rss]`).MustClick()
+	if !strings.Contains(page.MustElement(".np-rss .np-chips").MustText(), "culture.xml") {
+		t.Fatal("RSS feed was not added")
+	}
 	page.MustElement(".np-prefs [type=submit]").MustClick()
 	page.MustElement(".np-banner")
 	mu.Lock()
-	saved := len(p.Interests) == 1 && p.Interests[0] == "Lokales Theater"
+	saved := p.Name == "Der Neue Morgen" && len(p.Interests) == 1 && p.Interests[0] == "Lokales Theater" && len(p.RSSFeeds) == 1 && p.RSSFeeds[0].Section == "culture"
 	gotInterests := append([]string(nil), p.Interests...)
 	mu.Unlock()
 	if !saved {
@@ -163,6 +204,14 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 				t.Fatalf("horizontal overflow at %d %s", width, mode)
 			}
 		}
+	}
+	mu.Lock()
+	localDate = "2026-09-26"
+	mu.Unlock()
+	page.MustElement(`[data-view=today]`).MustClick()
+	page.MustElement(".np-new-day [data-action=create]")
+	if page.MustEval(`()=>!!document.querySelector('.np-revision')`).Bool() {
+		t.Fatal("an old edition offered a correction revision for the new day")
 	}
 	page.MustEval(`()=>NewspaperApp.dispose('test')`)
 	before := page.MustEval(`()=>calls`).Int()

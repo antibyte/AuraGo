@@ -121,6 +121,10 @@ func (s *Service) Store() *Store { return s.store }
 func (s *Service) canWrite() bool { p := s.policy(); return p.Enabled && !p.ReadOnly }
 
 func (s *Service) Start(ctx context.Context, newRevision bool) (Run, error) {
+	return s.StartWithCorrection(ctx, newRevision, "")
+}
+
+func (s *Service) StartWithCorrection(ctx context.Context, newRevision bool, correction string) (Run, error) {
 	if !s.canWrite() {
 		return Run{}, ErrDisabled
 	}
@@ -134,10 +138,10 @@ func (s *Service) Start(ctx context.Context, newRevision bool) (Run, error) {
 	loc, _ := time.LoadLocation(profile.TimeZone)
 	now := s.now()
 	date := now.In(loc).Format("2006-01-02")
-	return s.startForDate(ctx, date, newRevision, profile)
+	return s.startForDate(ctx, date, newRevision, profile, correction)
 }
 
-func (s *Service) startForDate(ctx context.Context, date string, newRevision bool, profile Profile) (Run, error) {
+func (s *Service) startForDate(ctx context.Context, date string, newRevision bool, profile Profile, correction string) (Run, error) {
 	if !s.canWrite() {
 		return Run{}, ErrDisabled
 	}
@@ -146,7 +150,7 @@ func (s *Service) startForDate(ctx context.Context, date string, newRevision boo
 	if s.running != nil {
 		return Run{}, ErrBusy
 	}
-	run, err := s.store.Start(ctx, date, newRevision, s.now())
+	run, err := s.store.StartCorrected(ctx, date, newRevision, correction, s.now())
 	if err != nil {
 		return Run{}, err
 	}
@@ -221,6 +225,9 @@ func (s *Service) execute(ctx context.Context, r Run, p Profile) {
 	}
 	place := strings.TrimSpace(strings.Join([]string{p.City, p.Region, p.Country}, ", "))
 	e := Edition{ID: r.ID, LocalDate: r.LocalDate, Revision: r.Revision, Title: p.Name, Language: p.Language, Place: place, CreatedAt: s.now().UTC(), CutoffAt: cutoff, Partial: partial, Stories: draft.Stories, Sources: draft.Sources}
+	if r.CorrectionNote != "" {
+		e.Corrections = []string{r.CorrectionNote}
+	}
 	if err = e.Seal(); err != nil {
 		r.Status = "failed"
 		r.Reason = err.Error()
@@ -342,7 +349,7 @@ func (s *Service) tick() {
 		if now.Before(due) || now.After(ready.Add(3*time.Hour)) {
 			continue
 		}
-		_, err = s.startForDate(s.ctx, date.Format("2006-01-02"), false, p)
+		_, err = s.startForDate(s.ctx, date.Format("2006-01-02"), false, p, "")
 		if err == nil || errors.Is(err, ErrBusy) {
 			return
 		}
