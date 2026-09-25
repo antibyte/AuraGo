@@ -56,6 +56,8 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	var mu sync.Mutex
 	correctionRequest := ""
 	challengeCode := "agentmail_rejected"
+	challengeAccount := ""
+	challengeCalls := 0
 	localDate := "2026-09-25"
 	p := newspaper.DefaultProfile()
 	p.Version = 1
@@ -86,7 +88,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/desktop/newspaper/")
 		switch path {
 		case "capabilities":
-			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}}, "daily": false, "local_date": localDate})
+			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}, map[string]string{"id": "gmx_personal", "name": "GMX"}}, "daily": false, "local_date": localDate})
 		case "profile":
 			if r.Method == http.MethodPut {
 				if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -113,6 +115,8 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		case "editions/issue_1/deliveries":
 			json.NewEncoder(w).Encode(map[string]any{"deliveries": []any{}})
 		case "email/challenge":
+			challengeAccount = p.EmailAccountID
+			challengeCalls++
 			w.WriteHeader(http.StatusBadGateway)
 			json.NewEncoder(w).Encode(map[string]any{"code": challengeCode, "provider_status": 403, "error": "raw server error"})
 		default:
@@ -214,6 +218,38 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	page.MustElementR(".np-banner.np-error", "nach einem Bounce")
 	if text := page.MustElement(".np-banner.np-error").MustText(); strings.Contains(text, "raw server error") {
 		t.Fatalf("bounce block leaked provider text: %q", text)
+	}
+	mu.Lock()
+	challengeCode = "email_send_safe"
+	mu.Unlock()
+	page.MustEval(`()=>{document.querySelector('[name=email_account_id]').value='gmx_personal';document.querySelector('[name=name]').value='Not saved yet'}`)
+	page.MustElement(`[data-action=email-challenge]`).MustClick()
+	page.MustElementR(".np-banner.np-error", "nicht gesendet")
+	mu.Lock()
+	gmXSelected := p.EmailAccountID == "gmx_personal" && challengeAccount == "gmx_personal" && p.Name == "Der Neue Morgen" && challengeCalls == 3
+	mu.Unlock()
+	if !gmXSelected {
+		t.Fatal("confirmation used a stale sending account or saved unrelated draft fields")
+	}
+	if !page.MustEval(`()=>document.querySelector('[name=name]').value==='Not saved yet'`).Bool() {
+		t.Fatal("saving the selected sender discarded unrelated unsaved preferences")
+	}
+	page.MustEval(`()=>{const input=document.querySelector('[name=email_to]');input.value='invalid-address';input.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	page.MustElement(`[data-action=email-challenge]`).MustClick()
+	page.MustElementR(".np-banner.np-error", "Wähle ein Versandkonto")
+	mu.Lock()
+	invalidSkipped := challengeCalls == 3
+	mu.Unlock()
+	if !invalidSkipped {
+		t.Fatal("confirmation request was sent with an invalid recipient address")
+	}
+	page.MustEval(`()=>{const account=document.querySelector('[name=email_account_id]'),email=document.querySelector('[name=email_to]');account.value='';account.dispatchEvent(new Event('change',{bubbles:true}));email.value='';email.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	if !page.MustEval(`()=>document.querySelector('[data-action=email-challenge]').disabled`).Bool() {
+		t.Fatal("send code stayed enabled without a sender and recipient")
+	}
+	page.MustEval(`()=>{const account=document.querySelector('[name=email_account_id]'),email=document.querySelector('[name=email_to]');account.value='gmx_personal';account.dispatchEvent(new Event('change',{bubbles:true}));email.value='reader@example.org';email.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	if page.MustEval(`()=>document.querySelector('[data-action=email-challenge]').disabled`).Bool() {
+		t.Fatal("send code did not enable after selecting a sender and recipient")
 	}
 	for _, mode := range []string{"light", "dark"} {
 		page.MustEval(`mode=>document.body.dataset.fruityMode=mode`, mode)

@@ -5,7 +5,7 @@
 - `newspaper.js` owns one window reader for today's immutable edition, articles, archive and preferences. When only an earlier issue exists, keep it readable and offer creation of today's issue; do not offer today's correction flow on older issues. Closing the window cancels only UI work; the server owns ongoing research and delivery.
 - Preferences include section-bound RSS feeds. A new revision can carry an optional correction note; the reader displays it on the published issue without changing older revisions.
 - Escape all source text and allow only safe HTTP(S) source links. Show actual publication and source times, partial coverage, single-source disclosure, run progress and delivery uncertainty. Keep the same issue when moving between views and preserve reading position.
-- Show localized email-confirmation bounce suppression, rejection, configuration failure, uncertainty and cooldown messages from structured API codes. Do not render raw AgentMail response text or repeat a blocked send automatically.
+- Show localized email-confirmation bounce suppression, rejection, configuration failure, uncertainty and cooldown messages from structured API codes. Send code first saves the selected sender account and recipient address, without saving unrelated draft preferences; never send through a stale stored account. Do not render raw AgentMail response text or repeat a blocked send automatically.
 - Load `desktop-app-newspaper.css` lazily, use both Desktop themes, all 16 `newspaper.*` locale entries and the Papirus/WhiteSur Newspaper icons. Verify with `TestDesktopNewspaperBrowser` and `TestNewspaperTranslations`.
 
 ## Personal Radio
