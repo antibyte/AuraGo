@@ -68,6 +68,21 @@ belongs to a later task; no application prompt or dispatch behavior changes here
   never remove arbitrary blocks. Keep changing-candidate and repeated-request
   timings separate; prefix reuse is not general latency acceptance. Report startup
   separately. Depth selection remains subject to quality validation before training.
+- `local_pilot.py` is a separate, offline CPU experiment authorized by the user.
+  Its small synthetic DE/EN dataset is not accepted corpus data and does not waive
+  GPU gates. Cap each run at 1,000 steps and 30 minutes; default to 240/15 minutes.
+  Assign all reused natural diagnostic variants to training, freeze new validation
+  and holdout goals before training, and never repair their retrieved candidates.
+- The local pilot uses four ladder layers, rank 8/alpha 16 QAT LoRA, and the shared
+  serializer/checkpoint/export implementations. Optimizer, RNG, data order, elapsed
+  budget and model/data identity survive resume. Stop on nonfinite updates.
+- `local_pilot_eval.py` selects native W4 checkpoints and a simple search reference
+  only on validation, then claims its development holdout once. Group bootstrap
+  keeps translations dependent. Always compare a trained checkpoint against the
+  untrained baseline, even when training loses; do not hide a regression by
+  selecting the baseline as both arms. Private resident-loader experiments require a
+  fresh process per model and output equivalence with the normal binding; they
+  remain prototypes. Keep all model artifacts and measurements under reports.
 
 ## Work Guidance
 
@@ -88,6 +103,7 @@ belongs to a later task; no application prompt or dispatch behavior changes here
 - `python training/validate_dataset.py --all`
 - `python -m unittest training.needle3.test_pipeline`
 - `python -m unittest training.needle3.test_diagnostic`
+- `python -m unittest training.needle3.test_local_pilot`
 - In the locked environment, rerun the tests to include real tokenizer and
   checkpoint checks. `smoke.py` exercises the native runtime on the local OS.
 - Run `quality.py` then `compile.py`; their failure is expected while accepted

@@ -13,7 +13,7 @@ It does not execute AuraGo tools or change the production agent.
   launch exists. A request file is not a rented machine.
 - Target: 70,000 fully accepted examples, not requests, drafts or translations
   counted as independent scenarios. A failed pilot stops bulk generation.
-- The source pipeline is prepared. A complete accepted corpus, trained adapter,
+- The source pipeline is prepared. A complete accepted corpus, full-run adapter,
   CUDA throughput measurement and checks of the trained export are separate pending
   deliverables. Inspect the local reports before planning a billable run.
 
@@ -180,6 +180,56 @@ set. A resident-weight experiment must record any private API hooks, preserve
 single-model process isolation, and compare its outputs to that normal binding.
 Keep such prototypes separate from the production integration and from the
 repeated-request prefix-reuse measurement.
+
+### Small local CPU learning experiment
+
+This separate development experiment tests whether a small amount of actual QAT
+LoRA training improves native manual selection. It never starts RunPod or calls
+an API, and it does not replace the accepted-corpus or GPU readiness gates.
+
+The fixture contains 116 DE/EN training rows from the earlier natural diagnostics
+(18 manual families), 24 new validation rows and 48 new holdout rows. Bilingual
+siblings stay together. The holdout has 24 scenario groups and new task goals;
+it is a small hand-authored development set, not the sealed 7,000-row final test.
+Once reused for training, the old natural diagnostics cannot measure independent
+quality of this adapter. This sample cannot determine the full catalog's minimum
+training-data requirement.
+
+```powershell
+$env:OMP_NUM_THREADS='4'
+$env:MKL_NUM_THREADS='4'
+$env:OPENBLAS_NUM_THREADS='4'
+$env:JAX_PLATFORMS='cpu'
+$pilot = 'reports/needle3/local-pilot'
+training/needle3/.venv/Scripts/python.exe -m training.needle3.local_pilot prepare --out $pilot
+training/needle3/.venv/Scripts/python.exe -m training.needle3.local_pilot train --out $pilot --steps 240 --max-seconds 900
+training/needle3/.venv/Scripts/python.exe -m training.needle3.local_pilot_eval select --out $pilot
+training/needle3/.venv/Scripts/python.exe -m training.needle3.local_pilot_eval finalize --out $pilot
+```
+
+Preparation freezes data/source hashes, real top-12 retrieval, full tokenization
+and any training-only gold injections. Rank 8/alpha 16 adapters train four ladder
+layers with batch one, learning rate `3e-4`, 5% warmup, cosine decay and norm clipping
+at 1. Defaults permit 240 updates within 15 minutes, with an absolute entry-point
+limit of 1,000 steps/30 minutes. Training can resume under identical settings;
+elapsed budget, optimizer, RNG and shuffled data position are restored together.
+Checkpoints are saved at least every 80 updates or four minutes, plus on exit.
+
+Selection evaluates matched untrained W4 and each saved adapter using the actual
+native `complete()` implementation. Validation F2, recall, then empty-output
+accuracy select the trained checkpoint; ties prefer earlier checkpoints. The
+training arm always contains an actual adapter, even when every checkpoint loses
+to the untrained baseline, so the comparison cannot conceal regressions. Search-only output
+count and similarity threshold are also selected on validation. `finalize`
+exclusively claims the development holdout for that frozen selection. A crash
+requires reconciling saved evidence; it must not silently retune on the holdout.
+
+The comparison records per-language quality, group-aware F2 intervals and complete
+request timings with live retrieval. It also compares a single-model resident
+prototype against the normal Python binding, verifying identical guarded outputs.
+That private loader hook and any observed sub-600-ms latency are development
+evidence, not production integration or a real-time guarantee. Artifacts, adapter,
+checkpoints, exports and reports remain in the ignored experiment directory.
 
 ## Later RunPod run
 
