@@ -41,5 +41,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True)
     parser.add_argument("--adapter")
+    parser.add_argument("--layers", type=int, choices=range(2, 21), default=20,
+                        help="Export a trained ladder depth from the pinned base model")
     args = parser.parse_args()
-    export(args.out, args.adapter)
+    export(args.out, args.adapter, layers=args.layers)

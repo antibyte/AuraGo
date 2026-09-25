@@ -53,6 +53,21 @@ belongs to a later task; no application prompt or dispatch behavior changes here
 - Accepted compact language shards may be committed after gates. Raw generations,
   pilot results, audit queues, diagnostics and cost ledgers belong in ignored
   `reports/needle3/`; models, compiled sequences and environments stay ignored.
+- `diagnostic.py` and its synthetic source fixtures provide offline development
+  measurements before choosing training scale. Keep mechanical catalog probes,
+  natural cases and translated siblings distinct. Counterfactual oracle and
+  candidate-order probes must never enter the main retrieval measurement.
+- A local baseline does not consume the sealed final test or authorize GPU work.
+  Baseline errors inform targeted data and later validation learning curves;
+  they cannot establish an exact required number of training examples.
+- User latency requirement: less than 600 ms per selection, including retrieval,
+  schema setup and output validation. Report median, p95, maximum and violations;
+  a passing median alone does not meet this requirement.
+- `latency.py` compares matched untrained W4 ladder exports on identical natural
+  development cases. Use the upstream ladder selection through `export --layers`,
+  never remove arbitrary blocks. Keep changing-candidate and repeated-request
+  timings separate; prefix reuse is not general latency acceptance. Report startup
+  separately. Depth selection remains subject to quality validation before training.
 
 ## Work Guidance
 
@@ -72,6 +87,7 @@ belongs to a later task; no application prompt or dispatch behavior changes here
 - `go run ./disposable/export_tools --manual-router-out training/needle3/catalog.json --check`
 - `python training/validate_dataset.py --all`
 - `python -m unittest training.needle3.test_pipeline`
+- `python -m unittest training.needle3.test_diagnostic`
 - In the locked environment, rerun the tests to include real tokenizer and
   checkpoint checks. `smoke.py` exercises the native runtime on the local OS.
 - Run `quality.py` then `compile.py`; their failure is expected while accepted

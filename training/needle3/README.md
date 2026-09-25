@@ -120,6 +120,67 @@ catalog hash, format validity, CPU timing, prompt tokens and a fallback indicato
 There is no calibrated fine-tuned confidence score. This is not yet an integration
 recommendation; use the final comparative results and later real-world testing.
 
+### Broader offline development diagnostic
+
+```powershell
+training/needle3/.venv/Scripts/python.exe -m training.needle3.diagnostic --out reports/needle3/local-diagnostic --models untrained_w4 --workers 1
+training/needle3/.venv/Scripts/python.exe -m unittest training.needle3.test_diagnostic
+```
+
+This calls the pinned native `complete()` implementation with the untrained W4
+export. Omit `--models` to compare both the published archive and W4. It makes no
+API requests and starts no GPU resources. Source/model/catalog identity and cached
+case checksums prevent resuming with changed inputs. Use a fresh output directory
+after changing code or committing. Results and per-call progress are written under
+the ignored report folder. Measure worker counts locally: one worker can outperform
+four because concurrent native prefill competes for CPU resources.
+
+The 540 requests represent **242 scenario groups**, including 364 deliberately
+mechanical DE/EN catalog probes (all 182 families) and 176 natural challenge rows.
+Four shared scenarios are translated into each of the other fourteen languages;
+they are a language smoke test, not sufficient samples for per-language acceptance.
+Report these cohorts separately. Existing tool-execution clarification/refusal
+rows are not imported as empty-manual labels: missing arguments still need manuals.
+
+Real top-12 candidates are never repaired in the main measurement. Missing-gold
+counterfactuals, reversed order, and top-20 natural-case probes are separate arms.
+Report retrieval misses, conditional selection recall, empty-output accuracy,
+format validity, group-aware comparisons, and errors before estimating data needs.
+These development fixtures are neither accepted training data nor the sealed
+final test. Do not infer a precise training sample count from baseline accuracy;
+that requires a validation learning curve after actual training.
+
+### CPU latency and layer depth
+
+The required request budget is **less than 600 ms end to end**, including search,
+schema preparation and output validation. Report p50, p95, maximum and deadline
+misses. First service startup is separate; cached-prefix timings cannot stand in
+for requests whose candidate lists change.
+
+```powershell
+training/needle3/.venv/Scripts/python.exe -m training.needle3.export --layers 12 --out training/needle3/models/baseline-w4-12l.cact
+training/needle3/.venv/Scripts/python.exe -m training.needle3.export --layers 8 --out training/needle3/models/baseline-w4-8l.cact
+training/needle3/.venv/Scripts/python.exe -m training.needle3.export --layers 4 --out training/needle3/models/baseline-w4-4l.cact
+$env:OMP_NUM_THREADS='2'
+$env:MKL_NUM_THREADS='2'
+$env:OPENBLAS_NUM_THREADS='2'
+training/needle3/.venv/Scripts/python.exe -m training.needle3.latency --diagnostic reports/needle3/local-diagnostic --out reports/needle3/fresh-latency --weights training/needle3/models/baseline-w4.cact training/needle3/models/baseline-w4-12l.cact training/needle3/models/baseline-w4-8l.cact training/needle3/models/baseline-w4-4l.cact
+```
+
+The pinned Python wrapper has no depth constructor argument. The existing export
+path uses the upstream ladder to produce the requested 2–20-layer archive; its
+header and manifest are checked before timing. No training is needed for this
+depth comparison. It pairs 58 natural DE/EN scenarios across every model and
+repeats each request without a response cache to isolate prefix reuse. Both modes
+rerun the real E5/catalog search and preserve its original candidate set. These
+are exploratory quality and timing measurements, not final-test acceptance.
+
+The normal `weights=` binding starts an isolated model worker for each new tool
+set. A resident-weight experiment must record any private API hooks, preserve
+single-model process isolation, and compare its outputs to that normal binding.
+Keep such prototypes separate from the production integration and from the
+repeated-request prefix-reuse measurement.
+
 ## Later RunPod run
 
 The prepared image is official CUDA 12.8.1 / Ubuntu 24.04 pinned by digest.
