@@ -11,7 +11,7 @@ Newspaper is an optional Virtual Desktop app that makes a personal daily edition
 
 The first page shows the lead and secondary stories, a brief rail and a link to each full article. When today's issue is missing, the last saved edition remains readable with a clear action to create today's issue. Article paragraphs carry source references; the source panel shows the original URL, publisher, publication time when known and retrieval time. Single-source stories and partial coverage are labeled. The archive keeps dated revisions and reading position. PDF export is available for a saved edition when its characters are supported by the local PDF font.
 
-Use **Create new revision** for a fresh version of today's edition. If the new version corrects a published error, enter a short correction note in the revision panel. The note appears on the new issue in the app, email and PDF; the earlier issue stays in the archive.
+If research fails or is interrupted before an issue is published, use **Create today's edition** again to retry. Each attempt gets a new revision number, and the earlier run remains available for diagnosis. The daily schedule makes one attempt per local date and does not repeatedly retry a failure. Once an issue is published, use **Create new revision** for a fresh version of today's edition. If the new version corrects a published error, enter a short correction note in the revision panel. The note appears on the new issue in the app, email and PDF; the earlier issue stays in the archive.
 
 ## Delivery
 

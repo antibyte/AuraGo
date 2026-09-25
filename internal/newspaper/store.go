@@ -193,14 +193,14 @@ func (s *Store) StartCorrected(ctx context.Context, date string, newRevision boo
 	if err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(revision),0) FROM newspaper_runs WHERE local_date=?", date).Scan(&revision); err != nil {
 		return Run{}, err
 	}
-	if revision > 0 && !newRevision {
+	var published int
+	if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM newspaper_editions WHERE local_date=?", date).Scan(&published); err != nil {
+		return Run{}, err
+	}
+	if published > 0 && !newRevision {
 		return Run{}, ErrConflict
 	}
 	if correction != "" {
-		var published int
-		if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM newspaper_editions WHERE local_date=?", date).Scan(&published); err != nil {
-			return Run{}, err
-		}
 		if !newRevision || published == 0 {
 			return Run{}, errors.New("a correction needs an existing edition and an explicit new revision")
 		}
@@ -302,6 +302,12 @@ func (s *Store) LatestRun(ctx context.Context) (Run, error) {
 		err = json.Unmarshal(b, &r)
 	}
 	return r, err
+}
+
+func (s *Store) hasRunForDate(ctx context.Context, date string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM newspaper_runs WHERE local_date=?)", date).Scan(&exists)
+	return exists, err
 }
 
 func (s *Store) Publish(ctx context.Context, run Run, e Edition) error {

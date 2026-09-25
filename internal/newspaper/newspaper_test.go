@@ -139,6 +139,61 @@ func TestStoreRevisionPublicationAndDeliveryIdempotency(t *testing.T) {
 	}
 }
 
+func TestFailedRunCanBeRetriedManuallyWithoutScheduledReplay(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 9, 25, 6, 30, 0, 0, time.UTC)
+	s, err := New(Options{
+		Path:   filepath.Join(t.TempDir(), "newspaper.db"),
+		Policy: func() Policy { return Policy{Enabled: true} },
+		Research: func(context.Context, Profile, time.Time, func(Progress)) (Draft, error) {
+			return Draft{}, errors.New("test research failure")
+		},
+		Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	p, err := s.Profile(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Daily = true
+	p.ReadyTime = "08:30"
+	date := "2026-09-25"
+	first, err := s.Store().Start(ctx, date, false, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Store().RecordRunSource(ctx, first.ID, testDraft(now).Sources[0]); err != nil {
+		t.Fatal(err)
+	}
+	first.Status = "failed"
+	if err = s.Store().UpdateRun(ctx, first, "Research failed"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Store().SaveProfile(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	s.tick()
+	latest, err := s.LatestRun(ctx)
+	if err != nil || latest.ID != first.ID || latest.Revision != 1 {
+		t.Fatalf("daily scheduler replayed failed run: %+v, %v", latest, err)
+	}
+	retry, err := s.Start(ctx, false)
+	if err != nil || retry.Revision != 2 || retry.ID == first.ID {
+		t.Fatalf("manual retry: %+v, %v", retry, err)
+	}
+	previous, err := s.Run(ctx, first.ID)
+	if err != nil || previous.Status != "failed" {
+		t.Fatalf("previous run: %+v, %v", previous, err)
+	}
+	sources, err := s.RunSources(ctx, first.ID)
+	if err != nil || len(sources) != 1 || sources[0].ID != "src-1" {
+		t.Fatalf("previous run evidence: %+v, %v", sources, err)
+	}
+}
+
 func TestInterruptedRunAndDST(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "newspaper.db")
@@ -168,6 +223,10 @@ func TestInterruptedRunAndDST(t *testing.T) {
 	sources, err := s.RunSources(ctx, run.ID)
 	if err != nil || len(sources) != 1 || sources[0].ID != "src-1" {
 		t.Fatalf("retained evidence: %#v %v", sources, err)
+	}
+	retry, err := s.Start(ctx, "2026-09-25", false, time.Now())
+	if err != nil || retry.Revision != 2 {
+		t.Fatalf("interrupted run retry: %+v %v", retry, err)
 	}
 	loc, _ := time.LoadLocation("Europe/Berlin")
 	gap, err := readyInstant("2026-03-29", "02:30", loc)

@@ -138,10 +138,10 @@ func (s *Service) StartWithCorrection(ctx context.Context, newRevision bool, cor
 	loc, _ := time.LoadLocation(profile.TimeZone)
 	now := s.now()
 	date := now.In(loc).Format("2006-01-02")
-	return s.startForDate(ctx, date, newRevision, profile, correction)
+	return s.startForDate(ctx, date, newRevision, profile, correction, false)
 }
 
-func (s *Service) startForDate(ctx context.Context, date string, newRevision bool, profile Profile, correction string) (Run, error) {
+func (s *Service) startForDate(ctx context.Context, date string, newRevision bool, profile Profile, correction string, scheduled bool) (Run, error) {
 	if !s.canWrite() {
 		return Run{}, ErrDisabled
 	}
@@ -149,6 +149,15 @@ func (s *Service) startForDate(ctx context.Context, date string, newRevision boo
 	defer s.mu.Unlock()
 	if s.running != nil {
 		return Run{}, ErrBusy
+	}
+	if scheduled {
+		attempted, err := s.store.hasRunForDate(ctx, date)
+		if err != nil {
+			return Run{}, err
+		}
+		if attempted {
+			return Run{}, ErrConflict
+		}
 	}
 	run, err := s.store.StartCorrected(ctx, date, newRevision, correction, s.now())
 	if err != nil {
@@ -349,7 +358,7 @@ func (s *Service) tick() {
 		if now.Before(due) || now.After(ready.Add(3*time.Hour)) {
 			continue
 		}
-		_, err = s.startForDate(s.ctx, date.Format("2006-01-02"), false, p, "")
+		_, err = s.startForDate(s.ctx, date.Format("2006-01-02"), false, p, "", true)
 		if err == nil || errors.Is(err, ErrBusy) {
 			return
 		}
