@@ -1,8 +1,9 @@
-# Needle3 manual routing preparation
+# Needle3 category routing and manual selector research
 
 ## Purpose
 
-Prepare and evaluate a standalone manual selector. Production AuraGo integration
+The active experiment routes requests to all needed tool categories. Preserve the
+earlier manual-selector pipeline for reproducibility. Production AuraGo integration
 belongs to a later task; no application prompt or dispatch behavior changes here.
 
 ## Ownership
@@ -15,7 +16,7 @@ belongs to a later task; no application prompt or dispatch behavior changes here
 
 ## Local Contracts
 
-- `config.json` is the requested quota and budget contract: 70,000 accepted rows,
+- `config.json` retains the original manual-selector quota and budget contract: 70,000 accepted rows,
   17,500 semantic groups, 16 languages. Generated requests and seed imports are
   never accepted examples. Keep every translation/paraphrase in its group split.
 - User steering: use `deepseek/deepseek-v4.1-flash` for generation, an independent
@@ -33,7 +34,7 @@ belongs to a later task; no application prompt or dispatch behavior changes here
   and legitimate empty-label requests. Scenario uniqueness is between groups.
   Source audits require exact manual quotes; a repaired review cannot authorize
   generation with a different schedule or code revision.
-- Training and inference share `serialization.py`. No silent truncation; no calls
+- Manual-selector training and inference share `serialization.py`. No silent truncation; no calls
   with arguments; only known, allowed candidates can survive the output guard.
   Inference calls `complete()`, never `run()` or production tools.
 - Reserve the runtime's 256 completion tokens at compilation. Pair pilot buckets
@@ -83,6 +84,31 @@ belongs to a later task; no application prompt or dispatch behavior changes here
   selecting the baseline as both arms. Private resident-loader experiments require a
   fresh process per model and output equivalence with the normal binding; they
   remain prototypes. Keep all model artifacts and measurements under reports.
+- User scope change: `category_*.py` predicts only the nine exported discovery
+  categories. A shared manual maps to exactly one category; all 182 families must
+  be covered. Do not silently introduce a different production taxonomy.
+- `category_router.py` owns nine fixed zero-argument category functions, shared
+  training/runtime rendering, and category guard. Any number of the nine categories
+  may be returned. Unknown/duplicate categories are invalid; empty availability
+  stays empty. Returned manual lists are filtered discovery locations, not selected
+  manuals or permission grants. Use only public `complete()` and retain one instance.
+  Every training target must include the runtime's forced `<think>` envelope:
+  upstream `render_example` omits it when reasoning is empty. Keep the rationale
+  short and nonempty; runtime failures must not count as valid empty predictions.
+- The category pack is an offline synthetic DE/EN experiment. Freeze natural
+  train/validation/holdout goals before training; translated siblings stay together.
+  Mechanical manual-lookup probes only prove taxonomy coverage. They have 15% of
+  training sampling mass; multi-area, context and no-tool cases have explicit mass.
+- Category training uses four ladder layers, W4 QAT, rank 16/alpha 32, learning rate
+  at most 1e-4 and effective batches of 4/8/16 via gradient accumulation. Preserve
+  optimizer/RNG/elapsed budget on resume and keep the 30-minute/1,000-update CPU cap.
+  Check native validation periodically. Select by validation F2, then all-required
+  coverage, empty accuracy and exact set; claim holdout once for every frozen arm.
+- Compare against a matched untrained export and frozen multilingual E5 with
+  linear category heads and an optional manual-needed gate. Fit on training only;
+  tune regularization and thresholds only on validation. No E5 weights change. Report full-area coverage,
+  extra categories/manual fanout and complete request latency, including output
+  checks; separate startup. DE/EN evidence does not establish other-language quality.
 
 ## Work Guidance
 
@@ -104,6 +130,7 @@ belongs to a later task; no application prompt or dispatch behavior changes here
 - `python -m unittest training.needle3.test_pipeline`
 - `python -m unittest training.needle3.test_diagnostic`
 - `python -m unittest training.needle3.test_local_pilot`
+- `python -m unittest training.needle3.test_category`
 - In the locked environment, rerun the tests to include real tokenizer and
   checkpoint checks. `smoke.py` exercises the native runtime on the local OS.
 - Run `quality.py` then `compile.py`; their failure is expected while accepted

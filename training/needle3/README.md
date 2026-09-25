@@ -1,9 +1,81 @@
-# AuraGo Needle3 manual selector
+# AuraGo Needle3 category router
 
-An isolated research/training pipeline selecting zero to three **manual families**.
-It does not execute AuraGo tools or change the production agent.
+The active experiment selects **all needed tool categories** so the agent can
+discover manuals in those areas. It does not execute tools or change the production
+agent. The earlier zero-to-three manual selector remains available for reproducibility.
 
-## Current operating limits
+## Local category experiment
+
+The fixed catalog contains nine existing discovery categories, mapped exhaustively
+from the 182 canonical manual families. `category_router.py` returns `category_ids`
+and `manuals_by_category`; the latter identifies search locations, not recommended
+manuals to inject. The catalog's heterogeneous `infrastructure` category includes
+Office, desktop notes and SIP, which is made explicit in the schema contract.
+
+`category_fixtures.py` defines independent natural DE/EN scenario groups with
+single-area tasks, multiple areas, corrections, follow-ups and no-tool requests.
+`category_data.py` freezes 556 training, 98 validation and 108 holdout rows. The
+training set includes 364 mechanical catalog lookups; these receive only 15% of
+sampling mass. They do not prove natural-language coverage of every integration.
+All translations stay together. Data, source hashes and the taxonomy are frozen
+before training; this development pack is separate from the original accepted corpus.
+
+The router declares nine zero-argument category functions. Training targets include
+a short, nonempty rationale so the rendered `<think>` envelope matches native
+decoding. Empty reasoning is unsafe here: upstream omits the envelope while the
+runtime forces it. Tests assert this token contract and reject failed native calls
+instead of counting them as successful empty responses.
+
+The CPU experiment uses four layers, rank 16/alpha 32 W4 LoRA, `1e-4` learning
+rate, 5% warmup/cosine decay, clipping at 1 and effective batch 8. It accumulates
+one-example gradients before updating. The concise reasoning is downweighted;
+the structured category decision is supervised. No token truncation is allowed.
+Native validation checks occur every 60 updates; selection uses F2, all-required
+coverage, empty accuracy and exact sets, not training loss. Checkpoints retain the
+optimizer, RNG, data/model identity and elapsed budget. Each run allows at most
+1,000 updates and 30 minutes, followed by export and evaluation.
+
+```powershell
+$env:JAX_PLATFORMS='cpu'
+$env:DO_NOT_TRACK='1'
+$env:HF_HUB_OFFLINE='1'
+$env:TRANSFORMERS_OFFLINE='1'
+$env:OMP_NUM_THREADS='2'
+$env:MKL_NUM_THREADS='2'
+$env:OPENBLAS_NUM_THREADS='2'
+$experiment='reports/needle3/category-new-run'
+$python='training/needle3/.venv/Scripts/python.exe'
+& $python -m training.needle3.category_data --out $experiment
+& $python -m training.needle3.export --layers 4 --out "$experiment/base.cact"
+& $python -m training.needle3.category_eval measure --out $experiment --weights "$experiment/base.cact" --result "$experiment/validation-baseline.json"
+& $python -m training.needle3.category_reference fit --out $experiment
+& $python -m training.needle3.category_train --out $experiment --steps 300 --batch 8 --max-seconds 1800
+& $python -m training.needle3.category_eval select --out $experiment
+& $python -m training.needle3.category_eval finalize --out $experiment
+```
+
+The frozen E5 reference trains small linear category heads and a manual-needed
+gate. Their thresholds are selected on validation, including the option to disable
+the gate. `finalize` claims the holdout once for baseline, trained Needle and
+that reference. Reports include recall, fraction of requests with **every required
+category**, unnecessary categories/manual fanout, empty outputs, and p50/p95/max
+latency with 600-ms violations. Startup is separate; the fixed schema reuses one
+public Needle instance and its native prefix cache across different requests.
+
+The JSONL tester accepts `query`, up to two preceding user messages as `context`,
+and optional `available_manuals` (an empty list permits nothing):
+
+```powershell
+& $python -m training.needle3.category_router --weights "$experiment/models/step-0060.cact"
+# stdin: {"query":"Read the Docker status and email it to me","context":[]}
+```
+
+Use the actual selected model path from `selection.json`. Invalid/oversize input or
+invalid output requires ordinary discovery fallback. No local confidence score is
+available. Synthetic DE/EN evaluation does not establish production or other-language
+reliability. The original 70,000-row and RunPod gates below remain separate.
+
+## Original manual-selector operating limits
 
 - Generation: `deepseek/deepseek-v4.1-flash` on OpenRouter; blind review:
   `google/gemini-3-flash-preview`.

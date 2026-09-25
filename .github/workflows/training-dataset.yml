@@ -67,7 +67,7 @@ jobs:
         run: go run ./disposable/export_tools --manual-router-out training/needle3/catalog.json --check
 
       - name: Test offline manual selector contracts and spend guards
-        run: python -m unittest training.needle3.test_pipeline training.needle3.test_diagnostic training.needle3.test_local_pilot
+        run: python -m unittest training.needle3.test_pipeline training.needle3.test_diagnostic training.needle3.test_local_pilot training.needle3.test_category
 
       - name: Test loaders, templates, masking preconditions, and evaluation
         run: python -m unittest training.test_training_pipeline
