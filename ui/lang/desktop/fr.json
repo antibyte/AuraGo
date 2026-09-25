@@ -4563,7 +4563,7 @@
   "newspaper.close_safe": "Vous pouvez fermer cette fenêtre. Les recherches se poursuivent sur le serveur.",
   "newspaper.code_sent": "Code de confirmation envoyé.",
   "newspaper.agentmail_rejected": "AgentMail a refusé l’e-mail de confirmation (HTTP {status}). Vérifiez l’expéditeur et les limites d’envoi dans AgentMail, puis réessayez.",
-  "newspaper.agentmail_bounce_blocked": "AgentMail a bloqué ce destinataire après un rebond. Vérifiez l’adresse et demandez à l’assistance AgentMail d’examiner le blocage. Renvoyer le message ne servira à rien.",
+  "newspaper.agentmail_bounce_blocked": "AgentMail a bloqué cette adresse après un rejet. Cela ne signifie pas forcément que l’adresse est invalide. Demandez à l’assistance AgentMail d’examiner l’erreur SMTP initiale et le blocage.",
   "newspaper.email_send_safe": "L’e-mail de confirmation n’a pas été envoyé. Vérifiez le compte d’envoi sélectionné, puis réessayez.",
   "newspaper.email_send_uncertain": "Le résultat de l’envoi est incertain. Vérifiez votre boîte de réception avant de demander un autre code.",
   "newspaper.challenge_pending": "Un code a été demandé récemment. Attendez environ une minute avant de réessayer.",

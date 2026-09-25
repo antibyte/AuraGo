@@ -4563,7 +4563,7 @@
   "newspaper.close_safe": "U kunt dit venster sluiten. Het onderzoek gaat door op de server.",
   "newspaper.code_sent": "Bevestigingscode verzonden.",
   "newspaper.agentmail_rejected": "AgentMail heeft de bevestigingsmail geweigerd (HTTP {status}). Controleer de afzender en verzendlimieten in AgentMail en probeer het opnieuw.",
-  "newspaper.agentmail_bounce_blocked": "AgentMail heeft deze ontvanger geblokkeerd na een bounce. Controleer het adres en vraag AgentMail-support de blokkering te beoordelen. Opnieuw verzenden helpt niet.",
+  "newspaper.agentmail_bounce_blocked": "AgentMail heeft dit adres geblokkeerd na een bounce. Dat betekent niet automatisch dat het adres ongeldig is. Vraag AgentMail-support om de oorspronkelijke SMTP-fout en de blokkering te onderzoeken.",
   "newspaper.email_send_safe": "De bevestigingsmail is niet verzonden. Controleer het gekozen verzendaccount en probeer het opnieuw.",
   "newspaper.email_send_uncertain": "Het verzendresultaat is onduidelijk. Controleer je inbox voordat je een nieuwe code aanvraagt.",
   "newspaper.challenge_pending": "Er is onlangs een code aangevraagd. Wacht ongeveer een minuut en probeer het opnieuw.",

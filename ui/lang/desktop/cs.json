@@ -4563,7 +4563,7 @@
   "newspaper.close_safe": "Toto okno můžete zavřít. Výzkum na serveru pokračuje.",
   "newspaper.code_sent": "Potvrzovací kód odeslán.",
   "newspaper.agentmail_rejected": "AgentMail odmítl potvrzovací e-mail (HTTP {status}). Zkontrolujte odesílatele a limity odesílání v AgentMail a zkuste to znovu.",
-  "newspaper.agentmail_bounce_blocked": "AgentMail zablokoval tohoto příjemce po nedoručené zprávě. Zkontrolujte adresu a požádejte podporu AgentMail o prověření blokování. Opakované odesílání nepomůže.",
+  "newspaper.agentmail_bounce_blocked": "AgentMail zablokoval tuto adresu po nedoručené zprávě. To samo o sobě neznamená, že je adresa neplatná. Požádejte podporu AgentMail o prověření původní chyby SMTP a blokace.",
   "newspaper.email_send_safe": "Potvrzovací e-mail nebyl odeslán. Zkontrolujte vybraný odesílací účet a zkuste to znovu.",
   "newspaper.email_send_uncertain": "Výsledek odeslání není jasný. Před vyžádáním dalšího kódu zkontrolujte schránku.",
   "newspaper.challenge_pending": "O kód již bylo nedávno požádáno. Počkejte asi minutu a zkuste to znovu.",

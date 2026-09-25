@@ -4563,7 +4563,7 @@
   "newspaper.close_safe": "このウィンドウは閉じても構いません。研究はサーバー上で継続されます。",
   "newspaper.code_sent": "確認コードを送信しました。",
   "newspaper.agentmail_rejected": "AgentMail が確認メールを拒否しました（HTTP {status}）。AgentMail の送信元と送信上限を確認してから、もう一度お試しください。",
-  "newspaper.agentmail_bounce_blocked": "以前の配信失敗により、AgentMail がこの受信者をブロックしています。アドレスを確認し、ブロックの見直しを AgentMail サポートに依頼してください。再送しても解決しません。",
+  "newspaper.agentmail_bounce_blocked": "以前の配信失敗により、AgentMail がこのアドレスへの送信をブロックしています。アドレスが無効とは限りません。元の SMTP エラーとブロックの確認を AgentMail サポートに依頼してください。",
   "newspaper.email_send_safe": "確認メールは送信されませんでした。選択した送信アカウントを確認してから、もう一度お試しください。",
   "newspaper.email_send_uncertain": "送信結果を確認できません。新しいコードを要求する前に、受信箱を確認してください。",
   "newspaper.challenge_pending": "最近コードが要求されました。約1分待ってから、もう一度お試しください。",

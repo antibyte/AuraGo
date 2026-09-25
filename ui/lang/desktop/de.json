@@ -4563,7 +4563,7 @@
   "newspaper.close_safe": "Du kannst dieses Fenster schließen. Die Recherche läuft auf dem Server weiter.",
   "newspaper.code_sent": "Bestätigungscode gesendet.",
   "newspaper.agentmail_rejected": "AgentMail hat die Bestätigungsmail abgelehnt (HTTP {status}). Prüfe den Absender und die Versandlimits in AgentMail und versuche es erneut.",
-  "newspaper.agentmail_bounce_blocked": "AgentMail blockiert diese Empfängeradresse nach einem Bounce. Prüfe die Adresse und bitte den AgentMail-Support um Prüfung der Sperre. Erneutes Senden hilft nicht.",
+  "newspaper.agentmail_bounce_blocked": "AgentMail blockiert diese Adresse nach einem Bounce. Das bedeutet nicht zwingend, dass die Adresse ungültig ist. Bitte den AgentMail-Support, den ursprünglichen SMTP-Fehler und die Sperre zu prüfen.",
   "newspaper.email_send_safe": "Die Bestätigungsmail wurde nicht gesendet. Prüfe das gewählte Versandkonto und versuche es erneut.",
   "newspaper.email_send_uncertain": "Das Versandergebnis ist unklar. Prüfe Dein Postfach, bevor Du einen neuen Code anforderst.",
   "newspaper.challenge_pending": "Ein Code wurde vor Kurzem angefordert. Warte etwa eine Minute und versuche es erneut.",

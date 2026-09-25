@@ -4563,7 +4563,7 @@
   "newspaper.close_safe": "Du kan lukke dette vinduet. Forskningen fortsetter på serveren.",
   "newspaper.code_sent": "Bekreftelseskode sendt.",
   "newspaper.agentmail_rejected": "AgentMail avviste bekreftelsesmeldingen (HTTP {status}). Sjekk avsenderen og sendegrensene i AgentMail, og prøv igjen.",
-  "newspaper.agentmail_bounce_blocked": "AgentMail har blokkert denne mottakeren etter en returmelding. Sjekk adressen og be AgentMail-support gjennomgå blokkeringen. Det hjelper ikke å sende på nytt.",
+  "newspaper.agentmail_bounce_blocked": "AgentMail har blokkert denne adressen etter en returmelding. Det betyr ikke nødvendigvis at adressen er ugyldig. Be AgentMail-support undersøke den opprinnelige SMTP-feilen og blokkeringen.",
   "newspaper.email_send_safe": "Bekreftelsesmeldingen ble ikke sendt. Sjekk den valgte senderkontoen, og prøv igjen.",
   "newspaper.email_send_uncertain": "Resultatet av sendingen er uklart. Sjekk innboksen før du ber om en ny kode.",
   "newspaper.challenge_pending": "En kode ble nylig forespurt. Vent omtrent ett minutt og prøv igjen.",
