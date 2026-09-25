@@ -21,6 +21,7 @@ type ClientConfig struct {
 	HTTPClient       *http.Client
 	MaxResponseBytes int64
 	MaxRetries       int
+	DisableRetries   bool
 	RetrySleep       func(time.Duration)
 }
 
@@ -76,6 +77,9 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	}
 	if maxRetries == 0 {
 		maxRetries = 2
+	}
+	if cfg.DisableRetries {
+		maxRetries = 0
 	}
 	retrySleep := cfg.RetrySleep
 	if retrySleep == nil {

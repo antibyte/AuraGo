@@ -430,12 +430,15 @@
             CardState.setLoading('card-profile');
             CardState.setLoading('card-activity-overview');
             CardState.setLoading('card-journal');
+			CardState.setLoading('card-newspaper');
 
             const results = await Promise.all([
                 API.getWithStatus('/api/dashboard/profile'),
-                API.getWithStatus('/api/memory/activity-overview?days=7')
+				API.getWithStatus('/api/memory/activity-overview?days=7'),
+				API.getWithStatus('/api/desktop/newspaper/capabilities'),
+				API.getWithStatus('/api/desktop/newspaper/editions')
             ]);
-            const [profileR, activityOverviewR] = results;
+			const [profileR, activityOverviewR, newspaperCapsR, newspaperEditionsR] = results;
             const profile = profileR.ok ? profileR.data : null;
             const activityOverview = activityOverviewR.ok ? activityOverviewR.data : null;
 
@@ -444,6 +447,14 @@
 
             if (profile) renderProfile(profile);
             if (activityOverview) renderActivityOverview(activityOverview);
+			const newsStatus = document.getElementById('newspaper-dashboard-status');
+			const newsNext = document.getElementById('newspaper-dashboard-next');
+			if (newsStatus && newsNext) {
+				const caps = newspaperCapsR.data, issues = newspaperEditionsR.data?.editions || [];
+				newsStatus.textContent = !newspaperCapsR.ok ? t('dashboard.newspaper_unavailable') : !caps.enabled ? t('dashboard.newspaper_disabled') : issues.length ? t('dashboard.newspaper_latest') + ': ' + issues[0].lead : t('dashboard.newspaper_empty');
+				newsNext.textContent = caps?.daily && caps.next_run ? t('dashboard.newspaper_next') + ': ' + new Date(caps.next_run).toLocaleString(LANG) : '';
+				CardState.setLoaded('card-newspaper');
+			}
             loadJournal();
         }
 

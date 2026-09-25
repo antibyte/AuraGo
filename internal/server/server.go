@@ -43,6 +43,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/networkshares"
+	"aurago/internal/newspaper"
 	"aurago/internal/onvif"
 	"aurago/internal/personalradio"
 	"aurago/internal/planner"
@@ -237,6 +238,8 @@ type Server struct {
 	VirtualWorkspaceManager *virtualcomputers.WorkspaceManager
 	GameMaker               *gamemaker.Service
 	Detective               *detective.Service
+	Newspaper               *newspaper.Service
+	newspaperSkillReady     bool
 	PersonalRadio           *personalradio.Service
 	RTLSDR                  *rtlsdr.Service
 	RTLSDRRuntime           *rtlsdr.Manager
@@ -495,6 +498,9 @@ func Start(opts StartOptions) error {
 		if s.Detective != nil {
 			_ = s.Detective.Close()
 		}
+		if s.Newspaper != nil {
+			_ = s.Newspaper.Close()
+		}
 		if gamemaker.DefaultService() == s.GameMaker {
 			gamemaker.SetDefaultService(nil)
 		}
@@ -616,6 +622,7 @@ func Start(opts StartOptions) error {
 	installedSkills := s.initSkillManagers(serverCtx, installDir)
 	s.initGameMaker()
 	s.initDetective()
+	s.initNewspaper()
 	s.initPersonalRadio()
 	s.initRTLSDR()
 	// Remote security scanners must not delay the core HTTP readiness check.

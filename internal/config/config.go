@@ -604,6 +604,9 @@ func Load(path string) (*Config, error) {
 	// read-only until an administrator enables the required mutation scopes.
 	cfg.GameMaker.ReadOnly = true
 	cfg.Detective.Enabled = true
+	cfg.Newspaper.MaxMinutes = 30
+	cfg.Newspaper.MaxPages = 60
+	cfg.Newspaper.MaxEditions = 365
 	cfg.GameMaker.WorkspacePath = "agent_workspace/virtual_desktop"
 	cfg.GameMaker.MaxProjects = 25
 	cfg.GameMaker.MaxFilesPerProject = 250
@@ -3010,6 +3013,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "openscad", "job_retention_days"}, c.VirtualDesktop.OpenSCAD.JobRetentionDays},
 		{[]string{"game_maker", "enabled"}, c.GameMaker.Enabled},
 		{[]string{"detective"}, c.Detective},
+		{[]string{"newspaper"}, c.Newspaper},
 		{[]string{"game_maker", "readonly"}, c.GameMaker.ReadOnly},
 		{[]string{"game_maker", "allow_create"}, c.GameMaker.AllowCreate},
 		{[]string{"game_maker", "allow_edit"}, c.GameMaker.AllowEdit},

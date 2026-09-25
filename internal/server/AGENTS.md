@@ -10,6 +10,12 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+### Newspaper integration
+- `/api/desktop/newspaper/` is admin-scoped and same-origin for session writes. The server owns research, delivery and configured destinations; source pages cannot set recipients or invoke send tools.
+- Research requires the enabled model, Brave Search, web scraper and network permission. Persist fetched source evidence before model editing, and publish only validated immutable revisions. Expose bounded run progress and sanitized capabilities.
+- Email uses a writable configured SMTP account or AgentMail with POST retries disabled. Telegram uses only the configured user ID. Unknown send outcomes remain uncertain in the ledger and must not be replayed automatically.
+- Verify with `go test ./internal/server -run TestNewspaper` and the Newspaper browser test. Core state contracts live in `internal/newspaper/AGENTS.md`.
+
 ### Ingress Security and Browser Lab
 - Forwarded host, scheme, and client IP count only when `server.https.behind_proxy` is enabled and the immediate peer matches `server.https.trusted_proxy_cidrs`; other forwarding headers are removed before auth and URL construction.
 - An auth-disabled remote listener requires `auth.allow_unauthenticated_remote` before startup or config save. This exception never opens `/speech-lab/`.

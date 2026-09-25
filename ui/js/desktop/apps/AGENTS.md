@@ -1,5 +1,11 @@
 # Desktop App Modules - Child DOX Contract
 
+## Newspaper
+
+- `newspaper.js` owns one window reader for today's immutable edition, articles, archive and preferences. Closing it cancels only UI work; the server owns ongoing research and delivery.
+- Escape all source text and allow only safe HTTP(S) source links. Show actual publication and source times, partial coverage, single-source disclosure, run progress and delivery uncertainty. Keep the same issue when moving between views and preserve reading position.
+- Load `desktop-app-newspaper.css` lazily, use both Desktop themes, all 16 `newspaper.*` locale entries and the Papirus/WhiteSur Newspaper icons. Verify with `TestDesktopNewspaperBrowser` and `TestNewspaperTranslations`.
+
 ## Personal Radio
 
 - `personal-radio-player.js`, `personal-radio-runtime.js`,

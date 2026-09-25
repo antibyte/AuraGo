@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "处理中",
   "dashboard.operational_issues_status_done": "已解决",
   "dashboard.operational_issues_status_archived": "已归档",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "报纸",
+  "dashboard.newspaper_loading": "正在加载报纸状态...",
+  "dashboard.newspaper_open": "打开报纸",
+  "dashboard.newspaper_unavailable": "报纸状态不可用。",
+  "dashboard.newspaper_disabled": "报纸在配置中被禁用。",
+  "dashboard.newspaper_latest": "最新版本",
+  "dashboard.newspaper_empty": "还没有版本。选择您的主题开始。",
+  "dashboard.newspaper_next": "下一个目标时间"
 }

@@ -73,3 +73,33 @@ func TestBundledAgentSkillRequiresExactCompletePackage(t *testing.T) {
 		})
 	}
 }
+
+func TestNewspaperBundledSkillMaterializesAndRejectsDrift(t *testing.T) {
+	root := t.TempDir()
+	db, err := InitAgentSkillsDB(filepath.Join(t.TempDir(), "skills.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	manager := NewAgentSkillManager(db, root, t.TempDir(), nil)
+	name := "aurago-newspaper"
+	markdown := []byte(validAgentSkillMarkdown(name))
+	entry, err := manager.RegisterBundledAgentSkillFor(context.Background(), "newspaper", name, markdown)
+	if err != nil || !entry.Enabled {
+		t.Fatalf("materialize: %+v %v", entry, err)
+	}
+	path := filepath.Join(root, name, "SKILL.md")
+	if got, err := os.ReadFile(path); err != nil || string(got) != string(markdown) {
+		t.Fatalf("package bytes: %q %v", got, err)
+	}
+	updated := []byte(validAgentSkillMarkdown(name) + "\nEditorial revision.\n")
+	if _, err := manager.RegisterBundledAgentSkillFor(context.Background(), "newspaper", name, updated); err != nil {
+		t.Fatalf("verified system package upgrade: %v", err)
+	}
+	if err := os.WriteFile(path, append(markdown, []byte("untrusted edit")...), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.RegisterBundledAgentSkillFor(context.Background(), "newspaper", name, updated); err == nil {
+		t.Fatal("changed package inherited binary trust")
+	}
+}

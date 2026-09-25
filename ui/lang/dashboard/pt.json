@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "Em andamento",
   "dashboard.operational_issues_status_done": "Resolvido",
   "dashboard.operational_issues_status_archived": "Arquivado",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Jornal",
+  "dashboard.newspaper_loading": "Carregando status do jornal…",
+  "dashboard.newspaper_open": "Abrir Jornal",
+  "dashboard.newspaper_unavailable": "O status do jornal não está disponível.",
+  "dashboard.newspaper_disabled": "Jornal está desabilitado em Config.",
+  "dashboard.newspaper_latest": "Última edição",
+  "dashboard.newspaper_empty": "Ainda sem edição. Escolha seus tópicos para começar.",
+  "dashboard.newspaper_next": "Próximo horário alvo"
 }

@@ -1766,6 +1766,13 @@ if (appId === 'pixel') {
             }
             return window.DetectiveApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog }));
         }
+        if (appId === 'newspaper') {
+            if (!window.NewspaperApp) {
+                window.AuraDesktopModules.loadAppScript('newspaper').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.NewspaperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog }));
+        }
         if (appId === 'homepage-studio') {
             if (!window.HomepageStudioApp) {
                 window.AuraDesktopModules.loadAppScript('homepage-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

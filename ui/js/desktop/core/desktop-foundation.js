@@ -593,6 +593,7 @@
             people: 'PeopleApp',
             'homepage-studio': 'HomepageStudioApp',
             'detective': 'DetectiveApp',
+            'newspaper': 'NewspaperApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'live-speech': 'LiveSpeechApp',

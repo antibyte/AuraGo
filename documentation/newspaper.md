@@ -1,0 +1,31 @@
+# Newspaper
+
+Newspaper is an optional Virtual Desktop app that makes a personal daily edition from public web sources. It opens as an editorial reading surface with a front page, full articles, source notes, an archive and preferences. The edition is saved as an immutable revision, so later profile edits do not silently change what you read or send.
+
+## Set up
+
+1. Enable Virtual Desktop and Newspaper in Config. Newspaper starts disabled. The Config page also controls read-only mode, the run limit (30 minutes by default), page cap (60), archive retention (365 editions), and whether email or Telegram delivery is allowed.
+2. Configure a selectable LLM, Brave Search, web scraping and network requests. The Newspaper Config entry has a readiness check. Research does not start when these requirements or the bundled editorial guide are unavailable.
+3. Open **Newspaper** on the Virtual Desktop. Choose sections and optional free-text interests or exclusions. Set the country code, regional place if needed, publication language, IANA time zone, ready time and reading length. Save the profile, then choose **Create today's edition**. The default selection covers national and international news, politics, culture, technology and science.
+4. For automatic editions, enable the daily switch in Preferences. The displayed ready time is a target. Research starts before it; the app shows the actual publication time. A missed or failed run stays visible. Closing the window does not stop server research.
+
+The first page shows the lead and secondary stories, a brief rail and a link to each full article. Article paragraphs carry source references; the source panel shows the original URL, publisher, publication time when known and retrieval time. Single-source stories and partial coverage are labeled. The archive keeps dated revisions and reading position. PDF export is available for a saved edition when its characters are supported by the local PDF font.
+
+## Delivery
+
+Delivery is off until you enable a channel in Config and opt into it in Newspaper Preferences. Manual sends use the saved revision; they do not run a new search.
+
+- **Email:** choose a writable configured SMTP account or AgentMail and enter the recipient address. Save, send a confirmation code, then enter it in the app. Daily email can be enabled only after verification. Changing the account or address clears verification. Messages include responsive HTML and complete plain text with sources. AgentMail sending uses one request without automatic POST retries.
+- **Telegram:** configure the bot and authorized Telegram user in AuraGo, then use the test action and enable daily Telegram if wanted. A send delivers a short lead message and the full edition as a PDF. When the PDF font cannot represent the language, it sends the complete issue as bounded text messages.
+
+Each send has a durable receipt bound to its edition hash and destination. A send interrupted after reaching a provider can be marked **outcome unknown**. Inspect the mailbox or chat before choosing to resend; a server restart never automatically replays an open send. The app archive remains available if delivery fails.
+
+## Research and privacy
+
+The server searches the selected sections and interests through the configured Brave integration, fetches candidate original pages through the guarded web scraper, and asks the selected LLM to write concise source-backed text. Search snippets alone cannot become cited evidence. The server rejects a draft with unread source IDs, unsafe URLs, missing supporting passages or invalid structure. A one-source report is explicitly labeled. Recent source URLs and exact titles are skipped. The source page is untrusted data and cannot select tools, recipients or delivery settings.
+
+The implementation currently uses Brave Search and fetched pages. Curated RSS subscriptions, multi-source story merging and claim-level semantic verification remain future editorial improvements. PDF generation is local and deliberately rejects unsupported glyphs; the Telegram text fallback retains the complete issue. Email/PDF utility labels are localized for German and English; other publication languages currently use English utility labels while article prose follows the selected language. Visual UI strings are provided in all 16 desktop locales.
+
+## Verification status
+
+The local tests cover profile and draft validation, revision and delivery persistence, DST scheduling, restart reconciliation, HTTP authorization and read-only behavior, browser reading flows, translations and UI bundle integrity. They use fixtures; they do not prove search quality, deliverability, an installed provider configuration, or appearance in a real email client or Telegram chat. A production release requires a version-bound asset build and a controlled end-to-end run with configured destinations.

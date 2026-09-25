@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "In Bearbeitung",
   "dashboard.operational_issues_status_done": "Erledigt",
   "dashboard.operational_issues_status_archived": "Archiviert",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Newspaper",
+  "dashboard.newspaper_loading": "Newspaper-Status wird geladen …",
+  "dashboard.newspaper_open": "Newspaper öffnen",
+  "dashboard.newspaper_unavailable": "Der Newspaper-Status ist nicht verfügbar.",
+  "dashboard.newspaper_disabled": "Newspaper ist in der Konfiguration deaktiviert.",
+  "dashboard.newspaper_latest": "Neueste Ausgabe",
+  "dashboard.newspaper_empty": "Noch keine Ausgabe. Wähle zuerst Deine Themen.",
+  "dashboard.newspaper_next": "Nächste Wunschzeit"
 }

@@ -635,5 +635,7 @@
   "config.realtime_speech.keyless": "APIキー不要。Speech Lab コンテナを使います。",
   "config.realtime_speech.speech_lab_help": "このプロファイルは ASR/TTS に Speech Lab / s2s コンテナを使います。メディア → Speech Lab で起動または設定してください。",
   "config.section.detective.label": "Detective",
-  "config.section.detective.desc": "出典を確認できる調査"
+  "config.section.detective.desc": "出典を確認できる調査",
+  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.desc": "個人的な情報源に基づいた日刊版"
 }

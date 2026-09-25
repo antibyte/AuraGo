@@ -1923,6 +1923,7 @@ type Config struct {
 	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
 	GameMaker         GameMakerConfig         `yaml:"game_maker"`
 	Detective         DetectiveConfig         `yaml:"detective"`
+	Newspaper         NewspaperConfig         `yaml:"newspaper"`
 	VirtualComputers  VirtualComputersConfig  `yaml:"virtual_computers"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`

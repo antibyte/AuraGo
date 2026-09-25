@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -20,7 +21,7 @@ func (m *AgentSkillManager) RegisterBundledAgentSkill(ctx context.Context, name 
 
 // RegisterBundledAgentSkillFor is restricted to trusted built-in startup code.
 func (m *AgentSkillManager) RegisterBundledAgentSkillFor(ctx context.Context, owner, name string, markdown []byte) (*AgentSkillRegistryEntry, error) {
-	if owner != "game-maker" && owner != "detective" {
+	if owner != "game-maker" && owner != "detective" && owner != "newspaper" {
 		return nil, fmt.Errorf("unknown bundled skill owner")
 	}
 	if err := ctx.Err(); err != nil {
@@ -32,6 +33,35 @@ func (m *AgentSkillManager) RegisterBundledAgentSkillFor(ctx context.Context, ow
 	m.qualityMutationMu.Lock()
 	defer m.qualityMutationMu.Unlock()
 	dir := filepath.Join(m.agentSkillsDir, name)
+	if owner == "newspaper" {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return nil, err
+		}
+		path := filepath.Join(dir, "SKILL.md")
+		existingBytes, readErr := os.ReadFile(path)
+		if errors.Is(readErr, os.ErrNotExist) {
+			if err := os.WriteFile(path, markdown, 0600); err != nil {
+				return nil, err
+			}
+		} else if readErr != nil {
+			return nil, readErr
+		} else if !bytes.Equal(existingBytes, markdown) {
+			// Replace only a previously verified system package. A local edit or
+			// unexpected file keeps the skill unavailable for manual inspection.
+			previous, lookupErr := m.GetAgentSkillByName(name)
+			files, filesErr := os.ReadDir(dir)
+			oldHash := sha256.New()
+			oldHash.Write([]byte("SKILL.md\x00"))
+			oldHash.Write(existingBytes)
+			oldHash.Write([]byte{0})
+			if lookupErr != nil || filesErr != nil || previous == nil || previous.Origin != OriginSystem || previous.SecurityStatus != SecurityClean || !previous.Enabled || !agentSkillSamePath(previous.Directory, dir) || len(files) != 1 || files[0].Name() != "SKILL.md" || previous.PackageHash != hex.EncodeToString(oldHash.Sum(nil)) {
+				return nil, fmt.Errorf("installed Newspaper skill differs from its verified system package")
+			}
+			if err := os.WriteFile(path, markdown, 0600); err != nil {
+				return nil, err
+			}
+		}
+	}
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err

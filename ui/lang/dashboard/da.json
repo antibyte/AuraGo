@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "I gang",
   "dashboard.operational_issues_status_done": "Løst",
   "dashboard.operational_issues_status_archived": "Arkiveret",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Avis",
+  "dashboard.newspaper_loading": "Indlæser avisstatus...",
+  "dashboard.newspaper_open": "Åben Avis",
+  "dashboard.newspaper_unavailable": "Avisstatus er ikke tilgængelig.",
+  "dashboard.newspaper_disabled": "Avis er deaktiveret i Config.",
+  "dashboard.newspaper_latest": "Seneste udgave",
+  "dashboard.newspaper_empty": "Endnu ingen udgave. Vælg dine emner for at begynde.",
+  "dashboard.newspaper_next": "Næste måltidspunkt"
 }

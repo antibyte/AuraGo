@@ -825,6 +825,7 @@
             people: 'PeopleApp',
             'homepage-studio': 'HomepageStudioApp',
             'detective': 'DetectiveApp',
+            'newspaper': 'NewspaperApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'live-speech': 'LiveSpeechApp',
@@ -15137,6 +15138,13 @@ if (appId === 'pixel') {
                 return;
             }
             return window.DetectiveApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog }));
+        }
+        if (appId === 'newspaper') {
+            if (!window.NewspaperApp) {
+                window.AuraDesktopModules.loadAppScript('newspaper').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.NewspaperApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog }));
         }
         if (appId === 'homepage-studio') {
             if (!window.HomepageStudioApp) {

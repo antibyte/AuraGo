@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "Probíhá",
   "dashboard.operational_issues_status_done": "Vyřešené",
   "dashboard.operational_issues_status_archived": "Archivované",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Noviny",
+  "dashboard.newspaper_loading": "Načítání stavu novin…",
+  "dashboard.newspaper_open": "Open Newspaper",
+  "dashboard.newspaper_unavailable": "Stav novin je nedostupný.",
+  "dashboard.newspaper_disabled": "Noviny jsou v Config zakázány.",
+  "dashboard.newspaper_latest": "Nejnovější vydání",
+  "dashboard.newspaper_empty": "Zatím žádné vydání. Začněte výběrem témat.",
+  "dashboard.newspaper_next": "Další cílový čas"
 }

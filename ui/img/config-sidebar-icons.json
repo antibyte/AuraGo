@@ -933,6 +933,14 @@
       "row": 10,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "newspaper",
+      "slot": 116,
+      "column": 6,
+      "row": 10,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }

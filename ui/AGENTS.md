@@ -30,6 +30,8 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. Browser acceptance uses `TestDesktopNewspaperBrowser` at wide/narrow and light/dark sizes; backend contracts live in `internal/newspaper/AGENTS.md`.
+
 - Tool configuration consumes `_effective_tool_policy` and `_config_migrations`
   as response diagnostics only, through the shared config-response loader on
   initial load and refresh/save paths. Never persist these keys. Removed discovery

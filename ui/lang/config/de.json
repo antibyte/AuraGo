@@ -635,5 +635,7 @@
   "config.realtime_speech.keyless": "Kein API-Schlüssel. Nutzt den Speech-Lab-Container.",
   "config.realtime_speech.speech_lab_help": "Dieses Profil nutzt den Speech-Lab-/s2s-Container für ASR und TTS. Starte oder konfiguriere ihn unter Medien → Speech Lab.",
   "config.section.detective.label": "Detective",
-  "config.section.detective.desc": "Recherchen mit nachvollziehbaren Quellen"
+  "config.section.detective.desc": "Recherchen mit nachvollziehbaren Quellen",
+  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.desc": "Deine tägliche Zeitung mit nachvollziehbaren Quellen"
 }

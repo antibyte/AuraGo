@@ -635,5 +635,7 @@
   "config.realtime_speech.keyless": "Ingen API-nøgle. Bruger Speech Lab-containeren.",
   "config.realtime_speech.speech_lab_help": "Denne profil bruger Speech Lab-/s2s-containeren til ASR og TTS. Start eller konfigurer den under Medier → Speech Lab.",
   "config.section.detective.label": "Detective",
-  "config.section.detective.desc": "Undersøgelser med sporbare kilder"
+  "config.section.detective.desc": "Undersøgelser med sporbare kilder",
+  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.desc": "En personlig, hentet daglig udgave"
 }

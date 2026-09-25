@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "En curso",
   "dashboard.operational_issues_status_done": "Resuelto",
   "dashboard.operational_issues_status_archived": "Archivado",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Periódico",
+  "dashboard.newspaper_loading": "Cargando estado del periódico…",
+  "dashboard.newspaper_open": "Periódico Abierto",
+  "dashboard.newspaper_unavailable": "El estado del periódico no está disponible.",
+  "dashboard.newspaper_disabled": "El periódico está deshabilitado en Config.",
+  "dashboard.newspaper_latest": "Última edición",
+  "dashboard.newspaper_empty": "Aún no hay edición. Elija sus temas para comenzar.",
+  "dashboard.newspaper_next": "Próximo tiempo objetivo"
 }

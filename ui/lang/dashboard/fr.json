@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "En cours",
   "dashboard.operational_issues_status_done": "Résolu",
   "dashboard.operational_issues_status_archived": "Archivé",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Journal",
+  "dashboard.newspaper_loading": "Chargement de l'état du journal…",
+  "dashboard.newspaper_open": "Journal ouvert",
+  "dashboard.newspaper_unavailable": "L'état du journal n'est pas disponible.",
+  "dashboard.newspaper_disabled": "Le journal est désactivé dans Config.",
+  "dashboard.newspaper_latest": "Dernière édition",
+  "dashboard.newspaper_empty": "Pas encore d'édition. Choisissez vos sujets pour commencer.",
+  "dashboard.newspaper_next": "Prochaine heure cible"
 }

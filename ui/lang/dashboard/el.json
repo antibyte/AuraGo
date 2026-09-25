@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "Σε εξέλιξη",
   "dashboard.operational_issues_status_done": "Επιλυμένο",
   "dashboard.operational_issues_status_archived": "Αρχειοθετημένο",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Εφημερίδα",
+  "dashboard.newspaper_loading": "Φόρτωση κατάστασης εφημερίδας…",
+  "dashboard.newspaper_open": "Ανοιχτή εφημερίδα",
+  "dashboard.newspaper_unavailable": "Η κατάσταση της εφημερίδας δεν είναι διαθέσιμη.",
+  "dashboard.newspaper_disabled": "Η εφημερίδα είναι απενεργοποιημένη στο Config.",
+  "dashboard.newspaper_latest": "Τελευταία έκδοση",
+  "dashboard.newspaper_empty": "Καμία έκδοση ακόμα. Επιλέξτε τα θέματά σας για να ξεκινήσετε.",
+  "dashboard.newspaper_next": "Επόμενος χρόνος στόχος"
 }

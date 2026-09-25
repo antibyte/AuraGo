@@ -1,7 +1,9 @@
 # Newspaper: a personal daily edition for the Virtual Desktop
 
-Status: plan, 2026-09-25. No Newspaper implementation or live delivery has been
-verified. The defaults below are design targets to validate with real editions.
+Status: locally implemented, 2026-09-25. Package, API, browser, translation and
+bundle checks have passed. No live provider research or external delivery has
+been verified. This document preserves the original design targets; the current
+behavior and remaining limitations are recorded in `documentation/newspaper.md`.
 
 ## Product goal
 

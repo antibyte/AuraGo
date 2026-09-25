@@ -253,6 +253,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Game Maker Studio Contract; Game Maker tool validation contract; Game Maker sprite library contract | `internal/gamemaker/AGENTS.md` |
 | Managed Local Model Contract | `internal/localllm/AGENTS.md` |
 | Memory System | `internal/memory/AGENTS.md` |
+| Newspaper publication, scheduling and delivery | `internal/newspaper/AGENTS.md` |
 | MeshCore Integration Contract | `internal/meshcore/AGENTS.md` |
 | MQTT Configuration Contract | `internal/mqtt/AGENTS.md` |
 | Local Network Share Integration Contract | `internal/networkshares/AGENTS.md` |
@@ -558,6 +559,7 @@ Current child AGENTS.md files:
 - `internal/meshcore/AGENTS.md` — USB/BLE radio, trust, messaging, and agent replies.
 - `internal/mqtt/AGENTS.md` — Broker configuration, subscriptions, relays, and mission dispatch.
 - `internal/networkshares/AGENTS.md` — SMB/NFS capability, ownership, and mutation policy.
+- `internal/newspaper/AGENTS.md` — Personal daily publication, source validation, scheduler and delivery receipts.
 - `internal/office/AGENTS.md` — Workbook and document preservation, editing, and assist.
 - `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
 - `internal/planner/AGENTS.md` — Issue lifecycle, notification, and background retry policy.

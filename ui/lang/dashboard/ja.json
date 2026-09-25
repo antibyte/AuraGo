@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "対応中",
   "dashboard.operational_issues_status_done": "解決済み",
   "dashboard.operational_issues_status_archived": "アーカイブ済み",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "新聞",
+  "dashboard.newspaper_loading": "新聞のステータスを読み込み中…",
+  "dashboard.newspaper_open": "新聞を開く",
+  "dashboard.newspaper_unavailable": "新聞のステータスが利用できません。",
+  "dashboard.newspaper_disabled": "新聞は設定で無効になっています。",
+  "dashboard.newspaper_latest": "最新版",
+  "dashboard.newspaper_empty": "エディションはまだありません。始めるトピックを選択してください。",
+  "dashboard.newspaper_next": "次の目標タイム"
 }

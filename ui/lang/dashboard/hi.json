@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "प्रगति में",
   "dashboard.operational_issues_status_done": "समाधानित",
   "dashboard.operational_issues_status_archived": "संग्रहित",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "समाचार पत्र",
+  "dashboard.newspaper_loading": "समाचार पत्र की स्थिति लोड हो रही है...",
+  "dashboard.newspaper_open": "अखबार खोलें",
+  "dashboard.newspaper_unavailable": "समाचार पत्र की स्थिति अनुपलब्ध है।",
+  "dashboard.newspaper_disabled": "कॉन्फ़िग में समाचार पत्र अक्षम है।",
+  "dashboard.newspaper_latest": "नवीनतम संस्करण",
+  "dashboard.newspaper_empty": "अभी तक कोई संस्करण नहीं। आरंभ करने के लिए अपने विषय चुनें.",
+  "dashboard.newspaper_next": "अगला लक्ष्य समय"
 }

@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "Pågår",
   "dashboard.operational_issues_status_done": "Løst",
   "dashboard.operational_issues_status_archived": "Arkivert",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Avis",
+  "dashboard.newspaper_loading": "Laster avisstatus …",
+  "dashboard.newspaper_open": "Åpen avis",
+  "dashboard.newspaper_unavailable": "Avisstatus er utilgjengelig.",
+  "dashboard.newspaper_disabled": "Avis er deaktivert i konfig.",
+  "dashboard.newspaper_latest": "Siste utgave",
+  "dashboard.newspaper_empty": "Ingen utgave ennå. Velg dine emner for å begynne.",
+  "dashboard.newspaper_next": "Neste måltid"
 }

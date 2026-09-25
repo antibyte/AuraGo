@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "Pågår",
   "dashboard.operational_issues_status_done": "Löst",
   "dashboard.operational_issues_status_archived": "Arkiverat",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Tidning",
+  "dashboard.newspaper_loading": "Laddar tidningsstatus...",
+  "dashboard.newspaper_open": "Öppen tidning",
+  "dashboard.newspaper_unavailable": "Tidningsstatus är inte tillgänglig.",
+  "dashboard.newspaper_disabled": "Tidningen är inaktiverad i Config.",
+  "dashboard.newspaper_latest": "Senaste upplagan",
+  "dashboard.newspaper_empty": "Ingen upplaga ännu. Välj dina ämnen för att börja.",
+  "dashboard.newspaper_next": "Nästa måltid"
 }

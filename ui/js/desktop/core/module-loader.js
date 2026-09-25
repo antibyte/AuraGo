@@ -343,6 +343,10 @@
             styles: appStyles('/css/desktop-app-detective.css'),
             scripts: ['/js/desktop/apps/detective-views.js', '/js/desktop/apps/detective.js']
         },
+        'newspaper': {
+            styles: appStyles('/css/desktop-app-newspaper.css'),
+            scripts: ['/js/desktop/apps/newspaper.js']
+        },
         'homepage-studio': {
             styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
             scripts: [
@@ -482,6 +486,7 @@
         'live-speech': [],
         'sip-phone': ['sip_phone'],
         'mission-control': ['missions'],
+        'newspaper': ['newspaper'],
         'personal-radio': ['personalRadio'],
         'rtl-sdr': ['rtlSdr'],
         'pixel': ['pixel'],

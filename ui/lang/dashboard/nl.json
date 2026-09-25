@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "Bezig",
   "dashboard.operational_issues_status_done": "Opgelost",
   "dashboard.operational_issues_status_archived": "Gearchiveerd",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Krant",
+  "dashboard.newspaper_loading": "Krantenstatus laden...",
+  "dashboard.newspaper_open": "Open de krant",
+  "dashboard.newspaper_unavailable": "Krantstatus is niet beschikbaar.",
+  "dashboard.newspaper_disabled": "Krant is uitgeschakeld in Config.",
+  "dashboard.newspaper_latest": "Laatste editie",
+  "dashboard.newspaper_empty": "Nog geen editie. Kies uw onderwerpen om te beginnen.",
+  "dashboard.newspaper_next": "Volgende doeltijd"
 }

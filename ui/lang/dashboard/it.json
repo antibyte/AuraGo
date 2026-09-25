@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "In corso",
   "dashboard.operational_issues_status_done": "Risolto",
   "dashboard.operational_issues_status_archived": "Archiviato",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Giornale",
+  "dashboard.newspaper_loading": "Caricamento dello stato del giornale…",
+  "dashboard.newspaper_open": "Apri il giornale",
+  "dashboard.newspaper_unavailable": "Lo stato del giornale non è disponibile.",
+  "dashboard.newspaper_disabled": "Il giornale è disabilitato in Config.",
+  "dashboard.newspaper_latest": "Ultima edizione",
+  "dashboard.newspaper_empty": "Ancora nessuna edizione. Scegli i tuoi argomenti per iniziare.",
+  "dashboard.newspaper_next": "Orario target successivo"
 }

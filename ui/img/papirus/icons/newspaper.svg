@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Newspaper">
+  <path d="M9 8h43a4 4 0 0 1 4 4v42a4 4 0 0 1-4 4H14a6 6 0 0 1-6-6V12a4 4 0 0 1 1-4Z" fill="#f8f6ef" stroke="#33434c" stroke-width="2"/>
+  <path d="M8 48v5a5 5 0 0 0 5 5h1a5 5 0 0 0 5-5V14" fill="#d9e0e2" stroke="#33434c" stroke-width="2"/>
+  <path d="M24 16h26M24 20h26" stroke="#8b3338" stroke-width="3"/>
+  <path d="M24 27h17v15H24z" fill="#8b3338"/>
+  <path d="M44 28h6M44 33h6M44 38h6M24 48h26M24 52h21" stroke="#657478" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -6,9 +6,30 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestClientDisableRetriesForSend(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		http.Error(w, `{"error":{"message":"temporary"}}`, http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+	client, err := NewClient(ClientConfig{BaseURL: srv.URL, APIKey: "test-key", HTTPClient: srv.Client(), DisableRetries: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.SendMessage(context.Background(), "inbox-1", SendMessageRequest{To: []string{"reader@example.com"}, Subject: "Edition", Text: "News"}); err == nil {
+		t.Fatal("expected send failure")
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("send attempts = %d, want 1", got)
+	}
+}
 
 func TestClientListMessagesUsesBearerAuthAndQuery(t *testing.T) {
 	t.Parallel()

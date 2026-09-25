@@ -10,6 +10,10 @@ Agent filesystem and Docker tool safety boundaries.
 
 ## Local Contracts
 
+### Bundled Newspaper editorial skill
+- Register `aurago-newspaper` through the Agent Skill Manager under the `newspaper` owner. Verify its bundled hash before use; do not let a disk edit silently replace the trusted guide. The guide can edit server-supplied evidence but cannot send or change the publication profile.
+- Verify with `go test ./internal/tools -run TestNewspaperBundled`.
+
 ### Security Egress and Host Execution
 - Windows shell and every host Python execution path, including Agent Skill scripts and background Python jobs, require `agent.allow_unsafe_host_execution` in addition to their existing tool gate; each allowed run emits an audit warning. Linux shell keeps its sandbox policy.
 - Network MCP servers reject private addresses unless that server grants `allow_private_network`; pin DNS for each connection and reject cross-origin redirects and SSE message endpoints.

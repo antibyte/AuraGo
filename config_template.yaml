@@ -1115,6 +1115,15 @@ detective:
   # Exact read operations for optional connected services. Empty denies extras.
   extra_read_operations: {}
 
+newspaper:
+  enabled: false                                         # opt in to daily research
+  readonly: false                                       # preserve archive but block research and delivery
+  max_minutes: 30                                       # cumulative run deadline, 1-60
+  max_pages: 60                                         # fetched page ceiling, 1-60
+  max_editions: 365                                     # retained edition revisions, minimum 30
+  allow_email: false                                    # permit confirmed email delivery
+  allow_telegram: false                                 # permit configured authorized Telegram user
+
 game_maker:
     enabled: false                                         # enable Game Maker Studio APIs and agent tools
     readonly: true                                         # secure default: browse existing projects only

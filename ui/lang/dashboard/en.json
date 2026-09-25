@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "In progress",
   "dashboard.operational_issues_status_done": "Resolved",
   "dashboard.operational_issues_status_archived": "Archived",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Newspaper",
+  "dashboard.newspaper_loading": "Loading Newspaper status…",
+  "dashboard.newspaper_open": "Open Newspaper",
+  "dashboard.newspaper_unavailable": "Newspaper status is unavailable.",
+  "dashboard.newspaper_disabled": "Newspaper is disabled in Config.",
+  "dashboard.newspaper_latest": "Latest edition",
+  "dashboard.newspaper_empty": "No edition yet. Choose your topics to begin.",
+  "dashboard.newspaper_next": "Next target time"
 }

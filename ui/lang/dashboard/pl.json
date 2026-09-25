@@ -936,5 +936,13 @@
   "dashboard.operational_issues_status_in_progress": "W toku",
   "dashboard.operational_issues_status_done": "Rozwiązane",
   "dashboard.operational_issues_status_archived": "Zarchiwizowane",
-  "dashboard.integration_here_now": "here.now"
+  "dashboard.integration_here_now": "here.now",
+  "dashboard.newspaper_title": "Gazeta",
+  "dashboard.newspaper_loading": "Ładowanie statusu gazety…",
+  "dashboard.newspaper_open": "Otwórz gazetę",
+  "dashboard.newspaper_unavailable": "Stan gazety jest niedostępny.",
+  "dashboard.newspaper_disabled": "Gazeta jest wyłączona w konfiguracji.",
+  "dashboard.newspaper_latest": "Najnowsze wydanie",
+  "dashboard.newspaper_empty": "Nie ma jeszcze wydania. Na początek wybierz tematy.",
+  "dashboard.newspaper_next": "Następny docelowy czas"
 }
