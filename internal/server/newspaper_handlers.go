@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/agentmail"
 	"aurago/internal/newspaper"
 	"aurago/internal/telegram"
 )
@@ -144,13 +145,37 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 		}
 		code, err := s.Newspaper.Store().NewEmailChallenge(r.Context(), p.EmailTo, p.EmailAccountID)
 		if err != nil {
+			if errors.Is(err, newspaper.ErrChallengePending) {
+				w.Header().Set("Retry-After", "60")
+				newspaperJSON(w, http.StatusConflict, map[string]any{"code": "challenge_pending", "error": "Wait about one minute before requesting another confirmation code"})
+				return
+			}
 			newspaperError(w, err)
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
 		if _, err = s.newspaperSendEmail(ctx, p.EmailAccountID, p.EmailTo, "Confirm Newspaper delivery", "Your Newspaper confirmation code is "+code+". It expires in 10 minutes.", "<p>Your Newspaper confirmation code is <b>"+code+"</b>. It expires in 10 minutes.</p>"); err != nil {
-			newspaperJSON(w, http.StatusBadGateway, map[string]string{"error": "Confirmation email could not be confirmed as sent; check the mailbox before requesting another code"})
+			var safe *newspaper.SafeDeliveryError
+			if errors.As(err, &safe) {
+				cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
+				removed, cleanupErr := s.Newspaper.Store().CancelEmailChallenge(cleanupCtx, p.EmailTo, p.EmailAccountID, code)
+				cleanupCancel()
+				if cleanupErr == nil && removed {
+					if errors.Is(err, errNewspaperAgentMailBounce) {
+						newspaperJSON(w, http.StatusBadGateway, map[string]any{"code": "agentmail_bounce_blocked", "provider_status": http.StatusForbidden, "error": "AgentMail blocked this recipient after a bounce; request a suppression review from AgentMail support"})
+						return
+					}
+					var apiErr *agentmail.APIError
+					if errors.As(err, &apiErr) {
+						newspaperJSON(w, http.StatusBadGateway, map[string]any{"code": "agentmail_rejected", "provider_status": apiErr.StatusCode, "error": fmt.Sprintf("AgentMail rejected the confirmation email (HTTP %d); check the sender configuration and limits before retrying", apiErr.StatusCode)})
+						return
+					}
+					newspaperJSON(w, http.StatusBadGateway, map[string]any{"code": "email_send_safe", "error": "Confirmation email was not sent; check the sending account before retrying"})
+					return
+				}
+			}
+			newspaperJSON(w, http.StatusBadGateway, map[string]any{"code": "email_send_uncertain", "error": "Confirmation email delivery is uncertain; check the mailbox before requesting another code"})
 			return
 		}
 		newspaperJSON(w, 202, map[string]string{"status": "sent"})

@@ -14,10 +14,11 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("newspaper item not found")
-	ErrConflict = errors.New("newspaper version conflict")
-	ErrDisabled = errors.New("newspaper is disabled or read-only")
-	ErrBusy     = errors.New("newspaper research is already running")
+	ErrNotFound         = errors.New("newspaper item not found")
+	ErrConflict         = errors.New("newspaper version conflict")
+	ErrChallengePending = errors.New("newspaper email confirmation was recently requested")
+	ErrDisabled         = errors.New("newspaper is disabled or read-only")
+	ErrBusy             = errors.New("newspaper research is already running")
 )
 
 // SafeDeliveryError means the adapter knows no edition message was accepted.

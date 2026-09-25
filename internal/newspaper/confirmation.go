@@ -8,29 +8,44 @@ import (
 	"database/sql"
 	"encoding/base32"
 	"errors"
+	"fmt"
 	"time"
 )
 
 func (s *Store) NewEmailChallenge(ctx context.Context, address, accountID string) (string, error) {
-	var existing string
-	err := s.db.QueryRowContext(ctx, "SELECT expires_at FROM newspaper_email_challenges WHERE address=?", address).Scan(&existing)
-	if err == nil {
-		expires, _ := time.Parse(time.RFC3339Nano, existing)
-		if time.Until(expires) > 9*time.Minute {
-			return "", ErrConflict
-		}
-	}
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", err
-	}
 	var random [7]byte
-	if _, err = rand.Read(random[:]); err != nil {
-		return "", err
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generate email confirmation code: %w", err)
 	}
 	code := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(random[:])[:10]
 	h := sha256.Sum256([]byte(code))
-	_, err = s.db.ExecContext(ctx, "INSERT INTO newspaper_email_challenges(address,account_id,digest,expires_at,attempts) VALUES(?,?,?,?,0) ON CONFLICT(address) DO UPDATE SET account_id=excluded.account_id,digest=excluded.digest,expires_at=excluded.expires_at,attempts=0", address, accountID, h[:], time.Now().UTC().Add(10*time.Minute).Format(time.RFC3339Nano))
-	return code, err
+	now := time.Now().UTC()
+	result, err := s.db.ExecContext(ctx, "INSERT INTO newspaper_email_challenges(address,account_id,digest,expires_at,attempts) VALUES(?,?,?,?,0) ON CONFLICT(address) DO UPDATE SET account_id=excluded.account_id,digest=excluded.digest,expires_at=excluded.expires_at,attempts=0 WHERE julianday(newspaper_email_challenges.expires_at)<=julianday(?)", address, accountID, h[:], now.Add(10*time.Minute).Format(time.RFC3339Nano), now.Add(9*time.Minute).Format(time.RFC3339Nano))
+	if err != nil {
+		return "", fmt.Errorf("save email confirmation code: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return "", fmt.Errorf("check email confirmation code: %w", err)
+	}
+	if changed == 0 {
+		return "", ErrChallengePending
+	}
+	return code, nil
+}
+
+// CancelEmailChallenge removes only the code from this send attempt.
+func (s *Store) CancelEmailChallenge(ctx context.Context, address, accountID, code string) (bool, error) {
+	h := sha256.Sum256([]byte(code))
+	result, err := s.db.ExecContext(ctx, "DELETE FROM newspaper_email_challenges WHERE address=? AND account_id=? AND digest=?", address, accountID, h[:])
+	if err != nil {
+		return false, fmt.Errorf("cancel email confirmation code: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("check cancelled email confirmation code: %w", err)
+	}
+	return changed == 1, nil
 }
 
 func (s *Store) ConfirmEmail(ctx context.Context, address, accountID, code string) (Profile, error) {

@@ -16,6 +16,13 @@
         const date = value => { try { return new Intl.DateTimeFormat(document.documentElement.lang || 'de',{dateStyle:'long'}).format(new Date(value)); } catch (_) { return value; } };
         const time = value => { try { return new Intl.DateTimeFormat(document.documentElement.lang || 'de',{dateStyle:'short',timeStyle:'short'}).format(new Date(value)); } catch (_) { return value; } };
         const request = (path, options = {}) => { const opts = {...options,signal:controller.signal}; if (opts.body) {opts.headers = {...opts.headers,'Content-Type':'application/json'};opts.body=JSON.stringify(opts.body);} return ctx.api(base+path,opts); };
+        const challengeError = err => {
+            const code=err.body?.code;
+            if(code==='agentmail_rejected')return tr('agentmail_rejected').replace('{status}',String(Number(err.body.provider_status)||'?'));
+            if(code==='agentmail_bounce_blocked')return tr('agentmail_bounce_blocked');
+            if(['email_send_safe','email_send_uncertain','challenge_pending'].includes(code))return tr(code);
+            return err.message||tr('error');
+        };
         const dateLabel = value => date(value+'T12:00:00');
         const languageName = value => { try { return new Intl.DisplayNames([document.documentElement.lang || 'de'], {type:'language'}).of(value) || value; } catch (_) { return value; } };
         function masthead(e, compact=false) {
@@ -118,7 +125,7 @@
             if(action==='dismiss'){st.error='';st.notice='';draw();return;}
             if(action==='create'||action==='revision-submit'){const correction=action==='revision-submit'?host.querySelector('[name=correction_note]')?.value.trim()||'':'';act(async()=>{st.run=await request('/editions',{method:'POST',body:{new_revision:action==='revision-submit',correction_note:correction}});st.view='today';st.notice=tr('started');});return;}
             if(action==='stop'){act(async()=>{await request('/editions/'+encodeURIComponent(st.run.id)+'/stop',{method:'POST',body:{}});st.notice=tr('stopping');});return;}
-            if(action==='email-challenge'){act(async()=>{await request('/email/challenge',{method:'POST',body:{}});st.notice=tr('code_sent');});return;}
+            if(action==='email-challenge'){act(async()=>{try{await request('/email/challenge',{method:'POST',body:{}});}catch(err){throw new Error(challengeError(err));}st.notice=tr('code_sent');});return;}
             if(action==='email-confirm'){const code=host.querySelector('[name=confirmation_code]')?.value.trim();act(async()=>{st.profile=await request('/email/confirm',{method:'POST',body:{code}});st.draft=clone(st.profile);st.notice=tr('email_verified');});return;}
             if(action==='telegram-test'){act(async()=>{await request('/telegram/test',{method:'POST',body:{}});st.notice=tr('test_sent');});return;}
             if(action==='pdf'){act(async()=>{const resp=await fetch(base+'/editions/'+encodeURIComponent(st.edition.id)+'/export?format=pdf',{credentials:'same-origin',signal:controller.signal});if(!resp.ok){const p=await resp.json();throw new Error(p.error||tr('error'));}const blob=await resp.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='newspaper-'+st.edition.local_date+'-r'+st.edition.revision+'.pdf';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});}

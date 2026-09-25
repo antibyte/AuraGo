@@ -55,10 +55,13 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	}
 	var mu sync.Mutex
 	correctionRequest := ""
+	challengeCode := "agentmail_rejected"
 	localDate := "2026-09-25"
 	p := newspaper.DefaultProfile()
 	p.Version = 1
 	p.Name = "Der Morgen"
+	p.EmailTo = "reader@example.org"
+	p.EmailAccountID = "agentmail"
 	now := time.Date(2026, 9, 25, 8, 0, 0, 0, time.UTC)
 	e := newspaper.Edition{ID: "issue_1", LocalDate: "2026-09-25", Revision: 1, Title: p.Name, Language: "de", Place: "Berlin", CreatedAt: now, CutoffAt: now}
 	for i := 0; i < 8; i++ {
@@ -83,7 +86,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/desktop/newspaper/")
 		switch path {
 		case "capabilities":
-			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{}, "daily": false, "local_date": localDate})
+			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}}, "daily": false, "local_date": localDate})
 		case "profile":
 			if r.Method == http.MethodPut {
 				if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -109,13 +112,16 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 			json.NewEncoder(w).Encode(e)
 		case "editions/issue_1/deliveries":
 			json.NewEncoder(w).Encode(map[string]any{"deliveries": []any{}})
+		case "email/challenge":
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(map[string]any{"code": challengeCode, "provider_status": 403, "error": "raw server error"})
 		default:
 			http.NotFound(w, r)
 		}
 	})
 	mux.HandleFunc("/newspaper-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<!doctype html><html lang="de"><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-newspaper.css"><style>html,body{margin:0;height:100%}body{--vd-theme-app-bg:#e4e4e4;--vd-theme-panel-bg:#eee;--vd-theme-chrome-bg:#ddd;--vd-theme-border:#5555;--vd-theme-control-hover:#bbb;--vd-theme-accent-soft:#b99b9b33;--vd-theme-muted:#555;--vd-accent:#8b3338;--vd-text:#222}#host{height:100%}</style><body class="desktop-body" data-theme="fruity" data-fruity-mode="light"><div id="host"></div><script>window.errors=[];window.calls=0;addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));</script><script src="/js/desktop/apps/newspaper.js"></script><script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/de.json')).json();window.ctx={t:k=>labels[k]||k,confirmDialog:async()=>true,api:async(path,opts)=>{calls++;const r=await fetch(path,opts);const j=await r.json();if(!r.ok)throw new Error(j.error);return j}};NewspaperApp.render(document.querySelector('#host'),'test',ctx)})();</script></html>`)
+		fmt.Fprint(w, `<!doctype html><html lang="de"><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-app-newspaper.css"><style>html,body{margin:0;height:100%}body{--vd-theme-app-bg:#e4e4e4;--vd-theme-panel-bg:#eee;--vd-theme-chrome-bg:#ddd;--vd-theme-border:#5555;--vd-theme-accent-soft:#b99b9b33;--vd-theme-muted:#555;--vd-accent:#8b3338;--vd-text:#222}#host{height:100%}</style><body class="desktop-body" data-theme="fruity" data-fruity-mode="light"><div id="host"></div><script>window.errors=[];window.calls=0;addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));</script><script src="/js/desktop/apps/newspaper.js"></script><script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/de.json')).json();window.ctx={t:k=>labels[k]||k,confirmDialog:async()=>true,api:async(path,opts)=>{calls++;const r=await fetch(path,opts);const j=await r.json();if(!r.ok){const err=new Error(j.error);err.body=j;throw err;}return j}};NewspaperApp.render(document.querySelector('#host'),'test',ctx)})();</script></html>`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -194,6 +200,20 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	mu.Unlock()
 	if !saved {
 		t.Fatalf("interests were not saved: %#v, banner=%q", gotInterests, page.MustElement(".np-banner").MustText())
+	}
+	page.MustElementR(".np-banner", "Einstellungen gespeichert.")
+	page.MustElement(`[data-action=email-challenge]`).MustClick()
+	page.MustElement(".np-banner.np-error")
+	if text := page.MustElement(".np-banner.np-error").MustText(); !strings.Contains(text, "AgentMail hat die Bestätigungsmail abgelehnt (HTTP 403)") || strings.Contains(text, "raw server error") {
+		t.Fatalf("challenge rejection was not localized safely: %q", text)
+	}
+	mu.Lock()
+	challengeCode = "agentmail_bounce_blocked"
+	mu.Unlock()
+	page.MustElement(`[data-action=email-challenge]`).MustClick()
+	page.MustElementR(".np-banner.np-error", "nach einem Bounce")
+	if text := page.MustElement(".np-banner.np-error").MustText(); strings.Contains(text, "raw server error") {
+		t.Fatalf("bounce block leaked provider text: %q", text)
 	}
 	for _, mode := range []string{"light", "dark"} {
 		page.MustEval(`mode=>document.body.dataset.fruityMode=mode`, mode)

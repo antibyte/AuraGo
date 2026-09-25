@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -24,6 +25,23 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+var errNewspaperAgentMailBounce = errors.New("AgentMail blocked the recipient after a bounce")
+
+func newspaperAgentMailBounceRejected(apiErr *agentmail.APIError) bool {
+	if apiErr == nil || apiErr.StatusCode != http.StatusForbidden {
+		return false
+	}
+	var response struct {
+		Code string `json:"code"`
+	}
+	_ = json.Unmarshal([]byte(apiErr.Body), &response)
+	if response.Code != "" && response.Code != "message_rejected" {
+		return false
+	}
+	message := strings.ToLower(apiErr.Message)
+	return strings.Contains(message, "blocked") && strings.Contains(message, "bounced")
+}
 
 func (s *Server) newspaperDelivery(ctx context.Context, e newspaper.Edition, p newspaper.Profile, channel string) (string, error) {
 	cfg := s.ConfigSnapshot()
@@ -58,6 +76,16 @@ func (s *Server) newspaperSendEmail(ctx context.Context, accountID, to, subject,
 		}
 		message, err := client.SendMessage(ctx, cfg.AgentMail.InboxID, agentmail.SendMessageRequest{To: []string{to}, Subject: subject, Text: plain, HTML: rich})
 		if err != nil {
+			var apiErr *agentmail.APIError
+			if errors.As(err, &apiErr) {
+				if newspaperAgentMailBounceRejected(apiErr) {
+					return "", newspaper.SafeDelivery(errNewspaperAgentMailBounce)
+				}
+				switch apiErr.StatusCode {
+				case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusUnprocessableEntity, http.StatusTooManyRequests:
+					return "", newspaper.SafeDelivery(fmt.Errorf("AgentMail rejected send: %w", err))
+				}
+			}
 			return "", fmt.Errorf("AgentMail send failed: %w", err)
 		}
 		return message.ID, nil
