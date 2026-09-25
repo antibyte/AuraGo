@@ -601,13 +601,42 @@ Ignored/runtime areas such as `bin/`, `data/`, `reports/`, `node_modules/`, `.ve
 <!-- graft:start -->
 ## Graft — repo context graph
 
-`graft/` is an ignored, regenerable local graph of linked system notes and exact `file:line` spans. It can lag behind the working tree: run deterministic, no-key `graft build` after major code changes when the CLI is available, and verify cited spans in current source. If the CLI or graph is unavailable, use `rg` and direct source inspection.
+`graft/` is an ignored, regenerable local graph of linked system notes and exact
+file:line spans. It can lag behind the current checkout; verify cited spans in
+source before editing. If Graft is unavailable, use `rg` and direct inspection.
 
-- `graft map` gives a token-budgeted, no-LLM/no-key orientation (directory clusters, hubs, hotspots).
-- `graft ask "<question>" --source` ranks nodes and inlines each hit's ≤8-line crux; reuse known symbols, errors, and file names as queries, and use `--full` for complete definitions. Follow `covers:` spans, but verify the current code before editing. Ranked hits are not exhaustive.
-- For exhaustive indexed matches grouped by enclosing symbol use `graft grep "<literal>"`; use `rg` for unindexed files or when Graft is unavailable. `graft skeleton <file>` lists definition signatures and spans.
-- `graft callers <symbol>` gives precomputed incoming edges; `--direction out` shows callees and `--depth N` walks transitively. Use it for structural questions when the graph is fresh.
-- Browse `graft/INDEX.md`; multi-repo results carry `[scope/]` labels and `graft ask "<task>" --in <scope>/` narrows the search.
+For ANY task here — understanding how something works, finding where code lives,
+or scoping a change — get context from the graph before grepping or opening
+source files. Re-ask freely (it's cheap) and reuse literal identifiers you
+already have (symbol, error string, file name) as the query. New to this repo?
+Run `graft map` first — a token-budgeted orientation (dir clusters, hubs,
+hotspots), no LLM, no key.
 
-If a span is truncated (`+N more lines`), open that exact source range before deciding.
+- Run `graft ask "<your question>" --source` → ranked nodes with the relevant
+  code spans inlined (each hit's ≤8-line crux by default; `--full` for whole
+  definitions when the crux isn't enough). Match the tool to the task shape:
+  for understanding or editing, start with the top node and verify its
+  `covers:` file:line spans against current source. For
+  exhaustive tasks ("every occurrence / every caller of this pattern"), ranked
+  results are top-N, not complete — run `graft grep "<literal>"` instead
+  (exhaustive over indexed files, grouped by enclosing symbol), falling back
+  to `rg` for unindexed files.
+- `graft skeleton <file>` → every definition's signature + span, ~10× cheaper
+  than reading the file; use it to skim an API surface.
+- `graft callers <symbol>` gives precomputed, exact edges — who calls this.
+  Add `--direction out` for what it calls, or `--depth N` to walk
+  transitively for the full blast radius. For structural questions, skip
+  ranking and use this directly.
+- Or browse: `graft/INDEX.md` lists every node; follow the links.
+- Monorepos and folders of multiple repos rank fairly across sub-projects —
+  hits carry `[scope/]` labels naming which one they're from. Narrow with
+  `graft ask "<task>" --in <scope>/` once you know where you're working.
+
+If a returned span is truncated ("+N more lines"), open the file at that exact
+range before finalizing. Only open source files when a node genuinely lacks a
+needed detail, and then at the exact file:line the node points to. Read the
+applicable AGENTS.md chain in full as required by DOX.
+
+After big code changes, refresh the graph with `graft build` (deterministic,
+no API key, $0).
 <!-- graft:end -->
