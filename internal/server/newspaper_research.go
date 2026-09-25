@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/llm"
 	"aurago/internal/newspaper"
+	"aurago/internal/prompts"
 	"aurago/internal/scraper"
 	"aurago/internal/tools"
 
@@ -197,6 +198,8 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 		}
 	}
 	attempts := 0
+	fetchedSources := 0
+	modelErrors, truncatedJSON, invalidJSON, emptyJSON, evidenceMismatches, invalidDrafts := 0, 0, 0, 0, 0, 0
 	order := newspaperCandidateOrder(p, queries, searchQueries)
 	for index := 0; index < 4 && attempts < maxPages && len(result.Stories) < maxStories; index++ {
 		for _, qi := range order {
@@ -239,11 +242,22 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 			u, _ := url.Parse(canonical)
 			hash := sha256.Sum256([]byte(canonical))
 			source := newspaper.Source{ID: "src-" + hex.EncodeToString(hash[:6]), URL: canonical, Publisher: u.Hostname(), Title: title, PublishedAt: published, RetrievedAt: time.Now().UTC(), Excerpt: newspaperBound(page.Markdown, 5000)}
+			fetchedSources++
 			result.Sources = append(result.Sources, source)
 			progress(newspaper.Progress{Phase: "reading", Sources: len(result.Sources), Stories: len(result.Stories), Message: "Source captured for verification", Source: &source})
 			progress(newspaper.Progress{Phase: "editing", Sources: len(result.Sources), Stories: len(result.Stories), Message: "Writing sourced stories"})
 			story, err := s.newspaperWriteStory(ctx, p, queries[qi].Section, source)
 			if err != nil {
+				switch {
+				case errors.Is(err, llm.ErrJSONCompletionTruncated):
+					truncatedJSON++
+				case errors.Is(err, llm.ErrJSONCompletionInvalid):
+					invalidJSON++
+				case errors.Is(err, llm.ErrJSONCompletionEmpty):
+					emptyJSON++
+				default:
+					modelErrors++
+				}
 				result.Sources = result.Sources[:len(result.Sources)-1]
 				continue
 			}
@@ -255,6 +269,11 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 				story.Paragraphs[i].SourceIDs = []string{source.ID}
 			}
 			if err = newspaper.ValidateDraft(newspaper.Draft{Stories: []newspaper.Story{story}, Sources: []newspaper.Source{source}}, p, time.Now().UTC()); err != nil {
+				if err.Error() == "paragraph evidence quote was not found in a read source" {
+					evidenceMismatches++
+				} else {
+					invalidDrafts++
+				}
 				result.Sources = result.Sources[:len(result.Sources)-1]
 				continue
 			}
@@ -271,6 +290,12 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 		}
 	}
 	progress(newspaper.Progress{Phase: "checking", Sources: len(result.Sources), Stories: len(result.Stories), Message: "Checking citations and publication rules"})
+	if len(result.Stories) == 0 {
+		if fetchedSources == 0 {
+			return result, errors.New("no usable source pages were retrieved from search or RSS")
+		}
+		return result, fmt.Errorf("no verified articles from %d fetched source pages (model errors: %d, truncated JSON: %d, invalid JSON: %d, empty JSON: %d, evidence quote mismatches: %d, invalid drafts: %d)", fetchedSources, modelErrors, truncatedJSON, invalidJSON, emptyJSON, evidenceMismatches, invalidDrafts)
+	}
 	if err := newspaper.ValidateDraft(result, p, time.Now().UTC()); err != nil {
 		return result, err
 	}
@@ -293,7 +318,20 @@ func (s *Server) newspaperWriteStory(ctx context.Context, p newspaper.Profile, s
 	}
 	guide := newspaper.Skill + "\nReturn exactly one JSON object with headline, deck and paragraphs (2-4). Each paragraph has text and evidence_quote. The evidence_quote must be an exact consecutive substring of at least 20 characters from the source text that supports that paragraph. If the page lacks enough substantiated news, return {\"headline\":\"\",\"deck\":\"\",\"paragraphs\":[]}."
 	input := fmt.Sprintf("Language: %s\nSection: %s\nPublication date: %s\nPublisher: %s\nArticle title: %s\nPublished: %v\n<external_data source_id=\"%s\">\n%s\n</external_data>", p.Language, section, time.Now().Format("2006-01-02"), source.Publisher, source.Title, source.PublishedAt, source.ID, source.Excerpt)
-	request := openai.ChatCompletionRequest{Model: latest.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: guide}, {Role: openai.ChatMessageRoleUser, Content: input}}, MaxTokens: 1500, Temperature: 0.2}
+	route := llm.ModelRoute{ProviderID: latest.LLM.Provider, ProviderType: latest.LLM.ProviderType, BaseURL: latest.LLM.BaseURL, Model: latest.LLM.Model, Primary: true}
+	if provider := latest.FindProvider(latest.LLM.Provider); provider != nil {
+		route.ContextWindowOverride = provider.ContextWindow
+		route.MaxOutputTokensOverride = provider.MaxOutputTokens
+	}
+	limits := llm.ResolveModelLimitsCached(route, latest.Agent.ContextWindow)
+	inputTokens := prompts.CountTokensForModel(guide, latest.LLM.Model) + prompts.CountTokensForModel(input, latest.LLM.Model) + 32
+	requestedOutput := min(llm.ReasoningOutputTokens, limits.ContextWindow-inputTokens-256)
+	maxTokens, err := llm.JSONCompletionOutputBudget(limits, requestedOutput, inputTokens)
+	if err != nil {
+		return newspaper.Story{}, fmt.Errorf("budget newspaper story output: %w", err)
+	}
+	format := llm.JSONResponseFormat(llm.ResolveConfigProviderCapabilities(latest).StructuredOutputs)
+	request := openai.ChatCompletionRequest{Model: latest.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: guide}, {Role: openai.ChatMessageRoleUser, Content: input}}, MaxTokens: maxTokens, Temperature: 0.2, ResponseFormat: format}
 	response, err := s.LLMClient.CreateChatCompletion(ctx, request)
 	if err != nil {
 		return newspaper.Story{}, fmt.Errorf("write newspaper story: %w", err)
@@ -311,7 +349,7 @@ func (s *Server) newspaperWriteStory(ctx context.Context, p newspaper.Profile, s
 		} `json:"paragraphs"`
 	}
 	if err = json.Unmarshal([]byte(content), &raw); err != nil {
-		return newspaper.Story{}, err
+		return newspaper.Story{}, fmt.Errorf("%w: newspaper story schema", llm.ErrJSONCompletionInvalid)
 	}
 	story := newspaper.Story{Headline: newspaperBound(raw.Headline, 180), Deck: newspaperBound(raw.Deck, 350), Paragraphs: []newspaper.Paragraph{}}
 	for _, para := range raw.Paragraphs {
