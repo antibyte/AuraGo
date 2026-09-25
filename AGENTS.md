@@ -396,6 +396,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 ## Additional Product Contracts
 
+- Newspaper's planned product, editorial, delivery, and acceptance contract is
+  `documentation/newspaper-plan.md`; keep it aligned with the implemented app.
 - Keep `README.md` user-facing, English, playful, and geeky with the original AuraGo gopher. Use compact, casual copy naming real features and integrations, not corporate slogans. Keep claims source-aligned. `assets/readme/` artwork should depict real features, structure, and connections; verify labels/arrows, authentic screenshots, Markdown explanations, and light/dark desktop/mobile rendering.
 - TeeVee retains the supplied wood/metal CRT skin across themes. `documentation/teevee-retro-ui-plan.md` owns its source/render/validation contract. The video CRT filter and glass reflection switch independently; native playback survives blocked textures/WebGL. Keep one decoder and source-scoped explicit proxy reconnect. Hardware 1080p/60 and external live-stream acceptance remain distinct from local fixtures.
 - HA Switchboard (`ha-switchboard`) uses the existing HA integration/desktop shell, a walnut cabinet, and a silver lever for each selected `switch.*`. Admin-only routes preserve HA service policy and both read-only gates. Validated `ha_switchboard.board` stores order/selection/labels; live reads confirm explicit on/off writes. See `documentation/ha-switchboard-plan.md` and the owning UI/app contracts.
