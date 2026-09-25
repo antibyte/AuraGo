@@ -388,6 +388,74 @@ func TestVirtualComputersRESTUsesPinnedBoringdContracts(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersManualLaunchInternetPolicy(t *testing.T) {
+	for _, tc := range []struct {
+		name, template string
+		gate, internet bool
+		status         int
+		upstreamCalls  int
+	}{
+		{name: "headless internet", template: "python", gate: true, internet: true, status: http.StatusOK, upstreamCalls: 1},
+		{name: "desktop offline", template: "desktop", gate: true, status: http.StatusOK, upstreamCalls: 1},
+		{name: "offline while gate disabled", template: "python", status: http.StatusOK, upstreamCalls: 1},
+		{name: "internet blocked by gate", template: "python", internet: true, status: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			var forwarded map[string]interface{}
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				if r.Method != http.MethodPost || r.URL.Path != "/v1/machines" {
+					t.Errorf("unexpected upstream request %s %s", r.Method, r.URL.Path)
+				}
+				if err := json.NewDecoder(r.Body).Decode(&forwarded); err != nil {
+					t.Errorf("decode upstream launch: %v", err)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"id":"vm-1","template":"python","display":false}`))
+			}))
+			defer upstream.Close()
+			cfg := virtualComputersTestConfig(upstream.URL)
+			cfg.VirtualComputers.AllowInternet = tc.gate
+			mux := http.NewServeMux()
+			registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+			body, _ := json.Marshal(virtualcomputers.LaunchMachineRequest{Template: tc.template, AllowInternet: tc.internet})
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/virtual-computers/machines", bytes.NewReader(body)))
+			if rec.Code != tc.status || calls != tc.upstreamCalls {
+				t.Fatalf("status=%d upstream calls=%d body=%s", rec.Code, calls, rec.Body.String())
+			}
+			if tc.status == http.StatusForbidden {
+				if !strings.Contains(rec.Body.String(), "internet_disabled") {
+					t.Fatalf("missing internet gate error: %s", rec.Body.String())
+				}
+				return
+			}
+			if forwarded["template"] != tc.template || (forwarded["net"] == true) != tc.internet {
+				t.Fatalf("upstream launch = %#v, want template=%q net=%v", forwarded, tc.template, tc.internet)
+			}
+		})
+	}
+}
+
+func TestVirtualComputersSetupStatusReportsInternetCapability(t *testing.T) {
+	for _, allowed := range []bool{false, true} {
+		cfg := virtualComputersTestConfig("http://127.0.0.1:1")
+		cfg.VirtualComputers.AllowInternet = allowed
+		rec := httptest.NewRecorder()
+		handleVirtualComputersSetupStatus(&Server{Cfg: cfg}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/setup/status", nil))
+		var body struct {
+			Capabilities map[string]bool `json:"capabilities"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode setup status: %v", err)
+		}
+		if rec.Code != http.StatusOK || body.Capabilities["internet"] != allowed {
+			t.Fatalf("allowed=%v status=%d body=%s", allowed, rec.Code, rec.Body.String())
+		}
+	}
+}
+
 func TestVirtualComputersRESTRejectsLegacyForkTTL(t *testing.T) {
 	calls := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

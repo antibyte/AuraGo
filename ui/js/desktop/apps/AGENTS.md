@@ -349,6 +349,10 @@ buttons and menu popovers remain excluded from those gestures.
   there. Leave `tx` as a key-only helper.
 - Virtual Computers volume sizes use `desktop.bytes`, `desktop.kib`,
   `desktop.mib`, and `desktop.gib`. Do not hardcode `KB`/`MB`/`GB` there.
+- The New computer dialog shows the per-machine Network choice for both Python
+  and Desktop templates. When the server reports Internet capability, default
+  to Internet and allow Offline; otherwise explain why only Offline is available.
+  Send the explicit selection on launch and keep labels in all 16 Desktop locales.
 - Looper log durations use `desktop.looper_duration_ms` and
   `desktop.looper_duration_s`. Do not hardcode `ms`/`s` there. Leave SIP
   and Noisemaker `formatDuration` unchanged.

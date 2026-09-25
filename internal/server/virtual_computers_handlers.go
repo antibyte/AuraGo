@@ -231,6 +231,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 				"volumes": cfg.AllowVolumes, "agent_tasks": cfg.AllowAgentTasks,
 				"legacy_agent_tasks_ready": legacyAgentTasksReady,
 				"publish":                  cfg.AllowPublish, "persistent": cfg.AllowPersistent, "agent_control": cfg.AgentControl.Enabled,
+				"internet": cfg.AllowInternet,
 			},
 			"workspace_protocol":               virtualcomputers.WorkspaceProtocolVersion,
 			"workspace_asset_fingerprint":      virtualcomputers.WorkspaceAssetFingerprint(),
@@ -482,6 +483,10 @@ func handleVirtualComputersMachines(s *Server) http.HandlerFunc {
 				req.VolumeID = req.Volumes[0]
 			}
 			cfg := virtualComputersConfigSnapshot(s)
+			if req.AllowInternet && !cfg.AllowInternet {
+				writeVirtualComputersAPIError(w, "internet_disabled", "internet access for virtual computers is disabled", http.StatusForbidden)
+				return
+			}
 			if req.VolumeID != "" && !cfg.AllowVolumes {
 				jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
 				return
