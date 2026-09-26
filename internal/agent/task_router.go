@@ -116,13 +116,13 @@ func taskRoutingTarget(cfg *config.Config, area string) (*config.ProviderEntry, 
 		return nil, "provider_missing"
 	}
 	p := *provider
-	if ok, _ := config.SpeechLabChatProviderEligibility(&p); !ok {
-		return nil, "provider_ineligible"
-	}
-	if t.Model != "" && t.Model != p.Model {
-		p.Model = t.Model
+	if model := strings.TrimSpace(t.Model); model != "" && model != p.Model {
+		p.Model = model
 		p.ContextWindow, p.MaxOutputTokens = 0, 0
 		p.Capabilities = config.ProviderCapabilities{}
+	}
+	if ok, _ := config.SpeechLabChatProviderEligibility(&p); !ok {
+		return nil, "provider_ineligible"
 	}
 	if p.Model == "" {
 		return nil, "model_missing"

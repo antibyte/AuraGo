@@ -81,7 +81,11 @@ func ValidateLLMRouterConfig(cfg *Config, strictReferences bool) error {
 			}
 			continue
 		}
-		if ok, _ := SpeechLabChatProviderEligibility(p); !ok {
+		effective := *p
+		if model := strings.TrimSpace(target.Model); model != "" {
+			effective.Model = model
+		}
+		if ok, _ := SpeechLabChatProviderEligibility(&effective); !ok {
 			return fmt.Errorf("llm_router.areas.%s: provider must support chat", area)
 		}
 		if strings.TrimSpace(target.Model) == "" && strings.TrimSpace(p.Model) == "" {

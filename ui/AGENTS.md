@@ -37,6 +37,8 @@ worker. Keep packaging, recovery and offline instructions in
   sixteen locales. Chat/Desktop `llm_route` badges use text-only, turn-scoped
   metadata; Dashboard counters never imply unreported usage is free. Verify
   `TestLLMRouterConfigBrowser`, `TestTaskRouter*` and canonical UI bundles.
+  Offer Agnes chat providers and their configured models, including models newer
+  than the catalog; exclude Agnes image/video generation choices.
 
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Browser acceptance uses `TestDesktopNewspaperBrowser` at wide/narrow and light/dark sizes; backend contracts live in `internal/newspaper/AGENTS.md`.
 

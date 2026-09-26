@@ -91,6 +91,28 @@ func TestSpeechLabChatProviderEligibilityUsesRuntimeCatalog(t *testing.T) {
 	}
 }
 
+func TestSpeechLabAgnesChatProviderEligibility(t *testing.T) {
+	for _, tc := range []struct {
+		model  string
+		want   bool
+		reason string
+	}{
+		{"agnes-2.5-flash", true, "available"},
+		{"agnes-3.0-flash", true, "available"},
+		{"agnes-image-2.1-flash", false, "media_provider"},
+		{"agnes-video-v2.0", false, "media_provider"},
+		{" AGNES/Agnes-Video-v2.0 ", false, "media_provider"},
+		{"", false, "missing_model"},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			p := ProviderEntry{Type: "agnes", Model: tc.model}
+			if got, reason := SpeechLabChatProviderEligibility(&p); got != tc.want || reason != tc.reason {
+				t.Fatalf("eligibility = %v, %q; want %v, %q", got, reason, tc.want, tc.reason)
+			}
+		})
+	}
+}
+
 func TestNormalizeSpeechLabCanonicalFieldsWin(t *testing.T) {
 	legacy := true
 	cfg := SpeechLabConfig{LegacyUseForSIP: &legacy}

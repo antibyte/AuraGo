@@ -37,7 +37,10 @@ function renderLLMRouterSection(section) {
     node('p', 'cfg-note-banner', tr('areas_hint'));
     const rows = node('div', 'field-grid two-cols');
     const modelSelects = [];
-    const providers = (providersCache || []).filter(p => p.id !== 'aurago-qwen-local' && !['embedding', 'embeddings', 'tts', 'asr', 'whisper', 'stability', 'ideogram', 'vision', 'agnes'].includes(p.type));
+    const isChatModel = (p, model) => p?.type !== 'agnes' || !/^(?:agnes\/)?agnes-(?:image|video)/i.test((model || '').trim());
+    const providers = (providersCache || []).filter(p => p.id !== 'aurago-qwen-local'
+        && !['embedding', 'embeddings', 'tts', 'asr', 'whisper', 'stability', 'ideogram', 'vision'].includes(p.type)
+        && isChatModel(p, p.model));
     const option = (select, value, text) => select.add(new Option(text, value));
     for (const area of areas) {
         const target = (data.areas || {})[area] || {};
@@ -57,7 +60,7 @@ function renderLLMRouterSection(section) {
             const p = providers.find(p => p.id === provider.value);
             model.replaceChildren();
             option(model, '', tr('provider_default') + (p?.model ? ' · ' + p.model : ''));
-            const ids = new Set((catalog?.models || []).filter(m => p && m.provider === p.type && !m.catalog_only).map(m => m.id));
+            const ids = new Set((catalog?.models || []).filter(m => p && m.provider === p.type && !m.catalog_only && isChatModel(p, m.id)).map(m => m.id));
             if (p?.model) ids.add(p.model);
             if (value) ids.add(value);
             [...ids].sort().forEach(id => option(model, id, id));

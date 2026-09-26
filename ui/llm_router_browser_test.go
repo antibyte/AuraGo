@@ -52,14 +52,25 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
         const previousFetch=window.fetch;
         window.fetch=async(url,opts)=>{
             if(url==='/api/llm-router/status') return new Response(JSON.stringify({enabled:true,helper_available:true}));
-            if(url==='/api/models/catalog') return new Response(JSON.stringify({models:[{provider:'openai',id:'gpt-4o-mini'}]}));
+            if(url==='/api/models/catalog') return new Response(JSON.stringify({models:[
+                {provider:'openai',id:'gpt-4o-mini'},
+                {provider:'agnes',id:'agnes-2.5-flash'},
+                {provider:'agnes',id:'agnes-image-2.1-flash'},
+                {provider:'agnes',id:'agnes-video-v2.0'}
+            ]}));
             if(url==='/api/llm-router/preview') {
                 const body=JSON.parse(opts.body); routerCalls.push(body);
                 return new Response(JSON.stringify({enabled:true,decision:{turn_id:'preview',area:body.helper?'coding':'',source:body.helper?'helper':'default',reason:'selected',helper_useful:!body.helper,provider:'main',model:'gpt-4o'}}));
             }
             return previousFetch(url,opts);
         };
-        providersCache=[{id:'main',name:'Main',type:'openai',model:'gpt-4o'},{id:'code',name:'Code',type:'openai',model:'gpt-4o-mini'}];
+        providersCache=[
+            {id:'main',name:'Main',type:'openai',model:'gpt-4o'},
+            {id:'code',name:'Code',type:'openai',model:'gpt-4o-mini'},
+            {id:'agnesai',name:'Agnes AI',type:'agnes',model:'agnes-3.0-flash'},
+            {id:'agnes-image',name:'Agnes Image',type:'agnes',model:'agnes-image-2.1-flash'},
+            {id:'agnes-video',name:'Agnes Video',type:'agnes',model:'agnes-video-v2.0'}
+        ];
         configData.llm_router.areas.coding={provider:'code',model:'gpt-4o-mini'};
         AuraConfigState.init(configData);
         await selectSection('llm_router',{scrollBehavior:'auto'});
@@ -67,6 +78,28 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>document.querySelectorAll('[data-router-settings] fieldset').length===9`)
 	if page.MustEval(`()=>AuraConfigState.isDirty()`).Bool() {
 		t.Fatal("opening router changed the draft")
+	}
+	// Agnes chat is selectable even when the saved model is newer than the catalog.
+	waitForJSBool(t, page, `()=>!!document.querySelector('[data-router-settings]')._routerCatalog`)
+	if !page.MustEval(`()=>[...document.querySelectorAll('[data-path$=".provider"]')].every(select=>{
+        const ids=[...select.options].map(option=>option.value);
+        return ids.includes('agnesai') && !ids.includes('agnes-image') && !ids.includes('agnes-video');
+    })`).Bool() {
+		t.Fatal("Agnes chat missing or Agnes media present in the provider choices")
+	}
+	page.MustEval(`()=>{const p=document.querySelector('[data-path="llm_router.areas.coding.provider"]');p.value='agnesai';p.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	if !page.MustEval(`()=>{const model=document.querySelector('[data-path="llm_router.areas.coding.model"]');const ids=[...model.options].map(o=>o.value);
+        return model.value==='' && ids.includes('agnes-3.0-flash') && ids.includes('agnes-2.5-flash') && !ids.includes('agnes-image-2.1-flash') && !ids.includes('agnes-video-v2.0');
+    }`).Bool() {
+		t.Fatal("Agnes chat model choices lost the configured default or included media")
+	}
+	page.MustEval(`()=>{const m=document.querySelector('[data-path="llm_router.areas.coding.model"]');m.value='agnes-3.0-flash';m.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	if !page.MustEval(`async()=>{await saveConfig();const saved=await (await fetch('/api/config')).json();return !AuraConfigState.isDirty() && saved.llm_router.areas.coding.provider==='agnesai' && saved.llm_router.areas.coding.model==='agnes-3.0-flash';}`).Bool() {
+		t.Fatal("Agnes router assignment did not persist through Save")
+	}
+	page.MustEval(`async()=>{await selectSection('llm_router',{scrollBehavior:'auto'});}`)
+	if !page.MustEval(`()=>document.querySelector('[data-path="llm_router.areas.coding.provider"]').value==='agnesai' && document.querySelector('[data-path="llm_router.areas.coding.model"]').value==='agnes-3.0-flash'`).Bool() {
+		t.Fatal("Agnes assignment was lost after reopening the router")
 	}
 	page.MustEval(`()=>document.querySelector('[data-path="llm_router.enabled"]').click()`)
 	if !page.MustEval(`()=>{const toggle=document.querySelector('[data-path="llm_router.enabled"]');return toggle.getAttribute('aria-checked')==='true' && toggle.nextElementSibling.textContent==='Aktiv' && getComputedStyle(toggle).borderRadius!=='0px';}`).Bool() {

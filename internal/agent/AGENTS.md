@@ -31,6 +31,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   authorization errors and received stream content never trigger replay.
   The reserved managed-local provider remains in its existing primary/fallback
   roles; it is not a category assignment. No implicit model download or family switch.
+- Validate chat eligibility against the effective assigned model, including an
+  override. Agnes chat models are eligible; its `agnes-image*` and `agnes-video*`
+  generation models are not. Keep config-save, runtime and UI checks aligned.
 - Typed `llm_route` feedback contains session/turn IDs and model/category metadata
   only. It never enters answers, memory or tool output. See
   `documentation/llm-router.md`; verify `TestTaskRouter*` and `TestLLMRouter*`.

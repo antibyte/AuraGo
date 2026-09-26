@@ -23,6 +23,9 @@ uses **Coding**. If Coding is empty, it uses the ordinary active model, even if
 Complex tasks or General has an assignment. General is its own area, not a
 catch-all model override. A blank model uses the selected provider's default.
 Clearing a provider also clears its model override.
+Agnes AI chat models are available, including an already configured model that is
+newer than the bundled catalog. Agnes image and video generation models cannot
+be used as chat targets, including through a model override.
 
 The decision belongs to one agent run, including its tool rounds. A later human
 message can select a different model. A brief continuation such as “weiter” can

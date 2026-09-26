@@ -197,7 +197,12 @@ func SpeechLabChatProviderEligibility(provider *ProviderEntry) (bool, string) {
 		return false, "unsupported_provider_type"
 	}
 	switch providerType {
-	case "stability", "ideogram", "vision", "agnes":
+	case "stability", "ideogram", "vision":
+		return false, "media_provider"
+	}
+	// Agnes serves chat and generation models through the same provider type.
+	model := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(provider.Model)), "agnes/")
+	if providerType == "agnes" && (strings.HasPrefix(model, "agnes-image") || strings.HasPrefix(model, "agnes-video")) {
 		return false, "media_provider"
 	}
 	if strings.TrimSpace(provider.Model) == "" {

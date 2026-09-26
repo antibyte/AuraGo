@@ -53,6 +53,58 @@ func TestTaskRouterScopedAndIdempotent(t *testing.T) {
 	}
 }
 
+func TestTaskRouterAgnesChatAndMedia(t *testing.T) {
+	for _, tc := range []struct {
+		name, model, override, selected string
+	}{
+		{"configured chat", "agnes-3.0-flash", "", "agnes-3.0-flash"},
+		{"chat override", "agnes-3.0-flash", "agnes-2.5-flash", "agnes-2.5-flash"},
+		{"image default", "agnes-image-2.1-flash", "", ""},
+		{"video default", "agnes-video-v2.0", "", ""},
+		{"image override", "agnes-3.0-flash", "agnes-image-2.1-flash", ""},
+		{"video override", "agnes-3.0-flash", "agnes-video-v2.0", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, run, req := taskRouterFixture()
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var request openai.ChatCompletionRequest
+				if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+					t.Error(err)
+				}
+				if request.Model != tc.selected {
+					t.Errorf("request used model %q, want %q", request.Model, tc.selected)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"agnes fixture"}}]}`)
+			}))
+			defer upstream.Close()
+			cfg.LLM.UseNativeFunctions = true
+			cfg.Providers[1].Type = "agnes"
+			cfg.Providers[1].Model = tc.model
+			cfg.Providers[1].BaseURL = upstream.URL + "/v1"
+			manual := false
+			cfg.Providers[1].Capabilities = config.ProviderCapabilities{Auto: &manual, ToolCalling: true, Multimodal: true, StructuredOutputs: true}
+			cfg.LLMRouter.Areas["coding"] = config.LLMRouterTarget{Provider: "coding", Model: tc.override}
+			if err := PrepareTaskRouting(context.Background(), &req, &run); err != nil {
+				t.Fatal(err)
+			}
+			if tc.selected == "" {
+				if req.Model != cfg.LLM.Model || run.TaskRouting.Reason != "provider_ineligible" {
+					t.Fatalf("media route accepted: %+v", run.TaskRouting)
+				}
+				return
+			}
+			if req.Model != tc.selected || run.Config.LLM.ProviderType != "agnes" || cfg.Providers[1].Model != tc.model || cfg.LLM.Model != "gpt-4o" {
+				t.Fatalf("Agnes route/global state mismatch: %+v", run.TaskRouting)
+			}
+			response, err := run.LLMClient.CreateChatCompletion(context.Background(), req)
+			if err != nil || len(response.Choices) != 1 || response.Choices[0].Message.Content != "agnes fixture" {
+				t.Fatalf("Agnes route request failed: response=%+v err=%v", response, err)
+			}
+		})
+	}
+}
+
 func TestTaskRouterDefaultPinnedAndTooSmall(t *testing.T) {
 	for _, scenario := range []string{"disabled", "unassigned", "pinned", "mission", "prepared", "small"} {
 		t.Run(scenario, func(t *testing.T) {

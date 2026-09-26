@@ -106,3 +106,33 @@ func TestTaskRouterZeroValueSnapshotReload(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestTaskRouterAgnesEffectiveModelValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name, model, override string
+		valid                 bool
+	}{
+		{"configured chat", "agnes-3.0-flash", "", true},
+		{"chat override", "agnes-3.0-flash", "agnes-2.5-flash", true},
+		{"explicit chat on empty provider", "", "agnes-3.0-flash", true},
+		{"explicit chat on media provider", "agnes-image-2.1-flash", "agnes-3.0-flash", true},
+		{"image default", "agnes-image-2.1-flash", "", false},
+		{"video default", "agnes-video-v2.0", "", false},
+		{"image override", "agnes-3.0-flash", "agnes-image-2.1-flash", false},
+		{"video override", "agnes-3.0-flash", "agnes-video-v2.0", false},
+		{"qualified media override", "agnes-3.0-flash", " AGNES/Agnes-Image-2.1-flash ", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := Config{Providers: []ProviderEntry{{ID: "agnesai", Type: "agnes", Model: tc.model}}, LLMRouter: DefaultLLMRouterConfig()}
+			cfg.LLMRouter.Areas["coding"] = LLMRouterTarget{Provider: "agnesai", Model: tc.override}
+			for _, strict := range []bool{false, true} {
+				if err := ValidateLLMRouterConfig(&cfg, strict); (err == nil) != tc.valid {
+					t.Fatalf("strict=%v: valid=%v, error=%v", strict, tc.valid, err)
+				}
+			}
+			if cfg.Providers[0].Model != tc.model {
+				t.Fatal("validation changed the provider's default model")
+			}
+		})
+	}
+}

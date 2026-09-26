@@ -15,6 +15,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/security"
+	"gopkg.in/yaml.v3"
 )
 
 func routerServerFixture(t *testing.T) *Server {
@@ -138,5 +139,55 @@ func TestLLMRouterConfigSaveClearAndReferences(t *testing.T) {
 	}
 	if len(data.LLMRouter.Areas) != 9 {
 		t.Fatalf("GET lost default assignments: %s", get.Body.String())
+	}
+}
+
+func TestLLMRouterConfigSaveAgnes(t *testing.T) {
+	s := routerServerFixture(t)
+	s.Cfg.Providers = append(s.Cfg.Providers, config.ProviderEntry{ID: "agnesai", Type: "agnes", Model: "agnes-3.0-flash"})
+	// Runtime Save deliberately preserves the independently managed provider list.
+	data, err := yaml.Marshal(map[string]any{"providers": s.Cfg.Providers, "llm": map[string]string{"provider": "main"}, "llm_router": s.Cfg.LLMRouter})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.Cfg.ConfigPath, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, model := range []string{"", "agnes-2.5-flash", "agnes-3.0-flash"} {
+		patch, err := json.Marshal(map[string]any{"llm_router": map[string]any{"areas": map[string]config.LLMRouterTarget{"coding": {Provider: "agnesai", Model: model}}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+		handleUpdateConfig(s).ServeHTTP(rec, httptest.NewRequest("PUT", "/api/config", strings.NewReader(string(patch))))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("Agnes save failed: %d %s", rec.Code, rec.Body.String())
+		}
+		reloaded, err := config.Load(s.Cfg.ConfigPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if target := reloaded.LLMRouter.Areas["coding"]; target.Provider != "agnesai" || target.Model != model {
+			t.Fatalf("Agnes assignment lost during reload: %+v", target)
+		}
+	}
+	before, err := os.ReadFile(s.Cfg.ConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, model := range []string{"agnes-image-2.1-flash", "agnes-video-v2.0"} {
+		patch, err := json.Marshal(map[string]any{"llm_router": map[string]any{"areas": map[string]config.LLMRouterTarget{"coding": {Provider: "agnesai", Model: model}}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+		handleUpdateConfig(s).ServeHTTP(rec, httptest.NewRequest("PUT", "/api/config", strings.NewReader(string(patch))))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("Agnes media override accepted: %d", rec.Code)
+		}
+		after, err := os.ReadFile(s.Cfg.ConfigPath)
+		if err != nil || string(before) != string(after) {
+			t.Fatal("invalid Agnes media save changed the configuration", err)
+		}
 	}
 }
