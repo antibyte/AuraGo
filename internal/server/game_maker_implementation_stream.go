@@ -29,6 +29,10 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 	}
 	observer := r.gameUsageObserver(run)
 	var requestHistory []openai.ChatCompletionMessage
+	maxOutputTokens := 16384
+	if run.Project.Dimension == "3d" {
+		maxOutputTokens = 32768
+	}
 	for attempt := 0; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return agent.MinimalLoopResult{}, nil, err
@@ -58,9 +62,17 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		}
 		broker.Send("model_progress", "waiting")
 		callCtx, cancel := context.WithTimeout(ctx, timeout)
+		dispatchCtx := &agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}
+		opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, MaxOutputTokens: maxOutputTokens, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer}
 		response, completion, err := agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,
-			&agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}},
-			requestHistory, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, MaxOutputTokens: 16384, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer})
+			dispatchCtx, requestHistory, r.server.Logger, opts)
+		if maxOutputTokens > 16384 && agent.IsContextBudgetExceeded(err) {
+			// Fitting failed before any provider call; retry with the previous reserve.
+			maxOutputTokens = 16384
+			opts.MaxOutputTokens = maxOutputTokens
+			response, completion, err = agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,
+				dispatchCtx, requestHistory, r.server.Logger, opts)
+		}
 		timedOut := errors.Is(callCtx.Err(), context.DeadlineExceeded) && errors.Is(err, context.DeadlineExceeded)
 		cancel()
 		broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.PromptTokens+response.CompletionTokens, 0, 0, false, false, "provider_usage")

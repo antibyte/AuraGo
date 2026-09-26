@@ -161,10 +161,12 @@ revision publication and standalone export for Phaser and Three.js games.
   Reject extra/duplicate fields, other targets, mixed prose and incomplete
   output. The checked write still rejects concurrent edits. Format correction
   shares one retry with stream/deadline/output-limit recovery; normal validation
-  owns success. Source generation requests at most 16384 output tokens including
-  reasoning, clamped to every eligible route's limit and reserved before context
-  fitting. A length-limited answer is discarded; its correction requests a concise
-  complete implementation using the same helper packet and output ceiling.
+  owns success. Source generation requests 16384 output tokens for 2D or 32768
+  for 3D, including reasoning, clamped to every eligible route's limit and
+  reserved before context fitting. If the 3D reserve alone makes the request
+  exceed context, retry local fitting at 16384 before any model call. A
+  length-limited answer is discarded; its correction requests a concise complete
+  implementation using the same helper packet and output ceiling.
 - Game Maker streams use the configured per-call LLM timeout through a request-local retry override; the global chat retry timeout is unchanged. Require a complete stream marker before executing generated calls, retain interrupted reasoning privately, and distinguish timeout/truncation from empty completion. An empty new-game build can reach the existing bounded unchanged-starter recovery only with an accepted plan; all compiler/browser/publication gates still apply. Model progress events carry only allowlisted status codes, never reasoning or provider text.
 - Game Maker projects use `Games/<slug>` as their only persistent identity and live below the configured Virtual Desktop workspace. Never persist or return absolute host paths.
 - Game Maker continuations keep the original project request, recent user changes and a private provider-native conversation (including available reasoning and complete tool/result groups) in `gm_agent_context`, isolated by project and revision. Checkpoint at tool/phase boundaries and cancellation; rebuild current system/tool scope, never replay historical calls. Route budgets still bound restored history; only Game Maker opts into retaining completed reasoning. Provider changes keep reasoning as historical data rather than replaying provider-specific fields. Do not expose this state as Studio chat, assets, exports or general memory. Keep one failed/interrupted working copy per project until continuation succeeds or the project is deleted. Resume copies it into a new job and retains installed source; publication still requires all existing checks. Release the global writer only after working-copy cleanup. `StartJobRequest.resume` resumes directly without copying a prompt into the UI editor.

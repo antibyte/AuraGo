@@ -35,6 +35,9 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 		{"cancel", "3d", "cancel", "stop", false},
 		{"length", "3d", "length", "stop", false},
 		{"length_2d", "2d", "length", "stop", false},
+		{"wide_3d", "3d", "length", "stop", false},
+		{"wide_2d", "2d", "length", "stop", false},
+		{"narrow_3d", "3d", "length", "stop", false},
 		{"repeated_length", "2d", "length", "length", false},
 		{"format_after_length", "2d", "length", "format", false},
 		{"length_after_format", "2d", "format", "length", false},
@@ -85,8 +88,15 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				if !body.Stream || len(body.Tools) != 0 || n > 2 {
 					t.Error("unbounded retry or unexpected tool-enabled request")
 				}
-				if body.MaxTokens != 4096 {
-					t.Errorf("source output did not honor the model limit: %d", body.MaxTokens)
+				wantTokens := 4096
+				switch tc.name {
+				case "wide_3d":
+					wantTokens = 32768
+				case "wide_2d", "narrow_3d":
+					wantTokens = 16384
+				}
+				if body.MaxTokens != wantTokens {
+					t.Errorf("source output limit=%d, want %d", body.MaxTokens, wantTokens)
 				}
 				for _, message := range body.Messages {
 					if len(message.ToolCalls) != 0 || message.FunctionCall != nil || message.Role == "tool" || strings.Contains(message.Content, "<tool_call>") || strings.Contains(message.Content, "stale source snapshot") {
@@ -195,6 +205,14 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 			cfg := &config.Config{}
 			cfg.LLM.Model, cfg.LLM.ProviderType = "test-stream", "openai"
 			cfg.Agent.ContextWindow, cfg.CircuitBreaker.LLMTimeoutSeconds = 65536, 1
+			if strings.HasPrefix(tc.name, "wide_") || tc.name == "narrow_3d" {
+				contextWindow := 65536
+				if tc.name == "narrow_3d" {
+					contextWindow = 24576
+				}
+				cfg.LLM.Provider, cfg.LLM.BaseURL = "source-test", provider.URL
+				cfg.Providers = []config.ProviderEntry{{ID: "source-test", Type: "openai", Model: cfg.LLM.Model, BaseURL: provider.URL, ContextWindow: contextWindow, MaxOutputTokens: 32768}}
+			}
 			srv := &Server{Cfg: cfg, GameMaker: svc, LLMClient: openai.NewClientWithConfig(cc), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 			runner := &gameMakerAgentRunner{server: srv, service: svc}
 			svc.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {

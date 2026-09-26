@@ -156,10 +156,12 @@ The private conversation remains complete. The outgoing request keeps available
 reasoning and the current source snapshot, leaving out previous tool calls,
 results and rejected source. The snapshot includes the current job ID, fixed
 file path and SHA-256. Complete TypeScript is requested without tool calls.
-The source request sends an explicit ceiling of 16384 output tokens (including
-reasoning), reduced when a provider/model limit is lower. This same ceiling is
-reserved before fitting the context. Thinking remains enabled, and the configured
-call and job deadlines still apply. StepFun's standard `reasoning` response field
+The source request asks for 16384 output tokens for 2D or 32768 for 3D
+(including reasoning), reduced when a provider/model limit is lower. This same
+ceiling is reserved before fitting the context. If the 3D reserve cannot fit,
+the request is fitted locally with 16384 before contacting the model. Thinking
+remains enabled, and the configured call and job deadlines still apply.
+StepFun's standard `reasoning` response field
 is retained privately for both JSON and streaming responses, including chunks
 without token-usage data; it never becomes game code or Studio answer text.
 
