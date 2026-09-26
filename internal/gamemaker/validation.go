@@ -10,6 +10,7 @@ import (
 // previewCheck belongs to one build, never to a previous iframe or revision.
 // All fields are protected by Service.mu.
 type previewCheck struct {
+	SourceMap        *buildSourceMap
 	CaptureReceived  bool
 	Captures         []VisualCapture
 	ID               string
@@ -24,6 +25,7 @@ type previewCheck struct {
 }
 
 type PreviewReport struct {
+	Frames        []RuntimeFrame    `json:"frames,omitempty"`
 	Captures      []VisualCapture   `json:"captures,omitempty"`
 	CanvasVisible bool              `json:"canvas_visible,omitempty"`
 	Token         string            `json:"token"`
@@ -57,7 +59,8 @@ func boundedPreviewDiagnostics(input []Diagnostic) []Diagnostic {
 			duplicate = duplicate || previous.Message == message
 		}
 		if !duplicate {
-			out = append(out, Diagnostic{Level: "runtime", Message: message})
+			item.Level, item.Message = "runtime", message
+			out = append(out, item)
 		}
 		if len(out) == 20 {
 			break
@@ -131,7 +134,7 @@ func (s *Service) ReportPreview(projectID string, report PreviewReport) error {
 		if message == "" {
 			message = report.Type
 		}
-		check.Diagnostics = boundedPreviewDiagnostics(append(check.Diagnostics, Diagnostic{Message: message}))
+		check.Diagnostics = boundedPreviewDiagnostics(append(check.Diagnostics, check.SourceMap.diagnostic(message, report.Frames)))
 	}
 	return nil
 }

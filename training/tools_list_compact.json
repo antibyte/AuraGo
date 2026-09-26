@@ -1505,11 +1505,10 @@
   },
   {
     "name": "game_maker_file",
-    "description": "Read a bounded source range (includes full-file sha256), replace one unique old_text with new_text using expected_sha256, or write a complete file. Writes return written and build.ok separately; fix compiler diagnostics before runtime validation. Prefer replace for existing files. Managed vendor/dist paths are read-only.",
+    "description": "Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
     "required": [
       "job_id",
-      "operation",
-      "path"
+      "operation"
     ],
     "tier": "extended",
     "operations": [
@@ -1520,6 +1519,14 @@
       {
         "selector": "operation",
         "value": "replace"
+      },
+      {
+        "selector": "operation",
+        "value": "replace_many"
+      },
+      {
+        "selector": "operation",
+        "value": "search"
       },
       {
         "selector": "operation",

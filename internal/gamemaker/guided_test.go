@@ -287,8 +287,8 @@ func TestGuidedMechanicsPlacementPreservesValidationAndCorrections(t *testing.T)
 	project := Project{Dimension: "2d"}
 	// A correction to a misplaced field must keep existing sibling blocks.
 	_, err := s.expandDesign(context.Background(), "draft", project, []byte(`{"base":"minimal","objective":"Explore","features":["Custom rules"],"mechanics":{"outcomes":["invalid"],"blocks":[{"id":"move","kind":"movement"}]}}`))
-	if err != nil {
-		t.Fatal(err)
+	if err == nil || !strings.Contains(err.Error(), "plan.mechanics.outcomes") {
+		t.Fatalf("invalid draft should report the outcome while retaining sibling blocks: %v", err)
 	}
 	encoded, err := s.expandDesign(context.Background(), "draft", project, []byte(`{"outcomes":["won"]}`))
 	if err != nil {

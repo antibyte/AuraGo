@@ -610,6 +610,11 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 		return result
 	}
 	check := result.check
+	stage, stageErr := s.JobDirectory(jobID)
+	fingerprint := ""
+	if stageErr == nil {
+		fingerprint, _ = validationFingerprint(stage)
+	}
 	if len(targetedChecks) > 0 {
 		selected, selectErr := selectTargetedGameMakerScenarios(check.Scenarios, targetedChecks)
 		if selectErr != nil {
@@ -623,6 +628,10 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 	}
 	result = s.waitForPreview(ctx, check, 12*time.Second)
 	result.check = check
+	result.fingerprint = fingerprint
+	result.validationScope = scope
+	encodedScenarios, _ := json.Marshal(check.Scenarios)
+	result.scenarioFingerprint = sourceHash(string(encodedScenarios))
 	result.TargetedChecks = len(targetedChecks) > 0
 	result.GameplayStatus = "unverified"
 	result.RulesStatus = "unverified"

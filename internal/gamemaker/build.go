@@ -38,7 +38,7 @@ func (s *Service) buildJob(ctx context.Context, jobID, scope string) BuildResult
 	if result.OK {
 		s.mu.Lock()
 		s.previewJobs[job.ProjectID] = jobID
-		s.previewCheck = &previewCheck{ID: randomID("validation"), JobID: jobID}
+		s.previewCheck = &previewCheck{ID: randomID("validation"), JobID: jobID, SourceMap: result.sourceMap}
 		result.check = s.previewCheck
 		if scope == "full" || scope == "gameplay" {
 			// Read the plan before serving any grant for this new build.
@@ -108,20 +108,22 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		plugins = append(plugins, threeObservationPlugin(projectDir))
 	}
 	build := api.Build(api.BuildOptions{
-		AbsWorkingDir: projectDir,
-		EntryPoints:   []string{filepath.Join("src", "main.ts")},
-		Bundle:        true,
-		Outfile:       filepath.Join("dist", "game.js"),
-		Format:        api.FormatESModule,
-		Platform:      api.PlatformBrowser,
-		Target:        api.ES2020,
-		External:      []string{"../vendor/*"},
-		Write:         true,
-		Metafile:      true,
-		LogLevel:      api.LogLevelSilent,
-		LegalComments: api.LegalCommentsLinked,
-		Banner:        map[string]string{"js": banner},
-		Plugins:       plugins,
+		AbsWorkingDir:  projectDir,
+		EntryPoints:    []string{filepath.Join("src", "main.ts")},
+		Bundle:         true,
+		Outfile:        filepath.Join("dist", "game.js"),
+		Format:         api.FormatESModule,
+		Platform:       api.PlatformBrowser,
+		Target:         api.ES2020,
+		External:       []string{"../vendor/*"},
+		Write:          false,
+		Sourcemap:      api.SourceMapExternal,
+		SourcesContent: api.SourcesContentInclude,
+		Metafile:       true,
+		LogLevel:       api.LogLevelSilent,
+		LegalComments:  api.LegalCommentsLinked,
+		Banner:         map[string]string{"js": banner},
+		Plugins:        plugins,
 	})
 	if len(build.Errors) > 0 {
 		diagnostics := make([]Diagnostic, 0, len(build.Errors))
@@ -131,10 +133,35 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 				diagnostic.File = filepath.ToSlash(message.Location.File)
 				diagnostic.Line = message.Location.Line
 				diagnostic.Column = message.Location.Column
+				if path, _, err := secureJoin(projectDir, diagnostic.File, false); err == nil {
+					if data, err := os.ReadFile(path); err == nil {
+						diagnostic.SourceSHA256 = sourceHash(string(data))
+						diagnostic.Excerpt = sourceExcerpt(string(data), diagnostic.Line)
+					}
+				}
 			}
 			diagnostics = append(diagnostics, diagnostic)
 		}
 		return BuildResult{Diagnostics: diagnostics}
+	}
+	var sourceMap *buildSourceMap
+	for _, output := range build.OutputFiles {
+		if strings.HasSuffix(output.Path, ".map") {
+			// Mapping is advisory; its absence must not weaken build validation.
+			sourceMap, _ = decodeBuildSourceMap(projectDir, output.Contents)
+			continue
+		}
+		rel, err := filepath.Rel(projectDir, output.Path)
+		if err != nil {
+			return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
+		}
+		path, _, err := secureJoin(projectDir, rel, true)
+		if err == nil {
+			err = os.WriteFile(path, output.Contents, 0o640)
+		}
+		if err != nil {
+			return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
+		}
 	}
 	if err := checkBuilderBuildGraph(projectDir, build.Metafile); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: SceneFilePath, Message: err.Error()}}}
@@ -152,7 +179,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 	if err := validateTreeLimits(projectDir, maxFiles, maxBytes); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
-	return BuildResult{OK: true, Diagnostics: sceneDiagnostics}
+	return BuildResult{OK: true, Diagnostics: sceneDiagnostics, sourceMap: sourceMap}
 }
 
 // Guard the common loader boundary, including variable URLs and config arrays.

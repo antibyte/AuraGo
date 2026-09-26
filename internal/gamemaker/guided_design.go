@@ -113,7 +113,11 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 		s.designDrafts = map[string]map[string]json.RawMessage{}
 	}
 	s.designDrafts[jobID] = draft
+	remaining := max(0, 3-s.planAttempts[jobID])
 	s.mu.Unlock()
+	if issues := s.designIssues(project, design); len(issues) > 0 {
+		return nil, &DesignValidationError{Issues: issues, RemainingAttempts: remaining, RetainedBase: design.Base}
+	}
 	plan, err := s.planFromDesign(ctx, jobID, project, design)
 	if err != nil {
 		return nil, err

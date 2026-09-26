@@ -45,6 +45,10 @@
             return;
         }
         const message = data.type === 'ready' ? '' : String(data.message || data.type).slice(0, 1000);
+        const frames = Array.isArray(data.frames) ? data.frames.slice(0, 5).filter(f => f && f.file === 'dist/game.js'
+            && Number.isInteger(f.line) && f.line > 0 && f.line <= 10000000
+            && Number.isInteger(f.column) && f.column > 0 && f.column <= 10000000)
+            .map(f => ({ file: 'dist/game.js', line: f.line, column: f.column })) : [];
         const key = data.type + ':' + message;
         if (state.previewReported.has(key) || state.previewReported.size >= 21) return;
         state.previewReported.add(key);
@@ -52,7 +56,7 @@
             const frame = state.frame;
             const grant = state.previewGrant;
             state.api.reportPreview(state.previewProjectID, {
-                token: state.previewGrant.token, type: data.type, message, canvas_visible: data.type === 'ready'
+                token: state.previewGrant.token, type: data.type, message, frames, canvas_visible: data.type === 'ready'
             }).catch(error => {
                 if (!state.disposed && validationActive(state, grant) && state.frame === frame && state.previewProjectID === state.project.id) {
                     state.addDiagnostic({ level: 'error', message: error.message || String(error) });

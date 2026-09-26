@@ -22,6 +22,13 @@ the returned `sha256` for subsequent edits, and reread on conflicts. Use
 Repeat specific existing checks with `game_maker_validate(check_ids: [...])`;
 partial checks do not replace the final full validation.
 
+Use the repair packet's exact failed input steps and preserve_passing_checks.
+Compiler/browser diagnostics may include source_sha256 and a bounded excerpt;
+read the relevant range before a replacement when the complete block is missing.
+The shared remaining_repair_passes is authoritative. Explicit validation always
+runs again; the server may reuse a just-passed complete result only while the
+source, assets, runtime, plan, checks and browser evidence are unchanged.
+
 Use deterministic, scene-first checks. Scene structure is an input to QA: inspect the optional graph and exact bindings, then run bounded browser scenarios. Separate compiler/runtime diagnostics from unproven game quality. This package contains original AuraGo guidance and copies no TinySwords code, text, scripts, or assets.
 
 1. Call `game_maker_validate` with `scope: full` for 2D and guided 3D and inspect every check.

@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
   "tool_count": 213,
-  "operation_count": 1138,
+  "operation_count": 1140,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -6671,7 +6671,7 @@
     },
     {
       "name": "game_maker_file",
-      "description": "Read a bounded source range (includes full-file sha256), replace one unique old_text with new_text using expected_sha256, or write a complete file. Writes return written and build.ok separately; fix compiler diagnostics before runtime validation. Prefer replace for existing files. Managed vendor/dist paths are read-only.",
+      "description": "Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -6682,6 +6682,39 @@
           "content": {
             "description": "Complete file content for write",
             "type": "string"
+          },
+          "edits": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "expected_sha256": {
+                  "description": "Full-file sha256 from read/search",
+                  "type": "string"
+                },
+                "new_text": {
+                  "description": "Replacement; empty string deletes",
+                  "type": "string"
+                },
+                "old_text": {
+                  "description": "Unique exact block",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Distinct existing project-relative file",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "expected_sha256",
+                "new_text",
+                "old_text",
+                "path"
+              ],
+              "type": "object"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "type": "array"
           },
           "end_line": {
             "description": "Last line; default next 120 lines; max 240 lines",
@@ -6706,13 +6739,19 @@
           "operation": {
             "enum": [
               "read",
+              "search",
               "write",
-              "replace"
+              "replace",
+              "replace_many"
             ],
             "type": "string"
           },
           "path": {
             "description": "Project-relative source path",
+            "type": "string"
+          },
+          "query": {
+            "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256",
             "type": "string"
           },
           "start_line": {
@@ -6722,15 +6761,13 @@
         },
         "required": [
           "job_id",
-          "operation",
-          "path"
+          "operation"
         ],
         "type": "object"
       },
       "required": [
         "job_id",
-        "operation",
-        "path"
+        "operation"
       ],
       "properties": {
         "_todo": {
@@ -6740,6 +6777,39 @@
         "content": {
           "description": "Complete file content for write",
           "type": "string"
+        },
+        "edits": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_sha256": {
+                "description": "Full-file sha256 from read/search",
+                "type": "string"
+              },
+              "new_text": {
+                "description": "Replacement; empty string deletes",
+                "type": "string"
+              },
+              "old_text": {
+                "description": "Unique exact block",
+                "type": "string"
+              },
+              "path": {
+                "description": "Distinct existing project-relative file",
+                "type": "string"
+              }
+            },
+            "required": [
+              "expected_sha256",
+              "new_text",
+              "old_text",
+              "path"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "type": "array"
         },
         "end_line": {
           "description": "Last line; default next 120 lines; max 240 lines",
@@ -6764,13 +6834,19 @@
         "operation": {
           "enum": [
             "read",
+            "search",
             "write",
-            "replace"
+            "replace",
+            "replace_many"
           ],
           "type": "string"
         },
         "path": {
           "description": "Project-relative source path",
+          "type": "string"
+        },
+        "query": {
+          "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256",
           "type": "string"
         },
         "start_line": {
@@ -6787,6 +6863,14 @@
         {
           "selector": "operation",
           "value": "replace"
+        },
+        {
+          "selector": "operation",
+          "value": "replace_many"
+        },
+        {
+          "selector": "operation",
+          "value": "search"
         },
         {
           "selector": "operation",

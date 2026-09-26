@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalog_sha256": "2a5dbc0c1ec95caaeda4a916041de12ddd7ad5c855ff293d46d3495d3a328eb2",
+  "catalog_sha256": "aaf728c5910b918746440ea5614a8761ff135d2d85f6032a2d98e3169fa3924d",
   "sources": {
     "prompts/tools_manuals/activate_agent_skill.md": "1cd868f578936cbaaa313ffad3aeb33bcb40e6fa39d5410f578d2246e1da4620",
     "prompts/tools_manuals/address_book.md": "e293e5e4593960f04000ded38ac04eb625b194a6672372d085d8ec294aacc509",
@@ -184,7 +184,7 @@
     "prompts/tools_manuals/xml_editor.md": "70a334eb6e3cb4c798d71ab00e233e75a14bbd41c50398c7a7be4589c6b3077e",
     "prompts/tools_manuals/yaml_editor.md": "3019e5bcda6867a4a5ff6732e690daa77fabc3ab8b1444ef3c8776fce787779b",
     "prompts/tools_manuals/yepapi.md": "da38a9f36c026917a53666302aa3a9b91abec88e0bb86feda62f79b5ff574ca9",
-    "training/operation_contracts.json": "225e0f73abf77aedfa040105156acddb82e698d0e5271c30ae6943fc7365af95",
+    "training/operation_contracts.json": "6ff43b7bc314c4b8e65364c8c1038440a513d1750034aacda6ea70da10b9926e",
     "training/tool_tiers.json": "585ad6fe642da9942f9fcc89b2e3c2f3adec6a809e0bc3eeadbf811623c336dd"
   },
   "tools": [
@@ -10265,7 +10265,7 @@
     },
     {
       "name": "game_maker_file",
-      "description": "Read a bounded source range (includes full-file sha256), replace one unique old_text with new_text using expected_sha256, or write a complete file. Writes return written and build.ok separately; fix compiler diagnostics before runtime validation. Prefer replace for existing files. Managed vendor/dist paths are read-only.",
+      "description": "Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -10276,6 +10276,39 @@
           "content": {
             "description": "Complete file content for write",
             "type": "string"
+          },
+          "edits": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "expected_sha256": {
+                  "description": "Full-file sha256 from read/search",
+                  "type": "string"
+                },
+                "new_text": {
+                  "description": "Replacement; empty string deletes",
+                  "type": "string"
+                },
+                "old_text": {
+                  "description": "Unique exact block",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Distinct existing project-relative file",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "expected_sha256",
+                "new_text",
+                "old_text",
+                "path"
+              ],
+              "type": "object"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "type": "array"
           },
           "end_line": {
             "description": "Last line; default next 120 lines; max 240 lines",
@@ -10300,13 +10333,19 @@
           "operation": {
             "enum": [
               "read",
+              "search",
               "write",
-              "replace"
+              "replace",
+              "replace_many"
             ],
             "type": "string"
           },
           "path": {
             "description": "Project-relative source path",
+            "type": "string"
+          },
+          "query": {
+            "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256",
             "type": "string"
           },
           "start_line": {
@@ -10316,15 +10355,13 @@
         },
         "required": [
           "job_id",
-          "operation",
-          "path"
+          "operation"
         ],
         "type": "object"
       },
       "required": [
         "job_id",
-        "operation",
-        "path"
+        "operation"
       ],
       "properties": {
         "_todo": {
@@ -10334,6 +10371,39 @@
         "content": {
           "description": "Complete file content for write",
           "type": "string"
+        },
+        "edits": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_sha256": {
+                "description": "Full-file sha256 from read/search",
+                "type": "string"
+              },
+              "new_text": {
+                "description": "Replacement; empty string deletes",
+                "type": "string"
+              },
+              "old_text": {
+                "description": "Unique exact block",
+                "type": "string"
+              },
+              "path": {
+                "description": "Distinct existing project-relative file",
+                "type": "string"
+              }
+            },
+            "required": [
+              "expected_sha256",
+              "new_text",
+              "old_text",
+              "path"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "type": "array"
         },
         "end_line": {
           "description": "Last line; default next 120 lines; max 240 lines",
@@ -10358,13 +10428,19 @@
         "operation": {
           "enum": [
             "read",
+            "search",
             "write",
-            "replace"
+            "replace",
+            "replace_many"
           ],
           "type": "string"
         },
         "path": {
           "description": "Project-relative source path",
+          "type": "string"
+        },
+        "query": {
+          "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256",
           "type": "string"
         },
         "start_line": {
@@ -10381,6 +10457,14 @@
         {
           "selector": "operation",
           "value": "replace"
+        },
+        {
+          "selector": "operation",
+          "value": "replace_many"
+        },
+        {
+          "selector": "operation",
+          "value": "search"
         },
         {
           "selector": "operation",
@@ -10428,6 +10512,51 @@
               "old_text",
               "operation",
               "path"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "replace_many",
+            "arguments": {
+              "edits": [
+                {
+                  "expected_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "new_text": "const speed = 4;",
+                  "old_text": "const speed = 3;",
+                  "path": "src/main.ts"
+                }
+              ],
+              "job_id": "example-id",
+              "operation": "replace_many"
+            },
+            "required_fields": [
+              "job_id",
+              "operation",
+              "edits"
+            ],
+            "excluded_fields": [
+              "path",
+              "content",
+              "old_text",
+              "new_text",
+              "expected_sha256"
+            ]
+          },
+          {
+            "selector": "operation",
+            "value": "search",
+            "arguments": {
+              "job_id": "example-id",
+              "operation": "search",
+              "path": "src/main.ts",
+              "query": "setup("
+            },
+            "required_fields": [
+              "job_id",
+              "operation",
+              "path",
+              "query"
             ],
             "excluded_fields": []
           },

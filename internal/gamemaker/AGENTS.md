@@ -14,6 +14,10 @@ revision publication and standalone export for Phaser and Three.js games.
 - `assets/game-maker-presentation/` at repository root: editable effects/audio source;
   its build script produces the two bundled effects runtimes here.
 - `runtime.go`: project-local runtime installation, also used by exports.
+- `runtime_context.go`, `source_search.go`, `source_batch.go`: installed helper
+  descriptors and bounded source discovery/edits for the isolated agent.
+- `source_diagnostics.go`, `validation_reuse.go`: private source mapping and
+  exact-build validation reuse; explicit tool validation always runs afresh.
 
 ## Local Contracts
 
@@ -53,6 +57,35 @@ revision publication and standalone export for Phaser and Three.js games.
   and allow at most one format correction within the original review deadline.
 
 ### Game Maker Studio Contract
+- Building/repair schemas omit server-bound job IDs and the duplicate full scene
+  under scene_patch.replace. Planning offers read/search only; replace_many
+  accepts up to eight distinct existing paths, verifies every hash/match/import
+  and project limit before writing, rolls back IO failures and builds once.
+  Conflicts leave all files unchanged. Managed paths and policy gates still apply.
+- Runtime context reads the installed common.ts descriptor and current file
+  hashes/hook locations. Missing descriptors mean legacy/custom; never advertise
+  newer bundled helpers to those projects. New three-2 helpers use the same ray
+  blockers for shots and observations; enemy attacks respect cover, cooldown and
+  the engine clock. Scene-builder damage remains separately owned.
+- Browser reports forward at most five finite dist/game.js frame locations.
+  Private in-memory source maps resolve only current source with a matching
+  digest, returning bounded excerpts. Private maps and their embedded source
+  snapshots never enter project files or exports. Preserve channel/token/build
+  binding and all existing error gates.
+- Orchestrator validation may reuse a successful complete result only for the
+  same job, scope, scenarios, source/assets/runtime/plan fingerprint and current
+  unexpired browser evidence. Targeted, changed, failed or stale results never
+  qualify; explicit validation tools request a fresh run.
+- Compact design correction errors expose up to eight independent field issues,
+  examples and remaining attempts. Draft omission/null/array rules and the
+  initial-plus-two-corrections budget remain binding.
+- Ordinary phase requests carry current intent/plan/runtime once, up to four
+  complete recent tool rounds and at most eight assistant messages. Private
+  checkpoints retain earlier messages when request fitting drops them;
+  tool-free retries retain their source snapshot.
+  Repair packets preserve failed input steps, passed checks, source diagnostics
+  and the remaining shared budget. Tool-result telemetry records only allowlisted
+  operation/status, phase and duration, never arguments, output or reasoning.
 - Game Maker streams use the configured per-call LLM timeout through a request-local retry override; the global chat retry timeout is unchanged. Require a complete stream marker before executing generated calls, retain interrupted reasoning privately, and distinguish timeout/truncation from empty completion. An empty new-game build can reach the existing bounded unchanged-starter recovery only with an accepted plan; all compiler/browser/publication gates still apply. Model progress events carry only allowlisted status codes, never reasoning or provider text.
 - Game Maker projects use `Games/<slug>` as their only persistent identity and live below the configured Virtual Desktop workspace. Never persist or return absolute host paths.
 - Game Maker continuations keep the original project request, recent user changes and a private provider-native conversation (including available reasoning and complete tool/result groups) in `gm_agent_context`, isolated by project and revision. Checkpoint at tool/phase boundaries and cancellation; rebuild current system/tool scope, never replay historical calls. Route budgets still bound restored history; only Game Maker opts into retaining completed reasoning. Provider changes keep reasoning as historical data rather than replaying provider-specific fields. Do not expose this state as Studio chat, assets, exports or general memory. Keep one failed/interrupted working copy per project until continuation succeeds or the project is deleted. Resume copies it into a new job and retains installed source; publication still requires all existing checks. Release the global writer only after working-copy cleanup. `StartJobRequest.resume` resumes directly without copying a prompt into the UI editor.
@@ -164,6 +197,11 @@ Do not patch a published game merely because a new starter changed.
 - `GAMEMAKER_GUIDED_BROWSER=1`: starter engine/lifecycle browser checks.
 - `GAMEMAKER_PREVIEW_BROWSER=1`: hidden/resumed previews, delayed layout, invalid
   canvases and loading-HUD recovery in Chrome.
+- `GAMEMAKER_OPTIMIZATION_BROWSER=1`: `TestFPSCoverBrowser` checks actual enemy
+  damage and player shots with/without cover using normal browser input.
+- `TestSourceBatchPreflightSearchAndRuntime`, `TestPrivateBuildSourceDiagnostics`,
+  `TestValidationReuseRequiresExactCurrentEvidence`, and
+  `TestDesignReportsIndependentCorrectionsWithinBudget` cover agent assistance.
 - `node scripts/build-game-maker-presentation.js --check` and
   `node scripts/test-game-maker-presentation-evidence.mjs`.
 - Package changed runtimes with the matching resource flags and verify `--check-assets`.

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "0662f4233462d810d1510a474efd06bbb674cc224ec92f0e5e986ee5287a37f2",
+  "schema_sha256": "37af970906167374b11340dc5e4557be78373ef49dd22619192de2f583d59f13",
   "tools": {
     "activate_agent_skill": {
       "default_arguments": {
@@ -3386,6 +3386,51 @@
             "old_text",
             "operation",
             "path"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "replace_many",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "replace_many",
+            "edits": [
+              {
+                "path": "src/main.ts",
+                "expected_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "old_text": "const speed = 3;",
+                "new_text": "const speed = 4;"
+              }
+            ]
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "edits"
+          ],
+          "excluded_fields": [
+            "path",
+            "content",
+            "old_text",
+            "new_text",
+            "expected_sha256"
+          ]
+        },
+        {
+          "selector": "operation",
+          "value": "search",
+          "arguments": {
+            "job_id": "example-id",
+            "operation": "search",
+            "path": "src/main.ts",
+            "query": "setup("
+          },
+          "required_fields": [
+            "job_id",
+            "operation",
+            "path",
+            "query"
           ],
           "excluded_fields": []
         },

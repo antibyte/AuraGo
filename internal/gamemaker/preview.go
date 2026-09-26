@@ -161,26 +161,40 @@ const previewBootScript = `<script ` + previewBootMarker + `>
   try {
     channel = new URLSearchParams(location.hash.replace(/^#/, "")).get("gm-channel") || "";
   } catch (_) {}
-  function reportError(type, message) {
+  function errorFrames(error, filename, line, column) {
+    var frames = [];
+    if (typeof filename === 'string' && /\/dist\/game\.js(?:[?#]|$)/.test(filename) && Number.isInteger(line) && line > 0 && Number.isInteger(column) && column > 0) {
+      frames.push({ file: 'dist/game.js', line: line, column: column });
+    }
+    var stack = error && typeof error.stack === 'string' ? error.stack.slice(0, 8000) : '';
+    var pattern = /\/dist\/game\.js(?:[?#][^\s():]*)?:(\d+):(\d+)/g, match;
+    while (frames.length < 5 && (match = pattern.exec(stack))) {
+      var row = Number(match[1]), col = Number(match[2]);
+      if (row > 0 && col > 0 && row <= 10000000 && col <= 10000000) frames.push({ file: 'dist/game.js', line: row, column: col });
+    }
+    return frames;
+  }
+  function reportError(type, message, error, filename, line, column) {
     if (!channel) return;
-    parent.postMessage({ source: "aurago-game", type: type, channel: channel, message: String(message).slice(0, 1000) }, "*");
+    parent.postMessage({ source: "aurago-game", type: type, channel: channel, message: String(message).slice(0, 1000), frames: errorFrames(error, filename, line, column) }, "*");
   }
   // Engines also report failures for detached Image/Audio objects through the
   // console; these do not reach window's error/unhandledrejection listeners.
   var originalConsoleError = console.error;
   console.error = function () {
     originalConsoleError.apply(console, arguments);
-    var parts = [];
+    var parts = [], error;
     for (var i = 0; i < arguments.length && i < 8; i++) {
       try { parts.push(String(arguments[i]).slice(0, 1000)); } catch (_) {}
+      if (!error && arguments[i] && typeof arguments[i].stack === 'string') error = arguments[i];
     }
-    reportError("runtime_error", parts.join(" "));
+    reportError("runtime_error", parts.join(" "), error);
   };
   window.addEventListener("error", function (event) {
-    reportError(event.message ? "runtime_error" : "resource_error", event.message || "Failed to load game resource");
+    reportError(event.message ? "runtime_error" : "resource_error", event.message || "Failed to load game resource", event.error, event.filename, event.lineno, event.colno);
   }, true);
   window.addEventListener("unhandledrejection", function (event) {
-    reportError("runtime_error", event.reason);
+    reportError("runtime_error", event.reason, event.reason);
   });
   var readySent = false, layoutFailed = false, hostActive = true;
   var invalidSince = null, layoutTimer, observer;

@@ -949,8 +949,11 @@ registration lives in `internal/desktop/types.go`.
   random channel ID, the fixed source marker, and the bounded event type all
   match. Forward bounded, deduplicated reports through the authenticated
   `preview-report` API using the parent-held preview token; never grant the
-  iframe API credentials. Reports bind to a specific validation build. Include
-  current-preview errors as untrusted diagnostics in the next change request.
+  iframe API credentials. Reports bind to a specific validation build. Forward
+  at most five sanitized dist/game.js line/column frames; strip other fields,
+  paths and invalid coordinates. The backend owns source mapping. Verify with
+  `TestGameMakerDiagnosticFramesBrowser` and `AURAGO_RUN_BROWSER_SMOKE=1`.
+  Include current-preview errors as untrusted diagnostics in the next change request.
   Readiness requires the injected boot's `boot: true, visible: true` report;
   game-authored ready messages alone never qualify browser validation.
   Full gameplay grants contain bounded scenarios. Send them only to this iframe;

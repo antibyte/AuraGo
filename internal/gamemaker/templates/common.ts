@@ -1,3 +1,4 @@
+// AURAGO_RUNTIME_API {"version":"phaser-1","entry":"class Main extends GameScene","hooks":["setup()","step(deltaSeconds)","action()","tick() once per second"],"api":["body(x,y,w,h,color,fixed,role)","assetRoles(prefix)","configureWorld(width,height,follow)","damagePlayer()","setCheckpoint(x,y)","configureLevels(levels)","nextLevel()","feedback(name,object,material)","end(won)","state"],"units":"step receives seconds; pixels and pixels/second; retain inherited preload/create/update and sprite following; body returns a physics GameObject","example":"class Main extends GameScene { setup(){super.setup();} step(dt){super.step(dt);} }"}
 import { createInputs, bindGameTest, preloadPack, registerAnimations, createAsset, createAssembly, fitVisual, playAction, setFacing } from '../vendor/aurago-game-1.js';
 import {createPresentation, createPhaserAdapter} from '../vendor/aurago-effects-2d-1.js';
 import {createScene2D, hasSceneNodes} from '../vendor/scene-builder.js';

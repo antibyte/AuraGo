@@ -385,6 +385,50 @@ channel ID.
 
 ## API
 
+### Agent assistance
+
+Phase-specific tools omit the server-bound job ID. Planning offers source reads
+and literal search; implementation adds writes and exact replacements. Full scene
+replacement uses `scene_set`, keeping that schema out of `scene_patch`.
+
+- `game_maker_file(operation: search, path, query)` returns up to twelve matching
+  lines and the full-file SHA-256. Queries are literal, single-line and at most
+  120 characters; source reads retain their existing line/byte limits.
+- `replace_many` accepts one to eight edits with distinct existing paths. Each
+  contains `path`, `expected_sha256`, unique `old_text` and explicit `new_text`.
+  Every path/hash/import/size check runs before mutation. A conflict writes
+  nothing; IO failures roll back applied edits. One build follows the complete
+  change and returns per-file hashes. A saved change may still fail compilation.
+- Project inspection and phase context include the installed helper descriptor,
+  file hashes and hook locations. Older/custom helpers without a descriptor are
+  identified explicitly. New `three-2` starters provide
+  `api.hasLineOfSight(from, to)` and `combat.enemyRange`, `enemyDamage` and
+  `enemyCooldown` (seconds). Visible tree/obstacle/building roles block shots;
+  individual objects can override `blocksShots`. Scene-builder damage remains
+  under its own rules. Existing game source is retained when revising it.
+- Planning returns up to eight independent field issues, correction examples
+  and remaining attempts. All existing plan gates and the two-correction limit
+  remain in force; omitted fields are retained and supplied arrays replace whole.
+- Runtime failures can include original source locations, bounded excerpts and
+  source hashes. Up to five browser frames resolve through a private in-memory
+  build map; the map is never written into a preview, revision or export. Changed
+  source and old preview grants cannot produce a current source location.
+- A completed agent validation can satisfy the orchestrator's same required
+  scope without another build or browser run. Reuse requires identical source,
+  assets, runtime, plan and scenarios, plus current unexpired browser evidence.
+  Targeted checks never qualify. An explicit validation tool call always reruns.
+- Normal phase requests include current intent and state once, with up to four
+  complete native tool rounds and eight assistant messages. Private checkpoints
+  retain previous work and reasoning after request compaction; source-generation retries retain
+  their source snapshot. StepFun budgeting excludes fields its transport omits,
+  while still fitting every eligible fallback provider.
+
+The `tool_result` event records tool, allowlisted operation/status, phase and
+duration only. It contains no source, arguments, result text or reasoning; tool
+success does not imply that the game has passed validation or been published.
+
+### Studio endpoints
+
 Authenticated Virtual Desktop clients use `/api/game-maker/capabilities`,
 `/projects`, project jobs/events/revisions/restore/preview-token/export, and
 `/jobs/{id}/cancel`. SSE event IDs are monotonic and support reconnecting with

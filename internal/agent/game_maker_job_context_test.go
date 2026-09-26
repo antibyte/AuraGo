@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -60,6 +61,38 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 				return fmt.Errorf("%s admitted a foreign job: %s", action, out)
 			}
 		}
+		for _, tc := range []ToolCall{
+			native(map[string]any{"operation": "search", "path": "src/probe.ts", "query": "probe"}),
+			ParseToolCall(`<tool_call><function=game_maker_file><parameter=operation>search</parameter><parameter=path>src/probe.ts</parameter><parameter=query>probe</parameter></function></tool_call>`),
+		} {
+			out, _ := dispatchGameMaker(bound, tc, nil)
+			if !strings.Contains(out, `"status":"ok"`) || !strings.Contains(out, `"line":1`) {
+				return fmt.Errorf("native/XML source search failed: %s", out)
+			}
+		}
+		for i := range 3 {
+			before, _ := s.ReadJobFile(ctx, run.Job.ID, "src/probe.ts")
+			after := fmt.Sprintf("export const probe = %d;", i+8)
+			edits := []map[string]any{{"path": "src/probe.ts", "expected_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(before))), "old_text": before, "new_text": after}}
+			encoded, _ := json.Marshal(edits)
+			tc := native(map[string]any{"operation": "replace_many", "edits": edits})
+			if i == 1 {
+				tc = ParseToolCall(`<tool_call><function=game_maker_file><parameter=operation>replace_many</parameter><parameter=edits>` + string(encoded) + `</parameter></function></tool_call>`)
+			} else if i == 2 {
+				tc = native(map[string]any{"operation": "replace_many", "edits": string(encoded)})
+			}
+			out, _ := dispatchGameMaker(bound, tc, nil)
+			got, err := s.ReadJobFile(ctx, run.Job.ID, "src/probe.ts")
+			if !strings.Contains(out, `"written":true`) || err != nil || got != after {
+				return fmt.Errorf("native/XML batch failed: %s, read=%q, err=%v", out, got, err)
+			}
+		}
+		for _, bad := range []string{`[{"surprise":true}]`, `[] []`} {
+			out, _ := dispatchGameMaker(bound, native(map[string]any{"operation": "replace_many", "edits": bad}), nil)
+			if !strings.Contains(out, `"status":"error"`) {
+				return fmt.Errorf("malformed batch accepted: %s", out)
+			}
+		}
 		// Native JSON numbers and XML text must address the same bounded range.
 		if _, err := s.WriteJobFileChecked(ctx, run.Job.ID, "src/lines.ts", strings.Repeat("// line\n", 350), ""); err != nil {
 			return err
@@ -90,9 +123,9 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 			want string
 		}{
 			{ctx, write, "job_id is required"},
-			{ctx, native(map[string]any{"job_id": run.Job.ID, "path": "src/probe.ts", "content": "changed"}), "operation must be read, write or replace"},
-			{bound, native(map[string]any{"path": "src/probe.ts"}), "operation must be read, write or replace"},
-			{bound, native(map[string]any{"path": "src/probe.ts", "content": 42}), "operation must be read, write or replace"},
+			{ctx, native(map[string]any{"job_id": run.Job.ID, "path": "src/probe.ts", "content": "changed"}), "operation must be read, search, write, replace or replace_many"},
+			{bound, native(map[string]any{"path": "src/probe.ts"}), "operation must be read, search, write, replace or replace_many"},
+			{bound, native(map[string]any{"path": "src/probe.ts", "content": 42}), "operation must be read, search, write, replace or replace_many"},
 			{bound, native(map[string]any{"operation": "write", "path": "src/probe.ts"}), "explicit string content"},
 			{bound, native(map[string]any{"operation": "replace", "path": "src/probe.ts", "old_text": "probe"}), "explicit new_text"},
 			{bound, native(map[string]any{"operation": "read", "path": "src/probe.ts", "start_line": 1.5}), "nonnegative integer"},
@@ -132,5 +165,31 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 			t.Fatal("bound dispatch test did not finish")
 		}
 		time.Sleep(5 * time.Millisecond)
+	}
+	events, err := s.EventsAfter(context.Background(), project.ID, 0, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations := map[string]bool{}
+	for _, event := range events {
+		if event.Type != "tool_result" {
+			continue
+		}
+		if event.JobID != job.ID || len(event.Payload) != 5 {
+			t.Fatalf("unexpected tool telemetry: %+v", event)
+		}
+		for key := range event.Payload {
+			switch key {
+			case "tool", "operation", "status", "phase", "duration_ms":
+			default:
+				t.Fatalf("tool telemetry contains private result or argument field %q", key)
+			}
+		}
+		if event.Payload["status"] == "ok" {
+			operations[event.Payload["operation"].(string)] = true
+		}
+	}
+	if !operations["search"] || !operations["replace_many"] || !operations["write"] {
+		t.Fatalf("missing completed operations in telemetry: %+v", operations)
 	}
 }

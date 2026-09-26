@@ -1,4 +1,5 @@
 // Original MIT game bases, adapted from AuraGo's playable low-poly references.
+// AURAGO_RUNTIME_API {"version":"three-2","entry":"startGame(config)","config":["mode","goal","speed","duration","objects[{role,at:[x,y,z],scale,blocksShots?}]","worldBounds:{min,max}","levels","combat:{enemyRange,enemyDamage,enemyCooldown}"],"hooks":["setup(api) after assets load","step(dtSeconds,api)","action(api): false overrides default","reset(api)","dispose(api)"],"api":["scene","camera","player","renderer","state","input.isDown(key)","damagePlayer(amount)","setCheckpoint([x,y,z])","hasLineOfSight(from,to)","event(name,point)","win()","lose()","reset()","nextLevel()"],"units":"seconds, world units, radians; helper owns animation/input/lifecycle; config.step adds rules; builder owns scene damage","example":"startGame({mode:'fps',goal:3,speed:5,duration:120,objects:[{role:'enemy',at:[0,0,10]}],combat:{enemyCooldown:1.5},step(dt,api){}})"}
 import * as A from '../vendor/aurago-three-assets-1.js';
 import {createPresentation,createThreeAdapter} from '../vendor/aurago-effects-3d-1.js';
 import {createScene3D,hasSceneNodes} from '../vendor/scene-builder.js';
@@ -52,6 +53,22 @@ export function startGame(config: any) {
   const sceneState:any={score:0,hits:0,actions:0,lives:0,goal_remaining:0,outcome:0,hit_events:0,pickup_events:0,win_events:0,lose_events:0};
   let lives=Math.max(1,Math.floor(config.lives)||3),respawnAt=0,invulnerableUntil=0;
   const checkpoint=new T.Vector3();
+  const combat={enemyRange:18,enemyDamage:5,enemyCooldown:1.25,...config.combat};
+  for(const [name,value] of Object.entries(combat))if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>1000)throw Error('Invalid combat.'+name);
+  const sightRay=new T.Raycaster(),sightOrigin=new T.Vector3(),sightDirection=new T.Vector3(),enemyEye=new T.Vector3();
+  const blocksShot=(o:any)=>builder?!!o.node?.collider||o.node?.behaviors?.some((b:any)=>['destroy','health'].includes(b.type)):o.role==='enemy'||o.blocksShots;
+  function hasLineOfSight(from:number[],to:number[]){
+    if(!Array.isArray(from)||!Array.isArray(to)||from.length!==3||to.length!==3||![...from,...to].every(Number.isFinite))throw Error('Sight endpoints require [x,y,z]');
+    const origin=sightOrigin.fromArray(from),direction=sightDirection.fromArray(to).sub(origin),distance=direction.length();
+    if(distance<.001)return true;
+    sightRay.set(origin,direction.normalize());sightRay.near=.01;sightRay.far=Math.max(.01,distance-.01);
+    for(const o of objects){
+      if(!o.unit.root.visible||o.role==='enemy'||!blocksShot(o))continue;
+      o.unit.root.updateMatrixWorld(true);
+      if(sightRay.intersectObject(o.unit.root,true).length)return false;
+    }
+    return true;
+  }
   const flow=createGameFlow({root,stage:levelIndex,stages:levels,restart:()=>restartGame(),advance:()=>nextLevel(),
     feedback:(name:string,point:any,normal:any,material:any)=>presentation.event(name,point||player.position.toArray(),normal,material),
     project:(point:any)=>{if(!point)return null;const p=new T.Vector3(...point).project(camera);return p.z>=-1&&p.z<=1?{x:(p.x+1)/2,y:(1-p.y)/2}:null;}});
@@ -77,7 +94,7 @@ export function startGame(config: any) {
     presentation?.reset();presentation?.setPaused(false);footstepAt=0;finishReported=false;
     time=score=hits=actions=reloads=0;sceneState.score=sceneState.hits=sceneState.actions=0;health=100;ammo=8;ended=won=carrying=paused=false;aim=pitch=reloadAt=boostUntil=wheelAngle=0;shotAt=-1;keys.clear();
     player.position.set(0,config.mode==='flight'?5:config.mode==='space'?4:0,0);player.rotation.set(0,0,0);
-    for(const o of objects){o.unit.root.position.copy(o.start);o.unit.root.visible=true}
+    for(const o of objects){o.unit.root.position.copy(o.start);o.unit.root.visible=true;o.attackAt=0}
     if(avatar)clip(avatar,'idle');weaponAction('idle');builder?.reset();cameraUpdate(1);config.reset?.(api);
     checkpoint.copy(player.position);flow.update(0,snapshot());if(levels.length>1)flow.message(levels[levelIndex].title,1.8);
   }
@@ -95,12 +112,11 @@ export function startGame(config: any) {
     let closest:any=null,distance=80,hitPoint=new T.Vector3(),hitNormal=new T.Vector3();
     for(const o of objects){
       if(!o.unit.root.visible)continue;
-      if(builder&&!o.node?.collider&&!o.node?.behaviors?.some((b:any)=>['destroy','health'].includes(b.type)))continue;
-      if(!builder&&o.role!=='enemy')continue;
+      if(!blocksShot(o))continue;
       o.unit.root.updateMatrixWorld(true);const contact=ray.intersectObject(o.unit.root,true)[0];
       if(contact&&contact.distance<distance){distance=contact.distance;closest=o;hitPoint.copy(contact.point);hitNormal.copy(contact.face?.normal||ray.ray.direction.clone().negate()).transformDirection(contact.object.matrixWorld)}
     }
-    if(closest){if(builder) { if(closest.node.behaviors.some((b:any)=>['destroy','health'].includes(b.type)))builder.hit(closest.nodeID,{point:hitPoint.toArray(),normal:hitNormal.toArray()}); }else{flow.event('hit',hitPoint.toArray(),hitNormal.toArray(),config.mode==='space'?'metal':'flesh');closest.unit.root.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}}
+    if(closest){if(builder) { if(closest.node.behaviors.some((b:any)=>['destroy','health'].includes(b.type)))builder.hit(closest.nodeID,{point:hitPoint.toArray(),normal:hitNormal.toArray()}); }else if(closest.role==='enemy'){flow.event('hit',hitPoint.toArray(),hitNormal.toArray(),config.mode==='space'?'metal':'flesh');closest.unit.root.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}else{presentation?.event('hit',hitPoint.toArray(),hitNormal.toArray(),'stone')}}
   }
   function reload(){
     if(config.mode!=='fps'||ended||reloadAt>time||ammo===8)return;
@@ -265,8 +281,9 @@ export function startGame(config: any) {
       for(const spec of config.objects){
         if(!Array.isArray(spec.at)||spec.at.length!==3||!spec.at.every(Number.isFinite))throw Error('Each object requires at:[x,y,z]');
         const unit=instantiate(spec.role,spec.at);clip(unit,'idle');
+        if(spec.scale!==undefined){if(!Number.isFinite(spec.scale)||spec.scale<=0||spec.scale>100)throw Error('Object scale must be in (0,100]');unit.root.scale.multiplyScalar(spec.scale);}
         if(['building','terrain','obstacle'].includes(spec.role))presentation?.registerSurface(unit.root,{kind:spec.role==='terrain'?'ground':'roof'});
-        objects.push({role:spec.role,unit,start:unit.root.position.clone(),box:new T.Box3()});
+        objects.push({role:spec.role,unit,start:unit.root.position.clone(),box:new T.Box3(),blocksShots:spec.blocksShots??['tree','obstacle','building'].includes(spec.role),attackAt:0});
       }
     }
     if(config.mode==='fps'&&loaded.has('arms')&&loaded.has('weapon')){
@@ -309,7 +326,13 @@ export function startGame(config: any) {
       }
       if(o.role==='enemy'){
         if(config.mode==='exploration'){mesh.position.x=o.start.x+Math.sin(time*.7)*3;clip(o.unit,'walk')}
-        if(d<2 || config.mode==='fps'&&d<18&&time>5)damagePlayer(config.mode==='fps'?5:18);
+        if(config.mode==='fps'){
+          if(time>5&&time>=o.attackAt&&d<combat.enemyRange){
+            o.attackAt=time+Math.max(.1,combat.enemyCooldown);
+            enemyEye.copy(mesh.position);enemyEye.y+=1.35;
+            if(hasLineOfSight(enemyEye.toArray(),camera.position.toArray()))damagePlayer(combat.enemyDamage);
+          }
+        }else if(d<2)damagePlayer(18);
       }
       if(o.role==='item'&&d<1.5 || o.role==='cargo'&&d<2){flow.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(o.role==='cargo')carrying=true;else if(score>=config.goal){ended=won=true}}
       if(o.role==='goal'&&d<(config.mode==='flight'?3:2.5)){
@@ -338,7 +361,7 @@ export function startGame(config: any) {
       const mesh=o.unit.root,id=o.nodeID||observedIDs.get(o),box=new T.Box3().setFromObject(mesh),center=box.getCenter(new T.Vector3()),size=box.getSize(new T.Vector3());
       const projected=center.clone().project(camera),active=mesh.visible&&!!mesh.parent,record=builder?.nodes.get(o.nodeID);
       const solid=builder?!!o.node?.collider&&!o.node.behaviors.some((b:any)=>['collect','reach','projectile'].includes(b.type)):['tree','building','obstacle'].includes(o.role);
-      if(active&&(solid||o.role==='enemy'||o.node?.behaviors.some((b:any)=>['destroy','health'].includes(b.type)))){
+      if(active&&blocksShot(o)){
         const hit=look.intersectObject(mesh,true)[0];if(hit&&hit.distance<nearest){nearest=hit.distance;aimed=id;}
       }
       const asset_ids=[mesh.userData.assetID,...(mesh.userData.sceneVisuals||[]).map((v:any)=>v.unit.root.userData.assetID)].filter(Boolean);
@@ -368,7 +391,7 @@ export function startGame(config: any) {
     builder?.dispose();for(const record of [player,...objects.map(o=>o.unit.root)])for(const detach of record.userData.sceneAttachments||[])detach();clearSceneDebug();presentation?.dispose();live.forEach(unit=>{if(!unit.procedural)A.disposeInstance(unit)});loaded.forEach(A.releaseAsset);owned.forEach(o=>{o.geometry.dispose();o.material.dispose()});sun.shadow.dispose();renderer.dispose();renderer.forceContextLoss();root.replaceChildren();
     flow.dispose();delete (window as any).__AURAGO_GAME_TEST__;
   }
-  const api={scene,camera,player,renderer,presentation,input:{isDown:(key:string)=>keys.has(String(key).toLowerCase())},get ended(){return ended},get builder(){return builder},get state(){return builder?sceneState:snapshot()},event:(name:string,point?:number[])=>flow.event(name,point||player.position.toArray()),damagePlayer,setCheckpoint:(point:number[])=>{if(point.length!==3||!point.every(Number.isFinite))throw Error('Invalid checkpoint');checkpoint.fromArray(point);},levelIndex,nextLevel,feedback:flow,win:()=>builder?builder.win():(ended=won=true),lose:()=>builder?builder.lose():(ended=true,won=false),reset:restartGame,dispose};
+  const api={scene,camera,player,renderer,presentation,input:{isDown:(key:string)=>keys.has(String(key).toLowerCase())},get ended(){return ended},get builder(){return builder},get state(){return builder?sceneState:snapshot()},hasLineOfSight,event:(name:string,point?:number[])=>flow.event(name,point||player.position.toArray()),damagePlayer,setCheckpoint:(point:number[])=>{if(point.length!==3||!point.every(Number.isFinite))throw Error('Invalid checkpoint');checkpoint.fromArray(point);},levelIndex,nextLevel,feedback:flow,win:()=>builder?builder.win():(ended=won=true),lose:()=>builder?builder.lose():(ended=true,won=false),reset:restartGame,dispose};
   on(window,'pagehide',dispose);
   setup().catch(error=>{if(!disposed){hud.textContent='Cannot load game: '+error.message;console.error(error);dispose()}});
   return api;

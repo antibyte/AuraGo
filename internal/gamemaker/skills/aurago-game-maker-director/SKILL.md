@@ -19,19 +19,25 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 ## Coding tools already available
 
 Call these native tools directly; do not discover, activate or search for an
-editor. Use the actual job ID from the supplied context in place of `JOB`.
-Planning exposes `read` only; `write` and `replace` become available after plan
+editor. Studio binds the job on the server; omit job_id in this isolated run.
+Planning exposes `read` and `search`; source edits become available after plan
 acceptance. The same tools serve both 2D and 3D building and repair.
 
 | Task | Tool and arguments |
 | --- | --- |
-| Find project files when their paths are unknown | `game_maker_project({"job_id":"JOB","operation":"list_files"})` |
-| Read the relevant source range and its full-file hash | `game_maker_file({"job_id":"JOB","operation":"read","path":"src/main.ts","start_line":1,"end_line":120})` |
-| Change one exact, unique block | `game_maker_file({"job_id":"JOB","operation":"replace","path":"src/main.ts","expected_sha256":"HASH_FROM_READ","old_text":"EXACT_EXISTING_BLOCK","new_text":"REPLACEMENT_BLOCK"})` |
-| Create a new module | `game_maker_file({"job_id":"JOB","operation":"write","path":"src/helpers.ts","content":"COMPLETE_SOURCE"})` |
-| Check the completed change in Studio | `game_maker_validate({"job_id":"JOB","scope":"full"})` |
+| Find project files when their paths are unknown | `game_maker_project({"operation":"list_files"})` |
+| Read the relevant source range and its full-file hash | `game_maker_file({"operation":"read","path":"src/main.ts","start_line":1,"end_line":120})` |
+| Change one exact, unique block | `game_maker_file({"operation":"replace","path":"src/main.ts","expected_sha256":"HASH_FROM_READ","old_text":"EXACT_EXISTING_BLOCK","new_text":"REPLACEMENT_BLOCK"})` |
+| Create a new module | `game_maker_file({"operation":"write","path":"src/helpers.ts","content":"COMPLETE_SOURCE"})` |
+| Check the completed change in Studio | `game_maker_validate({"scope":"full"})` |
 
 Prefer `replace` for existing code; empty `new_text` deletes the selected block.
+Use `search` with `path` and a literal `query` to locate hooks instead of reading
+the helper from top to bottom. Inspect the supplied runtime descriptor and hashes
+before requesting more context. For a coordinated change use `replace_many`
+with `edits:[{path,expected_sha256,old_text,new_text}, ...]` (up to eight distinct
+existing files, each a unique exact block). All preconditions are checked before
+writing and the complete batch builds once. Conflicts write nothing.
 For a deliberate complete rewrite, use `write` with full content and the current
 `expected_sha256`. Line numbers are one-based; read at most 240 lines per call.
 Each successful edit returns a new `sha256`: use it for the next edit of that
@@ -46,6 +52,8 @@ shell commands, or search for generic coding tools outside this job's scope.
 1. Use the supplied job context; inspect only information that is missing.
 2. Submit compact `set_design` using `design_example`: base, objective, features
    and selected asset roles. The server supplies metadata and canonical fields.
+   Fix all returned field errors together within remaining_attempts; the initial
+   submission still has only two corrections. Omitted fields remain in the draft.
    For platformer use search_assets(view="side"); topdown uses view="top".
    Keep the requested base when asset views conflict: replace incompatible entries
    in the complete assets array using the returned catalog alternatives. Compact
@@ -81,10 +89,10 @@ shell commands, or search for generic coding tools outside this job's scope.
    `scene_inspect`, then mutate only after acceptance with the current
    `expected_sha256`:
    ```json
-   {"job_id":"JOB","operation":"scene_inspect"}
+   {"operation":"scene_inspect"}
    ```
    ```json
-   {"job_id":"JOB","operation":"scene_patch","expected_sha256":"HASH","patch":{"nodes":[{"id":"parcel","kind":"item","position":[430,270,0],"size":[20,20,0]}]}}
+   {"operation":"scene_patch","expected_sha256":"HASH","patch":{"nodes":[{"id":"parcel","kind":"item","position":[430,270,0],"size":[20,20,0]}]}}
    ```
    A minimal accepted 2D scene keeps all coordinates as three numbers:
    ```json

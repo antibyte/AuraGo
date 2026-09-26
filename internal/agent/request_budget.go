@@ -228,7 +228,7 @@ func (b *RequestBudget) tokenUsage(messages []openai.ChatCompletionMessage, tool
 		model := limits.Route.Model
 		systemTokens, historyTokens := 0, 0
 		for _, message := range messages {
-			tokens := cache.Count(messageTextWithReasoningForAccounting(message), model) + 4
+			tokens := routeMessageTokens(message, limits.Route, cache)
 			if message.Role == openai.ChatMessageRoleSystem {
 				systemTokens += tokens
 			} else {
@@ -309,7 +309,7 @@ func (b *RequestBudget) validateMinimum(messages []openai.ChatCompletionMessage,
 		model := route.Limits.Route.Model
 		input := minimumSystemPromptTokens
 		for _, message := range minimal {
-			input += cache.Count(messageTextWithReasoningForAccounting(message), model) + 4
+			input += routeMessageTokens(message, route.Limits.Route, cache)
 		}
 		if len(tools) > 0 {
 			encoded, _ := json.Marshal(tools)
@@ -332,7 +332,7 @@ func (b *RequestBudget) systemPromptBudget(messages []openai.ChatCompletionMessa
 		// overhead as every other message in tokenUsage.
 		available := b.inputLimit(route.Limits) - 4
 		for _, message := range minimal {
-			available -= cache.Count(messageTextWithReasoningForAccounting(message), model) + 4
+			available -= routeMessageTokens(message, route.Limits.Route, cache)
 		}
 		if len(tools) > 0 {
 			available -= cache.Count(string(encoded), model)
@@ -407,9 +407,9 @@ func (b *RequestBudget) historyWorkingSetLimitForMessages(messages []openai.Chat
 			available -= cache.Count(string(encoded), model)
 		}
 		if currentUser >= 0 && currentUser < len(messages) {
-			available -= cache.Count(messageTextWithReasoningForAccounting(messages[currentUser]), model) + 4
+			available -= routeMessageTokens(messages[currentUser], route.Limits.Route, cache)
 		}
-		available -= fixedSystemAddendaTokens(messages, model, cache)
+		available -= fixedSystemAddendaTokens(messages, model, cache, route.Limits.Route)
 		limit := route.Limits.ContextWindow * historyWorkingSetPercent / 100
 		if limit < historyWorkingSetMinTokens {
 			limit = historyWorkingSetMinTokens
@@ -519,9 +519,9 @@ func (b *RequestBudget) historyWorkingSetFits(messages []openai.ChatCompletionMe
 			available -= cache.Count(string(encoded), model)
 		}
 		if currentUser >= 0 && currentUser < len(messages) {
-			available -= cache.Count(messageTextWithReasoningForAccounting(messages[currentUser]), model) + 4
+			available -= routeMessageTokens(messages[currentUser], route.Limits.Route, cache)
 		}
-		available -= fixedSystemAddendaTokens(messages, model, cache)
+		available -= fixedSystemAddendaTokens(messages, model, cache, route.Limits.Route)
 		limit := route.Limits.ContextWindow * historyWorkingSetPercent / 100
 		if limit < historyWorkingSetMinTokens {
 			limit = historyWorkingSetMinTokens
@@ -532,20 +532,24 @@ func (b *RequestBudget) historyWorkingSetFits(messages []openai.ChatCompletionMe
 		if available < limit {
 			limit = available
 		}
-		if carriedHistoryTokensForModel(messages, currentUser, model, cache) > limit {
+		if carriedHistoryTokensForModel(messages, currentUser, model, cache, route.Limits.Route) > limit {
 			return false
 		}
 	}
 	return true
 }
 
-func carriedHistoryTokensForModel(messages []openai.ChatCompletionMessage, currentUser int, model string, cache *tokenCountCache) int {
+func carriedHistoryTokensForModel(messages []openai.ChatCompletionMessage, currentUser int, model string, cache *tokenCountCache, routes ...llm.ModelRoute) int {
+	route := llm.ModelRoute{Model: model}
+	if len(routes) > 0 {
+		route = routes[0]
+	}
 	total := 0
 	for i, message := range messages {
 		if i == currentUser || message.Role == openai.ChatMessageRoleSystem && (i == 0 || !isSheddableHistorySystem(message)) {
 			continue
 		}
-		total += cache.Count(messageTextWithReasoningForAccounting(message), model) + 4
+		total += routeMessageTokens(message, route, cache)
 	}
 	return total
 }
@@ -553,7 +557,7 @@ func carriedHistoryTokensForModel(messages []openai.ChatCompletionMessage, curre
 func (b *RequestBudget) maxCarriedHistoryTokens(messages []openai.ChatCompletionMessage, currentUser int, cache *tokenCountCache) int {
 	maxTokens := 0
 	for _, route := range b.Routes {
-		if tokens := carriedHistoryTokensForModel(messages, currentUser, route.Limits.Route.Model, cache); tokens > maxTokens {
+		if tokens := carriedHistoryTokensForModel(messages, currentUser, route.Limits.Route.Model, cache, route.Limits.Route); tokens > maxTokens {
 			maxTokens = tokens
 		}
 	}
@@ -572,7 +576,7 @@ func (b *RequestBudget) maxMessagesTokens(messages []openai.ChatCompletionMessag
 	for _, route := range b.Routes {
 		total := 0
 		for _, message := range messages {
-			total += cache.Count(messageTextWithReasoningForAccounting(message), route.Limits.Route.Model) + 4
+			total += routeMessageTokens(message, route.Limits.Route, cache)
 		}
 		if total > maxTokens {
 			maxTokens = total
@@ -602,13 +606,17 @@ func isSheddableHistorySystem(message openai.ChatCompletionMessage) bool {
 		strings.HasPrefix(content, "[RELEVANT_CONVERSATION_CONTEXT]")
 }
 
-func fixedSystemAddendaTokens(messages []openai.ChatCompletionMessage, model string, cache *tokenCountCache) int {
+func fixedSystemAddendaTokens(messages []openai.ChatCompletionMessage, model string, cache *tokenCountCache, routes ...llm.ModelRoute) int {
+	route := llm.ModelRoute{Model: model}
+	if len(routes) > 0 {
+		route = routes[0]
+	}
 	total := 0
 	for i, message := range messages {
 		if i == 0 || message.Role != openai.ChatMessageRoleSystem || isSheddableHistorySystem(message) {
 			continue
 		}
-		total += cache.Count(messageTextWithReasoningForAccounting(message), model) + 4
+		total += routeMessageTokens(message, route, cache)
 	}
 	return total
 }

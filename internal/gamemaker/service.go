@@ -761,7 +761,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	if project.Dimension == "3d" && !s.sceneBackedCurrent(ctx, job.ID, plan) {
 		scope = "startup"
 	}
-	result := s.ValidateJobScope(ctx, job.ID, scope)
+	result := s.validateForPublication(ctx, job.ID, scope)
 	for attempt := 1; !result.OK && result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable" && attempt <= 3; attempt++ {
 		s.mu.RLock()
 		exhausted := s.validationFailures[job.ID] >= 4
@@ -774,7 +774,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 			s.terminateJob(job, ctx, err)
 			return
 		}
-		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "repair", Plan: plan, Checks: result.Checks, Job: repairJob, Project: project, Diagnostics: result.Diagnostics, AssetPacks: assetPacks}); err != nil {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "repair", Result: &result, Plan: plan, Checks: result.Checks, Job: repairJob, Project: project, Diagnostics: result.Diagnostics, AssetPacks: assetPacks}); err != nil {
 			s.terminateJob(job, ctx, err)
 			return
 		}
@@ -782,7 +782,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 			s.terminateJob(job, ctx, err)
 			return
 		}
-		result = s.ValidateJobScope(ctx, job.ID, scope)
+		result = s.validateForPublication(ctx, job.ID, scope)
 	}
 	if !result.OK {
 		s.terminateJob(job, ctx, fmt.Errorf("game validation failed: %s", diagnosticsText(result.Diagnostics)))

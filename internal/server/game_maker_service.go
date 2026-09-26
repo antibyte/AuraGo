@@ -281,9 +281,13 @@ func compactGameMakerChecks(checks []gamemaker.CheckResult) []map[string]any {
 		if len(out) >= 32 {
 			break
 		}
-		out = append(out, map[string]any{
+		entry := map[string]any{
 			"id": check.ID, "status": check.Status, "expected": check.Expected, "observed": check.Observed,
-		})
+		}
+		if check.Status != "passed" && len(check.Steps) > 0 {
+			entry["steps"] = check.Steps[:min(8, len(check.Steps))]
+		}
+		out = append(out, entry)
 	}
 	return out
 }
@@ -301,12 +305,13 @@ func gameMakerRepairPacket(run gamemaker.JobRun) map[string]any {
 		packet["rules_status"] = run.Result.RulesStatus
 	}
 	addDiagnostic := func(diagnostic gamemaker.Diagnostic) {
-		if packet["first_failure"] != nil {
+		if packet["first_failure"] != nil || diagnostic.Level == "info" || diagnostic.Level == "warning" {
 			return
 		}
 		packet["first_failure"] = map[string]any{
 			"kind": "technical", "level": diagnostic.Level, "file": diagnostic.File,
 			"line": diagnostic.Line, "column": diagnostic.Column, "message": diagnostic.Message,
+			"source_sha256": diagnostic.SourceSHA256, "excerpt": diagnostic.Excerpt,
 		}
 	}
 	for _, diagnostic := range run.Diagnostics {
@@ -319,12 +324,17 @@ func gameMakerRepairPacket(run gamemaker.JobRun) map[string]any {
 	}
 	for _, check := range run.Checks {
 		if check.Status == "passed" {
+			passed, _ := packet["preserve_passing_checks"].([]string)
+			if len(passed) < 32 {
+				packet["preserve_passing_checks"] = append(passed, check.ID)
+			}
 			continue
 		}
 		if packet["first_failure"] == nil {
 			packet["first_failure"] = map[string]any{
 				"kind": "gameplay_check", "id": check.ID, "status": check.Status,
 				"expected": check.Expected, "observed": check.Observed,
+				"steps": check.Steps[:min(8, len(check.Steps))],
 			}
 		}
 		if strings.Contains(strings.ToLower(check.ID), "rule") && packet["rules_status"] == "unverified" {
@@ -338,7 +348,7 @@ func gameMakerRepairPacket(run gamemaker.JobRun) map[string]any {
 }
 
 func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
-	contextData := map[string]any{"stage": run.Stage, "original_request": run.Project.Description, "current_request": run.Job.Prompt}
+	contextData := map[string]any{"stage": run.Stage}
 	if len(run.AssetSelections) > 0 {
 		contextData["user_selected_assets"] = run.AssetSelections[:min(64, len(run.AssetSelections))]
 	}
@@ -465,13 +475,17 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 		}
 	}
 	contextData := compactGameMakerContext(run)
+	contextData["remaining_repair_passes"] = r.service.RemainingRepairs(run.Job.ID)
+	if run.Stage != "planning" {
+		contextData["runtime"] = r.service.RuntimeContext(ctx, run.Job.ID)
+	}
 	requests, err := r.service.PreviousJobRequests(ctx, run.Job.ID)
 	if err != nil {
 		return err
 	}
 	contextData["previous_user_requests"] = requests
 	contextData["working_copy_restored"] = run.Job.ResumeFrom != ""
-	history, checkpoint, err := r.gameConversation(ctx, &cfg, run)
+	history, checkpoint, err := r.gameConversation(ctx, &cfg, run, true)
 	if err != nil {
 		return err
 	}
@@ -518,7 +532,7 @@ and publication after its own checks; never claim unobserved success.`, run.Job.
 		Model: cfg.LLM.Model,
 		Messages: []openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleUser,
-			Content: gameMakerUserIntent(run) + "\n\nJob context (data):\n<external_data>\n" + string(data) + "\n</external_data>" + gameMakerDiagnosticContext(run.Diagnostics),
+			Content: gameMakerUserIntent(run) + "\n\nJob context (data):\n<external_data>\n" + string(data) + "\n</external_data>",
 		}},
 		Stream: true,
 	}

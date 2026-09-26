@@ -80,3 +80,25 @@ func TestGameMakerSettingsSchemaExplainsFreeBaseCorrection(t *testing.T) {
 		}
 	}
 }
+
+func TestGameMakerPhaseSchemasOmitBoundIdentityAndDuplicateScene(t *testing.T) {
+	for _, stage := range []string{"planning", "building", "repair"} {
+		schemas := GameMakerPhaseToolSchemas(stage, "3d")
+		for _, tool := range schemas {
+			props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
+			if _, exists := props["job_id"]; exists {
+				t.Fatal("bound job identity must not be model input")
+			}
+			if tool.Function.Name == "game_maker_project" && stage != "planning" {
+				patch := props["patch"].(map[string]interface{})["properties"].(map[string]interface{})
+				if patch["replace"] != nil || props["scene"] == nil || strings.Contains(tool.Function.Description, "set_design") {
+					t.Fatal("duplicate scene or planning instructions in implementation phase")
+				}
+			}
+		}
+		data, _ := json.Marshal(schemas)
+		if stage != "planning" && len(data) > 25000 {
+			t.Fatalf("implementation schemas regressed to %d bytes", len(data))
+		}
+	}
+}

@@ -3,7 +3,7 @@
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
 - Tools: **213**
-- Enumerated operations: **1138**
+- Enumerated operations: **1140**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
 
@@ -1084,16 +1084,17 @@ Search matching sprite2d or model3d assets, then describe_asset for exact IDs, a
 
 ## `game_maker_file`
 
-Read a bounded source range (includes full-file sha256), replace one unique old_text with new_text using expected_sha256, or write a complete file. Writes return written and build.ok separately; fix compiler diagnostics before runtime validation. Prefer replace for existing files. Managed vendor/dist paths are read-only.
+Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.
 
 - Tier: `extended`
-- Required: `job_id`, `operation`, `path`
-- Operations: 3
+- Required: `job_id`, `operation`
+- Operations: 5
 
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
 | `content` | `string` | Complete file content for write |
+| `edits` | `array` |  |
 | `end_line` | `integer` | Last line; default next 120 lines; max 240 lines |
 | `expected_sha256` | `string` | Full-file sha256 from read; required for replace |
 | `job_id` | `string` | Active Game Maker job ID |
@@ -1101,6 +1102,7 @@ Read a bounded source range (includes full-file sha256), replace one unique old_
 | `old_text` | `string` | Unique exact block to replace |
 | `operation` | `string` |  |
 | `path` | `string` | Project-relative source path |
+| `query` | `string` | search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256 |
 | `start_line` | `integer` | First line, 1-based; default 1 |
 
 ## `game_maker_project`

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"aurago/internal/gamemaker"
 	"aurago/internal/tools"
@@ -423,7 +425,7 @@ func gameMakerCheckIDsFromParams(params map[string]interface{}) ([]string, error
 	}
 	return out, nil
 }
-func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
+func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (output string, handled bool) {
 	switch tc.Action {
 	case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate":
 	default:
@@ -444,6 +446,8 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 	if jobID == "" {
 		return `Tool Output: {"status":"error","message":"job_id is required"}`, true
 	}
+	started := time.Now()
+	defer func() { recordGameMakerToolResult(ctx, service, jobID, tc, output, time.Since(started)) }()
 	switch tc.Action {
 	case "game_maker_project":
 		operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
@@ -491,7 +495,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 		if operation != "inspect" {
 			return gameMakerToolError(fmt.Errorf("unknown project operation")), true
 		}
-		return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "plan_example": gamemaker.ExampleGamePlan(project), "design_example": gamemaker.ExampleGameDesign(project), "next_action": gamemaker.JobNextAction(job)}), true
+		return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "runtime": service.RuntimeContext(ctx, jobID), "plan_example": gamemaker.ExampleGamePlan(project), "design_example": gamemaker.ExampleGameDesign(project), "next_action": gamemaker.JobNextAction(job)}), true
 
 	case "game_maker_file":
 		operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
@@ -503,6 +507,37 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 			}
 		}
 		path := firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path"))
+		if operation == "search" {
+			result, err := service.SearchJobFile(ctx, jobID, path, firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")))
+			if err != nil {
+				return gameMakerToolError(err), true
+			}
+			return gameMakerToolJSON(map[string]any{"status": "ok", "result": result}), true
+		}
+		if operation == "replace_many" {
+			data, err := json.Marshal(tc.Params["edits"])
+			if err != nil {
+				return gameMakerToolError(err), true
+			}
+			// Native providers may return structured object arrays as JSON text.
+			if value, ok := tc.Params["edits"].(string); ok {
+				data = []byte(value)
+			}
+			var edits []gamemaker.SourceReplacement
+			decoder := json.NewDecoder(strings.NewReader(string(data)))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&edits); err != nil {
+				return gameMakerToolError(fmt.Errorf("edits: %w", err)), true
+			}
+			if err := decoder.Decode(new(any)); err != io.EOF {
+				return gameMakerToolError(fmt.Errorf("edits: submit one JSON array")), true
+			}
+			result, err := service.ReplaceJobFiles(ctx, jobID, edits)
+			if err != nil {
+				return gameMakerToolError(err), true
+			}
+			return gameMakerToolJSON(map[string]any{"status": "ok", "result": result}), true
+		}
 		if operation == "read" {
 			start, end := 0, 0
 			for name, target := range map[string]*int{"start_line": &start, "end_line": &end} {
@@ -527,7 +562,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (s
 			return gameMakerToolJSON(map[string]any{"status": "ok", "path": path, "content": result.Content, "sha256": result.SHA256, "start_line": result.StartLine, "end_line": result.EndLine, "total_lines": result.TotalLines}), true
 		}
 		if operation != "write" && operation != "replace" {
-			return `Tool Output: {"status":"error","message":"operation must be read, write or replace"}`, true
+			return `Tool Output: {"status":"error","message":"operation must be read, search, write, replace or replace_many"}`, true
 		}
 		content := tc.Content
 		if value, ok := tc.Params["content"].(string); ok {
@@ -743,6 +778,10 @@ func gameMakerToolJSON(value any) string {
 }
 
 func gameMakerToolError(err error) string {
+	var detail *gamemaker.DesignValidationError
+	if errors.As(err, &detail) {
+		return gameMakerToolJSON(map[string]any{"status": "error", "message": err.Error(), "errors": detail.Issues, "remaining_attempts": detail.RemainingAttempts, "retained_base": detail.RetainedBase, "correction": "Fix the listed fields together. Omitted fields are retained; supplied arrays replace the whole array."})
+	}
 	return gameMakerToolJSON(map[string]any{"status": "error", "message": err.Error()})
 }
 

@@ -24,18 +24,25 @@ func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []open
 			}, "job_id", "operation"),
 		),
 		tool("game_maker_file",
-			"Read a bounded source range (includes full-file sha256), replace one unique old_text with new_text using expected_sha256, or write a complete file. Writes return written and build.ok separately; fix compiler diagnostics before runtime validation. Prefer replace for existing files. Managed vendor/dist paths are read-only.",
+			"Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
 			schema(map[string]interface{}{
-				"job_id":          prop("string", "Active Game Maker job ID"),
-				"operation":       map[string]interface{}{"type": "string", "enum": []string{"read", "write", "replace"}},
-				"path":            prop("string", "Project-relative source path"),
+				"job_id":    prop("string", "Active Game Maker job ID"),
+				"operation": map[string]interface{}{"type": "string", "enum": []string{"read", "search", "write", "replace", "replace_many"}},
+				"path":      prop("string", "Project-relative source path"),
+				"query":     prop("string", "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256"),
+				"edits": map[string]interface{}{"type": "array", "minItems": 1, "maxItems": 8, "items": schema(map[string]interface{}{
+					"path":            prop("string", "Distinct existing project-relative file"),
+					"expected_sha256": prop("string", "Full-file sha256 from read/search"),
+					"old_text":        prop("string", "Unique exact block"),
+					"new_text":        prop("string", "Replacement; empty string deletes"),
+				}, "path", "expected_sha256", "old_text", "new_text")},
 				"content":         prop("string", "Complete file content for write"),
 				"start_line":      prop("integer", "First line, 1-based; default 1"),
 				"end_line":        prop("integer", "Last line; default next 120 lines; max 240 lines"),
 				"expected_sha256": prop("string", "Full-file sha256 from read; required for replace"),
 				"old_text":        prop("string", "Unique exact block to replace"),
 				"new_text":        prop("string", "Replacement text; empty deletes the block"),
-			}, "job_id", "operation", "path"),
+			}, "job_id", "operation"),
 		),
 		tool("game_maker_asset",
 			"Search matching sprite2d or model3d assets, then describe_asset for exact IDs, actions, orientation and helper usage. import_pack returns project-local copies. For model3d supply 1–64 exact asset_ids; only those models and dependencies are imported. Use three_example and local GLBs for 3D, phaser_example for sprites. Never guess paths, bones or clips. Import and generation require an accepted plan.",
@@ -263,21 +270,26 @@ func GameMakerPhaseToolSchemas(stage, dimension string) []openai.Tool {
 		name := t.Function.Name
 		params := t.Function.Parameters.(map[string]interface{})
 		props := params["properties"].(map[string]interface{})
+		// Studio binds identity in the execution context, not in model arguments.
+		delete(props, "job_id")
 		if stage == "planning" {
 			switch name {
 			case "game_maker_validate":
 				continue
 			case "game_maker_file":
-				props["operation"] = map[string]interface{}{"type": "string", "enum": []string{"read"}}
-				for _, k := range []string{"content", "old_text", "new_text", "expected_sha256"} {
+				t.Function.Description = "Search literal text or read a bounded source range with its full-file sha256. Inspect existing behavior before planning an edit. Source mutations are unavailable during planning."
+				props["operation"] = map[string]interface{}{"type": "string", "enum": []string{"read", "search"}}
+				for _, k := range []string{"content", "old_text", "new_text", "expected_sha256", "edits"} {
 					delete(props, k)
 				}
 			case "game_maker_asset":
+				t.Function.Description = "Discover assets using search_assets or list_packs. describe_asset takes pack_id and asset_id from the same match and returns exact roles, actions and usage. The server imports accepted plan assets after planning."
 				props["operation"] = map[string]interface{}{"type": "string", "enum": []string{"search_assets", "describe_asset", "list_packs"}}
 				for _, k := range []string{"asset_ids", "kind", "prompt", "path", "title", "duration_seconds", "bpm", "seed"} {
 					delete(props, k)
 				}
 			case "game_maker_project":
+				t.Function.Description = "Submit compact design choices with set_design, inspect the project, read the current plan, or inspect scene data. Accepted designs end planning. Corrections retain omitted fields and replace supplied arrays."
 				props["operation"] = map[string]interface{}{"type": "string", "enum": []string{"set_design", "get_plan", "inspect", "list_files", "scene_inspect"}}
 				delete(props, "plan")
 				design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
@@ -294,18 +306,21 @@ func GameMakerPhaseToolSchemas(stage, dimension string) []openai.Tool {
 				}
 			}
 		} else if name == "game_maker_project" {
+			t.Function.Description = "Inspect the project/runtime API, list files, read the accepted plan, or inspect/edit optional scene data. scene_set replaces the complete scene; scene_patch edits selected collections. Scene mutations require the current sha256. The accepted plan is locked."
 			props["operation"] = map[string]interface{}{"type": "string", "enum": []string{"get_plan", "inspect", "list_files", "scene_inspect", "scene_set", "scene_patch", "scene_generate"}}
 			delete(props, "plan")
 			delete(props, "design")
+			// Full replacement already has scene_set; do not repeat its schema.
+			delete(props["patch"].(map[string]interface{})["properties"].(map[string]interface{}), "replace")
 		}
 		required := []string{}
-		for _, k := range []string{"job_id", "operation", "path"} {
-			if _, ok := props[k]; ok && (k != "path" || name == "game_maker_file") {
+		for _, k := range []string{"operation", "path"} {
+			if _, ok := props[k]; ok && (k != "path" || (name == "game_maker_file" && stage == "planning")) {
 				required = append(required, k)
 			}
 		}
 		if name == "game_maker_validate" {
-			required = []string{"job_id"}
+			required = []string{}
 		}
 		params["required"] = required
 		normalizeProviderFragileObjectSchemas(params)

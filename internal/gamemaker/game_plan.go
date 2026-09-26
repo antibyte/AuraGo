@@ -163,6 +163,12 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 	defer func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
+		if compact && err != nil {
+			var detail *DesignValidationError
+			if !errors.As(err, &detail) {
+				err = &DesignValidationError{Issues: []DesignIssue{{Path: "design", Code: "invalid", Message: err.Error()}}, RemainingAttempts: max(0, 3-s.planAttempts[jobID])}
+			}
+		}
 		if err == nil {
 			delete(s.planErrors, jobID)
 		} else {

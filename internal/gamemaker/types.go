@@ -154,26 +154,32 @@ type Revision struct {
 }
 
 type Diagnostic struct {
-	Level   string `json:"level"`
-	Message string `json:"message"`
-	File    string `json:"file,omitempty"`
-	Line    int    `json:"line,omitempty"`
-	Column  int    `json:"column,omitempty"`
+	Level        string `json:"level"`
+	Message      string `json:"message"`
+	File         string `json:"file,omitempty"`
+	Line         int    `json:"line,omitempty"`
+	Column       int    `json:"column,omitempty"`
+	SourceSHA256 string `json:"source_sha256,omitempty"`
+	Excerpt      string `json:"excerpt,omitempty"`
 }
 
 type BuildResult struct {
-	Captures       []VisualCapture `json:"-"`
-	Visual         VisualReview    `json:"visual,omitempty"`
-	check          *previewCheck
-	OK             bool          `json:"ok"`
-	Diagnostics    []Diagnostic  `json:"diagnostics"`
-	RuntimeStatus  string        `json:"runtime_status,omitempty"`
-	GameplayStatus string        `json:"gameplay_status,omitempty"`
-	VisualStatus   string        `json:"visual_status,omitempty"`
-	RulesStatus    string        `json:"rules_status,omitempty"`
-	TargetedChecks bool          `json:"targeted_checks,omitempty"`
-	Checks         []CheckResult `json:"checks,omitempty"`
-	Images         []string      `json:"-"`
+	Captures            []VisualCapture `json:"-"`
+	Visual              VisualReview    `json:"visual,omitempty"`
+	check               *previewCheck
+	sourceMap           *buildSourceMap
+	fingerprint         string
+	validationScope     string
+	scenarioFingerprint string
+	OK                  bool          `json:"ok"`
+	Diagnostics         []Diagnostic  `json:"diagnostics"`
+	RuntimeStatus       string        `json:"runtime_status,omitempty"`
+	GameplayStatus      string        `json:"gameplay_status,omitempty"`
+	VisualStatus        string        `json:"visual_status,omitempty"`
+	RulesStatus         string        `json:"rules_status,omitempty"`
+	TargetedChecks      bool          `json:"targeted_checks,omitempty"`
+	Checks              []CheckResult `json:"checks,omitempty"`
+	Images              []string      `json:"-"`
 }
 
 type JobRun struct {
