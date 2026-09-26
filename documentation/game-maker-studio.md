@@ -356,9 +356,17 @@ colliders. Blocked or elevated unreachable targets remain unverified.
 
 Non-scene Three.js games expose actual item/cargo/flight-goal collections through
 `pickup_events`, independently of combat hits and cosmetic feedback. Restart
-clears the counter. When an existing game's helper still returns a constant zero
-for that metric, the agent receives its exact source location and repair guidance
-in the runtime context. Existing authored helpers are retained for focused repair.
+clears the counter. Retrying an older failed job preserves its installed helper;
+updating AuraGo alone does not replace that source. Builds recognize two shipped
+legacy helpers by their complete template contents and accepted-plan asset
+bindings, then add the missing counter at actual collection/reset branches in
+compiled output. Installed source and gameplay rules remain intact. This also
+works when resuming a saved failed draft and requires no extra model call.
+The runtime context identifies the compatibility observation. Modified or unknown
+helpers still receive the exact constant-zero source location and focused repair
+guidance. A version comment alone never enables instrumentation. Browser tests
+must still observe real input and target effects before publication; compatibility
+does not make a failed game pass by itself.
 
 2D and guided 3D publication require full validation. Free-code `three` uses
 startup validation and explicitly reports gameplay unverified. Technical failures share at most

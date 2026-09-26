@@ -2,6 +2,7 @@ package gamemaker
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,9 +11,9 @@ import (
 	"github.com/evanw/esbuild/pkg/api"
 )
 
-// threeObservationPlugin adds missing read-only ray metadata to known older
-// copies of the template observer. It does not rewrite the user's source or
-// replace their shooting, movement, camera, or other game rules.
+// threeObservationPlugin adds missing ray metadata and real pickup observations
+// to verified older templates. It does not rewrite the user's source or replace
+// their shooting, movement, camera, collection or other game rules.
 func threeObservationPlugin(projectDir string) api.Plugin {
 	common, _ := filepath.Abs(filepath.Join(projectDir, "src", "common.ts"))
 	return api.Plugin{Name: "three-target-observation", Setup: func(build api.PluginBuild) {
@@ -25,7 +26,15 @@ func threeObservationPlugin(projectDir string) api.Plugin {
 				return api.OnLoadResult{}, fmt.Errorf("read three observer: %w", err)
 			}
 			source := string(data)
-			upgraded := upgradeThreeTargetObservation(source)
+			upgraded := source
+			if strings.Contains(source, legacyThreePickupMetric) {
+				var plan GamePlan
+				data, err := os.ReadFile(filepath.Join(projectDir, filepath.FromSlash(gamePlanPath)))
+				if err == nil && json.Unmarshal(data, &plan) == nil {
+					upgraded = upgradeThreePickupObservation(source, &plan)
+				}
+			}
+			upgraded = upgradeThreeTargetObservation(upgraded)
 			if source == upgraded {
 				return api.OnLoadResult{}, nil
 			}

@@ -16,6 +16,8 @@ revision publication and standalone export for Phaser and Three.js games.
 - `runtime.go`: project-local runtime installation, also used by exports.
 - `runtime_context.go`, `source_search.go`, `source_batch.go`: installed helper
   descriptors and bounded source discovery/edits for the isolated agent.
+- `three_observation.go`, `three_pickup_observation.go`: build-only compatibility
+  observations for verified legacy helpers; never rewrite installed source.
 - `starter_reference.go`: plan-bound exact helper verification and compact
   source-generation references. Server prompt profiles and usage events remain
   bound by this contract across the agent and LLM transports.
@@ -39,8 +41,13 @@ revision publication and standalone export for Phaser and Three.js games.
 - Non-scene Three.js helpers count real item/cargo/flight-goal collections in
   `pickup_events` and clear that counter on reset. Keep combat hits and cosmetic
   feedback separate; scene-builder pickup counters retain their own ownership.
-  Runtime context identifies an installed legacy constant-zero pickup metric
-  with its source line and repair guidance, without replacing authored helpers.
+  Build compatibility instruments real collection branches/reset for the two
+  exact legacy helpers from `0f5d4b125` and `6040144e3`, verified against the whole
+  template and accepted-plan asset bindings (only CRLF/LF is normalized).
+  Runtime context distinguishes this instrumentation from unsupported/custom
+  constant-zero helpers needing source repair. Keep source, gameplay rules,
+  authored helpers and validation/publication gates intact; retries rebuild the
+  preserved draft without extra model calls or a source migration.
 - New common templates opt into baseline visual/audio feedback. Explicit imported
   sound bindings take precedence; one mixer, gesture gate and 32-voice budget apply
   to fallback cues too. Mute/volume survive stage changes within the same game root.
@@ -251,6 +258,10 @@ Do not patch a published game merely because a new starter changed.
   `TestTargetControlBrowser/fps_ground_` covers low/behind, blocked, elevated and
   counter-only targets. `TestRuntimeContextIdentifiesInstalledPickupCounter`
   checks repair guidance against the actual installed helper.
+  `TestFPSPickupBrowser` also runs both historical helper fixtures;
+  `TestUpgradeThreePickupObservation` and `TestLegacyThreePickupBuildAndResume`
+  cover exact recognition, authored-source preservation, reset instrumentation,
+  build/context agreement and failed-draft continuation.
 - `GAMEMAKER_GUIDED_BROWSER=1`: starter engine/lifecycle browser checks.
 - `GAMEMAKER_PREVIEW_BROWSER=1`: hidden/resumed previews, delayed layout, invalid
   canvases and loading-HUD recovery in Chrome.

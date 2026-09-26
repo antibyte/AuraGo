@@ -19,6 +19,12 @@ func TestFPSPickupBrowser(t *testing.T) {
 	if os.Getenv("GAMEMAKER_TARGET_BROWSER") != "1" {
 		t.Skip("set GAMEMAKER_TARGET_BROWSER=1 for real FPS pickup inputs")
 	}
+	for _, revision := range []string{"current", "0f5d4b125", "6040144e3"} {
+		t.Run(revision, func(t *testing.T) { testFPSPickupBrowser(t, revision) })
+	}
+}
+
+func testFPSPickupBrowser(t *testing.T, revision string) {
 	s := newTestService(t)
 	s.opts.JobTimeout = 2 * time.Minute
 	project := createTestProject(t, s, "3d")
@@ -35,6 +41,15 @@ func TestFPSPickupBrowser(t *testing.T) {
 		}
 		if run.Stage != "building" {
 			return errors.New("unexpected repair")
+		}
+		if revision != "current" {
+			legacy, err := legacyThreePickupFixture(revision, *run.Plan)
+			if err != nil {
+				return err
+			}
+			if err := s.writeJobFile(ctx, run.Job.ID, "src/common.ts", legacy); err != nil {
+				return err
+			}
 		}
 		source := `import {startGame} from './common';
 startGame({mode:'fps',objective:'Collect the item',goal:2,speed:5,duration:0,
