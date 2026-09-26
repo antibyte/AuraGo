@@ -213,6 +213,9 @@ const _guardianToolDescriptions = {
     netlify: 'Netlify deployments',
     here_now_sites: 'Read here.now sites',
     here_now_site: 'Publish and manage here.now sites',
+    treg_catalog: 'treg_catalog',
+    treg_call: 'treg_call',
+    treg_status: 'treg_status',
     send_email: 'Send emails',
     fetch_email: 'Fetch emails',
     discord: 'Discord messaging',
@@ -252,7 +255,7 @@ const _guardianHighRiskTools = new Set([
 const _guardianRiskyTools = new Set([
     'execute_shell', 'execute_sudo', 'execute_python', 'execute_remote_shell', 'filesystem',
     'api_request', 'docker', 'proxmox', 'set_secret', 'save_tool', 'co_agent',
-    'manage_updates', 'netlify', 'here_now_site', 'home_assistant'
+    'manage_updates', 'netlify', 'here_now_site', 'treg_call', 'home_assistant'
 ]);
 
 async function guardianLoadToolList() {

@@ -83,5 +83,7 @@
   "config.refresh.model": "Model",
   "config.refresh.network": "Netværk",
   "config.refresh.language": "Sprog",
-  "config.refresh.local_models": "Lokale modeller"
+  "config.refresh.local_models": "Lokale modeller",
+  "config.section.treg.label": "treg",
+  "config.section.treg.desc": "Valgfri API til research, medier og godkendte handlinger."
 }

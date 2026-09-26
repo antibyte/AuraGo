@@ -153,14 +153,14 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 		return ToolDispatchResult{Output: authorizationChangedOutput, Status: ToolResultDenied, IsError: true}
 	}
 	startTime := time.Now()
-	trustedStatus := ToolResultUnknown
+	var trustedStatus ToolResultStatus
 	ctx = context.WithValue(ctx, toolOutcomeKey{}, &trustedStatus)
 	rawResult := dispatchInner(ctx, *tc, dc)
 	status := classifyLegacyToolResult(rawResult)
-	if trustedStatus != ToolResultUnknown {
+	if trustedStatus != "" {
 		status = trustedStatus
 	}
-	if ctx.Err() != nil && status != ToolResultSuccess {
+	if ctx.Err() != nil && status != ToolResultSuccess && trustedStatus != ToolResultUnknown {
 		status = ToolResultCancelled
 	}
 	dc.ExecutionTimeMs = time.Since(startTime).Milliseconds()

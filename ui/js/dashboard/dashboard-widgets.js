@@ -2629,6 +2629,7 @@
                 sandbox: dashIcon('box'), ai_gateway: dashIcon('globe'), image_generation: dashIcon('palette'),
                 evomap: dashIcon('globe'),
                 google_workspace: dashIcon('email'), netlify: dashIcon('rocket'), here_now: dashIcon('rocket'),
+                treg: dashIcon('globe'),
                 homepage: dashIcon('home'), virustotal: dashIcon('virus'), brave_search: dashIcon('search'),
                 firewall: dashIcon('firewall'), remote_control: dashIcon('device'), web_scraper: dashIcon('spider'),
                 skill_manager: dashIcon('puzzle')
@@ -2663,6 +2664,7 @@
                 image_generation: t('dashboard.integration_image_generation'),
                 google_workspace: t('dashboard.integration_google_workspace'),
                 netlify: t('dashboard.integration_netlify'), here_now: t('dashboard.integration_here_now'),
+                treg: 'treg',
                 homepage: t('dashboard.integration_homepage'), virustotal: t('dashboard.integration_virustotal'),
                 brave_search: t('dashboard.integration_brave_search'), firewall: t('dashboard.integration_firewall'),
                 remote_control: t('dashboard.integration_remote_control'),

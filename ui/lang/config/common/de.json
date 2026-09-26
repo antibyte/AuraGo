@@ -83,5 +83,7 @@
   "config.refresh.model": "Modell",
   "config.refresh.network": "Netzwerk",
   "config.refresh.language": "Sprache",
-  "config.refresh.local_models": "Lokale Modelle"
+  "config.refresh.local_models": "Lokale Modelle",
+  "config.section.treg.label": "treg",
+  "config.section.treg.desc": "Optionale API für Recherche, Medien und freigegebene Aktionen."
 }

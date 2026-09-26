@@ -1,7 +1,186 @@
 {
   "version": 2,
-  "schema_sha256": "37af970906167374b11340dc5e4557be78373ef49dd22619192de2f583d59f13",
+  "schema_sha256": "2c7154442c54f29301bb869a4b9a3d478c74953482f85f3a3a72e623381d0382",
   "tools": {
+    "treg_call": {
+      "default_arguments": {
+        "endpoint_id": "example.endpoint",
+        "operation": "read",
+        "parameters_json": "{}"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "create",
+          "arguments": {
+            "endpoint_id": "example.endpoint",
+            "operation": "create",
+            "parameters_json": "{}"
+          },
+          "required_fields": [
+            "endpoint_id",
+            "operation",
+            "parameters_json"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "delete",
+          "arguments": {
+            "endpoint_id": "example.endpoint",
+            "operation": "delete",
+            "parameters_json": "{}"
+          },
+          "required_fields": [
+            "endpoint_id",
+            "operation",
+            "parameters_json"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "read",
+          "arguments": {
+            "endpoint_id": "example.endpoint",
+            "operation": "read",
+            "parameters_json": "{}"
+          },
+          "required_fields": [
+            "endpoint_id",
+            "operation",
+            "parameters_json"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "update",
+          "arguments": {
+            "endpoint_id": "example.endpoint",
+            "operation": "update",
+            "parameters_json": "{}"
+          },
+          "required_fields": [
+            "endpoint_id",
+            "operation",
+            "parameters_json"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
+    "treg_catalog": {
+      "default_arguments": {
+        "operation": "search"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "allowed",
+          "arguments": {
+            "operation": "allowed"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "details",
+          "arguments": {
+            "operation": "details",
+            "endpoint_id": "example.endpoint"
+          },
+          "required_fields": [
+            "endpoint_id",
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "search",
+          "arguments": {
+            "operation": "search",
+            "query": "search for media generation"
+          },
+          "required_fields": [
+            "operation",
+            "query"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
+    "treg_status": {
+      "default_arguments": {
+        "operation": "balance"
+      },
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "accounting",
+          "arguments": {
+            "operation": "accounting",
+            "reference": "example-call"
+          },
+          "required_fields": [
+            "operation",
+            "reference"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "balance",
+          "arguments": {
+            "operation": "balance"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "poll",
+          "arguments": {
+            "operation": "poll",
+            "reference": "example-continuation"
+          },
+          "required_fields": [
+            "operation",
+            "reference"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "resources",
+          "arguments": {
+            "operation": "resources"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "tasks",
+          "arguments": {
+            "operation": "tasks"
+          },
+          "required_fields": [
+            "operation"
+          ],
+          "excluded_fields": []
+        }
+      ]
+    },
     "activate_agent_skill": {
       "default_arguments": {
         "skill": "example"

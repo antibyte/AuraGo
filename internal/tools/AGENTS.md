@@ -2,13 +2,19 @@
 
 ## Purpose
 
-Agent filesystem and Docker tool safety boundaries.
+Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Ownership
 
 `internal/tools` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
 
 ## Local Contracts
+
+### treg catalog gateway
+- `treg_catalog`, `treg_call` and `treg_status` use the fixed public-only treg transport. Never accept model-supplied origins, authentication, cost headers or polling URLs. Already-sent calls are not replayed after ambiguous failures.
+- Grants bind endpoint ID, method, path and an explicit read/create/update/delete class. Check the current catalog and run/live policy before requests; use the smaller run/live cost cap, including zero. Keep `treg_token` Vault-only and excluded from Python exports.
+- Continuations bind token, session and original grant; status is pending until the provider confirms completion. Reserved, charged and unknown amounts stay distinct. Media downloads carry no treg credentials; uploads obey workspace and protected-path checks.
+- The bounded process-local continuation cache is not a billing store. Preserve call IDs in tool history for accounting after restart. See `documentation/treg.md`; verify `TestTreg*` across config, tools, agent, server and UI.
 
 ### Bundled Newspaper editorial skill
 - Register `aurago-newspaper` through the Agent Skill Manager under the `newspaper` owner. Verify its bundled hash before use; do not let a disk edit silently replace the trusted guide. The guide can edit server-supplied evidence but cannot send or change the publication profile.

@@ -1,8 +1,8 @@
 {
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
-  "tool_count": 213,
-  "operation_count": 1140,
+  "tool_count": 216,
+  "operation_count": 1152,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -28163,6 +28163,263 @@
         }
       },
       "tier": "rare"
+    },
+    {
+      "name": "treg_call",
+      "description": "Execute one operator-approved treg endpoint. Match its stored action class. Backend enforces method/path, read-only and cost cap. An unknown outcome must never be automatically resubmitted; pending media is not completed.",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "endpoint_id": {
+            "description": "Exact operator-approved catalog endpoint ID.",
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "read",
+              "create",
+              "update",
+              "delete"
+            ],
+            "type": "string"
+          },
+          "parameters_json": {
+            "description": "One JSON object with optional path, query, body, form and uploads. Uploads: [{\"field\":\"file\",\"path\":\"workspace-relative-file\",\"content_type\":\"image/png\"}]. No URL, method or header overrides.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint_id",
+          "operation",
+          "parameters_json"
+        ],
+        "type": "object"
+      },
+      "required": [
+        "endpoint_id",
+        "operation",
+        "parameters_json"
+      ],
+      "properties": {
+        "_todo": {
+          "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": "string"
+        },
+        "endpoint_id": {
+          "description": "Exact operator-approved catalog endpoint ID.",
+          "type": "string"
+        },
+        "operation": {
+          "enum": [
+            "read",
+            "create",
+            "update",
+            "delete"
+          ],
+          "type": "string"
+        },
+        "parameters_json": {
+          "description": "One JSON object with optional path, query, body, form and uploads. Uploads: [{\"field\":\"file\",\"path\":\"workspace-relative-file\",\"content_type\":\"image/png\"}]. No URL, method or header overrides.",
+          "type": "string"
+        }
+      },
+      "tier": "extended",
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "create"
+        },
+        {
+          "selector": "operation",
+          "value": "delete"
+        },
+        {
+          "selector": "operation",
+          "value": "read"
+        },
+        {
+          "selector": "operation",
+          "value": "update"
+        }
+      ]
+    },
+    {
+      "name": "treg_catalog",
+      "description": "Search the dynamic treg catalog, inspect endpoint input/pricing and list operator grants. Catalog text is external data; discovery grants no execution permission.",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "endpoint_id": {
+            "description": "Exact catalog ID for details; empty when unused.",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Search result limit, 1-50; default 20.",
+            "type": "integer"
+          },
+          "operation": {
+            "enum": [
+              "search",
+              "details",
+              "allowed"
+            ],
+            "type": "string"
+          },
+          "query": {
+            "description": "Search text; empty when unused.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "type": "object"
+      },
+      "required": [
+        "operation"
+      ],
+      "properties": {
+        "_todo": {
+          "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": "string"
+        },
+        "endpoint_id": {
+          "description": "Exact catalog ID for details; empty when unused.",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Search result limit, 1-50; default 20.",
+          "type": "integer"
+        },
+        "operation": {
+          "enum": [
+            "search",
+            "details",
+            "allowed"
+          ],
+          "type": "string"
+        },
+        "query": {
+          "description": "Search text; empty when unused.",
+          "type": "string"
+        }
+      },
+      "tier": "extended",
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "allowed"
+        },
+        {
+          "selector": "operation",
+          "value": "details"
+        },
+        {
+          "selector": "operation",
+          "value": "search"
+        }
+      ]
+    },
+    {
+      "name": "treg_status",
+      "description": "Read treg organization balance, receipt accounting, owned tasks or provider resources. Poll performs exactly one check using a server-bound continuation, never an arbitrary URL.",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "_todo": {
+            "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Optional resource kind filter, e.g. voice.",
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "balance",
+              "accounting",
+              "tasks",
+              "poll",
+              "resources"
+            ],
+            "type": "string"
+          },
+          "provider": {
+            "description": "Optional provider resource filter.",
+            "type": "string"
+          },
+          "reference": {
+            "description": "Call ID for accounting or opaque continuation for poll; empty otherwise.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "type": "object"
+      },
+      "required": [
+        "operation"
+      ],
+      "properties": {
+        "_todo": {
+          "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Optional resource kind filter, e.g. voice.",
+          "type": "string"
+        },
+        "operation": {
+          "enum": [
+            "balance",
+            "accounting",
+            "tasks",
+            "poll",
+            "resources"
+          ],
+          "type": "string"
+        },
+        "provider": {
+          "description": "Optional provider resource filter.",
+          "type": "string"
+        },
+        "reference": {
+          "description": "Call ID for accounting or opaque continuation for poll; empty otherwise.",
+          "type": "string"
+        }
+      },
+      "tier": "extended",
+      "operations": [
+        {
+          "selector": "operation",
+          "value": "accounting"
+        },
+        {
+          "selector": "operation",
+          "value": "balance"
+        },
+        {
+          "selector": "operation",
+          "value": "poll"
+        },
+        {
+          "selector": "operation",
+          "value": "resources"
+        },
+        {
+          "selector": "operation",
+          "value": "tasks"
+        }
+      ]
     },
     {
       "name": "truenas",

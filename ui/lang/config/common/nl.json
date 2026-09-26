@@ -83,5 +83,7 @@
   "config.refresh.model": "Model",
   "config.refresh.network": "Netwerk",
   "config.refresh.language": "Taal",
-  "config.refresh.local_models": "Lokale modellen"
+  "config.refresh.local_models": "Lokale modellen",
+  "config.section.treg.label": "treg",
+  "config.section.treg.desc": "Optionele API voor onderzoek, media en goedgekeurde acties."
 }

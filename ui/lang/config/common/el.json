@@ -83,5 +83,7 @@
   "config.refresh.model": "Μοντέλο",
   "config.refresh.network": "Δίκτυο",
   "config.refresh.language": "Γλώσσα",
-  "config.refresh.local_models": "Τοπικά μοντέλα"
+  "config.refresh.local_models": "Τοπικά μοντέλα",
+  "config.section.treg.label": "treg",
+  "config.section.treg.desc": "Προαιρετικό API για έρευνα, πολυμέσα και εγκεκριμένες ενέργειες."
 }

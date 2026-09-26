@@ -219,6 +219,7 @@ const SECTIONS = [
         items: [
             { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
             { key: 'composio', icon: '◇', label: t('config.section.composio.label'), desc: t('config.section.composio.desc') },
+            { key: 'treg', icon: '↗', label: t('config.section.treg.label'), desc: t('config.section.treg.desc') },
             { key: 'manus', icon: 'M', label: t('config.section.manus.label'), desc: t('config.section.manus.desc') },
             { key: 'huggingface', icon: 'HF', label: t('config.section.huggingface.label'), desc: t('config.section.huggingface.desc') },
             { key: 'evomap', icon: '◇', label: t('config.section.evomap.label'), desc: t('config.section.evomap.desc') },
@@ -557,6 +558,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     koofr: 54,
     netlify: 55,
     here_now: 112,
+    treg: 118,
     vercel: 56,
     cloudflare_tunnel: 57,
     homepage: 58,
@@ -618,6 +620,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
+    treg: '<rect x="27" y="25" width="74" height="78" rx="10" fill="none" stroke="#35c7d3" stroke-width="6"/><path d="M43 46h42M43 64h42M43 82h26" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
     llm_router: '<path d="M32 64h25V34h32M57 64h32M57 64v30h32" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18" y="51" width="26" height="26" rx="6" fill="#7da3c8"/><circle cx="94" cy="34" r="11" fill="#6fca8f"/><circle cx="94" cy="64" r="11" fill="#35c7d3"/><circle cx="94" cy="94" r="11" fill="#4f8ee8"/>',
     detective: "<circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"#35c7d3\" opacity=\".15\"/><circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"7\"/><path d=\"M74 73 103 102\" stroke=\"#7da3c8\" stroke-width=\"10\" stroke-linecap=\"round\"/>",
     meshcore: "<path d=\"M34 90 64 32 94 90Z\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><circle cx=\"64\" cy=\"32\" r=\"12\" fill=\"#6fca8f\"/><circle cx=\"34\" cy=\"90\" r=\"12\" fill=\"#35c7d3\"/><circle cx=\"94\" cy=\"90\" r=\"12\" fill=\"#4f8ee8\"/>",
@@ -3098,6 +3101,7 @@ const SECTION_MODULES = {
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },
     netlify: { m: 'netlify', fn: 'renderNetlifySection' },
     here_now: { m: 'here_now', fn: 'renderHereNowSection' },
+    treg: { m: 'treg', fn: 'renderTregSection' },
     vercel: { m: 'vercel', fn: 'renderVercelSection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
     truenas: { m: 'truenas', fn: 'renderTrueNASSection' },

@@ -83,5 +83,7 @@
   "config.refresh.model": "模型",
   "config.refresh.network": "网络",
   "config.refresh.language": "语言",
-  "config.refresh.local_models": "本地模型"
+  "config.refresh.local_models": "本地模型",
+  "config.section.treg.label": "treg",
+  "config.section.treg.desc": "用于研究、媒体和已批准操作的可选 API。"
 }

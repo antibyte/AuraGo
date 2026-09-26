@@ -155,6 +155,7 @@ type ToolFeatureFlags struct {
 	HomepageEnabled         bool
 	NetlifyEnabled          bool
 	HereNowEnabled          bool
+	TregEnabled             bool
 	VercelEnabled           bool
 	FirewallEnabled         bool
 	EmailEnabled            bool

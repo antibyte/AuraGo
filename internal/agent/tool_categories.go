@@ -253,6 +253,9 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"mcp_call", "Call tools on connected MCP (Model Context Protocol) servers"},
 	},
 	"data_apis": {
+		{"treg_catalog", "Search treg endpoints, contracts, prices and approval requirements"},
+		{"treg_call", "Execute an explicitly approved treg endpoint within its cost limit"},
+		{"treg_status", "Read treg balance, receipts, task status and provider resources"},
 		{"composio_call", "Search and call user-approved Composio integration tools"},
 		{"manus", "Delegate and track private asynchronous tasks through Manus v2"},
 		{"huggingface", "Discover Hugging Face Hub, datasets, Spaces, Papers, and gated Jobs"},

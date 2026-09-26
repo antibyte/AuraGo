@@ -83,5 +83,7 @@
   "config.refresh.model": "Model",
   "config.refresh.network": "Síť",
   "config.refresh.language": "Jazyk",
-  "config.refresh.local_models": "Místní modely"
+  "config.refresh.local_models": "Místní modely",
+  "config.section.treg.label": "treg",
+  "config.section.treg.desc": "Volitelné API pro výzkum, média a schválené akce."
 }

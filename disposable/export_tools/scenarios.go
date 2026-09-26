@@ -95,12 +95,9 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 		errorCount     = 750
 		noCallCount    = 500
 	)
-	operationChoices := make([]fixtureChoice, 0)
-	for _, choice := range choices {
-		if choice.Selector != "" {
-			operationChoices = append(operationChoices, choice)
-		}
-	}
+	// Include selector-free tools in deterministic DE/EN coverage too. Depending
+	// on the rotating multi-call bank loses a language when the catalog grows.
+	operationChoices := choices
 	directCount, multiCount, err := scenarioOperationBudget(len(operationChoices))
 	if err != nil {
 		return nil, nil, err
@@ -680,7 +677,10 @@ func multiTask(first, second fixtureChoice, language string, sequence int) strin
 
 func naturalTaskClause(choice fixtureChoice, language string) string {
 	label := humanToolLabel(choice.Tool.Name, language)
-	operation := strings.ToLower(strings.TrimSpace(fmt.Sprint(choice.Value)))
+	operation := ""
+	if choice.Value != nil {
+		operation = strings.ToLower(strings.TrimSpace(fmt.Sprint(choice.Value)))
+	}
 	if choice.Selector == "" {
 		if raw, ok := choice.Arguments["operation"]; ok {
 			operation = strings.ToLower(strings.TrimSpace(fmt.Sprint(raw)))

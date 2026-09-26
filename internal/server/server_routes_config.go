@@ -177,6 +177,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/netlify/status", handleNetlifyStatus(s))
 	mux.HandleFunc("/api/netlify/test-connection", handleNetlifyTestConnection(s))
 	mux.HandleFunc("/api/here-now/status", handleHereNowStatus(s))
+	mux.Handle("/api/treg/", requireAdmin(s, handleTreg(s)))
 	mux.HandleFunc("/api/here-now/test-connection", handleHereNowTestConnection(s))
 	mux.HandleFunc("/api/here-now/accounts", handleHereNowAccounts(s))
 	mux.HandleFunc("/api/vercel/status", handleVercelStatus(s))

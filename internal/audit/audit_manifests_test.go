@@ -1537,6 +1537,7 @@ func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 		"ssh_key_manager":       "inventory/credential feature manual",
 		"toml_editor":           "manual alias for config file editing",
 		"telnyx":                "messaging integration manual",
+		"treg":                  "shared catalog, call and status family manual",
 		"tts_minimax":           "provider-specific TTS manual",
 		"web_performance_audit": "homepage/lighthouse manual alias",
 		"webdav":                "Python skill/manual",

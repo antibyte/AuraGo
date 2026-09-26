@@ -29,6 +29,10 @@ func hereNowSlugRequired(operation, slug string) string {
 }
 
 func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
+	switch tc.Action {
+	case "treg_call", "treg_catalog", "treg_status":
+		return dispatchTreg(ctx, tc, dc)
+	}
 	cfg := dc.Cfg
 	logger := dc.Logger
 	vault := dc.Vault

@@ -21,6 +21,9 @@ type ToolPermission struct {
 
 func ToolPermissionMatrix() []ToolPermission {
 	return []ToolPermission{
+		{Name: "treg_catalog", ConfigGate: "treg.enabled + agent.allow_network_requests", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
+		{Name: "treg_call", ConfigGate: "treg.enabled + agent.allow_network_requests + treg.allowed_endpoints + treg_token", ReadOnlyGate: "treg.readonly + stored action class", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
+		{Name: "treg_status", ConfigGate: "treg.enabled + agent.allow_network_requests + continuation grant", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
 		{Name: "api_request", ConfigGate: "agent.allow_network_requests", Capabilities: []Capability{CapabilityNetwork}},
 		{Name: "call_webhook", ConfigGate: "webhooks.enabled", Capabilities: []Capability{CapabilityNetwork}},
 		{Name: "chromecast", ConfigGate: "tools.chromecast.enabled", Capabilities: []Capability{CapabilityRead, CapabilityChange, CapabilityNetwork}},
@@ -145,6 +148,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/dograh/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/omniroute/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/composio/", Methods: []string{"GET", "POST", "PUT"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/treg/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/manus/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/local-llm/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "local-llm", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/setup/local-llm/", Methods: []string{"GET", "POST"}, Auth: "public-setup-csrf-or-job-token", Category: "setup", ContentTypes: []string{"application/json"}},
@@ -188,6 +192,9 @@ type NetworkClientUse struct {
 
 func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
+		{Path: "internal/tools/treg.go", Classification: "fixed-treg-api-public-only-no-redirects-no-replay", RequiresSSRF: true, Credentialed: true},
+		{Path: "internal/tools/treg_media.go", Classification: "public-media-download-without-credentials", RequiresSSRF: true},
+		{Path: "internal/tools/treg_tasks.go", Classification: "server-bound-treg-continuation-public-host-validation", RequiresSSRF: true},
 		{Path: "internal/acestep/", Classification: "digest-pinned-managed-docker-runtime-private-api-and-native-loopback-adapter", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/webassets/", Classification: "fixed-pinned-release-download-with-allowlisted-https-redirects"},
 		{Path: "cmd/aurago/", Classification: "internal-loopback-and-configured-cron", AllowsLocalNet: true, Credentialed: true},

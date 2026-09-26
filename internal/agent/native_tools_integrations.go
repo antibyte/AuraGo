@@ -395,6 +395,9 @@ func appendVirtualDesktopFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool
 }
 
 func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
+	if ff.TregEnabled {
+		tools = append(tools, tregToolSchemas()...)
+	}
 	if ff.MeshCoreEnabled {
 		tools = append(tools, meshCoreToolSchema())
 	}

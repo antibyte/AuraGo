@@ -20,6 +20,8 @@ func toolTraceActionIdentity(tc ToolCall) string {
 		parts = append(parts, firstNonEmptyToolString(tc.Name, stringValueFromMap(tc.Params, "name", "tool_name")))
 	case "composio_call":
 		parts = append(parts, decodeComposioCallArgs(tc).ToolSlug)
+	case "treg_call":
+		parts = append(parts, toolArgString(tc.Params, "endpoint_id"))
 	default:
 		return action
 	}

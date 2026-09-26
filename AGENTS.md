@@ -265,7 +265,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Native SIP Telephony Contract | `internal/sipphone/AGENTS.md` |
 | Update artifact retention contract | `internal/upkeep/AGENTS.md` |
 | Speech Lab Integration Contract | `internal/speechlab/AGENTS.md` |
-| Agent Filesystem Jail Contract; Agent Docker Inspect Contract; Managed Space Agent Contract | `internal/tools/AGENTS.md` |
+| Agent Filesystem Jail Contract; Agent Docker Inspect Contract; Managed Space Agent Contract; treg catalog gateway | `internal/tools/AGENTS.md` |
 | Virtual Computers Storage / Managed Garage Contract | `internal/virtualcomputers/AGENTS.md` |
 | External browser resource contract | `internal/webassets/AGENTS.md` |
 
@@ -282,6 +282,8 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
    training artifacts and run `.github/workflows/training-dataset.yml` checks.
    Keep the validator's expected tool count and schema-token limit synchronized
    with the exporter. `--check` is read-only for the committed training pack.
+   Preserve paired German/English direct coverage for every operation and
+   selector-free tool when the catalog changes.
 
 ### Adding a New Integration
 1. Create package in `internal/your_integration/`

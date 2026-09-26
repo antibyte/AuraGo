@@ -36,6 +36,8 @@ func ToolManualID(name string) string {
 		return "read_tool_output"
 	case "telnyx_call", "telnyx_manage", "telnyx_sms":
 		return "telnyx"
+	case "treg_catalog", "treg_call", "treg_status":
+		return "treg"
 	case "here_now_site", "here_now_sites":
 		return "homepage"
 	}

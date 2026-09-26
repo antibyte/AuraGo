@@ -2444,6 +2444,7 @@ func TestPromptConditionsCoverEmbeddedFrontmatter(t *testing.T) {
 		"specialists_available":      func() *ContextFlags { return &ContextFlags{SpecialistsAvailable: true} },
 		"sudo_enabled":               func() *ContextFlags { return &ContextFlags{SudoEnabled: true} },
 		"tailscale_enabled":          func() *ContextFlags { return &ContextFlags{TailscaleEnabled: true} },
+		"treg_enabled":               func() *ContextFlags { return &ContextFlags{TregEnabled: true} },
 		"uptime_kuma_enabled":        func() *ContextFlags { return &ContextFlags{UptimeKumaEnabled: true} },
 		"vercel_enabled":             func() *ContextFlags { return &ContextFlags{VercelEnabled: true} },
 		"video_download_enabled":     func() *ContextFlags { return &ContextFlags{VideoDownloadEnabled: true} },

@@ -449,6 +449,11 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Work Guidance
 
+- `cfg/treg.js` keeps endpoint grants in the shared draft until Save, with no
+  preselected action class. Vault saves update saved token state without losing
+  the draft; connection tests require saved settings. Parse USD as integer
+  micro-USD, preserving a zero cap. Verify `TestTregConfigBrowser` and all locales.
+
 - Keep the generic Config UI state/action contracts in `ui/js/config/` and
   integration-specific behavior in `ui/cfg/`.
 - Schema-rendered integration connection tests use the shared registry in

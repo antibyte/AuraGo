@@ -96,6 +96,7 @@ var blockedSecretExact = map[string]struct{}{
 	"adguard_password":                    {},
 	"netlify_token":                       {},
 	"here_now_api_key":                    {},
+	"treg_token":                          {},
 	"vercel_token":                        {},
 	"pushover_user_key":                   {},
 	"pushover_app_token":                  {},

@@ -501,6 +501,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.HereNowEnabled {
 		tools = append(tools, "here_now")
 	}
+	if flags.TregEnabled {
+		tools = append(tools, "treg")
+	}
 	if flags.VercelEnabled {
 		tools = append(tools, "vercel")
 	}

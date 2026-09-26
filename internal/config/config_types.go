@@ -1995,6 +1995,7 @@ type Config struct {
 		TeamSlug            string `yaml:"team_slug"`             // Netlify team/account slug
 		Token               string `yaml:"-" vault:"token"`       // Personal Access Token (from vault)
 	} `yaml:"netlify"`
+	Treg    TregConfig `yaml:"treg"`
 	HereNow struct {
 		Enabled               bool   `yaml:"enabled"`
 		ReadOnly              bool   `yaml:"readonly"`                // true = only list/get, block all mutations

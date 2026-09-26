@@ -14,7 +14,7 @@ type toolOutcomeKey struct{}
 // and failure semantics independent from the model-facing prose returned by
 // legacy string handlers.
 func setToolOutcome(ctx context.Context, status ToolResultStatus) {
-	if ctx == nil || status == ToolResultUnknown {
+	if ctx == nil {
 		return
 	}
 	if outcome, ok := ctx.Value(toolOutcomeKey{}).(*ToolResultStatus); ok && outcome != nil {
@@ -25,7 +25,9 @@ func setToolOutcome(ctx context.Context, status ToolResultStatus) {
 // externalToolOutput receives a locally constructed result envelope, before any
 // presentation escaping. Remote payloads must remain nested inside that envelope.
 func externalToolOutput(ctx context.Context, raw string) string {
-	setToolOutcome(ctx, classifyLegacyToolResult(raw))
+	if status := classifyLegacyToolResult(raw); status != ToolResultUnknown {
+		setToolOutcome(ctx, status)
+	}
 	return "Tool Output: " + security.IsolateExternalData(security.Scrub(raw))
 }
 

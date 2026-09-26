@@ -32,6 +32,7 @@
         'music-test-btn': { requiredPaths: ['music_generation.provider'] },
 		'nf-test-btn': { credentialPaths: ['netlify.token'] },
 		'hn-test-btn': { credentialPaths: ['here_now.api_key'] },
+		'treg-test-btn': { credentialPaths: ['treg.token'] },
         'obsidian-test-btn': { requiredPaths: ['obsidian.host'], credentialPaths: ['obsidian.api_key'] },
         'omniroute-test-btn': { requiredPaths: ['omniroute.mode'] },
         'paperless-test-btn': { requiredPaths: ['paperless_ngx.url'], credentialPaths: ['paperless_ngx.token'] },
@@ -56,6 +57,7 @@
     });
 
     const validationRules = Object.freeze({
+        'treg.max_call_cost_micro': { type: 'number', min: 0, max: 1000000000000, required: true },
         'server.port': { type: 'number', min: 1, max: 65535, required: true },
         'auth.session_timeout_hours': { type: 'number', min: 1, max: 8760 },
         'agent.context_window': { type: 'number', min: 0 },

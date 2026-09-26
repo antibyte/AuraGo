@@ -71,7 +71,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
-		HomepageEnabled: true, NetlifyEnabled: true, HereNowEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
+		HomepageEnabled: true, NetlifyEnabled: true, HereNowEnabled: true, TregEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
 		VirusTotalEnabled: true, GolangciLintEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, TTSEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
 		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
@@ -154,6 +154,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("homepage", ff.HomepageEnabled)
 	appendToolFeatureKeyPart("netlify", ff.NetlifyEnabled)
 	appendToolFeatureKeyPart("here_now", ff.HereNowEnabled)
+	appendToolFeatureKeyPart("treg", ff.TregEnabled)
 	appendToolFeatureKeyPart("vercel", ff.VercelEnabled)
 	appendToolFeatureKeyPart("firewall", ff.FirewallEnabled)
 	appendToolFeatureKeyPart("email", ff.EmailEnabled)

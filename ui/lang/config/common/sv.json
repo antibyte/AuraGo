@@ -83,5 +83,7 @@
   "config.refresh.model": "Modell",
   "config.refresh.network": "Nätverk",
   "config.refresh.language": "Språk",
-  "config.refresh.local_models": "Lokala modeller"
+  "config.refresh.local_models": "Lokala modeller",
+  "config.section.treg.label": "treg",
+  "config.section.treg.desc": "Valfritt API för research, medier och godkända åtgärder."
 }

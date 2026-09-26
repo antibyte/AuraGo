@@ -83,5 +83,7 @@
   "config.refresh.model": "मॉडल",
   "config.refresh.network": "नेटवर्क",
   "config.refresh.language": "भाषा",
-  "config.refresh.local_models": "स्थानीय मॉडल"
+  "config.refresh.local_models": "स्थानीय मॉडल",
+  "config.section.treg.label": "treg",
+  "config.section.treg.desc": "शोध, मीडिया और स्वीकृत कार्रवाइयों के लिए वैकल्पिक API।"
 }

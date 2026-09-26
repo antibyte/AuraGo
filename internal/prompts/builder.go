@@ -206,6 +206,7 @@ type ContextFlags struct {
 	HomepageAllowLocalServer bool
 	NetlifyEnabled           bool
 	HereNowEnabled           bool
+	TregEnabled              bool
 	VercelEnabled            bool
 	CloudflareTunnelEnabled  bool
 	WebhooksEnabled          bool
@@ -2540,6 +2541,7 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"homepage", "homepage", func(f *ContextFlags) bool { return f.HomepageEnabled }},
 	{"netlify", "netlify", func(f *ContextFlags) bool { return f.NetlifyEnabled }},
 	{"here_now", "here_now", func(f *ContextFlags) bool { return f.HereNowEnabled }},
+	{"treg", "treg", func(f *ContextFlags) bool { return f.TregEnabled }},
 	{"vercel", "vercel", func(f *ContextFlags) bool { return f.VercelEnabled }},
 	{"email", "email", func(f *ContextFlags) bool { return f.EmailEnabled }},
 	{"cloudflare_tunnel", "cloudflare_tunnel", func(f *ContextFlags) bool { return f.CloudflareTunnelEnabled }},

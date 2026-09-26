@@ -20,6 +20,9 @@ func extractSpecialistRole(sessionID string) string {
 // checkSpecialistToolRestriction checks whether a specialist is allowed to use the given tool/operation.
 // Returns an error message if blocked, or "" if allowed.
 func checkSpecialistToolRestriction(role, action, operation string) string {
+	if role != "" && action == "treg_call" && operation != "read" {
+		return `Tool Output: {"status":"policy_denied","message":"Specialists may only use explicitly approved read-class treg endpoints; ask the main agent for external mutations."}`
+	}
 	// Dedicated native names inherit the existing family restriction.
 	switch {
 	case action == "generate_image":

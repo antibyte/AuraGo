@@ -47,6 +47,12 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Tool System
 
+- treg exposes three schemas for the dynamic catalog, never a schema per endpoint.
+  Trace calls by endpoint and stored action class; specialized roles only receive
+  read grants. Preserve an explicitly unknown sent outcome through cancellation,
+  scrubbing and compression. The service boundary is owned by
+  `internal/tools/AGENTS.md` (treg catalog gateway).
+
 - Server-published configs bind `AuthorizationSnapshots` before publication.
   Scoped/delegated copies retain that runtime-only resolver. Dispatch intersects
   Enabled/Allow/Sudo grants and ReadOnly restrictions immediately before execution;

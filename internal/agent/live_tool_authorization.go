@@ -21,6 +21,7 @@ func dispatchAuthorization(cfg *config.Config) (*config.Config, bool) {
 		return cfg, true
 	}
 	merged := *cfg
+	merged.Treg.MaxCallCostMicro = min(cfg.Treg.MaxCallCostMicro, current.Treg.MaxCallCostMicro)
 	ok := intersectAuthorizationFields(reflect.ValueOf(&merged).Elem(), reflect.ValueOf(current).Elem(), reflect.ValueOf(baseline).Elem())
 	return &merged, ok
 }

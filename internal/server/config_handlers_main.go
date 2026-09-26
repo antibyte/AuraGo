@@ -123,6 +123,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
 		injectHereNowDefaults(rawCfg, s.Cfg)
+		injectTregDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
@@ -2213,6 +2214,7 @@ var vaultKeyMap = map[string]string{
 	"paperless_ngx.api_token":                 "paperless_ngx_api_token",
 	"netlify.token":                           "netlify_token",
 	"here_now.api_key":                        "here_now_api_key",
+	"treg.token":                              "treg_token",
 	"vercel.token":                            "vercel_token",
 	"telnyx.api_key":                          "telnyx_api_key",
 	"cloudflare_tunnel.token":                 "cloudflared_token",

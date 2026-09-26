@@ -515,6 +515,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.NetlifyEnabled
 	case "here_now_enabled":
 		return flags.HereNowEnabled
+	case "treg_enabled":
+		return flags.TregEnabled
 	case "vercel_enabled":
 		return flags.VercelEnabled
 	case "image_generation_enabled":

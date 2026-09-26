@@ -990,6 +990,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	// ── Netlify ──
 	apply("netlify_token", &c.Netlify.Token)
 	apply("here_now_api_key", &c.HereNow.APIKey)
+	apply("treg_token", &c.Treg.Token)
 	apply("vercel_token", &c.Vercel.Token)
 
 	// ── Egg mode ──

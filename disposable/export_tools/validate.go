@@ -160,7 +160,6 @@ func validateBuildResult(result BuildResult) error {
 					targetCounts[scenario.Expectations.TargetTool]++
 				}
 				if scenario.Kind == "direct_success" &&
-					scenario.Expectations.Selector != "" &&
 					(scenario.Language == "de" || scenario.Language == "en") {
 					key := fmt.Sprintf(
 						"%s:%s:%v",
@@ -200,7 +199,11 @@ func validateBuildResult(result BuildResult) error {
 	if languages["de"] != targetScenarioCount*60/100 || languages["en"] != targetScenarioCount*40/100 {
 		return fmt.Errorf("language mix is de=%d en=%d, expected 3000/2000", languages["de"], languages["en"])
 	}
-	directCount, multiCount, err := scenarioOperationBudget(result.OperationCount)
+	fixtureCount := 0
+	for _, tool := range result.Tools {
+		fixtureCount += max(1, len(result.Contracts.Tools[tool.Name].Operations))
+	}
+	directCount, multiCount, err := scenarioOperationBudget(fixtureCount)
 	if err != nil {
 		return err
 	}
@@ -234,6 +237,12 @@ func validateBuildResult(result BuildResult) error {
 			key := fmt.Sprintf("%s:%s:%v", tool.Name, operation.Selector, operation.Value)
 			if !operationCoverage[key]["de"] || !operationCoverage[key]["en"] {
 				return fmt.Errorf("operation %s lacks bilingual direct coverage", key)
+			}
+		}
+		if len(tool.Operations) == 0 {
+			key := fmt.Sprintf("%s::<nil>", tool.Name)
+			if !operationCoverage[key]["de"] || !operationCoverage[key]["en"] {
+				return fmt.Errorf("tool %s lacks bilingual direct coverage", tool.Name)
 			}
 		}
 	}
