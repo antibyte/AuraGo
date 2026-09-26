@@ -287,13 +287,18 @@
             if(fire&&(now.actions||0)>priorActions)result.contacts++;
           }else{
             movePointer(target); // Actual aim input, including moving targets.
-            const projectile=view.projectiles.find(o=>o.active&&Math.hypot(o.vx,o.vy)>10);
-            if(projectile&&!direction){const n=Math.hypot(projectile.vx,projectile.vy);direction={x:projectile.vx/n,y:projectile.vy/n};}
+            const projectile=view.projectiles.filter(o=>o.active&&Math.hypot(o.vx,o.vy)>10).at(-1);
+            const speed=projectile&&Math.hypot(projectile.vx,projectile.vy);
+            if(projectile&&!direction)direction={x:projectile.vx/speed,y:projectile.vy/speed};
             if(direction){
               // First observe the real projectile direction. Pointer-aimed games
               // simply keep aiming; fixed-axis shooters align the player instead.
               const cross=dx*direction.y-dy*direction.x;
               if(Math.abs(cross)>(target.w+p.w)/3)steer(waypoint(view,{...target,x:target.x-direction.x*120,y:target.y-direction.y*120}));
+              // Translation can turn a travel-facing weapon. Once aligned,
+              // face along the established lane again through normal movement.
+              else if(projectile&&(projectile.vx*direction.x+projectile.vy*direction.y)/speed<.9)
+                steer(waypoint(view,{...target,x:p.x+direction.x*120,y:p.y+direction.y*120}));
             }
             const steps=Math.min(128,Math.ceil(Math.hypot(dx,dy)/8));
             const obstructed=view.targets.some(o=>o.solid&&o.id!==target.id&&Array.from({length:steps},(_,i)=>i/steps).some(t=>overlaps({x:p.x+dx*t,y:p.y+dy*t,w:2,h:2},o)));

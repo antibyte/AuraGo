@@ -30,7 +30,7 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 	browser := rod.New().ControlURL(l.MustLaunch()).MustConnect()
 	defer l.Cleanup()
 	defer browser.Close()
-	for _, mode := range []string{"semi", "automatic", "broken_collision", "blind_laser", "blind_laser_broken", "blind_laser_counter", "blind_laser_missing", "formation"} {
+	for _, mode := range []string{"semi", "automatic", "broken_collision", "blind_laser", "blind_laser_broken", "blind_laser_counter", "blind_laser_missing", "formation", "formation_facing", "formation_facing_broken"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			project := Project{Name: "Delayed shooter", Dimension: "2d"}
@@ -52,7 +52,7 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 			if mode != "automatic" {
 				source = bytes.Replace(source, []byte("if (this.inputKeys.down('SPACE')) this.action();"), nil, 1)
 			}
-			if mode == "broken_collision" || mode == "blind_laser_broken" || mode == "blind_laser_counter" {
+			if mode == "broken_collision" || mode == "blind_laser_broken" || mode == "blind_laser_counter" || mode == "formation_facing_broken" {
 				source = bytes.Replace(source, []byte("this.physics.add.overlap(this.shots, this.enemies,"), []byte("this.physics.add.overlap(this.shots, this.physics.add.group(),"), 1)
 			}
 			if strings.HasPrefix(mode, "blind_laser") {
@@ -68,7 +68,7 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 			if mode == "blind_laser_missing" {
 				source = bytes.Replace(source, []byte("this.time.delayedCall(900, () => this.spawn());"), nil, 1)
 			}
-			if mode == "formation" {
+			if strings.HasPrefix(mode, "formation") {
 				// The first visible enemy is far from the firing lane. Later wave
 				// members offer real collisions within the original short check.
 				source = bytes.Replace(source, []byte("this.time.delayedCall(2000, () => this.spawn());"), []byte("this.spawn();for(let i=1;i<5;i++)this.time.delayedCall(i*430,()=>this.spawn());"), 1)
@@ -81,6 +81,18 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 				}
 				source = bytes.Replace(source, []byte("setVelocityY(-500)"), []byte("setVelocityY(-760)"), 1)
 				source = bytes.Replace(source, []byte("object.y < -30"), []byte("object.y < -120"), 1)
+			}
+			if strings.HasPrefix(mode, "formation_facing") {
+				// Steering changes the direction of future shots; stopping keeps
+				// that heading. The driver must turn back after aligning a lane.
+				source = bytes.Replace(source, []byte("lastShot = 0;"), []byte("lastShot = 0; aimX = 0; aimY = -1;"), 1)
+				source = bytes.Replace(source, []byte("this.lastShot = -1000;"), []byte("this.lastShot = -1000;this.aimX=0;this.aimY=-1;"), 1)
+				source = bytes.Replace(source, []byte("\n    super.step(delta);"), []byte("\n    super.step(delta);const fly=this.inputKeys.vector(),length=Math.hypot(fly.x,fly.y);if(length){this.aimX=fly.x/length;this.aimY=fly.y/length;}"), 1)
+				source = bytes.Replace(source, []byte("this.player.x, this.player.y - 24, 6, 18"), []byte("this.player.x+this.aimX*27, this.player.y+this.aimY*27, 14, 14"), 1)
+				source = bytes.Replace(source, []byte("setVelocityY(-760)"), []byte("setVelocity(this.aimX*760,this.aimY*760)"), 1)
+				if !bytes.Contains(source, []byte("setVelocity(this.aimX*760,this.aimY*760)")) {
+					t.Fatal("fixture must fire in the last movement direction")
+				}
 			}
 			if err := os.WriteFile(path, source, 0o600); err != nil {
 				t.Fatal(err)
@@ -104,7 +116,7 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 				t.Fatal(err)
 			}
 			scenarios := []GameScenario{requiredScenarios("shooter")[2]}
-			if mode == "formation" {
+			if strings.HasPrefix(mode, "formation") {
 				scenarios[0].Steps[0].MS = 2500
 				scenarios = append([]GameScenario{{ID: "fire_before_restart", Metric: "actions", Compare: "increased", Steps: []GameTestStep{{Action: "key", Key: "SPACE", MS: 1500}}}}, scenarios...)
 			}
@@ -134,7 +146,7 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 			if mode == "broken_collision" {
 				want = "failed"
 			}
-			if mode == "blind_laser_broken" {
+			if mode == "blind_laser_broken" || mode == "formation_facing_broken" {
 				want = checks[len(checks)-1].Status
 				if want != "failed" && want != "unavailable" {
 					t.Fatalf("broken collisions passed: %+v", checks)

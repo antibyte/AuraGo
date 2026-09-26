@@ -189,6 +189,9 @@ revision publication and standalone export for Phaser and Three.js games.
 - 2D aim at a role may retarget formation members using the observed projectile
   firing lane. Exact IDs still select only that object; keep the original time
   budget and require a metric change plus a physical effect on the pursued target.
+  Keep the alignment lane stable while moving; observe recent projectiles and
+  turn travel-facing weapons back onto that lane through normal movement input.
+  Never assume the initial projectile direction still describes subsequent shots.
 - Asset detail examples must include executable preload/setup methods and preserve the template lifecycle. Asset creation rejects unloaded textures or missing frames; test binding requires a live controlled object assigned by setup. Missing Phaser textures cannot pass asset validation.
 - New templates import and preload exact planned asset roles in common.ts. Every 2D template uses those roles through body(...,role), with uniformly fitted art and separate collision proxies; changes retain this wiring. The build guard rejects pack metadata as a texture key at the shared texture-manager boundary. Gameplay scenarios must allow actual travel time; hit counters represent collisions, including hits on durable targets.
 - Additional plan scenarios are optional (0–8); the server always retains its eight 2D minimums and eight/ten guided 3D minimums (maximum 16 total checks). Check results include the executed finite steps, so repairs distinguish launch/actions from collisions/hits and ESC end from natural defeat. New GameScene templates reject update overrides at startup with hook-specific guidance; preserve common.ts lifecycle and sprite following.
@@ -304,7 +307,8 @@ Do not patch a published game merely because a new starter changed.
 - `GAMEMAKER_SHOOTER_BROWSER=1`: `TestShooterBrowserDelayedSemiAutomatic`
   reproduces blind firing versus aimed hits on a moving offset enemy, plus broken
   collision, missing-target and counter-only failures, and a staggered formation
-  whose first visible member is off the firing lane. `TestShooterScenarioInput*`
+  whose first visible member is off the firing lane, including travel-facing
+  weapons and their broken-collision variant. `TestShooterScenarioInput*`
   covers accepted-plan preservation, budgets, disclosure and custom-input isolation.
 - `GAMEMAKER_GUIDED_BROWSER=1`: starter engine/lifecycle browser checks.
 - `GAMEMAKER_PREVIEW_BROWSER=1`: hidden/resumed previews, delayed layout, invalid

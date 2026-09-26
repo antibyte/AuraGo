@@ -373,6 +373,11 @@ Missing enemies, broken collisions and counter-only changes still block success.
 For a 2D formation, aiming can switch to a member nearer the observed firing lane
 instead of chasing the first enemy entering the viewport. Exact target IDs stay
 exact, and the same time budget and physical-effect requirements apply.
+For weapons that fire in the last movement direction, the driver observes recent
+shots and turns back onto the established firing lane after moving into position.
+This uses ordinary movement keys within the same check; it changes no game source,
+collision rules or counters. Existing published revisions remain playable when an
+edit fails validation.
 Phaser reuses scene instances on restart. Custom cooldowns (such as `lastShot`),
 spawn timestamps and per-run flags must reset in `setup()`; class initializers
 do not run again when the helper resets `elapsed`. Check firing after a restart
