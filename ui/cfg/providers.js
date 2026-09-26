@@ -943,6 +943,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         function providerRoleLabel(role) {
+            if (role === 'llm_router') return t('common.llm_router.title');
             const key = 'config.providers.role_' + String(role || '').trim();
             const label = t(key);
             return (label && label !== key) ? label : String(role || '').trim();

@@ -931,6 +931,7 @@ func Load(path string) (*Config, error) {
 	cfg.PackageManager.AllowRemove = true
 	cfg.PackageManager.AllowUpgrade = true
 
+	cfg.LLMRouter = DefaultLLMRouterConfig()
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -961,6 +962,9 @@ func Load(path string) (*Config, error) {
 	// defaulted value here and let normalization preserve legacy endpoint-based S3.
 	if !yamlHasPath(data, "virtual_computers", "storage", "mode") {
 		cfg.VirtualComputers.Storage.Mode = ""
+	}
+	if err := ValidateLLMRouterConfig(&cfg, false); err != nil {
+		return nil, err
 	}
 	normalizeDeprecatedEmbeddingBackend(&cfg)
 	if err := cfg.MeshCore.Normalize(); err != nil {
@@ -2826,6 +2830,7 @@ func (c *Config) Save(path string) error {
 	}{
 		{[]string{"personality", "core_personality"}, c.Personality.CorePersonality},
 		{[]string{"server", "ui_language"}, c.Server.UILanguage},
+		{[]string{"llm_router"}, c.LLMRouter},
 		{[]string{"auth", "enabled"}, c.Auth.Enabled},
 		{[]string{"webhooks", "outgoing"}, c.Webhooks.Outgoing},
 		{[]string{"uptime_kuma", "enabled"}, c.UptimeKuma.Enabled},

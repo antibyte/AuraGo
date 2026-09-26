@@ -1,6 +1,16 @@
 # Optional task LLM router
 
-Status: proposed implementation plan; no runtime implementation or activation.
+Status: implemented as an optional, disabled-by-default feature. Operator setup
+and current scope are documented in [LLM router](llm-router.md). This file retains
+the design and acceptance criteria; it does not assert a deployed activation.
+
+Version-one boundary: reserved managed-local models keep their existing
+primary/fallback roles and are not offered as category targets. The router
+reuses their existing client/transport when capturing an ordinary fallback.
+Route clients are held in a bounded cache, retired on failover-manager
+reconfiguration/shutdown; active task snapshots retain their accepted clients.
+Local previews and route selection use cached/conservative limits without
+metadata probes. The normal request budget still runs before a completion.
 
 ## Product contract
 

@@ -10,6 +10,14 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- `/api/llm-router/status` and `/api/llm-router/preview` require admin access.
+  Preview is bounded, same-origin, read-only with respect to task/history state,
+  and local by default; only an explicit `helper: true` can consume the saved
+  helper quota. Never return prompts, credentials or endpoint URLs. Chat/desktop
+  preparation shares the agent routing decision before image processing and
+  persistence. Provider deletion guards include every saved router assignment.
+  Verify `TestLLMRouter*`; runtime ownership is `internal/agent/AGENTS.md`.
+
 ### Newspaper integration
 - `/api/desktop/newspaper/` is admin-scoped and same-origin for session writes. The server owns research, delivery and configured destinations; source pages cannot set recipients or invoke send tools.
 - Research requires the enabled model, web scraper and network permission, plus Brave Search or profile-selected RSS feeds. RSS retrieval pins a strictly public IP at each redirect and bounds XML input; feed entries remain leads until the guarded scraper reads the original page. Consider candidates across selected sections before filling the issue. Persist fetched source evidence before model editing, and publish only validated immutable revisions. Expose bounded run progress and sanitized capabilities.

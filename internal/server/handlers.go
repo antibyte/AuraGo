@@ -355,19 +355,6 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		// 1. Save User Input to Short-Term Memory
 		lastUserMsg := req.Messages[len(req.Messages)-1]
-		var imageInputErr error
-		for _, message := range req.Messages {
-			if imageInputErr = validateMainProviderImageParts(turnCfg, message); imageInputErr != nil {
-				break
-			}
-		}
-		if imageInputErr == nil {
-			imageInputErr = validateCurrentMainProviderImageInput(turnCfg, lastUserMsg)
-		}
-		if imageInputErr != nil {
-			jsonError(w, imageInputErr.Error(), http.StatusBadRequest)
-			return
-		}
 		sessionID := speechLabSessionID
 		if lastUserMsg.Role == openai.ChatMessageRoleUser &&
 			handlePendingQuestionChatMessage(w, req, sessionID, lastUserMsg.Content, s.Logger) {
@@ -540,7 +527,26 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// OpenAI-style MultiContent parts for the outgoing LLM request. We do this
 		// here (not in HistoryManager) to avoid bloating persisted history with
 		// base64-encoded image data.
+		req.Messages = finalMessages
+		runCfg.TaskRoutingImageInput = taskRoutingHasImages(finalMessages)
+		if markedSpeechLabInput {
+			runCfg.TaskRoutingMode = "pinned"
+		}
+		if err := agent.PrepareTaskRouting(r.Context(), &req, &runCfg); err != nil {
+			jsonError(w, "Request routing cancelled", http.StatusRequestTimeout)
+			return
+		}
 		cfg := runCfg.Config
+		for _, message := range finalMessages {
+			if err := validateMainProviderImageParts(cfg, message); err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+		if err := validateCurrentMainProviderImageInput(cfg, lastUserMsg); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		workspaceDir := runCfg.Config.Directories.WorkspaceDir
 		for i := range finalMessages {
 			finalMessages[i] = promoteUploadedImagesToMultiContent(cfg, finalMessages[i], workspaceDir, s.Logger)

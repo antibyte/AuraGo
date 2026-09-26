@@ -713,6 +713,9 @@ func (t *aiGatewayAuthTransport) RoundTrip(req *http.Request) (*http.Response, e
 	if t.maxAttempts > 0 {
 		clone.Header.Set("cf-aig-max-attempts", strconv.Itoa(t.maxAttempts))
 	}
+	if single, _ := req.Context().Value(singleCompletionAttemptKey{}).(bool); single {
+		clone.Header.Set("cf-aig-max-attempts", "1")
+	}
 	if t.retryDelayMS > 0 {
 		clone.Header.Set("cf-aig-retry-delay", strconv.Itoa(t.retryDelayMS))
 	}

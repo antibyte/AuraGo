@@ -30,6 +30,14 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- `cfg/llm_router.js` uses the shared saved/draft config path. Empty provider
+  clears its model override; missing saved providers remain visible. Preview
+  requires a clean draft and uses saved settings, with a separate explicit
+  helper action and cancellation on disposal. `common.llm_router.*` covers all
+  sixteen locales. Chat/Desktop `llm_route` badges use text-only, turn-scoped
+  metadata; Dashboard counters never imply unreported usage is free. Verify
+  `TestLLMRouterConfigBrowser`, `TestTaskRouter*` and canonical UI bundles.
+
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Browser acceptance uses `TestDesktopNewspaperBrowser` at wide/narrow and light/dark sizes; backend contracts live in `internal/newspaper/AGENTS.md`.
 
 - Tool configuration consumes `_effective_tool_policy` and `_config_migrations`

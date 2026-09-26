@@ -2777,6 +2777,15 @@ div.toggle.toggle-sm.on::before {
    per WCAG 2.5.5 / Apple HIG / Material guidelines. Several icon
    buttons are visually 32px or smaller; widen them on touch only
    so mouse layouts remain unchanged. */
+.llm-route-badge {
+    display: block;
+    max-width: 100%;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    opacity: 0.75;
+    overflow-wrap: anywhere;
+}
+
 @media (pointer: coarse) {
     .media-doc-row-actions a,
     .media-doc-row-actions button,

@@ -266,6 +266,11 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (response openai.ChatCompletionResponse, retErr error) {
+	if err := PrepareTaskRouting(ctx, &req, &runCfg); err != nil {
+		return response, err
+	}
+	publishTaskRouting(runCfg, broker)
+	defer func() { finishTaskRouting(runCfg, broker) }()
 	runCfg.DiscoveryRunID = acquireDiscoveryRun()
 	defer releaseDiscoveryRun(runCfg.DiscoveryRunID)
 	releaseAgentLoopSlot, err := acquireAgentLoopSlot(ctx)
@@ -2138,6 +2143,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// fall back to /history if the HTTP response was lost (e.g. page refresh
 		// during a long-running agent run).
 		s.progressFeedback.Stop()
+		publishTaskRouting(runCfg, broker)
 		broker.Send("done", i18n.T(cfg.Server.UILanguage, "backend.stream_done"))
 
 		EnforceSTMPRetentionIfConfigured(cfg, shortTermMem, sessionID, s.currentLogger)

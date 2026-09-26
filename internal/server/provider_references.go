@@ -24,6 +24,9 @@ func providerReferences(cfg *config.Config, providerID string) []providerReferen
 	}
 	add("llm.provider", "primary_llm", cfg.LLM.Provider)
 	add("llm.helper_provider", "helper_llm", cfg.LLM.HelperProvider)
+	for area, target := range cfg.LLMRouter.Areas {
+		add("llm_router.areas."+area+".provider", "llm_router", target.Provider)
+	}
 	add("vision.provider", "vision", cfg.Vision.Provider)
 	add("whisper.provider", "speech_to_text", cfg.Whisper.Provider)
 	add("sip.voice.agent_provider_id", "telephone_agent_llm", cfg.SIP.Voice.AgentProviderID)

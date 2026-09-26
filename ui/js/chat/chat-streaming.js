@@ -312,6 +312,11 @@ function connectSSE() {
         tokenEl.textContent = t('chat.token_counter_format', { count: session.toLocaleString() + est });
     });
 
+    window.AuraSSE.on('llm_route', function (payload) {
+        if (!isCurrentSession(payload)) return;
+        window.AuraLLMRouteBadge(chatContent, payload);
+    });
+
     window.AuraSSE.on('question_user', function (payload) {
         if (!isCurrentSession(payload)) return;
         if (typeof window.showQuestionModal === 'function') {

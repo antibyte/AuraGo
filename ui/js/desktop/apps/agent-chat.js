@@ -1234,6 +1234,9 @@
                         if (streamingBubble.classList.contains('vd-streaming')) {
                             queueStreamingBubbleFlush();
                         }
+                    } else if (event === 'llm_route') {
+                        window.AuraLLMRouteBadge(chatLog, data.payload || data);
+                        keepAgentStatusAtEnd();
                     } else if (event === 'thinking_block') {
                         const state2 = data.state || '';
                         if (statusEl && state2 === 'start' && renderer) {

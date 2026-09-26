@@ -7,6 +7,14 @@
   },
   "icons": [
     {
+      "key": "llm_router",
+      "slot": 117,
+      "column": 7,
+      "row": 10,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
       "key": "meshcore",
       "slot": 114,
       "column": 4,

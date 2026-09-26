@@ -189,6 +189,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 }
 
 func (fm *FailoverManager) Stop() {
+	PruneTaskClientCache()
 	select {
 	case <-fm.stopCh:
 	default:
@@ -300,6 +301,16 @@ func (fm *FailoverManager) ActiveProviderAndModel() (string, string) {
 	return fm.primaryType, fm.primaryModel
 }
 
+// ActiveRoute retains provider identity even when both routes use the same model.
+func (fm *FailoverManager) ActiveRoute() ModelRoute {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	if fm.isOnFallback {
+		return fm.fallbackRoute
+	}
+	return fm.primaryRoute
+}
+
 // CandidateRoutes returns every route that can serve this request. The active
 // route is listed first, but callers must budget against all returned routes.
 func (fm *FailoverManager) CandidateRoutes(req openai.ChatCompletionRequest) []ModelRoute {
@@ -340,7 +351,7 @@ func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionReq
 	return routeSupportsRequest(route, req)
 }
 
-func routeSupportsRequest(route ModelRoute, req openai.ChatCompletionRequest) bool {
+func routeSupportsRequest(route ModelRoute, req openai.ChatCompletionRequest, configured ...ProviderCapabilityResult) bool {
 	if strings.TrimSpace(route.Model) == "" {
 		return false
 	}
@@ -370,6 +381,9 @@ func routeSupportsRequest(route ModelRoute, req openai.ChatCompletionRequest) bo
 		Type:  route.ProviderType,
 		Model: route.Model,
 	}, CapabilityFallback{})
+	if len(configured) > 0 {
+		caps = configured[0]
+	}
 	if !caps.Known {
 		// Preserve existing custom-provider behavior for text/tool requests.
 		// Unknown vision remains fail-closed because replaying image content to

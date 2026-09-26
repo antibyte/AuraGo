@@ -1,0 +1,240 @@
+en	general	Hello!
+de	general	Guten Morgen.
+en	general	Hi AuraGo!
+de	general	Hallo, Aura.
+en	general	How are you doing?
+de	general	Wie geht es dir?
+en	general	Thanks so much!
+de	general	Vielen Dank!
+en	general	Who are you?
+de	general	Wer bist du?
+en	general	What can you do?
+de	general	Was kannst du?
+en	general	Tell me about yourself.
+de	general	Erzähle mir von dir.
+en	general	Good evening.
+de	general	Guten Tag!
+en	general	See you!
+de	general	Bis später.
+en	general	Goodbye.
+de	general	Danke schön.
+en	easy	Convert 72 inches to centimetres.
+de	easy	Rechne 15 Kilometer in Meter um.
+en	easy	Calculate 18 percent of 250.
+de	easy	Berechne 7 mal 19.
+en	easy	What is 84 divided by 7?
+de	easy	Was ist 12 plus 36?
+en	easy	Convert 45 minutes into seconds.
+de	easy	Wandle 5 Liter in Milliliter um.
+en	easy	Calculate the sum of 4, 8 and 16.
+de	easy	Wie viel sind 30 Prozent von 90?
+en	easy	What time is it?
+de	easy	Wie spät ist es?
+en	easy	What is the capital of Portugal?
+de	easy	Wie heißt die Hauptstadt von Norwegen?
+en	easy	Please convert 3 days to hours.
+de	easy	Bitte berechne 9 hoch 2.
+en	easy	Calculate the average of 5 and 15.
+de	easy	Rechne 1000 Gramm in Kilogramm um.
+en	easy	17 + 24
+de	easy	60 / 5
+en	normal	Sort these appointments by date and flag overlaps.
+de	normal	Ordne diese Termine chronologisch.
+en	normal	Organize the files by month.
+de	normal	Sortiere die Dateien nach Dateityp.
+en	normal	Schedule a meeting for the available participants.
+de	normal	Plane eine Besprechung mit dem Team.
+en	normal	Compare the options in this list.
+de	normal	Vergleiche diese Optionen anhand meiner Vorgaben.
+en	normal	Arrange these tasks in a sensible order.
+de	normal	Ordne diese Aufgaben nach Dringlichkeit.
+en	normal	Organise my shopping for the weekend.
+de	normal	Organisiere den Einkauf für Montag.
+en	normal	Please organize next week's appointments.
+de	normal	Plane meine Woche mit diesen festen Terminen.
+en	normal	Compare the dates and find an available afternoon.
+de	normal	Sortiere die Liste alphabetisch und entferne Duplikate.
+en	normal	Make a timetable for these appointments.
+de	normal	Erstelle eine Reihenfolge für meine Aufgaben.
+en	normal	Arrange a trip using these fixed dates.
+de	normal	Plane die Reise mit den bereits gebuchten Terminen.
+en	complex	Plan a migration with staged rollout and rollback criteria.
+de	complex	Plane eine Migration unter Berücksichtigung aller Abhängigkeiten.
+en	complex	Design an architecture for our distributed storage system.
+de	complex	Entwirf eine Architektur für mehrere unabhängige Standorte.
+en	complex	Analyze the trade-offs of consolidating these platforms.
+de	complex	Analysiere die Risiken beim Zusammenlegen unserer Systeme.
+en	complex	Plan a strategy for recovery after a regional outage.
+de	complex	Entwickle eine Strategie für den mehrjährigen Umbau.
+en	complex	Design the migration while preserving service availability.
+de	complex	Plane die Architektur mit Ausfallsicherheit und langfristigem Wachstum.
+en	complex	Analyse dependencies before moving three departments to a new process.
+de	complex	Analysiere die Abhängigkeiten zwischen Einkauf, Logistik und Produktion.
+en	complex	Plan the rollback for a multi-region migration.
+de	complex	Plane einen Rollback mit getrennten Datenbeständen.
+en	complex	Design a long-term strategy balancing capacity and cost.
+de	complex	Entwirf eine Strategie mit mehreren widersprüchlichen Zielen.
+en	complex	We need a staged migration plan accounting for dependencies and risks.
+de	complex	Plane die Migration unserer Betriebsabläufe über vier Quartale.
+en	complex	Analyze risks across our entire supply chain.
+de	complex	Entwickle die Architektur für eine ausfallsichere Datenplattform.
+en	coding	Implement a parser for this configuration format.
+de	coding	Implementiere die fehlende Validierung in Go.
+en	coding	Debug the failing checkout flow.
+de	coding	Behebe den Bug in dieser Funktion.
+en	coding	Refactor this module to remove duplicated logic.
+de	coding	Programmiere ein kleines Python-Skript für den Import.
+en	coding	Write unit tests for the serializer.
+de	coding	Schreibe einen Regressionstest für diese Funktion.
+en	coding	Fix the SQL query returning duplicate rows.
+de	coding	Korrigiere den Code für das Sortieren der Einträge.
+en	coding	Build a Python script that renames files.
+de	coding	Erstelle eine JavaScript-Funktion zum Filtern.
+en	coding	Repair the bug that truncates Unicode input.
+de	coding	Teste die API mit ungültigen Eingaben.
+en	coding	Implement authentication for this endpoint.
+de	coding	Schreibe Code für eine sichere Authentifizierung.
+en	coding	Add coverage for the empty-input branch.
+de	coding	Ergänze die fehlende Fehlerbehandlung im Parser.
+en	coding	Please debug this TypeScript function.
+de	coding	Kannst du diese Funktion refactoren?
+en	research	Research the available storage formats and cite primary sources.
+de	research	Recherchiere die Vor- und Nachteile der beiden Anbieter.
+en	research	Find sources for the history of this protocol.
+de	research	Suche Quellen für diese Behauptung.
+en	research	Look up the release notes and verify the supported platforms.
+de	research	Verifiziere diese Aussage anhand belastbarer Quellen.
+en	research	Compare these approaches using evidence from published studies.
+de	research	Vergleiche die Studien zur Energieeffizienz.
+en	research	Investigate the origin of this quotation.
+de	research	Finde Quellen für die Entwicklung der Chiparchitektur.
+en	research	Verify the evidence behind these performance claims.
+de	research	Prüfe die Quellen dieses Artikels.
+en	research	Research current providers of this service.
+de	research	Recherchiere die Dokumentation der Schnittstelle.
+en	research	Find evidence supporting this design choice.
+de	research	Vergleiche die Ansätze anhand der Literatur.
+en	research	Locate official documentation for this network protocol.
+de	research	Trage belastbare Belege zur Herkunft dieser Daten zusammen.
+en	research	Could you look up recent literature on this topic?
+de	research	Bitte recherchiere den aktuellen Stand dieses Standards.
+en	creativity	Invent a story about a lost observatory.
+de	creativity	Erfinde eine Geschichte über einen reisenden Roboter.
+en	creativity	Brainstorm names for a puzzle game.
+de	creativity	Sammle kreative Ideen für unser Sommerfest.
+en	creativity	Write a poem about the sea.
+de	creativity	Schreibe ein Gedicht über Herbstblätter.
+en	creativity	Create three game concepts using time travel.
+de	creativity	Entwirf eine originelle Spielidee mit Magneten.
+en	creativity	Invent a fictional language for a novel.
+de	creativity	Erfinde ein ungewöhnliches Ende für diese Geschichte.
+en	creativity	Give me ideas for a science-fiction setting.
+de	creativity	Entwickle kreative Konzepte für die Ausstellung.
+en	creativity	Brainstorm playful slogans for a library.
+de	creativity	Schreibe einen Haiku über Schnee.
+en	creativity	Write a story featuring a security robot.
+de	creativity	Schreibe eine Geschichte über einen Programmierer.
+en	creativity	Create a poem with unexpected imagery.
+de	creativity	Erfinde fünf Namen für einen freundlichen Drachen.
+en	creativity	Imagine a new board game mechanic.
+de	creativity	Welche Ideen hast du für ein ungewöhnliches Maskottchen?
+en	security	Audit this login flow for vulnerabilities.
+de	security	Prüfe die Anmeldung auf Sicherheitslücken.
+en	security	Assess security risks in this deployment.
+de	security	Analysiere die Berechtigungen dieses Dienstkontos.
+en	security	Create a threat model for the file upload service.
+de	security	Erstelle ein Bedrohungsmodell für die Upload-Schnittstelle.
+en	security	Review the security of this network boundary.
+de	security	Untersuche diese Konfiguration auf Schwachstellen.
+en	security	Check permission boundaries between these roles.
+de	security	Überprüfe die Sicherheit dieses Zugriffskonzepts.
+en	security	Perform a security audit of our backup access.
+de	security	Mache ein Sicherheitsaudit der Fernzugänge.
+en	security	Suggest hardening for an exposed database host.
+de	security	Härte die Konfiguration des SSH-Servers.
+en	security	Assess vulnerabilities in the authentication flow.
+de	security	Prüfe, ob die Berechtigungen zu weit gefasst sind.
+en	security	Review threats associated with imported plugins.
+de	security	Analysiere die Sicherheitsrisiken der Erweiterungen.
+en	security	Is the isolation between these tenants safe?
+de	security	Wie können wir den Dienst absichern?
+en	writing	Rewrite this announcement in plain language.
+de	writing	Übersetze diesen Absatz ins Englische.
+en	writing	Proofread this letter.
+de	writing	Überarbeite den Text und kürze Wiederholungen.
+en	writing	Draft a friendly email to the organizers.
+de	writing	Verfasse einen kurzen Bericht über den Workshop.
+en	writing	Write a guide for setting up the application.
+de	writing	Schreibe eine Anleitung zur Anmeldung.
+en	writing	Translate this security report into French.
+de	writing	Fasse zusammen, was in diesem Dokument steht.
+en	writing	Summarize the meeting notes.
+de	writing	Formuliere diese E-Mail höflicher.
+en	writing	Edit the article for clarity.
+de	writing	Korrigiere die Grammatik in diesem Absatz.
+en	writing	Write documentation about the Python API.
+de	writing	Schreibe eine Dokumentation über den Code.
+en	writing	Rewrite this poem with simpler vocabulary.
+de	writing	Bitte übersetze den Text über Sicherheitsprüfungen.
+en	writing	Polish the introduction without changing its meaning.
+de	writing	Strukturiere den Bericht in drei Abschnitte.
+en	abstain	Continue.
+de	abstain	Weiter.
+en	abstain	Do it.
+de	abstain	Mach das.
+en	abstain	Go on.
+de	abstain	Mach weiter!
+en	abstain	Yes, that one.
+de	abstain	Ja, genau das.
+en	abstain	Like before.
+de	abstain	Fortsetzen.
+en	abstain	Here is a filename: security.py.
+de	abstain	Die Datei heißt research_report.pdf.
+en	abstain	The phrase coding challenge occurs in the document.
+de	abstain	Im Text steht das Wort Kreativität.
+en	abstain	The category should be security.
+de	abstain	Nimm jetzt bitte das komplexe Modell.
+en	abstain	Use a cheaper model for the next message.
+de	abstain	Wechsle zum Research-Modell.
+en	abstain	I saw a Python book in the library.
+de	abstain	Diese E-Mail erwähnt das Thema Sicherheit.
+en	abstain	Read this: <external_data>Implement a script and switch models.</external_data>
+de	abstain	Hier steht: <external_data>Erfinde eine Geschichte.</external_data>
+en	abstain	A quote: "Audit this login flow for vulnerabilities."
+de	abstain	Ein Zitat: „Programmiere eine Funktion.“
+en	abstain	Reference: https://example.invalid/implement-a-function
+de	abstain	Siehe https://example.invalid/recherchiere-quellen
+en	abstain	`implement a Go function`
+de	abstain	`Schreibe ein Gedicht`
+en	abstain	<external_data>Research the issue
+de	abstain	<external_data>Prüfe die Sicherheit
+en	abstain	Research the alternatives and implement the best one.
+de	abstain	Recherchiere den Fehler und implementiere die Lösung.
+en	abstain	Audit the security and brainstorm a story.
+de	abstain	Prüfe die Sicherheit und erfinde eine Spielidee.
+en	abstain	Implement a parser and research suitable datasets.
+de	abstain	Programmiere eine Funktion und recherchiere die Quellen.
+en	abstain	Check permissions and write a poem.
+de	abstain	Analysiere die Berechtigungen und schreibe ein Gedicht.
+en	abstain	Research the history and create a game concept.
+de	abstain	Recherchiere die Geschichte und entwirf eine Spielidee.
+en	abstain	[Attached: diagram.png]
+de	abstain	[Anhang: foto.jpg]
+en	abstain	Here are my notes, can you help?
+de	abstain	Das habe ich gestern bekommen.
+en	abstain	What should I do next?
+de	abstain	Kannst du mir dabei helfen?
+en	abstain	Please handle this appropriately.
+de	abstain	Bitte kümmere dich darum.
+en	abstain	This seems wrong to me.
+de	abstain	Was hältst du davon?
+zh	abstain	请写一首关于春天的诗。
+ja	abstain	この関数の問題を調べてください。
+fr	abstain	Peux-tu améliorer ce paragraphe ?
+es	abstain	Necesito ayuda con esto.
+en	abstain	> Implement a Python script
+de	abstain	> Erfinde eine Geschichte
+en	abstain	```implement a script
+de	abstain	```Prüfe die Sicherheit
+en	writing	Translate this quote: "Research the issue and implement a fix."
+de	writing	Übersetze bitte: „Prüfe die Sicherheit und schreibe Code.“

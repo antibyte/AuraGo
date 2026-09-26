@@ -10,6 +10,31 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+### Optional task LLM router
+
+- `PrepareTaskRouting` runs once before provider-dependent chat preprocessing
+  and loop initialization. Its cloned config/client and decision stay fixed
+  through tool rounds. The ordinary route is unchanged when disabled, unassigned,
+  uncertain or ineligible. Specialized areas precede generic difficulty; an
+  unassigned specialization never cascades to `general` or a difficulty mapping.
+- Automatic routing is limited to ordinary interactive channels. Explicit
+  Desktop/Speech Lab models and mission, maintenance, co-agent, prepared, hooked
+  and checkpointed runs stay pinned. Minimal loops retain their workflow model.
+- Classify immutable human intent only. Local rules and a bounded session/config
+  cache precede helper calls; tool output cannot choose a model. Helper classification
+  uses the existing explicitly enabled helper, one physical attempt, a cancellable deadline,
+  nonblocking concurrency, quota/cooldown and strict labels. Never fall back to
+  the main LLM for classification. Keep reported routing usage separate.
+- `TaskRouteClient` snapshots the chosen, ordinary and eligible fallback routes;
+  budget every candidate and preserve the authorization resolver. Provider
+  failures may advance the snapshot before streaming starts. Cancellation,
+  authorization errors and received stream content never trigger replay.
+  The reserved managed-local provider remains in its existing primary/fallback
+  roles; it is not a category assignment. No implicit model download or family switch.
+- Typed `llm_route` feedback contains session/turn IDs and model/category metadata
+  only. It never enters answers, memory or tool output. See
+  `documentation/llm-router.md`; verify `TestTaskRouter*` and `TestLLMRouter*`.
+
 - Interactive streamed agent turns send a transient localized `progress` event
   after five seconds or when starting a fourth tool step, whichever comes first,
   then at most every 30 seconds until completion. Respect `agent.workflow_feedback`;

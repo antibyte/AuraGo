@@ -598,6 +598,25 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	} else if !opts.SkipDesktopProvider {
 		llmClient = applyDesktopAgentProvider(ctx, s, &cfg)
 	}
+	routingReq := openai.ChatCompletionRequest{Model: cfg.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: message}}}
+	if cfg.LLMRouter.Enabled {
+		history, err := s.ShortTermMem.GetSessionMessages(sessionID)
+		if err != nil {
+			return turn, fmt.Errorf("load desktop routing context: %w", err)
+		}
+		routingReq.Messages = recentMessagesForRequest(sessionID, "", routingReq.Messages, nil, history)
+	}
+	routingRun := buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
+	routingRun.UserIntent = message
+	routingRun.NativeToolSchemas = opts.NativeToolSchemas
+	routingRun.TaskRoutingImageInput = strings.TrimSpace(chatContext.ImageBase64) != "" || taskRoutingHasImages(routingReq.Messages)
+	if opts.RuntimeConfig != nil || opts.ProviderID != "" || (!opts.SkipDesktopProvider && desktopAgentProviderID(ctx, s) != "") {
+		routingRun.TaskRoutingMode = "pinned"
+	}
+	if err := agent.PrepareTaskRouting(ctx, &routingReq, &routingRun); err != nil {
+		return turn, err
+	}
+	cfg, llmClient = *routingRun.Config, routingRun.LLMClient
 	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderRequiresPublicImageURL(&cfg) {
 		return turn, fmt.Errorf("%s", tools.VisionPublicURLRequiredMessage)
 	}
@@ -694,6 +713,9 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
 	turn.runCfg.UserIntent = message
+	turn.runCfg.TaskRouting = routingRun.TaskRouting
+	turn.runCfg.TaskRoutingMode = routingRun.TaskRoutingMode
+	turn.runCfg.TaskRoutingImageInput = routingRun.TaskRoutingImageInput
 	if opts.NativeToolSchemas != nil {
 		turn.runCfg.NativeToolSchemas = append([]openai.Tool{}, opts.NativeToolSchemas...)
 	}

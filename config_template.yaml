@@ -737,6 +737,22 @@ model_catalog:
     disabled_providers: []                                # provider IDs or AuraGo provider types hidden/disabled in catalog status
     catalog_only_visible: true                            # show unsupported upstream providers as read-only catalog entries
     upstream_version: ""                                  # optional note/pin for operators; bundled snapshot metadata remains authoritative
+llm_router:
+  enabled: false
+  helper_fallback: true
+  helper_timeout_ms: 1500
+  helper_max_calls_per_hour: 20
+  areas:
+    general: {provider: "", model: ""}
+    easy: {provider: "", model: ""}
+    normal: {provider: "", model: ""}
+    complex: {provider: "", model: ""}
+    coding: {provider: "", model: ""}
+    research: {provider: "", model: ""}
+    creativity: {provider: "", model: ""}
+    security: {provider: "", model: ""}
+    writing: {provider: "", model: ""}
+
 llm:
     provider: ""
     multimodal: false                                      # deprecated fallback only when provider/model capabilities are unknown

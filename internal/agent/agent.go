@@ -1081,7 +1081,14 @@ func (tc ToolCall) GetArgs() []string {
 // RunConfig holds all the dependencies required to run the agent loop,
 // consolidating the parameter list that was previously over 20 items long.
 type RunConfig struct {
-	DiscoveryRunID string
+	// Empty mode follows the interactive source policy; off/pinned bypass routing.
+	// Auto is for explicit routing preparation such as the administrator preview.
+	TaskRoutingMode string
+	// TaskRouting is frozen after preparation, including every tool round.
+	TaskRouting           *TaskRoutingDecision
+	TaskRoutingImageInput bool
+	TaskRoutingPreview    bool
+	DiscoveryRunID        string
 	// ExecutionHooks are optional server-owned boundaries for isolated jobs.
 	ExecutionHooks     *ExecutionHooks
 	IterationLimit     int

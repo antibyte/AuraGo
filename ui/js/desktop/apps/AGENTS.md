@@ -905,6 +905,11 @@ registration lives in `internal/desktop/types.go`.
 
 ## Local Contracts
 
+- Agent Chat displays transient typed `llm_route` metadata through the shared
+  `AuraLLMRouteBadge` helper. Update the originating turn's badge on fallback,
+  render model/provider strings as text, and keep metadata out of answer bubbles
+  and persisted chat history. Runtime routing is owned by `internal/agent`.
+
 - Built-in app load order is defined in `ui/js/desktop/core/module-loader.js`.
 - `calendar-views.js`, `calendar-editor.js` and `calendar.js` are the Calendar
   source of truth. `desktopMainParts` in `scripts/build-ui-bundles.js` must

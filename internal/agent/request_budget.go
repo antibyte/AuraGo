@@ -92,6 +92,12 @@ func IsContextBudgetExceeded(err error) bool {
 }
 
 func newRequestBudget(ctx context.Context, cfg *config.Config, client llm.ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger) (*RequestBudget, error) {
+	return newRequestBudgetWithLimits(cfg, client, req, func(route llm.ModelRoute, cap int) llm.ModelLimits {
+		return llm.ResolveModelLimits(ctx, route, cap, logger)
+	})
+}
+
+func newRequestBudgetWithLimits(cfg *config.Config, client llm.ChatClient, req openai.ChatCompletionRequest, resolve func(llm.ModelRoute, int) llm.ModelLimits) (*RequestBudget, error) {
 	routes := candidateModelRoutes(cfg, client, req)
 	if len(routes) == 0 {
 		routes = []llm.ModelRoute{{Model: req.Model, Primary: true}}
@@ -105,7 +111,7 @@ func newRequestBudget(ctx context.Context, cfg *config.Config, client llm.ChatCl
 	requestedOutput := req.MaxTokens
 	knownReasoning := false
 	for _, route := range routes {
-		limits := llm.ResolveModelLimits(ctx, route, globalCap, logger)
+		limits := resolve(route, globalCap)
 		knownReasoning = knownReasoning || limits.Reasoning
 		resolved = append(resolved, RequestRouteBudget{Limits: limits})
 	}

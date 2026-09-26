@@ -55,6 +55,7 @@ const SECTIONS = [
             { key: 'omniroute', icon: '◎', label: t('config.section.omniroute.label'), desc: t('config.section.omniroute.desc') },
             { key: 'dograh', icon: '▧', label: t('config.section.dograh.label'), desc: t('config.section.dograh.desc') },
             { key: 'llm', icon: '🧠', label: t('config.section.llm.label'), desc: t('config.section.llm.desc') },
+            { key: 'llm_router', icon: '🔄', label: t('common.llm_router.title'), desc: t('common.llm_router.description') },
             { key: 'fallback_llm', icon: '🔄', label: t('config.section.fallback_llm.label'), desc: t('config.section.fallback_llm.desc') },
             { key: 'local_llm', icon: '◈', label: t('config.refresh.local_models'), desc: t('config.section.local_llm.desc') },
             { key: 'embeddings', icon: '🔗', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
@@ -504,6 +505,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     omniroute: 6,
     dograh: 7,
     llm: 8,
+    llm_router: 117,
     fallback_llm: 9,
     embeddings: 10,
     budget: 11,
@@ -616,6 +618,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
+    llm_router: '<path d="M32 64h25V34h32M57 64h32M57 64v30h32" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18" y="51" width="26" height="26" rx="6" fill="#7da3c8"/><circle cx="94" cy="34" r="11" fill="#6fca8f"/><circle cx="94" cy="64" r="11" fill="#35c7d3"/><circle cx="94" cy="94" r="11" fill="#4f8ee8"/>',
     detective: "<circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"#35c7d3\" opacity=\".15\"/><circle cx=\"54\" cy=\"52\" r=\"27\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"7\"/><path d=\"M74 73 103 102\" stroke=\"#7da3c8\" stroke-width=\"10\" stroke-linecap=\"round\"/>",
     meshcore: "<path d=\"M34 90 64 32 94 90Z\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><circle cx=\"64\" cy=\"32\" r=\"12\" fill=\"#6fca8f\"/><circle cx=\"34\" cy=\"90\" r=\"12\" fill=\"#35c7d3\"/><circle cx=\"94\" cy=\"90\" r=\"12\" fill=\"#4f8ee8\"/>",
     overview: "<g fill=\"#7da3c8\"><rect x=\"28\" y=\"28\" width=\"28\" height=\"28\" rx=\"7\"/><rect x=\"72\" y=\"28\" width=\"28\" height=\"28\" rx=\"7\" opacity=\".72\"/><rect x=\"28\" y=\"72\" width=\"28\" height=\"28\" rx=\"7\" opacity=\".72\"/><rect x=\"72\" y=\"72\" width=\"28\" height=\"28\" rx=\"7\"/></g><path d=\"M43 43h42M43 85h42\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
@@ -3047,6 +3050,7 @@ function scheduleReloadWithRetry(delayMs) {
 /* ── Lazy module loader ── */
 const _moduleCache = {};
 const SECTION_MODULES = {
+    llm_router: { m: 'llm_router', fn: 'renderLLMRouterSection' },
     heartbeat: { m: 'heartbeat', fn: 'renderHeartbeatSection' },
     providers: { m: 'providers', fn: 'renderProvidersSection' },
     realtime_speech: { m: 'realtime_speech', fn: 'renderRealtimeSpeechSection' },

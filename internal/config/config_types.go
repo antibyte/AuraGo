@@ -976,7 +976,8 @@ type Config struct {
 			TrustedProxyCIDRs []string `yaml:"trusted_proxy_cidrs"` // explicit proxy source addresses/CIDRs
 		} `yaml:"https"`
 	} `yaml:"server"`
-	LLM struct {
+	LLMRouter LLMRouterConfig `yaml:"llm_router" json:"llm_router"`
+	LLM       struct {
 		Provider                     string   `yaml:"provider"`           // provider entry ID (references Providers[].ID)
 		ProviderType                 string   `yaml:"-"       json:"-"`   // resolved: openai, openrouter, ollama etc.
 		BaseURL                      string   `yaml:"-"       json:"-"`   // resolved from provider entry

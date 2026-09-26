@@ -682,6 +682,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	registerGo2RTCRoutes(mux, s)
 	registerLocalLLMRoutes(mux, s)
+	registerLLMRouterRoutes(mux, s)
 	s.registerConfigAPIRoutes(mux, sse)
 
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──

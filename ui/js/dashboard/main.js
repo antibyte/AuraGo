@@ -562,6 +562,7 @@
         }
 
         async function loadTabSystem() {
+            loadTaskRouterStats();
             // Set loading state on system cards
             CardState.setLoading('card-operations');
             CardState.setLoading('card-operational-issues');
@@ -622,6 +623,31 @@
                 scrollLogsToBottom();
             }
             if (githubRepos) renderGitHubRepos(githubRepos);
+        }
+
+        async function loadTaskRouterStats() {
+            const container = document.getElementById('llm-router-stats');
+            if (!container) return;
+            const response = await API.getWithStatus('/api/llm-router/status');
+            container.replaceChildren();
+            const line = text => { const p = document.createElement('p'); p.textContent = text; container.appendChild(p); };
+            if (!response.ok) { line(t('common.error')); return; }
+            const data = response.data;
+            const stats = data.stats || {};
+            const label = key => t('common.llm_router.' + key);
+            line(t(data.enabled ? 'common.enabled' : 'common.disabled') + ' · ' + (data.default_model || ''));
+            line(label('since') + ' ' + new Date(stats.since).toLocaleString());
+            line(label('helper_calls') + ': ' + Number(stats.helper_attempts || 0) + ' · ' + label('failures') + ': ' + Number(stats.helper_failures || 0));
+            const tokens = Number((stats.helper_input_tokens || 0) + (stats.helper_output_tokens || 0));
+            const usage = stats.helper_usage_missing ? (stats.helper_usage_reports ? '≥ ' + tokens : '?') : String(tokens);
+            line(label('tokens') + ': ' + usage);
+            line(label('fallback') + ': ' + Number(stats.fallbacks || 0));
+            for (const area of ['general', 'easy', 'normal', 'complex', 'coding', 'research', 'creativity', 'security', 'writing']) {
+                if (stats.decisions?.[area]) line(label('area_' + area) + ': ' + Number(stats.decisions[area]));
+            }
+            for (const source of ['rules', 'cache', 'helper', 'default']) {
+                line(label('source_' + source) + ': ' + Number(stats.sources?.[source] || 0));
+            }
         }
 
         function formatBytes(bytes) {
