@@ -349,6 +349,10 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	if providerType == "manifest" && cfg != nil {
 		transport = &manifestRoutingTransport{base: transport, routing: cfg.Manifest.Routing}
 	}
+	directStepFun := providerType == "stepfun" || isStepFunAPIBaseURL(baseURL)
+	if directStepFun || providerType == "openrouter" {
+		transport = &stepFunChatMessageTransport{base: transport, direct: directStepFun}
+	}
 
 	// Always return a custom HTTP client so every provider gets proper
 	// ResponseHeaderTimeout and transport settings.  Using nil here caused
