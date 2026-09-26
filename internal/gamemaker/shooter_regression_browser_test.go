@@ -30,7 +30,7 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 	browser := rod.New().ControlURL(l.MustLaunch()).MustConnect()
 	defer l.Cleanup()
 	defer browser.Close()
-	for _, mode := range []string{"semi", "automatic", "broken_collision", "blind_laser", "blind_laser_broken", "blind_laser_counter", "blind_laser_missing"} {
+	for _, mode := range []string{"semi", "automatic", "broken_collision", "blind_laser", "blind_laser_broken", "blind_laser_counter", "blind_laser_missing", "formation"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			project := Project{Name: "Delayed shooter", Dimension: "2d"}
@@ -68,6 +68,20 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 			if mode == "blind_laser_missing" {
 				source = bytes.Replace(source, []byte("this.time.delayedCall(900, () => this.spawn());"), nil, 1)
 			}
+			if mode == "formation" {
+				// The first visible enemy is far from the firing lane. Later wave
+				// members offer real collisions within the original short check.
+				source = bytes.Replace(source, []byte("this.time.delayedCall(2000, () => this.spawn());"), []byte("this.spawn();for(let i=1;i<5;i++)this.time.delayedCall(i*430,()=>this.spawn());"), 1)
+				source = bytes.Replace(source, []byte("this.body(480, 450, 30, 36"), []byte("this.body(480, 480, 42, 48"), 1)
+				source = bytes.Replace(source, []byte("this.body(x, 100, 32, 32"), []byte("this.body(170+this.state.spawns*155, -70, 40, 40"), 1)
+				source = bytes.Replace(source, []byte("setVelocityY(70)"), []byte("setVelocityY(78);enemy.setData('born',this.elapsed)"), 1)
+				source = bytes.Replace(source, []byte("\n    super.step(delta); "), []byte("\n    super.step(delta);for(const enemy of this.enemies.getChildren())enemy.body.setVelocityX(Math.cos((this.elapsed-enemy.getData('born'))/1000)*72); "), 1)
+				if !bytes.Contains(source, []byte("Math.cos((this.elapsed-enemy.getData('born'))")) {
+					t.Fatal("formation must retain its authored sway")
+				}
+				source = bytes.Replace(source, []byte("setVelocityY(-500)"), []byte("setVelocityY(-760)"), 1)
+				source = bytes.Replace(source, []byte("object.y < -30"), []byte("object.y < -120"), 1)
+			}
 			if err := os.WriteFile(path, source, 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -90,6 +104,10 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 				t.Fatal(err)
 			}
 			scenarios := []GameScenario{requiredScenarios("shooter")[2]}
+			if mode == "formation" {
+				scenarios[0].Steps[0].MS = 2500
+				scenarios = append([]GameScenario{{ID: "fire_before_restart", Metric: "actions", Compare: "increased", Steps: []GameTestStep{{Action: "key", Key: "SPACE", MS: 1500}}}}, scenarios...)
+			}
 			if mode == "semi" {
 				scenarios = append([]GameScenario{{ID: "old_hold", Metric: "hits", Compare: "increased", Steps: []GameTestStep{{Action: "key", Key: "SPACE", MS: 2400}}}}, scenarios...)
 			}

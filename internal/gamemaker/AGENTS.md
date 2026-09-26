@@ -178,11 +178,17 @@ revision publication and standalone export for Phaser and Three.js games.
 - New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. Failed/cancelled jobs preserve the last playable revision; at most three repair passes are shared by tool and orchestrator validation.
 - Phaser 4.2.1 and Three.js 0.185.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
 - Phaser phase guidance must distinguish dynamic and static Arcade bodies from their game objects. Moving paddles remain dynamic and immovable; body `setVelocity`/`setPosition` runtime errors receive bounded repair hints without weakening validation or increasing the repair budget.
+- Phaser `scene.restart()` reuses the instance. Guidance and source references
+  require custom cooldowns, spawn clocks and per-run flags to reset in `setup()`;
+  class initializers alone cannot reset values against a restarted `elapsed`.
 - Dynamic gameplay checks use bounded `target` steps (move, aim, reach, interact, catch, avoid, select), driven only by normal keys/pointer input and read-only engine geometry. Keep roles/IDs independent of artwork. Never mutate actors, damage, randomness or counters to pass. Target reports require matching steps and physical effects; counter-only changes, missing targets, blocked routes and unsupported controls stay unavailable. Only observed contact/response contradictions fail. `player_distance` is derived from engine positions. Targeted input lives only in the injected preview driver; read-only 3D observations may ship with the common helper. Existing scenario/driver deadlines, lifecycle cleanup, export exclusion and publication gates remain binding.
 - 3D reach/interact steps navigate active targets using live world geometry even
   outside the camera frustum; low FPS pickups leave the viewport before contact.
   Aim/select still require visible targets. Preserve collision/height checks,
   input-only control and actual physical-effect evidence.
+- 2D aim at a role may retarget formation members using the observed projectile
+  firing lane. Exact IDs still select only that object; keep the original time
+  budget and require a metric change plus a physical effect on the pursued target.
 - Asset detail examples must include executable preload/setup methods and preserve the template lifecycle. Asset creation rejects unloaded textures or missing frames; test binding requires a live controlled object assigned by setup. Missing Phaser textures cannot pass asset validation.
 - New templates import and preload exact planned asset roles in common.ts. Every 2D template uses those roles through body(...,role), with uniformly fitted art and separate collision proxies; changes retain this wiring. The build guard rejects pack metadata as a texture key at the shared texture-manager boundary. Gameplay scenarios must allow actual travel time; hit counters represent collisions, including hits on durable targets.
 - Additional plan scenarios are optional (0–8); the server always retains its eight 2D minimums and eight/ten guided 3D minimums (maximum 16 total checks). Check results include the executed finite steps, so repairs distinguish launch/actions from collisions/hits and ESC end from natural defeat. New GameScene templates reject update overrides at startup with hook-specific guidance; preserve common.ts lifecycle and sprite following.
@@ -297,7 +303,8 @@ Do not patch a published game merely because a new starter changed.
   build/context agreement and failed-draft continuation.
 - `GAMEMAKER_SHOOTER_BROWSER=1`: `TestShooterBrowserDelayedSemiAutomatic`
   reproduces blind firing versus aimed hits on a moving offset enemy, plus broken
-  collision, missing-target and counter-only failures. `TestShooterScenarioInput*`
+  collision, missing-target and counter-only failures, and a staggered formation
+  whose first visible member is off the firing lane. `TestShooterScenarioInput*`
   covers accepted-plan preservation, budgets, disclosure and custom-input isolation.
 - `GAMEMAKER_GUIDED_BROWSER=1`: starter engine/lifecycle browser checks.
 - `GAMEMAKER_PREVIEW_BROWSER=1`: hidden/resumed previews, delayed layout, invalid

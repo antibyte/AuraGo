@@ -370,6 +370,13 @@ retains the accepted plan/source, hit requirement, initial spawn waits and total
 duration, with at most four seconds of aiming. It also applies to resumed failed
 drafts, adds no model call or retry, and is disclosed in each affected report.
 Missing enemies, broken collisions and counter-only changes still block success.
+For a 2D formation, aiming can switch to a member nearer the observed firing lane
+instead of chasing the first enemy entering the viewport. Exact target IDs stay
+exact, and the same time budget and physical-effect requirements apply.
+Phaser reuses scene instances on restart. Custom cooldowns (such as `lastShot`),
+spawn timestamps and per-run flags must reset in `setup()`; class initializers
+do not run again when the helper resets `elapsed`. Check firing after a restart
+as well as after a fresh load.
 Results include the exact input steps and durations for focused repairs. The complete run
 is limited to 60 seconds. Commands are bounded
 key/pointer/wait/observe/target operations, never JavaScript expressions. Server-side

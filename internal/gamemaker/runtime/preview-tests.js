@@ -234,7 +234,15 @@
           break;
         }
         prior=new Map(view.targets.map(o=>[o.id,{...o}]));
-        const target=candidates.find(o=>o.id===lock)||candidates.sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+        // A role can name a whole formation. Once a real shot establishes its
+        // direction, pursue the nearest firing lane instead of retaining the
+        // first enemy that entered the viewport far from that lane.
+        const firingLane=command.mode==='aim'&&view.kind==='2d'&&direction;
+        const distance=o=>{
+          const x=o.x-p.x,y=o.y-p.y;
+          return firingLane&&x*direction.x+y*direction.y>0?Math.abs(x*direction.y-y*direction.x):Math.hypot(x,y);
+        };
+        const target=(!firingLane&&candidates.find(o=>o.id===lock))||candidates.sort((a,b)=>distance(a)-distance(b))[0];
         if(!target){apply(new Set(view.mode==='fps'&&view.targets.some(o=>o.active&&(o.id===command.target||o.roles?.includes(command.target)))?['RIGHT']:[]));await wait(50);continue;}
         lock=target.id;saw=true;result.reason='timeout';
         const want=new Set(),elapsed=performance.now()-begin,dx=target.x-p.x,dy=target.y-p.y;

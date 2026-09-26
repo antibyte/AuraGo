@@ -27,6 +27,11 @@ when complexity justifies them.
 - In the installed GameScene template, create objects/colliders in `setup()` and
   continuous gameplay in `step(deltaSeconds)`. The shared `create()`/`update()`
   lifecycle calls these hooks; leave it intact.
+- `scene.restart()` reuses the scene instance: class field initializers do not
+  run again. Reset custom cooldowns, spawn timestamps and per-run flags in
+  `setup()`, alongside the helper's reset of `elapsed`. For example, set
+  `this.lastShot = -1000` there so firing works immediately after every restart.
+  Verify firing after restarting an already active game, not only a fresh load.
 - Use Arcade Physics for simple movement, overlap, collision, bounds, and
   velocities. Avoid Matter unless the design genuinely needs it.
 - Pick a fixed logical resolution and `Phaser.Scale.FIT` with auto-centering
