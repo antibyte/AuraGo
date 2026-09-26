@@ -42,6 +42,11 @@ Use deterministic, scene-first checks. Scene structure is an input to QA: inspec
    restart or continued play.
 6. Check resource and runtime errors, viewport resize, legible UI, and bounded
    frame-rate reporting.
+   Instructions belong before Start or in pause, never in the running HUD.
+   Confirm no simulation before Start, no desktop movement/action row (including
+   narrow windows), and relevant touch controls with release on cancellation.
+   The preview driver uses public Enter input for new starters; never bypass
+   the gate or change counters to make tests pass.
 7. Keep runtime/assets project-local. The agent has no ZIP/browser tool; the
    automated release fixtures verify exported reference games. Never claim that
    you personally tested an export during a normal generation job.

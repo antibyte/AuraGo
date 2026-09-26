@@ -71,6 +71,28 @@ After a validated revision is ready, enter a change request to create the next
 revision. Stop cancels the staging job without changing the last playable
 version.
 
+### Player instructions and controls
+
+New 2D and guided 3D games show their objective and instructions before the first
+run. Select **Start game** or press Enter; the simulation stays frozen until
+then. Instructions disappear during play. The HUD shows only live game status.
+Use P or the small pause button to revisit help, continue or restart. Restarting
+or advancing a stage does not repeat the initial Start screen.
+
+Desktop play uses keyboard/mouse without an on-screen movement/action row, even
+in a narrow window. Touch devices receive a left movement stick and relevant
+actions on the right. Board games use direct taps; platformers expose horizontal
+movement/jump. FPS games separate drag-look from fire/reload; flight and space
+games include altitude controls. Touch cancellation and pause release held input.
+These controls are part of the local exported game and need no Studio connection.
+
+For custom gameplay, set `this.playerUIOptions` in Phaser `setup()`, or
+`config.playerUI` for Three.js: `movement` is `full`, `horizontal` or `none`;
+`action` selects the primary action label, or `false` hides it. Optional
+`instructions` supplies game-specific help. Preserve the installed lifecycle and
+keep `paintHUD()` / `hud(api)` limited to status. Existing authored games retain
+their source and require an explicit game edit to adopt the new helper.
+
 ### Prompt profiles and cache measurements
 
 Planning, editing, source generation and image review use versioned, prepared

@@ -111,6 +111,9 @@ func TestExportedProjectsBrowser(t *testing.T) {
 				t.Fatalf("export startup: %v; errors=%s", err, page.MustEval(`()=>exportErrors`).String())
 			}
 			page.MustActivate()
+			if found, _, _ := page.Has("[data-player-start]"); found {
+				page.MustElement("[data-player-start]").MustClick()
+			}
 			page.MustElement("canvas").MustClick()
 			hold := func(key input.Key) {
 				t.Helper()

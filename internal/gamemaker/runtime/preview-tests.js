@@ -17,7 +17,11 @@
     if (!b?.scene?.sys?.isActive() || !b.player?.active) throw Error('Missing live bindGameTest scene/player: assign this.player to the controlled object in GameScene.setup(). Preserve common.ts create/update; custom scenes must call bindGameTest(this,state,player) in create() on every restart.');
     return b;
   }
-  async function reset() {await press('R',80);await wait(420);}
+  async function reset() {
+    // Start through the same public input as a player; never bypass the gate.
+    if(document.querySelector('[data-player-panel="intro"]:not([hidden])'))await press('ENTER',80);
+    await press('R',80);await wait(420);
+  }
   function snapshot(inspectAssets) {
     const b=binding();if(b.kind==='three')return b.snapshot();
     const {scene,state,player}=b;

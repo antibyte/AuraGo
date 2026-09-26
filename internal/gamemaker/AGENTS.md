@@ -10,6 +10,7 @@ revision publication and standalone export for Phaser and Three.js games.
 - `guided_design.go`, `skills.go`, `skills/`: compact agent contracts and examples.
 - `templates/`: new-project source bases; preserve authored existing source on edits.
 - `runtime/game-flow.js`: player feedback and result/stage UI, driven by engine clocks.
+- `runtime/player-ui.js`: initial Start/help, pause menu and device-specific input UI.
 - `runtime/aurago-game-1.js`: Phaser input/assets and read-only test binding.
 - `assets/game-maker-presentation/` at repository root: editable effects/audio source;
   its build script produces the two bundled effects runtimes here.
@@ -54,6 +55,20 @@ revision publication and standalone export for Phaser and Three.js games.
 - Game flow owns no loop or timers. Pause/inactive state freezes it. Scene shutdown
   or renderer disposal removes feedback, UI and audio resources. Ending play still
   renders the result UI; authored stages rebuild through the engine lifecycle.
+- New starters show objective/instructions once before an explicit Start (button
+  or Enter); freeze simulation, timers, damage and gameplay input until then.
+  Restarts/stage changes within the same game root retain that start state.
+  Running HUDs contain compact live status only. Help/restart live in pause/result
+  menus. Desktop never receives movement/action button rows, including narrow
+  windows. Touch uses a left movement stick and relevant right actions; boards
+  use direct cell input, platformers horizontal movement/jump, FPS separate
+  drag-look/fire/reload, flight/space altitude controls. Release held pointers on
+  cancel, lost capture, pause, blur, inactivity and disposal; retain simultaneous
+  movement/action. Runtime labels cover all 16 locales. The finite preview driver
+  starts through public Enter input; it never bypasses this lifecycle gate.
+  `playerUIOptions` (Phaser) / `config.playerUI` (Three.js) configure the installed
+  helper's objective, instructions, movement and primary action. Preserve custom
+  and published games; new helper versions are not an automatic source migration.
 - Phaser life-based authored rules use `damagePlayer()` and checkpoints; Three.js
   authored rules use `api.damagePlayer(amount)`. Scene-builder health/contact rules
   remain authoritative for scene-driven games. Do not double-apply damage.
@@ -253,6 +268,9 @@ Do not patch a published game merely because a new starter changed.
 - `go test ./internal/gamemaker` and focused agent/server tests.
 - `GAMEMAKER_EXPERIENCE_BROWSER=1`: normal-input contact, feedback, checkpoint,
   pause, stage/result/restart and narrow-screen controls in exported 2D/3D fixtures.
+  `TestPlayerUIBrowser` covers pre-start freeze, compact desktop/narrow-window HUD,
+  menu pause, simultaneous touch input/cancellation, direct board input, FPS
+  drag-look without firing, localized labels and restart cleanup in exports.
 - `GAMEMAKER_TARGET_BROWSER=1`: positive and negative read-only target evidence.
   `TestFPSPickupBrowser` covers normal input, target driving and pickup reset;
   `TestTargetControlBrowser/fps_ground_` covers low/behind, blocked, elevated and

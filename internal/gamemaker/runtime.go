@@ -24,6 +24,9 @@ func bundledRuntimeAssets(dimension string) []runtimeAsset {
 	}, {
 		embeddedPath: "runtime/game-flow.js",
 		projectPath:  "vendor/game-flow.js",
+	}, {
+		embeddedPath: "runtime/player-ui.js",
+		projectPath:  "vendor/player-ui.js",
 	}}
 	if dimension == "2d" {
 		return append(assets, runtimeAsset{

@@ -163,6 +163,7 @@ start(Island);`))
 	if errors := page.MustEval(`()=>worldErrors`).JSON("", " "); errors != "[]" {
 		t.Fatalf("runtime errors: %s", errors)
 	}
+	page.MustElement("[data-player-start]").MustClick()
 	page.MustElement("canvas").MustClick()
 	down := func(keys ...input.Key) {
 		for _, key := range keys {

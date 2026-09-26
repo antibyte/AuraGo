@@ -57,7 +57,7 @@ func TestSourceBatchPreflightSearchAndRuntime(t *testing.T) {
 		if _, err := s.SearchJobFile(ctx, run.Job.ID, "../escape", "value"); err == nil {
 			t.Error("search escaped job")
 		}
-		if s.RuntimeContext(ctx, run.Job.ID)["version"] != "phaser-1" {
+		if s.RuntimeContext(ctx, run.Job.ID)["version"] != "phaser-2" {
 			t.Error("installed runtime not described")
 		}
 		if err := s.writeJobFile(ctx, run.Job.ID, "src/common.ts", "export const custom = 1;"); err != nil {

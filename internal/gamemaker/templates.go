@@ -162,6 +162,7 @@ func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
 			data = []byte(strings.Replace(string(data), "width: 960, height: 540", fmt.Sprintf("width: %d, height: %d", plan.Width, plan.Height), 1))
 			data = []byte(strings.Replace(string(data), "// PLAN_ASSET_IMPORTS", strings.Join(imports, "\n"), 1))
 			data = []byte(strings.Replace(string(data), "const plannedAssets: any = {};", "const plannedAssets: any = {"+strings.Join(entries, ",\n")+"};", 1))
+			data = []byte(strings.Replace(string(data), "{mode:'minimal',objective:''}; // PLAN_PLAYER_UI", "{mode:"+mustJSONString(plan.Template)+",objective:"+mustJSONString(plan.Objective)+"};", 1))
 		}
 		files[target] = data
 	}

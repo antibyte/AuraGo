@@ -156,6 +156,7 @@ func TestBuilderBrowser(t *testing.T) {
 					t.Fatalf("scene startup: %v; errors=%s", err, errors)
 				}
 				page.MustActivate()
+				page.MustElement("[data-player-start]").MustClick()
 				time.Sleep(350 * time.Millisecond)
 				page.MustElement("canvas").MustClick()
 				if dimension == "3d" {

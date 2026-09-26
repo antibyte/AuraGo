@@ -192,12 +192,12 @@ func TestGuidedBrowser(t *testing.T) {
 				t.Fatal("pause/blur drift:", control)
 			}
 			if mode == "fps" || mode == "space" {
-				lost := frame.MustEval(`async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'r'}));window.dispatchEvent(new KeyboardEvent('keyup',{key:'r'}));await new Promise(r=>setTimeout(r,16500));return document.body.innerText.includes('GAME OVER')&&__AURAGO_GAME_TEST__.snapshot().ended===1}`)
+				lost := frame.MustEval(`async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'r'}));window.dispatchEvent(new KeyboardEvent('keyup',{key:'r'}));await new Promise(r=>setTimeout(r,16500));return !!document.querySelector('[data-game-result="lost"]')&&__AURAGO_GAME_TEST__.snapshot().ended===1}`)
 				if !lost.Bool() {
 					t.Fatal("time limit did not end the game")
 				}
 			} else {
-				won := frame.MustEval(`async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'r'}));window.dispatchEvent(new KeyboardEvent('keyup',{key:'r'}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'w'}));await new Promise(r=>setTimeout(r,9000));window.dispatchEvent(new KeyboardEvent('keyup',{key:'w'}));return document.body.innerText.includes('COMPLETE')&&__AURAGO_GAME_TEST__.snapshot().ended===1}`)
+				won := frame.MustEval(`async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'r'}));window.dispatchEvent(new KeyboardEvent('keyup',{key:'r'}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'w'}));await new Promise(r=>setTimeout(r,9000));window.dispatchEvent(new KeyboardEvent('keyup',{key:'w'}));return !!document.querySelector('[data-game-result="won"]')&&__AURAGO_GAME_TEST__.snapshot().ended===1}`)
 				if !won.Bool() {
 					t.Fatal("reachable objective did not complete:", frame.MustEval(`()=>__AURAGO_GAME_TEST__.snapshot()`))
 				}

@@ -85,6 +85,7 @@ func TestExperienceBrowser(t *testing.T) {
 				t.Fatal("audio started before interaction")
 			}
 			page.MustActivate()
+			page.MustElement("[data-player-start]").MustClick()
 			key := input.KeyD
 			if dimension == "3d" {
 				key = input.KeyW

@@ -123,7 +123,7 @@ func CuratedSkillNames() []string {
 }
 
 // Keep the same concise quality contract in planning and implementation context.
-const gameplayExperienceGuidance = `Specify feedback, recovery/result, world/camera and progression in features. Hits need visible/audio responses; death needs recovery or clear defeat; endings need restart/continue controls. Exploration/traversal normally spans several viewports with landmarks and discoveries. Provide distinct areas, stages or evolving challenges; a deliberate single-board/arena is valid. Do not force combat/timers into peaceful ideas. A startup pass or HUD counter proves no game quality.`
+const gameplayExperienceGuidance = `Specify feedback, recovery/result, world/camera and progression. Hits need feedback; death needs recovery/defeat; endings need restart/continue. Use distinct areas/challenges; boards and peaceful worlds are valid. Show instructions once before Start; freeze play until then. Keep only compact status during play. No desktop movement/action buttons; touch uses a left stick and relevant right actions. Put help/restart in pause/results. Preserve helpers; startup proves no quality.`
 
 // PhaseGuidance uses only the embedded, reviewed source, never a project file or
 // a locally replaced skill. Startup still verifies the curated skill registry.

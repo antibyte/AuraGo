@@ -33,8 +33,13 @@ when complexity justifies them.
   so the canvas adapts to the preview without stretching gameplay.
 - Set `parent: 'game-root'` in the Phaser game configuration when using the
   scaffold. A canvas appended after the full-height root is clipped offscreen.
-- Make keyboard controls explicit and include touch or pointer controls when
-  the game concept is likely to be used on mobile.
+- Show instructions once before Start, with simulation frozen until then. Keep
+  `paintHUD()` limited to compact status; help/restart belong in pause/results.
+  New helpers expose `playerUIOptions` in `setup()` for objective/instructions,
+  movement (`full`, `horizontal`, `none`) and action (`jump`, `fire`, `interact`,
+  `launch`, or `false`). Use a left stick/right actions only for touch input;
+  never infer touch from window width. Boards use direct taps. Read installed
+  helpers before using this API in older games; preserve authored source.
 - Reference project assets with relative paths (`assets/...`); load them in
   `preload` and confirm the exact paths returned by `game_maker_asset`. Keep
   map/scene data optional and use source edits for custom mechanics; scene

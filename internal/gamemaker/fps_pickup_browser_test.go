@@ -99,6 +99,9 @@ startGame({mode:'fps',objective:'Collect the item',goal:2,speed:5,duration:0,
 			page.MustWait(`()=>window.__AURAGO_GAME_TEST__?.alive()`)
 			if mode == "normal_input" {
 				page.MustActivate()
+				if found, _, _ := page.Has("[data-player-start]"); found {
+					page.MustElement("[data-player-start]").MustClick()
+				}
 				if err := page.Keyboard.Press(input.KeyW); err != nil {
 					t.Fatal(err)
 				}

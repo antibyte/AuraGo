@@ -52,6 +52,7 @@ func TestBlocksBrowserNaturalOutcomes(t *testing.T) {
 		t.Fatalf("Blocks did not start: %v; errors=%s body=%s", err, page.MustEval("()=>JSON.stringify(window.__blocksErrors||[])").Str(), page.MustEval("()=>document.body.innerText").Str())
 	}
 	page.MustActivate()
+	page.MustElement("[data-player-start]").MustClick()
 	page.MustElement("canvas").MustClick()
 
 	// Move away from the incoming ball and relaunch after each real miss. The

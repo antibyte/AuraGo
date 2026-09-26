@@ -1,9 +1,10 @@
 // Original MIT game bases, adapted from AuraGo's playable low-poly references.
-// AURAGO_RUNTIME_API {"version":"three-2","entry":"startGame(config)","config":["mode","goal","speed","duration","objects[{role,at:[x,y,z],scale,blocksShots?}]","worldBounds:{min,max}","levels","combat:{enemyRange,enemyDamage,enemyCooldown}"],"hooks":["setup(api) after assets load","step(dtSeconds,api)","action(api): false overrides default","reset(api)","dispose(api)"],"api":["scene","camera","player","renderer","state","input.isDown(key)","damagePlayer(amount)","setCheckpoint([x,y,z])","hasLineOfSight(from,to)","event(name,point)","win()","lose()","reset()","nextLevel()"],"units":"seconds, world units, radians; helper owns animation/input/lifecycle; config.step adds rules; builder owns scene damage","example":"startGame({mode:'fps',goal:3,speed:5,duration:120,objects:[{role:'enemy',at:[0,0,10]}],combat:{enemyCooldown:1.5},step(dt,api){}})"}
+// AURAGO_RUNTIME_API {"version":"three-3","entry":"startGame(config)","config":["playerUI:{movement,action,instructions?}","mode","goal","speed","duration","objects[{role,at:[x,y,z],scale,blocksShots?}]","worldBounds:{min,max}","levels","combat:{enemyRange,enemyDamage,enemyCooldown}"],"hooks":["setup(api) after assets load","step(dtSeconds,api)","action(api): false overrides default","reset(api)","dispose(api)"],"api":["scene","camera","player","renderer","state","input.isDown(key)","damagePlayer(amount)","setCheckpoint([x,y,z])","hasLineOfSight(from,to)","event(name,point)","win()","lose()","reset()","nextLevel()"],"units":"seconds, world units, radians; helper owns animation/input/lifecycle; config.step adds rules; builder owns scene damage","example":"startGame({mode:'fps',goal:3,speed:5,duration:120,objects:[{role:'enemy',at:[0,0,10]}],combat:{enemyCooldown:1.5},step(dt,api){}})"}
 import * as A from '../vendor/aurago-three-assets-1.js';
 import {createPresentation,createThreeAdapter} from '../vendor/aurago-effects-3d-1.js';
 import {createScene3D,hasSceneNodes} from '../vendor/scene-builder.js';
 import {createGameFlow,levelChoices,sceneForLevel} from '../vendor/game-flow.js';
+import {createPlayerUI} from '../vendor/player-ui.js';
 import presentationPlan from './presentation.json';
 import scenePlan from './scene.json';
 import mechanicsPlan from './mechanics.json';
@@ -40,15 +41,16 @@ export function startGame(config: any) {
   const player = new T.Group();scene.add(player);
   const floor = new T.Mesh(presentationPlan?.environment==='coast'?new T.CircleGeometry(12,48):new T.PlaneGeometry(200,200),new T.MeshStandardMaterial({color:0x526b4d,roughness:1}));
   floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;floor.visible=config.mode!=='space';scene.add(floor);owned.push(floor);if(floor.visible)presentation?.registerSurface(floor,{kind:'ground'});
-  const hud = document.createElement('div'), crosshair = document.createElement('div'), controls=document.createElement('div');
-  hud.style.cssText='position:absolute;left:18px;top:18px;padding:14px 18px;border-radius:12px;background:#101e2bdd;color:#eef8ff;font:14px/1.6 system-ui;pointer-events:none;white-space:pre-line;max-width:70%';
+  const hud = document.createElement('div'), crosshair = document.createElement('div');
+  hud.dataset.hud='true';
+  hud.className='aurago-player-hud';
+  hud.style.cssText='position:absolute;left:12px;top:12px;padding:6px 10px;border-radius:8px;background:#101e2bcc;color:#eef8ff;font:14px/1.5 system-ui;pointer-events:none;white-space:pre-line;max-width:calc(100% - 170px)';
   crosshair.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;pointer-events:none;font:24px monospace';crosshair.textContent=config.mode==='fps'?'+':'';
-  controls.style.cssText='position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none';
-  root.append(hud,crosshair,controls);
+  root.append(hud,crosshair);
   const keys=new Set<string>();let listeners=0, dragging=false;
   const on=(target:any,name:string,fn:any)=>{target.addEventListener(name,fn,{signal});listeners++};
   let time=0,score=0,hits=0,pickups=0,actions=0,health=100,ammo=8,reloads=0,ended=false,won=false,carrying=false,aim=0,pitch=0,shotAt=-1,reloadAt=0,boostUntil=0,wheelAngle=0;
-  let frame=0,last=0,disposed=false,ready=false,arms:any,weapon:any,avatar:any,paused=false;
+  let frame=0,last=0,disposed=false,ready=false,arms:any,weapon:any,avatar:any,paused=false,playerUI:any;
   let builder:any=null, debugGroup:any=null, cameraBounds:any=null,active=true, sceneBounds:any={min:[-45,0,-20],max:[45,30,170]};
   const sceneState:any={score:0,hits:0,actions:0,lives:0,goal_remaining:0,outcome:0,hit_events:0,pickup_events:0,win_events:0,lose_events:0};
   let lives=Math.max(1,Math.floor(config.lives)||3),respawnAt=0,invulnerableUntil=0;
@@ -76,7 +78,7 @@ export function startGame(config: any) {
   function restartGame(){if(levelIndex){dispose();return startGame({...campaign,levelIndex:0});}reset();}
   function damagePlayer(amount=25){
     if(builder)throw Error('Scene damage is owned by scene health/contact rules');
-    if(ended||paused||!active||time<invulnerableUntil||respawnAt||!Number.isFinite(amount)||amount<=0)return false;
+    if(ended||paused||playerUI?.blocked||!active||time<invulnerableUntil||respawnAt||!Number.isFinite(amount)||amount<=0)return false;
     health=Math.max(0,health-amount);invulnerableUntil=time+.75;
     if(health>0){flow.event('damage',player.position.toArray());return true;}
     lives--;flow.event('death',player.position.toArray());
@@ -97,6 +99,7 @@ export function startGame(config: any) {
     for(const o of objects){o.unit.root.position.copy(o.start);o.unit.root.visible=true;o.attackAt=0}
     if(avatar)clip(avatar,'idle');weaponAction('idle');builder?.reset();cameraUpdate(1);config.reset?.(api);
     checkpoint.copy(player.position);flow.update(0,snapshot());if(levels.length>1)flow.message(levels[levelIndex].title,1.8);
+    playerUI?.reset();
   }
   // Keep the real shot and read-only preview geometry on the same aim path.
   function aimRay(caster:any){
@@ -104,7 +107,7 @@ export function startGame(config: any) {
     else caster.set(player.position,new T.Vector3(0,0,1));
   }
   function fire(){
-    if(ended||!ready||paused||!active||respawnAt||time-shotAt<.22||time<reloadAt)return;
+    if(ended||!ready||paused||playerUI?.blocked||!active||respawnAt||time-shotAt<.22||time<reloadAt)return;
     if(config.mode==='fps'&&!ammo){reload();return}
     shotAt=time;actions++;if(config.mode==='fps'){ammo--;weaponAction('fire')}
     aimRay(ray);
@@ -119,29 +122,28 @@ export function startGame(config: any) {
     if(closest){if(builder) { if(closest.node.behaviors.some((b:any)=>['destroy','health'].includes(b.type)))builder.hit(closest.nodeID,{point:hitPoint.toArray(),normal:hitNormal.toArray()}); }else if(closest.role==='enemy'){flow.event('hit',hitPoint.toArray(),hitNormal.toArray(),config.mode==='space'?'metal':'flesh');closest.unit.root.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}else{presentation?.event('hit',hitPoint.toArray(),hitNormal.toArray(),'stone')}}
   }
   function reload(){
-    if(config.mode!=='fps'||ended||reloadAt>time||ammo===8)return;
+    if(config.mode!=='fps'||!ready||paused||playerUI?.blocked||!active||ended||reloadAt>time||ammo===8)return;
     presentation?.event('reload',camera.position.toArray());
     const name=ammo?'reload':'reload_empty';weaponAction(name);
     reloadAt=time+(weapon?.asset.model.animations.find((c:any)=>c.id===name)?.duration||1.5);
   }
-  function primary(){if(ended||!ready||paused||!active||respawnAt)return;if(config.action?.(api)===false)return;if(builder?.action?.()>0){actions++;return;}if(config.mode==='fps'||config.mode==='space')fire();else if(!ended&&ready&&!paused&&active){boostUntil=time+1.5;actions++}}
+  function primary(){if(ended||!ready||paused||playerUI?.blocked||!active||respawnAt)return;if(config.action?.(api)===false)return;if(builder?.action?.()>0){actions++;return;}if(config.mode==='fps'||config.mode==='space')fire();else if(!ended&&ready&&!paused&&active){boostUntil=time+1.5;actions++}}
   function key(event:KeyboardEvent,down:boolean){
     const name=event.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(name))event.preventDefault();
+    if(down&&(!ready||!active||!playerUI?.started))return;
+    if(down&&!event.repeat&&name==='p'){playerUI.togglePause();return;}
+    if(down&&paused&&name!=='r')return;
     if(down)keys.add(name);else keys.delete(name);
-    if(down&&!event.repeat){if(name==='r')restartGame();if(name==='f')reload();if(name==='escape'){ended=true;document.exitPointerLock?.()}if(name===' ')primary();if(name==='p')paused=!paused}
+    if(down&&!event.repeat){if(name==='r')restartGame();if(name==='f')reload();if(name==='escape'){ended=true;document.exitPointerLock?.()}if(name===' ')primary();}
   }
   on(window,'keydown',(e:KeyboardEvent)=>key(e,true));on(window,'keyup',(e:KeyboardEvent)=>key(e,false));
-  on(window,'message',(e:MessageEvent)=>{if(e.source===parent&&e.data?.type==='aurago:game:active'){active=e.data.active===true;keys.clear();last=0;presentation?.setActive(active)}});
+  on(window,'message',(e:MessageEvent)=>{if(e.source===parent&&e.data?.type==='aurago:game:active'){active=e.data.active===true;keys.clear();dragging=false;last=0;playerUI?.sync(active,ended);presentation?.setActive(active)}});
   on(window,'blur',()=>{keys.clear();dragging=false;document.exitPointerLock?.()});on(window,'resize',resize);
-  on(renderer.domElement,'pointerdown',(e:PointerEvent)=>{dragging=true;if(e.isTrusted)renderer.domElement.setPointerCapture?.(e.pointerId);if(config.mode==='fps'){primary();if(e.isTrusted&&e.pointerType==='mouse')renderer.domElement.requestPointerLock?.()?.catch?.(()=>{})}});
-  on(renderer.domElement,'pointerup',()=>dragging=false);
-  on(renderer.domElement,'pointermove',(e:PointerEvent)=>{if(config.mode==='fps'&&(dragging||document.pointerLockElement===renderer.domElement)){aim-=e.movementX*.003;pitch=T.MathUtils.clamp(pitch-e.movementY*.003,-1.1,1.1)}});
-  for(const [label,keyName] of [['◀','a'],['▲','w'],['▼','s'],['▶','d'],['Action',' '],['Pause','p'],['Reload','f'],['Restart','r'],['Descend','q'],['Ascend','e']]){
-    if(keyName==='f'&&config.mode!=='fps'||['q','e'].includes(keyName)&&!['flight','space'].includes(config.mode))continue;
-    const b=document.createElement('button');b.textContent=label;b.setAttribute('aria-label',label);b.style.cssText='pointer-events:auto;touch-action:none;border:1px solid #8eafc666;border-radius:9px;background:#152635dc;color:white;padding:12px 16px;min-height:44px';
-    on(b,'pointerdown',(e:PointerEvent)=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys.add(keyName);if(keyName===' ')primary();if(keyName==='f')reload();if(keyName==='r')restartGame();if(keyName==='p')paused=!paused});
-    on(b,'pointerup',()=>keys.delete(keyName));on(b,'pointercancel',()=>keys.delete(keyName));controls.append(b);
-  }
+  let lookPointer:number|null=null,lookX=0,lookY=0;
+  renderer.domElement.style.touchAction='none';renderer.domElement.tabIndex=0;
+  on(renderer.domElement,'pointerdown',(e:PointerEvent)=>{if(!ready||playerUI?.blocked||!active||ended)return;dragging=true;lookPointer=e.pointerId;lookX=e.clientX;lookY=e.clientY;if(e.isTrusted)renderer.domElement.setPointerCapture?.(e.pointerId);if(config.mode==='fps'&&e.pointerType!=='touch'&&e.pointerType!=='pen'){primary();if(e.isTrusted)renderer.domElement.requestPointerLock?.()?.catch?.(()=>{})}});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])on(renderer.domElement,event,(e:PointerEvent)=>{if(e.pointerId===lookPointer){dragging=false;lookPointer=null;}});
+  on(renderer.domElement,'pointermove',(e:PointerEvent)=>{if(config.mode!=='fps'||playerUI?.blocked||!active||ended)return;const locked=document.pointerLockElement===renderer.domElement;if(!locked&&(!dragging||e.pointerId!==lookPointer))return;const dx=locked?e.movementX:e.clientX-lookX,dy=locked?e.movementY:e.clientY-lookY;lookX=e.clientX;lookY=e.clientY;aim-=dx*.003;pitch=T.MathUtils.clamp(pitch-dy*.003,-1.1,1.1)});
   function instantiate(role:string,at:number[]){
     const asset=loaded.get(role);if(!asset)throw Error('Unknown role '+role+'. Available: '+Object.keys(roles).join(', '));
     const unit=A.createInstance(asset);unit.root.scale.setScalar(roles[role].scale);unit.root.position.fromArray(at);unit.root.userData.assetID=roles[role].id;scene.add(unit.root);live.push(unit);return unit;
@@ -293,6 +295,11 @@ export function startGame(config: any) {
       for(const unit of [arms,weapon])unit.root.traverse((n:any)=>n.castShadow=false);weaponAction('idle');
     }
     ready=true;reset();resize();config.setup?.(api);
+    playerUI=createPlayerUI({root,objective:config.objective,mode:config.mode,...config.playerUI,
+      key:(name:string,down:boolean)=>{const mapped:any={LEFT:'a',RIGHT:'d',UP:'w',DOWN:'s',SPACE:' '};const k=mapped[name]||name.toLowerCase();if(down)keys.add(k);else keys.delete(k);if(down&&k===' ')primary();if(down&&k==='f')reload();},
+      clear:()=>{keys.clear();dragging=false;lookPointer=null;},restart:restartGame,
+      change:(blocked:boolean)=>{paused=blocked;last=0;hud.hidden=crosshair.hidden=blocked;const notices=root.querySelector<HTMLElement>('[data-game-flow]');if(notices)notices.hidden=blocked;if(blocked)document.exitPointerLock?.();presentation?.setPaused(blocked);}});
+    playerUI.sync(active,ended);
     const binding={kind:'three',canvas:renderer.domElement,alive:()=>ready&&!disposed,snapshot:()=>snapshot(),audit:()=>builder?.audit?.()||null,observeTargets};
     (window as any).__AURAGO_GAME_TEST__=binding;
     frame=requestAnimationFrame(draw);
@@ -374,6 +381,7 @@ export function startGame(config: any) {
   }
   function draw(now:number){
     frame=0;if(disposed||document.hidden)return;
+    playerUI?.sync(active,ended);
     const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
     if(ready&&active&&!ended&&!paused){update(dt);if(!respawnAt&&!ended)config.step?.(dt,api);}
     presentation?.setPaused(paused||!active);
@@ -381,13 +389,13 @@ export function startGame(config: any) {
     if(ended&&!finishReported){finishReported=true;presentation?.audio.stop('engine');document.exitPointerLock?.()}
     builder?.render();
     if(presentation){presentation.audio.listener(camera.position.toArray(),camera.getWorldDirection(vector).toArray());presentation.update(dt);presentation.render()}else renderer.render(scene,camera);
-    hud.textContent=config.objective+'\n'+(ended?(won?'COMPLETE':'GAME OVER'):paused?'PAUSED':builder?[sceneState.goal_remaining?`Goals ${sceneState.goal_remaining}`:'',sceneState.lives>0?`Lives ${sceneState.lives}`:'',sceneState.score?`Score ${sceneState.score}`:''].filter(Boolean).join(' · '):`Score ${score} · Lives ${lives} · Health ${Math.ceil(health)}${config.duration>0?` · ${Math.ceil(config.duration-time)}s`:""}`)+(config.mode==='fps'?` · Ammo ${ammo}`:time<boostUntil?' · BOOST':'')+'\nWASD · '+(config.mode==='fps'?'Drag / arrows: aim · Space: fire · F: reload':config.mode==='space'?'Space: fire · Q/E: altitude':config.mode==='flight'?'Space: boost · Q/E: altitude':'Space: boost')+' · R: restart';
+    hud.textContent=(builder?[sceneState.goal_remaining?`Goals ${sceneState.goal_remaining}`:'',sceneState.lives>0?`Lives ${sceneState.lives}`:'',sceneState.score?`Score ${sceneState.score}`:''].filter(Boolean).join(' · '):`Score ${score} · Lives ${lives} · Health ${Math.ceil(health)}${config.duration>0?` · ${Math.ceil(config.duration-time)}s`:""}`)+(config.mode==='fps'?` · Ammo ${ammo}`:time<boostUntil?' · BOOST':'');
     if(config.hud)hud.textContent=String(config.hud(api));
     frame=requestAnimationFrame(draw);
   }
   on(document,'visibilitychange',()=>{keys.clear();last=0;if(document.hidden){cancelAnimationFrame(frame);frame=0}else if(ready&&!frame&&!disposed)frame=requestAnimationFrame(draw)});
   function dispose(){
-    if(disposed)return;disposed=true;ready=false;config.dispose?.(api);controller.abort();cancelAnimationFrame(frame);keys.clear();document.exitPointerLock?.();
+    if(disposed)return;disposed=true;ready=false;config.dispose?.(api);playerUI?.dispose();controller.abort();cancelAnimationFrame(frame);keys.clear();document.exitPointerLock?.();
     builder?.dispose();for(const record of [player,...objects.map(o=>o.unit.root)])for(const detach of record.userData.sceneAttachments||[])detach();clearSceneDebug();presentation?.dispose();live.forEach(unit=>{if(!unit.procedural)A.disposeInstance(unit)});loaded.forEach(A.releaseAsset);owned.forEach(o=>{o.geometry.dispose();o.material.dispose()});sun.shadow.dispose();renderer.dispose();renderer.forceContextLoss();root.replaceChildren();
     flow.dispose();delete (window as any).__AURAGO_GAME_TEST__;
   }

@@ -24,12 +24,18 @@ Prefer a guided base (`fps`, `exploration`, `transport`, `flight`, `space`) via
 `set_design`. Edit its short main.ts config and game-specific hooks, retaining
 common.ts model loading, animation and lifecycle. All selected roles are bound.
 The runtime descriptor describes this project's installed helper. With
-`three-2`, use `api.hasLineOfSight([x,y,z],[x,y,z])` for custom visibility rules.
+`three-2` or newer, use `api.hasLineOfSight([x,y,z],[x,y,z])` for custom visibility rules.
 Default FPS shots and enemy attacks respect visible tree/obstacle/building
 cover; an object may override `blocksShots`. Configure attack range, damage and
 seconds between attacks through `combat:{enemyRange,enemyDamage,enemyCooldown}`.
 Scene-builder damage stays authoritative for scene-driven games. Older helpers
 do not gain these APIs automatically: inspect their source before extending them.
+`three-3` adds the shared Start/pause UI: `objective` appears once before play;
+`hud(api)` contains compact live status only. Keep simulation frozen until Start.
+Use `config.playerUI` to customize movement (`full`, `horizontal`, `none`), primary
+action (`fire`, `interact`, `boost`, or `false`) and optional `instructions`.
+Desktop uses keyboard/mouse without a button row. Touch uses a left stick and
+relevant right actions; FPS drag-look must not fire. Help/restart belong in menus.
 The following engine reference applies when extending that base or using free
 code (`three`). Import the pinned local Three.js runtime; build a playable game.
 For `base:"three"`, omit `settings` in `set_design`: that object configures only

@@ -90,6 +90,7 @@ startGame({mode:'fps',objective:'Cover test',goal:2,speed:5,duration:0,
 			defer page.Close()
 			page.MustSetViewport(1280, 720, 1, false)
 			page.MustNavigate(url).MustWaitLoad()
+			page.MustElement("[data-player-start]").MustClick()
 			page.MustWait(`()=>window.__AURAGO_GAME_TEST__?.snapshot().elapsed_ms > 6500`)
 			state := page.MustEval(`()=>window.__AURAGO_GAME_TEST__.snapshot()`)
 			if covered && state.Get("health").Int() != 100 {
