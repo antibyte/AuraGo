@@ -77,7 +77,7 @@ GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
 	page.Timeout(5 * time.Second).MustElement("[data-gm-change-form] textarea").MustInput("Unsent creative change")
 	page.MustElement("[data-gm-retry]").MustClick()
 	page.MustEval(`()=>document.querySelector('[data-gm-retry]')?.click()`)
-	if !page.MustEval(`()=>jobRequests.length===1&&jobRequests[0].resume===true&&document.querySelector('[data-gm-change-form] textarea').value==='Unsent creative change'`).Bool() {
+	if !page.MustEval(`()=>jobRequests.length===1&&jobRequests[0].resume===true&&jobRequests[0].validate_restored_draft===true&&document.querySelector('[data-gm-change-form] textarea').value==='Unsent creative change'`).Bool() {
 		t.Fatal("retry did not directly submit one continuation or replaced the unsent edit")
 	}
 	page.MustEval(`()=>finishRetry()`)

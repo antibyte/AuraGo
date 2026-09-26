@@ -899,6 +899,7 @@
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
                 resume,
+                validate_restored_draft: resume,
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
                 asset_pack_ids: state.selectedAssetPackIDs || [],
                 model_asset_ids: state.project.dimension === '3d' ? state.selectedModelAssetIDs || [] : [],

@@ -44,7 +44,11 @@ Unchanged starters, failed builds, asset imports, reads and model activity alone
 do not qualify. The Studio diagnostics report the extension. Tool, repair and
 individual LLM-call limits still apply, cancellation stays immediate, and only
 normal validation can publish the game. **Try again** resumes the saved working
-copy and agent context after a timeout.
+copy and agent context after a timeout. For an edited, published 2D game, a
+retry checks a restored `main.ts` that differs from the published revision
+through fresh full validation before requesting more model output. Failed
+checks enter the usual bounded repair path; an old validation report is never
+accepted as proof for the restored draft.
 
 ## Creating and refining a game
 

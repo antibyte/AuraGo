@@ -470,17 +470,18 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	model := firstNonEmpty(req.Model, project.Model)
 	now := time.Now().UTC()
 	job := Job{
-		ResumeFrom:   resumeFrom,
-		ID:           randomID("job"),
-		ProjectID:    project.ID,
-		Kind:         kind,
-		Prompt:       prompt,
-		Status:       "queued",
-		Phase:        "queued",
-		ProviderID:   providerID,
-		Model:        model,
-		BaseRevision: project.CurrentRevision,
-		CreatedAt:    now,
+		ResumeFrom:            resumeFrom,
+		ValidateRestoredDraft: req.Resume && req.ValidateRestoredDraft && resumeFrom != "",
+		ID:                    randomID("job"),
+		ProjectID:             project.ID,
+		Kind:                  kind,
+		Prompt:                prompt,
+		Status:                "queued",
+		Phase:                 "queued",
+		ProviderID:            providerID,
+		Model:                 model,
+		BaseRevision:          project.CurrentRevision,
+		CreatedAt:             now,
 	}
 
 	s.mu.Lock()
@@ -745,13 +746,15 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 			return
 		}
 	}
-	if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "building", Plan: plan, Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
-		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			s.cancelledJob(job, context.Cause(ctx))
+	if !s.validateRestoredDraftFirst(ctx, job, project) {
+		if err := runner.RunGameMakerJob(ctx, JobRun{Stage: "building", Plan: plan, Job: job, Project: project, Diagnostics: diagnostics, AssetPacks: assetPacks}); err != nil {
+			if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				s.cancelledJob(job, context.Cause(ctx))
+				return
+			}
+			s.terminateJob(job, ctx, err)
 			return
 		}
-		s.terminateJob(job, ctx, err)
-		return
 	}
 	if err := s.updateJobPhase(ctx, &job, "validating"); err != nil {
 		s.terminateJob(job, ctx, err)
@@ -825,6 +828,23 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		map[string]any{"revision": revision})
 	_, _ = s.emit(context.Background(), project.ID, job.ID, "job_status",
 		map[string]any{"status": "ready", "job": job})
+}
+
+// An explicit retry can check an edited, restored 2D source before spending
+// another model call. A fresh validation still owns every publication gate.
+func (s *Service) validateRestoredDraftFirst(ctx context.Context, job Job, project Project) bool {
+	if !job.ValidateRestoredDraft || job.ResumeFrom == "" || job.BaseRevision == 0 || project.Dimension != "2d" {
+		return false
+	}
+	var publishedHash string
+	err := s.db.QueryRowContext(ctx, `SELECT f.content_hash FROM gm_revision_files f
+		JOIN gm_revisions r ON r.id=f.revision_id
+		WHERE r.project_id=? AND r.number=? AND f.path='src/main.ts'`, job.ProjectID, job.BaseRevision).Scan(&publishedHash)
+	if err != nil {
+		return false
+	}
+	main, err := s.ReadJobFile(ctx, job.ID, "src/main.ts")
+	return err == nil && sourceHash(main) != publishedHash
 }
 
 func (s *Service) CancelJob(ctx context.Context, id string) error {

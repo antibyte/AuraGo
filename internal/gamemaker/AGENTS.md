@@ -129,6 +129,11 @@ revision publication and standalone export for Phaser and Three.js games.
   same job, scope, scenarios, source/assets/runtime/plan fingerprint and current
   unexpired browser evidence. Targeted, changed, failed or stale results never
   qualify; explicit validation tools request a fresh run.
+- An explicit Studio retry of a failed published 2D edit may validate its
+  restored draft before another model call when `src/main.ts` differs from the
+  immutable base revision. Missing or unchanged source follows normal building.
+  Fresh full validation, bounded repair and publication gates still apply;
+  a copied validation report never establishes success.
 - Compact design correction errors expose up to eight independent field issues,
   examples and remaining attempts. Draft omission/null/array rules and the
   initial-plus-two-corrections budget remain binding.

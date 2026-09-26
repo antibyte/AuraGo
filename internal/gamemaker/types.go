@@ -87,35 +87,37 @@ type UpdateProjectRequest struct {
 
 type Job struct {
 	// ResumeFrom is server-owned and never accepted as an arbitrary client path.
-	ResumeFrom     string     `json:"-"`
-	ID             string     `json:"id"`
-	ProjectID      string     `json:"project_id"`
-	Kind           string     `json:"kind"`
-	Prompt         string     `json:"prompt"`
-	Status         string     `json:"status"`
-	Phase          string     `json:"phase"`
-	ProviderID     string     `json:"provider_id,omitempty"`
-	Model          string     `json:"model,omitempty"`
-	Error          string     `json:"error,omitempty"`
-	BaseRevision   int64      `json:"base_revision,omitempty"`
-	ResultRevision int64      `json:"result_revision,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	StartedAt      *time.Time `json:"started_at,omitempty"`
-	FinishedAt     *time.Time `json:"finished_at,omitempty"`
+	ResumeFrom            string     `json:"-"`
+	ValidateRestoredDraft bool       `json:"-"`
+	ID                    string     `json:"id"`
+	ProjectID             string     `json:"project_id"`
+	Kind                  string     `json:"kind"`
+	Prompt                string     `json:"prompt"`
+	Status                string     `json:"status"`
+	Phase                 string     `json:"phase"`
+	ProviderID            string     `json:"provider_id,omitempty"`
+	Model                 string     `json:"model,omitempty"`
+	Error                 string     `json:"error,omitempty"`
+	BaseRevision          int64      `json:"base_revision,omitempty"`
+	ResultRevision        int64      `json:"result_revision,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+	StartedAt             *time.Time `json:"started_at,omitempty"`
+	FinishedAt            *time.Time `json:"finished_at,omitempty"`
 }
 
 type StartJobRequest struct {
-	AssetSelections    []AssetSelection `json:"asset_selections,omitempty"`
-	Resume             bool             `json:"resume,omitempty"`
-	Presentation       *Presentation    `json:"presentation,omitempty"`
-	AssetPackIDs       []string         `json:"asset_pack_ids,omitempty"`
-	ModelAssetIDs      []string         `json:"model_asset_ids,omitempty"`
-	PreviewDiagnostics []Diagnostic     `json:"preview_diagnostics,omitempty"`
-	Prompt             string           `json:"prompt"`
-	ProviderID         string           `json:"provider_id"`
-	Model              string           `json:"model"`
-	ImageGeneration    *bool            `json:"image_generation,omitempty"`
-	MusicGeneration    *bool            `json:"music_generation,omitempty"`
+	AssetSelections       []AssetSelection `json:"asset_selections,omitempty"`
+	Resume                bool             `json:"resume,omitempty"`
+	ValidateRestoredDraft bool             `json:"validate_restored_draft,omitempty"`
+	Presentation          *Presentation    `json:"presentation,omitempty"`
+	AssetPackIDs          []string         `json:"asset_pack_ids,omitempty"`
+	ModelAssetIDs         []string         `json:"model_asset_ids,omitempty"`
+	PreviewDiagnostics    []Diagnostic     `json:"preview_diagnostics,omitempty"`
+	Prompt                string           `json:"prompt"`
+	ProviderID            string           `json:"provider_id"`
+	Model                 string           `json:"model"`
+	ImageGeneration       *bool            `json:"image_generation,omitempty"`
+	MusicGeneration       *bool            `json:"music_generation,omitempty"`
 }
 
 type AssetSelection struct {
