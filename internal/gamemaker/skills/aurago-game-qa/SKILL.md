@@ -85,7 +85,7 @@ replace the last working preview with broken output.
 ```
 Omitted scope remains startup-only for compatibility. Full 2D/guided 3D validation runs
 at most 60 seconds: startup, fixed template tests and the accepted plan scenarios.
-The driver accepts only bounded key/pointer/wait/observe commands, no JavaScript.
+The driver accepts only bounded key/pointer/wait/observe/target commands, no JavaScript.
 It takes numeric snapshots before/after real input; the server compares them.
 `bindGameTest(scene,state,player)` connects the current live scene/object and
 state counters: actions, score, hits, spawns, turns, ticks, ended (0 while playing, nonzero after an outcome). Update these
@@ -125,6 +125,12 @@ Failed hit observations include actions, spawns, hit_events and ended when prese
 One action before the first spawn suggests input/spawn timing; actions and spawns
 without contacts require checking projectile travel and blockers. These counts
 are diagnostic evidence, never a substitute for a real collision or health change.
+For a non-scene 2D shooter, pure Space/wait checks of `hits increased` execute
+through observed `enemy` aiming. Initial spawn waits and the total time budget
+are retained, with at most 4000 ms of aiming. Reports label `input adapted` and
+include the actual steps. This applies to resumed plans without editing game
+source. Missing targets, counter-only increments and broken collisions still
+block publication; explicit targets and custom input sequences are preserved.
 For custom mechanics include optional `scenarios` in `set_design`, for example:
 ```json
 {"id":"collect_crystal","metric":"pickup_events","compare":"increased","value":0,"steps":[{"action":"target","target":"crystal","mode":"reach","ms":4000}]}

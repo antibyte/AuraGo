@@ -237,6 +237,15 @@ Movement uses position, not the primary-action counter:
 ```
 `actions` counts actual primary actions such as launching/shooting, `hits` counts
 actual collisions/rule effects, and `player_x/player_y` observe movement directly.
+For a shooting hit, use the real enemy role and allow aiming/travel time:
+```json
+{"id":"laser_hits","steps":[{"action":"target","target":"enemy","mode":"aim","ms":4000}],"metric":"hits","compare":"increased","value":0}
+```
+Repeated Space presses cannot guarantee a target in the firing column. The
+server adapts pure Space/wait `hits increased` checks for non-scene 2D shooters
+to observed enemy aiming within their existing time budget. Stored plans stay
+intact; reports show executed steps and the adaptation. Explicit custom targets,
+pointer/navigation sequences and other metrics retain their declared input.
 For a launch check use `actions`, not `hits`: launching a ball and hitting a
 block are different events. A score increase alone does not prove a power-up
 was collected; ordinary block hits can also award score. Omit a proposed extra

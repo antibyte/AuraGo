@@ -274,7 +274,10 @@ func gameScenarios(plan *GamePlan) []GameScenario {
 			out[i].Value = 1
 		}
 	}
-	return append(out, plan.Scenarios...)
+	for _, scenario := range plan.Scenarios {
+		out = append(out, shooterScenarioInput(plan, scenario))
+	}
+	return out
 }
 
 func customScenarioCoverage(scenarios []GameScenario) (input, primary, rules bool) {
@@ -412,6 +415,9 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 				check.Status = "unavailable"
 				check.Observed += "; blind input did not establish the required gameplay opportunity; use an observed target and the metric for the actual action"
 			}
+		}
+		if scenario.inputNote != "" {
+			check.Observed += "; " + scenario.inputNote
 		}
 		out = append(out, check)
 	}

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 	browser := rod.New().ControlURL(l.MustLaunch()).MustConnect()
 	defer l.Cleanup()
 	defer browser.Close()
-	for _, mode := range []string{"semi", "automatic", "broken_collision"} {
+	for _, mode := range []string{"semi", "automatic", "broken_collision", "blind_laser", "blind_laser_broken", "blind_laser_counter", "blind_laser_missing"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			project := Project{Name: "Delayed shooter", Dimension: "2d"}
@@ -51,8 +52,21 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 			if mode != "automatic" {
 				source = bytes.Replace(source, []byte("if (this.inputKeys.down('SPACE')) this.action();"), nil, 1)
 			}
-			if mode == "broken_collision" {
+			if mode == "broken_collision" || mode == "blind_laser_broken" || mode == "blind_laser_counter" {
 				source = bytes.Replace(source, []byte("this.physics.add.overlap(this.shots, this.enemies,"), []byte("this.physics.add.overlap(this.shots, this.physics.add.group(),"), 1)
+			}
+			if strings.HasPrefix(mode, "blind_laser") {
+				// A real moving enemy spawns outside the player's firing column.
+				// Repeating Space cannot establish a collision opportunity.
+				source = bytes.Replace(source, []byte("delayedCall(2000"), []byte("delayedCall(900"), 1)
+				source = bytes.Replace(source, []byte("this.body(x, 100"), []byte("this.body(680, 100"), 1)
+				source = bytes.Replace(source, []byte("setVelocityY(70)"), []byte("setVelocity(-15,35)"), 1)
+			}
+			if mode == "blind_laser_counter" {
+				source = bytes.Replace(source, []byte("this.state.actions++;"), []byte("this.state.actions++;this.state.hits++;"), 1)
+			}
+			if mode == "blind_laser_missing" {
+				source = bytes.Replace(source, []byte("this.time.delayedCall(900, () => this.spawn());"), nil, 1)
 			}
 			if err := os.WriteFile(path, source, 0o600); err != nil {
 				t.Fatal(err)
@@ -79,6 +93,16 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 			if mode == "semi" {
 				scenarios = append([]GameScenario{{ID: "old_hold", Metric: "hits", Compare: "increased", Steps: []GameTestStep{{Action: "key", Key: "SPACE", MS: 2400}}}}, scenarios...)
 			}
+			if strings.HasPrefix(mode, "blind_laser") {
+				plan.SchemaVersion, plan.Scenarios = 4, []GameScenario{blindShooterScenario()}
+				executed := gameScenarios(&plan)
+				scenarios = executed[len(executed)-1:]
+				if mode == "blind_laser" {
+					baseline := blindShooterScenario()
+					baseline.ID = "blind_baseline"
+					scenarios = append([]GameScenario{baseline}, scenarios...)
+				}
+			}
 			page.MustEval(`scenarios=>{window.__shooterReport=null;addEventListener('message',e=>{if(e.data?.type==='gameplay')window.__shooterReport=e.data});postMessage({source:'aurago-studio',channel:'shooter-fixture',type:'run-tests',scenarios},'*')}`, scenarios)
 			if err := page.Timeout(25 * time.Second).Wait(rod.Eval("()=>!!window.__shooterReport")); err != nil {
 				t.Fatal(err)
@@ -92,8 +116,26 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 			if mode == "broken_collision" {
 				want = "failed"
 			}
+			if mode == "blind_laser_broken" {
+				want = checks[len(checks)-1].Status
+				if want != "failed" && want != "unavailable" {
+					t.Fatalf("broken collisions passed: %+v", checks)
+				}
+			}
+			if mode == "blind_laser_counter" || mode == "blind_laser_missing" {
+				want = "unavailable"
+			}
 			if checks[len(checks)-1].Status != want || mode == "semi" && checks[0].Status != "unavailable" {
 				t.Fatalf("%s: %+v", mode, checks)
+			}
+			if mode == "blind_laser" {
+				before, after := report.Observations[0], report.Observations[1]
+				if checks[0].Status != "unavailable" || before.After["actions"] <= 0 || before.After["spawns"] <= 0 || before.After["hits"] != 0 || after.After["hits"] <= 0 || after.After["player_x"] == after.Before["player_x"] || len(after.TargetRuns) != 1 || after.TargetRuns[0].Effects == 0 {
+					t.Fatalf("blind versus aimed collision not reproduced: %+v", report.Observations)
+				}
+				if !strings.Contains(checks[1].Observed, "input adapted:") {
+					t.Fatal("adaptation missing from repair diagnostics")
+				}
 			}
 			t.Logf("%s: %+v", mode, checks)
 		})

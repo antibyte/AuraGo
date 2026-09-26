@@ -84,6 +84,13 @@ revision publication and standalone export for Phaser and Three.js games.
 - Movement-only target scenarios measure positions, not primary-action counts.
   Explain mismatched legacy checks without marking them passed or fabricating
   counters. A displacement check alone never proves steering smoothness.
+- `shooter_scenarios.go` adapts only non-scene 2D shooter `hits increased`
+  scenarios consisting of Space/wait/observe to live `enemy` aiming at execution.
+  Preserve ID, metric, comparison, initial waits, total duration and accepted
+  plan/source. Target input lasts at most 4000 ms; remaining time stays a wait.
+  Explicit targets, navigation/pointer input, other metrics and scene compositions
+  keep their declared steps. Reports disclose adaptation and executed steps.
+  Target effects and real hits remain mandatory; no extra calls, checks or retries.
 - Visual review stays advisory and uses the selected multimodal route directly.
   Request JSON mode only for supported providers; tolerate normal JSON wrappers
   and allow at most one format correction within the original review deadline.
@@ -288,6 +295,10 @@ Do not patch a published game merely because a new starter changed.
   `TestUpgradeThreePickupObservation` and `TestLegacyThreePickupBuildAndResume`
   cover exact recognition, authored-source preservation, reset instrumentation,
   build/context agreement and failed-draft continuation.
+- `GAMEMAKER_SHOOTER_BROWSER=1`: `TestShooterBrowserDelayedSemiAutomatic`
+  reproduces blind firing versus aimed hits on a moving offset enemy, plus broken
+  collision, missing-target and counter-only failures. `TestShooterScenarioInput*`
+  covers accepted-plan preservation, budgets, disclosure and custom-input isolation.
 - `GAMEMAKER_GUIDED_BROWSER=1`: starter engine/lifecycle browser checks.
 - `GAMEMAKER_PREVIEW_BROWSER=1`: hidden/resumed previews, delayed layout, invalid
   canvases and loading-HUD recovery in Chrome.

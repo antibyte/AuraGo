@@ -362,10 +362,17 @@ This compatibility mode is a startup check, not a full gameplay check.
 0–8 optional plan scenarios. The schema example defaults to an empty list: movement,
 launch/action and collision checks are already supplied by the server. Additional
 checks must distinguish a new deterministic effect; score alone cannot prove
-power-up collection. Existing plan scenarios still run unchanged. Results include
-the exact input steps and their durations for focused repairs. The complete run
+power-up collection. Custom target/navigation/pointer scenarios retain their input.
+For a non-scene 2D shooter, a `hits increased` scenario containing only Space,
+wait and observe commands uses observed enemy aiming during execution. Repeated
+blind shots cannot establish a target in the firing column. This adaptation
+retains the accepted plan/source, hit requirement, initial spawn waits and total
+duration, with at most four seconds of aiming. It also applies to resumed failed
+drafts, adds no model call or retry, and is disclosed in each affected report.
+Missing enemies, broken collisions and counter-only changes still block success.
+Results include the exact input steps and durations for focused repairs. The complete run
 is limited to 60 seconds. Commands are bounded
-key/pointer/wait/observe operations, never JavaScript expressions. Server-side
+key/pointer/wait/observe/target operations, never JavaScript expressions. Server-side
 comparisons check input, primary action, rules, timers, a six-second late-event
 interval, terminal state, sprite integrity and two consecutive restarts. Missing
 measurements are unavailable, not passed. A new build invalidates prior evidence

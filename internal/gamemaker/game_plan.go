@@ -66,6 +66,9 @@ type GameScenario struct {
 	Metric  string         `json:"metric"`
 	Compare string         `json:"compare"`
 	Value   float64        `json:"value"`
+
+	// Server-owned execution note; never accepted from or persisted in a plan.
+	inputNote string
 }
 
 type GameTestStep struct {
