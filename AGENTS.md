@@ -397,6 +397,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 ## Additional Product Contracts
 
+- The optional task LLM router is planned in `documentation/llm-router-plan.md`;
+  this is a proposed implementation contract, not an active runtime feature.
 - Newspaper's planned product, editorial, delivery, and acceptance contract is
   `documentation/newspaper-plan.md`; keep it aligned with the implemented app.
 - Keep `README.md` user-facing, English, playful, and geeky with the original AuraGo gopher. Use compact, casual copy naming real features and integrations, not corporate slogans. Keep claims source-aligned. `assets/readme/` artwork should depict real features, structure, and connections; verify labels/arrows, authentic screenshots, Markdown explanations, and light/dark desktop/mobile rendering.
