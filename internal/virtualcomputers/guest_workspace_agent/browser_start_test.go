@@ -27,9 +27,10 @@ func TestManagedBrowserSurvivesStartupRequest(t *testing.T) {
 	}
 	t.Logf("browser executable: %s", executable)
 	var output bytes.Buffer
+	profileDir := t.TempDir()
 	options := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.ExecPath(executable),
 		chromedp.NoSandbox, chromedp.Flag("disable-dev-shm-usage", true),
-		chromedp.UserDataDir(t.TempDir()), chromedp.CombinedOutput(&output))
+		chromedp.UserDataDir(profileDir), chromedp.CombinedOutput(&output))
 	allocatorCtx, closeAllocator := chromedp.NewExecAllocator(context.Background(), options...)
 	defer closeAllocator()
 	requestCtx, endRequest := context.WithTimeout(context.Background(), 20*time.Second)
@@ -61,6 +62,11 @@ func TestManagedBrowserSurvivesStartupRequest(t *testing.T) {
 	case <-chromedp.FromContext(browserCtx).Browser.LostConnection:
 	default:
 		t.Fatal("browser connection remained open after close")
+	}
+	closeBrowser() // Explicit and deferred shutdown must be idempotent.
+	closeAllocator()
+	if err := os.RemoveAll(profileDir); err != nil {
+		t.Fatalf("browser profile still in use after close: %v", err)
 	}
 }
 

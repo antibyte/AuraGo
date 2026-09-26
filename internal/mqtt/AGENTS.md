@@ -35,6 +35,10 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   mission-key owners; use their maximum requested QoS. Only a matching SUBACK
   grant of 0, 1 or 2 establishes success. Preserve failed desired work and report
   partial grants separately. Manual removal must preserve other owners.
+- Reconciliation publishes copies of pending subscription/ledger maps under
+  `subscriptionMu` before broker waits. Its subsequent unlocked result updates
+  must never share those maps with status or ledger readers. Status remains
+  available while SUBACK or unsubscribe replies are pending.
 - Persistent-session ledgers contain ownership and confirmed/pending filter
   changes only. Persist atomically per broker/client identity; never store
   credentials or payloads. Restore confirmed manual owners, reconcile managed
@@ -59,6 +63,9 @@ Broker configuration, subscriptions, relays, and mission dispatch.
 ## Verification
 
 - Run `go test ./internal/mqtt` and the named cross-component checks in the contracts above when those paths change.
+- Subscription concurrency: `go test -race ./internal/mqtt` and
+  `go test -race ./internal/server -run MQTT`. Keep the deterministic
+  `TestMQTTReconciliationKeepsPublishedMapsSeparateFromBrokerResults` regression.
 
 ## Child DOX Index
 

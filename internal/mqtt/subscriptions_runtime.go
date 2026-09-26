@@ -3,6 +3,7 @@ package mqtt
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"aurago/internal/config"
@@ -224,7 +225,12 @@ func (c *MQTTController) reconcileGenerationSubscriptions(gen *mqttGeneration, c
 		}
 	}
 	gen.subscriptionMu.Lock()
-	gen.grantedFilters, gen.grantedDesired, gen.knownFilters, gen.subscriptions = granted, grantedDesired, known, statuses
+	// Publish pending state without sharing the working maps that broker
+	// results mutate below. Status and ledger readers use subscriptionMu.
+	gen.grantedFilters = maps.Clone(granted)
+	gen.grantedDesired = maps.Clone(grantedDesired)
+	gen.knownFilters = maps.Clone(known)
+	gen.subscriptions = maps.Clone(statuses)
 	gen.subscriptionMu.Unlock()
 	if len(removed) > 0 || len(toSubscribe) > 0 {
 		if err := c.persistGenerationLedger(cfg, gen); err != nil {

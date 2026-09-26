@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Workspace lease and managed Garage storage lifecycle.
+Workspace leases, managed Garage storage and guest browser lifecycle.
 
 ## Ownership
 
@@ -12,6 +12,9 @@ Workspace lease and managed Garage storage lifecycle.
 
 ### Manual machine networking
 - `virtual_computers.allow_internet` is the parent gate for manual machine launches. The New computer dialog offers Internet and Offline only when the gate is enabled, defaults to Internet in that case, and sends the explicit per-machine `allow_internet` choice. The server rejects a direct internet-enabled launch while the gate is off; existing offline machines are not silently reconfigured.
+
+### Guest browser lifecycle
+- The managed browser belongs to its session, not the opening RPC deadline. Session close is idempotent and asks Chrome to shut down gracefully with a five-second deadline, then forces process cleanup before removing the profile. Startup cancellation still aborts allocation immediately.
 
 ### Virtual Computers Storage / Managed Garage Contract
 - Workspace close treats boringd's JSON `404 {"error":"not found"}` as completed deletion, clears stale errors, closes jobs/browser sessions/grants and resolves only that workspace's `lease_close_failed` issue. Router/proxy 404s, authentication failures and server errors remain failures; closed workspaces must leave lease reconciliation.
@@ -26,6 +29,7 @@ Workspace lease and managed Garage storage lifecycle.
 ## Verification
 
 - Run `go test ./internal/virtualcomputers` and the named cross-component checks in the contracts above when those paths change.
+- With Chrome or Chromium installed, run `go test ./internal/virtualcomputers/guest_workspace_agent -run TestManagedBrowser -count=20` to cover request-independent browser lifetime, repeated close and immediate profile removal.
 
 ## Child DOX Index
 

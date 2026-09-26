@@ -1,13 +1,14 @@
 package tools
 
 import (
-	"aurago/internal/config"
 	"testing"
 	"time"
+
+	"aurago/internal/config"
 )
 
 func TestComposioDiscoveryRequiresVerifiedConnection(t *testing.T) {
-	cfg := config.ComposioConfig{UserID: "disclosure-fixture-user"}
+	cfg := config.ComposioConfig{UserID: "disclosure-fixture-user", CacheTTLSeconds: 300}
 	client := NewComposioClientFromConfig(cfg)
 	key := composioConnectionKey(client.baseURL, client.apiKey, cfg.UserID, "calendar")
 	t.Cleanup(func() {

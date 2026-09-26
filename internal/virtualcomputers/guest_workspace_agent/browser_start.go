@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/browser"
@@ -33,5 +34,12 @@ func startManagedBrowser(requestCtx, allocatorCtx context.Context, downloadDir s
 		}
 		return nil, nil, err
 	}
-	return browserCtx, closeBrowser, nil
+	return browserCtx, sync.OnceFunc(func() {
+		// Let Chrome stop its child processes and profile writers before the
+		// caller removes the profile. Killing only the parent can race cleanup.
+		shutdownCtx, cancelShutdown := context.WithTimeout(browserCtx, 5*time.Second)
+		defer cancelShutdown()
+		defer closeBrowser() // Force cleanup if the graceful close fails or times out.
+		_ = chromedp.Cancel(shutdownCtx)
+	}), nil
 }

@@ -55,7 +55,10 @@ print(json.dumps({"value": args.get("value")}))
 
 	cfg := &config.Config{}
 	cfg.Agent.AllowPython = true
+	cfg.Agent.AllowUnsafeHostExecution = true // The fixture intentionally runs its local echo script.
 	cfg.Directories.WorkspaceDir = workspace
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(cfg))
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
 	dc := &DispatchContext{
 		Cfg:    cfg,
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),

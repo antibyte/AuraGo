@@ -338,6 +338,12 @@ func TestHandleDashboardMemoryReflectionRunCreatesLatestReflection(t *testing.T)
 	if err := stm.InitJournalTables(); err != nil {
 		t.Fatalf("InitJournalTables: %v", err)
 	}
+	if err := stm.InitErrorLearningTable(); err != nil {
+		t.Fatalf("InitErrorLearningTable: %v", err)
+	}
+	if err := stm.InitLearnedRulesTable(); err != nil {
+		t.Fatalf("InitLearnedRulesTable: %v", err)
+	}
 
 	cfg := &config.Config{}
 	cfg.MemoryAnalysis.Enabled = true

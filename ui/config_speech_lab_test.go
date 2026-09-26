@@ -50,10 +50,9 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		"provider.runtime_chat?.configured !== true",
 		"backend.default_voice",
 		"speechLabStatus?.voice",
-		"const SPEECH_LAB_BROWSER_PORT = '8766'",
 		"function speechLabBrowserURL(",
-		"new URL(window.location.href)",
-		"if (!/^https?:$/.test(url.protocol)",
+		"return configData?.auth?.enabled === false ? '' : '/speech-lab/';",
+		"speechLabField('speech_lab.browser_backend_url'",
 		"btn-speech-lab",
 		"function speechLabStage(",
 		"function speechLabIsASR(",
@@ -85,8 +84,10 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 			t.Fatalf("Speech Lab config module contains forbidden surface %q", forbidden)
 		}
 	}
-	if strings.Contains(module, `url.protocol = 'http:'`) {
-		t.Fatal("Speech Lab browser URL must preserve HTTPS for the embedded Tailscale TLS listener")
+	for _, forbidden := range []string{"SPEECH_LAB_BROWSER_PORT", "new URL(window.location.href)", "url.port =", "url.protocol ="} {
+		if strings.Contains(module, forbidden) {
+			t.Fatalf("Speech Lab must use authenticated same-origin ingress, found %q", forbidden)
+		}
 	}
 }
 
