@@ -39,6 +39,10 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 		{"2d", "platformer", "timeout", "export const requestedGame = 7;", ""},
 		{"2d", "platformer", "stop", "export const requestedGame = 7;", "wrapped"},
 		{"3d", "flight", "stop", "export const requestedGame = 7;", "wrapped"},
+		{"3d", "fps", "stop", "export const requestedGame = 7;", "function"},
+		{"3d", "fps", "stop", "export const requestedGame = 7;", "json"},
+		{"3d", "fps", "stop", "export const requestedGame = 7;", "wrapped-json"},
+		{"3d", "fps", "stop", "export const requestedGame = 7;", "flat-json"},
 		{"3d", "flight", "stop", "export const requestedGame = ;", "wrapped"},
 		{"3d", "flight", "stop", "export const requestedGame = 7;", "stale"},
 		{"3d", "flight", "stop", "export const requestedGame = 7;", "wrong-file"},
@@ -76,6 +80,16 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				if requests == 1 && (len(body.Messages) != 2 || scenario.base != "three" && !strings.Contains(body.Messages[1].Content, "src/common.ts") || !strings.Contains(body.Messages[1].Content, "src/main.ts")) {
 					t.Error("missing actual source context")
 				}
+				if requests == 1 {
+					_, snapshot, _ := strings.Cut(body.Messages[len(body.Messages)-1].Content, "<external_data>\n")
+					snapshot, _, _ = strings.Cut(snapshot, "\n</external_data>")
+					var data struct {
+						Target map[string]string `json:"source_target"`
+					}
+					if json.Unmarshal([]byte(snapshot), &data) != nil || data.Target["job_id"] != activeJobID || data.Target["path"] != "src/main.ts" || data.Target["expected_sha256"] != sourceRevision {
+						t.Error("source prompt omitted the current job or file revision")
+					}
+				}
 				w.Header().Set("Content-Type", "text/event-stream")
 				fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"Keep the unusual movement rule\"}}]}\n\n")
 				w.(http.Flusher).Flush()
@@ -84,6 +98,22 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				wireCode := scenario.code
 				if scenario.envelope != "" {
 					wireCode = starterSourceEnvelope(activeJobID, sourceRevision, wireCode)
+					if scenario.envelope == "function" {
+						wireCode = starterFunctionSourceEnvelope(scenario.code)
+					}
+					if strings.Contains(scenario.envelope, "json") {
+						fields := map[string]string{"path": "src/main.ts", "content": scenario.code}
+						var value any = map[string]any{"name": "game_maker_file", "arguments": fields}
+						if scenario.envelope == "flat-json" {
+							fields["action"] = "game_maker_file"
+							value = fields
+						}
+						encoded, _ := json.Marshal(value)
+						wireCode = string(encoded)
+						if scenario.envelope == "wrapped-json" {
+							wireCode = "<tool_call>" + wireCode + "</tool_call>"
+						}
+					}
 					if scenario.envelope == "stale" {
 						wireCode = strings.Replace(wireCode, sourceRevision, "stale", 1)
 					}
@@ -143,11 +173,11 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				}
 				after, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
 				commonAfter, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/common.ts")
-				valid := scenario.finish == "stop" && strings.Contains(scenario.code, "requestedGame") && (scenario.envelope == "" || scenario.envelope == "wrapped")
+				valid := scenario.finish == "stop" && strings.Contains(scenario.code, "requestedGame") && scenario.envelope != "stale" && scenario.envelope != "wrong-file"
 				if valid && (err != nil || !strings.Contains(after, "export const requestedGame =") || strings.Contains(after, "```")) {
 					t.Errorf("code not written: %v", err)
 				}
-				if valid && scenario.envelope == "wrapped" {
+				if valid && scenario.envelope != "" {
 					build := svc.BuildJob(ctx, run.Job.ID)
 					broken := strings.Contains(scenario.code, "= ;")
 					if broken && (build.OK || len(build.Diagnostics) == 0) || !broken && (!build.OK || build.RuntimeStatus != "unverified") {

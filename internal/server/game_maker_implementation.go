@@ -43,7 +43,11 @@ func (r *gameMakerAgentRunner) implementGameStarter(ctx context.Context, cfg *co
 	if err != nil {
 		return err
 	}
-	data, err := json.Marshal(map[string]any{"request": gameMakerUserIntent(run), "previous_user_requests": requests, "plan": compactGameMakerPlan(run.Plan), "files": files, "imports": compactGameMakerImports(run.AssetPacks)})
+	data, err := json.Marshal(map[string]any{
+		"request": gameMakerUserIntent(run), "previous_user_requests": requests,
+		"plan": compactGameMakerPlan(run.Plan), "files": files, "imports": compactGameMakerImports(run.AssetPacks),
+		"source_target": map[string]string{"job_id": run.Job.ID, "path": "src/main.ts", "expected_sha256": main.SHA256},
+	})
 	if err != nil {
 		return err
 	}

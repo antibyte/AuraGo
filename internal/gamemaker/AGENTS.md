@@ -86,6 +86,16 @@ revision publication and standalone export for Phaser and Three.js games.
   Repair packets preserve failed input steps, passed checks, source diagnostics
   and the remaining shared budget. Tool-result telemetry records only allowlisted
   operation/status, phase and duration, never arguments, output or reasoning.
+- Tool-free starter generation supplies the current job, fixed `src/main.ts`
+  target and source digest. Its request view retains available reasoning and the
+  current snapshot, omitting earlier tool calls, results and rejected source;
+  the private archive remains complete. A completed single `game_maker_file`
+  write envelope (arg-key XML, function/parameter XML, or name/arguments or flat
+  action JSON) may supply source data without tool dispatch. Omitted write/job/
+  digest metadata inherits the server binding; explicit metadata must match.
+  Reject extra/duplicate fields, other targets, mixed prose and incomplete
+  output. The checked write still rejects concurrent edits. Format correction
+  shares one retry with stream/deadline recovery; normal validation owns success.
 - Game Maker streams use the configured per-call LLM timeout through a request-local retry override; the global chat retry timeout is unchanged. Require a complete stream marker before executing generated calls, retain interrupted reasoning privately, and distinguish timeout/truncation from empty completion. An empty new-game build can reach the existing bounded unchanged-starter recovery only with an accepted plan; all compiler/browser/publication gates still apply. Model progress events carry only allowlisted status codes, never reasoning or provider text.
 - Game Maker projects use `Games/<slug>` as their only persistent identity and live below the configured Virtual Desktop workspace. Never persist or return absolute host paths.
 - Game Maker continuations keep the original project request, recent user changes and a private provider-native conversation (including available reasoning and complete tool/result groups) in `gm_agent_context`, isolated by project and revision. Checkpoint at tool/phase boundaries and cancellation; rebuild current system/tool scope, never replay historical calls. Route budgets still bound restored history; only Game Maker opts into retaining completed reasoning. Provider changes keep reasoning as historical data rather than replaying provider-specific fields. Do not expose this state as Studio chat, assets, exports or general memory. Keep one failed/interrupted working copy per project until continuation succeeds or the project is deleted. Resume copies it into a new job and retains installed source; publication still requires all existing checks. Release the global writer only after working-copy cleanup. `StartJobRequest.resume` resumes directly without copying a prompt into the UI editor.
@@ -202,6 +212,10 @@ Do not patch a published game merely because a new starter changed.
 - `TestSourceBatchPreflightSearchAndRuntime`, `TestPrivateBuildSourceDiagnostics`,
   `TestValidationReuseRequiresExactCurrentEvidence`, and
   `TestDesignReportsIndependentCorrectionsWithinBudget` cover agent assistance.
+- Server `TestGameStarterProviderSourceFormats`,
+  `TestGameStarterWrappedSourceRequiresExactSingleWrite`,
+  `TestGameMakerUnchangedStarterGetsBoundedCodeRecovery` and
+  `TestGameMakerSourceStreamRecovery` cover source recovery and its write boundary.
 - `node scripts/build-game-maker-presentation.js --check` and
   `node scripts/test-game-maker-presentation-evidence.mjs`.
 - Package changed runtimes with the matching resource flags and verify `--check-assets`.

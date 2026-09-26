@@ -44,6 +44,8 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 		{"deadline_after_format", "3d", "format", "deadline", false},
 		{"cancel_after_format", "3d", "format", "cancel", false},
 		{"format_stale_revision", "3d", "format", "stop", true},
+		{"function_after_format", "3d", "format", "function", false},
+		{"function_stale_revision", "3d", "eof", "function", true},
 		{"truncated_format", "3d", "format_length", "stop", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -77,6 +79,11 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				if !body.Stream || len(body.Tools) != 0 || n > 2 {
 					t.Error("unbounded retry or unexpected tool-enabled request")
 				}
+				for _, message := range body.Messages {
+					if len(message.ToolCalls) != 0 || message.FunctionCall != nil || message.Role == "tool" || strings.Contains(message.Content, "<tool_call>") || strings.Contains(message.Content, "stale source snapshot") {
+						t.Error("source generation replayed old tool protocol or rejected content")
+					}
+				}
 				if n == 1 {
 					firstRequest = body
 					last := body.Messages[len(body.Messages)-1].Content
@@ -104,8 +111,8 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 							t.Error("retry received unsafe partial source")
 						}
 					}
-					if dataCount != 1 || !retainedReasoning || !retainedPrior || retainedCalls != 1 || retainedResults != 1 {
-						t.Error("retry lost context/reasoning or duplicated the source snapshot")
+					if dataCount != 1 || !retainedReasoning || !retainedPrior || retainedCalls != 0 || retainedResults != 0 {
+						t.Error("retry lost reasoning, duplicated the source snapshot or replayed old tool calls")
 					}
 					correction := body.Messages[len(body.Messages)-1].Content
 					if tc.first == "format" {
@@ -131,8 +138,12 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 					fmt.Fprintf(w, "data: %s\n\n", chunk)
 					w.(http.Flusher).Flush()
 				}
-				if mode == "stop" {
-					send(complete, "", "stop")
+				if mode == "stop" || mode == "function" {
+					code := complete
+					if mode == "function" {
+						code = starterFunctionSourceEnvelope(code)
+					}
+					send(code, "", "stop")
 					fmt.Fprint(w, "data: [DONE]\n\n")
 					return
 				}
@@ -188,11 +199,14 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				jobID = run.Job.ID
 				before, _ := svc.ReadJobFile(ctx, jobID, "src/main.ts")
 				commonBefore, _ := svc.ReadJobFile(ctx, jobID, "src/common.ts")
-				prior, _ := json.Marshal([]openai.ChatCompletionMessage{
+				priorMessages := []openai.ChatCompletionMessage{
 					{Role: "user", Content: "Keep the original unusual game mechanic."},
 					{Role: "assistant", ReasoningContent: priorReasoning, ToolCalls: []openai.ToolCall{{ID: "historical-read", Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "game_maker_file", Arguments: `{"operation":"read","path":"src/common.ts"}`}}}},
 					{Role: "tool", ToolCallID: "historical-read", Content: `{"content":"historical helper snapshot"}`},
-				})
+					{Role: "user", Content: `Source-generation phase: stale source snapshot {"previous_user_requests":[]}`},
+					{Role: "assistant", Content: rejected},
+				}
+				prior, _ := json.Marshal(priorMessages)
 				if err := svc.SaveAgentConversation(ctx, jobID, cfg.LLM.Provider, cfg.LLM.Model, prior); err != nil {
 					return err
 				}
@@ -201,6 +215,11 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				cancelRequest = cancel
 				started := time.Now()
 				err := runner.implementGameStarter(callCtx, cfg, srv.LLMClient, run)
+				conversation, loadErr := svc.LoadAgentConversation(ctx, jobID)
+				var archived []openai.ChatCompletionMessage
+				if loadErr != nil || json.Unmarshal(conversation.Messages, &archived) != nil || len(archived) < len(priorMessages) || !reflect.DeepEqual(archived[:len(priorMessages)], priorMessages) {
+					t.Error("request projection rewrote the private conversation archive")
+				}
 				if time.Since(started) > 5*time.Second {
 					t.Error("configured per-attempt deadline was not enforced")
 				}
@@ -217,7 +236,7 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 					t.Error("rejected tool text was applied to project files")
 				}
 				want := before
-				valid := wantRequests == 2 && tc.second == "stop" && !tc.stale
+				valid := wantRequests == 2 && (tc.second == "stop" || tc.second == "function") && !tc.stale
 				if valid {
 					want = complete
 				} else if tc.stale {

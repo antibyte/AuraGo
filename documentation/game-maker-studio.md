@@ -88,14 +88,23 @@ zero. `system_cache_hit` only measures AuraGo's local prompt-construction cache.
 
 When an accepted new-game plan still has unchanged starter code, the bounded
 implementation fallback explicitly switches to source generation for `src/main.ts`.
-It retains the conversation and private reasoning, supplies the current source
-snapshot once, and requests complete TypeScript without tool calls. A completed
-response in the old tool-call format gets one corrective request, sharing the
-existing single retry with stream/deadline recovery. The correction appends
-feedback without rewriting the prompt prefix or resending the snapshot. No
-rejected call is executed; additional files, stale revisions and incomplete
-source remain protected. Normal compilation and browser validation still decide
-whether the resulting game is ready.
+The private conversation remains complete. The outgoing request keeps available
+reasoning and the current source snapshot, leaving out previous tool calls,
+results and rejected source. The snapshot includes the current job ID, fixed
+file path and SHA-256. Complete TypeScript is requested without tool calls.
+
+A completed response containing exactly one `game_maker_file` write can also
+supply source data: legacy arg-key XML, function/parameter XML, JSON with
+`name`/`arguments`, or flat `action` JSON. No tool is dispatched. Omitted
+operation/job/hash fields inherit the server's write target and source revision;
+supplied fields must match. Additional fields, duplicate keys, other files,
+mixed prose and incomplete responses are rejected. The checked write still
+rejects concurrent edits even when the response omits its hash.
+
+A rejected format gets one corrective request, sharing the existing single
+retry with stream/deadline recovery. The correction appends feedback without
+rewriting the prompt prefix or resending the snapshot. Normal compilation and
+browser validation still decide whether the resulting game is ready.
 
 ## Studio workflow
 

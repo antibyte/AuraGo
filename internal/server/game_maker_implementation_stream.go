@@ -23,6 +23,7 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		timeout = 600 * time.Second // Same default as the main agent loop.
 	}
 	broker := &gameMakerBroker{service: r.service, projectID: run.Project.ID, jobID: run.Job.ID}
+	sourcePrompt := prompt
 	for attempt := 0; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return agent.MinimalLoopResult{}, nil, err
@@ -32,6 +33,11 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		history, checkpoint, err := r.gameConversation(ctx, cfg, run)
 		if err != nil {
 			return agent.MinimalLoopResult{}, nil, err
+		}
+		if attempt == 0 {
+			history = gameStarterRequestHistory(history, "")
+		} else {
+			history = gameStarterRequestHistory(history, sourcePrompt)
 		}
 		if len(history) > 0 {
 			history = append([]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: system}}, history...)
