@@ -1150,6 +1150,10 @@ type RunConfig struct {
 	// Dynamic feedback belongs in appended messages; route budgets and dispatch
 	// policy are still checked on every iteration. Start a new run for a new phase.
 	StableSystemPrompt bool
+	// PreparedPrompt bypasses the dynamic builder with a complete trusted profile.
+	// Limits, prompt security, provider projection and live authorization still apply.
+	PreparedPrompt *PreparedPromptProfile
+	UsageObserver  *PromptUsageObserver
 	// RequireCompleteStream prevents interrupted or truncated provider output
 	// from being treated as executable work in an isolated coding workflow.
 	RequireCompleteStream bool

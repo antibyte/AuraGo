@@ -583,7 +583,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		if useNativeFunctions && !toolLimitFinalizing && !runCfg.StableSystemPrompt && runCfg.NativeToolSchemas == nil {
+		if useNativeFunctions && !toolLimitFinalizing && !runCfg.StableSystemPrompt && runCfg.NativeToolSchemas == nil && runCfg.PreparedPrompt == nil {
 			ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 			s.nativeSchemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, s.currentLogger)
 			all := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
@@ -629,10 +629,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		s.pendingTCs = pendingTCs
 		s.explicitTools = explicitTools
 		requiredSchemas := requiredToolSchemasForState(s)
+		if runCfg.PreparedPrompt != nil {
+			for _, tool := range req.Tools {
+				if tool.Function != nil {
+					requiredSchemas[tool.Function.Name] = true
+				}
+			}
+		}
 		budgetRequest := req
 		if lastGeneratedSystemPrompt != "" && len(budgetRequest.Messages) > 0 &&
 			budgetRequest.Messages[0].Role == openai.ChatMessageRoleSystem && budgetRequest.Messages[0].Content == lastGeneratedSystemPrompt {
 			budgetRequest.Messages = budgetRequest.Messages[1:]
+		}
+		if runCfg.PreparedPrompt != nil {
+			budgetRequest.Messages = minimumPreparedMessages(budgetRequest.Messages)
 		}
 		budgeted, budgetedTools, budgetDroppedTools, budgetErr := prepareRequestBudgetAndTools(
 			ctx, cfg, client, budgetRequest, requiredSchemas, tokenCache, s.currentLogger,
@@ -669,7 +679,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Load Core Memory (cached, invalidated when manage_memory is called
 		// or when the DB timestamp has changed due to external modifications).
-		if shortTermMem != nil {
+		if shortTermMem != nil && runCfg.PreparedPrompt == nil {
 			dbUpdatedAt, err := shortTermMem.GetCoreMemoryUpdatedAt()
 			if err == nil && !dbUpdatedAt.IsZero() && !coreMemUpdatedAt.IsZero() && !dbUpdatedAt.Equal(coreMemUpdatedAt) {
 				coreMemDirty = true
@@ -711,6 +721,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		preliminaryTier := prompts.DetermineTierAdaptive(&preliminaryTierFlags)
 		guidePreparation := classifyTurnGuidePreparation(shouldSuppressCoAgentTools(runCfg), preliminaryTier, explicitTools)
+		if runCfg.PreparedPrompt != nil {
+			guidePreparation = turnGuidesNotEligible
+		}
 		explicitGuideKey := strings.Join(uniqueStrings(explicitTools), "\x00")
 		if guidesPrepared {
 			if explicitGuideKey != preparedExplicitGuideKey && len(explicitTools) > 0 && !shouldSuppressCoAgentTools(runCfg) {
@@ -1344,6 +1357,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			budgetMessages[0].Role == openai.ChatMessageRoleSystem && budgetMessages[0].Content == lastGeneratedSystemPrompt {
 			budgetMessages = budgetMessages[1:]
 		}
+		if runCfg.PreparedPrompt != nil {
+			budgetMessages = minimumPreparedMessages(budgetMessages)
+		}
 		routeSystemBudget, routeBudgetErr := requestBudget.systemPromptBudget(budgetMessages, req.Tools, req.Model, tokenCache)
 		if routeBudgetErr != nil {
 			return openai.ChatCompletionResponse{}, routeBudgetErr
@@ -1390,7 +1406,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		keyFlags := flags
 		keyFlags.MessageCount = 0 // MessageCount only affects tier selection & metrics, not the prompt content.
-		cacheKey, cacheKeyErr := buildSystemPromptCacheKey(cfg.Directories.PromptsDir, &keyFlags, coreMemCache, budgetHint)
+		cacheKey, cacheKeyErr := "", error(nil)
+		if runCfg.PreparedPrompt != nil {
+			cacheKey = runCfg.PreparedPrompt.revision
+		} else {
+			cacheKey, cacheKeyErr = buildSystemPromptCacheKey(cfg.Directories.PromptsDir, &keyFlags, coreMemCache, budgetHint)
+		}
 		cacheHit := cacheKeyErr == nil &&
 			cacheKey != "" &&
 			cacheKey == cachedSysPromptKey &&
@@ -1411,7 +1432,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		removedPromptSections := 0
 		basePrompt := ""
 		basePromptTokens := 0
-		if cacheHit {
+		if runCfg.PreparedPrompt != nil {
+			basePrompt = runCfg.PreparedPrompt.system
+			basePromptTokens = tokenCache.Count(basePrompt, req.Model)
+			cacheHit = cachedSysPrompt == basePrompt
+			cachedSysPrompt = basePrompt
+		} else if cacheHit {
 			if runCfg.StableSystemPrompt {
 				basePrompt, basePromptTokens = cachedSysPrompt, tokenCache.Count(cachedSysPrompt, req.Model)
 			} else {
@@ -1442,7 +1468,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if budgetHint != "" {
 			fitRequest.Addenda = append(fitRequest.Addenda, prompts.PromptAddendum{ID: "budget_status", Text: budgetHint})
 		}
-		promptResult, promptFitErr := prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)
+		var promptResult prompts.PromptBuildResult
+		var promptFitErr error
+		if runCfg.PreparedPrompt != nil {
+			if len(runCfg.TrustedPromptAddenda) != 0 {
+				return openai.ChatCompletionResponse{}, fmt.Errorf("prepared prompt cannot accept dynamic addenda")
+			}
+			promptResult = prompts.PromptBuildResult{Text: basePrompt, Tokens: basePromptTokens, Revision: runCfg.PreparedPrompt.revision, InputChars: len(basePrompt), InputTokens: basePromptTokens}
+			if basePromptTokens > flags.TokenBudget {
+				return openai.ChatCompletionResponse{}, promptBudgetExceededForRoutes(requestBudget, basePromptTokens)
+			}
+		} else {
+			promptResult, promptFitErr = prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)
+		}
 		prompts.RecordPromptFit(prompts.PromptFitRecord{
 			Timestamp:       time.Now(),
 			CacheHit:        cacheHit,
@@ -1485,6 +1523,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		req.Messages = ensureGeneratedSystemPromptMessage(req.Messages, sysPrompt, lastGeneratedSystemPrompt)
 		lastGeneratedSystemPrompt = sysPrompt
+		if runCfg.PreparedPrompt != nil {
+			var trimErr error
+			req.Messages, trimErr = trimPreparedHistory(requestBudget, req.Messages, initialUserMsg, sysPrompt, req.Tools, tokenCache)
+			if trimErr != nil {
+				return openai.ChatCompletionResponse{}, trimErr
+			}
+		}
 
 		// ── Route-aware context compression and guard ──
 		// Tool schemas, output capacity, the protocol margin and the generated
@@ -1494,7 +1539,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		historyBudget := requestBudget.historyWorkingSetLimitForMessages(req.Messages, currentUserIndex, sysPrompt, req.Tools, tokenCache)
 		historyTokens := requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserIndex, tokenCache)
 		runHistoryCompression := shouldRunHistoryCompression(loopIterationCount, historyTokens, historyBudget)
-		if runHistoryCompression && cfg.Agent.HistoryCompaction.Enabled {
+		if runCfg.PreparedPrompt == nil && runHistoryCompression && cfg.Agent.HistoryCompaction.Enabled {
 			compactionOptions := HistoryCompactionOptions{
 				KeepRecentToolRoundsFull: cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull,
 			}
@@ -1523,7 +1568,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		compressionClient, compressionModel := s.cachedCompressionClient, s.cachedCompressionModel
 		var compRes CompressHistoryResult
-		if runHistoryCompression && compressionClient != nil && compressionModel != "" {
+		if runCfg.PreparedPrompt == nil && runHistoryCompression && compressionClient != nil && compressionModel != "" {
 			compressionThreshold := int(float64(historyBudget) * compressionThresholdPct)
 			if historyTokens > compressionThreshold {
 				broker.Send("thinking", "Compressing context...")
@@ -1709,6 +1754,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			broker.SendThinkingBlock("anthropic", content, state)
 		}
 		llmCtx = llm.WithThinkingCallback(llmCtx, thinkingCB)
+		llmCtx, observeUsage := runCfg.UsageObserver.begin(llmCtx, req, telemetryScope.ProviderType, runCfg.PreparedPrompt.Revision(), cacheHit)
 
 		var resp openai.ChatCompletionResponse
 		var content string
@@ -1727,6 +1773,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				chunkIdleTimeout = llmTimeout
 			}
 			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout, &retry422Count, runCfg.RequireCompleteStream)
+			observeUsage(result.resp, result.err)
 			if result.recoveryContinue {
 				req.Messages = result.recoveredMessages
 				continue
@@ -1753,6 +1800,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			tokenSource = result.tokenSource
 		} else {
 			result := handleSyncLLMCall(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, &retry422Count)
+			observeUsage(result.resp, result.err)
 			if result.recoveryContinue {
 				req.Messages = result.recoveredMessages
 				continue

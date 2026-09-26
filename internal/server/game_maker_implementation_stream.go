@@ -23,7 +23,12 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		timeout = 600 * time.Second // Same default as the main agent loop.
 	}
 	broker := &gameMakerBroker{service: r.service, projectID: run.Project.ID, jobID: run.Job.ID}
-	sourcePrompt := prompt
+	profile, err := agent.NewPreparedPromptProfile("game-maker/v1/source/"+run.Project.Dimension, system, nil)
+	if err != nil {
+		return agent.MinimalLoopResult{}, nil, err
+	}
+	observer := r.gameUsageObserver(run)
+	var requestHistory []openai.ChatCompletionMessage
 	for attempt := 0; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return agent.MinimalLoopResult{}, nil, err
@@ -35,18 +40,27 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 			return agent.MinimalLoopResult{}, nil, err
 		}
 		if attempt == 0 {
-			history = gameStarterRequestHistory(history, "")
+			requestHistory = gameStarterRequestHistory(history, "")
+			if len(requestHistory) > 0 {
+				requestHistory = append([]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: system}}, requestHistory...)
+			}
 		} else {
-			history = gameStarterRequestHistory(history, sourcePrompt)
-		}
-		if len(history) > 0 {
-			history = append([]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: system}}, history...)
+			knownReasoning := map[string]bool{}
+			for _, message := range requestHistory {
+				knownReasoning[message.ReasoningContent] = true
+			}
+			for _, message := range history {
+				if message.Role == openai.ChatMessageRoleAssistant && message.ReasoningContent != "" && !knownReasoning[message.ReasoningContent] {
+					requestHistory = append(requestHistory, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "Generation was interrupted; this retained reasoning is context only.", ReasoningContent: message.ReasoningContent})
+					knownReasoning[message.ReasoningContent] = true
+				}
+			}
 		}
 		broker.Send("model_progress", "waiting")
 		callCtx, cancel := context.WithTimeout(ctx, timeout)
 		response, completion, err := agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,
 			&agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}},
-			history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, PreserveReasoning: true, Checkpoint: checkpoint})
+			requestHistory, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer})
 		timedOut := errors.Is(callCtx.Err(), context.DeadlineExceeded) && errors.Is(err, context.DeadlineExceeded)
 		cancel()
 		broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.PromptTokens+response.CompletionTokens, 0, 0, false, false, "provider_usage")
@@ -68,6 +82,16 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 			r.server.Logger.Warn("game maker source generation needs correction; retrying once", "job_id", run.Job.ID, "timeout", timeout, "deadline_exceeded", timedOut, "output_format_invalid", formatError, "error", err)
 		}
 		broker.Send("model_progress", "retrying")
+		// Retain the exact sent request, including its one reference packet.
+		// Rejected source was never sent; only its available reasoning is carried.
+		requestHistory = append([]openai.ChatCompletionMessage(nil), completion...)
+		if n := len(requestHistory); n > 0 && requestHistory[n-1].Role == openai.ChatMessageRoleAssistant {
+			last := requestHistory[n-1]
+			requestHistory = requestHistory[:n-1]
+			if last.ReasoningContent != "" {
+				requestHistory = append(requestHistory, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "Earlier implementation reasoning is context only; follow the source-generation request.", ReasoningContent: last.ReasoningContent})
+			}
+		}
 		if formatError {
 			prompt = "The previous response used the old tool-call format and was rejected. None of those calls were executed and no source was saved. This phase has no tools. Use the existing plan, source snapshot and retained context; do not search, read files or repeat calls. Return only the complete TypeScript source for src/main.ts, from its imports to its final statement. No commentary, XML, JSON envelopes, patches or changes to common.ts; implement the requested game through the supplied APIs."
 			continue

@@ -1169,6 +1169,12 @@ func TestAnthropicStreamMergesMessageStartUsage(t *testing.T) {
 			continue
 		}
 		if chunk.Usage != nil {
+			if chunk.Usage.CompletionTokens == 0 {
+				if chunk.Usage.PromptTokens != 42 || chunk.Usage.TotalTokens != 42 {
+					t.Fatal("initial input usage lost")
+				}
+				continue
+			}
 			foundUsage = true
 			if chunk.Usage.PromptTokens != 42 {
 				t.Errorf("prompt_tokens = %d, want 42", chunk.Usage.PromptTokens)

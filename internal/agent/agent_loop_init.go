@@ -356,7 +356,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		ff.TTSEnabled = false
 	}
 	var schemaSnapshot *nativeToolSchemaSnapshot
-	if runCfg.NativeToolSchemas != nil {
+	if runCfg.PreparedPrompt != nil {
+		schemaSnapshot = newNativeToolSchemaSnapshot(runCfg.PreparedPrompt.Tools())
+	} else if runCfg.NativeToolSchemas != nil {
 		schemaSnapshot = newNativeToolSchemaSnapshot(runCfg.NativeToolSchemas)
 	} else {
 		schemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, logger)
@@ -395,7 +397,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		// managed 4B local model instead receives a deterministic kernel so its
 		// llama.cpp prompt prefix remains reusable between unrelated turns.
 		managedLocalContextBudget := toolingPolicy.ProviderToolProfile == "aurago_local_context"
-		if managedLocalContextBudget {
+		if runCfg.PreparedPrompt != nil {
+			// Explicit profiles keep their complete, ordered schema set. Hard
+			// scope was intersected above; dispatch still checks live grants.
+		} else if managedLocalContextBudget {
 			filterResult := stableLocalToolSchemas(ntSchemas, cfg, runCfg, ff, voiceOutputSuppressed, logger)
 			ntSchemas = filterResult.Tools
 			filterReport = filterResult.Report

@@ -46,7 +46,16 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 		chunks++
 		lastChunk = time.Now()
 		if chunk.Usage != nil {
-			usage = *chunk.Usage
+			usage.PromptTokens = max(usage.PromptTokens, chunk.Usage.PromptTokens)
+			usage.CompletionTokens = max(usage.CompletionTokens, chunk.Usage.CompletionTokens)
+			usage.TotalTokens = max(usage.TotalTokens, chunk.Usage.TotalTokens, usage.PromptTokens+usage.CompletionTokens)
+			if details := chunk.Usage.PromptTokensDetails; details != nil && (usage.PromptTokensDetails == nil || details.CachedTokens >= usage.PromptTokensDetails.CachedTokens) {
+				copy := *details
+				usage.PromptTokensDetails = &copy
+			}
+			if chunk.Usage.CompletionTokensDetails != nil {
+				usage.CompletionTokensDetails = chunk.Usage.CompletionTokensDetails
+			}
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Index != 0 || len(chunk.Choices) > 1 || len(choice.Delta.ToolCalls) > 0 || choice.Delta.FunctionCall != nil {

@@ -27,6 +27,10 @@ func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client l
 }
 
 func prepareMinimalLoopRequestWithReasoning(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
+	return prepareMinimalLoopRequestWithProfile(ctx, cfg, client, req, baseSystemPrompt, guardian, logger, tokenCache, toolCallCount, preserveReasoning, nil, addenda...)
+}
+
+func prepareMinimalLoopRequestWithProfile(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, profile *PreparedPromptProfile, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
 	if req == nil {
 		return minimalPromptPreparation{}, fmt.Errorf("chat completion request is required")
 	}
@@ -38,14 +42,17 @@ func prepareMinimalLoopRequestWithReasoning(ctx context.Context, cfg *config.Con
 	}
 
 	nonSystemMessages := make([]openai.ChatCompletionMessage, 0, len(req.Messages))
-	for _, message := range req.Messages {
-		if message.Role == openai.ChatMessageRoleSystem {
+	for i, message := range req.Messages {
+		if message.Role == openai.ChatMessageRoleSystem && (profile == nil || i == 0) {
 			continue
 		}
 		nonSystemMessages = append(nonSystemMessages, message)
 	}
 	budgetReq := *req
 	budgetReq.Messages = nonSystemMessages
+	if profile != nil {
+		budgetReq.Messages = minimumPreparedMessages(nonSystemMessages)
+	}
 
 	requiredTools := make(map[string]bool, len(req.Tools))
 	for _, tool := range req.Tools {
@@ -66,14 +73,28 @@ func prepareMinimalLoopRequestWithReasoning(ctx context.Context, cfg *config.Con
 	buildStarted := time.Now()
 	promptResult := prompts.PromptBuildResult{Revision: prompts.PromptRevision("")}
 	if strings.TrimSpace(baseSystemPrompt) != "" {
-		systemBudget, err := budget.systemPromptBudget(nonSystemMessages, req.Tools, req.Model, tokenCache)
+		systemBudgetMessages := nonSystemMessages
+		if profile != nil {
+			systemBudgetMessages = minimumPreparedMessages(nonSystemMessages)
+		}
+		systemBudget, err := budget.systemPromptBudget(systemBudgetMessages, req.Tools, req.Model, tokenCache)
 		if err != nil {
 			return minimalPromptPreparation{}, err
 		}
-		promptResult, err = prompts.FitSystemPromptToBudget(ctx, prompts.PromptFitRequest{
-			Text: baseSystemPrompt, Tokens: -1, Model: req.Model, TokenBudget: systemBudget,
-			Addenda: addenda,
-		}, logger)
+		if profile != nil {
+			if len(addenda) != 0 {
+				return minimalPromptPreparation{}, fmt.Errorf("prepared prompt cannot accept dynamic addenda")
+			}
+			promptResult = prompts.PromptBuildResult{Text: profile.system, Tokens: tokenCache.Count(profile.system, req.Model), Revision: profile.revision}
+			if promptResult.Tokens > systemBudget {
+				return minimalPromptPreparation{}, promptBudgetExceededForRoutes(budget, promptResult.Tokens)
+			}
+		} else {
+			promptResult, err = prompts.FitSystemPromptToBudget(ctx, prompts.PromptFitRequest{
+				Text: baseSystemPrompt, Tokens: -1, Model: req.Model, TokenBudget: systemBudget,
+				Addenda: addenda,
+			}, logger)
+		}
 		prompts.RecordPromptFit(prompts.PromptFitRecord{
 			Timestamp:       time.Now(),
 			InputChars:      promptResult.InputChars,
@@ -106,6 +127,12 @@ func prepareMinimalLoopRequestWithReasoning(ctx context.Context, cfg *config.Con
 	currentUserText := ""
 	if index := latestGenuineUserIndex(req.Messages); index >= 0 {
 		currentUserText = messageText(req.Messages[index])
+	}
+	if profile != nil {
+		req.Messages, err = trimPreparedHistory(budget, req.Messages, currentUserText, promptResult.Text, req.Tools, tokenCache)
+		if err != nil {
+			return minimalPromptPreparation{}, err
+		}
 	}
 	workingMessages, workingDropped, workingStats := budget.trimHistoryWorkingSet(req.Messages, currentUserText, promptResult.Text, req.Tools, tokenCache)
 	req.Messages = appendRecapWithinWorkingSet(budget, workingMessages, currentUserText, promptResult.Text, req.Tools, workingDropped, tokenCache)

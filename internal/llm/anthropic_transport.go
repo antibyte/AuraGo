@@ -195,8 +195,44 @@ type anthropicThinkingContent struct {
 }
 
 type anthropicUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
+	InputTokens      int  `json:"input_tokens"`
+	OutputTokens     int  `json:"output_tokens"`
+	CacheReadTokens  *int `json:"cache_read_input_tokens,omitempty"`
+	CacheWriteTokens *int `json:"cache_creation_input_tokens,omitempty"`
+	inputPresent     bool
+	outputPresent    bool
+}
+
+func (u *anthropicUsage) UnmarshalJSON(data []byte) error {
+	type plain anthropicUsage
+	var decoded plain
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	var fields struct {
+		Input  *int `json:"input_tokens"`
+		Output *int `json:"output_tokens"`
+	}
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	*u = anthropicUsage(decoded)
+	u.inputPresent, u.outputPresent = fields.Input != nil, fields.Output != nil
+	return nil
+}
+
+func (u anthropicUsage) openAI() openaiUsage {
+	in := u.InputTokens
+	var details *openaiPromptUsage
+	if u.CacheReadTokens != nil {
+		in += *u.CacheReadTokens
+		details = &openaiPromptUsage{CachedTokens: u.CacheReadTokens}
+	}
+	if u.CacheWriteTokens != nil {
+		in += *u.CacheWriteTokens
+	}
+	return openaiUsage{PromptTokens: in, CompletionTokens: u.OutputTokens, TotalTokens: in + u.OutputTokens, PromptTokensDetails: details, CacheWriteTokens: u.CacheWriteTokens,
+		omitInput: !u.inputPresent && u.InputTokens == 0, omitOutput: !u.outputPresent && u.OutputTokens == 0}
 }
 
 // ---------------------------------------------------------------------------
@@ -339,9 +375,38 @@ type openaiRespDelta struct {
 }
 
 type openaiUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
+	PromptTokens        int                `json:"prompt_tokens"`
+	CompletionTokens    int                `json:"completion_tokens"`
+	TotalTokens         int                `json:"total_tokens"`
+	PromptTokensDetails *openaiPromptUsage `json:"prompt_tokens_details,omitempty"`
+	CacheWriteTokens    *int               `json:"cache_creation_input_tokens,omitempty"`
+	omitInput           bool
+	omitOutput          bool
+}
+
+func (u openaiUsage) MarshalJSON() ([]byte, error) {
+	type plain openaiUsage
+	if !u.omitInput && !u.omitOutput {
+		return json.Marshal(plain(u))
+	}
+	in, out, total := &u.PromptTokens, &u.CompletionTokens, &u.TotalTokens
+	if u.omitInput {
+		in, total = nil, nil
+	}
+	if u.omitOutput {
+		out, total = nil, nil
+	}
+	return json.Marshal(struct {
+		Input   *int               `json:"prompt_tokens,omitempty"`
+		Output  *int               `json:"completion_tokens,omitempty"`
+		Total   *int               `json:"total_tokens,omitempty"`
+		Details *openaiPromptUsage `json:"prompt_tokens_details,omitempty"`
+		Writes  *int               `json:"cache_creation_input_tokens,omitempty"`
+	}{in, out, total, u.PromptTokensDetails, u.CacheWriteTokens})
+}
+
+type openaiPromptUsage struct {
+	CachedTokens *int `json:"cached_tokens,omitempty"`
 }
 
 type openaiStreamChunk struct {
@@ -969,11 +1034,7 @@ func mapAnthropicToOpenAI(ant anthropicResponse) openaiResponse {
 				FinishReason: &finishReason,
 			},
 		},
-		Usage: openaiUsage{
-			PromptTokens:     ant.Usage.InputTokens,
-			CompletionTokens: ant.Usage.OutputTokens,
-			TotalTokens:      ant.Usage.InputTokens + ant.Usage.OutputTokens,
-		},
+		Usage: ant.Usage.openAI(),
 	}
 }
 
@@ -1105,9 +1166,7 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 			if msgModel == "" {
 				msgModel = model
 			}
-			if evt.Message.Usage.InputTokens > 0 || evt.Message.Usage.OutputTokens > 0 {
-				msgStartUsage = &evt.Message.Usage
-			}
+			msgStartUsage = &evt.Message.Usage
 			// Emit initial chunk with role
 			chunk := openaiStreamChunk{
 				ID:     msgID,
@@ -1117,6 +1176,8 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 					{Index: 0, Delta: &openaiRespDelta{Role: "assistant"}},
 				},
 			}
+			initialUsage := msgStartUsage.openAI()
+			chunk.Usage = &initialUsage
 			writeSSEChunk(writer, chunk)
 
 		case "content_block_start":
@@ -1227,15 +1288,21 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				},
 			}
 			if evt.Usage != nil {
-				inputTokens := evt.Usage.InputTokens
-				if inputTokens == 0 && msgStartUsage != nil {
-					inputTokens = msgStartUsage.InputTokens
+				combined := *evt.Usage
+				if msgStartUsage != nil {
+					if combined.InputTokens == 0 {
+						combined.InputTokens = msgStartUsage.InputTokens
+						combined.inputPresent = combined.inputPresent || msgStartUsage.inputPresent
+					}
+					if combined.CacheReadTokens == nil {
+						combined.CacheReadTokens = msgStartUsage.CacheReadTokens
+					}
+					if combined.CacheWriteTokens == nil {
+						combined.CacheWriteTokens = msgStartUsage.CacheWriteTokens
+					}
 				}
-				chunk.Usage = &openaiUsage{
-					PromptTokens:     inputTokens,
-					CompletionTokens: evt.Usage.OutputTokens,
-					TotalTokens:      inputTokens + evt.Usage.OutputTokens,
-				}
+				usage := combined.openAI()
+				chunk.Usage = &usage
 			}
 			writeSSEChunk(writer, chunk)
 

@@ -29,8 +29,12 @@ type MinimalLoopResult struct {
 
 // MinimalLoopOptions controls optional behaviour of ExecuteMinimalLoop.
 type MinimalLoopOptions struct {
-	PreserveReasoning bool
-	Checkpoint        func([]openai.ChatCompletionMessage) error
+	PreparedPrompt *PreparedPromptProfile
+	UsageObserver  *PromptUsageObserver
+	// PreparedPromptReused records reuse of the same built profile across invocations.
+	PreparedPromptReused bool
+	PreserveReasoning    bool
+	Checkpoint           func([]openai.ChatCompletionMessage) error
 	// ResponseFormat is opt-in for tool-free structured workflows. The caller
 	// must resolve provider support before requesting a structured format.
 	ResponseFormat *openai.ChatCompletionResponseFormat
@@ -85,6 +89,14 @@ func ExecuteMinimalLoop(
 	}
 	if logger == nil {
 		logger = slog.Default()
+	}
+	var profile *PreparedPromptProfile
+	var observer *PromptUsageObserver
+	if opts != nil {
+		profile, observer = opts.PreparedPrompt, opts.UsageObserver
+	}
+	if profile != nil {
+		systemPrompt, tools = profile.SystemPrompt(), profile.Tools()
 	}
 	localDispatch := *dispatchCtx
 	dispatchCtx = &localDispatch
@@ -142,6 +154,9 @@ func ExecuteMinimalLoop(
 		}
 	}
 	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: userPrompt})
+	if profile != nil {
+		baseSystemPrompt = profile.SystemPrompt()
+	}
 
 	req := openai.ChatCompletionRequest{
 		Model:    model,
@@ -162,7 +177,7 @@ func ExecuteMinimalLoop(
 				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
 			}
 		}
-		prepared, prepareErr := prepareMinimalLoopRequestWithReasoning(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, addenda...)
+		prepared, prepareErr := prepareMinimalLoopRequestWithProfile(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, addenda...)
 		if prepareErr != nil {
 			return result, req.Messages, prepareErr
 		}
@@ -176,11 +191,14 @@ func ExecuteMinimalLoop(
 			setRunDiscoverToolsState(dispatchCtx, all, req.Tools)
 		}
 		var err error
+		localHit := profile != nil && (round > 0 || formatRetried || opts.PreparedPromptReused)
+		callCtx, observe := observer.begin(ctx, req, prepared.ProviderType, profile.Revision(), localHit)
 		if opts != nil && opts.StreamText && noTools {
-			resp, err = minimalLoopStreamText(ctx, client, req)
+			resp, err = minimalLoopStreamText(callCtx, client, req)
 		} else {
-			resp, err = client.CreateChatCompletion(ctx, req)
+			resp, err = client.CreateChatCompletion(callCtx, req)
 		}
+		observe(resp, err)
 		if err != nil {
 			if opts != nil && opts.Checkpoint != nil && opts.PreserveReasoning && len(resp.Choices) == 1 && resp.Choices[0].Message.ReasoningContent != "" {
 				if saveErr := opts.Checkpoint(append(req.Messages, interruptedReasoningMessage(resp.Choices[0].Message.ReasoningContent))); saveErr != nil {
@@ -200,7 +218,7 @@ func ExecuteMinimalLoop(
 			return result, req.Messages, fmt.Errorf("unexpected legacy function call")
 		}
 		result.FinishReason = choice.FinishReason
-		if len(msg.ToolCalls) > 0 && len(req.Tools) == 0 {
+		if len(msg.ToolCalls) > 0 && (len(req.Tools) == 0 || req.ToolChoice == "none") {
 			return result, req.Messages, fmt.Errorf("unexpected tool calls in a tool-free request")
 		}
 
@@ -219,8 +237,12 @@ func ExecuteMinimalLoop(
 				}
 				formatRetried = true
 				req.Messages = append(req.Messages, msg)
-				// Request preparation rebuilds the system message from this source.
-				baseSystemPrompt += "\nYour previous response contained tool-call syntax as text. It was not executed. Use only the provided native function-calling interface if a tool is needed, or give the final answer as plain text. Never write XML/JSON tool calls in the answer or claim an unexecuted search succeeded."
+				correction := "Your previous response contained tool-call syntax as text. It was not executed. Use only the provided native function-calling interface if a tool is needed, or give the final answer as plain text. Never write XML/JSON tool calls in the answer or claim an unexecuted search succeeded."
+				if profile != nil {
+					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: correction})
+				} else {
+					baseSystemPrompt += "\n" + correction
+				}
 				round-- // One format correction does not consume a tool round.
 				continue
 			}
@@ -247,16 +269,30 @@ func ExecuteMinimalLoop(
 			})
 		}
 		if opts != nil && opts.MaxToolCalls > 0 && result.ToolCalls >= opts.MaxToolCalls {
-			req.Tools = nil
+			if profile != nil {
+				req.ToolChoice = "none"
+			} else {
+				req.Tools = nil
+			}
 		}
 	}
 
 	// Tool-round narration is not a final answer. Request a tool-free summary.
-	req.Tools = nil
-	if _, err := prepareMinimalLoopRequestWithReasoning(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, addenda...); err != nil {
+	if profile != nil {
+		req.ToolChoice = "none"
+	} else {
+		req.Tools = nil
+	}
+	if _, err := prepareMinimalLoopRequestWithProfile(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, addenda...); err != nil {
 		return result, req.Messages, err
 	}
-	resp, err := client.CreateChatCompletion(ctx, req)
+	provider := ""
+	if dispatchCtx.Cfg != nil {
+		provider = dispatchCtx.Cfg.LLM.ProviderType
+	}
+	callCtx, observe := observer.begin(ctx, req, provider, profile.Revision(), profile != nil)
+	resp, err := client.CreateChatCompletion(callCtx, req)
+	observe(resp, err)
 	if err != nil {
 		return result, req.Messages, fmt.Errorf("llm summary call failed: %w", err)
 	}

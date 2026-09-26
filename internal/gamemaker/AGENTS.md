@@ -16,6 +16,11 @@ revision publication and standalone export for Phaser and Three.js games.
 - `runtime.go`: project-local runtime installation, also used by exports.
 - `runtime_context.go`, `source_search.go`, `source_batch.go`: installed helper
   descriptors and bounded source discovery/edits for the isolated agent.
+- `starter_reference.go`: plan-bound exact helper verification and compact
+  source-generation references. Server prompt profiles and usage events remain
+  bound by this contract across the agent and LLM transports.
+- `events.go` accepts the private `prompt_usage` measurement event; the Studio's
+  `diagnostic` event carries its compact summary with explicit unknown values.
 - `source_diagnostics.go`, `validation_reuse.go`: private source mapping and
   exact-build validation reuse; explicit tool validation always runs afresh.
 
@@ -62,6 +67,20 @@ revision publication and standalone export for Phaser and Three.js games.
   and allow at most one format correction within the original review deadline.
 
 ### Game Maker Studio Contract
+- Planning, editing, source-only generation and image review have versioned
+  prepared prompt profiles. Editing is shared by building and repair. Select
+  2D/3D guidance once; keep the three planning/four editing schemas and their
+  order fixed. Job identity, phase, intent, plan, revisions and failures are
+  untrusted context after the prefix. Tool discovery uses the existing bounded
+  file/asset operations; no dynamic schema selection or cache warm-up.
+- `prompt_usage` events contain per-attempt provider/model, nullable measured
+  input/output/cache-read/cache-write tokens, duration, profile/schema/prefix
+  fingerprints, context generation/reason and local prompt reuse. They supplement
+  legacy `token_usage`; never sum the two streams. Evaluation reports keep
+  unknown/partially priced calls explicit and compare costs with calls, repairs
+  and outcome. Do not add prompt/source/reasoning to these events. StepFun's
+  top-level cached_tokens and OpenAI's nested cache count share normalization;
+  Anthropic reads/writes count once in cumulative stream input.
 - Building/repair schemas omit server-bound job IDs and the duplicate full scene
   under scene_patch.replace. Planning offers read/search only; replace_many
   accepts up to eight distinct existing paths, verifies every hash/match/import
@@ -94,6 +113,13 @@ revision publication and standalone export for Phaser and Three.js games.
 - Tool-free starter generation supplies the current job, fixed `src/main.ts`
   target and source digest. Its request view retains available reasoning and the
   current snapshot, omitting earlier tool calls, results and rejected source;
+  unchanged helpers use a compact API only after exact comparison with the
+  accepted plan's generated template (a version marker alone is insufficient).
+  Custom/old helpers keep their complete references with the existing 96000-byte
+  per-file limit. Known-helper scene/mechanics summaries explicitly report
+  omissions and revisions. Keep full bounded main.ts and the accepted plan.
+  Retries preserve the sent prefix/reference packet and append correction plus
+  newly available reasoning without additional model calls or repair attempts;
   the private archive remains complete. A completed single `game_maker_file`
   write envelope (arg-key XML, function/parameter XML, or name/arguments or flat
   action JSON) may supply source data without tool dispatch. Omitted write/job/
@@ -133,7 +159,7 @@ revision publication and standalone export for Phaser and Three.js games.
 - System-managed Game Maker Agent Skills must match the complete embedded package. Startup self-heals their `SKILL.md` and registers the exact single-file binary package through the Skill Manager before exposing Game Maker; Guardian/SkillSpector latency on unrelated packages must not delay it. Optional scanner warnings can be replaced by verified binary provenance. Explicitly blocked packages, extra files/directories, symlinks, missing content and hash mismatches still block readiness. Runtime package hashes remain checked before use; bundle registration is internal and never accepts model/user-provided trust claims.
 - Preview iframes omit `allow-same-origin`, use short-lived project/job-bound tokens, restrictive CSP including document `sandbox allow-scripts allow-pointer-lock` (so a top-level tab cannot ride the admin session), external-connect blocking, and a source/channel-validated bridge for bounded diagnostics and finite test inputs.
 - Preview tests accept only finite key/pointer/wait/observe steps, never model JavaScript. The authenticated parent forwards bounded numeric observations and at most two bounded PNGs. The server compares evidence; missing observations never pass. Runs are bound to a build and preview token, last at most 60 seconds, and reset gameplay afterwards. Optional image review uses only a confirmed image-capable selected model, is tool-free and cannot override technical checks.
-- Phase-specific verified embedded skills use `TrustedPromptAddenda`; human intent, model plans, project files and diagnostics stay separate untrusted data. Planning text is never streamed/persisted as chat; final player prose is held until publication. `.aurago/validation-report.json` binds results to the compiled bundle hash and is revisioned but excluded from ZIP export.
+- Phase-specific verified guidance uses prepared prompt profiles; human intent, model plans, project files and diagnostics stay separate untrusted data. Planning text is never streamed/persisted as chat; final player prose is held until publication. `.aurago/validation-report.json` binds results to the compiled bundle hash and is revisioned but excluded from ZIP export.
 - Image and music generation are optional project capabilities. Generator failure, disabled configuration, or exhausted budget must return a visible procedural fallback without claiming unsupported 3D model generation.
 - Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
 - ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio.
@@ -208,6 +234,14 @@ only after reading their source and deliberately incorporating needed helpers.
 Do not patch a published game merely because a new starter changed.
 
 ## Verification
+
+- `TestPreparedProfile*`, `TestUsageObserverContextGenerations`,
+  `TestProviderUsageObservation`, `TestUsageUnknownZeroAndCumulative`,
+  `TestGameMakerPromptProfiles` and `TestGameMakerPromptUsage*`
+  cover stable prefixes, context limits, native rounds and nullable usage.
+- `TestStarterReferenceVerifiedAndBounded` requires at least 50% reference-token
+  reduction for unchanged 2D/3D starters and full legacy/custom compatibility.
+  Local equality/reduction proves no provider cache hit or monetary saving.
 
 - `go test ./internal/gamemaker` and focused agent/server tests.
 - `GAMEMAKER_EXPERIENCE_BROWSER=1`: normal-input contact, feedback, checkpoint,

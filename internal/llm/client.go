@@ -353,6 +353,8 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	if directStepFun || providerType == "openrouter" {
 		transport = &stepFunChatMessageTransport{base: transport, direct: directStepFun}
 	}
+	transport = &usageObservationTransport{base: transport, provider: providerType, directStepFun: directStepFun,
+		pricedRoute: knownMeteredUsageRoute(providerType, baseURL)}
 
 	// Always return a custom HTTP client so every provider gets proper
 	// ResponseHeaderTimeout and transport settings.  Using nil here caused
@@ -637,7 +639,7 @@ func buildOpenAIPromptCacheKey(payload map[string]interface{}) string {
 		for _, rawMsg := range messages {
 			msg, ok := rawMsg.(map[string]interface{})
 			if !ok || msg["role"] != "system" {
-				continue
+				break // Appended recovery instructions do not change the leading prefix.
 			}
 			text := openAIRequestContentText(msg["content"])
 			if text == "" {

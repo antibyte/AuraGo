@@ -378,18 +378,19 @@ type gameMakerEvalTokenUsage struct {
 }
 
 type gameMakerEvalEventMetrics struct {
-	EventCount         int                      `json:"event_count"`
-	Complete           bool                     `json:"complete"`
-	TypeCounts         map[string]int           `json:"type_counts"`
-	ToolCalls          *int                     `json:"tool_calls"`
-	ToolCallsReason    string                   `json:"tool_calls_reason"`
-	SkillActivations   int                      `json:"skill_activations"`
-	RepairRounds       *int                     `json:"repair_rounds"`
-	RepairRoundsReason string                   `json:"repair_rounds_reason"`
-	ValidationResults  int                      `json:"validation_results"`
-	ValidationFailures int                      `json:"validation_failures"`
-	TokenUsage         *gameMakerEvalTokenUsage `json:"token_usage"`
-	TokenUsageReason   string                   `json:"token_usage_reason"`
+	PromptUsage        *gameMakerPromptUsageMetrics `json:"prompt_usage"`
+	EventCount         int                          `json:"event_count"`
+	Complete           bool                         `json:"complete"`
+	TypeCounts         map[string]int               `json:"type_counts"`
+	ToolCalls          *int                         `json:"tool_calls"`
+	ToolCallsReason    string                       `json:"tool_calls_reason"`
+	SkillActivations   int                          `json:"skill_activations"`
+	RepairRounds       *int                         `json:"repair_rounds"`
+	RepairRoundsReason string                       `json:"repair_rounds_reason"`
+	ValidationResults  int                          `json:"validation_results"`
+	ValidationFailures int                          `json:"validation_failures"`
+	TokenUsage         *gameMakerEvalTokenUsage     `json:"token_usage"`
+	TokenUsageReason   string                       `json:"token_usage_reason"`
 }
 
 // gameMakerEvalTokenInt decodes only bounded integral numeric values from the
@@ -487,6 +488,7 @@ func readGameMakerEvalEvents(ctx context.Context, service *gamemaker.Service, pr
 // evaluation broker and is retained without prompt bodies or credentials.
 func summarizeGameMakerEvalEvents(events []gamemaker.Event, complete bool) gameMakerEvalEventMetrics {
 	metrics := gameMakerEvalEventMetrics{
+		PromptUsage:        summarizeGameMakerPromptUsage(events, complete),
 		EventCount:         len(events),
 		Complete:           complete,
 		TypeCounts:         map[string]int{},

@@ -71,12 +71,50 @@ After a validated revision is ready, enter a change request to create the next
 revision. Stop cancels the staging job without changing the last playable
 version.
 
-Within each planning/build/repair phase, the system instructions (including the
-phase-start timestamp) and native tool catalog remain stable for provider prefix
-caching. New tool results and recovery feedback extend the existing conversation;
-provider-supported reasoning stays attached to its original messages. Current
-route/context budgets and tool authorization are still enforced on every request;
-necessary context compaction can reduce cache reuse.
+### Prompt profiles and cache measurements
+
+Planning, editing, source generation and image review use versioned, prepared
+prompt profiles. Building and repair share the editing profile. Each profile
+selects its 2D/3D guidance once and keeps its complete system instructions stable.
+The three planning tools and four editing tools retain their schemas and order.
+Job IDs, timestamps, phase, plan, hashes and failures are structured context after
+the prefix. Files, source ranges and asset details are discovered through the
+existing tools and appended as observations, without reinjecting the initial
+context packet each round.
+
+Provider caching depends on matching prompt prefixes, model, routing and provider
+rules. A stable cache key or local prompt reuse alone does not prove a provider
+cache hit. Runtime authorization and all route/context limits still apply on
+every request; cached tokens consume the full context window. Under context
+pressure, bounded history views retain complete recent tool rounds and required
+reasoning, while the private archive remains complete. Prepared runs use the
+existing local trimming/recap path without an extra compression-model call.
+
+The additive private job event `prompt_usage` records each HTTP attempt, including
+source/image requests and failures: provider/model, measured input/output tokens,
+cache reads/writes when supplied, duration, profile revision, schema/prefix
+fingerprints and context-generation changes. It contains no prompt, source or
+reasoning text. `local_prompt_cache_hit` describes local construction reuse only.
+A compact per-call summary also appears in the Studio diagnostic panel, with
+missing measurements and prices explicitly marked `unknown`.
+StepFun's top-level `usage.cached_tokens` is normalized for both JSON and SSE;
+OpenAI uses `prompt_tokens_details.cached_tokens`. Anthropic cached reads/writes
+are included in total input, and repeated cumulative SSE counters count once.
+Observed streams on the official OpenAI route request `stream_options.include_usage`;
+unknown/custom routes keep their existing request compatibility.
+Missing measurements remain `null`, including providers that report no cache data.
+
+Protocol references: [StepFun usage](https://platform.stepfun.ai/docs/en/api-reference/chat/chat-completion-create),
+[Anthropic cache accounting](https://platform.claude.com/docs/en/build-with-claude/prompt-caching),
+and [OpenAI caching](https://developers.openai.com/api/docs/guides/prompt-caching).
+
+Evaluation reports expose `event_metrics.prompt_usage` alongside existing repair,
+validation and job outcome data. Its totals must not be added to legacy
+`token_usage` events. Reports show measurement coverage and only estimate a full
+job cost when every call has matching known metered API prices and required
+usage. Custom endpoints, subscriptions and unknown rates remain unpriced. Compare
+cost, calls, repair attempts and success together. Actual savings are evaluated
+from regular jobs; there are no paid comparison calls or automatic cache warm-ups.
 
 Duplicate calls are blocked without removing the other Game Maker tools or
 switching the agent into text-tool mode. Three duplicate blocks without a successful
@@ -92,6 +130,21 @@ The private conversation remains complete. The outgoing request keeps available
 reasoning and the current source snapshot, leaving out previous tool calls,
 results and rejected source. The snapshot includes the current job ID, fixed
 file path and SHA-256. Complete TypeScript is requested without tool calls.
+
+For unchanged template helpers, the fallback supplies a compact API reference
+instead of the full common.ts. The server compares the complete helper against
+the template generated from the accepted plan; a version comment is not proof.
+Authored or older helpers retain their complete compatible references, with the
+existing 96000-byte limit per file and an explicit error rather than truncation.
+Known-helper scene/mechanics data uses bounded structure summaries with hashes
+and explicit omission counts. The full bounded main.ts and accepted plan remain
+available. Each retry retains the exact reference packet and appends its
+correction and newly available reasoning. The checked write and existing retry,
+repair, compiler and browser gates remain authoritative.
+
+Local acceptance tests require at least 50% fewer reference tokens for unchanged
+2D/3D starters, without extra model calls. This is a tokenizer-based reference
+measurement, not a claim about whole-job cost or provider cache hits.
 
 A completed response containing exactly one `game_maker_file` write can also
 supply source data: legacy arg-key XML, function/parameter XML, JSON with

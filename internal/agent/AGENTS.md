@@ -76,6 +76,22 @@ Tools are defined in `internal/tools/`:
 
 ### Prompt and Runtime Drift Contract
 
+- Optional `RunConfig.PreparedPrompt` (also in `MinimalLoopOptions`) owns a
+  complete immutable system prompt and ordered schemas. Its revision covers
+  instruction bytes and schemas. Nil keeps the normal dynamic builder. Never
+  add runtime memory, time, guides or mutable addenda to a prepared profile;
+  append observations to the conversation. Required schemas and instructions
+  fail closed when they cannot fit; current route budgets, prompt security,
+  hard tool scope and live dispatch authorization still apply on every send.
+- Prepared runs use bounded request-view compaction without helper LLM calls;
+  private checkpoints retain full history and required reasoning. The optional
+  `PromptUsageObserver` stores metadata/hashes only, distinguishes local prompt
+  reuse from measured provider cache reads, and records route/profile/prefix or
+  history changes as new context generations. Missing usage is unknown. Capture
+  individual HTTP attempts, merge cumulative streaming counters by maximum and
+  include Anthropic cache reads/writes in total input. Cached input still consumes
+  the full context window. Only exact, known metered API prices justify estimates.
+
 - Persistent history compression must make bounded progress through oversized
   conversations at complete tool-round boundaries. Preserve the current human
   request, pinned records and the two newest native tool rounds.
