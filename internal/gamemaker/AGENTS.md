@@ -31,6 +31,11 @@ revision publication and standalone export for Phaser and Three.js games.
   Keep its prefix deterministic; put detailed examples in curated skills.
 - Feedback never changes gameplay counters, health or outcomes. Real contacts and
   game rules own those changes. Missing observations remain unverified.
+- Non-scene Three.js helpers count real item/cargo/flight-goal collections in
+  `pickup_events` and clear that counter on reset. Keep combat hits and cosmetic
+  feedback separate; scene-builder pickup counters retain their own ownership.
+  Runtime context identifies an installed legacy constant-zero pickup metric
+  with its source line and repair guidance, without replacing authored helpers.
 - New common templates opt into baseline visual/audio feedback. Explicit imported
   sound bindings take precedence; one mixer, gesture gate and 32-voice budget apply
   to fallback cues too. Mute/volume survive stage changes within the same game root.
@@ -111,6 +116,10 @@ revision publication and standalone export for Phaser and Three.js games.
 - Phaser 4.2.1 and Three.js 0.185.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
 - Phaser phase guidance must distinguish dynamic and static Arcade bodies from their game objects. Moving paddles remain dynamic and immovable; body `setVelocity`/`setPosition` runtime errors receive bounded repair hints without weakening validation or increasing the repair budget.
 - Dynamic gameplay checks use bounded `target` steps (move, aim, reach, interact, catch, avoid, select), driven only by normal keys/pointer input and read-only engine geometry. Keep roles/IDs independent of artwork. Never mutate actors, damage, randomness or counters to pass. Target reports require matching steps and physical effects; counter-only changes, missing targets, blocked routes and unsupported controls stay unavailable. Only observed contact/response contradictions fail. `player_distance` is derived from engine positions. Targeted input lives only in the injected preview driver; read-only 3D observations may ship with the common helper. Existing scenario/driver deadlines, lifecycle cleanup, export exclusion and publication gates remain binding.
+- 3D reach/interact steps navigate active targets using live world geometry even
+  outside the camera frustum; low FPS pickups leave the viewport before contact.
+  Aim/select still require visible targets. Preserve collision/height checks,
+  input-only control and actual physical-effect evidence.
 - Asset detail examples must include executable preload/setup methods and preserve the template lifecycle. Asset creation rejects unloaded textures or missing frames; test binding requires a live controlled object assigned by setup. Missing Phaser textures cannot pass asset validation.
 - New templates import and preload exact planned asset roles in common.ts. Every 2D template uses those roles through body(...,role), with uniformly fitted art and separate collision proxies; changes retain this wiring. The build guard rejects pack metadata as a texture key at the shared texture-manager boundary. Gameplay scenarios must allow actual travel time; hit counters represent collisions, including hits on durable targets.
 - Additional plan scenarios are optional (0–8); the server always retains its eight 2D minimums and eight/ten guided 3D minimums (maximum 16 total checks). Check results include the executed finite steps, so repairs distinguish launch/actions from collisions/hits and ESC end from natural defeat. New GameScene templates reject update overrides at startup with hook-specific guidance; preserve common.ts lifecycle and sprite following.
@@ -204,6 +213,10 @@ Do not patch a published game merely because a new starter changed.
 - `GAMEMAKER_EXPERIENCE_BROWSER=1`: normal-input contact, feedback, checkpoint,
   pause, stage/result/restart and narrow-screen controls in exported 2D/3D fixtures.
 - `GAMEMAKER_TARGET_BROWSER=1`: positive and negative read-only target evidence.
+  `TestFPSPickupBrowser` covers normal input, target driving and pickup reset;
+  `TestTargetControlBrowser/fps_ground_` covers low/behind, blocked, elevated and
+  counter-only targets. `TestRuntimeContextIdentifiesInstalledPickupCounter`
+  checks repair guidance against the actual installed helper.
 - `GAMEMAKER_GUIDED_BROWSER=1`: starter engine/lifecycle browser checks.
 - `GAMEMAKER_PREVIEW_BROWSER=1`: hidden/resumed previews, delayed layout, invalid
   canvases and loading-HUD recovery in Chrome.

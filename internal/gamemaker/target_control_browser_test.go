@@ -37,6 +37,9 @@ func TestTargetControlBrowser(t *testing.T) {
 		{"floor_disabled", "platformer", "failed"}, {"floor_embedded", "platformer", "unavailable"},
 		{"catalog_coin", "platformer", "passed"}, {"unknown_coin", "platformer", "unavailable"}, {"explicit_coin", "platformer", "unavailable"},
 		{"fps_offset", "three", "passed"}, {"fps_cover", "three", "passed"}, {"fps_sealed", "three", "unavailable"},
+		{"fps_ground_pickup", "three", "passed"},
+		{"fps_ground_behind", "three", "passed"}, {"fps_ground_blocked", "three", "unavailable"},
+		{"fps_ground_elevated", "three", "unavailable"}, {"fps_ground_counter_only", "three", "unavailable"},
 		{"space_fixed", "three", "passed"}, {"space_camera", "three", "passed"}, {"space_camera_moving", "three", "passed"},
 		{"space_legacy_fixed", "three", "passed"}, {"space_legacy_camera", "three", "passed"},
 		{"space_no_fire", "three", "unavailable"}, {"space_counter_only", "three", "unavailable"},
@@ -90,18 +93,24 @@ func TestTargetControlBrowser(t *testing.T) {
 				at := Vec3{3, 1, 7}
 				behavior := "destroy"
 				mode := "aim"
-				if tc.name == "ground_route" || tc.name == "model_asset_target" {
+				if tc.name == "ground_route" || tc.name == "model_asset_target" || strings.HasPrefix(tc.name, "fps_ground_") {
 					at = Vec3{0, .5, 6}
 					behavior = "collect"
 					mode = "reach"
+				}
+				if tc.name == "fps_ground_behind" {
+					at[2] = -4
+				}
+				if tc.name == "fps_ground_elevated" || tc.name == "fps_ground_counter_only" {
+					at[1] = 4
 				}
 				scene := Scene{SchemaVersion: 1, Dimension: "3d", Seed: 41, Levels: []SceneLevel{{ID: "main", Active: true}}, WorldBounds: SceneBounds{Min: Vec3{-12, -1, -8}, Max: Vec3{12, 15, 30}},
 					Nodes:      []SceneNode{{ID: "player", Kind: "player", Position: Vec3{0, 0, 0}, Size: Vec3{.6, 1.7, .6}}, {ID: "target", Kind: "entity", Position: at, Size: Vec3{1, 1, 1}, Properties: map[string]any{"color": 0xff9922}}},
 					Placements: []ScenePlacement{{ID: "target-art", NodeID: "target", AssetRole: "enemy", Behavior: behavior, Position: at}},
 				}
-				if tc.name != "fps_offset" {
+				if tc.name != "fps_offset" && (!strings.HasPrefix(tc.name, "fps_ground_") || tc.name == "fps_ground_blocked") {
 					width := 2.0
-					if tc.name == "fps_sealed" {
+					if tc.name == "fps_sealed" || tc.name == "fps_ground_blocked" {
 						width = 24
 					}
 					scene.Nodes = append(scene.Nodes, SceneNode{ID: "wall", Kind: "obstacle", Position: Vec3{0, 2, 3}, Size: Vec3{width, 4, .8}})
@@ -134,7 +143,7 @@ func TestTargetControlBrowser(t *testing.T) {
 				}
 				plan.Scene = &scene
 				scenario = GameScenario{ID: "target_rule", Metric: "hits", Compare: "increased", Steps: []GameTestStep{{Action: "target", Target: "target", Mode: mode, MS: 4000}}}
-				if tc.name == "ground_route" || tc.name == "model_asset_target" {
+				if tc.name == "ground_route" || tc.name == "model_asset_target" || strings.HasPrefix(tc.name, "fps_ground_") {
 					scenario.Metric = "pickup_events"
 				}
 				if tc.name == "model_asset_target" {
@@ -292,6 +301,9 @@ func TestTargetControlBrowser(t *testing.T) {
 					mode = "exploration"
 				}
 				source = []byte("import {startGame} from './common';startGame({mode:'" + mode + "',objective:'Reach the target',speed:6,goal:1,duration:0,objects:[]});")
+				if tc.name == "fps_ground_counter_only" {
+					source = bytes.Replace(source, []byte("objects:[]"), []byte("objects:[],step(dt,api){api.state.pickup_events++}"), 1)
+				}
 				if strings.HasPrefix(tc.name, "space_") {
 					source = bytes.Replace(source, []byte("speed:6"), []byte("speed:14"), 1)
 				}

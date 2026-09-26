@@ -202,7 +202,10 @@
         // role (item). Resolve only metadata on actual objects, never guessed art.
         const direct=o=>o.id===command.target||o.roles?.some(r=>r===command.target||r.startsWith(command.target+'_'));
         const hasDirect=view.targets.some(direct);
-        const p=view.player,now=snapshot(inspectAssets),candidates=view.targets.filter(o=>o.active&&o.visible&&
+        // Ground pickups leave the FPS frustum before contact. Navigate using
+        // their live world geometry; aim/select still require a visible target.
+        const navigate3D=view.kind==='3d'&&['reach','interact'].includes(command.mode);
+        const p=view.player,now=snapshot(inspectAssets),candidates=view.targets.filter(o=>o.active&&(o.visible||navigate3D)&&
           (hasDirect?direct(o):o.asset_ids?.includes(command.target))&&
           (command.mode!=='select'||!o.mark));
         if(command.mode==='avoid'&&view.kind==='2d'&&view.targets.some(o=>o.id===lock&&o.y-o.h/2>(view.bounds.bottom??view.bounds.y+view.bounds.height)))observedMiss=true;

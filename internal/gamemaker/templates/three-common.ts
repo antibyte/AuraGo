@@ -47,7 +47,7 @@ export function startGame(config: any) {
   root.append(hud,crosshair,controls);
   const keys=new Set<string>();let listeners=0, dragging=false;
   const on=(target:any,name:string,fn:any)=>{target.addEventListener(name,fn,{signal});listeners++};
-  let time=0,score=0,hits=0,actions=0,health=100,ammo=8,reloads=0,ended=false,won=false,carrying=false,aim=0,pitch=0,shotAt=-1,reloadAt=0,boostUntil=0,wheelAngle=0;
+  let time=0,score=0,hits=0,pickups=0,actions=0,health=100,ammo=8,reloads=0,ended=false,won=false,carrying=false,aim=0,pitch=0,shotAt=-1,reloadAt=0,boostUntil=0,wheelAngle=0;
   let frame=0,last=0,disposed=false,ready=false,arms:any,weapon:any,avatar:any,paused=false;
   let builder:any=null, debugGroup:any=null, cameraBounds:any=null,active=true, sceneBounds:any={min:[-45,0,-20],max:[45,30,170]};
   const sceneState:any={score:0,hits:0,actions:0,lives:0,goal_remaining:0,outcome:0,hit_events:0,pickup_events:0,win_events:0,lose_events:0};
@@ -92,7 +92,7 @@ export function startGame(config: any) {
   function reset(){
     flow.reset();lives=Math.max(1,Math.floor(config.lives)||3);respawnAt=invulnerableUntil=0;
     presentation?.reset();presentation?.setPaused(false);footstepAt=0;finishReported=false;
-    time=score=hits=actions=reloads=0;sceneState.score=sceneState.hits=sceneState.actions=0;health=100;ammo=8;ended=won=carrying=paused=false;aim=pitch=reloadAt=boostUntil=wheelAngle=0;shotAt=-1;keys.clear();
+    time=score=hits=pickups=actions=reloads=0;sceneState.score=sceneState.hits=sceneState.actions=0;health=100;ammo=8;ended=won=carrying=paused=false;aim=pitch=reloadAt=boostUntil=wheelAngle=0;shotAt=-1;keys.clear();
     player.position.set(0,config.mode==='flight'?5:config.mode==='space'?4:0,0);player.rotation.set(0,0,0);
     for(const o of objects){o.unit.root.position.copy(o.start);o.unit.root.visible=true;o.attackAt=0}
     if(avatar)clip(avatar,'idle');weaponAction('idle');builder?.reset();cameraUpdate(1);config.reset?.(api);
@@ -334,9 +334,9 @@ export function startGame(config: any) {
           }
         }else if(d<2)damagePlayer(18);
       }
-      if(o.role==='item'&&d<1.5 || o.role==='cargo'&&d<2){flow.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(o.role==='cargo')carrying=true;else if(score>=config.goal){ended=won=true}}
+      if(o.role==='item'&&d<1.5 || o.role==='cargo'&&d<2){flow.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;pickups++;if(o.role==='cargo')carrying=true;else if(score>=config.goal){ended=won=true}}
       if(o.role==='goal'&&d<(config.mode==='flight'?3:2.5)){
-        if(config.mode==='flight'){flow.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;if(score>=config.goal){ended=won=true}}
+        if(config.mode==='flight'){flow.event('pickup',mesh.position.toArray());mesh.visible=false;score++;hits++;pickups++;if(score>=config.goal){ended=won=true}}
         else if(carrying){score++;hits++;ended=won=true}
       }
     }
@@ -350,7 +350,7 @@ export function startGame(config: any) {
     if(!builder&&(config.duration>0&&time>=config.duration)){ended=true;won=false}
     for(const unit of live)if(!unit.procedural)A.updateInstance(unit,dt,camera);
   }
-  function snapshot(){return {player_x:player.position.x,player_y:player.position.z,aim,ammo,reloads,health:builder?(sceneState.health??0):health,actions,score:builder?sceneState.score:score,hits:builder?sceneState.hits:hits,lives:builder?sceneState.lives:lives,goal_remaining:builder?sceneState.goal_remaining:0,outcome:builder?sceneState.outcome:(ended?(won?1:2):0),hit_events:builder?sceneState.hit_events:hits,pickup_events:builder?sceneState.pickup_events:0,win_events:builder?sceneState.win_events:0,lose_events:builder?sceneState.lose_events:0,turns:0,spawns:objects.length,ticks:Math.floor(time),ended:Number(ended),object_count:live.length,timer_count:0,listener_count:listeners,invalid_assets:live.filter(u=>!u.root.parent).length,assets_used:live.filter(u=>u.root.visible).length,elapsed_ms:time*1000}}
+  function snapshot(){return {player_x:player.position.x,player_y:player.position.z,aim,ammo,reloads,health:builder?(sceneState.health??0):health,actions,score:builder?sceneState.score:score,hits:builder?sceneState.hits:hits,lives:builder?sceneState.lives:lives,goal_remaining:builder?sceneState.goal_remaining:0,outcome:builder?sceneState.outcome:(ended?(won?1:2):0),hit_events:builder?sceneState.hit_events:hits,pickup_events:builder?sceneState.pickup_events:pickups,win_events:builder?sceneState.win_events:0,lose_events:builder?sceneState.lose_events:0,turns:0,spawns:objects.length,ticks:Math.floor(time),ended:Number(ended),object_count:live.length,timer_count:0,listener_count:listeners,invalid_assets:live.filter(u=>!u.root.parent).length,assets_used:live.filter(u=>u.root.visible).length,elapsed_ms:time*1000}}
   // Read-only geometry for the preview driver; no movement, damage or verdict hooks.
   function observeTargets(){
     const look=new T.Raycaster();camera.updateMatrixWorld();

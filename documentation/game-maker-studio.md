@@ -295,8 +295,20 @@ nearby interactions additionally require the driver's action input. Checks retai
 3D height checks and reject remote victories, pre-existing wins, losses and
 counter-only changes as proof of the requested goal interaction.
 
-All 2D publication uses full validation; 3D publication currently uses startup
-and explicitly reports gameplay unverified. Technical failures share at most
+For 3D reach/interact checks, the driver follows live target geometry even when
+the object is outside the camera view. This lets an FPS player reach small
+ground pickups that disappear below the viewport while approaching. Aiming and
+selection retain visibility checks; movement still uses normal input and respects
+colliders. Blocked or elevated unreachable targets remain unverified.
+
+Non-scene Three.js games expose actual item/cargo/flight-goal collections through
+`pickup_events`, independently of combat hits and cosmetic feedback. Restart
+clears the counter. When an existing game's helper still returns a constant zero
+for that metric, the agent receives its exact source location and repair guidance
+in the runtime context. Existing authored helpers are retained for focused repair.
+
+2D and guided 3D publication require full validation. Free-code `three` uses
+startup validation and explicitly reports gameplay unverified. Technical failures share at most
 three repair passes across tool calls and orchestration, with no nested allowance.
 Repairs receive the accepted plan and exact check/expected/observed mismatch.
 Exhausted repair budgets or unavailable browser feedback end the agent round
