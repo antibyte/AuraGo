@@ -265,7 +265,8 @@ func fillCydFeeds(s *Server, in *cyd.Inputs) {
 			}
 			in.Alerts = append(in.Alerts, cyd.FeedItem{
 				Sev:   w.Severity,
-				Title: cyd.Truncate(w.Title, 23),
+				Title: w.Title,
+				Body:  w.Description,
 			})
 		}
 	}
@@ -302,8 +303,8 @@ func fillCydFeeds(s *Server, in *cyd.Inputs) {
 			}
 		}
 		in.Mesh = append(in.Mesh, cyd.FeedItem{
-			From:      cyd.Truncate(name, 23),
-			Preview:   cyd.Truncate(preview, 31),
+			From:      name,
+			Preview:   preview,
 			Protected: c.Protected,
 			AgeS:      age,
 		})

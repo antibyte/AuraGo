@@ -201,7 +201,7 @@ func (h *Hub) PinTask(task string, ttl int) {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.pinnedTask = Truncate(task, TaskMax)
+	h.pinnedTask = TruncateUTF8(task, TaskMax)
 	h.inputs.Task = h.pinnedTask
 	if ttl > 0 {
 		h.overlayUntil = time.Now().Add(time.Duration(NotifyTTL("normal", ttl)) * time.Second)

@@ -6,11 +6,13 @@ import (
 )
 
 const (
-	TitleMax   = 32
-	BodyMax    = 96
-	TaskMax    = 40
-	ModelMax   = 23
-	GlassIDMax = 39 // firmware PROTO_ID_MAX on 0.3.13; keep notify ids inside it
+	TitleMax     = 32
+	BodyMax      = 96
+	TaskMax      = 180 // firmware PROTO_TASK_MAX; rows clip, the detail view wraps
+	ModelMax     = 23
+	FeedTitleMax = 96  // firmware PROTO_FEED_TITLE
+	FeedBodyMax  = 240 // firmware PROTO_FEED_BODY
+	GlassIDMax   = 39  // firmware PROTO_ID_MAX on 0.3.13; keep notify ids inside it
 )
 
 // Snapshot is the compact dashboard payload for Cheap Yellow Displays.
@@ -139,6 +141,27 @@ func Truncate(s string, max int) string {
 	return s[:max]
 }
 
+// TruncateUTF8 cuts to max bytes without splitting a rune.
+func TruncateUTF8(s string, max int) string {
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	for max > 0 && s[max]&0xC0 == 0x80 {
+		max--
+	}
+	return s[:max]
+}
+
+func clipFeed(items []FeedItem) []FeedItem {
+	for i := range items {
+		items[i].Title = TruncateUTF8(items[i].Title, FeedTitleMax)
+		items[i].From = TruncateUTF8(items[i].From, FeedTitleMax)
+		items[i].Body = TruncateUTF8(items[i].Body, FeedBodyMax)
+		items[i].Preview = TruncateUTF8(items[i].Preview, FeedBodyMax)
+	}
+	return items
+}
+
 func limitFeed(items []FeedItem, n int) []FeedItem {
 	if n <= 0 || len(items) == 0 {
 		return nil
@@ -198,9 +221,9 @@ func BuildSnapshot(in Inputs, overlay *Notify) Snapshot {
 		TS: time.Now().Unix(),
 		Agent: AgentInfo{
 			Busy:        in.Busy,
-			Model:       Truncate(in.Model, ModelMax),
-			Personality: Truncate(in.Personality, ModelMax),
-			Task:        Truncate(in.Task, TaskMax),
+			Model:       TruncateUTF8(in.Model, ModelMax),
+			Personality: TruncateUTF8(in.Personality, ModelMax),
+			Task:        TruncateUTF8(in.Task, TaskMax),
 		},
 		Host: HostMetrics{
 			CPUPct:      finite(in.CPUPct),
@@ -220,8 +243,8 @@ func BuildSnapshot(in Inputs, overlay *Notify) Snapshot {
 			Brightness: brightness,
 			LED:        led,
 		},
-		Alerts: AlertsInfo{Count: in.AlertsCount, Items: limitFeed(in.Alerts, 3)},
-		Mesh:   MeshInfo{Unread: in.MeshUnread, Items: limitFeed(in.Mesh, 3)},
+		Alerts: AlertsInfo{Count: in.AlertsCount, Items: clipFeed(limitFeed(in.Alerts, 3))},
+		Mesh:   MeshInfo{Unread: in.MeshUnread, Items: clipFeed(limitFeed(in.Mesh, 3))},
 	}
 	if overlay != nil && overlay.ID != "" {
 		copyNotify := *overlay

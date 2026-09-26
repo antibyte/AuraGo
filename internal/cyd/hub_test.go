@@ -3,6 +3,7 @@ package cyd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -126,13 +127,33 @@ func TestSetPageNames(t *testing.T) {
 }
 
 func TestBuildSnapshotTruncates(t *testing.T) {
-	long := "abcdefghijklmnopqrstuvwxyz0123456789 extra"
+	long := strings.Repeat("a", TaskMax+8)
 	snap := BuildSnapshot(Inputs{Task: long, Model: long, Busy: true}, nil)
-	if len(snap.Agent.Task) > TaskMax {
+	if len(snap.Agent.Task) != TaskMax {
 		t.Fatalf("task len %d", len(snap.Agent.Task))
 	}
 	if snap.Display.LED != "yellow" {
 		t.Fatalf("led = %s", snap.Display.LED)
+	}
+}
+
+func TestBuildSnapshotKeepsFeedText(t *testing.T) {
+	title := strings.Repeat("T", 80)
+	body := strings.Repeat("B", 200)
+	snap := BuildSnapshot(Inputs{
+		Alerts: []FeedItem{{Sev: "warning", Title: title, Body: body}},
+		Mesh:   []FeedItem{{From: title, Preview: body}},
+	}, nil)
+	if snap.Alerts.Items[0].Title != title || snap.Alerts.Items[0].Body != body {
+		t.Fatalf("alert text clipped: %d %d", len(snap.Alerts.Items[0].Title), len(snap.Alerts.Items[0].Body))
+	}
+	if snap.Mesh.Items[0].From != title || snap.Mesh.Items[0].Preview != body {
+		t.Fatalf("mesh text clipped: %d %d", len(snap.Mesh.Items[0].From), len(snap.Mesh.Items[0].Preview))
+	}
+	huge := strings.Repeat("ä", FeedBodyMax)
+	snap = BuildSnapshot(Inputs{Alerts: []FeedItem{{Body: huge + "tail"}}}, nil)
+	if got := snap.Alerts.Items[0].Body; len(got) != FeedBodyMax || !strings.HasPrefix(huge, got) {
+		t.Fatalf("body len %d", len(got))
 	}
 }
 
