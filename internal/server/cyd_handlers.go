@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/agodesk"
 	"aurago/internal/config"
 	"aurago/internal/cyd"
 	"aurago/internal/meshcore"
@@ -470,6 +472,90 @@ func handleCYDSpeak(s *Server) http.HandlerFunc {
 	}
 }
 
+func activeCYDPersonaKey(cfg *config.Config) string {
+	persona := "custom"
+	if cfg != nil {
+		persona = strings.TrimSpace(cfg.Personality.CorePersonality)
+	}
+	persona, _ = prompts.ResolvePersonalityID(persona)
+	if persona == "" {
+		persona = "custom"
+	}
+	return agodesk.PersonaAssetKey(persona, isCorePersonality(persona))
+}
+
+func readPersonaPNG(key string) ([]byte, error) {
+	if key == "" || strings.Contains(key, "/") || strings.Contains(key, ".") {
+		return nil, fs.ErrNotExist
+	}
+	return fs.ReadFile(uiFiles, "img/personas/"+key+".png")
+}
+
+var cydPortraitCache struct {
+	mu  sync.Mutex
+	key string
+	rgb []byte
+}
+
+func cachedCYDPortrait(key string) ([]byte, error) {
+	cydPortraitCache.mu.Lock()
+	defer cydPortraitCache.mu.Unlock()
+	if cydPortraitCache.key == key && len(cydPortraitCache.rgb) == cyd.PortraitSide*cyd.PortraitSide*2 {
+		return append([]byte(nil), cydPortraitCache.rgb...), nil
+	}
+	raw, err := readPersonaPNG(key)
+	if err != nil {
+		return nil, err
+	}
+	rgb, err := cyd.EncodePortraitRGB565(raw, cyd.PortraitSide)
+	if err != nil {
+		return nil, err
+	}
+	cydPortraitCache.key = key
+	cydPortraitCache.rgb = rgb
+	return rgb, nil
+}
+
+func handleCYDPersona(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.CfgMu.RLock()
+		cfg := s.Cfg
+		enabled := cfg != nil && cfg.Cyd.Enabled
+		key := activeCYDPersonaKey(cfg)
+		s.CfgMu.RUnlock()
+		if !enabled {
+			jsonError(w, "cyd is disabled", http.StatusNotFound)
+			return
+		}
+		if _, _, ok := s.authorizeCYD(w, r); !ok {
+			return
+		}
+		rgb, err := cachedCYDPortrait(key)
+		if err != nil {
+			if key != "custom" {
+				key = "custom"
+				rgb, err = cachedCYDPortrait(key)
+			}
+		}
+		if err != nil || len(rgb) != cyd.PortraitSide*cyd.PortraitSide*2 {
+			jsonError(w, "persona image not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("X-Width", strconv.Itoa(cyd.PortraitSide))
+		w.Header().Set("X-Height", strconv.Itoa(cyd.PortraitSide))
+		w.Header().Set("X-Persona", key)
+		w.Header().Set("X-Asset-Version", agodesk.PersonaAssetVersion)
+		w.Header().Set("Content-Length", strconv.Itoa(len(rgb)))
+		w.Header().Set("Cache-Control", "private, max-age=300")
+		_, _ = w.Write(rgb)
+	}
+}
+
 func handleCYDTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -646,6 +732,7 @@ func registerCYDRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/cyd/heartbeat", handleCYDHeartbeat(s))
 	mux.HandleFunc("/api/cyd/ack", handleCYDAck(s))
 	mux.HandleFunc("/api/cyd/speak/", handleCYDSpeak(s))
+	mux.HandleFunc("/api/cyd/persona", handleCYDPersona(s))
 	mux.HandleFunc("/api/cyd/ws", handleCYDWebSocket(s))
 	mux.HandleFunc("/api/cyd/status", handleCYDStatus(s))
 	mux.HandleFunc("/api/cyd/test", handleCYDTest(s))

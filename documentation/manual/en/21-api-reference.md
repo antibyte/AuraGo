@@ -2520,7 +2520,10 @@ GET /api/cyd/snapshot
 POST /api/cyd/heartbeat
 POST /api/cyd/ack
 GET /api/cyd/ws
+GET /api/cyd/persona
 ```
+
+`GET /api/cyd/persona` returns the active persona portrait as little-endian RGB565, 72×72. It is the same `/img/personas/<key>.png` file AgoDesk receives as `avatar_image_url`.
 
 ## SSE Events
 

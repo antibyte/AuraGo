@@ -1,12 +1,15 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -271,7 +274,7 @@ func TestMeshIncomingSpeechUsesPreview(t *testing.T) {
 }
 
 func TestAuthBypassesCYDDeviceRoutes(t *testing.T) {
-	for _, path := range []string{"/api/cyd/snapshot", "/api/cyd/ws", "/api/cyd/ack", "/api/cyd/heartbeat", "/api/cyd/speak/ntf_x"} {
+	for _, path := range []string{"/api/cyd/snapshot", "/api/cyd/ws", "/api/cyd/ack", "/api/cyd/heartbeat", "/api/cyd/speak/ntf_x", "/api/cyd/persona"} {
 		if !isAuthBypassed(path) {
 			t.Fatalf("%s should bypass session auth", path)
 		}
@@ -284,5 +287,63 @@ func TestAuthBypassesCYDDeviceRoutes(t *testing.T) {
 	}
 	if isAuthBypassed("/api/cyd/firmware/status") {
 		t.Fatal("firmware must stay session-protected")
+	}
+}
+
+func TestCYDPersonaReturnsActivePortrait(t *testing.T) {
+	s, raw := testCYDServer(t)
+	s.Cfg.Personality.CorePersonality = "punk"
+	prev := uiFiles
+	uiFiles = os.DirFS(filepath.Join("..", "..", "ui"))
+	t.Cleanup(func() { uiFiles = prev })
+	cydPortraitCache.mu.Lock()
+	cydPortraitCache.key = ""
+	cydPortraitCache.rgb = nil
+	cydPortraitCache.mu.Unlock()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/cyd/persona", nil)
+	handleCYDPersona(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("missing token status = %d", rec.Code)
+	}
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/cyd/persona", nil)
+	req.Header.Set("Authorization", "Bearer "+raw)
+	handleCYDPersona(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
+	}
+	side := cyd.PortraitSide
+	if rec.Header().Get("X-Persona") != "punk" {
+		t.Fatalf("persona = %q", rec.Header().Get("X-Persona"))
+	}
+	if rec.Header().Get("X-Width") != strconv.Itoa(side) || rec.Header().Get("X-Height") != strconv.Itoa(side) {
+		t.Fatalf("size headers = %s x %s", rec.Header().Get("X-Width"), rec.Header().Get("X-Height"))
+	}
+	pngBytes, err := os.ReadFile(filepath.Join("..", "..", "ui", "img", "personas", "punk.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := cyd.EncodePortraitRGB565(pngBytes, side)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(rec.Body.Bytes(), want) {
+		t.Fatalf("portrait bytes = %d, want the punk.png sprite", rec.Body.Len())
+	}
+
+	s.Cfg.Personality.CorePersonality = "my-bot"
+	cydPortraitCache.mu.Lock()
+	cydPortraitCache.key = ""
+	cydPortraitCache.rgb = nil
+	cydPortraitCache.mu.Unlock()
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/cyd/persona", nil)
+	req.Header.Set("Authorization", "Bearer "+raw)
+	handleCYDPersona(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || rec.Header().Get("X-Persona") != "custom" {
+		t.Fatalf("custom status = %d persona = %q body = %s", rec.Code, rec.Header().Get("X-Persona"), rec.Body.String())
 	}
 }

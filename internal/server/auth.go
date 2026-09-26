@@ -683,6 +683,7 @@ var authBypassPrefixes = []string{
 	"/api/cyd/ack",                     // CYD overlay dismiss — Bearer scope cyd
 	"/api/cyd/ws",                      // CYD WebSocket — Bearer scope cyd
 	"/api/cyd/speak/",                  // CYD sanoTTS PCM — Bearer scope cyd
+	"/api/cyd/persona",                 // CYD persona portrait — Bearer scope cyd
 	"/setup",
 	"/css/",
 	"/fonts/",
