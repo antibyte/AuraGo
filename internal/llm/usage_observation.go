@@ -202,11 +202,19 @@ func (b *usageStreamBody) Read(p []byte) (int, error) {
 
 func (b *usageStreamBody) Close() error { err := b.source.Close(); b.finish(); return err }
 
-func normalizeObservedUsage(data []byte, stepFun bool, result *RequestUsage) []byte {
+func normalizeObservedUsage(data []byte, stepFun bool, result *RequestUsage) (normalized []byte) {
 	var payload map[string]json.RawMessage
 	if json.Unmarshal(data, &payload) != nil {
 		return data
 	}
+	changed := stepFun && normalizeStepFunReasoning(payload)
+	defer func() {
+		if changed {
+			if encoded, err := json.Marshal(payload); err == nil {
+				normalized = encoded
+			}
+		}
+	}()
 	var model string
 	if json.Unmarshal(payload["model"], &model) == nil && model != "" {
 		result.Model = model
@@ -245,7 +253,7 @@ func normalizeObservedUsage(data []byte, stepFun bool, result *RequestUsage) []b
 			details["cached_tokens"] = usage["cached_tokens"]
 			usage["prompt_tokens_details"], _ = json.Marshal(details)
 			payload["usage"], _ = json.Marshal(usage)
-			data, _ = json.Marshal(payload)
+			changed = true
 		}
 	}
 	merge(&result.CacheReadTokens, read)

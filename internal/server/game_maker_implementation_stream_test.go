@@ -34,6 +34,12 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 		{"repeated_deadline", "3d", "deadline", "deadline", false},
 		{"cancel", "3d", "cancel", "stop", false},
 		{"length", "3d", "length", "stop", false},
+		{"length_2d", "2d", "length", "stop", false},
+		{"repeated_length", "2d", "length", "length", false},
+		{"format_after_length", "2d", "length", "format", false},
+		{"length_after_format", "2d", "format", "length", false},
+		{"length_after_eof", "3d", "eof", "length", false},
+		{"length_stale_revision", "2d", "length", "stop", true},
 		{"provider_error", "3d", "provider_error", "stop", false},
 		{"stale_revision", "3d", "eof", "stop", true},
 		{"format_2d", "2d", "format", "stop", false},
@@ -78,6 +84,9 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				}
 				if !body.Stream || len(body.Tools) != 0 || n > 2 {
 					t.Error("unbounded retry or unexpected tool-enabled request")
+				}
+				if body.MaxTokens != 4096 {
+					t.Errorf("source output did not honor the model limit: %d", body.MaxTokens)
 				}
 				for _, message := range body.Messages {
 					if len(message.ToolCalls) != 0 || message.FunctionCall != nil || message.Role == "tool" || strings.Contains(message.Content, "<tool_call>") || strings.Contains(message.Content, "stale source snapshot") {
@@ -224,7 +233,7 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 					t.Error("configured per-attempt deadline was not enforced")
 				}
 				wantRequests := int32(1)
-				if tc.first == "eof" || tc.first == "deadline" || tc.first == "format" {
+				if tc.first == "eof" || tc.first == "deadline" || tc.first == "format" || tc.first == "length" || tc.first == "format_length" {
 					wantRequests = 2
 				}
 				if requests.Load() != wantRequests {

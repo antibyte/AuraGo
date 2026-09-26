@@ -12,7 +12,7 @@ import (
 
 // StepFun rejects omitted content on assistant tool calls and nonstandard
 // reasoning_content fields. Keep the agent's private history intact and adapt
-// only the outgoing Chat Completions payload.
+// only the wire payload. Responses use the SDK's private reasoning field.
 type stepFunChatMessageTransport struct {
 	base   http.RoundTripper
 	direct bool
@@ -121,4 +121,37 @@ func normalizeStepFunMessages(body []byte, direct bool) ([]byte, error) {
 	}
 	payload["messages"] = encodedMessages
 	return json.Marshal(payload)
+}
+
+// StepFun defaults to "reasoning"; go-openai decodes "reasoning_content".
+// Map both ordinary and SSE responses, including chunks without usage. Never
+// turn reasoning into visible content or concatenate duplicate aliases.
+func normalizeStepFunReasoning(payload map[string]json.RawMessage) bool {
+	var choices []map[string]json.RawMessage
+	if json.Unmarshal(payload["choices"], &choices) != nil {
+		return false
+	}
+	changed := false
+	for _, choice := range choices {
+		for _, key := range []string{"message", "delta"} {
+			var message map[string]json.RawMessage
+			if json.Unmarshal(choice[key], &message) != nil || message == nil {
+				continue
+			}
+			var reasoning, canonical string
+			if json.Unmarshal(message["reasoning"], &reasoning) != nil || reasoning == "" {
+				continue
+			}
+			if json.Unmarshal(message["reasoning_content"], &canonical) != nil || canonical == "" {
+				message["reasoning_content"] = message["reasoning"]
+			}
+			delete(message, "reasoning")
+			choice[key], _ = json.Marshal(message)
+			changed = true
+		}
+	}
+	if changed {
+		payload["choices"], _ = json.Marshal(choices)
+	}
+	return changed
 }

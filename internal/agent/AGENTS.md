@@ -91,6 +91,10 @@ Tools are defined in `internal/tools/`:
   individual HTTP attempts, merge cumulative streaming counters by maximum and
   include Anthropic cache reads/writes in total input. Cached input still consumes
   the full context window. Only exact, known metered API prices justify estimates.
+- Minimal-loop requests send `max_tokens` equal to their validated completion
+  reserve on every round, correction and final summary. Optional
+  `MaxOutputTokens` selects a task-specific reserve including reasoning; all
+  eligible provider/model/context caps still apply before sending.
 
 - Persistent history compression must make bounded progress through oversized
   conversations at complete tool-round boundaries. Preserve the current human

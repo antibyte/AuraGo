@@ -69,6 +69,9 @@ func prepareMinimalLoopRequestWithProfile(ctx context.Context, cfg *config.Confi
 		return minimalPromptPreparation{}, fmt.Errorf("required minimal loop tool schemas were dropped")
 	}
 	req.Tools = fittedTools
+	// Send the same output ceiling that was reserved for every eligible route.
+	// Leaving it unset lets providers generate beyond the validated context budget.
+	req.MaxTokens = budget.CompletionReserve
 
 	buildStarted := time.Now()
 	promptResult := prompts.PromptBuildResult{Revision: prompts.PromptRevision("")}

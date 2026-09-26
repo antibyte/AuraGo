@@ -41,7 +41,7 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 			break
 		}
 		if err != nil {
-			return openai.ChatCompletionResponse{}, fmt.Errorf("text stream interrupted (%d chunks, %d text bytes, %s since last chunk): %w", chunks, text.Len(), time.Since(lastChunk).Round(time.Second), err)
+			return openai.ChatCompletionResponse{}, fmt.Errorf("text stream interrupted (%d chunks, %d text bytes, %d reasoning bytes, %s since last chunk): %w", chunks, text.Len(), reasoning.Len(), time.Since(lastChunk).Round(time.Second), err)
 		}
 		chunks++
 		lastChunk = time.Now()

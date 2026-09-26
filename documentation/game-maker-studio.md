@@ -152,6 +152,12 @@ The private conversation remains complete. The outgoing request keeps available
 reasoning and the current source snapshot, leaving out previous tool calls,
 results and rejected source. The snapshot includes the current job ID, fixed
 file path and SHA-256. Complete TypeScript is requested without tool calls.
+The source request sends an explicit ceiling of 16384 output tokens (including
+reasoning), reduced when a provider/model limit is lower. This same ceiling is
+reserved before fitting the context. Thinking remains enabled, and the configured
+call and job deadlines still apply. StepFun's standard `reasoning` response field
+is retained privately for both JSON and streaming responses, including chunks
+without token-usage data; it never becomes game code or Studio answer text.
 
 For unchanged template helpers, the fallback supplies a compact API reference
 instead of the full common.ts. The server compares the complete helper against
@@ -176,8 +182,10 @@ supplied fields must match. Additional fields, duplicate keys, other files,
 mixed prose and incomplete responses are rejected. The checked write still
 rejects concurrent edits even when the response omits its hash.
 
-A rejected format gets one corrective request, sharing the existing single
-retry with stream/deadline recovery. The correction appends feedback without
+A rejected format or output-token exhaustion gets one corrective request,
+sharing the existing single retry with stream/deadline recovery. Truncated code
+is discarded. The output-limit correction asks for a concise complete file using
+the same helper references and ceiling. The correction appends feedback without
 rewriting the prompt prefix or resending the snapshot. Normal compilation and
 browser validation still decide whether the resulting game is ready.
 

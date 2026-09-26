@@ -173,6 +173,11 @@ func TestExecuteMinimalLoopRebudgetsNoToolSummary(t *testing.T) {
 	if len(client.requests[len(client.requests)-1].Tools) != 0 {
 		t.Fatal("summary request retained tool schemas")
 	}
+	for _, req := range client.requests {
+		if req.MaxTokens != 512 {
+			t.Fatalf("tool round or summary did not enforce the route output limit: %d", req.MaxTokens)
+		}
+	}
 	if _, dropped := SanitizeToolMessages(history); dropped != 0 {
 		t.Fatalf("summary history contains orphaned tool messages: %d", dropped)
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 // The tool-free fallback does not pass through ExecuteAgentLoop's call deadline.
-// Bound it explicitly. Stream/deadline and output-format recovery share one retry.
+// Bound it explicitly. Stream/deadline, output-limit and format recovery share one retry.
 // Each attempt owns its stream; partial code never enters a file or the retry.
 func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *config.Config, client llm.ChatClient, run gamemaker.JobRun, revision, system, prompt string) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
 	timeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
@@ -60,11 +60,15 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		callCtx, cancel := context.WithTimeout(ctx, timeout)
 		response, completion, err := agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,
 			&agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}},
-			requestHistory, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer})
+			requestHistory, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, MaxOutputTokens: 16384, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer})
 		timedOut := errors.Is(callCtx.Err(), context.DeadlineExceeded) && errors.Is(err, context.DeadlineExceeded)
 		cancel()
 		broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.PromptTokens+response.CompletionTokens, 0, 0, false, false, "provider_usage")
 		formatError := errors.Is(err, agent.ErrUnexpectedToolCallText) && response.FinishReason == openai.FinishReasonStop
+		outputLimited := response.FinishReason == openai.FinishReasonLength && (err == nil || errors.Is(err, agent.ErrUnexpectedToolCallText))
+		if outputLimited {
+			err = fmt.Errorf("source generation reached its output token limit; incomplete source was not saved")
+		}
 		if formatError {
 			// An exact single-file envelope is source data, never a tool dispatch.
 			// Mixed prose, additional operations and stale bindings stay rejected.
@@ -75,11 +79,11 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 				err = fmt.Errorf("%w; source envelope rejected: %v", err, extractErr)
 			}
 		}
-		if err == nil || attempt > 0 || ctx.Err() != nil || (!formatError && !timedOut && !errors.Is(err, agent.ErrIncompleteTextStream)) {
+		if err == nil || attempt > 0 || ctx.Err() != nil || (!formatError && !outputLimited && !timedOut && !errors.Is(err, agent.ErrIncompleteTextStream)) {
 			return response, completion, err
 		}
 		if r.server.Logger != nil {
-			r.server.Logger.Warn("game maker source generation needs correction; retrying once", "job_id", run.Job.ID, "timeout", timeout, "deadline_exceeded", timedOut, "output_format_invalid", formatError, "error", err)
+			r.server.Logger.Warn("game maker source generation needs correction; retrying once", "job_id", run.Job.ID, "timeout", timeout, "deadline_exceeded", timedOut, "output_format_invalid", formatError, "output_limited", outputLimited, "error", err)
 		}
 		broker.Send("model_progress", "retrying")
 		// Retain the exact sent request, including its one reference packet.
@@ -91,6 +95,10 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 			if last.ReasoningContent != "" {
 				requestHistory = append(requestHistory, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "Earlier implementation reasoning is context only; follow the source-generation request.", ReasoningContent: last.ReasoningContent})
 			}
+		}
+		if outputLimited {
+			prompt = "The previous response reached its output token limit. No source was saved or executed. Use the existing plan and source snapshot. Return a concise, complete src/main.ts from the beginning in one response. Reuse the supplied helper APIs; retain the requested mechanics and omit duplicated framework code, lengthy comments and narration. This phase has no tools. Return TypeScript only, without XML, JSON envelopes or patches."
+			continue
 		}
 		if formatError {
 			prompt = "The previous response used the old tool-call format and was rejected. None of those calls were executed and no source was saved. This phase has no tools. Use the existing plan, source snapshot and retained context; do not search, read files or repeat calls. Return only the complete TypeScript source for src/main.ts, from its imports to its final statement. No commentary, XML, JSON envelopes, patches or changes to common.ts; implement the requested game through the supplied APIs."

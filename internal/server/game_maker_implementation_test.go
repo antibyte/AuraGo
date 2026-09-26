@@ -188,8 +188,8 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 					t.Errorf("incomplete response changed the starter: %v", err)
 				}
 				wantRequests := 1
-				if scenario.finish == "" {
-					wantRequests = 2 // Missing completion markers permit one whole-request retry.
+				if scenario.finish == "" || scenario.finish == "length" {
+					wantRequests = 2 // Interrupted or length-limited output shares one whole-request retry.
 				}
 				if scenario.finish == "stop" && (scenario.envelope == "stale" || scenario.envelope == "wrong-file") {
 					wantRequests = 2 // Rejected envelopes get one code-only correction, never dispatch.

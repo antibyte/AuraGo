@@ -41,6 +41,9 @@ type MinimalLoopOptions struct {
 	// StreamText buffers a tool-free completion from SSE, avoiding a wait for the
 	// entire output before response headers. Other minimal-loop callers stay unchanged.
 	StreamText bool
+	// MaxOutputTokens requests an output reserve (including reasoning), clamped
+	// to every eligible route's limit. Zero keeps the normal route-aware default.
+	MaxOutputTokens int
 	// MaxToolCalls limits individual calls including parallel batches; zero keeps the legacy limit.
 	MaxToolCalls int
 	// MaxToolRounds caps the number of tool-call follow-up rounds.
@@ -166,6 +169,9 @@ func ExecuteMinimalLoop(
 	}
 	if opts != nil && noTools {
 		req.ResponseFormat = opts.ResponseFormat
+	}
+	if opts != nil {
+		req.MaxTokens = opts.MaxOutputTokens
 	}
 	tokenCache := newTokenCountCache(512)
 	formatRetried := false
