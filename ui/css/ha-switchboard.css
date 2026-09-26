@@ -102,7 +102,12 @@
 .ha-channel { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #d5ad79; margin-top: 6px; text-shadow: 0 1px 1px #000; }
 .ha-instruments { display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 19px 12px; gap: 20px; }
 .ha-instrument-plaque { width: 100%; padding: 9px 4px; font-size: 15px; line-height: 1.4; letter-spacing: 2px; }
-.ha-dial { width: 100%; max-width: 158px; aspect-ratio: 1; flex: 0 0 auto; border: 7px ridge #8e714c; border-radius: 50%; padding: 4px; background: #22160d; box-shadow: 0 5px 8px #000c, 0 0 0 2px #170e06, inset 0 2px 3px #000; }
+.ha-dial {
+    width: 100%; max-width: 158px; aspect-ratio: 1; flex: 0 0 auto; border: 7px solid transparent; border-radius: 50%; padding: 4px;
+    /* A continuous metal rim avoids the diagonal bevel joins of a ridge border. */
+    background: linear-gradient(#22160d,#22160d) padding-box, linear-gradient(135deg,#efd2a0,#b48a55 28%,#72502f 52%,#c8a574 78%,#ead0a0) border-box;
+    box-shadow: 0 5px 8px #000c, 0 0 0 2px #170e06, inset 0 2px 3px #000;
+}
 .ha-dial-face { position: relative; width: 100%; height: 100%; border-radius: 50%; color: #2e2417; background: radial-gradient(ellipse at 35% 24%,#ffffff5c,transparent 40%), radial-gradient(circle,#e4cca0 45%,#d0ad79 75%,#725637); box-shadow: inset 0 0 13px #5c3b1f; }
 .ha-dial-drawing { display: block; width: 100%; height: 100%; overflow: visible; }
 .ha-dial-drawing text { fill: #2e2417; font-family: Georgia, 'Times New Roman', serif; text-anchor: middle; dominant-baseline: middle; }
