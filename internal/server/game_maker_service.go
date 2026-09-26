@@ -503,6 +503,16 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		}},
 		Stream: true,
 	}
+	if run.Project.Dimension == "3d" && run.Stage != "planning" {
+		route := llm.ModelRoute{ProviderID: cfg.LLM.Provider, ProviderType: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, Model: cfg.LLM.Model, Primary: true}
+		if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil && provider.Model == cfg.LLM.Model && strings.EqualFold(provider.Type, cfg.LLM.ProviderType) && strings.TrimRight(provider.BaseURL, "/") == strings.TrimRight(cfg.LLM.BaseURL, "/") {
+			route.ContextWindowOverride, route.MaxOutputTokensOverride = provider.ContextWindow, provider.MaxOutputTokens
+		}
+		limits := llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
+		if limits.ContextWindow >= 65536 && limits.MaxOutputTokens > llm.ReasoningOutputTokens {
+			req.MaxTokens = 16384
+		}
+	}
 	if run.Stage == "repair" && len(run.Captures) > 0 {
 		if route, ok := gameVisualPrimaryRoute(&cfg); ok && route.ID == cfg.LLM.Provider {
 			text := req.Messages[0].Content

@@ -44,6 +44,10 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 	cfg.Directories.WorkspaceDir = root
 	requests := make(chan openai.ChatCompletionRequest, 8)
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		var request openai.ChatCompletionRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Error(err)
@@ -59,6 +63,8 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		fmt.Fprintf(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":%q,\"reasoning_content\":\"Keep the forest and FPS controls\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n", content)
 	}))
 	defer provider.Close()
+	cfg.LLM.Provider, cfg.LLM.BaseURL = "source-test", provider.URL
+	cfg.Providers = []config.ProviderEntry{{ID: "source-test", Type: "openai", Model: cfg.LLM.Model, BaseURL: provider.URL, ContextWindow: 65536, MaxOutputTokens: 32768}}
 	clientConfig := openai.DefaultConfig("local-test")
 	clientConfig.BaseURL = provider.URL
 	client := openai.NewClientWithConfig(clientConfig)
@@ -115,6 +121,9 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		default:
 			t.Fatal("agent request was never constructed")
 		}
+		if request.MaxTokens != 16384 {
+			t.Errorf("%s 3D output reserve=%d, want 16384", stage, request.MaxTokens)
+		}
 		var system, user strings.Builder
 		priorReasoning := false
 		for _, message := range request.Messages {
@@ -128,7 +137,7 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		if !strings.Contains(user.String(), "Original game request:\nFPS shooter") || (stage == "repair" && !priorReasoning) {
 			t.Fatal("continuation lost the original request or provider reasoning")
 		}
-		for _, required := range []string{"A.loadAsset(manifest", "A.createInstance(asset", "record.root", "A.releaseAsset(asset)", "fps_binding.weapon_translation", "do not read minified vendor"} {
+		for _, required := range []string{"A.loadAsset(manifest", "A.createInstance(asset", "record.root", "A.releaseAsset(asset)", "fps_binding.weapon_translation", "do not read minified vendor", "config.objects", "Returning false from config.action(api) cancels", "let the built-in primary action run"} {
 			if !strings.Contains(system.String(), required) {
 				t.Errorf("%s request lost runtime API: %s", stage, required)
 			}
@@ -137,6 +146,16 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 			t.Errorf("%s request lost local import paths/example", stage)
 		}
 	}
+	cfg.Agent.ContextWindow = 32768
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if err := invoke(ctx, gamemaker.JobRun{Stage: "building", Project: gamemaker.Project{Dimension: "3d"}}); err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	if request := <-requests; request.MaxTokens > 8192 {
+		t.Errorf("small-context 3D output reserve=%d, want at most 8192", request.MaxTokens)
+	}
+	cfg.Agent.ContextWindow = 65536
 	project, err = service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Harbour", Dimension: "2d", Description: "Isometric harbour"})
 	if err != nil {
 		t.Fatal(err)

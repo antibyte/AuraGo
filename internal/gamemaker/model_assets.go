@@ -18,6 +18,7 @@ const ModelPackID = "aurago-low-poly"
 // Keep the public contract small enough for every build/repair prompt. Reading
 // the minified vendor bundle otherwise hides its exports behind output summaries.
 const ModelRuntimeGuide = `3D model runtime API (complete public gameplay contract; do not read minified vendor files):
+common.ts already loads planned asset roles. Put required items, enemies and goals in startGame config.objects with their exact plan roles so movement, pickups and preview targets observe the real objects. Bare A.createInstance records do not enter those gameplay checks; use them for extra visuals, never as the only required target. api.event emits feedback, not pickup/action metrics. Returning false from config.action(api) cancels the primary action. Return true after a real custom interaction; when there is no custom target, let the built-in primary action run. Return false only when intentionally disabling that action.
 import * as A from '../vendor/aurago-three-assets-1.js'; A.THREE is the pinned Three.js module.
 Import each returned per-model JSON path relative to src/main.ts.
 await A.loadAsset(manifest, exactAssetID, 'assets/builtin/PACK_ID/VERSION/', {signal}) returns an asset handle; use the returned pack ID and version.

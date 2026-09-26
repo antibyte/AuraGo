@@ -164,6 +164,10 @@ remains enabled, and the configured call and job deadlines still apply.
 StepFun's standard `reasoning` response field
 is retained privately for both JSON and streaming responses, including chunks
 without token-usage data; it never becomes game code or Studio answer text.
+Normal 3D build and repair turns request 16384 output tokens, including reasoning,
+when the selected route resolves to at least 65536 context and permits more than
+8192 output tokens. Other routes keep the general agent reserve. Every request
+still obeys the selected model's effective output and context limits.
 
 For unchanged template helpers, the fallback supplies a compact API reference
 instead of the full common.ts. The server compares the complete helper against
@@ -329,6 +333,13 @@ Planning examples distinguish position changes (`player_x`, `player_y`) from
 primary actions (`actions`). Breakout uses the `blocks` template; `minimal` is
 reserved for games without a matching starting template.
 New templates embed exact library-role imports and preloading in `common.ts`.
+Guided 3D games must place planned interactive item, enemy and goal roles in
+`config.objects`. Standalone Three.js model instances can add visual detail but
+do not appear as gameplay targets to the preview driver. `api.event` reports
+feedback; it does not record a pickup or primary action. A custom `action(api)`
+returns `true` after a real successful interaction. When no custom target is
+available, it lets the helper's built-in primary action run; `false` cancels
+that action entirely.
 The blocks template uses `body(..., role)` for its player, ball and block variants;
 the helper fits opaque sprite bounds uniformly and follows a separate collision
 proxy. Extend this wiring instead of rewriting the library loader. Custom preload
