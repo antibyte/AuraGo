@@ -78,11 +78,11 @@
   "config.updates.running": "运行中…",
   "config.web_scraper.summary_mode": "摘要模式",
   "config.webdav.secret_empty": "值为空",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "允许 AuraGo 使用已存储的令牌连接 Netlify。",
+  "config.netlify.readonly_help": "允许读取 Netlify 数据，但阻止部署、创建、更新和删除操作。",
+  "config.netlify.allow_deploy_help": "在只读模式关闭时，允许站点部署和部署回滚。",
+  "config.netlify.allow_site_management_help": "允许创建、更新和删除 Netlify 站点。",
+  "config.netlify.allow_env_management_help": "允许管理 Netlify 站点上的环境变量。",
+  "config.netlify.default_site_id_help": "当智能体未指定站点时使用的可选站点 ID。",
+  "config.netlify.team_slug_help": "可选的 Netlify 团队 slug，用于团队范围的 API 调用。"
 }

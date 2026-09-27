@@ -32,13 +32,13 @@
   "config.vercel.token_label": "个人访问令牌",
   "config.vercel.token_saved": "令牌已保存到保险库",
   "config.vercel.token_title": "API 令牌",
-  "config.vercel.enabled_help": "Allows AuraGo to connect to Vercel with the stored token.",
-  "config.vercel.readonly_help": "Allows reading Vercel data but blocks deploy, create, update, and delete actions.",
-  "config.vercel.allow_deploy_help": "Permits project deployments when read-only mode is off.",
-  "config.vercel.allow_project_management_help": "Permits creating, updating, and deleting Vercel projects.",
+  "config.vercel.enabled_help": "允许 AuraGo 使用已存储的令牌连接 Vercel。",
+  "config.vercel.readonly_help": "允许读取 Vercel 数据，但阻止部署、创建、更新和删除操作。",
+  "config.vercel.allow_deploy_help": "在只读模式关闭时，允许项目部署。",
+  "config.vercel.allow_project_management_help": "允许创建、更新和删除 Vercel 项目。",
   "config.vercel.allow_env_management_help": "Permits managing Vercel project environment variables.",
-  "config.vercel.allow_domain_management_help": "Permits adding, updating, and removing Vercel domains.",
-  "config.vercel.default_project_id_help": "Optional project ID used when the agent does not name a project.",
-  "config.vercel.team_id_help": "Optional Vercel team ID for team-scoped API calls.",
-  "config.vercel.team_slug_help": "Optional Vercel team slug for team-scoped API calls."
+  "config.vercel.allow_domain_management_help": "允许添加、更新和移除 Vercel 域名。",
+  "config.vercel.default_project_id_help": "当智能体未指定项目时使用的可选项目 ID。",
+  "config.vercel.team_id_help": "可选的 Vercel 团队 ID，用于团队范围的 API 调用。",
+  "config.vercel.team_slug_help": "可选的 Vercel 团队 slug，用于团队范围的 API 调用。"
 }

@@ -32,13 +32,13 @@
   "config.vercel.token_label": "パーソナルアクセストークン",
   "config.vercel.token_saved": "トークンがVaultに保存されました",
   "config.vercel.token_title": "APIトークン",
-  "config.vercel.enabled_help": "Allows AuraGo to connect to Vercel with the stored token.",
-  "config.vercel.readonly_help": "Allows reading Vercel data but blocks deploy, create, update, and delete actions.",
-  "config.vercel.allow_deploy_help": "Permits project deployments when read-only mode is off.",
-  "config.vercel.allow_project_management_help": "Permits creating, updating, and deleting Vercel projects.",
+  "config.vercel.enabled_help": "保存されたトークンを使って AuraGo が Vercel に接続することを許可します。",
+  "config.vercel.readonly_help": "Vercel データの読み取りは許可しますが、デプロイ、作成、更新、削除の操作はブロックします。",
+  "config.vercel.allow_deploy_help": "読み取り専用モードがオフのとき、プロジェクトのデプロイを許可します。",
+  "config.vercel.allow_project_management_help": "Vercel プロジェクトの作成、更新、削除を許可します。",
   "config.vercel.allow_env_management_help": "Permits managing Vercel project environment variables.",
-  "config.vercel.allow_domain_management_help": "Permits adding, updating, and removing Vercel domains.",
-  "config.vercel.default_project_id_help": "Optional project ID used when the agent does not name a project.",
-  "config.vercel.team_id_help": "Optional Vercel team ID for team-scoped API calls.",
-  "config.vercel.team_slug_help": "Optional Vercel team slug for team-scoped API calls."
+  "config.vercel.allow_domain_management_help": "Vercel ドメインの追加、更新、除去を許可します。",
+  "config.vercel.default_project_id_help": "エージェントがプロジェクトを指定しないときに使用される、任意のプロジェクト ID です。",
+  "config.vercel.team_id_help": "チームスコープの API 呼び出しに使用する、任意の Vercel チーム ID です。",
+  "config.vercel.team_slug_help": "チームスコープの API 呼び出しに使用する、任意の Vercel チームスラッグです。"
 }

@@ -32,13 +32,13 @@
   "config.vercel.token_label": "Osobní přístupový token",
   "config.vercel.token_saved": "Token uložen do trezoru",
   "config.vercel.token_title": "API token",
-  "config.vercel.enabled_help": "Allows AuraGo to connect to Vercel with the stored token.",
-  "config.vercel.readonly_help": "Allows reading Vercel data but blocks deploy, create, update, and delete actions.",
-  "config.vercel.allow_deploy_help": "Permits project deployments when read-only mode is off.",
-  "config.vercel.allow_project_management_help": "Permits creating, updating, and deleting Vercel projects.",
+  "config.vercel.enabled_help": "Umožňuje AuraGo připojit se k Vercel pomocí uloženého tokenu.",
+  "config.vercel.readonly_help": "Umožňuje čtení dat Vercel, ale blokuje akce nasazení, vytvoření, aktualizace a smazání.",
+  "config.vercel.allow_deploy_help": "Povoluje nasazení projektů, když je režim pouze pro čtení vypnutý.",
+  "config.vercel.allow_project_management_help": "Povoluje vytváření, aktualizaci a mazání projektů Vercel.",
   "config.vercel.allow_env_management_help": "Permits managing Vercel project environment variables.",
-  "config.vercel.allow_domain_management_help": "Permits adding, updating, and removing Vercel domains.",
-  "config.vercel.default_project_id_help": "Optional project ID used when the agent does not name a project.",
-  "config.vercel.team_id_help": "Optional Vercel team ID for team-scoped API calls.",
-  "config.vercel.team_slug_help": "Optional Vercel team slug for team-scoped API calls."
+  "config.vercel.allow_domain_management_help": "Povoluje přidávání, aktualizaci a odebírání domén Vercel.",
+  "config.vercel.default_project_id_help": "Volitelné ID projektu použité, když agent neuvede projekt.",
+  "config.vercel.team_id_help": "Volitelné ID týmu Vercel pro volání API v rozsahu týmu.",
+  "config.vercel.team_slug_help": "Volitelný slug týmu Vercel pro volání API v rozsahu týmu."
 }

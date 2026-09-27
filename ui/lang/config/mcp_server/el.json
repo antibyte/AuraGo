@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server ενεργοποιημένος",
   "config.mcp_server.require_auth": "Απαίτηση ελέγχου ταυτότητας",
   "config.mcp_server.allowed_tools": "Επιτρεπόμενα εργαλεία",
-  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
+  "config.mcp_server.allowed_tools_desc": "Εκτίθενται μόνο τα επιλεγμένα εργαλεία. Μια κενή λίστα δεν εκθέτει κανένα εργαλείο. Η «Επιλογή όλων» αποθηκεύει ρητά τα τρέχοντα ονόματα.",
   "config.mcp_server.token": "Διακριτικό bearer",
   "config.mcp_server.generate_token": "Δημιουργία διακριτικού",
   "config.mcp_server.endpoint_url": "URL του endpoint",
@@ -31,6 +31,6 @@
   "config.mcp_server.general_desc": "Ενεργοποιήστε τον MCP server και ρυθμίστε τις βασικές ρυθμίσεις.",
   "config.mcp_server.connection_title": "Σύνδεση",
   "config.mcp_server.connection_desc": "Ρυθμίσεις endpoint και ελέγχου ταυτότητας για τον MCP server.",
-  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
-  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
+  "config.mcp_server.enabled_help": "Εκθέτει το ενσωματωμένο τελικό σημείο διακομιστή MCP του AuraGo.",
+  "config.mcp_server.require_auth_help": "Απαιτεί από τους πελάτες να χρησιμοποιούν διακριτικό πρόσβασης MCP πριν εκτεθούν τα εργαλεία."
 }

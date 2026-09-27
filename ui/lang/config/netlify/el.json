@@ -78,11 +78,11 @@
   "config.updates.running": "Εκτελείται…",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.webdav.secret_empty": "Η τιμή είναι κενή",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "Επιτρέπει στο AuraGo να συνδέεται στο Netlify με το αποθηκευμένο διακριτικό.",
+  "config.netlify.readonly_help": "Επιτρέπει την ανάγνωση δεδομένων Netlify, αλλά αποκλείει τις ενέργειες ανάπτυξης, δημιουργίας, ενημέρωσης και διαγραφής.",
+  "config.netlify.allow_deploy_help": "Επιτρέπει αναπτύξεις ιστοτόπων και επαναφορές αναπτύξεων όταν η λειτουργία μόνο για ανάγνωση είναι απενεργοποιημένη.",
+  "config.netlify.allow_site_management_help": "Επιτρέπει τη δημιουργία, την ενημέρωση και τη διαγραφή ιστοτόπων Netlify.",
+  "config.netlify.allow_env_management_help": "Επιτρέπει τη διαχείριση μεταβλητών περιβάλλοντος σε ιστοτόπους Netlify.",
+  "config.netlify.default_site_id_help": "Προαιρετικό αναγνωριστικό ιστοτόπου που χρησιμοποιείται όταν ο πράκτορας δεν κατονομάζει ιστότοπο.",
+  "config.netlify.team_slug_help": "Προαιρετικό slug ομάδας Netlify που χρησιμοποιείται για κλήσεις API με εμβέλεια ομάδας."
 }

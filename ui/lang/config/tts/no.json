@@ -56,7 +56,7 @@
   "config.tts.piper_status_running": "🟢 Piper kjører",
   "config.tts.piper_status_stopped": "🟡 Piper er stoppet",
   "config.tts.piper_status_error": "🔴 Piper-feil",
-  "config.tts.language_custom_help": "Use Custom only when your TTS provider requires a language code not listed above.",
+  "config.tts.language_custom_help": "Bruk Egendefinert bare når TTS-leverandøren din krever en språkkode som ikke er oppført ovenfor.",
   "config.tts.provider_supertonic": "Supertonic (lokal)",
   "config.tts.supertonic_checking": "Sjekker Supertonic-status...",
   "config.tts.supertonic_auto_start_label": "Start automatisk",

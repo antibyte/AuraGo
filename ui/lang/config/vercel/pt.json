@@ -32,13 +32,13 @@
   "config.vercel.token_label": "Token de acesso pessoal",
   "config.vercel.token_saved": "Token salvo no cofre",
   "config.vercel.token_title": "Token de API",
-  "config.vercel.enabled_help": "Allows AuraGo to connect to Vercel with the stored token.",
-  "config.vercel.readonly_help": "Allows reading Vercel data but blocks deploy, create, update, and delete actions.",
-  "config.vercel.allow_deploy_help": "Permits project deployments when read-only mode is off.",
-  "config.vercel.allow_project_management_help": "Permits creating, updating, and deleting Vercel projects.",
+  "config.vercel.enabled_help": "Permite ao AuraGo ligar-se à Vercel com o token armazenado.",
+  "config.vercel.readonly_help": "Permite ler dados da Vercel, mas bloqueia as ações de implementação, criação, atualização e eliminação.",
+  "config.vercel.allow_deploy_help": "Permite implementações de projetos quando o modo só de leitura está desativado.",
+  "config.vercel.allow_project_management_help": "Permite criar, atualizar e eliminar projetos Vercel.",
   "config.vercel.allow_env_management_help": "Permits managing Vercel project environment variables.",
-  "config.vercel.allow_domain_management_help": "Permits adding, updating, and removing Vercel domains.",
-  "config.vercel.default_project_id_help": "Optional project ID used when the agent does not name a project.",
-  "config.vercel.team_id_help": "Optional Vercel team ID for team-scoped API calls.",
-  "config.vercel.team_slug_help": "Optional Vercel team slug for team-scoped API calls."
+  "config.vercel.allow_domain_management_help": "Permite adicionar, atualizar e remover domínios Vercel.",
+  "config.vercel.default_project_id_help": "ID opcional do projeto utilizado quando o agente não nomeia um projeto.",
+  "config.vercel.team_id_help": "ID opcional da equipa Vercel para chamadas de API com âmbito de equipa.",
+  "config.vercel.team_slug_help": "Slug opcional da equipa Vercel para chamadas de API com âmbito de equipa."
 }

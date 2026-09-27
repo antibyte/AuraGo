@@ -37,7 +37,7 @@
   "config.docker_mode_banner": "AuraGo está sendo executado dentro de um contêiner Docker. Alguns recursos podem ser limitados.",
   "config.firewall.docker_blocked": "O gerenciamento de firewall não está disponível dentro de um contêiner Docker.",
   "config.unsaved_changes.title": "Unsaved changes",
-  "config.unsaved_changes.message": "You have unsaved changes. Discard them and switch sections?",
+  "config.unsaved_changes.message": "Tem alterações não guardadas. Descartá-las e mudar de secção?",
   "config.unsaved_changes.discard": "Discard changes",
   "config.unsaved_changes.stay": "Stay here",
   "config.common.clear": "Limpar",

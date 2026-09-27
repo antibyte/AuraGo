@@ -37,7 +37,7 @@
   "config.docker_mode_banner": "AuraGo działa wewnątrz kontenera Docker. Niektóre funkcje mogą być ograniczone.",
   "config.firewall.docker_blocked": "Zarządzanie zaporą sieciową nie jest dostępne wewnątrz kontenera Docker.",
   "config.unsaved_changes.title": "Unsaved changes",
-  "config.unsaved_changes.message": "You have unsaved changes. Discard them and switch sections?",
+  "config.unsaved_changes.message": "Masz niezapisane zmiany. Odrzucić je i przełączyć sekcje?",
   "config.unsaved_changes.discard": "Discard changes",
   "config.unsaved_changes.stay": "Stay here",
   "config.common.clear": "Wyczyść",

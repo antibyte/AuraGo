@@ -32,13 +32,13 @@
   "config.vercel.token_label": "व्यक्तिगत पहुँच टोकन",
   "config.vercel.token_saved": "टोकन वॉल्ट में सेव हुआ",
   "config.vercel.token_title": "API टोकन",
-  "config.vercel.enabled_help": "Allows AuraGo to connect to Vercel with the stored token.",
-  "config.vercel.readonly_help": "Allows reading Vercel data but blocks deploy, create, update, and delete actions.",
-  "config.vercel.allow_deploy_help": "Permits project deployments when read-only mode is off.",
-  "config.vercel.allow_project_management_help": "Permits creating, updating, and deleting Vercel projects.",
+  "config.vercel.enabled_help": "संग्रहीत टोकन के साथ AuraGo को Vercel से जुड़ने की अनुमति देता है।",
+  "config.vercel.readonly_help": "Vercel डेटा पढ़ने की अनुमति देता है, परंतु डिप्लॉय, बनाने, अपडेट करने और मिटाने की क्रियाओं को रोकता है।",
+  "config.vercel.allow_deploy_help": "जब केवल-पठन मोड बंद हो, तब प्रोजेक्ट डिप्लॉय की अनुमति देता है।",
+  "config.vercel.allow_project_management_help": "Vercel प्रोजेक्ट बनाने, अपडेट करने और मिटाने की अनुमति देता है।",
   "config.vercel.allow_env_management_help": "Permits managing Vercel project environment variables.",
-  "config.vercel.allow_domain_management_help": "Permits adding, updating, and removing Vercel domains.",
-  "config.vercel.default_project_id_help": "Optional project ID used when the agent does not name a project.",
-  "config.vercel.team_id_help": "Optional Vercel team ID for team-scoped API calls.",
-  "config.vercel.team_slug_help": "Optional Vercel team slug for team-scoped API calls."
+  "config.vercel.allow_domain_management_help": "Vercel डोमेन जोड़ने, अपडेट करने और हटाने की अनुमति देता है।",
+  "config.vercel.default_project_id_help": "वैकल्पिक प्रोजेक्ट ID, जिसका उपयोग तब होता है जब एजेंट किसी प्रोजेक्ट का नाम नहीं बताता।",
+  "config.vercel.team_id_help": "टीम-दायरे वाली API कॉल के लिए वैकल्पिक Vercel टीम ID।",
+  "config.vercel.team_slug_help": "टीम-दायरे वाली API कॉल के लिए वैकल्पिक Vercel टीम स्लग।"
 }

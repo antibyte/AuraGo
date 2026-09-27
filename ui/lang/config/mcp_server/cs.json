@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server povolen",
   "config.mcp_server.require_auth": "Vyžadovat ověření",
   "config.mcp_server.allowed_tools": "Povolené nástroje",
-  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
+  "config.mcp_server.allowed_tools_desc": "Vystaveny jsou pouze vybrané nástroje. Prázdný seznam nevystaví žádné nástroje. Vybrat vše uloží aktuální názvy explicitně.",
   "config.mcp_server.token": "Bearer token",
   "config.mcp_server.generate_token": "Generovat token",
   "config.mcp_server.endpoint_url": "URL endpointu",
@@ -31,6 +31,6 @@
   "config.mcp_server.general_desc": "Povolte MCP server a nakonfigurujte základní nastavení.",
   "config.mcp_server.connection_title": "Připojení",
   "config.mcp_server.connection_desc": "Nastavení endpointu a ověřování pro MCP server.",
-  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
-  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
+  "config.mcp_server.enabled_help": "Vystavuje vestavěný koncový bod MCP serveru AuraGo.",
+  "config.mcp_server.require_auth_help": "Vyžaduje, aby klienti použili přístupový token MCP, než budou nástroje vystaveny."
 }

@@ -7,7 +7,7 @@
   "dashboard.opt_variant_shadow": "Shadow",
   "dashboard.opt_variant_retired": "Retired",
   "dashboard.opt_reason_awaiting_comparable_exposures": "Waiting for comparable delivered samples",
-  "dashboard.opt_reason_comparable_exposures_gain_at_least_0.10": "At least 10 percentage points gain on comparable exposures",
+  "dashboard.opt_reason_comparable_exposures_gain_at_least_0.10": "在可比敞口上至少获得 10 个百分点的提升",
   "dashboard.opt_reason_insufficient_comparable_gain": "Insufficient gain on comparable exposures",
   "dashboard.activity_background": "后台",
   "dashboard.activity_background_tasks": "后台任务",

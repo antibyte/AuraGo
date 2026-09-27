@@ -78,11 +78,11 @@
   "config.updates.running": "In esecuzione…",
   "config.web_scraper.summary_mode": "Modalità riepilogo",
   "config.webdav.secret_empty": "Il valore è vuoto",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "Consente ad AuraGo di connettersi a Netlify con il token archiviato.",
+  "config.netlify.readonly_help": "Consente la lettura dei dati Netlify ma blocca le azioni di deploy, creazione, aggiornamento ed eliminazione.",
+  "config.netlify.allow_deploy_help": "Consente i deploy dei siti e i rollback dei deploy quando la modalità di sola lettura è disattivata.",
+  "config.netlify.allow_site_management_help": "Consente di creare, aggiornare ed eliminare i siti Netlify.",
+  "config.netlify.allow_env_management_help": "Consente di gestire le variabili d'ambiente sui siti Netlify.",
+  "config.netlify.default_site_id_help": "ID sito facoltativo usato quando l'agente non nomina un sito.",
+  "config.netlify.team_slug_help": "Slug del team Netlify facoltativo usato per le chiamate API con ambito team."
 }

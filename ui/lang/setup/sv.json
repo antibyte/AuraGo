@@ -197,7 +197,7 @@
   "setup.plan_embedding_warning": "Den här planen använder inte OpenRouter. Se till att en embeddingmodell är konfigurerad; AuraGo kan inte nå sin fulla kapacitet utan embeddings.",
   "setup.provider_embedding_warning": "För andra leverantörer än OpenRouter bör du välja och kontrollera en embeddingmodell i nästa installationssteg. AuraGo kan inte nå sin fulla kapacitet utan embeddings.",
   "setup.success_config_links_title": "Recommended next steps",
-  "setup.success_config_links_desc": "Open the full configuration when you want to fine-tune these areas.",
+  "setup.success_config_links_desc": "Öppna den fullständiga konfigurationen när du vill finjustera dessa områden.",
   "setup.success_config_providers": "Review providers & models",
   "setup.success_config_security": "Login & security",
   "setup.success_config_server": "Server & ports",

@@ -78,11 +78,11 @@
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
   "config.webdav.secret_empty": "मान खाली है",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "संग्रहीत टोकन के साथ AuraGo को Netlify से जुड़ने की अनुमति देता है।",
+  "config.netlify.readonly_help": "Netlify डेटा पढ़ने की अनुमति देता है, परंतु डिप्लॉय, बनाने, अपडेट करने और मिटाने की क्रियाओं को रोकता है।",
+  "config.netlify.allow_deploy_help": "जब केवल-पठन मोड बंद हो, तब साइट डिप्लॉय और डिप्लॉय रोलबैक की अनुमति देता है।",
+  "config.netlify.allow_site_management_help": "Netlify साइटें बनाने, अपडेट करने और मिटाने की अनुमति देता है।",
+  "config.netlify.allow_env_management_help": "Netlify साइटों पर परिवेश चर प्रबंधित करने की अनुमति देता है।",
+  "config.netlify.default_site_id_help": "वैकल्पिक साइट ID, जिसका उपयोग तब होता है जब एजेंट किसी साइट का नाम नहीं बताता।",
+  "config.netlify.team_slug_help": "टीम-दायरे वाली API कॉल के लिए वैकल्पिक Netlify टीम स्लग।"
 }

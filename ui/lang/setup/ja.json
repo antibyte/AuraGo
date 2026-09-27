@@ -197,7 +197,7 @@
   "setup.plan_embedding_warning": "このプランはOpenRouterを使用しません。embeddingモデルが設定されていることを必ず確認してください。embeddingsなしではAuraGoは本来の性能を発揮できません。",
   "setup.provider_embedding_warning": "OpenRouter以外のプロバイダーでは、次のセットアップ手順でembeddingモデルを選択して確認してください。embeddingsなしではAuraGoは本来の性能を発揮できません。",
   "setup.success_config_links_title": "Recommended next steps",
-  "setup.success_config_links_desc": "Open the full configuration when you want to fine-tune these areas.",
+  "setup.success_config_links_desc": "これらの領域を細かく調整したい場合は、完全な設定を開いてください。",
   "setup.success_config_providers": "Review providers & models",
   "setup.success_config_security": "Login & security",
   "setup.success_config_server": "Server & ports",

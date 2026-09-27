@@ -70,5 +70,5 @@
   "config.web_scraper.summary_mode": "Režim shrnutí",
   "config.webdav.secret_empty": "Hodnota je prázdná",
   "config.onedrive.disconnect_confirm_title": "Odpojit OneDrive?",
-  "config.onedrive.enabled_help": "Enables OneDrive file access after Microsoft authorization is complete."
+  "config.onedrive.enabled_help": "Povoluje přístup k souborům OneDrive po dokončení autorizace Microsoft."
 }

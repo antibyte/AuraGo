@@ -44,5 +44,5 @@
   "config.telnyx.status_ok": "Připojeno k Telnyx",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Default language code used for Telnyx voice prompts and call transcription."
+  "help.telnyx.voice_language": "Výchozí kód jazyka používaný pro hlasové výzvy Telnyx a přepis hovorů."
 }

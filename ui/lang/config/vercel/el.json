@@ -32,13 +32,13 @@
   "config.vercel.token_label": "Προσωπικό διακριτικό πρόσβασης",
   "config.vercel.token_saved": "Το token αποθηκεύτηκε στο vault",
   "config.vercel.token_title": "Token API",
-  "config.vercel.enabled_help": "Allows AuraGo to connect to Vercel with the stored token.",
-  "config.vercel.readonly_help": "Allows reading Vercel data but blocks deploy, create, update, and delete actions.",
-  "config.vercel.allow_deploy_help": "Permits project deployments when read-only mode is off.",
-  "config.vercel.allow_project_management_help": "Permits creating, updating, and deleting Vercel projects.",
+  "config.vercel.enabled_help": "Επιτρέπει στο AuraGo να συνδέεται στο Vercel με το αποθηκευμένο διακριτικό.",
+  "config.vercel.readonly_help": "Επιτρέπει την ανάγνωση δεδομένων Vercel, αλλά αποκλείει τις ενέργειες ανάπτυξης, δημιουργίας, ενημέρωσης και διαγραφής.",
+  "config.vercel.allow_deploy_help": "Επιτρέπει αναπτύξεις έργων όταν η λειτουργία μόνο για ανάγνωση είναι απενεργοποιημένη.",
+  "config.vercel.allow_project_management_help": "Επιτρέπει τη δημιουργία, την ενημέρωση και τη διαγραφή έργων Vercel.",
   "config.vercel.allow_env_management_help": "Permits managing Vercel project environment variables.",
-  "config.vercel.allow_domain_management_help": "Permits adding, updating, and removing Vercel domains.",
-  "config.vercel.default_project_id_help": "Optional project ID used when the agent does not name a project.",
-  "config.vercel.team_id_help": "Optional Vercel team ID for team-scoped API calls.",
-  "config.vercel.team_slug_help": "Optional Vercel team slug for team-scoped API calls."
+  "config.vercel.allow_domain_management_help": "Επιτρέπει την προσθήκη, την ενημέρωση και την αφαίρεση τομέων Vercel.",
+  "config.vercel.default_project_id_help": "Προαιρετικό αναγνωριστικό έργου που χρησιμοποιείται όταν ο πράκτορας δεν κατονομάζει έργο.",
+  "config.vercel.team_id_help": "Προαιρετικό αναγνωριστικό ομάδας Vercel για κλήσεις API με εμβέλεια ομάδας.",
+  "config.vercel.team_slug_help": "Προαιρετικό slug ομάδας Vercel για κλήσεις API με εμβέλεια ομάδας."
 }

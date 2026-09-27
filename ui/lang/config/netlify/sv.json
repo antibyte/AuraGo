@@ -78,11 +78,11 @@
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
   "config.webdav.secret_empty": "Värdet är tomt",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "Tillåter AuraGo att ansluta till Netlify med den lagrade tokenen.",
+  "config.netlify.readonly_help": "Tillåter läsning av Netlify-data men blockerar åtgärder för driftsättning, skapande, uppdatering och borttagning.",
+  "config.netlify.allow_deploy_help": "Tillåter driftsättningar av webbplatser och återställning av driftsättningar när skrivskyddat läge är av.",
+  "config.netlify.allow_site_management_help": "Tillåter att skapa, uppdatera och ta bort Netlify-webbplatser.",
+  "config.netlify.allow_env_management_help": "Tillåter hantering av miljövariabler på Netlify-webbplatser.",
+  "config.netlify.default_site_id_help": "Valfritt webbplats-ID som används när agenten inte namnger en webbplats.",
+  "config.netlify.team_slug_help": "Valfri Netlify-teamslug som används för teamavgränsade API-anrop."
 }

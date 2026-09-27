@@ -32,13 +32,13 @@
   "config.vercel.token_label": "Persoonlijk toegangstoken",
   "config.vercel.token_saved": "Token opgeslagen in kluis",
   "config.vercel.token_title": "API-token",
-  "config.vercel.enabled_help": "Allows AuraGo to connect to Vercel with the stored token.",
-  "config.vercel.readonly_help": "Allows reading Vercel data but blocks deploy, create, update, and delete actions.",
-  "config.vercel.allow_deploy_help": "Permits project deployments when read-only mode is off.",
-  "config.vercel.allow_project_management_help": "Permits creating, updating, and deleting Vercel projects.",
+  "config.vercel.enabled_help": "Staat AuraGo toe om verbinding te maken met Vercel met het opgeslagen token.",
+  "config.vercel.readonly_help": "Staat het lezen van Vercel-gegevens toe, maar blokkeert acties voor deployen, aanmaken, bijwerken en verwijderen.",
+  "config.vercel.allow_deploy_help": "Staat deployments van projecten toe wanneer de alleen-lezenmodus uit staat.",
+  "config.vercel.allow_project_management_help": "Staat het aanmaken, bijwerken en verwijderen van Vercel-projecten toe.",
   "config.vercel.allow_env_management_help": "Permits managing Vercel project environment variables.",
-  "config.vercel.allow_domain_management_help": "Permits adding, updating, and removing Vercel domains.",
-  "config.vercel.default_project_id_help": "Optional project ID used when the agent does not name a project.",
-  "config.vercel.team_id_help": "Optional Vercel team ID for team-scoped API calls.",
-  "config.vercel.team_slug_help": "Optional Vercel team slug for team-scoped API calls."
+  "config.vercel.allow_domain_management_help": "Staat het toevoegen, bijwerken en verwijderen van Vercel-domeinen toe.",
+  "config.vercel.default_project_id_help": "Optionele project-ID die wordt gebruikt wanneer de agent geen project noemt.",
+  "config.vercel.team_id_help": "Optionele Vercel-team-ID voor teamgebonden API-aanroepen.",
+  "config.vercel.team_slug_help": "Optionele Vercel-teamslug voor teamgebonden API-aanroepen."
 }

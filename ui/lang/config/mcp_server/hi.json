@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP सर्वर सक्षम",
   "config.mcp_server.require_auth": "प्रमाणीकरण आवश्यक",
   "config.mcp_server.allowed_tools": "अनुमत उपकरण",
-  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
+  "config.mcp_server.allowed_tools_desc": "केवल चयनित टूल प्रकट होते हैं। खाली सूची कोई भी टूल प्रकट नहीं करती। सभी चुनें वर्तमान नामों को स्पष्ट रूप से संग्रहीत करता है।",
   "config.mcp_server.token": "Bearer टोकन",
   "config.mcp_server.generate_token": "टोकन जनरेट करें",
   "config.mcp_server.endpoint_url": "एंडपॉइंट URL",
@@ -31,6 +31,6 @@
   "config.mcp_server.general_desc": "MCP सर्वर सक्षम करें और बुनियादी सेटिंग्स कॉन्फ़िगर करें।",
   "config.mcp_server.connection_title": "कनेक्शन",
   "config.mcp_server.connection_desc": "MCP सर्वर के लिए एंडपॉइंट और प्रमाणीकरण सेटिंग्स।",
-  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
-  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
+  "config.mcp_server.enabled_help": "AuraGo का अंतर्निहित MCP सर्वर एंडपॉइंट प्रकट करता है।",
+  "config.mcp_server.require_auth_help": "टूल प्रकट होने से पहले क्लाइंट को MCP एक्सेस टोकन का उपयोग करना आवश्यक करता है।"
 }

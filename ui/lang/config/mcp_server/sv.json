@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server aktiverad",
   "config.mcp_server.require_auth": "Kräv autentisering",
   "config.mcp_server.allowed_tools": "Tillåtna verktyg",
-  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
+  "config.mcp_server.allowed_tools_desc": "Endast valda verktyg exponeras. En tom lista exponerar inga verktyg. Välj alla lagrar de aktuella namnen uttryckligen.",
   "config.mcp_server.token": "Bearer-token",
   "config.mcp_server.generate_token": "Generera token",
   "config.mcp_server.endpoint_url": "Ändpunkts-URL",
@@ -31,6 +31,6 @@
   "config.mcp_server.general_desc": "Aktivera MCP-servern och konfigurera grundläggande inställningar.",
   "config.mcp_server.connection_title": "Anslutning",
   "config.mcp_server.connection_desc": "Endpoint- och autentiseringsinställningar för MCP-servern.",
-  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
-  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
+  "config.mcp_server.enabled_help": "Exponerar slutpunkten för AuraGos inbyggda MCP-server.",
+  "config.mcp_server.require_auth_help": "Kräver att klienter använder en MCP-åtkomsttoken innan verktyg exponeras."
 }

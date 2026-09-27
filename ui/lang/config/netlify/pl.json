@@ -78,11 +78,11 @@
   "config.updates.running": "Uruchomiono…",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.webdav.secret_empty": "Wartość jest pusta",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "Umożliwia AuraGo połączenie z Netlify przy użyciu zapisanego tokenu.",
+  "config.netlify.readonly_help": "Zezwala na odczyt danych Netlify, ale blokuje działania wdrażania, tworzenia, aktualizacji i usuwania.",
+  "config.netlify.allow_deploy_help": "Zezwala na wdrożenia witryn i wycofania wdrożeń, gdy tryb tylko do odczytu jest wyłączony.",
+  "config.netlify.allow_site_management_help": "Zezwala na tworzenie, aktualizowanie i usuwanie witryn Netlify.",
+  "config.netlify.allow_env_management_help": "Zezwala na zarządzanie zmiennymi środowiskowymi w witrynach Netlify.",
+  "config.netlify.default_site_id_help": "Opcjonalny identyfikator witryny używany, gdy agent nie wskaże witryny.",
+  "config.netlify.team_slug_help": "Opcjonalny slug zespołu Netlify używany do wywołań API w zakresie zespołu."
 }

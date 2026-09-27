@@ -32,13 +32,13 @@
   "config.vercel.token_label": "Personlig tilgangstoken",
   "config.vercel.token_saved": "Token lagret i hvelvet",
   "config.vercel.token_title": "API-token",
-  "config.vercel.enabled_help": "Allows AuraGo to connect to Vercel with the stored token.",
-  "config.vercel.readonly_help": "Allows reading Vercel data but blocks deploy, create, update, and delete actions.",
-  "config.vercel.allow_deploy_help": "Permits project deployments when read-only mode is off.",
-  "config.vercel.allow_project_management_help": "Permits creating, updating, and deleting Vercel projects.",
+  "config.vercel.enabled_help": "Lar AuraGo koble til Vercel med det lagrede tokenet.",
+  "config.vercel.readonly_help": "Tillater lesing av Vercel-data, men blokkerer handlingene distribuer, opprett, oppdater og slett.",
+  "config.vercel.allow_deploy_help": "Tillater prosjektdistribusjoner når skrivebeskyttet modus er av.",
+  "config.vercel.allow_project_management_help": "Tillater oppretting, oppdatering og sletting av Vercel-prosjekter.",
   "config.vercel.allow_env_management_help": "Permits managing Vercel project environment variables.",
-  "config.vercel.allow_domain_management_help": "Permits adding, updating, and removing Vercel domains.",
-  "config.vercel.default_project_id_help": "Optional project ID used when the agent does not name a project.",
-  "config.vercel.team_id_help": "Optional Vercel team ID for team-scoped API calls.",
-  "config.vercel.team_slug_help": "Optional Vercel team slug for team-scoped API calls."
+  "config.vercel.allow_domain_management_help": "Tillater å legge til, oppdatere og fjerne Vercel-domener.",
+  "config.vercel.default_project_id_help": "Valgfri prosjekt-ID som brukes når agenten ikke navngir et prosjekt.",
+  "config.vercel.team_id_help": "Valgfri Vercel-team-ID for teamavgrensede API-kall.",
+  "config.vercel.team_slug_help": "Valgfri Vercel-teamslug for teamavgrensede API-kall."
 }

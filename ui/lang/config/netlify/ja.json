@@ -78,11 +78,11 @@
   "config.updates.running": "実行中…",
   "config.web_scraper.summary_mode": "サマリーモード",
   "config.webdav.secret_empty": "値が空です",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "保存されたトークンを使って AuraGo が Netlify に接続することを許可します。",
+  "config.netlify.readonly_help": "Netlify データの読み取りは許可しますが、デプロイ、作成、更新、削除の操作はブロックします。",
+  "config.netlify.allow_deploy_help": "読み取り専用モードがオフのとき、サイトのデプロイとデプロイのロールバックを許可します。",
+  "config.netlify.allow_site_management_help": "Netlify サイトの作成、更新、削除を許可します。",
+  "config.netlify.allow_env_management_help": "Netlify サイトの環境変数の管理を許可します。",
+  "config.netlify.default_site_id_help": "エージェントがサイトを指定しないときに使用される、任意のサイト ID です。",
+  "config.netlify.team_slug_help": "チームスコープの API 呼び出しに使用される、任意の Netlify チームスラッグです。"
 }

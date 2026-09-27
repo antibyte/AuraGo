@@ -70,5 +70,5 @@
   "config.web_scraper.summary_mode": "Sammendragsmodus",
   "config.webdav.secret_empty": "Verdien er tom",
   "config.onedrive.disconnect_confirm_title": "Koble fra OneDrive?",
-  "config.onedrive.enabled_help": "Enables OneDrive file access after Microsoft authorization is complete."
+  "config.onedrive.enabled_help": "Aktiverer OneDrive-filtilgang etter at Microsoft-autorisasjonen er fullført."
 }

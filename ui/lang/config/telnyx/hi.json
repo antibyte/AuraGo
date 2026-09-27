@@ -44,5 +44,5 @@
   "config.telnyx.status_ok": "Telnyx से जुड़ा",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Default language code used for Telnyx voice prompts and call transcription."
+  "help.telnyx.voice_language": "Telnyx वॉइस प्रॉम्प्ट और कॉल ट्रांसक्रिप्शन के लिए प्रयुक्त डिफ़ॉल्ट भाषा कोड।"
 }

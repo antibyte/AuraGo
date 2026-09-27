@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP 服务器已启用",
   "config.mcp_server.require_auth": "要求身份验证",
   "config.mcp_server.allowed_tools": "允许的工具",
-  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
+  "config.mcp_server.allowed_tools_desc": "仅暴露选定的工具。空列表不暴露任何工具。「全选」会显式存储当前名称。",
   "config.mcp_server.token": "Bearer 令牌",
   "config.mcp_server.generate_token": "生成令牌",
   "config.mcp_server.endpoint_url": "端点 URL",
@@ -31,6 +31,6 @@
   "config.mcp_server.general_desc": "启用 MCP 服务器并配置基本设置。",
   "config.mcp_server.connection_title": "连接",
   "config.mcp_server.connection_desc": "MCP 服务器的端点和身份验证设置。",
-  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
-  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
+  "config.mcp_server.enabled_help": "暴露 AuraGo 的内置 MCP 服务器端点。",
+  "config.mcp_server.require_auth_help": "要求客户端在工具被暴露之前使用 MCP 访问令牌。"
 }

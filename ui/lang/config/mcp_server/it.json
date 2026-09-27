@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "Server MCP abilitato",
   "config.mcp_server.require_auth": "Richiedi autenticazione",
   "config.mcp_server.allowed_tools": "Strumenti consentiti",
-  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
+  "config.mcp_server.allowed_tools_desc": "Sono esposti solo gli strumenti selezionati. Un elenco vuoto non espone alcuno strumento. Seleziona tutto memorizza i nomi attuali in modo esplicito.",
   "config.mcp_server.token": "Token Bearer",
   "config.mcp_server.generate_token": "Genera token",
   "config.mcp_server.endpoint_url": "URL endpoint",
@@ -31,6 +31,6 @@
   "config.mcp_server.general_desc": "Abilita il server MCP e configura le impostazioni di base.",
   "config.mcp_server.connection_title": "Connessione",
   "config.mcp_server.connection_desc": "Impostazioni endpoint e autenticazione per il server MCP.",
-  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
-  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
+  "config.mcp_server.enabled_help": "Espone l'endpoint del server MCP integrato di AuraGo.",
+  "config.mcp_server.require_auth_help": "Richiede che i client usino un token di accesso MCP prima che gli strumenti vengano esposti."
 }

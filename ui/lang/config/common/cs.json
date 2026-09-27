@@ -37,7 +37,7 @@
   "config.docker_mode_banner": "AuraGo běží uvnitř kontejneru Docker. Některé funkce mohou být omezeny.",
   "config.firewall.docker_blocked": "Správa firewallu není uvnitř kontejneru Docker dostupná.",
   "config.unsaved_changes.title": "Unsaved changes",
-  "config.unsaved_changes.message": "You have unsaved changes. Discard them and switch sections?",
+  "config.unsaved_changes.message": "Máte neuložené změny. Zahodit je a přepnout sekci?",
   "config.unsaved_changes.discard": "Discard changes",
   "config.unsaved_changes.stay": "Stay here",
   "config.common.clear": "Vymazat",

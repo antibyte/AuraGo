@@ -56,7 +56,7 @@
   "config.tts.piper_status_running": "🢢 Piper běží",
   "config.tts.piper_status_stopped": "🟡 Piper je zastavena",
   "config.tts.piper_status_error": "🔴 Chyba Piper",
-  "config.tts.language_custom_help": "Use Custom only when your TTS provider requires a language code not listed above.",
+  "config.tts.language_custom_help": "Použijte Vlastní pouze tehdy, když váš poskytovatel TTS vyžaduje kód jazyka, který není uveden výše.",
   "config.tts.provider_supertonic": "Supertonic (lokální)",
   "config.tts.supertonic_checking": "Kontroluji stav Supertonic...",
   "config.tts.supertonic_auto_start_label": "Spustit automaticky",

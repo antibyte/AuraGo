@@ -1,5 +1,5 @@
 {
-  "config.memory_analysis.auto_desc": "Memory analysis uses the central Helper LLM when available. Configure its provider in the Helper settings. These controls set the confidence threshold and reflection day.",
+  "config.memory_analysis.auto_desc": "Geheugenanalyse gebruikt de centrale Helper-LLM wanneer die beschikbaar is. Configureer de provider ervan in de Helper-instellingen. Deze regelaars stellen de vertrouwensdrempel en de reflectiedag in.",
   "config.memory_analysis.auto_notice": "Memory analysis and reflection",
   "config.memory_analysis.day_friday": "Vrijdag",
   "config.memory_analysis.day_monday": "Maandag",

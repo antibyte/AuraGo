@@ -78,11 +78,11 @@
   "config.updates.running": "Běží…",
   "config.web_scraper.summary_mode": "Režim shrnutí",
   "config.webdav.secret_empty": "Hodnota je prázdná",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "Umožňuje AuraGo připojit se k Netlify pomocí uloženého tokenu.",
+  "config.netlify.readonly_help": "Umožňuje čtení dat Netlify, ale blokuje akce nasazení, vytvoření, aktualizace a smazání.",
+  "config.netlify.allow_deploy_help": "Povoluje nasazení webů a vrácení nasazení, když je režim pouze pro čtení vypnutý.",
+  "config.netlify.allow_site_management_help": "Povoluje vytváření, aktualizaci a mazání webů Netlify.",
+  "config.netlify.allow_env_management_help": "Povoluje správu proměnných prostředí na webech Netlify.",
+  "config.netlify.default_site_id_help": "Volitelné ID webu použité, když agent neuvede web.",
+  "config.netlify.team_slug_help": "Volitelný slug týmu Netlify používaný pro volání API v rozsahu týmu."
 }

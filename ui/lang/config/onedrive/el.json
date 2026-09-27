@@ -70,5 +70,5 @@
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.webdav.secret_empty": "Η τιμή είναι κενή",
   "config.onedrive.disconnect_confirm_title": "Αποσύνδεση OneDrive;",
-  "config.onedrive.enabled_help": "Enables OneDrive file access after Microsoft authorization is complete."
+  "config.onedrive.enabled_help": "Ενεργοποιεί την πρόσβαση σε αρχεία OneDrive μετά την ολοκλήρωση της εξουσιοδότησης Microsoft."
 }

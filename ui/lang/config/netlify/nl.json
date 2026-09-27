@@ -78,11 +78,11 @@
   "config.updates.running": "Draait…",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
   "config.webdav.secret_empty": "Waarde is leeg",
-  "config.netlify.enabled_help": "Allows AuraGo to connect to Netlify with the stored token.",
-  "config.netlify.readonly_help": "Allows reading Netlify data but blocks deploy, create, update, and delete actions.",
-  "config.netlify.allow_deploy_help": "Permits site deploys and deploy rollbacks when read-only mode is off.",
-  "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
-  "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
-  "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.enabled_help": "Staat AuraGo toe om verbinding te maken met Netlify met het opgeslagen token.",
+  "config.netlify.readonly_help": "Staat het lezen van Netlify-gegevens toe, maar blokkeert acties voor deployen, aanmaken, bijwerken en verwijderen.",
+  "config.netlify.allow_deploy_help": "Staat deployments van sites en rollbacks van deployments toe wanneer de alleen-lezenmodus uit staat.",
+  "config.netlify.allow_site_management_help": "Staat het aanmaken, bijwerken en verwijderen van Netlify-sites toe.",
+  "config.netlify.allow_env_management_help": "Staat het beheren van omgevingsvariabelen op Netlify-sites toe.",
+  "config.netlify.default_site_id_help": "Optionele site-ID die wordt gebruikt wanneer de agent geen site noemt.",
+  "config.netlify.team_slug_help": "Optionele Netlify-teamslug die wordt gebruikt voor teamgebonden API-aanroepen."
 }

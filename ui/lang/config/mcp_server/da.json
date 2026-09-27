@@ -3,7 +3,7 @@
   "config.mcp_server.enabled_label": "MCP Server aktiveret",
   "config.mcp_server.require_auth": "Kræv godkendelse",
   "config.mcp_server.allowed_tools": "Tilladte værktøjer",
-  "config.mcp_server.allowed_tools_desc": "Only selected tools are exposed. An empty list exposes no tools. Select all stores the current names explicitly.",
+  "config.mcp_server.allowed_tools_desc": "Kun valgte værktøjer eksponeres. En tom liste eksponerer ingen værktøjer. Vælg alle lagrer de aktuelle navne eksplicit.",
   "config.mcp_server.token": "Bearer-token",
   "config.mcp_server.generate_token": "Generér token",
   "config.mcp_server.endpoint_url": "Endpoint-URL",
@@ -31,6 +31,6 @@
   "config.mcp_server.general_desc": "Aktivér MCP-serveren og konfigurer grundlæggende indstillinger.",
   "config.mcp_server.connection_title": "Forbindelse",
   "config.mcp_server.connection_desc": "Endpoint- og godkendelsesindstillinger for MCP-serveren.",
-  "config.mcp_server.enabled_help": "Exposes AuraGo's built-in MCP server endpoint.",
-  "config.mcp_server.require_auth_help": "Requires clients to use an MCP access token before tools are exposed."
+  "config.mcp_server.enabled_help": "Eksponerer AuraGos indbyggede MCP-serverendpoint.",
+  "config.mcp_server.require_auth_help": "Kræver, at klienter bruger et MCP-adgangstoken, før værktøjer eksponeres."
 }
