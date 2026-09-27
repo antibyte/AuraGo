@@ -2004,18 +2004,24 @@ func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog
 	metas := prefetchedMetas
 	if metas == nil {
 		var err error
-		metas, err = stm.GetAllMemoryMeta(nightlyMemoryConflictScanLimit, 0)
+		metas, err = stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 		if err != nil {
 			return err
 		}
-	} else if len(metas) > nightlyMemoryConflictScanLimit {
-		metas = metas[:nightlyMemoryConflictScanLimit]
 	}
 	var resultErr error
+	scanned := 0
 	for _, meta := range metas {
 		if ctx.Err() != nil {
 			return errors.Join(resultErr, ctx.Err())
 		}
+		if memory.IsMemoryArchived(meta) {
+			continue
+		}
+		if scanned >= nightlyMemoryConflictScanLimit {
+			break
+		}
+		scanned++
 		resultErr = errors.Join(resultErr, detectMemoryConflictsForDocIDs(logger, stm, ltm, []string{meta.DocID}, ""))
 	}
 	return resultErr

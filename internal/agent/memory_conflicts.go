@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -34,6 +35,15 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 		return
 	}
 	for _, docID := range docIDs {
+		// Curation may have archived this document since a caller's metadata snapshot.
+		meta, err := stm.GetMemoryMeta(docID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			resultErr = errors.Join(resultErr, fmt.Errorf("read memory conflict metadata: %w", err))
+			continue
+		}
+		if memory.IsMemoryArchived(meta) {
+			continue
+		}
 		text := strings.TrimSpace(fallbackText)
 		if text == "" {
 			stored, err := ltm.GetByID(docID)
