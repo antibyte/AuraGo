@@ -2,6 +2,7 @@ package upkeep
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -61,8 +62,8 @@ func TestPinFromRealBuildMetadataWithoutExecution(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(missingRoot, strings.Repeat("c", 64)), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PinFromBinary(target, missingRoot); err == nil {
-		t.Fatal("binary without an installed pin accepted")
+	if _, err := PinFromBinary(target, missingRoot); !errors.Is(err, errBinaryAssetNotInstalled) {
+		t.Fatalf("wanted missing installed pin, got %v", err)
 	}
 }
 

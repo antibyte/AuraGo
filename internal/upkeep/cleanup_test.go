@@ -290,6 +290,55 @@ func TestExplicitBinaryProtectsAssets(t *testing.T) {
 	}
 }
 
+func TestRetainedBinaryWithoutInstalledAssetsDoesNotBlockBackupCleanup(t *testing.T) {
+	f := newFixture(t)
+	f.options.Verify = verifyAssets
+	oldID, _ := f.options.ReadPin(filepath.Join(f.root, "bin", "aurago_linux"))
+	orphan := filepath.Join(f.root, "bin", "aurago_linux.pre-old")
+	f.write("bin/aurago_linux.pre-old", []byte("old archived binary"))
+	for i := 1; i <= 5; i++ {
+		f.update(i, false)
+	}
+	readPin := f.options.ReadPin
+	f.options.ReadPin = func(path string) (string, error) {
+		if path == orphan {
+			return "", errors.New("ambiguous binary pin")
+		}
+		return readPin(path)
+	}
+	if _, err := f.clean(); err == nil {
+		t.Fatal("ambiguous archived binary did not block cleanup")
+	}
+	transactions, err := loadTransactions(f.root)
+	if err != nil || len(transactions) != 5 {
+		t.Fatalf("backups changed before pin was classified: %d, %v", len(transactions), err)
+	}
+	f.options.ReadPin = func(path string) (string, error) {
+		if path == orphan {
+			return "", errBinaryAssetNotInstalled
+		}
+		return readPin(path)
+	}
+	if _, err := f.clean(); err != nil {
+		t.Fatal(err)
+	}
+	transactions, err = loadTransactions(f.root)
+	if err != nil || len(transactions) != 2 {
+		t.Fatalf("wanted two rollback backups, got %d: %v", len(transactions), err)
+	}
+	if _, err := os.Stat(orphan); err != nil {
+		t.Fatal("unmatched archived binary was removed", err)
+	}
+	if _, err := os.Stat(filepath.Join(f.root, "assets", "web", oldID)); !os.IsNotExist(err) {
+		t.Fatal("obsolete resource set was not collected")
+	}
+	for _, b := range transactions {
+		if err := verifyBackup(f.options, b); err != nil {
+			t.Fatal("retained rollback is invalid", err)
+		}
+	}
+}
+
 func TestLegacyRequiresInstallationBinding(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux legacy backups")

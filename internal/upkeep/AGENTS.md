@@ -14,8 +14,10 @@ The updater owns transaction manifests; this package verifies them before collec
 
 - Do not execute archived binaries to identify their web-asset pins. Read Go build
   metadata when available. For `-trimpath` binaries, match linked 64-character
-  IDs only against installed resource-set directory names; reject zero or
-  multiple matches before any deletion.
+  IDs only against installed resource-set directory names; reject ambiguous
+  matches before any deletion. Keep explicitly retained binaries with no
+  installed resource-set match without blocking cleanup of verified update
+  backups; still reject unreadable binaries.
 - Preview is the default. Applying cleanup requires locks, verified resources,
   resolved transactions and running-version readiness. Keep unknown, damaged or
   unreadable artifacts rather than guessing their provenance.

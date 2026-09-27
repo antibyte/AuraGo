@@ -6,6 +6,7 @@ import (
 	"debug/buildinfo"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -25,6 +26,7 @@ var transactionPattern = regexp.MustCompile(`^txn-[a-zA-Z0-9]+$`)
 var workPattern = regexp.MustCompile(`^work\.([a-zA-Z0-9]{6}|adopt-[0-9]+)$`)
 var embeddedID = regexp.MustCompile(`(?:^|[ =])aurago/internal/webassets.SetID=([a-f0-9]{64})(?:\s|$)`)
 var binaryID = regexp.MustCompile(`[a-f0-9]{64}`)
+var errBinaryAssetNotInstalled = errors.New("binary asset ID not found among installed sets")
 
 // PinFromBinary identifies a pin without executing archived binaries.
 func PinFromBinary(name, assetRoot string) (string, error) {
@@ -90,7 +92,7 @@ func pinFromBinaryStrings(name, assetRoot string) (string, error) {
 		}
 		if readErr == io.EOF {
 			if found == "" {
-				return "", fmt.Errorf("binary asset ID not found among installed sets")
+				return "", errBinaryAssetNotInstalled
 			}
 			return found, nil
 		}

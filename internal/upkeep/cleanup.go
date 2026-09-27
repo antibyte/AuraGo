@@ -2,6 +2,7 @@ package upkeep
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -325,6 +326,10 @@ func Cleanup(ctx context.Context, o Options) (r Report, err error) {
 				continue
 			}
 			id, e := o.ReadPin(p)
+			if errors.Is(e, errBinaryAssetNotInstalled) {
+				r.keep(p, "retained binary has no installed resource set")
+				continue
+			}
 			if e != nil {
 				return r, fmt.Errorf("cannot identify retained binary %s: %w", p, e)
 			}
