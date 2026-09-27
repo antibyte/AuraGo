@@ -62,6 +62,21 @@ The run ledger precedes the typed, idempotent `morning_briefing` notification.
 The notification source ID stays bound to the run start timestamp. Background
 maintenance does not send chat or Telegram notices directly.
 
+STM consolidation runs immediately after baseline cleanup, before summaries,
+weekly reflection, and knowledge-graph work. Its two-minute phase budget also
+preserves the existing 90-second tail reserve; the configured message cap still
+applies. A phase deadline releases unfinished claims without spending a retry.
+Direct summaries and consolidation reserve reasoning output within the selected
+helper/main provider's output and context limits.
+
+The morning briefing reports processed archive messages and extracted facts
+separately from the combined work count, and includes unfinished phases with
+their deferred counts and sanitized codes. `phase_budget_exhausted` means that
+the phase ran out of time; integration checks can pass while maintenance remains
+partial. The operational issue count covers all active issues, including earlier
+runs and other sources. A large backlog is drained across bounded runs and is
+never cleared just to make the report look successful.
+
 ## Scheduling and completed-day summaries
 
 The server owns a `MaintenanceController` even when maintenance is disabled.

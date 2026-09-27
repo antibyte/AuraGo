@@ -265,19 +265,39 @@ func formatMorningBriefing(cfg *config.Config, finishedAt time.Time, status stri
 	} else {
 		fmt.Fprintf(&b, "As of: %s\nMaintenance: %s; processed: %d; deferred: %d.\n", finishedAt.Local().Format(time.RFC3339), status, results.Processed, results.Deferred)
 	}
-	if results.ConsolidationBacklog > 0 || results.ConsolidationExcluded > 0 {
+	consolidated := 0
+	for _, phase := range results.Phases {
+		if phase.Name == "consolidation" {
+			consolidated = phase.Processed
+		}
+	}
+	if results.ConsolidationBacklog > 0 || results.ConsolidationExcluded > 0 || consolidated > 0 {
 		if german {
-			fmt.Fprintf(&b, "Konsolidierung: Rückstand %d", results.ConsolidationBacklog)
+			fmt.Fprintf(&b, "Konsolidierung: Rückstand %d; verarbeitete Archivnachrichten: %d; neue Fakten: %d", results.ConsolidationBacklog, consolidated, results.ConsolidationFacts)
 			if results.ConsolidationExcluded > 0 {
 				fmt.Fprintf(&b, "; interne Einträge in diesem Lauf ausgeschlossen: %d", results.ConsolidationExcluded)
 			}
 		} else {
-			fmt.Fprintf(&b, "Consolidation: backlog %d", results.ConsolidationBacklog)
+			fmt.Fprintf(&b, "Consolidation: backlog %d; archive messages processed: %d; new facts: %d", results.ConsolidationBacklog, consolidated, results.ConsolidationFacts)
 			if results.ConsolidationExcluded > 0 {
 				fmt.Fprintf(&b, "; internal entries excluded during this run: %d", results.ConsolidationExcluded)
 			}
 		}
 		b.WriteString(".\n")
+	}
+	for _, phase := range results.Phases {
+		if phase.Status != "partial" && phase.Status != "failed" {
+			continue
+		}
+		if german {
+			fmt.Fprintf(&b, "- Wartungsphase %s: %s; aufgeschoben: %d", phase.Name, phase.Status, phase.Deferred)
+		} else {
+			fmt.Fprintf(&b, "- Maintenance phase %s: %s; deferred: %d", phase.Name, phase.Status, phase.Deferred)
+		}
+		if len(phase.ErrorCodes) > 0 {
+			fmt.Fprintf(&b, " (%s)", strings.Join(phase.ErrorCodes, ", "))
+		}
+		b.WriteByte('\n')
 	}
 	for _, check := range results.IntegrationChecks {
 		fmt.Fprintf(&b, "- %s: %s", check.ID, check.Status)
@@ -287,9 +307,9 @@ func formatMorningBriefing(cfg *config.Config, finishedAt time.Time, status stri
 		b.WriteByte('\n')
 	}
 	if german {
-		fmt.Fprintf(&b, "Offene operative Probleme: %d.", openIssues)
+		fmt.Fprintf(&b, "Offene operative Probleme: %d (gesamter Bestand, einschließlich früherer Läufe).", openIssues)
 	} else {
-		fmt.Fprintf(&b, "Open operational issues: %d.", openIssues)
+		fmt.Fprintf(&b, "Open operational issues: %d (total active, including earlier runs).", openIssues)
 	}
 	return strings.TrimSpace(b.String())
 }

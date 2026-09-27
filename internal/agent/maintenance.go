@@ -215,6 +215,58 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	} else {
 		ledger.skipPhase("memory_hygiene")
 	}
+	// Drain archived conversations before summaries and KG work can use the run budget.
+	ledger.beginPhase("consolidation")
+
+	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
+	totalStored := 0
+	consolidationWindow, cancelConsolidationWindow, consolidationBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
+	defer cancelConsolidationWindow()
+	consolidationCtx, cancelConsolidation := context.WithTimeout(consolidationWindow, maintenanceConsolidationBudget)
+	consolidationEnabled := cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled()
+	if !cfg.Consolidation.Enabled {
+		ledger.skipPhase("consolidation")
+	} else if !consolidationEnabled {
+		ledger.addError("consolidation_unavailable")
+	} else if !consolidationBudgetAvailable {
+		ledger.addDeferred("consolidation", 1)
+		ledger.addPhaseCode("consolidation", "phase_budget_exhausted")
+	} else if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
+		consolidationResult := consolidateSTMtoLTMWithContext(consolidationCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
+		for _, err := range consolidationResult.Errors {
+			ledger.recordError("consolidation", err)
+		}
+		totalStored = consolidationResult.FactsStored
+		ledger.phaseResults.ConsolidationFacts = totalStored
+		ledger.phaseResults.ConsolidationExcluded = consolidationResult.MessagesExcluded
+		ledger.addProcessed("consolidation", consolidationResult.MessagesConsolidated)
+		if deferred := consolidationResult.MessagesClaimed - consolidationResult.MessagesConsolidated; deferred > 0 {
+			ledger.addDeferred("consolidation", deferred)
+		}
+		ledger.recordError("episodic_hierarchy", consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg))
+	}
+	consolidationDeadline, _ := consolidationCtx.Deadline()
+	consolidationBudgetExpired := taskCtx.Err() == nil && (consolidationCtx.Err() != nil || !time.Now().Before(consolidationDeadline))
+	cancelConsolidation()
+	if cfg.Consolidation.Enabled && shortTermMem != nil {
+		if backlog, err := shortTermMem.CountConsolidationCandidates(3); err == nil {
+			ledger.phaseResults.ConsolidationBacklog = backlog
+			if outstanding := backlog - ledger.phaseDeferred("consolidation"); outstanding > 0 {
+				ledger.addDeferred("consolidation", outstanding)
+			}
+		} else {
+			ledger.addError("consolidation_backlog: " + err.Error())
+		}
+	}
+	if consolidationEnabled && consolidationBudgetExpired && ledger.phaseDeferred("consolidation") == 0 {
+		ledger.addDeferred("consolidation", 1)
+	}
+	if consolidationEnabled && consolidationBudgetExpired {
+		ledger.addPhaseCode("consolidation", "phase_budget_exhausted")
+	}
+	if maintenanceContextDone(taskCtx, ledger, logger, "consolidation") {
+		return
+	}
 	ledger.beginPhase("daily_summary")
 
 	yesterday := startedAt.AddDate(0, 0, -1).Format("2006-01-02")
@@ -408,54 +460,6 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	}
 	cancelEntity()
 	if maintenanceContextDone(taskCtx, ledger, logger, "entity_extraction") {
-		return
-	}
-	ledger.beginPhase("consolidation")
-
-	// STM→LTM Consolidation: extract knowledge from archived messages into VectorDB
-	totalStored := 0
-	consolidationCtx, cancelConsolidation, consolidationBudgetAvailable := maintenanceContextWithReserve(taskCtx, maintenanceProtectedTailReserve)
-	consolidationEnabled := cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled()
-	if !cfg.Consolidation.Enabled {
-		ledger.skipPhase("consolidation")
-	} else if !consolidationEnabled {
-		ledger.addError("consolidation_unavailable")
-	} else if !consolidationBudgetAvailable {
-		ledger.addDeferred("consolidation", 1)
-		ledger.addPhaseCode("consolidation", "phase_budget_exhausted")
-	} else if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
-		consolidationResult := consolidateSTMtoLTMWithContext(consolidationCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
-		for _, err := range consolidationResult.Errors {
-			ledger.recordError("consolidation", err)
-		}
-		totalStored = consolidationResult.FactsStored
-		ledger.phaseResults.ConsolidationFacts = totalStored
-		ledger.phaseResults.ConsolidationExcluded = consolidationResult.MessagesExcluded
-		ledger.addProcessed("consolidation", consolidationResult.MessagesConsolidated)
-		if deferred := consolidationResult.MessagesClaimed - consolidationResult.MessagesConsolidated; deferred > 0 {
-			ledger.addDeferred("consolidation", deferred)
-		}
-		ledger.recordError("episodic_hierarchy", consolidateEpisodicHierarchy(logger, shortTermMem, longTermMem, kg))
-	}
-	consolidationBudgetExpired := consolidationCtx.Err() != nil && taskCtx.Err() == nil
-	cancelConsolidation()
-	if cfg.Consolidation.Enabled && shortTermMem != nil {
-		if backlog, err := shortTermMem.CountConsolidationCandidates(3); err == nil {
-			ledger.phaseResults.ConsolidationBacklog = backlog
-			if outstanding := backlog - ledger.phaseDeferred("consolidation"); outstanding > 0 {
-				ledger.addDeferred("consolidation", outstanding)
-			}
-		} else {
-			ledger.addError("consolidation_backlog: " + err.Error())
-		}
-	}
-	if consolidationEnabled && consolidationBudgetExpired && ledger.phaseDeferred("consolidation") == 0 {
-		ledger.addDeferred("consolidation", 1)
-	}
-	if consolidationEnabled && consolidationBudgetExpired {
-		ledger.addPhaseCode("consolidation", "phase_budget_exhausted")
-	}
-	if maintenanceContextDone(taskCtx, ledger, logger, "consolidation") {
 		return
 	}
 	ledger.beginPhase("memory_optimization")
@@ -725,20 +729,19 @@ Activity log:
 		return fmt.Errorf("daily summary LLM unavailable")
 	}
 
-	resp, err := llm.ExecuteWithRetry(
-		ctx,
-		summaryClient,
-		openai.ChatCompletionRequest{
-			Model: summaryModel,
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: "You are a concise activity summarizer. Output ONLY 2-3 sentences."},
-				{Role: openai.ChatMessageRoleUser, Content: prompt},
-			},
-			MaxTokens: 300,
+	request := openai.ChatCompletionRequest{
+		Model: summaryModel,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "You are a concise activity summarizer. Output ONLY 2-3 sentences."},
+			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
-		logger,
-		nil,
-	)
+		MaxTokens: 300,
+	}
+	request.MaxTokens, err = maintenanceCompletionBudget(cfg, request)
+	if err != nil {
+		return fmt.Errorf("daily summary budget: %w", err)
+	}
+	resp, err := llm.ExecuteWithRetry(ctx, summaryClient, request, logger, nil)
 	if err != nil || len(resp.Choices) == 0 {
 		logger.Warn("[Journal] Failed to generate daily summary via LLM", "error", err, "model", summaryModel)
 		if err != nil {
@@ -1073,7 +1076,7 @@ func buildConsolidationWorkItem(index int, batch []memory.ArchivedMessage) conso
 	}
 }
 
-func extractConsolidationFactsWithLLM(ctx context.Context, logger *slog.Logger, client llm.ChatClient, model, conversation string) ([]helperConsolidationFact, error) {
+func extractConsolidationFactsWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, model, conversation string) ([]helperConsolidationFact, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1103,26 +1106,26 @@ Conversation:
 	extractCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	resp, err := llm.ExecuteWithRetry(
-		extractCtx,
-		client,
-		openai.ChatCompletionRequest{
-			Model: model,
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: "You are a knowledge extraction engine. Extract factual knowledge from conversations. Output ONLY valid JSON, no markdown fences."},
-				{Role: openai.ChatMessageRoleUser, Content: prompt},
-			},
-			MaxTokens: 1000,
-			ResponseFormat: func() *openai.ChatCompletionResponseFormat {
-				if caps, ok := llm.CapabilitiesFromRegistry("", model); ok {
-					return llm.JSONResponseFormat(caps.StructuredOutputs)
-				}
-				return nil
-			}(),
+	request := openai.ChatCompletionRequest{
+		Model: model,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "You are a knowledge extraction engine. Extract factual knowledge from conversations. Output ONLY valid JSON, no markdown fences."},
+			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
-		logger,
-		nil,
-	)
+		MaxTokens: 1000,
+		ResponseFormat: func() *openai.ChatCompletionResponseFormat {
+			if caps, ok := llm.CapabilitiesFromRegistry("", model); ok {
+				return llm.JSONResponseFormat(caps.StructuredOutputs)
+			}
+			return nil
+		}(),
+	}
+	maxTokens, err := maintenanceCompletionBudget(cfg, request)
+	if err != nil {
+		return nil, fmt.Errorf("consolidation budget: %w", err)
+	}
+	request.MaxTokens = maxTokens
+	resp, err := llm.ExecuteWithRetry(extractCtx, client, request, logger, nil)
 	if err != nil {
 		return nil, fmt.Errorf("llm extraction failed: %w", err)
 	}
@@ -1380,6 +1383,7 @@ const nightlyMemoryMetaFetchLimit = 50000
 const nightlyMemoryConflictScanLimit = 250
 
 const maintenanceProtectedTailReserve = 90 * time.Second
+const maintenanceConsolidationBudget = 2 * time.Minute
 const maintenanceOptimizationMinimum = 30 * time.Second
 
 type nightlyMemoryMaintenanceResult struct {
@@ -1646,10 +1650,16 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			}
 			return
 		}
-		facts, err := extractConsolidationFactsWithLLM(ctx, logger, consolidationClient, consolidationModel, item.conversation)
+		facts, err := extractConsolidationFactsWithLLM(ctx, cfg, logger, consolidationClient, consolidationModel, item.conversation)
 		if err != nil {
 			result.Errors = append(result.Errors, err)
 			logger.Warn("[Consolidation] LLM extraction failed for batch", "batch", batchIndex, "error", err)
+			if deadline, ok := ctx.Deadline(); ctx.Err() != nil || (ok && !time.Now().Before(deadline)) {
+				if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
+					result.Errors = append(result.Errors, releaseErr)
+				}
+				return
+			}
 			if markErr := stm.MarkConsolidationFailure(item.messageIDs, err.Error()); markErr != nil {
 				result.Errors = append(result.Errors, markErr)
 			}
@@ -1726,6 +1736,12 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 				singleCancel()
 				if singleErr != nil {
 					result.Errors = append(result.Errors, singleErr)
+					if deadline, ok := ctx.Deadline(); ctx.Err() != nil || (ok && !time.Now().Before(deadline)) {
+						if releaseErr := stm.ReleaseConsolidationClaims(item.messageIDs); releaseErr != nil {
+							result.Errors = append(result.Errors, releaseErr)
+						}
+						continue
+					}
 					if markErr := stm.MarkConsolidationFailure(item.messageIDs, singleErr.Error()); markErr != nil {
 						result.Errors = append(result.Errors, markErr)
 					}
