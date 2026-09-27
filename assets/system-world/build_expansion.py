@@ -13,6 +13,7 @@ import struct
 from math import sin, pi
 from mathutils import Matrix, Vector
 from build_city import Geometry, create_asset, materials, bounds_and_triangles, ROOT
+from living_assets import ASSETS as LIVING_ASSETS, build_living, living_navigation
 
 OUT = ROOT / 'ui/3d/system-world/v2'
 PIVOTS = {}
@@ -38,8 +39,10 @@ def robot(g, kind):
         g.box((side*.2, -.12, .1), (.3, .5, .2), 'graphite')
     g.part = 'structure'
     if kind == 'courier':
-        g.box((0, .32, 1.3), (.72, .4, .64), 'bronze', .1)
-        g.box((0, .535, 1.3), (.5, .025, .05), 'ivory')
+        g.part = 'parcel'
+        g.box((0, -.52, 1.16), (.72, .4, .52), 'bronze', .1)
+        g.box((0, -.735, 1.16), (.5, .025, .05), 'ivory')
+        g.part = 'structure'
     elif kind == 'technician':
         g.box((.4, .04, 1), (.15, .2, .2), 'bronze')
         g.pipe((-.2, .26, 1.1), (.2, .26, 1.52), .04, 'jade')
@@ -178,10 +181,11 @@ def furnishing(g, kind):
 
 def animate(root, asset):
     clips = ['idle','walk','turn','greet','work','carry'] if asset.startswith('robot-') else \
-        ['open'] if asset in ('door','tram','service-cart') else ['operate'] if asset in ('lift','cooler','hologram') else []
+        ['open'] if asset in ('door','tram','service-cart') else ['operate'] if asset in ('lift','cooler','hologram',*LIVING_ASSETS[:-1]) else []
     parts = {o.get('component'): o for o in root.children}
     pivots = {'head':(0,0,1.7),'arm_l':(-.47,0,1.62),'arm_r':(.47,0,1.62),
-              'leg_l':(-.2,0,.9),'leg_r':(.2,0,.9),'fan':(0,0,3.1)}
+              'leg_l':(-.2,0,.9),'leg_r':(.2,0,.9),'fan':(0,0,3.1),
+              'manipulator':(.9,.7,1.3),'antenna':(0,0,6.1),'sculpture':(0,0,1.3),'vent':(0,0,5.05)}
     for part, pos in pivots.items():
         if part in parts:
             obj=parts[part];obj.data.transform(Matrix.Translation(-Vector(pos)));obj.location=pos
@@ -206,6 +210,11 @@ def animate(root, asset):
                     else: obj.location.y=base.y+1.7*t
                 elif asset=='lift': obj.location.z=base.z+4*t
                 elif part in ('fan','display'): obj.rotation_euler.z=2*pi*t
+                elif part=='manipulator': obj.rotation_euler.z=wave*.55
+                elif part=='antenna': obj.rotation_euler.z=wave*.7
+                elif part=='sculpture': obj.rotation_euler.z=2*pi*t
+                elif part=='parcel': obj.location.x=base.x+3.2*t
+                elif part=='vent': obj.rotation_euler.x=.12+wave*.1
                 obj.keyframe_insert(data_path='rotation_euler',frame=frame)
                 obj.keyframe_insert(data_path='location',frame=frame)
             action=obj.animation_data.action;action.name=asset+'.'+part+'.'+clip
@@ -218,6 +227,7 @@ def animate(root, asset):
 def navigation(asset):
     # Coordinates use exported glTF metres (Y up). These helpers are also kept as
     # named Blender empties so authors can inspect movement separately from art.
+    if asset in LIVING_ASSETS: return living_navigation(asset)
     data={'colliders':[], 'surfaces':[], 'portals':[]}
     if asset in ('floor','ceiling'):
         if asset=='floor': data['surfaces']=[{'rect':[-2,-2,2,2], 'height':0}]
@@ -234,10 +244,38 @@ def navigation(asset):
         data['portals']=[{'name':'boarding-left','position':[-1.4,.9,0]},{'name':'boarding-right','position':[1.4,.9,0]}]
     elif asset in ('wall','window'): data['colliders']=[[-2,0,-.15,2,4,.15]]
     elif asset=='railing': data['colliders']=[[-2,0,-.06,2,1.15,.06]]
+    elif asset=='station':
+        data['colliders']=[[-4.5,3.69,-2,4.5,3.91,2]]+[[x-.075,0,-1.575,x+.075,3.8,-1.425] for x in (-4,4)]
+        data['surfaces']=[{'rect':[-4.5,-2,4.5,2],'height':.3}]
+    elif asset=='garden': data['colliders']=[[-2,0,-2,2,3.5,2]]
+    elif asset=='arcade': data['colliders']=[[-3.25,0,-1,-2.75,4.8,1],[2.75,0,-1,3.25,4.8,1],[-3.25,4.44,-1.2,3.25,4.925,1.2]]
+    elif asset=='service-cart': data['colliders']=[[-1.5,0,-1.65,1.5,3.4,1.65]]
     elif asset in ('console','cargo','hologram','bench','charger','cooler','archive-shelf'):
         size={'console':(.85,.6,.5),'cargo':(.9,.6,.65),'hologram':(1.3,1.25,1.3),'bench':(1.5,.75,.4),'charger':(.4,1.2,.3),'cooler':(1.5,1.5,1.25),'archive-shelf':(1.25,1.75,.5)}[asset]
         x,y,z=size;data['colliders']=[[-x,0,-z,x,y*2,z]]
     return data
+
+
+def motion_bounds(root, clips):
+    bounds,_=bounds_and_triangles(root)
+    scene=bpy.context.scene
+    moving=[o for o in root.children if o.animation_data]
+    bases=[(o,o.location.copy(),o.rotation_euler.copy()) for o in moving]
+    for clip in clips:
+        for o in moving:
+            track=next((t for t in o.animation_data.nla_tracks if t.name==clip),None)
+            o.animation_data.action=track.strips[0].action if track else None
+        for frame in range(1,50):
+            scene.frame_set(frame);bpy.context.view_layer.update()
+            current,_=bounds_and_triangles(root)
+            for i in range(3):
+                bounds['min'][i]=min(bounds['min'][i],current['min'][i])
+                bounds['max'][i]=max(bounds['max'][i],current['max'][i])
+    for o,location,rotation in bases:
+        o.animation_data.action=None;o.location=location;o.rotation_euler=rotation
+    scene.frame_set(1);bpy.context.view_layer.update()
+    # Small margin covers interpolation between the sampled export frames.
+    return {'min':[v-.025 for v in bounds['min']], 'max':[v+.025 for v in bounds['max']]}
 
 
 def build():
@@ -246,13 +284,19 @@ def build():
     scene=bpy.context.scene;scene.render.fps=24;scene.frame_start=1;scene.frame_end=49
     collection=bpy.data.collections.new('AURAGO_WORLD_2');scene.collection.children.link(collection)
     mats=materials(); entries=[]; roots=[]
+    glass=mats['glass'].copy();glass.name='city.garden-glass';glass.diffuse_color=(.18,.42,.4,.2)
+    glass.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=(.18,.42,.4,.2)
+    glass.node_tree.nodes['Principled BSDF'].inputs['Alpha'].default_value=.2
+    glass.surface_render_method='DITHERED';mats['garden-glass']=glass
     factories={k:(lambda g,k=k:module(g,k)) for k in ['arcade','bridge','stairs','ramp','garden','quay','floor','wall','ceiling','window','door','lift','railing']}
     factories.update({k:(lambda g,k=k:furnishing(g,k)) for k in ['tram','station','service-cart','pad','console','hologram','charger','cargo','cooler','bench','archive-shelf']})
     factories.update({'robot-'+k:(lambda g,k=k:robot(g,k)) for k in ['courier','technician','archivist']})
+    factories.update({k:(lambda g,k=k:build_living(g,k)) for k in LIVING_ASSETS})
     for asset,factory in factories.items():
         entry={'id':asset,'lods':[], 'navigation':navigation(asset)}
         for lod in range(3):
             root=create_asset(asset,factory,lod,collection,mats);clips=animate(root,asset)
+            if lod==0 and asset.startswith('robot-'): entry['motion_bounds']=motion_bounds(root,clips)
             for kind,items in entry['navigation'].items():
                 for i,item in enumerate(items):
                     marker=bpy.data.objects.new(f'nav_{kind}_{i}',None);collection.objects.link(marker);marker.parent=root
@@ -279,15 +323,16 @@ def build():
                 for o in list(root.children): bpy.data.objects.remove(o,do_unlink=True)
                 bpy.data.objects.remove(root,do_unlink=True)
         entries.append(entry);print('WORLD2',asset)
-    manifest={'schema_version':2,'version':'2.0.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
-              'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024}
+    manifest={'schema_version':2,'version':'2.1.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
+              'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024,'model_budget_bytes':12*1024*1024,
+              'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py']}}
     (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8',newline='\n')
     (OUT/'LICENSE.txt').write_text((ROOT/'LICENSE').read_text(encoding='utf8'),encoding='utf8')
     for i,root in enumerate(roots): root.location=((i%5)*16,(i//5)*16,0)
     source=ROOT/'assets/system-world/production';source.mkdir(exist_ok=True)
     bpy.data.libraries.write(str(source/'aurago-world-2.blend'),{scene},compress=True)
     total=sum(p.stat().st_size for p in (ROOT/'ui/3d/system-world').rglob('*') if p.is_file())
-    assert total<=48*1024*1024,total
+    assert total<=12*1024*1024,total
     print('WORLD2_COMPLETE',len(entries),total)
 
 

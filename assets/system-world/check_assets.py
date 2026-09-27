@@ -106,7 +106,7 @@ def check_robot():
         width, height = struct.unpack_from('>II', data, image_start + 16)
         assert 0 < width <= 512 and 0 < height <= 512
     total = sum(p.stat().st_size for p in directory.rglob('*') if p.is_file() and p.suffix in {'.glb', '.json', '.txt'})
-    assert total < 8 * 1024 * 1024
+    assert total < 12 * 1024 * 1024
     print(json.dumps({'robot_triangles': count, 'robot_bytes': len(data),
                       'combined_runtime_bytes': total, 'robot_checks': 'passed'}))
 

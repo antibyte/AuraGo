@@ -2,9 +2,9 @@
 
 ## System World 2 expansion
 
-`build_expansion.py` authors 27 additional modular designs and their articulated
+`build_expansion.py` authors 33 additional modular designs and their articulated
 animation clips in Blender. It saves `production/aurago-world-2.blend` and exports
-81 self-contained GLBs (three separately loadable LODs per design) plus a versioned
+99 self-contained GLBs (three separately loadable LODs per design) plus a versioned
 manifest and MIT license to `ui/3d/system-world/v2/`. Sources are not shipped.
 
 The kit includes accessible floors, walls, ceilings, windows, sliding doors, lifts,
@@ -13,6 +13,12 @@ landing pad; courier, technician and archivist robots; consoles, hologram tables
 chargers, cargo, coolers, benches and archive shelves. Human-readable clip names,
 pivots, portals, colliders and walk surfaces are exported, not guessed at runtime.
 The existing white robot and its provenance below are unchanged.
+
+`living_assets.py` supplies the repair bay, parcel sorter, relay antenna, kinetic
+fountain, glass garden and sheltered charging/meeting point. Their exported
+work slots, interaction points and collision boxes drive local robot routines.
+Their small LOD loads initially; details load within 55/32 metres, capped by
+the quality setting. The courier parcel is a separate visible component.
 
 ```powershell
 & 'D:/Blender 5.2/blender.exe' --background --factory-startup --python assets/system-world/build_expansion.py
@@ -23,6 +29,7 @@ node scripts/build-system-world.js
 
 The 48 MiB budget covers both city kits, the original white robot, renderer,
 classic app modules, stylesheet and System World labels in all sixteen locales.
+The combined runtime model directory has a 12 MiB ceiling.
 First display has a separate 12 MiB budget; interior furnishings and alternate
 LODs are lazy. Exterior shells are present at first display. Modular floor seams
 and lift landings use exact planar edges; the platform top matches its declared
@@ -46,8 +53,8 @@ Blender, MCP, Python scripts, source scenes and review renders are authoring too
 none are required or shipped to run the app.
 
 - 17 asset designs; three separately loadable LODs per design.
-- 51 self-contained GLB files. A hard **8 MiB** ceiling covers the complete
-  runtime directory, including the manifest and license.
+- 51 self-contained GLB files. The original v1 kit retains its **8 MiB** gate;
+  the combined v1/v2/robot runtime directory has a **12 MiB** ceiling.
 - No image textures, external URIs, Draco decoder, skeletal animation or lights.
 - Standard metallic/roughness materials and `KHR_materials_emissive_strength`.
 - Shared named materials; static geometry is batched by material.

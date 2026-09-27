@@ -3,7 +3,7 @@ import {interiors,stations,towers,surfaces,streetHeight} from './sysworld-layout
 export {interiors,stations,tramWaypoints,dronePad} from './sysworld-layout.js';
 // Ground-level solids authored from build_city.py, not the skyline or picking radius.
 // Integration gate's central passage and space between towers remain walkable.
-const footprints={agent:[[-8,-8,8,8]],memory:[[-11.4,-10.4,11.4,8.4]],
+export const footprints={agent:[[-8,-8,8,8]],memory:[[-11.4,-10.4,11.4,8.4]],
   integrations:[[-11.4,-4.9,-4.6,4.9],[4.6,-4.9,11.4,4.9],[-4.8,-.8,-3.2,.8],[3.2,-.8,4.8,.8]],
   missions:[[-13.4,-8.9,13.4,6.9]],infra:[[-10.7,-9.4,10.7,3.4],[-10,-2.6,10,8.5]]};
 const podiums={agent:[23,23],memory:[26,22],integrations:[26,16],missions:[30,21],infra:[25,23],graph:[24,24],operations:[9,9]};

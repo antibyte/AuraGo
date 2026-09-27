@@ -19,7 +19,7 @@
         container.replaceChildren(root);
         const motion=matchMedia('(prefers-reduced-motion: reduce)');
         const motionOff=()=>motion.matches||document.body.dataset.animations==='false';
-        const inst={root,canvasHost,ctx,windowId,L:key=>ctx.t(key),quality:readQuality(),entities:[],
+        const inst={root,canvasHost,ctx,windowId,L:key=>ctx.t(key),reducedMotion:motionOff,quality:readQuality(),entities:[],
             disposed:false,selected:'agent',mode:'orbit',city:null,raf:0,elapsed:0,visible:true,inView:true,cleanup:[],load:new AbortController()};
         instances.set(windowId,inst);
         const win=root.closest('.vd-window');
@@ -148,6 +148,7 @@
                     assetURL:file=>versioned('/3d/system-world/v1/'+file),resourceURL:versioned,
                     onListener:(x,y,z,fx,fz)=>inst.sound?.setListener(x,y,z,fx,fz),
                     onInteraction:(...args)=>inst.worldControls.interaction(...args),
+                    onSociety:value=>inst.worldControls.society(value),replaying:()=>!!inst.replaying,
                     onDiscover:id=>inst.worldControls.discover(id),onTerminal:id=>inst.worldControls.terminal(id),
                     onSound:(kind,x,y,z)=>inst.sound?.effect(kind,x,y,z),onEnvironment:value=>inst.worldControls.environment(value),
                     onRobotError:()=>{if(!inst.disposed){inst.robotError=true;inst.hud.error('sysworld.city.robot_error');}},

@@ -16,6 +16,36 @@ the enclosing bounds of an entire facade. The quay includes elevated walkways,
 stairs and ramps. View selection, district selection, map and HTML information
 remain available independently of 3D navigation.
 
+The living city adds six installations: a maintenance bay with an articulated
+arm, parcel sorter, relay mast, kinetic fountain, glass garden and sheltered
+charging/meeting point. Find them in the City life section of Explore. Use E
+or the touch interaction button to meet a robot or start a local demonstration.
+Robot panels show role and current activity; couriers, technicians and archivists
+can guide you to an existing station, waiting when you fall behind. You retain
+camera control and can end an encounter at any time.
+
+Couriers collect visible parcels and deliver them, technicians visit equipment,
+archivists exchange information, and five white robots patrol the district routes.
+Reserved work positions and finite encounters prevent crowding. Directed wave
+packets travel between partners, concentrate on receipt and receive a reply.
+These sequences are labelled City life. They do not claim successful system work.
+Only fresh existing action metadata may trigger genuine activity; replay, hidden
+windows and stale events cannot queue later effect bursts.
+
+All moving groups share swept collision checks and fixed 60 Hz simulation steps,
+capped at six per rendered frame. The solver evaluates intentions together and
+rechecks after actors stop. Trams brake on their rails, pedestrians clear the
+tracks, and drones respect roof heights and each other. The visitor slides along
+obstacles; tours and overview flights also use checked paths. Only the vehicle
+currently carrying the visitor is exempted from their collision checks.
+
+The 33-design expansion has 99 exported GLBs. New installations start at LOD2;
+medium and fine detail load within 55 and 32 metres, subject to quality. Exported
+workpoints, collider boxes and interaction markers remain invariant. Model assets
+have a 12 MiB ceiling; first display remains 12 MiB and the full app 48 MiB. Local
+effects use reusable bounded pools. Reduced motion keeps a quiet state and
+localized feedback; hiding and closing release encounters and pending effects.
+
 `sysworld-layout.js` owns the street grid, plots, station platforms and surface
 heights. The tram's bounded rounded circuit and its visible rails share the same
 curve on those streets. Check the full swept vehicle footprint, not just its
@@ -106,9 +136,11 @@ management app rather than claiming success. Rejected actions remain failures.
 
 ## Assets and lifecycle
 
-`assets/system-world/build_expansion.py` and its saved Blender scene produce 27
-designs and 81 GLBs under `ui/3d/system-world/v2/`. All LODs preserve stable pivot
+`assets/system-world/build_expansion.py` and its saved Blender scene produce 33
+designs and 99 GLBs under `ui/3d/system-world/v2/`. All LODs preserve stable pivot
 names and real articulated clips. Manifests include navigation, sizes and hashes.
+Robot motion envelopes are sampled during export and checked against every GLB
+clip, so raised arms retain the same safe clearance as walking residents.
 Original new content is MIT; the white robot retains its existing provenance.
 
 All System World runtime files together must remain below 48 MiB; first display
@@ -129,6 +161,8 @@ service responses; the API tests separately exercise the actual service handlers
 python assets/system-world/check_assets.py
 node scripts/test-system-world.mjs
 node scripts/test-system-world-expansion.mjs
+node scripts/test-system-world-traffic.mjs
+node scripts/test-system-world-living.mjs
 node scripts/test-system-world-layout.mjs
 node scripts/test-system-world-voice.mjs
 node scripts/build-system-world.js --check
@@ -136,6 +170,10 @@ node scripts/build-ui-bundles.js --check
 go test ./internal/systemworld ./internal/server ./internal/tools -run 'Test(History|SystemWorld|DashboardOverview|GetSystemMetrics|DaemonSupervisor|HandleMissionRun|HandleMissionCancel)' -count=1
 go test ./ui -run 'TestDesktopSys[Ww]orld|TestDesktop.*Lifecycle|TestDesktopFruityTheme' -count=1
 ```
+
+Set `SYSTEM_WORLD_SIM_SECONDS=3600` for the full shared-traffic endurance run of
+`test-system-world-living.mjs`. It checks every actor for overlap throughout the
+hour and verifies that trams resume after the visitor clears the tracks.
 
 For browser acceptance set `AURAGO_RUN_BROWSER_SMOKE=1` and
 `AURAGO_SYSTEM_WORLD_MATRIX=1`, then run:
@@ -152,6 +190,7 @@ Run separately with exactly one additional flag for each extended scenario:
 | `AURAGO_SYSTEM_WORLD_EXPANSION=1` | Actual walking through three interiors, doors/lift, all seven tram stops, drone and weather |
 | `AURAGO_SYSTEM_WORLD_STRESS=1` | 1,000 containers, 10,000-node source with bounded loading, confirmed/deduplicated action, replay, repeated lifecycle, frame timings |
 | `AURAGO_SYSTEM_WORLD_MODELS=1` | Every exported LOD and clip rendered from the GLBs in Chrome |
+| `AURAGO_SYSTEM_WORLD_LIVING=1` | Six close-up installations, local greeting/guide, touch and reduced motion |
 
 Build the review fixture with `node scripts/build-system-world-review.mjs` before
 the model check. Screenshots, hardware/frame reports and the visual acceptance

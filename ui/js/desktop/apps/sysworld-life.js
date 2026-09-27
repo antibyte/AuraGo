@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createNavigator } from './sysworld-navigation.js';
+import {bodyShape} from './sysworld-traffic.js';
 
 // Five decorative city residents. Their routes are streets, not claimed data flows.
 // Block loops run as right-turn circuits, so the right-hand lane hugs each block's own kerb and
@@ -16,7 +17,10 @@ export function createCityLife(scene, districts, options) {
   let disposed=false, time=0, robotsLoaded=false, robotError=false, latestEvent=0, canAnimate=false;
   const group=new THREE.Group();group.name='city-life';scene.add(group);
   // Residents steer around street furniture and each other instead of following fixed clocks.
-  const navigator=createNavigator({routes,obstacles:options.obstacles||[]});
+  const traffic=options.traffic,bodies=[];
+  const navigator=createNavigator({routes,obstacles:options.obstacles||[],blocked:(a,x,z)=>{
+    const body=bodies[a.route],point=body?{...body,x,z}:null;return body?!traffic.clear(body,point,point):false;
+  }});
   const geometry=new Set(), materials=new Set(), textures=new Set(), signalMaterials=[];
   const abort=new AbortController(), residents=[], signals=[];
   const ownGeometry=g=>(geometry.add(g),g), ownMaterial=m=>(materials.add(m),m);
@@ -128,8 +132,18 @@ export function createCityLife(scene, districts, options) {
       const center=box.getCenter(new THREE.Vector3());model.position.set(-center.x,-box.min.y,-center.z);
       // The exported face points along +X; route headings use local +Z.
       model.rotation.y=-Math.PI/2;
+      model.updateMatrixWorld(true);box.setFromObject(model);
+      box.expandByScalar(.4);const shape=bodyShape({min:box.min.toArray(),max:box.max.toArray()});
       model.traverse(n=>{if(n.isMesh){n.castShadow=false;n.receiveShadow=true;}});
-      residents.forEach(r=>{r.body.add(model.clone(true));r.root.visible=true;r.glow.visible=true;});
+      residents.forEach((r,i)=>{
+        r.body.add(model.clone(true));r.root.visible=true;r.glow.visible=true;
+        if(traffic){
+          const a=r.agent;let body=null;
+          for(let tries=0;tries<600&&!body;tries++){body=traffic.register('patrol-'+i,shape,{x:a.x,y:1.6,z:a.z,heading:a.heading},1);if(!body)navigator.seek(a,a.s+1);}
+          if(body){bodies[i]=body;options.society?.patrol(body.id,body,r.root,(held,position)=>{a.held=held;if(position)navigator.adopt(a,position);});}
+          else{r.root.visible=false;r.glow.visible=false;a.held=true;}
+        }
+      });
       robotsLoaded=true;update(0,false);
     } catch(error) {if(!disposed){robotError=true;options.onError?.(error);}}
     finally {clearTimeout(timeout);}
@@ -153,24 +167,49 @@ export function createCityLife(scene, districts, options) {
     const now=Date.now();
     for(const e of [...events].reverse())if(e.id>latestEvent) {
       transmit(e,now);
+      if(canAnimate&&e.at>=createdAt&&options.active?.()!==false)options.society?.event(e);
       if(now-e.at<6000){const s=signals.find(s=>s.id===e.district);if(s)s.eventUntil=e.at+5000;}
     }
     latestEvent=Math.max(latestEvent,...events.map(e=>e.id));
   }
   function update(dt, animated) {
     if(disposed)return;canAnimate=animated;updatePackets(animated);
-    const step=Math.min(.1,Math.max(0,dt));
+    const step=animated?Math.min(.1,Math.max(0,dt)):0;
+    const before=traffic?navigator.agents.map(a=>({...a})):null;
     if(animated&&step>0){time+=step;navigator.step(step);}
     for(const [i,r]of residents.entries()) {
       const a=r.agent, moving=Math.hypot(a.vx,a.vz);
-      r.root.position.set(a.x,1.6+Math.sin(time*1.6+i*1.9)*.18,a.z);
-      r.root.rotation.y=a.heading;
+      const position=a.held&&bodies[i]?bodies[i]:a;
+      r.root.position.set(position.x,1.6+Math.sin(time*1.6+i*1.9)*.18,position.z);
+      r.root.rotation.y=position.heading;
       // Lean into lateral moves and turns; a stopped or turning robot stays level.
       const lateral=(a.vx*a.rx+a.vz*a.rz)/Math.max(1,moving);
       r.body.rotation.z=Math.sin(time*.85+i)*.035-lateral*.08;
       r.body.rotation.x=-.035+Math.sin(time*1.1+i)*.018-Math.min(.09,moving*.015);
-      r.glow.position.x=a.x;r.glow.position.z=a.z;
+      r.glow.position.x=position.x;r.glow.position.z=position.z;
       r.jet.scale.y=1+Math.sin(time*4+i)*.12+moving*.04;
+      if(bodies[i]&&!a.held){
+        const b=bodies[i],next={x:a.x,y:1.6,z:a.z,heading:a.heading};
+        if(r.escape&&time<r.escape.until){next.x=b.x+r.escape.x*step*1.8;next.z=b.z+r.escape.z*step*1.8;next.heading=b.heading;}
+        else r.escape=null;
+        if(!traffic.clear(b,b,next,false)&&traffic.clear(b,b,{...next,heading:b.heading},false))next.heading=b.heading;
+        const distance=Math.hypot(next.x-b.x,next.z-b.z);
+        traffic.propose(b,next,(accepted,b)=>{
+        r.wait=accepted&&distance>.002?0:(r.wait||0)+step;
+        if(r.escape&&accepted)navigator.adopt(a,b);
+        if(r.wait>2.5){
+          const fx=Math.sin(b.heading),fz=Math.cos(b.heading);
+          for(const [x,z]of [[fz,-fx],[-fz,fx],[fx,fz],[-fx,-fz]])if(traffic.clear(b,b,{...b,x:b.x+x*2.5,z:b.z+z*2.5})){
+            r.escape={x,z,until:time+2};break;
+          }
+          r.wait=0;
+        }
+        if(!accepted){const blocked=(a.trafficWait||0)+step;Object.assign(a,before[i]);a.speed=0;a.vx=a.vz=0;a.trafficWait=blocked;
+          if(blocked>2.5){if(a.state!=='turn'){a.dir=-a.dir;a.lane=-a.lane;a.laneTarget=2.2;a.state='turn';a.turns++;}else a.state='cruise';a.trafficWait=0;}}
+        else{a.trafficWait=0;a.heading=b.heading;}
+        r.root.position.x=b.x;r.root.position.z=b.z;r.root.rotation.y=b.heading;r.glow.position.x=b.x;r.glow.position.z=b.z;
+        });
+      }
     }
     for(const s of signals) {
       const pulse=animated ? .5+.5*Math.sin(time*(s.state==='error'?3.2:1.8)) : .5;
@@ -186,11 +225,12 @@ export function createCityLife(scene, districts, options) {
   function dispose() {
     if(disposed)return;disposed=true;abort.abort();options.signal?.removeEventListener('abort',dispose);
     group.removeFromParent();freeAssets();residents.length=0;signalMaterials.length=0;
+    bodies.forEach(b=>traffic.remove(b.id));
   }
   options.signal?.addEventListener('abort',dispose,{once:true});
   if(options.signal?.aborted)dispose();else void loadRobot();
   return {update,setData,attachLandmarks,dispose,
-    stats:()=>({robots:robotsLoaded?residents.length:0,robotError,time,navigation:navigator.stats(),
+    stats:()=>({robots:robotsLoaded?residents.filter(r=>r.root.visible).length:0,robotError,time,navigation:navigator.stats(),
       positions:residents.map(r=>r.root.position.toArray()),
       transmissions:packets.filter(p=>p.waves.some(m=>m.visible)).map(p=>({from:p.from,to:p.to,state:p.state,age:Date.now()-p.at})),
       signals:signals.map(s=>({id:s.id,state:s.state,intensity:s.material.opacity})),

@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "license": "MIT",
   "units": "metres",
   "up_axis": "Y",
@@ -13,8 +13,8 @@
         {
           "level": 0,
           "file": "arcade.lod0.glb",
-          "bytes": 12656,
-          "sha256": "cb095e8f37841e6a309fbbfec2930e9efd329eebb1cd86cf643d1476e70e8147",
+          "bytes": 13008,
+          "sha256": "c44b9adbef3ce8d24099d031f02a068ae0bdb97d1630e755faacd85ef9118c86",
           "bounds": {
             "min": [
               -3.25,
@@ -32,8 +32,8 @@
         {
           "level": 1,
           "file": "arcade.lod1.glb",
-          "bytes": 5160,
-          "sha256": "a50aca63b3b1009e8f0e4e0ea349638985bc48bbcafdc81015fce02bb1f5c56c",
+          "bytes": 5508,
+          "sha256": "7af46c60798ab6f8da5409dd97e993c44659d3df2b71ea87c5c5407134823a0a",
           "bounds": {
             "min": [
               -3.25,
@@ -51,8 +51,8 @@
         {
           "level": 2,
           "file": "arcade.lod2.glb",
-          "bytes": 5160,
-          "sha256": "e5441ed436c0a88682efd323ce0fca5f3f57234f8ff4f34d0062d023e49942f9",
+          "bytes": 5508,
+          "sha256": "b3e2ed5773bf8292ec2ad5087c92ed5bb17be471ecd72e17222fd6e52695f985",
           "bounds": {
             "min": [
               -3.25,
@@ -69,12 +69,40 @@
         }
       ],
       "navigation": {
-        "colliders": [],
+        "colliders": [
+          [
+            -3.25,
+            0,
+            -1,
+            -2.75,
+            4.8,
+            1
+          ],
+          [
+            2.75,
+            0,
+            -1,
+            3.25,
+            4.8,
+            1
+          ],
+          [
+            -3.25,
+            4.44,
+            -1.2,
+            3.25,
+            4.925,
+            1.2
+          ]
+        ],
         "surfaces": [],
         "portals": []
       },
       "animations": [],
       "components": [
+        "nav_colliders_0",
+        "nav_colliders_1",
+        "nav_colliders_2",
         "structure"
       ]
     },
@@ -334,8 +362,8 @@
         {
           "level": 0,
           "file": "garden.lod0.glb",
-          "bytes": 25164,
-          "sha256": "1515cac584db6c9d0f3158be982c1b50a6a3d131c28c38f12f4c9fea5c9a8430",
+          "bytes": 25272,
+          "sha256": "42d486f3b5809f5428d409d7e661646f6a94c4882313366afab2d5fe621b96da",
           "bounds": {
             "min": [
               -2.0,
@@ -353,8 +381,8 @@
         {
           "level": 1,
           "file": "garden.lod1.glb",
-          "bytes": 18920,
-          "sha256": "e4582e8d094dc93618c4260aa6a154ecdcf6ffe2d17281f87539d03dbff43f6e",
+          "bytes": 19028,
+          "sha256": "d818293ca2aa83673e83c099495c30d67102a1ec92136183c16f755cabefe0be",
           "bounds": {
             "min": [
               -2.0,
@@ -372,8 +400,8 @@
         {
           "level": 2,
           "file": "garden.lod2.glb",
-          "bytes": 16036,
-          "sha256": "88fceac454eb311aa82148305f4f4607da8037b2400de5dec32f17612bf01772",
+          "bytes": 16144,
+          "sha256": "be5920109039c690c15a21abded93fd41f021b9094fa5300dc16a0e9b7508260",
           "bounds": {
             "min": [
               -2.0,
@@ -390,12 +418,22 @@
         }
       ],
       "navigation": {
-        "colliders": [],
+        "colliders": [
+          [
+            -2,
+            0,
+            -2,
+            2,
+            3.5,
+            2
+          ]
+        ],
         "surfaces": [],
         "portals": []
       },
       "animations": [],
       "components": [
+        "nav_colliders_0",
         "structure"
       ]
     },
@@ -1166,8 +1204,8 @@
         {
           "level": 0,
           "file": "station.lod0.glb",
-          "bytes": 15692,
-          "sha256": "4cdda0ea723d7250916fdc73a2073e5b59a16e3e4b7bea005d6b5fb36c35b7a1",
+          "bytes": 16188,
+          "sha256": "62e3166d65dff62caf8854423833f0639048d20f8f8296aa936be2bfe520e8c4",
           "bounds": {
             "min": [
               -4.5,
@@ -1185,8 +1223,8 @@
         {
           "level": 1,
           "file": "station.lod1.glb",
-          "bytes": 6460,
-          "sha256": "b3fc3ff8d592d8d5d7ae4003a9f7ad3cd9989329077eebdd889bd5e264b54da8",
+          "bytes": 6956,
+          "sha256": "27377136b85530d1dd86234c3dc24e29301428e56bd1264d356fedd7fa450948",
           "bounds": {
             "min": [
               -4.5,
@@ -1204,8 +1242,8 @@
         {
           "level": 2,
           "file": "station.lod2.glb",
-          "bytes": 6460,
-          "sha256": "d9612389caeccb022bf9635b8e39e1e113df7ba993c944a0d65cbadc8f677cbd",
+          "bytes": 6956,
+          "sha256": "89d41cc3031e1c6baa26d747264459625a81934e621bec2ff8aa12972137e15a",
           "bounds": {
             "min": [
               -4.5,
@@ -1222,12 +1260,51 @@
         }
       ],
       "navigation": {
-        "colliders": [],
-        "surfaces": [],
+        "colliders": [
+          [
+            -4.5,
+            3.69,
+            -2,
+            4.5,
+            3.91,
+            2
+          ],
+          [
+            -4.075,
+            0,
+            -1.575,
+            -3.925,
+            3.8,
+            -1.425
+          ],
+          [
+            3.925,
+            0,
+            -1.575,
+            4.075,
+            3.8,
+            -1.425
+          ]
+        ],
+        "surfaces": [
+          {
+            "rect": [
+              -4.5,
+              -2,
+              4.5,
+              2
+            ],
+            "height": 0.3
+          }
+        ],
         "portals": []
       },
       "animations": [],
       "components": [
+        "nav_colliders_0",
+        "nav_colliders_1",
+        "nav_colliders_2",
+        "nav_surfaces_0",
         "structure"
       ]
     },
@@ -1237,8 +1314,8 @@
         {
           "level": 0,
           "file": "service-cart.lod0.glb",
-          "bytes": 57976,
-          "sha256": "b9aa94a54348136f984d9ecf9e1c1c1492668b2325d22bbc89a3b27579601f17",
+          "bytes": 58096,
+          "sha256": "f3a881a336a44f140d8320b918eaea120ee1c4f94f600aed74f9501c53ebd598",
           "bounds": {
             "min": [
               -1.5,
@@ -1256,8 +1333,8 @@
         {
           "level": 1,
           "file": "service-cart.lod1.glb",
-          "bytes": 19940,
-          "sha256": "721c2eacf3695b80f85b27d7134faa86e4b9bbb842f543027e32d5be36fa09ef",
+          "bytes": 20056,
+          "sha256": "762d08a653f0450effe31311911d524afbcc6c4783e1436965aa2793711f01d3",
           "bounds": {
             "min": [
               -1.5,
@@ -1275,8 +1352,8 @@
         {
           "level": 2,
           "file": "service-cart.lod2.glb",
-          "bytes": 19940,
-          "sha256": "0bbf330d415af8cdba7c8364b6bb97b0d54df48470458ff685438ffa158949df",
+          "bytes": 20056,
+          "sha256": "7d30775a08e1ebd6b848d39e4fbb466d0ad45a32e30deafbee962b02c676e5c2",
           "bounds": {
             "min": [
               -1.5,
@@ -1293,7 +1370,16 @@
         }
       ],
       "navigation": {
-        "colliders": [],
+        "colliders": [
+          [
+            -1.5,
+            0,
+            -1.65,
+            1.5,
+            3.4,
+            1.65
+          ]
+        ],
         "surfaces": [],
         "portals": []
       },
@@ -1303,6 +1389,7 @@
       "components": [
         "door_l",
         "door_r",
+        "nav_colliders_0",
         "structure"
       ]
     },
@@ -1956,18 +2043,18 @@
         {
           "level": 0,
           "file": "robot-courier.lod0.glb",
-          "bytes": 64132,
-          "sha256": "df636a5db944a7ae8a8bd912eddb2f2ea06ede31d79fc9ff9cea4ba8a0f471d5",
+          "bytes": 64036,
+          "sha256": "7dea4ca74b231dd5de6c1e765b6468e5bd10d8efcaf2ca962103ee75cbadea74",
           "bounds": {
             "min": [
               -0.6000000238418579,
               0.0,
-              -0.5475000143051147
+              -0.2150000035762787
             ],
             "max": [
               0.6000000238418579,
               2.119999885559082,
-              0.3700000047683716
+              0.7475000023841858
             ]
           },
           "triangles": 1012
@@ -1975,18 +2062,18 @@
         {
           "level": 1,
           "file": "robot-courier.lod1.glb",
-          "bytes": 35312,
-          "sha256": "bab8bce23e26085aaa9376b8c09b2c707202798d2aedc8986cab869f7926778e",
+          "bytes": 35876,
+          "sha256": "5f6885cfc3ca707b7d45fc7618a963652fcd29c51056b80219e4febcaf67c265",
           "bounds": {
             "min": [
               -0.6000000238418579,
               0.0,
-              -0.5475000143051147
+              -0.2150000035762787
             ],
             "max": [
               0.6000000238418579,
               2.119999885559082,
-              0.3700000047683716
+              0.7475000023841858
             ]
           },
           "triangles": 420
@@ -1994,18 +2081,18 @@
         {
           "level": 2,
           "file": "robot-courier.lod2.glb",
-          "bytes": 32808,
-          "sha256": "8bbab176ee82bc58c2cd34113bb05e0d9a3c8b7def19a58b690ef91f10eac0fb",
+          "bytes": 33376,
+          "sha256": "5980b605af10e52bd9da4d5b7fa28c182c221c1ee67f8326be79f068e7644afe",
           "bounds": {
             "min": [
               -0.6000000238418579,
               0.0,
-              -0.5475000143051147
+              -0.2150000035762787
             ],
             "max": [
               0.6000000238418579,
               2.119999885559082,
-              0.3700000047683716
+              0.7475000023841858
             ]
           },
           "triangles": 324
@@ -2015,6 +2102,18 @@
         "colliders": [],
         "surfaces": [],
         "portals": []
+      },
+      "motion_bounds": {
+        "min": [
+          -0.6250000238418579,
+          -0.9249999761581421,
+          -0.6232971787452698
+        ],
+        "max": [
+          1.2463284969329833,
+          2.185595417022705,
+          0.8108525514602661
+        ]
       },
       "animations": [
         "carry",
@@ -2030,6 +2129,7 @@
         "head",
         "leg_l",
         "leg_r",
+        "parcel",
         "structure"
       ]
     },
@@ -2098,6 +2198,18 @@
         "colliders": [],
         "surfaces": [],
         "portals": []
+      },
+      "motion_bounds": {
+        "min": [
+          -0.6250000238418579,
+          -0.9249999761581421,
+          -0.6232971787452698
+        ],
+        "max": [
+          1.2463284969329833,
+          2.185595417022705,
+          0.8108525514602661
+        ]
       },
       "animations": [
         "carry",
@@ -2182,6 +2294,18 @@
         "surfaces": [],
         "portals": []
       },
+      "motion_bounds": {
+        "min": [
+          -0.6250000238418579,
+          -0.9249999761581421,
+          -0.6232971787452698
+        ],
+        "max": [
+          1.2463284969329833,
+          2.235310935974121,
+          0.8108525514602661
+        ]
+      },
       "animations": [
         "carry",
         "greet",
@@ -2198,7 +2322,883 @@
         "leg_r",
         "structure"
       ]
+    },
+    {
+      "id": "repair-bay",
+      "lods": [
+        {
+          "level": 0,
+          "file": "repair-bay.lod0.glb",
+          "bytes": 68116,
+          "sha256": "0e12f720f08faad3ede6d3cda7957a69fc032a494a63a923d305b85c0a236cb3",
+          "bounds": {
+            "min": [
+              -2.5,
+              0.0,
+              -1.899999976158142
+            ],
+            "max": [
+              2.5,
+              3.049999952316284,
+              1.899999976158142
+            ]
+          },
+          "triangles": 1752
+        },
+        {
+          "level": 1,
+          "file": "repair-bay.lod1.glb",
+          "bytes": 37964,
+          "sha256": "db62b2fe94f8e658965b0229dbd6a278bb0d1c1df2e7605f1bcbcf8ed23ebfc3",
+          "bounds": {
+            "min": [
+              -2.5,
+              0.0,
+              -1.899999976158142
+            ],
+            "max": [
+              2.5,
+              3.049999952316284,
+              1.899999976158142
+            ]
+          },
+          "triangles": 864
+        },
+        {
+          "level": 2,
+          "file": "repair-bay.lod2.glb",
+          "bytes": 26388,
+          "sha256": "43ad419de98dfb8b7b12a1145ec9b606eddd57d23fd4b1f88d5495e7798bf705",
+          "bounds": {
+            "min": [
+              -2.5,
+              0.0,
+              -1.899999976158142
+            ],
+            "max": [
+              2.5,
+              3.049999952316284,
+              1.899999976158142
+            ]
+          },
+          "triangles": 464
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -2.5,
+            0,
+            -1.9,
+            2.5,
+            3.15,
+            1.9
+          ]
+        ],
+        "surfaces": [
+          {
+            "rect": [
+              -2.5,
+              -1.9,
+              2.5,
+              1.9
+            ],
+            "height": 0.18
+          }
+        ],
+        "portals": [],
+        "workpoints": [
+          {
+            "id": "left",
+            "position": [
+              -1.3,
+              0,
+              3.4
+            ]
+          },
+          {
+            "id": "right",
+            "position": [
+              1.3,
+              0,
+              3.4
+            ]
+          }
+        ],
+        "interaction": [
+          {
+            "position": [
+              0,
+              1.5,
+              3.4
+            ],
+            "radius": 4
+          }
+        ],
+        "emitter": [
+          {
+            "position": [
+              0,
+              2.2,
+              0
+            ]
+          }
+        ]
+      },
+      "animations": [
+        "operate"
+      ],
+      "components": [
+        "manipulator",
+        "nav_colliders_0",
+        "nav_emitter_0",
+        "nav_interaction_0",
+        "nav_surfaces_0",
+        "nav_workpoints_0",
+        "nav_workpoints_1",
+        "structure"
+      ]
+    },
+    {
+      "id": "parcel-sorter",
+      "lods": [
+        {
+          "level": 0,
+          "file": "parcel-sorter.lod0.glb",
+          "bytes": 74040,
+          "sha256": "7c82bb171673c591555fb9d327e56ca40c99a72f584bb1eff39f4b73511818c0",
+          "bounds": {
+            "min": [
+              -3.1500000953674316,
+              0.0,
+              -1.8000000715255737
+            ],
+            "max": [
+              3.1500000953674316,
+              3.3400001525878906,
+              1.125
+            ]
+          },
+          "triangles": 1456
+        },
+        {
+          "level": 1,
+          "file": "parcel-sorter.lod1.glb",
+          "bytes": 36868,
+          "sha256": "dabff7404dddcb9a0e958c503a02ae296157fef41a853d923b9d496efe51e83c",
+          "bounds": {
+            "min": [
+              -3.1500000953674316,
+              0.0,
+              -1.8000000715255737
+            ],
+            "max": [
+              3.1500000953674316,
+              3.3400001525878906,
+              1.125
+            ]
+          },
+          "triangles": 672
+        },
+        {
+          "level": 2,
+          "file": "parcel-sorter.lod2.glb",
+          "bytes": 31912,
+          "sha256": "90cb8b75c4055bb21e664c2cb93c733d0d678bf0f8aae973de038bf0fba4cfb2",
+          "bounds": {
+            "min": [
+              -3.1500000953674316,
+              0.0,
+              -1.8000000715255737
+            ],
+            "max": [
+              3.1500000953674316,
+              3.3400001525878906,
+              1.125
+            ]
+          },
+          "triangles": 568
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -3.2,
+            0,
+            -1.1,
+            3.2,
+            3.35,
+            1.1
+          ],
+          [
+            1.5,
+            0,
+            -1.9,
+            2.5,
+            1.8,
+            -1.05
+          ]
+        ],
+        "surfaces": [],
+        "portals": [],
+        "workpoints": [
+          {
+            "id": "left",
+            "position": [
+              -1.3,
+              0,
+              3.4
+            ]
+          },
+          {
+            "id": "right",
+            "position": [
+              1.3,
+              0,
+              3.4
+            ]
+          }
+        ],
+        "interaction": [
+          {
+            "position": [
+              0,
+              1.5,
+              3.4
+            ],
+            "radius": 4
+          }
+        ],
+        "emitter": [
+          {
+            "position": [
+              0,
+              2.2,
+              0
+            ]
+          }
+        ]
+      },
+      "animations": [
+        "operate"
+      ],
+      "components": [
+        "nav_colliders_0",
+        "nav_colliders_1",
+        "nav_emitter_0",
+        "nav_interaction_0",
+        "nav_workpoints_0",
+        "nav_workpoints_1",
+        "parcel",
+        "structure"
+      ]
+    },
+    {
+      "id": "relay-mast",
+      "lods": [
+        {
+          "level": 0,
+          "file": "relay-mast.lod0.glb",
+          "bytes": 149144,
+          "sha256": "2b168269d6e68841d10f5100746c7c4cbcb92c853a63d08ddfc517b6734d0acb",
+          "bounds": {
+            "min": [
+              -1.600000023841858,
+              0.0,
+              -1.600000023841858
+            ],
+            "max": [
+              1.600000023841858,
+              7.34499979019165,
+              1.649999976158142
+            ]
+          },
+          "triangles": 5756
+        },
+        {
+          "level": 1,
+          "file": "relay-mast.lod1.glb",
+          "bytes": 74896,
+          "sha256": "8526cff00bb8518b916e8f04b96acc8180497c498028dc558249e336a050e8bb",
+          "bounds": {
+            "min": [
+              -1.600000023841858,
+              0.0,
+              -1.600000023841858
+            ],
+            "max": [
+              1.600000023841858,
+              7.34499979019165,
+              1.649999976158142
+            ]
+          },
+          "triangles": 2796
+        },
+        {
+          "level": 2,
+          "file": "relay-mast.lod2.glb",
+          "bytes": 35540,
+          "sha256": "7cf23a4ee929007821faee07ec6106c8e715ab1d3b288cf0002736813a73c2da",
+          "bounds": {
+            "min": [
+              -1.600000023841858,
+              0.0,
+              -1.600000023841858
+            ],
+            "max": [
+              1.600000023841858,
+              7.30470609664917,
+              1.649999976158142
+            ]
+          },
+          "triangles": 1100
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -1.65,
+            0,
+            -1.65,
+            1.65,
+            7.5,
+            1.65
+          ]
+        ],
+        "surfaces": [],
+        "portals": [],
+        "workpoints": [
+          {
+            "id": "left",
+            "position": [
+              -1.3,
+              0,
+              3.4
+            ]
+          },
+          {
+            "id": "right",
+            "position": [
+              1.3,
+              0,
+              3.4
+            ]
+          }
+        ],
+        "interaction": [
+          {
+            "position": [
+              0,
+              1.5,
+              3.4
+            ],
+            "radius": 4
+          }
+        ],
+        "emitter": [
+          {
+            "position": [
+              0,
+              2.2,
+              0
+            ]
+          }
+        ]
+      },
+      "animations": [
+        "operate"
+      ],
+      "components": [
+        "antenna",
+        "nav_colliders_0",
+        "nav_emitter_0",
+        "nav_interaction_0",
+        "nav_workpoints_0",
+        "nav_workpoints_1",
+        "structure"
+      ]
+    },
+    {
+      "id": "kinetic-fountain",
+      "lods": [
+        {
+          "level": 0,
+          "file": "kinetic-fountain.lod0.glb",
+          "bytes": 97712,
+          "sha256": "e4548018a76a375600c854a6e94e702e9e0b0c4621fda961401134edeea00ad6",
+          "bounds": {
+            "min": [
+              -3.069999933242798,
+              0.0,
+              -3.069999933242798
+            ],
+            "max": [
+              3.069999933242798,
+              2.7962164878845215,
+              3.069999933242798
+            ]
+          },
+          "triangles": 4244
+        },
+        {
+          "level": 1,
+          "file": "kinetic-fountain.lod1.glb",
+          "bytes": 57164,
+          "sha256": "1962c3f208868389b8c731e75028fafe43d9a3ef2cbb0ead583a86b4cb443c44",
+          "bounds": {
+            "min": [
+              -3.069999933242798,
+              0.0,
+              -3.069999933242798
+            ],
+            "max": [
+              3.069999933242798,
+              2.7981998920440674,
+              3.069999933242798
+            ]
+          },
+          "triangles": 2236
+        },
+        {
+          "level": 2,
+          "file": "kinetic-fountain.lod2.glb",
+          "bytes": 33896,
+          "sha256": "9b6e25416078c4006cb1fc122ff4cba6fb5277ef0abd81442d524ef57cea17a4",
+          "bounds": {
+            "min": [
+              -3.069999933242798,
+              0.0,
+              -3.069999933242798
+            ],
+            "max": [
+              3.069999933242798,
+              2.7946348190307617,
+              3.069999933242798
+            ]
+          },
+          "triangles": 1124
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -3.1,
+            0,
+            -3.1,
+            3.1,
+            3.1,
+            3.1
+          ]
+        ],
+        "surfaces": [],
+        "portals": [],
+        "workpoints": [
+          {
+            "id": "left",
+            "position": [
+              -1.3,
+              0,
+              4.5
+            ]
+          },
+          {
+            "id": "right",
+            "position": [
+              1.3,
+              0,
+              4.5
+            ]
+          }
+        ],
+        "interaction": [
+          {
+            "position": [
+              0,
+              1.5,
+              4.5
+            ],
+            "radius": 4
+          }
+        ],
+        "emitter": [
+          {
+            "position": [
+              0,
+              2.2,
+              0
+            ]
+          }
+        ]
+      },
+      "animations": [
+        "operate"
+      ],
+      "components": [
+        "nav_colliders_0",
+        "nav_emitter_0",
+        "nav_interaction_0",
+        "nav_workpoints_0",
+        "nav_workpoints_1",
+        "sculpture",
+        "structure"
+      ]
+    },
+    {
+      "id": "glass-garden",
+      "lods": [
+        {
+          "level": 0,
+          "file": "glass-garden.lod0.glb",
+          "bytes": 64848,
+          "sha256": "98911249936463d31cb3b14e15a1049806b061979babfcd896f994cbef20f129",
+          "bounds": {
+            "min": [
+              -2.700000047683716,
+              0.0,
+              -2.200000047683716
+            ],
+            "max": [
+              2.700000047683716,
+              5.085000038146973,
+              2.200000047683716
+            ]
+          },
+          "triangles": 1088
+        },
+        {
+          "level": 1,
+          "file": "glass-garden.lod1.glb",
+          "bytes": 29508,
+          "sha256": "6e713881a84940d6022cac18756ab5cfc562c2871211dee25516602d224997a3",
+          "bounds": {
+            "min": [
+              -2.700000047683716,
+              0.0,
+              -2.200000047683716
+            ],
+            "max": [
+              2.700000047683716,
+              5.085000038146973,
+              2.200000047683716
+            ]
+          },
+          "triangles": 448
+        },
+        {
+          "level": 2,
+          "file": "glass-garden.lod2.glb",
+          "bytes": 26116,
+          "sha256": "2ebc18716416a6dfb2331cbd5a0e8d295f50c0e57add5f2794630f0d31060ccd",
+          "bounds": {
+            "min": [
+              -2.700000047683716,
+              0.0,
+              -2.200000047683716
+            ],
+            "max": [
+              2.700000047683716,
+              5.085000038146973,
+              2.200000047683716
+            ]
+          },
+          "triangles": 364
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -2.7,
+            3.8,
+            -2.2,
+            2.7,
+            5.2,
+            2.2
+          ],
+          [
+            -2.13,
+            0.3,
+            -1.55,
+            -0.67,
+            3.1,
+            1.55
+          ],
+          [
+            0.67,
+            0.3,
+            -1.55,
+            2.13,
+            3.1,
+            1.55
+          ],
+          [
+            -2.6,
+            0.3,
+            -2.1,
+            -2.4,
+            3.8,
+            -1.9
+          ],
+          [
+            -2.6,
+            0.3,
+            1.9,
+            -2.4,
+            3.8,
+            2.1
+          ],
+          [
+            2.4,
+            0.3,
+            -2.1,
+            2.6,
+            3.8,
+            -1.9
+          ],
+          [
+            2.4,
+            0.3,
+            1.9,
+            2.6,
+            3.8,
+            2.1
+          ]
+        ],
+        "surfaces": [
+          {
+            "rect": [
+              -2.7,
+              -2.2,
+              2.7,
+              2.2
+            ],
+            "height": 0.3
+          }
+        ],
+        "portals": [],
+        "workpoints": [
+          {
+            "id": "left",
+            "position": [
+              -1.3,
+              0,
+              4.5
+            ]
+          },
+          {
+            "id": "right",
+            "position": [
+              1.3,
+              0,
+              4.5
+            ]
+          }
+        ],
+        "interaction": [
+          {
+            "position": [
+              0,
+              1.5,
+              4.5
+            ],
+            "radius": 4
+          }
+        ],
+        "emitter": [
+          {
+            "position": [
+              0,
+              2.2,
+              0
+            ]
+          }
+        ]
+      },
+      "animations": [
+        "operate"
+      ],
+      "components": [
+        "nav_colliders_0",
+        "nav_colliders_1",
+        "nav_colliders_2",
+        "nav_colliders_3",
+        "nav_colliders_4",
+        "nav_colliders_5",
+        "nav_colliders_6",
+        "nav_emitter_0",
+        "nav_interaction_0",
+        "nav_surfaces_0",
+        "nav_workpoints_0",
+        "nav_workpoints_1",
+        "structure",
+        "vent"
+      ]
+    },
+    {
+      "id": "meeting-charge",
+      "lods": [
+        {
+          "level": 0,
+          "file": "meeting-charge.lod0.glb",
+          "bytes": 73444,
+          "sha256": "340fb8f67a5242da7bd52f60e7eb7fb95c07da3e9685a64a49fbc118033b253c",
+          "bounds": {
+            "min": [
+              -3.299999952316284,
+              0.0,
+              -2.0999999046325684
+            ],
+            "max": [
+              3.299999952316284,
+              4.814999580383301,
+              2.0999999046325684
+            ]
+          },
+          "triangles": 2056
+        },
+        {
+          "level": 1,
+          "file": "meeting-charge.lod1.glb",
+          "bytes": 38372,
+          "sha256": "8427c0cfe51bf24cc881a0a04df82060564e148383de586ffc3afc3abe8e5f9f",
+          "bounds": {
+            "min": [
+              -3.299999952316284,
+              0.0,
+              -2.0999999046325684
+            ],
+            "max": [
+              3.299999952316284,
+              4.814999580383301,
+              2.0999999046325684
+            ]
+          },
+          "triangles": 1016
+        },
+        {
+          "level": 2,
+          "file": "meeting-charge.lod2.glb",
+          "bytes": 21420,
+          "sha256": "0612cf17d1e489380a95f4046fd779c7f021f005ec847cc031fb8b1800e5bc67",
+          "bounds": {
+            "min": [
+              -3.299999952316284,
+              0.0,
+              -2.0999999046325684
+            ],
+            "max": [
+              3.299999952316284,
+              4.814999580383301,
+              2.0999999046325684
+            ]
+          },
+          "triangles": 448
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -3.3,
+            4.45,
+            -2.1,
+            3.3,
+            4.9,
+            2.1
+          ],
+          [
+            -3.2,
+            0,
+            -1.7,
+            -2.7,
+            4.5,
+            -1.3
+          ],
+          [
+            2.7,
+            0,
+            -1.7,
+            3.2,
+            4.5,
+            -1.3
+          ],
+          [
+            -2.5,
+            0,
+            -1.8,
+            2.5,
+            2.2,
+            -0.85
+          ]
+        ],
+        "surfaces": [
+          {
+            "rect": [
+              -3.25,
+              -2,
+              3.25,
+              2
+            ],
+            "height": 0.24
+          }
+        ],
+        "portals": [],
+        "workpoints": [
+          {
+            "id": "left",
+            "position": [
+              -1.3,
+              0,
+              3.4
+            ]
+          },
+          {
+            "id": "right",
+            "position": [
+              1.3,
+              0,
+              3.4
+            ]
+          }
+        ],
+        "interaction": [
+          {
+            "position": [
+              0,
+              1.5,
+              3.4
+            ],
+            "radius": 4
+          }
+        ],
+        "emitter": [
+          {
+            "position": [
+              0,
+              2.2,
+              0
+            ]
+          }
+        ]
+      },
+      "animations": [],
+      "components": [
+        "nav_colliders_0",
+        "nav_colliders_1",
+        "nav_colliders_2",
+        "nav_colliders_3",
+        "nav_emitter_0",
+        "nav_interaction_0",
+        "nav_surfaces_0",
+        "nav_workpoints_0",
+        "nav_workpoints_1",
+        "structure"
+      ]
     }
   ],
-  "budget_bytes": 50331648
+  "budget_bytes": 50331648,
+  "model_budget_bytes": 12582912,
+  "sources": {
+    "build_city.py": "9b34e63f85137ab571698ec62382ae0160110c1afd5866ca5513e150771d7a0c",
+    "build_expansion.py": "66d7ef15bab2f93413eca014c46213b0ef9b1e905e1ebbb3678f4775e3bed3c7",
+    "living_assets.py": "21ca67e291914a3d40ec0b9179b0377dc887ffba940e2295cc409888e815057b"
+  }
 }

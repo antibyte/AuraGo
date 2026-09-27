@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {bodyShape} from './sysworld-traffic.js';
 
 // Six decorative service drones on smooth closed patrol loops above the districts. They reuse
 // the kit's LOD template from the scene cache; clones share geometry and materials.
@@ -9,8 +10,8 @@ const patrols = [
 ];
 export function createDrones(scene, options = {}) {
   const group = new THREE.Group(); group.name = 'city-drones'; scene.add(group);
-  const geometries = [], materials = [], drones = [], tangent = new THREE.Vector3(), ahead = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
-  const matrix = new THREE.Matrix4(), quaternion = new THREE.Quaternion(), ZERO = new THREE.Vector3();
+  const geometries = [], materials = [], drones = [], tangent = new THREE.Vector3(), ahead = new THREE.Vector3();
+  const future = new THREE.Vector3();
   const lightGeometry = new THREE.SphereGeometry(.16, 8, 6); geometries.push(lightGeometry);
   const lightMaterial = color => { const m = new THREE.MeshBasicMaterial({ color, toneMapped: false }); materials.push(m); return m; };
   const red = lightMaterial(0xff4a3c), green = lightMaterial(0x4cff8a), strobe = lightMaterial(0xffffff);
@@ -21,17 +22,39 @@ export function createDrones(scene, options = {}) {
     const lights = [new THREE.Mesh(lightGeometry, red), new THREE.Mesh(lightGeometry, green), new THREE.Mesh(lightGeometry, strobe)];
     lights[0].position.set(-2.6, .8, 0); lights[1].position.set(2.6, .8, 0); lights[2].position.set(0, 2.1, -.4);
     root.add(...lights); group.add(root);
-    drones.push({ root, body, lights, curve, length: curve.getLength(), speed: patrol.speed, t: i * .37, rotors: [], roll: 0 });
+    drones.push({ root, body, lights, curve, length: curve.getLength(), speed: patrol.speed, t: (i * .37)%1, rotors: [], roll: 0,dir:1,waiting:0 });
   });
   let animated = true, tier='high', ready=false;
   function place(drone, dt) {
     const { curve, root } = drone;
-    drone.t = (drone.t + dt * drone.speed / drone.length) % 1;
+    const previous=drone.t;
+    drone.t = (drone.t + dt * drone.speed * drone.dir / drone.length+1) % 1;
     curve.getPointAt(drone.t, root.position); curve.getTangentAt(drone.t, tangent);
+    tangent.multiplyScalar(drone.dir);
+    if(drone.collider&&options.traffic){
+      const b=drone.collider,traffic=options.traffic;
+      curve.getPointAt((drone.t+drone.dir*20/drone.length+1)%1,future);
+      drone.avoidTime=Math.max(0,(drone.avoidTime||0)-dt);
+      const height=Math.max(root.position.y,traffic.ceiling(b,root.position.x,root.position.z),traffic.ceiling(b,future.x,future.z),drone.avoidTime?drone.avoidHeight:0);
+      root.position.y=b.y+THREE.MathUtils.clamp(height-b.y,-dt*5,dt*7);
+      const target=Math.atan2(tangent.x,tangent.z),heading=b.heading+Math.atan2(Math.sin(target-b.heading),Math.cos(target-b.heading))*Math.min(1,dt*3);
+      let next={...root.position,heading};
+      drone.obstruction=traffic.obstruction(b,b,next);
+      if(drone.obstruction){
+        // Give only one of an opposing pair the climbing lane; two simultaneous
+        // climbs would preserve their conflict all the way to the altitude limit.
+        const other=traffic.body(drone.obstruction);
+        const holds=drone.obstruction.startsWith('drone-')&&(Math.abs(b.y-other.y)>1?b.y<other.y:b.id<other.id);
+        if(!holds){drone.avoidHeight=Math.min(170,b.y+8);drone.avoidTime=8;}
+        next={...b,y:holds?b.y:Math.min(170,b.y+dt*5)};drone.t=previous;
+      }
+      traffic.propose(b,next,(accepted,pose)=>{
+        if(!accepted){drone.t=previous;drone.waiting+=dt;if(drone.waiting>2.5){drone.dir=-drone.dir;drone.waiting=0;}}
+        else drone.waiting=0;root.position.set(pose.x,pose.y,pose.z);root.rotation.set(0,pose.heading,0);
+      });
+    }
     curve.getTangentAt((drone.t + .015) % 1, ahead);
-    // Kit models face +z, so the matrix looks from the tangent tip back to the origin.
-    matrix.lookAt(tangent, ZERO, up); quaternion.setFromRotationMatrix(matrix);
-    root.quaternion.slerp(quaternion, dt > 0 ? Math.min(1, dt * 4) : 1);
+    if(!drone.collider)root.rotation.set(0,Math.atan2(tangent.x,tangent.z),0);
     // Bank into turns using the heading change over a short look-ahead.
     const turn = Math.atan2(ahead.x, ahead.z) - Math.atan2(tangent.x, tangent.z);
     const wrapped = Math.atan2(Math.sin(turn), Math.cos(turn));
@@ -46,15 +69,27 @@ export function createDrones(scene, options = {}) {
       for (const [i,drone] of drones.entries()) {
         drone.body.clear(); drone.rotors.length = 0;
         const model = template.clone(true); model.scale.setScalar(1.9);
+        model.updateMatrixWorld(true);const bounds=new THREE.Box3().setFromObject(model);bounds.expandByScalar(.5);bounds.min.y-=1;bounds.max.y+=1;
         model.traverse(n => { if (n.isMesh) { n.castShadow = false; n.receiveShadow = false; } if (/^rotor_/.test(n.name)) drone.rotors.push(n); });
         drone.body.add(model); drone.root.visible = i<(tier==='low'?2:tier==='medium'?3:6);
+        if(options.traffic&&!drone.collider){
+          place(drone,0);const shape=bodyShape({min:bounds.min.toArray(),max:bounds.max.toArray()});
+          drone.root.position.y=Math.max(drone.root.position.y,options.traffic.ceiling(shape,drone.root.position.x,drone.root.position.z));
+          drone.collider=options.traffic.register('drone-'+i,shape,{...drone.root.position,heading:drone.root.rotation.y},0);
+          if(!drone.collider)drone.root.visible=false;
+        }
       }
     },
     update(dt, time, active) {
       animated = active;
       const step = active ? Math.min(.1, Math.max(0, dt)) : 0;
       drones.forEach((drone, i) => {
-        drone.root.visible=ready&&i<(tier==='low'?2:tier==='medium'?3:6);if(!drone.root.visible)return;
+        drone.root.visible=ready&&i<(tier==='low'?2:tier==='medium'?3:6)&&(!options.traffic||!!drone.collider);
+        if(drone.collider){
+          if(drone.root.visible&&!drone.collider.enabled&&!options.traffic.relocate(drone.collider,drone.collider))drone.root.visible=false;
+          drone.collider.enabled=drone.root.visible;
+        }
+        if(!drone.root.visible)return;
         place(drone, step);
         drone.rotors.forEach((rotor, j) => { rotor.rotation.y += step * (j % 2 ? -46 : 46); });
         const blink = Math.sin(time * 5 + i * 1.7);
@@ -63,7 +98,7 @@ export function createDrones(scene, options = {}) {
         drone.lights[2].scale.setScalar(active ? 1.6 : 1);
       });
     },
-    stats: () => ({ drones: drones.filter(d => d.root.visible).length, animated, positions: drones.map(d => d.root.position.toArray().map(v => Math.round(v))) }),
-    dispose() { group.removeFromParent(); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); drones.length = 0; },
+    stats: () => ({ drones: drones.filter(d => d.root.visible).length, animated, positions: drones.map(d => d.root.position.toArray().map(v => Math.round(v))),obstructions:drones.map(d=>d.obstruction) }),
+    dispose() { group.removeFromParent(); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());drones.forEach(d=>{if(d.collider)options.traffic.remove(d.collider.id);}); drones.length = 0; },
   };
 }

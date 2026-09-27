@@ -49,7 +49,7 @@ export function obstaclesFrom(placements) {
   return out;
 }
 
-export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lanes = [2.2, 0, -2.2, 3.9, -3.9], defaultLane = 2.2, speeds = [] }) {
+export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lanes = [2.2, 0, -2.2, 3.9, -3.9], defaultLane = 2.2, speeds = [], blocked = () => false }) {
   const paths = routes.map(streetRoute);
   const agents = routes.map((_, i) => ({
     route: i, s: paths[i].length * (i * .173 % 1), dir: 1, lane: defaultLane, laneTarget: defaultLane,
@@ -83,6 +83,7 @@ export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lan
       sample(path, a.s + a.dir * ahead, a.dir, P, T);
       probe.set(P.x - T.z * lane, 0, P.z + T.x * lane);
       if (hitsObstacle(probe.x, probe.z)) return false;
+      if (ahead>=0&&blocked(a,probe.x,probe.z)) return false;
     }
     return true;
   }
@@ -91,6 +92,7 @@ export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lan
     a.state = 'turn'; a.cooldown = 4; a.wait = 0; a.target = 0; a.turns++;
   }
   function steer(a, dt) {
+    if(a.held){a.target=0;a.speed=0;a.laneVel=0;return;}
     if (a.cooldown > 0) a.cooldown -= dt;
     if (a.state === 'turn') {
       a.target = 0;
@@ -183,6 +185,7 @@ export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lan
     }
     for (const a of agents) {
       const px = a.x, pz = a.z, accel = a.target > a.speed ? 6 : 9;
+      if(a.held){a.vx=a.vz=0;continue;}
       a.speed += THREE.MathUtils.clamp(a.target - a.speed, -accel * dt, accel * dt);
       if (a.speed < 0) a.speed = 0;
       a.s += a.dir * a.speed * dt;
@@ -214,6 +217,13 @@ export function createNavigator({ routes, obstacles = [], robotRadius = 1.3, lan
   }
   return {
     agents, step, hitsObstacle,
+    seek(a,s){a.s=s;pose(a);a.heading=Math.atan2(a.fx,a.fz);},
+    adopt(a,position){
+      const path=paths[a.route];let nearest=0,distance=Infinity;
+      for(let i=0;i<SAMPLES;i++){const p=path.points[i],d=Math.hypot(p.x-position.x,p.z-position.z);if(d<distance){distance=d;nearest=i;}}
+      a.s=nearest/SAMPLES*path.length;sample(path,a.s,a.dir,P,T);
+      a.lane=(position.x-P.x)*-T.z+(position.z-P.z)*T.x;a.laneTarget=defaultLane;a.speed=0;a.laneVel=0;a.state='cruise';a.heading=position.heading;pose(a);
+    },
     stats: () => ({ states: agents.map(a => a.state), turns: agents.reduce((n, a) => n + a.turns, 0), lanes: agents.map(a => Math.round(a.lane * 10) / 10) }),
   };
 }

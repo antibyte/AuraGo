@@ -1264,9 +1264,9 @@ registration lives in `internal/desktop/types.go`.
   robot closer to a shared crossing, brake behind slower leaders, and after
   2.5 s blocked they reverse direction (`state: 'turn'`, 4 s cooldown). Lane
   changes are velocity-limited to the current speed so heading always follows
-  travel; stopped robots square to the street. A rate-limited hard separation
-  is the last resort and never lets robots overlap or slide sideways at rest.
-  Spawns scan for a clear lane spot. `stats()` exposes states/turns/lanes only.
+  travel; stopped robots square to the street. These are movement intentions:
+  `sysworld-traffic.js` validates every final pose before rendering. Spawns scan
+  for a clear lane spot using the normalized exported model envelope.
 - `sysworld-hologram.js` projects the memory archive hologram (roof 21 m):
   additive cone, base glow, rings, wireframe core, GPU motes, one billboard main
   panel and two orbiting fragment panels. Text is drawn with canvas `fillText`
@@ -1321,11 +1321,42 @@ registration lives in `internal/desktop/types.go`.
   and observers. Context loss falls back to the usable map. Keep all models,
   local materials and licenses build-versioned; no remote textures or services.
 - System World 2 adds `sysworld-experience/exploration/weather/effects.js` to the
-  same renderer build and RAF. The v2 Blender manifest has 27 designs, three LODs,
+  same renderer build and RAF. The v2 Blender manifest has 33 designs, three LODs,
   articulated clips and navigation metadata. Keep the complete app payload below
   48 MiB and first display below 12 MiB; exterior shells load with the city and
   interior furnishings load by proximity. Five original
   robots plus 19 new residents are the high-tier cap (eight total on low).
+- `sysworld-traffic.js` owns one shared collision world for both resident groups,
+  trams, drones, moving freight and the visitor. Fixed 1/60-second steps consume
+  at most six steps per frame; discarded hidden time is never replayed. Resolve
+  all intentions from the same snapshot, with swept circles/boxes and vertical
+  intervals, iterating after rejections. Priority never pushes a stopped actor.
+  Followers yield to their leader; trams retain their rails. Only a passenger's
+  own vehicle is excluded. `sysworld-colliders.js` preserves ground apertures
+  separately from upper building envelopes. Moving doors wait for clear panels.
+  Trams accelerate and brake before obstacles/stops; yielding residents wait
+  outside the rail corridor until the complete vehicle has passed. Guides
+  retain their destination while blocked and resume when a route becomes free.
+  Camera flights validate each segment, use nearby clear exits before climbing
+  above roofs, and wait or stop when blocked. Manual orbit input cancels a flight.
+- `sysworld-places/society/signals/machinery.js` own a bounded waypoint graph,
+  reserved work slots, courier pickup/delivery, maintenance, archive exchanges,
+  visitor greetings/guides and six local installation demonstrations. Guides
+  wait for the visitor; the camera remains user-controlled. Residents clear
+  approaching rails; conflicting drones use distinct vertical escape decisions.
+  Cancel, hide, replay and close release reservations and packets. Local exchanges
+  are labelled City life, never successful system actions. Eight reusable local
+  wave packets show direction, receipt and reply; genuine building waves retain
+  their existing twelve-packet metadata contract. No new endpoints or LLM calls.
+- New installation geometry starts at LOD2 and upgrades by proximity (55/32 m),
+  within the quality cap. Colliders use LOD0 envelopes/exported navigation data
+  at every quality. Machinery particles are bounded and omitted on low; reduced
+  motion freezes demonstrations and presents a localized quiet-state message.
+  Diagnostics expose bounded counts, actor poses, blockers and effect provenance,
+  never content or invented telemetry. Verify shared movement with
+  `node scripts/test-system-world-traffic.mjs` and real exported controllers with
+  `node scripts/test-system-world-living.mjs` (`SYSTEM_WORLD_SIM_SECONDS=3600`
+  for the extended run).
 - `sysworld-layout.js` owns roads, clear building plots, station platforms and
   exposed surface heights. Tram rails and motion share `streetCurve`; test the
   swept vehicle body through bends. Do not use overshooting splines across plots.

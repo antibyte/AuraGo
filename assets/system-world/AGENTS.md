@@ -11,7 +11,8 @@ Own the original Blender city kit, deterministic generator and source scene.
 ## Local Contracts
 - Blender 5.2.1 LTS; original geometry and materials under MIT.
 - Each asset has three isolated GLBs, Y up, metre units and base-centred origins.
-- The complete runtime directory must stay below 8 MiB.
+- The complete runtime model directory must stay below 12 MiB; first display
+  stays below 12 MiB and the full app below 48 MiB.
 - Original city-kit designs have no image textures or external URIs. Preserve
   separate rotor and signal nodes. The explicitly requested ThreeDee robot
   derivative retains three embedded 512 px PBR textures and source provenance;
@@ -20,7 +21,14 @@ Own the original Blender city kit, deterministic generator and source scene.
   changes `ui/3d/robot.glb`, and exports tangents without runtime Draco.
 - Only runtime GLBs, manifest and license belong in the resource package.
 - Keep the planned cinematic city direction and street-level inspection quality.
-- `build_expansion.py` owns 27 v2 designs and `production/aurago-world-2.blend`.
+- `build_expansion.py` owns 33 v2 designs and `production/aurago-world-2.blend`.
+  `living_assets.py` authors the repair bay, parcel sorter, relay mast, kinetic
+  fountain, glass garden and sheltered charging/meeting point. Export their
+  colliders, work slots, interaction and emitter markers at all three LODs.
+  The courier's named `parcel` component follows its pickup/delivery cycle.
+  The manifest pins hashes of all three authoring sources.
+  Robot `motion_bounds` enclose all sampled exported clips; collision dimensions
+  include raised arms and remain identical across LODs.
   Preserve matching LOD pivots and articulated clips. Modular floors have planar
   joining edges; the lift platform top is zero with four metres of travel and an
   open left side. Gallery guards use the `railing` module. Verify actual exported

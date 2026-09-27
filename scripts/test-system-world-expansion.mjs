@@ -3,11 +3,14 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import validator from 'gltf-validator';
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {interiors,canWalk,groundHeight,daylight} from '../ui/js/desktop/apps/sysworld-exploration.js';
 import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
 
 const base='ui/3d/system-world/v2',manifest=JSON.parse(await fs.readFile(base+'/manifest.json'));
-assert.equal(manifest.assets.length,27);
+assert.equal(manifest.assets.length,33);
+for(const [name,hash]of Object.entries(manifest.sources))assert.equal(createHash('sha256').update(await fs.readFile('assets/system-world/'+name)).digest('hex'),hash,'Authoring provenance drift: '+name);
 let models=0,bytes=0,warnings=0;
 for(const asset of manifest.assets){
   assert.deepEqual(asset.lods.map(l=>l.level),[0,1,2]);
@@ -22,6 +25,17 @@ for(const asset of manifest.assets){
     const size=data.readUInt32LE(12),doc=JSON.parse(data.subarray(20,20+size));
     assert.ok(doc.buffers.every(b=>!b.uri));assert.ok(!doc.images?.length);
     assert.deepEqual((doc.animations||[]).map(a=>a.name).sort(),asset.animations);
+    if(asset.id.startsWith('robot-')){
+      assert.ok(asset.motion_bounds,'Animated residents need exported motion bounds');
+      const model=await new GLTFLoader().parseAsync(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),'');
+      const mixer=new THREE.AnimationMixer(model.scene),envelope=new THREE.Box3(new THREE.Vector3(...asset.motion_bounds.min),new THREE.Vector3(...asset.motion_bounds.max));
+      for(const clip of model.animations){
+        mixer.stopAllAction();mixer.clipAction(clip).play();
+        for(let frame=0;frame<=48;frame++){mixer.setTime(clip.duration*frame/48);model.scene.updateMatrixWorld(true);assert.ok(envelope.containsBox(new THREE.Box3().setFromObject(model.scene)),asset.id+':'+clip.name+' exceeds its motion envelope');}
+      }
+      mixer.stopAllAction();mixer.uncacheRoot(model.scene);
+      model.scene.traverse(n=>{if(n.isMesh){n.geometry.dispose();for(const m of Array.isArray(n.material)?n.material:[n.material])m.dispose();}});
+    }
     const binary=data.subarray(28+size);
     for(const clip of doc.animations||[]){
       // Each promised clip must deform articulated parts, not only the whole root.
@@ -51,6 +65,7 @@ async function size(dir){let total=0;for(const f of await fs.readdir(dir,{withFi
 // Count the renderer, classic app modules, CSS and all sixteen translated sections,
 // not only the model files. Authoring sources and browser review code are excluded.
 let runtime=await size('ui/3d/system-world')+await size('ui/js/vendor/system-world');
+assert.ok(await size('ui/3d/system-world')<12*1024*1024,'Complete model directory exceeds 12 MiB');
 for(const name of ['sysworld.js','sysworld-data.js','sysworld-hud.js','sysworld-controls.js'])runtime+=(await fs.stat('ui/js/desktop/apps/'+name)).size;
 runtime+=(await fs.stat('ui/css/desktop-app-sysworld.css')).size;
 for(const name of await fs.readdir('ui/lang/desktop')){if(!name.endsWith('.json'))continue;const locale=JSON.parse(await fs.readFile('ui/lang/desktop/'+name));runtime+=Buffer.byteLength(JSON.stringify(Object.fromEntries(Object.entries(locale).filter(([key])=>key.startsWith('sysworld.')))));}

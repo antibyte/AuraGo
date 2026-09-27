@@ -3,6 +3,10 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {interiors,stations,tramWaypoints,dronePad,roomAt,canWalk,groundHeight,buildingFloor} from './sysworld-exploration.js';
 import {surfaces,liftContains,upperWalkable,roomFloorTiles} from './sysworld-layout.js';
 import {streetCurve} from './sysworld-navigation.js';
+import {bodyShape,createTraffic} from './sysworld-traffic.js';
+import {livingPlaces} from './sysworld-places.js';
+import {createSociety} from './sysworld-society.js';
+import {createMachinery} from './sysworld-machinery.js';
 
 // All art is Blender-authored. This layer owns poses, navigation, interactions and
 // animation mixers; it is stepped by the existing city RAF, never its own timer.
@@ -13,9 +17,16 @@ export function createExperience(scene,options){
   let memoryTexts=[],freightEvents=0,missionSeeded=false;
   let disposed=false,tier=options.tier||'high',manifest=null,bytes=0,clock=0,ride=null,near=null,footClock=0,visited=new Set(),room=null,loading=0;
   const tmp=new THREE.Vector3(),ahead=new THREE.Vector3(),lastPosition=new THREE.Vector3(),camera=options.camera;
+  const traffic=options.traffic||createTraffic(),machinery=createMachinery(scene),living=new Map();
+  function placeFloor(x,z){
+    let height=groundHeight(x,z);
+    for(const place of livingPlaces)for(const s of manifest?.assets.find(a=>a.id===place.id)?.navigation.surfaces||[]){const [x0,z0,x1,z1]=s.rect;if(x>=place.x+x0&&x<=place.x+x1&&z>=place.z+z0&&z<=place.z+z1)height=Math.max(height,groundHeight(place.x,place.z)+s.height);}
+    return height;
+  }
+  const society=createSociety(scene,{traffic,camera,floor:placeFloor,onSelect:options.onSociety,onDemonstrate:machinery.demonstrate,active:options.active});
+  let placementSequence=0,lodClock=0;
   try{visited=new Set(JSON.parse(localStorage.getItem('aurago.desktop.sysworld.discoveries')||'[]').filter(id=>stations.some(s=>s.id===id)));}catch(_){}
   const route=streetCurve(tramWaypoints),length=route.getLength();
-  const walkRoute=streetCurve([[-71.65,-81.65],[-71.65,63.65],[71.65,63.65],[71.65,-81.65]],2),walkLength=walkRoute.getLength();
   const stops=stations.map(s=>{let best=Infinity,u=0;for(let i=0;i<3000;i++){route.getPointAt(i/3000,tmp);const d=Math.hypot(tmp.x-s.x,tmp.z-s.z);if(d<best){best=d;u=i/3000;}}return {...s,u};});
   const callSound=(kind,position)=>options.onSound?.(kind,position?.x||0,position?.y||0,position?.z||0,!!room);
   // The visible rails use the exact bounded curve followed by both trams.
@@ -29,7 +40,6 @@ export function createExperience(scene,options){
     }
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));geometry.setIndex(indices);geometry.computeVertexNormals();geometries.add(geometry);group.add(new THREE.Mesh(geometry,railMaterial));
   }
-  function limit(){return tier==='low'?3:tier==='medium'?10:19;}
   async function template(id,level=tier==='low'?2:tier==='medium'?1:0){
     const key=id+':'+level;
     if(!cache.has(key))cache.set(key,(async()=>{
@@ -44,15 +54,20 @@ export function createExperience(scene,options){
     })());
     return cache.get(key);
   }
-  async function place(id,x,z,y=0,angle=0,parent=group,scale=[1,1,1]){
-    const gltf=await template(id);if(disposed)return null;
+  async function place(id,x,z,y=0,angle=0,parent=group,scale=[1,1,1],level){
+    const gltf=await template(id,level);if(disposed)return null;
     const node=gltf.scene.clone(true);node.position.set(x,y,z);node.rotation.y=angle;node.scale.set(...scale);parent.add(node);
     node.traverse(n=>{if(n.isMesh){n.userData.worldAsset=id;n.userData.worldPart=n.name;bindings.push(n);}});
+    const entry=manifest.assets.find(a=>a.id===id),owner='furnishing:'+placementSequence++;
+    for(const [index,b]of(entry.navigation.colliders||[]).entries())traffic.solid(owner+':'+index,{owner,x,z,heading:angle,min:[b[0]*scale[0],y+b[1]*scale[1],b[2]*scale[2]],max:[b[3]*scale[0],y+b[4]*scale[1],b[5]*scale[2]]});
     const mixer=gltf.animations.length?new THREE.AnimationMixer(node):null;
     if(mixer)mixers.push(mixer);
-    return {node,mixer,clips:gltf.animations,play(name,once=false){
+    let current=null;
+    return {node,mixer,owner,bounds:entry.motion_bounds||entry.lods[0].bounds,clips:gltf.animations,play(name,once=false){
       if(!mixer)return;const clip=gltf.animations.find(c=>c.name===name);if(!clip)return;
-      mixer.stopAllAction();const action=mixer.clipAction(clip).reset();if(once){action.setLoop(THREE.LoopOnce,1);action.clampWhenFinished=true;}action.play();return action;
+      const action=mixer.clipAction(clip);if(current===action)return action;
+      action.reset();if(once){action.setLoop(THREE.LoopOnce,1);action.clampWhenFinished=true;}
+      action.play();if(current)action.crossFadeFrom(current,.25,false);current=action;return action;
     }};
   }
   // Batch static furnishings by shared primitive and material, retaining no per-instance draws.
@@ -116,17 +131,32 @@ export function createExperience(scene,options){
       for(const [x,z]of[[-60,-56],[-60,-46],[51,49]])tasks.push(place('charger',x,z,0,0,outdoors));
       await Promise.all(tasks);if(disposed)return;batch(outdoors);
       for(const [x,z]of[[-57,-61],[-57,-52]]){const cooler=await place('cooler',x,z);cooler?.play('operate');}
+      for(const p of livingPlaces) {
+        const model=await place(p.id,p.x,p.z,groundHeight(p.x,p.z),0,group,[1,1,1],2);if(disposed)return;
+        if(model){model.level=2;living.set(p.id,model);machinery.attach(p.id,model);society.addPlace(p,manifest.assets.find(a=>a.id===p.id));model.play('operate');}
+      }
+      const cart=await place('service-cart',55,49,surfaces.ground,Math.PI/2);if(cart)cart.play('open',true);
       for(let i=0;i<19;i++){
         const type=['courier','technician','archivist'][i%3],body=await place('robot-'+type,0,0);if(!body)return;
-        body.node.scale.setScalar(1.15);residents.push({...body,u:i/19,state:'idle',type,phase:i*.53});body.play('walk');
+        body.node.scale.setScalar(1.15);residents.push(body);society.add(body,i,body.bounds);body.play('idle');
       }
-      for(let i=0;i<2;i++){const body=await place('tram',0,0);if(!body)return;const door=body.play('open',true);door.paused=true;trams.push({...body,u:stops[i?3:0].u,dwell:5,stop:i?3:0,door});}
-      const cart=await place('service-cart',55,49,surfaces.ground);if(cart){cart.node.rotation.y=Math.PI/2;cart.play('open',true);}
-      for(let i=0;i<3;i++){const box=await place('cargo',43,70);if(box){box.node.visible=false;freight.push({...box,elapsed:9,direction:1});}}
+      for(let i=0;i<2;i++){const body=await place('tram',0,0);if(!body)return;const door=body.play('open',true);door.paused=true;
+        const u=stops[i?3:0].u;route.getPointAt(u,tmp);route.getTangentAt(u,ahead);
+        const mover=traffic.register('tram-'+i,bodyShape(body.bounds),{x:tmp.x,y:surfaces.road+.03,z:tmp.z,heading:Math.atan2(ahead.x,ahead.z)},3);
+        trams.push({...body,body:mover,u,speed:0,dwell:5,stop:i?3:0,door});}
+      for(let i=0;i<3;i++){const box=await place('cargo',43,70);if(box){traffic.removeOwner(box.owner);box.node.visible=false;freight.push({...box,body:null,elapsed:9,direction:1});}}
       options.onReady?.();
     }catch(e){if(!disposed)options.onError?.(e);}
   }
   void init();
+  async function livingLOD(id,model,level){
+    if(model.level===level||model.requested===level)return;model.requested=level;
+    try{const gltf=await template(id,level);if(disposed||model.requested!==level)return;
+      const parts=new Map();gltf.scene.traverse(n=>{if(n.isMesh)parts.set(n.name,n);});
+      model.node.traverse(n=>{const replacement=parts.get(n.name);if(n.isMesh&&replacement){n.geometry=replacement.geometry;n.material=replacement.material;}});
+      model.level=level;model.requested=null;options.onReady?.();
+    }catch(e){model.requested=null;if(!disposed)options.onError?.(e);}
+  }
   function drawMemory(){
     const info=rooms.get('memory');if(!info?.hologram||(!info.text&&!memoryTexts.length))return;
     if(!info.text){const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=512;const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;textures.add(texture);
@@ -140,6 +170,8 @@ export function createExperience(scene,options){
   function interact(){
     if(ride){if(ride.kind==='tram'&&trams[ride.index].dwell<=1){ride.exitRequested=true;return;}endRide();return;}
     if(!near)return;
+    if(near.kind==='resident'){society.inspect(near.id);return;}
+    if(near.kind==='demonstrate'){society.demonstrate(near.id,options.reduced());options.onSociety?.({id:near.id,role:'installation',state:options.reduced()?'idle':'work',source:'ambient'});return;}
     if(near.kind==='door'){const d=doors.get(near.id);if(d){d.open=!d.open;callSound('door',d.node.position);const r=interiors.find(r=>r.id===near.id);void loadRoom(r);}}
     if(near.kind==='discover'){visited.add(near.id);try{localStorage.setItem('aurago.desktop.sysworld.discoveries',JSON.stringify([...visited]));}catch(_){}options.onDiscover?.(near.id);callSound('discover',camera.position);}
     if(near.kind==='tram'&&!options.reduced()){ride={kind:'waiting',station:near.id};options.onRide?.('waiting');}
@@ -160,38 +192,48 @@ export function createExperience(scene,options){
   }
   function candidates(){
     if(ride)return [{kind:'exit',id:ride.kind,distance:0}];
-    const result=[];const add=(kind,id,x,z,radius)=>{const distance=Math.hypot(camera.position.x-x,camera.position.z-z);if(distance<radius)result.push({kind,id,distance});};
+    camera.getWorldDirection(tmp);
+    const result=society.nearby().filter(p=>(p.x-camera.position.x)*tmp.x+(p.z-camera.position.z)*tmp.z>p.distance*.3);
+    const add=(kind,id,x,z,radius)=>{const distance=Math.hypot(camera.position.x-x,camera.position.z-z);if(distance<radius)result.push({kind,id,distance});};
     for(const r of interiors){if(camera.position.y<5)add('door',r.id,r.x,r.doorZ,3);if(rooms.get(r.id)?.ready){add('lift',r.id,r.liftX,r.liftZ,2.3);if(camera.position.y<5)add('terminal',r.id,r.x-2,r.z+3,2.5);}}
     if(camera.position.y<5)for(const s of stations){add('tram',s.id,s.platformX,s.platformZ,4);if(!visited.has(s.id))add('discover',s.id,s.platformX+(s.angle===0?5:0),s.platformZ+(s.angle===0?0:5),3);}
     add('drone','drone',dronePad.x,dronePad.z,5);return result.sort((a,b)=>a.distance-b.distance);
   }
   function update(dt,animated,mode){
     if(disposed||!manifest)return;const step=animated?Math.min(dt,.05):0;clock+=step;room=roomAt(camera.position.x,camera.position.z)?.id||null;
+    lodClock+=dt;if(lodClock>.5){lodClock=0;for(const [id,model]of living){const distance=camera.position.distanceTo(model.node.position),level=tier==='low'||distance>55?2:tier==='medium'||distance>32?1:0;void livingLOD(id,model,level);}}
+    if(!options.traffic)traffic.begin();
     for(const r of interiors)if(Math.hypot(camera.position.x-r.x,camera.position.z-r.z)<32)void loadRoom(r);
     mixers.forEach(m=>{if(m.getRoot().visible)m.update(step);});
-    for(const d of doors.values()){d.value=THREE.MathUtils.damp(d.value,d.open?1:0,5,Math.min(dt,.1));d.action.time=d.value*d.action.getClip().duration;d.mixer.update(0);}
+    for(const d of doors.values()) {
+      let next=THREE.MathUtils.damp(d.value,d.open?1:0,5,Math.min(dt,.1));if(Math.abs(next-(d.open?1:0))<.001)next=d.open?1:0;
+      const panels=value=>[-1,1].map(side=>({owner:d.owner,x:d.node.position.x,z:d.node.position.z,min:[side*.8+side*1.6*value-.8,surfaces.room,-.13],max:[side*.8+side*1.6*value+.8,surfaces.room+3.6,.13]}));
+      if(d.open||panels(next).every(p=>traffic.solidClear(p)))d.value=next;
+      panels(d.value).forEach((p,i)=>traffic.solid(d.owner+':panel:'+i,p));
+      d.action.time=d.value*d.action.getClip().duration;d.mixer.update(0);
+    }
     for(const [id,r]of rooms){if(!r.liftAction)continue;r.liftValue=THREE.MathUtils.damp(r.liftValue,r.liftTarget,1.8,Math.min(dt,.1));if(Math.abs(r.liftValue-r.liftTarget)<.02)r.liftValue=r.liftTarget;r.liftAction.time=r.liftValue/4*r.liftAction.getClip().duration;r.lift.mixer.update(0);if(ride?.kind==='lift'&&ride.id===id){const pos=interiors.find(i=>i.id===id);camera.position.set(pos.liftX,2.4+surfaces.room+r.liftValue,pos.liftZ);if(r.liftValue===r.liftTarget){ride=null;options.onRide?.(null);}}}
-    residents.forEach((r,i)=>{
-      r.node.visible=i<limit();if(!r.node.visible)return;
-      const distance=camera.position.distanceTo(r.node.position),phase=(clock+r.phase*6)%28;
-      const state=distance<4?'greet':phase>24?'work':phase>20?'idle':r.type==='courier'?'carry':'walk';
-      if(state!==r.state){r.state=state;r.play(state);}
-      if(state==='walk'||state==='carry'){
-        const next=(r.u+step*1.5/walkLength)%1;
-        if(!residents.some(other=>other!==r&&other.node.visible&&((other.u-r.u+1)%1)*walkLength<2.5))r.u=next;
-      }
-      walkRoute.getPointAt(r.u,tmp);walkRoute.getTangentAt(r.u,ahead);
-      r.node.position.set(tmp.x,groundHeight(tmp.x,tmp.z),tmp.z);r.node.rotation.y=Math.atan2(ahead.x,ahead.z);
-      if(state==='greet')r.node.lookAt(camera.position.x,r.node.position.y,camera.position.z);
-    });
+    society.update(step,animated);machinery.update(step,animated);
     trams.forEach((t,i)=>{
-      t.node.visible=i<(tier==='low'?1:2);if(!t.node.visible)return;
-      if(t.dwell>0)t.dwell-=step;else{
-        const previous=t.u;t.u=(t.u+step*11/length)%1;
-        const next=stops.findIndex(s=>((s.u-previous+1)%1)>0&&((s.u-previous+1)%1)<=step*11/length+.00001);
-        if(next>=0){t.stop=next;t.u=stops[next].u;t.dwell=6;callSound('tram',t.node.position);}
+      t.node.visible=!!t.body&&i<(tier==='low'?1:2);
+      if(t.body){if(t.node.visible&&!t.body.enabled&&!traffic.clear({...t.body,enabled:true},t.body,t.body))t.node.visible=false;t.body.enabled=t.node.visible;}
+      if(!t.node.visible)return;
+      const previous={u:t.u,dwell:t.dwell,stop:t.stop};let arrived=false;
+      if(t.dwell>0){t.dwell-=step;t.speed=0;}else{
+        const gap=s=>((s.u-t.u+1)%1)*length,station=stops.reduce((best,s)=>gap(s)>.00001&&gap(s)<gap(best)?s:best,stops.find(s=>gap(s)>.00001)||stops[0]);
+        let desired=Math.min(11,Math.sqrt(gap(station)*8));
+        for(let n=1;n<=3;n++){
+          const u=(t.u+(1.2+t.speed*.7)*n/3/length)%1;route.getPointAt(u,tmp);route.getTangentAt(u,ahead);
+          const probe={x:tmp.x,y:surfaces.road+.03,z:tmp.z,heading:Math.atan2(ahead.x,ahead.z)};
+          if(!traffic.clear(t.body,probe,probe)){desired=0;break;}
+        }
+        t.speed+=THREE.MathUtils.clamp(desired-t.speed,-step*8,step*3.5);
+        const advance=step*t.speed/length,previous=t.u;t.u=(t.u+advance)%1;
+        const next=stops.findIndex(s=>((s.u-previous+1)%1)>0&&((s.u-previous+1)%1)<=advance+.00001);
+        if(next>=0){t.stop=next;t.u=stops[next].u;t.dwell=6;t.speed=0;arrived=true;}
       }
       route.getPointAt(t.u,t.node.position);t.node.position.y=surfaces.road+.03;route.getTangentAt(t.u,ahead);t.node.rotation.y=Math.atan2(ahead.x,ahead.z);
+      if(t.body){t.body.enabled=t.node.visible;traffic.propose(t.body,{...t.node.position,heading:t.node.rotation.y},(accepted,b)=>{if(!accepted){Object.assign(t,previous);t.speed=0;}t.node.position.set(b.x,b.y,b.z);t.node.rotation.y=b.heading;if(accepted&&arrived)callSound('tram',t.node.position);});}
       t.door.time=(t.dwell>1?1:0)*t.door.getClip().duration;t.mixer.update(0);
       if(ride?.kind==='waiting'&&stops[t.stop].id===ride.station&&t.dwell>1){ride={kind:'tram',index:i,station:ride.station,offset:0};options.onRide?.('tram');}
       if(ride?.kind==='tram'&&ride.index===i){if(t.dwell>1){ride.station=stops[t.stop].id;if(ride.exitRequested){endRide();return;}}camera.position.copy(t.node.position).addScaledVector(ahead,ride.offset);camera.position.y+=.9+1.4;camera.lookAt(t.node.position.x+ahead.x*16,camera.position.y,t.node.position.z+ahead.z*16);}
@@ -203,17 +245,30 @@ export function createExperience(scene,options){
     near=mode==='street'?candidates()[0]||null:null;
     if(mode==='street'&&!ride){const distance=camera.position.distanceTo(lastPosition);if(distance<3)footClock+=distance;if(footClock>1.8){callSound(room?'step_inside':'step',camera.position);footClock=0;}}
     lastPosition.copy(camera.position);options.onEnvironment?.(!!room);
-    for(const box of freight){box.elapsed+=step;box.node.visible=animated&&box.elapsed<8;if(!box.node.visible)continue;const t=box.direction>0?box.elapsed/8:1-box.elapsed/8;box.node.position.set(40+t*3,surfaces.room,70);}
+    for(const [i,box]of freight.entries()) {
+      box.elapsed+=step;box.node.visible=animated&&box.elapsed<8;
+      if(!box.node.visible){if(box.body)traffic.remove(box.body.id);box.body=null;continue;}
+      const t=box.direction>0?box.elapsed/8:1-box.elapsed/8,next={x:40+t*3,y:surfaces.room,z:70,heading:0};
+      if(!box.body)box.body=traffic.register('freight-'+i,bodyShape(box.bounds),next,0);
+      if(!box.body){box.elapsed=9;box.node.visible=false;continue;}
+      traffic.propose(box.body,next,(accepted,b)=>{if(!accepted)box.elapsed-=step;box.node.position.set(b.x,b.y,b.z);});
+    }
+    if(!options.traffic)traffic.solve(step);
     options.onInteraction?.(near,visited.size,room);
   }
   async function setTier(value){tier=value;if(!manifest)return;const level=value==='low'?2:value==='medium'?1:0;
-    try{const replacements=new Map(await Promise.all([...loaded].map(async id=>{const gltf=await template(id,level),parts=new Map();gltf.scene.traverse(n=>{if(n.isMesh)parts.set(n.name,n);});return [id,parts];})));
+    society.setTier(value);machinery.setTier(value);
+    try{const replacements=new Map(await Promise.all([...loaded].filter(id=>!living.has(id)).map(async id=>{const gltf=await template(id,level),parts=new Map();gltf.scene.traverse(n=>{if(n.isMesh)parts.set(n.name,n);});return [id,parts];})));
       if(disposed||tier!==value)return;for(const mesh of bindings){const n=replacements.get(mesh.userData.worldAsset)?.get(mesh.userData.worldPart);if(n){mesh.geometry=n.geometry;mesh.material=n.material;}}options.onReady?.();
     }catch(e){if(!disposed)options.onError?.(e);}
   }
-  return {update,interact,endRide,setTier,
+  return {update,interact,endRide,setTier,society,
+    suspend(){society.suspend();machinery.clear();missionSeeded=false;for(const box of freight){box.elapsed=9;box.node.visible=false;if(box.body)traffic.remove(box.body.id);box.body=null;}},
+    syncRide(){if(ride?.kind==='tram'){const t=trams[ride.index];route.getTangentAt(t.u,ahead);camera.position.copy(t.node.position).addScaledVector(ahead,ride.offset);camera.position.y+=2.3;camera.lookAt(t.node.position.x+ahead.x*16,camera.position.y,t.node.position.z+ahead.z*16);}},
+    socialAction(verb,id){const s=stations.find(s=>s.id===id);return society.action(options.reduced()&&verb==='guide'?'cancel':verb,s?{x:s.platformX,z:s.platformZ}:null);},
     setMemory(texts){memoryTexts=(Array.isArray(texts)?texts:[]).filter(t=>typeof t==='string').slice(0,8);drawMemory();},
     setWorld(snapshot,replay=false){
+      if(replay){society.setReplay(true);machinery.clear();}else society.setReplay(false);
       const rows=snapshot?.entities?.filter(e=>e.kind==='mission')||[],seen=new Set();
       for(const e of rows){seen.add(e.id);const before=missionStates.get(e.id);if(!replay&&options.active()&&missionSeeded&&before!=null&&before!==e.state&&['running','completed','failed','cancelled'].includes(e.state)&&Date.now()-e.at<30000){const box=freight.find(b=>b.elapsed>=8);if(box){box.elapsed=0;box.direction=e.state==='running'?1:-1;freightEvents++;}}missionStates.set(e.id,e.state);}
       for(const id of missionStates.keys())if(!seen.has(id))missionStates.delete(id);missionSeeded=!replay;
@@ -230,11 +285,13 @@ export function createExperience(scene,options){
         if(Math.hypot(x-(r.x-1),z-r.z)<1.55||[-3,0].some(dx=>Math.abs(x-r.x-dx)<1.1&&Math.abs(z-r.z-3)<.8))return false;
       }
       return canWalk(x,z,from,id=>doors.get(id)?.value>.85&&!!rooms.get(id)?.ready,options.districts);},
-    floor(x,z){const r=roomAt(x,z);if(r&&camera.position.y>5&&upperWalkable(r,x,z,rooms.get(r.id)?.liftValue===4))return surfaces.gallery;return Math.max(groundHeight(x,z),buildingFloor(x,z,options.districts));},
-    visit(id){endRide();ride=null;if(id==='drone'){camera.position.set(dronePad.x,2.7,dronePad.z+3);camera.lookAt(dronePad.x,2,dronePad.z);return;}const s=stations.find(s=>s.id===id);if(s){const offset=visited.has(id)?0:5,x=s.platformX+(s.angle===0?offset:0),z=s.platformZ+(s.angle===0?0:offset);camera.position.set(x,2.4+groundHeight(x,z),z);camera.lookAt(s.platformX,2,s.platformZ===z?s.platformZ+1:s.platformZ);}},
+    floor(x,z){const r=roomAt(x,z);if(r&&camera.position.y>5&&upperWalkable(r,x,z,rooms.get(r.id)?.liftValue===4))return surfaces.gallery;return Math.max(placeFloor(x,z),buildingFloor(x,z,options.districts));},
+    visit(id){endRide();ride=null;
+      const place=livingPlaces.find(p=>p.id===id);if(place){const point=manifest?.assets.find(a=>a.id===id)?.navigation.interaction[0]?.position||[0,1.5,4];camera.position.set(place.x,2.4+groundHeight(place.x,place.z),place.z+point[2]+1);camera.lookAt(place.x,2,place.z);return;}
+      if(id==='drone'){camera.position.set(dronePad.x,2.7,dronePad.z+3);camera.lookAt(dronePad.x,2,dronePad.z);return;}const s=stations.find(s=>s.id===id);if(s){const offset=visited.has(id)?0:5,x=s.platformX+(s.angle===0?offset:0),z=s.platformZ+(s.angle===0?0:offset);camera.position.set(x,2.4+groundHeight(x,z),z);camera.lookAt(s.platformX,2,s.platformZ===z?s.platformZ+1:s.platformZ);}},
     destination(id){const r=interiors.find(r=>r.id===id);if(r){endRide();ride=null;const z=r.doorZ+r.front*4;camera.position.set(r.x,2.4+groundHeight(r.x,z),z);camera.lookAt(r.x,2.4+groundHeight(r.x,z),r.z);}},
-    isRiding:()=>!!ride,interaction:()=>near,
-    stats:()=>({loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null}),
-    dispose(){if(disposed)return;disposed=true;controller.abort();memoryTexts=[];missionStates.clear();group.removeFromParent();mixers.forEach(m=>{m.stopAllAction();m.uncacheRoot(m.getRoot());});group.traverse(n=>{if(n.isInstancedMesh)n.dispose();});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());cache.clear();},
+    isRiding:()=>!!ride,rideBody:()=>ride?.kind==='tram'?'tram-'+ride.index:null,interaction:()=>near,
+    stats:()=>({society:society.stats(),machinery:machinery.stats(),details:[...living].map(([id,m])=>({id,level:m.level})),loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null}),
+    dispose(){if(disposed)return;disposed=true;controller.abort();society.dispose();machinery.dispose();if(!options.traffic)traffic.dispose();memoryTexts=[];missionStates.clear();group.removeFromParent();mixers.forEach(m=>{m.stopAllAction();m.uncacheRoot(m.getRoot());});group.traverse(n=>{if(n.isInstancedMesh)n.dispose();});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());cache.clear();},
   };
 }

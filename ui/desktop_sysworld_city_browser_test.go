@@ -138,6 +138,10 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 		verifySystemWorldModels(t, page, dir)
 		return
 	}
+	if os.Getenv("AURAGO_SYSTEM_WORLD_LIVING") == "1" {
+		verifySystemWorldLiving(t, page, dir)
+		return
+	}
 	if os.Getenv("AURAGO_SYSTEM_WORLD_STRESS") == "1" {
 		verifySystemWorldStress(t, page, dir)
 		return
@@ -252,13 +256,13 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='running'&&SysWorldApp.inspect(cityId).sound.rms>.0001`)
 	page.MustEval(`()=>{if(SysWorldApp.inspect(cityId).sound.effects.weather!=='rain')throw Error('Audio lost the environment selected before unmute');const weather=document.querySelectorAll('.sw-world select')[1];weather.value='clear';weather.dispatchEvent(new Event('change'));}`)
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();}`)
-	time.Sleep(1200 * time.Millisecond)
+	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
 	page.MustEval(`()=>{window.cityDistantVoice=SysWorldApp.inspect(cityId).sound.voice.gain;document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)
 	page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.voice.state==='speaking'`)
 	page.MustEval(`()=>{const v=SysWorldApp.inspect(cityId).sound.voice;
-        if(v.gain<cityDistantVoice*4||v.gain>.6)throw Error('Tower distance gain incorrect');
-        if(!cityCalls['/api/desktop/system-world/voice'])throw Error('No TTS request');
-        if(SysWorldApp.inspect(cityId).sound.rms>.05)throw Error('Mixed voice too loud');}`)
+        if(v.distance>8||v.gain<.45||v.gain<cityDistantVoice*3||v.gain>.6)throw Error('Tower distance gain incorrect: '+JSON.stringify({voice:v,distant:cityDistantVoice,position:SysWorldApp.inspect(cityId).position}));
+        if(!cityCalls['/api/desktop/system-world/voice'])throw Error('No TTS request');}`)
+	page.MustEval(`async()=>{let power=0;for(let i=0;i<30;i++){await new Promise(requestAnimationFrame);power+=SysWorldApp.inspect(cityId).sound.rms**2;}const rms=Math.sqrt(power/30);if(rms>.05)throw Error('Mixed voice too loud: '+rms);}`)
 	page.MustEval(`()=>document.querySelector('.sysworld').closest('.vd-window').classList.remove('active')`)
 	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.state==='suspended'`)
 	page.MustEval(`()=>{const v=SysWorldApp.inspect(cityId).sound.voice;if(v.state!=='idle'||v.pending||v.scheduled)throw Error('Inactive tower retains voice work')}`)

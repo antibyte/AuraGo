@@ -18,11 +18,13 @@ func verifySystemWorldModels(t *testing.T, page *rod.Page, dir string) {
 	}
 	page.MustEval(`async source=>{document.querySelector('[data-sw-mode="map"]').click();window.worldModelReview=await import('data:text/javascript;base64,'+source);}`, base64.StdEncoding.EncodeToString(source))
 	for _, animated := range []bool{false, true} {
-		pages := 4
+		pages := 1
 		for i := 0; i < pages; i++ {
 			result := page.MustEval(`async args=>await worldModelReview.reviewSystemWorld(args.page,args.animations)`, map[string]any{"page": i, "animations": animated})
 			if animated {
 				pages = result.Get("total").Int()
+			} else {
+				pages = (result.Get("total").Int() + 7) / 8
 			}
 			data, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(result.Get("png").Str(), "data:image/png;base64,"))
 			if err != nil {

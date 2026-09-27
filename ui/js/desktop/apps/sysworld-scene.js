@@ -16,6 +16,8 @@ import { createExperience } from './sysworld-experience.js';
 import { createWeather } from './sysworld-weather.js';
 import { interiors } from './sysworld-exploration.js';
 import { streets, towers } from './sysworld-layout.js';
+import {createTraffic,fixedSteps} from './sysworld-traffic.js';
+import {installCityColliders} from './sysworld-colliders.js';
 export { createCityAmbience } from './sysworld-audio.js';
 
 // Metres, Y up. Stable district anchors are shared with the accessible map.
@@ -118,6 +120,7 @@ export async function createCity(host, options) {
   scene.background = new THREE.Color(0x08121e); scene.fog = new THREE.FogExp2(0x08121e, .004);
   const camera = new THREE.PerspectiveCamera(43, 1, .3, 1800);
   camera.position.copy(home);
+  const traffic=createTraffic(),visitor=traffic.register('visitor',{circles:[{x:0,z:0,r:.38}],minY:-.4,maxY:.4,reach:.38},camera.position,100);
   const controls = new OrbitControls(camera, canvas);
   controls.target.copy(homeTarget); controls.enableDamping = true; controls.dampingFactor = .085;
   controls.minDistance = 12; controls.maxDistance = 410; controls.maxPolarAngle = Math.PI * .485;
@@ -153,15 +156,9 @@ export async function createCity(host, options) {
   composer.addPass(atmosphere.post);
   const memoryDistrict = districts.find(d => d.id === 'memory');
   const hologram = createMemoryHologram(scene, memoryDistrict, { roof: 21, label: options.memoryLabel });
-  const drones = createDrones(scene);
+  const drones = createDrones(scene,{traffic});
   const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,ground});
-  const experience = createExperience(scene,{
-    camera,districts,tier,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced,
-    assetURL:file=>options.resourceURL('/3d/system-world/v2/'+file),
-    onInteraction:options.onInteraction,onDiscover:options.onDiscover,onSound:options.onSound,onTerminal:options.onTerminal,
-    onEnvironment:indoor=>{weather.setIndoor(indoor);options.onEnvironment?.(indoor);},
-    onError:options.onError,onReady:()=>{renderer.shadowMap.needsUpdate=true;},
-  });
+  let experience=null;
   const selection = ownMesh(new THREE.RingGeometry(1, 1.035, 64),
     new THREE.MeshBasicMaterial({ color: 0x8ee8ee, transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide }));
   selection.rotation.x = -Math.PI / 2; selection.visible = false; world.add(selection);
@@ -179,6 +176,14 @@ export async function createCity(host, options) {
     manifest = await manifestResponse.json();
   } catch (error) { dispose(); throw error; }
   const catalog = new Map(manifest.assets.map(a => [a.id, a]));
+  installCityColliders(traffic,catalog,districts,placements);
+  experience=createExperience(scene,{
+    camera,districts,tier,traffic,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
+    assetURL:file=>options.resourceURL('/3d/system-world/v2/'+file),
+    onInteraction:options.onInteraction,onDiscover:options.onDiscover,onSound:options.onSound,onTerminal:options.onTerminal,onSociety:options.onSociety,
+    onEnvironment:indoor=>{weather.setIndoor(indoor);options.onEnvironment?.(indoor);},
+    onError:options.onError,onReady:()=>{renderer.shadowMap.needsUpdate=true;},
+  });
   async function model(id, lod) {
     const key = id + ':' + lod;
     if (!cache.has(key)) cache.set(key, (async () => {
@@ -272,14 +277,36 @@ export async function createCity(host, options) {
     resize(); options.onQuality?.(quality, tier);
   }
   function flyTo(position, target) {
-    if (reduced) { camera.position.copy(position); controls.target.copy(target); controls.update(); flight = null; return; }
-    flight = { start: camera.position.clone(), targetStart: controls.target.clone(), end: position.clone(), target: target.clone(), time: 0 };
+    flight=null;
+    const safe=traffic.findFree(visitor,position);if(!safe)return;
+    position=new THREE.Vector3(safe.x,safe.y,safe.z);
+    if (reduced) { camera.position.copy(position);Object.assign(visitor,safe); controls.target.copy(target); controls.update(); flight = null; return; }
+    const free=(a,b)=>traffic.clear(visitor,{...a,heading:0},{...b,heading:0},false),start=camera.position.clone(),altitude=Math.max(start.y,position.y,110);
+    let waypoints=[start,position];
+    if(!free(start,position)){
+      const nodes=[start],aboveEnd=new THREE.Vector3(position.x,altitude,position.z),previous=[-1],queue=[0];let exit=-1;
+      if(!free(aboveEnd,position))return;
+      for(const radius of [3,8,16])for(let i=0;i<8;i++)nodes.push(new THREE.Vector3(start.x+Math.cos(i*Math.PI/4)*radius,start.y,start.z+Math.sin(i*Math.PI/4)*radius));
+      for(const r of interiors)if(Math.hypot(start.x-r.x,start.z-r.z)<24)for(const z of [r.z,r.doorZ-r.front*2,r.doorZ+r.front*3])nodes.push(new THREE.Vector3(r.x,start.y,z));
+      while(queue.length){
+        const current=queue.shift(),p=nodes[current],above=new THREE.Vector3(p.x,altitude,p.z);
+        if(free(p,above)&&free(above,aboveEnd)){exit=current;break;}
+        for(let i=1;i<nodes.length;i++)if(previous[i]===undefined&&p.distanceTo(nodes[i])<=20&&free(p,nodes[i])){previous[i]=current;queue.push(i);}
+      }
+      if(exit<0)return;
+      waypoints=[];for(let i=exit;i>=0;i=previous[i])waypoints.unshift(nodes[i]);
+      waypoints.push(new THREE.Vector3(nodes[exit].x,altitude,nodes[exit].z),aboveEnd,position);
+    }
+    flight = { start: camera.position.clone(), targetStart: controls.target.clone(), end: position.clone(), target: target.clone(), time: 0,
+      waypoints };
   }
+  function settleCamera(){traffic.relocate(visitor,camera.position);camera.position.set(visitor.x,visitor.y,visitor.z);}
   function focus(id) {
     const d = districts.find(d => d.id === id); if (!d) return;
     selected = id; selection.position.set(d.x, .55, d.z); selection.scale.setScalar(d.radius * 1.3); selection.visible = true;
     if (mode === 'street') {
       camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
+      settleCamera();
     } else {
       flyTo(new THREE.Vector3(d.x + d.radius * 2.7, d.height * .7 + 18, d.z + d.radius * 4),
         new THREE.Vector3(d.x, d.height * .4, d.z));
@@ -287,16 +314,21 @@ export async function createCity(host, options) {
   }
   function setMode(value) {
     experience.endRide();
+    experience.society.suspend();
     keys.clear(); flight = null; mode = value; controls.enabled = mode === 'orbit' || mode === 'tour';
+    visitor.minY=mode==='street'?-2.3:-.4;visitor.ignore=visitor.follow=null;
+    visitor.circles[0].r=visitor.reach=mode==='street'?.24:.38;
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     if (mode === 'street') {
       camera.position.set(18, 2.4, 57); camera.lookAt(0, 26, -12);
+      settleCamera();
     } else if (mode !== 'map') {
+      settleCamera();
       flyTo(home.clone().multiplyScalar(camera.aspect < 1 ? 1.3 : 1), homeTarget);
     }
     tourTime = 0; tourIndex = 0; options.onMode?.(mode);
   }
-  const cancelTour = () => { if (mode === 'tour') { mode = 'orbit'; flight = null; options.onMode?.(mode); } };
+  const cancelTour = () => { flight=null;if (mode === 'tour') { mode = 'orbit'; options.onMode?.(mode); } };
   controls.addEventListener('start', cancelTour);
   function listen(node, event, fn, config) { node.addEventListener(event, fn, config); cleanup.push(() => node.removeEventListener(event, fn, config)); }
   let down = null, dragging = false;
@@ -340,35 +372,52 @@ export async function createCity(host, options) {
     const scale = speed / Math.hypot(forward, right);
     camera.getWorldDirection(v); v.y = 0; v.normalize();
     const dx = (v.x * forward - v.z * right) * scale, dz = (v.z * forward + v.x * right) * scale;
-    const allowed = (x,z)=>experience.move(x,z,camera.position);
+    const allowed = (x,z)=>experience.move(x,z,camera.position)&&traffic.clear(visitor,visitor,{x,y:2.4+experience.floor(x,z),z,heading:0});
     if (allowed(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
     if (allowed(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
     if(!experience.isRiding())camera.position.y = 2.4+experience.floor(camera.position.x,camera.position.z);
   }
+  let simulationTime=0;
+  const simulate=fixedSteps(step=>{
+    traffic.begin();simulationTime+=reduced?0:step;
+    if(mode==='street')move(step);
+    experience.update(step,!reduced,mode);
+    const previousCarrier=visitor.follow;visitor.follow=experience.rideBody();visitor.ignore=visitor.follow||previousCarrier;
+    life?.update(step,!reduced);drones.update(step,simulationTime,!reduced);
+    traffic.propose(visitor,{...camera.position,heading:0},(_,p)=>camera.position.set(p.x,p.y,p.z));
+    traffic.solve(step);experience.syncRide?.();
+    if(visitor.follow)Object.assign(visitor,{x:camera.position.x,y:camera.position.y,z:camera.position.z});
+    visitor.ignore=visitor.follow;
+  });
   function update(dt, elapsed) {
     if (disposed || !visible || failed || mode === 'map') return;
-    if (mode === 'street') move(Math.min(dt, .05));
-    else {
+    let travelling=null,flightTime=0,requested=null;
+    if (mode !== 'street') {
       if (mode === 'tour') {
         tourTime -= dt;
         if (tourTime <= 0) { const id = districts[tourIndex++ % districts.length].id; focus(id); options.onTourFocus?.(id); tourTime = 7; }
       }
       if (flight) {
-        flight.time += dt; const p = Math.min(1, flight.time / 1.1), eased = p*p*(3-2*p);
-        camera.position.lerpVectors(flight.start, flight.end, eased); controls.target.lerpVectors(flight.targetStart, flight.target, eased);
+        travelling=flight;flightTime=flight.time;
+        flight.time += dt; const p = Math.min(1, flight.time / (flight.waypoints.length===2?1.1:3.2)), eased = p*p*(3-2*p);
+        const cursor=Math.min(flight.waypoints.length-1-.000001,eased*(flight.waypoints.length-1)),index=Math.floor(cursor);
+        camera.position.lerpVectors(flight.waypoints[index],flight.waypoints[index+1],cursor-index); controls.target.lerpVectors(flight.targetStart, flight.target, eased);
+        camera.lookAt(controls.target);requested=camera.position.clone();
         if (p === 1) flight = null;
-      }
-      controls.update();
+      }else controls.update();
+    }
+    if(!simulate(Math.min(.1,Math.max(0,dt)))){traffic.begin();traffic.propose(visitor,{...camera.position,heading:0},(_,p)=>camera.position.set(p.x,p.y,p.z));traffic.solve(0);}
+    if(travelling){
+      if(camera.position.distanceToSquared(requested)>.000001){travelling.wait=(travelling.wait||0)+dt;travelling.time=flightTime;flight=travelling.wait<6?travelling:null;}
+      else travelling.wait=0;
     }
     camera.getWorldDirection(v);
     options.onListener?.(camera.position.x,camera.position.y,camera.position.z,v.x,v.z);
     const busy = !!options.busy?.();
-    experience.update(dt,!reduced,mode);
     if(weather.update(dt,elapsed,!reduced))renderer.shadowMap.needsUpdate=true;
     reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
-    life?.update(dt, !reduced);
     atmosphere.setBusy(busy); atmosphere.update(dt, elapsed, camera, !reduced);
-    hologram.update(dt, camera, !reduced); drones.update(dt, elapsed, !reduced);
+    hologram.update(dt, camera, !reduced);
     renderer.info.reset(); composer.render(); frames++;
     if (quality === 'auto' && dt > 0 && dt < .2 && elapsed - lastQualityChange > 12) {
       measured += dt; sampleFrames++;
@@ -391,25 +440,26 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();experience.dispose();weather.dispose(); hologram.dispose(); drones.dispose(); atmosphere.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
+    life?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();traffic.dispose(); atmosphere.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
   }
-  life = createCityLife(scene, districts, {robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map', obstacles});
+  life = createCityLife(scene, districts, {traffic,society:experience.society,robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map'&&!options.replaying?.(), obstacles});
   hologram.setReducedMotion(!!reduced);
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
   return {
     districts, canvas, update, focus(id) { cancelTour(); focus(id); }, setMode, setQuality, setData, dispose,
-    interact(){experience.interact();},visit(id){setMode('street');experience.visit(id);},enter(id){setMode('street');experience.destination(id);},
+    interact(){experience.interact();},socialAction:experience.socialAction,
+    visit(id){setMode('street');experience.visit(id);settleCamera();},enter(id){setMode('street');experience.destination(id);settleCamera();},
     setEnvironment(value){weather.set(value);renderer.shadowMap.needsUpdate=true;},
-    setVisible(value) { visible = value; if(!value) { keys.clear(); down = null; if(document.pointerLockElement===canvas) document.exitPointerLock(); } },
-    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value);if(value)experience.endRide(); if(value && mode === 'tour') setMode('orbit'); },
+    setVisible(value) { visible = value; if(!value) { simulate(0);experience.suspend();life?.update(0,false);keys.clear(); down = null; if(document.pointerLockElement===canvas) document.exitPointerLock(); } },
+    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value);if(value){flight=null;experience.endRide();experience.society.suspend();} if(value && mode === 'tour') setMode('orbit'); },
     setHologram(texts, source) { hologram.setTexts(texts, source); experience.setMemory(texts); },
     setWorld(snapshot,replay) { experience.setWorld(snapshot,replay); },
     moveKey(key, pressed) { if(pressed) keys.add(key); else keys.delete(key); },
     lockPointer() { if(mode === 'street') return canvas.requestPointerLock(); },
     project(id) { const d = districts.find(d => d.id === id); if(!d) return null; v.set(d.x,d.height+4,d.z).project(camera); return { x:(v.x+1)*width/2,y:(1-v.y)*height/2,visible:v.z<1 && v.z>-1 }; },
-    stats() { return { experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), drones:drones.stats(), frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes+experience.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), drones:drones.stats(), frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes+experience.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

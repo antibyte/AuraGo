@@ -22,6 +22,28 @@
         for(const[id,key]of NS.districts){const row=el('div','sw-world-destination');const stop=button(inst.L(key),()=>{inst.city?.visit(id);panel.open=false;});stop.dataset.worldStation=id;row.append(stop);if(['agent','memory','missions'].includes(id)){const room=button(L('interior'),()=>{inst.city?.enter(id);panel.open=false;});room.dataset.worldRoom=id;row.append(room);}destinations.append(row);}
         destinations.append(button(L('interact_drone'),()=>{inst.city?.visit('drone');panel.open=false;}));
         const discoveries=el('p','sw-muted');content.append(discoveries);
+        const places=el('details','sw-city-life'),placeButtons=el('div','sw-world-destinations');places.append(el('summary','',L('city_life')),placeButtons);content.append(places);
+        for(const id of ['repair-bay','parcel-sorter','relay-mast','kinetic-fountain','glass-garden','meeting-charge']){
+            const n=button(L('place_'+id),()=>{inst.city?.visit(id);panel.open=false;inst.city?.canvas.focus({preventScroll:true});});n.dataset.worldPlace=id;placeButtons.append(n);
+        }
+        const social=el('section','sw-society');social.hidden=true;content.append(social);
+        social.setAttribute('aria-label',L('city_life'));
+        function showSociety(value){
+            if(value?.refresh){const status=social.querySelector('[role="status"]');if(status)status.textContent=L('state_'+value.state);return;}
+            social.hidden=!value;social.replaceChildren();if(!value)return;panel.open=true;
+            queueMicrotask(()=>{if(!social.hidden)social.scrollIntoView({block:'nearest'});});
+            social.append(el('h3','',L('city_life')),el('p','',L(value.role==='installation'?'place_'+value.id:'role_'+value.role)));
+            const status=el('p','sw-muted',L('state_'+value.state));status.setAttribute('role','status');social.append(status);
+            if(value.role==='installation'){if(inst.reducedMotion?.())social.append(el('p','sw-muted',L('motion_paused')));return;}
+            const verbs=el('div','sw-world-verbs');social.append(verbs);
+            const act=(verb,destination)=>{const next=inst.city?.socialAction(verb,destination);if(next)showSociety(next);};
+            verbs.append(button(L('greet'),()=>act('greet')),button(L('cancel_guide'),()=>act('cancel')));
+            if(inst.reducedMotion?.())social.append(el('p','sw-muted',L('motion_paused')));
+            else if(value.role!=='patrol'){
+                const label=el('label','sw-world-field',L('guide')),dest=el('select','sw-quality');dest.setAttribute('aria-label',L('guide'));
+                for(const[id,key]of NS.districts)dest.add(new Option(inst.L(key),id));label.append(dest);social.append(label,button(L('guide'),()=>{act('guide',dest.value);panel.open=false;}));
+            }
+        }
         const actions=el('details','sw-world-section');actions.append(el('summary','',L('terminal')));
         const target=el('select','sw-world-target');target.setAttribute('aria-label',L('target'));const verbs=el('div','sw-world-verbs');actions.append(target,verbs);content.append(actions);
         function showActions(){
@@ -73,6 +95,7 @@
         const interaction=button('',()=>inst.city?.interact());interaction.className='sw-interaction sw-glass';interaction.hidden=true;root.append(interaction);
         return {
             ready:environment,
+            society:showSociety,
             terminal(id){panel.open=true;actions.open=true;inst.select(id,false);},
             discover(id){panel.open=true;notice.textContent=inst.L(NS.districts.find(d=>d[0]===id)?.[1]||'sysworld.zone.core')+' — '+L('about_'+id);},
             environment(value){if(inside===value)return;inside=value;inst.sound?.setEnvironment(value,weather.value);},
