@@ -131,7 +131,7 @@ func buildSQLConnectionUpdateRequest(req sqlConnectionRequest, existing sqlconne
 func handleSQLConnections(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.SQLConnectionsDB == nil {
-			jsonError(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, "SQL connections not initialized", http.StatusServiceUnavailable)
 			return
 		}
 		service := newSQLConnectionService(s)
@@ -148,12 +148,12 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 		case http.MethodPost:
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			var req sqlConnectionRequest
 			if err := json.Unmarshal(body, &req); err != nil {
-				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
 
@@ -167,7 +167,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"id": result.ID})
 
 		default:
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -176,12 +176,12 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.SQLConnectionsDB == nil {
-			jsonError(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, "SQL connections not initialized", http.StatusServiceUnavailable)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/sql-connections/")
 		if id == "" {
-			jsonError(w, `{"error":"missing connection id"}`, http.StatusBadRequest)
+			jsonError(w, "missing connection id", http.StatusBadRequest)
 			return
 		}
 		service := newSQLConnectionService(s)
@@ -199,12 +199,12 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 		case http.MethodPut:
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			var req sqlConnectionRequest
 			if err := json.Unmarshal(body, &req); err != nil {
-				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
 
@@ -237,7 +237,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 		default:
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -246,7 +246,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.SQLConnectionsDB == nil {
-			jsonError(w, `{"error":"SQL connections database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, "SQL connections database not initialized", http.StatusServiceUnavailable)
 			return
 		}
 		if s.SQLConnectionPool == nil {
@@ -259,7 +259,7 @@ func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 			return
 		}
 		if r.Method != http.MethodPost {
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -267,7 +267,7 @@ func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 		path := strings.TrimPrefix(r.URL.Path, "/api/sql-connections/")
 		id := strings.TrimSuffix(path, "/test")
 		if id == "" {
-			jsonError(w, `{"error":"missing connection id"}`, http.StatusBadRequest)
+			jsonError(w, "missing connection id", http.StatusBadRequest)
 			return
 		}
 

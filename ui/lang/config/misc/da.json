@@ -61,7 +61,7 @@
   "config.restart.disconnected": "Afbrudt. Venter på genstart...",
   "config.restart.error": "Fejl: Kunne ikke anmode om genstart.",
   "config.restart.reloading": "Siden genindlæses automatisk snart...",
-  "config.tools.warning_banner": "<strong>Disse indstillinger bør normalt ikke ændres.</strong> Deaktivering af værktøjer vil begrænse agentens muligheder betydeligt.",
+  "config.tools.warning_banner": "Disse kontakter styrer agentens funktioner. Aktivér kun det, du vil bruge; deaktivering af et værktøj kan begrænse tilknyttede funktioner.",
   "config.vault.cancel": "Annuller",
   "config.vault.confirm_word_de": "slet",
   "config.vault.delete_desc": "Dette vil <strong> permanent </strong> slette boksen. Alle gemte API nøgler, adgangskoder og legitimationsoplysninger vil gå tabt for altid! <br> <br> Indtast <strong style=\"color:#f87171;\"> slet </strong> for at fortsætte:",

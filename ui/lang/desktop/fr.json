@@ -194,7 +194,6 @@
   "codeStudio.zoomIn": "Zoom avant",
   "codeStudio.zoomOut": "Zoom arrière",
   "codeStudio.zoomReset": "Réinitialiser le zoom",
-  "common.nav_desktop": "Bureau",
   "config.section.virtual_desktop.desc": "Bureau dans le navigateur avec apps, fichiers et widgets contrôlés par l'agent.",
   "config.section.virtual_desktop.label": "Bureau virtuel",
   "config.virtual_desktop.agent_control_label": "Autoriser le contrôle agent",

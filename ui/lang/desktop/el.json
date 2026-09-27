@@ -194,7 +194,6 @@
   "codeStudio.zoomIn": "Μεγέθυνση",
   "codeStudio.zoomOut": "Σμίκρυνση",
   "codeStudio.zoomReset": "Επαναφορά ζουμ",
-  "common.nav_desktop": "Επιφάνεια εργασίας",
   "config.section.virtual_desktop.desc": "Επιφάνεια εργασίας στο πρόγραμμα περιήγησης με εφαρμογές, αρχεία και widget που ελέγχει ο agent.",
   "config.section.virtual_desktop.label": "Εικονική επιφάνεια εργασίας",
   "config.virtual_desktop.agent_control_label": "Να επιτρέπεται ο έλεγχος agent",

@@ -25,7 +25,7 @@ func handleChromecastDiscover(s *Server) http.HandlerFunc {
 		// Validate that it's proper JSON before sending
 		var parsed map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
-			jsonError(w, `{"error":"discovery returned invalid data"}`, http.StatusInternalServerError)
+			jsonError(w, "discovery returned invalid data", http.StatusInternalServerError)
 			return
 		}
 

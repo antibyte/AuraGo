@@ -156,9 +156,6 @@
       "hard"
     ]
   },
-  "help.llm_guardian.provider": {
-    "provider_ref": true
-  },
   "help.ansible.mode": {
     "options": [
       "sidecar",

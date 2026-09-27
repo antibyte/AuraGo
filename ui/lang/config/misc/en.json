@@ -61,7 +61,7 @@
   "config.restart.disconnected": "Disconnected. Waiting for restart...",
   "config.restart.error": "Error: Could not request restart.",
   "config.restart.reloading": "The page will reload automatically shortly...",
-  "config.tools.warning_banner": "<strong>These settings should normally not be changed.</strong> Disabling tools will significantly limit the agent's capabilities.",
+  "config.tools.warning_banner": "These switches control agent capabilities. Enable only what you intend to use; disabling a tool may limit related features.",
   "config.vault.cancel": "Cancel",
   "config.vault.confirm_word_de": "delete",
   "config.vault.delete_desc": "This will <strong>permanently</strong> delete the vault. All stored API keys, passwords and credentials will be lost forever!<br><br>Type <strong style=\"color:#f87171;\">delete</strong> to continue:",

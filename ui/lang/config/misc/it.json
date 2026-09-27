@@ -61,7 +61,7 @@
   "config.restart.disconnected": "Disconnesso. In attesa del riavvio...",
   "config.restart.error": "Errore: Impossibile richiedere il riavvio.",
   "config.restart.reloading": "La pagina si ricaricherà automaticamente a breve...",
-  "config.tools.warning_banner": "<strong>Queste impostazioni normalmente non dovrebbero essere modificate.</strong> Disabilitare i tool limiterà significativamente le capacità dell'agente.",
+  "config.tools.warning_banner": "Questi interruttori controllano le capacità dell'agente. Attiva solo ciò che intendi usare; disattivare uno strumento può limitare le funzioni collegate.",
   "config.vault.cancel": "Annulla",
   "config.vault.confirm_word_de": "delete",
   "config.vault.delete_desc": "Questo eliminerà <strong>permanentemente</strong> il vault. Tutte le API key, password e credenziali memorizzate saranno perse per sempre!<br><br>Digita <strong style=\"color:#f87171;\">delete</strong> per continuare:",

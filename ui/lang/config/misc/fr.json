@@ -61,7 +61,7 @@
   "config.restart.disconnected": "Déconnecté. En attente du redémarrage...",
   "config.restart.error": "Erreur : Impossible de demander le redémarrage.",
   "config.restart.reloading": "La page se rechargera automatiquement sous peu...",
-  "config.tools.warning_banner": "<strong>Ces paramètres ne devraient normalement pas être modifiés.</strong> La désactivation des outils limitera considérablement les capacités de l'agent.",
+  "config.tools.warning_banner": "Ces interrupteurs contrôlent les capacités de l'agent. Activez uniquement ce que vous comptez utiliser ; désactiver un outil peut limiter les fonctions associées.",
   "config.vault.cancel": "Annuler",
   "config.vault.confirm_word_de": "delete",
   "config.vault.delete_desc": "Cela supprimera <strong>définitivement</strong> le coffre. Toutes les clés API, mots de passe et identifiants stockés seront perdus pour toujours !<br><br>Tapez <strong style=\"color:#f87171;\">delete</strong> pour continuer :",

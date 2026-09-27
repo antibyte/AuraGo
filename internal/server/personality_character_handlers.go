@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/i18n"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -10,7 +11,7 @@ import (
 func handlePersonalityCharacterNotes(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.ShortTermMem == nil || !s.Cfg.Personality.Engine {
-			jsonError(w, "Personality engine is disabled", http.StatusConflict)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_engine_disabled"), http.StatusConflict)
 			return
 		}
 		switch r.Method {
@@ -26,7 +27,7 @@ func handlePersonalityCharacterNotes(s *Server) http.HandlerFunc {
 				Protected *bool  `json:"protected"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, "Bad request", http.StatusBadRequest)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
 				return
 			}
 			switch strings.ToLower(strings.TrimSpace(req.Action)) {
@@ -73,7 +74,7 @@ func handlePersonalityCharacterNotes(s *Server) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(s.buildPersonalityStatePayload())
 		default:
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 		}
 	}
 }

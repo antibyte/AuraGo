@@ -194,7 +194,6 @@
   "codeStudio.zoomIn": "Powiększ",
   "codeStudio.zoomOut": "Pomniejsz",
   "codeStudio.zoomReset": "Resetuj zoom",
-  "common.nav_desktop": "Pulpit",
   "config.section.virtual_desktop.desc": "Pulpit w przeglądarce z aplikacjami, plikami i widżetami sterowanymi przez agenta.",
   "config.section.virtual_desktop.label": "Wirtualny pulpit",
   "config.virtual_desktop.agent_control_label": "Zezwól na sterowanie agentem",

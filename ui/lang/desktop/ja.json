@@ -194,7 +194,6 @@
   "codeStudio.zoomIn": "拡大",
   "codeStudio.zoomOut": "縮小",
   "codeStudio.zoomReset": "ズームをリセット",
-  "common.nav_desktop": "デスクトップ",
   "config.section.virtual_desktop.desc": "エージェントがアプリ、ファイル、ウィジェットを制御できるブラウザーデスクトップ。",
   "config.section.virtual_desktop.label": "仮想デスクトップ",
   "config.virtual_desktop.agent_control_label": "エージェント制御を許可",

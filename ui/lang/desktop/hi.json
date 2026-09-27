@@ -194,7 +194,6 @@
   "codeStudio.zoomIn": "ज़ूम इन",
   "codeStudio.zoomOut": "ज़ूम आउट",
   "codeStudio.zoomReset": "ज़ूम रीसेट करें",
-  "common.nav_desktop": "डेस्कटॉप",
   "config.section.virtual_desktop.desc": "एजेंट नियंत्रित ऐप, फ़ाइल और विजेट वाला ब्राउज़र डेस्कटॉप।",
   "config.section.virtual_desktop.label": "वर्चुअल डेस्कटॉप",
   "config.virtual_desktop.agent_control_label": "एजेंट नियंत्रण की अनुमति दें",

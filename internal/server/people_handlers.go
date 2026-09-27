@@ -12,11 +12,11 @@ import (
 func handlePeopleLookup(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.KG == nil {
-			jsonError(w, `{"error":"knowledge graph not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, "knowledge graph not initialized", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -104,11 +104,11 @@ func filterPersonNodes(data map[string]interface{}) map[string]interface{} {
 func handlePeopleKGPersons(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.KG == nil {
-			jsonError(w, `{"error":"knowledge graph not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, "knowledge graph not initialized", http.StatusServiceUnavailable)
 			return
 		}
 		limit := 100
@@ -128,11 +128,11 @@ func handlePeopleKGPersons(s *Server) http.HandlerFunc {
 func handlePeopleUpcoming(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if s.ContactsDB == nil {
-			jsonError(w, `{"error":"contacts database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, "contacts database not initialized", http.StatusServiceUnavailable)
 			return
 		}
 		days := 30

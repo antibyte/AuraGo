@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/memory"
 	promptbuilder "aurago/internal/prompts"
 	promptsembed "aurago/prompts"
@@ -84,7 +85,7 @@ func extractExtraPersonalityMetaYAML(yamlPart string) string {
 func handleListPersonalities(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -125,7 +126,7 @@ func handleListPersonalities(s *Server) http.HandlerFunc {
 func handlePersonalityState(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -143,7 +144,7 @@ func handlePersonalityState(s *Server) http.HandlerFunc {
 func handleUpdatePersonality(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -151,7 +152,7 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 			ID string `json:"id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
 			return
 		}
 
@@ -170,7 +171,7 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 		profilePath := filepath.Join(nextCfg.Directories.PromptsDir, "personalities", req.ID+".md")
 		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
 			if !isCorePersonality(req.ID) {
-				jsonError(w, "Personality not found", http.StatusNotFound)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_not_found"), http.StatusNotFound)
 				return
 			}
 		}
@@ -185,7 +186,7 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 		}
 		if err := nextCfg.Save(configPath); err != nil {
 			s.Logger.Error("Failed to save config", "error", err)
-			jsonError(w, "Failed to persist configuration", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_persist_failed"), http.StatusInternalServerError)
 			return
 		}
 		s.CfgMu.Lock()
@@ -205,12 +206,12 @@ func handleUpdatePersonality(s *Server) http.HandlerFunc {
 func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
 		if cfg := s.ConfigSnapshot(); cfg == nil || !cfg.Personality.Engine {
-			jsonError(w, "Personality engine is disabled", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_engine_disabled"), http.StatusBadRequest)
 			return
 		}
 		if s.ShortTermMem == nil {
@@ -223,7 +224,7 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 			EventID string `json:"event_id,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
 			return
 		}
 		if len(req.EventID) > 128 {
@@ -282,7 +283,7 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 			}
 			mood = memory.MoodCurious
 		default:
-			jsonError(w, "Invalid feedback type. Use: positive, negative, angry, laughing, crying, amazed", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_invalid_feedback_type"), http.StatusBadRequest)
 			return
 		}
 
@@ -292,7 +293,7 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 		defer s.CfgMu.RUnlock()
 		cfg := s.ConfigSnapshot()
 		if cfg == nil || !cfg.Personality.Engine {
-			jsonError(w, "Personality engine is disabled", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_engine_disabled"), http.StatusBadRequest)
 			return
 		}
 		basis, err := s.ShortTermMem.GetPersonalitySnapshotAt(time.Now())
@@ -359,12 +360,12 @@ func isValidPersonalityName(name string) bool {
 func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		name := r.URL.Query().Get("name")
 		if !isValidPersonalityName(name) {
-			jsonError(w, "Invalid personality name", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_invalid_name"), http.StatusBadRequest)
 			return
 		}
 		// Try disk first (user override), then fall back to embedded binary.
@@ -375,7 +376,7 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 		} else if d, err := promptsembed.FS.ReadFile("personalities/" + name + ".md"); err == nil {
 			data = d
 		} else {
-			jsonError(w, "Personality not found", http.StatusNotFound)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_not_found"), http.StatusNotFound)
 			return
 		}
 
@@ -441,7 +442,7 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		var req struct {
@@ -449,11 +450,11 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 			Content string `json:"content"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
 			return
 		}
 		if !isValidPersonalityName(req.Name) {
-			jsonError(w, "Invalid personality name: use letters, digits, - and _ only (max 64 chars)", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_invalid_name_detail"), http.StatusBadRequest)
 			return
 		}
 		// Core personas shipped with the binary are read-only.
@@ -468,12 +469,12 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 		profilePath := filepath.Join(s.ConfigSnapshot().Directories.PromptsDir, "personalities", req.Name+".md")
 		if err := os.MkdirAll(filepath.Dir(profilePath), 0755); err != nil {
 			s.Logger.Error("Failed to create personality directory", "error", err)
-			jsonError(w, "Failed to save personality file", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_save_failed"), http.StatusInternalServerError)
 			return
 		}
 		if err := config.WriteFileAtomic(profilePath, []byte(req.Content), 0644); err != nil {
 			s.Logger.Error("Failed to write personality file", "name", req.Name, "error", err)
-			jsonError(w, "Failed to save personality file", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_save_failed"), http.StatusInternalServerError)
 			return
 		}
 		promptbuilder.ClearPromptCache()
@@ -500,12 +501,12 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 func handleDeletePersonalityFile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		name := r.URL.Query().Get("name")
 		if !isValidPersonalityName(name) {
-			jsonError(w, "Invalid personality name", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_invalid_name"), http.StatusBadRequest)
 			return
 		}
 		// Core personas are read-only — they live in the embedded binary.
@@ -515,16 +516,16 @@ func handleDeletePersonalityFile(s *Server) http.HandlerFunc {
 		}
 		// Prevent deleting the currently active personality
 		if strings.EqualFold(name, s.Cfg.Personality.CorePersonality) {
-			jsonError(w, "Cannot delete the currently active personality", http.StatusConflict)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_cannot_delete_active"), http.StatusConflict)
 			return
 		}
 		profilePath := filepath.Join(s.Cfg.Directories.PromptsDir, "personalities", name+".md")
 		if err := os.Remove(profilePath); err != nil {
 			if os.IsNotExist(err) {
-				jsonError(w, "Personality not found", http.StatusNotFound)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_not_found"), http.StatusNotFound)
 			} else {
 				s.Logger.Error("Failed to delete personality file", "name", name, "error", err)
-				jsonError(w, "Failed to delete personality", http.StatusInternalServerError)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_delete_failed"), http.StatusInternalServerError)
 			}
 			return
 		}

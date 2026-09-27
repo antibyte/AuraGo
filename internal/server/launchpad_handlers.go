@@ -20,7 +20,7 @@ func handleListLaunchpadLinks(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.LaunchpadDB == nil {
-			jsonError(w, `{"error":"launchpad database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "launchpad database not configured", http.StatusServiceUnavailable)
 			return
 		}
 		category := r.URL.Query().Get("category")
@@ -41,7 +41,7 @@ func handleCreateLaunchpadLink(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.LaunchpadDB == nil {
-			jsonError(w, `{"error":"launchpad database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "launchpad database not configured", http.StatusServiceUnavailable)
 			return
 		}
 		var link launchpad.LaunchpadLink
@@ -69,7 +69,7 @@ func handleGetLaunchpadLink(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.LaunchpadDB == nil {
-			jsonError(w, `{"error":"launchpad database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "launchpad database not configured", http.StatusServiceUnavailable)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/launchpad/links/")
@@ -98,7 +98,7 @@ func handleUpdateLaunchpadLink(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.LaunchpadDB == nil {
-			jsonError(w, `{"error":"launchpad database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "launchpad database not configured", http.StatusServiceUnavailable)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/launchpad/links/")
@@ -132,7 +132,7 @@ func handleDeleteLaunchpadLink(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.LaunchpadDB == nil {
-			jsonError(w, `{"error":"launchpad database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "launchpad database not configured", http.StatusServiceUnavailable)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/launchpad/links/")
@@ -171,7 +171,7 @@ func handleListLaunchpadCategories(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.LaunchpadDB == nil {
-			jsonError(w, `{"error":"launchpad database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "launchpad database not configured", http.StatusServiceUnavailable)
 			return
 		}
 		cats, err := launchpad.ListCategories(s.LaunchpadDB)
@@ -195,7 +195,7 @@ func handleSearchLaunchpadIcons(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.LaunchpadDB == nil {
-			jsonError(w, `{"error":"launchpad database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "launchpad database not configured", http.StatusServiceUnavailable)
 			return
 		}
 		query := r.URL.Query().Get("q")
@@ -247,7 +247,7 @@ func handleDownloadLaunchpadIcon(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.LaunchpadDB == nil {
-			jsonError(w, `{"error":"launchpad database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "launchpad database not configured", http.StatusServiceUnavailable)
 			return
 		}
 		var req struct {

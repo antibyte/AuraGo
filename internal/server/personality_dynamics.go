@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/prompts"
 )
 
@@ -29,12 +30,12 @@ func (s *Server) syncPersonalityConfig(next *config.Config) {
 func handlePersonalityDynamicsReset(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		cfg := s.ConfigSnapshot()
 		if cfg == nil || !cfg.Personality.Engine {
-			jsonError(w, "Personality engine is disabled", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.personality_engine_disabled"), http.StatusBadRequest)
 			return
 		}
 		if s.ShortTermMem == nil {

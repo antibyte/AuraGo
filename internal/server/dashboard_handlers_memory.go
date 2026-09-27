@@ -367,17 +367,17 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				Confirm string `json:"confirm"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				jsonError(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+				jsonError(w, "invalid request", http.StatusBadRequest)
 				return
 			}
 			if req.All {
 				if req.Confirm != "DELETE_ALL_CORE_MEMORY" {
-					jsonError(w, `{"error":"confirmation token is required"}`, http.StatusBadRequest)
+					jsonError(w, "confirmation token is required", http.StatusBadRequest)
 					return
 				}
 				deleted, err := s.ShortTermMem.DeleteAllCoreMemoryFacts()
 				if err != nil {
-					jsonError(w, `{"error":"Failed to delete all core memory facts"}`, http.StatusInternalServerError)
+					jsonError(w, "Failed to delete all core memory facts", http.StatusInternalServerError)
 					return
 				}
 				go pushMemoryStats()
@@ -386,11 +386,11 @@ func handleDashboardCoreMemoryMutate(s *Server, sse *SSEBroadcaster) http.Handle
 				return
 			}
 			if req.ID == 0 {
-				jsonError(w, `{"error":"id is required"}`, http.StatusBadRequest)
+				jsonError(w, "id is required", http.StatusBadRequest)
 				return
 			}
 			if err := s.ShortTermMem.DeleteCoreMemoryFact(req.ID); err != nil {
-				jsonError(w, `{"error":"Failed to delete core memory fact"}`, http.StatusInternalServerError)
+				jsonError(w, "Failed to delete core memory fact", http.StatusInternalServerError)
 				return
 			}
 			go pushMemoryStats()

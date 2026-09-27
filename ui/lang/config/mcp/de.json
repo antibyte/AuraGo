@@ -90,7 +90,7 @@
   "config.mcp.transport_websocket": "WebSocket",
   "config.mcp.field_url": "Server-URL",
   "config.mcp.field_headers": "HTTP-Header",
-  "config.mcp.headers_hint": "Ein Header pro Zeile. Vault-Aliasse wie {{remote-token}} werden zur Laufzeit aufgeloest und aus Logs entfernt.",
+  "config.mcp.headers_hint": "Ein Header pro Zeile. Vault-Aliasse wie {{remote-token}} werden zur Laufzeit aufgelöst und aus Logs entfernt.",
   "config.mcp.test_connection": "Verbindung testen",
   "config.mcp.test_connection_success": "Verbindung OK. {count} Tools entdeckt.",
   "config.mcp.test_connection_failed": "MCP-Verbindungstest fehlgeschlagen:",

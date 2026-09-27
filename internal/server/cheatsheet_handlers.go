@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/i18n"
 	"aurago/internal/tools"
 )
 
@@ -283,7 +284,7 @@ func handleCheatSheetAttachments(s *Server) http.HandlerFunc {
 
 				safeName := filepath.Base(body.Filename)
 				if safeName != body.Filename || safeName == "." || safeName == ".." || safeName == "" {
-					jsonError(w, "Invalid filename", http.StatusBadRequest)
+					jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_invalid_filename"), http.StatusBadRequest)
 					return
 				}
 				ext := strings.ToLower(filepath.Ext(safeName))
@@ -330,7 +331,7 @@ func handleCheatSheetAttachments(s *Server) http.HandlerFunc {
 				}
 				resolvedPath, err := filepath.Abs(fullPath)
 				if err != nil || !strings.HasPrefix(resolvedPath, resolvedKnowledgeDir+string(os.PathSeparator)) {
-					jsonError(w, "Invalid filename", http.StatusBadRequest)
+					jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_invalid_filename"), http.StatusBadRequest)
 					return
 				}
 

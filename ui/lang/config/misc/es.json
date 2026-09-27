@@ -61,7 +61,7 @@
   "config.restart.disconnected": "Desconectado. Esperando reinicio...",
   "config.restart.error": "Error: No se pudo solicitar el reinicio.",
   "config.restart.reloading": "La página se recargará automáticamente en breve...",
-  "config.tools.warning_banner": "<strong>Normalmente estos ajustes no deberían cambiarse.</strong> Desactivar herramientas limitará significativamente las capacidades del agente.",
+  "config.tools.warning_banner": "Estos interruptores controlan las capacidades del agente. Activa solo lo que vayas a usar; desactivar una herramienta puede limitar funciones relacionadas.",
   "config.vault.cancel": "Cancelar",
   "config.vault.confirm_word_de": "delete",
   "config.vault.delete_desc": "Esto <strong>eliminará permanentemente</strong> el vault. ¡Todas las claves API, contraseñas y credenciales almacenadas se perderán para siempre!<br><br>Escribe <strong style=\"color:#f87171;\">delete</strong> para continuar:",

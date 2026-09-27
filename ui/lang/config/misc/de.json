@@ -61,7 +61,7 @@
   "config.restart.disconnected": "Verbindung getrennt. Warte auf Neustart...",
   "config.restart.error": "Fehler: Neustart konnte nicht angefordert werden.",
   "config.restart.reloading": "Die Seite lädt gleich automatisch neu...",
-  "config.tools.warning_banner": "<strong>Diese Einstellungen sollten normalerweise nicht verändert werden.</strong> Das Deaktivieren von Tools schränkt die Leistungsfähigkeit des Agenten stark ein.",
+  "config.tools.warning_banner": "Diese Schalter steuern Fähigkeiten des Agenten. Aktiviere nur, was du nutzen möchtest; ein deaktiviertes Tool kann zugehörige Funktionen einschränken.",
   "config.vault.cancel": "Abbrechen",
   "config.vault.confirm_word_de": "löschen",
   "config.vault.delete_desc": "Dies löscht den Vault <strong>unwiderruflich</strong>. Alle gespeicherten API-Keys, Passwörter und Zugangsdaten gehen für immer verloren!<br><br>Gib <strong style=\"color:#f87171;\">löschen</strong> ein um fortzufahren:",

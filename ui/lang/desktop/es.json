@@ -194,7 +194,6 @@
   "codeStudio.zoomIn": "Acercar",
   "codeStudio.zoomOut": "Alejar",
   "codeStudio.zoomReset": "Restablecer zoom",
-  "common.nav_desktop": "Escritorio",
   "config.section.virtual_desktop.desc": "Escritorio en el navegador con apps, archivos y widgets controlados por el agente.",
   "config.section.virtual_desktop.label": "Escritorio virtual",
   "config.virtual_desktop.agent_control_label": "Permitir control del agente",

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/i18n"
 	"aurago/internal/security"
 	"aurago/internal/services"
 )
@@ -27,19 +28,19 @@ type knowledgeFileEntry struct {
 func handleKnowledgeFiles(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		knowledgeDir := s.knowledgeDir()
 		if knowledgeDir == "" {
-			jsonError(w, "Knowledge storage is not configured", http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_not_configured"), http.StatusServiceUnavailable)
 			return
 		}
 
 		entries, err := os.ReadDir(knowledgeDir)
 		if err != nil {
 			s.Logger.Error("Failed to read knowledge directory", "error", err)
-			jsonError(w, "Knowledge storage is currently unavailable", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_unavailable"), http.StatusInternalServerError)
 			return
 		}
 
@@ -72,25 +73,25 @@ func handleKnowledgeFiles(s *Server) http.HandlerFunc {
 func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		knowledgeDir := s.knowledgeDir()
 		if knowledgeDir == "" {
-			jsonError(w, "Knowledge storage is not configured", http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_not_configured"), http.StatusServiceUnavailable)
 			return
 		}
 
 		// 32 MB max
 		r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
-			jsonError(w, "Invalid upload request", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_invalid_upload"), http.StatusBadRequest)
 			return
 		}
 
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			jsonError(w, "Missing file upload", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_missing_file"), http.StatusBadRequest)
 			return
 		}
 		defer file.Close()
@@ -98,17 +99,17 @@ func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 		// Sanitize filename — prevent path traversal
 		safeName := sanitizeFilename(filepath.Base(header.Filename))
 		if safeName == "." || safeName == ".." || safeName == "" {
-			jsonError(w, "Invalid filename", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_invalid_filename"), http.StatusBadRequest)
 			return
 		}
 		if !isAllowedKnowledgeExtension(s, safeName) {
-			jsonError(w, "This file type is not allowed for the Knowledge Center", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_type_not_allowed"), http.StatusBadRequest)
 			return
 		}
 
 		if err := os.MkdirAll(knowledgeDir, 0750); err != nil {
 			s.Logger.Error("Failed to create knowledge directory", "error", err)
-			jsonError(w, "Knowledge storage is currently unavailable", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_unavailable"), http.StatusInternalServerError)
 			return
 		}
 
@@ -116,24 +117,24 @@ func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 		resolvedKnowledgeDir, err := filepath.Abs(knowledgeDir)
 		if err != nil {
 			s.Logger.Error("Failed to resolve knowledge directory", "error", err)
-			jsonError(w, "Knowledge storage is currently unavailable", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_unavailable"), http.StatusInternalServerError)
 			return
 		}
 		resolvedDestPath, err := filepath.Abs(destPath)
 		if err != nil || !strings.HasPrefix(resolvedDestPath, resolvedKnowledgeDir+string(os.PathSeparator)) {
 			s.Logger.Warn("Rejected suspicious knowledge upload destination", "path", destPath)
-			jsonError(w, "Invalid upload destination", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_invalid_destination"), http.StatusBadRequest)
 			return
 		}
 
 		out, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
 		if err != nil {
 			if os.IsExist(err) {
-				jsonError(w, "A file with that name already exists", http.StatusConflict)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_file_exists"), http.StatusConflict)
 				return
 			}
 			s.Logger.Error("Failed to create knowledge file", "file", safeName, "error", err)
-			jsonError(w, "Could not store uploaded file", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_cannot_store"), http.StatusInternalServerError)
 			return
 		}
 
@@ -141,13 +142,13 @@ func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 			s.Logger.Error("Failed to write knowledge file", "file", safeName, "error", err)
 			_ = out.Close()
 			_ = os.Remove(destPath)
-			jsonError(w, "Could not store uploaded file", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_cannot_store"), http.StatusInternalServerError)
 			return
 		}
 		if err := out.Close(); err != nil {
 			s.Logger.Error("Failed to close knowledge file", "file", safeName, "error", err)
 			_ = os.Remove(destPath)
-			jsonError(w, "Could not store uploaded file", http.StatusInternalServerError)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_cannot_store"), http.StatusInternalServerError)
 			return
 		}
 		if err := validateKnowledgeUploadArchive(destPath); err != nil {
@@ -196,20 +197,20 @@ func handleKnowledgeFile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		knowledgeDir := s.knowledgeDir()
 		if knowledgeDir == "" {
-			jsonError(w, "Knowledge storage is not configured", http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_not_configured"), http.StatusServiceUnavailable)
 			return
 		}
 
 		name := strings.TrimPrefix(r.URL.Path, "/api/knowledge/")
 		if name == "" || name == "upload" {
-			jsonError(w, "Missing filename", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_missing_filename"), http.StatusBadRequest)
 			return
 		}
 
 		// Sanitize — prevent path traversal
 		safeName := filepath.Base(name)
 		if safeName != name || safeName == "." || safeName == ".." {
-			jsonError(w, "Invalid filename", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_invalid_filename"), http.StatusBadRequest)
 			return
 		}
 
@@ -219,7 +220,7 @@ func handleKnowledgeFile(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			info, err := os.Stat(fullPath)
 			if err != nil {
-				jsonError(w, "File not found", http.StatusNotFound)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_file_not_found"), http.StatusNotFound)
 				return
 			}
 			if r.URL.Query().Get("inline") == "1" {
@@ -233,10 +234,10 @@ func handleKnowledgeFile(s *Server) http.HandlerFunc {
 		case http.MethodDelete:
 			if err := os.Remove(fullPath); err != nil {
 				if os.IsNotExist(err) {
-					jsonError(w, "File not found", http.StatusNotFound)
+					jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_file_not_found"), http.StatusNotFound)
 				} else {
 					s.Logger.Error("Failed to delete knowledge file", "file", safeName, "error", err)
-					jsonError(w, "Failed to delete file", http.StatusInternalServerError)
+					jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_delete_failed"), http.StatusInternalServerError)
 				}
 				return
 			}
@@ -245,7 +246,7 @@ func handleKnowledgeFile(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 		default:
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -256,27 +257,27 @@ func handleKnowledgeFileInline(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		knowledgeDir := s.knowledgeDir()
 		if knowledgeDir == "" {
-			jsonError(w, "Knowledge storage is not configured", http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_not_configured"), http.StatusServiceUnavailable)
 			return
 		}
 
 		name := strings.TrimPrefix(r.URL.Path, "/api/knowledge-inline/")
 		if name == "" {
-			jsonError(w, "Missing filename", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_missing_filename"), http.StatusBadRequest)
 			return
 		}
 
 		// Sanitize — prevent path traversal
 		safeName := filepath.Base(name)
 		if safeName != name || safeName == "." || safeName == ".." {
-			jsonError(w, "Invalid filename", http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_invalid_filename"), http.StatusBadRequest)
 			return
 		}
 
 		fullPath := filepath.Join(knowledgeDir, safeName)
 		info, err := os.Stat(fullPath)
 		if err != nil {
-			jsonError(w, "File not found", http.StatusNotFound)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_file_not_found"), http.StatusNotFound)
 			return
 		}
 
@@ -301,7 +302,7 @@ func handleKnowledgeFileInline(s *Server) http.HandlerFunc {
 
 		file, err := os.Open(fullPath)
 		if err != nil {
-			jsonError(w, "File not found", http.StatusNotFound)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.knowledge_file_not_found"), http.StatusNotFound)
 			return
 		}
 		defer file.Close()

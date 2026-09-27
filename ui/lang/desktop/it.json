@@ -194,7 +194,6 @@
   "codeStudio.zoomIn": "Aumenta zoom",
   "codeStudio.zoomOut": "Riduci zoom",
   "codeStudio.zoomReset": "Reimposta zoom",
-  "common.nav_desktop": "Desktop",
   "config.section.virtual_desktop.desc": "Desktop nel browser con app, file e widget controllati dall'agente.",
   "config.section.virtual_desktop.label": "Desktop virtuale",
   "config.virtual_desktop.agent_control_label": "Consenti controllo agente",

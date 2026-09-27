@@ -445,7 +445,7 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 		raw := githubListReposForServer(ghCfg, "")
 		var result map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &result); err != nil {
-			jsonError(w, `{"error":"failed to parse GitHub response"}`, http.StatusInternalServerError)
+			jsonError(w, "failed to parse GitHub response", http.StatusInternalServerError)
 			return
 		}
 

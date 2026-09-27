@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"aurago/internal/contacts"
+	"aurago/internal/i18n"
 )
 
 // handleContacts handles GET (list) and POST (create) on /api/contacts.
 func handleContacts(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.ContactsDB == nil {
-			jsonError(w, `{"error":"contacts database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.contacts_not_initialized"), http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
@@ -21,7 +22,7 @@ func handleContacts(s *Server) http.HandlerFunc {
 			query := r.URL.Query().Get("q")
 			list, err := contacts.List(s.ContactsDB, query)
 			if err != nil {
-				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list contacts", "Failed to list contacts", err)
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, i18n.T(desktopUILanguage(s), "backend.contacts_list_failed"), "Failed to list contacts", err)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -31,16 +32,16 @@ func handleContacts(s *Server) http.HandlerFunc {
 			var c contacts.Contact
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			if err := json.Unmarshal(body, &c); err != nil {
-				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_invalid_json"), http.StatusBadRequest)
 				return
 			}
 			id, err := contacts.Create(s.ContactsDB, c)
 			if err != nil {
-				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create contact", "Failed to create contact", err)
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, i18n.T(desktopUILanguage(s), "backend.contacts_create_failed"), "Failed to create contact", err)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -48,7 +49,7 @@ func handleContacts(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"id": id})
 
 		default:
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -57,12 +58,12 @@ func handleContacts(s *Server) http.HandlerFunc {
 func handleContactByID(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.ContactsDB == nil {
-			jsonError(w, `{"error":"contacts database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.contacts_not_initialized"), http.StatusServiceUnavailable)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/contacts/")
 		if id == "" {
-			jsonError(w, `{"error":"missing contact id"}`, http.StatusBadRequest)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.contacts_missing_id"), http.StatusBadRequest)
 			return
 		}
 
@@ -70,7 +71,7 @@ func handleContactByID(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			c, err := contacts.GetByID(s.ContactsDB, id)
 			if err != nil {
-				jsonError(w, "contact not found", http.StatusNotFound)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.contacts_not_found"), http.StatusNotFound)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -80,11 +81,11 @@ func handleContactByID(s *Server) http.HandlerFunc {
 			var c contacts.Contact
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			if err := json.Unmarshal(body, &c); err != nil {
-				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_invalid_json"), http.StatusBadRequest)
 				return
 			}
 			c.ID = id
@@ -94,9 +95,9 @@ func handleContactByID(s *Server) http.HandlerFunc {
 					status = http.StatusNotFound
 				}
 				if status == http.StatusNotFound {
-					jsonError(w, "contact not found", status)
+					jsonError(w, i18n.T(desktopUILanguage(s), "backend.contacts_not_found"), status)
 				} else {
-					jsonLoggedError(w, s.Logger, status, "Failed to update contact", "Failed to update contact", err, "contact_id", id)
+					jsonLoggedError(w, s.Logger, status, i18n.T(desktopUILanguage(s), "backend.contacts_update_failed"), "Failed to update contact", err, "contact_id", id)
 				}
 				return
 			}
@@ -110,9 +111,9 @@ func handleContactByID(s *Server) http.HandlerFunc {
 					status = http.StatusNotFound
 				}
 				if status == http.StatusNotFound {
-					jsonError(w, "contact not found", status)
+					jsonError(w, i18n.T(desktopUILanguage(s), "backend.contacts_not_found"), status)
 				} else {
-					jsonLoggedError(w, s.Logger, status, "Failed to delete contact", "Failed to delete contact", err, "contact_id", id)
+					jsonLoggedError(w, s.Logger, status, i18n.T(desktopUILanguage(s), "backend.contacts_delete_failed"), "Failed to delete contact", err, "contact_id", id)
 				}
 				return
 			}
@@ -120,7 +121,7 @@ func handleContactByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 		default:
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 		}
 	}
 }

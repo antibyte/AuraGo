@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	"aurago/internal/i18n"
 	"aurago/internal/planner"
 )
 
@@ -25,7 +26,7 @@ type todoItemReorderRequest struct {
 func handleAppointments(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.PlannerDB == nil {
-			jsonError(w, `{"error":"planner database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.planner_not_initialized"), http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
@@ -47,11 +48,11 @@ func handleAppointments(s *Server) http.HandlerFunc {
 			var a planner.Appointment
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			if err := json.Unmarshal(body, &a); err != nil {
-				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
 			contactIDs := a.ContactIDs
@@ -73,7 +74,7 @@ func handleAppointments(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"id": id})
 
 		default:
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -82,12 +83,12 @@ func handleAppointments(s *Server) http.HandlerFunc {
 func handleAppointmentByID(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.PlannerDB == nil {
-			jsonError(w, `{"error":"planner database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.planner_not_initialized"), http.StatusServiceUnavailable)
 			return
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/appointments/")
 		if id == "" {
-			jsonError(w, `{"error":"missing appointment id"}`, http.StatusBadRequest)
+			jsonError(w, "missing appointment id", http.StatusBadRequest)
 			return
 		}
 
@@ -95,7 +96,7 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			a, err := planner.GetAppointment(s.PlannerDB, id)
 			if err != nil {
-				jsonError(w, `{"error":"appointment not found"}`, http.StatusNotFound)
+				jsonError(w, "appointment not found", http.StatusNotFound)
 				return
 			}
 			if s.ContactsDB != nil {
@@ -107,18 +108,18 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 		case http.MethodPut:
 			existing, err := planner.GetAppointment(s.PlannerDB, id)
 			if err != nil {
-				jsonError(w, `{"error":"appointment not found"}`, http.StatusNotFound)
+				jsonError(w, "appointment not found", http.StatusNotFound)
 				return
 			}
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			// Parse into raw map for key-presence detection (BUG-2 / ISSUE-6)
 			var rawMap map[string]interface{}
 			if err := json.Unmarshal(body, &rawMap); err != nil {
-				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
 			var patch planner.Appointment
@@ -153,7 +154,7 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 					status = http.StatusNotFound
 				}
 				if status == http.StatusNotFound {
-					jsonError(w, `{"error":"appointment not found"}`, status)
+					jsonError(w, "appointment not found", status)
 				} else {
 					jsonLoggedError(w, s.Logger, status, "Failed to update appointment", "Failed to update appointment", err, "id", id)
 				}
@@ -181,7 +182,7 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 					status = http.StatusNotFound
 				}
 				if status == http.StatusNotFound {
-					jsonError(w, `{"error":"appointment not found"}`, status)
+					jsonError(w, "appointment not found", status)
 				} else {
 					jsonLoggedError(w, s.Logger, status, "Failed to delete appointment", "Failed to delete appointment", err, "id", id)
 				}
@@ -191,7 +192,7 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 		default:
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -202,7 +203,7 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 func handleTodos(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.PlannerDB == nil {
-			jsonError(w, `{"error":"planner database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.planner_not_initialized"), http.StatusServiceUnavailable)
 			return
 		}
 		switch r.Method {
@@ -221,11 +222,11 @@ func handleTodos(s *Server) http.HandlerFunc {
 			var t planner.Todo
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			if err := json.Unmarshal(body, &t); err != nil {
-				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
 			id, err := planner.CreateTodo(s.PlannerDB, t)
@@ -239,7 +240,7 @@ func handleTodos(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"id": id})
 
 		default:
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -248,13 +249,13 @@ func handleTodos(s *Server) http.HandlerFunc {
 func handleTodoByID(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.PlannerDB == nil {
-			jsonError(w, `{"error":"planner database not initialized"}`, http.StatusServiceUnavailable)
+			jsonError(w, i18n.T(desktopUILanguage(s), "backend.planner_not_initialized"), http.StatusServiceUnavailable)
 			return
 		}
 		path := strings.TrimPrefix(r.URL.Path, "/api/todos/")
 		path = strings.Trim(path, "/")
 		if path == "" {
-			jsonError(w, `{"error":"missing todo id"}`, http.StatusBadRequest)
+			jsonError(w, "missing todo id", http.StatusBadRequest)
 			return
 		}
 		parts := strings.Split(path, "/")
@@ -269,7 +270,7 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 				handleTodoComplete(s, id)(w, r)
 				return
 			default:
-				jsonError(w, `{"error":"todo not found"}`, http.StatusNotFound)
+				jsonError(w, "todo not found", http.StatusNotFound)
 				return
 			}
 		}
@@ -278,7 +279,7 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			t, err := planner.GetTodo(s.PlannerDB, id)
 			if err != nil {
-				jsonError(w, `{"error":"todo not found"}`, http.StatusNotFound)
+				jsonError(w, "todo not found", http.StatusNotFound)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -287,18 +288,18 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 		case http.MethodPut:
 			existing, err := planner.GetTodo(s.PlannerDB, id)
 			if err != nil {
-				jsonError(w, `{"error":"todo not found"}`, http.StatusNotFound)
+				jsonError(w, "todo not found", http.StatusNotFound)
 				return
 			}
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
-				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+				jsonError(w, "failed to read body", http.StatusBadRequest)
 				return
 			}
 			// Parse into raw map for key-presence detection (ISSUE-6)
 			var rawTodoMap map[string]interface{}
 			if err := json.Unmarshal(body, &rawTodoMap); err != nil {
-				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
 			var patch planner.Todo
@@ -336,7 +337,7 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 					status = http.StatusNotFound
 				}
 				if status == http.StatusNotFound {
-					jsonError(w, `{"error":"todo not found"}`, status)
+					jsonError(w, "todo not found", status)
 				} else {
 					jsonLoggedError(w, s.Logger, status, "Failed to update todo", "Failed to update todo", err, "id", id)
 				}
@@ -359,7 +360,7 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 					status = http.StatusNotFound
 				}
 				if status == http.StatusNotFound {
-					jsonError(w, `{"error":"todo not found"}`, status)
+					jsonError(w, "todo not found", status)
 				} else {
 					jsonLoggedError(w, s.Logger, status, "Failed to delete todo", "Failed to delete todo", err, "id", id)
 				}
@@ -370,7 +371,7 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 		default:
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
@@ -380,7 +381,7 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 		switch {
 		case len(parts) == 0:
 			if r.Method != http.MethodPost {
-				jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+				jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			var item planner.TodoItem
@@ -403,7 +404,7 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 
 		case len(parts) == 1 && parts[0] == "reorder":
 			if r.Method != http.MethodPost {
-				jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+				jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 			var payload todoItemReorderRequest
@@ -411,7 +412,7 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 				return
 			}
 			if len(payload.ItemIDs) == 0 {
-				jsonError(w, `{"error":"item_ids is required"}`, http.StatusBadRequest)
+				jsonError(w, "item_ids is required", http.StatusBadRequest)
 				return
 			}
 			if err := planner.ReorderTodoItems(s.PlannerDB, todoID, payload.ItemIDs); err != nil {
@@ -432,22 +433,22 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 			case http.MethodPut:
 				todo, err := planner.GetTodo(s.PlannerDB, todoID)
 				if err != nil {
-					jsonError(w, `{"error":"todo not found"}`, http.StatusNotFound)
+					jsonError(w, "todo not found", http.StatusNotFound)
 					return
 				}
 				item, found := plannerTodoItemByID(todo.Items, itemID)
 				if !found {
-					jsonError(w, `{"error":"todo item not found"}`, http.StatusNotFound)
+					jsonError(w, "todo item not found", http.StatusNotFound)
 					return
 				}
 				var raw map[string]interface{}
 				body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 				if err != nil {
-					jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+					jsonError(w, "failed to read body", http.StatusBadRequest)
 					return
 				}
 				if err := json.Unmarshal(body, &raw); err != nil {
-					jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+					jsonError(w, "invalid JSON", http.StatusBadRequest)
 					return
 				}
 				var patch planner.TodoItem
@@ -490,11 +491,11 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 				json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 			default:
-				jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+				jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			}
 
 		default:
-			jsonError(w, `{"error":"todo item not found"}`, http.StatusNotFound)
+			jsonError(w, "todo item not found", http.StatusNotFound)
 		}
 	}
 }
@@ -502,7 +503,7 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 func handleTodoComplete(s *Server, todoID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -530,11 +531,11 @@ func handleTodoComplete(s *Server, todoID string) http.HandlerFunc {
 func decodePlannerJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
-		jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+		jsonError(w, "failed to read body", http.StatusBadRequest)
 		return false
 	}
 	if err := json.Unmarshal(body, target); err != nil {
-		jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		jsonError(w, "invalid JSON", http.StatusBadRequest)
 		return false
 	}
 	return true

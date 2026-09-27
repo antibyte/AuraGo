@@ -10,6 +10,10 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- `jsonError` serializes the API `error` field. Handlers pass a plain message,
+  never a pre-encoded JSON object, and use existing `backend.*` translations
+  for user-visible errors. Verify `TestLocalizedErrorResponsesContainMessageNotEncodedJSON`.
+
 - `/api/llm-router/status` and `/api/llm-router/preview` require admin access.
   Preview is bounded, same-origin, read-only with respect to task/history state,
   and local by default; only an explicit `helper: true` can consume the saved

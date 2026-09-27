@@ -59,7 +59,7 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 			return
 		}
 		if req.Name == "" {
-			jsonError(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			jsonError(w, "name is required", http.StatusBadRequest)
 			return
 		}
 		if len(req.Scopes) == 0 {
@@ -72,7 +72,7 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 			if err != nil {
 				t, err = time.Parse("2006-01-02", *req.ExpiresAt)
 				if err != nil {
-					jsonError(w, `{"error":"invalid expires_at format"}`, http.StatusBadRequest)
+					jsonError(w, "invalid expires_at format", http.StatusBadRequest)
 					return
 				}
 			}
@@ -107,7 +107,7 @@ func handleUpdateToken(tm *security.TokenManager) http.HandlerFunc {
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/tokens/")
 		if id == "" {
-			jsonError(w, `{"error":"missing token id"}`, http.StatusBadRequest)
+			jsonError(w, "missing token id", http.StatusBadRequest)
 			return
 		}
 		var req struct {
@@ -135,7 +135,7 @@ func handleDeleteToken(tm *security.TokenManager) http.HandlerFunc {
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/tokens/")
 		if id == "" {
-			jsonError(w, `{"error":"missing token id"}`, http.StatusBadRequest)
+			jsonError(w, "missing token id", http.StatusBadRequest)
 			return
 		}
 		if err := tm.Delete(id); err != nil {
@@ -235,7 +235,7 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			id = id[:idx]
 		}
 		if id == "" {
-			jsonError(w, `{"error":"missing webhook id"}`, http.StatusBadRequest)
+			jsonError(w, "missing webhook id", http.StatusBadRequest)
 			return
 		}
 		existing, err := mgr.Get(id)
@@ -373,7 +373,7 @@ func handleDeleteWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 		}
 		id := strings.TrimPrefix(r.URL.Path, "/api/webhooks/")
 		if id == "" {
-			jsonError(w, `{"error":"missing webhook id"}`, http.StatusBadRequest)
+			jsonError(w, "missing webhook id", http.StatusBadRequest)
 			return
 		}
 		if _, err := mgr.Get(id); err != nil {

@@ -194,7 +194,6 @@
   "codeStudio.zoomIn": "Zooma in",
   "codeStudio.zoomOut": "Zooma ut",
   "codeStudio.zoomReset": "Återställ zoom",
-  "common.nav_desktop": "Skrivbord",
   "config.section.virtual_desktop.desc": "Webbläsarskrivbord med agentstyrda appar, filer och widgetar.",
   "config.section.virtual_desktop.label": "Virtuellt skrivbord",
   "config.virtual_desktop.agent_control_label": "Tillåt agentstyrning",

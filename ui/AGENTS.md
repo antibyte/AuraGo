@@ -337,6 +337,9 @@ worker. Keep packaging, recovery and offline instructions in
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.
+- Keep one canonical section definition per locale key where possible. If a key
+  occurs in multiple sections, its values must agree in every language; verify
+  with `TestTranslations_NoConflictingCrossSectionValues`.
 - God's Eye View uses the regular container-app window, starts maximized, and
   grants microphone capability only to its own frame. Closing removes the frame;
   service start/stop remains in the Store. The Store setup dialog owns optional

@@ -61,7 +61,7 @@
   "config.restart.disconnected": "切断されました。再起動を待機中…",
   "config.restart.error": "エラー: 再起動をリクエストできませんでした。",
   "config.restart.reloading": "ページはまもなく自動的に再読み込みされます…",
-  "config.tools.warning_banner": "<strong>これらの設定は通常は変更しないでください。</strong>ツールを無効にすると、エージェントの機能が大幅に制限されます。",
+  "config.tools.warning_banner": "これらのスイッチはエージェントの機能を制御します。使う予定のツールだけを有効にしてください。ツールを無効にすると、関連する機能が制限される場合があります。",
   "config.vault.cancel": "キャンセル",
   "config.vault.confirm_word_de": "消去",
   "config.vault.delete_desc": "これにより、 ボールトが<strong>完全に</strong>削除されます。保存されているすべての API キー、パスワード、認証情報は永久に失われます。<br><br>続行するには「<strong style=\"color:#f87171;\">削除</strong>」と入力してください:",
