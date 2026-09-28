@@ -20,7 +20,7 @@
   "config.vercel.saving": "Guardando...",
   "config.vercel.status_connected": "Vercel conectado",
   "config.vercel.status_error": "Error de conexión",
-  "config.vercel.team_id": "Team ID",
+  "config.vercel.team_id": "ID de equipo",
   "config.vercel.team_slug": "Slug del equipo",
   "config.vercel.test_btn": "Probar conexión",
   "config.vercel.test_desc": "Verifique que el token almacenado puede conectarse a la API de Vercel.",

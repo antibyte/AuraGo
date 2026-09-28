@@ -118,7 +118,7 @@
   "common.llm_router.helper_unavailable": "Geen helper ingesteld: lokale routering blijft beschikbaar.",
   "common.llm_router.source_rules": "Lokale regels",
   "common.llm_router.source_cache": "Opgeslagen beslissing",
-  "common.llm_router.source_helper": "Helper",
+  "common.llm_router.source_helper": "Hulp",
   "common.llm_router.source_default": "Standaard",
   "common.llm_router.fallback": "Terugval",
   "common.llm_router.since": "Sinds herstart:",

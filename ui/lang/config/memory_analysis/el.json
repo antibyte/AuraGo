@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "Η ανάλυση μνήμης χρησιμοποιεί το κεντρικό Helper LLM όταν είναι διαθέσιμο. Ρυθμίστε τον πάροχό του στις ρυθμίσεις Helper. Αυτά τα στοιχεία ελέγχου ορίζουν το κατώφλι εμπιστοσύνης και την ημέρα αναστοχασμού.",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "Ανάλυση μνήμης και αναστοχασμός",
   "config.memory_analysis.day_friday": "Παρασκευή",
   "config.memory_analysis.day_monday": "Δευτέρα",
   "config.memory_analysis.day_saturday": "Σάββατο",

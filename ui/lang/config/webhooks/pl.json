@@ -56,7 +56,7 @@
   "config.webhooks.new_webhook": "Nowy Webhook",
   "config.webhooks.no_token": "Brak tokena",
   "config.webhooks.og_add_param": "Dodaj",
-  "config.webhooks.og_auto_json": "Auto JSON",
+  "config.webhooks.og_auto_json": "Automatyczny JSON",
   "config.webhooks.og_body_template": "Szablon body",
   "config.webhooks.og_body_template_placeholder": "{\"text\":\"{{message}}\"}",
   "config.webhooks.og_custom_template": "Niestandardowy szablon",

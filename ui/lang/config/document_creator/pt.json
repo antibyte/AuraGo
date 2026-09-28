@@ -7,7 +7,7 @@
   "config.document_creator.enabled_label": "Ativado",
   "config.document_creator.gotenberg_timeout_label": "Tempo limite",
   "config.document_creator.gotenberg_title": "🐳 Gotemburgo",
-  "config.document_creator.gotenberg_url_label": "Gotenberg URL",
+  "config.document_creator.gotenberg_url_label": "URL do Gotenberg",
   "config.document_creator.loading": "Carregando…",
   "config.document_creator.output_dir_label": "Diretório de saída",
   "config.document_creator.seconds": "segundos",

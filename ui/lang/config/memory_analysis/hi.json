@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "मेमोरी विश्लेषण केंद्रीय Helper LLM का उपयोग करता है, जब वह उपलब्ध हो। इसका प्रदाता Helper सेटिंग्स में कॉन्फ़िगर करें। ये नियंत्रण विश्वास सीमा और परावर्तन दिन सेट करते हैं।",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "मेमोरी विश्लेषण और परावर्तन",
   "config.memory_analysis.day_friday": "शुक्रवार",
   "config.memory_analysis.day_monday": "सोमवार",
   "config.memory_analysis.day_saturday": "शनिवार",

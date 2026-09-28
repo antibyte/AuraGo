@@ -35,7 +35,7 @@
   "config.go2rtc.webrtc_bind": "LAN-bindnings- och kandidat-IP",
   "config.go2rtc.webrtc_port": "WebRTC-port",
   "config.go2rtc.save_first": "Spara dina ändringar innan test eller visning.",
-  "config.go2rtc.status_summary": "Container: {container} · API: {api}",
+  "config.go2rtc.status_summary": "Behållare: {container} · API: {api}",
   "config.go2rtc.running": "körs",
   "config.go2rtc.stopped": "stoppad",
   "config.go2rtc.available": "tillgängligt",

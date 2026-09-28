@@ -5,7 +5,7 @@
   "config.homepage.allow_temporary_token_budget_overflow_desc": "Aumenta temporaneamente il budget del prompt del sistema della home page rispetto alle chiamate massime dell'interruttore automatico della home page mentre l'attuale catena di azioni della home page è attiva.",
   "config.homepage.circuit_breaker_desc": "Lo strumento homepage richiede spesso molte chiamate consecutive. Questo imposta un limite separato e più alto che si applica temporaneamente dalla prima chiamata homepage fino alla fine della catena di azioni corrente.",
   "config.homepage.circuit_breaker_max_calls": "Chiamate strumenti max.",
-  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_title": "Interruttore di circuito",
   "config.homepage.connecting": "Connessione...",
   "config.homepage.cred_empty": "Inserisci almeno una credenziale",
   "config.homepage.cred_saved": "{count} credenziale/i salvata/e nel vault",

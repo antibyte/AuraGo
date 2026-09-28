@@ -70,7 +70,7 @@
   "config.webhooks.og_empty": "Aucun webhook sortant configuré. Cliquez sur + pour en ajouter.",
   "config.webhooks.og_headers": "En-têtes",
   "config.webhooks.og_headers_hint": "(un par ligne : Clé : Valeur)",
-  "config.webhooks.og_headers_placeholder": "X-Example: value",
+  "config.webhooks.og_headers_placeholder": "X-Example: valeur",
   "config.webhooks.og_method": "Méthode",
   "config.webhooks.og_name": "Nom",
   "config.webhooks.og_name_hint": "L'agent utilise ce nom exact pour déclencher le webhook.",

@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "メモリ分析は、利用可能な場合、中央の Helper LLM を使用します。そのプロバイダーは Helper 設定で構成します。これらのコントロールは、信頼度しきい値とリフレクション日を設定します。",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "メモリ分析とリフレクション",
   "config.memory_analysis.day_friday": "金曜日",
   "config.memory_analysis.day_monday": "月曜日",
   "config.memory_analysis.day_saturday": "土曜日",

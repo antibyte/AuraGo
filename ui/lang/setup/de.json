@@ -6,7 +6,7 @@
   "setup.feature_music": "Musik",
   "setup.feature_tts": "TTS",
   "setup.feature_unavailable": "Mit diesem Plan nicht verfügbar",
-  "setup.feature_vision": "Vision",
+  "setup.feature_vision": "Bilderkennung",
   "setup.feature_websearch": "Suche",
   "setup.header_subtitle": "Schnellkonfiguration",
   "setup.https_warning": "Du verwendest eine unverschlüsselte HTTP-Verbindung. API-Schlüssel könnten unsicher übertragen werden.",

@@ -18,7 +18,7 @@
   "config.mcp_server.vscode_config": "क्लाइंट कॉन्फ़िगरेशन",
   "config.mcp_server.vscode_config_desc": "लाइव AuraGo इंस्टेंस से MCP क्लाइंट को कनेक्ट करने के लिए इस स्निपेट का उपयोग करें।",
   "config.mcp_server.vscode_bridge_tools": "अनुशंसित ब्रिज टूल",
-  "config.mcp_server.client_selector": "Client",
+  "config.mcp_server.client_selector": "क्लाइंट",
   "config.mcp_server.copy_vscode_config": "कॉन्फ़िगरेशन कॉपी",
   "config.mcp_server.open_client_link": "क्लाइंट लिंक खोलें",
   "config.mcp_server.vscode_token_hint": "बाहरी MCP क्लाइंट को कनेक्ट करने से पहले एक Bearer टोकन जनरेट करें।",

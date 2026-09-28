@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "Analiza pamięci używa centralnego Helper LLM, gdy jest dostępny. Skonfiguruj jego dostawcę w ustawieniach Helper. Te kontrolki ustawiają próg pewności i dzień refleksji.",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "Analiza pamięci i refleksja",
   "config.memory_analysis.day_friday": "Piątek",
   "config.memory_analysis.day_monday": "Poniedziałek",
   "config.memory_analysis.day_saturday": "Sobota",

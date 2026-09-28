@@ -6,7 +6,7 @@
   "config.video_download.send_enabled_label": "Send YouTube-afspiller til chat",
   "config.video_download.mode_label": "Kørselstilstand",
   "config.video_download.mode_docker": "Docker-sidecar",
-  "config.video_download.mode_native": "Native yt-dlp",
+  "config.video_download.mode_native": "Nativ yt-dlp",
   "config.video_download.allow_download_label": "Tillad downloads",
   "config.video_download.allow_transcribe_label": "Tillad transskription",
   "config.video_download.download_dir_label": "Downloadmappe",

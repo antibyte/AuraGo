@@ -90,7 +90,7 @@
   "config.music_gen.bpm": "BPM",
   "config.music_gen.vocal_language": "Sångspråk",
   "config.music_gen.seed": "Seed (tomt = slumpmässigt)",
-  "config.music_gen.local_provider": "ACE-Step 1.5 — local",
+  "config.music_gen.local_provider": "ACE-Step 1.5 — lokal",
   "config.music_gen.local_help": "Spara startar installation och ljudtest. Docker med skrivåtkomst krävs. CPU måste väljas uttryckligen. Modeller behålls vid stopp.",
   "config.music_gen.state_disabled": "Inaktiverad",
   "config.music_gen.state_probing": "Kontrollerar hårdvara",

@@ -27,7 +27,7 @@
   "config.go2rtc.remove": "हटाएँ",
   "config.go2rtc.add_stream": "स्ट्रीम जोड़ें",
   "config.go2rtc.advanced": "उन्नत sidecar सेटिंग",
-  "config.go2rtc.image": "Docker image",
+  "config.go2rtc.image": "Docker इमेज",
   "config.go2rtc.container_name": "कंटेनर नाम",
   "config.go2rtc.url": "आंतरिक API URL",
   "config.go2rtc.api_host_port": "Loopback API पोर्ट",

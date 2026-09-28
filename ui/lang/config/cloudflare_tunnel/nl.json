@@ -37,7 +37,7 @@
   "config.cloudflare_tunnel.auth_named_tunnel": "Benoemde tunnel",
   "config.cloudflare_tunnel.auth_quick_tunnel": "Snelle tunnel (TryCloudflare)",
   "config.cloudflare_tunnel.log_info": "Info",
-  "config.cloudflare_tunnel.log_debug": "Debug",
+  "config.cloudflare_tunnel.log_debug": "Foutopsporing",
   "config.cloudflare_tunnel.log_warn": "Waarschuwing",
   "config.cloudflare_tunnel.log_error": "Fout",
   "config.cloudflare_tunnel.general_title": "Algemeen",

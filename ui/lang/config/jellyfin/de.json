@@ -4,7 +4,7 @@
   "config.jellyfin.destructive_label": "Zerstörerische Operationen erlauben",
   "config.jellyfin.https_label": "HTTPS verwenden",
   "config.jellyfin.insecure_label": "Selbstsignierte Zertifikate akzeptieren",
-  "config.jellyfin.host_label": "Jellyfin Host",
+  "config.jellyfin.host_label": "Jellyfin-Host",
   "config.jellyfin.port_label": "Port",
   "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "API-Key (Vault)",

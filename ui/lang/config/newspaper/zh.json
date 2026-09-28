@@ -1,5 +1,5 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "报纸",
   "config.section.newspaper.desc": "个人每日来源版本",
   "config.newspaper.enabled": "启用报纸",
   "config.newspaper.readonly": "只读模式",

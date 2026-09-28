@@ -7,7 +7,7 @@
   "config.document_creator.enabled_label": "Povoleno",
   "config.document_creator.gotenberg_timeout_label": "Časový limit",
   "config.document_creator.gotenberg_title": "🐳 Götenberg",
-  "config.document_creator.gotenberg_url_label": "Gotenberg URL",
+  "config.document_creator.gotenberg_url_label": "URL Gotenberg",
   "config.document_creator.loading": "Načítání…",
   "config.document_creator.output_dir_label": "Výstupní adresář",
   "config.document_creator.seconds": "sekund",

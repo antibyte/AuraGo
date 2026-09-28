@@ -40,7 +40,7 @@
   "config.security_proxy.btn_reload": "Ladda om",
   "config.security_proxy.btn_start": "Starta",
   "config.security_proxy.btn_stop": "Stoppa",
-  "config.security_proxy.burst_label": "Burst",
+  "config.security_proxy.burst_label": "Skur",
   "config.security_proxy.disabled_desc": "Aktivera för att distribuera en hanterad Caddy omvänd proxy i Docker med automatisk TLS, hastighetsbegränsning, IP-filtrering och mer.",
   "config.security_proxy.disabled_notice": "Säkerhetsproxy är inaktiverad",
   "config.security_proxy.docker_host_hint": "lämna tomt för automatisk detektering",

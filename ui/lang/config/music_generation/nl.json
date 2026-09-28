@@ -90,7 +90,7 @@
   "config.music_gen.bpm": "BPM",
   "config.music_gen.vocal_language": "Zangtaal",
   "config.music_gen.seed": "Seed (leeg = willekeurig)",
-  "config.music_gen.local_provider": "ACE-Step 1.5 — local",
+  "config.music_gen.local_provider": "ACE-Step 1.5 — lokaal",
   "config.music_gen.local_help": "Opslaan start installatie en audiotest. Docker met schrijftoegang is vereist. CPU moet expliciet worden gekozen. Stoppen behoudt de modellen.",
   "config.music_gen.state_disabled": "Uitgeschakeld",
   "config.music_gen.state_probing": "Hardware controleren",

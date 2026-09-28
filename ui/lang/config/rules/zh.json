@@ -33,7 +33,7 @@
   "config.rules.load_failed": "规则加载失败",
   "config.rules.save_failed": "规则保存失败",
   "config.rules.restored": "规则已恢复",
-  "config.rules.design_title": "Homepage DESIGN.md",
+  "config.rules.design_title": "主页 DESIGN.md",
   "config.rules.enabled": "已启用",
   "config.rules.rule_title": "标题",
   "config.rules.inactive": "停用",

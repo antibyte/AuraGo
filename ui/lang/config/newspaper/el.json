@@ -1,5 +1,5 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "Εφημερίδα",
   "config.section.newspaper.desc": "Μια προσωπική, καθημερινή έκδοση με πηγή",
   "config.newspaper.enabled": "Ενεργοποίηση εφημερίδας",
   "config.newspaper.readonly": "Λειτουργία μόνο για ανάγνωση",

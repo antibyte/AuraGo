@@ -18,7 +18,7 @@
   "config.mcp_server.vscode_config": "Configuração do cliente",
   "config.mcp_server.vscode_config_desc": "Use este trecho para conectar um cliente MCP à instância AuraGo ativa.",
   "config.mcp_server.vscode_bridge_tools": "Ferramentas ponte recomendadas",
-  "config.mcp_server.client_selector": "Client",
+  "config.mcp_server.client_selector": "Cliente",
   "config.mcp_server.copy_vscode_config": "Copiar configuração",
   "config.mcp_server.open_client_link": "Abrir link do cliente",
   "config.mcp_server.vscode_token_hint": "Gere um token Bearer antes de conectar um cliente MCP externo.",

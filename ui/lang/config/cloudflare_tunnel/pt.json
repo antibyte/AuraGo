@@ -37,7 +37,7 @@
   "config.cloudflare_tunnel.auth_named_tunnel": "Túnel nomeado",
   "config.cloudflare_tunnel.auth_quick_tunnel": "Túnel rápido (TryCloudflare)",
   "config.cloudflare_tunnel.log_info": "Informação",
-  "config.cloudflare_tunnel.log_debug": "Debug",
+  "config.cloudflare_tunnel.log_debug": "Depuração",
   "config.cloudflare_tunnel.log_warn": "Aviso",
   "config.cloudflare_tunnel.log_error": "Erro",
   "config.cloudflare_tunnel.general_title": "Geral",
@@ -57,7 +57,7 @@
   "config.cloudflare_tunnel.tunnel_name_help": "Nome do túnel nomeado na Cloudflare. Obrigatório apenas para túneis nomeados.",
   "config.cloudflare_tunnel.account_id_help": "ID opcional da conta Cloudflare utilizado pelas operações de túneis nomeados.",
   "config.cloudflare_tunnel.metrics_port_help": "Porta local de métricas do cloudflared. Utilize 0 para desativar as métricas.",
-  "config.cloudflare_tunnel.log_level_help": "Controls how much cloudflared logging AuraGo records.",
+  "config.cloudflare_tunnel.log_level_help": "Controla a quantidade de logs do cloudflared que o AuraGo registra.",
   "config.cloudflare_tunnel.expose_web_ui_help": "Encaminha a interface web do AuraGo através do túnel.",
   "config.cloudflare_tunnel.expose_homepage_help": "Encaminha o servidor web Homepage através do túnel.",
   "config.cloudflare_tunnel.expose_target_help": "Escolha o único serviço local utilizado por túneis de token ou túneis rápidos."

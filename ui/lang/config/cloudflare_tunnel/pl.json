@@ -57,7 +57,7 @@
   "config.cloudflare_tunnel.tunnel_name_help": "Nazwa nazwanego tunelu w Cloudflare. Wymagana tylko dla nazwanych tuneli.",
   "config.cloudflare_tunnel.account_id_help": "Opcjonalny identyfikator konta Cloudflare używany przez operacje na nazwanych tunelach.",
   "config.cloudflare_tunnel.metrics_port_help": "Lokalny port metryk dla cloudflared. Użyj 0, aby wyłączyć metryki.",
-  "config.cloudflare_tunnel.log_level_help": "Controls how much cloudflared logging AuraGo records.",
+  "config.cloudflare_tunnel.log_level_help": "Określa, ile logów cloudflared rejestruje AuraGo.",
   "config.cloudflare_tunnel.expose_web_ui_help": "Kieruje interfejs webowy AuraGo przez tunel.",
   "config.cloudflare_tunnel.expose_homepage_help": "Kieruje serwer webowy Homepage przez tunel.",
   "config.cloudflare_tunnel.expose_target_help": "Wybierz pojedynczą usługę lokalną używaną przez tunele tokenowe lub szybkie tunele."

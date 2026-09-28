@@ -48,7 +48,7 @@
   "config.truenas.connection_failed": "Verbinding mislukt",
   "config.truenas.destructive_label": "Destructieve operaties toestaan",
   "config.truenas.enabled_label": "Ingeschakeld",
-  "config.truenas.host_label": "TrueNAS Host",
+  "config.truenas.host_label": "TrueNAS-host",
   "config.truenas.https_label": "Gebruik HTTPS",
   "config.truenas.insecure_label": "Zelfondertekende certificaten accepteren",
   "config.truenas.open_ui": "TrueNAS-beheer openen",

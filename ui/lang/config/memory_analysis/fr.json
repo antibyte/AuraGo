@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "L'analyse de la mémoire utilise le LLM Helper central lorsqu'il est disponible. Configurez son fournisseur dans les paramètres Helper. Ces réglages définissent le seuil de confiance et le jour de réflexion.",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "Analyse de la mémoire et réflexion",
   "config.memory_analysis.day_friday": "Vendredi",
   "config.memory_analysis.day_monday": "Lundi",
   "config.memory_analysis.day_saturday": "Samedi",

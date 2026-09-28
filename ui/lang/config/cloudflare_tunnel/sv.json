@@ -37,7 +37,7 @@
   "config.cloudflare_tunnel.auth_named_tunnel": "Namngett tunnel",
   "config.cloudflare_tunnel.auth_quick_tunnel": "Snabb tunnel (TryCloudflare)",
   "config.cloudflare_tunnel.log_info": "Info",
-  "config.cloudflare_tunnel.log_debug": "Debug",
+  "config.cloudflare_tunnel.log_debug": "Felsökning",
   "config.cloudflare_tunnel.log_warn": "Varning",
   "config.cloudflare_tunnel.log_error": "Fel",
   "config.cloudflare_tunnel.general_title": "Allmänt",
@@ -57,7 +57,7 @@
   "config.cloudflare_tunnel.tunnel_name_help": "Namn på den namngivna tunneln i Cloudflare. Krävs endast för namngivna tunnlar.",
   "config.cloudflare_tunnel.account_id_help": "Valfritt Cloudflare-konto-ID som används vid åtgärder för namngivna tunnlar.",
   "config.cloudflare_tunnel.metrics_port_help": "Lokal mätvärdesport för cloudflared. Använd 0 för att inaktivera mätvärden.",
-  "config.cloudflare_tunnel.log_level_help": "Controls how much cloudflared logging AuraGo records.",
+  "config.cloudflare_tunnel.log_level_help": "Styr hur mycket cloudflared-loggning AuraGo registrerar.",
   "config.cloudflare_tunnel.expose_web_ui_help": "Dirigerar AuraGos webbgränssnitt genom tunneln.",
   "config.cloudflare_tunnel.expose_homepage_help": "Dirigerar webbservern Homepage genom tunneln.",
   "config.cloudflare_tunnel.expose_target_help": "Välj den enda lokala tjänsten som används av token- eller snabbtunnlar."

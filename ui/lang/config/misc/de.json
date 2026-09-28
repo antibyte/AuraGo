@@ -28,7 +28,7 @@
   "config.llm.multimodal_banner": "Multimodal (Bilder): Wenn aktiviert, können im Chat hochgeladene Bilder direkt an das Hauptmodell gesendet werden.",
   "config.loading": "Lade Konfiguration...",
   "config.loading_error": "Fehler beim Laden der Konfiguration.",
-  "config.logo_subtitle": "CONFIG",
+  "config.logo_subtitle": "KONFIG",
   "config.master_key.label": "Master-Schlüssel",
   "config.master_key.no_vault": "Kein Vault vorhanden. Neuen Key eingeben, speichern und AuraGo neu starten.",
   "config.master_key.placeholder": "64-stelliger Hex-Key...",

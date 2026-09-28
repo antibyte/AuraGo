@@ -37,7 +37,7 @@
   "config.cloudflare_tunnel.auth_named_tunnel": "Navngitt tunnel",
   "config.cloudflare_tunnel.auth_quick_tunnel": "Hurtigtunnel (TryCloudflare)",
   "config.cloudflare_tunnel.log_info": "Info",
-  "config.cloudflare_tunnel.log_debug": "Debug",
+  "config.cloudflare_tunnel.log_debug": "Feilsøking",
   "config.cloudflare_tunnel.log_warn": "Advarsel",
   "config.cloudflare_tunnel.log_error": "Feil",
   "config.cloudflare_tunnel.general_title": "Generelt",
@@ -57,7 +57,7 @@
   "config.cloudflare_tunnel.tunnel_name_help": "Navn på den navngitte tunnelen i Cloudflare. Påkrevd bare for navngitte tunneler.",
   "config.cloudflare_tunnel.account_id_help": "Valgfri Cloudflare-konto-ID som brukes av operasjoner for navngitte tunneler.",
   "config.cloudflare_tunnel.metrics_port_help": "Lokal metrikkport for cloudflared. Bruk 0 for å deaktivere metrikker.",
-  "config.cloudflare_tunnel.log_level_help": "Controls how much cloudflared logging AuraGo records.",
+  "config.cloudflare_tunnel.log_level_help": "Styrer hvor mye cloudflared-logging AuraGo registrerer.",
   "config.cloudflare_tunnel.expose_web_ui_help": "Ruter AuraGo Web UI gjennom tunnelen.",
   "config.cloudflare_tunnel.expose_homepage_help": "Ruter Homepage-webserveren gjennom tunnelen.",
   "config.cloudflare_tunnel.expose_target_help": "Velg den ene lokale tjenesten som brukes av token- eller hurtigtunneler."

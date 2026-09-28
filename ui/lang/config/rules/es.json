@@ -33,7 +33,7 @@
   "config.rules.load_failed": "No se pudieron cargar las reglas",
   "config.rules.save_failed": "No se pudo guardar la regla",
   "config.rules.restored": "Regla restaurada",
-  "config.rules.design_title": "Homepage DESIGN.md",
+  "config.rules.design_title": "DESIGN.md de la página de inicio",
   "config.rules.enabled": "Activado",
   "config.rules.rule_title": "Título",
   "config.rules.inactive": "Inactivo",

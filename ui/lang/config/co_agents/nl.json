@@ -3,7 +3,7 @@
   "config.co_agents.cb_max_tokens": "Max. tokens (0 = onbeperkt)",
   "config.co_agents.cb_max_tool_calls": "Max. tool-aanroepen",
   "config.co_agents.cb_timeout": "Timeout (seconden)",
-  "config.co_agents.cb_title": "Circuit Breaker",
+  "config.co_agents.cb_title": "Stroomonderbreker",
   "config.co_agents.disabled_desc": "Inschakelen zodat de agent taken kan delegeren aan parallelle sub-agents en specialist-co-agents.",
   "config.co_agents.disabled_notice": "Co-Agents zijn uitgeschakeld",
   "config.co_agents.enabled_desc": "Sta de agent toe om parallelle sub-agents te starten voor complexe taken.",

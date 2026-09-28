@@ -34,7 +34,7 @@
   "config.agentmail.summary_mode": "Režim",
   "config.agentmail.summary_relay": "Předávání",
   "config.agentmail.summary_title": "Souhrn AgentMail",
-  "config.agentmail.summary_transport": "Transport",
+  "config.agentmail.summary_transport": "Přenos",
   "config.agentmail.test_btn": "Otestovat připojení",
   "config.agentmail.test_fail": "Připojení selhalo",
   "config.agentmail.test_ok": "Připojení úspěšné ({count} schránek)",

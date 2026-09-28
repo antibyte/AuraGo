@@ -22,7 +22,7 @@
   "config.adguard.test_btn": "Verbindung testen",
   "config.adguard.test_fail": "Verbindung fehlgeschlagen",
   "config.adguard.test_ok": "Verbindung erfolgreich",
-  "config.adguard.url_label": "AdGuard Home URL",
+  "config.adguard.url_label": "AdGuard Home-URL",
   "config.adguard.username_label": "Benutzername",
   "help.adguard.enabled": "Aktiviert die AdGuard Home Integration. Der Agent kann dann DNS-Statistiken abfragen, Filter, Rewrites, blockierte Dienste und mehr verwalten.",
   "help.adguard.password": "Passwort für die AdGuard Home Authentifizierung. Wird sicher im verschlüsselten Vault gespeichert.",

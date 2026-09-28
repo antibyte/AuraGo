@@ -30,7 +30,7 @@
   "config.ai_gateway.log_mode": "Loggmodus",
   "config.ai_gateway.log_mode_metadata_only": "Kun metadata",
   "config.ai_gateway.log_mode_off": "Av",
-  "config.ai_gateway.log_mode_full": "Full payload",
+  "config.ai_gateway.log_mode_full": "Full nyttelast",
   "config.ai_gateway.request_timeout_ms": "Forespørselstimeout (ms)",
   "config.ai_gateway.max_attempts": "Maks forsøk",
   "config.ai_gateway.retry_delay_ms": "Forsinkelse mellom forsøk (ms)",

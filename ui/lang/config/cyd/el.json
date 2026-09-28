@@ -38,7 +38,7 @@
   "config.cyd.device_url_copied": "Αντιγράφηκε. Εισαγάγετε αυτό το URL στην οθόνη.",
   "config.cyd.device_url_copy_fail": "Αδυναμία αντιγραφής URL",
   "help.cyd.device_url": "Χρησιμοποιήστε ακριβώς αυτό το URL στην οθόνη, με https και θύρα (π.χ. 8443). Μια σκέτη IP θεωρείται HTTP.",
-  "config.cyd.flash_title": "Web flasher",
+  "config.cyd.flash_title": "Εγγραφή μέσω ιστού",
   "config.cyd.flash_help": "Chrome ή Edge, HTTPS ή localhost. Συνδέστε την οθόνη με USB. Το token και το URL γράφονται με το firmware· μένει μόνο το Wi‑Fi.",
   "config.cyd.flash_btn": "Flash οθόνης",
   "config.cyd.flash_install": "Εγκατάσταση firmware",

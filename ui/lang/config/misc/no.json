@@ -15,7 +15,7 @@
   "config.embeddings.reset_restarting": "Gamle embeddinger planlagt for sletting. AuraGo starter på nytt nå…",
   "config.embeddings.reset_title": "Embedding-endring oppdaget",
   "config.group_title.tools.ddg_search": "DuckDuckGo-søk",
-  "config.group_title.tools.pdf_extractor": "PDF Extractor",
+  "config.group_title.tools.pdf_extractor": "PDF-uttrekker",
   "config.group_title.tools.wikipedia": "Wikipedia-søk",
   "config.info_tools.always_active_banner": "Disse basisverktøyene er <strong>alltid aktive</strong> og kan ikke deaktiveres. Du kan bare konfigurere oppførselen deres.",
   "config.loading": "Laster konfigurasjon...",

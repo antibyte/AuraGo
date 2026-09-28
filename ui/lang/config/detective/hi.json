@@ -1,5 +1,5 @@
 {
-  "config.section.detective.label": "Detective",
+  "config.section.detective.label": "डिटेक्टिव",
   "config.section.detective.desc": "सत्यापनीय स्रोतों के साथ शोध",
   "config.detective.enabled": "Detective सक्षम करें",
   "config.detective.iterations": "पुनरावृत्तियाँ",

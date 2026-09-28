@@ -34,7 +34,7 @@
   "config.devices.type_camera": "Kamera",
   "config.devices.type_iot": "IoT",
   "config.devices.type_vm": "VM",
-  "config.devices.type_container": "Container",
+  "config.devices.type_container": "Beholder",
   "config.devices.type_generic": "Generisk",
   "config.devices.col_ip": "IP",
   "config.devices.col_port": "Port",

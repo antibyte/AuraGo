@@ -17,7 +17,7 @@
   "config.llm_guardian.level_high": "Hög — Varje verktygsanrop kontrolleras",
   "config.llm_guardian.failsafe_title": "Felsäkert beteende",
   "config.llm_guardian.failsafe_desc": "Vad som händer när Guardian LLM inte är tillgänglig eller returnerar ett fel (timeout, hastighetsgräns, etc.).",
-  "config.llm_guardian.failsafe_label": "On error",
+  "config.llm_guardian.failsafe_label": "Vid fel",
   "config.llm_guardian.failsafe_block": "Blockera — Neka operationen (säkrast)",
   "config.llm_guardian.failsafe_quarantine": "Karantän — Tillåt men logga och varna",
   "config.llm_guardian.failsafe_allow": "Tillåt — Hoppa över kontroll (minst säkert)",

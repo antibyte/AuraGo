@@ -1,5 +1,5 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "समाचार पत्र",
   "config.section.newspaper.desc": "एक व्यक्तिगत, स्रोतयुक्त दैनिक संस्करण",
   "config.newspaper.enabled": "समाचार पत्र सक्षम करें",
   "config.newspaper.readonly": "केवल पढ़ने योग्य मोड",

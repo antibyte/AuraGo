@@ -79,7 +79,7 @@
   "config.indexing.indexed_documents": "Ευρετηριασμένα έγγραφα",
   "config.indexing.chunking_strategy": "Στρατηγική τεμαχισμού",
   "config.indexing.chunking_recursive": "Αναδρομική",
-  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_legacy": "Παλαιού τύπου",
   "config.indexing.chunking_help": "Ο αναδρομικός τεμαχισμός σέβεται επικεφαλίδες Markdown, παραγράφους, λίστες, πίνακες και μπλοκ κώδικα.",
   "config.indexing.chunk_max_chars": "Μέγ. χαρακτήρες ανά chunk",
   "config.indexing.chunk_overlap_chars": "Επικάλυψη χαρακτήρων",

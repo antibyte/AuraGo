@@ -79,7 +79,7 @@
   "config.indexing.indexed_documents": "Documentos indexados",
   "config.indexing.chunking_strategy": "Estrategia de fragmentación",
   "config.indexing.chunking_recursive": "Recursiva",
-  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_legacy": "Heredado",
   "config.indexing.chunking_help": "La fragmentación recursiva respeta encabezados Markdown, párrafos, listas, tablas y bloques de código.",
   "config.indexing.chunk_max_chars": "Máx. caracteres por fragmento",
   "config.indexing.chunk_overlap_chars": "Solapamiento de caracteres",

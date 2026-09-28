@@ -42,7 +42,7 @@
   "config.a2a.save_vault": "Uložit do Vaultu",
   "config.a2a.saved": "Uloženo do Vaultu",
   "config.a2a.server_enabled": "Server povolen",
-  "config.a2a.server_title": "A2A Server",
+  "config.a2a.server_title": "Server A2A",
   "config.a2a.skill_description": "Popis",
   "config.a2a.skill_name": "Název",
   "config.a2a.skills_desc": "Inzerované dovednosti v kartě agenta. Pokud jsou prázdné, vytvoří se výchozí dovednost.",

@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "A análise de memória utiliza o Helper LLM central quando está disponível. Configure o respetivo fornecedor nas definições do Helper. Estes controlos definem o limiar de confiança e o dia de reflexão.",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "Análise de memória e reflexão",
   "config.memory_analysis.day_friday": "Sexta-feira",
   "config.memory_analysis.day_monday": "Segunda-feira",
   "config.memory_analysis.day_saturday": "Sábado",
@@ -40,7 +40,7 @@
   "config.memory_analysis.reflection_title": "Reflexão semanal",
   "config.memory_analysis.select_provider": "— LLM principal (padrão) —",
   "config.memory_analysis.threshold_desc": "Limite de confiança (0,0–1,0) acima do qual as memórias extraídas são armazenadas automaticamente sem confirmação do usuário. Valores mais baixos são armazenados de forma mais agressiva.",
-  "config.memory_analysis.threshold_label": "Threshold",
+  "config.memory_analysis.threshold_label": "Limiar",
   "config.memory_analysis.threshold_title": "Limiar de confirmação automática",
   "config.memory_analysis.unified_block_help": "Combina memórias importantes recentes num único bloco de contexto compacto em vez de listá-las individualmente. Reduz o uso de tokens mantendo toda a informação relevante acessível.",
   "config.memory_analysis.unified_block_label": "Bloco de memória unificado"

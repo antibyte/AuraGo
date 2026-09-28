@@ -18,7 +18,7 @@
   "config.mcp_server.vscode_config": "客户端配置",
   "config.mcp_server.vscode_config_desc": "使用此代码片段将 MCP 客户端连接到活动的 AuraGo 实例。",
   "config.mcp_server.vscode_bridge_tools": "推荐的桥接工具",
-  "config.mcp_server.client_selector": "Client",
+  "config.mcp_server.client_selector": "客户端",
   "config.mcp_server.copy_vscode_config": "复制配置",
   "config.mcp_server.open_client_link": "打开客户端链接",
   "config.mcp_server.vscode_token_hint": "在连接外部 MCP 客户端之前，请先生成 Bearer 令牌。",

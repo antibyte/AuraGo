@@ -33,7 +33,7 @@
   "config.rules.load_failed": "Αποτυχία φόρτωσης κανόνων",
   "config.rules.save_failed": "Αποτυχία αποθήκευσης κανόνα",
   "config.rules.restored": "Ο κανόνας επαναφέρθηκε",
-  "config.rules.design_title": "Homepage DESIGN.md",
+  "config.rules.design_title": "DESIGN.md αρχικής σελίδας",
   "config.rules.enabled": "Ενεργό",
   "config.rules.rule_title": "Τίτλος",
   "config.rules.inactive": "Ανενεργό",

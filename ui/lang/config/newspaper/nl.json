@@ -1,5 +1,5 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "Krant",
   "config.section.newspaper.desc": "Een persoonlijke, verzorgde dagelijkse editie",
   "config.newspaper.enabled": "Krant inschakelen",
   "config.newspaper.readonly": "Alleen-lezen-modus",

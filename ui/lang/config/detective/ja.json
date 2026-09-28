@@ -1,5 +1,5 @@
 {
-  "config.section.detective.label": "Detective",
+  "config.section.detective.label": "探偵",
   "config.section.detective.desc": "出典を確認できる調査",
   "config.detective.enabled": "Detective を有効にする",
   "config.detective.iterations": "反復回数",

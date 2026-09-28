@@ -7,7 +7,7 @@
   "config.document_creator.enabled_label": "Aktivert",
   "config.document_creator.gotenberg_timeout_label": "Tidsavbrudd",
   "config.document_creator.gotenberg_title": "🐳 Göteborg",
-  "config.document_creator.gotenberg_url_label": "Gotenberg URL",
+  "config.document_creator.gotenberg_url_label": "Gotenberg-URL",
   "config.document_creator.loading": "Laster…",
   "config.document_creator.output_dir_label": "Utdatakatalog",
   "config.document_creator.seconds": "sekunder",

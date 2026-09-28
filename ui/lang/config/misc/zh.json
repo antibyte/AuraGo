@@ -15,7 +15,7 @@
   "config.embeddings.reset_restarting": "旧嵌入已计划删除。AuraGo 正在重启…",
   "config.embeddings.reset_title": "检测到嵌入变化",
   "config.group_title.tools.ddg_search": "DuckDuckGo 搜索",
-  "config.group_title.tools.pdf_extractor": "PDF Extractor",
+  "config.group_title.tools.pdf_extractor": "PDF 提取器",
   "config.group_title.tools.wikipedia": "Wikipedia 搜索",
   "config.info_tools.always_active_banner": "这些基础工具<strong>始终处于活动状态</strong>，无法禁用。您只能配置它们的行为。",
   "config.loading": "正在加载配置...",

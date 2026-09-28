@@ -110,7 +110,7 @@
   "invasion.route_config": "Route Config (JSON, optioneel)",
   "invasion.route_custom": "Aangepast",
   "invasion.route_direct": "Direct",
-  "invasion.route_ssh_tunnel": "SSH Tunnel",
+  "invasion.route_ssh_tunnel": "SSH-tunnel",
   "invasion.route_tailscale": "Tailscale",
   "invasion.route_wireguard": "WireGuard",
   "invasion.save": "Opslaan",

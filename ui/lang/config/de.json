@@ -108,7 +108,7 @@
   "config.sip.readonly": "Nur-Lesen-Modus",
   "config.sip.realtime_profile": "ID des Realtime-Profils",
   "config.sip.register_expires": "Gültigkeitsdauer der Registrierung (Sekunden)",
-  "config.sip.registrar": "Registrar",
+  "config.sip.registrar": "Registrierungsserver",
   "config.sip.route_agent": "Sprachagent",
   "config.sip.route_manual": "Manuelles Telefon",
   "config.sip.route_reject": "Ablehnen",

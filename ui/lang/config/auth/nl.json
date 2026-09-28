@@ -9,7 +9,7 @@
   "config.auth.lockout_duration": "Lockout duur",
   "config.auth.lockout_minutes": "🔒 Uitsluiting (min)",
   "config.auth.login_first": "Log eerst in.",
-  "config.auth.login_guard_title": "Login Guard",
+  "config.auth.login_guard_title": "Aanmeldbeveiliging",
   "config.auth.manual_key": "Handmatige key",
   "config.auth.max_attempts": "🚫 Max Pogingen",
   "config.auth.network_error": "Netwerkfout.",

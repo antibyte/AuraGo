@@ -35,7 +35,7 @@
   "config.devices.type_iot": "IoT",
   "config.devices.type_vm": "VM",
   "config.devices.type_container": "Container",
-  "config.devices.type_generic": "Generic",
+  "config.devices.type_generic": "Generico",
   "config.devices.col_ip": "IP",
   "config.devices.col_port": "Porta",
   "config.devices.col_mac": "MAC",

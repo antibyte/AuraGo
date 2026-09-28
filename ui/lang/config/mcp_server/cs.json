@@ -18,7 +18,7 @@
   "config.mcp_server.vscode_config": "Konfigurace klienta",
   "config.mcp_server.vscode_config_desc": "Tento úryvek použijte pro připojení MCP klienta k běžící instanci AuraGo.",
   "config.mcp_server.vscode_bridge_tools": "Doporučené mostní nástroje",
-  "config.mcp_server.client_selector": "Client",
+  "config.mcp_server.client_selector": "Klient",
   "config.mcp_server.copy_vscode_config": "Kopírovat konfiguraci",
   "config.mcp_server.open_client_link": "Otevřít odkaz klienta",
   "config.mcp_server.vscode_token_hint": "Před připojením externího MCP klienta vygenerujte Bearer token.",

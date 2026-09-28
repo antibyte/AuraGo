@@ -68,7 +68,7 @@
   "config.webdav.token_placeholder": "Introduza o token bearer…",
   "config.webdav.token_save_failed": "Falha ao guardar o token bearer do WebDAV no Vault.",
   "config.webdav.token_saved": "Token bearer do WebDAV guardado no Vault.",
-  "config.webdav.url_label": "WebDAV URL",
+  "config.webdav.url_label": "URL do WebDAV",
   "config.webdav.username_label": "Nome de usuário",
   "config.webdav.checking": "Verificando conexão…",
   "config.webdav.loading": "Testando…",

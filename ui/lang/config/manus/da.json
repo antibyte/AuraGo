@@ -18,7 +18,7 @@
   "config.manus.catalog_empty": "Ingen ressourcer fundet",
   "config.manus.catalog_load_failed": "Manus-ressourcer kunne ikke indlæses",
   "config.manus.catalog_not_loaded": "Indlæs kataloget for at vælge ressourcer",
-  "config.manus.credits": "Credits: {{count}}",
+  "config.manus.credits": "Kreditter: {{count}}",
   "config.manus.danger_confirm": "Du aktiverer en tilladelse, som kan ændre data eller sende filer til Manus. Fortsæt?",
   "config.manus.danger_confirm_title": "Aktivér Manus-skriveadgang?",
   "config.manus.default_agent_profile": "Standardagentprofil",

@@ -33,7 +33,7 @@
   "config.rules.load_failed": "ルールの読み込みに失敗しました",
   "config.rules.save_failed": "ルールの保存に失敗しました",
   "config.rules.restored": "ルールを復元しました",
-  "config.rules.design_title": "Homepage DESIGN.md",
+  "config.rules.design_title": "ホームページ DESIGN.md",
   "config.rules.enabled": "有効",
   "config.rules.rule_title": "タイトル",
   "config.rules.inactive": "無効",

@@ -1,6 +1,6 @@
 {
   "config.ldap.base_dn_label": "Základní DN",
-  "config.ldap.bind_dn_label": "Bind DN",
+  "config.ldap.bind_dn_label": "Vazební DN",
   "config.ldap.bind_password_label": "Svázat heslo (Sejf)",
   "config.ldap.password_placeholder": "Zadejte bind heslo…",
   "config.ldap.enabled_label": "Povoleno",

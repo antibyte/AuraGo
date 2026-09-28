@@ -22,7 +22,7 @@
   "config.go2rtc.stream_name": "Weergavenaam",
   "config.go2rtc.stream_name_placeholder": "Camera",
   "config.go2rtc.source": "Bron-URL",
-  "config.go2rtc.snapshot": "Snapshot",
+  "config.go2rtc.snapshot": "Momentopname",
   "config.go2rtc.viewer": "Viewer openen",
   "config.go2rtc.remove": "Verwijderen",
   "config.go2rtc.add_stream": "Stream toevoegen",

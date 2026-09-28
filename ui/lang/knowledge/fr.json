@@ -111,7 +111,7 @@
   "knowledge.devices_col_mac": "MAC",
   "knowledge.devices_col_name": "Nom",
   "knowledge.devices_col_port": "Port",
-  "knowledge.devices_col_tags": "Tags",
+  "knowledge.devices_col_tags": "Étiquettes",
   "knowledge.devices_col_type": "Genre",
   "knowledge.devices_col_user": "Utilisateur",
   "knowledge.devices_delete_confirm": "Êtes-vous sûr de vouloir supprimer l'appareil \"{name}\" ?",

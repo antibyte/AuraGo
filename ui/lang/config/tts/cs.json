@@ -77,7 +77,7 @@
   "config.tts.supertonic_format_wav": "WAV",
   "config.tts.supertonic_format_flac": "FLAC",
   "config.tts.supertonic_format_ogg": "Ogg Vorbis",
-  "config.tts.supertonic_image_label": "Docker image",
+  "config.tts.supertonic_image_label": "Obraz Dockeru",
   "config.tts.supertonic_port_label": "Port kontejneru",
   "config.tts.supertonic_data_path_label": "Datová cesta",
   "config.tts.supertonic_container_name_label": "Název kontejneru",

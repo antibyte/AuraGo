@@ -65,7 +65,7 @@
   "config.security_proxy.logs_title": "Logs do contêiner",
   "config.security_proxy.rate_limit_desc": "Limite as solicitações por cliente IP para proteção contra abusos.",
   "config.security_proxy.rate_limit_enabled_label": "Habilitar limitação de taxa",
-  "config.security_proxy.rate_limit_title": "Rate Limiting",
+  "config.security_proxy.rate_limit_title": "Limitação de taxa",
   "config.security_proxy.route_domain": "Domínio",
   "config.security_proxy.route_name": "Nome",
   "config.security_proxy.route_upstream": "URL upstream",

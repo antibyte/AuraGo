@@ -1,5 +1,5 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "新聞",
   "config.section.newspaper.desc": "個人的な情報源に基づいた日刊版",
   "config.newspaper.enabled": "新聞を有効にする",
   "config.newspaper.readonly": "読み取り専用モード",

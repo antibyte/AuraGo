@@ -32,7 +32,7 @@
   "config.agentmail.status_ready": "AgentMail er konfigureret",
   "config.agentmail.summary_inbox": "Indbakke",
   "config.agentmail.summary_mode": "Tilstand",
-  "config.agentmail.summary_relay": "Relay",
+  "config.agentmail.summary_relay": "Relæ",
   "config.agentmail.summary_title": "AgentMail-oversigt",
   "config.agentmail.summary_transport": "Transport",
   "config.agentmail.test_btn": "Test forbindelse",

@@ -1,8 +1,8 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "Avis",
   "config.section.newspaper.desc": "En personlig, hentet daglig udgave",
   "config.newspaper.enabled": "Aktiver Avis",
-  "config.newspaper.readonly": "Read-only mode",
+  "config.newspaper.readonly": "Skrivebeskyttet tilstand",
   "config.newspaper.allow_email": "Tillad levering af e-mail",
   "config.newspaper.allow_telegram": "Tillad telegramlevering",
   "config.newspaper.max_minutes": "Tidsgrænse for forskning (minutter)",

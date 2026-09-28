@@ -1,5 +1,5 @@
 {
-  "config.section.detective.label": "Detective",
+  "config.section.detective.label": "Ντετέκτιβ",
   "config.section.detective.desc": "Έρευνες με επαληθεύσιμες πηγές",
   "config.detective.enabled": "Ενεργοποίηση Detective",
   "config.detective.iterations": "Επαναλήψεις",

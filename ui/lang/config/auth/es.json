@@ -9,7 +9,7 @@
   "config.auth.lockout_duration": "Duración del bloqueo",
   "config.auth.lockout_minutes": "🔒 Bloqueo (min)",
   "config.auth.login_first": "Por favor, inicia sesión primero.",
-  "config.auth.login_guard_title": "Login Guard",
+  "config.auth.login_guard_title": "Protección de inicio de sesión",
   "config.auth.manual_key": "Clave manual",
   "config.auth.max_attempts": "🚫 Intentos Máximos",
   "config.auth.network_error": "Error de red.",

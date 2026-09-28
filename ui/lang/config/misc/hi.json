@@ -18,7 +18,7 @@
   "config.embeddings.reset_restarting": "पुराने एम्बेडिंग हटाने के लिए निर्धारित। AuraGo अब पुनरारंभ हो रहा है…",
   "config.embeddings.reset_title": "एम्बेडिंग परिवर्तन पाया गया",
   "config.group_title.tools.ddg_search": "DuckDuckGo खोज",
-  "config.group_title.tools.pdf_extractor": "PDF Extractor",
+  "config.group_title.tools.pdf_extractor": "PDF एक्सट्रैक्टर",
   "config.group_title.tools.wikipedia": "Wikipedia खोज",
   "config.info_tools.always_active_banner": "ये बेस टूल <strong>हमेशा सक्रिय</strong> हैं और इन्हें अक्षम नहीं किया जा सकता। आप केवल उनके व्यवहार को कॉन्फ़िगर कर सकते हैं।",
   "config.llm.helper_disabled_banner": "सहायक LLM अक्षम है। कई निर्भर विश्लेषण और पृष्ठभूमि सुविधाएं पूरी तरह से काम नहीं करेंगी, और AuraGo इसके बिना अपनी पूरी क्षमता का उपयोग नहीं कर सकता।",

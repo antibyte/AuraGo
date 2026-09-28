@@ -48,7 +48,7 @@
   "config.truenas.connection_failed": "Připojení se nezdařilo",
   "config.truenas.destructive_label": "Povolit destruktivní operace",
   "config.truenas.enabled_label": "Povoleno",
-  "config.truenas.host_label": "TrueNAS Host",
+  "config.truenas.host_label": "Hostitel TrueNAS",
   "config.truenas.https_label": "Použít HTTPS",
   "config.truenas.insecure_label": "Přijmout vlastní certifikáty",
   "config.truenas.open_ui": "Otevřít TrueNAS Management",

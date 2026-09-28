@@ -90,7 +90,7 @@
   "config.music_gen.bpm": "BPM",
   "config.music_gen.vocal_language": "Jazyk zpěvu",
   "config.music_gen.seed": "Seed (prázdné = náhodný)",
-  "config.music_gen.local_provider": "ACE-Step 1.5 — local",
+  "config.music_gen.local_provider": "ACE-Step 1.5 — místní",
   "config.music_gen.local_help": "Uložení spustí instalaci a zvukový test. Je nutný Docker s právem zápisu. CPU zvolte výslovně. Zastavení zachová modely.",
   "config.music_gen.state_disabled": "Vypnuto",
   "config.music_gen.state_probing": "Kontrola hardwaru",

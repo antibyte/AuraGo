@@ -33,7 +33,7 @@
   "config.rules.load_failed": "Kunde inte läsa in regler",
   "config.rules.save_failed": "Kunde inte spara regel",
   "config.rules.restored": "Regel återställd",
-  "config.rules.design_title": "Homepage DESIGN.md",
+  "config.rules.design_title": "Startsida DESIGN.md",
   "config.rules.enabled": "Aktiverad",
   "config.rules.rule_title": "Titel",
   "config.rules.inactive": "Inaktiv",

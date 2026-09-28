@@ -33,7 +33,7 @@
   "config.rules.load_failed": "Kunne ikke indlæse regler",
   "config.rules.save_failed": "Kunne ikke gemme regel",
   "config.rules.restored": "Regel gendannet",
-  "config.rules.design_title": "Homepage DESIGN.md",
+  "config.rules.design_title": "Hjemmeside DESIGN.md",
   "config.rules.enabled": "Aktiveret",
   "config.rules.rule_title": "Titel",
   "config.rules.inactive": "Inaktiv",

@@ -15,7 +15,7 @@
   "config.embeddings.reset_restarting": "Embeddings antigos agendados para exclusão. AuraGo está reiniciando agora…",
   "config.embeddings.reset_title": "Mudança de embeddings detectada",
   "config.group_title.tools.ddg_search": "Pesquisa DuckDuckGo",
-  "config.group_title.tools.pdf_extractor": "PDF Extractor",
+  "config.group_title.tools.pdf_extractor": "Extrator de PDF",
   "config.group_title.tools.wikipedia": "Pesquisa na Wikipédia",
   "config.info_tools.always_active_banner": "Estas ferramentas base estão <strong>sempre ativas</strong> e não podem ser desativadas. Você só pode configurar o seu comportamento.",
   "config.loading": "Carregando configuração...",

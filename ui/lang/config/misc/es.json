@@ -18,7 +18,7 @@
   "config.embeddings.reset_restarting": "Embeddings antiguos programados para eliminación. AuraGo se está reiniciando…",
   "config.embeddings.reset_title": "Cambio de embeddings detectado",
   "config.group_title.tools.ddg_search": "Búsqueda DuckDuckGo",
-  "config.group_title.tools.pdf_extractor": "PDF Extractor",
+  "config.group_title.tools.pdf_extractor": "Extractor de PDF",
   "config.group_title.tools.wikipedia": "Búsqueda en Wikipedia",
   "config.info_tools.always_active_banner": "Estas herramientas base están <strong>siempre activas</strong> y no se pueden desactivar. Solo puedes configurar su comportamiento.",
   "config.llm.helper_disabled_banner": "El LLM auxiliar está desactivado. Muchas funciones de análisis y segundo plano dependientes no funcionarán completamente, y AuraGo no puede aprovechar todo su potencial sin él.",

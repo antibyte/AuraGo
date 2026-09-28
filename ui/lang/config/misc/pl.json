@@ -15,7 +15,7 @@
   "config.embeddings.reset_restarting": "Stare osadzenia zaplanowane do usunięcia. AuraGo uruchamia się ponownie…",
   "config.embeddings.reset_title": "Wykryto zmianę osadzeń",
   "config.group_title.tools.ddg_search": "Wyszukiwarka DuckDuckGo",
-  "config.group_title.tools.pdf_extractor": "PDF Extractor",
+  "config.group_title.tools.pdf_extractor": "Ekstraktor PDF",
   "config.group_title.tools.wikipedia": "Wyszukiwanie w Wikipedii",
   "config.info_tools.always_active_banner": "Te podstawowe narzędzia są <strong>zawsze aktywne</strong> i nie można ich wyłączyć. Możesz tylko konfigurować ich zachowanie.",
   "config.loading": "Ładowanie konfiguracji...",

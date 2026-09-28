@@ -1,5 +1,5 @@
 {
-  "config.section.detective.label": "Detective",
+  "config.section.detective.label": "Detektiv",
   "config.section.detective.desc": "Undersökningar med spårbara källor",
   "config.detective.enabled": "Aktivera Detective",
   "config.detective.iterations": "Iterationer",

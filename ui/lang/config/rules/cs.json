@@ -33,7 +33,7 @@
   "config.rules.load_failed": "Načtení pravidel selhalo",
   "config.rules.save_failed": "Uložení pravidla selhalo",
   "config.rules.restored": "Pravidlo obnoveno",
-  "config.rules.design_title": "Homepage DESIGN.md",
+  "config.rules.design_title": "DESIGN.md domovské stránky",
   "config.rules.enabled": "Povoleno",
   "config.rules.rule_title": "Název",
   "config.rules.inactive": "Neaktivní",

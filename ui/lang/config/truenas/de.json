@@ -48,7 +48,7 @@
   "config.truenas.connection_failed": "Verbindung fehlgeschlagen",
   "config.truenas.destructive_label": "Zerstörerische Operationen erlauben",
   "config.truenas.enabled_label": "Aktiviert",
-  "config.truenas.host_label": "TrueNAS Host",
+  "config.truenas.host_label": "TrueNAS-Host",
   "config.truenas.https_label": "HTTPS verwenden",
   "config.truenas.insecure_label": "Selbstsignierte Zertifikate akzeptieren",
   "config.truenas.open_ui": "TrueNAS Management öffnen",

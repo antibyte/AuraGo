@@ -90,7 +90,7 @@
   "config.music_gen.bpm": "BPM",
   "config.music_gen.vocal_language": "Język śpiewu",
   "config.music_gen.seed": "Seed (puste = losowy)",
-  "config.music_gen.local_provider": "ACE-Step 1.5 — local",
+  "config.music_gen.local_provider": "ACE-Step 1.5 — lokalny",
   "config.music_gen.local_help": "Zapis rozpoczyna instalację i próbę audio. Wymagany Docker z prawem zapisu. CPU trzeba wybrać jawnie. Zatrzymanie zachowuje modele.",
   "config.music_gen.state_disabled": "Wyłączone",
   "config.music_gen.state_probing": "Sprawdzanie sprzętu",

@@ -117,7 +117,7 @@
   "config.tailscale.tsnet_space_agent_pending_hint": "A exposição do Space Agent está ativa. Se nenhuma URL aparecer, verifique o Space Agent, o wrapper HTTPS e o Tailscale HTTPS.",
   "config.tailscale.tsnet_space_agent_requires_enabled": "Ative primeiro a integração Space Agent.",
   "config.tailscale.tsnet_space_agent_url_label": "URL do Space Agent",
-  "config.tailscale.tsnet_homepage_url_label": "Homepage URL",
+  "config.tailscale.tsnet_homepage_url_label": "URL da página inicial",
   "config.tailscale.tsnet_hostname_hint": "O nome do host no seu tailnet (ex. aurago → aurago.tailnet-name.ts.net)",
   "config.tailscale.tsnet_hostname_label": "Nome do host",
   "config.tailscale.tsnet_space_agent_hostname_label": "Hostname do Space Agent",

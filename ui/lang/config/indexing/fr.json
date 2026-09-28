@@ -79,7 +79,7 @@
   "config.indexing.indexed_documents": "Documents indexés",
   "config.indexing.chunking_strategy": "Stratégie de découpage",
   "config.indexing.chunking_recursive": "Récursive",
-  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_legacy": "Hérité",
   "config.indexing.chunking_help": "Le découpage récursif respecte les titres Markdown, paragraphes, listes, tableaux et blocs de code.",
   "config.indexing.chunk_max_chars": "Caractères max par chunk",
   "config.indexing.chunk_overlap_chars": "Chevauchement de caractères",

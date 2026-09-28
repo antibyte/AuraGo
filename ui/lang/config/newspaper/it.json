@@ -1,5 +1,5 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "Giornale",
   "config.section.newspaper.desc": "Un'edizione quotidiana personale e di provenienza",
   "config.newspaper.enabled": "Abilita Giornale",
   "config.newspaper.readonly": "Modalità di sola lettura",

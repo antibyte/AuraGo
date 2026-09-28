@@ -6,7 +6,7 @@
   "config.video_download.send_enabled_label": "Skicka YouTube-spelare till chatten",
   "config.video_download.mode_label": "Körläge",
   "config.video_download.mode_docker": "Docker-sidecar",
-  "config.video_download.mode_native": "Native yt-dlp",
+  "config.video_download.mode_native": "Inbyggd yt-dlp",
   "config.video_download.allow_download_label": "Tillåt nedladdningar",
   "config.video_download.allow_transcribe_label": "Tillåt transkribering",
   "config.video_download.download_dir_label": "Nedladdningsmapp",

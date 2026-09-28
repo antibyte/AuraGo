@@ -32,7 +32,7 @@
   "config.agentmail.status_ready": "AgentMail jest skonfigurowany",
   "config.agentmail.summary_inbox": "Skrzynka",
   "config.agentmail.summary_mode": "Tryb",
-  "config.agentmail.summary_relay": "Relay",
+  "config.agentmail.summary_relay": "Przekaźnik",
   "config.agentmail.summary_title": "Podsumowanie AgentMail",
   "config.agentmail.summary_transport": "Transport",
   "config.agentmail.test_btn": "Testuj połączenie",

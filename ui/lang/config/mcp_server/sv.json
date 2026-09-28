@@ -18,7 +18,7 @@
   "config.mcp_server.vscode_config": "Klientkonfiguration",
   "config.mcp_server.vscode_config_desc": "Använd detta utdrag för att ansluta en MCP-klient till den aktiva AuraGo-instansen.",
   "config.mcp_server.vscode_bridge_tools": "Rekommenderade bryggningsverktyg",
-  "config.mcp_server.client_selector": "Client",
+  "config.mcp_server.client_selector": "Klient",
   "config.mcp_server.copy_vscode_config": "Kopiera konfiguration",
   "config.mcp_server.open_client_link": "Öppna klientlänk",
   "config.mcp_server.vscode_token_hint": "Generera ett bearer-token innan du ansluter en extern MCP-klient.",

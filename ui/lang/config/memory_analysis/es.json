@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "El análisis de memoria usa el Helper LLM central cuando está disponible. Configura su proveedor en los ajustes de Helper. Estos controles establecen el umbral de confianza y el día de reflexión.",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "Análisis de memoria y reflexión",
   "config.memory_analysis.day_friday": "Viernes",
   "config.memory_analysis.day_monday": "Lunes",
   "config.memory_analysis.day_saturday": "Sábado",

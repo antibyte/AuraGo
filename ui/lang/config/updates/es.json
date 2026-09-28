@@ -49,7 +49,7 @@
   "config.updates.changelog": "Registro de cambios:",
   "config.updates.check_button": "🔍 Buscar Actualizaciones",
   "config.updates.checking": "Verificando…",
-  "config.updates.commits": "commit(s)",
+  "config.updates.commits": "confirmación(es)",
   "config.updates.confirm_install": "La actualización comenzará ahora. AuraGo se reiniciará automáticamente después.\n\nPor favor, recarga la página después de unos 30–60 segundos.",
   "config.updates.current": "Actual",
   "config.updates.error": "Error",

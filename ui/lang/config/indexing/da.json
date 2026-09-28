@@ -79,7 +79,7 @@
   "config.indexing.indexed_documents": "Indekserede dokumenter",
   "config.indexing.chunking_strategy": "Chunking-strategi",
   "config.indexing.chunking_recursive": "Rekursiv",
-  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_legacy": "Ældre",
   "config.indexing.chunking_help": "Rekursiv chunking respekterer Markdown-overskrifter, afsnit, lister, tabeller og kodeblokke.",
   "config.indexing.chunk_max_chars": "Maks. tegn pr. chunk",
   "config.indexing.chunk_overlap_chars": "Overlap i tegn",

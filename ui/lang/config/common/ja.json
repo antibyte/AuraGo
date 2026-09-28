@@ -51,7 +51,7 @@
   "config.precision.overview_title": "設定",
   "config.precision.overview_desc": "エージェント、接続、システム設定を管理します。",
   "config.precision.overview_sections": "設定領域",
-  "config.precision.workspace_label": "Precision Workspace",
+  "config.precision.workspace_label": "プレシジョンワークスペース",
   "config.precision.recent_title": "最近使用した項目",
   "config.precision.recent_empty": "最近開いた領域がここに表示されます。",
   "config.precision.groups_title": "すべての領域",

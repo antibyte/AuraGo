@@ -20,7 +20,7 @@
   "config.email.keep_password": "Lämna tomt för att behålla det befintliga lösenordet.",
   "config.email.from_address": "Från Adress",
   "config.email.from_help": "Tom = samma som användarnamn.",
-  "config.email.inbox_watcher": "Inbox Watcher",
+  "config.email.inbox_watcher": "Inkorgsbevakare",
   "config.email.watch_enabled": "Watch aktiverad",
   "config.email.watch_folder": "Titta mapp",
   "config.email.interval_seconds": "Intervall (sekunder)",

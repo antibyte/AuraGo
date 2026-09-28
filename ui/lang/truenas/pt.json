@@ -80,7 +80,7 @@
   "truenas.page_title": "TrueNAS – AuraGo",
   "truenas.pool_all_ok": "Tudo OK",
   "truenas.pool_allocated": "Alocado",
-  "truenas.pool_degraded": "DEGRADED",
+  "truenas.pool_degraded": "Degradado",
   "truenas.pool_free": "Gratuito",
   "truenas.pool_size": "Tamanho",
   "truenas.recent_label": "Últimas 24h:",

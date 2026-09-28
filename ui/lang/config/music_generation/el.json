@@ -90,7 +90,7 @@
   "config.music_gen.bpm": "BPM",
   "config.music_gen.vocal_language": "Γλώσσα τραγουδιού",
   "config.music_gen.seed": "Seed (κενό = τυχαίο)",
-  "config.music_gen.local_provider": "ACE-Step 1.5 — local",
+  "config.music_gen.local_provider": "ACE-Step 1.5 — τοπικό",
   "config.music_gen.local_help": "Η αποθήκευση ξεκινά εγκατάσταση και δοκιμή ήχου. Απαιτείται Docker με πρόσβαση εγγραφής. Επιλέξτε CPU ρητά. Η διακοπή διατηρεί τα μοντέλα.",
   "config.music_gen.state_disabled": "Ανενεργό",
   "config.music_gen.state_probing": "Έλεγχος υλικού",

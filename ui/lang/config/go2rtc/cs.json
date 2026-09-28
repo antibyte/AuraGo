@@ -27,7 +27,7 @@
   "config.go2rtc.remove": "Odebrat",
   "config.go2rtc.add_stream": "Přidat stream",
   "config.go2rtc.advanced": "Pokročilá nastavení sidecaru",
-  "config.go2rtc.image": "Docker image",
+  "config.go2rtc.image": "Obraz Docker",
   "config.go2rtc.container_name": "Název kontejneru",
   "config.go2rtc.url": "Interní URL API",
   "config.go2rtc.api_host_port": "Port API loopback",

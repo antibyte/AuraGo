@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "记忆分析在可用时使用中央 Helper LLM。请在 Helper 设置中配置其提供商。这些控件设置置信度阈值和反思日。",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "记忆分析与反思",
   "config.memory_analysis.day_friday": "星期五",
   "config.memory_analysis.day_monday": "星期一",
   "config.memory_analysis.day_saturday": "星期六",

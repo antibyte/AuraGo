@@ -22,7 +22,7 @@
   "config.homepage.deploy_port": "Havn",
   "config.homepage.deploy_title": "Udrulning",
   "config.homepage.deploy_user": "Brugernavn",
-  "config.homepage.dev_container": "Dev Container",
+  "config.homepage.dev_container": "Dev-container",
   "config.homepage.disabled_desc": "Aktiver kontakten ovenfor for at lade agenten designe og udrulle hjemmesider via Docker-containere.",
   "config.homepage.disabled_notice": "Hjemmesideværktøj er deaktiveret",
   "config.homepage.docker_engine_unavailable": "Docker engine er ikke tilgængelig. Containerstyring er utilgængelig. Implementering via SSH/SFTP fungerer stadig.",

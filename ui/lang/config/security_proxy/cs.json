@@ -44,7 +44,7 @@
   "config.security_proxy.disabled_desc": "Povolte pro nasazení spravovaného reverzního proxy Caddy v Dockeru s automatickým TLS, omezením rychlosti, filtrováním IP a více.",
   "config.security_proxy.disabled_notice": "Bezpečnostní proxy je vypnut",
   "config.security_proxy.docker_host_hint": "ponechte prázdné pro automatickou detekci",
-  "config.security_proxy.docker_host_label": "Docker Host",
+  "config.security_proxy.docker_host_label": "Hostitel Dockeru",
   "config.security_proxy.docker_title": "Docker",
   "config.security_proxy.domain_label": "Doména",
   "config.security_proxy.email_label": "ACME e-mail (Let's Encrypt)",

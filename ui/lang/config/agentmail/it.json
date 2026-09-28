@@ -32,7 +32,7 @@
   "config.agentmail.status_ready": "AgentMail è configurato",
   "config.agentmail.summary_inbox": "Casella",
   "config.agentmail.summary_mode": "Modalità",
-  "config.agentmail.summary_relay": "Relay",
+  "config.agentmail.summary_relay": "Inoltro",
   "config.agentmail.summary_title": "Riepilogo AgentMail",
   "config.agentmail.summary_transport": "Trasporto",
   "config.agentmail.test_btn": "Test connessione",

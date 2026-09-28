@@ -48,7 +48,7 @@
   "config.truenas.connection_failed": "Tilkobling mislyktes",
   "config.truenas.destructive_label": "Tillat destruktive operasjoner",
   "config.truenas.enabled_label": "Aktivert",
-  "config.truenas.host_label": "TrueNAS Host",
+  "config.truenas.host_label": "TrueNAS-vert",
   "config.truenas.https_label": "Bruk HTTPS",
   "config.truenas.insecure_label": "Godta selvsignerte sertifikater",
   "config.truenas.open_ui": "Åpne TrueNAS-administrasjon",

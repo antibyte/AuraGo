@@ -18,7 +18,7 @@
   "config.mcp_server.vscode_config": "クライアント設定",
   "config.mcp_server.vscode_config_desc": "このスニペットを使用して、MCPクライアントをライブAuraGoインスタンスに接続します。",
   "config.mcp_server.vscode_bridge_tools": "推奨ブリッジツール",
-  "config.mcp_server.client_selector": "Client",
+  "config.mcp_server.client_selector": "クライアント",
   "config.mcp_server.copy_vscode_config": "設定をコピー",
   "config.mcp_server.open_client_link": "クライアントリンクを開く",
   "config.mcp_server.vscode_token_hint": "外部MCPクライアントに接続する前にBearerトークンを生成してください。",

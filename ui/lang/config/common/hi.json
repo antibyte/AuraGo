@@ -51,7 +51,7 @@
   "config.precision.overview_title": "सेटिंग्स",
   "config.precision.overview_desc": "अपने एजेंट, कनेक्शन और सिस्टम सेटिंग्स प्रबंधित करें।",
   "config.precision.overview_sections": "कॉन्फ़िगरेशन क्षेत्र",
-  "config.precision.workspace_label": "Precision Workspace",
+  "config.precision.workspace_label": "प्रिसिजन वर्कस्पेस",
   "config.precision.recent_title": "हाल में इस्तेमाल किए गए",
   "config.precision.recent_empty": "हाल में खोले गए क्षेत्र यहाँ दिखाई देंगे।",
   "config.precision.groups_title": "सभी क्षेत्र",

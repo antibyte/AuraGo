@@ -1,5 +1,5 @@
 {
-  "config.section.detective.label": "Detective",
+  "config.section.detective.label": "侦探",
   "config.section.detective.desc": "来源可追溯的研究",
   "config.detective.enabled": "启用 Detective",
   "config.detective.iterations": "迭代次数",

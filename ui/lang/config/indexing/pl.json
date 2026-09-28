@@ -79,7 +79,7 @@
   "config.indexing.indexed_documents": "Zindeksowane dokumenty",
   "config.indexing.chunking_strategy": "Strategia dzielenia",
   "config.indexing.chunking_recursive": "Rekurencyjna",
-  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_legacy": "Starszy",
   "config.indexing.chunking_help": "Rekurencyjne dzielenie respektuje nagłówki Markdown, akapity, listy, tabele i bloki kodu.",
   "config.indexing.chunk_max_chars": "Maks. znaków na chunk",
   "config.indexing.chunk_overlap_chars": "Nakładanie znaków",

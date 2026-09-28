@@ -90,7 +90,7 @@
   "config.music_gen.bpm": "BPM",
   "config.music_gen.vocal_language": "गायन की भाषा",
   "config.music_gen.seed": "सीड (खाली = यादृच्छिक)",
-  "config.music_gen.local_provider": "ACE-Step 1.5 — local",
+  "config.music_gen.local_provider": "ACE-Step 1.5 — स्थानीय",
   "config.music_gen.local_help": "सहेजने पर स्थापना और ऑडियो परीक्षण शुरू होता है। Docker में लिखने की अनुमति चाहिए। CPU स्पष्ट रूप से चुनें। रोकने पर मॉडल बने रहते हैं।",
   "config.music_gen.state_disabled": "निष्क्रिय",
   "config.music_gen.state_probing": "हार्डवेयर जाँच",

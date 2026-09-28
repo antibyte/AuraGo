@@ -40,7 +40,7 @@
   "help.cyd.device_url": "Brug præcis denne URL på skærmen, inkl. https og port (fx 8443). En bar IP behandles som HTTP.",
   "config.cyd.flash_title": "Web-flasher",
   "config.cyd.flash_help": "Chrome eller Edge, HTTPS eller localhost. Tilslut displayet med USB. Token og URL skrives med firmwaren; derefter kun Wi‑Fi.",
-  "config.cyd.flash_btn": "Flash display",
+  "config.cyd.flash_btn": "Flash displayet",
   "config.cyd.flash_install": "Installer firmware",
   "config.cyd.flash_unsupported": "Web Serial findes ikke. Brug Chrome eller Edge på HTTPS eller localhost.",
   "config.cyd.flash_need_token": "Opretter et display-token til firmwaren…",

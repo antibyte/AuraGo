@@ -20,7 +20,7 @@
   "config.vercel.saving": "Enregistrement...",
   "config.vercel.status_connected": "Vercel connecté",
   "config.vercel.status_error": "Erreur de connexion",
-  "config.vercel.team_id": "Team ID",
+  "config.vercel.team_id": "ID d’équipe",
   "config.vercel.team_slug": "Slug d'équipe",
   "config.vercel.test_btn": "Tester la connexion",
   "config.vercel.test_desc": "Vérifiez que le jeton stocké peut atteindre l'API Vercel.",

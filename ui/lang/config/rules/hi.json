@@ -33,7 +33,7 @@
   "config.rules.load_failed": "नियम लोड नहीं हो सके",
   "config.rules.save_failed": "नियम सहेजा नहीं जा सका",
   "config.rules.restored": "नियम पुनर्स्थापित हुआ",
-  "config.rules.design_title": "Homepage DESIGN.md",
+  "config.rules.design_title": "होमपेज DESIGN.md",
   "config.rules.enabled": "सक्रिय",
   "config.rules.rule_title": "शीर्षक",
   "config.rules.inactive": "निष्क्रिय",

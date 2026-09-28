@@ -23,7 +23,7 @@
   "config.music_gen.disabled_notice": "Musikgenerierung ist deaktiviert. Aktiviere den Schalter oben, damit der Agent Musik erzeugen kann.",
   "config.music_gen.enabled_label": "Musikgenerierung aktiviert:",
   "config.music_gen.limits_desc": "Tägliche Limits für die Musikgenerierung konfigurieren.",
-  "config.music_gen.limits_title": "Limits",
+  "config.music_gen.limits_title": "Grenzwerte",
   "config.music_gen.max_daily_help": "0 = unbegrenzt",
   "config.music_gen.max_daily_label": "Max. Generierungen pro Tag",
   "config.music_gen.model_hint": "leer = Anbieter-Standard",

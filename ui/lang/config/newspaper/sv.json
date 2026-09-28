@@ -1,5 +1,5 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "Tidning",
   "config.section.newspaper.desc": "En personlig, hämtad daglig utgåva",
   "config.newspaper.enabled": "Aktivera tidning",
   "config.newspaper.readonly": "Endast läsläge",

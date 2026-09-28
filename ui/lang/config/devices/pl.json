@@ -28,7 +28,7 @@
   "config.devices.delete_tooltip": "Usuń",
   "config.devices.type_server": "Serwer",
   "config.devices.type_router": "Router",
-  "config.devices.type_switch": "Switch",
+  "config.devices.type_switch": "Przełącznik",
   "config.devices.type_printer": "Drukarka",
   "config.devices.type_nas": "NAS",
   "config.devices.type_camera": "Kamera",

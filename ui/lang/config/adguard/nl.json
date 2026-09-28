@@ -22,7 +22,7 @@
   "config.adguard.test_btn": "Test verbinding",
   "config.adguard.test_fail": "Verbinding mislukt",
   "config.adguard.test_ok": "Verbinding geslaagd",
-  "config.adguard.url_label": "AdGuard Home URL",
+  "config.adguard.url_label": "AdGuard Home-URL",
   "config.adguard.username_label": "Gebruikersnaam",
   "help.adguard.enabled": "Schakelt de AdGuard Home-integratie in. De agent kan vervolgens DNS statistieken opvragen, filters beheren, herschrijven, geblokkeerde services en meer.",
   "help.adguard.password": "Wachtwoord voor authenticatie. Veilig opgeslagen in de versleutelde vault.",

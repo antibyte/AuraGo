@@ -22,7 +22,7 @@
   "config.adguard.test_btn": "Testa anslutning",
   "config.adguard.test_fail": "Anslutningen misslyckades",
   "config.adguard.test_ok": "Anslutningen lyckades",
-  "config.adguard.url_label": "AdGuard Home URL",
+  "config.adguard.url_label": "AdGuard Home-URL",
   "config.adguard.username_label": "Användarnamn",
   "help.adguard.enabled": "Aktiverar AdGuard Home-integrationen. Agenten kan sedan fråga DNS-statistik, hantera filter, omskrivningar, blockerade tjänster och mer.",
   "help.adguard.password": "Lösenord för autentisering. Lagras säkert i det krypterade valvet.",

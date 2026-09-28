@@ -1,6 +1,6 @@
 {
   "config.ldap.base_dn_label": "DN di base",
-  "config.ldap.bind_dn_label": "Bind DN",
+  "config.ldap.bind_dn_label": "DN di bind",
   "config.ldap.bind_password_label": "Password Bind (Vault)",
   "config.ldap.password_placeholder": "Inserisci password bind…",
   "config.ldap.enabled_label": "Abilitato",

@@ -40,7 +40,7 @@
   "config.security_proxy.btn_reload": "Ricarica",
   "config.security_proxy.btn_start": "Avvia",
   "config.security_proxy.btn_stop": "Ferma",
-  "config.security_proxy.burst_label": "Burst",
+  "config.security_proxy.burst_label": "Raffica",
   "config.security_proxy.disabled_desc": "Abilita per distribuire un proxy inverso Caddy gestito in Docker con TLS automatico, limitazione del traffico, filtro IP e altro.",
   "config.security_proxy.disabled_notice": "Security Proxy è disabilitato",
   "config.security_proxy.docker_host_hint": "lascia vuoto per auto-rilevamento",

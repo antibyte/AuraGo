@@ -18,7 +18,7 @@
   "config.bluetooth.test_audio": "परीक्षण ध्वनि चलाएँ",
   "config.bluetooth.stop_audio": "प्लेबैक रोकें",
   "config.bluetooth.pin_title": "वैकल्पिक PIN",
-  "config.bluetooth.pin": "PIN",
+  "config.bluetooth.pin": "पिन",
   "config.bluetooth.pin_help": "Just Works के लिए खाली छोड़ें। PIN केवल इस पेयरिंग प्रयास में उपयोग होगा।",
   "config.bluetooth.cancel": "रद्द करें",
   "config.bluetooth.pair": "पेयर करें",

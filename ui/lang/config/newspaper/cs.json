@@ -1,5 +1,5 @@
 {
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "Noviny",
   "config.section.newspaper.desc": "Osobní, zdrojové denní vydání",
   "config.newspaper.enabled": "Povolit noviny",
   "config.newspaper.readonly": "Režim pouze pro čtení",
@@ -10,7 +10,7 @@
   "config.newspaper.max_editions": "Limit uloženého vydání",
   "config.newspaper.setup_note": "Vyberte zájmy a příjemce v desktopové aplikaci Noviny. Doručování je vypnuté, dokud zde neaktivujete kanál a nepřihlásíte se k odběru v aplikaci.",
   "config.newspaper.check": "Zkontrolujte připravenost",
-  "config.newspaper.open": "Open Newspaper",
+  "config.newspaper.open": "Otevřít noviny",
   "config.newspaper.checking": "Kontrola…",
   "config.newspaper.active": "Povoleno",
   "config.newspaper.inactive": "Zakázáno",

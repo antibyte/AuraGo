@@ -51,7 +51,7 @@
   "config.precision.overview_title": "Einstellungen",
   "config.precision.overview_desc": "Verwalte deinen Agenten, Verbindungen und Systemeinstellungen.",
   "config.precision.overview_sections": "Konfigurationsbereiche",
-  "config.precision.workspace_label": "Precision Workspace",
+  "config.precision.workspace_label": "Precision-Arbeitsbereich",
   "config.precision.recent_title": "Zuletzt verwendet",
   "config.precision.recent_empty": "Deine zuletzt geöffneten Bereiche erscheinen hier.",
   "config.precision.groups_title": "Alle Bereiche",

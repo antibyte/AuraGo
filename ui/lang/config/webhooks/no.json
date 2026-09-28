@@ -56,7 +56,7 @@
   "config.webhooks.new_webhook": "Ny Webhook",
   "config.webhooks.no_token": "Ingen token",
   "config.webhooks.og_add_param": "Legg til",
-  "config.webhooks.og_auto_json": "Auto JSON",
+  "config.webhooks.og_auto_json": "Automatisk JSON",
   "config.webhooks.og_body_template": "Body-mal",
   "config.webhooks.og_body_template_placeholder": "{\"text\":\"{{message}}\"}",
   "config.webhooks.og_custom_template": "Egendefinert mal",

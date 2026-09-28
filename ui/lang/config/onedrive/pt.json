@@ -37,7 +37,7 @@
   "config.onedrive.readonly_hint": "Quando ativo, apenas operações de leitura são permitidas (sem upload, exclusão, movimentação, cópia ou compartilhamento)",
   "config.onedrive.readonly_label": "Modo somente leitura",
   "config.onedrive.tenant_id_hint": "Use 'common' para contas pessoais + de trabalho, 'consumers' apenas para pessoais, 'organizations' apenas para de trabalho",
-  "config.onedrive.tenant_id_label": "Tenant ID",
+  "config.onedrive.tenant_id_label": "ID do locatário",
   "config.onedrive.test_btn": "Testar conexão",
   "config.onedrive.test_failed": "Falhou",
   "config.onedrive.test_success": "Sucesso",

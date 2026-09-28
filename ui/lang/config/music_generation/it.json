@@ -90,7 +90,7 @@
   "config.music_gen.bpm": "BPM",
   "config.music_gen.vocal_language": "Lingua del canto",
   "config.music_gen.seed": "Seed (vuoto = casuale)",
-  "config.music_gen.local_provider": "ACE-Step 1.5 — local",
+  "config.music_gen.local_provider": "ACE-Step 1.5 — locale",
   "config.music_gen.local_help": "Il salvataggio avvia installazione e prova audio. Serve Docker con accesso in scrittura. La CPU va selezionata esplicitamente. L’arresto conserva i modelli.",
   "config.music_gen.state_disabled": "Disattivato",
   "config.music_gen.state_probing": "Verifica hardware",

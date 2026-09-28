@@ -48,7 +48,7 @@
   "config.remote_control.download_title": "Client-Download",
   "config.remote_control.enabled_label": "Fernsteuerung aktivieren",
   "config.remote_control.limits_desc": "Ressourcenbeschränkungen für Remote-Operationen festlegen.",
-  "config.remote_control.limits_title": "Limits",
+  "config.remote_control.limits_title": "Grenzwerte",
   "config.remote_control.loading_devices": "Lade Geräte…",
   "config.remote_control.loading_platforms": "Lade Plattformen…",
   "config.remote_control.max_file_size_label": "Max. Dateigröße (MB)",

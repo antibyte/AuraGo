@@ -49,7 +49,7 @@
   "config.updates.installing": "安装中…",
   "config.updates.running": "运行中…",
   "config.web_scraper.summary_mode": "摘要模式",
-  "config.webdav.auth_type_basic": "Basic Auth",
+  "config.webdav.auth_type_basic": "Basic 认证",
   "config.webdav.auth_type_bearer": "Bearer 令牌",
   "config.webdav.auth_type_label": "认证类型",
   "config.webdav.enabled_label": "已启用",

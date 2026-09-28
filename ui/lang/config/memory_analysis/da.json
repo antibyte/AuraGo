@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "Hukommelsesanalyse bruger den centrale Helper LLM, når den er tilgængelig. Konfigurer dens udbyder i Helper-indstillingerne. Disse kontrolelementer indstiller konfidenstærsklen og refleksionsdagen.",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "Hukommelsesanalyse og refleksion",
   "config.memory_analysis.day_friday": "Fredag",
   "config.memory_analysis.day_monday": "Mandag",
   "config.memory_analysis.day_saturday": "Lørdag",

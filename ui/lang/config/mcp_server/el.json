@@ -18,7 +18,7 @@
   "config.mcp_server.vscode_config": "Διαμόρφωση πελάτη",
   "config.mcp_server.vscode_config_desc": "Χρησιμοποιήστε αυτό το απόσπασμα για να συνδέσετε έναν MCP client στην ενεργή παρουσία AuraGo.",
   "config.mcp_server.vscode_bridge_tools": "Συνιστώμενα εργαλεία γέφυρας",
-  "config.mcp_server.client_selector": "Client",
+  "config.mcp_server.client_selector": "Πελάτης",
   "config.mcp_server.copy_vscode_config": "Αντιγραφή διαμόρφωσης",
   "config.mcp_server.open_client_link": "Άνοιγμα συνδέσμου πελάτη",
   "config.mcp_server.vscode_token_hint": "Δημιουργήστε ένα bearer token πριν συνδέσετε έναν εξωτερικό MCP client.",

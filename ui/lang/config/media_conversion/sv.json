@@ -6,7 +6,7 @@
   "config.media_conversion.readonly_label": "Skrivskyddat",
   "config.media_conversion.ffmpeg_path_label": "FFmpeg-sökväg",
   "config.media_conversion.imagemagick_path_label": "ImageMagick-sökväg",
-  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.timeout_label": "Tidsgräns",
   "config.media_conversion.seconds": "sekunder",
   "config.media_conversion.test_button": "Testa verktyg",
   "config.media_conversion.loading": "Kontrollerar verktyg…",

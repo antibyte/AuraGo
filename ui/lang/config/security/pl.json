@@ -9,7 +9,7 @@
   "config.security.no_issues": "Nie znaleziono problemów bezpieczeństwa",
   "config.security.panel_title": "Audyt bezpieczeństwa",
   "config.security.severity.critical": "KRYTYCZNE",
-  "config.security.severity.info": "INFO",
+  "config.security.severity.info": "INFORMACJA",
   "config.security.severity.warning": "OSTRZEŻENIE",
   "config.security.status_success": "✅"
 }

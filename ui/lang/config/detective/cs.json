@@ -1,5 +1,5 @@
 {
-  "config.section.detective.label": "Detective",
+  "config.section.detective.label": "Detektiv",
   "config.section.detective.desc": "Průzkumy s ověřitelnými zdroji",
   "config.detective.enabled": "Zapnout Detective",
   "config.detective.iterations": "Iterace",

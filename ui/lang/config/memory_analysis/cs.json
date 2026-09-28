@@ -1,6 +1,6 @@
 {
   "config.memory_analysis.auto_desc": "Analýza paměti používá centrální Helper LLM, je-li k dispozici. Jeho poskytovatele nastavte v nastavení Helper. Tyto ovládací prvky nastavují práh důvěry a den reflexe.",
-  "config.memory_analysis.auto_notice": "Memory analysis and reflection",
+  "config.memory_analysis.auto_notice": "Analýza paměti a reflexe",
   "config.memory_analysis.day_friday": "Pátek",
   "config.memory_analysis.day_monday": "Pondělí",
   "config.memory_analysis.day_saturday": "Sobota",
