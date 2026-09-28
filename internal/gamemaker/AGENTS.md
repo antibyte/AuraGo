@@ -89,6 +89,15 @@ revision publication and standalone export for Phaser and Three.js games.
   declared `controls` basis and keeps the fixed legacy mapping for older helpers.
   Server checks are inserted before plan scenarios and only while fewer than 16
   checks exist; older helpers never receive a check they cannot observe.
+- Starters demonstrate a complete escalating game: platformer, topdown, shooter,
+  blocks and board ship three stages (layouts chosen by `levelIndex`), two enemy
+  behaviors and a power-up or smarter opponent; role-based guided 3D starters get
+  `config.levels` whose first stage keeps the objective along the starting heading
+  and whose later stages scatter it with guards, cover and clustered scenery.
+  `minimal` stays a blank slate. Keep each 2D starter's first stage gentle: the
+  first item/goal/enemy near the spawn and hazards away from it, so required checks
+  and idle waits observe normal play. Driver regressions patch exact geometry in
+  frozen copies under `testdata/driver-fixtures/`, never the live starters.
 - `craft.go` guides are part of the prepared profiles. Curated `SKILL.md` text is
   registered but not injected into Studio runs: design direction that must reach
   the model belongs in these guides or phase guidance, never only in a skill.

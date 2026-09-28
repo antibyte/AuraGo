@@ -42,6 +42,7 @@ func TestShooterBrowserDelayedSemiAutomatic(t *testing.T) {
 			if err := installGameTemplate(root, plan); err != nil {
 				t.Fatal(err)
 			}
+			installDriverFixture(t, root, "shooter")
 			path := filepath.Join(root, "src/main.ts")
 			source, err := os.ReadFile(path)
 			if err != nil {

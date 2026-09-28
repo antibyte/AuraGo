@@ -153,6 +153,7 @@ func TestTargetControlBrowser(t *testing.T) {
 			if err := installGameTemplate(root, plan); err != nil {
 				t.Fatal(err)
 			}
+			installDriverFixture(t, root, tc.base)
 			if tc.name == "manual_player" {
 				// The public manual example must not create a second sprite when
 				// common.ts already contains an accepted player asset binding.
@@ -417,5 +418,22 @@ startGame({mode:'exploration',speed:6,goal:1,duration:0,objects:[],
 			}
 			t.Logf("%s: %+v", tc.name, checks)
 		})
+	}
+}
+
+// installDriverFixture replaces the starter main.ts with its frozen driver
+// regression copy (testdata/driver-fixtures), so exact-geometry patches keep
+// proving the same driver behavior while starter templates evolve.
+func installDriverFixture(t *testing.T, root, base string) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", "driver-fixtures", base+".ts"))
+	if os.IsNotExist(err) {
+		return
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "src", "main.ts"), data, 0o600); err != nil {
+		t.Fatal(err)
 	}
 }

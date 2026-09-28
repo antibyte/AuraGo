@@ -1,18 +1,14 @@
 import { GameScene, start } from './common';
 
-// Three layouts; each adds one element. Wall: a full brick wall. Pyramid: a stepped
-// shape with open flanks. Fortress: armored bricks need two hits. The ball speeds up
-// per stage. Layout rules live in brickPlaced()/brickArmor() and read this.levelIndex.
 class Blocks extends GameScene {
   ball: any; blocks: any; lives=3; brickRecords: any[]=[]; boardWidth=960; boardHeight=540; launchY=465;
 
   setup() {
     if (this.setupScene()) return;
-    this.configureLevels([{id:'wall',title:'The wall'},{id:'pyramid',title:'Pyramid'},{id:'fortress',title:'Fortress'}]);
     this.boardWidth=Number(this.game?.config?.width)||Number(this.scale?.width)||960;
     this.boardHeight=Number(this.game?.config?.height)||Number(this.scale?.height)||540;
     const columns=this.boardWidth>=700?8:this.boardWidth>=500?6:4;
-    const rows=(this.boardHeight>=400?3:2)+Math.min(this.levelIndex,this.boardHeight>=400?2:1);
+    const rows=this.boardHeight>=400?3:2;
     const margin=Math.max(20,Math.min(80,this.boardWidth*.08));
     const gap=Math.max(4,Math.min(12,this.boardWidth*.012));
     const brickWidth=Math.max(24,(this.boardWidth-margin*2-gap*(columns-1))/columns);
@@ -24,7 +20,7 @@ class Blocks extends GameScene {
     const playerY=this.boardHeight-Math.max(30,this.boardHeight*.08);
     const ballSize=Math.max(10,Math.min(20,this.boardWidth*.018));
     this.launchY=playerY-playerHeight/2-ballSize/2-4;
-    this.lives=this.stageCarry?.lives||3; this.brickRecords=[]; this.state.lives=this.lives;
+    this.lives=3; this.brickRecords=[]; this.state.lives=this.lives;
     this.player=this.body(this.boardWidth/2,playerY,playerWidth,playerHeight,0x5eead4,false,'player');
     this.player.body.setImmovable(true);
     this.ball=this.body(this.boardWidth/2,this.launchY,ballSize,ballSize,0xfacc15,false,'ball');
@@ -35,31 +31,21 @@ class Blocks extends GameScene {
     this.blocks=this.physics.add.staticGroup();
     const roles=this.assetRoles('block');
     for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){
-      if(!this.brickPlaced(row,col,rows,columns))continue;
       const index=row*columns+col, role=roles.length?roles[index%roles.length]:'';
       const x=margin+brickWidth/2+col*(brickWidth+gap), y=top+brickHeight/2+row*(brickHeight+rowGap);
       const block=this.body(x,y,brickWidth,brickHeight,0xa78bfa,true,role);
-      block.__auragoBrickID='brick-'+row+'-'+col; block.__auragoRole=role; block.hp=this.brickArmor(row,col); this.brickRecords.push(block); this.blocks.add(block);
-      if(block.hp>1)block.setFillStyle(0x64748b);
+      block.__auragoBrickID='brick-'+row+'-'+col; block.__auragoRole=role; this.brickRecords.push(block); this.blocks.add(block);
     }
     this.state.goal_remaining=this.brickRecords.length;
     this.physics.add.collider(this.ball,this.player,()=>this.ball.body.setVelocityY(-Math.abs(this.ball.body.velocity.y||this.launchVelocityY())));
     this.physics.add.collider(this.ball,this.blocks,(_:any,block:any)=>{
       if(!block?.active)return;
-      if(block.hp>1){block.hp--;block.setFillStyle(0xa78bfa);this.visuals?.find((v:any)=>v.object===block)?.art?.setAlpha?.(.6);this.feedback('hit',block,'metal');this.state.hits++;this.state.hit_events++;return;}
       this.feedback('hit',block,'stone'); block.destroy(); this.state.score++; this.state.hits++; this.state.hit_events++;
       this.state.goal_remaining=this.remainingBricks(); if(this.state.goal_remaining===0)this.end(true);
     });
   }
 
-  brickPlaced(row:number,col:number,rows:number,columns:number) {
-    const offset=Math.abs(col-(columns-1)/2);
-    if(this.levelIndex===1)return offset<=row+1;
-    if(this.levelIndex===2)return !(row===rows-1&&offset<1);
-    return true;
-  }
-  brickArmor(row:number,col:number) { return this.levelIndex===2&&(row+col)%2===0?2:1; }
-  launchVelocityY() { return Math.max(220,this.boardHeight*.68)*(1+this.levelIndex*.12); }
+  launchVelocityY() { return Math.max(220,this.boardHeight*.68); }
   remainingBricks() { return this.brickRecords.reduce((count,block)=>count+(block?.active!==false?1:0),0); }
   launchBall(force=false) {
     if(force||this.ball.body.velocity.length()===0){this.ball.body.setVelocity(Math.max(90,this.boardWidth*.24),-this.launchVelocityY());this.state.actions++;}

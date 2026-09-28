@@ -2,8 +2,10 @@ package gamemaker
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -98,5 +100,54 @@ func TestStageLayoutsNeedLevelSpecificSource(t *testing.T) {
 	reviewStageLayouts(t.TempDir(), &GamePlan{Template: "exploration", Stages: plan.Stages}, three)
 	if three[0].Status != "passed" {
 		t.Fatal("3D stage evidence is counted by the helper and needs no source review")
+	}
+}
+
+// New role-based guided 3D starters ship three distinct stages whose later layouts
+// scatter the objective instead of lining it up along one axis.
+func TestGuided3DStartersShipDistinctStages(t *testing.T) {
+	t.Parallel()
+	objective := map[string]string{"exploration": "item", "fps": "enemy", "space": "enemy", "flight": "goal", "transport": "cargo"}
+	for base, role := range objective {
+		plan := ExampleGamePlan(Project{Dimension: "3d"})
+		plan.Template, plan.Gameplay = base, &GameSettings{Goal: 5, Speed: 5, Duration: 0}
+		plan.Assets = nil
+		for _, a := range defaultModelRoles(base) {
+			plan.Assets = append(plan.Assets, PlanAsset{Role: a.Role, PackID: a.PackID, Version: "1", AssetID: a.AssetID, Scale: 1})
+		}
+		sources, err := threeTemplateSources(plan)
+		if err != nil {
+			t.Fatal(base, err)
+		}
+		match := regexp.MustCompile(`startGame\((\{.*\})\);`).FindSubmatch(sources["main.ts"])
+		var config struct {
+			Levels []struct {
+				Objects []struct {
+					Role string    `json:"role"`
+					At   []float64 `json:"at"`
+				} `json:"objects"`
+				Goal int `json:"goal"`
+			} `json:"levels"`
+		}
+		if match == nil || json.Unmarshal(match[1], &config) != nil || len(config.Levels) != 3 {
+			t.Fatalf("%s: starter lacks three stages", base)
+		}
+		first, _ := json.Marshal(config.Levels[1].Objects)
+		second, _ := json.Marshal(config.Levels[2].Objects)
+		if string(first) == string(second) {
+			t.Fatalf("%s: later stages repeat one layout", base)
+		}
+		for i, level := range config.Levels[1:] {
+			xs, found := map[float64]bool{}, 0
+			for _, o := range level.Objects {
+				if o.Role == role {
+					found++
+					xs[o.At[0]] = true
+				}
+			}
+			if found == 0 || base != "transport" && (level.Goal != found || len(xs) < 3) {
+				t.Errorf("%s stage %d: %d %s objects across %d x positions, goal %d", base, i+2, found, role, len(xs), level.Goal)
+			}
+		}
 	}
 }

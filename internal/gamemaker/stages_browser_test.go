@@ -54,7 +54,7 @@ func TestStageEvidenceBrowser(t *testing.T) {
 		{name: "3d_missing_levels", base: "exploration"},
 		{name: "3d_cloned_levels", base: "exploration", levels: "cloned"},
 		{name: "2d_platformer_levels", base: "platformer", publish: true, stageCount: `()=>__AURAGO_GAME_TEST__.scene.levels.length`},
-		{name: "2d_blocks_missing_levels", base: "blocks"},
+		{name: "2d_minimal_missing_levels", base: "minimal"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestService(t)
@@ -70,9 +70,6 @@ func TestStageEvidenceBrowser(t *testing.T) {
 					d := ExampleGameDesign(p)
 					d.Base = tc.base
 					d.Stages = []string{"First area: learn the controls among patrols", "Second area: new hazards guard the exit"}
-					if tc.base == "blocks" {
-						d.Assets = []DesignAsset{{Role: "player", PackID: "blocks-and-balls", AssetID: "paddle_01"}, {Role: "ball", PackID: "blocks-and-balls", AssetID: "ball_01"}, {Role: "block", PackID: "blocks-and-balls", AssetID: "colored_block_01"}}
-					}
 					data, _ := json.Marshal(d)
 					return s.SetDesignJSON(ctx, run.Job.ID, data)
 				case "building":
@@ -155,8 +152,8 @@ func TestStageEvidenceBrowser(t *testing.T) {
 			frame := page.MustElement("iframe").MustFrame()
 			frame.MustWaitLoad()
 			frame.MustWait(`()=>!!window.__AURAGO_GAME_TEST__`)
-			if got := frame.MustEval(tc.stageCount).Int(); got != 2 {
-				t.Fatalf("stage evidence = %d, want 2", got)
+			if got := frame.MustEval(tc.stageCount).Int(); got < 2 {
+				t.Fatalf("stage evidence = %d, want at least 2", got)
 			}
 		})
 	}
@@ -164,7 +161,8 @@ func TestStageEvidenceBrowser(t *testing.T) {
 
 // stageConfigEdit rewrites the guided 3D starter config through the normal edit
 // primitive. Distinct levels add a landmark to the second stage; cloned levels
-// only rename the same layout and must not count as another stage.
+// only rename the same layout and must not count as another stage; no levels
+// removes the starter's own stages.
 func stageConfigEdit(t *testing.T, source string, levels string) (string, string) {
 	t.Helper()
 	match := regexp.MustCompile(`startGame\((\{.*\})\);`).FindStringSubmatch(source)
@@ -176,6 +174,7 @@ func stageConfigEdit(t *testing.T, source string, levels string) (string, string
 		t.Fatal(err)
 	}
 	config["speed"] = 6
+	delete(config, "levels")
 	if levels != "" {
 		objects, _ := config["objects"].([]any)
 		second := append([]any{}, objects...)

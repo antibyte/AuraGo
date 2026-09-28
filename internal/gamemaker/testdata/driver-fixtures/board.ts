@@ -1,0 +1,34 @@
+import { GameScene, start } from './common';
+class Board extends GameScene {
+  selected=0; cells:any[]=[]; marks:number[]=[];
+  setup() { if (this.setupScene()) return;
+    this.selected=0;this.marks=Array(9).fill(0);this.cells=[];
+    for(let i=0;i<9;i++){
+      const cell=this.add.rectangle(360+(i%3)*100,180+Math.floor(i/3)*100,90,90,0x334155).setInteractive();
+      this.paintAsset(cell,90,90,'cell');
+      // Keep a transparent hit target when library art replaces the cell.
+      if(this.assetRoles('cell').length)cell.setVisible(true).setFillStyle(0,0);
+      cell.on('pointerdown',()=>{this.selected=i;this.action();});this.cells.push(cell);
+    }
+    this.player=this.add.rectangle(360,180,96,96).setStrokeStyle(3,0xfacc15);
+  }
+  action() { if (this.builder) { super.action(); return; }
+    if(this.marks[this.selected])return;
+    const turn=this.state.turns%2+1;this.marks[this.selected]=turn;
+    const cell=this.cells[this.selected];
+    cell.setFillStyle(turn===1?0x5eead4:0xfb7185);
+    const mark=this.add.rectangle(cell.x,cell.y,60,60,turn===1?0x5eead4:0xfb7185);
+    this.paintAsset(mark,60,60,this.assetRoles('marker_'+turn).length?'marker_'+turn:'marker');
+    this.feedback('ui',cell);this.state.actions++;this.state.hits++;this.state.turns++;this.state.score++;
+    const won=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>this.marks[i]===turn));
+    if(won||this.state.turns===9)this.end(won);
+  }
+  step() { if (this.builder) { super.step(0);return; }
+    if(this.inputKeys.pressed('RIGHT'))this.selected=(this.selected+1)%9;
+    if(this.inputKeys.pressed('LEFT'))this.selected=(this.selected+8)%9;
+    if(this.inputKeys.pressed('DOWN'))this.selected=(this.selected+3)%9;
+    if(this.inputKeys.pressed('UP'))this.selected=(this.selected+6)%9;
+    this.player.setPosition(this.cells[this.selected].x,this.cells[this.selected].y);
+  }
+}
+start(Board);
