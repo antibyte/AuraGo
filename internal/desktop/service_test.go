@@ -1357,6 +1357,62 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	}
 }
 
+func TestServiceScreensaverSettingsUseDefaultsAndValidateWrites(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	for key, want := range map[string]string{
+		"screensaver.enabled":      "false",
+		"screensaver.theme":        "abyss",
+		"screensaver.idle_minutes": "5",
+		"screensaver.clock":        "true",
+	} {
+		if got := bootstrap.Settings[key]; got != want {
+			t.Fatalf("default %s = %q, want %q", key, got, want)
+		}
+	}
+	for _, theme := range []string{"abyss", "event_horizon", "aurora", "ink", "stardust", "random"} {
+		if err := svc.SetSetting(ctx, "screensaver.theme", theme, SourceUser); err != nil {
+			t.Fatalf("SetSetting screensaver.theme=%s: %v", theme, err)
+		}
+	}
+	for _, minutes := range []string{"1", "2", "3", "5", "10", "15", "30", "60"} {
+		if err := svc.SetSetting(ctx, "screensaver.idle_minutes", minutes, SourceUser); err != nil {
+			t.Fatalf("SetSetting screensaver.idle_minutes=%s: %v", minutes, err)
+		}
+	}
+	if err := svc.SetSettings(ctx, map[string]string{"screensaver.enabled": "true", "screensaver.clock": "false"}, SourceUser); err != nil {
+		t.Fatalf("SetSettings screensaver toggles: %v", err)
+	}
+	bootstrap, err = svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap after setting: %v", err)
+	}
+	if bootstrap.Settings["screensaver.enabled"] != "true" || bootstrap.Settings["screensaver.clock"] != "false" {
+		t.Fatalf("stored screensaver toggles = %q/%q", bootstrap.Settings["screensaver.enabled"], bootstrap.Settings["screensaver.clock"])
+	}
+	for key, value := range map[string]string{
+		"screensaver.theme":        "flying_toasters",
+		"screensaver.idle_minutes": "7",
+		"screensaver.enabled":      "yes",
+		"screensaver.clock":        "",
+	} {
+		if err := svc.SetSetting(ctx, key, value, SourceUser); err == nil {
+			t.Fatalf("expected %s=%q to be rejected", key, value)
+		}
+	}
+	for _, value := range []string{"0", "-5", "1.5", "600"} {
+		if err := svc.SetSetting(ctx, "screensaver.idle_minutes", value, SourceUser); err == nil {
+			t.Fatalf("expected screensaver.idle_minutes=%q to be rejected", value)
+		}
+	}
+}
+
 func TestServicePhoneGadgetSettingsValidate(t *testing.T) {
 	t.Parallel()
 
