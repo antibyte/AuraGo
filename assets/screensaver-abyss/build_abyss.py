@@ -411,8 +411,10 @@ def main():
         'uv1': 'angle, side',
         'assets': assets,
     }
-    (OUTPUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-    bpy.ops.wm.save_as_mainfile(filepath=str(PRODUCTION / 'aurago-abyss.blend'))
+    (OUTPUT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8', newline='\n')
+    blend = PRODUCTION / 'aurago-abyss.blend'
+    blend.unlink(missing_ok=True)
+    bpy.ops.wm.save_as_mainfile(filepath=str(blend))
     print('ABYSS_EXPORT', json.dumps([{k: a[k] for k in ('file', 'bytes', 'triangles')} for a in assets]))
 
 

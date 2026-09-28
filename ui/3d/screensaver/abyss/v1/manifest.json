@@ -3,7 +3,7 @@
   "version": 1,
   "license": "MIT",
   "generator": "assets/screensaver-abyss/build_abyss.py",
-  "generator_sha256": "25004cd32e2c8825243f6b9286f3008d3dba529c5c449d81adb7ab2cf3211aa2",
+  "generator_sha256": "591be7f8950329f46630dda3d1646f26940801d9b90931da3e4d82076fd4b692",
   "uv0": "along, phase",
   "uv1": "angle, side",
   "assets": [
