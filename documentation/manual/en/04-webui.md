@@ -271,6 +271,21 @@ The Software Store uses AuraGo-managed Docker containers. Apps can expose creden
 
 UI sounds for the Virtual Desktop are **opt-in** and **off by default**. Open **Settings → Sound** to enable them, pick one of five synthesized themes (Crystal, Wood, Analog, Workshop, Water), adjust master volume, and toggle categories for windows, notifications, navigation, and files/dialogs. Use **Preview** on a theme card to listen without changing your saved selection. Sounds require a normal user gesture in the browser tab before the first playback; they stay silent during session restore and while the tab is hidden.
 
+### Screensaver
+
+The Virtual Desktop has an **opt-in** screensaver that is **off by default**. Open **Settings → Screensaver** to enable it, choose the idle time (1 minute to 1 hour) and pick a scene:
+
+- **Deep Sea** – bioluminescent jellyfish and a gliding manta ray in 3D (Three.js with Blender-authored models).
+- **Event Horizon** – a ray-traced black hole whose gravity bends starlight around a glowing accretion disk.
+- **Northern Lights** – aurora curtains above snowy peaks, mirrored in a still lake.
+- **Liquid Ink** – a real GPU fluid simulation swirling glowing ink through the dark.
+- **Stardust Clock** – hundreds of thousands of particles assemble the current time and, now and then, the AuraGo logo.
+- **Random** – a different scene every time the screensaver starts.
+
+Use **Preview** on a scene card to watch it immediately. The optional clock overlay shows time and date and drifts slowly to protect the display. Any mouse movement, click, key press or touch returns to the desktop; that input is not passed on to the desktop. The screensaver does not lock the session.
+
+It does not start while the browser tab is hidden, a window is in fullscreen, a video with sound is playing, a call is ringing or an embedded remote screen (VNC, container console) has keyboard focus. Rendering adapts its resolution to the GPU, pauses in hidden tabs, releases all GPU resources on wake, and shows a still poster instead of animation when the system requests reduced motion or WebGL is unavailable. The setting applies to the whole installation, like the other desktop settings.
+
 ### Themes
 
 - **Chat:** 13 themes, including Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee, and the LCARS-inspired **Galaxy**.

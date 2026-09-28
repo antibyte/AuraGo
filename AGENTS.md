@@ -549,6 +549,7 @@ Current child AGENTS.md files:
 - `assets/game-maker-low-poly/AGENTS.md` — Original 220-model Blender pack, animation contracts, compact exports and playable acceptance scenes.
 - `assets/game-maker-presentation/AGENTS.md` — Game Maker effects/audio sources, licensing, builds and runtime limits.
 - `assets/game-maker-worlds/AGENTS.md` — Maritime and isometric Blender sources, catalog counts, exports and runtime limits.
+- `assets/screensaver-abyss/AGENTS.md` — Tiefsee screensaver creature generator, deterministic exports and asset checks.
 - `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
 - `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
 - `internal/agent/AGENTS.md` — Runtime prompt, tool-discovery, dispatch, and context rules.

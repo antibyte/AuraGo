@@ -82,6 +82,14 @@ worker. Keep packaging, recovery and offline instructions in
   uses the speaker mini icon or a currentColor mask. Verify markers with
   `TestDesktopSound*` and browser smoke with `AURAGO_RUN_BROWSER_SMOKE=1`.
 
+- The desktop screensaver is opt-in (`screensaver.*` settings, off by default).
+  `core/screensaver-runtime.js` in `main.bundle.js` owns idle detection, suppression
+  and swallowed wake input; the overlay host, five scenes and CSS load lazily from
+  `js/desktop/screensavers/` and `css/desktop-screensaver.css`. Tiefsee uses its own
+  Three.js 0.185.1 bundle (`js/vendor/screensaver-abyss/`) and Blender GLBs in
+  `3d/screensaver/`. Posters in `img/screensaver/` are the reduced-motion/no-WebGL
+  fallback and Settings thumbnails. See the child contract.
+
 - HA Switchboard is a lazy built-in desktop app with a theme-independent walnut
   cabinet and silver lever assets under `img/ha-switchboard/`. Retain real shell
   controls, semantic switches and the source asset provenance. All 16 desktop
@@ -511,6 +519,7 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Child DOX Index
 
+- `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.
 - `3d/system-world/AGENTS.md` — Compact versioned Blender GLBs and asset integrity/LOD contracts.
 
 - `img/personas/animated/AGENTS.md` - Reviewed Rive persona payloads, catalog
@@ -518,3 +527,5 @@ worker. Keep packaging, recovery and offline instructions in
   in the separate sibling `personas` project.
 - `js/desktop/apps/AGENTS.md` - Built-in Virtual Desktop application modules
   and their lifecycle, asset, and app-specific contracts.
+- `js/desktop/screensavers/AGENTS.md` - Screensaver overlay host, scene
+  lifecycle, idle/wake rules and verification.

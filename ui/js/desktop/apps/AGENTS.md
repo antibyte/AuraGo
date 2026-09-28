@@ -75,7 +75,9 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
 Shell chrome helpers live in the main desktop bundle (not lazy apps):
 `core/sound-runtime.js` (opt-in synthesized UI sounds; lazy
 `bundles/desktop-sounds.bundle.js` with `sound/synth-core.js` and five theme
-modules), `core/session-runtime.js` (session restore, dock pins, recent files, default
+modules), `core/screensaver-runtime.js` (opt-in idle detection and wake
+handling; the lazy overlay and scenes live in `js/desktop/screensavers/`,
+see its child contract), `core/session-runtime.js` (session restore, dock pins, recent files, default
 apps), `core/spaces-runtime.js` (three virtual desktops / Spaces v1: window
 `spaceId`, hide-without-dispose, session snapshot v2, taskbar pager, Ctrl+Alt
 arrows; disabled on compact viewport), `core/shell-chrome-runtime.js`

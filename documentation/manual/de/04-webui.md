@@ -271,6 +271,21 @@ Der Software Store nutzt vollständig von AuraGo verwaltete Docker-Container. Ap
 
 UI-Sounds für den Virtual Desktop sind **opt-in** und **standardmäßig aus**. Unter **Einstellungen → Sound** kannst du sie aktivieren, eines von fünf synthetischen Themes wählen (Kristall, Holz, Analog, Werkstatt, Wasser), die Master-Lautstärke regeln und Kategorien für Fenster, Benachrichtigungen, Navigation sowie Dateien/Dialoge einzeln schalten. Mit **Anhören** auf einer Theme-Karte hörst du eine Vorschau, ohne die gespeicherte Auswahl zu ändern. Vor der ersten Wiedergabe braucht der Browser-Tab eine normale Nutzergeste; während Session-Restore und bei ausgeblendetem Tab bleiben die Sounds stumm.
 
+### Bildschirmschoner
+
+Der Virtual Desktop hat einen **optionalen** Bildschirmschoner, der **standardmäßig aus** ist. Unter **Einstellungen → Bildschirmschoner** kannst du ihn aktivieren, die Leerlaufzeit (1 Minute bis 1 Stunde) festlegen und eine Szene wählen:
+
+- **Tiefsee** – biolumineszente Quallen und ein gleitender Mantarochen in 3D (Three.js mit in Blender erstellten Modellen).
+- **Ereignishorizont** – ein raygetracetes Schwarzes Loch, dessen Gravitation das Sternenlicht um eine glühende Akkretionsscheibe krümmt.
+- **Nordlicht** – Polarlichtvorhänge über verschneiten Gipfeln, gespiegelt in einem stillen See.
+- **Flüssige Tinte** – eine echte GPU-Strömungssimulation, die leuchtende Tinte durch die Dunkelheit wirbelt.
+- **Sternenstaub-Uhr** – Hunderttausende Partikel formen die aktuelle Uhrzeit und ab und zu das AuraGo-Logo.
+- **Zufällig** – bei jedem Start eine andere Szene.
+
+Mit **Vorschau** auf einer Szenenkarte siehst du die Szene sofort. Das optionale Uhr-Overlay zeigt Uhrzeit und Datum und wandert langsam, um den Bildschirm zu schonen. Jede Mausbewegung, jeder Klick, Tastendruck oder jede Berührung bringt dich zurück zum Desktop; diese Eingabe wird nicht an den Desktop weitergereicht. Der Bildschirmschoner sperrt die Sitzung nicht.
+
+Er startet nicht, solange der Browser-Tab ausgeblendet ist, ein Fenster im Vollbild läuft, ein Video mit Ton spielt, ein Anruf klingelt oder ein eingebetteter Fernbildschirm (VNC, Container-Konsole) den Tastaturfokus hat. Das Rendering passt seine Auflösung an die GPU an, pausiert in ausgeblendeten Tabs, gibt beim Aufwachen alle GPU-Ressourcen frei und zeigt ein Standbild statt der Animation, wenn das System reduzierte Bewegung wünscht oder WebGL nicht verfügbar ist. Die Einstellung gilt – wie die übrigen Desktop-Einstellungen – für die gesamte Installation.
+
 ### Themes
 
 - **Chat:** 13 Themes, darunter Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee und das LCARS-inspirierte **Galaxy**.
