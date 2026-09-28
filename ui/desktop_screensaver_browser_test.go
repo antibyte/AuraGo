@@ -119,6 +119,9 @@ func TestDesktopScreensaverScenesBrowser(t *testing.T) {
 	page.MustNavigate(server.URL + "/fixture")
 	page.MustWaitLoad()
 	page.MustWait(`()=>!!window.AuraScreensaverHost`)
+	if fake := os.Getenv("AURAGO_SCREENSAVER_FAKE_CLOCK"); fake != "" {
+		page.MustEval(`iso=>{const offset=new Date(iso).getTime()-Date.now();const Real=Date;class Shifted extends Real{constructor(...a){super(...(a.length?a:[Real.now()+offset]))}static now(){return Real.now()+offset}};window.Date=Shifted}`, fake)
+	}
 
 	artifacts := screensaverArtifactDir(t)
 	themes := []string{"aurora", "event_horizon", "ink", "stardust", "abyss"}
@@ -133,14 +136,14 @@ func TestDesktopScreensaverScenesBrowser(t *testing.T) {
 		theme := strings.TrimSpace(theme)
 		t.Run(theme, func(t *testing.T) {
 			page.MustEval(`theme=>AuraScreensaverHost.start({theme, clock:true, reducedMotion:false, lang:'de', t:window.t})`, theme)
-			page.Timeout(90*time.Second).MustWait(`()=>{const c=AuraScreensaverHost.inspect().current;return !!c && (c.frames>=3 || c.state==='poster')}`)
+			page.Timeout(90 * time.Second).MustWait(`()=>{const c=AuraScreensaverHost.inspect().current;return !!c && (c.frames>=3 || c.state==='poster')}`)
 			report := page.MustEval(`()=>JSON.stringify(AuraScreensaverHost.inspect().current)`).Str()
 			if strings.Contains(report, `"state":"poster"`) {
 				t.Fatalf("%s fell back to the poster: %s", theme, report)
 			}
 			for i, at := range shots {
 				page.Timeout(3*time.Minute).MustWait(`at=>{const c=AuraScreensaverHost.inspect().current;return !!c && c.time>=at}`, at)
-				raw := page.Timeout(60*time.Second).MustEval(`async()=>JSON.stringify(await AuraScreensaverHost.probe())`).Str()
+				raw := page.Timeout(60 * time.Second).MustEval(`async()=>JSON.stringify(await AuraScreensaverHost.probe())`).Str()
 				var probe screensaverProbe
 				if err := json.Unmarshal([]byte(raw), &probe); err != nil {
 					t.Fatalf("%s probe decode %q: %v", theme, raw, err)

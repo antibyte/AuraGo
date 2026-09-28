@@ -407,7 +407,9 @@ void main() {
 
         function dataTexture(width, height, format, data, opts) {
             const settings = opts || {};
-            const fmt = resolveFormat(format);
+            // Sample-only textures never need render support, so no fallback applies.
+            const spec = FORMATS[format] || FORMATS.rgba8;
+            const fmt = { key: format, internal: gl[spec[0]], format: gl[spec[1]], type: gl[spec[2]] };
             const tex = gl.createTexture();
             owned.textures.push(tex);
             const filter = settings.filter === 'nearest' ? gl.NEAREST : gl.LINEAR;
