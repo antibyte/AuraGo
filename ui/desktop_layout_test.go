@@ -113,9 +113,10 @@ func TestCodeStudioAgentPanelGetsVisibleColumn(t *testing.T) {
 	}
 	css := strings.ReplaceAll(string(cssBytes), "\r\n", "\n")
 	for _, marker := range []string{
-		`grid-template-columns: 48px var(--cs-sidebar-width) minmax(0, 1fr) minmax(320px, 360px);`,
+		".code-studio-body {\n    display: flex;",
 		".code-studio-main {\n    position: relative;\n    z-index: 1;",
 		".code-studio-chat {\n    position: relative;\n    z-index: 2;",
+		`flex: 0 0 var(--cs-agent-width, 340px);`,
 		`min-width: 320px;`,
 	} {
 		if !strings.Contains(css, marker) {

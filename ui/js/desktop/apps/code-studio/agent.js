@@ -21,8 +21,8 @@
         const suggestion = state.pendingSuggestion ? `<div class="code-studio-diff">
             <div class="cs-diff-head">
                 <strong>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</strong>
-                <button type="button" class="cs-button primary" data-agent-apply>${buttonIcon('check-square', 'Y')}<span>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</span></button>
-                <button type="button" class="cs-button" data-agent-discard>${buttonIcon('x', 'X')}<span>${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}</span></button>
+                <button type="button" class="cs-icon-button primary" data-agent-apply title="${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}" aria-label="${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}">${iconMarkup('check-square', 'Y', 'cs-icon-button-icon', 15)}</button>
+                <button type="button" class="cs-icon-button" data-agent-discard title="${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}" aria-label="${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 15)}</button>
             </div>
             <pre>${esc(state.pendingSuggestion)}</pre>
         </div>` : '';
@@ -31,13 +31,13 @@
 
         panel.innerHTML = `<div class="cs-agent-head">
             <strong>${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</strong>
-            <button type="button" class="cs-icon-button" data-agent-close title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 16)}</button>
+            <button type="button" class="cs-icon-button" data-agent-close title="${esc(tr('desktop.close', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 16)}</button>
         </div>
         ${quickActions}
         <div class="cs-agent-log">${messages}${typingIndicator}</div>
         ${suggestion}
         <form class="cs-agent-form" data-agent-form>
-            <input name="message" autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.chat_placeholder', 'Ask the agent...'))}">
+            <input name="message" autocomplete="off" spellcheck="false" inputmode="text" enterkeyhint="send" placeholder="${esc(tr('desktop.chat_placeholder', 'Ask the agent...'))}">
             ${state.agentBusy
                 ? `<button type="button" class="cs-agent-stop" data-agent-stop>${esc(tr('codeStudio.stop', 'Stop'))}</button>`
                 : `<button type="submit" class="cs-button primary">${buttonIcon('chat', 'S')}<span>${esc(tr('desktop.send', 'Send'))}</span></button>`
@@ -84,29 +84,46 @@
         });
         const log = panel.querySelector('.cs-agent-log');
         if (log) log.scrollTop = log.scrollHeight;
+        if (!state.agentBusy) {
+            const input = panel.querySelector('input[name="message"]');
+            if (input && document.activeElement && panel.contains(document.activeElement)) input.focus();
+        }
     }
 
     function renderMarkdown(text) {
         if (!text) return '';
-        let html = esc(text);
-        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-            const langAttr = lang ? ` data-lang="${lang}"` : '';
-            return `<pre${langAttr}><code class="language-${lang || 'text'}">${code}</code><button type="button" class="cs-md-code-copy">${esc(tr('desktop.copy'))}</button></pre>`;
+        const blocks = [];
+        const inline = [];
+        const marker = '\u0000';
+        let source = String(text).replace(/\r\n?/g, '\n');
+        source = source.replace(/```([\w+#.-]*)[ \t]*\n([\s\S]*?)```/g, (_, lang, code) => {
+            const language = String(lang || '').toLowerCase();
+            const index = blocks.length;
+            blocks.push(`<pre${language ? ` data-lang="${esc(language)}"` : ''}><code class="language-${esc(language || 'text')}">${esc(code.replace(/\n$/, ''))}</code><button type="button" class="cs-md-code-copy">${esc(tr('desktop.copy'))}</button></pre>`);
+            return `\n${marker}BLOCK${index}${marker}\n`;
         });
-        html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+        source = source.replace(/`([^`\n]+)`/g, (_, code) => {
+            inline.push(`<code>${esc(code)}</code>`);
+            return `${marker}INLINE${inline.length - 1}${marker}`;
+        });
+        let html = esc(source);
         html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
         html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
         html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        html = html.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, '$1<em>$2</em>');
         html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
         html = html.replace(/^---$/gm, '<hr>');
-        html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
-        html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => `<a href="${sanitizeMarkdownHref(href)}" target="_blank" rel="noopener">${label}</a>`);
-        html = html.replace(/^(?!<[a-z/])((?!<).+)$/gm, '<p>$1</p>');
+        html = html.replace(/^[\-\*] (.+)$/gm, '<li data-list="ul">$1</li>');
+        html = html.replace(/^\d+\. (.+)$/gm, '<li data-list="ol">$1</li>');
+        html = html.replace(/((?:<li data-list="ul">.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+        html = html.replace(/((?:<li data-list="ol">.*<\/li>\n?)+)/g, '<ol>$1</ol>');
+        html = html.replace(/ data-list="(?:ul|ol)"/g, '');
+        html = html.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, href) => `<a href="${sanitizeMarkdownHref(href)}" target="_blank" rel="noopener">${label}</a>`);
+        html = html.replace(/^(?!<[a-z/]|\u0000)((?!<).+)$/gm, '<p>$1</p>');
         html = html.replace(/<p>\s*<\/p>/g, '');
+        html = html.replace(/\u0000BLOCK(\d+)\u0000/g, (_, index) => blocks[Number(index)] || '');
+        html = html.replace(/\u0000INLINE(\d+)\u0000/g, (_, index) => inline[Number(index)] || '');
         return html;
     }
 
@@ -128,6 +145,11 @@
         renderAgentPanel();
         renderActivityBar();
         renderWindowMenus();
+        scheduleTerminalFit();
+        if (state.agentVisible) {
+            const input = shellPart('[data-agent-panel] input[name="message"]');
+            if (input) input.focus();
+        }
     }
 
     async function sendAgentMessage(message) {
@@ -144,6 +166,7 @@
             state.agentAbortController = new AbortController();
             context = codeStudioAgentContext();
             renderAgentPanel();
+            renderActivityBar();
         });
         try {
             const response = await api('/api/desktop/chat', {
@@ -228,49 +251,22 @@
     }
 
     function showCodeActionMenu(x, y) {
-        document.querySelectorAll('.cs-context-menu').forEach(menu => {
-            if (typeof menu.__codeStudioCleanup === 'function') menu.__codeStudioCleanup();
-            else menu.remove();
-        });
-        const instance = state;
-        const menu = document.createElement('div');
-        menu.className = 'cs-context-menu';
-        menu.style.left = x + 'px';
-        menu.style.top = y + 'px';
-        menu.innerHTML = `
-            <button type="button" data-code-action="explain">${buttonIcon('info', 'i')}<span>${esc(tr('codeStudio.explain', 'Explain'))}</span></button>
-            <button type="button" data-code-action="comments">${buttonIcon('notes', 'N')}<span>${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</span></button>
-            <button type="button" data-code-action="tests">${buttonIcon('check-square', 'T')}<span>${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</span></button>
-            <button type="button" data-code-action="refactor">${buttonIcon('tools', 'R')}<span>${esc(tr('codeStudio.refactor', 'Refactor'))}</span></button>`;
-        document.body.appendChild(menu);
-        let boundClose = null;
-        let menuClosed = false;
-        let unregister = () => {};
-        const cleanupMenu = () => {
-            if (menuClosed) return;
-            menuClosed = true;
-            unregister();
-            if (boundClose) document.removeEventListener('mousedown', boundClose);
-            menu.remove();
-        };
-        menu.__codeStudioCleanup = cleanupMenu;
-        runWithInstance(instance, () => {
-            unregister = registerDisposer(cleanupMenu);
-        });
-        menu.querySelectorAll('[data-code-action]').forEach(btn => {
-            btn.addEventListener('click', bind(() => {
-                runCodeAction(btn.dataset.codeAction);
-                cleanupMenu();
-            }));
-        });
-        setTimeout(bind(() => {
-            if (menuClosed) return;
-            const close = event => {
-                if (!menu.contains(event.target)) {
-                    cleanupMenu();
-                }
-            };
-            boundClose = bind(close);
-            document.addEventListener('mousedown', boundClose);
-        }), 0);
+        const tab = activeTab();
+        const hasSelection = !!codeStudioSelection().text;
+        const items = [];
+        if (tab) {
+            items.push({ id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !tab.modified, action: bind(() => saveCurrentFile()) });
+            items.push({ id: 'run', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', action: bind(() => runCurrentFile()) });
+            items.push({ id: 'copy-path', label: tr('codeStudio.copyPath', 'Copy path'), icon: 'copy', action: bind(() => copyTextToClipboard(tab.path)) });
+            items.push({ separator: true });
+        }
+        items.push({ id: 'explain', label: tr('codeStudio.explain', 'Explain'), icon: 'info', disabled: !tab, action: bind(() => runCodeAction('explain')) });
+        items.push({ id: 'comments', label: tr('codeStudio.generateComments', 'Generate Comments'), icon: 'notes', disabled: !tab, action: bind(() => runCodeAction('comments')) });
+        items.push({ id: 'tests', label: tr('codeStudio.generateTests', 'Generate Tests'), icon: 'check-square', disabled: !tab, action: bind(() => runCodeAction('tests')) });
+        items.push({ id: 'refactor', label: tr('codeStudio.refactor', 'Refactor'), icon: 'tools', disabled: !tab, action: bind(() => runCodeAction('refactor')) });
+        if (hasSelection) {
+            items.push({ separator: true });
+            items.push({ id: 'ask-agent', label: tr('codeStudio.agentChat', 'Agent Chat'), icon: 'chat', action: bind(() => { if (!state.agentVisible) toggleAgentPanel(); }) });
+        }
+        showStudioContextMenu(x, y, items);
     }

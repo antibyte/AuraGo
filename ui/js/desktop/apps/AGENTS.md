@@ -826,14 +826,16 @@ buttons and menu popovers remain excluded from those gestures.
   templates; `sheets-panels.js` owns formatting, data, search, AI and print;
   `sheets-charts.js` renders five editable Chart.js chart types on the sheet.
 - `code-studio/*.js` implements Code Studio, a full IDE with file explorer,
-  CodeMirror editor, terminal, search, agent chat with SSE streaming, Git
-  integration, split editor, and keyboard shortcuts. Split across `core.js`
-  (state management, API client, lifecycle, shell), `sidebar.js` (file tree),
-  `editor.js` (CodeMirror/textarea), `terminal.js` (xterm.js sessions),
-  `search.js` (search-in-files), `agent.js` (agent chat, diff preview),
-  `git.js` (Git panel, diff view, commit), `panels.js` (split editor,
-  panel management), `shortcuts.js` (keyboard shortcuts, window.CodeStudioApp),
-  and `command-palette.js` (separate IIFE).
+  CodeMirror editor, terminal, search, agent chat, Git integration, a synced
+  split editor, and keyboard shortcuts. Split across `core.js`
+  (state management, API client, lifecycle, shell, tabs, status bar, dialogs,
+  shared context menu), `sidebar.js` (keyboard-navigable file tree, path
+  crumbs, tree context menu), `editor.js` (CodeMirror/textarea views),
+  `terminal.js` (xterm.js sessions, ResizeObserver fit), `search.js`
+  (search-in-files), `agent.js` (agent chat, markdown, diff preview),
+  `git.js` (Git panel, closable diff view, commit), `panels.js` (two synced
+  split panes), `shortcuts.js` (keyboard shortcuts, command table,
+  window.CodeStudioApp), and `command-palette.js` (separate IIFE).
 - `sysworld*.js` implements System World's Blender-authored data metropolis:
   seven fixed districts, live read-only inspector, entity search, map, explicit
   tour and street-level WASD/touch exploration. The isolated Three.js 0.185.1
@@ -1177,11 +1179,40 @@ registration lives in `internal/desktop/types.go`.
   Print and exports serialize the current editor, never stale server content.
   Unknown package parts and authored font names must survive native saves.
 - Code Studio exposes `window.CodeStudioApp = { render, dispose, state, instances,
-  api, loadState, saveState, refreshFiles, openFile, openFileFromDialog,
-  saveCurrentFile, uploadFile, downloadFile }`. All non-command-palette modules
-  share a single IIFE closure; `core.js` opens the IIFE, `shortcuts.js` closes it.
-  Function declarations are hoisted across the entire IIFE scope. All `const`/`let`
-  declarations must stay in `core.js` (the first module in the bundle load order).
+  api, command, knownFiles, loadState, saveState, refreshFiles, openFile,
+  openFileFromDialog, saveCurrentFile, uploadFile, downloadFile }`. All
+  non-command-palette modules share a single IIFE closure; `core.js` opens the
+  IIFE, `shortcuts.js` closes it. Function declarations are hoisted across the
+  entire IIFE scope. All `const`/`let` declarations must stay in `core.js` (the
+  first module in the bundle load order).
+- The command palette drives Code Studio only through
+  `CodeStudioApp.command(name, args)` (table in `shortcuts.js`) and lists tree
+  files from `CodeStudioApp.knownFiles()`; never dispatch synthetic key events
+  or click hidden buttons from the palette.
+- Code Studio receives the office app context (`officeAppContext` in
+  `menus-and-routing.js`): `setWindowBeforeClose`, `showContextMenu`,
+  `promptDialog`, `confirmDialog`, `notify`. Modified tabs block tab close,
+  close-others/all and window close until the user confirms with
+  `codeStudio.unsavedClosePrompt` / `unsavedTabsPrompt` / `unsavedWindowPrompt`.
+- `.code-studio-body` and `.code-studio-main` are flex layouts; hidden
+  sidebar/agent/git/terminal panels use `display: none`. Never model panel
+  visibility with collapsed grid tracks (zen mode and the Git panel must keep
+  the editor visible).
+- Explorer rows are `role="treeitem"` with `tabindex="0"`: arrows, Home/End,
+  Enter, F2 and Delete work; the active tab is highlighted; right-click opens
+  the shared context menu. New file/folder/upload target `targetDirectory()`
+  (the selected, expanded folder) and reload only that directory via
+  `reloadTreeDirectory`. Typing `?` inside inputs or the editor must not open
+  the shortcut overlay; Ctrl+= / Ctrl+- / Ctrl+0 and Ctrl+wheel zoom the editor.
+- Split Right/Down renders two synced CodeMirror views of the active tab
+  (`tab.view`, `tab.secondaryView`, `tab.views`); `renderEditor` re-applies the
+  split on tab changes and `destroyTabView` disposes both views.
+- The Code Studio terminal refits through a ResizeObserver and sends
+  `{"type":"resize","cols","rows"}` JSON, which the server line terminal ignores.
+- Browser acceptance: `TestDesktopCodeStudioBrowser` renders the real shell,
+  bundle, CodeMirror and xterm against an in-memory backend (no Docker) with
+  `AURAGO_RUN_BROWSER_SMOKE=1`; set `AURAGO_BROWSER_ARTIFACT_DIR` for
+  screenshots.
 - Code Studio bundle load order in `scripts/build-ui-bundles.js` must be:
   core.js, sidebar.js, editor.js, terminal.js, search.js, agent.js, git.js,
   panels.js, shortcuts.js, command-palette.js.
@@ -1936,11 +1967,13 @@ registration lives in `internal/desktop/types.go`.
   status bar, file operations, window menus. Zen-mode exit title reuses
   `codeStudio.exitZen`. Opens the shared IIFE. No child DOX
   file needed.
-- `code-studio/sidebar.js` - File explorer: tree view, expand/collapse, drag &
-  drop upload, file actions (rename/delete/download), activity bar. No child DOX
-  file needed.
-- `code-studio/editor.js` - CodeMirror and textarea editors, syntax highlighting
-  integration. No child DOX file needed.
+- `code-studio/sidebar.js` - File explorer: keyboard-navigable tree view,
+  path crumbs and header tools, expand/collapse, drag & drop upload into the
+  hovered folder, file actions (rename/delete/download), tree context menu,
+  active-file highlight, activity bar. No child DOX file needed.
+- `code-studio/editor.js` - CodeMirror and textarea editor views, linked-view
+  sync for split panes, Ctrl+wheel zoom, syntax highlighting integration. No
+  child DOX file needed.
 - `code-studio/terminal.js` - Terminal sessions with xterm.js, WebSocket
   connection, multi-session management. Tab names and the xterm welcome
   line use `codeStudio.shell_n` plus `codeStudio.title`. No child DOX
@@ -1952,13 +1985,14 @@ registration lives in `internal/desktop/types.go`.
   DOX file needed.
 - `code-studio/git.js` - Git panel: branch display, change list, diff view,
   commit dialog, recent log. No child DOX file needed.
-- `code-studio/panels.js` - Split editor (horizontal/vertical), resizable
-  divider, panel pinning. No child DOX file needed.
-- `code-studio/shortcuts.js` - Keyboard shortcuts, shortcut overlay, exposed
-  API, `window.CodeStudioApp` assignment. Closes the shared IIFE. No child DOX
-  file needed.
-- `code-studio/command-palette.js` - Command palette overlay with fuzzy search,
-  keyboard navigation. Separate IIFE. No child DOX file needed.
+- `code-studio/panels.js` - Split editor (right/down) with two synced views of
+  the active tab and a resizable divider. No child DOX file needed.
+- `code-studio/shortcuts.js` - Keyboard shortcuts, shortcut overlay, command
+  table, exposed API, `window.CodeStudioApp` assignment. Closes the shared
+  IIFE. No child DOX file needed.
+- `code-studio/command-palette.js` - Command palette overlay with fuzzy search
+  over commands, open/recent/tree files, keyboard navigation; executes through
+  `CodeStudioApp.command`. Separate IIFE. No child DOX file needed.
 - `sysworld.js` - Per-window lifecycle, lazy ESM loading, visibility, menus,
   selection, bounded neighbourhood requests and the visibility-gated memory
   artifact feed for the hologram. Exposes `window.SysWorldApp`.

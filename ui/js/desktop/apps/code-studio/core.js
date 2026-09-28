@@ -54,6 +54,14 @@
             gitLog: [],
             splitMode: null,
             splitRatio: 0.5,
+            selectedDir: WORKSPACE_ROOT,
+            searchPerformed: false,
+            searchQuery: '',
+            searchOptions: null,
+            statusMessage: '',
+            statusTimer: null,
+            terminalObserver: null,
+            terminalFitScheduled: false,
             iconMarkup: context && typeof context.iconMarkup === 'function' ? context.iconMarkup : null,
             disposers: []
         };
@@ -150,10 +158,15 @@
     }
 
     function destroyTabView(tab) {
-        if (tab && tab.view && typeof tab.view.destroy === 'function') {
-            try { tab.view.destroy(); } catch (_) {}
-        }
-        if (tab) tab.view = null;
+        if (!tab) return;
+        [tab.view, tab.secondaryView].forEach(view => {
+            if (view && typeof view.destroy === 'function') {
+                try { view.destroy(); } catch (_) {}
+            }
+        });
+        tab.view = null;
+        tab.secondaryView = null;
+        tab.views = [];
     }
 
     function tr(key, fallback, vars) {
@@ -378,6 +391,9 @@
                 container.innerHTML = shellMarkup();
                 renderShell();
             });
+            if (context && typeof context.setWindowBeforeClose === 'function') {
+                context.setWindowBeforeClose(windowId, () => confirmWindowClose(instance));
+            }
             const launchPath = normalizeCodeStudioPath(context && context.path);
             const hasLaunchPath = !!(context && context.path) && launchPath !== WORKSPACE_ROOT;
             await runAsyncStep(instance, () => refreshFiles(hasLaunchPath ? codeStudioParentPath(launchPath) : (context && context.path ? launchPath : state.currentPath)));
@@ -418,6 +434,7 @@
             try { disposeFn(); } catch (_) {}
         }
         instance.openTabs.forEach(destroyTabView);
+        if (instance.statusTimer) clearTimeout(instance.statusTimer);
         instances.delete(windowId);
         if (state === instance) state = null;
         if (latestWindowId === windowId) latestWindowId = instances.size ? Array.from(instances.keys()).pop() : '';
@@ -482,7 +499,7 @@
             <div class="code-studio-search" data-search hidden></div>
             <div class="code-studio-body">
                 <nav class="code-studio-activity-bar" data-activity-bar>
-                    <button type="button" class="cs-activity-btn active" data-activity="explorer" title="${esc(tr('codeStudio.title', 'Explorer'))}">
+                    <button type="button" class="cs-activity-btn active" data-activity="explorer" title="${esc(tr('codeStudio.explorer', 'Explorer'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                     </button>
                     <button type="button" class="cs-activity-btn" data-activity="search" title="${esc(tr('codeStudio.search', 'Search'))}">
@@ -549,6 +566,8 @@
     function renderWindowMenus() {
         if (!state || !state.context || typeof state.context.setWindowMenus !== 'function') return;
         const hasActiveTab = !!activeTab();
+        const hasModified = state.openTabs.some(tab => tab.modified);
+        const hasOtherTabs = state.openTabs.length > 1;
         state.context.setWindowMenus(state.windowId, [
             {
                 id: 'file',
@@ -557,8 +576,14 @@
                     { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', shortcut: 'Ctrl+N', action: bind(createNewFile) },
                     { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', action: bind(createNewFolder) },
                     { id: 'open-file-dialog', labelKey: 'desktop.file_dialog_open', icon: 'folder-open', shortcut: 'Ctrl+O', action: bind(openFileFromDialog) },
+                    { type: 'separator' },
                     { id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !hasActiveTab, action: bind(saveCurrentFile) },
+                    { id: 'save-all', label: tr('codeStudio.saveAll', 'Save All'), icon: 'save', disabled: !hasModified, action: bind(saveAllFiles) },
                     { id: 'upload', label: tr('codeStudio.upload', 'Upload'), icon: 'upload', action: bind(uploadFile) },
+                    { type: 'separator' },
+                    { id: 'close-tab', label: tr('codeStudio.closeTab', 'Close tab'), icon: 'x', disabled: !hasActiveTab, action: bind(() => closeTab(state.activeTabIndex)) },
+                    { id: 'close-others', label: tr('codeStudio.closeOthers', 'Close others'), icon: 'x', disabled: !hasOtherTabs, action: bind(() => closeOtherTabs(state.activeTabIndex)) },
+                    { id: 'close-all', label: tr('codeStudio.closeAll', 'Close all'), icon: 'x', disabled: !hasActiveTab, action: bind(closeAllTabs) },
                     { type: 'separator' },
                     { id: 'refresh', label: tr('codeStudio.refresh', 'Refresh'), icon: 'refresh', action: bind(() => refreshFiles(state.currentPath)) }
                 ]
@@ -567,7 +592,10 @@
                 id: 'edit',
                 labelKey: 'desktop.menu_edit',
                 items: [
-                    { id: 'search', label: tr('codeStudio.search', 'Search'), icon: 'search', shortcut: 'Ctrl+F', action: bind(toggleSearch) }
+                    { id: 'search', label: tr('codeStudio.searchFiles', 'Search in Files'), icon: 'search', shortcut: 'Ctrl+Shift+F', checked: state.searchVisible, action: bind(toggleSearch) },
+                    { id: 'command-palette', label: tr('codeStudio.commandPalette', 'Command Palette'), icon: 'search', shortcut: 'Ctrl+Shift+P', action: bind(openCommandPalette) },
+                    { type: 'separator' },
+                    { id: 'shortcuts', label: tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'), icon: 'help', shortcut: '?', action: bind(showShortcutOverlay) }
                 ]
             },
             {
@@ -576,11 +604,12 @@
                 items: [
                     { id: 'sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), icon: 'sidebar', shortcut: 'Ctrl+B', checked: state.sidebarVisible, action: bind(toggleSidebar) },
                     { id: 'terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.terminalVisible, action: bind(toggleTerminal) },
-                    { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', checked: state.agentVisible, action: bind(toggleAgentPanel) },
+                    { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', shortcut: 'Ctrl+Shift+A', checked: state.agentVisible, action: bind(toggleAgentPanel) },
                     { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'git', checked: state.gitVisible, action: bind(toggleGitPanel) },
                     { type: 'separator' },
-                    { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'split', action: bind(() => splitEditor('right')) },
-                    { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'split', action: bind(() => splitEditor('down')) },
+                    { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', checked: state.splitMode === 'right', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('right')) },
+                    { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', checked: state.splitMode === 'down', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('down')) },
+                    { id: 'zen', label: tr('codeStudio.zenMode', 'Zen Mode'), icon: 'maximize', shortcut: 'Ctrl+K', checked: state.zenMode, action: bind(toggleZenMode) },
                     { type: 'separator' },
                     { id: 'zoom-in', label: tr('codeStudio.zoomIn', 'Zoom In'), icon: 'zoom-in', shortcut: 'Ctrl+=', disabled: state.editorFontSize >= MAX_EDITOR_FONT_SIZE, action: bind(() => adjustEditorZoom(1)) },
                     { id: 'zoom-out', label: tr('codeStudio.zoomOut', 'Zoom Out'), icon: 'zoom-out', shortcut: 'Ctrl+-', disabled: state.editorFontSize <= MIN_EDITOR_FONT_SIZE, action: bind(() => adjustEditorZoom(-1)) },
@@ -638,7 +667,7 @@
         const tabs = shellPart('[data-tabs]');
         if (!tabs) return;
         tabs.innerHTML = state.openTabs.length ? state.openTabs.map((tab, index) => `
-            <button type="button" class="cs-tab ${index === state.activeTabIndex ? 'active' : ''}" data-tab="${index}" draggable="true" title="${esc(tab.path)}">
+            <button type="button" class="cs-tab ${index === state.activeTabIndex ? 'active' : ''}${tab.modified ? ' modified' : ''}" data-tab="${index}" draggable="true" role="tab" aria-selected="${index === state.activeTabIndex ? 'true' : 'false'}" title="${esc(tab.path)}${tab.modified ? ' \u2022 ' + esc(tr('codeStudio.unsavedChanges', 'Unsaved changes')) : ''}">
                 <span>${esc(baseName(tab.path))}</span>
                 ${tab.modified ? '<span class="cs-tab-modified"></span>' : ''}
                 <span class="cs-tab-close" data-close="${index}" title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-tab-close-icon', 12)}</span>
@@ -647,6 +676,16 @@
             btn.addEventListener('click', bind(event => {
                 if (event.target.closest('[data-close]')) return;
                 activateTab(Number(btn.dataset.tab));
+            }));
+            btn.addEventListener('auxclick', bind(event => {
+                if (event.button !== 1) return;
+                event.preventDefault();
+                closeTab(Number(btn.dataset.tab));
+            }));
+            btn.addEventListener('contextmenu', bind(event => {
+                event.preventDefault();
+                event.stopPropagation();
+                showTabContextMenu(Number(btn.dataset.tab), event.clientX, event.clientY);
             }));
             btn.addEventListener('dragstart', bind(event => {
                 event.dataTransfer.setData('text/plain', btn.dataset.tab);
@@ -681,6 +720,111 @@
             closeTab(Number(btn.dataset.close));
         })));
         renderWindowMenus();
+        highlightActiveTreeRow();
+        updateToolbarTitle();
+    }
+
+    function updateToolbarTitle() {
+        const label = shellPart('.cs-toolbar-filename');
+        if (!label) return;
+        const tab = activeTab();
+        const fileName = tab ? baseName(tab.path) : '';
+        label.title = tab ? tab.path : '';
+        label.innerHTML = fileName
+            ? '<strong>' + esc(fileName) + '</strong>' + (tab.modified ? ' <span class="cs-toolbar-modified">●</span>' : '')
+            : esc(tr('codeStudio.title', 'Code Studio'));
+    }
+
+    function showTabContextMenu(index, x, y) {
+        const tab = state.openTabs[index];
+        if (!tab) return;
+        const items = [
+            { id: 'close', label: tr('codeStudio.closeTab', 'Close tab'), icon: 'x', action: bind(() => closeTab(index)) },
+            { id: 'close-others', label: tr('codeStudio.closeOthers', 'Close others'), icon: 'x', disabled: state.openTabs.length < 2, action: bind(() => closeOtherTabs(index)) },
+            { id: 'close-all', label: tr('codeStudio.closeAll', 'Close all'), icon: 'x', action: bind(closeAllTabs) },
+            { separator: true },
+            { id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !tab.modified, action: bind(() => { activateTab(index); saveCurrentFile(); }) },
+            { id: 'copy-path', label: tr('codeStudio.copyPath', 'Copy path'), icon: 'copy', action: bind(() => copyTextToClipboard(tab.path)) },
+            { separator: true },
+            { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', checked: state.splitMode === 'right', action: bind(() => { activateTab(index); splitEditor('right'); }) },
+            { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', checked: state.splitMode === 'down', action: bind(() => { activateTab(index); splitEditor('down'); }) }
+        ];
+        showStudioContextMenu(x, y, items);
+    }
+
+    function showStudioContextMenu(x, y, items) {
+        const ctx = state && state.context || {};
+        const visible = (items || []).filter(item => item && !item.hidden);
+        if (!visible.length) return;
+        if (typeof ctx.showContextMenu === 'function') {
+            ctx.showContextMenu(x, y, visible);
+            return;
+        }
+        document.querySelectorAll('.cs-context-menu').forEach(menu => {
+            if (typeof menu.__codeStudioCleanup === 'function') menu.__codeStudioCleanup();
+            else menu.remove();
+        });
+        const instance = state;
+        const menu = document.createElement('div');
+        menu.className = 'cs-context-menu';
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML = visible.map((item, index) => item.separator
+            ? '<div class="cs-context-separator" role="separator"></div>'
+            : `<button type="button" role="menuitem" data-context-index="${index}"${item.disabled ? ' disabled' : ''}>${buttonIcon(item.icon || 'tools', '')}<span>${esc(item.label || '')}</span>${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : ''}</button>`).join('');
+        document.body.appendChild(menu);
+        const rect = menu.getBoundingClientRect();
+        menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
+        menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+        let closed = false;
+        let boundClose = null;
+        let unregister = () => {};
+        const onKey = event => { if (event.key === 'Escape') cleanupMenu(); };
+        const cleanupMenu = () => {
+            if (closed) return;
+            closed = true;
+            unregister();
+            if (boundClose) document.removeEventListener('mousedown', boundClose);
+            document.removeEventListener('keydown', onKey);
+            menu.remove();
+        };
+        menu.__codeStudioCleanup = cleanupMenu;
+        runWithInstance(instance, () => {
+            unregister = registerDisposer(cleanupMenu);
+        });
+        menu.querySelectorAll('[data-context-index]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const item = visible[Number(btn.dataset.contextIndex)];
+                cleanupMenu();
+                if (item && typeof item.action === 'function') item.action();
+            });
+        });
+        setTimeout(() => {
+            if (closed) return;
+            boundClose = event => { if (!menu.contains(event.target)) cleanupMenu(); };
+            document.addEventListener('mousedown', boundClose);
+            document.addEventListener('keydown', onKey);
+        }, 0);
+    }
+
+    function copyTextToClipboard(text) {
+        const value = String(text || '');
+        const done = () => flashStatus(tr('desktop.copied', 'Copied'));
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(value).then(bind(done)).catch(() => {});
+            return;
+        }
+        try {
+            const area = document.createElement('textarea');
+            area.value = value;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            area.remove();
+            done();
+        } catch (_) {}
     }
 
     function renderBreadcrumbs() {
@@ -720,21 +864,49 @@
         });
     }
 
+    function containerStatusLabel() {
+        switch (state.containerStatus) {
+            case 'running': return tr('codeStudio.containerRunning', 'Container running');
+            case 'error': return tr('codeStudio.containerFailed', 'Container error');
+            default: return tr('codeStudio.containerStarting', 'Container starting...');
+        }
+    }
+
     function renderStatus(message) {
         const statusEl = shellPart('[data-statusbar]');
         if (!statusEl) return;
+        if (message === undefined && state.statusMessage) message = state.statusMessage;
         const tab = activeTab();
         const lang = tab ? tab.language || '' : '';
         const lineInfo = tab ? cursorPositionText(tab) : '';
+        const modifiedCount = state.openTabs.filter(item => item.modified).length;
         const leftItems = [];
-        if (message) leftItems.push(`<span>${esc(message)}</span>`);
-        else leftItems.push(`<span>${esc(state.containerStatus)}</span>`);
-        if (tab) leftItems.push(`<span>${tab.modified ? '<span style="color:var(--cs-accent)">\u25cf</span> ' : ''}${esc(baseName(tab.path))}</span>`);
+        leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
+        if (message) leftItems.push(`<span class="cs-status-item cs-status-message">${esc(message)}</span>`);
+        else if (tab) leftItems.push(`<span class="cs-status-item" title="${esc(tab.path)}">${tab.modified ? '<span class="cs-status-modified">\u25cf</span> ' : ''}${esc(baseName(tab.path))}</span>`);
+        if (modifiedCount > 0) leftItems.push(`<span class="cs-status-item cs-status-unsaved" title="${esc(tr('codeStudio.unsavedChanges', 'Unsaved changes'))}">\u25cf ${modifiedCount}</span>`);
         const rightItems = [];
-        if (lang) rightItems.push(`<span data-clickable title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
-        if (lineInfo) rightItems.push(`<span>${esc(lineInfo)}</span>`);
-        rightItems.push(`<span>${esc(state.editorType === 'codemirror' ? 'CodeMirror' : 'Basic')}</span>`);
-        statusEl.innerHTML = leftItems.join('') + '<span style="flex:1"></span>' + rightItems.join('');
+        if (state.splitMode) rightItems.push(`<span class="cs-status-item" title="${esc(tr(state.splitMode === 'right' ? 'codeStudio.splitRight' : 'codeStudio.splitDown', 'Split'))}">${state.splitMode === 'right' ? '\u25eb' : '\u2b12'}</span>`);
+        if (lineInfo) rightItems.push(`<span class="cs-status-item">${esc(lineInfo)}</span>`);
+        if (lang) rightItems.push(`<span class="cs-status-item" title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
+        rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
+        rightItems.push(`<span class="cs-status-item cs-status-engine">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic'))}</span>`);
+        statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
+        const zoom = statusEl.querySelector('[data-status-zoom]');
+        if (zoom) zoom.addEventListener('click', bind(resetEditorZoom));
+    }
+
+    function flashStatus(message, duration) {
+        const instance = state;
+        if (!instance) return;
+        if (instance.statusTimer) clearTimeout(instance.statusTimer);
+        instance.statusMessage = message;
+        renderStatus(message);
+        instance.statusTimer = setTimeout(bindInstance(instance, () => {
+            instance.statusTimer = null;
+            instance.statusMessage = '';
+            renderStatus();
+        }), duration || 2500);
     }
 
     function renderLoading(message) {
@@ -801,16 +973,14 @@
         const target = state;
         if (!target) return;
         const nextPath = normalizeCodeStudioPath(path || WORKSPACE_ROOT);
+        if (state.currentPath !== nextPath) state.selectedDir = nextPath;
         state.currentPath = nextPath;
         try {
             const result = await apiClient.files(nextPath);
             if (!isLiveInstance(target)) return;
             runWithInstance(target, () => {
-                state.files = result.files || [];
-                state.treeCache[nextPath] = state.files.slice().sort((a, b) => {
-                    if (a.type === b.type) return a.name.localeCompare(b.name);
-                    return a.type === 'directory' ? -1 : 1;
-                });
+                state.files = sortTreeEntries(result.files || []);
+                state.treeCache[nextPath] = state.files.slice();
                 renderSidebar();
                 renderStatus();
             });
@@ -819,6 +989,84 @@
                 runWithInstance(target, () => renderSidebar(err.message || String(err)));
             }
         }
+    }
+
+    function sortTreeEntries(entries) {
+        return (Array.isArray(entries) ? entries.slice() : []).sort((a, b) => {
+            if (a.type === b.type) return String(a.name || '').localeCompare(String(b.name || ''));
+            return a.type === 'directory' ? -1 : 1;
+        });
+    }
+
+    function targetDirectory() {
+        const current = normalizeCodeStudioPath(state.currentPath);
+        const selected = normalizeCodeStudioPath(state.selectedDir || current);
+        if (selected === current) return current;
+        if (!selected.startsWith(current + '/')) return current;
+        if (state.expandedDirs.has(selected) || state.treeCache[selected]) return selected;
+        return current;
+    }
+
+    async function reloadTreeDirectory(dir) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        const path = normalizeCodeStudioPath(dir);
+        if (path === target.currentPath) {
+            await refreshFiles(path);
+            return;
+        }
+        try {
+            const result = await apiClient.files(path);
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                state.treeCache[path] = sortTreeEntries(result.files || []);
+                renderSidebar();
+            });
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+        }
+    }
+
+    async function revealInTree(path) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        const filePath = normalizeCodeStudioPath(path);
+        const root = target.currentPath;
+        if (filePath === root || !filePath.startsWith(root + '/')) return;
+        const relative = filePath.slice(root.length + 1).split('/');
+        relative.pop();
+        let dir = root;
+        let changed = false;
+        for (const part of relative) {
+            dir += '/' + part;
+            if (!state.expandedDirs.has(dir)) {
+                state.expandedDirs.add(dir);
+                changed = true;
+            }
+            if (!state.treeCache[dir]) {
+                try {
+                    const result = await apiClient.files(dir);
+                    if (!isLiveInstance(target)) return;
+                    runWithInstance(target, () => { state.treeCache[dir] = sortTreeEntries(result.files || []); });
+                    changed = true;
+                } catch (_) {
+                    return;
+                }
+            }
+        }
+        if (!isLiveInstance(target)) return;
+        if (changed) runWithInstance(target, renderSidebar);
+        else runWithInstance(target, highlightActiveTreeRow);
+    }
+
+    async function confirmWindowClose(instance) {
+        if (!isLiveInstance(instance)) return true;
+        const dirty = instance.openTabs.filter(tab => tab.modified);
+        if (!dirty.length) return true;
+        return runWithInstance(instance, () => confirmValue(
+            tr('codeStudio.unsavedWindowPrompt', '{{count}} files have unsaved changes. Close Code Studio anyway?', { count: dirty.length }),
+            { confirmLabel: tr('codeStudio.discard', 'Discard'), confirmIcon: 'x' }
+        ));
     }
 
     async function restoreTabs() {
@@ -875,6 +1123,7 @@
             activateTab(state.openTabs.length - 1, persist !== false);
             if (persist !== false) saveState();
         });
+        if (persist !== false) runAsyncStep(target, () => revealInTree(path));
     }
 
     function activateTab(index, persist) {
@@ -886,17 +1135,71 @@
         if (persist !== false) saveState();
     }
 
-    function closeTab(index) {
-        const tab = state.openTabs[index];
-        if (!tab) return;
-        destroyTabView(tab);
-        state.openTabs.splice(index, 1);
-        if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
-        renderTabs();
-        renderBreadcrumbs();
-        renderEditor();
-        renderStatus();
-        saveState();
+    async function closeTab(index, force) {
+        const target = state;
+        if (!isLiveInstance(target)) return false;
+        const tab = target.openTabs[index];
+        if (!tab) return false;
+        if (tab.modified && !force) {
+            const confirmed = await confirmValue(
+                tr('codeStudio.unsavedClosePrompt', '{{name}} has unsaved changes. Close anyway?', { name: baseName(tab.path) }),
+                { confirmLabel: tr('codeStudio.discard', 'Discard'), confirmIcon: 'x' }
+            );
+            if (!confirmed || !isLiveInstance(target)) return false;
+            index = target.openTabs.indexOf(tab);
+            if (index < 0) return false;
+        }
+        runWithInstance(target, () => {
+            const wasActive = state.activeTabIndex === index;
+            destroyTabView(tab);
+            state.openTabs.splice(index, 1);
+            if (wasActive) state.activeTabIndex = Math.min(index, state.openTabs.length - 1);
+            else if (state.activeTabIndex > index) state.activeTabIndex -= 1;
+            if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
+            renderTabs();
+            renderBreadcrumbs();
+            renderEditor();
+            renderStatus();
+            saveState();
+        });
+        return true;
+    }
+
+    async function closeTabs(predicate) {
+        const target = state;
+        if (!isLiveInstance(target)) return false;
+        const victims = target.openTabs.filter(predicate);
+        if (!victims.length) return false;
+        const dirty = victims.filter(tab => tab.modified);
+        if (dirty.length) {
+            const confirmed = await confirmValue(
+                tr('codeStudio.unsavedTabsPrompt', '{{count}} files have unsaved changes. Close them anyway?', { count: dirty.length }),
+                { confirmLabel: tr('codeStudio.discard', 'Discard'), confirmIcon: 'x' }
+            );
+            if (!confirmed || !isLiveInstance(target)) return false;
+        }
+        runWithInstance(target, () => {
+            const keep = activeTab();
+            victims.forEach(destroyTabView);
+            state.openTabs = state.openTabs.filter(tab => !victims.includes(tab));
+            const keepIndex = state.openTabs.indexOf(keep);
+            state.activeTabIndex = keepIndex >= 0 ? keepIndex : Math.min(Math.max(state.activeTabIndex, 0), state.openTabs.length - 1);
+            renderTabs();
+            renderBreadcrumbs();
+            renderEditor();
+            renderStatus();
+            saveState();
+        });
+        return true;
+    }
+
+    function closeOtherTabs(index) {
+        const keep = state.openTabs[Number.isInteger(index) ? index : state.activeTabIndex];
+        return closeTabs(tab => tab !== keep);
+    }
+
+    function closeAllTabs() {
+        return closeTabs(() => true);
     }
 
     function reorderTab(fromIndex, toIndex, insertBefore) {
@@ -926,29 +1229,62 @@
         tab.content = editorValue(tab);
         const content = tab.content;
         const path = tab.path;
-        await apiClient.writeFile(path, content);
+        try {
+            await apiClient.writeFile(path, content);
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+            return false;
+        }
         if (!isLiveInstance(target)) return false;
         return runWithInstance(target, () => {
             tab.modified = false;
             renderTabs();
-            renderStatus(tr('codeStudio.save', 'Save'));
+            flashStatus(tr('codeStudio.saved', 'Saved'));
             saveState();
             return true;
         });
     }
 
+    async function saveAllFiles() {
+        const target = state;
+        if (!isLiveInstance(target)) return false;
+        const dirty = target.openTabs.filter(tab => tab.modified);
+        if (!dirty.length) return true;
+        for (const tab of dirty) {
+            const content = editorValue(tab);
+            try {
+                await apiClient.writeFile(tab.path, content);
+            } catch (err) {
+                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+                return false;
+            }
+            if (!isLiveInstance(target)) return false;
+            runWithInstance(target, () => {
+                tab.content = content;
+                tab.modified = false;
+            });
+        }
+        runWithInstance(target, () => {
+            renderTabs();
+            flashStatus(tr('codeStudio.saved', 'Saved'));
+            saveState();
+        });
+        return true;
+    }
+
     async function createNewFile() {
         const target = state;
         if (!isLiveInstance(target)) return;
+        const directory = runWithInstance(target, targetDirectory);
         const name = await promptValue(tr('codeStudio.newFile', 'New File'), 'main.go');
         if (!name) return;
         if (!isLiveInstance(target)) return;
-        const currentPath = target.currentPath;
-        const path = joinPath(currentPath, name);
+        const path = joinPath(directory, name);
         try {
             await apiClient.writeFile(path, '');
             if (!isLiveInstance(target)) return;
-            await runAsyncStep(target, () => refreshFiles(currentPath));
+            runWithInstance(target, () => { if (directory !== state.currentPath) state.expandedDirs.add(directory); });
+            await runAsyncStep(target, () => reloadTreeDirectory(directory));
             if (!isLiveInstance(target)) return;
             await runAsyncStep(target, () => openFile(path));
         } catch (err) {
@@ -959,16 +1295,17 @@
     async function createNewFolder() {
         const target = state;
         if (!isLiveInstance(target)) return;
+        const directory = runWithInstance(target, targetDirectory);
         const name = await promptValue(tr('codeStudio.newFolder', 'New Folder'), 'src');
         if (!name) return;
         if (!isLiveInstance(target)) return;
-        const currentPath = target.currentPath;
         try {
-            await apiClient.createDirectory(joinPath(currentPath, name));
+            await apiClient.createDirectory(joinPath(directory, name));
             if (!isLiveInstance(target)) return;
-            await runAsyncStep(target, () => refreshFiles(currentPath));
+            runWithInstance(target, () => { if (directory !== state.currentPath) state.expandedDirs.add(directory); });
+            await runAsyncStep(target, () => reloadTreeDirectory(directory));
             if (!isLiveInstance(target)) return;
-            runWithInstance(target, () => renderStatus(tr('codeStudio.newFolder', 'New Folder') + ': ' + name));
+            runWithInstance(target, () => flashStatus(tr('codeStudio.newFolder', 'New Folder') + ': ' + name));
         } catch (err) {
             if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
         }
@@ -981,9 +1318,13 @@
         if (!name || name === file.name) return;
         if (!isLiveInstance(target)) return;
         const newPath = joinPath(parentPath(file.path), name);
-        await apiClient.renamePath(file.path, newPath);
+        try {
+            await apiClient.renamePath(file.path, newPath);
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+            return;
+        }
         if (!isLiveInstance(target)) return;
-        const currentPath = target.currentPath;
         runWithInstance(target, () => {
             state.openTabs.forEach(tab => {
                 if (tab.path === file.path) tab.path = newPath;
@@ -991,11 +1332,24 @@
                     tab.path = newPath + tab.path.slice(file.path.length);
                 }
             });
+            if (file.type === 'directory') {
+                Object.keys(state.treeCache).forEach(key => {
+                    if (key === file.path || key.startsWith(file.path + '/')) delete state.treeCache[key];
+                });
+                Array.from(state.expandedDirs).forEach(dir => {
+                    if (dir === file.path || dir.startsWith(file.path + '/')) {
+                        state.expandedDirs.delete(dir);
+                        state.expandedDirs.add(newPath + dir.slice(file.path.length));
+                    }
+                });
+                if (state.selectedDir === file.path) state.selectedDir = newPath;
+            }
         });
-        await runAsyncStep(target, () => refreshFiles(currentPath));
+        await runAsyncStep(target, () => reloadTreeDirectory(parentPath(file.path)));
         if (!isLiveInstance(target)) return;
         runWithInstance(target, () => {
             renderTabs();
+            renderBreadcrumbs();
             renderStatus();
             saveState();
         });
@@ -1007,16 +1361,27 @@
         const confirmed = await confirmValue(tr('codeStudio.deleteConfirm', 'Are you sure you want to delete {{name}}?', { name: file.name }));
         if (!confirmed) return;
         if (!isLiveInstance(target)) return;
-        await apiClient.deletePath(file.path);
+        try {
+            await apiClient.deletePath(file.path);
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+            return;
+        }
         if (!isLiveInstance(target)) return;
-        const currentPath = target.currentPath;
         runWithInstance(target, () => {
             const removedTabs = state.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
             removedTabs.forEach(destroyTabView);
             state.openTabs = state.openTabs.filter(tab => !removedTabs.includes(tab));
             if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
+            Object.keys(state.treeCache).forEach(key => {
+                if (key === file.path || key.startsWith(file.path + '/')) delete state.treeCache[key];
+            });
+            Array.from(state.expandedDirs).forEach(dir => {
+                if (dir === file.path || dir.startsWith(file.path + '/')) state.expandedDirs.delete(dir);
+            });
+            if (state.selectedDir === file.path || state.selectedDir.startsWith(file.path + '/')) state.selectedDir = parentPath(file.path);
         });
-        await runAsyncStep(target, () => refreshFiles(currentPath));
+        await runAsyncStep(target, () => reloadTreeDirectory(parentPath(file.path)));
         if (!isLiveInstance(target)) return;
         runWithInstance(target, () => {
             renderTabs();
@@ -1047,28 +1412,30 @@
         const target = state;
         if (!isLiveInstance(target)) return;
         const ctx = target.context || {};
+        const directory = runWithInstance(target, targetDirectory);
         if (typeof ctx.importFilesFromHost === 'function') {
-            const currentPath = target.currentPath;
             const result = await ctx.importFilesFromHost({
-                path: currentPath,
-                multiple: false,
+                path: directory,
+                multiple: true,
                 uploadURL: '/api/code-studio/upload'
             });
-            if (result && !result.canceled && isLiveInstance(target)) await runAsyncStep(target, () => refreshFiles(currentPath));
+            if (result && !result.canceled && isLiveInstance(target)) await runAsyncStep(target, () => reloadTreeDirectory(directory));
             return;
         }
         const input = document.createElement('input');
         input.type = 'file';
+        input.multiple = true;
         input.addEventListener('change', bind(async () => {
             const target = state;
             if (!isLiveInstance(target)) return;
-            if (!input.files || !input.files[0]) return;
-            const currentPath = target.currentPath;
-            const file = input.files[0];
+            const files = Array.from(input.files || []);
+            if (!files.length) return;
             try {
-                await apiClient.uploadFile(currentPath, file);
-                if (!isLiveInstance(target)) return;
-                await runAsyncStep(target, () => refreshFiles(currentPath));
+                for (const file of files) {
+                    await apiClient.uploadFile(directory, file);
+                    if (!isLiveInstance(target)) return;
+                }
+                await runAsyncStep(target, () => reloadTreeDirectory(directory));
             } catch (err) {
                 if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             }
@@ -1135,6 +1502,7 @@
         saveState();
         renderActivityBar();
         renderWindowMenus();
+        scheduleTerminalFit();
     }
 
     function toggleTerminal() {
@@ -1144,15 +1512,17 @@
         saveState();
         renderActivityBar();
         renderWindowMenus();
+        scheduleTerminalFit();
     }
 
     function toggleZenMode() {
         state.zenMode = !state.zenMode;
         const root = ensureShellRoot();
         root.dataset.zen = state.zenMode ? 'true' : 'false';
-        if (state.zenMode) {
-            root.querySelector('[data-zen-exit]')?.addEventListener('click', bind(() => toggleZenMode()));
-        }
+        renderWindowMenus();
+        scheduleTerminalFit();
+        const tab = activeTab();
+        if (tab && tab.view && typeof tab.view.focus === 'function') tab.view.focus();
     }
 
     function wireSidebarResize() {
@@ -1377,21 +1747,31 @@
             overlay.addEventListener('click', bind(event => {
                 if (event.target === overlay) cleanup('');
             }));
+            overlay.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    cleanup('');
+                }
+            });
             input.focus();
             input.select();
         });
     }
 
-    function confirmValue(message) {
+    function confirmValue(message, options) {
+        const settings = options || {};
+        const confirmLabel = settings.confirmLabel || tr('desktop.delete', 'Delete');
+        const confirmIcon = settings.confirmIcon || 'trash';
         return new Promise(resolve => {
             const instance = state;
             const overlay = document.createElement('div');
             overlay.className = 'cs-modal-backdrop';
-            overlay.innerHTML = `<div class="cs-modal">
+            overlay.innerHTML = `<div class="cs-modal" role="alertdialog" aria-modal="true">
                 <p>${esc(message)}</p>
                 <div class="cs-modal-actions">
                     <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
-                    <button type="button" class="cs-button danger" data-confirm>${buttonIcon('trash', 'X')}<span>${esc(tr('desktop.delete', 'Delete'))}</span></button>
+                    <button type="button" class="cs-button danger" data-confirm>${buttonIcon(confirmIcon, 'X')}<span>${esc(confirmLabel)}</span></button>
                 </div>
             </div>`;
             document.body.appendChild(overlay);
@@ -1412,6 +1792,13 @@
             overlay.addEventListener('click', bind(event => {
                 if (event.target === overlay) cleanup(false);
             }));
+            overlay.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    cleanup(false);
+                }
+            });
             overlay.querySelector('[data-confirm]').focus();
         });
     }

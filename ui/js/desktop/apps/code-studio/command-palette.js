@@ -37,6 +37,12 @@
         return app && typeof app.state === 'object' ? app.state : null;
     }
 
+    function iconMarkup(key, fallback) {
+        const state = getState();
+        if (state && typeof state.iconMarkup === 'function') return state.iconMarkup(key, fallback, 'cs-cp-papirus-icon', 16);
+        return esc(fallback || '');
+    }
+
     function fuzzyMatch(query, text) {
         const q = query.toLowerCase();
         const t = text.toLowerCase();
@@ -73,135 +79,73 @@
     function getCommands() {
         const state = getState();
         if (!state) return [];
-        const cmds = [
-            { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', action: () => getApp()?.api && state && typeof state === 'object' && getApp() },
-            { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus' },
-            { id: 'save', label: tr('codeStudio.save', 'Save'), shortcut: 'Ctrl+S', icon: 'save' },
-            { id: 'save-all', label: tr('codeStudio.saveAll', 'Save All'), icon: 'save' },
-            { id: 'run', label: tr('codeStudio.run', 'Run'), shortcut: 'F5', icon: 'run' },
-            { id: 'upload', label: tr('codeStudio.upload', 'Upload'), icon: 'upload' },
-            { id: 'refresh', label: tr('codeStudio.refresh', 'Refresh'), icon: 'refresh' },
-            { id: 'toggle-sidebar', label: tr('codeStudio.sidebar', 'Toggle Sidebar'), shortcut: 'Ctrl+B', icon: 'sidebar' },
-            { id: 'toggle-terminal', label: tr('codeStudio.toggleTerminal', 'Toggle Terminal'), icon: 'terminal' },
-            { id: 'toggle-agent', label: tr('codeStudio.agentChat', 'Toggle Agent Chat'), shortcut: 'Ctrl+Shift+A', icon: 'chat' },
-            { id: 'toggle-search', label: tr('codeStudio.search', 'Search in Files'), shortcut: 'Ctrl+Shift+F', icon: 'search' },
-            { id: 'toggle-zen', label: tr('codeStudio.zenMode', 'Toggle Zen Mode'), shortcut: 'Ctrl+K Z', icon: 'maximize' },
-            { id: 'zoom-in', label: tr('codeStudio.zoomIn', 'Zoom In'), shortcut: 'Ctrl+=', icon: 'zoom-in' },
-            { id: 'zoom-out', label: tr('codeStudio.zoomOut', 'Zoom Out'), shortcut: 'Ctrl+-', icon: 'zoom-out' },
-            { id: 'zoom-reset', label: tr('codeStudio.zoomReset', 'Reset Zoom'), shortcut: 'Ctrl+0', icon: 'zoom-reset' }
-        ];
-        return cmds;
+        const hasTab = !!(state.openTabs && state.openTabs.length);
+        const modified = !!(state.openTabs || []).some(tab => tab.modified);
+        return [
+            { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', run: 'createNewFile' },
+            { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', run: 'createNewFolder' },
+            { id: 'open-file', label: tr('desktop.file_dialog_open', 'Open'), shortcut: 'Ctrl+O', icon: 'folder-open', run: 'openFileFromDialog' },
+            { id: 'save', label: tr('codeStudio.save', 'Save'), shortcut: 'Ctrl+S', icon: 'save', run: 'saveCurrentFile', disabled: !hasTab },
+            { id: 'save-all', label: tr('codeStudio.saveAll', 'Save All'), icon: 'save', run: 'saveAllFiles', disabled: !modified },
+            { id: 'close-tab', label: tr('codeStudio.closeTab', 'Close tab'), icon: 'x', run: 'closeTab', args: [state.activeTabIndex], disabled: !hasTab },
+            { id: 'close-others', label: tr('codeStudio.closeOthers', 'Close others'), icon: 'x', run: 'closeOtherTabs', args: [state.activeTabIndex], disabled: !(state.openTabs && state.openTabs.length > 1) },
+            { id: 'close-all', label: tr('codeStudio.closeAll', 'Close all'), icon: 'x', run: 'closeAllTabs', disabled: !hasTab },
+            { id: 'run', label: tr('codeStudio.run', 'Run'), shortcut: 'F5', icon: 'run', run: 'runCurrentFile', disabled: !hasTab },
+            { id: 'upload', label: tr('codeStudio.upload', 'Upload'), icon: 'upload', run: 'uploadFile' },
+            { id: 'refresh', label: tr('codeStudio.refresh', 'Refresh'), icon: 'refresh', run: 'refreshFiles' },
+            { id: 'collapse-all', label: tr('codeStudio.collapseAll', 'Collapse all'), icon: 'chevron-up', run: 'collapseAllDirectories' },
+            { id: 'toggle-sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), shortcut: 'Ctrl+B', icon: 'sidebar', run: 'toggleSidebar' },
+            { id: 'toggle-terminal', label: tr('codeStudio.toggleTerminal', 'Toggle Terminal'), icon: 'terminal', run: 'toggleTerminal' },
+            { id: 'toggle-agent', label: tr('codeStudio.agentChat', 'Agent Chat'), shortcut: 'Ctrl+Shift+A', icon: 'chat', run: 'toggleAgentPanel' },
+            { id: 'toggle-git', label: tr('codeStudio.gitPanel', 'Source Control'), icon: 'git', run: 'toggleGitPanel' },
+            { id: 'toggle-search', label: tr('codeStudio.searchFiles', 'Search in Files'), shortcut: 'Ctrl+Shift+F', icon: 'search', run: 'toggleSearch' },
+            { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', run: 'splitEditor', args: ['right'], disabled: !hasTab },
+            { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', run: 'splitEditor', args: ['down'], disabled: !hasTab },
+            { id: 'toggle-zen', label: tr('codeStudio.zenMode', 'Toggle Zen Mode'), shortcut: 'Ctrl+K', icon: 'maximize', run: 'toggleZenMode' },
+            { id: 'zoom-in', label: tr('codeStudio.zoomIn', 'Zoom In'), shortcut: 'Ctrl+=', icon: 'zoom-in', run: 'adjustEditorZoom', args: [1] },
+            { id: 'zoom-out', label: tr('codeStudio.zoomOut', 'Zoom Out'), shortcut: 'Ctrl+-', icon: 'zoom-out', run: 'adjustEditorZoom', args: [-1] },
+            { id: 'zoom-reset', label: tr('codeStudio.zoomReset', 'Reset Zoom'), shortcut: 'Ctrl+0', icon: 'zoom-reset', run: 'resetEditorZoom' },
+            { id: 'shortcuts', label: tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'), shortcut: '?', icon: 'help', run: 'showShortcutOverlay' }
+        ].filter(cmd => !cmd.disabled);
     }
 
-    function getOpenTabs() {
-        const state = getState();
-        if (!state || !state.openTabs) return [];
-        return state.openTabs.map((tab, index) => ({
-            id: 'tab:' + index,
-            label: tab.path.split('/').filter(Boolean).pop() || tab.path,
-            path: tab.path,
-            icon: 'file',
-            type: 'file'
-        }));
+    function fileLabel(path) {
+        return String(path || '').split('/').filter(Boolean).pop() || path;
     }
 
-    function getRecentFiles() {
+    function getFileItems() {
         const state = getState();
-        if (!state || !state.recentFiles) return [];
-        return state.recentFiles.slice(0, 8).map(path => ({
-            id: 'recent:' + path,
-            label: path.split('/').filter(Boolean).pop() || path,
-            path: path,
-            icon: 'clock',
-            type: 'recent'
-        }));
+        if (!state) return [];
+        const app = getApp();
+        const seen = new Set();
+        const items = [];
+        const push = (path, type, icon) => {
+            if (!path || seen.has(path)) return;
+            seen.add(path);
+            items.push({ id: type + ':' + path, label: fileLabel(path), path, icon, type });
+        };
+        (state.openTabs || []).forEach(tab => push(tab.path, 'file', 'file'));
+        (state.recentFiles || []).slice(0, 8).forEach(path => push(path, 'recent', 'clock'));
+        const known = app && typeof app.knownFiles === 'function' ? app.knownFiles() : [];
+        known.forEach(entry => push(entry.path, 'file', 'file'));
+        return items;
     }
 
     function getAllItems() {
         const commands = getCommands().map(cmd => ({ ...cmd, type: 'command' }));
-        const tabs = getOpenTabs();
-        const recent = getRecentFiles();
-        return [...commands, ...tabs, ...recent];
+        return [...commands, ...getFileItems()];
     }
 
     function executeItem(item) {
         const app = getApp();
-        const state = getState();
-        if (!app || !state) return;
-        const id = item.id || '';
-        if (id === 'new-file' && typeof app.api !== 'undefined') {
-            // Use the global functions exposed in the IIFE
-        }
-        // Dispatch via command id mapping
-        const actions = {
-            'new-file': () => callAppFunction('createNewFile'),
-            'new-folder': () => callAppFunction('createNewFolder'),
-            'save': () => callAppFunction('saveCurrentFile'),
-            'save-all': () => callAppFunction('saveCurrentFile'),
-            'run': () => callAppFunction('runCurrentFile'),
-            'upload': () => callAppFunction('uploadFile'),
-            'refresh': () => callAppFunction('refreshFiles'),
-            'toggle-sidebar': () => callAppFunction('toggleSidebar'),
-            'toggle-terminal': () => callAppFunction('toggleTerminal'),
-            'toggle-agent': () => callAppFunction('toggleAgentPanel'),
-            'toggle-search': () => callAppFunction('toggleSearch'),
-            'toggle-zen': () => callAppFunction('toggleZenMode'),
-            'zoom-in': () => callAppFunction('adjustEditorZoom', 1),
-            'zoom-out': () => callAppFunction('adjustEditorZoom', -1),
-            'zoom-reset': () => callAppFunction('resetEditorZoom')
-        };
+        if (!app || !item) return;
         if (item.type === 'file' || item.type === 'recent') {
-            callAppFunction('openFile', item.path);
-        } else if (actions[id]) {
-            actions[id]();
-        }
-    }
-
-    function callAppFunction(name, ...args) {
-        // Functions are inside the IIFE, so we need to access them through the DOM event system
-        // We'll dispatch keyboard shortcuts or click events as fallback
-        const state = getState();
-        if (!state) return;
-        const root = state.root;
-        if (!root) return;
-        const studio = root.querySelector('[data-code-studio]');
-        if (!studio) return;
-
-        // Map function names to toolbar/activity bar button clicks
-        const buttonMap = {
-            'createNewFile': '[data-action="new-file"]',
-            'createNewFolder': '[data-action="new-folder"]',
-            'saveCurrentFile': '[data-action="save"]',
-            'runCurrentFile': '[data-action="run"]',
-            'uploadFile': '[data-action="upload"]',
-            'refreshFiles': '[data-action="refresh"]',
-            'toggleSidebar': '[data-activity="explorer"]',
-            'toggleTerminal': '[data-activity="terminal"]',
-            'toggleAgentPanel': '[data-activity="agent"]',
-            'toggleSearch': '[data-activity="search"]'
-        };
-
-        if (buttonMap[name]) {
-            const btn = studio.querySelector(buttonMap[name]);
-            if (btn) { btn.click(); return; }
-        }
-
-        // For toggle-zen, dispatch custom event
-        if (name === 'toggleZenMode') {
-            document.dispatchEvent(new CustomEvent('code-studio:toggle-zen'));
+            if (typeof app.command === 'function') app.command('openFile', [item.path]);
+            else if (typeof app.openFile === 'function') app.openFile(item.path);
             return;
         }
-
-        // For open file, dispatch custom event
-        if (name === 'openFile' && args[0]) {
-            document.dispatchEvent(new CustomEvent('code-studio:open-file', { detail: { path: args[0] } }));
-            return;
-        }
-
-        // For zoom, dispatch custom event
-        if (name === 'adjustEditorZoom' || name === 'resetEditorZoom') {
-            document.dispatchEvent(new CustomEvent('code-studio:zoom', { detail: { fn: name, args } }));
-            return;
+        if (item.run && typeof app.command === 'function') {
+            app.command(item.run, item.args || []);
         }
     }
 
@@ -209,12 +153,13 @@
         if (backdrop) return;
         backdrop = document.createElement('div');
         backdrop.className = 'cs-command-palette-backdrop';
-        backdrop.innerHTML = `<div class="cs-command-palette">
+        backdrop.innerHTML = `<div class="cs-command-palette" role="dialog" aria-modal="true" aria-label="${esc(tr('codeStudio.commandPalette', 'Command Palette'))}">
             <div class="cs-command-palette-input">
-                <span class="cs-cp-icon">${getApp()?.api ? '' : '?'}</span>
+                <span class="cs-cp-icon">${iconMarkup('search', '>')}</span>
                 <input type="text" placeholder="${esc(tr('codeStudio.cpPlaceholder', 'Search files, commands, tabs...'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                <kbd class="cs-cp-hint">Esc</kbd>
             </div>
-            <div class="cs-command-palette-results" data-cp-results></div>
+            <div class="cs-command-palette-results" data-cp-results role="listbox"></div>
         </div>`;
         document.body.appendChild(backdrop);
 
@@ -247,8 +192,9 @@
             } else if (event.key === 'Enter') {
                 event.preventDefault();
                 if (filteredItems[selectedIndex]) {
+                    const item = filteredItems[selectedIndex];
                     closePalette();
-                    executeItem(filteredItems[selectedIndex]);
+                    executeItem(item);
                 }
             } else if (event.key === 'Escape') {
                 event.preventDefault();
@@ -289,16 +235,14 @@
         let html = '';
         if (commands.length) {
             html += `<div class="cs-cp-section-label">${esc(tr('codeStudio.commands', 'Commands'))}</div>`;
-            commands.forEach((item, i) => {
-                const globalIndex = filteredItems.indexOf(item);
-                html += renderItem(item, globalIndex, query);
+            commands.forEach(item => {
+                html += renderItem(item, filteredItems.indexOf(item), query);
             });
         }
         if (files.length) {
             html += `<div class="cs-cp-section-label">${esc(tr('codeStudio.files', 'Files'))}</div>`;
-            files.forEach((item) => {
-                const globalIndex = filteredItems.indexOf(item);
-                html += renderItem(item, globalIndex, query);
+            files.forEach(item => {
+                html += renderItem(item, filteredItems.indexOf(item), query);
             });
         }
         container.innerHTML = html;
@@ -307,8 +251,9 @@
             el.addEventListener('click', () => {
                 const idx = Number(el.dataset.index);
                 if (filteredItems[idx]) {
+                    const item = filteredItems[idx];
                     closePalette();
-                    executeItem(filteredItems[idx]);
+                    executeItem(item);
                 }
             });
             el.addEventListener('mouseenter', () => {
@@ -320,10 +265,11 @@
 
     function renderItem(item, index, query) {
         const isSelected = index === selectedIndex;
-        const iconHtml = item.icon ? `<span class="cs-cp-item-icon">${esc(item.icon === 'file' ? '{ }' : item.icon === 'clock' ? '⏱' : '>')}</span>` : '';
+        const glyph = item.icon === 'file' ? '{ }' : item.icon === 'clock' ? '⏱' : '>';
+        const iconHtml = `<span class="cs-cp-item-icon">${iconMarkup(item.icon || 'tools', glyph)}</span>`;
         const shortcutHtml = item.shortcut ? `<span class="cs-cp-item-shortcut">${esc(item.shortcut)}</span>` : '';
         const pathHtml = item.path ? `<span class="cs-cp-item-path">${esc(item.path)}</span>` : '';
-        return `<button type="button" class="cs-cp-item${isSelected ? ' selected' : ''}" data-index="${index}">
+        return `<button type="button" class="cs-cp-item${isSelected ? ' selected' : ''}" data-index="${index}" role="option" aria-selected="${isSelected ? 'true' : 'false'}">
             ${iconHtml}
             <span class="cs-cp-item-label">${highlightMatch(item.label, query)}</span>
             ${pathHtml}
@@ -347,48 +293,6 @@
         if (backdrop) closePalette();
         else renderPalette();
     }
-
-    // Listen for custom events from the command palette
-    document.addEventListener('code-studio:toggle-zen', () => {
-        const app = getApp();
-        if (app) {
-            const state = getState();
-            if (state) {
-                // Toggle zen through the root element
-                const root = state.root;
-                if (root) {
-                    const studio = root.querySelector('[data-code-studio]');
-                    if (studio) {
-                        const isZen = studio.dataset.zen === 'true';
-                        studio.dataset.zen = isZen ? 'false' : 'true';
-                    }
-                }
-            }
-        }
-    });
-
-    document.addEventListener('code-studio:open-file', (event) => {
-        const app = getApp();
-        if (app && event.detail && event.detail.path) {
-            // Try to use the exposed API
-            if (typeof app.openFile === 'function') {
-                app.openFile(event.detail.path);
-            }
-        }
-    });
-
-    document.addEventListener('code-studio:zoom', (event) => {
-        const app = getApp();
-        if (app && event.detail) {
-            if (event.detail.fn === 'adjustEditorZoom' && typeof app.loadState === 'function') {
-                // Dispatch keyboard events as fallback
-                const key = event.detail.args[0] > 0 ? '=' : '-';
-                document.dispatchEvent(new KeyboardEvent('keydown', { key, ctrlKey: true, bubbles: true }));
-            } else if (event.detail.fn === 'resetEditorZoom') {
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: '0', ctrlKey: true, bubbles: true }));
-            }
-        }
-    });
 
     window.CodeStudioCommandPalette = {
         open: renderPalette,

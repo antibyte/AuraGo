@@ -15342,7 +15342,7 @@ if (appId === 'system-info') {
             if (typeof window.Viewer3DApp.render === 'function') return window.Viewer3DApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp }));
         } if (appId === 'quick-connect') return renderQuickConnect(id);
         if (appId === 'code-studio' && window.CodeStudio && typeof window.CodeStudio.render === 'function') {
-            return window.CodeStudio.render(contentEl(id), id, withDesktopFileDialogs(context, { iconMarkup, setWindowMenus, clearWindowMenus, wireContextMenuBoundary }));
+            return window.CodeStudio.render(contentEl(id), id, officeAppContext(context));
         }
         if (appId === 'terminal') {
             if (!window.TerminalApp) {

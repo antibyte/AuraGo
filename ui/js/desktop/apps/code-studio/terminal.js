@@ -8,18 +8,19 @@
         const sessionTabs = (state.terminalSessions || []).map((session, index) => `
             <button type="button" class="cs-terminal-tab${index === (state.activeTerminalSession || 0) ? ' active' : ''}" data-terminal-tab="${index}">
                 <span>${esc(session.name || shellName(index))}</span>
-                <span class="cs-terminal-tab-close" data-terminal-close="${index}">\u00d7</span>
+                <span class="cs-terminal-tab-close" data-terminal-close="${index}" title="${esc(tr('desktop.close', 'Close'))}">×</span>
             </button>`).join('');
-        const activeIdx = state.activeTerminalSession || 0;
         terminal.innerHTML = `<div class="cs-terminal-resize" data-terminal-resize></div>
             <div class="cs-terminal-head">
                 <div class="cs-terminal-tabs">
                     ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
                 </div>
-                <span data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
+                <span class="cs-terminal-state" data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
+                <button type="button" class="cs-terminal-hide" data-terminal-hide title="${esc(tr('codeStudio.toggleTerminal', 'Toggle Terminal'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
             </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
         wireTerminalResize();
+        wireTerminalObserver(terminal);
         terminal.querySelectorAll('[data-terminal-tab]').forEach(btn => {
             btn.addEventListener('click', bind(() => switchTerminalSession(Number(btn.dataset.terminalTab))));
         });
@@ -31,6 +32,60 @@
         });
         const addBtn = terminal.querySelector('[data-terminal-add]');
         if (addBtn) addBtn.addEventListener('click', bind(() => addTerminalSession()));
+        const hideBtn = terminal.querySelector('[data-terminal-hide]');
+        if (hideBtn) hideBtn.addEventListener('click', bind(() => toggleTerminal()));
+    }
+
+    function wireTerminalObserver(terminal) {
+        if (state.terminalObserver || typeof ResizeObserver !== 'function') return;
+        const instance = state;
+        const observer = new ResizeObserver(bindInstance(instance, () => scheduleTerminalFit()));
+        observer.observe(terminal);
+        state.terminalObserver = observer;
+        instance.disposers.push(() => observer.disconnect());
+    }
+
+    function scheduleTerminalFit() {
+        const instance = state;
+        if (!instance || instance.terminalFitScheduled) return;
+        instance.terminalFitScheduled = true;
+        const run = bindInstance(instance, () => {
+            instance.terminalFitScheduled = false;
+            refitTerminal();
+        });
+        if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(run);
+        else setTimeout(run, 16);
+    }
+
+    function activeTerminalSession() {
+        const sessions = state.terminalSessions || [];
+        return sessions[state.activeTerminalSession || 0] || null;
+    }
+
+    function refitTerminal() {
+        if (!state.terminalVisible || state.zenMode) return;
+        const session = activeTerminalSession();
+        const fitAddon = (session && session.fitAddon) || state.fitAddon;
+        if (!fitAddon) return;
+        const screen = shellPart('[data-terminal-screen]');
+        if (!screen || !screen.clientHeight || !screen.clientWidth) return;
+        try { fitAddon.fit(); } catch (_) { return; }
+        sendTerminalResize(session);
+    }
+
+    function sendTerminalResize(session) {
+        const term = (session && session.term) || state.terminal;
+        const ws = (session && session.ws) || state.ws;
+        if (!term || !ws || typeof WebSocket === 'undefined' || ws.readyState !== WebSocket.OPEN) return;
+        const cols = Number(term.cols) || 0;
+        const rows = Number(term.rows) || 0;
+        if (!cols || !rows) return;
+        if (session && session.lastCols === cols && session.lastRows === rows) return;
+        if (session) {
+            session.lastCols = cols;
+            session.lastRows = rows;
+        }
+        try { ws.send(JSON.stringify({ type: 'resize', cols, rows })); } catch (_) {}
     }
 
     function wireTerminalResize() {
@@ -65,6 +120,7 @@
             handle.removeEventListener('pointercancel', onPointerUp);
             saveState();
             if (state.fitAddon) setTimeout(bind(() => state.fitAddon.fit()), 50);
+            scheduleTerminalFit();
         });
         handle.addEventListener('pointerdown', onPointerDown);
     }
@@ -117,6 +173,7 @@
                 if (termDataDispose && typeof termDataDispose.dispose === 'function') {
                     instance.disposers.push(() => termDataDispose.dispose());
                 }
+                sendTerminalResize(state.terminalSessions[index]);
             });
             ws.onmessage = bindInstance(instance, event => {
                 if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
@@ -143,14 +200,21 @@
 
     function mountActiveTerminalSession(session) {
         const screen = shellPart('[data-terminal-screen]');
+        const label = shellPart('[data-terminal-state]');
         if (screen) screen.innerHTML = '';
         if (session && session.term && screen) {
             session.term.open(screen);
             if (session.fitAddon) session.fitAddon.fit();
             else if (state.fitAddon) state.fitAddon.fit();
+            session.term.focus();
         }
         state.terminal = session?.term || null;
         state.ws = session?.ws || null;
+        if (label && session && session.ws) {
+            const open = typeof WebSocket !== 'undefined' && session.ws.readyState === WebSocket.OPEN;
+            label.textContent = open ? tr('codeStudio.running', 'Running...') : tr('codeStudio.stopped', 'Stopped');
+        }
+        sendTerminalResize(session);
     }
 
     function addTerminalSession() {

@@ -2,13 +2,24 @@
         const editor = shellPart('[data-editor]');
         if (!editor) return;
         const tab = activeTab();
+        editor.classList.remove('code-studio-split', 'split-right', 'split-down');
+        editor.style.gridTemplateColumns = '';
+        editor.style.gridTemplateRows = '';
         if (!tab) {
             state.openTabs.forEach(destroyTabView);
             editor.innerHTML = `<div class="cs-editor-empty">
                 <div class="cs-empty-icon">{ }</div>
                 <div class="cs-empty-title">${esc(tr('codeStudio.welcome', 'Welcome to Code Studio'))}</div>
                 <div class="cs-empty-hint">${esc(tr('codeStudio.welcomeHint', 'Open a file from the sidebar or press Ctrl+Shift+P to open the Command Palette'))}</div>
+                <div class="cs-empty-keys">
+                    <span><kbd>Ctrl+P</kbd> ${esc(tr('codeStudio.quickOpen', 'Quick open'))}</span>
+                    <span><kbd>Ctrl+N</kbd> ${esc(tr('codeStudio.newFile', 'New File'))}</span>
+                    <span><kbd>?</kbd> ${esc(tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'))}</span>
+                </div>
             </div>`;
+            editor.oncontextmenu = null;
+            editor.onwheel = null;
+            highlightActiveTreeRow();
             return;
         }
         state.openTabs.forEach(openTab => {
@@ -16,13 +27,28 @@
         });
         destroyTabView(tab);
         editor.innerHTML = '';
-        tab.view = state.editorType === 'codemirror'
-            ? createCodeMirrorEditor(editor, tab)
-            : createTextareaEditor(editor, tab);
+        if (state.splitMode) {
+            renderSplitPanes(editor, tab);
+        } else {
+            tab.view = createEditorView(editor, tab, null);
+            tab.views = [tab.view];
+        }
         editor.oncontextmenu = bind(event => {
             event.preventDefault();
             showCodeActionMenu(event.clientX, event.clientY);
         });
+        editor.onwheel = bind(event => {
+            if (!event.ctrlKey && !event.metaKey) return;
+            event.preventDefault();
+            adjustEditorZoom(event.deltaY < 0 ? 1 : -1);
+        });
+        highlightActiveTreeRow();
+    }
+
+    function createEditorView(container, tab, link) {
+        return state.editorType === 'codemirror'
+            ? createCodeMirrorEditor(container, tab, link)
+            : createTextareaEditor(container, tab, link);
     }
 
     function usesLightEditorTheme() {
@@ -41,9 +67,23 @@
         return cm.oneDark ? [cm.oneDark] : [];
     }
 
-    function createCodeMirrorEditor(container, tab) {
+    function syncLinkedView(link, update) {
+        if (!link || !update.docChanged || link.syncing) return;
+        const other = (link.views || []).find(view => view && view !== update.view);
+        if (!other || !other.state) return;
+        link.syncing = true;
+        try {
+            update.transactions.forEach(transaction => {
+                if (transaction.docChanged) other.dispatch({ changes: transaction.changes });
+            });
+        } finally {
+            link.syncing = false;
+        }
+    }
+
+    function createCodeMirrorEditor(container, tab, link) {
         const cm = state.cmModule;
-        if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab);
+        if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab, link);
         const light = usesLightEditorTheme();
         const extensions = [
             cm.lineNumbers && cm.lineNumbers(),
@@ -93,17 +133,17 @@
                     background: 'var(--cs-accent-soft)'
                 },
                 '.cm-activeLine': {
-                    background: 'rgba(62, 198, 181, 0.04)'
+                    background: 'var(--cs-accent-faint)'
                 },
                 '.cm-matchingBracket': {
                     background: 'var(--cs-accent-soft)',
                     outline: '1px solid var(--cs-accent-glow)'
                 },
                 '.cm-selectionBackground': {
-                    background: 'rgba(62, 198, 181, 0.18) !important'
+                    background: 'var(--cs-selection) !important'
                 },
                 '&.cm-focused .cm-selectionBackground': {
-                    background: 'rgba(62, 198, 181, 0.22) !important'
+                    background: 'var(--cs-selection-strong) !important'
                 },
                 '.cm-cursor': {
                     borderLeftColor: 'var(--cs-accent)',
@@ -113,7 +153,12 @@
                     borderLeft: '1px solid var(--cs-border-subtle)'
                 }
             }, { dark: !light }),
+            link ? cm.EditorView.updateListener.of(bind(update => syncLinkedView(link, update))) : null,
             cm.EditorView.updateListener.of(bind(update => {
+                if (update.selectionSet && !update.docChanged) {
+                    renderStatus();
+                    return;
+                }
                 if (!update.docChanged) return;
                 tab.modified = true;
                 tab.content = update.state.doc.toString();
@@ -127,7 +172,7 @@
         });
     }
 
-    function createTextareaEditor(container, tab) {
+    function createTextareaEditor(container, tab, link) {
         const wrapper = document.createElement('div');
         wrapper.className = 'cs-textarea-wrap';
         const textarea = document.createElement('textarea');
@@ -139,6 +184,7 @@
         wrapper.appendChild(textarea);
         wrapper.appendChild(preview);
         container.appendChild(wrapper);
+        const view = { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
         const updatePreview = bind(() => {
             tab.content = textarea.value;
             tab.modified = true;
@@ -148,10 +194,22 @@
                     preview.innerHTML = window.hljs.highlight(textarea.value, { language: tab.language, ignoreIllegals: true }).value;
                 } catch (_) {}
             }
+            if (link && !link.syncing) {
+                link.syncing = true;
+                try {
+                    (link.views || []).forEach(other => {
+                        if (other && other !== view && other.textarea && other.textarea.value !== textarea.value) other.setValue(textarea.value);
+                    });
+                } finally {
+                    link.syncing = false;
+                }
+            }
             renderTabs();
             renderStatus();
         });
         textarea.addEventListener('input', updatePreview);
+        textarea.addEventListener('keyup', bind(() => renderStatus()));
+        textarea.addEventListener('click', bind(() => renderStatus()));
         textarea.addEventListener('keydown', bind(event => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
                 event.preventDefault();
@@ -168,5 +226,5 @@
         }));
         updatePreview();
         tab.modified = false;
-        return { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
+        return view;
     }

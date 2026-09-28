@@ -58,6 +58,7 @@
         if (state.gitVisible) refreshGitStatus();
         renderActivityBar();
         renderWindowMenus();
+        scheduleTerminalFit();
     }
 
     async function refreshGitStatus() {
@@ -101,13 +102,21 @@
                 }).join('');
                 const editor = shellPart('[data-editor]');
                 if (editor) {
+                    const tab = activeTab();
+                    if (tab) destroyTabView(tab);
+                    editor.classList.remove('code-studio-split', 'split-right', 'split-down');
+                    editor.style.gridTemplateColumns = '';
+                    editor.style.gridTemplateRows = '';
                     editor.innerHTML = `<div class="cs-diff-view">
                         <div class="cs-diff-view-head">
                             <strong>${esc(filePath.split('/').pop())}</strong>
                             <span>${esc(tr('codeStudio.gitDiff', 'Git Diff'))}</span>
+                            <span class="cs-diff-view-spacer"></span>
+                            <button type="button" class="cs-icon-button" data-diff-close title="${esc(tr('desktop.close', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
                         </div>
-                        <div class="cs-diff-content">${diffHtml}</div>
+                        <div class="cs-diff-content">${diffHtml || `<div class="cs-empty">${esc(tr('codeStudio.noChanges', 'No changes'))}</div>`}</div>
                     </div>`;
+                    editor.querySelector('[data-diff-close]').addEventListener('click', bind(() => renderEditor()));
                 }
             });
         } catch (err) {
@@ -128,7 +137,7 @@
             const result = await apiClient.gitCommit(message, true);
             if (!isLiveInstance(target)) return;
             runWithInstance(target, () => {
-                renderStatus(tr('codeStudio.committed', 'Committed') + ': ' + (result.hash || '').slice(0, 7));
+                flashStatus(tr('codeStudio.committed', 'Committed') + ': ' + (result.hash || '').slice(0, 7), 4000);
                 if (msgInput) msgInput.value = '';
                 refreshGitStatus();
             });
