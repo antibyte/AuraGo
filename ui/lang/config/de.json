@@ -343,7 +343,7 @@
   "help.dograh.readonly": "Blockiert AuraGo-Helferaktionen, die Dograh-Ressourcen erstellen oder ändern.",
   "help.dograh.auto_start": "Startet den verwalteten Dograh-Stack automatisch mit AuraGo.",
   "help.dograh.telemetry_enabled": "Erlaubt Dograh-Telemetrie. Für private Home-Labs deaktiviert lassen.",
-  "help.dograh.mcp_client_enabled": "Fuegt Dograh als MCP-Laufzeitserver hinzu, damit der Agent Dograh-Tools nutzen kann.",
+  "help.dograh.mcp_client_enabled": "Fügt Dograh als MCP-Laufzeitserver hinzu, damit der Agent Dograh-Tools nutzen kann.",
   "help.dograh.mcp_server_tool_enabled": "Erlaubt AuraGo, den authentifizierten /mcp-Endpunkt als Dograh-Tool zu registrieren.",
   "help.dograh.credential_uuid": "Credential-UUID aus Dograh für den AuraGo-MCP-Bearer-Token.",
   "help.dograh.allowed_tools": "Optionale, kommagetrennte AuraGo-MCP-Tools, die Dograh aufrufen darf.",

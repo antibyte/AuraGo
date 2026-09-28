@@ -190,7 +190,7 @@
   "dashboard.integration_adguard": "AdGuard",
   "dashboard.integration_ai_gateway": "Πύλη AI",
   "dashboard.integration_ansible": "Ansible",
-  "dashboard.integration_auth": "Authentication",
+  "dashboard.integration_auth": "Έλεγχος ταυτότητας",
   "dashboard.integration_brave_search": "Αναζήτηση Brave",
   "dashboard.integration_budget": "Προϋπολογισμός",
   "dashboard.integration_chromecast": "Chromecast",

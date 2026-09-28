@@ -503,7 +503,7 @@
   "help.omniroute.host_port": "发布在主机上、供控制台/API 访问的端口。",
   "help.omniroute.image": "托管 sidecar 的 Docker 镜像。请固定版本，例如 diegosouzapw/omniroute:3.8.39。",
   "help.omniroute.initial_password": "首次托管启动之前所需的初始管理员密码。它存储在 Vault 中，不会写入 config.yaml。",
-  "help.omniroute.jwt_secret": "Generated secret for OmniRoute sessions. It is stored in the Vault and should stay stable.",
+  "help.omniroute.jwt_secret": "为 OmniRoute 会话生成的密钥。它保存在 Vault 中，应保持不变。",
   "help.omniroute.memory_mb": "托管容器的内存限制，单位为 MiB。",
   "help.omniroute.mode": "托管模式会启动 Docker sidecar；外部模式使用现有的 OmniRoute 端点。",
   "help.omniroute.network_name": "当 AuraGo 在 Docker 之外运行时使用的私有 Docker 网络。",

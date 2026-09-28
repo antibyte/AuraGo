@@ -340,6 +340,11 @@ worker. Keep packaging, recovery and offline instructions in
 - Keep one canonical section definition per locale key where possible. If a key
   occurs in multiple sections, its values must agree in every language; verify
   with `TestTranslations_NoConflictingCrossSectionValues`.
+- Qualify translation-audit candidates by locale and key before editing; preserve
+  technical names, URLs and placeholder-only formats. Use targeted checks such as
+  `TestTranslationsAuditCorrections`, not blanket ASCII or German pronoun bans.
+- File Manager undo/redo error translations must interpolate `{{error}}` in
+  every locale so the failure details passed by the action remain visible.
 - God's Eye View uses the regular container-app window, starts maximized, and
   grants microphone capability only to its own frame. Closing removes the frame;
   service start/stop remains in the Store. The Store setup dialog owns optional
