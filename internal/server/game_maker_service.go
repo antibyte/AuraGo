@@ -20,15 +20,6 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-var gameMakerAllowedTools = []string{
-	"game_maker_project",
-	"game_maker_file",
-	"game_maker_asset",
-	"game_maker_validate",
-	"list_agent_skills",
-	"activate_agent_skill",
-}
-
 func gameMakerPolicy(cfg config.GameMakerConfig) gamemaker.Policy {
 	return gamemaker.Policy{
 		Enabled:              cfg.Enabled,
@@ -363,8 +354,12 @@ func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
 			contextData["existing_plan"] = compactGameMakerPlan(run.Plan)
 		}
 		contextData["design_example"] = gamemaker.ExampleGameDesign(run.Project)
-		contextData["planning_contract"] = "Choose only the requested base and features. Optional scene/mechanics fields use schema version 4 and stay style-neutral; custom source remains available after acceptance."
-		contextData["target_test_example"] = gamemaker.GameScenario{ID: "collect_crystal", Metric: "pickup_events", Compare: "increased", Steps: []gamemaker.GameTestStep{{Action: "target", Mode: "reach", Target: "crystal", MS: 4000}}}
+		if run.Project.Variant == "voxel" {
+			contextData["planning_contract"] = "Choose base voxel and only the requested features. design.voxel must be a JSON-encoded VoxelDefinition string matching design_example.voxel (version 1; schema 5 is server-owned). Voxel validation already checks movement, jump, mining, crafting, placement and pause; survival with enemies also checks combat. Omit custom scenarios to use these built-in checks; if needed, custom steps support only key, wait and observe. For a peaceful request remove enemies but retain the wood-to-stone-to-metal progression unless asked to change it."
+		} else {
+			contextData["planning_contract"] = "Choose only the requested base and features. Optional scene/mechanics fields use schema version 4 and stay style-neutral; custom source remains available after acceptance."
+			contextData["target_test_example"] = gamemaker.GameScenario{ID: "collect_crystal", Metric: "pickup_events", Compare: "increased", Steps: []gamemaker.GameTestStep{{Action: "target", Mode: "reach", Target: "crystal", MS: 4000}}}
+		}
 		if len(run.AssetPacks) > 0 {
 			contextData["imported_packs"] = compactGameMakerImports(run.AssetPacks)
 		}

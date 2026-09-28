@@ -81,7 +81,10 @@ Feedback does not grant resources or satisfy gameplay checks.
 Planning, editing and source generation have stable Voxel prompt profiles.
 Build/repair share the four editing tools; planning retains three. The agent
 receives the compact contract and definitions, using existing reads/search/asset
-operations for additional detail. Chunk arrays and player saves never enter
+operations for additional detail. Planning uses the schema 5 Voxel definition
+and built-in gameplay checks, without unrelated scene or target-test examples.
+Explicitly peaceful requests remove enemies while retaining the mining/crafting
+progression unless the request changes it. Chunk arrays and player saves never enter
 prompts. Known helpers require full content comparison before compact references
 are used. Existing model ceilings, repair limits and usage accounting still apply;
 local prefix equality does not establish provider cache savings.
@@ -100,6 +103,10 @@ visible. A failed close allows retry or explicit discard. A process crash or
 abrupt browser termination can lose changes since the last successful save.
 When another device has already written a newer version, the write is rejected:
 use **Load latest** in inventory before continuing. No automatic overwrite occurs.
+If publication made the running revision's grant stale, **Load latest** refreshes
+the trusted frame and grant; same-revision save conflicts reload in place.
+Studio flushes progress before a revision restore. External revision changes
+also require resolving any unsaved progress before replacing the preview.
 
 World compatibility includes generator/save versions, mode, seed, dimensions,
 terrain, block/item identities and enemy identity/count. Compatible revisions

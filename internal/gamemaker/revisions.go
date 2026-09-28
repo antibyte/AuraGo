@@ -39,11 +39,17 @@ func (s *Service) ListRevisions(ctx context.Context, projectID string) ([]Revisi
 	return out, rows.Err()
 }
 
-// Keep the admission check and filesystem commit under the same policy/build
-// locks. Cancellation, a new build or late diagnostics revoke publication.
+// Keep the admission check and filesystem commit under the same file, policy,
+// and build locks. Preserve that order to match policy-guarded asset imports,
+// which acquire the build lock while holding the policy read lock.
+// Cancellation, a new build or late diagnostics revoke publication.
 func (s *Service) publishValidated(ctx context.Context, stage string, project Project, job Job, result BuildResult) (Revision, error) {
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
 	s.policyMu.RLock()
 	defer s.policyMu.RUnlock()
+	s.buildMu.Lock()
+	defer s.buildMu.Unlock()
 	if !s.policy.Enabled {
 		return Revision{}, ErrDisabled
 	}
@@ -77,6 +83,13 @@ func (s *Service) publishValidated(ctx context.Context, stage string, project Pr
 	}
 	if (project.Dimension == "2d" || sceneBacked) && (result.GameplayStatus != "passed" || !result.check.GameplayReceived) {
 		return Revision{}, fmt.Errorf("publication requires full gameplay observations")
+	}
+	fingerprint, err := validationFingerprint(stage)
+	if err != nil {
+		return Revision{}, fmt.Errorf("verify publication files: %w", err)
+	}
+	if result.fingerprint == "" || result.fingerprint != fingerprint {
+		return Revision{}, fmt.Errorf("project files changed after validation; validate the current project before publication")
 	}
 	if err := writeValidationReport(stage, result, s.opts.MaxFilesPerProject, s.opts.MaxFileBytes, s.opts.MaxProjectBytes); err != nil {
 		return Revision{}, err

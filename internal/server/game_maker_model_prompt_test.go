@@ -104,6 +104,8 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		}
 		return err
 	}
+	var buildingRequestPrompt string
+	var buildingRequestTools []byte
 	for _, stage := range []string{"building", "repair"} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err := invoke(ctx, gamemaker.JobRun{
@@ -141,6 +143,19 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 			if !strings.Contains(system.String(), required) {
 				t.Errorf("%s request lost runtime API: %s", stage, required)
 			}
+		}
+		if !strings.Contains(system.String(), "If validation reports no_target") {
+			t.Errorf("%s request lost actionable 3D no_target guidance", stage)
+		}
+		requestTools, err := json.Marshal(request.Tools)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stage == "building" {
+			buildingRequestPrompt = system.String()
+			buildingRequestTools = requestTools
+		} else if system.String() != buildingRequestPrompt || string(requestTools) != string(buildingRequestTools) {
+			t.Fatal("actual model request changed the prepared building prefix for repair")
 		}
 		if !strings.Contains(user.String(), `"three_example":"EXACT_PROJECT_LOCAL_MODEL_EXAMPLE"`) || !strings.Contains(user.String(), "assets/fps-rifle.json") {
 			t.Errorf("%s request lost local import paths/example", stage)
@@ -189,6 +204,15 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		}
 		if stage == "planning" && !strings.Contains(system.String(), gamemaker.PresentationPlanningGuide) {
 			t.Error("planning lost atmosphere/effect distinction and supported sound events")
+		}
+		if stage == "planning" && !strings.Contains(system.String(), gamemaker.DesignCraftGuide) {
+			t.Error("actual planning request lost conditional game-design guidance")
+		}
+		if stage == "building" && (!strings.Contains(system.String(), gamemaker.BuildCraftGuide) || !strings.Contains(system.String(), "For peaceful designs, do not add enemies")) {
+			t.Error("actual building request lost conditional peaceful/challenge implementation guidance")
+		}
+		if stage != "planning" && !strings.Contains(system.String(), "If validation reports no_target") {
+			t.Errorf("%s request lost actionable 2D no_target guidance", stage)
 		}
 	}
 	cfg.LLM.Model = "empty-game-model"

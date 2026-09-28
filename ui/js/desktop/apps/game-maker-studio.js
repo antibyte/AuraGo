@@ -50,7 +50,9 @@
         state.fail = error => fail(state, error);
         state.addDiagnostic = diagnostic => addDiagnostic(state, diagnostic);
         state.reloadProjectRecord = () => reloadProjectRecord(state);
-        state.refreshPreview = () => refreshPreview(state);
+        state.refreshPreview = options => refreshPreview(state, options);
+        state.preparePreviewReplacement = () => preparePreviewReplacement(state);
+        state.resolvePlayStateRevisionConflict = () => refreshLatestPreview(state, { force: true });
         container.innerHTML = shell(state);
         state.activity = window.GameMakerStudioActivity?.create(state);
         bindShell(state);
@@ -223,7 +225,7 @@
                 export: () => exportProject(state),
                 stop: () => stopJob(state),
                 visual_review: () => preview && preview.requestCapture(state),
-                reload: () => refreshPreview(state),
+                reload: () => refreshLatestPreview(state, { force: true }),
                 scene_debug: () => preview && preview.setSceneDebug(state, !state.sceneDebug),
                 fullscreen: () => preview && preview.toggleFullscreen(state),
                 open_tab: () => preview && preview.openTab(state),
@@ -369,6 +371,7 @@
         const requestID = state.projectRequestID = (state.projectRequestID || 0) + 1;
         if (state.project?.id !== projectID && await window.GameMakerStudioPreview?.flush(state) === false) return;
         if (state.disposed || state.projectRequestID !== requestID) return;
+        if (state.project?.id !== projectID) state.lastRevisionRefreshAttempt = null;
         closeEvents(state);
         stopElapsed(state);
         state.repairCount = 0;
@@ -555,13 +558,23 @@
             appendActivity(state, state.context.t('game_maker.visual_advisory') + ': ' + String(payload.message || '').slice(0, 2000));
             break;
         case 'preview_reload':
-            refreshPreview(state);
+            if (state.revisionMutationInProgress === state.project?.id) break;
+            if (state.project?.variant === 'voxel' && payload.revision != null) {
+                refreshLatestPreview(state, { revision: payload.revision });
+            } else {
+                refreshPreview(state);
+            }
             break;
         case 'revision':
             appendActivity(state, state.context.t('game_maker.revision_published'));
-            reloadProjectRecord(state).then(() => {
-                if (!state.disposed) refreshPreview(state);
-            });
+            if (state.revisionMutationInProgress === state.project?.id) break;
+            if (state.project?.variant === 'voxel') {
+                refreshLatestPreview(state, { revision: payload.revision });
+            } else {
+                reloadProjectRecord(state).then(() => {
+                    if (!state.disposed) refreshPreview(state);
+                });
+            }
             break;
         }
         state.activity?.event(event);
@@ -637,11 +650,11 @@
     }
 
     async function reloadProjectRecord(state) {
-        if (!state.project) return;
+        if (!state.project) return false;
         const projectID = state.project.id;
         try {
             const body = await state.api.getProject(projectID);
-            if (state.disposed || state.project?.id !== projectID) return;
+            if (state.disposed || state.project?.id !== projectID) return false;
             state.project = body.project;
             state.messages = body.messages || state.messages;
             const index = state.projects.findIndex(item => item.id === state.project.id);
@@ -649,8 +662,10 @@
             renderProjects(state);
             if (state.jobActive) renderProjectMeta(state);
             else renderProject(state);
+            return true;
         } catch (error) {
             fail(state, error);
+            return false;
         }
     }
 
@@ -679,11 +694,55 @@
         scrollConversation(state);
     }
 
-    async function refreshPreview(state) {
+    async function preparePreviewReplacement(state) {
+        if (await window.GameMakerStudioPreview?.flush(state) !== false) return true;
+        return confirmAction(state, state.context.t('game_maker.save_failed_title'), state.context.t('game_maker.leave_unsaved'));
+    }
+
+    async function refreshLatestPreview(state, options = {}) {
+        if (!state.project || state.project.variant !== 'voxel') return refreshPreview(state);
+        const projectID = state.project.id, frame = state.frame, grant = state.previewGrant;
+        const requestedRevision = Number(options.revision?.number ?? options.revision);
+        const targetRevision = Number.isSafeInteger(requestedRevision) && requestedRevision > 0
+            ? requestedRevision : null;
+        const attempted = state.lastRevisionRefreshAttempt;
+        if (!options.force && targetRevision !== null && attempted?.projectID === projectID && attempted.revision === targetRevision) return false;
+        const activeRefresh = state.revisionRefreshIdentity;
+        if (activeRefresh && activeRefresh.projectID === projectID && activeRefresh.frame === frame && activeRefresh.grant === grant) return activeRefresh.promise;
+        const stillCurrentFrame = () => !state.disposed && state.project?.id === projectID
+            && state.frame === frame && state.previewGrant === grant;
+        const markAttempted = revision => {
+            if (revision !== null && revision !== undefined) state.lastRevisionRefreshAttempt = { projectID, revision };
+        };
+        const task = (async () => {
+            const proceed = await preparePreviewReplacement(state);
+            if (!stillCurrentFrame()) return false;
+            if (!proceed) {
+                markAttempted(targetRevision);
+                return false;
+            }
+            if (!await reloadProjectRecord(state) || !stillCurrentFrame()) return false;
+            const currentRevision = Number(state.project.current_revision) || 0;
+            if (targetRevision !== null && currentRevision < targetRevision) return false;
+            state.playStateRevisionInvalid = false;
+            const refreshed = await refreshPreview(state, { skipFlush: true });
+            if (refreshed) markAttempted(currentRevision);
+            return refreshed;
+        })();
+        const identity = { projectID, frame, grant, promise: task };
+        state.revisionRefreshIdentity = identity;
+        try {
+            return await task;
+        } finally {
+            if (state.revisionRefreshIdentity === identity) state.revisionRefreshIdentity = null;
+        }
+    }
+
+    async function refreshPreview(state, options = {}) {
         if (!state.project) return;
         const projectID = state.project.id;
         const requestID = state.previewRequestID = (state.previewRequestID || 0) + 1;
-        if (await window.GameMakerStudioPreview?.flush(state) === false) return;
+        if (!options.skipFlush && !await preparePreviewReplacement(state)) return false;
         if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
         if (window.GameMakerStudioPreview) {window.GameMakerStudioPreview.cancelVisual(state);window.GameMakerStudioPreview.clearLoading(state);}
         try {
@@ -691,6 +750,8 @@
             if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
             state.previewGrant = grant;
             state.previewProjectID = projectID;
+            state.playStateBusy = false;
+            state.playStateRevisionInvalid = false;
             clearDiagnostics(state);
             const channelID = crypto.getRandomValues(new Uint32Array(4)).join('-');
             state.channelID = channelID;
@@ -714,9 +775,11 @@
             // cannot settle the iframe before the loading overlay is armed.
             if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.showLoading(state, shell, frame);
             frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID) + (state.sceneDebug ? '&gm-debug=1' : '');
+            return true;
         } catch (error) {
             if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
             addDiagnostic(state, { level: 'error', message: error.message || String(error) });
+            return false;
         }
     }
 

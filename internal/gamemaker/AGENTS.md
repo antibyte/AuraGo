@@ -138,6 +138,9 @@ revision publication and standalone export for Phaser and Three.js games.
 - `craft.go` guides are part of the prepared profiles. Curated `SKILL.md` text is
   registered but not injected into Studio runs: design direction that must reach
   the model belongs in these guides or phase guidance, never only in a skill.
+  Keep target-repair guidance in the shared editing profile so building and
+  repair stay byte-identical. Peaceful requests may omit opposition and finales;
+  Voxel planning context uses schema 5 and its own definition/check contract.
 - Phaser HUD roots use screen-fixed coordinates and explicit `auragoHUD` data.
   World depth may equal world Y; crossing depth 1000 must never hide actors.
   Asset fitting preserves aspect ratio without resizing authored colliders.
@@ -158,6 +161,8 @@ revision publication and standalone export for Phaser and Three.js games.
 - Visual review stays advisory and uses the selected multimodal route directly.
   Request JSON mode only for supported providers; tolerate normal JSON wrappers
   and allow at most one format correction within the original review deadline.
+  A passing build after three failed versions has used the shared repair budget;
+  retain visual findings without starting another repair in that case.
 
 ### Game Maker Studio Contract
 - Planning, editing, source-only generation and image review have versioned
@@ -280,6 +285,14 @@ revision publication and standalone export for Phaser and Three.js games.
 - Phase-specific verified guidance uses prepared prompt profiles; human intent, model plans, project files and diagnostics stay separate untrusted data. Planning text is never streamed/persisted as chat; final player prose is held until publication. `.aurago/validation-report.json` binds results to the compiled bundle hash and is revisioned but excluded from ZIP export.
 - Image and music generation are optional project capabilities. Generator failure, disabled configuration, or exhausted budget must return a visible procedural fallback without claiming unsupported 3D model generation.
 - Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
+- Publication holds the source/build locks and rechecks the validation fingerprint
+  over source, assets, runtimes, output and plan before creating a revision.
+  Generated asset writes share the source lock. Changed or missing fingerprints
+  reject publication while preserving the working copy and playable revision.
+- Browser gameplay evidence is a cooperative quality check, not independent
+  attestation of hostile game code: the driver and project share one JavaScript
+  realm. Preserve sandbox/API isolation; do not claim that window/channel checks
+  authenticate observations independently of the generated game.
 - ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio.
 
 ### Game Maker tool validation contract

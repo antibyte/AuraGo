@@ -1071,6 +1071,8 @@ func (s *Service) writeJobFile(ctx context.Context, jobID, rawPath, content stri
 }
 
 func (s *Service) StoreJobAsset(ctx context.Context, jobID, rawPath, kind, generator, provenance string, data []byte) (string, error) {
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
 	if err := s.CheckJobMutation(ctx, jobID); err != nil {
 		return "", err
 	}

@@ -17,35 +17,35 @@ import (
 	"aurago/internal/gamemaker"
 )
 
-func TestGameMakerAgentScopeContainsOnlyCuratedToolsAndSkills(t *testing.T) {
-	wantTools := []string{
-		"game_maker_project",
-		"game_maker_file",
-		"game_maker_asset",
-		"game_maker_validate",
-		"list_agent_skills",
-		"activate_agent_skill",
-	}
-	if !slices.Equal(gameMakerAllowedTools, wantTools) {
-		t.Fatalf("Game Maker AllowedTools = %v, want %v", gameMakerAllowedTools, wantTools)
-	}
-	for _, forbidden := range []string{
-		"invoke_tool", "filesystem", "execute_shell", "execute_python",
-		"api_request", "homepage_project", "desktop_computer",
+func TestGameMakerPhaseSchemasExposeOnlyPhaseTools(t *testing.T) {
+	for _, tc := range []struct {
+		stage string
+		want  []string
+	}{
+		{"planning", []string{"game_maker_project", "game_maker_file", "game_maker_asset"}},
+		{"building", []string{"game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate"}},
+		{"repair", []string{"game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate"}},
 	} {
-		if slices.Contains(gameMakerAllowedTools, forbidden) {
-			t.Fatalf("forbidden tool %q present in Game Maker scope", forbidden)
+		profile, err := gameMakerPromptProfile(tc.stage, "2d")
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-	wantSkills := []string{
-		"aurago-game-assets",
-		"aurago-game-maker-director",
-		"aurago-game-qa",
-		"aurago-phaser4-gameplay",
-		"aurago-threejs-gameplay",
-	}
-	if got := gamemaker.CuratedSkillNames(); !slices.Equal(got, wantSkills) {
-		t.Fatalf("curated Game Maker skills = %v, want %v", got, wantSkills)
+		var got []string
+		for _, tool := range profile.Tools() {
+			got = append(got, tool.Function.Name)
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Fatalf("%s phase schemas = %v, want %v", tc.stage, got, tc.want)
+		}
+		for _, forbidden := range []string{
+			"invoke_tool", "filesystem", "execute_shell", "execute_python",
+			"api_request", "homepage_project", "desktop_computer",
+			"list_agent_skills", "activate_agent_skill",
+		} {
+			if slices.Contains(got, forbidden) {
+				t.Fatalf("forbidden tool %q exposed in %s phase schemas", forbidden, tc.stage)
+			}
+		}
 	}
 }
 

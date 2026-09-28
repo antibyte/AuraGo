@@ -71,7 +71,9 @@ The selected model plans, builds, validates, and polishes autonomously. Planning
 is internal and requires no additional user confirmation. The server validates
 the structured plan before allowing code/media/import mutations. The initial
 plan has at most two corrections. Verified phase guidance is supplied directly;
-the model does not have to discover/activate four skills first. Progress events,
+the model does not have to discover or activate skills first. Peaceful requests
+do not inherit mandatory combat, hazards or endings from the design defaults.
+Progress events,
 diagnostics, and the preview remain in the same window. Model prose is held until
 publication, so an agent's early success claim cannot precede the actual checks.
 After a validated revision is ready, enter a change request to create the next
@@ -104,8 +106,10 @@ their source and require an explicit game edit to adopt the new helper.
 
 Planning, editing, source generation and image review use versioned, prepared
 prompt profiles. Building and repair share the editing profile. Each profile
-selects its 2D/3D guidance once and keeps its complete system instructions stable.
+selects its 2D, 3D or Voxel guidance once and keeps its complete system instructions stable.
 The three planning tools and four editing tools retain their schemas and order.
+Guidance for missing gameplay targets is part of the shared editing profile,
+so it reaches repairs without changing the cached system prefix.
 Job IDs, timestamps, phase, plan, hashes and failures are structured context after
 the prefix. Files, source ranges and asset details are discovered through the
 existing tools and appended as observations, without reinjecting the initial
@@ -458,8 +462,12 @@ At most two optional screenshots go to the same selected model only when its
 catalog metadata confirms image input. A tool-free, budgeted request supplies
 advisory observations; no provider switch occurs. Missing capture/capability or
 review failure is skipped. Visual review cannot override a failed technical check.
-Publication rechecks cancellation, edit permissions, build identity and late
-runtime errors under the publication lock, including errors during image review.
+Visual corrections share the three-pass repair allowance; after it is consumed,
+findings remain advisory and the passing game is preserved.
+Publication rechecks cancellation, edit permissions, build identity, late
+runtime errors and the complete validated file fingerprint under source/build
+locks, including changes during image review. Changed source, assets, runtimes,
+plan or compiled output require fresh validation before publication.
 The internal `.aurago/validation-report.json` records checks, separate gameplay/
 visual status and the compiled bundle SHA-256. Plans and reports travel with
 revisions and are excluded from export. Later preview errors accompany the next
@@ -474,7 +482,9 @@ or finished validation previews stop submitting reports, so a late token rejecti
 does not appear as another game error. Published-game errors remain visible.
 
 Restoring an older revision creates a new revision and keeps the complete
-history. ZIP export contains:
+history. Restore requires edit permission; Voxel progress is flushed before
+changing revisions. A failed save requires an explicit discard confirmation
+before replacing the running preview. ZIP export contains:
 
 - `game.json`, `src/`, and other source files;
 - the compiled `dist/` output;
@@ -511,15 +521,15 @@ these and any real project fixtures under ignored `reports/`.
 
 ## Security model
 
-Game Maker jobs receive only six callable tools: the four project-specific
-Game Maker tools plus Agent Skill listing and activation. Generic filesystem,
-shell, Python, network, Desktop, Homepage, and `invoke_tool` access is excluded.
-The binding Agent Skill scope contains exactly the five embedded
-`aurago-game-*` packages. These skills are system-managed: startup restores any
-locally changed or missing `SKILL.md` to the embedded version (self-healing),
-after which the package is rescanned. Packages that scan with a warning or an
-error, or whose post-install hash no longer matches the verified registry
-entry, still block new jobs.
+Planning exposes three project-specific tools; building and repair expose four,
+with fixed phase schemas. Verified guidance is already in the prepared profile;
+Studio does not require a separate skill activation. Generic filesystem, shell,
+Python, network, Desktop, Homepage and `invoke_tool` access is excluded.
+The embedded `aurago-game-*` skills are system-managed: startup restores missing
+or changed `SKILL.md` files and verifies the complete bundled package before
+exposing Game Maker. Exact binary provenance can supersede optional scanner
+warnings. Explicit blocks, extra files, symlinks or package hash mismatches
+still prevent readiness; unrelated background scans do not delay verified bundles.
 
 Preview documents use a short-lived token bound to one project and optionally
 one active staging job. The iframe permits scripts but deliberately has no
@@ -527,6 +537,12 @@ same-origin privilege. A restrictive content security policy blocks external
 connections, objects, forms, and AuraGo API access. Runtime diagnostics travel
 through a bounded `postMessage` channel validated by iframe window and random
 channel ID.
+
+These browser observations check game quality cooperatively. The generated game
+and test driver share a JavaScript realm, so observations are not an independent
+security attestation against deliberately falsified game code. The opaque
+sandbox, authenticated parent and server policy gates remain the isolation
+boundary for AuraGo data and APIs.
 
 ## Curated skill sources
 

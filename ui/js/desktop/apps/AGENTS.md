@@ -941,11 +941,17 @@ registration lives in `internal/desktop/types.go`.
   `game-maker-studio-preview.js` forwards only load/save/reset from the exact
   current frame/channel/project/published revision, using a parent-only grant.
   Reject oversized/unknown messages; expose conflicts and keep drafts/validation
-  temporary. Flush through the existing before-close hook and before project/frame
-  replacement; failed closes offer explicit discard through the shell modal.
+  temporary. Flush before restore mutations and before project/frame replacement;
+  failed flushes require explicit discard through the existing shell confirmation.
+  External published revisions must pass that same resolution before replacing a
+  Voxel frame. Restore controls are disabled with the localized read-only reason
+  when `capabilities.allow_edit` is false.
 - Voxel new-window play uses verified `game-maker-player.html` and
   `game-maker-player.js` with the same bridge and opaque iframe. Keep credentials
-  out of iframe messages, source URLs and exported games. Verify
+  out of iframe messages, source URLs and exported games. A play-state GET 409
+  marks the revision-bound grant stale; recovery refreshes the trusted host on
+  initial-load races and the explicit Load latest action. Same-revision save CAS
+  conflicts still recover in place through Load latest. Verify
   `TestGameMakerVoxelBridgeBrowser` alongside the existing Game Maker UI tests.
 - Scene diagnostics use the current preview channel and parent-window binding.
   The toggle exposes boundaries, colliders, IDs and routes only in Studio; ZIP

@@ -38,33 +38,54 @@
 
     async function showRevisionsModal(state, helpers) {
         if (!state.project) return;
+        const projectID = state.project.id;
+        const openedRevision = Number(state.project.current_revision) || 0;
         const { esc, t } = state.context;
         try {
-            const body = await state.api.revisions(state.project.id);
-            if (state.disposed) return;
+            const body = await state.api.revisions(projectID);
+            if (state.disposed || state.project?.id !== projectID) return;
+            const restoreAllowed = Boolean(state.capabilities?.allow_edit);
+            const readonlyNotice = t('game_maker.readonly_notice');
             helpers.showModal(state, `<section class="gm-modal gm-revisions-modal">
                 <header><div><span>${esc(t('game_maker.history'))}</span><h2>${esc(t('game_maker.revisions_title'))}</h2></div>
                     <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
+                ${restoreAllowed ? '' : `<p class="gm-readonly-notice" role="status">${esc(readonlyNotice)}</p>`}
                 <div class="gm-revision-list">${(body.revisions || []).map(revision => `<article>
                     <div><strong>v${revision.number}</strong><span>${esc(revision.source)}${esc(formatRevisionTime(revision.created_at))}</span></div>
                     <p>${esc(revision.summary)}</p><small>${revision.file_count} ${esc(t('game_maker.files'))}</small>
                     <button type="button" data-restore="${revision.number}"
-                        ${revision.number === state.project.current_revision ? 'disabled' : ''}>${esc(t('game_maker.restore'))}</button>
+                        ${revision.number === state.project.current_revision || !restoreAllowed ? 'disabled' : ''}
+                        ${restoreAllowed ? '' : `title="${esc(readonlyNotice)}" aria-label="${esc(t('game_maker.restore'))}: ${esc(readonlyNotice)}"`}>${esc(t('game_maker.restore'))}</button>
                 </article>`).join('') || `<div class="gm-library-empty">${esc(t('game_maker.no_revisions'))}</div>`}</div>
                 <footer><button type="button" data-modal-close>${esc(t('game_maker.close'))}</button></footer>
             </section>`, layer => {
                 layer.querySelectorAll('[data-restore]').forEach(button => button.addEventListener('click', async () => {
+                    const revision = Number(button.dataset.restore);
+                    if (!state.capabilities?.allow_edit || state.project?.id !== projectID
+                        || Number(state.project.current_revision) !== openedRevision || revision === openedRevision) return;
                     const confirmed = await helpers.confirmAction(state, t('game_maker.restore_title'), t('game_maker.restore_confirm'));
-                    if (!confirmed) return;
+                    if (!confirmed || state.project?.id !== projectID || Number(state.project.current_revision) !== openedRevision
+                        || !state.capabilities?.allow_edit) return;
+                    if (state.preparePreviewReplacement && !await state.preparePreviewReplacement()) return;
+                    if (state.project?.id !== projectID || Number(state.project.current_revision) !== openedRevision) return;
+                    let restored = false;
                     try {
                         helpers.setModalBusy(layer, true);
-                        await state.api.restore(state.project.id, Number(button.dataset.restore));
+                        state.revisionMutationInProgress = projectID;
+                        await state.api.restore(projectID, revision);
+                        restored = true;
+                        if (state.disposed || state.project?.id !== projectID) return;
                         helpers.closeModal(state);
-                        await state.reloadProjectRecord();
-                        await state.refreshPreview();
+                        if (!await state.reloadProjectRecord()) return;
+                        await state.refreshPreview({ skipFlush: true });
                     } catch (error) {
-                        helpers.setModalBusy(layer, false);
-                        helpers.modalError(layer, error.message || String(error));
+                        if (restored) state.fail?.(error);
+                        else {
+                            helpers.setModalBusy(layer, false);
+                            helpers.modalError(layer, error.message || String(error));
+                        }
+                    } finally {
+                        if (state.revisionMutationInProgress === projectID) state.revisionMutationInProgress = null;
                     }
                 }));
             });

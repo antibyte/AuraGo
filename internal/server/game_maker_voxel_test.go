@@ -37,6 +37,25 @@ func TestGameMakerVoxelPromptProfiles(t *testing.T) {
 			t.Fatal("missing voxel contract", word)
 		}
 	}
+	for _, word := range []string{"For an explicitly peaceful request, remove all enemies", "keep the wood→stone→metal mining and crafting progression"} {
+		if !strings.Contains(planning.SystemPrompt(), word) || !strings.Contains(building.SystemPrompt(), word) {
+			t.Fatal("missing explicit peaceful voxel guidance", word)
+		}
+	}
+	planningContext := compactGameMakerContext(gamemaker.JobRun{Stage: "planning", Project: gamemaker.Project{Dimension: "3d", Variant: "voxel"}})
+	contract, ok := planningContext["planning_contract"].(string)
+	if !ok || !strings.Contains(contract, "JSON-encoded VoxelDefinition string") || !strings.Contains(contract, "schema 5") || !strings.Contains(contract, "movement, jump, mining, crafting, placement and pause") || !strings.Contains(contract, "only key, wait and observe") || !strings.Contains(contract, "retain the wood-to-stone-to-metal progression") {
+		t.Fatalf("voxel planning context has the wrong contract: %#v", planningContext["planning_contract"])
+	}
+	if _, exists := planningContext["target_test_example"]; exists {
+		t.Fatal("voxel planning context contains a fabricated non-voxel target test")
+	}
+	if strings.Contains(contract, "pointer") || strings.Contains(contract, "target IDs") {
+		t.Fatalf("voxel custom check guidance advertises unsupported steps: %s", contract)
+	}
+	if example, ok := planningContext["design_example"].(gamemaker.GameDesign); !ok || example.Voxel == nil || len(example.Voxel.Enemies) == 0 {
+		t.Fatal("voxel context lost the intentional survival example defaults")
+	}
 	data, _ := json.Marshal(planning.Tools())
 	schema := string(data)
 	if !strings.Contains(schema, `"voxel"`) || strings.Contains(schema, `"scene_set"`) || strings.Contains(schema, `"fps"`) {

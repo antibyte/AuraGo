@@ -168,6 +168,14 @@ func (s *Service) reviewAndRepairVisual(ctx context.Context, runner Runner, run 
 		if attempt > 0 || len(diagnostics) == 0 {
 			return result
 		}
+		// A passing build after three failed versions already consumed the
+		// shared repair allowance. Keep the advisory findings without risking it.
+		s.mu.RLock()
+		repairsExhausted := s.validationFailures[run.Job.ID] >= 3
+		s.mu.RUnlock()
+		if repairsExhausted {
+			return result
+		}
 		// Preserve enough time to validate the repaired build under the existing job deadline.
 		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < 90*time.Second {
 			return result

@@ -91,19 +91,54 @@
             || state.previewProjectID !== project.id || !grant || !['load','save','reset'].includes(data.operation)
             || typeof data.request !== 'string' || data.request.length > 96 || !data.request.length) return;
         const reply = result => frame.contentWindow?.postMessage({source:'aurago-voxel-host',type:'play_state',channel:data.channel,request:data.request,...result}, '*');
-        if (!grant.play_token || grant.validation_id || grant.revision !== project.current_revision) {
+        if (!grant.play_token || grant.validation_id) {
             reply(data.operation === 'load' ? {result:{temporary:true,version:0,state:null}} : {error:'saveError'}); return;
+        }
+        // A conflict returned by a load GET means the revision-bound grant is
+        // stale. Keep that distinct from a save CAS conflict: the runtime's
+        // explicit Load latest action can safely resolve the latter in place.
+        if (data.operation === 'load' && state.playStateRevisionInvalid) {
+            reply({error:'conflict'});
+            try { await state.resolvePlayStateRevisionConflict?.(); } catch (_) {}
+            return;
+        }
+        if (grant.revision !== project.current_revision) {
+            if (data.operation === 'load') {
+                state.playStateRevisionInvalid = true;
+                reply({error:'conflict'});
+                try { await state.resolvePlayStateRevisionConflict?.(); } catch (_) {}
+            } else {
+                reply({error:'conflict'});
+            }
+            return;
         }
         let size;
         try { size = new TextEncoder().encode(JSON.stringify({version:data.version,state:data.payload})).length; } catch (_) { reply({error:'saveError'}); return; }
         if (!Number.isSafeInteger(data.version) || data.version < 0 || state.playStateBusy || size > 4*1024*1024) { reply({error:'saveError'}); return; }
         state.playStateBusy = true;
+        let recoverRevisionConflict = false;
         try {
             const result = await state.api.playState(project.id, grant.play_token, data.operation, data.version, data.payload);
-            if (!state.disposed && state.frame === frame && state.previewGrant === grant) reply({result});
+            if (!state.disposed && state.frame === frame && state.previewGrant === grant) {
+                if (data.operation === 'load') state.playStateRevisionInvalid = false;
+                reply({result});
+            }
         } catch (error) {
-            if (!state.disposed && state.frame === frame && state.previewGrant === grant) reply({error:error.code === 'conflict' ? 'conflict' : 'saveError'});
-        } finally { state.playStateBusy = false; }
+            if (!state.disposed && state.frame === frame && state.previewGrant === grant) {
+                if (data.operation === 'load' && error.code === 'conflict') {
+                    state.playStateRevisionInvalid = true;
+                    reply({error:'conflict'});
+                    recoverRevisionConflict = true;
+                } else {
+                    reply({error:error.code === 'conflict' ? 'conflict' : 'saveError'});
+                }
+            }
+        } finally {
+            if (state.frame === frame && state.previewGrant === grant) state.playStateBusy = false;
+        }
+        if (recoverRevisionConflict && !state.disposed && state.frame === frame && state.previewGrant === grant) {
+            try { await state.resolvePlayStateRevisionConflict?.(); } catch (_) {}
+        }
     }
 
     function flush(state) {

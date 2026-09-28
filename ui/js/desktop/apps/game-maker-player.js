@@ -16,7 +16,11 @@
         frame.title = project.name;
         frame.setAttribute('sandbox','allow-scripts allow-pointer-lock');
         frame.setAttribute('allowfullscreen',''); frame.referrerPolicy = 'no-referrer';
-        const state = {api,project,previewProjectID:project.id,previewGrant:grant,frame,channelID:crypto.getRandomValues(new Uint32Array(4)).join('-')};
+        const state = {api,project,previewProjectID:project.id,previewGrant:grant,frame,channelID:crypto.getRandomValues(new Uint32Array(4)).join('-'),
+            // A revision-bound GET conflict can happen during initial loading
+            // or after the visible Load latest action. Refresh the trusted host
+            // for a new grant; same-revision CAS recovery stays in the iframe.
+            resolvePlayStateRevisionConflict:()=>window.location.reload()};
         window.addEventListener('message', event => window.GameMakerStudioPreview.handlePlayState(state,event));
         document.addEventListener('visibilitychange', () => frame.contentWindow?.postMessage({type:'aurago:game:active',active:!document.hidden},'*'));
         window.addEventListener('pagehide', () => window.GameMakerStudioPreview.flush(state));
