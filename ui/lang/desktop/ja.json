@@ -17,6 +17,8 @@
   "sysworld.world.greet": "挨拶する",
   "sysworld.world.cancel_guide": "交流を終える",
   "sysworld.world.guide": "ここへ案内して…",
+  "sysworld.world.guide_start": "ガイドを開始",
+  "sysworld.world.demonstration": "ローカルの実演",
   "sysworld.world.place_repair-bay": "整備ベイ",
   "sysworld.world.place_parcel-sorter": "荷物仕分け機",
   "sysworld.world.place_relay-mast": "中継アンテナ塔",

@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Say hello",
   "sysworld.world.cancel_guide": "End the encounter",
   "sysworld.world.guide": "Guide me to…",
+  "sysworld.world.guide_start": "Start guided walk",
+  "sysworld.world.demonstration": "Local demonstration",
   "sysworld.world.place_repair-bay": "Maintenance bay",
   "sysworld.world.place_parcel-sorter": "Parcel sorter",
   "sysworld.world.place_relay-mast": "Relay mast",

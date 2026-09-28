@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Przywitaj się",
   "sysworld.world.cancel_guide": "Zakończ spotkanie",
   "sysworld.world.guide": "Zaprowadź mnie do…",
+  "sysworld.world.guide_start": "Rozpocznij oprowadzanie",
+  "sysworld.world.demonstration": "Lokalny pokaz",
   "sysworld.world.place_repair-bay": "Stanowisko serwisowe",
   "sysworld.world.place_parcel-sorter": "Sortownik paczek",
   "sysworld.world.place_relay-mast": "Maszt przekaźnikowy",

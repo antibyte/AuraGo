@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Sig hej",
   "sysworld.world.cancel_guide": "Afslut mødet",
   "sysworld.world.guide": "Vis mig vej til…",
+  "sysworld.world.guide_start": "Start rundvisning",
+  "sysworld.world.demonstration": "Lokal demonstration",
   "sysworld.world.place_repair-bay": "Serviceplads",
   "sysworld.world.place_parcel-sorter": "Pakkesorterer",
   "sysworld.world.place_relay-mast": "Relæmast",

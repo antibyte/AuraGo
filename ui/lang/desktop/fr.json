@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Saluer",
   "sysworld.world.cancel_guide": "Terminer la rencontre",
   "sysworld.world.guide": "Guide-moi vers…",
+  "sysworld.world.guide_start": "Commencer la visite",
+  "sysworld.world.demonstration": "Démonstration locale",
   "sysworld.world.place_repair-bay": "Baie de maintenance",
   "sysworld.world.place_parcel-sorter": "Trieur de colis",
   "sysworld.world.place_relay-mast": "Mât relais",

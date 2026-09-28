@@ -17,6 +17,8 @@
   "sysworld.world.greet": "打招呼",
   "sysworld.world.cancel_guide": "结束交流",
   "sysworld.world.guide": "带我去…",
+  "sysworld.world.guide_start": "开始导览",
+  "sysworld.world.demonstration": "本地演示",
   "sysworld.world.place_repair-bay": "维护舱",
   "sysworld.world.place_parcel-sorter": "包裹分拣机",
   "sysworld.world.place_relay-mast": "中继天线塔",

@@ -1352,6 +1352,8 @@ registration lives in `internal/desktop/types.go`.
   within the quality cap. Colliders use LOD0 envelopes/exported navigation data
   at every quality. Machinery particles are bounded and omitted on low; reduced
   motion freezes demonstrations and presents a localized quiet-state message.
+  Effect envelopes fade within their existing lifetime, clear expired live colors
+  and freeze under reduced motion; verify with the expansion script.
   Diagnostics expose bounded counts, actor poses, blockers and effect provenance,
   never content or invented telemetry. Verify shared movement with
   `node scripts/test-system-world-traffic.mjs` and real exported controllers with
@@ -1371,6 +1373,11 @@ registration lives in `internal/desktop/types.go`.
   missing history shows a gap, never substituted live values. Confirm stop/cancel/
   restart with the concrete target and lock before opening the confirmation dialog.
   Accepted actions remain pending until a newer matching state confirms the result.
+  Opening an encounter, terminal or discovery releases this city's pointer lock.
+  Close/Escape returns focus to the canvas; encounter updates preserve keyboard
+  focus and the chosen guide destination. Reserve space for walking controls and
+  hide keyboard-only interaction hints on touch devices. Interaction prompts yield
+  to the open exploration panel. Verify with the living browser scenario.
 - Server `internal/systemworld` stores bounded telemetry in the Desktop database.
   `/api/desktop/system-world/{snapshot,history,events,entity,actions}` requires admin
   scope; reuse existing services/write gates. The shared ten-second metrics worker

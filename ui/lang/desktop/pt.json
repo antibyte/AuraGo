@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Cumprimentar",
   "sysworld.world.cancel_guide": "Encerrar o encontro",
   "sysworld.world.guide": "Guie-me até…",
+  "sysworld.world.guide_start": "Iniciar visita guiada",
+  "sysworld.world.demonstration": "Demonstração local",
   "sysworld.world.place_repair-bay": "Área de manutenção",
   "sysworld.world.place_parcel-sorter": "Separador de pacotes",
   "sysworld.world.place_relay-mast": "Torre de retransmissão",

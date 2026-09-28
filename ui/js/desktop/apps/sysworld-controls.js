@@ -7,7 +7,12 @@
         const timer=setInterval(()=>{if(playing&&inst.visible){range.value=Math.min(0,Number(range.value)+5);void loadReplay();}},2000);
         const el=(tag,cls,text)=>{const n=document.createElement(tag);n.className=cls||'';if(text!=null)n.textContent=text;return n;};
         const button=(label,fn)=>{const n=el('button','sw-btn',label);n.type='button';n.addEventListener('click',fn);return n;};
-        const panel=el('details','sw-world sw-glass');panel.append(el('summary','',L('explore')));root.append(panel);
+        const panel=el('details','sw-world sw-glass'),summary=el('summary','',L('explore'));
+        const openPanel=()=>{panel.open=true;if(document.pointerLockElement===inst.city?.canvas)document.exitPointerLock();};
+        const closePanel=()=>{panel.open=false;inst.city?.canvas.focus({preventScroll:true});};
+        const close=button('×',e=>{e.preventDefault();closePanel();});close.className='sw-world-close sw-btn';close.dataset.worldClose='';close.setAttribute('aria-label',inst.L('desktop.close'));close.title=inst.L('desktop.close');
+        summary.append(close);panel.append(summary);root.append(panel);
+        panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closePanel();}});
         const content=el('div','sw-world-body');panel.append(content);
         const notice=el('p','sw-world-notice');notice.setAttribute('role','status');content.append(notice);
         const selects={};
@@ -29,19 +34,22 @@
         const social=el('section','sw-society');social.hidden=true;content.append(social);
         social.setAttribute('aria-label',L('city_life'));
         function showSociety(value){
-            if(value?.refresh){const status=social.querySelector('[role="status"]');if(status)status.textContent=L('state_'+value.state);return;}
-            social.hidden=!value;social.replaceChildren();if(!value)return;panel.open=true;
-            queueMicrotask(()=>{if(!social.hidden)social.scrollIntoView({block:'nearest'});});
-            social.append(el('h3','',L('city_life')),el('p','',L(value.role==='installation'?'place_'+value.id:'role_'+value.role)));
-            const status=el('p','sw-muted',L('state_'+value.state));status.setAttribute('role','status');social.append(status);
+            if(value?.refresh){const status=social.querySelector('[role="status"]');if(status){status.textContent=L('state_'+value.state);status.dataset.state=value.state;}return;}
+            const destination=social.dataset.id===value?.id?social.querySelector('select')?.value:null;
+            const focusScene=document.activeElement===inst.city?.canvas||document.activeElement?.classList.contains('sw-interaction');
+            social.hidden=!value;social.replaceChildren();if(!value)return;openPanel();
+            social.dataset.id=value.id;
+            queueMicrotask(()=>{if(!disposed&&!social.hidden&&panel.open){social.scrollIntoView({block:'nearest'});if(focusScene)social.querySelector('h3')?.focus({preventScroll:true});}});
+            const heading=el('h3','',L(value.role==='installation'?'place_'+value.id:'role_'+value.role));heading.tabIndex=-1;social.append(el('span','sw-eyebrow',L('city_life')),heading);
+            const status=el('p','sw-society-state',L(value.role==='installation'?'demonstration':'state_'+value.state));status.dataset.state=value.state;status.setAttribute('role','status');social.append(status);
             if(value.role==='installation'){if(inst.reducedMotion?.())social.append(el('p','sw-muted',L('motion_paused')));return;}
             const verbs=el('div','sw-world-verbs');social.append(verbs);
-            const act=(verb,destination)=>{const next=inst.city?.socialAction(verb,destination);if(next)showSociety(next);};
-            verbs.append(button(L('greet'),()=>act('greet')),button(L('cancel_guide'),()=>act('cancel')));
+            const act=(verb,destination)=>{inst.city?.socialAction(verb,destination);social.querySelector('[data-world-social="'+verb+'"]')?.focus({preventScroll:true});};
+            const greet=button(L('greet'),()=>act('greet')),cancel=button(L('cancel_guide'),()=>act('cancel'));greet.dataset.worldSocial='greet';cancel.dataset.worldSocial='cancel';verbs.append(greet,cancel);
             if(inst.reducedMotion?.())social.append(el('p','sw-muted',L('motion_paused')));
             else if(value.role!=='patrol'){
                 const label=el('label','sw-world-field',L('guide')),dest=el('select','sw-quality');dest.setAttribute('aria-label',L('guide'));
-                for(const[id,key]of NS.districts)dest.add(new Option(inst.L(key),id));label.append(dest);social.append(label,button(L('guide'),()=>{act('guide',dest.value);panel.open=false;}));
+                for(const[id,key]of NS.districts)dest.add(new Option(inst.L(key),id));if(destination)dest.value=destination;label.append(dest);social.append(label,button(L('guide_start'),()=>{act('guide',dest.value);closePanel();}));
             }
         }
         const actions=el('details','sw-world-section');actions.append(el('summary','',L('terminal')));
@@ -92,16 +100,16 @@
         }
         async function loadReplay(){const sequence=++request;if(Number(range.value)===0){setReplay(null);return;}inst.replaying=true;showActions();const at=Date.now()+Number(range.value)*60000;try{const snap=await fetchJSON('snapshot?at='+Math.floor(at));if(disposed||sequence!==request)return;setReplay(snap);}catch(_){if(!disposed&&sequence===request){playing=false;replay={at,metrics:{},entities:[]};inst.applyWorldSnapshot?.(replay);timeLabel.textContent=L('gap');play.textContent=L('play');}}}
         range.addEventListener('change',()=>void loadReplay());
-        const interaction=button('',()=>inst.city?.interact());interaction.className='sw-interaction sw-glass';interaction.hidden=true;root.append(interaction);
+        const interaction=button('',()=>inst.city?.interact()),interactionLabel=el('span'),interactionKey=el('kbd','','E');interactionKey.setAttribute('aria-hidden','true');interaction.append(interactionLabel,interactionKey);interaction.className='sw-interaction sw-glass';interaction.hidden=true;root.append(interaction);
         return {
             ready:environment,
             society:showSociety,
-            terminal(id){panel.open=true;actions.open=true;inst.select(id,false);},
-            discover(id){panel.open=true;notice.textContent=inst.L(NS.districts.find(d=>d[0]===id)?.[1]||'sysworld.zone.core')+' — '+L('about_'+id);},
+            terminal(id){openPanel();actions.open=true;inst.select(id,false);},
+            discover(id){openPanel();notice.textContent=inst.L(NS.districts.find(d=>d[0]===id)?.[1]||'sysworld.zone.core')+' — '+L('about_'+id);},
             environment(value){if(inside===value)return;inside=value;inst.sound?.setEnvironment(value,weather.value);},
             interaction(near,count){
                 const kind=near?.kind||'';
-                if(kind!==lastInteraction){lastInteraction=kind;interaction.hidden=!near;interaction.textContent=near?L('interact_'+kind)+' · E':'';interaction.dataset.kind=kind;}
+                if(kind!==lastInteraction){lastInteraction=kind;interaction.hidden=!near;interactionLabel.textContent=near?L('interact_'+kind):'';interaction.dataset.kind=kind;}
                 if(count!==lastDiscoveries){lastDiscoveries=count;discoveries.textContent=L('discoveries')+': '+count+' / 7';}
             },
             update(snapshot){

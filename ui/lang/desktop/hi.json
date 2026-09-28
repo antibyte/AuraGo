@@ -17,6 +17,8 @@
   "sysworld.world.greet": "अभिवादन करो",
   "sysworld.world.cancel_guide": "मुलाकात समाप्त करो",
   "sysworld.world.guide": "मुझे यहाँ ले चलो…",
+  "sysworld.world.guide_start": "मार्गदर्शित भ्रमण शुरू करें",
+  "sysworld.world.demonstration": "स्थानीय प्रदर्शन",
   "sysworld.world.place_repair-bay": "रखरखाव स्थल",
   "sysworld.world.place_parcel-sorter": "पार्सल छँटाई मशीन",
   "sysworld.world.place_relay-mast": "रिले मस्तूल",

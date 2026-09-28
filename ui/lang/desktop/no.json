@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Si hei",
   "sysworld.world.cancel_guide": "Avslutt møtet",
   "sysworld.world.guide": "Vis meg veien til…",
+  "sysworld.world.guide_start": "Start omvisning",
+  "sysworld.world.demonstration": "Lokal demonstrasjon",
   "sysworld.world.place_repair-bay": "Vedlikeholdsplass",
   "sysworld.world.place_parcel-sorter": "Pakkesorterer",
   "sysworld.world.place_relay-mast": "Relémast",

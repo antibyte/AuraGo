@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Begrüßen",
   "sysworld.world.cancel_guide": "Begegnung beenden",
   "sysworld.world.guide": "Führe mich zu…",
+  "sysworld.world.guide_start": "Führung starten",
+  "sysworld.world.demonstration": "Lokale Vorführung",
   "sysworld.world.place_repair-bay": "Wartungsbucht",
   "sysworld.world.place_parcel-sorter": "Paketsortierer",
   "sysworld.world.place_relay-mast": "Relaismast",

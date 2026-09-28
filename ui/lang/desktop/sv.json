@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Hälsa",
   "sysworld.world.cancel_guide": "Avsluta mötet",
   "sysworld.world.guide": "Visa vägen till…",
+  "sysworld.world.guide_start": "Starta guidad tur",
+  "sysworld.world.demonstration": "Lokal demonstration",
   "sysworld.world.place_repair-bay": "Underhållsplats",
   "sysworld.world.place_parcel-sorter": "Paketsorterare",
   "sysworld.world.place_relay-mast": "Relämast",

@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Begroeten",
   "sysworld.world.cancel_guide": "Ontmoeting beëindigen",
   "sysworld.world.guide": "Breng me naar…",
+  "sysworld.world.guide_start": "Rondleiding starten",
+  "sysworld.world.demonstration": "Lokale demonstratie",
   "sysworld.world.place_repair-bay": "Onderhoudsplaats",
   "sysworld.world.place_parcel-sorter": "Pakketsorteerder",
   "sysworld.world.place_relay-mast": "Relaismast",

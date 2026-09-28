@@ -17,6 +17,8 @@
   "sysworld.world.greet": "Χαιρέτισε",
   "sysworld.world.cancel_guide": "Τέλος συνάντησης",
   "sysworld.world.guide": "Οδήγησέ με προς…",
+  "sysworld.world.guide_start": "Έναρξη ξενάγησης",
+  "sysworld.world.demonstration": "Τοπική επίδειξη",
   "sysworld.world.place_repair-bay": "Θέση συντήρησης",
   "sysworld.world.place_parcel-sorter": "Ταξινομητής δεμάτων",
   "sysworld.world.place_relay-mast": "Ιστός αναμετάδοσης",

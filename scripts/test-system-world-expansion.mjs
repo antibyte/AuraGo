@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {interiors,canWalk,groundHeight,daylight} from '../ui/js/desktop/apps/sysworld-exploration.js';
 import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
+import {createMachinery} from '../ui/js/desktop/apps/sysworld-machinery.js';
 
 const base='ui/3d/system-world/v2',manifest=JSON.parse(await fs.readFile(base+'/manifest.json'));
 assert.equal(manifest.assets.length,33);
@@ -70,4 +71,17 @@ for(const name of ['sysworld.js','sysworld-data.js','sysworld-hud.js','sysworld-
 runtime+=(await fs.stat('ui/css/desktop-app-sysworld.css')).size;
 for(const name of await fs.readdir('ui/lang/desktop')){if(!name.endsWith('.json'))continue;const locale=JSON.parse(await fs.readFile('ui/lang/desktop/'+name));runtime+=Buffer.byteLength(JSON.stringify(Object.fromEntries(Object.entries(locale).filter(([key])=>key.startsWith('sysworld.')))));}
 assert.ok(runtime<48*1024*1024);
+{
+  const scene=new THREE.Scene(),fx=createMachinery(scene);
+  fx.attach('repair-bay',{play(){}});fx.demonstrate('repair-bay',2,'failed');
+  const bay=scene.getObjectByName('repair-bay'),glow=bay.children.find(n=>n.geometry?.type==='CircleGeometry');
+  fx.update(0,true);assert.equal(glow.material.opacity,0,'Demonstrations start without a flash');
+  fx.update(.15,true);const rising=glow.material.opacity;assert.ok(rising>0);
+  fx.update(.2,true);const peak=glow.material.opacity;assert.ok(peak>rising);
+  fx.update(1.5,true);assert.ok(glow.material.opacity<peak,'Effects fade before ending');
+  const time=fx.stats().time;fx.update(10,false);assert.equal(fx.stats().time,time,'Reduced motion freezes the effect envelope');
+  fx.update(.2,true);assert.equal(glow.material.opacity,0);assert.equal(fx.stats().places[0].source,'ambient','Expired live status must return to neutral');
+  fx.demonstrate('repair-bay',2,'failed');fx.clear();fx.update(0,true);assert.equal(glow.material.opacity,0);
+  fx.dispose();assert.equal(scene.children.length,0);
+}
 console.log(JSON.stringify({assets:manifest.assets.length,models,bytes,runtimeBytes:runtime,validatorWarnings:warnings,checks:'LOD, hashes, articulated clips, doors, navigation, time, budget passed'},null,2));
