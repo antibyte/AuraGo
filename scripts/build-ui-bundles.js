@@ -9,6 +9,7 @@ const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
   'ui/js/desktop/core/desktop-foundation.js',
   'ui/js/desktop/core/sound-runtime.js',
+  'ui/js/desktop/core/screensaver-runtime.js',
   'ui/js/desktop/core/mini-icons-runtime.js',
   'ui/js/desktop/core/global-menu-runtime.js',
   'ui/js/desktop/core/pet-runtime.js',

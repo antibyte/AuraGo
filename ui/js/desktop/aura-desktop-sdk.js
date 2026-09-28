@@ -5,6 +5,8 @@
     const RESPONSE_TYPE = 'aurago.desktop.response';
     const MENU_ACTION_TYPE = 'aurago.desktop.menu-action';
     const CONTEXT_MENU_ACTION_TYPE = 'aurago.desktop.context-menu-action';
+    const ACTIVITY_TYPE = 'aurago.desktop.activity';
+    const ACTIVITY_PING_MS = 5000;
     const RUNTIME = 'aura-desktop-sdk@1';
     const VERSION = '1.0.0';
     const THEMED_ICON_PREFIXES = ['papirus:', 'whitesur:'];
@@ -25,6 +27,7 @@
     let widgetAutoResizeObserver = null;
     let lastWidgetResizePayload = null;
     let lastWidgetResizePostAt = 0;
+    let lastActivityPingAt = 0;
 
     function expectedParentMessageOrigin() {
         try {
@@ -720,6 +723,18 @@
             load: loadIcons
         }
     };
+    function pingParentActivity() {
+        const now = Date.now();
+        if (now - lastActivityPingAt < ACTIVITY_PING_MS) return;
+        lastActivityPingAt = now;
+        try { window.parent.postMessage({ type: ACTIVITY_TYPE }, '*'); } catch (_) {}
+    }
+
+    if (window.parent && window.parent !== window) {
+        ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(type => {
+            window.addEventListener(type, pingParentActivity, { capture: true, passive: true });
+        });
+    }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', startWidgetAutoResize, { once: true });
     } else {

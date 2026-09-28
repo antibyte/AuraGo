@@ -52,6 +52,7 @@
     --vd-z-context-menu: 900;
     --vd-z-media-preview: 950;
     --vd-z-toast: 1000;
+    --vd-z-screensaver: 20000;
 }
 
 :root {

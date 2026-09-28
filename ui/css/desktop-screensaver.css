@@ -1,0 +1,182 @@
+/* Desktop screensaver overlay (lazy-loaded with js/desktop/screensavers/host.js). */
+.vd-screensaver {
+    position: fixed;
+    inset: 0;
+    z-index: var(--vd-z-screensaver, 20000);
+    overflow: hidden;
+    background: #000;
+    cursor: none;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+    contain: strict;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.vd-screensaver[data-visible="true"] {
+    opacity: 1;
+}
+
+.vd-screensaver[data-state="stopping"] {
+    opacity: 0;
+    transition-duration: 0.3s;
+}
+
+.vd-screensaver-canvas,
+.vd-screensaver-poster,
+.vd-screensaver-vignette {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.vd-screensaver-canvas {
+    display: block;
+    opacity: 0;
+    transition: opacity 1.8s ease;
+}
+
+.vd-screensaver[data-state="running"] .vd-screensaver-canvas {
+    opacity: 1;
+}
+
+.vd-screensaver-poster {
+    opacity: 0;
+    background-color: #03040a;
+    background-position: center;
+    background-size: cover;
+    transition: opacity 0.8s ease;
+}
+
+.vd-screensaver[data-state="poster"] .vd-screensaver-poster {
+    opacity: 1;
+}
+
+.vd-screensaver[data-theme="abyss"] .vd-screensaver-poster:not([data-loaded="true"]) {
+    background-image: radial-gradient(ellipse at 50% -10%, rgba(80, 180, 255, 0.35), transparent 55%), linear-gradient(180deg, #03203a 0%, #010812 70%, #000 100%);
+}
+
+.vd-screensaver[data-theme="event_horizon"] .vd-screensaver-poster:not([data-loaded="true"]) {
+    background-image: radial-gradient(circle at 50% 50%, #000 0 11%, rgba(255, 196, 120, 0.85) 12.5%, rgba(255, 110, 40, 0.25) 20%, transparent 34%), radial-gradient(ellipse at 50% 50%, rgba(255, 160, 80, 0.2), #000 70%);
+}
+
+.vd-screensaver[data-theme="aurora"] .vd-screensaver-poster:not([data-loaded="true"]) {
+    background-image: radial-gradient(ellipse at 40% 30%, rgba(60, 255, 170, 0.35), transparent 50%), radial-gradient(ellipse at 70% 20%, rgba(150, 90, 255, 0.28), transparent 45%), linear-gradient(180deg, #020716 0%, #051a2a 60%, #01060c 100%);
+}
+
+.vd-screensaver[data-theme="ink"] .vd-screensaver-poster:not([data-loaded="true"]) {
+    background-image: radial-gradient(circle at 30% 40%, rgba(255, 40, 160, 0.55), transparent 35%), radial-gradient(circle at 65% 60%, rgba(40, 200, 255, 0.5), transparent 38%), #020205;
+}
+
+.vd-screensaver[data-theme="stardust"] .vd-screensaver-poster:not([data-loaded="true"]) {
+    background-image: radial-gradient(ellipse at 50% 50%, rgba(140, 170, 255, 0.28), transparent 45%), #010208;
+}
+
+.vd-screensaver-vignette {
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+.vd-screensaver-clock {
+    --ss-clock-dx: 5vw;
+    --ss-clock-dy: 8vh;
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+    max-width: 80vw;
+    color: rgba(255, 255, 255, 0.92);
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55), 0 0 2px rgba(0, 0, 0, 0.4);
+    opacity: 1;
+    transition: opacity 0.9s ease;
+    pointer-events: none;
+}
+
+.vd-screensaver-clock[data-fading="true"] {
+    opacity: 0;
+}
+
+.vd-screensaver-clock[data-align-x="start"] {
+    left: var(--ss-clock-dx);
+    align-items: flex-start;
+    text-align: left;
+}
+
+.vd-screensaver-clock[data-align-x="end"] {
+    right: var(--ss-clock-dx);
+    align-items: flex-end;
+    text-align: right;
+}
+
+.vd-screensaver-clock[data-align-y="start"] {
+    top: var(--ss-clock-dy);
+}
+
+.vd-screensaver-clock[data-align-y="end"] {
+    bottom: var(--ss-clock-dy);
+}
+
+.vd-screensaver-time {
+    font-size: clamp(56px, 9vw, 148px);
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+}
+
+.vd-screensaver-time:empty {
+    display: none;
+}
+
+.vd-screensaver-date {
+    font-size: clamp(15px, 1.5vw, 24px);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    opacity: 0.78;
+}
+
+.vd-screensaver-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 5vh;
+    transform: translateX(-50%);
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: rgba(8, 10, 18, 0.46);
+    color: rgba(255, 255, 255, 0.82);
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    opacity: 1;
+    transition: opacity 1.2s ease;
+    pointer-events: none;
+}
+
+.vd-screensaver-hint[data-hidden="true"] {
+    opacity: 0;
+}
+
+@media (max-width: 640px) {
+    .vd-screensaver-hint {
+        white-space: normal;
+        width: max-content;
+        max-width: 86vw;
+        text-align: center;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-screensaver,
+    .vd-screensaver-canvas,
+    .vd-screensaver-poster,
+    .vd-screensaver-clock,
+    .vd-screensaver-hint {
+        transition: none;
+    }
+}
