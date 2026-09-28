@@ -160,6 +160,7 @@
                     onSociety:value=>inst.worldControls.society(value),replaying:()=>!!inst.replaying,
                     onDiscover:id=>inst.worldControls.discover(id),onTerminal:id=>inst.worldControls.terminal(id),
                     onSound:(kind,x,y,z)=>inst.sound?.effect(kind,x,y,z),onEnvironment:value=>inst.worldControls.environment(value),
+                    onThunder:delay=>inst.sound?.thunder(delay),onMood:mood=>inst.sound?.setMood(mood),
                     onRobotError:()=>{if(!inst.disposed){inst.robotError=true;inst.hud.error('sysworld.city.robot_error');}},
                     onTourFocus:id=>{if(!inst.disposed){inst.selected=id;inst.hud.select(id);}},
                     onSelect:id=>inst.select(id),busy:()=>inst.replaying?inst.entities.find(e=>e.id==='agent')?.state==='running':!!inst.snapshot?.sources.overview?.data?.agent?.busy,

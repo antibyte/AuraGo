@@ -141,7 +141,7 @@ export async function createCity(host, options) {
   const composer = new EffectComposer(renderer, renderTarget);
   composer.addPass(new SceneCapturePass(scene, camera, Math.min(4, renderer.capabilities.maxSamples)));
   // HDR threshold selects luminous windows/signals; dark work surfaces never bloom.
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), .24, .5, 1.25);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), .28, .55, 1.25);
   composer.addPass(bloom); composer.addPass(new OutputPass());
   const world = new THREE.Group(), staticCity = new THREE.Group(), landmarks = new THREE.Group();
   scene.add(world); world.add(staticCity, landmarks);
@@ -151,13 +151,15 @@ export async function createCity(host, options) {
   const ground = ownMesh(new THREE.BoxGeometry(170, 3, 174),
     new THREE.MeshStandardMaterial({ color: 0x16242b, metalness: .55, roughness: .38 }));
   ground.position.set(0, -1.5, -7); ground.receiveShadow = true; world.add(ground);
-  // Sky, stars, moon, animated sea, mist, dust, spire beacon, lamp cones and the final grade.
+  // Sky, clouds, stars, moon, animated sea, mist, dust, spire beacon, lamp cones, searchlights,
+  // aviation lights and the cinematic grade.
   const atmosphere = createAtmosphere(scene, { sunDirection: sun.position, lamps: placements.filter(p => p.asset === 'street-lamp') });
   composer.addPass(atmosphere.post);
   const memoryDistrict = districts.find(d => d.id === 'memory');
   const hologram = createMemoryHologram(scene, memoryDistrict, { roof: 21, label: options.memoryLabel });
   const drones = createDrones(scene,{traffic});
-  const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,ground});
+  const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,ground,onThunder:delay=>options.onThunder?.(delay)});
+  let moodKey = '';
   let experience=null;
   const selection = ownMesh(new THREE.RingGeometry(1, 1.035, 64),
     new THREE.MeshBasicMaterial({ color: 0x8ee8ee, transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide }));
@@ -250,6 +252,9 @@ export async function createCity(host, options) {
         mesh.userData.district = d.id; landmarks.add(mesh); objects.push(mesh);
       }
       life?.attachLandmarks(landmarks); drones.setTemplate(loaded.get('service-drone'));
+      const box = new THREE.Box3(), roofs = new Map();
+      for (const id of ['data-tower-a','data-tower-b']) roofs.set(id, box.setFromObject(distant.get(id)).max.y);
+      atmosphere.setAviation(placements.filter(p => roofs.has(p.asset) && (p.z < -100 || p.scale[1] > 1.1)).map(p => ({ x: p.x, y: p.y + roofs.get(p.asset) * p.scale[1] + .6, z: p.z })));
       renderer.shadowMap.needsUpdate = true; options.onReady?.();
     } catch (e) { if (!disposed && token === generation) options.onError?.(e); }
   }
@@ -416,7 +421,9 @@ export async function createCity(host, options) {
     const busy = !!options.busy?.();
     if(weather.update(dt,elapsed,!reduced))renderer.shadowMap.needsUpdate=true;
     reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
-    atmosphere.setBusy(busy); atmosphere.update(dt, elapsed, camera, !reduced);
+    atmosphere.setBusy(busy); atmosphere.setCinematic(mode === 'tour'); atmosphere.update(dt, elapsed, camera, !reduced);
+    const mood = weather.mood(), key = [busy, mood.day.toFixed(1), mood.evening.toFixed(1), mood.weather].join();
+    if (key !== moodKey) { moodKey = key; options.onMood?.({ busy, day: mood.day, evening: mood.evening, weather: mood.weather }); }
     hologram.update(dt, camera, !reduced);
     renderer.info.reset(); composer.render(); frames++;
     if (quality === 'auto' && dt > 0 && dt < .2 && elapsed - lastQualityChange > 12) {

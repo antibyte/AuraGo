@@ -905,6 +905,8 @@ registration lives in `internal/desktop/types.go`.
 
 ## Local Contracts
 
+- MeshCore loads `meshcore-device.js` before `meshcore.js`. The companion module owns in-app Device/Settings pages and reception/contact details, preserves per-section drafts during refresh, displays readback conflicts/partial results, and requires a before/after confirmation for radio edits. Local diagnostics poll only on the visible Device page, at least 30 seconds apart; remote diagnostics start only from explicit contact actions and poll bounded server jobs. Settings drafts and diagnostics never enter browser storage. Keep device flags/favorites distinct from Messenger favorites and agent trust. Dispose timers, requests and dialogs; verify both themes and narrow windows with `TestDesktopMeshCoreDeviceBrowser`. Firmware/API/privacy contracts are owned by `internal/meshcore/AGENTS.md`.
+
 - Agent Chat displays transient typed `llm_route` metadata through the shared
   `AuraLLMRouteBadge` helper. Update the originating turn's badge on fallback,
   render model/provider strings as text, and keep metadata out of answer bubbles
@@ -1276,12 +1278,23 @@ registration lives in `internal/desktop/types.go`.
   and 140 characters. Panels cycle randomly every 4.5–7.5 s (12–15 s under
   reduced motion) with glitch/fade transitions. `stats()` reports counts,
   source and switch counters, never text.
-- `sysworld-atmosphere.js` owns the sky dome with aurora bands, 1400 twinkling
-  stars, moon, animated sea with fog, sea mist, 500 dust motes, the rotating
-  spire beacon (faster while the agent is busy), instanced lamp cones and the
-  vignette/grain `ShaderPass`. One shared `time` uniform advances only while
+- `sysworld-atmosphere.js` owns the sky dome (dusk gradient, weather-driven fbm
+  clouds, Milky Way, meteors, city light dome, aurora), 1400 twinkling stars,
+  moon, animated sea with shore foam and city-light reflections, sea mist, 500
+  dust motes, the rotating spire beacon (faster while the agent is busy),
+  instanced lamp cones, three night searchlights (always leaning away from the
+  island) and up to 96 blinking aviation lights on skyline roofs. The sky disc
+  follows its own path (behind the skyline at dusk/night); the key light keeps
+  its front-lit path so glass facades never mirror a backlight into the camera.
+  `sysworld-cinema.js` is the final `ShaderPass`: grade/split-tone, S-curve,
+  edge chromatic aberration, anamorphic streaks, sun/moon shafts limited to a
+  tight radius (no depth, so windows must not become shaft sources), vignette,
+  grain and tour-only letterboxing. One shared `time` uniform advances only while
   animated, so hidden windows and reduced motion freeze the layer. Low tier hides
-  mist/dust/lamp cones; the post pass runs on high/ultra only. Clamp every
+  mist/dust/lamp cones/searchlights and uses fewer cloud octaves; the post pass
+  runs on high/ultra only. `sysworld-weather.js` adds soft lightning in rain
+  (animated, outdoors only, 9–25 s apart, never a strobe) and reports thunder
+  delay through `onThunder`. Clamp every
   `pow()` base: multisampled edge extrapolation yields NaN otherwise, and bloom
   smears one NaN over the whole frame.
 - `sysworld-drones.js` flies up to six service-drone patrols (two on low) on closed Catmull-Rom
@@ -1304,6 +1317,13 @@ registration lives in `internal/desktop/types.go`.
 - `sysworld-audio.js` owns quiet native Web Audio synthesis. Sound is opt-in,
   persisted, gesture-unlocked, volume-bounded and fades/suspends when the app is
   hidden, unfocused or in map mode. Close releases oscillators, nodes and AudioContexts.
+  The soundscape is a sub drone, a detuned saw pad gliding through four chords
+  (16 s) into a generated convolution reverb, air with wind gusts and at most 12
+  transient events (swooshes, chimes, day birds, night harbour horn, thunder).
+  Event/chord timers run only while audible and `quiet()` releases every voice on
+  inactivity. `setMood` (busy/day/evening/weather from the scene) opens the pad
+  filter. Do not add a `DynamicsCompressorNode`: its automatic makeup gain lifts
+  the mix above the browser test's 0.05 RMS voice ceiling.
   `sysworld-voice.js` adds transient tower speech to that same opt-in mixer: one
   cancellable POST `/api/desktop/system-world/voice`, 20–40 seconds of quiet after
   each short phrase, with 60-second failure backoff. Camera pose updates through
