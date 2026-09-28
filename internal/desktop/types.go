@@ -412,6 +412,7 @@ var desktopPreferredIconNames = []string{
 	"run",
 	"save",
 	"scissors",
+	"screensaver-symbolic",
 	"search",
 	"server",
 	"settings",

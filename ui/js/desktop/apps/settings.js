@@ -62,6 +62,17 @@
                 ]
             },
             {
+                id: 'screensaver', icon: 'screensaver-symbolic', fallback: 'S', title: 'desktop.settings_category_screensaver', desc: 'desktop.settings_category_screensaver_desc', items: [
+                    settingToggle('screensaver.enabled', 'desktop.settings_screensaver_enabled', 'desktop.settings_screensaver_enabled_desc'),
+                    settingScreensaverThemes(),
+                    settingSelect('screensaver.idle_minutes', 'desktop.settings_screensaver_idle', 'desktop.settings_screensaver_idle_desc', [
+                        ['1', 'desktop.settings_screensaver_idle_1'], ['2', 'desktop.settings_screensaver_idle_2'], ['3', 'desktop.settings_screensaver_idle_3'], ['5', 'desktop.settings_screensaver_idle_5'],
+                        ['10', 'desktop.settings_screensaver_idle_10'], ['15', 'desktop.settings_screensaver_idle_15'], ['30', 'desktop.settings_screensaver_idle_30'], ['60', 'desktop.settings_screensaver_idle_60']
+                    ]),
+                    settingToggle('screensaver.clock', 'desktop.settings_screensaver_clock', 'desktop.settings_screensaver_clock_desc')
+                ]
+            },
+            {
                 id: 'files', icon: 'folder-symbolic', fallback: 'F', title: 'desktop.settings_category_files', desc: 'desktop.settings_category_files_desc', items: [
                     settingToggle('files.confirm_delete', 'desktop.settings_confirm_delete', 'desktop.settings_confirm_delete_desc'),
                     settingSelect('files.default_folder', 'desktop.settings_default_folder', 'desktop.settings_default_folder_desc', [
@@ -126,6 +137,42 @@
                 { id: 'water', label: 'desktop.settings_sound_theme_water', desc: 'desktop.settings_sound_theme_water_desc' }
             ]
         };
+    }
+
+    function settingScreensaverThemes() {
+        return {
+            type: 'screensaver_theme',
+            themes: ['abyss', 'event_horizon', 'aurora', 'ink', 'stardust', 'random'].map(id => ({
+                id,
+                label: 'desktop.settings_screensaver_' + id,
+                desc: 'desktop.settings_screensaver_' + id + '_desc'
+            }))
+        };
+    }
+
+    function screensaverThumb(id) {
+        const src = '/img/screensaver/' + id + '-thumb.webp';
+        return window.AuraLazyAssets && typeof window.AuraLazyAssets.versionedURL === 'function' ? window.AuraLazyAssets.versionedURL(src) : src;
+    }
+
+    function renderScreensaverThemes(item) {
+        const { esc, t, settingValue } = ctx;
+        const active = settingValue('screensaver.theme') || 'abyss';
+        const mosaic = ['abyss', 'event_horizon', 'aurora', 'stardust'];
+        return `<article class="vd-setting-row vd-setting-row-stack">
+            <div>
+                <div class="vd-setting-label">${esc(t('desktop.settings_screensaver_theme'))}</div>
+                <div class="vd-setting-help">${esc(t('desktop.settings_screensaver_theme_desc'))}</div>
+            </div>
+            <div class="vd-screensaver-grid">${(item.themes || []).map(theme => `<div class="vd-screensaver-card${active === theme.id ? ' active' : ''}" data-screensaver-theme="${esc(theme.id)}" tabindex="0" role="button" aria-pressed="${active === theme.id ? 'true' : 'false'}">
+                <div class="vd-screensaver-thumb${theme.id === 'random' ? ' is-mosaic' : ''}" data-thumb="${esc(theme.id)}">${theme.id === 'random'
+                    ? mosaic.map(id => `<img src="${esc(screensaverThumb(id))}" alt="" loading="lazy" decoding="async">`).join('')
+                    : `<img src="${esc(screensaverThumb(theme.id))}" alt="" loading="lazy" decoding="async">`}</div>
+                <div class="vd-screensaver-title">${esc(t(theme.label))}</div>
+                <div class="vd-screensaver-desc">${esc(t(theme.desc))}</div>
+                <button type="button" class="vd-button vd-screensaver-preview" data-screensaver-preview="${esc(theme.id)}">${esc(t('desktop.settings_screensaver_preview'))}</button>
+            </div>`).join('')}</div>
+        </article>`;
     }
 
     function render(hostEl, renderCtx) {
@@ -249,6 +296,25 @@
                 await saveDesktopSetting('sound.theme', theme);
             });
         });
+        host.querySelectorAll('[data-screensaver-theme]').forEach(card => {
+            const choose = () => saveDesktopSetting('screensaver.theme', card.dataset.screensaverTheme);
+            card.addEventListener('click', event => {
+                if (event.target.closest('[data-screensaver-preview]')) return;
+                choose();
+            });
+            card.addEventListener('keydown', event => {
+                if (event.target !== card || (event.key !== 'Enter' && event.key !== ' ')) return;
+                event.preventDefault();
+                choose();
+            });
+        });
+        host.querySelectorAll('[data-screensaver-preview]').forEach(btn => {
+            btn.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (typeof ctx.previewDesktopScreensaver === 'function') ctx.previewDesktopScreensaver(btn.dataset.screensaverPreview);
+            });
+        });
         host.querySelectorAll('[data-sound-preview]').forEach(btn => {
             btn.addEventListener('click', async event => {
                 event.preventDefault();
@@ -338,6 +404,9 @@
                     <button type="button" class="vd-button vd-sound-theme-preview" data-sound-preview="${esc(theme.id)}">${esc(t('desktop.settings_sound_preview'))}</button>
                 </div>`).join('')}</div>
             </article>`;
+        }
+        if (item.type === 'screensaver_theme') {
+            return renderScreensaverThemes(item);
         }
         if (item.type === 'range') {
             const currentValue = parseFloat(settingValue(item.key) || '0.6');

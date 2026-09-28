@@ -34,7 +34,7 @@ window.renderCategory=category=>SettingsApp.render(document.querySelector('#sett
 		page.MustEval(`theme=>{document.body.dataset.theme=theme.startsWith('fruity')?'fruity':'standard';document.body.dataset.fruityMode=theme.endsWith('dark')?'dark':'light';}`, theme)
 		for _, width := range []int{1212, 820, 390} {
 			page.MustSetViewport(width, 700, 1, false)
-			for _, category := range []string{"system", "agent"} {
+			for _, category := range []string{"system", "agent", "screensaver"} {
 				page.MustEval(`category=>renderCategory(category)`, category)
 				if !page.MustEval(`()=>[...document.querySelectorAll('.vd-setting-row')].every(row=>{
                     const r=row.getBoundingClientRect(),label=row.querySelector('.vd-setting-label'),l=label.getBoundingClientRect(),control=row.lastElementChild,c=control.getBoundingClientRect();

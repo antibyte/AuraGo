@@ -386,6 +386,95 @@
     justify-content: center;
 }
 
+/* === Screensaver scene picker === */
+.vd-screensaver-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+
+.vd-screensaver-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--vd-theme-border);
+    border-radius: 12px;
+    background: var(--vd-theme-control-bg);
+    padding: 8px 8px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.vd-screensaver-card:hover,
+.vd-screensaver-card:focus-visible {
+    border-color: var(--vd-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--vd-accent) 35%, transparent);
+    outline: none;
+    transform: translateY(-1px);
+}
+
+.vd-screensaver-card.active {
+    border-color: var(--vd-accent);
+    background: color-mix(in srgb, var(--vd-theme-accent-soft, var(--vd-accent)) 18%, var(--vd-theme-control-bg));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--vd-accent) 55%, transparent);
+}
+
+.vd-screensaver-thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    margin-bottom: 8px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: radial-gradient(ellipse at 50% 30%, #0c2438, #02060c 70%);
+}
+
+.vd-screensaver-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vd-screensaver-thumb.is-mosaic {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 2px;
+}
+
+.vd-screensaver-title {
+    padding: 0 4px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    margin-bottom: 4px;
+}
+
+.vd-screensaver-desc {
+    flex: 1;
+    padding: 0 4px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--vd-muted, var(--vd-text));
+    margin-bottom: 10px;
+    min-height: 2.4em;
+}
+
+.vd-screensaver-preview {
+    width: 100%;
+    justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-screensaver-card {
+        transition: none;
+    }
+
+    .vd-screensaver-card:hover,
+    .vd-screensaver-card:focus-visible {
+        transform: none;
+    }
+}
+
 /* === Hamburger Button (hidden on desktop) === */
 .vd-settings-hamburger {
     display: none;

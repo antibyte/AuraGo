@@ -14,6 +14,7 @@ func TestDesktopSettingsUsesSymbolicSectionIcons(t *testing.T) {
 		"id: 'desktop', icon: 'desktop-symbolic'",
 		"id: 'windows', icon: 'monitor-symbolic'",
 		"id: 'sound', icon: 'sound-symbolic'",
+		"id: 'screensaver', icon: 'screensaver-symbolic'",
 		"id: 'files', icon: 'folder-symbolic'",
 		"id: 'agent', icon: 'apps-symbolic'",
 		"id: 'system', icon: 'info-symbolic'",
@@ -28,7 +29,7 @@ func TestDesktopSettingsSymbolicIconAssetsStayCompact(t *testing.T) {
 	t.Parallel()
 
 	for _, theme := range []string{"papirus", "whitesur"} {
-		for _, key := range []string{"apps-symbolic", "desktop-symbolic", "folder-symbolic", "info-symbolic", "monitor-symbolic", "settings-symbolic", "sound-symbolic"} {
+		for _, key := range []string{"apps-symbolic", "desktop-symbolic", "folder-symbolic", "info-symbolic", "monitor-symbolic", "screensaver-symbolic", "settings-symbolic", "sound-symbolic"} {
 			path := "img/" + theme + "/icons/" + key + ".svg"
 			svg := rawDesktopAssetText(t, path)
 			for _, marker := range []string{`width="24"`, `height="24"`, "currentColor", "ColorScheme-Text"} {

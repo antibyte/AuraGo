@@ -2637,7 +2637,7 @@
         'gallery-action-delete': 'trash', 'gallery-action-download': 'download',
         'gallery-action-edit': 'edit', 'gallery-action-preview': 'eye', 'check_square': 'check-square',
         'agent-chat': 'chat', agent: 'chat', 'message-square': 'chat', attach: 'attachment',
-        audio: 'music', 'audio-player': 'music', 'music-player': 'music', volume: 'speaker', sound: 'speaker',
+        audio: 'music', 'audio-player': 'music', 'music-player': 'music', volume: 'speaker', sound: 'speaker', screensaver: 'star',
         'volume-2': 'speaker', lock: 'shield', 'unlock': 'key', tools: 'sliders',
         widgets: 'layout', launchpad: 'apps', desktop: 'monitor',
         browser: 'globe', 'theme-threedee': 'cube', 'code-studio': 'code', cheater: 'notes',
@@ -15255,7 +15255,7 @@ function modalDialog(options) {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }
