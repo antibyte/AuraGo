@@ -232,6 +232,24 @@
         return out.toDataURL(request.type || 'image/webp', request.quality || 0.86);
     }
 
+    // Renders frames back-to-back, forcing GPU completion with a 1-pixel read,
+    // so the result approximates the real per-frame GPU+CPU cost.
+    function runBenchmark(s, frames) {
+        const gl = s.canvas.getContext('webgl2');
+        if (!gl || !s.scene) return null;
+        const pixel = new Uint8Array(4);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        const count = Math.max(1, Math.min(600, frames | 0));
+        const start = performance.now();
+        for (let i = 0; i < count; i++) {
+            s.time += 1 / 60;
+            s.scene.frame(s.time, 1 / 60);
+            gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        }
+        const ms = (performance.now() - start) / count;
+        return { frames: count, msPerFrame: ms, fps: 1000 / ms, width: s.width, height: s.height, quality: s.quality };
+    }
+
     function loop(s, now) {
         if (!alive(s) || !s.scene) return;
         s.raf = window.requestAnimationFrame(t => loop(s, t));
@@ -266,6 +284,11 @@
                 try { entry.resolve(captureFrame(s, entry.request)); } catch (err) { entry.reject(err); }
             });
         }
+        if (s.benchRequests.length) {
+            s.benchRequests.splice(0).forEach(entry => entry.resolve(runBenchmark(s, entry.frames)));
+            s.lastRender = 0;
+            return;
+        }
         adaptQuality(s, elapsed);
     }
 
@@ -278,6 +301,7 @@
             try { scene.dispose(); } catch (err) { console.warn('Screensaver dispose failed', err); }
         }
         s.probeRequests.splice(0).forEach(resolve => resolve(null));
+        s.benchRequests.splice(0).forEach(entry => entry.resolve(null));
         s.captureRequests.splice(0).forEach(entry => entry.reject(new Error('screensaver scene unavailable')));
     }
 
@@ -313,6 +337,7 @@
             clockMode: 'full',
             probeRequests: [],
             captureRequests: [],
+            benchRequests: [],
             fallbackReason: '',
             scene: null,
             raf: 0
@@ -450,6 +475,12 @@
         return new Promise((resolve, reject) => s.captureRequests.push({ request: request || {}, resolve, reject }));
     }
 
+    function benchmark(frames) {
+        const s = session;
+        if (!s || !s.scene) return Promise.resolve(null);
+        return new Promise(resolve => s.benchRequests.push({ frames: frames || 120, resolve }));
+    }
+
     function inspect() {
         return {
             active: !!session,
@@ -460,5 +491,5 @@
     }
 
     window.AuraScreensavers = { register };
-    window.AuraScreensaverHost = { start, stop, probe, capture, inspect, themes: Object.keys(THEME_SCRIPTS) };
+    window.AuraScreensaverHost = { start, stop, probe, capture, benchmark, inspect, themes: Object.keys(THEME_SCRIPTS) };
 })();

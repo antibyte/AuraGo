@@ -164,6 +164,10 @@ func TestDesktopScreensaverScenesBrowser(t *testing.T) {
 					page.MustScreenshot(filepath.Join(artifacts, fmt.Sprintf("%s-%d.png", theme, i)))
 				}
 			}
+			if os.Getenv("AURAGO_SCREENSAVER_BENCHMARK") == "1" {
+				bench := page.Timeout(3 * time.Minute).MustEval(`async()=>JSON.stringify(await AuraScreensaverHost.benchmark(120))`).Str()
+				t.Logf("%s benchmark=%s", theme, bench)
+			}
 			page.MustEval(`()=>AuraScreensaverHost.stop({reason:'test'})`)
 			page.Timeout(10 * time.Second).MustWait(`()=>!document.getElementById('vd-screensaver')`)
 			last := page.MustEval(`()=>JSON.stringify(AuraScreensaverHost.inspect().last)`).Str()
