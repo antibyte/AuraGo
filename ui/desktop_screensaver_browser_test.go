@@ -9,11 +9,16 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"aurago/internal/desktop"
+
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
@@ -236,5 +241,194 @@ func TestDesktopScreensaverPosterCapture(t *testing.T) {
 			t.Logf("%s: %d bytes", size.name, len(bytes))
 		}
 		page.MustEval(`()=>AuraScreensaverHost.stop({reason:'pagehide'})`)
+	}
+}
+
+func TestDesktopScreensaverShellBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+
+	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
+	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
+	html = strings.Replace(html, "</body>", `<script>
+window.fixtureErrors=[];
+addEventListener('error', e=>fixtureErrors.push(e.message));
+addEventListener('unhandledrejection', e=>fixtureErrors.push(String(e.reason)));
+window.t=key=>key;
+window.WebSocket=class extends EventTarget { close(){} };
+</script><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/core/module-loader.js"></script><script src="/screensaver-shell.js"></script></body>`, 1)
+
+	shell := readDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
+	cut := strings.LastIndex(shell, "    ensureDesktopRadialMenuAnchor();")
+	if cut < 0 {
+		t.Fatal("desktop startup seam missing")
+	}
+	shell = shell[:cut] + `window.ssTest={state,openApp};` + shell[cut:]
+
+	settings := desktop.DesktopSettingDefaults()
+	for key, value := range map[string]string{
+		"windows.restore_session":  "false",
+		"pet.enabled":              "false",
+		"phone_gadget.enabled":     "false",
+		"desktop.show_widgets":     "false",
+		"screensaver.enabled":      "true",
+		"screensaver.theme":        "aurora",
+		"screensaver.idle_minutes": "1",
+	} {
+		settings[key] = value
+	}
+	var mu sync.Mutex
+	puts := []string{}
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.FS(Content)))
+	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, html)
+	})
+	mux.HandleFunc("/screensaver-shell.js", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript")
+		fmt.Fprint(w, shell)
+	})
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/desktop/bootstrap":
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"enabled": true, "builtin_apps": desktop.BuiltinApps(), "installed_apps": []interface{}{},
+				"widgets": []interface{}{}, "shortcuts": []interface{}{}, "desktop_files": []interface{}{},
+				"workspace": map[string]interface{}{"readonly": false}, "settings": settings,
+			})
+		case "/api/desktop/settings":
+			if r.Method == http.MethodPut {
+				var update struct{ Key, Value string }
+				if err := json.NewDecoder(r.Body).Decode(&update); err != nil || update.Key == "" {
+					http.Error(w, `{"error":"invalid setting"}`, http.StatusBadRequest)
+					return
+				}
+				settings[update.Key] = update.Value
+				puts = append(puts, update.Key+"="+update.Value)
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"settings": settings})
+		default:
+			fmt.Fprint(w, `{"status":"ok","files":[],"pets":[],"settings":{},"enabled":false}`)
+		}
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	browser, closeBrowser := newScreensaverBrowser(t)
+	defer closeBrowser()
+	page := browser.MustPage("about:blank").Timeout(4 * time.Minute)
+	defer page.MustClose()
+	page.MustSetViewport(1280, 720, 1, false)
+	setReducedMotion(t, page, "no-preference")
+	page.MustNavigate(server.URL + "/fixture")
+	page.MustWaitLoad()
+	page.MustWait(`()=>!!(window.ssTest?.state?.bootstrap && window.DesktopScreensaver) || window.fixtureErrors?.length`)
+	page.MustEval(`()=>{
+        Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
+        window.desktopClicks=0; window.desktopKeys=0;
+        document.addEventListener('click',()=>{window.desktopClicks++;});
+        document.addEventListener('keydown',()=>{window.desktopKeys++;});
+    }`)
+	check := func(js, message string) {
+		t.Helper()
+		if !page.MustEval(js).Bool() {
+			t.Fatalf("%s: %s", message, page.MustEval(`()=>JSON.stringify(DesktopScreensaver.inspect())`).Str())
+		}
+	}
+	artifacts := screensaverArtifactDir(t)
+	shot := func(name string) {
+		if artifacts != "" {
+			page.MustScreenshot(filepath.Join(artifacts, "shell-"+name+".png"))
+		}
+	}
+
+	check(`()=>DesktopScreensaver.inspect().enabled && DesktopScreensaver.inspect().wired`, "enabled setting must arm idle detection")
+	check(`()=>DesktopScreensaver.inspect().idleMs===60000`, "idle minutes must map to milliseconds")
+
+	// Idle activation.
+	page.MustEval(`()=>DesktopScreensaver.setIdleOverrideMs(1200)`)
+	page.Timeout(60 * time.Second).MustWait(`()=>{const h=DesktopScreensaver.inspect().host;return DesktopScreensaver.inspect().active && h && h.current && h.current.frames>2}`)
+	check(`()=>DesktopScreensaver.inspect().theme==='aurora' && !DesktopScreensaver.inspect().preview`, "idle activation must use the configured theme")
+	check(`()=>getComputedStyle(document.getElementById('vd-screensaver')).zIndex==='20000'`, "overlay must use the screensaver layer")
+	shot("active")
+
+	// A real click wakes the desktop but never reaches it.
+	page.Mouse.MustMoveTo(640, 360)
+	page.Mouse.MustClick(proto.InputMouseButtonLeft)
+	page.Timeout(10 * time.Second).MustWait(`()=>!DesktopScreensaver.inspect().active && !document.getElementById('vd-screensaver')`)
+	check(`()=>window.desktopClicks===0`, "the waking click must be swallowed")
+	check(`()=>DesktopScreensaver.inspect().host.last.stoppedBy==='input'`, "wake must report input")
+	time.Sleep(600 * time.Millisecond)
+	check(`()=>!DesktopScreensaver.inspect().active`, "activity after wake must restart the idle timer")
+
+	// Fullscreen suppresses activation.
+	page.MustEval(`()=>Object.defineProperty(document,'fullscreenElement',{configurable:true,get:()=>document.body})`)
+	time.Sleep(3500 * time.Millisecond)
+	check(`()=>!DesktopScreensaver.inspect().active && DesktopScreensaver.inspect().suppressedReason==='fullscreen'`, "fullscreen must suppress the screensaver")
+	page.MustEval(`()=>Object.defineProperty(document,'fullscreenElement',{configurable:true,get:()=>null})`)
+	page.Timeout(60 * time.Second).MustWait(`()=>DesktopScreensaver.inspect().active`)
+
+	// An incoming call wakes the desktop immediately and keeps it awake while ringing.
+	page.MustEval(`()=>{const n=document.createElement('section');n.id='vd-sip-incoming';document.body.appendChild(n);}`)
+	page.Timeout(10 * time.Second).MustWait(`()=>!DesktopScreensaver.inspect().active`)
+	check(`()=>DesktopScreensaver.inspect().host.last.stoppedBy==='call'`, "incoming calls must stop the screensaver")
+	time.Sleep(3 * time.Second)
+	check(`()=>!DesktopScreensaver.inspect().active && DesktopScreensaver.inspect().suppressedReason==='call'`, "ringing calls must suppress activation")
+	page.MustEval(`()=>{document.getElementById('vd-sip-incoming').remove();DesktopScreensaver.setIdleOverrideMs(0);}`)
+
+	// Settings: preview, scene choice, random and disable.
+	page.MustEval(`async()=>{ await AuraDesktopModules.loadAppAssets('settings'); ssTest.openApp('settings',{category:'screensaver'}); }`)
+	page.Timeout(20 * time.Second).MustWait(`()=>document.querySelectorAll('[data-screensaver-theme]').length===6`)
+	shot("settings")
+	preview := page.MustElement(`[data-screensaver-preview="event_horizon"]`)
+	preview.MustScrollIntoView()
+	preview.MustClick()
+	page.Timeout(60 * time.Second).MustWait(`()=>{const i=DesktopScreensaver.inspect();return i.active && i.preview && i.theme==='event_horizon' && i.host?.current?.frames>2}`)
+	shot("preview")
+	keysBefore := page.MustEval(`()=>window.desktopKeys`).Int()
+	page.Keyboard.MustType(input.Escape)
+	page.Timeout(10 * time.Second).MustWait(`()=>!DesktopScreensaver.inspect().active`)
+	if page.MustEval(`()=>window.desktopKeys`).Int() != keysBefore {
+		t.Fatal("the waking key press must not reach the desktop")
+	}
+
+	time.Sleep(700 * time.Millisecond)
+	page.MustElement(`[data-screensaver-theme="random"]`).MustClick()
+	page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('[data-screensaver-theme="random"]')?.getAttribute('aria-pressed')==='true'`)
+	seen := page.MustEval(`async()=>{
+        const themes=[];
+        for (let i=0;i<4;i++) {
+            await DesktopScreensaver.start('random');
+            themes.push(DesktopScreensaver.inspect().theme);
+            DesktopScreensaver.stop('test');
+        }
+        return JSON.stringify(themes);
+    }`).Str()
+	var themes []string
+	if err := json.Unmarshal([]byte(seen), &themes); err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i < len(themes); i++ {
+		if themes[i] == themes[i-1] || !containsString(screensaverThemeIDs, themes[i]) {
+			t.Fatalf("random mode must pick a different valid scene each time: %v", themes)
+		}
+	}
+
+	time.Sleep(700 * time.Millisecond)
+	page.MustEval(`()=>document.querySelector('[data-setting-key="screensaver.enabled"]').closest('label').click()`)
+	page.Timeout(10 * time.Second).MustWait(`()=>!DesktopScreensaver.inspect().wired`)
+	mu.Lock()
+	joined := strings.Join(puts, ",")
+	mu.Unlock()
+	for _, want := range []string{"screensaver.theme=random", "screensaver.enabled=false"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("settings did not persist %s (saw %s)", want, joined)
+		}
+	}
+	if errs := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errs != "[]" {
+		t.Fatalf("page errors: %s", errs)
 	}
 }
