@@ -286,3 +286,30 @@ func TestDesktopScreensaverAbyssAssetsMatchManifests(t *testing.T) {
 		t.Fatal("Tiefsee renderer bundle is stale; run node scripts/build-screensaver-abyss.js")
 	}
 }
+
+func TestDesktopScreensaverPostersAndThumbnailsShip(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range screensaverThemeIDs {
+		for _, entry := range []struct {
+			suffix string
+			limit  int
+		}{{"", 400 * 1024}, {"-thumb", 48 * 1024}} {
+			path := "img/screensaver/" + id + entry.suffix + ".webp"
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("%s is missing: %v", path, err)
+			}
+			if len(data) < 12 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WEBP" {
+				t.Fatalf("%s must be a WebP image", path)
+			}
+			if len(data) > entry.limit {
+				t.Fatalf("%s is %d bytes; limit %d", path, len(data), entry.limit)
+			}
+		}
+	}
+	host := readDesktopAssetText(t, "js/desktop/screensavers/host.js")
+	if !strings.Contains(host, "'/img/screensaver/' + s.theme + '.webp'") {
+		t.Fatal("screensaver host must show the matching poster as fallback")
+	}
+}

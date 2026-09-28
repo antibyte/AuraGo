@@ -142,7 +142,7 @@ vec3 hueTonemap(vec3 col) {
     float L = luma(col);
     float Lt = acesTonemap(vec3(L)).x;
     vec3 tinted = col * (Lt / max(L, 1e-4));
-    tinted = mix(tinted, vec3(Lt), smoothstep(2.5, 10.0, L) * 0.3);
+    tinted = mix(tinted, vec3(Lt), smoothstep(3.0, 12.0, L) * 0.12);
     return clamp(tinted, 0.0, 1.0);
 }
 
@@ -153,7 +153,7 @@ void main() {
     float t = luma(texture(uDye, vUv + vec2(0.0, uDyeTexel.y)).rgb);
     float b = luma(texture(uDye, vUv - vec2(0.0, uDyeTexel.y)).rgb);
     float edge = clamp(length(vec2(r - l, t - b)) * 5.0, 0.0, 1.0);
-    float density = smoothstep(0.012, 0.32, luma(c));
+    float density = smoothstep(0.006, 0.24, luma(c));
     vec3 col = c * mix(0.18, 1.0, density) * (0.85 + 1.6 * edge);
     col = max(mix(vec3(luma(col)), col, 1.25), vec3(0.0));
     col += texture(uBloom, vUv).rgb * uBloomStrength;
@@ -301,7 +301,7 @@ void main() {
                     b.until = t + 0.4 + rng() * 1.8;
                     return;
                 }
-                const color = paletteColor(b.slot, t).map(c => c * 0.3 * life);
+                const color = paletteColor(b.slot, t).map(c => c * 0.17 * life);
                 splats.push({ x: b.pos[0], y: b.pos[1], radius: 0.00024, force: [vx * 1300, vy * 1300], color });
             });
             if (t > nextBurst) {
@@ -315,7 +315,7 @@ void main() {
                     const target = [0.35 + rng() * 0.3, 0.35 + rng() * 0.3];
                     const len = Math.hypot(target[0] - origin[0], target[1] - origin[1]) || 1;
                     const speed = 2600 + rng() * 1400;
-                    const color = paletteColor(slot + i, t).map(c => c * (1.6 + rng() * 0.8));
+                    const color = paletteColor(slot + i, t).map(c => c * (0.9 + rng() * 0.5));
                     splats.push({
                         x: origin[0],
                         y: origin[1],
@@ -386,8 +386,8 @@ void main() {
                 uDyeTexel: dye.texel,
                 uResolution: [gl.drawingBufferWidth, gl.drawingBufferHeight],
                 uTime: t,
-                uBloomStrength: 0.8,
-                uExposure: 1.5
+                uBloomStrength: 0.9,
+                uExposure: 2.4
             }, null);
         }
 

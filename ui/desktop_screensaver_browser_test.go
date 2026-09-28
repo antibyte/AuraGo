@@ -203,10 +203,13 @@ func TestDesktopScreensaverPosterCapture(t *testing.T) {
 	page.MustNavigate(server.URL + "/fixture")
 	page.MustWaitLoad()
 	page.MustWait(`()=>!!window.AuraScreensaverHost`)
+	if fake := os.Getenv("AURAGO_SCREENSAVER_FAKE_CLOCK"); fake != "" {
+		page.MustEval(`iso=>{const offset=new Date(iso).getTime()-Date.now();const Real=Date;class Shifted extends Real{constructor(...a){super(...(a.length?a:[Real.now()+offset]))}static now(){return Real.now()+offset}};window.Date=Shifted}`, fake)
+	}
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	moments := map[string]float64{"aurora": 14, "event_horizon": 9, "ink": 16, "stardust": 26, "abyss": 12}
+	moments := map[string]float64{"aurora": 14, "event_horizon": 9, "ink": 22, "stardust": 16, "abyss": 12}
 	for theme, at := range moments {
 		if only := os.Getenv("AURAGO_SCREENSAVER_THEMES"); only != "" && !strings.Contains(only, theme) {
 			continue
