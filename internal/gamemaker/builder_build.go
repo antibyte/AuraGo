@@ -186,6 +186,10 @@ func sceneCatalogForPlan(plan GamePlan) (AssetCatalog, error) {
 }
 
 func validateBuilderSource(dir, path, content string) error {
+	if filepath.ToSlash(path) == "src/voxel.json" {
+		_, err := ParseVoxelDefinition([]byte(content))
+		return err
+	}
 	if filepath.ToSlash(path) == "src/mechanics.json" {
 		return checkMechanicsSource(dir, content)
 	}

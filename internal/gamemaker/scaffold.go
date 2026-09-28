@@ -8,6 +8,7 @@ import (
 )
 
 type gameManifest struct {
+	Variant     string `json:"variant,omitempty"`
 	Name        string `json:"name"`
 	Dimension   string `json:"dimension"`
 	Engine      string `json:"engine"`
@@ -22,7 +23,7 @@ func WriteScaffold(projectDir string, project Project) error {
 			return fmt.Errorf("create game scaffold directory: %w", err)
 		}
 	}
-	if err := installRuntime(projectDir, project.Dimension); err != nil {
+	if err := installRuntime(projectDir, project.Dimension, project.Variant); err != nil {
 		return err
 	}
 	engine := "phaser"
@@ -36,6 +37,7 @@ func WriteScaffold(projectDir string, project Project) error {
 	manifest, _ := json.MarshalIndent(gameManifest{
 		Name:        project.Name,
 		Dimension:   project.Dimension,
+		Variant:     project.Variant,
 		Engine:      engine,
 		Version:     version,
 		Entry:       "src/main.ts",

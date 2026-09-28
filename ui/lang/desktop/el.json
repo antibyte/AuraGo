@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Βόξελ",
+  "game_maker.voxel_description": "Εξόρυξη, χτίσιμο και κατασκευές σε κόσμο από κύβους.",
+  "game_maker.example_idea_14": "Επιβίωση σε νησί βόξελ: μάζεψε ξύλα, φτιάξε εργαλεία και χτίσε καταφύγιο.",
+  "game_maker.example_idea_15": "Δημιουργικός κόσμος βόξελ για να χτίσεις ένα κάστρο.",
   "sysworld.world.motion": "Κίνηση",
   "sysworld.world.motion_auto": "Ρύθμιση συστήματος",
   "sysworld.world.motion_on": "Ζωντανή πόλη",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Διαγνωστικά",
   "game_maker.dimension": "Τύπος παιχνιδιού",
   "game_maker.disabled_notice": "Το Game Maker Studio είναι απενεργοποιημένο ή μόνο για ανάγνωση. Ένας διαχειριστής μπορεί να το ενεργοποιήσει στη διαμόρφωση.",
-  "game_maker.empty_hint": "Δημιουργήστε ένα έργο 2D ή 3D και ο πράκτορας θα το κατασκευάσει, θα το δοκιμάσει και θα το τελειοποιήσει.",
+  "game_maker.empty_hint": "Δημιούργησε έργο 2D, 3D ή βόξελ και ο πράκτορας θα το φτιάξει, θα το ελέγξει και θα το βελτιώσει.",
   "game_maker.empty_title": "Μετατρέψτε μια ιδέα σε παιχνίδι που παίζεται",
   "game_maker.example_idea_1": "Πλατφόρμα 2D με νομίσματα και εχθρούς",
   "game_maker.example_idea_2": "Snake με αυξανόμενη ταχύτητα",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "Το αποτέλεσμα έληξε. Τα αποτελέσματα διατηρούνται δέκα λεπτά.",
   "desktop.meshcore_messenger_favorite": "Αγαπημένο στο Messenger",
   "desktop.meshcore_agent_trusted": "Έμπιστος κόμβος στο AuraGo",
-  "desktop.meshcore_created_at": "Δημιουργήθηκε"
+  "desktop.meshcore_created_at": "Δημιουργήθηκε",
+  "game_maker.save_failed_title": "Το παιχνίδι δεν αποθηκεύτηκε",
+  "game_maker.leave_unsaved": "Οι τελευταίες αλλαγές δεν αποθηκεύτηκαν. Να κλείσει το παιχνίδι παρ’ όλα αυτά;"
 }

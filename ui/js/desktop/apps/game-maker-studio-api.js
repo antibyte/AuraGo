@@ -39,6 +39,17 @@
             previewGrant: id => request('/projects/' + encodeURIComponent(id) + '/preview-token', {
                 method: 'POST'
             }),
+            async playState(id, token, operation, version, state) {
+                const response = await fetch(base + '/projects/' + encodeURIComponent(id) + '/play-state', {
+                    method: {load:'GET', save:'PUT', reset:'DELETE'}[operation],
+                    credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(8000),
+                    headers: {'Content-Type':'application/json', 'X-Game-Maker-Play':token},
+                    body: operation === 'load' ? undefined : JSON.stringify({version, state:operation === 'save' ? state : null})
+                });
+                if (!response.ok) { const error = new Error('Voxel save request failed'); error.code = response.status === 409 ? 'conflict' : 'saveError'; throw error; }
+                return response.json();
+            },
+            playURL: id => base + '/projects/' + encodeURIComponent(id) + '/play',
             reviewVisual: (id, body, signal) => request('/projects/' + encodeURIComponent(id) + '/visual-review', {method:'POST',body,signal}),
             reportPreview: (id, body) => request('/projects/' + encodeURIComponent(id) + '/preview-report', {
                 method: 'POST', body, signal: AbortSignal.timeout(5000)

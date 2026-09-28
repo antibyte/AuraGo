@@ -110,6 +110,13 @@ Tools are defined in `internal/tools/`:
 
 ### Prompt and Runtime Drift Contract
 
+- Game Maker's Voxel variant has its own prepared planning/editing/source
+  profiles; build and repair share the same ordered four tools. Planning retains
+  three tools. `design.voxel` is a bounded JSON-encoded definition in native calls,
+  parsed by the same validator as source edits; no chunk/save payloads in prompts.
+  Keep non-Voxel schemas compatible and regenerate the training catalog without
+  replacing curated operation examples or tool tiers when optional fields change.
+
 - Optional `RunConfig.PreparedPrompt` (also in `MinimalLoopOptions`) owns a
   complete immutable system prompt and ordered schemas. Its revision covers
   instruction bytes and schemas. Nil keeps the normal dynamic builder. Never

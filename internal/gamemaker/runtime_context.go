@@ -13,7 +13,7 @@ const runtimeContractPrefix = "// AURAGO_RUNTIME_API "
 func (s *Service) RuntimeContext(ctx context.Context, jobID string) map[string]any {
 	result := map[string]any{"version": "legacy/custom", "guidance": "Read/search src/common.ts before using helpers; retain its lifecycle."}
 	var files []map[string]any
-	for _, path := range []string{"src/common.ts", "src/main.ts"} {
+	for _, path := range []string{"src/common.ts", "src/main.ts", "src/voxel.json"} {
 		content, err := s.ReadJobFile(ctx, jobID, path)
 		if err != nil {
 			continue
@@ -45,7 +45,7 @@ func (s *Service) RuntimeContext(ctx context.Context, jobID string) map[string]a
 					result["version"] = descriptor["version"]
 				}
 			}
-			for _, hook := range []string{"setup(", "step(", "action(", "reset(", "startGame(", "class GameScene"} {
+			for _, hook := range []string{"setup(", "step(", "action(", "reset(", "startGame(", "startVoxelGame(", "class GameScene"} {
 				if !strings.HasPrefix(strings.TrimSpace(line), "//") && strings.Contains(line, hook) && len(hooks) < 8 {
 					runes := []rune(strings.TrimSpace(line))
 					hooks = append(hooks, SourceMatch{Line: i + 1, Text: string(runes[:min(180, len(runes))])})

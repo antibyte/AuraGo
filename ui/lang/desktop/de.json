@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Voxel",
+  "game_maker.voxel_description": "Abbauen, bauen und herstellen in einer Blockwelt.",
+  "game_maker.example_idea_14": "Voxel-Survival auf einer Insel: Holz sammeln, Werkzeuge herstellen und einen Unterschlupf bauen.",
+  "game_maker.example_idea_15": "Kreative Voxel-Sandbox zum Bauen einer Burg.",
   "sysworld.world.motion": "Bewegung",
   "sysworld.world.motion_auto": "Systemvorgabe",
   "sysworld.world.motion_on": "Belebt",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Diagnose",
   "game_maker.dimension": "Spieltyp",
   "game_maker.disabled_notice": "Game Maker Studio ist deaktiviert oder schreibgeschützt. Ein Administrator kann es in der Konfiguration freigeben.",
-  "game_maker.empty_hint": "Erstelle ein 2D- oder 3D-Projekt. Der Agent baut, testet und poliert es.",
+  "game_maker.empty_hint": "Erstelle ein 2D-, 3D- oder Voxel-Projekt. Der Agent baut, prüft und verbessert Dein Spiel.",
   "game_maker.empty_title": "Aus einer Idee wird ein spielbares Spiel",
   "game_maker.example_idea_1": "2D-Plattformer mit Münzen und Gegnern",
   "game_maker.example_idea_2": "Snake mit steigendem Tempo",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "Dieses Diagnoseergebnis ist abgelaufen. Ergebnisse bleiben zehn Minuten verfügbar.",
   "desktop.meshcore_messenger_favorite": "Favorit im Messenger",
   "desktop.meshcore_agent_trusted": "Vertrauenswürdiger Knoten in AuraGo",
-  "desktop.meshcore_created_at": "Erstellt am"
+  "desktop.meshcore_created_at": "Erstellt am",
+  "game_maker.save_failed_title": "Spielstand nicht gespeichert",
+  "game_maker.leave_unsaved": "Die letzten Änderungen konnten nicht gespeichert werden. Möchtest Du das Spiel trotzdem schließen?"
 }

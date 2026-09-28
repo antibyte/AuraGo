@@ -23,6 +23,16 @@ editor. Studio binds the job on the server; omit job_id in this isolated run.
 Planning exposes `read` and `search`; source edits become available after plan
 acceptance. The same tools serve both 2D and 3D building and repair.
 
+Voxel projects are `dimension:3d, variant:voxel`. Use base `voxel` and the supplied
+`design_example.voxel` definition (JSON-encoded string in native `set_design`).
+The server owns schema 5. Customize `src/voxel.json` for the requested finite
+survival/creative world, palette, recipes, enemies and goals; optional `main.ts`
+hooks extend `startVoxelGame`. Use the Voxel API supplied in the prepared profile.
+World/inventory edits go through that API. Keep helper-owned physics, save handling
+and input lifecycle. A runnable definition is an implementation; unimplemented
+feature prose is not. Never request chunk arrays or player saves for context.
+Voxel has its own physical evidence checks rather than generic scene-role targets.
+
 | Task | Tool and arguments |
 | --- | --- |
 | Find project files when their paths are unknown | `game_maker_project({"operation":"list_files"})` |

@@ -17,7 +17,7 @@ type runtimeAsset struct {
 	projectPath  string
 }
 
-func bundledRuntimeAssets(dimension string) []runtimeAsset {
+func bundledRuntimeAssets(dimension string, variant ...string) []runtimeAsset {
 	assets := []runtimeAsset{{
 		embeddedPath: "runtime/THIRD_PARTY_NOTICES.md",
 		projectPath:  "THIRD_PARTY_NOTICES.md",
@@ -45,6 +45,11 @@ func bundledRuntimeAssets(dimension string) []runtimeAsset {
 			embeddedPath: "runtime/scene-builder.js",
 			projectPath:  "vendor/scene-builder.js",
 		})
+	}
+	if len(variant) > 0 && variant[0] == "voxel" {
+		for _, name := range []string{"voxel-world.js", "voxel-rules.js", "voxel-save.js", "voxel-ui.js", "aurago-voxel-1.js"} {
+			assets = append(assets, runtimeAsset{embeddedPath: "runtime/" + name, projectPath: "vendor/" + name})
+		}
 	}
 	return append(assets,
 		runtimeAsset{embeddedPath: "runtime/aurago-effects-3d-1.js", projectPath: "vendor/aurago-effects-3d-1.js"},
@@ -78,8 +83,8 @@ func bundledRuntimeFile(dimension, projectPath string) ([]byte, bool, error) {
 	return nil, false, nil
 }
 
-func installRuntime(projectDir, dimension string) error {
-	for _, asset := range bundledRuntimeAssets(dimension) {
+func installRuntime(projectDir, dimension string, variant ...string) error {
+	for _, asset := range bundledRuntimeAssets(dimension, variant...) {
 		data, err := runtimeFS.ReadFile(asset.embeddedPath)
 		if err != nil {
 			return fmt.Errorf("read embedded game runtime %s: %w", asset.embeddedPath, err)

@@ -12,6 +12,7 @@
     function handleMessage(state, event) {
         if (!state.frame || event.source !== state.frame.contentWindow) return;
         const data = event.data;
+        if (data?.source === 'aurago-voxel') { handlePlayState(state, event); return; }
         if (!data || typeof data !== 'object' || data.channel !== state.channelID || data.source !== 'aurago-game') return;
         const allowed = new Set(['ready', 'runtime_error', 'resource_error', 'diagnostic', 'gameplay', 'capture']);
         if (!allowed.has(data.type)) return;
@@ -79,6 +80,42 @@
         state.addDiagnostic({
             level: 'runtime',
             message
+        });
+    }
+
+    // Only the current opaque iframe can use its parent's narrowly scoped save grant.
+    async function handlePlayState(state, event) {
+        const data = event.data, grant = state.previewGrant, frame = state.frame, project = state.project;
+        if (state.disposed || !frame || event.source !== frame.contentWindow || data?.source !== 'aurago-voxel'
+            || data.type !== 'play_state' || data.channel !== state.channelID || project?.variant !== 'voxel'
+            || state.previewProjectID !== project.id || !grant || !['load','save','reset'].includes(data.operation)
+            || typeof data.request !== 'string' || data.request.length > 96 || !data.request.length) return;
+        const reply = result => frame.contentWindow?.postMessage({source:'aurago-voxel-host',type:'play_state',channel:data.channel,request:data.request,...result}, '*');
+        if (!grant.play_token || grant.validation_id || grant.revision !== project.current_revision) {
+            reply(data.operation === 'load' ? {result:{temporary:true,version:0,state:null}} : {error:'saveError'}); return;
+        }
+        let size;
+        try { size = new TextEncoder().encode(JSON.stringify({version:data.version,state:data.payload})).length; } catch (_) { reply({error:'saveError'}); return; }
+        if (!Number.isSafeInteger(data.version) || data.version < 0 || state.playStateBusy || size > 4*1024*1024) { reply({error:'saveError'}); return; }
+        state.playStateBusy = true;
+        try {
+            const result = await state.api.playState(project.id, grant.play_token, data.operation, data.version, data.payload);
+            if (!state.disposed && state.frame === frame && state.previewGrant === grant) reply({result});
+        } catch (error) {
+            if (!state.disposed && state.frame === frame && state.previewGrant === grant) reply({error:error.code === 'conflict' ? 'conflict' : 'saveError'});
+        } finally { state.playStateBusy = false; }
+    }
+
+    function flush(state) {
+        if (!state.frame || state.project?.variant !== 'voxel' || !state.previewGrant?.play_token) return Promise.resolve(true);
+        const frame = state.frame, channel = state.channelID;
+        return new Promise(resolve => {
+            const timer = setTimeout(() => done(false), 11000);
+            function done(ok) { clearTimeout(timer); window.removeEventListener('message', reply); resolve(ok); }
+            function reply(event) { if (event.source === frame.contentWindow && event.data?.source === 'aurago-voxel'
+                && event.data.type === 'flushed' && event.data.channel === channel) done(event.data.ok === true); }
+            window.addEventListener('message', reply);
+            frame.contentWindow?.postMessage({source:'aurago-voxel-host',type:'flush',channel}, '*');
         });
     }
 
@@ -207,6 +244,7 @@
 
     async function openTab(state) {
         if (!state.project) return;
+        if (state.project.variant === 'voxel') { window.open(state.api.playURL(state.project.id), '_blank', 'noopener'); return; }
         try {
             const grant = await state.api.previewGrant(state.project.id);
             if (state.disposed) return;
@@ -216,5 +254,5 @@
         }
     }
 
-    window.GameMakerStudioPreview = { requestCapture, cancelVisual, showReview, visualStatus, handleMessage, setSceneDebug, showLoading, clearLoading, updateStaleBadge, toggleFullscreen, openTab };
+    window.GameMakerStudioPreview = { flush, handlePlayState, requestCapture, cancelVisual, showReview, visualStatus, handleMessage, setSceneDebug, showLoading, clearLoading, updateStaleBadge, toggleFullscreen, openTab };
 })();

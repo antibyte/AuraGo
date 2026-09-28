@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "ボクセル",
+  "game_maker.voxel_description": "ブロックの世界で採掘・建築・工作。",
+  "game_maker.example_idea_14": "ボクセルの島でサバイバル：木を集め、道具を作り、避難所を建てる。",
+  "game_maker.example_idea_15": "城を建てるためのクリエイティブなボクセル世界。",
   "sysworld.world.motion": "動き",
   "sysworld.world.motion_auto": "システム設定に従う",
   "sysworld.world.motion_on": "動きのある街",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "診断",
   "game_maker.dimension": "ゲームの種類",
   "game_maker.disabled_notice": "Game Maker Studio は無効、または読み取り専用です。管理者が設定で有効にできます。",
-  "game_maker.empty_hint": "2D または 3D のプロジェクトを作成すると、エージェントが構築、テスト、仕上げを行います。",
+  "game_maker.empty_hint": "2D、3D、ボクセルのプロジェクトを作成すると、エージェントが制作・テスト・改善します。",
   "game_maker.empty_title": "アイデアをプレイできるゲームにする",
   "game_maker.example_idea_1": "コインと敵が登場する2Dプラットフォーマー",
   "game_maker.example_idea_2": "速度が上がるスネーク",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "この診断結果は期限切れです。結果は10分間保持されます。",
   "desktop.meshcore_messenger_favorite": "Messengerのお気に入り",
   "desktop.meshcore_agent_trusted": "AuraGoの信頼済みノード",
-  "desktop.meshcore_created_at": "作成日時"
+  "desktop.meshcore_created_at": "作成日時",
+  "game_maker.save_failed_title": "ゲームが保存されていません",
+  "game_maker.leave_unsaved": "最新の変更を保存できませんでした。それでもゲームを閉じますか？"
 }

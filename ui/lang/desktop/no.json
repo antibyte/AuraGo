@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Voxel",
+  "game_maker.voxel_description": "Grav, bygg og lag i en blokkverden.",
+  "game_maker.example_idea_14": "Overlev på en voxeløy: samle tre, lag verktøy og bygg et ly.",
+  "game_maker.example_idea_15": "Kreativ voxelverden for å bygge et slott.",
   "sysworld.world.motion": "Bevegelse",
   "sysworld.world.motion_auto": "Systeminnstilling",
   "sysworld.world.motion_on": "Levende by",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Diagnostikk",
   "game_maker.dimension": "Spilltype",
   "game_maker.disabled_notice": "Game Maker Studio er deaktivert eller skrivebeskyttet. En administrator kan aktivere det i konfigurasjonen.",
-  "game_maker.empty_hint": "Opprett et 2D- eller 3D-prosjekt, så bygger, tester og polerer agenten det.",
+  "game_maker.empty_hint": "Opprett et 2D-, 3D- eller voxelprosjekt, så bygger, tester og forbedrer agenten det.",
   "game_maker.empty_title": "Gjør en idé om til et spillbart spill",
   "game_maker.example_idea_1": "2D-plattformspill med mynter og fiender",
   "game_maker.example_idea_2": "Snake med økende hastighet",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "Resultatet er utløpt. Resultater beholdes i ti minutter.",
   "desktop.meshcore_messenger_favorite": "Favoritt i Messenger",
   "desktop.meshcore_agent_trusted": "Betrodd node i AuraGo",
-  "desktop.meshcore_created_at": "Opprettet"
+  "desktop.meshcore_created_at": "Opprettet",
+  "game_maker.save_failed_title": "Spillet er ikke lagret",
+  "game_maker.leave_unsaved": "De siste endringene kunne ikke lagres. Vil du lukke spillet likevel?"
 }

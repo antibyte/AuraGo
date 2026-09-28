@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="{{.Lang}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Game Maker Studio</title>
+<style>html,body,main{width:100%;height:100%;margin:0;overflow:hidden;background:#111d29;color:#eff6ff;font:16px system-ui}iframe{border:0;width:100%;height:100%}#status{position:absolute;inset:1rem;pointer-events:none;z-index:2}</style>
+</head><body><p id="status" role="status"></p><main></main>
+<script id="game-player-data" type="application/json">{{.TemplateDataJSON}}</script>
+<script src="/js/desktop/apps/game-maker-studio-api.js?v={{.BuildVersion}}"></script>
+<script src="/js/desktop/apps/game-maker-studio-preview.js?v={{.BuildVersion}}"></script>
+<script src="/js/desktop/apps/game-maker-player.js?v={{.BuildVersion}}"></script>
+</body></html>

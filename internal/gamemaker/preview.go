@@ -37,13 +37,18 @@ func (s *Service) CreatePreviewGrant(projectID string) (PreviewGrant, error) {
 		scenarios = append(scenarios, s.previewCheck.Scenarios...)
 	}
 	s.tokens[token] = previewToken{Revision: project.CurrentRevision, ProjectID: projectID, JobID: previewJobID, ValidationID: validationID, ExpiresAt: expires}
+	playToken := ""
+	if project.Variant == "voxel" && project.CurrentRevision > 0 && previewJobID == "" && validationID == "" {
+		playToken = randomID("play")
+		s.tokens[playToken] = previewToken{Purpose: "play-state", Revision: project.CurrentRevision, ProjectID: projectID, ExpiresAt: time.Now().UTC().Add(24 * time.Hour)}
+	}
 	for candidate, grant := range s.tokens {
 		if time.Now().After(grant.ExpiresAt) {
 			delete(s.tokens, candidate)
 		}
 	}
 	s.mu.Unlock()
-	return PreviewGrant{Token: token, URL: "/api/game-maker/preview/" + token + "/index.html", ExpiresAt: expires, ValidationID: validationID, Scenarios: scenarios}, nil
+	return PreviewGrant{Token: token, PlayToken: playToken, Revision: project.CurrentRevision, URL: "/api/game-maker/preview/" + token + "/index.html", ExpiresAt: expires, ValidationID: validationID, Scenarios: scenarios}, nil
 }
 
 // PreviewFile validates a token and returns one published project file. The
@@ -52,7 +57,7 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 	s.mu.RLock()
 	grant, ok := s.tokens[strings.TrimSpace(token)]
 	s.mu.RUnlock()
-	if !ok || time.Now().After(grant.ExpiresAt) {
+	if !ok || grant.Purpose != "" || time.Now().After(grant.ExpiresAt) {
 		return nil, "", ErrInvalidToken
 	}
 	project, err := s.GetProject(nilContext{}, grant.ProjectID)
@@ -76,6 +81,9 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 		return nil, "", err
 	}
 	data, err := os.ReadFile(path)
+	if project.Variant == "voxel" && grant.JobID == "" {
+		data, err = s.publishedVoxelFile(nilContext{}, project.ID, grant.Revision, filepath.ToSlash(rawPath))
+	}
 	if err != nil {
 		if os.IsNotExist(err) {
 			if fallback, bundled, fallbackErr := bundledRuntimeFile(project.Dimension, rawPath); bundled {
@@ -100,7 +108,11 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 		data = injectPreviewBoot(data)
 		// The driver is served only in the authenticated preview, never exported.
 		if project.Dimension == "2d" || project.Dimension == "3d" {
-			driver, err := runtimeFS.ReadFile("runtime/preview-tests.js")
+			driverPath := "runtime/preview-tests.js"
+			if project.Variant == "voxel" {
+				driverPath = "runtime/preview-voxel-tests.js"
+			}
+			driver, err := runtimeFS.ReadFile(driverPath)
 			if err != nil {
 				return nil, "", err
 			}

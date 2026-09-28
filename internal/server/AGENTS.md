@@ -10,6 +10,17 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+### Game Maker Voxel persistence
+
+- `game_maker_play_state.go` owns authenticated project `/play-state` GET/PUT/DELETE
+  and the trusted `/play` host. Preserve desktop read/write scopes, feature/edit/
+  delete gates, no-store responses, the 4 MiB ceiling and HTTP 409 on stale CAS or
+  publication bindings. The parent-only play grant is distinct from asset tokens.
+- Serve the host from verified UI resources. Its iframe retains opaque-origin
+  sandboxing and cannot acquire credentials. Draft/test frames receive temporary
+  state only. The owning runtime/storage contracts are in
+  `internal/gamemaker/AGENTS.md`; verify `TestGameMakerVoxel*`.
+
 - `jsonError` serializes the API `error` field. Handlers pass a plain message,
   never a pre-encoded JSON object, and use existing `backend.*` translations
   for user-visible errors. Verify `TestLocalizedErrorResponsesContainMessageNotEncodedJSON`.

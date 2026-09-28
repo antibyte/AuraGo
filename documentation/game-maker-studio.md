@@ -1,7 +1,7 @@
 # Game Maker Studio
 
 Game Maker Studio is AuraGo's built-in Virtual Desktop workspace for creating
-self-contained 2D and 3D browser games with an isolated agent. Version 1 targets
+self-contained 2D, 3D and Voxel browser games with an isolated agent. Version 1 targets
 offline, single-player games. Multiplayer, custom backends, external APIs, and
 deployment are intentionally outside its scope.
 
@@ -53,12 +53,15 @@ accepted as proof for the restored draft.
 ## Creating and refining a game
 
 Open **Game Maker Studio** from the Virtual Desktop and select **New game**.
-Choose 2D or 3D, describe the game, select a configured provider/model, and
+Choose 2D, 3D or Voxel, describe the game, select a configured provider/model, and
 optionally enable image and music generation. The global AuraGo provider and
 model are preselected.
 
 - 2D projects use the embedded Phaser 4.2.1 runtime.
 - 3D projects use the embedded Three.js 0.185.1 runtime.
+- Voxel projects use Three.js with the bundled finite sandbox runtime, central
+  Studio saves and local export saves. See [Voxel games](game-maker-voxel.md)
+  for controls, limits, world compatibility and verification.
 - Images can become sprites, backgrounds, textures, or UI art.
 - Music can become a local background track.
 - Sound effects fall back to procedural Web Audio.
@@ -314,8 +317,8 @@ planning. Plans include goal/loop/scope, template, perspective, resolution/camer
 controls/states/rules, exact asset/version/animation/assembly references, visual
 size/origin/collider, scenarios, assumptions/fallback and preserved edit behavior.
 Unknown references, incompatible perspectives/actions and unbounded scenarios
-produce a field-specific correction. Templates are installed only for new 2D
-projects: shooter, platformer, topdown, blocks, board, minimal. Default logical
+produce a field-specific correction. Templates are installed only for new
+projects: the six 2D bases, guided 3D bases, and the finite Voxel sandbox. Default 2D logical
 resolution is 960×540 with FIT, pixelArt and uniform sprite scaling. Existing
 projects keep their code and get an updated internal plan instead.
 

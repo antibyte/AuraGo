@@ -13,7 +13,8 @@ import (
 
 // A small public design describes choices; the server owns technical plan fields.
 type GameDesign struct {
-	Presentation *Presentation `json:"presentation,omitempty"`
+	Voxel        *VoxelDefinition `json:"voxel,omitempty"`
+	Presentation *Presentation    `json:"presentation,omitempty"`
 	// Scene is optional and validated separately from source code; omitting it keeps the classic flow.
 	Scene *Scene `json:"scene,omitempty"`
 	// Mechanics is a bounded optional helper declaration; arbitrary gameplay remains source-editable.
@@ -48,11 +49,14 @@ func (g GameSettings) validate() error {
 	return nil
 }
 func is3DTemplate(name string) bool {
-	return slices.Contains([]string{"three", "fps", "exploration", "transport", "flight", "space"}, name)
+	return slices.Contains([]string{"three", "fps", "exploration", "transport", "flight", "space", "voxel"}, name)
 }
-func guided3D(name string) bool { return name != "three" && is3DTemplate(name) }
+func guided3D(name string) bool { return name != "three" && name != "voxel" && is3DTemplate(name) }
 
 func ExampleGameDesign(project Project) GameDesign {
+	if project.Variant == "voxel" {
+		return GameDesign{Base: "voxel", Objective: "Explore, gather resources and build a shelter", Features: []string{"Mine resources", "Craft wood, stone and metal tools", "Build a shelter and defend it"}, Assets: []DesignAsset{}, Voxel: DefaultVoxelDefinition()}
+	}
 	base := "topdown"
 	if project.Dimension == "3d" {
 		base = "exploration"
@@ -73,6 +77,18 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 	var patch map[string]json.RawMessage
 	if err := json.Unmarshal(data, &patch); err != nil {
 		return nil, fmt.Errorf("design: %w. Use inspect.design_example fields; level objects belong in scene.nodes, and generated platforms use scene_generate after plan acceptance. Free mechanics belong in features and source code", err)
+	}
+	// Native providers use a JSON string to avoid unbounded ingredient-map schemas.
+	// Direct JSON objects retain the same strict, shared definition validation.
+	if raw := bytes.TrimSpace(patch["voxel"]); len(raw) > 0 && raw[0] == '"' {
+		var text string
+		if err := json.Unmarshal(raw, &text); err != nil {
+			return nil, fmt.Errorf("design.voxel: %w", err)
+		}
+		if _, err := ParseVoxelDefinition([]byte(text)); err != nil {
+			return nil, err
+		}
+		patch["voxel"] = json.RawMessage(text)
 	}
 	s.mu.RLock()
 	draft := map[string]json.RawMessage{}
@@ -193,7 +209,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	}
 	p.CoreLoop = "Use the displayed controls to pursue: " + d.Objective
 	p.Rules = map[string]string{"progress": d.Objective, "failure": "Health or time exhausted", "completion": "Reach the objective; show result and allow restart"}
-	if d.Base == "minimal" || d.Base == "three" {
+	if d.Base == "minimal" || d.Base == "three" || d.Base == "voxel" {
 		p.Rules = map[string]string{
 			"progress":   d.Objective,
 			"failure":    "No loss condition is required unless requested by the design",
@@ -217,6 +233,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	p.Mechanics = d.Mechanics
 	p.Preserve = d.Preserve
 	p.Scenarios = d.Scenarios
+	p.Voxel = d.Voxel
 	if project.CurrentRevision > 0 {
 		old, err := s.GetPlan(ctx, jobID)
 		if err != nil {
@@ -226,6 +243,9 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 			p.Preserve = []string{"Keep existing working controls, visuals and gameplay outside the requested edit"}
 		}
 		if old != nil {
+			if d.Voxel == nil {
+				p.Voxel = old.Voxel
+			}
 			if d.Presentation == nil {
 				p.Presentation = old.Presentation
 			}
@@ -334,6 +354,13 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	}
 	if p.Scene != nil || p.Mechanics != nil || len(p.Scenarios) > 0 {
 		p.SchemaVersion = 4
+	}
+	if d.Base == "voxel" {
+		p.SchemaVersion = 5
+		if p.Voxel == nil {
+			p.Voxel = DefaultVoxelDefinition()
+		}
+		p.Controls = map[string]string{"move": "WASD / touch stick", "aim": "Mouse / look drag", "jump": "Space", "primary": "Left click: mine or attack", "secondary": "Right click: place", "inventory": "I: inventory and crafting", "restart": "Pause menu", "pause": "Escape"}
 	}
 	return p, nil
 }

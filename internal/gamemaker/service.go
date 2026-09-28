@@ -24,6 +24,7 @@ import (
 var slugPartPattern = regexp.MustCompile(`[^a-z0-9]+`)
 
 type previewToken struct {
+	Purpose      string
 	Revision     int64
 	ValidationID string
 	ProjectID    string
@@ -218,7 +219,7 @@ func (s *Service) ActiveJobInfo(ctx context.Context) *ActiveJobInfo {
 
 func (s *Service) ListProjects(ctx context.Context) ([]Project, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id,name,slug,project_key,dimension,description,
-		provider_id,model,use_image,use_music,status,current_revision,created_at,updated_at
+		provider_id,model,use_image,use_music,status,current_revision,created_at,updated_at,variant
 		FROM gm_projects ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list game maker projects: %w", err)
@@ -237,7 +238,7 @@ func (s *Service) ListProjects(ctx context.Context) ([]Project, error) {
 
 func (s *Service) GetProject(ctx context.Context, id string) (Project, error) {
 	project, err := scanProject(s.db.QueryRowContext(ctx, `SELECT id,name,slug,project_key,dimension,description,
-		provider_id,model,use_image,use_music,status,current_revision,created_at,updated_at
+		provider_id,model,use_image,use_music,status,current_revision,created_at,updated_at,variant
 		FROM gm_projects WHERE id=?`, strings.TrimSpace(id)))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Project{}, ErrNotFound
@@ -261,6 +262,10 @@ func (s *Service) CreateProject(ctx context.Context, req CreateProjectRequest) (
 	req.Name = strings.TrimSpace(req.Name)
 	req.Description = strings.TrimSpace(req.Description)
 	req.Dimension = strings.ToLower(strings.TrimSpace(req.Dimension))
+	req.Variant = strings.ToLower(strings.TrimSpace(req.Variant))
+	if req.Variant != "" && (req.Variant != "voxel" || req.Dimension != "3d") {
+		return Project{}, fmt.Errorf("variant must be empty or voxel with dimension 3d")
+	}
 	if req.Name == "" || req.Description == "" {
 		return Project{}, fmt.Errorf("project name and description are required")
 	}
@@ -285,6 +290,7 @@ func (s *Service) CreateProject(ctx context.Context, req CreateProjectRequest) (
 		Slug:               slug,
 		ProjectKey:         projectKey(slug),
 		Dimension:          req.Dimension,
+		Variant:            req.Variant,
 		Description:        req.Description,
 		ProviderID:         strings.TrimSpace(req.ProviderID),
 		Model:              strings.TrimSpace(req.Model),
@@ -295,11 +301,11 @@ func (s *Service) CreateProject(ctx context.Context, req CreateProjectRequest) (
 		UpdatedAt:          now,
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO gm_projects
-		(id,name,slug,project_key,dimension,description,provider_id,model,use_image,use_music,status,current_revision,created_at,updated_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		(id,name,slug,project_key,dimension,description,provider_id,model,use_image,use_music,status,current_revision,created_at,updated_at,variant)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		project.ID, project.Name, project.Slug, project.ProjectKey, project.Dimension, project.Description,
 		project.ProviderID, project.Model, boolInt(project.UseImageGeneration), boolInt(project.UseMusicGeneration),
-		project.Status, 0, now, now)
+		project.Status, 0, now, now, project.Variant)
 	if err != nil {
 		return Project{}, fmt.Errorf("create game maker project: %w", err)
 	}

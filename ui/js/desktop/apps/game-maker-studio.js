@@ -55,6 +55,8 @@
         state.activity = window.GameMakerStudioActivity?.create(state);
         bindShell(state);
         window.addEventListener('message', state.previewListener = event => handlePreviewMessage(state, event));
+        context.setWindowBeforeClose?.(windowId, async () => await window.GameMakerStudioPreview.flush(state)
+            || await confirmAction(state, context.t('game_maker.save_failed_title'), context.t('game_maker.leave_unsaved')));
         initialize(state);
     }
 
@@ -332,7 +334,7 @@
             return `
             <button type="button" class="gm-project-card ${state.project && state.project.id === project.id ? 'is-active' : ''} ${running ? 'is-running' : ''}"
                 data-project-id="${esc(project.id)}" role="listitem">
-                <span class="gm-project-dimension">${esc(String(project.dimension).toUpperCase())}</span>
+                <span class="gm-project-dimension">${esc(project.variant === 'voxel' ? t('game_maker.voxel') : String(project.dimension).toUpperCase())}</span>
                 <span><strong>${esc(project.name)}</strong><small>${esc(project.status || 'draft')}${updated ? ' · ' + esc(updated) : ''}</small></span>
                 <span class="gm-project-revision">v${Number(project.current_revision || 0)}</span>
                 ${running ? `<span class="gm-project-running" title="${esc(t('game_maker.status_working'))}"></span>` : ''}
@@ -365,6 +367,8 @@
     async function openProject(state, projectID) {
         if (!projectID || state.disposed) return;
         const requestID = state.projectRequestID = (state.projectRequestID || 0) + 1;
+        if (state.project?.id !== projectID && await window.GameMakerStudioPreview?.flush(state) === false) return;
+        if (state.disposed || state.projectRequestID !== requestID) return;
         closeEvents(state);
         stopElapsed(state);
         state.repairCount = 0;
@@ -413,7 +417,8 @@
     function renderProjectMeta(state) {
         const project = state.project;
         state.container.querySelector('[data-gm-title]').textContent = project.name;
-        state.container.querySelector('[data-gm-engine]').textContent = project.dimension === '3d'
+        state.container.querySelector('[data-gm-engine]').textContent = project.variant === 'voxel'
+            ? `${state.context.t('game_maker.voxel')} ${state.capabilities.voxel_version || 1} · Three.js ${state.capabilities.three_version}` : project.dimension === '3d'
             ? `Three.js ${state.capabilities.three_version}` : `Phaser ${state.capabilities.phaser_version}`;
         setButton(state, 'revisions', true);
         setButton(state, 'rename', Boolean(state.capabilities.allow_edit));
@@ -678,6 +683,8 @@
         if (!state.project) return;
         const projectID = state.project.id;
         const requestID = state.previewRequestID = (state.previewRequestID || 0) + 1;
+        if (await window.GameMakerStudioPreview?.flush(state) === false) return;
+        if (state.disposed || state.project.id !== projectID || state.previewRequestID !== requestID) return;
         if (window.GameMakerStudioPreview) {window.GameMakerStudioPreview.cancelVisual(state);window.GameMakerStudioPreview.clearLoading(state);}
         try {
             const grant = await state.api.previewGrant(projectID);
@@ -759,10 +766,10 @@
             `<option value="${esc(provider.id)}" data-model="${esc(provider.model || '')}"
                 ${provider.id === cap.default_provider_id ? 'selected' : ''}>${esc(provider.name || provider.id)}</option>`
         ).join('');
-        const examples = [['2d', [1, 2, 4, 5, 6, 7, 8]], ['3d', [3, 9, 10, 11, 12, 13]]];
+        const examples = [['2d', [1, 2, 4, 5, 6, 7, 8]], ['3d', [3, 9, 10, 11, 12, 13]], ['voxel', [14, 15]]];
         const chips = examples.map(([dimension, ideas]) => `
-            <div class="gm-idea-chips" role="group" aria-label="${dimension.toUpperCase()}">
-                <span>${dimension.toUpperCase()}</span>${ideas.map(n =>
+            <div class="gm-idea-chips" role="group" aria-label="${esc(dimension === 'voxel' ? t('game_maker.voxel') : dimension.toUpperCase())}">
+                <span>${esc(dimension === 'voxel' ? t('game_maker.voxel') : dimension.toUpperCase())}</span>${ideas.map(n =>
                     `<button type="button" data-idea="${n}" data-dimension="${dimension}">${esc(t('game_maker.example_idea_' + n))}</button>`
                 ).join('')}
             </div>`).join('');
@@ -774,6 +781,7 @@
                 <fieldset><legend>${esc(t('game_maker.dimension'))}</legend>
                     <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" ${prefer3D ? '' : 'checked'}><strong>2D</strong><span>Phaser ${esc(cap.phaser_version)}</span></label>
                     <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d" ${prefer3D ? 'checked' : ''}><strong>3D</strong><span>Three.js ${esc(cap.three_version)}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="voxel"><strong>${esc(t('game_maker.voxel'))}</strong><span>${esc(t('game_maker.voxel_description'))}</span></label>
                 </fieldset>
                 <label>${esc(t('game_maker.description'))}<textarea name="description" rows="5" maxlength="12000" required
                     placeholder="${esc(t('game_maker.description_placeholder'))}"></textarea></label>
@@ -816,16 +824,18 @@
                 if (creating) return;
                 creating = true;
                 const data = new FormData(form);
-                const selectionError=window.GameMakerStudioAssets?.selectionError(state,String(data.get('dimension')));
+                const variant = data.get('dimension') === 'voxel' ? 'voxel' : '';
+                const dimension = variant ? '3d' : String(data.get('dimension') || '2d');
+                const selectionError=window.GameMakerStudioAssets?.selectionError(state,dimension);
                 if(selectionError){creating=false;modalError(layer,selectionError);return;}
-                if (data.get('dimension') !== '3d' && state.selectedModelAssetIDs?.length) {
+                if (dimension !== '3d' && state.selectedModelAssetIDs?.length) {
                     creating = false;
                     modalError(layer, t('game_maker.model_requires_3d'));
                     return;
                 }
                 const request = {
                     name: String(data.get('name') || '').trim(),
-                    dimension: String(data.get('dimension') || '2d'),
+                    dimension, variant,
                     description: String(data.get('description') || '').trim(),
                     provider_id: String(data.get('provider_id') || ''),
                     model: String(data.get('model') || ''),
@@ -1135,6 +1145,7 @@
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
+        state.context.setWindowBeforeClose?.(windowId, null);
         state.activity?.dispose();
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();
         state.previewVisibility?.disconnect();

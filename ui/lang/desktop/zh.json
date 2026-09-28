@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "体素",
+  "game_maker.voxel_description": "在方块世界中挖掘、建造和制作。",
+  "game_maker.example_idea_14": "体素岛屿生存：收集木材，制作工具，建造庇护所。",
+  "game_maker.example_idea_15": "用于建造城堡的创造模式体素世界。",
   "sysworld.world.motion": "动态效果",
   "sysworld.world.motion_auto": "跟随系统",
   "sysworld.world.motion_on": "生动城市",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "诊断",
   "game_maker.dimension": "游戏类型",
   "game_maker.disabled_notice": "Game Maker Studio 已禁用或为只读。管理员可以在配置中启用它。",
-  "game_maker.empty_hint": "创建一个 2D 或 3D 项目，智能体将构建、测试并打磨它。",
+  "game_maker.empty_hint": "创建 2D、3D 或体素项目，智能体将制作、测试并完善游戏。",
   "game_maker.empty_title": "把想法变成可玩的游戏",
   "game_maker.example_idea_1": "收集金币、躲避敌人的 2D 平台游戏",
   "game_maker.example_idea_2": "速度逐渐加快的贪吃蛇",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "此诊断结果已过期。结果保留十分钟。",
   "desktop.meshcore_messenger_favorite": "Messenger 收藏",
   "desktop.meshcore_agent_trusted": "AuraGo 中的可信节点",
-  "desktop.meshcore_created_at": "创建时间"
+  "desktop.meshcore_created_at": "创建时间",
+  "game_maker.save_failed_title": "游戏未保存",
+  "game_maker.leave_unsaved": "无法保存最新更改。仍要关闭游戏吗？"
 }

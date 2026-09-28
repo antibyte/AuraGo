@@ -99,9 +99,12 @@ func (s *Service) WriteExport(ctx context.Context, projectID string, output io.W
 			return "", err
 		}
 	}
-	for _, asset := range bundledRuntimeAssets(project.Dimension) {
+	for _, asset := range bundledRuntimeAssets(project.Dimension, project.Variant) {
 		if included[asset.projectPath] {
 			continue
+		}
+		if project.Variant == "voxel" {
+			return "", fmt.Errorf("published voxel runtime is incomplete: %s", asset.projectPath)
 		}
 		if err := ctx.Err(); err != nil {
 			return "", err

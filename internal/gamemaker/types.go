@@ -60,6 +60,7 @@ type Project struct {
 	Slug               string    `json:"slug"`
 	ProjectKey         string    `json:"project_key"`
 	Dimension          string    `json:"dimension"`
+	Variant            string    `json:"variant,omitempty"`
 	Description        string    `json:"description"`
 	ProviderID         string    `json:"provider_id,omitempty"`
 	Model              string    `json:"model,omitempty"`
@@ -74,6 +75,7 @@ type Project struct {
 type CreateProjectRequest struct {
 	Name               string `json:"name"`
 	Dimension          string `json:"dimension"`
+	Variant            string `json:"variant,omitempty"`
 	Description        string `json:"description"`
 	ProviderID         string `json:"provider_id"`
 	Model              string `json:"model"`
@@ -228,6 +230,7 @@ type Capabilities struct {
 	CodeStudio           bool           `json:"code_studio"`
 	PhaserVersion        string         `json:"phaser_version"`
 	ThreeVersion         string         `json:"three_version"`
+	VoxelVersion         int            `json:"voxel_version"`
 	SkillsReady          bool           `json:"skills_ready"`
 	Skills               []SkillInfo    `json:"skills"`
 	Providers            []Provider     `json:"providers"`
@@ -253,6 +256,8 @@ type Provider struct {
 }
 
 type PreviewGrant struct {
+	PlayToken    string         `json:"play_token,omitempty"`
+	Revision     int64          `json:"revision,omitempty"`
 	Scenarios    []GameScenario `json:"scenarios,omitempty"`
 	ValidationID string         `json:"validation_id,omitempty"`
 	Token        string         `json:"token"`

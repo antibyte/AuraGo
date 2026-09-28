@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Voxely",
+  "game_maker.voxel_description": "Těž, stav a vyráběj v kostičkovém světě.",
+  "game_maker.example_idea_14": "Přežití na voxelovém ostrově: sbírej dřevo, vyráběj nástroje a postav úkryt.",
+  "game_maker.example_idea_15": "Kreativní voxelové pískoviště pro stavbu hradu.",
   "sysworld.world.motion": "Pohyb",
   "sysworld.world.motion_auto": "Podle systému",
   "sysworld.world.motion_on": "Živé město",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Diagnostika",
   "game_maker.dimension": "Typ hry",
   "game_maker.disabled_notice": "Game Maker Studio je zakázáno nebo je pouze pro čtení. Správce jej může povolit v konfiguraci.",
-  "game_maker.empty_hint": "Vytvořte 2D nebo 3D projekt a agent jej sestaví, otestuje a vypiluje.",
+  "game_maker.empty_hint": "Vytvoř 2D, 3D nebo voxelový projekt a agent jej vytvoří, otestuje a vylepší.",
   "game_maker.empty_title": "Proměňte nápad v hratelnou hru",
   "game_maker.example_idea_1": "2D plošinovka s mincemi a nepřáteli",
   "game_maker.example_idea_2": "Snake se zrychlujícím tempem",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "Platnost výsledku vypršela. Výsledky se uchovávají deset minut.",
   "desktop.meshcore_messenger_favorite": "Oblíbený v Messengeru",
   "desktop.meshcore_agent_trusted": "Důvěryhodný uzel v AuraGo",
-  "desktop.meshcore_created_at": "Vytvořeno"
+  "desktop.meshcore_created_at": "Vytvořeno",
+  "game_maker.save_failed_title": "Hru se nepodařilo uložit",
+  "game_maker.leave_unsaved": "Nejnovější změny se nepodařilo uložit. Přesto zavřít hru?"
 }

@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Voxels",
+  "game_maker.voxel_description": "Delf, bouw en maak in een blokkenwereld.",
+  "game_maker.example_idea_14": "Overleef op een voxeleiland: verzamel hout, maak gereedschap en bouw een schuilplaats.",
+  "game_maker.example_idea_15": "Creatieve voxelwereld om een kasteel te bouwen.",
   "sysworld.world.motion": "Beweging",
   "sysworld.world.motion_auto": "Systeemvoorkeur",
   "sysworld.world.motion_on": "Levendige stad",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Diagnostiek",
   "game_maker.dimension": "Gametype",
   "game_maker.disabled_notice": "Game Maker Studio is uitgeschakeld of alleen-lezen. Een beheerder kan het inschakelen in de configuratie.",
-  "game_maker.empty_hint": "Maak een 2D- of 3D-project en de agent bouwt, test en polijst het.",
+  "game_maker.empty_hint": "Maak een 2D-, 3D- of voxelproject en de agent bouwt, test en verbetert het.",
   "game_maker.empty_title": "Maak van een idee een speelbaar spel",
   "game_maker.example_idea_1": "2D-platformer met munten en vijanden",
   "game_maker.example_idea_2": "Snake met toenemende snelheid",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "Dit resultaat is verlopen. Resultaten blijven tien minuten beschikbaar.",
   "desktop.meshcore_messenger_favorite": "Favoriet in Messenger",
   "desktop.meshcore_agent_trusted": "Vertrouwd knooppunt in AuraGo",
-  "desktop.meshcore_created_at": "Aangemaakt op"
+  "desktop.meshcore_created_at": "Aangemaakt op",
+  "game_maker.save_failed_title": "Spel niet opgeslagen",
+  "game_maker.leave_unsaved": "De laatste wijzigingen konden niet worden opgeslagen. Het spel toch sluiten?"
 }

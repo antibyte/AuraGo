@@ -14,7 +14,7 @@ import (
 // equals the accepted plan's generated source. A version comment is insufficient.
 func (s *Service) StarterReferences(ctx context.Context, jobID string, plan *GamePlan) (map[string]any, error) {
 	files := map[string]string{}
-	for _, path := range []string{"src/common.ts", "src/scene.json", "src/mechanics.json"} {
+	for _, path := range []string{"src/common.ts", "src/scene.json", "src/mechanics.json", "src/voxel.json"} {
 		content, err := s.ReadJobFile(ctx, jobID, path)
 		if errors.Is(err, os.ErrNotExist) {
 			continue
@@ -56,7 +56,14 @@ func starterReferences(plan *GamePlan, files map[string]string) map[string]any {
 	if guided3D(plan.Template) || plan.Template == "three" {
 		api = threeStarterAPI
 	}
+	if plan.Template == "voxel" {
+		api = VoxelRuntimeGuide
+	}
 	compact := map[string]any{"src/common.ts": map[string]any{"sha256": sourceHash(common), "api": descriptor, "reference": api}}
+	if content, ok := files["src/voxel.json"]; ok {
+		// Definition is compact authored input; never replace it with chunk/save data.
+		compact["src/voxel.json"] = map[string]any{"sha256": sourceHash(content), "content": content}
+	}
 	for _, path := range []string{"src/scene.json", "src/mechanics.json"} {
 		if content, ok := files[path]; ok {
 			var value any

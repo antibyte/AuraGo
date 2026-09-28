@@ -6937,7 +6937,8 @@
                   "exploration",
                   "transport",
                   "flight",
-                  "space"
+                  "space",
+                  "voxel"
                 ],
                 "type": "string"
               },
@@ -7838,6 +7839,18 @@
                   "object",
                   "null"
                 ]
+              },
+              "stages": {
+                "description": "Distinct levels/areas the player advances through, each naming its layout and one new challenge. The running game must provide every stage; waves inside one arena belong in features; omit for a single board",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 6,
+                "type": "array"
+              },
+              "voxel": {
+                "description": "Voxel projects only: JSON-encoded VoxelDefinition object matching inspect.design_example.voxel. Retain the complete palette/items/recipes; customize mode, seed, size, terrain, enemies and goals. Native string transport keeps arbitrary recipe ingredient IDs compatible across providers.",
+                "type": "string"
               }
             },
             "required": [
@@ -9828,7 +9841,8 @@
                 "exploration",
                 "transport",
                 "flight",
-                "space"
+                "space",
+                "voxel"
               ],
               "type": "string"
             },
@@ -10729,6 +10743,18 @@
                 "object",
                 "null"
               ]
+            },
+            "stages": {
+              "description": "Distinct levels/areas the player advances through, each naming its layout and one new challenge. The running game must provide every stage; waves inside one arena belong in features; omit for a single board",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 6,
+              "type": "array"
+            },
+            "voxel": {
+              "description": "Voxel projects only: JSON-encoded VoxelDefinition object matching inspect.design_example.voxel. Retain the complete palette/items/recipes; customize mode, seed, size, terrain, enemies and goals. Native string transport keeps arbitrary recipe ingredient IDs compatible across providers.",
+              "type": "string"
             }
           },
           "required": [

@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Voxels",
+  "game_maker.voxel_description": "Mine, construis et fabrique dans un monde de blocs.",
+  "game_maker.example_idea_14": "Survie sur une île de voxels : récolte du bois, fabrique des outils et construis un abri.",
+  "game_maker.example_idea_15": "Bac à sable créatif en voxels pour construire un château.",
   "sysworld.world.motion": "Mouvement",
   "sysworld.world.motion_auto": "Réglage du système",
   "sysworld.world.motion_on": "Ville animée",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Diagnostics",
   "game_maker.dimension": "Type de jeu",
   "game_maker.disabled_notice": "Game Maker Studio est désactivé ou en lecture seule. Un administrateur peut l'activer dans la configuration.",
-  "game_maker.empty_hint": "Créez un projet 2D ou 3D et l'agent le construira, le testera et le peaufinera.",
+  "game_maker.empty_hint": "Crée un projet 2D, 3D ou en voxels : l’agent le réalise, le teste et l’améliore.",
   "game_maker.empty_title": "Transformez une idée en un jeu jouable",
   "game_maker.example_idea_1": "Plateforme 2D avec pièces et ennemis",
   "game_maker.example_idea_2": "Snake avec vitesse croissante",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "Ce résultat a expiré. Les résultats sont conservés dix minutes.",
   "desktop.meshcore_messenger_favorite": "Favori dans Messenger",
   "desktop.meshcore_agent_trusted": "Nœud de confiance dans AuraGo",
-  "desktop.meshcore_created_at": "Créé le"
+  "desktop.meshcore_created_at": "Créé le",
+  "game_maker.save_failed_title": "Partie non enregistrée",
+  "game_maker.leave_unsaved": "Les dernières modifications n’ont pas pu être enregistrées. Fermer le jeu quand même ?"
 }

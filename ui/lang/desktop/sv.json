@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Voxel",
+  "game_maker.voxel_description": "Bryt, bygg och tillverka i en blockvärld.",
+  "game_maker.example_idea_14": "Överlev på en voxelö: samla trä, tillverka verktyg och bygg ett skydd.",
+  "game_maker.example_idea_15": "Kreativ voxelvärld för att bygga ett slott.",
   "sysworld.world.motion": "Rörelse",
   "sysworld.world.motion_auto": "Systeminställning",
   "sysworld.world.motion_on": "Levande stad",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Diagnostik",
   "game_maker.dimension": "Speltyp",
   "game_maker.disabled_notice": "Game Maker Studio är inaktiverat eller skrivskyddat. En administratör kan aktivera det i konfigurationen.",
-  "game_maker.empty_hint": "Skapa ett 2D- eller 3D-projekt och agenten kommer att bygga, testa och polera det.",
+  "game_maker.empty_hint": "Skapa ett 2D-, 3D- eller voxelprojekt så bygger, testar och förbättrar agenten det.",
   "game_maker.empty_title": "Gör en idé till ett spelbart spel",
   "game_maker.example_idea_1": "2D-plattformsspel med mynt och fiender",
   "game_maker.example_idea_2": "Snake med ökande hastighet",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "Resultatet har gått ut. Resultat behålls i tio minuter.",
   "desktop.meshcore_messenger_favorite": "Favorit i Messenger",
   "desktop.meshcore_agent_trusted": "Betrodd nod i AuraGo",
-  "desktop.meshcore_created_at": "Skapad"
+  "desktop.meshcore_created_at": "Skapad",
+  "game_maker.save_failed_title": "Spelet har inte sparats",
+  "game_maker.leave_unsaved": "De senaste ändringarna kunde inte sparas. Vill du stänga spelet ändå?"
 }

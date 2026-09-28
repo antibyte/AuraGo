@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Woksele",
+  "game_maker.voxel_description": "Kop, buduj i wytwarzaj w świecie z bloków.",
+  "game_maker.example_idea_14": "Przetrwanie na wokselowej wyspie: zbieraj drewno, wytwarzaj narzędzia i zbuduj schronienie.",
+  "game_maker.example_idea_15": "Kreatywny świat wokseli do budowania zamku.",
   "sysworld.world.motion": "Ruch",
   "sysworld.world.motion_auto": "Ustawienie systemowe",
   "sysworld.world.motion_on": "Żywe miasto",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Diagnostyka",
   "game_maker.dimension": "Typ gry",
   "game_maker.disabled_notice": "Game Maker Studio jest wyłączone lub tylko do odczytu. Administrator może je włączyć w konfiguracji.",
-  "game_maker.empty_hint": "Utwórz projekt 2D lub 3D, a agent go zbuduje, przetestuje i dopracuje.",
+  "game_maker.empty_hint": "Utwórz projekt 2D, 3D lub wokselowy, a agent go zbuduje, przetestuje i dopracuje.",
   "game_maker.empty_title": "Zamień pomysł w grywalną grę",
   "game_maker.example_idea_1": "Platformówka 2D z monetami i wrogami",
   "game_maker.example_idea_2": "Snake z rosnącą prędkością",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "Wynik wygasł. Wyniki są przechowywane przez dziesięć minut.",
   "desktop.meshcore_messenger_favorite": "Ulubiony w Messengerze",
   "desktop.meshcore_agent_trusted": "Zaufany węzeł w AuraGo",
-  "desktop.meshcore_created_at": "Utworzono"
+  "desktop.meshcore_created_at": "Utworzono",
+  "game_maker.save_failed_title": "Gra nie została zapisana",
+  "game_maker.leave_unsaved": "Nie udało się zapisać ostatnich zmian. Mimo to zamknąć grę?"
 }

@@ -18,7 +18,8 @@ const gamePlanPath = ".aurago/game-plan.json"
 
 // GamePlan is a bounded design artifact, never executable or trusted instructions.
 type GamePlan struct {
-	Presentation *Presentation `json:"presentation,omitempty"`
+	Voxel        *VoxelDefinition `json:"voxel,omitempty"`
+	Presentation *Presentation    `json:"presentation,omitempty"`
 	// Scene is an optional, validated agent-built scene graph. It is data, not executable code.
 	Scene *Scene `json:"scene,omitempty"`
 	// Mechanics contains optional bounded helper declarations; custom source remains authoritative.
@@ -83,7 +84,7 @@ type GameTestStep struct {
 }
 
 func templateNames() []string {
-	return []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three", "fps", "exploration", "transport", "flight", "space"}
+	return []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three", "fps", "exploration", "transport", "flight", "space", "voxel"}
 }
 
 // PlanningComplete ends the internal agent round; the orchestrator alone decides
@@ -285,8 +286,21 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 
 func (s *Service) checkPlan(project Project, p GamePlan) error {
 	bad := func(field, message string) error { return fmt.Errorf("plan.%s: %s", field, message) }
-	if p.SchemaVersion < 1 || p.SchemaVersion > 4 {
-		return bad("schema_version", "must be 1, 2, 3 or 4")
+	if p.SchemaVersion < 1 || p.SchemaVersion > 5 {
+		return bad("schema_version", "must be between 1 and 5")
+	}
+	if (project.Variant == "voxel") != (p.Template == "voxel") {
+		return bad("template", "must match the immutable project variant")
+	}
+	if p.Template == "voxel" {
+		if p.SchemaVersion != 5 || p.Scene != nil || p.Mechanics != nil || p.Gameplay != nil || len(p.Stages) > 0 {
+			return bad("voxel", "use schema 5 and voxel rules; scene, mechanics, gameplay and stages do not apply")
+		}
+		if err := p.Voxel.Validate(); err != nil {
+			return err
+		}
+	} else if p.Voxel != nil {
+		return bad("voxel", "requires a voxel project")
 	}
 	modelPlan := p.SchemaVersion >= 2 && project.Dimension == "3d"
 	if p.Presentation != nil {
@@ -326,7 +340,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 		return bad("units", "schema 2 requires a 3D project and units=metres")
 	}
 	if !slices.Contains(templateNames(), p.Template) {
-		return bad("template", "choose shooter, platformer, topdown, blocks, board, minimal, three, fps, exploration, transport, flight or space")
+		return bad("template", "choose shooter, platformer, topdown, blocks, board, minimal, three, fps, exploration, transport, flight, space or voxel")
 	}
 	if (project.Dimension == "3d") != is3DTemplate(p.Template) {
 		return bad("template", "must match the project dimension")
@@ -647,6 +661,11 @@ func ExampleGamePlan(project Project) GamePlan {
 	}
 	if project.CurrentRevision > 0 {
 		p.Preserve = []string{"Replace with working behavior retained by this edit"}
+	}
+	if project.Variant == "voxel" {
+		p.SchemaVersion, p.Template, p.Camera = 5, "voxel", "First-person camera"
+		p.Voxel = DefaultVoxelDefinition()
+		p.Assets = []PlanAsset{{Role: "terrain", Scale: 1, Direction: "none", Collider: "box", Fallback: "Original bundled block palette and grid collision"}}
 	}
 	return p
 }

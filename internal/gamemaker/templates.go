@@ -118,6 +118,9 @@ func installGameTemplate(stage string, plan GamePlan) error {
 
 // Use the same plan-bound sources for installation and unchanged-template checks.
 func gameTemplateSources(plan GamePlan) (map[string][]byte, error) {
+	if plan.Template == "voxel" {
+		return voxelTemplateSources(plan)
+	}
 	if guided3D(plan.Template) || (plan.Template == "three" && plan.Scene != nil) {
 		return threeTemplateSources(plan)
 	}

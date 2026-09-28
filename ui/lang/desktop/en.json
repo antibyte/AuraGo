@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "Voxel",
+  "game_maker.voxel_description": "Mine, build and craft in a block world.",
+  "game_maker.example_idea_14": "Voxel survival on an island: gather wood, craft tools and build a shelter.",
+  "game_maker.example_idea_15": "Creative voxel sandbox for building a castle.",
   "sysworld.world.motion": "Motion",
   "sysworld.world.motion_auto": "System preference",
   "sysworld.world.motion_on": "Lively",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "Diagnostics",
   "game_maker.dimension": "Game type",
   "game_maker.disabled_notice": "Game Maker Studio is disabled or read-only. An administrator can enable it in the configuration.",
-  "game_maker.empty_hint": "Create a 2D or 3D project and the agent will build, test, and polish it.",
+  "game_maker.empty_hint": "Create a 2D, 3D or voxel project and the agent will build, test and polish it.",
   "game_maker.empty_title": "Turn an idea into a playable game",
   "game_maker.example_idea_1": "2D platformer with coins and enemies",
   "game_maker.example_idea_2": "Snake with increasing speed",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "This diagnostic result has expired. Results are retained for ten minutes.",
   "desktop.meshcore_messenger_favorite": "Messenger favorite",
   "desktop.meshcore_agent_trusted": "Trusted node in AuraGo",
-  "desktop.meshcore_created_at": "Created at"
+  "desktop.meshcore_created_at": "Created at",
+  "game_maker.save_failed_title": "Game not saved",
+  "game_maker.leave_unsaved": "The latest changes could not be saved. Close the game anyway?"
 }

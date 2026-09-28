@@ -12,6 +12,10 @@ revision publication and standalone export for Phaser and Three.js games.
 - `runtime/game-flow.js`: player feedback and result/stage UI, driven by engine clocks.
 - `runtime/player-ui.js`: initial Start/help, pause menu and device-specific input UI.
 - `runtime/aurago-game-1.js`: Phaser input/assets and read-only test binding.
+- `voxel*.go`, `runtime/voxel-*.js`, `runtime/aurago-voxel-1.js` and
+  `templates/voxel-common.ts`: validated Voxel definitions, finite world/physics,
+  transactions, evidence and isolated saves. `runtime/preview-voxel-tests.js`
+  is the server-only normal-input driver; never export it.
 - `assets/game-maker-presentation/` at repository root: editable effects/audio source;
   its build script produces the two bundled effects runtimes here.
 - `runtime.go`: project-local runtime installation, also used by exports.
@@ -28,6 +32,39 @@ revision publication and standalone export for Phaser and Three.js games.
   exact-build validation reuse; explicit tool validation always runs afresh.
 
 ## Local Contracts
+
+### Voxel games
+
+- Voxel projects use immutable `dimension: 3d, variant: voxel`; legacy projects
+  retain the empty variant. Schema 5/base `voxel` owns `src/voxel.json` and optional
+  `main.ts` hooks. Plan acceptance and file writes share definition validation.
+  Build evidence requires a used definition and the installed Voxel runtime;
+  executable definitions count as implementations. Keep generic `config.objects`,
+  scene/mechanics and unchanged-code requirements on their existing game paths.
+- Version 1 is a finite, single-player FPS sandbox: 96×48×96 by default,
+  at most 128×64×128, 16³ chunks, 64 blocks/items/recipes and 24 enemies.
+  Survival/creative is fixed by the definition. Grid mutation owns collision,
+  geometry invalidation and saves; inventory/crafting transactions are atomic.
+  Hooks use the public API and dispose their scene additions on reload/disposal.
+- Voxel prepared profiles keep three planning/four editing tools and fixed
+  schemas; repair shares editing. Only compact definitions/API and bounded file
+  observations enter prompts. Saves and chunk arrays never enter agent context.
+  Exact helper comparison remains necessary for compact source references.
+- The additive migration takes a SQLite backup before changing existing project
+  tables. Autosaves are CAS-versioned by project and compatible world identity;
+  incompatible revisions retain older saves. Reset advances a tombstone version.
+  Validate all 4 MiB payloads, coordinates, identities and numerical bounds.
+- Published saves require a separate parent-only project/revision grant plus
+  HTTP authorization and existing write/delete policy. Asset grants, draft and
+  validation frames never read or write saved progress. Published previews and
+  exports use immutable revision files; no automatic source/runtime migrations.
+  Exported games use IndexedDB; studio save rows are never exported.
+- Voxel validation uses real sampled block/inventory/player/enemy consequences.
+  Counter-only reports cannot pass mining, placing, crafting or combat. Preserve
+  the 16-check/60-second ceilings and the ordinary input-only driver boundary.
+  Pause, inventory, focus loss, touch cancellation and disposal release input.
+
+### Shared game lifecycle
 
 - Terminal job states become observable only after working-copy cleanup, with the
   writer released under the same lock. Immediate retries and revision restores
@@ -315,6 +352,16 @@ only after reading their source and deliberately incorporating needed helpers.
 Do not patch a published game merely because a new starter changed.
 
 ## Verification
+
+- `TestVoxel*` covers deterministic worlds, chunk collision/mesh updates,
+  transactions, malformed saves, CAS/revision isolation, restart and copied DB
+  migration. `GAMEMAKER_VOXEL_BROWSER=1` adds actual gameplay, touch, respawn,
+  sandbox evidence, export/subdirectory IndexedDB and renderer cleanup.
+- `TestGameMakerVoxel*` in server/UI covers stable profiles, HTTP policy and
+  parent bridge isolation. UI browser tests use `AURAGO_RUN_BROWSER_SMOKE=1`.
+  `VOXEL_SCREENSHOTS` may target ignored reports. Hardware FPS acceptance remains
+  separate from headless software rendering and touch emulation; see
+  `documentation/game-maker-voxel.md` for the performance scene and limits.
 
 - `TestPreparedProfile*`, `TestUsageObserverContextGenerations`,
   `TestProviderUsageObservation`, `TestUsageUnknownZeroAndCumulative`,

@@ -62,7 +62,7 @@ func TestPlanPhaseLocksMutationsAndBoundsCorrections(t *testing.T) {
 	if finished.Status != "failed" || finished.ResultRevision != 0 {
 		t.Fatalf("invalid plan published: %+v", finished)
 	}
-	if !strings.Contains(finished.Error, "plan.schema_version: must be 1") {
+	if !strings.Contains(finished.Error, "plan.schema_version: must be between 1 and 5") {
 		t.Fatalf("last plan error hidden by correction limit: %s", finished.Error)
 	}
 }

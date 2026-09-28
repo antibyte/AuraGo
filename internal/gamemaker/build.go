@@ -45,6 +45,13 @@ func (s *Service) buildJob(ctx context.Context, jobID, scope string) BuildResult
 			data, err := os.ReadFile(filepath.Join(stage, filepath.FromSlash(gamePlanPath)))
 			var plan GamePlan
 			if err == nil && json.Unmarshal(data, &plan) == nil {
+				if plan.Template == "voxel" {
+					if data, err := os.ReadFile(filepath.Join(stage, "src", "voxel.json")); err == nil {
+						if v, err := ParseVoxelDefinition(data); err == nil {
+							plan.Voxel = v
+						}
+					}
+				}
 				s.previewCheck.Scenarios = gameScenarios(&plan)
 				// The driver accepts at most 16 checks; accepted plans may already fill them.
 				runtimeVersion := installedRuntimeVersion(stage)
@@ -84,12 +91,15 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", File: "game.json", Message: "Manifest dimension must be 2d or 3d"}}}
 	}
 	sceneDiagnostics := checkBuilderScene(projectDir)
+	if err := checkVoxelProject(projectDir); err != nil {
+		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", File: "src/voxel.json", Message: err.Error()}}}
+	}
 	for _, diagnostic := range sceneDiagnostics {
 		if diagnostic.Level == "error" {
 			return BuildResult{Diagnostics: sceneDiagnostics}
 		}
 	}
-	if err := installRuntime(projectDir, manifest.Dimension); err != nil {
+	if err := installRuntime(projectDir, manifest.Dimension, manifest.Variant); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
 	if err := os.MkdirAll(filepath.Join(projectDir, "dist"), 0o750); err != nil {
@@ -173,6 +183,11 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 	}
 	if err := checkBuilderBuildGraph(projectDir, build.Metafile); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: SceneFilePath, Message: err.Error()}}}
+	}
+	if manifest.Variant == "voxel" {
+		if err := checkVoxelBuildGraph(build.Metafile); err != nil {
+			return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: "src/main.ts", Message: err.Error()}}}
+		}
 	}
 	if err := checkPresentationBuild(projectDir, manifest.Dimension, build.Metafile); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: "src/presentation.json", Message: err.Error()}}}

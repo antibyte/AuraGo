@@ -104,6 +104,8 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		t.Fatalf("desktop locales = %d, want 16", len(files))
 	}
 	required := []string{
+		"game_maker.voxel", "game_maker.voxel_description", "game_maker.example_idea_14", "game_maker.example_idea_15",
+		"game_maker.save_failed_title", "game_maker.leave_unsaved",
 		"game_maker.terminal_queued", "game_maker.terminal_planning", "game_maker.terminal_building",
 		"game_maker.terminal_validating", "game_maker.terminal_polishing", "game_maker.terminal_cancelling",
 		"game_maker.terminal_files", "game_maker.terminal_assets", "game_maker.terminal_skills",

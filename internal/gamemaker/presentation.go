@@ -344,6 +344,9 @@ func checkPresentationBuild(dir, dimension, metafile string) error {
 		return fmt.Errorf("decode presentation build graph: %w", err)
 	}
 	helper := "../vendor/aurago-effects-" + dimension + "-1.js"
+	if plan.Template == "voxel" {
+		helper = "../vendor/aurago-voxel-1.js"
+	}
 	for _, output := range meta.Outputs {
 		for _, dependency := range output.Imports {
 			if dependency.Path == helper && meta.Inputs["src/presentation.json"] != nil {

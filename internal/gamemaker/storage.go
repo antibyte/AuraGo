@@ -26,10 +26,14 @@ func openDatabase(path string) (*sql.DB, error) {
 }
 
 func migrate(db *sql.DB) error {
+	if err := migrateVoxelVariant(db); err != nil {
+		return err
+	}
 	const schema = `
 CREATE TABLE IF NOT EXISTS gm_projects (
  id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,
  project_key TEXT NOT NULL UNIQUE, dimension TEXT NOT NULL, description TEXT NOT NULL,
+ variant TEXT NOT NULL DEFAULT '',
  provider_id TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '',
  use_image INTEGER NOT NULL DEFAULT 0, use_music INTEGER NOT NULL DEFAULT 0,
  status TEXT NOT NULL DEFAULT 'draft', current_revision INTEGER NOT NULL DEFAULT 0,
@@ -78,6 +82,12 @@ CREATE TABLE IF NOT EXISTS gm_revision_files (
  PRIMARY KEY(revision_id, path), FOREIGN KEY(revision_id) REFERENCES gm_revisions(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS gm_revision_files_hash_idx ON gm_revision_files(content_hash);
+CREATE TABLE IF NOT EXISTS gm_play_states (
+ project_id TEXT NOT NULL, compatibility TEXT NOT NULL, version INTEGER NOT NULL,
+ revision INTEGER NOT NULL, payload BLOB, updated_at DATETIME NOT NULL,
+ PRIMARY KEY(project_id,compatibility),
+ FOREIGN KEY(project_id) REFERENCES gm_projects(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS gm_blobs (
  content_hash TEXT PRIMARY KEY, size INTEGER NOT NULL, created_at DATETIME NOT NULL
 );`
@@ -97,7 +107,7 @@ func scanProject(row interface{ Scan(...any) error }) (Project, error) {
 	var p Project
 	var image, music int
 	err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.ProjectKey, &p.Dimension, &p.Description,
-		&p.ProviderID, &p.Model, &image, &music, &p.Status, &p.CurrentRevision, &p.CreatedAt, &p.UpdatedAt)
+		&p.ProviderID, &p.Model, &image, &music, &p.Status, &p.CurrentRevision, &p.CreatedAt, &p.UpdatedAt, &p.Variant)
 	p.UseImageGeneration = image != 0
 	p.UseMusicGeneration = music != 0
 	return p, err

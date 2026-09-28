@@ -1,4 +1,8 @@
 {
+  "game_maker.voxel": "वॉक्सेल",
+  "game_maker.voxel_description": "ब्लॉकों की दुनिया में खनन, निर्माण और शिल्प करें।",
+  "game_maker.example_idea_14": "वॉक्सेल द्वीप पर जीवित रहें: लकड़ी इकट्ठा करें, औज़ार बनाएँ और आश्रय बनाएँ।",
+  "game_maker.example_idea_15": "महल बनाने के लिए रचनात्मक वॉक्सेल दुनिया।",
   "sysworld.world.motion": "गतिविधि",
   "sysworld.world.motion_auto": "सिस्टम की सेटिंग",
   "sysworld.world.motion_on": "जीवंत शहर",
@@ -3558,7 +3562,7 @@
   "game_maker.diagnostics": "निदान",
   "game_maker.dimension": "गेम प्रकार",
   "game_maker.disabled_notice": "Game Maker Studio अक्षम है या केवल पढ़ने के लिए है। व्यवस्थापक इसे कॉन्फ़िगरेशन में सक्षम कर सकता है।",
-  "game_maker.empty_hint": "एक 2D या 3D प्रोजेक्ट बनाएँ और एजेंट उसे बनाएगा, परीक्षण करेगा और परिष्कृत करेगा।",
+  "game_maker.empty_hint": "2D, 3D या वॉक्सेल प्रोजेक्ट बनाएँ। एजेंट उसे बनाएगा, जाँचेगा और सुधारेगा।",
   "game_maker.empty_title": "एक विचार को खेलने योग्य खेल में बदलें",
   "game_maker.example_idea_1": "सिक्कों और दुश्मनों वाला 2D प्लेटफ़ॉर्मर",
   "game_maker.example_idea_2": "बढ़ती गति वाला स्नेक",
@@ -4887,5 +4891,7 @@
   "desktop.meshcore_error_diagnostic_expired": "इस निदान परिणाम की अवधि समाप्त हो गई है। परिणाम दस मिनट तक रखे जाते हैं।",
   "desktop.meshcore_messenger_favorite": "Messenger में पसंदीदा",
   "desktop.meshcore_agent_trusted": "AuraGo में विश्वसनीय नोड",
-  "desktop.meshcore_created_at": "बनाने का समय"
+  "desktop.meshcore_created_at": "बनाने का समय",
+  "game_maker.save_failed_title": "खेल सहेजा नहीं गया",
+  "game_maker.leave_unsaved": "नवीनतम बदलाव सहेजे नहीं जा सके। फिर भी खेल बंद करें?"
 }

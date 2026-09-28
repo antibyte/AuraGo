@@ -32,6 +32,8 @@ type GameObservation struct {
 	EvidenceBefore *GameplayEvidence  `json:"evidence_before,omitempty"`
 	EvidenceAfter  *GameplayEvidence  `json:"evidence_after,omitempty"`
 	TargetRuns     []TargetRun        `json:"target_runs,omitempty"`
+	VoxelBefore    *VoxelEvidence     `json:"voxel_before,omitempty"`
+	VoxelAfter     *VoxelEvidence     `json:"voxel_after,omitempty"`
 }
 
 // TargetRun records bounded input/geometry evidence, never a client pass verdict.
@@ -50,6 +52,12 @@ func validateGameReport(report PreviewReport) error {
 		return fmt.Errorf("gameplay report exceeds observation/image limit")
 	}
 	for _, o := range report.Observations {
+		if err := validateVoxelEvidence(o.VoxelBefore); err != nil {
+			return err
+		}
+		if err := validateVoxelEvidence(o.VoxelAfter); err != nil {
+			return err
+		}
 		if len(o.TargetRuns) > 8 {
 			return fmt.Errorf("too many targeted observations")
 		}
@@ -246,6 +254,9 @@ func requiredScenarios(template string) []GameScenario {
 }
 
 func gameScenarios(plan *GamePlan) []GameScenario {
+	if plan.Template == "voxel" {
+		return voxelScenarios(plan)
+	}
 	out := requiredScenarios(plan.Template)
 	// Schema 4 compositions use their declared scenarios for special mechanics.
 	// An explicit scenario replaces only the starter behavior it actually proves;
@@ -512,7 +523,7 @@ func (s *Service) stopAfterValidation(jobID string, repairRound bool, exploratio
 
 // Scene-backed Three games expose the same bounded observation contract.
 func sceneBackedGame(plan GamePlan) bool {
-	return guided3D(plan.Template) || plan.Template == "three" && plan.SchemaVersion >= 4 && plan.Scene != nil
+	return plan.Template == "voxel" || guided3D(plan.Template) || plan.Template == "three" && plan.SchemaVersion >= 4 && plan.Scene != nil
 }
 
 const maxTargetedGameMakerChecks = 16
@@ -708,6 +719,14 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 		}
 		if done {
 			result.Checks = compareGameObservations(check.Scenarios, observations)
+			if plan.Template == "voxel" && stageErr == nil {
+				if definition, readErr := os.ReadFile(filepath.Join(stage, "src", "voxel.json")); readErr == nil {
+					if v, parseErr := ParseVoxelDefinition(definition); parseErr == nil {
+						plan.Voxel = v
+					}
+				}
+				result.Checks = compareVoxelObservations(plan, check.Scenarios, observations)
+			}
 			if stageErr == nil {
 				reviewStageLayouts(stage, plan, result.Checks)
 			}
@@ -724,6 +743,10 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 				}
 			}
 			ruleStatus, ruleChecks := compareGameplayEvidence(plan, observations)
+			if plan.Template == "voxel" {
+				ruleStatus = result.GameplayStatus
+				ruleChecks = nil
+			}
 			result.RulesStatus = ruleStatus
 			result.Checks = append(result.Checks, ruleChecks...)
 			for _, c := range ruleChecks {

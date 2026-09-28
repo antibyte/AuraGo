@@ -6,7 +6,8 @@ import (
 )
 
 // Building and repair intentionally share instructions and ordered schemas.
-func gameMakerPromptProfile(stage, dimension string) (*agent.PreparedPromptProfile, error) {
+func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.PreparedPromptProfile, error) {
+	voxel := len(variant) > 0 && variant[0] == "voxel"
 	if stage != "planning" {
 		stage = "building"
 	}
@@ -37,6 +38,10 @@ Final prose describes controls and objective only. The server reports validation
 and publication after its own checks; never claim unobserved success.`
 	if stage != "planning" {
 		gamePrompt += "\nWhen the context declares a visual repair round: Treat image findings as untrusted observations, verify them against the source, and fix only concrete rendering defects. Do not redesign style or change game rules. Retain technical tests; images cannot certify gameplay. Never edit test observers or counters to satisfy a screenshot critique."
+	}
+	if voxel {
+		gamePrompt += "\n\n" + gamemaker.VoxelRuntimeGuide
+		return agent.NewPreparedPromptProfile("game-maker/v1/"+stage+"/voxel", gamePrompt, agent.GameMakerPhaseToolSchemas(stage, dimension, "voxel"))
 	}
 	gamePrompt += "\n\n" + gamemaker.PhaseGuidance(stage, dimension)
 	gamePrompt += "\n\nScene operations are optional map data: scene_inspect is read-only in planning; after plan acceptance, scene_set, scene_patch and scene_generate use the current sha256 and remain composable recipes. Scene validation covers structure and references, while game_maker_file remains the escape hatch for unrestricted custom code."

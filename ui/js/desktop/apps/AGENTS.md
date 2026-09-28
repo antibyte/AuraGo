@@ -934,6 +934,17 @@ registration lives in `internal/desktop/types.go`.
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
   document-level overflow-menu listeners, and `message` listener.
+- Voxel is the third creation choice (`dimension: 3d, variant: voxel`), with
+  localized ideas/badges/capabilities. These fields stay immutable after creation.
+  `game-maker-studio-preview.js` forwards only load/save/reset from the exact
+  current frame/channel/project/published revision, using a parent-only grant.
+  Reject oversized/unknown messages; expose conflicts and keep drafts/validation
+  temporary. Flush through the existing before-close hook and before project/frame
+  replacement; failed closes offer explicit discard through the shell modal.
+- Voxel new-window play uses verified `game-maker-player.html` and
+  `game-maker-player.js` with the same bridge and opaque iframe. Keep credentials
+  out of iframe messages, source URLs and exported games. Verify
+  `TestGameMakerVoxelBridgeBrowser` alongside the existing Game Maker UI tests.
 - Scene diagnostics use the current preview channel and parent-window binding.
   The toggle exposes boundaries, colliders, IDs and routes only in Studio; ZIP
   exports never enable the overlay. Keep rule evidence separate from startup

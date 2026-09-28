@@ -70,6 +70,7 @@ func handleGameMakerCapabilities(s *Server) http.HandlerFunc {
 			CodeStudio:           cfg.VirtualDesktop.CodeStudio.Enabled,
 			PhaserVersion:        gamemaker.PhaserVersion,
 			ThreeVersion:         gamemaker.ThreeVersion,
+			VoxelVersion:         gamemaker.VoxelVersion,
 			SkillsReady:          skillsReady,
 			Skills:               skills,
 			Providers:            providers,
@@ -156,6 +157,18 @@ func handleGameMakerProjectPath(s *Server) http.HandlerFunc {
 			jsonError(w, "Game Maker route not found", http.StatusNotFound)
 		case "preview-token":
 			handleGameMakerPreviewToken(w, r, s, projectID)
+		case "play-state":
+			if len(parts) != 2 {
+				http.NotFound(w, r)
+				return
+			}
+			handleGameMakerPlayState(w, r, s, projectID)
+		case "play":
+			if len(parts) != 2 {
+				http.NotFound(w, r)
+				return
+			}
+			handleGameMakerPlayer(w, r, s, projectID)
 		case "visual-review":
 			handleGameMakerVisualReview(w, r, s, projectID)
 		case "preview-report":

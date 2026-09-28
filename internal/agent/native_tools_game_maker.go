@@ -230,7 +230,8 @@ func gameDesignSchema() map[string]interface{} {
 	settings["type"] = []string{"object", "null"}
 	settings["description"] = "Only for bases fps/exploration/transport/flight/space. Omit or use null for three and all 2D bases; this also clears incompatible settings from a failed draft. Keep the requested base. Describe custom tuning in features/source or supported mechanics.blocks[].params."
 	return schema(map[string]interface{}{
-		"base":      map[string]interface{}{"type": "string", "enum": []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three", "fps", "exploration", "transport", "flight", "space"}},
+		"base":      map[string]interface{}{"type": "string", "enum": []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three", "fps", "exploration", "transport", "flight", "space", "voxel"}},
+		"voxel":     prop("string", "Voxel projects only: JSON-encoded VoxelDefinition object matching inspect.design_example.voxel. Retain the complete palette/items/recipes; customize mode, seed, size, terrain, enemies and goals. Native string transport keeps arbitrary recipe ingredient IDs compatible across providers."),
 		"objective": prop("string", "Concrete player objective"),
 		"features":  stringsArray("1–12 concrete requested features; additional mechanics use small source edits"),
 		"stages":    map[string]interface{}{"type": "array", "maxItems": 6, "description": "Distinct levels/areas the player advances through, each naming its layout and one new challenge. The running game must provide every stage; waves inside one arena belong in features; omit for a single board", "items": map[string]interface{}{"type": "string"}},
@@ -264,7 +265,8 @@ func gameDesignSchema() map[string]interface{} {
 }
 
 // Freeze only phase-relevant schemas; runtime mutation gates remain authoritative.
-func GameMakerPhaseToolSchemas(stage, dimension string) []openai.Tool {
+func GameMakerPhaseToolSchemas(stage, dimension string, variant ...string) []openai.Tool {
+	voxel := len(variant) > 0 && variant[0] == "voxel"
 	schemas := appendGameMakerToolSchemas(nil, ToolFeatureFlags{GameMakerEnabled: true})
 	out := []openai.Tool{}
 	for _, t := range schemas {
@@ -298,6 +300,14 @@ func GameMakerPhaseToolSchemas(stage, dimension string) []openai.Tool {
 				if dimension == "3d" {
 					bases = []string{"fps", "exploration", "transport", "flight", "space", "three"}
 				}
+				if voxel {
+					bases = []string{"voxel"}
+					for _, k := range []string{"settings", "scene", "mechanics", "stages"} {
+						delete(design, k)
+					}
+				} else {
+					delete(design, "voxel")
+				}
 				design["base"] = map[string]interface{}{"type": "string", "enum": bases}
 				if dimension != "3d" {
 					delete(design, "settings")
@@ -313,6 +323,17 @@ func GameMakerPhaseToolSchemas(stage, dimension string) []openai.Tool {
 			delete(props, "design")
 			// Full replacement already has scene_set; do not repeat its schema.
 			delete(props["patch"].(map[string]interface{})["properties"].(map[string]interface{}), "replace")
+		}
+		if voxel && name == "game_maker_project" {
+			operations := []string{"get_plan", "inspect", "list_files"}
+			if stage == "planning" {
+				operations = append(operations, "set_design")
+			}
+			props["operation"] = map[string]interface{}{"type": "string", "enum": operations}
+			for _, k := range []string{"scene", "patch", "generate", "expected_sha256", "dry_run", "node_ids", "region_id"} {
+				delete(props, k)
+			}
+			t.Function.Description = "Inspect the voxel runtime and definition, list project files, or read the accepted plan. During planning submit set_design; after acceptance edit voxel.json/main.ts with game_maker_file."
 		}
 		required := []string{}
 		for _, k := range []string{"operation", "path"} {

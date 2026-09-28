@@ -265,6 +265,9 @@ func compactGameMakerPlan(plan *gamemaker.GamePlan) map[string]any {
 	if plan.Gameplay != nil {
 		out["gameplay"] = plan.Gameplay
 	}
+	if plan.Voxel != nil {
+		out["voxel"] = plan.Voxel
+	}
 	if plan.Presentation != nil {
 		out["presentation"] = plan.Presentation
 	}
@@ -439,7 +442,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		return r.implementGameStarter(ctx, &cfg, client, run)
 	}
 	cfg.LLM.UseNativeFunctions = true
-	profile, err := gameMakerPromptProfile(run.Stage, run.Project.Dimension)
+	profile, err := gameMakerPromptProfile(run.Stage, run.Project.Dimension, run.Project.Variant)
 	if err != nil {
 		return err
 	}

@@ -23,7 +23,11 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		timeout = 600 * time.Second // Same default as the main agent loop.
 	}
 	broker := &gameMakerBroker{service: r.service, projectID: run.Project.ID, jobID: run.Job.ID}
-	profile, err := agent.NewPreparedPromptProfile("game-maker/v1/source/"+run.Project.Dimension, system, nil)
+	profileKind := run.Project.Dimension
+	if run.Project.Variant == "voxel" {
+		profileKind = "voxel"
+	}
+	profile, err := agent.NewPreparedPromptProfile("game-maker/v1/source/"+profileKind, system, nil)
 	if err != nil {
 		return agent.MinimalLoopResult{}, nil, err
 	}
