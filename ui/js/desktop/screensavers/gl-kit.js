@@ -211,7 +211,13 @@ void main() {
         function program(fragmentBody, opts) {
             const settings = opts || {};
             const name = settings.name || 'program';
-            const fsSource = settings.rawFragment ? fragmentBody : FS_HEADER + (settings.common === false ? '' : GLSL_COMMON) + fragmentBody;
+            let header = FS_HEADER;
+            if (settings.outputs > 1) {
+                const outputs = ['layout(location = 0) out vec4 fragColor;'];
+                for (let i = 1; i < settings.outputs; i++) outputs.push('layout(location = ' + i + ') out vec4 fragData' + i + ';');
+                header = FS_HEADER.replace('out vec4 fragColor;', outputs.join('\n'));
+            }
+            const fsSource = settings.rawFragment ? fragmentBody : header + (settings.common === false ? '' : GLSL_COMMON) + fragmentBody;
             const vs = compileShader(gl.VERTEX_SHADER, settings.vertex || FULLSCREEN_VS, name + '.vs');
             const fs = compileShader(gl.FRAGMENT_SHADER, fsSource, name + '.fs');
             const prog = gl.createProgram();
@@ -355,6 +361,50 @@ void main() {
             };
         }
 
+        function multiTarget(width, height, formats, opts) {
+            const settings = opts || {};
+            const fbo = gl.createFramebuffer();
+            owned.framebuffers.push(fbo);
+            const filter = settings.filter === 'nearest' ? gl.NEAREST : gl.LINEAR;
+            const attachments = formats.map((_, i) => gl.COLOR_ATTACHMENT0 + i);
+            const textures = formats.map(name => {
+                const fmt = resolveFormat(name);
+                const tex = gl.createTexture();
+                owned.textures.push(tex);
+                gl.bindTexture(gl.TEXTURE_2D, tex);
+                const texFilter = fmt.key === 'rgba32f' && !floatLinear ? gl.NEAREST : filter;
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, texFilter);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, texFilter);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                return { texture: tex, fmt, width: 0, height: 0, texel: [0, 0] };
+            });
+            const mt = {
+                fbo,
+                textures,
+                width: 0,
+                height: 0,
+                texel: [0, 0],
+                resize(w, h) {
+                    mt.width = Math.max(1, Math.round(w));
+                    mt.height = Math.max(1, Math.round(h));
+                    mt.texel = [1 / mt.width, 1 / mt.height];
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+                    textures.forEach((entry, i) => {
+                        allocate(entry.texture, entry.fmt, mt.width, mt.height);
+                        entry.width = mt.width;
+                        entry.height = mt.height;
+                        entry.texel = mt.texel;
+                        gl.framebufferTexture2D(gl.FRAMEBUFFER, attachments[i], gl.TEXTURE_2D, entry.texture, 0);
+                    });
+                    gl.drawBuffers(attachments);
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                    return mt;
+                }
+            };
+            return mt.resize(width, height);
+        }
+
         function dataTexture(width, height, format, data, opts) {
             const settings = opts || {};
             const fmt = resolveFormat(format);
@@ -464,6 +514,7 @@ void main() {
             bindTarget,
             target,
             doubleTarget,
+            multiTarget,
             dataTexture,
             buffer,
             vertexArray,
