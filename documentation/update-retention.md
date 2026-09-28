@@ -23,8 +23,9 @@ failures do not roll back a healthy update.
 The maintenance CLI identifies resource pins from Go build metadata when
 available. Binaries built with `-trimpath` omit linker flags from that metadata;
 for those, the CLI matches linked IDs against installed resource sets without
-executing archived binaries. It stops before deletion if the match is missing
-or ambiguous.
+executing archived binaries. Unreadable or ambiguous pins stop cleanup.
+Explicitly retained binaries without an installed resource-set match stay
+protected without blocking cleanup of verified update backups.
 
 Unexpected termination, failed recovery or `--no-restart` leaves an unresolved
 transaction. Further updates and collection stop until an administrator has
@@ -62,6 +63,12 @@ metadata and concurrent disk activity can make `df` differ. A nonzero exit code
 means cleanup did not finish. Apply requires a ready running version matching
 the installed resource pin. The command runs before service/vault initialization
 and is an administrator CLI, not an agent tool or HTTP write endpoint.
+
+`update.sh` requests `--summary` to show one line with removed/kept artifact
+counts and freed space instead of the full JSON inventory. Pending removals and
+warnings remain visible, and failures retain their error message and nonzero
+exit code. Omit `--summary` for the detailed diagnostic inventory above. An
+older rollback binary without this option gets a generic cleanup success line.
 
 `--adopt-legacy` includes old update archives and `/tmp/aurago-backup-*` only when
 their provenance can be established. Legacy backups require matching ownership,

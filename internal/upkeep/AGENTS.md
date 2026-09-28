@@ -23,6 +23,10 @@ The updater owns transaction manifests; this package verifies them before collec
   unreadable artifacts rather than guessing their provenance.
 - Keep cleanup results sanitized in `data/update_cleanup_status.json`; private
   backups may contain credentials.
+- `update.sh` shows a compact cleanup summary, including removed/kept counts
+  and freed space. Keep the maintenance CLI's default JSON inventory for
+  diagnostics; `--summary` must preserve failure exit codes and visible errors.
+  Older rollback binaries without `--summary` get a generic success line.
 
 ## Work Guidance
 

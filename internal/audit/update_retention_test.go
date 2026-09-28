@@ -135,6 +135,46 @@ echo "still running"
 	}
 }
 
+func TestUpdateRetentionCleanupUsesCompactOutputAndPreservesFailures(t *testing.T) {
+	_, out := runRetentionBash(t, `
+DIR="$FIXTURE_ROOT"
+ok() { echo "OK $*"; }
+warn() { echo "WARN $*"; }
+MODE=modern
+mock_binary() {
+    if [ "$2" = --help ]; then
+        if [ "$MODE" = modern ]; then echo '  -summary'; fi
+        return 0
+    fi
+    if [ "$MODE" = modern ]; then
+        [ "${@: -1}" = --summary ] || return 90
+        echo 'Artifact cleanup: 3 removed, 20 kept; 2.07 GiB freed.'
+    elif [ "$MODE" = legacy ]; then
+        [ "${@: -1}" = --adopt-legacy ] || return 91
+        echo '{"entries":[{"path":"private-legacy-inventory"}],"freed_bytes":42}'
+    else
+        echo 'cleanup error detail' >&2
+        echo '{"error":"cleanup blocked"}'
+        return 1
+    fi
+}
+update_retention_cleanup mock_binary
+MODE=legacy
+update_retention_cleanup mock_binary
+MODE=failure
+update_retention_cleanup mock_binary
+echo 'healthy update continues'
+`)
+	for _, want := range []string{"OK Artifact cleanup: 3 removed, 20 kept; 2.07 GiB freed.", "OK Artifact cleanup completed.", "cleanup error detail", "cleanup blocked", "WARN Update is healthy", "healthy update continues"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %s", want, out)
+		}
+	}
+	if strings.Contains(out, "private-legacy-inventory") || strings.Count(out, "OK ") != 2 {
+		t.Fatalf("inventory leaked or failed cleanup reported success: %s", out)
+	}
+}
+
 func TestBinaryResourceRollbackDoesNotCopyOrReplaceWebSets(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX behavioral test")

@@ -72,6 +72,7 @@ func RunCLI(args []string, out, stderr io.Writer) int {
 	root := f.String("root", "", "installation directory (required)")
 	apply := f.Bool("apply", false, "apply the cleanup; default only previews")
 	legacy := f.Bool("adopt-legacy", false, "include provably installation-owned legacy update artifacts")
+	summary := f.Bool("summary", false, "print a compact cleanup summary instead of the JSON inventory")
 	checkPending := f.Bool("check-pending", false, "validate transaction state before an update")
 	resolve := f.String("resolve", "", "resolve this transaction after recovery")
 	outcome := f.String("outcome", "", "confirmed or rolled_back (with --resolve)")
@@ -138,7 +139,16 @@ func RunCLI(args []string, out, stderr io.Writer) int {
 	if err != nil {
 		r.Error = err.Error()
 	}
-	if e := json.NewEncoder(out).Encode(r); e != nil {
+	var outputErr error
+	if *summary {
+		outputErr = writeCleanupSummary(out, r)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+		}
+	} else {
+		outputErr = json.NewEncoder(out).Encode(r)
+	}
+	if e := outputErr; e != nil {
 		fmt.Fprintln(stderr, e)
 		return 1
 	}
@@ -146,6 +156,40 @@ func RunCLI(args []string, out, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+func writeCleanupSummary(out io.Writer, r Report) error {
+	var removed, kept, pending int
+	for _, entry := range r.Entries {
+		switch entry.Action {
+		case "deleted":
+			removed++
+		case "keep":
+			kept++
+		case "delete":
+			pending++
+		}
+	}
+	size, unit := float64(r.Freed), "B"
+	for _, next := range []string{"KiB", "MiB", "GiB", "TiB", "PiB", "EiB"} {
+		if size < 1024 {
+			break
+		}
+		size, unit = size/1024, next
+	}
+	freed := fmt.Sprintf("%d B", r.Freed)
+	if unit != "B" {
+		freed = fmt.Sprintf("%.2f %s", size, unit)
+	}
+	line := fmt.Sprintf("Artifact cleanup: %d removed, %d kept; %s freed", removed, kept, freed)
+	if pending > 0 {
+		line += fmt.Sprintf("; %d pending removal", pending)
+	}
+	if len(r.Warnings) > 0 {
+		line += fmt.Sprintf("; warnings: %d", len(r.Warnings))
+	}
+	_, err := fmt.Fprintln(out, line+".")
+	return err
 }
 
 func Resolve(ctx context.Context, root, id, outcome string) error {

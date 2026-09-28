@@ -277,8 +277,20 @@ update_exit_cleanup() {
 }
 
 update_retention_cleanup() {
-    local binary="$1"
-    if ! "$binary" --update-maintenance --root "$DIR" --apply --adopt-legacy; then
+    local binary="$1" output
+    local -a summary_args=()
+    # A rollback may restore a binary predating compact maintenance output.
+    if "$binary" --update-maintenance --help 2>&1 | grep -q -- '-summary'; then
+        summary_args=(--summary)
+    fi
+    if output="$("$binary" --update-maintenance --root "$DIR" --apply --adopt-legacy "${summary_args[@]}")"; then
+        if [ "${#summary_args[@]}" -gt 0 ]; then
+            ok "$output"
+        else
+            ok "Artifact cleanup completed."
+        fi
+    else
+        [ -z "$output" ] || printf '%s\n' "$output" >&2
         warn "Update is healthy, but artifact cleanup failed; retained data is safe. See the maintenance result above."
     fi
 }
