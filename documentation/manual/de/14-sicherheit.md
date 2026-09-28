@@ -336,6 +336,25 @@ Die Danger Zone kontrolliert, welche potenziell gefährlichen Fähigkeiten der A
 
 ### Tool-spezifische Gates
 
+Die Agenten-Capability-Gates liegen unter `agent.allow_*` (Web-UI: **Config → Danger Zone**):
+
+```yaml
+agent:
+  allow_shell: false                    # Shell-Ausführung
+  allow_python: false                   # Python-Ausführung
+  allow_unsafe_host_execution: false    # zusätzlich nötig für Windows-Shell und Host-Python
+  allow_filesystem_write: false
+  allow_network_requests: false         # api_request
+  allow_remote_shell: false
+  allow_self_update: false
+  allow_mcp: false
+  allow_package_manager: false
+  sudo_enabled: false
+  sudo_unrestricted: false
+```
+
+`allow_unsafe_host_execution` ist eine bewusste Ausnahme: Ohne sie läuft Windows-Shell und Host-Python (auch Skills und Hintergrund-Jobs) nicht, unabhängig von `allow_shell`/`allow_python`. Details unter [Ausgehende Verbindungen und Host-Ausführung](#ausgehende-verbindungen-und-host-ausführung).
+
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Tools → Tool-Berechtigungen**.
 2. Aktiviere Tools einzeln und setze bei Bedarf **Nur-Lesen**.
@@ -511,7 +530,61 @@ auth:
 # [Auth] IP 192.168.1.100 locked out until 2026-03-08T14:30:00
 ```
 
-> 💡 **Tipp:** Bei Reverse-Proxy-Einsatz (nginx, Traefik) wird die `X-Forwarded-For`-Header-IP verwendet.
+> 💡 **Tipp:** Bei Reverse-Proxy-Einsatz (nginx, Traefik) zählen `X-Forwarded-*`-Header nur, wenn `server.https.behind_proxy: true` gesetzt ist **und** die unmittelbare Gegenstelle in `server.https.trusted_proxy_cidrs` steht. Ohne diese Konfiguration werden clientgelieferte Weiterleitungsangaben verworfen. Details unten unter [Eingangs-Vertrauen](#eingangs-vertrauen-und-öffentliche-grenzen).
+
+---
+
+## Eingangs-Vertrauen und öffentliche Grenzen
+
+AuraGo behandelt Eingangs-Header, Embed-Zugriffe und Websocket-Ursprünge explizit statt ihnen zu vertrauen:
+
+- **Weiterleitungs-Header:** `X-Forwarded-Host`, `X-Forwarded-Proto` und die Client-IP gelten nur bei `server.https.behind_proxy: true` und nur, wenn die unmittelbare TCP-Gegenstelle in `server.https.trusted_proxy_cidrs` (Liste von Proxy-IPs/CIDRs) steht. Alles andere ist clientkontrolliert und wird ignoriert.
+
+```yaml
+server:
+  https:
+    behind_proxy: true
+    trusted_proxy_cidrs: ["192.168.1.10", "10.0.0.0/24"]
+```
+
+- **Auth-aus-Freigabe:** Startet AuraGo ohne Login (`auth.enabled: false`) und lauscht nicht nur auf localhost, verlangt der Start (und jede Config-Speicherung) ausdrücklich `auth.allow_unauthenticated_remote: true`. Die Ausnahme öffnet niemals `/speech-lab/` oder administrative Bereiche; konfigurierte eingehende Webhook- und Integrations-Authentifizierungen bleiben weiter aktiv.
+- **Desktop-Embed-Tickets:** Medien- und Datei-Referenzen in Desktop-Embeds laufen über `/desktop-ticket/<ticket>/...`. Das kurzlebige Ticket trägt die Zugangsdaten im Pfadsegment, wird vor Routing und Zugriffslogging entfernt und gilt nur für den exakten Zielpfad.
+- **Speech-Lab-Browser:** `/speech-lab/` verlangt eine AuraGo-Sitzung, schreibende Zugriffe und WebSocket-Origin müssen same-origin sein, und das Backend ist eine konfigurationseigene private Adresse. AuraGo-Anmeldedaten werden vom Proxy gestrippt; im External-Modus zeigt nur der serverseitige `browser_automation.browser_backend_url` auf den s2s-Web-Backend — niemals eine Legacy-URL im Browser.
+- **CSP:** Die Haupt-UI unter `/` trägt eine report-only Content-Security-Policy ohne `unsafe-inline`; Desktop-Apps behalten ihre eigene, strengere Policy.
+
+---
+
+## Ausgehende Verbindungen und Host-Ausführung
+
+### SSRF-Schutz für ausgehende HTTP-Anrufe
+
+`api_request` und alle internen HTTP-Clients nutzen einen SSRF-geschützten Client: DNS-Auflösung wählt eine öffentliche IP, der Wählvorgang wird an diese IP gepinnt, jede Weiterleitung wird neu validiert (maximal 10, sonst Abbruch) und System-Proxies sind deaktiviert. Loopback-, privaten, CGNAT- und Metadaten-Adressen werden blockiert; `AURAGO_SSRF_ALLOW_LOOPBACK` bleibt ein ausdrücklicher Entwicklungsausnahmehahn.
+
+### Netzwerk-MCP-Server
+
+Ein MCP-Server mit Netzwerkzugriff lehnt private Zieladressen ab, solange dieser Server nicht `allow_private_network: true` setzt; DNS wird pro Verbindung gepinnt, Cross-Origin-Weiterleitungen und SSE-Message-Endpunkte auf andere Ursprünge werden abgelehnt.
+
+### Browser-Automatisierung mit Egress-Sidecar
+
+Browser-Automatisierung verlangt ein nichtleeres Sidecar-Token und einen attestierten Sidecar (`egress-v1`). Der verwaltete Sidecar startet nur auf einem verifizierten Docker-internen Netzwerk mit einem Filter-Proxy; Navigation, Ressourcen und WebSockets folgen derselben Egress-Policy.
+
+```yaml
+browser_automation:
+  cloak_proxy: "http://browser-egress:7332"   # kontrollierter Proxy im Browser-Netz
+  egress_network: aurago-app                  # Docker-Netzwerk, muss internal: true sein
+  allowed_private_origins: []                 # exakte Home-Lab-Origin-URLs, die die Policy erlaubt
+```
+
+### Host-Ausführung ohne Isolation
+
+Windows-Shell und jeder Host-Python-Pfad — inklusive Agent-Skill-Skripten und Hintergrund-Python-Jobs — brauchen zusätzlich zum bestehenden Tool-Gate `agent.allow_unsafe_host_execution: true`. Jede erlaubte Ausführung erzeugt eine Audit-Warnung im Log. Linux-Shell folgt weiterhin der Sandbox-Policy; Desktop-Notes-Schutz und Datei-Jails gelten unabhängig davon.
+
+```yaml
+agent:
+  allow_unsafe_host_execution: false   # unsicher: nur nach bewusster Entscheidung setzen
+```
+
+> ⚠️ Beide Flags (`auth.allow_unauthenticated_remote`, `agent.allow_unsafe_host_execution`) stehen in der Danger-Zone-Philosophie: standardmäßig `false`, im Log sichtbar, nur setzen, wenn du die Konsequenz trägst.
 
 ---
 
@@ -726,10 +799,12 @@ hmac = SHA256(secret + payload)
 |--------|------------|
 | Login | Auth an, bevor irgendetwas nicht mehr nur localhost ist |
 | TOTP | 2FA für jeden internetseitigen Zugriff |
+| Proxy-Vertrauen | `behind_proxy` + `trusted_proxy_cidrs` setzen, sonst Forward-Header ignorieren |
 | Security Proxy | Verwaltetes Caddy für TLS, Rate-Limit, IP-Filter |
 | Tunnel / VPN | Cloudflare Tunnel oder Tailscale statt Port-Forward |
 | Webhooks | Token oder HMAC, enge Scopes, Rate-Limits |
 | Danger Zone | Aus, bis du das Feature wirklich brauchst |
+| Unsafe-Ausnahmen | `allow_unauthenticated_remote` und `allow_unsafe_host_execution` bleiben `false` |
 | Backups | `.ago`-Backups verschlüsseln, Passphrase nicht ins Repo |
 
 Bei Verdacht: Keys beim Provider drehen, Webhook-Tokens ungültig machen, Logs lesen, Vault-Secrets neu erzeugen.
@@ -743,6 +818,9 @@ Bei Verdacht: Keys beim Provider drehen, Webhook-Tokens ungültig machen, Logs l
 | 2FA | `auth.totp_enabled` | `true` (externer Zugriff) |
 | Session-Timeout | `auth.session_timeout_hours` | `24` |
 | Rate Limiting | `auth.max_login_attempts` | `5` |
+| Proxy-Vertrauen | `server.https.trusted_proxy_cidrs` | Explizite Proxy-IPs/CIDRs |
+| SSRF-Schutz | `internal/security/ssrf.go` | Immer aktiv, kein Gate |
+| Host-Ausführung | `agent.allow_unsafe_host_execution` | `false` |
 | Docker-Gate | `docker.readonly` | `true` (Monitoring) |
 | Vault-Gate | `tools.secrets_vault.readonly` | `true` |
 

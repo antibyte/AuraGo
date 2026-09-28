@@ -233,7 +233,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Files** | Virtuellen Desktop-Workspace durchsuchen und Dateien in der passenden App öffnen |
 | **Code Studio** | Container-basierte IDE mit Dateibaum, Editor, Suche, Terminal und Agent-Kontext |
 | **Terminal** | Workspace-Terminal mit wählbaren CRT-Stilen (Retro-Röhren-Look) |
-| **Writer / Sheets / Notes / Viewer** | Textverarbeitung, Tabellenkalkulation, Markdown-Notizen (Liste, Live-Vorschau, Tags) und Dateibetrachter |
+| **Autor / Tabellen / Notizen / Viewer** | Nativer DOCX-Textprozessor, native Tabellenkalkulation und Rich-Notiz-Editor (Liste, Live-Vorschau, Tags, Rich-Layout) sowie Dateibetrachter |
 | **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
 | **Camera / Gallery / Music Player** | Kamera-Aufnahme, Galerie und Musikwiedergabe |
@@ -249,14 +249,19 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Phone** | SIP-Softphone (Browser-Telefon) |
 | **Live Speech / Agent Chat** | Realtime-Sprachfenster und Desktop-Chat mit dem Agenten |
 | **Mission Control / Looper** | Automatisierte Aufgaben und iterative Agent-Workflows |
-| **Calendar / Todo / People / Pet Picker** | Terminplanung, Aufgaben, Kontakte (mit KG-Anreicherung) und Desktop-Begleiter |
+| **Calendar / Todo / People / Pet Picker** | Terminplanung, Aufgaben, Kontakte (mit KG-Anreicherung) und Auswahl der animierten Persona-Haustiere (OpenPets) |
 | **Cheater** | Cheat-Sheet-Verwaltung mit Markdown und Anhängen |
 | **Calculator / Settings / System Info / Log Viewer** | Rechner, Desktop-Einstellungen, Systemdiagnose und Live-Logtail |
-| **Galaxa Deluxe / Chess / NASSCAD / Sysworld** | Arcade-Spiel, Schach (mit Agent-Gegner), Docking-Spiel und 3D-Systemvisualisierung |
+| **Galaxa Deluxe / Chess / NASSCAD / Systemwelt** | Arcade-Spiel, Schach (mit Agent-Gegner), Docking-Spiel und begehbare 3D-Systemstadt mit Robotern, Telemetrie und Turm-Stimme |
+| **Newspaper** | Persönliche Tageszeitung: serverseitige Recherche mit geprüften Quellen, Ressorts, Archiv aller Ausgaben und optionaler E-Mail-/Telegram-Zustellung |
+| **Detective** | Gebundene Desktop-Recherchen mit einstellbarer Intensität, belegten Berichten und Export |
+| **Personal Radio** | Eigener Radiosender: Stationen mit Themen- und Musikauswahl, persönliche Audio-Bibliothek, Nachrichten und Sprachbeiträge |
+| **RTL-SDR** | Empfang für einen RTL-SDR-Stick: Live-Abstimmung, Aufnahmen, Zeitpläne und automatische Spracherkennung (ASR) |
+| **HA Switchboard** | Home-Assistant-Schalter als nostalgisches Pult mit Silberhebeln (nur ausgewählte `switch.*`-Entitäten) |
 
 ### Widgets
 
-Über den Widget-Drawer lassen sich Widgets wie Systemmonitor, Uhr, Wetter und Chat anheften. Das optionale Widget **builtin-meshcore** ist standardmäßig ausgeblendet und zeigt die neuesten MeshCore-Gespräche nur lesend.
+Über den Widget-Drawer lassen sich Widgets wie Systemmonitor, Uhr, Wetter und Chat anheften. Das optionale Widget **builtin-meshcore** ist standardmäßig ausgeblendet und zeigt die neuesten MeshCore-Gespräche nur lesend. Weitere optionale Widgets: persistente **Klebezettel** (Papier-Notizen mit Raster-Ausrichtung und gemeinsamer Breite), das read-only **Fritz!Box-Widget** (DSL-/Kabel-/WAN-Status mit Pager) und die wachsende Desktop-Pflanze **Leafy** (gießen, düngen, Ranken schneiden). Der animierte Desktop-Pet (OpenPets) wird über die Desktop-Einstellungen (`pet.enabled`) gesteuert und spiegelt den Agentenzustand in Animationen wider.
 
 ### Hinweise zum Software Store
 

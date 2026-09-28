@@ -240,6 +240,31 @@ Die Inner Voice ist eine Unterbewusstseins-Engine, die kurze, private Agentenged
 
 ---
 
+## Adaptive Dynamik
+
+Die Personality Engine pflegt transaktionale Dynamik-Werte, die beschreiben, wie sich der Charakter im Umgang mit dir verändert:
+
+| Wert | Bedeutung |
+|------|-----------|
+| **Belastung (Load)** | Steigt durch Kritik, Konflikte und anstrengende Interaktionen |
+| **Vertrautheit (Familiarity)** | Wächst durch wiederkehrende, positive Interaktion |
+| **Reibung (Friction)** | Kurzfristige Spannung, die mit der Zeit abklingt |
+
+Die Werte werden transaktional mit Revisionsschutz geschrieben; Belastung und Reibung klingen mit der Zeit ab, Vertrautheit wächst. Sie fließen live in Stimme und Antwortverhalten ein. **Trend:** stabil, erholt sich oder angespannt.
+
+### Einrichtung in der Web-UI
+
+Das Dashboard zeigt die aktuelle Dynamik auf der Persönlichkeits-Karte (Tab **Agent**) mit Trend-Badge. Der Knopf **Aktuelle Dynamik zurücksetzen** setzt Belastung und Reibung auf null, ohne Traits oder gelebte Charakternotizen zu verändern. Der Reset respektiert den Personality-Schreibschutz.
+
+### API-Referenz
+
+```bash
+GET  /api/personality/state            # enthält dynamics: load, familiarity, friction, trend, revision
+POST /api/personality/dynamics/reset   # Reset von Belastung und Reibung
+```
+
+---
+
 ## Beispiel-Vergleich
 
 **Gleiche Anfrage, verschiedene Persönlichkeiten:**

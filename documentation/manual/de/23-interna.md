@@ -807,6 +807,26 @@ Das Bridge-Protokoll ermöglicht die Kommunikation zwischen Nest und Eggs:
 - Embedding-Effizienz
 - Speicherplatz
 
+### 13.5 Update-Aufbewahrung und Wartungs-CLI
+
+[`internal/upkeep/`](../../../internal/upkeep/) verwaltet Update-Artefakte installationsscoped. Der Aufbewahrungsvertrag hält das aktuelle Binary plus Resource-Set und zwei verifizierte Rollback-Versionen; Transaktions-Manifeste des Updaters werden vor jeder Bereinigung verifiziert.
+
+- **Vorschau ist der Standard.** Die Anwendung der Bereinigung erfordert Locks, verifizierte Ressourcen, aufgelöste Transaktionen und die Bereitschaft der laufenden Version. Unbekannte, beschädigte oder unlesbare Artefakte bleiben erhalten.
+- Archivierte Binaries werden nicht ausgeführt, um ihren Web-Asset-Pin zu bestimmen; stattdessen liest AuraGo Go-Build-Metadaten (bei `-trimpath` nur exakte 64-Zeichen-IDs gegen installierte Resource-Set-Verzeichnisse). Explizit zurückbehaltene Binaries ohne Resource-Set-Match blockieren die Bereinigung verifizierter Update-Backups nicht.
+- Bereinigungsergebnisse liegen bereinigt (sanitized) in `data/update_cleanup_status.json`; private Backups können Zugangsdaten enthalten.
+
+Das Wartungs-CLI läuft vor Config-/Vault-Initialisierung im portablen Binary:
+
+```bash
+./aurago --update-maintenance --root /opt/aurago                 # Vorschau
+./aurago --update-maintenance --root /opt/aurago --apply         # anwenden
+./aurago --update-maintenance --root /opt/aurago --adopt-legacy  # nachweislich installationseigene Legacy-Artefakte einschließen
+./aurago --update-maintenance --root /opt/aurago --check-pending # Transaktionszustand vor einem Update prüfen
+./aurago --update-maintenance --root /opt/aurago --resolve <id> --outcome rolled_back
+```
+
+`--resolve` mit `--outcome` (`confirmed` oder `rolled_back`) schließt eine wiederhergestellte Transaktion ab. `update.sh` nutzt dieselbe CLI. Verifiziere mit `go test ./internal/upkeep` und `bash -n update.sh`.
+
 ---
 
 ## 14. A2A-Protokoll (Agent-to-Agent)

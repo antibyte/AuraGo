@@ -65,12 +65,14 @@ The **Agent** tab focuses on personality and memory.
 - **Emotional state** (when the emotion synthesizer is active): description, cause, response style, and an emotion timeline.
 - **Mood timeline chart** with selectable ranges: 1 h, 6 h, 24 h, 7 d, 30 d.
 - **Affect timeline and lived notes:** the card shows valence/arousal, the most recent sanitized affect events, and lived character notes (user-reversible; reflection proposes at most two notes per day).
+- **Current dynamics:** load, familiarity, and friction with a trend badge (steady, recovering, strained). The **Reset current dynamics** button calls `POST /api/personality/dynamics/reset` and returns load and friction to zero without changing traits or lived notes.
 
 | API | Purpose |
 |-----|---------|
-| `GET /api/personality/state` | Current traits, mood, enabled flags |
+| `GET /api/personality/state` | Current traits, mood, enabled flags, dynamics |
 | `GET /api/dashboard/mood-history?hours=N` | Mood history for the chart |
 | `GET /api/dashboard/emotion-history?hours=N` | Emotion history entries |
+| `POST /api/personality/dynamics/reset` | Reset the dynamics |
 
 When the personality engine is disabled, the card shows an empty state.
 

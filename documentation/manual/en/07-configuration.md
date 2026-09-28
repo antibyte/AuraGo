@@ -568,6 +568,10 @@ personality:
 | `emotion_synthesizer.max_history_entries` | `100` | Maximum emotion history entries to keep |
 | `inner_voice.enabled` | `false` | Subconscious nudge engine for subtle behavior hints |
 
+### Adaptive dynamics
+
+The personality engine keeps transactional dynamics values that show how the character develops with you: **load** (rises through criticism and conflict), **familiarity** (grows through repeated positive interaction), and **friction**. Load and friction decay over time; voice and response style are influenced live. The Dashboard shows the current dynamics on the personality card with a trend (steady, recovering, strained) and offers a reset: `POST /api/personality/dynamics/reset` returns load and friction to zero without changing traits or character notes. The reset follows the usual personality write protection.
+
 ---
 
 ## Co-Agents Configuration
@@ -999,6 +1003,13 @@ game_maker:
 
 The embedded runtimes are Phaser `4.2.1` and Three.js `0.185.1`; external CDNs, APIs, and assets are not allowed. See [Game Maker Studio](../../game-maker-studio.md).
 
+Recent game-agent capabilities:
+
+- **Bundled asset packs:** a 220-model low-poly pack, maritime and isometric worlds, and effect/audio presentation packs ship locally and are embedded without external downloads. AuraGo still does not generate 3D models itself.
+- **Screenshot review:** after validation, a vision pass reviews screenshots of the running game and starts bounded repairs before the revision is published.
+- **Feedback and progression:** a shared runtime module provides player feedback, result/stage UI, and checkpoints (Phaser: `damagePlayer()` with checkpoints; Three.js: `api.damagePlayer(amount)`). Feedback never changes gameplay values; peaceful single-screen games stay valid without combat or lives.
+- **Finishing window:** an accepted game under active development with a successful build gets one bounded extension window (at most 15 minutes) beyond the normal job budget.
+
 ### Local network shares
 
 `network_shares` manages shares on the AuraGo host only. Detection is passive: it installs no packages, starts no services, and changes no global server configuration. Each mutation needs its matching permission and an existing canonical directory beneath `allowed_roots`.
@@ -1025,6 +1036,57 @@ Only shares created by AuraGo and recorded in `data/network_shares.db` may be ch
 ### Workspace Search and go2rtc
 
 The resident workspace index is controlled by `workspace_search.enabled`; it is separate from the semantic `indexing` service and does not persist file contents. The `go2rtc` camera integration is opt-in as well; sources and the internal password are stored only in the Vault. See [go2rtc](../../go2rtc.md) and [Workspace Search](06-tools.md#10-workspace-search) for the detailed limits.
+
+### Speech output — sanoTTS as the local default
+
+New installations use the local CPU pipeline **sanoTTS** (`tts.provider: sanotts`) for speech output by default; the voice follows the user language, and unsupported voices fall back to English. Existing providers (ElevenLabs, Mistral, Piper, Supertonic) remain selectable under **Config → Speech Output**. The Speech Lab stays separate and attaches the s2s pipeline.
+
+### Task LLM router
+
+The optional router picks a configured provider and model for each new chat task. It is off by default. Create providers under **Config → Providers** first (credentials stay in the Vault), then assign one of the nine areas `general`, `easy`, `normal`, `complex`, `coding`, `research`, `creativity`, `security`, and `writing` under **Config → LLM Router**. Specialized areas take precedence over difficulty; an empty area falls back to the ordinary active model, not to other router targets. The decision belongs to one agent run including its tool rounds.
+
+```yaml
+llm_router:
+  enabled: false
+  helper_fallback: true      # local helper-LLM classification for uncertain input
+  helper_timeout_ms: 1500    # 250-5000
+  helper_max_calls_per_hour: 20
+  areas:
+    coding: {provider: "", model: ""}   # empty = ordinary model
+```
+
+Follow-ups, Web Chat, Desktop, Telegram, Discord, Rocket.Chat, SMS, and authorized MeshCore share the router; explicit Desktop and Speech Lab choices plus prepared workflows, Game Maker, Detective, SIP, and missions keep their models. The Web UI offers a local preview test and one-shot helper questions; the Dashboard shows counters since restart. Details: [Task LLM router](../../llm-router.md).
+
+### Newspaper — personal daily edition
+
+`newspaper` controls the optional, server-built daily edition of the same-named desktop app (chapter 4). Interests and destinations live in the Newspaper profile of the app, never in YAML. Research runs with time and page budgets; editions stay in the archive as revisions.
+
+```yaml
+newspaper:
+  enabled: false             # opt in to daily research
+  readonly: false            # preserve archive but block research and delivery
+  max_minutes: 30            # cumulative run deadline, 1-60
+  max_pages: 60              # fetched page ceiling, 1-60
+  max_editions: 365          # retained edition revisions, minimum 30
+  allow_email: false         # permit confirmed email delivery
+  allow_telegram: false      # permit configured authorized Telegram users
+```
+
+Failed deliveries report bounces back; retries are allowed after failed daily research. Curated RSS sources and a correction flow complement the automatic research.
+
+### treg catalog gateway
+
+`treg` exposes the dynamic treg catalog through the three agent tools `treg_catalog`, `treg_call`, and `treg_status`. The integration is optional, off by default, and read-only. The transport is pinned to the public treg API; token, authentication, and cost headers never come from the model. The Vault key is `treg_token`.
+
+```yaml
+treg:
+  enabled: false
+  readonly: true             # blocks all classes except read
+  max_call_cost_micro: 1000000   # 1 USD per call; 0 permits zero-budget calls only
+  allowed_endpoints: []      # UI grants bind endpoint_id, method, path, operation
+```
+
+Every endpoint needs an explicit grant with the operation class `read`, `create`, `update`, or `delete` (at most 256 entries). The cost ceiling covers treg fees only. Results separate reserved and settled amounts; status polling uses server-owned references bound to token and session (valid for 24 hours). Administrative `/api/treg/` routes expose status, catalog, balance, and connection test only. Details: [treg integration](../../treg.md).
 
 ## Compact YAML Reference
 
@@ -1067,7 +1129,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `ollama` | Local Ollama management. | `ollama:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false`<br>`    container_port: 11434`<br>`    use_host_gpu: false`<br>`    gpu_backend: auto`<br>`    default_models: []`<br>`    memory_limit: ""`<br>`    volume_path: ""` |
 | `rocketchat` | Rocket.Chat bot. | `rocketchat:`<br>`  enabled: false`<br>`  url: ""`<br>`  user_id: ""`<br>`  channel: ""` |
 | `github` | GitHub repository integration. | `github:`<br>`  enabled: false`<br>`  readonly: false`<br>`  owner: ""`<br>`  default_private: false` |
-| `tts` | Text-to-speech config. | `tts:`<br>`  provider: supertonic`<br>`  language: en`<br>`  cache_max_files: 500`<br>`  supertonic:`<br>`    url: http://127.0.0.1:7788` |
+| `tts` | Text-to-speech config. New installs default to the local CPU `sanotts` pipeline; ElevenLabs, Mistral, Piper and Supertonic stay selectable in Config → Speech Output. | `tts:`<br>`  provider: sanotts`<br>`  language: auto`<br>`  cache_max_files: 500` |
 | `notifications` | Push notification providers. | `notifications:`<br>`  ntfy:`<br>`    enabled: false`<br>`    url: ""`<br>`    topic: ""` |
 | `budget` | Token cost tracking. | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn`<br>`  warning_threshold: 0.8`<br>`  default_cost:`<br>`    input_per_million: 1.0`<br>`    output_per_million: 3.0` |
 | `fallback_llm` | Failover LLM. | `fallback_llm:`<br>`  enabled: false`<br>`  provider: ""`<br>`  error_threshold: 2`<br>`  probe_interval_seconds: 60` |
@@ -1084,6 +1146,9 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `co_agents` | Parallel sub-agents. | `co_agents:`<br>`  enabled: false`<br>`  max_concurrent: 3`<br>`  budget_quota_percent: 0`<br>`  llm:`<br>`    provider: ""`<br>`  retry_policy:`<br>`    max_retries: 1`<br>`  specialists:`<br>`    researcher:`<br>`      enabled: true` |
 | `tools.daemon_skills` | Background daemon tools. | `tools:`<br>`  daemon_skills:`<br>`    enabled: false`<br>`    max_concurrent_daemons: 5` |
 | `journal` | Auto journal entries. | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |
+| `llm_router` | Optional task-based model router. | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
+| `newspaper` | Personal daily edition (desktop app). | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
+| `treg` | treg catalog gateway (three agent tools). | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
 
 ---
 

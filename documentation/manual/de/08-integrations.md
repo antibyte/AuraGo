@@ -2354,7 +2354,7 @@ virtual_computers:
     max_active_workspaces: 2
 ```
 
-Die Verwaltungsoberfläche ist direkt unter `/boring-computers/` erreichbar; sie wird im Chat-Integrationsdrawer nicht aufgeführt. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig.
+Die Verwaltungsoberfläche ist direkt unter `/boring-computers/` erreichbar; sie wird im Chat-Integrationsdrawer nicht aufgeführt. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig. Der Dialog **Neuer Computer** bietet für beide Vorlagen (`python` ohne Desktop und `desktop`) eine Netzwerk-Auswahl: Ist **Internet erlauben** in Virtual Computers aktiviert, kann pro Maschine ein Netzwerkprofil gewählt werden (`internet_lan` erlaubt öffentliches Internet, das Standardprofil bleibt eingeschränkt).
 
 **Speicher (Volumes):** Standard ist **Managed Garage** – AuraGo betreibt dafür einen gepinnten Garage-Container (`aurago-boring-garage`, ausschließlich `127.0.0.1:3900`) mit Daten unter `data/sidecars/garage`. Die Garage-Schlüssel (`virtual_computers_garage_*`) liegen getrennt von externen S3-Schlüsseln im Vault und werden nie an Python/Skills exportiert. `external_s3` bleibt für bestehende Setups verfügbar. Beim Wechsel des Speichermodus mit vorhandenen Volumes verlangt die API eine einmalige Bestätigung; Quell-Objekte werden dabei nie automatisch gelöscht. Der Agent sieht und verwaltet den Garage-Container nicht (gleiches Fail-Closed-Muster wie bei der Local-LLM-Verwaltung).
 
@@ -2485,7 +2485,7 @@ Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
 
 Von dieser Config-Seite aus kann das Board mit dem **Web-Flasher** programmiert werden (Chrome oder Edge, HTTPS oder localhost, USB). AuraGo schreibt Token und Display-URL in eine Factory-Partition, danach bleibt nur WLAN. Die Firmware liegt unter `internal/cyd/firmware/cyd/`.
 
-Das Glas-Dashboard hat fünf Seiten: Home, Load, Work, Alerts (Systemwarnungen mit Zähler) und Mesh (MeshCore-Posteingang). Nach 10 s ohne Touch rotiert es alle 5 s; eingehende Notify-, Warn- oder MeshCore-Ereignisse springen sofort. Wischen oder Footer-Punkte tippen. Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display` für Overlay, Statuszeile, Seite (`status`/`home`/`load`/`work`/`host`/`alerts`/`mesh`), Helligkeit und LED.
+Das Glas-Dashboard hat fünf Seiten: Home, Load, Work, Alerts (Systemwarnungen mit Zähler) und Mesh (MeshCore-Posteingang). Die Home-Karte zeigt das Portrait der aktiven Persona (dieselbe `/img/personas`-Grafik wie der AgoDesk-Avatar, als 72×72-Sprite). Alerts, Mesh- und Task-Ereignisse senden den vollständigen Text für die Detailansicht; Notify-Benachrichtigungen laufen animiert über fünf Sekunden. Nach 10 s ohne Touch rotiert es alle 5 s; eingehende Notify-, Warn- oder MeshCore-Ereignisse springen sofort. Wischen oder Footer-Punkte tippen. Agent-Tools: `send_notification` mit `channel: "cyd"` und `cyd_display` für Overlay, Statuszeile, Seite (`status`/`home`/`load`/`work`/`host`/`alerts`/`mesh`), Helligkeit und LED. Die Glassprache nutzt die verwaltete sanoTTS-Umgebung.
 
 ---
 
@@ -2509,6 +2509,14 @@ Vor jeder Verarbeitung laufen Format-, Duplikat- und Injection-Prüfung plus ein
 ### Werkzeug, API und Desktop-Messenger
 
 Das Agentenwerkzeug `meshcore` bietet `status`, `contacts`, `channels`, `send_direct` und `send_channel` – keine Rohprotokoll- oder Geräteverwaltung. Administrative Endpunkte: GET unter `/api/meshcore/{status,devices,contacts,channels,messages}`, POST unter `/api/meshcore/{scan,pair,test,recheck}`; der Eingang zeigt die neuesten 100 Einträge mit Pagination. Die Desktop-App **MeshCore** teilt dasselbe Gerät (keine zweite USB-/BT-Verbindung), bietet Gesprächsliste, Entwürfe, Sendestatus, geschützten Text nur nach explizitem Aufdecken und einen getrennten Messenger-Verlauf (`history_days: 90`, `history_messages: 10000`). Private-Kanal-Einladungen sind rein transiente Admin-Exporte ohne Browser-Speicherung. Das opt-in Widget **builtin-meshcore** im Desktop zeigt die neuesten Gespräche nur lesend.
+
+### Geräteseite, Einstellungen und Diagnose
+
+Die Desktop-App zeigt unter **Mein Knoten** Firmware, Kapazität, Position, Funk und lokale Messwerte (Batteriespannung, Speicher, Uptime, Warteschlange/Fehler, Paketzähler, Airtime, letztes Gerät-RSSI/SNR, sofern unterstützt). Messwerte tragen eigene Zeitstempel und aktualisieren sich sichtbar höchstens alle 30 Sekunden; sie implizieren nie pro-Nachricht-RSSI oder Batterieprozente.
+
+Unter **Einstellungen** gibt es getrennte Bereiche mit je Speichern/Verwerfen: App-Verlaufslimits und zwei Freigaben liegen in der AuraGo-Konfiguration, Gerätewerte auf dem Funkgerät. Name, Koordinaten und Standortfreigabe zur Werbung, Kontakt-Zulassung/Filterung, Telemetrie-Modi, Frequenz, Bandbreite, SF/CR, Sendeleistung, zusätzliche ACKs und Repeat-Optionen sind editierbar; die Zeitsynchronisation ist eine eigene explizite Aktion. Funk-Änderungen verlangen den Vergleich Alt/Neu; jeder Speichervorgang prüft Identität, Sitzung und Settings-Revision erneut und liest die Werte zurück.
+
+Die beiden Freigaben `meshcore.allow_device_settings` und `meshcore.allow_remote_diagnostics` sind standardmäßig `false` und geben dem Agenten keine zusätzlichen Fähigkeiten. Verwaltung läuft über `/api/meshcore/settings`, `/api/meshcore/device`, `POST /api/meshcore/device-settings` (Abschnitte `identity`, `contacts`, `radio`, `clock`, `reconcile`) und `POST /api/meshcore/diagnostics` (`telemetry` oder `path`, HTTP 202 mit Job-ID, Abholung über `GET /api/meshcore/diagnostics?id=...`). Firmware-Flashing und Repeater-Verwaltung bleiben ausgeschlossen.
 
 Details stehen in der [MeshCore-Anleitung](../../meshcore-de.md). Die praktische Hardwareabnahme steht auf allen unterstützten Plattformen noch aus.
 

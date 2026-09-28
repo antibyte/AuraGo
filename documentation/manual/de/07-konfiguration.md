@@ -408,6 +408,10 @@ personality:
 | `emotion_synthesizer.enabled` | `false` | Emotionssynthese für Antworten |
 | `inner_voice.enabled` | `false` | Unterbewusste Verhaltensanpassung |
 
+### Adaptive Dynamik
+
+Die Personality Engine führt transaktionale Dynamik-Werte mit, die zeigen, wie sich der Charakter im Umgang mit dir entwickelt: **Belastung** (steigt durch Kritik und Konflikte), **Vertrautheit** (wächst durch wiederkehrende, positive Interaktion) und **Reibung**. Belastung und Reibung klingen mit der Zeit ab; die Stimme und das Antwortverhalten beeinflussen sie live. Das Dashboard zeigt die aktuelle Dynamik auf der Persönlichkeits-Karte mit Verlaufs-Trend (stabil, erholt sich, angespannt) und bietet einen Reset an: `POST /api/personality/dynamics/reset` setzt Belastung und Reibung auf null, ohne Traits oder Charakternoten zu verändern. Der Reset nutzt den gewöhnlichen Personality-Schreibschutz.
+
 ---
 
 ## Co-Agents – Parallele Sub-Agenten
@@ -540,6 +544,9 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `journal` | Journaleinträge | `journal:
   auto_entries: true
   daily_summary: true` |
+| `llm_router` | Optionaler task-basierter Modell-Router | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
+| `newspaper` | Persönliche Tageszeitung (Desktop-App) | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
+| `treg` | treg-Katalog-Gateway (drei Agent-Tools) | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
 
 > 📖 Für Details zu allen verfügbaren Parametern siehe `config_template.yaml` im Projektverzeichnis.
 
@@ -640,6 +647,13 @@ game_maker:
 
 Die eingebetteten Laufzeiten sind Phaser `4.2.1` und Three.js `0.185.1`; externe CDNs, APIs und Assets sind nicht erlaubt. Siehe [Game Maker Studio](../../game-maker-studio.md).
 
+Neuere Fähigkeiten des Spiel-Agenten:
+
+- **Bundled Asset-Packs:** Ein 220-Modell-Low-Poly-Pack, maritime und isometrische Welten sowie Effekt-/Audio-Presentation-Packs liegen lokal gebündelt und werden ohne externe Downloads eingebunden. AuraGo erzeugt weiterhin selbst keine 3D-Modelle.
+- **Screenshot-Review:** Nach der Validierung prüft ein Vision-Pass Screenshots des laufenden Spiels und leitet begrenzte Reparaturen ein, bevor die Revision veröffentlicht wird.
+- **Feedback und Progression:** Ein gemeinsames Runtime-Modul liefert Spieler-Feedback, Ergebnis-/Stufen-UI und Checkpoints (Phaser: `damagePlayer()` mit Checkpoints; Three.js: `api.damagePlayer(amount)`). Feedback ändert nie Spielwerte; ruhende Ein-Screen-Spiele bleiben gültig, ohne Kampf oder Leben zu verlangen.
+- **Finishing-Fenster:** Ein aktiv entwickeltes, akzeptiertes Spiel mit erfolgreichem Build bekommt einmalig ein begrenztes Verlängerungsfenster (maximal 15 Minuten) über das normale Job-Budget hinaus.
+
 ### Lokale Netzwerkfreigaben
 
 `network_shares` verwaltet nur Shares auf dem AuraGo-Host. Die Erkennung bleibt passiv und installiert keine Pakete, startet keine Dienste und verändert keine globale Serverkonfiguration. Änderungen benötigen jeweils die passende Berechtigung und eine vorhandene, kanonische Directory unter `allowed_roots`.
@@ -666,6 +680,57 @@ Nur AuraGo-erstellte und im Ledger `data/network_shares.db` erfasste Shares dür
 ### Workspace Search und go2rtc
 
 Der residente Workspace-Index wird über `workspace_search.enabled` gesteuert; er ist vom semantischen `indexing`-Indexer getrennt und speichert keine Dateiinhalte. Die Kamera-Integration `go2rtc` bleibt ebenfalls opt-in; Quellen und internes Passwort werden ausschließlich im Vault verwaltet. Die ausführlichen Grenzen stehen in [go2rtc](../../go2rtc.md) und im Abschnitt [Workspace Search](06-tools.md#10-workspace-search).
+
+### Sprachausgabe – sanoTTS als lokaler Standard
+
+Neue Installationen nutzen für die Sprachausgabe standardmäßig die lokale CPU-Pipeline **sanoTTS** (`tts.provider: sanotts`); die Sprache folgt der Nutzersprache, nicht unterstützte Stimmen fallen auf Englisch zurück. Bestehende Provider (ElevenLabs, Mistral, Piper) bleiben in **Config → Speech Output** wählbar. Das Sprach-Lab (Speech Lab) bleibt getrennt und bindet die s2s-Pipeline an.
+
+### Task-LLM-Router
+
+Der optionale Router wählt für jede neue Chat-Aufgabe einen konfigurierten Provider und ein Modell. Er ist standardmäßig aus. Zuerst Provider unter **Config → Providers** anlegen (Zugangsdaten bleiben im Vault), dann unter **Config → LLM Router** einem von neun Bereichen einen Provider zuweisen: `general`, `easy`, `normal`, `complex`, `coding`, `research`, `creativity`, `security` und `writing`. Spezialisierte Bereiche schlagen Schwierigkeitsgrade; ein leerer Bereich fällt auf das gewöhnliche aktive Modell zurück, nicht auf andere Router-Ziele. Die Entscheidung gilt für einen Agentenlauf inklusive Tool-Runden.
+
+```yaml
+llm_router:
+  enabled: false
+  helper_fallback: true      # lokaler Helper-LLM-Klassifizierer bei unsicherer Eingabe
+  helper_timeout_ms: 1500    # 250-5000
+  helper_max_calls_per_hour: 20
+  areas:
+    coding: {provider: "", model: ""}   # leer = gewöhnliches Modell
+```
+
+Hilfs-Nachfragen, Web Chat, Desktop, Telegram, Discord, Rocket.Chat, SMS und autorisiertes MeshCore teilen sich den Router; explizite Desktop- und Speech-Lab-Wahlen sowie vorbereitete Workflows, Game Maker, Detective, SIP und Missionen bleiben unangetastet. Die Web-UI bietet lokalen Vorschau-Test und einmalige Helper-Fragen; das Dashboard zeigt Zähler seit Neustart. Details: [Task LLM router](../../llm-router.md).
+
+### Newspaper – persönliche Tageszeitung
+
+`newspaper` steuert die optionale, serverseitig erstellte Tagesausgabe der gleichnamigen Desktop-App (Kapitel 4). Interessen und Ziele leben im Newspaper-Profil der App, nie in YAML. Die Recherche läuft mit Zeit- und Seitenbudget; Ausgaben bleiben als Revisionen im Archiv.
+
+```yaml
+newspaper:
+  enabled: false             # opt-in für die tägliche Recherche
+  readonly: false            # Archiv behalten, aber Recherche und Zustellung blockieren
+  max_minutes: 30            # kumulatives Laufzeitlimit, 1-60
+  max_pages: 60              # Limit abgerufener Seiten, 1-60
+  max_editions: 365          # aufbewahrte Ausgaben-Revisionen, mindestens 30
+  allow_email: false         # bestätigte E-Mail-Zustellung erlauben
+  allow_telegram: false      # Zustellung an autorisierte Telegram-Nutzer erlauben
+```
+
+Fehlgeschlagene Zustellungen melden Bounces zurück; Retries sind nach fehlgeschlagener Tagesrecherche erlaubt. Kuratierte RSS-Quellen und ein Korrektur-Flow ergänzen die automatische Recherche.
+
+### treg-Katalog-Gateway
+
+`treg` stellt den dynamischen treg-Katalog über die drei Agent-Tools `treg_catalog`, `treg_call` und `treg_status` bereit. Die Integration ist optional, standardmäßig aus und read-only. Der Transport ist auf die öffentliche treg-API festgelegt; Token, Authentifizierung und Kosten-Header kommen nie vom Modell. Der Vault-Schlüssel ist `treg_token`.
+
+```yaml
+treg:
+  enabled: false
+  readonly: true             # blockiert alle Klassen außer read
+  max_call_cost_micro: 1000000   # 1 USD pro Anruf; 0 erlaubt nur Zero-Budget-Anrufe
+  allowed_endpoints: []      # UI-Genehmigungen binden endpoint_id, method, path, operation
+```
+
+Jeder Endpunkt braucht eine explizite Genehmigung mit der Operationsklasse `read`, `create`, `update` oder `delete` (maximal 256 Einträge). Das Kostelimit deckt nur treg-Gebühren. Ergebnisse trennen reservierte und abgerechnete Beträge; Statusabfragen laufen über serverseitige, an Token und Sitzung gebundene Referenzen (24 Stunden gültig). Administrative `/api/treg/`-Routen zeigen nur Status, Katalog, Guthaben und Verbindungstest. Details: [treg-Integration](../../treg.md).
 
 ---
 
@@ -770,6 +835,7 @@ Für Headless und GitOps. Alltag bleibt **Menü → Config**. Die Quelle der Wah
 | `here_now` / `homepage` / `game_maker` | Sites, Homepage-Projekte, Offline-Spiele |
 | `virtual_computers` | Boring Computers, optional Managed Garage |
 | `network_shares` / `workspace_search` | Host-Freigaben, Workspace-Index |
+| `llm_router` / `newspaper` / `treg` | Task-Router, Tageszeitung, treg-Katalog |
 | `mcp` / `mcp_server` / `a2a` | Externe Protokolle |
 | `security_proxy` / `cloudflare_tunnel` / `tailscale` | Öffentlicher Zugang |
 | `egg_mode` / `invasion_control` | Worker und Master |

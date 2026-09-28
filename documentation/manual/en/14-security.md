@@ -140,6 +140,7 @@ Danger Zone toggles live under `agent.allow_*`:
 agent:
   allow_shell: false
   allow_python: false
+  allow_unsafe_host_execution: false   # additionally required for Windows shell and host Python
   allow_filesystem_write: false
   allow_network_requests: false
   allow_remote_shell: false
@@ -220,6 +221,64 @@ auth:
 - After 5 failed logins: 15-minute lockout
 - API rate limiting per IP
 - Webhook rate limiting configurable
+
+> 💡 **Tip:** Behind a reverse proxy (nginx, Traefik), `X-Forwarded-*` headers count only when `server.https.behind_proxy: true` is set **and** the immediate peer is listed in `server.https.trusted_proxy_cidrs`. Without this, client-supplied forwarding claims are discarded. Details below under [Ingress trust](#ingress-trust-and-public-boundaries).
+
+---
+
+## Ingress Trust and Public Boundaries
+
+AuraGo treats inbound headers, embed access, and WebSocket origins explicitly instead of trusting them:
+
+- **Forwarding headers:** `X-Forwarded-Host`, `X-Forwarded-Proto`, and the client IP count only when `server.https.behind_proxy: true` **and** the immediate TCP peer is in `server.https.trusted_proxy_cidrs` (a list of proxy IPs/CIDRs). Everything else is client-controlled and ignored.
+
+```yaml
+server:
+  https:
+    behind_proxy: true
+    trusted_proxy_cidrs: ["192.168.1.10", "10.0.0.0/24"]
+```
+
+- **Auth-off exception:** Starting AuraGo without login (`auth.enabled: false`) while any remote listener is configured requires an explicit `auth.allow_unauthenticated_remote: true` at startup and config save. The exception never opens `/speech-lab/` or administrative areas; configured inbound webhook and integration authentication stays active.
+- **Desktop embed tickets:** Media and file references in desktop embeds go through `/desktop-ticket/<ticket>/...`. The short-lived ticket carries credentials in a path segment, is stripped before routing and access logging, and is scoped to the exact target path.
+- **Speech Lab browser:** `/speech-lab/` requires an AuraGo session; writes and the WebSocket Origin must be same-origin, and the backend must be a configuration-owned private address. AuraGo credentials are stripped by the proxy; in external mode only the server-side `browser_automation.browser_backend_url` points to the s2s web backend — never a legacy URL in the browser.
+- **CSP:** The main UI at `/` carries a report-only Content Security Policy without `unsafe-inline`; desktop apps keep their own stricter policy.
+
+---
+
+## Outbound Requests and Host Execution
+
+### SSRF protection for outbound HTTP
+
+`api_request` and all internal HTTP clients use an SSRF-protected client: DNS resolution selects a public IP, the dial is pinned to that IP, every redirect is revalidated (at most 10, then abort), and system proxies are disabled. Loopback, private, CGNAT, and metadata addresses are blocked; `AURAGO_SSRF_ALLOW_LOOPBACK` remains an explicit development escape hatch.
+
+### Network MCP servers
+
+An MCP server with network access rejects private destination addresses unless that server grants `allow_private_network: true`; DNS is pinned per connection, and cross-origin redirects and SSE message endpoints are rejected.
+
+### Browser automation with egress sidecar
+
+Browser automation requires a nonempty sidecar token and an attested sidecar (`egress-v1`). The managed sidecar starts only on a verified Docker-internal network with a filtering proxy; navigation, resources, and WebSockets follow the same egress policy.
+
+```yaml
+browser_automation:
+  cloak_proxy: "http://browser-egress:7332"   # controlled proxy on the browser network
+  egress_network: aurago-app                  # Docker network, must be internal: true
+  allowed_private_origins: []                 # exact home-lab origin URLs allowed by the policy
+```
+
+### Host execution without isolation
+
+Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. Linux shell keeps following the sandbox policy; Desktop Notes protection and file jails apply regardless.
+
+```yaml
+agent:
+  allow_unsafe_host_execution: false   # unsafe: set only after a deliberate decision
+```
+
+> ⚠️ Both flags (`auth.allow_unauthenticated_remote`, `agent.allow_unsafe_host_execution`) follow the danger-zone philosophy: default `false`, visible in the log, and set only when you accept the consequence.
+
+---
 
 ## Security Best Practices
 
@@ -324,10 +383,12 @@ The German security chapter contains a more detailed public-exposure checklist; 
 |------------|----------------|
 | Login protection | Enable auth before exposing AuraGo beyond localhost |
 | TOTP | Enable 2FA for all internet-facing deployments |
+| Proxy trust | Set `behind_proxy` + `trusted_proxy_cidrs`, otherwise forwarding headers are ignored |
 | Security Proxy | Use the managed Caddy proxy for rate limiting, TLS termination, IP filtering, and geo-blocking |
 | Cloudflare Tunnel / Tailscale | Prefer private tunnels or VPN access over direct port forwarding |
 | Webhooks | Require tokens/HMAC, narrow scopes, and rate limits |
 | Tool permissions | Keep Danger Zone toggles disabled until a feature is actually needed |
+| Unsafe exceptions | Keep `allow_unauthenticated_remote` and `allow_unsafe_host_execution` at `false` |
 | Backups | Encrypt `.ago` backups and store passphrases outside the repository |
 
 For incident response, rotate exposed API keys immediately, invalidate webhook tokens, review recent logs, and regenerate credentials stored in Vault if compromise is suspected.

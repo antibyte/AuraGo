@@ -233,7 +233,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Files** | Browse the virtual desktop workspace and open files in the right app |
 | **Code Studio** | Container-backed IDE with file tree, editor, search, terminal, and agent context |
 | **Terminal** | Workspace terminal with selectable CRT styles (retro tube look) |
-| **Writer / Sheets / Notes / Viewer** | Word processing, spreadsheets, Markdown notes (list, live preview, tags), and a file viewer |
+| **Writer / Sheets / Notes / Viewer** | Native DOCX word processor, native spreadsheet, and rich note editor (list, live preview, tags, rich layout), plus a file viewer |
 | **Pixel** | Image editor for local files, canvas edits, filters, crop/resize, and optional AI generation/enhancement |
 | **Zipper** | Browse ZIP archives and extract files into the workspace |
 | **Camera / Gallery / Music Player** | Camera capture, gallery, and music playback |
@@ -249,14 +249,19 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Phone** | SIP softphone (browser phone) |
 | **Live Speech / Agent Chat** | Realtime voice window and desktop chat with the agent |
 | **Mission Control / Looper** | Automated tasks and iterative agent workflows |
-| **Calendar / Todo / People / Pet Picker** | Scheduling, tasks, contacts (KG-enriched), and the desktop pet |
+| **Calendar / Todo / People / Pet Picker** | Scheduling, tasks, contacts (KG-enriched), and the animated persona pets (OpenPets) picker |
 | **Cheater** | Cheat-sheet manager with Markdown and attachments |
 | **Calculator / Settings / System Info / Log Viewer** | Calculator, desktop settings, system diagnostics, and a live log tail |
-| **Galaxa Deluxe / Chess / NASSCAD / Sysworld** | Arcade shooter, chess (with agent opponent), docking game, and a 3D system visualization |
+| **Galaxa Deluxe / Chess / NASSCAD / System World** | Arcade shooter, chess (with agent opponent), docking game, and an explorable 3D system city with robots, telemetry, and tower voice |
+| **Newspaper** | Personal daily edition: server-side research with vetted sources, sections, an archive of all editions, and optional email/Telegram delivery |
+| **Detective** | Bounded desktop research with adjustable effort, cited reports, and exports |
+| **Personal Radio** | Your own radio station: topic and music selection per station, a personal audio library, news, and speech segments |
+| **RTL-SDR** | Receive-only RTL-SDR stick support: live tuning, recordings, schedules, and automatic speech recognition (ASR) |
+| **HA Switchboard** | Home Assistant switches as a nostalgic switchboard with silver levers (selected `switch.*` entities only) |
 
 ### Widgets
 
-The widget drawer pins widgets such as system monitor, clock, weather, and chat. The optional **builtin-meshcore** widget is hidden by default and shows the latest MeshCore conversations read-only.
+The widget drawer pins widgets such as system monitor, clock, weather, and chat. The optional **builtin-meshcore** widget is hidden by default and shows the latest MeshCore conversations read-only. Further optional widgets: persistent **paper sticky notes** (grid-aligned with a shared width), the read-only **Fritz!Box widget** (DSL/cable/WAN status with a pager), and the growing desktop plant **Leafy** (water, fertilize, cut vines). The animated desktop pet (OpenPets) is controlled by the desktop setting `pet.enabled` and mirrors the agent state through animations.
 
 ### Software Store Notes
 

@@ -70,6 +70,8 @@ Die aktuelle Version enthält mehrere leistungsstarke Erweiterungen:
 | **here.now** | Permanente Sites aus einem Workspace-Snapshot |
 | **Lokales LLM** | Qwen, Ling, experimentelles Spark — nicht jede GPU-Runtime ist qualifiziert |
 | **Bluetooth** | BlueZ, Just-Works-Pairing, Wiedergabe nur aus dem Workspace |
+| **treg-Katalog** | `treg_catalog`, `treg_call`, `treg_status` — dynamischer API-Katalog mit expliziten Endpoint-Genehmigungen und Kostendeckel |
+| **desktop_notes** | Desktop-Notizen lesen, durchsuchen und neu anlegen; bestehende Notizen sind für den Agenten unveränderbar (siehe Desktop-Notes-Schutz) |
 
 ---
 

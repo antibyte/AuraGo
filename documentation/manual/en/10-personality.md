@@ -242,6 +242,31 @@ The inner voice is a subconscious nudge engine that injects brief, private agent
 
 ---
 
+## Adaptive Dynamics
+
+The personality engine maintains transactional dynamics values that describe how the character changes while working with you:
+
+| Value | Meaning |
+|-------|---------|
+| **Load** | Rises through criticism, conflict, and demanding interactions |
+| **Familiarity** | Grows through repeated, positive interaction |
+| **Friction** | Short-lived tension that decays over time |
+
+The values are written transactionally with revision guards; load and friction decay over time while familiarity grows. They influence voice and response style live. **Trend:** steady, recovering, or strained.
+
+### Web UI Setup
+
+The Dashboard shows the current dynamics on the personality card (**Agent** tab) with a trend badge. The **Reset current dynamics** button returns load and friction to zero without changing traits or lived character notes. The reset respects the usual personality write protection.
+
+### API Reference
+
+```bash
+GET  /api/personality/state            # includes dynamics: load, familiarity, friction, trend, revision
+POST /api/personality/dynamics/reset   # resets load and friction
+```
+
+---
+
 ## Example Comparison
 
 **Same request, different personalities:**

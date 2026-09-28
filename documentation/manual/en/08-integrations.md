@@ -2739,7 +2739,7 @@ virtual_computers:
         max_active_workspaces: 2
 ```
 
-The management application is available directly at `/boring-computers/`; it is omitted from the Chat integrations drawer. Keep ports `18081` and `18082` private; remote access should go through AuraGo or Tailscale. Read-only mode blocks mutations, Live VNC, terminal writes, and new or cancelled agent tasks at the AuraGo boundary. Credentials and the boringd token remain server-side.
+The management application is available directly at `/boring-computers/`; it is omitted from the Chat integrations drawer. Keep ports `18081` and `18082` private; remote access should go through AuraGo or Tailscale. Read-only mode blocks mutations, Live VNC, terminal writes, and new or cancelled agent tasks at the AuraGo boundary. Credentials and the boringd token remain server-side. The **New computer** dialog has a Network choice for both `python` (without desktop) and `desktop` templates: when **Allow internet** is enabled in Virtual Computers, each machine can pick a network profile (`internet_lan` allows public internet; the default profile stays restricted).
 
 **Volume storage:** the default is **Managed Garage** — AuraGo runs a pinned Garage container (`aurago-boring-garage`, bound only to `127.0.0.1:3900`) with data under `data/sidecars/garage`. Garage keys (`virtual_computers_garage_*`) are stored separately from external S3 keys in the Vault and are never exported to Python/skills. `external_s3` remains available for existing setups. Switching the storage mode while volumes exist requires a one-time authorization token; source objects are never auto-deleted. The agent cannot see or manage the Garage container (same fail-closed pattern as the local-LLM manager).
 
@@ -2864,7 +2864,7 @@ Firmware: [antibyte/aurago-cyd](https://github.com/antibyte/aurago-cyd).
 
 Flash a board from this config page with **Web flasher** (Chrome or Edge, HTTPS or localhost, USB). AuraGo writes the display token and Display URL into a factory partition, so the glass only needs Wi-Fi. Firmware images ship in `internal/cyd/firmware/cyd/`.
 
-The glass dashboard has five pages: Home, Load, Work, Alerts (system warnings with a count badge), and Mesh (MeshCore inbox). After 10 seconds idle it rotates every 5 seconds; incoming notify, warning, or MeshCore traffic jumps immediately. Swipe or tap the footer dots. Agent tools: `send_notification` with `channel: "cyd"`, and `cyd_display` for overlays, pinned status, page (`status`/`home`/`load`/`work`/`host`/`alerts`/`mesh`), brightness, and LED.
+The glass dashboard has five pages: Home, Load, Work, Alerts (system warnings with a count badge), and Mesh (MeshCore inbox). The Home card shows the active persona portrait (the same `/img/personas` image the AgoDesk avatar uses, as a 72×72 sprite). Alerts, mesh, and task events send the full text for the detail view; notify alerts run as five-second animations. After 10 seconds idle it rotates every 5 seconds; incoming notify, warning, or MeshCore traffic jumps immediately. Swipe or tap the footer dots. Agent tools: `send_notification` with `channel: "cyd"`, and `cyd_display` for overlays, pinned status, page (`status`/`home`/`load`/`work`/`host`/`alerts`/`mesh`), brightness, and LED. Glass speech uses the managed sanoTTS environment.
 
 ---
 
@@ -2888,6 +2888,14 @@ Every input passes format, duplicate, and injection checks plus a separate Guard
 ### Tool, API, and Desktop Messenger
 
 The agent tool `meshcore` offers `status`, `contacts`, `channels`, `send_direct`, and `send_channel` — no raw protocol or device administration. Administrative endpoints: GET under `/api/meshcore/{status,devices,contacts,channels,messages}`, POST under `/api/meshcore/{scan,pair,test,recheck}`; the inbox shows the newest 100 records with pagination. The **MeshCore** desktop app shares the same device (no second USB/BT connection) and provides a conversation list, drafts, per-part send states, protected text revealed only explicitly, and a separate messenger history (`history_days: 90`, `history_messages: 10000`). Private-channel invitations are transient admin-only exports with no browser storage. The opt-in **builtin-meshcore** desktop widget shows the latest conversations read-only.
+
+### Device page, settings, and diagnostics
+
+The desktop app shows firmware, capacity, position, radio, and local measurements under **My node** (battery voltage, storage, uptime, queue/errors, packet counters, airtime, and the last device RSSI/SNR when supported). Measurements carry their own timestamps and refresh at most every 30 seconds while visible; they never imply per-message RSSI or battery percentages.
+
+**Settings** offers separate sections with individual Save/Discard: app history limits and two grants live in AuraGo configuration, device values live on the radio. Name, coordinates, and advertisement location sharing, contact admission/filtering, telemetry modes, frequency, bandwidth, SF/CR, transmit power, extra ACKs, and supported repeat options are editable; clock synchronization is a separate explicit action. Radio edits require an old/new review; every save rechecks identity, session, and settings revision, then reads the values back.
+
+The two grants `meshcore.allow_device_settings` and `meshcore.allow_remote_diagnostics` default to `false` and add no agent capabilities. Administration runs through `/api/meshcore/settings`, `/api/meshcore/device`, `POST /api/meshcore/device-settings` (sections `identity`, `contacts`, `radio`, `clock`, `reconcile`), and `POST /api/meshcore/diagnostics` (`telemetry` or `path`, HTTP 202 with a job ID, fetched via `GET /api/meshcore/diagnostics?id=...`). Firmware flashing and repeater administration remain excluded.
 
 See the [MeshCore setup, security and reliability guide](../../meshcore-en.md). Hardware acceptance is still pending on all supported platforms.
 

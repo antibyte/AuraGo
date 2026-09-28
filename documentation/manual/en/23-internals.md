@@ -807,6 +807,26 @@ The bridge protocol enables communication between nest and eggs:
 - Embedding efficiency
 - Storage space
 
+### 13.5 Update artifact retention and maintenance CLI
+
+[`internal/upkeep/`](../../../internal/upkeep/) owns installation-scoped update artifacts. The retention contract keeps the current executable plus resource set and two verified rollback versions; updater transaction manifests are verified before any collection.
+
+- **Preview is the default.** Applying cleanup requires locks, verified resources, resolved transactions, and running-version readiness. Unknown, damaged, or unreadable artifacts are kept.
+- Archived binaries are never executed to identify their web-asset pin; AuraGo reads Go build metadata instead (for `-trimpath` binaries, exact 64-character IDs matched only against installed resource-set directories). Explicitly retained binaries without a resource-set match do not block cleanup of verified update backups.
+- Cleanup results are sanitized into `data/update_cleanup_status.json`; private backups may contain credentials.
+
+The maintenance CLI runs before config/vault initialization in the portable binary:
+
+```bash
+./aurago --update-maintenance --root /opt/aurago                 # preview
+./aurago --update-maintenance --root /opt/aurago --apply         # apply
+./aurago --update-maintenance --root /opt/aurago --adopt-legacy  # include provably installation-owned legacy artifacts
+./aurago --update-maintenance --root /opt/aurago --check-pending # validate transaction state before an update
+./aurago --update-maintenance --root /opt/aurago --resolve <id> --outcome rolled_back
+```
+
+`--resolve` with `--outcome` (`confirmed` or `rolled_back`) finalizes a recovered transaction. `update.sh` uses the same CLI. Verify with `go test ./internal/upkeep` and `bash -n update.sh`.
+
 ---
 
 ## 14. A2A Protocol (Agent-to-Agent)
