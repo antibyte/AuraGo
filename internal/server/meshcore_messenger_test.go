@@ -37,7 +37,7 @@ func TestMeshCoreMessengerAdministrativeBoundary(t *testing.T) {
 	if w := call("GET", "bootstrap", "", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"conversations":[]`) || w.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("bootstrap: %d %s", w.Code, w.Body)
 	}
-	for _, action := range []string{"send", "manage", "invitation", "reveal", "settings", "conversation"} {
+	for _, action := range []string{"send", "manage", "invitation", "reveal", "settings", "conversation", "device-settings"} {
 		if w := call("POST", action, `{}`, "https://untrusted.example"); w.Code != 403 {
 			t.Fatalf("origin %s: %d", action, w.Code)
 		}
@@ -54,8 +54,21 @@ func TestMeshCoreMessengerAdministrativeBoundary(t *testing.T) {
 	if w := call("POST", "invitation", `{}`, ""); w.Header().Get("Cache-Control") != "no-store" || strings.Contains(w.Body.String(), "secret=") {
 		t.Fatal("export response cache or disclosure")
 	}
-	if w := call("POST", "settings", `{"history_days":120,"history_messages":15000}`, ""); w.Code != 200 {
+	if w := call("POST", "device-settings", `{"section":"clock"}`, ""); w.Code != 409 || !strings.Contains(w.Body.String(), "permission_denied") {
+		t.Fatal("device gate", w.Code, w.Body)
+	}
+	if w := call("POST", "diagnostics", `{"identity":"`+strings.Repeat("a", 64)+`","target":"`+strings.Repeat("b", 64)+`","kind":"telemetry"}`, ""); w.Code != 409 || !strings.Contains(w.Body.String(), "permission_denied") {
+		t.Fatal("diagnostic gate", w.Code, w.Body)
+	}
+	if w := call("POST", "diagnostics", `{}`, "https://untrusted.example"); w.Code != 403 {
+		t.Fatal("diagnostic origin", w.Code)
+	}
+	revision := meshCoreSettingsRevision(s.ConfigSnapshot().MeshCore)
+	if w := call("POST", "settings", `{"history_days":120,"history_messages":15000,"revision":"`+revision+`","allow_device_settings":true,"allow_remote_diagnostics":true}`, ""); w.Code != 200 {
 		t.Fatalf("settings: %d %s", w.Code, w.Body)
+	}
+	if w := call("POST", "settings", `{"history_days":120,"history_messages":15000,"revision":"`+revision+`"}`, ""); w.Code != 409 {
+		t.Fatal("app conflict", w.Code)
 	}
 	data, err := os.ReadFile(s.Cfg.ConfigPath)
 	if err != nil || !strings.Contains(string(data), "port: 8088") || !strings.Contains(string(data), "history_days: 120") || s.ConfigSnapshot().MeshCore.HistoryMessages != 15000 {
@@ -67,9 +80,9 @@ func TestMeshCoreMessengerAdministrativeBoundary(t *testing.T) {
 	s.Cfg.Auth.Enabled = true
 	s.Cfg.Auth.SessionSecret = "test"
 	s.Cfg.WebConfig.Enabled = true
-	for _, action := range []string{"bootstrap", "messages", "conversations", "invitation", "send", "reveal", "manage", "settings", "conversation"} {
+	for _, action := range []string{"bootstrap", "messages", "conversations", "invitation", "send", "reveal", "manage", "settings", "conversation", "device", "device-settings", "diagnostics"} {
 		method := "POST"
-		if action == "bootstrap" || action == "messages" || action == "conversations" {
+		if action == "bootstrap" || action == "messages" || action == "conversations" || action == "device" || action == "diagnostics" {
 			method = "GET"
 		}
 		if w := call(method, action, `{}`, ""); w.Code != 401 {

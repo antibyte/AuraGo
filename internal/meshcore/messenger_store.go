@@ -14,9 +14,11 @@ import (
 )
 
 type SendPart struct {
-	Number int    `json:"number"`
-	State  string `json:"state"`
-	Tag    uint32 `json:"-"`
+	Number    int     `json:"number"`
+	State     string  `json:"state"`
+	Tag       uint32  `json:"-"`
+	Route     *byte   `json:"route,omitempty"`
+	ACKMillis *uint32 `json:"ack_millis,omitempty"`
 }
 
 // Change is metadata only; it is safe to broadcast through the desktop hub.
@@ -48,17 +50,40 @@ type Conversation struct {
 }
 
 type ChatMessage struct {
-	ID             string     `json:"id"`
-	Seq            int64      `json:"seq"`
-	ConversationID string     `json:"conversation_id"`
-	Direction      string     `json:"direction"`
-	Origin         string     `json:"origin"`
-	Text           string     `json:"text"`
-	At             int64      `json:"at"`
-	Review         string     `json:"review"`
-	Protected      bool       `json:"protected"`
-	SendState      string     `json:"send_state"`
-	Parts          []SendPart `json:"parts"`
+	ID             string       `json:"id"`
+	Seq            int64        `json:"seq"`
+	ConversationID string       `json:"conversation_id"`
+	Direction      string       `json:"direction"`
+	Origin         string       `json:"origin"`
+	Text           string       `json:"text"`
+	At             int64        `json:"at"`
+	Review         string       `json:"review"`
+	Protected      bool         `json:"protected"`
+	SendState      string       `json:"send_state"`
+	Parts          []SendPart   `json:"parts"`
+	Details        *ChatDetails `json:"details,omitempty"`
+}
+
+// ChatDetails is an explicit, non-secret projection of this reception only.
+type ChatDetails struct {
+	SenderTimestamp int64          `json:"sender_timestamp"`
+	ReceivedAt      int64          `json:"received_at"`
+	TextType        byte           `json:"text_type"`
+	Reception       *ReceptionInfo `json:"reception,omitempty"`
+	SenderContact   *Contact       `json:"sender_contact,omitempty"`
+	SenderLabel     string         `json:"sender_label,omitempty"`
+	Receiver        *ReceiverInfo  `json:"receiver,omitempty"`
+}
+
+func chatDetails(m Message) *ChatDetails {
+	if m.Direction == "outgoing" {
+		return nil
+	}
+	d := &ChatDetails{SenderTimestamp: m.Timestamp, ReceivedAt: m.ReceivedAt, TextType: m.TextType, Reception: m.Reception, SenderContact: m.SenderContact, Receiver: m.Receiver}
+	if m.Review == "safe" {
+		d.SenderLabel = m.SenderLabel
+	}
+	return d
 }
 
 func conversationID(identity, kind, target string) string {
@@ -79,23 +104,17 @@ func messageConversation(m Message) Conversation {
 	return Conversation{ID: conversationID(m.IdentityKey, kind, target), IdentityKey: m.IdentityKey, Kind: kind, Target: target, Channel: m.Channel, Name: target}
 }
 
-func (s *store) migrateMessenger(dir, version string) error {
-	if version != "1" && version != "2" {
+func (s *store) migrateMessenger(dir, version string, existing bool) error {
+	if version != "1" && version != "2" && version != "3" {
 		return fmt.Errorf("unsupported meshcore schema")
 	}
-	if version == "1" {
-		var count int
-		if err := s.db.QueryRow("SELECT COUNT(*) FROM meshcore_messages").Scan(&count); err != nil {
-			return err
+	if version != "3" && existing {
+		backup := filepath.Join(dir, fmt.Sprintf("meshcore-v%s-%d.backup.db", version, time.Now().UnixNano()))
+		if _, err := s.db.Exec("VACUUM INTO ?", backup); err != nil {
+			return fmt.Errorf("back up meshcore database: %w", err)
 		}
-		if count > 0 {
-			backup := filepath.Join(dir, fmt.Sprintf("meshcore-v1-%d.backup.db", time.Now().UnixNano()))
-			if _, err := s.db.Exec("VACUUM INTO ?", backup); err != nil {
-				return fmt.Errorf("back up meshcore database: %w", err)
-			}
-			if err := os.Chmod(backup, 0600); err != nil {
-				return err
-			}
+		if err := os.Chmod(backup, 0600); err != nil {
+			return err
 		}
 	}
 	_, err := s.db.Exec(`
@@ -141,7 +160,12 @@ CREATE TABLE IF NOT EXISTS meshcore_send_parts (message TEXT NOT NULL, number IN
 			}
 		}
 	}
-	_, err = s.db.Exec("UPDATE meshcore_meta SET value='2' WHERE key='version'; UPDATE meshcore_send_parts SET state='outcome_unknown' WHERE state='sending'")
+	if version != "3" {
+		if err = s.migrateChatDetails(); err != nil {
+			return err
+		}
+	}
+	_, err = s.db.Exec("UPDATE meshcore_send_parts SET state='outcome_unknown' WHERE state='sending'")
 	return err
 }
 
@@ -164,7 +188,7 @@ func projectChat(tx *sql.Tx, m Message) error {
 			origin = "radio"
 		}
 	}
-	msg := ChatMessage{ID: m.ID, ConversationID: c.ID, Direction: m.Direction, Origin: origin, Text: m.Text, At: m.ReceivedAt, Review: m.Review, SendState: m.SendState, Parts: m.Parts}
+	msg := ChatMessage{ID: m.ID, ConversationID: c.ID, Direction: m.Direction, Origin: origin, Text: m.Text, At: m.ReceivedAt, Review: m.Review, SendState: m.SendState, Parts: m.Parts, Details: chatDetails(m)}
 	msg.Protected = m.Direction != "outgoing" && m.Review != "safe"
 	if msg.Protected {
 		msg.Text = ""
@@ -182,6 +206,7 @@ func projectChat(tx *sql.Tx, m Message) error {
 		msg.Protected = false
 		msg.Text = m.Reply
 		msg.Review = ""
+		msg.Details = nil
 		if m.State == "sending" {
 			msg.SendState = "sending"
 		}

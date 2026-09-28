@@ -21,7 +21,12 @@ func openStore(dir string) (*store, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite", filepath.Join(dir, "meshcore.db"))
+	path := filepath.Join(dir, "meshcore.db")
+	_, statErr := os.Stat(path)
+	if statErr != nil && !os.IsNotExist(statErr) {
+		return nil, fmt.Errorf("inspect meshcore database: %w", statErr)
+	}
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +48,7 @@ INSERT OR IGNORE INTO meshcore_meta(key,value) VALUES('version','1');`)
 		return nil, fmt.Errorf("initialize meshcore store: %w", err)
 	}
 	var version string
-	if err = db.QueryRow("SELECT value FROM meshcore_meta WHERE key='version'").Scan(&version); err != nil || (version != "1" && version != "2") {
+	if err = db.QueryRow("SELECT value FROM meshcore_meta WHERE key='version'").Scan(&version); err != nil || (version != "1" && version != "2" && version != "3") {
 		return nil, fmt.Errorf("unsupported meshcore schema")
 	}
 	var salt string
@@ -63,11 +68,11 @@ INSERT OR IGNORE INTO meshcore_meta(key,value) VALUES('version','1');`)
 	if err != nil || len(s.salt) != 32 {
 		return nil, fmt.Errorf("invalid binding salt")
 	}
-	_, err = db.Exec("UPDATE meshcore_messages SET state='outcome_unknown' WHERE state IN ('processing','sending'); UPDATE meshcore_messages SET state='received' WHERE state='pending'")
-	if err != nil {
+	if err = s.migrateMessenger(dir, version, statErr == nil); err != nil {
 		return nil, err
 	}
-	if err = s.migrateMessenger(dir, version); err != nil {
+	_, err = db.Exec("UPDATE meshcore_messages SET state='outcome_unknown' WHERE state IN ('processing','sending'); UPDATE meshcore_messages SET state='received' WHERE state='pending'")
+	if err != nil {
 		return nil, err
 	}
 	if err = s.recoverChat(); err != nil {

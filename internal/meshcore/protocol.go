@@ -67,21 +67,29 @@ func (s *serialLink) WriteFrame(b []byte) error {
 	return nil
 }
 
+type acknowledgement struct {
+	at     time.Time
+	millis uint32
+}
+
 type companion struct {
-	link      frameLink
-	commands  chan struct{}
-	frames    chan []byte
-	wake      chan struct{}
-	done      chan struct{}
-	closeOnce sync.Once
-	ackMu     sync.Mutex
-	acks      map[uint32]time.Time
-	onACK     func(uint32)
-	session   string
+	link           frameLink
+	commands       chan struct{}
+	frames         chan []byte
+	wake           chan struct{}
+	done           chan struct{}
+	closeOnce      sync.Once
+	ackMu          sync.Mutex
+	acks           map[uint32]acknowledgement
+	onACK          func(uint32, uint32)
+	session        string
+	pushMu         sync.Mutex
+	pushes         chan []byte // Only the active diagnostic receives asynchronous replies.
+	diagnosticTags map[uint32]bool
 }
 
 func newCompanion(link frameLink) *companion {
-	c := &companion{link: link, commands: make(chan struct{}, 1), frames: make(chan []byte, 512), wake: make(chan struct{}, 1), done: make(chan struct{}), acks: map[uint32]time.Time{}, session: fmt.Sprintf("%d", time.Now().UnixNano())}
+	c := &companion{link: link, commands: make(chan struct{}, 1), frames: make(chan []byte, 512), wake: make(chan struct{}, 1), done: make(chan struct{}), acks: map[uint32]acknowledgement{}, session: fmt.Sprintf("%d", time.Now().UnixNano())}
 	go func() {
 		defer c.Close()
 		for {
@@ -93,21 +101,31 @@ func newCompanion(link frameLink) *companion {
 				return
 			}
 			if b[0] >= 0x80 {
+				if b[0] == 0x8b || b[0] == 0x8c || b[0] == 0x8d {
+					c.pushMu.Lock()
+					if c.pushes != nil {
+						select {
+						case c.pushes <- b:
+						default:
+						}
+					}
+					c.pushMu.Unlock()
+				}
 				if b[0] == 0x82 && len(b) == 9 {
 					c.ackMu.Lock()
 					now := time.Now()
 					for k, t := range c.acks {
-						if now.Sub(t) > 10*time.Minute {
+						if now.Sub(t.at) > 10*time.Minute {
 							delete(c.acks, k)
 						}
 					}
 					if len(c.acks) < 128 {
-						c.acks[binary.LittleEndian.Uint32(b[1:])] = now
+						c.acks[binary.LittleEndian.Uint32(b[1:])] = acknowledgement{now, binary.LittleEndian.Uint32(b[5:])}
 					}
 					callback := c.onACK
 					c.ackMu.Unlock()
 					if callback != nil {
-						callback(binary.LittleEndian.Uint32(b[1:]))
+						callback(binary.LittleEndian.Uint32(b[1:]), binary.LittleEndian.Uint32(b[5:]))
 					}
 				}
 				if b[0] == 0x83 || b[0] == 0x80 || b[0] == 0x8a || b[0] == 0x8f {
@@ -163,7 +181,11 @@ func (c *companion) request(ctx context.Context, cmd []byte, expected ...byte) (
 			return nil, io.ErrClosedPipe
 		case b := <-c.frames:
 			if b[0] == 1 || b[0] == 15 {
-				return nil, fmt.Errorf("companion rejected command %d", cmd[0])
+				code := byte(0)
+				if len(b) > 1 {
+					code = b[1]
+				}
+				return nil, &commandError{Command: cmd[0], Code: code, Disabled: b[0] == 15}
 			}
 			if cmd[0] == 4 && (b[0] == 2 || b[0] == 3) {
 				if len(result) >= 4096 {

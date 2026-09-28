@@ -177,6 +177,12 @@ func (m *Manager) Edit(ctx context.Context, req EditRequest, publish func(Config
 	if c == nil || !cfg.Enabled {
 		return fmt.Errorf("not_connected")
 	}
+	m.mu.Lock()
+	diagnosticBusy := m.activeDiagnostic != ""
+	m.mu.Unlock()
+	if diagnosticBusy {
+		return fmt.Errorf("busy")
+	}
 	st, err := m.refresh(ctx, c)
 	if err != nil || req.Identity != st.IdentityKey || cfg.IdentityKey != st.IdentityKey {
 		return fmt.Errorf("binding_required")

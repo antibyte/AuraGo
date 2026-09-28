@@ -20,28 +20,32 @@ func DefaultManager() *Manager     { return defaultManager.Load() }
 func SetDefaultManager(m *Manager) { defaultManager.Store(m) }
 
 type Manager struct {
-	lifecycle   sync.Mutex
-	mu          sync.Mutex
-	refreshSlot chan struct{}
-	store       *store
-	hooks       Hooks
-	cfg         Config
-	docker      bool
-	suspended   bool
-	status      Status
-	conn        *companion
-	root        context.Context
-	cancel      context.CancelFunc
-	runCancel   context.CancelFunc
-	wg          sync.WaitGroup
-	queue       chan Message
-	runs        map[string][]time.Time
-	sends       []time.Time
-	open        func(context.Context, Config, bool) (frameLink, error)
-	manualSlots chan struct{}
-	writeSlot   chan struct{}
-	editing     bool
-	closed      bool
+	lifecycle        sync.Mutex
+	mu               sync.Mutex
+	refreshSlot      chan struct{}
+	store            *store
+	hooks            Hooks
+	cfg              Config
+	docker           bool
+	suspended        bool
+	status           Status
+	conn             *companion
+	root             context.Context
+	cancel           context.CancelFunc
+	runCancel        context.CancelFunc
+	wg               sync.WaitGroup
+	queue            chan Message
+	runs             map[string][]time.Time
+	sends            []time.Time
+	open             func(context.Context, Config, bool) (frameLink, error)
+	manualSlots      chan struct{}
+	writeSlot        chan struct{}
+	editing          bool
+	closed           bool
+	diagnostics      map[string]Diagnostic
+	activeDiagnostic string
+	localDiagnostic  *LocalDiagnostic
+	localSession     string
 }
 
 func NewManager(ctx context.Context, dir string, hooks Hooks) (*Manager, error) {
@@ -225,8 +229,11 @@ func (m *Manager) refresh(ctx context.Context, c *companion) (Status, error) {
 	if err := m.store.syncConversations(st); err != nil {
 		return st, err
 	}
-	var pending string
+	var pending, settingsPending string
 	if err := m.store.db.QueryRow("SELECT COALESCE((SELECT value FROM meshcore_meta WHERE key='mutation_pending'),'0')").Scan(&pending); err != nil {
+		return st, err
+	}
+	if err := m.store.db.QueryRow("SELECT COALESCE((SELECT value FROM meshcore_meta WHERE key='device_settings_pending'),'')").Scan(&settingsPending); err != nil {
 		return st, err
 	}
 	m.mu.Lock()
@@ -250,6 +257,8 @@ func (m *Manager) refresh(ctx context.Context, c *companion) (Status, error) {
 		st.State = "updating"
 	} else if pending == "1" {
 		st.State = "binding_changed"
+	} else if settingsPending != "" && st.State == "connected" {
+		st.State = "settings_uncertain"
 	}
 	m.status = st
 	if st.State != "connected" && m.runCancel != nil {
@@ -714,7 +723,7 @@ func (m *Manager) sendMessage(ctx context.Context, msg Message, text string, mod
 		return "not_sent", err
 	}
 	c.ackMu.Lock()
-	c.onACK = func(tag uint32) { m.lateACK(c, tag) }
+	c.onACK = func(tag, millis uint32) { m.lateACK(c, tag, millis) }
 	c.ackMu.Unlock()
 	state := "device_accepted"
 	for i, part := range parts {
@@ -790,19 +799,19 @@ func (m *Manager) sendMessage(ctx context.Context, msg Message, text string, mod
 				return "outcome_unknown", fmt.Errorf("invalid send response")
 			}
 			tag := binary.LittleEndian.Uint32(frames[0][2:6])
-			if err := m.recordPart(chatID, i+1, "device_accepted", tag, c); err != nil {
+			if err := m.recordPart(chatID, i+1, "device_accepted", tag, c, SendPart{Route: &frames[0][1]}); err != nil {
 				return "outcome_unknown", err
 			}
 			timeout := time.Duration(binary.LittleEndian.Uint32(frames[0][6:10])) * time.Millisecond
 			timeout = min(max(timeout, time.Second), 60*time.Second)
 			confirmed := c.waitACK(ctx, tag, timeout)
-			if !confirmed {
+			if confirmed == nil {
 				state = "device_accepted"
 			} else if i == 0 || state == "delivered" {
 				state = "delivered"
 			}
-			if confirmed {
-				if err := m.recordPart(chatID, i+1, "delivered", tag, c); err != nil {
+			if confirmed != nil {
+				if err := m.recordPart(chatID, i+1, "delivered", tag, c, SendPart{ACKMillis: confirmed}); err != nil {
 					return "outcome_unknown", err
 				}
 			}
@@ -810,28 +819,28 @@ func (m *Manager) sendMessage(ctx context.Context, msg Message, text string, mod
 	}
 	return state, nil
 }
-func (c *companion) waitACK(ctx context.Context, tag uint32, d time.Duration) bool {
+func (c *companion) waitACK(ctx context.Context, tag uint32, d time.Duration) *uint32 {
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
 	for {
 		c.ackMu.Lock()
-		_, ok := c.acks[tag]
+		ack, ok := c.acks[tag]
 		if ok {
 			delete(c.acks, tag)
 		}
 		c.ackMu.Unlock()
 		if ok {
-			return true
+			return &ack.millis
 		}
 		select {
 		case <-ctx.Done():
-			return false
+			return nil
 		case <-c.done:
-			return false
+			return nil
 		case <-timer.C:
-			return false
+			return nil
 		case <-tick.C:
 		}
 	}

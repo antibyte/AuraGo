@@ -182,7 +182,7 @@
         },
         'meshcore': {
             styles: appStyles('/css/desktop-app-meshcore.css'),
-            scripts: ['/js/vendor/qrcode.min.js', '/js/desktop/apps/meshcore.js']
+            scripts: ['/js/vendor/qrcode.min.js', '/js/desktop/apps/meshcore-device.js', '/js/desktop/apps/meshcore.js']
         },
         'noisemaker': {
             styles: appStyles('/css/desktop-app-noisemaker.css'),

@@ -36,6 +36,8 @@ type Config struct {
 	RunsPerMinute           int           `yaml:"runs_per_minute" json:"runs_per_minute"`
 	HistoryDays             int           `yaml:"history_days" json:"history_days"`
 	HistoryMessages         int           `yaml:"history_messages" json:"history_messages"`
+	AllowDeviceSettings     bool          `yaml:"allow_device_settings" json:"allow_device_settings"`
+	AllowRemoteDiagnostics  bool          `yaml:"allow_remote_diagnostics" json:"allow_remote_diagnostics"`
 }
 
 type ChannelRule struct {

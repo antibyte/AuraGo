@@ -160,8 +160,12 @@ func (m *Manager) prepareParts(id, identity string, c *companion, parts []string
 	return tx.Commit()
 }
 
-func (m *Manager) recordPart(id string, number int, state string, tag uint32, c *companion) error {
-	_, err := m.store.db.Exec("UPDATE meshcore_send_parts SET state=CASE WHEN state='delivered' THEN state ELSE ? END,tag=? WHERE message=? AND number=? AND session=?", state, tag, id, number, c.session)
+func (m *Manager) recordPart(id string, number int, state string, tag uint32, c *companion, metrics ...SendPart) error {
+	var values SendPart
+	if len(metrics) > 0 {
+		values = metrics[0]
+	}
+	_, err := m.store.db.Exec("UPDATE meshcore_send_parts SET state=CASE WHEN state='delivered' THEN state ELSE ? END,tag=?,route=COALESCE(?,route),ack_millis=COALESCE(?,ack_millis) WHERE message=? AND number=? AND session=?", state, tag, values.Route, values.ACKMillis, id, number, c.session)
 	if err == nil {
 		m.partChanged(id)
 	}
@@ -175,17 +179,17 @@ func (m *Manager) partChanged(id string) {
 	}
 }
 
-func (m *Manager) lateACK(c *companion, tag uint32) {
+func (m *Manager) lateACK(c *companion, tag, millis uint32) {
 	var id string
 	var number, count int
 	err := m.store.db.QueryRow("SELECT COALESCE(MIN(message),''),COALESCE(MIN(number),0),COUNT(*) FROM meshcore_send_parts WHERE session=? AND tag=? AND created>=? AND state IN ('device_accepted','outcome_unknown')", c.session, tag, time.Now().Add(-10*time.Minute).Unix()).Scan(&id, &number, &count)
 	if err == nil && count == 1 {
-		_ = m.recordPart(id, number, "delivered", tag, c)
+		_ = m.recordPart(id, number, "delivered", tag, c, SendPart{ACKMillis: &millis})
 	}
 }
 
 func (s *store) loadParts(msg *ChatMessage) error {
-	rows, err := s.db.Query("SELECT number,state FROM meshcore_send_parts WHERE message=? ORDER BY number", msg.ID)
+	rows, err := s.db.Query("SELECT number,state,route,ack_millis FROM meshcore_send_parts WHERE message=? ORDER BY number", msg.ID)
 	if err != nil {
 		return err
 	}
@@ -193,7 +197,7 @@ func (s *store) loadParts(msg *ChatMessage) error {
 	parts := []SendPart{}
 	for rows.Next() {
 		var p SendPart
-		if err = rows.Scan(&p.Number, &p.State); err != nil {
+		if err = rows.Scan(&p.Number, &p.State, &p.Route, &p.ACKMillis); err != nil {
 			return err
 		}
 		parts = append(parts, p)

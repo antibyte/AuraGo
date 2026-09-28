@@ -15,7 +15,7 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(`<!doctype html><html><head><link rel="stylesheet" href="/css/desktop-base.css"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-meshcore.css"><style>body{margin:0}#host{width:1080px;height:720px;max-width:100vw}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><div id="host"></div><script src="/js/vendor/qrcode.min.js"></script><script src="/js/desktop/apps/meshcore.js"></script></body></html>`))
+		_, _ = w.Write([]byte(`<!doctype html><html><head><link rel="stylesheet" href="/css/desktop-base.css"><link rel="stylesheet" href="/css/desktop-shell-overrides.css"><link rel="stylesheet" href="/css/desktop-app-meshcore.css"><style>body{margin:0}#host{width:1080px;height:720px;max-width:100vw}</style></head><body class="desktop-body" data-theme="standard" data-fruity-mode="light"><div id="host"></div><script src="/js/vendor/qrcode.min.js"></script><script src="/js/desktop/apps/meshcore-device.js"></script><script src="/js/desktop/apps/meshcore.js"></script></body></html>`))
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()

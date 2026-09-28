@@ -71,7 +71,7 @@
             const response = await fetch(API + path, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
                 headers: body === undefined ? {} : { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
             const data = await response.json();
-            if (!response.ok) { const error = new Error('request_failed'); error.code = data.error || 'operation_failed'; throw error; }
+            if (!response.ok) { const error = new Error('request_failed'); error.code = data.error || 'operation_failed'; error.device = data.device; throw error; }
             return data;
         } catch (error) {
             if (error.name === 'AbortError') error.code = 'timeout';
@@ -80,7 +80,7 @@
     }
 
     function errorText(s, error) {
-        const known = ['invalid_request', 'invalid_text', 'invalid_target', 'invalid_contact', 'invalid_channel', 'invalid_invitation', 'unsupported_invitation', 'contact_exists', 'channels_full', 'binding_required', 'not_connected', 'busy', 'idempotency_conflict', 'send_ledger_full', 'outcome_unknown', 'config_unavailable', 'message_unavailable', 'timeout', 'admin_required', 'unauthorized'];
+        const known = ['invalid_request', 'invalid_text', 'invalid_target', 'invalid_contact', 'invalid_channel', 'invalid_invitation', 'unsupported_invitation', 'contact_exists', 'channels_full', 'binding_required', 'not_connected', 'busy', 'idempotency_conflict', 'send_ledger_full', 'outcome_unknown', 'config_unavailable', 'message_unavailable', 'timeout', 'admin_required', 'unauthorized', 'permission_denied', 'settings_conflict', 'invalid_settings', 'unsupported', 'diagnostic_expired'];
         return tr(s, 'error_' + (known.includes(error.code) ? error.code : 'operation_failed'));
     }
 
@@ -100,6 +100,7 @@
             </main><aside class="mc-detail" data-mc-role="detail" hidden></aside></div></div>`;
         s.root = host.firstElementChild;
         s.el = role => s.root.querySelector(`[data-mc-role="${role}"]`);
+        s.deviceUI = window.MeshCoreDevice.create(s, { node, tr, request, errorText, dialog, dialogButton, refresh, manage, selfDialog });
         s.root.addEventListener('click', event => { const el = event.target.closest('[data-mc]'); if (el) act(s, el.dataset.mc).catch(error => showError(s, error)); });
         s.el('search').addEventListener('input', event => { s.search = event.target.value; renderList(s); });
         s.el('query').addEventListener('input', event => { s.query = event.target.value; clearTimeout(s.searchTimer); s.searchTimer = setTimeout(() => loadMessages(s, false, true).catch(error => showError(s, error)), 300); });
@@ -118,7 +119,8 @@
         });
         s.root.addEventListener('keydown', event => {
             if (event.key !== 'Escape' || event.defaultPrevented || s.root.querySelector('dialog[open]')) return;
-            if (!s.el('detail').hidden) { s.el('detail').hidden = true; event.preventDefault(); }
+            if (s.deviceUI.isOpen()) { s.deviceUI.close(); event.preventDefault(); }
+            else if (!s.el('detail').hidden) { s.el('detail').hidden = true; event.preventDefault(); }
             else if (s.root.classList.contains('mc-has-chat')) { s.root.classList.remove('mc-has-chat'); event.preventDefault(); }
         });
         s.onChange = event => { const id = event.detail?.conversation_id; if (!id || id === s.selected) scheduleRefresh(s); else refresh(s, false).catch(error => showError(s, error)); };
@@ -146,10 +148,10 @@
             if (s.disposed) return;
             s.status = data.status || {}; s.conversations = data.conversations || []; s.settings = data;
             s.loaded = true;
-            const state = ['connected', 'connecting', 'disconnected', 'disabled', 'binding_required', 'binding_changed', 'updating', 'suspended'].includes(s.status.state) ? s.status.state : 'disconnected';
+            const state = ['connected', 'connecting', 'disconnected', 'disabled', 'binding_required', 'binding_changed', 'updating', 'suspended', 'settings_uncertain'].includes(s.status.state) ? s.status.state : 'disconnected';
             s.el('status').textContent = tr(s, 'state_' + state);
             s.el('status').dataset.state = state;
-            for (const action of ['self', 'add-contact', 'add-channel']) s.root.querySelector(`[data-mc="${action}"]`).disabled = state !== 'connected' || !!s.context.readonly;
+            for (const action of ['add-contact', 'add-channel']) s.root.querySelector(`[data-mc="${action}"]`).disabled = state !== 'connected' || !!s.context.readonly;
             renderList(s); renderHead(s); updateComposer(s);
             if (messages && s.selected) await loadMessages(s);
         } finally {
@@ -276,10 +278,14 @@
             body.append(document.createTextNode(msg.protected ? s.revealed.get(msg.id) ?? tr(s, 'protected') : msg.text));
             row.append(body);
             const meta = node('div', undefined, 'mc-message-meta'); meta.append(node('time', formatTime(msg.at)));
+            const reception = msg.details?.reception;
+            if (Number.isFinite(reception?.snr_db)) meta.append(node('span', `${reception.snr_db} dB`, 'mc-rx-badge'));
+            if (Number.isInteger(reception?.path?.hops)) meta.append(node('span', `${reception.path.hops} ${tr(s, 'hops')}`, 'mc-rx-badge'));
             if (msg.direction === 'outgoing') { const state = ['sending', 'queued', 'device_accepted', 'delivered', 'not_sent', 'outcome_unknown'].includes(msg.send_state) ? msg.send_state : 'unknown'; const status = node('span', undefined, 'mc-send-state'); status.title = tr(s, 'send_' + state); status.append(iconEl(SEND_STATE_ICONS[state] || 'help', 'mc-state-icon'), document.createTextNode(tr(s, 'send_' + state))); meta.append(status); }
             const action = (label, iconName, fn) => { const btn = node('button'); btn.type = 'button'; btn.title = tr(s, label); btn.append(iconEl(iconName), node('span', tr(s, label), 'mc-sr-only')); btn.addEventListener('click', () => fn(btn).catch(error => showError(s, error))); meta.append(btn); };
             if (msg.protected && !s.revealed.has(msg.id)) action('reveal', 'eye', async btn => { btn.disabled = true; try { const data = await request(s, 'reveal', { id: msg.id }); if (!s.disposed && row.isConnected) { s.revealed.set(msg.id, data.text); body.textContent = data.text; btn.hidden = true; } } finally { btn.disabled = false; } });
-            else action('copy', 'copy', async () => { await navigator.clipboard.writeText(msg.text); });
+            else action('copy', 'copy', async () => { await navigator.clipboard.writeText(s.revealed.get(msg.id) ?? msg.text); });
+            action('details', 'info', async () => s.deviceUI.messageDetails(msg));
             if (msg.origin === 'manual' && ['not_sent', 'outcome_unknown', 'device_accepted'].includes(msg.send_state)) action('retry', 'refresh', async () => confirmAction(s, 'retry_warning', async () => { s.pendingSend = null; try { localStorage.removeItem('aurago.meshcore.pending.' + s.selected); } catch (_) { /* Optional browser storage. */ } s.el('compose').value = msg.text; saveDraft(s); updateComposer(s); await send(s); }));
             row.append(meta);
             if (msg.parts?.length > 1) row.append(node('small', msg.parts.map(p => p.number + ': ' + tr(s, 'send_' + p.state)).join(' · '), 'mc-part-states'));
@@ -289,7 +295,7 @@
     }
 
     function markRead(s) {
-        const c = current(s); if (!c || s.query || document.hidden || !s.root.getClientRects().length || !nearBottom(s)) return;
+        const c = current(s); if (!c || s.deviceUI.isOpen() || s.query || document.hidden || !s.root.getClientRects().length || !nearBottom(s)) return;
         const win = s.root.closest('.vd-window'); if (win && !win.classList.contains('active')) return;
         const seq = Math.max(0, ...s.messages.map(msg => msg.seq)); if (seq <= s.readSeq) return;
         s.readSeq = seq;
@@ -342,12 +348,12 @@
 
     async function act(s, action) {
         if (action.startsWith('filter-')) { s.filter = action.slice(7); renderList(s); return; }
-        if (action === 'refresh') { clearError(s); await refresh(s); return; }
+        if (action === 'refresh') { clearError(s); await refresh(s); if (s.deviceUI.isOpen()) await s.deviceUI.reload(); return; }
         if (action === 'back') { s.root.classList.remove('mc-has-chat'); return; }
         if (action === 'latest') { s.el('messages').scrollTop = s.el('messages').scrollHeight; markRead(s); return; }
         if (action === 'details') { s.el('detail').hidden = !s.el('detail').hidden; renderDetail(s); return; }
         if (action === 'add-contact' || action === 'add-channel') { editDialog(s, action); return; }
-        if (action === 'self') { selfDialog(s); return; }
+        if (action === 'self') { await s.deviceUI.open('device'); return; }
         if (action === 'settings') settingsDialog(s);
     }
 
@@ -364,6 +370,7 @@
         keyChip.append(node('code', c.kind === 'channel' ? c.identity_key : c.target));
         panel.append(keyChip);
         panel.append(node('p', tr(s, c.kind === 'channel' && c.channel_kind !== 'private' ? 'public_hint' : 'trust_hint'), 'mc-hint'));
+        s.deviceUI.contactDetails(panel, c);
         const actions = node('div', undefined, 'mc-detail-actions');
         const action = (key, iconName, fn, disabled = false) => { const btn = node('button', tr(s, key)); btn.type = 'button'; btn.disabled = disabled; btn.prepend(iconEl(iconName)); btn.addEventListener('click', () => fn().catch(error => showError(s, error))); actions.append(btn); };
         action(c.favorite ? 'unfavorite' : 'favorite', 'star', async () => { await request(s, 'conversation', { conversation: c.id, favorite: !c.favorite }); await refresh(s, false); renderDetail(s); });
@@ -457,18 +464,14 @@
     }
 
     function settingsDialog(s) {
-        const d = dialog(s, 'settings', 'settings');
-        const days = field(s, d.body, 'history_days', 'number', s.settings?.history_days || 90); days.min = 1; days.max = 3650;
-        const messages = field(s, d.body, 'history_messages', 'number', s.settings?.history_messages || 10000); messages.min = 1; messages.max = 100000;
-        d.body.append(node('p', tr(s, 'hardware_unverified'), 'mc-hint'));
-        dialogButton(s, d, 'save', async () => { if (!days.reportValidity() || !messages.reportValidity()) return; await request(s, 'settings', { history_days: Number(days.value), history_messages: Number(messages.value) }); d.el.close(); await refresh(s); });
-        if (s.status.state === 'binding_changed') { d.body.append(node('p', tr(s, 'mapping_hint'))); dialogButton(s, d, 'confirm_mapping', async () => { await manage(s, { action: 'confirm_mapping' }); d.el.close(); }); }
+        return s.deviceUI.open('settings');
     }
 
     function openConversation(windowId, context) { const s = instances.get(windowId); if (s && context?.conversation_id) refresh(s, false).then(() => selectConversation(s, context.conversation_id)).catch(error => showError(s, error)); }
     function dispose(windowId) {
         const s = instances.get(windowId); if (!s) return;
         saveDraft(s); s.disposed = true; s.generation++;
+        s.deviceUI.dispose();
         clearInterval(s.poll); clearTimeout(s.searchTimer); clearTimeout(s.refreshTimer);
         s.requests.forEach(controller => controller.abort()); s.requests.clear(); s.dialog?.close();
         document.removeEventListener('aurago:meshcore-change', s.onChange); document.removeEventListener('visibilitychange', s.onVisible);

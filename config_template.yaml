@@ -150,6 +150,8 @@ meshcore:
     max_messages: 1000
     history_days: 90                  # separate approved Messenger history
     history_messages: 10000           # total across all Messenger conversations
+    allow_device_settings: false     # administrative app: verified writes to Companion settings
+    allow_remote_diagnostics: false  # administrative app: explicit telemetry/path radio requests
     peer_runs_per_minute: 2
     runs_per_minute: 12
 bluetooth:

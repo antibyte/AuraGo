@@ -2,8 +2,8 @@
 
 AuraGo connects to one Companion radio. USB is implemented for Linux, Windows
 and macOS; Bluetooth uses BlueZ on native Linux. **Hardware acceptance is still
-pending on all platforms.** No firmware flashing, repeater administration or
-radio-parameter changes are included.
+pending on all platforms.** Firmware flashing and repeater administration are
+excluded. Administrative radio-setting changes require a separate opt-in below.
 
 ## Setup
 
@@ -150,7 +150,8 @@ position, transmit power, frequency, bandwidth, spreading factor, coding rate
 and advertisement/telemetry settings. Public channel replies receive only their
 own message/channel context, without local hardware/position or contact records.
 
-Metadata survives inbox persistence without a schema migration. Old records
+Inbox metadata uses additive JSON fields; Messenger history uses the separate
+schema upgrade described below. Old records
 retain unknown metadata. Collection reuses existing local Companion reads and
 does not send telemetry requests or discovery traffic over the mesh. PINs and
 channel secrets remain excluded. Names and positions are external data, never
@@ -249,8 +250,13 @@ history removes visible chat text but keeps execution reservations and the
 short-lived security inbox. Device/contact identities and channel fingerprints
 keep old conversations separate after device or slot changes. Legacy ambiguous
 prefixes remain unknown; missing historical delivery evidence stays unknown.
-The first migration of an existing database creates a private
-`meshcore-v1-*.backup.db` next to it; administrators manage these backups.
+Schema upgrades create a private `meshcore-v1-*.backup.db` or
+`meshcore-v2-*.backup.db` next to an existing database; administrators manage
+these backups. Schema 3 retains reception snapshots separately from the inbox
+and stores nullable per-packet routing and ACK duration. Backfill uses only
+surviving, uncleared messages with exactly matching IDs and bindings; it never
+recreates deleted history or guesses old data. Generated replies have no
+incoming reception metadata. Protected sender labels remain hidden with their text.
 Manual request tombstones persist independently of history, with a 65,536-entry
 safety ceiling. A full ledger refuses new sends and requires maintenance.
 
@@ -265,11 +271,55 @@ Administrative API routes under `/api/meshcore/messenger/`:
 | POST | `reveal` | Explicit protected-body read `{id}` |
 | POST | `invitation` | Explicit export `{identity, conversation}`; `self` shares own contact |
 | POST | `manage` | Identity-bound contact/channel actions and announcements |
-| POST | `settings` | `{history_days, history_messages}` via the existing config file |
+| POST | `settings` | `{revision, history_days, history_messages, allow_device_settings?, allow_remote_diagnostics?}` via the existing config file; revision from bootstrap |
+| GET | `device` | Current identity, settings revision, capabilities and timestamped local measurements |
+| POST | `device-settings` | `{identity, revision, section, values}`; sections `identity`, `contacts`, `radio`, `clock`, `reconcile` |
+| POST | `diagnostics` | `{identity, target, kind}` (`telemetry` or `path`); HTTP 202 with a job ID |
+| GET | `diagnostics?id=ID` | Progress/result for an explicitly requested diagnostic |
 
 All routes require administrative access. Writes enforce same-origin requests;
 messages and invitations are uncached. Desktop events contain metadata only,
 and reconnects reload state. Muting has no effect on agent inbox notifications.
+
+## Device page and settings
+
+**My node** opens firmware, capacity, position, radio and local measurements.
+The page reads battery voltage, storage, uptime, queue/errors, packet counts,
+airtime and the last device RSSI/SNR when supported. Measurements have their own
+timestamps, refresh at most every 30 seconds while visible, and never imply
+per-message RSSI or battery percentage. Message details retain sender/retrieval
+times, SNR, known hops, frame data and reception snapshots. Device contact flags
+and favorites are separate from Messenger favorites and AuraGo trust.
+
+**Settings** contains independent Save/Discard sections. App history limits and
+the two grants live in AuraGo configuration; device values live on the radio.
+`meshcore.allow_device_settings` and `meshcore.allow_remote_diagnostics` default
+to `false`. These grants add no agent capabilities. Connection, pairing, identity
+confirmation and agent permissions stay at `/config#meshcore`.
+
+Editable device values include name, coordinates and advertisement location
+sharing; contact admission/filtering and basic/location/sensor telemetry modes;
+radio frequency, bandwidth, SF/CR, power, extra ACKs and supported repeat/path-hash
+options. Clock synchronization is a separate explicit action. Contact distance
+0 means unlimited; the UI displays stored values 1–64 as 0–63 hops. Repeat mode
+must use a frequency range reported by the device. Optional unsupported commands
+are shown as unavailable without granting writes. Coordinates do not trigger an
+advertisement and do not alter AuraGo's public location description.
+
+Radio edits require review of old/new values. Each save rechecks identity,
+connection session and settings revision, then reads values back. A conflict
+preserves the draft; refresh and compare before discarding it. Commands are not
+atomic: failures stop remaining writes and lock automation as `settings_uncertain`.
+Review the actual values and explicitly **Accept actual device values** to
+reconcile. This clears only the settings lock and preserves channel permissions.
+
+**Fetch telemetry** and **Discover path** on contacts transmit only when clicked
+and enabled. One diagnostic runs at a time, uses the shared six-packet/minute
+limit, and waits at most 60 seconds without retry. Responses are session/target/tag
+bound; ambiguous or late responses are discarded. Each path query renews the
+connection before another query. The memory cache holds at most 128 jobs for ten
+minutes. A timeout does not establish unreachability or denied telemetry access.
+Positions and sensors appear only when actually returned with their units.
 
 ## Validation and sources
 

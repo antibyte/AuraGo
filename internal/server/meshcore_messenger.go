@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -22,7 +24,7 @@ func (s *Server) handleMeshCoreMessenger(w http.ResponseWriter, r *http.Request,
 		jsonError(w, "unavailable", 503)
 		return
 	}
-	read := action == "bootstrap" || action == "conversations" || action == "messages"
+	read := action == "bootstrap" || action == "conversations" || action == "messages" || action == "device" || (action == "diagnostics" && r.Method == "GET")
 	if (read && r.Method != "GET") || (!read && r.Method != "POST") {
 		jsonError(w, "method_not_allowed", 405)
 		return
@@ -35,14 +37,20 @@ func (s *Server) handleMeshCoreMessenger(w http.ResponseWriter, r *http.Request,
 	defer cancel()
 	var body struct {
 		meshcore.EditRequest
-		ID              string `json:"id"`
-		Text            string `json:"text"`
-		Read            int64  `json:"read"`
-		Favorite        *bool  `json:"favorite"`
-		Muted           *bool  `json:"muted"`
-		Clear           bool   `json:"clear"`
-		HistoryDays     int    `json:"history_days"`
-		HistoryMessages int    `json:"history_messages"`
+		ID                     string                `json:"id"`
+		Text                   string                `json:"text"`
+		Read                   int64                 `json:"read"`
+		Favorite               *bool                 `json:"favorite"`
+		Muted                  *bool                 `json:"muted"`
+		Clear                  bool                  `json:"clear"`
+		HistoryDays            int                   `json:"history_days"`
+		HistoryMessages        int                   `json:"history_messages"`
+		AllowDeviceSettings    *bool                 `json:"allow_device_settings"`
+		AllowRemoteDiagnostics *bool                 `json:"allow_remote_diagnostics"`
+		Revision               string                `json:"revision"`
+		Section                string                `json:"section"`
+		Values                 meshcore.DeviceValues `json:"values"`
+		Target                 string                `json:"target"`
 	}
 	if !read {
 		d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192))
@@ -55,7 +63,7 @@ func (s *Server) handleMeshCoreMessenger(w http.ResponseWriter, r *http.Request,
 	fail := func(err error) {
 		code := "operation_failed"
 		switch err.Error() {
-		case "invalid_request", "invalid_text", "invalid_target", "invalid_contact", "invalid_channel", "invalid_invitation", "unsupported_invitation", "contact_exists", "channels_full", "binding_required", "not_connected", "busy", "idempotency_conflict", "send_ledger_full", "outcome_unknown", "config_unavailable", "message_unavailable":
+		case "invalid_request", "invalid_text", "invalid_target", "invalid_contact", "invalid_channel", "invalid_invitation", "unsupported_invitation", "contact_exists", "channels_full", "binding_required", "not_connected", "busy", "idempotency_conflict", "send_ledger_full", "outcome_unknown", "config_unavailable", "message_unavailable", "permission_denied", "settings_conflict", "invalid_settings", "unsupported", "diagnostic_expired":
 			code = err.Error()
 		}
 		jsonError(w, code, 409)
@@ -68,7 +76,47 @@ func (s *Server) handleMeshCoreMessenger(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		cfg := s.ConfigSnapshot().MeshCore
-		writeJSON(w, map[string]interface{}{"conversations": items, "status": s.MeshCore.Status(), "enabled": cfg.Enabled, "history_days": cfg.HistoryDays, "history_messages": cfg.HistoryMessages, "channel_text_limit": s.MeshCore.ChannelTextLimit()})
+		writeJSON(w, map[string]interface{}{"conversations": items, "status": s.MeshCore.Status(), "enabled": cfg.Enabled, "history_days": cfg.HistoryDays, "history_messages": cfg.HistoryMessages, "channel_text_limit": s.MeshCore.ChannelTextLimit(), "allow_device_settings": cfg.AllowDeviceSettings, "allow_remote_diagnostics": cfg.AllowRemoteDiagnostics, "settings_revision": meshCoreSettingsRevision(cfg), "trusted_nodes": cfg.TrustedNodes})
+	case "device":
+		device, err := s.MeshCore.Device(ctx)
+		if err != nil {
+			fail(err)
+			return
+		}
+		writeJSON(w, device)
+	case "device-settings":
+		device, err := s.MeshCore.SaveDeviceSettings(ctx, meshcore.DeviceSettingsRequest{Identity: body.Identity, Revision: body.Revision, Section: body.Section, Values: body.Values})
+		if err != nil {
+			code := err.Error()
+			switch code {
+			case "permission_denied", "not_connected", "busy", "binding_required", "settings_conflict", "invalid_settings", "invalid_request", "unsupported", "outcome_unknown":
+			default:
+				code = "operation_failed"
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			writeJSON(w, map[string]interface{}{"error": code, "device": device})
+			return
+		}
+		writeJSON(w, device)
+	case "diagnostics":
+		if read {
+			result, err := s.MeshCore.Diagnostic(r.URL.Query().Get("id"))
+			if err != nil {
+				fail(err)
+				return
+			}
+			writeJSON(w, result)
+			return
+		}
+		result, err := s.MeshCore.StartDiagnostic(ctx, meshcore.DiagnosticRequest{Identity: body.Identity, Target: body.Target, Kind: body.Kind})
+		if err != nil {
+			fail(err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		writeJSON(w, result)
 	case "messages":
 		before, err := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
 		if r.URL.Query().Get("before") == "" {
@@ -127,11 +175,26 @@ func (s *Server) handleMeshCoreMessenger(w http.ResponseWriter, r *http.Request,
 		s.CfgSaveMu.Lock()
 		cfg := s.ConfigSnapshot()
 		next := cfg.MeshCore
+		if body.Revision != meshCoreSettingsRevision(next) || body.HistoryDays < 1 || body.HistoryDays > 3650 || body.HistoryMessages < 1 || body.HistoryMessages > 100000 {
+			s.CfgSaveMu.Unlock()
+			if body.Revision != meshCoreSettingsRevision(next) {
+				jsonError(w, "settings_conflict", 409)
+			} else {
+				jsonError(w, "invalid_settings", 400)
+			}
+			return
+		}
 		next.TrustedNodes = slices.Clone(next.TrustedNodes)
 		next.SendNodes = slices.Clone(next.SendNodes)
 		next.Channels = slices.Clone(next.Channels)
 		next.HistoryDays = body.HistoryDays
 		next.HistoryMessages = body.HistoryMessages
+		if body.AllowDeviceSettings != nil {
+			next.AllowDeviceSettings = *body.AllowDeviceSettings
+		}
+		if body.AllowRemoteDiagnostics != nil {
+			next.AllowRemoteDiagnostics = *body.AllowRemoteDiagnostics
+		}
 		err := next.Normalize()
 		if err == nil {
 			err = s.persistMeshCoreSection(next)
@@ -148,6 +211,12 @@ func (s *Server) handleMeshCoreMessenger(w http.ResponseWriter, r *http.Request,
 	default:
 		jsonError(w, "not_found", 404)
 	}
+}
+
+func meshCoreSettingsRevision(cfg meshcore.Config) string {
+	b, _ := json.Marshal([]interface{}{cfg.HistoryDays, cfg.HistoryMessages, cfg.AllowDeviceSettings, cfg.AllowRemoteDiagnostics})
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])
 }
 
 // Caller owns CfgSaveMu. Preserve unrelated YAML and the live configuration;

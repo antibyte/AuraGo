@@ -492,6 +492,9 @@ func TestMessengerLateAcknowledgementUpdatesHistory(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(rows) == 1 && rows[0].SendState == "delivered" {
+			if len(rows[0].Parts) != 1 || rows[0].Parts[0].ACKMillis == nil || *rows[0].Parts[0].ACKMillis != 1 || rows[0].Parts[0].Route == nil {
+				t.Fatal("late ACK metrics missing", rows[0].Parts)
+			}
 			return
 		}
 		time.Sleep(10 * time.Millisecond)

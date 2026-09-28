@@ -597,6 +597,35 @@
     .mc-compose-footer { flex-wrap: wrap; gap: 4px 10px; }
 }
 
+/* === Device information and settings === */
+.mc-subpage-open .mc-body { display: none; }
+.mc-device-page { flex: 1; min-height: 0; overflow: auto; padding: 20px; scrollbar-width: thin; }
+.mc-device-page > div { max-width: 880px; margin-inline: auto; }
+.mc-page-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.mc-device-card { border: 1px solid var(--vd-theme-border); border-radius: 12px; background: var(--mc-in-bg); padding: 16px; margin-block: 16px; min-width: 0; }
+.mc-device-card h3 { margin: 0 0 14px; }
+.mc-data-grid { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(0, 2fr); gap: 8px 16px; margin-block: 14px; }
+.mc-data-grid dt { color: var(--vd-theme-muted); }
+.mc-data-grid dd { margin: 0; overflow-wrap: anywhere; }
+.mc-settings-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 0; margin: 0 0 16px; border: 0; min-width: 0; }
+.mc-settings-fields > label { display: flex; flex-direction: column; gap: 6px; }
+.mc-settings-fields fieldset { border: 1px solid var(--vd-theme-border); border-radius: 10px; min-width: 0; }
+.mc-settings-fields fieldset label { display: flex; gap: 10px; padding-block: 4px; }
+.vd-meshcore .mc-settings-fields input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--mc-accent); }
+.mc-settings-fields p { grid-column: 1 / -1; }
+.mc-settings-fields:disabled { opacity: .65; }
+.mc-device-page .mc-actions { flex-wrap: wrap; }
+.mc-rx-badge { white-space: nowrap; }
+.mc-feedback[data-feedback="success"] { border-color: var(--mc-accent); background: var(--mc-accent-soft); color: var(--vd-text); }
+.mc-feedback[data-feedback="pending"] { border-color: var(--vd-theme-border); background: var(--vd-theme-control-bg); color: var(--vd-text); }
+@container (max-width: 699px) {
+    .mc-device-page { padding: 12px; }
+    .mc-settings-fields { grid-template-columns: 1fr; }
+    .mc-data-grid { grid-template-columns: minmax(90px, 1fr) minmax(0, 1.5fr); gap: 8px; }
+    .mc-device-card { padding: 12px; }
+    .mc-message-meta { flex-wrap: wrap; }
+}
+
 /* === Touch: hover actions always reachable === */
 @media (hover: none) {
     .vd-meshcore .mc-message-meta button { opacity: 1; }

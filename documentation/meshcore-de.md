@@ -2,8 +2,9 @@
 
 AuraGo verbindet sich mit einem Companion-Funkgerät. USB ist für Linux, Windows
 und macOS implementiert, Bluetooth für natives Linux mit BlueZ. **Die praktische
-Hardwareabnahme steht auf allen Plattformen noch aus.** Firmware-Flashing,
-Repeater-Verwaltung und Änderungen der Funkparameter sind nicht enthalten.
+Hardwareabnahme steht auf allen Plattformen noch aus.** Firmware-Flashing und
+Repeater-Verwaltung sind ausgeschlossen. Administrative Funkänderungen benötigen
+die unten beschriebene separate Freigabe.
 
 ## Einrichtung
 
@@ -164,8 +165,9 @@ Frequenz, Bandbreite, Spreading Factor, Coding Rate sowie Advertisement- und
 Telemetrie-Einstellungen. Kanalantworten erhalten nur ihren eigenen Nachrichten-
 und Kanalkontext, ohne lokale Hardware-/Positionsdaten oder Kontaktlisten.
 
-Die Metadaten bleiben im Eingang gespeichert; eine Schema-Migration ist nicht
-nötig. Bei alten Einträgen bleiben fehlende Werte unbekannt. Die Erfassung nutzt
+Im Eingang werden die Metadaten als zusätzliche JSON-Felder gespeichert; für
+den Messenger-Verlauf gilt die unten beschriebene Schema-Migration.
+Bei alten Einträgen bleiben fehlende Werte unbekannt. Die Erfassung nutzt
 die bestehenden lokalen Companion-Abfragen und sendet keine Telemetrieanfragen
 oder Suchpakete ins Mesh. PINs und Kanalschlüssel bleiben ausgeschlossen. Namen
 und Positionen sind externe Daten und erteilen keine Berechtigungen.
@@ -270,20 +272,78 @@ Gerätewechsel oder Slot-Neubelegung. Historisch unklare Schlüsselpräfixe werd
 nicht nachträglich zugeordnet; fehlende Versandbelege bleiben unbekannt.
 
 Die Migration einer vorhandenen Datenbank legt zunächst eine private
-`meshcore-v1-*.backup.db` daneben an; diese Sicherungen verwaltet der
-Administrator. Manuelle Auftragskennungen überleben die Verlaufslöschung.
+`meshcore-v1-*.backup.db` beziehungsweise `meshcore-v2-*.backup.db` daneben an;
+diese Sicherungen verwaltet der Administrator. Schema 3 speichert Empfangsdetails
+unabhängig vom Eingang sowie optionale Routing- und ACK-Messwerte je Sendepaket.
+Nur vorhandene, nicht geleerte Nachrichten mit genau passenden IDs und Bindungen
+werden aus dem Eingang ergänzt. Gelöschter Verlauf bleibt gelöscht, fehlende
+Altdaten bleiben unbekannt. Antworten erben keine Empfangsmetadaten. Geschützte
+Absenderlabels bleiben zusammen mit dem Text verborgen.
+Manuelle Auftragskennungen überleben die Verlaufslöschung.
 Die Sicherheitsgrenze von 65.536 Einträgen sperrt neue Sendungen, sobald die
 Ablage voll ist, und erfordert administrative Wartung.
 
 Die administrativen Endpunkte unter `/api/meshcore/messenger/` bieten GET für
 `bootstrap`, `conversations` und `messages`; POST für `send`, `conversation`,
-`reveal`, `invitation`, `manage` und `settings`. Schreibzugriffe prüfen die
+`reveal`, `invitation`, `manage` und `settings`. Zusätzlich liefern GET `device`
+und GET `diagnostics?id=ID` Gerätewerte beziehungsweise Diagnoseergebnisse.
+POST `device-settings` schreibt einen Einstellungsbereich; POST `diagnostics`
+startet mit HTTP 202 eine ausdrückliche Anfrage. Schreibzugriffe prüfen die
 Herkunft. Die Verlaufspaginierung verwendet einen exklusiven `before`-Cursor
 mit bis zu 50 Nachrichten pro Seite. API-Felder stehen in der
 [englischen Dokumentation](meshcore-en.md#desktop-messenger).
 Desktop-Ereignisse enthalten nur Metadaten und Gesprächsverweise. Nach einer
 Wiederverbindung wird der aktuelle Zustand geladen. Stummschaltung beeinflusst
 ausschließlich Messenger-Benachrichtigungen, nicht die Hinweise an den Agenten.
+
+## Geräteansicht und Einstellungen
+
+**Mein Knoten** zeigt Identität, Firmware, Kapazitäten, Position und Funkwerte.
+Lokale Diagnosewerte umfassen je nach Firmware Batteriespannung, Speicher,
+Laufzeit, Warteschlange, Fehlerflags, Paketstatistik, Airtime und letzte
+Geräte-RSSI-/SNR-Messungen. Erfassungszeiten bleiben sichtbar; Aktualisierungen
+erfolgen nur bei sichtbarer Geräteseite und höchstens alle 30 Sekunden.
+Geräte-RSSI gehört keiner bestimmten Chatnachricht, aus Spannung wird kein
+Batterieprozentwert erfunden. Nachrichtendetails zeigen Absender-/Empfangszeit,
+SNR, bekannte Hops, Frame-Angaben und damalige Kontakt-/Gerätesnapshots.
+
+**Einstellungen** bietet getrennte Bereiche mit **Speichern** und **Verwerfen**.
+Verlaufsgrenzen und Freigaben bleiben in AuraGo, Gerätewerte im Funkgerät.
+`meshcore.allow_device_settings` und `meshcore.allow_remote_diagnostics` sind
+standardmäßig `false` und erteilen dem Agenten keine neuen Befugnisse. Verbindung,
+Pairing, Identitätsbestätigung und Agentenrechte bleiben unter `/config#meshcore`.
+
+Bearbeitbar sind Name, Koordinaten, Standortfreigabe im Advertisement,
+automatische Kontakte einschließlich unterstützter Filter sowie Freigabemodi
+für Basis-, Standort- und Sensortelemetrie. Der erweiterte Funkbereich enthält
+Frequenz, Bandbreite, SF/CR, Sendeleistung, zusätzliche ACKs und unterstützte
+Repeat-/Pfad-Hash-Optionen. Die Uhrzeit wird nur auf ausdrücklichen Klick
+synchronisiert. Beim Kontaktfilter bedeutet der gespeicherte Wert 0 unbegrenzt;
+die App zeigt 1–64 als 0–63 Hops. Repeat erfordert eine vom Gerät gemeldete
+zulässige Frequenz. Optionale, nicht unterstützte Funktionen bleiben gesperrt.
+Koordinaten speichern sendet kein Advertisement und verändert nicht AuraGos
+öffentliche Ortsbeschreibung. Gerätefavoriten, Messenger-Favoriten und
+AuraGo-Vertrauensrechte sind voneinander unabhängig.
+
+Vor Funkänderungen prüfst Du alte und neue Werte. Jeder Schreibvorgang prüft
+Identität, Verbindungssitzung und Revision erneut und liest die Werte zurück.
+Bei Konflikten bleibt Dein Entwurf erhalten. Aktualisiere und vergleiche vor dem
+Verwerfen. Mehrere Befehle sind nicht atomar: Ein Teilfehler stoppt weitere
+Befehle und sperrt die Automatik als `settings_uncertain`. Prüfe die tatsächlichen
+Werte und wähle ausdrücklich **Tatsächliche Gerätewerte übernehmen**. Dabei wird
+nur die Einstellungssperre aufgehoben; Kanalberechtigungen bleiben erhalten.
+
+**Telemetrie abrufen** und **Pfad ermitteln** starten nur nach Freigabe und Klick
+eine Funkanfrage. Es läuft höchstens eine Diagnose; sie nutzt das gemeinsame
+Limit von sechs Sendungen pro Minute und wartet höchstens 60 Sekunden ohne
+Wiederholung. Antworten müssen zu Sitzung, Ziel und verfügbarer Kennung passen.
+Mehrdeutige oder verspätete Antworten werden verworfen; nach jeder Pfadabfrage
+wird die Verbindung vor einem neuen Versuch erneuert. Bis zu 128 Ergebnisse
+bleiben zehn Minuten im Arbeitsspeicher. Ein Timeout belegt weder
+Nichterreichbarkeit noch verweigerte Rechte. Position und Sensorwerte erscheinen
+nur, wenn sie tatsächlich mit den jeweiligen Einheiten geliefert wurden.
+
+## Prüfung
 
 Prüfkommandos und die festgeschriebenen Firmwarequellen stehen in der
 [englischen Integrationsdokumentation](meshcore-en.md#validation-and-sources).

@@ -63,5 +63,9 @@ The Settings inbox shows at most the newest 100 records in a paginated scroll ar
 The **MeshCore** Desktop Messenger is for administrators: human messages use a
 separate authorized send path and do not invoke an LLM. Its contact/channel
 management and explicit invitation export are not agent capabilities. Do not
-use HTTP, shell, browser automation or delegation to bypass this tool's sending
+mistake the App's separate device-settings/remote-diagnostics grants for tool
+permissions: those functions are administrative only, default off, and are not
+exposed by this tool. Device location sharing does not authorize AuraGo location
+disclosure. ACK confirmation duration includes device processing, not only RF
+propagation. Do not use HTTP, shell, browser automation or delegation to bypass this tool's sending
 allowlists or obtain channel keys. Contact imports and favorites grant no trust.

@@ -10059,7 +10059,7 @@ function updateTaskbarSystemButtonsForMobile() {
     const MESH_WIDGET_POLL_MS = 30000;
     const MESH_WIDGET_MAX_ROWS = 5;
     const MESH_WIDGET_ID_PATTERN = /^[a-f0-9]{64}$/;
-    const MESH_WIDGET_STATES = ['connected', 'connecting', 'disconnected', 'disabled', 'binding_required', 'binding_changed', 'updating', 'suspended'];
+    const MESH_WIDGET_STATES = ['connected', 'connecting', 'disconnected', 'disabled', 'binding_required', 'binding_changed', 'updating', 'suspended', 'settings_uncertain'];
 
     function meshWidgetStateName(raw) {
         const state = String(raw || 'disconnected');
