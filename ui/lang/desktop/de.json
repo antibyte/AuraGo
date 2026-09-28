@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Bewegung",
+  "sysworld.world.motion_auto": "Systemvorgabe",
+  "sysworld.world.motion_on": "Belebt",
+  "sysworld.world.motion_off": "Ruhig",
+  "sysworld.world.motion_stopped": "Stadtleben pausiert",
+  "sysworld.world.motion_hint": "Belebt aktiviert Bewegung auch bei reduzierten Systemanimationen. Die Auswahl gilt nur für die Systemwelt.",
   "sysworld.world.city_life": "Stadtleben",
   "sysworld.world.role_patrol": "Patrouillenroboter",
   "sysworld.world.role_courier": "Kurier",

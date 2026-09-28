@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Movimento",
+  "sysworld.world.motion_auto": "Preferenza di sistema",
+  "sysworld.world.motion_on": "Città viva",
+  "sysworld.world.motion_off": "Scena tranquilla",
+  "sysworld.world.motion_stopped": "Vita cittadina in pausa",
+  "sysworld.world.motion_hint": "Città viva attiva il movimento anche quando il sistema riduce le animazioni. La scelta vale solo per Mondo del sistema.",
   "sysworld.world.city_life": "Vita cittadina",
   "sysworld.world.role_patrol": "Robot di pattuglia",
   "sysworld.world.role_courier": "Corriere",

@@ -2,6 +2,7 @@
     'use strict';
     const instances = new Map();
     const QUALITY_STORAGE_KEY = 'aurago.desktop.sysworld.quality';
+    const MOTION_STORAGE_KEY = 'aurago.desktop.sysworld.motion';
     const NS = () => window.SysWorld;
     const versioned = path => window.AuraLazyAssets?.versionedURL(path) ||
         path + '?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev');
@@ -18,8 +19,10 @@
         const canvasHost = document.createElement('div');canvasHost.className='sysworld-canvas';root.append(canvasHost);
         container.replaceChildren(root);
         const motion=matchMedia('(prefers-reduced-motion: reduce)');
-        const motionOff=()=>motion.matches||document.body.dataset.animations==='false';
-        const inst={root,canvasHost,ctx,windowId,L:key=>ctx.t(key),reducedMotion:motionOff,quality:readQuality(),entities:[],
+        let motionPreference='auto';
+        try{const saved=localStorage.getItem(MOTION_STORAGE_KEY);if(['auto','on','off'].includes(saved))motionPreference=saved;}catch(_){}
+        const motionOff=()=>inst.motion==='off'||(inst.motion==='auto'&&(motion.matches||document.body.dataset.animations==='false'));
+        const inst={root,canvasHost,ctx,windowId,L:key=>ctx.t(key),motion:motionPreference,reducedMotion:motionOff,quality:readQuality(),entities:[],
             disposed:false,selected:'agent',mode:'orbit',city:null,raf:0,elapsed:0,visible:true,inView:true,cleanup:[],load:new AbortController()};
         instances.set(windowId,inst);
         const win=root.closest('.vd-window');
@@ -67,11 +70,17 @@
         };
         inst.toggleSound=()=>inst.sound?.toggle();
         inst.setVolume=value=>inst.sound?.setVolume(value);
+        inst.setMotion=value=>{
+            if(!['auto','on','off'].includes(value)||inst.disposed)return;
+            inst.motion=value;try{localStorage.setItem(MOTION_STORAGE_KEY,value);}catch(_){}
+            reduced();
+        };
         const unlockSound=()=>inst.sound?.unlock();
         root.addEventListener('pointerdown',unlockSound);
         inst.cleanup.push(()=>root.removeEventListener('pointerdown',unlockSound));
         inst.hud=NS().createHud(inst);inst.hud.mode('orbit');
         inst.worldControls=NS().createWorldControls(inst);
+        inst.worldControls.motion(inst.motion,motionOff());
         inst.applyWorldSnapshot=snapshot=>{
             syncVisibility();
             if(snapshot){inst.artifacts?.request?.abort();inst.city?.setHologram([],'local');}
@@ -92,7 +101,7 @@
         }));
         const visibility=()=>syncVisibility();
         document.addEventListener('visibilitychange',visibility);
-        const reduced=()=>{inst.city?.setReducedMotion(motionOff());if(motionOff()&&inst.mode==='tour')inst.setMode('orbit');};
+        const reduced=()=>{const off=motionOff();inst.city?.setReducedMotion(off);inst.worldControls.motion(inst.motion,off);if(off&&inst.mode==='tour')inst.setMode('orbit');};
         const motionObserver=new MutationObserver(reduced);motionObserver.observe(document.body,{attributes:true,attributeFilter:['data-animations']});
         inst.cleanup.push(()=>motionObserver.disconnect());
         motion.addEventListener('change',reduced);
@@ -161,7 +170,7 @@
                     onContextLost:()=>{if(!inst.disposed){inst.setMode('map');inst.hud.error('sysworld.city.map_fallback');}},
                 });
                 if(inst.disposed){city.dispose();return;}
-                inst.city=city;city.setData(inst.entities,inst.snapshot?.events);city.setWorld(inst.snapshot?.sources.world?.data,!!inst.replaying);city.setMode(inst.mode);inst.worldControls.ready();syncVisibility();
+                inst.city=city;reduced();city.setData(inst.entities,inst.snapshot?.events);city.setWorld(inst.snapshot?.sources.world?.data,!!inst.replaying);city.setMode(inst.mode);inst.worldControls.ready();syncVisibility();
                 applyFallback();scheduleArtifacts(1500);
             }catch(_){
                 if(inst.disposed)return;inst.mode='map';inst.hud.mode('map');inst.hud.error('sysworld.city.map_fallback');syncVisibility();
@@ -178,7 +187,7 @@
     function inspect(windowId) {
         const inst=instances.get(windowId);
         const artifacts=inst?.artifacts?{source:inst.artifacts.source,count:inst.artifacts.count,failures:inst.artifacts.failures,polling:!!inst.artifacts.timer}:null;
-        return inst?{sound:inst.sound?.stats(),selected:inst.selected,visible:inst.visible,mode:inst.mode,entityCount:inst.entities.length,raf:!!inst.raf,artifacts,...inst.city?.stats()}:null;
+        return inst?{sound:inst.sound?.stats(),motion:{preference:inst.motion,reduced:inst.reducedMotion()},selected:inst.selected,visible:inst.visible,mode:inst.mode,entityCount:inst.entities.length,raf:!!inst.raf,artifacts,...inst.city?.stats()}:null;
     }
     window.SysWorldApp = { render, dispose, inspect };
 })();

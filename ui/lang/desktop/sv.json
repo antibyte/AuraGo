@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Rörelse",
+  "sysworld.world.motion_auto": "Systeminställning",
+  "sysworld.world.motion_on": "Levande stad",
+  "sysworld.world.motion_off": "Lugn scen",
+  "sysworld.world.motion_stopped": "Stadslivet är pausat",
+  "sysworld.world.motion_hint": "Levande stad aktiverar rörelse även när systemet minskar animationer. Valet gäller bara Systemvärlden.",
   "sysworld.world.city_life": "Stadsliv",
   "sysworld.world.role_patrol": "Patrullrobot",
   "sysworld.world.role_courier": "Bud",

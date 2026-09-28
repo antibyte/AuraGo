@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Pohyb",
+  "sysworld.world.motion_auto": "Podle systému",
+  "sysworld.world.motion_on": "Živé město",
+  "sysworld.world.motion_off": "Klidná scéna",
+  "sysworld.world.motion_stopped": "Život města je pozastaven",
+  "sysworld.world.motion_hint": "Živé město zapne pohyb i při omezení animací v systému. Volba platí pouze pro Svět systému.",
   "sysworld.world.city_life": "Život ve městě",
   "sysworld.world.role_patrol": "Hlídkový robot",
   "sysworld.world.role_courier": "Kurýr",

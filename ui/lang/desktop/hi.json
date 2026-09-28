@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "गतिविधि",
+  "sysworld.world.motion_auto": "सिस्टम की सेटिंग",
+  "sysworld.world.motion_on": "जीवंत शहर",
+  "sysworld.world.motion_off": "शांत दृश्य",
+  "sysworld.world.motion_stopped": "शहर की गतिविधियाँ रुकी हैं",
+  "sysworld.world.motion_hint": "जीवंत शहर चुनने पर सिस्टम में कम ऐनिमेशन होने पर भी गतिविधियाँ चलती हैं। यह विकल्प केवल सिस्टम वर्ल्ड पर लागू होता है।",
   "sysworld.world.city_life": "शहरी जीवन",
   "sysworld.world.role_patrol": "गश्ती रोबोट",
   "sysworld.world.role_courier": "कूरियर",

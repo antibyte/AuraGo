@@ -11,16 +11,19 @@
         const openPanel=()=>{panel.open=true;if(document.pointerLockElement===inst.city?.canvas)document.exitPointerLock();};
         const closePanel=()=>{panel.open=false;inst.city?.canvas.focus({preventScroll:true});};
         const close=button('×',e=>{e.preventDefault();closePanel();});close.className='sw-world-close sw-btn';close.dataset.worldClose='';close.setAttribute('aria-label',inst.L('desktop.close'));close.title=inst.L('desktop.close');
-        summary.append(close);panel.append(summary);root.append(panel);
+        const motionStatus=el('span','sw-motion-status');motionStatus.hidden=true;
+        summary.append(motionStatus,close);panel.append(summary);root.append(panel);
         panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closePanel();}});
         const content=el('div','sw-world-body');panel.append(content);
         const notice=el('p','sw-world-notice');notice.setAttribute('role','status');content.append(notice);
         const selects={};
-        const select=(key,values)=>{const label=el('label','sw-world-field',L(key)),input=el('select','sw-quality');input.setAttribute('aria-label',L(key));for(const value of values)input.add(new Option(L(value),value));label.append(input);content.append(label);selects[key]=input;return input;};
+        const select=(key,values,prefix='')=>{const label=el('label','sw-world-field',L(key)),input=el('select','sw-quality');input.setAttribute('aria-label',L(key));for(const value of values)input.add(new Option(L(prefix+value),value));label.append(input);content.append(label);selects[key]=input;return input;};
         const time=select('time',['local','day','evening','night']),weather=select('weather',['clear','rain','fog']);
         try{const saved=JSON.parse(localStorage.getItem('aurago.desktop.sysworld.environment')||'{}');if(['local','day','evening','night'].includes(saved.time))time.value=saved.time;if(['clear','rain','fog'].includes(saved.weather))weather.value=saved.weather;}catch(_){}
         const environment=()=>{const value={time:time.value,weather:weather.value};inst.city?.setEnvironment(value);inst.sound?.setEnvironment(inside,weather.value);try{localStorage.setItem('aurago.desktop.sysworld.environment',JSON.stringify(value));}catch(_){} };
         time.addEventListener('change',environment);weather.addEventListener('change',environment);
+        const motion=select('motion',['auto','on','off'],'motion_');motion.dataset.worldMotion='';motion.addEventListener('change',()=>inst.setMotion(motion.value));
+        content.append(el('p','sw-muted',L('motion_hint')));
         const sound=el('details','sw-world-section');sound.append(el('summary','',L('audio')));
         for(const key of['ambience','effects','voice']){const label=el('label','sw-world-field',L(key)),input=el('input');input.type='range';input.min=0;input.max=100;input.value=100;input.setAttribute('aria-label',L(key));input.addEventListener('input',()=>inst.sound?.setChannel(key,Number(input.value)/100));label.append(input);sound.append(label);}content.append(sound);
         const destinations=el('div','sw-world-destinations');content.append(el('h3','',L('stations')),destinations);
@@ -103,6 +106,7 @@
         const interaction=button('',()=>inst.city?.interact()),interactionLabel=el('span'),interactionKey=el('kbd','','E');interactionKey.setAttribute('aria-hidden','true');interaction.append(interactionLabel,interactionKey);interaction.className='sw-interaction sw-glass';interaction.hidden=true;root.append(interaction);
         return {
             ready:environment,
+            motion(value,reduced){motion.value=value;motionStatus.hidden=!reduced;motionStatus.textContent=reduced?L('motion_stopped'):'';},
             society:showSociety,
             terminal(id){openPanel();actions.open=true;inst.select(id,false);},
             discover(id){openPanel();notice.textContent=inst.L(NS.districts.find(d=>d[0]===id)?.[1]||'sysworld.zone.core')+' — '+L('about_'+id);},

@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Mouvement",
+  "sysworld.world.motion_auto": "Réglage du système",
+  "sysworld.world.motion_on": "Ville animée",
+  "sysworld.world.motion_off": "Scène calme",
+  "sysworld.world.motion_stopped": "Vie urbaine en pause",
+  "sysworld.world.motion_hint": "Ville animée active le mouvement même si le système réduit les animations. Ce choix concerne uniquement le Monde du système.",
   "sysworld.world.city_life": "Vie urbaine",
   "sysworld.world.role_patrol": "Robot de patrouille",
   "sysworld.world.role_courier": "Coursier",

@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Κίνηση",
+  "sysworld.world.motion_auto": "Ρύθμιση συστήματος",
+  "sysworld.world.motion_on": "Ζωντανή πόλη",
+  "sysworld.world.motion_off": "Ήρεμη σκηνή",
+  "sysworld.world.motion_stopped": "Η ζωή της πόλης έχει παύσει",
+  "sysworld.world.motion_hint": "Η ζωντανή πόλη ενεργοποιεί την κίνηση ακόμη και με μειωμένες κινήσεις συστήματος. Η επιλογή ισχύει μόνο για τον Κόσμο συστήματος.",
   "sysworld.world.city_life": "Ζωή στην πόλη",
   "sysworld.world.role_patrol": "Ρομπότ περιπολίας",
   "sysworld.world.role_courier": "Διανομέας",

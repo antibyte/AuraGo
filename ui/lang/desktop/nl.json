@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Beweging",
+  "sysworld.world.motion_auto": "Systeemvoorkeur",
+  "sysworld.world.motion_on": "Levendige stad",
+  "sysworld.world.motion_off": "Rustige scène",
+  "sysworld.world.motion_stopped": "Stadsleven gepauzeerd",
+  "sysworld.world.motion_hint": "Levendige stad schakelt beweging in, ook als het systeem animaties beperkt. Deze keuze geldt alleen voor Systeemwereld.",
   "sysworld.world.city_life": "Stadsleven",
   "sysworld.world.role_patrol": "Patrouillerobot",
   "sysworld.world.role_courier": "Koerier",

@@ -179,7 +179,7 @@ export function createCityLife(scene, districts, options) {
     if(animated&&step>0){time+=step;navigator.step(step);}
     for(const [i,r]of residents.entries()) {
       const a=r.agent, moving=Math.hypot(a.vx,a.vz);
-      const position=a.held&&bodies[i]?bodies[i]:a;
+      const position=(!animated||a.held)&&bodies[i]?bodies[i]:a;
       r.root.position.set(position.x,1.6+Math.sin(time*1.6+i*1.9)*.18,position.z);
       r.root.rotation.y=position.heading;
       // Lean into lateral moves and turns; a stopped or turning robot stays level.
@@ -188,7 +188,7 @@ export function createCityLife(scene, districts, options) {
       r.body.rotation.x=-.035+Math.sin(time*1.1+i)*.018-Math.min(.09,moving*.015);
       r.glow.position.x=position.x;r.glow.position.z=position.z;
       r.jet.scale.y=1+Math.sin(time*4+i)*.12+moving*.04;
-      if(bodies[i]&&!a.held){
+      if(animated&&bodies[i]&&!a.held){
         const b=bodies[i],next={x:a.x,y:1.6,z:a.z,heading:a.heading};
         if(r.escape&&time<r.escape.until){next.x=b.x+r.escape.x*step*1.8;next.z=b.z+r.escape.z*step*1.8;next.heading=b.heading;}
         else r.escape=null;

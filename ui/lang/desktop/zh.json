@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "动态效果",
+  "sysworld.world.motion_auto": "跟随系统",
+  "sysworld.world.motion_on": "生动城市",
+  "sysworld.world.motion_off": "静态场景",
+  "sysworld.world.motion_stopped": "城市活动已暂停",
+  "sysworld.world.motion_hint": "选择“生动城市”后，即使系统减少动画也会启用动态效果。此设置仅适用于系统世界。",
   "sysworld.world.city_life": "城市生活",
   "sysworld.world.role_patrol": "巡逻机器人",
   "sysworld.world.role_courier": "快递员",

@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Ruch",
+  "sysworld.world.motion_auto": "Ustawienie systemowe",
+  "sysworld.world.motion_on": "Żywe miasto",
+  "sysworld.world.motion_off": "Spokojna scena",
+  "sysworld.world.motion_stopped": "Życie miasta wstrzymane",
+  "sysworld.world.motion_hint": "Żywe miasto włącza ruch nawet przy ograniczonych animacjach systemowych. Ten wybór dotyczy tylko Świata systemu.",
   "sysworld.world.city_life": "Życie miasta",
   "sysworld.world.role_patrol": "Robot patrolowy",
   "sysworld.world.role_courier": "Kurier",

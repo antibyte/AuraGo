@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Motion",
+  "sysworld.world.motion_auto": "System preference",
+  "sysworld.world.motion_on": "Lively",
+  "sysworld.world.motion_off": "Still",
+  "sysworld.world.motion_stopped": "City life paused",
+  "sysworld.world.motion_hint": "Lively enables movement even when system animations are reduced. This choice applies only to System World.",
   "sysworld.world.city_life": "City life",
   "sysworld.world.role_patrol": "Patrol robot",
   "sysworld.world.role_courier": "Courier",

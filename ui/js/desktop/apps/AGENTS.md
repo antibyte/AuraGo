@@ -1253,7 +1253,9 @@ registration lives in `internal/desktop/types.go`.
   Only fresh actual error/running states or bounded recent events animate district
   signals; stale/unknown stays neutral. The operations signal uses private material
   clones so its red pulse cannot recolor other buildings. Rebind after LOD swaps.
-  Reduced motion/Desktop animation settings freeze residents and pulses.
+  The effective System World motion preference freezes residents and pulses.
+  Paused patrols render their accepted collision pose without submitting route
+  adjustments; suspension may rebase the navigator but must not move the actor.
 - `sysworld-navigation.js` steers those robots. Routes are right-turn block
   circuits sampled by arc length with 7.5 m corner handles; robots drive the
   right-hand lane (`2.2`) and may use `0/-2.2/±3.9`. Obstacles are circles
@@ -1392,8 +1394,15 @@ registration lives in `internal/desktop/types.go`.
   changes. No per-frame geometry or material creation.
 - District placement and entity IDs stay fixed through data refresh. User
   navigation cancels the explicit tour; inactivity never takes the camera.
-  Reduced motion and Desktop animation settings suppress camera flights/tours
-  and the decorative pulse. Street mode owns WASD only while its canvas is
+  Motion `auto/on/off` persists under `aurago.desktop.sysworld.motion`. Default
+  `auto` honors reduced motion and Desktop animation settings; explicit `on`
+  enables this city's animation without changing global preferences, and `off`
+  freezes it. The exploration selector controls the existing simulation; its
+  summary visibly labels a paused city. Reapply the effective preference after
+  asynchronous city loading. Verify `AURAGO_SYSTEM_WORLD_MOTION=1` with the city
+  browser test (all moving groups, pause, persistence and system changes).
+  Effective reduced motion suppresses camera flights/tours and the decorative
+  pulse. Street mode owns WASD only while its canvas is
   focused; pointer lock is explicit and Escape/blur/close release control.
 - Verify `node scripts/test-system-world.mjs` (includes the navigation
   blockade/sidestep units and a 60-minute five-robot simulation), `node

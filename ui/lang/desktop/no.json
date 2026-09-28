@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "Bevegelse",
+  "sysworld.world.motion_auto": "Systeminnstilling",
+  "sysworld.world.motion_on": "Levende by",
+  "sysworld.world.motion_off": "Rolig scene",
+  "sysworld.world.motion_stopped": "Bylivet er satt på pause",
+  "sysworld.world.motion_hint": "Levende by aktiverer bevegelse selv om systemet reduserer animasjoner. Valget gjelder bare Systemverden.",
   "sysworld.world.city_life": "Byliv",
   "sysworld.world.role_patrol": "Patruljerobot",
   "sysworld.world.role_courier": "Bud",

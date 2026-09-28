@@ -150,6 +150,12 @@ per actor, and all animation uses the existing render loop. Disposal cancels loa
 and releases mixers, textures, GPU resources, listeners, timers and audio. A lost
 WebGL context falls back to the HTML map. Reduced motion freezes decorative travel
 and disables camera tours while retaining the information and terminal interfaces.
+The **Motion** selector under **Explore the city** defaults to the system
+preference (OS reduced motion or disabled Desktop animations). Choose **Lively**
+to animate this city independently, or **Still** to pause it. This browser-local
+choice persists under `aurago.desktop.sysworld.motion`; it never changes global
+accessibility or Desktop settings. The closed exploration heading also shows
+when city life is paused.
 
 ## Verification
 
@@ -191,6 +197,7 @@ Run separately with exactly one additional flag for each extended scenario:
 | `AURAGO_SYSTEM_WORLD_STRESS=1` | 1,000 containers, 10,000-node source with bounded loading, confirmed/deduplicated action, replay, repeated lifecycle, frame timings |
 | `AURAGO_SYSTEM_WORLD_MODELS=1` | Every exported LOD and clip rendered from the GLBs in Chrome |
 | `AURAGO_SYSTEM_WORLD_LIVING=1` | Six close-up installations, local greeting/guide, touch and reduced motion |
+| `AURAGO_SYSTEM_WORLD_MOTION=1` | System-motion defaults, explicit resume/pause of all actor groups, persistence and visible touch status |
 
 Build the review fixture with `node scripts/build-system-world-review.mjs` before
 the model check. Screenshots, hardware/frame reports and the visual acceptance

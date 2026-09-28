@@ -1,4 +1,10 @@
 {
+  "sysworld.world.motion": "動き",
+  "sysworld.world.motion_auto": "システム設定に従う",
+  "sysworld.world.motion_on": "動きのある街",
+  "sysworld.world.motion_off": "静かな街",
+  "sysworld.world.motion_stopped": "街の動きを一時停止中",
+  "sysworld.world.motion_hint": "「動きのある街」では、システムでアニメーションを減らしていても動きが有効になります。この設定はシステムワールドだけに適用されます。",
   "sysworld.world.city_life": "街の暮らし",
   "sysworld.world.role_patrol": "巡回ロボット",
   "sysworld.world.role_courier": "配達員",

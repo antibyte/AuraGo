@@ -142,6 +142,10 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 		verifySystemWorldLiving(t, page, dir)
 		return
 	}
+	if os.Getenv("AURAGO_SYSTEM_WORLD_MOTION") == "1" {
+		verifySystemWorldMotion(t, page, dir)
+		return
+	}
 	if os.Getenv("AURAGO_SYSTEM_WORLD_STRESS") == "1" {
 		verifySystemWorldStress(t, page, dir)
 		return
