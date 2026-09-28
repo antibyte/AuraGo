@@ -18,7 +18,9 @@
     "test:realtime-speech": "node scripts/test-realtime-speech.mjs",
     "test:ui-regressions": "node scripts/test-ui-regressions.mjs",
     "build:system-world": "node scripts/build-system-world.js",
-    "test:system-world": "node scripts/test-system-world.mjs"
+    "test:system-world": "node scripts/test-system-world.mjs",
+    "build:screensaver-abyss": "node scripts/build-screensaver-abyss.js",
+    "test:screensaver-glbs": "node scripts/validate-screensaver-glbs.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

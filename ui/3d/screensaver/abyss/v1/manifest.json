@@ -1,0 +1,87 @@
+{
+  "kit": "aurago-screensaver-abyss",
+  "version": 1,
+  "license": "MIT",
+  "generator": "assets/screensaver-abyss/build_abyss.py",
+  "generator_sha256": "25004cd32e2c8825243f6b9286f3008d3dba529c5c449d81adb7ab2cf3211aa2",
+  "uv0": "along, phase",
+  "uv1": "angle, side",
+  "assets": [
+    {
+      "id": "jelly_moon",
+      "file": "jelly-moon.glb",
+      "bytes": 234876,
+      "sha256": "a010363570dcf4e32b1440691daab498aef34f30b4a3cfa60593e7dd4e486c29",
+      "triangles": 6896,
+      "bounds": {
+        "min": [
+          -1.1049,
+          -1.1,
+          -1.0802
+        ],
+        "max": [
+          1.1471,
+          0.46,
+          1.1085
+        ]
+      }
+    },
+    {
+      "id": "jelly_lion",
+      "file": "jelly-lion.glb",
+      "bytes": 335312,
+      "sha256": "af0e3b1b5b59252644615eec220730efd0e3a03fc23b6e5dadf88b3df4b3c8d4",
+      "triangles": 9920,
+      "bounds": {
+        "min": [
+          -1.3626,
+          -3.9199,
+          -1.3873
+        ],
+        "max": [
+          1.4153,
+          0.36,
+          1.6609
+        ]
+      }
+    },
+    {
+      "id": "jelly_comb",
+      "file": "jelly-comb.glb",
+      "bytes": 68700,
+      "sha256": "38857605d38e9a4c8a5a850de603c42731357b4955e6765599f3020b130eb134",
+      "triangles": 2064,
+      "bounds": {
+        "min": [
+          -0.4536,
+          -0.65,
+          -0.3168
+        ],
+        "max": [
+          0.4536,
+          0.55,
+          0.3168
+        ]
+      }
+    },
+    {
+      "id": "manta",
+      "file": "manta.glb",
+      "bytes": 98076,
+      "sha256": "a786f54a63cc4cbab8f61770ebf2e71d1abcd6682593d3d08ad7e4f76a8c650d",
+      "triangles": 3404,
+      "bounds": {
+        "min": [
+          -1.75,
+          -0.11,
+          -0.754
+        ],
+        "max": [
+          1.75,
+          0.194,
+          1.4501
+        ]
+      }
+    }
+  ]
+}
