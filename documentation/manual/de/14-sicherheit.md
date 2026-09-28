@@ -547,9 +547,9 @@ server:
     trusted_proxy_cidrs: ["192.168.1.10", "10.0.0.0/24"]
 ```
 
-- **Auth-aus-Freigabe:** Startet AuraGo ohne Login (`auth.enabled: false`) und lauscht nicht nur auf localhost, verlangt der Start (und jede Config-Speicherung) ausdrücklich `auth.allow_unauthenticated_remote: true`. Die Ausnahme öffnet niemals `/speech-lab/` oder administrative Bereiche; konfigurierte eingehende Webhook- und Integrations-Authentifizierungen bleiben weiter aktiv.
-- **Desktop-Embed-Tickets:** Medien- und Datei-Referenzen in Desktop-Embeds laufen über `/desktop-ticket/<ticket>/...`. Das kurzlebige Ticket trägt die Zugangsdaten im Pfadsegment, wird vor Routing und Zugriffslogging entfernt und gilt nur für den exakten Zielpfad.
-- **Speech-Lab-Browser:** `/speech-lab/` verlangt eine AuraGo-Sitzung, schreibende Zugriffe und WebSocket-Origin müssen same-origin sein, und das Backend ist eine konfigurationseigene private Adresse. AuraGo-Anmeldedaten werden vom Proxy gestrippt; im External-Modus zeigt nur der serverseitige `browser_automation.browser_backend_url` auf den s2s-Web-Backend — niemals eine Legacy-URL im Browser.
+- **Auth-aus-Freigabe:** Startet AuraGo ohne Login (`auth.enabled: false`) und lauscht nicht nur auf localhost, verlangt der Start (und jede Config-Speicherung) ausdrücklich `auth.allow_unauthenticated_remote: true`. Die Ausnahme öffnet niemals `/speech-lab/` — dieser Proxy verlangt unabhängig von der Auth-Einstellung eine echte AuraGo-Sitzung. Konfigurierte eingehende Webhook- und Integrations-Authentifizierungen bleiben ebenfalls aktiv.
+- **Desktop-Embed-Tickets:** Medien- und Datei-Referenzen in Desktop-Embeds laufen über `/desktop-ticket/<ticket>/...`. Das kurzlebige Ticket trägt die Zugangsdaten im Pfadsegment, wird vor Routing und Zugriffslogging entfernt und gilt nur für Desktop-Dateipfade (`/files/desktop/`) oder die Drucker-Kamerastreams; Query-Token werden abgelehnt.
+- **Speech-Lab-Browser:** `/speech-lab/` verlangt eine AuraGo-Sitzung, schreibende Zugriffe und WebSocket-Origin müssen same-origin sein, und das Backend ist eine konfigurationseigene private Adresse. AuraGo-Anmeldedaten werden vom Proxy gestrippt; im External-Modus zeigt nur der serverseitige `speech_lab.browser_backend_url` auf den s2s-Web-Backend — niemals eine Legacy-URL im Browser.
 - **CSP:** Die Haupt-UI unter `/` trägt eine report-only Content-Security-Policy ohne `unsafe-inline`; Desktop-Apps behalten ihre eigene, strengere Policy.
 
 ---
@@ -558,7 +558,7 @@ server:
 
 ### SSRF-Schutz für ausgehende HTTP-Anrufe
 
-`api_request` und alle internen HTTP-Clients nutzen einen SSRF-geschützten Client: DNS-Auflösung wählt eine öffentliche IP, der Wählvorgang wird an diese IP gepinnt, jede Weiterleitung wird neu validiert (maximal 10, sonst Abbruch) und System-Proxies sind deaktiviert. Loopback-, privaten, CGNAT- und Metadaten-Adressen werden blockiert; `AURAGO_SSRF_ALLOW_LOOPBACK` bleibt ein ausdrücklicher Entwicklungsausnahmehahn.
+`api_request`, der Web-Scraper und die LLM-Clients nutzen einen SSRF-geschützten Client: DNS-Auflösung wählt eine öffentliche IP, der Wählvorgang wird an diese IP gepinnt, jede Weiterleitung wird neu validiert (maximal 10, sonst Abbruch) und System-Proxies sind deaktiviert. Loopback-, privaten, CGNAT- und Metadaten-Adressen werden blockiert; `AURAGO_SSRF_ALLOW_LOOPBACK` bleibt ein ausdrücklicher Entwicklungsausnahmehahn.
 
 ### Netzwerk-MCP-Server
 

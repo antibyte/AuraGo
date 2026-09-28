@@ -2601,14 +2601,21 @@ Speech Lab connects AuraGo to the local s2s ASR/TTS service. AuraGo continues to
 ### Web UI and channel selection
 
 1. Open **Config → Media → Speech Lab**.
-2. In managed mode, choose the hardware profile (`Auto`, `Vulkan`, or `CPU`) and confirm the first bundle download. `Auto` is recommended for AMD; `CPU` is a compatibility path.
+2. In managed mode, choose the hardware profile (`Auto`, `CUDA`, `Vulkan`, or `CPU`) and confirm the first bundle download. `Auto` selects Vulkan when `/dev/dri` is available; `CPU` is a compatibility path.
 3. Enable the channels independently: local chat input, chat output, and classic SIP ASR/TTS.
-4. Open **Browser Lab** from the settings page or the chat integrations drawer. AuraGo derives the normal browser URL from the current host on port `8766`; `advanced_ui_url` is an expert-only override.
+4. Open **Browser Lab** from the settings page or the chat integrations drawer. The browser always uses the relative AuraGo route `/speech-lab/`, which proxies to the configuration-owned backend with authentication; the legacy `advanced_ui_url` is no longer linked. In external mode only the server-side `speech_lab.browser_backend_url` points to the s2s web backend.
 
 ```yaml
 speech_lab:
     enabled: false
     base_url: http://s2s-vulkan:8765
+    browser_backend_url: ""   # external mode only: admin-configured s2s web backend
+    deployment:
+        mode: managed           # managed or external
+        bundle: stable
+        gpu_backend: auto       # auto, cuda, vulkan, or cpu
+        auto_start: true
+        auto_update: false
     language: en
     chat_llm_provider_id: ""
     timeout_seconds: 60
@@ -2623,7 +2630,7 @@ AuraGo reads ASR, TTS, and voice from one `/ready` snapshot and requires matchin
 
 ### Deployment and network boundary
 
-Managed installation uses the signed, digest-pinned bundle and requires explicit administrator confirmation for the first pull. The service port `8765` stays private; the Browser Lab uses `8766`. Native AuraGo binds both to loopback, while container deployments use the private Docker network. With embedded Tailscale, only the Browser Lab is additionally exposed through AuraGo's own TLS listener.
+Managed installation uses the signed, digest-pinned bundle and requires explicit administrator confirmation for the first pull. The service port `8765` stays private; the browser backend defaults to loopback `8766` (native installs) or `http://s2s-web:80` (Docker) and is reachable only through the `/speech-lab/` proxy. There is no separate Tailscale listener; with embedded Tailscale the Browser Lab is reachable through the normal AuraGo access path.
 
 Only credential-free HTTP(S) URLs pointing to loopback or private addresses are accepted. Speech Lab does not become a general-purpose proxy. See [Speech Lab integration](../../s2s_speech_lab.md) for the fixed service contract and deployment overlays.
 
@@ -2739,7 +2746,7 @@ virtual_computers:
         max_active_workspaces: 2
 ```
 
-The management application is available directly at `/boring-computers/`; it is omitted from the Chat integrations drawer. Keep ports `18081` and `18082` private; remote access should go through AuraGo or Tailscale. Read-only mode blocks mutations, Live VNC, terminal writes, and new or cancelled agent tasks at the AuraGo boundary. Credentials and the boringd token remain server-side. The **New computer** dialog has a Network choice for both `python` (without desktop) and `desktop` templates: when **Allow internet** is enabled in Virtual Computers, each machine can pick a network profile (`internet_lan` allows public internet; the default profile stays restricted).
+The management application is available directly at `/boring-computers/`; it is omitted from the Chat integrations drawer. Keep ports `18081` and `18082` private; remote access should go through AuraGo or Tailscale. Read-only mode blocks mutations, Live VNC, terminal writes, and new or cancelled agent tasks at the AuraGo boundary. Credentials and the boringd token remain server-side. The **New computer** dialog has a Network choice (**Internet**/**Offline**) for both `python` (without desktop) and `desktop` templates: when **Allow internet** is enabled in Virtual Computers, **Internet** is preselected and can be toggled per machine; with the gate off only **Offline** is available, and an internet-enabled launch is rejected at the server boundary.
 
 **Volume storage:** the default is **Managed Garage** — AuraGo runs a pinned Garage container (`aurago-boring-garage`, bound only to `127.0.0.1:3900`) with data under `data/sidecars/garage`. Garage keys (`virtual_computers_garage_*`) are stored separately from external S3 keys in the Vault and are never exported to Python/skills. `external_s3` remains available for existing setups. Switching the storage mode while volumes exist requires a one-time authorization token; source objects are never auto-deleted. The agent cannot see or manage the Garage container (same fail-closed pattern as the local-LLM manager).
 

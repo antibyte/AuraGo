@@ -239,9 +239,9 @@ server:
     trusted_proxy_cidrs: ["192.168.1.10", "10.0.0.0/24"]
 ```
 
-- **Auth-off exception:** Starting AuraGo without login (`auth.enabled: false`) while any remote listener is configured requires an explicit `auth.allow_unauthenticated_remote: true` at startup and config save. The exception never opens `/speech-lab/` or administrative areas; configured inbound webhook and integration authentication stays active.
-- **Desktop embed tickets:** Media and file references in desktop embeds go through `/desktop-ticket/<ticket>/...`. The short-lived ticket carries credentials in a path segment, is stripped before routing and access logging, and is scoped to the exact target path.
-- **Speech Lab browser:** `/speech-lab/` requires an AuraGo session; writes and the WebSocket Origin must be same-origin, and the backend must be a configuration-owned private address. AuraGo credentials are stripped by the proxy; in external mode only the server-side `browser_automation.browser_backend_url` points to the s2s web backend — never a legacy URL in the browser.
+- **Auth-off exception:** Starting AuraGo without login (`auth.enabled: false`) while any remote listener is configured requires an explicit `auth.allow_unauthenticated_remote: true` at startup and config save. The exception never opens `/speech-lab/` — that proxy requires a real AuraGo session regardless of the auth setting. Configured inbound webhook and integration authentication stays active as well.
+- **Desktop embed tickets:** Media and file references in desktop embeds go through `/desktop-ticket/<ticket>/...`. The short-lived ticket carries credentials in a path segment, is stripped before routing and access logging, and is scoped to desktop file paths (`/files/desktop/`) or the printer camera streams; query tokens are rejected.
+- **Speech Lab browser:** `/speech-lab/` requires an AuraGo session; writes and the WebSocket Origin must be same-origin, and the backend must be a configuration-owned private address. AuraGo credentials are stripped by the proxy; in external mode only the server-side `speech_lab.browser_backend_url` points to the s2s web backend — never a legacy URL in the browser.
 - **CSP:** The main UI at `/` carries a report-only Content Security Policy without `unsafe-inline`; desktop apps keep their own stricter policy.
 
 ---
@@ -250,7 +250,7 @@ server:
 
 ### SSRF protection for outbound HTTP
 
-`api_request` and all internal HTTP clients use an SSRF-protected client: DNS resolution selects a public IP, the dial is pinned to that IP, every redirect is revalidated (at most 10, then abort), and system proxies are disabled. Loopback, private, CGNAT, and metadata addresses are blocked; `AURAGO_SSRF_ALLOW_LOOPBACK` remains an explicit development escape hatch.
+`api_request`, the web scraper, and the LLM clients use an SSRF-protected client: DNS resolution selects a public IP, the dial is pinned to that IP, every redirect is revalidated (at most 10, then abort), and system proxies are disabled. Loopback, private, CGNAT, and metadata addresses are blocked; `AURAGO_SSRF_ALLOW_LOOPBACK` remains an explicit development escape hatch.
 
 ### Network MCP servers
 

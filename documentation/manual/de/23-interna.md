@@ -822,10 +822,10 @@ Das Wartungs-CLI läuft vor Config-/Vault-Initialisierung im portablen Binary:
 ./aurago --update-maintenance --root /opt/aurago --apply         # anwenden
 ./aurago --update-maintenance --root /opt/aurago --adopt-legacy  # nachweislich installationseigene Legacy-Artefakte einschließen
 ./aurago --update-maintenance --root /opt/aurago --check-pending # Transaktionszustand vor einem Update prüfen
-./aurago --update-maintenance --root /opt/aurago --resolve <id> --outcome rolled_back
+./aurago --update-maintenance --root /opt/aurago --apply --resolve <id> --outcome rolled_back
 ```
 
-`--resolve` mit `--outcome` (`confirmed` oder `rolled_back`) schließt eine wiederhergestellte Transaktion ab. `update.sh` nutzt dieselbe CLI. Verifiziere mit `go test ./internal/upkeep` und `bash -n update.sh`.
+`--resolve` verlangt zusätzlich `--apply` und `--outcome` (`confirmed` oder `rolled_back`) und schließt eine wiederhergestellte Transaktion ab. `update.sh` nutzt dieselbe CLI. Verifiziere mit `go test ./internal/upkeep` und `bash -n update.sh`.
 
 ---
 

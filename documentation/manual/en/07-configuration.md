@@ -570,7 +570,7 @@ personality:
 
 ### Adaptive dynamics
 
-The personality engine keeps transactional dynamics values that show how the character develops with you: **load** (rises through criticism and conflict), **familiarity** (grows through repeated positive interaction), and **friction**. Load and friction decay over time; voice and response style are influenced live. The Dashboard shows the current dynamics on the personality card with a trend (steady, recovering, strained) and offers a reset: `POST /api/personality/dynamics/reset` returns load and friction to zero without changing traits or character notes. The reset follows the usual personality write protection.
+The personality engine keeps transactional dynamics values that show how the character develops with you: **load** (rises through criticism and conflict), **familiarity** (grows through repeated positive interaction), and **friction**. Load and friction decay over time; voice and response style are influenced live. The Dashboard shows the current dynamics on the personality card with a trend (steady, recovering, strained) and offers a reset: `POST /api/personality/dynamics/reset` zeroes the dynamics and returns affect to rest values without changing traits, lived notes, or the active persona.
 
 ---
 
@@ -1008,7 +1008,7 @@ Recent game-agent capabilities:
 - **Bundled asset packs:** a 220-model low-poly pack, maritime and isometric worlds, and effect/audio presentation packs ship locally and are embedded without external downloads. AuraGo still does not generate 3D models itself.
 - **Screenshot review:** after validation, a vision pass reviews screenshots of the running game and starts bounded repairs before the revision is published.
 - **Feedback and progression:** a shared runtime module provides player feedback, result/stage UI, and checkpoints (Phaser: `damagePlayer()` with checkpoints; Three.js: `api.damagePlayer(amount)`). Feedback never changes gameplay values; peaceful single-screen games stay valid without combat or lives.
-- **Finishing window:** an accepted game under active development with a successful build gets one bounded extension window (at most 15 minutes) beyond the normal job budget.
+- **Finishing window:** a game with an accepted plan, a compiled build, and recently changed sources gets one extension window beyond the normal job budget (half the budget, at most 15 minutes); validation remains required.
 
 ### Local network shares
 
@@ -1055,7 +1055,7 @@ llm_router:
     coding: {provider: "", model: ""}   # empty = ordinary model
 ```
 
-Follow-ups, Web Chat, Desktop, Telegram, Discord, Rocket.Chat, SMS, and authorized MeshCore share the router; explicit Desktop and Speech Lab choices plus prepared workflows, Game Maker, Detective, SIP, and missions keep their models. The Web UI offers a local preview test and one-shot helper questions; the Dashboard shows counters since restart. Details: [Task LLM router](../../llm-router.md).
+Web Chat, Desktop, Telegram, Discord, Rocket.Chat, SMS, and authorized MeshCore use the shared router; explicit Desktop and Speech Lab choices plus prepared workflows, Game Maker, Detective, SIP, and missions keep their models. A brief continuation such as "weiter" can reuse the previous decision for up to ten minutes in the same session. The Web UI offers a local preview test and one-shot helper questions; the Dashboard shows counters since restart. Details: [Task LLM router](../../llm-router.md).
 
 ### Newspaper — personal daily edition
 
@@ -1072,7 +1072,7 @@ newspaper:
   allow_telegram: false      # permit configured authorized Telegram users
 ```
 
-Failed deliveries report bounces back; retries are allowed after failed daily research. Curated RSS sources and a correction flow complement the automatic research.
+Failed deliveries report bounces back. A failed or interrupted daily run without a published edition may be retried manually for the same local date (next numbered revision); the scheduler makes only one attempt per date. Curated RSS sources and a correction flow complement the automatic research.
 
 ### treg catalog gateway
 
@@ -1086,7 +1086,7 @@ treg:
   allowed_endpoints: []      # UI grants bind endpoint_id, method, path, operation
 ```
 
-Every endpoint needs an explicit grant with the operation class `read`, `create`, `update`, or `delete` (at most 256 entries). The cost ceiling covers treg fees only. Results separate reserved and settled amounts; status polling uses server-owned references bound to token and session (valid for 24 hours). Administrative `/api/treg/` routes expose status, catalog, balance, and connection test only. Details: [treg integration](../../treg.md).
+Every endpoint needs an explicit grant with the operation class `read`, `create`, `update`, or `delete` (at most 256 entries). The cost ceiling covers treg fees only. Results separate reserved and settled amounts; status polling uses server-owned references bound to token and session (valid for 24 hours). Administrative `/api/treg/` routes expose status, catalog, endpoint details, balance, and connection test only. Details: [treg integration](../../treg.md).
 
 ## Compact YAML Reference
 

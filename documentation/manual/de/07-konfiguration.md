@@ -410,7 +410,7 @@ personality:
 
 ### Adaptive Dynamik
 
-Die Personality Engine führt transaktionale Dynamik-Werte mit, die zeigen, wie sich der Charakter im Umgang mit dir entwickelt: **Belastung** (steigt durch Kritik und Konflikte), **Vertrautheit** (wächst durch wiederkehrende, positive Interaktion) und **Reibung**. Belastung und Reibung klingen mit der Zeit ab; die Stimme und das Antwortverhalten beeinflussen sie live. Das Dashboard zeigt die aktuelle Dynamik auf der Persönlichkeits-Karte mit Verlaufs-Trend (stabil, erholt sich, angespannt) und bietet einen Reset an: `POST /api/personality/dynamics/reset` setzt Belastung und Reibung auf null, ohne Traits oder Charakternoten zu verändern. Der Reset nutzt den gewöhnlichen Personality-Schreibschutz.
+Die Personality Engine führt transaktionale Dynamik-Werte mit, die zeigen, wie sich der Charakter im Umgang mit dir entwickelt: **Belastung** (steigt durch Kritik und Konflikte), **Vertrautheit** (wächst durch wiederkehrende, positive Interaktion) und **Reibung**. Belastung und Reibung klingen mit der Zeit ab; die Stimme und das Antwortverhalten beeinflussen sie live. Das Dashboard zeigt die aktuelle Dynamik auf der Persönlichkeits-Karte mit Verlaufs-Trend (stabil, erholt sich, angespannt) und bietet einen Reset an: `POST /api/personality/dynamics/reset` setzt die Dynamik auf null und den Affect auf Ruhewerte, ohne Traits, gelebte Notizen oder die aktive Persona zu verändern.
 
 ---
 
@@ -652,7 +652,7 @@ Neuere Fähigkeiten des Spiel-Agenten:
 - **Bundled Asset-Packs:** Ein 220-Modell-Low-Poly-Pack, maritime und isometrische Welten sowie Effekt-/Audio-Presentation-Packs liegen lokal gebündelt und werden ohne externe Downloads eingebunden. AuraGo erzeugt weiterhin selbst keine 3D-Modelle.
 - **Screenshot-Review:** Nach der Validierung prüft ein Vision-Pass Screenshots des laufenden Spiels und leitet begrenzte Reparaturen ein, bevor die Revision veröffentlicht wird.
 - **Feedback und Progression:** Ein gemeinsames Runtime-Modul liefert Spieler-Feedback, Ergebnis-/Stufen-UI und Checkpoints (Phaser: `damagePlayer()` mit Checkpoints; Three.js: `api.damagePlayer(amount)`). Feedback ändert nie Spielwerte; ruhende Ein-Screen-Spiele bleiben gültig, ohne Kampf oder Leben zu verlangen.
-- **Finishing-Fenster:** Ein aktiv entwickeltes, akzeptiertes Spiel mit erfolgreichem Build bekommt einmalig ein begrenztes Verlängerungsfenster (maximal 15 Minuten) über das normale Job-Budget hinaus.
+- **Finishing-Fenster:** Ein Spiel mit akzeptiertem Plan, kompiliertem Build und zuletzt geänderten Quellen bekommt einmalig ein Verlängerungsfenster über das normale Job-Budget hinaus (halb des Budgets, maximal 15 Minuten); Validierung bleibt weiter nötig.
 
 ### Lokale Netzwerkfreigaben
 
@@ -699,7 +699,7 @@ llm_router:
     coding: {provider: "", model: ""}   # leer = gewöhnliches Modell
 ```
 
-Hilfs-Nachfragen, Web Chat, Desktop, Telegram, Discord, Rocket.Chat, SMS und autorisiertes MeshCore teilen sich den Router; explizite Desktop- und Speech-Lab-Wahlen sowie vorbereitete Workflows, Game Maker, Detective, SIP und Missionen bleiben unangetastet. Die Web-UI bietet lokalen Vorschau-Test und einmalige Helper-Fragen; das Dashboard zeigt Zähler seit Neustart. Details: [Task LLM router](../../llm-router.md).
+Web Chat, Desktop, Telegram, Discord, Rocket.Chat, SMS und autorisiertes MeshCore nutzen denselben Router; explizite Desktop- und Speech-Lab-Wahlen sowie vorbereitete Workflows, Game Maker, Detective, SIP und Missionen bleiben unangetastet. Eine kurze Fortsetzung („weiter") kann die vorherige Entscheidung bis zu zehn Minuten in derselben Sitzung wiederverwenden. Die Web-UI bietet lokalen Vorschau-Test und einmalige Helper-Fragen; das Dashboard zeigt Zähler seit Neustart. Details: [Task LLM router](../../llm-router.md).
 
 ### Newspaper – persönliche Tageszeitung
 
@@ -716,7 +716,7 @@ newspaper:
   allow_telegram: false      # Zustellung an autorisierte Telegram-Nutzer erlauben
 ```
 
-Fehlgeschlagene Zustellungen melden Bounces zurück; Retries sind nach fehlgeschlagener Tagesrecherche erlaubt. Kuratierte RSS-Quellen und ein Korrektur-Flow ergänzen die automatische Recherche.
+Fehlgeschlagene Zustellungen melden Bounces zurück. Eine fehlgeschlagene oder unterbrochene Tagesrecherche ohne veröffentlichte Ausgabe darf manuell für dasselbe lokale Datum wiederholt werden (nächste nummerierte Revision); der Zeitplaner versucht pro Datum nur einmal. Kuratierte RSS-Quellen und ein Korrektur-Flow ergänzen die automatische Recherche.
 
 ### treg-Katalog-Gateway
 
@@ -730,7 +730,7 @@ treg:
   allowed_endpoints: []      # UI-Genehmigungen binden endpoint_id, method, path, operation
 ```
 
-Jeder Endpunkt braucht eine explizite Genehmigung mit der Operationsklasse `read`, `create`, `update` oder `delete` (maximal 256 Einträge). Das Kostelimit deckt nur treg-Gebühren. Ergebnisse trennen reservierte und abgerechnete Beträge; Statusabfragen laufen über serverseitige, an Token und Sitzung gebundene Referenzen (24 Stunden gültig). Administrative `/api/treg/`-Routen zeigen nur Status, Katalog, Guthaben und Verbindungstest. Details: [treg-Integration](../../treg.md).
+Jeder Endpunkt braucht eine explizite Genehmigung mit der Operationsklasse `read`, `create`, `update` oder `delete` (maximal 256 Einträge). Das Kostelimit deckt nur treg-Gebühren. Ergebnisse trennen reservierte und abgerechnete Beträge; Statusabfragen laufen über serverseitige, an Token und Sitzung gebundene Referenzen (24 Stunden gültig). Administrative `/api/treg/`-Routen zeigen nur Status, Katalog, Endpunktdetails, Guthaben und Verbindungstest. Details: [treg-Integration](../../treg.md).
 
 ---
 

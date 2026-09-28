@@ -261,7 +261,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 
 ### Widgets
 
-Über den Widget-Drawer lassen sich Widgets wie Systemmonitor, Uhr, Wetter und Chat anheften. Das optionale Widget **builtin-meshcore** ist standardmäßig ausgeblendet und zeigt die neuesten MeshCore-Gespräche nur lesend. Weitere optionale Widgets: persistente **Klebezettel** (Papier-Notizen mit Raster-Ausrichtung und gemeinsamer Breite), das read-only **Fritz!Box-Widget** (DSL-/Kabel-/WAN-Status mit Pager) und die wachsende Desktop-Pflanze **Leafy** (gießen, düngen, Ranken schneiden). Der animierte Desktop-Pet (OpenPets) wird über die Desktop-Einstellungen (`pet.enabled`) gesteuert und spiegelt den Agentenzustand in Animationen wider.
+Über den Widget-Drawer lassen sich Widgets wie Systemmonitor, Uhr, Wetter und Chat anheften. Das optionale Widget **builtin-meshcore** ist standardmäßig ausgeblendet und zeigt die neuesten MeshCore-Gespräche nur lesend. Weitere optionale Widgets: persistente **Klebezettel** (Papier-Notizen mit Raster-Ausrichtung und gemeinsamer Breite), das read-only **Fritz!Box-Widget** (Verbindungs-/WAN-Status, Traffic, Geräte und Telefonie mit Pager) und die wachsende Desktop-Pflanze **Leafy** (gießen, düngen, Ranken schneiden). Der animierte Desktop-Pet (OpenPets) wird über die Desktop-Einstellungen (`pet.enabled`) gesteuert und spiegelt den Agentenzustand in Animationen wider.
 
 ### Hinweise zum Software Store
 

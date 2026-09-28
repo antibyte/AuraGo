@@ -261,7 +261,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 
 ### Widgets
 
-The widget drawer pins widgets such as system monitor, clock, weather, and chat. The optional **builtin-meshcore** widget is hidden by default and shows the latest MeshCore conversations read-only. Further optional widgets: persistent **paper sticky notes** (grid-aligned with a shared width), the read-only **Fritz!Box widget** (DSL/cable/WAN status with a pager), and the growing desktop plant **Leafy** (water, fertilize, cut vines). The animated desktop pet (OpenPets) is controlled by the desktop setting `pet.enabled` and mirrors the agent state through animations.
+The widget drawer pins widgets such as system monitor, clock, weather, and chat. The optional **builtin-meshcore** widget is hidden by default and shows the latest MeshCore conversations read-only. Further optional widgets: persistent **paper sticky notes** (grid-aligned with a shared width), the read-only **Fritz!Box widget** (connection/WAN status, traffic, devices, and telephony with a pager), and the growing desktop plant **Leafy** (water, fertilize, cut vines). The animated desktop pet (OpenPets) is controlled by the desktop setting `pet.enabled` and mirrors the agent state through animations.
 
 ### Software Store Notes
 

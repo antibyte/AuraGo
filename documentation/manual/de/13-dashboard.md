@@ -65,14 +65,14 @@ Der Tab **Agent** fokussiert Persönlichkeit und Gedächtnis.
 - **Emotionaler Zustand** (mit aktivem Emotion Synthesizer): Beschreibung, Ursache, Antwortstil und Emotionsverlauf.
 - **Stimmungsverlauf** mit wählbaren Zeiträumen: 1 h, 6 h, 24 h, 7 d, 30 d.
 - **Affect-Timeline und gelebte Notizen:** Die Karte zeigt Valenz/Arousal, die letzten bereinigten Affect-Ereignisse und gelebte Charakter-Notizen (user-reversibel, maximal zwei Vorschläge pro Tag durch die Reflexion).
-- **Aktuelle Dynamik:** Belastung, Vertrautheit und Reibung mit Trend-Badge (stabil, erholt sich, angespannt). Der Knopf **Aktuelle Dynamik zurücksetzen** ruft `POST /api/personality/dynamics/reset` und setzt Belastung und Reibung auf null, ohne Traits oder gelebte Notizen zu verändern.
+- **Aktuelle Dynamik:** Belastung, Vertrautheit und Reibung mit Trend-Badge (stabil, erholt sich, angespannt). Der Knopf **Aktuelle Dynamik zurücksetzen** ruft `POST /api/personality/dynamics/reset`, setzt die Dynamik auf null und den Affect auf Ruhewerte, ohne Traits, gelebte Notizen oder die aktive Persona zu verändern.
 
 | API | Zweck |
 |-----|-------|
 | `GET /api/personality/state` | Traits, Mood, Aktivierungsstatus, Dynamics |
 | `GET /api/dashboard/mood-history?hours=N` | Mood-Verlauf für das Diagramm |
 | `GET /api/dashboard/emotion-history?hours=N` | Emotions-Historie |
-| `POST /api/personality/dynamics/reset` | Dynamik zurücksetzen |
+| `POST /api/personality/dynamics/reset` | Dynamik auf null, Affect auf Ruhewerte |
 
 Ist die Personality Engine deaktiviert, zeigt die Karte einen leeren Zustand.
 

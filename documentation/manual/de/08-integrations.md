@@ -2216,14 +2216,21 @@ Speech Lab verbindet AuraGo mit dem lokalen s2s-ASR-/TTS-Dienst. AuraGo behält 
 ### Web-UI und Kanalauswahl
 
 1. Öffne **Config → Media → Speech Lab**.
-2. Wähle im Managed-Modus das Hardwareprofil (`Auto`, `Vulkan` oder `CPU`) und bestätige den ersten Bundle-Download. `Auto` wird für AMD empfohlen; `CPU` dient Kompatibilitätstests.
+2. Wähle im Managed-Modus das Hardwareprofil (`Auto`, `CUDA`, `Vulkan` oder `CPU`) und bestätige den ersten Bundle-Download. `Auto` wählt Vulkan, wenn `/dev/dri` verfügbar ist; `CPU` dient Kompatibilitätstests.
 3. Aktiviere Chat-Eingabe, Chat-Ausgabe und klassische SIP-ASR/TTS unabhängig voneinander.
-4. Öffne das **Browser Lab** aus der Einstellungsseite oder dem Chat-Integrationsdrawer. AuraGo leitet die normale Browser-URL aus dem aktuellen Host über Port `8766` ab; `advanced_ui_url` ist nur für Experten-Setups gedacht.
+4. Öffne das **Browser Lab** aus der Einstellungsseite oder dem Chat-Integrationsdrawer. Der Browser nutzt immer die relative AuraGo-Route `/speech-lab/`, die als authentifizierter Proxy auf den konfigurationseigenen Backend-Dienst weiterleitet; die Legacy-`advanced_ui_url` wird nicht mehr verlinkt. Im External-Modus zeigt nur der serverseitige `speech_lab.browser_backend_url` auf den s2s-Web-Backend.
 
 ```yaml
 speech_lab:
   enabled: false
   base_url: http://s2s-vulkan:8765
+  browser_backend_url: ""     # external mode only: admin-configured s2s web backend
+  deployment:
+    mode: managed             # managed oder external
+    bundle: stable
+    gpu_backend: auto         # auto, cuda, vulkan oder cpu
+    auto_start: true
+    auto_update: false
   language: de
   chat_llm_provider_id: ""
   timeout_seconds: 60
@@ -2238,7 +2245,7 @@ AuraGo liest ASR, TTS und Stimme aus einem `/ready`-Snapshot und verlangt passen
 
 ### Deployment und Netzwerkgrenze
 
-Die Managed-Installation verwendet das signierte, Digest-gepinnte Bundle und verlangt für den ersten Pull eine ausdrückliche Admin-Bestätigung. Port `8765` bleibt privat, das Browser Lab verwendet `8766`. Native AuraGo-Prozesse binden beide Ports an Loopback; Container verwenden das private Docker-Netzwerk. Bei aktiviertem eingebettetem Tailscale wird nur das Browser Lab zusätzlich über den eigenen TLS-Listener von AuraGo erreichbar.
+Die Managed-Installation verwendet das signierte, Digest-gepinnte Bundle und verlangt für den ersten Pull eine ausdrückliche Admin-Bestätigung. Port `8765` bleibt privat; der Browser-Backend-Standard ist loopback `8766` (native Installation) beziehungsweise `http://s2s-web:80` (Docker) und nur über den `/speech-lab/`-Proxy erreichbar. Es gibt keinen separaten Tailscale-Listener; bei aktiviertem eingebettetem Tailscale ist das Browser Lab über den normalen AuraGo-Zugang erreichbar.
 
 Akzeptiert werden nur credential-freie HTTP(S)-URLs zu Loopback- oder privaten Adressen. Speech Lab ist kein allgemeiner Proxy. Details zum festen Dienstvertrag und zu Deployment-Overlays stehen in der [Speech-Lab-Dokumentation](../../s2s_speech_lab.md).
 
@@ -2354,7 +2361,7 @@ virtual_computers:
     max_active_workspaces: 2
 ```
 
-Die Verwaltungsoberfläche ist direkt unter `/boring-computers/` erreichbar; sie wird im Chat-Integrationsdrawer nicht aufgeführt. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig. Der Dialog **Neuer Computer** bietet für beide Vorlagen (`python` ohne Desktop und `desktop`) eine Netzwerk-Auswahl: Ist **Internet erlauben** in Virtual Computers aktiviert, kann pro Maschine ein Netzwerkprofil gewählt werden (`internet_lan` erlaubt öffentliches Internet, das Standardprofil bleibt eingeschränkt).
+Die Verwaltungsoberfläche ist direkt unter `/boring-computers/` erreichbar; sie wird im Chat-Integrationsdrawer nicht aufgeführt. Halte die Ports `18081` und `18082` privat; für Remote-Zugriff verwende AuraGo oder Tailscale. Read-only blockiert Mutationen, Live-VNC, Terminal-Schreibzugriffe sowie neue oder abgebrochene Agent-Jobs an der AuraGo-Grenze. Credentials und boringd-Token bleiben serverseitig. Der Dialog **Neuer Computer** bietet für beide Vorlagen (`python` ohne Desktop und `desktop`) eine Netzwerk-Auswahl (**Internet**/**Offline**): Ist **Internet erlauben** in Virtual Computers aktiviert, ist **Internet** vorgewählt und pro Maschine umschaltbar; bei deaktivierter Freigabe ist nur **Offline** verfügbar, und ein internetfähiger Start wird an der Servergrenze abgelehnt.
 
 **Speicher (Volumes):** Standard ist **Managed Garage** – AuraGo betreibt dafür einen gepinnten Garage-Container (`aurago-boring-garage`, ausschließlich `127.0.0.1:3900`) mit Daten unter `data/sidecars/garage`. Die Garage-Schlüssel (`virtual_computers_garage_*`) liegen getrennt von externen S3-Schlüsseln im Vault und werden nie an Python/Skills exportiert. `external_s3` bleibt für bestehende Setups verfügbar. Beim Wechsel des Speichermodus mit vorhandenen Volumes verlangt die API eine einmalige Bestätigung; Quell-Objekte werden dabei nie automatisch gelöscht. Der Agent sieht und verwaltet den Garage-Container nicht (gleiches Fail-Closed-Muster wie bei der Local-LLM-Verwaltung).
 

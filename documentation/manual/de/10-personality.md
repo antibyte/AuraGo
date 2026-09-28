@@ -254,13 +254,13 @@ Die Werte werden transaktional mit Revisionsschutz geschrieben; Belastung und Re
 
 ### Einrichtung in der Web-UI
 
-Das Dashboard zeigt die aktuelle Dynamik auf der Persönlichkeits-Karte (Tab **Agent**) mit Trend-Badge. Der Knopf **Aktuelle Dynamik zurücksetzen** setzt Belastung und Reibung auf null, ohne Traits oder gelebte Charakternotizen zu verändern. Der Reset respektiert den Personality-Schreibschutz.
+Das Dashboard zeigt die aktuelle Dynamik auf der Persönlichkeits-Karte (Tab **Agent**) mit Trend-Badge; unter **Config → Persönlichkeit** erscheint derselbe Block. Der Knopf **Aktuelle Dynamik zurücksetzen** setzt die Dynamik auf null und den Affect auf Ruhewerte, ohne Traits, gelebte Notizen, Verlauf oder die aktive Persona zu verändern (Epoch und Revision steigen, laufende Auswertungen werden ungültig). Der Reset ist ein same-origin POST mit normaler Sitzungsauthentifizierung und verlangt die aktive Personality Engine.
 
 ### API-Referenz
 
 ```bash
 GET  /api/personality/state            # enthält dynamics: load, familiarity, friction, trend, revision
-POST /api/personality/dynamics/reset   # Reset von Belastung und Reibung
+POST /api/personality/dynamics/reset   # Dynamik auf null, Affect auf Ruhewerte
 ```
 
 ---

@@ -822,10 +822,10 @@ The maintenance CLI runs before config/vault initialization in the portable bina
 ./aurago --update-maintenance --root /opt/aurago --apply         # apply
 ./aurago --update-maintenance --root /opt/aurago --adopt-legacy  # include provably installation-owned legacy artifacts
 ./aurago --update-maintenance --root /opt/aurago --check-pending # validate transaction state before an update
-./aurago --update-maintenance --root /opt/aurago --resolve <id> --outcome rolled_back
+./aurago --update-maintenance --root /opt/aurago --apply --resolve <id> --outcome rolled_back
 ```
 
-`--resolve` with `--outcome` (`confirmed` or `rolled_back`) finalizes a recovered transaction. `update.sh` uses the same CLI. Verify with `go test ./internal/upkeep` and `bash -n update.sh`.
+`--resolve` additionally requires `--apply` and `--outcome` (`confirmed` or `rolled_back`) and finalizes a recovered transaction. `update.sh` uses the same CLI. Verify with `go test ./internal/upkeep` and `bash -n update.sh`.
 
 ---
 
