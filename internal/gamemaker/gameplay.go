@@ -98,7 +98,7 @@ func validPreviewImage(image string) bool {
 	return err == nil && config.Width > 0 && config.Height > 0 && config.Width <= 1920 && config.Height <= 1280
 }
 
-var gameMetrics = []string{"player_x", "player_y", "player_distance", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms", "aim", "ammo", "reloads", "health", "lives", "goal_remaining", "outcome", "hit_events", "pickup_events", "win_events", "lose_events"}
+var gameMetrics = []string{"player_x", "player_y", "player_distance", "player_right", "stage_count", "actions", "score", "hits", "spawns", "turns", "ticks", "ended", "object_count", "timer_count", "listener_count", "invalid_assets", "assets_used", "elapsed_ms", "aim", "ammo", "reloads", "health", "lives", "goal_remaining", "outcome", "hit_events", "pickup_events", "win_events", "lose_events"}
 var gameKeys = []string{"LEFT", "RIGHT", "UP", "DOWN", "W", "A", "S", "D", "SPACE", "R", "P", "ESC", "ENTER", "F", "Q", "E"}
 var targetModes = []string{"move", "aim", "reach", "interact", "catch", "avoid", "select"}
 
@@ -289,7 +289,7 @@ func customScenarioCoverage(scenarios []GameScenario) (input, primary, rules boo
 			continue
 		}
 		switch scenario.Metric {
-		case "player_x", "player_y", "player_distance":
+		case "player_x", "player_y", "player_distance", "player_right":
 			input = true
 		case "actions":
 			primary = true
@@ -325,6 +325,19 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 				before, after = 0, math.Hypot(x2-x1, y2-y1)
 				bok, aok = bx && by && finite(x1) && finite(y1), ax && ay && finite(x2) && finite(y2)
 			}
+			if scenario.Metric == "player_right" {
+				// Displacement along the screen-right ground axis observed at the start,
+				// so a following camera cannot change the sign during the move.
+				x1, bx := found.Before["player_x"]
+				y1, by := found.Before["player_y"]
+				rx, brx := found.Before["view_right_x"]
+				ry, bry := found.Before["view_right_y"]
+				x2, ax := found.After["player_x"]
+				y2, ay := found.After["player_y"]
+				before, after = 0, (x2-x1)*rx+(y2-y1)*ry
+				bok = bx && by && brx && bry && finite(x1) && finite(y1) && finite(rx) && finite(ry)
+				aok = ax && ay && finite(x2) && finite(y2)
+			}
 			if bok && aok && finite(before) && finite(after) {
 				passed := false
 				switch scenario.Compare {
@@ -338,12 +351,20 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 					passed = after == scenario.Value
 				case "at_least":
 					passed = after >= scenario.Value
+				case "not_decreased":
+					passed = after >= before-controlsTolerance
 				}
 				check.Status = "failed"
 				if passed {
 					check.Status = "passed"
 				}
 				check.Observed = fmt.Sprintf("before=%g, after=%g", before, after)
+				if !passed && scenario.ID == controlsCheckID {
+					check.Observed += "; " + controlsRepairHint
+				}
+				if !passed && scenario.ID == stagesCheckID {
+					check.Observed += "; " + stagesRepairHint
+				}
 				if !passed {
 					if hint := scenarioMetricHint(scenario); hint != "" {
 						check.Observed += "; check definition: " + hint
@@ -687,6 +708,9 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 		}
 		if done {
 			result.Checks = compareGameObservations(check.Scenarios, observations)
+			if stageErr == nil {
+				reviewStageLayouts(stage, plan, result.Checks)
+			}
 			result.GameplayStatus = "passed"
 			for _, c := range result.Checks {
 				if c.Status != "passed" {

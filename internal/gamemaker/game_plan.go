@@ -30,6 +30,7 @@ type GamePlan struct {
 	Objective     string            `json:"objective"`
 	CoreLoop      string            `json:"core_loop"`
 	Scope         []string          `json:"scope"`
+	Stages        []string          `json:"stages,omitempty"`
 	Perspective   string            `json:"perspective"`
 	Width         int               `json:"width"`
 	Height        int               `json:"height"`
@@ -360,6 +361,9 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	}
 	if len(p.Scope) == 0 || len(p.Scope) > 12 {
 		return bad("scope", "list 1–12 concrete features")
+	}
+	if err := validateStages(p.Stages); err != nil {
+		return bad("stages", err.Error())
 	}
 	for _, list := range [][]string{p.Scope, p.States, p.Assumptions, p.Preserve} {
 		for _, value := range list {

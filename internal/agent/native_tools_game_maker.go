@@ -233,6 +233,7 @@ func gameDesignSchema() map[string]interface{} {
 		"base":      map[string]interface{}{"type": "string", "enum": []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three", "fps", "exploration", "transport", "flight", "space"}},
 		"objective": prop("string", "Concrete player objective"),
 		"features":  stringsArray("1–12 concrete requested features; additional mechanics use small source edits"),
+		"stages":    map[string]interface{}{"type": "array", "maxItems": 6, "description": "Distinct levels/areas the player advances through, each naming its layout and one new challenge. The running game must provide every stage; waves inside one arena belong in features; omit for a single board", "items": map[string]interface{}{"type": "string"}},
 		"scene":     gameMakerSceneSchema(),
 		"mechanics": gameMakerMechanicsSchema(),
 		"assets": map[string]interface{}{"type": "array", "maxItems": 64, "items": schema(map[string]interface{}{

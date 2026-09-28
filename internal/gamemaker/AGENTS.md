@@ -74,6 +74,24 @@ revision publication and standalone export for Phaser and Three.js games.
   remain authoritative for scene-driven games. Do not double-apply damage.
 - Level contents are authored source or scene data. Helpers select actual levels;
   never claim progression by cloning an empty map or incrementing a label.
+- `design.stages` (0–6, `stages.go`) are commitments, not prose. With at least two
+  stages, `required_stages` observes `stage_count`: the 3D helper (three-4+) counts
+  distinct layouts (objects, goal, bounds, mode, level_id scene nodes); the 2D
+  driver counts configured levels and the server additionally requires source that
+  reads `levelIndex` or scene nodes carrying `level_id`. Renamed or cloned layouts
+  never count. Waves inside one arena are features, not stages.
+- Controls (`controls.go`): `required_controls` presses RIGHT (2D) or D (guided 3D,
+  helper three-4+) and fails only when the player moves toward screen-left along
+  the screen-right ground axis reported at the start (`view_right_x/y`), so
+  rotation, vertical-only and pointer controls stay valid. Guided 3D movement is
+  camera-relative: FPS follows aim; follow cameras snap to the dominant world axis
+  so angled views keep axis-aligned travel. The driver steers with the helper's
+  declared `controls` basis and keeps the fixed legacy mapping for older helpers.
+  Server checks are inserted before plan scenarios and only while fewer than 16
+  checks exist; older helpers never receive a check they cannot observe.
+- `craft.go` guides are part of the prepared profiles. Curated `SKILL.md` text is
+  registered but not injected into Studio runs: design direction that must reach
+  the model belongs in these guides or phase guidance, never only in a skill.
 - Phaser HUD roots use screen-fixed coordinates and explicit `auragoHUD` data.
   World depth may equal world Y; crossing depth 1000 must never hide actors.
   Asset fitting preserves aspect ratio without resizing authored colliders.

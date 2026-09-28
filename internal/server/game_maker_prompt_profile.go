@@ -41,8 +41,10 @@ and publication after its own checks; never claim unobserved success.`
 	gamePrompt += "\n\n" + gamemaker.PhaseGuidance(stage, dimension)
 	gamePrompt += "\n\nScene operations are optional map data: scene_inspect is read-only in planning; after plan acceptance, scene_set, scene_patch and scene_generate use the current sha256 and remain composable recipes. Scene validation covers structure and references, while game_maker_file remains the escape hatch for unrestricted custom code."
 	if stage == "planning" {
+		gamePrompt += "\n\n" + gamemaker.DesignCraftGuide
 		gamePrompt += "\n\n" + gamemaker.PresentationPlanningGuide
 	} else {
+		gamePrompt += "\n\n" + gamemaker.BuildCraftGuide
 		gamePrompt += "\n\n" + gamemaker.PresentationGuide
 	}
 	if dimension == "2d" {

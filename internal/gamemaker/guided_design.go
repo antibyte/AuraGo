@@ -21,6 +21,8 @@ type GameDesign struct {
 	Base      string         `json:"base"`
 	Objective string         `json:"objective"`
 	Features  []string       `json:"features"`
+	// Stages lists distinct levels/areas the player advances through; the running game must provide them.
+	Stages    []string       `json:"stages,omitempty"`
 	Assets    []DesignAsset  `json:"assets"`
 	Settings  *GameSettings  `json:"settings,omitempty"`
 	Preserve  []string       `json:"preserve,omitempty"`
@@ -55,7 +57,10 @@ func ExampleGameDesign(project Project) GameDesign {
 	if project.Dimension == "3d" {
 		base = "exploration"
 	}
-	d := GameDesign{Base: base, Objective: "Explore the grove and unlock the ruined sanctuary", Features: []string{"A scrolling world with landmarks, connected paths and discoveries", "Two distinct areas: gather a key in the grove, then solve the sanctuary challenge", "Visible pickup and damage feedback, checkpoint recovery, result screen and continuation"}, Assets: []DesignAsset{}, Settings: &GameSettings{Goal: 5, Speed: 5, Duration: 0}}
+	d := GameDesign{Base: base, Objective: "Explore the grove and unlock the ruined sanctuary",
+		Features: []string{"Hook: the lantern reveals hidden paths but drains while lit", "Boars patrol paths and charge when they see the player; bats swoop in dark areas", "Hit flash, knockback and sound on every contact; checkpoint recovery, result screen and continuation"},
+		Stages:   []string{"Grove: learn the lantern, find the key while dodging patrolling boars", "Sanctuary: rotating light puzzles, swooping bats and a guarded exit"},
+		Assets:   []DesignAsset{}, Settings: &GameSettings{Goal: 5, Speed: 5, Duration: 0}}
 	if project.Dimension != "3d" {
 		d.Settings = nil
 	}
@@ -179,6 +184,7 @@ func (s *Service) planFromDesign(ctx context.Context, jobID string, project Proj
 	p.Template = d.Base
 	p.Objective = d.Objective
 	p.Scope = d.Features
+	p.Stages = d.Stages
 	if !slices.Contains(templateNames(), d.Base) || is3DTemplate(d.Base) != (project.Dimension == "3d") {
 		return p, fmt.Errorf("design.base: choose a base matching project dimension (%s)", project.Dimension)
 	}

@@ -30,6 +30,7 @@ func TestFPSCoverBrowser(t *testing.T) {
 	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
 		if run.Stage == "planning" {
 			d := ExampleGameDesign(project)
+			d.Stages = nil // starter fixture: one layout, stage evidence is tested separately
 			d.Base = "fps"
 			data, _ := json.Marshal(d)
 			return s.SetDesignJSON(ctx, run.Job.ID, data)

@@ -34,6 +34,7 @@ func testFPSPickupBrowser(t *testing.T, revision string) {
 	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
 		if run.Stage == "planning" {
 			d := ExampleGameDesign(project)
+			d.Stages = nil // starter fixture: one layout, stage evidence is tested separately
 			d.Base = "fps"
 			d.Assets = append(defaultModelRoles("fps"), DesignAsset{Role: "item", PackID: ModelPackID, AssetID: "props-crystal"})
 			data, _ := json.Marshal(d)

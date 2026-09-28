@@ -115,6 +115,13 @@ func TestGameMakerPromptProfiles(t *testing.T) {
 		if planning.Revision() == building.Revision() {
 			t.Fatal("phase revision missing")
 		}
+		// Design direction must reach the model; curated skill text is not injected into runs.
+		if !strings.Contains(planning.SystemPrompt(), gamemaker.DesignCraftGuide) || !strings.Contains(building.SystemPrompt(), gamemaker.BuildCraftGuide) {
+			t.Fatal("craft guides missing from the prepared profiles")
+		}
+		if schema, _ := json.Marshal(planning.Tools()); !strings.Contains(string(schema), `"stages"`) {
+			t.Fatal("set_design does not offer design.stages")
+		}
 		for _, run := range []gamemaker.JobRun{
 			{Stage: "building", Job: gamemaker.Job{ID: "job-one"}, Project: gamemaker.Project{Dimension: dimension}},
 			{Stage: "repair", Job: gamemaker.Job{ID: "job-two"}, Project: gamemaker.Project{Dimension: dimension}, Diagnostics: []gamemaker.Diagnostic{{Message: "different failure"}}},

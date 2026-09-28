@@ -46,6 +46,9 @@ func (s *Service) designIssues(project Project, d GameDesign) []DesignIssue {
 	if len(d.Features) < 1 || len(d.Features) > 12 || slices.ContainsFunc(d.Features, func(f string) bool { return strings.TrimSpace(f) == "" }) {
 		add("design.features", "items", "list 1–12 nonempty concrete features", []string{"Enemies react to visible targets", "Cover blocks shots"})
 	}
+	if err := validateStages(d.Stages); err != nil {
+		add("design.stages", "items", err.Error(), ExampleGameDesign(project).Stages)
+	}
 	if d.Settings != nil {
 		if !guided3D(d.Base) {
 			add("design.settings", "unsupported", "goal/speed/duration apply only to fps/exploration/transport/flight/space. Keep base \""+d.Base+"\"; omit settings or send settings:null in the correction. Other fields are retained", map[string]any{"settings": nil})

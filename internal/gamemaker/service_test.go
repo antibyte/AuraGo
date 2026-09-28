@@ -220,6 +220,10 @@ func successfulObservationFixture(scenarios []GameScenario) []GameObservation {
 		if scenario.Metric == "player_distance" {
 			before["player_x"], before["player_y"], after["player_x"], after["player_y"] = 0, 0, 1, 0
 		}
+		if scenario.Metric == "player_right" {
+			before["player_x"], before["player_y"], before["view_right_x"], before["view_right_y"] = 0, 0, 1, 0
+			after["player_x"], after["player_y"] = 1, 0
+		}
 		if scenario.ID == "required_restart" {
 			for _, key := range []string{"score", "actions", "hits", "turns", "object_count", "timer_count", "listener_count"} {
 				before[key] = 0

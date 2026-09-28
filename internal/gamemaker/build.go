@@ -46,6 +46,14 @@ func (s *Service) buildJob(ctx context.Context, jobID, scope string) BuildResult
 			var plan GamePlan
 			if err == nil && json.Unmarshal(data, &plan) == nil {
 				s.previewCheck.Scenarios = gameScenarios(&plan)
+				// The driver accepts at most 16 checks; accepted plans may already fill them.
+				runtimeVersion := installedRuntimeVersion(stage)
+				if controls, ok := controlsScenario(plan.Template, runtimeVersion); ok && len(s.previewCheck.Scenarios) < 16 {
+					s.previewCheck.Scenarios = withRequiredScenario(s.previewCheck.Scenarios, controls)
+				}
+				if stages, ok := stagesScenario(&plan, runtimeVersion); ok && len(s.previewCheck.Scenarios) < 16 {
+					s.previewCheck.Scenarios = withRequiredScenario(s.previewCheck.Scenarios, stages)
+				}
 			}
 		}
 		s.mu.Unlock()

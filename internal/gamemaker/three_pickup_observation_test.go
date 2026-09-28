@@ -95,6 +95,7 @@ func TestLegacyThreePickupBuildAndResume(t *testing.T) {
 			s.SetRunner(continuationRunner(func(ctx context.Context, run JobRun) error {
 				if run.Stage == "planning" {
 					design := ExampleGameDesign(p)
+					design.Stages = nil // starter fixture: one layout, stage evidence is tested separately
 					design.Base = "fps"
 					data, _ := json.Marshal(design)
 					return s.SetDesignJSON(ctx, run.Job.ID, data)

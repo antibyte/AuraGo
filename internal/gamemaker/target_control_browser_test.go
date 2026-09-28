@@ -276,6 +276,13 @@ func TestTargetControlBrowser(t *testing.T) {
 						}
 						start, end := bytes.Index(common, []byte("  function observeTargets(){")), bytes.Index(common, []byte("  function draw("))
 						common = append(append(append([]byte{}, common[:start]...), legacy...), common[end:]...)
+						// Legacy helpers pair this observer with world-axis movement; the driver's
+						// legacy mapping applies only when no controls basis is declared.
+						modern := []byte("controlAxes();vector.copy(moveRight).multiplyScalar(x).addScaledVector(moveForward,z);if(vector.lengthSq()>1)vector.normalize();")
+						if !bytes.Contains(common, modern) {
+							t.Fatal("current helper movement changed; update the legacy observer fixture")
+						}
+						common = bytes.Replace(common, modern, []byte("vector.set(x,0,z);if(vector.lengthSq()>1)vector.normalize();if(config.mode==='fps'){vector.x=-vector.x;vector.applyAxisAngle(T.Object3D.DEFAULT_UP,aim)}"), 1)
 						if strings.Contains(tc.name, "camera") {
 							common = bytes.Replace(common, []byte("if(config.mode==='fps')look.setFromCamera({x:0,y:0},camera);"), []byte("if(config.mode==='fps'||config.mode==='space'){camera.updateMatrixWorld();look.setFromCamera({x:0,y:0},camera)}"), 1)
 						}

@@ -278,7 +278,7 @@ Presentation choices belong in the optional set_design.presentation block. Use c
 
 ## Player experience, not just technical validity
 
-Describe these choices in the existing `features` array (no invented schema fields):
+Describe these choices in the existing `features` and `stages` arrays (no invented schema fields):
 - The core action and its visible/audible consequences. Real contacts trigger
   feedback; firing alone must not produce a hit. Lives changing in text is insufficient.
 - Life loss: a short readable response, a safe checkpoint/respawn with protection,
@@ -288,7 +288,15 @@ Describe these choices in the existing `features` array (no invented schema fiel
   routes, discoveries and changing challenges. Camera and collision bounds must agree.
 - Progression: distinct stages, areas, waves or evolving endless rules. Normally
   include at least two meaningful challenges; an explicitly single-board puzzle
-  or arena is valid. Do not manufacture depth by duplicating the map.
+  or arena is valid. Do not manufacture depth by duplicating the map. List levels
+  or areas the player advances through in `design.stages` (each with its layout
+  and one new element); validation counts distinct stage layouts in the running
+  game. Waves inside one arena stay in features.
+- Hook and opposition: one distinctive idea that shapes play, and at least two
+  different enemy/hazard behaviors (patrol, chase, shoot, timed hazard). Place
+  objects deliberately, not in straight lines or regular grids.
+- Controls: RIGHT/D moves toward screen right; in 3D derive movement from the
+  camera's right/forward vectors. Validation fails swapped horizontal controls.
 - Completion: readable outcome, summary, restart and next-stage/continue when
   available. Peaceful sandboxes need continued play, not invented death or timers.
 

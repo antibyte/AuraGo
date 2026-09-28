@@ -325,6 +325,12 @@ common lifecycle resets state, physics and inputs. Keep standard Arrow/Space/R
 controls for minimum checks; ESC ends/forfeits a run. State counters reflect actual
 actions, hits, points, spawns, turns, timer ticks and terminal state. Do not invent
 actions or fabricate test counters for absent behavior.
+`required_controls` fails when RIGHT (2D) or D (guided 3D) moves the player toward
+screen-left; guided 3D movement is camera-relative. Designs may list distinct levels
+or areas in `stages`; with two or more, `required_stages` requires that many distinct
+stage layouts in the running game (renamed or cloned levels do not count). Planning
+and building prompts carry a compact design brief (hook, escalating stages, varied
+opposition, feedback, rewards, finale) that the user's own wishes override.
 New templates reject subclass `update()` overrides at startup with a concrete
 correction: use `step`, `action`, `tick` and `paintHUD` hooks instead. This preserves
 ESC, restart, input and planned sprite following. Call `super.setup()` only when

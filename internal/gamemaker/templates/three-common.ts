@@ -1,5 +1,5 @@
 // Original MIT game bases, adapted from AuraGo's playable low-poly references.
-// AURAGO_RUNTIME_API {"version":"three-3","entry":"startGame(config)","config":["playerUI:{movement,action,instructions?}","mode","goal","speed","duration","objects[{role,at:[x,y,z],scale,blocksShots?}]","worldBounds:{min,max}","levels","combat:{enemyRange,enemyDamage,enemyCooldown}"],"hooks":["setup(api) after assets load","step(dtSeconds,api)","action(api): false overrides default","reset(api)","dispose(api)"],"api":["scene","camera","player","renderer","state","input.isDown(key)","damagePlayer(amount)","setCheckpoint([x,y,z])","hasLineOfSight(from,to)","event(name,point)","win()","lose()","reset()","nextLevel()"],"units":"seconds, world units, radians; helper owns animation/input/lifecycle; config.step adds rules; builder owns scene damage","example":"startGame({mode:'fps',goal:3,speed:5,duration:120,objects:[{role:'enemy',at:[0,0,10]}],combat:{enemyCooldown:1.5},step(dt,api){}})"}
+// AURAGO_RUNTIME_API {"version":"three-4","entry":"startGame(config)","config":["playerUI:{movement,action,instructions?}","mode","goal","speed","duration","objects[{role,at:[x,y,z],scale,blocksShots?}]","worldBounds:{min,max}","levels","combat:{enemyRange,enemyDamage,enemyCooldown}"],"hooks":["setup(api) after assets load","step(dtSeconds,api)","action(api): false overrides default","reset(api)","dispose(api)"],"api":["scene","camera","player","renderer","state","input.isDown(key)","damagePlayer(amount)","setCheckpoint([x,y,z])","hasLineOfSight(from,to)","event(name,point)","win()","lose()","reset()","nextLevel()"],"units":"seconds, world units, radians; movement is camera-relative (D/RIGHT = screen right, W/UP = away from camera); helper owns animation/input/lifecycle; config.step adds rules; builder owns scene damage","example":"startGame({mode:'fps',goal:3,speed:5,duration:120,objects:[{role:'enemy',at:[0,0,10]}],combat:{enemyCooldown:1.5},step(dt,api){}})"}
 import * as A from '../vendor/aurago-three-assets-1.js';
 import {createPresentation,createThreeAdapter} from '../vendor/aurago-effects-3d-1.js';
 import {createScene3D,hasSceneNodes} from '../vendor/scene-builder.js';
@@ -15,6 +15,9 @@ const T = A.THREE;
 export function startGame(config: any) {
   const campaign=config,levels=levelChoices(scenePlan,config.levels||[]),levelIndex=Math.max(0,Math.min(levels.length-1,Math.floor(config.levelIndex??(scenePlan as any)?.levels?.findIndex((l:any)=>l.active))||0));
   config={...config,...levels[levelIndex]};
+  // Distinct stage layouts, never titles: a level without its own objects, goal, bounds or scene nodes repeats another.
+  const sceneNodes=(scenePlan as any)?.nodes||[];
+  const stageCount=Math.max(1,new Set(levels.map((l:any)=>JSON.stringify([l.objects??null,l.goal??null,l.worldBounds??null,l.mode??null,sceneNodes.filter((n:any)=>n.level_id===l.id).map((n:any)=>[n.id,n.kind,n.position])]))).size);
   const levelScene=sceneForLevel(scenePlan,levels[levelIndex]?.id);
   const movement=(mechanicsPlan as any)?.blocks?.find((b:any)=>b.kind==='movement'&&b.enabled!==false);
   if(movement) { const params=typeof movement.params==='string'?JSON.parse(movement.params||'{}'):(movement.params||{}); config={...config,mode:params.mode||config.mode,speed:params.speed??config.speed}; }
@@ -38,6 +41,8 @@ export function startGame(config: any) {
   const owned:any[] = [], live:any[] = [], objects:any[] = [], loaded = new Map();
   const observedIDs=new WeakMap();let observedID=0;
   const position = new T.Vector3(), vector = new T.Vector3(), ray = new T.Raycaster();
+  // Ground axes for D (right) and W (forward), always derived from the rendered view.
+  const moveRight = new T.Vector3(), moveForward = new T.Vector3();
   const player = new T.Group();scene.add(player);
   const floor = new T.Mesh(presentationPlan?.environment==='coast'?new T.CircleGeometry(12,48):new T.PlaneGeometry(200,200),new T.MeshStandardMaterial({color:0x526b4d,roughness:1}));
   floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;floor.visible=config.mode!=='space';scene.add(floor);owned.push(floor);if(floor.visible)presentation?.registerSurface(floor,{kind:'ground'});
@@ -304,6 +309,13 @@ export function startGame(config: any) {
     (window as any).__AURAGO_GAME_TEST__=binding;
     frame=requestAnimationFrame(draw);
   }
+  // Screen right on a camera looking along ground direction f is f × up = (-f.z, 0, f.x).
+  // Follow cameras snap f to the dominant world axis, so angled views keep axis-aligned travel.
+  function controlAxes(){
+    if(config.mode==='fps')moveForward.set(Math.sin(aim),0,Math.cos(aim));
+    else{camera.getWorldDirection(moveForward);if(Math.abs(moveForward.x)>Math.abs(moveForward.z))moveForward.set(Math.sign(moveForward.x),0,0);else moveForward.set(0,0,Math.sign(moveForward.z)||1);}
+    moveRight.set(-moveForward.z,0,moveForward.x);
+  }
   function cameraUpdate(dt:number){
     if(config.mode==='fps'){camera.position.copy(player.position).add(vector.set(0,1.65,0));camera.rotation.set(pitch,Math.PI+aim,0,'YXZ')}
     else {position.copy(player.position).add(vector.fromArray([cameraOptions.offset?.[0]??10,cameraOptions.offset?.[1]??12,cameraOptions.offset?.[2]??-17]));camera.position.lerp(position,1-Math.exp(-dt*(Number(cameraOptions.smoothing)||8)));camera.lookAt(player.position.x,player.position.y+1,player.position.z+3)}
@@ -316,11 +328,11 @@ export function startGame(config: any) {
     const x=Number(has('d',...(config.mode==='fps'?[]:['arrowright'])))-Number(has('a',...(config.mode==='fps'?[]:['arrowleft'])));
     const z=Number(has('w',...(config.mode==='fps'?[]:['arrowup'])))-Number(has('s',...(config.mode==='fps'?[]:['arrowdown'])));
     if(config.mode==='fps'){aim+=(Number(has('arrowleft'))-Number(has('arrowright')))*dt;pitch=T.MathUtils.clamp(pitch+(Number(has('arrowup'))-Number(has('arrowdown')))*dt,-1.1,1.1)}
-    vector.set(x,0,z);if(vector.lengthSq()>1)vector.normalize();if(config.mode==='fps'){vector.x=-vector.x;vector.applyAxisAngle(T.Object3D.DEFAULT_UP,aim)}
+    controlAxes();vector.copy(moveRight).multiplyScalar(x).addScaledVector(moveForward,z);if(vector.lengthSq()>1)vector.normalize();
     const before=player.position.clone();const displacement=vector.clone().multiplyScalar(dt*config.speed*(time<boostUntil?1.7:1));if(builder)moveBody(player,displacement);else player.position.add(displacement);
     player.position.x=T.MathUtils.clamp(player.position.x,sceneBounds.min[0],sceneBounds.max[0]);player.position.z=T.MathUtils.clamp(player.position.z,sceneBounds.min[2],sceneBounds.max[2]);
     if(config.mode==='space'||config.mode==='flight')player.position.y=T.MathUtils.clamp(player.position.y+(Number(has('e'))-Number(has('q')))*dt*config.speed,Math.max(0,sceneBounds.min[1]),sceneBounds.max[1]);
-    if(avatar&&(x||z)&&['exploration','transport'].includes(config.mode))avatar.root.rotation.y=Math.atan2(x,z);
+    if(avatar&&(x||z)&&['exploration','transport'].includes(config.mode))avatar.root.rotation.y=Math.atan2(vector.x,vector.z);
     if(x||z)wheelAngle+=dt*config.speed/0.35;
     if(avatar){clip(avatar,x||z?'walk':'idle');for(const part of avatar.asset.model.moving_parts){if(part.kind==='wheel'||part.kind==='propeller')A.setPart(avatar,part.node,part.kind==='wheel'?wheelAngle:time*28)}}
     cameraUpdate(dt);if(has(' ')&&(config.mode==='fps'||config.mode==='space'))fire();
@@ -357,7 +369,7 @@ export function startGame(config: any) {
     if(!builder&&(config.duration>0&&time>=config.duration)){ended=true;won=false}
     for(const unit of live)if(!unit.procedural)A.updateInstance(unit,dt,camera);
   }
-  function snapshot(){return {player_x:player.position.x,player_y:player.position.z,aim,ammo,reloads,health:builder?(sceneState.health??0):health,actions,score:builder?sceneState.score:score,hits:builder?sceneState.hits:hits,lives:builder?sceneState.lives:lives,goal_remaining:builder?sceneState.goal_remaining:0,outcome:builder?sceneState.outcome:(ended?(won?1:2):0),hit_events:builder?sceneState.hit_events:hits,pickup_events:builder?sceneState.pickup_events:pickups,win_events:builder?sceneState.win_events:0,lose_events:builder?sceneState.lose_events:0,turns:0,spawns:objects.length,ticks:Math.floor(time),ended:Number(ended),object_count:live.length,timer_count:0,listener_count:listeners,invalid_assets:live.filter(u=>!u.root.parent).length,assets_used:live.filter(u=>u.root.visible).length,elapsed_ms:time*1000}}
+  function snapshot(){return {stage_count:stageCount,player_x:player.position.x,player_y:player.position.z,aim,ammo,reloads,health:builder?(sceneState.health??0):health,actions,score:builder?sceneState.score:score,hits:builder?sceneState.hits:hits,lives:builder?sceneState.lives:lives,goal_remaining:builder?sceneState.goal_remaining:0,outcome:builder?sceneState.outcome:(ended?(won?1:2):0),hit_events:builder?sceneState.hit_events:hits,pickup_events:builder?sceneState.pickup_events:pickups,win_events:builder?sceneState.win_events:0,lose_events:builder?sceneState.lose_events:0,turns:0,spawns:objects.length,ticks:Math.floor(time),ended:Number(ended),object_count:live.length,timer_count:0,listener_count:listeners,invalid_assets:live.filter(u=>!u.root.parent).length,assets_used:live.filter(u=>u.root.visible).length,elapsed_ms:time*1000}}
   // Read-only geometry for the preview driver; no movement, damage or verdict hooks.
   function observeTargets(){
     const look=new T.Raycaster();camera.updateMatrixWorld();
@@ -377,7 +389,7 @@ export function startGame(config: any) {
     // Observer coordinates use x/y for the ground plane and z for altitude.
     const origin=look.ray.origin,direction=look.ray.direction;
     const aim_ray={origin:{x:origin.x,y:origin.z,z:origin.y},direction:{x:direction.x,y:direction.z,z:direction.y}};
-    return {kind:'3d',active:active&&!paused&&!disposed,mode:config.mode,player:{x:player.position.x,y:player.position.z,z:player.position.y,w:.6,h:.6,aim,pitch},eye:{x:camera.position.x,y:camera.position.z,z:camera.position.y},aim_ray,targets,aimed,projectiles:[],bounds:{x:sceneBounds.min[0],y:sceneBounds.min[2],w:sceneBounds.max[0]-sceneBounds.min[0],h:sceneBounds.max[2]-sceneBounds.min[2]},truncated:objects.length>256};
+    return {kind:'3d',active:active&&!paused&&!disposed,mode:config.mode,player:{x:player.position.x,y:player.position.z,z:player.position.y,w:.6,h:.6,aim,pitch},controls:(controlAxes(),{right:{x:moveRight.x,y:moveRight.z},forward:{x:moveForward.x,y:moveForward.z}}),eye:{x:camera.position.x,y:camera.position.z,z:camera.position.y},aim_ray,targets,aimed,projectiles:[],bounds:{x:sceneBounds.min[0],y:sceneBounds.min[2],w:sceneBounds.max[0]-sceneBounds.min[0],h:sceneBounds.max[2]-sceneBounds.min[2]},truncated:objects.length>256};
   }
   function draw(now:number){
     frame=0;if(disposed||document.hidden)return;

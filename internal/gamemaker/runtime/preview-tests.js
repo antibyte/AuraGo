@@ -23,9 +23,16 @@
     await press('R',80);await wait(420);
   }
   function snapshot(inspectAssets) {
-    const b=binding();if(b.kind==='three')return b.snapshot();
+    const b=binding();
+    if(b.kind==='three'){
+      // Helpers that declare camera-relative controls report screen-right on the ground plane.
+      const result=b.snapshot(),right=b.observeTargets?.()?.controls?.right;
+      if(Number.isFinite(right?.x)&&Number.isFinite(right?.y)){result.view_right_x=right.x;result.view_right_y=right.y;}
+      return result;
+    }
     const {scene,state,player}=b;
-    const result={player_x:player.x,player_y:player.y,
+    const result={player_x:player.x,player_y:player.y,view_right_x:1,view_right_y:0,
+      ...(Array.isArray(scene.levels)?{stage_count:Math.max(1,scene.levels.length)}:{}),
       // Phaser 4.2.1 has no public timer enumeration; this adapter is pinned and
       // exercised by the real-runtime browser fixture when Phaser is upgraded.
       object_count:scene.children.list.length,timer_count:new Set([...scene.time._active,...scene.time._pendingInsertion].filter(timer=>!scene.time._pendingRemoval.includes(timer))).size,
@@ -250,7 +257,9 @@
         const steer=point=>{
           if(!point){result.reason='blocked';return;}
           let x=point.x-p.x,y=point.y-p.y,tolerance=view.kind==='3d'?.15:4;
-          if(view.mode==='fps'){const a=p.aim,c=Math.cos(a),s=Math.sin(a);[x,y]=[-(x*c-y*s),x*s+y*c];}
+          // Current helpers declare what D/W do on the ground; older 3D helpers keep their fixed mapping.
+          if(view.kind==='3d'&&view.controls){const r=view.controls.right,f=view.controls.forward;[x,y]=[x*r.x+y*r.y,x*f.x+y*f.y];}
+          else if(view.mode==='fps'){const a=p.aim,c=Math.cos(a),s=Math.sin(a);[x,y]=[-(x*c-y*s),x*s+y*c];}
           if(Math.abs(x)>tolerance)want.add(x>0?'D':'A');
           if(view.mode!=='platformer'&&Math.abs(y)>tolerance)want.add(y>0?(view.kind==='3d'?'W':'S'):(view.kind==='3d'?'S':'W'));
           const altitude=point.z??target.z;
