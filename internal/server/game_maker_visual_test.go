@@ -110,12 +110,17 @@ func TestGameVisualFormatRecovery(t *testing.T) {
 		name, first, second, finish, status, reason string
 		structured                                  bool
 		calls                                       int
+		httpStatus                                  int // first call only
 	}{
-		{"supported", `{"findings":[]}`, "", "stop", "reviewed", "", true, 1},
-		{"unsupported", `{"findings":[]}`, "", "stop", "reviewed", "", false, 1},
-		{"corrected", "I see the truck.", `{"findings":[]}`, "stop", "reviewed", "", true, 2},
-		{"bounded", "bad format", `{"findings":null}`, "stop", "failed", "invalid_response", true, 2},
-		{"truncated", `{"findings":[]}`, "", "length", "failed", "analysis_failed", true, 1},
+		{"supported", `{"findings":[]}`, "", "stop", "reviewed", "", true, 1, 0},
+		{"unsupported", `{"findings":[]}`, "", "stop", "reviewed", "", false, 1, 0},
+		{"corrected", "I see the truck.", `{"findings":[]}`, "stop", "reviewed", "", true, 2, 0},
+		{"bounded", "bad format", `{"findings":null}`, "stop", "failed", "invalid_response", true, 2, 0},
+		{"truncated", `{"findings":[]}`, "", "length", "failed", "truncated", true, 1, 0},
+		{"credentials", "", "", "stop", "failed", "auth_failed", true, 1, http.StatusUnauthorized},
+		{"credits", "", "", "stop", "failed", "rate_limited", true, 1, http.StatusPaymentRequired},
+		{"structured_rejected", "", `{"findings":[]}`, "stop", "reviewed", "", true, 2, http.StatusBadRequest},
+		{"plain_rejected", "", "", "stop", "failed", "request_rejected", false, 1, http.StatusBadRequest},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
@@ -146,6 +151,12 @@ func TestGameVisualFormatRecovery(t *testing.T) {
 				}
 				if images != 1 {
 					t.Errorf("image lost or duplicated on correction: %d", images)
+				}
+				if calls == 1 && test.httpStatus != 0 {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(test.httpStatus)
+					json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"message": "provider rejected request", "code": test.httpStatus}})
+					return
 				}
 				content := test.first
 				if calls > 1 {

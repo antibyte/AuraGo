@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -40,6 +41,34 @@ func gameVisualRoute(cfg *config.Config) (config.ProviderEntry, string) {
 		return config.ProviderEntry{}, "public_url_required"
 	}
 	return config.ProviderEntry{}, "no_vision_route"
+}
+
+// gameVisualFailureReason names an actionable cause for Studio; the detail is logged.
+func gameVisualFailureReason(err error, finish openai.FinishReason) string {
+	if err == nil {
+		if finish == openai.FinishReasonLength {
+			return "truncated"
+		}
+		return "analysis_failed"
+	}
+	status := 0
+	var apiErr *openai.APIError
+	if errors.As(err, &apiErr) {
+		status = apiErr.HTTPStatusCode
+	}
+	lower := strings.ToLower(err.Error())
+	switch {
+	case status == http.StatusUnauthorized || status == http.StatusForbidden || llm.IsAuthError(err) ||
+		strings.Contains(lower, "status code: 401") || strings.Contains(lower, "no auth credentials") || strings.Contains(lower, "invalid api key") || strings.Contains(lower, "unauthorized"):
+		return "auth_failed"
+	case status == http.StatusPaymentRequired || llm.IsRateLimit(err) || llm.IsQuotaExceeded(err):
+		return "rate_limited"
+	case errors.Is(err, context.DeadlineExceeded) || llm.ClassifyError(err) == llm.ErrCategoryContextDeadline:
+		return "timeout"
+	case status >= 400 && status < 500 || llm.ClassifyError(err) == llm.ErrCategoryNonRetryableConfig:
+		return "request_rejected"
+	}
+	return "analysis_failed"
 }
 
 func decodeGameVisualReview(text string, images int) ([]gamemaker.VisualFinding, error) {
@@ -162,8 +191,20 @@ func (r *gameMakerAgentRunner) reviewGameImages(ctx context.Context, cfg *config
 		}
 		response, sent, err := agent.ExecuteMinimalLoop(ctx, client, route.Model, "", "Return bounded JSON visual observations only.", nil, &agent.DispatchContext{Cfg: &reviewCfg, ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}, history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, ResponseFormat: responseFormat, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer})
 		if err != nil || response.FinishReason != openai.FinishReasonStop {
+			reason := gameVisualFailureReason(err, response.FinishReason)
+			// A route may reject a structured multimodal request that it serves as
+			// plain JSON; retry once with the same images inside the deadline.
+			if deadline, ok := ctx.Deadline(); attempt == 0 && responseFormat != nil && reason == "request_rejected" && ok && time.Until(deadline) > 10*time.Second {
+				continue
+			}
 			review.Status = "failed"
-			review.Reason = "analysis_failed"
+			review.Reason = reason
+			// Provider and cause only; never images, prompts or credentials.
+			detail := ""
+			if err != nil {
+				detail = err.Error()[:min(300, len(err.Error()))]
+			}
+			r.server.Logger.Warn("Game Maker visual review failed", "provider", route.ID, "model", route.Model, "reason", reason, "finish_reason", response.FinishReason, "error", detail)
 			return nil
 		}
 		findings, err := decodeGameVisualReview(response.Response, len(captures))
