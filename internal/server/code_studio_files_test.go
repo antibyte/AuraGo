@@ -18,8 +18,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"aurago/internal/tools"
 )
 
 type codeStudioWriteDocker struct {
@@ -82,23 +85,65 @@ func TestCodeStudioWriteUsesBinaryTransferAndCreateConflict(t *testing.T) {
 }
 
 func TestCodeStudioUploadUsesBinaryTransfer(t *testing.T) {
-	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
-	d := &codeStudioWriteDocker{}
-	content := bytes.Repeat([]byte{0, 255, 1, 128}, 32*1024)
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-	_ = w.WriteField("path", "/workspace")
-	f, _ := w.CreateFormFile("file", "data.bin")
-	_, _ = f.Write(content)
-	_ = w.Close()
-	req := httptest.NewRequest(http.MethodPost, "/api/code-studio/upload", &body)
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	rec := httptest.NewRecorder()
-	codeStudioHandlers{server: s, docker: d}.handleUpload(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("upload = %d: %s", rec.Code, rec.Body.String())
+	for _, size := range []int{100 * 1024, 1024 * 1024, 1024*1024 + 1} {
+		t.Run(strconv.Itoa(size), func(t *testing.T) {
+			s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+			d := &codeStudioWriteDocker{}
+			content := bytes.Repeat([]byte{0, 255, 1, 128}, (size+3)/4)[:size]
+			var body bytes.Buffer
+			w := multipart.NewWriter(&body)
+			_ = w.WriteField("path", "/workspace")
+			f, _ := w.CreateFormFile("file", "data.bin")
+			_, _ = f.Write(content)
+			_ = w.Close()
+			req := httptest.NewRequest(http.MethodPost, "/api/code-studio/upload", &body)
+			req.Header.Set("Content-Type", w.FormDataContentType())
+			rec := httptest.NewRecorder()
+			codeStudioHandlers{server: s, docker: d}.handleUpload(rec, req)
+			if size > 1024*1024 {
+				if rec.Code != http.StatusRequestEntityTooLarge || len(d.archive) != 0 || len(d.commands) != 0 {
+					t.Fatalf("oversized upload reached Docker or returned %d", rec.Code)
+				}
+				return
+			}
+			if rec.Code != http.StatusOK {
+				t.Fatalf("upload = %d: %s", rec.Code, rec.Body.String())
+			}
+			assertCodeStudioArchive(t, d.archive, content)
+		})
 	}
-	assertCodeStudioArchive(t, d.archive, content)
+}
+
+func TestCodeStudioArchiveAdapterPreservesBytesAndMutationGates(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	payload := []byte{0, 255, 128, 1}
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		body, err := io.ReadAll(r.Body)
+		if err != nil || !bytes.Equal(body, payload) || r.Method != http.MethodPut ||
+			!strings.HasSuffix(r.URL.Path, "/containers/test-container/archive") ||
+			r.URL.Query().Get("path") != "/tmp" || r.URL.Query().Get("copyUIDGID") != "true" ||
+			r.URL.Query().Get("noOverwriteDirNonDir") != "true" || r.Header.Get("Content-Type") != "application/x-tar" {
+			t.Error("archive request changed binary bytes or the Docker API contract")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	adapter := codeStudioDockerAdapter{cfg: tools.DockerConfig{Host: "tcp://" + strings.TrimPrefix(srv.URL, "http://")}}
+	if err := adapter.PutArchive(context.Background(), "test-container", payload); err != nil {
+		t.Fatal(err)
+	}
+	for _, permissions := range []tools.RuntimePermissions{{}, {DockerEnabled: true, DockerReadOnly: true}} {
+		tools.ConfigureRuntimePermissions(permissions)
+		if err := adapter.PutArchive(context.Background(), "test-container", payload); err == nil {
+			t.Fatal("archive upload bypassed Docker mutation gates")
+		}
+	}
+	if calls.Load() != 1 {
+		t.Fatal("denied archive upload reached Docker")
+	}
 }
 
 func TestCodeStudioFailedTransferDoesNotInstallFile(t *testing.T) {
@@ -197,6 +242,24 @@ func TestCodeStudioInstallFileScript(t *testing.T) {
 	if !bytes.Equal(got, content) {
 		t.Fatal("failed write changed target")
 	}
+	t.Run("read-only destination", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("requires an unprivileged user")
+		}
+		if err := os.WriteFile(target, []byte("keep read-only"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(target, 0444); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(target, 0755)
+		if code := run(target, false, digest); code == 0 {
+			t.Fatal("read-only destination was replaced")
+		}
+		if got, err := os.ReadFile(target); err != nil || string(got) != "keep read-only" {
+			t.Fatal("denied write changed destination")
+		}
+	})
 	outside := t.TempDir()
 	if err := os.Symlink(outside, filepath.Join(root, "escape")); err != nil {
 		t.Fatal(err)
