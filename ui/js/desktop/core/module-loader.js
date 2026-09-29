@@ -138,7 +138,7 @@
         },
         'rtl-sdr': {
             styles: appStyles('/css/desktop-app-rtl-sdr.css'),
-            scripts: ['/js/desktop/apps/rtl-sdr-runtime.js', '/js/desktop/apps/rtl-sdr.js']
+            scripts: ['/js/desktop/apps/rtl-sdr-runtime.js', '/js/desktop/apps/rtl-sdr-panel.js', '/js/desktop/apps/rtl-sdr-scope.js', '/js/desktop/apps/rtl-sdr.js']
         },
         'personal-radio': {
             styles: appStyles('/css/desktop-app-personal-radio.css'),

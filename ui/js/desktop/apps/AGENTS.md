@@ -41,10 +41,33 @@
 
 ## RTL-SDR
 
-- `rtl-sdr.js` resolves local `t('key')` calls under `rtlSdr.`; the built-in app
-  name uses `desktop.app_rtl_sdr`. Keep both in all 16 desktop locales. The static
-  i18n checker must resolve the app-local prefix. Verify with
-  `TestRTLSDRTranslations` and `TestFrontend_StaticI18nKeysExistInEnglishBundle`.
+- `rtl-sdr-runtime.js`, `rtl-sdr-panel.js`, `rtl-sdr-scope.js` and `rtl-sdr.js`
+  load in that order. `rtl-sdr.js` resolves local `t('key')` calls under
+  `rtlSdr.`; the built-in app name uses `desktop.app_rtl_sdr`. Keep both in all
+  16 desktop locales. The panel and scope modules receive translated text and
+  never call `t()` themselves; the static i18n checker resolves the app-local
+  prefix for `rtl-sdr.js` only.
+- The receive view is a graphite receiver front panel: station memory, display
+  (status indicators, seven-segment frequency, station text, signal meter, band
+  scope with waterfall), tuning column and key strip. It fits the default
+  1000x760 window without scrolling; narrower windows stack the sections and
+  scroll. Recordings, schedules and receiver setup are views of the same chassis.
+- `s.tuning` is the single source of the pending tuning. Every control commits
+  into it and `controls()` repaints all widgets. Mode keys and AGC/stereo are
+  native radio/checkbox inputs, the four small knobs wrap native range inputs,
+  and the gain knob steps through the tuner's reported gain list by index.
+  A manual frequency or mode change drops the station label.
+- Frequency digits are created once and repainted, so focus survives tuning.
+  They accept wheel, arrow keys and typed digits. While the panel itself
+  scrolls, the wheel only turns the control that has focus. The waterfall keeps
+  its history across view changes and shifts old rows with the tuned frequency.
+- The singleton runtime owns the desktop mini control. Windows report their
+  visibility through `RTLSDRRuntime.present(id, visible)`; the mini control
+  shows only while listening without a visible receiver window.
+- Verify with `TestRTLSDRTranslations`,
+  `TestFrontend_StaticI18nKeysExistInEnglishBundle` and the opt-in
+  `TestRTLSDRDesktopBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`). Its
+  `AURAGO_RTLSDR_SCREENSHOT` path also receives `-fruity` and `-compact` views.
 
 ## Detective
 - `detective-views.js` precedes `detective.js`; both use the native Desktop theme
@@ -671,6 +694,9 @@ buttons and menu popovers remain excluded from those gestures.
   Late catalog/stream results and disposal must not resume playback. Favorites
   remain available when empty; meters animate only during playback and respect
   reduced motion. Verify with `TestDesktopRadioBrowser`.
+- RTL-SDR owns a theme-independent graphite receiver skin scoped under
+  `.sdr-app` with local `--sdr-*` tokens and its own label/display faces. Keep
+  all `.sdr-*` out of the theme bridge; the shell window chrome stays native.
 - Camera viewport stays black (`#000`) for live preview; toolbar and controls
   use `--cam-*` aliases mapped to `--vd-theme-*`. Error banner keeps semantic
   danger colors.

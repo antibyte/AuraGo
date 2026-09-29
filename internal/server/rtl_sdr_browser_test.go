@@ -79,8 +79,15 @@ func TestRTLSDRDesktopBrowser(t *testing.T) {
 	if page.MustEval(`()=>document.querySelector('.sdr-app').textContent.includes('rtlSdr.')`).Bool() {
 		t.Fatal("untranslated labels")
 	}
+	// The front panel fits its default window; only smaller windows scroll.
+	if !page.MustEval(`()=>{const main=document.querySelector('.sdr-app main');return main.scrollHeight<=main.clientHeight+1&&main.scrollWidth<=main.clientWidth+1}`).Bool() {
+		t.Fatalf("receiver panel overflows its default window: %s", page.MustEval(`()=>{const main=document.querySelector('.sdr-app main');return main.scrollWidth+'x'+main.scrollHeight+' in '+main.clientWidth+'x'+main.clientHeight}`).Str())
+	}
 	page.MustElement(`[data-action="play"]`).MustClick()
 	wait(`()=>RTLSDRRuntime.playing`)
+	if !page.MustEval(`()=>document.querySelector('.sdr-mini').hidden`).Bool() {
+		t.Fatal("desktop mini control covers the open receiver window")
+	}
 	// Observe actual media starts as well as the real HTTP service state. Display
 	// changes alone do not prove that the shared receiver was retuned.
 	page.MustEval(`()=>{window.sdrStreams=[];const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){sdrStreams.push(this.getAttribute('src'));return play.call(this)};}`)
@@ -90,9 +97,9 @@ func TestRTLSDRDesktopBrowser(t *testing.T) {
 		t.Fatalf("frequency control did not retune receiver: %d", got)
 	}
 	// Hold a successful response long enough to edit again during a mode switch.
-	page.MustEval(`()=>{const send=fetch;window.fetch=async(url,options)=>{const response=await send(url,options);if(String(url).endsWith('/rtl-sdr/tune')&&JSON.parse(options.body).tuning.mode==='am'){window.sdrTuneWaiting=true;await new Promise(resolve=>setTimeout(resolve,1200));}return response;};const mode=document.querySelector('[data-sdr="mode"]');mode.value='am';mode.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	page.MustEval(`()=>{const send=fetch;window.fetch=async(url,options)=>{const response=await send(url,options);if(String(url).endsWith('/rtl-sdr/tune')&&JSON.parse(options.body).tuning.mode==='am'){window.sdrTuneWaiting=true;await new Promise(resolve=>setTimeout(resolve,1200));}return response;};document.querySelector('[data-sdr="mode"][value="am"]').click();}`)
 	wait(`()=>window.sdrTuneWaiting===true`)
-	page.MustEval(`()=>{const mode=document.querySelector('[data-sdr="mode"]');mode.value='nfm';mode.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	page.MustEval(`()=>document.querySelector('[data-sdr="mode"][value="nfm"]').click()`)
 	wait(`()=>RTLSDRRuntime.currentTuning()?.mode==='nfm'&&sdrStreams.length===3`)
 	if tuning := s.RTLSDR.Snapshot().Tuning; tuning.Mode != "nfm" || tuning.Bandwidth != 12500 || tuning.Frequency != 105200000 {
 		t.Fatalf("latest mode change was dropped during retune: %+v", tuning)
@@ -100,10 +107,16 @@ func TestRTLSDRDesktopBrowser(t *testing.T) {
 	if !page.MustEval(`()=>new Set(sdrStreams).size===3&&sdrStreams.every(url=>url.includes('/stream?client=')&&url.includes('&v='))`).Bool() {
 		t.Fatal("retuning retained the previous buffered audio stream")
 	}
-	page.MustEval(`()=>{const mode=document.querySelector('[data-sdr="mode"]');mode.value='wfm';mode.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	page.MustEval(`()=>document.querySelector('[data-sdr="mode"][value="wfm"]').click()`)
 	wait(`()=>RTLSDRRuntime.currentTuning()?.mode==='wfm'&&sdrStreams.length===4`)
-	page.MustEval(`()=>{const agc=document.querySelector('[data-sdr="agc"]');agc.checked=false;agc.dispatchEvent(new Event('change',{bubbles:true}));const gain=document.querySelector('[data-sdr="gain"]');gain.value='40';gain.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	// The gain knob steps through the tuner's own gain list; step 4 of the fixture is 40 dB.
+	page.MustEval(`()=>{const agc=document.querySelector('[data-sdr="agc"]');agc.checked=false;agc.dispatchEvent(new Event('change',{bubbles:true}));const gain=document.querySelector('[data-sdr="gain"]');gain.value='4';gain.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	wait(`()=>RTLSDRRuntime.currentTuning()?.agc===false&&RTLSDRRuntime.currentTuning()?.gain_db===40`)
+	// Typing over a digit tunes like a keypad and moves on to the next digit.
+	page.MustEval(`()=>{const b=document.querySelector('[data-power="1000000"]');b.focus();b.dispatchEvent(new KeyboardEvent('keydown',{key:'7',bubbles:true,cancelable:true}));}`)
+	wait(`()=>RTLSDRRuntime.currentTuning()?.frequency_hz===107200000&&document.activeElement?.dataset.power==='100000'`)
+	page.MustEval(`()=>{const b=document.querySelector('[data-power="1000000"]');b.focus();b.dispatchEvent(new KeyboardEvent('keydown',{key:'5',bubbles:true,cancelable:true}));}`)
+	wait(`()=>RTLSDRRuntime.currentTuning()?.frequency_hz===105200000`)
 	windowID := page.MustEval(`()=>[...sdrTest.state.windows.keys()][0]`).Str()
 	page.MustEval(`async(id)=>await sdrTest.closeWindow(id)`, windowID)
 	wait(`()=>!document.querySelector('.sdr-app')`)
@@ -138,7 +151,16 @@ func TestRTLSDRDesktopBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.activeElement?.dataset.power==='1000'`).Bool() {
 		t.Fatal("digit tuning lost keyboard focus")
 	}
-	page.MustEval(`()=>{document.body.dataset.theme='fruity';const app=document.querySelector('.sdr-app');app.style.width='480px';app.style.height='650px';}`)
+	screenshot := func(suffix string) {
+		if path := os.Getenv("AURAGO_RTLSDR_SCREENSHOT"); path != "" {
+			_ = os.MkdirAll(filepath.Dir(path), 0700)
+			page.MustScreenshot(strings.TrimSuffix(path, ".png") + suffix + ".png")
+		}
+	}
+	page.MustEval(`()=>{document.body.dataset.theme='fruity'}`)
+	screenshot("-fruity")
+	page.MustEval(`()=>{const app=document.querySelector('.sdr-app');app.style.width='480px';app.style.height='650px';}`)
+	screenshot("-compact")
 	if !page.MustEval(`()=>{const app=document.querySelector('.sdr-app'), footer=app.querySelector('footer');return footer.getBoundingClientRect().bottom<=app.getBoundingClientRect().bottom+1&&app.scrollWidth<=481}`).Bool() {
 		t.Fatal("compact app overflows its footer or width")
 	}
@@ -146,8 +168,5 @@ func TestRTLSDRDesktopBrowser(t *testing.T) {
 	if errors := page.MustEval(`()=>JSON.stringify(sdrErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}
-	if path := os.Getenv("AURAGO_RTLSDR_SCREENSHOT"); path != "" {
-		_ = os.MkdirAll(filepath.Dir(path), 0700)
-		page.MustScreenshot(path)
-	}
+	screenshot("")
 }

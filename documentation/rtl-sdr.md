@@ -2,9 +2,9 @@
 
 RTL-SDR is a built-in Virtual Desktop app for a USB receiver attached to the
 AuraGo server. The browser provides the controls and speakers; the server owns
-reception, recording, schedules and transcription. Closing the app window leaves
-live audio playing through a small desktop control. **Stop** ends that live
-session. Closing the browser ends its listening lease after at most 35 seconds;
+reception, recording, schedules and transcription. Closing or minimizing the app
+window leaves live audio playing through a small desktop control. **Stop** ends
+that live session. Closing the browser ends its listening lease after at most 35 seconds;
 server recordings continue.
 
 ## Setup
@@ -56,12 +56,22 @@ captured audio. Setup/configuration changes require a Desktop administrator.
 
 ## Listening and recording
 
+The app looks and works like a receiver front panel. Its display shows the tuned
+frequency, the active mode and status indicators, station name and radiotext, a
+signal meter, and the band scope with a waterfall. Station memory sits on the
+left, the tuning dial and the volume, squelch, gain and bandwidth knobs on the
+right, and the listen, mode, AGC, stereo and mute keys below the display.
+
 The receiver supports WFM stereo/RDS, NFM, AM, USB, LSB and DAB+. Frequency entry,
-individual digits, the tuning knob, keyboard arrows and spectrum clicks control
-the same receiver. Available frequency limits and gain steps come from the tuner.
-Advanced controls provide bandwidth, gain, AGC, PPM correction and squelch.
-During live listening, committing a frequency entry or changing modulation and
-advanced controls tunes immediately. The player discards old buffered audio on
+individual digits, the tuning dial, keyboard arrows and spectrum clicks control
+the same receiver. Point at a digit and turn the mouse wheel, use the arrow keys,
+or type numbers over the digits like on a keypad. Spin the dial around its
+centre; the step keys beside it and the tuning step list set the raster. Small
+knobs turn by dragging, wheel or arrow keys; a double click resets squelch.
+Available frequency limits and gain steps come from the tuner. The star saves the
+current station as a favorite and removes it again. PPM correction is part of
+**Receiver setup**. During live listening, committing a frequency entry or
+changing modulation, filter, gain or squelch tunes immediately. The player discards old buffered audio on
 each successful retune. AGC controls both RF tuner and digital gain; switch it
 off to choose a manual tuner gain. Runtime image `:2` includes the RF AGC fix
 against the pinned SDRangel source (upstream's AGC controls digital gain only).

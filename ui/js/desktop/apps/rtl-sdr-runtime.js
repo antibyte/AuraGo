@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    const base = '/api/desktop/rtl-sdr/', client = crypto.randomUUID(), listeners = new Set();
+    const base = '/api/desktop/rtl-sdr/', client = crypto.randomUUID(), listeners = new Set(), panels = new Set();
     let ctx, snapshot, timer, busy = false, wanted = false, generation = 0, heartbeat = 0, badge, error = '', retry;
     const audio = new Audio(); audio.preload = 'none';
     try { audio.volume = Math.max(0, Math.min(1, Number(localStorage.getItem('rtl-sdr.volume') || .7))); } catch (_) { audio.volume = .7; }
@@ -14,7 +14,8 @@
             document.body.append(badge);
         }
         if (badge) {
-            badge.hidden = !wanted;
+            // A visible receiver window already carries these controls.
+            badge.hidden = !wanted || panels.size > 0;
             const tune = currentTuning();
             badge.children[0].textContent = '◉ RTL-SDR · ' + (tune?.label || ((tune?.frequency_hz || 0) / 1e6).toFixed(3) + ' MHz');
             badge.children[1].textContent = audio.muted ? '♪' : '∅'; badge.children[1].setAttribute('aria-label', tr(audio.muted ? 'unmute' : 'mute'));
@@ -65,6 +66,7 @@
     }
     async function stop() { silence(); error = ''; try { await request('stop', 'POST', { client }); } finally { await refresh(); } }
     function mute() { audio.muted = !audio.muted; publish(); }
+    function present(id, visible) { if (visible === panels.has(id)) return; if (visible) panels.add(id); else panels.delete(id); publish(); }
     function volume(value) { audio.volume = Math.max(0, Math.min(1, Number(value))); try { localStorage.setItem('rtl-sdr.volume', String(audio.volume)); } catch (_) {} publish(); }
     audio.addEventListener('error', () => {
         if (!wanted) return;
@@ -72,7 +74,7 @@
         retry = setTimeout(() => { if (!wanted || epoch !== generation) return; audio.src = base + 'stream?client=' + encodeURIComponent(client) + '&v=' + Date.now(); audio.play().catch(() => { error = 'sdr_audio_unlock'; publish(); }); }, 3000);
     });
     window.addEventListener('pagehide', () => { silence(); clearInterval(timer); timer = null; if (ctx) request('stop', 'POST', { client }).catch(() => {}); });
-    window.RTLSDRRuntime = { init, request, refresh, tune, stop, mute, volume, currentTuning,
+    window.RTLSDRRuntime = { init, request, refresh, tune, stop, mute, volume, present, currentTuning,
         subscribe(fn) { listeners.add(fn); if (snapshot) fn(snapshot, error); return () => listeners.delete(fn); },
         get playing() { return wanted; }, get muted() { return audio.muted; }, get volumeValue() { return audio.volume; }
     };
