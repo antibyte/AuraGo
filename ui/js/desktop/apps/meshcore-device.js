@@ -29,9 +29,10 @@
             settingsNav.querySelectorAll('button').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.mcSectionLink === section)));
             if (focus) { if (feedback.dataset.feedback === 'success') feedback.hidden = true; const title = settingsContent.querySelector(`[data-mc-section="${section}"] h3`); title?.focus({ preventScroll: true }); page.scrollTop = 0; }
         }
+        const sectionIcons = { app: 'settings', identity: 'self', contacts: 'shield', radio: 'mesh', clock: 'clock' };
         function sectionLink(section, title) {
             const b = button(settingsNav, title, () => selectSection(section, true)); b.dataset.mcSectionLink = section;
-            b.prepend(iconEl({ app: 'settings', identity: 'self', contacts: 'shield', radio: 'mesh', clock: 'clock' }[section]));
+            b.prepend(iconEl(sectionIcons[section]));
             settingsSelect.append(new Option(t(title), section));
             return b;
         }
@@ -55,6 +56,27 @@
         function identity(parent, st) {
             rows(parent, [['name', st.name], ['identity', st.identity_key], ['firmware', st.firmware], ['manufacturer', st.device?.manufacturer], ['build', st.device?.build_date], ['protocol', st.device?.protocol_version], ['sampled_at', date(st.snapshot_at)]]);
         }
+        function nodeHero(parent, st) {
+            const hero = node('div', undefined, 'mc-node-hero'), mark = node('span', undefined, 'mc-node-mark'), copy = node('div', undefined, 'mc-node-copy');
+            const known = ['connected', 'connecting', 'disconnected', 'disabled', 'binding_required', 'binding_changed', 'updating', 'suspended', 'settings_uncertain'].includes(st.state) ? st.state : 'disconnected';
+            mark.dataset.state = known; mark.setAttribute('aria-hidden', 'true'); mark.append(iconEl('mesh'));
+            const state = node('span', t('state_' + known), 'mc-status'); state.dataset.state = known;
+            const key = node('code', st.identity_key || unknown(), 'mc-node-key');
+            const chips = node('div', undefined, 'mc-chips');
+            for (const value of [st.firmware, st.device?.manufacturer]) if (value) chips.append(node('span', String(value), 'mc-chip'));
+            copy.append(node('strong', st.name || unknown(), 'mc-node-title'), state, key, chips);
+            hero.append(mark, copy); parent.append(hero);
+        }
+        // One-line radio signature in the notation operators use on air: frequency, SF, bandwidth, CR, power.
+        function radioSignature(parent, r) {
+            if (!r) return;
+            const sig = node('div', undefined, 'mc-radio-sig');
+            const mhz = Number.isFinite(r.frequency_khz) ? (r.frequency_khz / 1000).toFixed(3) : null;
+            const freq = node('strong', mhz ?? unknown(), 'mc-radio-freq'); if (mhz) freq.append(node('small', 'MHz'));
+            const chips = node('div', undefined, 'mc-chips');
+            for (const value of [r.spreading_factor != null && 'SF' + r.spreading_factor, r.bandwidth_hz != null && (r.bandwidth_hz >= 1000 ? r.bandwidth_hz / 1000 + ' kHz' : r.bandwidth_hz + ' Hz'), r.coding_rate_denominator != null && 'CR 4/' + r.coding_rate_denominator, r.tx_power_dbm != null && r.tx_power_dbm + ' dBm']) if (value) chips.append(node('span', value, 'mc-chip'));
+            sig.append(freq, chips); parent.append(sig);
+        }
         function radioRows(parent, r) {
             if (!r) return;
             rows(parent, [['position', position(r.configured_position)], ['frequency', r.frequency_khz + ' kHz'], ['bandwidth', r.bandwidth_hz + ' Hz'], ['spreading_factor', r.spreading_factor], ['coding_rate', '4/' + r.coding_rate_denominator], ['tx_power', r.tx_power_dbm + ' dBm'], ['multi_acks', r.multi_acks]]);
@@ -63,14 +85,17 @@
             devicePane.replaceChildren();
             if (!device) { devicePane.append(node('p', t('offline_hint'))); return; }
             const st = device.status;
-            const profile = group(devicePane, 'self'); profile.classList.add('mc-device-profile'); identity(profile, st);
+            const profile = group(devicePane, 'self'); profile.classList.add('mc-device-profile'); nodeHero(profile, st);
+            rows(profile, [['firmware', st.firmware], ['manufacturer', st.device?.manufacturer], ['build', st.device?.build_date], ['protocol', st.device?.protocol_version], ['sampled_at', date(st.snapshot_at)]]);
             const actions = node('div', undefined, 'mc-actions'); profile.append(actions);
             button(actions, 'share', () => h.selfDialog(s), st.state !== 'connected' || !!s.context.readonly).prepend(iconEl('share'));
             const stats = node('div', undefined, 'mc-device-stats'); devicePane.append(stats);
-            for (const [key, value] of [['contacts_capacity', `${st.contacts?.length ?? unknown()} / ${st.device?.contact_capacity ?? unknown()}`], ['channels_capacity', `${st.channels?.length ?? unknown()} / ${st.channel_capacity ?? unknown()}`], ['device_clock', date(device.clock)]]) {
-                const stat = node('div'); stat.append(node('span', t(key)), node('strong', value)); stats.append(stat);
+            for (const [key, value, used, total] of [['contacts_capacity', `${st.contacts?.length ?? unknown()} / ${st.device?.contact_capacity ?? unknown()}`, st.contacts?.length, st.device?.contact_capacity], ['channels_capacity', `${st.channels?.length ?? unknown()} / ${st.channel_capacity ?? unknown()}`, st.channels?.length, st.channel_capacity], ['device_clock', date(device.clock)]]) {
+                const stat = node('div', undefined, 'mc-stat'); stat.append(node('span', t(key), 'mc-stat-label'), node('strong', value, 'mc-stat-value'));
+                if (Number.isFinite(used) && total > 0) { const meter = node('span', undefined, 'mc-meter'); meter.setAttribute('aria-hidden', 'true'); meter.style.setProperty('--mc-fill', Math.min(100, used / total * 100).toFixed(1) + '%'); meter.classList.toggle('mc-meter-high', used / total >= 0.85); stat.append(meter); }
+                stats.append(stat);
             }
-            radioRows(group(devicePane, 'radio'), st.radio);
+            const radio = group(devicePane, 'radio'); radioSignature(radio, st.radio); radioRows(radio, st.radio);
             const features = group(devicePane, 'supported_features');
             const labels = { identity: 'name', radio: 'radio', clock: 'device_clock', other: 'telemetry', auto_add: 'auto_add', auto_add_max_hops: 'max_hops', repeat: 'repeat', path_hash: 'path_hash', multi_ack: 'multi_acks' };
             rows(features, Object.entries(device.features || {}).map(([k, v]) => [labels[k] || 'type', t(v === 'available' ? 'enabled' : v === 'unsupported' ? 'unsupported' : 'value_unknown')]));
@@ -214,7 +239,7 @@
         }
         function makeForm(section, title) {
             const el = node('form', undefined, 'mc-device-card'), fields = node('fieldset', undefined, 'mc-settings-fields');
-            const heading = node('h3', t(title)); heading.tabIndex = -1;
+            const heading = node('h3', t(title)); heading.tabIndex = -1; heading.prepend(iconEl(sectionIcons[section]));
             el.dataset.mcSection = section; el.append(heading, fields);
             const form = { section, el, fields, inputs: {}, dirty: false, saving: false, marker: node('span', '', 'mc-unsaved'), locked: node('p', '', 'mc-settings-locked'), feedback: node('div', '', 'mc-feedback') };
             sectionLink(section, title);

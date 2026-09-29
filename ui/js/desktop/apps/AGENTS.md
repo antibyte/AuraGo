@@ -1864,9 +1864,14 @@ registration lives in `internal/desktop/types.go`.
   native BarcodeDetector import and the existing QRCode renderer. No direct
   hardware connection or agent-tool sending. Labeled Messages/Device/Settings
   navigation stays visible on all pages. Theme styles live in
-  `css/desktop-app-meshcore.css`; the 304px list switches to single-pane navigation
-  below 700px. Scoped `--mc-*` tokens provide quiet teal surfaces, per-theme
-  variants, hash-hue avatars, non-sticky day markers and skeleton loading. Inline
+  `css/desktop-app-meshcore.css`; the 300px list switches to single-pane navigation
+  below 700px. Every selector stays scoped under `.vd-meshcore` because Mission
+  Control reuses `mc-*` class names. Scoped `--mc-*` tokens provide teal surfaces
+  on a dot-grid canvas, per-theme variants, tinted hash-hue avatars with contact
+  type badges, relative non-sticky day dividers, SNR signal bars and skeleton
+  loading; Geist Mono renders keys, times and radio values. Healthy send states
+  are icon-only with a screen-reader label; failed/uncertain states keep a
+  visible label. Inline
   SVG icons use `icon()`/`iconEl()` without external assets. History search opens
   on demand; closing it clears the query. Distinguish empty conversations from
   filtered results and provide filter reset. Hide the composer until a conversation
@@ -1875,7 +1880,8 @@ registration lives in `internal/desktop/types.go`.
   `mc-group-start/mid/end`; day changes break groups. Message actions
   (reveal/copy/retry) reveal via `opacity` on hover/focus-within, never via
   `pointer-events`, `visibility` or `display`; they remain visible on touch/narrow
-  layouts. Preserve ArrowUp/ArrowDown roving focus through list refreshes. Esc
+  layouts. They live in `.mc-message-actions`, floating beside the bubble so
+  hidden actions never shift the meta line, and render inline on touch/narrow. Preserve ArrowUp/ArrowDown roving focus through list refreshes. Esc
   closes details/search before leaving the chat, unless a dialog is open. Drafts
   and pending send IDs are local per device/conversation; invitation keys never
   enter browser storage. Persistent request IDs reconcile HTTP retries; explicit

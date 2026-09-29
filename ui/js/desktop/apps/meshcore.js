@@ -38,9 +38,21 @@
         eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
         down: '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>',
         qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-        megaphone: '<path d="m3 11 18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>'
+        megaphone: '<path d="m3 11 18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+        globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/>',
+        lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+        tower: '<path d="M12 11v10"/><path d="M8 21h8"/><circle cx="12" cy="8" r="2"/><path d="M8.2 4.6a5.5 5.5 0 0 0 0 6.8"/><path d="M15.8 4.6a5.5 5.5 0 0 1 0 6.8"/>',
+        room: '<path d="M3 21h18"/><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><line x1="14.5" y1="12" x2="14.51" y2="12"/>',
+        sensor: '<path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/>',
+        route: '<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h6a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h6"/>',
+        spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16v4M17 18h4"/>'
     };
     const SEND_STATE_ICONS = { sending: 'clock', queued: 'clock', device_accepted: 'check', delivered: 'checks', not_sent: 'close', outcome_unknown: 'alert', unknown: 'help' };
+    // Healthy states stay icon-only in the bubble; problems keep their label visible.
+    const QUIET_SEND_STATES = ['sending', 'queued', 'device_accepted', 'delivered'];
+    const AVATAR_BADGES = { 2: 'tower', 3: 'room', 4: 'sensor' };
+    const CONTACT_TYPES = { 1: 'companion', 2: 'repeater', 3: 'room', 4: 'sensor' };
+    const RADAR = '<svg class="mc-radar" viewBox="0 0 200 200" aria-hidden="true"><circle class="mc-radar-ring" cx="100" cy="100" r="34"/><circle class="mc-radar-ring" cx="100" cy="100" r="62"/><circle class="mc-radar-ring" cx="100" cy="100" r="90"/><circle class="mc-radar-pulse" cx="100" cy="100" r="34"/><path class="mc-radar-links" d="M100 100 148 60M100 100 50 72M100 100 130 152M148 60 178 106M50 72 32 128M130 152 74 164M178 106 130 152"/><g class="mc-radar-nodes"><circle cx="148" cy="60" r="5.5"/><circle cx="50" cy="72" r="4.5"/><circle cx="130" cy="152" r="5"/><circle cx="178" cy="106" r="3.5"/><circle cx="32" cy="128" r="3.5"/><circle cx="74" cy="164" r="3"/></g><circle class="mc-radar-core" cx="100" cy="100" r="10"/></svg>';
 
     const icon = name => `<svg class="mc-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
     function iconEl(name, cls) {
@@ -57,12 +69,49 @@
         return svg;
     }
 
-    const textBtn = (s, key, action, cls = '') => `<button type="button" class="${cls}" data-mc="${action}">${esc(tr(s, key))}</button>`;
     const iconBtn = (s, key, action, iconName, cls = 'mc-icon-btn') => `<button type="button" class="${cls}" data-mc="${action}" aria-label="${esc(tr(s, key))}" title="${esc(tr(s, key))}">${icon(iconName)}</button>`;
-    const labelBtn = (s, key, action, iconName, cls = '') => `<button type="button" class="${cls}" data-mc="${action}">${icon(iconName)}<span>${esc(tr(s, key))}</span></button>`;
-    const emptyMarkup = (iconMarkup, text, hint) => `<div class="mc-empty"><span class="mc-empty-icon" aria-hidden="true">${iconMarkup}</span><p>${esc(text)}</p>${hint ? `<span class="mc-empty-hint">${esc(hint)}</span>` : ''}</div>`;
+    const heroMarkup = (art, text, hint) => `<div class="mc-empty mc-empty-hero"><span class="mc-empty-art" aria-hidden="true">${art}</span><p>${esc(text)}</p>${hint ? `<span class="mc-empty-hint">${esc(hint)}</span>` : ''}</div>`;
 
     function hueOf(value) { let h = 0; const str = String(value || ''); for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 360; return h; }
+    function initials(c) {
+        const words = String(c.name || '').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean).map(word => [...word]);
+        if (!words.length) return c.kind === 'unknown' ? '?' : String(c.target || '?').slice(0, 2).toUpperCase();
+        return (words.length > 1 ? words[0][0] + words[1][0] : words[0].slice(0, 2).join('')).toLocaleUpperCase();
+    }
+    function fillAvatar(el, c) {
+        const channel = c.kind === 'channel';
+        el.replaceChildren();
+        el.classList.toggle('mc-avatar-channel', channel);
+        el.append(channel ? iconEl({ public: 'globe', private: 'lock' }[c.channel_kind] || 'hash') : document.createTextNode(initials(c)));
+        const badge = !channel && c.kind !== 'unknown' && AVATAR_BADGES[c.type];
+        if (badge) { const mark = node('span', undefined, 'mc-avatar-badge'); mark.append(iconEl(badge)); el.append(mark); }
+        el.style.setProperty('--mc-avatar-hue', String(hueOf(channel ? c.name || c.target : c.target)));
+        return el;
+    }
+    function avatarEl(c, cls) { const el = node('span', undefined, 'mc-avatar' + (cls ? ' ' + cls : '')); el.setAttribute('aria-hidden', 'true'); return fillAvatar(el, c); }
+    // LoRa SNR bands: above +5 dB is excellent, below -10 dB is close to the demodulation floor.
+    function signalEl(snr) {
+        const level = snr > 5 ? 4 : snr > 0 ? 3 : snr > -5 ? 2 : snr > -10 ? 1 : 0;
+        const el = node('span', undefined, 'mc-signal'); el.dataset.level = String(level); el.setAttribute('aria-hidden', 'true');
+        for (let i = 0; i < 4; i++) el.append(node('i'));
+        return el;
+    }
+    const relativeDays = (() => { try { return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }); } catch (_) { return null; } })();
+    function daysAgo(at) { const day = value => { const d = new Date(value); d.setHours(0, 0, 0, 0); return d.getTime(); }; return Math.round((day(Date.now()) - day(at * 1000)) / 86400000); }
+    function dayLabel(at) {
+        const diff = daysAgo(at), date = new Date(at * 1000);
+        if (relativeDays && diff >= 0 && diff < 2) { const text = relativeDays.format(-diff, 'day'); return text.charAt(0).toLocaleUpperCase() + text.slice(1); }
+        if (diff > 0 && diff < 7) return date.toLocaleDateString(undefined, { weekday: 'long' });
+        return date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+    }
+    function listTime(at) {
+        const diff = daysAgo(at), date = new Date(at * 1000);
+        if (diff <= 0) return formatTime(at);
+        if (diff === 1 && relativeDays) return relativeDays.format(-1, 'day');
+        return date.toLocaleDateString(undefined, diff < 7 ? { weekday: 'short' } : { day: 'numeric', month: 'short' });
+    }
+    function timeEl(at, text) { const el = node('time', text); const date = new Date(at * 1000); el.dateTime = date.toISOString(); el.title = date.toLocaleString(); return el; }
+    const fingerprint = key => key && key.length > 12 ? key.slice(0, 6) + '…' + key.slice(-4) : String(key || '');
 
     async function request(s, path, body) {
         const controller = new AbortController();
@@ -91,17 +140,17 @@
         instances.set(windowId, s);
         host.innerHTML = `<div class="vd-meshcore mc-no-chat">
             <header class="mc-toolbar">
-                <div class="mc-brand"><span class="mc-logo" aria-hidden="true">${icon('mesh')}</span><div class="mc-brand-copy"><strong>MeshCore</strong><span class="mc-status" data-mc-role="status" role="status"></span></div></div>
+                <div class="mc-brand"><span class="mc-logo" data-mc-role="logo" aria-hidden="true">${icon('mesh')}</span><div class="mc-brand-copy"><strong>MeshCore</strong><span class="mc-brand-line"><span class="mc-status" data-mc-role="status" role="status"></span><span class="mc-node-name" data-mc-role="node-name"></span></span></div></div>
                 <nav class="mc-app-nav" aria-label="MeshCore">${[['messages','messages','chat'],['device','self','self'],['settings','settings','settings']].map(([view,key,glyph]) => `<button type="button" data-mc="${key}" data-mc-view="${view}" aria-pressed="${view === 'messages'}" title="${esc(tr(s, view === 'device' ? 'device' : key))}">${icon(glyph)}<span>${esc(tr(s, view === 'device' ? 'device' : key))}</span></button>`).join('')}</nav>
                 <div class="mc-actions mc-toolbar-actions">${iconBtn(s, 'refresh', 'refresh', 'refresh')}<a class="mc-link" href="/config#meshcore" target="_blank" rel="noopener" aria-label="${esc(tr(s, 'connection'))}" title="${esc(tr(s, 'connection'))}">${icon('external')}<span>${esc(tr(s, 'connection'))}</span></a></div>
             </header>
             <div class="mc-feedback" data-mc-role="error" role="alert" hidden></div>
-            <div class="mc-body"><aside class="mc-sidebar"><div class="mc-sidebar-tools"><div class="mc-sidebar-heading"><h2>${esc(tr(s, 'conversations'))}</h2><span data-mc-role="conversation-count"></span></div><div class="mc-search">${icon('search')}<input type="search" data-mc-role="search" aria-label="${esc(tr(s, 'search'))}" placeholder="${esc(tr(s, 'search'))}"></div><div class="mc-filters" role="group" aria-label="${esc(tr(s, 'filter'))}">${['all', 'direct', 'channel', 'unread'].map(key => textBtn(s, key, 'filter-' + key)).join('')}</div></div><nav class="mc-conversations" aria-label="${esc(tr(s, 'conversations'))}" data-mc-role="conversations"></nav><div class="mc-actions mc-sidebar-actions">${labelBtn(s, 'add_contact', 'add-contact', 'user-plus')}${labelBtn(s, 'add_channel', 'add-channel', 'hash')}</div></aside>
-            <main class="mc-chat"><header class="mc-chat-head">${iconBtn(s, 'back', 'back', 'back', 'mc-icon-btn mc-back')}<span class="mc-avatar mc-avatar-sm" data-mc-role="peer-avatar" aria-hidden="true" hidden></span><div class="mc-chat-title"><strong data-mc-role="title">${esc(tr(s, 'choose'))}</strong><span data-mc-role="subtitle"></span></div>${iconBtn(s, 'search_history', 'search-history', 'search')}${iconBtn(s, 'details', 'details', 'info')}</header>
+            <div class="mc-body"><aside class="mc-sidebar"><div class="mc-sidebar-tools"><div class="mc-sidebar-heading"><h2>${esc(tr(s, 'conversations'))}</h2><span class="mc-count" data-mc-role="conversation-count"></span><div class="mc-heading-actions">${iconBtn(s, 'add_contact', 'add-contact', 'user-plus')}${iconBtn(s, 'add_channel', 'add-channel', 'hash')}</div></div><div class="mc-search">${icon('search')}<input type="search" data-mc-role="search" aria-label="${esc(tr(s, 'search'))}" placeholder="${esc(tr(s, 'search'))}"></div><div class="mc-filters" role="group" aria-label="${esc(tr(s, 'filter'))}">${['all', 'direct', 'channel', 'unread'].map(key => `<button type="button" data-mc="filter-${key}"><span>${esc(tr(s, key))}</span>${key === 'unread' ? '<span class="mc-filter-count" data-mc-role="unread-count" hidden></span>' : ''}</button>`).join('')}</div></div><nav class="mc-conversations" aria-label="${esc(tr(s, 'conversations'))}" data-mc-role="conversations"></nav></aside>
+            <main class="mc-chat"><header class="mc-chat-head">${iconBtn(s, 'back', 'back', 'back', 'mc-icon-btn mc-back')}<span class="mc-avatar mc-avatar-sm" data-mc-role="peer-avatar" aria-hidden="true" hidden></span><div class="mc-chat-title"><strong data-mc-role="title">${esc(tr(s, 'choose'))}</strong><span data-mc-role="subtitle"></span></div><span class="mc-link-quality" data-mc-role="quality" hidden></span>${iconBtn(s, 'search_history', 'search-history', 'search')}${iconBtn(s, 'details', 'details', 'info')}</header>
             <div class="mc-history-search" data-mc-role="history-search" hidden><div class="mc-search">${icon('search')}<input type="search" data-mc-role="query" aria-label="${esc(tr(s, 'search_history'))}" placeholder="${esc(tr(s, 'search_history'))}"></div>${iconBtn(s, 'close', 'search-history', 'close')}</div>
-            <div class="mc-chat-scroll"><div class="mc-messages" data-mc-role="messages" tabindex="0" aria-label="${esc(tr(s, 'messages'))}">${emptyMarkup(icon('mesh'), tr(s, 'choose'), tr(s, 'choose_hint'))}</div>
+            <div class="mc-chat-scroll"><div class="mc-messages" data-mc-role="messages" tabindex="0" aria-label="${esc(tr(s, 'messages'))}">${heroMarkup(RADAR, tr(s, 'choose'), tr(s, 'choose_hint'))}</div>
             <button type="button" class="mc-new" data-mc="latest" hidden>${icon('down')}<span>${esc(tr(s, 'new_messages'))}</span></button></div>
-            <form class="mc-composer"><div class="mc-composer-row"><label class="mc-sr-only" for="mc-compose-${esc(windowId)}">${esc(tr(s, 'message'))}</label><textarea id="mc-compose-${esc(windowId)}" data-mc-role="compose" rows="2" maxlength="1200" placeholder="${esc(tr(s, 'message'))}"></textarea><button type="submit" class="mc-primary mc-send" data-mc-role="send" aria-label="${esc(tr(s, 'send'))}" title="${esc(tr(s, 'send'))}">${icon('send')}</button></div><div class="mc-compose-footer"><span class="mc-counter" data-mc-role="counter" aria-live="polite"></span><span class="mc-hint" data-mc-role="send-hint"></span></div><details class="mc-parts"><summary>${esc(tr(s, 'preview'))}</summary><div data-mc-role="parts"></div></details></form>
+            <form class="mc-composer"><div class="mc-composer-row"><label class="mc-sr-only" for="mc-compose-${esc(windowId)}">${esc(tr(s, 'message'))}</label><textarea id="mc-compose-${esc(windowId)}" data-mc-role="compose" rows="2" maxlength="1200" placeholder="${esc(tr(s, 'message'))}"></textarea><button type="submit" class="mc-primary mc-send" data-mc-role="send" aria-label="${esc(tr(s, 'send'))}" title="${esc(tr(s, 'send'))}">${icon('send')}</button></div><div class="mc-compose-footer"><span class="mc-packets" data-mc-role="packets" title="${esc(tr(s, 'preview'))}" aria-hidden="true"><i></i><i></i><i></i></span><span class="mc-counter" data-mc-role="counter" aria-live="polite"></span><span class="mc-hint" data-mc-role="send-hint"></span></div><details class="mc-parts"><summary>${esc(tr(s, 'preview'))}</summary><div data-mc-role="parts"></div></details></form>
             </main><aside class="mc-detail" data-mc-role="detail" hidden></aside></div></div>`;
         s.root = host.firstElementChild;
         s.el = role => s.root.querySelector(`[data-mc-role="${role}"]`);
@@ -160,7 +209,10 @@
             const state = ['connected', 'connecting', 'disconnected', 'disabled', 'binding_required', 'binding_changed', 'updating', 'suspended', 'settings_uncertain'].includes(s.status.state) ? s.status.state : 'disconnected';
             s.el('status').textContent = tr(s, 'state_' + state);
             s.el('status').dataset.state = state;
-            for (const action of ['add-contact', 'add-channel']) s.root.querySelector(`[data-mc="${action}"]`).disabled = state !== 'connected' || !!s.context.readonly;
+            s.el('logo').dataset.state = state;
+            s.el('node-name').textContent = s.status.name || '';
+            s.canManage = state === 'connected' && !s.context.readonly;
+            for (const action of ['add-contact', 'add-channel']) s.root.querySelectorAll(`[data-mc="${action}"]`).forEach(btn => { btn.disabled = !s.canManage; });
             renderList(s); renderHead(s); updateComposer(s);
             if (messages && s.selected) await loadMessages(s);
         } finally {
@@ -176,36 +228,48 @@
         const items = s.conversations.filter(c => (s.filter === 'all' || s.filter === c.kind || s.filter === 'unread' && c.unread > 0) && (!needle || (c.name + ' ' + c.target + ' ' + c.preview).toLocaleLowerCase().includes(needle)));
         items.sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.last_at - a.last_at || a.name.localeCompare(b.name));
         s.el('conversation-count').textContent = String(items.length);
+        const unreadCount = s.conversations.filter(c => c.unread > 0).length;
+        s.el('unread-count').textContent = String(unreadCount); s.el('unread-count').hidden = !unreadCount;
         s.root.querySelectorAll('.mc-filters button').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.mc === 'filter-' + s.filter)));
         if (!items.length) {
             const empty = node('div', undefined, 'mc-empty mc-empty-list');
-            const emptyIcon = node('span', undefined, 'mc-empty-icon'); emptyIcon.setAttribute('aria-hidden', 'true'); emptyIcon.append(iconEl('mesh'));
+            const emptyIcon = node('span', undefined, 'mc-empty-icon'); emptyIcon.setAttribute('aria-hidden', 'true'); emptyIcon.append(iconEl(s.search ? 'search' : 'mesh'));
             const filtered = !!s.search || s.filter !== 'all';
             empty.append(emptyIcon, node('p', tr(s, filtered ? 'no_results' : s.settings?.enabled === false ? 'setup' : 'no_conversations')));
             if (filtered) { const reset = node('button', tr(s, 'clear_filters')); reset.type = 'button'; reset.dataset.mc = 'clear-filters'; empty.append(reset); }
-            else if (s.settings?.enabled !== false) empty.append(node('span', tr(s, 'no_conversations_hint'), 'mc-empty-hint'));
+            else if (s.settings?.enabled !== false) {
+                empty.append(node('span', tr(s, 'no_conversations_hint'), 'mc-empty-hint'));
+                const starters = node('div', undefined, 'mc-empty-actions');
+                for (const [key, action, glyph] of [['add_contact', 'add-contact', 'user-plus'], ['add_channel', 'add-channel', 'hash']]) {
+                    const btn = node('button', undefined, 'mc-ghost'); btn.type = 'button'; btn.dataset.mc = action; btn.disabled = !s.canManage;
+                    btn.append(iconEl(glyph), node('span', tr(s, key))); starters.append(btn);
+                }
+                empty.append(starters);
+            }
             list.append(empty);
         }
         for (const c of items) {
             const btn = node('button', undefined, 'mc-conversation'); btn.type = 'button'; btn.setAttribute('aria-current', String(c.id === s.selected));
             btn.dataset.conversation = c.id;
+            btn.classList.toggle('mc-has-unread', c.unread > 0);
+            btn.classList.toggle('mc-is-muted', !!c.muted);
+            btn.classList.toggle('mc-is-archived', !c.active);
             btn.tabIndex = c.id === (focused || s.selected || items[0]?.id) ? 0 : -1;
-            const avatar = node('span', c.kind === 'channel' ? '#' : (c.name || '?').slice(0, 2).toUpperCase(), 'mc-avatar'); avatar.setAttribute('aria-hidden', 'true');
-            avatar.classList.toggle('mc-avatar-channel', c.kind === 'channel');
-            avatar.style.setProperty('--mc-avatar-hue', String(c.kind === 'channel' ? 168 : hueOf(c.target)));
             const text = node('span', undefined, 'mc-conversation-copy');
             const line = node('span', undefined, 'mc-conversation-line');
             const name = node('strong');
             if (c.favorite) name.append(iconEl('star', 'mc-star'));
-            name.append(document.createTextNode(displayName(s, c)));
+            name.append(node('span', displayName(s, c), 'mc-name'));
             line.append(name);
-            if (c.muted) line.append(iconEl('bell-off', 'mc-muted'));
-            if (c.last_at) line.append(node('time', formatTime(c.last_at)));
+            if (c.last_at) line.append(timeEl(c.last_at, listTime(c.last_at)));
+            const sub = node('span', undefined, 'mc-conversation-sub');
             const preview = node('span', undefined, 'mc-preview');
-            if (c.protected) preview.append(iconEl('shield', 'mc-preview-icon'));
+            if (c.protected) { preview.classList.add('mc-preview-protected'); preview.append(iconEl('shield', 'mc-preview-icon')); }
             preview.append(document.createTextNode(c.protected ? tr(s, 'protected') : c.preview || tr(s, c.kind === 'channel' ? 'channel' : 'direct')));
-            text.append(line, preview); btn.append(avatar, text);
-            if (c.unread) btn.append(node('span', String(c.unread), 'mc-unread'));
+            sub.append(preview);
+            if (c.muted) sub.append(iconEl('bell-off', 'mc-muted'));
+            if (c.unread) sub.append(node('span', c.unread > 99 ? '99+' : String(c.unread), 'mc-unread'));
+            text.append(line, sub); btn.append(avatarEl(c), text);
             btn.addEventListener('click', () => selectConversation(s, c.id)); list.append(btn);
         }
         if (items.length && !list.querySelector('[tabindex="0"]')) list.firstElementChild.tabIndex = 0;
@@ -233,16 +297,29 @@
         const c = current(s);
         s.root.classList.toggle('mc-no-chat', !c);
         s.el('title').textContent = c ? displayName(s, c) : tr(s, 'choose');
-        s.el('subtitle').textContent = c ? (!c.active ? tr(s, 'archived') : c.kind === 'channel' ? tr(s, c.channel_kind || 'private') : tr(s, 'direct')) : '';
+        const subtitle = s.el('subtitle'); subtitle.replaceChildren();
+        if (c) {
+            subtitle.append(document.createTextNode(!c.active ? tr(s, 'archived') : c.kind === 'channel' ? tr(s, c.channel_kind || 'private') : tr(s, CONTACT_TYPES[c.type] || 'direct')));
+            if (c.kind !== 'channel' && c.target) { const code = node('code', fingerprint(c.target), 'mc-fingerprint'); code.title = c.target; subtitle.append(code); }
+        }
         s.root.querySelector('[data-mc="details"]').disabled = !c;
         s.root.querySelector('[data-mc="details"]').setAttribute('aria-expanded', String(!s.el('detail').hidden));
         const avatar = s.el('peer-avatar');
         avatar.hidden = !c;
-        if (c) {
-            avatar.textContent = c.kind === 'channel' ? '#' : (c.name || '?').slice(0, 2).toUpperCase();
-            avatar.classList.toggle('mc-avatar-channel', c.kind === 'channel');
-            avatar.style.setProperty('--mc-avatar-hue', String(c.kind === 'channel' ? 168 : hueOf(c.target)));
-        }
+        if (c) fillAvatar(avatar, c);
+        renderQuality(s);
+    }
+
+    // Summarizes the latest reception so the header shows how well this peer is heard.
+    function renderQuality(s) {
+        const el = s.el('quality'), c = current(s);
+        const last = c && [...s.messages].reverse().find(msg => msg.direction === 'incoming' && Number.isFinite(msg.details?.reception?.snr_db));
+        el.replaceChildren(); el.hidden = !last;
+        if (!last) return;
+        const reception = last.details.reception;
+        el.title = tr(s, 'snr') + ' · ' + formatTime(last.at);
+        el.append(signalEl(reception.snr_db), node('span', `${reception.snr_db} dB`));
+        if (Number.isInteger(reception.path?.hops)) el.append(node('span', `${reception.path.hops} ${tr(s, 'hops')}`, 'mc-quality-hops'));
     }
 
     function skeletonList() {
@@ -274,16 +351,17 @@
         if (s.hasOlder) { const more = node('button', tr(s, 'older'), 'mc-load-more'); more.type = 'button'; more.addEventListener('click', () => { more.disabled = true; loadMessages(s, true).catch(error => { more.disabled = false; showError(s, error); }); }); box.append(more); }
         if (!s.messages.length) {
             const empty = node('div', undefined, 'mc-empty mc-empty-chat');
-            const emptyIcon = node('span', undefined, 'mc-empty-icon'); emptyIcon.setAttribute('aria-hidden', 'true'); emptyIcon.append(iconEl('mesh'));
+            const emptyIcon = node('span', undefined, 'mc-empty-icon'); emptyIcon.setAttribute('aria-hidden', 'true'); emptyIcon.append(iconEl(s.query ? 'search' : 'chat'));
             empty.append(emptyIcon, node('p', tr(s, s.query ? 'no_results' : 'empty_chat')));
             if (!s.query) empty.append(node('span', tr(s, 'empty_chat_hint'), 'mc-empty-hint'));
             box.append(empty);
         }
         let day = '', prev = null;
         const total = s.messages.length;
+        const sendState = value => ['sending', 'queued', 'device_accepted', 'delivered', 'not_sent', 'outcome_unknown'].includes(value) ? value : 'unknown';
         s.messages.forEach((msg, i) => {
             const date = new Date(msg.at * 1000).toLocaleDateString();
-            if (date !== day) { box.append(node('div', date, 'mc-day')); day = date; prev = null; }
+            if (date !== day) { const divider = node('div', undefined, 'mc-day'); divider.append(timeEl(msg.at, dayLabel(msg.at))); box.append(divider); day = date; prev = null; }
             const samePrev = prev && prev.direction === msg.direction && prev.origin === msg.origin && msg.at - prev.at < GROUP_GAP_SECONDS;
             const nextMsg = s.messages[i + 1];
             const sameNext = nextMsg && i + 1 < total && new Date(nextMsg.at * 1000).toLocaleDateString() === date && nextMsg.direction === msg.direction && nextMsg.origin === msg.origin && nextMsg.at - msg.at < GROUP_GAP_SECONDS;
@@ -292,28 +370,46 @@
             else if (samePrev) cls += ' mc-group-end';
             else if (sameNext) cls += ' mc-group-start';
             if (msg.protected) cls += ' mc-protected';
+            if (msg.origin === 'agent') cls += ' mc-agent';
             const row = node('article', undefined, cls);
             row.dataset.messageId = msg.id;
-            if (msg.origin === 'agent') row.append(node('strong', 'AuraGo', 'mc-message-author'));
+            if (msg.origin === 'agent' && !samePrev) { const author = node('strong', undefined, 'mc-message-author'); author.append(iconEl('spark'), document.createTextNode('AuraGo')); row.append(author); }
             const body = node('div', undefined, 'mc-message-text');
             if (msg.protected && !s.revealed.has(msg.id)) body.append(iconEl('shield', 'mc-lock'));
             body.append(document.createTextNode(msg.protected ? s.revealed.get(msg.id) ?? tr(s, 'protected') : msg.text));
             row.append(body);
-            const meta = node('div', undefined, 'mc-message-meta'); meta.append(node('time', formatTime(msg.at)));
+            const meta = node('div', undefined, 'mc-message-meta'); meta.append(timeEl(msg.at, formatTime(msg.at)));
             const reception = msg.details?.reception;
-            if (Number.isFinite(reception?.snr_db)) meta.append(node('span', `${reception.snr_db} dB`, 'mc-rx-badge'));
-            if (Number.isInteger(reception?.path?.hops)) meta.append(node('span', `${reception.path.hops} ${tr(s, 'hops')}`, 'mc-rx-badge'));
-            if (msg.direction === 'outgoing') { const state = ['sending', 'queued', 'device_accepted', 'delivered', 'not_sent', 'outcome_unknown'].includes(msg.send_state) ? msg.send_state : 'unknown'; const status = node('span', undefined, 'mc-send-state'); status.title = tr(s, 'send_' + state); status.append(iconEl(SEND_STATE_ICONS[state] || 'help', 'mc-state-icon'), document.createTextNode(tr(s, 'send_' + state))); meta.append(status); }
-            const action = (label, iconName, fn) => { const btn = node('button'); btn.type = 'button'; btn.title = tr(s, label); btn.append(iconEl(iconName), node('span', tr(s, label), 'mc-sr-only')); btn.addEventListener('click', () => fn(btn).catch(error => showError(s, error))); meta.append(btn); };
+            if (Number.isFinite(reception?.snr_db)) { const snr = node('span', undefined, 'mc-rx-badge'); snr.title = tr(s, 'snr'); snr.append(signalEl(reception.snr_db), document.createTextNode(`${reception.snr_db} dB`)); meta.append(snr); }
+            if (Number.isInteger(reception?.path?.hops)) { const hops = node('span', undefined, 'mc-rx-badge'); hops.title = tr(s, 'route'); hops.append(iconEl('route'), document.createTextNode(`${reception.path.hops} ${tr(s, 'hops')}`)); meta.append(hops); }
+            if (msg.direction === 'outgoing') {
+                const state = sendState(msg.send_state), label = tr(s, 'send_' + state), status = node('span', undefined, 'mc-send-state');
+                status.title = label; status.dataset.state = state;
+                status.append(iconEl(SEND_STATE_ICONS[state] || 'help', 'mc-state-icon'), node('span', label, QUIET_SEND_STATES.includes(state) ? 'mc-sr-only' : ''));
+                meta.append(status);
+            }
+            const tools = node('span', undefined, 'mc-message-actions');
+            const action = (label, iconName, fn) => { const btn = node('button'); btn.type = 'button'; btn.title = tr(s, label); btn.append(iconEl(iconName), node('span', tr(s, label), 'mc-sr-only')); btn.addEventListener('click', () => fn(btn).catch(error => showError(s, error))); tools.append(btn); };
             if (msg.protected && !s.revealed.has(msg.id)) action('reveal', 'eye', async btn => { btn.disabled = true; try { const data = await request(s, 'reveal', { id: msg.id }); if (!s.disposed && row.isConnected) { s.revealed.set(msg.id, data.text); body.textContent = data.text; btn.hidden = true; } } finally { btn.disabled = false; } });
             else action('copy', 'copy', async () => { await navigator.clipboard.writeText(s.revealed.get(msg.id) ?? msg.text); });
             action('details', 'info', async () => s.deviceUI.messageDetails(msg));
             if (msg.origin === 'manual' && ['not_sent', 'outcome_unknown', 'device_accepted'].includes(msg.send_state)) action('retry', 'refresh', async () => confirmAction(s, 'retry_warning', async () => { s.pendingSend = null; try { localStorage.removeItem('aurago.meshcore.pending.' + s.selected); } catch (_) { /* Optional browser storage. */ } s.el('compose').value = msg.text; saveDraft(s); updateComposer(s); await send(s); }));
+            meta.append(tools);
             row.append(meta);
-            if (msg.parts?.length > 1) row.append(node('small', msg.parts.map(p => p.number + ': ' + tr(s, 'send_' + p.state)).join(' · '), 'mc-part-states'));
+            if (msg.parts?.length > 1) {
+                const parts = node('div', undefined, 'mc-part-states');
+                for (const part of msg.parts) {
+                    const state = sendState(part.state), label = `${tr(s, 'packet')} ${part.number}: ${tr(s, 'send_' + state)}`, chip = node('span', undefined, 'mc-part');
+                    chip.dataset.state = state; chip.title = label;
+                    chip.append(node('span', String(part.number), 'mc-part-number'), iconEl(SEND_STATE_ICONS[state] || 'help'), node('span', label, 'mc-sr-only'));
+                    parts.append(chip);
+                }
+                row.append(parts);
+            }
             box.append(row);
             prev = msg;
         });
+        renderQuality(s);
     }
 
     function markRead(s) {
@@ -347,7 +443,10 @@
         s.el('compose').style.height = Math.min(132, s.el('compose').scrollHeight + 2) + 'px';
         s.el('parts').parentElement.hidden = !parts || parts.length < 2;
         s.el('counter').classList.toggle('mc-counter-error', !parts);
+        [...s.el('packets').children].forEach((segment, i) => segment.classList.toggle('mc-on', !parts || i < parts.length));
+        s.el('packets').classList.toggle('mc-over', !parts);
         s.el('send-hint').textContent = !parts ? tr(s, 'too_long') : c && !c.can_send ? tr(s, 'send_locked') : tr(s, 'composer_hint');
+        s.el('send-hint').dataset.tone = !parts || c && !c.can_send ? 'warn' : 'info';
         if (wasBottom) s.el('messages').scrollTop = s.el('messages').scrollHeight;
     }
 
@@ -397,20 +496,21 @@
     function renderDetail(s) {
         const c = current(s), panel = s.el('detail'); panel.replaceChildren(); if (!c) return;
         const head = node('div', undefined, 'mc-detail-head');
-        const avatar = node('span', c.kind === 'channel' ? '#' : (c.name || '?').slice(0, 2).toUpperCase(), 'mc-avatar mc-avatar-lg'); avatar.setAttribute('aria-hidden', 'true');
-        avatar.classList.toggle('mc-avatar-channel', c.kind === 'channel');
-        avatar.style.setProperty('--mc-avatar-hue', String(c.kind === 'channel' ? 168 : hueOf(c.target)));
         const titleWrap = node('div', undefined, 'mc-detail-title');
-        titleWrap.append(node('h3', displayName(s, c)), node('p', tr(s, c.kind === 'channel' ? c.channel_kind || 'private' : 'identity')));
+        titleWrap.append(node('h3', displayName(s, c)), node('p', tr(s, c.kind === 'channel' ? c.channel_kind || 'private' : CONTACT_TYPES[c.type] || 'direct')));
         const close = node('button', undefined, 'mc-icon-btn'); close.type = 'button'; close.dataset.mc = 'close-details'; close.setAttribute('aria-label', tr(s, 'close')); close.append(iconEl('close'));
-        head.append(avatar, titleWrap, close); panel.append(head);
+        head.append(avatarEl(c, 'mc-avatar-lg'), titleWrap, close); panel.append(head);
+        const key = c.kind === 'channel' ? c.identity_key : c.target;
         const keyChip = node('div', undefined, 'mc-key');
-        keyChip.append(node('code', c.kind === 'channel' ? c.identity_key : c.target));
+        keyChip.append(node('span', tr(s, c.kind === 'channel' ? 'binding' : 'identity'), 'mc-key-label'), node('code', key));
+        const copyKey = node('button', undefined, 'mc-icon-btn mc-key-copy'); copyKey.type = 'button'; copyKey.title = tr(s, 'copy'); copyKey.append(iconEl('copy'), node('span', tr(s, 'copy'), 'mc-sr-only'));
+        copyKey.addEventListener('click', () => navigator.clipboard.writeText(key).catch(error => showError(s, error)));
+        keyChip.append(copyKey);
         panel.append(keyChip);
         panel.append(node('p', tr(s, c.kind === 'channel' && c.channel_kind !== 'private' ? 'public_hint' : 'trust_hint'), 'mc-hint'));
         s.deviceUI.contactDetails(panel, c);
         const actions = node('div', undefined, 'mc-detail-actions');
-        const action = (key, iconName, fn, disabled = false) => { const btn = node('button', tr(s, key)); btn.type = 'button'; btn.disabled = disabled; btn.prepend(iconEl(iconName)); btn.addEventListener('click', () => fn().catch(error => showError(s, error))); actions.append(btn); };
+        const action = (key, iconName, fn, disabled = false) => { const btn = node('button', tr(s, key)); btn.type = 'button'; btn.disabled = disabled; btn.dataset.mcAction = key; btn.prepend(iconEl(iconName)); btn.addEventListener('click', () => fn().catch(error => showError(s, error))); actions.append(btn); };
         action(c.favorite ? 'unfavorite' : 'favorite', 'star', async () => { await request(s, 'conversation', { conversation: c.id, favorite: !c.favorite }); await refresh(s, false); renderDetail(s); });
         action(c.muted ? 'unmute' : 'mute', c.muted ? 'bell' : 'bell-off', async () => { await request(s, 'conversation', { conversation: c.id, muted: !c.muted }); await refresh(s, false); renderDetail(s); });
         action('share', 'share', async () => shareDialog(s, c.id), !c.active || s.status.state !== 'connected');
@@ -425,8 +525,9 @@
         const el = node('dialog', undefined, 'mc-dialog');
         const head = node('header');
         const titleWrap = node('div', undefined, 'mc-dialog-title');
-        titleWrap.append(iconEl(iconName || 'info', 'mc-dialog-icon'), node('h3', tr(s, title)));
-        const close = node('button', '×'); close.type = 'button'; close.setAttribute('aria-label', tr(s, 'close')); head.append(titleWrap, close);
+        const badge = node('span', undefined, 'mc-dialog-icon'); badge.dataset.tone = iconName === 'alert' ? 'warn' : 'accent'; badge.append(iconEl(iconName || 'info'));
+        titleWrap.append(badge, node('h3', tr(s, title)));
+        const close = node('button', undefined, 'mc-icon-btn'); close.type = 'button'; close.setAttribute('aria-label', tr(s, 'close')); close.append(iconEl('close')); head.append(titleWrap, close);
         const body = node('div', undefined, 'mc-dialog-body'), error = node('p', '', 'mc-feedback'); error.setAttribute('role', 'alert'); error.hidden = true;
         el.append(head, body, error); s.root.append(el); s.dialog = el;
         close.addEventListener('click', () => el.close());
