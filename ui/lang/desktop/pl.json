@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Zaufany węzeł w AuraGo",
   "desktop.meshcore_created_at": "Utworzono",
   "game_maker.save_failed_title": "Gra nie została zapisana",
-  "game_maker.leave_unsaved": "Nie udało się zapisać ostatnich zmian. Mimo to zamknąć grę?"
+  "game_maker.leave_unsaved": "Nie udało się zapisać ostatnich zmian. Mimo to zamknąć grę?",
+  "codeStudio.suggestionStale": "Plik źródłowy został zmieniony lub zamknięty. Skopiuj propozycję lub poproś o nową.",
+  "codeStudio.suggestionCopyOnly": "Skopiuj tę propozycję do odpowiedniego pliku."
 }

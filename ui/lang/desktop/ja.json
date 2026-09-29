@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "AuraGoの信頼済みノード",
   "desktop.meshcore_created_at": "作成日時",
   "game_maker.save_failed_title": "ゲームが保存されていません",
-  "game_maker.leave_unsaved": "最新の変更を保存できませんでした。それでもゲームを閉じますか？"
+  "game_maker.leave_unsaved": "最新の変更を保存できませんでした。それでもゲームを閉じますか？",
+  "codeStudio.suggestionStale": "元のファイルが変更されたか、閉じられました。提案をコピーするか、新しい提案を依頼してください。",
+  "codeStudio.suggestionCopyOnly": "この提案を適切なファイルにコピーしてください。"
 }

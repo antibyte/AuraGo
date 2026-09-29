@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Vertrauenswürdiger Knoten in AuraGo",
   "desktop.meshcore_created_at": "Erstellt am",
   "game_maker.save_failed_title": "Spielstand nicht gespeichert",
-  "game_maker.leave_unsaved": "Die letzten Änderungen konnten nicht gespeichert werden. Möchtest Du das Spiel trotzdem schließen?"
+  "game_maker.leave_unsaved": "Die letzten Änderungen konnten nicht gespeichert werden. Möchtest Du das Spiel trotzdem schließen?",
+  "codeStudio.suggestionStale": "Die Quelldatei wurde geändert oder geschlossen. Kopiere den Vorschlag oder fordere einen neuen an.",
+  "codeStudio.suggestionCopyOnly": "Kopiere diesen Vorschlag in die passende Datei."
 }

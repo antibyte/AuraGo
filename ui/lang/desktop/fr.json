@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Nœud de confiance dans AuraGo",
   "desktop.meshcore_created_at": "Créé le",
   "game_maker.save_failed_title": "Partie non enregistrée",
-  "game_maker.leave_unsaved": "Les dernières modifications n’ont pas pu être enregistrées. Fermer le jeu quand même ?"
+  "game_maker.leave_unsaved": "Les dernières modifications n’ont pas pu être enregistrées. Fermer le jeu quand même ?",
+  "codeStudio.suggestionStale": "Le fichier source a été modifié ou fermé. Copie la suggestion ou demande-en une nouvelle.",
+  "codeStudio.suggestionCopyOnly": "Copie cette suggestion dans le fichier approprié."
 }

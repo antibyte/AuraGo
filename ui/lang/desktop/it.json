@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Nodo attendibile in AuraGo",
   "desktop.meshcore_created_at": "Creato il",
   "game_maker.save_failed_title": "Partita non salvata",
-  "game_maker.leave_unsaved": "Non è stato possibile salvare le ultime modifiche. Chiudere comunque il gioco?"
+  "game_maker.leave_unsaved": "Non è stato possibile salvare le ultime modifiche. Chiudere comunque il gioco?",
+  "codeStudio.suggestionStale": "Il file di origine è stato modificato o chiuso. Copia il suggerimento o richiedine uno nuovo.",
+  "codeStudio.suggestionCopyOnly": "Copia questo suggerimento nel file appropriato."
 }

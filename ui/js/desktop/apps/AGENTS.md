@@ -1218,6 +1218,11 @@ registration lives in `internal/desktop/types.go`.
   Rename/delete wait for pending saves and block new saves until the path change
   completes. Run retains its document and terminal session and stops after a
   failed/superseded save or a removed/renamed document.
+- Code Studio AI suggestions retain their window, tab identity, path, revision,
+  range and action intent. Only a single code block from Refactor/Comments may
+  replace source; Apply revalidates the original document and uses one editor
+  transaction. Other output and stale suggestions stay copyable. Cancelled or
+  superseded replies cannot change messages, busy state or pending suggestions.
 - Code Studio receives the office app context (`officeAppContext` in
   `menus-and-routing.js`): `setWindowBeforeClose`, `showContextMenu`,
   `promptDialog`, `confirmDialog`, `notify`. Modified tabs block tab close,

@@ -1711,12 +1711,12 @@
         if (tab.view.state && tab.view.state.doc) {
             const range = tab.view.state.selection.main;
             if (range.empty) return { text: '' };
-            return { text: tab.view.state.doc.sliceString(range.from, range.to) };
+            return { text: tab.view.state.doc.sliceString(range.from, range.to), from: range.from, to: range.to };
         }
         if (tab.view.textarea) {
             const start = tab.view.textarea.selectionStart || 0;
             const end = tab.view.textarea.selectionEnd || 0;
-            return { text: start === end ? '' : tab.view.textarea.value.slice(start, end) };
+            return { text: start === end ? '' : tab.view.textarea.value.slice(start, end), from: start, to: end };
         }
         return { text: '' };
     }

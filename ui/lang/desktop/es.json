@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Nodo de confianza en AuraGo",
   "desktop.meshcore_created_at": "Creado el",
   "game_maker.save_failed_title": "Partida no guardada",
-  "game_maker.leave_unsaved": "No se pudieron guardar los últimos cambios. ¿Cerrar el juego de todos modos?"
+  "game_maker.leave_unsaved": "No se pudieron guardar los últimos cambios. ¿Cerrar el juego de todos modos?",
+  "codeStudio.suggestionStale": "El archivo de origen cambió o se cerró. Copia la propuesta o solicita una nueva.",
+  "codeStudio.suggestionCopyOnly": "Copia esta propuesta en el archivo correspondiente."
 }

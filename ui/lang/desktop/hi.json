@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "AuraGo में विश्वसनीय नोड",
   "desktop.meshcore_created_at": "बनाने का समय",
   "game_maker.save_failed_title": "खेल सहेजा नहीं गया",
-  "game_maker.leave_unsaved": "नवीनतम बदलाव सहेजे नहीं जा सके। फिर भी खेल बंद करें?"
+  "game_maker.leave_unsaved": "नवीनतम बदलाव सहेजे नहीं जा सके। फिर भी खेल बंद करें?",
+  "codeStudio.suggestionStale": "स्रोत फ़ाइल बदल गई है या बंद कर दी गई है। इस सुझाव को कॉपी करो या नया सुझाव माँगो।",
+  "codeStudio.suggestionCopyOnly": "इस सुझाव को उपयुक्त फ़ाइल में कॉपी करो।"
 }

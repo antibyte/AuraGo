@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Έμπιστος κόμβος στο AuraGo",
   "desktop.meshcore_created_at": "Δημιουργήθηκε",
   "game_maker.save_failed_title": "Το παιχνίδι δεν αποθηκεύτηκε",
-  "game_maker.leave_unsaved": "Οι τελευταίες αλλαγές δεν αποθηκεύτηκαν. Να κλείσει το παιχνίδι παρ’ όλα αυτά;"
+  "game_maker.leave_unsaved": "Οι τελευταίες αλλαγές δεν αποθηκεύτηκαν. Να κλείσει το παιχνίδι παρ’ όλα αυτά;",
+  "codeStudio.suggestionStale": "Το αρχείο προέλευσης άλλαξε ή έκλεισε. Αντέγραψε την πρόταση ή ζήτησε μια νέα.",
+  "codeStudio.suggestionCopyOnly": "Αντέγραψε αυτή την πρόταση στο κατάλληλο αρχείο."
 }

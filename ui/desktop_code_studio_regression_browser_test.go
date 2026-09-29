@@ -164,3 +164,68 @@ func TestDesktopCodeStudioIgnoresStaleRequests(t *testing.T) {
 		t.Fatal("stale or disposed request changed the explorer")
 	}
 }
+
+func TestDesktopCodeStudioSuggestions(t *testing.T) {
+	cases := []struct{ name, script string }{
+		{"selection replacement and undo", `
+            tab.view.dispatch({selection:{anchor:0,head:4}});await suggest('refactor');
+            const suggestion=target.pendingSuggestion.text||target.pendingSuggestion;
+            csRoot().querySelector('[data-agent-apply]').click();
+            const replaced=tab.content===suggestion+before.slice(4);
+            target.cmModule.undo(tab.view);
+            return replaced && tab.content===before;`},
+		{"apply uses original document", `
+            await suggest('refactor');const suggestion=target.pendingSuggestion.text||target.pendingSuggestion;
+            await app.openFile('/workspace/styles.css',true,id);
+            const other=target.openTabs[target.activeTabIndex],otherBefore=other.content;
+            csRoot().querySelector('[data-agent-apply]').click();
+            return tab.content===suggestion && other.content===otherBefore && !other.modified;`},
+		{"editing invalidates a suggestion", `
+            await suggest('refactor');tab.view.dispatch({changes:{from:0,insert:'changed '}});
+            const edited=tab.content;csRoot().querySelector('[data-agent-apply]').click();
+            return tab.content===edited && !!target.pendingSuggestion && !!csRoot().querySelector('[data-agent-copy]');`},
+		{"tests are copy only", `
+            await suggest('tests');const button=csRoot().querySelector('[data-agent-apply]');
+            button?.click();return (!button||button.disabled) && tab.content===before;`},
+		{"explanations are copy only", `
+            await suggest('explain');const button=csRoot().querySelector('[data-agent-apply]');
+            button?.click();return (!button||button.disabled) && tab.content===before;`},
+		{"cancelled response cannot replace a newer suggestion", `
+            const originalFetch=window.fetch;let release;
+            window.fetch=async(url,opts)=>{
+                if(String(url)==='/api/desktop/chat'){
+                    await new Promise(r=>{release=r;});
+                    return new Response(JSON.stringify({answer:'old reply'}),{status:200});
+                }
+                return originalFetch(url,opts);
+            };
+            try {
+                csRoot().querySelector('[data-code-action="refactor"]').click();await csWait(()=>release);
+                csRoot().querySelector('[data-agent-stop]').click();window.fetch=originalFetch;
+                await suggest('comments');const newer=target.pendingSuggestion;
+                release();await csWait(()=>!target.agentBusy);await new Promise(r=>requestAnimationFrame(r));
+                return target.pendingSuggestion===newer && target.agentMessages.at(-1).text!=='old reply';
+            } finally {window.fetch=originalFetch;release?.();}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			page, _ := newCodeStudioBrowser(t)
+			result, err := page.Eval(`async()=>{
+                await csWait(()=>csState()?.terminalSessions.length);
+                const app=CodeStudioApp,target=csState(),id=target.windowId;
+                await app.openFile('/workspace/README.md',true,id);
+                const tab=target.openTabs[0],before=tab.content;
+                app.command('toggleAgentPanel',[],id);
+                const suggest=async(action)=>{
+                    target.pendingSuggestion=null;
+                    csRoot().querySelector('[data-code-action="'+action+'"]').click();
+                    await csWait(()=>target.pendingSuggestion&&!target.agentBusy);
+                };
+                ` + tc.script + `
+            }`)
+			if err != nil || !result.Value.Bool() {
+				t.Fatalf("suggestion ownership failed: %v", err)
+			}
+		})
+	}
+}

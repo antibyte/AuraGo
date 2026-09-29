@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Betroet node i AuraGo",
   "desktop.meshcore_created_at": "Oprettet",
   "game_maker.save_failed_title": "Spillet kunne ikke gemmes",
-  "game_maker.leave_unsaved": "De seneste ændringer kunne ikke gemmes. Vil du lukke spillet alligevel?"
+  "game_maker.leave_unsaved": "De seneste ændringer kunne ikke gemmes. Vil du lukke spillet alligevel?",
+  "codeStudio.suggestionStale": "Kildefilen er ændret eller lukket. Kopiér forslaget, eller bed om et nyt.",
+  "codeStudio.suggestionCopyOnly": "Kopiér dette forslag til den relevante fil."
 }

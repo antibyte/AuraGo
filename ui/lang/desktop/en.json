@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Trusted node in AuraGo",
   "desktop.meshcore_created_at": "Created at",
   "game_maker.save_failed_title": "Game not saved",
-  "game_maker.leave_unsaved": "The latest changes could not be saved. Close the game anyway?"
+  "game_maker.leave_unsaved": "The latest changes could not be saved. Close the game anyway?",
+  "codeStudio.suggestionStale": "The source file changed or was closed. Copy this suggestion or request a new one.",
+  "codeStudio.suggestionCopyOnly": "Copy this suggestion into the appropriate file."
 }

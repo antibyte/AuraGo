@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Betrodd node i AuraGo",
   "desktop.meshcore_created_at": "Opprettet",
   "game_maker.save_failed_title": "Spillet er ikke lagret",
-  "game_maker.leave_unsaved": "De siste endringene kunne ikke lagres. Vil du lukke spillet likevel?"
+  "game_maker.leave_unsaved": "De siste endringene kunne ikke lagres. Vil du lukke spillet likevel?",
+  "codeStudio.suggestionStale": "Kildefilen er endret eller lukket. Kopier forslaget eller be om et nytt.",
+  "codeStudio.suggestionCopyOnly": "Kopier dette forslaget til den aktuelle filen."
 }

@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Betrodd nod i AuraGo",
   "desktop.meshcore_created_at": "Skapad",
   "game_maker.save_failed_title": "Spelet har inte sparats",
-  "game_maker.leave_unsaved": "De senaste ändringarna kunde inte sparas. Vill du stänga spelet ändå?"
+  "game_maker.leave_unsaved": "De senaste ändringarna kunde inte sparas. Vill du stänga spelet ändå?",
+  "codeStudio.suggestionStale": "Källfilen har ändrats eller stängts. Kopiera förslaget eller be om ett nytt.",
+  "codeStudio.suggestionCopyOnly": "Kopiera detta förslag till lämplig fil."
 }

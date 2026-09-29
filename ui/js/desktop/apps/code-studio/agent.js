@@ -18,13 +18,16 @@
             <button type="button" class="cs-quick-action" data-code-action="refactor">${esc(tr('codeStudio.refactor', 'Refactor'))}</button>
         </div>`;
 
-        const suggestion = state.pendingSuggestion ? `<div class="code-studio-diff">
+        const pending = state.pendingSuggestion;
+        const suggestion = pending ? `<div class="code-studio-diff">
             <div class="cs-diff-head">
                 <strong>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</strong>
-                <button type="button" class="cs-icon-button primary" data-agent-apply title="${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}" aria-label="${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}">${iconMarkup('check-square', 'Y', 'cs-icon-button-icon', 15)}</button>
+                <button type="button" class="cs-icon-button primary" data-agent-apply${suggestionCanApply(pending) ? '' : ' disabled'} title="${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}" aria-label="${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}">${iconMarkup('check-square', 'Y', 'cs-icon-button-icon', 15)}</button>
+                <button type="button" class="cs-icon-button" data-agent-copy title="${esc(tr('desktop.copy'))}" aria-label="${esc(tr('desktop.copy'))}">${iconMarkup('copy', 'C', 'cs-icon-button-icon', 15)}</button>
                 <button type="button" class="cs-icon-button" data-agent-discard title="${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}" aria-label="${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 15)}</button>
             </div>
-            <pre>${esc(state.pendingSuggestion)}</pre>
+            <p data-agent-suggestion-note>${esc(suggestionNote(pending))}</p>
+            <pre>${esc(pending.text)}</pre>
         </div>` : '';
 
         const typingIndicator = state.agentBusy ? `<div class="cs-agent-typing"><span class="cs-typing-dot"></span><span class="cs-typing-dot"></span><span class="cs-typing-dot"></span></div>` : '';
@@ -61,11 +64,15 @@
                 state.agentAbortController.abort();
                 state.agentAbortController = null;
             }
+            const last = state.agentMessages.at(-1);
+            if (last && last.role === 'agent') last.text = tr('codeStudio.stopped', 'Stopped');
             state.agentBusy = false;
             renderAgentPanel();
         }));
         const apply = panel.querySelector('[data-agent-apply]');
         if (apply) apply.addEventListener('click', bind(applyAgentSuggestion));
+        const copy = panel.querySelector('[data-agent-copy]');
+        if (copy) copy.addEventListener('click', bind(() => copyTextToClipboard(pending.text)));
         const discard = panel.querySelector('[data-agent-discard]');
         if (discard) discard.addEventListener('click', bind(() => {
             state.pendingSuggestion = null;
@@ -152,18 +159,29 @@
         }
     }
 
-    async function sendAgentMessage(message) {
+    async function sendAgentMessage(message, intent) {
         const target = state;
         if (!isLiveInstance(target)) return;
         if (state.agentBusy) return;
+        const tab = activeTab();
+        const selection = codeStudioSelection();
+        const source = {
+            windowId: target.windowId, tab, path: tab && tab.path,
+            revision: tab && (tab.revision || 0), intent,
+            from: selection.text ? selection.from : 0,
+            to: selection.text ? selection.to : editorValue(tab).length
+        };
+        const controller = new AbortController();
+        const reply = { role: 'agent', text: tr('desktop.thinking', 'Working...') };
         let context;
         runWithInstance(target, () => {
             state.agentVisible = true;
             ensureShellRoot().dataset.agent = 'visible';
             state.agentMessages.push({ role: 'user', text: message });
-            state.agentMessages.push({ role: 'agent', text: tr('desktop.thinking', 'Working...') });
+            state.agentMessages.push(reply);
             state.agentBusy = true;
-            state.agentAbortController = new AbortController();
+            state.agentAbortController = controller;
+            state.pendingSuggestion = null;
             context = codeStudioAgentContext();
             renderAgentPanel();
             renderActivityBar();
@@ -172,23 +190,26 @@
             const response = await api('/api/desktop/chat', {
                 method: 'POST',
                 body: JSON.stringify({ message, context }),
-                signal: state.agentAbortController && state.agentAbortController.signal
+                signal: controller.signal
             });
-            if (!isLiveInstance(target)) return;
+            if (!isLiveInstance(target) || target.agentAbortController !== controller || controller.signal.aborted) return;
             const answer = response.answer || tr('desktop.done', 'Done');
             runWithInstance(target, () => {
-                state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: answer };
+                reply.text = answer;
                 const suggestion = extractFirstCodeBlock(answer);
-                if (suggestion) state.pendingSuggestion = suggestion;
+                if (suggestion) state.pendingSuggestion = {
+                    ...source, text: suggestion,
+                    canReplace: ['refactor', 'comments'].includes(intent) && (answer.match(/```/g) || []).length === 2
+                };
             });
         } catch (err) {
-            if (isLiveInstance(target) && err.name !== 'AbortError') {
+            if (isLiveInstance(target) && target.agentAbortController === controller && err.name !== 'AbortError') {
                 runWithInstance(target, () => {
-                    state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: err.message || String(err) };
+                    reply.text = err.message || String(err);
                 });
             }
         } finally {
-            if (isLiveInstance(target)) {
+            if (isLiveInstance(target) && target.agentAbortController === controller) {
                 runWithInstance(target, () => {
                     state.agentBusy = false;
                     state.agentAbortController = null;
@@ -209,7 +230,7 @@
             tests: `Generate useful tests for ${tab.path}. Return code blocks for new or changed files.`,
             refactor: `Refactor the ${target} in ${tab.path}. Return only the modified code.`
         };
-        sendAgentMessage(prompts[action] || prompts.explain);
+        sendAgentMessage(prompts[action] || prompts.explain, action);
     }
 
     function codeStudioAgentContext() {
@@ -234,16 +255,40 @@
         return match ? match[1].trimEnd() : '';
     }
 
+    function suggestionCanApply(suggestion) {
+        return suggestion && suggestion.canReplace && suggestion.windowId === state.windowId &&
+            state.openTabs.includes(suggestion.tab) && suggestion.tab.path === suggestion.path &&
+            !suggestion.tab.pathMutation && (suggestion.tab.revision || 0) === suggestion.revision;
+    }
+
+    function suggestionNote(suggestion) {
+        if (!suggestion.canReplace) return tr('codeStudio.suggestionCopyOnly');
+        return suggestionCanApply(suggestion) ? suggestion.path : tr('codeStudio.suggestionStale');
+    }
+
+    function updateSuggestionStatus() {
+        const suggestion = state.pendingSuggestion;
+        if (!suggestion) return;
+        const apply = state.root.querySelector('[data-agent-apply]');
+        const note = state.root.querySelector('[data-agent-suggestion-note]');
+        if (apply) apply.disabled = !suggestionCanApply(suggestion);
+        if (note) note.textContent = suggestionNote(suggestion);
+    }
+
     function applyAgentSuggestion() {
-        const tab = activeTab();
-        if (!tab || !state.pendingSuggestion) return;
-        if (tab.view && tab.view.state && tab.view.state.doc) {
-            tab.view.dispatch({ changes: { from: 0, to: tab.view.state.doc.length, insert: state.pendingSuggestion } });
-        } else if (tab.view && tab.view.textarea) {
-            tab.view.setValue(state.pendingSuggestion);
+        const suggestion = state.pendingSuggestion;
+        if (!suggestion) return;
+        if (!suggestionCanApply(suggestion)) {
+            updateSuggestionStatus();
+            return;
         }
-        tab.content = state.pendingSuggestion;
-        tab.modified = true;
+        const tab = suggestion.tab;
+        if (activeTab() !== tab) activateTab(state.openTabs.indexOf(tab));
+        if (tab.view && tab.view.state && tab.view.state.doc) {
+            tab.view.dispatch({ changes: { from: suggestion.from, to: suggestion.to, insert: suggestion.text }, userEvent: 'input' });
+        } else if (tab.view && tab.view.textarea) {
+            tab.view.setValue(tab.content.slice(0, suggestion.from) + suggestion.text + tab.content.slice(suggestion.to));
+        }
         state.pendingSuggestion = null;
         renderTabs();
         renderStatus();

@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "AuraGo 中的可信节点",
   "desktop.meshcore_created_at": "创建时间",
   "game_maker.save_failed_title": "游戏未保存",
-  "game_maker.leave_unsaved": "无法保存最新更改。仍要关闭游戏吗？"
+  "game_maker.leave_unsaved": "无法保存最新更改。仍要关闭游戏吗？",
+  "codeStudio.suggestionStale": "源文件已更改或关闭。请复制此建议，或请求新的建议。",
+  "codeStudio.suggestionCopyOnly": "请将此建议复制到相应的文件中。"
 }

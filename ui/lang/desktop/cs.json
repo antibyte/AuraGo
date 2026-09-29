@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Důvěryhodný uzel v AuraGo",
   "desktop.meshcore_created_at": "Vytvořeno",
   "game_maker.save_failed_title": "Hru se nepodařilo uložit",
-  "game_maker.leave_unsaved": "Nejnovější změny se nepodařilo uložit. Přesto zavřít hru?"
+  "game_maker.leave_unsaved": "Nejnovější změny se nepodařilo uložit. Přesto zavřít hru?",
+  "codeStudio.suggestionStale": "Zdrojový soubor se změnil nebo byl zavřen. Zkopíruj návrh nebo požádej o nový.",
+  "codeStudio.suggestionCopyOnly": "Zkopíruj tento návrh do příslušného souboru."
 }

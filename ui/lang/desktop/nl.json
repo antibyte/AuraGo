@@ -4920,5 +4920,7 @@
   "desktop.meshcore_agent_trusted": "Vertrouwd knooppunt in AuraGo",
   "desktop.meshcore_created_at": "Aangemaakt op",
   "game_maker.save_failed_title": "Spel niet opgeslagen",
-  "game_maker.leave_unsaved": "De laatste wijzigingen konden niet worden opgeslagen. Het spel toch sluiten?"
+  "game_maker.leave_unsaved": "De laatste wijzigingen konden niet worden opgeslagen. Het spel toch sluiten?",
+  "codeStudio.suggestionStale": "Het bronbestand is gewijzigd of gesloten. Kopieer het voorstel of vraag een nieuw voorstel aan.",
+  "codeStudio.suggestionCopyOnly": "Kopieer dit voorstel naar het juiste bestand."
 }

@@ -161,8 +161,7 @@
                     return;
                 }
                 if (!update.docChanged) return;
-                tab.modified = true;
-                tab.content = update.state.doc.toString();
+                updateTabContent(tab, update.state.doc.toString());
                 renderTabs();
                 renderStatus();
             }))
@@ -187,8 +186,7 @@
         container.appendChild(wrapper);
         const view = { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
         const updatePreview = bind(() => {
-            tab.content = textarea.value;
-            tab.modified = true;
+            updateTabContent(tab, textarea.value);
             preview.textContent = textarea.value;
             if (window.hljs && tab.language) {
                 try {
@@ -228,4 +226,13 @@
         updatePreview();
         tab.modified = false;
         return view;
+    }
+
+    function updateTabContent(tab, content) {
+        if (tab.content !== content) {
+            tab.revision = (tab.revision || 0) + 1;
+            tab.content = content;
+            tab.modified = true;
+            updateSuggestionStatus();
+        }
     }
