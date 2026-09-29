@@ -1390,7 +1390,14 @@ registration lives in `internal/desktop/types.go`.
   motion); puddles form per material threshold on up-facing ground, reflect the fog colour and
   stay dry under the three pavilions. `city.ivory|warm` panes (four-vertex components) switch
   individually by time of day; larger lit parts and horizontal fixtures only dim. Pane light
-  is decorative, never telemetry. Verify `node scripts/test-system-world-surfaces.mjs`.
+  is decorative, never telemetry. Static walls darken towards their foot and the quay wall
+  carries a wet waterline (world space only). Verify `node scripts/test-system-world-surfaces.mjs`.
+- Look by time of day: bloom and exposure rise towards night; the day keeps thin fog, low
+  sea mist and restrained ambient fill for readable shadows. The skyline placements are
+  seeded (jitter, gaps, turned towers, taller towards the middle) plus a lower far row; they
+  stay scenery outside navigation. `sysworld-atmosphere.js` also draws a faint distant
+  coastline (fixed haze tint, not scene fog) behind and beside the city, open towards the
+  camera side, with twinkling settlement lights at night.
 - `sysworld-drones.js` flies up to six service-drone patrols (two on low) on closed Catmull-Rom
   loops with spinning rotors, navigation lights and banking; the template is the
   cached kit GLB and instances share geometry.

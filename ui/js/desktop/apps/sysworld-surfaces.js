@@ -17,7 +17,7 @@ export const KINDS = {
   'city.bronze': {top: 'panels', side: 'panels', albedo: .18, rough: .4, bump: .006, wet: .6},
   'city.ceramic': {top: 'concrete', side: 'concrete', albedo: .3, rough: .4, bump: .008, wet: .8, puddle: [.464, .460]},
   'city.leaf': {top: 'foliage', side: 'foliage', albedo: .7, rough: .3, bump: .03, wet: .5},
-  ground: {top: 'pavers', side: 'concrete', albedo: .55, rough: .6, bump: .014, wet: 1, topScale: .5, puddle: [.523, .516]},
+  ground: {top: 'pavers', side: 'concrete', albedo: .55, rough: .6, bump: .014, wet: 1, topScale: .5, puddle: [.523, .516], waterline: true},
 };
 export const WINDOWS = new Set(['city.ivory', 'city.warm']);
 const LEVELS = {low: 0, medium: 1, high: 2, ultra: 2};
@@ -72,6 +72,13 @@ if(swRain>0.0){
   float swRing=sin((swR-swFront)*70.0)*smoothstep(swFront+0.07,swFront,swR)*smoothstep(swFront-0.16,swFront,swR)*(1.0-swPhase);
   swH=mix(swH,0.5+0.3*swRing*swRain*smoothstep(0.35,0.8,swPuddle),swPuddle);
 }
+#endif
+#ifdef SW_WORLD
+float swSide=1.0-swW.y;
+swAlbedoF*=mix(1.0,mix(0.64,1.0,smoothstep(0.35,1.9,vSwPos.y)),swSide*step(0.0,vSwPos.y));
+#ifdef SW_WATERLINE
+swAlbedoF*=mix(1.0,0.48,swSide*(1.0-smoothstep(-2.9,-1.7,vSwPos.y)));
+#endif
 #endif
 #endif`;
 const APPLY_ALBEDO = `
@@ -154,6 +161,7 @@ export function createSurfaces(renderer, options = {}) {
       defines.push('#define SW_SURFACE', '#define SW_ALBEDO ' + float(config.albedo), '#define SW_ROUGH ' + float(config.rough),
         '#define SW_BUMP ' + float(config.bump), '#define SW_WETK ' + float(space === 'world' ? config.wet : config.wet * .5), '#define SW_METAL_TOP ' + float(config.metalTop ?? 1),
         '#define SW_PUDDLE_DRY ' + float(config.puddle?.[0] ?? -1), '#define SW_PUDDLE_FULL ' + float(config.puddle?.[1] ?? -2));
+      if (config.waterline) defines.push('#define SW_WATERLINE');
     }
     const head = defines.join('\n') + '\n';
     shader.vertexShader = head + shader.vertexShader.replace('#include <common>', '#include <common>\n' + VERTEX_PARS)

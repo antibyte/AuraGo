@@ -107,6 +107,16 @@ const BEAM = `uniform float strength;uniform vec3 color;varying vec2 vUv;
 void main(){float along=pow(clamp(1.0-vUv.x,0.0,1.0),2.4);float across=pow(clamp(1.0-abs(vUv.y-0.5)*2.0,0.0,1.0),1.7);gl_FragColor=vec4(color*along*across*strength,1.0);}`;
 const LAMP = `uniform vec3 color;uniform float strength;varying vec2 vUv;varying vec3 vNormal,vView;
 void main(){float rim=clamp(1.0-abs(dot(normalize(vNormal),normalize(vView))),0.0,1.0);float a=pow(clamp(vUv.y,0.0,1.0),1.6)*(0.35+0.65*rim)*strength;gl_FragColor=vec4(color*a,1.0);}`;
+// Distant coastline: a fixed aerial-perspective tint of the haze, darker towards the ridge.
+const COAST = {
+  vertex: 'attribute float lift;varying float vLift;void main(){vLift=lift;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragment: 'uniform vec3 haze;uniform float shade;varying float vLift;void main(){gl_FragColor=vec4(haze*mix(1.0,shade,smoothstep(0.0,0.6,vLift)),1.0);}',
+};
+const SHORE_LIGHTS = {
+  vertex: `attribute float phase;uniform float time,pointScale,strength;varying float vA;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;
+vA=strength*(0.75+0.25*sin(time*(0.7+fract(phase)*1.3)+phase));gl_PointSize=clamp(2.2*pointScale/max(1.0,-mv.z),1.5,4.0);}`,
+  fragment: 'varying float vA;void main(){float d=length(gl_PointCoord-0.5)*2.0;if(d>1.0)discard;gl_FragColor=vec4(vec3(1.4,0.95,0.55)*pow(1.0-d,1.5)*vA,1.0);}',
+};
 const SEARCH = {
   vertex: 'varying vec2 vUv;varying float vRim,vNear;void main(){vUv=uv;vec3 n=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vRim=abs(dot(n,normalize(-mv.xyz)));vNear=smoothstep(40.0,160.0,-mv.z);gl_Position=projectionMatrix*mv;}',
   fragment: 'uniform vec3 color;uniform float strength;varying vec2 vUv;varying float vRim,vNear;void main(){float along=pow(clamp(1.0-vUv.y,0.0,1.0),1.6)*smoothstep(0.0,0.03,vUv.y);gl_FragColor=vec4(color*along*pow(clamp(vRim,0.0,1.0),2.5)*vNear*strength,1.0);}',
@@ -185,6 +195,33 @@ export function createAtmosphere(scene, options = {}) {
     scratch.position.set(lamp.x + 1.9 * Math.cos(lamp.angle || 0), 3.35, lamp.z - 1.9 * Math.sin(lamp.angle || 0)); scratch.updateMatrix(); lampCones.setMatrixAt(i, scratch.matrix);
   });
   lampCones.count = lamps.length; lampCones.instanceMatrix.needsUpdate = true; group.add(lampCones);
+  // A faint coastline behind and beside the city gives the horizon depth; settlement lights
+  // twinkle along it at night. The camera side stays open sea.
+  const coastPositions = [], coastLift = [], coastIndex = [], shorePositions = [], shorePhase = [], segments = 360;
+  const ridge = a => Math.max(0, .45 + .3 * Math.sin(a * 5 + 1.3) + .2 * Math.sin(a * 13 + .4) + .12 * Math.sin(a * 31 + 2.1)) * (.35 + .65 * Math.max(0, Math.sin(a * 2 + .6)));
+  for (let i = 0; i <= segments; i++) {
+    const a = Math.PI * .8 + Math.PI * 1.45 * i / segments, r = 1180 + 40 * Math.sin(a * 7), h = 6 + 74 * ridge(a);
+    coastPositions.push(Math.cos(a) * r, -3.5, Math.sin(a) * r, Math.cos(a) * r, h, Math.sin(a) * r); coastLift.push(0, h / 80);
+    if (i < segments) { const n = i * 2; coastIndex.push(n, n + 1, n + 2, n + 1, n + 3, n + 2); }
+  }
+  for (let i = 0; i < 90; i++) {
+    const a = Math.PI * .82 + Math.PI * 1.41 * random(), r = 1170 + 40 * Math.sin(a * 7);
+    if (ridge(a) < .08) continue;
+    shorePositions.push(Math.cos(a) * r, 1 + random() * random() * 28, Math.sin(a) * r); shorePhase.push(random() * 20);
+  }
+  const coastGeometry = new THREE.BufferGeometry();
+  coastGeometry.setAttribute('position', new THREE.Float32BufferAttribute(coastPositions, 3));
+  coastGeometry.setAttribute('lift', new THREE.Float32BufferAttribute(coastLift, 1)); coastGeometry.setIndex(coastIndex);
+  const coastShade = { value: .8 };
+  const coast = own(coastGeometry, shader(COAST.vertex, COAST.fragment, { haze: { value: haze }, shade: coastShade }, { fog: false, side: THREE.DoubleSide }));
+  coast.frustumCulled = false; coast.renderOrder = -8; group.add(coast);
+  const shoreGeometry = new THREE.BufferGeometry();
+  shoreGeometry.setAttribute('position', new THREE.Float32BufferAttribute(shorePositions, 3));
+  shoreGeometry.setAttribute('phase', new THREE.Float32BufferAttribute(shorePhase, 1));
+  const shoreStrength = { value: 0 };
+  const shoreMaterial = shader(SHORE_LIGHTS.vertex, SHORE_LIGHTS.fragment, { time, pointScale, strength: shoreStrength }, { ...additive, fog: false });
+  const shore = new THREE.Points(shoreGeometry, shoreMaterial); shore.frustumCulled = false; shore.renderOrder = -7; group.add(shore);
+  geometries.push(shoreGeometry); materials.push(shoreMaterial);
   // Searchlights sweep the night sky from the skyline behind the city.
   const searchMaterial = shader(SEARCH.vertex, SEARCH.fragment, { color: { value: new THREE.Color(0xa9ccff) }, strength: { value: 0 } }, { ...additive, side: THREE.DoubleSide, fog: false });
   const searchGeometry = new THREE.CylinderGeometry(11, .7, 280, 20, 1, true); searchGeometry.translate(0, 140, 0);
@@ -217,9 +254,10 @@ export function createAtmosphere(scene, options = {}) {
       glow.set(0x4a2a18).lerp(new THREE.Color(0x6b3a22),dusk.value);
       haze.copy(scene.fog.color);stars.visible=daylight<.35;
       sea.material.uniforms.sky.value.copy(horizon).lerp(zenith,dusk.value*.65).multiplyScalar(.7);
-      sea.material.uniforms.deep.value.set(0x061420).lerp(new THREE.Color(0x0c3a58),daylight);
-      sea.material.uniforms.shallow.value.set(0x0e3350).lerp(new THREE.Color(0x236a8c),daylight);
-      mist.material.uniforms.strength.value=.55*(1-daylight*.55);
+      sea.material.uniforms.deep.value.set(0x061420).lerp(new THREE.Color(0x0a3656),daylight);
+      sea.material.uniforms.shallow.value.set(0x0e3350).lerp(new THREE.Color(0x1d6f98),daylight);
+      mist.material.uniforms.strength.value=.55*(1-daylight*.85);
+      coastShade.value=.82-.22*(1-daylight)-.2*dusk.value;shoreStrength.value=Math.max(0,1-daylight*1.6)*(1-dusk.value*.5);
       sea.material.uniforms.sunColor.value.set(0xdff0ff).lerp(new THREE.Color(0xffa060),dusk.value);
     },
     setWeather(value) { cloud.value = value === 'rain' ? .95 : value === 'fog' ? .7 : .25; },
@@ -265,7 +303,7 @@ export function createAtmosphere(scene, options = {}) {
       });
       if (post.enabled) cinema.update(step, camera, sunDir, { day: day.value, dusk: dusk.value, cloud: cloud.value, animated });
     },
-    stats: () => ({ tier, busy, stars: starCount, dust: dustCount, lamps: lamps.length, post: post.enabled,
+    stats: () => ({ tier, busy, stars: starCount, dust: dustCount, lamps: lamps.length, post: post.enabled, coast: coastIndex.length / 6, shoreLights: shorePhase.length,
       clouds: +cloud.value.toFixed(2), searchlights: searchlights.length, aviation: aviationGeometry.drawRange.count, cinema: cinema.stats() }),
     dispose() {
       group.removeFromParent(); lampCones.dispose();

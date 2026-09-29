@@ -92,11 +92,20 @@ export const placements = [];
   }
   place('skybridge', 39.75, -55, 15);
   place('server-rack', -55, -36.7, .5); place('server-rack', -49, -36.7, .5);
-  // Distant buildings are scenery, never presented as additional real entities.
-  for (let i = 0; i < 48; i++) {
-    const x = (i % 12 - 5.5) * 22, z = -143 - Math.floor(i / 12) * 29;
-    const s = .7 + ((i * 17) % 13) / 12;
-    place(i % 2 ? 'data-tower-a' : 'data-tower-b', x, z, -3, 0, [.8, s, .8]);
+  // Distant buildings are scenery, never presented as additional real entities. The seeded
+  // skyline is jittered, leaves gaps, turns some towers and rises towards the middle; a
+  // lower far row behind it adds depth that the fog keeps faint.
+  let seed = 7919; const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+  for (let row = 0; row < 4; row++) for (let col = 0; col < 12; col++) {
+    const jx = random(), jz = random(), tall = random(), gap = random(), wide = random(), turn = random();
+    if (gap < .12) continue;
+    const x = (col - 5.5) * 22 + (jx - .5) * 12, z = -143 - row * 29 + (jz - .5) * 14, centre = 1 - Math.min(1, Math.abs(x) / 150);
+    const s = (.5 + tall * tall + .45 * centre) * (row ? 1 : .85), w = .7 + .34 * wide;
+    place(jx > .5 ? 'data-tower-a' : 'data-tower-b', x, z, -3, turn < .3 ? Math.PI / 2 : 0, [w, s, w]);
+  }
+  for (let i = 0; i < 16; i++) {
+    const x = (i - 7.5) * 34 + (random() - .5) * 16, z = -268 - random() * 46;
+    place(random() < .5 ? 'data-tower-a' : 'data-tower-b', x, z, -3, 0, [1.1, .55 + random() * 1.1, 1.1]);
   }
 }
 export const obstacles = [...obstaclesFrom(placements), ...interiors.flatMap(r=>[-3,3].flatMap(dx=>[-3,3].map(dz=>({x:r.x+dx,z:r.z+dz,r:4.25,asset:'interior'}))))];
@@ -429,6 +438,7 @@ export async function createCity(host, options) {
     reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
     atmosphere.setBusy(busy); atmosphere.setCinematic(mode === 'tour'); atmosphere.update(dt, elapsed, camera, !reduced); surfaces.update(dt, !reduced);
     const mood = weather.mood(), key = [busy, mood.day.toFixed(1), mood.evening.toFixed(1), mood.weather].join();
+    bloom.strength = .2 + .15 * (1 - mood.day); renderer.toneMappingExposure = .95 + .05 * (1 - mood.day);
     if (key !== moodKey) { moodKey = key; options.onMood?.({ busy, day: mood.day, evening: mood.evening, weather: mood.weather }); }
     hologram.update(dt, camera, !reduced);
     renderer.info.reset(); composer.render(); frames++;

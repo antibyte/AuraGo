@@ -72,6 +72,7 @@ system fault. Rain adjusts particles, fog, surface wetness, puddles and ambience
 Streets, pavements, walls, roofs and planting carry generated surface detail on
 medium and higher quality; low quality neither shows nor downloads it. Window panes
 light up individually towards night; the pattern is decorative, never telemetry.
+A faint coastline frames the horizon, with distant settlement lights at night.
 
 Sound is initially off and requires a gesture. Ambience, effects and tower speech
 have separate gains. Local Web Audio synthesis supplies spatial machine/water/rain

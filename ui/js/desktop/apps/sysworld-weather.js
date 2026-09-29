@@ -18,15 +18,15 @@ export function createWeather(scene,{sun,rim,hemisphere,atmosphere,surfaces,onTh
     vertexShader:'uniform float time;varying float vFade;void main(){vec3 p=position;p.y=mod(p.y-time*20.0,60.0);p.x+=sin(time*.4)*2.0;vec4 mv=modelViewMatrix*vec4(p,1.0);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(260.0/max(1.0,-mv.z),2.0,26.0);vFade=smoothstep(0.0,4.0,p.y)*smoothstep(460.0,60.0,-mv.z);}',
     fragmentShader:'uniform float flash;varying float vFade;void main(){vec2 c=gl_PointCoord-.5;float a=(1.0-smoothstep(0.0,0.07,abs(c.x)))*(1.0-smoothstep(0.2,0.5,abs(c.y)))*.42*vFade;if(a<.004)discard;gl_FragColor=vec4(mix(vec3(.6,.78,.86),vec3(.95,.97,1.0),flash),a*(1.0+flash));}' });
   const rain=new THREE.Points(geometry,material);rain.frustumCulled=false;scene.add(rain);
-  const dayFog=new THREE.Color(0x9bb7c9),nightFog=new THREE.Color(0x08121e),duskFog=new THREE.Color(0x2a2638);
+  const dayFog=new THREE.Color(0x8fb3cf),nightFog=new THREE.Color(0x08121e),duskFog=new THREE.Color(0x2a2638);
   function light(){
     const phase=daylight(timeMode),d=phase.amount,a=sunAzimuth(phase.hour);
     sun.intensity=.8+d*2.6;sun.color.set(phase.evening>.1?0xffb27a:0xc8deff);
     sun.position.set(Math.cos(phase.hour/24*Math.PI*2)*120,40+d*115,85);
     skyDirection.set(Math.cos(a)*120,40-phase.evening*18+d*115,Math.sin(a)*120);
-    rim.intensity=.7+phase.evening*1.6;hemiBase=hemisphere.intensity=.5+d*.65;
+    rim.intensity=.7+phase.evening*1.6;hemiBase=hemisphere.intensity=.45+d*.45;
     scene.fog.color.copy(nightFog).lerp(dayFog,d).lerp(duskFog,phase.evening*(1-d)*.5);
-    scene.fog.density=weather==='fog'?.018:weather==='rain'?.008:.003-d*.0008;
+    scene.fog.density=weather==='fog'?.018:weather==='rain'?.008:.003-d*.0016;
     atmosphere.setLighting?.(d,phase.evening,skyDirection);atmosphere.setWeather?.(weather);
     surfaces?.setLighting(d,phase.evening,weather==='clear'?0:1,scene.fog.color);surfaces?.setWeather(weather);
     rain.visible=weather==='rain'&&!indoor;geometry.setDrawRange(0,tier==='low'?200:1200);
