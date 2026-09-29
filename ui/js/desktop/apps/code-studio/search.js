@@ -74,6 +74,7 @@
         if (!isLiveInstance(target)) return;
         const query = String(formData.get('q') || '').trim();
         if (!query) return;
+        const request = target.searchRequest = Symbol();
         state.searchQuery = query;
         state.searchOptions = {
             case: !!formData.get('case'),
@@ -94,7 +95,7 @@
                 include: state.searchOptions.include,
                 exclude: state.searchOptions.exclude
             });
-            if (!isLiveInstance(target)) return;
+            if (!isLiveInstance(target) || target.searchRequest !== request) return;
             runWithInstance(target, () => {
                 state.searchResults = result.results || [];
                 state.searchPerformed = true;
@@ -102,7 +103,7 @@
                 flashStatus(tr('codeStudio.resultsCount', '{{count}} results', { count: state.searchResults.length }));
             });
         } catch (err) {
-            if (isLiveInstance(target)) {
+            if (isLiveInstance(target) && target.searchRequest === request) {
                 runWithInstance(target, () => {
                     state.searchResults = [];
                     state.searchPerformed = true;
@@ -120,7 +121,7 @@
         if (!isLiveInstance(target)) return;
         runWithInstance(target, () => {
             const tab = activeTab();
-            if (!tab || !tab.view) return;
+            if (!tab || tab.path !== normalizeCodeStudioPath(path) || !tab.view) return;
             if (tab.view.state && tab.view.state.doc && state.cmModule && state.cmModule.EditorView) {
                 const lineNumber = Math.min(Math.max(1, line || 1), tab.view.state.doc.lines);
                 const docLine = tab.view.state.doc.line(lineNumber);

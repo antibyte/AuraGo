@@ -64,9 +64,10 @@
     async function refreshGitStatus() {
         const target = state;
         if (!isLiveInstance(target)) return;
+        const request = target.gitRequest = Symbol();
         try {
             const result = await apiClient.gitStatus();
-            if (!isLiveInstance(target)) return;
+            if (!isLiveInstance(target) || target.gitRequest !== request) return;
             runWithInstance(target, () => {
                 state.gitBranch = result.branch || '';
                 state.gitChanges = result.changes || [];
@@ -75,7 +76,7 @@
                 renderActivityBar();
             });
         } catch (err) {
-            if (isLiveInstance(target)) {
+            if (isLiveInstance(target) && target.gitRequest === request) {
                 runWithInstance(target, () => {
                     state.gitBranch = '';
                     state.gitChanges = [];
@@ -89,9 +90,10 @@
     async function openGitDiff(filePath) {
         const target = state;
         if (!isLiveInstance(target)) return;
+        const request = target.diffRequest = Symbol();
         try {
             const result = await apiClient.gitDiff(filePath, false);
-            if (!isLiveInstance(target)) return;
+            if (!isLiveInstance(target) || target.diffRequest !== request) return;
             runWithInstance(target, () => {
                 const diffLines = (result.diff || '').split('\n');
                 const diffHtml = diffLines.map(line => {
@@ -120,7 +122,7 @@
                 }
             });
         } catch (err) {
-            if (isLiveInstance(target)) runWithInstance(target, () => renderStatus(err.message || String(err)));
+            if (isLiveInstance(target) && target.diffRequest === request) runWithInstance(target, () => renderStatus(err.message || String(err)));
         }
     }
 

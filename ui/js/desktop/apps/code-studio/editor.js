@@ -1,4 +1,5 @@
     function renderEditor() {
+        state.diffRequest = null;
         const editor = shellPart('[data-editor]');
         if (!editor) return;
         const tab = activeTab();

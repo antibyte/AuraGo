@@ -1210,6 +1210,14 @@ registration lives in `internal/desktop/types.go`.
   `CodeStudioApp.command(name, args)` (table in `shortcuts.js`) and lists tree
   files from `CodeStudioApp.knownFiles()`; never dispatch synthetic key events
   or click hidden buttons from the palette.
+- Code Studio binds shared `state` only during synchronous work. Async handlers
+  capture their instance, reject disposed/superseded requests, and explicitly
+  bind UI updates after awaits. Never leave `state` switched while awaiting.
+- Save, Save All and Run share a per-tab serialized save queue. A completion
+  clears dirty state only for the saved buffer; later edits remain intact.
+  Rename/delete wait for pending saves and block new saves until the path change
+  completes. Run retains its document and terminal session and stops after a
+  failed/superseded save or a removed/renamed document.
 - Code Studio receives the office app context (`officeAppContext` in
   `menus-and-routing.js`): `setWindowBeforeClose`, `showContextMenu`,
   `promptDialog`, `confirmDialog`, `notify`. Modified tabs block tab close,
