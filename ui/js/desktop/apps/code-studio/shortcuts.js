@@ -197,6 +197,10 @@
         return runOnWindow(windowId, () => openFile(path, persist));
     }
 
+    function exposedOpenPath(path, persist, windowId) {
+        return runOnWindow(windowId, () => openPath(path, persist));
+    }
+
     function exposedSaveCurrentFile(windowId) {
         return runOnWindow(windowId, saveCurrentFile);
     }
@@ -240,6 +244,7 @@
         saveState: exposedSaveState,
         refreshFiles: exposedRefreshFiles,
         openFile: exposedOpenFile,
+        openPath: exposedOpenPath,
         openFileFromDialog: exposedOpenFileFromDialog,
         saveCurrentFile: exposedSaveCurrentFile,
         uploadFile: exposedUploadFile,

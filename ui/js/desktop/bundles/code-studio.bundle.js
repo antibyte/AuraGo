@@ -156,15 +156,26 @@
         return unique;
     }
 
-    function destroyTabView(tab) {
+    function destroyTabView(tab, discard = false) {
         if (!tab) return;
-        [tab.view, tab.secondaryView].forEach(view => {
+        [tab.view, tab.secondaryView].forEach((view, index) => {
+            if (view && !discard) {
+                const scroll = view.scrollDOM || view.textarea;
+                tab[index ? 'secondaryEditorSnapshot' : 'editorSnapshot'] = {
+                    state: view.state,
+                    selection: view.textarea ? [view.textarea.selectionStart, view.textarea.selectionEnd] : null,
+                    top: scroll && scroll.scrollTop || 0, left: scroll && scroll.scrollLeft || 0
+                };
+            }
             if (view && typeof view.destroy === 'function') {
                 try { view.destroy(); } catch (_) {}
             }
         });
+        if (discard) tab.editorSnapshot = tab.secondaryEditorSnapshot = null;
+        if (tab.viewLink) tab.viewLink.views = [];
         tab.view = null;
         tab.secondaryView = null;
+        tab.focusedView = null;
         tab.views = [];
     }
 
@@ -395,26 +406,12 @@
             if (context && typeof context.setWindowBeforeClose === 'function') {
                 context.setWindowBeforeClose(windowId, () => confirmWindowClose(instance));
             }
-            const launchPath = normalizeCodeStudioPath(context && context.path);
-            const hasLaunchPath = !!(context && context.path) && launchPath !== WORKSPACE_ROOT;
-            await runAsyncStep(instance, () => refreshFiles(hasLaunchPath ? codeStudioParentPath(launchPath) : (context && context.path ? launchPath : state.currentPath)));
+            await runAsyncStep(instance, () => refreshFiles(instance.currentPath));
             if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, restoreTabs);
             if (!isLiveInstance(instance)) return;
-            if (hasLaunchPath) {
-                await runAsyncStep(instance, async () => {
-                    const launchEntry = state.files.find(entry => entry.path === launchPath);
-                    if (launchEntry && launchEntry.type === 'directory') {
-                        await refreshFiles(launchPath);
-                        return;
-                    }
-                    try {
-                        await openFile(launchPath);
-                    } catch (err) {
-                        await runAsyncStep(instance, () => refreshFiles(launchPath));
-                        if (isLiveInstance(instance)) runWithInstance(instance, () => renderStatus((err && err.message) || String(err)));
-                    }
-                });
+            if (context && context.path) {
+                await runAsyncStep(instance, () => openPath(context.path));
                 if (!isLiveInstance(instance)) return;
             }
             runWithInstance(instance, connectTerminal);
@@ -435,7 +432,7 @@
         for (const disposeFn of instance.disposers || []) {
             try { disposeFn(); } catch (_) {}
         }
-        instance.openTabs.forEach(destroyTabView);
+        instance.openTabs.forEach(tab => destroyTabView(tab, true));
         if (instance.statusTimer) clearTimeout(instance.statusTimer);
         instances.delete(windowId);
         if (state === instance) state = null;
@@ -1130,6 +1127,23 @@
         if (persist !== false) runAsyncStep(target, () => revealInTree(path));
     }
 
+    async function openPath(path, persist) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        path = normalizeCodeStudioPath(path);
+        const request = target.pathRequest = Symbol();
+        try {
+            if (path === WORKSPACE_ROOT) return await refreshFiles(path);
+            const parent = await apiClient.files(parentPath(path));
+            if (!isLiveInstance(target) || target.pathRequest !== request) return;
+            const entry = (parent.files || []).find(file => file.path === path);
+            if (entry && entry.type === 'directory') await runAsyncStep(target, () => refreshFiles(path));
+            else await runAsyncStep(target, () => openFile(path, persist));
+        } catch (err) {
+            if (isLiveInstance(target) && target.pathRequest === request) runWithInstance(target, () => showOperationError(err));
+        }
+    }
+
     function activateTab(index, persist) {
         state.openRequest = null;
         state.activeTabIndex = index;
@@ -1156,7 +1170,7 @@
         }
         runWithInstance(target, () => {
             const wasActive = state.activeTabIndex === index;
-            destroyTabView(tab);
+            destroyTabView(tab, true);
             state.openTabs.splice(index, 1);
             if (wasActive) state.activeTabIndex = Math.min(index, state.openTabs.length - 1);
             else if (state.activeTabIndex > index) state.activeTabIndex -= 1;
@@ -1185,7 +1199,7 @@
         }
         runWithInstance(target, () => {
             const keep = activeTab();
-            victims.forEach(destroyTabView);
+            victims.forEach(tab => destroyTabView(tab, true));
             state.openTabs = state.openTabs.filter(tab => !victims.includes(tab));
             const keepIndex = state.openTabs.indexOf(keep);
             state.activeTabIndex = keepIndex >= 0 ? keepIndex : Math.min(Math.max(state.activeTabIndex, 0), state.openTabs.length - 1);
@@ -1379,7 +1393,7 @@
         if (!isLiveInstance(target)) return;
         runWithInstance(target, () => {
             const removedTabs = state.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
-            removedTabs.forEach(destroyTabView);
+            removedTabs.forEach(tab => destroyTabView(tab, true));
             state.openTabs = state.openTabs.filter(tab => !removedTabs.includes(tab));
             if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
             Object.keys(state.treeCache).forEach(key => {
@@ -1696,14 +1710,15 @@
 
     function codeStudioCursor() {
         const tab = activeTab();
-        if (!tab || !tab.view) return { line: 0, column: 0 };
-        if (tab.view.state && tab.view.state.doc) {
-            const head = tab.view.state.selection.main.head;
-            const line = tab.view.state.doc.lineAt(head);
+        const view = focusedEditorView(tab);
+        if (!view) return { line: 0, column: 0 };
+        if (view.state && view.state.doc) {
+            const head = view.state.selection.main.head;
+            const line = view.state.doc.lineAt(head);
             return { line: line.number, column: head - line.from + 1 };
         }
-        if (tab.view.textarea) {
-            const value = tab.view.textarea.value.slice(0, tab.view.textarea.selectionStart || 0);
+        if (view.textarea) {
+            const value = view.textarea.value.slice(0, view.textarea.selectionStart || 0);
             const lines = value.split('\n');
             return { line: lines.length, column: lines[lines.length - 1].length + 1 };
         }
@@ -1712,16 +1727,17 @@
 
     function codeStudioSelection() {
         const tab = activeTab();
-        if (!tab || !tab.view) return { text: '' };
-        if (tab.view.state && tab.view.state.doc) {
-            const range = tab.view.state.selection.main;
+        const view = focusedEditorView(tab);
+        if (!view) return { text: '' };
+        if (view.state && view.state.doc) {
+            const range = view.state.selection.main;
             if (range.empty) return { text: '' };
-            return { text: tab.view.state.doc.sliceString(range.from, range.to), from: range.from, to: range.to };
+            return { text: view.state.doc.sliceString(range.from, range.to), from: range.from, to: range.to };
         }
-        if (tab.view.textarea) {
-            const start = tab.view.textarea.selectionStart || 0;
-            const end = tab.view.textarea.selectionEnd || 0;
-            return { text: start === end ? '' : tab.view.textarea.value.slice(start, end), from: start, to: end };
+        if (view.textarea) {
+            const start = view.textarea.selectionStart || 0;
+            const end = view.textarea.selectionEnd || 0;
+            return { text: start === end ? '' : view.textarea.value.slice(start, end), from: start, to: end };
         }
         return { text: '' };
     }
@@ -2240,11 +2256,11 @@
         const editor = shellPart('[data-editor]');
         if (!editor) return;
         const tab = activeTab();
+        state.openTabs.forEach(openTab => destroyTabView(openTab));
         editor.classList.remove('code-studio-split', 'split-right', 'split-down');
         editor.style.gridTemplateColumns = '';
         editor.style.gridTemplateRows = '';
         if (!tab) {
-            state.openTabs.forEach(destroyTabView);
             editor.innerHTML = `<div class="cs-editor-empty">
                 <div class="cs-empty-icon">{ }</div>
                 <div class="cs-empty-title">${esc(tr('codeStudio.welcome', 'Welcome to Code Studio'))}</div>
@@ -2260,10 +2276,6 @@
             highlightActiveTreeRow();
             return;
         }
-        state.openTabs.forEach(openTab => {
-            if (openTab !== tab) destroyTabView(openTab);
-        });
-        destroyTabView(tab);
         editor.innerHTML = '';
         if (state.splitMode) {
             renderSplitPanes(editor, tab);
@@ -2284,9 +2296,26 @@
     }
 
     function createEditorView(container, tab, link) {
-        return state.editorType === 'codemirror'
-            ? createCodeMirrorEditor(container, tab, link)
-            : createTextareaEditor(container, tab, link);
+        const index = link ? link.views.length : 0;
+        const snapshot = tab[index ? 'secondaryEditorSnapshot' : 'editorSnapshot'];
+        const view = state.editorType === 'codemirror'
+            ? createCodeMirrorEditor(container, tab, link, index, snapshot)
+            : createTextareaEditor(container, tab, link, snapshot);
+        if (link) link.views.push(view);
+        if (snapshot) {
+            if (view.textarea && snapshot.selection) view.textarea.setSelectionRange(...snapshot.selection);
+            const scroll = view.scrollDOM || view.textarea;
+            if (scroll) {
+                const restoreScroll = () => { scroll.scrollTop = snapshot.top; scroll.scrollLeft = snapshot.left; };
+                if (view.requestMeasure) view.requestMeasure({ read: () => null, write: restoreScroll });
+                else restoreScroll();
+            }
+        }
+        return view;
+    }
+
+    function focusedEditorView(tab) {
+        return tab && (tab.focusedView || tab.view);
     }
 
     function usesLightEditorTheme() {
@@ -2319,7 +2348,7 @@
         }
     }
 
-    function createCodeMirrorEditor(container, tab, link) {
+    function createCodeMirrorEditor(container, tab, link, index, snapshot) {
         const cm = state.cmModule;
         if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab, link);
         const light = usesLightEditorTheme();
@@ -2327,7 +2356,6 @@
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
             cm.highlightSpecialChars && cm.highlightSpecialChars(),
-            cm.history && cm.history(),
             cm.drawSelection && cm.drawSelection(),
             cm.dropCursor && cm.dropCursor(),
             cm.highlightActiveLine && cm.highlightActiveLine(),
@@ -2346,12 +2374,16 @@
                 ...(cm.closeBracketsKeymap || []),
                 ...(cm.defaultKeymap || []),
                 ...(cm.searchKeymap || []),
-                ...(cm.historyKeymap || []),
+                ...(cm.historyKeymap || []).map(binding => index ? { ...binding,
+                    run: () => binding.run(tab.view),
+                    shift: binding.shift ? () => binding.shift(tab.view) : undefined
+                } : binding),
                 ...(cm.completionKeymap || []),
                 ...(cm.lintKeymap || []),
                 { key: 'Ctrl-s', run: bind(() => { saveCurrentFile(); return true; }) },
                 { key: 'F5', run: bind(() => { runCurrentFile(); return true; }) }
             ].filter(Boolean)),
+            cm.EditorView.domEventHandlers({ focus: (_event, view) => { tab.focusedView = view; } }),
             cm.EditorView.theme({
                 '&': {
                     fontSize: 'var(--cs-editor-font-size, 12px)',
@@ -2403,8 +2435,13 @@
                 renderStatus();
             }))
         ].filter(Boolean);
+        const compartmentKey = index ? 'secondaryEditorConfig' : 'editorConfig';
+        const compartment = tab[compartmentKey] || (tab[compartmentKey] = new cm.Compartment());
+        const editorState = snapshot && snapshot.state || cm.EditorState.create({
+            doc: tab.content, extensions: [index ? [] : cm.history(), compartment.of([])]
+        });
         return new cm.EditorView({
-            state: cm.EditorState.create({ doc: tab.content, extensions }),
+            state: editorState.update({ effects: compartment.reconfigure(extensions) }).state,
             parent: container
         });
     }
@@ -2422,6 +2459,7 @@
         wrapper.appendChild(preview);
         container.appendChild(wrapper);
         const view = { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
+        textarea.addEventListener('focus', () => { tab.focusedView = view; });
         const updatePreview = bind(() => {
             updateTabContent(tab, textarea.value);
             preview.textContent = textarea.value;
@@ -2461,7 +2499,6 @@
             }
         }));
         updatePreview();
-        tab.modified = false;
         return view;
     }
 
@@ -2470,6 +2507,7 @@
             tab.revision = (tab.revision || 0) + 1;
             tab.content = content;
             tab.modified = true;
+            if (!tab.secondaryView) tab.secondaryEditorSnapshot = null;
             updateSuggestionStatus();
         }
     }
@@ -3381,6 +3419,7 @@
         pane2.className = 'code-studio-split-pane';
         editor.append(pane1, divider, pane2);
         const link = { views: [], syncing: false };
+        tab.viewLink = link;
         tab.view = createEditorView(pane1, tab, link);
         tab.secondaryView = createEditorView(pane2, tab, link);
         tab.views = [tab.view, tab.secondaryView];
@@ -3626,6 +3665,10 @@
         return runOnWindow(windowId, () => openFile(path, persist));
     }
 
+    function exposedOpenPath(path, persist, windowId) {
+        return runOnWindow(windowId, () => openPath(path, persist));
+    }
+
     function exposedSaveCurrentFile(windowId) {
         return runOnWindow(windowId, saveCurrentFile);
     }
@@ -3669,6 +3712,7 @@
         saveState: exposedSaveState,
         refreshFiles: exposedRefreshFiles,
         openFile: exposedOpenFile,
+        openPath: exposedOpenPath,
         openFileFromDialog: exposedOpenFileFromDialog,
         saveCurrentFile: exposedSaveCurrentFile,
         uploadFile: exposedUploadFile,

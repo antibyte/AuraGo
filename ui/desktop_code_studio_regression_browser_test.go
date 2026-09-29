@@ -174,6 +174,12 @@ func TestDesktopCodeStudioSuggestions(t *testing.T) {
             const replaced=tab.content===suggestion+before.slice(4);
             target.cmModule.undo(tab.view);
             return replaced && tab.content===before;`},
+		{"selection in the second pane", `
+            app.command('splitEditor',['right'],id);
+            tab.secondaryView.focus();tab.secondaryView.dispatch({selection:{anchor:0,head:4}});
+            await suggest('comments');const suggestion=target.pendingSuggestion.text;
+            csRoot().querySelector('[data-agent-apply]').click();
+            return tab.content===suggestion+before.slice(4);`},
 		{"apply uses original document", `
             await suggest('refactor');const suggestion=target.pendingSuggestion.text||target.pendingSuggestion;
             await app.openFile('/workspace/styles.css',true,id);
@@ -227,5 +233,77 @@ func TestDesktopCodeStudioSuggestions(t *testing.T) {
 				t.Fatalf("suggestion ownership failed: %v", err)
 			}
 		})
+	}
+}
+
+func TestDesktopCodeStudioEditorRetention(t *testing.T) {
+	for _, split := range []bool{false, true} {
+		t.Run(map[bool]string{false: "single", true: "split"}[split], func(t *testing.T) {
+			page, _ := newCodeStudioBrowser(t)
+			if !page.MustEval(`async(split)=>{
+                await csWait(()=>csState()?.terminalSessions.length);
+                const app=CodeStudioApp,target=csState(),id=target.windowId;
+                await app.api.writeFile('/workspace/README.md',Array.from({length:160},(_,i)=>'line '+i).join('\n'));
+                await app.openFile('/workspace/README.md',true,id);
+                const tab=target.openTabs[0],before=tab.content;
+                if(split)app.command('splitEditor',['right'],id);
+                const view=split?tab.secondaryView:tab.view;
+                view.dispatch({changes:{from:0,insert:'marker\n'},selection:{anchor:3}});
+                await csWait(()=>view.scrollDOM.scrollHeight>1000).catch(()=>{throw new Error('long document did not lay out');});
+                view.scrollDOM.scrollTop=500;
+                await new Promise(r=>requestAnimationFrame(r));
+                const scrollTop=view.scrollDOM.scrollTop;
+                await app.openFile('/workspace/styles.css',true,id);
+                document.body.dataset.theme='fruity';document.body.dataset.fruityMode='light';
+                await app.openFile(tab.path,true,id);
+                const restored=split?tab.secondaryView:tab.view;
+                const selection=restored.state.selection.main.head===3;
+                await csWait(()=>Math.abs(restored.scrollDOM.scrollTop-scrollTop)<2).catch(()=>{throw new Error('scroll restore '+JSON.stringify({expected:scrollTop,actual:restored.scrollDOM.scrollTop,saved:(split?tab.secondaryEditorSnapshot:tab.editorSnapshot)?.top}));});
+                if(split){restored.focus();csKey(restored.contentDOM,{ctrlKey:true,key:'z',code:'KeyZ'});}
+                else target.cmModule.undo(tab.view);
+                const undone=tab.content===before && (!split||tab.secondaryView.state.doc.toString()===before);
+                const exhausted=!target.cmModule.undo(tab.view);
+                return selection && undone && exhausted;
+            }`, split).Bool() {
+				t.Fatal("editor selection or undo was lost across tab/theme changes")
+			}
+		})
+	}
+}
+
+func TestDesktopCodeStudioTextareaRetention(t *testing.T) {
+	page, _ := newCodeStudioBrowser(t)
+	if !page.MustEval(`async()=>{
+        await csWait(()=>csState()?.terminalSessions.length);
+        const app=CodeStudioApp,target=csState(),id=target.windowId;target.editorType='textarea';
+        await app.openFile('/workspace/README.md',true,id);
+        const tab=target.openTabs[0];tab.view.setValue('unsaved text');tab.view.textarea.setSelectionRange(2,5);
+        await app.openFile('/workspace/styles.css',true,id);await app.openFile(tab.path,true,id);
+        return tab.modified && tab.content==='unsaved text' && tab.view.textarea.selectionStart===2 && tab.view.textarea.selectionEnd===5;
+    }`).Bool() {
+		t.Fatal("textarea remount lost dirty state or selection")
+	}
+}
+
+func TestDesktopCodeStudioDirectoryLaunch(t *testing.T) {
+	page, _ := newCodeStudioBrowser(t)
+	if !page.MustEval(`async()=>{
+        await csWait(()=>csState()?.terminalSessions.length);
+        const first=csState(),originalFetch=window.fetch;let directoryReads=0;
+        window.fetch=(url,opts)=>{
+            if(String(url)==='/api/code-studio/file?path=%2Fworkspace%2Fsrc')directoryReads++;
+            return originalFetch(url,opts);
+        };
+        try {
+            codeStudioTest.openApp('code-studio',{path:'/workspace/src'});
+            await csWait(()=>first.currentPath==='/workspace/src'&&first.files.some(f=>f.name==='app.js'));
+            codeStudioTest.openApp('code-studio',{path:'/workspace/src',forceNew:true});
+            await csWait(()=>[...CodeStudioApp.instances.values()].some(s=>s!==first&&s.currentPath==='/workspace/src'&&s.terminalSessions.length));
+            const second=[...CodeStudioApp.instances.values()].find(s=>s!==first);
+            await CodeStudioApp.openPath('/workspace/src/app.js',true,second.windowId);
+            return directoryReads===0 && second.openTabs[second.activeTabIndex].path==='/workspace/src/app.js' && fixtureErrors.length===0;
+        } finally {window.fetch=originalFetch;}
+    }`).Bool() {
+		t.Fatal("opening a directory attempted to read it as a file")
 	}
 }

@@ -151,15 +151,26 @@
         return unique;
     }
 
-    function destroyTabView(tab) {
+    function destroyTabView(tab, discard = false) {
         if (!tab) return;
-        [tab.view, tab.secondaryView].forEach(view => {
+        [tab.view, tab.secondaryView].forEach((view, index) => {
+            if (view && !discard) {
+                const scroll = view.scrollDOM || view.textarea;
+                tab[index ? 'secondaryEditorSnapshot' : 'editorSnapshot'] = {
+                    state: view.state,
+                    selection: view.textarea ? [view.textarea.selectionStart, view.textarea.selectionEnd] : null,
+                    top: scroll && scroll.scrollTop || 0, left: scroll && scroll.scrollLeft || 0
+                };
+            }
             if (view && typeof view.destroy === 'function') {
                 try { view.destroy(); } catch (_) {}
             }
         });
+        if (discard) tab.editorSnapshot = tab.secondaryEditorSnapshot = null;
+        if (tab.viewLink) tab.viewLink.views = [];
         tab.view = null;
         tab.secondaryView = null;
+        tab.focusedView = null;
         tab.views = [];
     }
 
@@ -390,26 +401,12 @@
             if (context && typeof context.setWindowBeforeClose === 'function') {
                 context.setWindowBeforeClose(windowId, () => confirmWindowClose(instance));
             }
-            const launchPath = normalizeCodeStudioPath(context && context.path);
-            const hasLaunchPath = !!(context && context.path) && launchPath !== WORKSPACE_ROOT;
-            await runAsyncStep(instance, () => refreshFiles(hasLaunchPath ? codeStudioParentPath(launchPath) : (context && context.path ? launchPath : state.currentPath)));
+            await runAsyncStep(instance, () => refreshFiles(instance.currentPath));
             if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, restoreTabs);
             if (!isLiveInstance(instance)) return;
-            if (hasLaunchPath) {
-                await runAsyncStep(instance, async () => {
-                    const launchEntry = state.files.find(entry => entry.path === launchPath);
-                    if (launchEntry && launchEntry.type === 'directory') {
-                        await refreshFiles(launchPath);
-                        return;
-                    }
-                    try {
-                        await openFile(launchPath);
-                    } catch (err) {
-                        await runAsyncStep(instance, () => refreshFiles(launchPath));
-                        if (isLiveInstance(instance)) runWithInstance(instance, () => renderStatus((err && err.message) || String(err)));
-                    }
-                });
+            if (context && context.path) {
+                await runAsyncStep(instance, () => openPath(context.path));
                 if (!isLiveInstance(instance)) return;
             }
             runWithInstance(instance, connectTerminal);
@@ -430,7 +427,7 @@
         for (const disposeFn of instance.disposers || []) {
             try { disposeFn(); } catch (_) {}
         }
-        instance.openTabs.forEach(destroyTabView);
+        instance.openTabs.forEach(tab => destroyTabView(tab, true));
         if (instance.statusTimer) clearTimeout(instance.statusTimer);
         instances.delete(windowId);
         if (state === instance) state = null;
@@ -1125,6 +1122,23 @@
         if (persist !== false) runAsyncStep(target, () => revealInTree(path));
     }
 
+    async function openPath(path, persist) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        path = normalizeCodeStudioPath(path);
+        const request = target.pathRequest = Symbol();
+        try {
+            if (path === WORKSPACE_ROOT) return await refreshFiles(path);
+            const parent = await apiClient.files(parentPath(path));
+            if (!isLiveInstance(target) || target.pathRequest !== request) return;
+            const entry = (parent.files || []).find(file => file.path === path);
+            if (entry && entry.type === 'directory') await runAsyncStep(target, () => refreshFiles(path));
+            else await runAsyncStep(target, () => openFile(path, persist));
+        } catch (err) {
+            if (isLiveInstance(target) && target.pathRequest === request) runWithInstance(target, () => showOperationError(err));
+        }
+    }
+
     function activateTab(index, persist) {
         state.openRequest = null;
         state.activeTabIndex = index;
@@ -1151,7 +1165,7 @@
         }
         runWithInstance(target, () => {
             const wasActive = state.activeTabIndex === index;
-            destroyTabView(tab);
+            destroyTabView(tab, true);
             state.openTabs.splice(index, 1);
             if (wasActive) state.activeTabIndex = Math.min(index, state.openTabs.length - 1);
             else if (state.activeTabIndex > index) state.activeTabIndex -= 1;
@@ -1180,7 +1194,7 @@
         }
         runWithInstance(target, () => {
             const keep = activeTab();
-            victims.forEach(destroyTabView);
+            victims.forEach(tab => destroyTabView(tab, true));
             state.openTabs = state.openTabs.filter(tab => !victims.includes(tab));
             const keepIndex = state.openTabs.indexOf(keep);
             state.activeTabIndex = keepIndex >= 0 ? keepIndex : Math.min(Math.max(state.activeTabIndex, 0), state.openTabs.length - 1);
@@ -1374,7 +1388,7 @@
         if (!isLiveInstance(target)) return;
         runWithInstance(target, () => {
             const removedTabs = state.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
-            removedTabs.forEach(destroyTabView);
+            removedTabs.forEach(tab => destroyTabView(tab, true));
             state.openTabs = state.openTabs.filter(tab => !removedTabs.includes(tab));
             if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
             Object.keys(state.treeCache).forEach(key => {
@@ -1691,14 +1705,15 @@
 
     function codeStudioCursor() {
         const tab = activeTab();
-        if (!tab || !tab.view) return { line: 0, column: 0 };
-        if (tab.view.state && tab.view.state.doc) {
-            const head = tab.view.state.selection.main.head;
-            const line = tab.view.state.doc.lineAt(head);
+        const view = focusedEditorView(tab);
+        if (!view) return { line: 0, column: 0 };
+        if (view.state && view.state.doc) {
+            const head = view.state.selection.main.head;
+            const line = view.state.doc.lineAt(head);
             return { line: line.number, column: head - line.from + 1 };
         }
-        if (tab.view.textarea) {
-            const value = tab.view.textarea.value.slice(0, tab.view.textarea.selectionStart || 0);
+        if (view.textarea) {
+            const value = view.textarea.value.slice(0, view.textarea.selectionStart || 0);
             const lines = value.split('\n');
             return { line: lines.length, column: lines[lines.length - 1].length + 1 };
         }
@@ -1707,16 +1722,17 @@
 
     function codeStudioSelection() {
         const tab = activeTab();
-        if (!tab || !tab.view) return { text: '' };
-        if (tab.view.state && tab.view.state.doc) {
-            const range = tab.view.state.selection.main;
+        const view = focusedEditorView(tab);
+        if (!view) return { text: '' };
+        if (view.state && view.state.doc) {
+            const range = view.state.selection.main;
             if (range.empty) return { text: '' };
-            return { text: tab.view.state.doc.sliceString(range.from, range.to), from: range.from, to: range.to };
+            return { text: view.state.doc.sliceString(range.from, range.to), from: range.from, to: range.to };
         }
-        if (tab.view.textarea) {
-            const start = tab.view.textarea.selectionStart || 0;
-            const end = tab.view.textarea.selectionEnd || 0;
-            return { text: start === end ? '' : tab.view.textarea.value.slice(start, end), from: start, to: end };
+        if (view.textarea) {
+            const start = view.textarea.selectionStart || 0;
+            const end = view.textarea.selectionEnd || 0;
+            return { text: start === end ? '' : view.textarea.value.slice(start, end), from: start, to: end };
         }
         return { text: '' };
     }

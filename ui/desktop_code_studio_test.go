@@ -20,20 +20,17 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"socket.close()",
 		"function runWithInstance(instance, fn)",
 		"finally {",
-		"return await fn(instance);",
 		"async function runAsyncStep",
 		"instances.get(state.windowId) === state",
 		"if (!isLiveInstance(instance)) return;",
 		"const target = state;",
 		"if (!isLiveInstance(target)) return;",
 		"if (!isLiveInstance(instance)) return undefined;",
-		"await runAsyncStep(target, saveCurrentFile);",
 		"renderStatus(tr('codeStudio.running'",
 		"function destroyTabView",
 		"destroyTabView(tab);",
 		"function registerDisposer",
 		"state.disposers = state.disposers.filter(item => item !== disposeFn)",
-		"removedTabs.forEach(destroyTabView)",
 		"registerDisposer(() => cleanup(''))",
 		"registerDisposer(() => cleanup(false))",
 		"term.dispose()",
@@ -46,9 +43,6 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"cleanup('')",
 		"cleanup(false)",
 		"function normalizeCodeStudioPath(rawPath)",
-		"codeStudioParentPath(launchPath)",
-		"const launchEntry = state.files.find(entry => entry.path === launchPath)",
-		"launchEntry.type === 'directory'",
 		"path = normalizeCodeStudioPath(path)",
 		"if (path === WORKSPACE_ROOT)",
 	} {
@@ -58,6 +52,9 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 	}
 	if strings.Contains(source, "result && typeof result.then === 'function'") {
 		t.Fatalf("Code Studio runWithInstance must not hold state until promises settle")
+	}
+	if strings.Contains(source, "return await fn(instance)") {
+		t.Fatal("Code Studio must release global state before awaiting instance work")
 	}
 	if strings.Contains(source, "return runWithInstance(instance, async () => {") {
 		t.Fatalf("Code Studio render must not hold global state across awaited operations")
@@ -116,7 +113,7 @@ func TestDesktopCodeStudioOpenAppReusesWindowAndSanitizesLaunchPath(t *testing.T
 	runtime := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, marker := range []string{
 		"appId === 'code-studio' && context && context.path != null",
-		"window.CodeStudio.openFile(context.path, true, existing.id)",
+		"window.CodeStudio.openPath(context.path, true, existing.id)",
 	} {
 		if !strings.Contains(runtime, marker) {
 			t.Fatalf("desktop runtime missing Code Studio reuse marker %q", marker)

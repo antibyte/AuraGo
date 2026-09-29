@@ -3,11 +3,11 @@
         const editor = shellPart('[data-editor]');
         if (!editor) return;
         const tab = activeTab();
+        state.openTabs.forEach(openTab => destroyTabView(openTab));
         editor.classList.remove('code-studio-split', 'split-right', 'split-down');
         editor.style.gridTemplateColumns = '';
         editor.style.gridTemplateRows = '';
         if (!tab) {
-            state.openTabs.forEach(destroyTabView);
             editor.innerHTML = `<div class="cs-editor-empty">
                 <div class="cs-empty-icon">{ }</div>
                 <div class="cs-empty-title">${esc(tr('codeStudio.welcome', 'Welcome to Code Studio'))}</div>
@@ -23,10 +23,6 @@
             highlightActiveTreeRow();
             return;
         }
-        state.openTabs.forEach(openTab => {
-            if (openTab !== tab) destroyTabView(openTab);
-        });
-        destroyTabView(tab);
         editor.innerHTML = '';
         if (state.splitMode) {
             renderSplitPanes(editor, tab);
@@ -47,9 +43,26 @@
     }
 
     function createEditorView(container, tab, link) {
-        return state.editorType === 'codemirror'
-            ? createCodeMirrorEditor(container, tab, link)
-            : createTextareaEditor(container, tab, link);
+        const index = link ? link.views.length : 0;
+        const snapshot = tab[index ? 'secondaryEditorSnapshot' : 'editorSnapshot'];
+        const view = state.editorType === 'codemirror'
+            ? createCodeMirrorEditor(container, tab, link, index, snapshot)
+            : createTextareaEditor(container, tab, link, snapshot);
+        if (link) link.views.push(view);
+        if (snapshot) {
+            if (view.textarea && snapshot.selection) view.textarea.setSelectionRange(...snapshot.selection);
+            const scroll = view.scrollDOM || view.textarea;
+            if (scroll) {
+                const restoreScroll = () => { scroll.scrollTop = snapshot.top; scroll.scrollLeft = snapshot.left; };
+                if (view.requestMeasure) view.requestMeasure({ read: () => null, write: restoreScroll });
+                else restoreScroll();
+            }
+        }
+        return view;
+    }
+
+    function focusedEditorView(tab) {
+        return tab && (tab.focusedView || tab.view);
     }
 
     function usesLightEditorTheme() {
@@ -82,7 +95,7 @@
         }
     }
 
-    function createCodeMirrorEditor(container, tab, link) {
+    function createCodeMirrorEditor(container, tab, link, index, snapshot) {
         const cm = state.cmModule;
         if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab, link);
         const light = usesLightEditorTheme();
@@ -90,7 +103,6 @@
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
             cm.highlightSpecialChars && cm.highlightSpecialChars(),
-            cm.history && cm.history(),
             cm.drawSelection && cm.drawSelection(),
             cm.dropCursor && cm.dropCursor(),
             cm.highlightActiveLine && cm.highlightActiveLine(),
@@ -109,12 +121,16 @@
                 ...(cm.closeBracketsKeymap || []),
                 ...(cm.defaultKeymap || []),
                 ...(cm.searchKeymap || []),
-                ...(cm.historyKeymap || []),
+                ...(cm.historyKeymap || []).map(binding => index ? { ...binding,
+                    run: () => binding.run(tab.view),
+                    shift: binding.shift ? () => binding.shift(tab.view) : undefined
+                } : binding),
                 ...(cm.completionKeymap || []),
                 ...(cm.lintKeymap || []),
                 { key: 'Ctrl-s', run: bind(() => { saveCurrentFile(); return true; }) },
                 { key: 'F5', run: bind(() => { runCurrentFile(); return true; }) }
             ].filter(Boolean)),
+            cm.EditorView.domEventHandlers({ focus: (_event, view) => { tab.focusedView = view; } }),
             cm.EditorView.theme({
                 '&': {
                     fontSize: 'var(--cs-editor-font-size, 12px)',
@@ -166,8 +182,13 @@
                 renderStatus();
             }))
         ].filter(Boolean);
+        const compartmentKey = index ? 'secondaryEditorConfig' : 'editorConfig';
+        const compartment = tab[compartmentKey] || (tab[compartmentKey] = new cm.Compartment());
+        const editorState = snapshot && snapshot.state || cm.EditorState.create({
+            doc: tab.content, extensions: [index ? [] : cm.history(), compartment.of([])]
+        });
         return new cm.EditorView({
-            state: cm.EditorState.create({ doc: tab.content, extensions }),
+            state: editorState.update({ effects: compartment.reconfigure(extensions) }).state,
             parent: container
         });
     }
@@ -185,6 +206,7 @@
         wrapper.appendChild(preview);
         container.appendChild(wrapper);
         const view = { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
+        textarea.addEventListener('focus', () => { tab.focusedView = view; });
         const updatePreview = bind(() => {
             updateTabContent(tab, textarea.value);
             preview.textContent = textarea.value;
@@ -224,7 +246,6 @@
             }
         }));
         updatePreview();
-        tab.modified = false;
         return view;
     }
 
@@ -233,6 +254,7 @@
             tab.revision = (tab.revision || 0) + 1;
             tab.content = content;
             tab.modified = true;
+            if (!tab.secondaryView) tab.secondaryEditorSnapshot = null;
             updateSuggestionStatus();
         }
     }

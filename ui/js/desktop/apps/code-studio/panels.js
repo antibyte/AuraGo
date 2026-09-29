@@ -32,6 +32,7 @@
         pane2.className = 'code-studio-split-pane';
         editor.append(pane1, divider, pane2);
         const link = { views: [], syncing: false };
+        tab.viewLink = link;
         tab.view = createEditorView(pane1, tab, link);
         tab.secondaryView = createEditorView(pane2, tab, link);
         tab.views = [tab.view, tab.secondaryView];

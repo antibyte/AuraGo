@@ -6399,7 +6399,7 @@
                 else renderFiles(existing.id, context.path);
             }
             if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');
-            if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openFile === 'function') window.CodeStudio.openFile(context.path, true, existing.id);
+            if (appId === 'code-studio' && context && context.path != null && window.CodeStudio && typeof window.CodeStudio.openPath === 'function') window.CodeStudio.openPath(context.path, true, existing.id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
