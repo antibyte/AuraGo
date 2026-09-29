@@ -36,7 +36,8 @@
 .sdr-app [hidden], .sdr-mini[hidden] { display: none !important; }
 .sdr-app :where(h2, h3, p) { margin: 0; }
 .sdr-app :where(button, input, select) { font: inherit; color: inherit; }
-.sdr-app :where(button, a, input, select, canvas):focus-visible { outline: 2px solid var(--sdr-phosphor); outline-offset: 2px; }
+/* The attribute raises this above the shell's accent focus ring. */
+.sdr-app[data-sdr] :where(button, a, input, select, canvas):focus-visible { outline: 2px solid var(--sdr-phosphor); outline-offset: 2px; }
 .sdr-icon { width: 16px; height: 16px; flex: none; }
 
 /* Keys */
@@ -179,7 +180,7 @@
 .sdr-readout { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 26px; }
 .sdr-tuned { display: flex; align-items: flex-end; gap: 9px; min-width: 0; }
 .sdr-frequency { display: flex; align-items: center; gap: .12em; font-size: clamp(30px, 9.4cqw, 58px); filter: drop-shadow(0 0 .1em rgba(134, 243, 223, .42)); }
-.sdr-digit { flex: none; width: .565em; height: 1em; padding: 0; border: 0; border-radius: 3px; background: none; cursor: ns-resize; }
+.sdr-digit { flex: none; width: .565em; height: 1em; padding: 0; border: 0; border-radius: 3px; background: none; cursor: ns-resize; touch-action: none; }
 .sdr-digit:hover:not(:disabled) { background: rgba(134, 243, 223, .09); }
 .sdr-digit:disabled { cursor: default; }
 .sdr-glyph { display: block; width: 100%; height: 100%; overflow: visible; transform: skewX(-6deg); }

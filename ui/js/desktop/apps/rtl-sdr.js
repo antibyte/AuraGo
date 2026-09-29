@@ -143,6 +143,11 @@
             // Typing a digit moves on to the next one, like a keypad entry.
             for (let next = side && b[side]; next; next = next[side]) if (next.dataset.power) { next.focus({ preventScroll: true }); break; }
         });
+        // Pulling a digit up or down tunes it, which also serves touch screens.
+        let pull = null;
+        on('digits', 'pointerdown', e => { const b = e.target.closest('[data-power]'); if (!b || b.disabled || e.button) return; pull = { y: e.clientY, power: Number(b.dataset.power), from: s.tuning.frequency_hz, done: 0 }; P.capture(b, e); });
+        on('digits', 'pointermove', e => { const steps = pull ? Math.trunc((pull.y - e.clientY) / 12) : 0; if (!pull || steps === pull.done) return; pull.done = steps; tuneTo(s, pull.from + steps * pull.power); });
+        for (const type of ['pointerup', 'pointercancel']) on('digits', type, () => { pull = null; });
         on('digits', 'wheel', e => { const b = e.target.closest('[data-power]'); if (!b || b.disabled || !wheel(e.currentTarget)) return; e.preventDefault(); tuneTo(s, s.tuning.frequency_hz + (e.deltaY < 0 ? 1 : -1) * Number(b.dataset.power)); }, { passive: false });
         controls(s); stations(s); tick(s);
     }

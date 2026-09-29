@@ -154,5 +154,5 @@
         return { turn(steps) { button.style.setProperty('--sdr-angle', ((steps * DETENT % 360 + 360) % 360).toFixed(1) + 'deg'); } };
     }
 
-    window.RTLSDRPanel = { icon, frequency, knob, dial };
+    window.RTLSDRPanel = { icon, capture, frequency, knob, dial };
 })();
