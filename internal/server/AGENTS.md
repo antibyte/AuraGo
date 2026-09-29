@@ -64,6 +64,13 @@ Server-owned HTTP and cross-component integration contracts.
 - Verify with `go test ./internal/server -run TestNewspaper` and the Newspaper browser test. Core state contracts live in `internal/newspaper/AGENTS.md`.
 
 ### Ingress Security and Browser Lab
+- Browser sessions retain the configured initial `auth.session_timeout_hours`.
+  Same-origin POST `/api/auth/activity` requires a still-valid signed cookie and
+  extends its remaining lifetime to at least ten minutes. Never shorten a longer
+  session, accumulate extensions, or revive an expired/invalid cookie. Preserve
+  HttpOnly, SameSite=Strict and trusted-proxy Secure handling. GET auth status is
+  non-cacheable and reports remaining seconds without renewing; ordinary API
+  polling and streams cannot extend sessions. Verify `TestAuthSession*`.
 - Forwarded host, scheme, and client IP count only when `server.https.behind_proxy` is enabled and the immediate peer matches `server.https.trusted_proxy_cidrs`; other forwarding headers are removed before auth and URL construction.
 - An auth-disabled remote listener requires `auth.allow_unauthenticated_remote` before startup or config save. This exception never opens `/speech-lab/`.
 - `/speech-lab/` requires an AuraGo session, same-origin writes and WebSocket Origin, and a configuration-owned private backend. Strip AuraGo credentials before forwarding. No separate Tailscale port 8766 listener.

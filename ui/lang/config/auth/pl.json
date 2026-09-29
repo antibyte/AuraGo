@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Hasło musi mieć co najmniej 8 znaków.",
   "config.auth.password_not_set": "⚠️ Brak ustawionego hasła — Login Guard nie może być aktywowany.",
   "config.auth.session_hours": "⏱ Sesja (godziny)",
-  "config.auth.session_validity": "Czas ważności sesji",
+  "config.auth.session_validity": "Początkowy czas od zalogowania. Aktywność zapewnia co najmniej 10 minut pozostałego czasu; bez aktywności nastąpi wylogowanie po jego upływie. Zmiany dotyczą nowych logowań.",
   "config.auth.set_password": "Ustaw",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP aktywowany.",

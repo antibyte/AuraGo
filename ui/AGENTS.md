@@ -30,6 +30,14 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+- `js/shared/shared-core.js` renews an authenticated session through
+  `/api/auth/activity` only for trusted pointer, keyboard, input or wheel events
+  in a visible page, throttled to once per 30 seconds. Background polling, SSE,
+  focus and visibility changes never count as activity. Expiry checks read the
+  server status so another tab's renewal is respected; logout stops renewal and
+  waits for an in-flight cookie update before clearing it. Keep the timeout help
+  in all sixteen Config locales aligned. Verify `TestAuthSessionBrowser`.
+
 - `cfg/llm_router.js` uses the shared saved/draft config path. Empty provider
   clears its model override; missing saved providers remain visible. Preview
   requires a clean draft and uses saved settings, with a separate explicit

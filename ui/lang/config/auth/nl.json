@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Wachtwoord moet minimaal 8 tekens bevatten.",
   "config.auth.password_not_set": "⚠️ Geen wachtwoord ingesteld — login guard kan niet worden geactiveerd.",
   "config.auth.session_hours": "⏱ Sessie (uren)",
-  "config.auth.session_validity": "Sessieduur",
+  "config.auth.session_validity": "Beginduur vanaf het inloggen. Activiteit houdt minstens 10 minuten resterende tijd aan; zonder activiteit word je uitgelogd zodra die tijd verloopt. Wijzigingen gelden voor nieuwe aanmeldingen.",
   "config.auth.set_password": "Instellen",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP geactiveerd.",

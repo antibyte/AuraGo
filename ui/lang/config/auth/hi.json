@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "पासवर्ड कम से कम 8 वर्णों का होना चाहिए।",
   "config.auth.password_not_set": "⚠️ कोई पासवर्ड सेट नहीं - लॉगिन गार्ड सक्रिय नहीं किया जा सकता।",
   "config.auth.session_hours": "⏱ सत्र (घंटे)",
-  "config.auth.session_validity": "सत्र अवधि",
+  "config.auth.session_validity": "लॉगिन से प्रारंभिक अवधि। सक्रिय रहने पर कम से कम 10 मिनट शेष रहते हैं; निष्क्रिय रहने पर यह समय बीतने के बाद तुम लॉग आउट हो जाते हो। बदलाव नए लॉगिन पर लागू होते हैं।",
   "config.auth.set_password": "सेट",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "टीओटीपी सक्रिय।",

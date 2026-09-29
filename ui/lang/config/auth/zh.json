@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "密码必须至少 8 个字符。",
   "config.auth.password_not_set": "⚠️ 未设置密码 — 无法激活登录保护。",
   "config.auth.session_hours": "⏱ 会话 (小时)",
-  "config.auth.session_validity": "会话有效期",
+  "config.auth.session_validity": "登录后的初始有效期。操作时会将剩余时间延长至至少10分钟；无操作时，剩余时间到期后自动退出登录。设置更改对新登录生效。",
   "config.auth.set_password": "设置",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP 已激活。",

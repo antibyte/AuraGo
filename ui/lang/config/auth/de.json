@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Passwort muss mindestens 8 Zeichen haben.",
   "config.auth.password_not_set": "⚠️ Kein Passwort gesetzt — Login-Schutz kann nicht aktiviert werden.",
   "config.auth.session_hours": "⏱ Automatische Abmeldung (Stunden)",
-  "config.auth.session_validity": "Feste Dauer ab der Anmeldung. Aktivität verlängert die Sitzung nicht; bereits angemeldete Sitzungen behalten ihr bisheriges Ablaufdatum.",
+  "config.auth.session_validity": "Anfangsdauer ab der Anmeldung. Aktivität verlängert die Restlaufzeit auf mindestens 10 Minuten; ohne Aktivität wirst Du nach deren Ablauf abgemeldet. Änderungen gelten für neue Anmeldungen.",
   "config.auth.set_password": "Setzen",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP aktiviert.",

@@ -504,9 +504,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// OpenRouter model browser (always available — needed in both setup wizard and config UI)
 	mux.HandleFunc("/api/openrouter/models", handleOpenRouterModels(s))
 
-	// Auth endpoints — always reachable (whitelisted in authMiddleware)
+	// Auth endpoints: only status, logout and security status bypass session auth.
 	mux.HandleFunc("/api/auth/status", handleAuthStatus(s))
 	mux.HandleFunc("/api/auth/logout", handleAuthLogoutAPI(s))
+	// Activity renewal still requires a valid session and same-origin POST.
+	mux.HandleFunc("/api/auth/activity", handleAuthActivity(s))
 	mux.HandleFunc("/api/security/status", handleSecurityStatus(s))
 	mux.HandleFunc("/api/auth/password", handleAuthSetPassword(s))
 	mux.HandleFunc("/api/auth/totp/setup", handleAuthTOTPSetup(s))

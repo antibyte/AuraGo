@@ -33,17 +33,21 @@ func handleAuthStatus(s *Server) http.HandlerFunc {
 		totpEnabled := s.Cfg.Auth.TOTPEnabled && s.Cfg.Auth.TOTPSecret != ""
 		secret := s.Cfg.Auth.SessionSecret
 		s.CfgMu.RUnlock()
-		authenticated := false
+		var expiry time.Time
 		if enabled && secret != "" {
-			authenticated = IsAuthenticated(r, secret)
+			if cookie, err := r.Cookie(sessionCookieName); err == nil {
+				expiry = sessionExpiry(secret, cookie.Value)
+			}
 		}
 
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":       enabled,
-			"password_set":  passwordSet,
-			"totp_enabled":  totpEnabled,
-			"authenticated": authenticated,
+			"enabled":            enabled,
+			"password_set":       passwordSet,
+			"totp_enabled":       totpEnabled,
+			"authenticated":      !expiry.IsZero(),
+			"expires_in_seconds": max(0, int(time.Until(expiry).Seconds())),
 		})
 	}
 }

@@ -132,9 +132,17 @@ func createSessionValue(secret string, expiry time.Time) string {
 
 // validateSessionValue verifies the signature and expiry of a session token.
 func validateSessionValue(secret, value string) bool {
+	return !sessionExpiry(secret, value).IsZero()
+}
+
+// sessionExpiry returns only the expiry of a signed, currently valid session.
+func sessionExpiry(secret, value string) time.Time {
+	if secret == "" {
+		return time.Time{}
+	}
 	parts := strings.SplitN(value, ".", 2)
 	if len(parts) != 2 {
-		return false
+		return time.Time{}
 	}
 	payloadEnc, sig := parts[0], parts[1]
 
@@ -143,19 +151,22 @@ func validateSessionValue(secret, value string) bool {
 	mac.Write([]byte(payloadEnc))
 	expectedSig := hex.EncodeToString(mac.Sum(nil))
 	if !hmac.Equal([]byte(sig), []byte(expectedSig)) {
-		return false
+		return time.Time{}
 	}
 
 	// Decode and check expiry
 	payloadBytes, err := base64.URLEncoding.DecodeString(payloadEnc)
 	if err != nil {
-		return false
+		return time.Time{}
 	}
 	var expires int64
 	if _, err := fmt.Sscanf(string(payloadBytes), "user|%d", &expires); err != nil {
-		return false
+		return time.Time{}
 	}
-	return time.Now().Unix() < expires
+	if time.Now().Unix() >= expires {
+		return time.Time{}
+	}
+	return time.Unix(expires, 0)
 }
 
 func issueDesktopEmbedToken(secret, rawPath string, now time.Time) (string, error) {

@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Heslo musí mít alespoň 8 znaků.",
   "config.auth.password_not_set": "⚠️ Není nastaveno žádné heslo – strážce přihlášení nelze aktivovat.",
   "config.auth.session_hours": "⏱ Relace (hodiny)",
-  "config.auth.session_validity": "Doba trvání relace",
+  "config.auth.session_validity": "Počáteční doba od přihlášení. Aktivita udržuje zbývající platnost alespoň 10 minut; bez aktivity se po jejím uplynutí odhlásíš. Změna nastavení platí pro nová přihlášení.",
   "config.auth.set_password": "Nastavit",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP aktivován.",

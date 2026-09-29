@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Adgangskoden skal være på mindst 8 tegn.",
   "config.auth.password_not_set": "⚠️ Ingen adgangskode angivet — login-vagt kan ikke aktiveres.",
   "config.auth.session_hours": "⏱ Session (timer)",
-  "config.auth.session_validity": "Sessionens varighed",
+  "config.auth.session_validity": "Startvarighed fra login. Aktivitet sikrer mindst 10 minutters resterende tid; uden aktivitet logges du ud, når tiden udløber. Ændringer gælder for nye login.",
   "config.auth.set_password": "Sæt",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP aktiveret.",

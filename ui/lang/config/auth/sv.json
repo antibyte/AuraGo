@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Lösenordet måste vara minst 8 tecken.",
   "config.auth.password_not_set": "⚠️ Inget lösenord inställt — inloggningsskydd kan inte aktiveras.",
   "config.auth.session_hours": "⏱ Session (timmar)",
-  "config.auth.session_validity": "Sessionens längd",
+  "config.auth.session_validity": "Inledande tid från inloggning. Aktivitet ger minst 10 minuter kvar; utan aktivitet loggas du ut när tiden löper ut. Ändringar gäller för nya inloggningar.",
   "config.auth.set_password": "Ställ in",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP aktiverad.",

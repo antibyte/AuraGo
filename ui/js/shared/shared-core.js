@@ -453,6 +453,59 @@ window.AuraAuth = window.AuraAuth || {};
 
     var authRedirectInProgress = false;
     var originalFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
+    var sessionAuthenticated = null;
+    var sessionTimer = null;
+    var renewal = null;
+    var nextActivityAt = 0;
+
+    async function verifySessionExpiry() {
+        sessionTimer = null;
+        // A renewal already in flight must settle before checking its cookie.
+        if (renewal) await renewal;
+        if (window._logoutInProgress) return;
+        await checkAuth();
+        // Retry transport failures, but never turn a timer into user activity.
+        if (!sessionTimer && sessionAuthenticated && !authRedirectInProgress) {
+            sessionTimer = setTimeout(verifySessionExpiry, 30000);
+        }
+    }
+
+    function observeSessionStatus(data) {
+        if (window._logoutInProgress || isLoginOrSetupPage()) return;
+        clearTimeout(sessionTimer);
+        sessionTimer = null;
+        if (!data) {
+            if (sessionAuthenticated !== false) sessionTimer = setTimeout(verifySessionExpiry, 30000);
+            return;
+        }
+        sessionAuthenticated = !!(data.enabled && data.authenticated);
+        if (sessionAuthenticated && Number.isFinite(data.expires_in_seconds)) {
+            // Recheck the shared cookie: another tab may have renewed it.
+            sessionTimer = setTimeout(verifySessionExpiry,
+                Math.min(2147483647, Math.max(1000, data.expires_in_seconds * 1000)));
+        }
+    }
+
+    function recordSessionActivity(event) {
+        if (!event.isTrusted || document.visibilityState === 'hidden' || !sessionAuthenticated ||
+            window._logoutInProgress || authRedirectInProgress || renewal || Date.now() < nextActivityAt) return;
+        nextActivityAt = Date.now() + 30000;
+        var controller = new AbortController();
+        var timeout = setTimeout(function () { controller.abort(); }, 8000);
+        renewal = originalFetch('/api/auth/activity', {
+            method: 'POST', credentials: 'same-origin', cache: 'no-store', signal: controller.signal
+        }).then(function (resp) {
+            handleFetchAuthResponse('/api/auth/activity', resp);
+            return resp.ok ? resp.json() : null;
+        }).then(function (data) {
+            if (data) observeSessionStatus(data);
+        }).catch(function () {
+            nextActivityAt = Date.now() + 5000;
+        }).finally(function () {
+            clearTimeout(timeout);
+            renewal = null;
+        });
+    }
 
     function currentPathWithQuery() {
         return (window.location.pathname || '/') + (window.location.search || '');
@@ -513,6 +566,14 @@ window.AuraAuth = window.AuraAuth || {};
     window.AuraAuth.loginURL = loginURL;
     window.AuraAuth.nativeFetch = originalFetch;
     window.AuraAuth.handleFetchAuthResponse = handleFetchAuthResponse;
+    window.AuraAuth.observeSessionStatus = observeSessionStatus;
+    window.AuraAuth.stopSessionActivity = function () {
+        sessionAuthenticated = false;
+        clearTimeout(sessionTimer);
+        sessionTimer = null;
+        // Logout clears the cookie after any earlier Set-Cookie has arrived.
+        return renewal;
+    };
 
     if (!window._auragoAuthAwareFetchInstalled && originalFetch) {
         window._auragoAuthAwareFetchInstalled = true;
@@ -522,6 +583,17 @@ window.AuraAuth = window.AuraAuth || {};
                 return resp;
             });
         };
+        if (!isLoginOrSetupPage()) {
+            ['pointerdown', 'pointermove', 'keydown', 'input', 'wheel'].forEach(function (type) {
+                window.addEventListener(type, recordSessionActivity, { capture: true, passive: true });
+            });
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState !== 'hidden' && sessionAuthenticated) {
+                    clearTimeout(sessionTimer);
+                    verifySessionExpiry();
+                }
+            });
+        }
     }
 }());
 
@@ -530,9 +602,10 @@ window.AuraAuth = window.AuraAuth || {};
  */
 async function checkAuth() {
     try {
-        const resp = await fetch('/api/auth/status');
+        const resp = await fetch('/api/auth/status', { credentials: 'same-origin', cache: 'no-store' });
         if (resp.ok) {
             const data = await resp.json();
+            window.AuraAuth.observeSessionStatus(data);
             if (data.enabled) {
                 if (data.authenticated === false) {
                     window.AuraAuth.redirectToLogin();
@@ -549,9 +622,12 @@ async function checkAuth() {
                     headerLogout.classList.remove('is-hidden');
                 }
             }
+        } else {
+            window.AuraAuth.observeSessionStatus(null);
         }
     } catch (e) {
-        // Auth check failed, ignore
+        // A transient startup failure must not disable activity renewal forever.
+        window.AuraAuth.observeSessionStatus(null);
     }
 }
 
@@ -573,6 +649,7 @@ function initLogoutLinks() {
 async function performLogout() {
     if (window._logoutInProgress) return;
     window._logoutInProgress = true;
+    await window.AuraAuth.stopSessionActivity();
 
     const menu = document.getElementById('radialMenu');
     const backdrop = document.getElementById('radialBackdrop');

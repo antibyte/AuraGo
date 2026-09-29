@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Le mot de passe doit contenir au moins 8 caractères.",
   "config.auth.password_not_set": "⚠️ Aucun mot de passe défini — le garde de connexion ne peut pas être activé.",
   "config.auth.session_hours": "⏱ Session (heures)",
-  "config.auth.session_validity": "Durée de session",
+  "config.auth.session_validity": "Durée initiale à partir de la connexion. L’activité maintient au moins 10 minutes restantes ; sans activité, tu es déconnecté à leur expiration. Les modifications s’appliquent aux nouvelles connexions.",
   "config.auth.set_password": "Définir",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP activé.",

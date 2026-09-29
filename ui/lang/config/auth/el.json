@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Ο κωδικός πρόσβασης πρέπει να αποτελείται από τουλάχιστον 8 χαρακτήρες.",
   "config.auth.password_not_set": "⚠️ Δεν έχει οριστεί κωδικός πρόσβασης — η προστασία σύνδεσης δεν μπορεί να ενεργοποιηθεί.",
   "config.auth.session_hours": "⏱ Συνεδρία (ώρες)",
-  "config.auth.session_validity": "Διάρκεια συνεδρίας",
+  "config.auth.session_validity": "Αρχική διάρκεια από τη σύνδεση. Η δραστηριότητα διατηρεί τουλάχιστον 10 λεπτά υπολειπόμενου χρόνου· χωρίς δραστηριότητα αποσυνδέεσαι όταν λήξει. Οι αλλαγές ισχύουν για νέες συνδέσεις.",
   "config.auth.set_password": "Ορισμός",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "Το TOTP ενεργοποιήθηκε.",

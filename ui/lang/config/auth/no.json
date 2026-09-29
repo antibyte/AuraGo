@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "Passordet må være på minst 8 tegn.",
   "config.auth.password_not_set": "⚠️ Ikke angitt passord — påloggingsvakt kan ikke aktiveres.",
   "config.auth.session_hours": "⏱ Økt (timer)",
-  "config.auth.session_validity": "Sesjonsvarighet",
+  "config.auth.session_validity": "Startvarighet fra innlogging. Aktivitet sørger for minst 10 minutter gjenværende tid; uten aktivitet logges du ut når tiden utløper. Endringer gjelder for nye innlogginger.",
   "config.auth.set_password": "Sett",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP aktivert.",

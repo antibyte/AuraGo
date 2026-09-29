@@ -19,7 +19,7 @@
   "config.auth.password_min_length": "La contraseña debe tener al menos 8 caracteres.",
   "config.auth.password_not_set": "⚠️ No hay contraseña configurada — el login guard no puede activarse.",
   "config.auth.session_hours": "⏱ Sesión (horas)",
-  "config.auth.session_validity": "Duración de la sesión",
+  "config.auth.session_validity": "Duración inicial desde el inicio de sesión. La actividad mantiene al menos 10 minutos restantes; sin actividad, la sesión se cierra al agotarse ese tiempo. Los cambios se aplican a nuevos inicios de sesión.",
   "config.auth.set_password": "Establecer",
   "config.auth.status_success": "✅",
   "config.auth.totp_activated": "TOTP activado.",
