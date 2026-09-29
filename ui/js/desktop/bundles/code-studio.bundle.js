@@ -2578,6 +2578,19 @@
         return sessions[state.activeTerminalSession || 0] || null;
     }
 
+    function syncTerminalAliases() {
+        const session = activeTerminalSession();
+        state.terminal = session?.term || null;
+        state.ws = session?.ws || null;
+        state.fitAddon = session?.fitAddon || null;
+    }
+
+    function terminalSessionStatus(session, key) {
+        if (session !== activeTerminalSession()) return;
+        const label = shellPart('[data-terminal-state]');
+        if (label) label.textContent = tr(key);
+    }
+
     function refitTerminal() {
         if (!state.terminalVisible || state.zenMode) return;
         const session = activeTerminalSession();
@@ -2657,49 +2670,53 @@
         if (!screen) screen = shellPart('[data-terminal-screen]');
         if (!label) label = shellPart('[data-terminal-state]');
         if (!screen || !window.Terminal) return;
+        const session = state.terminalSessions[index];
+        if (!session) return;
         try {
             const term = new window.Terminal({ cursorBlink: true, convertEol: true, fontFamily: "'Cascadia Code', 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace", fontSize: 13 });
             const instance = state;
             let terminalDisposed = false;
-            instance.disposers.push(() => {
+            session.dispose = () => {
                 if (terminalDisposed) return;
                 terminalDisposed = true;
+                if (session.ws) session.ws.close();
                 if (term && typeof term.dispose === 'function') term.dispose();
-            });
+            };
+            instance.disposers.push(session.dispose);
             if (window.FitAddon && window.FitAddon.FitAddon) {
                 const fitAddon = new window.FitAddon.FitAddon();
                 term.loadAddon(fitAddon);
-                if (index === 0) state.fitAddon = fitAddon;
-                if (state.terminalSessions[index]) state.terminalSessions[index].fitAddon = fitAddon;
+                session.fitAddon = fitAddon;
             }
             term.open(screen);
-            if (state.terminalSessions[index]) state.terminalSessions[index].term = term;
-            if (index === 0) state.terminal = term;
-            const fitTarget = state.terminalSessions[index]?.fitAddon || state.fitAddon;
+            session.term = term;
+            const fitTarget = session.fitAddon;
             if (fitTarget) fitTarget.fit();
             term.writeln(tr('codeStudio.title', 'Code Studio') + ' - ' + shellName(index));
             const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
             ws.binaryType = 'arraybuffer';
-            if (state.terminalSessions[index]) state.terminalSessions[index].ws = ws;
-            if (index === 0) state.ws = ws;
+            session.ws = ws;
+            syncTerminalAliases();
             ws.onopen = bindInstance(instance, () => {
-                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.running', 'Running...');
+                if (!state.terminalSessions.includes(session)) return;
+                terminalSessionStatus(session, 'codeStudio.running');
                 const termDataDispose = term.onData(bindInstance(instance, data => ws.readyState === WebSocket.OPEN && ws.send(data)));
                 if (termDataDispose && typeof termDataDispose.dispose === 'function') {
                     instance.disposers.push(() => termDataDispose.dispose());
                 }
-                sendTerminalResize(state.terminalSessions[index]);
+                sendTerminalResize(session);
             });
             ws.onmessage = bindInstance(instance, event => {
+                if (terminalDisposed) return;
                 if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
                 else term.write(String(event.data));
             });
             ws.onerror = bindInstance(instance, () => {
-                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+                terminalSessionStatus(session, 'codeStudio.terminalUnavailable');
             });
             ws.onclose = bindInstance(instance, () => {
-                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.stopped', 'Stopped');
+                terminalSessionStatus(session, 'codeStudio.stopped');
             });
         } catch (err) {
             screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
@@ -2724,8 +2741,7 @@
             else if (state.fitAddon) state.fitAddon.fit();
             session.term.focus();
         }
-        state.terminal = session?.term || null;
-        state.ws = session?.ws || null;
+        syncTerminalAliases();
         if (label && session && session.ws) {
             const open = typeof WebSocket !== 'undefined' && session.ws.readyState === WebSocket.OPEN;
             label.textContent = open ? tr('codeStudio.running', 'Running...') : tr('codeStudio.stopped', 'Stopped');
@@ -2748,10 +2764,8 @@
     function closeTerminalSession(index) {
         if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
         const session = state.terminalSessions[index];
-        if (session) {
-            if (session.ws && session.ws.readyState !== WebSocket.CLOSED) session.ws.close();
-            if (session.term && typeof session.term.dispose === 'function') session.term.dispose();
-        }
+        const active = activeTerminalSession();
+        if (session && session.dispose) session.dispose();
         state.terminalSessions.splice(index, 1);
         if (!state.terminalSessions.length) {
             state.terminalSessions.push({ name: shellName(0), term: null, ws: null });
@@ -2762,7 +2776,7 @@
             if (screen) screen.innerHTML = '';
             connectTerminalSession(0, screen, label);
         } else {
-            state.activeTerminalSession = Math.min(index, state.terminalSessions.length - 1);
+            state.activeTerminalSession = active !== session ? state.terminalSessions.indexOf(active) : Math.min(index, state.terminalSessions.length - 1);
             switchTerminalSession(state.activeTerminalSession);
         }
     }

@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 )
 
 type fakeCodeContainerDocker struct {
+	inspectErr    error
 	containers    []CodeDockerContainer
 	inspectByName map[string]CodeDockerInspect
 	ensuredImages []string
@@ -75,10 +77,53 @@ func (f *fakeCodeContainerDocker) ListContainers(ctx context.Context, all bool) 
 }
 
 func (f *fakeCodeContainerDocker) InspectContainer(ctx context.Context, container string) (CodeDockerInspect, error) {
+	if f.inspectErr != nil {
+		return CodeDockerInspect{}, f.inspectErr
+	}
 	if f.inspectByName == nil {
 		return CodeDockerInspect{}, nil
 	}
 	return f.inspectByName[container], nil
+}
+
+func TestCodeContainerEnsureStartedReconcilesCachedRunningState(t *testing.T) {
+	for _, mode := range []string{"stopped", "removed", "inspect error"} {
+		t.Run(mode, func(t *testing.T) {
+			fake := &fakeCodeContainerDocker{}
+			svc := NewCodeContainerService(Config{WorkspaceDir: t.TempDir(), CodeStudio: CodeStudioConfig{Enabled: true}}, nil)
+			svc.SetDockerClient(fake)
+			if err := svc.EnsureStarted(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			fake.actions = nil
+			switch mode {
+			case "stopped":
+				inspect := fake.inspectByName["created-1"]
+				inspect.State.Running = false
+				fake.inspectByName["created-1"] = inspect
+			case "removed":
+				fake.containers = nil
+			case "inspect error":
+				fake.inspectErr = errors.New("daemon unavailable")
+			}
+			err := svc.EnsureStarted(context.Background())
+			if mode == "inspect error" {
+				if err == nil || svc.IsRunning() || len(fake.actions) != 0 {
+					t.Fatalf("inspection failure must stop startup: err=%v actions=%v", err, fake.actions)
+				}
+				return
+			}
+			if err != nil || !svc.IsRunning() {
+				t.Fatalf("recovery failed: %v", err)
+			}
+			if mode == "stopped" && !containsString(fake.actions, "created-1:start") {
+				t.Fatal("externally stopped container was not restarted")
+			}
+			if mode == "removed" && (len(fake.creates) != 2 || !containsString(fake.actions, "created-2:start")) {
+				t.Fatal("externally removed container was not recreated")
+			}
+		})
+	}
 }
 
 func (f *fakeCodeContainerDocker) EnsureImage(ctx context.Context, image string) error {
@@ -99,9 +144,9 @@ func (f *fakeCodeContainerDocker) CreateContainer(ctx context.Context, req CodeD
 	}
 	var mounts []CodeDockerMount
 	for _, volume := range req.Volumes {
-		parts := strings.SplitN(volume, ":", 2)
-		if len(parts) == 2 {
-			mounts = append(mounts, CodeDockerMount{Source: parts[0], Destination: parts[1]})
+		separator := strings.LastIndex(volume, ":")
+		if separator > 0 {
+			mounts = append(mounts, CodeDockerMount{Source: volume[:separator], Destination: volume[separator+1:]})
 		}
 	}
 	f.inspectByName[id] = CodeDockerInspect{ID: id, Name: "/" + name, State: CodeDockerState{Running: true}, Mounts: mounts}

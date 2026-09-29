@@ -1200,7 +1200,7 @@ registration lives in `internal/desktop/types.go`.
   Print and exports serialize the current editor, never stale server content.
   Unknown package parts and authored font names must survive native saves.
 - Code Studio exposes `window.CodeStudioApp = { render, dispose, state, instances,
-  api, command, knownFiles, loadState, saveState, refreshFiles, openFile,
+  api, command, knownFiles, loadState, saveState, refreshFiles, openFile, openPath,
   openFileFromDialog, saveCurrentFile, uploadFile, downloadFile }`. All
   non-command-palette modules share a single IIFE closure; `core.js` opens the
   IIFE, `shortcuts.js` closes it. Function declarations are hoisted across the
@@ -1240,9 +1240,19 @@ registration lives in `internal/desktop/types.go`.
   the shortcut overlay; Ctrl+= / Ctrl+- / Ctrl+0 and Ctrl+wheel zoom the editor.
 - Split Right/Down renders two synced CodeMirror views of the active tab
   (`tab.view`, `tab.secondaryView`, `tab.views`); `renderEditor` re-applies the
-  split on tab changes and `destroyTabView` disposes both views.
+  split on tab changes. `destroyTabView` retains editor state, selection and
+  scroll while disposing view DOM/listeners; closing a tab releases snapshots.
+  CodeMirror presentation is reconfigured through a compartment. Only the
+  primary pane owns history; secondary undo/redo commands use that history.
+  AI context uses the last focused pane's selection.
+- Initial and reused Code Studio launches use `openPath`, resolving directories
+  before reading files. `openFile` remains the file-specific API. Launch errors
+  use the existing Code Studio status/error surface.
 - The Code Studio terminal refits through a ResizeObserver and sends
   `{"type":"resize","cols","rows"}` JSON, which the server line terminal ignores.
+  The active session owns terminal/WebSocket/fit aliases. Callbacks retain the
+  session object across tab removal; delayed Run output never moves to another
+  terminal when its original session closes.
 - Browser acceptance: `TestDesktopCodeStudioBrowser` renders the real shell,
   bundle, CodeMirror and xterm against an in-memory backend (no Docker) with
   `AURAGO_RUN_BROWSER_SMOKE=1`; set `AURAGO_BROWSER_ARTIFACT_DIR` for

@@ -152,25 +152,9 @@ func TestBuildCodeStudioSearchCommandEscapesUserInput(t *testing.T) {
 
 func TestCodeStudioTerminalSessionRunsCommandsAndTracksDirectory(t *testing.T) {
 	session := newCodeStudioTerminalSession("/workspace")
-	cmd, output := session.consume("pwd\r")
-	if cmd == "" || output == "" {
-		t.Fatalf("consume pwd = command %q output %q, want runnable command", cmd, output)
-	}
-	if cmd != "cd '/workspace' && pwd" {
-		t.Fatalf("pwd command = %q", cmd)
-	}
-
-	cmd, output = session.consume("cd src\r")
-	if cmd != "" {
-		t.Fatalf("cd should not execute docker command, got %q", cmd)
-	}
-	if !strings.Contains(output, "/workspace/src") {
-		t.Fatalf("cd output = %q, want new path", output)
-	}
-
-	cmd, _ = session.consume("ls\r")
-	if cmd != "cd '/workspace/src' && ls" {
-		t.Fatalf("ls command = %q", cmd)
+	line, output, complete, err := session.consume("pwd\r")
+	if err != nil || !complete || line != "pwd" || output != "pwd\r\n" {
+		t.Fatalf("consume pwd = %q, %q, %v, %v", line, output, complete, err)
 	}
 }
 

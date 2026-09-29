@@ -170,9 +170,9 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 				s.state = StateError
 				return err
 			}
+			s.touchLocked()
+			return nil
 		}
-		s.touchLocked()
-		return nil
 	}
 	if s.state == StateStarting {
 		return fmt.Errorf("code studio container is already starting")

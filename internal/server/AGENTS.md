@@ -22,6 +22,11 @@ Server-owned HTTP and cross-component integration contracts.
   target intact. Keep Desktop/Docker write gates, workspace confinement and
   cleanup on failure. Verify `TestCodeStudioWrite*`, `TestCodeStudioUpload*`,
   `TestCodeStudioFailedTransfer*` and the Linux install-script tests.
+- `code_studio_terminal.go` drains bounded WebSocket input in order, retains
+  incomplete UTF-8/lines and collapses CRLF across frames. Simple literal `cd`
+  validates an accessible physical directory inside `/workspace` before changing
+  session cwd; compound shell commands do not persist cwd. Stop on cancellation
+  or socket failure. Verify `TestCodeStudioTerminal*` including the WebSocket test.
 
 ### Game Maker Voxel persistence
 

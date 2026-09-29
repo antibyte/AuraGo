@@ -307,3 +307,38 @@ func TestDesktopCodeStudioDirectoryLaunch(t *testing.T) {
 		t.Fatal("opening a directory attempted to read it as a file")
 	}
 }
+
+func TestDesktopCodeStudioTerminalRouting(t *testing.T) {
+	for _, closeOrigin := range []bool{false, true} {
+		t.Run(map[bool]string{false: "switch", true: "close"}[closeOrigin], func(t *testing.T) {
+			page, _ := newCodeStudioBrowser(t)
+			if !page.MustEval(`async(closeOrigin)=>{
+                await csWait(()=>csState()?.terminalSessions[0]?.ws?.readyState===1);
+                const app=CodeStudioApp,target=csState(),id=target.windowId;
+                await app.openFile('/workspace/src/app.js',true,id);
+                csRoot().querySelector('[data-terminal-add]').click();
+                await csWait(()=>target.terminalSessions[1]?.ws?.readyState===1);
+                const origin=target.terminalSessions[1],first=target.terminalSessions[0];
+                const aliases=target.terminal===origin.term&&target.ws===origin.ws&&target.fitAddon===origin.fitAddon;
+                const text=term=>Array.from({length:term.buffer.active.length},(_,i)=>term.buffer.active.getLine(i)?.translateToString()||'').join('\n');
+                const originalFetch=window.fetch;let release;
+                window.fetch=async(url,opts)=>{
+                    if(String(url)==='/api/code-studio/exec'){
+                        await new Promise(r=>{release=r;});
+                        return new Response(JSON.stringify({output:'origin-only-output',exit_code:0}),{status:200});
+                    }
+                    return originalFetch(url,opts);
+                };
+                try {
+                    const running=app.command('runCurrentFile',[],id);await csWait(()=>release);
+                    csRoot().querySelector(closeOrigin?'[data-terminal-close="1"]':'[data-terminal-tab="0"]').click();
+                    release();await running;await new Promise(r=>requestAnimationFrame(r));
+                    if(!closeOrigin)await csWait(()=>text(origin.term).includes('origin-only-output'));
+                    return aliases && !text(first.term).includes('origin-only-output') && target.terminal===first.term && fixtureErrors.length===0;
+                } finally {window.fetch=originalFetch;release?.();}
+            }`, closeOrigin).Bool() {
+				t.Fatal("Run output or terminal aliases followed the wrong session")
+			}
+		})
+	}
+}
