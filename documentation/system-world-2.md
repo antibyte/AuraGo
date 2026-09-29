@@ -68,7 +68,10 @@ snapshots, replay and hidden/reduced-motion windows do not synthesize activity.
 
 Lighting follows browser-local time unless day, evening or night is selected.
 Clear weather is the default; rain and fog are user choices and never signal a
-system fault. Rain adjusts particles, fog, ground roughness and ambience.
+system fault. Rain adjusts particles, fog, surface wetness, puddles and ambience.
+Streets, pavements, walls, roofs and planting carry generated surface detail on
+medium and higher quality; low quality neither shows nor downloads it. Window panes
+light up individually towards night; the pattern is decorative, never telemetry.
 
 Sound is initially off and requires a gesture. Ambience, effects and tower speech
 have separate gains. Local Web Audio synthesis supplies spatial machine/water/rain
@@ -165,7 +168,9 @@ service responses; the API tests separately exercise the actual service handlers
 
 ```powershell
 python assets/system-world/check_assets.py
+python assets/system-world/build_textures.py --check
 node scripts/test-system-world.mjs
+node scripts/test-system-world-surfaces.mjs
 node scripts/test-system-world-expansion.mjs
 node scripts/test-system-world-traffic.mjs
 node scripts/test-system-world-living.mjs

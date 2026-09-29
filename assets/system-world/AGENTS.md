@@ -7,12 +7,17 @@ Own the original Blender city kit, deterministic generator and source scene.
 - Authoring: this directory.
 - Runtime payload: `ui/3d/system-world/v1/`, `v2/`, plus `white-robot.glb/json` in its parent.
 - Temporary tools: `disposable/system-world/`; visual checks: `reports/system-world-assets/`.
+- Surface textures: `build_textures.py` writes `ui/3d/system-world/textures/v1/` (six seeded,
+  periodic RGB WebP data maps plus manifest and MIT license).
 
 ## Local Contracts
 - Blender 5.2.1 LTS; original geometry and materials under MIT.
 - Each asset has three isolated GLBs, Y up, metre units and base-centred origins.
 - The complete runtime model directory must stay below 12 MiB; first display
   stays below 12 MiB and the full app below 48 MiB.
+- Surface maps are original procedural data (R albedo factor / 2, G roughness factor / 2,
+  B height), seamless, byte-stable for the pinned numpy/Pillow and verified with `--check`.
+  The GLBs stay texture-free; the renderer projects the maps (see `sysworld-surfaces.js`).
 - Original city-kit designs have no image textures or external URIs. Preserve
   separate rotor and signal nodes. The explicitly requested ThreeDee robot
   derivative retains three embedded 512 px PBR textures and source provenance;
@@ -36,6 +41,8 @@ Own the original Blender city kit, deterministic generator and source scene.
 
 ## Verification
 - `python assets/system-world/check_assets.py`.
+- `python assets/system-world/build_textures.py --check` and `node scripts/test-system-world-surfaces.mjs`;
+  `--preview` writes a lit contact sheet to `reports/system-world-assets/`.
 - All exported GLBs must pass the Khronos validator and a real browser rendering check.
 - Render previews from the exported GLBs. Repeated generation must preserve GLB hashes.
 

@@ -24,7 +24,9 @@ export function createDrones(scene, options = {}) {
     root.add(...lights); group.add(root);
     drones.push({ root, body, lights, curve, length: curve.getLength(), speed: patrol.speed, t: (i * .37)%1, rotors: [], roll: 0,dir:1,waiting:0 });
   });
-  let animated = true, tier='high', ready=false;
+  let animated = true, tier='high', ready=false, own = new Map();
+  // Shared city materials use world-space surface detail; moving drones get object-space clones.
+  const droneMaterial = m => { if (!own.has(m)) { const copy = m.clone(); options.surfaces?.apply(copy, 'object', m.name); own.set(m, copy); } return own.get(m); };
   function place(drone, dt) {
     const { curve, root } = drone;
     const previous=drone.t;
@@ -66,11 +68,12 @@ export function createDrones(scene, options = {}) {
     setTemplate(template) {
       if (!template) return;
       ready=true;
+      const previous = own; own = new Map();
       for (const [i,drone] of drones.entries()) {
         drone.body.clear(); drone.rotors.length = 0;
         const model = template.clone(true); model.scale.setScalar(1.9);
         model.updateMatrixWorld(true);const bounds=new THREE.Box3().setFromObject(model);bounds.expandByScalar(.5);bounds.min.y-=1;bounds.max.y+=1;
-        model.traverse(n => { if (n.isMesh) { n.castShadow = false; n.receiveShadow = false; } if (/^rotor_/.test(n.name)) drone.rotors.push(n); });
+        model.traverse(n => { if (n.isMesh) { n.castShadow = false; n.receiveShadow = false; n.material = Array.isArray(n.material) ? n.material.map(droneMaterial) : droneMaterial(n.material); } if (/^rotor_/.test(n.name)) drone.rotors.push(n); });
         drone.body.add(model); drone.root.visible = i<(tier==='low'?2:tier==='medium'?3:6);
         if(options.traffic&&!drone.collider){
           place(drone,0);const shape=bodyShape({min:bounds.min.toArray(),max:bounds.max.toArray()});
@@ -79,6 +82,7 @@ export function createDrones(scene, options = {}) {
           if(!drone.collider)drone.root.visible=false;
         }
       }
+      previous.forEach(m => m.dispose());
     },
     update(dt, time, active) {
       animated = active;
@@ -99,6 +103,6 @@ export function createDrones(scene, options = {}) {
       });
     },
     stats: () => ({ drones: drones.filter(d => d.root.visible).length, animated, positions: drones.map(d => d.root.position.toArray().map(v => Math.round(v))),obstructions:drones.map(d=>d.obstruction) }),
-    dispose() { group.removeFromParent(); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());drones.forEach(d=>{if(d.collider)options.traffic.remove(d.collider.id);}); drones.length = 0; },
+    dispose() { group.removeFromParent(); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); own.forEach(m => m.dispose());drones.forEach(d=>{if(d.collider)options.traffic.remove(d.collider.id);}); drones.length = 0; },
   };
 }

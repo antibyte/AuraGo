@@ -48,7 +48,9 @@ export function createExperience(scene,options){
       const response=await fetch(options.assetURL(lod.file),{signal:controller.signal});if(!response.ok)throw Error('World asset unavailable');
       const data=await response.arrayBuffer();if(disposed)throw Error('Disposed');bytes+=data.byteLength;
       const gltf=await new GLTFLoader().parseAsync(data,'');
-      gltf.scene.traverse(n=>{if(n.isMesh){geometries.add(n.geometry);for(const m of(Array.isArray(n.material)?n.material:[n.material]))materials.add(m);n.castShadow=true;n.receiveShadow=true;}});
+      // Moving or articulated assets use object-space surface detail so it never slides over them.
+      const moving=gltf.animations.length>0||/^(tram|service-cart|robot-|door|lift)/.test(id);
+      gltf.scene.traverse(n=>{if(n.isMesh){geometries.add(n.geometry);for(const m of(Array.isArray(n.material)?n.material:[n.material]))materials.add(m);n.castShadow=true;n.receiveShadow=true;options.surfaces?.prepare(n,moving);}});
       if(disposed){geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());throw Error('Disposed');}
       loaded.add(id);return gltf;
     })());

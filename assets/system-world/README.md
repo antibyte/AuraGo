@@ -45,6 +45,22 @@ metal, tinted glass, bronze details and restrained warm interior lighting.
 The original city-kit geometry and materials were authored for AuraGo under MIT.
 The reused ThreeDee robot retains its existing artwork provenance (see below).
 
+## Surface textures
+
+The kit's GLBs carry no UVs, so surface detail is a separate runtime set:
+`build_textures.py` (numpy + Pillow) writes six seamless maps to
+`ui/3d/system-world/textures/v1/`: asphalt, running-bond pavers, board-formed concrete,
+metal panels, roof gravel and foliage. Each RGB WebP packs data, not colour:
+R = albedo factor / 2, G = roughness factor / 2, B = height. The renderer
+(`sysworld-surfaces.js`) multiplies the kit's own material colours, projects the maps
+triplanar and derives bump, wetness and puddles from them. About 0.6 MB in total.
+
+```powershell
+python assets/system-world/build_textures.py --preview
+python assets/system-world/build_textures.py --check
+node scripts/test-system-world-surfaces.mjs
+```
+
 ## Runtime payload
 
 The versioned runtime files live in `ui/3d/system-world/v1/`. The existing web

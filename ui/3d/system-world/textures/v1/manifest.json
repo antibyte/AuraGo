@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "license": "MIT",
+  "generator": "assets/system-world/build_textures.py",
+  "generator_sha256": "235b41b978afc9a87d92275efd8d9e1ae8f0b89fefc17732837f932f07766296",
+  "encoding": {
+    "r": "albedo factor / 2",
+    "g": "roughness factor / 2",
+    "b": "height"
+  },
+  "textures": [
+    {
+      "id": "asphalt",
+      "file": "asphalt.webp",
+      "px": 1024,
+      "tile_metres": 6.0,
+      "bytes": 195764,
+      "sha256": "5f7910be7090136502f9bc08953ff7181b24f37f87208ec147b28d74e16d808c"
+    },
+    {
+      "id": "pavers",
+      "file": "pavers.webp",
+      "px": 1024,
+      "tile_metres": 4.8,
+      "bytes": 197296,
+      "sha256": "070779d79da95782776660908f748093382f60134e994e69ffdee3f68a38cde0"
+    },
+    {
+      "id": "concrete",
+      "file": "concrete.webp",
+      "px": 512,
+      "tile_metres": 4.0,
+      "bytes": 30312,
+      "sha256": "138f0a170bdc448e6a3b4805de10b89d1971f0e89889013ff26c64bbd37c1c5a"
+    },
+    {
+      "id": "panels",
+      "file": "panels.webp",
+      "px": 512,
+      "tile_metres": 8.0,
+      "bytes": 24802,
+      "sha256": "ec15acf170481de6a930aac82bcf65ad6e176301133ad9664b6d788f89b5d663"
+    },
+    {
+      "id": "gravel",
+      "file": "gravel.webp",
+      "px": 512,
+      "tile_metres": 3.0,
+      "bytes": 71410,
+      "sha256": "864330d2faece27b5f8121703d0ec44840a959f3a195e740406384e8a5fbddcf"
+    },
+    {
+      "id": "foliage",
+      "file": "foliage.webp",
+      "px": 512,
+      "tile_metres": 3.0,
+      "bytes": 65060,
+      "sha256": "38797099fecf2dde15cc3ea58d0e9334ae338dc48d4500553966c11281c8a6bf"
+    }
+  ]
+}

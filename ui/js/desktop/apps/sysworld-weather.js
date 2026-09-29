@@ -6,7 +6,7 @@ import {daylight} from './sysworld-exploration.js';
 // light keeps its front-lit path so glass facades never mirror a backlight into the camera.
 const sunAzimuth=hour=>.5+(hour-6)/12*3.62;
 const skyDirection=new THREE.Vector3();
-export function createWeather(scene,{sun,rim,hemisphere,atmosphere,ground,onThunder}){
+export function createWeather(scene,{sun,rim,hemisphere,atmosphere,surfaces,onThunder}){
   let timeMode='local',weather='clear',tier='high',indoor=false,last=-100,disposed=false,hemiBase=hemisphere.intensity;
   let nextStrike=14,strike=-1,strikes=0;
   const time={value:0},geometry=new THREE.BufferGeometry(),points=[];
@@ -28,7 +28,7 @@ export function createWeather(scene,{sun,rim,hemisphere,atmosphere,ground,onThun
     scene.fog.color.copy(nightFog).lerp(dayFog,d).lerp(duskFog,phase.evening*(1-d)*.5);
     scene.fog.density=weather==='fog'?.018:weather==='rain'?.008:.003-d*.0008;
     atmosphere.setLighting?.(d,phase.evening,skyDirection);atmosphere.setWeather?.(weather);
-    ground.material.roughness=weather==='rain'?.14:.44;
+    surfaces?.setLighting(d,phase.evening,weather==='clear'?0:1,scene.fog.color);surfaces?.setWeather(weather);
     rain.visible=weather==='rain'&&!indoor;geometry.setDrawRange(0,tier==='low'?200:1200);
   }
   // Soft, brief lightning (never a strobe) with a distance-derived thunder delay.

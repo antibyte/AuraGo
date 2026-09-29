@@ -1378,6 +1378,19 @@ registration lives in `internal/desktop/types.go`.
   delay through `onThunder`. Clamp every
   `pow()` base: multisampled edge extrapolation yields NaN otherwise, and bloom
   smears one NaN over the whole frame.
+- `sysworld-surfaces.js` gives the UV-less kit surface detail: six generated tileable maps
+  (`ui/3d/system-world/textures/v1/`, R albedo / G roughness / B height) projected triplanar
+  through `onBeforeCompile` on materials matched by name (`city.road|stone|graphite|titanium|
+  bronze|ceramic|leaf` and the island ground). Static geometry uses world space; moving or
+  articulated assets (tram, robots, doors, lifts, animated installations, drone clones) use
+  object space so detail never slides. Bump uses screen-space derivatives of a metre-scaled
+  height and fades out between 35 and 140 m. Low = no detail and no download, medium =
+  albedo/roughness, high/ultra = bump and anisotropy. Maps load independently behind neutral
+  placeholders; failures retry on the next quality change. Rain wetness eases (instant without
+  motion); puddles form per material threshold on up-facing ground, reflect the fog colour and
+  stay dry under the three pavilions. `city.ivory|warm` panes (four-vertex components) switch
+  individually by time of day; larger lit parts and horizontal fixtures only dim. Pane light
+  is decorative, never telemetry. Verify `node scripts/test-system-world-surfaces.mjs`.
 - `sysworld-drones.js` flies up to six service-drone patrols (two on low) on closed Catmull-Rom
   loops with spinning rotors, navigation lights and banking; the template is the
   cached kit GLB and instances share geometry.
