@@ -97,6 +97,7 @@ func compareVoxelObservations(plan *GamePlan, scenarios []GameScenario, observat
 		}
 		check := &result[i]
 		check.Status = "unavailable"
+		check.Repairable = false
 		check.Expected = "Real voxel state change: " + s.Metric
 		check.Observed = "No matching block, inventory or player evidence"
 		var o *GameObservation
@@ -179,6 +180,11 @@ func compareVoxelObservations(plan *GamePlan, scenarios []GameScenario, observat
 		if passed {
 			check.Status = "passed"
 			check.Observed = "Verified sampled world/player state and inventory consequences"
+		} else {
+			// Sampled evidence arrived but the definition or hooks produced no such
+			// consequence; editing voxel.json/main.ts can repair that.
+			check.Repairable = true
+			check.Observed = "Sampled world/player state shows no " + s.Metric + " consequence"
 		}
 	}
 	return result

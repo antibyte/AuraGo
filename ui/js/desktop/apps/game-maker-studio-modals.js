@@ -126,9 +126,13 @@
         if (!error) {
             error = document.createElement('p');
             error.className = 'gm-modal-error';
-            modal.appendChild(error);
+            error.setAttribute('role', 'alert');
+            // The pinned footer stays the last child; the message sits above it.
+            const footer = [...modal.children].reverse().find(child => child.tagName === 'FOOTER');
+            modal.insertBefore(error, footer || null);
         }
         error.textContent = message;
+        if (error.scrollIntoView) error.scrollIntoView({ block: 'nearest' });
     }
 
     function confirmAction(state, title, message) {

@@ -24,6 +24,9 @@ type CheckResult struct {
 	Expected string         `json:"expected"`
 	Observed string         `json:"observed"`
 	Steps    []GameTestStep `json:"steps,omitempty"`
+	// Repairable marks an unavailable check whose evidence the game source can
+	// supply (missing/blocked target, contact without the measured effect).
+	Repairable bool `json:"repairable,omitempty"`
 }
 type GameObservation struct {
 	ID             string             `json:"id"`
@@ -349,7 +352,8 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 				bok = bx && by && brx && bry && finite(x1) && finite(y1) && finite(rx) && finite(ry)
 				aok = ax && ay && finite(x2) && finite(y2)
 			}
-			if bok && aok && finite(before) && finite(after) {
+			measured := bok && aok && finite(before) && finite(after)
+			if measured {
 				passed := false
 				switch scenario.Compare {
 				case "increased":
@@ -420,6 +424,9 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 					check.Observed = "Missing targeted input/geometry evidence"
 				} else {
 					contacts, effects := 0, 0
+					// A missing measurement or an undriven run is a harness gap unless
+					// the driver names a reason the running game itself caused.
+					harness, sourceDefect := !measured, false
 					for i, run := range found.TargetRuns {
 						if run.Target != targetSteps[i].Target || run.Mode != targetSteps[i].Mode {
 							check.Status = "unavailable"
@@ -428,10 +435,15 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 							break
 						}
 						contacts += run.Contacts
-						if run.Reason == "unsupported" || run.Reason == "inactive" || run.Reason == "no_target" || run.Reason == "blocked" {
+						gameReason := run.Reason == "unsupported" || run.Reason == "inactive" || run.Reason == "no_target" || run.Reason == "blocked"
+						if gameReason {
 							check.Status = "unavailable"
+							sourceDefect = true
 						}
-						if run.Inputs == 0 || run.Samples < 2 || check.Status == "passed" && run.Effects == 0 {
+						if run.Inputs == 0 || run.Samples < 2 {
+							check.Status = "unavailable"
+							harness = harness || !gameReason
+						} else if check.Status == "passed" && run.Effects == 0 {
 							check.Status = "unavailable"
 						}
 						if run.Inputs > 0 && run.Samples >= 2 {
@@ -442,9 +454,11 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 					if effects >= 0 && (check.Status == "passed" && effects == 0 || check.Status == "failed" && (contacts == 0 || scenario.Metric != "hits" && scenario.Metric != "actions" && scenario.Metric != "player_distance")) {
 						check.Status = "unavailable"
 					}
+					check.Repairable = check.Status == "unavailable" && effects >= 0 && (sourceDefect || !harness)
 				}
 			} else if check.Status == "failed" && slices.Contains([]string{"hits", "hit_events", "pickup_events", "health", "lives", "goal_remaining", "outcome", "win_events", "lose_events"}, scenario.Metric) && scenario.ID != "required_end" {
 				check.Status = "unavailable"
+				check.Repairable = true
 				check.Observed += "; blind input did not establish the required gameplay opportunity; use an observed target and the metric for the actual action"
 			}
 		}
@@ -475,8 +489,10 @@ func (s *Service) stopAfterValidation(jobID string, repairRound bool, exploratio
 		s.mu.RLock()
 		active := s.activeJobID == jobID
 		current := s.lastValidation[jobID]
+		// Checks the game source can still satisfy keep a building round open;
+		// only missing browser evidence ends it without another edit.
 		validated := current != nil && current != previous &&
-			(repairRound || s.validationFailures[jobID] >= 4 || current.RuntimeStatus == "unavailable" || current.GameplayStatus == "unavailable")
+			(repairRound || s.validationFailures[jobID] >= 4 || current.RuntimeStatus == "unavailable" || current.GameplayStatus == "unavailable" && !current.Repairable)
 		s.mu.RUnlock()
 		if !active || validated {
 			return active && validated
@@ -612,7 +628,7 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 		return previewUnavailable(err.Error())
 	}
 	defer func(requestCtx context.Context) {
-		if !result.OK && result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable" && requestCtx.Err() == nil {
+		if !result.OK && (result.Repairable || result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable") && requestCtx.Err() == nil {
 			s.recordValidationFailure(jobID, result)
 		}
 		if requestCtx.Err() == nil {
@@ -742,6 +758,8 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 					result.Diagnostics = append(result.Diagnostics, Diagnostic{Level: "gameplay", Message: c.ID + ": expected " + c.Expected + "; observed " + c.Observed})
 				}
 			}
+			// Unverified checks the source can satisfy share the repair budget.
+			result.Repairable = result.GameplayStatus == "unavailable" && repairableChecks(result.Checks)
 			ruleStatus, ruleChecks := compareGameplayEvidence(plan, observations)
 			if plan.Template == "voxel" {
 				ruleStatus = result.GameplayStatus
@@ -753,6 +771,7 @@ func (s *Service) ValidateJobScope(ctx context.Context, jobID, scope string, req
 				if c.Status == "failed" {
 					result.OK = false
 					result.GameplayStatus = "failed"
+					result.Repairable = false
 					result.Diagnostics = append(result.Diagnostics, Diagnostic{Level: "gameplay", Message: c.ID + ": expected " + c.Expected + "; observed " + c.Observed})
 				}
 			}

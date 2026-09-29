@@ -29,6 +29,10 @@ func (s *Service) buildJob(ctx context.Context, jobID, scope string) BuildResult
 	s.mu.Unlock()
 	_, _ = s.emit(context.Background(), job.ProjectID, jobID, "validation_reset", map[string]any{})
 	result := buildDirectory(ctx, stage, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes)
+	for i := range result.Diagnostics {
+		// Compiler and filesystem messages may quote the resolved staging path.
+		result.Diagnostics[i].Message = s.RedactHostPaths(result.Diagnostics[i].Message)
+	}
 	for _, diagnostic := range result.Diagnostics {
 		_, _ = s.emit(context.Background(), job.ProjectID, jobID, "diagnostic", map[string]any{
 			"level": diagnostic.Level, "message": diagnostic.Message,
@@ -45,22 +49,7 @@ func (s *Service) buildJob(ctx context.Context, jobID, scope string) BuildResult
 			data, err := os.ReadFile(filepath.Join(stage, filepath.FromSlash(gamePlanPath)))
 			var plan GamePlan
 			if err == nil && json.Unmarshal(data, &plan) == nil {
-				if plan.Template == "voxel" {
-					if data, err := os.ReadFile(filepath.Join(stage, "src", "voxel.json")); err == nil {
-						if v, err := ParseVoxelDefinition(data); err == nil {
-							plan.Voxel = v
-						}
-					}
-				}
-				s.previewCheck.Scenarios = gameScenarios(&plan)
-				// The driver accepts at most 16 checks; accepted plans may already fill them.
-				runtimeVersion := installedRuntimeVersion(stage)
-				if controls, ok := controlsScenario(plan.Template, runtimeVersion); ok && len(s.previewCheck.Scenarios) < 16 {
-					s.previewCheck.Scenarios = withRequiredScenario(s.previewCheck.Scenarios, controls)
-				}
-				if stages, ok := stagesScenario(&plan, runtimeVersion); ok && len(s.previewCheck.Scenarios) < 16 {
-					s.previewCheck.Scenarios = withRequiredScenario(s.previewCheck.Scenarios, stages)
-				}
+				s.previewCheck.Scenarios = validationScenarios(stage, &plan)
 			}
 		}
 		s.mu.Unlock()

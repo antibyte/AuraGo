@@ -112,6 +112,7 @@
                                 <div><span class="gm-kicker">${esc(t('game_maker.agent'))}</span><h2 data-gm-title>${esc(t('game_maker.choose_project'))}</h2></div>
                                 <select class="gm-mobile-projects" data-gm-mobile-projects
                                     aria-label="${esc(t('game_maker.choose_project'))}" hidden></select>
+                                <button type="button" class="gm-primary gm-narrow-new" data-gm-action="new">+ ${esc(t('game_maker.new_game'))}</button>
                             </div>
                             <div class="gm-job-banner" data-gm-job-banner hidden>
                                 <span class="gm-job-spinner" aria-hidden="true"></span>
@@ -283,7 +284,7 @@
     function applyCapabilities(state) {
         const cap = state.capabilities || {};
         const availability = capabilityState(cap);
-        const newButton = state.container.querySelector('[data-gm-action="new"]');
+        const newButtons = state.container.querySelectorAll('[data-gm-action="new"]');
         const notice = state.container.querySelector('[data-gm-capability-notice]');
         let message = availability.messageKey ? state.context.t(availability.messageKey) : '';
         if (availability.status === 'skills-blocked') {
@@ -294,8 +295,10 @@
                 message += ' ' + state.context.t('game_maker.skills_blocked_details', { details: blocking.join(', ') });
             }
         }
-        newButton.disabled = availability.status !== 'ready';
-        newButton.title = message;
+        newButtons.forEach(button => {
+            button.disabled = availability.status !== 'ready';
+            button.title = message;
+        });
         notice.hidden = availability.status === 'ready';
         notice.querySelector('[data-gm-capability-title]').textContent =
             availability.status === 'ready' ? '' : state.context.t('game_maker.creation_unavailable');
@@ -337,11 +340,18 @@
             <button type="button" class="gm-project-card ${state.project && state.project.id === project.id ? 'is-active' : ''} ${running ? 'is-running' : ''}"
                 data-project-id="${esc(project.id)}" role="listitem">
                 <span class="gm-project-dimension">${esc(project.variant === 'voxel' ? t('game_maker.voxel') : String(project.dimension).toUpperCase())}</span>
-                <span><strong>${esc(project.name)}</strong><small>${esc(project.status || 'draft')}${updated ? ' · ' + esc(updated) : ''}</small></span>
+                <span><strong title="${esc(project.name)}">${esc(project.name)}</strong><small>${esc(statusLabel(state, project.status))}${updated ? ' · ' + esc(updated) : ''}</small></span>
                 <span class="gm-project-revision">v${Number(project.current_revision || 0)}</span>
                 ${running ? `<span class="gm-project-running" title="${esc(t('game_maker.status_working'))}"></span>` : ''}
             </button>`;
         }).join('');
+    }
+
+    function statusLabel(state, status) {
+        const raw = String(status || 'draft');
+        const key = 'game_maker.status_' + raw.replaceAll('-', '_');
+        const label = state.context.t(key);
+        return label && label !== key ? label : raw;
     }
 
     function renderMobileSelect(state) {
@@ -631,12 +641,30 @@
             card.innerHTML = `<strong>${esc(message)}</strong>
                 <button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>`;
         } else {
-            card.innerHTML = `<strong>${esc(t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title'))}</strong>
-                <p>${esc(message)}</p>
+            // The backend reports in technical English: explain the situation in
+            // the user's language and keep the original one click away.
+            const cause = failureKind(kind, message);
+            const hint = cause ? `<p class="gm-result-hint">${esc(t('game_maker.failure_hint_' + cause))}</p>` : '';
+            const title = t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title');
+            const technical = String(message || '').trim();
+            card.setAttribute('role', 'alert');
+            card.innerHTML = `<strong>${esc(title)}</strong>${hint}
+                ${technical && technical !== title ? `<details><summary>${esc(t('game_maker.failure_details'))}</summary><p>${esc(technical)}</p></details>` : ''}
                 <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>`;
         }
         log.appendChild(card);
         scrollConversation(state);
+    }
+
+    function failureKind(kind, message) {
+        const text = String(message || '').toLowerCase();
+        if (/time limit|timed out|timeout|deadline exceeded/.test(text)) return 'timeout';
+        if (kind === 'cancelled') return '';
+        if (/preview|browser|chrom/.test(text) && /unavailable|not available|not installed|could not start/.test(text)) return 'preview';
+        if (/validation failed/.test(text)) return 'validation';
+        if (/planning failed|accepted plan|^plan:/.test(text)) return 'planning';
+        if (/llm|provider|model|agent loop|api key|rate limit|quota/.test(text)) return 'model';
+        return 'generic';
     }
 
     async function playNow(state) {

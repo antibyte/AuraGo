@@ -182,6 +182,7 @@ type BuildResult struct {
 	VisualStatus        string        `json:"visual_status,omitempty"`
 	RulesStatus         string        `json:"rules_status,omitempty"`
 	TargetedChecks      bool          `json:"targeted_checks,omitempty"`
+	Repairable          bool          `json:"repairable,omitempty"`
 	Checks              []CheckResult `json:"checks,omitempty"`
 	Images              []string      `json:"-"`
 }

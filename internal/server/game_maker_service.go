@@ -283,6 +283,9 @@ func compactGameMakerChecks(checks []gamemaker.CheckResult) []map[string]any {
 		if check.Status != "passed" && len(check.Steps) > 0 {
 			entry["steps"] = check.Steps[:min(8, len(check.Steps))]
 		}
+		if check.Repairable {
+			entry["repairable"] = true
+		}
 		out = append(out, entry)
 	}
 	return out
@@ -330,7 +333,8 @@ func gameMakerRepairPacket(run gamemaker.JobRun) map[string]any {
 			packet["first_failure"] = map[string]any{
 				"kind": "gameplay_check", "id": check.ID, "status": check.Status,
 				"expected": check.Expected, "observed": check.Observed,
-				"steps": check.Steps[:min(8, len(check.Steps))],
+				"steps":      check.Steps[:min(8, len(check.Steps))],
+				"repairable": check.Repairable,
 			}
 		}
 		if strings.Contains(strings.ToLower(check.ID), "rule") && packet["rules_status"] == "unverified" {
@@ -357,7 +361,8 @@ func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
 		if run.Project.Variant == "voxel" {
 			contextData["planning_contract"] = "Choose base voxel and only the requested features. design.voxel must be a JSON-encoded VoxelDefinition string matching design_example.voxel (version 1; schema 5 is server-owned). Voxel validation already checks movement, jump, mining, crafting, placement and pause; survival with enemies also checks combat. Omit custom scenarios to use these built-in checks; if needed, custom steps support only key, wait and observe. For a peaceful request remove enemies but retain the wood-to-stone-to-metal progression unless asked to change it."
 		} else {
-			contextData["planning_contract"] = "Choose only the requested base and features. Optional scene/mechanics fields use schema version 4 and stay style-neutral; custom source remains available after acceptance."
+			contextData["planning_contract"] = "Choose only the requested base and features. Optional scene/mechanics fields use schema version 4 and stay style-neutral; custom source remains available after acceptance. base_checks lists what each base's server-owned checks drive and measure: the finished game must offer those target roles as real objects. Declared scenarios replace the base input/primary/rules check they cover; lifecycle checks (timer, end, assets, restart) always remain."
+			contextData["base_checks"] = gamemaker.BaseChecks(run.Project.Dimension)
 			contextData["target_test_example"] = gamemaker.GameScenario{ID: "collect_crystal", Metric: "pickup_events", Compare: "increased", Steps: []gamemaker.GameTestStep{{Action: "target", Mode: "reach", Target: "crystal", MS: 4000}}}
 		}
 		if len(run.AssetPacks) > 0 {
@@ -384,8 +389,32 @@ func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
 		contextData["diagnostics"] = compactGameMakerDiagnostics(run.Diagnostics)
 		contextData["imported_packs"] = compactGameMakerImports(run.AssetPacks)
 		contextData["repair_packet"] = gameMakerRepairPacket(run)
+		if run.Result != nil {
+			contextData["next_action"] = gamemaker.ValidationNextAction(*run.Result)
+		}
 	}
 	return contextData
+}
+
+// gameMakerBudget tells the agent how much room this round has. Values are
+// rounded so that an unchanged situation keeps an unchanged context packet.
+func gameMakerBudget(ctx context.Context, toolCalls int, run gamemaker.JobRun) map[string]any {
+	budget := map[string]any{"tool_calls": toolCalls}
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := int(time.Until(deadline).Seconds())
+		budget["seconds_remaining"] = max(0, remaining/30*30)
+	}
+	switch {
+	case run.Stage == "planning":
+		budget["guidance"] = "Plan with few discovery calls; an accepted set_design ends this round."
+	case run.Stage == "repair":
+		budget["guidance"] = "One focused repair: edit, check build.ok, validate once."
+	case run.Job.BaseRevision == 0:
+		budget["guidance"] = "Write the implementation early. A new game whose starter is still unchanged after about five minutes of reading is handed to the bounded source generation instead."
+	default:
+		budget["guidance"] = "Read only the affected ranges, make the requested change, check build.ok, then validate."
+	}
+	return budget
 }
 
 func gameMakerToolCallLimit(systemLimit int) int {
@@ -447,6 +476,11 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	contextData["remaining_repair_passes"] = r.service.RemainingRepairs(run.Job.ID)
 	if run.Stage != "planning" {
 		contextData["runtime"] = r.service.RuntimeContext(ctx, run.Job.ID)
+		// Disclose the exact checks up front so the game is built toward them
+		// instead of discovering each one through a failed validation.
+		if plan := r.service.ValidationPlan(ctx, run.Job.ID); plan != nil {
+			contextData["validation_plan"] = plan
+		}
 	}
 	requests, err := r.service.PreviousJobRequests(ctx, run.Job.ID)
 	if err != nil {
@@ -490,6 +524,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	runCfg.IsMission = true
 	runCfg.VoiceOutputActive = false
 
+	contextData["budget"] = gameMakerBudget(ctx, runCfg.ToolCallLimit, run)
 	slog.Info("game maker job starting", "job_id", run.Job.ID, "project_id", run.Project.ID,
 		"provider_id", cfg.LLM.Provider, "provider_type", cfg.LLM.ProviderType, "model", cfg.LLM.Model, "tool_limit", runCfg.ToolCallLimit)
 	data, _ := json.Marshal(contextData)

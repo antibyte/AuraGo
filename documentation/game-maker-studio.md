@@ -214,8 +214,12 @@ browser validation still decide whether the resulting game is ready.
   the repair pass when the builder loops back from validation. The phase
   stepper below it mirrors the same state.
 - Finished jobs end with a result card in the conversation: a playable
-  revision offers **Play now**, a failure shows the error and a **Try again**
-  button that continues the saved working copy and agent context.
+  revision offers **Play now**. A failure explains the cause in the interface
+  language (failed play test, unavailable browser test, time limit, plan,
+  language model or unexpected end), keeps the backend report folded under
+  **Technical details**, and offers **Try again**, which continues the saved
+  working copy and agent context.
+- The library shows every project state in the interface language.
 - The preview toolbar reloads the game, toggles fullscreen, or opens the
   current revision in a new browser tab with a fresh preview token. While a
   newer build is running, the preview carries an "updating" badge.
@@ -223,9 +227,13 @@ browser validation still decide whether the resulting game is ready.
   spinner, and the change form of other projects stays disabled with a hint
   until the active job finishes (the capabilities API exposes the active
   job's project ID, status, and phase).
-- On narrow windows the secondary project actions move into an overflow
-  menu; on phone-sized screens the library sidebar collapses into a project
-  dropdown inside the agent pane.
+- The layout follows the width of the Studio window, not of the screen. Below
+  1180 px the secondary project actions move into an overflow menu. Below
+  980 px the library collapses into a project dropdown in the agent pane, next
+  to its own **New game** button. Below 760 px agent and preview stack and the
+  workspace scrolls between them.
+- Dialogs never exceed the Studio window. Title and actions stay pinned while
+  the fields scroll, and a submit error appears directly above the actions.
 - The skills dialog summarizes status in plain language and folds source,
   commit, and license details into a collapsible section.
 
@@ -566,7 +574,26 @@ replacement uses `scene_set`, keeping that schema out of `scene_patch`.
 
 - `game_maker_file(operation: search, path, query)` returns up to twelve matching
   lines and the full-file SHA-256. Queries are literal, single-line and at most
-  120 characters; source reads retain their existing line/byte limits.
+  120 characters; source reads retain their existing line/byte limits. Without
+  `path` the search covers `game.json` and the text sources under `src/`, at
+  most 64 files and twelve matches in total, and names the owning file of each
+  match. Managed runtimes, compiled output, assets and internal state are never
+  scanned.
+- Planning context and `inspect` list the base checks of every starter as
+  `base_checks`, so a plan can declare scenarios that match what validation
+  drives. Building and repair receive the `validation_plan` of the accepted
+  plan: scope, every executed check with metric and comparison, and the target
+  roles the driver looks for.
+- Every validation answer carries `next_action` and the remaining repair
+  passes. A check that could not be observed because the game offers no
+  reachable target or reacts to no input is marked `repairable`; it starts a
+  bounded repair pass instead of ending the job. Missing browser feedback is
+  never repairable, and no unobserved check counts as passed.
+- Phase context includes a coarse `budget` with tool calls, remaining time
+  and phase guidance.
+- File errors name the project-relative path only. A missing file answer
+  points to `list_files`; host locations never reach the model, the Studio or
+  the job record.
 - `replace_many` accepts one to eight edits with distinct existing paths. Each
   contains `path`, `expected_sha256`, unique `old_text` and explicit `new_text`.
   Every path/hash/import/size check runs before mutation. A conflict writes

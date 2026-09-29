@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -495,7 +496,15 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 		if operation != "inspect" {
 			return gameMakerToolError(fmt.Errorf("unknown project operation")), true
 		}
-		return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "runtime": service.RuntimeContext(ctx, jobID), "plan_example": gamemaker.ExampleGamePlan(project), "design_example": gamemaker.ExampleGameDesign(project), "next_action": gamemaker.JobNextAction(job)}), true
+		inspection := map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "runtime": service.RuntimeContext(ctx, jobID), "plan_example": gamemaker.ExampleGamePlan(project), "design_example": gamemaker.ExampleGameDesign(project), "next_action": gamemaker.JobNextAction(job)}
+		if job.Phase == "planning" {
+			if project.Variant != "voxel" {
+				inspection["base_checks"] = gamemaker.BaseChecks(project.Dimension)
+			}
+		} else if plan := service.ValidationPlan(ctx, jobID); plan != nil {
+			inspection["validation_plan"] = plan
+		}
+		return gameMakerToolJSON(inspection), true
 
 	case "game_maker_file":
 		operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
@@ -508,7 +517,16 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 		}
 		path := firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path"))
 		if operation == "search" {
-			result, err := service.SearchJobFile(ctx, jobID, path, firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")))
+			query := firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query"))
+			if strings.TrimSpace(path) == "" {
+				// Without a path the agent is still locating the owning file.
+				result, err := service.SearchJobFiles(ctx, jobID, query)
+				if err != nil {
+					return gameMakerToolError(err), true
+				}
+				return gameMakerToolJSON(map[string]any{"status": "ok", "result": result, "next_action": "Read the matching range of the owning file; its sha256 is required for replace."}), true
+			}
+			result, err := service.SearchJobFile(ctx, jobID, path, query)
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
@@ -592,7 +610,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			return gameMakerToolError(checkErr), true
 		}
 		result := service.ValidateJobScope(ctx, jobID, toolArgString(tc.Params, "scope"), checkIDs...)
-		return gameMakerToolJSON(map[string]any{"status": gameMakerValidationStatus(result.OK), "result": result}), true
+		return gameMakerToolJSON(map[string]any{"status": gameMakerValidationStatus(result.OK), "result": result, "remaining_repair_passes": service.RemainingRepairs(jobID), "next_action": gamemaker.ValidationNextAction(result)}), true
 
 	case "game_maker_asset":
 		return dispatchGameMakerAsset(ctx, tc, dc, service, jobID), true
@@ -778,11 +796,17 @@ func gameMakerToolJSON(value any) string {
 }
 
 func gameMakerToolError(err error) string {
+	// Operating-system errors quote resolved locations; the model only ever
+	// receives project-relative paths.
+	message := gamemaker.DefaultService().RedactHostPaths(err.Error())
+	if errors.Is(err, fs.ErrNotExist) {
+		message += ". Use game_maker_project operation=list_files for this project's paths"
+	}
 	var detail *gamemaker.DesignValidationError
 	if errors.As(err, &detail) {
-		return gameMakerToolJSON(map[string]any{"status": "error", "message": err.Error(), "errors": detail.Issues, "remaining_attempts": detail.RemainingAttempts, "retained_base": detail.RetainedBase, "correction": "Fix the listed fields together. Omitted fields are retained; supplied arrays replace the whole array."})
+		return gameMakerToolJSON(map[string]any{"status": "error", "message": message, "errors": detail.Issues, "remaining_attempts": detail.RemainingAttempts, "retained_base": detail.RetainedBase, "correction": "Fix the listed fields together. Omitted fields are retained; supplied arrays replace the whole array."})
 	}
-	return gameMakerToolJSON(map[string]any{"status": "error", "message": err.Error()})
+	return gameMakerToolJSON(map[string]any{"status": "error", "message": message})
 }
 
 func gameMakerValidationStatus(ok bool) string {

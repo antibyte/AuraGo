@@ -771,7 +771,9 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		scope = "startup"
 	}
 	result := s.validateForPublication(ctx, job.ID, scope)
-	for attempt := 1; !result.OK && result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable" && attempt <= 3; attempt++ {
+	// Missing browser evidence cannot be repaired by the model. Checks the running
+	// game left unverified (no target, blocked route, no effect) can.
+	for attempt := 1; !result.OK && (result.Repairable || result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable") && attempt <= 3; attempt++ {
 		s.mu.RLock()
 		exhausted := s.validationFailures[job.ID] >= 4
 		s.mu.RUnlock()
@@ -897,7 +899,7 @@ func (s *Service) updateJobPhase(ctx context.Context, job *Job, phase string) er
 
 func (s *Service) failJob(job Job, failure error) {
 	now := time.Now().UTC()
-	message := strings.TrimSpace(failure.Error())
+	message := s.RedactHostPaths(strings.TrimSpace(failure.Error()))
 	job.Status = "failed"
 	s.finishWorkingCopy(job)
 	s.mu.Lock()
@@ -993,16 +995,16 @@ func (s *Service) ReadJobFile(ctx context.Context, jobID, rawPath string) (strin
 	if err != nil {
 		return "", err
 	}
-	path, _, err := secureJoin(stage, rawPath, true)
+	path, rel, err := secureJoin(stage, rawPath, true)
 	if err != nil {
 		return "", err
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("read game maker file: %w", err)
+		return "", fileError("read", rel, err)
 	}
 	if int64(len(data)) > s.opts.MaxFileBytes {
-		return "", fmt.Errorf("game maker file exceeds configured limit")
+		return "", fmt.Errorf("read %s: file exceeds the configured size limit", rel)
 	}
 	return string(data), nil
 }
@@ -1031,7 +1033,7 @@ func (s *Service) writeJobFile(ctx context.Context, jobID, rawPath, content stri
 	if info, err := os.Stat(path); err == nil {
 		oldBytes, extraFiles = info.Size(), 0
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("inspect game source: %w", err)
+		return fileError("inspect", rel, err)
 	}
 	if err := validateTreeLimits(stage, s.opts.MaxFilesPerProject-extraFiles, s.opts.MaxProjectBytes-int64(len(content))+oldBytes); err != nil {
 		return fmt.Errorf("source exceeds project limits: %w", err)
@@ -1043,27 +1045,27 @@ func (s *Service) writeJobFile(ctx context.Context, jobID, rawPath, content stri
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return fmt.Errorf("create game maker file directory: %w", err)
+		return fileError("create directory for", rel, err)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".gm-write-*")
 	if err != nil {
-		return fmt.Errorf("create game maker temporary file: %w", err)
+		return fileError("prepare", rel, err)
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
 	if _, err = io.WriteString(tmp, content); err != nil {
 		_ = tmp.Close()
-		return fmt.Errorf("write game maker temporary file: %w", err)
+		return fileError("write", rel, err)
 	}
 	if err = tmp.Sync(); err != nil {
 		_ = tmp.Close()
-		return fmt.Errorf("sync game maker temporary file: %w", err)
+		return fileError("write", rel, err)
 	}
 	if err = tmp.Close(); err != nil {
-		return fmt.Errorf("close game maker temporary file: %w", err)
+		return fileError("write", rel, err)
 	}
 	if err = os.Rename(tmpName, path); err != nil {
-		return fmt.Errorf("publish game maker file: %w", err)
+		return fileError("save", rel, err)
 	}
 	job, _ := s.GetJob(ctx, jobID)
 	_, _ = s.emit(ctx, job.ProjectID, jobID, "file_changed", map[string]any{"path": rel})
@@ -1095,23 +1097,23 @@ func (s *Service) StoreJobAsset(ctx context.Context, jobID, rawPath, kind, gener
 		return "", err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return "", fmt.Errorf("create game maker asset directory: %w", err)
+		return "", fileError("create directory for", rel, err)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".gm-asset-*")
 	if err != nil {
-		return "", fmt.Errorf("create game maker asset temporary file: %w", err)
+		return "", fileError("prepare asset", rel, err)
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
-		return "", fmt.Errorf("write game maker asset: %w", err)
+		return "", fileError("write asset", rel, err)
 	}
 	if err := tmp.Close(); err != nil {
-		return "", fmt.Errorf("close game maker asset: %w", err)
+		return "", fileError("write asset", rel, err)
 	}
 	if err := os.Rename(tmpName, path); err != nil {
-		return "", fmt.Errorf("publish game maker asset: %w", err)
+		return "", fileError("save asset", rel, err)
 	}
 	sum := sha256Bytes(data)
 	job, err := s.GetJob(ctx, jobID)

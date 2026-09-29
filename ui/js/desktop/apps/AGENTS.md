@@ -932,6 +932,21 @@ registration lives in `internal/desktop/types.go`.
   `game-maker-studio-assets.js` (`window.GameMakerStudioAssets`: offline pack
   catalog, selection, sprite/animation previews), then
   `game-maker-studio.js`.
+- Game Maker Studio lays out by container, not by viewport: `.gm-studio` is the
+  `gm-studio` inline-size container and `.gm-preview-pane` the `gm-preview`
+  container. Every width rule exists as `@container` and as its `@media` twin,
+  because fixtures render panes outside the shell; change both together. Below
+  980px the library is hidden, so the project select and `.gm-narrow-new` in the
+  agent pane head are the only way to switch or create. Keep the library button
+  the first `[data-gm-action="new"]` in document order and update all of them in
+  `applyCapabilities`. Only `.gm-conversation` may stretch in the agent pane;
+  banner and notice come and go. Dialogs size against the Studio window, pin
+  header and footer with offsets of `-var(--gm-modal-pad)`, and `modalError`
+  inserts above the footer. Signal colours use the `--gm-tone-*` variables, never
+  fixed light tints. Failure cards show `game_maker.failure_hint_<cause>` and
+  keep the backend text inside `details`; library states use
+  `game_maker.status_<status>`. Verify with `TestGameMakerStudioLayoutBrowser`
+  (`GAMEMAKER_STUDIO_REPORTS` writes screenshots).
 - Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,

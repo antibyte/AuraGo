@@ -24,12 +24,12 @@ func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []open
 			}, "job_id", "operation"),
 		),
 		tool("game_maker_file",
-			"Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
+			"Search a literal query in one file or, without path, across game.json and the text sources under src/. Read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path for read, write and replace. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
 			schema(map[string]interface{}{
 				"job_id":    prop("string", "Active Game Maker job ID"),
 				"operation": map[string]interface{}{"type": "string", "enum": []string{"read", "search", "write", "replace", "replace_many"}},
-				"path":      prop("string", "Project-relative source path"),
-				"query":     prop("string", "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256"),
+				"path":      prop("string", "Project-relative source path; omit only for a project-wide search"),
+				"query":     prop("string", "search: literal single-line text, 1–120 characters; returns up to 12 matching lines with each file's sha256"),
 				"edits": map[string]interface{}{"type": "array", "minItems": 1, "maxItems": 8, "items": schema(map[string]interface{}{
 					"path":            prop("string", "Distinct existing project-relative file"),
 					"expected_sha256": prop("string", "Full-file sha256 from read/search"),
@@ -280,7 +280,7 @@ func GameMakerPhaseToolSchemas(stage, dimension string, variant ...string) []ope
 			case "game_maker_validate":
 				continue
 			case "game_maker_file":
-				t.Function.Description = "Search literal text or read a bounded source range with its full-file sha256. Inspect existing behavior before planning an edit. Source mutations are unavailable during planning."
+				t.Function.Description = "Search literal text in one file or, without path, across game.json and src/; read a bounded source range with its full-file sha256. Inspect existing behavior before planning an edit. Source mutations are unavailable during planning."
 				props["operation"] = map[string]interface{}{"type": "string", "enum": []string{"read", "search"}}
 				for _, k := range []string{"content", "old_text", "new_text", "expected_sha256", "edits"} {
 					delete(props, k)
@@ -336,10 +336,9 @@ func GameMakerPhaseToolSchemas(stage, dimension string, variant ...string) []ope
 			t.Function.Description = "Inspect the voxel runtime and definition, list project files, or read the accepted plan. During planning submit set_design; after acceptance edit voxel.json/main.ts with game_maker_file."
 		}
 		required := []string{}
-		for _, k := range []string{"operation", "path"} {
-			if _, ok := props[k]; ok && (k != "path" || (name == "game_maker_file" && stage == "planning")) {
-				required = append(required, k)
-			}
+		// path stays optional: a search without it covers the editable sources.
+		if _, ok := props["operation"]; ok {
+			required = append(required, "operation")
 		}
 		if name == "game_maker_validate" {
 			required = []string{}

@@ -66,7 +66,12 @@ GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
 	if got := page.MustElement("[data-gm-status]").MustText(); got != "game_maker.status_cancelled" {
 		t.Fatal(got)
 	}
-	if got := page.MustElement(".gm-result-card p").MustText(); got != "Game creation exceeded its time limit." {
+	// The card explains the stop in the user's language; the backend wording
+	// stays available as the technical report.
+	if got := page.MustEval(`()=>document.querySelector('.gm-result-card details p').textContent`).Str(); got != "Game creation exceeded its time limit." {
+		t.Fatal(got)
+	}
+	if got := page.MustElement(".gm-result-card .gm-result-hint").MustText(); got != "game_maker.failure_hint_timeout" {
 		t.Fatal(got)
 	}
 	if page.MustHas("[data-gm-phases] .is-current") {

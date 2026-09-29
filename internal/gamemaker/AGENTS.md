@@ -295,6 +295,36 @@ revision publication and standalone export for Phaser and Three.js games.
   authenticate observations independently of the generated game.
 - ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio.
 
+### Agent guidance and repairable checks
+
+- `validationScenarios` in `validation_plan.go` is the single source of the
+  scenarios a build drives. `ValidationPlan` and `BaseChecks` disclose exactly
+  those checks; never describe a check the build does not execute. Planning
+  context and `inspect` carry `base_checks`; building and repair carry
+  `validation_plan`. Both are untrusted context after the prompt prefix and
+  never change a profile fingerprint.
+- `CheckResult.Repairable` and `BuildResult.Repairable` mark an `unavailable`
+  check whose cause lies in the game: an absent or unreachable target, an
+  inactive or unsupported control, or sampled state without the expected
+  consequence. Such a result enters the bounded repair loop and shares its
+  budget with failed checks. Missing browser feedback, an absent measurement or
+  an unavailable runtime stays non-repairable and ends validation as before.
+  Repairable never turns a check into `passed` and never permits publication.
+- `ValidationNextAction` names the next step for every validation answer and
+  must never claim success for unobserved gameplay. Tool answers also return
+  the remaining repair passes.
+- `game_maker_file` `search` without `path` scans `game.json` and `src/**` text
+  only: at most 64 files of 512 KiB each and twelve matches in total. Managed
+  runtimes, compiled output, assets and `.aurago` stay excluded. `path` is
+  therefore optional in every phase schema; other operations still reject a
+  missing path.
+- File errors are `*fs.PathError` values carrying the project-relative path, so
+  `os.IsNotExist` and `errors.Is` keep working. `RedactHostPaths` is the last
+  boundary before text reaches a model, a client or the job ledger; route new
+  error paths through it or through `fileError`.
+- Phase context includes `budget`: tool calls, remaining seconds rounded to
+  30 s and phase guidance. Keep it coarse; exact values defeat prompt reuse.
+
 ### Game Maker tool validation contract
 
 - Game Maker `BuildJob` compiles without waiting; `ValidateJob` additionally
@@ -384,6 +414,16 @@ Do not patch a published game merely because a new starter changed.
   reduction for unchanged 2D/3D starters and full legacy/custom compatibility.
   Local equality/reduction proves no provider cache hit or monetary saving.
 
+- `TestMissingTargetStartsBoundedRepair`, `TestMissingTargetRepairSharesBudget`,
+  `TestMissingObservationStillEndsWithoutRepair` and
+  `TestRepairableCheckClassification` cover repairable unavailable checks.
+  `TestValidationPlanMatchesExecutedChecks`, `TestBaseChecksNameTargetsPerBase`
+  and `TestValidationNextActionNeverClaimsUnobservedSuccess` cover disclosure;
+  `TestAgentFileErrorsStayProjectRelative`, `TestRedactHostPaths` and
+  `TestProjectSearchCoversOnlyEditableSources` cover paths and search. Agent
+  `TestGameMakerToolsDiscloseChecksAndNextAction` and server
+  `TestGameMakerPlanningContextNamesBaseChecks` and
+  `TestGameMakerBudgetIsStableAndPhaseSpecific` cover the tool and context side.
 - `go test ./internal/gamemaker` and focused agent/server tests.
 - `GAMEMAKER_EXPERIENCE_BROWSER=1`: normal-input contact, feedback, checkpoint,
   pause, stage/result/restart and narrow-screen controls in exported 2D/3D fixtures.

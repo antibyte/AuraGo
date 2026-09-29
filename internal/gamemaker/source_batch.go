@@ -100,14 +100,14 @@ func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []Sou
 	for i := range files {
 		f, err := os.CreateTemp(filepath.Dir(files[i].path), ".gm-batch-*")
 		if err != nil {
-			return SourceBatchWrite{}, fmt.Errorf("prepare source edit: %w", err)
+			return SourceBatchWrite{}, fileError("prepare", files[i].rel, err)
 		}
 		files[i].temp = f.Name()
 		_, writeErr := f.WriteString(files[i].after)
 		syncErr := f.Sync()
 		closeErr := f.Close()
 		if err := errors.Join(writeErr, syncErr, closeErr); err != nil {
-			return SourceBatchWrite{}, fmt.Errorf("prepare source edit: %w", err)
+			return SourceBatchWrite{}, fmt.Errorf("prepare %s: %s; no files were written", files[i].rel, s.RedactHostPaths(err.Error()))
 		}
 	}
 	commitErr := func() error {
@@ -122,7 +122,7 @@ func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []Sou
 		for _, f := range files {
 			current, err := os.ReadFile(f.path)
 			if err != nil {
-				return err
+				return fileError("read", f.rel, err)
 			}
 			if string(current) != f.before {
 				return fmt.Errorf("source_conflict: %s changed before commit; no files were written", f.rel)
@@ -140,7 +140,7 @@ func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []Sou
 					s.previewCheck = nil
 					s.mu.Unlock()
 				}
-				return fmt.Errorf("commit source edits: %w", errors.Join(err, rollbackErr))
+				return fmt.Errorf("save %s: %s", f.rel, s.RedactHostPaths(errors.Join(err, rollbackErr).Error()))
 			}
 		}
 		return nil
