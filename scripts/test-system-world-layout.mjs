@@ -4,7 +4,17 @@ import * as THREE from 'three';
 import {createExperience} from '../ui/js/desktop/apps/sysworld-experience.js';
 import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {streetCurve} from '../ui/js/desktop/apps/sysworld-navigation.js';
-import {interiors,streets,stations,tramWaypoints,surfaces,streetAt} from '../ui/js/desktop/apps/sysworld-layout.js';
+import {interiors,streets,stations,tramWaypoints,surfaces,streetAt,dronePad} from '../ui/js/desktop/apps/sysworld-layout.js';
+import vm from 'node:vm';
+
+// The classic HUD draws its plan (map, compass) from mirrored constants; they must match the renderer layout.
+{
+  const context={window:{}};vm.runInNewContext(await fs.readFile('ui/js/desktop/apps/sysworld-hud.js','utf8'),context);
+  const hud=JSON.parse(JSON.stringify({districts:context.window.SysWorld.districts,map:context.window.SysWorld.map}));
+  assert.deepEqual(hud.districts.map(d=>[d[0],d[3],d[4],d[5]]),districts.map(d=>[d.id,d.x,d.z,d.radius]),'HUD district plan');
+  assert.deepEqual(hud.map,{island:[streets.minX,streets.minZ,streets.maxX,streets.maxZ],xs:streets.xs,zs:streets.zs,halfWidth:streets.halfWidth,
+    tram:tramWaypoints,stops:stations.map(s=>[s.platformX,s.platformZ]),pavilions:interiors.map(r=>[r.x,r.z]),pavilion:interiors[0].width,pad:[dronePad.x,dronePad.z]},'HUD street plan');
+}
 
 // Check the complete moving vehicle footprint, including its overhang at bends,
 // against the road actually used by the renderer, not a second expected route.

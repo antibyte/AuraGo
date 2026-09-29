@@ -94,8 +94,8 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"js/desktop/apps/sysworld-audio.js":      {"export function createCityAmbience", "createConvolver", "clearTimeout(eventTimer)", "thunder(", "setMood("},
 		"js/desktop/apps/sysworld-drones.js":     {"export function createDrones", "CatmullRomCurve3", "/^rotor_/", "dispose()"},
 		"js/desktop/apps/sysworld-data.js":       {"const subscribers = new Set()", "inFlight.has(key)", "generation++", "AuraSSE?.off", "normalizeSystemMetrics", "failed: true", "configured", "/api/dashboard/overview", "/api/knowledge-graph/nodes?limit=300"},
-		"js/desktop/apps/sysworld-hud.js":        {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source", "new ResizeObserver", "observer?.disconnect()", "'progressbar'", "sysworld.city.tour_step", "orient(", "drawSpark", "inst.reducedMotion()"},
-		"css/desktop-app-sysworld.css":           {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible", ".sysworld.sw-photo", ".sw-pin[data-pin=\"off\"]", ".sw-compass", ".sw-loading.sw-done"},
+		"js/desktop/apps/sysworld-hud.js":        {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source", "new ResizeObserver", "observer?.disconnect()", "'progressbar'", "sysworld.city.tour_step", "orient(", "drawSpark", "inst.reducedMotion()", "NS.map", "sw-map-camera", "sw-rail-toggle", "aria-expanded"},
+		"css/desktop-app-sysworld.css":           {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible", ".sysworld.sw-photo", ".sw-pin[data-pin=\"off\"]", ".sw-compass", ".sw-loading.sw-done", ".sw-map-board", ".sw-rail.sw-open", "data-mode=\"map\""},
 	} {
 		source := readDesktopAssetText(t, file)
 		for _, want := range markers {

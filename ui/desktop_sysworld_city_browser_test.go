@@ -20,6 +20,14 @@ const cityLabelsClear = `()=>{
     pins.forEach((a,i)=>{if(hit(a,top))throw Error('District label under the header');pins.slice(i+1).forEach(b=>{if(hit(a,b))throw Error('District labels overlap');});});
 }`
 
+// cityPanelsApart fails when the exploration control, rail, inspector and fixed bars overlap.
+const cityPanelsApart = `()=>{
+    const q=s=>{const n=document.querySelector(s);return n&&!n.closest('[hidden]')&&getComputedStyle(n).display!=='none'?n.getBoundingClientRect():null;};
+    const hit=(a,b)=>a&&b&&a.width&&b.width&&a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
+    for(const [a,b] of [['.sw-world>summary','.sw-rail'],['.sw-world>summary','.sw-info'],['.sw-world>summary','.sw-top'],['.sw-world>summary','.sw-bottom'],['.sw-rail','.sw-info'],['.sw-info','.sw-bottom'],['.sw-rail','.sw-bottom']])
+        if(hit(q(a),q(b)))throw Error(a+' overlaps '+b);
+}`
+
 // assertRenderedCity fails when the central canvas area of a screenshot is a flat colour. A
 // broken post-processing chain (for example NaN spreading through bloom) leaves the WebGL
 // canvas uniformly dark while every JavaScript-level check still passes.
@@ -188,6 +196,13 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
                     }
                 }`)
 				page.MustEval(cityLabelsClear)
+				if size.w < 600 && theme == "standard" && density == "comfortable" {
+					page.MustEval(`()=>{const rail=document.querySelector('.sw-rail');if(rail.getBoundingClientRect().width>64)throw Error('Narrow rail must be an icon column');
+                        document.querySelector('.sw-rail-toggle').click();
+                        if(!rail.classList.contains('sw-open')||rail.getBoundingClientRect().width<200||document.activeElement!==document.querySelector('.sw-search'))throw Error('District drawer did not open');
+                        document.querySelector('[data-sw-district="agent"]').click();if(rail.classList.contains('sw-open'))throw Error('Choosing a district must close the drawer');}`)
+				}
+				page.MustEval(cityPanelsApart)
 				page.MustEval(`()=>{
                     const panel=document.querySelector('.sw-world');panel.open=true;
                     for(const section of panel.querySelectorAll('details'))section.open=true;
@@ -232,6 +247,10 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustEval(`()=>{const c=document.querySelector('.sw-compass');if(c.hidden||!c.querySelector('.sw-compass-dial').style.getPropertyValue('--h')||c.querySelectorAll('.sw-compass-district[data-state]').length!==7)throw Error('Street compass inactive');}`)
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="map"]').click();}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).raf`)
+	page.MustEval(`()=>{const m=document.querySelector('.sw-map');
+        if(m.hidden||m.querySelectorAll('.sw-map-block[data-state]').length!==7||m.querySelectorAll('.sw-map-street').length!==8||!m.querySelector('.sw-map-tram'))throw Error('Map plan incomplete');
+        if(!/^translate\([-\d.]+ [-\d.]+\) rotate\([-\d.]+\)$/.test(m.querySelector('.sw-map-camera').getAttribute('transform')||''))throw Error('Map lacks the camera position');
+        if(getComputedStyle(document.querySelector('.sw-world')).display!=='none')throw Error('Exploration control covers the map');}`)
 	page.MustScreenshot(filepath.Join(dir, "city-map.png"))
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="orbit"]').click();aurora.minimizeWindow(cityId)}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).raf`)

@@ -1553,6 +1553,17 @@ registration lives in `internal/desktop/types.go`.
   turn or a 1.5 m step. Reduced motion skips the glide, fades and caption motion.
   The city browser matrix checks label overlap, hover, compass, tour caption and
   the photo PNG.
+- The map is an SVG plan drawn from `NS.map`/`NS.districts`, mirrored constants of
+  `sysworld-layout.js` and the scene's districts (`node
+  scripts/test-system-world-layout.mjs` keeps them in step): water, quay, streets,
+  blocks in state colours with counts, tram loop and stops, pavilions, drone pad,
+  legend and the last camera position. It needs no WebGL and stays the
+  context-loss fallback; the exploration control hides in map mode. At 760 px and
+  below the rail is an icon column whose toggle opens a drawer with search
+  (choosing an entry or Escape closes it and clears the query), and the inspector
+  is a bottom sheet beside the rail that yields to street, tour, the open
+  exploration panel and the drawer. The browser matrix fails when the exploration
+  control, rail, inspector or fixed bars overlap at any tested size.
 - Verify `node scripts/test-system-world.mjs` (includes the navigation
   blockade/sidestep units and a 60-minute five-robot simulation), `node
   scripts/build-system-world.js --check`, focused Sysworld Go tests, `go test
@@ -2088,7 +2099,7 @@ registration lives in `internal/desktop/types.go`.
   atmosphere post chain, camera modes and disposal. Build to
   `ui/js/vendor/system-world/`; never classic-script load this source.
 - `sysworld-hud.js` - Theme-native, localized HTML metrics with CPU/RAM sparklines,
-  district navigation with state badges, entity search, inspector, map, street
+  district navigation with state badges, entity search, inspector, SVG plan map, street
   controls and compass, tour lower third, loading progress, photo mode and
   decluttered projected district labels.
 - `sysworld-life.js` - Shared robot assets, street routes, hover lights and district

@@ -85,6 +85,11 @@ district ahead. Photo mode (camera button or H; H or Esc leaves it) hides the
 interface and saves the rendered frame as a PNG. Reduced motion skips the glide,
 the fades and the caption animation.
 
+The map is a plan of the island (streets, tram loop, pavilions and district
+blocks in their state colours) with the last camera position; it works without
+WebGL. On narrow windows the district rail becomes an icon column with a search
+drawer, and details open as a bottom sheet beside it.
+
 Sound is initially off and requires a gesture. Ambience, effects and tower speech
 have separate gains. Local Web Audio synthesis supplies spatial machine/water/rain
 sources and bounded footsteps, door, lift and tram effects; interiors attenuate and

@@ -1,13 +1,21 @@
 (function () {
     'use strict';
     const NS = window.SysWorld = window.SysWorld || {};
+    // [id, label key, icon, x, z, radius] in city metres; mirrors the scene's districts.
     NS.districts = [
-        ['agent','sysworld.zone.core','chat',0,-12], ['infra','sysworld.zone.infra','cpu',-43,-53],
-        ['integrations','sysworld.zone.integrations','network',43,-10], ['missions','sysworld.zone.missions','calendar',43,36],
-        ['memory','sysworld.zone.memory','folder',-43,-10], ['graph','sysworld.zone.graph','globe',-43,36],
-        ['operations','sysworld.city.operations','settings',0,36],
+        ['agent','sysworld.zone.core','chat',0,-12,13], ['infra','sysworld.zone.infra','cpu',-43,-53,18],
+        ['integrations','sysworld.zone.integrations','network',43,-10,14], ['missions','sysworld.zone.missions','calendar',43,36,15],
+        ['memory','sysworld.zone.memory','folder',-43,-10,14], ['graph','sysworld.zone.graph','globe',-43,36,17],
+        ['operations','sysworld.city.operations','settings',0,36,6],
     ];
-    const SVG = 'http://www.w3.org/2000/svg', SPARK = 60, PIN_FAR = 260;
+    // Plan geometry mirrored from sysworld-layout.js; scripts/test-system-world-layout.mjs keeps both in step.
+    NS.map = {
+        island: [-85,-94,85,80], xs: [-67,-18,18,67], zs: [-77,-32,13,59], halfWidth: 6,
+        tram: [[-67,-77],[-67,59],[67,59],[67,-77]], stops: [[-74,-53],[-74,-10],[-43,64.5],[0,64.5],[43,64.5],[74,-10],[0,-84]],
+        pavilions: [[0,73],[-43,73],[43,73]], pavilion: 12, pad: [78,30],
+    };
+    const SVG = 'http://www.w3.org/2000/svg', SPARK = 60, PIN_FAR = 260, VIEW = [-100,-107,200,200];
+    const svgEl = (tag, attrs) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v); return n; };
     // Labels never cover these panels; their rectangles are cached by a ResizeObserver, never read per frame.
     const PANELS = '.sw-top,.sw-rail,.sw-info,.sw-bottom,.sw-world,.sw-tour,.sw-message';
     const TOP = { l: -1e9, r: 1e9, t: -1e9, b: 0 };
@@ -43,7 +51,15 @@
         header.append(stats); shell.append(header);
         const rail = el('aside','sw-rail sw-glass');
         const search = el('input','sw-search'); search.type = 'search'; search.placeholder = L('sysworld.city.search'); search.setAttribute('aria-label',search.placeholder);
-        rail.append(search);
+        // Narrow layouts show an icon column; this toggle opens the full rail with search as a drawer.
+        const drawer = btn('districts',L('sysworld.city.search'),'search'); drawer.classList.add('sw-rail-toggle'); drawer.setAttribute('aria-expanded','false');
+        const openRail = open => {
+            rail.classList.toggle('sw-open',open); drawer.setAttribute('aria-expanded',String(open));
+            if(open)search.focus({preventScroll:true}); else if(search.value){search.value='';renderResults();}
+        };
+        drawer.addEventListener('click', () => openRail(!rail.classList.contains('sw-open')));
+        rail.addEventListener('keydown', e => { if(e.key==='Escape'&&rail.classList.contains('sw-open')){openRail(false);drawer.focus();e.stopPropagation();} });
+        rail.append(drawer, search);
         const nav = el('nav','sw-districts'); nav.setAttribute('aria-label',L('sysworld.legend'));
         const counts = {}, districtButtons = {};
         NS.districts.forEach(([id,key,symbol]) => {
@@ -67,13 +83,33 @@
         inspector.append(tabs);
         const body = el('div','sw-info-body'); body.tabIndex=0; inspector.append(body);
         const source = el('footer','sw-source'); inspector.append(source); shell.append(inspector);
+        // Plan view without WebGL: water, quay, streets, tram loop, pavilions, district blocks in state colours, camera.
         const map = el('div','sw-map sw-glass'); map.hidden=true; map.setAttribute('aria-label',L('sysworld.city.map'));
-        const mapHeading=el('h2','',L('sysworld.city.map')); map.append(mapHeading);
-        const mapGrid=el('div','sw-map-grid');
+        map.append(el('h2','',L('sysworld.city.map')));
+        const P=NS.map,[x0,z0,x1,z1]=P.island,hw=P.halfWidth,mapBlocks={},mapButtons={},mapCounts={};
+        const stage=el('div','sw-map-stage'),board=el('div','sw-map-board'),plan=svgEl('svg',{class:'sw-map-svg',viewBox:VIEW.join(' '),'aria-hidden':'true'});
+        plan.append(svgEl('rect',{class:'sw-map-water',x:VIEW[0],y:VIEW[1],width:VIEW[2],height:VIEW[3]}),svgEl('rect',{class:'sw-map-island',x:x0,y:z0,width:x1-x0,height:z1-z0,rx:5}));
+        for(const x of P.xs)plan.append(svgEl('rect',{class:'sw-map-street',x:x-hw,y:z0,width:hw*2,height:z1-z0}));
+        for(const z of P.zs)plan.append(svgEl('rect',{class:'sw-map-street',x:x0,y:z-hw,width:x1-x0,height:hw*2}));
+        for(let i=0;i<3;i++)for(let j=0;j<3;j++){
+            const l=P.xs[i]+hw,r=P.xs[i+1]-hw,t=P.zs[j]+hw,b=P.zs[j+1]-hw,block=svgEl('rect',{class:'sw-map-block',x:l,y:t,width:r-l,height:b-t,rx:2});
+            const d=NS.districts.find(d=>d[3]>l&&d[3]<r&&d[4]>t&&d[4]<b);if(d)mapBlocks[d[0]]=block;plan.append(block);
+        }
+        for(const x of P.xs)plan.append(svgEl('line',{class:'sw-map-lane',x1:x,y1:z0+4,x2:x,y2:z1-4}));
+        for(const z of P.zs)plan.append(svgEl('line',{class:'sw-map-lane',x1:x0+4,y1:z,x2:x1-4,y2:z}));
+        plan.append(svgEl('polygon',{class:'sw-map-tram',points:P.tram.map(p=>p.join(',')).join(' ')}));
+        for(const [x,z]of P.pavilions)plan.append(svgEl('rect',{class:'sw-map-pavilion',x:x-P.pavilion/2,y:z-P.pavilion/2,width:P.pavilion,height:P.pavilion,rx:1.5}));
+        plan.append(svgEl('circle',{class:'sw-map-pad',cx:P.pad[0],cy:P.pad[1],r:4.5}));
+        for(const [x,z]of P.stops)plan.append(svgEl('circle',{class:'sw-map-stop',cx:x,cy:z,r:1.8}));
+        const viewer=svgEl('g',{class:'sw-map-camera'}),seen=[0,0,0,-1];viewer.append(svgEl('path',{d:'M0 0L-10 -27Q0 -31 10 -27Z'}),svgEl('circle',{r:2.8}));viewer.style.display='none';plan.append(viewer);
+        board.append(plan);
         NS.districts.forEach(([id,key,symbol,x,z])=>{
-            const node=btn(id,L(key),symbol); node.style.left=((x+83)/166*100)+'%';node.style.top=((z+88)/168*100)+'%';
-            node.addEventListener('click',()=>inst.select(id));mapGrid.append(node);
-        });map.append(mapGrid);shell.append(map);
+            const node=btn(id,L(key),symbol); node.style.left=((x-VIEW[0])/VIEW[2]*100)+'%';node.style.top=((z-VIEW[1])/VIEW[3]*100)+'%';
+            mapCounts[id]=el('small','','—');node.append(mapCounts[id]);node.addEventListener('click',()=>inst.select(id));board.append(node);mapButtons[id]=node;
+        });
+        const legend=el('div','sw-map-legend');
+        for(const [value,key]of[['running','sysworld.state.running'],['idle','sysworld.state.idle'],['error','sysworld.state.error'],['unknown','sysworld.city.unknown']]){const item=el('span','',L(key));item.dataset.state=value;legend.append(item);}
+        stage.append(board);map.append(stage,legend);shell.append(map);
         // Tour lower third: station, district, state and one key figure.
         const tour=el('div','sw-tour sw-glass'),tourStep=el('div','sw-eyebrow'),tourTitle=el('strong','sw-tour-title'),tourMeta=el('div','sw-tour-meta');
         const tourState=el('span','sw-state'),tourMetric=el('span','sw-muted');tourMeta.append(tourState,tourMetric);tour.append(tourStep,tourTitle,tourMeta);tour.hidden=true;shell.append(tour);
@@ -120,7 +156,7 @@
         });
         if(root.clientWidth<760){inspector.hidden=true;root.classList.remove('sw-inspecting');}
         let current=[], snapshot={sources:{},events:[]}, selected='agent', activeTab='overview', panelSignature='', resultSignature='';
-        let focusDistrict='agent', hovered=null, photoOn=false, loadingPercent=0, sparkAt=0, observer=null, panels=[], bounds={width:0,height:0}, heading=null;
+        let focusDistrict='agent', hovered=null, photoOn=false, loadingPercent=0, sparkAt=0, observer=null, panels=[], bounds={width:0,height:0}, heading=null, viewerKnown=false;
         const pinSize=new Map(), pinAt=new Map();
         function sparkline() {
             const svg=document.createElementNS(SVG,'svg');svg.setAttribute('class','sw-spark');svg.setAttribute('viewBox','0 0 60 18');
@@ -135,7 +171,13 @@
         }
         function districtState(id, value) {
             if(pins[id].dataset.state===value)return;
-            pins[id].dataset.state=value;districtButtons[id].dataset.state=value;compassDots[id].dataset.state=value;
+            for(const node of [pins[id],districtButtons[id],compassDots[id],mapBlocks[id],mapButtons[id]])node.dataset.state=value;
+        }
+        // Last known camera on the plan; clamped to the plan edge while the camera hovers outside it.
+        function placeViewer() {
+            if(!viewerKnown)return;
+            const x=Math.max(VIEW[0]+6,Math.min(VIEW[0]+VIEW[2]-6,seen[0])),z=Math.max(VIEW[1]+6,Math.min(VIEW[1]+VIEW[3]-6,seen[1]));
+            viewer.setAttribute('transform','translate('+x.toFixed(1)+' '+z.toFixed(1)+') rotate('+(Math.atan2(seen[2],-seen[3])*180/Math.PI).toFixed(1)+')');viewer.style.display='';
         }
         function heat() {
             for(const [id,p]of Object.entries(pins)){p.classList.toggle('sw-hot',id===focusDistrict||id===hovered);districtButtons[id].classList.toggle('sw-hover',id===hovered);}
@@ -253,7 +295,7 @@
                 }
                 stats.classList.toggle('sw-replay',!!inst.replaying);
                 NS.districts.forEach(([id])=>{
-                    counts[id].textContent=rows.filter(e=>e.district===id&&e.id!==id).length||'·';
+                    counts[id].textContent=mapCounts[id].textContent=rows.filter(e=>e.district===id&&e.id!==id).length||'·';
                     const e=rows.find(e=>e.id===id);districtState(id,!e||e.stale?'unknown':e.state);
                 });
                 focusDistrict=rows.find(e=>e.id===selected)?.district||focusDistrict;heat();
@@ -263,6 +305,7 @@
             select(id) {
                 selected=id;activeTab='overview';inspector.hidden=false;inst.root.classList.add('sw-inspecting');
                 const entity=current.find(e=>e.id===id);focusDistrict=entity?.district||null;heat();
+                if(rail.classList.contains('sw-open')){if(list.contains(document.activeElement)||document.activeElement===search)drawer.focus({preventScroll:true});openRail(false);}
                 for(const [district,b]of Object.entries(districtButtons)){const active=entity?.district===district;b.classList.toggle('active',active);b.setAttribute('aria-current',String(active));}
                 renderPanel(true);
             },
@@ -272,6 +315,7 @@
                 map.hidden=value!=='map';labels.hidden=value==='map'||value==='street';help.hidden=value!=='street';
                 compass.hidden=value!=='street';tour.hidden=value!=='tour';photo.hidden=value==='map';
                 if(value==='street')heading=null;
+                if(value==='map')placeViewer();
                 Object.entries(modeButtons).forEach(([id,b])=>{b.classList.toggle('active',value===id);b.setAttribute('aria-pressed',String(value===id));});
             },
             tour(id) {
@@ -285,6 +329,7 @@
             },
             // Street heading; only redrawn after a turn of 1.5° or a step of 1.5 m.
             orient(x,z,fx,fz) {
+                seen[0]=x;seen[1]=z;seen[2]=fx;seen[3]=fz;viewerKnown=true;
                 if(compass.hidden)return;
                 const h=Math.atan2(fx,-fz)*180/Math.PI;
                 if(heading&&Math.abs(wrap(h-heading[0]))<1.5&&Math.hypot(x-heading[1],z-heading[2])<1.5)return;
