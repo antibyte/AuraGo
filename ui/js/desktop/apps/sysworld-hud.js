@@ -7,6 +7,12 @@
         ['memory','sysworld.zone.memory','folder',-43,-10], ['graph','sysworld.zone.graph','globe',-43,36],
         ['operations','sysworld.city.operations','settings',0,36],
     ];
+    const SVG = 'http://www.w3.org/2000/svg', SPARK = 60, PIN_FAR = 260;
+    // Labels never cover these panels; their rectangles are cached by a ResizeObserver, never read per frame.
+    const PANELS = '.sw-top,.sw-rail,.sw-info,.sw-bottom,.sw-world,.sw-tour,.sw-message';
+    const TOP = { l: -1e9, r: 1e9, t: -1e9, b: 0 };
+    const wrap = angle => (angle + 540) % 360 - 180;
+    const overlaps = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
     NS.createHud = function (inst) {
         const L = inst.L, root = inst.root, esc = inst.ctx.esc;
         const icon = name => inst.ctx.iconMarkup?.(name, '', 'sw-icon', 20, 'action') || '';
@@ -17,13 +23,22 @@
             node.innerHTML = (symbol ? icon(symbol) : '') + '<span class="sw-btn-label">' + esc(label) + '</span>'; return node;
         };
         const shell = el('div','sysworld-hud'); root.append(shell);
+        const fade = el('div','sw-fade'); shell.append(fade);
         const header = el('header','sw-top sw-glass');
         const wordmark = el('div','sw-wordmark','AURA / '); wordmark.append(el('strong','',L('sysworld.city.metropolis')));
         header.append(wordmark);
-        const stats = el('div','sw-stats'), statEls = {};
+        // Street compass: north is -z; ticks every 15°, district dots in their state colour.
+        const compass = el('div','sw-compass'), dial = el('div','sw-compass-dial'), facing = el('div','sw-compass-caption'), bearings = [], compassDots = {};
+        compass.hidden = true; compass.setAttribute('aria-hidden','true');
+        for (const [key,angle] of [['n',0],['e',90],['s',180],['w',270]]) { const n = el('span','sw-compass-mark',L('sysworld.compass.'+key)); n.dataset.cardinal = key; dial.append(n); bearings.push({ n, angle }); }
+        NS.districts.forEach(([id,key,,x,z]) => { const n = el('i','sw-compass-district'); dial.append(n); compassDots[id] = n; bearings.push({ n, id, key, x, z }); });
+        compass.append(dial, facing); header.append(compass);
+        const stats = el('div','sw-stats'), statEls = {}, sparks = {}, history = { cpu: [], ram: [] };
         for (const name of ['cpu','ram','missions','agent']) {
             const node = el('div','sw-stat'); node.append(el('span','sw-muted',L('sysworld.stats.'+name)));
-            statEls[name] = el('strong','', '—'); statEls[name].dataset.swStat = name; node.append(statEls[name]); stats.append(node);
+            statEls[name] = el('strong','', '—'); statEls[name].dataset.swStat = name; node.append(statEls[name]);
+            if (history[name]) { sparks[name] = sparkline(); node.append(sparks[name]); }
+            stats.append(node);
         }
         header.append(stats); shell.append(header);
         const rail = el('aside','sw-rail sw-glass');
@@ -59,6 +74,9 @@
             const node=btn(id,L(key),symbol); node.style.left=((x+83)/166*100)+'%';node.style.top=((z+88)/168*100)+'%';
             node.addEventListener('click',()=>inst.select(id));mapGrid.append(node);
         });map.append(mapGrid);shell.append(map);
+        // Tour lower third: station, district, state and one key figure.
+        const tour=el('div','sw-tour sw-glass'),tourStep=el('div','sw-eyebrow'),tourTitle=el('strong','sw-tour-title'),tourMeta=el('div','sw-tour-meta');
+        const tourState=el('span','sw-state'),tourMetric=el('span','sw-muted');tourMeta.append(tourState,tourMetric);tour.append(tourStep,tourTitle,tourMeta);tour.hidden=true;shell.append(tour);
         const controls = el('footer','sw-bottom sw-glass'), modes = el('div','sw-modes'), modeButtons={};
         for(const [id,key,symbol] of [['orbit','sysworld.btn.overview','globe'],['street','sysworld.city.street','users'],['tour','sysworld.city.tour','run'],['map','sysworld.city.map','grid']]){
             const node=btn(id,L(key),symbol);node.dataset.swMode=id;delete node.dataset.swAction;modes.append(node);modeButtons[id]=node;
@@ -74,7 +92,9 @@
         const volume=el('input','sw-volume');volume.type='range';volume.min=0;volume.max=35;volume.value=18;volume.hidden=true;
         volume.setAttribute('aria-label',L('desktop.radio_volume'));volume.title=L('desktop.radio_volume');
         volume.addEventListener('input',()=>inst.setVolume(Number(volume.value)/100));
-        controls.append(modes,status,sound,volume,quality,refresh);shell.append(controls);
+        const photo=btn('photo',L('sysworld.city.photo'),'camera');photo.disabled=true;photo.setAttribute('aria-pressed','false');
+        photo.addEventListener('click',()=>inst.setPhoto(true));
+        controls.append(modes,status,sound,volume,quality,photo,refresh);shell.append(controls);
         const help=el('div','sw-street-help sw-glass');help.hidden=true;help.append(el('span','',L('sysworld.city.street_help')));
         const lock=btn('pointer-lock',L('sysworld.city.mouse_look'),'eye');lock.addEventListener('click',()=>inst.city?.lockPointer()?.catch(()=>{}));help.append(lock);
         const movement=el('div','sw-movement');
@@ -84,13 +104,53 @@
             ['pointerup','pointercancel','lostpointercapture'].forEach(type=>button.addEventListener(type,()=>inst.city?.moveKey(key,false)));
             movement.append(button);
         }help.append(movement);shell.append(help);
-        const message=el('div','sw-message sw-glass',L('sysworld.loading'));message.setAttribute('role','status');shell.append(message);
+        const message=el('div','sw-message sw-glass');message.setAttribute('role','status');message.hidden=true;shell.append(message);
+        // Loading card fed by real byte progress (models of the tier plus surface textures).
+        const loading=el('div','sw-loading sw-glass'),track=el('b','sw-loading-track'),loadingBar=el('i','sw-loading-bar');
+        loading.setAttribute('role','progressbar');loading.setAttribute('aria-label',L('sysworld.loading'));
+        for(const [name,value]of[['aria-valuemin','0'],['aria-valuemax','100'],['aria-valuenow','0']])loading.setAttribute(name,value);
+        track.append(loadingBar);loading.append(el('span','',L('sysworld.loading')),track);shell.append(loading);
+        const photoBar=el('div','sw-photo-bar sw-glass');photoBar.hidden=true;
+        const save=btn('photo-save',L('sysworld.city.photo_save'),'download');save.addEventListener('click',()=>inst.savePhoto());
+        const leave=btn('photo-exit',L('sysworld.city.photo_exit'),'x');leave.addEventListener('click',()=>inst.setPhoto(false));
+        photoBar.append(el('span','sw-muted',L('sysworld.city.photo_hint')),save,leave);shell.append(photoBar);
         const labels=el('div','sw-labels');root.append(labels);
         const pins={};NS.districts.forEach(([id,key])=>{
-            const p=btn(id,L(key),'');p.className='sw-pin';p.dataset.district=id;p.addEventListener('click',()=>inst.select(id));labels.append(p);pins[id]=p;
+            const p=btn(id,L(key),'');p.className='sw-pin';p.dataset.district=id;p.dataset.pin='off';p.addEventListener('click',()=>inst.select(id));labels.append(p);pins[id]=p;
         });
         if(root.clientWidth<760){inspector.hidden=true;root.classList.remove('sw-inspecting');}
         let current=[], snapshot={sources:{},events:[]}, selected='agent', activeTab='overview', panelSignature='', resultSignature='';
+        let focusDistrict='agent', hovered=null, photoOn=false, loadingPercent=0, sparkAt=0, observer=null, panels=[], bounds={width:0,height:0}, heading=null;
+        const pinSize=new Map(), pinAt=new Map();
+        function sparkline() {
+            const svg=document.createElementNS(SVG,'svg');svg.setAttribute('class','sw-spark');svg.setAttribute('viewBox','0 0 60 18');
+            svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('aria-hidden','true');
+            svg.append(document.createElementNS(SVG,'path'),document.createElementNS(SVG,'polyline'));return svg;
+        }
+        function drawSpark(svg, values) {
+            const step=60/(SPARK-1),start=60-(values.length-1)*step;
+            const points=values.map((v,i)=>(start+i*step).toFixed(1)+','+(17-Math.max(0,Math.min(100,v))*.16).toFixed(1));
+            svg.lastChild.setAttribute('points',points.join(' '));
+            svg.firstChild.setAttribute('d',values.length>1?'M'+start.toFixed(1)+',18L'+points.join('L')+'L60,18Z':'');
+        }
+        function districtState(id, value) {
+            if(pins[id].dataset.state===value)return;
+            pins[id].dataset.state=value;districtButtons[id].dataset.state=value;compassDots[id].dataset.state=value;
+        }
+        function heat() {
+            for(const [id,p]of Object.entries(pins)){p.classList.toggle('sw-hot',id===focusDistrict||id===hovered);districtButtons[id].classList.toggle('sw-hover',id===hovered);}
+        }
+        function measure() {
+            const r=root.getBoundingClientRect();bounds={width:r.width,height:r.height};panels=[];
+            for(const n of root.querySelectorAll(PANELS)){const b=n.getBoundingClientRect();if(b.width&&b.height)panels.push({l:b.left-r.left,t:b.top-r.top,r:b.right-r.left,b:b.bottom-r.top});}
+        }
+        function observe() {
+            observer=new ResizeObserver(entries=>{
+                for(const entry of entries){const size=entry.borderBoxSize?.[0];if(entry.target.classList.contains('sw-pin')&&size?.inlineSize)pinSize.set(entry.target,[size.inlineSize,size.blockSize]);}
+                measure();
+            });
+            for(const n of [root,...root.querySelectorAll(PANELS),...Object.values(pins)])observer.observe(n);
+        }
         function formatUptimePhrase(key, vars) { return inst.ctx.t(key, vars); }
         function fmtMoney(v) {
             if(typeof v!=='number')return '—';
@@ -179,36 +239,106 @@
         return {
             update(data, rows) {
                 snapshot=data;current=rows;inst.entities=rows;
-                const metric=NS.data.normalizeSystemMetrics(data.sources.system?.data), agent=data.sources.overview?.data?.agent;
+                const metric=NS.data.normalizeSystemMetrics(data.sources.system?.data), agent=data.sources.overview?.data?.agent, system=data.sources.system;
                 statEls.cpu.textContent=format(metric.cpu,'percent');statEls.ram.textContent=format(metric.ram,'percent');
-                statEls.cpu.classList.toggle('sw-stale',!data.sources.system?.at||!!data.sources.system?.failed);
-                statEls.ram.classList.toggle('sw-stale',!data.sources.system?.at||!!data.sources.system?.failed);
+                statEls.cpu.classList.toggle('sw-stale',!system?.at||!!system?.failed);
+                statEls.ram.classList.toggle('sw-stale',!system?.at||!!system?.failed);
                 statEls.missions.textContent=format(data.sources.overview?.data?.missions?.total,'number');
                 statEls.agent.textContent=typeof agent?.busy==='boolean'?L(agent.busy?'sysworld.agent.busy':'sysworld.agent.idle'):'—';
+                statEls.agent.parentElement.classList.toggle('sw-busy',agent?.busy===true);
+                // Live history only: replayed snapshots never enter the sparklines.
+                if(!inst.replaying&&system?.at&&system.at!==sparkAt&&!system.failed){
+                    sparkAt=system.at;
+                    for(const key of ['cpu','ram'])if(Number.isFinite(metric[key])){history[key].push(metric[key]);if(history[key].length>SPARK)history[key].shift();drawSpark(sparks[key],history[key]);}
+                }
+                stats.classList.toggle('sw-replay',!!inst.replaying);
                 NS.districts.forEach(([id])=>{
                     counts[id].textContent=rows.filter(e=>e.district===id&&e.id!==id).length||'·';
-                    const e=rows.find(e=>e.id===id);pins[id].dataset.state=!e||e.stale?'unknown':e.state;
+                    const e=rows.find(e=>e.id===id);districtState(id,!e||e.stale?'unknown':e.state);
                 });
+                focusDistrict=rows.find(e=>e.id===selected)?.district||focusDistrict;heat();
                 const stale=rows.filter(e=>e.id===e.district&&e.stale).length;status.textContent=L(stale?'sysworld.city.partial':'sysworld.city.live');
                 status.classList.toggle('sw-stale',stale>0);renderPanel();renderResults();
             },
             select(id) {
                 selected=id;activeTab='overview';inspector.hidden=false;inst.root.classList.add('sw-inspecting');
-                const entity=current.find(e=>e.id===id);
+                const entity=current.find(e=>e.id===id);focusDistrict=entity?.district||null;heat();
                 for(const [district,b]of Object.entries(districtButtons)){const active=entity?.district===district;b.classList.toggle('active',active);b.setAttribute('aria-current',String(active));}
                 renderPanel(true);
             },
+            hover(id){if(hovered===id)return;hovered=id;heat();},
             mode(value) {
+                root.dataset.mode=value;
                 map.hidden=value!=='map';labels.hidden=value==='map'||value==='street';help.hidden=value!=='street';
+                compass.hidden=value!=='street';tour.hidden=value!=='tour';photo.hidden=value==='map';
+                if(value==='street')heading=null;
                 Object.entries(modeButtons).forEach(([id,b])=>{b.classList.toggle('active',value===id);b.setAttribute('aria-pressed',String(value===id));});
             },
+            tour(id) {
+                const index=NS.districts.findIndex(d=>d[0]===id);if(index<0)return;
+                const e=current.find(e=>e.id===id),row=e?.rows?.find(r=>r.value!=null&&r.value!=='');
+                tourStep.textContent=L('sysworld.city.tour')+' · '+inst.ctx.t('sysworld.city.tour_step',{index:index+1,total:NS.districts.length});
+                tourTitle.textContent=L(NS.districts[index][1]);
+                tourState.textContent=e?stateText(e):'';tourState.dataset.state=e?(e.stale?'stale':e.state):'unknown';
+                tourMetric.textContent=row?L(row.key)+' '+format(row.value,row.format):'';
+                if(!inst.reducedMotion())tour.animate([{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],{duration:450,easing:'cubic-bezier(.2,.7,.2,1)'});
+            },
+            // Street heading; only redrawn after a turn of 1.5° or a step of 1.5 m.
+            orient(x,z,fx,fz) {
+                if(compass.hidden)return;
+                const h=Math.atan2(fx,-fz)*180/Math.PI;
+                if(heading&&Math.abs(wrap(h-heading[0]))<1.5&&Math.hypot(x-heading[1],z-heading[2])<1.5)return;
+                heading=[h,x,z];dial.style.setProperty('--h',h.toFixed(1));
+                let ahead=null;
+                for(const b of bearings){
+                    const r=wrap((b.id?Math.atan2(b.x-x,z-b.z)*180/Math.PI:b.angle)-h);b.n.style.setProperty('--r',(r/90).toFixed(3));
+                    if(b.id&&Math.abs(r)<14){const d=Math.hypot(b.x-x,b.z-z);if(!ahead||d<ahead.d)ahead={key:b.key,d};}
+                }
+                const text=ahead?L(ahead.key)+' · '+Math.round(ahead.d).toLocaleString()+' m':'';
+                if(facing.textContent!==text)facing.textContent=text;
+            },
+            cut(){if(!inst.reducedMotion())fade.animate([{opacity:.92},{opacity:0}],{duration:450,easing:'ease-out'});},
+            progress(loaded,expected){
+                const percent=expected>0?Math.min(99,Math.floor(loaded/expected*100)):0;if(percent<=loadingPercent)return;
+                loadingPercent=percent;loading.setAttribute('aria-valuenow',String(percent));loadingBar.style.transform='scaleX('+percent/100+')';
+            },
+            photo(on){photoOn=on;root.classList.toggle('sw-photo',on);photoBar.hidden=!on;photo.classList.toggle('active',on);photo.setAttribute('aria-pressed',String(on));},
             quality(value,actual){quality.value=value;quality.title=L('sysworld.btn.quality')+': '+L('sysworld.quality.'+actual);},
             sound(enabled){sound.disabled=false;sound.setAttribute('aria-pressed',String(enabled));sound.classList.toggle('active',enabled);
                 sound.title=L(enabled?'sysworld.city.sound_off':'sysworld.city.sound_on');sound.setAttribute('aria-label',sound.title);volume.hidden=!enabled;},
-            ready(){message.hidden=true;},
-            error(key){message.textContent=L(key);message.hidden=false;},
-            project(city){for(const[id,p]of Object.entries(pins)){const point=city.project(id);p.hidden=!point?.visible;if(point)p.style.transform='translate('+point.x+'px,'+point.y+'px) translate(-50%,-100%)';}},
-            dispose(){shell.remove();labels.remove();},
+            ready(clear=true){
+                loadingPercent=100;loading.setAttribute('aria-valuenow','100');loadingBar.style.transform='scaleX(1)';loading.classList.add('sw-done');
+                photo.disabled=false;if(clear)message.hidden=true;
+            },
+            error(key){message.textContent=L(key);message.hidden=false;loading.classList.add('sw-done');},
+            project(city){
+                if(labels.hidden||photoOn)return;
+                if(!observer)observe();
+                const items=NS.districts.map(([id])=>({id,p:pins[id],point:city.project(id)}));
+                const rank=item=>item.id===focusDistrict?0:item.id===hovered?1:item.p.dataset.state==='error'?2:item.p.dataset.state==='running'?3:4;
+                // Shown pins keep their place against slightly nearer rivals, so orbiting does not flicker.
+                const reach=item=>(item.point?.distance??1e9)-(item.p.dataset.pin==='off'?0:40);
+                items.sort((a,b)=>rank(a)-rank(b)||reach(a)-reach(b));
+                const placed=[];
+                for(const item of items){
+                    const {p,point}=item,[w,h]=pinSize.get(p)||[90,24];let pin='off';
+                    let shift=0;
+                    if(point?.visible){
+                        const box={l:point.x-w/2-4,r:point.x+w/2+4,t:point.y-h-4,b:point.y+14};
+                        // A label cut by a panel's lower edge (or the top of the view) slides down its building by up to 90 px.
+                        for(const o of [TOP,...panels])if(overlaps(o,box)&&o.b-box.t<=90)shift=Math.max(shift,o.b+2-box.t);
+                        box.t+=shift;box.b+=shift;
+                        if(box.l>=0&&box.t>=0&&box.r<=bounds.width&&box.b<=bounds.height&&!placed.some(o=>overlaps(o,box))&&!panels.some(o=>overlaps(o,box))){
+                            placed.push(box);pin=rank(item)<2||point.distance<PIN_FAR?'near':'far';
+                        }
+                    }
+                    if(p.dataset.pin!==pin)p.dataset.pin=pin;
+                    if(pin==='off')continue;
+                    const x=Math.round(point.x*2)/2,y=Math.round((point.y+shift)*2)/2,at=pinAt.get(p);
+                    if(!at||at[0]!==x||at[1]!==y){pinAt.set(p,[x,y]);p.style.transform='translate('+x+'px,'+y+'px) translate(-50%,-100%)';}
+                }
+            },
+            dispose(){observer?.disconnect();shell.remove();labels.remove();},
         };
     };
 })();

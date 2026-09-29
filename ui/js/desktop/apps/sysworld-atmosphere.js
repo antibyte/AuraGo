@@ -155,8 +155,9 @@ export function createAtmosphere(scene, options = {}) {
   const starMaterial = shader(STARS.vertex, STARS.fragment, { time, pointScale, cloud }, { ...additive, fog: false });
   const stars = new THREE.Points(starGeometry, starMaterial); stars.frustumCulled = false; stars.renderOrder = -9; group.add(stars);
   geometries.push(starGeometry); materials.push(starMaterial);
-  // Animated water replaces the flat standard sea; fog still fades it to the horizon.
-  const sea = own(new THREE.PlaneGeometry(1800, 1800), shader(SEA.vertex, SEA.fragment, {
+  // Animated water replaces the flat standard sea; fog still fades it to the horizon. It reaches
+  // past the distant coastline, so high views never see the sky dome through a gap.
+  const sea = own(new THREE.PlaneGeometry(2800, 2800), shader(SEA.vertex, SEA.fragment, {
     time, day, glow: { value: glow }, island: { value: new THREE.Vector4(0, -7, 85, 87) }, deep: { value: new THREE.Color(0x061420) }, shallow: { value: new THREE.Color(0x0e3350) }, sky: { value: horizon.clone().multiplyScalar(.7) },
     sunDir: { value: sunDir }, sunColor: { value: new THREE.Color(0xdff0ff) }, fogColor: { value: new THREE.Color() }, fogDensity: { value: 0 }, fogNear: { value: 1 }, fogFar: { value: 1000 },
   }, { fog: true }));

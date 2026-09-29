@@ -1535,6 +1535,24 @@ registration lives in `internal/desktop/types.go`.
   Effective reduced motion suppresses camera flights/tours and the decorative
   pulse. Street mode owns WASD only while its canvas is
   focused; pointer lock is explicit and Escape/blur/close release control.
+- HUD presentation: district labels are ranked (selected, hovered, error, running,
+  then distance with hysteresis) and never overlap each other or HUD panels; a
+  label cut by a panel's lower edge slides down its building by at most 90 px.
+  Panel and label rectangles come from a ResizeObserver, never from per-frame
+  layout reads; label state and transforms are written only on change. Hover is
+  a raycast throttled to 80 ms (ring, cursor, highlighted label and rail entry);
+  the selection ring takes the district's state colour. Loading shows real byte
+  progress (tier LODs from the manifest plus surface textures); the first display
+  fades the canvas in with a one-time opening glide. Camera teleports dip through
+  a short fade, but `city.setMode` is never delayed. The tour shows a lower third
+  per station. Photo mode (camera button or `H`; `H`/Escape leave it before the
+  canvas sees the key) hides the whole interface and saves the composed frame
+  right after `composer.render()` in the same task, without
+  `preserveDrawingBuffer`. CPU/RAM sparklines keep 60 live samples and never
+  ingest replay data. The street compass (north is -z) redraws only after a 1.5°
+  turn or a 1.5 m step. Reduced motion skips the glide, fades and caption motion.
+  The city browser matrix checks label overlap, hover, compass, tour caption and
+  the photo PNG.
 - Verify `node scripts/test-system-world.mjs` (includes the navigation
   blockade/sidestep units and a 60-minute five-robot simulation), `node
   scripts/build-system-world.js --check`, focused Sysworld Go tests, `go test
@@ -2069,8 +2087,10 @@ registration lives in `internal/desktop/types.go`.
   instancing, PBR/PMREM, shadows, `SceneCapturePass` + bloom + output +
   atmosphere post chain, camera modes and disposal. Build to
   `ui/js/vendor/system-world/`; never classic-script load this source.
-- `sysworld-hud.js` - Theme-native, localized HTML metrics, district navigation,
-  entity search, inspector, map, street controls and projected district labels.
+- `sysworld-hud.js` - Theme-native, localized HTML metrics with CPU/RAM sparklines,
+  district navigation with state badges, entity search, inspector, map, street
+  controls and compass, tour lower third, loading progress, photo mode and
+  decluttered projected district labels.
 - `sysworld-life.js` - Shared robot assets, street routes, hover lights and district
   status effects; imports only into the city bundle.
 - `sysworld-navigation.js` - Pure robot steering: arc-length routes, lanes,

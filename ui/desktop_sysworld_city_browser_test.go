@@ -13,6 +13,13 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 )
 
+// cityLabelsClear fails when two shown district labels overlap or one sits under the header.
+const cityLabelsClear = `()=>{
+    const top=document.querySelector('.sw-top').getBoundingClientRect(),hit=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
+    const pins=[...document.querySelectorAll('.sw-pin')].filter(p=>p.dataset.pin!=='off'&&!p.closest('[hidden]')).map(p=>p.getBoundingClientRect());
+    pins.forEach((a,i)=>{if(hit(a,top))throw Error('District label under the header');pins.slice(i+1).forEach(b=>{if(hit(a,b))throw Error('District labels overlap');});});
+}`
+
 // assertRenderedCity fails when the central canvas area of a screenshot is a flat colour. A
 // broken post-processing chain (for example NaN spreading through bloom) leaves the WebGL
 // canvas uniformly dark while every JavaScript-level check still passes.
@@ -116,6 +123,9 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
         const app=document.querySelector('.sysworld');
         if(/sysworld\.city\./.test(app.innerText))throw Error('Untranslated city control');
         if(app.querySelector('.sw-message:not([hidden])'))throw Error('City asset load failed');
+        const loading=app.querySelector('.sw-loading');
+        if(!app.classList.contains('sw-ready'))throw Error('City canvas never revealed');
+        if(!loading.classList.contains('sw-done')||loading.getAttribute('aria-valuenow')!=='100')throw Error('Loading card did not finish');
     }`)
 	page.Timeout(45 * time.Second).MustWait(`()=>!!(SysWorldApp.inspect(cityId)?.life?.robots===5||SysWorldApp.inspect(cityId)?.life?.robotError)`)
 	page.MustEval(`()=>{const state=SysWorldApp.inspect(cityId);if(state.life.robots!==5)throw Error('Five original robot models missing');if(state.sound.state!=='uninitialized')throw Error('Sound started without opt-in');
@@ -129,8 +139,11 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
         if(!(cityCalls['/api/desktop/system-world/memory-artifacts']>=1&&cityCalls['/api/desktop/system-world/memory-artifacts']<=2))throw Error('Artifact feed must poll once per interval');
         if(s.hologram.source!=='live'||s.atmosphere.stars<1000||s.atmosphere.post!==true||s.drones.drones!==6)throw Error('Hologram, atmosphere or drones inactive: '+dump);
         if(s.life.navigation.states.some(state=>state!=='cruise'&&state!=='turn'))throw Error('Unknown robot state');}`)
+	page.Timeout(10 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).flying`)
 	page.MustScreenshot(filepath.Join(dir, "city-overview-first.png"))
 	assertRenderedCity(t, filepath.Join(dir, "city-overview-first.png"))
+	page.MustEval(`()=>{if([...document.querySelectorAll('.sw-pin')].filter(p=>p.dataset.pin!=='off').length<3)throw Error('Overview hides district labels');}`)
+	page.MustEval(cityLabelsClear)
 	if errors := page.MustEval(`()=>JSON.stringify(cityErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}
@@ -174,6 +187,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
                         if(b.left<r.left-1||b.right>r.right+1||b.bottom>r.bottom+1)throw Error('Outside city: '+s);
                     }
                 }`)
+				page.MustEval(cityLabelsClear)
 				page.MustEval(`()=>{
                     const panel=document.querySelector('.sw-world');panel.open=true;
                     for(const section of panel.querySelectorAll('details'))section.open=true;
@@ -205,6 +219,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
     }`)
 	page.MustEval(`()=>{document.querySelector('[data-sw-action="close"]').click();document.querySelector('[data-sw-mode="street"]').click()}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).mode==='street'`)
+	page.Timeout(5 * time.Second).MustWait(`()=>!document.getAnimations().some(a=>a.effect?.target?.classList?.contains('sw-fade'))`)
 	page.MustScreenshot(filepath.Join(dir, "city-street.png"))
 	assertRenderedCity(t, filepath.Join(dir, "city-street.png"))
 	before := page.MustEval(`()=>SysWorldApp.inspect(cityId).position`).JSON("", "")
@@ -214,6 +229,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	if after := page.MustEval(`()=>SysWorldApp.inspect(cityId).position`).JSON("", ""); after == before {
 		t.Fatal("Street movement did not move")
 	}
+	page.MustEval(`()=>{const c=document.querySelector('.sw-compass');if(c.hidden||!c.querySelector('.sw-compass-dial').style.getPropertyValue('--h')||c.querySelectorAll('.sw-compass-district[data-state]').length!==7)throw Error('Street compass inactive');}`)
 	page.MustEval(`()=>{document.querySelector('[data-sw-mode="map"]').click();}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>!SysWorldApp.inspect(cityId).raf`)
 	page.MustScreenshot(filepath.Join(dir, "city-map.png"))
@@ -250,6 +266,7 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(6 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).life.transmissions.length===0`)
 	page.MustEval(`()=>document.querySelector('[data-sw-mode="tour"]').click()`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).mode==='tour'`)
+	page.Timeout(10 * time.Second).MustWait(`()=>{const t=document.querySelector('.sw-tour');return !t.hidden&&!!t.querySelector('.sw-tour-title').textContent&&/\d/.test(t.querySelector('.sw-eyebrow').textContent);}`)
 	page.MustEval(`()=>{window.cityRobotBefore=JSON.stringify(SysWorldApp.inspect(cityId).life.positions);}`)
 	time.Sleep(650 * time.Millisecond)
 	page.MustEval(`()=>{if(JSON.stringify(SysWorldApp.inspect(cityId).life.positions)===cityRobotBefore)throw Error('Robots do not move');cityIssueSeverity='error';SysWorld.data.refresh();}`)
@@ -303,6 +320,39 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.MustScreenshot(filepath.Join(dir, "city-memory-hologram.png"))
 	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.hologram.switches<1||s.hologram.shown<0)throw Error('Hologram never cycles memory artifacts');}`)
 	page.MustEval(`()=>{window.citySelected=SysWorldApp.inspect(cityId).selected;cityEmit('system_metrics',{cpu:{usage_percent:63},memory:{used_percent:24}});if(SysWorldApp.inspect(cityId).selected!==citySelected)throw Error('Live update moved focus');}`)
+	page.MustEval(`()=>{if(document.querySelector('.sw-spark polyline').getAttribute('points').split(' ').length<2)throw Error('CPU history missing');}`)
+	// Hover: a throttled raycast highlights the district's label and shows the pointer cursor.
+	page.Timeout(20 * time.Second).MustEval(`async()=>{
+        const c=document.querySelector('.sysworld-gl'),r=c.getBoundingClientRect();
+        for(let y=.3;y<.8;y+=.05)for(let x=.3;x<.72;x+=.04){
+            c.dispatchEvent(new PointerEvent('pointermove',{clientX:r.left+r.width*x,clientY:r.top+r.height*y,bubbles:true,pointerType:'mouse'}));
+            await new Promise(res=>setTimeout(res,90));
+            const id=SysWorldApp.inspect(cityId).hovered;
+            if(!id)continue;
+            if(c.style.cursor!=='pointer'||!document.querySelector('.sw-pin[data-district="'+id+'"]').classList.contains('sw-hot'))throw Error('Hover feedback missing');
+            c.dispatchEvent(new PointerEvent('pointerleave'));if(SysWorldApp.inspect(cityId).hovered)throw Error('Hover outlives the pointer');return id;
+        }
+        throw Error('No district answers the pointer');
+    }`)
+	// Photo mode: H hides the interface, the saved image is the rendered frame, Escape only leaves photo mode.
+	page.MustEval(`()=>{const c=document.querySelector('.sysworld-gl');c.focus();c.dispatchEvent(new KeyboardEvent('keydown',{key:'h',code:'KeyH',bubbles:true}));
+        const hidden=s=>getComputedStyle(document.querySelector(s)).display==='none';
+        if(!SysWorldApp.inspect(cityId).photo||!hidden('.sw-top')||!hidden('.sw-labels')||!hidden('.sw-world')||document.querySelector('.sw-photo-bar').hidden)throw Error('Photo mode keeps the interface');}`)
+	photoBytes := page.Timeout(20 * time.Second).MustEval(`async()=>{
+        let blob,name;const create=URL.createObjectURL,click=HTMLAnchorElement.prototype.click;
+        URL.createObjectURL=b=>{blob=b;return create.call(URL,b);};HTMLAnchorElement.prototype.click=function(){name=this.download;};
+        try{document.querySelector('[data-sw-action="photo-save"]').click();for(let i=0;i<100&&!name;i++)await new Promise(r=>setTimeout(r,50));}
+        finally{URL.createObjectURL=create;HTMLAnchorElement.prototype.click=click;}
+        if(!blob||!/^aurago-system-world-\d{8}-\d{6}\.png$/.test(name||''))throw Error('No photo download: '+name);
+        const head=new Uint8Array(await blob.slice(0,4).arrayBuffer());
+        if(blob.type!=='image/png'||head[1]!==80||head[2]!==78||head[3]!==71)throw Error('Photo is not a PNG');
+        return blob.size;
+    }`).Int()
+	if photoBytes < 50000 {
+		t.Fatalf("photo looks empty: %d bytes", photoBytes)
+	}
+	page.MustEval(`()=>{document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));const s=SysWorldApp.inspect(cityId);
+        if(s.photo||s.mode!=='orbit'||getComputedStyle(document.querySelector('.sw-top')).display==='none')throw Error('Escape must only leave photo mode');}`)
 	page.MustEval(`()=>{const select=document.querySelector('.sw-quality');select.value='low';select.dispatchEvent(new Event('change'));}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).tier==='low'&&SysWorldApp.inspect(cityId).cachedModels>20`)
 	page.MustScreenshot(filepath.Join(dir, "city-low.png"))

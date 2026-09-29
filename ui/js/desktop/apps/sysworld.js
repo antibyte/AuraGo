@@ -23,7 +23,7 @@
         try{const saved=localStorage.getItem(MOTION_STORAGE_KEY);if(['auto','on','off'].includes(saved))motionPreference=saved;}catch(_){}
         const motionOff=()=>inst.motion==='off'||(inst.motion==='auto'&&(motion.matches||document.body.dataset.animations==='false'));
         const inst={root,canvasHost,ctx,windowId,L:key=>ctx.t(key),motion:motionPreference,reducedMotion:motionOff,quality:readQuality(),entities:[],
-            disposed:false,selected:'agent',mode:'orbit',city:null,raf:0,elapsed:0,visible:true,inView:true,cleanup:[],load:new AbortController()};
+            disposed:false,selected:'agent',mode:'orbit',photo:false,city:null,raf:0,elapsed:0,visible:true,inView:true,cleanup:[],load:new AbortController()};
         instances.set(windowId,inst);
         const win=root.closest('.vd-window');
         const isVisible=()=>!document.hidden&&inst.inView&&root.isConnected&&(!win||(!win.classList.contains('vd-space-hidden')&&win.style.display!=='none'));
@@ -44,6 +44,7 @@
             if(inst.disposed)return;
             if(!inst.city&&mode!=='map'){inst.hud.error('sysworld.city.map_fallback');return;}
             if(motionOff()&&mode==='tour')mode='orbit';
+            if(mode==='map')inst.setPhoto(false);
             inst.mode=mode;inst.city?.setMode(mode);inst.hud.mode(mode);syncVisibility();
             if(mode==='street')inst.city?.canvas.focus({preventScroll:true});
         };
@@ -68,6 +69,26 @@
             inst.quality=quality;try{localStorage.setItem(QUALITY_STORAGE_KEY,quality);}catch(_){}
             void inst.city?.setQuality(quality);
         };
+        // Photo mode hides the interface; the saved PNG is the rendered frame only.
+        inst.setPhoto=on=>{
+            on=!!on&&!!inst.city&&inst.mode!=='map'&&!inst.disposed;if(on===inst.photo)return;
+            inst.photo=on;inst.hud.photo(on);
+            if(on)root.querySelector('[data-sw-action="photo-save"]')?.focus({preventScroll:true});else inst.city?.canvas.focus({preventScroll:true});
+        };
+        inst.savePhoto=async()=>{
+            const blob=await inst.city?.capture();if(!blob||inst.disposed)return;
+            const d=new Date(),p=n=>String(n).padStart(2,'0'),url=URL.createObjectURL(blob),link=document.createElement('a');
+            link.href=url;link.download='aurago-system-world-'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+'.png';
+            link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+        };
+        // H toggles photo mode outside text fields; Escape leaves it before the city sees the key.
+        const photoKeys=e=>{
+            if(e.ctrlKey||e.metaKey||e.altKey)return;
+            if(e.key==='Escape'&&inst.photo){inst.setPhoto(false);e.preventDefault();e.stopPropagation();return;}
+            if((e.key==='h'||e.key==='H')&&!e.repeat&&inst.city&&inst.mode!=='map'&&!e.target.closest?.('input,select,textarea,[contenteditable]')){inst.setPhoto(!inst.photo);e.preventDefault();e.stopPropagation();}
+        };
+        root.addEventListener('keydown',photoKeys,true);
+        inst.cleanup.push(()=>root.removeEventListener('keydown',photoKeys,true));
         inst.toggleSound=()=>inst.sound?.toggle();
         inst.setVolume=value=>inst.sound?.setVolume(value);
         inst.setMotion=value=>{
@@ -155,23 +176,26 @@
                 const city=await module.createCity(canvasHost,{
                     label:ctx.t('desktop.app_system_world'),memoryLabel:ctx.t('sysworld.zone.memory'),quality:inst.quality,reducedMotion:motionOff(),signal:inst.load.signal,
                     assetURL:file=>versioned('/3d/system-world/v1/'+file),resourceURL:versioned,
-                    onListener:(x,y,z,fx,fz)=>inst.sound?.setListener(x,y,z,fx,fz),
+                    onListener:(x,y,z,fx,fz)=>{inst.sound?.setListener(x,y,z,fx,fz);inst.hud.orient(x,z,fx,fz);},
+                    onProgress:(loaded,expected)=>inst.hud.progress(loaded,expected),onHover:id=>inst.hud.hover(id),onCut:()=>inst.hud.cut(),
                     onInteraction:(...args)=>inst.worldControls.interaction(...args),
                     onSociety:value=>inst.worldControls.society(value),replaying:()=>!!inst.replaying,
                     onDiscover:id=>inst.worldControls.discover(id),onTerminal:id=>inst.worldControls.terminal(id),
                     onSound:(kind,x,y,z)=>inst.sound?.effect(kind,x,y,z),onEnvironment:value=>inst.worldControls.environment(value),
                     onThunder:delay=>inst.sound?.thunder(delay),onMood:mood=>inst.sound?.setMood(mood),
                     onRobotError:()=>{if(!inst.disposed){inst.robotError=true;inst.hud.error('sysworld.city.robot_error');}},
-                    onTourFocus:id=>{if(!inst.disposed){inst.selected=id;inst.hud.select(id);}},
+                    onTourFocus:id=>{if(!inst.disposed){inst.selected=id;inst.hud.select(id);inst.hud.tour(id);}},
                     onSelect:id=>inst.select(id),busy:()=>inst.replaying?inst.entities.find(e=>e.id==='agent')?.state==='running':!!inst.snapshot?.sources.overview?.data?.agent?.busy,
-                    onReady:()=>{if(!inst.disposed&&!inst.robotError)inst.hud.ready();},
-                    onError:()=>{if(!inst.disposed)inst.hud.error('sysworld.city.asset_error');},
+                    onReady:()=>{if(!inst.disposed){inst.assetError=false;inst.hud.ready(!inst.robotError);}},
+                    onError:()=>{if(!inst.disposed){inst.assetError=true;inst.hud.error('sysworld.city.asset_error');}},
                     onQuality:(value,actual)=>{if(!inst.disposed)inst.hud.quality(value,actual);},
                     onMode:value=>{if(!inst.disposed){inst.mode=value;inst.hud.mode(value);syncVisibility();}},
                     onContextLost:()=>{if(!inst.disposed){inst.setMode('map');inst.hud.error('sysworld.city.map_fallback');}},
                 });
                 if(inst.disposed){city.dispose();return;}
                 inst.city=city;reduced();city.setData(inst.entities,inst.snapshot?.events);city.setWorld(inst.snapshot?.sources.world?.data,!!inst.replaying);city.setMode(inst.mode);inst.worldControls.ready();syncVisibility();
+                // The first frames fade in while the camera glides into the overview (skipped with reduced motion).
+                root.classList.add('sw-ready');if(!inst.assetError)city.intro();
                 applyFallback();scheduleArtifacts(1500);
             }catch(_){
                 if(inst.disposed)return;inst.mode='map';inst.hud.mode('map');inst.hud.error('sysworld.city.map_fallback');syncVisibility();
@@ -188,7 +212,7 @@
     function inspect(windowId) {
         const inst=instances.get(windowId);
         const artifacts=inst?.artifacts?{source:inst.artifacts.source,count:inst.artifacts.count,failures:inst.artifacts.failures,polling:!!inst.artifacts.timer}:null;
-        return inst?{sound:inst.sound?.stats(),motion:{preference:inst.motion,reduced:inst.reducedMotion()},selected:inst.selected,visible:inst.visible,mode:inst.mode,entityCount:inst.entities.length,raf:!!inst.raf,artifacts,...inst.city?.stats()}:null;
+        return inst?{sound:inst.sound?.stats(),motion:{preference:inst.motion,reduced:inst.reducedMotion()},selected:inst.selected,visible:inst.visible,mode:inst.mode,photo:inst.photo,entityCount:inst.entities.length,raf:!!inst.raf,artifacts,...inst.city?.stats()}:null;
     }
     window.SysWorldApp = { render, dispose, inspect };
 })();

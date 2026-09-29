@@ -74,6 +74,17 @@ medium and higher quality; low quality neither shows nor downloads it. Window pa
 light up individually towards night; the pattern is decorative, never telemetry.
 A faint coastline frames the horizon, with distant settlement lights at night.
 
+District labels give way to each other and to the panels: the selected, hovered
+and alarming districts win, distant labels fade, and a label cut by the header
+slides down its building. Hovering a building highlights its label and draws a
+ground ring; the selection ring turns and pulses in the district's state colour.
+Loading shows real download progress, and the city fades in with a short opening
+glide; street entries dip through a brief fade. The tour shows a lower third per
+station. In street mode a compass in the header shows the heading and the
+district ahead. Photo mode (camera button or H; H or Esc leaves it) hides the
+interface and saves the rendered frame as a PNG. Reduced motion skips the glide,
+the fades and the caption animation.
+
 Sound is initially off and requires a gesture. Ambience, effects and tower speech
 have separate gains. Local Web Audio synthesis supplies spatial machine/water/rain
 sources and bounded footsteps, door, lift and tram effects; interiors attenuate and

@@ -136,7 +136,9 @@ export async function createCity(host, options) {
   controls.minDistance = 12; controls.maxDistance = 410; controls.maxPolarAngle = Math.PI * .485;
   controls.update();
   // Tileable surface detail, pane lighting and rain wetness for the UV-less kit; pavilion floors stay dry.
-  const surfaces = createSurfaces(renderer, { url: file => options.resourceURL('/3d/system-world/textures/v1/' + file),
+  let expectedBytes = 0;
+  const reportProgress = () => { const s = surfaces?.progress(); options.onProgress?.(loadBytes + (s?.bytes || 0), expectedBytes + (s?.expected || 0)); };
+  const surfaces = createSurfaces(renderer, { url: file => options.resourceURL('/3d/system-world/textures/v1/' + file), onProgress: () => reportProgress(),
     shelters: interiors.map(r => [r.x - r.width / 2, r.z - r.depth / 2, r.x + r.width / 2, r.z + r.depth / 2]) });
   const pmrem = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment();
   const environment = pmrem.fromScene(room, .05);
@@ -175,9 +177,17 @@ export async function createCity(host, options) {
   const weather = createWeather(scene,{sun,rim,hemisphere,atmosphere,surfaces,onThunder:delay=>options.onThunder?.(delay)});
   let moodKey = '';
   let experience=null;
-  const selection = ownMesh(new THREE.RingGeometry(1, 1.035, 64),
-    new THREE.MeshBasicMaterial({ color: 0x8ee8ee, transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide }));
-  selection.rotation.x = -Math.PI / 2; selection.visible = false; world.add(selection);
+  // Selection: dashed, slowly turning, pulsing in the district's state colour. Hover: a quiet solid ring.
+  const ringTime = { value: 0 }, ringGeometry = new THREE.RingGeometry(1, 1.045, 96); geoSet.add(ringGeometry);
+  const ringMaterial = (opacity, dashes) => { const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    uniforms: { color: { value: new THREE.Color(0x8ee8ee) }, time: ringTime, opacity: { value: opacity }, dashes: { value: dashes } },
+    vertexShader: 'varying vec2 vP;void main(){vP=position.xy;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader: 'uniform vec3 color;uniform float time,opacity,dashes;varying vec2 vP;void main(){float a=atan(vP.y,vP.x)/6.2831853;float dash=dashes>0.5?step(0.3,fract(a*dashes-time*0.35)):1.0;gl_FragColor=vec4(color,opacity*dash*(0.8+0.2*sin(time*2.2)));}' });
+    matSet.add(m); return m; };
+  const selection = new THREE.Mesh(ringGeometry, ringMaterial(.9, 18)), hoverRing = new THREE.Mesh(ringGeometry, ringMaterial(.38, 0));
+  for (const ring of [selection, hoverRing]) { ring.rotation.x = -Math.PI / 2; ring.visible = false; world.add(ring); }
+  const stateColours = { error: 0xff7868, running: 0x75f4d1, stale: 0x7b8b9b, idle: 0x7cbfe3 }, districtState = {};
+  const tintSelection = () => selection.material.uniforms.color.value.setHex(stateColours[districtState[selected]] ?? 0x8ee8ee);
   const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0x66e0d6, toneMapped: false });
   const beacons = new THREE.InstancedMesh(new THREE.SphereGeometry(.65, 10, 6), beaconMaterial, districts.length);
   geoSet.add(beacons.geometry); matSet.add(beaconMaterial); world.add(beacons);
@@ -214,7 +224,7 @@ export async function createCity(host, options) {
         if (disposed) throw Error('Disposed');
         const gltf = await new GLTFLoader().parseAsync(bytes, '');
         if (disposed) { gltf.scene.traverse(n => { if(n.isMesh) { n.geometry.dispose(); n.material.dispose(); } }); throw Error('Disposed'); }
-        loadBytes += bytes.byteLength;
+        loadBytes += bytes.byteLength; reportProgress();
         gltf.scene.traverse(n => {
           if (!n.isMesh) return;
           geoSet.add(n.geometry); n.castShadow = true; n.receiveShadow = true;
@@ -239,6 +249,8 @@ export async function createCity(host, options) {
   async function rebuild() {
     const token = ++generation, config = tiers[tier], lod = config.lod;
     const ids = [...new Set([...placements.map(p => p.asset), ...districts.map(d => d.asset), 'service-drone'])];
+    const size = (id, level) => catalog.get(id)?.lods.find(l => l.level === level)?.bytes || 0;
+    expectedBytes = ids.reduce((sum, id) => sum + (cache.has(id + ':' + lod) ? 0 : size(id, lod)), loadBytes) + (lod === 2 ? 0 : ['data-tower-a', 'data-tower-b'].reduce((sum, id) => sum + (cache.has(id + ':2') ? 0 : size(id, 2)), 0));
     try {
       const loaded = new Map(await Promise.all(ids.map(async id => [id, await model(id, lod)])));
       // Skyline deliberately uses low LOD even on Ultra.
@@ -323,9 +335,10 @@ export async function createCity(host, options) {
   function settleCamera(){traffic.relocate(visitor,camera.position);camera.position.set(visitor.x,visitor.y,visitor.z);}
   function focus(id) {
     const d = districts.find(d => d.id === id); if (!d) return;
-    selected = id; selection.position.set(d.x, .55, d.z); selection.scale.setScalar(d.radius * 1.3); selection.visible = true;
+    selected = id; selection.position.set(d.x, .55, d.z); selection.scale.setScalar(d.radius * 1.3); selection.visible = true; tintSelection();
+    hoverRing.visible = !!hovered && hovered !== selected;
     if (mode === 'street') {
-      camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
+      options.onCut?.(); camera.position.set(d.x, 2.4, d.z + d.radius + 7); camera.lookAt(d.x, d.height * .4, d.z);
       settleCamera();
     } else {
       flyTo(new THREE.Vector3(d.x + d.radius * 2.7, d.height * .7 + 18, d.z + d.radius * 4),
@@ -340,7 +353,7 @@ export async function createCity(host, options) {
     visitor.circles[0].r=visitor.reach=mode==='street'?.24:.38;
     if (document.pointerLockElement === canvas) document.exitPointerLock();
     if (mode === 'street') {
-      camera.position.set(18, 2.4, 57); camera.lookAt(0, 26, -12);
+      options.onCut?.(); clearHover(); camera.position.set(18, 2.4, 57); camera.lookAt(0, 26, -12);
       settleCamera();
     } else if (mode !== 'map') {
       settleCamera();
@@ -358,8 +371,26 @@ export async function createCity(host, options) {
     camera.quaternion.setFromEuler(euler);
   }
   listen(canvas, 'pointerdown', e => { canvas.focus({ preventScroll: true }); cancelTour(); down = [e.clientX, e.clientY]; dragging = false; if (mode === 'street') canvas.setPointerCapture(e.pointerId); });
+  let hovered = null, hoverAt = -1e9;
+  function setHover(id) {
+    if (id === hovered) return; hovered = id; canvas.style.cursor = id ? 'pointer' : '';
+    const d = districts.find(d => d.id === id); hoverRing.visible = !!d && id !== selected;
+    if (d) { hoverRing.position.set(d.x, .56, d.z); hoverRing.scale.setScalar(d.radius * 1.3); }
+    options.onHover?.(id);
+  }
+  function clearHover() { setHover(null); }
+  function hover(e) {
+    if (mode === 'street' || mode === 'map' || down || e.timeStamp - hoverAt < 80) return;
+    hoverAt = e.timeStamp; const rect = canvas.getBoundingClientRect();
+    pointer.set((e.clientX - rect.left) / rect.width * 2 - 1, 1 - (e.clientY - rect.top) / rect.height * 2);
+    ray.setFromCamera(pointer, camera); let obj = ray.intersectObjects(objects, true)[0]?.object;
+    while (obj && !obj.userData.district) obj = obj.parent;
+    setHover(obj?.userData.district || null);
+  }
+  listen(canvas, 'pointerleave', clearHover);
   listen(canvas, 'pointermove', e => {
     if (mode === 'street' && (document.pointerLockElement === canvas || down)) look(e.movementX, e.movementY);
+    hover(e);
     if (down && Math.hypot(e.clientX-down[0],e.clientY-down[1]) > 5) dragging = true;
   });
   listen(canvas, 'pointerup', e => {
@@ -419,7 +450,7 @@ export async function createCity(host, options) {
       }
       if (flight) {
         travelling=flight;flightTime=flight.time;
-        flight.time += dt; const p = Math.min(1, flight.time / (flight.waypoints.length===2?1.1:3.2)), eased = p*p*(3-2*p);
+        flight.time += dt; const p = Math.min(1, flight.time / (flight.duration || (flight.waypoints.length===2?1.1:3.2))), eased = p*p*(3-2*p);
         const cursor=Math.min(flight.waypoints.length-1-.000001,eased*(flight.waypoints.length-1)),index=Math.floor(cursor);
         camera.position.lerpVectors(flight.waypoints[index],flight.waypoints[index+1],cursor-index); controls.target.lerpVectors(flight.targetStart, flight.target, eased);
         camera.lookAt(controls.target);requested=camera.position.clone();
@@ -437,6 +468,7 @@ export async function createCity(host, options) {
     if(weather.update(dt,elapsed,!reduced))renderer.shadowMap.needsUpdate=true;
     reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
     atmosphere.setBusy(busy); atmosphere.setCinematic(mode === 'tour'); atmosphere.update(dt, elapsed, camera, !reduced); surfaces.update(dt, !reduced);
+    if (!reduced) ringTime.value += Math.min(.1, Math.max(0, dt));
     const mood = weather.mood(), key = [busy, mood.day.toFixed(1), mood.evening.toFixed(1), mood.weather].join();
     bloom.strength = .2 + .15 * (1 - mood.day); renderer.toneMappingExposure = .95 + .05 * (1 - mood.day);
     if (key !== moodKey) { moodKey = key; options.onMood?.({ busy, day: mood.day, evening: mood.evening, weather: mood.weather }); }
@@ -456,8 +488,9 @@ export async function createCity(host, options) {
     life?.setData(entities, events);
     districts.forEach((d, i) => {
       const e = entities.find(e => e.id === d.id);
-      beacons.setColorAt(i, new THREE.Color(!e || e.stale ? 0x7b8b9b : e.state === 'error' ? 0xff7868 : e.state === 'running' ? 0x75f4d1 : 0x7cbfe3));
-    }); beacons.instanceColor.needsUpdate = true;
+      districtState[d.id] = !e || e.stale ? 'stale' : e.state === 'error' ? 'error' : e.state === 'running' ? 'running' : 'idle';
+      beacons.setColorAt(i, new THREE.Color(stateColours[districtState[d.id]]));
+    }); beacons.instanceColor.needsUpdate = true; tintSelection();
   }
   function dispose() {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
@@ -482,7 +515,16 @@ export async function createCity(host, options) {
     setWorld(snapshot,replay) { experience.setWorld(snapshot,replay); },
     moveKey(key, pressed) { if(pressed) keys.add(key); else keys.delete(key); },
     lockPointer() { if(mode === 'street') return canvas.requestPointerLock(); },
-    project(id) { const d = districts.find(d => d.id === id); if(!d) return null; v.set(d.x,d.height+4,d.z).project(camera); return { x:(v.x+1)*width/2,y:(1-v.y)*height/2,visible:v.z<1 && v.z>-1 }; },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), drones:drones.stats(), frames, tier, mode, focusedDistrict: selected, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    project(id) { const d = districts.find(d => d.id === id); if(!d) return null; v.set(d.x,d.height+4,d.z); const distance = camera.position.distanceTo(v); v.project(camera); return { x:(v.x+1)*width/2,y:(1-v.y)*height/2,visible:v.z<1 && v.z>-1,distance }; },
+    // The frame is read in the same task as the render, so no preserved drawing buffer is needed.
+    capture() { if (disposed || failed) return Promise.resolve(null); composer.render(); return new Promise(resolve => canvas.toBlob(resolve, 'image/png')); },
+    // Opening shot on first display: a wide glide into the home view; any input cancels it.
+    intro() {
+      if (reduced || mode !== 'orbit' || disposed) return;
+      const end = home.clone().multiplyScalar(camera.aspect < 1 ? 1.3 : 1);
+      camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
+      camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
+    },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), drones:drones.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }
