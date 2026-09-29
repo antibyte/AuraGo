@@ -10,6 +10,7 @@
 
     const ICONS = {
         mesh: '<circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/><path d="M8.5 8.5a5 5 0 0 0 0 7"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8"/><path d="M18.4 5.6a9 9 0 0 1 0 12.8"/>',
+        chat: '<path d="M20 15a3 3 0 0 1-3 3H9l-5 3V6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3z"/><path d="M8 8h8M8 12h5"/>',
         refresh: '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
         self: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
         settings: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/>',
@@ -88,19 +89,25 @@
         dispose(windowId);
         const s = { host, windowId, context, requests: new Set(), conversations: [], messages: [], revealed: new Map(), selected: '', filter: 'all', search: '', query: '', status: {}, generation: 0, disposed: false, sending: false, readSeq: 0, loaded: false };
         instances.set(windowId, s);
-        host.innerHTML = `<div class="vd-meshcore">
-            <header class="mc-toolbar"><div class="mc-brand"><span class="mc-logo" aria-hidden="true">${icon('mesh')}</span><strong>MeshCore</strong><span class="mc-status" data-mc-role="status" role="status"></span></div><div class="mc-actions">${iconBtn(s, 'refresh', 'refresh', 'refresh')}${iconBtn(s, 'self', 'self', 'self')}${iconBtn(s, 'settings', 'settings', 'settings')}<a class="mc-link" href="/config#meshcore" target="_blank" rel="noopener">${icon('external')}<span>${esc(tr(s, 'connection'))}</span></a></div></header>
+        host.innerHTML = `<div class="vd-meshcore mc-no-chat">
+            <header class="mc-toolbar">
+                <div class="mc-brand"><span class="mc-logo" aria-hidden="true">${icon('mesh')}</span><div class="mc-brand-copy"><strong>MeshCore</strong><span class="mc-status" data-mc-role="status" role="status"></span></div></div>
+                <nav class="mc-app-nav" aria-label="MeshCore">${[['messages','messages','chat'],['device','self','self'],['settings','settings','settings']].map(([view,key,glyph]) => `<button type="button" data-mc="${key}" data-mc-view="${view}" aria-pressed="${view === 'messages'}" title="${esc(tr(s, view === 'device' ? 'device' : key))}">${icon(glyph)}<span>${esc(tr(s, view === 'device' ? 'device' : key))}</span></button>`).join('')}</nav>
+                <div class="mc-actions mc-toolbar-actions">${iconBtn(s, 'refresh', 'refresh', 'refresh')}<a class="mc-link" href="/config#meshcore" target="_blank" rel="noopener" aria-label="${esc(tr(s, 'connection'))}" title="${esc(tr(s, 'connection'))}">${icon('external')}<span>${esc(tr(s, 'connection'))}</span></a></div>
+            </header>
             <div class="mc-feedback" data-mc-role="error" role="alert" hidden></div>
-            <div class="mc-body"><aside class="mc-sidebar"><div class="mc-sidebar-tools"><div class="mc-search">${icon('search')}<input type="search" data-mc-role="search" aria-label="${esc(tr(s, 'search'))}" placeholder="${esc(tr(s, 'search'))}"></div><div class="mc-filters" role="group" aria-label="${esc(tr(s, 'filter'))}">${['all', 'direct', 'channel', 'unread'].map(key => textBtn(s, key, 'filter-' + key)).join('')}</div><div class="mc-actions mc-sidebar-actions">${labelBtn(s, 'add_contact', 'add-contact', 'user-plus')}${labelBtn(s, 'add_channel', 'add-channel', 'hash')}</div></div><nav class="mc-conversations" aria-label="${esc(tr(s, 'conversations'))}" data-mc-role="conversations"></nav></aside>
-            <main class="mc-chat"><header class="mc-chat-head">${iconBtn(s, 'back', 'back', 'back', 'mc-icon-btn mc-back')}<span class="mc-avatar mc-avatar-sm" data-mc-role="peer-avatar" aria-hidden="true" hidden></span><div class="mc-chat-title"><strong data-mc-role="title">${esc(tr(s, 'choose'))}</strong><span data-mc-role="subtitle"></span></div>${iconBtn(s, 'details', 'details', 'info')}</header>
-            <div class="mc-history-search"><div class="mc-search">${icon('search')}<input type="search" data-mc-role="query" aria-label="${esc(tr(s, 'search_history'))}" placeholder="${esc(tr(s, 'search_history'))}"></div></div>
-            <div class="mc-chat-scroll"><div class="mc-messages" data-mc-role="messages" tabindex="0" aria-label="${esc(tr(s, 'messages'))}">${emptyMarkup(icon('mesh'), tr(s, 'choose'), tr(s, 'offline_hint'))}</div>
+            <div class="mc-body"><aside class="mc-sidebar"><div class="mc-sidebar-tools"><div class="mc-sidebar-heading"><h2>${esc(tr(s, 'conversations'))}</h2><span data-mc-role="conversation-count"></span></div><div class="mc-search">${icon('search')}<input type="search" data-mc-role="search" aria-label="${esc(tr(s, 'search'))}" placeholder="${esc(tr(s, 'search'))}"></div><div class="mc-filters" role="group" aria-label="${esc(tr(s, 'filter'))}">${['all', 'direct', 'channel', 'unread'].map(key => textBtn(s, key, 'filter-' + key)).join('')}</div></div><nav class="mc-conversations" aria-label="${esc(tr(s, 'conversations'))}" data-mc-role="conversations"></nav><div class="mc-actions mc-sidebar-actions">${labelBtn(s, 'add_contact', 'add-contact', 'user-plus')}${labelBtn(s, 'add_channel', 'add-channel', 'hash')}</div></aside>
+            <main class="mc-chat"><header class="mc-chat-head">${iconBtn(s, 'back', 'back', 'back', 'mc-icon-btn mc-back')}<span class="mc-avatar mc-avatar-sm" data-mc-role="peer-avatar" aria-hidden="true" hidden></span><div class="mc-chat-title"><strong data-mc-role="title">${esc(tr(s, 'choose'))}</strong><span data-mc-role="subtitle"></span></div>${iconBtn(s, 'search_history', 'search-history', 'search')}${iconBtn(s, 'details', 'details', 'info')}</header>
+            <div class="mc-history-search" data-mc-role="history-search" hidden><div class="mc-search">${icon('search')}<input type="search" data-mc-role="query" aria-label="${esc(tr(s, 'search_history'))}" placeholder="${esc(tr(s, 'search_history'))}"></div>${iconBtn(s, 'close', 'search-history', 'close')}</div>
+            <div class="mc-chat-scroll"><div class="mc-messages" data-mc-role="messages" tabindex="0" aria-label="${esc(tr(s, 'messages'))}">${emptyMarkup(icon('mesh'), tr(s, 'choose'), tr(s, 'choose_hint'))}</div>
             <button type="button" class="mc-new" data-mc="latest" hidden>${icon('down')}<span>${esc(tr(s, 'new_messages'))}</span></button></div>
             <form class="mc-composer"><div class="mc-composer-row"><label class="mc-sr-only" for="mc-compose-${esc(windowId)}">${esc(tr(s, 'message'))}</label><textarea id="mc-compose-${esc(windowId)}" data-mc-role="compose" rows="2" maxlength="1200" placeholder="${esc(tr(s, 'message'))}"></textarea><button type="submit" class="mc-primary mc-send" data-mc-role="send" aria-label="${esc(tr(s, 'send'))}" title="${esc(tr(s, 'send'))}">${icon('send')}</button></div><div class="mc-compose-footer"><span class="mc-counter" data-mc-role="counter" aria-live="polite"></span><span class="mc-hint" data-mc-role="send-hint"></span></div><details class="mc-parts"><summary>${esc(tr(s, 'preview'))}</summary><div data-mc-role="parts"></div></details></form>
             </main><aside class="mc-detail" data-mc-role="detail" hidden></aside></div></div>`;
         s.root = host.firstElementChild;
         s.el = role => s.root.querySelector(`[data-mc-role="${role}"]`);
-        s.deviceUI = window.MeshCoreDevice.create(s, { node, tr, request, errorText, dialog, dialogButton, refresh, manage, selfDialog });
+        s.deviceUI = window.MeshCoreDevice.create(s, { node, tr, iconEl, request, errorText, dialog, dialogButton, refresh, manage, selfDialog, updateComposer });
+        s.el('conversations').append(skeletonList());
+        s.root.querySelector('.mc-chat-head [data-mc="search-history"]').setAttribute('aria-expanded', 'false');
         s.root.addEventListener('click', event => { const el = event.target.closest('[data-mc]'); if (el) act(s, el.dataset.mc).catch(error => showError(s, error)); });
         s.el('search').addEventListener('input', event => { s.search = event.target.value; renderList(s); });
         s.el('query').addEventListener('input', event => { s.query = event.target.value; clearTimeout(s.searchTimer); s.searchTimer = setTimeout(() => loadMessages(s, false, true).catch(error => showError(s, error)), 300); });
@@ -115,12 +122,14 @@
             const index = items.indexOf(event.target.closest('.mc-conversation'));
             const next = event.key === 'ArrowDown' ? (index + 1) % items.length : (index - 1 + items.length) % items.length;
             event.preventDefault();
+            items.forEach((item, i) => { item.tabIndex = i === next ? 0 : -1; });
             items[next].focus();
         });
         s.root.addEventListener('keydown', event => {
             if (event.key !== 'Escape' || event.defaultPrevented || s.root.querySelector('dialog[open]')) return;
             if (s.deviceUI.isOpen()) { s.deviceUI.close(); event.preventDefault(); }
-            else if (!s.el('detail').hidden) { s.el('detail').hidden = true; event.preventDefault(); }
+            else if (!s.el('detail').hidden) { act(s, 'close-details'); event.preventDefault(); }
+            else if (!s.el('history-search').hidden) { act(s, 'search-history').catch(error => showError(s, error)); event.preventDefault(); }
             else if (s.root.classList.contains('mc-has-chat')) { s.root.classList.remove('mc-has-chat'); event.preventDefault(); }
         });
         s.onChange = event => { const id = event.detail?.conversation_id; if (!id || id === s.selected) scheduleRefresh(s); else refresh(s, false).catch(error => showError(s, error)); };
@@ -161,20 +170,26 @@
     }
 
     function renderList(s) {
-        const list = s.el('conversations'); list.replaceChildren();
+        const list = s.el('conversations'), focused = list.contains(document.activeElement) ? document.activeElement.closest('.mc-conversation')?.dataset.conversation : null;
+        list.replaceChildren();
         const needle = s.search.toLocaleLowerCase();
         const items = s.conversations.filter(c => (s.filter === 'all' || s.filter === c.kind || s.filter === 'unread' && c.unread > 0) && (!needle || (c.name + ' ' + c.target + ' ' + c.preview).toLocaleLowerCase().includes(needle)));
         items.sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.last_at - a.last_at || a.name.localeCompare(b.name));
+        s.el('conversation-count').textContent = String(items.length);
         s.root.querySelectorAll('.mc-filters button').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.mc === 'filter-' + s.filter)));
         if (!items.length) {
             const empty = node('div', undefined, 'mc-empty mc-empty-list');
             const emptyIcon = node('span', undefined, 'mc-empty-icon'); emptyIcon.setAttribute('aria-hidden', 'true'); emptyIcon.append(iconEl('mesh'));
-            empty.append(emptyIcon, node('p', tr(s, s.settings?.enabled === false ? 'setup' : 'no_conversations')));
-            if (s.settings?.enabled !== false) empty.append(node('span', tr(s, 'no_conversations_hint'), 'mc-empty-hint'));
+            const filtered = !!s.search || s.filter !== 'all';
+            empty.append(emptyIcon, node('p', tr(s, filtered ? 'no_results' : s.settings?.enabled === false ? 'setup' : 'no_conversations')));
+            if (filtered) { const reset = node('button', tr(s, 'clear_filters')); reset.type = 'button'; reset.dataset.mc = 'clear-filters'; empty.append(reset); }
+            else if (s.settings?.enabled !== false) empty.append(node('span', tr(s, 'no_conversations_hint'), 'mc-empty-hint'));
             list.append(empty);
         }
         for (const c of items) {
             const btn = node('button', undefined, 'mc-conversation'); btn.type = 'button'; btn.setAttribute('aria-current', String(c.id === s.selected));
+            btn.dataset.conversation = c.id;
+            btn.tabIndex = c.id === (focused || s.selected || items[0]?.id) ? 0 : -1;
             const avatar = node('span', c.kind === 'channel' ? '#' : (c.name || '?').slice(0, 2).toUpperCase(), 'mc-avatar'); avatar.setAttribute('aria-hidden', 'true');
             avatar.classList.toggle('mc-avatar-channel', c.kind === 'channel');
             avatar.style.setProperty('--mc-avatar-hue', String(c.kind === 'channel' ? 168 : hueOf(c.target)));
@@ -193,6 +208,8 @@
             if (c.unread) btn.append(node('span', String(c.unread), 'mc-unread'));
             btn.addEventListener('click', () => selectConversation(s, c.id)); list.append(btn);
         }
+        if (items.length && !list.querySelector('[tabindex="0"]')) list.firstElementChild.tabIndex = 0;
+        if (focused) (list.querySelector('[tabindex="0"]'))?.focus({ preventScroll: true });
     }
 
     function displayName(s, c) { return c.kind === 'unknown' ? tr(s, 'unknown') + ' · ' + c.target.slice(0, 12) : c.name || c.target.slice(0, 12); }
@@ -202,7 +219,10 @@
 
     async function selectConversation(s, id) {
         if (s.disposed || !s.conversations.some(c => c.id === id)) return;
+        if (s.deviceUI.isOpen()) s.deviceUI.close(false);
         saveDraft(s); s.selected = id; s.messages = []; s.revealed.clear(); s.readSeq = 0; s.query = ''; s.el('query').value = ''; s.el('detail').hidden = true; s.root.classList.add('mc-has-chat');
+        s.el('history-search').hidden = true;
+        s.root.querySelector('.mc-chat-head [data-mc="search-history"]').setAttribute('aria-expanded', 'false');
         s.context.updateWindowContext?.(s.windowId, { conversation_id: id });
         try { s.el('compose').value = localStorage.getItem(draftKey(s)) || ''; } catch (_) { s.el('compose').value = ''; }
         renderList(s); renderHead(s); updateComposer(s); clearError(s);
@@ -211,9 +231,11 @@
 
     function renderHead(s) {
         const c = current(s);
+        s.root.classList.toggle('mc-no-chat', !c);
         s.el('title').textContent = c ? displayName(s, c) : tr(s, 'choose');
-        s.el('subtitle').textContent = c ? (!c.active ? tr(s, 'archived') : c.kind === 'channel' ? tr(s, c.channel_kind || 'private') : c.target.slice(0, 12)) : tr(s, 'offline_hint');
+        s.el('subtitle').textContent = c ? (!c.active ? tr(s, 'archived') : c.kind === 'channel' ? tr(s, c.channel_kind || 'private') : tr(s, 'direct')) : '';
         s.root.querySelector('[data-mc="details"]').disabled = !c;
+        s.root.querySelector('[data-mc="details"]').setAttribute('aria-expanded', String(!s.el('detail').hidden));
         const avatar = s.el('peer-avatar');
         avatar.hidden = !c;
         if (c) {
@@ -313,7 +335,7 @@
     }
 
     function updateComposer(s) {
-        const c = current(s), text = s.el('compose').value;
+        const c = current(s), text = s.el('compose').value, wasBottom = s.el('messages').getClientRects().length && nearBottom(s);
         const limit = c?.kind === 'channel' ? (s.settings?.channel_text_limit || Math.min(133, 160 - encoder.encode(s.status.name || '').length - 2)) : 133;
         const parts = splitPreview(text, limit);
         s.el('counter').textContent = `${encoder.encode(text.trim()).length} B · ${parts ? parts.length : '>3'}/3`;
@@ -321,7 +343,12 @@
         s.el('send').disabled = s.sending || !c?.can_send || !parts?.length || !!s.context.readonly;
         s.el('compose').disabled = !c || s.sending || !!s.context.readonly;
         s.el('send').classList.toggle('mc-busy', s.sending);
+        s.el('compose').style.height = 'auto';
+        s.el('compose').style.height = Math.min(132, s.el('compose').scrollHeight + 2) + 'px';
+        s.el('parts').parentElement.hidden = !parts || parts.length < 2;
+        s.el('counter').classList.toggle('mc-counter-error', !parts);
         s.el('send-hint').textContent = !parts ? tr(s, 'too_long') : c && !c.can_send ? tr(s, 'send_locked') : tr(s, 'composer_hint');
+        if (wasBottom) s.el('messages').scrollTop = s.el('messages').scrollHeight;
     }
 
     async function send(s) {
@@ -348,10 +375,20 @@
 
     async function act(s, action) {
         if (action.startsWith('filter-')) { s.filter = action.slice(7); renderList(s); return; }
+        if (action === 'clear-filters') { s.filter = 'all'; s.search = ''; s.el('search').value = ''; renderList(s); s.el('search').focus(); return; }
+        if (action === 'messages') { s.deviceUI.close(); return; }
         if (action === 'refresh') { clearError(s); await refresh(s); if (s.deviceUI.isOpen()) await s.deviceUI.reload(); return; }
         if (action === 'back') { s.root.classList.remove('mc-has-chat'); return; }
         if (action === 'latest') { s.el('messages').scrollTop = s.el('messages').scrollHeight; markRead(s); return; }
-        if (action === 'details') { s.el('detail').hidden = !s.el('detail').hidden; renderDetail(s); return; }
+        if (action === 'details') { s.el('detail').hidden = !s.el('detail').hidden; renderDetail(s); renderHead(s); if (!s.el('detail').hidden) s.el('detail').querySelector('[data-mc="close-details"]').focus(); return; }
+        if (action === 'close-details') { s.el('detail').hidden = true; renderHead(s); s.root.querySelector('[data-mc="details"]').focus(); return; }
+        if (action === 'search-history') {
+            const field = s.el('history-search'), opening = field.hidden; field.hidden = !opening;
+            s.root.querySelector('.mc-chat-head [data-mc="search-history"]').setAttribute('aria-expanded', String(opening));
+            if (opening) s.el('query').focus();
+            else { clearTimeout(s.searchTimer); const hadQuery = !!s.query; s.query = ''; s.el('query').value = ''; s.root.querySelector('.mc-chat-head [data-mc="search-history"]').focus(); if (hadQuery) await loadMessages(s, false, true); }
+            return;
+        }
         if (action === 'add-contact' || action === 'add-channel') { editDialog(s, action); return; }
         if (action === 'self') { await s.deviceUI.open('device'); return; }
         if (action === 'settings') settingsDialog(s);
@@ -365,7 +402,8 @@
         avatar.style.setProperty('--mc-avatar-hue', String(c.kind === 'channel' ? 168 : hueOf(c.target)));
         const titleWrap = node('div', undefined, 'mc-detail-title');
         titleWrap.append(node('h3', displayName(s, c)), node('p', tr(s, c.kind === 'channel' ? c.channel_kind || 'private' : 'identity')));
-        head.append(avatar, titleWrap); panel.append(head);
+        const close = node('button', undefined, 'mc-icon-btn'); close.type = 'button'; close.dataset.mc = 'close-details'; close.setAttribute('aria-label', tr(s, 'close')); close.append(iconEl('close'));
+        head.append(avatar, titleWrap, close); panel.append(head);
         const keyChip = node('div', undefined, 'mc-key');
         keyChip.append(node('code', c.kind === 'channel' ? c.identity_key : c.target));
         panel.append(keyChip);
@@ -378,7 +416,7 @@
         action('share', 'share', async () => shareDialog(s, c.id), !c.active || s.status.state !== 'connected');
         action('clear_history', 'eraser', async () => confirmAction(s, 'clear_warning', async () => { await request(s, 'conversation', { conversation: c.id, clear: true }); s.messages = []; await loadMessages(s, false, true); await refresh(s, false); }));
         action('remove', 'trash', async () => confirmAction(s, 'remove_warning', async () => { await manage(s, { action: c.kind === 'channel' ? 'channel_remove' : 'contact_remove', conversation: c.id }); panel.hidden = true; }), !c.active || !['direct', 'channel'].includes(c.kind) || !!s.context.readonly);
-        action('close', 'close', async () => { panel.hidden = true; });
+        action('close', 'close', async () => act(s, 'close-details'));
         panel.append(actions);
     }
 

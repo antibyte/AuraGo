@@ -68,7 +68,15 @@ func TestDesktopMeshCoreDeviceBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>calls.filter(c=>c.route==='device').length===deviceReads+1`)
 	page.MustElement(`[data-mc="settings"]`).MustClick()
 	waitForJSBool(t, page, `()=>!!document.querySelector('[data-mc-field="name"]')`)
+	if !page.MustEval(`()=>document.querySelector('[data-mc-view="settings"]').getAttribute('aria-pressed')==='true' && !document.querySelector('[data-mc-section="app"]').hidden && document.querySelector('[data-mc-section="identity"]').hidden`).Bool() {
+		t.Fatal("settings sections are not independently navigable")
+	}
+	page.MustElement(`[data-mc-section-link="identity"]`).MustClick()
 	page.MustEval(`()=>{const el=document.querySelector('[data-mc-field="name"]');el.value='Entwurf';el.dispatchEvent(new Event('input',{bubbles:true}));values.name='External';rev++;document.querySelector('[data-mc="refresh"]').click();}`)
+	page.MustElement(`[data-mc-section-link="radio"]`).MustClick()
+	page.MustElement(`[data-mc="messages"]`).MustClick()
+	page.MustElement(`[data-mc="settings"]`).MustClick()
+	page.MustElement(`[data-mc-section-link="identity"]`).MustClick()
 	waitForJSBool(t, page, `()=>calls.filter(c=>c.route==='device').length>=2 && !document.querySelector('[data-mc="refresh"]').disabled`)
 	if !page.MustEval(`()=>document.querySelector('[data-mc-field="name"]').value==='Entwurf'`).Bool() {
 		t.Fatal("refresh overwrote draft")
@@ -82,6 +90,7 @@ func TestDesktopMeshCoreDeviceBrowser(t *testing.T) {
 	page.MustEval(`()=>{const el=document.querySelector('[data-mc-field="name"]');el.value='Verified';el.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	page.MustElement(`[data-mc-section="identity"] .mc-primary`).MustClick()
 	waitForJSBool(t, page, `()=>document.querySelector('[data-mc-section="identity"] .mc-feedback').textContent===translations['desktop.meshcore_saved_verified']`)
+	page.MustElement(`[data-mc-section-link="radio"]`).MustClick()
 	page.MustEval(`()=>{const el=document.querySelector('[data-mc-field="frequency_khz"]');el.value=869500;el.dispatchEvent(new Event('input',{bubbles:true}));window.beforeRadio=calls.filter(c=>c.route==='device-settings').length;}`)
 	page.MustElement(`[data-mc-section="radio"] .mc-primary`).MustClick()
 	waitForJSBool(t, page, `()=>!!document.querySelector('.mc-dialog')`)
@@ -90,6 +99,7 @@ func TestDesktopMeshCoreDeviceBrowser(t *testing.T) {
 	}
 	page.MustElement(".mc-dialog .mc-primary").MustClick()
 	waitForJSBool(t, page, `()=>values.frequency_khz===869500 && document.querySelector('[data-mc-section="radio"] .mc-feedback').dataset.feedback==='success' && !document.querySelector('[data-mc-section="radio"] fieldset').disabled`)
+	page.MustElement(`[data-mc-section-link="identity"]`).MustClick()
 	page.MustEval(`()=>{window.partial=true;const el=document.querySelector('[data-mc-field="name"]');el.value='Draft after partial write';el.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	page.MustElement(`[data-mc-section="identity"] .mc-primary`).MustClick()
 	waitForJSBool(t, page, `()=>!document.querySelector('[data-mc-device-action="reconcile"]').hidden && document.querySelector('[data-mc-section="identity"] fieldset').disabled`)
@@ -100,26 +110,52 @@ func TestDesktopMeshCoreDeviceBrowser(t *testing.T) {
 	page.MustElement(".mc-dialog .mc-primary").MustClick()
 	waitForJSBool(t, page, `()=>!window.uncertain && document.querySelector('[data-mc-device-action="reconcile"]').hidden`)
 	page.MustEval(`()=>[...document.querySelectorAll('[data-mc-section="identity"] button')].find(b=>b.textContent===translations['desktop.meshcore_discard']).click()`)
-	for _, theme := range []string{"standard", "fruity"} {
+	page.MustElement(`[data-mc-section-link="radio"]`).MustClick()
+	for _, theme := range []struct{ name, mode string }{{"standard", "light"}, {"fruity", "light"}, {"fruity", "dark"}} {
 		for _, width := range []int{1080, 390} {
-			page.MustEval(`(theme,width)=>{document.body.dataset.theme=theme;document.getElementById('host').style.width=width+'px';}`, theme, width)
-			if page.MustEval(`()=>{const p=document.querySelector('.mc-device-page');return p.scrollWidth>p.clientWidth+1 || p.textContent.includes('desktop.meshcore_');}`).Bool() {
-				t.Fatalf("settings overflow/missing translation: %s %d", theme, width)
-			}
-			if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
-				os.MkdirAll(dir, 0755)
-				name := "meshcore-settings-" + theme + "-wide.png"
-				if width == 390 {
-					name = "meshcore-settings-" + theme + "-narrow.png"
+			page.MustSetViewport(width, 760, 1, false)
+			page.MustEval(`(theme,mode,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;document.getElementById('host').style.width=width+'px';}`, theme.name, theme.mode, width)
+			if width == 390 {
+				page.MustElement(`.mc-settings-select`).MustSelect("App-Einstellungen")
+				if !page.MustEval(`()=>!document.querySelector('[data-mc-section="app"]').hidden && document.querySelector('[data-mc-section="radio"]').hidden`).Bool() {
+					t.Fatal("narrow settings selector did not switch sections")
 				}
-				if err := os.WriteFile(filepath.Join(dir, name), page.MustScreenshot(), 0644); err != nil {
+				page.MustElement(`.mc-settings-select`).MustSelect("Funk · Erweitert")
+			}
+			if page.MustEval(`()=>{const p=document.querySelector('.mc-device-page');return p.scrollWidth>p.clientWidth+1 || p.textContent.includes('desktop.meshcore_');}`).Bool() {
+				t.Fatalf("settings overflow/missing translation: %s %d", theme.name, width)
+			}
+			dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
+			suffix := theme.name + "-" + theme.mode + "-wide.png"
+			if width == 390 {
+				suffix = theme.name + "-" + theme.mode + "-narrow.png"
+			}
+			if dir != "" {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatal(err)
+				}
+				page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,200))`)
+				if err := os.WriteFile(filepath.Join(dir, "meshcore-settings-"+suffix), page.MustScreenshot(), 0644); err != nil {
 					t.Fatal(err)
 				}
 			}
+			page.MustElement(`[data-mc="self"]`).MustClick()
+			if page.MustEval(`()=>{const p=document.querySelector('.mc-device-page');return p.scrollWidth>p.clientWidth+1;}`).Bool() {
+				t.Fatalf("device overview overflow: %s %d", theme.name, width)
+			}
+			if dir != "" {
+				page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,200))`)
+				if err := os.WriteFile(filepath.Join(dir, "meshcore-device-"+suffix), page.MustScreenshot(), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			page.MustElement(`[data-mc="settings"]`).MustClick()
 		}
 	}
+	page.MustSetViewport(1100, 760, 1, false)
 	page.MustEval(`()=>{document.getElementById('host').style.width='1080px';app.allow_device_settings=false;document.querySelector('[data-mc="refresh"]').click();}`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-mc-section="identity"] fieldset').disabled`)
+	page.MustElement(`[data-mc-section-link="app"]`).MustClick()
 	page.MustEval(`()=>{const el=document.querySelector('[data-mc-field="history_days"]');el.value=180;el.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	page.MustElement(`[data-mc-section="app"] .mc-primary`).MustClick()
 	waitForJSBool(t, page, `()=>app.history_days===180`)

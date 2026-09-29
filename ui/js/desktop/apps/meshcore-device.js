@@ -1,7 +1,7 @@
 (function () {
     'use strict';
     function create(s, h) {
-        const { node, tr, request, errorText, dialog, dialogButton } = h;
+        const { node, tr, iconEl, request, errorText, dialog, dialogButton } = h;
         const t = key => tr(s, key);
         const unknown = () => t('value_unknown');
         const date = n => n ? new Date(n * 1000).toLocaleString() : unknown();
@@ -10,22 +10,43 @@
         const page = node('section', undefined, 'mc-device-page'); page.hidden = true;
         const nav = node('nav', undefined, 'mc-page-nav'), heading = node('h2'); heading.tabIndex = -1;
         const feedback = node('p', '', 'mc-feedback'); feedback.hidden = true; feedback.setAttribute('role', 'status');
-        const devicePane = node('div'), settingsPane = node('div');
+        const devicePane = node('div', undefined, 'mc-device-grid'), settingsPane = node('div', undefined, 'mc-settings-layout');
+        const settingsNav = node('nav', undefined, 'mc-settings-nav'), settingsSelect = node('select', undefined, 'mc-settings-select'), settingsContent = node('div', undefined, 'mc-settings-content'), recovery = node('div', undefined, 'mc-settings-recovery');
+        settingsNav.setAttribute('aria-label', t('settings')); settingsSelect.setAttribute('aria-label', t('settings')); recovery.hidden = true;
+        settingsSelect.addEventListener('change', () => selectSection(settingsSelect.value, true));
+        settingsPane.append(recovery, settingsNav, settingsSelect, settingsContent);
         page.append(nav, heading, feedback, devicePane, settingsPane); s.root.append(page);
-        let view = '', device, loading = false, lastRead = 0, jobTimer;
+        let view = '', device, loading = false, lastRead = 0, jobTimer, activeSection = 'app';
         const forms = new Map();
         function button(parent, key, fn, disabled = false) {
             const b = node('button', t(key)); b.type = 'button'; b.disabled = disabled;
             b.addEventListener('click', async () => { try { await fn(); } catch (e) { show(feedback, errorText(s, e)); } }); parent.append(b); return b;
         }
-        button(nav, 'back', close); button(nav, 'self', () => open('device')); button(nav, 'settings', () => open('settings'));
+        button(nav, 'back', close).prepend(iconEl('back'));
+        function selectSection(section, focus = false) {
+            activeSection = section; settingsSelect.value = section;
+            settingsContent.querySelectorAll('[data-mc-section]').forEach(el => { el.hidden = el.dataset.mcSection !== section; });
+            settingsNav.querySelectorAll('button').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.mcSectionLink === section)));
+            if (focus) { if (feedback.dataset.feedback === 'success') feedback.hidden = true; const title = settingsContent.querySelector(`[data-mc-section="${section}"] h3`); title?.focus({ preventScroll: true }); page.scrollTop = 0; }
+        }
+        function sectionLink(section, title) {
+            const b = button(settingsNav, title, () => selectSection(section, true)); b.dataset.mcSectionLink = section;
+            b.prepend(iconEl({ app: 'settings', identity: 'self', contacts: 'shield', radio: 'mesh', clock: 'clock' }[section]));
+            settingsSelect.append(new Option(t(title), section));
+            return b;
+        }
+        function syncNavigation(next) { s.root.querySelectorAll('[data-mc-view]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.mcView === next))); }
         function show(el, text, state = 'error') { if (!s.disposed) { el.hidden = false; el.textContent = text; el.dataset.feedback = state; } }
         function rows(parent, pairs) {
             const dl = node('dl', undefined, 'mc-data-grid');
             for (const [key, value] of pairs) dl.append(node('dt', t(key)), node('dd', value == null || value === '' ? unknown() : String(value)));
             parent.append(dl); return dl;
         }
-        function group(parent, key) { const el = node('section', undefined, 'mc-device-card'); el.append(node('h3', t(key))); parent.append(el); return el; }
+        function group(parent, key) {
+            const el = node('section', undefined, 'mc-device-card'), title = node('h3', t(key)); title.tabIndex = -1;
+            title.prepend(iconEl({ self: 'self', radio: 'mesh', diagnostics: 'info', supported_features: 'check', storage: 'info', packets: 'send', device_clock: 'clock' }[key] || 'info'));
+            el.append(title); parent.append(el); return el;
+        }
         function position(p) { return p ? `${p.latitude}°, ${p.longitude}°` : unknown(); }
         function path(p) {
             if (!p) return unknown();
@@ -42,23 +63,27 @@
             devicePane.replaceChildren();
             if (!device) { devicePane.append(node('p', t('offline_hint'))); return; }
             const st = device.status;
-            identity(group(devicePane, 'self'), st);
-            rows(devicePane, [['contacts_capacity', `${st.contacts?.length ?? 0} / ${st.device?.contact_capacity ?? unknown()}`], ['channels_capacity', `${st.channels?.length ?? 0} / ${st.channel_capacity ?? unknown()}`], ['device_clock', date(device.clock)]]);
-            const actions = node('div', undefined, 'mc-actions'); devicePane.append(actions);
-            button(actions, 'share', () => h.selfDialog(s), st.state !== 'connected' || !!s.context.readonly);
+            const profile = group(devicePane, 'self'); profile.classList.add('mc-device-profile'); identity(profile, st);
+            const actions = node('div', undefined, 'mc-actions'); profile.append(actions);
+            button(actions, 'share', () => h.selfDialog(s), st.state !== 'connected' || !!s.context.readonly).prepend(iconEl('share'));
+            const stats = node('div', undefined, 'mc-device-stats'); devicePane.append(stats);
+            for (const [key, value] of [['contacts_capacity', `${st.contacts?.length ?? unknown()} / ${st.device?.contact_capacity ?? unknown()}`], ['channels_capacity', `${st.channels?.length ?? unknown()} / ${st.channel_capacity ?? unknown()}`], ['device_clock', date(device.clock)]]) {
+                const stat = node('div'); stat.append(node('span', t(key)), node('strong', value)); stats.append(stat);
+            }
             radioRows(group(devicePane, 'radio'), st.radio);
-            const diagnostics = group(devicePane, 'diagnostics'); diagnostics.append(node('p', t('local_hint'), 'mc-hint'));
+            const features = group(devicePane, 'supported_features');
+            const labels = { identity: 'name', radio: 'radio', clock: 'device_clock', other: 'telemetry', auto_add: 'auto_add', auto_add_max_hops: 'max_hops', repeat: 'repeat', path_hash: 'path_hash', multi_ack: 'multi_acks' };
+            rows(features, Object.entries(device.features || {}).map(([k, v]) => [labels[k] || 'type', t(v === 'available' ? 'enabled' : v === 'unsupported' ? 'unsupported' : 'value_unknown')]));
+            const diagnostics = group(devicePane, 'diagnostics'); diagnostics.classList.add('mc-device-diagnostics'); diagnostics.append(node('p', t('local_hint'), 'mc-hint'));
+            const readings = node('div', undefined, 'mc-diagnostic-grid'); diagnostics.append(readings);
             if (!device.local) diagnostics.append(node('p', unknown()));
             for (const [name, g] of Object.entries(device.local?.groups || {})) {
-                const card = group(diagnostics, name === 'radio' ? 'radio' : name === 'storage' ? 'storage' : name === 'core' ? 'self' : 'packets');
+                const card = group(readings, name === 'radio' ? 'radio' : name === 'storage' ? 'storage' : name === 'core' ? 'self' : 'packets');
                 rows(card, [['sampled_at', date(g.at)]]);
                 if (g.state !== 'available') { card.append(node('p', t(g.state === 'unsupported' ? 'unsupported' : 'value_unknown'))); continue; }
                 const units = { battery_mv: 'mV', storage_used_kb: 'KiB', storage_total_kb: 'KiB', uptime_seconds: 's', noise_floor_dbm: 'dBm', last_rssi_dbm: 'dBm', last_snr_db: 'dB', tx_airtime_seconds: 's', rx_airtime_seconds: 's' };
                 rows(card, Object.entries(g.values || {}).map(([key, value]) => [key, `${value}${units[key] ? ' ' + units[key] : ''}`]));
             }
-            const features = group(devicePane, 'supported_features');
-            const labels = { identity: 'name', radio: 'radio', clock: 'device_clock', other: 'telemetry', auto_add: 'auto_add', auto_add_max_hops: 'max_hops', repeat: 'repeat', path_hash: 'path_hash', multi_ack: 'multi_acks' };
-            rows(features, Object.entries(device.features || {}).map(([k, v]) => [labels[k] || 'type', t(v === 'available' ? 'enabled' : v === 'unsupported' ? 'unsupported' : 'value_unknown')]));
         }
         function messageDetails(msg) {
             const d = dialog(s, 'details', 'info'), m = msg.details, rx = m?.reception;
@@ -150,6 +175,8 @@
                 if (limits[key]) { input.min = limits[key][0]; input.max = limits[key][1]; }
                 if (key === 'latitude' || key === 'longitude') input.step = '0.000001';
             }
+            if (el.type === 'checkbox') label.classList.add('mc-setting-toggle');
+            if (key === 'auto_add_mask') label.classList.add('mc-setting-flags');
             el.dataset.mcField = key; label.append(el); form.fields.append(label); form.inputs[key] = el;
             return el;
         }
@@ -179,19 +206,26 @@
                 hint.hidden = !el.disabled; hint.textContent = t(state === 'unsupported' ? 'unsupported' : 'value_unknown');
             }
             form.save.disabled = form.fields.disabled || !form.dirty; form.discard.disabled = form.saving || !form.dirty;
+            form.locked.hidden = !form.fields.disabled || form.saving;
+            form.locked.textContent = t(s.context.readonly ? 'error_permission_denied' : !device?.allow_device_settings ? 'settings_locked' : device.status.state === 'settings_uncertain' ? 'state_settings_uncertain' : 'error_not_connected');
+            const link = settingsNav.querySelector(`[data-mc-section-link="${form.section}"]`);
+            link.classList.toggle('mc-section-dirty', form.dirty);
+            settingsSelect.querySelector(`option[value="${form.section}"]`).textContent = link.textContent + (form.dirty ? ' · ' + t('unsaved') : '');
         }
         function makeForm(section, title) {
             const el = node('form', undefined, 'mc-device-card'), fields = node('fieldset', undefined, 'mc-settings-fields');
-            el.dataset.mcSection = section; el.append(node('h3', t(title)), fields);
-            const form = { section, el, fields, inputs: {}, dirty: false, saving: false, marker: node('span', '', 'mc-hint'), feedback: node('div', '', 'mc-feedback') };
+            const heading = node('h3', t(title)); heading.tabIndex = -1;
+            el.dataset.mcSection = section; el.append(heading, fields);
+            const form = { section, el, fields, inputs: {}, dirty: false, saving: false, marker: node('span', '', 'mc-unsaved'), locked: node('p', '', 'mc-settings-locked'), feedback: node('div', '', 'mc-feedback') };
+            sectionLink(section, title);
             form.feedback.hidden = true; form.feedback.setAttribute('role', 'status');
             for (const key of sectionFields[section]) controls(form, key, source(section)?.[key]);
             if (section === 'identity') fields.append(node('p', t('location_hint'), 'mc-hint'));
             if (section === 'app') fields.append(node('p', t('gates_hint'), 'mc-hint'));
-            const actions = node('div', undefined, 'mc-actions');
+            const actions = node('div', undefined, 'mc-actions mc-settings-actions');
             form.save = button(actions, 'save', () => { if (el.reportValidity()) return submit(form); }); form.save.classList.add('mc-primary');
             form.discard = button(actions, 'discard', () => { fill(form); form.feedback.hidden = true; });
-            el.append(actions, form.marker, form.feedback); settingsPane.append(el); forms.set(section, form);
+            actions.append(form.marker); el.append(form.locked, actions, form.feedback); settingsContent.append(el); forms.set(section, form);
             el.addEventListener('submit', e => { e.preventDefault(); if (!form.save.disabled && el.reportValidity()) submit(form); });
             fields.addEventListener('input', () => { form.dirty = sectionFields[section].some(k => !form.inputs[k].disabled && readInput(form.inputs[k], k) !== form.base?.[k]); form.marker.textContent = form.dirty ? t('unsaved') : ''; updateLocks(form); });
             fill(form); return form;
@@ -200,16 +234,20 @@
             if (!forms.has('app')) makeForm('app', 'app_settings');
             if (s.status.state === 'binding_changed' && !settingsPane.querySelector('[data-mc-mapping]')) {
                 const mapping = group(settingsPane, 'confirm_mapping'); mapping.dataset.mcMapping = 'true'; mapping.append(node('p', t('mapping_hint')));
+                mapping.classList.add('mc-settings-recovery'); settingsPane.prepend(mapping);
                 button(mapping, 'confirm_mapping', async () => { await h.manage(s, { action: 'confirm_mapping' }); mapping.remove(); await reload(); }, !!s.context.readonly);
             }
             if (device && !forms.has('identity')) {
                 makeForm('identity', 'self'); makeForm('contacts', 'contacts_telemetry'); makeForm('radio', 'radio');
-                const actions = group(settingsPane, 'device_clock'); actions.append(node('p', t('clock_hint'), 'mc-hint'));
+                const actions = group(settingsContent, 'device_clock'); actions.dataset.mcSection = 'clock'; actions.append(node('p', t('clock_hint'), 'mc-hint')); sectionLink('clock', 'device_clock');
                 const sync = button(actions, 'sync_clock', () => singleAction('clock')); sync.dataset.mcDeviceAction = 'clock';
-                const reconcile = button(actions, 'reconcile_settings', () => singleAction('reconcile')); reconcile.dataset.mcDeviceAction = 'reconcile';
+                recovery.append(node('p', t('reconcile_hint')));
+                const reconcile = button(recovery, 'reconcile_settings', () => singleAction('reconcile')); reconcile.dataset.mcDeviceAction = 'reconcile';
             }
             for (const form of forms.values()) { if (!form.dirty && !form.saving) fill(form); else updateLocks(form); }
             settingsPane.querySelectorAll('[data-mc-device-action]').forEach(b => { const recovery = b.dataset.mcDeviceAction === 'reconcile'; b.hidden = recovery && device?.status.state !== 'settings_uncertain'; b.disabled = !!s.context.readonly || !device?.allow_device_settings || (recovery ? device.status.state !== 'settings_uncertain' : device.status.state !== 'connected' || device.features.clock !== 'available'); });
+            recovery.hidden = device?.status.state !== 'settings_uncertain';
+            selectSection(activeSection);
         }
         async function submit(form) {
             if (form.saving || form.save.disabled) return;
@@ -250,11 +288,11 @@
             finally { loading = false; }
         }
         async function open(next) {
-            view = next; page.hidden = false; s.root.classList.add('mc-subpage-open'); devicePane.hidden = next !== 'device'; settingsPane.hidden = next !== 'settings'; heading.textContent = t(next === 'device' ? 'self' : 'settings'); heading.focus();
+            view = next; page.hidden = false; s.root.classList.add('mc-subpage-open'); devicePane.hidden = next !== 'device'; settingsPane.hidden = next !== 'settings'; heading.textContent = t(next === 'device' ? 'device' : 'settings'); syncNavigation(next); page.scrollTop = 0; heading.focus({ preventScroll: true });
             renderSettings(); renderDevice();
             if (!device || Date.now() - lastRead >= 30000) await reload();
         }
-        function close() { view = ''; page.hidden = true; s.root.classList.remove('mc-subpage-open'); s.root.querySelector('[data-mc="settings"]').focus(); }
+        function close(focus = true) { view = ''; page.hidden = true; s.root.classList.remove('mc-subpage-open'); syncNavigation('messages'); h.updateComposer(s); if (focus) s.root.querySelector('[data-mc="messages"]').focus(); }
         const timer = setInterval(() => { if (view === 'device' && !document.hidden && page.getClientRects().length && Date.now() - lastRead >= 30000) reload(); }, 30000);
         return { open, close, reload, isOpen: () => !!view, messageDetails, contactDetails, dispose: () => { clearInterval(timer); clearTimeout(jobTimer); forms.clear(); device = null; page.remove(); } };
     }

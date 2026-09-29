@@ -41,6 +41,17 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
         window.startMessenger=()=>MeshCoreApp.render(document.getElementById('host'),'mesh-test',{t:key=>translations[key]||key,updateWindowContext:(_,ctx)=>window.savedContext=ctx});startMessenger();
     }`)
 	waitForJSBool(t, page, `() => document.querySelectorAll('.mc-conversation').length===2`)
+	if !page.MustEval(`() => document.querySelectorAll('.mc-app-nav button').length===3 && document.querySelector('[data-mc-view="messages"]').getAttribute('aria-pressed')==='true' && getComputedStyle(document.querySelector('.mc-composer')).display==='none'`).Bool() {
+		t.Fatal("initial navigation or empty conversation layout")
+	}
+	page.MustElement(`[data-mc-role="search"]`).MustInput("missing contact")
+	page.MustElement(`[data-mc="clear-filters"]`).MustClick()
+	if !page.MustEval(`() => document.querySelectorAll('.mc-conversation').length===2 && document.querySelector('[data-mc-role="search"]').value==='' && document.activeElement===document.querySelector('[data-mc-role="search"]')`).Bool() {
+		t.Fatal("conversation search cannot be reset")
+	}
+	if !page.MustEval(`() => {const rows=[...document.querySelectorAll('.mc-conversation')];rows[0].focus();rows[0].dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));return document.activeElement===rows[1] && rows[0].tabIndex===-1 && rows[1].tabIndex===0;}`).Bool() {
+		t.Fatal("conversation keyboard navigation")
+	}
 	page.MustElement(`[data-mc="add-channel"]`).MustClick()
 	if !page.MustEval(`() => document.querySelector('.mc-dialog select').value==='hashtag'`).Bool() {
 		t.Fatal("new channel did not default to hashtag")
@@ -65,6 +76,11 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 	page.MustElement(`.mc-dialog header button`).MustClick()
 	page.MustElement(".mc-conversation").MustClick()
 	waitForJSBool(t, page, `() => document.querySelectorAll('.mc-message').length===3`)
+	page.MustElement(`.mc-chat-head [data-mc="search-history"]`).MustClick()
+	page.MustElement(`[data-mc-role="query"]`).MustInput("Hallo")
+	waitForJSBool(t, page, `() => requests.some(r=>r.url.includes('q=Hallo'))`)
+	page.MustEval(`() => document.querySelector('[data-mc-role="query"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`)
+	waitForJSBool(t, page, `() => document.querySelector('[data-mc-role="history-search"]').hidden && document.querySelector('[data-mc-role="query"]').value==='' && document.querySelectorAll('.mc-message').length===3`)
 	if !page.MustEval(`() => savedContext.conversation_id===conv && document.querySelector('[data-message-id="protected"] .mc-message-text').textContent===translations['desktop.meshcore_protected']`).Bool() {
 		t.Fatal("protected text/context")
 	}
@@ -155,10 +171,14 @@ func TestDesktopMeshCoreBrowser(t *testing.T) {
 		t.Fatal("new message moved scroll")
 	}
 	page.MustElement(`[data-mc="latest"]`).MustClick()
+	if !page.MustEval(`() => {const input=document.querySelector('[data-mc-role="compose"]'),box=document.querySelector('[data-mc-role="messages"]'),before=input.clientHeight;input.value='Zeile\n'.repeat(6);input.dispatchEvent(new Event('input'));const kept=input.clientHeight>before && box.scrollHeight-box.scrollTop-box.clientHeight<2;input.value='';input.dispatchEvent(new Event('input'));return kept;}`).Bool() {
+		t.Fatal("growing composer obscured the latest message")
+	}
 	for _, theme := range themes {
 		page.MustEval(`(theme,mode)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;}`, theme.name, theme.mode)
 		for _, width := range []int{1080, 600, 390} {
-			page.MustEval(`width=>document.getElementById('host').style.width=width+'px'`, width)
+			page.MustSetViewport(width, 760, 1, false)
+			page.MustEval(`width=>{document.getElementById('host').style.width=width+'px';const box=document.querySelector('[data-mc-role="messages"]');box.scrollTop=box.scrollHeight;}`, width)
 			page.MustEval(`() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
 			if !page.MustEval(`() => {
                 const rows=[...document.querySelectorAll('.mc-message')];

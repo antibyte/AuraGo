@@ -909,7 +909,20 @@ registration lives in `internal/desktop/types.go`.
 
 ## Local Contracts
 
-- MeshCore loads `meshcore-device.js` before `meshcore.js`. The companion module owns in-app Device/Settings pages and reception/contact details, preserves per-section drafts during refresh, displays readback conflicts/partial results, and requires a before/after confirmation for radio edits. Local diagnostics poll only on the visible Device page, at least 30 seconds apart; remote diagnostics start only from explicit contact actions and poll bounded server jobs. Settings drafts and diagnostics never enter browser storage. Keep device flags/favorites distinct from Messenger favorites and agent trust. Dispose timers, requests and dialogs; verify both themes and narrow windows with `TestDesktopMeshCoreDeviceBrowser`. Firmware/API/privacy contracts are owned by `internal/meshcore/AGENTS.md`.
+- MeshCore loads `meshcore-device.js` before `meshcore.js`. The companion module
+  owns Device/Settings pages and reception/contact details. Settings use topic
+  navigation (a native select in narrow windows); inactive forms stay mounted so
+  drafts survive section/page changes and refresh. Show disabled reasons and
+  readback conflicts/partial results; keep uncertain-state reconciliation visible
+  above every section. Radio edits require a before/after confirmation. The Device
+  overview separates identity, capacity, radio/features and timestamped diagnostics;
+  unavailable values remain unknown. Local diagnostics poll only on the visible
+  Device page, at least 30 seconds apart; remote diagnostics start only from
+  explicit contact actions and poll bounded server jobs. Settings drafts and
+  diagnostics never enter browser storage. Keep device flags/favorites distinct
+  from Messenger favorites and agent trust. Dispose timers, requests and dialogs;
+  verify both themes and narrow windows with `TestDesktopMeshCoreDeviceBrowser`.
+  Firmware/API/privacy contracts are owned by `internal/meshcore/AGENTS.md`.
 
 - Agent Chat displays transient typed `llm_route` metadata through the shared
   `AuraLLMRouteBadge` helper. Update the originating turn's badge on fallback,
@@ -1833,7 +1846,32 @@ registration lives in `internal/desktop/types.go`.
   `TestHASwitchboard|TestHAContext`, bundle `--check` and pinned asset validation.
   Implementation and acceptance details: `documentation/ha-switchboard-plan.md`.
 
-- `meshcore.js`: native Messenger (`window.MeshCoreApp.render/dispose/openConversation`), using `/api/meshcore/messenger/` and the existing Companion manager. Owns direct/channel conversations, protected-text reveal, contact/channel dialogs, native BarcodeDetector import and the existing QRCode renderer. No direct hardware connection or agent-tool sending. Theme styles live in `css/desktop-app-meshcore.css`; the 300px list switches to single-pane navigation below 700px. The "Mesh" visual system owns a scoped `--mc-*` token layer in that stylesheet (teal signature accent with per-theme variants, gradient outgoing bubbles, hash-hue avatars, frosted sticky day pills, skeleton loading). Inline stroke SVG icons are built into the JS via `icon()`/`iconEl()` — no external assets. Messages group by direction/origin within a 300 s gap via `mc-group-start/mid/end` classes; day changes always break groups. Message actions (reveal/copy/retry) reveal on hover/focus-within via `opacity` only — never `pointer-events`, `visibility`, or `display` — because the browser test clicks them by coordinates; they stay visible on touch and narrow layouts. The conversation list supports ArrowUp/ArrowDown roving focus; Esc closes the detail panel or leaves the chat pane unless a dialog is open. Drafts and pending send IDs are local per device/conversation; invitation keys never enter browser storage. Persistent request IDs reconcile HTTP retries, explicit resend warns about duplicates. Abort all requests and remove document listeners/timers on dispose. Session/notification context contains only a validated conversation ID. All 16 desktop locales must include `desktop.meshcore_*`.
+- `meshcore.js`: native Messenger (`window.MeshCoreApp.render/dispose/openConversation`),
+  using `/api/meshcore/messenger/` and the existing Companion manager. Owns
+  direct/channel conversations, protected-text reveal, contact/channel dialogs,
+  native BarcodeDetector import and the existing QRCode renderer. No direct
+  hardware connection or agent-tool sending. Labeled Messages/Device/Settings
+  navigation stays visible on all pages. Theme styles live in
+  `css/desktop-app-meshcore.css`; the 304px list switches to single-pane navigation
+  below 700px. Scoped `--mc-*` tokens provide quiet teal surfaces, per-theme
+  variants, hash-hue avatars, non-sticky day markers and skeleton loading. Inline
+  SVG icons use `icon()`/`iconEl()` without external assets. History search opens
+  on demand; closing it clears the query. Distinguish empty conversations from
+  filtered results and provide filter reset. Hide the composer until a conversation
+  is selected; grow its input with the draft and show packet preview for multipart
+  messages. Messages group by direction/origin within a 300 s gap via
+  `mc-group-start/mid/end`; day changes break groups. Message actions
+  (reveal/copy/retry) reveal via `opacity` on hover/focus-within, never via
+  `pointer-events`, `visibility` or `display`; they remain visible on touch/narrow
+  layouts. Preserve ArrowUp/ArrowDown roving focus through list refreshes. Esc
+  closes details/search before leaving the chat, unless a dialog is open. Drafts
+  and pending send IDs are local per device/conversation; invitation keys never
+  enter browser storage. Persistent request IDs reconcile HTTP retries; explicit
+  resend warns about duplicates. Abort all requests and remove document
+  listeners/timers on dispose. Session/notification context contains only a
+  validated conversation ID. All 16 desktop locales must include
+  `desktop.meshcore_*`. Verify `TestDesktopMeshCoreBrowser` in standard and fruity
+  light/dark themes at wide and narrow widths.
   New channels default to the hashtag type so a name such as `#bot` uses its derived key; the invitation field also accepts `#bot` as shorthand when the name is empty. Selecting Public fixes the channel name to `Public` and restores the draft name when switching back.
 
 - `file-manager/` (under `ui/js/desktop/file-manager/`, bundled to
