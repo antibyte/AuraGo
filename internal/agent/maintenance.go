@@ -1140,6 +1140,9 @@ Conversation:
 	if err := json.Unmarshal([]byte(raw), &extracted); err != nil {
 		return nil, fmt.Errorf("json parse failed: %w", err)
 	}
+	if extracted.Facts == nil || countValidConsolidationFacts(extracted.Facts) != len(extracted.Facts) {
+		return nil, fmt.Errorf("consolidation response requires an explicit array of valid facts")
+	}
 	return extracted.Facts, nil
 }
 
@@ -1243,6 +1246,11 @@ func finalizeConsolidationBatch(
 	}
 	validFacts := countValidConsolidationFacts(facts)
 	ok, reason := shouldMarkConsolidationSuccess(stored, skipped, len(facts), validFacts)
+	// An explicit empty array is a successful extraction with nothing to retain.
+	// Missing/null facts remain a failure, including for callers outside the parsers.
+	if facts != nil && len(facts) == 0 {
+		ok, reason = true, ""
+	}
 	if !ok {
 		logger.Warn("[Consolidation] Batch not consolidated", "batch", batchIndex, "reason", reason, "stored", stored, "skipped", skipped, "facts", len(facts), "valid_facts", validFacts)
 		if err := stm.MarkConsolidationFailure(item.messageIDs, reason); err != nil {
@@ -1478,7 +1486,11 @@ func runNightlyMemoryHygieneWithContext(ctx context.Context, cfg *config.Config,
 		logger.Warn("[Maintenance] Stopping memory conflict scan: maintenance context canceled", "error", err)
 		return err
 	}
-	return errors.Join(curationErr, detectMemoryConflictsAcrossLTMWithContext(ctx, logger, stm, ltm, metas))
+	conflictErr := detectMemoryConflictsAcrossLTMWithContext(ctx, logger, stm, ltm, metas)
+	if conflictErr != nil && logger != nil {
+		logger.Warn("[Maintenance] Memory conflict scan failed", "error_code", "memory_conflict_scan", "error", conflictErr)
+	}
+	return errors.Join(curationErr, conflictErr)
 }
 
 func runPostConsolidationMemoryOptimizationWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) (result nightlyMemoryMaintenanceResult) {
@@ -1570,10 +1582,6 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 	if err := ctx.Err(); err != nil {
 		result.Errors = append(result.Errors, err)
 		logger.Warn("[Consolidation] STM->LTM consolidation skipped: maintenance context canceled", "error", err)
-		return result
-	}
-	if !maintenanceContextHasAtLeast(ctx, 75*time.Second) {
-		logger.Info("[Consolidation] STM->LTM consolidation deferred: insufficient maintenance time remains")
 		return result
 	}
 
@@ -1796,7 +1804,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		i = end
 	}
 
-	if budget.remaining > 0 && len(archived) == claimLimit && maintenanceContextHasAtLeast(ctx, 75*time.Second) {
+	if budget.remaining > 0 && len(archived) == claimLimit && ctx.Err() == nil {
 		more := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, ltm, kg)
 		result.FactsStored += more.FactsStored
 		result.MessagesConsolidated += more.MessagesConsolidated

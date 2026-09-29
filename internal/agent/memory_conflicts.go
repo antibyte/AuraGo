@@ -48,7 +48,7 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 		if text == "" {
 			stored, err := ltm.GetByID(docID)
 			if err != nil {
-				resultErr = errors.Join(resultErr, err)
+				resultErr = errors.Join(resultErr, fmt.Errorf("read memory conflict document: %w", err))
 				continue
 			}
 			text = stored
@@ -57,7 +57,7 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 		for _, signal := range signals {
 			ranked, err := searchRankedMemoriesOnly(context.Background(), ltm, stm, signal.Key, 8, nil, time.Now())
 			if err != nil {
-				resultErr = errors.Join(resultErr, err)
+				resultErr = errors.Join(resultErr, fmt.Errorf("search memory conflicts: %w", err))
 				continue
 			}
 			for _, match := range ranked {

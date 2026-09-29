@@ -22,6 +22,88 @@ func (c maintenanceCompletionTestClient) CreateChatCompletion(ctx context.Contex
 	return c.complete(ctx, req)
 }
 
+func TestConsolidationUsesRemainingPhaseBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		timeout   time.Duration
+		delay     time.Duration
+		limit     int
+		processed int
+		claimed   int
+	}{
+		{"deadline", 2 * time.Minute, 50 * time.Second, 200, 80, 91},
+		{"message cap", 2 * time.Minute, 50 * time.Second, 65, 65, 65},
+		{"short remaining budget", 40 * time.Second, 10 * time.Second, 200, 91, 91},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				stm, logger := maintenanceRegressionStores(t)
+				for range 92 {
+					if _, err := stm.InsertMessage("direct", "user", "Remember the NAS backup target.", false, false); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := stm.DeleteOldMessages("direct", 1); err != nil {
+					t.Fatal(err)
+				}
+				cfg := &config.Config{}
+				cfg.LLM.Model = "test-model"
+				cfg.Consolidation.MaxBatchMessages = tc.limit
+				client := maintenanceCompletionTestClient{complete: func(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+					select {
+					case <-ctx.Done():
+						return openai.ChatCompletionResponse{}, ctx.Err()
+					case <-time.After(tc.delay):
+						return skillQualityTestClient{response: `{"facts":[]}`}.CreateChatCompletion(ctx, req)
+					}
+				}}
+				ctx, cancel := context.WithTimeout(t.Context(), tc.timeout)
+				defer cancel()
+				result := consolidateSTMtoLTMWithContext(ctx, cfg, logger, client, stm, &hierarchyVectorDB{}, nil)
+				if result.MessagesConsolidated != tc.processed || result.MessagesClaimed != tc.claimed {
+					t.Fatalf("processed=%d claimed=%d, want %d/%d", result.MessagesConsolidated, result.MessagesClaimed, tc.processed, tc.claimed)
+				}
+				pending, err := stm.GetConsolidationCandidates(200, 3)
+				if err != nil || len(pending) != 91-tc.processed {
+					t.Fatalf("pending=%d, err=%v", len(pending), err)
+				}
+				for _, message := range pending {
+					if message.ConsolidationStatus != "pending" || message.ConsolidationRetries != 0 {
+						t.Fatalf("deadline must release claims without spending retries: %+v", message)
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestConsolidationRequiresExplicitValidFacts(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		fields string
+		valid  bool
+	}{
+		{"empty", `"facts":[]`, true},
+		{"fact", `"facts":[{"concept":"Backup","content":"Backups target the NAS."}]`, true},
+		{"missing", `"other":[]`, false},
+		{"null", `"facts":null`, false},
+		{"malformed", `"facts":{}`, false},
+		{"invalid fact", `"facts":[{"concept":"Backup","content":" "}]`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, logger := maintenanceRegressionStores(t)
+			cfg := &config.Config{}
+			cfg.LLM.Model = "test-model"
+			_, directErr := extractConsolidationFactsWithLLM(t.Context(), cfg, logger,
+				skillQualityTestClient{response: "{" + tc.fields + "}"}, "test-model", "Conversation")
+			_, helperErr := parseHelperConsolidationBatchResult(`{"batches":[{"batch_id":"one",` + tc.fields + `}]}`)
+			if (directErr == nil) != tc.valid || (helperErr == nil) != tc.valid {
+				t.Fatalf("valid=%t, direct error=%v, helper error=%v", tc.valid, directErr, helperErr)
+			}
+		})
+	}
+}
+
 func TestMaintenanceConsolidationMakesProgressBeforeSlowPhases(t *testing.T) {
 	for _, slow := range []string{"summary", "consolidation"} {
 		t.Run(slow, func(t *testing.T) {

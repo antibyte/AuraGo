@@ -1046,12 +1046,15 @@ func parseHelperConsolidationBatchResult(raw string) (helperConsolidationBatchRe
 	}
 	for i := range result.Batches {
 		result.Batches[i].BatchID = strings.TrimSpace(result.Batches[i].BatchID)
+		if result.Batches[i].Facts == nil {
+			return helperConsolidationBatchResult{}, fmt.Errorf("helper consolidation batch requires an explicit facts array")
+		}
 		filtered := result.Batches[i].Facts[:0]
 		for _, fact := range result.Batches[i].Facts {
 			fact.Concept = strings.TrimSpace(fact.Concept)
 			fact.Content = strings.TrimSpace(fact.Content)
 			if fact.Concept == "" || fact.Content == "" {
-				continue
+				return helperConsolidationBatchResult{}, fmt.Errorf("helper consolidation batch contains an invalid fact")
 			}
 			filtered = append(filtered, fact)
 		}

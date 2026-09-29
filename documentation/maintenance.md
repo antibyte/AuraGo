@@ -65,7 +65,11 @@ maintenance does not send chat or Telegram notices directly.
 STM consolidation runs immediately after baseline cleanup, before summaries,
 weekly reflection, and knowledge-graph work. Its two-minute phase budget also
 preserves the existing 90-second tail reserve; the configured message cap still
-applies. A phase deadline releases unfinished claims without spending a retry.
+applies. Bounded batches continue while that budget remains, without requiring
+another full request timeout before each claim. A phase deadline releases
+unfinished claims without spending a retry. Explicit valid empty fact arrays
+complete extraction without creating facts or retrying the same conversation;
+missing/null arrays and invalid facts remain errors on both LLM paths.
 Direct summaries and consolidation reserve reasoning output within the selected
 helper/main provider's output and context limits.
 
@@ -76,6 +80,10 @@ the phase ran out of time; integration checks can pass while maintenance remains
 partial. The operational issue count covers all active issues, including earlier
 runs and other sources. A large backlog is drained across bounded runs and is
 never cleared just to make the report look successful.
+
+For `memory_baseline`, consult the maintenance log: conflict-scan failures record
+`memory_conflict_scan` with the underlying metadata, document-read, search or
+conflict-write error. The public ledger never includes raw backend error text.
 
 ## Scheduling and completed-day summaries
 

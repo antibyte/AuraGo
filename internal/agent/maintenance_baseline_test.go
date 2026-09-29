@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -12,6 +13,19 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
 )
+
+func TestMaintenanceBaselineLogsConflictFailure(t *testing.T) {
+	stm, _ := maintenanceRegressionStores(t)
+	if err := stm.UpsertMemoryMetaWithDetails("missing-active", memory.MemoryMetaUpdate{VerificationStatus: "confirmed"}); err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	err := runNightlyMemoryBaselineWithContext(t.Context(), &config.Config{}, logger, stm, &baselineConflictVectorDB{})
+	if err == nil || !strings.Contains(logs.String(), "memory_conflict_scan") || !strings.Contains(logs.String(), "read memory conflict document") {
+		t.Fatalf("baseline error must retain its failing step: error=%v logs=%s", err, logs.String())
+	}
+}
 
 type baselineConflictVectorDB struct {
 	conflictScanStub
