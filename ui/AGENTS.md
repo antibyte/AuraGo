@@ -410,6 +410,16 @@ worker. Keep packaging, recovery and offline instructions in
   texture.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
+- `ui/css/desktop-polish.css` is the Desktop's finishing layer and stays the
+  last part of the shell CSS bundle: it only refines existing surfaces (ambient
+  wallpaper light in taskbar, dock, menubar and menus, focus edge light and
+  glow, vignette, pointer light, taskbar indicators, toast countdown, bell
+  ring). Every wallpaper needs `--vd-ambient-top/-bottom/-glow`; photo values
+  come from `python scripts/wallpaper-ambient.py`. Its selectors double
+  `.desktop-body` where `desktop-base.css` has mode-specific glass rules.
+  Motion is gated by `data-animations` and `prefers-reduced-motion`; the
+  pointer-light target list in `ui/js/desktop/core/polish-runtime.js` must
+  match the CSS (`desktop_polish_layer_test.go`).
 - ThreeDee combat uses a fixed four-light impact pool, at most 240 sprites
   (40 slots reserved for smoke/debris), and six unlit, shadow-free blink ghosts.
   Continuous particle emission follows simulation time; cinematic slow motion

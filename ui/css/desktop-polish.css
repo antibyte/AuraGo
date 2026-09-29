@@ -1,0 +1,266 @@
+/* desktop-polish.css — finishing layer: wallpaper light in the chrome, a pointer light on
+ * launchers and menus, deeper focus and small details. Loads last in the shell bundle and
+ * only refines existing surfaces. Colour effects are static; movement honours
+ * data-animations="false" and prefers-reduced-motion, extra translucency honours
+ * prefers-reduced-transparency. */
+
+/* Ambient light: each wallpaper lends its colours to the chrome in front of it. Photo values
+ * come from scripts/wallpaper-ambient.py (top band, bottom band, most luminous hue); the
+ * gradient wallpapers use their own key colours. */
+.desktop-body {
+    --vd-ambient-top: 22, 36, 48;
+    --vd-ambient-bottom: 16, 24, 36;
+    --vd-ambient-glow: 39, 199, 166;
+    --vd-reveal: 255, 255, 255;
+}
+
+.desktop-body[data-wallpaper="midnight"] { --vd-ambient-top: 14, 20, 34; --vd-ambient-bottom: 10, 13, 22; --vd-ambient-glow: 123, 209, 255; }
+.desktop-body[data-wallpaper="slate"] { --vd-ambient-top: 34, 40, 50; --vd-ambient-bottom: 22, 27, 35; --vd-ambient-glow: 120, 196, 186; }
+.desktop-body[data-wallpaper="ember"] { --vd-ambient-top: 40, 24, 22; --vd-ambient-bottom: 14, 16, 20; --vd-ambient-glow: 255, 128, 102; }
+.desktop-body[data-wallpaper="forest"] { --vd-ambient-top: 14, 34, 28; --vd-ambient-bottom: 10, 18, 20; --vd-ambient-glow: 68, 207, 142; }
+.desktop-body[data-wallpaper="groupshoot"] { --vd-ambient-top: 101, 67, 48; --vd-ambient-bottom: 66, 48, 44; --vd-ambient-glow: 209, 140, 103; }
+.desktop-body[data-wallpaper="alpine_dawn"] { --vd-ambient-top: 94, 103, 125; --vd-ambient-bottom: 88, 91, 103; --vd-ambient-glow: 115, 157, 209; }
+.desktop-body[data-wallpaper="city_rain"] { --vd-ambient-top: 34, 58, 71; --vd-ambient-bottom: 40, 42, 38; --vd-ambient-glow: 101, 175, 209; }
+.desktop-body[data-wallpaper="ocean_cliff"] { --vd-ambient-top: 104, 153, 182; --vd-ambient-bottom: 41, 67, 74; --vd-ambient-glow: 86, 165, 209; }
+.desktop-body[data-wallpaper="aurora_glass"] { --vd-ambient-top: 29, 58, 93; --vd-ambient-bottom: 43, 44, 75; --vd-ambient-glow: 61, 190, 209; }
+.desktop-body[data-wallpaper="nebula_flow"] { --vd-ambient-top: 28, 22, 46; --vd-ambient-bottom: 19, 17, 53; --vd-ambient-glow: 66, 85, 209; }
+.desktop-body[data-wallpaper="paper_waves"] { --vd-ambient-top: 236, 230, 220; --vd-ambient-bottom: 66, 87, 105; --vd-ambient-glow: 223, 142, 69; }
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="light"] {
+    --vd-reveal: var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255);
+}
+
+/* Depth: a soft vignette over the wallpaper, below icons, widgets and windows. */
+.vd-workspace::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(125% 95% at 50% 42%, transparent 56%, rgba(2, 5, 10, 0.26) 100%);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-workspace::after {
+    background: radial-gradient(125% 95% at 50% 42%, transparent 62%, rgba(2, 5, 10, 0.14) 100%);
+}
+
+/* Standard taskbar: the wallpaper's lower band tints the glass, its light edges the top. */
+.desktop-body[data-theme="standard"] .vd-taskbar {
+    background-image:
+        radial-gradient(45% 160% at 50% 0%, rgba(var(--vd-ambient-glow), 0.1), transparent 70%),
+        linear-gradient(90deg, rgba(var(--vd-ambient-glow), 0.12), rgba(var(--vd-ambient-bottom), 0.4) 16%, rgba(var(--vd-ambient-bottom), 0.2) 58%, rgba(var(--vd-ambient-glow), 0.14));
+}
+
+.desktop-body[data-theme="standard"] .vd-taskbar::before {
+    left: 6%;
+    right: 6%;
+    background: linear-gradient(90deg, transparent, rgba(var(--vd-ambient-glow), 0.75) 22%, rgba(255, 255, 255, 0.42) 50%, rgba(var(--vd-ambient-glow), 0.75) 78%, transparent);
+    box-shadow: 0 0 14px 1px rgba(var(--vd-ambient-glow), 0.28);
+}
+
+/* Fruity menubar and dock pick up the wallpaper colour behind them. */
+.desktop-body[data-theme="fruity"] .vd-global-bar {
+    background-image: linear-gradient(90deg, rgba(var(--vd-ambient-top), 0.2), rgba(var(--vd-ambient-top), 0.06) 55%, rgba(var(--vd-ambient-glow), 0.08));
+}
+
+/* The doubled class outranks the mode-specific glass rules in desktop-base.css; the dark dock
+ * keeps its own sheen as the lower layer. */
+.desktop-body.desktop-body[data-theme="fruity"] .vd-taskbar-apps {
+    background-image:
+        radial-gradient(60% 130% at 50% 118%, rgba(var(--vd-ambient-glow), 0.34), transparent 72%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05));
+}
+
+.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-taskbar-apps {
+    background-image: radial-gradient(60% 130% at 50% 118%, rgba(var(--vd-ambient-glow), 0.16), transparent 70%);
+}
+
+/* Start and context menus carry a faint light from the wallpaper at their upper edge. */
+.desktop-body.desktop-body[data-theme] .vd-start-menu,
+.desktop-body.desktop-body[data-theme] .vd-context-menu {
+    background-image: radial-gradient(100% 60% at 20% 0%, rgba(var(--vd-ambient-glow), 0.26), transparent 72%);
+}
+
+.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-start-menu,
+.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-context-menu {
+    background-image: radial-gradient(100% 60% at 20% 0%, rgba(var(--vd-ambient-glow), 0.12), transparent 72%);
+}
+
+/* Focus: the active window stands higher, casts a faint light of the wallpaper below it and
+ * catches that light on its top edge (above the chrome ring overlay); inactive windows let
+ * their app icon recede with the title. */
+.desktop-body[data-theme="standard"] .vd-window.active {
+    box-shadow: var(--vd-shadow-window, var(--vd-shadow)), var(--vd-inner-glow), 0 44px 100px -46px rgba(var(--vd-ambient-glow), 0.7);
+}
+
+.desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-window.active {
+    box-shadow: 0 34px 90px rgba(0, 0, 0, 0.52), 0 10px 26px rgba(0, 0, 0, 0.3), 0 0 0 1px color-mix(in srgb, var(--vd-accent) 22%, transparent), 0 44px 100px -46px rgba(var(--vd-ambient-glow), 0.72);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-window.active {
+    box-shadow: var(--vd-shadow), 0 0 0 1px var(--vd-theme-accent-border), 0 0 28px color-mix(in srgb, var(--vd-accent) 8%, transparent), 0 44px 90px -50px rgba(var(--vd-ambient-glow), 0.55);
+}
+
+.desktop-body[data-theme] .vd-window.active::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    z-index: 4;
+    pointer-events: none;
+    border-radius: 1px;
+    background: linear-gradient(90deg, transparent, rgba(var(--vd-ambient-glow), 0.85) 26%, rgba(255, 255, 255, 0.6) 50%, rgba(var(--vd-ambient-glow), 0.85) 74%, transparent);
+    box-shadow: 0 0 12px rgba(var(--vd-ambient-glow), 0.35);
+}
+
+.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-window.active::before {
+    background: linear-gradient(90deg, transparent, rgba(var(--vd-ambient-glow), 0.7) 26%, rgba(var(--vd-ambient-glow), 0.9) 50%, rgba(var(--vd-ambient-glow), 0.7) 74%, transparent);
+}
+
+.desktop-body[data-theme] .vd-window.maximized::before,
+.desktop-body[data-theme] .vd-window.no-titlebar::before {
+    display: none;
+}
+
+/* The edge light kindles from the middle whenever a window takes focus. */
+.desktop-body[data-theme]:not([data-animations="false"]) .vd-window.active::before {
+    animation: vd-edge-kindle 560ms cubic-bezier(0.22, 0.8, 0.26, 1) both;
+}
+
+@keyframes vd-edge-kindle {
+    from { transform: scaleX(0.12); opacity: 0; }
+    to { transform: scaleX(1); opacity: 1; }
+}
+
+.vd-window-header-icon-wrap {
+    transition: filter var(--ds-motion-duration-base, 200ms) var(--ds-motion-ease-standard, ease), opacity var(--ds-motion-duration-base, 200ms) var(--ds-motion-ease-standard, ease);
+}
+
+.vd-window:not(.active) .vd-window-header-icon-wrap {
+    filter: saturate(0.35);
+    opacity: 0.72;
+}
+
+/* Pointer light: launchers, menu entries and task buttons glow where the pointer is
+ * (position from polish-runtime.js; the fallback is the centre). */
+.desktop-body.desktop-body[data-theme] :is(.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
+    background-image: radial-gradient(circle at var(--vd-rx, 50%) var(--vd-ry, 50%), rgba(var(--vd-reveal), 0.16), transparent 72%);
+}
+
+.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] :is(.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
+    background-image: radial-gradient(circle at var(--vd-rx, 50%) var(--vd-ry, 50%), rgba(var(--vd-reveal), 0.14), transparent 72%);
+}
+
+/* Standard taskbar: each window button carries a small light that stretches into an accent
+ * pill for the focused window. */
+.desktop-body[data-theme="standard"] .vd-task-button::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 2px;
+    width: 6px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.4);
+    transform: translateX(-50%);
+    pointer-events: none;
+    transition: width 260ms cubic-bezier(0.32, 0.72, 0, 1), background-color 200ms ease, box-shadow 200ms ease;
+}
+
+.desktop-body[data-theme="standard"] .vd-task-button.active::after {
+    width: 18px;
+    background: var(--vd-accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--vd-accent) 65%, transparent);
+}
+
+/* A new notification swings the bell once and pops its badge (polish-runtime.js). */
+.desktop-body:not([data-animations="false"]) .vd-notification-button.vd-bell-ring .vd-notification-icon {
+    transform-origin: 50% 8%;
+    animation: vd-bell-ring 760ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.desktop-body:not([data-animations="false"]) .vd-notification-button.vd-bell-ring .vd-notification-badge {
+    animation: vd-badge-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes vd-bell-ring {
+    0%, 100% { transform: rotate(0); }
+    15% { transform: rotate(16deg); }
+    32% { transform: rotate(-13deg); }
+    49% { transform: rotate(9deg); }
+    66% { transform: rotate(-5deg); }
+    83% { transform: rotate(2deg); }
+}
+
+@keyframes vd-badge-pop {
+    from { transform: scale(0.4); }
+    to { transform: scale(1); }
+}
+
+/* Toasts: a hairline counts down the time left; hovering pauses it (sdk-events-bootstrap.js). */
+.vd-toast {
+    position: relative;
+    overflow: hidden;
+}
+
+.vd-toast::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    transform-origin: left center;
+    background: linear-gradient(90deg, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.95), rgba(var(--vd-ambient-glow), 0.6));
+    opacity: 0.75;
+    pointer-events: none;
+}
+
+.vd-toast[data-type="error"]::after {
+    background: linear-gradient(90deg, #ff6b6b, #ff9a7a);
+}
+
+.desktop-body:not([data-animations="false"]) .vd-toast::after {
+    animation: vd-toast-life var(--vd-toast-life, 5500ms) linear forwards;
+}
+
+.desktop-body:not([data-animations="false"]) .vd-toast.vd-toast-paused::after {
+    animation-play-state: paused;
+}
+
+@keyframes vd-toast-life {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
+/* Text selection takes the accent colour. */
+.desktop-body ::selection {
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.34);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-toast::after,
+    .vd-window.active::before,
+    .vd-notification-button.vd-bell-ring .vd-notification-icon,
+    .vd-notification-button.vd-bell-ring .vd-notification-badge {
+        animation: none !important;
+    }
+
+    .desktop-body[data-theme="standard"] .vd-task-button::after {
+        transition: none;
+    }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .vd-workspace::after {
+        display: none;
+    }
+
+    .desktop-body[data-theme] .vd-start-menu,
+    .desktop-body[data-theme] .vd-context-menu,
+    .desktop-body[data-theme="fruity"] .vd-global-bar {
+        background-image: none !important;
+    }
+}

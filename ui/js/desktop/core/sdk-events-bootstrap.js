@@ -376,6 +376,7 @@
         else if (payload.type === 'error') desktopSound('notify.error');
         else desktopSound('notify.info');
         pushNotificationRecord(payload);
+        ringNotificationBell();
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -386,8 +387,26 @@
         container.appendChild(toast);
         toast.querySelector('.vd-toast-close').addEventListener('click', () => removeToast(toast));
         const duration = Number(payload.duration) || 5500;
-        const timer = setTimeout(() => removeToast(toast), duration);
-        toast._toastTimer = timer;
+        toast.dataset.type = payload.type === 'error' ? 'error' : 'info';
+        toast.style.setProperty('--vd-toast-life', duration + 'ms');
+        // Hovering holds the toast; its countdown resumes with the time that was left.
+        let remaining = duration;
+        let started = Date.now();
+        const arm = () => {
+            started = Date.now();
+            toast._toastTimer = setTimeout(() => removeToast(toast), remaining);
+        };
+        toast.addEventListener('mouseenter', () => {
+            clearTimeout(toast._toastTimer);
+            remaining -= Date.now() - started;
+            toast.classList.add('vd-toast-paused');
+        });
+        toast.addEventListener('mouseleave', () => {
+            if (toast._toastRemoved) return;
+            toast.classList.remove('vd-toast-paused');
+            arm();
+        });
+        arm();
     }
 
     function removeToast(toast) {

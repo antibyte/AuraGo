@@ -29,6 +29,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/spaces-runtime.js',
   'ui/js/desktop/core/spaces-overview-runtime.js',
   'ui/js/desktop/core/shell-chrome-runtime.js',
+  'ui/js/desktop/core/polish-runtime.js',
   'ui/js/desktop/core/spotlight-runtime.js',
   'ui/js/desktop/core/desktop-file-drops.js',
   'ui/js/desktop/core/desktop-window-file-drops.js',
@@ -169,7 +170,8 @@ const cssBundles = [
       'ui/css/desktop-pet.css',
       'ui/css/desktop-realtime-speech.css',
       'ui/css/desktop-sip-phone-shell.css',
-      'ui/css/desktop-chrome.css'
+      'ui/css/desktop-chrome.css',
+      'ui/css/desktop-polish.css'
     ]
   },
   {

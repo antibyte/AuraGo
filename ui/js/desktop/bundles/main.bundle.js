@@ -9379,6 +9379,50 @@ function wireWindow(win, id) {
     }
 
 ;
+/* ui/js/desktop/core/polish-runtime.js */
+    // Pointer light for launchers, menu entries and task buttons (desktop-polish.css): the
+    // hovered item receives the pointer position as two custom properties, written at most
+    // once per frame and only while a mouse moves over such an item. Touch never paints it.
+    const POINTER_LIGHT_TARGETS = '.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile';
+    let pointerLightItem = null;
+    let pointerLightFrame = 0;
+    let pointerLightX = 0;
+    let pointerLightY = 0;
+
+    function paintPointerLight() {
+        pointerLightFrame = 0;
+        const item = pointerLightItem;
+        if (!item || !item.isConnected) return;
+        const rect = item.getBoundingClientRect();
+        item.style.setProperty('--vd-rx', Math.round(pointerLightX - rect.left) + 'px');
+        item.style.setProperty('--vd-ry', Math.round(pointerLightY - rect.top) + 'px');
+    }
+
+    function trackPointerLight(event) {
+        if (event.pointerType && event.pointerType !== 'mouse') return;
+        const item = event.target instanceof Element ? event.target.closest(POINTER_LIGHT_TARGETS) : null;
+        pointerLightItem = item;
+        if (!item) return;
+        pointerLightX = event.clientX;
+        pointerLightY = event.clientY;
+        if (!pointerLightFrame) pointerLightFrame = requestAnimationFrame(paintPointerLight);
+    }
+
+    document.addEventListener('pointermove', trackPointerLight, { passive: true });
+
+    // A new notification swings the bell once (desktop-polish.css); restarting the class lets
+    // a quick second notification ring again.
+    function ringNotificationBell() {
+        const bell = document.getElementById('vd-notification-button');
+        if (!bell || !animationsEnabled()) return;
+        bell.classList.remove('vd-bell-ring');
+        void bell.offsetWidth;
+        bell.classList.add('vd-bell-ring');
+        clearTimeout(bell._bellRingTimer);
+        bell._bellRingTimer = setTimeout(() => bell.classList.remove('vd-bell-ring'), 900);
+    }
+
+;
 /* ui/js/desktop/core/spotlight-runtime.js */
     let spotlightOpen = false;
 
@@ -18750,6 +18794,7 @@ if (appId === 'pixel') {
         else if (payload.type === 'error') desktopSound('notify.error');
         else desktopSound('notify.info');
         pushNotificationRecord(payload);
+        ringNotificationBell();
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -18760,8 +18805,26 @@ if (appId === 'pixel') {
         container.appendChild(toast);
         toast.querySelector('.vd-toast-close').addEventListener('click', () => removeToast(toast));
         const duration = Number(payload.duration) || 5500;
-        const timer = setTimeout(() => removeToast(toast), duration);
-        toast._toastTimer = timer;
+        toast.dataset.type = payload.type === 'error' ? 'error' : 'info';
+        toast.style.setProperty('--vd-toast-life', duration + 'ms');
+        // Hovering holds the toast; its countdown resumes with the time that was left.
+        let remaining = duration;
+        let started = Date.now();
+        const arm = () => {
+            started = Date.now();
+            toast._toastTimer = setTimeout(() => removeToast(toast), remaining);
+        };
+        toast.addEventListener('mouseenter', () => {
+            clearTimeout(toast._toastTimer);
+            remaining -= Date.now() - started;
+            toast.classList.add('vd-toast-paused');
+        });
+        toast.addEventListener('mouseleave', () => {
+            if (toast._toastRemoved) return;
+            toast.classList.remove('vd-toast-paused');
+            arm();
+        });
+        arm();
     }
 
     function removeToast(toast) {
