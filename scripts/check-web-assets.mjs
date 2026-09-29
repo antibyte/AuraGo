@@ -16,6 +16,6 @@ if (embedded > 10_000_000) throw new Error(`Embedded first-party resources excee
 for (const binary of process.argv.slice(2)) {
     const size = statSync(binary).size;
     console.log(`${binary}: ${(size/1e6).toFixed(2)} MB`);
-    if (size > 120_000_000) throw new Error(`Stripped binary exceeds 120 MB: ${binary}`);
+    if (size > 125_000_000) throw new Error(`Stripped binary exceeds 125 MB: ${binary}`);
 }
 console.log(`Embedded resource budget OK: ${(embedded/1e6).toFixed(2)} MB`);

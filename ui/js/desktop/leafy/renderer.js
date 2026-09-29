@@ -121,7 +121,7 @@
         const c=document.createElement('canvas');c.width=512;c.height=256;const x=c.getContext('2d');
         const gr=x.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#d9e7ed');gr.addColorStop(.4,'#697879');gr.addColorStop(.53,'#131b21');gr.addColorStop(1,'#55513c');x.fillStyle=gr;x.fillRect(0,0,512,256);
         for(const [p,w]of [[70,28],[360,65]]){const g=x.createLinearGradient(p-w,0,p+w,0);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,'rgba(255,249,230,.9)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(p-w,15,w*2,160);}
-        const texture=new T.CanvasTexture(c);texture.encoding=T.sRGBEncoding;texture.mapping=T.EquirectangularReflectionMapping;
+        const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;texture.mapping=T.EquirectangularReflectionMapping;
         const pm=new T.PMREMGenerator(renderer),target=pm.fromEquirectangular(texture);texture.dispose();pm.dispose();return target;
     }
     function potGroup(light,scale,moisture) {
@@ -143,14 +143,14 @@
     function make(canvas) {
         if(!artwork)throw Error('Prepare Leafy artwork before creating its renderer');
         const renderer=new T.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'low-power'});
-        renderer.outputEncoding=T.sRGBEncoding;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+        renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
         renderer.setClearColor(0,0);
         const scene=new T.Scene(),camera=new T.OrthographicCamera(0,1920,1080,0,.1,3000);camera.position.set(0,0,1500);camera.lookAt(0,0,0);
         const environment=studioEnvironment(renderer);scene.environment=environment.texture;
         scene.add(new T.HemisphereLight(0xe7efd4,0x33392c,.55));
         const key=new T.DirectionalLight(0xffefd0,1.1);key.position.set(-500,900,800);scene.add(key);
         const fill=new T.DirectionalLight(0xcde6fd,.35);fill.position.set(700,400,300);scene.add(fill);
-        const texture=new T.Texture(artwork.image);texture.encoding=T.sRGBEncoding;texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());texture.needsUpdate=true;
+        const texture=new T.Texture(artwork.image);texture.colorSpace=T.SRGBColorSpace;texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());texture.needsUpdate=true;
         const wind={value:0};let group=null,model=null,plant=null,disposed=false,highlight=null,frames=0;
         function clear(){
             if(!group)return;

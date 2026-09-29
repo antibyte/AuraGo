@@ -645,7 +645,7 @@ game_maker:
   job_timeout_seconds: 1800
 ```
 
-Die eingebetteten Laufzeiten sind Phaser `4.2.1` und Three.js `0.185.1`; externe CDNs, APIs und Assets sind nicht erlaubt. Siehe [Game Maker Studio](../../game-maker-studio.md).
+Die eingebetteten Laufzeiten sind Phaser `4.2.1` und Three.js `0.186.1`; externe CDNs, APIs und Assets sind nicht erlaubt. Siehe [Game Maker Studio](../../game-maker-studio.md).
 
 Neuere Fähigkeiten des Spiel-Agenten:
 

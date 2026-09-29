@@ -253,7 +253,7 @@ revision publication and standalone export for Phaser and Three.js games.
 - Exhausted repair budgets, unavailable browser feedback, and the first validation of each repair round also end the agent round through server-owned completion. Building can continue after core checks while budget remains. Exhaustion retains the last concrete failed check instead of replacing it with the budget error. Earlier rounds cannot complete a new round.
 - A rejected tool call in the tool-free limit response during Game Maker building/repair hands the saved source back to orchestrator validation. Never execute the extra call, retain its prose, increase budgets or mark the game successful without the existing checks. Planning failures, cancellation and other provider/agent errors still fail normally.
 - New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. Failed/cancelled jobs preserve the last playable revision; at most three repair passes are shared by tool and orchestrator validation.
-- Phaser 4.2.1 and Three.js 0.185.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
+- Phaser 4.2.1 and Three.js 0.186.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
 - Phaser phase guidance must distinguish dynamic and static Arcade bodies from their game objects. Moving paddles remain dynamic and immovable; body `setVelocity`/`setPosition` runtime errors receive bounded repair hints without weakening validation or increasing the repair budget.
 - Phaser `scene.restart()` reuses the instance. Guidance and source references
   require custom cooldowns, spawn clocks and per-run flags to reset in `setup()`;
@@ -346,7 +346,7 @@ revision publication and standalone export for Phaser and Three.js games.
   metric scale and 3D colliders. Import only explicit IDs after plan acceptance,
   including declared shared animation dependencies; never overwrite edited copies.
   Sprite plan v1 and all eighteen sprite packs remain compatible.
-- Three.js stays at 0.185.1. Rebuild the local GLTFLoader/SkeletonUtils/OrbitControls
+- Three.js stays at 0.186.1. Rebuild the local GLTFLoader/SkeletonUtils/OrbitControls
   helper using `node scripts/build-game-maker-3d.js`. One game-owned clock advances
   independent animated instances; static instances share geometry. Studio owns
   one disposable viewer, never one render loop per catalog card.
@@ -393,6 +393,8 @@ revision publication and standalone export for Phaser and Three.js games.
 Keep existing `common.ts` working on revisions. Advertise new APIs to older games
 only after reading their source and deliberately incorporating needed helpers.
 Do not patch a published game merely because a new starter changed.
+
+- Version both the Three.js module and core filenames. Installing a new runtime must not overwrite the shared `three.core.min.js` used by older published games. Preview/asset fallbacks retain the r185 pair; export selects the pair already referenced by the published revision, including older Voxel exports.
 
 ## Verification
 

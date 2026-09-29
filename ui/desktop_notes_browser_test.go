@@ -118,8 +118,13 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("Notes workflows:", page.MustEval(string(functional)).JSON("", ""))
-	out := filepath.Join("..", "reports", "notes")
-	os.MkdirAll(out, 0755)
+	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
+	if out == "" {
+		out = filepath.Join("..", "reports", "notes")
+	}
+	if err := os.MkdirAll(out, 0755); err != nil {
+		t.Fatal(err)
+	}
 	for _, theme := range []string{"default", "fruity-dark", "fruity-light"} {
 		for _, density := range []string{"normal", "compact"} {
 			for _, size := range [][2]int{{1920, 1080}, {1366, 768}, {430, 932}} {

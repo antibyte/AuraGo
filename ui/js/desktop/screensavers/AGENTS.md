@@ -44,7 +44,7 @@ Flüssige Tinte (`ink`) and Sternenstaub-Uhr (`stardust`).
 - Shaders are original code; do not paste Shadertoy or other CC-licensed shader
   sources. Clamp every `pow()` base. No `eval`/`new Function`, no remote assets;
   every URL goes through `AuraLazyAssets.versionedURL`.
-- Tiefsee uses the isolated MIT Three.js 0.185.1 bundle; the shared r128 global and
+- Tiefsee uses the isolated MIT Three.js 0.186.1 bundle; the separately bundled shared Three.js global and
   the System World bundle stay untouched. Bloom never blends into a multisampled
   buffer (the renderer runs without MSAA).
 - Keep every JS file below the desktop line budget and all strings in the 16

@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const check = process.argv.includes('--check');
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 const nodeModules = path.join(repoRoot, 'node_modules');
@@ -36,9 +37,19 @@ async function readPackageText(name, relPath) {
   return fs.readFile(filePath, 'utf8');
 }
 
+async function writeAsset(outputPath, content) {
+  const data = Buffer.from(content);
+  const current = await fs.readFile(outputPath).catch(error => { if (error.code !== 'ENOENT') throw error; return Buffer.alloc(0); });
+  if (data.equals(current)) return;
+  if (check) throw Error('Stale chess vendor asset: ' + outputPath);
+  const temporary = outputPath + '.tmp';
+  try { await fs.writeFile(temporary, data); await fs.rename(temporary, outputPath); }
+  finally { await fs.rm(temporary, { force: true }); }
+}
+
 async function copyPackageFile(name, relPath, outputPath) {
   const filePath = await assertPackage(name, relPath);
-  await fs.copyFile(filePath, outputPath);
+  await writeAsset(outputPath, await fs.readFile(filePath));
 }
 
 await fs.mkdir(disposableDir, { recursive: true });
@@ -64,16 +75,9 @@ const bundle = await rollup({
   input: entryPath,
   plugins: [nodeResolve({ browser: true })],
 });
-await bundle.write({
-  file: path.join(vendorDir, 'chess-vendor.esm.js'),
-  format: 'es',
-  sourcemap: false,
-});
+const generated = await bundle.generate({ format: 'es', sourcemap: false });
 await bundle.close();
-
-const chessVendorPath = path.join(vendorDir, 'chess-vendor.esm.js');
-const chessVendorSource = await fs.readFile(chessVendorPath, 'utf8');
-await fs.writeFile(chessVendorPath, normalizeGeneratedIndent(chessVendorSource), 'utf8');
+await writeAsset(path.join(vendorDir, 'chess-vendor.esm.js'), normalizeGeneratedIndent(generated.output[0].code));
 
 const cssParts = [
   ['cm-chessboard', 'assets/chessboard.css'],
@@ -85,17 +89,16 @@ for (const [label, relPath] of cssParts) {
   const source = await readPackageText('cm-chessboard', relPath);
   css.push(`/* ${label}: ${relPath} */\n${stripSourceMapComment(source)}`);
 }
-await fs.writeFile(path.join(cssOutDir, 'cm-chessboard.css'), `${css.join('\n\n')}\n`, 'utf8');
+await writeAsset(path.join(cssOutDir, 'cm-chessboard.css'), `${css.join('\n\n')}\n`);
 
 const standardPieces = await readPackageText('cm-chessboard', 'assets/pieces/standard.svg');
-await fs.writeFile(
+await writeAsset(
   path.join(imageOutDir, 'standard.svg'),
   standardPieces.replace('LICENSE\n=======', 'License\n-------'),
-  'utf8',
 );
 await copyPackageFile('cm-chessboard', 'assets/extensions/markers/markers.svg', path.join(imageOutDir, 'markers.svg'));
-await copyPackageFile('stockfish', 'bin/stockfish-18-lite-single.js', path.join(stockfishOutDir, 'stockfish-18-lite-single.js'));
-await copyPackageFile('stockfish', 'bin/stockfish-18-lite-single.wasm', path.join(stockfishOutDir, 'stockfish-18-lite-single.wasm'));
-await copyPackageFile('stockfish', 'Copying.txt', path.join(stockfishOutDir, 'Copying.txt'));
+await copyPackageFile('stockfish', 'bin/stockfish-19-lite-single.js', path.join(stockfishOutDir, 'stockfish-19-lite-single.js'));
+await copyPackageFile('stockfish', 'bin/stockfish-19-lite-single.wasm', path.join(stockfishOutDir, 'stockfish-19-lite-single.wasm'));
+await writeAsset(path.join(stockfishOutDir, 'Copying.txt'), (await readPackageText('stockfish', 'Copying.txt')).replaceAll('\r\n', '\n'));
 
-console.log('Built chess vendor assets.');
+console.log(`Chess vendor ${check ? 'verified' : 'built'}.`);

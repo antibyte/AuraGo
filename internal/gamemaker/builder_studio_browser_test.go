@@ -95,6 +95,6 @@ const dict=await(await fetch('/_ui/lang/desktop/en.json')).json(),project={id:'f
 const t=key=>dict[key]||key,esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Only HTTP data and SSE are fixtures; rendering and preview lifecycle are real modules.
 window.EventSource=class{addEventListener(){}close(){}};
-const api=async path=>path.endsWith('/capabilities')?{enabled:true,skills_ready:true,allow_create:true,allow_edit:true,phaser_version:'4.2.1',three_version:'0.185.1'}:path.endsWith('/preview-token')?{url:'/',expires_at:new Date(Date.now()+600000).toISOString()}:path.endsWith('/projects')?{projects:[project]}:{project,messages:[]};
+const api=async path=>path.endsWith('/capabilities')?{enabled:true,skills_ready:true,allow_create:true,allow_edit:true,phaser_version:'4.2.1',three_version:'0.186.1'}:path.endsWith('/preview-token')?{url:'/',expires_at:new Date(Date.now()+600000).toISOString()}:path.endsWith('/projects')?{projects:[project]}:{project,messages:[]};
 GameMakerStudioApp.render(document.getElementById('host'),'fixture',{api,t,esc});
 </script></body></html>`

@@ -18,7 +18,7 @@ import (
 )
 
 type mediaPump struct {
-	dialog       diago.DialogSession
+	media        *diago.DialogMedia
 	bridge       *voice.Bridge
 	jitterMS     int
 	directRead   bool
@@ -38,6 +38,9 @@ type dtmfWriter interface {
 }
 
 func (p *mediaPump) start(ctx context.Context) error {
+	if p.media == nil {
+		return fmt.Errorf("SIP media is not negotiated")
+	}
 	props := &diago.MediaProps{}
 	dtmfReader := &diago.DTMFReader{}
 	dtmfReader.OnDTMF(func(digit rune) error {
@@ -57,13 +60,13 @@ func (p *mediaPump) start(ctx context.Context) error {
 		diago.WithAudioReaderDTMF(dtmfReader),
 		diago.WithAudioReaderMediaProps(props),
 	)
-	reader, err := p.dialog.Media().AudioReader(readerOptions...)
+	reader, err := p.media.AudioReader(readerOptions...)
 	if err != nil {
 		return fmt.Errorf("create SIP audio reader: %w", err)
 	}
 	writerProps := &diago.MediaProps{}
 	dtmfWriter := &diago.DTMFWriter{}
-	writer, err := p.dialog.Media().AudioWriter(
+	writer, err := p.media.AudioWriter(
 		diago.WithAudioWriterDTMF(dtmfWriter),
 		diago.WithAudioWriterMediaProps(writerProps),
 	)
@@ -203,8 +206,8 @@ func (p *mediaPump) mediaStats() mediaDirectionStats {
 		receivedFrames: p.received.Load(),
 		sentFrames:     p.sent.Load(),
 	}
-	if p.dialog != nil && p.dialog.Media() != nil {
-		if session := p.dialog.Media().RTPSession(); session != nil {
+	if p.media != nil {
+		if session := p.media.RTPSession(); session != nil {
 			stats.receivedPackets = session.ReadStats().PacketsCount
 			stats.sentPackets = session.WriteStats().PacketsCount
 		}

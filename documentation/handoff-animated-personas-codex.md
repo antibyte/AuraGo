@@ -23,7 +23,7 @@ initial suggestions are historical handoff context.
   `C:\Users\Andi\Documents\repo\personas\personas`.
 - Asset import commit: `47b795b1a` (`feat(ui): add reviewed Rive persona integration assets`).
 - Runtime assets: `ui/img/personas/animated/`, approximately 28.7 MB total.
-- Local runtime: `ui/js/vendor/rive/`, pinned `@rive-app/canvas@2.42.0`, MIT.
+- Local runtime: `ui/js/vendor/rive/`, pinned `@rive-app/canvas@2.43.1`, MIT.
 - Read [the asset contract](animated-personas.md) for the exact initialization,
   personality mapping and controls. `catalog.json` is the machine-readable
   source of truth for filenames, artboards, revisions, sizes and SHA-256 values.

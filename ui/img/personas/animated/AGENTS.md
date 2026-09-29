@@ -18,7 +18,7 @@ Reviewed Rive payloads for the shared Live Speech persona renderer.
   demo audio, ZIP archives, or intermediate revisions to this folder.
 - Keep the catalog revision, byte count and SHA-256 synchronized with each file.
 - The paired local runtime is `ui/js/vendor/rive/`, pinned to
-  `@rive-app/canvas@2.42.0`. Preserve its license and file hashes.
+  `@rive-app/canvas@2.43.1`. Preserve its license and file hashes.
 - State machine `VoicePersona` exposes `mode`, `viseme`, `mouthOpen`, `headTilt`.
   Control values and robot speech styles are documented in the catalog.
 - `ui/js/realtime-speech/avatar.js` integrates these assets into Webchat and

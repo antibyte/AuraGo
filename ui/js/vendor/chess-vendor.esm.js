@@ -164,6 +164,9 @@ class ChessboardState {
         this.inputBlackEnabled = false;
         this.squareSelectEnabled = false;
         this.moveInputCallback = null;
+        // set per move from `event.animate` in the validateMoveInput callback; `false` skips
+        // the completion animation of a click move (see ChessboardView/VisualMoveInput)
+        this.moveInputAnimate = undefined;
         this.extensionPoints = {};
         this.moveInputProcess = Promise.resolve();
     }
@@ -684,7 +687,10 @@ const MOVE_CANCELED_REASON = {
     secondaryClick: "secondaryClick", // right click while moving
     movedOutOfBoard: "movedOutOfBoard",
     draggedBack: "draggedBack", // dragged to the start square
-    clickedAnotherPiece: "clickedAnotherPiece" // of the same color
+    clickedAnotherPiece: "clickedAnotherPiece", // of the same color
+    touchCanceled: "touchCanceled",
+    movedPieceChanged: "movedPieceChanged", // the held piece changed on the board, most likely got captured
+    canceled: "canceled" // cancelled programmatically via chessboard.cancelMoveInput()
 };
 
 const DRAG_THRESHOLD = 4;
@@ -697,6 +703,7 @@ class VisualMoveInput {
         this.moveInputState = null;
         this.fromSquare = null;
         this.toSquare = null;
+        this.movedPiece = null;
 
         this.setMoveInputState(MOVE_INPUT_STATE.waitForInputStart);
     }
@@ -751,6 +758,10 @@ class VisualMoveInput {
                     removeEventListener(this.pointerUpListener.type, this.pointerUpListener);
                     this.pointerUpListener = null;
                 }
+                if (this.pointerCancelListener) {
+                    removeEventListener(this.pointerCancelListener.type, this.pointerCancelListener);
+                    this.pointerCancelListener = null;
+                }
                 this.fromSquare = params.square;
                 this.toSquare = null;
                 this.movedPiece = params.piece;
@@ -770,6 +781,9 @@ class VisualMoveInput {
                         this.pointerUpListener = this.onPointerUp.bind(this);
                         this.pointerUpListener.type = "touchend";
                         addEventListener("touchend", this.pointerUpListener);
+                        this.pointerCancelListener = this.onPointerCancel.bind(this);
+                        this.pointerCancelListener.type = "touchcancel";
+                        addEventListener("touchcancel", this.pointerCancelListener);
                     } else {
                         throw Error("4b74af")
                     }
@@ -824,8 +838,14 @@ class VisualMoveInput {
                     throw new Error("moveInputState")
                 }
                 this.toSquare = params.square;
-                if (this.toSquare && this.validateMoveInputCallback(this.fromSquare, this.toSquare)) {
-                    this.chessboard.movePiece(this.fromSquare, this.toSquare, prevState === MOVE_INPUT_STATE.clickTo).then(() => {
+                // if the move was already validated, don't trigger the validator again so possible user side effects run once at most
+                const validated = params.validated !== undefined ? 
+                    params.validated : this.validateMoveInputCallback(this.fromSquare, this.toSquare);
+                if (this.toSquare && validated) {
+                    // A click move always completes with its own animation, unless the
+                    // validator opted out via `event.animate = false` (see ChessboardView).
+                    const animate = prevState === MOVE_INPUT_STATE.clickTo && this.chessboard.state.moveInputAnimate !== false;
+                    this.chessboard.movePiece(this.fromSquare, this.toSquare, animate).then(() => {
                         if (prevState === MOVE_INPUT_STATE.clickTo) {
                             this.view.setPieceVisibility(this.toSquare, true);
                         }
@@ -856,8 +876,12 @@ class VisualMoveInput {
                     removeEventListener(this.pointerUpListener.type, this.pointerUpListener);
                     this.pointerUpListener = null;
                 }
+                if (this.pointerCancelListener) {
+                    removeEventListener(this.pointerCancelListener.type, this.pointerCancelListener);
+                    this.pointerCancelListener = null;
+                }
                 if (this.contextMenuListener) {
-                    removeEventListener("contextmenu", this.contextMenuListener);
+                    this.chessboard.view.svg.removeEventListener("contextmenu", this.contextMenuListener);
                     this.contextMenuListener = null;
                 }
                 this.setMoveInputState(MOVE_INPUT_STATE.waitForInputStart);
@@ -947,9 +971,11 @@ class VisualMoveInput {
                     const startPieceName = this.chessboard.getPiece(this.fromSquare);
                     const startPieceColor = startPieceName ? startPieceName.substring(0, 1) : null;
                     if (color && startPieceColor === pieceColor) {
-                        // added to allow chess960 castling
+                        // added to allow moves into own pieces, useful for chess960 castle style or recapture premoves
+                        // result holds false if the user legality checker deemed the move into another own piece as illegal
+                        // in that case, we start a new move by selecting the target piece
                         const result = this.validateMoveInputCallback(this.fromSquare, square);
-                        if(!result) {
+                        if (!result) {
                             this.moveInputCanceledCallback(this.fromSquare, square, MOVE_CANCELED_REASON.clickedAnotherPiece);
                             if (this.moveInputStartedCallback(square)) {
                                 this.setMoveInputState(MOVE_INPUT_STATE.pieceClickedThreshold, {
@@ -961,6 +987,10 @@ class VisualMoveInput {
                             } else {
                                 this.setMoveInputState(MOVE_INPUT_STATE.reset);
                             }
+                        } else {
+                            // if the user deemed the move into own piece legal, execute it
+                            // but prevent validating the move again with the validated flag
+                            this.setMoveInputState(MOVE_INPUT_STATE.moveDone, {square: square, validated: true});
                         }
                     } else {
                         this.setMoveInputState(MOVE_INPUT_STATE.moveDone, {square: square});
@@ -1033,14 +1063,10 @@ class VisualMoveInput {
             if (square) {
                 if (this.moveInputState === MOVE_INPUT_STATE.dragTo || this.moveInputState === MOVE_INPUT_STATE.clickDragTo) {
                     if (this.fromSquare === square) {
-                        if (this.moveInputState === MOVE_INPUT_STATE.clickDragTo) {
-                            this.chessboard.state.position.setPiece(this.fromSquare, this.movedPiece);
-                            this.view.setPieceVisibility(this.fromSquare);
-                            this.moveInputCanceledCallback(square, null, MOVE_CANCELED_REASON.draggedBack);
-                            this.setMoveInputState(MOVE_INPUT_STATE.reset);
-                        } else {
-                            this.setMoveInputState(MOVE_INPUT_STATE.clickTo, {square: square});
-                        }
+                        this.chessboard.state.position.setPiece(this.fromSquare, this.movedPiece);
+                        this.view.setPieceVisibility(this.fromSquare);
+                        this.moveInputCanceledCallback(square, null, MOVE_CANCELED_REASON.draggedBack);
+                        this.setMoveInputState(MOVE_INPUT_STATE.reset);
                     } else {
                         this.setMoveInputState(MOVE_INPUT_STATE.moveDone, {square: square});
                     }
@@ -1062,11 +1088,52 @@ class VisualMoveInput {
         }
     }
 
+    onPointerCancel() {
+        this.view.redrawPieces();
+        const moveStartSquare = this.fromSquare;
+        this.setMoveInputState(MOVE_INPUT_STATE.reset);
+        this.moveInputCanceledCallback(moveStartSquare, null, MOVE_CANCELED_REASON.touchCanceled);
+    }
+
     onContextMenu(e) { // while moving
         e.preventDefault();
         this.view.redrawPieces();
         this.setMoveInputState(MOVE_INPUT_STATE.reset);
         this.moveInputCanceledCallback(this.fromSquare, null, MOVE_CANCELED_REASON.secondaryClick);
+    }
+
+    // Cancel a move input that is currently in progress. No-op when idle.
+    cancelMoveInput() {
+        if (this.moveInputState !== MOVE_INPUT_STATE.waitForInputStart) {
+            const moveStartSquare = this.fromSquare;
+            this.view.redrawPieces();
+            this.setMoveInputState(MOVE_INPUT_STATE.reset);
+            this.moveInputCanceledCallback(moveStartSquare, null, MOVE_CANCELED_REASON.canceled);
+        }
+    }
+
+    // Called after the board position changed (setPosition/movePiece/setPiece).
+    // If the piece we are holding changed on its square — most likely captured
+    // by an external position update — cancel the in-progress move input.
+    positionChanged() {
+        // Only cancel while actually holding a piece. Never in moveDone/reset:
+        // completing a move itself goes through movePiece() and must not self-cancel.
+        const holdingStates = [
+            MOVE_INPUT_STATE.pieceClickedThreshold,
+            MOVE_INPUT_STATE.clickTo,
+            MOVE_INPUT_STATE.secondClickThreshold,
+            MOVE_INPUT_STATE.dragTo,
+            MOVE_INPUT_STATE.clickDragTo
+        ];
+        if (this.fromSquare && holdingStates.includes(this.moveInputState) &&
+            this.chessboard.getPiece(this.fromSquare) !== this.movedPiece) {
+            const moveStartSquare = this.fromSquare;
+            // drop the stale held piece so the reset branch does not stamp it
+            // back onto the square, overwriting the piece just placed there
+            this.movedPiece = null;
+            this.setMoveInputState(MOVE_INPUT_STATE.reset);
+            this.moveInputCanceledCallback(moveStartSquare, null, MOVE_CANCELED_REASON.movedPieceChanged);
+        }
     }
 
     isDragging() {
@@ -1136,6 +1203,10 @@ class ChessboardView {
         this.pointerDownListener = this.pointerDownHandler.bind(this);
         this.container.addEventListener("mousedown", this.pointerDownListener);
         this.container.addEventListener("touchstart", this.pointerDownListener, {passive: false});
+        // Suppress the native context menu on the whole board
+        // VisualMoveInput triggers a move cancel with a transient listener on right click
+        this.contextMenuListener = (e) => e.preventDefault();
+        this.container.addEventListener("contextmenu", this.contextMenuListener);
         this.createSvgAndGroups();
         this.handleResize();
     }
@@ -1159,8 +1230,9 @@ class ChessboardView {
         if (this.resizeListener) {
             window.removeEventListener("resize", this.resizeListener);
         }
-        this.chessboard.context.removeEventListener("mousedown", this.pointerDownListener);
-        this.chessboard.context.removeEventListener("touchstart", this.pointerDownListener);
+        this.container.removeEventListener("mousedown", this.pointerDownListener);
+        this.container.removeEventListener("touchstart", this.pointerDownListener);
+        this.container.removeEventListener("contextmenu", this.contextMenuListener);
         Svg.removeElement(this.svg);
         this.container.remove();
     }
@@ -1484,6 +1556,11 @@ class ChessboardView {
         if (this.chessboard.state.moveInputCallback) {
             data.moveInputCallbackResult = this.chessboard.state.moveInputCallback(data);
         }
+        // A validator can set `event.animate = false` to skip this move's own completion animation
+        // (e.g. a premove made by click, which would otherwise always animate).
+        // Assigned before the extension points on purpose: extensions receive a clone of `data`,
+        // so they opt out by setting `state.moveInputAnimate` directly, which must not be clobbered here.
+        this.chessboard.state.moveInputAnimate = data.animate;
         this.chessboard.state.invokeExtensionPoints(EXTENSION_POINT.moveInput, data);
         return data.moveInputCallbackResult
     }
@@ -1619,6 +1696,7 @@ class Chessboard {
     async setPiece(square, piece, animated = false) {
         const positionFrom = this.state.position.clone();
         this.state.position.setPiece(square, piece);
+        this.view.visualMoveInput.positionChanged();
         this.state.invokeExtensionPoints(EXTENSION_POINT.positionChanged);
         return this.positionAnimationsQueue.enqueuePositionChange(positionFrom, this.state.position.clone(), animated)
     }
@@ -1626,6 +1704,7 @@ class Chessboard {
     async movePiece(squareFrom, squareTo, animated = false) {
         const positionFrom = this.state.position.clone();
         this.state.position.movePiece(squareFrom, squareTo);
+        this.view.visualMoveInput.positionChanged();
         this.state.invokeExtensionPoints(EXTENSION_POINT.positionChanged);
         return this.positionAnimationsQueue.enqueuePositionChange(positionFrom, this.state.position.clone(), animated)
     }
@@ -1635,6 +1714,7 @@ class Chessboard {
         const positionTo = new Position(fen);
         if (positionFrom.getFen() !== positionTo.getFen()) {
             this.state.position.setFen(fen);
+            this.view.visualMoveInput.positionChanged();
             this.state.invokeExtensionPoints(EXTENSION_POINT.positionChanged);
         }
         return this.positionAnimationsQueue.enqueuePositionChange(positionFrom, this.state.position.clone(), animated)
@@ -1671,6 +1751,11 @@ class Chessboard {
 
     disableMoveInput() {
         this.view.disableMoveInput();
+    }
+
+    // Cancel a move input that is currently in progress (leaves move input enabled).
+    cancelMoveInput() {
+        this.view.visualMoveInput.cancelMoveInput();
     }
 
     isMoveInputEnabled() {
@@ -1984,6 +2069,9 @@ const PROMOTION_DIALOG_RESULT_TYPE = {
     canceled: "canceled"
 };
 
+// Keys the open dialog handles itself, see handleKeyDown
+const HANDLED_KEYS = ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Enter", " ", "Escape", "Tab"];
+
 class PromotionDialog extends Extension {
 
     /** @constructor */
@@ -2114,41 +2202,15 @@ class PromotionDialog extends Extension {
                     class: "promotion-dialog"
                 });
             const dialogParams = this.state.dialogParams;
-            if (turned) {
-                this.drawPieceButton(PIECE[dialogParams.color + "q"], {
+            // The buttons share their order with `this.pieceOrder`, which `focusButton()`
+            // uses for the screen reader announcement, so both must stay in sync.
+            this.pieceOrder.forEach((pieceType, index) => {
+                const rowOffset = turned ? -(index + 1) : index;
+                this.drawPieceButton(PIECE[dialogParams.color + pieceType], {
                     x: squareCenterPoint.x + offsetX,
-                    y: squareCenterPoint.y - squareHeight
-                }, 0);
-                this.drawPieceButton(PIECE[dialogParams.color + "r"], {
-                    x: squareCenterPoint.x + offsetX,
-                    y: squareCenterPoint.y - squareHeight * 2
-                }, 1);
-                this.drawPieceButton(PIECE[dialogParams.color + "b"], {
-                    x: squareCenterPoint.x + offsetX,
-                    y: squareCenterPoint.y - squareHeight * 3
-                }, 2);
-                this.drawPieceButton(PIECE[dialogParams.color + "n"], {
-                    x: squareCenterPoint.x + offsetX,
-                    y: squareCenterPoint.y - squareHeight * 4
-                }, 3);
-            } else {
-                this.drawPieceButton(PIECE[dialogParams.color + "q"], {
-                    x: squareCenterPoint.x + offsetX,
-                    y: squareCenterPoint.y
-                }, 0);
-                this.drawPieceButton(PIECE[dialogParams.color + "r"], {
-                    x: squareCenterPoint.x + offsetX,
-                    y: squareCenterPoint.y + squareHeight
-                }, 1);
-                this.drawPieceButton(PIECE[dialogParams.color + "b"], {
-                    x: squareCenterPoint.x + offsetX,
-                    y: squareCenterPoint.y + squareHeight * 2
-                }, 2);
-                this.drawPieceButton(PIECE[dialogParams.color + "n"], {
-                    x: squareCenterPoint.x + offsetX,
-                    y: squareCenterPoint.y + squareHeight * 3
-                }, 3);
-            }
+                    y: squareCenterPoint.y + rowOffset * squareHeight
+                }, index);
+            });
         }
     }
 
@@ -2209,8 +2271,12 @@ class PromotionDialog extends Extension {
                 this.promotionDialogOnClickPiece.bind(this));
             this.contextMenuListener = this.contextMenu.bind(this);
             this.chessboard.view.svg.addEventListener("contextmenu", this.contextMenuListener);
-            // Add keyboard listener
-            document.addEventListener("keydown", this.handleKeyDown);
+            // Keyboard listener in the capture phase: while the dialog is open its keys
+            // must not reach anything else. Applications commonly bind the arrow keys on
+            // document for history navigation (chess-console does), and those listeners
+            // are registered before the dialog opens, so in the bubble phase they would
+            // run first and change the position under the open dialog.
+            document.addEventListener("keydown", this.handleKeyDown, true);
         } else if (displayState === DISPLAY_STATE.hidden) {
             if (this.clickDelegate) {
                 this.clickDelegate.remove();
@@ -2221,7 +2287,7 @@ class PromotionDialog extends Extension {
                 this.contextMenuListener = null;
             }
             // Remove keyboard listener
-            document.removeEventListener("keydown", this.handleKeyDown);
+            document.removeEventListener("keydown", this.handleKeyDown, true);
             // Restore focus (only if the dialog was actually shown before)
             if (prevState === DISPLAY_STATE.shown &&
                 this.previouslyFocusedElement && this.previouslyFocusedElement.focus) {
@@ -2241,6 +2307,12 @@ class PromotionDialog extends Extension {
     handleKeyDown(event) {
         if (this.state.displayState !== DISPLAY_STATE.shown) {
             return
+        }
+        // Keys the dialog owns are consumed here, they must not reach the page below.
+        // Without this the arrow keys would also drive an application's own history
+        // navigation and change the position while the dialog is waiting for an answer.
+        if (HANDLED_KEYS.includes(event.key)) {
+            event.stopPropagation();
         }
         switch (event.key) {
             case "ArrowDown":
@@ -2345,7 +2417,7 @@ class PromotionDialog extends Extension {
             clearTimeout(this.announceTimeoutId);
             this.announceTimeoutId = null;
         }
-        document.removeEventListener("keydown", this.handleKeyDown);
+        document.removeEventListener("keydown", this.handleKeyDown, true);
         if (this.liveRegion && this.liveRegion.parentNode) {
             this.liveRegion.parentNode.removeChild(this.liveRegion);
             this.liveRegion = null;

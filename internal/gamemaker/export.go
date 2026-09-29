@@ -99,7 +99,20 @@ func (s *Service) WriteExport(ctx context.Context, projectID string, output io.W
 			return "", err
 		}
 	}
-	for _, asset := range bundledRuntimeAssets(project.Dimension, project.Variant) {
+	assets := bundledRuntimeAssets(project.Dimension, project.Variant)
+	if included[legacyThreeRuntimeAssets[0].projectPath] && included["vendor/three-"+ThreeVersion+".module.min.js"] {
+		assets = append(assets, legacyThreeRuntimeAssets...)
+	}
+	for _, asset := range assets {
+		// Match the published module: an older revision must not receive a newer core.
+		if included[legacyThreeRuntimeAssets[0].projectPath] && !included["vendor/three-"+ThreeVersion+".module.min.js"] {
+			switch asset.projectPath {
+			case "vendor/three-" + ThreeVersion + ".module.min.js":
+				asset = legacyThreeRuntimeAssets[0]
+			case "vendor/three-" + ThreeVersion + ".core.min.js":
+				asset = legacyThreeRuntimeAssets[1]
+			}
+		}
 		if included[asset.projectPath] {
 			continue
 		}

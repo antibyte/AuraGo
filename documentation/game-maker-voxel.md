@@ -2,7 +2,7 @@
 
 Choose **Voxel** when creating a project. Describe a survival or creative game;
 survival is the default. The agent authors the world, recipes, opponents and rules
-using the installed Three.js 0.185.1 runtime. The mode stays fixed during play.
+using the installed Three.js 0.186.1 runtime. The mode stays fixed during play.
 The existing feature, creation, edit and deletion permissions still apply.
 
 ## Playing

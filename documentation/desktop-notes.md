@@ -4,7 +4,7 @@ Notes shares Autor's compact document header, save status, theme tokens, global 
 
 ## Editing and files
 
-Milkdown/Crepe and Kit are pinned to **7.22.1 (MIT)**. The Vanilla JavaScript host uses their public ProseMirror interfaces. Vendor JavaScript, CSS, fonts and license notices are local; rebuild with `npm run build:notes-vendor`, verify with `node scripts/build-notes-vendor.js --check`. CodeMirror is the existing shared local bundle. No paid components or additional service is required.
+Milkdown/Crepe and Kit are pinned to **7.22.2 (MIT)**. The Vanilla JavaScript host uses their public ProseMirror interfaces. Vendor JavaScript, CSS, fonts and license notices are local; rebuild with `npm run build:notes-vendor`, verify with `node scripts/build-notes-vendor.js --check`. CodeMirror is the existing shared local bundle. No paid components or additional service is required.
 
 Write formatted text, headings, lists, tasks, tables, links, images and fenced code. Mermaid previews use the existing local renderer with strict security and sanitization. Source mode preserves unsupported Markdown, frontmatter and literal code. Notes above 200,000 characters use CodeMirror's virtualized source view; the file size ceiling is 2 MiB and the configured Desktop file limit also applies. This bounds rich layout without silently truncating a file.
 

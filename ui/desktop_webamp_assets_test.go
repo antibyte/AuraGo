@@ -41,7 +41,7 @@ func TestDesktopWebampAssetsAreEmbedded(t *testing.T) {
 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
 		t.Fatalf("parse Webamp manifest: %v", err)
 	}
-	if manifest.Name != "webamp" || manifest.Version != "2.2.0" || manifest.License != "MIT" {
+	if manifest.Name != "webamp" || manifest.Version != "2.3.1" || manifest.License != "MIT" {
 		t.Fatalf("unexpected Webamp manifest identity: %+v", manifest)
 	}
 	if manifest.Source != "https://github.com/captbaritone/webamp" {

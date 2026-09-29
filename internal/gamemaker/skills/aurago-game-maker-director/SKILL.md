@@ -2,7 +2,7 @@
 name: aurago-game-maker-director
 description: Direct an AuraGo Game Maker job from design through a playable verified revision.
 license: MIT
-compatibility: AuraGo Game Maker Studio; Phaser 4.2.1 or Three.js 0.185.1
+compatibility: AuraGo Game Maker Studio; Phaser 4.2.1 or Three.js 0.186.1
 metadata:
   managed_by: aurago
   source: AuraGo synthesis

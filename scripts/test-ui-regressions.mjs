@@ -426,7 +426,7 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
     document: { createElement: () => ({ contentWindow: { postMessage() {} }, setAttribute() {}, addEventListener() {} }) },
     IntersectionObserver: class { observe() {} disconnect() {} }
   };
-  vm.runInNewContext(sourceBetween(app, 'async function refreshPreview(', 'function showCreateModal('), context);
+  vm.runInNewContext(sourceBetween(app, 'async function preparePreviewReplacement(', 'function showCreateModal('), context);
   vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
   // Loading overlays have their own DOM/lifecycle test below.
   context.window.GameMakerStudioPreview.showLoading = () => {};
@@ -462,6 +462,7 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   let rejectGrant;
   state.api.previewGrant = () => new Promise((_resolve, reject) => { rejectGrant = reject; });
   const staleRefresh = context.refreshPreview(state);
+  await new Promise(setImmediate); // Let the save/flush gate obtain the old grant before replacing it.
   state.api.previewGrant = async () => ({ url: '/new-preview' });
   await context.refreshPreview(state);
   rejectGrant(new Error('Late grant failure'));

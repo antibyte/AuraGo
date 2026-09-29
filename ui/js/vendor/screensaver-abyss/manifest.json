@@ -1,7 +1,7 @@
 {
-  "three": "0.185.1",
+  "three": "0.186.1",
   "license": "MIT",
   "entry": "ui/js/desktop/screensavers/abyss-scene.js",
-  "bytes": 643334,
-  "sha256": "0c20c4a3bbbb4df9c16b67481a75e19aa6af8dac72d54f0608f221f4e5a4fae6"
+  "bytes": 655707,
+  "sha256": "898edc6619e4f586f467550a0abd135f59e131fbd3fb31f6b7be6de793dc67f4"
 }

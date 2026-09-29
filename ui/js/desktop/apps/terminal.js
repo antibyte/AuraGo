@@ -88,11 +88,16 @@
         }
 
         function ensureCanvas(enable) {
-            if (!term || !window.CanvasAddon || !window.CanvasAddon.CanvasAddon) return;
+            if (!term || !window.WebglAddon || !window.WebglAddon.WebglAddon) return;
             if (enable && !canvasAddon) {
                 try {
-                    canvasAddon = new window.CanvasAddon.CanvasAddon();
+                    canvasAddon = new window.WebglAddon.WebglAddon(true);
                     term.loadAddon(canvasAddon);
+                    canvasAddon.onContextLoss(() => {
+                        if (canvasAddon) canvasAddon.dispose();
+                        canvasAddon = null;
+                        root.setAttribute('data-terminal-fallback', 'css');
+                    });
                 } catch (e) {
                     canvasAddon = null;
                 }

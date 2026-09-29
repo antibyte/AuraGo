@@ -21,14 +21,14 @@ for(const [name,options] of [['engine',{stdin:{contents:entry+'\n'+localeCode,re
         if(rest)packages.add(rest.startsWith('@')?rest.split('/').slice(0,2).join('/'):rest.split('/')[0]);
     }
 }
-const versions={},notices=['# Tabellen — third-party licenses\n\nAuraGo host code remains MIT. Univer OSS is pinned to 0.25.1; no Pro packages are included.\n'];
+const versions={},notices=['# Tabellen — third-party licenses\n\nAuraGo host code remains MIT. Univer OSS is pinned to 1.0.3; no Pro packages are included.\n'];
 for(const name of [...packages].sort()){
     const root='node_modules/'+name,pkg=JSON.parse(await readFile(root+'/package.json','utf8'));
     const licenseFiles=(await readdir(root,{withFileTypes:true})).filter(f=>f.isFile()&&/^(license|copying|notice)/i.test(f.name));
     const licenseTexts=await Promise.all(licenseFiles.map(f=>readFile(root+'/'+f.name,'utf8')));
     const license=pkg.license||(licenseTexts.some(text=>/Apache License\s+Version 2\.0/.test(text))?'Apache-2.0':null);
     if(name.startsWith('@univerjs-pro/')||!new Set(['MIT','Apache-2.0','ISC','BSD-3-Clause','0BSD']).has(license))throw Error('Unverified or disallowed dependency license: '+name);
-    if(name.startsWith('@univerjs/') && name!=='@univerjs/icons' && pkg.version!=='0.25.1')throw Error('Mixed Univer versions: '+name);
+    if(name.startsWith('@univerjs/') && name!=='@univerjs/icons' && pkg.version!=='1.0.3')throw Error('Mixed Univer versions: '+name);
     versions[name]={version:pkg.version,license,...(!pkg.license?{licenseSource:licenseFiles.map(f=>f.name)}:{})};notices.push('\n## '+name+' '+pkg.version+' — '+license+'\n',...licenseTexts);
 }
 outputs.set('LICENSES.md',Buffer.from(notices.join('\n').replaceAll('\r\n','\n')));

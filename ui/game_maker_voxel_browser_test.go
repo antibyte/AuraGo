@@ -77,7 +77,7 @@ func TestGameMakerVoxelCreateBrowser(t *testing.T) {
 <script src="/js/desktop/apps/game-maker-studio-modals.js"></script><script src="/js/desktop/apps/game-maker-studio-api.js"></script><script src="/js/desktop/apps/game-maker-studio-preview.js"></script><script src="/js/desktop/apps/game-maker-studio.js"></script><script>
 window.errors=[];window.creates=[];window.confirmations=[];addEventListener('error',e=>errors.push(e.message));
 GameMakerStudioApp.render(document.getElementById('app'),'voxel',{esc:v=>String(v??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),t:k=>k,setWindowBeforeClose:(id,f)=>window.closeGuard=f,confirmDialog:async(...args)=>{confirmations.push(args);return true},api:async(path,opts)=>{
-if(path.endsWith('/capabilities'))return {enabled:true,allow_create:true,allow_edit:true,skills_ready:true,three_version:'0.185.1',voxel_version:1,providers:[{id:'local',model:'test'}],default_provider_id:'local',default_model:'test'};
+if(path.endsWith('/capabilities'))return {enabled:true,allow_create:true,allow_edit:true,skills_ready:true,three_version:'0.186.1',voxel_version:1,providers:[{id:'local',model:'test'}],default_provider_id:'local',default_model:'test'};
 if(path.endsWith('/projects')&&opts.method==='POST'){creates.push(JSON.parse(opts.body));throw Error('End of local creation fixture')}
 if(path.endsWith('/projects'))return {projects:[]};return {};
 }});</script>`)
@@ -283,7 +283,7 @@ const originalFlush=GameMakerStudioPreview.flush;GameMakerStudioPreview.flush=as
 GameMakerStudioApp.render(document.getElementById('app'),'fixture',{esc:v=>String(v??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),t:k=>k,
  confirmDialog:async(...args)=>{trace.push('confirm');confirmations.push(args);return true},
  api:async(path,opts)=>{
-  if(path.endsWith('/capabilities'))return {enabled:true,allow_create:true,allow_edit:true,allow_delete:true,skills_ready:true,voxel_version:1,three_version:'0.185.1'};
+  if(path.endsWith('/capabilities'))return {enabled:true,allow_create:true,allow_edit:true,allow_delete:true,skills_ready:true,voxel_version:1,three_version:'0.186.1'};
   if(path==='/api/game-maker/projects')return {projects:[project]};
   if(path.endsWith('/projects/p/events'))return {};
   if(path.endsWith('/projects/p/preview-token')){trace.push('grant');return {url:'/frame',token:'host-only',play_token:'parent-only',revision};}

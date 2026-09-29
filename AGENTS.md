@@ -17,7 +17,7 @@
 
 | Component | Technology |
 |-----------|------------|
-| Language | Go 1.26.6+ |
+| Language | Go 1.27.1+ |
 | Web Framework | Standard library `net/http` |
 | Database | SQLite (modernc.org/sqlite - pure Go, no CGO) |
 | Vector DB | chromem-go (embedded) |
@@ -51,7 +51,7 @@
 
 ### Development Build
 ```bash
-# Build main binary (requires Go 1.26.6+)
+# Build main binary (requires Go 1.27.1+)
 go run ./cmd/assetpack -out deploy -stage assets/web
 go build -ldflags="$(cat deploy/web-assets.ldflags)" -o aurago ./cmd/aurago
 
@@ -299,6 +299,11 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 - Schema changes should be backward compatible
 - New DB files auto-initialize with current schema
 
+### Dependency maintenance
+
+- Update Go, npm/vendor assets, Python locks and the Rust TUI together. Use stable releases and retain documented security or upstream compatibility bounds.
+- `documentation/dependencies.md` records supported exceptions and rebuild/check commands. Keep `tools/aurago-tui/Cargo.lock` versioned and test with `--locked`.
+
 ### Provider and Model Catalog Refresh
 - Regenerate `internal/llm/model_registry_data.go` from `https://models.dev/api.json` with `go run scripts/generate_model_registry.go --write`, then run `--check`.
 - Regenerate the bundled provider/model catalog with `go run scripts/sync_ohmypi_catalog.go --write`, then run `--check`. Its source package is `@oh-my-pi/pi-catalog`; import `src/models.json` and compiled `src/compat/rules.json` from the same npm tarball.
@@ -343,7 +348,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ### Release Process
 1. `./make_deploy.sh` builds cross-platform artifacts; by default it may commit/push `main` (`--no-publish` suppresses that). It does not create a tag or GitHub Release.
 2. On Windows, `make_release.bat` or `make_release.ps1` builds cross-platform artifacts, commits/pushes as needed, creates a versioned GitHub Release with binaries, and cleans up older releases while keeping the latest three.
-3. Release builders pin `GOTOOLCHAIN=go1.26.6`; verify the selected compiler before publishing even when a newer system Go is installed.
+3. Release builders pin `GOTOOLCHAIN=go1.27.1`; verify the selected compiler before publishing even when a newer system Go is installed.
 4. A pushed `v*` tag triggers `docker-publish.yml`; a push to `main` alone does not.
 
 ## Agent Rules & Guidelines

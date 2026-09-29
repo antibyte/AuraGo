@@ -1,7 +1,7 @@
 # Autor desktop word processor
 
 Autor edits complete DOCX documents using the Apache-2.0
-@docx-editor.dev/core 2.16.0 engine. AuraGo's UI and extensions remain MIT.
+@docx-editor.dev/core 2.23.0 engine. AuraGo's UI and extensions remain MIT.
 The editor, fonts and shaping WASM ship locally with the versioned web resources.
 
 ## Writing

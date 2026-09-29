@@ -120,7 +120,7 @@ Open **http://localhost:8088**. The stack uses persistent volumes and a restrict
 </details>
 
 <details>
-<summary>Build it yourself — Go 1.26.6+</summary>
+<summary>Build it yourself — Go 1.27.1+</summary>
 
 ```bash
 git clone https://github.com/antibyte/AuraGo.git

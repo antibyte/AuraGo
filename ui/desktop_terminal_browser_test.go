@@ -43,7 +43,7 @@ HTMLCanvasElement.prototype.getContext=function(kind,...args){
 const createCrt=TerminalCrt.create;
 TerminalCrt.create=function(opts){const crt=createCrt(opts);fixtureCrt.push(crt);return crt;};
 const Xterm=Terminal;
-window.Terminal=class extends Xterm{constructor(opts){super({...opts,cursorBlink:false});fixtureTerms.push(this);}loadAddon(a){try{return super.loadAddon(a);}catch(e){fixtureErrors.push('addon: '+e.message);throw e;}}};
+window.Terminal=class extends Xterm{constructor(opts){super({...opts,cursorBlink:false});fixtureTerms.push(this);}loadAddon(a){try{return super.loadAddon(a);}catch(e){if(!window.fixtureNoGL)fixtureErrors.push('addon: '+e.message);throw e;}}};
 window.WebSocket=class {
  static OPEN=1;static CLOSED=3;
  constructor(){this.readyState=1;this.sent=[];fixtureSockets.push(this);setTimeout(()=>this.onopen?.(),0);}
@@ -86,7 +86,7 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/xterm.css"><link rel="stylesheet" href="/css/desktop-app-terminal.css"></head>`, 1)
-	scripts := []string{"/terminal-shell.js", "/js/vendor/xterm.min.js", "/js/vendor/xterm-addon-fit.min.js", "/js/vendor/xterm-addon-canvas.min.js", "/js/desktop/apps/terminal-styles.js", "/js/desktop/apps/terminal-crt.js", "/js/desktop/apps/terminal-audio.js", "/js/desktop/apps/terminal.js", "/terminal-fixture.js"}
+	scripts := []string{"/terminal-shell.js", "/js/vendor/xterm.min.js", "/js/vendor/xterm-addon-fit.min.js", "/js/vendor/xterm-addon-webgl.min.js", "/js/desktop/apps/terminal-styles.js", "/js/desktop/apps/terminal-crt.js", "/js/desktop/apps/terminal-audio.js", "/js/desktop/apps/terminal.js", "/terminal-fixture.js"}
 	var tags strings.Builder
 	for _, src := range scripts {
 		fmt.Fprintf(&tags, `<script src="%s"></script>`, src)

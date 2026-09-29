@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, readdir, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { rollup } from 'rollup';
@@ -7,28 +7,10 @@ import { nodeResolve } from '@rollup/plugin-node-resolve';
 const out = 'ui/js/vendor/writer';
 const check = process.argv.includes('--check');
 const outputs = new Map();
-let pointerScrollPatched = false;
 const bundle = await rollup({
     input: 'scripts/writer-engine-entry.js',
     plugins: [nodeResolve({ browser: true }), {
         name: 'writer-local-assets',
-        transform(code, id) {
-            if (!id.replaceAll('\\', '/').endsWith('/@docx-editor.dev/core/dist/chunk-IZHDCQUC.js')) return null;
-            // Core 2.16.0 reveals the caret on every pointer selection, moving text
-            // away from the click. Leave reveal enabled for keyboard/programmatic
-            // selection and keep the pointer controller's own edge autoscroll.
-            const patches = [
-                ['nl=null;ut=Ey(', 'nl=null,writerPointerSelection=false;ut=Ey('],
-                ['function _u(d=false){if(', 'function _u(d=false){if(writerPointerSelection)return;if('],
-                ['setSelection:d=>gt(d),cellSelection:', 'setSelection:d=>{const previous=writerPointerSelection;writerPointerSelection=true;try{gt(d);}finally{writerPointerSelection=previous;}},cellSelection:'],
-            ];
-            for (const [before, after] of patches) {
-                if (code.split(before).length !== 2) throw new Error('Writer pointer-scroll patch no longer matches core 2.16.0');
-                code = code.replace(before, after);
-            }
-            pointerScrollPatched = true;
-            return { code, map: null };
-        },
         resolveImportMeta(property, { moduleId }) {
             if (property !== 'url') return null;
             const base = moduleId.replaceAll('\\', '/').includes('/fonts/') ? 'fonts/module.js' : 'engine.js';
@@ -42,9 +24,8 @@ const bundle = await rollup({
     },
 });
 try {
-    if (!pointerScrollPatched) throw new Error('Writer pointer-scroll patch was not applied');
     const generated = await bundle.generate({ format: 'es', sourcemap: false, inlineDynamicImports: true });
-    outputs.set('engine.js', Buffer.from('// AuraGo modification: preserve viewport during pointer selection (core 2.16.0).\n' + generated.output[0].code.replace(/[ \t]+$/gm, '')));
+    outputs.set('engine.js', Buffer.from(generated.output[0].code.replaceAll('\r\n', '\n').replace(/[ \t]+$/gm, '')));
     outputs.set('engine.css', await readFile('node_modules/@docx-editor.dev/core/dist/editor.css'));
     outputs.set('harfbuzz.wasm', await readFile('node_modules/@docx-editor.dev/core/dist/harfbuzz.wasm'));
     for (const file of await readdir('node_modules/@docx-editor.dev/fonts/assets')) {
@@ -55,7 +36,7 @@ try {
         const rest = id.replaceAll('\\', '/').split('/node_modules/')[1];
         if (rest) packages.add(rest.startsWith('@') ? rest.split('/').slice(0, 2).join('/') : rest.split('/')[0]);
     }
-    const notices = ['# Autor editor: third-party licenses\n\nAuraGo host code remains MIT. No Pro or AGPL packages are included.\n\nAuraGo modifies core 2.16.0 caret scrolling during pointer selection. The reproducible patch is in `scripts/build-writer-vendor.js`; keyboard reveal and pointer edge autoscroll remain enabled.\n'];
+    const notices = ['# Autor editor: third-party licenses\n\nAuraGo host code remains MIT. No Pro or AGPL packages are included.\n'];
     const versions = {};
     for (const name of [...packages].sort()) {
         const root = `node_modules/${name}`;
@@ -70,7 +51,7 @@ try {
             for (const file of await readdir(`${root}/licenses`)) notices.push(await readFile(`${root}/licenses/${file}`, 'utf8'));
         } catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
-    outputs.set('LICENSES.md', Buffer.from(notices.join('\n')));
+    outputs.set('LICENSES.md', Buffer.from(notices.join('\n').replaceAll('\r\n', '\n')));
     const files = {};
     for (const [name, data] of outputs) files[name] = { bytes: data.length, sha256: createHash('sha256').update(data).digest('hex') };
     outputs.set('manifest.json', Buffer.from(JSON.stringify({ version: 1, packages: versions, files }, null, 2) + '\n'));
@@ -80,7 +61,10 @@ try {
             if (!data.equals(await readFile(file))) throw new Error(`Stale Writer asset: ${file}`);
         } else {
             await mkdir(path.dirname(file), { recursive: true });
-            await writeFile(file, data);
+            if (data.equals(await readFile(file).catch(error => { if (error.code !== 'ENOENT') throw error; return Buffer.alloc(0); }))) continue;
+            const temporary = file + '.tmp';
+            try { await writeFile(temporary, data); await rename(temporary, file); }
+            finally { await rm(temporary, { force: true }); }
         }
     }
     console.log(`Writer vendor ${check ? 'verified' : 'built'}: ${outputs.size} local assets`);

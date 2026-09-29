@@ -140,6 +140,7 @@ func WithCallFinishedHook(hook func(CallRecord, bool)) ManagerOption {
 type activeCall struct {
 	record             CallRecord
 	dialog             diago.DialogSession
+	dialogMedia        *diago.DialogMedia
 	serverDialog       *diago.DialogServerSession
 	ctx                context.Context
 	cancel             context.CancelFunc
@@ -1353,13 +1354,14 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		rtpNAT = media.RTPNATSymetric
 	}
 	call.dialogMu.Lock()
-	err := dialog.AnswerOptions(diago.AnswerOptions{Codecs: configuredCodecs(cfg.Media.Codecs), RTPNAT: rtpNAT})
+	dialogMedia, err := dialog.Answer(diago.AnswerOptions{Codecs: configuredCodecs(cfg.Media.Codecs), RTPNAT: rtpNAT})
 	call.dialogMu.Unlock()
 	if err != nil {
 		m.finishCall(call, "answer_failed")
 		return
 	}
 	m.mu.Lock()
+	call.dialogMedia = dialogMedia
 	call.dialogEstablished = true
 	m.mu.Unlock()
 	m.runEstablished(call, cfg)
@@ -1397,7 +1399,7 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	m.mu.Lock()
 	call.dialog = dialog
 	m.mu.Unlock()
-	err = dialog.Invite(call.ctx, outboundInviteOptions(cfg, func(response *sip.Response) error {
+	dialogMedia, err := dialog.Invite(call.ctx, outboundInviteOptions(cfg, func(response *sip.Response) error {
 		m.logger.Debug("SIP outbound response",
 			"call_id", call.record.ID,
 			"status_code", response.StatusCode,
@@ -1421,6 +1423,9 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	// A successful final INVITE response creates a dialog even when the local
 	// call context is cancelled in the narrow window before ACK. Complete ACK
 	// independently, then let the normal cancellation path send BYE.
+	m.mu.Lock()
+	call.dialogMedia = dialogMedia
+	m.mu.Unlock()
 	ackCtx, ackCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	for attempt := 0; attempt < 2; attempt++ {
 		err = dialog.Ack(ackCtx)
@@ -1514,7 +1519,7 @@ func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig) {
 		return
 	}
 	pump := &mediaPump{
-		dialog: call.dialog, bridge: call.bridge, jitterMS: cfg.Media.JitterBufferMS,
+		media: call.dialogMedia, bridge: call.bridge, jitterMS: cfg.Media.JitterBufferMS,
 		idleTimeout: time.Duration(cfg.Media.RTPIdleTimeoutSeconds) * time.Second,
 		// WebRTC already has a paced jitter buffer. Composing it with Diago's
 		// independent playout clock can stall a sparse PBX receive stream.

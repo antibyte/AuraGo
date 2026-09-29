@@ -4,12 +4,12 @@ import { createHash } from 'node:crypto';
 
 const check = process.argv.includes('--check');
 const pkg = JSON.parse(await fs.readFile('node_modules/three/package.json', 'utf8'));
-if (pkg.version !== '0.185.1') throw Error('Game Maker requires Three.js 0.185.1');
+if (pkg.version !== '0.186.1') throw Error('Game Maker requires Three.js 0.186.1');
 const result = await build({
     entryPoints: ['assets/game-maker-low-poly/runtime.js'], bundle: true, format: 'esm',
     target: 'es2022', minify: true, legalComments: 'eof', write: false,
     plugins: [{ name: 'shared-three', setup(builder) {
-        builder.onResolve({ filter: /^three$/ }, () => ({ path: './three-0.185.1.module.min.js', external: true }));
+        builder.onResolve({ filter: /^three$/ }, () => ({ path: './three-0.186.1.module.min.js', external: true }));
     } }],
 });
 const bytes = result.outputFiles[0].contents;

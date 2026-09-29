@@ -1,10 +1,6 @@
 (function () {
     'use strict';
 
-    if (typeof pdfjsLib !== 'undefined') {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/vendor/pdf.worker.min.js';
-    }
-
     const instances = new Map();
 
     function render(host, windowId, context) {
@@ -369,12 +365,18 @@
         }
 
         async function loadPdf() {
-            if (typeof pdfjsLib === 'undefined') {
-                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('desktop.viewer_pdfjs_unavailable'))}</div>`;
-                return;
-            }
             try {
-                const loadingTask = pdfjsLib.getDocument(viewerContentURL());
+                const pdf = window.pdfjsLib;
+                if (!pdf) {
+                    contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('desktop.viewer_pdfjs_unavailable'))}</div>`;
+                    return;
+                }
+                const loadingTask = pdf.getDocument({ url: viewerContentURL(),
+                    cMapUrl: '/js/vendor/pdf/cmaps/', cMapPacked: true,
+                    standardFontDataUrl: '/js/vendor/pdf/standard_fonts/',
+                    wasmUrl: '/js/vendor/pdf/wasm/', iccUrl: '/js/vendor/pdf/iccs/' });
+                const instance = instances.get(windowId);
+                if (instance) instance.pdfLoadingTask = loadingTask;
                 pdfDoc = await loadingTask.promise;
                 pdfPage = 1;
                 renderPdfPage();

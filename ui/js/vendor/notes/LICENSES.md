@@ -1,6 +1,6 @@
 # Notizen — third-party licenses
 
-AuraGo remains MIT. Milkdown/Crepe is pinned to 7.22.1.
+AuraGo remains MIT. Milkdown/Crepe is pinned to 7.22.2.
 
 
 ## @codemirror/autocomplete 6.20.3 — MIT
@@ -28,7 +28,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @codemirror/commands 6.10.4 — MIT
+## @codemirror/commands 6.11.1 — MIT
 
 MIT License
 
@@ -103,7 +103,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @codemirror/search 6.7.1 — MIT
+## @codemirror/search 6.7.2 — MIT
 
 MIT License
 
@@ -128,7 +128,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @codemirror/state 6.7.1 — MIT
+## @codemirror/state 6.7.6 — MIT
 
 MIT License
 
@@ -153,7 +153,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @codemirror/view 6.43.6 — MIT
+## @codemirror/view 6.43.13 — MIT
 
 MIT License
 
@@ -250,7 +250,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## @lezer/common 1.5.2 — MIT
+## @lezer/common 1.5.3 — MIT
 
 MIT License
 
@@ -275,7 +275,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @lezer/highlight 1.2.3 — MIT
+## @lezer/highlight 1.2.5 — MIT
 
 MIT License
 
@@ -300,7 +300,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @marijn/find-cluster-break 1.0.2 — MIT
+## @marijn/find-cluster-break 1.0.4 — MIT
 
 MIT License
 
@@ -325,7 +325,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @milkdown/components 7.22.1 — MIT
+## @milkdown/components 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -350,7 +350,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/core 7.22.1 — MIT
+## @milkdown/core 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -375,7 +375,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/crepe 7.22.1 — MIT
+## @milkdown/crepe 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -400,7 +400,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/ctx 7.22.1 — MIT
+## @milkdown/ctx 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -425,7 +425,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/exception 7.22.1 — MIT
+## @milkdown/exception 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -450,7 +450,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/kit 7.22.1 — MIT
+## @milkdown/kit 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -475,7 +475,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-clipboard 7.22.1 — MIT
+## @milkdown/plugin-clipboard 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -500,7 +500,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-cursor 7.22.1 — MIT
+## @milkdown/plugin-cursor 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -525,7 +525,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-history 7.22.1 — MIT
+## @milkdown/plugin-history 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -550,7 +550,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-indent 7.22.1 — MIT
+## @milkdown/plugin-indent 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -575,7 +575,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-listener 7.22.1 — MIT
+## @milkdown/plugin-listener 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -600,7 +600,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-trailing 7.22.1 — MIT
+## @milkdown/plugin-trailing 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -625,7 +625,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/plugin-upload 7.22.1 — MIT
+## @milkdown/plugin-upload 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -650,7 +650,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/preset-commonmark 7.22.1 — MIT
+## @milkdown/preset-commonmark 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -675,7 +675,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/preset-gfm 7.22.1 — MIT
+## @milkdown/preset-gfm 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -700,7 +700,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/prose 7.22.1 — MIT
+## @milkdown/prose 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -725,7 +725,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/transformer 7.22.1 — MIT
+## @milkdown/transformer 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -750,7 +750,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @milkdown/utils 7.22.1 — MIT
+## @milkdown/utils 7.22.2 — MIT
 
 The MIT License (MIT)
 
@@ -800,7 +800,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## @vue/reactivity 3.5.42 — MIT
+## @vue/reactivity 3.5.43 — MIT
 
 The MIT License (MIT)
 
@@ -825,7 +825,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @vue/runtime-core 3.5.42 — MIT
+## @vue/runtime-core 3.5.43 — MIT
 
 The MIT License (MIT)
 
@@ -850,7 +850,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @vue/runtime-dom 3.5.42 — MIT
+## @vue/runtime-dom 3.5.43 — MIT
 
 The MIT License (MIT)
 
@@ -875,7 +875,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## @vue/shared 3.5.42 — MIT
+## @vue/shared 3.5.43 — MIT
 
 The MIT License (MIT)
 
@@ -990,7 +990,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## crelt 1.0.6 — MIT
+## crelt 1.0.7 — MIT
 
 Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin>
 
@@ -1065,7 +1065,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## dompurify 3.4.15 — (MPL-2.0 OR Apache-2.0)
+## dompurify 3.4.16 — (MPL-2.0 OR Apache-2.0)
 
 
                                  Apache License
@@ -1698,7 +1698,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## katex 0.18.7 — MIT
+## katex 0.18.9 — MIT
 
 The MIT License (MIT)
 
@@ -1982,11 +1982,11 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## mdast-util-gfm-strikethrough 2.0.0 — MIT
+## mdast-util-gfm-strikethrough 2.0.1 — MIT
 
 (The MIT License)
 
-Copyright (c) 2020 Titus Wormer <tituswormer@gmail.com>
+Copyright (c) Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -2087,7 +2087,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## mdast-util-to-markdown 2.1.2 — MIT
+## mdast-util-to-markdown 2.1.3 — MIT
 
 (The MIT License)
 
@@ -2139,7 +2139,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## micromark 4.0.2 — MIT
+## micromark 4.0.3 — MIT
 
 (The MIT License)
 
@@ -2165,7 +2165,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## micromark-core-commonmark 2.0.3 — MIT
+## micromark-core-commonmark 2.0.4 — MIT
 
 (The MIT License)
 
@@ -2295,7 +2295,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## micromark-extension-gfm-table 2.1.1 — MIT
+## micromark-extension-gfm-table 2.1.2 — MIT
 
 (The MIT License)
 
@@ -2425,7 +2425,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## micromark-factory-space 2.0.1 — MIT
+## micromark-factory-space 2.1.0 — MIT
 
 (The MIT License)
 
@@ -2659,6 +2659,32 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+## micromark-util-edit-map 1.0.0 — MIT
+
+(The MIT License)
+
+Copyright (c) Titus Wormer <tituswormer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 ## micromark-util-encode 2.0.1 — MIT
 
 (The MIT License)
@@ -2815,7 +2841,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## nanoid 5.1.16 — MIT
+## nanoid 6.0.1 — MIT
 
 The MIT License (MIT)
 
@@ -2933,7 +2959,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## prosemirror-history 1.5.0 — MIT
+## prosemirror-history 1.5.1 — MIT
 
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
@@ -3002,7 +3028,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## prosemirror-model 1.25.11 — MIT
+## prosemirror-model 1.25.12 — MIT
 
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
@@ -3119,7 +3145,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## prosemirror-transform 1.12.1 — MIT
+## prosemirror-transform 1.12.2 — MIT
 
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
@@ -3142,7 +3168,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## prosemirror-view 1.42.3 — MIT
+## prosemirror-view 1.42.6 — MIT
 
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
@@ -3315,7 +3341,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## style-mod 4.1.3 — MIT
+## style-mod 4.1.4 — MIT
 
 Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
@@ -3543,7 +3569,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-## vue 3.5.42 — MIT
+## vue 3.5.43 — MIT
 
 The MIT License (MIT)
 

@@ -58,7 +58,7 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 
 	engine := readEmbeddedText(t, "js/desktop/apps/chess-engine.js")
 	for _, want := range []string{
-		"'/js/vendor/stockfish/stockfish-18-lite-single.js'",
+		"'/js/vendor/stockfish/stockfish-19-lite-single.js'",
 		"new Worker(workerUrl)",
 		"postMessage('uci')",
 		"postMessage('go depth '",

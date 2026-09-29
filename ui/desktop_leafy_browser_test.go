@@ -44,8 +44,13 @@ func TestDesktopLeafyGraphicsBrowser(t *testing.T) {
 	page.MustWaitLoad()
 	t.Log(page.MustEval(`()=>JSON.stringify({renderer:typeof AuraLeafyRenderer,three:typeof THREE,geometry:typeof AuraLeafyGeometry,errors})`).Str())
 	page.MustEval(`async()=>await window.leafyReady`)
-	dir := filepath.Join("..", "reports", "leafy")
-	os.MkdirAll(dir, 0755)
+	dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
+	if dir == "" {
+		dir = filepath.Join("..", "reports", "leafy")
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	for _, age := range []int{1, 24, 168, 504} {
 		page.MustEval(`age=>show(age)`, age)
 		page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("graphics-day-%d.png", age/24)))

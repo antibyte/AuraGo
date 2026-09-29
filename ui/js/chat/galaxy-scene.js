@@ -443,7 +443,7 @@
         try {
             renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true, powerPreference: 'high-performance' });
         } catch (_) { failed = true; return; }
-        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
         const rt = {
             canvas, renderer, scene: new THREE.Scene(), camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100),
             textures: new Set(), mobile: window.innerWidth < 768, quality: 1, ready: false, closed: false,

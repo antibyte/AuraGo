@@ -36,7 +36,7 @@ window.fixtureMessages={forest:[
  {role:'assistant',content:'Steuerung: Pfeiltasten bewegen, Leertaste springt, R startet neu.\n\nZiel: Sammle in jedem der drei Waldlevel alle Münzen und erreiche das Tor. Wildschweine patrouillieren auf den Wegen, Fledermäuse stoßen in dunklen Bereichen herab.',created_at:new Date(now-12*60000).toISOString()},
  {role:'user',content:'Bitte mach die Gegner etwas langsamer und füge einen Doppelsprung hinzu.',created_at:new Date(now-6*60000).toISOString()}],orbit:[],blocks:[]};
 window.fixtureCapabilities={enabled:true,readonly:false,allow_create:true,allow_edit:true,allow_delete:true,allow_media_generation:true,skills_ready:true,code_studio:true,
- phaser_version:'4.2.1',three_version:'0.185.1',voxel_version:1,default_provider_id:'main',default_model:'step-5-preview',
+ phaser_version:'4.2.1',three_version:'0.186.1',voxel_version:1,default_provider_id:'main',default_model:'step-5-preview',
  providers:[{id:'main',name:'StepFun',model:'step-5-preview'},{id:'local',name:'Lokales Modell',model:'qwen3'}],active_job:null,skills:[]};
 fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>{window.fixtureLang=lang;GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
  esc:value=>String(value??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),

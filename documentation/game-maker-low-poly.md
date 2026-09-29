@@ -35,7 +35,7 @@ project boundaries and tool permissions still apply. Sprite imports stay compati
 
 ## Runtime helper
 
-The pinned Three.js 0.185.1 helper uses official GLTFLoader, SkeletonUtils and
+The pinned Three.js 0.186.1 helper uses official GLTFLoader, SkeletonUtils and
 OrbitControls. It is copied into every 3D game's local `vendor/` directory.
 
 ```typescript

@@ -101,7 +101,7 @@ node scripts/build-game-maker-presentation.js --check
 go test ./internal/gamemaker
 ```
 
-Remove `--check` to regenerate. The JS build pins Three.js 0.185.1 and exposes
+Remove `--check` to regenerate. The JS build pins Three.js 0.186.1 and exposes
 Water's render-target disposal with a checked build-time patch. Tests validate
 all WAV formats, peaks, hashes and total uncompressed runtime against 64 MiB.
 

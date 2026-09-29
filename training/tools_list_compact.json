@@ -1505,7 +1505,7 @@
   },
   {
     "name": "game_maker_file",
-    "description": "Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
+    "description": "Search a literal query in one file or, without path, across game.json and the text sources under src/. Read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path for read, write and replace. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
     "required": [
       "job_id",
       "operation"

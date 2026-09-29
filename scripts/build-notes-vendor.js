@@ -9,10 +9,10 @@ for(const file of Object.keys(result.metafile.inputs)){
  const rest=file.replaceAll('\\','/').split('node_modules/')[1];
  if(rest)packages.add(rest.startsWith('@')?rest.split('/').slice(0,2).join('/'):rest.split('/')[0]);
 }
-const versions={},notices=['# Notizen — third-party licenses\n\nAuraGo remains MIT. Milkdown/Crepe is pinned to 7.22.1.\n'];
+const versions={},notices=['# Notizen — third-party licenses\n\nAuraGo remains MIT. Milkdown/Crepe is pinned to 7.22.2.\n'];
 for(const name of [...packages].sort()){
  const root='node_modules/'+name,pkg=JSON.parse(await readFile(root+'/package.json','utf8'));
- if(name.startsWith('@milkdown/')&&pkg.version!=='7.22.1')throw Error('Mixed Milkdown versions: '+name);
+ if(name.startsWith('@milkdown/')&&pkg.version!=='7.22.2')throw Error('Mixed Milkdown versions: '+name);
  const license=pkg.license==='(MPL-2.0 OR Apache-2.0)'?'Apache-2.0':pkg.license;
  if(!new Set(['MIT','Apache-2.0','ISC','BSD-2-Clause','BSD-3-Clause','(MIT AND BSD-3-Clause)','0BSD']).has(license))throw Error('Unverified license: '+name+' '+pkg.license);
  versions[name]={version:pkg.version,license,upstreamLicense:pkg.license};

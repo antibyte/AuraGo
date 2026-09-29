@@ -1,13 +1,13 @@
 # SECURITY: This script handles sensitive data. Do not echo secrets.
 # make_release.ps1 — Build all release artifacts and publish to GitHub Releases
-# Requires: PowerShell 5.1+, Go 1.26.6+, GitHub CLI (gh), tar
+# Requires: PowerShell 5.1+, Go 1.27.1+, GitHub CLI (gh), tar
 
 param(
     [string]$Version
 )
 
 $ErrorActionPreference = 'Stop'
-$env:GOTOOLCHAIN = 'go1.26.6' # Go 1.27.0 breaks tsnet startup on the deployed host.
+$env:GOTOOLCHAIN = 'go1.27.1' # Pin the compiler used by CI and release artifacts.
 
 # ── Banner ────────────────────────────────────────────────────────────────
 Write-Host ""
@@ -22,7 +22,7 @@ Write-Host "[0/5] Checking prerequisites..." -ForegroundColor Yellow
 
 # Go
 try {
-    $minGoVersion = [version]"1.26.6"
+    $minGoVersion = [version]"1.27.1"
     $rawGoVersion = ((go version) -split '\s+')[2]
     $goVersionText = $rawGoVersion -replace '^go', ''
     $goVersion = [version]$goVersionText
@@ -32,7 +32,7 @@ try {
     Write-Host "    Go: $rawGoVersion" -ForegroundColor Green
 } catch {
     Write-Host "[ERROR] $_" -ForegroundColor Red
-    Write-Host "        Install Go 1.26.6+ from https://go.dev/dl/" -ForegroundColor Yellow
+    Write-Host "        Install Go 1.27.1+ from https://go.dev/dl/" -ForegroundColor Yellow
     exit 1
 }
 

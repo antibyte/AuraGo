@@ -58,7 +58,7 @@ optionally enable image and music generation. The global AuraGo provider and
 model are preselected.
 
 - 2D projects use the embedded Phaser 4.2.1 runtime.
-- 3D projects use the embedded Three.js 0.185.1 runtime.
+- 3D projects use the embedded Three.js 0.186.1 runtime.
 - Voxel projects use Three.js with the bundled finite sandbox runtime, central
   Studio saves and local export saves. See [Voxel games](game-maker-voxel.md)
   for controls, limits, world compatibility and verification.

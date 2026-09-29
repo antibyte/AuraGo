@@ -32,7 +32,7 @@ one plant; pot placement is saved separately in each browser.
 
 ## Runtime and persistence
 
-- Existing local Three.js r128, loaded only with the widget. Botanical leaf textures on eight curved
+- Existing local Three.js 0.186.1, loaded only with the widget. Botanical leaf textures on eight curved
   mesh variations, tapered stems, ceramic pot, moss, tendrils and seasonal flowers.
   Fruity light uses ivory ceramic; dark themes use graphite.
 - One transparent canvas inside the workspace, above icons/widgets and below windows. Ordinary

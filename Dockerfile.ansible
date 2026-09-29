@@ -20,12 +20,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Ansible (latest stable for Python 3.12) in an isolated venv.
+# Install the reviewed stable Ansible release in an isolated venv.
 ENV VIRTUAL_ENV=/opt/ansible-venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 RUN python -m venv "${VIRTUAL_ENV}" \
     && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir --upgrade pip \
-    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir ansible
+    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir ansible==14.4.0
 
 WORKDIR /app
 COPY ansible_api/server.py /app/server.py
@@ -51,7 +51,7 @@ ENV ANSIBLE_TIMEOUT=300
 ENV ANSIBLE_HOST_KEY_CHECKING=True
 
 # Run as a non-root user
-RUN useradd -r -u 1001 -s /sbin/nologin ansibleuser
+RUN useradd -r -m -u 1001 -s /sbin/nologin ansibleuser
 RUN chown -R ansibleuser:ansibleuser /app /playbooks /inventory
 USER ansibleuser
 

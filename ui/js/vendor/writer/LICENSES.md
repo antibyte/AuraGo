@@ -2,10 +2,8 @@
 
 AuraGo host code remains MIT. No Pro or AGPL packages are included.
 
-AuraGo modifies core 2.16.0 caret scrolling during pointer selection. The reproducible patch is in `scripts/build-writer-vendor.js`; keyboard reveal and pointer edge autoscroll remain enabled.
 
-
-## @docx-editor.dev/core 2.16.0 — Apache-2.0
+## @docx-editor.dev/core 2.23.0 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -234,11 +232,11 @@ so they cannot appear below. Their licenses travel with the package in
 
 ## Bundled packages
 
-- harfbuzzjs 1.6.0 — MIT (https://harfbuzz.github.io/harfbuzzjs)
+- harfbuzzjs 1.6.1 — MIT (https://harfbuzz.github.io/harfbuzzjs)
 
 ---
 
-## harfbuzzjs 1.6.0
+## harfbuzzjs 1.6.1
 
 License: MIT
 
@@ -310,7 +308,7 @@ ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
 PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 
-## @docx-editor.dev/fonts 2.16.0 — Apache-2.0 AND OFL-1.1 AND LicenseRef-GUST-Font-License
+## @docx-editor.dev/fonts 2.23.0 — Apache-2.0 AND OFL-1.1 AND LicenseRef-GUST-Font-License
 
 This Apache-2.0 license covers this package's own code only.
 
@@ -1294,7 +1292,7 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 
 
-## @docx-editor.dev/i18n 2.16.0 — Apache-2.0
+## @docx-editor.dev/i18n 2.23.0 — Apache-2.0
 
                                  Apache License
                            Version 2.0, January 2004
@@ -1518,7 +1516,7 @@ Do not edit by hand.
 No third-party code is bundled into this package.
 
 
-## @nodable/entities 3.0.0 — MIT
+## @nodable/entities 3.1.0 — MIT
 
 
 ## anynum 1.0.1 — MIT
@@ -1544,6 +1542,32 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+## bidi-js 1.1.0 — MIT
+
+Copyright (c) 2021 Jason Johnston
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ## emf-converter 2.0.2 — Apache-2.0
@@ -1777,7 +1801,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-## fast-xml-parser 5.11.1 — MIT
+## fast-xml-parser 5.11.2 — MIT
 
 MIT License
 
@@ -1945,7 +1969,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## prosemirror-model 1.25.11 — MIT
+## prosemirror-model 1.25.12 — MIT
 
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
@@ -1991,7 +2015,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## prosemirror-transform 1.12.1 — MIT
+## prosemirror-transform 1.12.2 — MIT
 
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
@@ -2014,7 +2038,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-## prosemirror-view 1.42.3 — MIT
+## prosemirror-view 1.42.6 — MIT
 
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 

@@ -7,7 +7,7 @@
       "upstreamLicense": "MIT"
     },
     "@codemirror/commands": {
-      "version": "6.10.4",
+      "version": "6.11.1",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -22,17 +22,17 @@
       "upstreamLicense": "MIT"
     },
     "@codemirror/search": {
-      "version": "6.7.1",
+      "version": "6.7.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@codemirror/state": {
-      "version": "6.7.1",
+      "version": "6.7.6",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@codemirror/view": {
-      "version": "6.43.6",
+      "version": "6.43.13",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -52,107 +52,107 @@
       "upstreamLicense": "MIT"
     },
     "@lezer/common": {
-      "version": "1.5.2",
+      "version": "1.5.3",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@lezer/highlight": {
-      "version": "1.2.3",
+      "version": "1.2.5",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@marijn/find-cluster-break": {
-      "version": "1.0.2",
+      "version": "1.0.4",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/components": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/core": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/crepe": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/ctx": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/exception": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/kit": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/plugin-clipboard": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/plugin-cursor": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/plugin-history": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/plugin-indent": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/plugin-listener": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/plugin-trailing": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/plugin-upload": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/preset-commonmark": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/preset-gfm": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/prose": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/transformer": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@milkdown/utils": {
-      "version": "7.22.1",
+      "version": "7.22.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -162,22 +162,22 @@
       "upstreamLicense": "MIT"
     },
     "@vue/reactivity": {
-      "version": "3.5.42",
+      "version": "3.5.43",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@vue/runtime-core": {
-      "version": "3.5.42",
+      "version": "3.5.43",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@vue/runtime-dom": {
-      "version": "3.5.42",
+      "version": "3.5.43",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "@vue/shared": {
-      "version": "3.5.42",
+      "version": "3.5.43",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -202,7 +202,7 @@
       "upstreamLicense": "MIT"
     },
     "crelt": {
-      "version": "1.0.6",
+      "version": "1.0.7",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -217,7 +217,7 @@
       "upstreamLicense": "MIT"
     },
     "dompurify": {
-      "version": "3.4.15",
+      "version": "3.4.16",
       "license": "Apache-2.0",
       "upstreamLicense": "(MPL-2.0 OR Apache-2.0)"
     },
@@ -237,7 +237,7 @@
       "upstreamLicense": "MIT"
     },
     "katex": {
-      "version": "0.18.7",
+      "version": "0.18.9",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -287,7 +287,7 @@
       "upstreamLicense": "MIT"
     },
     "mdast-util-gfm-strikethrough": {
-      "version": "2.0.0",
+      "version": "2.0.1",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -307,7 +307,7 @@
       "upstreamLicense": "MIT"
     },
     "mdast-util-to-markdown": {
-      "version": "2.1.2",
+      "version": "2.1.3",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -317,12 +317,12 @@
       "upstreamLicense": "MIT"
     },
     "micromark": {
-      "version": "4.0.2",
+      "version": "4.0.3",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "micromark-core-commonmark": {
-      "version": "2.0.3",
+      "version": "2.0.4",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -347,7 +347,7 @@
       "upstreamLicense": "MIT"
     },
     "micromark-extension-gfm-table": {
-      "version": "2.1.1",
+      "version": "2.1.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -372,7 +372,7 @@
       "upstreamLicense": "MIT"
     },
     "micromark-factory-space": {
-      "version": "2.0.1",
+      "version": "2.1.0",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -416,6 +416,11 @@
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
+    "micromark-util-edit-map": {
+      "version": "1.0.0",
+      "license": "MIT",
+      "upstreamLicense": "MIT"
+    },
     "micromark-util-encode": {
       "version": "2.0.1",
       "license": "MIT",
@@ -447,7 +452,7 @@
       "upstreamLicense": "MIT"
     },
     "nanoid": {
-      "version": "5.1.16",
+      "version": "6.0.1",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -472,7 +477,7 @@
       "upstreamLicense": "MIT"
     },
     "prosemirror-history": {
-      "version": "1.5.0",
+      "version": "1.5.1",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -487,7 +492,7 @@
       "upstreamLicense": "MIT"
     },
     "prosemirror-model": {
-      "version": "1.25.11",
+      "version": "1.25.12",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -512,12 +517,12 @@
       "upstreamLicense": "MIT"
     },
     "prosemirror-transform": {
-      "version": "1.12.1",
+      "version": "1.12.2",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
     "prosemirror-view": {
-      "version": "1.42.3",
+      "version": "1.42.6",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -552,7 +557,7 @@
       "upstreamLicense": "MIT"
     },
     "style-mod": {
-      "version": "4.1.3",
+      "version": "4.1.4",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -597,7 +602,7 @@
       "upstreamLicense": "MIT"
     },
     "vue": {
-      "version": "3.5.42",
+      "version": "3.5.43",
       "license": "MIT",
       "upstreamLicense": "MIT"
     },
@@ -614,16 +619,16 @@
   },
   "files": {
     "engine.js": {
-      "bytes": 1005498,
-      "sha256": "fd2733d2e7e1281739220c8076eca2b9e74d95687cc9d46b0b4ac76e452b002f"
+      "bytes": 1016403,
+      "sha256": "3ae4769ff1fc9f823acd71fe8bbabc5d4604e1f6e22170292f62e87cb353f459"
     },
     "engine.css": {
       "bytes": 1512288,
-      "sha256": "a46698f8af2abca9b180912a70f1ab62d110087b267b3c98734f09291880ed61"
+      "sha256": "076eaabfab587983dd397c7987838154c427ad0fd077ce0e39d9c565c9ff8056"
     },
     "LICENSES.md": {
-      "bytes": 166630,
-      "sha256": "55cf867ece390fa0fcd2c014e10a83943096cdbf26ba5266ac63d5479f6df5ad"
+      "bytes": 167763,
+      "sha256": "ba271dd7827071bd980a50963c9587bbaf426b11df87ce0237461382ed2dcecb"
     }
   }
 }

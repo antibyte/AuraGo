@@ -525,7 +525,7 @@ func TestDesktopInitialLoadDefersAppAssets(t *testing.T) {
 		`src="/js/desktop/apps/chess.js`,
 		`src="/js/vendor/hls.min.js`,
 		`src="/js/vendor/chess-vendor.esm.js`,
-		`src="/js/vendor/stockfish/stockfish-18-lite-single.js`,
+		`src="/js/vendor/stockfish/stockfish-19-lite-single.js`,
 		`href="/css/radio.css`,
 		`href="/css/teevee.css`,
 		`href="/css/camera.css`,

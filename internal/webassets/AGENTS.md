@@ -14,9 +14,11 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
   Serialize installs; publish a verified directory atomically. Keep old sets.
 - Set `Default` once before services start. Installation never hot-swaps captured
   templates or the active filesystem; restart activates the matching set.
+- Production PDF.js resources include CMaps (`.bcmap`), Type 1 fonts (`.pfb`),
+  ICC color profiles (`.icc`) and WASM decoders; keep these in the asset manifest.
 - Keep tests runnable with `go test ./internal/webassets ./cmd/assetpack`.
   `scripts/check-web-assets.mjs` enforces a 10 MB first-party embed budget and
-  the separate recovery-page and stripped-binary budgets.
+  the separate 1 MB recovery-page and 125 MB stripped-binary budgets.
 - `ui.Content` and per-package test fixtures are test inputs, never production
   fallback sources. Maintain missing-set behavior for Desktop and Game Maker.
 

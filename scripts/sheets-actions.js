@@ -18,7 +18,8 @@ class AuraSheetsActions extends Plugin {
     onStarting() {
         const mutation = 'aurago.mutation.sheets-state';
         this.config.bridge.clipboard = () => this._injector.get(ISheetClipboardService);
-        if(this.config.parse) this.disposeWithMe(this._injector.get(SheetInterceptorService).writeCellInterceptor.intercept(AFTER_CELL_EDIT,{priority:1000,handler:(cell,context,next)=>this.config.parse(next(cell),context)}));
+        // Univer 1.x is sequential: run after format parsers (0), before the terminal interceptor (-1).
+        if(this.config.parse) this.disposeWithMe(this._injector.get(SheetInterceptorService).writeCellInterceptor.intercept(AFTER_CELL_EDIT,{priority:-0.5,handler:(cell,context,next)=>next(this.config.parse(cell,context))}));
         this.disposeWithMe(this.commands.registerCommand({id:mutation,type:CommandType.MUTATION,
             handler:(_,params)=>{this.config.set(structuredClone(params.value));return true;}}));
         this.disposeWithMe(this._injector.get(SheetInterceptorService).interceptCommand({getMutations:command=>{

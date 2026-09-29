@@ -282,7 +282,7 @@ func TestDesktopScreensaverAbyssAssetsMatchManifests(t *testing.T) {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(data)
-	if bundle.Three != "0.185.1" || bundle.Bytes != len(data) || bundle.SHA256 != hex.EncodeToString(sum[:]) {
+	if bundle.Three != "0.186.1" || bundle.Bytes != len(data) || bundle.SHA256 != hex.EncodeToString(sum[:]) {
 		t.Fatal("Tiefsee renderer bundle is stale; run node scripts/build-screensaver-abyss.js")
 	}
 }

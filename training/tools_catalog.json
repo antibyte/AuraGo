@@ -6671,7 +6671,7 @@
     },
     {
       "name": "game_maker_file",
-      "description": "Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
+      "description": "Search a literal query in one file or, without path, across game.json and the text sources under src/. Read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path for read, write and replace. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -6747,11 +6747,11 @@
             "type": "string"
           },
           "path": {
-            "description": "Project-relative source path",
+            "description": "Project-relative source path; omit only for a project-wide search",
             "type": "string"
           },
           "query": {
-            "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256",
+            "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines with each file's sha256",
             "type": "string"
           },
           "start_line": {
@@ -6842,11 +6842,11 @@
           "type": "string"
         },
         "path": {
-          "description": "Project-relative source path",
+          "description": "Project-relative source path; omit only for a project-wide search",
           "type": "string"
         },
         "query": {
-          "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256",
+          "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines with each file's sha256",
           "type": "string"
         },
         "start_line": {

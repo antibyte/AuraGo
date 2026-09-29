@@ -1,14 +1,14 @@
 {
   "name": "3d-force-graph",
-  "version": "1.70.2",
-  "author": "Vasco Asturiano",
+  "version": "1.80.0",
   "license": "MIT",
-  "upstream": "https://github.com/vasturiano/3d-force-graph",
-  "fetched": "2026-09-07",
-  "source": "https://unpkg.com/3d-force-graph@1.70.2/dist/3d-force-graph.min.js",
-  "sha256": "e3cd6edf4327513912472b8d3d7159aa582d8761acedc4910877d75e8437c742",
-  "files": [
-    "../3d-force-graph.min.js"
-  ],
-  "notes": "Self-contained UMD bundle exposing the global ForceGraph3D. Version 1.70.2 is pinned because it targets three.js ^0.128.0, matching the vendored three.min.js r128 that is loaded first and preferred via window.THREE. Loads no remote assets at runtime. Used by the Dashboard knowledge-graph visual for the optional 3D view."
+  "source": "https://www.npmjs.com/package/3d-force-graph/v/1.80.0",
+  "npm_integrity": "sha512-tzI353gW1nXPpnC7VTa3JjMg+3cp77qOLUFO0vucPTfF+q5R6sQsNsIqVTbRIb7RSypn14nBa4yfkOe9ThxASw==",
+  "shared_three": "0.186.1",
+  "files": {
+    "../3d-force-graph.min.js": {
+      "bytes": 1035135,
+      "sha256": "f91ba9d6536e0c478852180fbb1746b298bf42b2b5db5a7fd093629e2d46591a"
+    }
+  }
 }

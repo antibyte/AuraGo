@@ -101,6 +101,7 @@ func TestDesktopSheetsAppBrowser(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="/js/vendor/sheets/engine.css"><link rel="stylesheet" href="/css/desktop-app-sheets.css">
 <style>html,body{margin:0;height:100%;font-family:system-ui}body{--vd-text:#e4e8f0;--vd-theme-app-bg:#141922;--vd-theme-panel-bg:#1b202a;--vd-theme-chrome-bg:#1d2430;--vd-theme-control-bg:#252d3a;--vd-theme-border:#ffffff1a;--vd-theme-muted:#a7b1c3;--vd-accent:#9abfff}body[data-fruity-mode=light]{--vd-text:#212b3c;--vd-theme-app-bg:#e2e7ee;--vd-theme-panel-bg:#e5e9ef;--vd-theme-chrome-bg:#d7dfe9;--vd-theme-control-bg:#f8fafc;--vd-theme-border:#65748c40;--vd-theme-muted:#536279;--vd-accent:#2169bd}#host{height:100%}</style></head><body class="desktop-body" data-theme="default"><div id="host"></div>
+<script>window.sheetErrors=[];addEventListener('error',e=>sheetErrors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>sheetErrors.push(e.reason?.stack||String(e.reason)));</script>
 <script src="/chart.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/sheets-data.js"></script><script src="/js/desktop/apps/sheets-panels.js"></script><script src="/js/desktop/apps/sheets-charts.js"></script><script src="/js/desktop/apps/sheets.js"></script>
 <script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/en.json')).json();window.sheetsContext={t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>true,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/copy.xlsx'}),openFileDialog:async()=>({path:SheetsApp.instances.get('test').path})};SheetsApp.render(document.getElementById('host'),'test',sheetsContext);})();</script></body></html>`)
 	})
@@ -114,9 +115,9 @@ func TestDesktopSheetsAppBrowser(t *testing.T) {
 	defer page.Close()
 	page.MustSetViewport(1366, 768, 1, false)
 	page.MustWaitLoad()
-	page.MustWait(`()=>!!SheetsApp.instances.get('test')?.book||document.querySelector('[data-notice]')?.dataset.error==='true'`)
+	page.MustWait(`()=>!!SheetsApp.instances.get('test')?.session||document.querySelector('[data-notice]')?.dataset.error==='true'`)
 	result := page.MustEval(`async()=>{
-  const app=SheetsApp.instances.get('test');if(!app.book)throw Error(document.querySelector('[data-notice-text]').textContent);
+  const app=SheetsApp.instances.get('test');if(!app.session)throw Error(document.querySelector('[data-notice-text]').textContent);
   const sheet=app.book.getActiveSheet();sheet.getRange('A1:B3').setValues([['Name','Amount'],['Rent',1250.5],['Food',400]]);
   sheet.getRange('B4').setValue({f:'=SUM(B2:B3)'});
   await app.session.save();if(app.session.error)throw app.session.error;
@@ -139,13 +140,20 @@ func TestDesktopSheetsAppBrowser(t *testing.T) {
         s.getRange('A3:D11').createFilter();
         return app.book.save();
     }`)
-	os.MkdirAll("../reports/sheets", 0755)
-	os.WriteFile("../reports/sheets/native-snapshot.json", []byte(resources.JSON("", "  ")), 0644)
+	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
+	if out == "" {
+		out = "../reports/sheets"
+	}
+	if err := os.MkdirAll(out, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out+"/native-snapshot.json", []byte(resources.JSON("", "  ")), 0644); err != nil {
+		t.Fatal(err)
+	}
 	page.MustEval(`async()=>{const app=SheetsApp.instances.get('test');await app.session.save();if(app.session.error)throw app.session.error;await app.act('closeRight');await app.act('format');await new Promise(resolve=>setTimeout(resolve,250));}`)
 	if result.Get("chartCount").Int() != 1 {
 		t.Fatal("Chart missing")
 	}
-	_ = os.MkdirAll("../reports/sheets", 0755)
 	for _, variant := range []struct {
 		Name  string
 		Theme string
@@ -156,7 +164,7 @@ func TestDesktopSheetsAppBrowser(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = os.WriteFile("../reports/sheets/"+variant.Name+"-1366.png", shot, 0644); err != nil {
+		if err = os.WriteFile(out+"/"+variant.Name+"-1366.png", shot, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -203,7 +211,7 @@ func testSheetsAppInteractions(t *testing.T, page *rod.Page) {
 func testSheetsNativeTyping(t *testing.T, page *rod.Page) {
 	t.Helper()
 	page.MustEval(`async()=>{await SheetsApp.instances.get('test').state.save();SheetsApp.dispose('test');document.documentElement.lang='de';SheetsApp.render(document.getElementById('host'),'test',sheetsContext);}`)
-	page.MustWait(`()=>!!SheetsApp.instances.get('test')?.book`)
+	page.MustWait(`()=>{if(sheetErrors.length)throw Error(sheetErrors.join('\n'));return SheetsApp.instances.get('test')?.session&&!document.querySelector('[data-u-comp="workbench-skeleton-toolbar"]');}`)
 	for _, entry := range []struct {
 		Cell, Text string
 		Value      interface{}
@@ -212,9 +220,11 @@ func testSheetsNativeTyping(t *testing.T, page *rod.Page) {
 	} {
 		rect := page.MustEval(`async cell=>{const a=SheetsApp.instances.get('test');a.session.suspend();const r=a.book.getActiveSheet().getRange(cell);r.activate();await new Promise(resolve=>setTimeout(resolve,150));const c=r.getCellRect(),m=document.querySelector('[data-engine]').getBoundingClientRect();return {x:m.left+c.left+20,y:m.top+c.top+10};}`, entry.Cell)
 		page.Mouse.MustMoveTo(rect.Get("x").Num(), rect.Get("y").Num())
+		page.Mouse.MustClick(proto.InputMouseButtonLeft)
 		if err := page.Mouse.Click(proto.InputMouseButtonLeft, 2); err != nil {
 			t.Fatal(err)
 		}
+		page.MustWait(`()=>SheetsApp.instances.get('test').book.isCellEditing()`)
 		if err := (proto.InputInsertText{Text: entry.Text}).Call(page); err != nil {
 			t.Fatal(err)
 		}

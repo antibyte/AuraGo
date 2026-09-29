@@ -160,14 +160,14 @@ func TestModelPackBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	page.MustNavigate(server.URL + "/studio").MustWaitLoad()
-	page.MustWait(`()=>window.__uiReady===true`)
+	page.MustWait(`()=>{if(window.__uiErrors?.length)throw Error(__uiErrors.join("; "));return window.__uiReady===true;}`)
 	page.MustElement("[data-gm-action=assets]").MustClick()
-	page.MustWait(`()=>document.querySelectorAll('[data-model]').length===220`)
+	page.MustWait(`()=>document.querySelectorAll('[data-entry][data-entry-pack="aurago-low-poly"]').length===220`)
 	page.MustEval(`()=>{const s=document.querySelector('[data-asset-search]');s.value='explorer';s.dispatchEvent(new Event('input',{bubbles:true}))}`)
-	page.MustElement("[data-model='humans-explorer-a']").MustClick()
+	page.MustElement("[data-entry='humans-explorer-a'][data-entry-pack='aurago-low-poly']").MustClick()
 	page.MustWait(`()=>!!document.querySelector('[data-model-stage] canvas')`)
-	page.MustEval(`()=>document.querySelector('[data-select-model="humans-explorer-a"]').click()`)
-	if page.MustEval(`()=>__uiState.selectedModelAssetIDs[0]`).Str() != "humans-explorer-a" {
+	page.MustEval(`()=>document.querySelector('[data-select-entry="humans-explorer-a"]').click()`)
+	if page.MustEval(`()=>__uiState.selectedAssetSelections.find(a=>a.pack_id==='aurago-low-poly')?.asset_id`).Str() != "humans-explorer-a" {
 		t.Fatal("model selection lost")
 	}
 	for _, theme := range []string{"standard", "light", "dark"} {
@@ -201,9 +201,10 @@ func TestModelPackBrowser(t *testing.T) {
 	if !page.MustEval(`()=>{
 		__uiState.project={id:'two-dimensional',dimension:'2d'};
 		const form=document.querySelector('[data-gm-change-form]');
+		form.querySelector('textarea').disabled=false; // The fixture supplies a project without navigating its library.
 		form.querySelector('textarea').value='Keep this request';
 		form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-		const ok=__uiErrors.pop()===__uiState.context.t('game_maker.model_requires_3d')
+		const ok=__uiErrors.pop()===__uiState.context.t('game_maker.assets_dimension_mismatch')
 			&&form.querySelector('textarea').value==='Keep this request'&&!__uiState.jobActive;
 		__uiState.project=null;return ok;
 	}`).Bool() {

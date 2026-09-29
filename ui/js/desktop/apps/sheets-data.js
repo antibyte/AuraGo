@@ -46,7 +46,7 @@
     function template(kind,tr){
         const id='sheet-'+crypto.randomUUID().slice(0,8),name=tr(kind==='blank'?'sheet':'template_'+kind);
         const sheet={id,name,rowCount:1000,columnCount:26,defaultRowHeight:26,defaultColumnWidth:112,cellData:{},rowData:{},columnData:{0:{w:210}},mergeData:[],freeze:{xSplit:0,ySplit:0,startRow:-1,startColumn:-1},zoomRatio:1,showGridlines:1,rowHeader:{width:48},columnHeader:{height:26}};
-        const book={id:crypto.randomUUID(),name,appVersion:'0.25.1',locale:'enUS',sheetOrder:[id],sheets:{[id]:sheet},styles:{
+        const book={id:crypto.randomUUID(),name,appVersion:'1.0.3',locale:'enUS',sheetOrder:[id],sheets:{[id]:sheet},styles:{
             title:{ff:'Arial',fs:24,bl:1,cl:{rgb:'#20364f'}},
             subtitle:{ff:'Arial',fs:10,cl:{rgb:'#6d7c91'}},
             header:{ff:'Arial',fs:11,bl:1,cl:{rgb:'#ffffff'},bg:{rgb:'#365f85'},vt:2},

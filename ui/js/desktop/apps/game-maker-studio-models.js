@@ -77,7 +77,7 @@
             renderer.toneMapping = T.ACESFilmicToneMapping;
             renderer.toneMappingExposure = 1.1;
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = T.PCFSoftShadowMap;
+            renderer.shadowMap.type = T.PCFShadowMap;
             stage.appendChild(renderer.domElement);
             instance = runtime.createInstance(asset);
             scene.add(instance.root);

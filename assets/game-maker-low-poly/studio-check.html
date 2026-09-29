@@ -14,7 +14,7 @@ window.__uiErrors=[];addEventListener('error',e=>__uiErrors.push(e.message));add
 const lang=await fetch('/ui/lang/desktop/de.json').then(r=>r.json());
 const context={t:key=>lang[key]||key,esc:value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),
  api:async(path,options)=>{
-  if(path.endsWith('/capabilities'))return {enabled:true,allow_create:true,allow_edit:true,skills_ready:true,skills:[],three_version:'0.185.1'};
+  if(path.endsWith('/capabilities'))return {enabled:true,allow_create:true,allow_edit:true,skills_ready:true,skills:[],three_version:'0.186.1'};
   if(path.endsWith('/projects'))return {projects:[]};
   const response=await fetch(path,options);if(!response.ok)throw Error('HTTP '+response.status);return response.json();
  },notify:n=>__uiErrors.push(n.message)};

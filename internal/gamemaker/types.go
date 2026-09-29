@@ -9,7 +9,7 @@ import (
 
 const (
 	PhaserVersion = "4.2.1"
-	ThreeVersion  = "0.185.1"
+	ThreeVersion  = "0.186.1"
 )
 
 var (

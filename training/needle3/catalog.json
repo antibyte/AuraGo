@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalog_sha256": "5a5797d802c95f80597eed45f7a6331f79e961a6360e957bddb705adbc29e465",
+  "catalog_sha256": "94015c12bb7464b3ca7931653e73411c14dd6a2c81ab5b4a6b53f6bf60696929",
   "sources": {
     "prompts/tools_manuals/activate_agent_skill.md": "1cd868f578936cbaaa313ffad3aeb33bcb40e6fa39d5410f578d2246e1da4620",
     "prompts/tools_manuals/address_book.md": "e293e5e4593960f04000ded38ac04eb625b194a6672372d085d8ec294aacc509",
@@ -134,7 +134,7 @@
     "prompts/tools_manuals/run_agent_skill_script.md": "52ca9c0454acaa9c4964a5a05bac792431fa6798707eb017dc25c625dd50eccc",
     "prompts/tools_manuals/run_tool.md": "4e1c9fd6967c186462c545f53af16d681967d13305b3b102230e79359b55a917",
     "prompts/tools_manuals/s3_storage.md": "65c0947c47d3acb194e5829cbe4635e3b22427fcc7ba78d8e3b6f11c8559fe60",
-    "prompts/tools_manuals/sandbox.md": "9a298097502802aec681f84c090b1e255e6cfa3e769a644d165e3624a69adde1",
+    "prompts/tools_manuals/sandbox.md": "7c03a149a4f16774c7117936f4fbcfbd3348807686257fdb12eef7ef637f5841",
     "prompts/tools_manuals/secrets_vault.md": "0ed1c010ffde294650d97f0c389ed13c8ef480f45b62c59694404188c934de1c",
     "prompts/tools_manuals/send_agodesk_chat.md": "2cf67bddffa026c49d63dcd1ff921d6e107db9a5d0d1593ee24aea7d657e6d6d",
     "prompts/tools_manuals/send_audio.md": "31996d69d3571a2f81fe2c2f626d19a47046670bc61656762aeca0e4f8eb41d5",
@@ -185,7 +185,7 @@
     "prompts/tools_manuals/xml_editor.md": "70a334eb6e3cb4c798d71ab00e233e75a14bbd41c50398c7a7be4589c6b3077e",
     "prompts/tools_manuals/yaml_editor.md": "3019e5bcda6867a4a5ff6732e690daa77fabc3ab8b1444ef3c8776fce787779b",
     "prompts/tools_manuals/yepapi.md": "da38a9f36c026917a53666302aa3a9b91abec88e0bb86feda62f79b5ff574ca9",
-    "training/operation_contracts.json": "d6e95a197186e62e287c08fd6588f13d8135beb153dd8cd3f893f92ddbf3b792",
+    "training/operation_contracts.json": "4f648350e94f22bdb043474781f920c0992fa577a4ed422665918b10f96db92b",
     "training/tool_tiers.json": "3e419c089ec427b3516efc7b901bdc2f32ae89e911a6a971e1b51bdcc4e665af"
   },
   "tools": [
@@ -10266,7 +10266,7 @@
     },
     {
       "name": "game_maker_file",
-      "description": "Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
+      "description": "Search a literal query in one file or, without path, across game.json and the text sources under src/. Read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path for read, write and replace. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -10342,11 +10342,11 @@
             "type": "string"
           },
           "path": {
-            "description": "Project-relative source path",
+            "description": "Project-relative source path; omit only for a project-wide search",
             "type": "string"
           },
           "query": {
-            "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256",
+            "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines with each file's sha256",
             "type": "string"
           },
           "start_line": {
@@ -10437,11 +10437,11 @@
           "type": "string"
         },
         "path": {
-          "description": "Project-relative source path",
+          "description": "Project-relative source path; omit only for a project-wide search",
           "type": "string"
         },
         "query": {
-          "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256",
+          "description": "search: literal single-line text, 1–120 characters; returns up to 12 matching lines with each file's sha256",
           "type": "string"
         },
         "start_line": {
@@ -50895,8 +50895,8 @@
     {
       "id": "sandbox",
       "path": "prompts/tools_manuals/sandbox.md",
-      "sha256": "9a298097502802aec681f84c090b1e255e6cfa3e769a644d165e3624a69adde1",
-      "body": "---\nid: sandbox\ntags: [core]\npriority: 100\nconditions: [\"sandbox_enabled\"]\n---\n\n# Sandbox Code Execution — Tool Manual\n\n## Overview\nThe `execute_sandbox` tool runs code in an isolated Docker container via the llm-sandbox MCP server.\nThis is the **preferred** method for all code execution — it provides full isolation from the host system.\n\n## Tool: `execute_sandbox`\n\n### Basic Python execution\n```json\n{\"action\": \"execute_sandbox\", \"code\": \"print('Hello, World!')\", \"sandbox_lang\": \"python\"}\n```\n\n### JavaScript execution\n```json\n{\"action\": \"execute_sandbox\", \"code\": \"console.log('Hello from Node.js');\", \"sandbox_lang\": \"javascript\"}\n```\n\n### Go execution\n```json\n{\n  \"action\": \"execute_sandbox\",\n  \"code\": \"package main\\n\\nimport \\\"fmt\\\"\\n\\nfunc main() {\\n\\tfmt.Println(\\\"Hello from Go\\\")\\n}\",\n  \"sandbox_lang\": \"go\"\n}\n```\n\n### With library installation\n```json\n{\n  \"action\": \"execute_sandbox\",\n  \"code\": \"import requests\\nresp = requests.get('https://api.github.com')\\nprint(resp.status_code)\",\n  \"sandbox_lang\": \"python\",\n  \"libraries\": [\"requests\"]\n}\n```\n\n### Data processing with pandas\n```json\n{\n  \"action\": \"execute_sandbox\",\n  \"code\": \"import pandas as pd\\ndf = pd.DataFrame({'a': [1,2,3], 'b': [4,5,6]})\\nprint(df.describe().to_json())\",\n  \"sandbox_lang\": \"python\",\n  \"libraries\": [\"pandas\"]\n}\n```\n\n## Supported Languages\n| Language | `sandbox_lang` value | Container |\n|---|---|---|\n| Python | `python` (default) | python:3.11-slim |\n| JavaScript | `javascript` | node:18-slim |\n| Go | `go` | golang:1.26.6-alpine |\n| Java | `java` | openjdk:17-slim |\n| C++ | `cpp` | gcc:13-bookworm |\n| R | `r` | r-base:latest |\n\n## Fallback Behavior\nIf the sandbox is unavailable (Docker not running, package not installed, etc.) **and** the language is Python **and** `execute_python` is enabled in the Danger Zone, the code will automatically fall back to local Python execution. This is logged in the output.\n\n## When to use `execute_python` instead\n- **Persistent tools**: When saving a tool with `save_tool` — the tool must live on the host filesystem\n- **Skills**: Running pre-registered skills via `execute_skill`\n- **Venv packages**: When you need packages that persist across executions\n\n## Configuration\n```yaml\nsandbox:\n  enabled: true\n  backend: \"docker\"          # or \"podman\"\n  docker_host: \"\"            # auto-detect or inherit from docker.host\n  image: \"python:3.11-slim\"  # base container image\n  auto_install: true         # auto-install llm-sandbox[mcp-docker] Python package\n  pool_size: 0               # container pool size (0 = no pooling)\n  timeout_seconds: 30        # execution timeout per run\n  network_enabled: false     # container network access\n  keep_alive: true           # keep MCP server running between calls\n```\n\n\u003e **Note:** `auto_install` installs `llm-sandbox[mcp-docker]` (or `mcp-podman` for Podman).\n\u003e Manual install: `pip install 'llm-sandbox[mcp-docker]'`\n\u003e The plain `llm-sandbox[docker]` extras are **not** sufficient — the `mcp` dependency is required.\n\n## Security\n- Code runs in an **isolated Docker container** — no access to the host filesystem\n- No Danger Zone gate required — sandbox is inherently sandboxed\n- Network access is configurable (disabled by default)\n- Each execution gets a fresh environment (no state leakage between runs)\n",
+      "sha256": "7c03a149a4f16774c7117936f4fbcfbd3348807686257fdb12eef7ef637f5841",
+      "body": "---\nid: sandbox\ntags: [core]\npriority: 100\nconditions: [\"sandbox_enabled\"]\n---\n\n# Sandbox Code Execution — Tool Manual\n\n## Overview\nThe `execute_sandbox` tool runs code in an isolated Docker container via the llm-sandbox MCP server.\nThis is the **preferred** method for all code execution — it provides full isolation from the host system.\n\n## Tool: `execute_sandbox`\n\n### Basic Python execution\n```json\n{\"action\": \"execute_sandbox\", \"code\": \"print('Hello, World!')\", \"sandbox_lang\": \"python\"}\n```\n\n### JavaScript execution\n```json\n{\"action\": \"execute_sandbox\", \"code\": \"console.log('Hello from Node.js');\", \"sandbox_lang\": \"javascript\"}\n```\n\n### Go execution\n```json\n{\n  \"action\": \"execute_sandbox\",\n  \"code\": \"package main\\n\\nimport \\\"fmt\\\"\\n\\nfunc main() {\\n\\tfmt.Println(\\\"Hello from Go\\\")\\n}\",\n  \"sandbox_lang\": \"go\"\n}\n```\n\n### With library installation\n```json\n{\n  \"action\": \"execute_sandbox\",\n  \"code\": \"import requests\\nresp = requests.get('https://api.github.com')\\nprint(resp.status_code)\",\n  \"sandbox_lang\": \"python\",\n  \"libraries\": [\"requests\"]\n}\n```\n\n### Data processing with pandas\n```json\n{\n  \"action\": \"execute_sandbox\",\n  \"code\": \"import pandas as pd\\ndf = pd.DataFrame({'a': [1,2,3], 'b': [4,5,6]})\\nprint(df.describe().to_json())\",\n  \"sandbox_lang\": \"python\",\n  \"libraries\": [\"pandas\"]\n}\n```\n\n## Supported Languages\n| Language | `sandbox_lang` value | Container |\n|---|---|---|\n| Python | `python` (default) | python:3.11-slim |\n| JavaScript | `javascript` | node:18-slim |\n| Go | `go` | golang:1.27.1-alpine |\n| Java | `java` | openjdk:17-slim |\n| C++ | `cpp` | gcc:13-bookworm |\n| R | `r` | r-base:latest |\n\n## Fallback Behavior\nIf the sandbox is unavailable (Docker not running, package not installed, etc.) **and** the language is Python **and** `execute_python` is enabled in the Danger Zone, the code will automatically fall back to local Python execution. This is logged in the output.\n\n## When to use `execute_python` instead\n- **Persistent tools**: When saving a tool with `save_tool` — the tool must live on the host filesystem\n- **Skills**: Running pre-registered skills via `execute_skill`\n- **Venv packages**: When you need packages that persist across executions\n\n## Configuration\n```yaml\nsandbox:\n  enabled: true\n  backend: \"docker\"          # or \"podman\"\n  docker_host: \"\"            # auto-detect or inherit from docker.host\n  image: \"python:3.11-slim\"  # base container image\n  auto_install: true         # auto-install llm-sandbox[mcp-docker] Python package\n  pool_size: 0               # container pool size (0 = no pooling)\n  timeout_seconds: 30        # execution timeout per run\n  network_enabled: false     # container network access\n  keep_alive: true           # keep MCP server running between calls\n```\n\n\u003e **Note:** `auto_install` installs `llm-sandbox[mcp-docker]` (or `mcp-podman` for Podman).\n\u003e Manual install: `pip install 'llm-sandbox[mcp-docker]'`\n\u003e The plain `llm-sandbox[docker]` extras are **not** sufficient — the `mcp` dependency is required.\n\n## Security\n- Code runs in an **isolated Docker container** — no access to the host filesystem\n- No Danger Zone gate required — sandbox is inherently sandboxed\n- Network access is configurable (disabled by default)\n- Each execution gets a fresh environment (no state leakage between runs)\n",
       "tools": [
         "execute_sandbox"
       ],

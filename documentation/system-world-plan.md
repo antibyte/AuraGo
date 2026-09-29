@@ -73,8 +73,8 @@ Camera modes:
 
 ## Renderer and asset integration
 
-Use an isolated ESM bundle of **Three.js 0.185.1** with matching addons.
-Do not replace the shared r128 global used by other apps. Keep Vanilla JavaScript
+Use an isolated ESM bundle of **Three.js 0.186.1** with matching addons.
+Keep this module isolated from the shared Three.js global used by other apps. Keep Vanilla JavaScript
 and local, permissively licensed resources; no paid asset-generation dependency.
 
 The visual pipeline combines PBR materials, environment reflections, soft

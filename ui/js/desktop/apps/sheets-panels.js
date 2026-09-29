@@ -60,7 +60,7 @@
                 container('right',key,field('print_area','printArea','text',p.area||state.selected().getA1Notation())+select('orientation','orientation',[['portrait','portrait'],['landscape','landscape']],p.orientation||'portrait')+select('paper_size','paper',[['A4','A4'],['letter','Letter']],p.paper||'A4')+select('scaling','scaling',[['fit','fit_width'],['actual','actual_size']],p.scaling||'fit')+field('repeat_rows','repeatRows','number',p.repeatRows||0)+buttons(['printNow'])+'<p class="sheets-hint">'+esc(tr('print_hint'))+'</p>');
             }else container('right','','');
         }
-        const functionInfo=state.lib.locales['en-US']['sheets-formula'].functionList;
+        const functionInfo=state.lib.locales['en-US']['engine-formula'].functionList;
         const functions=Object.fromEntries(Object.entries(functionInfo).map(([name,info])=>[name,Object.values(info.functionParameter||{}).map(p=>p.name).join(', ')]));
         functions.AVG=functions.AVERAGE;
         function listFunctions(query){const host=root.querySelector('[data-functions]');if(host)host.innerHTML=Object.keys(functions).filter(name=>name.includes(query.toUpperCase())).map(name=>'<button data-function="'+name+'"><strong>'+name+'</strong><small>'+esc(functions[name])+'</small></button>').join('');}

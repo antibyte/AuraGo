@@ -11,17 +11,17 @@ const artifacts = [
     {
         source: path.join(root, 'node_modules', 'onnxruntime-web', 'dist', 'ort.wasm.min.js'),
         target: 'ort.wasm.min.js',
-        sha256: 'ea3a767b15df7dbe3d695ec9c182ca0f15b2ce7750156c6b70276e11c28997f0'
+        sha256: 'faece07e84faa9001f5104bbe4e5c70861d06cb2376a0dea1fa0ad33a67adc81'
     },
     {
         source: path.join(root, 'node_modules', 'onnxruntime-web', 'dist', 'ort-wasm-simd-threaded.mjs'),
         target: 'ort-wasm-simd-threaded.mjs',
-        sha256: '0a1e718d99c41b22c21f2520ff4f9e883a6b5533856e398d21816ee8eb8185d3'
+        sha256: 'e13f7f94fc51b4ca72b12faeb1ee95f4ace6dfbc8939bc718aabdc0a27c4299b'
     },
     {
         source: path.join(root, 'node_modules', 'onnxruntime-web', 'dist', 'ort-wasm-simd-threaded.wasm'),
         target: 'ort-wasm-simd-threaded.wasm',
-        sha256: 'd1ab1b94b16a65b29d710d0b587b29e7bed336827577623913479b8afe8113e6'
+        sha256: '3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2'
     }
 ];
 

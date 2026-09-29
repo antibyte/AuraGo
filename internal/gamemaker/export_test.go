@@ -145,8 +145,30 @@ func TestExportLegacyRuntimeAndPrivateFiles(t *testing.T) {
 	if result := buildDirectory(context.Background(), dir, 100, 20<<20); !result.OK {
 		t.Fatal(result.Diagnostics)
 	}
-	if err := os.Remove(filepath.Join(dir, "vendor", "three.core.min.js")); err != nil {
+	// Recreate a revision using r185, with its missing core served by the fallback.
+	if err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || (filepath.Ext(path) != ".js" && filepath.Ext(path) != ".ts") {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(path, bytes.ReplaceAll(data, []byte("three-"+ThreeVersion+".module.min.js"), []byte("three-0.185.1.module.min.js")), 0600)
+	}); err != nil {
 		t.Fatal(err)
+	}
+	legacyModule, err := runtimeFS.ReadFile(legacyThreeRuntimeAssets[0].embeddedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "vendor", "three-0.185.1.module.min.js"), legacyModule, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"three-" + ThreeVersion + ".module.min.js", "three-" + ThreeVersion + ".core.min.js"} {
+		if err := os.Remove(filepath.Join(dir, "vendor", name)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	for _, name := range []string{".env", ".aurago/game-plan.json", ".aurago/validation-report.json", "assets/.private/state"} {
 		path := filepath.Join(dir, name)
@@ -166,5 +188,12 @@ func TestExportLegacyRuntimeAndPrivateFiles(t *testing.T) {
 	}
 	if len(files["vendor/three.core.min.js"]) == 0 {
 		t.Fatal("missing legacy runtime fallback")
+	}
+	legacyCore, err := runtimeFS.ReadFile(legacyThreeRuntimeAssets[1].embeddedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(files["vendor/three.core.min.js"], legacyCore) || !bytes.Equal(files["vendor/three-0.185.1.module.min.js"], legacyModule) {
+		t.Fatal("export changed the legacy Three.js runtime")
 	}
 }

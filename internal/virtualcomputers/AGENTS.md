@@ -14,6 +14,7 @@ Workspace leases, managed Garage storage and guest browser lifecycle.
 - `virtual_computers.allow_internet` is the parent gate for manual machine launches. The New computer dialog offers Internet and Offline only when the gate is enabled, defaults to Internet in that case, and sends the explicit per-machine `allow_internet` choice. The server rejects a direct internet-enabled launch while the gate is off; existing offline machines are not silently reconfigured.
 
 ### Guest browser lifecycle
+- `guest_workspace_agent/module.txt` and `sum.txt` are the independent module inputs installed on the KVM build host. Refresh both during dependency updates and build the standalone agent for Linux amd64 and arm64; root-module tests alone do not check these pins.
 - The managed browser belongs to its session, not the opening RPC deadline. Session close is idempotent and asks Chrome to shut down gracefully with a five-second deadline, then forces process cleanup before removing the profile. Startup cancellation still aborts allocation immediately.
 
 ### Virtual Computers Storage / Managed Garage Contract

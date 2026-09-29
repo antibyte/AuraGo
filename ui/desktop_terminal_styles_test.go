@@ -120,7 +120,7 @@ func TestDesktopTerminalAssetsLoadInDependencyOrder(t *testing.T) {
 		`'/css/desktop-app-terminal.css'`,
 		`'/js/vendor/xterm.min.js'`,
 		`'/js/vendor/xterm-addon-fit.min.js'`,
-		`'/js/vendor/xterm-addon-canvas.min.js'`,
+		`'/js/vendor/xterm-addon-webgl.min.js'`,
 		`'/js/desktop/apps/terminal-styles.js'`,
 		`'/js/desktop/apps/terminal-crt.js'`,
 		`'/js/desktop/apps/terminal-audio.js'`,
@@ -137,8 +137,8 @@ func TestDesktopTerminalAssetsLoadInDependencyOrder(t *testing.T) {
 		}
 		prev = idx
 	}
-	if !strings.Contains(readDesktopAssetText(t, "js/vendor/xterm-addon-canvas.min.js"), "CanvasAddon") {
-		t.Fatal("vendored canvas addon missing CanvasAddon export")
+	if !strings.Contains(readDesktopAssetText(t, "js/vendor/xterm-addon-webgl.min.js"), "WebglAddon") {
+		t.Fatal("vendored WebGL addon missing WebglAddon export")
 	}
 }
 
@@ -199,8 +199,7 @@ func TestDesktopTerminalCrtContract(t *testing.T) {
 		"dataset.animations",
 		"webgl",
 		"TEXTURE_2D",
-		"xterm-",
-		"-layer",
+		".xterm-screen canvas",
 		"NEAREST",
 	} {
 		if !strings.Contains(source, want) {
@@ -254,7 +253,7 @@ func TestDesktopTerminalAppWiresStyles(t *testing.T) {
 		"TerminalStyles",
 		"TerminalCrt.create",
 		"TerminalAudio.create",
-		"CanvasAddon.CanvasAddon",
+		"WebglAddon.WebglAddon",
 		"applyXterm",
 		"playKey",
 		"/api/code-studio/terminal",

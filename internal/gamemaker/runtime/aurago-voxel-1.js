@@ -1,5 +1,5 @@
 // MIT. One clock owns simulation, presentation and incremental chunk geometry.
-import * as T from './three-0.185.1.module.min.js';
+import * as T from './three-0.186.1.module.min.js';
 import {VoxelGame} from './voxel-rules.js';
 import {noise} from './voxel-world.js';
 import {createVoxelUI,voxelLabels} from './voxel-ui.js';

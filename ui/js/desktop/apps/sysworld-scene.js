@@ -120,7 +120,7 @@ export async function createCity(host, options) {
   const geoSet = new Set(), matSet = new Set(), keys = new Set(), cleanup = [];
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .98;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false; renderer.info.autoReset = false;
   const canvas = renderer.domElement;
   canvas.className = 'sysworld-gl'; canvas.tabIndex = 0;

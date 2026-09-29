@@ -301,7 +301,7 @@ func TestGameMakerPublishes2DAnd3DOfflineExports(t *testing.T) {
 				t.Fatalf("unsafe public project key %q", published.ProjectKey)
 			}
 			if dimension == "3d" {
-				corePath := filepath.Join(service.opts.WorkspacePath, filepath.FromSlash(published.ProjectKey), "vendor", "three.core.min.js")
+				corePath := filepath.Join(service.opts.WorkspacePath, filepath.FromSlash(published.ProjectKey), "vendor", "three-"+ThreeVersion+".core.min.js")
 				if err := os.Remove(corePath); err != nil {
 					t.Fatalf("remove core runtime to simulate legacy revision: %v", err)
 				}
@@ -309,7 +309,7 @@ func TestGameMakerPublishes2DAnd3DOfflineExports(t *testing.T) {
 				if err != nil {
 					t.Fatalf("CreatePreviewGrant: %v", err)
 				}
-				core, contentType, err := service.PreviewFile(grant.Token, "vendor/three.core.min.js")
+				core, contentType, err := service.PreviewFile(grant.Token, "vendor/three-"+ThreeVersion+".core.min.js")
 				if err != nil {
 					t.Fatalf("legacy runtime preview fallback: %v", err)
 				}
@@ -340,7 +340,7 @@ func TestGameMakerPublishes2DAnd3DOfflineExports(t *testing.T) {
 			if dimension == "3d" {
 				runtimeNames = []string{
 					"vendor/three-" + ThreeVersion + ".module.min.js",
-					"vendor/three.core.min.js",
+					"vendor/three-" + ThreeVersion + ".core.min.js",
 				}
 			}
 			requiredEntries := []string{"game.json", "index.html", "src/main.ts", "dist/game.js", "THIRD_PARTY_NOTICES.md"}

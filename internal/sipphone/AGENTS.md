@@ -12,7 +12,8 @@ Native telephone registration, calls, media, and agent policy.
 
 ### Native SIP Telephony Contract
 
-- AuraGo owns one in-process Diago SIP endpoint, one Vault-backed account, and at most one active call. Keep Diago pinned to v0.31.0, sipgo pinned to v1.4.3, G.711-only media, and CGO-free builds; do not add Asterisk, FreeSWITCH, PJSIP, ffmpeg, or a SIP sidecar.
+- AuraGo owns one in-process Diago SIP endpoint, one Vault-backed account, and at most one active call. Keep Diago pinned to v0.40.0, sipgo pinned to v1.6.0, G.711-only media, and CGO-free builds; do not add Asterisk, FreeSWITCH, PJSIP, ffmpeg, or a SIP sidecar.
+- Own the `DialogMedia` returned by Diago Answer/Invite for each active call. Start media only after negotiation; keep the Pion dependency family compatible with this Diago release.
 - Registration and explicit connection tests remain available in read-only mode. Answering, dialing, DTMF, and agent hangup require both `readonly: false` and their granular permissions. Empty caller or destination allowlists deny all.
 - Trust incoming calls only when both the network peer matches a configured CIDR and the normalized caller matches the allowlist. Outgoing calls require canonical `sip:` URIs, an exact allowed domain, and an exact user or allowed E.164 prefix.
 - SIP config/setup persistence must reserve reconfiguration before any Vault or YAML mutation and return HTTP 409 while a call is active or being prepared. Legacy wildcard outbound allow entries remain loadable but authorize nothing, surface `outbound_policy_migration_required`, and must be replaced on the next save.

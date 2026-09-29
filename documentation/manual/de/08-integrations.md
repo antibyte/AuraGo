@@ -2256,7 +2256,7 @@ Game Maker Studio ist der isolierte Virtual-Desktop-Arbeitsbereich für offlinef
 ### Workflow und Laufzeiten
 
 1. Erstelle ein 2D- oder 3D-Projekt, beschreibe das Spiel, wähle einen konfigurierten Provider bzw. ein Modell und aktiviere optional Bild- oder Musikgenerierung.
-2. AuraGo führt den Job in einem Staging-Verzeichnis aus. Für 2D wird Phaser `4.2.1`, für 3D Three.js `0.185.1` verwendet; beide Laufzeiten sind eingebettet und offline.
+2. AuraGo führt den Job in einem Staging-Verzeichnis aus. Für 2D wird Phaser `4.2.1`, für 3D Three.js `0.186.1` verwendet; beide Laufzeiten sind eingebettet und offline.
 3. Die Pure-Go-esbuild-Validierung muss erfolgreich sein, bevor das Staging-Ergebnis als nächste veröffentlichte Revision übernommen wird. Ein fehlgeschlagener oder abgebrochener Job lässt die letzte spielbare Revision unverändert.
 4. Fortschritt, Diagnosen, Preview, Revisionen, Restore und ZIP-Export bleiben im selben Fenster. Weltweit läuft nur ein Writer-Job gleichzeitig.
 

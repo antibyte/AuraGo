@@ -154,7 +154,7 @@ jobs:
 
       - name: Verify Code Studio Go toolchain
         if: matrix.id == 'code-studio'
-        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.26.6"
+        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.27.1"
 
       - name: Verify Supertonic non-root cache
         if: matrix.id == 'supertonic'

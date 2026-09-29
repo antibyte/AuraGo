@@ -2073,9 +2073,6 @@
         const loader = new THREE.GLTFLoader();
         const dracoLoader = new THREE.DRACOLoader();
         dracoLoader.setDecoderPath('/js/vendor/draco/');
-        if (typeof dracoLoader.setDecoderConfig === 'function') {
-            dracoLoader.setDecoderConfig({ type: 'wasm' });
-        }
         loader.setDRACOLoader(dracoLoader);
         bot.dracoLoader = dracoLoader;
 
@@ -4658,7 +4655,7 @@
             renderer.outputColorSpace = THREE.SRGBColorSpace;
         }
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.type = THREE.PCFShadowMap;
 
         const ambient = new THREE.HemisphereLight(0xbfd7ff, 0x0b0f1a, 1.05);
         scene.add(ambient);

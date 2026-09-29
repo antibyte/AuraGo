@@ -2,23 +2,27 @@
   "version": 1,
   "packages": {
     "@docx-editor.dev/core": {
-      "version": "2.16.0",
+      "version": "2.23.0",
       "license": "Apache-2.0"
     },
     "@docx-editor.dev/fonts": {
-      "version": "2.16.0",
+      "version": "2.23.0",
       "license": "Apache-2.0 AND OFL-1.1 AND LicenseRef-GUST-Font-License"
     },
     "@docx-editor.dev/i18n": {
-      "version": "2.16.0",
+      "version": "2.23.0",
       "license": "Apache-2.0"
     },
     "@nodable/entities": {
-      "version": "3.0.0",
+      "version": "3.1.0",
       "license": "MIT"
     },
     "anynum": {
       "version": "1.0.1",
+      "license": "MIT"
+    },
+    "bidi-js": {
+      "version": "1.1.0",
       "license": "MIT"
     },
     "emf-converter": {
@@ -30,7 +34,7 @@
       "license": "MIT"
     },
     "fast-xml-parser": {
-      "version": "5.11.1",
+      "version": "5.11.2",
       "license": "MIT"
     },
     "fflate": {
@@ -58,7 +62,7 @@
       "license": "MIT"
     },
     "prosemirror-model": {
-      "version": "1.25.11",
+      "version": "1.25.12",
       "license": "MIT"
     },
     "prosemirror-state": {
@@ -66,11 +70,11 @@
       "license": "MIT"
     },
     "prosemirror-transform": {
-      "version": "1.12.1",
+      "version": "1.12.2",
       "license": "MIT"
     },
     "prosemirror-view": {
-      "version": "1.42.3",
+      "version": "1.42.6",
       "license": "MIT"
     },
     "strnum": {
@@ -92,16 +96,16 @@
   },
   "files": {
     "engine.js": {
-      "bytes": 2742715,
-      "sha256": "537afe6e96670d389aa7124737c9ae946de333a760c077cdbaa0ab811d059f0c"
+      "bytes": 3458386,
+      "sha256": "07bb65bf796b16c4fe1e7470352b50672249fc6d4379172dc6fa60793eeacbcd"
     },
     "engine.css": {
-      "bytes": 116736,
-      "sha256": "3389cad5cedb82e4af23b62871a17bc817ab37cbb73b0cd465c18db505603b57"
+      "bytes": 135399,
+      "sha256": "71751fd54e1444848900cd9e35e4bd17f4665541cb0eef184a0288aaba291f0a"
     },
     "harfbuzz.wasm": {
-      "bytes": 421964,
-      "sha256": "66f25d50cdf9942366498d0504d13096d567946cb1f6b5af6cdd87f392be99da"
+      "bytes": 426620,
+      "sha256": "37777ced92a2ba10279c33e1dbacf08835ddcacc215b7fcb3131e558dd01ce71"
     },
     "assets/Caladea-Bold.ttf": {
       "bytes": 84492,
@@ -200,8 +204,8 @@
       "sha256": "17bfc0a97d48393453f28422f109d47099d54875600ea88a8d61c5ddd2dbffc4"
     },
     "LICENSES.md": {
-      "bytes": 105375,
-      "sha256": "16aa7d232781da7d27115ad40339e100d214cd48461f8e04fcd52065e682f1d5"
+      "bytes": 106251,
+      "sha256": "1cfcdb11bcb3ed4f8fc9c29d33530f70add473142d9dbe9409c9a399fdf19978"
     }
   }
 }

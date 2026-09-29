@@ -113,7 +113,7 @@
             scripts: [
                 '/js/vendor/xterm.min.js',
                 '/js/vendor/xterm-addon-fit.min.js',
-                '/js/vendor/xterm-addon-canvas.min.js',
+                '/js/vendor/xterm-addon-webgl.min.js',
                 '/js/desktop/apps/terminal-styles.js',
                 '/js/desktop/apps/terminal-crt.js',
                 '/js/desktop/apps/terminal-audio.js',
@@ -154,7 +154,8 @@
         },
         'viewer': {
             styles: appStyles('/css/desktop-app-viewer.css'),
-            scripts: ['/js/vendor/pdf.min.js', '/js/vendor/markdown-it.min.js', '/js/vendor/purify.min.js', '/js/desktop/apps/viewer.js']
+            modules: ['/js/vendor/pdf.min.js'],
+            scripts: ['/js/vendor/markdown-it.min.js', '/js/vendor/purify.min.js', '/js/desktop/apps/viewer.js']
         },
         'camera': {
             styles: appStyles('/css/camera.css'),
@@ -285,18 +286,18 @@
         },
         'quick-connect': {
             styles: appStyles('/css/desktop-app-quick-connect.css', '/css/xterm.css'),
+            modules: ['/js/vendor/novnc.min.js'],
             scripts: [
                 '/js/vendor/xterm.min.js',
-                '/js/vendor/xterm-addon-fit.min.js',
-                '/js/vendor/novnc.min.js'
+                '/js/vendor/xterm-addon-fit.min.js'
             ]
         },
         'virtual-computers': {
             styles: appStyles('/css/xterm.css', '/css/desktop-app-virtual-computers.css'),
+            modules: ['/js/vendor/novnc.min.js'],
             scripts: [
                 '/js/vendor/xterm.min.js',
                 '/js/vendor/xterm-addon-fit.min.js',
-                '/js/vendor/novnc.min.js',
                 '/js/desktop/apps/virtual-computers-terminal.js',
                 '/js/desktop/apps/virtual-computers-vnc.js',
                 '/js/desktop/apps/virtual-computers-workspaces.js',
@@ -532,6 +533,7 @@
         if (appPromises.has(appId)) return appPromises.get(appId);
         const promise = loadAppI18nSections(appId)
             .then(() => loadStyles(assets.styles))
+            .then(() => Promise.all((assets.modules || []).map(src => import(versionedURL(src)))))
             .then(() => loadScriptsInOrder(assets.scripts))
             .then(() => {
                 readyApps.add(appId);

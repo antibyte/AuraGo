@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const DEFAULT_WORKER_URL = '/js/vendor/stockfish/stockfish-18-lite-single.js';
+    const DEFAULT_WORKER_URL = '/js/vendor/stockfish/stockfish-19-lite-single.js';
 
     function createChessEngine(options = {}) {
         const workerUrl = options.workerUrl || DEFAULT_WORKER_URL;

@@ -1001,7 +1001,7 @@ game_maker:
     job_timeout_seconds: 1800
 ```
 
-The embedded runtimes are Phaser `4.2.1` and Three.js `0.185.1`; external CDNs, APIs, and assets are not allowed. See [Game Maker Studio](../../game-maker-studio.md).
+The embedded runtimes are Phaser `4.2.1` and Three.js `0.186.1`; external CDNs, APIs, and assets are not allowed. See [Game Maker Studio](../../game-maker-studio.md).
 
 Recent game-agent capabilities:
 

@@ -14,7 +14,7 @@ ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1 \
     ACESTEP_SAVE_MEMORY=1 TOKENIZERS_PARALLELISM=false
 RUN apt-get -o Acquire::Retries=3 -o Acquire::ForceIPv4=true update && apt-get -o Acquire::Retries=3 -o Acquire::ForceIPv4=true install -y --no-install-recommends ca-certificates libssl3t64 libffi8 libexpat1 zlib1g libbz2-1.0 liblzma5 libsqlite3-0 git ffmpeg libsndfile1 libgomp1 libnuma1 libdrm2 libze1 build-essential \
     && rm -rf /var/lib/apt/lists/*
-RUN pip install uv==0.7.22
+RUN pip install uv==0.12.20
 WORKDIR /app
 RUN git init . && git remote add origin https://github.com/ace-step/ACE-Step-1.5.git \
     && git fetch --depth=1 origin ${UPSTREAM} && git checkout --detach FETCH_HEAD \

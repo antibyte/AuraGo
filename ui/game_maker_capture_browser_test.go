@@ -86,7 +86,7 @@ func TestGameMakerIndependentCaptureBrowser(t *testing.T) {
 				page.MustWait(`()=>!!window.__AURAGO_GAME_TEST__`)
 			}
 			if kind == "three" {
-				page.MustEval(`async url=>{const THREE=await import(url);const canvas=document.querySelector('canvas'),renderer=new THREE.WebGLRenderer({canvas});renderer.setSize(1920,1080,false);const scene=new THREE.Scene();scene.background=new THREE.Color(0x33cc55);const camera=new THREE.PerspectiveCamera();camera.position.z=3;const tick=()=>{renderer.render(scene,camera);requestAnimationFrame(tick)};tick();}`, assets.URL+"/three-0.185.1.module.min.js")
+				page.MustEval(`async url=>{const THREE=await import(url);const canvas=document.querySelector('canvas'),renderer=new THREE.WebGLRenderer({canvas});renderer.setSize(1920,1080,false);const scene=new THREE.Scene();scene.background=new THREE.Color(0x33cc55);const camera=new THREE.PerspectiveCamera();camera.position.z=3;const tick=()=>{renderer.render(scene,camera);requestAnimationFrame(tick)};tick();}`, assets.URL+"/three-0.186.1.module.min.js")
 			}
 			page.MustEval(`source=>{(0,eval)(source)}`, string(source))
 			page.MustEval(`()=>window.postMessage({source:'aurago-studio',channel:'visual-fixture',type:'capture',request_id:'manual'},'*')`)

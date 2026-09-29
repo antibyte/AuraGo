@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    // Loads the isolated Three.js 0.185.1 renderer only when the Tiefsee scene starts.
+    // Loads the isolated Three.js 0.186.1 renderer only when the Tiefsee scene starts.
     const BUNDLE = '/js/vendor/screensaver-abyss/abyss.esm.js';
 
     async function createAbyssTheme(env) {

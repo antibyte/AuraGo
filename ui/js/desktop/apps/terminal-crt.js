@@ -235,12 +235,11 @@
 
             function sourceCanvas() {
                 if (!screen) return null;
-                const canvases = screen.querySelectorAll('canvas');
+                const canvases = screen.querySelectorAll('.xterm-screen canvas');
                 const layers = [];
                 for (let i = 0; i < canvases.length; i += 1) {
                     const node = canvases[i];
-                    const cls = node.className || '';
-                    if (node === overlay || cls.indexOf('xterm-') < 0 || cls.indexOf('-layer') < 0) continue;
+                    if (node === overlay) continue;
                     if (!node.width || !node.height) continue;
                     layers.push(node);
                 }

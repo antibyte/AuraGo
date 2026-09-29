@@ -2,7 +2,7 @@
 name: aurago-threejs-gameplay
 description: Build efficient playable 3D browser games with the pinned Three.js runtime.
 license: MIT
-compatibility: Three.js 0.185.1
+compatibility: Three.js 0.186.1
 metadata:
   managed_by: aurago
   source: majidmanzarpour/threejs-game-skills

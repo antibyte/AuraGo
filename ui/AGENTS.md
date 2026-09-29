@@ -64,7 +64,7 @@ worker. Keep packaging, recovery and offline instructions in
   distinguish unknown, deferred and needs-setup results from successful execution.
 
 - System World uses the Blender GLB kit in `3d/system-world/v1/` and its own
-  MIT Three.js 0.185.1 ESM bundle; shared legacy Three.js remains unchanged.
+  MIT Three.js 0.186.1 ESM bundle, isolated from the shared global Three.js.
   Run `node scripts/build-system-world.js --check` before packaging. The app
   owns city exploration, five optimized ThreeDee robots that
   steer around furniture and each other, state-driven effects, a night
@@ -94,7 +94,7 @@ worker. Keep packaging, recovery and offline instructions in
   `core/screensaver-runtime.js` in `main.bundle.js` owns idle detection, suppression
   and swallowed wake input; the overlay host, five scenes and CSS load lazily from
   `js/desktop/screensavers/` and `css/desktop-screensaver.css`. Tiefsee uses its own
-  Three.js 0.185.1 bundle (`js/vendor/screensaver-abyss/`) and Blender GLBs in
+  Three.js 0.186.1 bundle (`js/vendor/screensaver-abyss/`) and Blender GLBs in
   `3d/screensaver/`. Posters in `img/screensaver/` are the reduced-motion/no-WebGL
   fallback and Settings thumbnails. See the child contract.
 
@@ -131,7 +131,7 @@ worker. Keep packaging, recovery and offline instructions in
 - The Chat integrations drawer omits `boring_computers` from its webhost list.
   The shared webhosts API remains available to other consumers.
 
-- Tabellen uses the local Univer OSS 0.25.1 resource set under `js/vendor/sheets/`.
+- Tabellen uses the local Univer OSS 1.0.3 resource set under `js/vendor/sheets/`.
   Keep its own Autor-style chrome and permanently light grid. Localized input,
   native formulas/clipboard/undo, ETag saves, recovery and Chart.js overlays are
   covered by `TestDesktopSheetsAppBrowser`; the Aurora fixture's
@@ -377,7 +377,7 @@ worker. Keep packaging, recovery and offline instructions in
 - Chat loads typed notifications from `/api/system/notifications`, renders `morning_briefing` separately from generic notices, and acknowledges only displayed IDs through `/api/system/notifications/read`. The legacy string endpoints remain server-compatible but are not the primary Chat UI path; generic notices must never be labeled as morning or system briefings.
 - Chat tool icons normally use the fixed 10x10 PNG sprite. A provider that needs a distinct icon after those cells are allocated may declare one embedded transparent custom asset in `tool-icons.js`; `applyIcon` must add the build-version cache key, clear custom inline background state when an element returns to a sprite icon, and UI regression tests must verify the asset is embedded.
 - The Dashboard operational-issues view uses the sanitized admin API only, renders dynamic issue data with `textContent`, and requires an inline confirmation before archival or resolution. It must never decode or display internal fingerprints, raw logs, or unredacted error text.
-- The Dashboard knowledge-graph visual (`js/dashboard/widgets-knowledge.js`) ships two renderers: a 3D WebGL constellation (`ui/js/vendor/3d-force-graph.min.js`, default) and an enhanced 2D canvas (`force-graph.min.js`), switched by the 2D|3D toggle persisted in `aurago.dashboard.kgview.v1` with automatic 2D fallback when WebGL or the vendor bundle is unavailable. `3d-force-graph` is pinned to **1.70.2** because that release targets three.js `^0.128.0`, matching the vendored r128 `three.min.js` loaded before it (the bundle prefers `window.THREE`); never upgrade either file independently, and note `controlType` is a constructor option there, not a chainable setter. Node clicks keep opening the KG detail modal; effects (glow, particles, pulse, starfields, auto-rotation) live inside the canvas only, honor `prefers-reduced-motion`, pause on hidden tabs, and rebuild on `aurago:themechange`. Renderer instances, ResizeObserver, visibility listener, and 3D geometries are disposed through `destroyKnowledgeGraphVisual` on every mode switch and empty state.
+- The Dashboard knowledge-graph visual (`js/dashboard/widgets-knowledge.js`) ships two renderers: a 3D WebGL constellation (`ui/js/vendor/3d-force-graph.min.js`, default) and an enhanced 2D canvas (`force-graph.min.js`), switched by the 2D|3D toggle persisted in `aurago.dashboard.kgview.v1` with automatic 2D fallback when WebGL or the vendor bundle is unavailable. `3d-force-graph` **1.80.0** and its loaders share the vendored Three.js **0.186.1** global through `build-browser-vendor.js`; regenerate them together. Construct renderers with `new ForceGraph3D(element, {controlType: "orbit"})` / `new ForceGraph(element)`. WebGL2 is required for 3D; preserve the 2D fallback. Node clicks keep opening the KG detail modal; effects (glow, particles, pulse, starfields, auto-rotation) live inside the canvas only, honor `prefers-reduced-motion`, pause on hidden tabs, and rebuild on `aurago:themechange`. Renderer instances, ResizeObserver, visibility listener, and 3D geometries are disposed through `destroyKnowledgeGraphVisual` on every mode switch and empty state.
 - The Dashboard personality card shows affect valence/arousal, recent sanitized affect events, and lived notes. Affect cause codes and sources are localized; chat-sourced event details never include the raw user message. Config Personality and Prompts warn when V2 mood, emotion synthesis, or inner voice need the Helper LLM; Prompts lists live notes as read-only and points management to the Dashboard. Note and event text use `textContent`.
 - Config Personality and the Dashboard share `js/shared/personality-dynamics.js` for load, familiarity, friction, trend and the short-term reset. Preserve config drafts, reject older state revisions and show reset failures without clearing current values. Keep all 16 common locale bundles complete; verify `TestPersonalityDynamicsBrowser` and `npm run check:ui`.
 - Skill-card list fields must render in deterministic sorted order matching
@@ -455,7 +455,7 @@ worker. Keep packaging, recovery and offline instructions in
   soft dust does not need device-pixel resolution. Canvas bounds must not
   transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
   and narrow-screen gates.
-- Galaxy uses the existing Three.js r128 and a single lazy renderer/RAF loop.
+- Galaxy uses the shared Three.js 0.186.1 and a single lazy renderer/RAF loop.
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
   four distinct low-poly ships (saucer cruiser, cargo freighter, ring explorer,
@@ -510,6 +510,11 @@ worker. Keep packaging, recovery and offline instructions in
   regions. Do not use native `alert()`, `confirm()`, or `prompt()`.
 - Use `apply_patch` for edits and keep temporary browser artifacts under
   `disposable/` or ignored `reports/` paths.
+
+- Shared browser libraries are built from `package-lock.json` by
+  `scripts/build-browser-vendor.js`. Its read-only `--check` verifies all outputs;
+  the manifest records versions and SHA-256 hashes. PDF.js and noVNC load as
+  awaited ES modules before their Desktop app scripts.
 
 ## Verification
 

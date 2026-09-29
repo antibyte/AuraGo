@@ -1634,7 +1634,7 @@
                 if (!wrap._forceGraph3d) {
                     wrap.innerHTML = '';
                     try {
-                        wrap._forceGraph3d = ForceGraph3D({ controlType: 'orbit' })(wrap);
+                        wrap._forceGraph3d = new ForceGraph3D(wrap, { controlType: 'orbit' });
                     } catch (err) {
                         delete wrap._forceGraph3d;
                         _kgWebglSupport = false;
@@ -1654,7 +1654,7 @@
 
             if (!wrap._forceGraph) {
                 wrap.innerHTML = '';
-                wrap._forceGraph = ForceGraph()(wrap);
+                wrap._forceGraph = new ForceGraph(wrap);
             }
             wrap._kgRenderer = '2d';
             ensureKnowledgeGraphVisualResize(wrap);

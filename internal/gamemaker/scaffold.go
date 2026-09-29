@@ -173,7 +173,7 @@ new Phaser.Game({type:Phaser.AUTO,parent:"game-root",width:960,height:540,backgr
 `
 
 const threeScaffold = diagnosticsPrelude + `
-import * as THREE from "../vendor/three-0.185.1.module.min.js";
+import * as THREE from "../vendor/three-0.186.1.module.min.js";
 const root=document.getElementById("game-root")!;
 const scene=new THREE.Scene(); scene.background=new THREE.Color(0x07111f);
 const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,100); camera.position.set(0,6,9); camera.lookAt(0,0,0);

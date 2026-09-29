@@ -106,7 +106,7 @@ func TestModelPackCatalogIntegrity(t *testing.T) {
 			t.Errorf("uncatalogued path accepted: %s", path)
 		}
 	}
-	for _, file := range []string{"aurago-three-assets-1.js", "three-0.185.1.module.min.js", "three.core.min.js"} {
+	for _, file := range []string{"aurago-three-assets-1.js", "three-0.186.1.module.min.js", "three-0.186.1.core.min.js", "three-0.185.1.module.min.js", "three.core.min.js"} {
 		if data, err := s.AssetPackFile("runtime", file); err != nil || len(data) == 0 {
 			t.Fatalf("runtime %s: %v", file, err)
 		}

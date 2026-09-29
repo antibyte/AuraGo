@@ -14,7 +14,7 @@ the asset import. The current runtime contract is below.
 - `/img/personas/animated/<key>.riv`: RIVE 7.0 with embedded images. No external
   PNG atlas is required at runtime.
 - `/js/vendor/rive/rive.js` and `/js/vendor/rive/rive.wasm`: local
-  `@rive-app/canvas@2.42.0`, with `manifest.json` and `LICENSE.txt`.
+  `@rive-app/canvas@2.43.1`, with `manifest.json` and `LICENSE.txt`.
 
 The production manifest `assets/web-assets.json` includes these files. Rebuild
 the resource set and its pinned AuraGo executable; copying source files does not update

@@ -45,7 +45,7 @@ func TestDesktopSheetsEngineBrowser(t *testing.T) {
   ]});
   window.nativeSheets={univer,api,lib};
   let aux={charts:[]};const bridge=lib.installSheetActions(univer,{get:()=>aux,set:v=>{aux=v}});
-  const book=api.createWorkbook({id:'probe',name:'Budget',appVersion:'0.25.1',locale:'enUS',styles:{},sheetOrder:['budget'],sheets:{budget:{id:'budget',name:'Budget',rowCount:1000,columnCount:26,defaultRowHeight:26,defaultColumnWidth:116,cellData:{0:{0:{v:'Category',t:1},1:{v:'Amount',t:1}},1:{0:{v:'Rent',t:1},1:{v:1250.5,t:2}},2:{0:{v:'Food',t:1},1:{v:400,t:2}},3:{0:{v:'Total',t:1},1:{f:'=SUM(B2:B3)'}}},rowData:{},columnData:{},mergeData:[],freeze:{xSplit:0,ySplit:1,startRow:1,startColumn:0},zoomRatio:1,showGridlines:1,rowHeader:{width:48},columnHeader:{height:26}}}});
+  const book=api.createWorkbook({id:'probe',name:'Budget',appVersion:'1.0.3',locale:'enUS',styles:{},sheetOrder:['budget'],sheets:{budget:{id:'budget',name:'Budget',rowCount:1000,columnCount:26,defaultRowHeight:26,defaultColumnWidth:116,cellData:{0:{0:{v:'Category',t:1},1:{v:'Amount',t:1}},1:{0:{v:'Rent',t:1},1:{v:1250.5,t:2}},2:{0:{v:'Food',t:1},1:{v:400,t:2}},3:{0:{v:'Total',t:1},1:{f:'=SUM(B2:B3)'}}},rowData:{},columnData:{},mergeData:[],freeze:{xSplit:0,ySplit:1,startRow:1,startColumn:0},zoomRatio:1,showGridlines:1,rowHeader:{width:48},columnHeader:{height:26}}}});
   window.nativeSheets.book=book;
   const sheet=book.getActiveSheet();sheet.getRange('A1:B1').setFontWeight('bold').setBackgroundColor('#dae8f7');sheet.getRange('B2:B4').setNumberFormat('#,##0.00');
   bridge.commit({charts:[{title:'Budget'}]},book.getId());if(aux.charts.length!==1)throw Error('Auxiliary mutation failed');
@@ -58,12 +58,18 @@ func TestDesktopSheetsEngineBrowser(t *testing.T) {
 	t.Logf("Native engine probe: %s", value.JSON("", ""))
 	page.MustEval(`()=>{const v=nativeSheets.book.getActiveSheet().getRange('B4').getRawValue();if(v!==1650.5)throw Error('Formula result: '+JSON.stringify(v)+' worker: '+workerErrors.join(';'));}`)
 	page.MustEval(`async()=>{const {api,book}=nativeSheets;const sheet=book.getActiveSheet();sheet.insertRows(1,1);if(sheet.getRange('B5').getFormula()!=='=SUM(B3:B4)')throw Error('Reference shift failed: '+sheet.getRange('B5').getFormula());await api.undo();if(sheet.getRange('B4').getFormula()!=='=SUM(B2:B3)')throw Error('Structure undo failed');}`)
-	_ = os.MkdirAll("../reports/sheets", 0755)
+	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
+	if out == "" {
+		out = "../reports/sheets"
+	}
+	if err := os.MkdirAll(out, 0755); err != nil {
+		t.Fatal(err)
+	}
 	shot, err := page.Screenshot(false, &proto.PageCaptureScreenshot{Format: proto.PageCaptureScreenshotFormatPng})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(filepath.Join("../reports/sheets", "engine.png"), shot, 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(out, "engine.png"), shot, 0644); err != nil {
 		t.Fatal(err)
 	}
 	page.MustEval(`()=>nativeSheets.univer.dispose()`)

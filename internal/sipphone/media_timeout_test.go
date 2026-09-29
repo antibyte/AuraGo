@@ -31,3 +31,10 @@ func TestMediaPumpReportsRTPIdleTimeoutOnce(t *testing.T) {
 	case <-time.After(30 * time.Millisecond):
 	}
 }
+
+func TestMediaPumpRejectsMissingNegotiation(t *testing.T) {
+	pump := &mediaPump{}
+	if err := pump.start(context.Background()); err == nil {
+		t.Fatal("media pump started without negotiated SIP media")
+	}
+}

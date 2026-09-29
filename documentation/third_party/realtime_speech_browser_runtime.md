@@ -1,6 +1,6 @@
 # Realtime Speech browser runtime attributions
 
-AuraGo vendors the following pinned browser-side artifacts for local voice activity detection. They are embedded into the single AuraGo binary and do not load code or models from a CDN at runtime.
+AuraGo vendors the following pinned browser-side artifacts for local voice activity detection. They are shipped in the verified external Web UI resource set and do not load code or models from a CDN at runtime.
 
 ## Silero VAD
 
@@ -15,14 +15,14 @@ AuraGo vendors the following pinned browser-side artifacts for local voice activ
 
 - Project: [Microsoft ONNX Runtime](https://github.com/microsoft/onnxruntime)
 - npm package: `onnxruntime-web`
-- Version: `1.27.0`
+- Version: `1.30.0`
 - License: MIT, Copyright (c) Microsoft Corporation
 - Bundled license: `ui/js/realtime-speech/vendor/LICENSE-ONNXRUNTIME.txt`
 
 | Artifact | SHA-256 |
 |---|---|
-| `ort.wasm.min.js` | `ea3a767b15df7dbe3d695ec9c182ca0f15b2ce7750156c6b70276e11c28997f0` |
-| `ort-wasm-simd-threaded.mjs` | `0a1e718d99c41b22c21f2520ff4f9e883a6b5533856e398d21816ee8eb8185d3` |
-| `ort-wasm-simd-threaded.wasm` | `d1ab1b94b16a65b29d710d0b587b29e7bed336827577623913479b8afe8113e6` |
+| `ort.wasm.min.js` | `faece07e84faa9001f5104bbe4e5c70861d06cb2376a0dea1fa0ad33a67adc81` |
+| `ort-wasm-simd-threaded.mjs` | `e13f7f94fc51b4ca72b12faeb1ee95f4ace6dfbc8939bc718aabdc0a27c4299b` |
+| `ort-wasm-simd-threaded.wasm` | `3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2` |
 
 Run `npm run build:realtime-speech-vendor -- --check` to verify every vendored checksum without modifying the files.

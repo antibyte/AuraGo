@@ -1084,7 +1084,7 @@ Search matching sprite2d or model3d assets, then describe_asset for exact IDs, a
 
 ## `game_maker_file`
 
-Search a literal query in one file, read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path except for replace_many. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.
+Search a literal query in one file or, without path, across game.json and the text sources under src/. Read bounded lines with full-file sha256, replace a unique block, or write a complete file. replace_many checks all 1–8 existing file edits before saving and builds once. Supply path for read, write and replace. Writes return written and build.ok separately. Managed vendor/dist paths are read-only.
 
 - Tier: `extended`
 - Required: `job_id`, `operation`
@@ -1101,8 +1101,8 @@ Search a literal query in one file, read bounded lines with full-file sha256, re
 | `new_text` | `string` | Replacement text; empty deletes the block |
 | `old_text` | `string` | Unique exact block to replace |
 | `operation` | `string` |  |
-| `path` | `string` | Project-relative source path |
-| `query` | `string` | search: literal single-line text, 1–120 characters; returns up to 12 matching lines and full-file sha256 |
+| `path` | `string` | Project-relative source path; omit only for a project-wide search |
+| `query` | `string` | search: literal single-line text, 1–120 characters; returns up to 12 matching lines with each file's sha256 |
 | `start_line` | `integer` | First line, 1-based; default 1 |
 
 ## `game_maker_project`

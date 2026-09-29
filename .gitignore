@@ -17,6 +17,7 @@ METRICS_DASHBOARD_DATA_SOURCES.md
 # Lock files (runtime)
 *.lock
 !/training/uv.lock
+!/tools/aurago-tui/Cargo.lock
 
 # Deploy output
 /deploy/*

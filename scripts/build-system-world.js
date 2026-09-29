@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 
 const check = process.argv.includes('--check');
 const pkg = JSON.parse(await fs.readFile('node_modules/three/package.json', 'utf8'));
-if (pkg.version !== '0.185.1') throw Error('System World requires Three.js 0.185.1');
+if (pkg.version !== '0.186.1') throw Error('System World requires Three.js 0.186.1');
 const output = 'ui/js/vendor/system-world';
 const result = await build({
   entryPoints: ['ui/js/desktop/apps/sysworld-scene.js'], bundle: true, format: 'esm',

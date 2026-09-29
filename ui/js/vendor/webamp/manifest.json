@@ -1,10 +1,15 @@
 {
   "name": "webamp",
-  "version": "2.2.0",
-  "source": "https://github.com/captbaritone/webamp",
+  "version": "2.3.1",
   "license": "MIT",
+  "source": "https://github.com/captbaritone/webamp",
+  "npm_integrity": "sha512-u2NpSKYsUfDKltcvteF3vDbAzp+kDiymr5Sn0Vgfl+Uk9Kvd4GmuaF3stOxKNLbDH+RkJ2YZfus7O3W2axq4Qg==",
   "bundle": "webamp.bundle.min.mjs",
   "bundle_type": "core-esm",
-  "npm_package": "webamp@2.2.0",
-  "npm_integrity": "sha512-XzKr65Z4d+4rxA9xsyxIvrmBOP3Rv9ioQv8TTXUlIBxIkUZEXWO+xz0avHDZF2yqsk4EgVFG5dV/dTx5b+WPQ=="
+  "files": {
+    "webamp.bundle.min.mjs": {
+      "bytes": 939426,
+      "sha256": "41817e47fdb1f969a74e0202135e72d080d73236f5f0a7709f17b696784e0035"
+    }
+  }
 }

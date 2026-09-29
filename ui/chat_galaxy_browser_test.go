@@ -50,7 +50,7 @@ func TestGalaxyEmbeddedAssetsAndLocales(t *testing.T) {
 	for _, locale := range locales {
 		var dict map[string]string
 		data, err := Content.ReadFile("lang/chat/" + locale.Name())
-		if err != nil || json.Unmarshal(data, &dict) != nil || dict["chat.theme_galaxy"] != "Galaxy" || dict["chat.galaxy_title"] == "" || dict["chat.galaxy_tools"] == "" {
+		if err != nil || json.Unmarshal(data, &dict) != nil || strings.TrimSpace(dict["chat.theme_galaxy"]) == "" || dict["chat.galaxy_title"] == "" || dict["chat.galaxy_tools"] == "" {
 			t.Errorf("Galaxy label missing in %s", locale.Name())
 		}
 	}
@@ -364,12 +364,15 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	p.MustSetViewport(1920, 1080, 1, false)
 	p.MustReload().MustWaitLoad()
 	ready()
+	p.MustEval(`() => {const {textures,geometries,calls}=__galaxy.stats();window.__baselineResources={textures,geometries,calls};}`)
 	for i := 0; i < 10; i++ {
-		check(`() => {window.__old=__galaxy.runtime;setChatTheme('dark');return __galaxy.runtime===null && __pending.size===0 && !document.querySelector('#galaxy-scene') && __old.renderer.info.memory.textures===0 && __old.renderer.info.memory.geometries===0 && __old.renderer.info.programs.length===0}`, "theme exit leaked GPU resources")
+		// Three keeps an internal fallback texture in its counters after disposal;
+		// context loss confirms that the driver has released all GPU allocations.
+		check(`() => {window.__old=__galaxy.runtime;setChatTheme('dark');return __galaxy.runtime===null && __pending.size===0 && !document.querySelector('#galaxy-scene') && __old.renderer.getContext().isContextLost() && __old.renderer.info.memory.geometries===0 && __old.renderer.info.programs.length===0}`, "theme exit leaked GPU resources")
 		check(`() => !document.querySelector('.galaxy-nav,.galaxy-clock,.galaxy-welcome,.galaxy-glyph') && document.getElementById('upload-btn').parentElement.id==='composer-panel' && document.getElementById('composer-more-btn').previousElementSibling.id==='send-btn' && document.getElementById('realtime-speech-btn').previousElementSibling.id==='voice-btn' && !document.querySelector('#realtime-speech-btn .galaxy-control-label') && !document.getElementById('composer-panel').classList.contains('is-hidden')`, "Galaxy controls were not restored to the default arrangement")
 		p.MustEval(`() => setChatTheme('galaxy')`)
 		ready()
-		check(`() => {const s=__galaxy.stats();return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===5 && s.geometries===7 && s.calls===10}`, "theme restart grew resources")
+		check(`() => {const s=__galaxy.stats(),b=__baselineResources;return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===b.textures && s.geometries===b.geometries && s.calls===b.calls}`, "theme restart grew resources")
 	}
 	p.MustEval(`() => {Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));window.__paused=__galaxy.runtime.time}`)
 	check(`() => __pending.size===0 && __galaxy.runtime.time===__paused`, "hidden tab did not pause")

@@ -52,7 +52,7 @@ const projects=[{id:'forest',name:'Waldabenteuer',description:'Ein Plattformspie
 fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
  esc:value=>String(value??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),t:(key,args)=>{let value=lang[key]||key;for(const [k,v] of Object.entries(args||{}))value=value.replace('{'+k+'}',v);return value},
  confirmDialog:async()=>true,
- api:async path=>path.endsWith('/capabilities')?{enabled:true,allow_create:true,allow_edit:true,allow_delete:true,skills_ready:true,phaser_version:'4.2.1',three_version:'0.185.1',active_job:{job_id:'job',project_id:'forest',status:'planning',phase:'planning'}}:path.endsWith('/projects')?{projects}:path.endsWith('/preview-token')?{url:'/preview-fixture',token:'fixture'}:{project:projects.find(p=>path.endsWith('/'+p.id))||projects[0],messages:[]}
+ api:async path=>path.endsWith('/capabilities')?{enabled:true,allow_create:true,allow_edit:true,allow_delete:true,skills_ready:true,phaser_version:'4.2.1',three_version:'0.186.1',active_job:{job_id:'job',project_id:'forest',status:'planning',phase:'planning'}}:path.endsWith('/projects')?{projects}:path.endsWith('/preview-token')?{url:'/preview-fixture',token:'fixture'}:{project:projects.find(p=>path.endsWith('/'+p.id))||projects[0],messages:[]}
 }));
 </script></body></html>`)
 	})

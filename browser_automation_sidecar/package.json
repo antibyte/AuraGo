@@ -8,7 +8,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "cloakbrowser": "^0.4.11",
-    "playwright-core": "^1.61.1"
+    "cloakbrowser": "^0.5.11",
+    "playwright-core": "^1.63.0"
   }
 }
