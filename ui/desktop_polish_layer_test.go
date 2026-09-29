@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"aurago/internal/desktop"
 )
 
 func TestDesktopPolishLayerLoadsLast(t *testing.T) {
@@ -59,16 +61,17 @@ func TestDesktopPolishCoversEveryWallpaper(t *testing.T) {
 	t.Parallel()
 
 	css := readDesktopAssetText(t, "css/desktop-polish.css")
-	base := readDesktopAssetText(t, "css/desktop-base.css")
-	seen := map[string]bool{"aurora": true} // the default wallpaper uses the .desktop-body defaults
-	for _, match := range regexp.MustCompile(`\.desktop-body\[data-wallpaper="([a-z_]+)"\]`).FindAllStringSubmatch(base, -1) {
-		id := match[1]
-		if seen[id] {
+	for _, def := range desktop.DesktopSettingDefinitions() {
+		if def.Key != "appearance.wallpaper" {
 			continue
 		}
-		seen[id] = true
-		if !strings.Contains(css, `.desktop-body[data-wallpaper="`+id+`"] { --vd-ambient-top:`) {
-			t.Errorf("wallpaper %q has no ambient light in desktop-polish.css; photos: run python scripts/wallpaper-ambient.py", id)
+		for _, id := range def.Values {
+			if id == "aurora" { // the default wallpaper uses the .desktop-body defaults
+				continue
+			}
+			if !strings.Contains(css, `.desktop-body[data-wallpaper="`+id+`"] { --vd-ambient-top:`) {
+				t.Errorf("wallpaper %q has no ambient light in desktop-polish.css; photos: run python scripts/wallpaper-ambient.py", id)
+			}
 		}
 	}
 }

@@ -8,7 +8,7 @@
     }
 
     function knownWallpaperIds() {
-        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves'];
+        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves', 'silk_flow', 'firefly_dusk', 'neon_overdrive', 'fractal_trip'];
     }
 
     function normalizeWallpaperId(value) {

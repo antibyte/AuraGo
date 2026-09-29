@@ -171,6 +171,7 @@ const cssBundles = [
       'ui/css/desktop-realtime-speech.css',
       'ui/css/desktop-sip-phone-shell.css',
       'ui/css/desktop-chrome.css',
+      'ui/css/desktop-wallpaper-live.css',
       'ui/css/desktop-polish.css'
     ]
   },

@@ -10616,6 +10616,80 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 .desktop-body[data-theme="fruity"] { --vd-font-ui: -apple-system, BlinkMacSystemFont, 'Geist', system-ui, sans-serif; }
 
+/* ui/css/desktop-wallpaper-live.css */
+/* desktop-wallpaper-live.css — animated wallpapers (js/desktop/live-wallpapers.js). The WebGL
+ * canvas lies behind the whole shell, taskbar and dock included, and fades in with its first
+ * frame. Each wallpaper's gradient is the still fallback before that frame and whenever WebGL
+ * is unavailable. */
+.vd-wallpaper-live {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.vd-wallpaper-live[hidden] {
+    display: none;
+}
+
+.vd-wallpaper-live-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 700ms ease;
+}
+
+.vd-wallpaper-live-canvas.is-ready {
+    opacity: 1;
+}
+
+.desktop-body[data-animations="false"] .vd-wallpaper-live-canvas {
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-wallpaper-live-canvas {
+        transition: none;
+    }
+}
+
+.desktop-body[data-wallpaper="silk_flow"] {
+    background:
+        radial-gradient(ellipse at 28% 34%, rgba(78, 60, 190, 0.5), transparent 58%),
+        radial-gradient(ellipse at 76% 68%, rgba(16, 120, 128, 0.42), transparent 55%),
+        linear-gradient(160deg, #0a0b20, #16103a 55%, #06070f);
+}
+
+.desktop-body[data-wallpaper="firefly_dusk"] {
+    background: linear-gradient(180deg, #05070f 0%, #14163a 34%, #5a2f52 50%, #b8664a 55%, #15102a 60%, #04050a 100%);
+}
+
+.desktop-body[data-wallpaper="neon_overdrive"] {
+    background:
+        radial-gradient(circle at 50% 40%, #ffd65a 0, #ff3a92 12%, rgba(255, 58, 146, 0.25) 17%, transparent 26%),
+        linear-gradient(180deg, #05020d 0%, #2a0845 36%, #d6336c 56%, #12032a 57%, #07010f 100%);
+}
+
+.desktop-body[data-wallpaper="fractal_trip"] {
+    background: radial-gradient(circle at 50% 50%, #ff5ecf 0%, #7a3cff 22%, #1f0c4a 55%, #07030f 100%);
+}
+
+/* Moving pictures need the same legible labels as the photo wallpapers. */
+.desktop-body:is([data-wallpaper="silk_flow"], [data-wallpaper="firefly_dusk"], [data-wallpaper="neon_overdrive"], [data-wallpaper="fractal_trip"]) .vd-icon-label {
+    background: rgba(10, 12, 16, 0.62);
+    color: #f7f7f8;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.desktop-body:is([data-wallpaper="silk_flow"], [data-wallpaper="firefly_dusk"], [data-wallpaper="neon_overdrive"], [data-wallpaper="fractal_trip"]) .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon) {
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.38));
+}
+
 /* ui/css/desktop-polish.css */
 /* desktop-polish.css — finishing layer: wallpaper light in the chrome, a pointer light on
  * launchers and menus, deeper focus and small details. Loads last in the shell bundle and
@@ -10644,6 +10718,10 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-wallpaper="aurora_glass"] { --vd-ambient-top: 29, 58, 93; --vd-ambient-bottom: 43, 44, 75; --vd-ambient-glow: 61, 190, 209; }
 .desktop-body[data-wallpaper="nebula_flow"] { --vd-ambient-top: 28, 22, 46; --vd-ambient-bottom: 19, 17, 53; --vd-ambient-glow: 66, 85, 209; }
 .desktop-body[data-wallpaper="paper_waves"] { --vd-ambient-top: 236, 230, 220; --vd-ambient-bottom: 66, 87, 105; --vd-ambient-glow: 223, 142, 69; }
+.desktop-body[data-wallpaper="silk_flow"] { --vd-ambient-top: 26, 22, 64; --vd-ambient-bottom: 14, 18, 42; --vd-ambient-glow: 150, 130, 255; }
+.desktop-body[data-wallpaper="firefly_dusk"] { --vd-ambient-top: 10, 14, 36; --vd-ambient-bottom: 8, 10, 16; --vd-ambient-glow: 226, 240, 110; }
+.desktop-body[data-wallpaper="neon_overdrive"] { --vd-ambient-top: 30, 8, 60; --vd-ambient-bottom: 20, 4, 40; --vd-ambient-glow: 255, 70, 200; }
+.desktop-body[data-wallpaper="fractal_trip"] { --vd-ambient-top: 40, 14, 60; --vd-ambient-bottom: 24, 10, 48; --vd-ambient-glow: 190, 110, 255; }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="light"] {
     --vd-reveal: var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255);
@@ -10703,6 +10781,13 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-start-menu,
 .desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-context-menu {
     background-image: radial-gradient(100% 60% at 20% 0%, rgba(var(--vd-ambient-glow), 0.12), transparent 72%);
+}
+
+/* Submenus grow with their longest entry instead of truncating it (global-menu-runtime.js
+ * measures them before flipping at the screen edge). */
+.vd-context-submenu-popover {
+    width: max-content;
+    max-width: min(340px, calc(100vw - 16px));
 }
 
 /* Focus: the active window stands higher, casts a faint light of the wallpaper below it and

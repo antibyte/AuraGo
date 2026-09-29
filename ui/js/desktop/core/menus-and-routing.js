@@ -282,7 +282,13 @@
             ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'],
             ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
         ];
-        return options.map(([value, labelKey]) => {
+        const animated = [
+            ['silk_flow', 'desktop.settings_wallpaper_silk_flow'],
+            ['firefly_dusk', 'desktop.settings_wallpaper_firefly_dusk'],
+            ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'],
+            ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip']
+        ];
+        const item = ([value, labelKey]) => {
             const selected = current === value;
             return {
                 label: t(labelKey),
@@ -290,7 +296,8 @@
                 fallback: selected ? '\u2713' : '\u2610',
                 action: () => saveDesktopWallpaper(value)
             };
-        });
+        };
+        return options.map(item).concat([{ separator: true }], animated.map(item));
     }
 
     async function saveDesktopWallpaper(value) {

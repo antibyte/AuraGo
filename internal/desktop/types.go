@@ -238,7 +238,7 @@ type SettingDefinition struct {
 }
 
 func desktopWallpaperValues() []string {
-	return []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves"}
+	return []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves", "silk_flow", "firefly_dusk", "neon_overdrive", "fractal_trip"}
 }
 
 func desktopWallpaperValueSet() map[string]struct{} {

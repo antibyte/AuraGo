@@ -25,6 +25,10 @@
 .desktop-body[data-wallpaper="aurora_glass"] { --vd-ambient-top: 29, 58, 93; --vd-ambient-bottom: 43, 44, 75; --vd-ambient-glow: 61, 190, 209; }
 .desktop-body[data-wallpaper="nebula_flow"] { --vd-ambient-top: 28, 22, 46; --vd-ambient-bottom: 19, 17, 53; --vd-ambient-glow: 66, 85, 209; }
 .desktop-body[data-wallpaper="paper_waves"] { --vd-ambient-top: 236, 230, 220; --vd-ambient-bottom: 66, 87, 105; --vd-ambient-glow: 223, 142, 69; }
+.desktop-body[data-wallpaper="silk_flow"] { --vd-ambient-top: 26, 22, 64; --vd-ambient-bottom: 14, 18, 42; --vd-ambient-glow: 150, 130, 255; }
+.desktop-body[data-wallpaper="firefly_dusk"] { --vd-ambient-top: 10, 14, 36; --vd-ambient-bottom: 8, 10, 16; --vd-ambient-glow: 226, 240, 110; }
+.desktop-body[data-wallpaper="neon_overdrive"] { --vd-ambient-top: 30, 8, 60; --vd-ambient-bottom: 20, 4, 40; --vd-ambient-glow: 255, 70, 200; }
+.desktop-body[data-wallpaper="fractal_trip"] { --vd-ambient-top: 40, 14, 60; --vd-ambient-bottom: 24, 10, 48; --vd-ambient-glow: 190, 110, 255; }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="light"] {
     --vd-reveal: var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255);
@@ -84,6 +88,13 @@
 .desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-start-menu,
 .desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] .vd-context-menu {
     background-image: radial-gradient(100% 60% at 20% 0%, rgba(var(--vd-ambient-glow), 0.12), transparent 72%);
+}
+
+/* Submenus grow with their longest entry instead of truncating it (global-menu-runtime.js
+ * measures them before flipping at the screen edge). */
+.vd-context-submenu-popover {
+    width: max-content;
+    max-width: min(340px, calc(100vw - 16px));
 }
 
 /* Focus: the active window stands higher, casts a faint light of the wallpaper below it and

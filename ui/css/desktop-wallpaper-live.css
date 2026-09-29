@@ -1,0 +1,72 @@
+/* desktop-wallpaper-live.css — animated wallpapers (js/desktop/live-wallpapers.js). The WebGL
+ * canvas lies behind the whole shell, taskbar and dock included, and fades in with its first
+ * frame. Each wallpaper's gradient is the still fallback before that frame and whenever WebGL
+ * is unavailable. */
+.vd-wallpaper-live {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.vd-wallpaper-live[hidden] {
+    display: none;
+}
+
+.vd-wallpaper-live-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 700ms ease;
+}
+
+.vd-wallpaper-live-canvas.is-ready {
+    opacity: 1;
+}
+
+.desktop-body[data-animations="false"] .vd-wallpaper-live-canvas {
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-wallpaper-live-canvas {
+        transition: none;
+    }
+}
+
+.desktop-body[data-wallpaper="silk_flow"] {
+    background:
+        radial-gradient(ellipse at 28% 34%, rgba(78, 60, 190, 0.5), transparent 58%),
+        radial-gradient(ellipse at 76% 68%, rgba(16, 120, 128, 0.42), transparent 55%),
+        linear-gradient(160deg, #0a0b20, #16103a 55%, #06070f);
+}
+
+.desktop-body[data-wallpaper="firefly_dusk"] {
+    background: linear-gradient(180deg, #05070f 0%, #14163a 34%, #5a2f52 50%, #b8664a 55%, #15102a 60%, #04050a 100%);
+}
+
+.desktop-body[data-wallpaper="neon_overdrive"] {
+    background:
+        radial-gradient(circle at 50% 40%, #ffd65a 0, #ff3a92 12%, rgba(255, 58, 146, 0.25) 17%, transparent 26%),
+        linear-gradient(180deg, #05020d 0%, #2a0845 36%, #d6336c 56%, #12032a 57%, #07010f 100%);
+}
+
+.desktop-body[data-wallpaper="fractal_trip"] {
+    background: radial-gradient(circle at 50% 50%, #ff5ecf 0%, #7a3cff 22%, #1f0c4a 55%, #07030f 100%);
+}
+
+/* Moving pictures need the same legible labels as the photo wallpapers. */
+.desktop-body:is([data-wallpaper="silk_flow"], [data-wallpaper="firefly_dusk"], [data-wallpaper="neon_overdrive"], [data-wallpaper="fractal_trip"]) .vd-icon-label {
+    background: rgba(10, 12, 16, 0.62);
+    color: #f7f7f8;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.desktop-body:is([data-wallpaper="silk_flow"], [data-wallpaper="firefly_dusk"], [data-wallpaper="neon_overdrive"], [data-wallpaper="fractal_trip"]) .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon) {
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.38));
+}

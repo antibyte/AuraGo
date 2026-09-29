@@ -416,6 +416,18 @@ worker. Keep packaging, recovery and offline instructions in
   via a pixel probe that the blit received non-black pixels, otherwise it
   reports not-ready so the next frame retries instead of locking in a black
   texture.
+- Animated wallpapers (`silk_flow`, `firefly_dusk` calm; `neon_overdrive`,
+  `fractal_trip` wild) are fragment shaders in the self-contained module
+  `js/desktop/live-wallpapers.js`, painted on one WebGL canvas in
+  `#vd-wallpaper-live` (fixed, `z-index: -1`, behind the whole shell). A new
+  one needs its id in `internal/desktop/types.go`, `spaces-runtime.js`, the
+  settings app, the context menu (below the separator), a CSS fallback in
+  `css/desktop-wallpaper-live.css`, ambient colours and 16 translations.
+  Render below device resolution within `MAX_PIXELS`, cap the frame rate,
+  pause while hidden, covered by a maximized window or the screensaver, draw a
+  still frame for reduced motion or `data-animations="false"`, release the
+  context for other wallpapers and keep brightness pulses gentle (no flashes).
+  Verify with `TestDesktopLiveWallpapersBrowser`.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
 - `ui/css/desktop-polish.css` is the Desktop's finishing layer and stays the

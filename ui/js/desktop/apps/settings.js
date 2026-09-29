@@ -13,7 +13,9 @@
                         ['groupshoot', 'desktop.settings_wallpaper_groupshoot'],
                         ['aurora', 'desktop.settings_wallpaper_aurora'], ['midnight', 'desktop.settings_wallpaper_midnight'], ['slate', 'desktop.settings_wallpaper_slate'], ['ember', 'desktop.settings_wallpaper_ember'], ['forest', 'desktop.settings_wallpaper_forest'],
                         ['alpine_dawn', 'desktop.settings_wallpaper_alpine_dawn'], ['city_rain', 'desktop.settings_wallpaper_city_rain'], ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
-                        ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'], ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'], ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
+                        ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'], ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'], ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
+                        ['silk_flow', 'desktop.settings_wallpaper_silk_flow'], ['firefly_dusk', 'desktop.settings_wallpaper_firefly_dusk'],
+                        ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'], ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip']
                     ]),
                     settingSelect('appearance.theme', 'desktop.settings_theme', 'desktop.settings_theme_desc', [
                         ['standard', 'desktop.settings_theme_standard'], ['fruity', 'desktop.settings_theme_fruity']

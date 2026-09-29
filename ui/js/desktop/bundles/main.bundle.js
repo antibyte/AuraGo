@@ -8665,7 +8665,7 @@ function wireWindow(win, id) {
     }
 
     function knownWallpaperIds() {
-        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves'];
+        return ['groupshoot', 'aurora', 'midnight', 'slate', 'ember', 'forest', 'alpine_dawn', 'city_rain', 'ocean_cliff', 'aurora_glass', 'nebula_flow', 'paper_waves', 'silk_flow', 'firefly_dusk', 'neon_overdrive', 'fractal_trip'];
     }
 
     function normalizeWallpaperId(value) {
@@ -14054,7 +14054,13 @@ function updateTaskbarSystemButtonsForMobile() {
             ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'],
             ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
         ];
-        return options.map(([value, labelKey]) => {
+        const animated = [
+            ['silk_flow', 'desktop.settings_wallpaper_silk_flow'],
+            ['firefly_dusk', 'desktop.settings_wallpaper_firefly_dusk'],
+            ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'],
+            ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip']
+        ];
+        const item = ([value, labelKey]) => {
             const selected = current === value;
             return {
                 label: t(labelKey),
@@ -14062,7 +14068,8 @@ function updateTaskbarSystemButtonsForMobile() {
                 fallback: selected ? '\u2713' : '\u2610',
                 action: () => saveDesktopWallpaper(value)
             };
-        });
+        };
+        return options.map(item).concat([{ separator: true }], animated.map(item));
     }
 
     async function saveDesktopWallpaper(value) {
