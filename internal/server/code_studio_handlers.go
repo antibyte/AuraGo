@@ -649,7 +649,7 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	statusResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git status --porcelain 2>/dev/null"}, 15*time.Second)
+	statusResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git status --porcelain=v1 -z 2>/dev/null"}, 15*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -677,7 +677,7 @@ func (h codeStudioHandlers) handleGitDiff(w http.ResponseWriter, r *http.Request
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	file := strings.TrimSpace(r.URL.Query().Get("file"))
+	file := r.URL.Query().Get("file")
 	staged := r.URL.Query().Get("staged") == "true"
 	cmd := "cd /workspace && git diff"
 	if staged {
@@ -845,26 +845,27 @@ func (h codeStudioHandlers) handleGitLog(w http.ResponseWriter, r *http.Request)
 }
 
 func parseGitPorcelain(output string) []map[string]string {
-	output = strings.TrimSpace(output)
-	if output == "" {
-		return []map[string]string{}
-	}
-	lines := strings.Split(output, "\n")
+	lines := strings.Split(output, "\x00")
 	changes := make([]map[string]string, 0, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if len(line) < 3 {
+	for i := 0; i < len(lines)-1; i++ {
+		line := lines[i]
+		if len(line) < 4 || line[2] != ' ' {
 			continue
 		}
 		statusCode := strings.TrimSpace(line[:2])
-		path := strings.TrimSpace(line[3:])
+		path := line[3:]
 		if statusCode == "" || path == "" {
 			continue
 		}
+		if strings.ContainsAny(line[:2], "RC") {
+			// Porcelain -z emits destination first, followed by the original path.
+			i++
+			if i >= len(lines)-1 || lines[i] == "" {
+				break
+			}
+		}
 		status := statusCode
-		if statusCode == "??" {
-			status = "??"
-		} else if len(statusCode) >= 1 {
+		if statusCode != "??" {
 			status = string(statusCode[0])
 		}
 		changes = append(changes, map[string]string{"path": path, "status": status})
@@ -1108,7 +1109,7 @@ func buildCodeStudioSearchCommand(options codeStudioSearchOptions) ([]string, er
 	if exclude := sanitizeCodeStudioExclude(options.Exclude); exclude != "" {
 		cmd = append(cmd, "--exclude-dir="+exclude)
 	}
-	cmd = append(cmd, options.Query, path)
+	cmd = append(cmd, "-e", options.Query, "--", path)
 	return cmd, nil
 }
 

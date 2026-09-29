@@ -342,3 +342,25 @@ func TestDesktopCodeStudioTerminalRouting(t *testing.T) {
 		})
 	}
 }
+
+func TestDesktopCodeStudioGitDiffPath(t *testing.T) {
+	page, _ := newCodeStudioBrowser(t)
+	if !page.MustEval(`async()=>{
+        await csWait(()=>csState()?.terminalSessions.length);
+        const originalFetch=window.fetch,path=' spaced Grüße.txt ';let requested;
+        window.fetch=(url,opts)=>{
+            if(String(url)==='/api/code-studio/git/status')return Promise.resolve(new Response(JSON.stringify({branch:'main',changes:[{status:'M',path}],log:[]})));
+            if(String(url).startsWith('/api/code-studio/git/diff?'))requested=new URL(url,location.href).searchParams.get('file');
+            return originalFetch(url,opts);
+        };
+        try {
+            CodeStudioApp.command('toggleGitPanel',[],csState().windowId);
+            await csWait(()=>csRoot().querySelector('[data-git-file]'));
+            csRoot().querySelector('[data-git-file]').click();
+            await csWait(()=>csRoot().querySelector('.cs-diff-view'));
+            return requested===path && fixtureErrors.length===0;
+        } finally {window.fetch=originalFetch;}
+    }`).Bool() {
+		t.Fatal("Git diff UI changed the filename")
+	}
+}

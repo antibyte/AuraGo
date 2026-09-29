@@ -142,7 +142,7 @@ func TestBuildCodeStudioSearchCommandEscapesUserInput(t *testing.T) {
 			t.Fatalf("command %q missing %q", joined, want)
 		}
 	}
-	if got := cmd[len(cmd)-2]; got != "func main" {
+	if got := cmd[len(cmd)-3]; got != "func main" {
 		t.Fatalf("query arg = %q, want literal query", got)
 	}
 	if got := cmd[len(cmd)-1]; got != "/workspace/src" {

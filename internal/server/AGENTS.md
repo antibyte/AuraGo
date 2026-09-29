@@ -10,7 +10,7 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
-### Code Studio file writes
+### Code Studio
 
 - Save and upload share `code_studio_files.go`: bounded file bytes travel as a
   single generated regular staging file through the Docker archive API. Never
@@ -27,6 +27,10 @@ Server-owned HTTP and cross-component integration contracts.
   validates an accessible physical directory inside `/workspace` before changing
   session cwd; compound shell commands do not persist cwd. Stop on cancellation
   or socket failure. Verify `TestCodeStudioTerminal*` including the WebSocket test.
+- Git status uses porcelain v1 with NUL-delimited records, including the second
+  rename/copy path. Preserve filename bytes through diff requests. Search uses
+  an explicit grep pattern operand (`-e`) and option terminator (`--`). Verify
+  `TestCodeStudioGitPorcelain*` and `TestCodeStudioSearchLeadingDash*`.
 
 ### Game Maker Voxel persistence
 
