@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "license": "MIT",
   "units": "metres",
   "up_axis": "Y",
@@ -3192,13 +3192,317 @@
         "nav_workpoints_1",
         "structure"
       ]
+    },
+    {
+      "id": "telescope",
+      "lods": [
+        {
+          "level": 0,
+          "file": "telescope.lod0.glb",
+          "bytes": 29992,
+          "sha256": "42170f909de98146a8e380eb153a80b8c2cc2680d9a690e40591642c1ac7f17b",
+          "bounds": {
+            "min": [
+              -0.41999998688697815,
+              0.0,
+              -0.5199999809265137
+            ],
+            "max": [
+              0.41999998688697815,
+              2.2200000286102295,
+              0.6899999976158142
+            ]
+          },
+          "triangles": 656
+        },
+        {
+          "level": 1,
+          "file": "telescope.lod1.glb",
+          "bytes": 17392,
+          "sha256": "b14491e57308ab1b0aac271ab371c9ef1966f9bb78bded0d61623ad8deff12f7",
+          "bounds": {
+            "min": [
+              -0.41999998688697815,
+              0.0,
+              -0.5199999809265137
+            ],
+            "max": [
+              0.41999998688697815,
+              2.2200000286102295,
+              0.6899999976158142
+            ]
+          },
+          "triangles": 352
+        },
+        {
+          "level": 2,
+          "file": "telescope.lod2.glb",
+          "bytes": 14456,
+          "sha256": "28c120e3d2bf1af014d8d151548f2f7e6be139bd442db518b398dc5537766b48",
+          "bounds": {
+            "min": [
+              -0.41999998688697815,
+              0.0,
+              -0.5199999809265137
+            ],
+            "max": [
+              0.41999998688697815,
+              2.2200000286102295,
+              0.6899999976158142
+            ]
+          },
+          "triangles": 248
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.42,
+            0,
+            -0.42,
+            0.42,
+            2.3,
+            0.42
+          ]
+        ],
+        "surfaces": [],
+        "portals": []
+      },
+      "animations": [],
+      "components": [
+        "nav_colliders_0",
+        "structure",
+        "tube"
+      ]
+    },
+    {
+      "id": "sky-deck",
+      "lods": [
+        {
+          "level": 0,
+          "file": "sky-deck.lod0.glb",
+          "bytes": 82456,
+          "sha256": "09662fee6ae8f6aab156b95c36d1b8652961e258736d89a8a3afa188d4335ce6",
+          "bounds": {
+            "min": [
+              -8.399999618530273,
+              -1.7000000476837158,
+              -8.399999618530273
+            ],
+            "max": [
+              8.5,
+              1.143301248550415,
+              8.399999618530273
+            ]
+          },
+          "triangles": 3412
+        },
+        {
+          "level": 1,
+          "file": "sky-deck.lod1.glb",
+          "bytes": 51072,
+          "sha256": "6d5fb6fbccc6548a1da2bbd1aac0592db573fbc7a73cbb398f4cfa08e04715da",
+          "bounds": {
+            "min": [
+              -8.399999618530273,
+              -1.7000000476837158,
+              -8.399999618530273
+            ],
+            "max": [
+              8.5,
+              1.1475528478622437,
+              8.399999618530273
+            ]
+          },
+          "triangles": 1844
+        },
+        {
+          "level": 2,
+          "file": "sky-deck.lod2.glb",
+          "bytes": 31060,
+          "sha256": "06631160726c26213a2ccf83458cd16ea8c61a4fafc3c068438b33f3956e332c",
+          "bounds": {
+            "min": [
+              -8.399999618530273,
+              -1.7000000476837158,
+              -8.399999618530273
+            ],
+            "max": [
+              8.5,
+              1.149999976158142,
+              8.399999618530273
+            ]
+          },
+          "triangles": 948
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -8.3,
+            -1.7,
+            -8.3,
+            8.3,
+            0,
+            8.3
+          ]
+        ],
+        "surfaces": [
+          {
+            "rect": [
+              -8,
+              -8,
+              8,
+              8
+            ],
+            "height": 0,
+            "inner": 4.2,
+            "outer": 8,
+            "bridge": [
+              8,
+              -1,
+              8.5,
+              1
+            ]
+          }
+        ],
+        "portals": []
+      },
+      "animations": [],
+      "components": [
+        "nav_colliders_0",
+        "nav_surfaces_0",
+        "structure"
+      ]
+    },
+    {
+      "id": "sky-lift",
+      "lods": [
+        {
+          "level": 0,
+          "file": "sky-lift.lod0.glb",
+          "bytes": 139132,
+          "sha256": "38b350feab13fe9a3edbe959b64f4ee29e99c70bb11ced95ce5238a89d547fd0",
+          "bounds": {
+            "min": [
+              -6.800000190734863,
+              -0.1899999976158142,
+              -1.649999976158142
+            ],
+            "max": [
+              1.7699999809265137,
+              75.5,
+              1.7699999809265137
+            ]
+          },
+          "triangles": 2328
+        },
+        {
+          "level": 1,
+          "file": "sky-lift.lod1.glb",
+          "bytes": 81516,
+          "sha256": "291e48eb5801f8c3147f2407068027f6f4aadfe2336a61dcf28207c213f785e4",
+          "bounds": {
+            "min": [
+              -6.800000190734863,
+              -0.1899999976158142,
+              -1.649999976158142
+            ],
+            "max": [
+              1.7699999809265137,
+              75.5,
+              1.7699999809265137
+            ]
+          },
+          "triangles": 1368
+        },
+        {
+          "level": 2,
+          "file": "sky-lift.lod2.glb",
+          "bytes": 43280,
+          "sha256": "3fdc02d3fe6412e3dfd40174559b8c80ed42a92b148a2bae83ce63ece8d7edf0",
+          "bounds": {
+            "min": [
+              -6.800000190734863,
+              -0.1899999976158142,
+              -1.649999976158142
+            ],
+            "max": [
+              1.7699999809265137,
+              75.5,
+              1.7699999809265137
+            ]
+          },
+          "triangles": 660
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -1.55,
+            0,
+            -1.55,
+            -1.3499999999999999,
+            75.41999999999999,
+            -1.3499999999999999
+          ],
+          [
+            -1.55,
+            0,
+            1.3499999999999999,
+            -1.3499999999999999,
+            75.41999999999999,
+            1.55
+          ],
+          [
+            1.3499999999999999,
+            0,
+            -1.55,
+            1.55,
+            75.41999999999999,
+            -1.3499999999999999
+          ],
+          [
+            1.3499999999999999,
+            0,
+            1.3499999999999999,
+            1.55,
+            75.41999999999999,
+            1.55
+          ]
+        ],
+        "surfaces": [
+          {
+            "rect": [
+              -1.3,
+              -1.3,
+              1.3,
+              1.3
+            ],
+            "height": 0.03,
+            "component": "cab",
+            "travel": 71.32
+          }
+        ],
+        "portals": []
+      },
+      "animations": [],
+      "components": [
+        "cab",
+        "nav_colliders_0",
+        "nav_colliders_1",
+        "nav_colliders_2",
+        "nav_colliders_3",
+        "nav_surfaces_0",
+        "structure"
+      ]
     }
   ],
   "budget_bytes": 50331648,
   "model_budget_bytes": 12582912,
   "sources": {
     "build_city.py": "9b34e63f85137ab571698ec62382ae0160110c1afd5866ca5513e150771d7a0c",
-    "build_expansion.py": "66d7ef15bab2f93413eca014c46213b0ef9b1e905e1ebbb3678f4775e3bed3c7",
+    "build_expansion.py": "fe39bddcc7a6a0341a77fad5cddd2674dfac43b9f14a5a6d4853437e0e7e4788",
     "living_assets.py": "21ca67e291914a3d40ec0b9179b0377dc887ffba940e2295cc409888e815057b"
   }
 }

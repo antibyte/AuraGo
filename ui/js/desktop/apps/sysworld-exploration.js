@@ -7,6 +7,9 @@ export const footprints={agent:[[-8,-8,8,8]],memory:[[-11.4,-10.4,11.4,8.4]],
   integrations:[[-11.4,-4.9,-4.6,4.9],[4.6,-4.9,11.4,4.9],[-4.8,-.8,-3.2,.8],[3.2,-.8,4.8,.8]],
   missions:[[-13.4,-8.9,13.4,6.9]],infra:[[-10.7,-9.4,10.7,3.4],[-10,-2.6,10,8.5]]};
 const podiums={agent:[23,23],memory:[26,22],integrations:[26,16],missions:[30,21],infra:[25,23],graph:[24,24],operations:[9,9]};
+// Stepped upper solids [half width, from, to] following build_city.py's agent spire
+// (tiers plus corner struts), so the crown terrace and the east lift shaft stay free.
+export const upperSolids={agent:[[5.9,8,13],[5.4,13,29],[4.7,29,42.5],[4.2,42.5,61.5],[3.6,61.5,72.2],[2.6,72.2,87]]};
 export function buildingFloor(x,z,districts){for(const d of districts){const s=podiums[d.id];if(s&&Math.abs(x-d.x)<s[0]/2&&Math.abs(z-d.z)<s[1]/2)return .88;}return 0;}
 function solidBuilding(x,z,districts){
   for(const d of districts){const dx=x-d.x,dz=z-d.z;if(d.id==='graph'&&Math.hypot(dx,dz)<10.2)return true;if(d.id==='operations'&&Math.hypot(dx,dz)<3)return true;

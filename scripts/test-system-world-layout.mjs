@@ -4,8 +4,23 @@ import * as THREE from 'three';
 import {createExperience} from '../ui/js/desktop/apps/sysworld-experience.js';
 import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {streetCurve} from '../ui/js/desktop/apps/sysworld-navigation.js';
-import {interiors,streets,stations,tramWaypoints,surfaces,streetAt,dronePad} from '../ui/js/desktop/apps/sysworld-layout.js';
+import {interiors,streets,stations,tramWaypoints,surfaces,streetAt,dronePad,skyDeck} from '../ui/js/desktop/apps/sysworld-layout.js';
+import {installCityColliders} from '../ui/js/desktop/apps/sysworld-colliders.js';
+import {createTraffic} from '../ui/js/desktop/apps/sysworld-traffic.js';
 import vm from 'node:vm';
+
+// The stepped tower solids leave the lift shaft and the whole crown terrace free, but keep the crown solid.
+{
+  const v1=JSON.parse(await fs.readFile('ui/3d/system-world/v1/manifest.json','utf8')),city=createTraffic(),lift=skyDeck.lift;
+  installCityColliders(city,new Map(v1.assets.map(a=>[a.id,a])),districts,[]);
+  const walker={id:'walker',circles:[{x:0,z:0,r:.24}],minY:-2.3,maxY:.4,reach:.24};
+  for(let y=lift.base+lift.cab+2.4;y<skyDeck.floor+lift.cab+2.4;y+=.5)assert.ok(city.clear(walker,{x:lift.x,y,z:lift.z,heading:0},{x:lift.x,y:y+.5,z:lift.z,heading:0}),'Lift shaft blocked at '+y);
+  for(let a=0;a<360;a+=10)for(const r of[skyDeck.inner,6,skyDeck.outer]){
+    const p={x:Math.sin(a*Math.PI/180)*r,y:skyDeck.floor+2.4,z:skyDeck.z-Math.cos(a*Math.PI/180)*r,heading:0};
+    assert.ok(city.clear(walker,p,p),`Sky deck blocked at ${a}°, r=${r}`);
+  }
+  assert.equal(city.clear(walker,{x:0,y:skyDeck.floor+2.4,z:skyDeck.z,heading:0},{x:0,y:skyDeck.floor+2.4,z:skyDeck.z,heading:0}),false,'Crown stays solid');
+}
 
 // The classic HUD draws its plan (map, compass) from mirrored constants; they must match the renderer layout.
 {
@@ -97,6 +112,38 @@ try{
     assert.ok(Math.abs(camera.position.y-(surfaces.room+2.4))<.001);
     assert.ok(Math.abs(floorAt(r.liftX,r.liftZ,surfaces.room)-surfaces.room)<.005);
   }
+  // Sky deck: rendered floor, cab alignment at both landings, walkable ring and bridge, viewers.
+  const lift=skyDeck.lift,hitY=(asset,x,z,from)=>{scene.updateMatrixWorld(true);ray.set(new THREE.Vector3(x,from,z),down);return ray.intersectObjects(scene.children,true).find(h=>h.object.userData.worldAsset===asset)?.point.y;};
+  assert.equal(experience.stats().sky.ready,true);assert.equal(experience.stats().telescopes,skyDeck.telescopes.length+interiors.length);
+  for(const [x,z]of[[5,-12],[-6,-12],[0,-5],[0,-19.5],[4,-16]])assert.ok(Math.abs(hitY('sky-deck',x,z,90)-skyDeck.floor)<.005,'Rendered deck floor at '+[x,z]);
+  // An idle cab makes occasional trips while nobody is near; call it down first.
+  camera.position.set(lift.x,lift.base+2.4,lift.z-2);experience.update(0,false,'street');
+  if(experience.interaction()?.kind==='skycall'){experience.interact();for(let i=0;i<300&&experience.stats().sky.moving;i++)experience.update(.05,true,'street');experience.update(0,false,'street');}
+  assert.ok(Math.abs(hitY('sky-lift',lift.x+.4,lift.z+.4,lift.base+1)-(lift.base+lift.cab))<.005,'Parked cab rests just above the podium');
+  assert.equal(experience.interaction()?.kind,'skyup');experience.interact();
+  for(let i=0;i<400&&experience.stats().ride;i++)experience.update(.05,true,'street');
+  assert.equal(experience.stats().ride,null);assert.ok(Math.abs(camera.position.y-(skyDeck.floor+lift.cab+2.4))<.01,'Arrives at the deck');
+  assert.ok(Math.abs(hitY('sky-lift',lift.x+.4,lift.z+.4,skyDeck.floor+1)-(skyDeck.floor+lift.cab))<.01,'Upper landing meets the deck');
+  assert.ok(experience.move(lift.x-1.6,lift.z,camera.position),'Bridge joins cab and deck');
+  for(let a=0;a<360;a+=15)assert.ok(experience.move(Math.sin(a*Math.PI/180)*6,skyDeck.z-Math.cos(a*Math.PI/180)*6,camera.position),'Deck ring walkable at '+a);
+  assert.equal(experience.move(0,skyDeck.z+2,camera.position),false,'Crown is not walkable');
+  assert.equal(experience.move(0,skyDeck.z+8.7,camera.position),false,'No walking past the balustrade');
+  assert.equal(experience.floor(-6,skyDeck.z),skyDeck.floor);
+  experience.update(0,false,'street');assert.equal(experience.interaction()?.kind,'skydown');experience.interact();
+  for(let i=0;i<400&&experience.stats().ride;i++)experience.update(.05,true,'street');
+  assert.ok(Math.abs(camera.position.y-(lift.base+lift.cab+2.4))<.01,'Returns to the podium');
+  assert.equal(experience.move(lift.x-1.6,lift.z,{x:6.5,y:skyDeck.floor+2.4,z:lift.z}),false,'Bridge ends at the empty shaft');
+  experience.visit('skydeck');experience.update(0,false,'street');assert.equal(experience.interaction()?.kind,'telescope');
+  const fov=camera.fov,standing=camera.position.clone();experience.interact();
+  for(let i=0;i<40;i++)experience.update(.05,true,'street');
+  const view=experience.stats().scope;
+  assert.ok(view&&view.target&&view.target!=='agent'&&districts.some(d=>d.id===view.target),'Deck viewer aims at a district: '+JSON.stringify(view));
+  assert.ok(camera.fov<fov/2.5,'Viewer zooms in');assert.ok(experience.zoom(-900));for(let i=0;i<40;i++)experience.update(.05,true,'street');assert.ok(camera.fov<8);
+  assert.equal(experience.scoping(),true);experience.endRide();
+  assert.equal(camera.fov,fov);assert.ok(camera.position.distanceTo(standing)<.001);assert.equal(experience.stats().scope,null);
+  const gallery=interiors[0];camera.position.set(gallery.x-2.2,surfaces.gallery+2.4,gallery.z+2.2);experience.update(0,false,'street');
+  assert.equal(experience.interaction()?.kind,'telescope');experience.interact();experience.update(.05,true,'street');
+  assert.ok(experience.stats().scope?.target,'Gallery viewer looks over a district');experience.endRide();
   for(const quality of ['medium','low']){
     await experience.setTier(quality);
     for(const r of interiors)assert.ok(Math.abs(floorAt(r.x,r.liftZ,surfaces.gallery)-surfaces.gallery)<.005,'Gallery stays aligned after LOD change');
@@ -109,5 +156,5 @@ try{
   assert.ok(!ray.intersectObjects(scene.children,true).some(h=>h.distance<4.3&&h.object.userData.worldAsset==='tram'),'The passenger must see through the actual end window');
   experience.endRide();
   assert.equal(errors.length,0);
-  console.log('World layout: 4096 swept tram poses, 7 stops, rendered object footprints, 3 galleries and GLB lift/floor alignment passed.');
+  console.log('World layout: 4096 swept tram poses, 7 stops, rendered object footprints, 3 galleries, GLB lift/floor alignment and the sky deck (shaft, landings, ring, viewers) passed.');
 }finally{experience.dispose();globalThis.fetch=originalFetch;globalThis.localStorage=originalStorage;}

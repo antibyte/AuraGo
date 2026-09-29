@@ -156,6 +156,24 @@
 .sw-map-legend { position: absolute; left: 20px; right: 20px; bottom: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; font-size: 10px; color: var(--sw-muted); }
 .sw-map-legend span::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--sw-dot); }
 .sysworld[data-mode="map"] :is(.sw-world,.sw-interaction) { display: none; }
+/* Telescope: circular lens, reticle and an AR tag beside it; the canvas keeps pointer input. */
+.sw-scope { position: absolute; inset: 0; pointer-events: none; color: #d8f4f4; }
+.sw-scope-lens { position: absolute; inset: 0; background: radial-gradient(circle closest-side at 50% 50%, transparent 0 86%, #02070dd9 88.5%, #02070df5 100%); }
+.sw-scope-reticle { position: absolute; left: 50%; top: 50%; width: 132px; height: 132px; transform: translate(-50%,-50%); border: 1px solid #9fe8ea59; border-radius: 50%;
+    background: linear-gradient(#9fe8eab8,#9fe8eab8) center/1px 34% no-repeat, linear-gradient(90deg,#9fe8eab8,#9fe8eab8) center/34% 1px no-repeat; }
+.sw-scope-reticle::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; border: 2px dashed #9fe8ea33; }
+.sw-scope-head { position: absolute; left: 50%; top: 9%; transform: translateX(-50%); display: flex; gap: 12px; align-items: baseline; padding: 5px 12px; border-radius: 999px; background: #04121bb3; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sw-scope-head strong { letter-spacing: .14em; text-transform: uppercase; font-size: 10px; color: var(--sw-accent); }
+.sw-scope-tag { position: absolute; left: calc(50% + 86px); top: 50%; transform: translateY(-50%); display: grid; gap: 3px; min-width: 170px; max-width: min(300px,calc(50% - 100px)); padding: 9px 12px; border-left: 2px solid var(--sw-accent); border-radius: 0 8px 8px 0; background: #04121bd1; font-size: 11px; }
+.sw-scope-tag::before { content: ''; position: absolute; right: 100%; top: 50%; width: 20px; height: 1px; background: var(--sw-accent); }
+.sw-scope-tag strong { font-size: 15px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.sw-scope-state { display: inline-flex; gap: 6px; align-items: center; color: var(--sw-muted); }
+.sw-scope-state::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--sw-dot,#7cbfe3); }
+.sw-scope-tag.sw-idle { border-left-color: var(--sw-border); }
+.sw-scope-tag.sw-idle::before { background: var(--sw-border); }
+.sw-scope-tag.sw-idle strong { font-size: 12px; font-weight: 500; color: var(--sw-muted); }
+.sw-scope-hint { position: absolute; left: 50%; bottom: 9%; transform: translateX(-50%); max-width: 80%; padding: 4px 12px; border-radius: 999px; background: #04121bb3; font-size: 10px; color: var(--sw-muted); text-align: center; }
+.sysworld.sw-scoping .sw-street-help { display: none; }
 .sw-rail .sw-rail-toggle { display: none; }
 .sw-pin { position: absolute; left: 0; top: 0; pointer-events: auto; padding: 4px 8px; background: #081925c7; border: 1px solid #8ac9d855; border-radius: 5px; color: #c7e9ef !important; font-size: 10px !important; white-space: nowrap; box-shadow: 0 2px 15px #0003; transition: opacity 180ms ease, visibility 0s, border-color 140ms, background-color 140ms; }
 .sw-pin::after { content: ''; position: absolute; height: 14px; width: 1px; background: #8ac9d888; left: 50%; top: 100%; }
@@ -257,6 +275,8 @@
     .sw-compass { --sw-half: 72px; }
     .sw-tour { left: 8px; right: 8px; bottom: 106px; min-width: 0; max-width: none; }
     .sw-photo-bar { bottom: 10px; }
+    .sw-scope-tag { left: 50%; top: calc(50% + 84px); transform: translateX(-50%); max-width: calc(100% - 32px); border-left: 0; border-top: 2px solid var(--sw-accent); border-radius: 0 0 8px 8px; }
+    .sw-scope-tag::before { display: none; }
 }
 @container (max-width: 520px) {
     .sw-compass { --sw-half: 58px; }

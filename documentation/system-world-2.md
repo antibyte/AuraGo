@@ -16,6 +16,15 @@ the enclosing bounds of an entire facade. The quay includes elevated walkways,
 stairs and ramps. View selection, district selection, map and HTML information
 remain available independently of 3D navigation.
 
+The agent tower carries an open glass lift on its east face. It runs from the
+podium to the sky deck, a crown terrace at 72 metres with a glass balustrade,
+benches and four viewers; Explore also offers the sky deck as a destination. A
+ride takes 15 seconds, a call brings an empty cab in 7 seconds, and an idle cab
+makes an occasional trip while nobody is near. Viewers on the deck and on every
+pavilion gallery zoom in (wheel or +/−), pan with drag or arrow keys and name the
+district in the reticle with its live state, a key figure and its distance; E or
+Escape steps back. Reduced motion skips the ride and zoom animations.
+
 The living city adds six installations: a maintenance bay with an articulated
 arm, parcel sorter, relay mast, kinetic fountain, glass garden and sheltered
 charging/meeting point. Find them in the City life section of Explore. Use E
@@ -39,7 +48,7 @@ tracks, and drones respect roof heights and each other. The visitor slides along
 obstacles; tours and overview flights also use checked paths. Only the vehicle
 currently carrying the visitor is exempted from their collision checks.
 
-The 33-design expansion has 99 exported GLBs. New installations start at LOD2;
+The 36-design expansion has 108 exported GLBs. New installations start at LOD2;
 medium and fine detail load within 55 and 32 metres, subject to quality. Exported
 workpoints, collider boxes and interaction markers remain invariant. Model assets
 have a 12 MiB ceiling; first display remains 12 MiB and the full app 48 MiB. Local
@@ -52,9 +61,11 @@ curve on those streets. Check the full swept vehicle footprint, not just its
 centre. Quay and interior floors have distinct exposed heights; do not mask
 coplanar overlays with draw order or depth-test exceptions. Upper-floor navigation
 is limited to the actual gallery and a docked lift; the open atrium is not a floor.
+On the sky deck it is the terrace ring and, with the cab docked, the lift bridge.
 
 WASD/arrow keys move in focused street view; E or the visible interaction button
-opens a door, uses a lift, visits a discovery, boards a tram or starts a drone tour.
+opens a door, uses a lift, looks through a viewer, visits a discovery, boards a tram
+or starts a drone tour.
 The exploration panel also offers explicit district/interior destinations. Tram
 exit while moving requests the next stop; mode changes end a ride safely. The
 drone tour can be stopped at any time. Seven optional discoveries persist locally.
@@ -215,7 +226,7 @@ Run separately with exactly one additional flag for each extended scenario:
 | Flag | Coverage |
 | --- | --- |
 | none | 1080p, 1366x768, touch, Standard/Fruity themes, audio, reduced motion, Spaces, context loss |
-| `AURAGO_SYSTEM_WORLD_EXPANSION=1` | Actual walking through three interiors, doors/lift, all seven tram stops, drone and weather |
+| `AURAGO_SYSTEM_WORLD_EXPANSION=1` | Actual walking through three interiors, doors/lift, sky deck viewer and tower lift, all seven tram stops, drone and weather |
 | `AURAGO_SYSTEM_WORLD_STRESS=1` | 1,000 containers, 10,000-node source with bounded loading, confirmed/deduplicated action, replay, repeated lifecycle, frame timings |
 | `AURAGO_SYSTEM_WORLD_MODELS=1` | Every exported LOD and clip rendered from the GLBs in Chrome |
 | `AURAGO_SYSTEM_WORLD_LIVING=1` | Six close-up installations, local greeting/guide, touch and reduced motion |

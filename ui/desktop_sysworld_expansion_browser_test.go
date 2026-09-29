@@ -90,6 +90,38 @@ func verifySystemWorldExpansion(t *testing.T, page *rod.Page, dir string) {
 			page.Timeout(12 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]<2.6&&SysWorldApp.inspect(cityId).experience.ride===null`)
 		}
 	}
+	// Sky deck: arrive from the exploration panel, use a viewer, then ride the tower lift down and up.
+	skyDeck := `()=>{document.querySelector('.sw-world').open=true;document.querySelector('[data-world-sky]').click();}`
+	page.MustEval(skyDeck)
+	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]>74&&document.querySelector('.sw-interaction').dataset.kind==='telescope'`)
+	page.MustScreenshot(filepath.Join(dir, "world2-sky-deck.png"))
+	page.MustElement(".sw-interaction").MustClick()
+	page.Timeout(10 * time.Second).MustWait(`()=>{const s=SysWorldApp.inspect(cityId).experience.scope;return !!s?.target&&s.fov<16&&!document.querySelector('.sw-scope').hidden&&!document.querySelector('.sw-scope-tag').classList.contains('sw-idle');}`)
+	page.MustEval(`()=>{const c=document.querySelector('.sysworld-gl');c.focus();for(let i=0;i<3;i++)c.dispatchEvent(new WheelEvent('wheel',{deltaY:-200,bubbles:true,cancelable:true}));}`)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).experience.scope?.fov<10`)
+	page.MustScreenshot(filepath.Join(dir, "world2-telescope.png"))
+	page.MustEval(`()=>{const c=document.querySelector('.sysworld-gl');window.scopeHead=document.querySelector('.sw-scope-head span:last-child').textContent;c.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowLeft',key:'ArrowLeft',bubbles:true}));}`)
+	time.Sleep(500 * time.Millisecond)
+	page.MustEval(`()=>{const c=document.querySelector('.sysworld-gl');c.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowLeft',key:'ArrowLeft',bubbles:true}));if(document.querySelector('.sw-scope-head span:last-child').textContent===scopeHead)throw Error('Arrow keys must pan the viewer');c.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+        const s=SysWorldApp.inspect(cityId);if(s.mode!=='street'||s.experience.scope||!document.querySelector('.sw-scope').hidden)throw Error('Escape must only leave the viewer');}`)
+	page.MustEval(skyDeck)
+	page.Timeout(10 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]>74`)
+	// The arrival faces north: S walks south (+Z), D walks east (+X) towards the lift landing.
+	axis(2, -12.8, input.KeyS, input.KeyW)
+	axis(0, 7.4, input.KeyD, input.KeyA)
+	page.Timeout(10 * time.Second).MustWait(`()=>['skycall','skydown'].includes(document.querySelector('.sw-interaction').dataset.kind)`)
+	if page.MustEval(`()=>document.querySelector('.sw-interaction').dataset.kind`).Str() == "skycall" {
+		page.MustElement(".sw-interaction").MustClick()
+		page.Timeout(20 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='skydown'`)
+	}
+	page.MustElement(".sw-interaction").MustClick()
+	time.Sleep(6 * time.Second)
+	page.MustEval(`()=>{const s=SysWorldApp.inspect(cityId);if(s.experience.ride!=='sky'||s.position[1]<10||s.position[1]>70)throw Error('Lift ride is not travelling: '+JSON.stringify(s.position));}`)
+	page.MustScreenshot(filepath.Join(dir, "world2-sky-lift.png"))
+	page.Timeout(25 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]<4&&SysWorldApp.inspect(cityId).experience.ride===null`)
+	page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='skyup'`)
+	page.MustElement(".sw-interaction").MustClick()
+	page.Timeout(25 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).position[1]>74&&SysWorldApp.inspect(cityId).experience.ride===null`)
 	for _, id := range []string{"agent", "infra", "memory", "missions", "graph", "integrations", "operations"} {
 		page.MustEval(`id=>{document.querySelector('.sw-world').open=true;document.querySelector('[data-world-station="'+id+'"]').click();}`, id)
 		page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('.sw-interaction').dataset.kind==='discover'`)

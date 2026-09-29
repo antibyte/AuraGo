@@ -85,7 +85,9 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 	t.Parallel()
 	for file, markers := range map[string][]string{
 		"js/desktop/apps/sysworld.js":            {"const instances = new Map()", "function dispose(windowId)", "instances.delete(windowId)", "cancelAnimationFrame", "IntersectionObserver", "MutationObserver", "setWindowMenus", "load.abort()", "city.esm.js", "versioned(", "/api/desktop/system-world/memory-artifacts", "cache:'no-store'", "artifacts.request?.abort()", "setHologram(", "inst.setPhoto", "city?.capture()", "URL.revokeObjectURL", "removeEventListener('keydown',photoKeys,true)", "sw-ready", "city.intro()"},
-		"js/desktop/apps/sysworld-scene.js":      {"from 'three'", "GLTFLoader", "OrbitControls", "createCity", "InstancedMesh", "assetURL", "AbortController", "geoSet.forEach", "matSet.forEach", "forceContextLoss", "webglcontextlost", "requestPointerLock", "setMode", "lastQualityChange", "Math.hypot(forward, right)", "createMemoryHologram", "createAtmosphere", "createDrones", "obstaclesFrom", "hologram.dispose()", "atmosphere.dispose()", "drones.dispose()", "createSurfaces", "surfaces.dispose()", "surfaces.prepare(n)", "options.onHover", "options.onCut", "options.onProgress", "capture()", "intro()"},
+		"js/desktop/apps/sysworld-scene.js":      {"from 'three'", "GLTFLoader", "OrbitControls", "createCity", "InstancedMesh", "assetURL", "AbortController", "geoSet.forEach", "matSet.forEach", "forceContextLoss", "webglcontextlost", "requestPointerLock", "setMode", "lastQualityChange", "Math.hypot(forward, right)", "createMemoryHologram", "createAtmosphere", "createDrones", "obstaclesFrom", "hologram.dispose()", "atmosphere.dispose()", "drones.dispose()", "createSurfaces", "surfaces.dispose()", "surfaces.prepare(n)", "options.onHover", "options.onCut", "options.onProgress", "capture()", "intro()", "experience.zoom(", "experience.scoping()"},
+		"js/desktop/apps/sysworld-experience.js": {"'sky-deck'", "'sky-lift'", "'telescope'", "function rideSky", "function updateScope", "skyWalkable(", "options.onScope?.(null)"},
+		"js/desktop/apps/sysworld-layout.js":     {"export const skyDeck", "export function skyWalkable"},
 		"js/desktop/apps/sysworld-surfaces.js":   {"export function createSurfaces", "onBeforeCompile", "customProgramCacheKey", "export function windowSeeds", "Promise.allSettled", "texture.source.data?.close?.()", "#define SW_LEVEL "},
 		"js/desktop/apps/sysworld-navigation.js": {"export function createNavigator", "export function obstaclesFrom", "export function streetRoute", "a.state = 'turn'", "firstConflict", "laneClear"},
 		"js/desktop/apps/sysworld-hologram.js":   {"export function createMemoryHologram", "export function sanitizeArtifacts", "fillText", "AdditiveBlending", "setReducedMotion(value)"},
@@ -94,8 +96,8 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"js/desktop/apps/sysworld-audio.js":      {"export function createCityAmbience", "createConvolver", "clearTimeout(eventTimer)", "thunder(", "setMood("},
 		"js/desktop/apps/sysworld-drones.js":     {"export function createDrones", "CatmullRomCurve3", "/^rotor_/", "dispose()"},
 		"js/desktop/apps/sysworld-data.js":       {"const subscribers = new Set()", "inFlight.has(key)", "generation++", "AuraSSE?.off", "normalizeSystemMetrics", "failed: true", "configured", "/api/dashboard/overview", "/api/knowledge-graph/nodes?limit=300"},
-		"js/desktop/apps/sysworld-hud.js":        {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source", "new ResizeObserver", "observer?.disconnect()", "'progressbar'", "sysworld.city.tour_step", "orient(", "drawSpark", "inst.reducedMotion()", "NS.map", "sw-map-camera", "sw-rail-toggle", "aria-expanded"},
-		"css/desktop-app-sysworld.css":           {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible", ".sysworld.sw-photo", ".sw-pin[data-pin=\"off\"]", ".sw-compass", ".sw-loading.sw-done", ".sw-map-board", ".sw-rail.sw-open", "data-mode=\"map\""},
+		"js/desktop/apps/sysworld-hud.js":        {"iconMarkup", "'action'", "textContent", "sysworld.city.stale", "sw-map", "sw-source", "new ResizeObserver", "observer?.disconnect()", "'progressbar'", "sysworld.city.tour_step", "orient(", "drawSpark", "inst.reducedMotion()", "NS.map", "sw-map-camera", "sw-rail-toggle", "aria-expanded", "sw-scope", "sysworld.city.scope_idle"},
+		"css/desktop-app-sysworld.css":           {"--sw-panel: var(--vd-theme-panel-bg", "prefers-reduced-motion", "@container", "pointer:coarse", "focus-visible", ".sysworld.sw-photo", ".sw-pin[data-pin=\"off\"]", ".sw-compass", ".sw-loading.sw-done", ".sw-map-board", ".sw-rail.sw-open", "data-mode=\"map\"", ".sw-scope-lens", ".sysworld.sw-scoping"},
 	} {
 		source := readDesktopAssetText(t, file)
 		for _, want := range markers {
@@ -214,6 +216,15 @@ func TestDesktopSysWorldTranslations(t *testing.T) {
 		"sysworld.compass.n",
 		"sysworld.compass.s",
 		"sysworld.compass.w",
+		"sysworld.city.scope",
+		"sysworld.city.scope_hint",
+		"sysworld.city.scope_idle",
+		"sysworld.world.interact_telescope",
+		"sysworld.world.interact_unscope",
+		"sysworld.world.interact_skyup",
+		"sysworld.world.interact_skydown",
+		"sysworld.world.interact_skycall",
+		"sysworld.world.skydeck",
 	}
 
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {

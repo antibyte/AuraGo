@@ -1513,6 +1513,18 @@ registration lives in `internal/desktop/types.go`.
   `node scripts/test-system-world-layout.mjs` against actual exported GLBs and
   the browser expansion round including leaving, traversing and returning from
   the upper floor; lift arrival alone does not prove a usable landing.
+- Sky deck and viewers (`sysworld-experience.js`, `skyDeck` in `sysworld-layout.js`):
+  the open east lift of the agent tower travels 71.32 m (mirrors `SKY_TRAVEL` in
+  `build_expansion.py`) to the 72.2 m crown terrace. Up there only the ring between
+  `inner` and `outer` is walkable, plus the bridge while the cab is docked. The
+  agent's collision uses stepped `upperSolids` (`sysworld-exploration.js`) instead of
+  its bounding box, so shaft and terrace stay free. Rides take 15 s, calls 7 s; idle
+  trips happen only while nobody is within 30 m; reduced motion makes all of them
+  instant. Viewers on galleries and deck move the camera to their pivot (deck: a
+  virtual objective beyond the balustrade), clamp yaw/pitch to their field, zoom by
+  wheel or +/-, hide their model while in use and report the reticle's district via
+  `onScope`; the HUD draws lens, reticle and a live tag. Escape leaves a viewer
+  before it leaves street mode. Verify with the layout script and the expansion round.
 - `sysworld-controls.js` owns destinations, discoveries, environment, three audio
   buses, the typed terminal and 24-hour replay. UI hints must not mutate the DOM
   every frame. Replay immediately disables system actions and private memory feeds;

@@ -1,4 +1,4 @@
-import {footprints} from './sysworld-exploration.js';
+import {footprints,upperSolids} from './sysworld-exploration.js';
 
 // Ground apertures are authored separately from upper architecture. Using one
 // facade box would close the integration gate and every accessible pavilion.
@@ -7,7 +7,8 @@ export function installCityColliders(traffic,catalog,districts,placements) {
     const bounds=catalog.get(d.asset).lods[0].bounds;
     const ground=footprints[d.id]||(d.id==='graph'?[[-10.2,-10.2,10.2,10.2]]:[[-3,-3,3,3]]);
     ground.forEach(([x0,z0,x1,z1],i)=>traffic.solid('district:'+d.id+':'+i,{x:d.x,z:d.z,min:[x0,0,z0],max:[x1,8,z1]}));
-    traffic.solid('district:'+d.id+':upper',{x:d.x,z:d.z,min:[bounds.min[0],8,bounds.min[2]],max:bounds.max});
+    if(upperSolids[d.id])upperSolids[d.id].forEach(([half,from,to],i)=>traffic.solid('district:'+d.id+':upper:'+i,{x:d.x,z:d.z,min:[-half,from,-half],max:[half,to,half]}));
+    else traffic.solid('district:'+d.id+':upper',{x:d.x,z:d.z,min:[bounds.min[0],8,bounds.min[2]],max:bounds.max});
   }
   placements.forEach((p,i)=>{
     if(p.asset==='street-tile'||p.asset==='street-crossing')return;

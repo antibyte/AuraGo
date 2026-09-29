@@ -26,7 +26,12 @@ Own the original Blender city kit, deterministic generator and source scene.
   changes `ui/3d/robot.glb`, and exports tangents without runtime Draco.
 - Only runtime GLBs, manifest and license belong in the resource package.
 - Keep the planned cinematic city direction and street-level inspection quality.
-- `build_expansion.py` owns 33 v2 designs and `production/aurago-world-2.blend`.
+- `build_expansion.py` owns 36 v2 designs and `production/aurago-world-2.blend`.
+  The `telescope` tube pivots at its yoke and faces glTF +Z at rest. The `sky-lift`
+  cab travels `SKY_TRAVEL` (71.32 m) from the 0.88 m agent podium to the `sky-deck`
+  (top at zero, placed at 72.2 m); keep both equal to `skyDeck` in
+  `ui/js/desktop/apps/sysworld-layout.js`. The lift shaft is an open lattice (the
+  kit's glass is opaque), its tower and boarding sides stay open at the landings.
   `living_assets.py` authors the repair bay, parcel sorter, relay mast, kinetic
   fountain, glass garden and sheltered charging/meeting point. Export their
   colliders, work slots, interaction and emitter markers at all three LODs.

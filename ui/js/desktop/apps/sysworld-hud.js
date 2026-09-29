@@ -32,6 +32,12 @@
         };
         const shell = el('div','sysworld-hud'); root.append(shell);
         const fade = el('div','sw-fade'); shell.append(fade);
+        // Telescope view: lens, reticle and an AR tag for the district the reticle rests on.
+        const scopeView=el('div','sw-scope'),scopeHead=el('div','sw-scope-head'),scopeZoom=el('span'),scopeBearing=el('span');
+        const scopeTag=el('div','sw-scope-tag'),scopeTitle=el('strong'),scopeState=el('span','sw-scope-state'),scopeMetric=el('span','sw-muted'),scopeRange=el('span','sw-muted');
+        scopeTitle.setAttribute('aria-live','polite');scopeHead.append(el('strong','',L('sysworld.city.scope')),scopeZoom,scopeBearing);
+        scopeTag.append(scopeTitle,scopeState,scopeMetric,scopeRange);scopeView.hidden=true;
+        scopeView.append(el('div','sw-scope-lens'),el('div','sw-scope-reticle'),scopeHead,scopeTag,el('div','sw-scope-hint',L('sysworld.city.scope_hint')));shell.append(scopeView);
         const header = el('header','sw-top sw-glass');
         const wordmark = el('div','sw-wordmark','AURA / '); wordmark.append(el('strong','',L('sysworld.city.metropolis')));
         header.append(wordmark);
@@ -343,6 +349,15 @@
                 if(facing.textContent!==text)facing.textContent=text;
             },
             cut(){if(!inst.reducedMotion())fade.animate([{opacity:.92},{opacity:0}],{duration:450,easing:'ease-out'});},
+            scope(view){
+                const on=!!view;if(scopeView.hidden===on){scopeView.hidden=!on;root.classList.toggle('sw-scoping',on);}
+                if(!on)return;
+                const d=NS.districts.find(d=>d[0]===view.target),e=d&&current.find(e=>e.id===d[0]),row=e?.rows?.find(r=>r.value!=null&&r.value!=='');
+                scopeZoom.textContent=view.zoom.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+'×';scopeBearing.textContent=view.bearing+'°';
+                const title=d?L(d[1]):L('sysworld.city.scope_idle');if(scopeTitle.textContent!==title)scopeTitle.textContent=title;
+                scopeTag.classList.toggle('sw-idle',!d);scopeState.hidden=!e;scopeState.textContent=e?stateText(e):'';scopeState.dataset.state=e?(e.stale?'stale':e.state):'unknown';
+                scopeMetric.textContent=row?L(row.key)+' '+format(row.value,row.format):'';scopeRange.textContent=d&&view.distance?view.distance.toLocaleString()+' m':'';
+            },
             progress(loaded,expected){
                 const percent=expected>0?Math.min(99,Math.floor(loaded/expected*100)):0;if(percent<=loadingPercent)return;
                 loadingPercent=percent;loading.setAttribute('aria-valuenow',String(percent));loadingBar.style.transform='scaleX('+percent/100+')';

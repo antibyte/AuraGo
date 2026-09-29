@@ -17,6 +17,19 @@ export const stations = [
   {id:'agent',x:0,z:-77,platformX:0,platformZ:-84,angle:Math.PI},
 ];
 export const tramWaypoints=[[-67,-77],[-67,59],[67,59],[67,-77]];
+// Agent tower sky deck: a crown terrace at 72.2 m reached by the open east lift from the
+// 0.88 m podium (travel mirrored as SKY_TRAVEL in assets/system-world/build_expansion.py).
+// Walkable: the annulus between inner and outer radius plus the bridge while the cab is up.
+const deckSpot=(bearing,radius)=>{const b=bearing*Math.PI/180;return {x:Math.sin(b)*radius,z:-12-Math.cos(b)*radius,angle:Math.PI-b};};
+export const skyDeck={x:0,z:-12,floor:72.2,inner:4.2,outer:8,bridge:1,
+  lift:{x:9.8,z:-12,base:.88,cab:.03,travel:71.32},
+  telescopes:[45,135,225,315].map(b=>({id:'deck-'+b,...deckSpot(b,7.25)})),
+  benches:[0,180,270].map(b=>deckSpot(b,6.6))};
+export function skyWalkable(x,z,cabUp){
+  const r=Math.hypot(x-skyDeck.x,z-skyDeck.z);
+  if(r>=skyDeck.inner&&r<=skyDeck.outer)return true;
+  return cabUp&&x>=skyDeck.outer-.5&&x<=skyDeck.lift.x+1&&Math.abs(z-skyDeck.lift.z)<skyDeck.bridge;
+}
 export const dronePad={x:78,z:30};
 export const towers=[{x:30.5,z:-55,scale:1},{x:49,z:-55,scale:1.25},{x:-3,z:-57,scale:1.2}];
 export function streetAt(x,z,halfWidth=streets.halfWidth){

@@ -206,7 +206,7 @@ export async function createCity(host, options) {
   experience=createExperience(scene,{
     camera,districts,tier,traffic,reduced:()=>reduced,active:()=>visible&&!failed&&mode!=='map'&&!reduced&&!options.replaying?.(),
     assetURL:file=>options.resourceURL('/3d/system-world/v2/'+file),surfaces,
-    onInteraction:options.onInteraction,onDiscover:options.onDiscover,onSound:options.onSound,onTerminal:options.onTerminal,onSociety:options.onSociety,
+    onInteraction:options.onInteraction,onScope:state=>options.onScope?.(state),onDiscover:options.onDiscover,onSound:options.onSound,onTerminal:options.onTerminal,onSociety:options.onSociety,
     onEnvironment:indoor=>{weather.setIndoor(indoor);options.onEnvironment?.(indoor);},
     onError:options.onError,onReady:()=>{renderer.shadowMap.needsUpdate=true;},
   });
@@ -367,7 +367,8 @@ export async function createCity(host, options) {
   let down = null, dragging = false;
   const euler = new THREE.Euler(0, 0, 0, 'YXZ');
   function look(dx, dy) {
-    euler.setFromQuaternion(camera.quaternion); euler.y -= dx * .0025; euler.x = THREE.MathUtils.clamp(euler.x - dy * .0025, -1.35, 1.35);
+    const k = .0025 * camera.fov / 43;
+    euler.setFromQuaternion(camera.quaternion); euler.y -= dx * k; euler.x = THREE.MathUtils.clamp(euler.x - dy * k, -1.35, 1.35);
     camera.quaternion.setFromEuler(euler);
   }
   listen(canvas, 'pointerdown', e => { canvas.focus({ preventScroll: true }); cancelTour(); down = [e.clientX, e.clientY]; dragging = false; if (mode === 'street') canvas.setPointerCapture(e.pointerId); });
@@ -403,13 +404,15 @@ export async function createCity(host, options) {
   });
   listen(canvas, 'pointercancel', () => { down = null; keys.clear(); });
   listen(canvas, 'keydown', e => {
-    if (e.key === 'Escape') { setMode('orbit'); e.preventDefault(); return; }
+    if (e.key === 'Escape') { if (experience.scoping()) experience.endRide(); else setMode('orbit'); e.preventDefault(); return; }
+    if (mode === 'street' && ['+', '=', '-'].includes(e.key) && experience.zoom(e.key === '-' ? 240 : -240)) { e.preventDefault(); return; }
     if(mode==='street'&&e.code==='KeyE'&&!e.repeat){experience.interact();e.preventDefault();return;}
     if (mode === 'street' && ['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft'].includes(e.code)) {
       keys.add(e.code); e.preventDefault(); e.stopPropagation();
     }
   });
   listen(canvas, 'keyup', e => keys.delete(e.code));
+  listen(canvas, 'wheel', e => { if (mode === 'street' && experience.zoom(e.deltaY)) e.preventDefault(); }, { passive: false });
   listen(canvas, 'blur', () => keys.clear());
   listen(window, 'blur', () => { keys.clear(); down = null; });
   listen(canvas, 'webglcontextlost', e => { e.preventDefault(); failed = true; keys.clear(); options.onContextLost?.(); });
@@ -419,7 +422,7 @@ export async function createCity(host, options) {
     let forward = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'));
     let right = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'));
     if (!forward && !right) return;
-    if(experience.walkRide(forward,dt))return;
+    if(experience.walkRide(forward,dt,right))return;
     const scale = speed / Math.hypot(forward, right);
     camera.getWorldDirection(v); v.y = 0; v.normalize();
     const dx = (v.x * forward - v.z * right) * scale, dz = (v.z * forward + v.x * right) * scale;

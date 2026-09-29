@@ -10,13 +10,16 @@ import bpy
 import json
 import hashlib
 import struct
-from math import sin, pi
+from math import sin, cos, pi
 from mathutils import Matrix, Vector
 from build_city import Geometry, create_asset, materials, bounds_and_triangles, ROOT
 from living_assets import ASSETS as LIVING_ASSETS, build_living, living_navigation
 
 OUT = ROOT / 'ui/3d/system-world/v2'
 PIVOTS = {}
+# Agent tower sky deck: the crown terrace sits at 72.2 m, the east lift starts on the
+# 0.88 m podium. Mirrored by `skyDeck` in ui/js/desktop/apps/sysworld-layout.js.
+SKY_TRAVEL = 71.32
 
 
 def robot(g, kind):
@@ -179,13 +182,87 @@ def furnishing(g, kind):
         for x in (-.8,.8): g.box((x,-length/2-.1,1.1),(.4,.05,.15),'ivory')
 
 
+def glass_band(g, radius, height, mat, start, arc, n):
+    # Open, double-sided band (a cylinder without caps) for see-through balustrades.
+    verts = [(radius*cos(start+arc*i/n), radius*sin(start+arc*i/n), z) for i in range(n+1) for z in (0, height)]
+    faces = [f for i in range(n) for f in ((2*i, 2*i+2, 2*i+3, 2*i+1), (2*i+1, 2*i+3, 2*i+2, 2*i))]
+    g.add(verts, faces, mat)
+
+
+def lookout(g, kind):
+    if kind == 'telescope':
+        # Public viewer; the tube pivots on its yoke and looks along -Y (glTF +Z) at rest.
+        g.cyl((0, 0, .08), .42, .16, 'graphite', n=(24, 16, 10)[g.lod])
+        g.cyl((0, 0, .95), .11, 1.6, 'titanium', top=.08)
+        g.box((0, 0, 1.78), (.56, .3, .08), 'bronze')
+        for x in (-.25, .25): g.box((x, 0, 1.95), (.06, .16, .36), 'bronze')
+        g.part = 'tube'
+        g.box((0, -.05, 2.05), (.4, .9, .34), 'titanium', .08)
+        for x in (-.1, .1):
+            g.pipe((x, -.48, 2.06), (x, -.66, 2.06), .12, 'bronze')
+            g.pipe((x, -.66, 2.06), (x, -.69, 2.06), .1, 'cyan')
+            g.pipe((x, .38, 2.1), (x, .52, 2.1), .055, 'graphite')
+    elif kind == 'sky-deck':
+        # Crown terrace around the agent tower: paved disc, tapered soffit with a light
+        # ring, glass balustrade and a bridge onto the lift landing (+X).
+        n, gap = (64, 40, 24)[g.lod], .141
+        g.cyl((0, 0, -.25), 8.4, .5, 'stone', n=n)
+        g.cyl((0, 0, -1.1), 3.4, 1.2, 'titanium', top=8.2, n=n)
+        g.ring((0, 0, -.62), 8.25, .06, 'cyan')
+        glass_band(g, 8.2, 1.05, 'garden-glass', gap, 2*pi-2*gap, n)
+        g.ring((0, 0, 1.1), 8.2, .05, 'bronze', rotation=Matrix.Rotation(gap, 3, 'Z'), arc=2*pi-2*gap)
+        posts = (24, 16, 8)[g.lod]
+        for i in range(posts):
+            a = gap+(2*pi-2*gap)*i/(posts-1)
+            g.box((8.2*cos(a), 8.2*sin(a), .55), (.07, .07, 1.1), 'bronze', 0, angle=a)
+        g.ring((0, 0, .12), 3.95, .12, 'graphite')
+        g.ring((0, 0, .27), 3.95, .025, 'ivory')
+        g.box((8.25, 0, -.15), (.5, 2.3, .3), 'stone', 0)
+        for y in (-1.15, 1.15):
+            g.box((8.25, y, .55), (.5, .05, 1.05), 'garden-glass', 0)
+            g.box((8.25, y, 1.1), (.5, .08, .08), 'bronze', 0)
+    elif kind == 'sky-lift':
+        # Open lattice shaft (nothing blocks the view) with ties to the tower facade.
+        # The boarding side (-Y) opens at the podium, the tower side (-X) at the deck.
+        top = SKY_TRAVEL+3.5
+        for x in (-1.45, 1.45):
+            for y in (-1.45, 1.45): g.box((x, y, top/2), (.16, .16, top), 'bronze', 0)
+        step = (4.8, 4.8, 9.6)[g.lod]
+        corners = [(-1.45, -1.45), (1.45, -1.45), (1.45, 1.45), (-1.45, 1.45)]
+        # Axis-aligned members are unbevelled boxes; only the diagonals need rotated beams.
+        for i in range(1, int(top/step)+1):
+            z = i*step
+            for (ax, ay), (bx, by) in zip(corners, corners[1:]+corners[:1]):
+                if ax == bx == -1.45 and SKY_TRAVEL-.3 < z < SKY_TRAVEL+3.4: continue
+                g.box(((ax+bx)/2, (ay+by)/2, z), (abs(bx-ax)+.09, abs(by-ay)+.09, .09), 'titanium', 0)
+            if g.lod < 2 and z+step <= top:
+                g.beam((1.45, -1.45, z), (1.45, 1.45, z+step), .06, 'titanium')
+                g.beam((-1.45, 1.45, z), (1.45, 1.45, z+step), .06, 'titanium')
+        for z, reach in ((10, 2.45), (25, 3.55), (50, 4.45), (65, 5.35)):
+            for y in (-1.45, 1.45): g.box((-1.45-reach/2, y, z), (reach, .2, .2), 'titanium', 0)
+        g.box((0, 0, top+.3), (3.3, 3.3, .6), 'graphite')
+        g.box((0, 0, top+.64), (1, 1, .08), 'cyan', 0)
+        g.box((1.62, -1.62, 1.3), (.3, .3, .5), 'cyan', 0)
+        g.part = 'cab'
+        # Floor top 3 cm above the podium, so the parked cab never z-fights with it.
+        g.box((0, 0, -.08), (2.6, 2.6, .22), 'titanium', 0)
+        for x, y, w, d in ((1.28, 0, .05, 2.56), (0, 1.28, 2.56, .05)):
+            g.box((x, y, .6), (w, d, 1.1), 'garden-glass', 0)
+            g.box((x, y, 1.15), (max(w, .08), max(d, .08), .06), 'bronze', 0)
+        for x in (-1.25, 1.25):
+            for y in (-1.25, 1.25): g.box((x, y, 1.7), (.07, .07, 3.3), 'bronze', 0)
+        g.box((0, 0, 3.42), (2.7, 2.7, .16), 'graphite')
+        g.box((0, 0, 3.32), (2.2, 2.2, .03), 'ivory', 0)
+        g.box((1.29, -.9, 1.3), (.04, .3, .4), 'cyan', 0)
+
+
 def animate(root, asset):
     clips = ['idle','walk','turn','greet','work','carry'] if asset.startswith('robot-') else \
         ['open'] if asset in ('door','tram','service-cart') else ['operate'] if asset in ('lift','cooler','hologram',*LIVING_ASSETS[:-1]) else []
     parts = {o.get('component'): o for o in root.children}
     pivots = {'head':(0,0,1.7),'arm_l':(-.47,0,1.62),'arm_r':(.47,0,1.62),
               'leg_l':(-.2,0,.9),'leg_r':(.2,0,.9),'fan':(0,0,3.1),
-              'manipulator':(.9,.7,1.3),'antenna':(0,0,6.1),'sculpture':(0,0,1.3),'vent':(0,0,5.05)}
+              'manipulator':(.9,.7,1.3),'antenna':(0,0,6.1),'sculpture':(0,0,1.3),'vent':(0,0,5.05),'tube':(0,0,2.05)}
     for part, pos in pivots.items():
         if part in parts:
             obj=parts[part];obj.data.transform(Matrix.Translation(-Vector(pos)));obj.location=pos
@@ -244,6 +321,14 @@ def navigation(asset):
         data['portals']=[{'name':'boarding-left','position':[-1.4,.9,0]},{'name':'boarding-right','position':[1.4,.9,0]}]
     elif asset in ('wall','window'): data['colliders']=[[-2,0,-.15,2,4,.15]]
     elif asset=='railing': data['colliders']=[[-2,0,-.06,2,1.15,.06]]
+    elif asset=='telescope': data['colliders']=[[-.42,0,-.42,.42,2.3,.42]]
+    elif asset=='sky-deck':
+        # Walking is an annulus around the crown plus the lift bridge; the disc itself is a solid below.
+        data['colliders']=[[-8.3,-1.7,-8.3,8.3,0,8.3]]
+        data['surfaces']=[{'rect':[-8,-8,8,8],'height':0,'inner':4.2,'outer':8,'bridge':[8,-1,8.5,1]}]
+    elif asset=='sky-lift':
+        data['colliders']=[[x-.1,0,z-.1,x+.1,SKY_TRAVEL+4.1,z+.1] for x in (-1.45,1.45) for z in (-1.45,1.45)]
+        data['surfaces']=[{'rect':[-1.3,-1.3,1.3,1.3],'height':.03,'component':'cab','travel':SKY_TRAVEL}]
     elif asset=='station':
         data['colliders']=[[-4.5,3.69,-2,4.5,3.91,2]]+[[x-.075,0,-1.575,x+.075,3.8,-1.425] for x in (-4,4)]
         data['surfaces']=[{'rect':[-4.5,-2,4.5,2],'height':.3}]
@@ -292,6 +377,7 @@ def build():
     factories.update({k:(lambda g,k=k:furnishing(g,k)) for k in ['tram','station','service-cart','pad','console','hologram','charger','cargo','cooler','bench','archive-shelf']})
     factories.update({'robot-'+k:(lambda g,k=k:robot(g,k)) for k in ['courier','technician','archivist']})
     factories.update({k:(lambda g,k=k:build_living(g,k)) for k in LIVING_ASSETS})
+    factories.update({k:(lambda g,k=k:lookout(g,k)) for k in ['telescope','sky-deck','sky-lift']})
     for asset,factory in factories.items():
         entry={'id':asset,'lods':[], 'navigation':navigation(asset)}
         for lod in range(3):
@@ -323,7 +409,7 @@ def build():
                 for o in list(root.children): bpy.data.objects.remove(o,do_unlink=True)
                 bpy.data.objects.remove(root,do_unlink=True)
         entries.append(entry);print('WORLD2',asset)
-    manifest={'schema_version':2,'version':'2.1.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
+    manifest={'schema_version':2,'version':'2.2.0','license':'MIT','units':'metres','up_axis':'Y','front_axis':'Z',
               'generator':'Blender '+bpy.app.version_string,'assets':entries,'budget_bytes':48*1024*1024,'model_budget_bytes':12*1024*1024,
               'sources':{name:hashlib.sha256((ROOT/'assets/system-world'/name).read_bytes()).hexdigest() for name in ['build_city.py','build_expansion.py','living_assets.py']}}
     (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf8',newline='\n')

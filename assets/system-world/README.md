@@ -2,12 +2,13 @@
 
 ## System World 2 expansion
 
-`build_expansion.py` authors 33 additional modular designs and their articulated
+`build_expansion.py` authors 36 additional modular designs and their articulated
 animation clips in Blender. It saves `production/aurago-world-2.blend` and exports
 99 self-contained GLBs (three separately loadable LODs per design) plus a versioned
 manifest and MIT license to `ui/3d/system-world/v2/`. Sources are not shipped.
 
 The kit includes accessible floors, walls, ceilings, windows, sliding doors, lifts,
+the agent tower's open sky lift and crown terrace, public telescopes,
 stairs, ramps, bridges, gallery railings, arcades, gardens and quays; a tram, stop, service cart and
 landing pad; courier, technician and archivist robots; consoles, hologram tables,
 chargers, cargo, coolers, benches and archive shelves. Human-readable clip names,

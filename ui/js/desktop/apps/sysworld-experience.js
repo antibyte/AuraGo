@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {interiors,stations,tramWaypoints,dronePad,roomAt,canWalk,groundHeight,buildingFloor} from './sysworld-exploration.js';
-import {surfaces,liftContains,upperWalkable,roomFloorTiles} from './sysworld-layout.js';
+import {surfaces,liftContains,upperWalkable,roomFloorTiles,skyDeck,skyWalkable} from './sysworld-layout.js';
 import {streetCurve} from './sysworld-navigation.js';
 import {bodyShape,createTraffic} from './sysworld-traffic.js';
 import {livingPlaces} from './sysworld-places.js';
@@ -17,6 +17,9 @@ export function createExperience(scene,options){
   let memoryTexts=[],freightEvents=0,missionSeeded=false;
   let disposed=false,tier=options.tier||'high',manifest=null,bytes=0,clock=0,ride=null,near=null,footClock=0,visited=new Set(),room=null,loading=0;
   const tmp=new THREE.Vector3(),ahead=new THREE.Vector3(),lastPosition=new THREE.Vector3(),camera=options.camera;
+  // Sky deck lift cab (value = metres above the podium) and the telescopes on galleries and deck.
+  const sky={ready:false,lift:null,cab:null,value:0,motion:null,idle:0},scopes=[],euler=new THREE.Euler(0,0,0,'YXZ');
+  const wrapAngle=a=>Math.atan2(Math.sin(a),Math.cos(a)),smooth=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
   const traffic=options.traffic||createTraffic(),machinery=createMachinery(scene),living=new Map();
   function placeFloor(x,z){
     let height=groundHeight(x,z);
@@ -49,7 +52,7 @@ export function createExperience(scene,options){
       const data=await response.arrayBuffer();if(disposed)throw Error('Disposed');bytes+=data.byteLength;
       const gltf=await new GLTFLoader().parseAsync(data,'');
       // Moving or articulated assets use object-space surface detail so it never slides over them.
-      const moving=gltf.animations.length>0||/^(tram|service-cart|robot-|door|lift)/.test(id);
+      const moving=gltf.animations.length>0||/^(tram|service-cart|robot-|door|lift|sky-lift|telescope)/.test(id);
       gltf.scene.traverse(n=>{if(n.isMesh){geometries.add(n.geometry);for(const m of(Array.isArray(n.material)?n.material:[n.material]))materials.add(m);n.castShadow=true;n.receiveShadow=true;options.surfaces?.prepare(n,moving);}});
       if(disposed){geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());throw Error('Disposed');}
       loaded.add(id);return gltf;
@@ -116,6 +119,8 @@ export function createExperience(scene,options){
       info.hologram=await place('hologram',r.x-1,r.z,surfaces.room);info.hologram?.play('operate');
       if(r.id==='memory')drawMemory();
       info.lift=await place('lift',r.liftX,r.liftZ,surfaces.room);info.liftAction=info.lift?.play('operate',true);if(info.liftAction)info.liftAction.paused=true;
+      // Gallery viewer at the atrium railing, looking north over the city through the upper windows.
+      await addScope(r.id,r.x-2.2,r.z+.9,surfaces.gallery,Math.PI,{skip:null,limit:.9,pitch:[-.14,.18],eye:0});
       info.ready=true;
     }catch(e){if(!disposed)options.onError?.(e);}finally{loading--;}
   }
@@ -130,8 +135,15 @@ export function createExperience(scene,options){
       for(const [x,z]of[[-30,23],[30,23],[-28,72]])tasks.push(place('arcade',x,z,0,0,outdoors));
       tasks.push(place('bridge',-78.5,40,2,0,outdoors,[1.75,1,1]),place('ramp',-80,49,0,Math.PI,outdoors),place('stairs',-76.8,49,0,Math.PI,outdoors),place('ramp',-78.5,31,0,0,outdoors));
       tasks.push(place('pad',dronePad.x,dronePad.z,0,0,outdoors));
+      tasks.push(place('sky-deck',skyDeck.x,skyDeck.z,skyDeck.floor,0,outdoors));
+      for(const b of skyDeck.benches)tasks.push(place('bench',b.x,b.z,skyDeck.floor,b.angle,outdoors));
       for(const [x,z]of[[-60,-56],[-60,-46],[51,49]])tasks.push(place('charger',x,z,0,0,outdoors));
       await Promise.all(tasks);if(disposed)return;batch(outdoors);
+      sky.lift=await place('sky-lift',skyDeck.lift.x,skyDeck.lift.z,skyDeck.lift.base);if(disposed)return;
+      sky.cab=sky.lift?.node.getObjectByName('cab')||null;sky.ready=!!sky.cab;
+      // Deck viewers look from a virtual objective just beyond the balustrade, so steep views
+      // down onto the districts are never blocked by the terrace floor.
+      for(const t of skyDeck.telescopes)await addScope(t.id,t.x,t.z,skyDeck.floor,t.angle,{skip:'agent',limit:1.45,pitch:[-1.1,.3],eye:1.25});
       for(const [x,z]of[[-57,-61],[-57,-52]]){const cooler=await place('cooler',x,z);cooler?.play('operate');}
       for(const p of livingPlaces) {
         const model=await place(p.id,p.x,p.z,groundHeight(p.x,p.z),0,group,[1,1,1],2);if(disposed)return;
@@ -169,9 +181,67 @@ export function createExperience(scene,options){
     // The existing protected sampler owns these excerpts. Canvas only, no diagnostics or history.
     memoryTexts.slice(0,4).forEach((text,i)=>{const chars=Array.from(text).slice(0,96);ctx.fillText(chars.slice(0,48).join(''),30,55+i*118);ctx.fillText(chars.slice(48).join(''),30,94+i*118);});texture.needsUpdate=true;
   }
+  async function addScope(id,x,z,floor,angle,view){
+    const model=await place('telescope',x,z,floor,angle);if(!model||disposed)return;
+    scopes.push({id,model,tube:model.node.getObjectByName('tube'),x,z,floor,angle,...view,ex:x+Math.sin(angle)*view.eye,ez:z+Math.cos(angle)*view.eye});
+  }
+  // Looking through a viewer: the camera sits at its pivot, aims at the district nearest to
+  // the viewer's resting direction and zooms in; the viewer itself hides meanwhile.
+  function startScope(id){
+    const s=scopes.find(s=>s.id===id);if(!s)return;
+    const yaw0=wrapAngle(s.angle+Math.PI),eyeY=s.floor+2.05;let yaw=yaw0,pitch=-.08,best=Infinity;
+    for(const d of options.districts||[]){
+      if(d.id===s.skip)continue;const dx=d.x-s.ex,dz=d.z-s.ez,distance=Math.hypot(dx,dz),aim=Math.atan2(-dx,-dz),off=Math.abs(wrapAngle(aim-yaw0));
+      if(distance>12&&off<s.limit&&off<best){best=off;yaw=aim;pitch=THREE.MathUtils.clamp(Math.atan2(d.height*.45-eyeY,distance),...s.pitch);}
+    }
+    ride={kind:'scope',id,scope:s,yaw0,fov:14,sent:'',target:null,back:{position:camera.position.clone(),quaternion:camera.quaternion.clone(),fov:camera.fov}};
+    s.model.node.visible=false;camera.position.set(s.ex,eyeY,s.ez);camera.quaternion.setFromEuler(euler.set(pitch,yaw,0,'YXZ'));
+    if(options.reduced()){camera.fov=ride.fov;camera.updateProjectionMatrix();}
+    options.onRide?.('scope');callSound('door',camera.position);
+  }
+  function hitDistrict(origin,dir,d){
+    const r=d.radius*.6,ox=origin.x-d.x,oz=origin.z-d.z,a=dir.x*dir.x+dir.z*dir.z;if(a<1e-9)return Infinity;
+    const b=2*(ox*dir.x+oz*dir.z),disc=b*b-4*a*(ox*ox+oz*oz-r*r);if(disc<0)return Infinity;
+    let t=(-b-Math.sqrt(disc))/(2*a);if(t<0)t=(-b+Math.sqrt(disc))/(2*a);if(t<0)return Infinity;
+    const y=origin.y+dir.y*t;return y>=0&&y<=d.height?t:Infinity;
+  }
+  function updateScope(dt){
+    const s=ride.scope;euler.setFromQuaternion(camera.quaternion,'YXZ');
+    euler.y=ride.yaw0+THREE.MathUtils.clamp(wrapAngle(euler.y-ride.yaw0),-s.limit,s.limit);euler.x=THREE.MathUtils.clamp(euler.x,...s.pitch);euler.z=0;
+    camera.quaternion.setFromEuler(euler);camera.position.set(s.ex,s.floor+2.05,s.ez);
+    let fov=options.reduced()?ride.fov:THREE.MathUtils.damp(camera.fov,ride.fov,9,Math.min(dt,.1));if(Math.abs(fov-ride.fov)<.02)fov=ride.fov;
+    if(fov!==camera.fov){camera.fov=fov;camera.updateProjectionMatrix();}
+    camera.getWorldDirection(tmp);let target=null,distance=Infinity;
+    for(const d of options.districts||[]){if(d.id===s.skip)continue;const t=hitDistrict(camera.position,tmp,d);if(t>12&&t<distance){distance=t;target=d.id;}}
+    ride.target=target;const zoom=ride.back.fov/camera.fov,bearing=(Math.atan2(tmp.x,-tmp.z)*180/Math.PI+360)%360;
+    const key=[target,target?Math.round(distance):0,zoom.toFixed(1),Math.round(bearing)].join();
+    if(key!==ride.sent){ride.sent=key;options.onScope?.({id:ride.id,target,distance:target?Math.round(distance):null,zoom:+zoom.toFixed(1),bearing:Math.round(bearing)%360});}
+  }
+  // The open east lift of the agent tower: rides take 15 s, an empty cab answers a call
+  // in 7 s and, while nobody is near, makes an occasional trip so the tower looks alive.
+  function moveCab(to,duration,sound){
+    sky.motion={from:sky.value,to,t:0,duration:options.reduced()?0:duration};sky.idle=0;
+    if(sound)callSound('lift',sky.lift.node.position);
+  }
+  function cabCamera(){const lift=skyDeck.lift;camera.position.set(lift.x,lift.base+lift.cab+sky.value+2.4,lift.z);}
+  function rideSky(to){
+    moveCab(to,15,true);ride={kind:'sky',to};cabCamera();
+    // Face south through the unbraced shaft side, over the plaza and the bay; free look stays.
+    camera.quaternion.setFromEuler(euler.set(-.42,Math.PI,0,'YXZ'));options.onRide?.('sky');
+  }
+  function updateSky(dt,step){
+    const lift=skyDeck.lift;
+    if(!sky.motion&&ride?.kind!=='sky'&&step>0&&Math.hypot(camera.position.x-lift.x,camera.position.z-lift.z)>30){sky.idle+=step;if(sky.idle>28)moveCab(sky.value>1?0:lift.travel,15,false);}
+    if(sky.motion){const m=sky.motion;m.t+=Math.min(dt,.1);const p=m.duration?m.t/m.duration:1;sky.value=m.from+(m.to-m.from)*smooth(p);if(p>=1){sky.value=m.to;sky.motion=null;}}
+    sky.cab.position.y=sky.value;
+    if(ride?.kind==='sky'){cabCamera();if(!sky.motion){ride=null;options.onRide?.(null);callSound('lift',camera.position);}}
+  }
   function interact(){
     if(ride){if(ride.kind==='tram'&&trams[ride.index].dwell<=1){ride.exitRequested=true;return;}endRide();return;}
     if(!near)return;
+    if(near.kind==='telescope'){startScope(near.id);return;}
+    if(near.kind==='skycall'){moveCab(camera.position.y>40?skyDeck.lift.travel:0,7,true);return;}
+    if(near.kind==='skyup'||near.kind==='skydown'){rideSky(near.kind==='skyup'?skyDeck.lift.travel:0);return;}
     if(near.kind==='resident'){society.inspect(near.id);return;}
     if(near.kind==='demonstrate'){society.demonstrate(near.id,options.reduced());options.onSociety?.({id:near.id,role:'installation',state:options.reduced()?'idle':'work',source:'ambient'});return;}
     if(near.kind==='door'){const d=doors.get(near.id);if(d){d.open=!d.open;callSound('door',d.node.position);const r=interiors.find(r=>r.id===near.id);void loadRoom(r);}}
@@ -190,16 +260,29 @@ export function createExperience(scene,options){
     if(ride.kind==='lift'){const r=rooms.get(ride.id),plot=interiors.find(p=>p.id===ride.id);r.liftTarget=r.liftValue<2?0:4;camera.position.set(plot.x+1.5,2.4+surfaces.room+r.liftTarget,plot.liftZ);}
     if(ride.kind==='tram'){const s=stations.find(s=>s.id===ride.station)||stations[0];camera.position.set(s.platformX,2.4+surfaces.pavement+.3,s.platformZ);}
     if(ride.kind==='drone')camera.position.copy(ride.origin);
+    if(ride.kind==='sky'){sky.motion=null;sky.value=ride.to;sky.cab.position.y=sky.value;cabCamera();}
+    if(ride.kind==='scope'){
+      // Step back from the viewer: it keeps the aimed direction, the visitor keeps the heading.
+      const s=ride.scope;euler.setFromQuaternion(camera.quaternion,'YXZ');s.tube?.rotation.set(-euler.x,wrapAngle(euler.y+Math.PI-s.angle),0,'YXZ');
+      const heading=euler.y;s.model.node.visible=true;camera.position.copy(ride.back.position);euler.setFromQuaternion(ride.back.quaternion,'YXZ');euler.y=heading;
+      camera.quaternion.setFromEuler(euler);camera.fov=ride.back.fov;camera.updateProjectionMatrix();options.onScope?.(null);
+    }
     ride=null;options.onRide?.(null);
   }
   function candidates(){
-    if(ride)return [{kind:'exit',id:ride.kind,distance:0}];
+    if(ride)return [{kind:ride.kind==='scope'?'unscope':'exit',id:ride.kind,distance:0}];
     camera.getWorldDirection(tmp);
     const result=society.nearby().filter(p=>(p.x-camera.position.x)*tmp.x+(p.z-camera.position.z)*tmp.z>p.distance*.3);
     const add=(kind,id,x,z,radius)=>{const distance=Math.hypot(camera.position.x-x,camera.position.z-z);if(distance<radius)result.push({kind,id,distance});};
     for(const r of interiors){if(camera.position.y<5)add('door',r.id,r.x,r.doorZ,3);if(rooms.get(r.id)?.ready){add('lift',r.id,r.liftX,r.liftZ,2.3);if(camera.position.y<5)add('terminal',r.id,r.x-2,r.z+3,2.5);}}
     if(camera.position.y<5)for(const s of stations){add('tram',s.id,s.platformX,s.platformZ,4);if(!visited.has(s.id))add('discover',s.id,s.platformX+(s.angle===0?5:0),s.platformZ+(s.angle===0?0:5),3);}
-    add('drone','drone',dronePad.x,dronePad.z,5);return result.sort((a,b)=>a.distance-b.distance);
+    add('drone','drone',dronePad.x,dronePad.z,5);
+    if(sky.ready){
+      const lift=skyDeck.lift,top=camera.position.y>40,distance=Math.hypot(camera.position.x-lift.x,camera.position.z-lift.z),here=top?lift.travel:0;
+      if(distance<(top?3.6:2.4)&&(top||camera.position.y<10))result.push({kind:sky.motion||Math.abs(sky.value-here)>.05?'skycall':top?'skydown':'skyup',id:'sky',distance});
+    }
+    for(const s of scopes)if(Math.abs(camera.position.y-(s.floor+2.4))<1.5)add('telescope',s.id,s.x,s.z,1.7);
+    return result.sort((a,b)=>a.distance-b.distance);
   }
   function update(dt,animated,mode){
     if(disposed||!manifest)return;const step=animated?Math.min(dt,.05):0;clock+=step;room=roomAt(camera.position.x,camera.position.z)?.id||null;
@@ -214,6 +297,8 @@ export function createExperience(scene,options){
       panels(d.value).forEach((p,i)=>traffic.solid(d.owner+':panel:'+i,p));
       d.action.time=d.value*d.action.getClip().duration;d.mixer.update(0);
     }
+    if(sky.ready)updateSky(dt,step);
+    if(ride?.kind==='scope')updateScope(dt);
     for(const [id,r]of rooms){if(!r.liftAction)continue;r.liftValue=THREE.MathUtils.damp(r.liftValue,r.liftTarget,1.8,Math.min(dt,.1));if(Math.abs(r.liftValue-r.liftTarget)<.02)r.liftValue=r.liftTarget;r.liftAction.time=r.liftValue/4*r.liftAction.getClip().duration;r.lift.mixer.update(0);if(ride?.kind==='lift'&&ride.id===id){const pos=interiors.find(i=>i.id===id);camera.position.set(pos.liftX,2.4+surfaces.room+r.liftValue,pos.liftZ);if(r.liftValue===r.liftTarget){ride=null;options.onRide?.(null);}}}
     society.update(step,animated);machinery.update(step,animated);
     trams.forEach((t,i)=>{
@@ -276,8 +361,13 @@ export function createExperience(scene,options){
       for(const id of missionStates.keys())if(!seen.has(id))missionStates.delete(id);missionSeeded=!replay;
       if(replay)for(const box of freight){box.elapsed=9;box.node.visible=false;}
     },
-    walkRide(forward,dt){if(!ride)return false;if(ride.kind==='tram')ride.offset=THREE.MathUtils.clamp(ride.offset+forward*dt*3,-2.5,2.5);return true;},
-    move(x,z,from){if(ride)return false;const r=roomAt(from.x,from.z);if(r&&from.y>5){
+    walkRide(forward,dt,right=0){if(!ride)return false;if(ride.kind==='tram')ride.offset=THREE.MathUtils.clamp(ride.offset+forward*dt*3,-2.5,2.5);
+      // Keys pan a viewer, slower when zoomed in; updateScope clamps to its field.
+      if(ride.kind==='scope'){euler.setFromQuaternion(camera.quaternion,'YXZ');const k=dt*.9*camera.fov/ride.back.fov;euler.x+=forward*k;euler.y-=right*k;camera.quaternion.setFromEuler(euler);}
+      return true;},
+    zoom(delta){if(ride?.kind!=='scope')return false;ride.fov=THREE.MathUtils.clamp(ride.fov*Math.exp(delta*.0012),5,26);return true;},
+    scoping:()=>ride?.kind==='scope',
+    move(x,z,from){if(ride)return false;if(from.y>40)return skyWalkable(x,z,!sky.motion&&sky.value===skyDeck.lift.travel);const r=roomAt(from.x,from.z);if(r&&from.y>5){
         if(Math.abs(z-r.z-4.8)<.85&&(Math.abs(x-r.x)<1.1||Math.abs(x-r.x+4)<1.75))return false;
         return upperWalkable(r,x,z,rooms.get(r.id)?.liftValue===4);
       }
@@ -287,13 +377,18 @@ export function createExperience(scene,options){
         if(Math.hypot(x-(r.x-1),z-r.z)<1.55||[-3,0].some(dx=>Math.abs(x-r.x-dx)<1.1&&Math.abs(z-r.z-3)<.8))return false;
       }
       return canWalk(x,z,from,id=>doors.get(id)?.value>.85&&!!rooms.get(id)?.ready,options.districts);},
-    floor(x,z){const r=roomAt(x,z);if(r&&camera.position.y>5&&upperWalkable(r,x,z,rooms.get(r.id)?.liftValue===4))return surfaces.gallery;return Math.max(placeFloor(x,z),buildingFloor(x,z,options.districts));},
+    floor(x,z){if(camera.position.y>40)return skyDeck.floor;const r=roomAt(x,z);if(r&&camera.position.y>5&&upperWalkable(r,x,z,rooms.get(r.id)?.liftValue===4))return surfaces.gallery;return Math.max(placeFloor(x,z),buildingFloor(x,z,options.districts));},
     visit(id){endRide();ride=null;
       const place=livingPlaces.find(p=>p.id===id);if(place){const point=manifest?.assets.find(a=>a.id===id)?.navigation.interaction[0]?.position||[0,1.5,4];camera.position.set(place.x,2.4+groundHeight(place.x,place.z),place.z+point[2]+1);camera.lookAt(place.x,2,place.z);return;}
-      if(id==='drone'){camera.position.set(dronePad.x,2.7,dronePad.z+3);camera.lookAt(dronePad.x,2,dronePad.z);return;}const s=stations.find(s=>s.id===id);if(s){const offset=visited.has(id)?0:5,x=s.platformX+(s.angle===0?offset:0),z=s.platformZ+(s.angle===0?0:offset);camera.position.set(x,2.4+groundHeight(x,z),z);camera.lookAt(s.platformX,2,s.platformZ===z?s.platformZ+1:s.platformZ);}},
+      if(id==='drone'){camera.position.set(dronePad.x,2.7,dronePad.z+3);camera.lookAt(dronePad.x,2,dronePad.z);return;}
+      // Sky deck arrival beside the north-east viewer, looking north over the skyline and coast.
+      if(id==='skydeck'){const b=57*Math.PI/180,x=skyDeck.x+Math.sin(b)*7.2,z=skyDeck.z-Math.cos(b)*7.2;camera.position.set(x,skyDeck.floor+2.4,z);camera.lookAt(x,skyDeck.floor+.4,z-10);return;}const s=stations.find(s=>s.id===id);if(s){const offset=visited.has(id)?0:5,x=s.platformX+(s.angle===0?offset:0),z=s.platformZ+(s.angle===0?0:offset);camera.position.set(x,2.4+groundHeight(x,z),z);camera.lookAt(s.platformX,2,s.platformZ===z?s.platformZ+1:s.platformZ);}},
     destination(id){const r=interiors.find(r=>r.id===id);if(r){endRide();ride=null;const z=r.doorZ+r.front*4;camera.position.set(r.x,2.4+groundHeight(r.x,z),z);camera.lookAt(r.x,2.4+groundHeight(r.x,z),r.z);}},
-    isRiding:()=>!!ride,rideBody:()=>ride?.kind==='tram'?'tram-'+ride.index:null,interaction:()=>near,
-    stats:()=>({society:society.stats(),machinery:machinery.stats(),details:[...living].map(([id,m])=>({id,level:m.level})),loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null}),
+    isRiding:()=>!!ride,interaction:()=>near,
+    rideBody:()=>ride?.kind==='tram'?'tram-'+ride.index:ride?.kind==='scope'?ride.scope.model.owner:ride?.kind==='sky'?sky.lift?.owner||null:null,
+    stats:()=>({society:society.stats(),machinery:machinery.stats(),details:[...living].map(([id,m])=>({id,level:m.level})),loaded:[...loaded],bytes,freightEvents,residents:residents.filter(r=>r.node.visible).length,trams:trams.filter(t=>t.node.visible).length,rooms:[...rooms].filter(([,r])=>r.ready).map(([id])=>id),inside:room,ride:ride?.kind||null,station:ride?.station||null,discovered:[...visited],loading,interactions:near?{kind:near.kind,id:near.id}:null,
+      sky:{ready:sky.ready,value:+sky.value.toFixed(2),moving:!!sky.motion},telescopes:scopes.length,
+      scope:ride?.kind==='scope'?{id:ride.id,target:ride.target,fov:+camera.fov.toFixed(1)}:null}),
     dispose(){if(disposed)return;disposed=true;controller.abort();society.dispose();machinery.dispose();if(!options.traffic)traffic.dispose();memoryTexts=[];missionStates.clear();group.removeFromParent();mixers.forEach(m=>{m.stopAllAction();m.uncacheRoot(m.getRoot());});group.traverse(n=>{if(n.isInstancedMesh)n.dispose();});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());cache.clear();},
   };
 }
