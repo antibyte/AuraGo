@@ -31,6 +31,7 @@ const (
 
 type codeStudioDockerAPI interface {
 	Exec(ctx context.Context, containerID string, cmd []string, timeout time.Duration) (codeStudioExecResult, error)
+	PutArchive(ctx context.Context, containerID string, data []byte) error
 	CreateTerminalExec(ctx context.Context, containerID string, cols, rows int) (string, error)
 	StartExec(ctx context.Context, execID string) ([]byte, error)
 	ResizeExec(ctx context.Context, execID string, cols, rows int) error
@@ -247,9 +248,11 @@ func (h codeStudioHandlers) handleWriteFile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var body struct {
-		Path    string `json:"path"`
-		Content string `json:"content"`
+		Path       string `json:"path"`
+		Content    string `json:"content"`
+		CreateOnly bool   `json:"create_only"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, h.maxFileSizeBytes()*6+4096)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -268,15 +271,17 @@ func (h codeStudioHandlers) handleWriteFile(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	encoded := base64.StdEncoding.EncodeToString([]byte(body.Content))
-	script := fmt.Sprintf("mkdir -p %s && printf %%s %s | base64 -d > %s", shellQuote(pathpkg.Dir(path)), shellQuote(encoded), shellQuote(path))
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", script}, 30*time.Second)
+	result, err := h.writeContainerFile(r.Context(), containerID, path, []byte(body.Content), body.CreateOnly)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	if result.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
+		status := http.StatusBadRequest
+		if result.ExitCode == codeStudioFileExists {
+			status = http.StatusConflict
+		}
+		jsonError(w, strings.TrimSpace(result.Output), status)
 		return
 	}
 	writeJSON(w, map[string]interface{}{"status": "ok", "path": path})
@@ -403,11 +408,16 @@ func (h codeStudioHandlers) handleUpload(w http.ResponseWriter, r *http.Request)
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, codeStudioMaxUploadSize)
-	if err := r.ParseMultipartForm(codeStudioMaxUploadSize); err != nil {
+	limit := h.maxFileSizeBytes()
+	if limit > codeStudioMaxUploadSize {
+		limit = codeStudioMaxUploadSize
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit+(1<<20))
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
 		jsonError(w, "Invalid upload", http.StatusBadRequest)
 		return
 	}
+	defer r.MultipartForm.RemoveAll()
 	destDir, err := sanitizeCodeStudioPath(r.FormValue("path"))
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
@@ -434,11 +444,15 @@ func (h codeStudioHandlers) writeUploadedFile(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var buf bytes.Buffer
-	if _, err := io.CopyN(&buf, file, h.maxFileSizeBytes()+1); err != nil && err != io.EOF {
+	limit := h.maxFileSizeBytes()
+	if limit > codeStudioMaxUploadSize {
+		limit = codeStudioMaxUploadSize
+	}
+	if _, err := io.CopyN(&buf, file, limit+1); err != nil && err != io.EOF {
 		jsonError(w, "Failed to read upload", http.StatusBadRequest)
 		return
 	}
-	if int64(buf.Len()) > h.maxFileSizeBytes() {
+	if int64(buf.Len()) > limit {
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -447,9 +461,7 @@ func (h codeStudioHandlers) writeUploadedFile(w http.ResponseWriter, r *http.Req
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	encoded := base64.StdEncoding.EncodeToString(buf.Bytes())
-	script := fmt.Sprintf("mkdir -p %s && printf %%s %s | base64 -d > %s", shellQuote(pathpkg.Dir(path)), shellQuote(encoded), shellQuote(path))
-	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-c", script}, 30*time.Second)
+	result, err := h.writeContainerFile(r.Context(), containerID, path, buf.Bytes(), false)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return

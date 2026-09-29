@@ -10,6 +10,19 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+### Code Studio file writes
+
+- Save and upload share `code_studio_files.go`: bounded file bytes travel as a
+  single generated regular staging file through the Docker archive API. Never
+  embed contents in exec arguments. The normal container user verifies the
+  staged digest and installs through no-follow directory descriptors.
+- File PUT accepts additive `create_only`; New File must use it. Exclusive
+  creation returns HTTP 409 on collision; overwrite publishes a complete sibling
+  file atomically and preserves executable mode. Failed transfers leave the
+  target intact. Keep Desktop/Docker write gates, workspace confinement and
+  cleanup on failure. Verify `TestCodeStudioWrite*`, `TestCodeStudioUpload*`,
+  `TestCodeStudioFailedTransfer*` and the Linux install-script tests.
+
 ### Game Maker Voxel persistence
 
 - `game_maker_play_state.go` owns authenticated project `/play-state` GET/PUT/DELETE

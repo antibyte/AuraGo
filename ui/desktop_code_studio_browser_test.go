@@ -108,8 +108,16 @@ func (b *codeStudioFixtureBackend) register(mux *http.ServeMux) {
 			}
 			writeJSON(w, map[string]interface{}{"status": "ok", "path": path, "content": content})
 		case http.MethodPut:
-			var body struct{ Path, Content string }
+			var body struct {
+				Path, Content string
+				CreateOnly    bool `json:"create_only"`
+			}
 			_ = json.NewDecoder(r.Body).Decode(&body)
+			if _, exists := b.files[body.Path]; body.CreateOnly && (exists || b.dirs[body.Path]) {
+				w.WriteHeader(http.StatusConflict)
+				writeJSON(w, map[string]string{"error": "file already exists"})
+				return
+			}
 			b.files[body.Path] = body.Content
 			writeJSON(w, map[string]interface{}{"status": "ok"})
 		case http.MethodPatch:
@@ -220,7 +228,8 @@ window.csWait=(fn,ms)=>new Promise((resolve,reject)=>{const start=Date.now();con
 window.csMenuAction=(menuId,itemId)=>{const id=codeStudioTest.state.windows.keys().next().value;const entry=codeStudioTest.state.windowMenus.get(id);const menus=(entry&&entry.rawMenus)||[];const menu=menus.find(m=>m.id===menuId);const item=menu&&menu.items.find(i=>i.id===itemId);if(item&&item.action){item.action();return true;}return false;};
 `
 
-func TestDesktopCodeStudioBrowser(t *testing.T) {
+func newCodeStudioBrowser(t *testing.T) (*rod.Page, *codeStudioFixtureBackend) {
+	t.Helper()
 	requirePrecisionBrowserSmoke(t)
 	bin, ok := browserExecutable()
 	if !ok {
@@ -252,16 +261,21 @@ func TestDesktopCodeStudioBrowser(t *testing.T) {
 		})
 	}
 	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 	launch := launcher.New().Bin(bin).Headless(true).NoSandbox(true).Set("disable-gpu")
 	browser := rod.New().ControlURL(launch.MustLaunch()).MustConnect()
-	defer launch.Cleanup()
-	defer browser.MustClose()
+	t.Cleanup(launch.Cleanup)
+	t.Cleanup(browser.MustClose)
 	page := browser.MustPage().Timeout(120 * time.Second)
-	defer page.Close()
+	t.Cleanup(func() { _ = page.Close() })
 	page.MustSetViewport(1440, 920, 1, false)
 	page.MustNavigate(srv.URL + "/fixture").MustWaitLoad()
 	page.MustEval(`async()=>{await fixtureReady;}`)
+	return page, backend
+}
+
+func TestDesktopCodeStudioBrowser(t *testing.T) {
+	page, backend := newCodeStudioBrowser(t)
 	snapshot := func(name string) {
 		t.Helper()
 		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {

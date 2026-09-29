@@ -92,6 +92,8 @@ func testCodeStudioReadonlyServer(t *testing.T) *Server {
 
 type noopCodeStudioDocker struct{}
 
+func (noopCodeStudioDocker) PutArchive(context.Context, string, []byte) error { return nil }
+
 func (noopCodeStudioDocker) Exec(context.Context, string, []string, time.Duration) (codeStudioExecResult, error) {
 	return codeStudioExecResult{}, nil
 }

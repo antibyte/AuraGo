@@ -456,6 +456,8 @@ func testCodeStudioServerWithFakeCodeContainer(t *testing.T, maxFileSizeMB int) 
 
 type fakeCodeStudioDockerAPI struct{}
 
+func (fakeCodeStudioDockerAPI) PutArchive(context.Context, string, []byte) error { return nil }
+
 func (fakeCodeStudioDockerAPI) Exec(ctx context.Context, containerID string, cmd []string, timeout time.Duration) (codeStudioExecResult, error) {
 	return codeStudioExecResult{}, nil
 }
@@ -476,6 +478,8 @@ type recordingCodeStudioDockerAPI struct {
 	commands [][]string
 	results  []codeStudioExecResult
 }
+
+func (*recordingCodeStudioDockerAPI) PutArchive(context.Context, string, []byte) error { return nil }
 
 func (f *recordingCodeStudioDockerAPI) Exec(ctx context.Context, containerID string, cmd []string, timeout time.Duration) (codeStudioExecResult, error) {
 	f.commands = append(f.commands, append([]string(nil), cmd...))

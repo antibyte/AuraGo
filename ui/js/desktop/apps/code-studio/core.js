@@ -279,7 +279,9 @@
             } catch (_) {
                 message = await response.text() || message;
             }
-            throw new Error(message);
+            const error = new Error(message);
+            error.status = response.status;
+            throw error;
         }
         return response.json();
     }
@@ -288,9 +290,9 @@
         status: () => api('/api/code-studio/status'),
         files: path => api('/api/code-studio/files?path=' + encodeURIComponent(path || WORKSPACE_ROOT)),
         file: path => api('/api/code-studio/file?path=' + encodeURIComponent(path)),
-        writeFile: (path, content) => api('/api/code-studio/file', {
+        writeFile: (path, content, createOnly) => api('/api/code-studio/file', {
             method: 'PUT',
-            body: JSON.stringify({ path, content })
+            body: JSON.stringify({ path, content, create_only: !!createOnly })
         }),
         renamePath: (oldPath, newPath) => api('/api/code-studio/file', {
             method: 'PATCH',
@@ -1281,14 +1283,17 @@
         if (!isLiveInstance(target)) return;
         const path = joinPath(directory, name);
         try {
-            await apiClient.writeFile(path, '');
+            await apiClient.writeFile(path, '', true);
             if (!isLiveInstance(target)) return;
             runWithInstance(target, () => { if (directory !== state.currentPath) state.expandedDirs.add(directory); });
             await runAsyncStep(target, () => reloadTreeDirectory(directory));
             if (!isLiveInstance(target)) return;
             await runAsyncStep(target, () => openFile(path));
         } catch (err) {
-            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+            if (isLiveInstance(target)) runWithInstance(target, () => {
+                showOperationError(err.status === 409
+                    ? new Error(tr('desktop.fm.paste_exists', undefined, { name })) : err);
+            });
         }
     }
 

@@ -1239,6 +1239,9 @@ registration lives in `internal/desktop/types.go`.
   panels.js, shortcuts.js, command-palette.js.
 - Code Studio visible UI strings use `codeStudio.*` keys in all
   `ui/lang/desktop/*.json` files.
+- Code Studio New File uses the file API's `create_only` mode; a conflict leaves
+  the existing disk file and open editor unchanged and uses the shared localized
+  `desktop.fm.paste_exists` message. Save retains overwrite semantics.
 - Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
 - System World loads `sysworld-data.js`, `sysworld-hud.js`, `sysworld-controls.js`,
