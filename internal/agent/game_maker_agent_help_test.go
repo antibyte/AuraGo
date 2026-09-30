@@ -168,3 +168,59 @@ func TestGameMakerVendorAccessPointsToAPIReference(t *testing.T) {
 		t.Errorf("project source search got the vendor hint: %.300s", outputs["source"])
 	}
 }
+
+// A voxel planning round spent 34 reads/searches on a new game before timing
+// out. Planning a new game needs no source, so file answers say so; building
+// keeps plain answers. A line-range call without operation is a read.
+func TestGameMakerNewGamePlanningFileAccessPointsToSetDesign(t *testing.T) {
+	root := t.TempDir()
+	s, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "game.db"), WorkspacePath: filepath.Join(root, "workspace"), Enabled: true, AllowCreate: true, AllowEdit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	previous := gamemaker.DefaultService()
+	gamemaker.SetDefaultService(s)
+	defer gamemaker.SetDefaultService(previous)
+	s.SetSkillStatus(nil, true)
+	project, err := s.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Planning hint", Dimension: "2d", Description: "Collect apples"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputs := map[string]string{}
+	done := make(chan struct{})
+	s.SetRunner(gameMakerPlanTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+		bound := gamemaker.WithJobContext(ctx, run.Job.ID)
+		read := func(key string, params map[string]any) {
+			outputs[key], _ = dispatchGameMaker(bound, ToolCall{Action: "game_maker_file", Params: params}, nil)
+		}
+		if run.Stage == "planning" {
+			read("planning_read", map[string]any{"operation": "read", "path": "src/main.ts"})
+			read("planning_search", map[string]any{"operation": "search", "query": "GameScene"})
+			read("implicit_read", map[string]any{"path": "src/main.ts", "start_line": float64(1), "end_line": float64(3)})
+			return s.SetPlan(ctx, run.Job.ID, gamemaker.ExampleGamePlan(project))
+		}
+		read("building_read", map[string]any{"operation": "read", "path": "src/main.ts"})
+		close(done)
+		return errors.New("fixture complete")
+	}))
+	if _, err := s.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-done:
+	case <-time.After(20 * time.Second):
+		t.Fatal("fixture job did not reach building")
+	}
+	for _, key := range []string{"planning_read", "planning_search"} {
+		if !strings.Contains(outputs[key], "submit set_design now") {
+			t.Errorf("%s lacks the new-game planning hint: %.300s", key, outputs[key])
+		}
+	}
+	if strings.Contains(outputs["building_read"], "submit set_design") {
+		t.Errorf("building read carries the planning hint: %.300s", outputs["building_read"])
+	}
+	if !strings.Contains(outputs["implicit_read"], `"status":"ok"`) || !strings.Contains(outputs["implicit_read"], `"start_line":1`) {
+		t.Errorf("line-range call without operation was not read: %.300s", outputs["implicit_read"])
+	}
+}

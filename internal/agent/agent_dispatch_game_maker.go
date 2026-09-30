@@ -513,6 +513,9 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			// run. Keep other callers and ambiguous path-only calls explicit.
 			if _, hasContent := tc.Params["content"].(string); hasContent || tc.Content != "" {
 				operation = "write"
+			} else if tc.Params["start_line"] != nil || tc.Params["end_line"] != nil {
+				// A line range without content can only be a read.
+				operation = "read"
 			}
 		}
 		path := firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path"))
@@ -524,14 +527,18 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 				if err != nil {
 					return gameMakerToolError(err), true
 				}
-				return gameMakerToolJSON(map[string]any{"status": "ok", "result": result, "next_action": "Read the matching range of the owning file; its sha256 is required for replace."}), true
+				answer := map[string]any{"status": "ok", "result": result, "next_action": "Read the matching range of the owning file; its sha256 is required for replace."}
+				if hint := gameMakerFileHint(ctx, service, jobID, path); hint != "" {
+					answer["next_action"] = hint
+				}
+				return gameMakerToolJSON(answer), true
 			}
 			result, err := service.SearchJobFile(ctx, jobID, path, query)
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
 			answer := map[string]any{"status": "ok", "result": result}
-			if hint := gameMakerVendorHint(path); hint != "" {
+			if hint := gameMakerFileHint(ctx, service, jobID, path); hint != "" {
 				answer["next_action"] = hint
 			}
 			return gameMakerToolJSON(answer), true
@@ -582,7 +589,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 				return gameMakerToolError(err), true
 			}
 			answer := map[string]any{"status": "ok", "path": path, "content": result.Content, "sha256": result.SHA256, "start_line": result.StartLine, "end_line": result.EndLine, "total_lines": result.TotalLines}
-			if hint := gameMakerVendorHint(path); hint != "" {
+			if hint := gameMakerFileHint(ctx, service, jobID, path); hint != "" {
 				answer["next_action"] = hint
 			}
 			return gameMakerToolJSON(answer), true
@@ -803,6 +810,23 @@ func gameMakerVendorHint(path string) string {
 		return ""
 	}
 	return "vendor/*.js files are minified runtime builds. Use runtime.api_reference in your context (or inspect) and the system prompt's API sections instead of searching them; never edit vendor files."
+}
+
+// gameMakerNewGamePlanningHint answers file access while a new game is being
+// planned: its runtime and source do not exist yet, and a real voxel round spent
+// 34 reads/searches there before timing out without a design.
+const gameMakerNewGamePlanningHint = "Planning a new game needs no source reading: src/common.ts, src/voxel.json, assets and the runtime are created after acceptance, and building receives the complete API reference. Use design_example, base_checks and search_assets, then submit set_design now."
+
+// gameMakerFileHint selects the next_action for a file read or search.
+func gameMakerFileHint(ctx context.Context, service *gamemaker.Service, jobID, path string) string {
+	hints := []string{}
+	if _, job, err := service.ProjectForJob(ctx, jobID); err == nil && job.Phase == "planning" && job.BaseRevision == 0 {
+		hints = append(hints, gameMakerNewGamePlanningHint)
+	}
+	if hint := gameMakerVendorHint(path); hint != "" {
+		hints = append(hints, hint)
+	}
+	return strings.Join(hints, " ")
 }
 
 // gameMakerToolJSON keeps <, > and & literal: results reach a model, never an

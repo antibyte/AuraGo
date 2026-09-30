@@ -735,3 +735,21 @@ func TestGameMakerPromptsArePhaseAndDimensionPure(t *testing.T) {
 		}
 	}
 }
+
+// Planning a new game has no source to read; voxel planning also needs the
+// presentation choices it otherwise looked up in minified bundles.
+func TestGameMakerPlanningPromptsExplainNewGameScaffold(t *testing.T) {
+	for _, variant := range [][]string{nil, {"voxel"}} {
+		profile, err := gameMakerPromptProfile("planning", "3d", variant...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(profile.SystemPrompt(), "created after acceptance") {
+			t.Errorf("%v planning does not explain the new-game scaffold", variant)
+		}
+	}
+	voxel, _ := gameMakerPromptProfile("planning", "3d", "voxel")
+	if !strings.Contains(voxel.SystemPrompt(), gamemaker.PresentationPlanningGuide) {
+		t.Error("voxel planning lacks presentation choices")
+	}
+}

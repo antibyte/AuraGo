@@ -362,3 +362,25 @@ func TestVoxelDefinitionErrorsNameElementFieldAndAllowedValues(t *testing.T) {
 		t.Fatalf("default definition rejected: %v", err)
 	}
 }
+
+// The planning guide shows the goal shape the model otherwise hunted for in
+// vendor files; the example must itself pass validation on the defaults.
+func TestVoxelPlanningGuideShowsValidGoalExample(t *testing.T) {
+	if !strings.Contains(VoxelPlanningGuide, voxelGoalExample) {
+		t.Fatal("planning guide lacks the goal example")
+	}
+	var goals struct {
+		Goals []VoxelGoal `json:"goals"`
+	}
+	if err := json.Unmarshal([]byte("{"+voxelGoalExample+"}"), &goals); err != nil || len(goals.Goals) == 0 {
+		t.Fatalf("goal example is not JSON: %v", err)
+	}
+	for _, mode := range []string{"survival", "creative"} {
+		definition := DefaultVoxelDefinition()
+		definition.Mode = mode
+		definition.Goals = goals.Goals
+		if err := definition.Validate(); err != nil {
+			t.Fatalf("%s: goal example is invalid: %v", mode, err)
+		}
+	}
+}
