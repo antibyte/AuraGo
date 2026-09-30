@@ -18,6 +18,14 @@ type conflictSignal struct {
 	Value string
 }
 
+type conflictTextFormat uint8
+
+const (
+	conflictRawFact conflictTextFormat = iota
+	conflictStoredDocument
+	conflictSearchResult
+)
+
 var conflictSignalPatterns = []struct {
 	predicate string
 	re        *regexp.Regexp
@@ -31,10 +39,10 @@ var conflictSignalPatterns = []struct {
 }
 
 func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string, fallbackText string) (resultErr error) {
-	return detectMemoryConflictsForDocIDsWithContext(context.Background(), logger, stm, ltm, docIDs, fallbackText)
+	return detectMemoryConflictsForDocIDsWithContext(context.Background(), logger, stm, ltm, docIDs, fallbackText, conflictRawFact)
 }
 
-func detectMemoryConflictsForDocIDsWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string, fallbackText string) (resultErr error) {
+func detectMemoryConflictsForDocIDsWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string, fallbackText string, format conflictTextFormat) (resultErr error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -55,6 +63,7 @@ func detectMemoryConflictsForDocIDsWithContext(ctx context.Context, logger *slog
 			continue
 		}
 		text := strings.TrimSpace(fallbackText)
+		textFormat := format
 		if text == "" {
 			stored, err := ltm.GetByID(docID)
 			if err != nil {
@@ -62,8 +71,9 @@ func detectMemoryConflictsForDocIDsWithContext(ctx context.Context, logger *slog
 				continue
 			}
 			text = stored
+			textFormat = conflictStoredDocument
 		}
-		signals := deriveConflictSignals(text)
+		signals := deriveConflictSignals(text, textFormat)
 		for _, signal := range signals {
 			if err := ctx.Err(); err != nil {
 				return errors.Join(resultErr, err)
@@ -80,7 +90,7 @@ func detectMemoryConflictsForDocIDsWithContext(ctx context.Context, logger *slog
 				if match.docID == "" || match.docID == docID {
 					continue
 				}
-				for _, other := range deriveConflictSignals(match.text) {
+				for _, other := range deriveConflictSignals(match.text, conflictSearchResult) {
 					if other.Key != signal.Key || other.Value == "" || signal.Value == "" || other.Value == signal.Value {
 						continue
 					}
@@ -98,8 +108,8 @@ func detectMemoryConflictsForDocIDsWithContext(ctx context.Context, logger *slog
 	return errors.Join(resultErr, ctx.Err())
 }
 
-func deriveConflictSignals(text string) []conflictSignal {
-	cleaned := normalizeConflictText(text)
+func deriveConflictSignals(text string, format conflictTextFormat) []conflictSignal {
+	cleaned := normalizeConflictText(text, format)
 	if cleaned == "" {
 		return nil
 	}
@@ -125,9 +135,9 @@ func deriveConflictSignals(text string) []conflictSignal {
 	return out
 }
 
-func normalizeConflictText(text string) string {
+func normalizeConflictText(text string, format conflictTextFormat) string {
 	text = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n"))
-	for strings.HasPrefix(text, "[") {
+	for format == conflictSearchResult && strings.HasPrefix(text, "[") {
 		if idx := strings.Index(text, "]"); idx >= 0 && idx < len(text)-1 {
 			tag := strings.ToLower(strings.TrimSpace(text[1:idx]))
 			if strings.HasPrefix(tag, "similarity:") || strings.HasPrefix(tag, "domain:") ||
@@ -138,31 +148,14 @@ func normalizeConflictText(text string) string {
 		}
 		break
 	}
-	analysis := false
-	if concept, content, ok := strings.Cut(text, "\n\n"); ok {
-		// Analysis stores the fact in the concept and provenance in the body;
-		// ordinary memory documents store their fact in the body.
-		if strings.HasPrefix(strings.TrimSpace(content), "source:memory_analysis session:") {
-			text, analysis = strings.TrimSpace(concept), true
-		} else {
+	if format != conflictRawFact {
+		if concept, _, analysis := memory.AnalysisDocumentParts(text); analysis {
+			// A proven provenance body makes its preceding category an envelope.
+			text = strings.TrimSpace(concept[strings.Index(concept, "]")+1:])
+		} else if _, content, stored := strings.Cut(text, "\n\n"); stored {
 			text = strings.TrimSpace(content)
 		}
 	}
-	if strings.HasPrefix(text, "[") {
-		if idx := strings.Index(text, "]"); idx >= 0 {
-			tag := strings.ToLower(strings.TrimSpace(text[1:idx]))
-			if analysis || strings.HasPrefix(tag, "preference:") || strings.HasPrefix(tag, "correction:") {
-				text = strings.TrimSpace(text[idx+1:])
-			}
-		}
-	}
-	var lines []string
-	for _, line := range strings.Split(text, "\n") {
-		if !strings.HasPrefix(strings.TrimSpace(line), "source:memory_analysis session:") {
-			lines = append(lines, line)
-		}
-	}
-	text = strings.Join(lines, "\n")
 	text = strings.ReplaceAll(text, "\n", " ")
 	text = strings.Join(strings.Fields(text), " ")
 	text = strings.Trim(text, " .,!?:;")

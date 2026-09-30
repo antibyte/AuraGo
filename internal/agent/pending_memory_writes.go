@@ -83,7 +83,7 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 			}
 			continue
 		}
-		if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, write.Concept+"\n\n"+write.Content); err != nil && logger != nil {
+		if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, write.Concept+"\n\n"+write.Content, conflictStoredDocument); err != nil && logger != nil {
 			logger.Warn("[Memory Retry] Conflict check failed", "error", err)
 		}
 		if err := stm.CompletePendingMemoryWrite(write.ID); err != nil {

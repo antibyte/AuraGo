@@ -11,7 +11,7 @@ import (
 )
 
 func TestDeriveConflictSignalsDetectsDifferentLanguageClaims(t *testing.T) {
-	signals := deriveConflictSignals("User prefers German")
+	signals := deriveConflictSignals("User prefers German", conflictRawFact)
 	if len(signals) != 1 {
 		t.Fatalf("len(signals) = %d, want 1", len(signals))
 	}
@@ -23,7 +23,7 @@ func TestDeriveConflictSignalsDetectsDifferentLanguageClaims(t *testing.T) {
 func TestNormalizeConflictTextKeepsLegitimateBracketContent(t *testing.T) {
 	input := `Alice prefers JSON ["home","lab"] backups`
 
-	got := normalizeConflictText(input)
+	got := normalizeConflictText(input, conflictRawFact)
 
 	if got != `Alice prefers JSON ["home","lab"] backups` {
 		t.Fatalf("normalizeConflictText() = %q, want original content preserved", got)
@@ -33,7 +33,7 @@ func TestNormalizeConflictTextKeepsLegitimateBracketContent(t *testing.T) {
 func TestNormalizeConflictTextStripsKnownSimilarityPrefix(t *testing.T) {
 	input := `[Similarity: 0.87] Alice prefers rsync backups`
 
-	got := normalizeConflictText(input)
+	got := normalizeConflictText(input, conflictSearchResult)
 
 	if got != "Alice prefers rsync backups" {
 		t.Fatalf("normalizeConflictText() = %q, want prefix stripped", got)
@@ -41,21 +41,23 @@ func TestNormalizeConflictTextStripsKnownSimilarityPrefix(t *testing.T) {
 }
 
 func TestConflictSignalsUnderstandStoredFactEnvelopes(t *testing.T) {
-	for _, text := range []string{
-		"User prefers Vim",
-		"Editor preference\r\n\r\nUser prefers Vim",
-		"[Similarity: 0.99] [aurago_memories] [Domain: ops] Editor preference\n\nUser prefers Vim",
-		"[preference:workflow] User prefers Vim\n\nsource:memory_analysis session:default",
-		"[arbitrary_category] User prefers Vim\n\nsource:memory_analysis session:default",
-		"[correction:workflow] User prefers Vim",
-		"User prefers Vim\nsource:memory_analysis session:default",
+	for _, item := range []struct {
+		text   string
+		format conflictTextFormat
+	}{
+		{"User prefers Vim", conflictRawFact},
+		{"Editor preference\r\n\r\nUser prefers Vim", conflictStoredDocument},
+		{"[Similarity: 0.99] [aurago_memories] [Domain: ops] Editor preference\n\nUser prefers Vim", conflictSearchResult},
+		{"[preference:workflow] User prefers Vim\n\nsource:memory_analysis session:default", conflictStoredDocument},
+		{"[arbitrary_category] User prefers Vim\n\nsource:memory_analysis", conflictStoredDocument},
+		{"[correction:workflow] User prefers Vim\n\nsource:memory_analysis", conflictStoredDocument},
 	} {
-		signals := deriveConflictSignals(text)
+		signals := deriveConflictSignals(item.text, item.format)
 		if len(signals) != 1 || signals[0].Key != "user|preference" || signals[0].Value != "vim" {
-			t.Fatalf("text=%q signals=%v", text, signals)
+			t.Fatalf("text=%q signals=%v", item.text, signals)
 		}
 	}
-	if got := normalizeConflictText("[custom] Alice prefers JSON [home,lab] backups"); got != "[custom] Alice prefers JSON [home,lab] backups" {
+	if got := normalizeConflictText("[custom] Alice prefers JSON [home,lab] backups", conflictRawFact); got != "[custom] Alice prefers JSON [home,lab] backups" {
 		t.Fatalf("legitimate brackets changed: %q", got)
 	}
 }
@@ -71,7 +73,7 @@ func TestMemoryConflictsCompareRawAndStoredFacts(t *testing.T) {
 	vdb := &memorySafetyVector{archiveFilterVectorDB: archiveFilterVectorDB{byQuery: map[string][]memory.SearchResult{
 		"user|preference": {{DocID: "old", Text: "Editor preference\n\nUser prefers Vim", Similarity: .99}},
 	}}, stored: map[string]string{"new": "Editor preference\n\nUser prefers Emacs"}}
-	if err := detectMemoryConflictsForDocIDsWithContext(context.Background(), logger, stm, vdb, []string{"new"}, "User prefers Emacs"); err != nil {
+	if err := detectMemoryConflictsForDocIDsWithContext(context.Background(), logger, stm, vdb, []string{"new"}, "User prefers Emacs", conflictRawFact); err != nil {
 		t.Fatal(err)
 	}
 	conflicts, err := stm.GetOpenMemoryConflicts(10)
@@ -110,13 +112,13 @@ func TestMemoryConflictCheckHonorsCancellation(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ctx, cancel := context.WithCancel(context.Background())
 	vdb := &cancellingConflictVector{cancel: cancel, memorySafetyVector: memorySafetyVector{reads: make(map[string]int), stored: map[string]string{"new": "User prefers Emacs"}}}
-	if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, vdb, []string{"new"}, ""); !errors.Is(err, context.Canceled) {
+	if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, vdb, []string{"new"}, "", conflictStoredDocument); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancellation lost: %v", err)
 	}
 	if vdb.queryCalls != 1 {
 		t.Fatalf("query calls=%d", vdb.queryCalls)
 	}
-	if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, vdb, []string{"new"}, ""); !errors.Is(err, context.Canceled) || vdb.reads["new"] != 1 {
+	if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, vdb, []string{"new"}, "", conflictStoredDocument); !errors.Is(err, context.Canceled) || vdb.reads["new"] != 1 {
 		t.Fatalf("cancelled check read vector: err=%v reads=%v", err, vdb.reads)
 	}
 }

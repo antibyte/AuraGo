@@ -1200,7 +1200,7 @@ func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger
 			skipped++
 			continue
 		}
-		if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, owned.CreatedIDs, content); err != nil {
+		if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, owned.CreatedIDs, content, conflictRawFact); err != nil {
 			storeErrors = append(storeErrors, err)
 		}
 		stored++
@@ -2023,7 +2023,7 @@ func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog
 					return resultErr
 				}
 				scanned++
-				err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, []string{meta.DocID}, "")
+				err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, []string{meta.DocID}, "", conflictStoredDocument)
 				if ctx.Err() != nil {
 					return errors.Join(resultErr, err, ctx.Err())
 				}

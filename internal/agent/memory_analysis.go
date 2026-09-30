@@ -271,7 +271,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, f.Content); err != nil {
+					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, f.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Fact conflict check failed", "error", err)
 					}
 					stored++
@@ -312,7 +312,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, p.Content); err != nil {
+					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, p.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Preference conflict check failed", "error", err)
 					}
 					stored++
@@ -337,7 +337,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, c.Content); err != nil {
+					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, c.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Correction conflict check failed", "error", err)
 					}
 					stored++
