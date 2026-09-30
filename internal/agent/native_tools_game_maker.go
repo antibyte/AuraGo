@@ -1,6 +1,10 @@
 package agent
 
-import openai "github.com/sashabaranov/go-openai"
+import (
+	"aurago/internal/gamemaker"
+
+	openai "github.com/sashabaranov/go-openai"
+)
 
 func appendGameMakerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
 	if !ff.GameMakerEnabled {
@@ -244,12 +248,12 @@ func gameDesignSchema() map[string]interface{} {
 		"settings": settings,
 		"preserve": stringsArray("Existing behaviors kept in edit jobs"),
 		"scenarios": map[string]interface{}{"type": "array", "maxItems": 8, "description": "Optional checks for custom mechanics; use target steps for dynamic targets instead of blind coordinates. Maximum 6 seconds per scenario and 25 seconds total.", "items": schema(map[string]interface{}{
-			"id": prop("string", "Unique check ID, not required_"), "metric": prop("string", "Observed metric such as hits, actions, score, health, lives, goal_remaining or outcome"),
+			"id": prop("string", "Unique check ID, not required_"), "metric": map[string]interface{}{"type": "string", "enum": gamemaker.GameMetrics(), "description": "Observed runtime metric; only these names exist"},
 			"compare": map[string]interface{}{"type": "string", "enum": []string{"increased", "decreased", "changed", "equals", "at_least"}}, "value": prop("number", "Comparison value"),
 			"steps": map[string]interface{}{"type": "array", "minItems": 1, "maxItems": 8, "items": schema(map[string]interface{}{
 				"action": map[string]interface{}{"type": "string", "enum": []string{"target", "key", "pointer", "wait", "observe"}},
 				"target": prop("string", "For target actions: exact scene node ID or body role; use player with mode move"), "mode": map[string]interface{}{"type": "string", "enum": []string{"move", "aim", "reach", "interact", "catch", "avoid", "select"}},
-				"key": prop("string", "For key actions: e.g. SPACE, RIGHT, W"), "x": prop("number", "Logical pointer x"), "y": prop("number", "Logical pointer y"), "ms": prop("integer", "100–4000 for target actions; otherwise 0–4000"),
+				"key": map[string]interface{}{"type": "string", "enum": gamemaker.GameKeys(), "description": "For key actions only; uppercase key names"}, "x": prop("number", "Logical pointer x"), "y": prop("number", "Logical pointer y"), "ms": prop("integer", "100–4000 for target actions; otherwise 0–4000"),
 			}, "action")},
 		}, "id", "metric", "compare", "value", "steps")},
 		"presentation": schema(map[string]interface{}{
@@ -304,6 +308,15 @@ func GameMakerPhaseToolSchemas(stage, dimension string, variant ...string) []ope
 					bases = []string{"voxel"}
 					for _, k := range []string{"settings", "scene", "mechanics", "stages"} {
 						delete(design, k)
+					}
+					// The voxel driver runs only key/wait/observe; its built-in checks
+					// already measure the sandbox loop from real world evidence.
+					scenarios := design["scenarios"].(map[string]interface{})
+					scenarios["description"] = "Usually omit. Built-in voxel checks already measure move, jump, mine, craft, place, pause and, for survival with enemies, combat from real block/inventory evidence. Add a scenario only for another listed metric, using key, wait and observe steps."
+					step := scenarios["items"].(map[string]interface{})["properties"].(map[string]interface{})["steps"].(map[string]interface{})["items"].(map[string]interface{})["properties"].(map[string]interface{})
+					step["action"] = map[string]interface{}{"type": "string", "enum": []string{"key", "wait", "observe"}}
+					for _, k := range []string{"target", "mode", "x", "y"} {
+						delete(step, k)
 					}
 				} else {
 					delete(design, "voxel")

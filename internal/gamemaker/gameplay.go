@@ -113,6 +113,11 @@ var gameMetrics = []string{"player_x", "player_y", "player_distance", "player_ri
 var gameKeys = []string{"LEFT", "RIGHT", "UP", "DOWN", "W", "A", "S", "D", "SPACE", "R", "P", "ESC", "ENTER", "F", "Q", "E"}
 var targetModes = []string{"move", "aim", "reach", "interact", "catch", "avoid", "select"}
 
+// GameMetrics and GameKeys expose the accepted scenario vocabulary so tool
+// schemas advertise exactly what validateScenario accepts.
+func GameMetrics() []string { return slices.Clone(gameMetrics) }
+func GameKeys() []string    { return slices.Clone(gameKeys) }
+
 func validateScenario(s GameScenario) error {
 	if len(s.ID) < 1 || len(s.ID) > 64 || strings.HasPrefix(s.ID, "required_") {
 		return fmt.Errorf("id must be 1–64 characters and cannot start with required_")

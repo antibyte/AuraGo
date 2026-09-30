@@ -535,6 +535,10 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 			return bad(fmt.Sprintf("scenarios[%d]", i), err.Error())
 		}
 		for _, step := range scenario.Steps {
+			// The voxel driver would silently skip target and pointer steps.
+			if p.Template == "voxel" && !slices.Contains([]string{"key", "wait", "observe"}, step.Action) {
+				return bad(fmt.Sprintf("scenarios[%d]", i), "voxel checks support only key, wait and observe steps; built-in checks already cover movement, mining, crafting, placing, pause and combat, so omit scenarios for those")
+			}
 			duration += step.MS
 		}
 	}

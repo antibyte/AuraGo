@@ -2,8 +2,11 @@ package agent
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
+
+	"aurago/internal/gamemaker"
 )
 
 func TestGameMakerPhaseSchemasRemainStrictObjects(t *testing.T) {
@@ -49,6 +52,63 @@ func TestGameMakerPhaseSchemasRemainStrictObjects(t *testing.T) {
 	for _, tool := range GameMakerPhaseToolSchemas("planning", "3d") {
 		if tool.Function.Name == "game_maker_project" && tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})["design"] == nil {
 			t.Fatal("shared mutable schema")
+		}
+	}
+}
+
+// Invented metrics ("wave", "distance") and lowercase keys ("f") cost whole
+// planning corrections; the schema must offer only what validation accepts.
+func TestGameMakerScenarioSchemaEnumeratesMetricsAndKeys(t *testing.T) {
+	for _, variant := range [][]string{nil, {"voxel"}} {
+		for _, dimension := range []string{"2d", "3d"} {
+			if variant != nil && dimension == "2d" {
+				continue
+			}
+			for _, tool := range GameMakerPhaseToolSchemas("planning", dimension, variant...) {
+				if tool.Function.Name != "game_maker_project" {
+					continue
+				}
+				props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
+				design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
+				scenario := design["scenarios"].(map[string]interface{})["items"].(map[string]interface{})["properties"].(map[string]interface{})
+				metrics, _ := scenario["metric"].(map[string]interface{})["enum"].([]string)
+				if !slices.Equal(metrics, gamemaker.GameMetrics()) {
+					t.Fatalf("%s %v metric enum = %v, want validation metrics", dimension, variant, metrics)
+				}
+				step := scenario["steps"].(map[string]interface{})["items"].(map[string]interface{})["properties"].(map[string]interface{})
+				keys, _ := step["key"].(map[string]interface{})["enum"].([]string)
+				if !slices.Equal(keys, gamemaker.GameKeys()) {
+					t.Fatalf("%s %v key enum = %v, want validation keys", dimension, variant, keys)
+				}
+			}
+		}
+	}
+}
+
+func TestGameMakerVoxelScenarioSchemaNamesBuiltInChecks(t *testing.T) {
+	for _, tool := range GameMakerPhaseToolSchemas("planning", "3d", "voxel") {
+		if tool.Function.Name != "game_maker_project" {
+			continue
+		}
+		props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
+		design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
+		scenarios := design["scenarios"].(map[string]interface{})
+		description, _ := scenarios["description"].(string)
+		for _, want := range []string{"mine", "craft", "place", "combat", "omit"} {
+			if !strings.Contains(strings.ToLower(description), want) {
+				t.Fatalf("voxel scenarios description %q lacks %q", description, want)
+			}
+		}
+		// The voxel driver executes only key, wait and observe steps.
+		step := scenarios["items"].(map[string]interface{})["properties"].(map[string]interface{})["steps"].(map[string]interface{})["items"].(map[string]interface{})["properties"].(map[string]interface{})
+		actions, _ := step["action"].(map[string]interface{})["enum"].([]string)
+		if !slices.Equal(actions, []string{"key", "wait", "observe"}) {
+			t.Fatalf("voxel step actions = %v", actions)
+		}
+		for _, removed := range []string{"target", "mode", "x", "y"} {
+			if _, ok := step[removed]; ok {
+				t.Fatalf("voxel step still advertises %s", removed)
+			}
 		}
 	}
 }

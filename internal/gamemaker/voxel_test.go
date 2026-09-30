@@ -295,3 +295,22 @@ func TestVoxelMigrationBacksUpLegacyDatabase(t *testing.T) {
 		t.Fatal(name, err)
 	}
 }
+
+// The voxel driver executes key, wait and observe only; a target or pointer
+// step would silently do nothing, so planning must reject it with the reason.
+func TestVoxelPlanRejectsStepsItsDriverCannotRun(t *testing.T) {
+	s := newTestService(t)
+	project := Project{Dimension: "3d", Variant: "voxel"}
+	plan := ExampleGamePlan(project)
+	plan.Scenarios = []GameScenario{{ID: "walk", Metric: "player_distance", Compare: "increased", Steps: []GameTestStep{{Action: "key", Key: "W", MS: 800}, {Action: "observe"}}}}
+	if err := s.checkPlan(project, plan); err != nil {
+		t.Fatalf("key/observe voxel scenario rejected: %v", err)
+	}
+	for _, step := range []GameTestStep{{Action: "target", Target: "player", Mode: "reach", MS: 2000}, {Action: "pointer", X: 10, Y: 10}} {
+		plan.Scenarios[0].Steps = []GameTestStep{step, {Action: "observe"}}
+		err := s.checkPlan(project, plan)
+		if err == nil || !strings.Contains(err.Error(), "key, wait and observe") {
+			t.Fatalf("%s step: err = %v", step.Action, err)
+		}
+	}
+}

@@ -78,6 +78,14 @@ func (s *Service) expandDesign(ctx context.Context, jobID string, project Projec
 	if err := json.Unmarshal(data, &patch); err != nil {
 		return nil, fmt.Errorf("design: %w. Use inspect.design_example fields; level objects belong in scene.nodes, and generated platforms use scene_generate after plan acceptance. Free mechanics belong in features and source code", err)
 	}
+	// A restated project dimension is redundant rather than invented content.
+	if raw, ok := patch["dimension"]; ok {
+		var dimension string
+		if json.Unmarshal(raw, &dimension) != nil || dimension != project.Dimension {
+			return nil, fmt.Errorf("design.dimension: dimension is fixed by the project (%s); omit this field", project.Dimension)
+		}
+		delete(patch, "dimension")
+	}
 	// Native providers use a JSON string to avoid unbounded ingredient-map schemas.
 	// Direct JSON objects retain the same strict, shared definition validation.
 	if raw := bytes.TrimSpace(patch["voxel"]); len(raw) > 0 && raw[0] == '"' {

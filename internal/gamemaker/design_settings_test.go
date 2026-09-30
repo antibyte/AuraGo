@@ -90,3 +90,23 @@ func TestDesignSettingsGuidedCorrectionsRetainValues(t *testing.T) {
 		}
 	}
 }
+
+// Models often restate the project dimension in the design. A matching value is
+// redundant, not invented content; a conflicting one names the fixed dimension.
+func TestDesignToleratesMatchingDimension(t *testing.T) {
+	for _, dimension := range []string{"2d", "3d"} {
+		s := newTestService(t)
+		project := Project{Dimension: dimension}
+		base := map[string]string{"2d": "minimal", "3d": "three"}[dimension]
+		design := fmt.Sprintf(`{"base":%q,"dimension":%q,"objective":"Explore freely","features":["Walk around"]}`, base, dimension)
+		if _, err := s.expandDesign(context.Background(), "matching-"+dimension, project, []byte(design)); err != nil {
+			t.Fatalf("%s: matching dimension rejected: %v", dimension, err)
+		}
+		other := map[string]string{"2d": "3d", "3d": "2d"}[dimension]
+		design = fmt.Sprintf(`{"base":%q,"dimension":%q,"objective":"Explore freely","features":["Walk around"]}`, base, other)
+		_, err := s.expandDesign(context.Background(), "conflict-"+dimension, project, []byte(design))
+		if err == nil || !strings.Contains(err.Error(), "dimension is fixed") || !strings.Contains(err.Error(), dimension) {
+			t.Fatalf("%s: conflicting dimension error = %v", dimension, err)
+		}
+	}
+}
