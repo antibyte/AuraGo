@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -34,12 +35,20 @@ func (f *coAgentContextVectorDB) StoreBatch(items []memory.ArchiveItem) ([]strin
 
 func (f *coAgentContextVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
 	f.searchSimilarCalled = true
-	return append([]string(nil), f.results...), nil, nil
+	return f.memoryResults()
 }
 
 func (f *coAgentContextVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
 	f.searchMemoriesOnlyCalled = true
-	return append([]string(nil), f.results...), nil, nil
+	return f.memoryResults()
+}
+
+func (f *coAgentContextVectorDB) memoryResults() ([]string, []string, error) {
+	ids := make([]string, len(f.results))
+	for i := range ids {
+		ids[i] = fmt.Sprintf("coagent-memory-%d", i)
+	}
+	return append([]string(nil), f.results...), ids, nil
 }
 
 func (f *coAgentContextVectorDB) GetByID(id string) (string, error) { return "", nil }

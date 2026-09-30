@@ -188,7 +188,7 @@ func TestRunNightlyMemoryMaintenanceUsesPrefetchedMetasForCuration(t *testing.T)
 	}
 }
 
-func TestDetectMemoryConflictsAcrossLTMTruncatesPrefetchedMetas(t *testing.T) {
+func TestDetectMemoryConflictsAcrossLTMLimitsActiveDocuments(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
 	if err != nil {
@@ -199,6 +199,9 @@ func TestDetectMemoryConflictsAcrossLTMTruncatesPrefetchedMetas(t *testing.T) {
 	metas := make([]memory.MemoryMeta, nightlyMemoryConflictScanLimit+50)
 	for i := range metas {
 		metas[i].DocID = fmt.Sprintf("doc-%d", i)
+		if err := stm.UpsertMemoryMeta(metas[i].DocID); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	ltm := &conflictScanStub{}

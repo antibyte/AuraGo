@@ -1400,6 +1400,8 @@ func resolveMaintenanceRetention(cfg *config.Config) maintenanceRetentionDays {
 
 const nightlyMemoryMetaFetchLimit = 50000
 const nightlyMemoryConflictScanLimit = 250
+const nightlyMemoryConflictPageSize = 500
+const memoryConflictScanCursorKey = "memory_conflict_scan.cursor"
 
 const maintenanceProtectedTailReserve = 90 * time.Second
 const maintenanceConsolidationBudget = 2 * time.Minute
@@ -2012,35 +2014,77 @@ func detectMemoryConflictsAcrossLTM(logger *slog.Logger, stm *memory.SQLiteMemor
 	detectMemoryConflictsAcrossLTMWithContext(context.Background(), logger, stm, ltm, prefetchedMetas)
 }
 
-func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, prefetchedMetas []memory.MemoryMeta) error {
-	if stm == nil || ltm == nil || ltm.IsDisabled() {
+func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, _ []memory.MemoryMeta) (resultErr error) {
+	if stm == nil || ltm == nil || ltm.IsDisabled() || !ltm.IsReady() {
 		return nil
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	metas := prefetchedMetas
-	if metas == nil {
-		var err error
-		metas, err = stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
-		if err != nil {
-			return err
-		}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	var resultErr error
-	scanned := 0
-	for _, meta := range metas {
+	cursor, err := stm.GetMemoryMaintenanceState(memoryConflictScanCursorKey)
+	if err != nil {
+		return err
+	}
+	initialCursor := cursor
+	defer func() {
+		if cursor != initialCursor {
+			if cursor == "" {
+				resultErr = errors.Join(resultErr, stm.ClearMemoryMaintenanceState(memoryConflictScanCursorKey))
+			} else {
+				resultErr = errors.Join(resultErr, stm.SetMemoryMaintenanceState(memoryConflictScanCursorKey, cursor))
+			}
+		}
+	}()
+	for scanned, seen := 0, 0; seen < nightlyMemoryMetaFetchLimit; {
 		if ctx.Err() != nil {
 			return errors.Join(resultErr, ctx.Err())
 		}
-		if memory.IsMemoryArchived(meta) {
-			continue
+		pageSize := min(nightlyMemoryConflictPageSize, nightlyMemoryMetaFetchLimit-seen)
+		metas, err := stm.GetMemoryMetaAfter(cursor, pageSize)
+		if err != nil {
+			return errors.Join(resultErr, err)
+		}
+		if len(metas) == 0 {
+			cursor = ""
+			return resultErr
+		}
+		for _, meta := range metas {
+			if ctx.Err() != nil {
+				return errors.Join(resultErr, ctx.Err())
+			}
+			if !memory.IsMemoryArchived(meta) {
+				if scanned >= nightlyMemoryConflictScanLimit {
+					return resultErr
+				}
+				scanned++
+				err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, []string{meta.DocID}, "")
+				if ctx.Err() != nil {
+					return errors.Join(resultErr, err, ctx.Err())
+				}
+				resultErr = errors.Join(resultErr, err)
+				var trackingErr error
+				if err != nil {
+					trackingErr = stm.RecordMemoryMaintenanceFailure("memory_conflict_scan", meta.DocID, err)
+				} else {
+					trackingErr = stm.ClearMemoryMaintenanceFailure("memory_conflict_scan", meta.DocID)
+				}
+				if trackingErr != nil {
+					return errors.Join(resultErr, trackingErr)
+				}
+			}
+			cursor = meta.DocID
+			seen++
+		}
+		if len(metas) < pageSize {
+			cursor = ""
+			return resultErr
 		}
 		if scanned >= nightlyMemoryConflictScanLimit {
-			break
+			return resultErr
 		}
-		scanned++
-		resultErr = errors.Join(resultErr, detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, []string{meta.DocID}, ""))
 	}
 	return resultErr
 }
@@ -2546,6 +2590,9 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 	if stm == nil || kg == nil {
 		return
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	logger.Info("[Maintenance] Syncing Core Memory to Knowledge Graph")
 
@@ -2558,11 +2605,14 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 
 	expected := make(map[string]struct{}, len(facts))
 	for _, fact := range facts {
+		if ctx.Err() != nil {
+			return errors.Join(resultErr, ctx.Err())
+		}
 		nodeID := fmt.Sprintf("core_fact_%d", fact.ID)
 		expected[nodeID] = struct{}{}
 		label := fact.Fact
-		if len(label) > 50 {
-			label = label[:47] + "..."
+		if runes := []rune(label); len(runes) > 50 {
+			label = string(runes[:47]) + "..."
 		}
 		props := map[string]string{
 			"type":    "concept",
@@ -2570,10 +2620,23 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 			"content": fact.Fact,
 		}
 
-		err := kg.AddNode(nodeID, label, props)
-		if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		node, err := kg.GetNode(nodeID)
+		if err == nil && node != nil && node.Properties["source"] != "core_memory" {
+			err = fmt.Errorf("core memory node %s belongs to another source", nodeID)
+		}
+		if err == nil {
+			if node == nil {
+				err = kg.AddNode(nodeID, label, props)
+			} else {
+				node, err = kg.UpdateNode(nodeID, label, props)
+				if err == nil && node == nil {
+					err = fmt.Errorf("core memory node %s disappeared during sync", nodeID)
+				}
+			}
+		}
+		if err != nil {
 			resultErr = errors.Join(resultErr, err)
-			logger.Debug("[Maintenance] AddNode returned error", "nodeID", nodeID, "error", err)
+			logger.Debug("[Maintenance] Core memory node sync failed", "nodeID", nodeID, "error", err)
 		}
 	}
 
@@ -2587,6 +2650,12 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 		return
 	}
 	for _, node := range nodes {
+		if ctx.Err() != nil {
+			return errors.Join(resultErr, ctx.Err())
+		}
+		if node.Properties["source"] != "core_memory" || node.Protected {
+			continue
+		}
 		if _, ok := expected[node.ID]; ok {
 			continue
 		}

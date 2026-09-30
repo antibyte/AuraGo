@@ -595,15 +595,15 @@ func (s *SQLiteMemory) ReclaimStaleConsolidationClaims(maxAge time.Duration) (in
 }
 
 // CleanOldArchivedMessages removes archived messages older than the given number of days.
-// Only successfully consolidated messages (consolidated = 1 AND consolidation_status = 'done')
+// Only terminal messages (consolidated = 1 AND consolidation_status IN ('done', 'excluded'))
 // are removed. Pending, failed, or in-progress rows are always retained to prevent data loss.
 func (s *SQLiteMemory) CleanOldArchivedMessages(days int) (int64, error) {
 	res, err := s.db.Exec(
-		"DELETE FROM archived_messages WHERE consolidated = 1 AND consolidation_status = 'done' AND archived_at < datetime('now', ?)",
+		"DELETE FROM archived_messages WHERE consolidated = 1 AND consolidation_status IN ('done', 'excluded') AND archived_at < datetime('now', ?)",
 		fmt.Sprintf("-%d days", days),
 	)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("clean terminal archived messages: %w", err)
 	}
 	return res.RowsAffected()
 }

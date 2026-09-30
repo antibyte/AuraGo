@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -164,8 +165,13 @@ func splitScoredMemoryResults(results []memory.SearchResult) ([]string, []string
 	return memories, docIDs, similarities, nil
 }
 
-func loadMemoryMetaMap(stm *memory.SQLiteMemory, docIDs []string) (map[string]memory.MemoryMeta, error) {
-	metaMap := make(map[string]memory.MemoryMeta)
+func loadMemoryMetaMap(stm *memory.SQLiteMemory, docIDs []string) (metaMap map[string]memory.MemoryMeta, resultErr error) {
+	defer func() {
+		if resultErr != nil {
+			slog.Warn("[RAG] Memory metadata enrichment skipped", "error", resultErr)
+		}
+	}()
+	metaMap = make(map[string]memory.MemoryMeta)
 	if stm == nil {
 		return nil, fmt.Errorf("memory metadata store is unavailable")
 	}
