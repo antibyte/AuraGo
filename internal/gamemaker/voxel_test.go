@@ -314,3 +314,47 @@ func TestVoxelPlanRejectsStepsItsDriverCannotRun(t *testing.T) {
 		}
 	}
 }
+
+// Each rejected voxel definition names the element, field and accepted values;
+// "invalid goal" alone left a real planning job three corrections to guess.
+func TestVoxelDefinitionErrorsNameElementFieldAndAllowedValues(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(v *VoxelDefinition)
+		want   []string
+	}{
+		{"size axis", func(v *VoxelDefinition) { v.Size[1] = 70 }, []string{"size[1]", "70", "16", "64"}},
+		{"block material", func(v *VoxelDefinition) { v.Blocks[8].Material = "castle" }, []string{"blocks[8]", `material "castle"`, "planks", "brick"}},
+		{"block color", func(v *VoxelDefinition) { v.Blocks[2].Color = "grey" }, []string{"blocks[2]", `color "grey"`, "#RRGGBB"}},
+		{"block hardness", func(v *VoxelDefinition) { v.Blocks[0].Hardness = 9 }, []string{"blocks[0]", "hardness", "0.1–4"}},
+		{"block key", func(v *VoxelDefinition) { v.Blocks[1].Key = "Dirt Block" }, []string{"blocks[1]", `key "Dirt Block"`, "lowercase"}},
+		{"duplicate block id", func(v *VoxelDefinition) { v.Blocks[1].ID = 1 }, []string{"blocks[1]", "duplicate id 1"}},
+		{"item stack", func(v *VoxelDefinition) { v.Items[0].Stack = 0 }, []string{"items[0]", `"dirt"`, "stack 0", "1–999"}},
+		{"item block", func(v *VoxelDefinition) { v.Items[0].Block = 40 }, []string{"items[0]", "block 40"}},
+		{"recipe ingredient", func(v *VoxelDefinition) { v.Recipes[0].Ingredients = map[string]int{"unobtainium": 1} }, []string{"recipes[0]", `ingredient "unobtainium"`}},
+		{"recipe output", func(v *VoxelDefinition) { v.Recipes[1].Item = "sword" }, []string{"recipes[1]", `item "sword"`}},
+		{"enemy behavior", func(v *VoxelDefinition) { v.Enemies[0].Behavior = "flying" }, []string{"enemies[0]", `behavior "flying"`, "melee", "ranged"}},
+		{"goal kind", func(v *VoxelDefinition) { v.Goals = []VoxelGoal{{ID: "castle", Kind: "build", Item: "brick", Count: 10}} }, []string{"goals[0]", `kind "build"`, "collect, craft, place, defeat"}},
+		{"goal item", func(v *VoxelDefinition) { v.Goals = []VoxelGoal{{ID: "castle", Kind: "place", Item: "tower", Count: 10}} }, []string{"goals[0]", `item "tower"`}},
+		{"defeat goal item", func(v *VoxelDefinition) { v.Goals = []VoxelGoal{{ID: "hunt", Kind: "defeat", Item: "wood", Count: 2}} }, []string{"goals[0]", "defeat", "omit item"}},
+		{"unreachable defeat", func(v *VoxelDefinition) { v.Goals = []VoxelGoal{{ID: "hunt", Kind: "defeat", Count: 99}} }, []string{"goals[0]", "99", "6 enemies"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := DefaultVoxelDefinition()
+			tc.mutate(v)
+			err := v.Validate()
+			if err == nil {
+				t.Fatal("invalid definition accepted")
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("error %q lacks %q", err, want)
+				}
+			}
+		})
+	}
+	if err := DefaultVoxelDefinition().Validate(); err != nil {
+		t.Fatalf("default definition rejected: %v", err)
+	}
+}

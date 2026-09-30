@@ -9,6 +9,7 @@ import (
 	"io"
 	"regexp"
 	"slices"
+	"strings"
 )
 
 const VoxelVersion = 1
@@ -129,26 +130,28 @@ func (v *VoxelDefinition) Validate() error {
 		return bad("seed must contain 1–128 bytes")
 	}
 	for i, n := range v.Size {
-		if n < 16 || n%16 != 0 || n > [3]int{128, 64, 128}[i] {
-			return bad("size must use 16-block multiples, up to 128×64×128")
+		if limit := [3]int{128, 64, 128}[i]; n < 16 || n%16 != 0 || n > limit {
+			return bad(fmt.Sprintf("size[%d] (%s) %d must be a multiple of 16 from 16 to %d", i, [3]string{"x", "height", "z"}[i], n, limit))
 		}
 	}
 	if !slices.Contains([]string{"flat", "hills", "island"}, v.Terrain) {
 		return bad("terrain must be flat, hills or island")
 	}
 	if len(v.Blocks) < 1 || len(v.Blocks) > 64 || len(v.Items) < 1 || len(v.Items) > 64 || len(v.Recipes) < 1 || len(v.Recipes) > 64 {
-		return bad("1–64 blocks, items and recipes required")
+		return bad(fmt.Sprintf("1–64 blocks, items and recipes required (got %d, %d, %d)", len(v.Blocks), len(v.Items), len(v.Recipes)))
 	}
 	blocks, keys, materials := map[int]bool{}, map[string]bool{}, map[string]bool{}
 	generated := map[int]bool{}
-	orderedBlocks := slices.Clone(v.Blocks)
-	slices.SortFunc(orderedBlocks, func(a, b VoxelBlock) int { return a.ID - b.ID })
-	for _, b := range orderedBlocks {
-		if b.ID < 1 || b.ID > 64 || blocks[b.ID] || !voxelID.MatchString(b.Key) || keys[b.Key] || len(b.Name) < 1 || len(b.Name) > 80 {
-			return bad("blocks need unique IDs (1–64), keys and bounded names")
-		}
-		if !slices.Contains([]string{"grass", "dirt", "stone", "wood", "leaves", "ore", "sand", "planks", "brick"}, b.Material) || !voxelColor.MatchString(b.Color) || b.Tier < 0 || b.Tier > 3 || !finite(b.Hardness) || b.Hardness < 0.1 || b.Hardness > 4 {
-			return bad("invalid block material, color, tier or hardness (0.1–4 seconds)")
+	// Terrain generation takes the first block per material in ID order.
+	order := make([]int, len(v.Blocks))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortStableFunc(order, func(a, b int) int { return v.Blocks[a].ID - v.Blocks[b].ID })
+	for _, i := range order {
+		b := v.Blocks[i]
+		if issue := voxelBlockIssue(b, blocks, keys); issue != "" {
+			return bad(fmt.Sprintf("blocks[%d] %s", i, issue))
 		}
 		if !materials[b.Material] {
 			generated[b.ID] = true
@@ -157,46 +160,38 @@ func (v *VoxelDefinition) Validate() error {
 	}
 	for _, material := range []string{"grass", "dirt", "stone", "wood", "leaves", "ore", "sand"} {
 		if !materials[material] {
-			return bad("terrain requires material " + material)
+			return bad("terrain requires a block with material " + material)
 		}
 	}
 	items := map[string]VoxelItem{}
-	for _, item := range v.Items {
-		if _, ok := items[item.ID]; ok || !voxelID.MatchString(item.ID) || len(item.Name) < 1 || len(item.Name) > 80 || (item.Block != 0 && !blocks[item.Block]) || item.Stack < 1 || item.Stack > 999 || item.Tier < 0 || item.Tier > 3 || !finite(item.Damage) || item.Damage < 0 || item.Damage > 100 {
-			return bad("invalid or duplicate item")
+	for i, item := range v.Items {
+		if issue := voxelItemIssue(item, items, blocks); issue != "" {
+			return bad(fmt.Sprintf("items[%d] %q %s", i, item.ID, issue))
 		}
 		items[item.ID] = item
 	}
-	for _, b := range v.Blocks {
+	for i, b := range v.Blocks {
 		if _, ok := items[b.Drop]; !ok {
-			return bad("block drop references unknown item " + b.Drop)
+			return bad(fmt.Sprintf("blocks[%d] drop %q references no declared item", i, b.Drop))
 		}
 	}
 	recipes := map[string]bool{}
-	for _, r := range v.Recipes {
-		item, ok := items[r.Item]
-		if !voxelID.MatchString(r.ID) || recipes[r.ID] || !ok || r.Count < 1 || r.Count > item.Stack || len(r.Ingredients) < 1 || len(r.Ingredients) > 8 {
-			return bad("invalid recipe identity, output or ingredients")
+	for i, r := range v.Recipes {
+		if issue := voxelRecipeIssue(r, recipes, items); issue != "" {
+			return bad(fmt.Sprintf("recipes[%d] %q %s", i, r.ID, issue))
 		}
 		recipes[r.ID] = true
-		for id, n := range r.Ingredients {
-			item, ok := items[id]
-			if !ok || n < 1 || n > item.Stack*36 {
-				return bad("invalid recipe ingredient")
-			}
-		}
 	}
 	enemies, total := map[string]bool{}, 0
-	for _, e := range v.Enemies {
-		_, drop := items[e.Drop]
-		if !voxelID.MatchString(e.ID) || enemies[e.ID] || !slices.Contains([]string{"melee", "ranged"}, e.Behavior) || e.Count < 1 || e.Count > 24 || !finite(e.Health) || e.Health < 1 || e.Health > 1000 || !finite(e.Damage) || e.Damage < 1 || e.Damage > 100 || !drop {
-			return bad("invalid enemy")
+	for i, e := range v.Enemies {
+		if issue := voxelEnemyIssue(e, enemies, items); issue != "" {
+			return bad(fmt.Sprintf("enemies[%d] %q %s", i, e.ID, issue))
 		}
 		enemies[e.ID] = true
 		total += e.Count
 	}
 	if total > 24 {
-		return bad("at most 24 enemies")
+		return bad(fmt.Sprintf("at most 24 enemies in total (got %d)", total))
 	}
 	// Reject circular progressions (for example stone requiring a stone tool).
 	reachable, crafted, collectible := map[string]bool{}, map[string]bool{}, map[string]bool{}
@@ -258,23 +253,156 @@ func (v *VoxelDefinition) Validate() error {
 	}
 	goals := map[string]bool{}
 	if len(v.Goals) > 8 {
-		return bad("at most 8 goals")
+		return bad(fmt.Sprintf("at most 8 goals (got %d)", len(v.Goals)))
 	}
-	for _, g := range v.Goals {
-		_, hasItem := items[g.Item]
-		if !voxelID.MatchString(g.ID) || goals[g.ID] || g.Count < 1 || g.Count > 10000 || !slices.Contains([]string{"collect", "craft", "place", "defeat"}, g.Kind) || (g.Kind != "defeat" && !hasItem) || (g.Kind == "defeat" && g.Item != "") {
-			return bad("invalid goal")
+	for i, g := range v.Goals {
+		issue := voxelGoalIssue(g, goals, items)
+		if issue == "" {
+			switch {
+			case g.Kind == "craft" && !crafted[g.Item]:
+				issue = fmt.Sprintf("craft %q is unreachable: no recipe producing it can be completed from terrain resources", g.Item)
+			case g.Kind == "collect" && !collectible[g.Item]:
+				issue = fmt.Sprintf("collect %q is unreachable: it is neither a terrain block drop nor an enemy drop", g.Item)
+			case g.Kind == "place" && items[g.Item].Block == 0:
+				issue = fmt.Sprintf("place %q needs an item whose block is a declared block ID", g.Item)
+			case g.Kind == "place" && !reachable[g.Item]:
+				issue = fmt.Sprintf("place %q is unreachable: the player can never obtain it", g.Item)
+			case g.Kind == "defeat" && g.Count > total:
+				issue = fmt.Sprintf("defeat count %d exceeds the %d enemies declared", g.Count, total)
+			}
+		}
+		if issue != "" {
+			return bad(fmt.Sprintf("goals[%d] %q %s", i, g.ID, issue))
 		}
 		goals[g.ID] = true
-		if g.Kind == "craft" && !crafted[g.Item] || g.Kind == "collect" && !collectible[g.Item] || g.Kind == "place" && (!reachable[g.Item] || items[g.Item].Block == 0) || g.Kind == "defeat" && g.Count > total {
-			return bad("goal cannot be reached with the declared world and rules")
-		}
 	}
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil || len(data) > 64*1024 {
 		return bad("formatted definition exceeds 64 KiB")
 	}
 	return nil
+}
+
+var voxelMaterials = []string{"grass", "dirt", "stone", "wood", "leaves", "ore", "sand", "planks", "brick"}
+
+const voxelIDRule = "must be lowercase snake_case (a-z first, then a-z, 0-9 or _, at most 40 characters)"
+
+// The issue helpers name the first invalid field of one element together with
+// its accepted values, so a model can correct it without guessing.
+func voxelBlockIssue(b VoxelBlock, blocks map[int]bool, keys map[string]bool) string {
+	switch {
+	case b.ID < 1 || b.ID > 64:
+		return fmt.Sprintf("id %d must be 1–64", b.ID)
+	case blocks[b.ID]:
+		return fmt.Sprintf("duplicate id %d", b.ID)
+	case !voxelID.MatchString(b.Key):
+		return fmt.Sprintf("key %q %s", b.Key, voxelIDRule)
+	case keys[b.Key]:
+		return fmt.Sprintf("duplicate key %q", b.Key)
+	case len(b.Name) < 1 || len(b.Name) > 80:
+		return "name must contain 1–80 bytes"
+	case !slices.Contains(voxelMaterials, b.Material):
+		return fmt.Sprintf("material %q must be one of %s", b.Material, strings.Join(voxelMaterials, ", "))
+	case !voxelColor.MatchString(b.Color):
+		return fmt.Sprintf("color %q must be #RRGGBB", b.Color)
+	case b.Tier < 0 || b.Tier > 3:
+		return fmt.Sprintf("tier %d must be 0–3", b.Tier)
+	case !finite(b.Hardness) || b.Hardness < 0.1 || b.Hardness > 4:
+		return fmt.Sprintf("hardness %v must be 0.1–4 seconds", b.Hardness)
+	}
+	return ""
+}
+
+func voxelItemIssue(item VoxelItem, items map[string]VoxelItem, blocks map[int]bool) string {
+	_, duplicate := items[item.ID]
+	switch {
+	case duplicate:
+		return "is a duplicate item id"
+	case !voxelID.MatchString(item.ID):
+		return "id " + voxelIDRule
+	case len(item.Name) < 1 || len(item.Name) > 80:
+		return "name must contain 1–80 bytes"
+	case item.Block != 0 && !blocks[item.Block]:
+		return fmt.Sprintf("block %d references no declared block id; use 0 for items that cannot be placed", item.Block)
+	case item.Stack < 1 || item.Stack > 999:
+		return fmt.Sprintf("stack %d must be 1–999", item.Stack)
+	case item.Tier < 0 || item.Tier > 3:
+		return fmt.Sprintf("tier %d must be 0–3", item.Tier)
+	case !finite(item.Damage) || item.Damage < 0 || item.Damage > 100:
+		return fmt.Sprintf("damage %v must be 0–100", item.Damage)
+	}
+	return ""
+}
+
+func voxelRecipeIssue(r VoxelRecipe, recipes map[string]bool, items map[string]VoxelItem) string {
+	output, ok := items[r.Item]
+	switch {
+	case !voxelID.MatchString(r.ID):
+		return "id " + voxelIDRule
+	case recipes[r.ID]:
+		return "is a duplicate recipe id"
+	case !ok:
+		return fmt.Sprintf("item %q is not a declared item", r.Item)
+	case r.Count < 1 || r.Count > output.Stack:
+		return fmt.Sprintf("count %d must be 1–%d (the output item's stack)", r.Count, output.Stack)
+	case len(r.Ingredients) < 1 || len(r.Ingredients) > 8:
+		return fmt.Sprintf("needs 1–8 ingredients (got %d)", len(r.Ingredients))
+	}
+	ids := make([]string, 0, len(r.Ingredients))
+	for id := range r.Ingredients {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	for _, id := range ids {
+		item, ok := items[id]
+		if !ok {
+			return fmt.Sprintf("ingredient %q is not a declared item", id)
+		}
+		if n := r.Ingredients[id]; n < 1 || n > item.Stack*36 {
+			return fmt.Sprintf("ingredient %q amount %d must be 1–%d", id, n, item.Stack*36)
+		}
+	}
+	return ""
+}
+
+func voxelEnemyIssue(e VoxelEnemy, enemies map[string]bool, items map[string]VoxelItem) string {
+	_, drop := items[e.Drop]
+	switch {
+	case !voxelID.MatchString(e.ID):
+		return "id " + voxelIDRule
+	case enemies[e.ID]:
+		return "is a duplicate enemy id"
+	case !slices.Contains([]string{"melee", "ranged"}, e.Behavior):
+		return fmt.Sprintf("behavior %q must be melee or ranged", e.Behavior)
+	case e.Count < 1 || e.Count > 24:
+		return fmt.Sprintf("count %d must be 1–24", e.Count)
+	case !finite(e.Health) || e.Health < 1 || e.Health > 1000:
+		return fmt.Sprintf("health %v must be 1–1000", e.Health)
+	case !finite(e.Damage) || e.Damage < 1 || e.Damage > 100:
+		return fmt.Sprintf("damage %v must be 1–100", e.Damage)
+	case !drop:
+		return fmt.Sprintf("drop %q is not a declared item", e.Drop)
+	}
+	return ""
+}
+
+func voxelGoalIssue(g VoxelGoal, goals map[string]bool, items map[string]VoxelItem) string {
+	_, hasItem := items[g.Item]
+	switch {
+	case !voxelID.MatchString(g.ID):
+		return "id " + voxelIDRule
+	case goals[g.ID]:
+		return "is a duplicate goal id"
+	case g.Count < 1 || g.Count > 10000:
+		return fmt.Sprintf("count %d must be 1–10000", g.Count)
+	case !slices.Contains([]string{"collect", "craft", "place", "defeat"}, g.Kind):
+		return fmt.Sprintf("kind %q must be one of collect, craft, place, defeat", g.Kind)
+	case g.Kind == "defeat" && g.Item != "":
+		return "defeat goals count defeated enemies; omit item"
+	case g.Kind != "defeat" && !hasItem:
+		return fmt.Sprintf("item %q is not a declared item", g.Item)
+	}
+	return ""
 }
 
 func ParseVoxelDefinition(data []byte) (*VoxelDefinition, error) {

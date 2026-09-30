@@ -43,7 +43,8 @@ revision publication and standalone export for Phaser and Three.js games.
   scene/mechanics and unchanged-code requirements on their existing game paths.
 - Version 1 is a finite, single-player FPS sandbox: 96×48×96 by default,
   at most 128×64×128, 16³ chunks, 64 blocks/items/recipes and 24 enemies.
-  Survival/creative is fixed by the definition. Grid mutation owns collision,
+  Survival/creative is fixed by the definition. Definition errors name the
+  element index/ID, the field and its accepted values. Grid mutation owns collision,
   geometry invalidation and saves; inventory/crafting transactions are atomic.
   Hooks use the public API and dispose their scene additions on reload/disposal.
 - Voxel prepared profiles keep three planning/four editing tools and fixed
