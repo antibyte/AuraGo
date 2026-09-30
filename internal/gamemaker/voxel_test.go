@@ -334,8 +334,12 @@ func TestVoxelDefinitionErrorsNameElementFieldAndAllowedValues(t *testing.T) {
 		{"recipe ingredient", func(v *VoxelDefinition) { v.Recipes[0].Ingredients = map[string]int{"unobtainium": 1} }, []string{"recipes[0]", `ingredient "unobtainium"`}},
 		{"recipe output", func(v *VoxelDefinition) { v.Recipes[1].Item = "sword" }, []string{"recipes[1]", `item "sword"`}},
 		{"enemy behavior", func(v *VoxelDefinition) { v.Enemies[0].Behavior = "flying" }, []string{"enemies[0]", `behavior "flying"`, "melee", "ranged"}},
-		{"goal kind", func(v *VoxelDefinition) { v.Goals = []VoxelGoal{{ID: "castle", Kind: "build", Item: "brick", Count: 10}} }, []string{"goals[0]", `kind "build"`, "collect, craft, place, defeat"}},
-		{"goal item", func(v *VoxelDefinition) { v.Goals = []VoxelGoal{{ID: "castle", Kind: "place", Item: "tower", Count: 10}} }, []string{"goals[0]", `item "tower"`}},
+		{"goal kind", func(v *VoxelDefinition) {
+			v.Goals = []VoxelGoal{{ID: "castle", Kind: "build", Item: "brick", Count: 10}}
+		}, []string{"goals[0]", `kind "build"`, "collect, craft, place, defeat"}},
+		{"goal item", func(v *VoxelDefinition) {
+			v.Goals = []VoxelGoal{{ID: "castle", Kind: "place", Item: "tower", Count: 10}}
+		}, []string{"goals[0]", `item "tower"`}},
 		{"defeat goal item", func(v *VoxelDefinition) { v.Goals = []VoxelGoal{{ID: "hunt", Kind: "defeat", Item: "wood", Count: 2}} }, []string{"goals[0]", "defeat", "omit item"}},
 		{"unreachable defeat", func(v *VoxelDefinition) { v.Goals = []VoxelGoal{{ID: "hunt", Kind: "defeat", Count: 99}} }, []string{"goals[0]", "99", "6 enemies"}},
 	}

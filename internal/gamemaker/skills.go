@@ -123,21 +123,66 @@ func CuratedSkillNames() []string {
 }
 
 // Keep the same concise quality contract in planning and implementation context.
-const gameplayExperienceGuidance = `Specify feedback, recovery/result, world/camera and progression to match the request. Hits need feedback; death needs recovery/defeat; endings need restart/continue when the game includes them. Vary areas or challenges when requested; boards and peaceful worlds are valid. Show instructions once before Start; freeze play until then. Keep only compact status during play. No desktop movement/action buttons; touch uses a left stick and relevant right actions. Put help/restart in pause/results. Preserve helpers; startup proves no quality.`
+const gameplayExperienceGuidance = `## Player experience
+- Specify feedback, recovery or results, world/camera and progression to match the request. Hits need feedback; death needs recovery or defeat; endings need restart/continue when the game has them.
+- Vary areas or challenges when requested; single boards and peaceful worlds are valid.
+- Show instructions once before Start and freeze play until then. Keep only compact status during play; help and restart live in pause/results.
+- No desktop movement/action buttons; touch uses a left stick and the relevant right actions.
+- Keep the installed helpers; passing startup proves no gameplay quality.`
 
 // PhaseGuidance uses only the embedded, reviewed source, never a project file or
 // a locally replaced skill. Startup still verifies the curated skill registry.
+// Workflow steps live in the prepared profile; this text carries phase rules.
 func PhaseGuidance(stage, dimension string) string {
 	if stage == "planning" {
-		return gameplayExperienceGuidance + ` Choose a supported game base and describe the player objective and 1–12 features with set_design. Optional helper fields belong inside design.mechanics, for example "mechanics":{"outcomes":["won","lost"],"lives":3}; blocks and events also belong there. Omit these helpers for continuous play or implement custom rules in source. Leave scenarios empty when base checks cover the rules. For custom rules, use bounded target steps with exact runtime roles/IDs and observable metrics; these replace only the starter behavior they prove. A shooting check measures actions; hits require target aim at a real enemy and projectile travel time, not blind SPACE presses. Supply exact asset role/pack/asset IDs from search_assets where customization is needed. Guided 3D bases provide catalog-checked default models when assets is empty. Only fps/exploration/transport/flight/space accept settings (goal/speed/duration). For three and all 2D bases omit settings; omitting it or sending settings:null clears incompatible draft settings after an error. Keep the requested base and describe custom tuning in features/source or supported mechanics.blocks[].params. Resolve user-selected models into the appropriate roles. The server fills version, geometry, controls and validation defaults. On failure resubmit only the incorrect design fields (arrays replace whole); at most two corrections. For edits read the existing plan and affected source, keep the existing base and working behavior. Never write/import in planning. Accepted designs end this phase.`
+		rules := gameplayExperienceGuidance + `
+
+## Design rules
+- Describe the player objective and 1–12 concrete features with set_design on a supported base.
+- Optional helpers belong inside design.mechanics, for example "mechanics":{"outcomes":["won","lost"],"lives":3}; blocks and events belong there too. Omit them for continuous play or implement custom rules in source.
+- Leave scenarios empty when base_checks already cover the rules. Custom rules use bounded target steps with exact runtime roles/IDs and observable metrics; they replace only the starter behavior they prove.
+- A shooting check measures actions; hits need target aim at a real enemy and projectile travel time, not blind SPACE presses.
+- The server fills version, geometry, controls and validation defaults.`
+		if dimension == "2d" {
+			return rules + `
+- Supply exact asset role/pack/asset IDs from search_assets only where the request needs specific artwork.
+- 2D bases take no settings: omit them and describe tuning in features, source or mechanics.blocks[].params.`
+		}
+		return rules + `
+- Guided 3D bases bring catalog-checked default models when assets is empty; resolve user-selected models into the matching roles.
+- Only fps/exploration/transport/flight/space accept settings (goal/speed/duration). For three omit settings; omitting them or sending settings:null clears incompatible draft settings after an error.
+- three is free Three.js code without a helper: startup checks only (gameplay stays unverified) and planned effects/sounds need manual wiring. Prefer a guided base unless the request needs a custom engine.`
 	}
-	common := gameplayExperienceGuidance + ` Implement the accepted design in src/main.ts. Keep common.ts lifecycle and asset bindings. Read relevant lines; replace with returned sha256. Check written and build.ok, fix source diagnostics, then validate once. Preserve working behavior in repairs. One game clock; clear input on blur, reset on restart, dispose on pagehide. Local runtime only; no remote imports/eval/services.`
+	rules := gameplayExperienceGuidance + `
+
+## Source rules
+- Implement the accepted design in src/main.ts; keep the common.ts lifecycle and asset bindings.
+- One game clock; clear input on blur, reset on restart, dispose on pagehide. Local runtime only: no remote imports, eval or services.`
 	if dimension == "2d" {
-		common += ` Phaser 4: use GameScene setup/step(dt)/action/tick/paintHUD; inherit update/create. Reset cooldowns/timers in setup(): scene.restart() reuses the instance; elapsed resets but class initializers do not. Assign this.player; preserve jump in action and call super.step(dt) when extending movement. Spawn the whole collider above ground. A stomp proves target damage/removal, not game outcome. body(x,y,w,h,color,fixed,role) fits/follows/animates art; its collider stays w/h. Match the art footprint. Never add another sprite to it; manual art requires an empty role and no super.setup creating another player. Use exact target roles via body(..., role) or object.__gmRole: player/enemy/projectile/item/obstacle/goal or custom roles. Use real GameObjects in collider/overlap and fixed=false for movers. Neither Arcade body type has setPosition: use object.setPosition plus body.reset(x,y), or updateFromGameObject for static proxies. Register persistent groups/overlaps once; never load a sheet as one image. configureLevels([{id,title},...])/levelIndex select layouts in setup; configureWorld(width,height) follows the created player. setCheckpoint(x,y), damagePlayer() consume a life on real harmful contact with protected respawn; builder health rules remain their own authority. feedback(name,object,material) supplies contact feedback; end(won) shows result/Continue, restartGame() resets campaign. Scene JSON levels also work. Use scope=full. If validation reports no_target, bind its exact ID/role to a real object via body(..., role) or __gmRole; never fake evidence.`
-	} else {
-		common += ` Guided 3D: startGame(config) in main.ts uses common.ts lifecycle; keep renderer, asset bindings and FPS arms/weapon group. New config.levels:[{id,title,objects,goal,...},...] or scene.json levels provide distinct stages; config.worldBounds:{min:[x,y,z],max:[x,y,z]} controls authored world bounds. config.lives, api.levelIndex, api.setCheckpoint([x,y,z]), api.damagePlayer(amount), api.event(name,point), api.win()/lose() provide recovery/feedback/result/Continue. Builder health rules own scene-driven damage; feedback never manufactures damage. Implement custom mechanics in hooks/source. Keep fire() and observeTargets() on the same aimRay(caster), including read-only aim_ray origin/direction (observer x/y=ground, z=altitude). Tests use normal inputs; never invent hits/verdicts. Use scope=full for guided bases; free three has startup checks only, gameplay stays unverified. If validation reports no_target, add the exact target ID/role to a real config.objects entry or authored scene node and bind checks to it; never invent observations or metrics.`
+		return rules + `
+
+## Phaser 4 rules
+- Use the GameScene hooks setup/step(dt)/action/tick/paintHUD; inherit create/update.
+- Reset cooldowns and timers in setup(): scene.restart() reuses the instance; elapsed resets but class initializers do not.
+- Assign this.player; preserve jump in action and call super.step(dt) when extending movement. Spawn the whole collider above ground. A stomp proves target damage/removal, not the game outcome.
+- body(x,y,w,h,color,fixed,role) fits, follows and animates art; its collider stays w×h, so match the art footprint. Never add another sprite to it; manual art needs an empty role and no super.setup creating another player.
+- Mark targets with exact roles via body(..., role) or object.__gmRole (player, enemy, projectile, item, obstacle, goal or custom).
+- Use real GameObjects in collider/overlap and fixed=false for movers. Neither Arcade body type has setPosition: use object.setPosition plus body.reset(x,y), or updateFromGameObject for static proxies.
+- Register persistent groups and overlaps once; never load a sheet as one image.
+- Stages: configureLevels([{id,title},...]) plus layouts chosen by this.levelIndex in setup; configureWorld(width,height) follows the created player.
+- setCheckpoint(x,y) and damagePlayer() consume a life on real harmful contact with protected respawn; builder health rules remain their own authority. feedback(name,object,material) supplies contact feedback; end(won) shows result/Continue; restartGame() resets the campaign.
+- If validation reports no_target, bind its exact ID/role to a real object via body(..., role) or __gmRole; never fake evidence.`
 	}
-	return common
+	return rules + `
+
+## Three.js rules
+- Guided 3D: startGame(config) in main.ts uses the common.ts lifecycle; keep the renderer, asset bindings and the FPS arms/weapon group.
+- Stages: config.levels:[{id,title,objects,goal,...},...] or scene.json levels with distinct layouts; config.worldBounds:{min:[x,y,z],max:[x,y,z]} bounds the world.
+- config.lives, api.levelIndex, api.setCheckpoint([x,y,z]), api.damagePlayer(amount), api.event(name,point) and api.win()/lose() provide recovery, feedback, results and Continue.
+- Builder health rules own scene-driven damage; feedback never manufactures damage. Implement custom mechanics in hooks or source.
+- Keep fire() and observeTargets() on the same aimRay(caster), including the read-only aim_ray origin/direction (observer x/y = ground, z = altitude).
+- Tests use normal inputs; never invent hits or verdicts. Guided bases validate with scope=full; free three has startup checks only and gameplay stays unverified.
+- If validation reports no_target, add the exact target ID/role to a real config.objects entry or authored scene node and bind checks to it; never invent observations or metrics.`
 }
 
 func equalSHA256(left, right []byte) bool {

@@ -192,9 +192,13 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 				system.WriteString(message.Content)
 			}
 		}
+		// The atlas contract governs writing source; planning cannot write it.
 		for _, required := range []string{"schema_version:2 atlases", "variable frames", "setFacing", "exact imported manifest path", "playAction(art, 'idle')", "GameScene.step(deltaSeconds) already receives seconds", "never divide by 1000 again"} {
-			if !strings.Contains(system.String(), required) {
+			if stage != "planning" && !strings.Contains(system.String(), required) {
 				t.Errorf("%s lost the atlas contract: %s", stage, required)
+			}
+			if stage == "planning" && strings.Contains(system.String(), required) {
+				t.Errorf("planning carries the source-writing atlas contract: %s", required)
 			}
 		}
 		for _, obsolete := range []string{"preloadPack loads exact 64x64 frames", "Never load a built-in sheet as one image or use atlas JSON"} {
@@ -678,5 +682,56 @@ func TestGameMakerBuildingContextCarriesEntrySource(t *testing.T) {
 	}
 	if len(context.Sources) != 1 || context.Sources[0].Path != "src/main.ts" || context.Sources[0].SHA256 != entry.SHA256 || context.Sources[0].Content != entry.Content || !strings.Contains(entry.Content, "extends GameScene") {
 		t.Fatalf("building context lacks the exact entry source: %+v", context.Sources)
+	}
+}
+
+// Each prompt carries only its own phase and engine: planning cannot edit, 2D
+// never sees Three.js integration, 3D never sees Phaser. Guidance is structured
+// into short lines instead of multi-thousand-character paragraphs.
+func TestGameMakerPromptsArePhaseAndDimensionPure(t *testing.T) {
+	type profileCase struct{ stage, dimension, variant string }
+	for _, c := range []profileCase{{"planning", "2d", ""}, {"building", "2d", ""}, {"planning", "3d", ""}, {"building", "3d", ""}, {"planning", "3d", "voxel"}, {"building", "3d", "voxel"}} {
+		var variant []string
+		if c.variant != "" {
+			variant = []string{c.variant}
+		}
+		profile, err := gameMakerPromptProfile(c.stage, c.dimension, variant...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		system := profile.SystemPrompt()
+		name := c.stage + "/" + c.dimension + "/" + c.variant
+		require := []string{"## Ground rules"}
+		forbid := []string{}
+		if c.stage == "planning" {
+			require = append(require, "## Planning workflow")
+			forbid = append(forbid, `operation="replace"`, "build.ok", "expected_sha256", "scope=full", "Sprite contract", "A.loadAsset", "## Building and repair workflow")
+		} else {
+			require = append(require, "## Building and repair workflow", "current_sources")
+			forbid = append(forbid, "set_design", "In set_design add", "Complete combinations", "## Planning workflow")
+		}
+		if c.variant == "" && c.stage != "planning" {
+			require = append(require, "api_reference")
+		}
+		if c.dimension == "2d" {
+			forbid = append(forbid, "createThreeAdapter", "registerSurface(roof", "A.loadAsset", "startGame(config)")
+		} else {
+			forbid = append(forbid, "createPhaserAdapter", "GameScene", "Phaser")
+		}
+		for _, want := range require {
+			if !strings.Contains(system, want) {
+				t.Errorf("%s lacks %q", name, want)
+			}
+		}
+		for _, unwanted := range forbid {
+			if strings.Contains(system, unwanted) {
+				t.Errorf("%s contains %q from another phase or engine", name, unwanted)
+			}
+		}
+		for i, line := range strings.Split(system, "\n") {
+			if len(line) > 600 {
+				t.Errorf("%s line %d has %d characters: %.80s...", name, i+1, len(line), line)
+			}
+		}
 	}
 }

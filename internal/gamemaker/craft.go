@@ -7,7 +7,8 @@ package gamemaker
 
 // DesignCraftGuide steers planning toward a distinct experience without
 // imposing combat, progression or an ending on requests that do not ask for them.
-const DesignCraftGuide = `Game design brief: plan for fun, not only validity. Decide and write concretely before set_design:
+const DesignCraftGuide = `## Game design brief
+Plan for fun, not only validity. Decide and write concretely before set_design:
 - Hook: one distinctive idea that shapes play (for example "the lantern reveals paths but drains while lit"), not a genre label.
 - Stages: when the request calls for advancing levels or areas, list 2–4 entries in design.stages; each names its layout and one new mechanic, route, hazard or enemy behavior. Raise difficulty only for challenge games. Waves or escalation inside one arena belong in features. A single-board game or open world may omit stages.
 - Challenge: when the request asks for danger, combat or a scored challenge, describe concrete obstacles and how they behave; use at least two distinct behaviors when the game supports them (for example patrol plus timed hazard). Static decoration is not a challenge. Do not add enemies or hazards to a peaceful request.
@@ -17,7 +18,7 @@ const DesignCraftGuide = `Game design brief: plan for fun, not only validity. De
 Write requested features as concrete sentences ("Stage 2 ridge: moving platforms and a charging boar"), never adjectives such as fun or exciting. Declare only what you will build: every feature and stage becomes an obligation that validation and repair hold you to. The user's explicit wishes override these defaults.`
 
 // BuildCraftGuide keeps building and repair accountable to the accepted design.
-const BuildCraftGuide = `Delivering the design:
+const BuildCraftGuide = `## Delivering the design
 - Implement every accepted feature and every stage; a feature that exists only in the plan is a defect. Before the final validation reread the accepted plan and add what is missing.
 - Stages: if the accepted design has stages, each needs its own layout and new challenge (2D configureLevels plus layouts chosen by this.levelIndex in setup, or scene levels with level_id nodes; 3D config.levels with different objects). Validation counts distinct stages; cloned or renamed layouts do not count.
 - Layouts: place objects deliberately (routes, cover, sightlines, safe spots, secrets), not in straight lines or regular grids; vary spacing and heights.

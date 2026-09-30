@@ -75,6 +75,13 @@ revision publication and standalone export for Phaser and Three.js games.
   valid; do not require combat, lives, timers or linear levels for every idea.
 - Phase guidance stays within 2500 characters and uses existing design fields.
   Keep its prefix deterministic; put detailed examples in curated skills.
+- Prepared prompts are phase- and engine-pure and structured: ground rules, a
+  numbered phase workflow, then `## ` sections of short bullets (no line over 600
+  characters). Planning never carries edit mechanics or source-writing contracts
+  (sprite contract, model API, presentation wiring); 2D never carries Three.js
+  integration and 3D never Phaser. Choosing presentation IDs belongs to
+  `PresentationPlanningGuide`; wiring belongs to `PresentationGuide2D/3D`.
+  Voxel planning uses `VoxelPlanningGuide`, editing `VoxelRuntimeGuide`.
 - Feedback never changes gameplay counters, health or outcomes. Real contacts and
   game rules own those changes. Missing observations remain unverified.
 - Non-scene Three.js helpers count real item/cargo/flight-goal collections in
