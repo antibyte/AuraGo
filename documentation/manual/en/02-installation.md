@@ -295,6 +295,19 @@ docker compose up -d
 
 > 💡 `resources.dat` does NOT need to be re-extracted – your config is preserved.
 
+### Installer and updater display
+
+`install.sh` and `update.sh` draw a colour logo, step counters, cards and spinners when they run in a terminal. Anywhere else (a pipe, a log file, the in-app updater writing `log/update.log`) they print plain timestamped lines without escape codes. Override the detection with environment variables:
+
+| Variable | Effect |
+|----------|--------|
+| `AURAGO_UI=plain` | Force plain lines, even in a terminal |
+| `AURAGO_UI=full` | Force the full look, even when piped |
+| `AURAGO_NO_ANIM=1` | Keep colours and layout, skip every animation (also implied by `CI`) |
+| `NO_COLOR=1` | No colours |
+
+The look degrades on its own: truecolor → 256 colours → 8 colours, and UTF-8 box drawing → ASCII. The shared code lives in `scripts/aurago-tui.sh` and is embedded verbatim in both scripts by `scripts/sync-tui-kit.sh`; an audit test keeps the copies identical. Preview it with `bash scripts/aurago-tui.sh`.
+
 ## Uninstallation
 
 **Linux:**
