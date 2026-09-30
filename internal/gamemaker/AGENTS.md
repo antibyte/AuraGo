@@ -202,8 +202,11 @@ revision publication and standalone export for Phaser and Three.js games.
   newer bundled helpers to those projects. Known descriptor versions attach
   `api_reference` from `runtime_reference.go`; tests bind every documented member
   to the template declaring that version and the 2D key list to `createInputs`.
-  A new helper version needs its own reference entry. Reads and searches under
-  `vendor/` answer with a hint to that reference instead of minified internals. New three-2 helpers use the same ray
+  A new helper version needs its own reference entry; re-exporting templates
+  (voxel-1) bind members to the runtime named by `Source`. In Studio-bound runs,
+  reads and searches of `vendor/*.js` return `vendor_not_readable` with a hint to
+  that reference instead of minified internals; unbound callers keep the content
+  plus the hint. New three-2 helpers use the same ray
   blockers for shots and observations; enemy attacks respect cover, cooldown and
   the engine clock. Scene-builder damage remains separately owned.
 - Browser reports forward at most five finite dist/game.js frame locations.

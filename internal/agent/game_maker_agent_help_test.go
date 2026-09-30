@@ -138,34 +138,39 @@ func TestGameMakerVendorAccessPointsToAPIReference(t *testing.T) {
 		t.Fatal(err)
 	}
 	outputs := map[string]string{}
+	done := make(chan struct{})
 	s.SetRunner(gameMakerPlanTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
 		if run.Stage == "planning" {
 			return s.SetPlan(ctx, run.Job.ID, gamemaker.ExampleGamePlan(project))
 		}
+		defer close(done)
 		bound := gamemaker.WithJobContext(ctx, run.Job.ID)
 		outputs["read"], _ = dispatchGameMaker(bound, ToolCall{Action: "game_maker_file", Params: map[string]any{"operation": "read", "path": "vendor/aurago-effects-2d-1.js", "start_line": float64(1), "end_line": float64(2)}}, nil)
-		outputs["search"], _ = dispatchGameMaker(bound, ToolCall{Action: "game_maker_file", Params: map[string]any{"operation": "search", "path": "vendor/aurago-effects-2d-1.js", "query": "createPresentation"}}, nil)
+		outputs["search"], _ = dispatchGameMaker(bound, ToolCall{Action: "game_maker_file", Params: map[string]any{"operation": "search", "path": "./vendor/aurago-effects-2d-1.js", "query": "createPresentation"}}, nil)
 		outputs["source"], _ = dispatchGameMaker(bound, ToolCall{Action: "game_maker_file", Params: map[string]any{"operation": "search", "path": "src/main.ts", "query": "GameScene"}}, nil)
+		// Unbound callers (the general agent) keep answered vendor reads.
+		outputs["unbound"], _ = dispatchGameMaker(ctx, ToolCall{Action: "game_maker_file", Params: map[string]any{"job_id": run.Job.ID, "operation": "read", "path": "vendor/aurago-effects-2d-1.js", "start_line": float64(1), "end_line": float64(2)}}, nil)
 		return errors.New("fixture complete")
 	}))
-	job, err := s.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{})
-	if err != nil {
+	if _, err := s.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{}); err != nil {
 		t.Fatal(err)
 	}
-	for deadline := time.Now().Add(20 * time.Second); len(outputs) < 3; {
-		if time.Now().After(deadline) {
-			t.Fatal("fixture job did not finish")
-		}
-		time.Sleep(5 * time.Millisecond)
+	select {
+	case <-done:
+	case <-time.After(20 * time.Second):
+		t.Fatal("fixture job did not finish")
 	}
-	_ = job
+	// Studio runs never receive minified internals: the answer is the hint.
 	for _, name := range []string{"read", "search"} {
-		if !strings.Contains(outputs[name], "api_reference") || !strings.Contains(outputs[name], "minified") {
-			t.Errorf("%s under vendor/ lacks the reference hint: %.300s", name, outputs[name])
+		if !strings.Contains(outputs[name], "api_reference") || !strings.Contains(outputs[name], "minified") || strings.Contains(outputs[name], `"content"`) || strings.Contains(outputs[name], `"matches"`) {
+			t.Errorf("%s under vendor/ was not answered with the reference hint only: %.300s", name, outputs[name])
 		}
 	}
 	if strings.Contains(outputs["source"], "minified") {
 		t.Errorf("project source search got the vendor hint: %.300s", outputs["source"])
+	}
+	if !strings.Contains(outputs["unbound"], `"content"`) || !strings.Contains(outputs["unbound"], "minified") {
+		t.Errorf("unbound vendor read lost its content or hint: %.300s", outputs["unbound"])
 	}
 }
 

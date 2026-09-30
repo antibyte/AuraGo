@@ -10,9 +10,10 @@ import (
 )
 
 // A reference must describe the helper version it is attached to: the
-// template's descriptor selects it, and every documented member must exist.
+// template's descriptor selects it, and every documented member must exist in
+// the template or, for re-exporting templates, in the runtime it names.
 func TestRuntimeReferencesMatchInstalledTemplates(t *testing.T) {
-	for _, template := range []string{"templates/common.ts", "templates/three-common.ts"} {
+	for _, template := range []string{"templates/common.ts", "templates/three-common.ts", "templates/voxel-common.ts"} {
 		data, err := gameTemplates.ReadFile(template)
 		if err != nil {
 			t.Fatal(err)
@@ -21,7 +22,8 @@ func TestRuntimeReferencesMatchInstalledTemplates(t *testing.T) {
 		var descriptor struct {
 			Version string `json:"version"`
 		}
-		for _, line := range strings.Split(source, "\n")[:8] {
+		lines := strings.Split(source, "\n")
+		for _, line := range lines[:min(8, len(lines))] {
 			if strings.HasPrefix(line, runtimeContractPrefix) {
 				_ = json.Unmarshal([]byte(strings.TrimPrefix(line, runtimeContractPrefix)), &descriptor)
 			}
@@ -30,11 +32,19 @@ func TestRuntimeReferencesMatchInstalledTemplates(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s version %q has no API reference", template, descriptor.Version)
 		}
+		definitions := source
+		if reference.Source != "" {
+			runtime, err := runtimeFS.ReadFile(reference.Source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			definitions = string(runtime)
+		}
 		for _, member := range reference.Members {
 			if !strings.Contains(reference.Text, member) {
 				t.Errorf("%s reference omits its declared member %q", descriptor.Version, member)
 			}
-			if !regexp.MustCompile(`\b` + regexp.QuoteMeta(member) + `\s*[(:=]`).MatchString(source) {
+			if !regexp.MustCompile(`\b` + regexp.QuoteMeta(member) + `\s*(\?\.)?\s*[(:=]`).MatchString(definitions) {
 				t.Errorf("%s documents %q, which %s does not define", descriptor.Version, member, template)
 			}
 		}

@@ -519,6 +519,13 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			}
 		}
 		path := firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "path"), toolArgString(tc.Params, "file_path"))
+		// Studio runs ignored the hint and pulled ~100 KB of minified runtime
+		// into context; they get the documented API instead of the internals.
+		if boundJobID != "" && (operation == "read" || operation == "search") {
+			if hint := gameMakerVendorHint(path); hint != "" {
+				return gameMakerToolJSON(map[string]any{"status": "error", "code": "vendor_not_readable", "message": "vendor/*.js is not readable in Studio runs. " + hint}), true
+			}
+		}
 		if operation == "search" {
 			query := firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query"))
 			if strings.TrimSpace(path) == "" {
