@@ -90,7 +90,7 @@ func BuildMemoryCurationPlan(metas []MemoryMeta, usage MemoryUsageStats, opts Me
 	plan := MemoryCurationPlan{GeneratedAt: now.Format(time.RFC3339)}
 	for _, meta := range metas {
 		status := normalizeMemoryVerificationStatus(meta.VerificationStatus)
-		if status == MemoryVerificationArchived {
+		if IsMemoryArchived(meta) {
 			continue
 		}
 		actionBase := memoryCurationActionBase(meta, now)
@@ -141,7 +141,7 @@ func BuildMemoryCurationPlan(metas []MemoryMeta, usage MemoryUsageStats, opts Me
 }
 
 func IsMemoryArchived(meta MemoryMeta) bool {
-	return normalizeMemoryVerificationStatus(meta.VerificationStatus) == MemoryVerificationArchived
+	return normalizeMemoryVerificationStatus(meta.VerificationStatus) == MemoryVerificationArchived || strings.TrimSpace(meta.ArchivedAt) != ""
 }
 
 func normalizeMemoryVerificationStatus(status string) string {

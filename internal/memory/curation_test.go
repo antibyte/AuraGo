@@ -5,6 +5,32 @@ import (
 	"time"
 )
 
+func TestArchiveTimestampPreventsAutomaticReactivation(t *testing.T) {
+	meta := MemoryMeta{DocID: "retired", VerificationStatus: "unverified", ArchivedAt: "2026-01-01 00:00:00", ExtractionConfidence: .99, SourceReliability: .99, AccessCount: 10}
+	if !IsMemoryArchived(meta) {
+		t.Fatal("archive timestamp was ignored")
+	}
+	plan := BuildMemoryCurationPlan([]MemoryMeta{meta}, MemoryUsageStats{TopReused: []MemoryUsageAggregate{{MemoryID: meta.DocID, Count: 10, WasCitedRecently: true}}}, MemoryCurationOptions{})
+	if len(plan.AutoConfirm) != 0 || len(plan.AutoArchive) != 0 {
+		t.Fatalf("archived memory curated: %+v", plan)
+	}
+	stm, cleanup := newTestSQLiteMemory(t)
+	defer cleanup()
+	if err := stm.UpsertMemoryMeta(meta.DocID); err != nil {
+		t.Fatal(err)
+	}
+	if err := stm.ApplyMemoryCurationAction(MemoryCurationAction{DocID: meta.DocID, Action: MemoryCurationActionArchive}, "user", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := stm.ApplyMemoryCurationAction(MemoryCurationAction{DocID: meta.DocID, Action: MemoryCurationActionConfirm}, "user", false); err != nil {
+		t.Fatal(err)
+	}
+	current, err := stm.GetMemoryMeta(meta.DocID)
+	if err != nil || IsMemoryArchived(current) || current.VerificationStatus != MemoryVerificationConfirmed {
+		t.Fatalf("explicit reactivation failed: %+v %v", current, err)
+	}
+}
+
 func TestBuildMemoryCurationPlanAutoConfirmsSafeUnverifiedMemory(t *testing.T) {
 	now := time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC)
 	usage := MemoryUsageStats{

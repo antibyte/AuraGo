@@ -50,7 +50,7 @@ func (cv *ChromemVectorDB) StoreDocumentOwned(concept, content string, mode Vect
 	defer mu.Unlock()
 
 	if mode == VectorStoreDeduplicate {
-		if docID, sim := cv.searchTopSimilarMemory(concept); sim > 0.95 && docID != "" {
+		if docID := cv.findIdenticalMemory(concept, content, ""); docID != "" {
 			result.ReusedIDs = []string{docID}
 			return result, nil
 		}
@@ -68,6 +68,36 @@ func (cv *ChromemVectorDB) StoreDocumentOwned(concept, content string, mode Vect
 		return result, fmt.Errorf("vector store created no document IDs")
 	}
 	return result, nil
+}
+
+// findIdenticalMemory uses similarity only to nominate a candidate. A topic
+// match must never discard a changed fact or knowledge from another domain.
+func (cv *ChromemVectorDB) findIdenticalMemory(concept, content, domain string) string {
+	expected := buildContentString(normalizeMemoryDocumentPart(concept), normalizeMemoryDocumentPart(content))
+	// ponytail: chunks are not complete documents; store them again until a
+	// measured duplication problem justifies whole-document fingerprints.
+	if len(buildContentString(concept, content)) > 4000 {
+		return ""
+	}
+	id, similarity := cv.searchTopSimilarMemory(normalizeMemoryDocumentPart(concept))
+	if id == "" || similarity <= 0.95 {
+		return ""
+	}
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	doc, err := cv.collection.GetByID(ctx, id)
+	if err != nil || doc.Metadata["chunk_index"] != "" ||
+		normalizeMemoryDocumentPart(doc.Metadata["domain"]) != normalizeMemoryDocumentPart(domain) ||
+		normalizeMemoryDocumentPart(doc.Content) != expected {
+		return ""
+	}
+	return id
+}
+
+func normalizeMemoryDocumentPart(text string) string {
+	return strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n"))
 }
 
 // DeleteDocumentIfContentMatches removes a memory document only if the

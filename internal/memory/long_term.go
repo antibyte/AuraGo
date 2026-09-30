@@ -632,6 +632,7 @@ func (cv *ChromemVectorDB) StoreDocument(concept, content string) ([]string, err
 
 // getConceptMutex returns the Mutex for a given concept based on its hash value.
 func (cv *ChromemVectorDB) getConceptMutex(concept string) *sync.Mutex {
+	concept = normalizeMemoryDocumentPart(concept)
 	var hash uint32 = 5381
 	for i := 0; i < len(concept); i++ {
 		hash = ((hash << 5) + hash) + uint32(concept[i])
@@ -642,7 +643,7 @@ func (cv *ChromemVectorDB) getConceptMutex(concept string) *sync.Mutex {
 
 // StoreDocumentWithDomain stores a concept/content pair with an optional domain tag
 // for cross-domain learning (Phase C). The domain helps categorize knowledge.
-// Deduplication: skips storage if a very similar document already exists (similarity > 0.95).
+// Deduplication requires an identical complete document and domain.
 func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain string) ([]string, error) {
 	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
 	if err != nil {
@@ -658,15 +659,10 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	// calls for the same concept cannot both pass the similarity gate.
 	mu := cv.getConceptMutex(concept)
 	mu.Lock()
-	if docID, sim := cv.searchTopSimilarMemory(concept); sim > 0.95 {
-		if docID != "" {
-			mu.Unlock()
-			cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim, "doc_id", docID)
-			return []string{docID}, nil
-		}
-		cv.logger.Warn("Duplicate search returned high similarity without doc ID; storing new document", "concept", concept, "similarity", sim)
-	}
 	defer mu.Unlock()
+	if docID := cv.findIdenticalMemory(concept, content, domain); docID != "" {
+		return []string{docID}, nil
+	}
 	return cv.storeDocumentLocked(concept, content, domain)
 }
 
@@ -1225,14 +1221,8 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 
 					var ids []string
 					var err error
-					if docID, sim := cv.searchTopSimilarMemory(item.Concept); sim > 0.95 {
-						if docID != "" {
-							cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim, "doc_id", docID)
-							ids = []string{docID}
-						} else {
-							cv.logger.Warn("StoreBatch: duplicate search returned high similarity without doc ID; storing new document", "concept", item.Concept, "similarity", sim)
-							ids, err = cv.storeDocumentLocked(item.Concept, item.Content, item.Domain)
-						}
+					if docID := cv.findIdenticalMemory(item.Concept, item.Content, item.Domain); docID != "" {
+						ids = []string{docID}
 					} else {
 						ids, err = cv.storeDocumentLocked(item.Concept, item.Content, item.Domain)
 					}

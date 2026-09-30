@@ -255,20 +255,12 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 			if ltm != nil {
 				concept := fmt.Sprintf("[%s] %s", f.Category, f.Content)
 				content := "source:memory_analysis session:" + sessionID
-				if ids, err := ltm.StoreDocument(concept, content); err != nil {
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, memory.MemoryMetaUpdate{
+					ExtractionConfidence: f.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.85,
+				}); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					if stm != nil {
-						for _, id := range ids {
-							_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-								ExtractionConfidence: f.Confidence,
-								VerificationStatus:   "unverified",
-								SourceType:           "memory_analysis",
-								SourceReliability:    0.85,
-							})
-						}
-					}
 					detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
 					stored++
 					if stm != nil && strings.EqualFold(f.Category, "recent_operational_details") {
@@ -299,20 +291,12 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 			if ltm != nil {
 				concept := fmt.Sprintf("[preference:%s] %s", p.Category, p.Content)
 				content := "source:memory_analysis session:" + sessionID
-				if ids, err := ltm.StoreDocument(concept, content); err != nil {
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, memory.MemoryMetaUpdate{
+					ExtractionConfidence: p.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.85,
+				}); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					if stm != nil {
-						for _, id := range ids {
-							_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-								ExtractionConfidence: p.Confidence,
-								VerificationStatus:   "unverified",
-								SourceType:           "memory_analysis",
-								SourceReliability:    0.85,
-							})
-						}
-					}
 					detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
 					stored++
 				}
@@ -327,21 +311,13 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 			if ltm != nil {
 				concept := fmt.Sprintf("[correction:%s] %s", c.Category, c.Content)
 				content := "source:memory_analysis session:" + sessionID
-				if ids, err := ltm.StoreDocument(concept, content); err != nil {
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, memory.MemoryMetaUpdate{
+					ExtractionConfidence: c.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.90,
+				}); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					if stm != nil {
-						for _, id := range ids {
-							_ = stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-								ExtractionConfidence: c.Confidence,
-								VerificationStatus:   "unverified",
-								SourceType:           "memory_analysis",
-								SourceReliability:    0.90,
-							})
-							detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
-						}
-					}
+					detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
 					stored++
 				}
 			}
