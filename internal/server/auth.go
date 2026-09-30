@@ -698,6 +698,7 @@ var authBypassPrefixes = []string{
 	"/api/cyd/ws",                      // CYD WebSocket — Bearer scope cyd
 	"/api/cyd/speak/",                  // CYD sanoTTS PCM — Bearer scope cyd
 	"/api/cyd/persona",                 // CYD persona portrait — Bearer scope cyd
+	"/webhook/",                        // webhook receiver — per-webhook bound token or HMAC signature
 	"/setup",
 	"/css/",
 	"/fonts/",
@@ -743,6 +744,18 @@ func isAuthBypassed(path string) bool {
 		}
 	}
 	return isPublicUIAssetPath(path)
+}
+
+// registerTelnyxWebhookPath records the exact path the Telnyx handler was
+// mounted on at startup. The bypass follows the mounted handler, never the
+// live config, so a later config edit cannot open another route.
+func (s *Server) registerTelnyxWebhookPath(path string) {
+	s.telnyxWebhookPath.Store(&path)
+}
+
+func (s *Server) isTelnyxWebhookIngress(path string) bool {
+	registered := s.telnyxWebhookPath.Load()
+	return registered != nil && *registered != "" && path == *registered
 }
 
 // noPasswordPrefixes lists the only URL prefixes accessible when auth is enabled
@@ -853,7 +866,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		if !enabled || isAuthBypassed(r.URL.Path) {
+		if !enabled || isAuthBypassed(r.URL.Path) || s.isTelnyxWebhookIngress(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

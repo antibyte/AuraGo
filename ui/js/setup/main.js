@@ -21,6 +21,8 @@ let setupSkipInFlight = false;
 // Tri-state: null = unknown (don't show star yet), true = required, false = already set
 let setupPasswordRequired = null;
 let csrfToken = '';
+const SETUP_BOOTSTRAP_STORAGE_KEY = 'aurago.setupBootstrapToken';
+let setupBootstrapToken = readSetupBootstrapToken();
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
 
 // Sequence counter for /api/i18n fetches. When the user rapidly switches
@@ -43,10 +45,64 @@ function activeLabels(){ return isQuickFlow ? QUICK_FLOW_LABELS : CUSTOM_FLOW_LA
 function currentStepId(){ return activeFlow()[currentStepIndex]; }
 function totalSteps()  { return activeFlow().length; }
 
-// ── Security: check setup status & redirect if already configured ──
-(async function checkSetupStatus() {
+// ── Security: bootstrap token for setup from other devices ──
+// The server log prints a one-time token and a /setup#bootstrap=<token> link.
+// A URL fragment never reaches the server or its access log; the token moves
+// to sessionStorage and leaves the address bar.
+function readSetupBootstrapToken() {
+    let token = '';
+    const match = /(?:^|[#&])bootstrap=([^&]+)/.exec(window.location.hash || '');
+    if (match) {
+        try { token = decodeURIComponent(match[1]).trim(); } catch (_) { token = ''; }
+        try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (_) { /* keep going */ }
+    }
     try {
-        const resp = await fetch('/api/setup/status');
+        if (token) sessionStorage.setItem(SETUP_BOOTSTRAP_STORAGE_KEY, token);
+        else token = sessionStorage.getItem(SETUP_BOOTSTRAP_STORAGE_KEY) || '';
+    } catch (_) { /* storage unavailable: keep the in-memory token */ }
+    return token;
+}
+
+function storeSetupBootstrapToken(token) {
+    setupBootstrapToken = token;
+    try { sessionStorage.setItem(SETUP_BOOTSTRAP_STORAGE_KEY, token); } catch (_) { /* in-memory only */ }
+}
+
+// Headers for every setup write: CSRF plus, when known, the bootstrap token.
+function setupRequestHeaders(extra) {
+    const headers = Object.assign({ 'X-CSRF-Token': csrfToken }, extra || {});
+    if (setupBootstrapToken) headers['X-Setup-Token'] = setupBootstrapToken;
+    return headers;
+}
+
+function openSetupOwnerGate(vaultLocked, tokenRejected) {
+    setupSetHidden(document.getElementById('setup-bootstrap-token-view'), vaultLocked);
+    setupSetHidden(document.getElementById('setup-vault-locked'), !vaultLocked);
+    setupSetHidden(document.getElementById('setup-bootstrap-error'), !tokenRejected);
+    document.getElementById('setup-bootstrap-gate')?.classList.add('open');
+    if (!vaultLocked) document.getElementById('setup-bootstrap-input')?.focus();
+}
+
+function closeSetupOwnerGate() {
+    document.getElementById('setup-bootstrap-gate')?.classList.remove('open');
+}
+
+async function submitSetupBootstrapToken(event) {
+    event.preventDefault();
+    const input = document.getElementById('setup-bootstrap-input');
+    const token = (input?.value || '').trim();
+    if (!token) return;
+    storeSetupBootstrapToken(token);
+    await checkSetupStatus();
+}
+
+document.getElementById('setup-bootstrap-form')?.addEventListener('submit', submitSetupBootstrapToken);
+
+// ── Security: check setup status & redirect if already configured ──
+async function checkSetupStatus() {
+    try {
+        const headers = setupBootstrapToken ? { 'X-Setup-Token': setupBootstrapToken } : {};
+        const resp = await fetch('/api/setup/status', { headers });
         if (!resp.ok) {
             showSetupConnectionWarning('status ' + resp.status);
             return;
@@ -56,7 +112,16 @@ function totalSteps()  { return activeFlow().length; }
             window.location.href = '/';
             return;
         }
+        if (data.vault_locked) {
+            openSetupOwnerGate(true, false);
+            return;
+        }
         if (data.csrf_token) csrfToken = data.csrf_token;
+        if (data.bootstrap_token_required && data.bootstrap_token_valid !== true) {
+            openSetupOwnerGate(false, Boolean(setupBootstrapToken));
+        } else {
+            closeSetupOwnerGate();
+        }
         if (data.ollama_base_url) {
             setupOllamaBaseURL = data.ollama_base_url;
             if (typeof providerConfig !== 'undefined' && providerConfig.ollama) {
@@ -71,7 +136,8 @@ function totalSteps()  { return activeFlow().length; }
     } catch (e) {
         showSetupConnectionWarning(e.message || 'network error');
     }
-})();
+}
+checkSetupStatus();
 
 // Display a non-blocking warning banner when the setup status endpoint is
 // unreachable so the user gets actionable feedback before the final save
@@ -415,10 +481,7 @@ async function testQuickConnection() {
         const runtime = getQuickProfileRuntimeConfig(selectedProfile);
         const resp = await fetch('/api/setup/test', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken,
-            },
+            headers: setupRequestHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 provider_type: runtime.providerType,
                 base_url: runtime.baseUrl,
@@ -971,10 +1034,7 @@ async function testConnection() {
     try {
         const resp = await fetch('/api/setup/test', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken,
-            },
+            headers: setupRequestHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ provider_type: providerType, base_url: baseUrl, api_key: apiKey, model: model }),
         });
         const data = await resp.json();
@@ -1088,7 +1148,7 @@ async function probeSetupLocalLLM() {
     try {
         const response = await fetch('/api/setup/local-llm/probe', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+            headers: setupRequestHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ backend: document.getElementById('setup-local-llm-backend').value,
                 model_family: document.getElementById('setup-local-llm-family').value }),
         });
@@ -1722,10 +1782,7 @@ async function saveConfig() {
         const patch = isQuickFlow ? buildQuickConfigPatch() : buildConfigPatch();
         const resp = await fetch('/api/setup', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken,
-            },
+            headers: setupRequestHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(patch),
         });
 
@@ -1734,6 +1791,9 @@ async function saveConfig() {
             let errMsg = text || `HTTP ${resp.status}`;
             try {
                 const parsed = JSON.parse(text);
+                // A server restart issues a new token; ask for it instead of failing silently.
+                if (parsed.code === 'setup_bootstrap_token_required') openSetupOwnerGate(false, true);
+                if (parsed.code === 'setup_vault_locked') openSetupOwnerGate(true, false);
                 if (parsed.error && parsed.details) errMsg = `${parsed.error}: ${parsed.details}`;
                 else if (parsed.error) errMsg = parsed.error;
                 else if (parsed.message) errMsg = parsed.message;

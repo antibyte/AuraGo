@@ -157,6 +157,8 @@ Navigate to: **http://localhost:8088**
 
 (Port is configurable in `config.yaml` under `server.port`)
 
+On the same machine the setup wizard opens directly. If AuraGo is reachable from other devices (a `server.host` other than loopback, HTTPS, a reverse proxy, a Cloudflare tunnel or Tailscale), the wizard first asks for a one-time setup token. AuraGo prints it to the log on startup as `bootstrap_token`, together with a `/setup#bootstrap=<token>` path that fills it in automatically. The token changes on every restart and stops working once setup is finished.
+
 ---
 
 ## File Structure After Setup

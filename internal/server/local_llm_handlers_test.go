@@ -196,6 +196,7 @@ func TestReservedLocalLLMProviderIDIsRejectedBeforeProviderPersistence(t *testin
 func TestSetupLocalLLMProbeRequiresCSRFBeforeManagerAccess(t *testing.T) {
 	server := &Server{Cfg: &config.Config{}}
 	request := httptest.NewRequest(http.MethodPost, "/api/setup/local-llm/probe", nil)
+	withSetupBootstrapToken(server, request)
 	recorder := httptest.NewRecorder()
 	handleSetupLocalLLMProbe(server).ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusForbidden {
@@ -208,6 +209,7 @@ func TestSetupLocalLLMProbeRejectsUnknownModelBeforeHardwareAccess(t *testing.T)
 	addSetupCSRFTokenForTest(server, "family-test-token")
 	request := httptest.NewRequest(http.MethodPost, "/api/setup/local-llm/probe", strings.NewReader(`{"backend":"cuda","model_family":"unknown"}`))
 	request.Header.Set("X-CSRF-Token", "family-test-token")
+	withSetupBootstrapToken(server, request)
 	recorder := httptest.NewRecorder()
 	handleSetupLocalLLMProbe(server).ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusBadRequest {

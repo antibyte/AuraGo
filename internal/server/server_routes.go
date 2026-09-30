@@ -763,6 +763,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				go agent.Loopback(runCfg, msg, telnyx.NewSMSBroker(s.Cfg, from, s.Logger))
 			}, nil)
 			mux.HandleFunc(webhookPath, telnyxHandler.HandleWebhook)
+			s.registerTelnyxWebhookPath(webhookPath)
 			s.Logger.Info("Telnyx webhook registered", "path", webhookPath)
 		}
 

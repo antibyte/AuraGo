@@ -12,6 +12,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -142,8 +143,22 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 		}
 
 		// Issue a fresh CSRF token on every status request when setup is needed.
+		// An undecryptable vault means a configured owner exists, so the wizard
+		// stays closed and reports why instead.
 		if show {
-			resp["csrf_token"] = issueSetupCSRFToken(s)
+			if setupVaultUnreadable(s) {
+				resp["vault_locked"] = true
+			} else {
+				required := setupBootstrapTokenRequired(s, r)
+				resp["bootstrap_token_required"] = required
+				if required {
+					s.ensureSetupBootstrapToken()
+					if candidate := r.Header.Get(setupBootstrapHeader); candidate != "" {
+						resp["bootstrap_token_valid"] = s.validSetupBootstrapToken(candidate)
+					}
+				}
+				resp["csrf_token"] = issueSetupCSRFToken(s)
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -174,6 +189,10 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		if alreadyConfigured {
 			s.Logger.Warn("[Setup] POST to /api/setup rejected — setup already completed")
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_already_completed"), http.StatusForbidden)
+			return
+		}
+		// Checked before the CSRF token so a rejected claim does not consume it.
+		if !authorizeSetupBootstrap(s, w, r) {
 			return
 		}
 
@@ -248,6 +267,11 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		// deep-merge, write to disk, reload and resolve vault secrets. This is the
 		// shared read/merge/write/reload sequence used by /api/setup and /api/config.
 		reloadedCfg, err := applyConfigPatch(s, patch)
+		if errors.Is(err, errUnauthenticatedRemoteExposure) {
+			s.Logger.Warn("[Setup] Refused to disable auth on a remotely reachable listener")
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_auth_required_for_remote"), http.StatusBadRequest)
+			return
+		}
 		if err != nil {
 			s.Logger.Error("[Setup] Failed to apply config patch", "error", err)
 			// Marshal/YAML errors are user-input issues (e.g., bad profile data
@@ -303,6 +327,12 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				jsonErrorWithDetails(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), err.Error(), http.StatusInternalServerError)
 				return
 			}
+			// reloadedCfg was loaded before the password existed; the hot-reload
+			// below must not swap the fresh credentials back out and re-enter
+			// the lockdown.
+			reloadedCfg.Auth.Enabled = true
+			reloadedCfg.Auth.PasswordHash = newHash
+			reloadedCfg.Auth.SessionSecret = newSecret
 			s.Logger.Info("[Setup] Admin password initialized")
 		}
 
@@ -382,6 +412,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 			s.Logger.Info("[Setup] Configuration hot-reloaded successfully")
 		}()
+		s.clearSetupBootstrapToken()
 
 		var localJob *setupLocalLLMJob
 		if localLLMSetup.Enabled {
@@ -591,6 +622,9 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 		if !show {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_already_completed"), http.StatusForbidden)
+			return
+		}
+		if !authorizeSetupBootstrap(s, w, r) {
 			return
 		}
 		// The test endpoint performs an outbound request using user-supplied

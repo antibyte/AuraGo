@@ -65,6 +65,22 @@
         <span data-i18n="setup.https_warning"></span>
     </div>
 
+    <!-- ── Owner check: remote setup needs the token from the server log ── -->
+    <div id="setup-bootstrap-gate" class="modal-overlay setup-bootstrap-gate" role="dialog" aria-modal="true" aria-labelledby="setup-bootstrap-title">
+        <div class="modal setup-bootstrap-modal">
+            <div id="setup-bootstrap-token-view">
+                <h2 id="setup-bootstrap-title" class="setup-bootstrap-title" data-i18n="setup.bootstrap_title"></h2>
+                <p class="setup-bootstrap-desc" data-i18n="setup.bootstrap_desc"></p>
+                <form id="setup-bootstrap-form" class="setup-bootstrap-form" novalidate>
+                    <input id="setup-bootstrap-input" class="field-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-labelledby="setup-bootstrap-title" data-i18n-placeholder="setup.bootstrap_placeholder">
+                    <p id="setup-bootstrap-error" class="setup-bootstrap-error is-hidden" role="alert" data-i18n="setup.bootstrap_invalid"></p>
+                    <button type="submit" class="btn-setup btn-next" data-i18n="setup.bootstrap_submit"></button>
+                </form>
+            </div>
+            <p id="setup-vault-locked" class="setup-bootstrap-error is-hidden" role="alert" data-i18n="setup.vault_locked"></p>
+        </div>
+    </div>
+
     <!-- ── Main Setup Card ─────────────────────── -->
     <div class="setup-container" id="main-content">
         <div class="setup-card">

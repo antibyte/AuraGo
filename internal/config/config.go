@@ -315,6 +315,16 @@ func sanitizeTsnetHostname(raw string) string {
 	return name
 }
 
+// EffectiveServerHost returns the bind host the process really uses:
+// AURAGO_SERVER_HOST overrides server.host unconditionally. The Docker image
+// uses it to force 0.0.0.0 without touching config.yaml.
+func EffectiveServerHost(configured string) string {
+	if val := os.Getenv("AURAGO_SERVER_HOST"); val != "" {
+		return val
+	}
+	return configured
+}
+
 func Load(path string) (*Config, error) {
 	absConfigPath, err := filepath.Abs(path)
 	if err != nil {
@@ -1583,11 +1593,7 @@ func Load(path string) (*Config, error) {
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)
 
 	// --- Environment Variable Overrides ---
-	// AURAGO_SERVER_HOST overrides server.host unconditionally.
-	// Used in Docker to force 0.0.0.0 without touching the YAML file.
-	if val := os.Getenv("AURAGO_SERVER_HOST"); val != "" {
-		cfg.Server.Host = val
-	}
+	cfg.Server.Host = EffectiveServerHost(cfg.Server.Host)
 	if val := strings.TrimSpace(os.Getenv("AURAGO_SPEECH_LAB_BASE_URL")); val != "" {
 		cfg.SpeechLab.BaseURL = strings.TrimRight(val, "/")
 	}

@@ -71,6 +71,15 @@ That's it!
 
 Open the Web UI to finish setting up your LLM Provider and API keys!
 
+> [!IMPORTANT]
+> Until setup is complete, the setup wizard asks for a one-time **setup token**. This proves that you, and not someone scanning the network, own the new instance. AuraGo prints the token to its log on startup:
+>
+> ```bash
+> docker logs aurago 2>&1 | grep bootstrap_token
+> ```
+>
+> The log line also contains a path like `/setup#bootstrap=<token>`. Open `http://<your-server-ip>:8088` followed by that path and the wizard fills in the token for you. Each restart creates a new token, and it stops working once setup is finished.
+
 ---
 
 ## 2. Image Tags
@@ -131,7 +140,7 @@ Deploy the stack.
 - Persistent volumes for `/app/data` and `/app/agent_workspace/workdir` are automatically created.
 
 ### Step 5: Configure via Web UI
-Access the Web UI at `http://<your-server-ip>:8088` and navigate to the **CONFIG** tab to finish setting up your AI agent.
+Access the Web UI at `http://<your-server-ip>:8088` and navigate to the **CONFIG** tab to finish setting up your AI agent. The setup wizard asks for the one-time setup token from the container log (entry `bootstrap_token`, visible in the container's log view in Dockge/Portainer).
 
 > [!NOTE]
 > Your `AURAGO_MASTER_KEY` is either stored in `secrets/aurago_master.key` on the host or auto-generated into `data/.env` inside the Docker volume. THIS KEY ENCRYPTS THE AGENT'S SECRET VAULT. BACK IT UP OR YOU WILL NOT BE ABLE TO MOVE THE VAULT TO ANOTHER SERVER!

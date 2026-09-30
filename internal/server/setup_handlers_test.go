@@ -376,6 +376,7 @@ func TestHandleSetupTestConnectionRejectsWithoutCSRF(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/setup/test", strings.NewReader(`{"provider_type":"openrouter","base_url":"https://openrouter.ai/api/v1","api_key":"sk-test","model":"test-model"}`))
 	req.Header.Set("Content-Type", "application/json")
+	withSetupBootstrapToken(s, req)
 	rec := httptest.NewRecorder()
 
 	handleSetupTestConnection(s).ServeHTTP(rec, req)
@@ -391,6 +392,7 @@ func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
+	withSetupBootstrapToken(s, req)
 	rec := httptest.NewRecorder()
 	handleSetupSave(s).ServeHTTP(rec, req)
 
@@ -410,6 +412,7 @@ func TestHandleSetupSaveRejectsWrongCSRF(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", "wrong-token")
+	withSetupBootstrapToken(s, req)
 	rec := httptest.NewRecorder()
 	handleSetupSave(s).ServeHTTP(rec, req)
 
@@ -750,6 +753,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(string(body)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", "minimax-setup-token")
+	withSetupBootstrapToken(s, req)
 	rec := httptest.NewRecorder()
 
 	handleSetupSave(s).ServeHTTP(rec, req)
@@ -822,6 +826,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstTemplateConfig(t *testing
 	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(string(body)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", "minimax-current-config-token")
+	withSetupBootstrapToken(s, req)
 	rec := httptest.NewRecorder()
 
 	handleSetupSave(s).ServeHTTP(rec, req)
@@ -881,6 +886,7 @@ func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) 
 	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(string(body)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", "minimax-panic-token")
+	withSetupBootstrapToken(s, req)
 	rec := httptest.NewRecorder()
 
 	handleSetupSave(s).ServeHTTP(rec, req)

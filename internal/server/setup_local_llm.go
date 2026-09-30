@@ -179,6 +179,9 @@ func handleSetupLocalLLMProbe(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if !authorizeSetupBootstrap(s, w, r) {
+			return
+		}
 		if !validateSetupCSRFToken(s, r.Header.Get("X-CSRF-Token"), false) {
 			jsonError(w, "Invalid setup CSRF token", http.StatusForbidden)
 			return

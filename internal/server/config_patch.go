@@ -79,6 +79,11 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if (s.Cfg.MusicGeneration.Enabled && s.Cfg.UsesLocalMusic() || localMusicStopPending(s)) && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
 		return nil, fmt.Errorf("disable local music and wait until stopped before disabling Docker mutations")
 	}
+	// Same invariant as /api/config and Start: a remotely reachable listener
+	// never runs without login unless the unsafe exception is explicit.
+	if err := validateRemoteAuthExposure(&validateCfg); err != nil {
+		return nil, err
+	}
 	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		return nil, fmt.Errorf("write config: %w", err)
 	}

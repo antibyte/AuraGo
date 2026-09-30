@@ -23,6 +23,7 @@ func TestHandleSetupSaveInvalidJSONIsGeneric(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/setup/save", strings.NewReader(`{"broken":`))
 	req.Header.Set("X-CSRF-Token", "test-token")
+	withSetupBootstrapToken(s, req)
 	rec := httptest.NewRecorder()
 
 	handleSetupSave(s).ServeHTTP(rec, req)

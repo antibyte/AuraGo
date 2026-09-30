@@ -1386,6 +1386,38 @@ body.has-https-warning {
     display: none;
 }
 
+/* ── Setup owner check (bootstrap token / locked vault) ── */
+.setup-bootstrap-modal {
+    max-width: 480px;
+}
+
+.setup-bootstrap-title {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-lg);
+}
+
+.setup-bootstrap-desc {
+    margin: 0 0 var(--space-4);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.setup-bootstrap-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.setup-bootstrap-form .field-input {
+    font-family: var(--font-mono, monospace);
+}
+
+.setup-bootstrap-error {
+    margin: 0;
+    color: var(--danger, #ef4444);
+    line-height: 1.5;
+}
+
 /* ══════════════════════════════════════════════════════════════
    LIGHT THEME OVERRIDES
    ══════════════════════════════════════════════════════════════ */

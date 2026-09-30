@@ -313,6 +313,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		s.CfgMu.RLock()
 		existingHash := s.Cfg.Auth.PasswordHash
 		secret := s.Cfg.Auth.SessionSecret
+		authEnabled := s.Cfg.Auth.Enabled
 		s.CfgMu.RUnlock()
 
 		// Authorization: allowed if first setup (no hash yet) or already authenticated.
@@ -327,6 +328,12 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
 				json.NewEncoder(w).Encode(map[string]string{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token")})
+				return
+			}
+			// During the lockdown this request claims the instance, so it needs
+			// the same bootstrap proof as the setup wizard. With auth disabled
+			// every API is open anyway and the flow stays unchanged.
+			if authEnabled && !authed && !authorizeSetupBootstrap(s, w, r) {
 				return
 			}
 		}
@@ -385,6 +392,9 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		}
 
 		s.Logger.Info("[Auth] Password updated")
+		if firstSetup {
+			s.clearSetupBootstrapToken()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_password_set")})
 	}

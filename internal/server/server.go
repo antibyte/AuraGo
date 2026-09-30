@@ -148,7 +148,14 @@ type Server struct {
 	// SetupCSRFCleanupOnce ensures the per-Server CSRF cleanup goroutine is
 	// started exactly once. Lives on Server (not package global) so each
 	// Server instance has independent cleanup lifecycle for test isolation.
-	SetupCSRFCleanupOnce    sync.Once
+	SetupCSRFCleanupOnce sync.Once
+	// One-time bootstrap token that remote setup and first-password requests
+	// must present. It is printed to the server log, never served over HTTP.
+	setupBootstrapMu    sync.Mutex
+	setupBootstrapValue string
+	// Exact Telnyx webhook path mounted at startup. Its handler verifies Ed25519
+	// signatures itself, so only this registered path skips session auth.
+	telnyxWebhookPath       atomic.Pointer[string]
 	SetupLocalLLMJobsMu     sync.Mutex
 	SetupLocalLLMJobs       map[string]*setupLocalLLMJob
 	Logger                  *slog.Logger
@@ -1606,6 +1613,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 
 // serveWithShutdown handles graceful shutdown for servers
 func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Server, shutdownCh chan struct{}) error {
+	s.announceSetupBootstrap()
 	// Start redirect server (if provided) in background
 	if redirectServer != nil {
 		go func() {

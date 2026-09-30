@@ -444,6 +444,7 @@ func TestHandleAuthSetPasswordFirstSetupRejectsCrossOriginJSON(t *testing.T) {
 	req.Host = "aurago.example"
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "http://aurago.example")
+	withSetupBootstrapToken(s, req)
 	rec = httptest.NewRecorder()
 	handleAuthSetPassword(s).ServeHTTP(rec, req)
 	if rec.Code == http.StatusForbidden {
