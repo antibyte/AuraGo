@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -71,6 +72,15 @@ func validateNodeSchema(properties map[string]string) map[string]string {
 }
 
 func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string) error {
+	return kg.addNode(context.Background(), id, label, properties, false)
+}
+
+// AddNodeIndexed commits the node as pending and reports semantic index errors.
+func (kg *KnowledgeGraph) AddNodeIndexed(ctx context.Context, id, label string, properties map[string]string) error {
+	return kg.addNode(ctx, id, label, properties, true)
+}
+
+func (kg *KnowledgeGraph) addNode(ctx context.Context, id, label string, properties map[string]string, strict bool) error {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return fmt.Errorf("node id is required")
@@ -80,7 +90,7 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 
 	label = strings.TrimSpace(label)
 
-	tx, err := kg.db.Begin()
+	tx, err := kg.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin add node: %w", err)
 	}
@@ -118,11 +128,15 @@ func (kg *KnowledgeGraph) AddNode(id, label string, properties map[string]string
 		return fmt.Errorf("add node: %w", err)
 	}
 
+	if strict {
+		if _, err := tx.ExecContext(ctx, `UPDATE kg_nodes SET semantic_indexed_at=NULL WHERE id=?`, id); err != nil {
+			return fmt.Errorf("mark new node pending: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	kg.indexSemanticNodeAfterWrite(Node{ID: id, Label: finalLabel, Properties: finalProps})
-	return nil
+	return kg.finishNodeWrite(ctx, Node{ID: id, Label: finalLabel, Properties: finalProps, Protected: isProtectedFinal != 0}, strict)
 }
 
 func (kg *KnowledgeGraph) GetNode(nodeID string) (*Node, error) {
@@ -181,12 +195,21 @@ func (kg *KnowledgeGraph) ListNodesByIDPrefix(prefix string, limit int) ([]Node,
 }
 
 func (kg *KnowledgeGraph) UpdateNode(id, label string, properties map[string]string) (*Node, error) {
+	return kg.updateNode(context.Background(), id, label, properties, false)
+}
+
+// UpdateNodeIndexed retains UpdateNode's SQL/protection rules and reports indexing failures.
+func (kg *KnowledgeGraph) UpdateNodeIndexed(ctx context.Context, id, label string, properties map[string]string) (*Node, error) {
+	return kg.updateNode(ctx, id, label, properties, true)
+}
+
+func (kg *KnowledgeGraph) updateNode(ctx context.Context, id, label string, properties map[string]string, strict bool) (*Node, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, nil
 	}
 
-	tx, err := kg.db.Begin()
+	tx, err := kg.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin update node: %w", err)
 	}
@@ -224,13 +247,45 @@ func (kg *KnowledgeGraph) UpdateNode(id, label string, properties map[string]str
 		return nil, fmt.Errorf("update node %s: %w", id, err)
 	}
 
+	if strict {
+		if _, err := tx.ExecContext(ctx, `UPDATE kg_nodes SET semantic_indexed_at=NULL WHERE id=?`, id); err != nil {
+			return nil, fmt.Errorf("mark updated node pending: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
 	node := &Node{ID: id, Label: finalLabel, Properties: finalProps, Protected: existingProtected != 0}
-	kg.indexSemanticNodeAfterWrite(*node)
-	return node, nil
+	return node, kg.finishNodeWrite(ctx, *node, strict)
+}
+
+func (kg *KnowledgeGraph) finishNodeWrite(ctx context.Context, node Node, strict bool) error {
+	if !strict {
+		kg.indexSemanticNodeAfterWrite(node)
+		return nil
+	}
+	if err := kg.upsertSemanticNodeIndexContext(ctx, node); err != nil {
+		return fmt.Errorf("index node %s: %w", node.ID, err)
+	}
+	props, err := json.Marshal(node.Properties)
+	if err != nil {
+		return fmt.Errorf("serialize indexed node: %w", err)
+	}
+	result, err := kg.db.ExecContext(ctx, `UPDATE kg_nodes SET semantic_indexed_at=CURRENT_TIMESTAMP
+		WHERE id=? AND label=? AND properties=? AND protected=?`, node.ID, node.Label, string(props), boolToInt(node.Protected))
+	if err != nil {
+		return fmt.Errorf("complete indexed node %s: %w", node.ID, err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check indexed node %s: %w", node.ID, err)
+	}
+	if count != 1 {
+		kg.markSemanticNodeDirty(node.ID)
+		return fmt.Errorf("node %s changed during semantic indexing", node.ID)
+	}
+	return nil
 }
 
 func (kg *KnowledgeGraph) SetNodeProtected(id string, protected bool) (*Node, error) {

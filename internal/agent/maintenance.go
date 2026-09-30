@@ -2589,9 +2589,9 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 		}
 		if err == nil {
 			if node == nil {
-				err = kg.AddNode(nodeID, label, props)
+				err = kg.AddNodeIndexed(ctx, nodeID, label, props)
 			} else {
-				node, err = kg.UpdateNode(nodeID, label, props)
+				node, err = kg.UpdateNodeIndexed(ctx, nodeID, label, props)
 				if err == nil && node == nil {
 					err = fmt.Errorf("core memory node %s disappeared during sync", nodeID)
 				}
