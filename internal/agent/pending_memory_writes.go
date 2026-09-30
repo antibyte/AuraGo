@@ -53,9 +53,19 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 		if err := ctx.Err(); err != nil {
 			break
 		}
-		stored, err := memory.StoreDocumentWithOwnership(ltm, write.Concept, write.Content)
+		sourceType := strings.TrimSpace(write.Domain)
+		if sourceType == "" {
+			sourceType = "system"
+		}
+		reliability := 0.85
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(write.Concept)), "[correction:") {
+			reliability = 0.90
+		}
+		stored, err := memory.StoreAutomaticMemoryDocument(stm, ltm, write.Concept, write.Content, memory.MemoryMetaUpdate{
+			VerificationStatus: "unverified", SourceType: sourceType, SourceReliability: reliability,
+		})
 		if err != nil {
-			if rollbackErr := rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.CreatedIDs); rollbackErr != nil {
+			if rollbackErr := rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes); rollbackErr != nil {
 				err = errors.Join(err, rollbackErr)
 			}
 			failed++
@@ -70,47 +80,6 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 			failed++
 			if markErr := stm.MarkPendingMemoryWriteFailed(write.ID, err, time.Now().UTC()); markErr != nil && logger != nil {
 				logger.Warn("[Memory Retry] Failed to update pending write", "id", write.ID, "error", markErr)
-			}
-			continue
-		}
-		sourceType := strings.TrimSpace(write.Domain)
-		if sourceType == "" {
-			sourceType = "system"
-		}
-		reliability := 0.85
-		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(write.Concept)), "[correction:") {
-			reliability = 0.90
-		}
-		metadataErr := error(nil)
-		for _, id := range stored.CreatedIDs {
-			if err := stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-				VerificationStatus: "unverified",
-				SourceType:         sourceType,
-				SourceReliability:  reliability,
-			}); err != nil {
-				metadataErr = fmt.Errorf("upsert metadata for %s: %w", id, err)
-				break
-			}
-		}
-		if metadataErr == nil {
-			for _, id := range stored.UnknownIDs {
-				if err := stm.EnsureMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-					VerificationStatus: "unverified",
-					SourceType:         sourceType,
-					SourceReliability:  reliability,
-				}); err != nil {
-					metadataErr = fmt.Errorf("ensure metadata for unknown ownership %s: %w", id, err)
-					break
-				}
-			}
-		}
-		if metadataErr != nil {
-			if rollbackErr := rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.CreatedIDs); rollbackErr != nil {
-				metadataErr = errors.Join(metadataErr, rollbackErr)
-			}
-			failed++
-			if markErr := stm.MarkPendingMemoryWriteFailed(write.ID, metadataErr, time.Now().UTC()); markErr != nil && logger != nil {
-				logger.Warn("[Memory Retry] Failed to update pending write metadata", "id", write.ID, "error", markErr)
 			}
 			continue
 		}
@@ -132,22 +101,10 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 	return succeeded, failed
 }
 
-func rollbackPendingMemoryWriteCreatedIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, ids []string) error {
-	var resultErr error
-	for _, id := range ids {
-		if ltm == nil {
-			continue
-		}
-		if err := ltm.DeleteDocument(id); err != nil {
-			resultErr = errors.Join(resultErr, fmt.Errorf("rollback pending memory vector %s: %w", id, err))
-			if logger != nil {
-				logger.Warn("[Memory Retry] Failed to roll back partially stored vector", "doc_id", id, "error", err)
-			}
-			continue
-		}
-		if stm != nil {
-			resultErr = errors.Join(resultErr, stm.DeleteDocumentCleanup(id))
-		}
+func rollbackPendingMemoryWriteCreatedIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, writes []memory.AutomaticMemoryWrite) error {
+	err := stm.RollbackAutomaticMemoryWrites(ltm, writes)
+	if err != nil && logger != nil {
+		logger.Warn("[Memory Retry] Rollback retained unproven or changed memories", "error", err)
 	}
-	return resultErr
+	return err
 }

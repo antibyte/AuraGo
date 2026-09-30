@@ -1001,6 +1001,9 @@ func (s *SQLiteMemory) DeleteDocumentCleanup(docID string) error {
 	if _, err := tx.Exec(`DELETE FROM memory_meta WHERE doc_id = ?`, docID); err != nil {
 		return fmt.Errorf("cleanup memory_meta: %w", err)
 	}
+	if _, err := tx.Exec(`DELETE FROM memory_extraction_sources WHERE doc_id = ?`, docID); err != nil {
+		return fmt.Errorf("cleanup memory extraction sources: %w", err)
+	}
 	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE doc_id = ?`, docID); err != nil {
 		return fmt.Errorf("cleanup file_embedding_docs: %w", err)
 	}

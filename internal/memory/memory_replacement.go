@@ -51,9 +51,16 @@ func (s *SQLiteMemory) ensureMemoryMeta(docID string, details MemoryMetaUpdate) 
 	if s == nil || s.db == nil {
 		return fmt.Errorf("memory metadata store is unavailable")
 	}
+	_, err := insertMemoryMeta(s.db, docID, details)
+	return err
+}
+
+func insertMemoryMeta(executor interface {
+	Exec(string, ...any) (sql.Result, error)
+}, docID string, details MemoryMetaUpdate) (bool, error) {
 	docID = strings.TrimSpace(docID)
 	if docID == "" {
-		return nil
+		return false, nil
 	}
 	extractionConfidence := details.ExtractionConfidence
 	if extractionConfidence <= 0 {
@@ -77,17 +84,19 @@ func (s *SQLiteMemory) ensureMemoryMeta(docID string, details MemoryMetaUpdate) 
 	if sourceReliability > 1 {
 		sourceReliability = 1
 	}
-	if _, err := s.db.Exec(`
+	result, err := executor.Exec(`
 		INSERT INTO memory_meta (
 			doc_id, access_count, last_accessed, last_event_at,
 			extraction_confidence, verification_status, source_type, source_reliability
 		)
 		VALUES (?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, ?, ?)
 		ON CONFLICT(doc_id) DO NOTHING
-	`, docID, extractionConfidence, verificationStatus, sourceType, sourceReliability); err != nil {
-		return fmt.Errorf("ensure memory metadata %s: %w", docID, err)
+	`, docID, extractionConfidence, verificationStatus, sourceType, sourceReliability)
+	if err != nil {
+		return false, fmt.Errorf("ensure memory metadata %s: %w", docID, err)
 	}
-	return nil
+	rows, err := result.RowsAffected()
+	return rows == 1, err
 }
 
 // GetMemoryMeta returns one complete memory_meta snapshot for replacement
@@ -243,6 +252,10 @@ func (s *SQLiteMemory) archiveAndCopyMemoryMeta(oldID string, expected MemoryMet
 			lastReviewed, expected.ReviewNote); err != nil {
 			return fmt.Errorf("copy memory replacement metadata to %s: %w", newID, err)
 		}
+		if _, err := tx.Exec(`INSERT INTO memory_extraction_sources
+			SELECT ?,source_type,session_id,first_seen_at,last_seen_at FROM memory_extraction_sources WHERE doc_id=?`, newID, oldID); err != nil {
+			return fmt.Errorf("copy memory replacement sources: %w", err)
+		}
 	}
 
 	if _, err := tx.Exec(`
@@ -265,24 +278,55 @@ func contentSHA256(content string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func cleanupCreatedReplacementArtifacts(ltm VectorDB, s *SQLiteMemory, ids []string) error {
+func cleanupCreatedReplacementArtifacts(ltm VectorDB, s *SQLiteMemory, ids []string, concept, content string) error {
 	var joinedErr error
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
 		if id == "" {
 			continue
 		}
-		if err := ltm.DeleteDocument(id); err != nil {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("delete replacement vector %s: %w", id, err))
-			continue
-		}
-		if s != nil {
-			if err := s.DeleteMemoryMeta(id); err != nil {
-				joinedErr = errors.Join(joinedErr, fmt.Errorf("delete replacement metadata %s: %w", id, err))
-			}
+		if err := s.rollbackUnpublishedReplacement(ltm, id, concept, content); err != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("rollback canonical repair artifacts %s: %w", id, err))
 		}
 	}
 	return joinedErr
+}
+
+func (s *SQLiteMemory) rollbackUnpublishedReplacement(ltm VectorDB, id, concept, content string) error {
+	owned, ok := ltm.(OwnershipAwareVectorDB)
+	if s == nil || !ok || len(buildContentString(concept, content)) > 4000 {
+		return fmt.Errorf("retain replacement %s: rollback cannot prove ownership", id)
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE memory_meta SET doc_id=doc_id WHERE doc_id=?`, id); err != nil {
+		return err
+	}
+	var tracked bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM memory_meta WHERE doc_id=?) OR EXISTS(SELECT 1 FROM memory_extraction_sources WHERE doc_id=?)`, id, id).Scan(&tracked); err != nil {
+		return err
+	}
+	if tracked {
+		return fmt.Errorf("retain replacement %s: tracking was created by another operation", id)
+	}
+	actual, err := ltm.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if actual != buildContentString(concept, content) && actual != content {
+		return fmt.Errorf("retain replacement %s: content changed", id)
+	}
+	deleted, err := owned.DeleteDocumentIfContentMatches(id, contentSHA256(actual))
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		return fmt.Errorf("retain replacement %s: content changed before deletion", id)
+	}
+	return tx.Commit()
 }
 
 // ReplaceMemoryDocument stages a force-created replacement, copies complete
@@ -330,14 +374,14 @@ func (s *SQLiteMemory) ReplaceMemoryDocument(ltm VectorDB, oldID, concept, expec
 
 	stored, err := owned.StoreDocumentOwned(concept, replacement, VectorStoreForceCreate)
 	if err != nil {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs)
+		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
 		if rollbackErr != nil {
 			return nil, errors.Join(fmt.Errorf("store memory replacement %s: %w", oldID, err), rollbackErr)
 		}
 		return nil, fmt.Errorf("store memory replacement %s: %w", oldID, err)
 	}
 	if len(stored.ReusedIDs) != 0 || len(stored.UnknownIDs) != 0 || len(stored.CreatedIDs) == 0 {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs)
+		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
 		base := fmt.Errorf("replacement store returned reused, unknown, or no IDs for %s", oldID)
 		if rollbackErr != nil {
 			return nil, errors.Join(base, rollbackErr)
@@ -350,7 +394,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocument(ltm VectorDB, oldID, concept, expec
 		if err == nil {
 			err = fmt.Errorf("source content changed before replacement commit")
 		}
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs)
+		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
 		if rollbackErr != nil {
 			return nil, errors.Join(fmt.Errorf("memory replacement source %s changed: %w", oldID, err), rollbackErr)
 		}
@@ -358,14 +402,14 @@ func (s *SQLiteMemory) ReplaceMemoryDocument(ltm VectorDB, oldID, concept, expec
 	}
 	latestMeta, err := s.GetMemoryMeta(oldID)
 	if err != nil {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs)
+		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
 		if rollbackErr != nil {
 			return nil, errors.Join(err, rollbackErr)
 		}
 		return nil, err
 	}
 	if latestMeta.Protected || latestMeta.KeepForever {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs)
+		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
 		base := fmt.Errorf("memory replacement source %s is protected or keep-forever before commit", oldID)
 		if rollbackErr != nil {
 			return nil, errors.Join(base, rollbackErr)
@@ -373,7 +417,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocument(ltm VectorDB, oldID, concept, expec
 		return nil, base
 	}
 	if IsMemoryArchived(latestMeta) || !memoryMetaEqual(latestMeta, expected) {
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs)
+		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
 		base := fmt.Errorf("memory replacement source %s metadata changed before commit", oldID)
 		if rollbackErr != nil {
 			return nil, errors.Join(base, rollbackErr)
@@ -385,7 +429,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocument(ltm VectorDB, oldID, concept, expec
 		if errors.As(err, &commitErr) {
 			return stored.CreatedIDs, err
 		}
-		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs)
+		rollbackErr := cleanupCreatedReplacementArtifacts(ltm, s, stored.CreatedIDs, concept, replacement)
 		if rollbackErr != nil {
 			return nil, errors.Join(err, rollbackErr)
 		}

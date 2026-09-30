@@ -1177,7 +1177,7 @@ func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	var createdIDs []string
+	var createdWrites []memory.AutomaticMemoryWrite
 	var storeErrors []error
 	for _, fact := range facts {
 		if err := ctx.Err(); err != nil {
@@ -1188,8 +1188,10 @@ func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger
 		if concept == "" || content == "" {
 			continue
 		}
-		owned, storeErr := memory.StoreDocumentWithOwnership(ltm, concept, content)
-		createdIDs = append(createdIDs, owned.CreatedIDs...)
+		owned, storeErr := memory.StoreAutomaticMemoryDocument(stm, ltm, concept, content, memory.MemoryMetaUpdate{
+			ExtractionConfidence: 0.82, VerificationStatus: "unverified", SourceType: "consolidation", SourceReliability: 0.82,
+		})
+		createdWrites = append(createdWrites, owned.Writes...)
 		if storeErr != nil {
 			storeErrors = append(storeErrors, storeErr)
 			continue
@@ -1198,49 +1200,24 @@ func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger
 			skipped++
 			continue
 		}
-		for _, id := range owned.CreatedIDs {
-			if err := stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-				ExtractionConfidence: 0.82, VerificationStatus: "unverified",
-				SourceType: "consolidation", SourceReliability: 0.82,
-			}); err != nil {
-				storeErrors = append(storeErrors, err)
-			}
-		}
-		// Legacy backends cannot establish ownership. Only insert missing metadata;
-		// never reset an existing record's provenance, verification, or protection.
-		for _, id := range owned.UnknownIDs {
-			if err := stm.EnsureMemoryMeta(id); err != nil {
-				storeErrors = append(storeErrors, err)
-			}
-		}
 		if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, owned.CreatedIDs, content); err != nil {
 			storeErrors = append(storeErrors, err)
 		}
 		stored++
 	}
 	if len(storeErrors) > 0 {
-		rollbackErr := rollbackStoredConsolidationFacts(logger, stm, ltm, createdIDs)
+		rollbackErr := rollbackStoredConsolidationFacts(logger, stm, ltm, createdWrites)
 		return 0, skipped, errors.Join(append(storeErrors, rollbackErr)...)
 	}
 	return stored, skipped, nil
 }
 
-func rollbackStoredConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string) error {
-	var resultErr error
-	for _, docID := range docIDs {
-		if ltm == nil {
-			continue
-		}
-		if err := ltm.DeleteDocument(docID); err != nil {
-			resultErr = errors.Join(resultErr, err)
-			logger.Warn("[Consolidation] Failed to rollback created fact", "doc_id", docID, "error", err)
-			continue
-		}
-		if stm != nil {
-			resultErr = errors.Join(resultErr, stm.DeleteDocumentCleanup(docID))
-		}
+func rollbackStoredConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, writes []memory.AutomaticMemoryWrite) error {
+	err := stm.RollbackAutomaticMemoryWrites(ltm, writes)
+	if err != nil && logger != nil {
+		logger.Warn("[Consolidation] Rollback retained unproven or changed memories", "error", err)
 	}
-	return resultErr
+	return err
 }
 
 func finalizeConsolidationBatch(
@@ -1947,27 +1924,13 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 			continue
 		}
 		concept := "Hierarchical memory synthesis " + groupKey
-		owned, err := memory.StoreDocumentWithOwnership(ltm, concept, summary)
+		owned, err := memory.StoreAutomaticMemoryDocument(stm, ltm, concept, summary, memory.MemoryMetaUpdate{
+			ExtractionConfidence: 0.88, VerificationStatus: "unverified", SourceType: "hierarchical_consolidation", SourceReliability: 0.9,
+		})
 		ids := append(append(append([]string{}, owned.CreatedIDs...), owned.ReusedIDs...), owned.UnknownIDs...)
 		if err != nil {
-			resultErr = errors.Join(resultErr, err, rollbackStoredConsolidationFacts(logger, stm, ltm, owned.CreatedIDs))
+			resultErr = errors.Join(resultErr, err, rollbackStoredConsolidationFacts(logger, stm, ltm, owned.Writes))
 			logger.Warn("[Hierarchy] Failed to store episodic synthesis", "group", groupKey, "error", err)
-			continue
-		}
-		var metadataErr error
-		for _, id := range owned.CreatedIDs {
-			metadataErr = errors.Join(metadataErr, stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
-				ExtractionConfidence: 0.88,
-				VerificationStatus:   "unverified",
-				SourceType:           "hierarchical_consolidation",
-				SourceReliability:    0.9,
-			}))
-		}
-		for _, id := range owned.UnknownIDs {
-			metadataErr = errors.Join(metadataErr, stm.EnsureMemoryMeta(id))
-		}
-		if metadataErr != nil {
-			resultErr = errors.Join(resultErr, metadataErr, rollbackStoredConsolidationFacts(logger, stm, ltm, owned.CreatedIDs))
 			continue
 		}
 		if kg != nil {

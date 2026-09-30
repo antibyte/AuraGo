@@ -354,7 +354,7 @@ func TestRepairCanonicalMemoryNamesPersistsKeysetCursorAcrossRestart(t *testing.
 	_ = reopened.Close()
 }
 
-func TestRepairCanonicalMemoryNamesCleansNewVectorsWhenMetaUpsertFails(t *testing.T) {
+func TestRepairCanonicalMemoryNamesRetainsNewVectorsWhenMetadataIsUnavailable(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	dbPath := fmt.Sprintf("%s%cstm.db", t.TempDir(), os.PathSeparator)
 	stm, err := NewSQLiteMemory(dbPath, logger)
@@ -384,8 +384,11 @@ func TestRepairCanonicalMemoryNamesCleansNewVectorsWhenMetaUpsertFails(t *testin
 	if report.RepairedCount != 0 || report.SkippedCount != 1 {
 		t.Fatalf("repair report = %+v, want skipped failed repair", report)
 	}
-	if len(fake.deleted) != 1 || fake.deleted[0] != "new-doc-1" {
-		t.Fatalf("deleted docs = %+v, want cleanup of new-doc-1 only", fake.deleted)
+	if len(fake.deleted) != 0 {
+		t.Fatalf("deleted docs = %+v, want unprovable artifacts retained", fake.deleted)
+	}
+	if _, ok := fake.docs["new-doc-1"]; !ok {
+		t.Fatal("unprovable replacement was deleted")
 	}
 	if _, ok := fake.docs["old-doc"]; !ok {
 		t.Fatal("old vector doc was deleted despite failed meta upsert")

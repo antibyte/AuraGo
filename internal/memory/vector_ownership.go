@@ -89,9 +89,16 @@ func (cv *ChromemVectorDB) findIdenticalMemory(concept, content, domain string) 
 	defer cancel()
 	doc, err := cv.collection.GetByID(ctx, id)
 	if err != nil || doc.Metadata["chunk_index"] != "" ||
-		normalizeMemoryDocumentPart(doc.Metadata["domain"]) != normalizeMemoryDocumentPart(domain) ||
-		normalizeMemoryDocumentPart(doc.Content) != expected {
+		normalizeMemoryDocumentPart(doc.Metadata["domain"]) != normalizeMemoryDocumentPart(domain) {
 		return ""
+	}
+	if normalizeMemoryDocumentPart(doc.Content) != expected {
+		incoming, incomingOK := AnalysisMemoryIdentity(concept, content, domain)
+		oldConcept, oldContent, complete := AnalysisDocumentParts(doc.Content)
+		existing, existingOK := AnalysisMemoryIdentity(oldConcept, oldContent, doc.Metadata["domain"])
+		if !incomingOK || !complete || !existingOK || incoming != existing {
+			return ""
+		}
 	}
 	return id
 }

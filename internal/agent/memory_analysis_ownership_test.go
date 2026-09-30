@@ -13,19 +13,34 @@ import (
 
 type analysisOwnershipVector struct {
 	fakeVectorDB
-	result  memory.VectorStoreResult
-	err     error
-	deleted []string
+	result   memory.VectorStoreResult
+	err      error
+	deleted  []string
+	contents map[string]string
 }
 
 var _ memory.OwnershipAwareVectorDB = (*analysisOwnershipVector)(nil)
 
-func (v *analysisOwnershipVector) StoreDocumentOwned(_, _ string, _ memory.VectorStoreMode) (memory.VectorStoreResult, error) {
+func (v *analysisOwnershipVector) StoreDocumentOwned(concept, content string, _ memory.VectorStoreMode) (memory.VectorStoreResult, error) {
+	if v.contents == nil {
+		v.contents = make(map[string]string)
+	}
+	for _, id := range v.result.CreatedIDs {
+		v.contents[id] = concept + "\n\n" + content
+	}
 	return v.result, v.err
+}
+
+func (v *analysisOwnershipVector) GetByID(id string) (string, error) {
+	if text, ok := v.contents[id]; ok {
+		return text, nil
+	}
+	return v.fakeVectorDB.GetByID(id)
 }
 
 func (v *analysisOwnershipVector) DeleteDocument(id string) error {
 	v.deleted = append(v.deleted, id)
+	delete(v.contents, id)
 	return nil
 }
 
@@ -94,7 +109,11 @@ func TestMemoryAnalysisRollsBackOnlyCreatedIDs(t *testing.T) {
 				_ = stm.Close()
 			}
 			_, err = storeMemoryAnalysisDocument(logger, stm, vdb, "topic", "fact", memory.MemoryMetaUpdate{SourceType: "memory_analysis"})
-			if err == nil || !reflect.DeepEqual(vdb.deleted, []string{"created"}) {
+			wantDeleted := []string{"created"}
+			if fail == "metadata" {
+				wantDeleted = nil
+			}
+			if err == nil || !reflect.DeepEqual(vdb.deleted, wantDeleted) {
 				t.Fatalf("err=%v deleted=%v", err, vdb.deleted)
 			}
 		})
