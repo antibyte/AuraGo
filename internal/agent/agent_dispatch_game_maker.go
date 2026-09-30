@@ -530,7 +530,11 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			return gameMakerToolJSON(map[string]any{"status": "ok", "result": result}), true
+			answer := map[string]any{"status": "ok", "result": result}
+			if hint := gameMakerVendorHint(path); hint != "" {
+				answer["next_action"] = hint
+			}
+			return gameMakerToolJSON(answer), true
 		}
 		if operation == "replace_many" {
 			data, err := json.Marshal(tc.Params["edits"])
@@ -577,7 +581,11 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			return gameMakerToolJSON(map[string]any{"status": "ok", "path": path, "content": result.Content, "sha256": result.SHA256, "start_line": result.StartLine, "end_line": result.EndLine, "total_lines": result.TotalLines}), true
+			answer := map[string]any{"status": "ok", "path": path, "content": result.Content, "sha256": result.SHA256, "start_line": result.StartLine, "end_line": result.EndLine, "total_lines": result.TotalLines}
+			if hint := gameMakerVendorHint(path); hint != "" {
+				answer["next_action"] = hint
+			}
+			return gameMakerToolJSON(answer), true
 		}
 		if operation != "write" && operation != "replace" {
 			return `Tool Output: {"status":"error","message":"operation must be read, search, write, replace or replace_many"}`, true
@@ -785,6 +793,16 @@ func proceduralGameMakerFallback(ctx context.Context, service *gamemaker.Service
 		"status": "fallback", "reason": reason,
 		"instruction": "Use procedural Web Audio effects and music after a user gesture; no music file was created.",
 	})
+}
+
+// gameMakerVendorHint redirects exploration of minified runtime bundles to the
+// documented API; real runs spent dozens of searches reverse-engineering them.
+func gameMakerVendorHint(path string) string {
+	clean := strings.TrimPrefix(strings.ReplaceAll(strings.TrimSpace(path), "\\", "/"), "./")
+	if !strings.HasPrefix(clean, "vendor/") || !strings.HasSuffix(clean, ".js") {
+		return ""
+	}
+	return "vendor/*.js files are minified runtime builds. Use runtime.api_reference in your context (or inspect) and the system prompt's API sections instead of searching them; never edit vendor files."
 }
 
 // gameMakerToolJSON keeps <, > and & literal: results reach a model, never an

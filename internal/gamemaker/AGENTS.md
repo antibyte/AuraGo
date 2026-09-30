@@ -187,7 +187,11 @@ revision publication and standalone export for Phaser and Three.js games.
   Conflicts leave all files unchanged. Managed paths and policy gates still apply.
 - Runtime context reads the installed common.ts descriptor and current file
   hashes/hook locations. Missing descriptors mean legacy/custom; never advertise
-  newer bundled helpers to those projects. New three-2 helpers use the same ray
+  newer bundled helpers to those projects. Known descriptor versions attach
+  `api_reference` from `runtime_reference.go`; tests bind every documented member
+  to the template declaring that version and the 2D key list to `createInputs`.
+  A new helper version needs its own reference entry. Reads and searches under
+  `vendor/` answer with a hint to that reference instead of minified internals. New three-2 helpers use the same ray
   blockers for shots and observations; enemy attacks respect cover, cooldown and
   the engine clock. Scene-builder damage remains separately owned.
 - Browser reports forward at most five finite dist/game.js frame locations.

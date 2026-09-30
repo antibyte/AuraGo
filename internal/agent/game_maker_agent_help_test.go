@@ -119,3 +119,52 @@ func TestGameMakerToolsDiscloseChecksAndNextAction(t *testing.T) {
 		t.Errorf("validation lacks the remaining repair allowance: %+v", validation)
 	}
 }
+
+// Real runs searched the minified effects bundle about thirty times. Reads and
+// searches under vendor/ still answer, but point at the documented API instead.
+func TestGameMakerVendorAccessPointsToAPIReference(t *testing.T) {
+	root := t.TempDir()
+	s, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "game.db"), WorkspacePath: filepath.Join(root, "workspace"), Enabled: true, AllowCreate: true, AllowEdit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	previous := gamemaker.DefaultService()
+	gamemaker.SetDefaultService(s)
+	defer gamemaker.SetDefaultService(previous)
+	s.SetSkillStatus(nil, true)
+	project, err := s.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Vendor", Dimension: "2d", Description: "Collect apples"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputs := map[string]string{}
+	s.SetRunner(gameMakerPlanTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+		if run.Stage == "planning" {
+			return s.SetPlan(ctx, run.Job.ID, gamemaker.ExampleGamePlan(project))
+		}
+		bound := gamemaker.WithJobContext(ctx, run.Job.ID)
+		outputs["read"], _ = dispatchGameMaker(bound, ToolCall{Action: "game_maker_file", Params: map[string]any{"operation": "read", "path": "vendor/aurago-effects-2d-1.js", "start_line": float64(1), "end_line": float64(2)}}, nil)
+		outputs["search"], _ = dispatchGameMaker(bound, ToolCall{Action: "game_maker_file", Params: map[string]any{"operation": "search", "path": "vendor/aurago-effects-2d-1.js", "query": "createPresentation"}}, nil)
+		outputs["source"], _ = dispatchGameMaker(bound, ToolCall{Action: "game_maker_file", Params: map[string]any{"operation": "search", "path": "src/main.ts", "query": "GameScene"}}, nil)
+		return errors.New("fixture complete")
+	}))
+	job, err := s.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(20 * time.Second); len(outputs) < 3; {
+		if time.Now().After(deadline) {
+			t.Fatal("fixture job did not finish")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	_ = job
+	for _, name := range []string{"read", "search"} {
+		if !strings.Contains(outputs[name], "api_reference") || !strings.Contains(outputs[name], "minified") {
+			t.Errorf("%s under vendor/ lacks the reference hint: %.300s", name, outputs[name])
+		}
+	}
+	if strings.Contains(outputs["source"], "minified") {
+		t.Errorf("project source search got the vendor hint: %.300s", outputs["source"])
+	}
+}

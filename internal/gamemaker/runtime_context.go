@@ -57,5 +57,11 @@ func (s *Service) RuntimeContext(ctx context.Context, jobID string) map[string]a
 		files = append(files, file)
 	}
 	result["files"] = files
+	// Only the installed helper version is documented; legacy/custom helpers
+	// keep their read-the-source guidance.
+	if version, _ := result["version"].(string); runtimeReferences[version].Text != "" {
+		result["api_reference"] = runtimeReferences[version].Text
+		result["guidance"] = "api_reference documents the installed helper completely; read common.ts only for code you must change."
+	}
 	return result
 }
