@@ -28,6 +28,68 @@ document failures are reported and do not prevent scan progress. A completed
 scan wraps to the beginning. This additive table also owns scheduler state;
 `memory_schema_meta` remains reserved for existing FTS version markers.
 
+Similarity only nominates a duplicate candidate. Reuse requires equal complete
+content and domain after outer whitespace and line-ending normalization; chunked
+or unreadable candidates remain separate documents. Automatic analysis preserves
+reused metadata and inserts only missing tracking rows for unknown ownership.
+Retrieval reads current metadata for the candidate IDs. Missing legacy metadata
+is allowed after a healthy lookup; database failures skip and log the enrichment
+and remain visible in explicit memory queries. Status `archived` or a nonempty
+archive timestamp excludes automatic retrieval and curation.
+
+The conflict scan reads pages of 500 metadata rows, capped at 50,000 rows and 250
+active documents per run. Archived rows do not consume the active limit. Its
+`memory_conflict_scan.cursor` survives restart in `memory_maintenance_meta` and
+wraps only at the actual end. Individual failures are recorded and retried on the
+next pass; cancellation leaves the incomplete document for the next run. Stored
+facts and write checks share normalization of known retrieval prefixes, concept
+headers and analysis provenance. Archive retention removes consolidated terminal
+`done` and `excluded` rows; pending, processing and failed work survives.
+
+Core-memory synchronization updates owned existing KG nodes with `UpdateNode`,
+including their semantic index, and creates missing nodes with `AddNode`. Labels
+are limited to 50 Unicode characters. Protection survives updates; protected and
+foreign stale nodes survive cleanup. Any synchronization error prevents cleanup.
+
+## Targeted metadata repair
+
+`scripts/repair_memory_metadata.py` uses Python 3.10+ and only the standard library.
+The default mode opens the existing SQLite database read-only and saves a review
+plan under ignored `reports/`. Optional pre-damage SQLite backups can prove source
+and confidence values. The script never reconstructs lost fact text or modifies
+the VectorDB. Refresh stale graph labels through the repaired core-memory sync.
+
+```sh
+python scripts/repair_memory_metadata.py --db data/short_term.db --plan reports/memory-repair-preview.json
+# Optional evidence: add --baseline reports/pre-damage-short-term.sqlite (repeatable).
+python scripts/repair_memory_metadata.py --db data/short_term.db --plan reports/memory-repair-preview.json --apply
+python -B -m unittest discover -s scripts -p test_repair_memory_metadata.py
+```
+
+Review the plan before applying it; use a new preview filename for each run.
+Apply separately after the reviewed build is installed, with AuraGo stopped.
+`--apply` requires the saved plan and creates a consistent SQLite backup plus a
+rehearsal copy under `reports/`. It tests the changes and their repeated application
+on that copy before writing the original. Between preview and application, full
+metadata snapshots, curation events, conflicts and matching backup evidence are
+compared again inside a write transaction. Changed or already repaired rows are
+skipped. Every applied repair has a transactional `metadata_repair` curation event
+and a local application report; a failed audit write rolls back the repairs.
+
+Retained archive timestamps prove archival, unless a later reactivation decision
+conflicts with that evidence. Confirmation requires the last effective recorded
+confirmation, a matching review timestamp, and no open or later conflicts. Dry-run
+events cannot prove a change; later protection does not erase a confirmation.
+Source and confidence restoration requires identical curation history, review and
+archive state, protection flags and document identity in an older backup. Conflicting
+backups and unclear decisions remain review items. A status repair can leave source
+and confidence for review when no matching backup exists.
+
+Plans, backups and rehearsal files may contain private metadata. Keep them under
+ignored `reports/` with operator access; never commit them. The utility does not
+create or migrate tables. Successful local checks do not establish live repair:
+verify the reviewed running build and a later persisted maintenance run separately.
+
 ## Skill mutations
 
 Only persisted agent-origin skills are eligible. Python source is hashed before
