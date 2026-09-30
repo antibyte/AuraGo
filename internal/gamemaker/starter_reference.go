@@ -22,8 +22,8 @@ func (s *Service) StarterReferences(ctx context.Context, jobID string, plan *Gam
 		if err != nil {
 			return nil, err
 		}
-		if len(content) > 96000 {
-			return nil, fmt.Errorf("starter reference %s exceeds 96000 bytes", path)
+		if len(content) > SourceGenerationMaxBytes {
+			return nil, fmt.Errorf("starter reference %s exceeds %d bytes", path, SourceGenerationMaxBytes)
 		}
 		files[path] = content
 	}

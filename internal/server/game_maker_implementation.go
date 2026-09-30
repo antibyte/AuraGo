@@ -16,12 +16,11 @@ import (
 // An unchanged new-game starter needs code, not another catalog exploration.
 // This consumes one existing repair attempt; normal validation still owns success.
 func (r *gameMakerAgentRunner) implementGameStarter(ctx context.Context, cfg *config.Config, client llm.ChatClient, run gamemaker.JobRun) error {
-	main, err := r.service.ReadJobFileRange(ctx, run.Job.ID, "src/main.ts", 1, 240)
+	// Agent-written entries often exceed one interactive read window; supply the
+	// whole file within the shared source-generation byte bound.
+	main, err := r.service.ReadJobSource(ctx, run.Job.ID, "src/main.ts", gamemaker.SourceGenerationMaxBytes)
 	if err != nil {
-		return err
-	}
-	if main.EndLine != main.TotalLines {
-		return fmt.Errorf("starter implementation requires the complete bounded entry source")
+		return fmt.Errorf("starter implementation: %w", err)
 	}
 	references, err := r.service.StarterReferences(ctx, run.Job.ID, run.Plan)
 	if err != nil {

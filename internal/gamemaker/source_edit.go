@@ -53,6 +53,27 @@ func (s *Service) ReadJobFileRange(ctx context.Context, jobID, path string, star
 	return SourceRead{path, selected, sourceHash(content), start, end, len(lines)}, nil
 }
 
+// SourceGenerationMaxBytes bounds each complete file supplied to tool-free
+// source generation, including the entry file and helper references.
+const SourceGenerationMaxBytes = 96000
+
+// ReadJobSource returns one complete text file for tool-free generation. The
+// interactive 240-line window does not apply; only the explicit byte bound does.
+func (s *Service) ReadJobSource(ctx context.Context, jobID, path string, maxBytes int) (SourceRead, error) {
+	content, err := s.ReadJobFile(ctx, jobID, path)
+	if err != nil {
+		return SourceRead{}, err
+	}
+	if !utf8.ValidString(content) || strings.ContainsRune(content, 0) {
+		return SourceRead{}, fmt.Errorf("read source text or JSON metadata, not binary assets")
+	}
+	if len(content) > maxBytes {
+		return SourceRead{}, fmt.Errorf("%s has %d bytes; source generation accepts at most %d", path, len(content), maxBytes)
+	}
+	lines := strings.Count(content, "\n") + 1
+	return SourceRead{path, content, sourceHash(content), 1, lines, lines}, nil
+}
+
 func (s *Service) WriteJobFileChecked(ctx context.Context, jobID, path, content, expected string) (SourceWrite, error) {
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()

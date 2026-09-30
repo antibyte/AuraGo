@@ -220,8 +220,9 @@ revision publication and standalone export for Phaser and Three.js games.
   unchanged helpers use a compact API only after exact comparison with the
   accepted plan's generated template (a version marker alone is insufficient).
   Custom/old helpers keep their complete references with the existing 96000-byte
-  per-file limit. Known-helper scene/mechanics summaries explicitly report
-  omissions and revisions. Keep full bounded main.ts and the accepted plan.
+  per-file limit (`SourceGenerationMaxBytes`). Known-helper scene/mechanics summaries explicitly report
+  omissions and revisions. Keep the complete main.ts (`ReadJobSource`, same byte
+  bound, never the 240-line interactive window) and the accepted plan.
   Retries preserve the sent prefix/reference packet and append correction plus
   newly available reasoning without additional model calls or repair attempts;
   the private archive remains complete. A completed single `game_maker_file`

@@ -47,6 +47,8 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 		{"3d", "flight", "stop", "export const requestedGame = 7;", "stale"},
 		{"3d", "flight", "stop", "export const requestedGame = 7;", "wrong-file"},
 		{"3d", "flight", "length", "export const requestedGame = 7;", "wrapped"},
+		// An agent-written entry longer than one 240-line read window.
+		{"2d", "platformer", "stop", "export const requestedGame = 7;", "long"},
 	} {
 		t.Run(scenario.dimension+"/"+scenario.finish+fmt.Sprint(len(scenario.code))+"/"+scenario.envelope, func(t *testing.T) {
 			root := t.TempDir()
@@ -96,7 +98,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				// Full output takes longer than the header timeout; streaming must survive it.
 				time.Sleep(120 * time.Millisecond)
 				wireCode := scenario.code
-				if scenario.envelope != "" {
+				if scenario.envelope != "" && scenario.envelope != "long" {
 					wireCode = starterSourceEnvelope(activeJobID, sourceRevision, wireCode)
 					if scenario.envelope == "function" {
 						wireCode = starterFunctionSourceEnvelope(scenario.code)
@@ -154,6 +156,12 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				if run.Stage == "planning" {
 					return svc.SetDesignJSON(ctx, run.Job.ID, []byte(fmt.Sprintf(`{"base":%q,"objective":"Requested game","features":["custom rules"]}`, scenario.base)))
 				}
+				if scenario.envelope == "long" {
+					starter, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
+					if err := svc.WriteJobFile(ctx, run.Job.ID, "src/main.ts", starter+strings.Repeat("// retained design note\n", 300)); err != nil {
+						return err
+					}
+				}
 				before, _ := svc.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
 				entry, readErr := svc.ReadJobFileRange(ctx, run.Job.ID, "src/main.ts", 1, 240)
 				if readErr != nil {
@@ -177,7 +185,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 				if valid && (err != nil || !strings.Contains(after, "export const requestedGame =") || strings.Contains(after, "```")) {
 					t.Errorf("code not written: %v", err)
 				}
-				if valid && scenario.envelope != "" {
+				if valid && scenario.envelope != "" && scenario.envelope != "long" {
 					build := svc.BuildJob(ctx, run.Job.ID)
 					broken := strings.Contains(scenario.code, "= ;")
 					if broken && (build.OK || len(build.Diagnostics) == 0) || !broken && (!build.OK || build.RuntimeStatus != "unverified") {
