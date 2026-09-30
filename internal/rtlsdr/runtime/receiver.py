@@ -10,7 +10,27 @@ import threading
 import time
 import urllib.request
 
+import numpy as np
 import websocket
+
+# Demodulator volume and worker make-up gain per analog mode. SDRangel scales
+# broadcast FM to 0.2 * 4096 * volume at full deviation and AM to 2000 * volume,
+# and converts both to 16 bit without clamping, so their volume stays low enough
+# never to wrap; the worker adds the rest through a soft limiter. NFM and SSB
+# clamp internally. With volume 1 broadcast FM played near -50 dBFS; now it
+# plays near -16 dBFS, and the test tones of all modes decode above -20 dBFS.
+OUTPUT = {"wfm": (8.0, 6.0), "nfm": (1.0, 1.0), "am": (2.0, 3.0), "usb": (7.0, 1.0), "lsb": (7.0, 1.0)}
+KNEE = 0.8
+
+
+def shape(data, gain):
+    """Apply make-up gain to s16le PCM; peaks bend towards full scale instead of wrapping."""
+    if gain == 1:
+        return data
+    x = np.frombuffer(data, dtype="<i2").astype(np.float32) * (gain / 32768)
+    over = np.abs(x) > KNEE
+    x[over] = np.sign(x[over]) * (KNEE + (1 - KNEE) * np.tanh((np.abs(x[over]) - KNEE) / (1 - KNEE)))
+    return np.rint(x * 32767).astype("<i2").tobytes()
 
 
 def request(port, path, method="GET", data=None, timeout=3):
@@ -230,7 +250,7 @@ class Receiver:
         self.decoder = subprocess.Popen(["parec", "--device=receiver.monitor", "--raw",
             "--format=s16le", "--rate=48000", "--channels=2", "--latency-msec=20"],
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
-        threading.Thread(target=self.read_pcm, args=(self.decoder, self.generation), daemon=True).start()
+        threading.Thread(target=self.read_pcm, args=(self.decoder, self.generation, OUTPUT[tuning["mode"]][1]), daemon=True).start()
         generation = self.generation
         threading.Thread(target=self.spectrum_socket, args=(generation,), daemon=True).start()
 
@@ -247,7 +267,7 @@ class Receiver:
         key = kind + "Settings"
         if create:
             api("/deviceset/0/channel", "POST", {"channelType": kind, "direction": 0})
-        settings = {"inputFrequencyOffset": 0, "rfBandwidth": tuning["bandwidth_hz"], "volume": 1.0,
+        settings = {"inputFrequencyOffset": 0, "rfBandwidth": tuning["bandwidth_hz"], "volume": OUTPUT[mode][0],
                     "audioMute": 0, "squelch": tuning["squelch_db"], "audioDeviceName": "receiver"}
         if mode == "wfm":
             settings.update(afBandwidth=15000, deEmphasis=0, audioStereo=int(tuning["stereo"]), rdsActive=1)
@@ -298,7 +318,7 @@ class Receiver:
             time.sleep(0.3)
         raise RuntimeError("sdr_dab_service_missing")
 
-    def read_pcm(self, process, generation):
+    def read_pcm(self, process, generation, gain=1.0):
         pending = b""
         while generation == self.generation:
             data = process.stdout.read(4096)
@@ -311,7 +331,7 @@ class Receiver:
                 if self.last_audio and now - self.last_audio > 0.25:
                     self.gaps += 1
                 self.last_audio = now
-                self.pcm.publish(pending[:length])
+                self.pcm.publish(shape(pending[:length], gain))
                 pending = pending[length:]
 
     def spectrum_socket(self, generation):

@@ -104,7 +104,9 @@ def pcm(radio, seconds=3):
     samples = np.frombuffer(b"".join(chunks), dtype="<i2").reshape(-1, 2).astype(float) / 32768
     samples = samples[-48000:]
     rms = float(np.sqrt(np.mean(samples ** 2)))
-    assert rms > .0001, f"Silent decoded audio: {rms}"
+    # Audible level, not just any signal: every fixture tone must decode above
+    # -26 dBFS (volume 1 once left broadcast FM near -46 dBFS) without saturating.
+    assert .05 < rms < .8, f"Decoded audio level out of range: {rms}"
     peaks = []
     for channel in (0, 1):
         spectrum = np.abs(np.fft.rfft(samples[:, channel] * np.hanning(len(samples))))

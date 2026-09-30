@@ -4,6 +4,8 @@ import threading
 import unittest
 from unittest.mock import patch, MagicMock
 
+import numpy as np
+
 import receiver
 
 
@@ -21,6 +23,28 @@ class ReceiverContracts(unittest.TestCase):
             configure.assert_called_once_with(tuning)
             stop.assert_not_called()
         self.assertEqual(radio.meta["center_hz"], 101100000)
+
+    def test_analog_modes_use_calibrated_demodulator_volume(self):
+        radio = receiver.Receiver.__new__(receiver.Receiver)
+        radio.meta = {"gains_db": [0, 49.6]}
+        tuning = {"frequency_hz": 100000000, "bandwidth_hz": 180000, "gain_db": 0, "agc": True,
+                  "ppm": 0, "squelch_db": -100, "stereo": True}
+        kinds = {"wfm": "BFMDemod", "nfm": "NFMDemod", "am": "AMDemod", "usb": "SSBDemod", "lsb": "SSBDemod"}
+        for mode, kind in kinds.items():
+            with patch.object(receiver, "request") as request:
+                radio.configure_analog(dict(tuning, mode=mode))
+            body = request.call_args_list[-1].args[3]
+            self.assertEqual(body[kind + "Settings"]["volume"], receiver.OUTPUT[mode][0], mode)
+        self.assertGreater(receiver.OUTPUT["wfm"][0] * receiver.OUTPUT["wfm"][1], 40)
+
+    def test_make_up_gain_bends_peaks_instead_of_wrapping(self):
+        pcm = np.array([0, 1000, -1000, 5000, -5000, 20000, -20000, 32767, -32768], dtype="<i2")
+        out = np.frombuffer(receiver.shape(pcm.tobytes(), 6.0), dtype="<i2")
+        self.assertEqual(list(out[:3]), [0, 6000, -6000])
+        self.assertTrue(np.all(np.sign(out) == np.sign(pcm)), out)
+        self.assertTrue(np.all(np.abs(out[3:]) > 26000), out)
+        self.assertEqual(list(np.abs(out[3::2])), sorted(np.abs(out[3::2])))
+        self.assertEqual(receiver.shape(pcm.tobytes(), 1.0), pcm.tobytes())
 
     def test_slow_browser_does_not_mark_capture_as_dropped(self):
         hub = receiver.Hub()

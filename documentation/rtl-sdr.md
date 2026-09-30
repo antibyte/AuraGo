@@ -73,8 +73,10 @@ current station as a favorite and removes it again. PPM correction is part of
 **Receiver setup**. During live listening, committing a frequency entry or
 changing modulation, filter, gain or squelch tunes immediately. The player discards old buffered audio on
 each successful retune. AGC controls both RF tuner and digital gain; switch it
-off to choose a manual tuner gain. Runtime image `:2` includes the RF AGC fix
+off to choose a manual tuner gain. The runtime image includes the RF AGC fix
 against the pinned SDRangel source (upstream's AGC controls digital gain only).
+Runtime image `:3` calibrates the audio level of every analog mode; with the
+upstream demodulator volume broadcast FM played near -50 dBFS, now near -16 dBFS.
 Unsupported frequencies are rejected. DAB+ service names, radiotext and reception
 quality come from the ensemble; scanning can take several minutes.
 
@@ -144,7 +146,7 @@ Build the currently expected image locally on the server:
 
 ```sh
 docker build -f internal/rtlsdr/runtime/Dockerfile \
-  -t ghcr.io/antibyte/aurago-rtl-sdr:2 .
+  -t ghcr.io/antibyte/aurago-rtl-sdr:3 .
 docker build -f internal/rtlsdr/runtime/Dockerfile.fixtures \
   -t aurago-rtl-sdr-fixtures .
 docker run --rm --network none --cap-drop ALL \
@@ -152,7 +154,7 @@ docker run --rm --network none --cap-drop ALL \
 ```
 
 The fixture image generates original analog and DAB+ IQ files, decodes them with
-the actual pinned engines, and verifies audio tones, stereo separation, spectrum,
+the actual pinned engines, and verifies audio tones and their audible level, stereo separation, spectrum,
 service discovery and continuous analog retuning. It never transmits RF and is
 not installed by the app. `.github/workflows/rtl-sdr.yml` runs these checks on
 amd64 and arm64. Its explicit `publish` input builds/signs the multi-platform GHCR
