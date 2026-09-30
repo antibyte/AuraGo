@@ -10,7 +10,6 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
-	"aurago/internal/security"
 	"aurago/internal/tools/outputcompress"
 
 	"github.com/sashabaranov/go-openai"
@@ -201,10 +200,10 @@ func finalizeToolExecution(
 		}
 		originalContent := rawContent
 		var compStats outputcompress.CompressionStats
-		payload, isolated := toolResultPayload(rawContent)
+		payload, isolated, raw := toolResultPayloadForm(rawContent)
 		if isolated {
 			payload, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, payload, compCfg)
-			rawContent = toolResultPresentationPrefix(rawContent) + security.IsolateExternalData(payload) + toolResultPresentationSuffix(rawContent)
+			rawContent = toolResultPresentationPrefix(rawContent) + isolateToolPayload(payload, raw) + toolResultPresentationSuffix(rawContent)
 		} else {
 			rawContent, compStats = outputcompress.Compress(trackingTC.Action, trackingTC.Command, rawContent, compCfg)
 		}

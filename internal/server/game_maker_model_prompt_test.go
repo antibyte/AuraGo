@@ -514,3 +514,90 @@ func TestGameMakerPromptDoesNotClaimUnsuppliedSkills(t *testing.T) {
 		}
 	}
 }
+
+// A real read travels through dispatch, Guardian isolation, compression and
+// bounding. The model must receive plain JSON, not entity-escaped quotes.
+func TestGameMakerReadReachesModelReadable(t *testing.T) {
+	root := t.TempDir()
+	service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	previous := gamemaker.DefaultService()
+	gamemaker.SetDefaultService(service)
+	defer gamemaker.SetDefaultService(previous)
+	service.SetSkillStatus(nil, true)
+	var calls atomic.Int32
+	var toolMessage atomic.Value
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body openai.ChatCompletionRequest
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		if calls.Add(1) == 1 {
+			args, _ := json.Marshal(map[string]any{"operation": "read", "path": "src/common.ts", "start_line": 1, "end_line": 40})
+			delta := map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"index": 0, "id": "read-source", "type": "function", "function": map[string]any{"name": "game_maker_file", "arguments": string(args)}}}}
+			data, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"index": 0, "delta": delta, "finish_reason": "tool_calls"}}})
+			fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", data)
+			return
+		}
+		for _, message := range body.Messages {
+			if message.Role == openai.ChatMessageRoleTool {
+				toolMessage.Store(message.Content)
+			}
+		}
+		fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer provider.Close()
+	cfg := &config.Config{}
+	cfg.LLM.Model, cfg.LLM.ProviderType = "test-game-model", "openai"
+	cfg.Agent.ContextWindow = 65536
+	cfg.CircuitBreaker.LLMTimeoutSeconds = 10
+	cfg.GameMaker.Enabled = true
+	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
+	clientConfig := openai.DefaultConfig("local-test")
+	clientConfig.BaseURL = provider.URL
+	server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	server.Registry = tools.NewProcessRegistry(server.Logger)
+	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.ShortTermMem.Close()
+	runner := &gameMakerAgentRunner{server: server, service: service}
+	service.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+		if run.Stage == "planning" {
+			return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"platformer","objective":"Reach the flag","features":["Jump between ledges"]}`))
+		}
+		_ = runner.RunGameMakerJob(ctx, run)
+		return errors.New("read captured")
+	}))
+	project, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Readable read", Description: "Reach the flag", Dimension: "2d"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := service.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{Prompt: "Implement the game"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(20 * time.Second); ; {
+		if done, err := service.GetJob(context.Background(), job.ID); err == nil && done.Status == "failed" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("read job did not terminate")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	content, _ := toolMessage.Load().(string)
+	if !strings.Contains(content, "<external_data>") {
+		t.Fatalf("read result was not isolated: %q", content)
+	}
+	if strings.Contains(content, "&#34;") || strings.Contains(content, "&#39;") || strings.Contains(content, `\u003c`) {
+		i := max(max(strings.Index(content, "&#34;"), strings.Index(content, "&#39;")), strings.Index(content, `\u003c`))
+		t.Fatalf("read result is still escaped at %d: %.300s", i, content[max(0, i-150):])
+	}
+	if !strings.Contains(content, `"sha256":"`) || !strings.Contains(content, "import {") {
+		t.Fatalf("read result lost plain JSON or source text: %.400s", content)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/danielthedm/promptsec"
 	"github.com/danielthedm/promptsec/guard/taint"
@@ -724,6 +725,59 @@ func IsolateExternalData(content string) string {
 	return "<external_data>\n" + safe + "\n</external_data>"
 }
 
+// IsolateSourceData wraps project source for LLM ingestion without escaping it,
+// so code stays exactly copyable for edits. Content that could forge or name the
+// isolation boundary in any common encoding, or that carries no raw quote or
+// angle character, keeps the fully escaped IsolateExternalData form. A raw body
+// therefore always contains one of " ' < >, which an escaped body never does.
+func IsolateSourceData(content string) string {
+	if content == "" {
+		return ""
+	}
+	if !strings.ContainsAny(content, `"'<>`) || sourceBoundaryRisk(content) {
+		return IsolateExternalData(content)
+	}
+	return "<external_data>\n" + content + "\n</external_data>"
+}
+
+// IsolatedPayload recovers the content of an isolation body produced by either
+// IsolateExternalData or IsolateSourceData, and reports whether it was raw.
+func IsolatedPayload(body string) (string, bool) {
+	if strings.ContainsAny(body, `"'<>`) {
+		return body, true
+	}
+	return html.UnescapeString(body), false
+}
+
+var sourceClosingTag = regexp.MustCompile(`<[\s\p{Cf}]*/`)
+
+// sourceBoundaryRisk decodes JSON/JS escapes and up to three rounds of HTML
+// entities, then rejects any closing-tag shape or the boundary name spelled
+// with separators, invisible characters or letters in any case.
+func sourceBoundaryRisk(content string) bool {
+	view := strings.ToLower(content)
+	for _, lt := range []string{`\u003c`, `\u{3c}`, `\u{003c}`, `\x3c`} {
+		view = strings.ReplaceAll(view, lt, "<")
+	}
+	for range 3 {
+		next := strings.ToLower(html.UnescapeString(view))
+		if next == view {
+			break
+		}
+		view = next
+	}
+	if sourceClosingTag.MatchString(view) {
+		return true
+	}
+	var letters strings.Builder
+	for _, r := range view {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			letters.WriteRune(r)
+		}
+	}
+	return strings.Contains(letters.String(), "externaldata")
+}
+
 // ── Tool Output Sanitization ────────────────────────────────────────────────
 
 // roleMarkers are patterns that could trick the LLM into treating external data
@@ -756,6 +810,20 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
 			}
 			output = IsolateExternalData(output)
+		}
+	case toolOutputSourceData:
+		// Always isolate. IsolateSourceData already escapes anything that could
+		// forge the boundary; escaping cannot neutralise injection prose, and the
+		// scanner rates ordinary game templates high, so only critical findings
+		// keep the legacy escaped form.
+		if scan := g.ScanForInjection(output); scan.Level >= ThreatCritical {
+			if g.logger != nil {
+				g.logger.Warn("[Guardian] Injection patterns in project source, escaping",
+					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
+			}
+			output = IsolateExternalData(output)
+		} else {
+			output = IsolateSourceData(output)
 		}
 	}
 

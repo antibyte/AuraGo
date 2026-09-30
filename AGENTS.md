@@ -356,7 +356,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 ### Security & Safety (Critical)
 
 - Store credentials in the Vault, never code/config/repository; do not commit sensitive data or PII. The agent normally has no direct access. Tools retrieve required credentials from the Vault at runtime; a user may supply a credential for Vault storage.
-- Treat external content as untrusted: wrap it in `<external_data>` and prevent it from directly steering behavior or tool calls.
+- Treat external content as untrusted: wrap it in `<external_data>` and prevent it from directly steering behavior or tool calls. `IsolateExternalData` entity-escapes the whole body. Only the Game Maker source tools use `IsolateSourceData`, which leaves copyable code unescaped but falls back to full escaping for any closing-tag shape or boundary name in any common encoding, and for Guardian-critical content; payload readers and re-wrappers (`toolResultPayloadForm`/`isolateToolPayload`) preserve the form.
 - Local process execution follows the selected shell sandbox policy on every chat channel. Desktop Notes do not override disabled isolation or unsafe fallback. Keep tool gates and native Notes/file mutation protection; unisolated code can bypass the latter, as the shell hint/manual must state. Active Landlock rejects writable-path overlap with Notes; unavailable required isolation stays blocked. See `documentation/desktop-notes.md`.
 - Give nonessential tools/integrations an activation toggle. Harmful capabilities default off and remain UI-disableable; assess security and data exposure when adding them.
 

@@ -787,12 +787,16 @@ func proceduralGameMakerFallback(ctx context.Context, service *gamemaker.Service
 	})
 }
 
+// gameMakerToolJSON keeps <, > and & literal: results reach a model, never an
+// HTML page, and source must read exactly as stored for replace edits.
 func gameMakerToolJSON(value any) string {
-	data, err := json.Marshal(value)
-	if err != nil {
+	var data bytes.Buffer
+	encoder := json.NewEncoder(&data)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(value); err != nil {
 		return `Tool Output: {"status":"error","message":"could not serialize Game Maker result"}`
 	}
-	return "Tool Output: " + string(data)
+	return "Tool Output: " + strings.TrimSuffix(data.String(), "\n")
 }
 
 func gameMakerToolError(err error) string {

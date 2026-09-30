@@ -8,6 +8,9 @@ const (
 	toolOutputTrusted toolOutputTrust = iota
 	toolOutputSemiTrusted
 	toolOutputExternal
+	// toolOutputSourceData is untrusted project source that the model must copy
+	// exactly for edits; it stays isolated but unescaped unless it looks hostile.
+	toolOutputSourceData
 )
 
 func classifyToolOutput(action string) toolOutputTrust {
@@ -16,6 +19,8 @@ func classifyToolOutput(action string) toolOutputTrust {
 		return toolOutputTrusted
 	case "execute_shell", "execute_python", "run_tool":
 		return toolOutputSemiTrusted
+	case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate":
+		return toolOutputSourceData
 	case
 		"adguard",
 		"adguard_home",
