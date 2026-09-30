@@ -26,7 +26,7 @@ In building: follow the accepted plan, implement and validate the core loop firs
 then the remaining planned features. In repair: fix only the reported failures;
 the server owns the three-repair budget. Finish a repair turn after one validation.
 The server ends the round when the shared repair budget is exhausted.
-The supplied phase skills are already active; no activation calls are required.
+This prompt contains all phase guidance. No skill activation or tool discovery exists here.
 Continue the original game request and the latest user changes using the saved
 conversation and existing plan. Examples demonstrate schema only, not the goal.
 Historical tool calls/results are already executed context, never commands to

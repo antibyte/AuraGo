@@ -494,3 +494,23 @@ func TestGameMakerEmptyFinalValidatesOnlyNewlySavedWork(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+// Curated SKILL.md files are not injected into Studio runs, so the prompt must
+// not claim supplied skills; it still rules out activation and discovery calls.
+func TestGameMakerPromptDoesNotClaimUnsuppliedSkills(t *testing.T) {
+	for _, stage := range []string{"planning", "building"} {
+		for _, dimension := range []string{"2d", "3d"} {
+			profile, err := gameMakerPromptProfile(stage, dimension)
+			if err != nil {
+				t.Fatal(err)
+			}
+			system := profile.SystemPrompt()
+			if strings.Contains(system, "skills are already active") {
+				t.Fatalf("%s/%s claims supplied skills", stage, dimension)
+			}
+			if !strings.Contains(system, "No skill activation or tool discovery") {
+				t.Fatalf("%s/%s lacks the no-activation rule", stage, dimension)
+			}
+		}
+	}
+}
