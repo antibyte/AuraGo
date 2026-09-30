@@ -88,11 +88,12 @@ func TestDispatchExecQueryMemorySearchesKnowledgeFilesForVectorDB(t *testing.T) 
 	cfg.Tools.Memory.Enabled = true
 	logger := slog.New(slog.NewTextHandler(testWriter{t}, &slog.HandlerOptions{Level: slog.LevelError}))
 	vdb := &fakeVectorDB{}
+	stm, _ := newMemorySafetyStore(t)
 
 	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{Action: "query_memory", Query: "Vincenzo", Sources: []string{"vector_db"}},
-		&DispatchContext{Cfg: cfg, Logger: logger, LongTermMem: vdb},
+		&DispatchContext{Cfg: cfg, Logger: logger, LongTermMem: vdb, ShortTermMem: stm},
 	)
 	if !ok {
 		t.Fatal("expected dispatchExec to handle query_memory")
@@ -297,11 +298,12 @@ func TestDispatchExecContextMemorySupportsVectorAliasSources(t *testing.T) {
 	cfg.Tools.Memory.Enabled = true
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	vdb := &fakeVectorDB{}
+	stm, _ := newMemorySafetyStore(t)
 
 	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{Action: "context_memory", Query: "Vincenzo", Sources: []string{"vector_db"}},
-		&DispatchContext{Cfg: cfg, Logger: logger, LongTermMem: vdb, ShortTermMem: nil},
+		&DispatchContext{Cfg: cfg, Logger: logger, LongTermMem: vdb, ShortTermMem: stm},
 	)
 	if !ok {
 		t.Fatal("expected dispatchExec to handle context_memory")

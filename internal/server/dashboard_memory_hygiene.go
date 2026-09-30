@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"aurago/internal/agent"
 	"aurago/internal/memory"
 )
 
@@ -209,9 +208,6 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 		}
 	}
 	plan.Totals = dashboardMemoryHygieneTotals(plan)
-	if memoryApplied > 0 || plan.Canonical.RepairedCount > 0 {
-		agent.InvalidateMemoryMetaCache()
-	}
 	response := map[string]interface{}{
 		"status": "ok",
 		"applied": map[string]int{

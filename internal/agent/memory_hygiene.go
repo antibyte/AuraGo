@@ -107,10 +107,6 @@ func runAutomaticMemoryHygiene(cfg *config.Config, logger *slog.Logger, stm *mem
 			DryRun: false,
 		})
 		canonicalRepaired = report.RepairedCount
-		if len(report.Items) > 0 {
-			// Metadata can be committed even when retiring an old vector fails.
-			InvalidateMemoryMetaCache()
-		}
 		if err != nil {
 			failures = append(failures, err)
 			logger.Warn("[MemoryHygiene] Failed to repair canonical memory names", "error", err)

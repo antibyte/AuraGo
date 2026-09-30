@@ -95,7 +95,10 @@ func TestRankMemoryCandidatesIntegratesReusePenalty(t *testing.T) {
 	}
 	docIDs := []string{"doc-repeat", "doc-fresh"}
 
-	ranked := rankMemoryCandidates(memories, docIDs, stm, map[string]int{"doc-repeat": 2}, time.Now())
+	ranked, err := rankMemoryCandidates(memories, docIDs, stm, map[string]int{"doc-repeat": 2}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(ranked) != 2 {
 		t.Fatalf("len(ranked) = %d, want 2", len(ranked))
 	}

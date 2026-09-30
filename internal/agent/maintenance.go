@@ -1170,9 +1170,20 @@ func shouldMarkConsolidationSuccess(stored, skipped, factCount, validFacts int) 
 }
 
 func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) (stored int, skipped int, err error) {
+	return storeConsolidationFactsWithContext(context.Background(), logger, stm, ltm, facts)
+}
+
+func storeConsolidationFactsWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, facts []helperConsolidationFact) (stored int, skipped int, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var createdIDs []string
 	var storeErrors []error
 	for _, fact := range facts {
+		if err := ctx.Err(); err != nil {
+			storeErrors = append(storeErrors, err)
+			break
+		}
 		concept, content := strings.TrimSpace(fact.Concept), strings.TrimSpace(fact.Content)
 		if concept == "" || content == "" {
 			continue
@@ -1202,7 +1213,7 @@ func storeConsolidationFacts(logger *slog.Logger, stm *memory.SQLiteMemory, ltm 
 				storeErrors = append(storeErrors, err)
 			}
 		}
-		if err := detectMemoryConflictsForDocIDs(logger, stm, ltm, owned.CreatedIDs, content); err != nil {
+		if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, owned.CreatedIDs, content); err != nil {
 			storeErrors = append(storeErrors, err)
 		}
 		stored++
@@ -1462,7 +1473,6 @@ func loadNightlyMemoryMeta(ctx context.Context, cfg *config.Config, logger *slog
 			logger.Warn("[Maintenance] Memory meta budget enforcement failed", "error", err, "budget", cfg.Consolidation.MemoryMetaBudget)
 		} else if evicted > 0 {
 			logger.Info("[Maintenance] Memory meta budget enforced", "evicted", evicted, "budget", cfg.Consolidation.MemoryMetaBudget)
-			InvalidateMemoryMetaCache()
 			refreshed, refreshErr := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 			if refreshErr != nil {
 				resultErr = errors.Join(resultErr, refreshErr)
@@ -1673,7 +1683,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 			}
 			return
 		}
-		stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
+		stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts)
 		if storeErr != nil {
 			result.Errors = append(result.Errors, storeErr)
 			logger.Warn("[Consolidation] LTM storage failed for batch", "batch", batchIndex, "error", storeErr)
@@ -1756,7 +1766,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 					continue
 				}
 				facts := singleResult.Batches[0].Facts
-				stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
+				stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts)
 				if storeErr != nil {
 					result.Errors = append(result.Errors, storeErr)
 					if markErr := stm.MarkConsolidationFailure(item.messageIDs, storeErr.Error()); markErr != nil {
@@ -1783,7 +1793,7 @@ func consolidateSTMtoLTMWithContext(ctx context.Context, cfg *config.Config, log
 		}
 		for offset, item := range group {
 			facts := byID[item.batchID]
-			stored, skipped, storeErr := storeConsolidationFacts(logger, stm, ltm, facts)
+			stored, skipped, storeErr := storeConsolidationFactsWithContext(ctx, logger, stm, ltm, facts)
 			if storeErr != nil {
 				result.Errors = append(result.Errors, storeErr)
 				logger.Warn("[Consolidation] LTM storage failed for helper batch", "batch_id", item.batchID, "error", storeErr)
@@ -2030,7 +2040,7 @@ func detectMemoryConflictsAcrossLTMWithContext(ctx context.Context, logger *slog
 			break
 		}
 		scanned++
-		resultErr = errors.Join(resultErr, detectMemoryConflictsForDocIDs(logger, stm, ltm, []string{meta.DocID}, ""))
+		resultErr = errors.Join(resultErr, detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, []string{meta.DocID}, ""))
 	}
 	return resultErr
 }
@@ -2094,8 +2104,6 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 }
 
 func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, prefetchedMetas []memory.MemoryMeta) (result autoOptimizeMemoryResult) {
-	// A partial replacement may have committed metadata even if retirement fails.
-	defer InvalidateMemoryMetaCache()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -2367,9 +2375,6 @@ func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLit
 		appliedArchive++
 	}
 	if appliedConfirm > 0 || appliedArchive > 0 || plan.ReviewRequiredCount > 0 {
-		if appliedConfirm > 0 || appliedArchive > 0 {
-			InvalidateMemoryMetaCache()
-		}
 		logger.Info("[MemoryCurator] Curation run complete",
 			"confirmed", appliedConfirm,
 			"archived", appliedArchive,

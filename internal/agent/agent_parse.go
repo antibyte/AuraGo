@@ -384,8 +384,6 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 				"memory maintenance compressed into replacement memory",
 				"agent",
 			)
-			// Refresh metadata even when the replacement commits but retirement fails.
-			InvalidateMemoryMetaCache()
 			if replaceErr != nil {
 				partial = true
 				logger.Warn("[MemoryMaintenance] Failed to replace compressed memory", "doc_id", docID, "error", replaceErr)
@@ -403,9 +401,6 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 			} else {
 				graphRemoved = removed
 			}
-		}
-		if lowCount > 0 || mediumCount > 0 {
-			InvalidateMemoryMetaCache()
 		}
 	}
 	status := "success"

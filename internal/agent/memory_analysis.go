@@ -239,10 +239,17 @@ func runMemoryAnalysis(
 		return
 	}
 
-	applyMemoryAnalysisResult(cfg, logger, stm, ltm, sessionID, result)
+	applyMemoryAnalysisResultWithContext(ctx, cfg, logger, stm, ltm, sessionID, result)
 }
 
 func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, sessionID string, result memoryAnalysisResult) int {
+	return applyMemoryAnalysisResultWithContext(context.Background(), cfg, logger, stm, ltm, sessionID, result)
+}
+
+func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, sessionID string, result memoryAnalysisResult) int {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	threshold := 0.0
 	if cfg != nil {
 		threshold = cfg.MemoryAnalysis.AutoConfirm
@@ -250,6 +257,9 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 	stored := 0
 	// Process facts
 	for _, f := range result.Facts {
+		if ctx.Err() != nil {
+			break
+		}
 		minThreshold := thresholdForMemoryCategory(threshold, f.Category)
 		if f.Confidence >= minThreshold && f.Content != "" && shouldStoreExtractedMemory(f.Content, f.Category) {
 			if ltm != nil {
@@ -261,7 +271,9 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
+					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, f.Content); err != nil {
+						logger.Warn("[Memory Analysis] Fact conflict check failed", "error", err)
+					}
 					stored++
 					if stm != nil && strings.EqualFold(f.Category, "recent_operational_details") {
 						_ = stm.InsertEpisodicMemoryWithDetails(
@@ -286,6 +298,9 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 
 	// Process preferences
 	for _, p := range result.Preferences {
+		if ctx.Err() != nil {
+			break
+		}
 		minThreshold := thresholdForMemoryCategory(threshold, p.Category)
 		if p.Confidence >= minThreshold && p.Content != "" && shouldStoreExtractedMemory(p.Content, p.Category) {
 			if ltm != nil {
@@ -297,7 +312,9 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
+					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, p.Content); err != nil {
+						logger.Warn("[Memory Analysis] Preference conflict check failed", "error", err)
+					}
 					stored++
 				}
 			}
@@ -306,6 +323,9 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 
 	// Process corrections — these update core memory
 	for _, c := range result.Corrections {
+		if ctx.Err() != nil {
+			break
+		}
 		minThreshold := thresholdForMemoryCategory(threshold, c.Category)
 		if c.Confidence >= minThreshold && c.Content != "" && shouldStoreExtractedMemory(c.Content, c.Category) {
 			if ltm != nil {
@@ -317,7 +337,9 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
 					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
-					detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, concept)
+					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, c.Content); err != nil {
+						logger.Warn("[Memory Analysis] Correction conflict check failed", "error", err)
+					}
 					stored++
 				}
 			}
@@ -325,6 +347,9 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 	}
 
 	for _, action := range result.PendingActions {
+		if ctx.Err() != nil {
+			break
+		}
 		if stm == nil || action.Confidence < 0.65 {
 			continue
 		}

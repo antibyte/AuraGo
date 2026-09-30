@@ -395,8 +395,10 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 			if err != nil {
 				bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
 			} else if len(results) > 0 {
-				results = filterArchivedMemoryResults(results, docIDs, shortTermMem)
-				if len(results) > 0 {
+				results, err = filterArchivedMemoryResults(results, docIDs, shortTermMem)
+				if err != nil {
+					bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
+				} else if len(results) > 0 {
 					bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("ltm"), Count: len(results), Data: results})
 				}
 			}
@@ -1010,6 +1012,9 @@ func executeContextMemoryQuery(tc ToolCall, sessionID string, shortTermMem *memo
 		"time_range":       tc.TimeRange,
 		"combined_results": results,
 	}
+	if len(bundle.Errors) > 0 {
+		payload["errors"] = bundle.Errors
+	}
 	if fromDate != "" || toDate != "" {
 		payload["resolved_range"] = map[string]string{"from_date": fromDate, "to_date": toDate}
 	}
@@ -1038,21 +1043,23 @@ func scrubConversationEntry(entry memory.ConversationEntry) memory.ConversationE
 	return entry
 }
 
-func filterArchivedMemoryResults(results []string, docIDs []string, stm *memory.SQLiteMemory) []string {
-	if stm == nil || len(results) == 0 || len(docIDs) == 0 {
-		return results
+func filterArchivedMemoryResults(results []string, docIDs []string, stm *memory.SQLiteMemory) ([]string, error) {
+	if len(results) == 0 {
+		return nil, nil
 	}
-	metaMap := loadMemoryMetaMap(stm)
+	if len(results) != len(docIDs) {
+		return nil, fmt.Errorf("memory results are missing document IDs")
+	}
+	metaMap, err := loadMemoryMetaMap(stm, docIDs)
+	if err != nil {
+		return nil, err
+	}
 	filtered := make([]string, 0, len(results))
 	for i, result := range results {
-		if i >= len(docIDs) {
-			filtered = append(filtered, result)
-			continue
-		}
 		if meta, ok := metaMap[docIDs[i]]; ok && memory.IsMemoryArchived(meta) {
 			continue
 		}
 		filtered = append(filtered, result)
 	}
-	return filtered
+	return filtered, nil
 }

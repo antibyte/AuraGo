@@ -2,33 +2,34 @@ package agent
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"aurago/internal/memory"
 )
 
-var memoryMetaCacheTTL = 1 * time.Minute
-var memoryMetaCacheNow = time.Now
-
-var memoryMetaCache = struct {
-	mu       sync.RWMutex
-	stm      *memory.SQLiteMemory
-	loadedAt time.Time
-	data     map[string]memory.MemoryMeta
-}{}
-
 // rankMemoryCandidates centralizes the retrieval score calculation for vector memories.
 // It combines semantic similarity, recency, confidence/provenance signals, and
 // session-local reuse penalties into one consistent score pipeline.
-func rankMemoryCandidates(memories []string, docIDs []string, stm *memory.SQLiteMemory, usedDocIDs map[string]int, now time.Time) []rankedMemory {
+func rankMemoryCandidates(memories []string, docIDs []string, stm *memory.SQLiteMemory, usedDocIDs map[string]int, now time.Time) ([]rankedMemory, error) {
 	return rankMemoryCandidatesWithScores(memories, docIDs, nil, stm, usedDocIDs, now)
 }
 
-func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similarities []float64, stm *memory.SQLiteMemory, usedDocIDs map[string]int, now time.Time) []rankedMemory {
-	metaMap := loadMemoryMetaMap(stm)
+func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similarities []float64, stm *memory.SQLiteMemory, usedDocIDs map[string]int, now time.Time) ([]rankedMemory, error) {
+	if len(memories) == 0 {
+		return nil, nil
+	}
+	if len(docIDs) != len(memories) {
+		return nil, fmt.Errorf("memory results are missing document IDs")
+	}
+	metaMap, err := loadMemoryMetaMap(stm, docIDs)
+	if err != nil {
+		return nil, err
+	}
 	results := make([]rankedMemory, 0, len(memories))
 
 	for i, mem := range memories {
@@ -61,7 +62,7 @@ func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similari
 		return results[i].score > results[j].score
 	})
 
-	return results
+	return results, nil
 }
 
 func searchSimilarWithScores(ctx context.Context, vdb memory.VectorDB, query string, topK int, excludeCollections ...string) ([]string, []string, []float64, error) {
@@ -115,7 +116,10 @@ func searchRankedMemoriesOnly(
 	if len(memories) == 0 {
 		return nil, nil
 	}
-	ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, usedDocIDs, now)
+	ranked, err := rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, usedDocIDs, now)
+	if err != nil {
+		return nil, err
+	}
 	if topK > 0 && len(ranked) > topK {
 		ranked = ranked[:topK]
 	}
@@ -160,50 +164,30 @@ func splitScoredMemoryResults(results []memory.SearchResult) ([]string, []string
 	return memories, docIDs, similarities, nil
 }
 
-func loadMemoryMetaMap(stm *memory.SQLiteMemory) map[string]memory.MemoryMeta {
+func loadMemoryMetaMap(stm *memory.SQLiteMemory, docIDs []string) (map[string]memory.MemoryMeta, error) {
 	metaMap := make(map[string]memory.MemoryMeta)
 	if stm == nil {
-		return metaMap
+		return nil, fmt.Errorf("memory metadata store is unavailable")
 	}
-
-	now := memoryMetaCacheNow()
-	memoryMetaCache.mu.RLock()
-	if memoryMetaCache.stm == stm && memoryMetaCache.data != nil && now.Sub(memoryMetaCache.loadedAt) < memoryMetaCacheTTL {
-		cached := memoryMetaCache.data
-		memoryMetaCache.mu.RUnlock()
-		return cached
+	seen := make(map[string]bool, len(docIDs))
+	for _, id := range docIDs {
+		if strings.TrimSpace(id) == "" {
+			return nil, fmt.Errorf("memory result has an empty document ID")
+		}
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		meta, err := stm.GetMemoryMeta(id)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("load memory candidate metadata: %w", err)
+		}
+		metaMap[id] = meta
 	}
-	memoryMetaCache.mu.RUnlock()
-
-	memoryMetaCache.mu.Lock()
-	defer memoryMetaCache.mu.Unlock()
-	if memoryMetaCache.stm == stm && memoryMetaCache.data != nil && now.Sub(memoryMetaCache.loadedAt) < memoryMetaCacheTTL {
-		return memoryMetaCache.data
-	}
-
-	metas, err := stm.GetAllMemoryMeta(50000, 0)
-	if err != nil {
-		return metaMap
-	}
-	for _, meta := range metas {
-		metaMap[meta.DocID] = meta
-	}
-	memoryMetaCache.stm = stm
-	memoryMetaCache.loadedAt = now
-	memoryMetaCache.data = metaMap
-	return metaMap
-}
-
-func resetMemoryMetaCacheForTests() {
-	InvalidateMemoryMetaCache()
-}
-
-func InvalidateMemoryMetaCache() {
-	memoryMetaCache.mu.Lock()
-	defer memoryMetaCache.mu.Unlock()
-	memoryMetaCache.stm = nil
-	memoryMetaCache.loadedAt = time.Time{}
-	memoryMetaCache.data = nil
+	return metaMap, nil
 }
 
 func calculateMemoryRankingScore(similarity float64, meta memory.MemoryMeta, reuseCount int, now time.Time) float64 {

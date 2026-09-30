@@ -31,10 +31,20 @@ var conflictSignalPatterns = []struct {
 }
 
 func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string, fallbackText string) (resultErr error) {
+	return detectMemoryConflictsForDocIDsWithContext(context.Background(), logger, stm, ltm, docIDs, fallbackText)
+}
+
+func detectMemoryConflictsForDocIDsWithContext(ctx context.Context, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, docIDs []string, fallbackText string) (resultErr error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if stm == nil || ltm == nil || len(docIDs) == 0 {
 		return
 	}
 	for _, docID := range docIDs {
+		if err := ctx.Err(); err != nil {
+			return errors.Join(resultErr, err)
+		}
 		// Curation may have archived this document since a caller's metadata snapshot.
 		meta, err := stm.GetMemoryMeta(docID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -55,12 +65,18 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 		}
 		signals := deriveConflictSignals(text)
 		for _, signal := range signals {
-			ranked, err := searchRankedMemoriesOnly(context.Background(), ltm, stm, signal.Key, 8, nil, time.Now())
+			if err := ctx.Err(); err != nil {
+				return errors.Join(resultErr, err)
+			}
+			ranked, err := searchRankedMemoriesOnly(ctx, ltm, stm, signal.Key, 8, nil, time.Now())
 			if err != nil {
 				resultErr = errors.Join(resultErr, fmt.Errorf("search memory conflicts: %w", err))
 				continue
 			}
 			for _, match := range ranked {
+				if err := ctx.Err(); err != nil {
+					return errors.Join(resultErr, err)
+				}
 				if match.docID == "" || match.docID == docID {
 					continue
 				}
@@ -79,7 +95,7 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 			}
 		}
 	}
-	return resultErr
+	return errors.Join(resultErr, ctx.Err())
 }
 
 func deriveConflictSignals(text string) []conflictSignal {
@@ -110,16 +126,43 @@ func deriveConflictSignals(text string) []conflictSignal {
 }
 
 func normalizeConflictText(text string) string {
-	text = strings.TrimSpace(text)
-	if strings.HasPrefix(text, "[") {
+	text = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n"))
+	for strings.HasPrefix(text, "[") {
 		if idx := strings.Index(text, "]"); idx >= 0 && idx < len(text)-1 {
 			tag := strings.ToLower(strings.TrimSpace(text[1:idx]))
 			if strings.HasPrefix(tag, "similarity:") || strings.HasPrefix(tag, "domain:") ||
 				tag == "aurago_memories" || tag == "tool_guides" || tag == "documentation" || tag == "file_index" {
-				text = text[idx+1:]
+				text = strings.TrimSpace(text[idx+1:])
+				continue
+			}
+		}
+		break
+	}
+	analysis := false
+	if concept, content, ok := strings.Cut(text, "\n\n"); ok {
+		// Analysis stores the fact in the concept and provenance in the body;
+		// ordinary memory documents store their fact in the body.
+		if strings.HasPrefix(strings.TrimSpace(content), "source:memory_analysis session:") {
+			text, analysis = strings.TrimSpace(concept), true
+		} else {
+			text = strings.TrimSpace(content)
+		}
+	}
+	if strings.HasPrefix(text, "[") {
+		if idx := strings.Index(text, "]"); idx >= 0 {
+			tag := strings.ToLower(strings.TrimSpace(text[1:idx]))
+			if analysis || strings.HasPrefix(tag, "preference:") || strings.HasPrefix(tag, "correction:") {
+				text = strings.TrimSpace(text[idx+1:])
 			}
 		}
 	}
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "source:memory_analysis session:") {
+			lines = append(lines, line)
+		}
+	}
+	text = strings.Join(lines, "\n")
 	text = strings.ReplaceAll(text, "\n", " ")
 	text = strings.Join(strings.Fields(text), " ")
 	text = strings.Trim(text, " .,!?:;")

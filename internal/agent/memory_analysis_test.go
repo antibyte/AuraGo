@@ -327,7 +327,11 @@ func TestRankMemoryCandidatesUsesProvidedSimilarityScoresForRawResults(t *testin
 	docIDs := []string{"doc-low", "doc-high"}
 	similarities := []float64{0.10, 0.95}
 
-	ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, nil, nil, now)
+	stm, _ := newMemorySafetyStore(t)
+	ranked, err := rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, nil, now)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(ranked) != 2 {
 		t.Fatalf("len(ranked) = %d, want 2", len(ranked))
 	}
@@ -345,7 +349,11 @@ func TestRankMemoryCandidatesDoesNotInflateZeroSimilarity(t *testing.T) {
 	docIDs := []string{"doc-zero", "doc-low"}
 	similarities := []float64{0, 0.10}
 
-	ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, nil, nil, now)
+	stm, _ := newMemorySafetyStore(t)
+	ranked, err := rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, nil, now)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(ranked) != 2 {
 		t.Fatalf("len(ranked) = %d, want 2", len(ranked))
 	}

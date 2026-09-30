@@ -23,7 +23,11 @@ type rankedMemory struct {
 // central memory ranking policy, which combines similarity, recency, and
 // confidence/provenance signals into one score.
 func rerankWithRecency(memories []string, docIDs []string, stm *memory.SQLiteMemory, logger *slog.Logger) []rankedMemory {
-	return rankMemoryCandidates(memories, docIDs, stm, nil, time.Now())
+	ranked, err := rankMemoryCandidates(memories, docIDs, stm, nil, time.Now())
+	if err != nil && logger != nil {
+		logger.Warn("[RAG] Memory metadata lookup failed", "error", err)
+	}
+	return ranked
 }
 
 // moodTrigger returns the last real human message from the conversation,

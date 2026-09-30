@@ -11,7 +11,6 @@ import (
 )
 
 func TestRankMemoryCandidatesFiltersArchivedMemories(t *testing.T) {
-	resetMemoryMetaCacheForTests()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
 	if err != nil {
@@ -29,13 +28,16 @@ func TestRankMemoryCandidatesFiltersArchivedMemories(t *testing.T) {
 		t.Fatalf("archive meta: %v", err)
 	}
 
-	ranked := rankMemoryCandidates(
+	ranked, err := rankMemoryCandidates(
 		[]string{"active memory", "archived memory"},
 		[]string{"doc-active", "doc-archived"},
 		stm,
 		nil,
 		time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC),
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(ranked) != 1 {
 		t.Fatalf("ranked len = %d, want 1; ranked=%+v", len(ranked), ranked)
 	}
@@ -108,7 +110,6 @@ func (v *archiveFilterVectorDB) DeleteCheatsheet(id string) error         { retu
 func (v *archiveFilterVectorDB) RegisterCollections(collections []string) {}
 
 func TestSearchRankedMemoriesOnlyFiltersArchivedMemories(t *testing.T) {
-	resetMemoryMetaCacheForTests()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
 	if err != nil {
@@ -146,7 +147,6 @@ func TestSearchRankedMemoriesOnlyFiltersArchivedMemories(t *testing.T) {
 }
 
 func TestSearchRankedMemoriesOnlyBackfillsArchivedTopHit(t *testing.T) {
-	resetMemoryMetaCacheForTests()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
 	if err != nil {

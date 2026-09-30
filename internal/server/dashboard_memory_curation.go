@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"aurago/internal/agent"
 	"aurago/internal/memory"
 )
 
@@ -107,9 +106,6 @@ func handleDashboardMemoryCurationApply(s *Server, w http.ResponseWriter, r *htt
 		}
 		applied++
 	}
-	if applied > 0 {
-		agent.InvalidateMemoryMetaCache()
-	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "ok",
@@ -135,7 +131,6 @@ func handleDashboardMemoryCurationDocAction(s *Server, w http.ResponseWriter, r 
 		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	agent.InvalidateMemoryMetaCache()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }

@@ -815,12 +815,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					searchLimit = 8
 				}
 				memories, docIDs, similarities, err := searchSimilarWithScores(ctx, longTermMem, ragQuery, searchLimit, "tool_guides", "documentation")
+				var ranked []rankedMemory
+				if err == nil {
+					ranked, err = rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
+				}
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
 				if err != nil {
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
+					s.currentLogger.Warn("[RAG] Memory retrieval skipped", "error", err)
 				}
 				if err == nil {
-					ranked := rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
 					if useHelperRAGBatch {
 						batchCtx, batchCancel := context.WithTimeout(ctx, helperRAGBatchTimeout)
 						batchResult, batchErr := helperManager.AnalyzeRAG(batchCtx, lastUserMsg, ranked)
@@ -836,7 +840,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								ragQuery = helperQuery
 								extraMemories, extraDocIDs, extraSimilarities, extraErr := searchSimilarWithScores(ctx, longTermMem, ragQuery, 4, "tool_guides", "documentation")
 								if extraErr == nil && len(extraMemories) > 0 {
-									extraRanked := rankMemoryCandidatesWithScores(extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
+									extraRanked, rankErr := rankMemoryCandidatesWithScores(extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
+									if rankErr != nil {
+										s.currentLogger.Warn("[RAG] Additional memory retrieval skipped", "error", rankErr)
+										RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
+									}
 									existing := make(map[string]struct{}, len(ranked))
 									for _, item := range ranked {
 										existing[item.docID] = struct{}{}
@@ -2314,7 +2322,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					return
 				}
 
-				applyMemoryAnalysisResult(cfg, s.currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
+				applyMemoryAnalysisResultWithContext(ctx, cfg, s.currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
 				if useBatchedTurnPersonality {
 					if personalityResult, ok := normalizeHelperTurnPersonalityResult(batchResult.PersonalityAnalysis, meta); ok {
 						personalityResult.Basis, personalityResult.ObservationID = personalityBasis, personalityBasis.TurnID
