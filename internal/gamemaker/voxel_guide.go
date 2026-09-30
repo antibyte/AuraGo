@@ -7,10 +7,15 @@ const voxelDefinitionRules = `## Voxel definition
 - At most 64 block/item/recipe identities and 24 enemies. IDs and materials are storage identities. Plan acceptance and file edits validate the same definition.
 - The definition is an implementation: keep concrete requested recipes, enemies and goals executable, not prose or renamed labels. Optional goals use collect/craft/place with an item, or defeat without an item. No forced timer, combat or victory for peaceful sandboxes.`
 
+// voxelGoalExample shows the goal shape inside the definition; tests validate
+// it against the default palette in both modes.
+const voxelGoalExample = `"goals":[{"id":"shelter","kind":"place","item":"planks","count":20},{"id":"tools","kind":"craft","item":"stone_tool","count":1}]`
+
 // VoxelPlanningGuide is the voxel planning contract.
 const VoxelPlanningGuide = voxelDefinitionRules + `
 ## Voxel planning
 - Use base="voxel" and send design.voxel as a JSON-encoded string in native set_design; schema 5 is server-owned. Start from inspect.design_example.voxel for palette, items, recipes and enemies.
+- Goals are optional entries of the definition, at most 8, for example ` + voxelGoalExample + `. id is lowercase snake_case; kind is collect, craft or place with an existing item id, or defeat without item; count is 1–10000 and must be reachable with the declared world and recipes.
 - Built-in checks already measure movement, jumping, mining, crafting, placing, pause and combat; omit scenarios for them.
 - Features the definition cannot express are implemented later with hooks in main.ts.`
 

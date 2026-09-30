@@ -81,7 +81,12 @@ revision publication and standalone export for Phaser and Three.js games.
   (sprite contract, model API, presentation wiring); 2D never carries Three.js
   integration and 3D never Phaser. Choosing presentation IDs belongs to
   `PresentationPlanningGuide`; wiring belongs to `PresentationGuide2D/3D`.
-  Voxel planning uses `VoxelPlanningGuide`, editing `VoxelRuntimeGuide`.
+  Voxel planning uses `VoxelPlanningGuide` (with a validated goal example) plus
+  `PresentationPlanningGuide`, editing `VoxelRuntimeGuide`.
+- Planning a new game (phase planning, base revision 0) has only a scaffold. The
+  planning workflow says so, and every file read/search answer carries a
+  next_action to submit set_design instead of exploring. In bound runs a
+  `game_maker_file` call with a line range and no content is a read.
 - Feedback never changes gameplay counters, health or outcomes. Real contacts and
   game rules own those changes. Missing observations remain unverified.
 - Non-scene Three.js helpers count real item/cargo/flight-goal collections in

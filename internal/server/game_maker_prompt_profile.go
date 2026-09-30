@@ -24,7 +24,8 @@ const gameMakerPlanningWorkflow = `## Planning workflow
 3. Submit set_design once with base, objective, 1–12 concrete features and the optional fields you need.
 4. If it is rejected, resubmit only the listed fields (supplied arrays replace the whole array). At most two corrections exist.
 5. An accepted design ends planning: stop immediately. The server installs the template (new games only), imports planned assets and starts building.
-Never write files, import or generate assets during planning. Scene data is optional; scene_inspect is read-only here.`
+Never write files, import or generate assets during planning. Scene data is optional; scene_inspect is read-only here.
+A new game has only a scaffold: src/common.ts, src/voxel.json, assets and the runtime API are created after acceptance, and building receives the complete API reference. Do not read vendor or runtime files to plan.`
 
 const gameMakerBuildingWorkflow = `## Building and repair workflow
 1. current_sources holds src/main.ts (and src/voxel.json) with its sha256, and runtime.api_reference documents the installed helper: edit directly instead of rereading them. Read other files only in the ranges you must change.
@@ -59,7 +60,7 @@ func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.
 	}
 	if voxel {
 		if stage == "planning" {
-			sections = append(sections, gamemaker.VoxelPlanningGuide)
+			sections = append(sections, gamemaker.VoxelPlanningGuide, gamemaker.PresentationPlanningGuide)
 		} else {
 			sections = append(sections, gamemaker.VoxelRuntimeGuide)
 		}
