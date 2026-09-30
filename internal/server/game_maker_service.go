@@ -408,13 +408,31 @@ func gameMakerBudget(ctx context.Context, toolCalls int, run gamemaker.JobRun) m
 	case run.Stage == "planning":
 		budget["guidance"] = "Plan with few discovery calls; an accepted set_design ends this round."
 	case run.Stage == "repair":
-		budget["guidance"] = "One focused repair: edit, check build.ok, validate once."
+		budget["guidance"] = "One focused repair: edit (current_sources holds src/main.ts and its sha256), check build.ok, validate once."
 	case run.Job.BaseRevision == 0:
-		budget["guidance"] = "Write the implementation early. A new game whose starter is still unchanged after about five minutes of reading is handed to the bounded source generation instead."
+		budget["guidance"] = "current_sources holds src/main.ts and its sha256: write the implementation now without reading it again. A new game whose starter is still unchanged after about five minutes of reading is handed to the bounded source generation instead."
 	default:
-		budget["guidance"] = "Read only the affected ranges, make the requested change, check build.ok, then validate."
+		budget["guidance"] = "Edit src/main.ts from current_sources with its sha256; read only other affected ranges, check build.ok, then validate."
 	}
 	return budget
+}
+
+// gameMakerCurrentSourceMaxBytes matches one interactive read window, so a
+// handed-over file is never larger than a single read could return.
+const gameMakerCurrentSourceMaxBytes = 24000
+
+// gameMakerCurrentSources hands the agent its editable entry files once. Real
+// runs spent many reads before the first edit; with content and sha256 in the
+// context the first call can be the edit itself. Larger files stay omitted and
+// are read in ranges.
+func gameMakerCurrentSources(ctx context.Context, service *gamemaker.Service, jobID string) []gamemaker.SourceRead {
+	var sources []gamemaker.SourceRead
+	for _, path := range []string{"src/main.ts", "src/voxel.json"} {
+		if source, err := service.ReadJobSource(ctx, jobID, path, gameMakerCurrentSourceMaxBytes); err == nil {
+			sources = append(sources, source)
+		}
+	}
+	return sources
 }
 
 func gameMakerToolCallLimit(systemLimit int) int {
@@ -480,6 +498,9 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		// instead of discovering each one through a failed validation.
 		if plan := r.service.ValidationPlan(ctx, run.Job.ID); plan != nil {
 			contextData["validation_plan"] = plan
+		}
+		if sources := gameMakerCurrentSources(ctx, r.service, run.Job.ID); len(sources) > 0 {
+			contextData["current_sources"] = sources
 		}
 	}
 	requests, err := r.service.PreviousJobRequests(ctx, run.Job.ID)

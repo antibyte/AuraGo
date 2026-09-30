@@ -207,6 +207,9 @@ revision publication and standalone export for Phaser and Three.js games.
 - Compact design correction errors expose up to eight independent field issues,
   examples and remaining attempts. Draft omission/null/array rules and the
   initial-plus-two-corrections budget remain binding.
+- Building and repair context carries `current_sources`: the complete `src/main.ts`
+  (and `src/voxel.json`) with sha256 when each fits one 24000-byte read window, so
+  the first call can be the edit. Larger files are omitted and read in ranges.
 - Ordinary phase requests carry current intent/plan/runtime once, up to four
   complete recent tool rounds and at most eight assistant messages. Private
   checkpoints retain earlier messages when request fitting drops them;

@@ -59,6 +59,12 @@ func TestGameMakerBudgetIsStableAndPhaseSpecific(t *testing.T) {
 		!strings.Contains(guidance["new"], "unchanged") || strings.Contains(guidance["edit"], "unchanged") {
 		t.Fatalf("guidance = %+v", guidance)
 	}
+	// The entry file already travels in current_sources; do not ask for a read.
+	for _, name := range []string{"new", "edit", "repair"} {
+		if !strings.Contains(guidance[name], "current_sources") {
+			t.Fatalf("%s guidance does not point at current_sources: %q", name, guidance[name])
+		}
+	}
 	if _, exists := gameMakerBudget(context.Background(), 40, gamemaker.JobRun{Stage: "building"})["seconds_remaining"]; exists {
 		t.Error("a context without a deadline reported remaining time")
 	}

@@ -601,3 +601,82 @@ func TestGameMakerReadReachesModelReadable(t *testing.T) {
 		t.Fatalf("read result lost plain JSON or source text: %.400s", content)
 	}
 }
+
+// Real runs spent 7–30 reads before the first edit. The building context hands
+// over the current entry file with its sha256 so the first call can be a write.
+func TestGameMakerBuildingContextCarriesEntrySource(t *testing.T) {
+	root := t.TempDir()
+	service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	service.SetSkillStatus(nil, true)
+	var firstUser atomic.Value
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body openai.ChatCompletionRequest
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		for _, message := range body.Messages {
+			if message.Role == openai.ChatMessageRoleUser && firstUser.Load() == nil {
+				firstUser.Store(message.Content)
+			}
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer provider.Close()
+	cfg := &config.Config{}
+	cfg.LLM.Model, cfg.LLM.ProviderType = "test-game-model", "openai"
+	cfg.Agent.ContextWindow = 65536
+	cfg.CircuitBreaker.LLMTimeoutSeconds = 10
+	cfg.GameMaker.Enabled = true
+	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
+	clientConfig := openai.DefaultConfig("local-test")
+	clientConfig.BaseURL = provider.URL
+	server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	server.Registry = tools.NewProcessRegistry(server.Logger)
+	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.ShortTermMem.Close()
+	runner := &gameMakerAgentRunner{server: server, service: service}
+	var entry gamemaker.SourceRead
+	service.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+		if run.Stage == "planning" {
+			return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"platformer","objective":"Reach the flag","features":["Jump between ledges"]}`))
+		}
+		entry, _ = service.ReadJobSource(ctx, run.Job.ID, "src/main.ts", gamemaker.SourceGenerationMaxBytes)
+		_ = runner.RunGameMakerJob(ctx, run)
+		return errors.New("context captured")
+	}))
+	project, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Entry source", Description: "Reach the flag", Dimension: "2d"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := service.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{Prompt: "Implement the game"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(20 * time.Second); ; {
+		if done, err := service.GetJob(context.Background(), job.ID); err == nil && done.Status == "failed" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("job did not terminate")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	user, _ := firstUser.Load().(string)
+	_, data, _ := strings.Cut(user, "<external_data>\n")
+	data, _, _ = strings.Cut(data, "\n</external_data>")
+	var context struct {
+		Sources []gamemaker.SourceRead `json:"current_sources"`
+	}
+	if err := json.Unmarshal([]byte(data), &context); err != nil {
+		t.Fatalf("context is not JSON: %v", err)
+	}
+	if len(context.Sources) != 1 || context.Sources[0].Path != "src/main.ts" || context.Sources[0].SHA256 != entry.SHA256 || context.Sources[0].Content != entry.Content || !strings.Contains(entry.Content, "extends GameScene") {
+		t.Fatalf("building context lacks the exact entry source: %+v", context.Sources)
+	}
+}

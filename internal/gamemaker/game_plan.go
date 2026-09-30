@@ -648,7 +648,7 @@ func JobNextAction(job Job) string {
 	if job.Phase == "planning" {
 		return "Use the supplied context; search assets as needed, then set_design with base, objective, features and asset roles. Technical defaults are resolved by the server. Existing full set_plan remains supported. Mutations are locked until acceptance."
 	}
-	return "Read src/main.ts once. Keep the installed lifecycle and asset bindings; implement requested rules using small replace edits and the returned sha256. Compile errors are returned by writes. Validate full for 2D and guided 3D, startup only for free-code three. Never claim an unobserved check."
+	return "Read src/main.ts once unless the Studio context already supplied it in current_sources. Keep the installed lifecycle and asset bindings; implement requested rules using small replace edits and the returned sha256. Compile errors are returned by writes. Validate full for 2D and guided 3D, startup only for free-code three. Never claim an unobserved check."
 }
 
 // ExampleGamePlan is a schema example, not a replacement for the user's design.
