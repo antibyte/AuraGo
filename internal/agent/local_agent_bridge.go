@@ -44,8 +44,8 @@ func QueryMemoryForLocalAgent(query string, limit int, shortTermMem *memory.SQLi
 
 // RecallMemoryForLocalAgent exposes the same identifier lookup and secret
 // scrubbing used by the native recall_memory tool.
-func RecallMemoryForLocalAgent(id string, longTermMem memory.VectorDB) (map[string]interface{}, error) {
-	raw, err := executeRecallMemory(ToolCall{ID: strings.TrimSpace(id)}, "", nil, longTermMem)
+func RecallMemoryForLocalAgent(id string, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB) (map[string]interface{}, error) {
+	raw, err := executeRecallMemory(ToolCall{ID: strings.TrimSpace(id)}, "", shortTermMem, longTermMem)
 	if err != nil {
 		return nil, err
 	}

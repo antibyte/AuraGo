@@ -596,6 +596,20 @@ func executeRecallMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQL
 	if len(ids) > 10 {
 		ids = ids[:10]
 	}
+	vectorIDs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if !strings.HasPrefix(id, "conversation:") {
+			vectorIDs = append(vectorIDs, id)
+		}
+	}
+	var metaMap map[string]memory.MemoryMeta
+	if len(vectorIDs) > 0 {
+		var err error
+		metaMap, err = loadMemoryMetaMap(shortTermMem, vectorIDs)
+		if err != nil {
+			return `Tool Output: {"status":"error","message":"Memory metadata is unavailable"}`, fmt.Errorf("recall memory metadata: %w", err)
+		}
+	}
 	type recalledMemory struct {
 		ID      string `json:"id"`
 		Content string `json:"content"`
@@ -624,6 +638,10 @@ func executeRecallMemory(tc ToolCall, sessionID string, shortTermMem *memory.SQL
 			continue
 		}
 		if longTermMem == nil {
+			missing = append(missing, id)
+			continue
+		}
+		if meta, ok := metaMap[id]; ok && memory.IsMemoryArchived(meta) {
 			missing = append(missing, id)
 			continue
 		}

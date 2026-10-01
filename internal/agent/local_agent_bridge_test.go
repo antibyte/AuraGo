@@ -12,6 +12,11 @@ import (
 )
 
 func TestLocalAgentMemoryAdaptersReuseNativeMemoryResults(t *testing.T) {
+	stm, err := memory.NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
 	vectorDB := &fakeVectorDB{
 		documents: map[string]string{"memory-1": "remembered content"},
 	}
@@ -23,7 +28,7 @@ func TestLocalAgentMemoryAdaptersReuseNativeMemoryResults(t *testing.T) {
 		t.Fatalf("search result = %#v, search called = %v", search, vectorDB.searchSimilarCalled)
 	}
 
-	recall, err := RecallMemoryForLocalAgent("memory-1", vectorDB)
+	recall, err := RecallMemoryForLocalAgent("memory-1", stm, vectorDB)
 	if err != nil {
 		t.Fatalf("RecallMemoryForLocalAgent: %v", err)
 	}

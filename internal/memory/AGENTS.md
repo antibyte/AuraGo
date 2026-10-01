@@ -35,6 +35,9 @@ Memory retrieval, hygiene, indexing, and maintenance.
 ### Automatic Curation
 - Use `ApplyAutomaticMemoryCurationAction` with its internal complete snapshot. The shared write transaction rechecks protection, lifetime/archive state and the latest non-preview curation event ID; actor strings never choose the permission path. The legacy `ApplyMemoryCurationAction` is for explicit administrative actions. Count only applied writes, excluding skipped stale/missing candidates. Verify `TestAutomaticCuration*` across maintenance, orchestrator and Dashboard callers.
 
+### Identifier Recall
+- Native and local-agent ID recall share current metadata checks. Missing legacy metadata is allowed only after a successful lookup; archived entries are omitted and unavailable metadata is an explicit error. Preserve bounded, same-session conversation recall and scrubbing. Verify `TestRecallMemoryHonorsCurrentArchiveAndMetadataFailures` and `TestConversationRecall*`.
+
 ## Verification
 
 - Run `go test ./internal/memory` and the named cross-component checks in the contracts above when those paths change.

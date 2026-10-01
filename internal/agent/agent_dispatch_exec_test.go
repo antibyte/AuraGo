@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -615,6 +616,11 @@ func TestDispatchExecManageUpdatesInstallBlocksMissingBash(t *testing.T) {
 }
 
 func TestDispatchExecRecallMemoryReadsByID(t *testing.T) {
+	stm, err := memory.NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
 	cfg := &config.Config{}
 	cfg.Tools.Memory.Enabled = true
 	longTerm := &fakeVectorDB{documents: map[string]string{
@@ -626,9 +632,10 @@ func TestDispatchExecRecallMemoryReadsByID(t *testing.T) {
 		context.Background(),
 		ToolCall{Action: "recall_memory", IDs: []string{"mem-1", "missing"}},
 		&DispatchContext{
-			Cfg:         cfg,
-			Logger:      logger,
-			LongTermMem: longTerm,
+			Cfg:          cfg,
+			Logger:       logger,
+			LongTermMem:  longTerm,
+			ShortTermMem: stm,
 		},
 	)
 	if !ok {

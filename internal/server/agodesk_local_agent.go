@@ -369,7 +369,7 @@ func handleAgodeskLocalMemoryGet(s *Server, conn *websocket.Conn, state *agodesk
 	ctx, cancel := context.WithTimeout(context.Background(), agodeskLocalMemoryTimeout)
 	defer cancel()
 	result, err := runAgodeskLocalOperation(ctx, func() (map[string]interface{}, error) {
-		return agent.RecallMemoryForLocalAgent(id, s.LongTermMem)
+		return agent.RecallMemoryForLocalAgent(id, s.ShortTermMem, s.LongTermMem)
 	})
 	if err != nil {
 		code, message := agodeskLocalOperationError(err)
