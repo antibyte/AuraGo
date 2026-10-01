@@ -265,11 +265,12 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 			if ltm != nil {
 				concept := fmt.Sprintf("[%s] %s", f.Category, f.Content)
 				content := "source:memory_analysis session:" + sessionID
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, memory.MemoryMetaUpdate{
+				details := memory.MemoryMetaUpdate{
 					ExtractionConfidence: f.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.85,
-				}); err != nil {
+				}
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
-					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
+					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, f.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Fact conflict check failed", "error", err)
@@ -306,11 +307,12 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 			if ltm != nil {
 				concept := fmt.Sprintf("[preference:%s] %s", p.Category, p.Content)
 				content := "source:memory_analysis session:" + sessionID
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, memory.MemoryMetaUpdate{
+				details := memory.MemoryMetaUpdate{
 					ExtractionConfidence: p.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.85,
-				}); err != nil {
+				}
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
-					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
+					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, p.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Preference conflict check failed", "error", err)
@@ -331,11 +333,12 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 			if ltm != nil {
 				concept := fmt.Sprintf("[correction:%s] %s", c.Category, c.Content)
 				content := "source:memory_analysis session:" + sessionID
-				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, memory.MemoryMetaUpdate{
+				details := memory.MemoryMetaUpdate{
 					ExtractionConfidence: c.Confidence, VerificationStatus: "unverified", SourceType: "memory_analysis", SourceReliability: 0.90,
-				}); err != nil {
+				}
+				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
-					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
+					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, details, err)
 				} else {
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, c.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Correction conflict check failed", "error", err)
@@ -381,14 +384,15 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 	return stored
 }
 
-func queuePendingMemoryAnalysisWrite(logger *slog.Logger, stm *memory.SQLiteMemory, concept, content string, cause error) {
+func queuePendingMemoryAnalysisWrite(logger *slog.Logger, stm *memory.SQLiteMemory, concept, content string, details memory.MemoryMetaUpdate, cause error) {
 	if stm == nil {
 		return
 	}
 	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{
-		Concept: concept,
-		Content: content,
-		Domain:  "memory_analysis",
+		Concept:  concept,
+		Content:  content,
+		Domain:   "memory_analysis",
+		Metadata: &details,
 	}, cause); err != nil && logger != nil {
 		logger.Warn("[Memory Analysis] Failed to queue pending LTM write", "error", err)
 	}

@@ -41,6 +41,9 @@ Memory retrieval, hygiene, indexing, and maintenance.
 ### Partial Search Results
 - Collection search returns healthy results together with named errors and cancellation. Wrappers preserve both; automatic consumers use only currently metadata-checked results and explicit queries expose incomplete search errors. Empty healthy collections remain successful. Verify `TestMultiCollectionSearchPreservesResultsAndErrors`, `TestAuditMultiCollectionSearchReportsFailedCollection` and `TestMemorySearchConsumersKeepCheckedPartialResults`.
 
+### Deferred Extraction Writes
+- Persist the original `MemoryMetaUpdate` in version-1 nullable queue JSON. NULL retains the legacy fallback; malformed or unsupported payloads consume a failed attempt without a vector write. Dedupe preserves the first complete payload and all retry scheduling, enriching NULL once. Back up populated disk stores consistently before the additive column migration. Automatic retries continue to preserve existing curation. Verify `TestPendingMemoryMetadata*` and `TestAuditQueuedAnalysisPreservesExtractionConfidence`.
+
 ## Verification
 
 - Run `go test ./internal/memory` and the named cross-component checks in the contracts above when those paths change.

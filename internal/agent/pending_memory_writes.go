@@ -53,6 +53,13 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 		if err := ctx.Err(); err != nil {
 			break
 		}
+		if write.MetadataError != nil {
+			failed++
+			if err := stm.MarkPendingMemoryWriteFailed(write.ID, write.MetadataError, time.Now().UTC()); err != nil && logger != nil {
+				logger.Warn("[Memory Retry] Failed to record invalid metadata", "id", write.ID, "error", err)
+			}
+			continue
+		}
 		sourceType := strings.TrimSpace(write.Domain)
 		if sourceType == "" {
 			sourceType = "system"
@@ -61,9 +68,13 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(write.Concept)), "[correction:") {
 			reliability = 0.90
 		}
-		stored, err := memory.StoreAutomaticMemoryDocument(stm, ltm, write.Concept, write.Content, memory.MemoryMetaUpdate{
+		details := memory.MemoryMetaUpdate{
 			VerificationStatus: "unverified", SourceType: sourceType, SourceReliability: reliability,
-		})
+		}
+		if write.Metadata != nil {
+			details = *write.Metadata
+		}
+		stored, err := memory.StoreAutomaticMemoryDocument(stm, ltm, write.Concept, write.Content, details)
 		if err != nil {
 			if rollbackErr := rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes); rollbackErr != nil {
 				err = errors.Join(err, rollbackErr)
