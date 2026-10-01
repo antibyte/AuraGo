@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -15,6 +16,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/planner"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -165,6 +167,21 @@ func parseMemoryAnalysisResult(raw string) (memoryAnalysisResult, error) {
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		return memoryAnalysisResult{}, fmt.Errorf("parse memory analysis response: %w", err)
 	}
+	if result.Facts == nil || result.Preferences == nil || result.Corrections == nil || result.PendingActions == nil {
+		return memoryAnalysisResult{}, fmt.Errorf("memory analysis requires explicit non-null result arrays")
+	}
+	for _, items := range [][]extractedFact{result.Facts, result.Preferences, result.Corrections} {
+		for _, item := range items {
+			if strings.TrimSpace(item.Content) == "" || strings.TrimSpace(item.Category) == "" || item.Confidence < 0 || item.Confidence > 1 {
+				return memoryAnalysisResult{}, fmt.Errorf("memory analysis contains an invalid extracted item")
+			}
+		}
+	}
+	for _, action := range result.PendingActions {
+		if strings.TrimSpace(action.Title) == "" || strings.TrimSpace(action.Summary) == "" || action.Confidence < 0 || action.Confidence > 1 {
+			return memoryAnalysisResult{}, fmt.Errorf("memory analysis contains an invalid pending action")
+		}
+	}
 	return result, nil
 }
 
@@ -180,6 +197,12 @@ func runMemoryAnalysis(
 	assistantResp string,
 	sessionID string,
 ) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
 	settings := resolveMemoryAnalysisSettings(cfg, stm)
 	if !settings.Enabled || !settings.RealTime {
 		return
@@ -198,48 +221,73 @@ func runMemoryAnalysis(
 	}
 
 	analysisClient := llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, "")
+	providerID := cfg.MemoryAnalysis.Provider
+	if helper := llm.ResolveHelperLLM(cfg); helper.Enabled && helper.Model != "" {
+		providerID = helper.ProviderID
+	}
+	route := llm.ModelRoute{ProviderID: providerID, ProviderType: llmCfg.providerType, BaseURL: llmCfg.baseURL, Model: llmCfg.model}
+	provider := config.ProviderEntry{ID: providerID, Type: llmCfg.providerType, Model: llmCfg.model}
+	if entry := cfg.FindProvider(providerID); entry != nil {
+		provider = *entry
+		provider.Model = llmCfg.model
+		route.ContextWindowOverride, route.MaxOutputTokensOverride = entry.ContextWindow, entry.MaxOutputTokens
+	}
+	limits := llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
+	structured := llm.ResolveProviderCapabilities(provider, llm.CapabilityFallback{}).StructuredOutputs
 
 	// Truncate for analysis (no need to send huge responses)
 	truncUser := userMsg
 	if len(truncUser) > 2000 {
-		truncUser = truncUser[:2000] + "..."
+		truncUser = truncateUTF8SafeAgent(truncUser, 2000) + "..."
 	}
 	// Strip tool call blocks before sending to the memory analysis LLM — they confuse
 	// small models into outputting tool calls instead of the expected facts JSON.
 	truncResp := stripToolCallBlocks(assistantResp)
 	if len(truncResp) > 2000 {
-		truncResp = truncResp[:2000] + "..."
+		truncResp = truncateUTF8SafeAgent(truncResp, 2000) + "..."
 	}
 
-	prompt := fmt.Sprintf(memoryAnalysisPrompt, truncUser, truncResp)
-
-	req := openai.ChatCompletionRequest{
-		Model: llmCfg.model,
-		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleUser, Content: prompt},
-		},
-		Temperature: 0.1,
-		MaxTokens:   800,
-	}
-
-	resp, err := analysisClient.CreateChatCompletion(ctx, req)
-	if err != nil {
-		logger.Warn("[Memory Analysis] LLM call failed", "error", err)
+	for attempt := 0; attempt < 2; attempt++ {
+		if ctx.Err() != nil {
+			return
+		}
+		prompt := fmt.Sprintf(memoryAnalysisPrompt, isolateAgentPromptExternalData(truncUser), isolateAgentPromptExternalData(truncResp))
+		if attempt > 0 {
+			// Retry only the human source record and bound the visible extraction.
+			prompt = fmt.Sprintf(memoryAnalysisPrompt, isolateAgentPromptExternalData(truncUser), "(omitted for bounded retry)")
+			prompt += "\nExtract at most one item per category."
+		}
+		inputTokens := prompts.CountTokensForModel(prompt, llmCfg.model) + 32
+		maxTokens, err := llm.JSONCompletionOutputBudget(limits, 800, inputTokens)
+		if err != nil {
+			logger.Warn("[Memory Analysis] Completion budget unavailable", "error", err)
+			return
+		}
+		request := openai.ChatCompletionRequest{
+			Model:       llmCfg.model,
+			Messages:    []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: prompt}},
+			Temperature: 0.1, MaxTokens: maxTokens, ResponseFormat: llm.JSONResponseFormat(structured),
+		}
+		if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
+			request.MaxTokens, request.MaxCompletionTokens, request.Temperature = 0, maxTokens, 0
+		}
+		resp, err := analysisClient.CreateChatCompletion(ctx, request)
+		if err != nil {
+			logger.Warn("[Memory Analysis] LLM call failed", "error", err)
+			return
+		}
+		raw, err := llm.JSONContentFromResponse(resp)
+		var result memoryAnalysisResult
+		if err == nil {
+			result, err = parseMemoryAnalysisResult(raw)
+		}
+		if err != nil {
+			logger.Warn("[Memory Analysis] Unusable structured response", "attempt", attempt+1, "error", err)
+			continue
+		}
+		applyMemoryAnalysisResultWithContext(ctx, cfg, logger, stm, ltm, sessionID, result)
 		return
 	}
-
-	if len(resp.Choices) == 0 || resp.Choices[0].Message.Content == "" {
-		return
-	}
-
-	result, err := parseMemoryAnalysisResult(resp.Choices[0].Message.Content)
-	if err != nil {
-		raw := trimJSONResponse(resp.Choices[0].Message.Content)
-		logger.Warn("[Memory Analysis] Failed to parse response", "error", err, "raw", Truncate(raw, 200))
-		return
-	}
-
-	applyMemoryAnalysisResultWithContext(ctx, cfg, logger, stm, ltm, sessionID, result)
 }
 
 func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, sessionID string, result memoryAnalysisResult) int {

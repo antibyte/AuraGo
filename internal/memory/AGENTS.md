@@ -44,6 +44,9 @@ Memory retrieval, hygiene, indexing, and maintenance.
 ### Deferred Extraction Writes
 - Persist the original `MemoryMetaUpdate` in version-1 nullable queue JSON. NULL retains the legacy fallback; malformed or unsupported payloads consume a failed attempt without a vector write. Dedupe preserves the first complete payload and all retry scheduling, enriching NULL once. Back up populated disk stores consistently before the additive column migration. Automatic retries continue to preserve existing curation. Verify `TestPendingMemoryMetadata*` and `TestAuditQueuedAnalysisPreservesExtractionConfidence`.
 
+### Realtime Extraction
+- Direct extraction, helper fallback and local-agent turns share validated completion state and provider-aware JSON output budgets, including reasoning reserves and explicit provider caps. Request JSON mode only for confirmed capabilities. Require complete non-null result arrays and valid items before persistence; empty arrays are a successful no-op. Allow one smaller, human-record-only retry for unusable responses; cancellation or budget failure prevents further requests and writes. Source text is isolated as external data. Verify `TestAuditMemoryAnalysisRejectsTruncatedCompletion` and `TestRealtimeMemoryAnalysis*`.
+
 ## Verification
 
 - Run `go test ./internal/memory` and the named cross-component checks in the contracts above when those paths change.
