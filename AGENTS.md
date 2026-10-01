@@ -39,7 +39,7 @@
 
 ## Project Structure
 
-- `cmd/aurago` starts the agent (`main.go`, `platform_unix.go`, `platform_windows.go`); `cmd/remote`, `cmd/config-merger`, and `cmd/assetpack` provide remote execution, config merging, and Web UI packaging.
+- `cmd/aurago` starts the agent (`main.go`, `platform_unix.go`, `platform_windows.go`); `cmd/remote`, `cmd/config-merger`, and `cmd/assetpack` provide remote execution, config merging, and Web UI packaging. `cmd/memory-repair` provides reviewed offline analysis duplicate merging.
 - `internal/` core: `agent` (loop/dispatch/co-agents), `budget` (token cost), `commands` (slash commands), `config` (YAML/defaults), `llm` (client/failover/retry/pricing), `logger` (structured logs), `media` (files), `memory` (STM/LTM/KG/personality), `prompts` (dynamic prompts), `security` (vault/tokens/Guardian), `server` (HTTP/API), `services` (indexing/ingestion), `setup` (first run), and `tools` (implementations).
 - `internal/` integrations: `contacts` (address book), `discord` (bot), `fritzbox` (TR-064), `invasion` (egg/nest), `inventory` (SQLite SSH devices), `meshcentral` (remote desktop), `mqtt` (client), `remote` (SSH/protocol), `rocketchat` (bot), `scraper` (web), `sqlconnections` (external SQL), `telegram` (text/voice/vision), `telnyx` (SMS/voice), `tsnetnode` (Tailscale), and `webhooks` (incoming/outgoing). `sandbox` owns Linux Landlock execution.
 - `agent_workspace/skills` holds bundled Python skills; `agent_workspace/tools` holds agent-created tools and their manifest; `agent_workspace/workdir` is the sandbox/venv workdir.
@@ -556,6 +556,7 @@ Current child AGENTS.md files:
 - `assets/game-maker-worlds/AGENTS.md` — Maritime and isometric Blender sources, catalog counts, exports and runtime limits.
 - `assets/screensaver-abyss/AGENTS.md` — Tiefsee screensaver creature generator, deterministic exports and asset checks.
 - `assets/system-world/AGENTS.md` — Blender city asset authoring, original sources and reproducible compact exports.
+- `cmd/memory-repair/AGENTS.md` — Offline analysis duplicate merging, previews, evidence, backups and resumable reference/vector cleanup.
 - `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
 - `internal/agent/AGENTS.md` — Runtime prompt, tool-discovery, dispatch, and context rules.
 - `internal/bluetooth/AGENTS.md` — Native Bluetooth discovery, permissions, and playback.
@@ -594,7 +595,7 @@ Top-level durable areas:
 - `ansible_api/` - Ansible sidecar API implementation.
 - `assets/` - Bundled static and sample assets used by release packaging and runtime features.
 - `browser_automation_sidecar/` - Browser automation sidecar source and support files.
-- `cmd/` - Go entry points for AuraGo, remote agent, and config merger binaries.
+- `cmd/` - Go entry points for AuraGo, remote agent, config merger, asset packaging and offline memory repair binaries.
 - `deploy/` - Deployment and release packaging inputs.
 - `docs/` and `documentation/` - User and operator documentation.
 - `internal/` - Private Go application packages and production logic.

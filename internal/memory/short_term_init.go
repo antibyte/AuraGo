@@ -18,6 +18,10 @@ type SQLiteMemory struct {
 	db     *sql.DB
 	logger *slog.Logger
 
+	// ponytail: serialize automatic vector ownership and rollback within one
+	// store; use per-document coordination only if extraction throughput requires it.
+	automaticMemoryMu sync.Mutex
+
 	auditNotifierMu sync.RWMutex
 	auditNotifier   func(AuditUpdate)
 

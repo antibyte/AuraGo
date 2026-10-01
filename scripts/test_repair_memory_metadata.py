@@ -229,6 +229,63 @@ class MemoryMetadataRepairTests(unittest.TestCase):
             repair.backup(self.db, self.root / "outside.sqlite")
         self.assertFalse((self.root / "outside.json").exists())
 
+    def test_partial_confirmation_remains_visible_and_continues_with_backup(self):
+        self.seed("doc")
+        baseline = self.baseline()
+        self.damage("doc")
+        first = repair.make_plan(self.db)
+        self.assertEqual(first["proposals"][0]["changes"], {"verification_status": "confirmed"})
+        self.assertEqual(repair.apply_plan(self.db, first)["applied"], 1)
+        waiting = repair.make_plan(self.db)
+        self.assertEqual(waiting["proposals"], [])
+        self.assertEqual(waiting["review_required"][0]["doc_id"], "doc")
+        audit = json.loads(self.db.execute("SELECT reason FROM memory_curation_events WHERE action='metadata_repair'").fetchone()[0])
+        self.assertEqual(audit["version"], 2)
+        self.assertTrue(audit["remaining"])
+        with closing(repair.connect(baseline)) as saved:
+            second = repair.make_plan(self.db, [(baseline, saved)])
+            self.assertEqual(second["review_required"], [])
+            self.assertEqual(set(second["proposals"][0]["changes"]), set(repair.QUALITY_FIELDS))
+            self.assertEqual(repair.apply_plan(self.db, second, [(baseline, saved)])["applied"], 1)
+            self.assertEqual(repair.apply_plan(self.db, second, [(baseline, saved)])["applied"], 0)
+        self.assertEqual(self.metadata("doc")["source_type"], "user")
+
+    def test_partial_repair_rejects_new_decisions_conflicts_and_bad_history(self):
+        for change in ("curation", "conflict", "audit"):
+            with self.subTest(change=change):
+                doc = change
+                self.seed(doc)
+                baseline = self.baseline(change + ".sqlite")
+                self.damage(doc)
+                repair.apply_plan(self.db, repair.make_plan(self.db))
+                if change == "curation":
+                    self.event(doc, "protect", LATER)
+                    self.db.execute("UPDATE memory_meta SET last_reviewed_at=? WHERE doc_id=?", (LATER, doc))
+                elif change == "conflict":
+                    self.db.execute("INSERT INTO memory_conflicts(doc_id_left,doc_id_right,conflict_key) VALUES (?, 'other', 'language')", (doc,))
+                else:
+                    self.db.execute("UPDATE memory_curation_events SET reason='unproven repair' WHERE doc_id=? AND action='metadata_repair'", (doc,))
+                with closing(repair.connect(baseline)) as saved:
+                    plan = repair.make_plan(self.db, [(baseline, saved)])
+                    self.assertNotIn(doc, [item["doc_id"] for item in plan["proposals"]])
+                    self.assertIn(doc, [item["doc_id"] for item in plan["review_required"]])
+
+    def test_legacy_status_repair_requires_exact_evidence_chain(self):
+        self.seed("doc")
+        baseline = self.baseline()
+        self.damage("doc")
+        first = repair.make_plan(self.db)
+        repair.apply_plan(self.db, first)
+        self.db.execute("UPDATE memory_curation_events SET reason=? WHERE action='metadata_repair'",
+                        ("repair fields: verification_status; evidence: " + first["proposals"][0]["evidence_hash"],))
+        with closing(repair.connect(baseline)) as saved:
+            self.assertEqual(len(repair.make_plan(self.db, [(baseline, saved)])["proposals"]), 1)
+        self.db.execute("UPDATE memory_curation_events SET reason=reason || 'changed' WHERE action='metadata_repair'")
+        with closing(repair.connect(baseline)) as saved:
+            plan = repair.make_plan(self.db, [(baseline, saved)])
+            self.assertEqual(plan["proposals"], [])
+            self.assertTrue(plan["review_required"])
+
 
 if __name__ == "__main__":
     unittest.main()

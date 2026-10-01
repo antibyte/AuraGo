@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestAnalysisSourcesMigrationBacksUpLegacyStore(t *testing.T) {
@@ -191,5 +192,51 @@ func TestAnalysisParallelSessionsReuseOneDocument(t *testing.T) {
 		if err != nil || len(sources) != 4 {
 			t.Fatalf("sources=%+v %v", sources, err)
 		}
+	}
+}
+
+type pausedAutomaticReuse struct {
+	*ChromemVectorDB
+	reused, resume chan struct{}
+}
+
+func (v *pausedAutomaticReuse) StoreDocumentOwned(concept, content string, mode VectorStoreMode) (VectorStoreResult, error) {
+	result, err := v.ChromemVectorDB.StoreDocumentOwned(concept, content, mode)
+	if len(result.ReusedIDs) > 0 {
+		close(v.reused)
+		<-v.resume
+	}
+	return result, err
+}
+
+func TestAutomaticMemoryRollbackWaitsForConcurrentReuse(t *testing.T) {
+	s := automaticTestStore(t)
+	v := &pausedAutomaticReuse{ChromemVectorDB: newTestChromemVectorDB(t, nearIdenticalMemoryEmbeddings), reused: make(chan struct{}), resume: make(chan struct{})}
+	concept := "[preference] User prefers Vim"
+	first, err := StoreAutomaticMemoryDocument(s, v, concept, "source:memory_analysis session:A", MemoryMetaUpdate{SourceType: "memory_analysis"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeDone := make(chan error, 1)
+	go func() {
+		_, err := StoreAutomaticMemoryDocument(s, v, concept, "source:memory_analysis session:B", MemoryMetaUpdate{SourceType: "memory_analysis"})
+		storeDone <- err
+	}()
+	<-v.reused
+	rollbackDone := make(chan error, 1)
+	go func() { rollbackDone <- s.RollbackAutomaticMemoryWrites(v, first.Writes) }()
+	select {
+	case err := <-rollbackDone:
+		close(v.resume)
+		<-storeDone
+		t.Fatalf("rollback passed in-flight reuse: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(v.resume)
+	if err := <-storeDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-rollbackDone; err == nil || v.Count() != 1 {
+		t.Fatalf("reused memory was removed: %v count=%d", err, v.Count())
 	}
 }

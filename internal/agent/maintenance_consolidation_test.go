@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,18 +12,31 @@ import (
 )
 
 type dedupConsolidationVectorDB struct {
-	seen map[string]bool
+	documents map[string]string
 }
 
 func (v *dedupConsolidationVectorDB) StoreDocument(concept, content string) ([]string, error) {
-	if v.seen == nil {
-		v.seen = map[string]bool{}
+	if v.documents == nil {
+		v.documents = map[string]string{}
 	}
-	if v.seen[concept] {
-		return nil, nil
-	}
-	v.seen[concept] = true
+	v.documents[concept] = concept + "\n\n" + content
 	return []string{concept}, nil
+}
+func (v *dedupConsolidationVectorDB) StoreDocumentOwned(concept, content string, _ memory.VectorStoreMode) (memory.VectorStoreResult, error) {
+	if v.documents[concept] == concept+"\n\n"+content {
+		return memory.VectorStoreResult{ReusedIDs: []string{concept}}, nil
+	}
+	ids, err := v.StoreDocument(concept, content)
+	return memory.VectorStoreResult{CreatedIDs: ids}, err
+}
+func (v *dedupConsolidationVectorDB) DeleteDocumentIfContentMatches(id, expected string) (bool, error) {
+	value, exists := v.documents[id]
+	hash := sha256.Sum256([]byte(value))
+	if !exists || hex.EncodeToString(hash[:]) != expected {
+		return false, nil
+	}
+	delete(v.documents, id)
+	return true, nil
 }
 func (v *dedupConsolidationVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
 	return concept, nil
@@ -35,7 +50,7 @@ func (v *dedupConsolidationVectorDB) SearchSimilar(query string, topK int, exclu
 func (v *dedupConsolidationVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
 	return nil, nil, nil
 }
-func (v *dedupConsolidationVectorDB) GetByID(id string) (string, error) { return "", nil }
+func (v *dedupConsolidationVectorDB) GetByID(id string) (string, error) { return v.documents[id], nil }
 func (v *dedupConsolidationVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
 	return "", nil
 }
@@ -60,6 +75,7 @@ func (v *dedupConsolidationVectorDB) DeleteCheatsheet(id string) error         {
 func (v *dedupConsolidationVectorDB) RegisterCollections(collections []string) {}
 
 type partialFailConsolidationVectorDB struct {
+	documents  map[string]string
 	attempts   int
 	stored     []string
 	rolledBack []string
@@ -70,7 +86,13 @@ func (v *partialFailConsolidationVectorDB) StoreDocumentOwned(concept, content s
 	return memory.VectorStoreResult{CreatedIDs: ids}, err
 }
 
-func (v *partialFailConsolidationVectorDB) DeleteDocumentIfContentMatches(id, _ string) (bool, error) {
+func (v *partialFailConsolidationVectorDB) DeleteDocumentIfContentMatches(id, expected string) (bool, error) {
+	value, exists := v.documents[id]
+	hash := sha256.Sum256([]byte(value))
+	if !exists || hex.EncodeToString(hash[:]) != expected {
+		return false, nil
+	}
+	delete(v.documents, id)
 	return true, v.DeleteDocument(id)
 }
 
@@ -80,6 +102,10 @@ func (v *partialFailConsolidationVectorDB) StoreDocument(concept, content string
 		return nil, fmt.Errorf("simulated store failure for %s", concept)
 	}
 	v.stored = append(v.stored, concept)
+	if v.documents == nil {
+		v.documents = map[string]string{}
+	}
+	v.documents[concept] = concept + "\n\n" + content
 	return []string{concept}, nil
 }
 func (v *partialFailConsolidationVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
@@ -94,7 +120,9 @@ func (v *partialFailConsolidationVectorDB) SearchSimilar(query string, topK int,
 func (v *partialFailConsolidationVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
 	return nil, nil, nil
 }
-func (v *partialFailConsolidationVectorDB) GetByID(id string) (string, error) { return "", nil }
+func (v *partialFailConsolidationVectorDB) GetByID(id string) (string, error) {
+	return v.documents[id], nil
+}
 func (v *partialFailConsolidationVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
 	return "", nil
 }
@@ -199,7 +227,7 @@ func TestStoreConsolidationFactsCountsDedupAsSkipped(t *testing.T) {
 	vdb := &dedupConsolidationVectorDB{}
 	facts := []helperConsolidationFact{
 		{Concept: "nas-backup", Content: "Backup target is the NAS."},
-		{Concept: "nas-backup", Content: "Duplicate concept should be skipped."},
+		{Concept: "nas-backup", Content: "Backup target is the NAS."},
 	}
 
 	stored, skipped, err := storeConsolidationFacts(logger, stm, vdb, facts)

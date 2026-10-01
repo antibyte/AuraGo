@@ -50,6 +50,10 @@ func (s *SQLiteMemory) initializeAutomaticMemoryMeta(id string, details MemoryMe
 // StoreAutomaticMemoryDocument shares insert-only metadata and ownership
 // receipts across analysis, consolidation, hierarchy and queued retries.
 func StoreAutomaticMemoryDocument(s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate) (AutomaticMemoryStoreResult, error) {
+	if s != nil {
+		s.automaticMemoryMu.Lock()
+		defer s.automaticMemoryMu.Unlock()
+	}
 	var result AutomaticMemoryStoreResult
 	session := "default"
 	if _, ok := AnalysisMemoryIdentity(concept, content, ""); ok && details.SourceType == "memory_analysis" {
@@ -115,6 +119,10 @@ func StoreAutomaticMemoryDocument(s *SQLiteMemory, ltm VectorDB, concept, conten
 // reused documents. The SQLite write lock prevents curation between validation
 // and the vector store's conditional content deletion.
 func (s *SQLiteMemory) RollbackAutomaticMemoryWrites(ltm VectorDB, writes []AutomaticMemoryWrite) error {
+	if s != nil {
+		s.automaticMemoryMu.Lock()
+		defer s.automaticMemoryMu.Unlock()
+	}
 	var result error
 	for _, write := range writes {
 		result = errors.Join(result, s.rollbackAutomaticMemoryWrite(ltm, write))

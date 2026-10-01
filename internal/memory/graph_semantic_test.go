@@ -67,6 +67,77 @@ func TestKGSemanticUpsertDoesNotDeleteOnEmbeddingFailure(t *testing.T) {
 	}
 }
 
+func TestKGReindexRetainsStrictlyIndexedNewerContent(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.enableSemanticSearchWithCollection(chromem.NewDB(), func(context.Context, string) ([]float32, error) { return []float32{1, 0}, nil }, nil); err != nil {
+		t.Fatal(err)
+	}
+	waitForSemanticReindexIdle(t, kg)
+	if err := kg.AddNode("core_fact_1", "Old fact", map[string]string{"type": "concept", "source": "core_memory"}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := kg.GetNode("core_fact_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = kg.UpdateNodeIndexed(t.Context(), "core_fact_1", "Current fact", map[string]string{"type": "concept", "source": "core_memory"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := kg.upsertSemanticNodeReindexBatch(kg.semanticIndex(), []Node{*loaded}); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := kg.semanticIndex().Collection.GetByID(t.Context(), "core_fact_1")
+	if err != nil || !strings.Contains(doc.Content, "Current fact") {
+		t.Fatalf("old reindex overwrote completed strict index: %+v %v", doc, err)
+	}
+}
+
+func TestKGReindexPreservesPendingNodeWithinSameTimestamp(t *testing.T) {
+	kg := newTestKG(t)
+	var change atomic.Bool
+	if err := kg.enableSemanticSearchWithCollection(chromem.NewDB(), func(context.Context, string) ([]float32, error) {
+		if change.CompareAndSwap(true, false) {
+			_, err := kg.db.Exec(`UPDATE kg_nodes SET label='Changed during indexing',semantic_indexed_at=NULL WHERE id='core_fact_1'`)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return []float32{1, 0}, nil
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	waitForSemanticReindexIdle(t, kg)
+	if err := kg.AddNode("core_fact_1", "Old fact", map[string]string{"type": "concept", "source": "core_memory"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at=NULL WHERE id='core_fact_1'`); err != nil {
+		t.Fatal(err)
+	}
+	change.Store(true)
+	if err := kg.RunSemanticReindex(); err != nil {
+		t.Fatal(err)
+	}
+	var pending bool
+	if err := kg.db.QueryRow(`SELECT semantic_indexed_at IS NULL FROM kg_nodes WHERE id='core_fact_1'`).Scan(&pending); err != nil || !pending {
+		t.Fatalf("changed node marked complete: %v %v", pending, err)
+	}
+}
+
+func TestKGStrictWriteWithoutIndexRemainsAvailableForLaterEnable(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNodeIndexed(t.Context(), "core_fact_1", "Current fact", map[string]string{"type": "concept", "source": "core_memory"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.enableSemanticSearchWithCollection(chromem.NewDB(), func(context.Context, string) ([]float32, error) { return []float32{1, 0}, nil }, nil); err != nil {
+		t.Fatal(err)
+	}
+	waitForSemanticReindexIdle(t, kg)
+	doc, err := kg.semanticIndex().Collection.GetByID(t.Context(), "core_fact_1")
+	if err != nil || !strings.Contains(doc.Content, "Current fact") {
+		t.Fatalf("disabled strict write disappeared from later index: %+v %v", doc, err)
+	}
+}
+
 func TestKGSemanticQueryEmbeddingUsesSemanticTimeout(t *testing.T) {
 	kg := &KnowledgeGraph{}
 	deadlineCh := make(chan time.Duration, 1)
@@ -766,6 +837,7 @@ func TestKGConsistencyCheckDetectsMissingIndexedNodeDocument(t *testing.T) {
 	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
 		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
 	}
+	waitForSemanticReindexIdle(t, kg)
 	if err := kg.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
 		t.Fatalf("AddNode: %v", err)
 	}

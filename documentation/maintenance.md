@@ -5,8 +5,12 @@
 `VectorDB` remains compatible with existing backends. `OwnershipAwareVectorDB`
 reports created and reused document IDs; `StoreDocumentWithOwnership` reports
 legacy IDs as unknown. A partial write must still report possibly created IDs.
-Only created IDs can be rolled back. Reused metadata is immutable to the
-consolidation/retry write, and unknown IDs receive insert-only tracking rows.
+Only proven created IDs can be rolled back. Every automatic writer inserts
+metadata with `ON CONFLICT DO NOTHING`, including created IDs; existing curation
+survives. Rollback compares self-inserted metadata, content, observations and
+references while holding the SQLite writer lock. Automatic storage and rollback
+also serialize within the memory store, closing the vector reuse/observation gap.
+Unproven ownership or concurrent changes retain the document and return an error.
 
 Compression and canonical-name repair use `ReplaceMemoryDocument`. The caller
 captures content and the complete metadata before generating a replacement.
@@ -30,8 +34,11 @@ scan wraps to the beginning. This additive table also owns scheduler state;
 
 Similarity only nominates a duplicate candidate. Reuse requires equal complete
 content and domain after outer whitespace and line-ending normalization; chunked
-or unreadable candidates remain separate documents. Automatic analysis preserves
-reused metadata and inserts only missing tracking rows for unknown ownership.
+or unreadable candidates remain separate documents. Complete analysis facts also
+retain kind and category in their identity, while a proven session envelope does
+not affect identity. New analysis bodies use `source:memory_analysis`;
+`memory_extraction_sources` stores first/last document/source/session observations.
+The additive migration backs up populated disk stores before activating this table.
 Retrieval reads current metadata for the candidate IDs. Missing legacy metadata
 is allowed after a healthy lookup; database failures skip and log the enrichment
 and remain visible in explicit memory queries. Status `archived` or a nonempty
@@ -42,14 +49,21 @@ active documents per run. Archived rows do not consume the active limit. Its
 `memory_conflict_scan.cursor` survives restart in `memory_maintenance_meta` and
 wraps only at the actual end. Individual failures are recorded and retried on the
 next pass; cancellation leaves the incomplete document for the next run. Stored
-facts and write checks share normalization of known retrieval prefixes, concept
-headers and analysis provenance. Archive retention removes consolidated terminal
+facts and write checks explicitly declare raw, stored or search-result format.
+Only that format's known wrappers are removed; every raw paragraph and unknown
+bracket text survives. Queue and immediate checks use the same fact and cancellation
+context. Archive retention removes consolidated terminal
 `done` and `excluded` rows; pending, processing and failed work survives.
 
-Core-memory synchronization updates owned existing KG nodes with `UpdateNode`,
-including their semantic index, and creates missing nodes with `AddNode`. Labels
-are limited to 50 Unicode characters. Protection survives updates; protected and
-foreign stale nodes survive cleanup. Any synchronization error prevents cleanup.
+Core-memory synchronization uses context-bound `UpdateNodeIndexed` and
+`AddNodeIndexed`; the existing public node writers remain best effort. Strict writes
+commit a pending marker and finish only after successful semantic indexing and an
+unchanged-node comparison. Background reindexing rejects obsolete snapshots and
+compares complete node state before marking work complete, even within one timestamp.
+Labels are limited to 50 Unicode characters. Protection survives updates; protected
+and foreign stale nodes survive cleanup. Index errors and cancellation leave work
+pending and prevent cleanup. Disabled indexing and unrelated pending nodes are allowed;
+disabled strict writes retain their marker for indexing after a later enable.
 
 ## Targeted metadata repair
 
@@ -73,8 +87,13 @@ rehearsal copy under `reports/`. It tests the changes and their repeated applica
 on that copy before writing the original. Between preview and application, full
 metadata snapshots, curation events, conflicts and matching backup evidence are
 compared again inside a write transaction. Changed or already repaired rows are
-skipped. Every applied repair has a transactional `metadata_repair` curation event
-and a local application report; a failed audit write rolls back the repairs.
+skipped. Every applied repair has a version-2 transactional `metadata_repair` curation
+event containing before/after values, changes, evidence and remaining work; a failed
+audit write rolls back the repairs. Confirmation alone does not hide outstanding
+source/confidence corrections: a later preview can continue with a matching backup.
+Previous repair events require a verified causal suffix. A version-1 status-only
+repair is usable only when its evidence hash and status chain still match; later
+human decisions or changed conflict evidence require review.
 
 Retained archive timestamps prove archival, unless a later reactivation decision
 conflicts with that evidence. Confirmation requires the last effective recorded
@@ -89,6 +108,57 @@ Plans, backups and rehearsal files may contain private metadata. Keep them under
 ignored `reports/` with operator access; never commit them. The utility does not
 create or migrate tables. Successful local checks do not establish live repair:
 verify the reviewed running build and a later persisted maintenance run separately.
+
+## Offline analysis duplicate merge
+
+`cmd/memory-repair` uses the existing SQLite, Chromem and application-lock dependencies.
+It performs no embedding or network requests and does not migrate schemas. Complete
+the backed-up source-table migration with the upgraded agent first, then stop the
+agent for both preview and application. Set `--install-dir` to the actual directory
+used for `aurago.lock`, including a custom `--install-dir` used when starting AuraGo.
+An existing regular lock file is required; the command holds that same exclusive
+application lock through backup, rehearsal and application.
+
+```sh
+go build -o bin/memory-repair ./cmd/memory-repair
+bin/memory-repair --db /opt/aurago/data/short_term.db --vector-db /opt/aurago/data/vectordb --install-dir /opt/aurago --plan /opt/aurago/reports/analysis-merge-preview.json
+bin/memory-repair --db /opt/aurago/data/short_term.db --vector-db /opt/aurago/data/vectordb --install-dir /opt/aurago --plan /opt/aurago/reports/analysis-merge-preview.json --apply
+go test ./cmd/memory-repair
+```
+
+The default preview groups only complete, unchunked analysis documents with equal
+fact identity and domain. Unknown references, unfinished metadata repair, conflicting
+curation or colliding conflict histories remain review items. Archive evidence wins
+against automatic unreviewed copies. Protected/permanent IDs survive; multiple such
+IDs, or a protected ID that would supersede newer human curation, require review.
+Otherwise choose the latest proved human curation, then the lexicographically smallest
+ID. Automatic reviews cannot supersede human provenance or confidence.
+
+Application requires the saved plan and creates a consistent SQLite backup, full
+vector backup and checksummed manifest under installation `reports/`. It rehearses
+every group and repeated application on copies first. Each group then rechecks the
+complete vector documents, metadata and references before a SQL transaction transfers
+usage counters, activity ranges, logs, curation, episodic references, session
+observations, and unambiguous conflict/maintenance references. Original IDs and values
+remain in the saved plan and backup. The canonical metadata retains its source,
+confidence, protection and effective curation. Missing legacy observation dates are
+recorded as observations made during repair; past timestamps are never invented.
+
+After the reference transaction commits, redundant IDs remain archived tombstones.
+A durable `memory_analysis_merge.*` journal in `memory_maintenance_meta` drives
+conditional, individually verified vector deletions and final tombstone removal.
+Deletion also holds the SQLite writer lock and compares unchanged content/evidence.
+An interruption or intervening change leaves the group pending and visible. Resume
+with the **same saved plan** after reviewing the failure report; committed counters
+are never counted again. Retain that plan and its backups until completion. A fresh
+preview reports pending journals and cannot replace the original recovery plan.
+Completed groups are no-ops on repetition; any incomplete group yields a failure exit
+status and a report. Review-only groups remain listed in the saved plan and
+application reports.
+
+All artifacts stay under ignored installation `reports/`; symlinked artifacts and
+vector trees are rejected. Keep the agent stopped until pending groups have been
+reviewed. Local fixture acceptance does not apply this repair to production data.
 
 ## Skill mutations
 

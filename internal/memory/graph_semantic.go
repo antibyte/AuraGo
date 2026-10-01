@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"strings"
 	"time"
 
@@ -224,6 +225,8 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	`)
 	var nodes []Node
 	nodeUpdatedAt := make(map[string]string)
+	loadedProperties := make(map[string]string)
+	loadedNodes := make(map[string]Node)
 	if err == nil {
 		for rows.Next() {
 			var n Node
@@ -239,6 +242,8 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 			n.Protected = protected != 0
 			nodes = append(nodes, n)
 			nodeUpdatedAt[n.ID] = updatedAt
+			loadedProperties[n.ID] = propsJSON
+			loadedNodes[n.ID] = n
 		}
 		if rowErr := rows.Err(); rowErr != nil {
 			rows.Close()
@@ -266,7 +271,13 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 			if strings.TrimSpace(loadedUpdatedAt) == "" {
 				continue
 			}
-			_, _ = kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at = ? WHERE id = ? AND updated_at <= ?`, now, id, loadedUpdatedAt)
+			node := loadedNodes[id]
+			if _, err := kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at = ?
+				WHERE id = ? AND updated_at <= ? AND label = ? AND properties = ? AND protected = ?`,
+				now, id, loadedUpdatedAt, node.Label, loadedProperties[id], boolToInt(node.Protected)); err != nil {
+				idx.ReindexMu.Unlock()
+				return fmt.Errorf("complete reindexed node %s: %w", id, err)
+			}
 		}
 		idx.ReindexMu.Unlock()
 	}
@@ -337,10 +348,19 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatch(idx *kgsemantic.Index, 
 	if idx == nil || len(nodes) == 0 {
 		return nil, nil
 	}
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 	docs := make([]chromem.Document, 0, len(nodes))
 	contentByID := make(map[string]string, len(nodes))
 	indexedIDs := make([]string, 0, len(nodes))
 	for _, node := range nodes {
+		current, err := kg.GetNode(node.ID)
+		if err != nil {
+			return nil, fmt.Errorf("recheck reindex node %s: %w", node.ID, err)
+		}
+		if current == nil || current.Label != node.Label || current.Protected != node.Protected || !maps.Equal(current.Properties, node.Properties) {
+			continue
+		}
 		if !kgsemantic.ShouldIndexNode(semanticNodeContent(node)) {
 			indexedIDs = append(indexedIDs, node.ID)
 			continue
@@ -365,8 +385,6 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatch(idx *kgsemantic.Index, 
 		return indexedIDs, nil
 	}
 
-	idx.MutationMu.Lock()
-	defer idx.MutationMu.Unlock()
 	for start := 0; start < len(docs); start += kgsemantic.ReindexDocumentBatchSize {
 		end := start + kgsemantic.ReindexDocumentBatchSize
 		if end > len(docs) {

@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from pathlib import Path
 import sqlite3
 import sys
@@ -58,9 +59,54 @@ def status_decisions(events):
             or event["previous_status"] != event["new_status"]]
 
 
+def repair_history(row, proof):
+    """Verify the causal suffix before excluding our own repairs from human decisions."""
+    events = list(proof["events"])
+    state = dict(row)
+    while events and events[-1]["action"] == "metadata_repair":
+        event = events.pop()
+        if event["actor"] != "operator_repair":
+            return None, "repair event has an unknown actor"
+        prefix = {"events": events, "conflicts": proof["conflicts"]}
+        try:
+            audit = json.loads(event["reason"])
+        except (ValueError, TypeError):
+            audit = None
+        if isinstance(audit, dict) and audit.get("version") == 2:
+            before, after, changes = audit.get("before"), audit.get("after"), audit.get("changes")
+            if (not isinstance(before, dict) or not isinstance(after, dict) or not isinstance(changes, dict)
+                    or not changes or not set(changes) <= REPAIR_FIELDS
+                    or set(before) != set(after) or before.get("doc_id") != row["doc_id"]
+                    or after != state or after.get("last_event_at") != event["timestamp"]
+                    or before.get("verification_status") != event["previous_status"]
+                    or after.get("verification_status") != event["new_status"]
+                    or audit.get("evidence_hash") != digest(prefix)
+                    or any(after[key] != changes.get(key, before[key]) for key in before if key != "last_event_at")):
+                return None, "repair event does not prove the current metadata and evidence chain"
+            state = before
+        else:
+            # Version 1 only proves a status-only repair; missing old quality values
+            # cannot establish a provenance repair chain.
+            legacy = re.fullmatch(r"repair fields: verification_status; evidence: ([0-9a-f]{64})", event["reason"] or "")
+            if (not legacy or legacy[1] != digest(prefix) or not events
+                    or event["new_status"] != state["verification_status"]
+                    or state["last_event_at"] != event["timestamp"]
+                    or state["last_reviewed_at"] != events[-1]["timestamp"]
+                    or event["previous_status"] != "unverified" or event["new_status"] != "confirmed"
+                    or not status_decisions(events) or status_decisions(events)[-1]["action"] != "confirm"):
+                return None, "older repair event lacks a verifiable status and evidence chain"
+            state["verification_status"] = event["previous_status"]
+    if any(event["action"] == "metadata_repair" for event in events):
+        return None, "later curation prevents automatic continuation of an earlier repair"
+    return events, ""
+
+
 def backup_quality(row, proof, baselines, changes):
     matches = []
-    decisions = status_decisions(proof["events"])
+    human_events, failure = repair_history(row, proof)
+    if failure:
+        return None, matches, failure
+    decisions = status_decisions(human_events)
     archive_time = changes.get("archived_at", row["archived_at"]) or ""
     expected_status = decisions[-1]["new_status"] if decisions else None
     if archive_time:
@@ -71,9 +117,9 @@ def backup_quality(row, proof, baselines, changes):
             continue
         saved = dict(saved)
         # Matching IDs alone cannot establish that this is the same curated fact.
-        if (not row["last_reviewed_at"] or row["last_reviewed_at"] != proof["events"][-1]["timestamp"]
+        if (not human_events or not row["last_reviewed_at"] or row["last_reviewed_at"] != human_events[-1]["timestamp"]
                 or saved["last_reviewed_at"] != row["last_reviewed_at"]
-                or evidence(db, row["doc_id"])["events"] != proof["events"]
+                or evidence(db, row["doc_id"])["events"] != human_events
                 or saved["protected"] != row["protected"] or saved["keep_forever"] != row["keep_forever"]
                 or (saved["archived_at"] or "") != archive_time
                 or saved["verification_status"] != expected_status
@@ -93,7 +139,9 @@ def backup_quality(row, proof, baselines, changes):
 
 
 def propose(row, proof, baselines):
-    events = proof["events"]
+    events, failure = repair_history(row, proof)
+    if failure:
+        return None, [failure]
     decisions = status_decisions(events)
     decision = decisions[-1] if decisions else None
     status = (row["verification_status"] or "unverified").strip().lower()
@@ -146,7 +194,7 @@ def propose(row, proof, baselines):
             changes.update({key: value for key, value in values.items() if value != row[key]})
             if any(key in changes for key in QUALITY_FIELDS):
                 reasons.append("matching backup proves provenance and confidence")
-        elif changes or baselines:
+        else:
             review.append("provenance and confidence need a matching pre-damage backup")
     if not changes:
         return None, review
@@ -159,11 +207,13 @@ def propose(row, proof, baselines):
 
 
 def make_plan(db, baselines=()):
-    plan = {"version": 1, "proposals": [], "review_required": []}
+    plan = {"version": 2, "proposals": [], "review_required": []}
     rows = db.execute("""SELECT * FROM memory_meta WHERE
         (COALESCE(archived_at,'') != '' AND COALESCE(verification_status,'') != 'archived')
         OR (verification_status='archived' AND COALESCE(archived_at,'')='')
-        OR (source_type='memory_analysis' AND verification_status='unverified') ORDER BY doc_id""")
+        OR (source_type='memory_analysis' AND (verification_status='unverified'
+            OR EXISTS(SELECT 1 FROM memory_curation_events e WHERE e.doc_id=memory_meta.doc_id
+                AND e.action='metadata_repair' AND e.actor='operator_repair' AND e.dry_run=0))) ORDER BY doc_id""")
     for record in rows:
         row = dict(record)
         proposal, review = propose(row, evidence(db, row["doc_id"]), baselines)
@@ -175,7 +225,7 @@ def make_plan(db, baselines=()):
 
 
 def apply_plan(db, plan, baselines=()):
-    if plan.get("version") != 1:
+    if plan.get("version") not in (1, 2):
         raise ValueError("unsupported repair plan version")
     result = {"applied": 0, "skipped": 0, "items": []}
     db.execute("BEGIN IMMEDIATE")
@@ -191,7 +241,7 @@ def apply_plan(db, plan, baselines=()):
                 outcome = "skipped_already_applied"
             elif current == item["expected"]:
                 proof = evidence(db, item["doc_id"])
-                verified, _ = propose(current, proof, baselines)
+                verified, remaining = propose(current, proof, baselines)
                 if (digest(proof) == item["evidence_hash"] and verified
                         and verified["changes"] == changes and verified["backups"] == item["backups"]):
                     fields = sorted(changes)
@@ -200,11 +250,17 @@ def apply_plan(db, plan, baselines=()):
                                [changes[key] for key in fields] + [item["doc_id"]])
                     if update.rowcount != 1:
                         raise ValueError("repair update did not affect exactly one expected row")
+                    after = dict(db.execute("SELECT * FROM memory_meta WHERE doc_id=?", (item["doc_id"],)).fetchone())
+                    audit = {"version": 2, "before": current, "after": after, "changes": changes,
+                             "evidence_hash": item["evidence_hash"],
+                             "evidence": json.dumps(proof, sort_keys=True, ensure_ascii=False, allow_nan=False),
+                             "backups": item["backups"],
+                             "remaining": remaining}
                     db.execute("""INSERT INTO memory_curation_events
                         (doc_id, action, actor, previous_status, new_status, reason, dry_run)
                         VALUES (?, 'metadata_repair', 'operator_repair', ?, ?, ?, 0)""",
                         (item["doc_id"], current["verification_status"], changes.get("verification_status", current["verification_status"]),
-                         "repair fields: " + ", ".join(fields) + "; evidence: " + item["evidence_hash"]))
+                         json.dumps(audit, sort_keys=True, ensure_ascii=False, allow_nan=False)))
                     outcome = "applied"
             result["applied" if outcome == "applied" else "skipped"] += 1
             result["items"].append({"doc_id": item["doc_id"], "outcome": outcome, "fields": sorted(changes)})

@@ -265,6 +265,9 @@ func (kg *KnowledgeGraph) finishNodeWrite(ctx context.Context, node Node, strict
 		kg.indexSemanticNodeAfterWrite(node)
 		return nil
 	}
+	if kg.semanticIndex() == nil {
+		return ctx.Err()
+	}
 	if err := kg.upsertSemanticNodeIndexContext(ctx, node); err != nil {
 		return fmt.Errorf("index node %s: %w", node.ID, err)
 	}
