@@ -380,8 +380,8 @@ func TestFileIndexerIndexFileRollsBackVectorsWhenTrackingFails(t *testing.T) {
 	}
 	vdb.mu.Lock()
 	defer vdb.mu.Unlock()
-	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
-		t.Fatalf("rolled-back vector IDs = %v, want [doc-1]", vdb.deleted)
+	if len(vdb.deleted) != 0 {
+		t.Fatalf("unknown-ownership vectors were deleted: %v", vdb.deleted)
 	}
 }
 
@@ -444,8 +444,8 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 		t.Fatalf("second scan errors = %v", errs)
 	}
 
-	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
-		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
+	if len(vdb.deleted) != 0 {
+		t.Fatalf("unknown-ownership vectors were deleted: %v", vdb.deleted)
 	}
 
 	secondIDs, err := stm.GetFileEmbeddingDocIDs(path, "file_index")
@@ -505,8 +505,8 @@ func TestFileIndexerReindexesWhenContentChangesWithSameModTime(t *testing.T) {
 	if len(errs) != 0 {
 		t.Fatalf("second scan errors = %v", errs)
 	}
-	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
-		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
+	if len(vdb.deleted) != 0 {
+		t.Fatalf("unknown-ownership vectors were deleted: %v", vdb.deleted)
 	}
 }
 
@@ -546,8 +546,8 @@ func TestFileIndexerReindexesWhenEmbeddingFingerprintChanges(t *testing.T) {
 	if indexed != 1 || len(errs) != 0 {
 		t.Fatalf("second scan indexed=%d errors=%v", indexed, errs)
 	}
-	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
-		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
+	if len(vdb.deleted) != 0 {
+		t.Fatalf("unknown-ownership vectors were deleted: %v", vdb.deleted)
 	}
 }
 

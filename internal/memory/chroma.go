@@ -3,6 +3,7 @@ package memory
 import (
 	"aurago/internal/promptsource"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -295,7 +296,7 @@ func (cv *ChromemVectorDB) SearchToolGuideMatchesContext(ctx context.Context, qu
 		return nil, fmt.Errorf("failed to compute query embedding: %w", err)
 	}
 
-	results, err := collection.QueryEmbedding(ctx, queryEmbedding, searchK, nil, nil)
+	results, err := cv.queryVisibleCollection(ctx, collection, queryEmbedding, searchK)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tool guides: %w", err)
 	}
@@ -332,6 +333,11 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		return err
 	}
 	defer doneIndex()
+	cv.fileWriteMu.Lock()
+	defer cv.fileWriteMu.Unlock()
+	if stm != nil {
+		cv.fileIndexMemory.Store(stm)
+	}
 
 	if cv.disabled.Load() {
 		cv.logger.Warn("VectorDB disabled, skipping directory indexing", "dir", dir)
@@ -347,6 +353,11 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 	cv.mu.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to get/create %s collection: %w", collectionName, err)
+	}
+	if stm != nil {
+		if err := cv.recoverIndexedFiles(ctx, stm, collection, collectionName); err != nil {
+			cv.logger.Warn("Directory index recovery remains pending", "collection", collectionName, "error", err)
+		}
 	}
 
 	currentMarkdown := make(map[string]struct{})
@@ -427,7 +438,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			continue
 		}
 		if len(chunks) == 1 {
-			docID := fmt.Sprintf("%s_%s", collectionName, title)
+			docID := fmt.Sprintf("file_%s_%d", rand.Text(), cv.idCounter.Add(1))
 			planned.docs = append(planned.docs, chromem.Document{
 				ID: docID,
 				Metadata: map[string]string{
@@ -442,7 +453,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			planned.docIDs = append(planned.docIDs, docID)
 		} else {
 			for _, chunk := range chunks {
-				docID := fmt.Sprintf("%s_%s_chunk_%d", collectionName, title, chunk.Index)
+				docID := fmt.Sprintf("file_%s_%d", rand.Text(), cv.idCounter.Add(1))
 				planned.docs = append(planned.docs, chromem.Document{
 					ID: docID,
 					Metadata: map[string]string{
@@ -505,32 +516,18 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		return nil
 	}
 
-	concurrency := 4
 	cv.logger.Info("Indexing directory...", "dir", dir, "total_docs", totalDocs)
 	var updateErr error
 	for _, f := range indexedFiles {
-		if delErr := collection.Delete(ctx, map[string]string{"source": f.source}, nil); delErr != nil {
-			cv.logger.Warn("Failed to delete stale docs for file", "source", f.source, "error", delErr)
-		}
-		fileConcurrency := concurrency
-		if len(f.docs) < fileConcurrency {
-			fileConcurrency = len(f.docs)
-		}
-		if fileConcurrency <= 0 {
-			fileConcurrency = 1
-		}
-		if err := collection.AddDocuments(ctx, f.docs, fileConcurrency); err != nil {
-			if stm != nil {
-				if delErr := stm.DeleteFileIndex(f.path, collectionName); delErr != nil {
-					updateErr = errors.Join(updateErr, fmt.Errorf("delete failed file index for %s in %s: %w", f.path, collectionName, delErr))
-				}
-			}
-			return errors.Join(updateErr, fmt.Errorf("failed to add documents for %s: %w", f.path, err))
-		}
 		if stm != nil {
-			if err := stm.UpdateFileIndexWithDocsAndState(f.path, collectionName, f.modTime, f.contentHash, f.indexFingerprint, f.docIDs); err != nil {
-				updateErr = errors.Join(updateErr, fmt.Errorf("update file index for %s in %s: %w", f.path, collectionName, err))
+			for i := range f.docs {
+				f.docs[i].Metadata["collection"] = collectionName
 			}
+			state := FileIndexState{LastModified: f.modTime, ContentHash: f.contentHash, IndexFingerprint: f.indexFingerprint}
+			_, err := cv.replaceIndexedDocuments(ctx, stm, collection, f.path, collectionName, state, f.docs)
+			updateErr = errors.Join(updateErr, err)
+		} else if err := collection.AddDocuments(ctx, f.docs, 1); err != nil {
+			return errors.Join(updateErr, fmt.Errorf("failed to add documents for %s: %w", f.path, err))
 		}
 	}
 	if updateErr != nil {

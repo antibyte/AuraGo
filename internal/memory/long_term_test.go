@@ -744,10 +744,6 @@ func TestIndexDirectoryClearsTrackingAfterAddFailure(t *testing.T) {
 		t.Fatalf("NewSQLiteMemory: %v", err)
 	}
 	defer stm.Close()
-	if err := stm.UpdateFileIndexWithDocs(path, "docs", modTime, []string{"old-doc"}); err != nil {
-		t.Fatalf("UpdateFileIndexWithDocs: %v", err)
-	}
-
 	err = cv.IndexDirectory(dir, "docs", stm, true)
 	if err == nil {
 		t.Fatal("expected IndexDirectory add failure")

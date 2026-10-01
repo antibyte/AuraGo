@@ -543,6 +543,11 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 	}
 
 	outcome := fileIndexOutcome{eligible: true}
+	if vector, ok := fi.vectorDB.(*memory.ChromemVectorDB); ok {
+		if err := vector.RecoverIndexedFiles(ctx, fi.stm, collection); err != nil {
+			fi.logger.Warn("[Indexer] Recovery remains pending", "collection", collection, "error", scrubIndexingError(err))
+		}
+	}
 	indexMode := fi.indexModeForFile(ext, isImage, isAudio, multimodal)
 	rawHash, hashErr := hashIndexedFileBytes(path)
 	if hashErr != nil {
@@ -683,9 +688,9 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		outcome.noContent = true
 		return outcome
 	}
-	if err := fi.removeTrackedFile(path, collection); err != nil {
-		fi.logger.Warn("[Indexer] Failed to remove stale embeddings before reindex", "path", path, "error", scrubIndexingError(err))
-		outcome.err = fmt.Errorf("cleanup error %s: %v", path, err)
+	oldIDs, oldIDsErr := fi.stm.GetFileEmbeddingDocIDs(path, collection)
+	if oldIDsErr != nil {
+		outcome.err = oldIDsErr
 		return outcome
 	}
 
@@ -701,12 +706,19 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 
 	var docIDs []string
 	var storeErr error
-	if precomputedEmbedding != nil {
+	if vector, ok := fi.vectorDB.(*memory.ChromemVectorDB); ok {
+		metadata := map[string]string{"relative_path": relPath, "file_extension": ext, "index_mode": indexMode}
+		for k, v := range fileMetadata {
+			metadata[k] = v
+		}
+		state := memory.FileIndexState{LastModified: info.ModTime(), ContentHash: rawHash, IndexFingerprint: indexFingerprint}
+		docIDs, storeErr = vector.ReplaceIndexedFile(ctx, fi.stm, path, collection, concept, content, precomputedEmbedding, fi.chunkingOptionsSnapshot(), metadata, state)
+	} else if precomputedEmbedding != nil {
 		var docID string
 		docID, storeErr = fi.indexStoreDocWithRetry(ctx, func() (string, error) {
 			return fi.vectorDB.StoreDocumentWithEmbeddingInCollection(concept, content, precomputedEmbedding, collection)
 		}, path)
-		if storeErr == nil && docID != "" {
+		if docID != "" {
 			docIDs = []string{docID}
 		}
 	} else if store, ok := fi.vectorDB.(chunkingCollectionStore); ok {
@@ -736,15 +748,14 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		outcome.err = fmt.Errorf("index error %s: %v", path, storeErr)
 		return outcome
 	}
-	if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), rawHash, indexFingerprint, docIDs); err != nil {
-		fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", scrubIndexingError(err))
-		if rollbackErr := fi.rollbackUntrackedDocuments(docIDs, collection); rollbackErr != nil {
-			fi.logger.Warn("[Indexer] Failed to roll back untracked embeddings", "path", path, "error", scrubIndexingError(rollbackErr))
-			outcome.err = fmt.Errorf("tracking error %s: %v; tracking rollback error %s: %v", path, err, path, rollbackErr)
+	if _, managed := fi.vectorDB.(*memory.ChromemVectorDB); !managed {
+		state := memory.FileIndexState{LastModified: info.ModTime(), ContentHash: rawHash, IndexFingerprint: indexFingerprint}
+		if err := fi.stm.PublishFileIndex(path, collection, indexState, oldIDs, state, docIDs); err != nil {
+			fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", scrubIndexingError(err))
+			// Legacy stores provide unknown ownership; retain their receipts after an uncertain write.
+			outcome.err = fmt.Errorf("tracking error %s: %v", path, err)
 			return outcome
 		}
-		outcome.err = fmt.Errorf("tracking error %s: %v", path, err)
-		return outcome
 	}
 	if len(docIDs) == 0 {
 		outcome.noContent = true
@@ -788,29 +799,6 @@ func (fi *FileIndexer) tryAcquireScanGate() bool {
 
 func (fi *FileIndexer) releaseScanGate() {
 	<-fi.scanGate
-}
-
-func (fi *FileIndexer) rollbackUntrackedDocuments(docIDs []string, collection string) error {
-	if len(docIDs) == 0 {
-		return nil
-	}
-	if batcher, ok := fi.vectorDB.(interface {
-		DeleteDocumentsFromCollection([]string, string) error
-	}); ok {
-		if err := batcher.DeleteDocumentsFromCollection(docIDs, collection); err != nil {
-			return fmt.Errorf("batch delete vector docs from collection %s: %w", collection, err)
-		}
-	} else {
-		for _, docID := range docIDs {
-			if err := fi.vectorDB.DeleteDocumentFromCollection(docID, collection); err != nil {
-				return fmt.Errorf("delete vector doc %s from collection %s: %w", docID, collection, err)
-			}
-		}
-	}
-	if err := fi.stm.DeleteMemoryMetaBatch(docIDs); err != nil {
-		return fmt.Errorf("delete memory meta batch: %w", err)
-	}
-	return nil
 }
 
 type embeddingFingerprinter interface {

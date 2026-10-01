@@ -10,6 +10,9 @@ Background services and workspace search.
 
 ## Local Contracts
 
+### File Indexing
+- File replacement stages the complete generation before changing the active SQLite pointer. The native vector store owns generation receipts and recovery; the indexer keeps the old KG until publication succeeds. Unknown ownership never permits rollback deletion. `internal/memory/AGENTS.md` owns the shared replacement and visibility contract.
+
 ### Workspace Search System
 - `internal/services.WorkspaceSearchService` maintains a Pure Go resident index for the full agent workspace derived from `directories.workspace_dir`; it must stay single-binary friendly with no CGO, mmap, FFI, or fsnotify dependency.
 - The native `workspace_search` tool exposes `find`, `grep`, `glob`, `recent`, `rescan`, and `status`. Keep legacy `file_search` JSON shapes compatible when delegating to the resident index.

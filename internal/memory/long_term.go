@@ -173,6 +173,8 @@ type ChromemVectorDB struct {
 	sfGroup                singleflight.Group // deduplicates concurrent embedding API calls for the same query
 	fileIndexerCollections map[string]struct{}
 	fiColMu                sync.RWMutex
+	fileWriteMu            sync.Mutex // ponytail: serialize file generations; use per-collection locks if throughput requires it.
+	fileIndexMemory        atomic.Pointer[SQLiteMemory]
 }
 
 func (cv *ChromemVectorDB) Close() error {
@@ -1395,7 +1397,7 @@ func (cv *ChromemVectorDB) SearchSimilarScoredContext(ctx context.Context, query
 				return
 			}
 			defer doneSearch()
-			res, qErr := c.QueryEmbedding(ctx, queryEmbedding, k, nil, nil)
+			res, qErr := cv.queryVisibleCollection(ctx, c, queryEmbedding, k)
 			resultCh <- colResult{colName: colName, results: res, err: qErr}
 		}(col, searchK)
 	}
@@ -1534,7 +1536,7 @@ func (cv *ChromemVectorDB) SearchMemoriesOnlyScoredContext(ctx context.Context, 
 		return nil, fmt.Errorf("failed to compute query embedding: %w", err)
 	}
 
-	results, err := col.QueryEmbedding(ctx, queryEmbedding, searchK, nil, nil)
+	results, err := cv.queryVisibleCollection(ctx, col, queryEmbedding, searchK)
 	if err != nil {
 		return nil, err
 	}
@@ -1598,6 +1600,9 @@ func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 	// Try aurago_memories first (backward compatible)
 	doc, err := cv.collection.GetByID(ctx, id)
 	if err == nil {
+		if visible, err := cv.indexedDocumentVisible(ctx, id, doc.Metadata); err != nil || !visible {
+			return "", errors.Join(fmt.Errorf("file generation is unavailable"), err)
+		}
 		return doc.Content, nil
 	}
 
@@ -1622,6 +1627,9 @@ func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 			}
 			doc, err = col.GetByID(ctx, id)
 			if err == nil {
+				if visible, err := cv.indexedDocumentVisible(ctx, id, doc.Metadata); err != nil || !visible {
+					return "", errors.Join(fmt.Errorf("file generation is unavailable"), err)
+				}
 				return doc.Content, nil
 			}
 		}
@@ -1673,6 +1681,9 @@ func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string,
 	doc, err := col.GetByID(ctx, id)
 	if err != nil {
 		return "", fmt.Errorf("document not found in collection %s: %w", collection, err)
+	}
+	if visible, err := cv.indexedDocumentVisible(ctx, id, doc.Metadata); err != nil || !visible {
+		return "", errors.Join(fmt.Errorf("file generation is unavailable"), err)
 	}
 	return doc.Content, nil
 }
