@@ -798,6 +798,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			flags.AvailableKnowledgeContextIndex = ""
 			flags.RecentActivityOverview = ""
 			var topMemories []string
+			failedMemorySearch := false
 			if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshTurnMemory(memorySnapshotWasDirty, lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
 				ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 				useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
@@ -815,16 +816,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					searchLimit = 8
 				}
 				memories, docIDs, similarities, err := searchSimilarWithScores(ctx, longTermMem, ragQuery, searchLimit, "tool_guides", "documentation")
-				var ranked []rankedMemory
-				if err == nil {
-					ranked, err = rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
-				}
+				ranked, rankErr := rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
+				err = errors.Join(err, rankErr)
+				failedMemorySearch = err != nil && len(ranked) == 0
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
 				if err != nil {
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
-					s.currentLogger.Warn("[RAG] Memory retrieval skipped", "error", err)
+					s.currentLogger.Warn("[RAG] Memory retrieval incomplete", "error", err)
 				}
-				if err == nil {
+				if ctx.Err() == nil && (err == nil || len(ranked) > 0) {
 					if useHelperRAGBatch {
 						batchCtx, batchCancel := context.WithTimeout(ctx, helperRAGBatchTimeout)
 						batchResult, batchErr := helperManager.AnalyzeRAG(batchCtx, lastUserMsg, ranked)
@@ -839,7 +839,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
 								ragQuery = helperQuery
 								extraMemories, extraDocIDs, extraSimilarities, extraErr := searchSimilarWithScores(ctx, longTermMem, ragQuery, 4, "tool_guides", "documentation")
-								if extraErr == nil && len(extraMemories) > 0 {
+								if extraErr != nil {
+									s.currentLogger.Warn("[RAG] Additional memory retrieval incomplete", "error", extraErr)
+									RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
+								}
+								if ctx.Err() == nil && len(extraMemories) > 0 {
 									extraRanked, rankErr := rankMemoryCandidatesWithScores(extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
 									if rankErr != nil {
 										s.currentLogger.Warn("[RAG] Additional memory retrieval skipped", "error", rankErr)
@@ -972,9 +976,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								ranked, pErr := searchRankedMemoriesOnly(ctx, longTermMem, shortTermMem, pred, 1, usedMemoryDocIDs, time.Now())
 								if pErr != nil {
 									fetches[i].err = pErr
-									return nil
 								}
-								if len(ranked) > 0 {
+								if ctx.Err() == nil && len(ranked) > 0 {
 									fetches[i].mem = ranked[0].text
 									fetches[i].docID = ranked[0].docID
 								}
@@ -989,7 +992,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							}
 							if f.err != nil {
 								hadPredictiveError = true
-								continue
 							}
 							if f.mem == "" {
 								continue
@@ -1173,6 +1175,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 			s.turnSnapshot.captureMemory(&flags, turnMemoryCandidates, turnPendingActions)
+			s.turnSnapshot.MemoryDirty = failedMemorySearch
 		}
 
 		// Error Pattern Context: inject known errors when in error recovery state.

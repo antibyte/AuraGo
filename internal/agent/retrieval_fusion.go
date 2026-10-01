@@ -65,7 +65,10 @@ func applyRetrievalFusion(
 			var extraMemories []string
 			for _, label := range labels {
 				ranked, err := searchRankedMemoriesOnly(context.Background(), longTermMem, stm, label, 1, nil, time.Now())
-				if err != nil || len(ranked) == 0 {
+				if err != nil && logger != nil {
+					logger.Warn("[RAG] Related memory search incomplete", "error", err)
+				}
+				if len(ranked) == 0 {
 					continue
 				}
 				// Deduplicate against existing top memories and already-found extras.

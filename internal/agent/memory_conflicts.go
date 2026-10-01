@@ -81,7 +81,6 @@ func detectMemoryConflictsForDocIDsWithContext(ctx context.Context, logger *slog
 			ranked, err := searchRankedMemoriesOnly(ctx, ltm, stm, signal.Key, 8, nil, time.Now())
 			if err != nil {
 				resultErr = errors.Join(resultErr, fmt.Errorf("search memory conflicts: %w", err))
-				continue
 			}
 			for _, match := range ranked {
 				if err := ctx.Err(); err != nil {

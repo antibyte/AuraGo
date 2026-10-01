@@ -394,7 +394,8 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 			results, docIDs, err := longTermMem.SearchSimilar(searchContent, perSourceLimit, "tool_guides", "documentation")
 			if err != nil {
 				bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
-			} else if len(results) > 0 {
+			}
+			if len(results) > 0 {
 				results, err = filterArchivedMemoryResults(results, docIDs, shortTermMem)
 				if err != nil {
 					bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))

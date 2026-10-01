@@ -38,6 +38,9 @@ Memory retrieval, hygiene, indexing, and maintenance.
 ### Identifier Recall
 - Native and local-agent ID recall share current metadata checks. Missing legacy metadata is allowed only after a successful lookup; archived entries are omitted and unavailable metadata is an explicit error. Preserve bounded, same-session conversation recall and scrubbing. Verify `TestRecallMemoryHonorsCurrentArchiveAndMetadataFailures` and `TestConversationRecall*`.
 
+### Partial Search Results
+- Collection search returns healthy results together with named errors and cancellation. Wrappers preserve both; automatic consumers use only currently metadata-checked results and explicit queries expose incomplete search errors. Empty healthy collections remain successful. Verify `TestMultiCollectionSearchPreservesResultsAndErrors`, `TestAuditMultiCollectionSearchReportsFailedCollection` and `TestMemorySearchConsumersKeepCheckedPartialResults`.
+
 ## Verification
 
 - Run `go test ./internal/memory` and the named cross-component checks in the contracts above when those paths change.

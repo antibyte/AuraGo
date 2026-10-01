@@ -695,17 +695,16 @@ func buildContextSnapshot(req CoAgentRequest, ltm memory.VectorDB, stm *memory.S
 	if ltm != nil && policy.maxRAGHits > 0 {
 		ranked, err := searchRankedMemoriesOnly(context.Background(), ltm, stm, req.Task, policy.maxRAGHits, nil, time.Now())
 		if err != nil {
-			slog.Warn("[Co-Agent] Memory context skipped", "error", err)
-		} else {
-			for _, item := range ranked {
-				result := truncatePromptBlock(item.text, policy.maxRAGChars)
-				if result == "" {
-					continue
-				}
-				ragItems = append(ragItems, result)
-				if len(ragItems) >= policy.maxRAGHits {
-					break
-				}
+			slog.Warn("[Co-Agent] Memory context incomplete", "error", err)
+		}
+		for _, item := range ranked {
+			result := truncatePromptBlock(item.text, policy.maxRAGChars)
+			if result == "" {
+				continue
+			}
+			ragItems = append(ragItems, result)
+			if len(ragItems) >= policy.maxRAGHits {
+				break
 			}
 		}
 	}

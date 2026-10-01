@@ -1288,11 +1288,8 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 // all relevant collections and honors caller cancellation.
 func (cv *ChromemVectorDB) SearchSimilarContext(ctx context.Context, query string, topK int, excludeCollections ...string) ([]string, []string, error) {
 	results, err := cv.SearchSimilarScoredContext(ctx, query, topK, excludeCollections...)
-	if err != nil {
-		return nil, nil, err
-	}
 	texts, ids := splitSearchResults(results)
-	return texts, ids, nil
+	return texts, ids, err
 }
 
 // SearchSimilarScored finds the topK most semantically similar documents across
@@ -1403,17 +1400,12 @@ func (cv *ChromemVectorDB) SearchSimilarScoredContext(ctx context.Context, query
 	}
 
 	var allResults []SearchResult
+	var searchErr error
 	for range collections {
-		var cr colResult
-		select {
-		case cr = <-resultCh:
-		case <-ctx.Done():
-			cv.logger.Warn("SearchSimilar: context deadline exceeded, returning partial results", "collected", len(allResults))
-			goto finalizeResults
-		}
+		cr := <-resultCh
 		if cr.err != nil {
 			cv.logger.Warn("Failed to query collection", "collection", cr.colName, "error", cr.err)
-			continue
+			searchErr = errors.Join(searchErr, fmt.Errorf("query collection %s: %w", cr.colName, cr.err))
 		}
 		for _, result := range cr.results {
 			sim := result.Similarity
@@ -1457,7 +1449,7 @@ func (cv *ChromemVectorDB) SearchSimilarScoredContext(ctx context.Context, query
 		}
 	}
 
-finalizeResults:
+	searchErr = errors.Join(searchErr, ctx.Err())
 	cancel()
 	wg.Wait()
 
@@ -1469,7 +1461,7 @@ finalizeResults:
 		allResults = allResults[:topK]
 	}
 
-	return allResults, nil
+	return allResults, searchErr
 }
 
 // SearchMemoriesOnly searches only the aurago_memories collection. Much cheaper than
@@ -1483,11 +1475,8 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 // SearchMemoriesOnlyContext searches only aurago_memories and honors caller cancellation.
 func (cv *ChromemVectorDB) SearchMemoriesOnlyContext(ctx context.Context, query string, topK int) ([]string, []string, error) {
 	results, err := cv.SearchMemoriesOnlyScoredContext(ctx, query, topK)
-	if err != nil {
-		return nil, nil, err
-	}
 	texts, ids := splitSearchResults(results)
-	return texts, ids, nil
+	return texts, ids, err
 }
 
 // SearchMemoriesOnlyScored searches only aurago_memories and preserves scores.
@@ -1522,7 +1511,10 @@ func (cv *ChromemVectorDB) SearchMemoriesOnlyScoredContext(ctx context.Context, 
 	cv.mu.RLock()
 	col, err := cv.db.GetOrCreateCollection("aurago_memories", nil, cv.embeddingFunc)
 	cv.mu.RUnlock()
-	if err != nil || col.Count() == 0 {
+	if err != nil {
+		return nil, fmt.Errorf("open memories collection: %w", err)
+	}
+	if col.Count() == 0 {
 		return nil, nil
 	}
 
@@ -1537,9 +1529,6 @@ func (cv *ChromemVectorDB) SearchMemoriesOnlyScoredContext(ctx context.Context, 
 	}
 
 	results, err := cv.queryVisibleCollection(ctx, col, queryEmbedding, searchK)
-	if err != nil {
-		return nil, err
-	}
 
 	var searchResults []SearchResult
 	for _, r := range results {
@@ -1565,7 +1554,7 @@ func (cv *ChromemVectorDB) SearchMemoriesOnlyScoredContext(ctx context.Context, 
 			})
 		}
 	}
-	return searchResults, nil
+	return searchResults, errors.Join(err, ctx.Err())
 }
 
 func splitSearchResults(results []SearchResult) ([]string, []string) {

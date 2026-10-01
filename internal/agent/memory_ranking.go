@@ -72,17 +72,13 @@ func searchSimilarWithScores(ctx context.Context, vdb memory.VectorDB, query str
 	}
 	if scored, ok := vdb.(memory.ContextScoredVectorDB); ok {
 		results, err := scored.SearchSimilarScoredContext(ctx, query, topK, excludeCollections...)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		return splitScoredMemoryResults(results)
+		memories, ids, scores, _ := splitScoredMemoryResults(results)
+		return memories, ids, scores, err
 	}
 	if scored, ok := vdb.(memory.ScoredVectorDB); ok {
 		results, err := scored.SearchSimilarScored(query, topK, excludeCollections...)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		return splitScoredMemoryResults(results)
+		memories, ids, scores, _ := splitScoredMemoryResults(results)
+		return memories, ids, scores, err
 	}
 	if ctxVdb, ok := vdb.(memory.ContextVectorDB); ok {
 		memories, docIDs, err := ctxVdb.SearchSimilarContext(ctx, query, topK, excludeCollections...)
@@ -110,21 +106,18 @@ func searchRankedMemoriesOnly(
 	if searchLimit > 0 {
 		searchLimit *= 3
 	}
-	memories, docIDs, similarities, err := searchMemoriesOnlyWithScores(ctx, vdb, query, searchLimit)
-	if err != nil {
-		return nil, err
-	}
+	memories, docIDs, similarities, searchErr := searchMemoriesOnlyWithScores(ctx, vdb, query, searchLimit)
 	if len(memories) == 0 {
-		return nil, nil
+		return nil, searchErr
 	}
 	ranked, err := rankMemoryCandidatesWithScores(memories, docIDs, similarities, stm, usedDocIDs, now)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(searchErr, err)
 	}
 	if topK > 0 && len(ranked) > topK {
 		ranked = ranked[:topK]
 	}
-	return ranked, nil
+	return ranked, searchErr
 }
 
 func searchMemoriesOnlyWithScores(ctx context.Context, vdb memory.VectorDB, query string, topK int) ([]string, []string, []float64, error) {
@@ -133,17 +126,13 @@ func searchMemoriesOnlyWithScores(ctx context.Context, vdb memory.VectorDB, quer
 	}
 	if scored, ok := vdb.(memory.ContextScoredVectorDB); ok {
 		results, err := scored.SearchMemoriesOnlyScoredContext(ctx, query, topK)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		return splitScoredMemoryResults(results)
+		memories, ids, scores, _ := splitScoredMemoryResults(results)
+		return memories, ids, scores, err
 	}
 	if scored, ok := vdb.(memory.ScoredVectorDB); ok {
 		results, err := scored.SearchMemoriesOnlyScored(query, topK)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		return splitScoredMemoryResults(results)
+		memories, ids, scores, _ := splitScoredMemoryResults(results)
+		return memories, ids, scores, err
 	}
 	if ctxVdb, ok := vdb.(memory.ContextVectorDB); ok {
 		memories, docIDs, err := ctxVdb.SearchMemoriesOnlyContext(ctx, query, topK)
