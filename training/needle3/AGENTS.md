@@ -85,8 +85,8 @@ belongs to a later task; no application prompt or dispatch behavior changes here
   fresh process per model and output equivalence with the normal binding; they
   remain prototypes. Keep all model artifacts and measurements under reports.
 - User scope change: `category_*.py` predicts only the nine exported discovery
-  categories. A shared manual maps to exactly one category; all 182 families must
-  be covered. Do not silently introduce a different production taxonomy.
+  categories. A shared manual maps to exactly one category; every exported family
+  must be covered. Do not silently introduce a different production taxonomy.
 - `category_router.py` owns nine fixed zero-argument category functions, shared
   training/runtime rendering, and category guard. Any number of the nine categories
   may be returned. Unknown/duplicate categories are invalid; empty availability

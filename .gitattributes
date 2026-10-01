@@ -16,6 +16,9 @@ docker-entrypoint.sh text eol=lf
 *.yml   text eol=lf
 *.json  text eol=lf
 
+# Training manifests hash generated JSONL bytes; keep checkout hashes stable.
+training/*.jsonl text eol=lf
+
 # Generated frontend bundles are written with LF by scripts/build-ui-bundles.js.
 ui/css/*.bundle.css text eol=lf
 ui/js/chat/bundles/*.js text eol=lf

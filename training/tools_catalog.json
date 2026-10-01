@@ -7160,7 +7160,38 @@
                       "type": "string"
                     },
                     "metric": {
-                      "description": "Observed metric such as hits, actions, score, health, lives, goal_remaining or outcome",
+                      "description": "Observed runtime metric; only these names exist",
+                      "enum": [
+                        "player_x",
+                        "player_y",
+                        "player_distance",
+                        "player_right",
+                        "stage_count",
+                        "actions",
+                        "score",
+                        "hits",
+                        "spawns",
+                        "turns",
+                        "ticks",
+                        "ended",
+                        "object_count",
+                        "timer_count",
+                        "listener_count",
+                        "invalid_assets",
+                        "assets_used",
+                        "elapsed_ms",
+                        "aim",
+                        "ammo",
+                        "reloads",
+                        "health",
+                        "lives",
+                        "goal_remaining",
+                        "outcome",
+                        "hit_events",
+                        "pickup_events",
+                        "win_events",
+                        "lose_events"
+                      ],
                       "type": "string"
                     },
                     "steps": {
@@ -7178,7 +7209,25 @@
                             "type": "string"
                           },
                           "key": {
-                            "description": "For key actions: e.g. SPACE, RIGHT, W",
+                            "description": "For key actions only; uppercase key names",
+                            "enum": [
+                              "LEFT",
+                              "RIGHT",
+                              "UP",
+                              "DOWN",
+                              "W",
+                              "A",
+                              "S",
+                              "D",
+                              "SPACE",
+                              "R",
+                              "P",
+                              "ESC",
+                              "ENTER",
+                              "F",
+                              "Q",
+                              "E"
+                            ],
                             "type": "string"
                           },
                           "mode": {
@@ -10064,7 +10113,38 @@
                     "type": "string"
                   },
                   "metric": {
-                    "description": "Observed metric such as hits, actions, score, health, lives, goal_remaining or outcome",
+                    "description": "Observed runtime metric; only these names exist",
+                    "enum": [
+                      "player_x",
+                      "player_y",
+                      "player_distance",
+                      "player_right",
+                      "stage_count",
+                      "actions",
+                      "score",
+                      "hits",
+                      "spawns",
+                      "turns",
+                      "ticks",
+                      "ended",
+                      "object_count",
+                      "timer_count",
+                      "listener_count",
+                      "invalid_assets",
+                      "assets_used",
+                      "elapsed_ms",
+                      "aim",
+                      "ammo",
+                      "reloads",
+                      "health",
+                      "lives",
+                      "goal_remaining",
+                      "outcome",
+                      "hit_events",
+                      "pickup_events",
+                      "win_events",
+                      "lose_events"
+                    ],
                     "type": "string"
                   },
                   "steps": {
@@ -10082,7 +10162,25 @@
                           "type": "string"
                         },
                         "key": {
-                          "description": "For key actions: e.g. SPACE, RIGHT, W",
+                          "description": "For key actions only; uppercase key names",
+                          "enum": [
+                            "LEFT",
+                            "RIGHT",
+                            "UP",
+                            "DOWN",
+                            "W",
+                            "A",
+                            "S",
+                            "D",
+                            "SPACE",
+                            "R",
+                            "P",
+                            "ESC",
+                            "ENTER",
+                            "F",
+                            "Q",
+                            "E"
+                          ],
                           "type": "string"
                         },
                         "mode": {
@@ -24116,7 +24214,7 @@
       },
       "tier": "extended",
       "manual_path": "prompts/tools_manuals/recall_memory.md",
-      "manual_snippet": "## Tool: Recall Memory (`recall_memory`)\n\nRead exact long-term memory entries by ID from the `AVAILABLE CONTEXT INDEX`.\n\n### Schema\n\n| Parameter | Type | Required | Description |\n|---|---|---|---|\n| `ids` | array | yes | Memory IDs from entries like `[memory:mem-123]` |\n\n### Example\n\n```json\n{\"action\": \"recall_memory\", \"ids\": [\"mem-123\"]}\n```\n\n### Guidance\n\n- Use this only when a listed memory teaser is relevant and you need the full entry.\n- Do not guess IDs. Copy them from the current `AVAILABLE CONTEXT INDEX`.\n- Results are advisory and may be stale. Current files, tools, and checks still win.\n"
+      "manual_snippet": "## Tool: Recall Memory (`recall_memory`)\n\nRead exact long-term memory entries by ID from the `AVAILABLE CONTEXT INDEX`.\n\n### Schema\n\n| Parameter | Type | Required | Description |\n|---|---|---|---|\n| `ids` | array | yes | Memory IDs from entries like `[memory:mem-123]` |\n\n### Example\n\n```json\n{\"action\": \"recall_memory\", \"ids\": [\"mem-123\"]}\n```\n\n### Guidance\n\n- Use this only when a listed memory teaser is relevant and you need the full entry.\n- Do not guess IDs. Copy them from the current `AVAILABLE CONTEXT INDEX`.\n- Archived entries are unavailable through agent recall. Administrative recovery requires an explicit memory curation action; a retained vector does not grant access to an archived entry.\n- Recall checks current metadata. If that store is unavailable, retry after recovery instead …"
     },
     {
       "name": "register_device",
