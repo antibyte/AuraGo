@@ -112,6 +112,10 @@
   shutdown keeps the checkpoint instead of filing the run as stopped. A window
   that finds an active run with an empty editor adopts `GET /api/desktop/looper/active`;
   Resume with an empty editor sends `{}` and the server uses the stored settings.
+  `LooperRunner.checkpoint` only writes while the run is running or paused and shares
+  `checkpointMu` with the removal in `persistFinishedRun`, so a discarded run cannot be
+  brought back by a late write. `init()` waits for the first status (max 1.5 s) before
+  `restoreDraft()`, otherwise a stale draft would shadow the settings of a restored run.
 - History records keep their run settings (`config` on `GET .../runs/{id}`), which
   drive "Load into editor" and "Run again"; older records have none.
 - Verify `TestDesktopLooperUIContract`, `TestDesktopLooperCostI18n`,

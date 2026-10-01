@@ -1062,7 +1062,7 @@ SUDO=""
 show_system_scan() {
     local os_name="" mem_kb="" cores="" disk="" init="sysv/other"
     if [ -r /etc/os-release ]; then
-        os_name="$(. /etc/os-release 2>/dev/null && printf '%s' "${PRETTY_NAME:-${NAME:-}}")"
+        os_name="$(. /etc/os-release 2>/dev/null && printf '%s' "${PRETTY_NAME:-${NAME:-}}" || true)"
     fi
     [ -n "$os_name" ] || os_name="$(uname -s)"
     mem_kb="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || true)"

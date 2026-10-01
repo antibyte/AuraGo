@@ -680,6 +680,7 @@
                 try {
                     const msg = JSON.parse(event.data);
                     updateRun(monitor && state.logCache ? monitor.mergeStatus(state.logCache, msg) : msg);
+                    state.statusSeen();
                 } catch (e) { /* ignore */ }
             };
             evtSource.onerror = () => {
@@ -724,6 +725,10 @@
                     toast(t('desktop.looper_budget_exceeded'));
                 } else if (code === 'already_running') {
                     toast(t('desktop.looper_already_running'));
+                    connectStatus();
+                } else if (code === 'no_paused_run') {
+                    // Another window ended or resumed the run first; show what is true now.
+                    toast(t('desktop.looper_resume_error'));
                     connectStatus();
                 } else {
                     toast((e && e.message) || (resuming ? t('desktop.looper_resume_error') : t('desktop.looper_start_error')));
@@ -886,9 +891,13 @@
         });
 
         updateRun(state.status);
+        // A draft must not be written over a run that is still being reported:
+        // wait for the first status (or give up quickly when the stream is down).
+        const firstStatus = new Promise(resolve => { state.statusSeen = resolve; });
         (async function init() {
             await loadProviders();
             await loadPresets();
+            await Promise.race([firstStatus, new Promise(resolve => setTimeout(resolve, 1500))]);
             if (state.disposed) return;
             restoreDraft();
             renderBrief();

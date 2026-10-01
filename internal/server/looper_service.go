@@ -36,6 +36,11 @@ type LooperRunner struct {
 	// a user stop, so it keeps its checkpoint and is offered for resuming after
 	// the restart instead of being filed as "stopped".
 	shuttingDown atomic.Bool
+
+	// checkpointMu orders checkpoint writes against the removal of the
+	// checkpoint, so a run that was discarded or filed meanwhile cannot be
+	// brought back by a late write from its own goroutine.
+	checkpointMu sync.Mutex
 }
 
 // NewLooperRunner creates a runner backed by a preset store.
@@ -120,10 +125,17 @@ func (r *LooperRunner) checkpoint(cfg desktop.LooperRunConfig, startedAt time.Ti
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	r.checkpointMu.Lock()
+	defer r.checkpointMu.Unlock()
+	st := r.holder.State()
+	if !st.Running && !st.Paused {
+		// Discarded, stopped or filed in the meantime: nothing left to resume.
+		return
+	}
 	if err := r.store.SaveActiveRun(ctx, desktop.LooperActiveRun{
 		Config:    cfg,
 		StartedAt: startedAt,
-		State:     r.holder.State(),
+		State:     st,
 		Resume:    resume,
 	}); err != nil && r.logger != nil {
 		r.logger.Warn("[Looper] checkpoint failed", "error", err)
@@ -570,6 +582,8 @@ func (r *LooperRunner) persistFinishedRun(cfg desktop.LooperRunConfig, startedAt
 	}); err != nil && r.logger != nil {
 		r.logger.Warn("[Looper] persist run failed", "error", err)
 	}
+	r.checkpointMu.Lock()
+	defer r.checkpointMu.Unlock()
 	if err := r.store.ClearActiveRun(ctx); err != nil && r.logger != nil {
 		r.logger.Warn("[Looper] clear checkpoint failed", "error", err)
 	}

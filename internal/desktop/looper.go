@@ -309,10 +309,40 @@ func (ps *LooperPresetStore) ensureRunsTable(ctx context.Context) error {
 		)`); err != nil {
 		return fmt.Errorf("migrate looper runs table: %w", err)
 	}
-	// Older databases lack the stored run settings; the failure of this ALTER on
-	// a current database ("duplicate column") is expected and harmless.
-	_, _ = ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_runs ADD COLUMN config_json TEXT DEFAULT ''`)
+	// Older databases lack the stored run settings. The column is looked up
+	// first so a real failure (locked or read-only database) is reported
+	// instead of being mistaken for "column already there".
+	has, err := ps.tableHasColumn(ctx, "desktop_looper_runs", "config_json")
+	if err != nil {
+		return err
+	}
+	if !has {
+		if _, err := ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_runs ADD COLUMN config_json TEXT DEFAULT ''`); err != nil {
+			return fmt.Errorf("add looper run settings column: %w", err)
+		}
+	}
 	return nil
+}
+
+func (ps *LooperPresetStore) tableHasColumn(ctx context.Context, table, column string) (bool, error) {
+	rows, err := ps.db.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return false, fmt.Errorf("inspect %s: %w", table, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notNull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dflt, &pk); err != nil {
+			return false, fmt.Errorf("inspect %s: %w", table, err)
+		}
+		if strings.EqualFold(name, column) {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }
 
 func (ps *LooperPresetStore) ensureActiveRunTable(ctx context.Context) error {

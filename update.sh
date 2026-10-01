@@ -1514,7 +1514,7 @@ section "Checking for updates"
 # Version before the update, shown as "old ➜ new" in the final summary.
 PRE_UPDATE_VERSION=""
 if $BINARY_ONLY; then
-    if [ -f "$DIR/.version" ]; then PRE_UPDATE_VERSION="$(tr -d '\r\n' < "$DIR/.version")"; fi
+    if [ -f "$DIR/.version" ]; then PRE_UPDATE_VERSION="$(tr -d '\r\n' < "$DIR/.version" 2>/dev/null || true)"; fi
 else
     PRE_UPDATE_VERSION="$(git -C "$DIR" log --format='%h (%cd)' --date=short -1 2>/dev/null || true)"
 fi
@@ -2983,7 +2983,7 @@ fi
 if $BINARY_ONLY; then
     POST_UPDATE_VERSION="$RELEASE_TAG"
 else
-    POST_UPDATE_VERSION="$(git log --format='%h (%cd)' --date=short -1)"
+    POST_UPDATE_VERSION="$(git log --format='%h (%cd)' --date=short -1 2>/dev/null || true)"
 fi
 echo ""
 tui_box ok "AuraGo updated successfully!" \

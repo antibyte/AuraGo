@@ -24,6 +24,7 @@ type looperFixtureStream struct {
 	mu      sync.Mutex
 	payload map[string]any
 	version int
+	held    bool
 	started chan struct{}
 	once    sync.Once
 }
@@ -42,10 +43,17 @@ func (s *looperFixtureStream) set(payload map[string]any) {
 	s.mu.Unlock()
 }
 
-func (s *looperFixtureStream) snapshot() (map[string]any, int) {
+// hold delays the next event, to model a status stream that answers late.
+func (s *looperFixtureStream) hold(on bool) {
+	s.mu.Lock()
+	s.held = on
+	s.mu.Unlock()
+}
+
+func (s *looperFixtureStream) snapshot() (map[string]any, int, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.payload, s.version
+	return s.payload, s.version, s.held
 }
 
 func (s *looperFixtureStream) serve(w http.ResponseWriter, r *http.Request) {
@@ -60,8 +68,8 @@ func (s *looperFixtureStream) serve(w http.ResponseWriter, r *http.Request) {
 	ticker := time.NewTicker(30 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		payload, version := s.snapshot()
-		if version != lastVersion {
+		payload, version, held := s.snapshot()
+		if version != lastVersion && !held {
 			lastVersion = version
 			raw, err := json.Marshal(payload)
 			if err != nil {
@@ -587,6 +595,23 @@ func TestDesktopLooperBrowser(t *testing.T) {
 	mustWaitDump(t, page, "step 17", `()=>window.__lastLooperBody!=='unset'`)
 	if !page.MustEval(`()=>!document.querySelector('.vd-looper-resume').disabled`).Bool() {
 		t.Fatal("a refused resume must leave the controls usable")
+	}
+
+	// A saved draft must not be written over a run the server is still about to
+	// report: the run's own settings win once its status arrives.
+	page.MustEval(`()=>{ [...aurora.state.windows.keys()].forEach(id=>aurora.closeWindow(id)); window.__looperRunError=''; window.__activeMissing=false; }`)
+	stream.hold(true)
+	interrupted["run_id"] = 9
+	stream.set(interrupted)
+	page.MustEval(`()=>window.localStorage.setItem('aurago.looper.draft.v1', JSON.stringify({presetId:null, fields:{goal:'Draft goal', work:'Draft work', evaluate:'Draft review'}, at:Date.now()}))`)
+	page.MustEval(`async()=>{await fixtureOpen('looper')}`)
+	mustWaitDump(t, page, "step 18", `()=>!!document.querySelector('.vd-looper')`)
+	time.Sleep(500 * time.Millisecond)
+	stream.hold(false)
+	mustWaitDump(t, page, "step 19", `()=>document.querySelector('.vd-looper').classList.contains('is-active-run')`)
+	mustWaitDump(t, page, "step 20", `()=>document.querySelector('.vd-looper textarea[id^="looper-goal-"]').value==='Restored goal'`)
+	if !page.MustEval(`()=>document.querySelector('.vd-looper-dirty').hidden && !document.querySelector('.vd-looper-resume').hidden`).Bool() {
+		t.Fatal("a stale draft must not replace the settings of a restored run")
 	}
 
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {

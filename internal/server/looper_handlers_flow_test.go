@@ -115,6 +115,37 @@ func TestLooperResumeEndpointContinuesWithTheStoredSettings(t *testing.T) {
 	}
 }
 
+func TestLooperLateCheckpointDoesNotResurrectADiscardedRun(t *testing.T) {
+	s := newDesktopFilesystemTestServer(t)
+	runner := freshLooperRunner(t, s)
+	cfg := restoreInterruptedRun(runner)
+	started := time.Now().UTC()
+	resume := desktop.LooperResumeState{Round: 1, BestScore: 50, ScoreHistory: []int{50}}
+
+	// While the run is parked the checkpoint is written as usual.
+	runner.checkpoint(cfg, started, resume)
+	if _, ok, err := runner.store.LoadActiveRun(context.Background()); err != nil || !ok {
+		t.Fatalf("a paused run keeps its checkpoint: ok=%v err=%v", ok, err)
+	}
+
+	// The user discards it; the run's own goroutine may still be finishing a
+	// checkpoint it began before that. It must not bring the run back.
+	if !runner.DiscardPaused() {
+		t.Fatal("nothing was discarded")
+	}
+	if _, ok, _ := runner.store.LoadActiveRun(context.Background()); ok {
+		t.Fatal("discarding must remove the checkpoint")
+	}
+	runner.checkpoint(cfg, started, resume)
+	if _, ok, _ := runner.store.LoadActiveRun(context.Background()); ok {
+		t.Fatal("a late checkpoint resurrected a discarded run: it would reappear after the next restart")
+	}
+	runs, err := runner.store.ListRuns(context.Background())
+	if err != nil || len(runs) != 1 || runs[0].Status != "stopped" {
+		t.Fatalf("the discarded run is filed once as stopped: %+v err=%v", runs, err)
+	}
+}
+
 func TestLooperEndpointsRefuseWhenTheBudgetIsUsedUp(t *testing.T) {
 	s := newDesktopFilesystemTestServer(t)
 	s.Cfg.LLM.Model = "test-model"
