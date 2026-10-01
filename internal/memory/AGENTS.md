@@ -47,6 +47,9 @@ Memory retrieval, hygiene, indexing, and maintenance.
 ### Realtime Extraction
 - Direct extraction, helper fallback and local-agent turns share validated completion state and provider-aware JSON output budgets, including reasoning reserves and explicit provider caps. Request JSON mode only for confirmed capabilities. Require complete non-null result arrays and valid items before persistence; empty arrays are a successful no-op. Allow one smaller, human-record-only retry for unusable responses; cancellation or budget failure prevents further requests and writes. Source text is isolated as external data. Verify `TestAuditMemoryAnalysisRejectsTruncatedCompletion` and `TestRealtimeMemoryAnalysis*`.
 
+### Contact Graph Sync
+- `SyncContact` transactionally reconciles the five contact-owned fields and relationship edges after current protection checks. Preserve foreign properties; new edges carry `contact_sync_id` and `contacts_sync` claim provenance. Clear or replace only proven own relationships without foreign claims or protected nodes/edges; retain ambiguous legacy edges and report review-required through maintenance. Generic node merge semantics stay unchanged. Deleted contacts do not authorize graph deletion. Verify `TestContactSync*`, `TestSyncContactsToKnowledgeGraphPrunesStaleBelongsToEdges` and `TestAuditContactsSyncClearsRemovedRelationshipAndFields`.
+
 ## Verification
 
 - Run `go test ./internal/memory` and the named cross-component checks in the contracts above when those paths change.

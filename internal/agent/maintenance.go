@@ -2423,59 +2423,13 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 			continue
 		}
 
-		nodeID := "contact_" + id
-		props := map[string]string{
-			"type": "person",
+		if err := ctx.Err(); err != nil {
+			return errors.Join(resultErr, err)
 		}
-		if email.Valid && email.String != "" {
-			props["email"] = email.String
-		}
-		if phone.Valid && phone.String != "" {
-			props["phone"] = phone.String
-		}
-		if mobile.Valid && mobile.String != "" {
-			props["mobile"] = mobile.String
-		}
-		if relationship.Valid && relationship.String != "" {
-			props["relationship"] = relationship.String
-		}
-		if birthday.Valid && birthday.String != "" {
-			props["birthday"] = birthday.String
-		}
-
-		err := kg.AddNode(nodeID, name, props)
-		if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		fields := map[string]string{"email": email.String, "phone": phone.String, "mobile": mobile.String, "relationship": relationship.String, "birthday": birthday.String}
+		if err := kg.SyncContact(ctx, "contact_"+id, name, fields); err != nil {
 			resultErr = errors.Join(resultErr, err)
-			logger.Debug("[Maintenance] AddNode returned error", "nodeID", nodeID, "error", err)
-		}
-
-		if relationship.Valid && relationship.String != "" {
-			relSlug := strings.ToLower(strings.ReplaceAll(relationship.String, " ", "_"))
-			relNodeID := "org_" + relSlug
-
-			if _, err := kg.PruneOutgoingRelationEdges(nodeID, "belongs_to", map[string]struct{}{relNodeID: {}}); err != nil {
-				resultErr = errors.Join(resultErr, err)
-				logger.Warn("[Maintenance] Failed to prune stale contact relationship edges",
-					"contact_node_id", nodeID,
-					"relationship_node_id", relNodeID,
-					"error", err)
-			}
-
-			if err := kg.AddNode(relNodeID, relationship.String, map[string]string{"type": "organization"}); err != nil {
-				resultErr = errors.Join(resultErr, err)
-				logger.Warn("[Maintenance] Failed to sync relationship org node to KG",
-					"contact_node_id", nodeID,
-					"relationship_node_id", relNodeID,
-					"relationship", relationship.String,
-					"error", err)
-			} else if err := kg.AddEdge(nodeID, relNodeID, "belongs_to", nil); err != nil {
-				resultErr = errors.Join(resultErr, err)
-				logger.Warn("[Maintenance] Failed to sync relationship edge to KG",
-					"contact_node_id", nodeID,
-					"relationship_node_id", relNodeID,
-					"relationship", relationship.String,
-					"error", err)
-			}
+			logger.Warn("[Maintenance] Contact KG reconciliation incomplete", "contact_id", id, "error", err)
 		}
 	}
 	return errors.Join(resultErr, rows.Err(), ctx.Err())

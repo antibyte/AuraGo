@@ -20,7 +20,7 @@ func TestSyncContactsToKnowledgeGraphPrunesStaleBelongsToEdges(t *testing.T) {
 
 	if _, err := contactsDB.Exec(`
 		INSERT INTO contacts (id, name, email, phone, mobile, address, relationship, notes, birthday, reminder, created_at, updated_at)
-		VALUES ('1', 'Alice Example', '', '', '', '', 'New Corp', '', '', '', datetime('now'), datetime('now'))
+		VALUES ('1', 'Alice Example', '', '', '', '', 'Old Corp', '', '', '', datetime('now'), datetime('now'))
 	`); err != nil {
 		t.Fatalf("insert contact: %v", err)
 	}
@@ -31,17 +31,15 @@ func TestSyncContactsToKnowledgeGraphPrunesStaleBelongsToEdges(t *testing.T) {
 	}
 	defer kg.Close()
 
-	if err := kg.AddNode("contact_1", "Alice Example", map[string]string{"type": "person"}); err != nil {
-		t.Fatalf("AddNode contact: %v", err)
+	if err := SyncContactsToKnowledgeGraph(context.Background(), contactsDB, kg, logger); err != nil {
+		t.Fatalf("initial contact sync: %v", err)
 	}
-	if err := kg.AddNode("org_old_corp", "Old Corp", map[string]string{"type": "organization"}); err != nil {
-		t.Fatalf("AddNode old org: %v", err)
+	if _, err := contactsDB.Exec(`UPDATE contacts SET relationship='New Corp' WHERE id='1'`); err != nil {
+		t.Fatal(err)
 	}
-	if err := kg.AddEdge("contact_1", "org_old_corp", "belongs_to", nil); err != nil {
-		t.Fatalf("AddEdge stale belongs_to: %v", err)
+	if err := SyncContactsToKnowledgeGraph(context.Background(), contactsDB, kg, logger); err != nil {
+		t.Fatal(err)
 	}
-
-	SyncContactsToKnowledgeGraph(context.Background(), contactsDB, kg, logger)
 
 	if _, err := kg.GetNode("org_new_corp"); err != nil {
 		t.Fatalf("GetNode org_new_corp: %v", err)

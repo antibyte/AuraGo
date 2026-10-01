@@ -65,6 +65,43 @@ and foreign stale nodes survive cleanup. Index errors and cancellation leave wor
 pending and prevent cleanup. Disabled indexing and unrelated pending nodes are allowed;
 disabled strict writes retain their marker for indexing after a later enable.
 
+Automatic curation uses `ApplyAutomaticMemoryCurationAction` with the complete
+expected metadata and curation-event revision. It acquires the SQLite writer lock
+before rechecking them. Protected, permanent, archived or changed rows are skipped;
+only applied actions count as changes. Explicit administrator actions remain
+available. Native and local-agent recall also read current metadata and exclude
+archived documents; reactivation requires an explicit administrator decision.
+
+Native file and Markdown indexing stage a fresh vector generation before publishing
+its SQLite pointer. Failed replacements keep the previous index available. The
+content-free journal in `memory_maintenance_meta` supports interrupted-write recovery;
+only the published generation is visible. Cleanup requires proven ownership and
+checks current references. Unknown legacy ownership or failed deletion retains work
+for review or retry instead of discarding the active index.
+
+Multi-collection searches return healthy results together with collection-specific
+errors. Consumers may use those results after current metadata checks while recording
+the failure. A failed search must not become a successful empty result or a cached
+empty memory snapshot.
+
+Deferred extraction writes retain their original source, category, confidence and
+reliability in a versioned queue payload. Deduplication preserves the first complete
+payload and retry backoff. Legacy rows without a payload retain their documented
+fallback; invalid payloads fail without writing vectors. The additive queue migration
+backs up populated disk stores to a private `.pending-memory-metadata-v1-*.bak` file
+beside the database before adding the column. Keep those backups outside Git.
+
+Realtime extraction uses the selected provider's context and output limits and only
+requests JSON mode when supported. Truncated or invalid completions cannot persist
+partial facts. One bounded retry carries the human source again without the rejected
+assistant output. Complete, explicitly empty arrays are a successful no-op.
+
+Contact graph sync clears removed email, phone, mobile, relationship and birthday
+fields while preserving unrelated properties. Node changes and owned `belongs_to`
+relationships commit together. Ownership requires contact-sync provenance; protected
+or foreign relationships and unknown legacy edges remain and require review.
+Deleting an entire contact does not authorize automatic deletion of its graph node.
+
 ## Targeted metadata repair
 
 `scripts/repair_memory_metadata.py` uses Python 3.10+ and only the standard library.
