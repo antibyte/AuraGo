@@ -181,6 +181,9 @@ Use the commands above. Place `*_test.go` beside the source, name unit tests `Te
 - Master key (64 hex chars = 32 bytes) required at startup via `AURAGO_MASTER_KEY`
 - Vault file: `data/vault.bin`
 - Never commit `.env` or vault files
+- Vault replacement keeps the original until a synced temporary file is renamed.
+  Retry Windows permission/sharing violations at most eight times; honor cancellation
+  and clean temporary files. Verify `TestVaultAtomicReplaceHandlesWindowsReaders`.
 
 ### Danger Zone Capabilities
 All potentially dangerous operations are gated via config:

@@ -14,9 +14,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -142,37 +144,7 @@ func (v *Vault) encryptAndSave(secrets map[string]string) error {
 }
 
 func writeVaultFileAtomic(path string, data []byte, perm os.FileMode) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	success := false
-	defer func() {
-		_ = tmp.Close()
-		if !success {
-			_ = os.Remove(tmpPath)
-		}
-	}()
-
-	if err := tmp.Chmod(perm); err != nil {
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return err
-	}
-	success = true
-	return nil
+	return writeVaultFileAtomicContext(context.Background(), path, data, perm)
 }
 
 func writeVaultFileAtomicContext(ctx context.Context, path string, data []byte, perm os.FileMode) error {
@@ -205,14 +177,27 @@ func writeVaultFileAtomicContext(ctx context.Context, path string, data []byte, 
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := ctx.Err(); err != nil {
-		return err
+	for attempt := 0; ; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err = os.Rename(tmpPath, path)
+		if err == nil {
+			success = true
+			return nil
+		}
+		// Windows readers can deny replacement briefly; never unlink the original.
+		if runtime.GOOS != "windows" || (!os.IsPermission(err) && !errors.Is(err, syscall.Errno(32))) || attempt == 7 { // ERROR_SHARING_VIOLATION = 32
+			return err
+		}
+		timer := time.NewTimer(time.Duration(attempt+1) * 15 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return err
-	}
-	success = true
-	return nil
 }
 
 func (v *Vault) ReadSecret(key string) (string, error) {
