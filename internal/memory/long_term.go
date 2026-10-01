@@ -851,7 +851,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomainAndChunking(concep
 		}
 		if err := col.AddDocument(ctx, doc); err != nil {
 			cv.logger.Error("Failed to store document in collection", "collection", collection, "error", err)
-			return nil, fmt.Errorf("failed to add document: %w", err)
+			return []string{docID}, fmt.Errorf("failed to add document: %w", err)
 		}
 		cv.logger.Info("Stored document in collection", "collection", collection, "id", docID, "concept", concept)
 		return []string{docID}, nil
@@ -900,7 +900,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomainAndChunking(concep
 	defer chunkCancel()
 	if err := col.AddDocuments(chunkCtx, docs, 1); err != nil {
 		cv.logger.Error("Failed to store chunked document in collection", "collection", collection, "error", err)
-		return nil, fmt.Errorf("failed to add chunked document: %w", err)
+		return storedIDs, fmt.Errorf("failed to add chunked document: %w", err)
 	}
 
 	cv.logger.Info("Stored chunked document in collection", "collection", collection, "concept", concept, "chunks", len(chunks))
@@ -1000,7 +1000,7 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 
 	if err := col.AddDocument(ctx, doc); err != nil {
 		cv.logger.Error("Failed to store multimodal document in collection", "collection", collection, "error", err, "concept", concept)
-		return "", fmt.Errorf("failed to add multimodal document: %w", err)
+		return docID, fmt.Errorf("failed to add multimodal document: %w", err)
 	}
 
 	cv.logger.Info("Stored multimodal document in collection", "collection", collection, "id", docID, "concept", concept)

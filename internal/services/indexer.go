@@ -1141,7 +1141,7 @@ func (fi *FileIndexer) indexEmbedWithRetry(ctx context.Context, fn func(context.
 }
 
 // indexStoreWithRetry calls the provided VectorDB store function with exponential backoff retry.
-// It retries up to indexingRetryMaxAttempts times on transient errors. Returns the doc IDs on success.
+// Retry only writes without receipts; a partial write must be cleaned up by the caller first.
 func (fi *FileIndexer) indexStoreWithRetry(ctx context.Context, fn func() ([]string, error), path string) ([]string, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -1159,6 +1159,9 @@ func (fi *FileIndexer) indexStoreWithRetry(ctx context.Context, fn func() ([]str
 			return docIDs, nil
 		}
 		lastErr = err
+		if len(docIDs) > 0 {
+			return docIDs, err
+		}
 
 		if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(err) {
 			return nil, err
@@ -1191,6 +1194,9 @@ func (fi *FileIndexer) indexStoreDocWithRetry(ctx context.Context, fn func() (st
 			return docID, nil
 		}
 		lastErr = err
+		if docID != "" {
+			return docID, err
+		}
 
 		if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(err) {
 			return "", err
