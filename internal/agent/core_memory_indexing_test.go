@@ -18,6 +18,7 @@ import (
 )
 
 func TestCoreMemorySyncRequiresIndexCompletion(t *testing.T) {
+	type syncContextKey struct{}
 	for _, mode := range []string{"failure", "cancel", "disabled"} {
 		t.Run(mode, func(t *testing.T) {
 			stm, _ := newMemorySafetyStore(t)
@@ -30,10 +31,16 @@ func TestCoreMemorySyncRequiresIndexCompletion(t *testing.T) {
 			t.Cleanup(func() { _ = kg.Close() })
 			vectors := chromem.NewDB()
 			var fail atomic.Bool
-			ctx, cancel := context.WithCancel(t.Context())
+			var initialized atomic.Bool
+			syncCtx := context.WithValue(t.Context(), syncContextKey{}, true)
+			ctx, cancel := context.WithCancel(syncCtx)
 			defer cancel()
 			if mode != "disabled" {
 				if err := kg.EnableSemanticSearchShared(vectors, func(callCtx context.Context, text string) ([]float32, error) {
+					// Exercise the requested sync independently of the startup backlog worker.
+					if initialized.Load() && callCtx.Value(syncContextKey{}) != true {
+						return nil, errors.New("synthetic background embedding unavailable")
+					}
 					if fail.Load() {
 						if mode == "cancel" {
 							cancel()
@@ -48,12 +55,13 @@ func TestCoreMemorySyncRequiresIndexCompletion(t *testing.T) {
 				}); err != nil {
 					t.Fatal(err)
 				}
+				initialized.Store(true)
 			}
 			id, err := stm.AddCoreMemoryFact("User prefers German")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := SyncCoreMemoryToKnowledgeGraph(t.Context(), stm, kg, logger); err != nil {
+			if err := SyncCoreMemoryToKnowledgeGraph(syncCtx, stm, kg, logger); err != nil {
 				t.Fatal(err)
 			}
 			nodeID := fmt.Sprintf("core_fact_%d", id)
@@ -97,7 +105,7 @@ func TestCoreMemorySyncRequiresIndexCompletion(t *testing.T) {
 			if err := kg.AddNode("foreign", "Foreign pending", map[string]string{"type": "concept"}); err != nil {
 				t.Fatal(err)
 			}
-			if err := SyncCoreMemoryToKnowledgeGraph(t.Context(), stm, kg, logger); err != nil {
+			if err := SyncCoreMemoryToKnowledgeGraph(syncCtx, stm, kg, logger); err != nil {
 				t.Fatal(err)
 			}
 			node, err := kg.GetNode(nodeID)

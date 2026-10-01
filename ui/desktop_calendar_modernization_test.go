@@ -92,7 +92,7 @@ func TestDesktopCalendarModernizationStyles(t *testing.T) {
 	if planning := readDesktopAssetText(t, "css/desktop-app-planning.css"); strings.Contains(planning, ".vd-calendar-") {
 		t.Fatalf("desktop-app-planning.css must not contain calendar rules anymore")
 	}
-	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	loader := strings.ReplaceAll(readDesktopAssetText(t, "js/desktop/core/module-loader.js"), "\r\n", "\n")
 	if !strings.Contains(loader, "'calendar': {\n            styles: appStyles('/css/desktop-app-calendar.css')") {
 		t.Fatalf("module loader must register desktop-app-calendar.css for the calendar app")
 	}
