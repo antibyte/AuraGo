@@ -260,6 +260,12 @@ func TestLooperPausedRunCanBeDiscardedIntoTheHistory(t *testing.T) {
 	if again, _ := h.store.ListRuns(context.Background()); len(again) != 1 {
 		t.Fatalf("history after second discard = %+v", again)
 	}
+	// The finished goroutine's own cleanup runs the same persistence; it must
+	// not file the discarded run a second time.
+	h.runner.persistFinishedRun(h.runner.lastCfg, h.runner.lastStart)
+	if again, _ := h.store.ListRuns(context.Background()); len(again) != 1 {
+		t.Fatalf("history after the runner's cleanup = %+v", again)
+	}
 }
 
 type sseReader struct {

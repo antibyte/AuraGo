@@ -103,9 +103,12 @@ type LooperRunState struct {
 	PauseRequested bool `json:"pause_requested"`
 	// ElapsedMS is active run time (paused time excluded).
 	ElapsedMS int64 `json:"elapsed_ms"`
-	// TargetScore and HasFinish describe the active run for the UI.
-	TargetScore int  `json:"target_score"`
-	HasFinish   bool `json:"has_finish"`
+	// TargetScore, HasFinish, PresetName and GoalExcerpt describe the active
+	// run for the UI, so a reopened window knows what is running.
+	TargetScore int    `json:"target_score"`
+	HasFinish   bool   `json:"has_finish"`
+	PresetName  string `json:"preset_name,omitempty"`
+	GoalExcerpt string `json:"goal_excerpt,omitempty"`
 	// EvalFailures counts consecutive rounds without a usable review score.
 	EvalFailures int `json:"eval_failures,omitempty"`
 }
@@ -895,13 +898,16 @@ func (h *LooperRunStateHolder) TryStartResume(maxRounds, resumeFrom int, cancel 
 	return nil
 }
 
-// SetRunInfo records the active run's target score and whether a finish step
-// is configured, so the UI can draw the goal line and step list.
-func (h *LooperRunStateHolder) SetRunInfo(targetScore int, hasFinish bool) {
+// SetRunInfo records what the UI needs to describe the active run: the target
+// score for the goal line, whether a finish step exists for the step list, and
+// the preset name plus a goal excerpt for the summary card.
+func (h *LooperRunStateHolder) SetRunInfo(targetScore int, hasFinish bool, presetName, goal string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.TargetScore = targetScore
 	h.state.HasFinish = hasFinish
+	h.state.PresetName = strings.TrimSpace(presetName)
+	h.state.GoalExcerpt = excerptGoal(goal)
 	h.touchLocked()
 }
 

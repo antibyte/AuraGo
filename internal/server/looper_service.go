@@ -25,10 +25,11 @@ type LooperRunner struct {
 
 	// lastRun remembers the active (or last paused) run's settings so a paused
 	// run that gets discarded can still be written to the history.
-	lastRunMu sync.Mutex
-	lastCfg   desktop.LooperRunConfig
-	lastStart time.Time
-	hasLast   bool
+	lastRunMu      sync.Mutex
+	lastCfg        desktop.LooperRunConfig
+	lastStart      time.Time
+	hasLast        bool
+	persistedRunID int64
 }
 
 // NewLooperRunner creates a runner backed by a preset store.
@@ -152,7 +153,7 @@ func (r *LooperRunner) executeStarted(
 		startedAt = st.StartedAt
 	}
 	r.rememberRun(cfg, startedAt)
-	r.holder.SetRunInfo(cfg.TargetScore, strings.TrimSpace(cfg.Finish) != "")
+	r.holder.SetRunInfo(cfg.TargetScore, strings.TrimSpace(cfg.Finish) != "", cfg.PresetName, cfg.Goal)
 	defer func() {
 		r.persistFinishedRun(cfg, startedAt)
 		r.holder.SetIdle()
@@ -422,6 +423,15 @@ func (r *LooperRunner) persistFinishedRun(cfg desktop.LooperRunConfig, startedAt
 	}
 	st := r.holder.State()
 	if st.Paused || st.Status == "paused" {
+		return
+	}
+	// A run is filed once. Discarding a paused run races with the finished
+	// goroutine's own cleanup, and both paths end up here.
+	r.lastRunMu.Lock()
+	already := st.RunID != 0 && st.RunID == r.persistedRunID
+	r.persistedRunID = st.RunID
+	r.lastRunMu.Unlock()
+	if already {
 		return
 	}
 	status := st.Status

@@ -10,13 +10,13 @@ import (
 func TestDesktopLooperCostI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/looper.js")
+	source := readDesktopAssetText(t, "js/desktop/apps/looper.js") + "\n" + readDesktopAssetText(t, "js/desktop/apps/looper-monitor.js")
 	for _, want := range []string{
 		"function formatCost(usd, t)",
 		"t('desktop.looper_cost_under')",
 		"t('desktop.looper_cost', { amount:",
 		"t('desktop.looper_tokens', { count:",
-		"formatCost(data.estimated_cost_usd, t)",
+		"helpers.formatCost(data.estimated_cost_usd)",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("looper cost i18n missing marker %q", want)

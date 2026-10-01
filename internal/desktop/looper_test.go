@@ -512,22 +512,28 @@ func TestLooperRunStateHolderChangedWakesOnEveryMutation(t *testing.T) {
 		t.Fatal("revision must grow with every mutation")
 	}
 
-	for name, mutate := range map[string]func(){
-		"step":     func() { holder.SetStep("evaluate") },
-		"round":    func() { holder.SetRound(2) },
-		"status":   func() { holder.SetStatus("running") },
-		"log":      func() { holder.AppendLog(LooperLogEntry{Step: "work"}) },
-		"score":    func() { holder.RecordEvaluation(60, "f", "s") },
-		"failure":  func() { holder.RecordEvaluationFailure(1) },
-		"usage":    func() { holder.AddUsage(10, 5, 0.01) },
-		"result":   func() { holder.SetLastResult("r") },
-		"pause":    func() { holder.RequestPause() },
-		"idle":     func() { holder.SetIdle() },
-		"runinfo":  func() { holder.SetRunInfo(80, true) },
-		"stopped":  func() { holder.SetStopped() },
-		"error":    func() { holder.SetError("boom") },
-		"clearrun": func() { holder.ClearResumeState() },
+	// Order matters: a pause request only counts while the run is active, so
+	// "pause" must come before the mutations that end the run.
+	for _, step := range []struct {
+		name   string
+		mutate func()
+	}{
+		{"step", func() { holder.SetStep("evaluate") }},
+		{"round", func() { holder.SetRound(2) }},
+		{"status", func() { holder.SetStatus("running") }},
+		{"log", func() { holder.AppendLog(LooperLogEntry{Step: "work"}) }},
+		{"score", func() { holder.RecordEvaluation(60, "f", "s") }},
+		{"failure", func() { holder.RecordEvaluationFailure(1) }},
+		{"usage", func() { holder.AddUsage(10, 5, 0.01) }},
+		{"result", func() { holder.SetLastResult("r") }},
+		{"runinfo", func() { holder.SetRunInfo(80, true, "Story", "Write it") }},
+		{"pause", func() { holder.RequestPause() }},
+		{"clearrun", func() { holder.ClearResumeState() }},
+		{"stopped", func() { holder.SetStopped() }},
+		{"error", func() { holder.SetError("boom") }},
+		{"idle", func() { holder.SetIdle() }},
 	} {
+		name, mutate := step.name, step.mutate
 		ch := holder.Changed()
 		mutate()
 		select {

@@ -82,6 +82,31 @@
 - Verify `TestDetectiveTranslations`, `TestDesktopDetectiveBrowser` and the
   Detective config section. Backend contracts: `internal/detective/AGENTS.md`.
 
+## Looper
+- `looper-monitor.js` precedes `looper.js`. The monitor owns the run view
+  (`createRunView`), the log-delta merge (`mergeStatus`) and the history views;
+  `looper.js` owns the form, presets, drafts and the action bar.
+- `/api/desktop/looper/status` sends the whole state first and afterwards only
+  log entries appended since (`logs_from` = absolute index of the first sent
+  entry, `log_total`, `run_id`). A message without `logs_from` is a full
+  replacement. The client merges by absolute index and never rebuilds the
+  timeline: new entries are appended in place, finished rounds fold away, and
+  following the newest entry stops as soon as the user scrolls up.
+- While a run is active the editor is replaced by the summary card
+  (`is-focus`); `Edit loop` brings the fields back and is disabled while a run
+  is executing. Preset switches are blocked during a run. Unsaved edits show the
+  `vd-looper-dirty` dot, are confirmed before being discarded and are kept as a
+  draft in `localStorage` (`aurago.looper.draft.v1`, always wrapped in try/catch).
+- A pending pause (`pause_requested`) disables the pause button and says so;
+  Stop on a paused run discards it (the server files it as `stopped`). A review
+  without a usable score is a `failed` evaluate entry, never score 0.
+- Chart, gauge and hero use theme tokens; keep the grid rows explicit so the
+  action bar cannot absorb the free row. Every new string needs all 16 locales.
+- Verify `TestDesktopLooperUIContract`, `TestDesktopLooperCostI18n`,
+  `TestDesktopLooperDurationI18n`, `TestDesktopLooperActionButtonsShareConsistentStyle`
+  and the opt-in `TestDesktopLooperBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
+  Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
+
 ## Purpose
 
 This subtree owns built-in virtual desktop app modules that are loaded lazily by

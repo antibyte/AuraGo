@@ -3,6 +3,8 @@
 
     const instances = new Map();
     const COMPACT_WIDTH = 820;
+    const DRAFT_KEY = 'aurago.looper.draft.v1';
+    const FIELD_KEYS = ['goal', 'work', 'evaluate', 'finish', 'name', 'max', 'score', 'stall', 'provider', 'model'];
 
     function formatCost(usd, t) {
         if (!usd || usd <= 0) return '';
@@ -25,7 +27,8 @@
             plus: '<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>',
             save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline>',
             copy: '<rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
-            trash: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>'
+            trash: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
+            edit: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path>'
         };
         return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] || '') + '</svg>';
     }
@@ -42,6 +45,49 @@
             return t('desktop.looper_example_' + p.builtin_key + '_desc');
         }
         return String((p && p.goal) || '').replace(/\s+/g, ' ').slice(0, 90);
+    }
+
+    function emptyDraft() {
+        return {
+            name: '',
+            goal: '',
+            work: '',
+            evaluate: '',
+            finish: '',
+            max_rounds: 10,
+            target_score: 85,
+            stall_rounds: 3,
+            provider_id: '',
+            model: ''
+        };
+    }
+
+    // The same normalisation for a loaded preset and for the live form, so
+    // "unsaved changes" means a real difference and not whitespace or defaults.
+    function fingerprint(d) {
+        return JSON.stringify([
+            String(d.name || '').trim(), String(d.goal || '').trim(), String(d.work || '').trim(),
+            String(d.evaluate || '').trim(), String(d.finish || '').trim(),
+            Number(d.max_rounds) || 10, Number(d.target_score) || 85,
+            d.stall_rounds == null || d.stall_rounds === '' ? 3 : Number(d.stall_rounds),
+            d.provider_id || '', d.model || ''
+        ]);
+    }
+
+    function loadDraft() {
+        try {
+            const raw = JSON.parse(window.localStorage.getItem(DRAFT_KEY) || 'null');
+            return raw && raw.fields && typeof raw.fields === 'object' ? raw : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function storeDraft(value) {
+        try {
+            if (value) window.localStorage.setItem(DRAFT_KEY, JSON.stringify(value));
+            else window.localStorage.removeItem(DRAFT_KEY);
+        } catch (e) { /* storage may be blocked */ }
     }
 
     function render(container, windowId, context) {
@@ -65,12 +111,17 @@
             if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_error') });
             return false;
         };
+        const toast = (message) => {
+            if (notify) notify({ title: t('desktop.notification'), message: message });
+        };
 
         const state = {
             presets: [],
             providers: [],
             selectedPresetId: null,
-            draft: emptyDraft(t),
+            baseline: fingerprint(emptyDraft()),
+            dirty: false,
+            focus: false,
             status: { status: 'idle', current_step: 'idle', round: 0, max_rounds: 10, logs: [] },
             sse: null,
             disposed: false,
@@ -78,12 +129,15 @@
             pane: 'setup',
             history: [],
             historyDetail: null,
-            logExpandState: new Map(),
+            historyView: null,
+            runView: null,
             logCache: monitor ? monitor.newLogCache() : null,
-            autoScroll: true
+            draftTimer: 0,
+            persistDraft: null
         };
         instances.set(windowId, state);
 
+        const dis = isReadonly ? ' disabled' : '';
         container.innerHTML =
             '<div class="vd-looper' + (isReadonly ? ' vd-looper--readonly' : '') + '" data-pane="setup">' +
             '<div class="vd-looper-tabs" role="tablist">' +
@@ -93,17 +147,38 @@
             '</div>' +
             '<aside class="vd-looper-list" data-pane="setup">' +
             '<div class="vd-looper-list-scroll" id="looper-presets-' + windowId + '"></div>' +
-            '<button type="button" class="vd-looper-new" id="looper-new-' + windowId + '" ' + (isReadonly ? 'disabled' : '') + '>' +
+            '<button type="button" class="vd-looper-new" id="looper-new-' + windowId + '"' + dis + '>' +
             icon('plus') + '<span>' + esc(t('desktop.looper_new')) + '</span></button>' +
             '</aside>' +
             '<section class="vd-looper-editor" data-pane="setup">' +
+            '<div class="vd-looper-brief" id="looper-brief-' + windowId + '" hidden>' +
+            '<div class="vd-looper-brief-head"><h3 class="vd-looper-brief-name" id="looper-brief-name-' + windowId + '"></h3>' +
+            '<button type="button" class="vd-looper-brief-edit" id="looper-edit-' + windowId + '">' + icon('edit') + '<span>' + esc(t('desktop.looper_edit')) + '</span></button></div>' +
+            '<p class="vd-looper-brief-goal" id="looper-brief-goal-' + windowId + '"></p>' +
+            '<ul class="vd-looper-chips" id="looper-brief-chips-' + windowId + '"></ul>' +
+            briefDetails(esc, t, windowId, 'work') +
+            briefDetails(esc, t, windowId, 'evaluate') +
+            briefDetails(esc, t, windowId, 'finish') +
+            '</div>' +
             '<div class="vd-looper-editor-toolbar">' +
-            '<input type="text" inputmode="text" enterkeyhint="next" id="looper-name-' + windowId + '" class="vd-looper-name" placeholder="' + esc(t('desktop.looper_name')) + '" ' + (isReadonly ? 'disabled' : '') + '>' +
+            '<input type="text" inputmode="text" enterkeyhint="next" id="looper-name-' + windowId + '" class="vd-looper-name" placeholder="' + esc(t('desktop.looper_name')) + '"' + dis + '>' +
+            '<span class="vd-looper-dirty" id="looper-dirty-' + windowId + '" title="' + esc(t('desktop.looper_unsaved')) + '" role="img" aria-label="' + esc(t('desktop.looper_unsaved')) + '" hidden></span>' +
             '<div class="vd-looper-editor-actions">' +
-            '<button type="button" class="vd-looper-icon-btn" id="looper-save-' + windowId + '" title="' + esc(t('desktop.looper_save')) + '" ' + (isReadonly ? 'disabled' : '') + '>' + icon('save') + '</button>' +
-            '<button type="button" class="vd-looper-icon-btn" id="looper-dup-' + windowId + '" title="' + esc(t('desktop.looper_duplicate')) + '" ' + (isReadonly ? 'disabled' : '') + '>' + icon('copy') + '</button>' +
-            '<button type="button" class="vd-looper-icon-btn vd-looper-btn-delete" id="looper-delete-' + windowId + '" title="' + esc(t('desktop.looper_delete')) + '" ' + (isReadonly ? 'disabled' : '') + '>' + icon('trash') + '</button>' +
+            '<button type="button" class="vd-looper-icon-btn" id="looper-save-' + windowId + '" title="' + esc(t('desktop.looper_save')) + '" aria-label="' + esc(t('desktop.looper_save')) + '"' + dis + '>' + icon('save') + '</button>' +
+            '<button type="button" class="vd-looper-icon-btn" id="looper-dup-' + windowId + '" title="' + esc(t('desktop.looper_duplicate')) + '" aria-label="' + esc(t('desktop.looper_duplicate')) + '"' + dis + '>' + icon('copy') + '</button>' +
+            '<button type="button" class="vd-looper-icon-btn vd-looper-btn-delete" id="looper-delete-' + windowId + '" title="' + esc(t('desktop.looper_delete')) + '" aria-label="' + esc(t('desktop.looper_delete')) + '"' + dis + '>' + icon('trash') + '</button>' +
             '</div></div>' +
+            '<div class="vd-looper-settings" role="group" aria-label="' + esc(t('desktop.looper_settings')) + '">' +
+            '<label class="vd-looper-setting">' + esc(t('desktop.looper_max_rounds')) +
+            '<input type="number" inputmode="numeric" enterkeyhint="done" id="looper-max-' + windowId + '" min="1" max="50" value="10"' + dis + '></label>' +
+            '<label class="vd-looper-setting vd-looper-setting-range">' + esc(t('desktop.looper_target_score')) +
+            '<span class="vd-looper-range-row"><input type="range" id="looper-score-' + windowId + '" min="50" max="100" value="85"' + dis + '>' +
+            '<output id="looper-score-out-' + windowId + '">85</output></span></label>' +
+            '<label class="vd-looper-setting">' + esc(t('desktop.looper_provider')) +
+            '<select id="looper-provider-' + windowId + '"' + dis + '></select></label>' +
+            '<label class="vd-looper-setting">' + esc(t('desktop.looper_model')) +
+            '<select id="looper-model-' + windowId + '"' + dis + '></select></label>' +
+            '</div>' +
             fieldCard(esc, t, windowId, '1', 'goal', true) +
             fieldCard(esc, t, windowId, '2', 'work', true) +
             fieldCard(esc, t, windowId, '3', 'evaluate', true) +
@@ -111,21 +186,10 @@
             '<summary>' + esc(t('desktop.looper_finish_toggle')) + '</summary>' +
             fieldCard(esc, t, windowId, '4', 'finish', false) +
             '</details>' +
-            '<div class="vd-looper-settings">' +
-            '<label class="vd-looper-setting">' + esc(t('desktop.looper_max_rounds')) +
-            '<input type="number" inputmode="numeric" enterkeyhint="done" id="looper-max-' + windowId + '" min="1" max="50" value="10" ' + (isReadonly ? 'disabled' : '') + '></label>' +
-            '<label class="vd-looper-setting vd-looper-setting-range">' + esc(t('desktop.looper_target_score')) +
-            '<span class="vd-looper-range-row"><input type="range" id="looper-score-' + windowId + '" min="50" max="100" value="85" ' + (isReadonly ? 'disabled' : '') + '>' +
-            '<output id="looper-score-out-' + windowId + '">85</output></span></label>' +
-            '<label class="vd-looper-setting">' + esc(t('desktop.looper_provider')) +
-            '<select id="looper-provider-' + windowId + '" ' + (isReadonly ? 'disabled' : '') + '></select></label>' +
-            '<label class="vd-looper-setting">' + esc(t('desktop.looper_model')) +
-            '<select id="looper-model-' + windowId + '" ' + (isReadonly ? 'disabled' : '') + '></select></label>' +
-            '</div>' +
             '<details class="vd-looper-disclosure">' +
             '<summary>' + esc(t('desktop.looper_more_options')) + '</summary>' +
             '<label class="vd-looper-setting">' + esc(t('desktop.looper_stall_rounds')) +
-            '<input type="number" inputmode="numeric" enterkeyhint="done" id="looper-stall-' + windowId + '" min="0" max="10" value="3" title="' + esc(t('desktop.looper_stall_rounds_help')) + '" ' + (isReadonly ? 'disabled' : '') + '>' +
+            '<input type="number" inputmode="numeric" enterkeyhint="done" id="looper-stall-' + windowId + '" min="0" max="10" value="3" title="' + esc(t('desktop.looper_stall_rounds_help')) + '"' + dis + '>' +
             '<span class="vd-looper-help">' + esc(t('desktop.looper_stall_rounds_help')) + '</span></label>' +
             '</details></section>' +
             '<section class="vd-looper-side">' +
@@ -138,25 +202,31 @@
             '<button type="button" class="vd-looper-jump-bottom" id="looper-jump-' + windowId + '">' + esc(t('desktop.looper_jump_bottom')) + '</button>' +
             '</section>' +
             '<div class="vd-looper-actionbar" id="looper-actionbar-' + windowId + '">' +
-            '<button type="button" class="vd-looper-start" id="looper-start-' + windowId + '" ' + (isReadonly ? 'disabled' : '') + '>' + icon('play') + '<span>' + esc(t('desktop.looper_start')) + '</span></button>' +
-            '<button type="button" class="vd-looper-pause" id="looper-pause-' + windowId + '" disabled>' + icon('pause') + '<span>' + esc(t('desktop.looper_pause')) + '</span></button>' +
+            '<button type="button" class="vd-looper-start" id="looper-start-' + windowId + '"' + dis + '>' + icon('play') + '<span>' + esc(t('desktop.looper_start')) + '</span></button>' +
+            '<button type="button" class="vd-looper-pause" id="looper-pause-' + windowId + '" disabled>' + icon('pause') + '<span class="vd-looper-pause-label">' + esc(t('desktop.looper_pause')) + '</span></button>' +
             '<button type="button" class="vd-looper-resume" id="looper-resume-' + windowId + '" hidden>' + icon('play') + '<span>' + esc(t('desktop.looper_resume')) + '</span></button>' +
-            '<button type="button" class="vd-looper-stop" id="looper-stop-' + windowId + '" disabled>' + icon('stop') + '<span>' + esc(t('desktop.looper_stop')) + '</span></button>' +
+            '<button type="button" class="vd-looper-stop" id="looper-stop-' + windowId + '" disabled>' + icon('stop') + '<span class="vd-looper-stop-label">' + esc(t('desktop.looper_stop')) + '</span></button>' +
             '</div></div>';
 
         const $ = id => container.querySelector('#' + id);
         const root = container.querySelector('.vd-looper');
+        const side = container.querySelector('.vd-looper-side');
+        const runPane = $(`looper-run-${windowId}`);
 
         function helpers() {
             return {
                 esc: esc,
                 t: t,
-                formatCost: formatCost,
-                formatDuration: function (ms) { return formatDuration(ms, t); },
-                expandState: state.logExpandState
+                formatCost: function (usd) { return formatCost(usd, t); },
+                formatDuration: function (ms) { return formatDuration(ms, t); }
             };
         }
 
+        function activeRun() {
+            return !!(state.status.running || state.status.paused || state.status.status === 'paused');
+        }
+
+        // layout
         function setPane(pane) {
             state.pane = pane;
             root.querySelectorAll('.vd-looper-tab').forEach(btn => {
@@ -169,12 +239,12 @@
             }
         }
 
-        function setSide(side) {
+        function setSide(sideName) {
             root.querySelectorAll('.vd-looper-side-tab').forEach(btn => {
-                btn.classList.toggle('is-active', btn.dataset.side === side);
+                btn.classList.toggle('is-active', btn.dataset.side === sideName);
             });
             root.querySelectorAll('.vd-looper-side-pane').forEach(el => {
-                el.classList.toggle('is-active', el.dataset.sidePane === side);
+                el.classList.toggle('is-active', el.dataset.sidePane === sideName);
             });
         }
 
@@ -200,27 +270,13 @@
             });
         });
 
-        function emptyDraft() {
-            return {
-                name: '',
-                goal: '',
-                work: '',
-                evaluate: '',
-                finish: '',
-                max_rounds: 10,
-                target_score: 85,
-                stall_rounds: 3,
-                provider_id: '',
-                model: ''
-            };
-        }
-
+        // form
         function selectedPreset() {
             return state.presets.find(p => String(p.id) === String(state.selectedPresetId)) || null;
         }
 
-        function fillForm(p) {
-            state.draft = {
+        function draftFromPreset(p) {
+            return {
                 name: p.is_builtin ? presetTitle(p, t) : (p.name || ''),
                 goal: p.goal || '',
                 work: p.work || '',
@@ -232,11 +288,48 @@
                 provider_id: p.provider_id || '',
                 model: p.model || ''
             };
-            writeForm();
         }
 
-        function writeForm() {
-            const d = state.draft;
+        function currentFields() {
+            const stall = parseInt($(`looper-stall-${windowId}`).value, 10);
+            return {
+                name: $(`looper-name-${windowId}`).value.trim(),
+                goal: $(`looper-goal-${windowId}`).value,
+                work: $(`looper-work-${windowId}`).value,
+                evaluate: $(`looper-evaluate-${windowId}`).value,
+                finish: $(`looper-finish-${windowId}`).value,
+                max_rounds: parseInt($(`looper-max-${windowId}`).value, 10) || 10,
+                target_score: parseInt($(`looper-score-${windowId}`).value, 10) || 85,
+                stall_rounds: Number.isFinite(stall) && stall >= 0 ? stall : 3,
+                provider_id: $(`looper-provider-${windowId}`).value,
+                model: $(`looper-model-${windowId}`).value
+            };
+        }
+
+        function refreshModels(wanted) {
+            const providerId = $(`looper-provider-${windowId}`).value;
+            const select = $(`looper-model-${windowId}`);
+            const keep = wanted == null ? select.value : wanted;
+            const models = [];
+            const provider = state.providers.find(p => p.id === providerId);
+            if (provider && provider.model) models.push(provider.model);
+            (provider && provider.models ? provider.models : []).forEach(m => {
+                if (m && models.indexOf(m) < 0) models.push(m);
+            });
+            // A saved model that the provider list no longer offers must survive
+            // loading, otherwise merely opening a loop would change it.
+            if (keep && models.indexOf(keep) < 0) models.push(keep);
+            select.innerHTML = '<option value="">' + esc(t('desktop.looper_model_default')) + '</option>';
+            models.forEach(model => {
+                const opt = document.createElement('option');
+                opt.value = model;
+                opt.textContent = model;
+                select.appendChild(opt);
+            });
+            select.value = keep || '';
+        }
+
+        function writeForm(d) {
             $(`looper-name-${windowId}`).value = d.name || '';
             $(`looper-goal-${windowId}`).value = d.goal || '';
             $(`looper-work-${windowId}`).value = d.work || '';
@@ -245,31 +338,23 @@
             $(`looper-max-${windowId}`).value = d.max_rounds || 10;
             $(`looper-score-${windowId}`).value = d.target_score || 85;
             $(`looper-score-out-${windowId}`).value = d.target_score || 85;
-            $(`looper-stall-${windowId}`).value = d.stall_rounds;
+            $(`looper-stall-${windowId}`).value = d.stall_rounds == null ? 3 : d.stall_rounds;
             $(`looper-provider-${windowId}`).value = d.provider_id || '';
-            refreshModels();
-            $(`looper-model-${windowId}`).value = d.model || '';
+            refreshModels(d.model || '');
             const finishWrap = $(`looper-finish-wrap-${windowId}`);
             if (finishWrap) finishWrap.open = !!String(d.finish || '').trim();
         }
 
+        // Loads a draft into the form and makes it the clean reference state.
+        function loadIntoForm(d) {
+            writeForm(d);
+            state.baseline = fingerprint(d);
+            updateDirty();
+        }
+
         function readForm() {
-            state.draft = {
-                name: $(`looper-name-${windowId}`).value.trim(),
-                goal: $(`looper-goal-${windowId}`).value,
-                work: $(`looper-work-${windowId}`).value,
-                evaluate: $(`looper-evaluate-${windowId}`).value,
-                finish: $(`looper-finish-${windowId}`).value,
-                max_rounds: parseInt($(`looper-max-${windowId}`).value, 10) || 10,
-                target_score: parseInt($(`looper-score-${windowId}`).value, 10) || 85,
-                stall_rounds: parseInt($(`looper-stall-${windowId}`).value, 10),
-                provider_id: $(`looper-provider-${windowId}`).value,
-                model: $(`looper-model-${windowId}`).value
-            };
-            if (!Number.isFinite(state.draft.stall_rounds) || state.draft.stall_rounds < 0) {
-                state.draft.stall_rounds = 3;
-            }
-            return Object.assign({ preset_name: state.draft.name }, state.draft);
+            const fields = currentFields();
+            return Object.assign({ preset_name: fields.name }, fields);
         }
 
         function validateForm(body) {
@@ -281,6 +366,90 @@
             return '';
         }
 
+        function persistDraft() {
+            if (!state.dirty) {
+                storeDraft(null);
+                return;
+            }
+            storeDraft({ presetId: state.selectedPresetId, fields: currentFields(), at: Date.now() });
+        }
+        state.persistDraft = persistDraft;
+
+        function updateDirty() {
+            state.dirty = fingerprint(currentFields()) !== state.baseline;
+            root.classList.toggle('is-dirty', state.dirty);
+            $(`looper-dirty-${windowId}`).hidden = !state.dirty;
+            root.querySelectorAll('.vd-looper-preset.is-active').forEach(btn => btn.classList.toggle('is-dirty', state.dirty));
+            clearTimeout(state.draftTimer);
+            state.draftTimer = setTimeout(persistDraft, 500);
+            renderBrief();
+        }
+
+        async function confirmDiscard() {
+            if (!state.dirty) return true;
+            return askConfirm(t('desktop.looper_discard_title'), t('desktop.looper_discard_confirm'));
+        }
+
+        function restoreDraft() {
+            const saved = loadDraft();
+            if (!saved || activeRun()) return;
+            const preset = state.presets.find(p => String(p.id) === String(saved.presetId));
+            const base = preset ? draftFromPreset(preset) : emptyDraft();
+            const draft = Object.assign({}, base, saved.fields);
+            if (fingerprint(draft) === fingerprint(base)) {
+                storeDraft(null);
+                return;
+            }
+            state.selectedPresetId = preset ? String(preset.id) : null;
+            writeForm(draft);
+            state.baseline = fingerprint(base);
+            renderPresets();
+            updateDirty();
+            toast(t('desktop.looper_draft_restored'));
+        }
+
+        // summary card shown while the run has the stage
+        function renderBrief() {
+            const brief = $(`looper-brief-${windowId}`);
+            if (!brief) return;
+            brief.hidden = !state.focus;
+            if (!state.focus) return;
+            const st = state.status;
+            const form = currentFields();
+            const running = activeRun();
+            const name = (running && st.preset_name) || form.name || t('desktop.looper_untitled');
+            const goal = (running && st.goal_excerpt) || form.goal;
+            const rounds = (running && st.max_rounds) || form.max_rounds;
+            const target = (running && st.target_score) || form.target_score;
+            const provider = state.providers.find(p => p.id === form.provider_id);
+            const model = form.model || (provider && provider.name) || t('desktop.looper_model_default');
+            $(`looper-brief-name-${windowId}`).textContent = name;
+            const goalEl = $(`looper-brief-goal-${windowId}`);
+            goalEl.textContent = goal;
+            goalEl.hidden = !String(goal || '').trim();
+            const chips = $(`looper-brief-chips-${windowId}`);
+            chips.textContent = '';
+            [t('desktop.looper_chip_rounds', { count: rounds }), t('desktop.looper_target_short', { score: target }), model].forEach(text => {
+                const li = document.createElement('li');
+                li.textContent = text;
+                chips.appendChild(li);
+            });
+            ['work', 'evaluate', 'finish'].forEach(key => {
+                const details = $(`looper-brief-${key}-${windowId}`);
+                const text = String(form[key] || '').trim();
+                details.hidden = !text;
+                details.querySelector('p').textContent = text;
+            });
+            $(`looper-edit-${windowId}`).disabled = !!st.running;
+        }
+
+        function setFocus(on) {
+            state.focus = on;
+            root.classList.toggle('is-focus', on);
+            renderBrief();
+        }
+
+        // presets
         function renderPresets() {
             const host = $(`looper-presets-${windowId}`);
             const builtins = state.presets.filter(p => p.is_builtin);
@@ -294,10 +463,13 @@
             html += users.length ? users.map(p => presetButton(p)).join('') : '<div class="vd-looper-list-empty">' + esc(t('desktop.looper_my_loops_empty')) + '</div>';
             host.innerHTML = html;
             host.querySelectorAll('[data-preset-id]').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
+                    if (activeRun() || String(btn.dataset.presetId) === String(state.selectedPresetId)) return;
+                    if (!await confirmDiscard()) return;
                     state.selectedPresetId = btn.dataset.presetId;
                     const p = selectedPreset();
-                    if (p) fillForm(p);
+                    if (p) loadIntoForm(draftFromPreset(p));
+                    setFocus(false);
                     renderPresets();
                 });
             });
@@ -305,29 +477,9 @@
 
         function presetButton(p) {
             const active = String(p.id) === String(state.selectedPresetId);
-            return '<button type="button" class="vd-looper-preset' + (active ? ' is-active' : '') + (p.is_builtin ? ' is-example' : '') + '" data-preset-id="' + esc(String(p.id)) + '">' +
+            return '<button type="button" class="vd-looper-preset' + (active ? ' is-active' : '') + (active && state.dirty ? ' is-dirty' : '') + (p.is_builtin ? ' is-example' : '') + '" data-preset-id="' + esc(String(p.id)) + '">' +
                 '<span class="vd-looper-preset-name">' + esc(presetTitle(p, t)) + '</span>' +
                 '<span class="vd-looper-preset-desc">' + esc(presetDesc(p, t)) + '</span></button>';
-        }
-
-        function refreshModels() {
-            const providerId = $(`looper-provider-${windowId}`).value;
-            const select = $(`looper-model-${windowId}`);
-            const prev = select.value;
-            const models = [];
-            const provider = state.providers.find(p => p.id === providerId);
-            if (provider && provider.model) models.push(provider.model);
-            (provider && provider.models ? provider.models : []).forEach(m => {
-                if (m && models.indexOf(m) < 0) models.push(m);
-            });
-            select.innerHTML = '<option value="">' + esc(t('desktop.looper_model_default')) + '</option>';
-            models.forEach(model => {
-                const opt = document.createElement('option');
-                opt.value = model;
-                opt.textContent = model;
-                select.appendChild(opt);
-            });
-            select.value = prev;
         }
 
         async function loadProviders() {
@@ -356,23 +508,28 @@
                 }
                 renderPresets();
             } catch (e) {
-                if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_error') });
+                toast(t('desktop.looper_error'));
             }
         }
 
-        async function loadHistory() {
-            if (state.historyDetail && monitor) {
-                monitor.renderHistoryDetail($(`looper-history-${windowId}`), state.historyDetail, helpers());
+        // history
+        async function loadHistory(force) {
+            const host = $(`looper-history-${windowId}`);
+            if (!host) return;
+            if (state.historyDetail && !force && monitor) {
+                if (state.historyView) state.historyView.destroy();
+                state.historyView = monitor.renderHistoryDetail(host, state.historyDetail, helpers());
                 bindHistory();
                 return;
             }
             try {
                 const res = await api('/api/desktop/looper/runs');
                 state.history = (res && res.runs) || [];
-                if (monitor) monitor.renderHistoryList($(`looper-history-${windowId}`), state.history, helpers());
+                if (state.historyView) { state.historyView.destroy(); state.historyView = null; }
+                if (monitor) monitor.renderHistoryList(host, state.history, helpers());
                 bindHistory();
             } catch (e) {
-                $(`looper-history-${windowId}`).innerHTML = '<div class="vd-looper-log-empty">' + esc(t('desktop.looper_history_load_error')) + '</div>';
+                host.innerHTML = '<div class="vd-looper-log-empty">' + esc(t('desktop.looper_history_load_error')) + '</div>';
             }
         }
 
@@ -385,7 +542,7 @@
                         state.historyDetail = res && res.run;
                         loadHistory();
                     } catch (e) {
-                        if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_history_load_error') });
+                        toast(t('desktop.looper_history_load_error'));
                     }
                 });
             });
@@ -397,9 +554,9 @@
                     try {
                         await api('/api/desktop/looper/runs/' + btn.dataset.runId, { method: 'DELETE' });
                         state.historyDetail = null;
-                        loadHistory();
+                        loadHistory(true);
                     } catch (e) {
-                        if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_delete_error') });
+                        toast(t('desktop.looper_delete_error'));
                     }
                 });
             });
@@ -411,9 +568,9 @@
                     try {
                         await api('/api/desktop/looper/runs', { method: 'DELETE' });
                         state.historyDetail = null;
-                        loadHistory();
+                        loadHistory(true);
                     } catch (e) {
-                        if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_delete_error') });
+                        toast(t('desktop.looper_delete_error'));
                     }
                 });
             }
@@ -421,53 +578,43 @@
             if (back) {
                 back.addEventListener('click', () => {
                     state.historyDetail = null;
-                    loadHistory();
+                    loadHistory(true);
                 });
             }
         }
 
+        // live run
         function updateRun(data) {
+            const previous = state.status;
             state.status = data;
             const running = !!data.running;
             const paused = !!data.paused || data.status === 'paused';
+            const active = running || paused;
+            const pausePending = running && !!data.pause_requested;
             root.classList.toggle('is-running', running);
-            $(`looper-start-${windowId}`).disabled = isReadonly || running || paused;
-            $(`looper-pause-${windowId}`).disabled = !running || paused;
-            $(`looper-stop-${windowId}`).disabled = !running;
+            root.classList.toggle('is-active-run', active);
+            root.classList.toggle('is-pause-pending', pausePending);
+            if (active && !state.focus) setFocus(true);
+
+            $(`looper-start-${windowId}`).disabled = isReadonly || active;
+            $(`looper-pause-${windowId}`).disabled = isReadonly || !running || pausePending;
+            container.querySelector('.vd-looper-pause-label').textContent = pausePending ? t('desktop.looper_pause_pending') : t('desktop.looper_pause');
+            $(`looper-stop-${windowId}`).disabled = isReadonly || !active;
+            container.querySelector('.vd-looper-stop-label').textContent = paused && !running ? t('desktop.looper_discard_run') : t('desktop.looper_stop');
             const resume = $(`looper-resume-${windowId}`);
             resume.hidden = !(paused && !running);
             resume.disabled = isReadonly || !paused || running;
-            ['goal', 'work', 'evaluate', 'finish', 'name', 'max', 'score', 'stall', 'provider', 'model'].forEach(key => {
+            FIELD_KEYS.forEach(key => {
                 const el = $(`looper-${key}-${windowId}`);
                 if (el) el.disabled = isReadonly || running;
             });
-            formatCost(data.estimated_cost_usd, t);
-            t('desktop.looper_tokens', { count: (data.input_tokens || 0) + (data.output_tokens || 0) });
-            const side = container.querySelector('.vd-looper-side');
-            if (side) side.classList.toggle('has-logs', !!(data.logs && data.logs.length));
-            if (monitor) {
-                monitor.renderRun($(`looper-run-${windowId}`), data, helpers());
-                wireLogToggles();
-            }
-            if (state.autoScroll) {
-                const timeline = container.querySelector('.vd-looper-timeline');
-                if (timeline) timeline.scrollTop = timeline.scrollHeight;
-            }
-        }
 
-        function wireLogToggles() {
-            container.querySelectorAll('.vd-looper-log-header').forEach(header => {
-                if (header.dataset.wired === '1') return;
-                header.dataset.wired = '1';
-                header.addEventListener('click', () => {
-                    const entry = header.closest('.vd-looper-log');
-                    if (!entry) return;
-                    entry.classList.toggle('vd-looper-log--collapsed');
-                    const expanded = !entry.classList.contains('vd-looper-log--collapsed');
-                    const key = entry.getAttribute('data-log-key');
-                    if (key) state.logExpandState.set(key, expanded);
-                });
-            });
+            if (state.runView) state.runView.update(data);
+            renderBrief();
+            if (previous.running && !running && !paused) {
+                state.historyDetail = null;
+                loadHistory(true);
+            }
         }
 
         function connectStatus() {
@@ -489,15 +636,75 @@
             };
         }
 
+        async function startOrResume(path) {
+            if (isReadonly) return;
+            const body = readForm();
+            const errMsg = validateForm(body);
+            if (errMsg) {
+                toast(errMsg);
+                return;
+            }
+            $(`looper-start-${windowId}`).disabled = true;
+            try {
+                await api(path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                setFocus(true);
+                connectStatus();
+                setPane('run');
+                setSide('run');
+                if (state.runView) state.runView.followLatest();
+            } catch (e) {
+                updateRun(state.status);
+                if (e && e.status === 409 && path.indexOf('/run') >= 0) {
+                    toast(t('desktop.looper_already_running'));
+                    connectStatus();
+                } else {
+                    const fallback = path.indexOf('/resume') >= 0 ? t('desktop.looper_resume_error') : t('desktop.looper_start_error');
+                    toast((e && e.message) || fallback);
+                }
+            }
+        }
+
+        // wiring
+        if (monitor) {
+            state.runView = monitor.createRunView(runPane, Object.assign(helpers(), {
+                scroller: runPane,
+                fallbackTarget: function () { return parseInt($(`looper-score-${windowId}`).value, 10) || 85; },
+                onFollowChange: function (following) { side.classList.toggle('is-away', !following); }
+            }));
+        }
+
+        const editorEl = container.querySelector('.vd-looper-editor');
+        editorEl.addEventListener('input', updateDirty);
+        editorEl.addEventListener('change', updateDirty);
         $(`looper-score-${windowId}`).addEventListener('input', ev => {
             $(`looper-score-out-${windowId}`).value = ev.target.value;
         });
-        $(`looper-provider-${windowId}`).addEventListener('change', refreshModels);
-        $(`looper-new-${windowId}`).addEventListener('click', () => {
+        $(`looper-provider-${windowId}`).addEventListener('change', () => {
+            refreshModels('');
+            updateDirty();
+        });
+        $(`looper-new-${windowId}`).addEventListener('click', async () => {
+            if (activeRun() || !await confirmDiscard()) return;
             state.selectedPresetId = null;
-            state.draft = emptyDraft();
-            writeForm();
+            loadIntoForm(emptyDraft());
+            setFocus(false);
             renderPresets();
+        });
+        $(`looper-edit-${windowId}`).addEventListener('click', () => {
+            if (!state.status.running) setFocus(false);
+        });
+
+        root.addEventListener('keydown', ev => {
+            if (ev.key !== 'Enter' || !(ev.ctrlKey || ev.metaKey)) return;
+            const resume = $(`looper-resume-${windowId}`);
+            const start = $(`looper-start-${windowId}`);
+            if (!resume.hidden && !resume.disabled) resume.click();
+            else if (!start.disabled) start.click();
+            ev.preventDefault();
         });
 
         $(`looper-save-${windowId}`).addEventListener('click', async () => {
@@ -505,7 +712,7 @@
             const body = readForm();
             const errMsg = validateForm(body);
             if (errMsg) {
-                if (notify) notify({ title: t('desktop.notification'), message: errMsg });
+                toast(errMsg);
                 return;
             }
             const selected = selectedPreset();
@@ -520,9 +727,11 @@
                             body: JSON.stringify(Object.assign({}, body, { name: body.name || selected.name }))
                         });
                         await loadPresets();
+                        state.baseline = fingerprint(currentFields());
+                        updateDirty();
                         if (notify) notify({ title: t('desktop.looper_title'), message: t('desktop.looper_saved') });
                     } catch (e) {
-                        if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_save_error') });
+                        toast(t('desktop.looper_save_error'));
                     }
                     return;
                 }
@@ -537,17 +746,20 @@
                 });
                 await loadPresets();
                 if (res && res.id) state.selectedPresetId = String(res.id);
+                $(`looper-name-${windowId}`).value = name;
+                state.baseline = fingerprint(currentFields());
+                updateDirty();
                 renderPresets();
                 if (notify) notify({ title: t('desktop.looper_title'), message: t('desktop.looper_saved') });
             } catch (e) {
-                if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_save_error') });
+                toast(t('desktop.looper_save_error'));
             }
         });
 
         $(`looper-dup-${windowId}`).addEventListener('click', async () => {
             if (isReadonly) return;
             const body = readForm();
-            const name = await askPrompt(t('desktop.looper_save_prompt'), (body.name || t('desktop.looper_untitled')) + ' copy');
+            const name = await askPrompt(t('desktop.looper_save_prompt'), (body.name || t('desktop.looper_untitled')) + ' ' + t('desktop.looper_copy_suffix'));
             if (!name) return;
             try {
                 const res = await api('/api/desktop/looper/presets', {
@@ -558,10 +770,13 @@
                 await loadPresets();
                 if (res && res.id) {
                     state.selectedPresetId = String(res.id);
+                    $(`looper-name-${windowId}`).value = name;
+                    state.baseline = fingerprint(currentFields());
+                    updateDirty();
                     renderPresets();
                 }
             } catch (e) {
-                if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_save_error') });
+                toast(t('desktop.looper_save_error'));
             }
         });
 
@@ -569,83 +784,64 @@
             if (isReadonly) return;
             const selected = selectedPreset();
             if (!selected || selected.is_builtin) {
-                if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_delete_error') });
+                toast(t('desktop.looper_delete_error'));
                 return;
             }
             if (!await askConfirm(t('desktop.looper_delete'), t('desktop.looper_delete_confirm'))) return;
             try {
                 await api('/api/desktop/looper/presets/' + selected.id, { method: 'DELETE' });
                 state.selectedPresetId = null;
-                state.draft = emptyDraft();
-                writeForm();
+                loadIntoForm(emptyDraft());
                 await loadPresets();
                 if (notify) notify({ title: t('desktop.looper_title'), message: t('desktop.looper_deleted') });
             } catch (e) {
-                if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_delete_error') });
+                toast(t('desktop.looper_delete_error'));
             }
         });
-
-        async function startOrResume(path) {
-            if (isReadonly) return;
-            const body = readForm();
-            const errMsg = validateForm(body);
-            if (errMsg) {
-                if (notify) notify({ title: t('desktop.notification'), message: errMsg });
-                return;
-            }
-            try {
-                await api(path, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                state.logExpandState.clear();
-                connectStatus();
-                setPane('run');
-                setSide('run');
-            } catch (e) {
-                if (e && e.status === 409 && path.indexOf('/run') >= 0) {
-                    if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_already_running') });
-                    connectStatus();
-                } else if (notify) {
-                    const fallback = path.indexOf('/resume') >= 0 ? t('desktop.looper_resume_error') : t('desktop.looper_start_error');
-                    notify({ title: t('desktop.notification'), message: (e && e.message) || fallback });
-                }
-            }
-        }
 
         $(`looper-start-${windowId}`).addEventListener('click', () => startOrResume('/api/desktop/looper/run'));
         $(`looper-resume-${windowId}`).addEventListener('click', () => startOrResume('/api/desktop/looper/resume'));
         $(`looper-pause-${windowId}`).addEventListener('click', async () => {
+            $(`looper-pause-${windowId}`).disabled = true;
             try {
                 await api('/api/desktop/looper/pause', { method: 'POST' });
-                if (notify) notify({ title: t('desktop.looper_title'), message: t('desktop.looper_pause_requested') });
             } catch (e) {
-                if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_pause_error') });
+                updateRun(state.status);
+                toast(t('desktop.looper_pause_error'));
             }
         });
         $(`looper-stop-${windowId}`).addEventListener('click', async () => {
             try {
                 await api('/api/desktop/looper/stop', { method: 'POST' });
+                if (!state.status.running) connectStatus();
             } catch (e) {
-                if (notify) notify({ title: t('desktop.notification'), message: t('desktop.looper_stop_error') });
+                toast(t('desktop.looper_stop_error'));
             }
         });
         $(`looper-jump-${windowId}`).addEventListener('click', () => {
-            const timeline = container.querySelector('.vd-looper-timeline');
-            if (timeline) timeline.scrollTop = timeline.scrollHeight;
-            state.autoScroll = true;
+            if (state.runView) state.runView.followLatest();
         });
 
         updateRun(state.status);
-        loadProviders();
-        loadPresets();
+        (async function init() {
+            await loadProviders();
+            await loadPresets();
+            if (state.disposed) return;
+            restoreDraft();
+            renderBrief();
+        })();
         loadHistory();
         connectStatus();
     }
 
     function tabBtn(windowId, pane, label) {
         return '<button type="button" class="vd-looper-tab' + (pane === 'setup' ? ' is-active' : '') + '" data-pane="' + pane + '" id="looper-tab-' + pane + '-' + windowId + '">' + label + '</button>';
+    }
+
+    // Read-only view of an instruction while the run owns the window.
+    function briefDetails(esc, t, windowId, key) {
+        return '<details class="vd-looper-brief-more" id="looper-brief-' + key + '-' + windowId + '" hidden>' +
+            '<summary>' + esc(t('desktop.looper_' + key)) + '</summary><p></p></details>';
     }
 
     function fieldCard(esc, t, windowId, num, key, required) {
@@ -661,7 +857,14 @@
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
+        clearTimeout(state.draftTimer);
+        if (state.persistDraft) {
+            // Closing the window must not lose unsaved work.
+            try { state.persistDraft(); } catch (e) { /* the form may already be detached */ }
+        }
         if (state.sse) { state.sse.close(); state.sse = null; }
+        if (state.runView) state.runView.destroy();
+        if (state.historyView) state.historyView.destroy();
         if (state.resizeObserver) state.resizeObserver.disconnect();
         instances.delete(windowId);
     }
