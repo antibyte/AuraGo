@@ -421,6 +421,8 @@ func unwrapLLMTransport(rt http.RoundTripper) http.RoundTripper {
 		switch t := rt.(type) {
 		case *usageObservationTransport:
 			rt = t.base
+		case *leadingSystemTransport:
+			rt = t.base
 		case *responseTimeoutTransport:
 			rt = t.base
 		case *miniMaxTransport:

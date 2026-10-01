@@ -353,6 +353,7 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	if directStepFun || providerType == "openrouter" {
 		transport = &stepFunChatMessageTransport{base: transport, direct: directStepFun}
 	}
+	transport = &leadingSystemTransport{base: transport}
 	transport = &usageObservationTransport{base: transport, provider: providerType, directStepFun: directStepFun,
 		pricedRoute: knownMeteredUsageRoute(providerType, baseURL)}
 
