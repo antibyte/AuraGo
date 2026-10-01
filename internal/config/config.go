@@ -2,6 +2,7 @@ package config
 
 import (
 	"aurago/internal/chunking"
+	"aurago/internal/fileutil"
 	"aurago/internal/kgquality"
 	"bytes"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -127,18 +127,7 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 }
 
 func replaceFileAtomic(tmpPath, path string) error {
-	var err error
-	for attempt := 0; attempt < 8; attempt++ {
-		err = os.Rename(tmpPath, path)
-		if err == nil {
-			return nil
-		}
-		if runtime.GOOS != "windows" || !os.IsPermission(err) {
-			return err
-		}
-		time.Sleep(time.Duration(attempt+1) * 15 * time.Millisecond)
-	}
-	return err
+	return fileutil.Rename(tmpPath, path)
 }
 
 var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".rtf"}

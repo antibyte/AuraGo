@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/fileutil"
 	"aurago/internal/memory"
 	"aurago/internal/security"
 )
@@ -465,7 +466,7 @@ func (m *MissionManagerV2) save() error {
 		slog.Error("[MissionV2] Failed to persist mission state", "error", err)
 		return fmt.Errorf("write temp file: %w", err)
 	}
-	if err := os.Rename(tmp, m.file); err != nil {
+	if err := fileutil.Rename(tmp, m.file); err != nil {
 		slog.Error("[MissionV2] Failed to persist mission state", "error", err)
 		return fmt.Errorf("rename temp file: %w", err)
 	}
@@ -487,7 +488,7 @@ func (m *MissionManagerV2) saveQueueLocked() error {
 		slog.Error("[MissionV2] Failed to persist mission queue", "error", err)
 		return fmt.Errorf("write queue temp file: %w", err)
 	}
-	if err := os.Rename(tmp, m.queueFile); err != nil {
+	if err := fileutil.Rename(tmp, m.queueFile); err != nil {
 		slog.Error("[MissionV2] Failed to persist mission queue", "error", err)
 		return fmt.Errorf("rename queue temp file: %w", err)
 	}

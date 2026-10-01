@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"aurago/internal/fileutil"
 )
 
 // maxEditFileSize limits file sizes for in-memory edit operations to prevent OOM.
@@ -346,7 +348,7 @@ func writeFileAtomic(path string, data []byte) error {
 		return fmt.Errorf("failed to set permissions: %w", err)
 	}
 
-	if err := os.Rename(tmpName, path); err != nil {
+	if err := fileutil.Rename(tmpName, path); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
