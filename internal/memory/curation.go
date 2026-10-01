@@ -30,17 +30,18 @@ type MemoryCurationOptions struct {
 }
 
 type MemoryCurationAction struct {
-	DocID           string  `json:"doc_id"`
-	Action          string  `json:"action"`
-	CurrentStatus   string  `json:"current_status"`
-	TargetStatus    string  `json:"target_status"`
-	Reason          string  `json:"reason"`
-	Confidence      float64 `json:"confidence"`
-	Reliability     float64 `json:"reliability"`
-	AccessCount     int     `json:"access_count"`
-	UsefulCount     int     `json:"useful_count"`
-	UselessCount    int     `json:"useless_count"`
-	DaysSinceAccess int     `json:"days_since_access"`
+	ExpectedMeta    *MemoryMeta `json:"-"`
+	DocID           string      `json:"doc_id"`
+	Action          string      `json:"action"`
+	CurrentStatus   string      `json:"current_status"`
+	TargetStatus    string      `json:"target_status"`
+	Reason          string      `json:"reason"`
+	Confidence      float64     `json:"confidence"`
+	Reliability     float64     `json:"reliability"`
+	AccessCount     int         `json:"access_count"`
+	UsefulCount     int         `json:"useful_count"`
+	UselessCount    int         `json:"useless_count"`
+	DaysSinceAccess int         `json:"days_since_access"`
 }
 
 type MemoryCurationPlan struct {
@@ -208,6 +209,7 @@ func memoryCurationActionBase(meta MemoryMeta, now time.Time) MemoryCurationActi
 		}
 	}
 	return MemoryCurationAction{
+		ExpectedMeta:    &meta,
 		DocID:           meta.DocID,
 		CurrentStatus:   normalizeMemoryVerificationStatus(meta.VerificationStatus),
 		Confidence:      normalizedConfidence(meta.ExtractionConfidence),
@@ -249,8 +251,22 @@ func normalizedReliability(value float64) float64 {
 }
 
 func (s *SQLiteMemory) ApplyMemoryCurationAction(action MemoryCurationAction, actor string, dryRun bool) error {
-	if s == nil || strings.TrimSpace(action.DocID) == "" {
-		return nil
+	_, err := s.applyMemoryCurationAction(action, actor, dryRun, false)
+	return err
+}
+
+// ApplyAutomaticMemoryCurationAction requires an internal snapshot and reports skipped actions.
+// Actor labels never grant permission to override a current human decision.
+func (s *SQLiteMemory) ApplyAutomaticMemoryCurationAction(action MemoryCurationAction) (bool, error) {
+	if action.ExpectedMeta == nil {
+		return false, fmt.Errorf("automatic curation requires a metadata snapshot")
+	}
+	return s.applyMemoryCurationAction(action, "system", false, true)
+}
+
+func (s *SQLiteMemory) applyMemoryCurationAction(action MemoryCurationAction, actor string, dryRun, automatic bool) (bool, error) {
+	if s == nil || s.db == nil || strings.TrimSpace(action.DocID) == "" {
+		return false, fmt.Errorf("memory curation store or document ID is unavailable")
 	}
 	actor = strings.TrimSpace(actor)
 	if actor == "" {
@@ -264,19 +280,30 @@ func (s *SQLiteMemory) ApplyMemoryCurationAction(action MemoryCurationAction, ac
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf("begin memory curation action: %w", err)
+		return false, fmt.Errorf("begin memory curation action: %w", err)
 	}
 	defer tx.Rollback()
 
-	var previousStatus string
-	err = tx.QueryRow(`SELECT COALESCE(verification_status, 'unverified') FROM memory_meta WHERE doc_id = ?`, action.DocID).Scan(&previousStatus)
+	if _, err := tx.Exec(`UPDATE memory_meta SET doc_id=doc_id WHERE doc_id=?`, action.DocID); err != nil {
+		return false, err
+	}
+	var current MemoryMeta
+	err = scanMemoryMeta(tx.QueryRow(`SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, action.DocID), &current)
 	if err == sql.ErrNoRows {
-		return nil
+		return false, nil
 	}
 	if err != nil {
-		return fmt.Errorf("read memory curation status: %w", err)
+		return false, fmt.Errorf("read memory curation status: %w", err)
 	}
-	previousStatus = normalizeMemoryVerificationStatus(previousStatus)
+	if automatic {
+		if current.Protected || current.KeepForever || IsMemoryArchived(current) || !memoryMetaEqual(current, *action.ExpectedMeta) {
+			return false, nil
+		}
+		if normalizedAction != MemoryCurationActionConfirm && normalizedAction != MemoryCurationActionArchive {
+			return false, fmt.Errorf("unsupported automatic curation action %q", action.Action)
+		}
+	}
+	previousStatus := normalizeMemoryVerificationStatus(current.VerificationStatus)
 	newStatus := previousStatus
 
 	if !dryRun {
@@ -304,10 +331,10 @@ func (s *SQLiteMemory) ApplyMemoryCurationAction(action MemoryCurationAction, ac
 		case MemoryCurationActionUnprotect:
 			_, err = tx.Exec(`UPDATE memory_meta SET protected = 0, keep_forever = 0, last_reviewed_at = CURRENT_TIMESTAMP, review_note = ?, last_event_at = CURRENT_TIMESTAMP WHERE doc_id = ?`, reason, action.DocID)
 		default:
-			return fmt.Errorf("unsupported memory curation action %q", action.Action)
+			return false, fmt.Errorf("unsupported memory curation action %q", action.Action)
 		}
 		if err != nil {
-			return fmt.Errorf("apply memory curation action: %w", err)
+			return false, fmt.Errorf("apply memory curation action: %w", err)
 		}
 	} else if normalizedAction == "" {
 		normalizedAction = "preview"
@@ -321,10 +348,13 @@ func (s *SQLiteMemory) ApplyMemoryCurationAction(action MemoryCurationAction, ac
 		VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		action.DocID, normalizedAction, actor, previousStatus, newStatus, reason, dryRun,
 	); err != nil {
-		return fmt.Errorf("record memory curation event: %w", err)
+		return false, fmt.Errorf("record memory curation event: %w", err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return !dryRun, nil
 }
 
 // ArchiveMemoryMetaBatch archives a batch of memory_meta rows for budget

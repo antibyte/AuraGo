@@ -99,17 +99,24 @@ func handleDashboardMemoryCurationApply(s *Server, w http.ResponseWriter, r *htt
 		return
 	}
 	applied := 0
+	skipped := 0
 	for _, action := range append(plan.AutoConfirm, plan.AutoArchive...) {
-		if err := s.ShortTermMem.ApplyMemoryCurationAction(action, "system", false); err != nil {
+		changed, err := s.ShortTermMem.ApplyAutomaticMemoryCurationAction(action)
+		if err != nil {
 			s.Logger.Warn("Failed to apply memory curation action", "doc_id", action.DocID, "action", action.Action, "error", err)
 			continue
 		}
-		applied++
+		if changed {
+			applied++
+		} else {
+			skipped++
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "ok",
 		"applied": applied,
+		"skipped": skipped,
 		"plan":    plan,
 	})
 }

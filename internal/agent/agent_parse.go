@@ -261,7 +261,7 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 	}
 
 	highCount, mediumCount, lowCount := 0, 0, 0
-	var lowDocs []string
+	var lowDocs []memory.MemoryMeta
 	var mediumDocs []string
 	mediumMetaByID := make(map[string]memory.MemoryMeta)
 
@@ -282,7 +282,7 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 
 		if priority < thresholdLow {
 			lowCount++
-			lowDocs = append(lowDocs, meta.DocID)
+			lowDocs = append(lowDocs, meta)
 		} else if priority < thresholdMedium {
 			mediumCount++
 			mediumDocs = append(mediumDocs, meta.DocID)
@@ -298,18 +298,23 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 	if !req.Preview {
 		lowCount, mediumCount = 0, 0
 		// 1. Archive low-priority metadata while retaining the vector. Keeping the
-		// source allows later recall and makes the archive operation lossless.
-		for _, docID := range lowDocs {
-			if err := shortTermMem.ApplyMemoryCurationAction(memory.MemoryCurationAction{
-				DocID:  docID,
-				Action: memory.MemoryCurationActionArchive,
-				Reason: "memory maintenance low priority",
-			}, "agent", false); err != nil {
+		// source allows explicit administrative recovery after archiving.
+		for _, meta := range lowDocs {
+			docID := meta.DocID
+			changed, err := shortTermMem.ApplyAutomaticMemoryCurationAction(memory.MemoryCurationAction{
+				DocID:        docID,
+				Action:       memory.MemoryCurationActionArchive,
+				Reason:       "memory maintenance low priority",
+				ExpectedMeta: &meta,
+			})
+			if err != nil {
 				partial = true
 				logger.Warn("[MemoryMaintenance] Failed to archive low-priority memory", "doc_id", docID, "error", err)
 				continue
 			}
-			lowCount++
+			if changed {
+				lowCount++
+			}
 		}
 
 		// 2. Process VectorDB Medium Priority (Compression)

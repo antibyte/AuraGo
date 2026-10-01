@@ -15,7 +15,8 @@ const memoryMetaSelectColumns = `
 	useful_count, useless_count, COALESCE(last_effectiveness_at, ''),
 	protected, keep_forever, COALESCE(archived_at, ''),
 	COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''),
-	COALESCE(review_note, '')`
+	COALESCE(review_note, ''),
+	COALESCE((SELECT MAX(id) FROM memory_curation_events WHERE memory_curation_events.doc_id=memory_meta.doc_id AND dry_run=0),0)`
 
 // memoryReplacementMetadataCommitError means SQLite could not tell the
 // caller whether the metadata transaction committed. Replacement callers must
@@ -143,6 +144,7 @@ func scanMemoryMeta(scanner memoryMetaScanner, meta *MemoryMeta) error {
 		&meta.ArchivedReason,
 		&meta.LastReviewedAt,
 		&meta.ReviewNote,
+		&meta.CurationRevision,
 	)
 }
 
@@ -163,7 +165,8 @@ func memoryMetaEqual(left, right MemoryMeta) bool {
 		left.ArchivedAt == right.ArchivedAt &&
 		left.ArchivedReason == right.ArchivedReason &&
 		left.LastReviewedAt == right.LastReviewedAt &&
-		left.ReviewNote == right.ReviewNote
+		left.ReviewNote == right.ReviewNote &&
+		left.CurationRevision == right.CurationRevision
 }
 
 // archiveAndCopyMemoryMeta archives the old tracking row and copies its full

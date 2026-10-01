@@ -118,8 +118,10 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	}
 	failedActions := make([]dashboardHygieneFailure, 0)
 	memoryApplied := 0
+	memorySkipped := 0
 	for _, action := range append(plan.Memory.AutoConfirm, plan.Memory.AutoArchive...) {
-		if err := s.ShortTermMem.ApplyMemoryCurationAction(action, "system", false); err != nil {
+		changed, err := s.ShortTermMem.ApplyAutomaticMemoryCurationAction(action)
+		if err != nil {
 			s.Logger.Warn("Failed to apply memory curation action during hygiene", "doc_id", action.DocID, "action", action.Action, "error", err)
 			failedActions = append(failedActions, dashboardHygieneFailure{
 				Domain: "memory",
@@ -129,7 +131,11 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 			})
 			continue
 		}
-		memoryApplied++
+		if changed {
+			memoryApplied++
+		} else {
+			memorySkipped++
+		}
 	}
 	noteApplied := 0
 	for _, action := range plan.Notes.AutoArchive {
@@ -209,7 +215,8 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	}
 	plan.Totals = dashboardMemoryHygieneTotals(plan)
 	response := map[string]interface{}{
-		"status": "ok",
+		"status":  "ok",
+		"skipped": map[string]int{"memory": memorySkipped},
 		"applied": map[string]int{
 			"memory":    memoryApplied,
 			"journal":   plan.Journal.RemovedEntries,

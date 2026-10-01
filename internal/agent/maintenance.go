@@ -2132,14 +2132,15 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		}
 	}
 
-	var lowDocs, mediumDocs []string
+	var lowDocs []memory.MemoryMeta
+	var mediumDocs []string
 	for _, meta := range metas {
 		if meta.Protected || meta.KeepForever || memory.IsMemoryArchived(meta) {
 			continue
 		}
 		priority := adjustedMemoryPriority(meta, time.Now())
 		if priority < threshold {
-			lowDocs = append(lowDocs, meta.DocID)
+			lowDocs = append(lowDocs, meta)
 		} else if priority < threshold+2 {
 			mediumDocs = append(mediumDocs, meta.DocID)
 		}
@@ -2147,14 +2148,15 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 
 	// Low priority alone never requires physical destruction. Archive through
 	// the policy-aware metadata path and retain the vector for recovery.
-	for _, docID := range lowDocs {
+	for _, meta := range lowDocs {
+		docID := meta.DocID
 		if err := ctx.Err(); err != nil {
 			result.Errors = append(result.Errors, err)
 			return result
 		}
-		if err := stm.ApplyMemoryCurationAction(memory.MemoryCurationAction{
-			DocID: docID, Action: memory.MemoryCurationActionArchive, Reason: "auto-optimize low priority",
-		}, "system", false); err != nil {
+		if _, err := stm.ApplyAutomaticMemoryCurationAction(memory.MemoryCurationAction{
+			DocID: docID, Action: memory.MemoryCurationActionArchive, Reason: "auto-optimize low priority", ExpectedMeta: &meta,
+		}); err != nil {
 			result.Errors = append(result.Errors, err)
 		}
 	}
@@ -2366,20 +2368,26 @@ func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLit
 	appliedConfirm := 0
 	appliedArchive := 0
 	for _, action := range plan.AutoConfirm {
-		if err := stm.ApplyMemoryCurationAction(action, "system", false); err != nil {
+		changed, err := stm.ApplyAutomaticMemoryCurationAction(action)
+		if err != nil {
 			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[MemoryCurator] Failed to confirm memory", "doc_id", action.DocID, "error", err)
 			continue
 		}
-		appliedConfirm++
+		if changed {
+			appliedConfirm++
+		}
 	}
 	for _, action := range plan.AutoArchive {
-		if err := stm.ApplyMemoryCurationAction(action, "system", false); err != nil {
+		changed, err := stm.ApplyAutomaticMemoryCurationAction(action)
+		if err != nil {
 			resultErr = errors.Join(resultErr, err)
 			logger.Warn("[MemoryCurator] Failed to archive memory", "doc_id", action.DocID, "error", err)
 			continue
 		}
-		appliedArchive++
+		if changed {
+			appliedArchive++
+		}
 	}
 	if appliedConfirm > 0 || appliedArchive > 0 || plan.ReviewRequiredCount > 0 {
 		logger.Info("[MemoryCurator] Curation run complete",
