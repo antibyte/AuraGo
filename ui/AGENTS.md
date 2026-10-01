@@ -50,6 +50,8 @@ worker. Keep packaging, recovery and offline instructions in
 
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Browser acceptance uses `TestDesktopNewspaperBrowser` at wide/narrow and light/dark sizes; backend contracts live in `internal/newspaper/AGENTS.md`.
 
+- Radio, Personal Radio, and RTL-SDR use separate icon keys and assets in both Papirus and WhiteSur. Keep the backend app manifests, Desktop mappings, theme manifests, and generated main bundle aligned; verify `TestDesktopRadioAppsHaveDistinctThemeIcons`.
+
 - Tool configuration consumes `_effective_tool_policy` and `_config_migrations`
   as response diagnostics only, through the shared config-response loader on
   initial load and refresh/save paths. Never persist these keys. Removed discovery

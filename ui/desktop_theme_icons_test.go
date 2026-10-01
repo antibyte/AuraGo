@@ -63,6 +63,52 @@ func TestDesktopBuiltInAppsUseDedicatedThemeAppIcons(t *testing.T) {
 	}
 }
 
+func TestDesktopRadioAppsHaveDistinctThemeIcons(t *testing.T) {
+	t.Parallel()
+
+	want := map[string]string{"radio": "radio", "personal-radio": "personal-radio", "rtl-sdr": "rtl-sdr"}
+	source := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	bundle := readDesktopAssetText(t, "js/desktop/main.js")
+	catalog := desktop.DesktopIconCatalog(map[string]string{"appearance.icon_theme": "papirus"})
+	for _, app := range desktop.BuiltinApps() {
+		if icon, ok := want[app.ID]; ok && app.Icon != icon {
+			t.Errorf("%s backend icon = %q, want %q", app.ID, app.Icon, icon)
+		}
+	}
+	for id, icon := range want {
+		if !containsString(catalog.Preferred, icon) {
+			t.Errorf("%s backend icon catalog missing %q", id, icon)
+		}
+		marker := "'" + id + "': '" + icon + "'"
+		if id == "radio" {
+			marker = "radio: 'radio'"
+		}
+		if strings.Count(source, marker) != 2 || strings.Count(bundle, marker) != 2 {
+			t.Errorf("%s needs distinct app and launchpad category mappings in source and bundle", id)
+		}
+	}
+	for _, theme := range []string{"papirus", "whitesur"} {
+		var manifest struct {
+			Icons map[string]string `json:"icons"`
+		}
+		if err := json.Unmarshal([]byte(rawDesktopAssetText(t, "img/"+theme+"/manifest.json")), &manifest); err != nil {
+			t.Fatal(err)
+		}
+		seen := map[string]bool{}
+		for id, icon := range want {
+			path := manifest.Icons[icon]
+			if path == "" || seen[path] {
+				t.Errorf("%s %s has missing or shared theme icon %q", theme, id, path)
+				continue
+			}
+			seen[path] = true
+			if _, err := Content.ReadFile(path); err != nil {
+				t.Errorf("%s %s theme icon: %v", theme, id, err)
+			}
+		}
+	}
+}
+
 func TestDesktopBuiltInAppsUseFocusedThemeIconNames(t *testing.T) {
 	t.Parallel()
 
