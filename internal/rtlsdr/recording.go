@@ -357,7 +357,6 @@ func (s *Service) RetryTranscriptionAs(ctx context.Context, id string, agent boo
 func (s *Service) transcribe(ctx context.Context, id string, tr Transcriber, previous string, agent bool) {
 	s.asrMu.Lock()
 	defer s.asrMu.Unlock()
-	defer func() { s.mu.Lock(); delete(s.transcribing, id); delete(s.asrAgents, id); s.mu.Unlock() }()
 	if previous == "transcribing" {
 		previous = "complete"
 	}
@@ -432,6 +431,11 @@ func (s *Service) transcribe(ctx context.Context, id string, tr Transcriber, pre
 		if failed {
 			v.ASRError = "sdr_asr_failed"
 		}
+		// Release reservations under the same lock as the terminal state,
+		// before issue callbacks can delay an immediate retry.
+		delete(s.transcribing, id)
+		delete(s.asrAgents, id)
+		delete(s.finishing, id)
 	})
 	if s.opts.Issue != nil {
 		s.opts.Issue("transcription", !failed)

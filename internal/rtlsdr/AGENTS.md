@@ -23,6 +23,10 @@ Keep the AuraGo binary CGO-free. `runtime/` must not expose any network port.
   the right frequency alone does not prove audible output.
 - Freeze one existing AuraGo ASR route per job. Decode at most 60 seconds of
   mono PCM16/16 kHz at a time. Station metadata and transcripts are external data.
+- Publish terminal ASR state and release its worker reservations under the same
+  state lock before issue callbacks. Immediate retries may queue while notification
+  finishes; old workers must not clear a newer retry's reservation. Verify
+  `TestRTLSDRTerminalASRAllowsRetryBeforeIssueCallbackReturns`.
 - Containers are non-root, have no network, a read-only root filesystem, and
   only the selected enumerated USB node. Never grant privileged mode or mount
   the Docker socket into the receiver. Recreate that mapping after USB hotplug.

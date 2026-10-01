@@ -240,6 +240,66 @@ func TestRTLSDRPartialAndASRRetry(t *testing.T) {
 		t.Fatal("ASR retry retuned receiver")
 	}
 }
+
+func TestRTLSDRTerminalASRAllowsRetryBeforeIssueCallbackReturns(t *testing.T) {
+	first := &testASR{}
+	first.fail.Store(true)
+	retry := &testASR{gate: make(chan struct{})}
+	notice := make(chan struct{})
+	noticeGate := make(chan struct{})
+	defer func() {
+		for _, gate := range []chan struct{}{noticeGate, retry.gate} {
+			select {
+			case <-gate:
+			default:
+				close(gate)
+			}
+		}
+	}()
+	var factories atomic.Int32
+	var notified atomic.Bool
+	f := &testReceiver{captureErr: io.ErrUnexpectedEOF}
+	s := newTestService(t, f, enabled, func(o *Options) {
+		o.NewTranscriber = func(context.Context) (Transcriber, error) {
+			if factories.Add(1) == 1 {
+				return first, nil
+			}
+			return retry, nil
+		}
+		o.Issue = func(stage string, healthy bool) {
+			if stage == "transcription" && !notified.Swap(true) {
+				close(notice)
+				<-noticeGate
+			}
+		}
+	})
+	r, err := s.Record(Recording{Tuning: DefaultTuning(), Duration: 5, Transcribe: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	await(t, func() bool { return notified.Load() })
+	<-notice
+	if err := s.RetryTranscription(t.Context(), r.ID); err != nil {
+		t.Fatalf("terminal ASR still reserved during notification: %v", err)
+	}
+	if err := s.RetryTranscription(t.Context(), r.ID); !errors.Is(err, ErrBusy) {
+		t.Fatalf("queued retry lost its reservation: %v", err)
+	}
+	close(noticeGate)
+	await(t, func() bool { return retry.calls.Load() == 1 })
+	if err := s.RetryTranscription(t.Context(), r.ID); !errors.Is(err, ErrBusy) {
+		t.Fatalf("previous worker released the current retry reservation: %v", err)
+	}
+	close(retry.gate)
+	await(t, func() bool {
+		v, _ := s.Recording(r.ID)
+		return v.ASRError == "" && v.Status == "partial" && len(v.Segments) == 1 && v.Segments[0].Text != ""
+	})
+	if f.count() != 1 {
+		t.Fatal("ASR retry retuned receiver")
+	}
+}
+
 func TestRTLSDRPersistentScheduleClaimAndAgentRevocation(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second).Add(time.Hour)
 	var clock atomic.Int64
