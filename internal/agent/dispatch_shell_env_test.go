@@ -54,6 +54,7 @@ func TestBlockedEnvReadReasonDistinguishesAccessFromResourceNames(t *testing.T) 
 func TestExecuteShellPublishesTrustedOutcome(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AllowShell = true
+	cfg.Agent.AllowUnsafeHostExecution = true
 	cfg.Directories.WorkspaceDir = t.TempDir()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	dc := &DispatchContext{Cfg: cfg, Logger: logger}

@@ -575,6 +575,7 @@ func TestSuccessfulShellOutcomeResolvesMissionToolFailure(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Agent.AllowShell = true
+	cfg.Agent.AllowUnsafeHostExecution = true
 	cfg.Directories.WorkspaceDir = t.TempDir()
 	result := DispatchToolCallResult(context.Background(), &tc, &DispatchContext{Cfg: cfg, Logger: slog.Default()}, "")
 	if result.Status != ToolResultSuccess {
