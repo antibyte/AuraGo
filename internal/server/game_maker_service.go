@@ -417,6 +417,35 @@ func gameMakerBudget(ctx context.Context, toolCalls int, run gamemaker.JobRun) m
 	return budget
 }
 
+// Reasoning models spend output tokens before their answer, and providers count
+// both against max_tokens. Qwen 3.8 drafted whole games in its reasoning and hit
+// the 4096-token general reserve before any tool call. The answer keeps its own
+// reserve and reasoning gets this separate allowance on top.
+const (
+	gameMakerBuildAnswerTokens = 16384
+	gameMakerReasoningTokens   = 16384
+)
+
+// gameMakerOutputTokens returns the answer reserve plus the reasoning allowance,
+// clamped to the route's output limit. Routes below 64K context or without room
+// beyond the general reasoning reserve return 0 and keep the agent's reserve.
+func gameMakerOutputTokens(limits llm.ModelLimits, answer int) int {
+	if limits.ContextWindow < 65536 || limits.MaxOutputTokens <= llm.ReasoningOutputTokens {
+		return 0
+	}
+	return min(answer+gameMakerReasoningTokens, limits.MaxOutputTokens)
+}
+
+// gameMakerRouteLimits resolves the selected route with the configured provider
+// overrides, the same way request fitting will.
+func gameMakerRouteLimits(cfg *config.Config) llm.ModelLimits {
+	route := llm.ModelRoute{ProviderID: cfg.LLM.Provider, ProviderType: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, Model: cfg.LLM.Model, Primary: true}
+	if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil && provider.Model == cfg.LLM.Model && strings.EqualFold(provider.Type, cfg.LLM.ProviderType) && strings.TrimRight(provider.BaseURL, "/") == strings.TrimRight(cfg.LLM.BaseURL, "/") {
+		route.ContextWindowOverride, route.MaxOutputTokensOverride = provider.ContextWindow, provider.MaxOutputTokens
+	}
+	return llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
+}
+
 // gameMakerCurrentSourceMaxBytes matches one interactive read window, so a
 // handed-over file is never larger than a single read could return.
 const gameMakerCurrentSourceMaxBytes = 24000
@@ -557,15 +586,12 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		}},
 		Stream: true,
 	}
-	if run.Project.Dimension == "3d" && run.Stage != "planning" {
-		route := llm.ModelRoute{ProviderID: cfg.LLM.Provider, ProviderType: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, Model: cfg.LLM.Model, Primary: true}
-		if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil && provider.Model == cfg.LLM.Model && strings.EqualFold(provider.Type, cfg.LLM.ProviderType) && strings.TrimRight(provider.BaseURL, "/") == strings.TrimRight(cfg.LLM.BaseURL, "/") {
-			route.ContextWindowOverride, route.MaxOutputTokensOverride = provider.ContextWindow, provider.MaxOutputTokens
-		}
-		limits := llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
-		if limits.ContextWindow >= 65536 && limits.MaxOutputTokens > llm.ReasoningOutputTokens {
-			req.MaxTokens = 16384
-		}
+	answerTokens := gameMakerBuildAnswerTokens
+	if run.Stage == "planning" {
+		answerTokens = llm.ConservativeOutputTokens
+	}
+	if tokens := gameMakerOutputTokens(gameMakerRouteLimits(&cfg), answerTokens); tokens > 0 {
+		req.MaxTokens = tokens
 	}
 	if run.Stage == "repair" && len(run.Captures) > 0 {
 		if route, ok := gameVisualPrimaryRoute(&cfg); ok && route.ID == cfg.LLM.Provider {

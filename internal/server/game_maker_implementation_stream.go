@@ -33,10 +33,18 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 	}
 	observer := r.gameUsageObserver(run)
 	var requestHistory []openai.ChatCompletionMessage
-	maxOutputTokens := 16384
+	answerTokens := gameMakerBuildAnswerTokens
 	if run.Project.Dimension == "3d" {
-		maxOutputTokens = 32768
+		answerTokens = 32768
 	}
+	// Reasoning gets its own allowance on top of the source. If fitting the
+	// context fails, drop that allowance first, then fall back to the 2D source
+	// reserve; reasoning never takes the room the source needs.
+	outputCandidates := []int{answerTokens + gameMakerReasoningTokens, answerTokens}
+	if answerTokens > gameMakerBuildAnswerTokens {
+		outputCandidates = append(outputCandidates, gameMakerBuildAnswerTokens)
+	}
+	maxOutputTokens := outputCandidates[0]
 	for attempt := 0; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return agent.MinimalLoopResult{}, nil, err
@@ -59,7 +67,7 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 			}
 			for _, message := range history {
 				if message.Role == openai.ChatMessageRoleAssistant && message.ReasoningContent != "" && !knownReasoning[message.ReasoningContent] {
-					requestHistory = append(requestHistory, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "Generation was interrupted; this retained reasoning is context only.", ReasoningContent: message.ReasoningContent})
+					requestHistory = append(requestHistory, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: gameStarterInterruptedReasoningNote, ReasoningContent: message.ReasoningContent})
 					knownReasoning[message.ReasoningContent] = true
 				}
 			}
@@ -70,9 +78,12 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, MaxOutputTokens: maxOutputTokens, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer}
 		response, completion, err := agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,
 			dispatchCtx, requestHistory, r.server.Logger, opts)
-		if maxOutputTokens > 16384 && agent.IsContextBudgetExceeded(err) {
-			// Fitting failed before any provider call; retry with the previous reserve.
-			maxOutputTokens = 16384
+		for _, fallback := range outputCandidates {
+			if fallback >= maxOutputTokens || !agent.IsContextBudgetExceeded(err) {
+				continue
+			}
+			// Fitting failed before any provider call; retry with a smaller reserve.
+			maxOutputTokens = fallback
 			opts.MaxOutputTokens = maxOutputTokens
 			response, completion, err = agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,
 				dispatchCtx, requestHistory, r.server.Logger, opts)
@@ -95,7 +106,13 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 				err = fmt.Errorf("%w; source envelope rejected: %v", err, extractErr)
 			}
 		}
-		if err == nil || attempt > 0 || ctx.Err() != nil || (!formatError && !outputLimited && !timedOut && !errors.Is(err, agent.ErrIncompleteTextStream)) {
+		// The history carries reasoning under server-written assistant notes; a
+		// model that repeats one in its source must not overwrite main.ts.
+		echoedNote := err == nil && gameStarterEchoesHistoryNote(response.Response)
+		if echoedNote {
+			err = fmt.Errorf("source generation repeated a server history note; the source was not saved")
+		}
+		if err == nil || attempt > 0 || ctx.Err() != nil || (!formatError && !outputLimited && !timedOut && !echoedNote && !errors.Is(err, agent.ErrIncompleteTextStream)) {
 			return response, completion, err
 		}
 		if r.server.Logger != nil {
@@ -109,8 +126,12 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 			last := requestHistory[n-1]
 			requestHistory = requestHistory[:n-1]
 			if last.ReasoningContent != "" {
-				requestHistory = append(requestHistory, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "Earlier implementation reasoning is context only; follow the source-generation request.", ReasoningContent: last.ReasoningContent})
+				requestHistory = append(requestHistory, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: gameStarterRetryReasoningNote, ReasoningContent: last.ReasoningContent})
 			}
+		}
+		if echoedNote {
+			prompt = "The previous response copied a server note about earlier reasoning into the source and was rejected. No source was saved. Return only the complete TypeScript source for src/main.ts from the beginning, from its imports to its final statement, implementing the accepted plan. Never repeat notes, commentary or narration in the source."
+			continue
 		}
 		if outputLimited {
 			prompt = "The previous response reached its output token limit. No source was saved or executed. Use the existing plan and source snapshot. Return a concise, complete src/main.ts from the beginning in one response. Reuse the supplied helper APIs; retain the requested mechanics and omit duplicated framework code, lengthy comments and narration. This phase has no tools. Return TypeScript only, without XML, JSON envelopes or patches."

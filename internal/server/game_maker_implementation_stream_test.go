@@ -56,6 +56,8 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 		{"function_after_format", "3d", "format", "function", false},
 		{"function_stale_revision", "3d", "eof", "function", true},
 		{"truncated_format", "3d", "format_length", "stop", false},
+		// Qwen copied the server's history note into the returned source.
+		{"echoed_note", "2d", "echo", "stop", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -92,7 +94,10 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				switch tc.name {
 				case "wide_3d":
 					wantTokens = 32768
-				case "wide_2d", "narrow_3d":
+				case "wide_2d":
+					// 16384 answer plus the separate 16384 reasoning allowance.
+					wantTokens = 32768
+				case "narrow_3d":
 					wantTokens = 16384
 				}
 				if body.MaxTokens != wantTokens {
@@ -163,6 +168,11 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 						code = starterFunctionSourceEnvelope(code)
 					}
 					send(code, "", "stop")
+					fmt.Fprint(w, "data: [DONE]\n\n")
+					return
+				}
+				if mode == "echo" {
+					send("export const echoed = 1;\nEarlier implementation reasoning is context only; follow the current source-generation request.\n", "private interrupted game reasoning", "stop")
 					fmt.Fprint(w, "data: [DONE]\n\n")
 					return
 				}
@@ -251,7 +261,7 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 					t.Error("configured per-attempt deadline was not enforced")
 				}
 				wantRequests := int32(1)
-				if tc.first == "eof" || tc.first == "deadline" || tc.first == "format" || tc.first == "length" || tc.first == "format_length" {
+				if tc.first == "eof" || tc.first == "deadline" || tc.first == "format" || tc.first == "length" || tc.first == "format_length" || tc.first == "echo" {
 					wantRequests = 2
 				}
 				if requests.Load() != wantRequests {

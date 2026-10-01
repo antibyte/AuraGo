@@ -18,6 +18,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/gamemaker"
+	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/tools"
 
@@ -123,8 +124,9 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 		default:
 			t.Fatal("agent request was never constructed")
 		}
-		if request.MaxTokens != 16384 {
-			t.Errorf("%s 3D output reserve=%d, want 16384", stage, request.MaxTokens)
+		// 16384 answer plus the separate 16384 reasoning allowance, within the route's 32768.
+		if request.MaxTokens != 32768 {
+			t.Errorf("%s 3D output reserve=%d, want 32768", stage, request.MaxTokens)
 		}
 		var system, user strings.Builder
 		priorReasoning := false
@@ -186,6 +188,10 @@ func TestGameMakerModelContractReachesAgentRequest(t *testing.T) {
 			t.Fatal(err)
 		}
 		request := <-requests
+		// 2D reasons as much as 3D: the reasoning allowance comes on top of the answer.
+		if want := map[string]int{"planning": 4096 + 16384, "building": 32768}[stage]; request.MaxTokens != want {
+			t.Errorf("%s 2D output reserve=%d, want %d", stage, request.MaxTokens, want)
+		}
 		var system strings.Builder
 		for _, message := range request.Messages {
 			if message.Role == "system" {
@@ -751,5 +757,27 @@ func TestGameMakerPlanningPromptsExplainNewGameScaffold(t *testing.T) {
 	voxel, _ := gameMakerPromptProfile("planning", "3d", "voxel")
 	if !strings.Contains(voxel.SystemPrompt(), gamemaker.PresentationPlanningGuide) {
 		t.Error("voxel planning lacks presentation choices")
+	}
+}
+
+// Reasoning models spend output before their answer; the allowance for it is
+// separate, so the answer reserve survives a long reasoning phase.
+func TestGameMakerOutputTokensSeparateReasoning(t *testing.T) {
+	qwen := llm.ModelLimits{ContextWindow: 127999, MaxOutputTokens: 127998}
+	for _, tc := range []struct {
+		name   string
+		limits llm.ModelLimits
+		answer int
+		want   int
+	}{
+		{"planning", qwen, 4096, 4096 + gameMakerReasoningTokens},
+		{"building", qwen, 16384, 16384 + gameMakerReasoningTokens},
+		{"route output caps the sum", llm.ModelLimits{ContextWindow: 127999, MaxOutputTokens: 20000}, 16384, 20000},
+		{"small context keeps the general reserve", llm.ModelLimits{ContextWindow: 32768, MaxOutputTokens: 32768}, 16384, 0},
+		{"small output keeps the general reserve", llm.ModelLimits{ContextWindow: 127999, MaxOutputTokens: 8192}, 16384, 0},
+	} {
+		if got := gameMakerOutputTokens(tc.limits, tc.answer); got != tc.want {
+			t.Errorf("%s: got %d, want %d", tc.name, got, tc.want)
+		}
 	}
 }

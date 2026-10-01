@@ -1,10 +1,30 @@
 package server
 
 import (
+	"strings"
+
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+// Server-written assistant notes that carry earlier reasoning into the
+// tool-free phase. They are never source; a response repeating one is rejected.
+const (
+	gameStarterHistoryReasoningNote     = "Earlier implementation reasoning is context only; follow the current source-generation request."
+	gameStarterRetryReasoningNote       = "Earlier implementation reasoning is context only; follow the source-generation request."
+	gameStarterInterruptedReasoningNote = "Generation was interrupted; this retained reasoning is context only."
+)
+
+// gameStarterEchoesHistoryNote reports a response that copied one of the notes.
+func gameStarterEchoesHistoryNote(response string) bool {
+	for _, note := range []string{gameStarterHistoryReasoningNote, gameStarterRetryReasoningNote, gameStarterInterruptedReasoningNote} {
+		if strings.Contains(response, note) {
+			return true
+		}
+	}
+	return false
+}
 
 // Project the private archive into this tool-free phase. Old calls, results and
 // rejected/partial source are not examples for the next answer. Keep available
@@ -26,7 +46,7 @@ func gameStarterRequestHistory(history []openai.ChatCompletionMessage, sourcePro
 		if message.Role == openai.ChatMessageRoleAssistant && message.ReasoningContent != "" {
 			view = append(view, openai.ChatCompletionMessage{
 				Role:             openai.ChatMessageRoleAssistant,
-				Content:          "Earlier implementation reasoning is context only; follow the current source-generation request.",
+				Content:          gameStarterHistoryReasoningNote,
 				ReasoningContent: message.ReasoningContent,
 			})
 		} else if sourceStart >= 0 && i >= sourceStart && message.Role == openai.ChatMessageRoleUser {
