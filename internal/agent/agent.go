@@ -1167,6 +1167,11 @@ type RunConfig struct {
 	// RetryStreamIdle allows one stalled-stream retry per isolated run. It
 	// requires complete-stream validation and retains the current tool budget.
 	RetryStreamIdle bool
+	// StreamThroughput replaces the fixed per-call timeout of streamed calls
+	// with a progress-based deadline: the configured LLM timeout is its base
+	// and req.MaxTokens its reserve. Slow models that keep streaming finish;
+	// nil keeps the fixed timeout.
+	StreamThroughput *llm.ThroughputPolicy
 	// ToolCallLimit is an optional server-owned fixed budget for this run.
 	// Zero retains the normal system/personality/tool-specific calculation.
 	ToolCallLimit int

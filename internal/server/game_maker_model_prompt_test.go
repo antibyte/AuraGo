@@ -781,3 +781,72 @@ func TestGameMakerOutputTokensSeparateReasoning(t *testing.T) {
 		}
 	}
 }
+
+// Small reasoning models are slow because they think long. A Game Maker call
+// that keeps streaming past the per-call timeout must be allowed to finish.
+func TestGameMakerSlowSteadyStreamOutlastsCallTimeout(t *testing.T) {
+	previousPolicy := gameMakerStreamThroughput
+	gameMakerStreamThroughput.MinSample = 200 * time.Millisecond
+	defer func() { gameMakerStreamThroughput = previousPolicy }()
+	root := t.TempDir()
+	service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	service.SetSkillStatus(nil, true)
+	var finished atomic.Bool
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		chunk, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"index": 0, "delta": map[string]any{"reasoning_content": strings.Repeat("plan the game ", 8)}}}})
+		for end := time.Now().Add(2500 * time.Millisecond); time.Now().Before(end); {
+			select {
+			case <-r.Context().Done():
+				return
+			case <-time.After(50 * time.Millisecond):
+			}
+			fmt.Fprintf(w, "data: %s\n\n", chunk)
+			w.(http.Flusher).Flush()
+		}
+		finished.Store(true)
+		fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer provider.Close()
+	cfg := &config.Config{}
+	cfg.LLM.Model, cfg.LLM.ProviderType = "test-game-model", "openai"
+	cfg.Agent.ContextWindow = 65536
+	cfg.CircuitBreaker.LLMTimeoutSeconds = 1
+	cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 1
+	cfg.GameMaker.Enabled = true
+	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
+	clientConfig := openai.DefaultConfig("local-test")
+	clientConfig.BaseURL = provider.URL
+	server := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(clientConfig), GameMaker: service, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	server.Registry = tools.NewProcessRegistry(server.Logger)
+	server.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", server.Logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.ShortTermMem.Close()
+	runner := &gameMakerAgentRunner{server: server, service: service}
+	done := make(chan error, 1)
+	service.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
+		done <- runner.RunGameMakerJob(ctx, run)
+		return errors.New("stream observed")
+	}))
+	project, err := service.CreateProject(context.Background(), gamemaker.CreateProjectRequest{Name: "Slow model", Description: "Reach the flag", Dimension: "2d"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{Prompt: "Plan the game"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if !finished.Load() || err != nil && strings.Contains(err.Error(), "deadline") {
+			t.Fatalf("slow steady stream was cut off: finished=%v err=%v", finished.Load(), err)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("planning round did not end")
+	}
+}

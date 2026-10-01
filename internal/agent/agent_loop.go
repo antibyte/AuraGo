@@ -1765,6 +1765,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Configurable timeout for each individual LLM call to prevent infinite hangs
 		llmTimeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
 		llmCtx, cancelResp := context.WithTimeout(ctx, llmTimeout)
+		if stream && runCfg.StreamThroughput != nil && llmTimeout > 0 {
+			// Measured progress, not wall time, decides when a streaming call ends.
+			cancelResp()
+			policy := *runCfg.StreamThroughput
+			policy.Base, policy.ReserveTokens = llmTimeout, req.MaxTokens
+			llmCtx, cancelResp = llm.NewThroughputDeadline(ctx, policy)
+		}
 
 		thinkingCB := func(content, state string) {
 			broker.SendThinkingBlock("anthropic", content, state)

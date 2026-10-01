@@ -426,6 +426,13 @@ const (
 	gameMakerReasoningTokens   = 16384
 )
 
+// gameMakerStreamThroughput lets a slow model that keeps streaming outlast the
+// fixed per-call timeout. The LLM timeout stays the base until output is
+// measured; then the deadline follows the time the output reserve needs at
+// the measured rate, up to four times the base and never past the job.
+// Streams under three tokens per second look stalled and get no extension.
+var gameMakerStreamThroughput = llm.ThroughputPolicy{MinTokensPerSecond: 3, MaxFactor: 4, MinSample: 5 * time.Second}
+
 // gameMakerOutputTokens returns the answer reserve plus the reasoning allowance,
 // clamped to the route's output limit. Routes below 64K context or without room
 // beyond the general reasoning reserve return 0 and keep the agent's reserve.
@@ -563,6 +570,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	runCfg.StableSystemPrompt = true
 	runCfg.RequireCompleteStream = true
 	runCfg.RetryStreamIdle = true
+	runCfg.StreamThroughput = &gameMakerStreamThroughput
 	runCfg.ToolCallLimit = gameMakerToolCallLimit(cfg.CircuitBreaker.MaxToolCalls)
 	runCfg.AllowedAgentSkills = gamemaker.CuratedSkillNames()
 	runCfg.SuppressTurnSideEffects = true

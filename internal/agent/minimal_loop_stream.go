@@ -69,6 +69,7 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 				return openai.ChatCompletionResponse{}, fmt.Errorf("reasoning stream exceeds 4 MiB")
 			}
 			reasoning.WriteString(choice.Delta.ReasoningContent)
+			llm.ObserveStreamOutput(ctx, len(choice.Delta.Content)+len(choice.Delta.ReasoningContent))
 			if choice.FinishReason != "" {
 				finish = choice.FinishReason
 			}

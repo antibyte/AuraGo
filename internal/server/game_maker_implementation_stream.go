@@ -73,7 +73,9 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 			}
 		}
 		broker.Send("model_progress", "waiting")
-		callCtx, cancel := context.WithTimeout(ctx, timeout)
+		throughput := gameMakerStreamThroughput
+		throughput.Base, throughput.ReserveTokens = timeout, maxOutputTokens
+		callCtx, cancel := llm.NewThroughputDeadline(ctx, throughput)
 		dispatchCtx := &agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}
 		opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, MaxOutputTokens: maxOutputTokens, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer}
 		response, completion, err := agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,

@@ -314,6 +314,11 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 	for {
 		timeout := streamAttemptTimeout(ctx)
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
+		if hasThroughputDeadline(ctx) {
+			// The throughput deadline already bounds this call by its progress.
+			attemptCancel()
+			attemptCtx, attemptCancel = context.WithCancel(ctx)
+		}
 		providerBefore, modelBefore := activeProviderAndModel(client, req.Model)
 
 		if logger != nil {

@@ -334,6 +334,11 @@ func handleStreamingResponse(
 				lastFinishReason = string(chunk.Choices[0].FinishReason)
 			}
 			delta := chunk.Choices[0].Delta
+			streamed := len(delta.ReasoningContent) + len(delta.Content)
+			for _, call := range delta.ToolCalls {
+				streamed += len(call.Function.Arguments)
+			}
+			llm.ObserveStreamOutput(llmCtx, streamed)
 			if delta.ReasoningContent != "" {
 				assembledReasoning.WriteString(delta.ReasoningContent)
 			}
