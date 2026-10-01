@@ -102,6 +102,18 @@
   without a usable score is a `failed` evaluate entry, never score 0.
 - Chart, gauge and hero use theme tokens; keep the grid rows explicit so the
   action bar cannot absorb the free row. Every new string needs all 16 locales.
+- Costs come from the budget tracker's model rates (`EstimateCost`); `cost_approximate`
+  marks a fallback price. Starting or resuming under an exhausted budget answers
+  402 with `code: "budget_exceeded"`, and a running loop pauses itself with
+  `pause_reason: "budget"`. API errors carry `code` in `err.body.code` (the shared
+  `api()` helper sets no `status`), never match on the English message.
+- The active run is checkpointed to `desktop_looper_active` after every round and
+  restored paused (`pause_reason: "interrupted"`) on the next start; a graceful
+  shutdown keeps the checkpoint instead of filing the run as stopped. A window
+  that finds an active run with an empty editor adopts `GET /api/desktop/looper/active`;
+  Resume with an empty editor sends `{}` and the server uses the stored settings.
+- History records keep their run settings (`config` on `GET .../runs/{id}`), which
+  drive "Load into editor" and "Run again"; older records have none.
 - Verify `TestDesktopLooperUIContract`, `TestDesktopLooperCostI18n`,
   `TestDesktopLooperDurationI18n`, `TestDesktopLooperActionButtonsShareConsistentStyle`
   and the opt-in `TestDesktopLooperBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).

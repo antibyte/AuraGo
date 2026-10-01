@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/agent"
@@ -30,6 +31,11 @@ type LooperRunner struct {
 	lastStart      time.Time
 	hasLast        bool
 	persistedRunID int64
+
+	// shuttingDown is set when the server stops: a run cut off by that is not
+	// a user stop, so it keeps its checkpoint and is offered for resuming after
+	// the restart instead of being filed as "stopped".
+	shuttingDown atomic.Bool
 }
 
 // NewLooperRunner creates a runner backed by a preset store.
@@ -86,10 +92,75 @@ func (r *LooperRunner) DiscardPaused() bool {
 	return true
 }
 
-// Shutdown cancels any running loop and resets the runner state.
+// Shutdown cancels any running loop and resets the runner state. The last
+// round-boundary checkpoint stays in the database for the next start.
 func (r *LooperRunner) Shutdown() {
+	r.shuttingDown.Store(true)
 	r.holder.CancelRun()
 	r.holder.SetIdle()
+}
+
+// StoredConfig returns the settings of the run that is executing or paused, so
+// a window opened after a restart can show and resume it without the form.
+func (r *LooperRunner) StoredConfig() (desktop.LooperRunConfig, bool) {
+	st := r.holder.State()
+	if !st.Running && !st.Paused {
+		return desktop.LooperRunConfig{}, false
+	}
+	r.lastRunMu.Lock()
+	defer r.lastRunMu.Unlock()
+	return r.lastCfg, r.hasLast
+}
+
+// checkpoint writes the active run to the database so a crash or restart can
+// resume from the last finished round instead of losing the run.
+func (r *LooperRunner) checkpoint(cfg desktop.LooperRunConfig, startedAt time.Time, resume desktop.LooperResumeState) {
+	if r.store == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := r.store.SaveActiveRun(ctx, desktop.LooperActiveRun{
+		Config:    cfg,
+		StartedAt: startedAt,
+		State:     r.holder.State(),
+		Resume:    resume,
+	}); err != nil && r.logger != nil {
+		r.logger.Warn("[Looper] checkpoint failed", "error", err)
+	}
+}
+
+// restoreActive turns a checkpoint left behind by a previous process into a
+// paused run. A run the user had paused stays paused for the same reason; one
+// that was executing is reported as interrupted.
+func (r *LooperRunner) restoreActive(ctx context.Context) {
+	if r.store == nil {
+		return
+	}
+	rec, ok, err := r.store.LoadActiveRun(ctx)
+	if err != nil {
+		if r.logger != nil {
+			r.logger.Warn("[Looper] dropping unreadable checkpoint", "error", err)
+		}
+		_ = r.store.ClearActiveRun(ctx)
+		return
+	}
+	if !ok {
+		return
+	}
+	reason := rec.State.PauseReason
+	if !rec.State.Paused {
+		reason = "interrupted"
+	}
+	r.holder.Restore(rec.State, rec.Resume, reason)
+	r.rememberRun(rec.Config, rec.StartedAt)
+	if r.logger != nil {
+		r.logger.Info("[Looper] restored a run from the last checkpoint", "round", rec.Resume.Round, "reason", reason)
+	}
+}
+
+func looperBudgetBlocked(d *agent.DispatchContext) bool {
+	return d != nil && d.BudgetTracker != nil && d.BudgetTracker.IsBlocked("looper")
 }
 
 func (r *LooperRunner) TryStart(maxRounds int, cancel context.CancelFunc) error {
@@ -233,6 +304,28 @@ func (r *LooperRunner) executeStarted(
 		r.holder.ClearResumeState()
 	}
 
+	// snapshot is the state a resume continues from: everything up to and
+	// including the given finished round.
+	snapshot := func(round int) desktop.LooperResumeState {
+		return desktop.LooperResumeState{
+			Round:           round,
+			BestScore:       bestScore,
+			ScoreHistory:    append([]int(nil), scoreHistory...),
+			LastFeedback:    lastFeedback,
+			LastWorkSummary: lastWorkSummary,
+		}
+	}
+	// pauseAfter parks the run until Resume and keeps it across restarts.
+	pauseAfter := func(round int, reason string) {
+		rs := snapshot(round)
+		r.holder.SaveResumeState(rs)
+		if reason != "" {
+			r.holder.SetPauseReason(reason)
+		}
+		r.checkpoint(cfg, startedAt, rs)
+	}
+	r.checkpoint(cfg, startedAt, snapshot(startRound-1))
+
 	terminal := ""
 	evalFailures := 0
 	for i := startRound; i <= cfg.MaxRounds; i++ {
@@ -242,19 +335,21 @@ func (r *LooperRunner) executeStarted(
 		default:
 		}
 
-		r.holder.SetRound(i)
+		// An exhausted daily budget parks the run at the round boundary; it can
+		// be resumed once the budget resets or the limit is raised.
+		if looperBudgetBlocked(dispatchCtx) {
+			pauseAfter(i-1, "budget")
+			r.logger.Warn("[Looper] daily budget used up; run paused before starting round", "round", i)
+			return nil
+		}
 
 		if r.holder.IsPauseRequested() {
-			r.holder.SaveResumeState(desktop.LooperResumeState{
-				Round:           i - 1,
-				BestScore:       bestScore,
-				ScoreHistory:    append([]int(nil), scoreHistory...),
-				LastFeedback:    lastFeedback,
-				LastWorkSummary: lastWorkSummary,
-			})
+			pauseAfter(i-1, "")
 			r.logger.Info("[Looper] run paused before starting round", "round", i)
 			return nil
 		}
+
+		r.holder.SetRound(i)
 
 		workPrompt := buildLooperWorkPrompt(cfg, i, lastFeedback, lastWorkSummary, scoreHistory)
 		r.holder.SetStep("work")
@@ -307,6 +402,12 @@ func (r *LooperRunner) executeStarted(
 					evalRes = clarityRes
 				}
 			}
+		}
+
+		// A stop or shutdown during the review is an abort, not a review that
+		// failed: nothing is scored, logged or checkpointed for this round.
+		if ctx.Err() != nil {
+			return r.setErrorAndReturn(fmt.Errorf("aborted by user"))
 		}
 
 		evalResponse := strings.TrimSpace(evalRes.Response)
@@ -369,16 +470,11 @@ func (r *LooperRunner) executeStarted(
 
 		// A pause asked for during the final round has nothing left to pause.
 		if r.holder.IsPauseRequested() && i < cfg.MaxRounds {
-			r.holder.SaveResumeState(desktop.LooperResumeState{
-				Round:           i,
-				BestScore:       bestScore,
-				ScoreHistory:    append([]int(nil), scoreHistory...),
-				LastFeedback:    lastFeedback,
-				LastWorkSummary: lastWorkSummary,
-			})
+			pauseAfter(i, "")
 			r.logger.Info("[Looper] run paused by user request", "round", i)
 			return nil
 		}
+		r.checkpoint(cfg, startedAt, snapshot(i))
 	}
 
 	if terminal == "" {
@@ -419,6 +515,10 @@ func (r *LooperRunner) executeStarted(
 
 func (r *LooperRunner) persistFinishedRun(cfg desktop.LooperRunConfig, startedAt time.Time) {
 	if r.store == nil {
+		return
+	}
+	if r.shuttingDown.Load() {
+		// Cut off by a server stop: the checkpoint resumes this run next start.
 		return
 	}
 	st := r.holder.State()
@@ -466,8 +566,12 @@ func (r *LooperRunner) persistFinishedRun(cfg desktop.LooperRunConfig, startedAt
 		StartedAt:    startedAt,
 		FinishedAt:   time.Now().UTC(),
 		Logs:         st.Logs,
+		Config:       &cfg,
 	}); err != nil && r.logger != nil {
 		r.logger.Warn("[Looper] persist run failed", "error", err)
+	}
+	if err := r.store.ClearActiveRun(ctx); err != nil && r.logger != nil {
+		r.logger.Warn("[Looper] clear checkpoint failed", "error", err)
 	}
 }
 
@@ -596,8 +700,11 @@ func (r *LooperRunner) recordLooperUsage(res agent.MinimalLoopResult, model stri
 	if r == nil || (res.PromptTokens == 0 && res.CompletionTokens == 0) {
 		return
 	}
-	cost := estimateLooperCostUSD(res.PromptTokens, res.CompletionTokens)
+	cost, priced := looperUsageCost(dispatchCtx, model, res.PromptTokens, res.CompletionTokens)
 	r.holder.AddUsage(res.PromptTokens, res.CompletionTokens, cost)
+	if !priced {
+		r.holder.MarkCostApproximate()
+	}
 	if dispatchCtx != nil && dispatchCtx.BudgetTracker != nil {
 		dispatchCtx.BudgetTracker.RecordForCategory("looper", model, res.PromptTokens, res.CompletionTokens)
 	}
@@ -747,6 +854,19 @@ func (r *LooperRunner) setErrorAndReturn(err error) error {
 	return err
 }
 
+// looperUsageCost prices a call with the budget tracker's model rates, the same
+// ones the daily budget is charged with. priced is false when the model has no
+// configured price and a fallback rate was used instead.
+func looperUsageCost(d *agent.DispatchContext, model string, promptTokens, completionTokens int) (cost float64, priced bool) {
+	if d != nil && d.BudgetTracker != nil {
+		c, known := d.BudgetTracker.EstimateCost(model, promptTokens, completionTokens)
+		if known || c > 0 {
+			return c, known
+		}
+	}
+	return estimateLooperCostUSD(promptTokens, completionTokens), false
+}
+
 func estimateLooperCostUSD(promptTokens, completionTokens int) float64 {
 	const inPerM = 0.50
 	const outPerM = 1.50
@@ -778,6 +898,7 @@ func getLooperRunner(s *Server) (*LooperRunner, error) {
 		return nil, err
 	}
 	looperRunner = NewLooperRunner(store, s.Logger)
+	looperRunner.restoreActive(context.Background())
 	return looperRunner, nil
 }
 

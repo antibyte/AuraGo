@@ -224,6 +224,13 @@ func desktopLooperRequiredKeys() []string {
 		"desktop.looper_chart_label",
 		"desktop.looper_score_label",
 		"desktop.looper_chip_rounds",
+		"desktop.looper_interrupted",
+		"desktop.looper_budget_paused",
+		"desktop.looper_budget_exceeded",
+		"desktop.looper_history_load",
+		"desktop.looper_history_rerun",
+		"desktop.looper_history_no_config",
+		"desktop.looper_cost_approx",
 	}
 }
 

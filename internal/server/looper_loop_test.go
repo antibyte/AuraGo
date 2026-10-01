@@ -36,7 +36,7 @@ func (c *looperScriptClient) CandidateRoutes(openai.ChatCompletionRequest) []llm
 	return []llm.ModelRoute{{ProviderID: "primary", ProviderType: "custom", Model: "test-model", Primary: true, ContextWindowOverride: 32000, MaxOutputTokensOverride: 2048}}
 }
 
-func (c *looperScriptClient) CreateChatCompletion(_ context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+func (c *looperScriptClient) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	c.mu.Lock()
 	last := ""
 	if n := len(req.Messages); n > 0 {
@@ -53,6 +53,10 @@ func (c *looperScriptClient) CreateChatCompletion(_ context.Context, req openai.
 		text = "Wrote draft number " + string(rune('0'+c.work))
 	}
 	c.mu.Unlock()
+	// Like a real client, give up when the caller was cancelled during the call.
+	if err := ctx.Err(); err != nil {
+		return openai.ChatCompletionResponse{}, err
+	}
 	return openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{{
 			Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: text},
@@ -112,13 +116,13 @@ func (h *looperLoopHarness) run(t *testing.T, cfg desktop.LooperRunConfig) error
 	cfg.Goal = "Write something"
 	cfg.Work = "Improve it"
 	cfg.Evaluate = "Judge it"
-	_, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	desktop.NormalizeLooperRunConfig(&cfg)
 	if err := h.runner.TryStart(cfg.MaxRounds, cancel); err != nil {
 		t.Fatalf("TryStart: %v", err)
 	}
-	return h.runner.executeStarted(context.Background(), cfg, h.auraCfg, h.client, nil, h.dispatch, nil)
+	return h.runner.executeStarted(ctx, cfg, h.auraCfg, h.client, nil, h.dispatch, nil)
 }
 
 func failedEvaluations(logs []desktop.LooperLogEntry) int {

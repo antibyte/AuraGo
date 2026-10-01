@@ -74,6 +74,26 @@
         ]);
     }
 
+    // The settings a run was started with (history record or active run).
+    function draftFromConfig(cfg, fallbackName) {
+        return {
+            name: cfg.preset_name || fallbackName || '',
+            goal: cfg.goal || '',
+            work: cfg.work || '',
+            evaluate: cfg.evaluate || '',
+            finish: cfg.finish || '',
+            max_rounds: cfg.max_rounds || 10,
+            target_score: cfg.target_score || 85,
+            stall_rounds: cfg.stall_rounds == null ? 3 : cfg.stall_rounds,
+            provider_id: cfg.provider_id || '',
+            model: cfg.model || ''
+        };
+    }
+
+    function errorCode(e) {
+        return (e && e.body && e.body.code) || '';
+    }
+
     function loadDraft() {
         try {
             const raw = JSON.parse(window.localStorage.getItem(DRAFT_KEY) || 'null');
@@ -581,9 +601,41 @@
                     loadHistory(true);
                 });
             }
+            const reuse = async startNow => {
+                const run = state.historyDetail;
+                if (!run || !run.config || activeRun() || isReadonly) return;
+                if (!await confirmDiscard()) return;
+                state.selectedPresetId = null;
+                loadIntoForm(draftFromConfig(run.config, run.preset_name));
+                setFocus(false);
+                renderPresets();
+                setPane('setup');
+                if (startNow) startOrResume('/api/desktop/looper/run');
+            };
+            const load = host.querySelector('.vd-looper-history-load');
+            if (load) load.addEventListener('click', () => reuse(false));
+            const again = host.querySelector('.vd-looper-history-rerun');
+            if (again) again.addEventListener('click', () => reuse(true));
         }
 
         // live run
+        // A run restored after a restart, or started in another window, has its
+        // settings on the server only. Show them in the editor once, so Edit and
+        // Resume work on the real values.
+        async function adoptActiveConfig() {
+            if (state.activeConfigLoaded || state.dirty) return;
+            state.activeConfigLoaded = true;
+            if (fingerprint(currentFields()) !== fingerprint(emptyDraft())) return;
+            try {
+                const res = await api('/api/desktop/looper/active');
+                if (res && res.config && !state.disposed && !state.dirty) {
+                    state.selectedPresetId = null;
+                    loadIntoForm(draftFromConfig(res.config));
+                    renderPresets();
+                }
+            } catch (e) { /* the editor simply stays empty */ }
+        }
+
         function updateRun(data) {
             const previous = state.status;
             state.status = data;
@@ -595,6 +647,8 @@
             root.classList.toggle('is-active-run', active);
             root.classList.toggle('is-pause-pending', pausePending);
             if (active && !state.focus) setFocus(true);
+            if (active) adoptActiveConfig();
+            else state.activeConfigLoaded = false;
 
             $(`looper-start-${windowId}`).disabled = isReadonly || active;
             $(`looper-pause-${windowId}`).disabled = isReadonly || !running || pausePending;
@@ -638,11 +692,18 @@
 
         async function startOrResume(path) {
             if (isReadonly) return;
-            const body = readForm();
-            const errMsg = validateForm(body);
-            if (errMsg) {
-                toast(errMsg);
-                return;
+            let body = readForm();
+            const resuming = path.indexOf('/resume') >= 0;
+            // A restored run can resume with an empty editor: the server then
+            // continues with the settings stored in its checkpoint.
+            if (resuming && !String(body.goal).trim() && !String(body.work).trim() && !String(body.evaluate).trim()) {
+                body = {};
+            } else {
+                const errMsg = validateForm(body);
+                if (errMsg) {
+                    toast(errMsg);
+                    return;
+                }
             }
             $(`looper-start-${windowId}`).disabled = true;
             try {
@@ -658,12 +719,14 @@
                 if (state.runView) state.runView.followLatest();
             } catch (e) {
                 updateRun(state.status);
-                if (e && e.status === 409 && path.indexOf('/run') >= 0) {
+                const code = errorCode(e);
+                if (code === 'budget_exceeded') {
+                    toast(t('desktop.looper_budget_exceeded'));
+                } else if (code === 'already_running') {
                     toast(t('desktop.looper_already_running'));
                     connectStatus();
                 } else {
-                    const fallback = path.indexOf('/resume') >= 0 ? t('desktop.looper_resume_error') : t('desktop.looper_start_error');
-                    toast((e && e.message) || fallback);
+                    toast((e && e.message) || (resuming ? t('desktop.looper_resume_error') : t('desktop.looper_start_error')));
                 }
             }
         }

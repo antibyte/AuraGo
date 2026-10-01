@@ -160,7 +160,12 @@ func TestDesktopLooperBrowser(t *testing.T) {
         const json=data=>new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
         window.fetch=async(url,options={})=>{
             const path=String(url);
-            if(path.startsWith('/api/desktop/looper/run') || path.startsWith('/api/desktop/looper/resume')){
+            if(path==='/api/desktop/looper/run' || path==='/api/desktop/looper/resume'){
+                window.__lastLooperBody=options.body||'';
+                window.__lastLooperPath=path;
+                if(window.__looperRunError){
+                    return new Response(JSON.stringify({error:'English text',code:window.__looperRunError}),{status:402,headers:{'Content-Type':'application/json'}});
+                }
                 // the fixture server lives on the same origin; use a real request so it can switch the stream
                 await new Promise((resolve,reject)=>{
                     const xhr=new XMLHttpRequest();
@@ -178,7 +183,20 @@ func TestDesktopLooperBrowser(t *testing.T) {
                 {id:2,is_builtin:false,name:'Second loop',goal:'Another goal',work:'Another work',evaluate:'Another review',
                  finish:'',max_rounds:6,target_score:90,stall_rounds:3}
             ]});
-            if(path.startsWith('/api/desktop/looper/runs')) return json({runs:[]});
+            if(path.startsWith('/api/desktop/looper/active')){
+                if(window.__activeMissing) return new Response(JSON.stringify({error:'no active run',code:'no_active_run'}),{status:404,headers:{'Content-Type':'application/json'}});
+                return json({status:'ok',config:{goal:'Restored goal',work:'Restored work',evaluate:'Restored review',finish:'',max_rounds:7,target_score:90,stall_rounds:2,provider_id:'',model:'',preset_name:'Restored loop'}});
+            }
+            if(path.startsWith('/api/desktop/looper/runs/7')) return json({status:'ok',run:{
+                id:7,preset_name:'Past loop',status:'completed',rounds:2,max_rounds:6,best_score:91,target_score:90,
+                logs:[{round:1,step:'work',duration_ms:300,response:'draft'},{round:1,step:'evaluate',score:91,duration_ms:200,feedback:'good'}],
+                config:{goal:'History goal',work:'History work',evaluate:'History review',finish:'History finish',max_rounds:6,target_score:90,stall_rounds:2,provider_id:'',model:'kept-model',preset_name:'Past loop'}}});
+            if(path.startsWith('/api/desktop/looper/runs/8')) return json({status:'ok',run:{
+                id:8,preset_name:'Ancient loop',status:'stopped',rounds:1,max_rounds:5,best_score:40,target_score:85,
+                logs:[{round:1,step:'work',duration_ms:300,response:'draft'}]}});
+            if(path.startsWith('/api/desktop/looper/runs')) return json({runs:[
+                {id:7,preset_name:'Past loop',status:'completed',rounds:2,max_rounds:6,best_score:91,target_score:90,goal_excerpt:'History goal'},
+                {id:8,preset_name:'Ancient loop',status:'stopped',rounds:1,max_rounds:5,best_score:40,target_score:85,goal_excerpt:'Old goal'}]});
             if(path.startsWith('/api/providers')) return json({providers:[]});
             return prev(url,options);
         };
@@ -476,6 +494,101 @@ func TestDesktopLooperBrowser(t *testing.T) {
 		t.Fatal("editing after a run must bring the fields back")
 	}
 
+	// A stored run can be loaded into the editor, or started again; a run saved
+	// before settings were recorded says so instead.
+	page.MustEval(`()=>document.querySelector('.vd-looper-side-tab[data-side="history"]').click()`)
+	mustWaitDump(t, page, "step 1", `()=>document.querySelectorAll('.vd-looper-history-item').length===2`)
+	page.MustEval(`()=>document.querySelector('.vd-looper-history-item[data-run-id="8"]').click()`)
+	mustWaitDump(t, page, "step 2", `()=>!!document.querySelector('.vd-looper-history-back')`)
+	if !page.MustEval(`()=>!document.querySelector('.vd-looper-history-load') && !document.querySelector('.vd-looper-history-rerun') && document.querySelector('.vd-looper-history-actions').textContent.includes('aufgezeichnet')`).Bool() {
+		t.Fatal("a run without stored settings must explain why it cannot be reused")
+	}
+	page.MustEval(`()=>document.querySelector('.vd-looper-history-back').click()`)
+	mustWaitDump(t, page, "step 3", `()=>document.querySelectorAll('.vd-looper-history-item').length===2`)
+	page.MustEval(`()=>document.querySelector('.vd-looper-history-item[data-run-id="7"]').click()`)
+	mustWaitDump(t, page, "step 4", `()=>!!document.querySelector('.vd-looper-history-load')`)
+	page.MustEval(`()=>document.querySelector('.vd-looper-history-load').click()`)
+	mustWaitDump(t, page, "step 5", `()=>document.querySelector('.vd-looper textarea[id^="looper-goal-"]').value==='History goal'`)
+	loaded := page.MustEval(`()=>{
+        const root=document.querySelector('.vd-looper');
+        const val=prefix=>root.querySelector('textarea[id^="'+prefix+'"],input[id^="'+prefix+'"],select[id^="'+prefix+'"]').value;
+        return {
+            name:val('looper-name-'), work:val('looper-work-'), evaluate:val('looper-evaluate-'), finish:val('looper-finish-'),
+            rounds:val('looper-max-'), score:val('looper-score-'), model:val('looper-model-'),
+            dirty:!root.querySelector('.vd-looper-dirty').hidden, focus:root.classList.contains('is-focus')
+        };
+    }`).Map()
+	if loaded["name"].Str() != "Past loop" || loaded["work"].Str() != "History work" || loaded["evaluate"].Str() != "History review" ||
+		loaded["finish"].Str() != "History finish" || loaded["rounds"].Str() != "6" || loaded["score"].Str() != "90" || loaded["model"].Str() != "kept-model" {
+		t.Fatalf("history settings were not loaded into the editor: %v", loaded)
+	}
+	if loaded["dirty"].Bool() || loaded["focus"].Bool() {
+		t.Fatalf("a loaded run is a clean starting point, not an unsaved edit: %v", loaded)
+	}
+
+	page.MustEval(`()=>{ window.__lastLooperBody=''; document.querySelector('.vd-looper-history-rerun').click(); }`)
+	mustWaitDump(t, page, "step 6", `()=>document.querySelector('.vd-looper').classList.contains('is-focus') && window.__lastLooperBody.includes('History goal')`)
+	if !page.MustEval(`()=>window.__lastLooperPath==='/api/desktop/looper/run' && JSON.parse(window.__lastLooperBody).target_score===90`).Bool() {
+		t.Fatal("Run again must start a run with the stored settings")
+	}
+
+	// A run restored after a restart arrives paused with its settings only on the
+	// server: the editor adopts them, and the reason is spelled out.
+	stream.set(map[string]any{"status": "idle", "running": false, "paused": false, "round": 0, "max_rounds": 10, "run_id": 3, "logs": []any{}})
+	mustWaitDump(t, page, "step 7", `()=>!document.querySelector('.vd-looper').classList.contains('is-active-run')`)
+	page.MustElement(".vd-looper-brief-edit").MustClick()
+	mustWaitDump(t, page, "step 8", `()=>!document.querySelector('.vd-looper').classList.contains('is-focus')`)
+	page.MustEval(`()=>document.querySelector('.vd-looper-new').click()`)
+	mustWaitDump(t, page, "step 9", `()=>document.querySelector('.vd-looper textarea[id^="looper-goal-"]').value===''`)
+	interrupted := map[string]any{
+		"status": "paused", "running": false, "paused": true, "round": 3, "max_rounds": 7, "resume_from": 3,
+		"current_step": "paused", "best_score": 74, "score_history": []int{62, 74}, "target_score": 90,
+		"preset_name": "Restored loop", "goal_excerpt": "Restored goal", "pause_reason": "interrupted",
+		"run_id": 4, "logs_from": 0, "log_total": 0, "logs": []any{},
+	}
+	stream.set(interrupted)
+	mustWaitDump(t, page, "step 10", `()=>document.querySelector('.vd-looper textarea[id^="looper-goal-"]').value==='Restored goal'`)
+	mustWaitDump(t, page, "step 11", `()=>!document.querySelector('.vd-looper-pausenote').hidden`)
+	restored := page.MustEval(`()=>({
+        note:document.querySelector('.vd-looper-pausenote').textContent,
+        resume:!document.querySelector('.vd-looper-resume').hidden,
+        dirty:!document.querySelector('.vd-looper-dirty').hidden
+    })`).Map()
+	if !strings.Contains(restored["note"].Str(), "neu gestartet") || !strings.Contains(restored["note"].Str(), "Runde 4") || !restored["resume"].Bool() || restored["dirty"].Bool() {
+		t.Fatalf("an interrupted run must explain itself and be resumable: %v", restored)
+	}
+	saveLooperShot(t, page, "interrupted.png")
+
+	budgetPaused := map[string]any{}
+	for k, v := range interrupted {
+		budgetPaused[k] = v
+	}
+	budgetPaused["pause_reason"] = "budget"
+	stream.set(budgetPaused)
+	mustWaitDump(t, page, "step 12", `()=>document.querySelector('.vd-looper-pausenote').textContent.includes('Tagesbudget')`)
+
+	// With no settings anywhere, Resume lets the server continue from its checkpoint.
+	stream.set(map[string]any{"status": "idle", "running": false, "paused": false, "round": 0, "max_rounds": 10, "run_id": 5, "logs": []any{}})
+	mustWaitDump(t, page, "step 13", `()=>!document.querySelector('.vd-looper').classList.contains('is-active-run')`)
+	page.MustElement(".vd-looper-brief-edit").MustClick()
+	page.MustEval(`()=>{ window.__activeMissing=true; document.querySelector('.vd-looper-new').click(); }`)
+	mustWaitDump(t, page, "step 14", `()=>document.querySelector('.vd-looper textarea[id^="looper-goal-"]').value===''`)
+	interrupted["run_id"] = 6
+	stream.set(interrupted)
+	mustWaitDump(t, page, "step 15", `()=>!document.querySelector('.vd-looper-resume').hidden`)
+	page.MustEval(`()=>{ window.__lastLooperBody='unset'; document.querySelector('.vd-looper-resume').click(); }`)
+	mustWaitDump(t, page, "step 16", `()=>window.__lastLooperBody!=='unset'`)
+	if !page.MustEval(`()=>window.__lastLooperPath==='/api/desktop/looper/resume' && window.__lastLooperBody==='{}'`).Bool() {
+		t.Fatal("resuming without any editor content must send an empty request")
+	}
+
+	// A coded refusal re-enables the controls instead of leaving the window stuck.
+	page.MustEval(`()=>{ window.__looperRunError='budget_exceeded'; window.__lastLooperBody='unset'; document.querySelector('.vd-looper-resume').click(); }`)
+	mustWaitDump(t, page, "step 17", `()=>window.__lastLooperBody!=='unset'`)
+	if !page.MustEval(`()=>!document.querySelector('.vd-looper-resume').disabled`).Bool() {
+		t.Fatal("a refused resume must leave the controls usable")
+	}
+
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}
@@ -498,4 +611,14 @@ func saveLooperShot(t *testing.T, page *rod.Page, name string) {
 		t.Fatalf("looper screenshot missing or empty: %s (%v)", dest, err)
 	}
 	t.Logf("wrote %s (%d bytes)", dest, info.Size())
+}
+
+// mustWaitDump waits for a page condition and, on failure, reports the Looper
+// markup instead of a bare timeout.
+func mustWaitDump(t *testing.T, page *rod.Page, label, js string) {
+	t.Helper()
+	if err := rod.Try(func() { page.Timeout(10 * time.Second).MustWait(js) }); err != nil {
+		dump := page.MustEval(`()=>document.querySelector('.vd-looper').outerHTML.replace(/\s+/g,' ').slice(0,2400)`).Str()
+		t.Fatalf("%s: %v\n%s", label, err, dump)
+	}
 }

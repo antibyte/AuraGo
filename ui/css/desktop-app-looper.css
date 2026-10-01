@@ -26,6 +26,8 @@
 .vd-looper-side-tab,
 .vd-looper-new,
 .vd-looper-brief-edit,
+.vd-looper-history-load,
+.vd-looper-history-rerun,
 .vd-looper-history-back,
 .vd-looper-history-clear,
 .vd-looper-jump-bottom {
@@ -1033,6 +1035,14 @@
 
 .vd-looper-timeline > .vd-looper-log--pending {
     margin-bottom: 0;
+}
+
+.vd-looper-history-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
 }
 
 .vd-looper-history-meter {

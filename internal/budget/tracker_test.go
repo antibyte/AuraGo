@@ -232,3 +232,28 @@ func TestRecordForCategoryTracksQuota(t *testing.T) {
 		t.Fatalf("persisted CategorySpendUSD(coagent) = %f, want > 0", got)
 	}
 }
+
+func TestEstimateCostUsesTheRecordingRatesWithoutRecording(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	cfg := testConfig(10, "warn")
+	cfg.Budget.Models = []config.ModelCost{{Name: "priced-model", InputPerMillion: 2, OutputPerMillion: 8}}
+	cfg.Budget.DefaultCost = config.ModelCostRates{InputPerMillion: 1, OutputPerMillion: 1}
+	tr := NewTracker(cfg, logger, t.TempDir())
+
+	cost, known := tr.EstimateCost("Priced-Model", 1_000_000, 500_000)
+	if !known || cost < 5.999 || cost > 6.001 {
+		t.Fatalf("priced model: cost %.4f known %v, want 6.0000 and known", cost, known)
+	}
+	cost, known = tr.EstimateCost("mystery-model", 1_000_000, 1_000_000)
+	if known || cost < 1.999 || cost > 2.001 {
+		t.Fatalf("unpriced model must fall back to the default and say so: cost %.4f known %v", cost, known)
+	}
+	if spent := tr.GetStatus().SpentUSD; spent != 0 {
+		t.Fatalf("estimating must not record spend, got %.4f", spent)
+	}
+
+	var nilTracker *Tracker
+	if cost, known := nilTracker.EstimateCost("x", 10, 10); cost != 0 || known {
+		t.Fatal("a nil tracker estimates nothing")
+	}
+}

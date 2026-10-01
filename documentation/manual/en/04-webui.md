@@ -315,6 +315,10 @@ Pause waits for the current round and says so ("Pausing after this round"); a pa
 
 While a loop runs, the editor folds into a summary card and the Run view takes the window: a score ring against the target, round progress, the current step, a live clock, token use and cost, a score chart with the target line, and every round as a card that folds away once it is done. When the run ends, a line explains why. Unsaved edits are marked with a dot, survive closing the window as a draft, and switching to another loop asks first. `Ctrl`/`Cmd` + `Enter` starts the loop. The status stream sends only new log entries, so long runs stay light. Failed runs show the error in the Run pane. The last 20 runs stay in History.
 
+Costs are priced with the model rates from the budget settings, the same ones the daily budget is charged with; a model without a configured price is shown as "rough estimate". Looper respects the daily budget: with enforcement set to `partial` or `full` it refuses to start once the budget is used up, and a running loop pauses at the next round boundary instead of overspending. Resume it after the budget resets or once the limit is raised.
+
+The run is checkpointed after every finished round. If the server restarts mid-run, the loop comes back paused with a note ("The server restarted during this run"), the editor shows its settings, and **Resume** repeats the interrupted round. A clean server shutdown during a run behaves the same instead of filing it as stopped. Every run in History keeps the settings it was started with: open it and choose **Load into editor** or **Run again**. Runs saved before that was recorded stay readable but cannot be reused.
+
 Five built-in examples live under `Documents/Looper/` in the desktop workspace: short story, Python tool, research briefing, project README, and flashcards. Save your own loops next to them.
 
 ## Invasion Control

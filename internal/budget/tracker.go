@@ -220,6 +220,21 @@ func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputT
 	return crossedWarning
 }
 
+// EstimateCost prices a call without recording it, using the same rates as
+// RecordForCategory. known is false when the model has no explicit price and
+// the global default was used, so callers can flag the figure as a rough guess.
+func (t *Tracker) EstimateCost(model string, inputTokens, outputTokens int) (cost float64, known bool) {
+	if t == nil {
+		return 0, false
+	}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	rates, known := t.lookupRatesLocked(model)
+	cost = (float64(inputTokens)/1_000_000)*rates.InputPerMillion +
+		(float64(outputTokens)/1_000_000)*rates.OutputPerMillion
+	return cost, known
+}
+
 // RecordCost adds a direct cost to the daily budget (e.g. image generation).
 // Use RecordCostForCategory to also track the cost under a named category.
 func (t *Tracker) RecordCost(costUSD float64) {
@@ -530,6 +545,14 @@ func (t *Tracker) calcCostLocked(model string, inputTokens, outputTokens int) fl
 }
 
 func (t *Tracker) findRatesLocked(model string) config.ModelCostRates {
+	rates, _ := t.lookupRatesLocked(model)
+	return rates
+}
+
+// lookupRatesLocked returns the pricing for a model and whether it came from an
+// explicit source (provider list, budget.models or a static table) rather than
+// the global default.
+func (t *Tracker) lookupRatesLocked(model string) (config.ModelCostRates, bool) {
 	lowerModel := strings.ToLower(model)
 
 	// 1) Search per-provider model costs
@@ -539,7 +562,7 @@ func (t *Tracker) findRatesLocked(model string) config.ModelCostRates {
 				return config.ModelCostRates{
 					InputPerMillion:  m.InputPerMillion,
 					OutputPerMillion: m.OutputPerMillion,
-				}
+				}, true
 			}
 		}
 	}
@@ -550,7 +573,7 @@ func (t *Tracker) findRatesLocked(model string) config.ModelCostRates {
 			return config.ModelCostRates{
 				InputPerMillion:  m.InputPerMillion,
 				OutputPerMillion: m.OutputPerMillion,
-			}
+			}, true
 		}
 	}
 
@@ -562,12 +585,12 @@ func (t *Tracker) findRatesLocked(model string) config.ModelCostRates {
 			return config.ModelCostRates{
 				InputPerMillion:  pricing.InputPerMillion,
 				OutputPerMillion: pricing.OutputPerMillion,
-			}
+			}, true
 		}
 	}
 
 	// 4) Global default
-	return t.cfg.Budget.DefaultCost
+	return t.cfg.Budget.DefaultCost, false
 }
 
 func (t *Tracker) todayStr() string {

@@ -32,6 +32,16 @@ func looperRunTimeout(maxRounds int) time.Duration {
 
 const looperMaxPromptLen = 10000
 
+// looperError answers with a stable machine-readable code next to the message,
+// so the desktop client can show a localized text instead of the English one.
+func looperError(w http.ResponseWriter, status int, code, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg, "code": code})
+}
+
+const looperBudgetMessage = "The daily budget is used up."
+
 func validateLooperPrompts(w http.ResponseWriter, goal, work, evaluate, finish string) bool {
 	type field struct {
 		name, val string
@@ -277,6 +287,10 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
+		if looperBudgetBlocked(dispatchCtx) {
+			looperError(w, http.StatusPaymentRequired, "budget_exceeded", looperBudgetMessage)
+			return
+		}
 
 		runner, err := getLooperRunner(s)
 		if err != nil {
@@ -287,7 +301,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 		loopCtx, loopCancel := context.WithTimeout(context.Background(), looperRunTimeout(req.MaxRounds))
 		if err := runner.TryStart(req.MaxRounds, loopCancel); err != nil {
 			loopCancel()
-			jsonError(w, err.Error(), http.StatusConflict)
+			looperError(w, http.StatusConflict, "already_running", err.Error())
 			return
 		}
 		go func() {
@@ -360,20 +374,33 @@ func handleLooperResume(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-		normalizeLooperRunRequest(&req)
-		if !validateLooperPrompts(w, req.Goal, req.Work, req.Evaluate, req.Finish) {
-			return
-		}
-
 		runner, err := getLooperRunner(s)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
+		// A run restored after a restart can be resumed without the editor: an
+		// empty request continues with the settings stored in its checkpoint.
+		if strings.TrimSpace(req.Goal) == "" && strings.TrimSpace(req.Work) == "" && strings.TrimSpace(req.Evaluate) == "" {
+			stored, ok := runner.StoredConfig()
+			if !ok {
+				looperError(w, http.StatusConflict, "no_paused_run", "no paused run to resume")
+				return
+			}
+			req = looperRunRequest{
+				Goal: stored.Goal, Work: stored.Work, Evaluate: stored.Evaluate, Finish: stored.Finish,
+				MaxRounds: stored.MaxRounds, TargetScore: stored.TargetScore, StallRounds: stored.StallRounds,
+				ProviderID: stored.ProviderID, Model: stored.Model, PresetName: stored.PresetName,
+			}
+		}
+		normalizeLooperRunRequest(&req)
+		if !validateLooperPrompts(w, req.Goal, req.Work, req.Evaluate, req.Finish) {
+			return
+		}
 
 		rs, ok := runner.ResumeState()
 		if !ok {
-			jsonError(w, "no paused run to resume", http.StatusConflict)
+			looperError(w, http.StatusConflict, "no_paused_run", "no paused run to resume")
 			return
 		}
 
@@ -382,11 +409,15 @@ func handleLooperResume(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
+		if looperBudgetBlocked(dispatchCtx) {
+			looperError(w, http.StatusPaymentRequired, "budget_exceeded", looperBudgetMessage)
+			return
+		}
 
 		loopCtx, loopCancel := context.WithTimeout(context.Background(), looperRunTimeout(req.MaxRounds))
 		if err := runner.TryStartResume(req.MaxRounds, rs.Round, loopCancel); err != nil {
 			loopCancel()
-			jsonError(w, err.Error(), http.StatusConflict)
+			looperError(w, http.StatusConflict, "already_running", err.Error())
 			return
 		}
 		go func() {
@@ -513,6 +544,32 @@ func buildLooperRuntime(s *Server, providerID, model string) (*config.Config, ll
 	}
 	toolSchemas := agent.GetLooperToolSchemas(cfg)
 	return cfg, client, resolvedModel, dispatchCtx, toolSchemas, nil
+}
+
+// handleLooperActive returns the settings of the run that is executing or
+// paused, e.g. one restored after a restart, so the editor can show it.
+func handleLooperActive(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		runner, err := getLooperRunner(s)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		cfg, ok := runner.StoredConfig()
+		if !ok {
+			looperError(w, http.StatusNotFound, "no_active_run", "no active run")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "config": cfg})
+	}
 }
 
 func handleLooperStatus(s *Server) http.HandlerFunc {

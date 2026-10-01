@@ -489,14 +489,18 @@
             });
             steps.hidden = isEmpty || !running;
 
-            pauseNote.hidden = !(running && data.pause_requested);
-            pauseNote.textContent = pauseNote.hidden ? '' : t('desktop.looper_pause_pending');
+            let note = '';
+            if (running && data.pause_requested) note = t('desktop.looper_pause_pending');
+            else if (paused && data.pause_reason === 'budget') note = t('desktop.looper_budget_paused');
+            else if (paused && data.pause_reason === 'interrupted') note = t('desktop.looper_interrupted', { n: (Number(data.resume_from) || 0) + 1 });
+            pauseNote.hidden = !note;
+            pauseNote.textContent = note;
 
             const metaParts = [];
             const tokens = (data.input_tokens || 0) + (data.output_tokens || 0);
             if (tokens) metaParts.push(t('desktop.looper_tokens', { count: tokens }));
             const cost = helpers.formatCost(data.estimated_cost_usd);
-            if (cost) metaParts.push(cost);
+            if (cost) metaParts.push(data.cost_approximate ? t('desktop.looper_cost_approx', { cost: cost }) : cost);
             meta.textContent = '';
             clockEl = h('span', 'vd-looper-clock');
             meta.appendChild(clockEl);
@@ -601,9 +605,16 @@
         if (!root || !helpers || !run) return null;
         const esc = helpers.esc;
         const t = helpers.t;
+        // A run that kept its settings can be loaded into the editor or started
+        // again; older runs only say why they cannot.
+        const reuse = run.config
+            ? '<button type="button" class="vd-looper-history-load">' + esc(t('desktop.looper_history_load')) + '</button>' +
+                '<button type="button" class="vd-looper-history-rerun">' + esc(t('desktop.looper_history_rerun')) + '</button>'
+            : '<span class="vd-looper-help">' + esc(t('desktop.looper_history_no_config')) + '</span>';
         root.innerHTML = '<div class="vd-looper-history-detail">' +
-            '<button type="button" class="vd-looper-history-back">' + esc(t('desktop.looper_history_back')) + '</button>' +
-            '</div>';
+            '<div class="vd-looper-history-actions">' +
+            '<button type="button" class="vd-looper-history-back">' + esc(t('desktop.looper_history_back')) + '</button>' + reuse +
+            '</div></div>';
         const host = document.createElement('div');
         root.querySelector('.vd-looper-history-detail').appendChild(host);
         const logs = run.logs || [];

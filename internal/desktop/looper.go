@@ -111,6 +111,13 @@ type LooperRunState struct {
 	GoalExcerpt string `json:"goal_excerpt,omitempty"`
 	// EvalFailures counts consecutive rounds without a usable review score.
 	EvalFailures int `json:"eval_failures,omitempty"`
+	// PauseReason says why a run waits for Resume: "budget" (daily budget used
+	// up) or "interrupted" (the server restarted mid-run). Empty for a pause
+	// the user asked for.
+	PauseReason string `json:"pause_reason,omitempty"`
+	// CostApproximate is true when some usage was priced with a fallback rate
+	// because the model has no price configured.
+	CostApproximate bool `json:"cost_approximate,omitempty"`
 }
 
 // LooperResumeState captures the minimal state required to resume a loop.
@@ -140,20 +147,24 @@ type LooperRunRecord struct {
 	StartedAt    time.Time        `json:"started_at"`
 	FinishedAt   time.Time        `json:"finished_at"`
 	Logs         []LooperLogEntry `json:"logs,omitempty"`
+	// Config is what the run was started with, so a past run can be loaded
+	// into the editor or started again. Runs saved before it was recorded, and
+	// the list view, leave it nil.
+	Config *LooperRunConfig `json:"config,omitempty"`
 }
 
 // LooperRunConfig holds everything needed to execute one loop.
 type LooperRunConfig struct {
-	Goal        string
-	Work        string
-	Evaluate    string
-	Finish      string
-	MaxRounds   int
-	TargetScore int
-	StallRounds int
-	ProviderID  string
-	Model       string
-	PresetName  string
+	Goal        string `json:"goal"`
+	Work        string `json:"work"`
+	Evaluate    string `json:"evaluate"`
+	Finish      string `json:"finish"`
+	MaxRounds   int    `json:"max_rounds"`
+	TargetScore int    `json:"target_score"`
+	StallRounds int    `json:"stall_rounds"`
+	ProviderID  string `json:"provider_id"`
+	Model       string `json:"model"`
+	PresetName  string `json:"preset_name"`
 }
 
 // LooperPresetStore handles CRUD for looper presets and run history.
@@ -267,6 +278,9 @@ func (ps *LooperPresetStore) Init(ctx context.Context) error {
 	if err := ps.ensureRunsTable(ctx); err != nil {
 		return err
 	}
+	if err := ps.ensureActiveRunTable(ctx); err != nil {
+		return err
+	}
 	if err := ps.migrateToV2(ctx); err != nil {
 		return err
 	}
@@ -294,6 +308,21 @@ func (ps *LooperPresetStore) ensureRunsTable(ctx context.Context) error {
 			logs_json TEXT DEFAULT '[]'
 		)`); err != nil {
 		return fmt.Errorf("migrate looper runs table: %w", err)
+	}
+	// Older databases lack the stored run settings; the failure of this ALTER on
+	// a current database ("duplicate column") is expected and harmless.
+	_, _ = ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_runs ADD COLUMN config_json TEXT DEFAULT ''`)
+	return nil
+}
+
+func (ps *LooperPresetStore) ensureActiveRunTable(ctx context.Context) error {
+	if _, err := ps.db.ExecContext(ctx,
+		`CREATE TABLE IF NOT EXISTS desktop_looper_active (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			payload TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		)`); err != nil {
+		return fmt.Errorf("migrate looper active run table: %w", err)
 	}
 	return nil
 }
@@ -611,15 +640,23 @@ func (ps *LooperPresetStore) SaveRun(ctx context.Context, rec LooperRunRecord) (
 	if rec.StartedAt.IsZero() {
 		rec.StartedAt = rec.FinishedAt
 	}
+	configJSON := ""
+	if rec.Config != nil {
+		encoded, err := json.Marshal(rec.Config)
+		if err != nil {
+			return 0, fmt.Errorf("marshal looper run config: %w", err)
+		}
+		configJSON = string(encoded)
+	}
 	res, err := ps.db.ExecContext(ctx,
 		`INSERT INTO desktop_looper_runs(
 			preset_name, goal_excerpt, status, rounds, max_rounds, best_score, final_score,
-			target_score, input_tokens, output_tokens, cost_usd, error, started_at, finished_at, logs_json)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			target_score, input_tokens, output_tokens, cost_usd, error, started_at, finished_at, logs_json, config_json)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		rec.PresetName, excerptGoal(rec.GoalExcerpt), rec.Status, rec.Rounds, rec.MaxRounds,
 		rec.BestScore, rec.FinalScore, rec.TargetScore, rec.InputTokens, rec.OutputTokens,
 		rec.CostUSD, rec.Error, rec.StartedAt.UTC().Format(time.RFC3339Nano),
-		rec.FinishedAt.UTC().Format(time.RFC3339Nano), string(raw))
+		rec.FinishedAt.UTC().Format(time.RFC3339Nano), string(raw), configJSON)
 	if err != nil {
 		return 0, fmt.Errorf("insert looper run: %w", err)
 	}
@@ -638,14 +675,14 @@ func (ps *LooperPresetStore) SaveRun(ctx context.Context, rec LooperRunRecord) (
 
 func scanLooperRun(scan func(dest ...any) error, includeLogs bool) (LooperRunRecord, error) {
 	var rec LooperRunRecord
-	var started, finished, logsJSON string
+	var started, finished, logsJSON, configJSON string
 	dest := []any{
 		&rec.ID, &rec.PresetName, &rec.GoalExcerpt, &rec.Status, &rec.Rounds, &rec.MaxRounds,
 		&rec.BestScore, &rec.FinalScore, &rec.TargetScore, &rec.InputTokens, &rec.OutputTokens,
 		&rec.CostUSD, &rec.Error, &started, &finished,
 	}
 	if includeLogs {
-		dest = append(dest, &logsJSON)
+		dest = append(dest, &logsJSON, &configJSON)
 	}
 	if err := scan(dest...); err != nil {
 		return rec, err
@@ -667,6 +704,14 @@ func scanLooperRun(scan func(dest ...any) error, includeLogs bool) (LooperRunRec
 	if includeLogs && strings.TrimSpace(logsJSON) != "" {
 		if err := json.Unmarshal([]byte(logsJSON), &rec.Logs); err != nil {
 			return rec, fmt.Errorf("decode looper run logs: %w", err)
+		}
+	}
+	if includeLogs && strings.TrimSpace(configJSON) != "" {
+		var cfg LooperRunConfig
+		// A damaged settings blob only disables "load / run again"; the run
+		// itself stays readable.
+		if err := json.Unmarshal([]byte(configJSON), &cfg); err == nil {
+			rec.Config = &cfg
 		}
 	}
 	return rec, nil
@@ -696,7 +741,7 @@ func (ps *LooperPresetStore) ListRuns(ctx context.Context) ([]LooperRunRecord, e
 // GetRun loads one run including logs.
 func (ps *LooperPresetStore) GetRun(ctx context.Context, id int64) (LooperRunRecord, error) {
 	row := ps.db.QueryRowContext(ctx,
-		`SELECT `+looperRunListCols+`, logs_json FROM desktop_looper_runs WHERE id = ?`, id)
+		`SELECT `+looperRunListCols+`, logs_json, COALESCE(config_json, '') FROM desktop_looper_runs WHERE id = ?`, id)
 	rec, err := scanLooperRun(row.Scan, true)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -724,6 +769,57 @@ func (ps *LooperPresetStore) DeleteRun(ctx context.Context, id int64) error {
 func (ps *LooperPresetStore) ClearRuns(ctx context.Context) error {
 	if _, err := ps.db.ExecContext(ctx, `DELETE FROM desktop_looper_runs`); err != nil {
 		return fmt.Errorf("clear looper runs: %w", err)
+	}
+	return nil
+}
+
+// LooperActiveRun is the checkpoint of the run that is executing or paused. It
+// is rewritten at every round boundary and removed when the run is filed in the
+// history, so a row that survives a restart means the run was cut off.
+type LooperActiveRun struct {
+	Config    LooperRunConfig   `json:"config"`
+	StartedAt time.Time         `json:"started_at"`
+	State     LooperRunState    `json:"state"`
+	Resume    LooperResumeState `json:"resume"`
+}
+
+// SaveActiveRun replaces the checkpoint of the active run.
+func (ps *LooperPresetStore) SaveActiveRun(ctx context.Context, rec LooperActiveRun) error {
+	rec.State.Logs = clampLooperLogs(rec.State.Logs)
+	raw, err := json.Marshal(rec)
+	if err != nil {
+		return fmt.Errorf("marshal active looper run: %w", err)
+	}
+	if _, err := ps.db.ExecContext(ctx,
+		`INSERT INTO desktop_looper_active(id, payload, updated_at) VALUES(1, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`,
+		string(raw), time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return fmt.Errorf("save active looper run: %w", err)
+	}
+	return nil
+}
+
+// LoadActiveRun returns the checkpoint left by a run that never reached the
+// history. ok is false when there is none.
+func (ps *LooperPresetStore) LoadActiveRun(ctx context.Context) (rec LooperActiveRun, ok bool, err error) {
+	var payload string
+	err = ps.db.QueryRowContext(ctx, `SELECT payload FROM desktop_looper_active WHERE id = 1`).Scan(&payload)
+	if err == sql.ErrNoRows {
+		return rec, false, nil
+	}
+	if err != nil {
+		return rec, false, fmt.Errorf("load active looper run: %w", err)
+	}
+	if err := json.Unmarshal([]byte(payload), &rec); err != nil {
+		return rec, false, fmt.Errorf("decode active looper run: %w", err)
+	}
+	return rec, true, nil
+}
+
+// ClearActiveRun removes the checkpoint.
+func (ps *LooperPresetStore) ClearActiveRun(ctx context.Context) error {
+	if _, err := ps.db.ExecContext(ctx, `DELETE FROM desktop_looper_active WHERE id = 1`); err != nil {
+		return fmt.Errorf("clear active looper run: %w", err)
 	}
 	return nil
 }
@@ -885,6 +981,7 @@ func (h *LooperRunStateHolder) TryStartResume(maxRounds, resumeFrom int, cancel 
 	h.state.Running = true
 	h.state.Status = "running"
 	h.state.CurrentStep = "work"
+	h.state.PauseReason = ""
 	h.state.MaxRounds = maxRounds
 	h.state.Round = resumeFrom
 	h.state.Error = ""
@@ -1041,6 +1138,60 @@ func (h *LooperRunStateHolder) SetStopped() {
 	h.touchLocked()
 }
 
+// MarkCostApproximate flags the run's cost as partly priced with a fallback rate.
+func (h *LooperRunStateHolder) MarkCostApproximate() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.state.CostApproximate {
+		return
+	}
+	h.state.CostApproximate = true
+	h.touchLocked()
+}
+
+// SetPauseReason records why a paused run is waiting ("budget", "interrupted").
+func (h *LooperRunStateHolder) SetPauseReason(reason string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.state.PauseReason = reason
+	h.touchLocked()
+}
+
+// Restore loads a checkpoint written before a restart as a paused run that
+// waits for Resume. It does nothing while a run is executing.
+func (h *LooperRunStateHolder) Restore(st LooperRunState, resume LooperResumeState, reason string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.state.Running {
+		return
+	}
+	h.runSeq++
+	st.RunID = h.runSeq
+	h.logBase = st.LogsFrom
+	if st.Logs == nil {
+		st.Logs = make([]LooperLogEntry, 0)
+	}
+	st.Running = false
+	st.Paused = true
+	st.PauseRequested = false
+	st.Stopped = false
+	st.Error = ""
+	st.Status = "paused"
+	st.CurrentStep = "paused"
+	st.PauseReason = reason
+	st.ResumeFrom = resume.Round
+	snap := resume
+	st.ResumeSnapshot = &snap
+	h.state = st
+	keep := resume
+	h.resumeState = &keep
+	h.paused = false
+	h.cancelFn = nil
+	h.activeAccum = time.Duration(st.ElapsedMS) * time.Millisecond
+	h.activeSince = time.Time{}
+	h.touchLocked()
+}
+
 // AddUsage accumulates token usage and estimated USD cost for the run.
 func (h *LooperRunStateHolder) AddUsage(inputTokens, outputTokens int, costUSD float64) {
 	if inputTokens <= 0 && outputTokens <= 0 && costUSD <= 0 {
@@ -1143,6 +1294,7 @@ func (h *LooperRunStateHolder) ClearResumeState() {
 	h.paused = false
 	h.state.Paused = false
 	h.state.PauseRequested = false
+	h.state.PauseReason = ""
 	h.state.ResumeFrom = 0
 	h.state.ResumeSnapshot = nil
 	h.touchLocked()
@@ -1163,6 +1315,7 @@ func (h *LooperRunStateHolder) DiscardPaused() bool {
 	h.freezeElapsedLocked()
 	h.state.Paused = false
 	h.state.PauseRequested = false
+	h.state.PauseReason = ""
 	h.state.ResumeFrom = 0
 	h.state.ResumeSnapshot = nil
 	h.state.Stopped = true
