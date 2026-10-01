@@ -79,6 +79,7 @@
             history: [],
             historyDetail: null,
             logExpandState: new Map(),
+            logCache: monitor ? monitor.newLogCache() : null,
             autoScroll: true
         };
         instances.set(windowId, state);
@@ -475,7 +476,10 @@
             const evtSource = new EventSource('/api/desktop/looper/status');
             state.sse = evtSource;
             evtSource.onmessage = (event) => {
-                try { updateRun(JSON.parse(event.data)); } catch (e) { /* ignore */ }
+                try {
+                    const msg = JSON.parse(event.data);
+                    updateRun(monitor && state.logCache ? monitor.mergeStatus(state.logCache, msg) : msg);
+                } catch (e) { /* ignore */ }
             };
             evtSource.onerror = () => {
                 evtSource.close(); state.sse = null;

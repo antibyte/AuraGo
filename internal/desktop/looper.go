@@ -14,18 +14,21 @@ import (
 )
 
 const (
-	LooperSchemaV2Key          = "looper_schema_v2"
-	LooperDefaultMaxRounds     = 10
-	LooperMaxRoundsLimit       = 50
-	LooperDefaultTargetScore   = 85
-	LooperMinTargetScore       = 50
-	LooperMaxTargetScore       = 100
-	LooperDefaultStallRounds   = 3
-	LooperMaxStallRounds       = 10
-	LooperRunRetention         = 20
-	LooperMaxLogEntries        = 200
-	LooperMaxLogResponseRunes  = 8000
-	LooperGoalExcerptLimit     = 200
+	LooperSchemaV2Key         = "looper_schema_v2"
+	LooperDefaultMaxRounds    = 10
+	LooperMaxRoundsLimit      = 50
+	LooperDefaultTargetScore  = 85
+	LooperMinTargetScore      = 50
+	LooperMaxTargetScore      = 100
+	LooperDefaultStallRounds  = 3
+	LooperMaxStallRounds      = 10
+	LooperRunRetention        = 20
+	LooperMaxLogEntries       = 200
+	LooperMaxLogResponseRunes = 8000
+	LooperGoalExcerptLimit    = 200
+	// LooperMaxEvalFailures ends a run when the reviewer returns no usable
+	// score this many rounds in a row, instead of burning budget unscored.
+	LooperMaxEvalFailures = 3
 )
 
 // LooperPreset describes a saved Looper configuration (model v2).
@@ -57,30 +60,54 @@ type LooperLogEntry struct {
 	Score    int    `json:"score,omitempty"`
 	Done     bool   `json:"done,omitempty"`
 	Feedback string `json:"feedback,omitempty"`
+	// Failed marks an evaluate step whose reviewer produced no usable score.
+	// Such a step never counts as score 0 for stall detection.
+	Failed bool `json:"failed,omitempty"`
 }
 
 // LooperRunState is the live status of a running or finished loop.
 type LooperRunState struct {
-	Status        string           `json:"status"`
-	Running       bool             `json:"running"`
-	CurrentStep   string           `json:"current_step"`
-	Round         int              `json:"round"`
-	MaxRounds     int              `json:"max_rounds"`
-	ScoreHistory  []int            `json:"score_history,omitempty"`
-	BestScore     int              `json:"best_score"`
-	LastFeedback  string           `json:"last_feedback,omitempty"`
-	LastSummary   string           `json:"last_summary,omitempty"`
-	LastResult    string           `json:"last_result,omitempty"`
-	Logs          []LooperLogEntry `json:"logs"`
-	Error         string           `json:"error,omitempty"`
-	Stopped       bool             `json:"stopped,omitempty"`
-	InputTokens   int64            `json:"input_tokens"`
-	OutputTokens  int64            `json:"output_tokens"`
-	EstimatedCostUSD float64       `json:"estimated_cost_usd"`
-	Paused        bool             `json:"paused"`
-	ResumeFrom    int              `json:"resume_from,omitempty"`
-	ResumeSnapshot *LooperResumeState `json:"resume_snapshot,omitempty"`
-	StartedAt     time.Time        `json:"started_at,omitempty"`
+	Status           string             `json:"status"`
+	Running          bool               `json:"running"`
+	CurrentStep      string             `json:"current_step"`
+	Round            int                `json:"round"`
+	MaxRounds        int                `json:"max_rounds"`
+	ScoreHistory     []int              `json:"score_history,omitempty"`
+	BestScore        int                `json:"best_score"`
+	LastFeedback     string             `json:"last_feedback,omitempty"`
+	LastSummary      string             `json:"last_summary,omitempty"`
+	LastResult       string             `json:"last_result,omitempty"`
+	Logs             []LooperLogEntry   `json:"logs"`
+	Error            string             `json:"error,omitempty"`
+	Stopped          bool               `json:"stopped,omitempty"`
+	InputTokens      int64              `json:"input_tokens"`
+	OutputTokens     int64              `json:"output_tokens"`
+	EstimatedCostUSD float64            `json:"estimated_cost_usd"`
+	Paused           bool               `json:"paused"`
+	ResumeFrom       int                `json:"resume_from,omitempty"`
+	ResumeSnapshot   *LooperResumeState `json:"resume_snapshot,omitempty"`
+	StartedAt        time.Time          `json:"started_at,omitempty"`
+
+	// RunID changes whenever a fresh run starts (not on resume), so a client
+	// knows to drop its cached log list.
+	RunID int64 `json:"run_id"`
+	// Rev increases on every state mutation.
+	Rev uint64 `json:"rev"`
+	// LogsFrom is the absolute index of Logs[0]; LogTotal is the absolute
+	// number of entries appended in this run, including trimmed ones. Streaming
+	// sends only the tail of Logs, so clients merge by absolute index.
+	LogsFrom int `json:"logs_from"`
+	LogTotal int `json:"log_total"`
+	// PauseRequested is true between the pause click and the round boundary
+	// where the run actually pauses.
+	PauseRequested bool `json:"pause_requested"`
+	// ElapsedMS is active run time (paused time excluded).
+	ElapsedMS int64 `json:"elapsed_ms"`
+	// TargetScore and HasFinish describe the active run for the UI.
+	TargetScore int  `json:"target_score"`
+	HasFinish   bool `json:"has_finish"`
+	// EvalFailures counts consecutive rounds without a usable review score.
+	EvalFailures int `json:"eval_failures,omitempty"`
 }
 
 // LooperResumeState captures the minimal state required to resume a loop.
@@ -699,47 +726,112 @@ func (ps *LooperPresetStore) ClearRuns(ctx context.Context) error {
 }
 
 // LooperRunStateHolder holds mutable run state safely.
+//
+// Every mutation bumps a revision and wakes Changed() waiters, so the status
+// stream can sleep until something happens instead of polling and comparing
+// serialized snapshots.
 type LooperRunStateHolder struct {
 	mu          sync.Mutex
 	state       LooperRunState
 	cancelFn    context.CancelFunc
 	paused      bool
 	resumeState *LooperResumeState
+
+	rev         uint64
+	runSeq      int64
+	logBase     int
+	changed     chan struct{}
+	activeSince time.Time
+	activeAccum time.Duration
 }
 
 // NewLooperRunStateHolder creates a state holder.
 func NewLooperRunStateHolder() *LooperRunStateHolder {
 	return &LooperRunStateHolder{
-		state: LooperRunState{Status: "idle", CurrentStep: "idle"},
+		state:   LooperRunState{Status: "idle", CurrentStep: "idle"},
+		changed: make(chan struct{}),
 	}
 }
 
-func copyLooperState(src LooperRunState) LooperRunState {
-	s := src
-	if src.Logs != nil {
-		s.Logs = make([]LooperLogEntry, len(src.Logs))
-		copy(s.Logs, src.Logs)
+// touchLocked records a mutation and wakes every Changed() waiter.
+func (h *LooperRunStateHolder) touchLocked() {
+	h.rev++
+	h.state.Rev = h.rev
+	close(h.changed)
+	h.changed = make(chan struct{})
+}
+
+// Changed returns a channel that is closed on the next state mutation. Take it
+// before reading the state so no update slips in between the two calls.
+func (h *LooperRunStateHolder) Changed() <-chan struct{} {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.changed
+}
+
+func (h *LooperRunStateHolder) elapsedLocked() int64 {
+	d := h.activeAccum
+	if !h.activeSince.IsZero() {
+		d += time.Since(h.activeSince)
 	}
-	if src.ScoreHistory != nil {
-		s.ScoreHistory = make([]int, len(src.ScoreHistory))
-		copy(s.ScoreHistory, src.ScoreHistory)
+	return d.Milliseconds()
+}
+
+// freezeElapsedLocked stops the active-time clock (run finished or paused).
+func (h *LooperRunStateHolder) freezeElapsedLocked() {
+	if !h.activeSince.IsZero() {
+		h.activeAccum += time.Since(h.activeSince)
+		h.activeSince = time.Time{}
 	}
-	if src.ResumeSnapshot != nil {
-		cp := *src.ResumeSnapshot
-		if src.ResumeSnapshot.ScoreHistory != nil {
-			cp.ScoreHistory = make([]int, len(src.ResumeSnapshot.ScoreHistory))
-			copy(cp.ScoreHistory, src.ResumeSnapshot.ScoreHistory)
+}
+
+// snapshotLocked deep-copies the state. Logs holds only entries whose absolute
+// index is >= since (clamped to what is still retained).
+func (h *LooperRunStateHolder) snapshotLocked(since int) LooperRunState {
+	s := h.state
+	end := h.logBase + len(h.state.Logs)
+	from := since
+	if from < h.logBase {
+		from = h.logBase
+	}
+	if from > end {
+		from = end
+	}
+	s.Logs = make([]LooperLogEntry, end-from)
+	copy(s.Logs, h.state.Logs[from-h.logBase:])
+	s.LogsFrom = from
+	s.LogTotal = end
+	if h.state.ScoreHistory != nil {
+		s.ScoreHistory = make([]int, len(h.state.ScoreHistory))
+		copy(s.ScoreHistory, h.state.ScoreHistory)
+	}
+	if h.state.ResumeSnapshot != nil {
+		cp := *h.state.ResumeSnapshot
+		if h.state.ResumeSnapshot.ScoreHistory != nil {
+			cp.ScoreHistory = make([]int, len(h.state.ResumeSnapshot.ScoreHistory))
+			copy(cp.ScoreHistory, h.state.ResumeSnapshot.ScoreHistory)
 		}
 		s.ResumeSnapshot = &cp
 	}
+	s.Rev = h.rev
+	s.ElapsedMS = h.elapsedLocked()
 	return s
 }
 
-// State returns a deep copy of the current state.
+// State returns a deep copy of the current state including all retained logs.
 func (h *LooperRunStateHolder) State() LooperRunState {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return copyLooperState(h.state)
+	return h.snapshotLocked(0)
+}
+
+// StateSince returns the state with only the log entries at or after the
+// given absolute index. A stream that already sent LogTotal entries passes
+// that value and receives just the new ones.
+func (h *LooperRunStateHolder) StateSince(since int) LooperRunState {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.snapshotLocked(since)
 }
 
 func emptyLooperState(maxRounds int) LooperRunState {
@@ -764,7 +856,13 @@ func (h *LooperRunStateHolder) TryStart(maxRounds int, cancel context.CancelFunc
 	h.paused = false
 	h.resumeState = nil
 	h.cancelFn = cancel
+	h.runSeq++
+	h.logBase = 0
+	h.activeAccum = 0
+	h.activeSince = time.Now()
 	h.state = emptyLooperState(maxRounds)
+	h.state.RunID = h.runSeq
+	h.touchLocked()
 	return nil
 }
 
@@ -780,6 +878,7 @@ func (h *LooperRunStateHolder) TryStartResume(maxRounds, resumeFrom int, cancel 
 	}
 	h.paused = false
 	h.cancelFn = cancel
+	h.activeSince = time.Now()
 	h.state.Running = true
 	h.state.Status = "running"
 	h.state.CurrentStep = "work"
@@ -788,16 +887,31 @@ func (h *LooperRunStateHolder) TryStartResume(maxRounds, resumeFrom int, cancel 
 	h.state.Error = ""
 	h.state.Stopped = false
 	h.state.Paused = false
+	h.state.PauseRequested = false
 	if h.state.Logs == nil {
 		h.state.Logs = make([]LooperLogEntry, 0)
 	}
+	h.touchLocked()
 	return nil
+}
+
+// SetRunInfo records the active run's target score and whether a finish step
+// is configured, so the UI can draw the goal line and step list.
+func (h *LooperRunStateHolder) SetRunInfo(targetScore int, hasFinish bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.state.TargetScore = targetScore
+	h.state.HasFinish = hasFinish
+	h.touchLocked()
 }
 
 // SetIdle marks the run as finished (normal completion, stop, or error).
 func (h *LooperRunStateHolder) SetIdle() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	defer h.touchLocked()
+	h.freezeElapsedLocked()
+	h.state.PauseRequested = false
 	if h.resumeState != nil || h.state.Paused {
 		h.state.Running = false
 		h.state.Status = "paused"
@@ -835,6 +949,7 @@ func (h *LooperRunStateHolder) SetStep(step string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.CurrentStep = step
+	h.touchLocked()
 }
 
 // SetRound updates the current round.
@@ -842,6 +957,7 @@ func (h *LooperRunStateHolder) SetRound(n int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.Round = n
+	h.touchLocked()
 }
 
 // SetStatus records a terminal or live status without clearing the run flag.
@@ -849,6 +965,7 @@ func (h *LooperRunStateHolder) SetStatus(status string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.Status = status
+	h.touchLocked()
 }
 
 // SetLastResult updates the last result.
@@ -856,6 +973,7 @@ func (h *LooperRunStateHolder) SetLastResult(res string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.LastResult = res
+	h.touchLocked()
 }
 
 // RecordEvaluation stores the latest score, feedback, and summary.
@@ -869,16 +987,31 @@ func (h *LooperRunStateHolder) RecordEvaluation(score int, feedback, summary str
 	h.state.LastFeedback = feedback
 	h.state.LastSummary = summary
 	h.state.LastResult = summary
+	h.state.EvalFailures = 0
+	h.touchLocked()
 }
 
-// AppendLog adds a log entry. Keeps at most 200 entries.
+// RecordEvaluationFailure notes a round whose reviewer returned no usable
+// score. The score history, best score and last feedback stay untouched, so a
+// broken review can neither count as score 0 nor trigger a false stall.
+func (h *LooperRunStateHolder) RecordEvaluationFailure(consecutive int) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.state.EvalFailures = consecutive
+	h.touchLocked()
+}
+
+// AppendLog adds a log entry. Keeps at most LooperMaxLogEntries; trimmed
+// entries advance the absolute base so streaming clients stay aligned.
 func (h *LooperRunStateHolder) AppendLog(entry LooperLogEntry) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.Logs = append(h.state.Logs, entry)
-	if len(h.state.Logs) > LooperMaxLogEntries {
-		h.state.Logs = h.state.Logs[len(h.state.Logs)-LooperMaxLogEntries:]
+	if over := len(h.state.Logs) - LooperMaxLogEntries; over > 0 {
+		h.state.Logs = h.state.Logs[over:]
+		h.logBase += over
 	}
+	h.touchLocked()
 }
 
 // SetError sets the error field (clears Stopped so UI shows error, not stop).
@@ -888,6 +1021,7 @@ func (h *LooperRunStateHolder) SetError(err string) {
 	h.state.Error = err
 	h.state.Stopped = false
 	h.state.Status = "failed"
+	h.touchLocked()
 }
 
 // SetStopped marks a user-initiated stop (not an error).
@@ -898,6 +1032,7 @@ func (h *LooperRunStateHolder) SetStopped() {
 	h.state.Error = ""
 	h.state.Status = "stopped"
 	h.state.CurrentStep = "stopped"
+	h.touchLocked()
 }
 
 // AddUsage accumulates token usage and estimated USD cost for the run.
@@ -916,6 +1051,7 @@ func (h *LooperRunStateHolder) AddUsage(inputTokens, outputTokens int, costUSD f
 	if costUSD > 0 {
 		h.state.EstimatedCostUSD += costUSD
 	}
+	h.touchLocked()
 }
 
 // SetCancelFn stores the cancel function for the current run.
@@ -940,8 +1076,10 @@ func (h *LooperRunStateHolder) CancelRun() {
 func (h *LooperRunStateHolder) RequestPause() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.state.Running && !h.state.Paused {
+	if h.state.Running && !h.state.Paused && !h.paused {
 		h.paused = true
+		h.state.PauseRequested = true
+		h.touchLocked()
 	}
 }
 
@@ -962,7 +1100,9 @@ func (h *LooperRunStateHolder) SaveResumeState(rs LooperResumeState) {
 		copy(cp.ScoreHistory, rs.ScoreHistory)
 	}
 	h.resumeState = &cp
+	h.freezeElapsedLocked()
 	h.state.Paused = true
+	h.state.PauseRequested = false
 	h.state.Running = false
 	h.state.Status = "paused"
 	h.state.CurrentStep = "paused"
@@ -971,6 +1111,7 @@ func (h *LooperRunStateHolder) SaveResumeState(rs LooperResumeState) {
 	h.state.ResumeSnapshot = &snap
 	h.paused = false
 	h.cancelFn = nil
+	h.touchLocked()
 }
 
 // GetResumeState returns the saved resume snapshot (if one exists).
@@ -995,8 +1136,35 @@ func (h *LooperRunStateHolder) ClearResumeState() {
 	h.resumeState = nil
 	h.paused = false
 	h.state.Paused = false
+	h.state.PauseRequested = false
 	h.state.ResumeFrom = 0
 	h.state.ResumeSnapshot = nil
+	h.touchLocked()
+}
+
+// DiscardPaused ends a paused run the user does not want to resume. The run
+// becomes "stopped" so the caller can persist it to the history. It reports
+// false when nothing was paused.
+func (h *LooperRunStateHolder) DiscardPaused() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.state.Running || (h.resumeState == nil && !h.state.Paused) {
+		return false
+	}
+	h.resumeState = nil
+	h.paused = false
+	h.cancelFn = nil
+	h.freezeElapsedLocked()
+	h.state.Paused = false
+	h.state.PauseRequested = false
+	h.state.ResumeFrom = 0
+	h.state.ResumeSnapshot = nil
+	h.state.Stopped = true
+	h.state.Error = ""
+	h.state.Status = "stopped"
+	h.state.CurrentStep = "stopped"
+	h.touchLocked()
+	return true
 }
 
 // StallWithoutImprovement reports whether the last stallN scores failed to

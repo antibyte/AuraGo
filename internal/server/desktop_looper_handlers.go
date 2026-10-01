@@ -316,7 +316,11 @@ func handleLooperStop(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
-		runner.Stop()
+		// A paused run has no goroutine to cancel; stopping it means discarding
+		// the resume snapshot and filing the run in the history as stopped.
+		if !runner.DiscardPaused() {
+			runner.Stop()
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 	}
@@ -529,46 +533,101 @@ func handleLooperStatus(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			jsonError(w, "Streaming not supported", http.StatusInternalServerError)
 			return
 		}
 
-		state := runner.State()
-		data, _ := json.Marshal(state)
-		fmt.Fprintf(w, "data: %s\n\n", data)
-		flusher.Flush()
+		streamLooperStatus(r.Context(), w, flusher, runner, looperIdleLinger)
+	}
+}
 
-		ticker := time.NewTicker(500 * time.Millisecond)
-		defer ticker.Stop()
-		heartbeat := time.NewTicker(15 * time.Second)
-		defer heartbeat.Stop()
-		lastJSON := string(data)
-		idleTicks := 0
-		for {
-			select {
-			case <-r.Context().Done():
+// looperIdleLinger is how long a finished or idle status stream stays open for
+// a follow-up change before it closes (a new run usually reconnects anyway).
+const looperIdleLinger = 1500 * time.Millisecond
+
+func looperStateIsAtRest(state desktop.LooperRunState) bool {
+	if state.Running || state.Paused {
+		return false
+	}
+	switch state.Status {
+	case "idle", "stopped", "completed", "max_rounds", "stalled", "failed":
+		return true
+	}
+	return false
+}
+
+// streamLooperStatus pushes a status message whenever the run changes, and only
+// then. The first message carries every retained log entry; later ones carry
+// just the entries appended since (absolute indexes in logs_from/log_total), so
+// a long run no longer re-sends its whole history on every update.
+func streamLooperStatus(ctx context.Context, w http.ResponseWriter, flusher http.Flusher, runner *LooperRunner, idleLinger time.Duration) {
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer heartbeat.Stop()
+
+	sentLogs := 0
+	var lastRun int64 = -1
+	var lastRev uint64
+	first := true
+	var restTimer *time.Timer
+	defer func() {
+		if restTimer != nil {
+			restTimer.Stop()
+		}
+	}()
+
+	for {
+		// Take the wake-up channel before reading, so a change between the two
+		// calls cannot be missed.
+		changed := runner.Changed()
+		since := sentLogs
+		state := runner.StateSince(since)
+		if state.RunID != lastRun {
+			// A different run replaced the one this client knows: resend all logs.
+			state = runner.StateSince(0)
+			lastRun = state.RunID
+		}
+		if first || state.Rev != lastRev {
+			data, err := json.Marshal(state)
+			if err != nil {
 				return
-			case <-heartbeat.C:
-				fmt.Fprintf(w, ":heartbeat\n\n")
-				flusher.Flush()
-			case <-ticker.C:
-				state := runner.State()
-				data, _ := json.Marshal(state)
-				if string(data) != lastJSON {
-					lastJSON = string(data)
-					fmt.Fprintf(w, "data: %s\n\n", data)
-					flusher.Flush()
-				}
-				if !state.Running && !state.Paused && (state.Status == "idle" || state.Status == "stopped" || state.Status == "completed" || state.Status == "max_rounds" || state.Status == "stalled" || state.Status == "failed") {
-					idleTicks++
-					if idleTicks >= 3 {
-						return
-					}
-				} else {
-					idleTicks = 0
-				}
+			}
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+				return
+			}
+			flusher.Flush()
+			first = false
+			lastRev = state.Rev
+			sentLogs = state.LogTotal
+		}
+
+		var rest <-chan time.Time
+		if looperStateIsAtRest(state) {
+			if restTimer == nil {
+				restTimer = time.NewTimer(idleLinger)
+			}
+			rest = restTimer.C
+		} else if restTimer != nil {
+			restTimer.Stop()
+			restTimer = nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-heartbeat.C:
+			if _, err := fmt.Fprint(w, ":heartbeat\n\n"); err != nil {
+				return
+			}
+			flusher.Flush()
+		case <-rest:
+			return
+		case <-changed:
+			if restTimer != nil {
+				restTimer.Stop()
+				restTimer = nil
 			}
 		}
 	}

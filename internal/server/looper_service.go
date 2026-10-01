@@ -22,6 +22,13 @@ type LooperRunner struct {
 	store  *desktop.LooperPresetStore
 	holder *desktop.LooperRunStateHolder
 	logger *slog.Logger
+
+	// lastRun remembers the active (or last paused) run's settings so a paused
+	// run that gets discarded can still be written to the history.
+	lastRunMu sync.Mutex
+	lastCfg   desktop.LooperRunConfig
+	lastStart time.Time
+	hasLast   bool
 }
 
 // NewLooperRunner creates a runner backed by a preset store.
@@ -38,9 +45,44 @@ func (r *LooperRunner) State() desktop.LooperRunState {
 	return r.holder.State()
 }
 
+// StateSince returns the run state with only the log entries at or after the
+// given absolute index, for incremental status streaming.
+func (r *LooperRunner) StateSince(since int) desktop.LooperRunState {
+	return r.holder.StateSince(since)
+}
+
+// Changed returns a channel closed on the next state change.
+func (r *LooperRunner) Changed() <-chan struct{} {
+	return r.holder.Changed()
+}
+
 // Stop cancels the current run.
 func (r *LooperRunner) Stop() {
 	r.holder.CancelRun()
+}
+
+func (r *LooperRunner) rememberRun(cfg desktop.LooperRunConfig, startedAt time.Time) {
+	r.lastRunMu.Lock()
+	defer r.lastRunMu.Unlock()
+	r.lastCfg = cfg
+	r.lastStart = startedAt
+	r.hasLast = true
+}
+
+// DiscardPaused ends a paused run for good: it is stored in the history as
+// "stopped" and the resume snapshot is dropped. It reports false when there
+// was nothing paused.
+func (r *LooperRunner) DiscardPaused() bool {
+	if !r.holder.DiscardPaused() {
+		return false
+	}
+	r.lastRunMu.Lock()
+	cfg, startedAt, ok := r.lastCfg, r.lastStart, r.hasLast
+	r.lastRunMu.Unlock()
+	if ok {
+		r.persistFinishedRun(cfg, startedAt)
+	}
+	return true
 }
 
 // Shutdown cancels any running loop and resets the runner state.
@@ -84,6 +126,10 @@ func (r *LooperRunner) TryStartResume(maxRounds, resumeFrom int, cancel context.
 	return r.holder.TryStartResume(maxRounds, resumeFrom, cancel)
 }
 
+// looperEvalFailureHint replaces missing reviewer feedback so the next work
+// round still knows it has to judge the result itself.
+const looperEvalFailureHint = "The previous review returned no usable score. Judge the result against the goal yourself and keep improving it."
+
 type looperEvaluation struct {
 	Score    int
 	Done     bool
@@ -105,6 +151,8 @@ func (r *LooperRunner) executeStarted(
 	if st := r.holder.State(); !st.StartedAt.IsZero() {
 		startedAt = st.StartedAt
 	}
+	r.rememberRun(cfg, startedAt)
+	r.holder.SetRunInfo(cfg.TargetScore, strings.TrimSpace(cfg.Finish) != "")
 	defer func() {
 		r.persistFinishedRun(cfg, startedAt)
 		r.holder.SetIdle()
@@ -185,6 +233,7 @@ func (r *LooperRunner) executeStarted(
 	}
 
 	terminal := ""
+	evalFailures := 0
 	for i := startRound; i <= cfg.MaxRounds; i++ {
 		select {
 		case <-ctx.Done():
@@ -240,8 +289,7 @@ func (r *LooperRunner) executeStarted(
 			evalRes.Response = agent.LastAssistantPlainText(evalHistory)
 		}
 		if err != nil {
-			r.logger.Warn("[Looper] evaluate failed; continuing with score 0", "round", i, "error", err)
-			ev = looperEvaluationOrFallback(evalRes.Response, err)
+			r.logger.Warn("[Looper] evaluate failed; this round gets no score", "round", i, "error", err)
 		} else {
 			ev, evalOK = parseEvaluation(evalRes.Response)
 			if !evalOK {
@@ -252,55 +300,74 @@ func (r *LooperRunner) executeStarted(
 					{Role: openai.ChatMessageRoleAssistant, Content: evalRes.Response},
 				})
 				if cerr == nil {
-					r.holder.AppendLog(desktop.LooperLogEntry{
-						Round:    i,
-						Step:     "evaluate",
-						Prompt:   clarityPrompt,
-						Response: clarityRes.Response,
-						Duration: clarityRes.Duration.Milliseconds(),
-					})
+					// The retry answers the same review; it is logged once, as the
+					// round's evaluate entry, instead of as a second score-less row.
 					ev, evalOK = parseEvaluation(clarityRes.Response)
 					evalRes = clarityRes
 				}
 			}
-			if !evalOK {
-				ev = looperEvaluationOrFallback(evalRes.Response, nil)
-			}
 		}
-		scoreHistory = append(scoreHistory, ev.Score)
-		if ev.Score > bestScore {
-			bestScore = ev.Score
-		}
-		lastFeedback = ev.Feedback
-		r.holder.RecordEvaluation(ev.Score, ev.Feedback, ev.Summary)
+
 		evalResponse := strings.TrimSpace(evalRes.Response)
 		if evalResponse == "" && err != nil {
 			evalResponse = err.Error()
 		}
-		r.holder.AppendLog(desktop.LooperLogEntry{
-			Round:    i,
-			Step:     "evaluate",
-			Prompt:   evalPrompt,
-			Response: evalResponse,
-			Duration: evalRes.Duration.Milliseconds(),
-			Score:    ev.Score,
-			Done:     ev.Done,
-			Feedback: ev.Feedback,
-		})
+		if !evalOK {
+			// No usable review: the round neither scores 0 nor feeds the stall
+			// detector. Repeated failures end the run instead of burning budget.
+			evalFailures++
+			fallback := looperEvaluationOrFallback(evalRes.Response, err)
+			r.holder.RecordEvaluationFailure(evalFailures)
+			r.holder.AppendLog(desktop.LooperLogEntry{
+				Round:    i,
+				Step:     "evaluate",
+				Prompt:   evalPrompt,
+				Response: evalResponse,
+				Duration: evalRes.Duration.Milliseconds(),
+				Feedback: fallback.Feedback,
+				Failed:   true,
+			})
+			r.logger.Warn("[Looper] review returned no usable score", "round", i, "consecutive", evalFailures)
+			if evalFailures >= desktop.LooperMaxEvalFailures {
+				return r.setErrorAndReturn(fmt.Errorf("the reviewer returned no usable score in %d rounds in a row", evalFailures))
+			}
+			if lastFeedback == "" {
+				lastFeedback = looperEvalFailureHint
+			}
+		} else {
+			evalFailures = 0
+			scoreHistory = append(scoreHistory, ev.Score)
+			if ev.Score > bestScore {
+				bestScore = ev.Score
+			}
+			lastFeedback = ev.Feedback
+			r.holder.RecordEvaluation(ev.Score, ev.Feedback, ev.Summary)
+			r.holder.AppendLog(desktop.LooperLogEntry{
+				Round:    i,
+				Step:     "evaluate",
+				Prompt:   evalPrompt,
+				Response: evalResponse,
+				Duration: evalRes.Duration.Milliseconds(),
+				Score:    ev.Score,
+				Done:     ev.Done,
+				Feedback: ev.Feedback,
+			})
 
-		if looperReachedTarget(ev, cfg.TargetScore) {
-			terminal = "completed"
-			r.holder.SetStatus(terminal)
-			break
-		}
-		if desktop.StallWithoutImprovement(scoreHistory, cfg.StallRounds) {
-			terminal = "stalled"
-			r.holder.SetStatus(terminal)
-			r.logger.Warn("[Looper] stalled", "round", i, "stall_rounds", cfg.StallRounds)
-			break
+			if looperReachedTarget(ev, cfg.TargetScore) {
+				terminal = "completed"
+				r.holder.SetStatus(terminal)
+				break
+			}
+			if desktop.StallWithoutImprovement(scoreHistory, cfg.StallRounds) {
+				terminal = "stalled"
+				r.holder.SetStatus(terminal)
+				r.logger.Warn("[Looper] stalled", "round", i, "stall_rounds", cfg.StallRounds)
+				break
+			}
 		}
 
-		if r.holder.IsPauseRequested() {
+		// A pause asked for during the final round has nothing left to pause.
+		if r.holder.IsPauseRequested() && i < cfg.MaxRounds {
 			r.holder.SaveResumeState(desktop.LooperResumeState{
 				Round:           i,
 				BestScore:       bestScore,

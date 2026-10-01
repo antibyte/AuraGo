@@ -434,3 +434,217 @@ func TestLooperRunStoreRetentionAndCRUD(t *testing.T) {
 		t.Fatalf("runs left = %d", len(left))
 	}
 }
+
+func TestLooperRunStateHolderStreamsAbsoluteLogIndexes(t *testing.T) {
+	t.Parallel()
+
+	holder := NewLooperRunStateHolder()
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := holder.TryStart(5, cancel); err != nil {
+		t.Fatalf("TryStart: %v", err)
+	}
+	first := holder.State().RunID
+	if first == 0 {
+		t.Fatal("a started run needs a run id")
+	}
+
+	holder.AppendLog(LooperLogEntry{Round: 1, Step: "work"})
+	holder.AppendLog(LooperLogEntry{Round: 1, Step: "evaluate", Score: 70})
+	tail := holder.StateSince(1)
+	if tail.LogsFrom != 1 || tail.LogTotal != 2 || len(tail.Logs) != 1 || tail.Logs[0].Step != "evaluate" {
+		t.Fatalf("tail since 1 = from %d total %d logs %+v", tail.LogsFrom, tail.LogTotal, tail.Logs)
+	}
+	if empty := holder.StateSince(2); len(empty.Logs) != 0 || empty.LogTotal != 2 || empty.Logs == nil {
+		t.Fatalf("up-to-date client must get an empty (non-null) tail, got %+v", empty.Logs)
+	}
+
+	for i := 0; i < LooperMaxLogEntries+10; i++ {
+		holder.AppendLog(LooperLogEntry{Round: 2, Step: "work"})
+	}
+	trimmed := holder.StateSince(0)
+	wantTotal := 2 + LooperMaxLogEntries + 10
+	if trimmed.LogTotal != wantTotal || trimmed.LogsFrom != wantTotal-LooperMaxLogEntries || len(trimmed.Logs) != LooperMaxLogEntries {
+		t.Fatalf("after trim: from %d total %d len %d, want from %d total %d len %d",
+			trimmed.LogsFrom, trimmed.LogTotal, len(trimmed.Logs), wantTotal-LooperMaxLogEntries, wantTotal, LooperMaxLogEntries)
+	}
+	// A client that only saw 5 entries asks for the tail but gets what survived.
+	stale := holder.StateSince(5)
+	if stale.LogsFrom != trimmed.LogsFrom || len(stale.Logs) != LooperMaxLogEntries {
+		t.Fatalf("stale request must clamp to the retained window, got from %d len %d", stale.LogsFrom, len(stale.Logs))
+	}
+
+	holder.SetIdle()
+	_, cancel2 := context.WithCancel(context.Background())
+	defer cancel2()
+	if err := holder.TryStart(5, cancel2); err != nil {
+		t.Fatalf("second TryStart: %v", err)
+	}
+	next := holder.State()
+	if next.RunID == first || next.LogTotal != 0 || next.LogsFrom != 0 {
+		t.Fatalf("a fresh run must restart the log window: %+v", next)
+	}
+}
+
+func TestLooperRunStateHolderChangedWakesOnEveryMutation(t *testing.T) {
+	t.Parallel()
+
+	holder := NewLooperRunStateHolder()
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	wake := holder.Changed()
+	select {
+	case <-wake:
+		t.Fatal("Changed must stay open until something mutates")
+	default:
+	}
+	before := holder.State().Rev
+	if err := holder.TryStart(3, cancel); err != nil {
+		t.Fatalf("TryStart: %v", err)
+	}
+	select {
+	case <-wake:
+	case <-time.After(time.Second):
+		t.Fatal("TryStart did not wake Changed waiters")
+	}
+	if holder.State().Rev <= before {
+		t.Fatal("revision must grow with every mutation")
+	}
+
+	for name, mutate := range map[string]func(){
+		"step":     func() { holder.SetStep("evaluate") },
+		"round":    func() { holder.SetRound(2) },
+		"status":   func() { holder.SetStatus("running") },
+		"log":      func() { holder.AppendLog(LooperLogEntry{Step: "work"}) },
+		"score":    func() { holder.RecordEvaluation(60, "f", "s") },
+		"failure":  func() { holder.RecordEvaluationFailure(1) },
+		"usage":    func() { holder.AddUsage(10, 5, 0.01) },
+		"result":   func() { holder.SetLastResult("r") },
+		"pause":    func() { holder.RequestPause() },
+		"idle":     func() { holder.SetIdle() },
+		"runinfo":  func() { holder.SetRunInfo(80, true) },
+		"stopped":  func() { holder.SetStopped() },
+		"error":    func() { holder.SetError("boom") },
+		"clearrun": func() { holder.ClearResumeState() },
+	} {
+		ch := holder.Changed()
+		mutate()
+		select {
+		case <-ch:
+		default:
+			t.Fatalf("%s did not wake Changed waiters", name)
+		}
+	}
+}
+
+func TestLooperRunStateHolderPauseRequestIsVisibleUntilItTakesEffect(t *testing.T) {
+	t.Parallel()
+
+	holder := NewLooperRunStateHolder()
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	holder.RequestPause()
+	if holder.State().PauseRequested || holder.IsPauseRequested() {
+		t.Fatal("an idle holder must ignore pause requests")
+	}
+	if err := holder.TryStart(3, cancel); err != nil {
+		t.Fatalf("TryStart: %v", err)
+	}
+	holder.RequestPause()
+	if !holder.State().PauseRequested || !holder.IsPauseRequested() {
+		t.Fatal("a running holder must expose the pending pause")
+	}
+	holder.SaveResumeState(LooperResumeState{Round: 1})
+	state := holder.State()
+	if state.PauseRequested || !state.Paused || state.Running {
+		t.Fatalf("pausing must clear the pending flag: %+v", state)
+	}
+}
+
+func TestLooperRunStateHolderDiscardPausedStopsTheRun(t *testing.T) {
+	t.Parallel()
+
+	holder := NewLooperRunStateHolder()
+	if holder.DiscardPaused() {
+		t.Fatal("nothing is paused on a fresh holder")
+	}
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := holder.TryStart(3, cancel); err != nil {
+		t.Fatalf("TryStart: %v", err)
+	}
+	if holder.DiscardPaused() {
+		t.Fatal("a running loop must be stopped, not discarded")
+	}
+	holder.SaveResumeState(LooperResumeState{Round: 2, BestScore: 71, ScoreHistory: []int{60, 71}})
+	holder.SetIdle()
+	if state := holder.State(); !state.Paused || state.Status != "paused" {
+		t.Fatalf("setup: paused run expected, got %+v", state)
+	}
+	if !holder.DiscardPaused() {
+		t.Fatal("a paused run must be discardable")
+	}
+	state := holder.State()
+	if state.Paused || state.Running || state.Status != "stopped" || !state.Stopped || state.ResumeSnapshot != nil || state.ResumeFrom != 0 {
+		t.Fatalf("discarded run = %+v, want stopped with the resume snapshot gone", state)
+	}
+	if _, ok := holder.GetResumeState(); ok {
+		t.Fatal("resume snapshot must be dropped")
+	}
+	if holder.DiscardPaused() {
+		t.Fatal("a second discard has nothing to do")
+	}
+	if err := holder.TryStartResume(3, 2, cancel); err == nil {
+		t.Fatal("a discarded run cannot be resumed")
+	}
+}
+
+func TestLooperRunStateHolderElapsedSkipsPausedTime(t *testing.T) {
+	t.Parallel()
+
+	holder := NewLooperRunStateHolder()
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := holder.TryStart(3, cancel); err != nil {
+		t.Fatalf("TryStart: %v", err)
+	}
+	time.Sleep(30 * time.Millisecond)
+	holder.SaveResumeState(LooperResumeState{Round: 1})
+	frozen := holder.State().ElapsedMS
+	if frozen < 20 {
+		t.Fatalf("elapsed while running = %dms, want >= 20", frozen)
+	}
+	time.Sleep(40 * time.Millisecond)
+	if again := holder.State().ElapsedMS; again != frozen {
+		t.Fatalf("elapsed must not advance while paused: %d -> %d", frozen, again)
+	}
+	if err := holder.TryStartResume(3, 1, cancel); err != nil {
+		t.Fatalf("TryStartResume: %v", err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if resumed := holder.State().ElapsedMS; resumed <= frozen {
+		t.Fatalf("elapsed must continue after resume: %d -> %d", frozen, resumed)
+	}
+}
+
+func TestLooperRunStateHolderEvaluationFailureLeavesScoresUntouched(t *testing.T) {
+	t.Parallel()
+
+	holder := NewLooperRunStateHolder()
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := holder.TryStart(4, cancel); err != nil {
+		t.Fatalf("TryStart: %v", err)
+	}
+	holder.RecordEvaluation(72, "tighten", "ok")
+	holder.RecordEvaluationFailure(1)
+	state := holder.State()
+	if len(state.ScoreHistory) != 1 || state.BestScore != 72 || state.LastFeedback != "tighten" || state.EvalFailures != 1 {
+		t.Fatalf("a failed review must not touch scores: %+v", state)
+	}
+	holder.RecordEvaluation(80, "better", "ok")
+	if state := holder.State(); state.EvalFailures != 0 || len(state.ScoreHistory) != 2 {
+		t.Fatalf("a valid review resets the failure streak: %+v", state)
+	}
+}

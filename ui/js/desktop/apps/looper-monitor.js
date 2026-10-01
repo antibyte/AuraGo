@@ -207,7 +207,36 @@
         }, helpers);
     }
 
+    // The status stream sends only log entries appended since the last message.
+    // Each entry has an absolute index (logs_from + position), so the client keeps
+    // its own window and merges by index. A message without logs_from (older
+    // servers, test fixtures) is a full replacement.
+    function newLogCache() {
+        return { runId: null, base: 0, logs: [] };
+    }
+
+    function mergeStatus(cache, msg) {
+        const incoming = Array.isArray(msg.logs) ? msg.logs : [];
+        const from = Number.isFinite(msg.logs_from) ? msg.logs_from : 0;
+        if (cache.runId !== msg.run_id) {
+            cache.runId = msg.run_id;
+            cache.base = from;
+            cache.logs = incoming.slice();
+        } else {
+            const at = from - cache.base;
+            if (at >= 0 && at <= cache.logs.length) {
+                cache.logs = cache.logs.slice(0, at).concat(incoming);
+            } else {
+                cache.base = from;
+                cache.logs = incoming.slice();
+            }
+        }
+        return Object.assign({}, msg, { logs: cache.logs });
+    }
+
     window.LooperMonitor = {
+        newLogCache: newLogCache,
+        mergeStatus: mergeStatus,
         sparklineSVG: sparklineSVG,
         renderRun: renderRun,
         renderHistoryList: renderHistoryList,
