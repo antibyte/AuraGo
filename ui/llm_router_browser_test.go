@@ -138,7 +138,22 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 				if page.MustEval(`()=>document.documentElement.scrollWidth>innerWidth+1`).Bool() {
 					t.Fatal("router settings overflow")
 				}
+				if !page.MustEval(`()=>{
+					const root=document.querySelector('[data-router-settings]');
+					const input=root.querySelector('textarea');
+					const field=input.closest('label');
+					const caption=field.querySelector('.field-label').getBoundingClientRect();
+					const area=input.getBoundingClientRect();
+					const row=field.getBoundingClientRect();
+					const buttons=[...root.querySelectorAll('.cfg-actions button')].map(button=>button.getBoundingClientRect());
+					return area.top>=caption.bottom+4 && area.width>=row.width-4 &&
+						getComputedStyle(input).backgroundColor===getComputedStyle(root.querySelector('input.field-input')).backgroundColor &&
+						(buttons[1].top>=buttons[0].bottom || buttons[1].left>=buttons[0].right+8);
+				}`).Bool() {
+					t.Fatal("router preview field or actions are misaligned")
+				}
 				if dir := os.Getenv("AURAGO_ROUTER_SCREENSHOTS"); dir != "" {
+					page.MustEval(`()=>document.querySelector('[data-router-settings] textarea').scrollIntoView({block:'center'})`)
 					page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("router-%d-%s.png", width, theme)))
 				}
 			})

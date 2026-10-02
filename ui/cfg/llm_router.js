@@ -82,13 +82,14 @@ function renderLLMRouterSection(section) {
     field(limits, tr('quota'), 'helper_max_calls_per_hour', data.helper_max_calls_per_hour ?? 20, 'number', 0, 120);
     node('h3', '', tr('preview'));
     node('p', 'field-help', tr('preview_hint'));
-    const label = node('label', 'field-group', tr('preview_text'));
-    const input = node('textarea', 'field-textarea', '', label);
+    const label = node('label', 'field-group');
+    node('span', 'field-label', tr('preview_text'), label);
+    const input = node('textarea', 'field-input', '', label);
     input.maxLength = 8000;
     input.rows = 3;
-    const actions = node('div', 'cfg-actions');
+    const actions = node('div', 'cfg-actions cfg-actions-row');
     const localButton = node('button', 'btn-save', tr('preview_local'), actions);
-    const helperButton = node('button', 'btn-save', tr('preview_helper'), actions);
+    const helperButton = node('button', 'btn-save btn-secondary', tr('preview_helper'), actions);
     localButton.type = helperButton.type = 'button';
     const result = node('p', 'cfg-note-banner');
     result.setAttribute('role', 'status');

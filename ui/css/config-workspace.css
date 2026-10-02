@@ -912,6 +912,7 @@
 .pw-page[data-workspace-page="config"] .pw-panel-body > .field-group:last-child { border-bottom: 0; }
 .pw-page[data-workspace-page="config"] .field-group > .field-label { margin: 0 0 8px; }
 .pw-page[data-workspace-page="config"] .field-group > .field-help { margin: 8px 0 0; max-width: 68ch; }
+.pw-page[data-workspace-page="config"] [data-router-settings] :is(.cfg-note-banner, .field-help):empty { display: none; }
 .pw-page[data-workspace-page="config"] .field-group.cfg-switch-field {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
