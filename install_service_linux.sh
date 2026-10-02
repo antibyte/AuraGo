@@ -902,6 +902,13 @@ systemctl daemon-reload
 info "Enabling ${SERVICE_NAME} service..."
 systemctl enable "${SERVICE_NAME}"
 
+# 6. Bluetooth host preparation (asked once, stored in data/bluetooth-setup)
+SUDO=""   # this script already runs as root
+_bt_may_prompt=false
+if [ -r /dev/tty ] && [ -w /dev/tty ] && { : </dev/tty; } 2>/dev/null; then _bt_may_prompt=true; fi
+BT_CHOICE="$(btk_resolve_choice "$INSTALL_DIR" "" "$_bt_may_prompt")"
+btk_run_choice "$BT_CHOICE" "$INSTALL_DIR" "$(id -un "${SUDO_USER:-root}")" "$SERVICE_NAME"
+
 ok "AuraGo service has been installed and enabled."
 echo ""
 echo -e " ${GREEN}╭──────────────────────────────────────────────────────────────╮${NC}"

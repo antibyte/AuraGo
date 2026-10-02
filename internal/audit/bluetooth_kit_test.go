@@ -537,3 +537,15 @@ bluetooth_apply_without_update; [ "$log" = " declined" ]
 		t.Fatalf("update.sh Bluetooth helpers failed: %v\n%s", err, output)
 	}
 }
+
+func TestInstallServiceLinuxPreparesBluetooth(t *testing.T) {
+	t.Parallel()
+	requireInOrder(t, "install_service_linux.sh", readRepoFile(t, "install_service_linux.sh"),
+		"# >>> AURAGO-BLUETOOTH-KIT",
+		`systemctl enable "${SERVICE_NAME}"`,
+		`SUDO=""`,
+		`BT_CHOICE="$(btk_resolve_choice "$INSTALL_DIR" "" "$_bt_may_prompt")"`,
+		`btk_run_choice "$BT_CHOICE" "$INSTALL_DIR" "$(id -un "${SUDO_USER:-root}")" "$SERVICE_NAME"`,
+		`ok "AuraGo service has been installed and enabled."`,
+	)
+}
