@@ -1,9 +1,16 @@
 package bluetooth
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 const (
@@ -104,5 +111,315 @@ func TestParseHeadsetGraphFindsDeviceProfilesAndNodes(t *testing.T) {
 	}
 	if _, _, err := parseHeadsetGraph([]byte("not json"), testHeadsetAddress); err == nil {
 		t.Fatal("invalid JSON must fail")
+	}
+}
+
+// fakeHeadsetRunner models PipeWire: pw-dump reports the current profile and
+// wpctl set-profile changes it.
+type fakeHeadsetRunner struct {
+	mu        sync.Mutex
+	profile   string
+	dump      func(profile string) []byte
+	calls     []string
+	pipes     []*fakeHeadsetProcess
+	blockPlay bool
+}
+
+func newFakeHeadsetRunner(profile string) *fakeHeadsetRunner {
+	return &fakeHeadsetRunner{profile: profile, dump: headsetDump}
+}
+
+func (f *fakeHeadsetRunner) Output(_ context.Context, name string, args ...string) ([]byte, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, strings.TrimSpace(name+" "+strings.Join(args, " ")))
+	switch name {
+	case "pw-dump":
+		return f.dump(f.profile), nil
+	case "wpctl":
+		names := map[string]string{"0": "off", "1": "a2dp-sink", "2": "headset-head-unit-cvsd", "3": "headset-head-unit", "4": "headset-head-unit-msbc"}
+		if len(args) == 3 && args[0] == "set-profile" {
+			f.profile = names[args[2]]
+		}
+		return nil, nil
+	}
+	return nil, errors.New("unexpected command " + name)
+}
+
+func (f *fakeHeadsetRunner) Pipe(_ context.Context, name string, args ...string) (headsetProcess, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, strings.TrimSpace(name+" "+strings.Join(args, " ")))
+	process := newFakeHeadsetProcess(name, name == "pw-play" && f.blockPlay)
+	f.pipes = append(f.pipes, process)
+	return process, nil
+}
+
+func (f *fakeHeadsetRunner) called(command string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, call := range f.calls {
+		if call == command {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *fakeHeadsetRunner) countPrefix(prefix string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	count := 0
+	for _, call := range f.calls {
+		if strings.HasPrefix(call, prefix) {
+			count++
+		}
+	}
+	return count
+}
+
+// pipe waits for the index-th process started with the given tool.
+func (f *fakeHeadsetRunner) pipe(t *testing.T, tool string, index int) *fakeHeadsetProcess {
+	t.Helper()
+	var found *fakeHeadsetProcess
+	waitForHeadset(t, fmt.Sprintf("%s #%d", tool, index), func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		seen := 0
+		for _, process := range f.pipes {
+			if process.tool != tool {
+				continue
+			}
+			if seen == index {
+				found = process
+				return true
+			}
+			seen++
+		}
+		return false
+	})
+	return found
+}
+
+func (f *fakeHeadsetRunner) callLog() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.calls...)
+}
+
+type fakeHeadsetProcess struct {
+	tool     string
+	stdoutR  *io.PipeReader
+	stdoutW  *io.PipeWriter
+	block    chan struct{}
+	writing  chan struct{}
+	killed   chan struct{}
+	exited   chan struct{}
+	killOnce sync.Once
+	exitOnce sync.Once
+	mu       sync.Mutex
+	written  bytes.Buffer
+}
+
+func newFakeHeadsetProcess(tool string, block bool) *fakeHeadsetProcess {
+	reader, writer := io.Pipe()
+	process := &fakeHeadsetProcess{tool: tool, stdoutR: reader, stdoutW: writer, writing: make(chan struct{}, 1),
+		killed: make(chan struct{}), exited: make(chan struct{})}
+	if block {
+		process.block = make(chan struct{})
+	}
+	return process
+}
+
+func (p *fakeHeadsetProcess) Stdin() io.WriteCloser { return fakeHeadsetStdin{p} }
+func (p *fakeHeadsetProcess) Stdout() io.ReadCloser { return p.stdoutR }
+
+func (p *fakeHeadsetProcess) Wait() error {
+	select {
+	case <-p.killed:
+	case <-p.exited:
+	}
+	return nil
+}
+
+func (p *fakeHeadsetProcess) Kill() error {
+	p.killOnce.Do(func() {
+		close(p.killed)
+		_ = p.stdoutW.CloseWithError(io.ErrClosedPipe)
+	})
+	return nil
+}
+
+// exit simulates the tool ending on its own.
+func (p *fakeHeadsetProcess) exit() {
+	p.exitOnce.Do(func() {
+		close(p.exited)
+		_ = p.stdoutW.Close()
+	})
+}
+
+func (p *fakeHeadsetProcess) wasKilled() bool {
+	select {
+	case <-p.killed:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *fakeHeadsetProcess) bytesWritten() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.written.Len()
+}
+
+type fakeHeadsetStdin struct{ p *fakeHeadsetProcess }
+
+func (s fakeHeadsetStdin) Write(data []byte) (int, error) {
+	select {
+	case s.p.writing <- struct{}{}:
+	default:
+	}
+	if s.p.block != nil {
+		select {
+		case <-s.p.block:
+		case <-s.p.killed:
+			return 0, io.ErrClosedPipe
+		}
+	}
+	if s.p.wasKilled() {
+		return 0, io.ErrClosedPipe
+	}
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+	return s.p.written.Write(data)
+}
+
+func (s fakeHeadsetStdin) Close() error { return nil }
+
+func waitForHeadset(t *testing.T, what string, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for !condition() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func connectedHeadset() (Device, bool) {
+	return Device{Address: testHeadsetAddress, Paired: true, Connected: true, UUIDs: []string{a2dpSinkUUID, handsfreeUUID}}, true
+}
+
+func startTestHeadsetLink(t *testing.T, runner *fakeHeadsetRunner, lookup func() (Device, bool), changes <-chan Change) *HeadsetLink {
+	t.Helper()
+	link := startHeadsetLink(context.Background(), headsetLinkConfig{
+		address:       testHeadsetAddress,
+		runner:        runner,
+		lookup:        func(context.Context) (Device, bool) { return lookup() },
+		changes:       changes,
+		pollInterval:  5 * time.Millisecond,
+		readyTimeout:  500 * time.Millisecond,
+		retryInterval: 20 * time.Millisecond,
+	})
+	t.Cleanup(func() { _ = link.Close() })
+	return link
+}
+
+func expectHeadsetEvent(t *testing.T, link *HeadsetLink, kind, code string) {
+	t.Helper()
+	select {
+	case event := <-link.Events():
+		if event.Type != kind || event.Code != code {
+			t.Fatalf("event = %+v, want %s %q", event, kind, code)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("no %s event", kind)
+	}
+}
+
+func TestHeadsetLinkSwitchesToHeadsetProfileAndRestoresIt(t *testing.T) {
+	runner := newFakeHeadsetRunner("a2dp-sink")
+	link := startTestHeadsetLink(t, runner, connectedHeadset, nil)
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+	if !runner.called("wpctl set-profile 71 3") {
+		t.Fatalf("profile switch missing: %v", runner.callLog())
+	}
+	if !runner.called("pw-record --target bluez_input.AA_BB_CC_DD_EE_FF.0 --rate 16000 --channels 1 --format s16 -") {
+		t.Fatalf("recorder missing: %v", runner.callLog())
+	}
+	recorder := runner.pipe(t, "pw-record", 0)
+	frame := bytes.Repeat([]byte{1, 2}, HeadsetFrameBytes/2)
+	go func() { _, _ = recorder.stdoutW.Write(frame) }()
+	select {
+	case got := <-link.Frames():
+		if !bytes.Equal(got, frame) {
+			t.Fatal("microphone frame changed on the way")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no microphone frame")
+	}
+	_ = link.Close()
+	if !recorder.wasKilled() {
+		t.Fatal("recorder still runs after Close")
+	}
+	if !runner.called("wpctl set-profile 71 1") {
+		t.Fatalf("A2DP not restored: %v", runner.callLog())
+	}
+}
+
+func TestHeadsetLinkKeepsAHeadsetProfileItDidNotSet(t *testing.T) {
+	runner := newFakeHeadsetRunner("headset-head-unit")
+	link := startTestHeadsetLink(t, runner, connectedHeadset, nil)
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+	_ = link.Close()
+	if count := runner.countPrefix("wpctl"); count != 0 {
+		t.Fatalf("wpctl calls = %d, want none: %v", count, runner.callLog())
+	}
+}
+
+func TestHeadsetLinkFollowsTheConnection(t *testing.T) {
+	runner := newFakeHeadsetRunner("headset-head-unit")
+	var connected atomic.Bool
+	changes := make(chan Change, 8)
+	link := startTestHeadsetLink(t, runner, func() (Device, bool) {
+		device, _ := connectedHeadset()
+		device.Connected = connected.Load()
+		return device, true
+	}, changes)
+	expectHeadsetEvent(t, link, HeadsetLost, "")
+	connected.Store(true)
+	changes <- Change{Revision: 1}
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+	first := runner.pipe(t, "pw-record", 0)
+	connected.Store(false)
+	changes <- Change{Revision: 2}
+	expectHeadsetEvent(t, link, HeadsetLost, "")
+	waitForHeadset(t, "recorder stop", first.wasKilled)
+	connected.Store(true)
+	changes <- Change{Revision: 3}
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+	runner.pipe(t, "pw-record", 1)
+}
+
+func TestHeadsetLinkRestartsAnEndedRecorder(t *testing.T) {
+	runner := newFakeHeadsetRunner("headset-head-unit")
+	link := startTestHeadsetLink(t, runner, connectedHeadset, nil)
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+	runner.pipe(t, "pw-record", 0).exit()
+	runner.pipe(t, "pw-record", 1)
+}
+
+func TestHeadsetLinkReportsAMissingMicrophoneProfileOnce(t *testing.T) {
+	runner := newFakeHeadsetRunner("a2dp-sink")
+	runner.dump = func(string) []byte { return []byte(noMicrophoneDump) }
+	link := startTestHeadsetLink(t, runner, connectedHeadset, nil)
+	expectHeadsetEvent(t, link, HeadsetLost, "")
+	expectHeadsetEvent(t, link, HeadsetError, ErrorHeadsetProfileUnavailable)
+	select {
+	case event := <-link.Events():
+		t.Fatalf("repeated event %+v while nothing changed", event)
+	case <-time.After(150 * time.Millisecond):
 	}
 }
