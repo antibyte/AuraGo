@@ -358,4 +358,101 @@ btk_wireplumber_headless() {
     btk_fail "Writing $file" "run ./update.sh --bluetooth as $user"
     return 1
 }
+
+btk_dropin_path() { printf '%s/etc/systemd/system/%s.service.d/aurago-bluetooth.conf\n' "${BTK_ROOT:-}" "$1"; }
+
+# btk_dropin_content <uid|""> <with_group true|false>
+btk_dropin_content() {
+    if [ -n "$1" ]; then printf '[Unit]\nWants=user@%s.service\nAfter=user@%s.service\n\n' "$1" "$1"; fi
+    printf '[Service]\n'
+    if [ -n "$1" ]; then printf 'Environment=XDG_RUNTIME_DIR=/run/user/%s\n' "$1"; fi
+    if [ "$2" = true ]; then printf 'SupplementaryGroups=bluetooth\n'; fi
+    return 0
+}
+
+btk_verify_unit() {
+    btk_has systemd-analyze || return 0
+    systemd-analyze verify "$1.service" >>"$BTK_LOG" 2>&1
+}
+
+btk_remove_dropin() {
+    local path
+    path="$(btk_dropin_path "$1")"
+    [ -e "$path" ] || return 0
+    $SUDO rm -f "$path" && $SUDO systemctl daemon-reload >>"$BTK_LOG" 2>&1
+}
+
+# btk_write_dropin <service> <user> <uid>: the AuraGo service joins the
+# user's audio session. A drop-in systemd rejects is removed again.
+btk_write_dropin() {
+    local service="$1" user="$2" uid="$3" path tmp content group=false
+    path="$(btk_dropin_path "$service")"
+    if btk_has getent && getent group bluetooth >/dev/null 2>&1; then group=true; fi
+    if [ "$user" = root ]; then uid=""; fi
+    if [ -z "$uid" ] && [ "$group" = false ]; then
+        btk_remove_dropin "$service"
+        return 0
+    fi
+    content="$(btk_dropin_content "$uid" "$group")"
+    if [ "$(cat "$path" 2>/dev/null)" = "$content" ]; then
+        btk_done "AuraGo service is set up for Bluetooth"
+        return 0
+    fi
+    tmp="$(mktemp)" || { btk_fail "Writing $path" "see documentation/bluetooth.md, Installer setup"; return 1; }
+    printf '%s\n' "$content" > "$tmp"
+    if ! $SUDO mkdir -p "${path%/*}" || ! $SUDO install -o root -g root -m 0644 "$tmp" "$path"; then
+        rm -f "$tmp"
+        btk_fail "Writing $path" "see documentation/bluetooth.md, Installer setup"
+        return 1
+    fi
+    rm -f "$tmp"
+    if $SUDO systemctl daemon-reload >>"$BTK_LOG" 2>&1 && btk_verify_unit "$service"; then
+        btk_done "AuraGo service joins the audio session ($path)"
+        return 0
+    fi
+    $SUDO rm -f "$path"
+    $SUDO systemctl daemon-reload >>"$BTK_LOG" 2>&1 || true
+    btk_fail "Checking $path with systemd (the file was removed again)" "sudo systemd-analyze verify $service.service"
+    return 1
+}
+
+# btk_config_set <config.yaml> <key> <value>: sets bluetooth.<key>, adding
+# the key or the section when missing. `cat >` keeps mode and owner.
+btk_config_set() {
+    local file="$1" tmp
+    [ -f "$file" ] || return 1
+    tmp="$(mktemp)" || return 1
+    if ! awk -v key="$2" -v value="$3" '
+        function emit_missing(  pad) {
+            if (done) return
+            pad = (indent == "" ? "    " : indent)
+            print pad key ": " value
+            done = 1
+        }
+        /^bluetooth:/ {
+            insec = 1; seen = 1
+            if ($0 ~ /^bluetooth:[[:space:]]*(#.*)?$/) print; else print "bluetooth:"
+            next
+        }
+        insec && /^[^[:space:]#]/ { emit_missing(); insec = 0 }
+        insec && /^[[:space:]]+[^[:space:]#]/ {
+            if (indent == "") { match($0, /^[[:space:]]+/); indent = substr($0, 1, RLENGTH) }
+            if (!done && index($0, indent key ":") == 1) { print indent key ": " value; done = 1; next }
+        }
+        { print }
+        END {
+            if (insec) emit_missing()
+            if (!seen) { print "bluetooth:"; print "    " key ": " value }
+        }
+    ' "$file" > "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    if ! { cat "$tmp" > "$file"; } 2>/dev/null && ! $SUDO tee "$file" < "$tmp" >/dev/null; then
+        rm -f "$tmp"
+        return 1
+    fi
+    rm -f "$tmp"
+    return 0
+}
 # <<< AURAGO-BLUETOOTH-KIT v1 <<<

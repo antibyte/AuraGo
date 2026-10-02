@@ -273,3 +273,78 @@ step btk_enable_user_units svc 1001 pipewire
 called "runuser -u svc -- env XDG_RUNTIME_DIR=/run/user/1001 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus systemctl --user enable --now pipewire.socket pipewire-pulse.socket wireplumber.service"
 `)
 }
+
+func TestBluetoothKitServiceDropIn(t *testing.T) {
+	t.Parallel()
+	runBluetoothKit(t, `
+HAVE="getent systemd-analyze"
+d="$BTK_ROOT/etc/systemd/system/aurago.service.d/aurago-bluetooth.conf"
+export STUB_GROUPS="bluetooth"
+step btk_write_dropin aurago svc 1001
+[ "$(cat "$d")" = "$(printf '%s\n' '[Unit]' 'Wants=user@1001.service' 'After=user@1001.service' '' '[Service]' 'Environment=XDG_RUNTIME_DIR=/run/user/1001' 'SupplementaryGroups=bluetooth')" ]
+called "systemctl daemon-reload"
+called "systemd-analyze verify aurago.service"
+
+# The group line exists only when the group does; the account is never changed.
+export STUB_GROUPS=""
+step btk_write_dropin aurago svc 1001
+lacks 'SupplementaryGroups' "$d"
+
+# root has no audio session: only the group, or no drop-in at all.
+export STUB_GROUPS="bluetooth"
+step btk_write_dropin aurago root 0
+[ "$(cat "$d")" = "$(printf '%s\n' '[Service]' 'SupplementaryGroups=bluetooth')" ]
+export STUB_GROUPS=""
+step btk_write_dropin aurago root 0
+[ ! -e "$d" ]
+
+# A drop-in systemd rejects is removed so the service always starts.
+export STUB_VERIFY_RC=1
+: > "$STUB_LOG"
+if step btk_write_dropin aurago svc 1001; then exit 1; fi
+[ ! -e "$d" ]
+[ "$(grep -c '^systemctl daemon-reload$' "$STUB_LOG")" = 2 ]
+`)
+}
+
+func TestBluetoothKitEditsConfig(t *testing.T) {
+	t.Parallel()
+	scenario := `
+c="$D/config.yaml"
+write_config
+step btk_config_set "$c" enabled false
+step btk_config_set "$c" allow_playback true
+[ "$(cat "$c")" = "$(printf '%s\n' 'bluetooth:' '    enabled: false' '    readonly: true' '    allow_playback: true' 'server:' '    host: 127.0.0.1')" ]
+
+# A missing key is added with the section's own indentation.
+printf '%s\n' 'bluetooth:' '  readonly: true' 'server:' '  host: 0.0.0.0' > "$c"
+step btk_config_set "$c" enabled true
+[ "$(cat "$c")" = "$(printf '%s\n' 'bluetooth:' '  readonly: true' '  enabled: true' 'server:' '  host: 0.0.0.0')" ]
+
+# Same key names in other sections stay untouched; a missing section is appended.
+printf '%s\n' 'server:' '    host: 0.0.0.0' '    enabled: false' > "$c"
+step btk_config_set "$c" enabled true
+[ "$(cat "$c")" = "$(printf '%s\n' 'server:' '    host: 0.0.0.0' '    enabled: false' 'bluetooth:' '    enabled: true')" ]
+
+# An empty inline section becomes a block section.
+printf '%s\n' 'bluetooth: {}' 'server:' '    host: 0.0.0.0' > "$c"
+step btk_config_set "$c" enabled true
+[ "$(cat "$c")" = "$(printf '%s\n' 'bluetooth:' '    enabled: true' 'server:' '    host: 0.0.0.0')" ]
+
+# The section at the end of the file.
+printf '%s\n' 'bluetooth:' '    enabled: true' > "$c"
+step btk_config_set "$c" allow_playback true
+[ "$(cat "$c")" = "$(printf '%s\n' 'bluetooth:' '    enabled: true' '    allow_playback: true')" ]
+
+if step btk_config_set "$D/missing.yaml" enabled true; then exit 1; fi
+`
+	if runtime.GOOS != "windows" {
+		scenario += `
+write_config
+chmod 600 "$c"
+step btk_config_set "$c" enabled true
+[ "$(stat -c %a "$c")" = 600 ]
+`
+	}
+	runBluetoothKit(t, scenario)
+}
