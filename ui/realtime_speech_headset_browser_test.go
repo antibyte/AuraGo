@@ -89,3 +89,50 @@ func TestRealtimeSpeechAudioOutputBrowser(t *testing.T) {
         await context.close();
     }`)
 }
+
+func TestRealtimeSpeechHeadsetBridgeBrowser(t *testing.T) {
+	page := openRealtimeHeadsetFixture(t, `<script src="/js/realtime-speech/headset-bridge.js"></script><script>
+window.sockets=[];
+class FakeSocket extends EventTarget{
+    constructor(url){super();this.url=url;this.readyState=1;this.sent=[];sockets.push(this);}
+    send(data){this.sent.push(data);}
+    close(){this.readyState=3;this.dispatchEvent(new Event('close'));}
+    receive(data){this.dispatchEvent(new MessageEvent('message',{data}));}
+}
+window.FakeSocket=FakeSocket;
+</script>`)
+	page.MustEval(`async()=>{
+        const {HeadsetBridge}=AuraRealtimeHeadsetBridge;
+        const bridge=new HeadsetBridge({sessionId:'rts-1',clientId:'browser',device:'AA:BB:CC:DD:EE:FF',WebSocketClass:FakeSocket,retryDelays:[20,20]});
+        const states=[];const frames=[];
+        bridge.addEventListener('device',e=>states.push(e.detail));
+        bridge.addEventListener('frame',e=>frames.push(e.detail.frame));
+        bridge.open();
+        const socket=sockets[0];
+        if(!socket.url.includes('/api/realtime-speech/headset?session=rts-1&client=browser&device=AA%3ABB%3ACC%3ADD%3AEE%3AFF'))throw Error('url '+socket.url);
+        socket.receive(JSON.stringify({type:'ready',input_rate:16000,output_rate:24000}));
+        const pcm=new Int16Array(512).fill(16384).buffer;
+        socket.receive(pcm);
+        if(frames.length)throw Error('frames before device_ready must be dropped');
+        socket.receive(JSON.stringify({type:'device_ready'}));
+        socket.receive(pcm);
+        if(frames.length!==1||frames[0].length!==512||Math.abs(frames[0][0]-0.5)>0.001)throw Error('frame conversion');
+        bridge.sendOutput(0,new Float32Array(480));
+        if(socket.sent.length)throw Error('silence must not be sent');
+        bridge.sendOutput(1,new Float32Array(480).fill(0.5));
+        const payload=new Uint8Array(socket.sent[0]);
+        if(payload.length!==961||payload[0]!==1||new DataView(payload.buffer).getInt16(1,true)!==16383)throw Error('output encoding');
+        bridge.flush(0);
+        if(socket.sent[1]!=='{"type":"flush","stream":0}')throw Error('flush message');
+        socket.receive(JSON.stringify({type:'device_lost'}));
+        if(states.length!==2||states[0].ready!==true||states[1].ready!==false||states[1].wasReady!==true)throw Error('states '+JSON.stringify(states));
+        socket.close();
+        await new Promise(r=>setTimeout(r,60));
+        if(sockets.length!==2)throw Error('bridge did not retry after a drop');
+        sockets[1].receive(JSON.stringify({type:'error',code:'headset_unknown'}));
+        sockets[1].close();
+        await new Promise(r=>setTimeout(r,60));
+        if(sockets.length!==2)throw Error('an unknown headset must not be retried');
+        bridge.close();
+    }`)
+}

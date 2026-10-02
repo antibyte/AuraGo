@@ -88,6 +88,7 @@
                 '/js/realtime-speech/silero-vad.js',
                 '/js/realtime-speech/audio-engine.js',
                 '/js/realtime-speech/provider-common.js',
+                '/js/realtime-speech/headset-bridge.js',
                 '/js/realtime-speech/provider-openai.js',
                 '/js/realtime-speech/provider-xai.js',
                 '/js/realtime-speech/provider-gemini.js',

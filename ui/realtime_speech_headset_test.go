@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -31,5 +32,24 @@ func TestRealtimeSpeechOutputGoesThroughTheSharedRouter(t *testing.T) {
 	tap := readDesktopAssetText(t, "js/realtime-speech/output-tap-worklet.js")
 	if !strings.Contains(tap, "registerProcessor('aurago-realtime-output-tap'") {
 		t.Fatal("output tap worklet is missing")
+	}
+}
+
+func TestRealtimeSpeechLoadsTheHeadsetBridge(t *testing.T) {
+	t.Parallel()
+	index, err := os.ReadFile("index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, source := range map[string]string{
+		"index.html":       string(index),
+		"module-loader.js": readDesktopAssetText(t, "js/desktop/core/module-loader.js"),
+	} {
+		common := strings.Index(source, "/js/realtime-speech/provider-common.js")
+		bridge := strings.Index(source, "/js/realtime-speech/headset-bridge.js")
+		core := strings.Index(source, "/js/realtime-speech/core.js")
+		if common < 0 || bridge < common || core < bridge {
+			t.Fatalf("%s must load headset-bridge.js between provider-common.js and core.js", name)
+		}
 	}
 }
