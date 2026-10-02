@@ -207,6 +207,9 @@
 
 .realtime-speech-notice[hidden] { display: none; }
 
+.realtime-speech-profile-label[hidden],
+.realtime-speech-privacy[hidden] { display: none; }
+
 .realtime-speech-error > span:first-child {
     display: grid;
     place-items: center;

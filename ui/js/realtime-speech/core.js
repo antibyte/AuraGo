@@ -85,6 +85,18 @@
         return output ? output.destination(context, 1) : context.destination;
     }
 
+    const HEADSET_ERROR_TEXT = {
+        headset_busy: ['chat.realtime_audio_busy', 'The headset is being used by another browser.'],
+        headset_unknown: ['chat.realtime_audio_unknown', 'The headset is no longer paired with the server.'],
+        headset_profile_unavailable: ['chat.realtime_audio_profile_unavailable', 'The headset offers no microphone.'],
+        headset_audio_unavailable: ['chat.realtime_audio_unavailable', 'Server audio is not available.']
+    };
+
+    function headsetErrorMessage(code) {
+        const entry = HEADSET_ERROR_TEXT[code];
+        return entry ? text(entry[0], entry[1]) : '';
+    }
+
     function eventContent(payload) {
         if (!payload || typeof payload !== 'object') return '';
         const choices = Array.isArray(payload.choices) ? payload.choices : [];
@@ -141,6 +153,13 @@
             this.toolTurn = false;
             this.suppressNextAssistantChat = false;
             this.usage = null;
+            this.audioDevice = '';
+            this.headsetBridge = null;
+            this.headsetActive = false;
+            this.headsetPending = false;
+            this.headsetError = '';
+            this.headsetNotice = '';
+            this.headsetNoticeTimer = null;
             this.boundVisibleMessage = event => this.syncVisibleMessage(event);
 
             if (this.channel) this.channel.addEventListener('message', event => this.handleChannelMessage(event.data));
@@ -272,6 +291,7 @@
             this.bindAdapter(this.adapter);
             this.audioGate = new window.AuraRealtimeAudio.RealtimeAudioGate();
             this.bindAudioGate(this.audioGate);
+            this.audioDevice = String(options.audioDevice || '');
 
             try {
                 if (window.AuraBrowserAudioLease) {
@@ -284,7 +304,9 @@
                         throw leaseError;
                     }
                 }
-                await this.audioGate.start();
+                // With a server headset the browser microphone stays closed until
+                // the bridge reports the headset lost.
+                await this.audioGate.start({ input: this.audioDevice ? 'external' : 'browser' });
                 await this.connectAdapter(!!options.takeover);
                 this.channelPost({ type: 'active', sessionId: this.sessionId });
                 this.touch();
@@ -311,12 +333,14 @@
                 createSession: async extra => {
                     const created = await this.createSession(extra, takeover);
                     this.sessionId = created.session_id;
+                    this.openHeadsetBridge();
                     return created;
                 },
                 conversationId: '',
                 resumptionHandle: ''
             });
             this.sessionId = response.session_id;
+            this.openHeadsetBridge();
             this.setState('listening');
             return response;
         }
@@ -407,6 +431,7 @@
             this.touch();
             if (this.providerSpeaking) {
                 this.adapter.interruptOutput();
+                if (window.AuraRealtimeAudioOutput) window.AuraRealtimeAudioOutput.flush(0);
                 this.providerSpeaking = false;
             }
             if (needsResume) {
@@ -905,9 +930,124 @@
             });
         }
 
+        // Server headset (Bluetooth on the AuraGo host): the bridge streams its
+        // microphone into the audio gate and takes the provider output. Without
+        // a ready headset everything runs on this browser's devices.
+        openHeadsetBridge() {
+            const Bridge = window.AuraRealtimeHeadsetBridge && window.AuraRealtimeHeadsetBridge.HeadsetBridge;
+            if (!Bridge || !this.audioDevice || !this.sessionId || this.headsetBridge) return;
+            const bridge = new Bridge({ sessionId: this.sessionId, clientId: this.clientId, device: this.audioDevice });
+            this.headsetBridge = bridge;
+            this.headsetPending = true;
+            bridge.addEventListener('frame', event => {
+                if (this.headsetBridge === bridge && this.headsetActive && this.audioGate) {
+                    this.audioGate.pushExternalFrame(event.detail.frame);
+                }
+            });
+            bridge.addEventListener('device', event => {
+                if (this.headsetBridge === bridge) void this.applyHeadsetState(event.detail || {});
+            });
+            bridge.open();
+            this.emitHeadset();
+        }
+
+        async applyHeadsetState(detail) {
+            const gate = this.audioGate;
+            const output = window.AuraRealtimeAudioOutput;
+            this.headsetPending = false;
+            if (detail.ready) {
+                this.headsetActive = true;
+                this.headsetError = '';
+                if (output) output.setBridge(this.headsetBridge);
+                if (gate) await gate.useExternalInput();
+                this.showHeadsetNotice(text('chat.realtime_audio_headset_connected', 'Headset connected.'));
+                return;
+            }
+            const wasActive = this.headsetActive;
+            this.headsetActive = false;
+            this.headsetError = String(detail.error || '');
+            if (output) output.setBridge(null);
+            if (gate) {
+                try {
+                    await gate.useBrowserInput();
+                } catch (error) {
+                    this.setState('error', { error, message: safeErrorMessage(error) });
+                }
+            }
+            let message = headsetErrorMessage(this.headsetError);
+            if (!message && wasActive) {
+                message = detail.reason === 'bridge'
+                    ? text('chat.realtime_audio_bridge_lost', 'Connection to the server headset was interrupted – using this device.')
+                    : text('chat.realtime_audio_headset_lost', 'Headset disconnected – using this device.');
+            }
+            this.showHeadsetNotice(message);
+        }
+
+        async setAudioDevice(address) {
+            const next = String(address || '');
+            if (next === this.audioDevice) return;
+            this.audioDevice = next;
+            if (this.sessionId) {
+                await this.closeHeadsetBridge({ restoreInput: true });
+                this.openHeadsetBridge();
+            }
+            this.emitHeadset();
+        }
+
+        async closeHeadsetBridge(options) {
+            const restoreInput = !options || options.restoreInput !== false;
+            const bridge = this.headsetBridge;
+            const gate = this.audioGate;
+            const needsBrowserInput = this.headsetActive || (gate && gate.inputMode === 'external');
+            this.headsetBridge = null;
+            this.headsetActive = false;
+            this.headsetPending = false;
+            this.headsetError = '';
+            if (window.AuraRealtimeAudioOutput) window.AuraRealtimeAudioOutput.setBridge(null);
+            if (bridge) bridge.close();
+            if (restoreInput && gate && needsBrowserInput) {
+                try {
+                    await gate.useBrowserInput();
+                } catch (error) {
+                    this.setState('error', { error, message: safeErrorMessage(error) });
+                }
+            }
+        }
+
+        showHeadsetNotice(message) {
+            window.clearTimeout(this.headsetNoticeTimer);
+            this.headsetNotice = message || '';
+            if (this.headsetNotice) {
+                this.headsetNoticeTimer = window.setTimeout(() => {
+                    this.headsetNotice = '';
+                    this.emitHeadset();
+                }, 6000);
+            }
+            this.emitHeadset();
+        }
+
+        headsetStatusText() {
+            if (this.headsetNotice) return this.headsetNotice;
+            if (this.headsetPending && this.headsetBridge) return text('chat.realtime_audio_connecting', 'Connecting headset…');
+            return headsetErrorMessage(this.headsetError);
+        }
+
+        emitHeadset() {
+            this.emit('headset', {
+                device: this.audioDevice,
+                active: this.headsetActive,
+                pending: this.headsetPending,
+                error: this.headsetError,
+                notice: this.headsetNotice
+            });
+        }
+
         async stop(options) {
             options = Object.assign({ notifyServer: true }, options || {});
             this.stopActionProgress();
+            await this.closeHeadsetBridge({ restoreInput: false });
+            window.clearTimeout(this.headsetNoticeTimer);
+            this.headsetNotice = '';
             const progressContext = this.progressOutputContext;
             this.progressOutputContext = null;
             this.progressOutputAnalyser = null;

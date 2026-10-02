@@ -136,3 +136,72 @@ window.FakeSocket=FakeSocket;
         bridge.close();
     }`)
 }
+
+func TestRealtimeSpeechAudioPickerBrowser(t *testing.T) {
+	page := openRealtimeHeadsetFixture(t, `<div id="panel"></div><script>
+window.audioList={devices:[],reason:''};
+window.AuraRealtimeHeadsetBridge={listDevices:async()=>window.audioList};
+window.runtime=window.AuraRealtimeSpeech=Object.assign(new EventTarget(),{
+    state:'idle',sessionId:'',profile:null,audioDevice:'',headsetNotice:'',started:null,switched:[],
+    config:{default_profile:'primary',profiles:[{id:'primary',name:'Primary',provider:'openai',enabled:true,api_key_set:true}]},
+    async initialize(){},
+    headsetStatusText(){return this.headsetNotice;},
+    async start(options){this.started=options;this.audioDevice=options.audioDevice||'';this.profile=this.config.profiles[0];this.sessionId='s';this.state='listening';this.dispatchEvent(new Event('state'));},
+    async stop(){this.sessionId='';this.state='idle';this.dispatchEvent(new Event('state'));},
+    async setAudioDevice(id){this.switched.push(id);this.audioDevice=id;}
+});
+</script><script src="/js/realtime-speech/panel.js"></script><script>
+window.root=document.getElementById('panel');
+window.remount=()=>AuraRealtimeSpeechUI.mount(root,{surface:'webchat'});
+window.field=()=>root.querySelector('[data-realtime-audio-field]');
+window.select=()=>root.querySelector('[data-realtime-audio]');
+window.settle=()=>new Promise(r=>setTimeout(r,50));
+remount();
+</script>`)
+	page.MustEval(`async()=>{
+        await settle();
+        if(!field().hidden)throw Error('no headsets and nothing stored: the field must stay hidden');
+        audioList={devices:[{id:'AA:BB:CC:DD:EE:FF',name:'Earbuds',connected:true,busy:false},{id:'AA:BB:CC:DD:EE:01',name:'Office',connected:false,busy:false}],reason:''};
+        remount();await settle();
+        const labels=[...select().options].map(o=>o.textContent);
+        if(field().hidden||labels[0]!=='This device'||labels[1]!=='Earbuds'||labels[2]!=='Office (not connected)')throw Error('options '+JSON.stringify(labels));
+        select().value='AA:BB:CC:DD:EE:FF';select().dispatchEvent(new Event('change'));
+        if(localStorage.getItem('aurago.realtimeSpeech.audioDevice.v1')!=='AA:BB:CC:DD:EE:FF')throw Error('choice not stored');
+        root.querySelector('[data-realtime-start]').click();await settle();
+        if(runtime.started.audioDevice!=='AA:BB:CC:DD:EE:FF')throw Error('start did not pass the headset');
+        select().value='';select().dispatchEvent(new Event('change'));await settle();
+        if(runtime.switched.length!==1||runtime.switched[0]!=='')throw Error('switch during the session missing: '+JSON.stringify(runtime.switched));
+        runtime.headsetNotice='Headset connected.';runtime.dispatchEvent(new Event('headset'));
+        const status=root.querySelector('[data-realtime-audio-status]');
+        if(status.hidden||status.textContent!=='Headset connected.')throw Error('status line');
+        await runtime.stop();
+        localStorage.setItem('aurago.realtimeSpeech.audioDevice.v1','AA:BB:CC:DD:EE:01');
+    }`)
+	// After a reload the fixture lists no headsets again.
+	page.MustReload().MustWaitLoad()
+	page.MustEval(`async()=>{
+        await settle();
+        const labels=[...select().options].map(o=>o.textContent);
+        if(field().hidden||select().value!=='AA:BB:CC:DD:EE:01'||labels[1]!=='AA:BB:CC:DD:EE:01 (not connected)')throw Error('a stored but unlisted headset must stay selectable: '+JSON.stringify(labels));
+    }`)
+}
+
+func TestRealtimeSpeechHeadsetSwitchingBrowser(t *testing.T) {
+	page := openRealtimeHeadsetFixture(t, `<script src="/js/realtime-speech/provider-common.js"></script>
+<script src="/js/realtime-speech/headset-bridge.js"></script><script src="/js/realtime-speech/core.js"></script>`)
+	page.MustEval(`async()=>{
+        const runtime=window.AuraRealtimeSpeech;
+        const calls=[];
+        runtime.audioGate={inputMode:'external',async useExternalInput(){calls.push('external');this.inputMode='external';},async useBrowserInput(){calls.push('browser');this.inputMode='browser';},pushExternalFrame(){calls.push('frame');}};
+        const bridge=Object.assign(new EventTarget(),{closed:false,sendOutput(){},flush(){},close(){this.closed=true;}});
+        runtime.sessionId='rts-1';runtime.audioDevice='AA:BB:CC:DD:EE:FF';runtime.headsetBridge=bridge;runtime.headsetPending=true;
+        await runtime.applyHeadsetState({ready:true});
+        if(calls.join()!=='external'||AuraRealtimeAudioOutput.mode!=='bridge'||!runtime.headsetActive||runtime.headsetNotice!=='Headset connected.')throw Error('ready '+calls.join()+' '+runtime.headsetNotice);
+        await runtime.applyHeadsetState({ready:false,wasReady:true,reason:'device'});
+        if(calls.join()!=='external,browser'||AuraRealtimeAudioOutput.mode!=='local'||runtime.headsetNotice!=='Headset disconnected – using this device.')throw Error('lost '+runtime.headsetNotice);
+        await runtime.applyHeadsetState({ready:false,reason:'error',error:'headset_busy'});
+        if(runtime.headsetStatusText()!=='The headset is being used by another browser.')throw Error('busy '+runtime.headsetStatusText());
+        await runtime.setAudioDevice('');
+        if(!bridge.closed||runtime.headsetBridge||runtime.audioDevice!=='')throw Error('switching to this device must close the bridge');
+    }`)
+}

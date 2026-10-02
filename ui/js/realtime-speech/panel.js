@@ -12,6 +12,33 @@
         try { localStorage.setItem(PROFILE_STORAGE_KEY, id); } catch (_) { }
     }
 
+    const AUDIO_STORAGE_KEY = 'aurago.realtimeSpeech.audioDevice.v1';
+    let preferredAudio = '';
+    try { preferredAudio = localStorage.getItem(AUDIO_STORAGE_KEY) || ''; } catch (_) { }
+    let audioDevices = [];
+    let audioLoad = null;
+
+    function rememberAudio(id) {
+        preferredAudio = id;
+        try { localStorage.setItem(AUDIO_STORAGE_KEY, id); } catch (_) { }
+    }
+
+    // loadAudioDevices lists the server's Bluetooth headsets with a microphone.
+    function loadAudioDevices() {
+        const bridge = window.AuraRealtimeHeadsetBridge;
+        if (!bridge || typeof bridge.listDevices !== 'function') return Promise.resolve();
+        if (audioLoad) return audioLoad;
+        audioLoad = bridge.listDevices().then(result => {
+            audioDevices = Array.isArray(result && result.devices) ? result.devices : [];
+        }).catch(() => {
+            audioDevices = [];
+        }).finally(() => {
+            audioLoad = null;
+            refreshAll();
+        });
+        return audioLoad;
+    }
+
     function text(key, fallback) {
         const value = typeof window.t === 'function' ? window.t(key) : '';
         return value && value !== key ? value : fallback;
@@ -85,6 +112,36 @@
             profile.disabled = active;
         }
 
+        const audioField = root.querySelector('[data-realtime-audio-field]');
+        const audio = root.querySelector('[data-realtime-audio]');
+        if (audioField && audio) {
+            const notConnected = text('chat.realtime_audio_not_connected', 'not connected');
+            const chosen = active ? String(runtime.audioDevice || '') : preferredAudio;
+            const entries = audioDevices.map(device => ({
+                value: String(device.id || ''),
+                label: String(device.name || device.id || '') + (device.connected ? '' : ' (' + notConnected + ')')
+            })).filter(entry => entry.value);
+            if (chosen && !entries.some(entry => entry.value === chosen)) {
+                entries.push({ value: chosen, label: chosen + ' (' + notConnected + ')' });
+            }
+            audioField.hidden = entries.length === 0;
+            const options = [{ value: '', label: text('chat.realtime_audio_this_device', 'This device') }].concat(entries);
+            const signature = options.map(entry => entry.value + '\u0000' + entry.label).join('\u0001');
+            if (audio.dataset.signature !== signature) {
+                audio.innerHTML = options.map(entry =>
+                    `<option value="${escapeHTML(entry.value)}">${escapeHTML(entry.label)}</option>`
+                ).join('');
+                audio.dataset.signature = signature;
+            }
+            audio.value = chosen;
+        }
+        const audioStatus = root.querySelector('[data-realtime-audio-status]');
+        if (audioStatus) {
+            const status = active && typeof runtime.headsetStatusText === 'function' ? runtime.headsetStatusText() : '';
+            audioStatus.textContent = status;
+            audioStatus.hidden = !status;
+        }
+
         const start = root.querySelector('[data-realtime-start]');
         if (start) {
             start.disabled = profiles.length === 0;
@@ -135,6 +192,11 @@
                 <span>${escapeHTML(text('chat.realtime_profile', 'Profile'))}</span>
                 <select data-realtime-profile></select>
             </label>
+            <label class="realtime-speech-profile-label" data-realtime-audio-field hidden>
+                <span>${escapeHTML(text('chat.realtime_audio', 'Audio'))}</span>
+                <select data-realtime-audio></select>
+            </label>
+            <p class="realtime-speech-privacy" data-realtime-audio-status role="status" hidden></p>
             <div class="realtime-speech-controls">
                 <button type="button" class="realtime-speech-primary" data-realtime-start>
                     <span class="realtime-speech-control-icon" data-realtime-start-icon aria-hidden="true"></span>
@@ -164,6 +226,13 @@
         const profile = root.querySelector('[data-realtime-profile]');
         const mute = root.querySelector('[data-realtime-mute]');
         const cancel = root.querySelector('[data-realtime-cancel]');
+        const audio = root.querySelector('[data-realtime-audio]');
+        audio.addEventListener('focus', () => void loadAudioDevices());
+        audio.addEventListener('change', () => {
+            rememberAudio(audio.value);
+            if (runtime.sessionId && typeof runtime.setAudioDevice === 'function') void runtime.setAudioDevice(audio.value);
+            refreshAll();
+        });
         profile.addEventListener('change', () => {
             rememberProfile(profile.value);
             refreshAll();
@@ -176,6 +245,7 @@
                     rememberProfile(profile.value);
                     await runtime.start({
                         profileId: profile.value,
+                        audioDevice: preferredAudio,
                         surface: options.surface || 'webchat',
                         chatSessionId: typeof options.chatSessionId === 'function' ? options.chatSessionId() : options.chatSessionId
                     });
@@ -259,7 +329,10 @@
             if (disposed) return;
             if (mounted.avatar) mounted.avatar.dispose();
             root.innerHTML = `<div class="realtime-speech-load-error">${escapeHTML(error.message)}</div>`;
-        }).finally(refreshAll);
+        }).finally(() => {
+            refreshAll();
+            void loadAudioDevices();
+        });
         return unmount;
     }
 
@@ -271,6 +344,7 @@
     runtime.addEventListener('state', refreshAll);
     runtime.addEventListener('config', refreshAll);
     runtime.addEventListener('mute', refreshAll);
+    runtime.addEventListener('headset', refreshAll);
     runtime.addEventListener('action', event => {
         const detail = event.detail || {};
         if (detail.phase === 'progress') updateCaption({ text: detail.message });
