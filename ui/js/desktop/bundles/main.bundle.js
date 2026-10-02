@@ -18745,6 +18745,18 @@ if (appId === 'pixel') {
             showDesktopNotification({ title: 'RTL-SDR', message: t('rtlSdr.recording_soon'), appId: 'rtl-sdr' });
             return;
         }
+        if (event.type === 'bluetooth_changed') {
+            document.dispatchEvent(new CustomEvent('aurago:bluetooth-change', { detail: event.payload || {} }));
+            return;
+        }
+        if (event.type === 'bluetooth_interaction') {
+            document.dispatchEvent(new CustomEvent('aurago:bluetooth-interaction', { detail: event.payload || {} }));
+            if (!document.querySelector('.bt-app')) {
+                await window.AuraDesktopModules.loadAppI18nSections('bluetooth');
+                showDesktopNotification({ title: t('bluetooth.notification_title'), message: t('bluetooth.notification_message'), appId: 'bluetooth' });
+            }
+            return;
+        }
         if (event.type === 'plant_changed' || event.type === 'welcome') {
             document.dispatchEvent(new CustomEvent('aurago:plant-change', { detail: event.payload || {} }));
             if (event.type === 'plant_changed') return;
