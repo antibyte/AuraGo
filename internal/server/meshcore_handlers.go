@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/bluetooth"
 	"aurago/internal/meshcore"
 	"context"
 	"encoding/json"
@@ -125,7 +126,7 @@ func registerMeshCoreRoutes(mux *http.ServeMux, s *Server) {
 				jsonError(w, "Pair only the saved MeshCore device", 400)
 				return
 			}
-			err := s.Bluetooth.Pair(ctx, body.Address, body.PIN)
+			err := s.Bluetooth.Pair(ctx, bluetooth.ActorOperator, body.Address, body.PIN)
 			body.PIN = ""
 			if err != nil {
 				jsonError(w, "Pairing failed; check Bluetooth write permission and PIN", 409)

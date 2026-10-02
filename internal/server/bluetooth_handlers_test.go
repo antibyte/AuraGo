@@ -63,17 +63,14 @@ func TestBluetoothMutatingHandlersRejectWrongMethods(t *testing.T) {
 	}
 }
 
-func TestBluetoothDeviceActionHonorsReadOnly(t *testing.T) {
+func TestBluetoothDeviceActionIgnoresReadOnlyForOperators(t *testing.T) {
 	server := testBluetoothServer()
 	request := httptest.NewRequest(http.MethodPost, "/api/bluetooth/devices/action",
 		strings.NewReader(`{"operation":"connect","address":"AA:BB:CC:DD:EE:FF"}`))
 	response := httptest.NewRecorder()
 	handleBluetoothDeviceAction(server).ServeHTTP(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), bluetooth.ErrorReadOnly) {
-		t.Fatalf("response missing read-only code: %s", response.Body.String())
+	if response.Code == http.StatusForbidden || strings.Contains(response.Body.String(), bluetooth.ErrorReadOnly) {
+		t.Fatalf("operator was blocked by readonly: %d %s", response.Code, response.Body.String())
 	}
 }
 

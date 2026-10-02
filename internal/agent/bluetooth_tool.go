@@ -71,20 +71,20 @@ func dispatchBluetooth(ctx context.Context, tc ToolCall, dc *DispatchContext) st
 	case "pair":
 		// Agent calls intentionally support Just Works only. A transient PIN can
 		// only be supplied through the admin UI and is never exposed in schema.
-		err := manager.Pair(ctx, request.Device, "")
+		err := manager.Pair(ctx, bluetooth.ActorAgent, request.Device, "")
 		return bluetoothToolResult(map[string]interface{}{"device": request.Device}, err)
 	case "connect":
-		err := manager.Connect(ctx, request.Device)
+		err := manager.Connect(ctx, bluetooth.ActorAgent, request.Device)
 		return bluetoothToolResult(map[string]interface{}{"device": request.Device}, err)
 	case "disconnect":
-		err := manager.Disconnect(ctx, request.Device)
+		err := manager.Disconnect(ctx, bluetooth.ActorAgent, request.Device)
 		return bluetoothToolResult(map[string]interface{}{"device": request.Device}, err)
 	case "play":
 		source, err := resolveBluetoothPlaybackSource(dc.Cfg, dc.MediaRegistryDB, request)
 		if err != nil {
 			return bluetoothToolResult(nil, err)
 		}
-		playback, err := manager.Play(ctx, source, request.Device)
+		playback, err := manager.Play(ctx, bluetooth.ActorAgent, source, request.Device)
 		return bluetoothToolResult(map[string]interface{}{"playback": playback}, err)
 	case "speak":
 		if !isTTSConfigured(dc.Cfg) {
@@ -99,7 +99,7 @@ func dispatchBluetooth(ctx context.Context, tc ToolCall, dc *DispatchContext) st
 			return bluetoothToolResult(nil, fmt.Errorf("synthesize Bluetooth TTS: %w", err))
 		}
 		source := filepath.Join(dc.Cfg.Directories.DataDir, "tts", filename)
-		playback, err := manager.Play(ctx, source, request.Device)
+		playback, err := manager.Play(ctx, bluetooth.ActorAgent, source, request.Device)
 		return bluetoothToolResult(map[string]interface{}{"playback": playback}, err)
 	case "playback_status":
 		if !dc.Cfg.Bluetooth.AllowPlayback || !dc.Cfg.Runtime.Bluetooth.Audio.Usable {

@@ -100,8 +100,8 @@ func (p *execPlaybackProcess) Stop() error {
 }
 
 // Play starts asynchronous playback and replaces any previous AuraGo playback.
-func (m *Manager) Play(ctx context.Context, source, requestedDevice string) (PlaybackStatus, error) {
-	options, status, err := m.requirePlayback()
+func (m *Manager) Play(ctx context.Context, actor Actor, source, requestedDevice string) (PlaybackStatus, error) {
+	options, status, err := m.requirePlaybackFor(actor)
 	if err != nil {
 		return PlaybackStatus{}, err
 	}

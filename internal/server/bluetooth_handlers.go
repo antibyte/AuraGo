@@ -123,12 +123,12 @@ func handleBluetoothDeviceAction(s *Server) http.Handler {
 		case "pair":
 			// The optional PIN is intentionally transient: it is passed directly
 			// to BlueZ and is never persisted or logged.
-			err = s.Bluetooth.Pair(r.Context(), request.Address, request.PIN)
+			err = s.Bluetooth.Pair(r.Context(), bluetooth.ActorOperator, request.Address, request.PIN)
 			request.PIN = ""
 		case "connect":
-			err = s.Bluetooth.Connect(r.Context(), request.Address)
+			err = s.Bluetooth.Connect(r.Context(), bluetooth.ActorOperator, request.Address)
 		case "disconnect":
-			err = s.Bluetooth.Disconnect(r.Context(), request.Address)
+			err = s.Bluetooth.Disconnect(r.Context(), bluetooth.ActorOperator, request.Address)
 		default:
 			err = &bluetooth.CodedError{Code: bluetooth.ErrorInvalidArgument, Message: "Operation must be pair, connect, or disconnect."}
 		}
@@ -167,7 +167,7 @@ func handleBluetoothAudioTest(s *Server) http.Handler {
 			bluetoothJSONError(w, err, http.StatusInternalServerError)
 			return
 		}
-		playback, err := s.Bluetooth.Play(r.Context(), source, body.Device)
+		playback, err := s.Bluetooth.Play(r.Context(), bluetooth.ActorOperator, source, body.Device)
 		if err != nil {
 			bluetoothJSONError(w, err, 0)
 			return

@@ -131,15 +131,32 @@ func TestNormalizeAddress(t *testing.T) {
 	}
 }
 
-func TestManagerPermissions(t *testing.T) {
+func TestManagerPermissionsBindOnlyTheAgent(t *testing.T) {
 	adapter := &fakeAdapter{}
 	manager := newTestManager(adapter)
 	manager.Configure(Options{Enabled: true, ReadOnly: true})
-	if err := manager.Pair(context.Background(), "AA:BB:CC:DD:EE:FF", ""); ErrorCode(err) != ErrorReadOnly {
-		t.Fatalf("Pair error = %v, want read-only", err)
+	if err := manager.Pair(context.Background(), ActorAgent, "AA:BB:CC:DD:EE:FF", ""); ErrorCode(err) != ErrorReadOnly {
+		t.Fatalf("agent Pair error = %v, want read-only", err)
 	}
-	if err := manager.Connect(context.Background(), "AA:BB:CC:DD:EE:FF"); ErrorCode(err) != ErrorReadOnly {
-		t.Fatalf("Connect error = %v, want read-only", err)
+	if err := manager.Connect(context.Background(), ActorAgent, "AA:BB:CC:DD:EE:FF"); ErrorCode(err) != ErrorReadOnly {
+		t.Fatalf("agent Connect error = %v, want read-only", err)
+	}
+	if err := manager.Connect(context.Background(), ActorOperator, "AA:BB:CC:DD:EE:FF"); err != nil {
+		t.Fatalf("operator Connect error = %v, want success despite read-only", err)
+	}
+	if adapter.connected != "AA:BB:CC:DD:EE:FF" {
+		t.Fatalf("operator connect did not reach the adapter: %q", adapter.connected)
+	}
+}
+
+func TestPlaybackPermissionBindsOnlyTheAgent(t *testing.T) {
+	manager := newTestManager(&fakeAdapter{})
+	manager.Configure(Options{Enabled: true, AllowPlayback: false})
+	if _, _, err := manager.requirePlaybackFor(ActorAgent); ErrorCode(err) != ErrorPlaybackDisabled {
+		t.Fatalf("agent playback error = %v, want playback disabled", err)
+	}
+	if _, _, err := manager.requirePlaybackFor(ActorOperator); err != nil {
+		t.Fatalf("operator playback error = %v, want allowed", err)
 	}
 }
 
@@ -241,11 +258,11 @@ func TestPlaybackIsAsynchronousAndReplacesAuraGoStream(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	first, err := manager.Play(context.Background(), firstSource, address)
+	first, err := manager.Play(context.Background(), ActorAgent, firstSource, address)
 	if err != nil {
 		t.Fatalf("first Play: %v", err)
 	}
-	second, err := manager.Play(context.Background(), secondSource, address)
+	second, err := manager.Play(context.Background(), ActorAgent, secondSource, address)
 	if err != nil {
 		t.Fatalf("second Play: %v", err)
 	}

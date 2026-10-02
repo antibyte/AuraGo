@@ -189,31 +189,6 @@ func (m *Manager) requireUsable() (Options, Status, error) {
 	return m.options, m.status, nil
 }
 
-func (m *Manager) requireWritable() (Options, Status, error) {
-	options, status, err := m.requireUsable()
-	if err != nil {
-		return Options{}, status, err
-	}
-	if options.ReadOnly {
-		return Options{}, status, codedError(ErrorReadOnly, "Bluetooth is in read-only mode; pairing and connection changes are disabled.", nil)
-	}
-	return options, status, nil
-}
-
-func (m *Manager) requirePlayback() (Options, Status, error) {
-	options, status, err := m.requireUsable()
-	if err != nil {
-		return Options{}, status, err
-	}
-	if !options.AllowPlayback {
-		return Options{}, status, codedError(ErrorPlaybackDisabled, "Bluetooth playback is disabled in the AuraGo configuration.", nil)
-	}
-	if !status.Audio.Usable {
-		return Options{}, status, codedError(ErrorAudioTargetUnavailable, status.Audio.Reason, nil)
-	}
-	return options, status, nil
-}
-
 // List returns BlueZ's current devices without starting discovery.
 func (m *Manager) List(ctx context.Context) ([]Device, error) {
 	if _, _, err := m.requireUsable(); err != nil {
@@ -246,8 +221,8 @@ func (m *Manager) Discover(ctx context.Context, timeout time.Duration) ([]Device
 }
 
 // Pair pairs only the explicitly addressed device.
-func (m *Manager) Pair(ctx context.Context, address, pin string) error {
-	if _, _, err := m.requireWritable(); err != nil {
+func (m *Manager) Pair(ctx context.Context, actor Actor, address, pin string) error {
+	if _, _, err := m.requireWritableFor(actor); err != nil {
 		return err
 	}
 	normalized, err := NormalizeAddress(address)
@@ -265,8 +240,8 @@ func (m *Manager) Pair(ctx context.Context, address, pin string) error {
 }
 
 // Connect connects a previously paired device.
-func (m *Manager) Connect(ctx context.Context, address string) error {
-	if _, _, err := m.requireWritable(); err != nil {
+func (m *Manager) Connect(ctx context.Context, actor Actor, address string) error {
+	if _, _, err := m.requireWritableFor(actor); err != nil {
 		return err
 	}
 	normalized, err := NormalizeAddress(address)
@@ -280,8 +255,8 @@ func (m *Manager) Connect(ctx context.Context, address string) error {
 }
 
 // Disconnect disconnects a device.
-func (m *Manager) Disconnect(ctx context.Context, address string) error {
-	if _, _, err := m.requireWritable(); err != nil {
+func (m *Manager) Disconnect(ctx context.Context, actor Actor, address string) error {
+	if _, _, err := m.requireWritableFor(actor); err != nil {
 		return err
 	}
 	normalized, err := NormalizeAddress(address)
