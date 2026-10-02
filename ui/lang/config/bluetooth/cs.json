@@ -49,8 +49,8 @@
   "config.bluetooth.working": "Probíhá…",
   "config.bluetooth.request_failed": "Požadavek Bluetooth selhal.",
   "help.bluetooth.enabled": "Zařízení Bluetooth a cílený zvukový výstup přes Linux BlueZ.",
-  "help.bluetooth.readonly": "Režim jen pro čtení",
-  "help.bluetooth.allow_playback": "Povolit přehrávání zvuku",
+  "help.bluetooth.readonly": "Zabrání agentovi párovat zařízení nebo měnit připojení. Správci mohou zařízení dál spravovat v aplikaci Bluetooth na ploše a na této stránce.",
+  "help.bluetooth.allow_playback": "Umožní agentovi přehrávat zvuk na zařízeních Bluetooth. Testovací tón správce funguje i bez toho.",
   "help.bluetooth.audio_backend": "Zvukové rozhraní: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "Doba vyhledávání: 1–60.",
   "help.bluetooth.default_device": "Výchozí zařízení"

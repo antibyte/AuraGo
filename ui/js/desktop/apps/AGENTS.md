@@ -69,6 +69,32 @@
   `TestRTLSDRDesktopBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`). Its
   `AURAGO_RTLSDR_SCREENSHOT` path also receives `-fruity` and `-compact` views.
 
+## Bluetooth
+
+- `bluetooth-views.js` precedes `bluetooth.js`; strings live under `bluetooth.*`
+  plus `desktop.app_bluetooth` in all 16 desktop locales and load through
+  `APP_I18N_SECTIONS`. Views use literal translation keys so the static i18n
+  checker sees every call.
+- Hardware-bound built-in apps declare `Requires` in their manifest; the
+  server's `CapabilityProvider` decides visibility at read time and a
+  capability change broadcasts `desktop_changed` with
+  `operation: "app_availability"`. An open window is never closed by a
+  capability change; it shows its unavailable state and resumes.
+- The app never trusts event payloads: every `aurago:bluetooth-change` with a
+  different revision re-fetches `GET /api/bluetooth/status`. Fetches never
+  overlap. Server-owned state (scan, visibility, running operations) survives
+  closing the window.
+- Device actions post `wait: false`; progress and errors come back as
+  `operation`/`error` codes on the device and are shown from
+  `bluetooth.error_<CODE>` keys, never from English server text.
+- Pairing questions render in an in-window dialog with a 20 s countdown;
+  passkey/PIN fields validate locally. With the app closed, the shell shows a
+  "Pairing request" notification.
+- Verify `TestBluetoothTranslations`,
+  `TestFrontend_StaticI18nKeysExistInEnglishBundle` and the opt-in
+  `TestDesktopBluetoothBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`, screenshots via
+  `AURAGO_BLUETOOTH_SCREENSHOT`). Backend: `internal/bluetooth/AGENTS.md`.
+
 ## Detective
 - `detective-views.js` precedes `detective.js`; both use the native Desktop theme
   tokens and `desktop-app-detective.css`. Register the built-in `detective` app

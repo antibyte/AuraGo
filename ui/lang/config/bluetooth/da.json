@@ -49,8 +49,8 @@
   "config.bluetooth.working": "Arbejder…",
   "config.bluetooth.request_failed": "Bluetooth-anmodning mislykkedes.",
   "help.bluetooth.enabled": "Bluetooth-enheder og målrettet lydoutput via Linux BlueZ.",
-  "help.bluetooth.readonly": "Skrivebeskyttet tilstand",
-  "help.bluetooth.allow_playback": "Tillad lydafspilning",
+  "help.bluetooth.readonly": "Forhindrer agenten i at parre eller ændre forbindelser. Administratorer kan stadig administrere enheder i Bluetooth-appen på skrivebordet og på denne side.",
+  "help.bluetooth.allow_playback": "Lader agenten afspille lyd på Bluetooth-enheder. Administratorens testtone virker også uden.",
   "help.bluetooth.audio_backend": "Lydbackend: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "Søgevarighed: 1–60.",
   "help.bluetooth.default_device": "Standardenhed"

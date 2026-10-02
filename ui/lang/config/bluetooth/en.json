@@ -49,8 +49,8 @@
   "config.bluetooth.working": "Working…",
   "config.bluetooth.request_failed": "Bluetooth request failed.",
   "help.bluetooth.enabled": "Bluetooth devices and targeted audio output through Linux BlueZ.",
-  "help.bluetooth.readonly": "Read-only mode",
-  "help.bluetooth.allow_playback": "Allow audio playback",
+  "help.bluetooth.readonly": "Stops the agent from pairing or changing connections. Admins can still manage devices in the desktop Bluetooth app and on this page.",
+  "help.bluetooth.allow_playback": "Lets the agent play audio on Bluetooth devices. The admin test tone works without it.",
   "help.bluetooth.audio_backend": "Audio backend: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "Scan duration: 1–60.",
   "help.bluetooth.default_device": "Default device"

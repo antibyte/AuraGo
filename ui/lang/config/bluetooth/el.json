@@ -49,8 +49,8 @@
   "config.bluetooth.working": "Εκτελείται…",
   "config.bluetooth.request_failed": "Το αίτημα Bluetooth απέτυχε.",
   "help.bluetooth.enabled": "Συσκευές Bluetooth και στοχευμένη έξοδος ήχου μέσω Linux BlueZ.",
-  "help.bluetooth.readonly": "Λειτουργία μόνο για ανάγνωση",
-  "help.bluetooth.allow_playback": "Να επιτρέπεται η αναπαραγωγή ήχου",
+  "help.bluetooth.readonly": "Εμποδίζει τον agent να κάνει σύζευξη ή να αλλάζει συνδέσεις. Οι διαχειριστές μπορούν ακόμη να διαχειρίζονται συσκευές στην εφαρμογή Bluetooth της επιφάνειας εργασίας και σε αυτή τη σελίδα.",
+  "help.bluetooth.allow_playback": "Επιτρέπει στον agent να αναπαράγει ήχο σε συσκευές Bluetooth. Ο δοκιμαστικός ήχος του διαχειριστή λειτουργεί και χωρίς αυτό.",
   "help.bluetooth.audio_backend": "Υποσύστημα ήχου: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "Διάρκεια αναζήτησης: 1–60.",
   "help.bluetooth.default_device": "Προεπιλεγμένη συσκευή"

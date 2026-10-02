@@ -49,8 +49,8 @@
   "config.bluetooth.working": "काम जारी है…",
   "config.bluetooth.request_failed": "Bluetooth अनुरोध विफल हुआ।",
   "help.bluetooth.enabled": "Linux BlueZ के माध्यम से Bluetooth डिवाइस और लक्षित ऑडियो आउटपुट।",
-  "help.bluetooth.readonly": "केवल-पढ़ने का मोड",
-  "help.bluetooth.allow_playback": "ऑडियो चलाने की अनुमति दें",
+  "help.bluetooth.readonly": "एजेंट को पेयर करने या कनेक्शन बदलने से रोकता है। एडमिन अब भी डेस्कटॉप की Bluetooth ऐप और इस पेज पर डिवाइस प्रबंधित कर सकते हैं।",
+  "help.bluetooth.allow_playback": "एजेंट को Bluetooth डिवाइस पर ऑडियो चलाने देता है। एडमिन का टेस्ट टोन इसके बिना भी काम करता है।",
   "help.bluetooth.audio_backend": "ऑडियो बैकएंड: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "खोज अवधि: 1–60.",
   "help.bluetooth.default_device": "डिफ़ॉल्ट डिवाइस"

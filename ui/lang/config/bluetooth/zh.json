@@ -49,8 +49,8 @@
   "config.bluetooth.working": "处理中…",
   "config.bluetooth.request_failed": "蓝牙请求失败。",
   "help.bluetooth.enabled": "通过 Linux BlueZ 管理蓝牙设备并定向输出音频。",
-  "help.bluetooth.readonly": "只读模式",
-  "help.bluetooth.allow_playback": "允许播放音频",
+  "help.bluetooth.readonly": "禁止智能体配对或更改连接。管理员仍可在桌面蓝牙应用和此页面中管理设备。",
+  "help.bluetooth.allow_playback": "允许智能体在蓝牙设备上播放音频。管理员测试音不需要此选项也能使用。",
   "help.bluetooth.audio_backend": "音频后端: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "搜索时长: 1–60.",
   "help.bluetooth.default_device": "默认设备"

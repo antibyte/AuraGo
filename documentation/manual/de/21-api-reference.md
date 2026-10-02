@@ -2496,13 +2496,18 @@ Stream-Mutationen und ONVIF-Discovery sind Admin-POST/PUT. Ein HTTP 202 heißt: 
 
 ## Bluetooth API
 
-Nur Linux/BlueZ. Entdecken und Pairing brauchen `readonly: false`. Wiedergabe nur Workspace-Dateien oder Media-Registry, keine URLs.
+Nur Linux/BlueZ, nur Admin. `readonly` und `allow_playback` schränken den Agenten ein, nicht Admins. `devices/action` akzeptiert `wait: false` (antwortet 202) und `interactive: true`. Wiedergabe nur Workspace-Dateien oder Media-Registry, keine URLs.
 
 ```http
 GET /api/bluetooth/status
 POST /api/bluetooth/reprobe
 POST /api/bluetooth/discover
+POST /api/bluetooth/discovery
+POST /api/bluetooth/discoverable
+POST /api/bluetooth/power
 POST /api/bluetooth/devices/action
+GET /api/bluetooth/interactions/{id}
+POST /api/bluetooth/interactions/{id}
 POST /api/bluetooth/audio/test
 POST /api/bluetooth/audio/stop
 ```

@@ -1037,15 +1037,20 @@ Private Medien-URLs sind standardmäßig blockiert. Von AuraGo erzeugte `/tts/`-
 
 Bei nativen Linux-Installationen erkennt AuraGo beim Start einen eingeschalteten
 BlueZ-Adapter und stellt erst dann das `bluetooth`-Tool bereit. Die Gerätesuche
-ist standardmäßig verfügbar. Koppeln und Verbindungen ändern erfordert einen
-deaktivierten Nur-Lesen-Modus; die Wiedergabe benötigt zusätzlich eine
-erreichbare PipeWire- oder PulseAudio-Benutzersitzung und `allow_playback`.
+ist standardmäßig verfügbar. Koppeln und Verbindungen ändern durch den Agenten
+erfordert einen deaktivierten Nur-Lesen-Modus; die Wiedergabe durch den Agenten
+benötigt zusätzlich eine erreichbare PipeWire- oder PulseAudio-Benutzersitzung
+und `allow_playback`.
 
 Unter **Konfiguration → Smart Home → Bluetooth** kannst du neu erkennen, Geräte
 suchen, koppeln, verbinden und einen lokalen Testton abspielen. AuraGo routet
 nur seinen eigenen Audiostream und ändert das Standard-Ausgabegerät des Systems
 nicht. Pakete, Konfiguration, Docker-Einschränkungen und Fehlerdiagnose stehen
 unter [Bluetooth-Geräte und Audioausgabe](../../bluetooth.md).
+
+Die Desktop-App **Bluetooth** bietet dieselben Funktionen live und erscheint nur,
+solange ein Adapter vorhanden ist. `readonly` und `allow_playback` schränken nur
+den Agenten ein; Admins in der Desktop-App und auf der Config-Seite nicht.
 
 ## Media Registry
 

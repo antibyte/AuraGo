@@ -49,8 +49,8 @@
   "config.bluetooth.working": "Bezig…",
   "config.bluetooth.request_failed": "Bluetooth-verzoek mislukt.",
   "help.bluetooth.enabled": "Bluetooth-apparaten en gerichte audio-uitvoer via Linux BlueZ.",
-  "help.bluetooth.readonly": "Alleen-lezenmodus",
-  "help.bluetooth.allow_playback": "Audio afspelen toestaan",
+  "help.bluetooth.readonly": "Voorkomt dat de agent apparaten koppelt of verbindingen wijzigt. Beheerders kunnen apparaten nog steeds beheren in de Bluetooth-app op het bureaublad en op deze pagina.",
+  "help.bluetooth.allow_playback": "Laat de agent audio afspelen op Bluetooth-apparaten. De testtoon voor beheerders werkt ook zonder.",
   "help.bluetooth.audio_backend": "Audiobackend: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "Zoekduur: 1–60.",
   "help.bluetooth.default_device": "Standaardapparaat"

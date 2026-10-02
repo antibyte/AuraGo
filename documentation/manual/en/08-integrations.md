@@ -1222,15 +1222,19 @@ Private media URLs are blocked by default. AuraGo-generated `/tts/` and `/cast-m
 
 On native Linux installations, AuraGo detects a powered BlueZ adapter at
 startup and only then exposes the `bluetooth` tool. Device discovery is
-available by default; pairing/connection changes require read-only mode to be
-disabled, and playback additionally requires an available PipeWire or
-PulseAudio user session plus `allow_playback`.
+available by default; pairing/connection changes by the agent require read-only
+mode to be disabled, and agent playback additionally requires an available
+PipeWire or PulseAudio user session plus `allow_playback`.
 
 Open **Config → Smart Home → Bluetooth** to reprobe, search, pair, connect, and
 play a local test tone. AuraGo routes only its own audio stream and does not
 change the system default output device. See
 [Bluetooth devices and audio output](../../bluetooth.md) for packages,
 configuration, Docker limitations, and troubleshooting.
+
+The desktop **Bluetooth** app offers the same controls live and appears only while
+an adapter is present. `readonly` and `allow_playback` restrict only the agent;
+admins in the desktop app and on the Config page are not bound by them.
 
 ---
 

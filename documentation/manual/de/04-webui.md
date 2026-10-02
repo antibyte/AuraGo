@@ -257,6 +257,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Detective** | Gebundene Desktop-Recherchen mit einstellbarer Intensität, belegten Berichten und Export |
 | **Personal Radio** | Eigener Radiosender: Stationen mit Themen- und Musikauswahl, persönliche Audio-Bibliothek, Nachrichten und Sprachbeiträge |
 | **RTL-SDR** | Empfang für einen RTL-SDR-Stick: Live-Abstimmung, Aufnahmen, Zeitpläne und automatische Spracherkennung (ASR) |
+| **Bluetooth** | Bluetooth-Adapter des Servers verwalten: suchen, koppeln (mit Zahlenvergleich), verbinden, vertrauen, entfernen und den Server sichtbar machen. Nur sichtbar, wenn ein Adapter vorhanden ist |
 | **HA Switchboard** | Home-Assistant-Schalter als nostalgisches Pult mit Silberhebeln (nur ausgewählte `switch.*`-Entitäten) |
 
 ### Widgets

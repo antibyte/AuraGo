@@ -49,8 +49,8 @@
   "config.bluetooth.working": "処理中…",
   "config.bluetooth.request_failed": "Bluetooth リクエストに失敗しました。",
   "help.bluetooth.enabled": "Linux BlueZ による Bluetooth デバイスと出力先を指定した音声再生。",
-  "help.bluetooth.readonly": "読み取り専用モード",
-  "help.bluetooth.allow_playback": "音声再生を許可",
+  "help.bluetooth.readonly": "エージェントによるペアリングや接続の変更を禁止します。管理者はデスクトップの Bluetooth アプリとこのページで引き続きデバイスを管理できます。",
+  "help.bluetooth.allow_playback": "エージェントが Bluetooth デバイスで音声を再生できるようにします。管理者のテストトーンはこの設定がなくても使えます。",
   "help.bluetooth.audio_backend": "音声バックエンド: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "検索時間: 1–60.",
   "help.bluetooth.default_device": "既定のデバイス"

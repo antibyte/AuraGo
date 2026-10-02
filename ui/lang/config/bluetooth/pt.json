@@ -49,8 +49,8 @@
   "config.bluetooth.working": "Processando…",
   "config.bluetooth.request_failed": "A solicitação Bluetooth falhou.",
   "help.bluetooth.enabled": "Dispositivos Bluetooth e saída de áudio direcionada pelo Linux BlueZ.",
-  "help.bluetooth.readonly": "Modo somente leitura",
-  "help.bluetooth.allow_playback": "Permitir reprodução de áudio",
+  "help.bluetooth.readonly": "Impede que o agente pareie dispositivos ou altere conexões. Administradores ainda podem gerenciar dispositivos no app Bluetooth da área de trabalho e nesta página.",
+  "help.bluetooth.allow_playback": "Permite que o agente reproduza áudio em dispositivos Bluetooth. O tom de teste do administrador funciona sem esta opção.",
   "help.bluetooth.audio_backend": "Backend de áudio: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "Duração da busca: 1–60.",
   "help.bluetooth.default_device": "Dispositivo padrão"

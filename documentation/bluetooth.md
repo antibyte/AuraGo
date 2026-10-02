@@ -45,9 +45,10 @@ bluetooth:
   audio_backend: auto
 ```
 
-- `readonly` blocks pairing, connect, and disconnect operations.
-- `allow_playback` separately enables play, speak, playback status, and stop.
-  Turning it off stops playback started by AuraGo.
+- `readonly` stops the agent from pairing, connecting and disconnecting. Admins in
+  the desktop app and on the Config page are not restricted by it.
+- `allow_playback` lets the agent play, speak, read playback status and stop.
+  The admin test tone works without it. Turning it off stops playback started by AuraGo.
 - `audio_backend` accepts `auto`, `pipewire`, or `pulse`.
 - `default_device` is an optional Bluetooth address. If it is empty, playback
   uses exactly one connected audio device; ambiguity is an error.
@@ -56,6 +57,20 @@ The Config UI can reprobe capabilities, discover devices, pair/connect them,
 and play a short local test tone. These actions use saved configuration only.
 An optional pairing PIN is held only for the current API request and is never
 stored, logged, or exposed to the LLM-facing tool.
+
+## Desktop app
+
+The virtual desktop shows a **Bluetooth** app only while the server has a
+Bluetooth adapter that is not blocked by a hardware switch. Plugging in or
+removing a USB dongle shows or hides the app without a reload. The app can turn
+the adapter on and off, scan, pair (including number comparison and passkey
+entry), connect, disconnect, trust, remove, play a test tone and make the server
+visible for 1–10 minutes so a phone can pair with it. Pairing questions appear
+as a dialog with a 20-second timeout; unanswered questions are rejected.
+
+If interactive pairing fails with "Bluetooth isn't available", check that the
+AuraGo service user may register BlueZ agents (on most distributions membership
+in the `bluetooth` group or the default BlueZ D-Bus policy is sufficient).
 
 ## Playback behavior
 
