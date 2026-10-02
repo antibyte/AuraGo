@@ -35,6 +35,8 @@ type Manager struct {
 	window         *discoverableWindow
 	discoveryTimer *time.Timer
 	audioStale     bool
+	headsetRunner  headsetRunner
+	headsets       map[string]bool
 }
 
 var (
@@ -48,13 +50,14 @@ func NewManager(logger *slog.Logger) *Manager {
 		logger = slog.Default()
 	}
 	manager := &Manager{
-		adapter:    newPlatformAdapter(logger),
-		runner:     execCommandRunner{},
-		logger:     logger,
-		status:     PlaybackUnavailableStatus(),
-		broker:     newInteractionBroker(),
-		newAgents:  newPlatformAgentHost,
-		audioStale: true,
+		adapter:       newPlatformAdapter(logger),
+		runner:        execCommandRunner{},
+		logger:        logger,
+		status:        PlaybackUnavailableStatus(),
+		broker:        newInteractionBroker(),
+		newAgents:     newPlatformAgentHost,
+		audioStale:    true,
+		headsetRunner: execHeadsetRunner{},
 	}
 	manager.live = newLiveSession(platformBusDialer(logger), logger)
 	manager.broker.onChange = manager.live.notifyInteraction

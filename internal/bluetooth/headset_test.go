@@ -489,3 +489,59 @@ func TestHeadsetLinkDropsAudioBeyondTwoSeconds(t *testing.T) {
 		t.Fatalf("written = %d bytes, want %d (the fourth second must be dropped)", got, 3*len(second))
 	}
 }
+
+func newHeadsetTestManager(runner *fakeHeadsetRunner, devices ...Device) *Manager {
+	manager := newTestManager(&fakeAdapter{devices: devices})
+	manager.status.Present = true
+	manager.headsetRunner = runner
+	return manager
+}
+
+func TestManagerListsAndReservesHeadsets(t *testing.T) {
+	ctx := context.Background()
+	manager := newHeadsetTestManager(newFakeHeadsetRunner("headset-head-unit"),
+		Device{Address: testHeadsetAddress, Alias: "Earbuds", Paired: true, Connected: true, UUIDs: []string{a2dpSinkUUID, handsfreeUUID}},
+		Device{Address: "AA:BB:CC:DD:EE:01", Alias: "Speaker", Paired: true, UUIDs: []string{a2dpSinkUUID}},
+		Device{Address: "AA:BB:CC:DD:EE:02", Alias: "Stranger", UUIDs: []string{handsfreeUUID}},
+	)
+	devices, reason := manager.HeadsetDevices(ctx)
+	if reason != "" || len(devices) != 1 || devices[0] != (HeadsetDevice{Address: testHeadsetAddress, Name: "Earbuds", Connected: true}) {
+		t.Fatalf("devices = %+v reason = %q", devices, reason)
+	}
+
+	link, err := manager.OpenHeadset(ctx, "aa:bb:cc:dd:ee:ff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if devices, _ := manager.HeadsetDevices(ctx); !devices[0].Busy {
+		t.Fatalf("open headset not busy: %+v", devices)
+	}
+	if _, err := manager.OpenHeadset(ctx, testHeadsetAddress); ErrorCode(err) != ErrorHeadsetBusy {
+		t.Fatalf("second open error = %v", err)
+	}
+	_ = link.Close()
+	again, err := manager.OpenHeadset(ctx, testHeadsetAddress)
+	if err != nil {
+		t.Fatalf("reopen after Close: %v", err)
+	}
+	_ = again.Close()
+
+	if _, err := manager.OpenHeadset(ctx, "AA:BB:CC:DD:EE:01"); ErrorCode(err) != ErrorHeadsetUnknown {
+		t.Fatalf("speaker without microphone error = %v", err)
+	}
+	if _, err := manager.OpenHeadset(ctx, "not-an-address"); ErrorCode(err) != ErrorInvalidArgument {
+		t.Fatalf("invalid address error = %v", err)
+	}
+
+	manager.status.Audio = AudioStatus{Usable: true, Backend: "pulse"}
+	if devices, reason := manager.HeadsetDevices(ctx); len(devices) != 0 || !strings.Contains(reason, "PipeWire") {
+		t.Fatalf("pulse devices = %+v reason = %q", devices, reason)
+	}
+	if _, err := manager.OpenHeadset(ctx, testHeadsetAddress); ErrorCode(err) != ErrorHeadsetAudioUnavailable {
+		t.Fatalf("pulse open error = %v", err)
+	}
+	manager.options.Enabled = false
+	if _, reason := manager.HeadsetDevices(ctx); !strings.Contains(reason, "disabled") {
+		t.Fatalf("disabled reason = %q", reason)
+	}
+}
