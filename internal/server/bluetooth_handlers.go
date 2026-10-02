@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,9 +18,21 @@ import (
 )
 
 type bluetoothActionRequest struct {
-	Operation string `json:"operation"`
-	Address   string `json:"address"`
-	PIN       string `json:"pin"`
+	Operation   string `json:"operation"`
+	Address     string `json:"address"`
+	PIN         string `json:"pin"`
+	Wait        *bool  `json:"wait"`
+	Interactive bool   `json:"interactive"`
+}
+
+var bluetoothInteractionIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
+
+func bluetoothManagerUnavailable(w http.ResponseWriter) {
+	bluetoothJSONError(w, &bluetooth.CodedError{Code: bluetooth.ErrorUnavailable, Message: "Bluetooth manager is unavailable."}, 0)
+}
+
+func bluetoothInvalid(w http.ResponseWriter, message string) {
+	bluetoothJSONError(w, &bluetooth.CodedError{Code: bluetooth.ErrorInvalidArgument, Message: message}, 0)
 }
 
 func handleBluetoothStatus(s *Server) http.Handler {
@@ -29,24 +42,22 @@ func handleBluetoothStatus(s *Server) http.Handler {
 			return
 		}
 		if s == nil || s.Bluetooth == nil {
-			bluetoothJSONError(w, &bluetooth.CodedError{Code: bluetooth.ErrorUnavailable, Message: "Bluetooth manager is unavailable."}, 0)
+			bluetoothManagerUnavailable(w)
 			return
 		}
-		status := s.Bluetooth.Status()
-		devices := []bluetooth.Device{}
-		if status.Usable {
-			ctx, cancel := context.WithTimeout(r.Context(), 4*time.Second)
-			listed, err := s.Bluetooth.List(ctx)
-			cancel()
-			if err == nil {
-				devices = listed
-			}
-		}
+		snapshot := s.Bluetooth.Snapshot(r.Context())
 		cfg := s.ConfigSnapshot()
 		response := map[string]interface{}{
-			"status":   status,
-			"devices":  devices,
-			"playback": s.Bluetooth.PlaybackStatus(),
+			"status":         s.Bluetooth.Status(),
+			"devices":        snapshot.Devices,
+			"playback":       s.Bluetooth.PlaybackStatus(),
+			"revision":       snapshot.Revision,
+			"present":        snapshot.Present,
+			"reason":         snapshot.Reason,
+			"adapter":        snapshot.Adapter,
+			"discovery":      snapshot.Discovery,
+			"discoverable":   snapshot.Discoverable,
+			"interaction_id": snapshot.InteractionID,
 		}
 		if cfg != nil {
 			response["permissions"] = map[string]interface{}{
@@ -115,29 +126,165 @@ func handleBluetoothDeviceAction(s *Server) http.Handler {
 		}
 		var request bluetoothActionRequest
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&request); err != nil {
-			bluetoothJSONError(w, &bluetooth.CodedError{Code: bluetooth.ErrorInvalidArgument, Message: "Invalid Bluetooth action request."}, 0)
+			bluetoothInvalid(w, "Invalid Bluetooth action request.")
 			return
 		}
-		var err error
-		switch strings.ToLower(strings.TrimSpace(request.Operation)) {
-		case "pair":
-			// The optional PIN is intentionally transient: it is passed directly
-			// to BlueZ and is never persisted or logged.
-			err = s.Bluetooth.Pair(r.Context(), bluetooth.ActorOperator, request.Address, request.PIN)
-			request.PIN = ""
-		case "connect":
-			err = s.Bluetooth.Connect(r.Context(), bluetooth.ActorOperator, request.Address)
-		case "disconnect":
-			err = s.Bluetooth.Disconnect(r.Context(), bluetooth.ActorOperator, request.Address)
-		default:
-			err = &bluetooth.CodedError{Code: bluetooth.ErrorInvalidArgument, Message: "Operation must be pair, connect, or disconnect."}
-		}
+		wait := request.Wait == nil || *request.Wait
+		// The optional PIN is intentionally transient: it goes straight to BlueZ
+		// and is never persisted or logged.
+		err := s.Bluetooth.RunDeviceOperation(r.Context(), bluetooth.ActorOperator, bluetooth.DeviceRequest{
+			Operation: request.Operation, Address: request.Address, PIN: request.PIN, Interactive: request.Interactive,
+		}, wait)
+		request.PIN = ""
 		if err != nil {
 			bluetoothJSONError(w, err, 0)
 			return
 		}
-		devices, _ := s.Bluetooth.List(r.Context())
-		writeJSON(w, map[string]interface{}{"status": "ok", "devices": devices})
+		if !wait {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "accepted"})
+			return
+		}
+		writeJSON(w, map[string]interface{}{"status": "ok", "devices": s.Bluetooth.Snapshot(r.Context()).Devices})
+	})
+}
+
+func handleBluetoothPower(s *Server) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			bluetoothJSONError(w, fmt.Errorf("method not allowed"), http.StatusMethodNotAllowed)
+			return
+		}
+		if s == nil || s.Bluetooth == nil {
+			bluetoothManagerUnavailable(w)
+			return
+		}
+		var body struct {
+			Powered *bool `json:"powered"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body); err != nil || body.Powered == nil {
+			bluetoothInvalid(w, "powered is required.")
+			return
+		}
+		if err := s.Bluetooth.SetPowered(r.Context(), bluetooth.ActorOperator, *body.Powered); err != nil {
+			bluetoothJSONError(w, err, 0)
+			return
+		}
+		writeJSON(w, map[string]interface{}{"status": "ok"})
+	})
+}
+
+func handleBluetoothDiscovery(s *Server) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			bluetoothJSONError(w, fmt.Errorf("method not allowed"), http.StatusMethodNotAllowed)
+			return
+		}
+		if s == nil || s.Bluetooth == nil {
+			bluetoothManagerUnavailable(w)
+			return
+		}
+		var body struct {
+			Action         string `json:"action"`
+			TimeoutSeconds int    `json:"timeout_seconds"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body); err != nil {
+			bluetoothInvalid(w, "Invalid discovery request.")
+			return
+		}
+		switch body.Action {
+		case "start":
+			state, err := s.Bluetooth.StartDiscovery(r.Context(), bluetooth.ActorOperator, time.Duration(body.TimeoutSeconds)*time.Second)
+			if err != nil {
+				bluetoothJSONError(w, err, 0)
+				return
+			}
+			writeJSON(w, map[string]interface{}{"status": "ok", "discovery": state})
+		case "stop":
+			_ = s.Bluetooth.StopDiscovery(r.Context(), bluetooth.ActorOperator)
+			writeJSON(w, map[string]interface{}{"status": "ok"})
+		default:
+			bluetoothInvalid(w, "action must be start or stop.")
+		}
+	})
+}
+
+func handleBluetoothDiscoverable(s *Server) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			bluetoothJSONError(w, fmt.Errorf("method not allowed"), http.StatusMethodNotAllowed)
+			return
+		}
+		if s == nil || s.Bluetooth == nil {
+			bluetoothManagerUnavailable(w)
+			return
+		}
+		var body struct {
+			Enabled         *bool `json:"enabled"`
+			DurationSeconds int   `json:"duration_seconds"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body); err != nil || body.Enabled == nil {
+			bluetoothInvalid(w, "enabled is required.")
+			return
+		}
+		if !*body.Enabled {
+			_ = s.Bluetooth.StopDiscoverable(r.Context(), bluetooth.ActorOperator)
+			writeJSON(w, map[string]interface{}{"status": "ok"})
+			return
+		}
+		if body.DurationSeconds != 0 && (body.DurationSeconds < 60 || body.DurationSeconds > 600) {
+			bluetoothInvalid(w, "duration_seconds must be between 60 and 600.")
+			return
+		}
+		state, err := s.Bluetooth.SetDiscoverable(r.Context(), bluetooth.ActorOperator, time.Duration(body.DurationSeconds)*time.Second)
+		if err != nil {
+			bluetoothJSONError(w, err, 0)
+			return
+		}
+		writeJSON(w, map[string]interface{}{"status": "ok", "discoverable": state})
+	})
+}
+
+func handleBluetoothInteraction(s *Server) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			bluetoothJSONError(w, fmt.Errorf("method not allowed"), http.StatusMethodNotAllowed)
+			return
+		}
+		if s == nil || s.Bluetooth == nil {
+			bluetoothManagerUnavailable(w)
+			return
+		}
+		id := strings.TrimPrefix(r.URL.Path, "/api/bluetooth/interactions/")
+		if !bluetoothInteractionIDPattern.MatchString(id) {
+			bluetoothInvalid(w, "Invalid pairing request id.")
+			return
+		}
+		if r.Method == http.MethodGet {
+			view, err := s.Bluetooth.Interaction(id)
+			if err != nil {
+				bluetoothJSONError(w, err, 0)
+				return
+			}
+			writeJSON(w, map[string]interface{}{"status": "ok", "interaction": view})
+			return
+		}
+		var body struct {
+			Accept bool   `json:"accept"`
+			Value  string `json:"value"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body); err != nil {
+			bluetoothInvalid(w, "Invalid pairing answer.")
+			return
+		}
+		err := s.Bluetooth.AnswerInteraction(id, body.Accept, body.Value)
+		body.Value = ""
+		if err != nil {
+			bluetoothJSONError(w, err, 0)
+			return
+		}
+		writeJSON(w, map[string]interface{}{"status": "ok"})
 	})
 }
 
@@ -248,10 +395,14 @@ func bluetoothJSONError(w http.ResponseWriter, err error, explicitStatus int) {
 			status = http.StatusServiceUnavailable
 		case bluetooth.ErrorReadOnly, bluetooth.ErrorPlaybackDisabled:
 			status = http.StatusForbidden
-		case bluetooth.ErrorDeviceNotFound:
+		case bluetooth.ErrorDeviceNotFound, bluetooth.ErrorInteractionNotFound:
 			status = http.StatusNotFound
-		case bluetooth.ErrorDeviceAmbiguous, bluetooth.ErrorPairingInteractionRequired, bluetooth.ErrorDeviceNotPaired:
+		case bluetooth.ErrorDeviceAmbiguous, bluetooth.ErrorPairingInteractionRequired, bluetooth.ErrorDeviceNotPaired,
+			bluetooth.ErrorPairingRejected, bluetooth.ErrorPairingFailed, bluetooth.ErrorOperationBusy,
+			bluetooth.ErrorPoweredOff, bluetooth.ErrorBlocked, bluetooth.ErrorInteractionExpired:
 			status = http.StatusConflict
+		case bluetooth.ErrorDeviceUnreachable:
+			status = http.StatusGatewayTimeout
 		case bluetooth.ErrorInvalidArgument:
 			status = http.StatusBadRequest
 		default:

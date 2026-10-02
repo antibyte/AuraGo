@@ -91,4 +91,86 @@ func TestBluetoothRoutesRequireAdminSession(t *testing.T) {
 	if !isAdminProtectedPath("/api/bluetooth/audio/test") {
 		t.Fatal("Bluetooth route is missing from admin-protected path metadata")
 	}
+	if !isAdminProtectedPath("/api/bluetooth/interactions/0123456789abcdef0123456789abcdef") {
+		t.Fatal("interaction route is missing from admin-protected path metadata")
+	}
+	for _, path := range []string{"/api/bluetooth/power", "/api/bluetooth/discovery", "/api/bluetooth/discoverable", "/api/bluetooth/interactions/0123456789abcdef0123456789abcdef"} {
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s without session = %d, want 401", path, response.Code)
+		}
+	}
+}
+
+func TestBluetoothNewHandlersRejectWrongMethods(t *testing.T) {
+	server := testBluetoothServer()
+	for name, handler := range map[string]http.Handler{
+		"power":        handleBluetoothPower(server),
+		"discovery":    handleBluetoothDiscovery(server),
+		"discoverable": handleBluetoothDiscoverable(server),
+	} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/bluetooth/"+name, nil))
+		if response.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("%s: status = %d", name, response.Code)
+		}
+	}
+	response := httptest.NewRecorder()
+	handleBluetoothInteraction(server).ServeHTTP(response, httptest.NewRequest(http.MethodPut, "/api/bluetooth/interactions/0123456789abcdef0123456789abcdef", nil))
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("interaction PUT status = %d", response.Code)
+	}
+}
+
+func TestBluetoothInteractionLookupValidatesID(t *testing.T) {
+	server := testBluetoothServer()
+	response := httptest.NewRecorder()
+	handleBluetoothInteraction(server).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/bluetooth/interactions/0123456789abcdef0123456789abcdef", nil))
+	if response.Code != http.StatusNotFound || !strings.Contains(response.Body.String(), bluetooth.ErrorInteractionNotFound) {
+		t.Fatalf("unknown id = %d %s", response.Code, response.Body.String())
+	}
+	response = httptest.NewRecorder()
+	handleBluetoothInteraction(server).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/bluetooth/interactions/not-an-id", nil))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("bad id = %d", response.Code)
+	}
+}
+
+func TestBluetoothDiscoverableRejectsOutOfRangeDuration(t *testing.T) {
+	server := testBluetoothServer()
+	response := httptest.NewRecorder()
+	handleBluetoothDiscoverable(server).ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/bluetooth/discoverable", strings.NewReader(`{"enabled":true,"duration_seconds":5}`)))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestBluetoothPowerRequiresField(t *testing.T) {
+	server := testBluetoothServer()
+	response := httptest.NewRecorder()
+	handleBluetoothPower(server).ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/bluetooth/power", strings.NewReader(`{}`)))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestBluetoothStatusIncludesLiveFields(t *testing.T) {
+	server := testBluetoothServer()
+	response := httptest.NewRecorder()
+	handleBluetoothStatus(server).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/bluetooth/status", nil))
+	for _, wanted := range []string{`"revision"`, `"present":true`, `"discovery"`, `"discoverable"`, `"adapter"`} {
+		if !strings.Contains(response.Body.String(), wanted) {
+			t.Fatalf("status missing %s: %s", wanted, response.Body.String())
+		}
+	}
+}
+
+func TestBluetoothDeviceActionRejectsUnknownOperation(t *testing.T) {
+	server := testBluetoothServer()
+	response := httptest.NewRecorder()
+	handleBluetoothDeviceAction(server).ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/bluetooth/devices/action", strings.NewReader(`{"operation":"explode","address":"AA:BB:CC:DD:EE:FF"}`)))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d %s", response.Code, response.Body.String())
+	}
 }

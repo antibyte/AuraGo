@@ -147,6 +147,10 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.Handle("/api/bluetooth/devices/action", requireAdmin(s, handleBluetoothDeviceAction(s)))
 	mux.Handle("/api/bluetooth/audio/test", requireAdmin(s, handleBluetoothAudioTest(s)))
 	mux.Handle("/api/bluetooth/audio/stop", requireAdmin(s, handleBluetoothAudioStop(s)))
+	mux.Handle("/api/bluetooth/power", requireAdmin(s, handleBluetoothPower(s)))
+	mux.Handle("/api/bluetooth/discovery", requireAdmin(s, handleBluetoothDiscovery(s)))
+	mux.Handle("/api/bluetooth/discoverable", requireAdmin(s, handleBluetoothDiscoverable(s)))
+	mux.Handle("/api/bluetooth/interactions/", requireAdmin(s, handleBluetoothInteraction(s)))
 
 	// Local SMB/NFS server share administration. Read and write routes both
 	// require an authenticated administrator; backend policy remains enforced
