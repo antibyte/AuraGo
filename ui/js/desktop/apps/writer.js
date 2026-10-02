@@ -53,7 +53,7 @@
             get author(){return author;},set author(value){author=value;localStorage.setItem('aurago.writer.author',value);editor.setAuthor(value);}
         };
         const panels = window.WriterPanels.create(state);
-        const instance = {dispose:cleanup,get editor(){return editor;},get session(){return queue;},get path(){return path;},act};
+        const instance = {dispose:cleanup,get editor(){return editor;},get session(){return queue;},get path(){return path;},act,reloadIfChanged};
         instances.set(windowId,instance);
         ctx.wireContextMenuBoundary?.(host);
         ctx.setWindowBeforeClose?.(windowId,guard);
@@ -288,6 +288,22 @@
                 }
                 return false;
             }
+        }
+        // An open request for the file shown here (Files, the agent's open_in_app)
+        // reloads it when it changed on disk since it was loaded or last saved.
+        // Unsaved edits are never replaced; the conflict notice explains instead.
+        async function reloadIfChanged() {
+            if(disposed || fileOperation)return;
+            if(loadFailed)return load(path);
+            if(loading || !editor || !etag || queue?.pending)return;
+            const token=generation;
+            try {
+                const response=await responseOK(await fetch(nativeURL(path),{signal:documentLife.signal,cache:'no-store'}));
+                const current=response.headers.get('ETag');response.body?.cancel().catch(()=>{});
+                if(disposed || token!==generation || loading || queue?.pending || current===etag)return;
+                if(queue?.dirty){notice(tr('conflict'),true);return;}
+                await load(path);
+            } catch(error){fail(error);}
         }
         async function saveAs() {
             if(!editor || ctx.readonly || fileOperation)return;

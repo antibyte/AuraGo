@@ -39,6 +39,9 @@ func TestOfficeAppsFocusExistingFileWindow(t *testing.T) {
 		"win.context && normalizeDesktopPath(win.context.path) === requestedPath",
 		"appId === 'editor' || appId === 'writer' || appId === 'sheets'",
 		"if (appId === 'editor' && context && context.path != null) renderEditor(existing.id, context.path, context.content || '');",
+		// Re-opening a file Writer already shows must not leave an outdated copy.
+		"if (appId === 'writer' && context && context.path != null && window.WriterApp && window.WriterApp.instances.has(existing.id)) window.WriterApp.instances.get(existing.id).reloadIfChanged();",
+		"reloadIfChanged};",
 		"context: windowContext",
 		"updateWindowContext: updateWindowContext",
 		"ctx.updateWindowContext?.(windowId,{path})",
