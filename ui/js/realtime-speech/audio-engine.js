@@ -45,18 +45,35 @@
             this.speaking = false;
             this.muted = false;
             this.started = false;
+            this.inputMode = 'browser';
         }
 
         emit(type, detail) {
             this.dispatchEvent(new CustomEvent(type, { detail: detail || {} }));
         }
 
-        async start() {
+        // start loads the VAD and opens the input. With {input: 'external'}
+        // no browser microphone is opened; frames arrive via pushExternalFrame
+        // (the server headset bridge).
+        async start(options) {
             if (this.started) return;
+            await this.vad.load();
+            this.started = true;
+            try {
+                if (options && options.input === 'external') this.inputMode = 'external';
+                else await this.openBrowserInput();
+            } catch (error) {
+                this.started = false;
+                throw error;
+            }
+            this.emit('ready', { sampleRate: SAMPLE_RATE, input: this.inputMode });
+        }
+
+        async openBrowserInput() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error('Microphone access is not supported by this browser');
             }
-            await this.vad.load();
+            this.inputMode = 'browser';
             this.stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
@@ -78,6 +95,7 @@
             this.sink = this.context.createGain();
             this.sink.gain.value = 0;
             this.worklet.port.onmessage = event => {
+                if (this.inputMode !== 'browser') return;
                 const frame = event.data instanceof Float32Array ? event.data : new Float32Array(event.data);
                 this.enqueue(frame);
             };
@@ -85,8 +103,61 @@
             this.worklet.connect(this.sink);
             this.sink.connect(this.context.destination);
             if (this.context.state === 'suspended') await this.context.resume();
-            this.started = true;
-            this.emit('ready', { sampleRate: SAMPLE_RATE });
+        }
+
+        async closeBrowserInput() {
+            if (this.worklet) {
+                this.worklet.port.onmessage = null;
+                try { this.worklet.disconnect(); } catch (_) { }
+            }
+            if (this.source) {
+                try { this.source.disconnect(); } catch (_) { }
+            }
+            if (this.sink) {
+                try { this.sink.disconnect(); } catch (_) { }
+            }
+            if (this.stream) this.stream.getTracks().forEach(track => track.stop());
+            if (this.context && this.context.state !== 'closed') {
+                try { await this.context.close(); } catch (_) { }
+            }
+            this.stream = null;
+            this.context = null;
+            this.source = null;
+            this.worklet = null;
+            this.sink = null;
+        }
+
+        // A source switch ends a running turn so no half utterance survives it.
+        resetTurn() {
+            this.queue = [];
+            this.candidate = [];
+            this.candidateSpeechSamples = 0;
+            this.silenceSamples = 0;
+            if (this.speaking) {
+                this.speaking = false;
+                this.emit('speechend', {});
+            }
+        }
+
+        async useExternalInput() {
+            if (!this.started || this.inputMode === 'external') return;
+            this.resetTurn();
+            this.inputMode = 'external';
+            await this.closeBrowserInput();
+            this.emit('inputchange', { input: 'external' });
+        }
+
+        async useBrowserInput() {
+            if (!this.started || (this.inputMode === 'browser' && this.stream)) return;
+            this.resetTurn();
+            await this.openBrowserInput();
+            this.emit('inputchange', { input: 'browser' });
+        }
+
+        // pushExternalFrame feeds one 512-sample 16 kHz frame from the server.
+        pushExternalFrame(frame) {
+            if (this.inputMode !== 'external') return;
+            this.enqueue(frame);
         }
 
         enqueue(frame) {
@@ -176,25 +247,8 @@
             this.started = false;
             this.queue = [];
             this.processing = false;
-            if (this.worklet) {
-                this.worklet.port.onmessage = null;
-                try { this.worklet.disconnect(); } catch (_) { }
-            }
-            if (this.source) {
-                try { this.source.disconnect(); } catch (_) { }
-            }
-            if (this.sink) {
-                try { this.sink.disconnect(); } catch (_) { }
-            }
-            if (this.stream) this.stream.getTracks().forEach(track => track.stop());
-            if (this.context && this.context.state !== 'closed') {
-                try { await this.context.close(); } catch (_) { }
-            }
-            this.stream = null;
-            this.context = null;
-            this.source = null;
-            this.worklet = null;
-            this.sink = null;
+            await this.closeBrowserInput();
+            this.inputMode = 'browser';
             this.preRoll = [];
             this.candidate = [];
             this.preRollSamples = 0;
