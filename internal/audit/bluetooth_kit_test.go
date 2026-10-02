@@ -177,3 +177,43 @@ called "chown other $T/fresh/data/bluetooth-setup"
 called "chown other $T/fresh/data"
 `)
 }
+
+func TestBluetoothKitInstallsOnlyMissingPackages(t *testing.T) {
+	t.Parallel()
+	runBluetoothKit(t, `
+[ "$(btk_packages apt pipewire false)" = "bluez pipewire pipewire-bin pipewire-pulse wireplumber libspa-0.2-bluetooth" ]
+[ "$(btk_packages apt pulseaudio true)" = "bluez pulseaudio-module-bluetooth pulseaudio-utils ffmpeg" ]
+[ "$(btk_packages dnf pipewire true)" = "bluez pipewire pipewire-pulseaudio pipewire-utils wireplumber ffmpeg-free" ]
+[ "$(btk_packages pacman pulseaudio true)" = "bluez bluez-utils pulseaudio-bluetooth libpulse ffmpeg" ]
+[ "$(btk_packages zypper pipewire false)" = "bluez pipewire pipewire-pulseaudio pipewire-tools wireplumber" ]
+if btk_packages unknown pipewire false >/dev/null; then exit 1; fi
+
+# An installed PulseAudio stays unless PipeWire already serves Pulse clients.
+HAVE="pulseaudio"
+[ "$(btk_audio_stack)" = pulseaudio ]
+mkdir -p "$BTK_ROOT/usr/lib/systemd/user"
+touch "$BTK_ROOT/usr/lib/systemd/user/pipewire-pulse.service"
+[ "$(btk_audio_stack)" = pipewire ]
+HAVE=""
+[ "$(btk_audio_stack)" = pipewire ]
+
+# Only missing packages; apt refreshes its lists once after a failed install.
+HAVE="apt-get ffmpeg"
+export STUB_INSTALLED="bluez pipewire"
+stub apt-get 'case "$1" in install) [ -e "$STUB_LOG.updated" ] ;; update) touch "$STUB_LOG.updated" ;; esac'
+step btk_install_packages pipewire
+called "apt-get install -y pipewire-bin pipewire-pulse wireplumber libspa-0.2-bluetooth"
+called "apt-get update"
+
+# Everything present: the package manager is not called at all.
+: > "$STUB_LOG"
+export STUB_INSTALLED="bluez pipewire pipewire-bin pipewire-pulse wireplumber libspa-0.2-bluetooth"
+step btk_install_packages pipewire
+not_called "apt-get"
+
+# Unknown package manager: reported with a manual hint, never fatal.
+HAVE=""
+if step btk_install_packages pipewire > "$T/out" 2>&1; then exit 1; fi
+grep -Fq 'unknown package manager' "$T/out"
+`)
+}

@@ -126,4 +126,111 @@ btk_write_state() {
     fi
     return 0
 }
+
+btk_pkg_manager() {
+    if btk_has apt-get; then printf 'apt\n'
+    elif btk_has dnf; then printf 'dnf\n'
+    elif btk_has pacman; then printf 'pacman\n'
+    elif btk_has zypper; then printf 'zypper\n'
+    else printf 'unknown\n'
+    fi
+}
+
+btk_pipewire_pulse_unit() {
+    local dir
+    for dir in /usr/lib/systemd/user /lib/systemd/user /etc/systemd/user; do
+        if [ -e "${BTK_ROOT:-}$dir/pipewire-pulse.service" ]; then return 0; fi
+    done
+    return 1
+}
+
+# An installed PulseAudio server stays; everything else gets PipeWire.
+btk_audio_stack() {
+    if btk_has pulseaudio && ! btk_pipewire_pulse_unit; then printf 'pulseaudio\n'; else printf 'pipewire\n'; fi
+}
+
+# btk_packages <manager> <pipewire|pulseaudio> <with_ffmpeg true|false>
+btk_packages() {
+    local list
+    case "$1:$2" in
+        apt:pipewire) list="bluez pipewire pipewire-bin pipewire-pulse wireplumber libspa-0.2-bluetooth" ;;
+        apt:pulseaudio) list="bluez pulseaudio-module-bluetooth pulseaudio-utils" ;;
+        dnf:pipewire) list="bluez pipewire pipewire-pulseaudio pipewire-utils wireplumber" ;;
+        dnf:pulseaudio) list="bluez pulseaudio-module-bluetooth pulseaudio-utils" ;;
+        pacman:pipewire) list="bluez bluez-utils pipewire pipewire-pulse wireplumber" ;;
+        pacman:pulseaudio) list="bluez bluez-utils pulseaudio-bluetooth libpulse" ;;
+        zypper:pipewire) list="bluez pipewire pipewire-pulseaudio pipewire-tools wireplumber" ;;
+        zypper:pulseaudio) list="bluez pulseaudio-module-bluetooth pulseaudio-utils" ;;
+        *) return 1 ;;
+    esac
+    if [ "$3" = true ]; then
+        if [ "$1" = dnf ]; then list="$list ffmpeg-free"; else list="$list ffmpeg"; fi
+    fi
+    printf '%s\n' "$list"
+}
+
+btk_pkg_installed() {
+    case "$1" in
+        apt) dpkg-query -W -f='${Status}' "$2" 2>/dev/null | grep -q 'ok installed' ;;
+        dnf | zypper) rpm -q "$2" >/dev/null 2>&1 ;;
+        pacman) pacman -Q "$2" >/dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+}
+
+btk_pkg_command() {
+    case "$1" in
+        apt) printf 'sudo apt-get install -y\n' ;;
+        dnf) printf 'sudo dnf install -y\n' ;;
+        pacman) printf 'sudo pacman -S --needed\n' ;;
+        zypper) printf 'sudo zypper install\n' ;;
+    esac
+}
+
+# btk_pkg_install <manager> package...
+btk_pkg_install() {
+    local mgr="$1"
+    shift
+    case "$mgr" in
+        apt)
+            btk_run "Installing $*" $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@" && return 0
+            btk_run "Refreshing the package lists" $SUDO apt-get update
+            btk_run "Installing $*" $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
+            ;;
+        dnf) btk_run "Installing $*" $SUDO dnf install -y "$@" ;;
+        pacman)
+            btk_run "Installing $*" $SUDO pacman -S --needed --noconfirm "$@" && return 0
+            btk_run "Installing $*" $SUDO pacman -Sy --needed --noconfirm "$@"
+            ;;
+        zypper) btk_run "Installing $*" $SUDO zypper --non-interactive install "$@" ;;
+        *) return 1 ;;
+    esac
+}
+
+# btk_install_packages <pipewire|pulseaudio>: installs only what is missing.
+btk_install_packages() {
+    local mgr list pkg missing="" ffmpeg=false
+    mgr="$(btk_pkg_manager)"
+    btk_has ffmpeg || ffmpeg=true
+    if ! list="$(btk_packages "$mgr" "$1" "$ffmpeg")"; then
+        btk_fail "Installing the Bluetooth packages (unknown package manager)" \
+            "install bluez, pipewire, pipewire-pulse, wireplumber, the PipeWire Bluetooth plugin and ffmpeg"
+        return 1
+    fi
+    for pkg in $list; do
+        btk_pkg_installed "$mgr" "$pkg" || missing="$missing $pkg"
+    done
+    missing="${missing# }"
+    if [ -z "$missing" ]; then
+        btk_done "Bluetooth packages are installed"
+        return 0
+    fi
+    # shellcheck disable=SC2086 # package names are single words
+    if btk_pkg_install "$mgr" $missing; then
+        btk_done "Installed $missing"
+        return 0
+    fi
+    btk_fail "Installing $missing" "$(btk_pkg_command "$mgr") $missing"
+    return 1
+}
 # <<< AURAGO-BLUETOOTH-KIT v1 <<<
