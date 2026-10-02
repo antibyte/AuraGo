@@ -140,6 +140,10 @@
             styles: appStyles('/css/desktop-app-rtl-sdr.css'),
             scripts: ['/js/desktop/apps/rtl-sdr-runtime.js', '/js/desktop/apps/rtl-sdr-panel.js', '/js/desktop/apps/rtl-sdr-scope.js', '/js/desktop/apps/rtl-sdr.js']
         },
+        'bluetooth': {
+            styles: appStyles('/css/desktop-app-bluetooth.css'),
+            scripts: ['/js/desktop/apps/bluetooth-views.js', '/js/desktop/apps/bluetooth.js']
+        },
         'personal-radio': {
             styles: appStyles('/css/desktop-app-personal-radio.css'),
             scripts: ['/js/desktop/apps/personal-radio-player.js', '/js/desktop/apps/personal-radio-runtime.js', '/js/desktop/apps/personal-radio-settings.js', '/js/desktop/apps/personal-radio.js']
@@ -490,6 +494,7 @@
         'newspaper': ['newspaper'],
         'personal-radio': ['personalRadio'],
         'rtl-sdr': ['rtlSdr'],
+        'bluetooth': ['bluetooth'],
         'pixel': ['pixel'],
         'system-world': ['sysworld'],
         'viewer': ['viewer'],

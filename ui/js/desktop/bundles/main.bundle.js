@@ -367,6 +367,7 @@
         radio: 'radio',
         'personal-radio': 'personal-radio',
         'rtl-sdr': 'rtl-sdr',
+        bluetooth: 'bluetooth',
         openscad: 'openscad',
         teevee: 'teevee',
         todo: 'forms',
@@ -493,6 +494,7 @@
         radio: 'radio',
         'personal-radio': 'personal-radio',
         'rtl-sdr': 'rtl-sdr',
+        bluetooth: 'bluetooth',
         openscad: 'openscad',
         teevee: 'teevee',
         workflow: 'workflow',
@@ -810,6 +812,7 @@
         return {
             'personal-radio': 'PersonalRadioApp',
             'rtl-sdr': 'RTLSDRApp',
+            bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
             files: 'FileManager',
             writer: 'WriterApp',
@@ -6148,6 +6151,7 @@
             radio: { width: 1320, height: 920 },
             'personal-radio': { width: 1060, height: 780 },
             'rtl-sdr': { width: 1000, height: 760 },
+            bluetooth: { width: 720, height: 620 },
             openscad: { width: 1240, height: 760 },
             teevee: { width: 1500, height: 845 },
             gallery: { width: 1040, height: 700 },
@@ -15330,6 +15334,9 @@ function modalDialog(options) {
         }
         if (appId === 'rtl-sdr' && window.RTLSDRApp) {
             return window.RTLSDRApp.render(contentEl(id), id, { esc, api, t, iconMarkup, openApp, confirmDialog, readonly: desktopReadonly() });
+        }
+        if (appId === 'bluetooth' && window.BluetoothApp) {
+            return window.BluetoothApp.render(contentEl(id), id, { esc, api, t, iconMarkup, openApp, confirmDialog });
         }
         if (appId === 'personal-radio' && window.PersonalRadioApp) {
             return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));

@@ -1558,6 +1558,9 @@ function modalDialog(options) {
         if (appId === 'rtl-sdr' && window.RTLSDRApp) {
             return window.RTLSDRApp.render(contentEl(id), id, { esc, api, t, iconMarkup, openApp, confirmDialog, readonly: desktopReadonly() });
         }
+        if (appId === 'bluetooth' && window.BluetoothApp) {
+            return window.BluetoothApp.render(contentEl(id), id, { esc, api, t, iconMarkup, openApp, confirmDialog });
+        }
         if (appId === 'personal-radio' && window.PersonalRadioApp) {
             return window.PersonalRadioApp.render(contentEl(id), id, withDesktopFileDialogs(context, { esc, api, t, iconMarkup, openApp, confirmDialog, promptDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly() }));
         }

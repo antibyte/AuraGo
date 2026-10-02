@@ -135,6 +135,7 @@
         radio: 'radio',
         'personal-radio': 'personal-radio',
         'rtl-sdr': 'rtl-sdr',
+        bluetooth: 'bluetooth',
         openscad: 'openscad',
         teevee: 'teevee',
         todo: 'forms',
@@ -261,6 +262,7 @@
         radio: 'radio',
         'personal-radio': 'personal-radio',
         'rtl-sdr': 'rtl-sdr',
+        bluetooth: 'bluetooth',
         openscad: 'openscad',
         teevee: 'teevee',
         workflow: 'workflow',
@@ -578,6 +580,7 @@
         return {
             'personal-radio': 'PersonalRadioApp',
             'rtl-sdr': 'RTLSDRApp',
+            bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
             files: 'FileManager',
             writer: 'WriterApp',
