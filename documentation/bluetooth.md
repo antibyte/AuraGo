@@ -102,4 +102,10 @@ Bluetooth.
 - No sink after connect: wait for WirePlumber/PulseAudio to create the A2DP or
   LE Audio sink, then use **Detect again** in the Bluetooth settings.
 - `PAIRING_INTERACTION_REQUIRED`: complete display/confirmation pairing outside
-  AuraGo or retry from the admin UI with a known numeric PIN.
+  AuraGo or retry from the admin UI with a known numeric PIN, or pair from the
+  desktop Bluetooth app, which can answer number comparison and passkey prompts.
+- `BLUETOOTH_PROFILE_UNAVAILABLE` (BlueZ `br-connection-profile-unavailable`):
+  the device paired, but the server runs no service for any of its profiles.
+  Headphones and speakers only connect while PipeWire with WirePlumber or
+  PulseAudio with Bluetooth support runs and registers its A2DP/HFP endpoints
+  with BlueZ. Retrying does not help until that audio stack is running.

@@ -399,7 +399,8 @@ func bluetoothJSONError(w http.ResponseWriter, err error, explicitStatus int) {
 			status = http.StatusNotFound
 		case bluetooth.ErrorDeviceAmbiguous, bluetooth.ErrorPairingInteractionRequired, bluetooth.ErrorDeviceNotPaired,
 			bluetooth.ErrorPairingRejected, bluetooth.ErrorPairingFailed, bluetooth.ErrorOperationBusy,
-			bluetooth.ErrorPoweredOff, bluetooth.ErrorBlocked, bluetooth.ErrorInteractionExpired:
+			bluetooth.ErrorPoweredOff, bluetooth.ErrorBlocked, bluetooth.ErrorInteractionExpired,
+			bluetooth.ErrorProfileUnavailable:
 			status = http.StatusConflict
 		case bluetooth.ErrorDeviceUnreachable:
 			status = http.StatusGatewayTimeout

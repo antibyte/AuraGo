@@ -5053,5 +5053,6 @@
   "bluetooth.error_BLUETOOTH_DEVICE_NOT_FOUND": "Enheden er ikke længere tilgængelig.",
   "bluetooth.error_BLUETOOTH_UNAVAILABLE": "Bluetooth er ikke tilgængelig lige nu.",
   "bluetooth.error_BLUETOOTH_INTERACTION_EXPIRED": "Anmodningen er udløbet.",
-  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "Der er ingen lydudgang tilgængelig for denne enhed."
+  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "Der er ingen lydudgang tilgængelig for denne enhed.",
+  "bluetooth.error_BLUETOOTH_PROFILE_UNAVAILABLE": "Serveren kan ikke forbinde denne enhed endnu: lydenheder kræver PipeWire eller PulseAudio med Bluetooth-understøttelse på serveren."
 }

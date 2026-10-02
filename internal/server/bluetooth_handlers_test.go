@@ -174,3 +174,11 @@ func TestBluetoothDeviceActionRejectsUnknownOperation(t *testing.T) {
 		t.Fatalf("status = %d %s", response.Code, response.Body.String())
 	}
 }
+
+func TestBluetoothJSONErrorMapsProfileUnavailableToConflict(t *testing.T) {
+	response := httptest.NewRecorder()
+	bluetoothJSONError(response, &bluetooth.CodedError{Code: bluetooth.ErrorProfileUnavailable, Message: "no profile"}, 0)
+	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), bluetooth.ErrorProfileUnavailable) {
+		t.Fatalf("status = %d body = %s", response.Code, response.Body.String())
+	}
+}

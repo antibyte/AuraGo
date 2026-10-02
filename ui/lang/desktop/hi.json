@@ -5053,5 +5053,6 @@
   "bluetooth.error_BLUETOOTH_DEVICE_NOT_FOUND": "डिवाइस अब उपलब्ध नहीं है।",
   "bluetooth.error_BLUETOOTH_UNAVAILABLE": "Bluetooth अभी उपलब्ध नहीं है।",
   "bluetooth.error_BLUETOOTH_INTERACTION_EXPIRED": "अनुरोध की समय-सीमा समाप्त हो गई।",
-  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "इस डिवाइस के लिए कोई ऑडियो आउटपुट उपलब्ध नहीं है।"
+  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "इस डिवाइस के लिए कोई ऑडियो आउटपुट उपलब्ध नहीं है।",
+  "bluetooth.error_BLUETOOTH_PROFILE_UNAVAILABLE": "सर्वर अभी इस डिवाइस को कनेक्ट नहीं कर सकता: ऑडियो डिवाइस के लिए सर्वर पर Bluetooth सपोर्ट वाला PipeWire या PulseAudio चाहिए।"
 }

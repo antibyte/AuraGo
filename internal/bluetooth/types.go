@@ -26,6 +26,7 @@ const (
 	ErrorPairingRejected            = "PAIRING_REJECTED"
 	ErrorPairingFailed              = "PAIRING_FAILED"
 	ErrorDeviceUnreachable          = "DEVICE_UNREACHABLE"
+	ErrorProfileUnavailable         = "BLUETOOTH_PROFILE_UNAVAILABLE"
 	ErrorGeneric                    = "BLUETOOTH_ERROR"
 )
 

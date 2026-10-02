@@ -5053,5 +5053,6 @@
   "bluetooth.error_BLUETOOTH_DEVICE_NOT_FOUND": "El dispositivo ya no está disponible.",
   "bluetooth.error_BLUETOOTH_UNAVAILABLE": "Bluetooth no está disponible en este momento.",
   "bluetooth.error_BLUETOOTH_INTERACTION_EXPIRED": "La solicitud ha caducado.",
-  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "No hay salida de audio disponible para este dispositivo."
+  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "No hay salida de audio disponible para este dispositivo.",
+  "bluetooth.error_BLUETOOTH_PROFILE_UNAVAILABLE": "El servidor aún no puede conectar este dispositivo: los dispositivos de audio necesitan PipeWire o PulseAudio con soporte Bluetooth en el servidor."
 }

@@ -5053,5 +5053,6 @@
   "bluetooth.error_BLUETOOTH_DEVICE_NOT_FOUND": "このデバイスは利用できなくなりました。",
   "bluetooth.error_BLUETOOTH_UNAVAILABLE": "現在 Bluetooth は利用できません。",
   "bluetooth.error_BLUETOOTH_INTERACTION_EXPIRED": "リクエストの期限が切れました。",
-  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "このデバイスで使用できる音声出力がありません。"
+  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "このデバイスで使用できる音声出力がありません。",
+  "bluetooth.error_BLUETOOTH_PROFILE_UNAVAILABLE": "サーバーはまだこのデバイスに接続できません。オーディオデバイスには、サーバー上に Bluetooth 対応の PipeWire または PulseAudio が必要です。"
 }

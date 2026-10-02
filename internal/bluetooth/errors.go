@@ -47,15 +47,20 @@ func mapBlueZError(op string, err error) error {
 		return codedError(ErrorDeviceNotFound, "The Bluetooth device no longer exists.", err)
 	case "org.bluez.Error.ConnectionAttemptFailed", "org.bluez.Error.NotAvailable":
 		return codedError(ErrorDeviceUnreachable, "The Bluetooth device did not answer.", err)
-	case "org.bluez.Error.Failed":
-		switch {
-		case strings.Contains(message, "rfkill") || strings.Contains(message, "blocked"):
-			return codedError(ErrorBlocked, "Bluetooth is blocked.", err)
-		case strings.Contains(message, "page timeout") || strings.Contains(message, "page-timeout") ||
-			strings.Contains(message, "host is down") || strings.Contains(message, "connection refused") ||
-			strings.Contains(message, "abort-by-local"):
-			return codedError(ErrorDeviceUnreachable, "The Bluetooth device did not answer.", err)
-		}
+	}
+	// BlueZ reports most connection failures as Failed/NotSupported with a
+	// "br-connection-*" or "le-connection-*" reason string.
+	switch {
+	case strings.Contains(message, "profile-unavailable") || strings.Contains(message, "connection-not-supported"):
+		// No local service serves any of the device's profiles; for audio devices
+		// this means PipeWire or PulseAudio with Bluetooth support is missing.
+		return codedError(ErrorProfileUnavailable, "The server has no service for this device's profiles; audio devices need PipeWire or PulseAudio with Bluetooth support.", err)
+	case bus.Name == "org.bluez.Error.Failed" && (strings.Contains(message, "rfkill") || strings.Contains(message, "blocked")):
+		return codedError(ErrorBlocked, "Bluetooth is blocked.", err)
+	case bus.Name == "org.bluez.Error.Failed" && (strings.Contains(message, "page timeout") || strings.Contains(message, "page-timeout") ||
+		strings.Contains(message, "host is down") || strings.Contains(message, "connection refused") ||
+		strings.Contains(message, "abort-by-local") || strings.Contains(message, "aborted-by-local")):
+		return codedError(ErrorDeviceUnreachable, "The Bluetooth device did not answer.", err)
 	}
 	return codedError(ErrorGeneric, "The Bluetooth operation failed.", err)
 }

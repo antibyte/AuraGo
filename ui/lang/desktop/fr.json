@@ -5053,5 +5053,6 @@
   "bluetooth.error_BLUETOOTH_DEVICE_NOT_FOUND": "L’appareil n’est plus disponible.",
   "bluetooth.error_BLUETOOTH_UNAVAILABLE": "Bluetooth n’est pas disponible pour le moment.",
   "bluetooth.error_BLUETOOTH_INTERACTION_EXPIRED": "La demande a expiré.",
-  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "Aucune sortie audio n’est disponible pour cet appareil."
+  "bluetooth.error_BLUETOOTH_AUDIO_TARGET_UNAVAILABLE": "Aucune sortie audio n’est disponible pour cet appareil.",
+  "bluetooth.error_BLUETOOTH_PROFILE_UNAVAILABLE": "Le serveur ne peut pas encore connecter cet appareil : les appareils audio nécessitent PipeWire ou PulseAudio avec prise en charge Bluetooth sur le serveur."
 }
