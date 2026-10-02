@@ -82,6 +82,9 @@ type Service struct {
 	// List cache
 	listCache   map[string]listCacheEntry
 	listCacheMu sync.Mutex
+
+	capabilityMu sync.RWMutex
+	capabilities CapabilityProvider
 }
 
 type listCacheEntry struct {
@@ -721,6 +724,7 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		s.cacheSettingsValid = true
 	}
 
+	provider := s.capabilityProvider()
 	cfg := s.Config()
 	payload := BootstrapPayload{
 		Enabled:            cfg.Enabled,
@@ -734,9 +738,9 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 			Directories: DefaultDirectories(),
 			MaxFileSize: int64(cfg.MaxFileSizeMB) * 1024 * 1024,
 		},
-		BuiltinApps:   applyAppVisibility(s.cacheApps, true, appVisibility),
+		BuiltinApps:   applyAppVisibility(FilterAvailableApps(s.cacheApps, provider), true, appVisibility),
 		InstalledApps: applyAppVisibility(s.cacheInstalledApps, false, appVisibility),
-		Shortcuts:     s.cacheShortcuts,
+		Shortcuts:     filterUnavailableAppShortcuts(s.cacheShortcuts, s.cacheApps, provider),
 		Widgets:       s.cacheWidgets,
 		AllWidgets:    s.cacheAllWidgets,
 		Settings:      s.cacheSettings,

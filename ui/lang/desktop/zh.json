@@ -4609,6 +4609,7 @@
   "personalRadio.radio_registry_unavailable": "无法加载音乐库，稍后将重试。",
   "desktop.app_personal_radio": "个人电台",
   "desktop.app_rtl_sdr": "RTL-SDR",
+  "desktop.app_bluetooth": "蓝牙",
   "rtlSdr.subtitle": "优雅调谐，畅听电波",
   "rtlSdr.receive": "接收",
   "rtlSdr.recordings": "录音",

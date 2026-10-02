@@ -422,6 +422,9 @@ func (s *Service) validateGeneratedAppEntry(ctx context.Context, app AppManifest
 func (s *Service) findApp(ctx context.Context, id string) (AppManifest, bool, error) {
 	for _, app := range BuiltinApps() {
 		if app.ID == id {
+			if !AppRequirementsMet(app, s.capabilityProvider()) {
+				return AppManifest{}, false, nil
+			}
 			return app, true, nil
 		}
 	}

@@ -4609,6 +4609,7 @@
   "personalRadio.radio_registry_unavailable": "Impossible de charger la bibliothèque musicale. Une nouvelle tentative suivra.",
   "desktop.app_personal_radio": "Radio personnelle",
   "desktop.app_rtl_sdr": "RTL-SDR",
+  "desktop.app_bluetooth": "Bluetooth",
   "rtlSdr.subtitle": "Les ondes, accordées avec élégance",
   "rtlSdr.receive": "Réception",
   "rtlSdr.recordings": "Enregistrements",

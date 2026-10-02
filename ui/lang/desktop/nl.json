@@ -4609,6 +4609,7 @@
   "personalRadio.radio_registry_unavailable": "De muziekbibliotheek kon niet worden geladen. Er volgt een nieuwe poging.",
   "desktop.app_personal_radio": "Persoonlijke radio",
   "desktop.app_rtl_sdr": "RTL-SDR",
+  "desktop.app_bluetooth": "Bluetooth",
   "rtlSdr.subtitle": "De ether, prachtig afgestemd",
   "rtlSdr.receive": "Ontvangst",
   "rtlSdr.recordings": "Opnamen",

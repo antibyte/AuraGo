@@ -4609,6 +4609,7 @@
   "personalRadio.radio_registry_unavailable": "Die Musikbibliothek konnte nicht geladen werden. Ein weiterer Versuch folgt.",
   "desktop.app_personal_radio": "Personal Radio",
   "desktop.app_rtl_sdr": "RTL-SDR",
+  "desktop.app_bluetooth": "Bluetooth",
   "rtlSdr.subtitle": "Die Radiowelt, präzise abgestimmt",
   "rtlSdr.receive": "Empfang",
   "rtlSdr.recordings": "Aufnahmen",

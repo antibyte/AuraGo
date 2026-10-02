@@ -159,6 +159,7 @@ type AppManifest struct {
 	Runtime      string            `json:"runtime,omitempty"`
 	Description  string            `json:"description,omitempty"`
 	Permissions  []string          `json:"permissions,omitempty"`
+	Requires     []string          `json:"requires,omitempty"`
 	Metadata     map[string]string `json:"metadata,omitempty"`
 	Builtin      bool              `json:"builtin"`
 	Deletable    bool              `json:"deletable"`
@@ -316,6 +317,7 @@ var desktopPreferredIconNames = []string{
 	"audio",
 	"audio-player",
 	"backup",
+	"bluetooth",
 	"book",
 	"browser",
 	"calendar",
@@ -759,6 +761,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "radio", Name: "Radio", Version: "1.0.0", Icon: "radio", Entry: "builtin://radio", Runtime: BuiltinRuntime, Description: "Stream popular internet radio stations by category and search."},
 		{ID: "personal-radio", Name: "Personal Radio", Version: "1.0.0", Icon: "personal-radio", Entry: "builtin://personal-radio", Runtime: BuiltinRuntime, Description: "Your own station with local or generated music, spoken moderation and researched news."},
 		{ID: "rtl-sdr", Name: "RTL-SDR", Version: "1.0.0", Icon: "rtl-sdr", Entry: "builtin://rtl-sdr", Runtime: BuiltinRuntime, Description: "Live analog and DAB+ radio, scheduled recordings and speech transcripts."},
+		{ID: "bluetooth", Name: "Bluetooth", Version: "1.0.0", Icon: "bluetooth", Entry: "builtin://bluetooth", Runtime: BuiltinRuntime, Description: "Manage the server's Bluetooth adapter, pair devices and answer pairing requests.", Permissions: []string{"notifications"}, Requires: []string{"bluetooth"}},
 		{ID: "teevee", Name: "TeeVee", Version: "1.0.0", Icon: "teevee", Entry: "builtin://teevee", Runtime: BuiltinRuntime, Description: "Watch public IPTV channels from iptv-org with German-first filtering and global search."},
 		{ID: "agent-chat", Name: "Agent Chat", Version: "1.0.0", Icon: "agent-chat", Entry: "builtin://agent-chat", Runtime: BuiltinRuntime, Description: "Ask AuraGo to create apps, widgets, and files."},
 		{ID: "live-speech", Name: "Live Speech", Version: "1.0.0", Icon: "audio", Entry: "builtin://live-speech", Runtime: BuiltinRuntime, Description: "Talk naturally with AuraGo through a realtime voice session."},

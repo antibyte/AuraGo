@@ -4609,6 +4609,7 @@
   "personalRadio.radio_registry_unavailable": "Nie udało się wczytać biblioteki muzycznej. Nastąpi kolejna próba.",
   "desktop.app_personal_radio": "Radio osobiste",
   "desktop.app_rtl_sdr": "RTL-SDR",
+  "desktop.app_bluetooth": "Bluetooth",
   "rtlSdr.subtitle": "Fale radiowe, pięknie dostrojone",
   "rtlSdr.receive": "Odbiór",
   "rtlSdr.recordings": "Nagrania",

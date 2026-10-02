@@ -4609,6 +4609,7 @@
   "personalRadio.radio_registry_unavailable": "Δεν ήταν δυνατή η φόρτωση της μουσικής βιβλιοθήκης. Θα γίνει νέα προσπάθεια.",
   "desktop.app_personal_radio": "Προσωπικό ραδιόφωνο",
   "desktop.app_rtl_sdr": "RTL-SDR",
+  "desktop.app_bluetooth": "Bluetooth",
   "rtlSdr.subtitle": "Τα ραδιοκύματα, όμορφα συντονισμένα",
   "rtlSdr.receive": "Λήψη",
   "rtlSdr.recordings": "Εγγραφές",

@@ -124,7 +124,7 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 			Directories: desktop.DefaultDirectories(),
 			MaxFileSize: int64(desktopCfg.MaxFileSizeMB) * 1024 * 1024,
 		},
-		BuiltinApps: desktop.BuiltinApps(),
+		BuiltinApps: desktop.FilterAvailableApps(desktop.BuiltinApps(), nil),
 		Shortcuts: []desktop.Shortcut{
 			{ID: "app-files", TargetType: desktop.ShortcutTargetApp, TargetID: "files", Name: "Files", Icon: "folder"},
 			{ID: "dir-Trash", TargetType: desktop.ShortcutTargetDirectory, Path: "Trash", Name: "Trash", Icon: "trash"},

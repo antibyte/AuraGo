@@ -4609,6 +4609,7 @@
   "personalRadio.radio_registry_unavailable": "Hudební knihovnu se nepodařilo načíst. Bude následovat další pokus.",
   "desktop.app_personal_radio": "Osobní rádio",
   "desktop.app_rtl_sdr": "RTL-SDR",
+  "desktop.app_bluetooth": "Bluetooth",
   "rtlSdr.subtitle": "Rádiové vlny, krásně naladěné",
   "rtlSdr.receive": "Příjem",
   "rtlSdr.recordings": "Nahrávky",

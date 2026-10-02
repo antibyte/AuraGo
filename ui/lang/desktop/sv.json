@@ -4609,6 +4609,7 @@
   "personalRadio.radio_registry_unavailable": "Musikbiblioteket kunde inte laddas. Ett nytt försök följer.",
   "desktop.app_personal_radio": "Personlig radio",
   "desktop.app_rtl_sdr": "RTL-SDR",
+  "desktop.app_bluetooth": "Bluetooth",
   "rtlSdr.subtitle": "Radiovågorna, vackert inställda",
   "rtlSdr.receive": "Mottagning",
   "rtlSdr.recordings": "Inspelningar",
