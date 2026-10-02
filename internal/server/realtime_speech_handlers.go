@@ -92,6 +92,8 @@ func registerRealtimeSpeechHandlers(mux *http.ServeMux, s *Server, sse *SSEBroad
 	mux.HandleFunc("/api/realtime-speech/transcribe", handleRealtimeSpeechLabTranscribe(s, registry))
 	mux.HandleFunc("/api/realtime-speech/synthesize", handleRealtimeSpeechLabSynthesize(s, registry))
 	mux.HandleFunc("/api/realtime-speech/progress-audio", handleRealtimeSpeechProgressAudio(s, registry))
+	headsets := managerHeadsets{s: s}
+	mux.HandleFunc("/api/realtime-speech/audio-devices", handleRealtimeSpeechAudioDevices(headsets))
 }
 
 func handleRealtimeSpeechConfig(s *Server) http.HandlerFunc {
