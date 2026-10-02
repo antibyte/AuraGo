@@ -42,6 +42,7 @@ Das Script:
 2. Lädt die passende Binary + Ressourcen herunter
 3. Extrahiert alles nach `~/aurago/`
 4. Erstellt einen systemd-Service für Autostart
+5. Fragt, ob AuraGo Bluetooth nutzen soll, und richtet den Server bei „ja“ dafür ein
 
 **Mit benutzerdefiniertem Verzeichnis:**
 ```bash
@@ -52,6 +53,13 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | A
 ```bash
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_VERSION=v1.0.0 bash
 ```
+
+**Bluetooth-Frage vorab beantworten:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_BLUETOOTH=yes bash
+```
+Die Antwort wird gespeichert. Später ändern mit `./update.sh --bluetooth` oder
+`./update.sh --no-bluetooth`. Details stehen in `documentation/bluetooth.md`.
 
 ### Option B: Docker (empfohlen für isolierte Umgebung)
 

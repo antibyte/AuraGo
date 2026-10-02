@@ -33,6 +33,64 @@ AuraGo must run in the same user session that owns the PipeWire or PulseAudio
 socket. A system service without access to that session can detect BlueZ but
 will report Bluetooth audio as unavailable.
 
+The installers can do all of this for you; see [Installer setup](#installer-setup).
+
+## Installer setup
+
+`install.sh`, `update.sh` and `install_service_linux.sh` ask once: "Use
+Bluetooth in AuraGo (manage devices, headphones and speakers)?". The question
+also appears without an adapter, so a dongle plugged in later works right
+away. The answer is stored in `data/bluetooth-setup` (`enabled` or `declined`)
+and is not asked again. Containers are never asked; Bluetooth is not supported
+there.
+
+Answer without the question:
+
+- `AURAGO_BLUETOOTH=yes` or `AURAGO_BLUETOOTH=no` for all three scripts, for
+  example `curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_BLUETOOTH=yes bash`
+- `./update.sh --bluetooth` or `./update.sh --no-bluetooth` to change it later
+
+Without a terminal and without a stored answer (for example the in-app
+updater), nothing changes. `update.sh --yes` never answers the question.
+
+On "yes" the scripts prepare the server. Each step is skipped when it is
+already done, and a failed step never stops the installation; a summary lists
+the commands to run by hand.
+
+1. Packages: BlueZ, PipeWire with WirePlumber and its Bluetooth plugin, and
+   FFmpeg when missing. An installed PulseAudio stays; then only its Bluetooth
+   module and `pactl` are added.
+2. `bluetooth.service` is enabled and started; a software block is lifted.
+3. Linger for the service user (`loginctl enable-linger`), so its audio
+   session runs without a login.
+4. The user's audio units: `pipewire.socket`, `pipewire-pulse.socket` and
+   `wireplumber.service`, or `pulseaudio.socket`.
+5. WirePlumber may run its BlueZ monitor without a logind seat, which headless
+   servers lack: `~/.config/wireplumber/wireplumber.conf.d/80-aurago-bluez-headless.conf`
+   (WirePlumber 0.5) or `~/.config/wireplumber/bluetooth.lua.d/80-aurago-bluez-headless.lua`
+   (0.4).
+6. `/etc/systemd/system/aurago.service.d/aurago-bluetooth.conf` sets
+   `XDG_RUNTIME_DIR=/run/user/<uid>` for the service, starts it after the
+   user's session and adds the `bluetooth` group when it exists. If systemd
+   rejects the file, it is removed again.
+7. `config.yaml`: `bluetooth.enabled: true` and `bluetooth.allow_playback: true`.
+8. A read-only check reports whether headphones and speakers can connect.
+
+`config.yaml` changes only when the answer changes; afterwards the Config page
+decides. With a stored "yes", every `update.sh` run repairs steps 1–6.
+
+On "no" the scripts set `bluetooth.enabled: false` and remove the
+`aurago-bluetooth.conf` drop-in. Packages, linger and WirePlumber files stay,
+because other software may use them. To remove them by hand:
+
+```bash
+sudo loginctl disable-linger <service-user>
+rm ~/.config/wireplumber/wireplumber.conf.d/80-aurago-bluez-headless.conf
+```
+
+A service that runs as `root` gets no audio session: device management works,
+headphones and speakers do not.
+
 ## Configuration
 
 ```yaml
@@ -109,3 +167,4 @@ Bluetooth.
   Headphones and speakers only connect while PipeWire with WirePlumber or
   PulseAudio with Bluetooth support runs and registers its A2DP/HFP endpoints
   with BlueZ. Retrying does not help until that audio stack is running.
+  `./update.sh --bluetooth` sets up that audio stack.

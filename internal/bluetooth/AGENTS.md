@@ -19,10 +19,12 @@ Native Bluetooth discovery, permissions, and playback.
 - Desktop events (`bluetooth_changed {revision}`, `bluetooth_interaction {id}`, `desktop_changed app_availability`) carry no device data. The desktop app is gated by `Requires: ["bluetooth"]`, which is true while an adapter exists that is not hard-blocked.
 - Bluetooth playback accepts workspace-local files or audio/music Media Registry IDs only, never URLs. It may connect an already paired target but must never pair implicitly. Route only AuraGo's stream to the matched sink, keep the system default output unchanged, and allow at most one AuraGo-owned playback.
 - Standard Docker installations must report Bluetooth unavailable unless a future explicit and security-reviewed host D-Bus/audio passthrough contract is added.
+- Host preparation happens only through the `AURAGO-BLUETOOTH-KIT` block (`scripts/aurago-bluetooth.sh`, copied into `install.sh`, `update.sh` and `install_service_linux.sh` by `scripts/sync-bluetooth-kit.sh`). It never removes packages, linger or WirePlumber files, changes `config.yaml` only when the stored decision in `data/bluetooth-setup` changes, and never blocks installation, update or service start. Covered by `internal/audit/bluetooth_kit_test.go`.
 
 ## Verification
 
 - Run `go test ./internal/bluetooth` and the named cross-component checks in the contracts above when those paths change.
+- Installer kit changes: `bash scripts/sync-bluetooth-kit.sh`, then `go test ./internal/audit -run 'BluetoothKit|PreparesBluetooth|AppliesBluetoothChoice' -count=1`.
 
 ## Child DOX Index
 
