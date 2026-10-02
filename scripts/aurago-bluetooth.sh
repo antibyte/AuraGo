@@ -233,4 +233,129 @@ btk_install_packages() {
     btk_fail "Installing $missing" "$(btk_pkg_command "$mgr") $missing"
     return 1
 }
+
+btk_user_uid() { id -u "$1" 2>/dev/null || true; }
+
+btk_user_home() {
+    local home=""
+    if btk_has getent; then home="$(getent passwd "$1" 2>/dev/null | cut -d: -f6)" || home=""; fi
+    printf '%s\n' "$home"
+}
+
+# btk_as_user <user> <uid> command...: runs inside that user's systemd and
+# D-Bus session (directly, through runuser as root, or through sudo).
+btk_as_user() {
+    local user="$1" uid="$2" runtime
+    shift 2
+    runtime="/run/user/$uid"
+    if [ "$(id -un)" = "$user" ]; then
+        XDG_RUNTIME_DIR="$runtime" DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime/bus" "$@"
+    elif [ "$(id -u)" = 0 ] && btk_has runuser; then
+        runuser -u "$user" -- env XDG_RUNTIME_DIR="$runtime" DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime/bus" "$@"
+    else
+        ${SUDO:-sudo} -u "$user" env XDG_RUNTIME_DIR="$runtime" DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime/bus" "$@"
+    fi
+}
+
+btk_enable_bluez() {
+    if ! btk_has systemctl; then
+        btk_fail "Starting the Bluetooth service" "start bluetoothd with your init system"
+        return 1
+    fi
+    if systemctl is-enabled --quiet bluetooth.service 2>/dev/null &&
+        systemctl is-active --quiet bluetooth.service 2>/dev/null; then
+        btk_done "Bluetooth service is running"
+    elif $SUDO systemctl enable --now bluetooth.service >>"$BTK_LOG" 2>&1; then
+        btk_done "Bluetooth service enabled and started"
+    else
+        btk_fail "Starting the Bluetooth service" "sudo systemctl enable --now bluetooth.service"
+        return 1
+    fi
+    if btk_has rfkill && rfkill list bluetooth 2>/dev/null | grep -qi 'soft blocked: yes'; then
+        $SUDO rfkill unblock bluetooth >>"$BTK_LOG" 2>&1 ||
+            btk_warn "Bluetooth is switched off in software; run: sudo rfkill unblock bluetooth"
+    fi
+    return 0
+}
+
+# Linger keeps the user's audio session running without a login.
+btk_enable_linger() {
+    local user="$1" uid="$2"
+    if [ ! -e "${BTK_ROOT:-}/var/lib/systemd/linger/$user" ] &&
+        ! $SUDO loginctl enable-linger "$user" >>"$BTK_LOG" 2>&1; then
+        btk_fail "Keeping the audio session of $user running without a login" "sudo loginctl enable-linger $user"
+        return 1
+    fi
+    if ! systemctl is-active --quiet "user@$uid.service" 2>/dev/null &&
+        ! $SUDO systemctl start "user@$uid.service" >>"$BTK_LOG" 2>&1; then
+        btk_fail "Starting the user session of $user" "sudo systemctl start user@$uid.service"
+        return 1
+    fi
+    btk_done "Audio session of $user runs without a login"
+}
+
+btk_audio_units() {
+    if [ "$1" = pulseaudio ]; then
+        printf 'pulseaudio.socket\n'
+    else
+        printf 'pipewire.socket pipewire-pulse.socket wireplumber.service\n'
+    fi
+}
+
+# btk_enable_user_units <user> <uid> <pipewire|pulseaudio>
+btk_enable_user_units() {
+    local user="$1" uid="$2" units
+    units="$(btk_audio_units "$3")"
+    # shellcheck disable=SC2086 # unit names are single words
+    if btk_as_user "$user" "$uid" systemctl --user enable --now $units >>"$BTK_LOG" 2>&1; then
+        btk_done "Audio services enabled for $user"
+        return 0
+    fi
+    btk_fail "Enabling the audio services for $user" \
+        "sudo -u $user env XDG_RUNTIME_DIR=/run/user/$uid systemctl --user enable --now $units"
+    return 1
+}
+
+btk_wireplumber_version() {
+    btk_has wireplumber || return 0
+    wireplumber --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | tail -n 1
+    return 0
+}
+
+# Without a logind seat (headless servers) WirePlumber keeps its BlueZ
+# monitor off; audio devices then pair but fail with
+# br-connection-profile-unavailable.
+btk_wireplumber_headless() {
+    local user="$1" uid="$2" home version dir file content
+    home="$(btk_user_home "$user")"
+    version="$(btk_wireplumber_version)"
+    if [ -z "$home" ] || [ -z "$version" ]; then
+        btk_fail "Configuring WirePlumber for a server without a screen" "install WirePlumber, then run ./update.sh --bluetooth"
+        return 1
+    fi
+    case "$version" in
+        0.4 | 0.4.*)
+            dir="$home/.config/wireplumber/bluetooth.lua.d"
+            file="$dir/80-aurago-bluez-headless.lua"
+            content='bluez_monitor.properties["with-logind"] = false'
+            ;;
+        *)
+            dir="$home/.config/wireplumber/wireplumber.conf.d"
+            file="$dir/80-aurago-bluez-headless.conf"
+            content="$(printf '%s\n' 'wireplumber.profiles = {' '  main = {' '    monitor.bluez.seat-monitoring = disabled' '  }' '}')"
+            ;;
+    esac
+    if [ "$(cat "$file" 2>/dev/null)" = "$content" ]; then
+        btk_done "WirePlumber handles Bluetooth without a screen"
+        return 0
+    fi
+    if btk_as_user "$user" "$uid" mkdir -p "$dir" >>"$BTK_LOG" 2>&1 &&
+        printf '%s\n' "$content" | btk_as_user "$user" "$uid" tee "$file" >/dev/null 2>>"$BTK_LOG"; then
+        btk_as_user "$user" "$uid" systemctl --user restart wireplumber.service >>"$BTK_LOG" 2>&1 || true
+        btk_done "WirePlumber handles Bluetooth without a screen ($file)"
+        return 0
+    fi
+    btk_fail "Writing $file" "run ./update.sh --bluetooth as $user"
+    return 1
+}
 # <<< AURAGO-BLUETOOTH-KIT v1 <<<

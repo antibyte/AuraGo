@@ -217,3 +217,59 @@ if step btk_install_packages pipewire > "$T/out" 2>&1; then exit 1; fi
 grep -Fq 'unknown package manager' "$T/out"
 `)
 }
+
+func TestBluetoothKitPreparesAudioSession(t *testing.T) {
+	t.Parallel()
+	runBluetoothKit(t, `
+HAVE="systemctl rfkill getent wireplumber"
+stub rfkill 'case "$1" in list) echo "0: hci0: Bluetooth"; echo "        Soft blocked: yes" ;; esac'
+step btk_enable_bluez
+called "systemctl enable --now bluetooth.service"
+called "rfkill unblock bluetooth"
+
+step btk_enable_linger svc 1001
+called "loginctl enable-linger svc"
+called "systemctl start user@1001.service"
+
+step btk_enable_user_units svc 1001 pipewire
+called "systemctl --user enable --now pipewire.socket pipewire-pulse.socket wireplumber.service"
+called "  xdg=/run/user/1001"
+
+step btk_wireplumber_headless svc 1001
+f="$STUB_HOME/.config/wireplumber/wireplumber.conf.d/80-aurago-bluez-headless.conf"
+grep -Fxq 'wireplumber.profiles = {' "$f"
+grep -Fxq '    monitor.bluez.seat-monitoring = disabled' "$f"
+called "systemctl --user restart wireplumber.service"
+
+# A prepared host needs no root commands and no WirePlumber restart.
+: > "$STUB_LOG"
+export STUB_ACTIVE_RC=0
+mkdir -p "$BTK_ROOT/var/lib/systemd/linger"
+touch "$BTK_ROOT/var/lib/systemd/linger/svc"
+stub rfkill 'case "$1" in list) echo "0: hci0: Bluetooth"; echo "        Soft blocked: no" ;; esac'
+step btk_enable_bluez
+step btk_enable_linger svc 1001
+step btk_wireplumber_headless svc 1001
+not_called "systemctl enable --now bluetooth.service"
+not_called "rfkill unblock"
+not_called "loginctl"
+not_called "systemctl start"
+not_called "systemctl --user restart"
+
+# WirePlumber 0.4 reads Lua fragments instead.
+export STUB_WP_VERSION=0.4.17
+step btk_wireplumber_headless svc 1001
+grep -Fxq 'bluez_monitor.properties["with-logind"] = false' "$STUB_HOME/.config/wireplumber/bluetooth.lua.d/80-aurago-bluez-headless.lua"
+
+# PulseAudio keeps its own socket unit.
+step btk_enable_user_units svc 1001 pulseaudio
+called "systemctl --user enable --now pulseaudio.socket"
+
+# Root reaches another user's session through runuser.
+: > "$STUB_LOG"
+export STUB_USER=root STUB_UID=0
+HAVE="$HAVE runuser"
+step btk_enable_user_units svc 1001 pipewire
+called "runuser -u svc -- env XDG_RUNTIME_DIR=/run/user/1001 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus systemctl --user enable --now pipewire.socket pipewire-pulse.socket wireplumber.service"
+`)
+}
