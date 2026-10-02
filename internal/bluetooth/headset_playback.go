@@ -2,6 +2,7 @@ package bluetooth
 
 import (
 	"io"
+	"strconv"
 	"sync"
 	"sync/atomic"
 )
@@ -72,4 +73,44 @@ func (p *headsetPlayer) stop() {
 		close(p.stopped)
 		_ = p.process.Kill()
 	})
+}
+
+// Write queues browser audio (s16le mono at HeadsetOutputRate) for stream 0
+// (replies) or 1 (progress narration). While the headset is lost the audio
+// is dropped because the browser plays it itself.
+func (l *HeadsetLink) Write(stream int, pcm []byte) error {
+	if stream != headsetStreamReply && stream != headsetStreamProgress {
+		return codedError(ErrorInvalidArgument, "Unknown headset output stream.", nil)
+	}
+	if len(pcm) == 0 {
+		return nil
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.recorder == nil || l.sink == "" {
+		return nil
+	}
+	player := l.players[stream]
+	if player == nil || !player.alive() {
+		process, err := l.cfg.runner.Pipe(l.ctx, "pw-play", "--target", l.sink,
+			"--rate", strconv.Itoa(HeadsetOutputRate), "--channels", "1", "--format", "s16", "-")
+		if err != nil {
+			return codedError(ErrorHeadsetAudioUnavailable, "The headset speaker could not be opened.", err)
+		}
+		player = newHeadsetPlayer(process)
+		l.players[stream] = player
+	}
+	player.offer(append([]byte(nil), pcm...))
+	return nil
+}
+
+// Flush drops queued and playing audio of one stream, e.g. on barge-in.
+func (l *HeadsetLink) Flush(stream int) {
+	l.mu.Lock()
+	player := l.players[stream]
+	delete(l.players, stream)
+	l.mu.Unlock()
+	if player != nil {
+		player.stop()
+	}
 }

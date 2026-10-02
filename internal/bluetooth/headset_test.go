@@ -423,3 +423,69 @@ func TestHeadsetLinkReportsAMissingMicrophoneProfileOnce(t *testing.T) {
 	case <-time.After(150 * time.Millisecond):
 	}
 }
+
+func TestHeadsetLinkPlaysBrowserAudioPerStream(t *testing.T) {
+	runner := newFakeHeadsetRunner("headset-head-unit")
+	var connected atomic.Bool
+	link := startTestHeadsetLink(t, runner, func() (Device, bool) {
+		device, _ := connectedHeadset()
+		device.Connected = connected.Load()
+		return device, true
+	}, nil)
+	expectHeadsetEvent(t, link, HeadsetLost, "")
+	// While lost the browser plays locally; nothing reaches the headset.
+	if err := link.Write(0, []byte{1, 2}); err != nil || runner.countPrefix("pw-play") != 0 {
+		t.Fatalf("write while lost: err=%v calls=%v", err, runner.callLog())
+	}
+	connected.Store(true)
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+
+	if err := link.Write(0, []byte{1, 2, 3, 4}); err != nil {
+		t.Fatal(err)
+	}
+	if !runner.called("pw-play --target bluez_output.AA_BB_CC_DD_EE_FF.0 --rate 24000 --channels 1 --format s16 -") {
+		t.Fatalf("player missing: %v", runner.callLog())
+	}
+	reply := runner.pipe(t, "pw-play", 0)
+	waitForHeadset(t, "reply audio", func() bool { return reply.bytesWritten() == 4 })
+	if err := link.Write(1, []byte{5, 6}); err != nil {
+		t.Fatal(err)
+	}
+	runner.pipe(t, "pw-play", 1)
+
+	link.Flush(0)
+	waitForHeadset(t, "flushed player", reply.wasKilled)
+	if err := link.Write(0, []byte{7, 8}); err != nil {
+		t.Fatal(err)
+	}
+	runner.pipe(t, "pw-play", 2)
+	if err := link.Write(2, []byte{1}); ErrorCode(err) != ErrorInvalidArgument {
+		t.Fatalf("unknown stream error = %v", err)
+	}
+}
+
+func TestHeadsetLinkDropsAudioBeyondTwoSeconds(t *testing.T) {
+	runner := newFakeHeadsetRunner("headset-head-unit")
+	runner.blockPlay = true
+	link := startTestHeadsetLink(t, runner, connectedHeadset, nil)
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+	second := make([]byte, HeadsetOutputRate*2) // 1 s of s16le mono
+	if err := link.Write(0, second); err != nil {
+		t.Fatal(err)
+	}
+	player := runner.pipe(t, "pw-play", 0)
+	select {
+	case <-player.writing: // the first second is being written and blocks
+	case <-time.After(2 * time.Second):
+		t.Fatal("player never started writing")
+	}
+	for i := 0; i < 3; i++ {
+		_ = link.Write(0, second)
+	}
+	close(player.block)
+	waitForHeadset(t, "queued audio", func() bool { return player.bytesWritten() == 3*len(second) })
+	time.Sleep(50 * time.Millisecond)
+	if got := player.bytesWritten(); got != 3*len(second) {
+		t.Fatalf("written = %d bytes, want %d (the fourth second must be dropped)", got, 3*len(second))
+	}
+}
