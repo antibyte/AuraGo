@@ -159,6 +159,8 @@
 This subtree owns built-in virtual desktop app modules that are loaded lazily by
 `ui/js/desktop/core/module-loader.js`.
 
+- `tresor.js` owns setup, recovery confirmation, note/file workflows, the five-minute idle lock and window disposal. Locking invalidates pending operations before clearing decrypted state. `tresor-crypto.js` derives Argon2id keys with locally copied `argon2id@1.0.1` WASM, wipes its entire workspace and encrypts metadata and bodies with Web Crypto AES-256-GCM. Never send passwords, recovery keys or plaintext to `/api/desktop/tresor` or persistent browser storage. The door artwork is decorative; forms stay keyboard-accessible and reduced motion disables the opening effect. Verify `TestDesktopTresorBrowser` and `npm run test:tresor-crypto`.
+
 - Game Maker's existing asset browser includes sprite packs and individual 3D
   models. `game-maker-studio-models.js` owns one disposable viewer per modal,
   sharing the pinned local 0.186.1 runtime helper. Cancel pending fetches and

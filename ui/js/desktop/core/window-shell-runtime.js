@@ -1010,6 +1010,7 @@
             'code-studio': { width: 1280, height: 850 },
             terminal: { width: 960, height: 720 },
             notes: { width: 1060, height: 680 },
+            tresor: { width: 1060, height: 700 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
             'log-viewer': { width: 920, height: 640 },

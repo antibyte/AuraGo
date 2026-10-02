@@ -1644,6 +1644,13 @@ if (appId === 'system-info') {
                 return window.NotesApp.render(contentEl(id), id, { ...officeAppContext(context), recordRecentFile });
             }
         }
+        if (appId === 'tresor') {
+            if (!window.TresorApp) {
+                window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}) });
+        }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {
                 window.AuraDesktopModules.loadAppScript('openscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

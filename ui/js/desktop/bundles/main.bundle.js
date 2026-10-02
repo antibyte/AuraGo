@@ -372,6 +372,7 @@
         teevee: 'teevee',
         todo: 'forms',
         notes: 'notes',
+        tresor: 'tresor',
         'agent-chat': 'agent-chat',
         'live-speech': 'live-speech',
         'network-cameras': 'video',
@@ -820,6 +821,7 @@
             'code-studio': 'CodeStudioApp',
             terminal: 'TerminalApp',
             notes: 'NotesApp',
+            tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
             camera: 'CameraApp',
@@ -6161,6 +6163,7 @@
             'code-studio': { width: 1280, height: 850 },
             terminal: { width: 960, height: 720 },
             notes: { width: 1060, height: 680 },
+            tresor: { width: 1060, height: 700 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
             'log-viewer': { width: 920, height: 640 },
@@ -15420,6 +15423,13 @@ if (appId === 'system-info') {
             if (typeof window.NotesApp.render === 'function') {
                 return window.NotesApp.render(contentEl(id), id, { ...officeAppContext(context), recordRecentFile });
             }
+        }
+        if (appId === 'tresor') {
+            if (!window.TresorApp) {
+                window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}) });
         }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {

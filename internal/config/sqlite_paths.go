@@ -11,6 +11,7 @@ const (
 	SystemTasksDBFilename  = "system_tasks.db"
 	GalaxaDBFilename       = "galaxa.db"
 	DesktopStoreDBFilename = "desktop_store.db"
+	TresorDBFilename       = "tresor.db"
 )
 
 // SQLiteDatabasePaths returns absolute SQLite database paths that should be
@@ -52,6 +53,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 			filepath.Join(dataDir, SystemTasksDBFilename),
 			filepath.Join(dataDir, GalaxaDBFilename),
 			filepath.Join(dataDir, DesktopStoreDBFilename),
+			filepath.Join(dataDir, TresorDBFilename),
 		)
 	}
 

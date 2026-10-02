@@ -132,6 +132,10 @@
                 '/js/desktop/apps/notes.js'
             ]
         },
+        'tresor': {
+            styles: appStyles('/css/desktop-app-tresor.css'),
+            scripts: ['/js/desktop/apps/tresor.js']
+        },
         'radio': {
             styles: appStyles('/css/radio.css'),
             scripts: ['/js/desktop/apps/radio.js']
@@ -499,7 +503,8 @@
         'system-world': ['sysworld'],
         'viewer': ['viewer'],
         'viewer-3d': ['viewer'],
-        'zipper': ['zipper']
+        'zipper': ['zipper'],
+        'tresor': ['tresor']
     };
     const loadedI18nSections = new Set();
 

@@ -28,6 +28,7 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 		filepath.Join(dataDir, SystemTasksDBFilename):  true,
 		filepath.Join(dataDir, GalaxaDBFilename):       true,
 		filepath.Join(dataDir, DesktopStoreDBFilename): true,
+		filepath.Join(dataDir, TresorDBFilename):       true,
 	}
 
 	for _, path := range got {

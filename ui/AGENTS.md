@@ -50,6 +50,8 @@ worker. Keep packaging, recovery and offline instructions in
 
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Browser acceptance uses `TestDesktopNewspaperBrowser` at wide/narrow and light/dark sizes; backend contracts live in `internal/newspaper/AGENTS.md`.
 
+- Tresor is a lazy built-in Desktop app with locally packaged Argon2id JS/WASM, a decorative vault-door SVG, and browser-only AES-GCM keys. Keep both theme icon manifests, `desktop.app_tresor` and `tresor.*` in all sixteen Desktop locales, and the generated main bundle current. Lock and dispose must clear decrypted state. Verify vendor drift, crypto vectors, `TestTresorTranslations` and `TestDesktopTresorBrowser`; the storage contract is `internal/tresor/AGENTS.md`.
+
 - Radio, Personal Radio, and RTL-SDR use separate icon keys and assets in both Papirus and WhiteSur. Keep the backend app manifests, Desktop mappings, theme manifests, and generated main bundle aligned; verify `TestDesktopRadioAppsHaveDistinctThemeIcons`.
 
 - Tool configuration consumes `_effective_tool_policy` and `_config_migrations`

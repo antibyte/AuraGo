@@ -477,7 +477,7 @@ func TestHandleBackupImportSQLiteRestoreRequiresRestart(t *testing.T) {
 
 	zipBuf := &bytes.Buffer{}
 	zw := zip.NewWriter(zipBuf)
-	w, err := zw.Create("data/short_term.db")
+	w, err := zw.Create("data/tresor.db")
 	if err != nil {
 		t.Fatalf("Create zip entry: %v", err)
 	}
@@ -565,6 +565,8 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *t
 	writeTestSQLiteDB(t, galaxaPath)
 	desktopStorePath := filepath.Join(dataDir, config.DesktopStoreDBFilename)
 	writeTestSQLiteDB(t, desktopStorePath)
+	tresorPath := filepath.Join(dataDir, config.TresorDBFilename)
+	writeTestSQLiteDB(t, tresorPath)
 
 	cfg := &config.Config{
 		ConfigPath: configPath,
@@ -612,6 +614,7 @@ func TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots(t *t
 		"data/system_tasks.db",
 		"data/galaxa.db",
 		"data/desktop_store.db",
+		"data/tresor.db",
 		"manifest.json",
 	} {
 		if !entries[want] {

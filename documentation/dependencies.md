@@ -24,6 +24,7 @@ the consuming library or reintroduces a vulnerability.
 | Pion media family | ICE 4.3, WebRTC 4.2, TURN 5.0, SRTP 3.0, DTLS 3.1 | Diago 0.40 requires this coherent family; newer minors change STUN/transport types. Exact patches are in `go.mod`. |
 | Unsloth training | Unsloth 2026.9.12; Torch 2.12.1, Transformers 5.5.0, TRL 0.24.0, Datasets 4.3.0 | These are the newest versions satisfying upstream Unsloth's declared constraints. |
 | lodash-es | 4.18.1 override | Mermaid's Chevrotain dependency otherwise selects a vulnerable older pin. |
+| argon2id | 1.0.1 exact pin | Desktop Tresor ships its local JS/WASM with the upstream license; cryptographic vector and vendor drift checks gate changes. |
 
 Managed ACE-Step, sanoTTS, RTL-SDR and other service/model releases retain their
 qualified image, native-library and model hashes. Updating these is a separate
@@ -41,6 +42,10 @@ PDF.js workers/fonts, noVNC, Rive and ESP Web Tools. `-- --check` verifies witho
 writing. Other `build:*-vendor`, `build:game-maker-3d`, `build:system-world`,
 `build:screensaver-abyss` scripts retain their own verified manifests. Also run
 `node scripts/build-game-maker-presentation.js` and `npm run build:ui`.
+
+Tresor's MIT `argon2id` resources are copied with `npm run build:tresor-vendor`.
+Run `npm run check:tresor-vendor` and `npm run test:tresor-crypto` after changes.
+Its wrapper clears the complete WASM workspace after each derivation.
 
 PDF.js and noVNC are awaited ES modules. Three.js uses modern color-space APIs
 and WebGL2; keep each app's fallback. Game Maker versions both module and core

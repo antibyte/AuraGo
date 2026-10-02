@@ -268,6 +268,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Native SIP Telephony Contract | `internal/sipphone/AGENTS.md` |
 | Update artifact retention contract | `internal/upkeep/AGENTS.md` |
 | Speech Lab Integration Contract | `internal/speechlab/AGENTS.md` |
+| Desktop Tresor Storage Contract | `internal/tresor/AGENTS.md` |
 | Agent Filesystem Jail Contract; Agent Docker Inspect Contract; Managed Space Agent Contract; treg catalog gateway | `internal/tools/AGENTS.md` |
 | Virtual Computers Storage / Managed Garage Contract | `internal/virtualcomputers/AGENTS.md` |
 | External browser resource contract | `internal/webassets/AGENTS.md` |
@@ -583,6 +584,7 @@ Current child AGENTS.md files:
 - `internal/services/AGENTS.md` — Background services and workspace search.
 - `internal/sipphone/AGENTS.md` — Native telephone registration, calls, media, and agent policy.
 - `internal/speechlab/AGENTS.md` — Active ASR/TTS snapshots and speech-driven chat routing.
+- `internal/tresor/AGENTS.md` — Browser-encrypted Desktop Tresor storage, revisions, backups and agent file protection.
 - `internal/tools/AGENTS.md` — Agent filesystem and Docker tool safety boundaries.
 - `internal/upkeep/AGENTS.md` — Update transactions, artifact retention, maintenance CLI and cleanup safeguards.
 - `internal/virtualcomputers/AGENTS.md` — Workspace lease and managed Garage storage lifecycle.

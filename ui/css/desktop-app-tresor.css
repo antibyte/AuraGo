@@ -1,0 +1,574 @@
+.tresor-app {
+  --t-bg: #0d151c;
+  --t-panel: #15212a;
+  --t-line: #405059;
+  --t-gold: #d8b477;
+  --t-text: #f3eee4;
+  --t-muted: #aeb9b9;
+  color: var(--t-text);
+  background: var(--t-bg);
+  font-family: Inter,system-ui,sans-serif;
+  height: 100%;
+  min-height: 400px;
+  overflow: auto;
+  container: tresor / inline-size;
+}
+
+.tresor-app * {
+  box-sizing: border-box;
+}
+
+.tresor-app button,.tresor-app input,.tresor-app textarea {
+  font: inherit;
+}
+
+.tresor-app button {
+  cursor: pointer;
+  border: 1px solid #7c6847;
+  background: #1b2b33;
+  color: var(--t-text);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.tresor-app button:hover {
+  border-color: var(--t-gold);
+  background: #24343c;
+}
+
+.tresor-app button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.tresor-app :focus-visible {
+  outline: 3px solid #e6c480;
+  outline-offset: 3px;
+}
+
+.tresor-app .tresor-primary {
+  background: linear-gradient(135deg,#f1d49e,#b68b51);
+  border-color: #e2bc7d;
+  color: #1b1813;
+  font-weight: 700;
+}
+
+.tresor-app label {
+  display: grid;
+  gap: 7px;
+  color: #e5e4dc;
+  font-size: .92rem;
+}
+
+.tresor-app input,.tresor-app textarea {
+  background: #0c171e;
+  border: 1px solid #71818a;
+  border-radius: 10px;
+  color: #fff;
+  padding: 12px;
+  min-width: 0;
+}
+
+.tresor-app input::placeholder,.tresor-app textarea::placeholder {
+  color: #9daeb5;
+}
+
+.tresor-status {
+  min-height: 1.3em;
+  color: #d6bc86;
+  font-size: .86rem;
+}
+
+.tresor-status[data-error=true] {
+  color: #ffaaa0;
+}
+
+.tresor-entrance {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(290px,1.15fr) minmax(310px,1fr);
+  align-items: center;
+  gap: clamp(20px,4vw,70px);
+  padding: clamp(20px,4vw,58px);
+  background: radial-gradient(circle at 25% 45%,#263640,#0b141a 62%);
+}
+
+.tresor-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.tresor-art img {
+  width: min(100%,490px);
+  max-height: 640px;
+  filter: drop-shadow(28px 28px 22px #0009);
+  position: relative;
+  z-index: 1;
+}
+
+.tresor-art-glow {
+  position: absolute;
+  width: 45%;
+  height: 55%;
+  border-radius: 50%;
+  background: #c9a15f33;
+  filter: blur(70px);
+}
+
+.tresor-entry-panel {
+  max-width: 460px;
+}
+
+.tresor-kicker,.tresor-eyebrow {
+  color: var(--t-gold);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.tresor-entry-panel h1 {
+  font: 500 clamp(2.8rem,5vw,5rem)/1.03 Georgia,serif;
+  letter-spacing: -.04em;
+  margin: 12px 0 20px;
+}
+
+.tresor-intro {
+  font-size: 1.04rem;
+  line-height: 1.6;
+  color: #d0dadb;
+  margin: 0 0 25px;
+}
+
+.tresor-entry-panel form {
+  display: grid;
+  gap: 17px;
+}
+
+.tresor-entry-panel form button {
+  margin-top: 4px;
+}
+
+.tresor-entry-panel details {
+  margin: 22px 0;
+  color: #d9cba9;
+}
+
+.tresor-entry-panel summary {
+  cursor: pointer;
+}
+
+.tresor-entry-panel details form {
+  padding-top: 15px;
+}
+
+.tresor-security-note {
+  font-size: .78rem;
+  line-height: 1.5;
+  color: var(--t-muted);
+  margin-top: 25px;
+}
+
+.tresor-warning {
+  color: #ffb0a1;
+  background: #5f312d3b;
+  border: 1px solid #a45c50;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.tresor-recovery {
+  border: 1px solid #b99a60;
+  background: #1f292c;
+  padding: 17px;
+  border-radius: 12px;
+  margin: 16px 0;
+}
+
+.tresor-recovery span {
+  font-size: .8rem;
+  color: var(--t-gold);
+}
+
+.tresor-recovery output {
+  display: block;
+  word-break: break-all;
+  font: 600 .98rem/1.8 ui-monospace,monospace;
+  letter-spacing: .04em;
+  color: white;
+  margin-top: 8px;
+}
+
+.tresor-recovery p {
+  color: #f2d4a4;
+  font-size: .84rem;
+}
+
+.tresor-app.is-opening .tresor-workspace {
+  animation: tresor-reveal .48s ease-out;
+}
+
+.tresor-workspace {
+  position: relative;
+  height: 100%;
+  min-height: 400px;
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr) auto;
+  background: linear-gradient(145deg,#1a2831,#0d161d 75%);
+}
+
+.tresor-topbar {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--t-line);
+  padding: 12px 23px;
+}
+
+.tresor-topbar>div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tresor-mark {
+  font-size: 1.4rem;
+  color: var(--t-gold);
+}
+
+.tresor-brand {
+  font: 1.6rem Georgia,serif;
+}
+
+.tresor-topbar small {
+  font-size: .7rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--t-muted);
+  margin-left: 8px;
+}
+
+.tresor-main {
+  display: grid;
+  grid-template-columns: 260px minmax(0,1fr);
+  min-height: 0;
+}
+
+.tresor-sidebar {
+  border-right: 1px solid var(--t-line);
+  padding: 20px 13px;
+  overflow: auto;
+  background: #101c24;
+}
+
+.tresor-sidebar-head {
+  display: flex;
+  justify-content: space-between;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--t-gold);
+  padding: 0 9px 14px;
+}
+
+.tresor-search input {
+  width: 100%;
+  padding: 9px 11px;
+}
+
+.tresor-actions {
+  display: grid;
+  gap: 7px;
+  margin: 16px 0;
+}
+
+.tresor-actions button {
+  text-align: left;
+}
+
+.tresor-sidebar nav {
+  display: grid;
+  gap: 4px;
+}
+
+.tresor-item {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  min-width: 0;
+}
+
+.tresor-item:hover,.tresor-item.is-selected {
+  background: #33424a;
+}
+
+.tresor-item.is-selected {
+  box-shadow: inset 3px 0 var(--t-gold);
+}
+
+.tresor-item span:last-child {
+  min-width: 0;
+}
+
+.tresor-item strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .88rem;
+}
+
+.tresor-item small {
+  color: var(--t-muted);
+}
+
+.tresor-item-glyph {
+  font-size: 1.25rem;
+  color: var(--t-gold);
+  min-width: 22px;
+}
+
+.tresor-empty {
+  color: var(--t-muted);
+  font-size: .9rem;
+  padding: 10px;
+}
+
+.tresor-content {
+  overflow: auto;
+  padding: clamp(20px,3vw,38px);
+  min-width: 0;
+}
+
+.tresor-welcome {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--t-muted);
+}
+
+.tresor-welcome img {
+  width: 150px;
+  opacity: .65;
+}
+
+.tresor-welcome h2 {
+  font: 2.1rem Georgia,serif;
+  color: var(--t-text);
+  margin: 15px 0 2px;
+}
+
+.tresor-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid var(--t-line);
+  padding-bottom: 19px;
+}
+
+.tresor-editor-head h2 {
+  font: 2rem Georgia,serif;
+  margin: 5px 0;
+}
+
+.tresor-editor-head>div:last-child {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tresor-note-label {
+  margin-top: 20px;
+  height: calc(100% - 112px);
+  min-height: 250px;
+}
+
+.tresor-note-label textarea {
+  resize: vertical;
+  width: 100%;
+  height: 100%;
+  line-height: 1.65;
+  font-size: 1rem;
+}
+
+.tresor-file-card {
+  margin: 50px auto;
+  max-width: 450px;
+  padding: 38px;
+  border: 1px solid var(--t-line);
+  border-radius: 18px;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+  background: linear-gradient(145deg,#26353b,#17242c);
+}
+
+.tresor-file-icon {
+  font-size: 4rem;
+  color: var(--t-gold);
+}
+
+.tresor-file-card p {
+  color: var(--t-muted);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+
+.tresor-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  border-top: 1px solid var(--t-line);
+  padding: 10px 21px;
+  color: var(--t-muted);
+  font-size: .78rem;
+}
+
+.tresor-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #000a;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  z-index: 10;
+}
+
+.tresor-modal {
+  background: #1d2c34;
+  border: 1px solid var(--t-gold);
+  border-radius: 17px;
+  padding: 24px;
+  max-width: 410px;
+  box-shadow: 0 22px 60px #000a;
+}
+
+.tresor-modal h2 {
+  font: 1.7rem Georgia,serif;
+  margin: 0 0 12px;
+}
+
+.tresor-modal p {
+  line-height: 1.55;
+  color: #d4dbd8;
+}
+
+.tresor-modal form {
+  display: grid;
+  gap: 15px;
+}
+
+.tresor-modal>button {
+  margin: 6px 7px 0 0;
+}
+
+@keyframes tresor-reveal {
+  from {
+    opacity: .25;
+    transform: scale(.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+}
+
+@container tresor (max-width:760px) {
+  .tresor-entrance {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .tresor-art img {
+    max-height: 270px;
+  }
+
+  .tresor-entry-panel {
+    margin: auto;
+    width: 100%;
+  }
+
+  .tresor-workspace {
+    height: auto;
+    min-height: 100%;
+    display: block;
+  }
+
+  .tresor-main {
+    display: block;
+  }
+
+  .tresor-sidebar {
+    max-height: none;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--t-line);
+  }
+
+  .tresor-sidebar nav {
+    grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+  }
+
+  .tresor-topbar {
+    padding: 10px;
+    flex-wrap: wrap;
+  }
+
+  .tresor-topbar small {
+    display: none;
+  }
+
+  .tresor-content {
+    padding: 18px;
+    min-height: 360px;
+    overflow: visible;
+  }
+
+  .tresor-note-label {
+    height: 360px;
+  }
+
+  .tresor-footer {
+    padding: 8px 12px;
+    position: static;
+  }
+
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .tresor-app * {
+    animation: none;
+    transition: none;
+  }
+
+}
+
+.tresor-title-label input {
+  font: 1.9rem Georgia,serif;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #728389;
+  border-radius: 0;
+  padding: 4px 0;
+  width: min(100%,520px);
+}
+
+.tresor-title-label input:focus {
+  border-color: var(--t-gold);
+}
