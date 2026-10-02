@@ -14,15 +14,6 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
-const (
-	bluezService          = "org.bluez"
-	bluezAdapterInterface = "org.bluez.Adapter1"
-	bluezDeviceInterface  = "org.bluez.Device1"
-	propertiesInterface   = "org.freedesktop.DBus.Properties"
-	objectManager         = "org.freedesktop.DBus.ObjectManager"
-	agentManager          = "org.bluez.AgentManager1"
-)
-
 type bluezAdapter struct {
 	logger  *slog.Logger
 	connect func() (bluezConnection, error)
@@ -77,23 +68,33 @@ func (a *bluezAdapter) Probe(ctx context.Context) (AdapterStatus, error) {
 	if err != nil {
 		return AdapterStatus{}, fmt.Errorf("BlueZ service is not reachable: %w", err)
 	}
+	paths := make([]string, 0, len(objects))
+	for path := range objects {
+		paths = append(paths, string(path))
+	}
+	// Same choice as the live session: first powered adapter by path, else the first adapter.
+	sort.Strings(paths)
 	var unpowered *AdapterStatus
-	for path, interfaces := range objects {
-		properties, ok := interfaces[bluezAdapterInterface]
+	for _, rawPath := range paths {
+		path := dbus.ObjectPath(rawPath)
+		properties, ok := objects[path][bluezAdapterInterface]
 		if !ok {
 			continue
 		}
 		status := AdapterStatus{
-			Path:    string(path),
-			Address: variantString(properties, "Address"),
-			Name:    firstNonEmpty(variantString(properties, "Alias"), variantString(properties, "Name"), string(path)),
-			Powered: variantBool(properties, "Powered"),
+			Path:       string(path),
+			Address:    variantString(properties, "Address"),
+			Name:       firstNonEmpty(variantString(properties, "Alias"), variantString(properties, "Name"), string(path)),
+			Powered:    variantBool(properties, "Powered"),
+			PowerState: variantString(properties, "PowerState"),
 		}
 		if status.Powered {
 			return status, nil
 		}
-		copyStatus := status
-		unpowered = &copyStatus
+		if unpowered == nil {
+			copyStatus := status
+			unpowered = &copyStatus
+		}
 	}
 	if unpowered != nil {
 		return *unpowered, fmt.Errorf("BlueZ is running, but no Bluetooth adapter is powered on")
@@ -287,14 +288,7 @@ func devicesFromManagedObjects(objects managedObjects) []Device {
 		device.Audio = isAudioDevice(device)
 		devices = append(devices, device)
 	}
-	sort.Slice(devices, func(i, j int) bool {
-		left := strings.ToLower(firstNonEmpty(devices[i].Alias, devices[i].Name, devices[i].Address))
-		right := strings.ToLower(firstNonEmpty(devices[j].Alias, devices[j].Name, devices[j].Address))
-		if left == right {
-			return devices[i].Address < devices[j].Address
-		}
-		return left < right
-	})
+	sortDevices(devices)
 	return devices
 }
 
@@ -335,15 +329,6 @@ func variantInt16(properties map[string]dbus.Variant, key string) (int16, bool) 
 		}
 	}
 	return 0, false
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 type pairingAgent struct {

@@ -18,6 +18,15 @@ const (
 	ErrorAudioTargetUnavailable     = "BLUETOOTH_AUDIO_TARGET_UNAVAILABLE"
 	ErrorPairingInteractionRequired = "PAIRING_INTERACTION_REQUIRED"
 	ErrorInvalidArgument            = "BLUETOOTH_INVALID_ARGUMENT"
+	ErrorPoweredOff                 = "BLUETOOTH_POWERED_OFF"
+	ErrorBlocked                    = "BLUETOOTH_BLOCKED"
+	ErrorOperationBusy              = "BLUETOOTH_OPERATION_BUSY"
+	ErrorInteractionExpired         = "BLUETOOTH_INTERACTION_EXPIRED"
+	ErrorInteractionNotFound        = "BLUETOOTH_INTERACTION_NOT_FOUND"
+	ErrorPairingRejected            = "PAIRING_REJECTED"
+	ErrorPairingFailed              = "PAIRING_FAILED"
+	ErrorDeviceUnreachable          = "DEVICE_UNREACHABLE"
+	ErrorGeneric                    = "BLUETOOTH_ERROR"
 )
 
 var bluetoothAddressPattern = regexp.MustCompile(`(?i)^[0-9a-f]{2}([:-][0-9a-f]{2}){5}$`)
@@ -37,10 +46,15 @@ type Options struct {
 
 // AdapterStatus describes the selected BlueZ adapter.
 type AdapterStatus struct {
-	Path    string `json:"path,omitempty"`
-	Address string `json:"address,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Powered bool   `json:"powered"`
+	Path                string `json:"path,omitempty"`
+	Address             string `json:"address,omitempty"`
+	Name                string `json:"name,omitempty"`
+	Powered             bool   `json:"powered"`
+	PowerState          string `json:"power_state,omitempty"`
+	Discoverable        bool   `json:"discoverable"`
+	DiscoverableTimeout uint32 `json:"discoverable_timeout,omitempty"`
+	Discovering         bool   `json:"discovering"`
+	Pairable            bool   `json:"pairable"`
 }
 
 // AudioStatus describes the per-stream audio backend detected for Bluetooth.
@@ -54,6 +68,7 @@ type AudioStatus struct {
 type Status struct {
 	Supported    bool          `json:"supported"`
 	Usable       bool          `json:"usable"`
+	Present      bool          `json:"present"`
 	Reason       string        `json:"reason,omitempty"`
 	Adapter      AdapterStatus `json:"adapter"`
 	Audio        AudioStatus   `json:"audio"`
@@ -71,6 +86,29 @@ type Device struct {
 	Audio     bool     `json:"audio"`
 	RSSI      *int16   `json:"rssi,omitempty"`
 	UUIDs     []string `json:"uuids,omitempty"`
+	Type      string   `json:"type,omitempty"`
+	Battery   *int     `json:"battery,omitempty"`
+	Operation string   `json:"operation,omitempty"`
+	Error     string   `json:"error,omitempty"`
+}
+
+// TimedState describes a server-owned timed adapter mode.
+type TimedState struct {
+	Active           bool      `json:"active"`
+	EndsAt           time.Time `json:"ends_at,omitempty"`
+	RemainingSeconds int       `json:"remaining_seconds"`
+}
+
+// Snapshot is the live view rendered by the desktop app.
+type Snapshot struct {
+	Revision      uint64        `json:"revision"`
+	Present       bool          `json:"present"`
+	Reason        string        `json:"reason,omitempty"`
+	Adapter       AdapterStatus `json:"adapter"`
+	Devices       []Device      `json:"devices"`
+	Discovery     TimedState    `json:"discovery"`
+	Discoverable  TimedState    `json:"discoverable"`
+	InteractionID string        `json:"interaction_id,omitempty"`
 }
 
 // PlaybackStatus is the asynchronous state of AuraGo-owned Bluetooth audio.
