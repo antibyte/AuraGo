@@ -349,71 +349,47 @@ func (m *Manager) List(ctx context.Context) ([]Device, error) {
 }
 
 // Discover starts a bounded BlueZ scan and always asks BlueZ to stop discovery.
+// It reuses the server-owned scan when the live session runs.
 func (m *Manager) Discover(ctx context.Context, timeout time.Duration) ([]Device, error) {
 	options, _, err := m.requireUsable()
 	if err != nil {
 		return nil, err
 	}
-	if timeout <= 0 {
-		timeout = options.ScanTimeout
+	timeout = clampDiscovery(timeout, options.ScanTimeout)
+	if !m.liveActive() {
+		devices, err := m.adapter.Discover(ctx, timeout)
+		if err != nil {
+			return nil, fmt.Errorf("discover Bluetooth devices: %w", err)
+		}
+		return devices, nil
 	}
-	if timeout > 60*time.Second {
-		timeout = 60 * time.Second
-	}
-	devices, err := m.adapter.Discover(ctx, timeout)
+	state, err := m.StartDiscovery(ctx, ActorAgent, timeout)
 	if err != nil {
-		return nil, fmt.Errorf("discover Bluetooth devices: %w", err)
+		return nil, err
 	}
-	return devices, nil
+	timer := time.NewTimer(time.Until(state.EndsAt))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-timer.C:
+	}
+	return m.live.snapshot(time.Now()).Devices, nil
 }
 
-// Pair pairs only the explicitly addressed device.
+// Pair pairs only the explicitly addressed device without user interaction.
 func (m *Manager) Pair(ctx context.Context, actor Actor, address, pin string) error {
-	if _, _, err := m.requireWritableFor(actor); err != nil {
-		return err
-	}
-	normalized, err := NormalizeAddress(address)
-	if err != nil {
-		return err
-	}
-	pin = strings.TrimSpace(pin)
-	if pin != "" && (len(pin) > 16 || !allDigits(pin)) {
-		return codedError(ErrorInvalidArgument, "Bluetooth PIN must contain 1 to 16 digits.", nil)
-	}
-	if err := m.adapter.Pair(ctx, normalized, pin); err != nil {
-		return err
-	}
-	return nil
+	return m.RunDeviceOperation(ctx, actor, DeviceRequest{Operation: "pair", Address: address, PIN: pin}, true)
 }
 
 // Connect connects a previously paired device.
 func (m *Manager) Connect(ctx context.Context, actor Actor, address string) error {
-	if _, _, err := m.requireWritableFor(actor); err != nil {
-		return err
-	}
-	normalized, err := NormalizeAddress(address)
-	if err != nil {
-		return err
-	}
-	if err := m.adapter.Connect(ctx, normalized); err != nil {
-		return fmt.Errorf("connect Bluetooth device: %w", err)
-	}
-	return nil
+	return m.RunDeviceOperation(ctx, actor, DeviceRequest{Operation: "connect", Address: address}, true)
 }
 
 // Disconnect disconnects a device.
 func (m *Manager) Disconnect(ctx context.Context, actor Actor, address string) error {
-	if _, _, err := m.requireWritableFor(actor); err != nil {
-		return err
-	}
-	normalized, err := NormalizeAddress(address)
-	if err != nil {
-		return err
-	}
-	if err := m.adapter.Disconnect(ctx, normalized); err != nil {
-		return fmt.Errorf("disconnect Bluetooth device: %w", err)
-	}
-	return nil
+	return m.RunDeviceOperation(ctx, actor, DeviceRequest{Operation: "disconnect", Address: address}, true)
 }
 
 // ResolveTarget applies explicit target, configured default, then sole connected audio device.
