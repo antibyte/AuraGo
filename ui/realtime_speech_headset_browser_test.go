@@ -64,3 +64,28 @@ navigator.mediaDevices.getUserMedia=async()=>{
         await gate.stop();
     }`)
 }
+
+func TestRealtimeSpeechAudioOutputBrowser(t *testing.T) {
+	page := openRealtimeHeadsetFixture(t, `<script src="/js/realtime-speech/provider-common.js"></script>`)
+	page.MustEval(`async()=>{
+        const output=window.AuraRealtimeAudioOutput;
+        const context=new AudioContext();
+        await context.resume();
+        const destination=output.destination(context,0);
+        if(output.destination(context,0)!==destination)throw Error('one destination per context and stream');
+        const oscillator=context.createOscillator();oscillator.connect(destination);oscillator.start();
+        const sent=[];const flushed=[];
+        output.setBridge({sendOutput(stream,samples){sent.push([stream,samples.length,Math.max(...samples.map(Math.abs))]);},flush(stream){flushed.push(stream);}});
+        if(output.mode!=='bridge')throw Error('bridge mode expected');
+        await new Promise(r=>setTimeout(r,400));
+        if(!sent.length||sent.some(([stream,length])=>stream!==0||length!==480)||!sent.some(item=>item[2]>0.1))throw Error('tap did not forward 24 kHz chunks: '+JSON.stringify(sent.slice(0,3)));
+        output.flush(0);
+        if(flushed.join()!=='0')throw Error('flush not forwarded');
+        output.setBridge(null);
+        const count=sent.length;
+        await new Promise(r=>setTimeout(r,200));
+        if(output.mode!=='local'||sent.length>count+1)throw Error('local mode must stop forwarding');
+        output.release(context);
+        await context.close();
+    }`)
+}

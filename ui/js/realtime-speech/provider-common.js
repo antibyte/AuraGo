@@ -71,6 +71,107 @@
         return String(prefix || 'id') + '-' + Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
     }
 
+    // AudioOutput routes every Live Speech output either to this browser's
+    // speakers or to the server headset bridge. Callers ask once per
+    // AudioContext and stream (0 = replies, 1 = progress narration).
+    class AudioOutput extends EventTarget {
+        constructor() {
+            super();
+            this.mode = 'local';
+            this.bridge = null;
+            this.entries = new Set();
+        }
+
+        // destination returns the node to connect output to. With localSilent
+        // the local route stays silent because the caller already plays the
+        // audio itself (the OpenAI <audio> element); the node is still pulled.
+        destination(context, stream, options) {
+            const normalized = stream === 1 ? 1 : 0;
+            const localSilent = !!(options && options.localSilent);
+            for (const entry of this.entries) {
+                if (entry.context === context && entry.stream === normalized && entry.localSilent === localSilent) return entry.input;
+            }
+            const entry = { context, stream: normalized, localSilent, input: context.createGain(), mute: null, tap: null, tapPromise: null };
+            this.entries.add(entry);
+            this.route(entry);
+            return entry.input;
+        }
+
+        release(context) {
+            for (const entry of [...this.entries]) {
+                if (entry.context !== context) continue;
+                this.entries.delete(entry);
+                try { entry.input.disconnect(); } catch (_) { }
+                if (entry.tap) entry.tap.port.onmessage = null;
+            }
+        }
+
+        setBridge(bridge) {
+            this.bridge = bridge || null;
+            const mode = this.bridge ? 'bridge' : 'local';
+            if (mode === this.mode) return;
+            this.mode = mode;
+            this.entries.forEach(entry => this.route(entry));
+            this.dispatchEvent(new CustomEvent('modechange', { detail: { mode } }));
+        }
+
+        flush(stream) {
+            if (this.bridge) this.bridge.flush(stream === 1 ? 1 : 0);
+        }
+
+        route(entry) {
+            try { entry.input.disconnect(); } catch (_) { }
+            if (entry.context.state === 'closed') {
+                this.entries.delete(entry);
+                return;
+            }
+            if (this.mode === 'local') {
+                if (!entry.localSilent) {
+                    entry.input.connect(entry.context.destination);
+                    return;
+                }
+                if (!entry.mute) {
+                    entry.mute = entry.context.createGain();
+                    entry.mute.gain.value = 0;
+                    entry.mute.connect(entry.context.destination);
+                }
+                entry.input.connect(entry.mute);
+                return;
+            }
+            void this.ensureTap(entry).then(tap => {
+                if (tap && this.mode === 'bridge' && this.entries.has(entry)) entry.input.connect(tap);
+            });
+        }
+
+        ensureTap(entry) {
+            if (entry.tap) return Promise.resolve(entry.tap);
+            if (!entry.tapPromise) {
+                entry.tapPromise = (async () => {
+                    await entry.context.audioWorklet.addModule('/js/realtime-speech/output-tap-worklet.js');
+                    const tap = new AudioWorkletNode(entry.context, 'aurago-realtime-output-tap', {
+                        numberOfInputs: 1,
+                        numberOfOutputs: 1,
+                        outputChannelCount: [1],
+                        processorOptions: { targetRate: 24000, chunkSamples: 480 }
+                    });
+                    const sink = entry.context.createGain();
+                    sink.gain.value = 0;
+                    tap.connect(sink);
+                    sink.connect(entry.context.destination);
+                    tap.port.onmessage = event => {
+                        if (this.mode !== 'bridge' || !this.bridge) return;
+                        this.bridge.sendOutput(entry.stream, event.data);
+                    };
+                    entry.tap = tap;
+                    return tap;
+                })().catch(() => null);
+            }
+            return entry.tapPromise;
+        }
+    }
+
+    const audioOutput = new AudioOutput();
+
     class PCMPlayer extends EventTarget {
         constructor(sampleRate) {
             super();
@@ -82,6 +183,7 @@
             this.analyser = null;
             this.analyserTime = null;
             this.analyserBins = null;
+            this.output = null;
         }
 
         async ensureContext() {
@@ -92,13 +194,18 @@
             if (this.context.state === 'suspended') await this.context.resume();
         }
 
+        outputNode() {
+            if (!this.output) this.output = audioOutput.destination(this.context, 0);
+            return this.output;
+        }
+
         ensureAnalyser() {
             if (!this.context || this.analyser) return this.analyser;
             try {
                 this.analyser = this.context.createAnalyser();
                 this.analyser.fftSize = 256;
                 this.analyser.smoothingTimeConstant = 0.55;
-                this.analyser.connect(this.context.destination);
+                this.analyser.connect(this.outputNode());
                 this.analyserTime = new Float32Array(this.analyser.fftSize);
                 this.analyserBins = new Uint8Array(this.analyser.frequencyBinCount);
             } catch (_) {
@@ -138,7 +245,7 @@
             buffer.copyToChannel(samples, 0);
             const source = this.context.createBufferSource();
             source.buffer = buffer;
-            source.connect(this.ensureAnalyser() || this.context.destination);
+            source.connect(this.ensureAnalyser() || this.outputNode());
             const now = this.context.currentTime;
             const startAt = Math.max(now + 0.01, this.nextStart);
             this.nextStart = startAt + buffer.duration;
@@ -158,6 +265,7 @@
         }
 
         stop() {
+            audioOutput.flush(0);
             this.sources.forEach(source => {
                 try { source.stop(); } catch (_) { }
             });
@@ -178,6 +286,8 @@
 
         async close() {
             this.stop();
+            if (this.context) audioOutput.release(this.context);
+            this.output = null;
             if (this.context && this.context.state !== 'closed') {
                 try { await this.context.close(); } catch (_) { }
             }
@@ -231,6 +341,7 @@
     window.AuraRealtimeProviderCommon = {
         ProviderAdapter,
         PCMPlayer,
+        audioOutput,
         floatToPCM16,
         resampleLinear,
         bytesToBase64,
@@ -240,4 +351,5 @@
         randomID,
         analyserLevel
     };
+    window.AuraRealtimeAudioOutput = audioOutput;
 })();

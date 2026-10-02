@@ -78,6 +78,13 @@
             .slice(0, 1000);
     }
 
+    // progressDestination routes progress narration (stream 1) through the
+    // shared output so a server headset hears it too.
+    function progressDestination(context) {
+        const output = window.AuraRealtimeAudioOutput;
+        return output ? output.destination(context, 1) : context.destination;
+    }
+
     function eventContent(payload) {
         if (!payload || typeof payload !== 'object') return '';
         const choices = Array.isArray(payload.choices) ? payload.choices : [];
@@ -616,6 +623,7 @@
         stopActionProgress() {
             const playback = this.actionProgressPlayback;
             if (!playback) return;
+            if (window.AuraRealtimeAudioOutput) window.AuraRealtimeAudioOutput.flush(1);
             this.actionProgressPlayback = null;
             playback.controller.abort();
             if (playback.audio) {
@@ -637,7 +645,7 @@
                     this.progressOutputContext = new AudioContextClass({ latencyHint: 'interactive' });
                     this.progressOutputAnalyser = this.progressOutputContext.createAnalyser();
                     this.progressOutputAnalyser.fftSize = 256;
-                    this.progressOutputAnalyser.connect(this.progressOutputContext.destination);
+                    this.progressOutputAnalyser.connect(progressDestination(this.progressOutputContext));
                     this.progressOutputBuffer = new Float32Array(this.progressOutputAnalyser.fftSize);
                 }
                 await this.progressOutputContext.resume();
@@ -646,7 +654,7 @@
                 playback.source.connect(this.progressOutputAnalyser);
             } catch (_) {
                 if (playback.source && this.progressOutputContext) {
-                    try { playback.source.connect(this.progressOutputContext.destination); } catch (_) { }
+                    try { playback.source.connect(progressDestination(this.progressOutputContext)); } catch (_) { }
                 }
             }
         }
@@ -905,6 +913,7 @@
             this.progressOutputAnalyser = null;
             this.progressOutputBuffer = null;
             if (progressContext) {
+                if (window.AuraRealtimeAudioOutput) window.AuraRealtimeAudioOutput.release(progressContext);
                 try { await progressContext.close(); } catch (_) { }
             }
             window.clearTimeout(this.parkTimer);

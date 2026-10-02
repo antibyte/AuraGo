@@ -42,6 +42,9 @@
             this.remoteAudio = null;
             this.outputContext = null;
             this.outputTap = null;
+            this.onOutputMode = () => {
+                if (this.remoteAudio) this.remoteAudio.muted = Common.audioOutput.mode === 'bridge';
+            };
             this.userTranscripts = new Map();
             this.assistantTranscripts = new Map();
         }
@@ -49,6 +52,7 @@
         async connect(connectOptions) {
             this.closed = false;
             this.setState('connecting');
+            Common.audioOutput.addEventListener('modechange', this.onOutputMode);
             this.peer = new RTCPeerConnection();
             this.peer.addTransceiver('audio', { direction: 'recvonly' });
             this.channel = this.peer.createDataChannel('oai-events');
@@ -67,6 +71,7 @@
                 this.remoteAudio = document.createElement('audio');
                 this.remoteAudio.autoplay = true;
                 this.remoteAudio.srcObject = stream;
+                this.remoteAudio.muted = Common.audioOutput.mode === 'bridge';
                 void this.remoteAudio.play().catch(() => { });
                 this.attachOutputTap(stream);
             });
@@ -109,12 +114,11 @@
                 const analyser = this.outputContext.createAnalyser();
                 analyser.fftSize = 256;
                 analyser.smoothingTimeConstant = 0.55;
-                const mute = this.outputContext.createGain();
-                mute.gain.value = 0;
+                // The <audio> element plays locally; with a server headset it is
+                // muted and the shared output forwards this stream instead.
                 source.connect(analyser);
-                analyser.connect(mute);
-                mute.connect(this.outputContext.destination);
-                this.outputTap = { source, analyser, mute, buffer: new Float32Array(analyser.fftSize) };
+                analyser.connect(Common.audioOutput.destination(this.outputContext, 0, { localSilent: true }));
+                this.outputTap = { source, analyser, buffer: new Float32Array(analyser.fftSize) };
             } catch (_) { /* the visualization tap is optional */ }
         }
 
@@ -124,7 +128,6 @@
             if (!tap) return;
             try { tap.source.disconnect(); } catch (_) { }
             try { tap.analyser.disconnect(); } catch (_) { }
-            try { tap.mute.disconnect(); } catch (_) { }
         }
 
         getOutputLevel() {
@@ -264,6 +267,8 @@
                 this.remoteAudio.srcObject = null;
             }
             this.detachOutputTap();
+            Common.audioOutput.removeEventListener('modechange', this.onOutputMode);
+            if (this.outputContext) Common.audioOutput.release(this.outputContext);
             if (this.outputContext && this.outputContext.state !== 'closed') {
                 try { await this.outputContext.close(); } catch (_) { }
             }

@@ -149,7 +149,7 @@
                     this.outputAnalyser = this.outputContext.createAnalyser();
                     this.outputAnalyser.fftSize = 256;
                     this.outputAnalyser.smoothingTimeConstant = 0.55;
-                    this.outputAnalyser.connect(this.outputContext.destination);
+                    this.outputAnalyser.connect(Common.audioOutput.destination(this.outputContext, 0));
                     this.outputBuffer = new Float32Array(this.outputAnalyser.fftSize);
                 }
                 await this.outputContext.resume();
@@ -238,6 +238,7 @@
             this.interruptOutput();
             this.chunks = [];
             this.sampleCount = 0;
+            if (this.outputContext) Common.audioOutput.release(this.outputContext);
             if (this.outputContext && this.outputContext.state !== 'closed') {
                 try { await this.outputContext.close(); } catch (_) { }
             }
