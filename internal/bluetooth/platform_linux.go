@@ -204,7 +204,7 @@ func (a *bluezAdapter) Pair(ctx context.Context, address, pin string) error {
 			strings.Contains(message, "confirmation") {
 			return codedError(ErrorPairingInteractionRequired, "The device requires an interactive pairing confirmation that AuraGo cannot approve automatically.", call.Err)
 		}
-		return fmt.Errorf("pair Bluetooth device: %w", call.Err)
+		return fmt.Errorf("pair Bluetooth device: %w", asBusError(call.Err))
 	}
 	if call := conn.Object(bluezService, devicePath).CallWithContext(ctx, propertiesInterface+".Set", 0, bluezDeviceInterface, "Trusted", dbus.MakeVariant(true)); call.Err != nil {
 		a.logger.Warn("[Bluetooth] Paired device could not be marked trusted", "address", address, "error", call.Err)
@@ -235,7 +235,7 @@ func (a *bluezAdapter) deviceCall(ctx context.Context, address, operation string
 		return err
 	}
 	if call := conn.Object(bluezService, devicePath).CallWithContext(ctx, bluezDeviceInterface+"."+operation, 0); call.Err != nil {
-		return call.Err
+		return asBusError(call.Err)
 	}
 	return nil
 }
