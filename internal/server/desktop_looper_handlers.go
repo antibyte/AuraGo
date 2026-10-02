@@ -535,6 +535,7 @@ func buildLooperRuntime(s *Server, providerID, model string) (*config.Config, ll
 		Guardian:           s.Guardian,
 		LLMGuardian:        s.LLMGuardian,
 		SessionID:          "looper",
+		Broker:             looperDesktopBroker{sse: s.SSE},
 		CoAgentRegistry:    s.CoAgentRegistry,
 		BudgetTracker:      s.BudgetTracker,
 		DaemonSupervisor:   s.DaemonSupervisor,

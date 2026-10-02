@@ -251,6 +251,7 @@ func (r *LooperRunner) executeStarted(
 	noTools := []openai.Tool{}
 	optsWithTools := &agent.MinimalLoopOptions{MaxToolRounds: 10}
 	optsNoTools := &agent.MinimalLoopOptions{MaxToolRounds: 0}
+	finishDispatch := looperFinishDispatch(dispatchCtx)
 
 	stepExec := func(stepName, prompt string, system string, stepTools []openai.Tool, opts *agent.MinimalLoopOptions, history []openai.ChatCompletionMessage) (agent.MinimalLoopResult, []openai.ChatCompletionMessage, error) {
 		const maxRetries = 3
@@ -267,8 +268,12 @@ func (r *LooperRunner) executeStarted(
 			}
 			stepCtx, stepCancel := context.WithTimeout(ctx, timeout)
 
+			stepDispatch := dispatchCtx
+			if stepName == "finish" {
+				stepDispatch = finishDispatch
+			}
 			r.logger.Info("[Looper] step start", "step", stepName, "round", r.holder.State().Round, "tools", len(stepTools), "attempt", attempt)
-			res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, dispatchCtx, history, r.logger, opts)
+			res, h, err := agent.ExecuteMinimalLoop(stepCtx, client, model, system, prompt, stepTools, stepDispatch, history, r.logger, opts)
 			stepCancel()
 
 			if err != nil {

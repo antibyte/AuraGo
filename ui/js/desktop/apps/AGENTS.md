@@ -118,6 +118,11 @@
   `restoreDraft()`, otherwise a stale draft would shadow the settings of a restored run.
 - History records keep their run settings (`config` on `GET .../runs/{id}`), which
   drive "Load into editor" and "Run again"; older records have none.
+- The desktop opens a window only when a `virtual_desktop_event` arrives over SSE.
+  Looper tool calls run with `looperDesktopBroker`, which forwards just those events
+  and drops all other tool feedback; `open_app`/`open_widget` pass only in the finish
+  step, because an early Writer window would merely be refocused there, still showing
+  an old draft (`TestLooperFinishOpensTheResultInTheDesktop`).
 - Verify `TestDesktopLooperUIContract`, `TestDesktopLooperCostI18n`,
   `TestDesktopLooperDurationI18n`, `TestDesktopLooperActionButtonsShareConsistentStyle`
   and the opt-in `TestDesktopLooperBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
