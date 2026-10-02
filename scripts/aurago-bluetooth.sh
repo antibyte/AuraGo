@@ -455,4 +455,124 @@ btk_config_set() {
     rm -f "$tmp"
     return 0
 }
+
+# btk_check_endpoints <user> <uid> <stack>: read-only. Headphones and speakers
+# connect only after PipeWire/PulseAudio registered A2DP (0000110b) with BlueZ.
+btk_check_endpoints() {
+    local adapter uuids i hint
+    if ! adapter="$(btk_first_adapter)"; then
+        btk_info "No Bluetooth adapter detected. Once one is plugged in, AuraGo shows the Bluetooth app."
+        return 0
+    fi
+    btk_has busctl || return 0
+    if [ "$(busctl get-property org.bluez "/org/bluez/$adapter" org.bluez.Adapter1 Powered 2>/dev/null)" = "b false" ]; then
+        btk_info "The Bluetooth adapter is off; turn it on in AuraGo's Bluetooth app."
+        return 0
+    fi
+    for ((i = 0; i < ${BTK_ENDPOINT_RETRIES:-5}; i++)); do
+        uuids="$(busctl get-property org.bluez "/org/bluez/$adapter" org.bluez.Adapter1 UUIDs 2>/dev/null)" || uuids=""
+        case "$uuids" in
+            *0000110b-* | *0000110B-*)
+                btk_done "Audio devices can connect"
+                return 0
+                ;;
+        esac
+        sleep "${BTK_ENDPOINT_DELAY:-2}"
+    done
+    if [ "$3" = pulseaudio ]; then
+        hint="sudo -u $1 env XDG_RUNTIME_DIR=/run/user/$2 pactl load-module module-bluetooth-discover"
+    else
+        hint="sudo -u $1 env XDG_RUNTIME_DIR=/run/user/$2 systemctl --user restart wireplumber.service"
+    fi
+    btk_fail "Registering the audio profiles with BlueZ" "$hint"
+    return 1
+}
+
+btk_summary() {
+    local entry kind=ok title="BLUETOOTH READY"
+    local -a lines=()
+    for entry in "${BTK_DONE[@]}"; do lines+=("${T_OK:-+} $entry"); done
+    for entry in "${BTK_FAILED[@]}"; do lines+=("${T_WARN:-!} ${entry%%|*}" "    run: ${entry#*|}"); done
+    if [ "${#BTK_FAILED[@]}" -gt 0 ]; then
+        kind=warn
+        title="BLUETOOTH NEEDS ATTENTION"
+        lines+=("Details: $BTK_LOG")
+    fi
+    if declare -F tui_box >/dev/null; then
+        tui_box "$kind" "$title" "${lines[@]}"
+    else
+        printf '\n== %s ==\n' "$title"
+        printf '  %s\n' "${lines[@]}"
+    fi
+    return 0
+}
+
+_btk_apply() {
+    local dir="$1" user="$2" service="${3:-}" previous uid stack
+    BTK_DONE=()
+    BTK_FAILED=()
+    { : >>"$BTK_LOG"; } 2>/dev/null || BTK_LOG=/dev/null
+    btk_info "Preparing this server for Bluetooth (details: $BTK_LOG)"
+    previous="$(btk_read_state "$dir")"
+    # Stored first: a failed step is retried by the next update, not asked again.
+    btk_write_state "$dir" enabled "$user" || btk_warn "Could not save the Bluetooth choice to $(btk_state_file "$dir")."
+    uid="$(btk_user_uid "$user")"
+    if [ -z "$uid" ]; then
+        btk_fail "Finding the service user $user" "id $user"
+        btk_summary
+        return 0
+    fi
+    stack="$(btk_audio_stack)"
+    btk_install_packages "$stack"
+    btk_enable_bluez
+    if [ "$user" = root ]; then
+        btk_warn "AuraGo runs as root. Headphones and speakers need a regular user account; device management still works."
+    elif btk_enable_linger "$user" "$uid" && btk_enable_user_units "$user" "$uid" "$stack" && [ "$stack" = pipewire ]; then
+        btk_wireplumber_headless "$user" "$uid"
+    fi
+    if [ -n "$service" ] && [ -e "${BTK_ROOT:-}/etc/systemd/system/$service.service" ]; then
+        btk_write_dropin "$service" "$user" "$uid"
+    fi
+    # config.yaml changes only with a new decision; afterwards the Config page owns it.
+    if [ "$previous" != enabled ]; then
+        if btk_config_set "$dir/config.yaml" enabled true && btk_config_set "$dir/config.yaml" allow_playback true; then
+            btk_done "config.yaml: Bluetooth and playback turned on"
+        else
+            btk_fail "Turning on Bluetooth in $dir/config.yaml" "set bluetooth.enabled: true and bluetooth.allow_playback: true"
+        fi
+    fi
+    if [ "$user" != root ]; then btk_check_endpoints "$user" "$uid" "$stack"; fi
+    btk_summary
+    return 0
+}
+
+# btk_apply <installdir> <service-user> <service-name|"">: never fails the caller.
+btk_apply() { ( trap - ERR; set +e +u +o pipefail; _btk_apply "$@" ); return 0; }
+
+_btk_decline() {
+    local dir="$1" service="${2:-}" user="${3:-}"
+    # A stored "no" is final until the answer changes.
+    [ "$(btk_read_state "$dir")" != declined ] || return 0
+    btk_write_state "$dir" declined "$user" || btk_warn "Could not save the Bluetooth choice to $(btk_state_file "$dir")."
+    if [ -n "$service" ]; then
+        btk_remove_dropin "$service" || btk_warn "Could not remove $(btk_dropin_path "$service")."
+    fi
+    if [ -f "$dir/config.yaml" ] && ! btk_config_set "$dir/config.yaml" enabled false; then
+        btk_warn "Could not set bluetooth.enabled: false in $dir/config.yaml."
+    fi
+    btk_info "Bluetooth stays off in AuraGo. Turn it on later with: ./update.sh --bluetooth"
+    return 0
+}
+
+# btk_decline <installdir> <service-name|""> [service-user]: never fails the caller.
+btk_decline() { ( trap - ERR; set +e +u +o pipefail; _btk_decline "$@" ); return 0; }
+
+# btk_run_choice <enabled|declined|skip> <installdir> <service-user> <service-name|"">
+btk_run_choice() {
+    case "$1" in
+        enabled) btk_apply "$2" "$3" "${4:-}" ;;
+        declined) btk_decline "$2" "${4:-}" "$3" ;;
+    esac
+    return 0
+}
 # <<< AURAGO-BLUETOOTH-KIT v1 <<<

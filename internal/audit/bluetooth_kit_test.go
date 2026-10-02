@@ -348,3 +348,94 @@ step btk_config_set "$c" enabled true
 	}
 	runBluetoothKit(t, scenario)
 }
+
+func TestBluetoothKitApplyPreparesPipeWireHost(t *testing.T) {
+	t.Parallel()
+	out := runBluetoothKit(t, `
+HAVE="apt-get systemctl getent wireplumber busctl systemd-analyze ffmpeg"
+export STUB_INSTALLED="bluez pipewire pipewire-bin pipewire-pulse wireplumber libspa-0.2-bluetooth"
+export STUB_GROUPS="bluetooth" STUB_UUIDS='"0000110a-0000-1000-8000-00805f9b34fb" "0000110b-0000-1000-8000-00805f9b34fb"'
+touch "$BTK_ROOT/sys/class/bluetooth/hci0" "$BTK_ROOT/etc/systemd/system/aurago.service"
+write_config
+btk_apply "$D" svc aurago
+called "systemctl enable --now bluetooth.service"
+called "loginctl enable-linger svc"
+called "systemctl --user enable --now pipewire.socket pipewire-pulse.socket wireplumber.service"
+[ -f "$STUB_HOME/.config/wireplumber/wireplumber.conf.d/80-aurago-bluez-headless.conf" ]
+grep -Fxq 'Environment=XDG_RUNTIME_DIR=/run/user/1001' "$BTK_ROOT/etc/systemd/system/aurago.service.d/aurago-bluetooth.conf"
+grep -Fxq '    enabled: true' "$D/config.yaml"
+grep -Fxq '    allow_playback: true' "$D/config.yaml"
+[ "$(cat "$D/data/bluetooth-setup")" = enabled ]
+not_called "apt-get"
+
+# Repair runs leave config.yaml to the Config page.
+sed -i 's/allow_playback: true/allow_playback: false/' "$D/config.yaml"
+btk_apply "$D" svc aurago
+grep -Fxq '    allow_playback: false' "$D/config.yaml"
+echo "after-apply"
+`)
+	for _, want := range []string{"Audio devices can connect", "BLUETOOTH READY", "after-apply"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("apply output lacks %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestBluetoothKitApplyForRootSkipsAudio(t *testing.T) {
+	t.Parallel()
+	runBluetoothKit(t, `
+HAVE="apt-get systemctl getent systemd-analyze ffmpeg"
+export STUB_INSTALLED="bluez pipewire pipewire-bin pipewire-pulse wireplumber libspa-0.2-bluetooth" STUB_GROUPS="bluetooth"
+touch "$BTK_ROOT/etc/systemd/system/aurago.service"
+write_config
+btk_apply "$D" root aurago > "$T/out" 2>&1
+not_called "loginctl"
+not_called "systemctl --user"
+[ "$(cat "$BTK_ROOT/etc/systemd/system/aurago.service.d/aurago-bluetooth.conf")" = "$(printf '%s\n' '[Service]' 'SupplementaryGroups=bluetooth')" ]
+grep -Fq 'AuraGo runs as root' "$T/out"
+grep -Fq 'BLUETOOTH READY' "$T/out"
+`)
+}
+
+func TestBluetoothKitApplyNeverAbortsTheCaller(t *testing.T) {
+	t.Parallel()
+	runBluetoothKit(t, `
+HAVE="apt-get systemctl getent wireplumber busctl systemd-analyze"
+for c in apt-get loginctl systemctl systemd-analyze busctl wireplumber install; do stub "$c" 'exit 1'; done
+touch "$BTK_ROOT/sys/class/bluetooth/hci0" "$BTK_ROOT/etc/systemd/system/aurago.service"
+btk_apply "$D" svc aurago > "$T/out" 2>&1
+grep -Fq 'BLUETOOTH NEEDS ATTENTION' "$T/out"
+grep -Fq 'sudo systemctl enable --now bluetooth.service' "$T/out"
+grep -Fq 'sudo loginctl enable-linger svc' "$T/out"
+[ ! -e "$BTK_ROOT/etc/systemd/system/aurago.service.d/aurago-bluetooth.conf" ]
+# The decision is kept so the next update retries instead of asking again.
+[ "$(cat "$D/data/bluetooth-setup")" = enabled ]
+echo survived
+`)
+}
+
+func TestBluetoothKitDeclineIsFinal(t *testing.T) {
+	t.Parallel()
+	runBluetoothKit(t, `
+HAVE="getent"
+d="$BTK_ROOT/etc/systemd/system/aurago.service.d/aurago-bluetooth.conf"
+mkdir -p "${d%/*}"
+printf '[Service]\nSupplementaryGroups=bluetooth\n' > "$d"
+write_config
+printf 'enabled\n' > "$D/data/bluetooth-setup"
+btk_run_choice declined "$D" svc aurago
+[ ! -e "$d" ]
+called "systemctl daemon-reload"
+grep -Fxq '    enabled: false' "$D/config.yaml"
+grep -Fxq '    allow_playback: false' "$D/config.yaml"
+[ "$(cat "$D/data/bluetooth-setup")" = declined ]
+
+# A stored "no" changes nothing on later runs, even after manual changes.
+sed -i 's/enabled: false/enabled: true/' "$D/config.yaml"
+: > "$STUB_LOG"
+btk_run_choice declined "$D" svc aurago
+btk_run_choice skip "$D" svc aurago
+grep -Fxq '    enabled: true' "$D/config.yaml"
+[ ! -s "$STUB_LOG" ]
+`)
+}
