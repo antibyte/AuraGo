@@ -83,6 +83,28 @@ The park timer runs only when the user and provider are both silent and no AuraG
 
 A `BroadcastChannel` lease and a backend lease permit only one microphone session per browser origin. Moving the session between tabs requires an AuraGo modal confirmation. Closing the Live Speech app or leaving the page releases the microphone and provider connection; minimizing the desktop app keeps the session active.
 
+## Server Bluetooth headset
+
+Live Speech can use a Bluetooth headset that is paired with the AuraGo server
+instead of the browser's microphone and speaker. The **Audio** field in the
+Live Speech panel lists "This device" and every paired server headset with a
+microphone (Handsfree or Headset profile); disconnected ones are marked. The
+choice is stored per browser and applies whenever the headset is connected.
+
+While the headset is chosen, the server switches it to its HFP profile
+(`wpctl set-profile`), records its microphone with `pw-record` (16 kHz mono)
+and plays the provider's answer and progress narration with `pw-play`. Audio
+travels between server and browser over `GET /api/realtime-speech/headset`
+(WebSocket); the browser still talks to the provider. The previous profile,
+usually A2DP, is restored when the session ends.
+
+If the headset disconnects, the conversation continues on the browser's
+microphone and speaker and returns to the headset when it reconnects. A headset
+serves one browser at a time. Server headsets need PipeWire for the AuraGo
+service user (see `documentation/bluetooth.md`, Installer setup); with
+PulseAudio no server headsets are offered. Headset audio is not stored or
+logged.
+
 ## Persistence and privacy
 
 - Only final direct-dialog transcripts are saved.

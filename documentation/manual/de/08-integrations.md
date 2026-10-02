@@ -2316,6 +2316,7 @@ Realtime Speech bietet ein durchgehendes Live-Spracherlebnis in Webchat und Virt
 2. Speichere den Provider-Key über die UI. Keys liegen pro Profil im Vault und werden weder in `config.yaml` serialisiert noch an Python exportiert.
 3. Wähle das Standardprofil und das Inaktivitätsintervall zum Parken.
 4. Öffne **Live Speech** in Webchat oder Virtual Desktop. Pro Browser-Origin ist nur eine Mikrofon-Session erlaubt.
+5. Optional: Wähle unter **Audio** ein Bluetooth-Headset, das mit dem Server gekoppelt ist. Der Browser merkt sich die Wahl und nutzt sein eigenes Mikrofon und seinen Lautsprecher, solange das Headset nicht verbunden ist.
 
 Der Live-Provider erhält niemals Auras nativen Tool-Katalog. Für AuraGo-Zustand oder Aktionen ruft er die private Funktion `aurago_execute` auf; diese läuft durch den normalen Agent-Loop mit Guardian, Berechtigungen, Bestätigungen, Tool-Events und Abbruch. Rohes Mikrofon-Audio und partielle Transcripts bleiben im Browser; gespeichert werden nur finale direkte Dialog-Turns.
 

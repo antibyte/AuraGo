@@ -2700,6 +2700,7 @@ Realtime Speech provides one continuous live voice experience across Web Chat an
 2. Store the provider key through the UI. Keys are kept per profile in the Vault and are never serialized into `config.yaml` or exported to Python.
 3. Choose the default profile and set the inactivity parking interval.
 4. Open **Live Speech** from Web Chat or the Virtual Desktop. Only one microphone session is allowed per browser origin.
+5. Optional: choose a Bluetooth headset that is paired with the server under **Audio**. The browser remembers the choice and falls back to its own microphone and speaker while the headset is disconnected.
 
 The live provider never receives AuraGo's native tool catalog. Requests that need AuraGo state or capabilities call the private `aurago_execute` function, which runs the normal agent loop with Guardian, permissions, confirmations, tool events, and cancellation. Raw microphone audio and partial transcripts stay in the browser; only final direct-dialog turns are persisted.
 

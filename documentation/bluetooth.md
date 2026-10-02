@@ -130,6 +130,16 @@ If interactive pairing fails with "Bluetooth isn't available", check that the
 AuraGo service user may register BlueZ agents (on most distributions membership
 in the `bluetooth` group or the default BlueZ D-Bus policy is sufficient).
 
+## Headsets in Live Speech
+
+A paired headset with a microphone (Handsfree `0000111e` or Headset `00001108`
+UUID) can be the audio device of Live Speech. `GET /api/realtime-speech/audio-devices`
+lists such devices; the Live Speech bridge then switches the headset to HFP,
+records with `pw-record` and plays with `pw-play`, and restores the previous
+profile afterwards. HFP is mono speech quality; music played by the agent at
+the same time also sounds like a phone call until the session ends. This needs
+the PipeWire stack; PulseAudio is not supported for headsets.
+
 ## Playback behavior
 
 `play` accepts exactly one workspace/data-local `local_path` or an audio/music

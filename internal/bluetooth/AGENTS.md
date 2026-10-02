@@ -19,11 +19,13 @@ Native Bluetooth discovery, permissions, and playback.
 - Desktop events (`bluetooth_changed {revision}`, `bluetooth_interaction {id}`, `desktop_changed app_availability`) carry no device data. The desktop app is gated by `Requires: ["bluetooth"]`, which is true while an adapter exists that is not hard-blocked.
 - Bluetooth playback accepts workspace-local files or audio/music Media Registry IDs only, never URLs. It may connect an already paired target but must never pair implicitly. Route only AuraGo's stream to the matched sink, keep the system default output unchanged, and allow at most one AuraGo-owned playback.
 - Standard Docker installations must report Bluetooth unavailable unless a future explicit and security-reviewed host D-Bus/audio passthrough contract is added.
+- Live Speech headsets (`headset_*.go`): a `HeadsetLink` exists only while a Live Speech session has its bridge open (`internal/server/realtime_speech_headset.go`). It switches to an HFP profile, records with `pw-record`, plays with `pw-play`, always restores the previous profile on Close, serves one browser per headset, and never stores or logs audio. PipeWire only.
 - Host preparation happens only through the `AURAGO-BLUETOOTH-KIT` block (`scripts/aurago-bluetooth.sh`, copied into `install.sh`, `update.sh` and `install_service_linux.sh` by `scripts/sync-bluetooth-kit.sh`). It never removes packages, linger or WirePlumber files, changes `config.yaml` only when the stored decision in `data/bluetooth-setup` changes, and never blocks installation, update or service start. Covered by `internal/audit/bluetooth_kit_test.go`.
 
 ## Verification
 
 - Run `go test ./internal/bluetooth` and the named cross-component checks in the contracts above when those paths change.
+- Headset changes: `go test ./internal/bluetooth -run Headset`, `go test ./internal/server -run RealtimeSpeech`, and with `AURAGO_RUN_BROWSER_SMOKE=1` `go test ./ui -run 'RealtimeSpeech.*Browser'`.
 - Installer kit changes: `bash scripts/sync-bluetooth-kit.sh`, then `go test ./internal/audit -run 'BluetoothKit|PreparesBluetooth|AppliesBluetoothChoice' -count=1`.
 
 ## Child DOX Index
