@@ -192,6 +192,7 @@ func deviceFromProperties(properties, battery map[string]interface{}) Device {
 		device.Battery = &value
 	}
 	device.Audio = isAudioDevice(device)
+	device.Microphone = hasMicrophone(device)
 	return device
 }
 

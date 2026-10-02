@@ -286,6 +286,7 @@ func devicesFromManagedObjects(objects managedObjects) []Device {
 			device.RSSI = &rssi
 		}
 		device.Audio = isAudioDevice(device)
+		device.Microphone = hasMicrophone(device)
 		devices = append(devices, device)
 	}
 	sortDevices(devices)

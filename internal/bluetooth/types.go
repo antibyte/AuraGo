@@ -27,6 +27,10 @@ const (
 	ErrorPairingFailed              = "PAIRING_FAILED"
 	ErrorDeviceUnreachable          = "DEVICE_UNREACHABLE"
 	ErrorProfileUnavailable         = "BLUETOOTH_PROFILE_UNAVAILABLE"
+	ErrorHeadsetBusy                = "BLUETOOTH_HEADSET_BUSY"
+	ErrorHeadsetUnknown             = "BLUETOOTH_HEADSET_UNKNOWN"
+	ErrorHeadsetProfileUnavailable  = "BLUETOOTH_HEADSET_PROFILE_UNAVAILABLE"
+	ErrorHeadsetAudioUnavailable    = "BLUETOOTH_HEADSET_AUDIO_UNAVAILABLE"
 	ErrorGeneric                    = "BLUETOOTH_ERROR"
 )
 
@@ -78,19 +82,20 @@ type Status struct {
 
 // Device is a BlueZ device suitable for display or explicit selection.
 type Device struct {
-	Address   string   `json:"address"`
-	Name      string   `json:"name,omitempty"`
-	Alias     string   `json:"alias,omitempty"`
-	Paired    bool     `json:"paired"`
-	Connected bool     `json:"connected"`
-	Trusted   bool     `json:"trusted"`
-	Audio     bool     `json:"audio"`
-	RSSI      *int16   `json:"rssi,omitempty"`
-	UUIDs     []string `json:"uuids,omitempty"`
-	Type      string   `json:"type,omitempty"`
-	Battery   *int     `json:"battery,omitempty"`
-	Operation string   `json:"operation,omitempty"`
-	Error     string   `json:"error,omitempty"`
+	Address    string   `json:"address"`
+	Name       string   `json:"name,omitempty"`
+	Alias      string   `json:"alias,omitempty"`
+	Paired     bool     `json:"paired"`
+	Connected  bool     `json:"connected"`
+	Trusted    bool     `json:"trusted"`
+	Audio      bool     `json:"audio"`
+	Microphone bool     `json:"microphone"`
+	RSSI       *int16   `json:"rssi,omitempty"`
+	UUIDs      []string `json:"uuids,omitempty"`
+	Type       string   `json:"type,omitempty"`
+	Battery    *int     `json:"battery,omitempty"`
+	Operation  string   `json:"operation,omitempty"`
+	Error      string   `json:"error,omitempty"`
 }
 
 // TimedState describes a server-owned timed adapter mode.
@@ -204,4 +209,16 @@ func isAudioDevice(device Device) bool {
 		}
 	}
 	return device.Audio
+}
+
+// hasMicrophone reports a Handsfree (HFP) or Headset (HSP) role: the classic
+// Bluetooth profiles that carry a microphone towards this server.
+func hasMicrophone(device Device) bool {
+	for _, uuid := range device.UUIDs {
+		normalized := strings.ToLower(strings.TrimSpace(uuid))
+		if strings.HasPrefix(normalized, "0000111e-") || strings.HasPrefix(normalized, "00001108-") {
+			return true
+		}
+	}
+	return false
 }
