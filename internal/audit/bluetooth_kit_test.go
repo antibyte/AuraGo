@@ -486,3 +486,54 @@ func TestInstallShPreparesBluetooth(t *testing.T) {
 		`section "Done"`,
 	)
 }
+
+func TestUpdateShAppliesBluetoothChoice(t *testing.T) {
+	t.Parallel()
+	source := readRepoFile(t, "update.sh")
+	requireInOrder(t, "update.sh", source,
+		"--bluetooth)    BT_FLAG=yes ;;",
+		"--no-bluetooth) BT_FLAG=no ;;",
+		"# >>> AURAGO-BLUETOOTH-KIT",
+		`BT_STORED="$(btk_read_state "$DIR")"`,
+		`BT_CHOICE="$(btk_resolve_choice "$DIR" "$BT_FLAG" "$_bt_may_prompt")"`,
+		"no files or services were changed.\"\n        bluetooth_apply_without_update\n        exit 0",
+		"no files or services were changed.\"\n            bluetooth_apply_without_update\n            exit 0",
+		"bluetooth_apply_choice\n\n# Keep systemd's stop deadline",
+		"# ── Service restart",
+	)
+
+	bash := bluetoothKitShell(t)
+	start := strings.Index(source, "bluetooth_service_user() {")
+	end := strings.Index(source, "\n# Asked once; the answer lives in data/bluetooth-setup.")
+	if start < 0 || end < start {
+		t.Fatal("update.sh must define the Bluetooth helpers before resolving the choice")
+	}
+	script := `set -euo pipefail
+log=""
+btk_run_choice() { log="$log $1"; }
+stat_owner() { echo svc; }
+systemctl() { return 1; }
+confirm() { return 0; }
+info() { :; }
+warn() { :; }
+NO_RESTART=false
+DIR=/x
+SUDO=""
+` + source[start:end] + `
+# Unchanged stored decision: an up-to-date run changes nothing.
+BT_FLAG=""; BT_STORED=enabled; BT_CHOICE=enabled
+bluetooth_apply_without_update; [ -z "$log" ]
+BT_CHOICE=skip; BT_STORED=""
+bluetooth_apply_without_update; [ -z "$log" ]
+# A new answer or an explicit flag is applied even without an update.
+BT_CHOICE=enabled
+bluetooth_apply_without_update; [ "$log" = " enabled" ]
+log=""; BT_FLAG=yes; BT_STORED=enabled
+bluetooth_apply_without_update; [ "$log" = " enabled" ]
+log=""; BT_FLAG=""; BT_STORED=enabled; BT_CHOICE=declined
+bluetooth_apply_without_update; [ "$log" = " declined" ]
+`
+	if output, err := runBashScript(t, bash, script); err != nil {
+		t.Fatalf("update.sh Bluetooth helpers failed: %v\n%s", err, output)
+	}
+}

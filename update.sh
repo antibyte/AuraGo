@@ -632,6 +632,7 @@ AUTO_YES=false
 NO_RESTART=false
 FORCE_RESET=false
 REBUILD=false
+BT_FLAG=""
 _AU_ESCAPED=""
 for arg in "$@"; do
     case "$arg" in
@@ -639,13 +640,17 @@ for arg in "$@"; do
         --no-restart) NO_RESTART=true ;;
         --force-reset) FORCE_RESET=true ;;
         --rebuild)     REBUILD=true ;;
+        --bluetooth)    BT_FLAG=yes ;;
+        --no-bluetooth) BT_FLAG=no ;;
         --escaped)    _AU_ESCAPED=1 ;;   # internal: already running in an independent scope
         --help|-h)
-            echo "Usage: $0 [--yes] [--no-restart] [--force-reset] [--rebuild]"
-            echo "  --yes          Skip confirmation prompts"
+            echo "Usage: $0 [--yes] [--no-restart] [--force-reset] [--rebuild] [--bluetooth|--no-bluetooth]"
+            echo "  --yes          Skip confirmation prompts (never answers the Bluetooth question)"
             echo "  --no-restart   Do not restart the service after update"
             echo "  --force-reset  Replace diverged local commits with origin/main instead of preserving them"
             echo "  --rebuild      Rebuild/reinstall even when the version is unchanged"
+            echo "  --bluetooth    Use Bluetooth in AuraGo and prepare this server for it"
+            echo "  --no-bluetooth Turn Bluetooth off in AuraGo"
             exit 0 ;;
         *) warn "Unknown argument: $arg" ;;
     esac
@@ -837,8 +842,8 @@ btk_pkg_command() {
     esac
 }
 
-# btk_pkg_install <manager> package...
-btk_pkg_install() {
+# btk_pkg_add <manager> package...
+btk_pkg_add() {
     local mgr="$1"
     shift
     case "$mgr" in
@@ -876,7 +881,7 @@ btk_install_packages() {
         return 0
     fi
     # shellcheck disable=SC2086 # package names are single words
-    if btk_pkg_install "$mgr" $missing; then
+    if btk_pkg_add "$mgr" $missing; then
         btk_done "Installed $missing"
         return 0
     fi
@@ -2076,6 +2081,43 @@ else
 fi
 echo ""
 
+# ── Bluetooth (host preparation by the AURAGO-BLUETOOTH-KIT block) ─────
+bluetooth_service_user() {
+    local user=""
+    if [ -f /etc/systemd/system/aurago.service ]; then
+        user="$(sed -n 's/^User=//p' /etc/systemd/system/aurago.service | head -n 1)"
+    fi
+    [ -n "$user" ] || user="$(stat_owner "$DIR" 2>/dev/null || true)"
+    printf '%s\n' "${user:-$(id -un)}"
+}
+
+bluetooth_apply_choice() {
+    local service=""
+    [ ! -f /etc/systemd/system/aurago.service ] || service="aurago"
+    btk_run_choice "$BT_CHOICE" "$DIR" "$(bluetooth_service_user)" "$service"
+}
+
+# The version is current: apply only a new or explicitly requested decision.
+bluetooth_apply_without_update() {
+    [ "$BT_CHOICE" != skip ] || return 0
+    if [ -z "$BT_FLAG" ] && [ "$BT_CHOICE" = "$BT_STORED" ]; then return 0; fi
+    bluetooth_apply_choice
+    if ! $NO_RESTART && systemctl is-active --quiet aurago 2>/dev/null; then
+        if confirm "Restart AuraGo now so the Bluetooth settings take effect?"; then
+            $SUDO systemctl restart aurago || warn "Restart failed. Run: sudo systemctl restart aurago"
+        else
+            info "Restart AuraGo later to apply the Bluetooth settings: sudo systemctl restart aurago"
+        fi
+    fi
+    return 0
+}
+
+# Asked once; the answer lives in data/bluetooth-setup.
+BT_STORED="$(btk_read_state "$DIR")"
+_bt_may_prompt=false
+if has_interactive_tty && ! $AUTO_YES; then _bt_may_prompt=true; fi
+BT_CHOICE="$(btk_resolve_choice "$DIR" "$BT_FLAG" "$_bt_may_prompt")"
+
 # ── Check current vs available version ────────────────────────────────
 section "Checking for updates"
 
@@ -2099,6 +2141,7 @@ if $BINARY_ONLY; then
     fi
     if [ "$INSTALLED_RELEASE" = "$RELEASE_TAG" ] && ! $REBUILD; then
         ok "AuraGo is already at ${RELEASE_TAG}; no files or services were changed."
+        bluetooth_apply_without_update
         exit 0
     fi
     RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
@@ -2125,6 +2168,7 @@ else
         fi
         if ! $REBUILD; then
             ok "No rebuild requested; no files or services were changed."
+            bluetooth_apply_without_update
             exit 0
         fi
     else
@@ -3435,6 +3479,9 @@ if [ -f "$SVC_FILE" ]; then
         fi
     fi
 fi
+
+# ── Bluetooth host preparation (stored decision; repairs every update) ──
+bluetooth_apply_choice
 
 # Keep systemd's stop deadline slightly above AuraGo's 45-second internal
 # shutdown deadline. A dedicated drop-in avoids position-dependent edits to

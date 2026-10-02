@@ -207,8 +207,8 @@ btk_pkg_command() {
     esac
 }
 
-# btk_pkg_install <manager> package...
-btk_pkg_install() {
+# btk_pkg_add <manager> package...
+btk_pkg_add() {
     local mgr="$1"
     shift
     case "$mgr" in
@@ -246,7 +246,7 @@ btk_install_packages() {
         return 0
     fi
     # shellcheck disable=SC2086 # package names are single words
-    if btk_pkg_install "$mgr" $missing; then
+    if btk_pkg_add "$mgr" $missing; then
         btk_done "Installed $missing"
         return 0
     fi

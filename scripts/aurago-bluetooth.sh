@@ -8,6 +8,10 @@
 #     bash scripts/sync-bluetooth-kit.sh
 #
 # internal/audit fails when an embedded copy differs from this block.
+#
+# Function names must not end in the name of another function of the
+# installers: audit tests locate shell functions by the substring
+# `name() {` (btk_pkg_install once shadowed install.sh's _pkg_install).
 
 # >>> AURAGO-BLUETOOTH-KIT v1 >>>
 # Bluetooth host preparation (source: scripts/aurago-bluetooth.sh; sync with
@@ -187,8 +191,8 @@ btk_pkg_command() {
     esac
 }
 
-# btk_pkg_install <manager> package...
-btk_pkg_install() {
+# btk_pkg_add <manager> package...
+btk_pkg_add() {
     local mgr="$1"
     shift
     case "$mgr" in
@@ -226,7 +230,7 @@ btk_install_packages() {
         return 0
     fi
     # shellcheck disable=SC2086 # package names are single words
-    if btk_pkg_install "$mgr" $missing; then
+    if btk_pkg_add "$mgr" $missing; then
         btk_done "Installed $missing"
         return 0
     fi
