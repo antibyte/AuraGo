@@ -439,3 +439,25 @@ grep -Fxq '    enabled: true' "$D/config.yaml"
 [ ! -s "$STUB_LOG" ]
 `)
 }
+
+// The installers stay single-file (curl | bash, release assets), so the kit
+// is embedded. Fix drift with: bash scripts/sync-bluetooth-kit.sh
+func TestBluetoothKitIsEmbeddedVerbatim(t *testing.T) {
+	t.Parallel()
+	source := extractBluetoothKit(t, "scripts/aurago-bluetooth.sh", readRepoFile(t, "scripts/aurago-bluetooth.sh"))
+	bash, haveBash := findBash()
+	for _, path := range []string{"install.sh", "update.sh", "install_service_linux.sh"} {
+		script := readRepoFile(t, path)
+		if got := extractBluetoothKit(t, path, script); got != source {
+			t.Fatalf("%s embeds a stale Bluetooth kit; run `bash scripts/sync-bluetooth-kit.sh`", path)
+		}
+		if !haveBash {
+			continue
+		}
+		cmd := exec.Command(bash, "-n")
+		cmd.Stdin = strings.NewReader(script)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%s has a bash syntax error: %v\n%s", path, err, output)
+		}
+	}
+}
