@@ -85,6 +85,7 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 			return nil, nil, err
 		}
 		svc.SetIntegritySecretStore(s.Vault)
+		svc.SetCapabilityProvider(desktopCapabilities{s: s})
 		if err := svc.Init(ctx); err != nil {
 			_ = svc.Close()
 			return nil, nil, err
@@ -124,7 +125,7 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 			Directories: desktop.DefaultDirectories(),
 			MaxFileSize: int64(desktopCfg.MaxFileSizeMB) * 1024 * 1024,
 		},
-		BuiltinApps: desktop.FilterAvailableApps(desktop.BuiltinApps(), nil),
+		BuiltinApps: desktop.FilterAvailableApps(desktop.BuiltinApps(), desktopCapabilities{s: s}),
 		Shortcuts: []desktop.Shortcut{
 			{ID: "app-files", TargetType: desktop.ShortcutTargetApp, TargetID: "files", Name: "Files", Icon: "folder"},
 			{ID: "dir-Trash", TargetType: desktop.ShortcutTargetDirectory, Path: "Trash", Name: "Trash", Icon: "trash"},

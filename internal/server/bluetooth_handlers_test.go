@@ -18,6 +18,7 @@ func testBluetoothServer() *Server {
 	cfg.Runtime.Bluetooth = bluetooth.Status{
 		Supported: true,
 		Usable:    true,
+		Present:   true,
 		Adapter:   bluetooth.AdapterStatus{Name: "Test Adapter", Powered: true},
 		Audio:     bluetooth.AudioStatus{Usable: true, Backend: "pipewire"},
 	}

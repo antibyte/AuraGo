@@ -632,6 +632,7 @@ func Start(opts StartOptions) error {
 	s.initNewspaper()
 	s.initPersonalRadio()
 	s.initRTLSDR()
+	s.initBluetoothLive(serverCtx)
 	// Remote security scanners must not delay the core HTTP readiness check.
 	go s.syncAgentSkills(serverCtx, cfg, installedSkills)
 
