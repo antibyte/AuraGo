@@ -2019,6 +2019,8 @@ ensure_ffmpeg
 ensure_imagemagick
 ensure_python_runtime
 ensure_docker_engine
+# Bluetooth: asked here, applied once the service user is known.
+BT_CHOICE="$(btk_resolve_choice "$INSTALL_DIR" "" "$INTERACTIVE_TTY")"
 
 # ══════════════════════════════════════════════════════════════════════════
 #  Decide installation mode: SOURCE BUILD vs BINARY INSTALL
@@ -2531,6 +2533,7 @@ EOF
         $SUDO systemctl daemon-reload
         $SUDO systemctl enable "$SYSTEMD_SERVICE"
         SERVICE_ENABLED=1
+        btk_run_choice "$BT_CHOICE" "$INSTALL_DIR" "$SERVICE_USER" "$SYSTEMD_SERVICE"
         $SUDO systemctl start "$SYSTEMD_SERVICE"
         SERVICE_INSTALLED=true
         ok "Systemd service installed, enabled and started."
@@ -2541,6 +2544,11 @@ EOF
             "The key is injected into AuraGo via systemd." \
             "${YELLOW}Back up this file! Losing it = losing your vault.${NC}"
     fi
+fi
+
+# ── Bluetooth without a service: prepare it for the installing user ──────
+if [ "$SERVICE_INSTALLED" != "true" ]; then
+    btk_run_choice "$BT_CHOICE" "$INSTALL_DIR" "${SUDO_USER:-$(id -un)}" ""
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────

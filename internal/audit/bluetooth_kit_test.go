@@ -461,3 +461,28 @@ func TestBluetoothKitIsEmbeddedVerbatim(t *testing.T) {
 		}
 	}
 }
+
+// requireInOrder fails unless every snippet occurs after the previous one.
+func requireInOrder(t *testing.T, name, source string, snippets ...string) {
+	t.Helper()
+	offset := 0
+	for _, snippet := range snippets {
+		i := strings.Index(source[offset:], snippet)
+		if i < 0 {
+			t.Fatalf("%s must contain, after the previous call site:\n%s", name, snippet)
+		}
+		offset += i + len(snippet)
+	}
+}
+
+func TestInstallShPreparesBluetooth(t *testing.T) {
+	t.Parallel()
+	requireInOrder(t, "install.sh", readRepoFile(t, "install.sh"),
+		"# >>> AURAGO-BLUETOOTH-KIT",
+		"ensure_docker_engine\n",
+		`BT_CHOICE="$(btk_resolve_choice "$INSTALL_DIR" "" "$INTERACTIVE_TTY")"`,
+		"SERVICE_ENABLED=1\n        btk_run_choice \"$BT_CHOICE\" \"$INSTALL_DIR\" \"$SERVICE_USER\" \"$SYSTEMD_SERVICE\"\n        $SUDO systemctl start \"$SYSTEMD_SERVICE\"",
+		"if [ \"$SERVICE_INSTALLED\" != \"true\" ]; then\n    btk_run_choice \"$BT_CHOICE\" \"$INSTALL_DIR\" \"${SUDO_USER:-$(id -un)}\" \"\"\nfi",
+		`section "Done"`,
+	)
+}
