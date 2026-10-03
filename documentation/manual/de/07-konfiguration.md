@@ -157,9 +157,26 @@ embeddings:
 |-----|--------------|
 | `openrouter` | OpenRouter (empfohlen für Vielfalt) |
 | `openai` | OpenAI API |
-| `anthropic` | Anthropic Claude |
+| `anthropic` | Anthropic Claude (optional mit Thinking-Budget) |
 | `ollama` | Lokales Ollama |
 | `google` | Google Gemini |
+| `custom` | Beliebige OpenAI-kompatible API |
+| `glm` / `zai` | Z.ai GLM-Modelle (OpenAI-kompatibel, eigener Transport) |
+| `xai` | xAI Grok |
+| `deepseek` / `groq` / `mistral` / `moonshot` / `qwen` | DeepSeek, Groq, Mistral AI, Moonshot (Kimi) und Alibaba Qwen über die Manifest-kompatiblen Basen |
+| `agnes` | Agnes AI (OpenAI-kompatibel mit Thinking-Support; die Modellfamilien `agnes-image`/`agnes-video` bedienen Bild- und Videogenerierung) |
+| `copilot` / `opencode-go` | GitHub Copilot bzw. OpenCode Go (eigenes Auth-/Routing-Schema) |
+| `workers-ai` | Cloudflare Workers AI (auch über das AI Gateway) |
+| `stability` / `ideogram` | Bildgenerierung: Stability AI bzw. Ideogram |
+| `vision` | Dedizierter Vision-/Bildanalyse-Endpunkt |
+| `minimax` | MiniMax (LLM, eigener Transport; auch TTS-Provider) |
+| `yepapi` | YepAPI (SEO/SERP/Social-Abrufe; Provider-Eintrag für die YepAPI-Tools) |
+| `manifest` | Manifest.build-Gateway (verwaltet/extern, OpenAI-kompatible Provider) |
+| `omniroute` | OmniRoute-OpenAI-Gateway (verwaltet oder extern) |
+| `huggingface` | Hugging-Face-Inference |
+| `llamacpp` / `lmstudio` | Lokale llama.cpp- bzw. LM-Studio-Server |
+
+> 💡 Welche Provider und Modelle die Web-UI anbietet, steuert der gebündelte Modellkatalog (`model_catalog`, siehe Blocktabelle unten). Der Katalog ist eine Momentaufnahme — neuere Modelle des Anbieters kannst du trotzdem eintragen.
 
 > ⚠️ **Empfohlene Migration:** Nutze das neue Provider-System für mehr Flexibilität. Die alte "inline" Konfiguration funktioniert zwar weiterhin, ist aber nicht mehr empfohlen.
 
@@ -547,6 +564,8 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `llm_router` | Optionaler task-basierter Modell-Router | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
 | `newspaper` | Persönliche Tageszeitung (Desktop-App) | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
 | `treg` | treg-Katalog-Gateway (drei Agent-Tools) | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
+| `model_catalog` | Gebündelter Provider-/Modellkatalog für UI und Fähigkeitserkennung | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
+| `detective` | Gebundene Desktop-Recherchen (Intensitätsprofile) | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
 
 > 📖 Für Details zu allen verfügbaren Parametern siehe `config_template.yaml` im Projektverzeichnis.
 
@@ -683,7 +702,7 @@ Der residente Workspace-Index wird über `workspace_search.enabled` gesteuert; e
 
 ### Sprachausgabe – sanoTTS als lokaler Standard
 
-Neue Installationen nutzen für die Sprachausgabe standardmäßig die lokale CPU-Pipeline **sanoTTS** (`tts.provider: sanotts`); die Sprache folgt der Nutzersprache, nicht unterstützte Stimmen fallen auf Englisch zurück. Bestehende Provider (ElevenLabs, Mistral, Piper) bleiben in **Config → Speech Output** wählbar. Das Sprach-Lab (Speech Lab) bleibt getrennt und bindet die s2s-Pipeline an.
+Neue Installationen nutzen für die Sprachausgabe standardmäßig die lokale CPU-Pipeline **sanoTTS** (`tts.provider: sanotts`); die Sprache folgt der Nutzersprache, nicht unterstützte Stimmen fallen auf Englisch zurück. Bestehende Provider (ElevenLabs, Mistral, Piper, Supertonic) bleiben in **Config → Speech Output** wählbar. Das Sprach-Lab (Speech Lab) bleibt getrennt und bindet die s2s-Pipeline an.
 
 ### Task-LLM-Router
 

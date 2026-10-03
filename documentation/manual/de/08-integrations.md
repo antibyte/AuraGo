@@ -2001,7 +2001,7 @@ Die fokussierten Tools `virtual_desktop_files`, `virtual_desktop_apps` und `virt
 
 ### Desktop Software Store
 
-Der Software Store installiert von AuraGo verwaltete Docker-Apps in die Virtual-Desktop-Umgebung. Aktuelle Katalogeinträge sind unter anderem Arcane, Node-RED, Dozzle, code-server, Beszel, RomM, OliveTin, Manifest und Termix. Arcane nutzt einen Docker-Socket-Proxy-Companion für Docker-Verwaltungszugriff. Termix startet mit einem `guacd`-Companion-Container, damit seine Web-UI SSH-, RDP-, VNC- und Telnet-Sitzungen verwalten kann.
+Der Software Store installiert von AuraGo verwaltete Docker-Apps in die Virtual-Desktop-Umgebung. Aktuelle Katalogeinträge sind unter anderem Homarr, n8n, Node-RED, Open WebUI, ByteStash, IT-Tools, File Browser Quantum, OliveTin, AdGuard Home, Excalidraw, Uptime Kuma, Stirling PDF, QuakeJS (rootless), RomM, Beszel, Dozzle, Arcane, code-server, Termix, CommandCode und OpenSCAD. Arcane nutzt einen Docker-Socket-Proxy-Companion für Docker-Verwaltungszugriff. Termix startet mit einem `guacd`-Companion-Container, damit seine Web-UI SSH-, RDP-, VNC- und Telnet-Sitzungen verwalten kann.
 
 ### YAML-Referenz
 ```yaml

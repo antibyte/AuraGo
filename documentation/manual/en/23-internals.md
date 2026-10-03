@@ -4,7 +4,7 @@
   <a href="../../../assets/readme/system-wiring.svg"><img src="../../../assets/readme/system-wiring.svg" width="640" alt="AuraGo system wiring"></a>
 </p>
 
-> 📅 **Updated:** 9 September 2026 (UI set and recovery corrected; the rest of this chapter is still an architecture deep dive)
+> 📅 **Updated:** 3 October 2026 (UI set and recovery corrected; the rest of this chapter is still an architecture deep dive)
 > 🎯 **Audience:** Developers, contributors, and advanced users  
 > 🔧 **Prerequisites:** Basic understanding of Go, SQLite, and REST APIs
 

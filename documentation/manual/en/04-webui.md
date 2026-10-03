@@ -241,7 +241,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Game Maker Studio** | Isolated offline 2D/3D game creation with a sprite library and asset browser |
 | **OpenSCAD / 3D Viewer** | Parametric 3D modeling with preview and an STL viewer |
 | **Homepage Studio** | Build, validate, and deploy managed website projects |
-| **Software Store** | Install and operate managed Docker apps such as Arcane, Termix, code-server, Dozzle, Beszel, and Node-RED |
+| **Software Store** | Install and operate managed Docker apps such as Homarr, n8n, Node-RED, Open WebUI, Arcane, Termix, code-server, Dozzle, Beszel, and OliveTin |
 | **Quick Connect** | Manage SSH/VNC connections |
 | **Network Cameras** | View go2rtc camera streams |
 | **Virtual Computers** | Operate Boring Computers machines and workspaces |
@@ -259,10 +259,13 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **RTL-SDR** | Receive-only RTL-SDR stick support: live tuning, recordings, schedules, and automatic speech recognition (ASR) |
 | **Bluetooth** | Manage the server's Bluetooth adapter: scan, pair (with number comparison), connect, trust, remove and make the server visible. Shown only when an adapter is present |
 | **HA Switchboard** | Home Assistant switches as a nostalgic switchboard with silver levers (selected `switch.*` entities only) |
+| **Tresor** | Browser-encrypted desktop vault: entries (names, notes, files) are stored only as ciphertext in `data/tresor.db`; the server never sees plaintext. Password plus recovery key, revisions, automatic note saving, and locking on close |
+| **Launchpad** | Managed URL collections as a desktop app: links with categories and icons (search in the icon catalog, icon download) |
+| **God's Eye View** | Store app: a Cesium-based 3D globe in a managed container. The Store setup dialog takes optional provider keys (Vault only) and allowed AuraGo origins; start/stop stays in the Store, the frame starts maximized and grants microphone capability to itself only |
 
 ### Widgets
 
-The widget drawer pins widgets such as system monitor, clock, weather, and chat. The optional **builtin-meshcore** widget is hidden by default and shows the latest MeshCore conversations read-only. Further optional widgets: persistent **paper sticky notes** (grid-aligned with a shared width), the read-only **Fritz!Box widget** (connection/WAN status, traffic, devices, and telephony with a pager), and the growing desktop plant **Leafy** (water, fertilize, cut vines). The animated desktop pet (OpenPets) is controlled by the desktop setting `pet.enabled` and mirrors the agent state through animations.
+The widget drawer pins widgets such as system monitor, clock, weather, and chat. The optional **builtin-meshcore** widget is hidden by default and shows the latest MeshCore conversations read-only. Further optional widgets: persistent **paper sticky notes** (grid-aligned with a shared width), the read-only **Fritz!Box widget** (connection/WAN status, traffic, devices, and telephony with a pager), the opt-in **printer widget** (status and camera image of the configured 3D printer), and the growing desktop plant **Leafy** (water, fertilize, cut vines). The animated desktop pet (OpenPets) is controlled by the desktop setting `pet.enabled` and mirrors the agent state through animations.
 
 ### Software Store Notes
 
@@ -271,6 +274,10 @@ The Software Store uses AuraGo-managed Docker containers. Apps can expose creden
 ### Sounds
 
 UI sounds for the Virtual Desktop are **opt-in** and **off by default**. Open **Settings → Sound** to enable them, pick one of five synthesized themes (Crystal, Wood, Analog, Workshop, Water), adjust master volume, and toggle categories for windows, notifications, navigation, and files/dialogs. Use **Preview** on a theme card to listen without changing your saved selection. Sounds require a normal user gesture in the browser tab before the first playback; they stay silent during session restore and while the tab is hidden.
+
+### Wallpapers
+
+The Virtual Desktop offers twelve still wallpapers (including Aurora, Midnight, Slate, Ember, Forest, Alpine Dawn, City Rain, Ocean Cliff, Aurora Glass, Nebula Flow, and Paper Waves) plus four **opt-in animated** wallpapers: **Silk Flow** and **Firefly Dusk** (calm) as well as **Neon Overdrive** and **Fractal Trip** (wild). The animated wallpapers run as shaders on a dedicated WebGL canvas behind the whole shell, render below device resolution, pause while the tab is hidden, a maximized window covers them, or the screensaver is active, and draw a still frame when the system requests reduced motion. **City Rain** extends the still image with a droplet effect that genuinely refracts the wallpaper (WebGL2 with fallback).
 
 ### Screensaver
 
@@ -289,7 +296,7 @@ It does not start while the browser tab is hidden, a window is in fullscreen, a 
 
 ### Themes
 
-- **Chat:** 13 themes, including Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee, and the LCARS-inspired **Galaxy**.
+- **Chat:** 13 themes, including Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee, and the orbital-glass **Galaxy** theme (violet/cyan/gold layout with its own welcome orb).
 - **Virtual Desktop:** **Fruity** (Apple-inspired with dock and topbar) and **Standard** (Windows/Ubuntu-style productivity surface with taskbar).
 
 ## Mission Control

@@ -6,7 +6,7 @@
 
 Slash-Commands beginnen mit `/`. Abkürzungen, keine zweite API.
 
-> Stand: 9. September 2026
+> Stand: 3. Oktober 2026
 
 ---
 

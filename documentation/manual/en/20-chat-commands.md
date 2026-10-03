@@ -6,7 +6,7 @@
 
 Slash commands start with `/`. They are shortcuts, not a second API.
 
-> Updated: 9 September 2026
+> Updated: 3 October 2026
 
 ---
 

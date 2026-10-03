@@ -6,7 +6,7 @@
 
 JSON, Admin-Auth wo es weh tut, SSE unter `GET /events`. Kein öffentlicher Chat-`/ws`. Default-Origin: `http://localhost:8088`.
 
-> Stand: 9. September 2026. Routen ohne spezifizierte Mutation sind so, wie der Server sie registriert — nicht wie ein Wunschkonzert.
+> Stand: 3. Oktober 2026. Routen ohne spezifizierte Mutation sind so, wie der Server sie registriert — nicht wie ein Wunschkonzert.
 
 ---
 
@@ -89,9 +89,18 @@ JSON, Admin-Auth wo es weh tut, SSE unter `GET /events`. Kein öffentlicher Chat
 75. [go2rtc API](#go2rtc-api)
 76. [Bluetooth API](#bluetooth-api)
 77. [Cheap Yellow Display API](#cheap-yellow-display-api)
-78. [SSE Events](#sse-events)
-79. [Fehlerbehandlung](#fehlerbehandlung)
-80. [Weiterführende Links](#weiterführende-links)
+78. [Tresor API](#tresor-api)
+79. [Launchpad API](#launchpad-api)
+80. [Newspaper API](#newspaper-api)
+81. [Detective API](#detective-api)
+82. [Personal Radio API](#personal-radio-api)
+83. [RTL-SDR API](#rtl-sdr-api)
+84. [Noisemaker API](#noisemaker-api)
+85. [System World API](#system-world-api)
+86. [Radio Browser API](#radio-browser-api)
+87. [SSE Events](#sse-events)
+88. [Fehlerbehandlung](#fehlerbehandlung)
+89. [Weiterführende Links](#weiterführende-links)
 
 ---
 
@@ -779,8 +788,10 @@ GET /api/desktop/store/operations/{operation_id}
 POST /api/desktop/store/apps/{app_id}/{start|stop|restart|update}
 DELETE /api/desktop/store/apps/{app_id}?delete_data=false
 GET /api/desktop/store/apps/{app_id}/open-url?port_id=web
-GET /api/desktop/store/apps/{app_id}/credentials
+GET  /api/desktop/store/apps/{app_id}/credentials
 POST /api/desktop/store/apps/beszel/companions/agent/config
+GET  /api/desktop/store/apps/gods-eye-view/config
+PUT  /api/desktop/store/apps/gods-eye-view/config
 ```
 
 Install-Request:
@@ -2527,6 +2538,166 @@ GET /api/cyd/persona
 ```
 
 `GET /api/cyd/persona` liefert das aktive Persona-Portrait als Little-Endian-RGB565, 72×72. Das ist dieselbe Datei `/img/personas/<key>.png`, die AgoDesk als `avatar_image_url` erhält.
+
+## Tresor API
+
+Nur für einen aktivierten, gültigen Browser-Admin-Login. `Authorization`-Header werden abgelehnt, unsicheres Fern-HTTP ebenfalls (direktes Localhost bleibt erlaubt). Mutationen verlangen `Origin`, Record-/Header-Revisionen und liefern `Cache-Control: no-store`. Der Server speichert ausschließlich opaken Ciphertext und Key-Envelopes in `data/tresor.db` — Klartext und Passwörter verlassen den Browser nie.
+
+```http
+GET    /api/desktop/tresor             # Safe-Status (eingerichtet, Revision)
+POST   /api/desktop/tresor             # Einmaliges Einrichten (Header)
+PUT    /api/desktop/tresor             # Headervorgang (z. B. Passwortwechsel)
+GET    /api/desktop/tresor/items       # Verschlüsselte Einträge listen
+POST   /api/desktop/tresor/items       # Eintrag anlegen
+GET    /api/desktop/tresor/items/{id}  # Eintrag (Ciphertext) lesen
+PUT    /api/desktop/tresor/items/{id}  # Neue Revision schreiben
+DELETE /api/desktop/tresor/items/{id}  # Eintrag löschen
+```
+
+Details zum Speicher- und Sicherheitsvertrag: [documentation/tresor.md](../../tresor.md).
+
+## Launchpad API
+
+Verwaltet die URL-Sammlungen der Launchpad-Desktop-App (Kapitel 4). Lesen braucht eine angemeldete Sitzung, Mutationen folgen den üblichen Origin-/CSRF-Regeln. `launchpad_path` (Kapitel 18) legt den Speicherort fest.
+
+```http
+GET    /api/launchpad/links            # Alle Links
+POST   /api/launchpad/links            # Link anlegen
+GET    /api/launchpad/links/{id}       # Einzelnen Link
+PUT    /api/launchpad/links/{id}       # Link ändern
+DELETE /api/launchpad/links/{id}       # Link löschen
+GET    /api/launchpad/categories       # Kategorien listen
+GET    /api/launchpad/icons/search     # Icon-Katalog durchsuchen
+GET    /api/launchpad/icons/asset      # Katalog-Icon ausliefern
+POST   /api/launchpad/icons/download   # Icon herunterladen und cachen
+```
+
+## Newspaper API
+
+Admin-geschützt; Session-Schreibzugriffe verlangen Same-Origin. Die Recherche und Zustellung gehören dem Server — Quellseiten können keine Empfänger setzen oder Sendetools aufrufen.
+
+```http
+GET  /api/desktop/newspaper/capabilities
+GET  /api/desktop/newspaper/profile                     # ETag
+PUT  /api/desktop/newspaper/profile                     # If-Match nötig
+GET  /api/desktop/newspaper/editions                    # Ausgaben + letzter Lauf
+POST /api/desktop/newspaper/editions                    # Lauf starten (202)
+GET  /api/desktop/newspaper/editions/{id}               # Ausgabe (ETag) oder Lauf
+GET  /api/desktop/newspaper/editions/{id}/events        # Ereignisse + Quellen
+POST /api/desktop/newspaper/editions/{id}/stop          # Lauf abbrechen (202)
+GET  /api/desktop/newspaper/editions/{id}/deliveries
+POST /api/desktop/newspaper/editions/{id}/deliver       # Idempotency-Key nötig
+GET  /api/desktop/newspaper/export?format=pdf
+POST /api/desktop/newspaper/email/challenge
+POST /api/desktop/newspaper/email/confirm
+POST /api/desktop/newspaper/telegram/test
+```
+
+Fehler antworten mit strukturierten, bereinigten Codes; Provider-Fehlerbody, Zugangsdaten und Empfänger werden nie zurückgegeben.
+
+## Detective API
+
+Lesezugriff verlangt einen aktivierten Virtual Desktop; Schreibzugriffe scheitern mit 403, wenn `detective.readonly`, `virtual_desktop.readonly` oder Agent-Steuerung deaktiviert ist. Privatquellen müssen unter `detective.extra_read_operations` freigegeben sein.
+
+```http
+GET    /api/desktop/detective/capabilities
+GET    /api/desktop/detective/cases                    # Fall-Zusammenfassungen
+POST   /api/desktop/detective/cases                    # Fall anlegen (201)
+GET    /api/desktop/detective/cases/{key}              # Voller Fall
+DELETE /api/desktop/detective/cases/{key}
+GET    /api/desktop/detective/cases/{key}/events?after=
+POST   /api/desktop/detective/cases/{key}/run          # start/stop/finish (202)
+GET    /api/desktop/detective/cases/{key}/export?revision=
+POST   /api/desktop/detective/cases/{key}/autor        # Autor-Revision erzeugen
+```
+
+## Personal Radio API
+
+Lesen ist immer erlaubt, wenn der Virtual Desktop aktiv ist; Schreibzugriffe sind gesperrt, wenn `virtual_desktop.readonly` gilt. Wiedergabesteuerung prüft Konflikte gegen die laufende Station (409).
+
+```http
+GET    /api/desktop/personal-radio/state
+GET    /api/desktop/personal-radio/library
+GET    /api/desktop/personal-radio/files
+DELETE /api/desktop/personal-radio/unused
+GET    /api/desktop/personal-radio/audio/{id}
+POST   /api/desktop/personal-radio/heartbeat
+POST   /api/desktop/personal-radio/playback
+POST   /api/desktop/personal-radio/stations                     # Station anlegen (201)
+PATCH  /api/desktop/personal-radio/stations/{id}                # Station speichern
+DELETE /api/desktop/personal-radio/stations/{id}                # If-Match-Revision
+POST   /api/desktop/personal-radio/stations/{id}/preview        # Sprachvorschau (WAV)
+GET    /api/desktop/personal-radio/stations/{id}/news
+POST   /api/desktop/personal-radio/stations/{id}/start          # plus pause/resume/stop/skip
+GET    /api/desktop/personal-radio/stations/{id}/tracks
+POST   /api/desktop/personal-radio/stations/{id}/imports
+POST   /api/desktop/personal-radio/stations/{id}/upload
+PATCH  /api/desktop/personal-radio/stations/{id}/tracks/{track} # favorite/blocked/weight
+DELETE /api/desktop/personal-radio/stations/{id}/tracks/{track}
+```
+
+## RTL-SDR API
+
+Empfangsorientiert und standardmäßig deaktiviert; `rtl_sdr.enabled` schaltet die API frei, Schreibzugriffe brauchen eine freigegebene Konfiguration.
+
+```http
+PUT    /api/desktop/rtl-sdr/config                     # Konfiguration speichern
+POST   /api/desktop/rtl-sdr/setup                      # Hardware-Qualifikation
+GET    /api/desktop/rtl-sdr/state
+GET    /api/desktop/rtl-sdr/devices
+GET    /api/desktop/rtl-sdr/receiver
+GET    /api/desktop/rtl-sdr/stream
+POST   /api/desktop/rtl-sdr/tune                       # plus heartbeat/stop
+POST   /api/desktop/rtl-sdr/scan                       # Scan starten
+DELETE /api/desktop/rtl-sdr/scan                       # Scan abbrechen
+POST   /api/desktop/rtl-sdr/favorites
+DELETE /api/desktop/rtl-sdr/favorites/{id}
+POST   /api/desktop/rtl-sdr/recordings                 # Aufnahme starten
+GET    /api/desktop/rtl-sdr/recordings/{id}
+DELETE /api/desktop/rtl-sdr/recordings/{id}
+GET    /api/desktop/rtl-sdr/recordings/{id}/audio      # FLAC, ?download=1
+POST   /api/desktop/rtl-sdr/recordings/{id}/stop
+POST   /api/desktop/rtl-sdr/recordings/{id}/transcribe # ASR erneut anstoßen (202)
+POST   /api/desktop/rtl-sdr/schedules
+DELETE /api/desktop/rtl-sdr/schedules/{id}
+```
+
+## Noisemaker API
+
+Lokale Musikgenerierung (ACE-Step) hinter `music_generation.enabled`. `state` liest Werkbank und Player, `enhance` verbessert Promptfragmente, `generate` startet die Erzeugung, `tracks` verwaltet die Bibliothek.
+
+```http
+GET    /api/desktop/noisemaker/state
+POST   /api/desktop/noisemaker/enhance
+POST   /api/desktop/noisemaker/generate
+GET    /api/desktop/noisemaker/tracks
+DELETE /api/desktop/noisemaker/tracks/{id}
+PATCH  /api/desktop/noisemaker/tracks/{id}
+```
+
+## System World API
+
+Speist die Systemwelt-App (Kapitel 4) mit bereinigten Auszügen und Turm-Stimme. Stichproben greifen nie auf Tool-/interne Turns, Denkblöcke oder registrierte Secrets zu; es gibt kein LLM, kein SSE, kein Caching und keine Text-Logs.
+
+```http
+POST /api/desktop/system-world/voice             # kurzer Sprachclip (Desktop-Admin für Bearer-Clients)
+GET  /api/desktop/system-world/memory-artifacts  # max. 8 Auszüge à 96 Zeichen, 4-s-Cooldown → sonst 429
+GET  /api/desktop/system-world/snapshot
+GET  /api/desktop/system-world/history
+GET  /api/desktop/system-world/events
+GET  /api/desktop/system-world/entity
+POST /api/desktop/system-world/actions           # bestätigte Terminal-Aktionen, Desktop-Admin
+```
+
+Aktionen laufen einzeln (409, wenn eine pending ist) und sind ratenbegrenzt (429).
+
+## Radio Browser API
+
+Gelesener Proxy zur öffentlichen radio-browser.info-Stationsdatenbank für die Radio-Apps.
+
+```http
+GET /api/radio-browser/{...}
+```
 
 ## SSE Events
 

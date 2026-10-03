@@ -988,7 +988,7 @@ Application output goes to `log/aurago.log`. HTTP access goes to `log/web_access
 
 ## Update History / Changelog
 
-Version numbers and feature lists belong in GitHub Releases. This handbook describes the state as of **9 September 2026**.
+Version numbers and feature lists belong in GitHub Releases. This handbook describes the state as of **3 October 2026**.
 
 ### Update Checklist
 

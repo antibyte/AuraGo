@@ -6,7 +6,7 @@
 
 Native function calling. The list is feature-gated — not every install sees every name.
 
-> Updated: 9 September 2026. “100+” is the documented ballpark, not a fixed count.
+> Updated: 3 October 2026. “100+” is the documented ballpark, not a fixed count.
 > 🔢 **Count:** 100+ Tools
 
 ---
@@ -26,6 +26,7 @@ Native function calling. The list is feature-gated — not every install sees ev
 11. [Documents & Media Processing](#documents--media-processing)
 12. [Databases](#databases)
 13. [Infrastructure](#infrastructure)
+14. [Desktop, Radio, and Runtime Tools](#desktop-radio-and-runtime-tools)
 
 ---
 
@@ -1520,6 +1521,51 @@ Create, read, edit, evaluate, and export virtual desktop spreadsheets.
 
 ---
 
+## Desktop, Radio, and Runtime Tools
+
+These native tools operate the desktop apps and local runtimes from Chapters 4 and 8. Availability and write protection follow the respective config blocks (`detective`, `newspaper`, `rtl_sdr`, `game_maker`, `virtual_computers`, `manus`, `evomap`, `treg`, `three_d_printers`); integration details live in Chapter 8, parameters in `prompts/tools_manuals/`.
+
+### `desktop_notes`
+Operates the visible Desktop Notes library with `list`, `search`, `read`, and `create`. Existing notes are immutable to the agent (create-only); the protection also holds against detours through other file tools whenever isolation is active.
+
+### `rtl_sdr`
+Drives RTL-SDR reception: status, devices, tuning, scans, favorites, recordings (FLAC), schedules, and re-running speech recognition. Requires `rtl_sdr.enabled`; receive-only by design.
+
+### `sip_phone`
+Native SIP telephony: start, answer, and end calls, send DTMF, and read call lists — depending on the SIP configuration and call rules (Chapter 8).
+
+### `virtual_computers`
+Manages Boring Computers machines and agent workspaces (lease, setup, status, close). Controlled via `virtual_computers` (`enabled`, `auto_setup`, `readonly`).
+
+### `virtual_workspace`
+Opens and controls a stateful agent workspace inside a Boring Computers Firecracker VM: lifecycle (`open`, `checkpoint`, `close`), shell (`exec`, jobs), file operations confined to `/workspace`, and user-approved credential grants. Commands run as root in the guest, never on the AuraGo host.
+
+### `virtual_browser`
+Drives the visible Chromium inside a `desktop` virtual workspace (navigate, inspect, click, type, screenshots). VNC can observe, and a human can take over input. Separate from the invisible `browser_automation` sidecar.
+
+### `virtual_desktop_app_install`
+Atomically installs or replaces exactly one generated virtual desktop app from a complete manifest and file set; diagnose with `virtual_desktop_apps` afterwards.
+
+### `game_maker_file` / `game_maker_project` / `game_maker_asset` / `game_maker_validate`
+Game Maker Studio workbench: project data and progression (`project`), project/runtime files (`file`, write-required), sprite and asset library (`asset`, write-required), plus validation and export checks (`validate`). Only with Game Maker Studio enabled (Chapter 8).
+
+### `openscad_render`
+Renders parametric OpenSCAD models into preview images or STL for the desktop 3D viewer.
+
+### `manus`
+Hands tasks to the external Manus service and polls results. Read-only while `manus.read_only` is set (Chapter 8).
+
+### `evomap`
+GEP/A2A network operations against EvoMap (status, peers, exchange). Defaults to `readonly` (Chapter 8).
+
+### `huggingface`
+Hugging Face inference: use models and inference endpoints. Activated via `huggingface.enabled` (Chapter 8).
+
+### `treg_catalog` / `treg_call` / `treg_status`
+treg catalog gateway: `treg_catalog` searches the catalog (`search`, `details`, `allowed`), `treg_call` executes exactly approved endpoints with a cost ceiling, `treg_status` reports balance and grants. Disabled and read-only by default; prices are in micro-US dollars (Chapter 7).
+
+---
+
 ## Permission System
 
 Not all tools are available by default. Availability depends on **Tool Feature Flags**:
@@ -1612,7 +1658,7 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 
 ## Tool Manual Index (RAG)
 
-AuraGo indexes `prompts/tools_manuals/*.md` (~165 files) for adaptive tool retrieval. At runtime the agent can call `discover_tools` with `get_tool_info` to load the matching manual.
+AuraGo indexes `prompts/tools_manuals/*.md` (one manual per tool, plus grouped and legacy manuals) for adaptive tool retrieval. At runtime the agent can call `discover_tools` with `get_tool_info` to load the matching manual.
 
 ### Native tool → manual file
 

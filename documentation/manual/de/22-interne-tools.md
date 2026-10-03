@@ -6,7 +6,7 @@
 
 Native Function Calling. Die Liste ist feature-gated — nicht jede Installation sieht jeden Namen.
 
-> Stand: 9. September 2026. „100+“ ist die dokumentierte Größenordnung, keine feste Zählung.
+> Stand: 3. Oktober 2026. „100+“ ist die dokumentierte Größenordnung, keine feste Zählung.
 > 🔢 **Anzahl:** 100+ Tools
 
 ---
@@ -26,6 +26,7 @@ Native Function Calling. Die Liste ist feature-gated — nicht jede Installation
 11. [Dokumente & Medien](#dokumente--medien)
 12. [Datenbanken](#datenbanken)
 13. [Infrastruktur](#infrastruktur)
+14. [Desktop-, Funk- und Laufzeit-Tools](#desktop--funk--und-laufzeit-tools)
 
 ---
 
@@ -1406,6 +1407,51 @@ Erstellt, liest, bearbeitet Zellbereiche, wertet Formeln aus und exportiert Tabe
 
 ---
 
+## Desktop-, Funk- und Laufzeit-Tools
+
+Diese nativen Tools bedienen die Desktop-Apps und lokalen Laufzeiten aus Kapitel 4 und 8. Freigabe und Schreibschutz folgen den jeweiligen Config-Blöcken (`detective`, `newspaper`, `rtl_sdr`, `game_maker`, `virtual_computers`, `manus`, `evomap`, `treg`, `three_d_printers`); Integrationsdetails stehen in Kapitel 8, Parameter in `prompts/tools_manuals/`.
+
+### `desktop_notes`
+Bedient die sichtbare Desktop-Notizbibliothek mit `list`, `search`, `read` und `create`. Bestehende Notizen sind für den Agenten unveränderlich (Create-only); der Schutz gilt auch gegenüber Umwegen über andere Datei-Tools, sofern Isolation aktiv ist.
+
+### `rtl_sdr`
+Steuert den RTL-SDR-Empfang: Status, Geräte, Abstimmung, Scans, Favoriten, Aufnahmen (FLAC), Zeitpläne und erneute Spracherkennung. Nur mit `rtl_sdr.enabled`; rein empfangsorientiert.
+
+### `sip_phone`
+Native SIP-Telefonie: Anrufe starten, annehmen, beenden, DTMF senden und Anruflisten lesen — abhängig von der SIP-Konfiguration und den Rufregeln (Kapitel 8).
+
+### `virtual_computers`
+Verwaltet Boring-Computers-Maschinen und Agent-Workspaces (Leasen, Setup, Status, Schließen). Steuerung über `virtual_computers` (`enabled`, `auto_setup`, `readonly`).
+
+### `virtual_workspace`
+Öffnet und steuert einen zustandsbehafteten Agent-Workspace in einer Boring-Computers-Firecracker-VM: Lebenszyklus (`open`, `checkpoint`, `close`), Shell (`exec`, Jobs), Dateioperationen auf `/workspace` und Nutzer-Approval für Zugangsdaten. Befehle laufen als Root im Gast, nie auf dem AuraGo-Host.
+
+### `virtual_browser`
+Steuert den sichtbaren Chromium im `desktop`-Virtual-Workspace (Navigieren, Inspektieren, Klicken, Tippen, Screenshots). VNC kann zuschauen, ein Mensch kann die Kontrolle übernehmen. Getrennt vom unsichtbaren `browser_automation`-Sidecar.
+
+### `virtual_desktop_app_install`
+Installiert oder ersetzt genau eine generierte Virtual-Desktop-App atomar aus vollständigem Manifest und Dateisatz; danach Diagnose über `virtual_desktop_apps`.
+
+### `game_maker_file` / `game_maker_project` / `game_maker_asset` / `game_maker_validate`
+Game-Maker-Studio-Werkbank: Projektdaten und -fortschritt (`project`), Projekt-/Laufzeitdateien (`file`, schreibpflichtig), Sprite- und Asset-Bibliothek (`asset`, schreibpflichtig) sowie Validierung und Export-Checks (`validate`). Nur mit aktiviertem Game Maker Studio (Kapitel 8).
+
+### `openscad_render`
+Rendert parametrische OpenSCAD-Modelle zu Vorschau-Bildern bzw. STL für den Desktop-3D-Viewer.
+
+### `manus`
+Reicht Aufgaben an den externen Manus-Dienst weiter und pollt Ergebnisse. Read-only, solange `manus.read_only` gesetzt ist (Kapitel 8).
+
+### `evomap`
+GEP-/A2A-Netzwerkoperationen gegen EvoMap (Status, Peers, Austausch). Standardmäßig `readonly` (Kapitel 8).
+
+### `huggingface`
+Hugging-Face-Inference: Modelle und Inferenz-Endpunkte nutzen. Aktiv über `huggingface.enabled` (Kapitel 8).
+
+### `treg_catalog` / `treg_call` / `treg_status`
+treg-Katalog-Gateway: `treg_catalog` durchsucht den Katalog (`search`, `details`, `allowed`), `treg_call` führt exakt freigegebene Endpunkte mit Kostenobergrenze aus, `treg_status` meldet Guthaben und Grants. Standardmäßig deaktiviert und read-only; Preise in Mikro-US-Dollar (Kapitel 7).
+
+---
+
 ## Berechtigungs-System
 
 Nicht alle Tools sind standardmäßig verfügbar. Die Verfügbarkeit hängt von den **Tool Feature Flags** ab. Konfiguration primär über die Web-UI:
@@ -1501,7 +1547,7 @@ Nicht alle Tools sind standardmäßig verfügbar. Die Verfügbarkeit hängt von 
 
 ## Tool-Manual-Index (RAG)
 
-AuraGo indexiert `prompts/tools_manuals/*.md` (~165 Dateien) für adaptive Tool-Abfrage. Zur Laufzeit kann der Agent `discover_tools` mit `get_tool_info` aufrufen, um das passende Manual zu laden.
+AuraGo indexiert `prompts/tools_manuals/*.md` (ein Manual pro Werkzeug, plus Sammel- und Legacy-Manuals) für adaptive Tool-Abfrage. Zur Laufzeit kann der Agent `discover_tools` mit `get_tool_info` aufrufen, um das passende Manual zu laden.
 
 ### Native Tool → Manual-Datei
 

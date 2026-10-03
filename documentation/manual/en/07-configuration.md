@@ -150,9 +150,25 @@ llm:
 | `openai` | OpenAI API | `https://api.openai.com/v1` |
 | `openrouter` | OpenRouter (unified API) | `https://openrouter.ai/api/v1` |
 | `ollama` | Local Ollama instance | `http://localhost:11434/v1` |
-| `anthropic` | Anthropic Claude | `https://api.anthropic.com/v1` |
+| `anthropic` | Anthropic Claude (optional thinking budget) | `https://api.anthropic.com/v1` |
 | `google` | Google Gemini | `https://generativelanguage.googleapis.com/v1beta` |
 | `custom` | Any OpenAI-compatible API | Variable |
+| `glm` / `zai` | Z.ai GLM models (OpenAI-compatible, dedicated transport) | Variable |
+| `xai` | xAI Grok | `https://api.x.ai/v1` |
+| `deepseek` / `groq` / `mistral` / `moonshot` / `qwen` | DeepSeek, Groq, Mistral AI, Moonshot (Kimi), and Alibaba Qwen | Variable |
+| `agnes` | Agnes AI (OpenAI-compatible with thinking support; the `agnes-image`/`agnes-video` model families serve image and video generation) | `https://apihub.agnes-ai.com/v1` |
+| `copilot` / `opencode-go` | GitHub Copilot and OpenCode Go (own auth/routing schemes) | Variable |
+| `workers-ai` | Cloudflare Workers AI (also via the AI Gateway) | `https://api.cloudflare.com/client/v4` |
+| `stability` / `ideogram` | Image generation: Stability AI and Ideogram | Variable |
+| `vision` | Dedicated vision/image-analysis endpoint | Variable |
+| `minimax` | MiniMax (LLM with dedicated transport; also a TTS provider) | Variable |
+| `yepapi` | YepAPI (SEO/SERP/social lookups; provider entry for the YepAPI tools) | Variable |
+| `manifest` | Manifest.build gateway (managed/external, OpenAI-compatible providers) | Variable |
+| `omniroute` | OmniRoute OpenAI-compatible gateway (managed or external) | Variable |
+| `huggingface` | Hugging Face inference | Variable |
+| `llamacpp` / `lmstudio` | Local llama.cpp and LM Studio servers | `http://localhost:8080/v1` |
+
+> 💡 Which providers and models the Web UI offers is driven by the bundled model catalog (`model_catalog`, see the block table below). The catalog is a snapshot — you can still enter models newer than the catalog.
 
 ### LLM Parameters
 
@@ -1149,6 +1165,8 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `llm_router` | Optional task-based model router. | `llm_router:`<br>`  enabled: false`<br>`  helper_fallback: true`<br>`  areas:`<br>`    coding: {provider: "", model: ""}` |
 | `newspaper` | Personal daily edition (desktop app). | `newspaper:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_email: false`<br>`  allow_telegram: false` |
 | `treg` | treg catalog gateway (three agent tools). | `treg:`<br>`  enabled: false`<br>`  readonly: true`<br>`  max_call_cost_micro: 1000000`<br>`  allowed_endpoints: []` |
+| `model_catalog` | Bundled provider/model catalog for UI and capability detection. | `model_catalog:`<br>`  enabled: true`<br>`  disabled_providers: []`<br>`  catalog_only_visible: true` |
+| `detective` | Bounded desktop research cases (effort profiles). | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
 
 ---
 

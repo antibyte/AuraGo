@@ -510,7 +510,7 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 
 ## Update-Historie (Changelog)
 
-Versionsnummern und Feature-Listen gehören in GitHub Releases. Dieses Handbuch beschreibt den Stand vom **9. September 2026**.
+Versionsnummern und Feature-Listen gehören in GitHub Releases. Dieses Handbuch beschreibt den Stand vom **3. Oktober 2026**.
 
 ## Nützliche Ressourcen
 
