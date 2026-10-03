@@ -1,7 +1,9 @@
 package memory
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -128,11 +130,12 @@ func (kg *KnowledgeGraph) initTables() error {
 		}
 		stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", quoteIdentifier(cm.table), quoteIdentifier(cm.column), cm.def)
 		if _, err := kg.db.Exec(stmt); err != nil {
-			kg.logger.Warn("KG migration: add column failed", "table", cm.table, "column", cm.column, "error", err)
-		} else {
-			kg.logger.Info("KG migration: added column", "table", cm.table, "column", cm.column)
+			// Later queries rely on the column; a missing one must not surface as "no such column" at runtime.
+			return fmt.Errorf("KG migration add column %s.%s: %w", cm.table, cm.column, err)
 		}
+		kg.logger.Info("KG migration: added column", "table", cm.table, "column", cm.column)
 	}
+	// The backfill only improves ordering data; readers COALESCE a missing value, so it stays a warning.
 	if _, err := kg.db.Exec("UPDATE kg_edges SET updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR updated_at = ''"); err != nil {
 		kg.logger.Warn("KG migration: backfill kg_edges.updated_at failed", "error", err)
 	}
@@ -193,19 +196,31 @@ func (kg *KnowledgeGraph) initTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_kg_conflicts_fact ON kg_conflicts(subject_id, predicate)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_kg_conflicts_pair_open ON kg_conflicts(subject_id, predicate, left_claim_id, right_claim_id) WHERE status='open'`,
 	}
+	// Index failures stay warnings: all of them are lookup accelerators except the
+	// partial UNIQUE index, which fails only when older versions already stored
+	// duplicate open conflicts. Those need a review, not a knowledge-graph outage.
 	for _, stmt := range idxStmts {
 		if _, err := kg.db.Exec(stmt); err != nil {
+			if strings.HasPrefix(stmt, "CREATE UNIQUE INDEX") {
+				kg.logger.Error("KG migration: unique index creation failed; open conflicts may be duplicated", "error", err, "stmt", stmt)
+				continue
+			}
 			kg.logger.Warn("KG migration: index creation failed", "error", err, "stmt", stmt)
 		}
 	}
 
-	var storedFTSVersion string
-	kg.db.QueryRow(`SELECT value FROM kg_meta WHERE key = 'fts_schema_version'`).Scan(&storedFTSVersion)
-	if storedFTSVersion != kgFTSSchemaVersion {
+	var storedFTSVersion sql.NullString
+	markerErr := kg.db.QueryRow(`SELECT value FROM kg_meta WHERE key = 'fts_schema_version'`).Scan(&storedFTSVersion)
+	if markerErr != nil && !errors.Is(markerErr, sql.ErrNoRows) {
+		return fmt.Errorf("read kg fts_schema_version: %w", markerErr)
+	}
+	if storedFTSVersion.String != kgFTSSchemaVersion {
 		if err := kg.rebuildFTSIndexes(); err != nil {
 			return err
 		}
-		kg.db.Exec(`INSERT OR REPLACE INTO kg_meta (key, value) VALUES ('fts_schema_version', ?)`, kgFTSSchemaVersion)
+		if _, err := kg.db.Exec(`INSERT OR REPLACE INTO kg_meta (key, value) VALUES ('fts_schema_version', ?)`, kgFTSSchemaVersion); err != nil {
+			return fmt.Errorf("write kg fts_schema_version: %w", err)
+		}
 	}
 
 	return nil

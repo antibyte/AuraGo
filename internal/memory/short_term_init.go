@@ -490,8 +490,7 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 	var hasNewSchema bool
 	err := db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('file_indices') WHERE name='collection' AND \"notnull\"=1").Scan(&hasNewSchema)
 	if err != nil {
-		logger.Warn("Failed to check file_indices schema", "error", err)
-		return nil
+		return fmt.Errorf("check file_indices schema: %w", err)
 	}
 	if hasNewSchema {
 		return nil
@@ -500,7 +499,9 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 	logger.Info("Migrating file_indices to collection-aware schema")
 
 	var oldCount int
-	db.QueryRow("SELECT COUNT(*) FROM file_indices").Scan(&oldCount)
+	if err := db.QueryRow("SELECT COUNT(*) FROM file_indices").Scan(&oldCount); err != nil {
+		return fmt.Errorf("count file_indices before migration: %w", err)
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
