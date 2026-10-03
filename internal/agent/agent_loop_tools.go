@@ -22,7 +22,6 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		return false
 	}
 
-	cfg := s.runCfg.Config
 	shortTermMem := s.runCfg.ShortTermMem
 	historyManager := s.runCfg.HistoryManager
 	sessionID := s.runCfg.SessionID
@@ -84,82 +83,15 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
 		pResultContent = DispatchToolCall(ctx, &ptc, dispatchCtx, lastUserMsg)
 	}
-	policyResult := finalizeToolExecution(ctx, ptc, pResultContent, ptc.GuardianBlocked, cfg, shortTermMem, sessionID,
-		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, s.toolPromptVersion(ptc.Action),
-		dispatchCtx.ExecutionTimeMs, s.runCfg)
-	pResultContent = policyResult.Content
-	s.noteGameMakerToolProgress(policyResult.Failed, actionBlocked)
-	recordVirtualDesktopAppVerification(ptc, pResultContent, policyResult.Failed, &s.recoveryState)
-	deferredRecoveryMessages := detachNewSystemMessages(&s.req, recoveryMessageStart)
-	invalidateTurnSnapshotAfterTool(s, ptc, policyResult.Status != ToolResultSuccess)
-	pEventContent := policyResult.EventContent
-	if pEventContent == "" {
-		pEventContent = pResultContent
-	}
-	if policyResult.Failed {
-		recordToolFailureOperationalIssue(s.runCfg, ptc, pResultContent, currentLogger)
-	} else if policyResult.Status == ToolResultSuccess {
-		resolveToolFailureOperationalIssue(s.runCfg, ptc, currentLogger)
-	}
-	if supervisorRouted && s.currentToolRoute.ExplicitRetry {
-		pResultContent = appendControlledRetryReport(pResultContent, s.currentToolRoute, ptc, s.initialUserMsg, policyResult.Failed)
-	}
-	if actionBlocked {
-		toolAction = blockAgentToolAction(currentLogger, actionLedger, toolAction, pResultContent)
-	} else {
-		toolAction = completeAgentToolAction(currentLogger, actionLedger, toolAction, policyResult, dispatchCtx.ExecutionTimeMs)
-	}
-	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, ptc.Action, pResultContent)
-	recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
-	if policyResult.Status == ToolResultSuccess || policyResult.Status == ToolResultFailed {
-		recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, ptc.Action, policyResult.Failed, currentLogger)
-	}
-	broker.Send("tool_output", pResultContent)
-	emitMediaSSEEvents(broker, ptc.Action, pEventContent, cfg.Directories.DataDir)
-	broker.Send("tool_end", ptc.Action)
-	s.lastActivity = time.Now()
-	if ptc.Todo != "" {
-		s.sessionTodoList = string(ptc.Todo)
-		broker.Send("todo_update", s.sessionTodoList)
-	}
-	if ptc.Action == "manage_plan" {
-		emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
-	}
-	if ptc.Action == "manage_memory" || ptc.Action == "core_memory" {
-		s.coreMemDirty = true
-	}
-	found := false
-	for _, rt := range s.recentTools {
-		if rt == ptc.Action {
-			found = true
-			break
-		}
-	}
-	if !found {
-		s.recentTools = append(s.recentTools, ptc.Action)
-		if len(s.recentTools) > 5 {
-			s.recentTools = s.recentTools[len(s.recentTools)-5:]
-		}
-	}
-	toolResultRole := openai.ChatMessageRoleUser
-	if ptc.NativeCallID != "" {
-		toolResultRole = openai.ChatMessageRoleTool
-	}
-	id, idErr = shortTermMem.InsertMessage(sessionID, toolResultRole, pResultContent, false, true)
-	if idErr != nil {
-		currentLogger.Error("Failed to persist queued tool-result message", "error", idErr)
-	}
-	if sessionID == "default" && ShouldAppendHistoryMessage(id, idErr) {
-		if ptc.NativeCallID != "" {
-			historyManager.AddMessage(openai.ChatCompletionMessage{
-				Role:       openai.ChatMessageRoleTool,
-				Content:    pResultContent,
-				ToolCallID: ptc.NativeCallID,
-			}, id, false, true)
-		} else {
-			historyManager.Add(openai.ChatMessageRoleUser, pResultContent, id, false, true)
-		}
-	}
+	pResultContent, deferredRecoveryMessages := s.applyToolOutcome(ctx, ptc, pResultContent, toolOutcomeOptions{
+		Blocked:              actionBlocked,
+		NativeResult:         ptc.NativeCallID != "",
+		SupervisorRetry:      supervisorRouted && s.currentToolRoute.ExplicitRetry,
+		RecoveryMessageStart: recoveryMessageStart,
+		ActionLedger:         actionLedger,
+		ToolAction:           toolAction,
+		ExecutionTimeMs:      dispatchCtx.ExecutionTimeMs,
+	})
 	if ptc.NativeCallID != "" {
 		// Match batched native tool handling: the originating assistant message with
 		// all tool_calls is already in req.Messages from the first tool in the batch.
@@ -394,112 +326,25 @@ func executeAgentToolTurn(
 
 	dispatchCtx := s.makeDispatchContext(currentLogger)
 	var resultContent string
+	primaryBlocked := false
 	if precheckResult, prechecked := precheckVirtualDesktopAppOpen(tc, &s.recoveryState); prechecked {
 		resultContent = precheckResult
+		primaryBlocked = true
 	} else if precheckResult, prechecked := precheckMessagingToolArgs(tc, s.runCfg, sessionID); prechecked {
 		resultContent = precheckResult
 	} else {
 		toolAction = startAgentToolAction(currentLogger, actionLedger, toolAction)
 		resultContent = DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
 	}
-	policyResult := finalizeToolExecution(ctx, tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, s.toolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs, s.runCfg)
-	resultContent = policyResult.Content
-	s.noteGameMakerToolProgress(policyResult.Failed, false)
-	recordVirtualDesktopAppVerification(tc, resultContent, policyResult.Failed, &s.recoveryState)
-	invalidateTurnSnapshotAfterTool(s, tc, policyResult.Status != ToolResultSuccess)
-	eventContent := policyResult.EventContent
-	if eventContent == "" {
-		eventContent = resultContent
-	}
-	if policyResult.Failed {
-		recordToolFailureOperationalIssue(s.runCfg, tc, resultContent, currentLogger)
-	} else if policyResult.Status == ToolResultSuccess {
-		resolveToolFailureOperationalIssue(s.runCfg, tc, currentLogger)
-	}
-	toolAction = completeAgentToolAction(currentLogger, actionLedger, toolAction, policyResult, dispatchCtx.ExecutionTimeMs)
-	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, resultContent)
-	recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
-	if policyResult.Status == ToolResultSuccess || policyResult.Status == ToolResultFailed {
-		recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, tc.Action, policyResult.Failed, currentLogger)
-	}
-
-	broker.Send("tool_output", resultContent)
-	emitMediaSSEEvents(broker, tc.Action, eventContent, cfg.Directories.DataDir)
-
-	broker.Send("tool_end", tc.Action)
-	s.lastActivity = time.Now()
+	resultContent, primaryRecoveryMessages := s.applyToolOutcome(ctx, tc, resultContent, toolOutcomeOptions{
+		Blocked:              primaryBlocked,
+		NativeResult:         useNativePath,
+		RecoveryMessageStart: recoveryMessageStart,
+		ActionLedger:         actionLedger,
+		ToolAction:           toolAction,
+		ExecutionTimeMs:      dispatchCtx.ExecutionTimeMs,
+	})
 	s.lastResponseWasTool = true
-
-	if tc.Todo != "" {
-		s.sessionTodoList = string(tc.Todo)
-		broker.Send("todo_update", s.sessionTodoList)
-	}
-	if tc.Action == "manage_plan" {
-		emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
-	}
-
-	if tc.Action == "manage_memory" {
-		s.coreMemDirty = true
-	}
-
-	if s.lastTool != "" {
-		_ = shortTermMem.RecordToolTransition(s.lastTool, tc.Action)
-	}
-	s.lastTool = tc.Action
-	found := false
-	for _, rt := range s.recentTools {
-		if rt == tc.Action {
-			found = true
-			break
-		}
-	}
-	if !found {
-		s.recentTools = append(s.recentTools, tc.Action)
-		if len(s.recentTools) > 5 {
-			s.recentTools = s.recentTools[len(s.recentTools)-5:]
-		}
-	}
-
-	if s.personalityEnabled && shortTermMem != nil {
-		s.flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, s.meta)
-		s.flags.EmotionDescription = latestEmotionDescription(shortTermMem, s.emotionSynthesizer)
-	}
-
-	if tc.NotifyOnCompletion {
-		resultContent = fmt.Sprintf(
-			"[TOOL COMPLETION NOTIFICATION]\nAction: %s\nStatus: Completed\nTimestamp: %s\nOutput:\n%s",
-			tc.Action,
-			time.Now().Format(time.RFC3339),
-			resultContent,
-		)
-	}
-	if tc.Action == "execute_python" {
-		if strings.Contains(resultContent, "[EXECUTION ERROR]") || strings.Contains(resultContent, "TIMEOUT") {
-			s.flags.IsErrorState = true
-			broker.Send("error_recovery", "Script error detected, retrying...")
-		} else {
-			s.flags.IsErrorState = false
-		}
-	}
-	toolResultPersistRole := openai.ChatMessageRoleTool
-	if !useNativePath {
-		toolResultPersistRole = openai.ChatMessageRoleUser
-	}
-	id, err = shortTermMem.InsertMessage(sessionID, toolResultPersistRole, resultContent, false, true)
-	if err != nil {
-		currentLogger.Error("Failed to persist tool-result message to SQLite", "error", err)
-	}
-	if sessionID == "default" && ShouldAppendHistoryMessage(id, err) {
-		if toolResultPersistRole == openai.ChatMessageRoleTool {
-			historyManager.AddMessage(openai.ChatCompletionMessage{
-				Role:       openai.ChatMessageRoleTool,
-				Content:    resultContent,
-				ToolCallID: tc.NativeCallID,
-			}, id, false, true)
-		} else {
-			historyManager.Add(toolResultPersistRole, resultContent, id, false, true)
-		}
-	}
 
 	if useNativePath {
 		s.req.Messages = append(s.req.Messages, nativeAssistantMsg)
@@ -509,7 +354,9 @@ func executeAgentToolTurn(
 			ToolCallID: tc.NativeCallID,
 		})
 
-		var deferredRecoveryMessages []openai.ChatCompletionMessage
+		// Recovery guidance follows every declared tool result (AGENTS.md
+		// message-order contract), including the primary call's guidance.
+		deferredRecoveryMessages := primaryRecoveryMessages
 		circuitBreakerOpen := false
 		nativeDispatchCtx := s.makeDispatchContext(currentLogger)
 		for len(s.pendingTCs) > 0 && s.pendingTCs[0].NativeCallID != "" {
@@ -557,73 +404,16 @@ func executeAgentToolTurn(
 				batchedAction = startAgentToolAction(currentLogger, batchedLedger, batchedAction)
 				bResult = DispatchToolCall(ctx, &btc, nativeDispatchCtx, lastUserMsg)
 			}
-			policyResult := toolExecutionResult{Content: bResult, Failed: true, Outcome: ExecutionOutcomeFailed}
-			if !notExecuted {
-				policyResult = finalizeToolExecution(ctx, btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, s.toolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs, s.runCfg)
-			}
-			bResult = policyResult.Content
-			s.noteGameMakerToolProgress(policyResult.Failed, batchedBlocked)
-			recordVirtualDesktopAppVerification(btc, bResult, policyResult.Failed, &s.recoveryState)
-			deferredRecoveryMessages = append(deferredRecoveryMessages, detachNewSystemMessages(&s.req, recoveryMessageStart)...)
-			invalidateTurnSnapshotAfterTool(s, btc, policyResult.Status != ToolResultSuccess)
-			bEventContent := policyResult.EventContent
-			if bEventContent == "" {
-				bEventContent = bResult
-			}
-			if notExecuted {
-				// A declared native call still needs one protocol result, but it
-				// was never dispatched and must not create a tool-failure issue.
-			} else if policyResult.Failed {
-				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)
-			} else if policyResult.Status == ToolResultSuccess {
-				resolveToolFailureOperationalIssue(s.runCfg, btc, currentLogger)
-			}
-			if batchedBlocked {
-				batchedAction = blockAgentToolAction(currentLogger, batchedLedger, batchedAction, bResult)
-			} else {
-				batchedAction = completeAgentToolAction(currentLogger, batchedLedger, batchedAction, policyResult, nativeDispatchCtx.ExecutionTimeMs)
-			}
-			trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, btc.Action, bResult)
-			recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)
-			if policyResult.Status == ToolResultSuccess || policyResult.Status == ToolResultFailed {
-				recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, btc.Action, policyResult.Failed, currentLogger)
-			}
-			broker.Send("tool_output", bResult)
-			emitMediaSSEEvents(broker, btc.Action, bEventContent, cfg.Directories.DataDir)
-			broker.Send("tool_end", btc.Action)
-			if btc.Action == "manage_plan" {
-				emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
-			}
-			s.lastActivity = time.Now()
-
-			if btc.Action == "manage_memory" || btc.Action == "core_memory" {
-				s.coreMemDirty = true
-			}
-			found := false
-			for _, rt := range s.recentTools {
-				if rt == btc.Action {
-					found = true
-					break
-				}
-			}
-			if !found {
-				s.recentTools = append(s.recentTools, btc.Action)
-				if len(s.recentTools) > 5 {
-					s.recentTools = s.recentTools[len(s.recentTools)-5:]
-				}
-			}
-
-			resultID, resultErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, bResult, false, true)
-			if resultErr != nil {
-				currentLogger.Error("Failed to persist batched tool-result message", "error", resultErr)
-			}
-			if sessionID == "default" && ShouldAppendHistoryMessage(resultID, resultErr) {
-				historyManager.AddMessage(openai.ChatCompletionMessage{
-					Role:       openai.ChatMessageRoleTool,
-					Content:    bResult,
-					ToolCallID: btc.NativeCallID,
-				}, resultID, false, true)
-			}
+			bResult, batchRecoveryMessages := s.applyToolOutcome(ctx, btc, bResult, toolOutcomeOptions{
+				Blocked:              batchedBlocked,
+				NotExecuted:          notExecuted,
+				NativeResult:         true,
+				RecoveryMessageStart: recoveryMessageStart,
+				ActionLedger:         batchedLedger,
+				ToolAction:           batchedAction,
+				ExecutionTimeMs:      nativeDispatchCtx.ExecutionTimeMs,
+			})
+			deferredRecoveryMessages = append(deferredRecoveryMessages, batchRecoveryMessages...)
 
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
 				Role:       openai.ChatMessageRoleTool,
@@ -637,6 +427,8 @@ func executeAgentToolTurn(
 		}
 		s.req.Messages = append(s.req.Messages, deferredRecoveryMessages...)
 	} else {
+		// Text-mode order is unchanged: guidance precedes the assistant/user pair.
+		s.req.Messages = append(s.req.Messages, primaryRecoveryMessages...)
 		if !xmlFallbackHandledThisTurn {
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
 		}
