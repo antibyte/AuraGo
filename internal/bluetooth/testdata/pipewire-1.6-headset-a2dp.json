@@ -1,0 +1,298 @@
+[
+  {
+    "id": 42,
+    "type": "PipeWire:Interface:Node",
+    "info": {
+      "props": {
+        "api.bluez5.role": "server",
+        "api.glib.mainloop": true,
+        "client.id": 34,
+        "clock.quantum-limit": 8192,
+        "device.api": "bluez5",
+        "factory.id": 14,
+        "factory.name": "api.bluez5.midi.node",
+        "media.class": "Midi/Bridge",
+        "node.description": "BLE MIDI 1",
+        "node.loop.name": "data-loop.0",
+        "node.name": "bluez_midi.server",
+        "object.id": 42,
+        "object.serial": 113
+      },
+      "params": {}
+    }
+  },
+  {
+    "id": 62,
+    "type": "PipeWire:Interface:Device",
+    "info": {
+      "props": {
+        "api.bluez5.address": "AA:BB:CC:DD:EE:FF",
+        "api.bluez5.class": "0x240404",
+        "api.bluez5.connection": "connected",
+        "api.bluez5.device": "",
+        "api.bluez5.icon": "audio-headset",
+        "api.bluez5.path": "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF",
+        "bluez5.profile": "off",
+        "client.id": 34,
+        "device.alias": "Test Earbuds",
+        "device.api": "bluez5",
+        "device.bus": "bluetooth",
+        "device.description": "Test Earbuds",
+        "device.form-factor": "headset",
+        "device.icon-name": "audio-headset-bluetooth",
+        "device.name": "bluez_card.AA_BB_CC_DD_EE_FF",
+        "device.product.id": "0x000a",
+        "device.string": "AA:BB:CC:DD:EE:FF",
+        "device.vendor.id": "bluetooth:05d6",
+        "factory.id": 15,
+        "media.class": "Audio/Device",
+        "object.id": 62,
+        "object.serial": 118,
+        "spa.object.id": 0
+      },
+      "params": {
+        "EnumProfile": [
+          {
+            "index": 0,
+            "name": "off",
+            "description": "Off",
+            "available": "yes",
+            "priority": 0
+          },
+          {
+            "index": 131073,
+            "name": "a2dp-sink",
+            "description": "High Fidelity Playback (A2DP Sink, codec SBC)",
+            "available": "yes",
+            "priority": 132
+          },
+          {
+            "index": 131074,
+            "name": "a2dp-sink-sbc_xq",
+            "description": "High Fidelity Playback (A2DP Sink, codec SBC-XQ)",
+            "available": "yes",
+            "priority": 131
+          },
+          {
+            "index": 196864,
+            "name": "headset-head-unit-cvsd",
+            "description": "Headset Head Unit (HSP/HFP, codec CVSD)",
+            "available": "yes",
+            "priority": 4
+          },
+          {
+            "index": 196865,
+            "name": "headset-head-unit",
+            "description": "Headset Head Unit (HSP/HFP, codec MSBC)",
+            "available": "yes",
+            "priority": 5
+          }
+        ],
+        "Profile": [
+          {
+            "index": 131073,
+            "name": "a2dp-sink",
+            "description": "High Fidelity Playback (A2DP Sink, codec SBC)",
+            "available": "yes",
+            "priority": 132
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": 66,
+    "type": "PipeWire:Interface:Node",
+    "info": {
+      "props": {
+        "adapt.follower.spa-node": "",
+        "audio.position": "[MONO]",
+        "bluez5.loopback": true,
+        "card.profile.device": 0,
+        "client.id": 61,
+        "clock.quantum-limit": 8192,
+        "device.id": 62,
+        "device.routes": 1,
+        "factory.id": 10,
+        "filter.smart": true,
+        "filter.smart.target": "{\"device.id\":62, \"bluez5.loopback\":false, \"bluez5.loopback-target\":true}",
+        "library.name": "audioconvert/libspa-audioconvert",
+        "media.class": "Audio/Source",
+        "media.name": "Test Earbuds output",
+        "node.autoconnect": true,
+        "node.description": "Test Earbuds",
+        "node.group": "loopback-1052079-18",
+        "node.link-group": "loopback-1052079-18",
+        "node.loop.name": "data-loop.0",
+        "node.name": "bluez_input.AA:BB:CC:DD:EE:FF",
+        "node.trigger": true,
+        "node.virtual": false,
+        "node.want-driver": true,
+        "object.id": 66,
+        "object.register": false,
+        "object.serial": 121,
+        "port.group": "stream.0",
+        "priority.session": 2010,
+        "resample.disable": true,
+        "resample.prefill": true,
+        "stream.is-live": true
+      },
+      "params": {}
+    }
+  },
+  {
+    "id": 65,
+    "type": "PipeWire:Interface:Node",
+    "info": {
+      "props": {
+        "adapt.follower.spa-node": "",
+        "audio.channels": 1,
+        "audio.position": "[MONO]",
+        "bluez5.loopback": true,
+        "client.id": 61,
+        "clock.quantum-limit": 8192,
+        "factory.id": 10,
+        "library.name": "audioconvert/libspa-audioconvert",
+        "media.class": "Stream/Input/Audio/Internal",
+        "media.name": "Bluetooth internal capture stream for Test Earbuds input",
+        "node.autoconnect": true,
+        "node.description": "Bluetooth internal capture stream for Test Earbuds",
+        "node.dont-fallback": true,
+        "node.group": "loopback-1052079-18",
+        "node.linger": true,
+        "node.link-group": "loopback-1052079-18",
+        "node.loop.name": "data-loop.0",
+        "node.name": "bluez_capture_internal.AA:BB:CC:DD:EE:FF",
+        "node.passive": true,
+        "node.virtual": true,
+        "node.want-driver": true,
+        "object.id": 65,
+        "object.register": false,
+        "object.serial": 122,
+        "port.group": "stream.0",
+        "resample.disable": true,
+        "resample.prefill": true,
+        "state.restore-props": false,
+        "stream.dont-remix": true,
+        "stream.is-live": true
+      },
+      "params": {}
+    }
+  },
+  {
+    "id": 55,
+    "type": "PipeWire:Interface:Node",
+    "info": {
+      "props": {
+        "adapt.follower.spa-node": "",
+        "bluez5.sink-loopback": true,
+        "client.id": 57,
+        "clock.quantum-limit": 8192,
+        "factory.id": 10,
+        "library.name": "audioconvert/libspa-audioconvert",
+        "media.class": "Stream/Output/Audio/Internal",
+        "media.name": "Bluetooth internal playback stream for Test Earbuds output",
+        "node.autoconnect": true,
+        "node.description": "Bluetooth internal playback stream for Test Earbuds",
+        "node.dont-fallback": true,
+        "node.driver-id": 54,
+        "node.group": "loopback-1052079-19",
+        "node.linger": true,
+        "node.link-group": "loopback-1052079-19",
+        "node.loop.name": "data-loop.0",
+        "node.name": "bluez_playback_internal.AA:BB:CC:DD:EE:FF",
+        "node.passive": true,
+        "node.trigger": true,
+        "node.virtual": true,
+        "node.want-driver": true,
+        "object.id": 55,
+        "object.register": false,
+        "object.serial": 124,
+        "port.group": "stream.0",
+        "resample.disable": true,
+        "resample.prefill": true,
+        "state.restore-props": false,
+        "stream.is-live": true
+      },
+      "params": {}
+    }
+  },
+  {
+    "id": 44,
+    "type": "PipeWire:Interface:Node",
+    "info": {
+      "props": {
+        "adapt.follower.spa-node": "",
+        "audio.position": "[FL, FR]",
+        "bluez5.sink-loopback": true,
+        "card.profile.device": 1,
+        "client.id": 57,
+        "clock.quantum-limit": 8192,
+        "device.id": 62,
+        "device.routes": 1,
+        "factory.id": 10,
+        "filter.smart": true,
+        "filter.smart.target": "{\"device.id\":62, \"bluez5.sink-loopback-target\":true, \"bluez5.sink-loopback\":false}",
+        "library.name": "audioconvert/libspa-audioconvert",
+        "media.class": "Audio/Sink",
+        "media.name": "Test Earbuds input",
+        "node.autoconnect": true,
+        "node.description": "Test Earbuds",
+        "node.driver-id": 54,
+        "node.group": "loopback-1052079-19",
+        "node.link-group": "loopback-1052079-19",
+        "node.loop.name": "data-loop.0",
+        "node.name": "bluez_output.AA:BB:CC:DD:EE:FF",
+        "node.virtual": false,
+        "node.want-driver": true,
+        "object.id": 44,
+        "object.register": false,
+        "object.serial": 125,
+        "port.group": "stream.0",
+        "priority.session": 2010,
+        "resample.disable": true,
+        "resample.prefill": true,
+        "stream.is-live": true
+      },
+      "params": {}
+    }
+  },
+  {
+    "id": 54,
+    "type": "PipeWire:Interface:Node",
+    "info": {
+      "props": {
+        "api.bluez5.address": "AA:BB:CC:DD:EE:FF",
+        "api.bluez5.codec": "sbc",
+        "api.bluez5.internal": true,
+        "api.bluez5.profile": "a2dp-sink",
+        "api.bluez5.transport": "",
+        "bluez5.sink-loopback": false,
+        "bluez5.sink-loopback-target": true,
+        "card.profile.device": 1,
+        "client.id": 34,
+        "clock.quantum-limit": 8192,
+        "device.api": "bluez5",
+        "device.id": 62,
+        "device.routes": 1,
+        "factory.id": 10,
+        "factory.name": "api.bluez5.a2dp.sink",
+        "library.name": "audioconvert/libspa-audioconvert",
+        "media.class": "Audio/Sink/Internal",
+        "media.name": "Test Earbuds",
+        "node.description": "Test Earbuds",
+        "node.driver": true,
+        "node.loop.name": "data-loop.0",
+        "node.name": "bluez_output_internal.AA_BB_CC_DD_EE_FF.1",
+        "node.pause-on-idle": false,
+        "object.id": 54,
+        "object.serial": 393,
+        "port.group": "stream.0",
+        "priority.driver": 1010,
+        "priority.session": 1010,
+        "spa.object.id": 1
+      },
+      "params": {}
+    }
+  }
+]

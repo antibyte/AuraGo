@@ -86,22 +86,34 @@ func parseHeadsetGraph(raw []byte, address string) (headsetGraph, bool, error) {
 	}
 	graph := headsetGraph{DeviceID: -1}
 	for _, object := range objects {
-		props := object.Info.Props
-		if !bluezAddressMatches(props, normalized) {
+		if object.Type != "PipeWire:Interface:Device" || !bluezAddressMatches(object.Info.Props, normalized) {
 			continue
 		}
-		switch object.Type {
-		case "PipeWire:Interface:Device":
-			graph.DeviceID = object.ID
-			graph.Profiles = decodeHeadsetProfiles(object.Info.Params["EnumProfile"])
-			if current := decodeHeadsetProfiles(object.Info.Params["Profile"]); len(current) > 0 {
-				graph.Current = current[0]
-			}
-		case "PipeWire:Interface:Node":
-			switch stringProperty(props, "media.class") {
-			case "Audio/Source":
+		graph.DeviceID = object.ID
+		graph.Profiles = decodeHeadsetProfiles(object.Info.Params["EnumProfile"])
+		if current := decodeHeadsetProfiles(object.Info.Params["Profile"]); len(current) > 0 {
+			graph.Current = current[0]
+		}
+	}
+	// PipeWire 1.x exposes loopback nodes (bluez_input.<MAC>, bluez_output.<MAC>)
+	// that carry only device.id; the real per-profile nodes are */Internal and
+	// skipped here. Older versions name the real nodes with the address.
+	for _, object := range objects {
+		props := object.Info.Props
+		if object.Type != "PipeWire:Interface:Node" {
+			continue
+		}
+		ownDevice := graph.DeviceID >= 0 && intProperty(props, "device.id") == graph.DeviceID
+		if !ownDevice && !bluezAddressMatches(props, normalized) {
+			continue
+		}
+		switch stringProperty(props, "media.class") {
+		case "Audio/Source":
+			if graph.Source == "" {
 				graph.Source = stringProperty(props, "node.name")
-			case "Audio/Sink":
+			}
+		case "Audio/Sink":
+			if graph.Sink == "" {
 				graph.Sink = stringProperty(props, "node.name")
 			}
 		}
@@ -110,7 +122,8 @@ func parseHeadsetGraph(raw []byte, address string) (headsetGraph, bool, error) {
 }
 
 // bluezAddressMatches prefers the explicit address properties and falls back
-// to node/device names such as bluez_input.AA_BB_CC_DD_EE_FF.0.
+// to node/device names such as bluez_input.AA_BB_CC_DD_EE_FF.0 or
+// bluez_input.AA:BB:CC:DD:EE:FF.
 func bluezAddressMatches(props map[string]interface{}, normalized string) bool {
 	for _, key := range []string{"api.bluez5.address", "bluez5.address"} {
 		if value := stringProperty(props, key); value != "" {
@@ -118,7 +131,14 @@ func bluezAddressMatches(props map[string]interface{}, normalized string) bool {
 		}
 	}
 	name := strings.ToUpper(firstNonEmpty(stringProperty(props, "node.name"), stringProperty(props, "device.name")))
-	return name != "" && strings.Contains(name, strings.ReplaceAll(normalized, ":", "_"))
+	return name != "" && (strings.Contains(name, normalized) || strings.Contains(name, strings.ReplaceAll(normalized, ":", "_")))
+}
+
+func intProperty(props map[string]interface{}, key string) int {
+	if value, ok := props[key].(float64); ok {
+		return int(value)
+	}
+	return -1
 }
 
 func decodeHeadsetProfiles(raw json.RawMessage) []headsetProfile {

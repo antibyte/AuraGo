@@ -3,9 +3,12 @@ package bluetooth
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -123,6 +126,8 @@ type fakeHeadsetRunner struct {
 	calls     []string
 	pipes     []*fakeHeadsetProcess
 	blockPlay bool
+	// profileNames maps wpctl profile indexes to names; nil uses headsetDump's.
+	profileNames map[string]string
 }
 
 func newFakeHeadsetRunner(profile string) *fakeHeadsetRunner {
@@ -137,7 +142,10 @@ func (f *fakeHeadsetRunner) Output(_ context.Context, name string, args ...strin
 	case "pw-dump":
 		return f.dump(f.profile), nil
 	case "wpctl":
-		names := map[string]string{"0": "off", "1": "a2dp-sink", "2": "headset-head-unit-cvsd", "3": "headset-head-unit", "4": "headset-head-unit-msbc"}
+		names := f.profileNames
+		if names == nil {
+			names = map[string]string{"0": "off", "1": "a2dp-sink", "2": "headset-head-unit-cvsd", "3": "headset-head-unit", "4": "headset-head-unit-msbc"}
+		}
 		if len(args) == 3 && args[0] == "set-profile" {
 			f.profile = names[args[2]]
 		}
@@ -543,5 +551,82 @@ func TestManagerListsAndReservesHeadsets(t *testing.T) {
 	manager.options.Enabled = false
 	if _, reason := manager.HeadsetDevices(ctx); !strings.Contains(reason, "disabled") {
 		t.Fatalf("disabled reason = %q", reason)
+	}
+}
+
+// pipeWire16Dump replays a real PipeWire 1.6 / WirePlumber 0.5 snapshot
+// (anonymized) with the device switched to the given profile. Since PipeWire
+// 1.x the usable nodes are loopbacks named bluez_input.<MAC> and
+// bluez_output.<MAC> that carry device.id instead of an address property.
+func pipeWire16Dump(t *testing.T) func(profile string) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("testdata", "pipewire-1.6-headset-a2dp.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return func(profile string) []byte {
+		var objects []map[string]interface{}
+		if err := json.Unmarshal(raw, &objects); err != nil {
+			panic(err)
+		}
+		for _, object := range objects {
+			if object["type"] != "PipeWire:Interface:Device" {
+				continue
+			}
+			params := object["info"].(map[string]interface{})["params"].(map[string]interface{})
+			for _, entry := range params["EnumProfile"].([]interface{}) {
+				if entry.(map[string]interface{})["name"] == profile {
+					params["Profile"] = []interface{}{entry}
+				}
+			}
+		}
+		out, err := json.Marshal(objects)
+		if err != nil {
+			panic(err)
+		}
+		return out
+	}
+}
+
+var pipeWire16ProfileNames = map[string]string{
+	"0": "off", "131073": "a2dp-sink", "131074": "a2dp-sink-sbc_xq", "196864": "headset-head-unit-cvsd", "196865": "headset-head-unit",
+}
+
+func TestParseHeadsetGraphReadsPipeWire16LoopbackNodes(t *testing.T) {
+	dump := pipeWire16Dump(t)
+	graph, found, err := parseHeadsetGraph(dump("a2dp-sink"), testHeadsetAddress)
+	if err != nil || !found || graph.DeviceID != 62 || graph.Current.Name != "a2dp-sink" {
+		t.Fatalf("graph = %+v found=%v err=%v", graph, found, err)
+	}
+	// The loopbacks, not the *_internal nodes, are what clients record from and play to.
+	if graph.Source != "bluez_input.AA:BB:CC:DD:EE:FF" || graph.Sink != "bluez_output.AA:BB:CC:DD:EE:FF" {
+		t.Fatalf("nodes = %q %q", graph.Source, graph.Sink)
+	}
+	if best, ok := graph.bestHeadsetProfile(); !ok || best.Index != 196865 {
+		t.Fatalf("best profile = %+v ok=%v", best, ok)
+	}
+}
+
+func TestHeadsetLinkUsesPipeWire16LoopbackNodes(t *testing.T) {
+	runner := newFakeHeadsetRunner("a2dp-sink")
+	runner.dump = pipeWire16Dump(t)
+	runner.profileNames = pipeWire16ProfileNames
+	link := startTestHeadsetLink(t, runner, connectedHeadset, nil)
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+	if !runner.called("wpctl set-profile 62 196865") {
+		t.Fatalf("profile switch missing: %v", runner.callLog())
+	}
+	if !runner.called("pw-record --target bluez_input.AA:BB:CC:DD:EE:FF --rate 16000 --channels 1 --format s16 -") {
+		t.Fatalf("recorder missing: %v", runner.callLog())
+	}
+	if err := link.Write(0, []byte{1, 2}); err != nil {
+		t.Fatal(err)
+	}
+	if !runner.called("pw-play --target bluez_output.AA:BB:CC:DD:EE:FF --rate 24000 --channels 1 --format s16 -") {
+		t.Fatalf("player missing: %v", runner.callLog())
+	}
+	_ = link.Close()
+	if !runner.called("wpctl set-profile 62 131073") {
+		t.Fatalf("A2DP not restored: %v", runner.callLog())
 	}
 }
