@@ -601,23 +601,29 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
-			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, acestep.Owner) {
+			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "local-llm", dockerutil.BoringGarageOwner, dockerutil.AppOwner)
+			if !localLLMDockerOperationSafe(req.Operation) && owned[acestep.Owner] {
 				return dockerAgentError("docker_managed_music_resource", "Managed ACE-Step resources are private. Use generate_music or the administrator Music Generation settings.")
 			}
-			if dockerOperationTargetsContainer(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, dockerutil.HomepageOwner) {
+			if dockerOperationTargetsContainer(req.Operation) && owned[dockerutil.HomepageOwner] {
 				return dockerAgentError("docker_managed_homepage_resource", "AuraGo-managed homepage containers cannot be accessed through the generic docker tool. Use homepage_project, homepage_file, or homepage_deploy.")
 			}
-			if !go2RTCDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, "go2rtc") {
+			if !go2RTCDockerOperationSafe(req.Operation) && owned["go2rtc"] {
 				return `Tool Output: {"status":"error","message":"Direct lifecycle, log, file, or process access to AuraGo's managed go2rtc container is blocked. Use the read-only go2rtc tool or the administrator API."}`
 			}
-			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, "local-llm") {
+			if !localLLMDockerOperationSafe(req.Operation) && owned["local-llm"] {
 				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed local LLM container is blocked. Use the administrator Local LLM API."}`
 			}
-			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, dockerutil.BoringGarageOwner) {
+			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.BoringGarageOwner] {
 				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API."}`
 			}
-			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, dockerutil.AppOwner) {
+			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.AppOwner] {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
+			}
+			if ownershipErr != nil && dockerOperationTargetsContainer(req.Operation) {
+				logger.Warn("Docker container ownership could not be verified", "container_id", containerID, "error", ownershipErr)
+				return dockerAgentError("docker_ownership_unverified", "Docker did not answer the ownership check for this container, so the request was blocked. Retry when the Docker API is reachable.")
 			}
 			if dockerRequestMountsProtectedLocalLLMVolume(req.Volumes) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM model and runtime-key volumes cannot be mounted through the Docker agent tool."}`

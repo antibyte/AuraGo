@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -509,32 +510,50 @@ func dockerInspectEnvKeySensitive(key string) bool {
 	return false
 }
 
-// DockerContainerManagedBy checks a container's ownership label without exposing its config.
-func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool {
-	if owner == acestep.Owner && acestep.IsResourceName(containerID) {
+// ErrDockerOwnershipUnverified reports that Docker answered neither the inspect
+// nor the list request, so the owner of a container is unknown.
+var ErrDockerOwnershipUnverified = errors.New("docker container ownership could not be verified")
+
+// dockerOwnerMatches applies the reserved-name rules for owner to name and, when
+// labels are known, the AuraGo ownership labels.
+func dockerOwnerMatches(owner, name string, labels map[string]string) bool {
+	trimmed := strings.TrimSpace(owner)
+	switch {
+	case owner == acestep.Owner && acestep.IsResourceName(name):
+		return true
+	case strings.EqualFold(trimmed, dockerutil.LocalLLMOwner) && dockerutil.IsLocalLLMContainerName(name):
+		return true
+	case strings.EqualFold(trimmed, dockerutil.BoringGarageOwner) && dockerutil.IsBoringGarageContainerName(name):
+		return true
+	case strings.EqualFold(trimmed, dockerutil.HomepageOwner) && dockerutil.IsHomepageContainerName(name):
+		return true
+	case strings.EqualFold(trimmed, dockerutil.AppOwner) && dockerutil.IsAuraGoAppContainerName(name):
 		return true
 	}
-	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) &&
-		dockerutil.IsLocalLLMContainerName(containerID) {
-		return true
+	return len(labels) > 0 && dockerutil.ManagedBy(labels, owner)
+}
+
+// DockerContainerOwnership reports which of owners manage containerID, using the
+// reserved names first, then one inspect request, then one list request. When
+// inspect failed (anything but 404) and the list fallback failed too, it returns
+// an error wrapping ErrDockerOwnershipUnverified; callers must deny
+// container-targeted operations then. An empty or invalid ID owns nothing.
+func DockerContainerOwnership(cfg DockerConfig, containerID string, owners ...string) (map[string]bool, error) {
+	owned := make(map[string]bool, len(owners))
+	for _, owner := range owners {
+		if dockerOwnerMatches(owner, containerID, nil) {
+			owned[owner] = true
+		}
 	}
-	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) &&
-		dockerutil.IsBoringGarageContainerName(containerID) {
-		return true
-	}
-	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.HomepageOwner) &&
-		dockerutil.IsHomepageContainerName(containerID) {
-		return true
-	}
-	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.AppOwner) &&
-		dockerutil.IsAuraGoAppContainerName(containerID) {
-		return true
-	}
-	if validateDockerName(containerID) != nil {
-		return false
+	if len(owned) == len(owners) || validateDockerName(containerID) != nil {
+		return owned, nil
 	}
 	data, code, err := dockerRequest(cfg, http.MethodGet, "/containers/"+url.PathEscape(containerID)+"/json", "")
-	if err == nil && code == http.StatusOK {
+	var inspectErr error
+	switch {
+	case err != nil:
+		inspectErr = err
+	case code == http.StatusOK:
 		var info struct {
 			Name   string `json:"Name"`
 			Config struct {
@@ -542,57 +561,62 @@ func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool 
 			} `json:"Config"`
 		}
 		if json.Unmarshal(data, &info) == nil {
-			if owner == acestep.Owner && acestep.IsResourceName(info.Name) {
-				return true
+			for _, owner := range owners {
+				if dockerOwnerMatches(owner, info.Name, info.Config.Labels) {
+					owned[owner] = true
+				}
 			}
-			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) &&
-				dockerutil.IsLocalLLMContainerName(info.Name) {
-				return true
-			}
-			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.BoringGarageOwner) &&
-				dockerutil.IsBoringGarageContainerName(info.Name) {
-				return true
-			}
-			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.HomepageOwner) &&
-				dockerutil.IsHomepageContainerName(info.Name) {
-				return true
-			}
-			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.AppOwner) &&
-				dockerutil.IsAuraGoAppContainerName(info.Name) {
-				return true
-			}
-			return dockerutil.ManagedBy(info.Config.Labels, owner)
+			return owned, nil
 		}
+		inspectErr = fmt.Errorf("parse inspect response")
+	case code != http.StatusNotFound:
+		inspectErr = fmt.Errorf("inspect returned HTTP %d", code)
 	}
-	// An inspect race/error must not expose a managed container addressed by
-	// ID. Fall back to the list representation, which carries the same labels
-	// and lets prefix IDs be matched without returning any resource details.
+	// An inspect race or error must not expose a managed container addressed by
+	// ID. The list representation carries the same labels and matches ID prefixes.
 	listData, listCode, listErr := dockerRequest(cfg, http.MethodGet, "/containers/json?all=true", "")
-	if listErr != nil || listCode != http.StatusOK {
-		return false
-	}
 	var containers []map[string]interface{}
-	if json.Unmarshal(listData, &containers) != nil {
-		return false
-	}
-	target := strings.ToLower(strings.TrimSpace(containerID))
-	for _, container := range containers {
-		id := strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", container["Id"])))
-		names := dockerInterfaceStrings(container["Names"])
-		matches := id != "" && strings.HasPrefix(id, target)
-		for _, name := range names {
-			matches = matches || strings.EqualFold(strings.TrimPrefix(name, "/"), target)
+	if listErr == nil && listCode == http.StatusOK && json.Unmarshal(listData, &containers) == nil {
+		target := strings.ToLower(strings.TrimSpace(containerID))
+		for _, container := range containers {
+			id := strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", container["Id"])))
+			names := dockerInterfaceStrings(container["Names"])
+			matches := id != "" && strings.HasPrefix(id, target)
+			for _, name := range names {
+				matches = matches || strings.EqualFold(strings.TrimPrefix(name, "/"), target)
+			}
+			if !matches {
+				continue
+			}
+			labels := dockerStringLabels(container["Labels"])
+			for _, owner := range owners {
+				if dockerManagedResourceExcluded(labels, names, false, []string{owner}) {
+					owned[owner] = true
+				}
+			}
 		}
-		if matches && dockerManagedResourceExcluded(
-			dockerStringLabels(container["Labels"]),
-			names,
-			false,
-			[]string{owner},
-		) {
-			return true
+		return owned, nil
+	}
+	if inspectErr == nil {
+		// Inspect answered 404: no container has this ID or name.
+		return owned, nil
+	}
+	listProblem := listErr
+	if listProblem == nil {
+		if listCode != http.StatusOK {
+			listProblem = fmt.Errorf("list returned HTTP %d", listCode)
+		} else {
+			listProblem = fmt.Errorf("parse list response")
 		}
 	}
-	return false
+	return owned, fmt.Errorf("%w: inspect: %v; list: %v", ErrDockerOwnershipUnverified, inspectErr, listProblem)
+}
+
+// DockerContainerManagedBy checks a container's ownership label without exposing
+// its config. It fails closed: unverifiable ownership counts as managed.
+func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool {
+	owned, err := DockerContainerOwnership(cfg, containerID, owner)
+	return owned[owner] || err != nil
 }
 
 func dockerStringLabels(value any) map[string]string {
