@@ -22,6 +22,7 @@ import (
 
 	"aurago/internal/acestep"
 	"aurago/internal/dockerutil"
+	"aurago/internal/security"
 )
 
 // DockerConfig holds the Docker Engine connection parameters.
@@ -415,8 +416,14 @@ func DockerListContainers(cfg DockerConfig, all bool, excludedOwners ...string) 
 	return string(out)
 }
 
+// dockerInspectRedacted replaces secret values in Docker inspect output.
+const dockerInspectRedacted = "••••••••"
+
 // DockerInspectContainer returns detailed info about a specific container.
 func DockerInspectContainer(cfg DockerConfig, containerID string) string {
+	if err := requireDockerPermission(); err != nil {
+		return errJSON("%v", err)
+	}
 	if err := validateDockerName(containerID); err != nil {
 		return errJSON("%v", err)
 	}
@@ -450,8 +457,8 @@ func DockerInspectContainer(cfg DockerConfig, containerID string) string {
 		result["config"] = map[string]interface{}{
 			"image":  cfg["Image"],
 			"env":    redactDockerInspectEnv(cfg["Env"]),
-			"cmd":    cfg["Cmd"],
-			"labels": cfg["Labels"],
+			"cmd":    redactDockerInspectArgs(cfg["Cmd"]),
+			"labels": redactDockerInspectLabels(cfg["Labels"]),
 		}
 	}
 	if netSettings, ok := full["NetworkSettings"].(map[string]interface{}); ok {
@@ -480,11 +487,15 @@ func redactDockerInspectEnv(value interface{}) interface{} {
 				redacted[i] = item
 				continue
 			}
-			if key, _, found := strings.Cut(text, "="); found && dockerInspectEnvKeySensitive(key) {
-				redacted[i] = key + "=••••••••"
+			if key, val, found := strings.Cut(text, "="); found {
+				if dockerInspectEnvKeySensitive(key) {
+					redacted[i] = key + "=" + dockerInspectRedacted
+				} else {
+					redacted[i] = key + "=" + security.RedactSensitiveInfo(val)
+				}
 				continue
 			}
-			redacted[i] = text
+			redacted[i] = security.RedactSensitiveInfo(text)
 		}
 		return redacted
 	default:
@@ -504,6 +515,99 @@ func dockerInspectEnvKeySensitive(key string) bool {
 		"PASSWORD", "SECRET", "TOKEN", "API_KEY", "ACCESS_KEY", "PRIVATE_KEY", "MASTER_KEY",
 	} {
 		if upper == suffix || strings.HasSuffix(upper, "_"+suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactDockerInspectArgs masks credential values in a command line: the value
+// of "--flag=value" and the argument after "--flag" when the flag names a
+// credential, plus URL credentials and key=value secrets in any argument.
+func redactDockerInspectArgs(value interface{}) interface{} {
+	var items []interface{}
+	switch typed := value.(type) {
+	case []string:
+		items = make([]interface{}, len(typed))
+		for i, item := range typed {
+			items[i] = item
+		}
+	case []interface{}:
+		items = typed
+	default:
+		return value
+	}
+	redacted := make([]interface{}, len(items))
+	maskNext := false
+	for i, item := range items {
+		text, ok := item.(string)
+		if !ok {
+			redacted[i] = item
+			maskNext = false
+			continue
+		}
+		if maskNext {
+			redacted[i] = dockerInspectRedacted
+			maskNext = false
+			continue
+		}
+		if flag, _, found := strings.Cut(text, "="); found && dockerInspectFlagSensitive(flag) {
+			redacted[i] = flag + "=" + dockerInspectRedacted
+			continue
+		}
+		maskNext = dockerInspectFlagSensitive(text)
+		redacted[i] = security.RedactSensitiveInfo(text)
+	}
+	return redacted
+}
+
+// dockerInspectFlagSensitive reports whether a command-line flag carries a credential value.
+func dockerInspectFlagSensitive(arg string) bool {
+	trimmed := strings.TrimSpace(arg)
+	if !strings.HasPrefix(trimmed, "-") {
+		return false
+	}
+	name := strings.ToUpper(strings.ReplaceAll(strings.TrimLeft(trimmed, "-"), "-", "_"))
+	if name == "" {
+		return false
+	}
+	for _, marker := range []string{"PASSWORD", "PASSWD", "PASS", "PWD", "SECRET", "TOKEN", "API_KEY", "APIKEY", "ACCESS_KEY", "PRIVATE_KEY", "MASTER_KEY", "REQUIREPASS", "MASTERAUTH", "PASSPHRASE", "CREDENTIALS"} {
+		if name == marker || strings.HasSuffix(name, "_"+marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactDockerInspectLabels masks labels whose key names a credential and
+// redacts URL credentials or key=value secrets in the remaining values.
+func redactDockerInspectLabels(value interface{}) interface{} {
+	labels, ok := value.(map[string]interface{})
+	if !ok {
+		return value
+	}
+	redacted := make(map[string]interface{}, len(labels))
+	for key, item := range labels {
+		text, isString := item.(string)
+		switch {
+		case !isString:
+			redacted[key] = item
+		case dockerInspectLabelKeySensitive(key):
+			redacted[key] = dockerInspectRedacted
+		default:
+			redacted[key] = security.RedactSensitiveInfo(text)
+		}
+	}
+	return redacted
+}
+
+// dockerInspectLabelKeySensitive reports whether a label key names a credential.
+// Unlike environment keys an aurago prefix is not sensitive, so ownership labels
+// such as aurago.managed stay visible.
+func dockerInspectLabelKeySensitive(key string) bool {
+	normalized := "_" + strings.ToUpper(strings.NewReplacer(".", "_", "-", "_", "/", "_").Replace(strings.TrimSpace(key))) + "_"
+	for _, marker := range []string{"PASSWORD", "PASSWD", "SECRET", "TOKEN", "API_KEY", "ACCESS_KEY", "PRIVATE_KEY", "MASTER_KEY", "BASICAUTH", "CREDENTIAL", "CREDENTIALS"} {
+		if strings.Contains(normalized, "_"+marker+"_") {
 			return true
 		}
 	}

@@ -44,7 +44,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Media registry and video-download bounds still use the install root via `detectAuraGoInstallRoot`. Guardian must not label `../../` as a safe in-project path.
 
 ### Agent Docker Inspect Contract
-- Agent `docker inspect` environment redacts `AURAGO_*` and keys ending in `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY`, or `_MASTER_KEY`. Administrator container APIs may still inspect the AuraGo app container.
+- Agent `docker inspect` requires the Docker runtime permission. Its environment redacts `AURAGO_*` and keys ending in `_PASSWORD`, `_SECRET`, `_TOKEN`, `_API_KEY`, `_ACCESS_KEY`, `_PRIVATE_KEY`, or `_MASTER_KEY`, and passes other values through `security.RedactSensitiveInfo` (URL credentials). `Cmd` masks the value of credential flags (`--password x`, `--requirepass x`, `--token=x`); `Labels` masks values whose key names a password, secret, token, key, basic-auth or credential and redacts URL credentials in the rest; ownership labels such as `aurago.managed` stay visible. Administrator container APIs share this redacted view and may still inspect the AuraGo app container. Verify `TestDockerInspectRedacts*` and `TestDockerInspectRequiresDockerPermission`.
 - The agent docker tool must hide and block inspect, lifecycle, log, exec, and copy access to the compose app container `aurago` (including compose-project prefixed replicas). Sidecars such as `aurago-local-llm`, `aurago_gotenberg`, and `aurago-homepage` keep their existing owner gates.
 
 ### Homepage Dev Container
