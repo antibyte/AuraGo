@@ -255,9 +255,9 @@ func SpawnCoAgent(
 
 		var systemPrompt string
 		if req.Specialist != "" {
-			systemPrompt = buildSpecialistSystemPrompt(cfg, req.Specialist, req, longTermMem, shortTermMem, cheatsheetDB)
+			systemPrompt = buildSpecialistSystemPrompt(ctx, cfg, req.Specialist, req, longTermMem, shortTermMem, cheatsheetDB)
 		} else {
-			systemPrompt = buildCoAgentSystemPrompt(cfg, req, longTermMem, shortTermMem)
+			systemPrompt = buildCoAgentSystemPrompt(ctx, cfg, req, longTermMem, shortTermMem)
 		}
 
 		coCfg := deepClone(*cfg)
@@ -707,7 +707,7 @@ func trimCoAgentHints(hints []string, maxHints, maxHintChars int) []string {
 // buildCoAgentSystemPrompt assembles the system prompt for a co-agent.
 // buildContextSnapshot assembles a lean shared context block (core memory, local
 // memory hits, hints) so specialists spend more of their budget on the task itself.
-func buildContextSnapshot(req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
+func buildContextSnapshot(ctx context.Context, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
 	policy := contextPolicyForSpecialist(req.Specialist)
 
 	coreMem := ""
@@ -717,7 +717,7 @@ func buildContextSnapshot(req CoAgentRequest, ltm memory.VectorDB, stm *memory.S
 
 	var ragItems []string
 	if ltm != nil && policy.maxRAGHits > 0 {
-		ranked, err := searchRankedMemoriesOnly(context.Background(), ltm, stm, req.Task, policy.maxRAGHits, nil, time.Now())
+		ranked, err := searchRankedMemoriesOnly(ctx, ltm, stm, req.Task, policy.maxRAGHits, nil, time.Now())
 		if err != nil {
 			slog.Warn("[Co-Agent] Memory context incomplete", "error", err)
 		}
@@ -853,13 +853,13 @@ func isRetryableCoAgentError(cfg *config.Config, err error) bool {
 	return false
 }
 
-func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
+func buildCoAgentSystemPrompt(ctx context.Context, cfg *config.Config, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
 	const coAgentFallbackTmpl = "You are a Co-Agent helper. Complete the user assignment and return the result.\nLanguage: {{LANGUAGE}}\n\n{{CONTEXT_SNAPSHOT}}"
 	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "coagent_system.md")
 	tmpl, _ := loadValidatedPromptTemplate(tmplPath, "templates/coagent_system.md", coAgentFallbackTmpl, slog.Default())
 
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
-	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
+	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(ctx, req, ltm, stm))
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", req.Task)
 	prompt = appendCoAgentTemperament(prompt, cfg, stm)
 	return appendCoAgentOutputSchemaPrompt(prompt, req.OutputSchema)
@@ -867,15 +867,15 @@ func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory
 
 // buildSpecialistSystemPrompt assembles the system prompt for a specialist co-agent.
 // It loads the specialist-specific template, falling back to the generic co-agent template.
-func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory, cheatsheetDB *sql.DB) string {
+func buildSpecialistSystemPrompt(ctx context.Context, cfg *config.Config, role string, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory, cheatsheetDB *sql.DB) string {
 	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "specialist_"+role+".md")
 	tmpl, ok := loadValidatedPromptTemplate(tmplPath, "templates/specialist_"+role+".md", "", slog.Default())
 	if !ok {
-		return buildCoAgentSystemPrompt(cfg, req, ltm, stm)
+		return buildCoAgentSystemPrompt(ctx, cfg, req, ltm, stm)
 	}
 
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
-	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
+	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(ctx, req, ltm, stm))
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", req.Task)
 
 	var extras strings.Builder

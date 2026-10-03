@@ -55,7 +55,7 @@ func TestMemorySearchConsumersKeepCheckedPartialResults(t *testing.T) {
 	if len(bundle.Results) != 1 || bundle.Results[0].Count != 1 || len(bundle.Errors) != 1 {
 		t.Fatalf("explicit partial search = %+v", bundle)
 	}
-	snapshot := buildContextSnapshot(CoAgentRequest{Task: "Explain NAS backups"}, vdb, run.ShortTermMem)
+	snapshot := buildContextSnapshot(context.Background(), CoAgentRequest{Task: "Explain NAS backups"}, vdb, run.ShortTermMem)
 	if !strings.Contains(snapshot, active) || strings.Contains(snapshot, archived) {
 		t.Fatalf("co-agent snapshot = %s", snapshot)
 	}

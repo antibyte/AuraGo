@@ -31,6 +31,8 @@ var (
 	updateStartInstall = updater.StartInstall
 	updateGOOS         = runtime.GOOS
 	updateLookPath     = exec.LookPath
+
+	generateCheatsheetAbstractFunc = GenerateCheatsheetAbstract
 )
 
 func formatUpdateCheckToolOutput(result updater.CheckResult) string {
@@ -993,8 +995,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 						dc.Logger.Warn("Failed to store provided cheatsheet abstract", "cs_id", sheet.ID, "error", abstractErr)
 					}
 				} else {
-					abstractCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-					abstract, abstractErr := GenerateCheatsheetAbstract(abstractCtx, cfg, dc.Logger, sheet.Name, sheet.Content)
+					// Derive from the dispatch context so a cancelled turn does not
+					// keep the tool blocked on the helper LLM for up to 30s.
+					abstractCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+					abstract, abstractErr := generateCheatsheetAbstractFunc(abstractCtx, cfg, dc.Logger, sheet.Name, sheet.Content)
 					cancel()
 					if abstractErr != nil {
 						dc.Logger.Warn("Failed to generate cheatsheet abstract", "cs_id", sheet.ID, "error", abstractErr)
