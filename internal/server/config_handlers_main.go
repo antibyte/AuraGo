@@ -853,6 +853,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.replaceConfigSnapshot(newCfg)
 			tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(newCfg))
 			if s.DaemonSupervisor != nil {
+				s.DaemonSupervisor.SetRequireSandbox(newCfg.Tools.SkillManager.RequireSandbox)
 				s.DaemonSupervisor.RefreshRuntimePermissions()
 			}
 			if s.CronManager != nil {

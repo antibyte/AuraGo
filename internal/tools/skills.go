@@ -255,34 +255,9 @@ func resolveSkillExecution(skillsDir, skillName string, argsJSON map[string]inte
 	if manifest.Executable == "__builtin__" {
 		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' is built-in and cannot be executed via execute_skill", skillName)
 	}
-	if err := validateSkillExecutable(manifest.Executable); err != nil {
-		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' has invalid executable path '%s': %w", skillName, manifest.Executable, err)
-	}
-
-	absSkillsDir, err := filepath.Abs(skillsDir)
+	absExecPath, err := resolveSkillExecutable(skillsDir, *manifest)
 	if err != nil {
-		return SkillManifest{}, "", "", fmt.Errorf("invalid skills directory: %w", err)
-	}
-	absExecPath, err := filepath.Abs(filepath.Join(skillsDir, manifest.Executable))
-	if err != nil {
-		return SkillManifest{}, "", "", fmt.Errorf("failed to resolve absolute path for skill '%s': %w", skillName, err)
-	}
-	rel, err := filepath.Rel(absSkillsDir, absExecPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' has invalid executable path '%s': skill path traversal detected", skillName, manifest.Executable)
-	}
-	fi, err := os.Lstat(absExecPath)
-	if err != nil {
-		return SkillManifest{}, "", "", fmt.Errorf("skill executable not accessible: %w", err)
-	}
-	if fi.Mode()&os.ModeSymlink != 0 {
-		return SkillManifest{}, "", "", fmt.Errorf("symlinks are not allowed in skills directory")
-	}
-	if _, err := os.Stat(absExecPath); err != nil {
-		if os.IsNotExist(err) {
-			return SkillManifest{}, "", "", fmt.Errorf("skill executable '%s' not found at %s", manifest.Executable, absExecPath)
-		}
-		return SkillManifest{}, "", "", fmt.Errorf("skill executable '%s' not accessible: %w", manifest.Executable, err)
+		return SkillManifest{}, "", "", err
 	}
 
 	if argsJSON == nil {
@@ -297,6 +272,70 @@ func resolveSkillExecution(skillsDir, skillName string, argsJSON map[string]inte
 	}
 
 	return *manifest, absExecPath, string(argsBytes), nil
+}
+
+// resolveSkillExecutable returns the absolute executable path after the checks
+// shared by execute_skill and daemon skills: a plain ASCII filename, no
+// traversal out of skillsDir, no symlink, and an existing file.
+func resolveSkillExecutable(skillsDir string, manifest SkillManifest) (string, error) {
+	skillName := manifest.Name
+	if manifest.Executable == "__builtin__" {
+		return "", fmt.Errorf("skill '%s' is built-in and has no executable", skillName)
+	}
+	if err := validateSkillExecutable(manifest.Executable); err != nil {
+		return "", fmt.Errorf("skill '%s' has invalid executable path '%s': %w", skillName, manifest.Executable, err)
+	}
+	absSkillsDir, err := filepath.Abs(skillsDir)
+	if err != nil {
+		return "", fmt.Errorf("invalid skills directory: %w", err)
+	}
+	absExecPath, err := filepath.Abs(filepath.Join(skillsDir, manifest.Executable))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve absolute path for skill '%s': %w", skillName, err)
+	}
+	rel, err := filepath.Rel(absSkillsDir, absExecPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("skill '%s' has invalid executable path '%s': skill path traversal detected", skillName, manifest.Executable)
+	}
+	fi, err := os.Lstat(absExecPath)
+	if err != nil {
+		return "", fmt.Errorf("skill executable not accessible: %w", err)
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("symlinks are not allowed in skills directory")
+	}
+	if _, err := os.Stat(absExecPath); err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("skill executable '%s' not found at %s", manifest.Executable, absExecPath)
+		}
+		return "", fmt.Errorf("skill executable '%s' not accessible: %w", manifest.Executable, err)
+	}
+	return absExecPath, nil
+}
+
+// prepareDaemonSkillExecution applies the execute_skill gates to every daemon
+// start and restart: the runtime Python/shell permission (including the unsafe
+// host exception), the require_sandbox policy (daemons run only on the host),
+// executable validation and, when a Skill Manager is registered, an enabled
+// registry entry whose security status allows execution and whose file hash
+// is unchanged.
+func prepareDaemonSkillExecution(skillsDir string, manifest SkillManifest, requireSandbox bool) (string, error) {
+	if err := requireSkillExecutionPermission(manifest); err != nil {
+		return "", err
+	}
+	if requireSandbox {
+		return "", fmt.Errorf("daemon skill %q cannot start: tools.skill_manager.require_sandbox is enabled and daemon skills run only on the host", manifest.Name)
+	}
+	absExecPath, err := resolveSkillExecutable(skillsDir, manifest)
+	if err != nil {
+		return "", err
+	}
+	if mgr := DefaultSkillManager(); mgr != nil {
+		if _, err := mgr.GetExecutableSkillByName(manifest.Name); err != nil {
+			return "", err
+		}
+	}
+	return absExecPath, nil
 }
 
 func buildSkillCommand(ctx context.Context, workspaceDir string, manifest SkillManifest, absExecPath string) *exec.Cmd {

@@ -64,3 +64,12 @@ func KillProcessTreeGraceful(pid int, gracePeriodSeconds int) {
 	// Stage 2: SIGKILL (force)
 	_ = syscall.Kill(-pid, syscall.SIGKILL)
 }
+
+// killDaemonProcessGroup kills processes left in a daemon's process group after
+// its leader exited. Linux keeps the group ID reserved while members remain,
+// so the signal cannot reach an unrelated process.
+func killDaemonProcessGroup(pid int) {
+	if pid > 0 {
+		_ = syscall.Kill(-pid, syscall.SIGKILL)
+	}
+}

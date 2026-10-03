@@ -60,6 +60,8 @@ Refresh the daemon list after installing new skills:
 - The system enforces rate limits, budget caps, and circuit breakers to prevent runaway costs
 - Auto-disabled daemons require explicit `reenable` to restart
 - Maximum concurrent daemons is configurable (default: 5)
+- A daemon starts only when its skill is enabled in the Skill Manager with a passed security scan and an unchanged file; a denied start reports `daemon execution denied`
+- `tools.skill_manager.require_sandbox: true` blocks all daemon skills, because daemons run on the host
 
 ## Daemon Manifest Settings
 

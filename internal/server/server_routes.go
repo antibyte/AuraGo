@@ -105,6 +105,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			BridgeURL:          InternalAPIURL(s.Cfg) + "/api/internal/tool-bridge",
 			BridgeToken:        s.internalToken,
 			BridgeAllowedTools: s.Cfg.Tools.PythonToolBridge.AllowedTools,
+			RequireSandbox:     s.Cfg.Tools.SkillManager.RequireSandbox,
 		}
 		s.DaemonSupervisor = tools.NewDaemonSupervisor(
 			dsCfg,

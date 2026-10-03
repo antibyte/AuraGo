@@ -37,3 +37,18 @@ func ApplySkillLimits(pid, memoryMB, cpuSeconds int) {
 		}
 	}
 }
+
+// applyDaemonLimits caps a daemon's address space like ApplySkillLimits but sets
+// no RLIMIT_CPU (daemons are long-running; ApplySkillLimits would default CPU
+// time to 120 seconds) and no RLIMIT_NPROC (Linux counts it per user including
+// every AuraGo thread, so it would block the daemon's own forks).
+func applyDaemonLimits(pid, memoryMB int) {
+	if memoryMB <= 0 {
+		memoryMB = 1024
+	}
+	memBytes := uint64(memoryMB) * 1024 * 1024
+	limit := unix.Rlimit{Cur: memBytes, Max: memBytes}
+	if err := unix.Prlimit(pid, unix.RLIMIT_AS, &limit, nil); err != nil {
+		slog.Debug("[DaemonLimits] Failed to set rlimit", "limit", "RLIMIT_AS", "pid", pid, "error", err)
+	}
+}

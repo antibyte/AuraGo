@@ -75,3 +75,11 @@ func KillProcessTreeGraceful(pid int, gracePeriodSeconds int) {
 	// Stage 2: Force kill
 	_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(pid)).Run()
 }
+
+// applyDaemonLimits is a no-op on Windows (no POSIX rlimits).
+func applyDaemonLimits(pid, memoryMB int) {}
+
+// killDaemonProcessGroup is a no-op on Windows: there is no process group and
+// PIDs are reused at once, so taskkill on an exited daemon PID could hit an
+// unrelated process tree.
+func killDaemonProcessGroup(pid int) {}

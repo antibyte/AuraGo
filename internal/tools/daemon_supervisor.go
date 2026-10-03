@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/budget"
@@ -36,6 +37,7 @@ type DaemonSupervisorConfig struct {
 	WorkspaceDir         string
 	SkillsDir            string
 	LogDir               string // defaults to data/daemon_logs
+	RequireSandbox       bool   // tools.skill_manager.require_sandbox; daemons run only on the host
 
 	// Tool bridge (optional): supervisor passes these to daemon runners
 	BridgeEnabled      bool
@@ -55,6 +57,8 @@ type DaemonSupervisor struct {
 	wakeCh  chan daemonWakeEvent
 	stopCh  chan struct{}
 	stopped bool
+
+	requireSandbox atomic.Bool
 
 	// Dependencies
 	registry     *ProcessRegistry
@@ -83,7 +87,7 @@ func NewDaemonSupervisor(
 
 	gate := NewWakeUpGate(cfg.WakeUpGate, budgetTracker, logger)
 
-	return &DaemonSupervisor{
+	sv := &DaemonSupervisor{
 		config:      cfg,
 		runners:     make(map[string]*DaemonRunner),
 		gate:        gate,
@@ -94,6 +98,14 @@ func NewDaemonSupervisor(
 		broadcaster: broadcaster,
 		logger:      logger.With("component", "daemon_supervisor"),
 	}
+	sv.requireSandbox.Store(cfg.RequireSandbox)
+	return sv
+}
+
+// SetRequireSandbox applies a hot-reloaded tools.skill_manager.require_sandbox.
+// Call RefreshRuntimePermissions afterwards to stop daemons it now denies.
+func (s *DaemonSupervisor) SetRequireSandbox(required bool) {
+	s.requireSandbox.Store(required)
 }
 
 // Gate returns the WakeUpGate for external configuration (e.g., REST API toggle).
@@ -219,6 +231,8 @@ func (s *DaemonSupervisor) startRunner(manifest SkillManifest) error {
 		BridgeURL:    s.config.BridgeURL,
 		BridgeToken:  s.config.BridgeToken,
 		BridgeTools:  bridgeTools,
+
+		RequireSandbox: s.requireSandbox.Load,
 	})
 
 	// Register in the wake-up gate
@@ -250,7 +264,9 @@ func (s *DaemonSupervisor) StopDaemon(skillID string) error {
 	return nil
 }
 
-// RefreshRuntimePermissions stops daemons whose execution permission was revoked.
+// RefreshRuntimePermissions stops daemons that may no longer run: a revoked
+// Python/shell or host-execution grant, an enabled require_sandbox policy, or
+// a Skill Manager entry that is disabled, unscanned or changed on disk.
 func (s *DaemonSupervisor) RefreshRuntimePermissions() {
 	s.mu.RLock()
 	runners := make([]*DaemonRunner, 0, len(s.runners))
@@ -258,9 +274,11 @@ func (s *DaemonSupervisor) RefreshRuntimePermissions() {
 		runners = append(runners, runner)
 	}
 	s.mu.RUnlock()
+	requireSandbox := s.requireSandbox.Load()
 	for _, runner := range runners {
-		if err := requireSkillExecutionPermission(runner.manifest); err != nil {
-			if runner.Status() == DaemonRunning || runner.Status() == DaemonStarting || runner.Status() == DaemonCrashed {
+		if _, err := prepareDaemonSkillExecution(runner.skillsDir, runner.manifest, requireSandbox); err != nil {
+			status := runner.Status()
+			if status == DaemonRunning || status == DaemonStarting || status == DaemonCrashed {
 				_ = runner.Stop()
 				s.logger.Warn("Stopped daemon after permission revocation", "skill_id", runner.skillID, "error", err)
 				s.broadcastStatus(runner.skillID, runner)
@@ -316,7 +334,7 @@ func (s *DaemonSupervisor) startDaemonOnDemand(skillID string) error {
 		if manifest.Daemon == nil {
 			return fmt.Errorf("skill %q is not a daemon skill", skillID)
 		}
-		if err := requireSkillExecutionPermission(manifest); err != nil {
+		if _, err := prepareDaemonSkillExecution(s.config.SkillsDir, manifest, s.requireSandbox.Load()); err != nil {
 			return fmt.Errorf("daemon execution denied: %w", err)
 		}
 		// Persist enabled=true so the daemon survives restarts / RefreshSkills calls.

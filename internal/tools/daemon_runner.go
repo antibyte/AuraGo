@@ -22,6 +22,9 @@ const daemonLogMaxBytes = 5 * 1024 * 1024 // 5 MB
 // daemonStopGracePeriod is the default time to wait for a daemon to exit after a stop command.
 const daemonStopGracePeriod = 10 * time.Second
 
+// daemonMemoryLimitMB matches the execute_skill address-space limit.
+const daemonMemoryLimitMB = 1024
+
 // DaemonRunner manages the lifecycle of a single daemon skill process.
 type DaemonRunner struct {
 	mu    sync.Mutex
@@ -62,6 +65,8 @@ type DaemonRunner struct {
 	logDir       string
 	logger       *slog.Logger
 
+	requireSandbox func() bool
+
 	// Wake-up channel: DaemonRunner sends wake-up messages here.
 	// DaemonSupervisor reads from this channel.
 	wakeCh chan<- daemonWakeEvent
@@ -93,6 +98,10 @@ type DaemonRunnerConfig struct {
 	Logger       *slog.Logger
 	WakeCh       chan<- daemonWakeEvent
 
+	// RequireSandbox reports tools.skill_manager.require_sandbox at each start
+	// and restart. Daemon skills run only on the host, so true denies them.
+	RequireSandbox func() bool
+
 	// Tool bridge (optional): set by supervisor when bridge is enabled
 	BridgeURL   string
 	BridgeToken string
@@ -119,7 +128,14 @@ func NewDaemonRunner(cfg DaemonRunnerConfig) *DaemonRunner {
 		bridgeURL:    cfg.BridgeURL,
 		bridgeToken:  cfg.BridgeToken,
 		bridgeTools:  cfg.BridgeTools,
+
+		requireSandbox: cfg.RequireSandbox,
 	}
+}
+
+// sandboxRequired reports whether require_sandbox currently denies daemons.
+func (r *DaemonRunner) sandboxRequired() bool {
+	return r.requireSandbox != nil && r.requireSandbox()
 }
 
 // Status returns the current daemon status under lock.
@@ -176,18 +192,13 @@ func (r *DaemonRunner) Start() error {
 
 // startLocked spawns the process. Caller must hold r.mu.
 func (r *DaemonRunner) startLocked() error {
-	if err := requireSkillExecutionPermission(r.manifest); err != nil {
+	absExecPath, err := prepareDaemonSkillExecution(r.skillsDir, r.manifest, r.sandboxRequired())
+	if err != nil {
 		r.status = DaemonStopped
 		return fmt.Errorf("daemon execution denied: %w", err)
 	}
 	r.status = DaemonStarting
 	r.logger.Info("Starting daemon")
-
-	absExecPath := filepath.Join(r.skillsDir, r.manifest.Executable)
-	if _, err := os.Stat(absExecPath); os.IsNotExist(err) {
-		r.status = DaemonStopped
-		return fmt.Errorf("daemon executable not found: %s", absExecPath)
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
@@ -226,6 +237,15 @@ func (r *DaemonRunner) startLocked() error {
 		return protectionErr
 	}
 	cmd = protected
+	// Own process group on Unix; stop and max runtime kill the whole tree,
+	// not only the leader that exec.CommandContext would kill by default.
+	SetSkillLimits(cmd, daemonMemoryLimitMB, 0)
+	cmd.Cancel = func() error {
+		if cmd.Process != nil {
+			KillProcessTree(cmd.Process.Pid)
+		}
+		return nil
+	}
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
 		r.status = DaemonStopped
@@ -256,6 +276,7 @@ func (r *DaemonRunner) startLocked() error {
 	}
 
 	pid := cmd.Process.Pid
+	applyDaemonLimits(pid, daemonMemoryLimitMB)
 	// Close old stdin pipe before overwriting (handles restart case).
 	if r.stdinPipe != nil {
 		_ = r.stdinPipe.Close()
@@ -495,6 +516,8 @@ func (r *DaemonRunner) handleMessage(msg DaemonMessage) {
 func (r *DaemonRunner) waitProcess(cmd interface{ Wait() error }, procInfo *ProcessInfo, cancel context.CancelFunc) {
 	err := cmd.Wait()
 	cancel() // ensure context is canceled
+	// Children the daemon left behind keep its process group alive; reap them.
+	killDaemonProcessGroup(procInfo.PID)
 
 	procInfo.mu.Lock()
 	procInfo.Alive = false

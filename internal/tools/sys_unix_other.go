@@ -8,3 +8,6 @@ package tools
 func ApplySkillLimits(pid, memoryMB, cpuSeconds int) {
 	// No-op: prlimit(2) is not available outside Linux.
 }
+
+// applyDaemonLimits is a no-op outside Linux; prlimit(2) is Linux-specific.
+func applyDaemonLimits(pid, memoryMB int) {}
