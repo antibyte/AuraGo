@@ -447,13 +447,30 @@ func (c *agodeskKnowledgeCoordinator) rollbackIndexedDocument(record memory.AgoD
 		return
 	}
 	docIDs, err := c.server.ShortTermMem.GetFileEmbeddingDocIDs(record.StoragePath, record.Collection)
-	if err == nil && c.server.LongTermMem != nil {
-		for _, docID := range docIDs {
-			if deleteErr := c.server.LongTermMem.DeleteDocumentFromCollection(docID, record.Collection); deleteErr != nil {
-				c.server.Logger.Warn("Failed to roll back knowledge embedding", "document_id", record.DocumentID, "vector_id", docID, "error", scrubAgodeskKnowledgeLogError(deleteErr))
-			}
+	if err != nil {
+		c.server.Logger.Warn("Keeping knowledge index tracking; tracked embeddings unreadable", "document_id", record.DocumentID, "error", scrubAgodeskKnowledgeLogError(err))
+		return
+	}
+	if len(docIDs) > 0 && c.server.LongTermMem == nil {
+		c.server.Logger.Warn("Keeping knowledge index tracking; vector store unavailable", "document_id", record.DocumentID, "vectors", len(docIDs))
+		return
+	}
+	deleted := make([]string, 0, len(docIDs))
+	for _, docID := range docIDs {
+		if deleteErr := c.server.LongTermMem.DeleteDocumentFromCollection(docID, record.Collection); deleteErr != nil {
+			c.server.Logger.Warn("Failed to roll back knowledge embedding", "document_id", record.DocumentID, "vector_id", docID, "error", scrubAgodeskKnowledgeLogError(deleteErr))
+			continue
 		}
-		_ = c.server.ShortTermMem.DeleteMemoryMetaBatch(docIDs)
+		deleted = append(deleted, docID)
+	}
+	if len(deleted) > 0 {
+		_ = c.server.ShortTermMem.DeleteMemoryMetaBatch(deleted)
+	}
+	if len(deleted) != len(docIDs) {
+		// Tracking is the only record of the remaining vectors; keep it so a
+		// later cleanup can still find and delete them.
+		c.server.Logger.Warn("Keeping knowledge index tracking until every embedding is removed", "document_id", record.DocumentID, "remaining", len(docIDs)-len(deleted))
+		return
 	}
 	_ = c.server.ShortTermMem.DeleteFileIndex(record.StoragePath, record.Collection)
 	_ = c.server.ShortTermMem.DeleteFileIndexMetadata(record.StoragePath, record.Collection)

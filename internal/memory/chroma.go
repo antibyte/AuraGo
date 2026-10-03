@@ -326,6 +326,33 @@ func (cv *ChromemVectorDB) SearchToolGuideMatchesContext(ctx context.Context, qu
 	return guidePaths, nil
 }
 
+// vectorDocDeleter is the slice of *chromem.Collection that removed-file cleanup needs.
+type vectorDocDeleter interface {
+	Delete(ctx context.Context, where, whereDocument map[string]string, ids ...string) error
+}
+
+// markdownVectorDeleter returns the deleter IndexDirectory uses for stale vectors; tests replace it.
+var markdownVectorDeleter = func(col *chromem.Collection) vectorDocDeleter { return col }
+
+// deleteRemovedMarkdownVectors deletes every vector of a removed file: by tracked
+// doc ID, or by source name when no IDs were tracked. It returns all delete errors
+// so the caller keeps the tracking row until the vectors are really gone.
+func deleteRemovedMarkdownVectors(ctx context.Context, del vectorDocDeleter, trackedPath string, docIDs []string) error {
+	var deleteErr error
+	for _, docID := range docIDs {
+		if err := del.Delete(ctx, nil, nil, docID); err != nil {
+			deleteErr = errors.Join(deleteErr, fmt.Errorf("delete stale doc %s: %w", docID, err))
+		}
+	}
+	if len(docIDs) == 0 {
+		source := strings.TrimSuffix(filepath.Base(trackedPath), ".md")
+		if err := del.Delete(ctx, map[string]string{"source": source}, nil); err != nil {
+			deleteErr = errors.Join(deleteErr, fmt.Errorf("delete stale docs by source %s: %w", source, err))
+		}
+	}
+	return deleteErr
+}
+
 // IndexDirectory scans a directory for markdown files and indexes them if they've changed.
 func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLiteMemory, force bool) error {
 	doneIndex, err := cv.beginTrackedOperation(&cv.indexingWg)
@@ -477,11 +504,13 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		}
 	}
 
+	var cleanupErr error
 	if stm != nil {
 		trackedPaths, listErr := stm.ListIndexedFiles(collectionName)
 		if listErr != nil {
 			return fmt.Errorf("list indexed files for %s: %w", collectionName, listErr)
 		}
+		deleter := markdownVectorDeleter(collection)
 		for _, trackedPath := range trackedPaths {
 			if !isPathWithinDirectory(trackedPath, dir) {
 				continue
@@ -493,16 +522,10 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			if idsErr != nil {
 				return fmt.Errorf("get tracked doc ids for %s in %s: %w", trackedPath, collectionName, idsErr)
 			}
-			source := strings.TrimSuffix(filepath.Base(trackedPath), ".md")
-			for _, docID := range docIDs {
-				if delErr := collection.Delete(ctx, nil, nil, docID); delErr != nil {
-					cv.logger.Warn("Failed to delete stale docs for removed file by id", "path", trackedPath, "doc_id", docID, "error", delErr)
-				}
-			}
-			if len(docIDs) == 0 {
-				if delErr := collection.Delete(ctx, map[string]string{"source": source}, nil); delErr != nil {
-					cv.logger.Warn("Failed to delete stale docs for removed file by source", "path", trackedPath, "source", source, "error", delErr)
-				}
+			if delErr := deleteRemovedMarkdownVectors(ctx, deleter, trackedPath, docIDs); delErr != nil {
+				cv.logger.Warn("Keeping tracking for removed file until its vectors are deleted", "path", trackedPath, "collection", collectionName, "error", delErr)
+				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("retain tracking for removed file %s in %s: %w", trackedPath, collectionName, delErr))
+				continue
 			}
 			if delErr := stm.DeleteFileIndex(trackedPath, collectionName); delErr != nil {
 				return fmt.Errorf("delete file index for removed file %s in %s: %w", trackedPath, collectionName, delErr)
@@ -513,11 +536,11 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 
 	if len(indexedFiles) == 0 {
 		cv.logger.Info("No new/changed documents to index", "dir", dir)
-		return nil
+		return cleanupErr
 	}
 
 	cv.logger.Info("Indexing directory...", "dir", dir, "total_docs", totalDocs)
-	var updateErr error
+	updateErr := cleanupErr
 	for _, f := range indexedFiles {
 		if stm != nil {
 			for i := range f.docs {
