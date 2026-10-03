@@ -2302,6 +2302,88 @@ async function testQuickConnectSFTPNavigatorIgnoresStaleListings() {
   assert.match(panel, /activeSFTPNav\.dispose\(\)/);
 }
 
+function loadDashboardCardRuntime(blockStart, blockEnd, extra) {
+  const source = read('ui/js/dashboard/dashboard-widgets.js');
+  const gateSource = sourceBetween(source, 'function createLatestRequestGate()', '// ═══ Cronjobs');
+  const blockSource = sourceBetween(source, blockStart, blockEnd);
+  const pending = [];
+  const cardEvents = [];
+  const context = {
+    AbortController,
+    URLSearchParams,
+    console: { warn() {} },
+    window: {},
+    document: { getElementById: () => null },
+    t: key => key,
+    showToast: () => {},
+    TabState: { active: 'audit' },
+    CardState: {
+      setLoading: id => cardEvents.push(`loading:${id}`),
+      setLoaded: id => cardEvents.push(`loaded:${id}`),
+      setError: id => cardEvents.push(`error:${id}`)
+    },
+    fetch: (url, options) => new Promise(resolve => {
+      pending.push({ url: String(url), signal: options && options.signal, resolve });
+    }),
+    ...extra
+  };
+  vm.createContext(context);
+  vm.runInContext(`${gateSource}\n${blockSource}`, context);
+  return { context, pending, cardEvents };
+}
+
+const dashboardJSON = body => ({ ok: true, json: async () => body });
+
+async function testDashboardAuditIgnoresLateResponses() {
+  const { context, pending, cardEvents } = loadDashboardCardRuntime('// ═══ Audit Log', '// ═══ Mission History', {});
+  const rendered = [];
+  context.renderAuditEvents = page => rendered.push(page.tag);
+
+  const nextPage = context.loadAuditPage(25);
+  const refresh = context.loadAuditPage(0);
+  assert.equal(pending.length, 2);
+  assert.match(pending[0].url, /offset=25/);
+  assert.equal(pending[0].signal.aborted, true, 'a newer audit request must abort the older one');
+  pending[1].resolve(dashboardJSON({ tag: 'page-1', entries: [], total: 60 }));
+  await refresh;
+  pending[0].resolve(dashboardJSON({ tag: 'page-2', entries: [], total: 60 }));
+  await nextPage;
+  assert.deepEqual(rendered, ['page-1'], 'a late audit response must not replace the newer page');
+  assert.equal(vm.runInContext('auditOffset', context), 0, 'the offset belongs to the rendered page');
+
+  const failing = context.loadAuditPage(50);
+  pending[2].resolve({ ok: false, json: async () => ({}) });
+  await failing;
+  assert.equal(vm.runInContext('auditOffset', context), 0, 'a failed page load keeps the committed offset');
+  assert.equal(cardEvents.filter(event => event.startsWith('error:')).length, 1);
+}
+
+async function testDashboardCronjobsIgnoreLateResponses() {
+  const rendered = [];
+  const { context, pending, cardEvents } = loadDashboardCardRuntime('// ═══ Cronjobs', 'function renderMemoryCurationPreview(plan)', {
+    cronjobsQueryParams: () => new URLSearchParams(),
+    renderCronjobs: data => rendered.push(data.tag)
+  });
+
+  const older = context.loadTabCronjobs();
+  const newer = context.loadTabCronjobs();
+  assert.equal(pending[0].signal.aborted, true, 'a newer cronjob search must abort the older one');
+  pending[1].resolve(dashboardJSON({ tag: 'new' }));
+  await newer;
+  pending[0].resolve(dashboardJSON({ tag: 'old' }));
+  await older;
+  assert.deepEqual(rendered, ['new'], 'a late cronjob response must not replace the newer result');
+
+  const staleFailure = context.loadTabCronjobs();
+  const current = context.loadTabCronjobs();
+  pending[3].resolve(dashboardJSON({ tag: 'current' }));
+  await current;
+  pending[2].resolve({ ok: false, json: async () => ({}) });
+  await staleFailure;
+  assert.deepEqual(rendered, ['new', 'current']);
+  assert.equal(cardEvents.some(event => event.startsWith('error:')), false, 'a stale failure must not show an error over current data');
+}
+
 const tests = [
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
@@ -2345,6 +2427,8 @@ const tests = [
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],
   ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],
+  ['Dashboard audit search ignores late responses', testDashboardAuditIgnoresLateResponses],
+  ['Dashboard cronjob search ignores late responses', testDashboardCronjobsIgnoreLateResponses],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

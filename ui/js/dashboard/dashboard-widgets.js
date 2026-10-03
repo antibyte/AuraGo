@@ -1644,22 +1644,49 @@
         // OPERATIONS & INTEGRATIONS
         // ══════════════════════════════════════════════════════════════════════════════
 
+        // ═══ Latest-request gate (Cronjobs, Audit) ══════════════════════════════════
+        // One gate per card: begin() aborts the previous request, and only the newest
+        // request may render, commit pagination state or show an error.
+        function createLatestRequestGate() {
+            let sequence = 0;
+            let controller = null;
+            return {
+                begin() {
+                    if (controller) controller.abort();
+                    const own = new AbortController();
+                    controller = own;
+                    const id = ++sequence;
+                    return {
+                        signal: own.signal,
+                        isCurrent: () => id === sequence,
+                        finish: () => { if (controller === own) controller = null; }
+                    };
+                }
+            };
+        }
+
         // ═══ Cronjobs ═══════════════════════════════════════════════════════════════
         let cronjobsSearchTimer = null;
+        const cronjobsRequests = createLatestRequestGate();
 
         async function loadTabCronjobs() {
+            const request = cronjobsRequests.begin();
             CardState.setLoading('card-cronjobs');
             const params = cronjobsQueryParams();
             try {
-                const resp = await fetch('/api/dashboard/cronjobs?' + params.toString(), { credentials: 'same-origin' });
+                const resp = await fetch('/api/dashboard/cronjobs?' + params.toString(), { credentials: 'same-origin', signal: request.signal });
                 if (!resp.ok) throw new Error('Cronjobs load failed');
                 const data = await resp.json();
+                if (!request.isCurrent()) return;
                 renderCronjobs(data);
                 CardState.setLoaded('card-cronjobs');
             } catch (e) {
+                if (!request.isCurrent() || (e && e.name === 'AbortError')) return;
                 console.warn('Cronjobs load failed', e);
                 CardState.setError('card-cronjobs', loadTabCronjobs, { status: 0 });
                 if (typeof showToast === 'function') showToast(t('dashboard.cronjobs_error_load'), 'error', 5000);
+            } finally {
+                request.finish();
             }
         }
 
@@ -2015,9 +2042,9 @@
         const AUDIT_PAGE_SIZE = 25;
         let auditSearchTimer = null;
         let auditRefreshTimer = null;
+        const auditRequests = createLatestRequestGate();
 
         async function loadTabAudit() {
-            auditOffset = 0;
             await loadAuditPage(0);
         }
 
@@ -2032,21 +2059,28 @@
         window.scheduleAuditRefresh = scheduleAuditRefresh;
 
         async function loadAuditPage(offset) {
-            auditOffset = Math.max(0, offset || 0);
+            const requestedOffset = Math.max(0, offset || 0);
+            const request = auditRequests.begin();
             CardState.setLoading('card-audit-log');
             const params = auditQueryParams();
             params.set('limit', String(AUDIT_PAGE_SIZE));
-            params.set('offset', String(auditOffset));
+            params.set('offset', String(requestedOffset));
             try {
-                const resp = await fetch('/api/dashboard/audit?' + params.toString(), { credentials: 'same-origin' });
+                const resp = await fetch('/api/dashboard/audit?' + params.toString(), { credentials: 'same-origin', signal: request.signal });
                 if (!resp.ok) throw new Error('Audit load failed');
                 const page = await resp.json();
+                if (!request.isCurrent()) return;
+                // Commit the offset only with the page it belongs to (renderAuditEvents reads it).
+                auditOffset = requestedOffset;
                 renderAuditEvents(page);
                 CardState.setLoaded('card-audit-log');
             } catch (e) {
+                if (!request.isCurrent() || (e && e.name === 'AbortError')) return;
                 console.warn('Audit load failed', e);
-                CardState.setError('card-audit-log', () => loadAuditPage(auditOffset), { status: 0 });
+                CardState.setError('card-audit-log', () => loadAuditPage(requestedOffset), { status: 0 });
                 if (typeof showToast === 'function') showToast(t('dashboard.audit_error_load'), 'error', 5000);
+            } finally {
+                request.finish();
             }
         }
 
