@@ -1912,8 +1912,11 @@ func (r *statusRecorder) Flush() {
 }
 
 // accessLogMiddleware logs every HTTP request in a structured format useful for
-// security monitoring and incident response.  Static asset requests (JS, CSS,
-// fonts, images) are silently skipped to keep the log concise.
+// security monitoring and incident response. Static asset requests (JS, CSS,
+// fonts, images), health probes and the /events SSE stream are skipped.
+// High-frequency read-only polling (successful GET/HEAD/OPTIONS on dashboard
+// and status paths) is logged at Debug; mutations and every response >= 400
+// on those paths always reach the access log.
 //
 // Log fields:
 //   - method, path, status, duration_ms, ip, user_agent
@@ -1930,22 +1933,19 @@ func accessLogMiddleware(logger *slog.Logger, next http.Handler, behindProxy boo
 			strings.HasSuffix(path, ".svg") ||
 			strings.HasSuffix(path, ".map") ||
 			path == "/api/health" ||
-			path == "/api/ready"
+			path == "/api/ready" ||
+			path == "/events" // long-lived SSE stream: keep the writer unwrapped
 		if skip {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		// High-frequency dashboard polling paths — logged at Debug to avoid log spam.
-		// These are read-only status checks that fire every few seconds from the UI.
-		quietPoll := strings.HasPrefix(path, "/api/dashboard/") ||
-			path == "/api/personality/state" ||
-			path == "/api/tsnet/status" ||
-			path == "/events"
-		if quietPoll {
-			next.ServeHTTP(w, r)
-			return
-		}
+		// High-frequency read-only polling from the UI is logged at Debug.
+		// Mutations and failures on these paths are logged like any request.
+		quietPoll := isSafeMethod(r.Method) &&
+			(strings.HasPrefix(path, "/api/dashboard/") ||
+				path == "/api/personality/state" ||
+				path == "/api/tsnet/status")
 
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		start := time.Now()
@@ -1969,9 +1969,12 @@ func accessLogMiddleware(logger *slog.Logger, next http.Handler, behindProxy boo
 			"ip", ClientIP(r, behindProxy),
 			"user_agent", r.UserAgent(),
 		}
-		if isError || isAuthWarn {
+		switch {
+		case isError || isAuthWarn:
 			logger.Warn("[Access]", args...)
-		} else {
+		case quietPoll:
+			logger.Debug("[Access]", args...)
+		default:
 			logger.Info("[Access]", args...)
 		}
 	})
