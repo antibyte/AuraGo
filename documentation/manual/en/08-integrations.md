@@ -2835,10 +2835,10 @@ The API key and node secret are Vault-only (`evomap_api_key` and `evomap_node_se
 ## Testing Integrations
 
 ### Health checks
-A dedicated live health route exists for Discord:
+A dedicated live health route exists for Discord. It requires a logged-in browser session or an API token with `admin` scope, because the response names the bot account and its last connection error (`/api/health` and `/api/ready` stay public):
 
 ```bash
-curl http://localhost:8088/api/health/discord
+curl -H "Authorization: Bearer <admin-token>" http://localhost:8088/api/health/discord
 ```
 
 Telegram, email, Home Assistant, Proxmox and similar Config tests are **POST** routes on their own integration APIs. They must not send messages or change remote state. There are no `/api/health/telegram`, `/api/health/email`, `/api/health/homeassistant` or `/api/health/docker` endpoints.

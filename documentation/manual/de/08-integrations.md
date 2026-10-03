@@ -2450,7 +2450,7 @@ API-Key und Node-Secret sind Vault-only (`evomap_api_key` und `evomap_node_secre
 
 ## Integrationen testen
 
-Config-Verbindungstests sind **POST** und nur lesend. Es gibt keine `/api/health/telegram`, `/api/health/email`, `/api/health/homeassistant` oder `/api/health/docker`. Ausnahme: `GET /api/health/discord`.
+Config-Verbindungstests sind **POST** und nur lesend. Es gibt keine `/api/health/telegram`, `/api/health/email`, `/api/health/homeassistant` oder `/api/health/docker`. Ausnahme: `GET /api/health/discord` – erfordert eine angemeldete Sitzung oder ein API-Token mit `admin`-Scope, weil die Antwort den Bot-Account und den letzten Verbindungsfehler nennt (`/api/health` und `/api/ready` bleiben öffentlich).
 
 ### Test über Chat
 - "Zeige meine Telegram-Config."

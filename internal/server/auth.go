@@ -665,59 +665,66 @@ func ClientIP(r *http.Request, behindProxy bool) string {
 
 // ── Auth Middleware ──────────────────────────────────────────────────────────
 
-// authBypassPrefixes lists URL prefixes that are always accessible without a session.
-// NOTE: /api/personalities is intentionally NOT in this list — personality profile
+// Session-auth exemptions match either an exact path or a subtree prefix that
+// ends in "/". Plain prefixes are not allowed: "/api/health" must not open
+// "/api/health/discord".
+//
+// NOTE: /api/personalities is intentionally NOT exempt — personality profile
 // names are internal information and the login page does not need them.
 // The setup wizard (/setup) calls this endpoint but auth is auto-disabled when no
 // password is configured, so the setup flow still works without a bypass here.
-var authBypassPrefixes = []string{
-	"/api/health",
-	"/api/ready",
-	"/api/i18n",
+var authBypassExactPaths = map[string]bool{
+	"/api/health":                      true,
+	"/api/ready":                       true,
+	"/api/i18n":                        true,
+	"/api/auth/status":                 true,
+	"/api/auth/logout":                 true,
+	"/api/security/status":             true,
+	"/api/setup":                       true,
+	"/api/openrouter/models":           true,
+	"/api/composio/callback":           true,
+	"/api/oauth/callback":              true,
+	"/api/remote/ws":                   true, // Remote agent WebSocket — has its own key-based auth
+	"/api/agodesk/ws":                  true, // agodesk WebSocket — performs pairing inside the socket protocol
+	"/api/invasion/ws":                 true, // Egg WebSocket — has its own HMAC-based auth handshake
+	"/mcp":                             true, // MCP endpoint — Bearer token or session checked by the handler
+	"/api/space-agent/bridge/messages": true, // Space Agent bridge has its own Bearer token auth
+	"/api/cyd/snapshot":                true, // CYD device snapshot — Bearer scope cyd
+	"/api/cyd/heartbeat":               true, // CYD device heartbeat — Bearer scope cyd
+	"/api/cyd/ack":                     true, // CYD overlay dismiss — Bearer scope cyd
+	"/api/cyd/ws":                      true, // CYD WebSocket — Bearer scope cyd
+	"/api/cyd/persona":                 true, // CYD persona portrait — Bearer scope cyd
+	"/setup":                           true,
+	"/shared.css":                      true,
+	"/shared-variables.css":            true,
+	"/shared-utilities.css":            true,
+	"/shared-components.css":           true,
+	"/shared-animations.css":           true,
+	"/shared.js":                       true,
+	"/site.webmanifest":                true,
+	"/sw.js":                           true,
+	"/tailwind.min.js":                 true,
+	"/chart.min.js":                    true,
+}
+
+// authBypassSubtrees are public path subtrees: static UI code without secrets,
+// or handlers that authenticate every request themselves.
+// Static media files (audio, images, documents) are NOT exempt: they are served
+// as sub-resources of authenticated pages and may expose user-generated content.
+var authBypassSubtrees = []string{
 	"/auth/",
-	"/api/auth/status",
-	"/api/auth/logout",
-	"/api/security/status",
-	"/api/setup",
-	"/api/openrouter/models",
-	"/api/composio/callback",
-	"/api/oauth/callback",
-	"/api/remote/ws",                 // Remote agent WebSocket — has its own key-based auth
-	"/api/agodesk/ws",                // agodesk WebSocket — performs pairing inside the socket protocol
+	"/api/setup/",
 	"/api/agodesk/tts/",              // agodesk TTS assets — limited to cached TTS audio filenames
 	"/api/agodesk/media/",            // agodesk media assets — limited to explicit media buckets by the handler
 	"/api/agodesk/knowledge/upload/", // signed AgoDesk knowledge uploads authenticate inside the handler
-	"/api/invasion/ws",               // Egg WebSocket — has its own HMAC-based auth handshake
 	"/api/game-maker/preview/",       // short-lived project-scoped token is validated by the preview handler
-	"/mcp",
-	"/api/space-agent/bridge/messages", // Space Agent bridge has its own Bearer token auth
-	"/api/cyd/snapshot",                // CYD device snapshot — Bearer scope cyd
-	"/api/cyd/heartbeat",               // CYD device heartbeat — Bearer scope cyd
-	"/api/cyd/ack",                     // CYD overlay dismiss — Bearer scope cyd
-	"/api/cyd/ws",                      // CYD WebSocket — Bearer scope cyd
-	"/api/cyd/speak/",                  // CYD sanoTTS PCM — Bearer scope cyd
-	"/api/cyd/persona",                 // CYD persona portrait — Bearer scope cyd
-	"/webhook/",                        // webhook receiver — per-webhook bound token or HMAC signature
-	"/setup",
+	"/api/cyd/speak/",                // CYD sanoTTS PCM — Bearer scope cyd
+	"/webhook/",                      // webhook receiver — per-webhook bound token or HMAC signature
 	"/css/",
 	"/fonts/",
 	"/img/",
-	"/shared.css",
-	"/shared-variables.css",
-	"/shared-utilities.css",
-	"/shared-components.css",
-	"/shared-animations.css",
-	"/shared.js",
 	"/js/", // All front-end JS is static UI code with no secrets; data access is enforced via auth-protected API endpoints
 	"/cfg/",
-	// Static media files (audio, images, documents) require authentication.
-	// They are served as sub-resources in authenticated pages and must not be
-	// accessible without a valid session (could expose user-generated content).
-	// Browsers consistently send session cookies for same-origin sub-resource requests.
-	"/site.webmanifest",
-	"/sw.js",
-	"/tailwind.min.js",
-	"/chart.min.js",
 }
 
 var publicUIAssetPaths = map[string]bool{
@@ -736,13 +743,22 @@ func isPublicUIAssetPath(path string) bool {
 	return publicUIAssetPaths[path]
 }
 
-func isAuthBypassed(path string) bool {
-	for _, prefix := range authBypassPrefixes {
+// matchesExactOrSubtree reports whether path is listed exactly or lies inside
+// one of the "/"-terminated subtrees.
+func matchesExactOrSubtree(path string, exact map[string]bool, subtrees []string) bool {
+	if exact[path] {
+		return true
+	}
+	for _, prefix := range subtrees {
 		if strings.HasPrefix(path, prefix) {
 			return true
 		}
 	}
-	return isPublicUIAssetPath(path)
+	return false
+}
+
+func isAuthBypassed(path string) bool {
+	return matchesExactOrSubtree(path, authBypassExactPaths, authBypassSubtrees) || isPublicUIAssetPath(path)
 }
 
 // registerTelnyxWebhookPath records the exact path the Telnyx handler was
@@ -757,42 +773,41 @@ func (s *Server) isTelnyxWebhookIngress(path string) bool {
 	return registered != nil && *registered != "" && path == *registered
 }
 
-// noPasswordPrefixes lists the only URL prefixes accessible when auth is enabled
-// but no password has been configured yet. Everything else is hard-blocked.
-// This prevents the server from being openly accessible while auth is "enabled"
-// but the vault is missing or the password was lost.
-var noPasswordPrefixes = []string{
+// noPasswordExactPaths and noPasswordSubtrees list the only paths reachable
+// when auth is enabled but no password has been configured yet. Everything else
+// is hard-blocked, so the server is never openly accessible while auth is
+// "enabled" but the vault is missing or the password was lost.
+var noPasswordExactPaths = map[string]bool{
+	"/api/auth/status":       true,
+	"/api/auth/logout":       true,
+	"/api/auth/password":     true, // allows setting the initial password
+	"/api/security/status":   true,
+	"/api/setup":             true,
+	"/api/i18n":              true,
+	"/api/personalities":     true,
+	"/api/openrouter/models": true,
+	"/setup":                 true,
+	"/shared.css":            true,
+	"/shared-variables.css":  true,
+	"/shared-utilities.css":  true,
+	"/shared-components.css": true,
+	"/shared-animations.css": true,
+	"/shared.js":             true,
+	"/site.webmanifest":      true,
+	"/sw.js":                 true,
+}
+
+var noPasswordSubtrees = []string{
 	"/auth/",
-	"/api/auth/status",
-	"/api/auth/logout",
-	"/api/auth/password", // allows setting the initial password
-	"/api/security/status",
-	"/api/setup",
-	"/api/i18n",
-	"/api/personalities",
-	"/api/openrouter/models",
-	"/setup",
+	"/api/setup/",
 	"/css/",
 	"/fonts/",
-	"/shared.css",
-	"/shared-variables.css",
-	"/shared-utilities.css",
-	"/shared-components.css",
-	"/shared-animations.css",
-	"/shared.js",
 	"/js/",
 	"/cfg/",
-	"/site.webmanifest",
-	"/sw.js",
 }
 
 func isAllowedWithoutPassword(path string) bool {
-	for _, prefix := range noPasswordPrefixes {
-		if strings.HasPrefix(path, prefix) {
-			return true
-		}
-	}
-	return isPublicUIAssetPath(path)
+	return matchesExactOrSubtree(path, noPasswordExactPaths, noPasswordSubtrees) || isPublicUIAssetPath(path)
 }
 
 func requiresPasswordBootstrap(cfg *config.Config) bool {
