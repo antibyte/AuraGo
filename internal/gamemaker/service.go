@@ -58,6 +58,7 @@ type Service struct {
 	acceptedPlans      map[string]bool
 	planAttempts       map[string]int
 	planErrors         map[string]error
+	planConstraints    map[string]planSelectionConstraints
 	jobSummaries       map[string]string
 	validationFailures map[string]int
 	lastFailedBuild    map[string]string
@@ -124,6 +125,7 @@ func NewService(opts Options) (*Service, error) {
 		acceptedPlans:      map[string]bool{},
 		planAttempts:       map[string]int{},
 		planErrors:         map[string]error{},
+		planConstraints:    map[string]planSelectionConstraints{},
 		jobSummaries:       map[string]string{},
 		validationFailures: map[string]int{},
 		lastFailedBuild:    map[string]string{},
@@ -498,6 +500,7 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	jobCtx, cancel := s.jobContext(job, project)
 	s.activeJobID = job.ID
 	s.jobCancels[job.ID] = cancel
+	s.planConstraints[job.ID] = newPlanSelectionConstraints(assetSelections, modelAssetIDs, req.Presentation)
 	s.mu.Unlock()
 
 	project.ProviderID = providerID
@@ -535,6 +538,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		delete(s.acceptedPlans, job.ID)
 		delete(s.planAttempts, job.ID)
 		delete(s.planErrors, job.ID)
+		delete(s.planConstraints, job.ID)
 		delete(s.designDrafts, job.ID)
 		delete(s.jobSummaries, job.ID)
 		delete(s.validationFailures, job.ID)
@@ -634,48 +638,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 				s.terminateJob(job, ctx, fmt.Errorf("accepted plan is unavailable: %v", err))
 				return
 			}
-			missing := []string{}
-			for _, selected := range assetSelections {
-				if !slices.ContainsFunc(plan.Assets, func(a PlanAsset) bool { return a.PackID == selected.PackID && a.AssetID == selected.AssetID }) {
-					missing = append(missing, selected.PackID+"/"+selected.AssetID)
-				}
-			}
-			if selection != nil {
-				wantedFX, wantedAudio, _ := resolvePresentation(selection)
-				actualFX, actualAudio, _ := resolvePresentation(plan.Presentation)
-				for _, pair := range [][2][]PresentationAsset{{wantedFX, actualFX}, {wantedAudio, actualAudio}} {
-					for _, a := range pair[0] {
-						if !slices.ContainsFunc(pair[1], func(b PresentationAsset) bool { return a.ID == b.ID }) {
-							missing = append(missing, a.ID)
-						}
-					}
-				}
-				for _, binding := range selection.Sounds {
-					if plan.Presentation == nil || !slices.Contains(plan.Presentation.Sounds, binding) {
-						missing = append(missing, binding.Event+":"+binding.Sound)
-					}
-				}
-			}
-			for _, id := range modelAssetIDs {
-				found := false
-				for _, a := range plan.Assets {
-					if a.PackID == ModelPackID && a.AssetID == id {
-						found = true
-					}
-				}
-				if !found {
-					missing = append(missing, id)
-				}
-			}
-			if len(missing) == 0 {
-				break
-			}
-			plan = nil
-			planErr = fmt.Errorf("plan: include user-selected asset and presentation IDs: %s", strings.Join(missing, ", "))
-			s.mu.Lock()
-			delete(s.acceptedPlans, job.ID)
-			s.planErrors[job.ID] = planErr
-			s.mu.Unlock()
+			break
 		}
 		planDiagnostics = []Diagnostic{{Level: "plan", Message: "A validated set_design submission is required. Use inspect.design_example and submit your design choices."}}
 		if planErr != nil {
@@ -970,6 +933,7 @@ func (s *Service) releaseJobLocked(id string) {
 	if s.activeJobID == id {
 		s.activeJobID = ""
 	}
+	delete(s.planConstraints, id)
 }
 
 func (s *Service) JobDirectory(jobID string) (string, error) {

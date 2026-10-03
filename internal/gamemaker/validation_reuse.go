@@ -55,7 +55,16 @@ func validationFingerprint(stage string) (string, error) {
 }
 
 func (s *Service) reusableValidation(ctx context.Context, jobID, scope string) (BuildResult, bool) {
+	return s.reusableValidationWithFingerprint(ctx, jobID, scope, validationFingerprint)
+}
+
+// reusableValidationWithFingerprint keeps the filesystem check injectable for
+// focused tests without adding mutable package-level test state.
+func (s *Service) reusableValidationWithFingerprint(ctx context.Context, jobID, scope string, fingerprintFunc func(string) (string, error)) (BuildResult, bool) {
 	if ctx.Err() != nil || s.CheckJobMutation(ctx, jobID) != nil {
+		return BuildResult{}, false
+	}
+	if !s.reusableValidationCandidate(jobID, scope) {
 		return BuildResult{}, false
 	}
 	s.fileMu.Lock()
@@ -70,32 +79,64 @@ func (s *Service) reusableValidation(ctx context.Context, jobID, scope string) (
 	if err != nil {
 		return BuildResult{}, false
 	}
-	fingerprint, err := validationFingerprint(stage)
+	// The cache and browser evidence can change while this call waits for the
+	// filesystem locks or resolves the job. Recheck before walking the tree.
+	if !s.reusableValidationCandidate(jobID, scope) {
+		return BuildResult{}, false
+	}
+	if fingerprintFunc == nil {
+		return BuildResult{}, false
+	}
+	fingerprint, err := fingerprintFunc(stage)
 	if err != nil {
 		return BuildResult{}, false
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	last := s.lastValidation[jobID]
-	if last == nil || !last.OK || last.TargetedChecks || last.validationScope != scope || last.fingerprint == "" || last.fingerprint != fingerprint || last.RuntimeStatus != "passed" {
+	// Recheck every cache and evidence condition after the tree walk. A grant,
+	// scenario list, or browser build can become stale while hashing is in flight.
+	if !s.reusableValidationCandidateLocked(jobID, scope) || last == nil || last.fingerprint != fingerprint {
 		return BuildResult{}, false
 	}
 	check := last.check
-	if check == nil || check != s.previewCheck || check.JobID != jobID || s.activeJobID != jobID || len(check.Diagnostics) > 0 || check.ReadyAt.IsZero() || time.Since(check.ReadyAt) < 3*time.Second {
-		return BuildResult{}, false
-	}
 	grant, ok := s.tokens[check.BoundToken]
 	if !ok || grant.ProjectID != job.ProjectID || grant.JobID != jobID || grant.ValidationID != check.ID || time.Now().After(grant.ExpiresAt) {
 		return BuildResult{}, false
 	}
+	return *last, true
+}
+
+func (s *Service) reusableValidationCandidate(jobID, scope string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.reusableValidationCandidateLocked(jobID, scope)
+}
+
+// reusableValidationCandidateLocked checks the in-memory prerequisites that
+// can disqualify a cache entry without reading project files. The caller must
+// hold s.mu for reading or writing; the project fingerprint is checked later.
+func (s *Service) reusableValidationCandidateLocked(jobID, scope string) bool {
+	last := s.lastValidation[jobID]
+	if last == nil || !last.OK || last.TargetedChecks || last.validationScope != scope || last.fingerprint == "" || last.RuntimeStatus != "passed" {
+		return false
+	}
+	check := last.check
+	if check == nil || check != s.previewCheck || check.JobID != jobID || s.activeJobID != jobID || len(check.Diagnostics) > 0 || check.ReadyAt.IsZero() || time.Since(check.ReadyAt) < 3*time.Second {
+		return false
+	}
+	grant, ok := s.tokens[check.BoundToken]
+	if !ok || grant.JobID != jobID || grant.ValidationID != check.ID || time.Now().After(grant.ExpiresAt) {
+		return false
+	}
 	encoded, _ := json.Marshal(check.Scenarios)
 	if last.scenarioFingerprint == "" || last.scenarioFingerprint != sourceHash(string(encoded)) {
-		return BuildResult{}, false
+		return false
 	}
 	if scope != "startup" && (last.GameplayStatus != "passed" || !check.GameplayReceived || len(check.Scenarios) == 0) {
-		return BuildResult{}, false
+		return false
 	}
-	return *last, true
+	return true
 }
 
 // Explicit tool validation always runs afresh. Only the orchestrator can reuse

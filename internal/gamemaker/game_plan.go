@@ -238,6 +238,9 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 	if err := s.checkPlan(project, plan); err != nil {
 		return err
 	}
+	if err := s.validatePlanSelections(jobID, plan, compact); err != nil {
+		return err
+	}
 	stage, err := s.JobDirectory(jobID)
 	if err != nil {
 		return err

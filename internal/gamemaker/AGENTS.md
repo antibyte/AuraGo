@@ -218,6 +218,8 @@ revision publication and standalone export for Phaser and Three.js games.
   same job, scope, scenarios, source/assets/runtime/plan fingerprint and current
   unexpired browser evidence. Targeted, changed, failed or stale results never
   qualify; explicit validation tools request a fresh run.
+  Reject ineligible in-memory candidates before hashing the project; recheck
+  eligibility under the existing locks and all evidence after the fingerprint.
 - An explicit Studio retry of a failed published 2D edit may validate its
   restored draft before another model call when `src/main.ts` differs from the
   immutable base revision. Missing or unchanged source follows normal building.
@@ -236,6 +238,18 @@ revision publication and standalone export for Phaser and Three.js games.
   Repair packets preserve failed input steps, passed checks, source diagnostics
   and the remaining shared budget. Tool-result telemetry records only allowlisted
   operation/status, phase and duration, never arguments, output or reasoning.
+  Earlier user requests may use a lossless text dictionary plus ordered sequence
+  only when smaller than the original array. Preserve chronology, multiplicity
+  and every distinct request; repeated instructions can be additive or restore
+  an earlier preference. Never deduplicate against history omitted by fitting.
+- Fresh non-scene platformer/topdown/shooter/blocks/board and guided 3D jobs use
+  source-only generation immediately after planning when every installed template
+  file exactly matches the accepted plan (CRLF/LF may normalize). No repair is
+  consumed before the first validation. Scene/custom mechanics, blank/voxel bases,
+  changed source, published edits and resumed drafts retain tools. Resume identity
+  comes from the server-owned JobRun, not the database Job projection. Include
+  the actual validation plan, design obligations and engine presentation guidance;
+  retain unchanged-starter, compiler, browser and publication gates.
 - Tool-free starter generation supplies the current job, fixed `src/main.ts`
   target and source digest. Its request view retains available reasoning and the
   current snapshot, omitting earlier tool calls, results and rejected source;
@@ -277,6 +291,9 @@ revision publication and standalone export for Phaser and Three.js games.
 - Provider schemas may encode `set_plan.plan` as a JSON object string. Native and XML fallback parsing must preserve the complete structured plan, including the legacy XML task-prompt alias. Keep field-specific validation errors across planning rounds and in the final failure; successful correction must not carry obsolete plan errors into building.
 - Plan submission rejects unknown JSON fields within the same correction budget and reports independent asset errors together. Each asset role uses singular pack/asset/assembly IDs; variants need distinct roles. Legacy plan perspective errors target root `plan.perspective`, never a writable asset `view`. Compact-design errors instead target `design.assets`, keep the requested base and return bounded compatible catalog alternatives; corrections retain the complete asset array. Asset search ranks content above pack names and excludes pack-name matches when already scoped to that pack.
 - Planning ends on server-owned acceptance or exhausted corrections through `RunConfig.RunComplete`, without another LLM request. Remaining declared native calls receive one skipped result each and are never dispatched; cancellation still fails the round. The orchestrator alone advances an accepted plan to building.
+  Explicit user-selected artwork/model/presentation IDs and sound bindings are
+  checked at the shared compact/legacy plan acceptance boundary, within the same
+  correction budget. Never report acceptance and revoke it later for selections.
 - Exhausted repair budgets, unavailable browser feedback, and the first validation of each repair round also end the agent round through server-owned completion. Building can continue after core checks while budget remains. Exhaustion retains the last concrete failed check instead of replacing it with the budget error. Earlier rounds cannot complete a new round.
 - A rejected tool call in the tool-free limit response during Game Maker building/repair hands the saved source back to orchestrator validation. Never execute the extra call, retain its prose, increase budgets or mark the game successful without the existing checks. Planning failures, cancellation and other provider/agent errors still fail normally.
 - New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. Failed/cancelled jobs preserve the last playable revision; at most three repair passes are shared by tool and orchestrator validation.

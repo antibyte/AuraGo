@@ -516,6 +516,15 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		// A continued draft or published project already contains its plan.
 		run.Plan, _ = r.service.GetPlan(ctx, run.Job.ID)
 	}
+	if run.Stage == "building" && run.Plan != nil {
+		ready, err := r.service.StarterGenerationReady(ctx, run.Job)
+		if err != nil {
+			return fmt.Errorf("check Game Maker starter generation: %w", err)
+		}
+		if ready {
+			return r.implementGameStarter(ctx, &cfg, client, run)
+		}
+	}
 	if run.Stage == "repair" && run.Job.BaseRevision == 0 && slices.ContainsFunc(run.Diagnostics, func(d gamemaker.Diagnostic) bool { return d.Level == "implementation" }) {
 		return r.implementGameStarter(ctx, &cfg, client, run)
 	}
@@ -543,7 +552,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	if err != nil {
 		return err
 	}
-	contextData["previous_user_requests"] = requests
+	contextData["previous_user_requests"] = gameMakerPreviousRequests(requests)
 	contextData["working_copy_restored"] = run.Job.ResumeFrom != ""
 	history, checkpoint, err := r.gameConversation(ctx, &cfg, run, true)
 	if err != nil {

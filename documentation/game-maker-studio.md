@@ -157,8 +157,14 @@ calls in that response are rejected. The `[PromptCache] Provider usage` log repo
 measurements, including zero hits. `cache_usage_reported=false` means unknown, not
 zero. `system_cache_hit` only measures AuraGo's local prompt-construction cache.
 
-When an accepted new-game plan still has unchanged starter code, the bounded
-implementation fallback explicitly switches to source generation for `src/main.ts`.
+New games using an untouched platformer, topdown, shooter, blocks, board or guided
+3D starter go directly from accepted planning to source generation for `src/main.ts`.
+The server checks every plan-bound template file before selecting this route;
+custom scenes/mechanics, blank bases, voxel games, revisions and resumed drafts
+retain the tool-enabled workflow. The initial implementation consumes no repair
+attempt. Compiler, unchanged-starter, browser and publication checks still apply.
+The same source-generation path remains the bounded implementation fallback when
+an ordinary building round leaves a new game's starter unchanged.
 The private conversation remains complete. The outgoing request keeps available
 reasoning and the current source snapshot, leaving out previous tool calls,
 results and rejected source. The snapshot includes the current job ID, fixed
@@ -176,7 +182,7 @@ when the selected route resolves to at least 65536 context and permits more than
 8192 output tokens. Other routes keep the general agent reserve. Every request
 still obeys the selected model's effective output and context limits.
 
-For unchanged template helpers, the fallback supplies a compact API reference
+For unchanged template helpers, source generation supplies a compact API reference
 instead of the full common.ts. The server compares the complete helper against
 the template generated from the accepted plan; a version comment is not proof.
 Authored or older helpers retain their complete compatible references, with the
@@ -609,6 +615,9 @@ replacement uses `scene_set`, keeping that schema out of `scene_patch`.
 - Planning returns up to eight independent field issues, correction examples
   and remaining attempts. All existing plan gates and the two-correction limit
   remain in force; omitted fields are retained and supplied arrays replace whole.
+  Explicit user selections are checked before the plan is accepted, including
+  legacy plans and continued drafts. Missing artwork, models, effects and sound
+  bindings are normal planning errors, not a later revocation of acceptance.
 - Runtime failures can include original source locations, bounded excerpts and
   source hashes. Up to five browser frames resolve through a private in-memory
   build map; the map is never written into a preview, revision or export. Changed
@@ -617,11 +626,17 @@ replacement uses `scene_set`, keeping that schema out of `scene_patch`.
   scope without another build or browser run. Reuse requires identical source,
   assets, runtime, plan and scenarios, plus current unexpired browser evidence.
   Targeted checks never qualify. An explicit validation tool call always reruns.
+  Ineligible cache entries are rejected before reading every project file; an
+  eligible entry still requires the full fingerprint and current browser evidence.
 - Normal phase requests include current intent and state once, with up to four
   complete native tool rounds and eight assistant messages. Private checkpoints
   retain previous work and reasoning after request compaction; source-generation retries retain
   their source snapshot. StepFun budgeting excludes fields its transport omits,
   while still fitting every eligible fallback provider.
+  Repeated previous requests may use a lossless text dictionary and chronological
+  sequence when this is smaller than the original array. Every occurrence is
+  retained, including repeated additive requests and changes back to an earlier
+  preference; no distinct requirement is summarized away.
 
 The `tool_result` event records tool, allowlisted operation/status, phase and
 duration only. It contains no source, arguments, result text or reasoning; tool

@@ -577,7 +577,8 @@ func TestGameMakerReadReachesModelReadable(t *testing.T) {
 	runner := &gameMakerAgentRunner{server: server, service: service}
 	service.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
 		if run.Stage == "planning" {
-			return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"platformer","objective":"Reach the flag","features":["Jump between ledges"]}`))
+			// Blank bases retain the tool-enabled path exercised by this test.
+			return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"minimal","objective":"Reach the flag","features":["Jump between ledges"]}`))
 		}
 		_ = runner.RunGameMakerJob(ctx, run)
 		return errors.New("read captured")
@@ -654,7 +655,8 @@ func TestGameMakerBuildingContextCarriesEntrySource(t *testing.T) {
 	var entry gamemaker.SourceRead
 	service.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
 		if run.Stage == "planning" {
-			return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"platformer","objective":"Reach the flag","features":["Jump between ledges"]}`))
+			// Blank bases retain the tool-enabled path exercised by this test.
+			return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"minimal","objective":"Reach the flag","features":["Jump between ledges"]}`))
 		}
 		entry, _ = service.ReadJobSource(ctx, run.Job.ID, "src/main.ts", gamemaker.SourceGenerationMaxBytes)
 		_ = runner.RunGameMakerJob(ctx, run)
