@@ -61,11 +61,13 @@ func TestDispatchExecCheatsheetAbstractUsesDispatchContext(t *testing.T) {
 type ctxRecordingVectorDB struct {
 	partialSearchVectorDB
 	called bool
+	calls  int
 	ctxErr error
 }
 
 func (v *ctxRecordingVectorDB) SearchMemoriesOnlyScoredContext(ctx context.Context, _ string, _ int) ([]memory.SearchResult, error) {
 	v.called = true
+	v.calls++
 	v.ctxErr = ctx.Err()
 	return nil, ctx.Err()
 }
@@ -93,5 +95,23 @@ func TestBuildContextSnapshotPassesCallerContextToMemorySearch(t *testing.T) {
 	}
 	if !errors.Is(vdb.ctxErr, context.Canceled) {
 		t.Fatalf("memory search context error = %v, want canceled", vdb.ctxErr)
+	}
+}
+
+func TestApplyRetrievalFusionPassesCallerContextToMemorySearch(t *testing.T) {
+	vdb := &ctxRecordingVectorDB{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	kgContext := "- [nas] NAS\n- [docker] Docker\n- [proxmox] Proxmox\n"
+	_ = applyRetrievalFusion(ctx, nil, kgContext, vdb, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if !vdb.called {
+		t.Fatal("KG-to-RAG fusion did not search memory through the context-aware API")
+	}
+	if !errors.Is(vdb.ctxErr, context.Canceled) {
+		t.Fatalf("fusion memory search context error = %v, want canceled", vdb.ctxErr)
+	}
+	if vdb.calls != 1 {
+		t.Fatalf("cancelled fusion ran %d memory searches, want 1", vdb.calls)
 	}
 }

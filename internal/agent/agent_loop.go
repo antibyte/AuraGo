@@ -1153,7 +1153,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if !runCfg.IsMission && !isAutonomousRun && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
 				flags.RetrievedMemories != "" && flags.KnowledgeContext != "" &&
 				longTermMem != nil && kg != nil {
-				fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger)
+				fusionResult := applyRetrievalFusion(ctx, topMemories, flags.KnowledgeContext, longTermMem, shortTermMem, kg, s.currentLogger)
 				if fusionResult.EnrichedMemories != "" {
 					if cfg.Tools.Memory.OnDemandRetrieval.Enabled {
 						flags.AvailableMemoryContextIndex = appendAvailableContextIndex(

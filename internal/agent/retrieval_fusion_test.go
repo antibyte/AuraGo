@@ -2,6 +2,7 @@ package agent
 
 import (
 	"aurago/internal/memory"
+	"context"
 	"log/slog"
 	"testing"
 )
@@ -221,7 +222,7 @@ func TestExtractKGEntityLabels_TabIndentedSkipped(t *testing.T) {
 
 func TestApplyRetrievalFusion_NoInputs(t *testing.T) {
 	logger := slog.Default()
-	result := applyRetrievalFusion(nil, "", nil, nil, nil, logger)
+	result := applyRetrievalFusion(context.Background(), nil, "", nil, nil, nil, logger)
 	if result.EnrichedMemories != "" || result.EnrichedKGContext != "" {
 		t.Error("expected empty result when no inputs provided")
 	}
@@ -230,7 +231,7 @@ func TestApplyRetrievalFusion_NoInputs(t *testing.T) {
 func TestApplyRetrievalFusion_RAGOnly_NoKG(t *testing.T) {
 	logger := slog.Default()
 	topMemories := []string{"memory one about servers", "memory two about networking"}
-	result := applyRetrievalFusion(topMemories, "", nil, nil, nil, logger)
+	result := applyRetrievalFusion(context.Background(), topMemories, "", nil, nil, nil, logger)
 	// Without KG, Direction 1 (KG→RAG) is skipped.
 	// Without kg, Direction 2 (RAG→KG) is also skipped.
 	if result.EnrichedMemories != "" {
@@ -244,7 +245,7 @@ func TestApplyRetrievalFusion_RAGOnly_NoKG(t *testing.T) {
 func TestApplyRetrievalFusion_KGOnly_NoVectorDB(t *testing.T) {
 	logger := slog.Default()
 	kgContext := "- [truenas] TrueNAS Server | type: device\n"
-	result := applyRetrievalFusion(nil, kgContext, nil, nil, nil, logger)
+	result := applyRetrievalFusion(context.Background(), nil, kgContext, nil, nil, nil, logger)
 	// Without VectorDB, Direction 1 (KG→RAG) is skipped.
 	// Without RAG, Direction 2 (RAG→KG) is skipped.
 	if result.EnrichedMemories != "" {
@@ -261,7 +262,7 @@ func TestApplyRetrievalFusion_WithBoth_NoImplementations(t *testing.T) {
 	kgContext := "- [truenas] TrueNAS Server | type: device\n"
 	// Both subsystems report having data, but nil implementations mean
 	// the actual lookups are skipped gracefully.
-	result := applyRetrievalFusion(topMemories, kgContext, nil, nil, nil, logger)
+	result := applyRetrievalFusion(context.Background(), topMemories, kgContext, nil, nil, nil, logger)
 	// Direction 1 skipped: longTermMem is nil
 	// Direction 2 skipped: kg is nil
 	if result.EnrichedMemories != "" {
@@ -276,7 +277,7 @@ func TestApplyRetrievalFusion_DisabledVectorDB(t *testing.T) {
 	logger := slog.Default()
 	topMemories := []string{"memory text"}
 	kgContext := "- [truenas] TrueNAS Server | type: device\n"
-	result := applyRetrievalFusion(topMemories, kgContext, &disabledVectorDB{}, nil, nil, logger)
+	result := applyRetrievalFusion(context.Background(), topMemories, kgContext, &disabledVectorDB{}, nil, nil, logger)
 	// Direction 1 skipped: VectorDB is disabled
 	if result.EnrichedMemories != "" {
 		t.Error("expected no enriched memories with disabled VectorDB")
@@ -296,7 +297,7 @@ func TestApplyRetrievalFusionDeduplicatesCanonicalMemoryText(t *testing.T) {
 		docIDs: []string{"doc-duplicate"},
 	}
 
-	result := applyRetrievalFusion(topMemories, kgContext, vdb, nil, nil, logger)
+	result := applyRetrievalFusion(context.Background(), topMemories, kgContext, vdb, nil, nil, logger)
 	if result.EnrichedMemories != "" {
 		t.Fatalf("EnrichedMemories = %q, want duplicate to be suppressed", result.EnrichedMemories)
 	}

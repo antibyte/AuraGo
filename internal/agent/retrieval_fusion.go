@@ -40,8 +40,10 @@ var memoryMetadataPrefixPattern = regexp.MustCompile(`(?i)^\s*\[(domain:\s*[^\]]
 //
 // The fusion is budget-limited and only activates when both subsystems produced results.
 // This creates a bidirectional enrichment that improves context quality without exploding
-// the prompt size.
+// the prompt size. The LTM searches run under the caller's turn context, so a
+// cancelled turn stops searching instead of finishing every entity query.
 func applyRetrievalFusion(
+	ctx context.Context,
 	topMemories []string,
 	kgContext string,
 	longTermMem memory.VectorDB,
@@ -64,7 +66,10 @@ func applyRetrievalFusion(
 		if len(labels) > 0 {
 			var extraMemories []string
 			for _, label := range labels {
-				ranked, err := searchRankedMemoriesOnly(context.Background(), longTermMem, stm, label, 1, nil, time.Now())
+				ranked, err := searchRankedMemoriesOnly(ctx, longTermMem, stm, label, 1, nil, time.Now())
+				if ctx.Err() != nil {
+					break
+				}
 				if err != nil && logger != nil {
 					logger.Warn("[RAG] Related memory search incomplete", "error", err)
 				}

@@ -59,7 +59,7 @@ func TestMemorySearchConsumersKeepCheckedPartialResults(t *testing.T) {
 	if !strings.Contains(snapshot, active) || strings.Contains(snapshot, archived) {
 		t.Fatalf("co-agent snapshot = %s", snapshot)
 	}
-	fusion := applyRetrievalFusion(nil, "- [nas] NAS", vdb, run.ShortTermMem, nil, run.Logger)
+	fusion := applyRetrievalFusion(context.Background(), nil, "- [nas] NAS", vdb, run.ShortTermMem, nil, run.Logger)
 	if !strings.Contains(fusion.EnrichedMemories, active) || strings.Contains(fusion.EnrichedMemories, archived) {
 		t.Fatalf("fusion = %+v", fusion)
 	}
