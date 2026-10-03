@@ -755,6 +755,7 @@
         });
 
         registerWindowCleanup(id, () => {
+            if (activeSFTPNav) { activeSFTPNav.dispose(); activeSFTPNav = null; }
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }

@@ -18,7 +18,7 @@ func TestDesktopQuickConnectSftpI18n(t *testing.T) {
 		"t('desktop.gib').replace('{{count}}'",
 		"t('desktop.tib').replace('{{count}}'",
 		"t('desktop.qc_sftp_items').replace('{{count}}', 0)",
-		"t('desktop.qc_sftp_items').replace('{{count}}', sftpEntries.length)",
+		"t('desktop.qc_sftp_items').replace('{{count}}', nav.entries.length)",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("quick connect sftp i18n missing marker %q", want)

@@ -13777,6 +13777,64 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
 ;
+/* ui/js/desktop/apps/quickconnect-sftp-navigator.js */
+    // Quick Connect SFTP navigation state, bundled inside the Desktop shell IIFE
+    // (scripts/build-ui-bundles.js). One navigator per open SFTP panel: a newer
+    // listing aborts the older request, and the committed path changes only after
+    // a successful listing.
+    function joinSFTPPath(dir, name) {
+        const base = String(dir || '/');
+        const leaf = String(name || '');
+        return base === '/' ? '/' + leaf : base.replace(/\/+$/, '') + '/' + leaf;
+    }
+
+    function parentSFTPPath(dir) {
+        const path = String(dir || '/');
+        if (path === '/') return '/';
+        return path.replace(/\/[^/]+\/?$/, '') || '/';
+    }
+
+    function createSFTPNavigator(listDirectory) {
+        const nav = { path: '/', entries: [], seq: 0, controller: null, loading: false, disposed: false };
+        nav.load = async function load(targetPath) {
+            if (nav.disposed) return { status: 'disposed' };
+            const seq = ++nav.seq;
+            if (nav.controller) nav.controller.abort();
+            const controller = new AbortController();
+            nav.controller = controller;
+            nav.loading = true;
+            try {
+                const resp = await listDirectory(targetPath, controller.signal);
+                if (seq !== nav.seq || nav.disposed) return { status: 'stale' };
+                const entries = Array.isArray(resp && resp.entries) ? resp.entries.slice() : [];
+                entries.sort((a, b) => {
+                    if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+                    return String(a.name).localeCompare(String(b.name));
+                });
+                nav.path = targetPath;
+                nav.entries = entries;
+                return { status: 'ok', path: targetPath, entries };
+            } catch (error) {
+                if (seq !== nav.seq || nav.disposed || (error && error.name === 'AbortError')) return { status: 'stale' };
+                return { status: 'error', error };
+            } finally {
+                if (nav.controller === controller) {
+                    nav.controller = null;
+                    nav.loading = false;
+                }
+            }
+        };
+        nav.dispose = function dispose() {
+            nav.disposed = true;
+            nav.seq += 1;
+            if (nav.controller) nav.controller.abort();
+            nav.controller = null;
+            nav.loading = false;
+        };
+        return nav;
+    }
+
+;
 /* ui/js/desktop/core/menus-and-routing.js */
     function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
     function isNativeContextMenuTarget(target) { return isEditableTarget(target); }
@@ -16856,6 +16914,7 @@ if (appId === 'pixel') {
         });
 
         registerWindowCleanup(id, () => {
+            if (activeSFTPNav) { activeSFTPNav.dispose(); activeSFTPNav = null; }
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             if (activeResizeObserver) { activeResizeObserver.disconnect(); activeResizeObserver = null; }
@@ -17524,10 +17583,13 @@ if (appId === 'pixel') {
             activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };
         }
 
-        let sftpCurrentPath = '/';
-        let sftpEntries = [];
+        let activeSFTPNav = null;
 
         function closeSFTPPanel(container) {
+            if (activeSFTPNav) {
+                activeSFTPNav.dispose();
+                activeSFTPNav = null;
+            }
             const panel = container.querySelector('.vd-qc-sftp-panel');
             if (panel) panel.remove();
             const termContainer = container.querySelector('.vd-qc-term-container');
@@ -17565,60 +17627,61 @@ if (appId === 'pixel') {
             `;
             container.appendChild(panel);
 
-            const breadcrumb = panel.querySelector('[data-sftp-breadcrumb]');
-            const listEl = panel.querySelector('[data-sftp-list]');
-            const statusEl = panel.querySelector('[data-sftp-status]');
+            const els = {
+                breadcrumb: panel.querySelector('[data-sftp-breadcrumb]'),
+                list: panel.querySelector('[data-sftp-list]'),
+                status: panel.querySelector('[data-sftp-status]')
+            };
             const fileInput = panel.querySelector('[data-sftp-file-input]');
+            // One navigator per panel: newer listings abort older ones and the shown path
+            // changes only after a successful listing.
+            const nav = createSFTPNavigator((dirPath, signal) => api('/api/desktop/sftp/list?device_id=' + encodeURIComponent(deviceId) + '&path=' + encodeURIComponent(dirPath), { signal }));
+            activeSFTPNav = nav;
 
-            sftpCurrentPath = '/';
-            loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
+            loadSFTPList(nav, deviceId, '/', els);
 
             panel.querySelector('.vd-qc-sftp-back').addEventListener('click', () => {
-                const parent = sftpCurrentPath === '/' ? '/' : sftpCurrentPath.replace(/\/[^/]+\/?$/, '') || '/';
-                sftpCurrentPath = parent;
-                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
+                loadSFTPList(nav, deviceId, parentSFTPPath(nav.path), els);
             });
 
             panel.querySelector('[data-action="sftp-refresh"]').addEventListener('click', () => {
-                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
+                loadSFTPList(nav, deviceId, nav.path, els);
             });
 
             panel.querySelector('[data-action="mkdir"]').addEventListener('click', () => {
-                sftpMkdir(deviceId, sftpCurrentPath, listEl, breadcrumb, statusEl);
+                sftpMkdir(nav, deviceId, nav.path, els);
             });
 
             fileInput.addEventListener('change', () => {
                 if (fileInput.files.length) {
-                    sftpUploadFiles(deviceId, sftpCurrentPath, fileInput.files, listEl, breadcrumb, statusEl);
+                    const files = Array.from(fileInput.files);
                     fileInput.value = '';
+                    sftpUploadFiles(nav, deviceId, nav.path, files, els);
                 }
             });
 
-            listEl.addEventListener('dragover', (e) => { e.preventDefault(); listEl.classList.add('vd-qc-sftp-drag-over'); });
-            listEl.addEventListener('dragleave', () => { listEl.classList.remove('vd-qc-sftp-drag-over'); });
-            listEl.addEventListener('drop', (e) => {
+            els.list.addEventListener('dragover', (e) => { e.preventDefault(); els.list.classList.add('vd-qc-sftp-drag-over'); });
+            els.list.addEventListener('dragleave', () => { els.list.classList.remove('vd-qc-sftp-drag-over'); });
+            els.list.addEventListener('drop', (e) => {
                 e.preventDefault();
-                listEl.classList.remove('vd-qc-sftp-drag-over');
+                els.list.classList.remove('vd-qc-sftp-drag-over');
                 if (e.dataTransfer.files.length) {
-                    sftpUploadFiles(deviceId, sftpCurrentPath, e.dataTransfer.files, listEl, breadcrumb, statusEl);
+                    sftpUploadFiles(nav, deviceId, nav.path, Array.from(e.dataTransfer.files), els);
                 }
             });
         }
 
-        function renderSFTPBreadcrumb(pathStr, breadcrumbEl, deviceId, listEl, statusEl) {
-            const parts = pathStr.split('/').filter(Boolean);
+        function renderSFTPBreadcrumb(nav, deviceId, els) {
+            const parts = nav.path.split('/').filter(Boolean);
             let html = `<button class="vd-qc-sftp-crumb" data-path="/">/</button>`;
             let accumulated = '';
             for (const part of parts) {
                 accumulated += '/' + part;
                 html += `<span class="vd-qc-sftp-crumb-sep">/</span><button class="vd-qc-sftp-crumb" data-path="${esc(accumulated)}">${esc(part)}</button>`;
             }
-            breadcrumbEl.innerHTML = html;
-            breadcrumbEl.querySelectorAll('.vd-qc-sftp-crumb').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    sftpCurrentPath = btn.dataset.path;
-                    loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
-                });
+            els.breadcrumb.innerHTML = html;
+            els.breadcrumb.querySelectorAll('.vd-qc-sftp-crumb').forEach(btn => {
+                btn.addEventListener('click', () => loadSFTPList(nav, deviceId, btn.dataset.path, els));
             });
         }
 
@@ -17631,26 +17694,23 @@ if (appId === 'pixel') {
             return t('desktop.tib').replace('{{count}}', (n / (1024 * 1024 * 1024 * 1024)).toFixed(1));
         }
 
-        async function loadSFTPList(deviceId, dirPath, listEl, breadcrumbEl, statusEl) {
-            listEl.innerHTML = `<div class="vd-qc-sftp-loading">${esc(t('desktop.qc_sftp_loading'))}</div>`;
-            try {
-                const resp = await api('/api/desktop/sftp/list?device_id=' + encodeURIComponent(deviceId) + '&path=' + encodeURIComponent(dirPath));
-                sftpEntries = resp.entries || [];
-                sftpEntries.sort((a, b) => {
-                    if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
-                    return a.name.localeCompare(b.name);
-                });
-                renderSFTPBreadcrumb(dirPath, breadcrumbEl, deviceId, listEl, statusEl);
-                renderSFTPList(deviceId, listEl, breadcrumbEl, statusEl);
-            } catch (err) {
-                listEl.innerHTML = `<div class="vd-qc-sftp-error">${esc(err.message || t('desktop.qc_sftp_error'))}</div>`;
+        async function loadSFTPList(nav, deviceId, targetPath, els) {
+            els.list.innerHTML = `<div class="vd-qc-sftp-loading">${esc(t('desktop.qc_sftp_loading'))}</div>`;
+            const result = await nav.load(targetPath);
+            if (result.status === 'stale' || result.status === 'disposed' || !els.list.isConnected) return;
+            if (result.status === 'error') {
+                // The breadcrumb and nav.path still name the last directory that loaded.
+                els.list.innerHTML = `<div class="vd-qc-sftp-error">${esc((result.error && result.error.message) || t('desktop.qc_sftp_error'))}</div>`;
+                return;
             }
+            renderSFTPBreadcrumb(nav, deviceId, els);
+            renderSFTPList(nav, deviceId, els);
         }
 
-        function renderSFTPList(deviceId, listEl, breadcrumbEl, statusEl) {
-            if (!sftpEntries.length) {
-                listEl.innerHTML = `<div class="vd-qc-sftp-empty">${iconMarkup('folder-open', 'F', 'vd-qc-sftp-empty-icon', 32)}<span>${esc(t('desktop.qc_sftp_empty'))}</span></div>`;
-                statusEl.textContent = t('desktop.qc_sftp_items').replace('{{count}}', 0);
+        function renderSFTPList(nav, deviceId, els) {
+            if (!nav.entries.length) {
+                els.list.innerHTML = `<div class="vd-qc-sftp-empty">${iconMarkup('folder-open', 'F', 'vd-qc-sftp-empty-icon', 32)}<span>${esc(t('desktop.qc_sftp_empty'))}</span></div>`;
+                els.status.textContent = t('desktop.qc_sftp_items').replace('{{count}}', 0);
                 return;
             }
             let html = `<table class="vd-qc-sftp-table"><thead><tr>
@@ -17659,10 +17719,11 @@ if (appId === 'pixel') {
                 <th class="vd-qc-sftp-col-modified">${esc(t('desktop.qc_sftp_modified'))}</th>
                 <th class="vd-qc-sftp-col-perms">${esc(t('desktop.qc_sftp_permissions'))}</th>
             </tr></thead><tbody>`;
-            for (const entry of sftpEntries) {
+            for (const entry of nav.entries) {
                 const icon = entry.is_dir ? iconMarkup('folder', 'D', 'vd-qc-sftp-entry-icon', 16) : iconMarkup('file', 'F', 'vd-qc-sftp-entry-icon', 16);
                 const modTime = entry.mod_time ? new Date(entry.mod_time).toLocaleString() : '';
-                html += `<tr class="vd-qc-sftp-row" data-name="${esc(entry.name)}" data-is-dir="${entry.is_dir}">
+                const entryPath = joinSFTPPath(nav.path, entry.name);
+                html += `<tr class="vd-qc-sftp-row" data-name="${esc(entry.name)}" data-path="${esc(entryPath)}" data-is-dir="${entry.is_dir}">
                     <td class="vd-qc-sftp-name">${icon}<span>${esc(entry.name)}</span></td>
                     <td class="vd-qc-sftp-col-size">${entry.is_dir ? '' : formatSFTPSize(entry.size)}</td>
                     <td class="vd-qc-sftp-col-modified">${esc(modTime)}</td>
@@ -17670,47 +17731,38 @@ if (appId === 'pixel') {
                 </tr>`;
             }
             html += '</tbody></table>';
-            listEl.innerHTML = html;
-            statusEl.textContent = t('desktop.qc_sftp_items').replace('{{count}}', sftpEntries.length);
+            els.list.innerHTML = html;
+            els.status.textContent = t('desktop.qc_sftp_items').replace('{{count}}', nav.entries.length);
 
-            listEl.querySelectorAll('.vd-qc-sftp-row').forEach(row => {
+            els.list.querySelectorAll('.vd-qc-sftp-row').forEach(row => {
                 row.addEventListener('dblclick', () => {
-                    const name = row.dataset.name;
-                    const isDir = row.dataset.isDir === 'true';
-                    if (isDir) {
-                        sftpCurrentPath = sftpCurrentPath === '/' ? '/' + name : sftpCurrentPath + '/' + name;
-                        loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                    if (row.dataset.isDir === 'true') {
+                        loadSFTPList(nav, deviceId, row.dataset.path, els);
                     } else {
-                        sftpDownload(deviceId, sftpCurrentPath + (sftpCurrentPath === '/' ? '' : '/') + name);
+                        sftpDownload(deviceId, row.dataset.path);
                     }
                 });
                 row.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
-                    const name = row.dataset.name;
-                    const isDir = row.dataset.isDir === 'true';
-                    const fullPath = sftpCurrentPath + (sftpCurrentPath === '/' ? '' : '/') + name;
-                    showSFTPContextMenu(e.clientX, e.clientY, deviceId, fullPath, name, isDir, listEl, breadcrumbEl, statusEl);
+                    showSFTPContextMenu(e.clientX, e.clientY, nav, deviceId, row.dataset.path, row.dataset.name, row.dataset.isDir === 'true', els);
                 });
             });
         }
 
-        function showSFTPContextMenu(x, y, deviceId, fullPath, name, isDir, listEl, breadcrumbEl, statusEl) {
+        function showSFTPContextMenu(x, y, nav, deviceId, fullPath, name, isDir, els) {
             closeContextMenu();
             const items = [];
             if (isDir) {
-                items.push({ label: t('desktop.qc_sftp_browse'), icon: 'folder-open', fallback: 'O', action: () => {
-                    sftpCurrentPath = fullPath;
-                    loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
-                }});
+                items.push({ label: t('desktop.qc_sftp_browse'), icon: 'folder-open', fallback: 'O', action: () => loadSFTPList(nav, deviceId, fullPath, els) });
             } else {
                 items.push({ label: t('desktop.qc_sftp_download'), icon: 'download', fallback: 'D', action: () => sftpDownload(deviceId, fullPath) });
             }
             items.push({ separator: true });
-            items.push({ label: t('desktop.qc_sftp_rename'), icon: 'edit', fallback: 'R', action: () => sftpRename(deviceId, fullPath, listEl, breadcrumbEl, statusEl) });
-            items.push({ label: t('desktop.qc_sftp_copy'), icon: 'copy', fallback: 'C', action: () => sftpCopy(deviceId, fullPath, listEl, breadcrumbEl, statusEl) });
-            items.push({ label: t('desktop.qc_sftp_move'), icon: 'archive', fallback: 'M', action: () => sftpMove(deviceId, fullPath, listEl, breadcrumbEl, statusEl) });
+            items.push({ label: t('desktop.qc_sftp_rename'), icon: 'edit', fallback: 'R', action: () => sftpRename(nav, deviceId, fullPath, els) });
+            items.push({ label: t('desktop.qc_sftp_copy'), icon: 'copy', fallback: 'C', action: () => sftpCopy(nav, deviceId, fullPath, els) });
+            items.push({ label: t('desktop.qc_sftp_move'), icon: 'archive', fallback: 'M', action: () => sftpMove(nav, deviceId, fullPath, els) });
             items.push({ separator: true });
-            items.push({ label: t('desktop.qc_sftp_delete'), icon: 'trash', fallback: 'X', action: () => sftpDelete(deviceId, fullPath, name, listEl, breadcrumbEl, statusEl) });
+            items.push({ label: t('desktop.qc_sftp_delete'), icon: 'trash', fallback: 'X', action: () => sftpDelete(nav, deviceId, fullPath, name, els) });
             showContextMenu(x, y, items);
         }
 
@@ -17725,12 +17777,12 @@ if (appId === 'pixel') {
             document.body.removeChild(a);
         }
 
-        async function sftpUploadFiles(deviceId, remotePath, files, listEl, breadcrumbEl, statusEl) {
+        async function sftpUploadFiles(nav, deviceId, remoteDir, files, els) {
             for (const file of files) {
                 try {
                     const formData = new FormData();
                     formData.append('device_id', deviceId);
-                    formData.append('remote_path', remotePath + (remotePath === '/' ? '' : '/') + file.name);
+                    formData.append('remote_path', joinSFTPPath(remoteDir, file.name));
                     formData.append('file', file);
                     const resp = await fetch('/api/desktop/sftp/upload', { method: 'POST', body: formData });
                     if (!resp.ok) {
@@ -17741,63 +17793,63 @@ if (appId === 'pixel') {
                     showNotify(err.message || t('desktop.qc_sftp_error'));
                 }
             }
-            loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+            loadSFTPList(nav, deviceId, nav.path, els);
         }
 
-        async function sftpDelete(deviceId, fullPath, name, listEl, breadcrumbEl, statusEl) {
+        async function sftpDelete(nav, deviceId, fullPath, name, els) {
             const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', name));
             if (!ok) return;
             try {
                 await api('/api/desktop/sftp/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
-                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
             }
         }
 
-        async function sftpRename(deviceId, oldPath, listEl, breadcrumbEl, statusEl) {
+        async function sftpRename(nav, deviceId, oldPath, els) {
             const oldName = oldPath.split('/').pop();
             const newName = await promptDialog(t('desktop.qc_sftp_rename_prompt'), oldName);
             if (!newName || newName === oldName) return;
             const dir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
-            const newPath = dir + (dir === '/' ? '' : '/') + newName;
+            const newPath = joinSFTPPath(dir, newName);
             try {
                 await api('/api/desktop/sftp/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
-                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
             }
         }
 
-        async function sftpMkdir(deviceId, currentPath, listEl, breadcrumbEl, statusEl) {
+        async function sftpMkdir(nav, deviceId, currentPath, els) {
             const dirName = await promptDialog(t('desktop.qc_sftp_mkdir_prompt'), '');
             if (!dirName) return;
-            const newPath = currentPath + (currentPath === '/' ? '' : '/') + dirName;
+            const newPath = joinSFTPPath(currentPath, dirName);
             try {
                 await api('/api/desktop/sftp/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
-                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
             }
         }
 
-        async function sftpCopy(deviceId, srcPath, listEl, breadcrumbEl, statusEl) {
+        async function sftpCopy(nav, deviceId, srcPath, els) {
             const dstPath = await promptDialog(t('desktop.qc_sftp_copy_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
                 await api('/api/desktop/sftp/copy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
-                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
             }
         }
 
-        async function sftpMove(deviceId, srcPath, listEl, breadcrumbEl, statusEl) {
+        async function sftpMove(nav, deviceId, srcPath, els) {
             const dstPath = await promptDialog(t('desktop.qc_sftp_move_prompt'), srcPath);
             if (!dstPath || dstPath === srcPath) return;
             try {
                 await api('/api/desktop/sftp/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
-                loadSFTPList(deviceId, sftpCurrentPath, listEl, breadcrumbEl, statusEl);
+                loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
                 showNotify(err.message || t('desktop.qc_sftp_error'));
             }

@@ -2240,6 +2240,68 @@ async function testStoreOperationFailuresRemainVisible() {
   assert.match(source, /role="alert">\$\{esc\(operationError\)\}/, 'card errors must be escaped and accessible');
 }
 
+function loadSFTPNavigatorRuntime() {
+  const source = read('ui/js/desktop/apps/quickconnect-sftp-navigator.js');
+  const context = { AbortController };
+  vm.createContext(context);
+  vm.runInContext(`${source}\nglobalThis.createSFTPNavigator = createSFTPNavigator; globalThis.joinSFTPPath = joinSFTPPath; globalThis.parentSFTPPath = parentSFTPPath;`, context);
+  return context;
+}
+
+function createDeferredListing() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
+
+async function testQuickConnectSFTPNavigatorIgnoresStaleListings() {
+  const runtime = loadSFTPNavigatorRuntime();
+  const pending = new Map();
+  const nav = runtime.createSFTPNavigator((dirPath, signal) => {
+    const listing = createDeferredListing();
+    pending.set(dirPath, { ...listing, signal });
+    return listing.promise;
+  });
+
+  const slow = nav.load('/x');
+  const fast = nav.load('/');
+  assert.equal(pending.get('/x').signal.aborted, true, 'a newer listing must abort the older request');
+  pending.get('/').resolve({ entries: [{ name: 'zeta', is_dir: false }, { name: 'alpha', is_dir: true }] });
+  assert.equal((await fast).status, 'ok');
+  pending.get('/x').resolve({ entries: [{ name: 'data.db', is_dir: false }] });
+  assert.equal((await slow).status, 'stale', 'a late listing must not win');
+  assert.equal(nav.path, '/');
+  assert.deepEqual(Array.from(nav.entries, entry => entry.name), ['alpha', 'zeta'], 'directories sort first');
+  assert.equal(runtime.joinSFTPPath(nav.path, 'zeta'), '/zeta');
+  assert.equal(runtime.joinSFTPPath('/srv/', 'a.txt'), '/srv/a.txt');
+
+  const denied = nav.load('/root');
+  pending.get('/root').reject(new Error('permission denied'));
+  const failure = await denied;
+  assert.equal(failure.status, 'error');
+  assert.equal(failure.error.message, 'permission denied');
+  assert.equal(nav.path, '/', 'a failed listing keeps the committed path');
+
+  const late = nav.load('/late');
+  nav.dispose();
+  assert.equal(pending.get('/late').signal.aborted, true, 'closing the panel aborts the pending listing');
+  pending.get('/late').resolve({ entries: [{ name: 'ghost', is_dir: false }] });
+  assert.equal((await late).status, 'stale');
+  assert.equal((await nav.load('/again')).status, 'disposed');
+  assert.equal(nav.path, '/');
+
+  assert.equal(runtime.parentSFTPPath('/a/b/'), '/a');
+  assert.equal(runtime.parentSFTPPath('/a'), '/');
+  assert.equal(runtime.parentSFTPPath('/'), '/');
+
+  const panel = read('ui/js/desktop/apps/quickconnect-launchpad-chat.js');
+  assert.doesNotMatch(panel, /sftpCurrentPath/, 'SFTP actions must not use a shared current path');
+  assert.match(panel, /createSFTPNavigator\(\(dirPath, signal\) => api\(/);
+  assert.match(panel, /data-path="\$\{esc\(entryPath\)\}"/);
+  assert.match(panel, /activeSFTPNav\.dispose\(\)/);
+}
+
 const tests = [
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
@@ -2282,6 +2344,7 @@ const tests = [
   ['Network Cameras desktop contracts', testNetworkCamerasDesktopContracts],
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],
+  ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

@@ -480,6 +480,11 @@ buttons and menu popovers remain excluded from those gestures.
   use `desktop.bytes`, `desktop.kib`, `desktop.mib`, `desktop.gib`,
   and `desktop.tib`. Do not hardcode `items` or `B`/`KiB`/`MiB`/`GiB`
   there.
+- Quick Connect SFTP navigation uses one `createSFTPNavigator` per open panel
+  (`quickconnect-sftp-navigator.js`, bundled before `menus-and-routing.js`). A newer listing aborts the
+  older request, the shown path changes only after a successful listing, rows carry their absolute
+  `data-path` for every action, and closing the panel or window disposes the navigator. Verify with
+  `npm run test:ui-regressions`.
 - Quick Connect synthetic AuraGo host uses `desktop.qc_aurago_host`
   and `desktop.qc_aurago_host_description`. Detect the host by
   `id === '__aurago-host__'`, matching IP, or the English sentinel
