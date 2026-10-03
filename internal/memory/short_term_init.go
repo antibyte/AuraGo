@@ -3,6 +3,7 @@ package memory
 import (
 	"aurago/internal/dbutil"
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -367,12 +368,32 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 	return stm, nil
 }
 
+// coreMemoryNormalizedMarker records in memory_schema_meta that every
+// core_memory.normalized_fact equals normalizeCoreMemoryFactForDedupe(fact). Bump
+// coreMemoryNormalizedVersion whenever that normalization changes: the next start
+// then re-checks once, backs up before deleting duplicates and records the version.
+const (
+	coreMemoryNormalizedMarker  = "core_memory.normalized_fact"
+	coreMemoryNormalizedVersion = "1"
+)
+
 func migrateCoreMemoryUniqueFacts(db *sql.DB, logger *slog.Logger) (int64, error) {
 	if err := migrateAddColumn(db, logger, "core_memory", "normalized_fact", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		return 0, err
 	}
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS memory_schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`); err != nil {
+		return 0, fmt.Errorf("memory schema metadata: %w", err)
+	}
+	var version string
+	err := db.QueryRow(`SELECT value FROM memory_schema_meta WHERE key = ?`, coreMemoryNormalizedMarker).Scan(&version)
+	if err == nil && version == coreMemoryNormalizedVersion {
+		return 0, nil
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("read core memory normalization marker: %w", err)
+	}
 
-	rows, err := db.Query("SELECT id, fact FROM core_memory ORDER BY id ASC")
+	rows, err := db.Query("SELECT id, fact, normalized_fact FROM core_memory ORDER BY id ASC")
 	if err != nil {
 		return 0, err
 	}
@@ -380,23 +401,29 @@ func migrateCoreMemoryUniqueFacts(db *sql.DB, logger *slog.Logger) (int64, error
 		id         int64
 		normalized string
 	}
+	type coreFactDuplicate struct {
+		id     int64
+		keptID int64
+	}
 	seen := make(map[string]int64)
 	updates := make([]coreFactRow, 0)
-	deleteIDs := make([]int64, 0)
+	duplicates := make([]coreFactDuplicate, 0)
 	for rows.Next() {
 		var id int64
-		var fact string
-		if err := rows.Scan(&id, &fact); err != nil {
+		var fact, stored string
+		if err := rows.Scan(&id, &fact, &stored); err != nil {
 			rows.Close()
 			return 0, fmt.Errorf("scan core memory fact for normalized migration: %w", err)
 		}
 		normalized := normalizeCoreMemoryFactForDedupe(fact)
-		if _, ok := seen[normalized]; ok {
-			deleteIDs = append(deleteIDs, id)
+		if keptID, ok := seen[normalized]; ok {
+			duplicates = append(duplicates, coreFactDuplicate{id: id, keptID: keptID})
 			continue
 		}
 		seen[normalized] = id
-		updates = append(updates, coreFactRow{id: id, normalized: normalized})
+		if stored != normalized {
+			updates = append(updates, coreFactRow{id: id, normalized: normalized})
+		}
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
@@ -404,26 +431,55 @@ func migrateCoreMemoryUniqueFacts(db *sql.DB, logger *slog.Logger) (int64, error
 	}
 	rows.Close()
 
+	if len(duplicates) > 0 {
+		backup, err := backupMainDatabase(db, "core-memory-normalized-v"+coreMemoryNormalizedVersion)
+		if err != nil {
+			return 0, fmt.Errorf("back up memory database before removing duplicate core memory facts: %w", err)
+		}
+		if backup != "" && logger != nil {
+			logger.Warn("Backed up memory database before removing duplicate core memory facts", "backup", backup, "duplicates", len(duplicates))
+		}
+	}
+
 	tx, err := db.Begin()
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
 
+	// Duplicates go first so no backfilled value collides with a row that is about to go.
+	for _, duplicate := range duplicates {
+		if _, err := tx.Exec("DELETE FROM core_memory WHERE id = ?", duplicate.id); err != nil {
+			return 0, fmt.Errorf("delete duplicate normalized core memory fact: %w", err)
+		}
+	}
+	// Park changed rows on unique placeholders first: a changed normalization may swap
+	// values between rows, which a single in-order pass would reject on the unique index.
+	for _, update := range updates {
+		if _, err := tx.Exec("UPDATE core_memory SET normalized_fact = ? WHERE id = ?", fmt.Sprintf("migrating:%d:%s", update.id, rand.Text()), update.id); err != nil {
+			return 0, fmt.Errorf("park core_memory.normalized_fact: %w", err)
+		}
+	}
 	for _, update := range updates {
 		if _, err := tx.Exec("UPDATE core_memory SET normalized_fact = ? WHERE id = ?", update.normalized, update.id); err != nil {
 			return 0, fmt.Errorf("backfill core_memory.normalized_fact: %w", err)
 		}
 	}
-	for _, id := range deleteIDs {
-		if _, err := tx.Exec("DELETE FROM core_memory WHERE id = ?", id); err != nil {
-			return 0, fmt.Errorf("delete duplicate normalized core memory fact: %w", err)
-		}
+	if _, err := tx.Exec(`
+		INSERT INTO memory_schema_meta(key, value) VALUES(?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value
+	`, coreMemoryNormalizedMarker, coreMemoryNormalizedVersion); err != nil {
+		return 0, fmt.Errorf("write core memory normalization marker: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit normalized core memory migration: %w", err)
 	}
-	return int64(len(deleteIDs)), nil
+	if logger != nil {
+		for _, duplicate := range duplicates {
+			logger.Info("Removed duplicate core memory fact", "id", duplicate.id, "kept_id", duplicate.keptID)
+		}
+	}
+	return int64(len(duplicates)), nil
 }
 
 // migrateFileIndexToCollectionAware migrates file_indices and file_embedding_docs tables
