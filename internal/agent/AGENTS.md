@@ -70,6 +70,7 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   Keep authorization field naming and coverage in `live_tool_authorization.go`
   synchronized when adding policy settings; Security filesystem access is a
   positive read-operation allowlist, including aliases and editor tools.
+- Dispatch never writes process-wide tool gates. `DispatchToolCallResult` attaches the intersected run permissions with `tools.WithRuntimePermissions`. Tests that exercise context-free gates bind them with `useRuntimePermissionsForTest` and must not use `t.Parallel`.
 - Discovery belongs to an owned run ID, released on completion/cancellation;
   active runs cannot expire through orphan-cache pruning. Refresh the catalog
   against the actual scoped and budget-fitted request, including the lightweight

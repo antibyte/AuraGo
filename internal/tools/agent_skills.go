@@ -1416,7 +1416,7 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	var cmd *exec.Cmd
 	switch ext {
 	case ".py":
-		if err := requirePythonPermission(); err != nil {
+		if err := requirePythonPermissionContext(ctx); err != nil {
 			return "", err
 		}
 		pythonBin := GetPythonBin(m.workspaceDir)
@@ -1430,7 +1430,7 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 		}
 		cmd = exec.CommandContext(ctx, pythonBin, "-u", filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
 	case ".sh":
-		if err := requireShellPermission(); err != nil {
+		if err := requireShellPermissionContext(ctx); err != nil {
 			return "", err
 		}
 		shellBin := findShellBinary()
@@ -1439,7 +1439,7 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 		}
 		cmd = exec.CommandContext(ctx, shellBin, filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
 	case ".js":
-		if err := requireShellPermission(); err != nil {
+		if err := requireShellPermissionContext(ctx); err != nil {
 			return "", err
 		}
 		nodeBin := findNodeBinary()

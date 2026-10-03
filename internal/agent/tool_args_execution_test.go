@@ -380,6 +380,7 @@ func TestDispatchExecAPIRequestUsesConfiguredLocalOllamaAllow(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AllowNetworkRequests = true
 	cfg.Ollama.URL = server.URL
+	useRuntimePermissionsForTest(t, cfg)
 
 	out, handled := dispatchExec(context.Background(), ToolCall{
 		Action: "api_request",

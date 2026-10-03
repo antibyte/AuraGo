@@ -24,8 +24,6 @@ func testHashlineContent(content string) string {
 }
 
 func TestDispatchFilesystemRejectsOutsideHostWriteCanary(t *testing.T) {
-	t.Parallel()
-
 	tempRoot := t.TempDir()
 	repoRoot := filepath.Join(tempRoot, "repo")
 	workspaceDir := filepath.Join(repoRoot, "agent_workspace", "workdir")
@@ -42,6 +40,7 @@ func TestDispatchFilesystemRejectsOutsideHostWriteCanary(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AllowFilesystemWrite = true
 	cfg.Directories.WorkspaceDir = workspaceDir
+	useRuntimePermissionsForTest(t, cfg)
 	dc := &DispatchContext{
 		Cfg:    cfg,
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -128,6 +127,7 @@ func TestDispatchFilesystemRoutesHashlineFileEditor(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AllowFilesystemWrite = true
 	cfg.Directories.WorkspaceDir = workspaceDir
+	useRuntimePermissionsForTest(t, cfg)
 	dc := &DispatchContext{
 		Cfg:    cfg,
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -401,6 +401,7 @@ func TestDispatchFilesystemAccessTrackingHooks(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Agent.AllowFilesystemWrite = true
+	useRuntimePermissionsForTest(t, cfg)
 	cfg.Directories.DataDir = dataDir
 	cfg.Directories.WorkspaceDir = workspaceDir
 	cfg.WorkspaceSearch.Enabled = true

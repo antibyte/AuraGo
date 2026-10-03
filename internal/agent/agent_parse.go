@@ -155,6 +155,9 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	startTime := time.Now()
 	var trustedStatus ToolResultStatus
 	ctx = context.WithValue(ctx, toolOutcomeKey{}, &trustedStatus)
+	// Run-scoped gates travel with this dispatch only. They narrow the
+	// server-owned process snapshot and are never written process-wide.
+	ctx = tools.WithRuntimePermissions(ctx, tools.RuntimePermissionsFromConfig(dc.Cfg))
 	rawResult := dispatchInner(ctx, *tc, dc)
 	status := classifyLegacyToolResult(rawResult)
 	if trustedStatus != "" {

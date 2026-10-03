@@ -19,7 +19,6 @@ func dispatchPython(tc ToolCall, dc *DispatchContext, contexts ...context.Contex
 		ctx = contexts[0]
 	}
 	cfg := dc.Cfg
-	configureToolRuntimePermissions(cfg)
 	logger := dc.Logger
 	vault := dc.Vault
 	registry := dc.Registry

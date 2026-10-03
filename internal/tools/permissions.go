@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -58,6 +59,100 @@ func SetMQTTPermissionResolver(resolve func() (enabled, readOnly bool)) {
 	mqttPermissionResolver.Store(&mqttPermissionResolverState{resolve: resolve})
 }
 
+// runtimePermissionResolverState binds every direct tool gate to the server's
+// published config snapshot. Agent runs never write process-wide gates; they
+// narrow a single dispatch through WithRuntimePermissions instead.
+type runtimePermissionResolverState struct {
+	resolve func() RuntimePermissions
+}
+
+var runtimePermissionResolver atomic.Pointer[runtimePermissionResolverState]
+
+// SetRuntimePermissionResolver makes direct tool gates read the authoritative
+// server snapshot. Passing nil restores the startup/test fallback written by
+// ConfigureRuntimePermissions.
+func SetRuntimePermissionResolver(resolve func() RuntimePermissions) {
+	if resolve == nil {
+		runtimePermissionResolver.Store(nil)
+		return
+	}
+	runtimePermissionResolver.Store(&runtimePermissionResolverState{resolve: resolve})
+}
+
+type runtimePermissionsContextKey struct{}
+
+// WithRuntimePermissions attaches one agent run's effective gates to ctx.
+// Context permissions can only narrow the server snapshot, never widen it.
+func WithRuntimePermissions(ctx context.Context, perms RuntimePermissions) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	scoped := perms
+	scoped.ProtectedNotesRoots = append([]string(nil), perms.ProtectedNotesRoots...)
+	return context.WithValue(ctx, runtimePermissionsContextKey{}, scoped)
+}
+
+// EffectiveRuntimePermissions returns the server snapshot intersected with any
+// run-scoped permissions carried by ctx. Without a configured server snapshot
+// the run-scoped permissions are authoritative (standalone and test callers).
+func EffectiveRuntimePermissions(ctx context.Context) (RuntimePermissions, bool) {
+	server, configured := currentRuntimePermissions()
+	if ctx == nil {
+		return server, configured
+	}
+	run, scoped := ctx.Value(runtimePermissionsContextKey{}).(RuntimePermissions)
+	if !scoped {
+		return server, configured
+	}
+	if !configured {
+		return run, true
+	}
+	return intersectRuntimePermissions(server, run), true
+}
+
+// intersectRuntimePermissions keeps the stricter value of every gate. It lists
+// each field explicitly; TestIntersectRuntimePermissionsCoversEveryField fails
+// when a new RuntimePermissions field is not handled here.
+func intersectRuntimePermissions(a, b RuntimePermissions) RuntimePermissions {
+	return RuntimePermissions{
+		ProtectedNotesRoots:        unionRuntimePaths(a.ProtectedNotesRoots, b.ProtectedNotesRoots),
+		AllowShell:                 a.AllowShell && b.AllowShell,
+		AllowPython:                a.AllowPython && b.AllowPython,
+		AllowUnsafeHostExecution:   a.AllowUnsafeHostExecution && b.AllowUnsafeHostExecution,
+		AllowFilesystemWrite:       a.AllowFilesystemWrite && b.AllowFilesystemWrite,
+		AllowNetworkRequests:       a.AllowNetworkRequests && b.AllowNetworkRequests,
+		DockerEnabled:              a.DockerEnabled && b.DockerEnabled,
+		DockerReadOnly:             a.DockerReadOnly || b.DockerReadOnly,
+		SchedulerEnabled:           a.SchedulerEnabled && b.SchedulerEnabled,
+		SchedulerReadOnly:          a.SchedulerReadOnly || b.SchedulerReadOnly,
+		MissionsEnabled:            a.MissionsEnabled && b.MissionsEnabled,
+		MissionsReadOnly:           a.MissionsReadOnly || b.MissionsReadOnly,
+		MQTTEnabled:                a.MQTTEnabled && b.MQTTEnabled,
+		MQTTReadOnly:               a.MQTTReadOnly || b.MQTTReadOnly,
+		PackageManagerEnabled:      a.PackageManagerEnabled && b.PackageManagerEnabled,
+		PackageManagerReadOnly:     a.PackageManagerReadOnly || b.PackageManagerReadOnly,
+		PackageManagerAllowInstall: a.PackageManagerAllowInstall && b.PackageManagerAllowInstall,
+		PackageManagerAllowRemove:  a.PackageManagerAllowRemove && b.PackageManagerAllowRemove,
+		PackageManagerAllowUpgrade: a.PackageManagerAllowUpgrade && b.PackageManagerAllowUpgrade,
+	}
+}
+
+func unionRuntimePaths(a, b []string) []string {
+	if len(a) == 0 && len(b) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(a)+len(b))
+	out := make([]string, 0, len(a)+len(b))
+	for _, path := range append(append([]string(nil), a...), b...) {
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		out = append(out, path)
+	}
+	return out
+}
+
 // RuntimePermissionsFromConfig builds a complete runtime gate snapshot from a
 // config. Keep this as the single conversion used at startup, reload, and
 // agent dispatch so omitted fields cannot silently disable an integration.
@@ -105,7 +200,16 @@ func ClearRuntimePermissionsForTest() {
 	runtimePermissions.Store(nil)
 }
 
+// CurrentRuntimePermissionsForTest exposes the process gate seen by
+// context-free tool callers to tests in other packages.
+func CurrentRuntimePermissionsForTest() (RuntimePermissions, bool) {
+	return currentRuntimePermissions()
+}
+
 func currentRuntimePermissions() (RuntimePermissions, bool) {
+	if resolver := runtimePermissionResolver.Load(); resolver != nil && resolver.resolve != nil {
+		return resolver.resolve(), true
+	}
 	if perms := runtimePermissions.Load(); perms != nil {
 		return *perms, true
 	}
@@ -128,7 +232,11 @@ func requireRuntimePermission(name string, allowed bool) error {
 }
 
 func requireShellPermission() error {
-	perms, configured := currentRuntimePermissions()
+	return requireShellPermissionContext(context.Background())
+}
+
+func requireShellPermissionContext(ctx context.Context) error {
+	perms, configured := EffectiveRuntimePermissions(ctx)
 	if !configured {
 		return requireRuntimePermission("shell execution", false)
 	}
@@ -145,7 +253,11 @@ func requireShellPermission() error {
 }
 
 func requirePythonPermission() error {
-	perms, configured := currentRuntimePermissions()
+	return requirePythonPermissionContext(context.Background())
+}
+
+func requirePythonPermissionContext(ctx context.Context) error {
+	perms, configured := EffectiveRuntimePermissions(ctx)
 	if !configured {
 		return requireRuntimePermission("python execution", false)
 	}

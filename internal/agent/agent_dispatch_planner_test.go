@@ -577,6 +577,7 @@ func TestSuccessfulShellOutcomeResolvesMissionToolFailure(t *testing.T) {
 	cfg.Agent.AllowShell = true
 	cfg.Agent.AllowUnsafeHostExecution = true
 	cfg.Directories.WorkspaceDir = t.TempDir()
+	useRuntimePermissionsForTest(t, cfg)
 	result := DispatchToolCallResult(context.Background(), &tc, &DispatchContext{Cfg: cfg, Logger: slog.Default()}, "")
 	if result.Status != ToolResultSuccess {
 		t.Fatalf("shell status = %q, want success; output=%s", result.Status, result.Output)

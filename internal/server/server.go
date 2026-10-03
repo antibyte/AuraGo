@@ -480,6 +480,7 @@ func Start(opts StartOptions) error {
 	s.MQTTController = mqtt.NewMQTTController(logger)
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
+	s.bindRuntimePermissions()
 	s.configureMQTTRelay()
 	defer s.MQTTController.Stop(context.Background())
 	s.localLLMLifecycleCtx = serverCtx

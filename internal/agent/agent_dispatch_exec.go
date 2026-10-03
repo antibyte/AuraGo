@@ -203,7 +203,6 @@ func resolveCredentials(cfg *config.Config, vault *security.Vault, inventoryDB *
 // dispatchExec handles execution, memory, security, filesystem, API, remote, and scheduling tool calls.
 func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
 	cfg := dc.Cfg
-	configureToolRuntimePermissions(cfg)
 	logger := dc.Logger
 	llmClient := dc.LLMClient
 	vault := dc.Vault

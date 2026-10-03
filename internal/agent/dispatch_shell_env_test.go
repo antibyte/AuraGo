@@ -56,6 +56,7 @@ func TestExecuteShellPublishesTrustedOutcome(t *testing.T) {
 	cfg.Agent.AllowShell = true
 	cfg.Agent.AllowUnsafeHostExecution = true
 	cfg.Directories.WorkspaceDir = t.TempDir()
+	useRuntimePermissionsForTest(t, cfg)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	dc := &DispatchContext{Cfg: cfg, Logger: logger}
 
