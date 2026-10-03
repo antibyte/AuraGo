@@ -85,5 +85,8 @@
   "config.refresh.language": "Språk",
   "config.refresh.local_models": "Lokala modeller",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "Valfritt API för research, medier och godkända åtgärder."
+  "config.section.treg.desc": "Valfritt API för research, medier och godkända åtgärder.",
+  "config.field.option_missing": "{{value}} (saknas)",
+  "config.field.option_list_unavailable": "{{value}} (listan är inte tillgänglig)",
+  "config.field.list_unavailable_hint": "Listan kunde inte läsas in. Det sparade värdet behålls."
 }

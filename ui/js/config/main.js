@@ -344,8 +344,28 @@ async function loadProviders() {
     }
 }
 
-// Personality profiles cache (loaded from /api/personalities)
+// Personality profiles cache (loaded from /api/personalities). A failed load keeps
+// personalitiesLoaded false so dropdowns preserve the saved value (cfgChoiceOptionsHTML).
 let personalitiesCache = [];
+let personalitiesLoaded = false;
+let personalitiesLoadError = '';
+
+async function loadConfigPersonalities() {
+    try {
+        const persResp = await fetch('/api/personalities');
+        if (handleConfigRedirectResponse(persResp)) return null;
+        if (!persResp.ok) throw new Error('HTTP ' + persResp.status);
+        const data = await persResp.json();
+        personalitiesCache = Array.isArray(data && data.personalities) ? data.personalities : [];
+        personalitiesLoaded = true;
+        personalitiesLoadError = '';
+        return true;
+    } catch (e) {
+        personalitiesLoadError = e && e.message ? e.message : String(e);
+        if (!personalitiesLoaded) personalitiesCache = [];
+        return false;
+    }
+}
 
 // Runtime environment detection (loaded from /api/runtime)
 let runtimeData = { runtime: {}, features: {} };
@@ -375,12 +395,8 @@ async function init() {
         // Load providers (best-effort – endpoint only exists when web_config is enabled)
         await loadProviders();
         if (providersLoadRedirected) return;
-        // Load personality profiles
-        try {
-            const persResp = await fetch('/api/personalities');
-            if (handleConfigRedirectResponse(persResp)) return;
-            if (persResp.ok) { const d = await persResp.json(); personalitiesCache = d.personalities || []; }
-        } catch (_) { }
+        // Load personality profiles; a failure keeps saved values (see cfgChoiceOptionsHTML).
+        if (await loadConfigPersonalities() === null) return;
         // Load runtime environment capabilities (Docker mode, socket, broadcast, etc.)
         try {
             const rtResp = await fetch('/api/runtime');
@@ -396,6 +412,7 @@ async function init() {
         localStorage.setItem('aurago-cfg-section', activeSection);
     }
     installConfigEditIntentTracking();
+    installConfigChoiceRetry();
     buildSidebar();
     await selectSection(activeSection, { scrollBehavior: 'auto' });
     resetDirtySnapshot();
@@ -2146,6 +2163,101 @@ function isDockerRuntime() {
     return !!(runtimeData.runtime && runtimeData.runtime.is_docker);
 }
 
+/** Returns 'personalities' or 'providers' for dynamic dropdown fields, else ''. */
+function cfgChoiceSource(help) {
+    if (!help) return '';
+    if (help.personalities_ref) return 'personalities';
+    if (help.provider_ref) return 'providers';
+    return '';
+}
+
+function cfgChoiceLoaded(source) {
+    return source === 'personalities' ? personalitiesLoaded : providersLoaded;
+}
+
+/** Fixed and loaded options of a dynamic dropdown, in display order. */
+function cfgChoiceOptions(source, help) {
+    const options = [];
+    if (source === 'personalities') {
+        options.push({ value: '', label: t('config.field.no_personality') });
+        personalitiesCache.forEach(p => options.push({ value: String(p.name), label: String(p.name) }));
+        return options;
+    }
+    if (!help.allow_disabled) options.push({ value: '', label: t('config.field.no_provider') });
+    if (Array.isArray(help.builtin_options)) {
+        help.builtin_options.forEach(option => options.push({
+            value: String(option),
+            label: option === 'local-granite' ? t('config.embeddings.provider_local') : String(option)
+        }));
+    }
+    providersCache.forEach(p => {
+        const displayName = p.name || p.id;
+        const badge = p.type ? (' [' + p.type + ']') : '';
+        const modelHint = p.model ? (' — ' + p.model) : '';
+        options.push({ value: String(p.id), label: displayName + badge + modelHint });
+    });
+    if (help.allow_disabled) options.push({ value: 'disabled', label: cfgFieldOptionLabel('disabled') });
+    return options;
+}
+
+/** Option markup; a non-empty saved value without a matching option stays selected. */
+function cfgChoiceOptionsHTML(source, help, value) {
+    const current = value == null ? '' : String(value);
+    const options = cfgChoiceOptions(source, help || {});
+    let html = '';
+    if (current && !options.some(option => option.value === current)) {
+        const key = cfgChoiceLoaded(source) ? 'config.field.option_missing' : 'config.field.option_list_unavailable';
+        html += '<option value="' + escapeAttr(current) + '" selected data-config-choice-preserved>' + escapeHtml(t(key, { value: current })) + '</option>';
+    }
+    options.forEach(option => {
+        const selected = option.value === current ? ' selected' : '';
+        html += '<option value="' + escapeAttr(option.value) + '"' + selected + '>' + escapeHtml(option.label) + '</option>';
+    });
+    return html;
+}
+
+function cfgChoiceHintHTML(source) {
+    if (cfgChoiceLoaded(source)) return '';
+    return '<div class="field-help cfg-choice-unavailable" role="status" data-config-choice-hint="' + source + '">'
+        + escapeHtml(t('config.field.list_unavailable_hint'))
+        + ' <button type="button" class="cfg-btn cfg-btn-sm" data-config-choice-retry="' + source + '">'
+        + escapeHtml(t('config.refresh.retry')) + '</button></div>';
+}
+
+/** Rebuilds every rendered dropdown of one source in place, keeping its current (draft) value. */
+function refreshConfigChoiceSelects(source) {
+    document.querySelectorAll('select[data-config-choice="' + source + '"]').forEach(select => {
+        const value = select.value;
+        select.innerHTML = cfgChoiceOptionsHTML(source, helpTexts[select.dataset.path] || {}, value);
+        select.value = value;
+    });
+    if (cfgChoiceLoaded(source)) {
+        document.querySelectorAll('[data-config-choice-hint="' + source + '"]').forEach(hint => hint.remove());
+    }
+}
+
+async function retryConfigChoiceLists(source) {
+    const result = source === 'personalities' ? await loadConfigPersonalities() : await loadProviders();
+    if (result === null || (source === 'providers' && providersLoadRedirected)) return;
+    refreshConfigChoiceSelects(source);
+}
+
+let configChoiceRetryInstalled = false;
+
+function installConfigChoiceRetry() {
+    if (configChoiceRetryInstalled) return;
+    configChoiceRetryInstalled = true;
+    document.addEventListener('click', event => {
+        const button = event.target && event.target.closest ? event.target.closest('[data-config-choice-retry]') : null;
+        if (!button || button.disabled) return;
+        event.preventDefault();
+        button.disabled = true;
+        retryConfigChoiceLists(button.dataset.configChoiceRetry).finally(() => {
+            if (button.isConnected) button.disabled = false;
+        });
+    });
+}
+
 function renderField(fullPath, key, value, parentPath, fieldSchema) {
     // Special: server.master_key — locked when vault exists, editable when no vault
     if (fullPath === 'server.master_key') {
@@ -2190,46 +2302,14 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         html += '<div class="toggle' + (isOn ? ' on' : '') + '" data-path="' + fullPath + '" onclick="toggleBool(this)"></div>';
         html += '<span class="toggle-label">' + (isOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
         html += '</div>';
-    } else if (help && help.personalities_ref) {
-        // Dynamic personality profile dropdown — populated from /api/personalities
-        html += '<select class="field-select" data-path="' + fullPath + '">';
-        const emptyLabel = t('config.field.no_personality');
-        const emptySelected = (!value || value === '') ? ' selected' : '';
-        html += '<option value=""' + emptySelected + '>' + emptyLabel + '</option>';
-        personalitiesCache.forEach(p => {
-            const selected = (String(value) === String(p.name)) ? ' selected' : '';
-            html += '<option value="' + escapeAttr(p.name) + '"' + selected + '>' + escapeAttr(p.name) + '</option>';
-        });
+    } else if (cfgChoiceSource(help)) {
+        // Personality/provider dropdown. A saved value that is unknown or whose list
+        // failed to load stays selected, so saving never clears it silently.
+        const source = cfgChoiceSource(help);
+        html += '<select class="field-select" data-path="' + fullPath + '" data-config-choice="' + source + '">';
+        html += cfgChoiceOptionsHTML(source, help, value);
         html += '</select>';
-    } else if (help && help.provider_ref) {
-        // Dynamic provider dropdown — populated from /api/providers
-        html += '<select class="field-select" data-path="' + fullPath + '">';
-        if (!help.allow_disabled) {
-            const emptyLabel = t('config.field.no_provider');
-            const emptySelected = (!value || value === '') ? ' selected' : '';
-            html += '<option value=""' + emptySelected + '>' + emptyLabel + '</option>';
-        }
-        if (help.builtin_options && Array.isArray(help.builtin_options)) {
-            help.builtin_options.forEach(option => {
-                const selected = (String(value) === String(option)) ? ' selected' : '';
-                const label = option === 'local-granite'
-                    ? t('config.embeddings.provider_local')
-                    : option;
-                html += '<option value="' + escapeAttr(option) + '"' + selected + '>' + escapeAttr(label) + '</option>';
-            });
-        }
-        providersCache.forEach(p => {
-            const selected = (String(value) === String(p.id)) ? ' selected' : '';
-            const displayName = p.name || p.id;
-            const badge = p.type ? (' [' + p.type + ']') : '';
-            const modelHint = p.model ? (' — ' + p.model) : '';
-            html += '<option value="' + escapeAttr(p.id) + '"' + selected + '>' + escapeAttr(displayName + badge + modelHint) + '</option>';
-        });
-        if (help.allow_disabled) {
-            const disSelected = (value === 'disabled') ? ' selected' : '';
-            html += '<option value="disabled"' + disSelected + '>' + escapeHtml(cfgFieldOptionLabel('disabled')) + '</option>';
-        }
-        html += '</select>';
+        html += cfgChoiceHintHTML(source);
     } else if (helpOptions && Array.isArray(helpOptions)) {
         // Dropdown for fields with predefined options
         const hasCustom = helpOptions.includes(CFG_OPTION_OTHER_CUSTOM);

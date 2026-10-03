@@ -85,5 +85,8 @@
   "config.refresh.language": "Taal",
   "config.refresh.local_models": "Lokale modellen",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "Optionele API voor onderzoek, media en goedgekeurde acties."
+  "config.section.treg.desc": "Optionele API voor onderzoek, media en goedgekeurde acties.",
+  "config.field.option_missing": "{{value}} (ontbreekt)",
+  "config.field.option_list_unavailable": "{{value}} (lijst niet beschikbaar)",
+  "config.field.list_unavailable_hint": "De lijst kon niet worden geladen. De opgeslagen waarde blijft behouden."
 }

@@ -85,5 +85,8 @@
   "config.refresh.language": "Jazyk",
   "config.refresh.local_models": "Místní modely",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "Volitelné API pro výzkum, média a schválené akce."
+  "config.section.treg.desc": "Volitelné API pro výzkum, média a schválené akce.",
+  "config.field.option_missing": "{{value}} (chybí)",
+  "config.field.option_list_unavailable": "{{value}} (seznam nedostupný)",
+  "config.field.list_unavailable_hint": "Seznam se nepodařilo načíst. Uložená hodnota zůstává zachována."
 }

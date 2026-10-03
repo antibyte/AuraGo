@@ -47,6 +47,10 @@ worker. Keep packaging, recovery and offline instructions in
   `TestLLMRouterConfigBrowser`, `TestTaskRouter*` and canonical UI bundles.
   Offer Agnes chat providers and their configured models, including models newer
   than the catalog; exclude Agnes image/video generation choices.
+- Config personality/provider dropdowns (`personalities_ref`, `provider_ref`) never drop a saved value: an
+  unknown value stays selected as "(missing)", and a failed list load keeps it as "(list unavailable)" with an
+  inline retry that refreshes the options in place. Keys live in `lang/config/common/` for all sixteen
+  locales. Verify `TestConfigChoiceSelectsKeepSavedValueWhenListsFailBrowser`.
 
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. Config exposes the search cap (32 by default, 1–64 including retries); shared capability responses distinguish setup reasons from last-attempt failures. The reader preserves optional research counters and topic gaps, including legacy runs without them. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Verify `TestNewspaperResearchTranslations`, `TestNewspaperConfigResearchBrowser` and `TestDesktopNewspaperBrowser` at wide/narrow sizes in both themes; backend contracts live in `internal/newspaper/AGENTS.md`.
 

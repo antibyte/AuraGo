@@ -85,5 +85,8 @@
   "config.refresh.language": "言語",
   "config.refresh.local_models": "ローカルモデル",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "調査、メディア、承認済みの操作に使える任意の API。"
+  "config.section.treg.desc": "調査、メディア、承認済みの操作に使える任意の API。",
+  "config.field.option_missing": "{{value}}（見つかりません）",
+  "config.field.option_list_unavailable": "{{value}}（一覧を利用できません）",
+  "config.field.list_unavailable_hint": "一覧を読み込めませんでした。保存済みの値は保持されます。"
 }

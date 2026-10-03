@@ -85,5 +85,8 @@
   "config.refresh.language": "Idioma",
   "config.refresh.local_models": "Modelos locais",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "API opcional para pesquisa, conteúdos multimédia e ações aprovadas."
+  "config.section.treg.desc": "API opcional para pesquisa, conteúdos multimédia e ações aprovadas.",
+  "config.field.option_missing": "{{value}} (em falta)",
+  "config.field.option_list_unavailable": "{{value}} (lista indisponível)",
+  "config.field.list_unavailable_hint": "Não foi possível carregar a lista. O valor guardado é mantido."
 }

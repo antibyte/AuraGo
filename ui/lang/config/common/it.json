@@ -85,5 +85,8 @@
   "config.refresh.language": "Lingua",
   "config.refresh.local_models": "Modelli locali",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "API facoltativa per ricerca, contenuti multimediali e azioni approvate."
+  "config.section.treg.desc": "API facoltativa per ricerca, contenuti multimediali e azioni approvate.",
+  "config.field.option_missing": "{{value}} (mancante)",
+  "config.field.option_list_unavailable": "{{value}} (elenco non disponibile)",
+  "config.field.list_unavailable_hint": "Impossibile caricare l'elenco. Il valore salvato viene mantenuto."
 }

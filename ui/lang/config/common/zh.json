@@ -85,5 +85,8 @@
   "config.refresh.language": "语言",
   "config.refresh.local_models": "本地模型",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "用于研究、媒体和已批准操作的可选 API。"
+  "config.section.treg.desc": "用于研究、媒体和已批准操作的可选 API。",
+  "config.field.option_missing": "{{value}}（缺失）",
+  "config.field.option_list_unavailable": "{{value}}（列表不可用）",
+  "config.field.list_unavailable_hint": "无法加载列表。已保存的值将保留。"
 }

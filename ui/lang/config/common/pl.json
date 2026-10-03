@@ -85,5 +85,8 @@
   "config.refresh.language": "Język",
   "config.refresh.local_models": "Modele lokalne",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "Opcjonalne API do badań, multimediów i zatwierdzonych działań."
+  "config.section.treg.desc": "Opcjonalne API do badań, multimediów i zatwierdzonych działań.",
+  "config.field.option_missing": "{{value}} (brak)",
+  "config.field.option_list_unavailable": "{{value}} (lista niedostępna)",
+  "config.field.list_unavailable_hint": "Nie udało się wczytać listy. Zapisana wartość zostaje zachowana."
 }

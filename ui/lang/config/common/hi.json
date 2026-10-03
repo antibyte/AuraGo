@@ -85,5 +85,8 @@
   "config.refresh.language": "भाषा",
   "config.refresh.local_models": "स्थानीय मॉडल",
   "config.section.treg.label": "treg",
-  "config.section.treg.desc": "शोध, मीडिया और स्वीकृत कार्रवाइयों के लिए वैकल्पिक API।"
+  "config.section.treg.desc": "शोध, मीडिया और स्वीकृत कार्रवाइयों के लिए वैकल्पिक API।",
+  "config.field.option_missing": "{{value}} (मौजूद नहीं)",
+  "config.field.option_list_unavailable": "{{value}} (सूची उपलब्ध नहीं)",
+  "config.field.list_unavailable_hint": "सूची लोड नहीं हो सकी। सहेजा गया मान बना रहेगा।"
 }
