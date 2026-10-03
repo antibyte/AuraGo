@@ -178,8 +178,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rateKey := "signed:" + wh.ID + ":" + sourceIP
+	var tokens *security.TokenManager
+	touchTokenID := ""
 	if !signedOnly {
-		tokens := h.tokens()
+		tokens = h.tokens()
 		if tokens == nil {
 			h.logEvent(wh.ID, wh.Name, http.StatusServiceUnavailable, sourceIP, 0, false, "token store unavailable")
 			http.Error(w, `{"error":"token store unavailable"}`, http.StatusServiceUnavailable)
@@ -196,15 +198,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 			return
 		}
-		tokens.TouchLastUsed(tokenMeta.ID)
 		rateKey = tokenMeta.ID
+		touchTokenID = tokenMeta.ID
 	}
 
-	// 3. Rate limiting
+	// 3. Rate limiting (before recording token use, so floods do not write)
 	if rateLimiter != nil && !rateLimiter.Allow(rateKey) {
 		h.logEvent(wh.ID, wh.Name, 429, sourceIP, 0, false, "rate limit exceeded")
 		http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
 		return
+	}
+	if touchTokenID != "" {
+		tokens.TouchLastUsed(touchTokenID)
 	}
 
 	// 4. Read body

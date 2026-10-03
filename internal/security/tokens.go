@@ -53,14 +53,28 @@ var ErrTokenNotFound = errors.New("token not found")
 
 var errTokenManagerRetired = errors.New("token manager was replaced by a newer instance")
 
+// tokenLastUsedPersistInterval bounds how often TouchLastUsed rewrites the
+// token file per token. The in-memory LastUsedAt is always current; any other
+// save persists it as well.
+const tokenLastUsedPersistInterval = 5 * time.Minute
+
 // TokenManager provides CRUD and validation for API tokens.
 // Token data is stored as an AES-encrypted JSON file via the Vault's master key.
 type TokenManager struct {
-	mu       sync.RWMutex
-	filePath string
-	vault    *Vault
-	tokens   []Token
-	loadErr  error // non-nil: read-only (load failure or retired); save refuses
+	mu                sync.RWMutex
+	filePath          string
+	vault             *Vault
+	tokens            []Token
+	loadErr           error                // non-nil: read-only (load failure or retired); save refuses
+	clock             func() time.Time     // test seam; nil means time.Now
+	lastUsedPersisted map[string]time.Time // last LastUsedAt persisted by TouchLastUsed, per token ID
+}
+
+func (tm *TokenManager) now() time.Time {
+	if tm.clock != nil {
+		return tm.clock()
+	}
+	return time.Now()
 }
 
 // NewTokenManager loads the token file. A missing or empty file starts an
@@ -379,6 +393,7 @@ func (tm *TokenManager) Delete(id string) error {
 				tm.tokens = previous
 				return err
 			}
+			delete(tm.lastUsedPersisted, id)
 			return nil
 		}
 	}
@@ -426,18 +441,30 @@ func (tm *TokenManager) Validate(rawToken string, requiredScope string) (TokenMe
 	return TokenMeta{}, false
 }
 
-// TouchLastUsed updates the LastUsedAt timestamp for a token.
+// TouchLastUsed records the token's last use in memory and persists it at most
+// once per tokenLastUsedPersistInterval, so frequent device polls do not
+// rewrite the whole encrypted file under the exclusive lock.
 func (tm *TokenManager) TouchLastUsed(id string) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
-	now := time.Now().UTC()
+	now := tm.now().UTC()
 	for i := range tm.tokens {
-		if tm.tokens[i].ID == id {
-			tm.tokens[i].LastUsedAt = &now
-			_ = tm.save() // best-effort
+		if tm.tokens[i].ID != id {
+			continue
+		}
+		tm.tokens[i].LastUsedAt = &now
+		last, persisted := tm.lastUsedPersisted[id]
+		if persisted && now.Sub(last) < tokenLastUsedPersistInterval && !now.Before(last) {
 			return
 		}
+		if err := tm.save(); err == nil { // best-effort; a later save persists the value
+			if tm.lastUsedPersisted == nil {
+				tm.lastUsedPersisted = make(map[string]time.Time)
+			}
+			tm.lastUsedPersisted[id] = now
+		}
+		return
 	}
 }
 
