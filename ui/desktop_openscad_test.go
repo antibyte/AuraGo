@@ -544,3 +544,48 @@ func TestDesktopOpenSCADTranslations(t *testing.T) {
 		})
 	}
 }
+
+func TestDesktopOpenSCADSTLPreviewIgnoresStaleLoads(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/openscad.js")
+	stl := jsFunctionBodyInWindowMenuTest(t, app, "function renderSTL(state, mount, url)")
+	for _, want := range []string{
+		"const controller = new AbortController();",
+		"abort: controller",
+		"fetch(url, { signal: controller.signal })",
+		"if (state.preview3D !== p3d || !mount.isConnected) return;",
+		"if (state.preview3D !== p3d || (err && err.name === 'AbortError')) return;",
+		"framePreviewCamera(state, p3d, box);",
+	} {
+		if !strings.Contains(stl, want) {
+			t.Fatalf("renderSTL missing stale-load guard %q", want)
+		}
+	}
+	for _, forbidden := range []string{"state.preview3D.mesh = mesh", "state.preview3D.gridHelper = gridHelper", "state.preview3D.shadowPlane = shadowPlane"} {
+		if strings.Contains(stl, forbidden) {
+			t.Fatalf("renderSTL must write into its own scene record, found %q", forbidden)
+		}
+	}
+
+	cleanup := jsFunctionBodyInWindowMenuTest(t, app, "function cleanupPreview(state)")
+	if !strings.Contains(cleanup, "p3d.abort.abort()") {
+		t.Fatal("cleanupPreview must abort the pending STL download of the released scene")
+	}
+
+	preview := jsFunctionBodyInWindowMenuTest(t, app, "function renderPreview(state, panel)")
+	cleanupAt := strings.Index(preview, "cleanupPreview(state);")
+	if cleanupAt < 0 {
+		t.Fatal("renderPreview must release the STL scene before showing another preview")
+	}
+	for _, marker := range []string{"renderPreviewEmptyState(state, panel)", "data-oscad-preview-img", "data-oscad-preview-object", "data-oscad-preview-frame", "desktop.openscad.download_hint"} {
+		at := strings.Index(preview, marker)
+		if at < 0 || at < cleanupAt {
+			t.Fatalf("renderPreview must call cleanupPreview(state) before %q", marker)
+		}
+	}
+	stlAt := strings.Index(preview, "renderSTL(state, panel.querySelector('[data-stl-viewer]'), url)")
+	if stlAt < 0 || stlAt > cleanupAt {
+		t.Fatal("the STL branch must run before the non-STL cleanup so an unchanged STL scene is kept")
+	}
+}

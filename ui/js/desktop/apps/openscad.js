@@ -1294,36 +1294,8 @@ model();`;
 
     function renderPreview(state, panel) {
         const file = primaryFile(state);
-        if (!file) {
-            state.previewStlURL = '';
-            renderPreviewEmptyState(state, panel);
-            return;
-        }
-        const url = previewURL(file);
-        if (!url) {
-            state.previewStlURL = '';
-            renderPreviewEmptyState(state, panel);
-            return;
-        }
-        if (file.format === 'png') {
-            state.previewStlURL = '';
-            panel.innerHTML = `<img class="oscad-preview-img" data-oscad-preview-img src="${esc(url)}" alt="">`;
-            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-img]'));
-            return;
-        }
-        if (file.format === 'svg') {
-            state.previewStlURL = '';
-            panel.innerHTML = `<object class="oscad-preview-object" data-oscad-preview-object data="${esc(url)}" type="image/svg+xml"></object>`;
-            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-object]'));
-            return;
-        }
-        if (file.format === 'pdf') {
-            state.previewStlURL = '';
-            panel.innerHTML = `<iframe class="oscad-preview-object" data-oscad-preview-frame src="${esc(url)}"></iframe>`;
-            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-frame]'));
-            return;
-        }
-        if (file.format === 'stl') {
+        const url = file ? previewURL(file) : '';
+        if (file && url && file.format === 'stl') {
             const mount = panel.querySelector('[data-stl-viewer]');
             if (state.preview3D && state.previewStlURL === url && mount && mount.querySelector('canvas')) {
                 return;
@@ -1333,7 +1305,28 @@ model();`;
             renderSTL(state, panel.querySelector('[data-stl-viewer]'), url);
             return;
         }
+        // Every non-STL preview releases the WebGL scene and its pending download first.
+        cleanupPreview(state);
         state.previewStlURL = '';
+        if (!file || !url) {
+            renderPreviewEmptyState(state, panel);
+            return;
+        }
+        if (file.format === 'png') {
+            panel.innerHTML = `<img class="oscad-preview-img" data-oscad-preview-img src="${esc(url)}" alt="">`;
+            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-img]'));
+            return;
+        }
+        if (file.format === 'svg') {
+            panel.innerHTML = `<object class="oscad-preview-object" data-oscad-preview-object data="${esc(url)}" type="image/svg+xml"></object>`;
+            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-object]'));
+            return;
+        }
+        if (file.format === 'pdf') {
+            panel.innerHTML = `<iframe class="oscad-preview-object" data-oscad-preview-frame src="${esc(url)}"></iframe>`;
+            bindPreviewLoadError(state, panel, panel.querySelector('[data-oscad-preview-frame]'));
+            return;
+        }
         panel.innerHTML = `<div class="oscad-empty"><strong>${esc(file.name)}</strong><span>${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</span></div>`;
     }
 
@@ -1685,6 +1678,10 @@ model();`;
         }
         if (state.preview3D) {
             const p3d = state.preview3D;
+            if (p3d.abort) {
+                try { p3d.abort.abort(); } catch (_) {}
+                p3d.abort = null;
+            }
             if (p3d.resizeObserver) {
                 try { p3d.resizeObserver.disconnect(); } catch (_) {}
                 p3d.resizeObserver = null;
@@ -1827,19 +1824,22 @@ model();`;
         gridHelper.material.opacity = 0.22;
         scene.add(gridHelper);
         if (!state.showAxes) gridHelper.visible = false;
-        state.preview3D = { scene, camera, renderer, controls, gridHelper, mesh: null, onDblClick, bgTexture, keyLight: key, shadowPlane: null, resizeObserver: null, lastWidth: width, lastHeight: height };
+        // Each scene owns its record and download; results for a replaced scene are dropped.
+        const controller = new AbortController();
+        const p3d = { scene, camera, renderer, controls, gridHelper, mesh: null, onDblClick, bgTexture, keyLight: key, shadowPlane: null, resizeObserver: null, lastWidth: width, lastHeight: height, abort: controller };
+        state.preview3D = p3d;
         if (window.ResizeObserver) {
             const resizeObserver = new ResizeObserver(() => resizePreviewRenderer(state, mount));
             resizeObserver.observe(mount);
-            state.preview3D.resizeObserver = resizeObserver;
+            p3d.resizeObserver = resizeObserver;
         }
         const loader = new THREE.STLLoader();
         state.stl = loader;
-        fetch(url).then(res => {
+        fetch(url, { signal: controller.signal }).then(res => {
             if (!res.ok) throw new Error(res.statusText || String(res.status));
             return res.arrayBuffer();
         }).then(buffer => {
-            if (!state.preview3D) return;
+            if (state.preview3D !== p3d || !mount.isConnected) return;
             const geometry = loader.parse(buffer);
             if (!geometry) return;
             geometry.computeVertexNormals();
@@ -1855,7 +1855,7 @@ model();`;
             mesh.rotation.x = -Math.PI / 2;
             mesh.castShadow = true;
             scene.add(mesh);
-            state.preview3D.mesh = mesh;
+            p3d.mesh = mesh;
             const box = new THREE.Box3().setFromObject(mesh);
             const size = box.getSize(new THREE.Vector3()).length() || 80;
             const center = box.getCenter(new THREE.Vector3());
@@ -1869,7 +1869,7 @@ model();`;
             gridHelper.position.set(center.x, floorY - size * 0.002, center.z);
             gridHelper.visible = state.showAxes !== false;
             scene.add(gridHelper);
-            state.preview3D.gridHelper = gridHelper;
+            p3d.gridHelper = gridHelper;
             const shadowPlane = new THREE.Mesh(
                 new THREE.PlaneGeometry(size * 4, size * 4),
                 new THREE.ShadowMaterial({ color: 0x000000, opacity: state.lightPreview ? 0.16 : 0.3 })
@@ -1878,7 +1878,7 @@ model();`;
             shadowPlane.position.set(center.x, floorY - size * 0.004, center.z);
             shadowPlane.receiveShadow = true;
             scene.add(shadowPlane);
-            state.preview3D.shadowPlane = shadowPlane;
+            p3d.shadowPlane = shadowPlane;
             key.position.set(center.x + size * 0.9, floorY + size * 1.25, center.z + size * 0.6);
             key.target.position.copy(center);
             key.shadow.camera.left = -size;
@@ -1888,9 +1888,10 @@ model();`;
             key.shadow.camera.near = Math.max(0.1, size * 0.1);
             key.shadow.camera.far = size * 4;
             key.shadow.camera.updateProjectionMatrix();
-            framePreviewCamera(state, state.preview3D, box);
+            framePreviewCamera(state, p3d, box);
             animatePreview(state);
         }).catch(err => {
+            if (state.preview3D !== p3d || (err && err.name === 'AbortError')) return;
             if (mount) {
                 mount.innerHTML = `<div class="oscad-empty"><strong>${esc(t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'))}</strong><span>${esc((err && err.message) || String(err))}</span></div>`;
             }

@@ -1770,6 +1770,10 @@ registration lives in `internal/desktop/types.go`.
   `module-loader.js`: preview, sites, history, then `homepage-studio.js`.
 - OpenSCAD exposes `window.OpenSCADApp = { render, dispose }`. Every window
   instance owns its draft timer, SSE listeners, editor, and preview resources.
+- The OpenSCAD STL preview keeps one scene record per `renderSTL` with its own `AbortController`; a late
+  download for a replaced scene is ignored and never touches the current record. PNG, SVG, PDF, empty and
+  download-only previews call `cleanupPreview` before replacing the panel. Verify
+  `TestDesktopOpenSCADSTLPreviewIgnoresStaleLoads`.
 - OpenSCAD uses a preview-first workbench layout: a slim header bar with
   primary actions (render, generate, cancel, download, save) and toggle
   buttons for the three panels; the main grid is
