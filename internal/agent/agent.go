@@ -78,7 +78,7 @@ func (a *Agent) Shutdown() error {
 		_ = a.CronManager.Close()
 	}
 
-	if err := shutdownDefaultSideEffects(defaultSideEffectShutdownTimeout); err != nil {
+	if err := ShutdownSideEffects(defaultSideEffectShutdownTimeout); err != nil {
 		a.Logger.Warn("Timed out waiting for agent side effects", "error", err)
 	}
 

@@ -180,6 +180,7 @@ Tools are defined in `internal/tools/`:
 - Internal chat control headers are trusted only from loopback with the process token. A mission ID additionally requires `X-Internal-FollowUp: true`; invalid internal headers fail with `invalid_internal_chat_headers` before normal authentication handling.
 - Persisted and manual history compression share the coordinated per-session path and apply one stable-ID update to the summary, in-memory history, and SQLite archive. Summaries are capped at 8192 tokens; failed summaries must leave raw data intact and fall back to bounded request-only recaps. Hard truncation must preserve valid UTF-8 and the final token limit.
 - `HistoryManager.CurrentSummary` belongs exclusively to chat context compression. Nightly maintenance must not use an LLM reflection loop to overwrite it; maintenance state is stored in the structured maintenance ledger and typed morning notification instead.
+- Background work that a run starts (turn analysis, activity capture, weekly reflection, proactive history compression) goes through `sideEffectsFromRunConfig(...).Go` with the task context, never a bare `go` with `context.Background()`. `agent.ShutdownSideEffects` is process-terminal and runs after `server.Start` returns, before main's deferred store closes. A cancelled compression neither mutates history nor records a compression failure. Verify `TestProactiveHistoryCompressionDrainsWithSideEffectGroup`.
 
 ## Verification
 

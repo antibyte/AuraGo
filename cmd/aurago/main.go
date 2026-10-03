@@ -1230,6 +1230,12 @@ func main() {
 	if backgroundTaskManager != nil {
 		_ = backgroundTaskManager.Close()
 	}
+	// Agent side effects (turn analysis, activity capture, weekly reflection,
+	// proactive history compression) write to the memory stores that main's
+	// deferred calls close next. Cancel and drain them first.
+	if err := agent.ShutdownSideEffects(30 * time.Second); err != nil {
+		appLog.Warn("Agent side effects did not drain before shutdown", "error", err)
+	}
 }
 
 func waitForInternalAPIReady(ctx context.Context, cfg *config.Config, token string, client *http.Client) error {

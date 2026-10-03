@@ -95,10 +95,13 @@ func sideEffectsFromRunConfig(runCfg RunConfig) *AsyncTaskGroup {
 	return defaultSideEffects.group
 }
 
-func shutdownDefaultSideEffects(timeout time.Duration) error {
+// ShutdownSideEffects cancels and drains agent side effects started through the
+// shared default group: turn analysis, activity capture, weekly reflection and
+// proactive history compression. It is process-terminal: the closed group
+// rejects later tasks, so nothing starts against stores that are closing.
+func ShutdownSideEffects(timeout time.Duration) error {
 	defaultSideEffects.mu.Lock()
 	group := defaultSideEffects.group
-	defaultSideEffects.group = NewAsyncTaskGroup(context.Background())
 	defaultSideEffects.mu.Unlock()
 	return group.Shutdown(timeout)
 }

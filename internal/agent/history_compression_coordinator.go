@@ -290,7 +290,11 @@ func compressPersistentHistory(
 		if logger != nil {
 			logger.Warn("[Compression] Persistent summary failed", "error", err)
 		}
-		recordHistoryCompressionFailure(runCfg)
+		// Cancellation (shutdown or the caller giving up) is not a helper
+		// failure and must not raise the repeated-failure operational issue.
+		if ctx.Err() == nil {
+			recordHistoryCompressionFailure(runCfg)
+		}
 		return result
 	}
 	if len(response.Choices) == 0 || response.Choices[0].FinishReason == openai.FinishReasonLength {
@@ -300,6 +304,10 @@ func compressPersistentHistory(
 	summary := strings.TrimSpace(response.Choices[0].Message.Content)
 	if summary == "" || prompts.CountTokensForModel(summary, model) > historySummaryMaxTokens {
 		recordHistoryCompressionFailure(runCfg)
+		return result
+	}
+	if ctx.Err() != nil {
+		// Never start the SQLite/history mutation once shutdown has begun.
 		return result
 	}
 	requestedIDs := make([]int64, 0, len(selected))
@@ -440,10 +448,18 @@ func ScheduleProactiveHistoryCompression(runCfg RunConfig) bool {
 	if !ok {
 		return false
 	}
-	go func() {
-		defer lease.release(true)
+	// Run inside the side-effect group so graceful shutdown cancels and drains
+	// the compressor before the memory stores close.
+	started := sideEffectsFromRunConfig(runCfg).Go(func(ctx context.Context) {
+		completed := true
+		defer func() { lease.release(completed) }()
 		client, model := resolveHelperBackedLLM(runCfg.Config, runCfg.LLMClient, runCfg.Config.LLM.Model)
-		result := compressPersistentHistory(context.Background(), runCfg, 0, charLimit/5, true, model, client, runCfg.Logger)
+		result := compressPersistentHistory(ctx, runCfg, 0, charLimit/5, true, model, client, runCfg.Logger)
+		if ctx.Err() != nil {
+			// A cancelled attempt must not start the proactive cooldown.
+			completed = false
+			return
+		}
 		if !result.Compressed || runCfg.LongTermMem == nil || runCfg.LongTermMem.IsDisabled() {
 			return
 		}
@@ -451,6 +467,10 @@ func ScheduleProactiveHistoryCompression(runCfg RunConfig) bool {
 		if _, err := runCfg.LongTermMem.StoreDocument(concept, result.Summary); err != nil && runCfg.Logger != nil {
 			runCfg.Logger.Warn("[Compression] VectorDB archive of summary failed", "error", err)
 		}
-	}()
+	})
+	if !started {
+		lease.release(false)
+		return false
+	}
 	return true
 }
