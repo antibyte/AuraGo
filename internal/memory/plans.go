@@ -790,7 +790,9 @@ func (s *SQLiteMemory) SplitPlanTask(planID, taskID string, inputs []PlanTaskInp
 
 	var originalDeps []string
 	if strings.TrimSpace(depsJSON) != "" {
-		_ = json.Unmarshal([]byte(depsJSON), &originalDeps)
+		if err := json.Unmarshal([]byte(depsJSON), &originalDeps); err != nil {
+			return nil, fmt.Errorf("task dependencies are unreadable; repair them before splitting: %w", err)
+		}
 	}
 
 	if _, err := tx.Exec(`UPDATE plan_tasks SET task_order = task_order + ? WHERE plan_id = ? AND task_order > ?`, len(inputs), planID, taskOrder); err != nil {
@@ -1207,20 +1209,38 @@ func (s *SQLiteMemory) promoteNextPlanTaskTx(tx *sql.Tx, planID, now string) err
 		return nil
 	}
 
+	// Collect first: the loop below may update rows, which must not happen while the
+	// pending-task cursor is still open.
 	rows, err := tx.Query(`SELECT id, depends_on_json FROM plan_tasks WHERE plan_id = ? AND status = ? ORDER BY task_order ASC`, planID, PlanTaskPending)
 	if err != nil {
 		return fmt.Errorf("select pending tasks: %w", err)
 	}
-	defer rows.Close()
-
+	type pendingPlanTask struct {
+		id       string
+		depsJSON string
+	}
+	var pending []pendingPlanTask
 	for rows.Next() {
-		var taskID, depsJSON string
-		if err := rows.Scan(&taskID, &depsJSON); err != nil {
+		var task pendingPlanTask
+		if err := rows.Scan(&task.id, &task.depsJSON); err != nil {
+			rows.Close()
 			return fmt.Errorf("scan pending task: %w", err)
 		}
+		pending = append(pending, task)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate pending tasks: %w", err)
+	}
+	rows.Close()
+
+	for _, task := range pending {
 		var deps []string
-		if depsJSON != "" {
-			_ = json.Unmarshal([]byte(depsJSON), &deps)
+		if strings.TrimSpace(task.depsJSON) != "" {
+			if err := json.Unmarshal([]byte(task.depsJSON), &deps); err != nil {
+				// Unknown dependencies are not "no dependencies": stop and make it visible.
+				return blockPlanTaskForUnreadableDependenciesTx(tx, planID, task.id, now)
+			}
 		}
 		ready := true
 		for _, depID := range deps {
@@ -1239,15 +1259,44 @@ func (s *SQLiteMemory) promoteNextPlanTaskTx(tx *sql.Tx, planID, now string) err
 		}
 		if _, err := tx.Exec(
 			`UPDATE plan_tasks SET status = ?, started_at = CASE WHEN started_at = '' THEN ? ELSE started_at END WHERE id = ?`,
-			PlanTaskInProgress, now, taskID,
+			PlanTaskInProgress, now, task.id,
 		); err != nil {
 			return fmt.Errorf("promote next task: %w", err)
 		}
 		_, _ = tx.Exec(`INSERT INTO plan_events (plan_id, event_type, message, created_at) VALUES (?, ?, ?, ?)`,
-			planID, "task", fmt.Sprintf("Started next task: %s", taskID), now)
+			planID, "task", fmt.Sprintf("Started next task: %s", task.id), now)
 		return nil
 	}
-	return rows.Err()
+	return nil
+}
+
+// planTaskDependencyBlocker explains why a task with unreadable dependency data stopped.
+const planTaskDependencyBlocker = "Task dependency data is unreadable; repair or skip the task."
+
+// blockPlanTaskForUnreadableDependenciesTx blocks the task and its plan the same way
+// SetPlanTaskBlocker does, so ClearPlanTaskBlocker resumes it after a repair.
+func blockPlanTaskForUnreadableDependenciesTx(tx *sql.Tx, planID, taskID, now string) error {
+	if _, err := tx.Exec(
+		`UPDATE plan_tasks
+		 SET status = ?, blocker_reason = ?, completed_at = '', error = CASE WHEN error = '' THEN ? ELSE error END
+		 WHERE plan_id = ? AND id = ?`,
+		PlanTaskBlocked, planTaskDependencyBlocker, planTaskDependencyBlocker, planID, taskID,
+	); err != nil {
+		return fmt.Errorf("block task %s with unreadable dependencies: %w", taskID, err)
+	}
+	if _, err := tx.Exec(
+		`UPDATE plans SET status = ?, blocked_reason = ?, updated_at = ? WHERE id = ?`,
+		PlanStatusBlocked, planTaskDependencyBlocker, now, planID,
+	); err != nil {
+		return fmt.Errorf("block plan with unreadable task dependencies: %w", err)
+	}
+	if _, err := tx.Exec(
+		`INSERT INTO plan_events (plan_id, event_type, message, created_at) VALUES (?, ?, ?, ?)`,
+		planID, "task_blocked", fmt.Sprintf("%s (%s)", planTaskDependencyBlocker, taskID), now,
+	); err != nil {
+		return fmt.Errorf("insert dependency blocker event: %w", err)
+	}
+	return nil
 }
 
 func (s *SQLiteMemory) finalizeCompletedPlanTx(tx *sql.Tx, planID, now string) error {
