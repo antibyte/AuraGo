@@ -120,9 +120,9 @@ func (b *SSEBrokerAdapter) SendTypedWithTransport(eventType string, payload inte
 		targetSessionID = typedPayloadSessionID(enriched)
 	}
 	if targetSessionID != "" {
-		return b.sse.broadcastToSession(targetSessionID, security.Scrub(msg)) > 0, "typed_session"
+		return b.sse.broadcastToSession(targetSessionID, scrubSSEJSON(msg)) > 0, "typed_session"
 	}
-	return b.sse.broadcast(security.Scrub(msg)) > 0, "typed_session"
+	return b.sse.broadcast(scrubSSEJSON(msg)) > 0, "typed_session"
 }
 
 func (b *SSEBrokerAdapter) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {

@@ -70,8 +70,8 @@ func (b *SSEBroadcaster) Send(event, detail string) {
 
 // SendJSON broadcasts a raw JSON string to all connected SSE clients (non-blocking).
 func (b *SSEBroadcaster) SendJSON(jsonMsg string) {
-	jsonMsg = security.Scrub(jsonMsg)
-	b.broadcast(jsonMsg)
+	// Registered secrets are redacted inside every decoded JSON value.
+	b.broadcast(scrubSSEJSON(jsonMsg))
 }
 
 func (b *SSEBroadcaster) broadcast(msg string) int {
@@ -158,7 +158,78 @@ func (b *SSEBroadcaster) BroadcastToSession(sessionID string, eventType SSEEvent
 	if err != nil {
 		return false
 	}
-	return b.broadcastToSession(sessionID, security.Scrub(string(msg))) > 0
+	return b.broadcastToSession(sessionID, scrubSSEJSON(string(msg))) > 0
+}
+
+// scrubSSEJSON redacts registered secrets inside every JSON string (and number)
+// of an already serialized SSE message. Scrubbing decoded values matches what
+// the browser sees after JSON.parse, so escapes such as \u0026 cannot hide a
+// secret and redaction can never break the JSON structure. The original bytes
+// are returned unchanged when nothing was redacted; non-JSON input falls back
+// to plain text scrubbing.
+func scrubSSEJSON(msg string) string {
+	if msg == "" {
+		return ""
+	}
+	dec := json.NewDecoder(strings.NewReader(msg))
+	dec.UseNumber()
+	var doc any
+	if err := dec.Decode(&doc); err != nil {
+		return security.Scrub(msg)
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return security.Scrub(msg)
+	}
+	scrubbed, changed := scrubJSONStrings(doc)
+	if !changed {
+		return msg
+	}
+	out, err := json.Marshal(scrubbed)
+	if err != nil {
+		return security.Scrub(msg)
+	}
+	return string(out)
+}
+
+// scrubJSONStrings applies security.Scrub to every string, map key and number
+// of a decoded JSON value and reports whether anything changed. A redacted
+// number becomes the string placeholder.
+func scrubJSONStrings(v any) (any, bool) {
+	switch t := v.(type) {
+	case string:
+		s := security.Scrub(t)
+		return s, s != t
+	case json.Number:
+		s := security.Scrub(t.String())
+		if s != t.String() {
+			return s, true
+		}
+		return t, false
+	case map[string]any:
+		changed := false
+		out := make(map[string]any, len(t))
+		for key, value := range t {
+			newKey := security.Scrub(key)
+			newValue, valueChanged := scrubJSONStrings(value)
+			if newKey != key || valueChanged {
+				changed = true
+			}
+			out[newKey] = newValue
+		}
+		return out, changed
+	case []any:
+		changed := false
+		for i, value := range t {
+			newValue, valueChanged := scrubJSONStrings(value)
+			if valueChanged {
+				t[i] = newValue
+				changed = true
+			}
+		}
+		return t, changed
+	default:
+		return v, false
+	}
 }
 
 type LLMStreamDeltaPayload struct {
