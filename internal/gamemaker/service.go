@@ -1,6 +1,7 @@
 package gamemaker
 
 import (
+	"aurago/internal/fileutil"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -130,6 +131,10 @@ func NewService(opts Options) (*Service, error) {
 		validationFailures: map[string]int{},
 		lastFailedBuild:    map[string]string{},
 		lastValidation:     map[string]*BuildResult{},
+	}
+	if err := service.recoverFilesystemReceipts(context.Background()); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("recover game maker filesystem: %w", err)
 	}
 	return service, nil
 }
@@ -370,28 +375,42 @@ func (s *Service) DeleteProject(ctx context.Context, id string) error {
 	if err := rejectSymlinkComponents(s.opts.WorkspacePath, projectDir); err != nil {
 		return err
 	}
-	backupDir := projectDir + ".gm-delete-" + writerID
+	receipt := filesystemReceipt{Version: 1, ID: writerID, Kind: "delete", ProjectID: project.ID, ProjectKey: project.ProjectKey, PreviousRevision: project.CurrentRevision}
+	_, backupDir, _, err := s.receiptPaths(receipt)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Lstat(backupDir); !os.IsNotExist(err) {
+		return fmt.Errorf("deletion backup already exists or is unavailable")
+	}
 	hadProjectDir := false
 	if _, err := os.Stat(projectDir); err == nil {
 		hadProjectDir = true
-		if err := os.Rename(projectDir, backupDir); err != nil {
-			return fmt.Errorf("stage game maker project deletion: %w", err)
-		}
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("inspect game maker project files: %w", err)
 	}
+	receipt.HadTarget = hadProjectDir
+	receiptPath, err := s.writeFilesystemReceipt(receipt)
+	if err != nil {
+		return err
+	}
+	if hadProjectDir {
+		if err := fileutil.Rename(projectDir, backupDir); err != nil {
+			_ = os.Remove(receiptPath)
+			return fmt.Errorf("stage game maker project deletion: %w", err)
+		}
+	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM gm_projects WHERE id=?`, id); err != nil {
 		if hadProjectDir {
-			if restoreErr := os.Rename(backupDir, projectDir); restoreErr != nil {
+			if restoreErr := fileutil.Rename(backupDir, projectDir); restoreErr != nil {
 				return fmt.Errorf("delete game maker project: %w (restore project files: %v)", err, restoreErr)
 			}
 		}
+		_ = os.Remove(receiptPath)
 		return fmt.Errorf("delete game maker project: %w", err)
 	}
-	if hadProjectDir {
-		if err := os.RemoveAll(backupDir); err != nil && s.opts.Logger != nil {
-			s.opts.Logger.Warn("Failed to remove deleted Game Maker project backup", "path", backupDir, "error", err)
-		}
+	if err := s.recoverFilesystemReceipt(context.Background(), receiptPath, receipt); err != nil && s.opts.Logger != nil {
+		s.opts.Logger.Warn("Game Maker deletion cleanup retained for restart", "error", err)
 	}
 	for _, jobID := range workingCopies {
 		s.removeWorkingCopy(jobID)

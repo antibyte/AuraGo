@@ -26,6 +26,11 @@ func TestPublishCommitFailurePreservesStageAndPublishedProject(t *testing.T) {
 	if _, err := s.publish(context.Background(), stage1, project, Job{ID: "original"}, "test", "original"); err != nil {
 		t.Fatal(err)
 	}
+	var err error
+	project, err = s.GetProject(context.Background(), project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := s.db.Exec(`CREATE TABLE gm_commit_parent(id INTEGER PRIMARY KEY);
 		CREATE TABLE gm_commit_child(id INTEGER REFERENCES gm_commit_parent(id) DEFERRABLE INITIALLY DEFERRED);
 		CREATE TRIGGER gm_commit_fail AFTER UPDATE OF current_revision ON gm_projects
@@ -44,5 +49,9 @@ func TestPublishCommitFailurePreservesStageAndPublishedProject(t *testing.T) {
 		if err != nil || string(got) != want {
 			t.Fatalf("%s = %q, %v; want %q", path, got, err, want)
 		}
+	}
+	candidateHash := sha256Bytes([]byte("staged"))
+	if _, err := os.Stat(filepath.Join(s.blobDir, candidateHash[:2], candidateHash)); !os.IsNotExist(err) {
+		t.Fatalf("failed publication retained an orphan blob: %v", err)
 	}
 }

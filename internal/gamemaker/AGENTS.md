@@ -337,6 +337,10 @@ revision publication and standalone export for Phaser and Three.js games.
   reject publication while preserving the working copy and playable revision.
   A failed revision commit must retain staged blob work for retry or explicit cleanup;
   rollback removes only records and blobs created by that failed attempt.
+- Publication and deletion write a private filesystem receipt before moving
+  project directories. On restart, recover only when the project revision and
+  expected files establish the outcome; retain ambiguous receipts for review.
+  Incomplete temporary receipt writes may be removed without changing projects.
 - Browser gameplay evidence is a cooperative quality check, not independent
   attestation of hostile game code: the driver and project share one JavaScript
   realm. Preserve sandbox/API isolation; do not claim that window/channel checks

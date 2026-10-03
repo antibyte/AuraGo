@@ -15,8 +15,8 @@ import (
 // covered independently; export tests must not fabricate a revision number.
 func publishExportFixture(t *testing.T, s *Service, project Project, dir string) {
 	t.Helper()
-	stage := filepath.Join(t.TempDir(), "revision")
-	if err := os.Rename(dir, stage); err != nil {
+	stage := filepath.Join(s.stagingDir, "export-fixture")
+	if err := copyTree(dir, stage, 1000, 100<<20); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.publish(context.Background(), stage, project, Job{ID: "export-fixture"}, "test", "Export fixture"); err != nil {
