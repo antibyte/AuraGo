@@ -411,25 +411,15 @@ func filesystemCopyFile(root *os.Root, src, dst string) error {
 	if srcInfo.IsDir() {
 		return fmt.Errorf("directory copy is not supported")
 	}
-	if err := root.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
+	if !srcInfo.Mode().IsRegular() {
+		return fmt.Errorf("only regular files can be copied")
 	}
 	srcFile, err := root.Open(src)
 	if err != nil {
 		return err
 	}
 	defer srcFile.Close()
-
-	dstFile, err := root.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return err
-	}
-	defer dstFile.Close()
-
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return err
-	}
-	return root.Chmod(dst, srcInfo.Mode())
+	return writeRootFromReaderAtomic(root, dst, srcFile, srcInfo.Mode().Perm(), false)
 }
 
 func filesystemBatchResult(operation string, items []map[string]interface{}, workspaceDir string) FSResult {

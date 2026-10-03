@@ -130,13 +130,24 @@ func rootedToolWriteFromReaderAtomicMode(path string, source io.Reader, mode os.
 		return err
 	}
 	defer root.Close()
+	return writeRootFromReaderAtomic(root, rel, source, mode, true)
+}
+
+// writeRootFromReaderAtomic replaces rel inside root with source. It writes a
+// private temporary file in the destination directory, syncs it, checks the
+// Close error and renames it over rel, so a failed write never truncates an
+// existing destination. keepExistingMode keeps an existing destination's
+// permission bits; otherwise the file gets exactly mode.
+func writeRootFromReaderAtomic(root *os.Root, rel string, source io.Reader, mode os.FileMode, keepExistingMode bool) error {
 	if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
 		return fmt.Errorf("create parent directory: %w", err)
 	}
-	if info, err := root.Stat(rel); err == nil {
-		mode = info.Mode().Perm()
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("stat destination: %w", err)
+	if keepExistingMode {
+		if info, err := root.Stat(rel); err == nil {
+			mode = info.Mode().Perm()
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("stat destination: %w", err)
+		}
 	}
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
@@ -151,6 +162,12 @@ func rootedToolWriteFromReaderAtomicMode(path string, source io.Reader, mode os.
 	if _, err := io.Copy(f, source); err != nil {
 		f.Close()
 		return fmt.Errorf("write temporary file: %w", err)
+	}
+	if !keepExistingMode {
+		if err := f.Chmod(mode); err != nil {
+			f.Close()
+			return fmt.Errorf("set temporary file mode: %w", err)
+		}
 	}
 	if err := f.Sync(); err != nil {
 		f.Close()

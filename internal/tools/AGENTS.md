@@ -35,7 +35,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ### Agent Filesystem Jail Contract
 - Native editors and MissionV2 stores use `internal/fileutil` for replacement;
-  keep their caller-owned path/permission checks, locks, and file modes.
+  keep their caller-owned path/permission checks, locks, and file modes. Rooted tool writes and filesystem `copy` replace
+  their destination through `writeRootFromReaderAtomic` (temporary file, Sync, checked Close, rename inside the `os.Root`).
 - Agent filesystem, file_editor, and other `secureResolve` paths jail to `agent_workspace`, not the AuraGo install root. From `workdir`, `../skills` and `../tools` stay reachable; `../../config.yaml` and `data/` must fail resolution.
 - Keep absolute and relative path checks equivalent. Perform filesystem reads, writes, walks and replacements through `os.Root` after resolution; do not hand a validated workspace path to an external converter. Media conversion, PDF operations, Docker copy and patching stage inputs in private temporary directories and publish workspace outputs through the rooted writer. Document conversion and MCP vision stage workspace inputs before handing paths to other components. Docker copy accepts regular files only.
 - Koofr uploads read only from `agent_workspace`; never fall back to the runtime `data` directory.
