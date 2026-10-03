@@ -310,6 +310,9 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 		if err := requireUnprotectedNotesPath(resolved, false); err != nil {
 			return "", err
 		}
+		if err := requireUnprotectedSystemPath(resolved, userPath); err != nil {
+			return "", err
+		}
 		return resolved, nil
 	}
 
@@ -345,6 +348,9 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 	}
 
 	if err := requireUnprotectedNotesPath(absPath, false); err != nil {
+		return "", err
+	}
+	if err := requireUnprotectedSystemPath(absPath, userPath); err != nil {
 		return "", err
 	}
 	return absPath, nil

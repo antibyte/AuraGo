@@ -15,7 +15,11 @@ import (
 
 // RuntimePermissions are the direct execution gates enforced inside high-risk tools.
 type RuntimePermissions struct {
-	ProtectedNotesRoots        []string
+	ProtectedNotesRoots []string
+	// ProtectedDataDir and ProtectedSystemFiles feed secureResolve's denylist
+	// for AuraGo configuration, credential and database state.
+	ProtectedDataDir           string
+	ProtectedSystemFiles       []string
 	AllowShell                 bool
 	AllowPython                bool
 	AllowUnsafeHostExecution   bool
@@ -116,6 +120,8 @@ func EffectiveRuntimePermissions(ctx context.Context) (RuntimePermissions, bool)
 func intersectRuntimePermissions(a, b RuntimePermissions) RuntimePermissions {
 	return RuntimePermissions{
 		ProtectedNotesRoots:        unionRuntimePaths(a.ProtectedNotesRoots, b.ProtectedNotesRoots),
+		ProtectedDataDir:           firstNonEmptyRuntimePath(a.ProtectedDataDir, b.ProtectedDataDir),
+		ProtectedSystemFiles:       unionRuntimePaths(a.ProtectedSystemFiles, b.ProtectedSystemFiles),
 		AllowShell:                 a.AllowShell && b.AllowShell,
 		AllowPython:                a.AllowPython && b.AllowPython,
 		AllowUnsafeHostExecution:   a.AllowUnsafeHostExecution && b.AllowUnsafeHostExecution,
@@ -135,6 +141,13 @@ func intersectRuntimePermissions(a, b RuntimePermissions) RuntimePermissions {
 		PackageManagerAllowRemove:  a.PackageManagerAllowRemove && b.PackageManagerAllowRemove,
 		PackageManagerAllowUpgrade: a.PackageManagerAllowUpgrade && b.PackageManagerAllowUpgrade,
 	}
+}
+
+func firstNonEmptyRuntimePath(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 func unionRuntimePaths(a, b []string) []string {
@@ -170,6 +183,8 @@ func RuntimePermissionsFromConfig(cfg *config.Config) RuntimePermissions {
 	}
 	return RuntimePermissions{
 		ProtectedNotesRoots:        protectedNotes,
+		ProtectedDataDir:           cfg.Directories.DataDir,
+		ProtectedSystemFiles:       protectedSystemFilesFromConfig(cfg),
 		AllowShell:                 cfg.Agent.AllowShell,
 		AllowPython:                cfg.Agent.AllowPython,
 		AllowUnsafeHostExecution:   cfg.Agent.AllowUnsafeHostExecution,
