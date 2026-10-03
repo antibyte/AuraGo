@@ -1160,7 +1160,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				tokensRestored = n
 				s.Logger.Info("[Backup] Token store imported", "count", n)
 				if tm, loadErr := security.NewTokenManager(s.Vault, tokenPath); loadErr == nil {
-					s.TokenManager = tm
+					s.replaceTokenManager(tm)
 				} else {
 					s.Logger.Warn("[Backup] Imported token store but failed to reload TokenManager", "error", loadErr)
 				}

@@ -194,6 +194,7 @@ type Server struct {
 	CoAgentRegistry         *agent.CoAgentRegistry
 	BudgetTracker           *budget.Tracker
 	TokenManager            *security.TokenManager
+	tokenManagerMu          sync.RWMutex // guards TokenManager replacement (backup import)
 	CydHub                  *cyd.Hub
 	WebhookManager          *webhooks.Manager
 	WebhookHandler          *webhooks.Handler
@@ -274,6 +275,26 @@ func (s *Server) accessLogger() *slog.Logger {
 		return s.AccessLogger
 	}
 	return s.Logger
+}
+
+// currentTokenManager returns the live token store. Backup import may replace
+// it, so long-lived holders (the webhook handler) resolve it per request.
+func (s *Server) currentTokenManager() *security.TokenManager {
+	s.tokenManagerMu.RLock()
+	defer s.tokenManagerMu.RUnlock()
+	return s.TokenManager
+}
+
+// replaceTokenManager publishes a new token store and retires the previous one
+// so a request still holding it cannot rewrite tokens.json with stale data.
+func (s *Server) replaceTokenManager(tm *security.TokenManager) {
+	s.tokenManagerMu.Lock()
+	previous := s.TokenManager
+	s.TokenManager = tm
+	s.tokenManagerMu.Unlock()
+	if previous != nil && previous != tm {
+		previous.Retire()
+	}
 }
 
 // missionRunTracker lazily creates the registry so tests that construct a
@@ -766,11 +787,22 @@ func Start(opts StartOptions) error {
 	// Initialize runtime debug mode from config
 	agent.SetDebugMode(cfg.Agent.DebugMode)
 
-	// Initialize Token Manager
+	// Initialize Token Manager. A load failure still yields a read-only manager:
+	// it validates no token and never rewrites the unreadable file.
 	tokenFilePath := filepath.Join(cfg.Directories.DataDir, "tokens.json")
 	tm, tmErr := security.NewTokenManager(vault, tokenFilePath)
 	if tmErr != nil {
-		logger.Warn("Failed to initialize TokenManager, webhooks will be disabled", "error", tmErr)
+		logger.Error("Token store could not be loaded; token-authenticated clients are rejected and token changes are refused until tokens.json is readable again", "path", tokenFilePath, "error", tmErr)
+		if s.WarningsRegistry != nil {
+			s.WarningsRegistry.Add(warnings.Warning{
+				ID:          "token_store_unavailable",
+				Severity:    warnings.SeverityCritical,
+				Category:    warnings.CategorySecurity,
+				Title:       "API token store could not be loaded",
+				Description: "tokens.json could not be read or decrypted. Webhook, device and API tokens are rejected and token changes are refused so the file is not overwritten. Fix the file permissions or the master key, then restart AuraGo.",
+				Timestamp:   time.Now(),
+			})
+		}
 	}
 	s.TokenManager = tm
 
@@ -786,6 +818,7 @@ func Start(opts StartOptions) error {
 		} else {
 			s.WebhookManager = whMgr
 			s.WebhookHandler = webhooks.NewHandler(whMgr, tm, vault, s.Guardian, s.LLMGuardian, cfg, logger, cfg.Server.Port, int64(cfg.Webhooks.MaxPayloadSize), cfg.Webhooks.RateLimit)
+			s.WebhookHandler.SetTokenManagerSource(s.currentTokenManager)
 			s.WebhookHandler.SetInternalToken(s.internalToken)
 			logger.Info("Webhook system initialized", "max_webhooks", webhooks.MaxWebhooks)
 		}

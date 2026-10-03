@@ -31,9 +31,10 @@ type SSEBroadcaster interface {
 
 // Handler processes incoming webhook HTTP requests.
 type Handler struct {
-	mu             gosync.RWMutex // protects maxPayloadSize and rateLimiter during hot-reload
+	mu             gosync.RWMutex // protects maxPayloadSize, rateLimiter and tokenSource during hot-reload
 	manager        *Manager
 	tokenManager   *security.TokenManager
+	tokenSource    func() *security.TokenManager // live lookup set by the server; wins over tokenManager
 	vault          *security.Vault
 	guardian       *security.Guardian
 	llmGuardian    *security.LLMGuardian
@@ -83,6 +84,28 @@ func (h *Handler) SetInternalToken(token string) {
 	h.mu.Lock()
 	h.internalToken = token
 	h.mu.Unlock()
+}
+
+// SetTokenManagerSource makes the handler resolve the live token store on every
+// request. The server replaces its TokenManager after a backup import; without
+// a source the handler would keep validating and touching the stale instance.
+func (h *Handler) SetTokenManagerSource(source func() *security.TokenManager) {
+	h.mu.Lock()
+	h.tokenSource = source
+	h.mu.Unlock()
+}
+
+func (h *Handler) tokens() *security.TokenManager {
+	h.mu.RLock()
+	source := h.tokenSource
+	fallback := h.tokenManager
+	h.mu.RUnlock()
+	if source != nil {
+		if live := source(); live != nil {
+			return live
+		}
+	}
+	return fallback
 }
 
 func (h *Handler) log() *slog.Logger {
@@ -156,7 +179,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	rateKey := "signed:" + wh.ID + ":" + sourceIP
 	if !signedOnly {
-		tokenMeta, valid := h.tokenManager.Validate(rawToken, "webhook")
+		tokens := h.tokens()
+		if tokens == nil {
+			h.logEvent(wh.ID, wh.Name, http.StatusServiceUnavailable, sourceIP, 0, false, "token store unavailable")
+			http.Error(w, `{"error":"token store unavailable"}`, http.StatusServiceUnavailable)
+			return
+		}
+		tokenMeta, valid := tokens.Validate(rawToken, "webhook")
 		if !valid {
 			h.logEvent(wh.ID, wh.Name, 401, sourceIP, 0, false, "invalid or expired token")
 			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
@@ -167,7 +196,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 			return
 		}
-		h.tokenManager.TouchLastUsed(tokenMeta.ID)
+		tokens.TouchLastUsed(tokenMeta.ID)
 		rateKey = tokenMeta.ID
 	}
 

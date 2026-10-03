@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -42,6 +43,16 @@ type TokenMeta struct {
 	Enabled    bool       `json:"enabled"`
 }
 
+// ErrTokenStoreUnavailable is returned by every mutation while the token file
+// could not be loaded or after the manager was replaced. The store is then
+// read-only so a write can never replace tokens.json with an empty or stale set.
+var ErrTokenStoreUnavailable = errors.New("token store unavailable")
+
+// ErrTokenNotFound is returned when no token has the requested ID.
+var ErrTokenNotFound = errors.New("token not found")
+
+var errTokenManagerRetired = errors.New("token manager was replaced by a newer instance")
+
 // TokenManager provides CRUD and validation for API tokens.
 // Token data is stored as an AES-encrypted JSON file via the Vault's master key.
 type TokenManager struct {
@@ -49,19 +60,42 @@ type TokenManager struct {
 	filePath string
 	vault    *Vault
 	tokens   []Token
+	loadErr  error // non-nil: read-only (load failure or retired); save refuses
 }
 
-// NewTokenManager creates a new TokenManager. It loads existing tokens from disk.
+// NewTokenManager loads the token file. A missing or empty file starts an
+// empty, writable store. Any other load failure (read, decrypt or parse error)
+// returns a non-nil read-only manager together with an error wrapping
+// ErrTokenStoreUnavailable: it validates no token and refuses every write, so
+// the unreadable file is never overwritten.
 func NewTokenManager(vault *Vault, filePath string) (*TokenManager, error) {
 	tm := &TokenManager{
 		filePath: filePath,
 		vault:    vault,
 	}
 	if err := tm.load(); err != nil {
-		// If file doesn't exist, start with empty list
 		tm.tokens = []Token{}
+		tm.loadErr = err
+		return tm, fmt.Errorf("%w: %w", ErrTokenStoreUnavailable, err)
 	}
 	return tm, nil
+}
+
+// LoadError reports why the store is read-only, or nil when it is writable.
+func (tm *TokenManager) LoadError() error {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	return tm.loadErr
+}
+
+// Retire makes a replaced manager read-only so a request that still holds it
+// cannot rewrite the token file with its stale token set.
+func (tm *TokenManager) Retire() {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	if tm.loadErr == nil {
+		tm.loadErr = errTokenManagerRetired
+	}
 }
 
 // load reads and decrypts the token file.
@@ -95,6 +129,9 @@ func (tm *TokenManager) load() error {
 
 // save encrypts and writes the token file atomically (write-to-temp then rename).
 func (tm *TokenManager) save() error {
+	if tm.loadErr != nil {
+		return fmt.Errorf("%w: %w", ErrTokenStoreUnavailable, tm.loadErr)
+	}
 	data, err := json.MarshalIndent(tm.tokens, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal tokens: %w", err)
@@ -302,38 +339,50 @@ func (tm *TokenManager) Get(id string) (TokenMeta, error) {
 			return tm.toMeta(t), nil
 		}
 	}
-	return TokenMeta{}, fmt.Errorf("token not found")
+	return TokenMeta{}, ErrTokenNotFound
 }
 
-// Update changes token name and/or enabled status.
+// Update changes token name and/or enabled status. The in-memory token is
+// restored when the change cannot be persisted.
 func (tm *TokenManager) Update(id string, name string, enabled bool) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
 	for i := range tm.tokens {
 		if tm.tokens[i].ID == id {
+			previous := tm.tokens[i]
 			if name != "" {
 				tm.tokens[i].Name = name
 			}
 			tm.tokens[i].Enabled = enabled
-			return tm.save()
+			if err := tm.save(); err != nil {
+				tm.tokens[i] = previous
+				return err
+			}
+			return nil
 		}
 	}
-	return fmt.Errorf("token not found")
+	return ErrTokenNotFound
 }
 
-// Delete removes a token by ID.
+// Delete removes a token by ID. The token stays in memory when the removal
+// cannot be persisted.
 func (tm *TokenManager) Delete(id string) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
 	for i := range tm.tokens {
 		if tm.tokens[i].ID == id {
+			previous := append([]Token(nil), tm.tokens...)
 			tm.tokens = append(tm.tokens[:i], tm.tokens[i+1:]...)
-			return tm.save()
+			if err := tm.save(); err != nil {
+				tm.tokens = previous
+				return err
+			}
+			return nil
 		}
 	}
-	return fmt.Errorf("token not found")
+	return ErrTokenNotFound
 }
 
 // Validate checks a raw token against stored hashes and verifies scope, enabled, and expiry.

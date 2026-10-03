@@ -81,6 +81,10 @@ func handleCreateToken(tm *security.TokenManager) http.HandlerFunc {
 
 		raw, meta, err := tm.Create(req.Name, req.Scopes, expiresAt)
 		if err != nil {
+			if errors.Is(err, security.ErrTokenStoreUnavailable) {
+				jsonError(w, "Token store is read-only until tokens.json can be loaded again", http.StatusServiceUnavailable)
+				return
+			}
 			jsonError(w, "Failed to create token", http.StatusInternalServerError)
 			return
 		}
@@ -119,7 +123,7 @@ func handleUpdateToken(tm *security.TokenManager) http.HandlerFunc {
 			return
 		}
 		if err := tm.Update(id, req.Name, req.Enabled); err != nil {
-			jsonError(w, "Token not found", http.StatusNotFound)
+			writeTokenMutationError(w, err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -139,10 +143,21 @@ func handleDeleteToken(tm *security.TokenManager) http.HandlerFunc {
 			return
 		}
 		if err := tm.Delete(id); err != nil {
-			jsonError(w, "Token not found", http.StatusNotFound)
+			writeTokenMutationError(w, err)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func writeTokenMutationError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, security.ErrTokenNotFound):
+		jsonError(w, "Token not found", http.StatusNotFound)
+	case errors.Is(err, security.ErrTokenStoreUnavailable):
+		jsonError(w, "Token store is read-only until tokens.json can be loaded again", http.StatusServiceUnavailable)
+	default:
+		jsonError(w, "Failed to save token store", http.StatusInternalServerError)
 	}
 }
 
