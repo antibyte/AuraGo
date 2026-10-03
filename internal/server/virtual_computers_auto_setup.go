@@ -182,6 +182,9 @@ func reconcileVirtualComputersAutoSetup() {
 }
 
 func defaultVirtualComputersAutoSetupNeeded(s *Server, cfg virtualcomputers.ToolConfig) bool {
+	if cfg.AgentControl.Enabled && !virtualComputersWorkspaceAssetsCurrent(cfg) {
+		return true
+	}
 	if virtualComputersEnsureControlPlaneAccess(s, cfg) != nil {
 		return true
 	}
@@ -189,6 +192,25 @@ func defaultVirtualComputersAutoSetupNeeded(s *Server, cfg virtualcomputers.Tool
 		return true
 	}
 	return !virtualComputersManagementRevisionMatches(virtualComputersManagementURL)
+}
+
+func virtualComputersWorkspaceAssetsCurrent(cfg virtualcomputers.ToolConfig) bool {
+	if !virtualComputersWorkspaceSetupVerified() {
+		return false
+	}
+	client, err := virtualcomputers.NewClient(virtualcomputers.ClientConfig{
+		BaseURL: cfg.BoringdURL,
+		Token:   cfg.BoringToken,
+		Timeout: 5 * time.Second,
+	})
+	if err != nil {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	status, err := client.WorkspaceCapabilities(ctx)
+	return err == nil && status.ProtocolVersion == virtualcomputers.WorkspaceProtocolVersion &&
+		status.AssetFingerprint == virtualcomputers.WorkspaceAssetFingerprint()
 }
 
 func virtualComputersManagementRevisionMatches(baseURL string) bool {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,132 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/virtualcomputers"
 )
+
+func TestStartupAutoSetupChecksHealthyBoringdWorkspaceAssets(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		fingerprint string
+		wantRepair  bool
+	}{
+		{name: "current", fingerprint: virtualcomputers.WorkspaceAssetFingerprint()},
+		{name: "stale", fingerprint: "outdated-workspace-assets", wantRepair: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			restore := setVirtualComputersAutoSetupTestHooks(t)
+			defer restore()
+			virtualComputersLoadSetupState = func() (virtualComputersSetupState, error) {
+				return virtualComputersSetupState{
+					WorkspaceAssetFingerprint: virtualcomputers.WorkspaceAssetFingerprint(),
+					WorkspaceVerifiedAt:       time.Now().UTC(),
+				}, nil
+			}
+			probed := make(chan struct{}, 1)
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/healthz":
+					w.WriteHeader(http.StatusOK)
+				case "/v1/workspace/capabilities":
+					_ = json.NewEncoder(w).Encode(virtualcomputers.WorkspaceControlPlaneStatus{
+						ProtocolVersion:  virtualcomputers.WorkspaceProtocolVersion,
+						AssetFingerprint: tc.fingerprint,
+					})
+					probed <- struct{}{}
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer upstream.Close()
+			started := make(chan struct{}, 1)
+			virtualComputersAutoSetupNeeded = func(*Server, virtualcomputers.ToolConfig) bool { return true }
+			virtualComputersAutoSetupRunner = func(context.Context, *Server, virtualcomputers.ToolConfig) error {
+				started <- struct{}{}
+				return nil
+			}
+			cfg := &config.Config{}
+			cfg.VirtualComputers.Enabled = true
+			cfg.VirtualComputers.AutoSetup = true
+			cfg.VirtualComputers.AgentControl.Enabled = true
+			cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+			cfg.VirtualComputers.ControlPlane.BoringdURL = upstream.URL
+			triggerStartupAutoSetupIfNeeded(&Server{Cfg: cfg})
+			select {
+			case <-probed:
+			case <-time.After(time.Second):
+				t.Fatal("healthy boringd workspace was not checked")
+			}
+			if tc.wantRepair {
+				select {
+				case <-started:
+				case <-time.After(time.Second):
+					t.Fatal("stale workspace did not schedule repair")
+				}
+			} else {
+				select {
+				case <-started:
+					t.Fatal("current workspace was reinstalled")
+				case <-time.After(100 * time.Millisecond):
+				}
+			}
+		})
+	}
+}
+
+func TestStartupAutoSetupIgnoresSupersededWorkspaceProbe(t *testing.T) {
+	restore := setVirtualComputersAutoSetupTestHooks(t)
+	defer restore()
+	virtualComputersLoadSetupState = func() (virtualComputersSetupState, error) {
+		return virtualComputersSetupState{
+			WorkspaceAssetFingerprint: virtualcomputers.WorkspaceAssetFingerprint(),
+			WorkspaceVerifiedAt:       time.Now().UTC(),
+		}, nil
+	}
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/healthz":
+			w.WriteHeader(http.StatusOK)
+		case "/v1/workspace/capabilities":
+			entered <- struct{}{}
+			<-release
+			_ = json.NewEncoder(w).Encode(virtualcomputers.WorkspaceControlPlaneStatus{
+				ProtocolVersion:  virtualcomputers.WorkspaceProtocolVersion,
+				AssetFingerprint: "outdated-workspace-assets",
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+	started := make(chan struct{}, 1)
+	virtualComputersAutoSetupNeeded = func(*Server, virtualcomputers.ToolConfig) bool { return true }
+	virtualComputersAutoSetupRunner = func(context.Context, *Server, virtualcomputers.ToolConfig) error {
+		started <- struct{}{}
+		return nil
+	}
+	cfg := &config.Config{}
+	cfg.VirtualComputers.Enabled = true
+	cfg.VirtualComputers.AutoSetup = true
+	cfg.VirtualComputers.AgentControl.Enabled = true
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	cfg.VirtualComputers.ControlPlane.BoringdURL = upstream.URL
+	s := &Server{Cfg: cfg}
+	triggerStartupAutoSetupIfNeeded(s)
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("workspace probe did not start")
+	}
+	s.CfgMu.Lock()
+	s.Cfg.VirtualComputers.AutoSetup = false
+	s.CfgMu.Unlock()
+	close(release)
+	select {
+	case <-started:
+		t.Fatal("superseded startup probe launched repair")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
 
 func TestVirtualComputersAutoSetupSkipsDisabledConfiguration(t *testing.T) {
 	restore := setVirtualComputersAutoSetupTestHooks(t)

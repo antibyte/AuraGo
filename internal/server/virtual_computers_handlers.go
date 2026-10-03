@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -75,9 +76,8 @@ func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/virtual-computers/machines", handleVirtualComputersMachines(s))
 	mux.HandleFunc("/api/virtual-computers/machines/", handleVirtualComputersMachine(s))
 	registerVirtualWorkspaceRoutes(mux, s)
-	// Only trigger auto-setup at startup if boringd is not already installed and healthy.
-	// A routine AuraGo restart (e.g. via update.sh) must not re-run the full install/restart
-	// of boringd, because that accumulates leftover cgroups under boringd.service.
+	// A healthy boringd can still have stale workspace assets. The startup probe
+	// below schedules repair only when the installed workspace is incompatible.
 	triggerStartupAutoSetupIfNeeded(s)
 }
 
@@ -91,9 +91,31 @@ func triggerStartupAutoSetupIfNeeded(s *Server) {
 	if !cfg.AutoSetup {
 		return
 	}
-	// If boringd is already reachable, skip full core auto-setup but still
-	// reconcile managed Garage when volumes are enabled.
+	// Keep routine restarts from reinstalling healthy boringd. Check workspace
+	// compatibility asynchronously before deciding whether repair is needed.
 	if virtualComputersHealthOK(cfg.BoringdURL) {
+		if cfg.AgentControl.Enabled {
+			go func() {
+				current := virtualComputersWorkspaceAssetsCurrent(cfg)
+				if !reflect.DeepEqual(virtualComputersConfigSnapshot(s), cfg) {
+					return
+				}
+				if !current {
+					if s.Logger != nil {
+						s.Logger.Warn("[VirtualComputers] Workspace assets are stale; scheduling install/repair")
+					}
+					virtualComputersTriggerAutoSetup(s, cfg)
+					return
+				}
+				if s.Logger != nil {
+					s.Logger.Info("[VirtualComputers] boringd and workspace assets are current; skipping startup auto-setup")
+				}
+				if cfg.AllowVolumes && cfg.Storage.Mode == virtualcomputers.StorageModeManagedGarage {
+					virtualComputersReconcileManagedGarage(s, cfg)
+				}
+			}()
+			return
+		}
 		if s.Logger != nil {
 			s.Logger.Info("[VirtualComputers] boringd is already healthy; skipping startup auto-setup")
 		}

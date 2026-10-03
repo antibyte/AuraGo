@@ -14,6 +14,8 @@ virtual_computers:
 
 AuraGo then provisions the reviewed upstream revision automatically at server startup. Enabling or changing the integration through the configuration UI triggers the same idempotent setup through hot reload. A generation-aware reconciler prevents overlapping installations, cancels a superseded attempt, and continues with the newest configuration. Failed background attempts wait five minutes before retrying. Disabling the integration cancels pending setup, closes its management tunnel, and removes the drawer's cached state.
 
+When Agent Workspaces and auto-setup are enabled, startup also checks the verified install marker and running workspace protocol and asset fingerprint. A healthy `boringd` with stale workspace assets schedules the full Install/Repair path under the existing retry and sudo-credential gates; a compatible installation is left running.
+
 Install and Repair manage two components as one deployment:
 
 - `boringd`, the private control plane on `127.0.0.1:18082`
