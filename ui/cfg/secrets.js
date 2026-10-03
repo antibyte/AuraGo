@@ -46,16 +46,34 @@
             </div>`;
             }
 
-            // Check vault availability — use global if set, otherwise fetch
-            let vaultReady = typeof vaultExists !== 'undefined' ? vaultExists : false;
-            if (!vaultReady) {
+            // Vault availability: 'present' | 'absent' | 'unknown'. Trust the Config page only when it
+            // already knows the vault exists; an unreadable status is never reported as "no vault".
+            let vaultStatus = ((typeof vaultState === 'string' && vaultState === 'present') || (typeof vaultExists !== 'undefined' && vaultExists === true))
+                ? 'present'
+                : 'unknown';
+            if (vaultStatus !== 'present') {
                 try {
                     const vResp = await fetch('/api/vault/status');
-                    if (vResp.ok && vResp.status !== 204) { vaultReady = (await vResp.json()).exists === true; }
+                    if (vResp.ok && vResp.status !== 204) {
+                        const data = await vResp.json();
+                        if (data && typeof data.exists === 'boolean') vaultStatus = data.exists ? 'present' : 'absent';
+                    }
                 } catch (_) {}
             }
 
-            if (!vaultReady) {
+            if (vaultStatus === 'unknown') {
+                const statusEl = document.getElementById('secrets-vault-status');
+                statusEl.innerHTML = `
+                    <div class="secrets-empty secrets-empty-warning" role="status">
+                        <div class="secrets-empty-icon">⚠️</div>
+                        <div class="secrets-empty-title">${t('config.secrets.vault_status_unknown')}</div>
+                        <button type="button" class="btn btn-secondary btn-sm" data-secrets-vault-retry>${t('config.refresh.retry')}</button>
+                    </div>`;
+                statusEl.querySelector('[data-secrets-vault-retry]').addEventListener('click', () => renderSecretsSection(section), { once: true });
+                return;
+            }
+
+            if (vaultStatus === 'absent') {
                 document.getElementById('secrets-vault-status').innerHTML = `
                     <div class="secrets-empty secrets-empty-warning">
                         <div class="secrets-empty-icon">⚠️</div>

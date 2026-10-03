@@ -34,6 +34,7 @@
   "config.common.active": "Actief",
   "config.common.inactive": "Inactief",
   "config.feature_unavailable": "Functie niet beschikbaar",
+  "config.runtime_status_unavailable": "De mogelijkheden van de runtime konden niet worden gecontroleerd. Dit onderdeel blijft vergrendeld tot de controle slaagt.",
   "config.docker_mode_banner": "AuraGo draait in een Docker-container. Sommige functies kunnen beperkt zijn.",
   "config.firewall.docker_blocked": "Firewallbeheer is niet beschikbaar in een Docker-container.",
   "config.unsaved_changes.title": "Niet-opgeslagen wijzigingen",

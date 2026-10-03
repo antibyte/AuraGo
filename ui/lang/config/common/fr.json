@@ -34,6 +34,7 @@
   "config.common.active": "Actif",
   "config.common.inactive": "Inactif",
   "config.feature_unavailable": "Fonctionnalité non disponible",
+  "config.runtime_status_unavailable": "Impossible de vérifier les capacités de l'environnement d'exécution. Cette zone reste verrouillée jusqu'à ce que la vérification réussisse.",
   "config.docker_mode_banner": "AuraGo s'exécute dans un conteneur Docker. Certaines fonctionnalités peuvent être limitées.",
   "config.firewall.docker_blocked": "La gestion du pare-feu n'est pas disponible à l'intérieur d'un conteneur Docker.",
   "config.unsaved_changes.title": "Modifications non enregistrées",

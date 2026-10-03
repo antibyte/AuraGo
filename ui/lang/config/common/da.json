@@ -34,6 +34,7 @@
   "config.common.active": "Aktiv",
   "config.common.inactive": "Inaktiv",
   "config.feature_unavailable": "Funktion ikke tilgængelig",
+  "config.runtime_status_unavailable": "Kørselsmiljøets muligheder kunne ikke kontrolleres. Området forbliver låst, indtil kontrollen lykkes.",
   "config.docker_mode_banner": "AuraGo kører inde i en Docker-container. Nogle funktioner kan være begrænsede.",
   "config.firewall.docker_blocked": "Firewall-administration er ikke tilgængelig inde i en Docker-container.",
   "config.unsaved_changes.title": "Ugemte ændringer",

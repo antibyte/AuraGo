@@ -34,6 +34,7 @@
   "config.common.active": "Attivo",
   "config.common.inactive": "Inattivo",
   "config.feature_unavailable": "Funzionalità non disponibile",
+  "config.runtime_status_unavailable": "Impossibile verificare le funzionalità dell'ambiente di esecuzione. Quest'area resta bloccata finché il controllo non riesce.",
   "config.docker_mode_banner": "AuraGo è in esecuzione all'interno di un contenitore Docker. Alcune funzionalità potrebbero essere limitate.",
   "config.firewall.docker_blocked": "La gestione del firewall non è disponibile all'interno di un contenitore Docker.",
   "config.unsaved_changes.title": "Modifiche non salvate",

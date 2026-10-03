@@ -22,9 +22,14 @@ async function renderUpdatesBody() {
     const body = document.getElementById('updates-body');
     if (!body) return;
 
-    const blockedReason = typeof sectionBlockedReason === 'function' ? sectionBlockedReason('updates') : '';
+    const blockedReason = typeof sectionLockReason === 'function'
+        ? sectionLockReason('updates')
+        : (typeof sectionBlockedReason === 'function' ? sectionBlockedReason('updates') : '');
     if (blockedReason) {
-        body.innerHTML = unavailableReasonBanner(blockedReason, { blocked: true });
+        const retry = (typeof runtimeStatusKnown === 'function' && !runtimeStatusKnown() && typeof configStatusRetryButtonHTML === 'function')
+            ? configStatusRetryButtonHTML('runtime')
+            : '';
+        body.innerHTML = unavailableReasonBanner(blockedReason, { blocked: true }) + retry;
         return;
     }
 

@@ -34,6 +34,7 @@
   "config.common.active": "Ενεργό",
   "config.common.inactive": "Ανενεργό",
   "config.feature_unavailable": "Η λειτουργία δεν είναι διαθέσιμη",
+  "config.runtime_status_unavailable": "Δεν ήταν δυνατός ο έλεγχος των δυνατοτήτων του περιβάλλοντος εκτέλεσης. Αυτή η περιοχή παραμένει κλειδωμένη μέχρι να επιτύχει ο έλεγχος.",
   "config.docker_mode_banner": "Το AuraGo εκτελείται μέσα σε ένα Docker container. Ορισμένες λειτουργίες ενδέχεται να είναι περιορισμένες.",
   "config.firewall.docker_blocked": "Η διαχείριση του τείχους προστασίας δεν είναι διαθέσιμη μέσα σε ένα Docker container.",
   "config.unsaved_changes.title": "Μη αποθηκευμένες αλλαγές",

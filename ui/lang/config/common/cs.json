@@ -34,6 +34,7 @@
   "config.common.active": "Aktivní",
   "config.common.inactive": "Neaktivní",
   "config.feature_unavailable": "Funkce není k dispozici",
+  "config.runtime_status_unavailable": "Možnosti běhového prostředí se nepodařilo ověřit. Tato oblast zůstane uzamčena, dokud kontrola neuspěje.",
   "config.docker_mode_banner": "AuraGo běží uvnitř kontejneru Docker. Některé funkce mohou být omezeny.",
   "config.firewall.docker_blocked": "Správa firewallu není uvnitř kontejneru Docker dostupná.",
   "config.unsaved_changes.title": "Neuložené změny",

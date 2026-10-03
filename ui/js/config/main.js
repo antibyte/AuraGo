@@ -278,6 +278,9 @@ let userEditedSinceSnapshot = false;
 let configEditIntentUntil = 0;
 let dirtyBaselineRefreshTimers = [];
 let configEditIntentTrackingInstalled = false;
+// Vault state from /api/vault/status: 'present' | 'absent' | 'unknown' (status unreadable).
+// vaultExists is the legacy boolean alias read by cfg/secrets.js (true only for 'present').
+let vaultState = 'unknown';
 let vaultExists = false;
 const CONFIG_EDIT_INTENT_WINDOW_MS = 2000;
 const DIRTY_BASELINE_REFRESH_DELAY_MS = 160;
@@ -313,6 +316,33 @@ function handleConfigRedirectResponse(resp) {
         return true;
     }
     return false;
+}
+
+function setVaultState(next) {
+    vaultState = next === 'present' || next === 'absent' ? next : 'unknown';
+    vaultExists = vaultState === 'present';
+}
+
+async function readVaultStatus(resp) {
+    try {
+        if (!resp || !resp.ok) throw new Error('HTTP ' + (resp ? resp.status : 0));
+        const data = await resp.json();
+        if (!data || typeof data.exists !== 'boolean') throw new Error('invalid vault status');
+        setVaultState(data.exists ? 'present' : 'absent');
+    } catch (_) {
+        setVaultState('unknown');
+    }
+}
+
+async function refreshVaultStatus() {
+    try {
+        const resp = await fetch('/api/vault/status');
+        if (handleConfigRedirectResponse(resp)) return null;
+        await readVaultStatus(resp);
+    } catch (_) {
+        setVaultState('unknown');
+    }
+    return vaultState !== 'unknown';
 }
 
 // Provider management state (loaded from /api/providers)
@@ -367,8 +397,31 @@ async function loadConfigPersonalities() {
     }
 }
 
-// Runtime environment detection (loaded from /api/runtime)
+// Runtime environment detection (loaded from /api/runtime). runtimeLoaded stays false until one
+// successful response; while unknown, runtime-gated sections stay locked with a retry banner.
 let runtimeData = { runtime: {}, features: {} };
+let runtimeLoaded = false;
+
+async function loadRuntimeData() {
+    try {
+        const rtResp = await fetch('/api/runtime');
+        if (handleConfigRedirectResponse(rtResp)) return null;
+        if (!rtResp.ok) throw new Error('HTTP ' + rtResp.status);
+        const data = await rtResp.json();
+        const next = Object.assign({ runtime: {}, features: {} }, data || {});
+        if (!next.runtime || typeof next.runtime !== 'object') next.runtime = {};
+        if (!next.features || typeof next.features !== 'object') next.features = {};
+        runtimeData = next;
+        runtimeLoaded = true;
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+function runtimeStatusKnown() {
+    return runtimeLoaded;
+}
 const SECTION_FEATURE_MAP = { docker: 'docker', invasion_control: 'invasion_local', updates: 'updates' };
 const NON_BLOCKING_UNAVAILABLE_SECTIONS = new Set(['docker']);
 
@@ -391,18 +444,14 @@ async function init() {
         }
         schema = await schemaResp.json();
         if (window.AuraConfigState) window.AuraConfigState.setRules(configValidationRules());
-        try { vaultExists = (await vaultResp.json()).exists === true; } catch (_) { }
+        await readVaultStatus(vaultResp);
         // Load providers (best-effort – endpoint only exists when web_config is enabled)
         await loadProviders();
         if (providersLoadRedirected) return;
         // Load personality profiles; a failure keeps saved values (see cfgChoiceOptionsHTML).
         if (await loadConfigPersonalities() === null) return;
         // Load runtime environment capabilities (Docker mode, socket, broadcast, etc.)
-        try {
-            const rtResp = await fetch('/api/runtime');
-            if (handleConfigRedirectResponse(rtResp)) return;
-            if (rtResp.ok) runtimeData = await rtResp.json();
-        } catch (_) { }
+        if (await loadRuntimeData() === null) return;
     } catch (e) {
         document.getElementById('content').innerHTML = '<div class="cfg-error-state cfg-error-state-lg">❌ ' + escapeHtml(t('config.loading_error')) + '<br><small>' + escapeHtml(e && e.message ? e.message : String(e)) + '</small></div>';
         return;
@@ -413,6 +462,7 @@ async function init() {
     }
     installConfigEditIntentTracking();
     installConfigChoiceRetry();
+    installConfigStatusRetry();
     buildSidebar();
     await selectSection(activeSection, { scrollBehavior: 'auto' });
     resetDirtySnapshot();
@@ -1642,7 +1692,7 @@ async function renderSection(key) {
         const fb = featureUnavailableBanner(sectionFeatureKey);
         if (fb) html += fb;
     }
-    const sectionBlocked = sectionFeatureKey && shouldBlockUnavailableSection(key) && runtimeData.features && runtimeData.features[sectionFeatureKey] && !runtimeData.features[sectionFeatureKey].available;
+    const sectionBlocked = sectionFeatureKey && shouldBlockUnavailableSection(key) && sectionLockReason(key) !== '';
     if (sectionBlocked) html += '<div class="feature-unavailable-fields">';
 
     // LLM settings only need a warning when a core helper path is disabled.
@@ -2080,17 +2130,66 @@ function renderFields(fields, data, parentPath) {
     return html;
 }
 
+function configStatusRetryButtonHTML(kind) {
+    return '<button type="button" class="cfg-btn cfg-btn-sm" data-config-status-retry="' + escapeAttr(kind) + '">' + escapeHtml(t('config.refresh.retry')) + '</button>';
+}
+
+function runtimeUnknownBannerHTML() {
+    return '<div class="feature-unavailable-banner fub-blocked" role="status"><span class="fub-icon">⚠️</span><span>'
+        + escapeHtml(t('config.runtime_status_unavailable')) + '</span> ' + configStatusRetryButtonHTML('runtime') + '</div>';
+}
+
 /**
  * Returns a feature-unavailable banner HTML if the given feature key is unavailable.
  * featureKey: key from runtimeData.features (e.g. 'docker', 'sandbox', 'firewall')
  * options.blocked: if true, uses a stronger (red) styling
- * Returns empty string if the feature is available or unknown.
+ * Returns the unknown-runtime banner (with retry) while /api/runtime has not loaded,
+ * and an empty string if the feature is available or not reported.
  */
 function featureUnavailableBanner(featureKey, options) {
+    if (!runtimeLoaded) return runtimeUnknownBannerHTML();
     const fa = (runtimeData.features || {})[featureKey];
     if (!fa || fa.available) return '';
     const blocked = options && options.blocked;
     return unavailableReasonBanner(fa.reason || t('config.feature_unavailable'), { blocked });
+}
+
+/** Lock reason for a SECTION_FEATURE_MAP section: known unavailability or unknown runtime state. */
+function sectionLockReason(sectionKey) {
+    const reason = sectionBlockedReason(sectionKey);
+    if (reason) return reason;
+    if (!runtimeLoaded && SECTION_FEATURE_MAP[sectionKey] && shouldBlockUnavailableSection(sectionKey)) {
+        return t('config.runtime_status_unavailable');
+    }
+    return '';
+}
+
+let configStatusRetryInstalled = false;
+
+function installConfigStatusRetry() {
+    if (configStatusRetryInstalled) return;
+    configStatusRetryInstalled = true;
+    document.addEventListener('click', async event => {
+        const button = event.target && event.target.closest ? event.target.closest('[data-config-status-retry]') : null;
+        if (!button || button.disabled) return;
+        event.preventDefault();
+        button.disabled = true;
+        const kind = button.dataset.configStatusRetry;
+        const ok = kind === 'vault' ? await refreshVaultStatus() : await loadRuntimeData();
+        if (ok === null) return;
+        if (!ok) {
+            if (button.isConnected) button.disabled = false;
+            return;
+        }
+        if (kind === 'runtime') buildSidebar();
+        if (window.AuraConfigState && window.AuraConfigState.isDirty()) {
+            // Never re-render over unsaved edits; the section shows the known state when reopened.
+            const banner = button.closest('.feature-unavailable-banner, .cfg-master-key-note');
+            if (banner) banner.remove();
+            return;
+        }
+        await selectSection(activeSection, { scrollBehavior: 'auto' });
+    });
 }
 
 function sectionBlockedReason(sectionKey) {
@@ -2266,7 +2365,12 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         let h = '<div class="field-group">';
         h += '<div class="field-label">' + t('config.server.master_key_label') + ' <span class="cfg-sensitive-icon">🔒</span></div>';
         if (helpText) h += '<div class="field-help">' + helpText + '</div>';
-        if (vaultExists) {
+        if (vaultState === 'unknown') {
+            h += '<div class="password-wrap">';
+            h += '<input class="field-input cfg-master-key-locked-input" type="password" value="" disabled aria-describedby="cfg-master-key-status">';
+            h += '</div>';
+            h += '<div class="cfg-master-key-note cfg-master-key-note-warning" id="cfg-master-key-status" role="status">⚠️ ' + escapeHtml(t('config.secrets.vault_status_unknown')) + ' ' + configStatusRetryButtonHTML('vault') + '</div>';
+        } else if (vaultExists) {
             h += '<div class="password-wrap">';
             h += '<input class="field-input cfg-master-key-locked-input" type="password" value="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" disabled>';
             h += '<button type="button" class="password-toggle cfg-master-key-delete-btn" title="' + t('config.master_key.vault_delete_tooltip') + '" onclick="vaultDeletePrompt()">🗑️</button>';
@@ -3276,7 +3380,7 @@ async function vaultDeleteConfirm() {
         const resp = await fetch('/api/vault', { method: 'DELETE' });
         const data = await resp.json();
         if (resp.ok) {
-            vaultExists = false;
+            setVaultState('absent');
             document.getElementById('vault-delete-overlay').classList.remove('active');
             const cfgResp = await fetch('/api/config');
             configData = consumeConfigResponse(await cfgResp.json());

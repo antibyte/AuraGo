@@ -18,7 +18,8 @@ window.renderFirewallSection = function (sectionParam) {
 
     const fwConfig = configData.firewall || {};
     const isOn = fwConfig.enabled === true;
-    const fwBlocked = !!(runtimeData.features && runtimeData.features.firewall && !runtimeData.features.firewall.available);
+    const fwBlocked = (typeof runtimeStatusKnown === 'function' && !runtimeStatusKnown())
+        || !!(runtimeData.features && runtimeData.features.firewall && !runtimeData.features.firewall.available);
 
     // Wrap fields in graying class when Docker-blocked
     if (fwBlocked) html += '<div class="feature-unavailable-fields">';

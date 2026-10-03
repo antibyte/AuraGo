@@ -34,6 +34,7 @@
   "config.common.active": "सक्रिय",
   "config.common.inactive": "निष्क्रिय",
   "config.feature_unavailable": "सुविधा अनुपलब्ध",
+  "config.runtime_status_unavailable": "रनटाइम क्षमताएँ जाँची नहीं जा सकीं। जाँच सफल होने तक यह क्षेत्र लॉक रहेगा।",
   "config.docker_mode_banner": "AuraGo एक Docker कंटेनर के अंदर चल रहा है। कुछ सुविधाएँ सीमित हो सकती हैं।",
   "config.firewall.docker_blocked": "Docker कंटेनर के अंदर फ़ायरवॉल प्रबंधन उपलब्ध नहीं है।",
   "config.unsaved_changes.title": "सहेजे नहीं गए बदलाव",

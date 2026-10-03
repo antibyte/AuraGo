@@ -34,6 +34,7 @@
   "config.common.active": "アクティブ",
   "config.common.inactive": "非アクティブ",
   "config.feature_unavailable": "機能は利用できません",
+  "config.runtime_status_unavailable": "実行環境の機能を確認できませんでした。確認に成功するまで、この領域はロックされたままです。",
   "config.docker_mode_banner": "AuraGoはDockerコンテナ内で実行されています。一部の機能が制限される場合があります。",
   "config.firewall.docker_blocked": "Dockerコンテナ内ではファイアウォール管理は利用できません。",
   "config.unsaved_changes.title": "未保存の変更",

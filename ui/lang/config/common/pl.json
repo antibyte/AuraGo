@@ -34,6 +34,7 @@
   "config.common.active": "Aktywny",
   "config.common.inactive": "Nieaktywny",
   "config.feature_unavailable": "Funkcja niedostępna",
+  "config.runtime_status_unavailable": "Nie udało się sprawdzić możliwości środowiska uruchomieniowego. Ten obszar pozostaje zablokowany, dopóki sprawdzenie się nie powiedzie.",
   "config.docker_mode_banner": "AuraGo działa wewnątrz kontenera Docker. Niektóre funkcje mogą być ograniczone.",
   "config.firewall.docker_blocked": "Zarządzanie zaporą sieciową nie jest dostępne wewnątrz kontenera Docker.",
   "config.unsaved_changes.title": "Niezapisane zmiany",

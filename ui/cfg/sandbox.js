@@ -18,7 +18,8 @@ async function renderSandboxSection(section) {
 
     const sbBanner = featureUnavailableBanner('sandbox');
     if (sbBanner) html += sbBanner;
-    const sbBlocked = !!(runtimeData.features && runtimeData.features.sandbox && !runtimeData.features.sandbox.available);
+    const sbBlocked = (typeof runtimeStatusKnown === 'function' && !runtimeStatusKnown())
+        || !!(runtimeData.features && runtimeData.features.sandbox && !runtimeData.features.sandbox.available);
 
     if (sbBlocked) html += '<div class="feature-unavailable-fields">';
 

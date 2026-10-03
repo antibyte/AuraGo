@@ -34,6 +34,7 @@
   "config.common.active": "Active",
   "config.common.inactive": "Inactive",
   "config.feature_unavailable": "Feature not available",
+  "config.runtime_status_unavailable": "Runtime capabilities could not be checked. This area stays locked until the check succeeds.",
   "config.docker_mode_banner": "AuraGo is running inside a Docker container. Some features may be limited.",
   "config.firewall.docker_blocked": "Firewall management is not available inside a Docker container.",
   "config.unsaved_changes.title": "Unsaved changes",
