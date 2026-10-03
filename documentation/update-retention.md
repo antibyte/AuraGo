@@ -40,6 +40,23 @@ Source updates package their resource archive into temporary staging, not
 `deploy/`. Binary update backups exclude `assets/web`; they refer to the shared
 resource sets instead of duplicating the complete version history.
 
+Git checkouts with Go build the checked-out source and matching resources without
+requesting GitHub Release metadata or `SHA256SUMS`. Installations consuming release
+binaries resolve one release tag and verify its checksum manifest before stopping
+the service, then use that same tag throughout the update. A checkout without Go
+uses release binaries, which may predate newer Git changes; install Go to build
+those changes. Downloads retry transient errors such as HTTP 503 at most three
+times, with bounded connection/retry waits. HTTP 404 and checksum mismatches remain
+failures. Optional signatures stay quiet; strict signature verification remains
+mandatory when enabled. Required artifact failures after shutdown roll back.
+
+An older updater that exits directly after shutdown can leave an `uncertain`
+transaction and a stopped service. A new updater does not bypass that state:
+inspect the installed binary, resources, service and saved transaction, then use
+the verified recovery procedure below. Do not delete transaction backups to
+force another update. Curl retry semantics are documented in the
+[curl manual](https://curl.se/docs/manpage.html#--retry).
+
 All updater Go commands use `.aurago-update/go-cache`. After the build/update,
 the cache is cleared if it exceeds 4 GiB. This is a post-build threshold, not a
 hard quota during compilation. Existing user-wide Go caches, module caches and

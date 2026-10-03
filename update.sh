@@ -1548,9 +1548,11 @@ fetch_url_to_file() {
     local url="$1"
     local out="$2"
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" -o "$out"
+        # Retry transient HTTP failures (including 503), not missing assets or
+        # authentication failures. Bound connections, attempts and retry time.
+        curl -fsSL --connect-timeout 15 --max-time 600 --retry 3 --retry-max-time 120 "$url" -o "$out"
     elif command -v wget >/dev/null 2>&1; then
-        wget -q "$url" -O "$out"
+        wget -q --timeout=60 --tries=4 --waitretry=2 --retry-on-http-error=408,429,500,502,503,504 "$url" -O "$out"
     else
         return 1
     fi
@@ -1559,13 +1561,7 @@ fetch_url_to_file() {
 fetch_optional_url_to_file() {
     local url="$1"
     local out="$2"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" -o "$out" 2>/dev/null
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q "$url" -O "$out" 2>/dev/null
-    else
-        return 1
-    fi
+    fetch_url_to_file "$url" "$out" 2>/dev/null
 }
 
 sha256_file() {
@@ -1689,13 +1685,16 @@ select_release_bins_for_arch() {
 
 fetch_url_stdout() {
     local url="$1"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -qO- "$url"
+    local out rc=0
+    out="$(mktemp "${UPDATE_WORK:-/tmp}/url.XXXXXX")" || return 1
+    # A retry must replace partial JSON, never append it to the output pipe.
+    if fetch_url_to_file "$url" "$out"; then
+        cat "$out" || rc=$?
     else
-        return 1
+        rc=$?
     fi
+    rm -f -- "$out"
+    return "$rc"
 }
 
 latest_release_tag() {
@@ -2118,6 +2117,19 @@ _bt_may_prompt=false
 if has_interactive_tty && ! $AUTO_YES; then _bt_may_prompt=true; fi
 BT_CHOICE="$(btk_resolve_choice "$DIR" "$BT_FLAG" "$_bt_may_prompt")"
 
+# Select the build path before any release request or service shutdown.
+for _godir in /usr/local/go/bin "$HOME/go/bin" /usr/local/bin; do
+    [ -d "$_godir" ] && [[ ":$PATH:" != *":$_godir:"* ]] && export PATH="$_godir:$PATH"
+done
+unset _godir
+GO_FOUND=false
+if command -v go >/dev/null 2>&1; then
+    GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
+    GO_FOUND=true
+fi
+# Binary installations consume release pairs even when Go happens to be present.
+if $BINARY_ONLY; then GO_FOUND=false; fi
+
 # ── Check current vs available version ────────────────────────────────
 section "Checking for updates"
 
@@ -2190,6 +2202,17 @@ else
     fi
 
     confirm "Proceed with update?" || { info "Update cancelled."; exit 0; }
+fi
+
+# Release preflight for source checkouts without Go. Binary installations have
+# already pinned their tag and manifest above; source builds need neither.
+if ! $GO_FOUND && ! $BINARY_ONLY; then
+    RELEASE_TAG=$(latest_release_tag || true)
+    [ -n "$RELEASE_TAG" ] || die "Could not determine latest release tag; no services were stopped."
+    RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
+    fetch_release_checksums || die "Could not download SHA256SUMS for release ${RELEASE_TAG}; no services were stopped."
+    info "Using verified release: $RELEASE_TAG"
+    warn "Without Go, installed binaries follow this release. Newer Git-only changes require a source build."
 fi
 
 # Capture the pre-update readiness contract before stopping anything. Older
@@ -2863,21 +2886,6 @@ backup_binary_update_resources
 UPDATE_BACKUP_COMPLETE=true
 update_manifest pending
 
-# Add common Go install locations to PATH (in case the shell was not re-sourced after install)
-for _godir in /usr/local/go/bin "$HOME/go/bin" /usr/local/bin; do
-    [ -d "$_godir" ] && [[ ":$PATH:" != *":$_godir:"* ]] && export PATH="$_godir:$PATH"
-done
-unset _godir
-
-GO_FOUND=false
-if command -v go >/dev/null 2>&1; then
-    GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
-    GO_FOUND=true
-fi
-
-# Binary installations consume release pairs even when Go happens to be present.
-if $BINARY_ONLY; then GO_FOUND=false; fi
-
 STAGED_RELEASE_DIR=""
 REQUIRED_BINS=()
 OPTIONAL_BINS=()
@@ -2908,7 +2916,7 @@ if $BINARY_ONLY; then
     info "Downloading resources.dat ..."
     TMPRES=$(mktemp "$UPDATE_WORK/resources.XXXXXX")
     if ! download_release_asset "resources.dat" "$TMPRES"; then
-        die "Failed to download or verify resources.dat from the release."
+        abort_update "Failed to download or verify resources.dat from the release."
     fi
     TMPEXT=$(mktemp -d "$UPDATE_WORK/resources.XXXXXX")
     tar -xzf "$TMPRES" -C "$TMPEXT"
@@ -3229,19 +3237,8 @@ section "Updating binaries"
 # Ensure bin directory exists (e.g. if user manually deleted it)
 mkdir -p "$DIR/bin"
 
-# Binaries are now distributed via GitHub Releases (no longer tracked in git)
-GITHUB_REPO="antibyte/AuraGo"
-
-# Resolve the latest release tag dynamically
-RELEASE_TAG=$(latest_release_tag || true)
-if [ -z "$RELEASE_TAG" ]; then
-    warn "Could not determine latest release tag — trying 'latest' as fallback."
-    RELEASE_TAG="latest"
-else
-    info "Latest release: $RELEASE_TAG"
-fi
-RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
-fetch_release_checksums || die "Could not download SHA256SUMS for release ${RELEASE_TAG}."
+# Release downloads reuse the tag and checksum manifest pinned before shutdown.
+# A source build packages and pins its own resources, independent of Releases.
 
 if $GO_FOUND; then
     # ── Source build (Go available) ───────────────────────────────────────

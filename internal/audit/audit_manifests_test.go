@@ -496,10 +496,7 @@ func TestUpdateScriptStagesOptionalDeployArtifacts(t *testing.T) {
 func TestUpdateScriptsParseWithBash(t *testing.T) {
 	t.Parallel()
 
-	bash, err := exec.LookPath("bash")
-	if err != nil {
-		t.Skip("bash is not available")
-	}
+	bash := releaseBash(t)
 	for _, script := range []string{"update.sh", "install.sh"} {
 		cmd := exec.Command(bash, "-n", script)
 		cmd.Dir = repoPath(".")
@@ -1145,8 +1142,7 @@ func TestReleaseSignatureDownloadsAreQuietlyOptional(t *testing.T) {
 		name          string
 		path          string
 		helper        string
-		curlLine      string
-		wgetLine      string
+		quietCalls    []string
 		requiredSig   string
 		requiredCert  string
 		forbiddenSig  string
@@ -1156,8 +1152,7 @@ func TestReleaseSignatureDownloadsAreQuietlyOptional(t *testing.T) {
 			name:          "update",
 			path:          "update.sh",
 			helper:        "fetch_optional_url_to_file()",
-			curlLine:      `curl -fsSL "$url" -o "$out" 2>/dev/null`,
-			wgetLine:      `wget -q "$url" -O "$out" 2>/dev/null`,
+			quietCalls:    []string{`fetch_url_to_file "$url" "$out" 2>/dev/null`},
 			requiredSig:   `fetch_optional_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file"`,
 			requiredCert:  `fetch_optional_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"`,
 			forbiddenSig:  `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig"`,
@@ -1167,8 +1162,7 @@ func TestReleaseSignatureDownloadsAreQuietlyOptional(t *testing.T) {
 			name:          "install",
 			path:          "install.sh",
 			helper:        "_download_optional()",
-			curlLine:      `curl -fsSL "$url" -o "$dest" 2>/dev/null`,
-			wgetLine:      `wget -q "$url" -O "$dest" 2>/dev/null`,
+			quietCalls:    []string{`curl -fsSL "$url" -o "$dest" 2>/dev/null`, `wget -q "$url" -O "$dest" 2>/dev/null`},
 			requiredSig:   `_download_optional "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file"`,
 			requiredCert:  `_download_optional "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"`,
 			forbiddenSig:  `_download "${RELEASE_BASE}/SHA256SUMS.sig"`,
@@ -1177,7 +1171,7 @@ func TestReleaseSignatureDownloadsAreQuietlyOptional(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			script := readRepoFile(t, tc.path)
-			for _, want := range []string{tc.helper, tc.curlLine, tc.wgetLine, tc.requiredSig, tc.requiredCert} {
+			for _, want := range append([]string{tc.helper, tc.requiredSig, tc.requiredCert}, tc.quietCalls...) {
 				if !strings.Contains(script, want) {
 					t.Fatalf("%s must quietly treat missing release signatures as optional; missing %q", tc.path, want)
 				}

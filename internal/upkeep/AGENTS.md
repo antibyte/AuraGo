@@ -27,6 +27,12 @@ The updater owns transaction manifests; this package verifies them before collec
   and freed space. Keep the maintenance CLI's default JSON inventory for
   diagnostics; `--summary` must preserve failure exit codes and visible errors.
   Older rollback binaries without `--summary` get a generic success line.
+- Source builds with Go do not resolve or download GitHub Release artifacts.
+  Release installs pin the tag and checksum manifest before shutdown and reuse
+  that pair throughout the update. Retry transient downloads at most three
+  times; retain mandatory checksums and optional/strict signature policy.
+  Required artifact failures after shutdown use `abort_update`, preserving
+  rollback and unresolved-transaction safeguards.
 
 ## Work Guidance
 
@@ -34,7 +40,8 @@ Keep `update.sh`, the maintenance CLI and the release build flags aligned.
 
 ## Verification
 
-Run `go test ./internal/upkeep` and `bash -n update.sh` after relevant changes.
+Run `go test ./internal/upkeep`, `go test ./internal/audit -run 'Update|ReleaseSignatureDownloads'`
+and `bash -n update.sh` after relevant changes.
 
 ## Child DOX Index
 
