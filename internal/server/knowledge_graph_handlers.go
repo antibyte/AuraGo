@@ -121,18 +121,27 @@ func handleKnowledgeGraphSearch(s *Server) http.HandlerFunc {
 			return
 		}
 
-		raw := s.KG.SearchWithOptions(query, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: parseKnowledgeGraphBool(r, "include_low_confidence")})
-		if strings.TrimSpace(raw) == "" || raw == "[]" {
-			writeJSON(w, map[string]interface{}{"query": query, "nodes": []interface{}{}, "edges": []interface{}{}})
+		result, searchErr := s.KG.SearchResultWithOptions(query, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: parseKnowledgeGraphBool(r, "include_low_confidence")})
+		if searchErr != nil && s.Logger != nil {
+			s.Logger.Warn("Knowledge graph search failed", "error", searchErr)
+		}
+		if searchErr != nil && result.Empty() {
+			jsonError(w, "Knowledge graph search is unavailable", http.StatusServiceUnavailable)
 			return
 		}
-
-		var payload map[string]interface{}
-		if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-			http.Error(w, "Failed to decode knowledge graph search result", http.StatusInternalServerError)
-			return
+		nodes := result.Nodes
+		if nodes == nil {
+			nodes = []memory.Node{}
 		}
-		payload["query"] = query
+		edges := result.Edges
+		if edges == nil {
+			edges = []memory.Edge{}
+		}
+		payload := map[string]interface{}{"query": query, "nodes": nodes, "edges": edges}
+		if searchErr != nil {
+			payload["incomplete"] = true
+			payload["error"] = "Knowledge graph search was incomplete"
+		}
 		writeJSON(w, payload)
 	}
 }

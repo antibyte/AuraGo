@@ -1449,6 +1449,8 @@ GET /api/knowledge-graph/important
 
 `/api/knowledge-graph/quality` reports isolated nodes, untyped nodes, and likely duplicate candidates. `POST /api/knowledge-graph/node/protect` marks important nodes as protected so automated cleanup does not remove them accidentally.
 
+`/api/knowledge-graph/search?q=` returns `nodes` and `edges`. When part of the search failed, the response adds `incomplete: true`; when the graph could not be searched at all, it answers `503` with an `error` field instead of an empty result.
+
 ### File Sync Debugging
 ```http
 GET /api/debug/kg-file-sync-stats
@@ -2007,7 +2009,7 @@ Knowledge-graph and contacts helpers for person-centric views.
 GET /api/people/lookup?q=name&mode=fts
 ```
 
-Searches the knowledge graph for person nodes and related edges.
+Searches the knowledge graph for person nodes and related edges. Answers `503` when the knowledge graph cannot be searched.
 
 ### KG Persons
 ```http

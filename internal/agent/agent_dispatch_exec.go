@@ -636,8 +636,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(data)
 
 			case "search":
-				res := kg.SearchWithOptions(req.Content, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: req.IncludeLowConfidence})
-				return fmt.Sprintf("Tool Output: %s", res)
+				result, searchErr := kg.SearchResultWithOptions(req.Content, memory.KnowledgeGraphQueryOptions{IncludeLowConfidence: req.IncludeLowConfidence})
+				if searchErr != nil && result.Empty() {
+					return toolErrorf("knowledge graph search failed: %v", searchErr)
+				}
+				return "Tool Output: " + memory.FormatKnowledgeGraphSearchResult(result, searchErr)
 
 			case "graph_health":
 				stats, err := kg.GetStats()

@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -174,139 +175,237 @@ func (kg *KnowledgeGraph) beginReadTx(operation string) (*sql.Tx, error) {
 	return tx, nil
 }
 
+// KnowledgeGraphSearchResult holds the nodes and edges an explicit keyword search found.
+type KnowledgeGraphSearchResult struct {
+	Nodes []Node `json:"nodes"`
+	Edges []Edge `json:"edges"`
+}
+
+// Empty reports whether the search found neither nodes nor edges.
+func (r KnowledgeGraphSearchResult) Empty() bool {
+	return len(r.Nodes) == 0 && len(r.Edges) == 0
+}
+
+// knowledgeGraphSearchLimit caps nodes and edges per explicit search.
+const knowledgeGraphSearchLimit = 50
+
 func (kg *KnowledgeGraph) Search(query string) string {
 	return kg.SearchWithOptions(query, KnowledgeGraphQueryOptions{})
 }
 
+// SearchWithOptions renders SearchResultWithOptions in the legacy JSON format:
+// "[]" for a healthy miss, {"nodes","edges"} for hits (plus "errors" when part of
+// the search failed), and {"error": ...} when nothing could be searched.
 func (kg *KnowledgeGraph) SearchWithOptions(query string, options KnowledgeGraphQueryOptions) string {
-	if query == "" {
+	result, err := kg.SearchResultWithOptions(query, options)
+	if err != nil && result.Empty() {
+		return kg.jsonError("Search", err)
+	}
+	return FormatKnowledgeGraphSearchResult(result, err)
+}
+
+// FormatKnowledgeGraphSearchResult renders a search result for tool output. A
+// healthy miss stays "[]"; a partial result carries the named errors in "errors".
+func FormatKnowledgeGraphSearchResult(result KnowledgeGraphSearchResult, searchErr error) string {
+	if result.Empty() && searchErr == nil {
 		return "[]"
 	}
+	payload := map[string]interface{}{
+		"nodes": result.Nodes,
+		"edges": result.Edges,
+	}
+	if searchErr != nil {
+		payload["errors"] = searchErr.Error()
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return `{"error":"json response failed"}`
+	}
+	return string(data)
+}
 
+// SearchResultWithOptions runs an explicit keyword search over nodes and edges. Like
+// the collection search it returns every healthy result together with named errors:
+// a failed FTS query no longer hides the LIKE fallback, and a database failure is
+// never reported as "nothing found". Automatic context retrieval keeps using
+// SearchForContextStructured, which stays best effort.
+func (kg *KnowledgeGraph) SearchResultWithOptions(query string, options KnowledgeGraphQueryOptions) (KnowledgeGraphSearchResult, error) {
+	var result KnowledgeGraphSearchResult
+	if query == "" {
+		return result, nil
+	}
 	tx, err := kg.beginReadTx("Search")
 	if err != nil {
-		return "[]"
+		return result, fmt.Errorf("kg search: begin read transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	var matchedNodes []Node
-	var matchedEdges []Edge
-	var matchedNodeIDs []string
-	var matchedEdgeHits []knowledgeGraphAccessHit
+	var searchErr error
+	seenNodes := make(map[string]struct{})
+	addNodes := func(nodes []Node) {
+		for _, node := range nodes {
+			if len(result.Nodes) >= knowledgeGraphSearchLimit {
+				return
+			}
+			if _, exists := seenNodes[node.ID]; exists {
+				continue
+			}
+			seenNodes[node.ID] = struct{}{}
+			result.Nodes = append(result.Nodes, node)
+		}
+	}
+	ftsNodes, err := kg.searchNodesFTS(tx, query)
+	if err != nil {
+		searchErr = errors.Join(searchErr, fmt.Errorf("kg search nodes via kg_nodes_fts: %w", err))
+	}
+	addNodes(ftsNodes)
+	likeNodes, err := kg.searchNodesLike(tx, query)
+	if err != nil {
+		searchErr = errors.Join(searchErr, fmt.Errorf("kg search nodes via LIKE: %w", err))
+	}
+	addNodes(likeNodes)
 
-	ftsQuery := kgquery.EscapeFTS5(query)
-	escapedLike := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(query)
-	likePattern := "%" + escapedLike + "%"
+	seenEdges := make(map[string]struct{})
+	addEdges := func(edges []Edge) {
+		for _, edge := range edges {
+			if len(result.Edges) >= knowledgeGraphSearchLimit {
+				return
+			}
+			key := knowledgeGraphEdgeKey(edge.Source, edge.Target, edge.Relation)
+			if _, exists := seenEdges[key]; exists {
+				continue
+			}
+			seenEdges[key] = struct{}{}
+			if kg.hideLowConfidenceEdge(edge, options) {
+				continue
+			}
+			result.Edges = append(result.Edges, edge)
+		}
+	}
+	ftsEdges, err := kg.searchEdgesFTS(tx, query)
+	if err != nil {
+		searchErr = errors.Join(searchErr, fmt.Errorf("kg search edges via kg_edges_fts: %w", err))
+	}
+	addEdges(ftsEdges)
+	likeEdges, err := kg.searchEdgesLike(tx, query)
+	if err != nil {
+		searchErr = errors.Join(searchErr, fmt.Errorf("kg search edges via LIKE: %w", err))
+	}
+	addEdges(likeEdges)
+
+	if err := tx.Commit(); err != nil {
+		searchErr = errors.Join(searchErr, fmt.Errorf("kg search: commit read transaction: %w", err))
+	}
+	if searchErr != nil && kg.logger != nil {
+		kg.logger.Warn("Search: knowledge graph search incomplete", "error", searchErr)
+	}
+	for _, node := range result.Nodes {
+		kg.enqueueAccessHit(knowledgeGraphAccessHit{nodeID: node.ID})
+	}
+	for _, edge := range result.Edges {
+		kg.enqueueAccessHit(knowledgeGraphAccessHit{source: edge.Source, target: edge.Target, relation: edge.Relation})
+	}
+	return result, searchErr
+}
+
+func (kg *KnowledgeGraph) searchNodesFTS(tx *sql.Tx, query string) ([]Node, error) {
 	rows, err := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes
 		WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?)
-		UNION
+		LIMIT ?
+	`, kgquery.EscapeFTS5(query), knowledgeGraphSearchLimit)
+	if err != nil {
+		return nil, err
+	}
+	return kg.scanSearchNodes(rows)
+}
+
+func (kg *KnowledgeGraph) searchNodesLike(tx *sql.Tx, query string) ([]Node, error) {
+	likePattern := "%" + strings.NewReplacer("%", `\%`, "_", `\_`).Replace(query) + "%"
+	rows, err := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes
 		WHERE id LIKE ? ESCAPE '\' OR label LIKE ? ESCAPE '\' OR properties LIKE ? ESCAPE '\'
-		LIMIT 50
-	`, ftsQuery, likePattern, likePattern, likePattern)
+		LIMIT ?
+	`, likePattern, likePattern, likePattern, knowledgeGraphSearchLimit)
 	if err != nil {
-		kg.logger.Warn("Search: node query failed", "error", err)
-	} else {
-		seenNodes := make(map[string]struct{})
-		for rows.Next() {
-			var n Node
-			var propsJSON string
-			var protected int
-			if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
-				kg.logger.Warn("Search: scan node failed", "error", err)
-				continue
-			}
-			if _, exists := seenNodes[n.ID]; exists {
-				continue
-			}
-			seenNodes[n.ID] = struct{}{}
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "Search", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			matchedNodes = append(matchedNodes, n)
-			matchedNodeIDs = append(matchedNodeIDs, n.ID)
-		}
-		if err := rows.Err(); err != nil {
-			kg.logger.Warn("Search: iterate nodes failed", "error", err)
-		}
-		rows.Close()
+		return nil, err
 	}
+	return kg.scanSearchNodes(rows)
+}
 
-	escapedLikeEdge := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(strings.ToLower(query))
-	likeQ := "%" + escapedLikeEdge + "%"
-	edgeFTSQuery := kgquery.EscapeFTS5(query)
-	edgeRows, err := tx.Query(`
+func (kg *KnowledgeGraph) scanSearchNodes(rows *sql.Rows) ([]Node, error) {
+	defer rows.Close()
+	var nodes []Node
+	var scanErr error
+	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+			scanErr = errors.Join(scanErr, fmt.Errorf("scan node: %w", err))
+			continue
+		}
+		n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "Search", n.ID, propsJSON, protected)
+		n.Protected = protected != 0
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		scanErr = errors.Join(scanErr, fmt.Errorf("iterate nodes: %w", err))
+	}
+	return nodes, scanErr
+}
+
+func (kg *KnowledgeGraph) searchEdgesFTS(tx *sql.Tx, query string) ([]Edge, error) {
+	rows, err := tx.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE `+activeKGEdgePredicate("")+`
 		  AND id IN (SELECT rowid FROM kg_edges_fts WHERE kg_edges_fts MATCH ?)
-		UNION
+		LIMIT ?
+	`, kgquery.EscapeFTS5(query), knowledgeGraphSearchLimit)
+	if err != nil {
+		return nil, err
+	}
+	return kg.scanSearchEdges(rows)
+}
+
+func (kg *KnowledgeGraph) searchEdgesLike(tx *sql.Tx, query string) ([]Edge, error) {
+	likeQ := "%" + strings.NewReplacer("%", `\%`, "_", `\_`).Replace(strings.ToLower(query)) + "%"
+	rows, err := tx.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE `+activeKGEdgePredicate("")+`
 		  AND (LOWER(source) LIKE ? ESCAPE '\' OR LOWER(target) LIKE ? ESCAPE '\' OR LOWER(relation) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\')
-		LIMIT 50
-	`, edgeFTSQuery, likeQ, likeQ, likeQ, likeQ)
+		LIMIT ?
+	`, likeQ, likeQ, likeQ, likeQ, knowledgeGraphSearchLimit)
 	if err != nil {
-		kg.logger.Warn("Search: edge query failed", "error", err)
-	} else {
-		seenEdges := make(map[string]struct{})
-		for edgeRows.Next() {
-			var e Edge
-			var propsJSON string
-			if err := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err != nil {
-				kg.logger.Warn("Search: scan edge failed", "error", err)
-				continue
-			}
-			edgeKey := knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)
-			if _, exists := seenEdges[edgeKey]; exists {
-				continue
-			}
-			seenEdges[edgeKey] = struct{}{}
-			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
-				kg.logger.Warn("Search: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
-			}
-			if e.Properties == nil {
-				e.Properties = make(map[string]string)
-			}
-			if kg.hideLowConfidenceEdge(e, options) {
-				continue
-			}
-			matchedEdges = append(matchedEdges, e)
-			matchedEdgeHits = append(matchedEdgeHits, knowledgeGraphAccessHit{
-				source:   e.Source,
-				target:   e.Target,
-				relation: e.Relation,
-			})
+		return nil, err
+	}
+	return kg.scanSearchEdges(rows)
+}
+
+func (kg *KnowledgeGraph) scanSearchEdges(rows *sql.Rows) ([]Edge, error) {
+	defer rows.Close()
+	var edges []Edge
+	var scanErr error
+	for rows.Next() {
+		var e Edge
+		var propsJSON string
+		if err := rows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err != nil {
+			scanErr = errors.Join(scanErr, fmt.Errorf("scan edge: %w", err))
+			continue
 		}
-		if err := edgeRows.Err(); err != nil {
-			kg.logger.Warn("Search: iterate edges failed", "error", err)
+		// Corrupt properties are a data issue, not a failed search: keep the edge.
+		if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+			kg.logger.Warn("Search: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
 		}
-		edgeRows.Close()
-	}
-
-	if len(matchedNodes) == 0 && len(matchedEdges) == 0 {
-		return "[]"
-	}
-	if err := tx.Commit(); err != nil {
-		kg.logger.Warn("Search: commit read transaction failed", "error", err)
-		if len(matchedNodes) == 0 && len(matchedEdges) == 0 {
-			return "[]"
+		if e.Properties == nil {
+			e.Properties = make(map[string]string)
 		}
+		edges = append(edges, e)
 	}
-
-	result := map[string]interface{}{
-		"nodes": matchedNodes,
-		"edges": matchedEdges,
+	if err := rows.Err(); err != nil {
+		scanErr = errors.Join(scanErr, fmt.Errorf("iterate edges: %w", err))
 	}
-	data, _ := json.Marshal(result)
-
-	for _, id := range matchedNodeIDs {
-		kg.enqueueAccessHit(knowledgeGraphAccessHit{nodeID: id})
-	}
-	for _, hit := range matchedEdgeHits {
-		kg.enqueueAccessHit(hit)
-	}
-
-	return string(data)
+	return edges, scanErr
 }
 
 func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge) {

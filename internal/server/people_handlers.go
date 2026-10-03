@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"aurago/internal/contacts"
+	"aurago/internal/memory"
 )
 
 func handlePeopleLookup(s *Server) http.HandlerFunc {
@@ -30,15 +31,29 @@ func handlePeopleLookup(s *Server) http.HandlerFunc {
 
 		var resultMap map[string]interface{}
 		if mode == "fts" {
-			searchJSON := s.KG.Search(query)
-			if strings.TrimSpace(searchJSON) == "[]" {
+			result, searchErr := s.KG.SearchResultWithOptions(query, memory.KnowledgeGraphQueryOptions{})
+			if searchErr != nil && s.Logger != nil {
+				s.Logger.Warn("People lookup: knowledge graph search failed", "error", searchErr)
+			}
+			if searchErr != nil && result.Empty() {
+				jsonError(w, "knowledge graph search failed", http.StatusServiceUnavailable)
+				return
+			}
+			if result.Empty() {
 				resultMap = map[string]interface{}{"nodes": []interface{}{}, "edges": []interface{}{}}
-			} else {
-				json.Unmarshal([]byte(searchJSON), &resultMap)
+			} else if data, err := json.Marshal(result); err == nil {
+				_ = json.Unmarshal(data, &resultMap)
 			}
 		} else {
 			exploreJSON := s.KG.Explore(query)
-			json.Unmarshal([]byte(exploreJSON), &resultMap)
+			_ = json.Unmarshal([]byte(exploreJSON), &resultMap)
+			if exploreErr, failed := resultMap["error"].(string); failed {
+				if s.Logger != nil {
+					s.Logger.Warn("People lookup: knowledge graph explore failed", "error", exploreErr)
+				}
+				jsonError(w, "knowledge graph search failed", http.StatusServiceUnavailable)
+				return
+			}
 		}
 
 		if resultMap == nil {
