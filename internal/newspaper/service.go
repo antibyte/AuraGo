@@ -21,11 +21,12 @@ type Policy struct {
 }
 
 type Progress struct {
-	Phase   string
-	Sources int
-	Stories int
-	Message string
-	Source  *Source
+	Phase    string
+	Sources  int
+	Stories  int
+	Message  string
+	Source   *Source
+	Research *ResearchStats
 }
 
 type ResearchFunc func(context.Context, Profile, time.Time, func(Progress)) (Draft, error)
@@ -208,9 +209,17 @@ func (s *Service) execute(ctx context.Context, r Run, p Profile) {
 		r.Phase = v.Phase
 		r.Sources = v.Sources
 		r.Stories = v.Stories
+		if v.Research != nil {
+			r.Research = v.Research
+		}
 		_ = s.store.UpdateRun(context.Background(), r, v.Message)
 	}
 	draft, err := s.research(ctx, p, started, progress)
+	if !s.canWrite() {
+		r.Status, r.Phase, r.Reason = "cancelled", "finished", "Newspaper permission revoked"
+		_ = s.store.UpdateRun(context.Background(), r, "Publication stopped after permissions changed")
+		return
+	}
 	partial := err != nil || draft.Partial
 	cutoff := s.now().UTC()
 	if vErr := ValidateDraft(draft, p, cutoff); vErr != nil {

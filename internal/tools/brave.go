@@ -4,10 +4,10 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -82,27 +82,6 @@ func braveNormalizeUILang(lang string) string {
 	return ""
 }
 
-// braveWebResult is a single search result from the Brave API.
-type braveWebResult struct {
-	Title       string `json:"title"`
-	URL         string `json:"url"`
-	Description string `json:"description"`
-	Published   string `json:"page_age,omitempty"`
-}
-
-// braveResponse mirrors the top-level Brave Search API response.
-type braveResponse struct {
-	Web struct {
-		Results []braveWebResult `json:"results"`
-	} `json:"web"`
-	Mixed struct {
-		Main []struct {
-			Type  string `json:"type"`
-			Index int    `json:"index"`
-		} `json:"main"`
-	} `json:"mixed"`
-}
-
 type braveErrorResponse struct {
 	Error struct {
 		Code   string `json:"code"`
@@ -160,91 +139,29 @@ func ExecuteBraveSearch(apiKey, query string, count int, country, lang string, c
 	if query == "" {
 		return formatError("query is required")
 	}
-	if count <= 0 {
-		count = 10
-	}
-	if count > 20 {
-		count = 20
-	}
-
-	params := url.Values{}
-	params.Set("q", query)
-	params.Set("count", fmt.Sprintf("%d", count))
-	if country != "" {
-		params.Set("country", strings.ToUpper(country))
-	}
-	if lang != "" {
-		if searchLang := braveNormalizeSearchLang(lang); searchLang != "" {
-			params.Set("search_lang", searchLang)
+	page, err := SearchBrave(requestContext(contexts), apiKey, BraveSearchOptions{Query: query, Count: count, Country: country, Language: lang})
+	if err != nil {
+		var apiErr *BraveSearchError
+		if errors.As(err, &apiErr) && apiErr.nativeMessage != "" {
+			return formatError(apiErr.nativeMessage)
 		}
-		if uiLang := braveNormalizeUILang(lang); uiLang != "" {
-			params.Set("ui_lang", uiLang)
-		}
-	}
-
-	endpoint := "https://api.search.brave.com/res/v1/web/search?" + params.Encode()
-
-	req, err := http.NewRequestWithContext(requestContext(contexts), "GET", endpoint, nil)
-	if err != nil {
-		return formatError(fmt.Sprintf("failed to build request: %v", err))
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Accept-Encoding", "gzip")
-	req.Header.Set("X-Subscription-Token", apiKey)
-
-	resp, err := braveHTTPClient.Do(req)
-	if err != nil {
-		return formatError(fmt.Sprintf("Brave Search request failed: %v", err))
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := braveReadBody(resp)
-	if err != nil {
 		return formatError(err.Error())
 	}
-
-	if resp.StatusCode == 401 || resp.StatusCode == 403 {
-		return formatError("Brave Search API key is invalid or expired. Check your subscription.")
-	}
-	if resp.StatusCode == 429 {
-		return formatError("Brave Search rate limit exceeded. Try again later.")
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return formatError(braveFormatAPIError(resp.StatusCode, bodyBytes))
-	}
-
-	var apiResp braveResponse
-	if err := json.Unmarshal(bodyBytes, &apiResp); err != nil {
-		return formatError(fmt.Sprintf("failed to parse Brave response: %v", err))
-	}
-
-	if len(apiResp.Web.Results) == 0 {
-		b, _ := json.Marshal(map[string]interface{}{
-			"status":  "success",
-			"results": []interface{}{},
-			"message": "No results found.",
-		})
-		return string(b)
-	}
-
-	results := make([]map[string]interface{}, 0, len(apiResp.Web.Results))
-	for _, r := range apiResp.Web.Results {
+	results := make([]map[string]interface{}, 0, len(page.Results))
+	for _, r := range page.Results {
 		entry := map[string]interface{}{
-			"title":       security.IsolateExternalData(braveStripHTML(r.Title)),
+			"title":       security.IsolateExternalData(r.Title),
 			"url":         r.URL,
-			"description": security.IsolateExternalData(braveStripHTML(r.Description)),
+			"description": security.IsolateExternalData(r.Description),
 		}
 		if r.Published != "" {
 			entry["published"] = r.Published
 		}
 		results = append(results, entry)
 	}
-
-	out := map[string]interface{}{
-		"status":       "success",
-		"query":        query,
-		"result_count": len(results),
-		"results":      results,
+	out := map[string]interface{}{"status": "success", "query": query, "result_count": len(results), "results": results}
+	if len(results) == 0 {
+		out["message"] = "No results found."
 	}
 	b, _ := json.Marshal(out)
 	return string(b)

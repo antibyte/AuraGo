@@ -88,7 +88,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/desktop/newspaper/")
 		switch path {
 		case "capabilities":
-			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}, map[string]string{"id": "gmx_personal", "name": "GMX"}}, "daily": false, "local_date": localDate})
+			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "research_tools": []any{map[string]string{"id": "brave_search", "state": "needs_setup", "reason": "key_missing"}, map[string]string{"id": "ddg_search", "state": "ready", "last_error": "rate_limited"}, map[string]string{"id": "rss", "state": "needs_setup", "reason": "feeds_missing"}, map[string]string{"id": "web_scraper", "state": "ready"}}, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}, map[string]string{"id": "gmx_personal", "name": "GMX"}}, "daily": false, "local_date": localDate})
 		case "profile":
 			if r.Method == http.MethodPut {
 				if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -109,7 +109,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 				json.NewEncoder(w).Encode(newspaper.Run{ID: "run-2", Status: "running"})
 				return
 			}
-			json.NewEncoder(w).Encode(map[string]any{"editions": []any{map[string]any{"id": e.ID, "local_date": e.LocalDate, "revision": 1, "title": e.Title, "lead": e.Stories[0].Headline, "headlines": []string{e.Stories[0].Headline}, "sections": []string{"culture"}, "stories": len(e.Stories)}}, "latest_run": newspaper.Run{}})
+			json.NewEncoder(w).Encode(map[string]any{"editions": []any{map[string]any{"id": e.ID, "local_date": e.LocalDate, "revision": 1, "title": e.Title, "lead": e.Stories[0].Headline, "headlines": []string{e.Stories[0].Headline}, "sections": []string{"culture"}, "stories": len(e.Stories)}}, "latest_run": newspaper.Run{Status: "published", Research: &newspaper.ResearchStats{Candidates: 84, Read: 25, Accepted: 12, Gaps: []string{"science", "<script>window.injected=true</script>"}}}})
 		case "editions/issue_1":
 			json.NewEncoder(w).Encode(e)
 		case "editions/issue_1/deliveries":
@@ -137,17 +137,26 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	defer page.Close()
 	page.MustSetViewport(1440, 900, 1, false)
 	page.MustElement(".np-teaser")
+	page.MustElement(".np-tools summary").MustClick()
+	if text := page.MustElement(".np-tools").MustText(); !strings.Contains(text, "Brave-API-Schlüssel") || !strings.Contains(text, "DuckDuckGo") || !strings.Contains(text, "Letzter Versuch") {
+		t.Fatalf("missing capability guidance: %s", text)
+	}
+	if text := page.MustElement(".np-progress").MustText(); !strings.Contains(text, "84 Treffer gefunden · 25 Seiten gelesen · 12 Artikel übernommen") || !strings.Contains(text, "Wissenschaft") {
+		t.Fatalf("missing research counters: %s", text)
+	}
 	dir := filepath.Join("..", "reports", "newspaper")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"light", "dark"} {
-		page.MustEval(`mode=>document.body.dataset.fruityMode=mode`, mode)
-		for _, width := range []int{1440, 420} {
-			page.MustSetViewport(width, 900, 1, false)
-			page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("front-%s-%d.png", mode, width)))
-			if page.MustEval(`()=>document.querySelector('.np-app').scrollWidth>document.querySelector('#host').clientWidth+1`).Bool() {
-				t.Fatalf("front page overflow at %d %s", width, mode)
+	for _, theme := range []string{"standard", "fruity"} {
+		for _, mode := range []string{"light", "dark"} {
+			page.MustEval(`(theme,mode)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;const dark=mode==='dark';for(const [key,value] of Object.entries({'--vd-theme-panel-bg':dark?'#202936':'#eee','--vd-theme-chrome-bg':dark?'#293340':'#ddd','--vd-theme-app-bg':dark?'#141d28':'#e4e4e4','--vd-theme-muted':dark?'#aab6c6':'#555','--vd-text':dark?'#eef2f7':'#222'}))document.body.style.setProperty(key,value)}`, theme, mode)
+			for _, width := range []int{1440, 390} {
+				page.MustSetViewport(width, 900, 1, false)
+				page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("front-%s-%s-%d.png", theme, mode, width)))
+				if page.MustEval(`()=>document.querySelector('.np-app').scrollWidth>document.querySelector('#host').clientWidth+1`).Bool() {
+					t.Fatalf("front page overflow at %d %s", width, mode)
+				}
 			}
 		}
 	}

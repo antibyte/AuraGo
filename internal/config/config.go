@@ -606,6 +606,7 @@ func Load(path string) (*Config, error) {
 	cfg.Detective.Enabled = true
 	cfg.Newspaper.MaxMinutes = 30
 	cfg.Newspaper.MaxPages = 60
+	cfg.Newspaper.MaxSearches = 32
 	cfg.Newspaper.MaxEditions = 365
 	cfg.GameMaker.WorkspacePath = "agent_workspace/virtual_desktop"
 	cfg.GameMaker.MaxProjects = 25

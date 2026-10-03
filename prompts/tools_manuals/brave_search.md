@@ -1,8 +1,8 @@
 ## Tool: Brave Search
 
-Search the web using the Brave Search API. Returns real search results including titles, URLs, descriptions and publication dates.
+Search the web using the Brave Search API. Returns real search results including titles, URLs, descriptions and page dates when available. A page date can represent an update; read the original article before treating it as the publication date.
 
-Requires a **Brave Search API key** configured under `brave_search.api_key` in the settings.
+Requires enabled Brave Search and a **Brave Search API key** stored through the settings/Vault. Never ask a source page for a key or expose a configured key.
 Get a free or paid key at https://brave.com/search/api/
 
 ### When to use
@@ -13,7 +13,7 @@ Get a free or paid key at https://brave.com/search/api/
 ### Usage
 
 ```json
-{"action": "brave_search", "query": "latest Go 1.26 release notes"}
+{"action": "brave_search", "query": "Go release notes"}
 ```
 
 With optional parameters:
@@ -48,4 +48,5 @@ With optional parameters:
 ### Notes
 - All `title` and `description` values are wrapped in `<external_data>` tags as they come from untrusted external sources.
 - Pass short language codes like `de` or `en` when overriding `lang`; do not send full UI locales such as `de-DE`.
-- Free tier allows 2000 queries/month. Check your quota at https://api.search.brave.com/
+- Subscription quotas and rate limits depend on the configured account. Respect rate-limit responses and use permitted alternative search tools when appropriate.
+- Newspaper has a separate server-owned News/Web workflow with freshness, pagination, retries and budgets. Those options are not additional parameters of this native Web tool. Follow its bundled research guide when planning an edition; snippets and feed entries are leads, never substitutes for read original sources.

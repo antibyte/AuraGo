@@ -89,8 +89,17 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		researchReady := s.newspaperSkillReady && cfg.Agent.AllowNetworkRequests && ((cfg.BraveSearch.Enabled && cfg.BraveSearch.APIKey != "") || len(p.RSSFeeds) > 0) && cfg.Tools.WebScraper.Enabled && s.LLMClient != nil && cfg.LLM.Model != ""
-		newspaperJSON(w, 200, map[string]any{"enabled": cfg.Newspaper.Enabled, "read_only": cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly, "research_ready": researchReady, "email_allowed": cfg.Newspaper.AllowEmail, "email_ready": cfg.Newspaper.AllowEmail && p.EmailVerified && p.EmailTo != "" && accountReady, "telegram_allowed": cfg.Newspaper.AllowTelegram, "telegram_ready": cfg.Newspaper.AllowTelegram && cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0, "email_accounts": accounts, "daily": p.Daily, "local_date": localDate, "next_run": next, "max_minutes": cfg.Newspaper.MaxMinutes, "max_pages": cfg.Newspaper.MaxPages, "max_editions": cfg.Newspaper.MaxEditions})
+		researchCaps := resolveNewspaperCapabilities(cfg, p, s.newspaperSkillReady, s.LLMClient != nil)
+		if last, err := s.Newspaper.LatestRun(r.Context()); err == nil && last.Research != nil {
+			for i := range researchCaps.Tools {
+				result := last.Research.Tools[researchCaps.Tools[i].ID]
+				switch result {
+				case "failed", "request_failed", "rate_limited", "quota_exhausted", "access_denied":
+					researchCaps.Tools[i].LastError = result
+				}
+			}
+		}
+		newspaperJSON(w, 200, map[string]any{"enabled": cfg.Newspaper.Enabled, "read_only": cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly, "research_ready": researchCaps.Ready, "research_tools": researchCaps.Tools, "research_reason": researchCaps.Reason, "max_searches": cfg.Newspaper.EffectiveMaxSearches(), "email_allowed": cfg.Newspaper.AllowEmail, "email_ready": cfg.Newspaper.AllowEmail && p.EmailVerified && p.EmailTo != "" && accountReady, "telegram_allowed": cfg.Newspaper.AllowTelegram, "telegram_ready": cfg.Newspaper.AllowTelegram && cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0, "email_accounts": accounts, "daily": p.Daily, "local_date": localDate, "next_run": next, "max_minutes": cfg.Newspaper.MaxMinutes, "max_pages": cfg.Newspaper.MaxPages, "max_editions": cfg.Newspaper.MaxEditions})
 		return
 	}
 	if path == "profile" {

@@ -219,17 +219,33 @@ type Edition struct {
 }
 
 type Run struct {
-	ID             string    `json:"id"`
-	LocalDate      string    `json:"local_date"`
-	Revision       int       `json:"revision"`
-	Status         string    `json:"status"`
-	Phase          string    `json:"phase"`
-	Sources        int       `json:"sources"`
-	Stories        int       `json:"stories"`
-	Reason         string    `json:"reason,omitempty"`
-	CorrectionNote string    `json:"correction_note,omitempty"`
-	StartedAt      time.Time `json:"started_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             string         `json:"id"`
+	LocalDate      string         `json:"local_date"`
+	Revision       int            `json:"revision"`
+	Status         string         `json:"status"`
+	Phase          string         `json:"phase"`
+	Sources        int            `json:"sources"`
+	Stories        int            `json:"stories"`
+	Reason         string         `json:"reason,omitempty"`
+	CorrectionNote string         `json:"correction_note,omitempty"`
+	StartedAt      time.Time      `json:"started_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	Research       *ResearchStats `json:"research,omitempty"`
+}
+
+// ResearchStats is bounded diagnostic metadata in the existing run JSON body.
+// It deliberately excludes prompts, credentials and provider response bodies.
+type ResearchStats struct {
+	Searches   int               `json:"searches"`
+	Candidates int               `json:"candidates"`
+	Pages      int               `json:"pages"`
+	Read       int               `json:"read"`
+	Accepted   int               `json:"accepted"`
+	Plans      int               `json:"plans"`
+	Rejected   map[string]int    `json:"rejected,omitempty"`
+	Coverage   map[string]int    `json:"coverage,omitempty"`
+	Gaps       []string          `json:"gaps,omitempty"`
+	Tools      map[string]string `json:"tools,omitempty"`
 }
 
 type Event struct {

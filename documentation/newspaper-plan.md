@@ -177,14 +177,36 @@ route so ordinary local installs do not require a new sidecar.
    its gap. If the model or source services fail, preserve the run record and
    evidence; do not publish a plausible-looking unsourced newspaper.
 
-Target the Standard reading length at roughly 10-16 substantive stories across
-selected sections, with a concise brief rail. This is an upper editorial target,
-not a quota: the number falls when verification or relevance is insufficient.
-Default resource limits should be finite and visible (proposed initial ceiling:
-30 active minutes, 60 fetched pages and 16 published stories); administrator
-caps and the global provider/spending policy remain authoritative. Measure real
-runtime cost before settling final defaults. Use one cumulative budget through
-research, retries and editing, with a reserved synthesis/checking phase.
+Reading lengths have ceilings of 6 (Brief), 12 (Standard) and 16 (In depth)
+substantiated stories. A larger candidate pool improves selection, not issue
+size. Missing evidence or relevance reduces the issue rather than adding filler.
+
+The research guide supplies concrete source types and query techniques, with
+open publisher choice and international/original-language research. A validated
+model plan precedes search; deterministic language/place templates handle model
+failure. A shared capability resolver serves planning, execution and the app:
+Brave News/Web (enabled plus key), DuckDuckGo (network permission), configured
+RSS/Atom and enabled original-page scraping. Show setup reasons separately from
+last-attempt failures; never suggest a nonexistent DuckDuckGo activation toggle.
+
+Initial search covers 24 hours, 20 hits per request and up to 40 feed entries.
+At most 200 candidates are queued, with canonical/content deduplication and
+alternating topics/publishers. Read up to four originals concurrently, one per
+publisher domain; overview links have one further depth and every page attempt
+shares the page budget. Keep relevant exact passages, original dates and unknown
+date labels. Editing uses at most two concurrent requests. One follow-up may
+vary terms/publishers/languages and widen to at most seven days. At most two
+planning calls are allowed; each is bounded by 45 seconds and remaining time.
+
+Defaults are 30 minutes, 60 page attempts and `newspaper.max_searches: 32`
+(1–64, including retries and fallbacks). Transient failures get at most one
+budgeted retry; respect rate-limit headers and fall back to permitted alternatives.
+Discovery ends at 80% of the deadline to reserve editing/checking time. Provider
+spending policy and live permission restrictions remain authoritative; a run
+cannot gain permissions or larger limits. Charge all completed model responses,
+including rejected JSON. Preserve optional research statistics in existing run
+JSON, with no new SQLite table. UI guidance and counters cover all 16 locales.
+See `documentation/newspaper.md` for implementation and separate live acceptance.
 
 ## State, scheduling and API
 

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,15 +18,17 @@ import (
 type newspaperFeedDocument struct {
 	Channel struct {
 		Items []struct {
-			Title string `xml:"title"`
-			Link  string `xml:"link"`
-			Date  string `xml:"pubDate"`
+			Title       string `xml:"title"`
+			Link        string `xml:"link"`
+			Date        string `xml:"pubDate"`
+			Description string `xml:"description"`
 		} `xml:"item"`
 	} `xml:"channel"`
 	Entries []struct {
 		Title     string `xml:"title"`
 		Published string `xml:"published"`
 		Updated   string `xml:"updated"`
+		Summary   string `xml:"summary"`
 		Links     []struct {
 			Href string `xml:"href,attr"`
 			Rel  string `xml:"rel,attr"`
@@ -42,9 +45,9 @@ func parseNewspaperFeed(feedURL string, body []byte) ([]newspaperHit, error) {
 	if err != nil {
 		return nil, err
 	}
-	hits := make([]newspaperHit, 0, 12)
-	appendHit := func(title, link, published string) {
-		if len(hits) >= 12 || strings.TrimSpace(title) == "" || strings.TrimSpace(link) == "" {
+	hits := make([]newspaperHit, 0, 40)
+	appendHit := func(title, link, published, description string) {
+		if strings.TrimSpace(title) == "" || strings.TrimSpace(link) == "" {
 			return
 		}
 		u, err := url.Parse(strings.TrimSpace(link))
@@ -55,10 +58,10 @@ func parseNewspaperFeed(feedURL string, body []byte) ([]newspaperHit, error) {
 		if err != nil {
 			return
 		}
-		hits = append(hits, newspaperHit{Title: newspaperBound(title, 180), URL: absolute, Published: strings.TrimSpace(published)})
+		hits = append(hits, newspaperHit{Title: newspaperBound(title, 180), URL: absolute, Published: strings.TrimSpace(published), Description: newspaperBound(description, 500)})
 	}
 	for _, item := range feed.Channel.Items {
-		appendHit(item.Title, item.Link, item.Date)
+		appendHit(item.Title, item.Link, item.Date, item.Description)
 	}
 	for _, entry := range feed.Entries {
 		link := ""
@@ -72,10 +75,17 @@ func parseNewspaperFeed(feedURL string, body []byte) ([]newspaperHit, error) {
 		if published == "" {
 			published = entry.Updated
 		}
-		appendHit(entry.Title, link, published)
+		appendHit(entry.Title, link, published, entry.Summary)
 	}
 	if len(hits) == 0 {
 		return nil, errors.New("RSS feed has no article links")
+	}
+	sort.SliceStable(hits, func(i, j int) bool {
+		a, b := newspaperDate(hits[i].Published), newspaperDate(hits[j].Published)
+		return a != nil && (b == nil || a.After(*b))
+	})
+	if len(hits) > 40 {
+		hits = hits[:40]
 	}
 	return hits, nil
 }

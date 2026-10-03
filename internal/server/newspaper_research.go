@@ -3,357 +3,349 @@ package server
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 	"time"
 
-	"aurago/internal/llm"
 	"aurago/internal/newspaper"
-	"aurago/internal/prompts"
 	"aurago/internal/scraper"
-	"aurago/internal/tools"
-
-	"github.com/PuerkitoBio/goquery"
-	"github.com/itlightning/dateparse"
-	openai "github.com/sashabaranov/go-openai"
 )
 
-type newspaperHit struct{ Title, URL, Published string }
-type newspaperQuery struct{ Section, Text string }
+// The queue holds bounded leads; accepted evidence is stored independently.
+const newspaperCandidateLimit = 200
 
-func newspaperQueries(p newspaper.Profile, date string) []newspaperQuery {
-	terms := map[string]string{"regional": "regional news", "national": "national news", "international": "world news", "politics": "politics news", "economy": "economy business news", "culture": "culture arts news", "technology": "technology news", "science": "science research news", "environment": "environment climate news", "health": "health medicine news", "sport": "sport news"}
-	if strings.HasPrefix(p.Language, "de") {
-		terms = map[string]string{"regional": "regionale Nachrichten", "national": "Deutschland Nachrichten", "international": "internationale Nachrichten", "politics": "Politik Nachrichten", "economy": "Wirtschaft Nachrichten", "culture": "Kultur Nachrichten", "technology": "Technik Nachrichten", "science": "Wissenschaft Nachrichten", "environment": "Umwelt Klima Nachrichten", "health": "Gesundheit Medizin Nachrichten", "sport": "Sport Nachrichten"}
-	}
-	queries := []newspaperQuery{}
-	for _, section := range p.Sections {
-		place := p.Country
-		if section == "regional" {
-			place = strings.TrimSpace(p.City + " " + p.Region + " " + p.Country)
-		}
-		queries = append(queries, newspaperQuery{Section: section, Text: strings.TrimSpace(terms[section] + " " + place + " " + date)})
-	}
-	for _, interest := range p.Interests {
-		queries = append(queries, newspaperQuery{Section: "interests", Text: interest + " latest news " + p.Language + " " + date})
-	}
-	if len(queries) > 24 {
-		queries = queries[:24]
-	}
-	return queries
+type newspaperCandidate struct {
+	Hit         newspaperHit
+	Query       newspaperQuery
+	Depth, Rank int
 }
 
-func newspaperCandidateOrder(p newspaper.Profile, queries []newspaperQuery, searchQueries int) []int {
-	buckets := make(map[string][]int, len(p.Sections)+1)
-	for i := searchQueries; i < len(queries); i++ {
-		buckets[queries[i].Section] = append(buckets[queries[i].Section], i)
-	}
-	for i := 0; i < searchQueries; i++ {
-		buckets[queries[i].Section] = append(buckets[queries[i].Section], i)
-	}
-	sections := append([]string(nil), p.Sections...)
-	if len(p.Interests) > 0 {
-		sections = append(sections, "interests")
-	}
-	order := make([]int, 0, len(queries))
-	for round := 0; len(order) < len(queries); round++ {
-		before := len(order)
-		for _, section := range sections {
-			if bucket := buckets[section]; round < len(bucket) {
-				order = append(order, bucket[round])
-			}
-		}
-		if len(order) == before {
-			break
-		}
-	}
-	return order
+// Dependencies are per run, so fixtures do not replace global network clients.
+type newspaperResearchIO struct {
+	Capabilities func() newspaperResearchCapabilities
+	Limits       func() (int, int)
+	Spending     func() *newspaperSpendingBudget
+	Search       func(context.Context, string, newspaperQuery, string) (newspaperSearchBatch, error)
+	Feed         func(context.Context, string) ([]newspaperHit, error)
+	Fetch        func(context.Context, string) (*scraper.ScrapeResult, error)
+	Complete     newspaperCompletionFunc
+	Wait         func(context.Context, time.Duration) error
+	Recent       []newspaper.Edition
 }
 
-func canonicalNewspaperURL(raw string) (string, error) {
-	u, err := url.Parse(raw)
-	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
-		return "", errors.New("invalid public URL")
-	}
-	u.Fragment = ""
-	q := u.Query()
-	for key := range q {
-		lower := strings.ToLower(key)
-		if strings.HasPrefix(lower, "utm_") || lower == "fbclid" || lower == "gclid" {
-			q.Del(key)
-		}
-	}
-	u.RawQuery = q.Encode()
-	return u.String(), nil
-}
-
-func newspaperPublished(raw, html string) *time.Time {
-	if doc, err := goquery.NewDocumentFromReader(strings.NewReader(html)); err == nil {
-		value, _ := doc.Find("meta[property='article:published_time'],meta[name='date'],meta[itemprop='datePublished']").First().Attr("content")
-		if value == "" {
-			value, _ = doc.Find("time[datetime]").First().Attr("datetime")
-		}
-		if value != "" {
-			raw = value
-		}
-	}
-	if at, err := dateparse.ParseAny(raw); err == nil && !at.IsZero() {
-		v := at.UTC()
-		return &v
-	}
-	return nil
-}
-
-func newspaperBound(s string, maxRunes int) string {
-	r := []rune(strings.TrimSpace(s))
-	if len(r) > maxRunes {
-		r = r[:maxRunes]
-	}
-	return string(r)
-}
-
-func newspaperExcluded(text string, terms []string) bool {
-	text = strings.ToLower(text)
-	for _, term := range terms {
-		if strings.Contains(text, strings.ToLower(strings.TrimSpace(term))) {
-			return true
-		}
-	}
-	return false
+type newspaperResearchRun struct {
+	profile                           newspaper.Profile
+	topics                            []newspaperTopic
+	cutoff                            time.Time
+	initial                           newspaperResearchCapabilities
+	io                                newspaperResearchIO
+	progress                          func(newspaper.Progress)
+	stats                             newspaper.ResearchStats
+	draft                             newspaper.Draft
+	maxPages, maxSearches, maxStories int
+	pending                           []newspaperCandidate
+	seen                              map[[32]byte]bool
+	recent                            map[string]bool
+	titles                            map[string]bool
+	contents                          map[[32]byte]bool
+	searched, unavailable             map[string]bool
+	nextSearch                        map[string]time.Time
+	domains                           map[string]int
+	cursor                            int
+	complete                          newspaperCompletionFunc
 }
 
 func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cutoff time.Time, progress func(newspaper.Progress)) (newspaper.Draft, error) {
-	result := newspaper.Draft{Stories: []newspaper.Story{}, Sources: []newspaper.Source{}}
-	cfg := s.ConfigSnapshot()
-	if cfg == nil || !s.newspaperSkillReady || !cfg.Newspaper.Enabled || cfg.Newspaper.ReadOnly || !cfg.VirtualDesktop.Enabled || cfg.VirtualDesktop.ReadOnly || !cfg.Agent.AllowNetworkRequests || !cfg.Tools.WebScraper.Enabled || s.LLMClient == nil || cfg.LLM.Model == "" {
-		return result, errors.New("research needs an enabled model, network access and page reading")
+	cfg := s.ConfigSnapshot().Clone()
+	caps := resolveNewspaperCapabilities(cfg, p, s.newspaperSkillReady, s.LLMClient != nil)
+	if !caps.Ready {
+		return newspaper.Draft{}, fmt.Errorf("newspaper research unavailable: %s", caps.Reason)
 	}
-	searchReady := cfg.BraveSearch.Enabled && cfg.BraveSearch.APIKey != ""
-	if !searchReady && len(p.RSSFeeds) == 0 {
-		return result, errors.New("research needs Brave Search or a curated RSS feed")
+	client := s.LLMClient
+	deps := newspaperResearchIO{
+		Capabilities: func() newspaperResearchCapabilities {
+			return resolveNewspaperCapabilities(s.ConfigSnapshot(), p, s.newspaperSkillReady, client != nil)
+		},
+		Limits: func() (int, int) {
+			live := s.ConfigSnapshot()
+			if live == nil {
+				return 0, 0
+			}
+			return newspaperPageLimit(live.Newspaper.MaxPages), live.Newspaper.EffectiveMaxSearches()
+		},
+		Feed: fetchNewspaperFeed,
+		Fetch: func(ctx context.Context, raw string) (*scraper.ScrapeResult, error) {
+			return scraper.New(s.Guardian).WithContext(ctx).FetchStatic(raw)
+		},
+		Wait: newspaperWait,
 	}
-	if s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("newspaper") {
-		return result, errors.New("provider spending policy blocks research")
+	deps.Spending = func() *newspaperSpendingBudget {
+		if s.BudgetTracker == nil {
+			return nil
+		}
+		status := s.BudgetTracker.GetStatus()
+		if !status.Enabled || status.DailyLimit <= 0 {
+			return nil
+		}
+		return &newspaperSpendingBudget{RemainingUSD: math.Max(0, status.DailyLimit-status.SpentUSD), Blocked: s.BudgetTracker.IsBlocked("newspaper")}
 	}
-	loc, _ := time.LoadLocation(p.TimeZone)
-	date := cutoff.In(loc).Format("2006-01-02")
-	queries := newspaperQueries(p, date)
-	searchQueries := len(queries)
-	lists := make([][]newspaperHit, searchQueries)
-	covered := make([]bool, searchQueries)
-	progress(newspaper.Progress{Phase: "finding", Message: "Finding current source pages"})
-	for i, q := range queries {
-		if !searchReady {
-			break
+	deps.Search = func(ctx context.Context, backend string, query newspaperQuery, freshness string) (newspaperSearchBatch, error) {
+		live := s.ConfigSnapshot()
+		tool := "brave_search"
+		if backend == "ddg_search" {
+			tool = "ddg_search"
 		}
-		if err := ctx.Err(); err != nil {
-			return result, err
+		if live == nil || !caps.allows(tool) || !resolveNewspaperCapabilities(live, p, s.newspaperSkillReady, client != nil).allows(tool) {
+			return newspaperSearchBatch{}, errors.New("research permission revoked")
 		}
-		latest := s.ConfigSnapshot()
-		if latest == nil || !latest.Newspaper.Enabled || latest.Newspaper.ReadOnly || !latest.Agent.AllowNetworkRequests || !latest.BraveSearch.Enabled {
-			return result, errors.New("research permission revoked")
+		country := p.Country
+		if query.Section == "international" || query.Language != p.Language {
+			country = "ALL"
 		}
-		raw := tools.ExecuteBraveSearch(latest.BraveSearch.APIKey, q.Text, 4, p.Country, p.Language, ctx)
-		var response struct {
-			Status  string         `json:"status"`
-			Results []newspaperHit `json:"results"`
-		}
-		if json.Unmarshal([]byte(raw), &response) == nil && response.Status == "success" {
-			lists[i] = response.Results
-		}
+		return newspaperSearchAdapter(ctx, live.BraveSearch.APIKey, country, backend, query, freshness)
 	}
-	for _, feed := range p.RSSFeeds {
-		if err := ctx.Err(); err != nil {
-			return result, err
+	deps.Complete = func(ctx context.Context, guide, input string) (string, error) {
+		if !deps.Capabilities().Ready {
+			return "", errors.New("research permission revoked")
 		}
-		latest := s.ConfigSnapshot()
-		if latest == nil || !latest.Newspaper.Enabled || latest.Newspaper.ReadOnly || !latest.Agent.AllowNetworkRequests || !latest.Tools.WebScraper.Enabled {
-			return result, errors.New("research permission revoked")
-		}
-		hits, err := fetchNewspaperFeed(ctx, feed.URL)
-		if err != nil {
-			progress(newspaper.Progress{Phase: "finding", Message: "A configured RSS feed could not be read"})
-			continue
-		}
-		queries = append(queries, newspaperQuery{Section: feed.Section})
-		lists = append(lists, hits)
+		return s.newspaperCompletion(ctx, cfg, client, guide, input)
 	}
-	maxPages := cfg.Newspaper.MaxPages
-	if maxPages < 1 || maxPages > 60 {
-		maxPages = 60
-	}
-	maxStories := map[string]int{"brief": 6, "standard": 12, "in_depth": 16}[p.Length]
-	seenURL := map[string]bool{}
-	seenTitle := map[string]bool{}
 	if s.Newspaper != nil {
-		recent, _ := s.Newspaper.List(ctx, 7)
-		for _, e := range recent {
-			for _, src := range e.Sources {
-				seenURL[src.URL] = true
-			}
-		}
+		deps.Recent, _ = s.Newspaper.List(ctx, 7)
 	}
-	attempts := 0
-	fetchedSources := 0
-	modelErrors, truncatedJSON, invalidJSON, emptyJSON, evidenceMismatches, invalidDrafts := 0, 0, 0, 0, 0, 0
-	order := newspaperCandidateOrder(p, queries, searchQueries)
-	for index := 0; index < 4 && attempts < maxPages && len(result.Stories) < maxStories; index++ {
-		for _, qi := range order {
-			hits := lists[qi]
-			if index >= len(hits) || attempts >= maxPages || len(result.Stories) >= maxStories {
-				continue
-			}
-			if err := ctx.Err(); err != nil {
-				return result, err
-			}
-			latest := s.ConfigSnapshot()
-			if latest == nil || !latest.Newspaper.Enabled || latest.Newspaper.ReadOnly || !latest.Tools.WebScraper.Enabled || !latest.Agent.AllowNetworkRequests {
-				return result, errors.New("research permission revoked")
-			}
-			h := hits[index]
-			if newspaperExcluded(h.Title, p.Exclusions) {
-				continue
-			}
-			canonical, err := canonicalNewspaperURL(h.URL)
-			if err != nil || seenURL[canonical] {
-				continue
-			}
-			seenURL[canonical] = true
-			attempts++
-			progress(newspaper.Progress{Phase: "reading", Sources: len(result.Sources), Stories: len(result.Stories), Message: fmt.Sprintf("Reading source %d of %d", attempts, maxPages)})
-			page, err := scraper.New(s.Guardian).WithContext(ctx).FetchStatic(canonical)
-			if err != nil || page == nil || len([]rune(page.Markdown)) < 180 || newspaperExcluded(page.Title, p.Exclusions) {
-				continue
-			}
-			title := newspaperBound(page.Title, 180)
-			key := strings.ToLower(strings.Join(strings.Fields(title), " "))
-			if key == "" || seenTitle[key] {
-				continue
-			}
-			seenTitle[key] = true
-			published := newspaperPublished(h.Published, page.RawHTML)
-			if published != nil && (published.After(time.Now().UTC().Add(time.Hour)) || time.Since(*published) > 7*24*time.Hour) {
-				continue
-			}
-			u, _ := url.Parse(canonical)
-			hash := sha256.Sum256([]byte(canonical))
-			source := newspaper.Source{ID: "src-" + hex.EncodeToString(hash[:6]), URL: canonical, Publisher: u.Hostname(), Title: title, PublishedAt: published, RetrievedAt: time.Now().UTC(), Excerpt: newspaperBound(page.Markdown, 5000)}
-			fetchedSources++
-			result.Sources = append(result.Sources, source)
-			progress(newspaper.Progress{Phase: "reading", Sources: len(result.Sources), Stories: len(result.Stories), Message: "Source captured for verification", Source: &source})
-			progress(newspaper.Progress{Phase: "editing", Sources: len(result.Sources), Stories: len(result.Stories), Message: "Writing sourced stories"})
-			story, err := s.newspaperWriteStory(ctx, p, queries[qi].Section, source)
-			if err != nil {
-				switch {
-				case errors.Is(err, llm.ErrJSONCompletionTruncated):
-					truncatedJSON++
-				case errors.Is(err, llm.ErrJSONCompletionInvalid):
-					invalidJSON++
-				case errors.Is(err, llm.ErrJSONCompletionEmpty):
-					emptyJSON++
-				default:
-					modelErrors++
-				}
-				result.Sources = result.Sources[:len(result.Sources)-1]
-				continue
-			}
-			story.ID = fmt.Sprintf("story-%d", len(result.Stories)+1)
-			story.Section = queries[qi].Section
-			story.SourceIDs = []string{source.ID}
-			story.SingleSource = true
-			for i := range story.Paragraphs {
-				story.Paragraphs[i].SourceIDs = []string{source.ID}
-			}
-			if err = newspaper.ValidateDraft(newspaper.Draft{Stories: []newspaper.Story{story}, Sources: []newspaper.Source{source}}, p, time.Now().UTC()); err != nil {
-				if err.Error() == "paragraph evidence quote was not found in a read source" {
-					evidenceMismatches++
-				} else {
-					invalidDrafts++
-				}
-				result.Sources = result.Sources[:len(result.Sources)-1]
-				continue
-			}
-			result.Stories = append(result.Stories, story)
-			if qi < searchQueries {
-				covered[qi] = true
-			} else {
-				for i, query := range queries[:searchQueries] {
-					if query.Section == queries[qi].Section && query.Section != "interests" {
-						covered[i] = true
-					}
-				}
-			}
-		}
+	minutes := cfg.Newspaper.MaxMinutes
+	if minutes < 1 || minutes > 60 {
+		minutes = 30
 	}
-	progress(newspaper.Progress{Phase: "checking", Sources: len(result.Sources), Stories: len(result.Stories), Message: "Checking citations and publication rules"})
-	if len(result.Stories) == 0 {
-		if fetchedSources == 0 {
-			return result, errors.New("no usable source pages were retrieved from search or RSS")
-		}
-		return result, fmt.Errorf("no verified articles from %d fetched source pages (model errors: %d, truncated JSON: %d, invalid JSON: %d, empty JSON: %d, evidence quote mismatches: %d, invalid drafts: %d)", fetchedSources, modelErrors, truncatedJSON, invalidJSON, emptyJSON, evidenceMismatches, invalidDrafts)
-	}
-	if err := newspaper.ValidateDraft(result, p, time.Now().UTC()); err != nil {
-		return result, err
-	}
-	for _, ok := range covered {
-		if !ok {
-			result.Partial = true
-			break
-		}
-	}
-	return result, nil
+	work, cancel := context.WithTimeout(ctx, time.Duration(minutes)*time.Minute)
+	defer cancel()
+	return runNewspaperResearch(work, p, cutoff, newspaperPageLimit(cfg.Newspaper.MaxPages), cfg.Newspaper.EffectiveMaxSearches(), deps, progress)
 }
 
-func (s *Server) newspaperWriteStory(ctx context.Context, p newspaper.Profile, section string, source newspaper.Source) (newspaper.Story, error) {
-	latest := s.ConfigSnapshot()
-	if latest == nil || !latest.Newspaper.Enabled || latest.Newspaper.ReadOnly || s.LLMClient == nil {
-		return newspaper.Story{}, errors.New("research permission revoked")
+func newspaperPageLimit(limit int) int {
+	if limit < 1 || limit > 60 {
+		return 60
 	}
-	if s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("newspaper") {
-		return newspaper.Story{}, errors.New("provider spending policy blocks research")
+	return limit
+}
+
+func runNewspaperResearch(ctx context.Context, p newspaper.Profile, cutoff time.Time, maxPages, maxSearches int, deps newspaperResearchIO, progress func(newspaper.Progress)) (newspaper.Draft, error) {
+	r := &newspaperResearchRun{
+		profile: p, topics: newspaperTopics(p), cutoff: cutoff, initial: deps.Capabilities(), io: deps, progress: progress,
+		maxPages: maxPages, maxSearches: maxSearches, maxStories: map[string]int{"brief": 6, "standard": 12, "in_depth": 16}[p.Length],
+		stats: newspaper.ResearchStats{Rejected: map[string]int{}, Coverage: map[string]int{}, Tools: map[string]string{}},
+		draft: newspaper.Draft{Stories: []newspaper.Story{}, Sources: []newspaper.Source{}},
+		seen:  map[[32]byte]bool{}, recent: map[string]bool{}, titles: map[string]bool{}, contents: map[[32]byte]bool{},
+		searched: map[string]bool{}, unavailable: map[string]bool{}, nextSearch: map[string]time.Time{}, domains: map[string]int{},
 	}
-	guide := newspaper.Skill + "\nReturn exactly one JSON object with headline, deck and paragraphs (2-4). Each paragraph has text and evidence_quote. The evidence_quote must be an exact consecutive substring of at least 20 characters from the source text that supports that paragraph. If the page lacks enough substantiated news, return {\"headline\":\"\",\"deck\":\"\",\"paragraphs\":[]}."
-	input := fmt.Sprintf("Language: %s\nSection: %s\nPublication date: %s\nPublisher: %s\nArticle title: %s\nPublished: %v\n<external_data source_id=\"%s\">\n%s\n</external_data>", p.Language, section, time.Now().Format("2006-01-02"), source.Publisher, source.Title, source.PublishedAt, source.ID, source.Excerpt)
-	route := llm.ModelRoute{ProviderID: latest.LLM.Provider, ProviderType: latest.LLM.ProviderType, BaseURL: latest.LLM.BaseURL, Model: latest.LLM.Model, Primary: true}
-	if provider := latest.FindProvider(latest.LLM.Provider); provider != nil {
-		route.ContextWindowOverride = provider.ContextWindow
-		route.MaxOutputTokensOverride = provider.MaxOutputTokens
+	if r.maxStories == 0 {
+		r.maxStories = 12
 	}
-	limits := llm.ResolveModelLimitsCached(route, latest.Agent.ContextWindow)
-	inputTokens := prompts.CountTokensForModel(guide, latest.LLM.Model) + prompts.CountTokensForModel(input, latest.LLM.Model) + 32
-	requestedOutput := min(llm.ReasoningOutputTokens, limits.ContextWindow-inputTokens-256)
-	maxTokens, err := llm.JSONCompletionOutputBudget(limits, requestedOutput, inputTokens)
-	if err != nil {
-		return newspaper.Story{}, fmt.Errorf("budget newspaper story output: %w", err)
+	if deps.Wait == nil {
+		r.io.Wait = newspaperWait
 	}
-	format := llm.JSONResponseFormat(llm.ResolveConfigProviderCapabilities(latest).StructuredOutputs)
-	request := openai.ChatCompletionRequest{Model: latest.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: guide}, {Role: openai.ChatMessageRoleUser, Content: input}}, MaxTokens: maxTokens, Temperature: 0.2, ResponseFormat: format}
-	response, err := s.LLMClient.CreateChatCompletion(ctx, request)
-	if err != nil {
-		return newspaper.Story{}, fmt.Errorf("write newspaper story: %w", err)
+	if progress == nil {
+		r.progress = func(newspaper.Progress) {}
 	}
-	content, err := llm.JSONContentFromResponse(response)
-	if err != nil {
-		return newspaper.Story{}, err
+	if !r.initial.Ready {
+		return r.draft, errors.New("research permission unavailable")
 	}
-	var raw struct {
-		Headline   string `json:"headline"`
-		Deck       string `json:"deck"`
-		Paragraphs []struct {
-			Text          string `json:"text"`
-			EvidenceQuote string `json:"evidence_quote"`
-		} `json:"paragraphs"`
+	r.complete = func(ctx context.Context, guide, input string) (string, error) {
+		if !r.initial.Ready || !r.io.Capabilities().Ready {
+			return "", errors.New("research permission revoked")
+		}
+		if r.spendingBlocked() {
+			return "", errors.New("provider spending policy blocks research")
+		}
+		return r.io.Complete(ctx, guide, input)
 	}
-	if err = json.Unmarshal([]byte(content), &raw); err != nil {
-		return newspaper.Story{}, fmt.Errorf("%w: newspaper story schema", llm.ErrJSONCompletionInvalid)
+	for _, tool := range r.initial.Tools {
+		r.stats.Tools[tool.ID] = tool.State
 	}
-	story := newspaper.Story{Headline: newspaperBound(raw.Headline, 180), Deck: newspaperBound(raw.Deck, 350), Paragraphs: []newspaper.Paragraph{}}
-	for _, para := range raw.Paragraphs {
-		story.Paragraphs = append(story.Paragraphs, newspaper.Paragraph{Text: newspaperBound(para.Text, 1400), EvidenceQuote: para.EvidenceQuote})
+	for _, edition := range deps.Recent {
+		for _, source := range edition.Sources {
+			if canonical, err := canonicalNewspaperURL(source.URL); err == nil {
+				r.recent[canonical] = true
+			}
+		}
 	}
-	return story, nil
+	now := time.Now()
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = now.Add(30 * time.Minute)
+	}
+	discovery, stopDiscovery := context.WithDeadline(ctx, now.Add(deadline.Sub(now)*4/5))
+	defer stopDiscovery()
+	r.feeds(discovery)
+	for round := 0; round < 2; round++ {
+		missing := r.missingTopics()
+		if len(missing) == 0 && len(r.draft.Stories) >= r.maxStories {
+			break
+		}
+		if len(missing) == 0 {
+			missing = r.topics
+		}
+		r.discover(discovery, missing, round)
+		r.readAndWrite(ctx, discovery, round)
+		if ctx.Err() != nil || !r.io.Capabilities().Ready {
+			break
+		}
+	}
+	r.stats.Gaps = []string{}
+	for _, topic := range r.missingTopics() {
+		label := topic.ID
+		if topic.Section == "interests" {
+			label = topic.Label
+		}
+		r.stats.Gaps = append(r.stats.Gaps, label)
+	}
+	r.draft.Partial = len(r.stats.Gaps) > 0 || ctx.Err() != nil || discovery.Err() != nil || r.spendingBlocked()
+	r.report("checking", nil)
+	if !r.io.Capabilities().Ready {
+		return r.draft, errors.New("research permission revoked")
+	}
+	if ctx.Err() != nil {
+		return r.draft, ctx.Err()
+	}
+	if len(r.draft.Stories) == 0 {
+		if r.spendingBlocked() {
+			return r.draft, errors.New("provider spending policy blocks research")
+		}
+		return r.draft, fmt.Errorf("no verified articles (%d candidates, %d pages read; model errors: %d, invalid JSON: %d, evidence or draft rejections: %d)", r.stats.Candidates, r.stats.Read, r.stats.Rejected["model_error"], r.stats.Rejected["invalid_json"], r.stats.Rejected["invalid_draft"])
+	}
+	return r.draft, newspaper.ValidateDraft(r.draft, p, time.Now().UTC())
+}
+
+func (r *newspaperResearchRun) allowed(tool string) bool {
+	return r.initial.allows(tool) && r.io.Capabilities().allows(tool)
+}
+
+func (r *newspaperResearchRun) limits() {
+	if r.io.Limits != nil {
+		pages, searches := r.io.Limits()
+		r.maxPages, r.maxSearches = min(r.maxPages, pages), min(r.maxSearches, searches)
+	}
+}
+
+func (r *newspaperResearchRun) canSearch(ctx context.Context) bool {
+	r.limits()
+	return ctx.Err() == nil && !r.spendingBlocked() && r.io.Capabilities().Ready && r.stats.Searches < r.maxSearches
+}
+
+func (r *newspaperResearchRun) canRead(ctx context.Context) bool {
+	r.limits()
+	return ctx.Err() == nil && !r.spendingBlocked() && r.allowed("web_scraper") && r.stats.Pages < r.maxPages
+}
+
+func (r *newspaperResearchRun) spendingBlocked() bool {
+	if r.io.Spending == nil {
+		return false
+	}
+	budget := r.io.Spending()
+	return budget != nil && budget.Blocked
+}
+
+func (r *newspaperResearchRun) reject(code string) { r.stats.Rejected[code]++ }
+
+func (r *newspaperResearchRun) report(phase string, source *newspaper.Source) {
+	r.stats.Accepted = len(r.draft.Stories)
+	r.progress(newspaper.Progress{Phase: phase, Sources: len(r.draft.Sources), Stories: len(r.draft.Stories), Source: source, Research: cloneNewspaperStats(r.stats)})
+}
+
+func (r *newspaperResearchRun) missingTopics() []newspaperTopic {
+	missing := []newspaperTopic{}
+	for _, topic := range r.topics {
+		if r.stats.Coverage[topic.ID] == 0 {
+			missing = append(missing, topic)
+		}
+	}
+	return missing
+}
+
+func (r *newspaperResearchRun) admit(candidate newspaperCandidate) {
+	canonical, err := canonicalNewspaperURL(candidate.Hit.URL)
+	if err != nil || len(canonical) > 2048 {
+		r.reject("unsafe_url")
+		return
+	}
+	fingerprint := sha256.Sum256([]byte(canonical))
+	if r.seen[fingerprint] || r.recent[canonical] {
+		r.reject("duplicate")
+		return
+	}
+	if newspaperExcluded(candidate.Hit.Title+" "+candidate.Hit.Description, r.profile.Exclusions) {
+		r.reject("excluded")
+		return
+	}
+	if at := newspaperDate(candidate.Hit.Published); at != nil && (at.Before(r.cutoff.Add(-7*24*time.Hour)) || at.After(r.cutoff.Add(time.Hour))) {
+		r.reject("stale")
+		return
+	}
+	// A broad feed or query must leave space for every other selected topic.
+	perTopic := max(1, newspaperCandidateLimit/max(1, len(r.topics)))
+	count := 0
+	for _, item := range r.pending {
+		if item.Query.Topic == candidate.Query.Topic {
+			count++
+		}
+	}
+	if len(r.pending) >= newspaperCandidateLimit || count >= perTopic {
+		r.reject("candidate_limit")
+		return
+	}
+	candidate.Hit.URL, candidate.Hit.Title = canonical, newspaperBound(newspaperUnwrap(candidate.Hit.Title), 180)
+	candidate.Hit.Description = newspaperBound(newspaperUnwrap(candidate.Hit.Description), 500)
+	r.seen[fingerprint] = true
+	r.pending = append(r.pending, candidate)
+	r.stats.Candidates++
+}
+
+func (r *newspaperResearchRun) nextCandidate(round int, busy map[string]bool) (newspaperCandidate, bool) {
+	for n := 0; n < len(r.topics); n++ {
+		topic := r.topics[r.cursor%len(r.topics)]
+		r.cursor = (r.cursor + 1) % len(r.topics)
+		best, bestScore := -1, -1<<30
+		for i, candidate := range r.pending {
+			domain := newspaperPublisherKey(candidate.Hit.URL)
+			if candidate.Query.Topic != topic.ID || busy[domain] {
+				continue
+			}
+			published := newspaperDate(candidate.Hit.Published)
+			if round == 0 && published != nil && published.Before(r.cutoff.Add(-24*time.Hour)) {
+				continue
+			}
+			score := 100 - candidate.Rank - r.domains[domain]*8
+			if published != nil && published.After(r.cutoff.Add(-24*time.Hour)) {
+				score += 10
+			}
+			if topic.Section == "interests" && newspaperMatchesInterest(candidate.Hit.Title+" "+candidate.Hit.Description, topic.Label) {
+				score += 20
+			}
+			if score > bestScore {
+				best, bestScore = i, score
+			}
+		}
+		if best >= 0 {
+			item := r.pending[best]
+			r.pending = append(r.pending[:best], r.pending[best+1:]...)
+			return item, true
+		}
+	}
+	return newspaperCandidate{}, false
+}
+
+func newspaperDDGLink(raw string) string {
+	if strings.HasPrefix(raw, "//") {
+		raw = "https:" + raw
+	}
+	u, err := url.Parse(raw)
+	if err == nil && (u.Hostname() == "duckduckgo.com" || strings.HasSuffix(u.Hostname(), ".duckduckgo.com")) {
+		if target := u.Query().Get("uddg"); target != "" {
+			return target
+		}
+	}
+	return raw
 }
