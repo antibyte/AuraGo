@@ -174,6 +174,7 @@ type ChromemVectorDB struct {
 	fileIndexerCollections map[string]struct{}
 	fiColMu                sync.RWMutex
 	fileWriteMu            sync.Mutex // ponytail: serialize file generations; use per-collection locks if throughput requires it.
+	storeEmbedMu           sync.Mutex // serializes store-side provider calls (formerly implicit via cv.mu); searches never take it
 	fileIndexMemory        atomic.Pointer[SQLiteMemory]
 }
 
@@ -669,17 +670,15 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 }
 
 // storeDocumentLocked stores a document in aurago_memories.
-// The caller must hold the concept's striped mutex. This method serializes the
-// actual collection mutation so concurrent writers cannot race chromem state.
+// The caller must hold the concept's striped mutex. Embeddings are computed before
+// cv.mu is taken, so searches never wait for a provider call; cv.mu only covers the
+// chromem mutation. Every allocated ID is returned together with a write error.
 func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) ([]string, error) {
 	const maxContentBytes = 500 * 1024 // 500 KB per document
 	if len(content) > maxContentBytes {
 		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
 		content = truncateUTF8Bytes(content, maxContentBytes)
 	}
-
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -702,7 +701,7 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 			Metadata: cv.addEmbeddingMetadata(metadata),
 			Content:  fullContent,
 		}
-		if err := cv.collection.AddDocument(ctx, doc); err != nil {
+		if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, cv.collection, []chromem.Document{doc}); err != nil {
 			cv.logger.Error("Failed to store document in vector DB", "error", err)
 			return []string{docID}, fmt.Errorf("failed to add document: %w", err)
 		}
@@ -739,10 +738,10 @@ func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) 
 		storedIDs = append(storedIDs, docID)
 	}
 
-	// Batch-add all chunks in one call (sequential embedding to avoid rate limits)
+	// Embed sequentially outside cv.mu (avoids provider rate limits), then batch-add.
 	chunkCtx, chunkCancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(docs)))
 	defer chunkCancel()
-	if err := cv.collection.AddDocuments(chunkCtx, docs, 1); err != nil {
+	if err := cv.addDocumentsWithPrecomputedEmbeddings(chunkCtx, cv.collection, docs); err != nil {
 		cv.logger.Error("Failed to store chunked document", "error", err, "chunks", len(chunks))
 		return storedIDs, fmt.Errorf("failed to add chunked document (%d chunks): %w", len(chunks), err)
 	}
@@ -794,9 +793,8 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomainAndChunking(concep
 	options = chunking.NormalizeOptionsWithDefaults(options)
 
 	cv.mu.Lock()
-	defer cv.mu.Unlock()
-
 	col, err := cv.db.GetOrCreateCollection(collection, nil, cv.embeddingFunc)
+	cv.mu.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("get/create collection %s: %w", collection, err)
 	}
@@ -851,7 +849,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomainAndChunking(concep
 			Metadata: cv.addEmbeddingMetadata(metadata),
 			Content:  buildContentString(concept, chunks[0].Text),
 		}
-		if err := col.AddDocument(ctx, doc); err != nil {
+		if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, col, []chromem.Document{doc}); err != nil {
 			cv.logger.Error("Failed to store document in collection", "collection", collection, "error", err)
 			return []string{docID}, fmt.Errorf("failed to add document: %w", err)
 		}
@@ -900,7 +898,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomainAndChunking(concep
 	// Batch-add all chunks in one call
 	chunkCtx, chunkCancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(docs)))
 	defer chunkCancel()
-	if err := col.AddDocuments(chunkCtx, docs, 1); err != nil {
+	if err := cv.addDocumentsWithPrecomputedEmbeddings(chunkCtx, col, docs); err != nil {
 		cv.logger.Error("Failed to store chunked document in collection", "collection", collection, "error", err)
 		return storedIDs, fmt.Errorf("failed to add chunked document: %w", err)
 	}
@@ -1031,10 +1029,58 @@ func (cv *ChromemVectorDB) rememberEmbeddingDimension(dim int) {
 	cv.embeddingDimension.CompareAndSwap(0, int64(dim))
 }
 
+// embedDocumentsOutsideLock fills missing document embeddings before a caller takes
+// cv.mu. chromem would otherwise call the provider inside AddDocument(s) and hold
+// the write lock for the whole round trip, blocking every search. storeEmbedMu keeps
+// store-side provider calls one at a time, as cv.mu did, to respect rate limits.
+// Callers keep their concept stripe, so dedupe and storage stay serialized per concept.
+func (cv *ChromemVectorDB) embedDocumentsOutsideLock(ctx context.Context, docs []chromem.Document) error {
+	cv.storeEmbedMu.Lock()
+	defer cv.storeEmbedMu.Unlock()
+	for i := range docs {
+		if len(docs[i].Embedding) > 0 {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("couldn't create embedding of document %s: %w", docs[i].ID, err)
+		}
+		embedding, err := cv.embeddingFunc(ctx, docs[i].Content)
+		if err != nil {
+			return fmt.Errorf("couldn't create embedding of document %s: %w", docs[i].ID, err)
+		}
+		if len(embedding) == 0 {
+			return fmt.Errorf("couldn't create embedding of document %s: empty vector", docs[i].ID)
+		}
+		cv.rememberEmbeddingDimension(len(embedding))
+		docs[i].Embedding = embedding
+	}
+	return nil
+}
+
+// addDocumentsWithPrecomputedEmbeddings embeds outside cv.mu and holds the write
+// lock only for the chromem mutation, which then performs no provider calls. A
+// failed embedding writes nothing.
+func (cv *ChromemVectorDB) addDocumentsWithPrecomputedEmbeddings(ctx context.Context, col *chromem.Collection, docs []chromem.Document) error {
+	if len(docs) == 0 {
+		return nil
+	}
+	if err := cv.embedDocumentsOutsideLock(ctx, docs); err != nil {
+		return err
+	}
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+	if len(docs) == 1 {
+		return col.AddDocument(ctx, docs[0])
+	}
+	return col.AddDocuments(ctx, docs, 1)
+}
+
 // StoreCheatsheet stores a cheatsheet document with its ID as a unique identifier.
 // It uses the cheatsheet ID in the document ID for upsert semantics: calling
 // StoreCheatsheet again for the same ID will replace the existing document.
 // The cheatsheet is stored with cs_type="cheatsheet" metadata for filtering.
+// Embeddings are computed before the write lock: a slow provider never blocks
+// searches, and a failed embedding keeps the previous version in place.
 func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
 	if err != nil {
@@ -1049,18 +1095,6 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments
 		return fmt.Errorf("cheatsheet ID is required")
 	}
 
-	cv.mu.Lock()
-	defer cv.mu.Unlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// First delete any existing cheatsheet docs with this ID (upsert semantics)
-	if err := cv.collection.Delete(ctx, map[string]string{"cs_type": "cheatsheet", "cs_id": id}, nil); err != nil {
-		cv.logger.Warn("Failed to delete existing cheatsheet docs before store", "cs_id", id, "error", err)
-		return fmt.Errorf("delete existing cheatsheet docs %s: %w", id, err)
-	}
-
 	fullContent := buildContentString(name, content)
 	if len(attachments) > 0 {
 		if fullContent != "" {
@@ -1069,63 +1103,71 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments
 		fullContent += "Attachments:\n" + strings.Join(attachments, "\n\n---\n\n")
 	}
 
-	metadata := map[string]string{
-		"cs_type":   "cheatsheet",
-		"cs_id":     id,
-		"cs_name":   name,
-		"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
+	var docs []chromem.Document
+	timeout := 30 * time.Second
+	if len(fullContent) <= 4000 {
+		// Small texts: store as a single document
+		docs = append(docs, chromem.Document{
+			ID: fmt.Sprintf("cs_%s", id),
+			Metadata: cv.addEmbeddingMetadata(map[string]string{
+				"cs_type":   "cheatsheet",
+				"cs_id":     id,
+				"cs_name":   name,
+				"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
+			}),
+			Content: fullContent,
+		})
+	} else {
+		// Large texts: split into chunks and batch-store
+		const maxChunks = 50
+		chunks := chunkText(fullContent, 3500, 200)
+		if len(chunks) > maxChunks {
+			cv.logger.Warn("Cheatsheet produces too many chunks, capping", "cs_id", id, "chunks", len(chunks), "max", maxChunks)
+			chunks = chunks[:maxChunks]
+		}
+		for i, chunk := range chunks {
+			docs = append(docs, chromem.Document{
+				ID: fmt.Sprintf("cs_%s_chunk_%d", id, i),
+				Metadata: cv.addEmbeddingMetadata(map[string]string{
+					"cs_type":     "cheatsheet",
+					"cs_id":       id,
+					"cs_name":     name,
+					"chunk_index": fmt.Sprintf("%d/%d", i+1, len(chunks)),
+					"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+				}),
+				Content: name + " (" + fmt.Sprintf("%d/%d", i+1, len(chunks)) + ")\n\n" + chunk,
+			})
+		}
+		timeout = calculateBatchTimeout(len(docs))
 	}
 
-	// Small texts: store as a single document
-	if len(fullContent) <= 4000 {
-		docID := fmt.Sprintf("cs_%s", id)
-		doc := chromem.Document{
-			ID:       docID,
-			Metadata: cv.addEmbeddingMetadata(metadata),
-			Content:  fullContent,
-		}
-		if err := cv.collection.AddDocument(ctx, doc); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if err := cv.embedDocumentsOutsideLock(ctx, docs); err != nil {
+		cv.logger.Error("Failed to embed cheatsheet", "error", err, "cs_id", id, "chunks", len(docs))
+		return fmt.Errorf("failed to add cheatsheet document: %w", err)
+	}
+
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+	// Upsert semantics: replace every earlier document of this cheatsheet under one lock.
+	if err := cv.collection.Delete(ctx, map[string]string{"cs_type": "cheatsheet", "cs_id": id}, nil); err != nil {
+		cv.logger.Warn("Failed to delete existing cheatsheet docs before store", "cs_id", id, "error", err)
+		return fmt.Errorf("delete existing cheatsheet docs %s: %w", id, err)
+	}
+	if len(docs) == 1 {
+		if err := cv.collection.AddDocument(ctx, docs[0]); err != nil {
 			cv.logger.Error("Failed to store cheatsheet in vector DB", "error", err, "cs_id", id)
 			return fmt.Errorf("failed to add cheatsheet document: %w", err)
 		}
-		cv.logger.Info("Stored cheatsheet in vector DB", "id", docID, "cs_id", id, "cs_name", name)
+		cv.logger.Info("Stored cheatsheet in vector DB", "id", docs[0].ID, "cs_id", id, "cs_name", name)
 		return nil
 	}
-
-	// Large texts: split into chunks and batch-store
-	const maxChunks = 50
-	chunks := chunkText(fullContent, 3500, 200)
-	if len(chunks) > maxChunks {
-		cv.logger.Warn("Cheatsheet produces too many chunks, capping", "cs_id", id, "chunks", len(chunks), "max", maxChunks)
-		chunks = chunks[:maxChunks]
+	if err := cv.collection.AddDocuments(ctx, docs, 1); err != nil {
+		cv.logger.Error("Failed to store chunked cheatsheet", "error", err, "cs_id", id, "chunks", len(docs))
+		return fmt.Errorf("failed to add chunked cheatsheet (%d chunks): %w", len(docs), err)
 	}
-
-	var docs []chromem.Document
-	for i, chunk := range chunks {
-		docID := fmt.Sprintf("cs_%s_chunk_%d", id, i)
-		chunkMeta := map[string]string{
-			"cs_type":     "cheatsheet",
-			"cs_id":       id,
-			"cs_name":     name,
-			"chunk_index": fmt.Sprintf("%d/%d", i+1, len(chunks)),
-			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
-		}
-		docs = append(docs, chromem.Document{
-			ID:       docID,
-			Metadata: cv.addEmbeddingMetadata(chunkMeta),
-			Content:  name + " (" + fmt.Sprintf("%d/%d", i+1, len(chunks)) + ")\n\n" + chunk,
-		})
-	}
-
-	// Batch-add all chunks in one call (sequential embedding to avoid rate limits)
-	chunkCtx, chunkCancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(docs)))
-	defer chunkCancel()
-	if err := cv.collection.AddDocuments(chunkCtx, docs, 1); err != nil {
-		cv.logger.Error("Failed to store chunked cheatsheet", "error", err, "cs_id", id, "chunks", len(chunks))
-		return fmt.Errorf("failed to add chunked cheatsheet (%d chunks): %w", len(chunks), err)
-	}
-
-	cv.logger.Info("Stored chunked cheatsheet in vector DB", "cs_id", id, "cs_name", name, "chunks", len(chunks))
+	cv.logger.Info("Stored chunked cheatsheet in vector DB", "cs_id", id, "cs_name", name, "chunks", len(docs))
 	return nil
 }
 
@@ -1680,36 +1722,36 @@ func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string,
 // searchTopSimilarityScore returns the decayed similarity score of the closest existing
 // document in the aurago_memories collection for the given concept, or 0 if no match.
 // It is used internally for dedup checks and does NOT format results with a prefix string,
-// unlike SearchSimilar/SearchMemoriesOnly. This method holds cv.mu.RLock for the duration
-// of its operation. Callers may hold a concept lock, but must release this read lock before
-// taking the vector write lock for storage.
+// unlike SearchSimilar/SearchMemoriesOnly. Callers may hold a concept lock; the method
+// never holds cv.mu across the query embedding.
 func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 	_, sim := cv.searchTopSimilarMemory(concept)
 	return sim
 }
 
+// searchTopSimilarMemory computes the query embedding before cv.mu.RLock: holding the
+// read lock across a provider call lets a queued writer block every new search.
 func (cv *ChromemVectorDB) searchTopSimilarMemory(concept string) (string, float32) {
 	if !cv.ready.Load() || cv.disabled.Load() {
 		return "", 0
 	}
-	// Hold read lock for consistency with SearchSimilar/SearchMemoriesOnly,
-	// which both protect cv.db and cv.embeddingFunc accesses with cv.mu.RLock().
-	cv.mu.RLock()
-	defer cv.mu.RUnlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
+	cv.mu.RLock()
 	col, err := cv.db.GetOrCreateCollection("aurago_memories", nil, cv.embeddingFunc)
+	cv.mu.RUnlock()
 	if err != nil || col.Count() == 0 {
 		return "", 0
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
 
 	queryEmbedding, err := cv.getQueryEmbedding(ctx, concept)
 	if err != nil {
 		return "", 0
 	}
 
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
 	results, err := col.QueryEmbedding(ctx, queryEmbedding, 1, nil, nil)
 	if err != nil || len(results) == 0 {
 		return "", 0
