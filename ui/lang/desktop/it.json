@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Apri la cassaforte tramite HTTPS.",
   "tresor.working": "Elaborazione…",
   "tresor.imported": "Importato in sicurezza",
+  "tresor.draft_recovered": "Bozza crittografata ripristinata",
   "tresor.saved": "Salvato",
   "tresor.password_changed": "Password cambiata",
   "tresor.untitled": "Nota senza titolo",

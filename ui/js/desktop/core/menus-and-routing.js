@@ -1649,7 +1649,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}) });
+            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
         }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {

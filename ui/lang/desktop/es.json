@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Abre la caja mediante HTTPS.",
   "tresor.working": "Procesando…",
   "tresor.imported": "Importado de forma segura",
+  "tresor.draft_recovered": "Borrador cifrado recuperado",
   "tresor.saved": "Guardado",
   "tresor.password_changed": "Contraseña cambiada",
   "tresor.untitled": "Nota sin título",

@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Åbn boksen via HTTPS.",
   "tresor.working": "Arbejder…",
   "tresor.imported": "Importeret sikkert",
+  "tresor.draft_recovered": "Krypteret kladde gendannet",
   "tresor.saved": "Gemt",
   "tresor.password_changed": "Adgangskode ændret",
   "tresor.untitled": "Note uden titel",

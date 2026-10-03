@@ -5102,6 +5102,7 @@
   "tresor.https_required": "HTTPS で金庫を開いてください。",
   "tresor.working": "処理中…",
   "tresor.imported": "安全に取り込みました",
+  "tresor.draft_recovered": "暗号化した下書きを復元しました",
   "tresor.saved": "保存しました",
   "tresor.password_changed": "パスワードを変更しました",
   "tresor.untitled": "無題のメモ",

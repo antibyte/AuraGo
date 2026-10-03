@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Ouvrez le coffre en HTTPS.",
   "tresor.working": "Traitement…",
   "tresor.imported": "Importation sécurisée",
+  "tresor.draft_recovered": "Brouillon chiffré récupéré",
   "tresor.saved": "Enregistré",
   "tresor.password_changed": "Mot de passe modifié",
   "tresor.untitled": "Note sans titre",

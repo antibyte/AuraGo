@@ -5102,6 +5102,7 @@
   "tresor.https_required": "请通过 HTTPS 打开保险库。",
   "tresor.working": "正在处理…",
   "tresor.imported": "已安全导入",
+  "tresor.draft_recovered": "已恢复加密草稿",
   "tresor.saved": "已保存",
   "tresor.password_changed": "密码已更改",
   "tresor.untitled": "无标题笔记",

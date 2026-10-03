@@ -178,7 +178,12 @@ func TestDesktopTresorBrowser(t *testing.T) {
 	 document.querySelector('[data-action=new-note]').click();await wait('[data-note]');
 	 const title=document.querySelector('[data-title]');title.value='Secret Plan';title.dispatchEvent(new Event('input',{bubbles:true}));
 	 const note=document.querySelector('[data-note]');note.value='Private content';note.dispatchEvent(new Event('input',{bubbles:true}));
-	 document.querySelector('[data-action=save]').click();await until(()=>document.querySelector('[data-status]')?.textContent==='Gespeichert'&&!document.querySelector('[data-action=desktop]').disabled);
+	 const draftKey='aurago:tresor:draft:'+document.querySelector('.tresor-item.is-selected').dataset.id;
+	 await until(()=>!!localStorage.getItem(draftKey));
+	 const draft=localStorage.getItem(draftKey);
+	 if(draft.includes('Private content')||draft.includes('Secret Plan')||!JSON.parse(draft).cipher)throw Error('draft was not encrypted');
+	 await until(()=>document.querySelector('[data-status]')?.textContent==='Gespeichert'&&!document.querySelector('[data-action=desktop]').disabled);
+	 if(localStorage.getItem(draftKey))throw Error('saved draft was not cleared');
 	 const tooLarge=new File([new Uint8Array(50*1024*1024+1)],'too-large.bin');
 	 const largeInput=document.querySelector('[data-file]'),largeTransfer=new DataTransfer();largeTransfer.items.add(tooLarge);largeInput.files=largeTransfer.files;largeInput.dispatchEvent(new Event('change',{bubbles:true}));
 	 await until(()=>document.querySelector('[data-status]')?.textContent.includes('50 MiB')&&!document.querySelector('[data-action=desktop]').disabled);
@@ -208,6 +213,7 @@ func TestDesktopTresorBrowser(t *testing.T) {
 		t.Fatalf("imports: %s", result.JSON("", ""))
 	}
 	page.MustEval(`()=>{const input=document.querySelector('[data-search]');input.value='';input.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	checkTresorFailureRecovery(t, page)
 	page.MustScreenshot(filepath.Join(artifactDir, "open-wide.png"))
 	for _, theme := range []string{"standard", "fruity"} {
 		for _, width := range []int{1366, 430} {

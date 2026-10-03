@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Otevřete trezor přes HTTPS.",
   "tresor.working": "Pracuji…",
   "tresor.imported": "Bezpečně importováno",
+  "tresor.draft_recovered": "Obnoven šifrovaný koncept",
   "tresor.saved": "Uloženo",
   "tresor.password_changed": "Heslo změněno",
   "tresor.untitled": "Nepojmenovaná poznámka",

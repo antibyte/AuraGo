@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Ανοίξτε το θησαυροφυλάκιο μέσω HTTPS.",
   "tresor.working": "Επεξεργασία…",
   "tresor.imported": "Ασφαλής εισαγωγή",
+  "tresor.draft_recovered": "Ανακτήθηκε το κρυπτογραφημένο πρόχειρο",
   "tresor.saved": "Αποθηκεύτηκε",
   "tresor.password_changed": "Ο κωδικός άλλαξε",
   "tresor.untitled": "Σημείωση χωρίς τίτλο",

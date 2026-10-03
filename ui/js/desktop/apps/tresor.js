@@ -35,11 +35,11 @@
         const events = new AbortController();
         const listen = (name, handler, options = {}) => host.addEventListener(name, handler, { ...options, signal: events.signal });
         const common = { cancel: 'desktop.cancel', delete: 'desktop.delete', file: 'desktop.file_dialog_file', save: 'desktop.save', search: 'desktop.search', new_note: 'desktop.notes_new', loading: 'desktop.loading', export: 'desktop.file_dialog_export' };
-        const t = (key, fallback) => context.t ? context.t(common[key] || 'tresor.' + key, fallback) : fallback;
+        const tr = (key, fallback) => context.t ? context.t(common[key] || 'tresor.' + key, fallback) : fallback;
         const esc = context.esc || (value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
-        const state = { host, phase: 'loading', header: null, master: null, items: [], selected: null, noteText: '', dirty: false, search: '', pending: null, busy: false, timer: null, message: '', error: false, modal: '', disposed: false, epoch: 0 };
+        const state = { host, phase: 'loading', header: null, master: null, items: [], selected: null, noteTitle: '', noteText: '', dirty: false, search: '', pending: null, busy: false, timer: null, saveTimer: null, savePromise: null, draftPromise: Promise.resolve(), editVersion: 0, draftReadyVersion: 0, message: '', error: false, modal: '', disposed: false, epoch: 0 };
         instances.set(windowId, state);
-        const label = key => esc(t(key, key));
+        const label = key => esc(tr(key, key));
         const button = (action, key, className = '') => `<button type="button" class="${className}" data-action="${action}">${label(key)}</button>`;
         function taskGuard() {
             const epoch = state.epoch;
@@ -59,15 +59,21 @@
         function forget() {
             state.epoch++;
             if (state.timer) clearTimeout(state.timer);
+            if (state.saveTimer) clearTimeout(state.saveTimer);
             if (state.master) state.master.fill(0);
             state.master = null;
             state.items = [];
             state.selected = null;
+            state.noteTitle = '';
             state.noteText = '';
             state.search = '';
             state.dirty = false;
             state.pending = null;
             state.modal = '';
+            state.busy = false;
+            state.savePromise = null;
+            state.message = '';
+            state.error = false;
         }
         state.forget = forget;
 
@@ -120,6 +126,8 @@
             host.innerHTML = `<div class="tresor-app ${state.phase === 'open' ? 'is-open' : ''}">${state.phase === 'open' ? workspace() : door()}</div>`;
             const area = host.querySelector('[data-note]');
             if (area) area.value = state.noteText;
+            const title = host.querySelector('[data-title]');
+            if (title) title.value = state.noteTitle;
             setBusyControls(state.busy);
         }
 
@@ -142,7 +150,7 @@
                     plain.fill(0);
                     if (!['note', 'file'].includes(meta.type) || typeof meta.title !== 'string') throw new Error('invalid_metadata');
                     return { ...meta, id: row.id, revision: row.revision };
-                } catch (_) { return { id: row.id, revision: row.revision, title: t('integrity_error'), corrupt: true }; }
+                } catch (_) { return { id: row.id, revision: row.revision, title: tr('integrity_error'), corrupt: true }; }
             }));
             if (!current()) return;
             state.items = items;
@@ -157,7 +165,15 @@
             state.master = master;
             state.phase = 'open';
             activity();
-            await refresh();
+            try { await refresh(); }
+            catch (error) {
+                if (!current()) return;
+                forget();
+                state.phase = state.header ? 'locked' : 'setup';
+                draw();
+                announce(tr(error.message === 'conflict' ? 'conflict' : 'request_failed'), true);
+                throw error;
+            }
             if (!current()) return;
             host.querySelector('.tresor-app')?.classList.add('is-opening');
         }
@@ -187,20 +203,43 @@
 
         async function select(id) {
             const current = taskGuard();
-            if (state.dirty) { announce(t('unsaved_changes'), true); return; }
-            state.selected = state.items.find(item => item.id === id) || null;
-            state.noteText = '';
-            state.dirty = false;
-            if (state.selected?.type === 'note' && !state.selected.corrupt) {
+            await saveNote();
+            if (!current()) return;
+            const item = state.items.find(item => item.id === id) || null;
+            let noteTitle = item?.title || '';
+            let noteText = '';
+            let dirty = false;
+            if (item?.type === 'note' && !item.corrupt) {
                 const c = await crypt();
                 const row = await request('/items/' + id);
                 if (!current()) return;
                 const plain = await c.open(state.master, c.fromBase64(row.body), c.recordContext(id, 'body'));
                 if (!current()) { plain.fill(0); return; }
-                state.noteText = decoder.decode(plain);
+                noteText = decoder.decode(plain);
                 plain.fill(0);
+                try {
+                    const saved = JSON.parse(localStorage.getItem(draftKey(id)) || 'null');
+                    if (saved?.cipher && saved.revision === item.revision) {
+                        const bytes = await c.open(state.master, c.fromBase64(saved.cipher), c.recordContext(id, 'draft'));
+                        if (!current()) { bytes.fill(0); return; }
+                        const draft = JSON.parse(decoder.decode(bytes));
+                        bytes.fill(0);
+                        if (typeof draft.noteText === 'string' && typeof draft.title === 'string') {
+                            dirty = draft.noteText !== noteText || draft.title !== noteTitle;
+                            noteText = draft.noteText;
+                            noteTitle = draft.title;
+                        }
+                    } else if (saved?.cipher) announce(tr('conflict'), true);
+                } catch (_) { announce(tr('request_failed'), true); }
             }
+            if (!current()) return;
+            state.selected = item;
+            state.noteTitle = noteTitle;
+            state.noteText = noteText;
+            state.dirty = dirty;
+            state.editVersion++;
             draw();
+            if (state.dirty) { announce(tr('draft_recovered')); scheduleSave(); }
         }
 
         async function importFile(file) {
@@ -210,7 +249,7 @@
             const bytes = new Uint8Array(await file.arrayBuffer());
             if (!current()) { bytes.fill(0); return; }
             await saveRecord('file', file.name, bytes, file.type || 'application/octet-stream');
-            if (current()) announce(t('imported'));
+            if (current()) announce(tr('imported'));
         }
 
         async function importDesktop() {
@@ -227,17 +266,47 @@
             await importFile(new File([blob], name, { type: blob.type || 'application/octet-stream' }));
         }
 
-        async function saveNote() {
+        const draftKey = id => 'aurago:tresor:draft:' + id;
+
+        function encryptDraft() {
+            const item = state.selected;
+            if (!item || item.type !== 'note' || !state.master) return;
+            const version = state.editVersion;
+            const payload = { title: state.noteTitle, noteText: state.noteText };
+            const key = state.master;
+            const revision = item.revision;
+            state.draftPromise = state.draftPromise.catch(() => {}).then(async () => {
+                if (state.disposed || state.master !== key || version !== state.editVersion || !state.dirty) return;
+                const c = await crypt();
+                const plain = encoder.encode(JSON.stringify(payload));
+                let sealed;
+                try { sealed = await c.seal(key, plain, c.recordContext(item.id, 'draft')); }
+                finally { plain.fill(0); }
+                if (state.disposed || state.master !== key || version !== state.editVersion || !state.dirty) return;
+                localStorage.setItem(draftKey(item.id), JSON.stringify({ revision, cipher: c.toBase64(sealed) }));
+                state.draftReadyVersion = version;
+            });
+            const current = taskGuard();
+            state.draftPromise.catch(() => { if (current()) announce(tr('request_failed'), true); });
+        }
+
+        function scheduleSave() {
+            const current = taskGuard();
+            clearTimeout(state.saveTimer);
+            state.saveTimer = setTimeout(() => saveNote().catch(() => { if (current()) announce(tr('request_failed'), true); }), 600);
+        }
+
+        async function persistNote() {
             const current = taskGuard();
             const item = state.selected;
-            if (!item || item.type !== 'note') return;
-            const area = host.querySelector('[data-note]');
-            state.noteText = area.value;
-            const title = host.querySelector('[data-title]').value.trim();
+            if (!item || item.type !== 'note' || !state.dirty) return;
+            const title = state.noteTitle.trim();
             if (!title) throw new Error('title_required');
+            const version = state.editVersion;
+            const noteText = state.noteText;
             const c = await crypt();
             if (!current()) return;
-            const bytes = encoder.encode(state.noteText);
+            const bytes = encoder.encode(noteText);
             const meta = { type: 'note', title, size: bytes.length, mime: 'text/plain' };
             let encryptedBody;
             try { encryptedBody = await c.seal(state.master, bytes, c.recordContext(item.id, 'body')); }
@@ -253,9 +322,29 @@
             if (!current()) return;
             item.revision++;
             item.title = title;
-            state.dirty = false;
+            state.dirty = state.editVersion !== version;
+            if (!state.dirty) {
+                state.editVersion++;
+                try { localStorage.removeItem(draftKey(item.id)); } catch (_) { /* Storage may be disabled. */ }
+            }
             host.querySelector('.tresor-sidebar nav').innerHTML = listRows();
-            announce(t('saved'));
+            announce(tr('saved'));
+        }
+
+        async function saveNote() {
+            const current = taskGuard();
+            clearTimeout(state.saveTimer);
+            if (state.savePromise) {
+                await state.savePromise;
+                if (current() && state.dirty) return saveNote();
+                return;
+            }
+            if (!state.dirty) return;
+            const pending = persistNote();
+            state.savePromise = pending;
+            try { await pending; }
+            finally { if (state.savePromise === pending) state.savePromise = null; }
+            if (current() && state.dirty) return saveNote();
         }
 
         async function exportSelected() {
@@ -283,12 +372,13 @@
 
         async function action(name, node) {
             const current = taskGuard();
-            if (name === 'lock') { lock(); return; }
-            if (state.dirty && ['new-note', 'device', 'desktop', 'export', 'delete'].includes(name)) { announce(t('unsaved_changes'), true); return; }
+            if (name === 'lock') { await lock(); return; }
+            if (['new-note', 'device', 'desktop', 'export', 'delete', 'select'].includes(name)) await saveNote();
+            if (!current()) return;
             if (name === 'cancel') { state.modal = ''; draw(); return; }
             if (['export', 'delete', 'password'].includes(name)) { state.modal = name; draw(); host.querySelector('.tresor-modal button, .tresor-modal input')?.focus(); return; }
             if (name === 'select') { await select(node.dataset.id); return; }
-            if (name === 'new-note') { await saveRecord('note', t('untitled'), new Uint8Array(), 'text/plain'); return; }
+            if (name === 'new-note') { await saveRecord('note', tr('untitled'), new Uint8Array(), 'text/plain'); return; }
             if (name === 'device') { host.querySelector('[data-file]')?.click(); return; }
             if (name === 'desktop') { await importDesktop(); return; }
             if (name === 'save') { await saveNote(); return; }
@@ -324,17 +414,24 @@
                     await unlock(master, current);
                 } finally { if (state.master !== master) master.fill(0); }
             } else if (form.dataset.form === 'unlock' || form.dataset.form === 'recover') {
+                const status = await request('');
+                if (!current()) return;
+                state.header = status.initialized ? status.header : null;
+                if (!state.header) throw new Error('conflict');
                 const master = form.dataset.form === 'unlock'
                     ? await c.unlockWithPassword(state.header, String(data.get('password')))
                     : await c.unlockWithRecovery(state.header, String(data.get('recovery')));
                 form.reset(); await unlock(master, current);
             } else if (form.dataset.form === 'password') {
+                const status = await request('');
+                if (!current() || !status.initialized) throw new Error('conflict');
+                state.header = status.header;
                 const next = await c.changePassword(state.header, state.master, String(data.get('password')));
                 if (!current()) return;
                 await request('', 'PUT', next, state.header.revision);
                 if (!current()) return;
                 state.header = { ...next, revision: state.header.revision + 1 };
-                state.modal = ''; draw(); announce(t('password_changed'));
+                state.modal = ''; draw(); announce(tr('password_changed'));
             }
         }
 
@@ -343,16 +440,17 @@
             const current = taskGuard();
             state.busy = true;
             setBusyControls(true);
-            announce(t('working'));
-            try { await fn(); if (current() && state.message === t('working')) announce(''); }
+            announce(tr('working'));
+            try { await fn(); if (current() && state.message === tr('working')) announce(''); }
             catch (error) {
                 if (!current()) return;
-                if (error.message === 'admin_required' || error.message === 'https_required') lock();
+                if (error.message === 'admin_required' || error.message === 'https_required') { forget(); state.phase = 'locked'; draw(); }
                 host.querySelectorAll('input[type=password], input[name=recovery]').forEach(field => { field.value = ''; });
                 const key = ['invalid_recovery_key', 'invalid_password', 'conflict', 'https_required', 'admin_required', 'file_too_large', 'password_mismatch', 'desktop_unavailable', 'title_required'].includes(error.message)
                     ? error.message : error.name === 'OperationError' ? 'wrong_key' : 'request_failed';
-                announce(t(key), true);
+                announce(tr(key), true);
             } finally {
+                if (!current()) return;
                 state.busy = false;
                 setBusyControls(false);
                 const modal = host.querySelector('.tresor-modal');
@@ -373,8 +471,14 @@
         });
         listen('input', event => {
             if (event.target.matches('[data-search]')) { state.search = event.target.value; host.querySelector('.tresor-sidebar nav').innerHTML = listRows(); }
-            if (event.target.matches('[data-note]')) { state.noteText = event.target.value; state.dirty = true; }
-            if (event.target.matches('[data-title]')) state.dirty = true;
+            if (event.target.matches('[data-note], [data-title]')) {
+                if (event.target.matches('[data-note]')) state.noteText = event.target.value;
+                if (event.target.matches('[data-title]')) state.noteTitle = event.target.value;
+                state.dirty = true;
+                state.editVersion++;
+                encryptDraft();
+                scheduleSave();
+            }
             activity();
         });
         listen('change', event => {
@@ -395,6 +499,13 @@
         });
         const onPageHide = () => lock();
         window.addEventListener('pagehide', onPageHide, { signal: events.signal });
+        window.addEventListener('beforeunload', event => {
+            if (state.dirty && state.draftReadyVersion !== state.editVersion) { event.preventDefault(); event.returnValue = ''; }
+        }, { signal: events.signal });
+        context.setWindowBeforeClose?.(windowId, async () => {
+            try { await saveNote(); return !state.dirty; }
+            catch (error) { announce(tr(error.message === 'conflict' ? 'conflict' : 'request_failed'), true); return false; }
+        });
         state.cleanup = () => events.abort();
         draw();
         (async () => {
@@ -409,7 +520,7 @@
             } catch (error) {
                 if (!current()) return;
                 state.phase = error.message === 'https_required' ? 'insecure' : 'loading';
-                draw(); announce(t(error.message === 'https_required' ? 'https_help' : error.message === 'admin_required' ? 'admin_required' : 'request_failed'), true);
+                draw(); announce(tr(error.message === 'https_required' ? 'https_help' : error.message === 'admin_required' ? 'admin_required' : 'request_failed'), true);
             }
         })();
     }

@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Abra o cofre por HTTPS.",
   "tresor.working": "A processar…",
   "tresor.imported": "Importado em segurança",
+  "tresor.draft_recovered": "Rascunho cifrado restaurado",
   "tresor.saved": "Guardado",
   "tresor.password_changed": "Palavra-passe alterada",
   "tresor.untitled": "Nota sem título",

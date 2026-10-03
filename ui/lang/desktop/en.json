@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Use HTTPS to open the vault.",
   "tresor.working": "Working…",
   "tresor.imported": "Imported securely",
+  "tresor.draft_recovered": "Encrypted draft restored",
   "tresor.saved": "Saved",
   "tresor.password_changed": "Password changed",
   "tresor.untitled": "Untitled note",

@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Åpne hvelvet via HTTPS.",
   "tresor.working": "Arbeider…",
   "tresor.imported": "Trygt importert",
+  "tresor.draft_recovered": "Kryptert utkast gjenopprettet",
   "tresor.saved": "Lagret",
   "tresor.password_changed": "Passord endret",
   "tresor.untitled": "Notat uten tittel",

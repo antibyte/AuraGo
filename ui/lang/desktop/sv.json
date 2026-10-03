@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Öppna valvet via HTTPS.",
   "tresor.working": "Arbetar…",
   "tresor.imported": "Säkert importerat",
+  "tresor.draft_recovered": "Krypterat utkast återställt",
   "tresor.saved": "Sparat",
   "tresor.password_changed": "Lösenord ändrat",
   "tresor.untitled": "Namnlös anteckning",

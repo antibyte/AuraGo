@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Öffne den Tresor über HTTPS.",
   "tresor.working": "Bitte warten…",
   "tresor.imported": "Sicher importiert",
+  "tresor.draft_recovered": "Verschlüsselter Entwurf wiederhergestellt",
   "tresor.saved": "Gespeichert",
   "tresor.password_changed": "Passwort geändert",
   "tresor.untitled": "Notiz ohne Titel",

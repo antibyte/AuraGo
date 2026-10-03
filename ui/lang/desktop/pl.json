@@ -5102,6 +5102,7 @@
   "tresor.https_required": "Otwórz sejf przez HTTPS.",
   "tresor.working": "Przetwarzanie…",
   "tresor.imported": "Bezpiecznie zaimportowano",
+  "tresor.draft_recovered": "Przywrócono zaszyfrowaną wersję roboczą",
   "tresor.saved": "Zapisano",
   "tresor.password_changed": "Hasło zmieniono",
   "tresor.untitled": "Notatka bez tytułu",
