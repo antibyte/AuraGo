@@ -67,3 +67,10 @@ func TestValidateAgentSkillScriptPolicyLanguageAndDangerZone(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateAgentSkillScriptPolicyNilConfigDenies(t *testing.T) {
+	err := ValidateAgentSkillScriptPolicy(nil, "scripts/run.py")
+	if err == nil || !strings.Contains(err.Error(), "configuration missing") {
+		t.Fatalf("nil config error = %v, want a denial", err)
+	}
+}

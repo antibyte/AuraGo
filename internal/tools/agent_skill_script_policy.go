@@ -12,7 +12,8 @@ import (
 // script is executed by either the agent dispatcher or the Web/API test endpoint.
 func ValidateAgentSkillScriptPolicy(cfg *config.Config, scriptPath string) error {
 	if cfg == nil {
-		return nil
+		// Without a config the language and danger-zone gates cannot be checked.
+		return fmt.Errorf("agent skill script policy unavailable: configuration missing")
 	}
 	ext := strings.ToLower(filepath.Ext(scriptPath))
 	lang := ""
