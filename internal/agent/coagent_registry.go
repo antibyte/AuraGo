@@ -452,6 +452,38 @@ func (r *CoAgentRegistry) Fail(id, errMsg string, tokensUsed, toolCalls int) {
 	}
 }
 
+// FailIfActive terminally fails a queued or running co-agent. Unlike Fail it
+// never overwrites a terminal state (cancelled, completed, failed), and it
+// releases a slot only when the co-agent held one.
+func (r *CoAgentRegistry) FailIfActive(id, errMsg string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	a, ok := r.agents[id]
+	if !ok {
+		return false
+	}
+	a.mu.Lock()
+	if a.State != CoAgentQueued && a.State != CoAgentRunning {
+		a.mu.Unlock()
+		return false
+	}
+	wasRunning := a.State == CoAgentRunning
+	a.State = CoAgentFailed
+	a.CompletedAt = time.Now()
+	a.Error = errMsg
+	a.LastError = errMsg
+	a.QueuePosition = 0
+	a.mu.Unlock()
+	if wasRunning {
+		r.runningCount.Add(-1)
+	}
+	a.recordEvent("failed")
+	a.signalStart()
+	a.signalDone()
+	r.promoteQueuedLocked()
+	return true
+}
+
 // Stop cancels a running or queued co-agent.
 func (r *CoAgentRegistry) Stop(id string) error {
 	r.mu.Lock()

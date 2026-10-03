@@ -114,6 +114,8 @@ co_agents:
 - `queue_when_busy`: true
 - `budget_quota_percent`: 0
 
+A queued co-agent waits at most `timeout_seconds` for a free slot. If no slot frees up in time it is marked `failed` and never occupies a slot. The `timeout_seconds` runtime budget starts when the co-agent leaves the queue.
+
 ### Writer specialist default
 
 The `writer` specialist uses a multilingual natural-writing default in `co_agents.specialists.writer.additional_prompt`. It helps the author co-agent avoid generic AI wording, preserve the requested language and register, and keep rewrites honest without inventing facts. Writer co-agents run without runtime tool schemas by default so short writing tasks do not pay the latency cost of unrelated tools. Set the field to `""` to disable this default, or replace it with your own writing rules.

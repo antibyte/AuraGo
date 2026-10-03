@@ -14,6 +14,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 - Keep one budget tracker across config reloads. Update its limits and reset time under its lock, persist snapshots atomically, and charge every completed provider response once before any early return. Co-agent runs enforce their configured token limit in the loop, not only in prompt guidance.
 
+### Co-agent lifecycle
+
+- A queued co-agent waits at most its `timeout_seconds` for a slot. Every start failure is terminal through `CoAgentRegistry.FailIfActive`, which never overwrites a cancelled, completed or failed entry and releases a slot only when one was held. The execution timeout starts after queue promotion; Stop cancels both phases. Verify `TestCoAgentQueueTimeout*`.
+
 ### Optional task LLM router
 
 - `PrepareTaskRouting` runs once before provider-dependent chat preprocessing

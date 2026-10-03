@@ -194,8 +194,10 @@ func SpawnCoAgent(
 		}
 	}
 
-	// 1. Create a timeout context for this co-agent — use Background() so the
-	// co-agent survives after the parent HTTP request/main-agent turn ends.
+	// 1. Create the lifecycle context for this co-agent — use Background() so
+	// the co-agent survives after the parent HTTP request/main-agent turn ends.
+	// Stop cancels it while queued and while running. The execution timeout
+	// starts only after queue promotion (coAgentRunContext).
 	timeoutSec := cfg.CoAgents.CircuitBreaker.TimeoutSeconds
 	if req.Specialist != "" {
 		if spec := cfg.GetSpecialist(req.Specialist); spec != nil && spec.CircuitBreaker.TimeoutSeconds > 0 {
@@ -203,7 +205,7 @@ func SpawnCoAgent(
 		}
 	}
 	timeout := time.Duration(timeoutSec) * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	lifecycleCtx, cancel := context.WithCancel(context.Background())
 
 	// 2. Register — checks slot availability. Specialist IDs use "specialist-<role>-N" prefix.
 	idPrefix := "coagent"
@@ -235,11 +237,13 @@ func SpawnCoAgent(
 		defer recoverCoAgentPanic(coRegistry, coID, coLogger)
 		if state == CoAgentQueued {
 			coLogger.Info("Co-Agent queued", "task", truncateStr(req.Task, 100), "model", coModel, "timeout", timeout, "specialist", req.Specialist)
-			if err := coRegistry.WaitForStart(coID, ctx); err != nil {
+			if err := awaitCoAgentSlot(coRegistry, coID, lifecycleCtx, timeout); err != nil {
 				coLogger.Warn("Co-Agent did not start", "error", err)
 				return
 			}
 		}
+		ctx, cancelRun := coAgentRunContext(lifecycleCtx, timeout)
+		defer cancelRun()
 		if llmFallback != "" {
 			coLogger.Warn("Co-Agent specialist model fallback applied", "reason", llmFallback, "model", coModel, "specialist", req.Specialist)
 			coRegistry.RecordEvent(coID, llmFallback)
@@ -386,6 +390,25 @@ func SpawnCoAgent(
 	}()
 
 	return coID, state, nil
+}
+
+// awaitCoAgentSlot waits at most maxWait for queue promotion. Every failure is
+// terminal for the registry entry, so a later promotion can never occupy a
+// slot for a goroutine that has already returned.
+func awaitCoAgentSlot(registry *CoAgentRegistry, id string, lifecycleCtx context.Context, maxWait time.Duration) error {
+	waitCtx, cancel := context.WithTimeout(lifecycleCtx, maxWait)
+	defer cancel()
+	if err := registry.WaitForStart(id, waitCtx); err != nil {
+		registry.FailIfActive(id, "co-agent did not start: "+err.Error())
+		return err
+	}
+	return nil
+}
+
+// coAgentRunContext starts the execution budget after queue promotion. It is
+// derived from the lifecycle context, so Stop still cancels a running co-agent.
+func coAgentRunContext(lifecycleCtx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(lifecycleCtx, timeout)
 }
 
 func recoverCoAgentPanic(registry *CoAgentRegistry, coID string, logger *slog.Logger) {
