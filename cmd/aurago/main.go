@@ -913,6 +913,22 @@ func main() {
 	// History Manager for persistent conversational memory array
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
 	defer historyManager.Close()
+	if historyLoadErr := historyManager.LoadError(); historyLoadErr != nil {
+		severity := warnings.SeverityWarning
+		title := "Chat history was unreadable and has been moved aside"
+		if historyManager.PersistenceBlocked() {
+			severity = warnings.SeverityCritical
+			title = "Chat history cannot be read; new messages are not being saved"
+		}
+		appLog.Error("Chat history could not be loaded", "error", historyLoadErr, "persistence_blocked", historyManager.PersistenceBlocked())
+		warningsRegistry.Add(warnings.Warning{
+			ID:          "chat_history_load",
+			Severity:    severity,
+			Title:       title,
+			Description: historyLoadErr.Error(),
+			Category:    warnings.CategorySystem,
+		})
+	}
 
 	// Phase 36: Native Knowledge Graph (SQLite-backed with FTS5)
 	// Note: KG was already initialized earlier for ApplyPendingEmbeddingsReset

@@ -288,6 +288,12 @@ rm data/*.lock 2>/dev/null
 ./aurago
 ```
 
+### Chat-Verlauf konnte nicht geladen werden
+
+Beim Start prüft AuraGo `data/chat_history.json`. Ist die Datei beschädigt (ungültiges JSON oder leer), wird sie nach `data/chat_history.json.corrupt-<Zeit>-<ID>` verschoben und ein neuer Verlauf beginnt; das Dashboard zeigt die Warnung „Chat history was unreadable and has been moved aside“. Die verschobene Datei bleibt für eine manuelle Wiederherstellung unverändert erhalten.
+
+Kann die Datei gar nicht gelesen werden (zum Beispiel wegen fehlender Rechte oder einer Sperre durch ein anderes Programm), lässt AuraGo sie unverändert und speichert bis zum nächsten Start keine neuen Nachrichten; das Dashboard zeigt eine kritische Warnung. Rechte korrigieren oder das sperrende Programm schließen und AuraGo neu starten.
+
 ### Vault-Wiederherstellung
 
 Falls `AURAGO_MASTER_KEY` verloren:

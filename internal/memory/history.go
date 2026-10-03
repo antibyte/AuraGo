@@ -1,15 +1,21 @@
 package memory
 
 import (
+	"bytes"
+	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"aurago/internal/config"
+	"aurago/internal/fileutil"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -103,7 +109,13 @@ type HistoryManager struct {
 	closed         atomic.Bool      // Set by Close(); blocks Add and triggerSave
 	isCompressing  bool             // Guard against concurrent compression
 	saverWg        sync.WaitGroup   // Used by Close() to wait for backgroundSaver to finish
+	loadErr        error            // Why the persisted history could not be used; guarded by mu
+	persistBlocked atomic.Bool      // Set when the file could not be read or moved aside; disables saving
 }
+
+// readHistoryFile reads the persisted history. Tests replace it to simulate
+// read failures that cannot be produced portably.
+var readHistoryFile = os.ReadFile
 
 func NewHistoryManager(filePath string) *HistoryManager {
 	hm := &HistoryManager{
@@ -160,32 +172,60 @@ func (hm *HistoryManager) Close() {
 	})
 }
 
+// load restores the persisted history. Only a missing file means "no history".
+// A read error leaves the file untouched and disables saving for this process;
+// an unparseable or empty file is moved aside before a fresh history starts, so
+// the next save can never destroy the only copy.
 func (hm *HistoryManager) load() {
 	if hm.file == "" {
 		return // Ephemeral mode
 	}
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
-	data, err := os.ReadFile(hm.file)
+	data, err := readHistoryFile(hm.file)
+	if errors.Is(err, fs.ErrNotExist) {
+		return
+	}
 	if err != nil {
-		if !os.IsNotExist(err) {
-			slog.Warn("Failed to read history file, starting fresh", "file", hm.file, "error", err)
+		hm.loadErr = fmt.Errorf("read chat history %s: %w; saving is disabled until the file is readable", hm.file, err)
+		hm.persistBlocked.Store(true)
+		slog.Error("Chat history unreadable; history persistence disabled to protect the file", "file", hm.file, "error", err)
+		return
+	}
+
+	var parseErr error
+	if len(bytes.TrimSpace(data)) == 0 {
+		// save() never writes an empty file; zero bytes mean a crash or truncation.
+		parseErr = errors.New("history file is empty")
+	} else {
+		var disk struct {
+			Messages       []HistoryMessage `json:"messages"`
+			CurrentSummary string           `json:"current_summary"`
 		}
+		// Decode into a local value so a type error cannot leave a half-filled history.
+		if parseErr = json.Unmarshal(data, &disk); parseErr == nil {
+			hm.Messages = disk.Messages
+			if hm.Messages == nil {
+				hm.Messages = []HistoryMessage{}
+			}
+			hm.CurrentSummary = disk.CurrentSummary
+			return
+		}
+	}
+
+	quarantine := fmt.Sprintf("%s.corrupt-%s-%s", hm.file, time.Now().UTC().Format("20060102T150405Z"), rand.Text()[:8])
+	if renameErr := fileutil.Rename(hm.file, quarantine); renameErr != nil {
+		hm.loadErr = fmt.Errorf("chat history %s is unreadable (%v) and could not be moved aside: %w; saving is disabled", hm.file, parseErr, renameErr)
+		hm.persistBlocked.Store(true)
+		slog.Error("Chat history unreadable and could not be moved aside; history persistence disabled", "file", hm.file, "parse_error", parseErr, "error", renameErr)
 		return
 	}
-	if len(data) == 0 {
-		// Empty file is fine, start with empty history
-		return
-	}
-	if err := json.Unmarshal(data, hm); err != nil {
-		slog.Error("Failed to parse history file, starting fresh", "file", hm.file, "error", err)
-		hm.Messages = nil
-		hm.CurrentSummary = ""
-	}
+	hm.loadErr = fmt.Errorf("chat history %s was unreadable and moved to %s: %w", hm.file, quarantine, parseErr)
+	slog.Error("Chat history unreadable; moved aside and starting a fresh history", "file", hm.file, "quarantine", quarantine, "error", parseErr)
 }
 
 func (hm *HistoryManager) triggerSave() {
-	if hm.closed.Load() {
+	if hm.closed.Load() || hm.persistBlocked.Load() {
 		return
 	}
 	select {
@@ -202,6 +242,11 @@ func (hm *HistoryManager) save() error {
 		return nil // Ephemeral mode — no disk persistence
 	}
 	hm.mu.Lock()
+	if hm.persistBlocked.Load() {
+		loadErr := hm.loadErr
+		hm.mu.Unlock()
+		return fmt.Errorf("chat history persistence disabled: %w", loadErr)
+	}
 	// Deep-copy the data under lock so we can release it before the expensive marshal+write
 	snapshot := &HistoryManager{
 		Messages:       make([]HistoryMessage, len(hm.Messages)),
@@ -222,36 +267,27 @@ func (hm *HistoryManager) save() error {
 	if err != nil {
 		return err
 	}
-	// Atomic write via temp file + rename to prevent corruption on crash.
-	// The temp file is created in the same directory to guarantee the rename
-	// is atomic (same filesystem on all platforms).
-	dir := filepath.Dir(hm.file)
-	tmpFile, err := os.CreateTemp(dir, ".history-*.tmp")
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-	tmpName := tmpFile.Name()
-
-	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpName)
-		return fmt.Errorf("write temp file: %w", err)
-	}
-	// 0600: owner read/write only — conversation history is sensitive.
-	if err := tmpFile.Chmod(0600); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpName)
-		return fmt.Errorf("chmod temp file: %w", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("close temp file: %w", err)
-	}
-	if err := os.Rename(tmpName, hm.file); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("rename temp→final: %w", err)
+	// Synced temp file in the same directory plus fileutil.Rename (Windows reader-lock
+	// retries): a crash leaves either the previous or the new history, never a torn
+	// or zero-length file. 0600: conversation history is sensitive.
+	if err := config.WriteFileAtomic(hm.file, data, 0o600); err != nil {
+		return fmt.Errorf("write chat history: %w", err)
 	}
 	return nil
+}
+
+// LoadError reports why the persisted chat history could not be used at startup:
+// the file was unreadable (saving stays disabled) or corrupt (it was moved aside).
+// It is nil after a normal load or when no history file existed.
+func (hm *HistoryManager) LoadError() error {
+	hm.mu.Lock()
+	defer hm.mu.Unlock()
+	return hm.loadErr
+}
+
+// PersistenceBlocked reports whether saving is disabled to protect an unreadable file.
+func (hm *HistoryManager) PersistenceBlocked() bool {
+	return hm.persistBlocked.Load()
 }
 
 func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInternal bool) error {

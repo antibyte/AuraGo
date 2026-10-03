@@ -601,6 +601,12 @@ rm data/chat_history.json
 rm data/short_term.db
 ```
 
+### Chat History Could Not Be Loaded
+
+At startup AuraGo checks `data/chat_history.json`. If the file is damaged (invalid JSON or empty), it is moved to `data/chat_history.json.corrupt-<time>-<id>` and a fresh history starts; the dashboard shows the warning "Chat history was unreadable and has been moved aside". The moved file stays unchanged for manual recovery.
+
+If the file cannot be read at all (for example missing permissions or a lock held by another program), AuraGo leaves it untouched and saves no new messages until the next start; the dashboard shows a critical warning. Fix the permissions or close the locking program, then restart AuraGo.
+
 ### Vault Recovery
 
 > ⚠️ **Critical:** Without master key, encrypted data is lost forever
