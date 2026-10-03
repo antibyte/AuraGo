@@ -323,7 +323,22 @@ func SpawnCoAgent(
 		delay := time.Duration(cfg.CoAgents.RetryPolicy.RetryDelaySeconds) * time.Second
 		var resp openai.ChatCompletionResponse
 		var err error
+		consumedTokens := 0
+		runCfg.ExecutionHooks = &ExecutionHooks{AfterResponse: func(usage openai.Usage) error {
+			consumedTokens += usage.TotalTokens
+			if maxTokensBudget > 0 && consumedTokens >= maxTokensBudget {
+				return fmt.Errorf("co-agent cumulative token limit reached: %d of %d", consumedTokens, maxTokensBudget)
+			}
+			return nil
+		}}
 		for attempt := 0; attempt <= maxRetries; attempt++ {
+			if maxTokensBudget > 0 {
+				runCfg.CoAgentTokenLimit = maxTokensBudget - consumedTokens
+				if runCfg.CoAgentTokenLimit <= 0 {
+					err = fmt.Errorf("co-agent cumulative token budget exhausted")
+					break
+				}
+			}
 			if attempt > 0 {
 				coRegistry.RecordEvent(coID, fmt.Sprintf("retry %d/%d", attempt, maxRetries))
 				jitter := time.Duration(float64(delay) * (0.8 + rand.Float64()*0.4))
@@ -331,6 +346,7 @@ func SpawnCoAgent(
 				case <-ctx.Done():
 					err = ctx.Err()
 				case <-time.After(jitter):
+					err = nil
 				}
 				if err != nil {
 					break
@@ -343,7 +359,9 @@ func SpawnCoAgent(
 			if err == nil {
 				break
 			}
-			if !isRetryableCoAgentError(cfg, err) || attempt == maxRetries {
+			// A fresh loop may only retry before a tool result or partial response exists.
+			// Later failures require explicit continuation from the stored history.
+			if extractCoAgentPartialResult(coHistoryMgr) != "" || len(coHistoryMgr.Get()) > 1 || !isRetryableCoAgentError(cfg, err) || attempt == maxRetries {
 				break
 			}
 			coRegistry.RecordRetry(coID, err.Error())

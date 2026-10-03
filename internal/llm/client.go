@@ -3,6 +3,7 @@ package llm
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
@@ -176,7 +177,7 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 
 	if baseURLRaw != "" && apiKey != "" {
 		if mismatched := detectProviderURLMismatch(providerType, baseURLRaw); mismatched != "" {
-			slog.Warn("[LLM] Provider type may not match base URL", "provider", providerType, "base_url", baseURLRaw, "hint", mismatched)
+			slog.Warn("[LLM] Provider type may not match base URL", "provider", providerType, "base_url", redactProviderURL(baseURLRaw), "hint", mismatched)
 		}
 	}
 
@@ -197,14 +198,23 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 		}
 	}
 
-	if isLoopbackHTTPS(baseURLRaw) {
+	if isLoopbackHTTPS(clientConfig.BaseURL) {
 		transport := http.RoundTripper(loopbackHTTPSTransport())
 		if providerType == "manifest" && cfg != nil {
 			transport = &manifestRoutingTransport{base: transport, routing: cfg.Manifest.Routing}
 		}
 		clientConfig.HTTPClient = &http.Client{Transport: transport}
+		clientConfig.HTTPClient.(*http.Client).CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 || req.URL.User != nil || req.URL.Scheme != via[0].URL.Scheme || req.URL.Host != via[0].URL.Host {
+				return fmt.Errorf("loopback provider redirect rejected")
+			}
+			return nil
+		}
 	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken, clientConfig.BaseURL); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
+	}
+	if client, ok := clientConfig.HTTPClient.(*http.Client); ok {
+		client.Transport = &providerURLTransport{base: &responseTimeoutTransport{base: client.Transport, timeout: 3 * time.Minute}}
 	}
 
 	return clientConfig
@@ -232,7 +242,13 @@ func NewClientWithTransport(cfg *config.Config, transport http.RoundTripper) *op
 	}
 	clientConfig := buildOpenAIClientConfig(cfg, p)
 	if transport != nil {
-		clientConfig.HTTPClient = &http.Client{Transport: transport}
+		client := &http.Client{}
+		if existing, ok := clientConfig.HTTPClient.(*http.Client); ok {
+			copy := *existing
+			client = &copy
+		}
+		client.Transport = &providerURLTransport{base: &responseTimeoutTransport{base: transport, timeout: 3 * time.Minute}}
+		clientConfig.HTTPClient = client
 	}
 	return openai.NewClientWithConfig(clientConfig)
 }
@@ -240,22 +256,23 @@ func NewClientWithTransport(cfg *config.Config, transport http.RoundTripper) *op
 // isLoopbackHTTPS returns true when the URL targets https://127.0.0.1 or https://localhost.
 // These addresses use a self-signed certificate and require a TLS-lenient transport.
 func isLoopbackHTTPS(rawURL string) bool {
-	lower := strings.ToLower(strings.TrimSpace(rawURL))
-	if !strings.HasPrefix(lower, "https://") {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || u.Scheme != "https" || u.User != nil {
 		return false
 	}
-	// Strip scheme and extract host
-	hostpart := lower[len("https://"):]
-	host := hostpart
-	if idx := strings.IndexByte(hostpart, '/'); idx != -1 {
-		host = hostpart[:idx]
+	host := strings.ToLower(u.Hostname())
+	return host == "localhost" || (net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback())
+}
+
+func redactProviderURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "invalid provider URL"
 	}
-	// Remove port
-	h, _, err := net.SplitHostPort(host)
-	if err == nil {
-		host = h
-	}
-	return host == "127.0.0.1" || host == "::1" || host == "localhost"
+	u.User = nil
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String()
 }
 
 // loopbackHTTPSTransport returns an http.Transport suitable for loopback HTTPS:
@@ -263,6 +280,20 @@ func isLoopbackHTTPS(rawURL string) bool {
 // disabled (avoids "tls: bad record MAC" caused by h2 ALPN + self-signed TLS).
 func loopbackHTTPSTransport() *http.Transport {
 	return &http.Transport{
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(address)
+			if err != nil {
+				return nil, err
+			}
+			if strings.EqualFold(host, "localhost") {
+				host = "127.0.0.1"
+			}
+			ip := net.ParseIP(host)
+			if ip == nil || !ip.IsLoopback() {
+				return nil, fmt.Errorf("non-loopback TLS target rejected")
+			}
+			return (&net.Dialer{Timeout: 15 * time.Second}).DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		},
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, // #nosec G402 — loopback only
 		ForceAttemptHTTP2: false,
 	}
@@ -306,7 +337,7 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 			"provider", providerType,
 			"response_header_timeout", headerTimeout,
 			"per_attempt_timeout", perAttemptTimeout(),
-			"base_url", baseURL,
+			"base_url", redactProviderURL(baseURL),
 		)
 	}
 

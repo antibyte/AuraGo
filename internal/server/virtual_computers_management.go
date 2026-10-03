@@ -139,6 +139,9 @@ func handleVirtualComputersManagement(s *Server) http.HandlerFunc {
 		director := proxy.Director
 		proxy.Director = func(req *http.Request) {
 			director(req)
+			for _, header := range []string{"Cookie", "Authorization", "Proxy-Authorization", "X-API-Key", "X-Setup-Token", "X-CSRF-Token"} {
+				req.Header.Del(header)
+			}
 			req.Host = target.Host
 			req.Header.Set("X-Forwarded-Host", forwardedHost)
 			req.Header.Set("X-Forwarded-Proto", forwardedProto)

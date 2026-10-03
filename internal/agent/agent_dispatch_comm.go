@@ -428,7 +428,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 
 			// Provision dependencies immediately
-			tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, logger)
+			tools.ProvisionSkillDependenciesContext(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, logger)
 
 			// Persist optional documentation manual so future reuses (also after reset)
 			// can rely on a canonical "how-to" attached to the skill.
@@ -1181,7 +1181,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "manage_processes", "process_management":
 			req := decodeManageProcessesArgs(tc)
 			logger.Info("LLM requested process management", "op", req.Operation)
-			return "Tool Output: " + tools.ManageProcesses(req.Operation, int32(req.PID), cfg.Server.UILanguage)
+			return "Tool Output: " + tools.ManageProcessesContext(ctx, req.Operation, int32(req.PID), cfg.Server.UILanguage, registry)
 
 		case "register_device", "register_server":
 			req := decodeRegisterDeviceArgs(tc)

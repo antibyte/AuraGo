@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -703,6 +704,10 @@ func isAcceptableCheatsheetContent(query, content string) bool {
 }
 
 func applyReusabilityDecision(runCfg RunConfig, logger *slog.Logger, evaluation ReusabilityEvaluation) error {
+	return applyReusabilityDecisionContext(context.Background(), runCfg, logger, evaluation)
+}
+
+func applyReusabilityDecisionContext(ctx context.Context, runCfg RunConfig, logger *slog.Logger, evaluation ReusabilityEvaluation) error {
 	if evaluation.Decision == ReusableArtifactNone {
 		return nil
 	}
@@ -721,7 +726,7 @@ func applyReusabilityDecision(runCfg RunConfig, logger *slog.Logger, evaluation 
 		}
 	}
 	if needsSkillMutation(evaluation.Decision) {
-		if err := applyReusableSkill(runCfg, logger, evaluation); err != nil {
+		if err := applyReusableSkillContext(ctx, runCfg, logger, evaluation); err != nil {
 			return err
 		}
 	}
@@ -791,6 +796,11 @@ func applyReusableCheatsheet(runCfg RunConfig, logger *slog.Logger, evaluation R
 }
 
 func applyReusableSkill(runCfg RunConfig, logger *slog.Logger, evaluation ReusabilityEvaluation) error {
+	return applyReusableSkillContext(context.Background(), runCfg, logger, evaluation)
+}
+
+func applyReusableSkillContext(ctx context.Context, runCfg RunConfig, logger *slog.Logger, evaluation ReusabilityEvaluation) error {
+	ctx = tools.WithRuntimePermissions(ctx, tools.RuntimePermissionsFromConfig(runCfg.Config))
 	manager := tools.DefaultSkillManager()
 	if manager == nil {
 		return nil
@@ -819,7 +829,7 @@ func applyReusableSkill(runCfg RunConfig, logger *slog.Logger, evaluation Reusab
 		); err != nil {
 			return fmt.Errorf("create reusable skill: %w", err)
 		}
-		tools.ProvisionSkillDependencies(runCfg.Config.Directories.SkillsDir, runCfg.Config.Directories.WorkspaceDir, logger)
+		tools.ProvisionSkillDependenciesContext(ctx, runCfg.Config.Directories.SkillsDir, runCfg.Config.Directories.WorkspaceDir, logger)
 		if err := manager.SyncFromDiskWithOrigins(map[string]tools.SkillOrigin{createName: tools.OriginAgent}); err != nil {
 			return fmt.Errorf("sync reusable skill registry: %w", err)
 		}

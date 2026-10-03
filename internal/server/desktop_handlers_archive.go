@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -45,86 +43,9 @@ func handleDesktopArchive(s *Server) http.HandlerFunc {
 			return
 		}
 
-		destResolved, err := svc.ResolvePath(body.Dest)
-		if err != nil {
+		if err := svc.CreateArchive(r.Context(), body.Paths, body.Dest, desktop.SourceUser); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
-		}
-
-		// Ensure target directory exists
-		if err := os.MkdirAll(filepath.Dir(destResolved), 0o755); err != nil {
-			jsonError(w, fmt.Sprintf("Failed to create target directory: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		zipFile, err := os.Create(destResolved)
-		if err != nil {
-			jsonError(w, fmt.Sprintf("Failed to create zip file: %v", err), http.StatusInternalServerError)
-			return
-		}
-		defer zipFile.Close()
-
-		zipWriter := zip.NewWriter(zipFile)
-		defer zipWriter.Close()
-
-		for _, srcPath := range body.Paths {
-			srcResolved, err := svc.ResolvePath(srcPath)
-			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			_, err = os.Stat(srcResolved)
-			if err != nil {
-				jsonError(w, fmt.Sprintf("Source file not found: %s", srcPath), http.StatusBadRequest)
-				return
-			}
-
-			baseDir := filepath.Dir(srcResolved)
-
-			err = filepath.Walk(srcResolved, func(path string, f os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if f.IsDir() {
-					return nil
-				}
-
-				rel, err := filepath.Rel(baseDir, path)
-				if err != nil {
-					return err
-				}
-
-				// standard zip files use forward slashes
-				rel = filepath.ToSlash(rel)
-
-				header, err := zip.FileInfoHeader(f)
-				if err != nil {
-					return err
-				}
-
-				header.Name = rel
-				header.Method = zip.Deflate
-
-				writer, err := zipWriter.CreateHeader(header)
-				if err != nil {
-					return err
-				}
-
-				file, err := os.Open(path)
-				if err != nil {
-					return err
-				}
-				_, err = io.Copy(writer, file)
-				file.Close()
-				return err
-			})
-
-			if err != nil {
-				jsonError(w, fmt.Sprintf("Failed to add file to zip: %v", err), http.StatusInternalServerError)
-				return
-			}
 		}
 
 		// Broadcast desktop changed event
@@ -169,75 +90,9 @@ func handleDesktopExtract(s *Server) http.HandlerFunc {
 			return
 		}
 
-		srcResolved, err := svc.ResolvePath(body.Path)
-		if err != nil {
+		if err := svc.ExtractArchive(r.Context(), body.Path, body.Dest, desktop.SourceUser); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
-		}
-
-		destResolved, err := svc.ResolvePath(body.Dest)
-		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		reader, err := zip.OpenReader(srcResolved)
-		if err != nil {
-			jsonError(w, fmt.Sprintf("Failed to open zip file: %v", err), http.StatusBadRequest)
-			return
-		}
-		defer reader.Close()
-
-		// Extraction
-		var totalExtracted int64
-		const maxExtractSize = 500 * 1024 * 1024 // 500MB limit
-		for _, f := range reader.File {
-			if f.Name == "" {
-				continue
-			}
-			fpath := filepath.Join(destResolved, f.Name)
-			if !strings.HasPrefix(filepath.Clean(fpath), filepath.Clean(destResolved)) {
-				jsonError(w, fmt.Sprintf("Illegal file path in zip: %s", f.Name), http.StatusBadRequest)
-				return
-			}
-
-			if f.FileInfo().IsDir() {
-				_ = os.MkdirAll(fpath, os.ModePerm)
-				continue
-			}
-
-			totalExtracted += int64(f.UncompressedSize64)
-			if totalExtracted > maxExtractSize {
-				jsonError(w, "Extracted content exceeds maximum size limit (500MB)", http.StatusRequestEntityTooLarge)
-				return
-			}
-
-			if err := os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-				jsonError(w, fmt.Sprintf("Failed to create folder: %v", err), http.StatusInternalServerError)
-				return
-			}
-
-			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				jsonError(w, fmt.Sprintf("Failed to create file: %v", err), http.StatusInternalServerError)
-				return
-			}
-
-			rc, err := f.Open()
-			if err != nil {
-				outFile.Close()
-				jsonError(w, fmt.Sprintf("Failed to open zip entry: %v", err), http.StatusInternalServerError)
-				return
-			}
-
-			_, err = io.Copy(outFile, rc)
-			outFile.Close()
-			rc.Close()
-
-			if err != nil {
-				jsonError(w, fmt.Sprintf("Failed to write file: %v", err), http.StatusInternalServerError)
-				return
-			}
 		}
 
 		// Broadcast desktop changed event

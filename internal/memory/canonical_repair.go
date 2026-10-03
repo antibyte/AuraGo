@@ -103,7 +103,13 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNames(ltm VectorDB, opts CanonicalRe
 			continue
 		}
 		reason := "canonical name repair"
-		newIDs, err := s.ReplaceMemoryDocument(ltm, meta.DocID, "canonical-repair:"+meta.DocID, content, normalized, meta, reason, actor)
+		concept, body := "canonical-repair:"+meta.DocID, normalized
+		if fact, provenance, ok := AnalysisDocumentParts(normalized); ok {
+			// Preserve the proven analysis envelope instead of nesting it inside
+			// a synthetic repair concept that breaks factual deduplication.
+			concept, body = fact, provenance
+		}
+		newIDs, err := s.ReplaceMemoryDocument(ltm, meta.DocID, concept, content, body, meta, reason, actor)
 		if err != nil {
 			item.Error = err.Error()
 			if len(newIDs) == 0 && strings.Contains(item.Error, "delete replacement vector") {

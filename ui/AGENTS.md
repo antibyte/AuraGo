@@ -30,6 +30,13 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Local Contracts
 
+### Render and asynchronous ownership
+
+- Escape text before every Markdown fallback. Generic image/audio/video sources use the shared same-origin media allowlist; external images become deliberate links. Preview iframes retain sandboxing. Logout sends same-origin POST.
+- Config saves bind to the sent snapshot and retain edits made while requests are in flight. Chat HTTP/SSE/recovery responses bind to session and request generation. All close gestures await the window's asynchronous guard; file dialogs remain pending while a write is in flight.
+- Shared modals queue independent promises. Vault prompts have bounded expiry and cancellation, clear sensitive drafts on close, and never let late results close a newer prompt. Highlight original text nodes rather than escaped HTML.
+- Verify `TestCodeQualityBrowserBoundaries` with `AURAGO_RUN_BROWSER_SMOKE=1`, existing chat/config/Tresor browser checks and rebuilt bundles.
+
 - `js/shared/shared-core.js` renews an authenticated session through
   `/api/auth/activity` only for trusted pointer, keyboard, input or wheel events
   in a visible page, throttled to once per 30 seconds. Background polling, SSE,

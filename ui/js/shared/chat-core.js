@@ -97,12 +97,19 @@
                     node.removeAttribute(attr.name);
                     return;
                 }
-                if ((name === 'href' || name === 'src') && !isSafeHref(attr.value, true)) {
-                    let keepBlobMedia = false;
-                    if (name === 'src' && (node.tagName.toLowerCase() === 'video' || node.tagName.toLowerCase() === 'audio')) {
-                        try { keepBlobMedia = new URL(attr.value, window.location.origin).protocol === 'blob:'; } catch (_err) {}
+                if (name === 'href' && !isSafeHref(attr.value, true)) {
+                    node.removeAttribute(attr.name);
+                }
+                if ((name === 'src' || name === 'poster') && !isSafeMediaSource(attr.value, node.tagName.toLowerCase())) {
+                    if (name === 'src' && node.tagName.toLowerCase() === 'img' && isSafeHref(attr.value)) {
+                        const link = document.createElement('a');
+                        link.href = attr.value;
+                        link.textContent = node.getAttribute('alt') || attr.value;
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        node.replaceWith(link);
                     }
-                    if (!keepBlobMedia) node.removeAttribute(attr.name);
+                    node.removeAttribute(attr.name);
                 }
             });
             if (node.tagName.toLowerCase() === 'a') {
@@ -120,6 +127,19 @@
         const sanitized = chatSanitizeTemplate.innerHTML;
         chatSanitizeTemplate.innerHTML = '';
         return sanitized;
+    }
+
+    function isSafeMediaSource(value, tag) {
+        if (!value || /[\\\u0000-\u0020]/.test(value)) return false;
+        try {
+            const url = new URL(value, window.location.origin);
+            if (url.username || url.password || url.origin !== window.location.origin) return false;
+            if (url.protocol === 'blob:') return tag === 'audio' || tag === 'video';
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+            return ['/files/', '/tts/', '/cast-media/', '/img/', '/api/media/', '/api/desktop/files/', '/api/agodesk/tts/'].some(prefix => url.pathname.startsWith(prefix)) ||
+                /^\/api\/go2rtc\/proxy\/api\/(?:frame\.jpeg|stream\.mjpeg)$/.test(url.pathname) ||
+                /^\/api\/3d-printers\/[^/]+\/camera\/stream$/.test(url.pathname);
+        } catch (_err) { return false; }
     }
 
     function decorateEmojiGlyphs(root) {
@@ -464,6 +484,7 @@
         escapeHtml,
         escapeAttr,
         isSafeHref,
+        isSafeMediaSource,
         sanitizeRenderedHTML,
         isVideoHref,
         decorateEmojiGlyphs,

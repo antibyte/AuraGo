@@ -30,7 +30,7 @@ const (
 
 func handleDesktopChat(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -76,7 +76,7 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 
 func handleDesktopChatStream(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodPost {

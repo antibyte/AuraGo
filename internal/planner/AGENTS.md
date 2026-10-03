@@ -10,6 +10,8 @@ Issue lifecycle, notification, and background retry policy.
 
 ## Local Contracts
 
+- Overdue todo notifications claim the todo ID and exact due value durably in `planner_meta` before dispatch. Recheck due/status atomically. A restart or ambiguous/panicking delivery cannot replay that revision; changing the due value creates a new claimable revision. Verify `TestOverdueClaimSurvivesNotifierRestartAndPanic`.
+
 ### Operational Issue Notification Contract
 
 - Persist a background prompt execution ID before dispatch. Internal HTTP retries

@@ -156,7 +156,8 @@ func handleDograhProvisionWebhook(s *Server) http.HandlerFunc {
 			writeDograhJSON(w, map[string]interface{}{"status": "disabled", "message": "Dograh webhook bridge is disabled"})
 			return
 		}
-		if s == nil || s.WebhookManager == nil || s.TokenManager == nil {
+		tm := s.currentTokenManager()
+		if s == nil || s.WebhookManager == nil || tm == nil {
 			jsonError(w, "Webhook manager is not available", http.StatusServiceUnavailable)
 			return
 		}
@@ -173,7 +174,7 @@ func handleDograhProvisionWebhook(s *Server) http.HandlerFunc {
 			})
 			return
 		}
-		rawToken, tokenMeta, err := s.TokenManager.Create("Dograh webhook", []string{"webhook"}, nil)
+		rawToken, tokenMeta, err := tm.Create("Dograh webhook", []string{"webhook"}, nil)
 		if err != nil {
 			jsonError(w, "Failed to create webhook token", http.StatusInternalServerError)
 			return
@@ -192,7 +193,7 @@ func handleDograhProvisionWebhook(s *Server) http.HandlerFunc {
 			},
 		})
 		if err != nil {
-			_ = s.TokenManager.Delete(tokenMeta.ID)
+			_ = tm.Delete(tokenMeta.ID)
 			jsonError(w, "Failed to create Dograh webhook", http.StatusBadRequest)
 			return
 		}

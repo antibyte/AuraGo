@@ -180,6 +180,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 			"attempt", s.invalidNativeToolCount,
 			"action", tc.Action,
 			"source", parsedToolResp.ParseSource)
+		s.pendingTCs = nil
 		feedbackMsg := applyEmotionRecoveryNudge(FormatNonNativeToolCallFeedback(tc.Action), emotionPolicy)
 		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
 			SessionID:            sessionID,

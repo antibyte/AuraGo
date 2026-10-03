@@ -375,7 +375,10 @@
             if (!isSave) finishSelection();
         }
 
+        let saving = false;
+        let settled = false;
         async function finishSelection() {
+            if (saving || settled) return;
             if (isSave) {
                 const filename = ensureFileDialogExtension(filenameInput.value, options.defaultExtension);
                 if (!filename) {
@@ -385,12 +388,21 @@
                 }
                 const path = fileDialogJoinPath(currentPath, filename);
                 if (!(await confirmOverwrite(path, options))) return;
+                if (settled) return;
                 if (typeof options.content === 'string') {
-                    await api(options.fileEndpoint || '/api/desktop/file', {
+                    saving = true;
+                    confirmButton.disabled = true;
+                    overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = true; });
+                    setStatus(fileDialogText('desktop.loading', 'Loading...'));
+                    try { await api(options.fileEndpoint || '/api/desktop/file', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ path, content: options.content })
-                    });
+                    }); } finally {
+                        saving = false;
+                        confirmButton.disabled = false;
+                        overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = false; });
+                    }
                 }
                 finish({ canceled: false, path, name: fileDialogBaseName(path) });
                 return;
@@ -411,6 +423,8 @@
         }
 
         function finish(result) {
+            if (settled) return;
+            settled = true;
             document.removeEventListener('keydown', onKeydown);
             overlay.remove();
             resolveDialog(result);
@@ -418,7 +432,7 @@
 
         let resolveDialog;
         const promise = new Promise(resolve => { resolveDialog = resolve; });
-        const cancel = () => finish({ canceled: true });
+        const cancel = () => { if (!saving) finish({ canceled: true }); };
         const onKeydown = event => { if (event.key === 'Escape') cancel(); };
         document.addEventListener('keydown', onKeydown);
         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => btn.addEventListener('click', cancel));

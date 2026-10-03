@@ -216,8 +216,25 @@ func GetPipBin(workspaceDir string) string {
 
 // EnsureVenv checks if the virtual environment exists and has a working pip binary, creating or recreating it if necessary.
 func EnsureVenv(workspaceDir string, logger *slog.Logger) error {
-	venvMu.Lock()
+	return EnsureVenvContext(context.Background(), workspaceDir, logger)
+}
+
+// EnsureVenvContext bounds creation and cancellation while waiting for the
+// shared initialization lock, before another host process can start.
+func EnsureVenvContext(ctx context.Context, workspaceDir string, logger *slog.Logger) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	for !venvMu.TryLock() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
 	defer venvMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	if logger == nil {
 		logger = slog.Default()
@@ -243,7 +260,7 @@ func EnsureVenv(workspaceDir string, logger *slog.Logger) error {
 		logger.Info("Creating Python virtual environment", "dir", venvDir)
 	}
 
-	if err := createVenv(workspaceDir, logger); err != nil {
+	if err := createVenvContext(ctx, workspaceDir, logger); err != nil {
 		return err
 	}
 	if _, err := os.Stat(pythonBin); err != nil {
@@ -264,6 +281,10 @@ func ensurePythonVenv(workspaceDir string) error {
 
 // createVenv creates a new virtual environment in workspaceDir using python3 or python.
 func createVenv(workspaceDir string, logger *slog.Logger) error {
+	return createVenvContext(context.Background(), workspaceDir, logger)
+}
+
+func createVenvContext(ctx context.Context, workspaceDir string, logger *slog.Logger) error {
 	candidates := []string{"python3", "python"}
 	if runtime.GOOS == "windows" {
 		candidates = []string{"python", "python3"}
@@ -271,15 +292,20 @@ func createVenv(workspaceDir string, logger *slog.Logger) error {
 
 	var lastErr error
 	for _, pyCmd := range candidates {
-		cmd := exec.Command(pyCmd, "-m", "venv", "venv")
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		cmd := exec.CommandContext(ctx, pyCmd, "-m", "venv", "venv")
 		cmd.Dir = workspaceDir
 		ensureFilteredEnv(cmd)
-		if out, err := cmd.CombinedOutput(); err == nil {
+		runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: 2 * time.Minute, ScrubOutput: true})
+		out, errOut, err := runner.Run(ctx)
+		if err == nil {
 			logger.Info("Python virtual environment created", "python", pyCmd)
 			return nil
 		} else {
 			logger.Debug("venv creation attempt failed", "python", pyCmd, "error", err, "output", string(out))
-			lastErr = fmt.Errorf("%s: %w (output: %s)", pyCmd, err, string(out))
+			lastErr = fmt.Errorf("%s: %w (output: %s %s)", pyCmd, err, out, errOut)
 		}
 	}
 	return fmt.Errorf("failed to create venv: %w", lastErr)
@@ -288,18 +314,32 @@ func createVenv(workspaceDir string, logger *slog.Logger) error {
 // validPackageName matches pip-safe package name specifiers.
 // Allows: name, name[extra], name[extra-with-dash], name>=1.0, name==1.0.0, etc.
 // Blocks: paths, flags (--index-url), shell metacharacters.
-var validPackageName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[a-zA-Z0-9._\-,\s]+\])?([\s]*(==|!=|<=|>=|<|>|~=)[^\s;]+)?$`)
+var validPackageName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[a-zA-Z0-9._\-]+(,[a-zA-Z0-9._\-]+)*\])?(\s*(==|!=|<=|>=|<|>|~=)[a-zA-Z0-9.*+!_\-]+(\s*,\s*(==|!=|<=|>=|<|>|~=)[a-zA-Z0-9.*+!_\-]+)*)?$`)
 
 // InstallPackage installs a Python package using the virtual environment's pip.
 // Uses pipInstallTimeout for downloads and compilation.
 func InstallPackage(pkgName, workspaceDir string) (string, string, error) {
+	return InstallPackageContext(context.Background(), pkgName, workspaceDir)
+}
+
+// InstallPackageContext intersects the run grants with current host execution grants.
+func InstallPackageContext(ctx context.Context, pkgName, workspaceDir string) (string, string, error) {
+	if err := requireShellPermissionContext(ctx); err != nil {
+		return "", "", err
+	}
+	if err := requirePythonPermissionContext(ctx); err != nil {
+		return "", "", err
+	}
 	// Validate package name to prevent pip flag injection or path traversal.
 	pkgName = strings.TrimSpace(pkgName)
 	if !validPackageName.MatchString(pkgName) {
 		return "", "", fmt.Errorf("invalid package name %q: must match pip package name format", pkgName)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), pipInstallTimeout)
+	ctx, cancel := context.WithTimeout(ctx, pipInstallTimeout)
 	defer cancel()
+	if err := EnsureVenvContext(ctx, workspaceDir, slog.Default()); err != nil {
+		return "", "", fmt.Errorf("prepare package environment: %w", err)
+	}
 
 	pipCmd := GetPipBin(workspaceDir)
 	cmd := exec.CommandContext(ctx, pipCmd, "install", pkgName)

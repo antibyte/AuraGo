@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -366,7 +367,11 @@ func finalizeToolExecution(
 		if cfg != nil && cfg.Agent.AutoLearning.Enabled {
 			count, _ := shortTermMem.GetErrorCountInSession(trackingTC.Action, resolutionErr)
 			if count >= 2 {
-				go GenerateLearnedRule(ctx, shortTermMem, trackingTC.Action, resolutionErr, "Succeeded with adjusted parameters", logger)
+				_ = sideEffectsFromRunConfig(runCfg).Go(func(taskCtx context.Context) {
+					learnCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
+					defer cancel()
+					GenerateLearnedRule(learnCtx, shortTermMem, trackingTC.Action, resolutionErr, "Succeeded with adjusted parameters", logger)
+				})
 			}
 		}
 	}
@@ -384,7 +389,11 @@ func finalizeToolExecution(
 		if errMsg == "" {
 			errMsg = recoveryState.LastToolError
 		}
-		go GenerateLearnedRule(ctx, shortTermMem, trackingTC.Action, errMsg, "", logger)
+		_ = sideEffectsFromRunConfig(runCfg).Go(func(taskCtx context.Context) {
+			learnCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
+			defer cancel()
+			GenerateLearnedRule(learnCtx, shortTermMem, trackingTC.Action, errMsg, "", logger)
+		})
 	}
 
 	resultContent = boundedToolResult(resultContent, effectiveToolOutputLimit(cfg), status)

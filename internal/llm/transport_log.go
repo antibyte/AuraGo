@@ -45,7 +45,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	}
 
 	start := time.Now()
-	url := req.URL.String()
+	url := redactProviderURL(req.URL.String())
 	method := req.Method
 
 	t.logger.Info("[LLM Transport] request_start",

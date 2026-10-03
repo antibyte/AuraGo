@@ -557,7 +557,12 @@ func (s *Store) Prune(ctx context.Context, maxEditions int) error {
 	if _, err = tx.ExecContext(ctx, "DELETE FROM newspaper_editions WHERE id NOT IN (SELECT id FROM newspaper_editions ORDER BY local_date DESC,revision DESC LIMIT ?)", maxEditions); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, "DELETE FROM newspaper_runs WHERE status!='running' AND id NOT IN (SELECT id FROM newspaper_runs ORDER BY local_date DESC,revision DESC LIMIT ?)", maxEditions*2); err != nil {
+	// Keep the latest calendar day's claim even after many manual revisions.
+	// Older run claims may expire with their retained run in this transaction.
+	if _, err = tx.ExecContext(ctx, "DELETE FROM newspaper_scheduler_attempts WHERE local_date < (SELECT MAX(local_date) FROM newspaper_runs) AND run_id IN (SELECT id FROM newspaper_runs WHERE status!='running' AND id NOT IN (SELECT id FROM newspaper_runs ORDER BY local_date DESC,revision DESC LIMIT ?))", maxEditions*2); err != nil {
+		return fmt.Errorf("prune scheduler attempts: %w", err)
+	}
+	if _, err = tx.ExecContext(ctx, "DELETE FROM newspaper_runs WHERE status!='running' AND id NOT IN (SELECT id FROM newspaper_runs ORDER BY local_date DESC,revision DESC LIMIT ?) AND id NOT IN (SELECT run_id FROM newspaper_scheduler_attempts)", maxEditions*2); err != nil {
 		return err
 	}
 	return tx.Commit()

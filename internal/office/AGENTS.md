@@ -10,6 +10,8 @@ Workbook and document preservation, editing, and assist.
 
 ## Local Contracts
 
+- All DOCX/XLSX ZIP readers share explicit budgets: 128 MiB decoded data, 4096 parts and 16 MiB per XML part. XLSX preflight additionally caps rows, columns and expanded cells before Excelize allocation; apply explicit Excelize unzip limits. Preserve existing package roundtrips and opaque parts. Verify workbook-limit tests and the Office suite.
+
 ### Desktop Workbook Contract
 - Tabellen uses exactly Univer OSS 1.0.3, Chart.js 4.5.1 and Excelize 2.11.0.
   Vendor assets/fonts stay local and permissive; never add Pro components.

@@ -595,10 +595,13 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 		return ErrKnowledgeGraphProtectedNode
 	}
 
-	removedEdges := kg.collectSemanticEdgeIdentities(tx, `
+	removedEdges, err := kg.collectSemanticEdgeIdentities(tx, `
 		SELECT source, target, relation FROM kg_edges
 		WHERE source = ? OR target = ?
 	`, sourceID, sourceID)
+	if err != nil {
+		return err
+	}
 
 	mergedLabel := mergeKnowledgeGraphLabel(targetLabel, sourceLabel)
 	mergedProtected := targetProtected != 0
@@ -631,8 +634,17 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ?", targetID, targetID); err != nil {
 		return fmt.Errorf("delete pre-existing self edges: %w", err)
 	}
-	if err := cleanupMergedCollisionClaimsTx(tx, targetID, sourceID); err != nil {
-		return fmt.Errorf("cleanup merge collision claims: %w", err)
+	// Prefer an accepted source fact over a retracted target collision. Claims
+	// from both nodes remain evidence and follow the merged endpoints below.
+	if _, err := tx.Exec(`DELETE FROM kg_edges WHERE source = ? AND COALESCE(status, 'accepted') != 'accepted'
+		AND EXISTS (SELECT 1 FROM kg_edges s WHERE s.source = ? AND s.target = kg_edges.target
+		AND s.relation = kg_edges.relation AND COALESCE(s.status, 'accepted') = 'accepted')`, targetID, sourceID); err != nil {
+		return fmt.Errorf("remove inactive outgoing merge collision: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM kg_edges WHERE target = ? AND COALESCE(status, 'accepted') != 'accepted'
+		AND EXISTS (SELECT 1 FROM kg_edges s WHERE s.target = ? AND s.source = kg_edges.source
+		AND s.relation = kg_edges.relation AND COALESCE(s.status, 'accepted') = 'accepted')`, targetID, sourceID); err != nil {
+		return fmt.Errorf("remove inactive incoming merge collision: %w", err)
 	}
 	if _, err := tx.Exec(`
 		DELETE FROM kg_edges
@@ -721,12 +733,15 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	}
 	defer tx.Rollback()
 
-	sourceFileEdges := kg.collectSemanticEdgeIdentities(tx, `
+	sourceFileEdges, err := kg.collectSemanticEdgeIdentities(tx, `
 		SELECT source, target, relation FROM kg_edges
 		WHERE json_valid(properties)
 		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
+	if err != nil {
+		return 0, err
+	}
 	if err := cleanupKGClaimsForDeletedSemanticEdgesTx(tx, sourceFileEdges); err != nil {
 		return 0, fmt.Errorf("cleanup source-file edge provenance: %w", err)
 	}

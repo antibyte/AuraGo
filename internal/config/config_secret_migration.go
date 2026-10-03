@@ -139,7 +139,9 @@ func migrateMapStringSecretWithOverwrite(section map[string]interface{}, yamlKey
 		}
 		log.Info("[Config] Migrated plaintext secret from config.yaml to vault", "key", vaultKey)
 	} else {
-		log.Debug("[Config] Vault already has value for key, skipping YAML migration", "key", vaultKey)
+		if existing != strVal {
+			log.Warn("[Config] YAML secret conflicts with the Vault; the Vault value remains active. Rotate through the configuration UI", "key", vaultKey)
+		}
 	}
 
 	delete(section, yamlKey)

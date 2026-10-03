@@ -1,13 +1,13 @@
 # Process Management (`manage_processes`)
 
-Platform-independent management of system processes: listing, killing, and resource inspection.
+Platform-independent process listing and resource inspection. Termination is limited to live processes owned by AuraGo's background-process registry.
 
 ## Operations
 
 | Operation | Description |
 |-----------|-------------|
 | `list` | Returns the top 50 processes sorted by CPU usage |
-| `kill` | Terminates a process by PID |
+| `kill` | Terminates an AuraGo-owned live background process by PID; requires `allow_shell` |
 | `stats` | Returns detailed memory and CPU info for a specific PID |
 
 ## Parameters
@@ -38,4 +38,4 @@ Platform-independent management of system processes: listing, killing, and resou
 
 - **Agent processes**: For processes started by the agent in background mode, prefer `list_processes` and `stop_process` — they track agent-specific metadata.
 - **Platform-independent**: Works on Linux, macOS, and Windows without modification.
-- **Permissions**: Killing system processes may require elevated privileges.
+- **Permissions**: `kill` requires `allow_shell` and a live registry-owned handle. Arbitrary system PIDs, stale registrations and AuraGo itself cannot be terminated through this tool.

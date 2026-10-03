@@ -116,6 +116,9 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if recovered := recover(); recovered != nil {
+				if recovered == http.ErrAbortHandler {
+					panic(recovered)
+				}
 				logger.Error("HTTP handler panic", "path", r.URL.Path, "method", r.Method, "panic", recovered)
 				if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/v1/") {
 					w.Header().Set("Content-Type", "application/json")
@@ -139,6 +142,11 @@ type Server struct {
 	cfgSnapshot     atomic.Pointer[config.Config]
 	CfgMu           sync.RWMutex // protects Cfg during hot-reload
 	CfgSaveMu       sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	httpDrainMu     sync.Mutex
+	httpDraining    bool
+	httpDrainCtx    context.Context
+	httpDrainCancel context.CancelFunc
+	httpRequests    sync.WaitGroup
 	lockdownLogOnce sync.Once
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
@@ -280,6 +288,9 @@ func (s *Server) accessLogger() *slog.Logger {
 // currentTokenManager returns the live token store. Backup import may replace
 // it, so long-lived holders (the webhook handler) resolve it per request.
 func (s *Server) currentTokenManager() *security.TokenManager {
+	if s == nil {
+		return nil
+	}
 	s.tokenManagerMu.RLock()
 	defer s.tokenManagerMu.RUnlock()
 	return s.TokenManager
@@ -1652,6 +1663,15 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 
 // serveWithShutdown handles graceful shutdown for servers
 func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Server, shutdownCh chan struct{}) error {
+	if server.Handler == nil {
+		server.Handler = http.DefaultServeMux
+	}
+	server.Handler = s.trackHTTP(server.Handler)
+	if redirectServer != nil {
+		redirectServer.Handler = s.trackHTTP(redirectServer.Handler)
+	}
+	shutdownDone := make(chan struct{})
+	serveDone := make(chan struct{})
 	s.announceSetupBootstrap()
 	// Start redirect server (if provided) in background
 	if redirectServer != nil {
@@ -1665,23 +1685,38 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 
 	// Graceful shutdown handler
 	go func() {
-		<-shutdownCh
+		select {
+		case <-shutdownCh:
+		case <-serveDone:
+		}
+		defer close(shutdownDone)
+		s.ready.Store(false)
+		s.beginHTTPDrain()
 		s.Logger.Info("Initiating graceful server shutdown...")
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
+		// Stop accepting and cancel streams before touching their dependencies.
+		for _, listener := range []*http.Server{server, redirectServer, ttsServer, s.loopbackSrv, s.spaceAgentHTTPS} {
+			if listener == nil {
+				continue
+			}
+			if err := listener.Shutdown(ctx); err != nil {
+				s.Logger.Warn("HTTP drain deadline reached; closing connections", "error", err)
+				_ = listener.Close()
+			}
+		}
+		if s.TsNetManager != nil {
+			if err := s.TsNetManager.Shutdown(ctx); err != nil {
+				s.Logger.Warn("tsnet shutdown did not complete cleanly", "error", err)
+			}
+		}
+		s.httpRequests.Wait()
 
 		// Relay runs can own network, database and tool activity. Cancel and
 		// join them before shutting down any of their dependencies.
 		if s.MQTTController != nil {
 			if err := s.MQTTController.Stop(context.Background()); err != nil {
 				s.Logger.Warn("MQTT shutdown did not complete cleanly", "error", err)
-			}
-		}
-
-		// Shut down tsnet node
-		if s.TsNetManager != nil {
-			if err := s.TsNetManager.Shutdown(ctx); err != nil {
-				s.Logger.Warn("tsnet shutdown did not complete cleanly", "error", err)
 			}
 		}
 
@@ -1720,27 +1755,14 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 
 		s.closeRuntimeResources()
 
-		if ttsServer != nil {
-			ttsServer.Shutdown(ctx)
-		}
-		if redirectServer != nil {
-			redirectServer.Shutdown(ctx)
-		}
-		if s.loopbackSrv != nil {
-			s.loopbackSrv.Shutdown(ctx)
-		}
-		if s.spaceAgentHTTPS != nil {
-			s.spaceAgentHTTPS.Shutdown(ctx)
-		}
-		if err := server.Shutdown(ctx); err != nil {
-			s.Logger.Error("Server shutdown error", "error", err)
-		}
 	}()
 
 	// Start main server
 	var err error
 	ln, listenErr := net.Listen("tcp", server.Addr)
 	if listenErr != nil {
+		close(serveDone)
+		<-shutdownDone
 		richErr := fmt.Errorf("server listen error: %w", listenErr)
 		if strings.Contains(listenErr.Error(), "permission denied") || strings.Contains(listenErr.Error(), "bind") {
 			richErr = fmt.Errorf("%w\n\nHint: Ports below 1024 (80, 443) require root privileges.\n"+
@@ -1759,6 +1781,8 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		err = server.Serve(ln)
 	}
 
+	close(serveDone)
+	<-shutdownDone
 	if err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server error: %w", err)
 	}

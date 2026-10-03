@@ -119,6 +119,7 @@ type agentLoopState struct {
 	requestBudget         *RequestBudget
 	promptGuideVersions   map[string]string
 	ctx                   context.Context
+	loopStartedAt         time.Time
 	stream                bool
 	broker                FeedbackBroker
 	runCfg                RunConfig
@@ -411,6 +412,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	var requestBudget *RequestBudget
 
 	loopStartedAt := time.Now()
+	s.loopStartedAt = loopStartedAt
 	loopIterationCount := 0
 	personalityPrepared := false
 	var personalityBasis *memory.PersonalitySnapshot
@@ -1805,6 +1807,29 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				continue
 			}
 			if result.err != nil {
+				// A failed stream can still consume provider tokens. Account for the
+				// partial response before recovery; never dispatch its tool calls.
+				if result.totalTokens > 0 {
+					sessionTokens += result.totalTokens
+					globalTotal := AddGlobalTokenCount(result.totalTokens)
+					estimated := result.tokenSource == "fallback_estimate"
+					if estimated {
+						SetGlobalTokenEstimated(true)
+					}
+					broker.SendTokenUpdate(result.promptTokens, result.completionTokens, result.totalTokens, sessionTokens, int(globalTotal), estimated, false, result.tokenSource)
+					if budgetTracker != nil {
+						category := "chat"
+						if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
+							category = "coagent"
+						}
+						budgetTracker.RecordForCategory(category, req.Model, result.promptTokens, result.completionTokens)
+					}
+					if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
+						if err := runCfg.ExecutionHooks.AfterResponse(result.resp.Usage); err != nil {
+							return result.resp, err
+						}
+					}
+				}
 				if runCfg.PreserveReasoning && result.interruptedReasoning != "" {
 					req.Messages = append(req.Messages, interruptedReasoningMessage(result.interruptedReasoning))
 				}
@@ -1816,7 +1841,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "The previous response stream stalled. Its incomplete source and tool calls were discarded. Continue the current task from the completed tool results above; do not repeat completed actions."})
 					continue
 				}
-				return openai.ChatCompletionResponse{}, result.err
+				return result.resp, result.err
 			}
 			resp = result.resp
 			content = result.content
@@ -1979,8 +2004,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			for i := range parsedToolResp.PendingToolCalls {
 				parsedToolResp.PendingToolCalls[i] = normalizeParsedToolShortcut(parsedToolResp.PendingToolCalls[i])
 			}
-			pendingTCs = queuePendingToolCalls(s, pendingTCs, parsedToolResp.PendingToolCalls)
-			s.currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(parsedToolResp.PendingToolCalls), "source", parsedToolResp.ParseSource)
 		}
 
 		// Budget tracking: record cost and send status to UI
@@ -2058,11 +2081,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			xmlFallbackHandledThisTurn = true
 			req = s.req
 		}
+		if tc.IsTool && len(parsedToolResp.PendingToolCalls) > 0 {
+			pendingTCs = queuePendingToolCalls(s, pendingTCs, parsedToolResp.PendingToolCalls)
+			s.currentLogger.Info("[MultiTool] Queued accepted additional tool calls", "count", len(parsedToolResp.PendingToolCalls))
+		}
 
 		// Berechne effektives Limit neu mit bekanntem tc (für Tool-spezifische Anpassungen)
 		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(runCfg, tc, homepageUsedInChain, personalityEnabled, shortTermMem, s.currentLogger)
 
 		if tc.IsTool && s.toolCallCount < effectiveMaxCallsWithTool {
+			s.sessionTokens = sessionTokens
 			resp, err, shouldContinue := executeAgentToolTurn(s, ctx, tc, resp, content, useNativePath, nativeAssistantMsg, lastUserMsg, triggerValue, xmlFallbackHandledThisTurn)
 			req = s.req // Include the final tool results even at a phase boundary.
 			if !shouldContinue {
@@ -2301,7 +2329,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					return
 				}
 
-				applyMemoryAnalysisResultWithContext(ctx, cfg, s.currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
+				applyMemoryAnalysisResultWithContext(analysisCtx, cfg, s.currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
 				if useBatchedTurnPersonality {
 					if personalityResult, ok := normalizeHelperTurnPersonalityResult(batchResult.PersonalityAnalysis, meta); ok {
 						personalityResult.Basis, personalityResult.ObservationID = personalityBasis, personalityBasis.TurnID
@@ -2424,7 +2452,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						"any_tool_error", outcome.AnyToolError,
 						"recovery_loop_hits", outcome.RecoveryLoopHits)
 				} else {
-					if err := applyReusabilityDecision(runCfg, s.currentLogger, evaluation); err != nil {
+					if err := applyReusabilityDecisionContext(ctx, runCfg, s.currentLogger, evaluation); err != nil {
 						s.currentLogger.Warn("[ReuseFirst] Failed to apply reusability decision", "error", err, "reuse_decision", evaluation.Decision)
 					} else {
 						reuseFirstSessionRecord(sessionID, evaluation.Decision)

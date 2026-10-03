@@ -242,13 +242,11 @@ func confirmMemoryDocIfNoOpenConflictsTx(tx *sql.Tx, docID, reason string) error
 	if _, err := tx.Exec(`
 		UPDATE memory_meta
 		SET verification_status = ?,
-		    archived_at = NULL,
-		    archived_reason = '',
 		    last_reviewed_at = CURRENT_TIMESTAMP,
 		    review_note = ?,
 		    last_event_at = CURRENT_TIMESTAMP
-		WHERE doc_id = ?
-	`, MemoryVerificationConfirmed, reason, docID); err != nil {
+		WHERE doc_id = ? AND COALESCE(archived_at, '') = '' AND verification_status != ?
+	`, MemoryVerificationConfirmed, reason, docID, MemoryVerificationArchived); err != nil {
 		return fmt.Errorf("confirm memory meta %s: %w", docID, err)
 	}
 	return nil

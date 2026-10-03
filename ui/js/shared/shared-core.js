@@ -51,6 +51,7 @@ function tOr(k, fallback, p) {
 // ═══════════════════════════════════════════════════════════════
 
 let _sharedModalOverlay = null;
+let _sharedModalQueue = Promise.resolve();
 
 function _ensureSharedModal() {
     if (_sharedModalOverlay) return _sharedModalOverlay;
@@ -86,6 +87,12 @@ function _ensureSharedModal() {
  * @returns {Promise<boolean>} - Resolves with true (confirmed) or false (cancelled)
  */
 function showModal(title, message, isConfirm = false, options = {}) {
+    const result = _sharedModalQueue.then(() => _showSharedModal(title, message, isConfirm, options));
+    _sharedModalQueue = result.catch(() => false);
+    return result;
+}
+
+function _showSharedModal(title, message, isConfirm, options) {
     return new Promise((resolve) => {
         const overlay = _ensureSharedModal();
         const titleEl = document.getElementById('shared-modal-title') || document.getElementById('modal-title');
@@ -106,7 +113,10 @@ function showModal(title, message, isConfirm = false, options = {}) {
         // Engage controller (ARIA, focus trap, inert background, restore).
         _modalCtl.open(overlay, { initialFocus: confirmBtn });
 
+        let settled = false;
         function cleanup(result) {
+            if (settled) return;
+            settled = true;
             _modalCtl.close(overlay);
             overlay.style.display = 'none';
             if (overlay.classList) overlay.classList.remove('active');
@@ -657,11 +667,18 @@ async function performLogout() {
     if (backdrop) backdrop.classList.remove('open');
 
     const fallbackURL = '/auth/logout?ts=' + Date.now();
+    const postFallback = () => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = fallbackURL;
+        document.body.appendChild(form);
+        form.submit();
+    };
     const apiLogoutURL = '/api/auth/logout?ts=' + Date.now();
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const fallbackTimer = setTimeout(() => {
         if (controller) controller.abort();
-        window.location.replace(fallbackURL);
+        postFallback();
     }, 1800);
 
     try {
@@ -689,7 +706,7 @@ async function performLogout() {
     }
 
     clearTimeout(fallbackTimer);
-    window.location.replace(fallbackURL);
+    postFallback();
 }
 
 // ═══════════════════════════════════════════════════════════════

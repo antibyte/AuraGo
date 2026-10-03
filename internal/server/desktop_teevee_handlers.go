@@ -185,7 +185,7 @@ func copyTeeVeeUpstreamHeaders(dst *http.Request, client *http.Request) {
 }
 
 func teeveeProxyContentType(header, rawURL string) string {
-	if strings.TrimSpace(header) != "" {
+	if passiveProxyContentType(header) {
 		return header
 	}
 	if strings.Contains(strings.ToLower(rawURL), ".m3u8") {

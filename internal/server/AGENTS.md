@@ -10,6 +10,14 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+### HTTP trust and shutdown boundaries
+
+- Desktop agent chat, its stream and log APIs require administrative Desktop access. Log tail/search/stream/download scrub registered secrets and credential fields. Passive media proxies reject active HTML/SVG/XML; every inline Knowledge document uses sandbox CSP. Garage HTTP and WebSocket proxies remove local cookies and authorization headers before forwarding.
+- Logout is same-origin POST and persistently revokes the presented session until expiry. Nonce-bearing sessions remain independent; revocation persistence failure does not report success. Login combines bounded per-IP state with account verification concurrency/backoff rather than letting one attacker globally lock the owner out.
+- Read TokenManager through one synchronized snapshot per operation. Stop HTTP acceptance, cancel and drain active handlers/WebSockets, then close their dependencies. Re-panic `http.ErrAbortHandler`; never write a replacement JSON response over a partial proxy response.
+- Cast LAN listeners require a file-specific ticket, reject listing and keep bounded header/idle/stream-write budgets. Store preview calls a configured loopback origin with no redirects; request Host cannot choose it.
+- Verify codequality boundary/lifecycle tests, Remote handshake tests and the existing Desktop token/proxy matrix. A local fixture does not establish external delivery or device acceptance.
+
 ### Code Studio
 
 - Save and upload share `code_studio_files.go`: bounded file bytes travel as a

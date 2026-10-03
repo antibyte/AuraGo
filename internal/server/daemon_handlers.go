@@ -32,10 +32,11 @@ func resolveToManifestName(s *Server, rawID string) string {
 // carry a valid browser session.
 func isDaemonAuthOK(s *Server, r *http.Request) bool {
 	if rawToken, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
-		if rawToken == "" || s.TokenManager == nil {
+		tm := s.currentTokenManager()
+		if rawToken == "" || tm == nil {
 			return false
 		}
-		_, ok := s.TokenManager.Validate(rawToken, "admin")
+		_, ok := tm.Validate(rawToken, "admin")
 		return ok
 	}
 	s.CfgMu.RLock()

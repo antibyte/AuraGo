@@ -75,15 +75,16 @@ func (rc *RemoteConnection) NextSeq() uint64 {
 
 // RemoteHub manages all connected remote agents on the supervisor side.
 type RemoteHub struct {
-	mu          sync.RWMutex
-	connections map[string]*RemoteConnection   // device_id → conn
-	connIndex   map[*websocket.Conn]string     // websocket conn → device_id
-	transports  map[string]CommandTransport    // name → alternate command transport
-	pending     map[string]chan *RemoteMessage // cmd_id → result channel
-	pendingMu   sync.Mutex
-	db          *sql.DB
-	vault       *security.Vault
-	logger      *slog.Logger
+	mu           sync.RWMutex
+	connections  map[string]*RemoteConnection   // device_id → conn
+	connIndex    map[*websocket.Conn]string     // websocket conn → device_id
+	transports   map[string]CommandTransport    // name → alternate command transport
+	pending      map[string]chan *RemoteMessage // cmd_id → result channel
+	pendingMu    sync.Mutex
+	enrollmentMu sync.Mutex // serializes bounded unauthenticated pending registrations
+	db           *sql.DB
+	vault        *security.Vault
+	logger       *slog.Logger
 
 	// Config-driven defaults (set by caller after construction)
 	DefaultReadOnly bool // default read-only setting for newly enrolled devices
@@ -142,6 +143,9 @@ func (h *RemoteHub) Register(deviceID string, conn *RemoteConnection) {
 	if conn != nil && conn.Conn != nil {
 		h.connIndex[conn.Conn] = deviceID
 	}
+	if h.db != nil {
+		_ = UpdateDeviceStatus(h.db, deviceID, "connected")
+	}
 	h.mu.Unlock()
 
 	if old != nil && old.Conn != nil && (conn == nil || old.Conn != conn.Conn) {
@@ -178,16 +182,18 @@ func (h *RemoteHub) unregisterConnection(deviceID string, expected *RemoteConnec
 		if conn.Conn != nil {
 			delete(h.connIndex, conn.Conn)
 		}
+		if h.db != nil {
+			_ = UpdateDeviceStatus(h.db, deviceID, "offline")
+		}
 	}
 	h.mu.Unlock()
 
 	if ok {
-		_ = conn.Conn.Close()
+		if conn.Conn != nil {
+			_ = conn.Conn.Close()
+		}
 		h.logger.Info("Remote disconnected", "device_id", deviceID, "name", conn.Name)
 
-		if h.db != nil {
-			_ = UpdateDeviceStatus(h.db, deviceID, "offline")
-		}
 		h.emitAudit(RemoteAuditEvent{
 			DeviceID:   deviceID,
 			DeviceName: conn.Name,
@@ -354,6 +360,8 @@ func (h *RemoteHub) commandBlockedByReadOnly(deviceID string, conn *RemoteConnec
 		return false
 	}
 	if conn != nil {
+		conn.mu.Lock()
+		defer conn.mu.Unlock()
 		return conn.ReadOnly
 	}
 	if h == nil || h.db == nil {
@@ -497,8 +505,14 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 				conn.Version = hb.Version
 				conn.mu.Unlock()
 
-				if h.db != nil {
+				h.mu.Lock()
+				current := h.connections[conn.DeviceID] == conn
+				if current && h.db != nil {
 					_ = UpdateDeviceStatus(h.db, conn.DeviceID, "connected")
+				}
+				h.mu.Unlock()
+				if !current {
+					continue
 				}
 				if h.OnHeartbeat != nil {
 					h.OnHeartbeat(conn.DeviceID, hb)
@@ -525,7 +539,11 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 				ch, ok := h.pending[result.CommandID]
 				h.pendingMu.Unlock()
 				if ok {
-					ch <- &msg
+					select {
+					case ch <- &msg:
+					default:
+						h.logger.Debug("Duplicate remote result ignored", "command_id", result.CommandID)
+					}
 				}
 				// Audit log
 				if h.db != nil && h.AuditLogEnabled {
@@ -683,12 +701,30 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 	if deviceName == "" {
 		deviceName = "Unknown Device"
 	}
-	deviceID, err := CreateDevice(h.db, DeviceRecord{
+	h.enrollmentMu.Lock()
+	defer h.enrollmentMu.Unlock()
+	peerHost, _, _ := net.SplitHostPort(wsConn.RemoteAddr().String())
+	var deviceID string
+	err := h.db.QueryRow(`SELECT id FROM remote_devices WHERE status='pending' AND hostname=? AND ip_address=? LIMIT 1`, auth.Hostname, peerHost).Scan(&deviceID)
+	if err == nil {
+		return h.sendAuthResponse(wsConn, "", "", deviceID, "pending", "awaiting approval in AuraGo UI", nil, nil)
+	}
+	if err != sql.ErrNoRows {
+		return fmt.Errorf("read pending remote enrollment: %w", err)
+	}
+	var pendingCount int
+	if err := h.db.QueryRow(`SELECT COUNT(*) FROM remote_devices WHERE status='pending'`).Scan(&pendingCount); err != nil {
+		return fmt.Errorf("count pending remote enrollments: %w", err)
+	}
+	if pendingCount >= 100 {
+		return h.sendAuthResponse(wsConn, "", "", "", "rejected", "pending enrollment limit reached", nil, nil)
+	}
+	deviceID, err = CreateDevice(h.db, DeviceRecord{
 		Name:      deviceName,
 		Hostname:  auth.Hostname,
 		OS:        auth.OS,
 		Arch:      auth.Arch,
-		IPAddress: auth.IP,
+		IPAddress: peerHost,
 		Status:    "pending",
 		ReadOnly:  h.DefaultReadOnly,
 	})
@@ -861,17 +897,20 @@ func (h *RemoteHub) StartHeartbeatMonitor(interval, maxAge time.Duration) {
 		defer ticker.Stop()
 		for range ticker.C {
 			h.mu.RLock()
-			var stale []string
-			for deviceID, conn := range h.connections {
-				if !conn.LastHeartbeat.IsZero() && time.Since(conn.LastHeartbeat) > maxAge {
-					stale = append(stale, deviceID)
+			var stale []*RemoteConnection
+			for _, conn := range h.connections {
+				conn.mu.Lock()
+				lastHeartbeat := conn.LastHeartbeat
+				conn.mu.Unlock()
+				if !lastHeartbeat.IsZero() && time.Since(lastHeartbeat) > maxAge {
+					stale = append(stale, conn)
 				}
 			}
 			h.mu.RUnlock()
 
-			for _, id := range stale {
-				h.logger.Warn("Remote heartbeat stale, disconnecting", "device_id", id)
-				h.Unregister(id)
+			for _, conn := range stale {
+				h.logger.Warn("Remote heartbeat stale, disconnecting", "device_id", conn.DeviceID)
+				h.unregisterConnection(conn.DeviceID, conn)
 			}
 		}
 	}()

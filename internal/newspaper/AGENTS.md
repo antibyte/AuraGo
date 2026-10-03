@@ -25,6 +25,7 @@ Own the installation's personal daily publication, durable editions and delivery
 - Delivery receipts bind the edition hash, channel, destination hash and idempotency key. Only a known pre-send failure is retry-safe; ambiguous sends remain uncertain.
 - Email confirmation codes have a one-minute request cooldown and expire after ten minutes. Cancel only the matching code after a known send rejection so the user can retry; retain codes after ambiguous sends so delayed mail can still be confirmed.
 - Keep the feature disabled by default. Read-only blocks profile changes, research and delivery while preserving archive reads. Keep source evidence, run events and editions bounded.
+- Prune old scheduler claims and their runs in one transaction, retaining current-date claims even after many manual revisions. Report prune failures. A separate run context retains explicit cancellation through publication/delivery, including after the research deadline permits a valid partial edition. Persist final state with a separate bounded update context.
 
 ## Verification
 

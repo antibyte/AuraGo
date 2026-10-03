@@ -28,6 +28,9 @@ import (
 )
 
 func (s *Server) run(shutdownCh chan struct{}) error {
+	if err := loadSessionRevocations(s); err != nil {
+		return err
+	}
 	mux := http.NewServeMux()
 	registerMeshCoreRoutes(mux, s)
 	sse := NewSSEBroadcaster()
@@ -990,7 +993,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			s.Logger.Warn("[Loopback] Could not bind internal HTTP listener", "addr", bindAddr, "error", err)
 		} else {
 			s.Logger.Info("[Loopback] Starting internal HTTP listener", "port", loopbackPort)
-			s.loopbackSrv = newInternalLoopbackServer(s.loopbackHandler)
+			s.loopbackSrv = newInternalLoopbackServer(s.trackHTTP(s.loopbackHandler))
 			go func() {
 				if err := s.loopbackSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
 					s.Logger.Warn("[Loopback] Internal HTTP listener stopped", "error", err)
@@ -1005,6 +1008,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// is enabled later via the config UI without a restart.
 	if s.TsNetManager != nil {
 		tsHandler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, false), false))))
+		tsHandler = s.trackHTTP(tsHandler)
 		s.tsNetHandler = tsHandler // stored for /api/tsnet/start (runtime start after hot-reload)
 		if s.Cfg.Tailscale.TsNet.Enabled {
 			tsNetStartupCtx, cancelTsNetStartup := context.WithCancel(context.Background())

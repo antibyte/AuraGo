@@ -90,11 +90,12 @@ func requireDesktopRemoteBaseAccess(s *Server, w http.ResponseWriter, r *http.Re
 		}
 		return "", false, true
 	}
-	if rawToken == "" || s == nil || s.TokenManager == nil {
+	tm := s.currentTokenManager()
+	if rawToken == "" || tm == nil {
 		writeDesktopRemoteGuardError(w, "desktop remote scope required", http.StatusForbidden)
 		return rawToken, true, false
 	}
-	if _, ok := s.TokenManager.Validate(rawToken, ""); ok {
+	if _, ok := tm.Validate(rawToken, ""); ok {
 		return rawToken, true, true
 	}
 	writeDesktopRemoteGuardError(w, "desktop remote scope required", http.StatusForbidden)
@@ -131,10 +132,11 @@ func desktopRemoteTokenHasAdminOrGlobalScope(s *Server, rawToken string) bool {
 }
 
 func desktopRemoteTokenHasExactScope(s *Server, rawToken, scope string) bool {
-	if s == nil || s.TokenManager == nil || strings.TrimSpace(rawToken) == "" || strings.TrimSpace(scope) == "" {
+	tm := s.currentTokenManager()
+	if tm == nil || strings.TrimSpace(rawToken) == "" || strings.TrimSpace(scope) == "" {
 		return false
 	}
-	_, ok := s.TokenManager.Validate(rawToken, scope)
+	_, ok := tm.Validate(rawToken, scope)
 	return ok
 }
 

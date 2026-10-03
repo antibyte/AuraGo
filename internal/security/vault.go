@@ -724,9 +724,9 @@ func (v *Vault) BackupSnapshot() (map[string]string, error) {
 }
 
 // RestoreBackupSnapshot atomically merges backup values into the Vault and
-// restores agent-readable provenance under the current master key. Backups
-// without valid provenance fail closed: every imported value is classified as
-// user-provided and remains hidden from the agent.
+// never imports agent-read grants from backup metadata. Only an unchanged value
+// with an existing local grant retains that grant; new or changed values remain
+// user-provided and hidden from the agent.
 func (v *Vault) RestoreBackupSnapshot(snapshot map[string]string) (int, error) {
 	incoming := make(map[string]string, len(snapshot))
 	for key, value := range snapshot {
@@ -763,14 +763,14 @@ func (v *Vault) RestoreBackupSnapshot(snapshot map[string]string) (int, error) {
 		return 0, err
 	}
 	for key, value := range incoming {
+		unchanged := secrets[key] == value
 		secrets[key] = value
-		delete(readable, key)
-	}
-	if provenanceValid {
-		for _, key := range canonicalAgentReadableKeys(incoming, portable.Keys) {
-			readable[key] = struct{}{}
+		if !unchanged || !provenanceValid {
+			delete(readable, key)
 		}
 	}
+	// Portable metadata cannot grant access to imported or replaced credentials.
+	// Only an existing local grant for an unchanged value can survive restoration.
 	if err := v.storeAgentReadableKeys(secrets, readable); err != nil {
 		return 0, err
 	}

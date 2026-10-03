@@ -617,8 +617,18 @@ func (rl *RateLimiter) Allow(tokenID string) bool {
 	defer rl.mu.Unlock()
 
 	now := rl.now()
+	if len(rl.buckets) >= 4096 {
+		for key, bucket := range rl.buckets {
+			if now.Sub(bucket.updatedAt) >= 5*time.Minute {
+				delete(rl.buckets, key)
+			}
+		}
+	}
 	bucket, ok := rl.buckets[tokenID]
 	if !ok {
+		if len(rl.buckets) >= 4096 {
+			return false
+		}
 		rl.buckets[tokenID] = &rateBucket{tokens: rl.capacity - 1, updatedAt: now}
 		return true
 	}

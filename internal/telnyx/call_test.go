@@ -46,7 +46,7 @@ func TestInitiateCall(t *testing.T) {
 	defer ts.Close()
 
 	c := NewClient("key", nil)
-	c.baseURL = ts.URL
+	c.baseURL = ts.URL + "/v2"
 
 	resp, err := c.InitiateCall(context.Background(), "conn-123", "+15559999999", "+15551234567", "", 30)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestSpeakText(t *testing.T) {
 	defer ts.Close()
 
 	c := NewClient("key", nil)
-	c.baseURL = ts.URL
+	c.baseURL = ts.URL + "/v2"
 
 	err := c.SpeakText(context.Background(), "ctrl-abc", "Hello world", "en-US", "female")
 	if err != nil {
@@ -130,7 +130,7 @@ func TestGatherDTMF(t *testing.T) {
 	defer ts.Close()
 
 	c := NewClient("key", nil)
-	c.baseURL = ts.URL
+	c.baseURL = ts.URL + "/v2"
 
 	err := c.GatherDTMF(context.Background(), "ctrl-abc", "Enter your code", "en-US", "female", 4, 15)
 	if err != nil {
@@ -153,7 +153,7 @@ func TestTransferCall(t *testing.T) {
 	defer ts.Close()
 
 	c := NewClient("key", nil)
-	c.baseURL = ts.URL
+	c.baseURL = ts.URL + "/v2"
 
 	err := c.TransferCall(context.Background(), "ctrl-abc", "+15559876543", "+15551111111")
 	if err != nil {
@@ -179,7 +179,7 @@ func TestHangUp(t *testing.T) {
 	defer ts.Close()
 
 	c := NewClient("key", nil)
-	c.baseURL = ts.URL
+	c.baseURL = ts.URL + "/v2"
 
 	err := c.HangUp(context.Background(), "ctrl-abc")
 	if err != nil {
@@ -194,7 +194,7 @@ func TestRecordStartStop(t *testing.T) {
 	defer ts.Close()
 
 	c := NewClient("key", nil)
-	c.baseURL = ts.URL
+	c.baseURL = ts.URL + "/v2"
 
 	if err := c.RecordStart(context.Background(), "ctrl-abc", "mp3", "single"); err != nil {
 		t.Fatalf("RecordStart error: %v", err)

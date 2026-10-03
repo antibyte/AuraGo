@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha1"
@@ -122,7 +123,11 @@ type desktopEmbedTokenPayload struct {
 // Format: base64url(payload) + "." + hmac_hex
 // Payload: "user|<unix_expires>"
 func createSessionValue(secret string, expiry time.Time) string {
-	payload := fmt.Sprintf("user|%d", expiry.Unix())
+	nonce := make([]byte, 16)
+	if _, err := rand.Read(nonce); err != nil {
+		return ""
+	}
+	payload := fmt.Sprintf("user|%d|%s", expiry.Unix(), hex.EncodeToString(nonce))
 	payloadEnc := base64.URLEncoding.EncodeToString([]byte(payload))
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(payloadEnc))
@@ -132,7 +137,7 @@ func createSessionValue(secret string, expiry time.Time) string {
 
 // validateSessionValue verifies the signature and expiry of a session token.
 func validateSessionValue(secret, value string) bool {
-	return !sessionExpiry(secret, value).IsZero()
+	return !sessionExpiry(secret, value).IsZero() && !sessionIsRevoked(secret, value)
 }
 
 // sessionExpiry returns only the expiry of a signed, currently valid session.
@@ -426,8 +431,12 @@ func requireAdminUnlessGET(s *Server, next http.Handler) http.Handler {
 func requireAdmin(s *Server, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rawToken, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
-			if rawToken != "" && s != nil && s.TokenManager != nil {
-				if _, ok := s.TokenManager.Validate(rawToken, "admin"); ok {
+			var tm *security.TokenManager
+			if s != nil {
+				tm = s.currentTokenManager()
+			}
+			if rawToken != "" && tm != nil {
+				if _, ok := tm.Validate(rawToken, "admin"); ok {
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -507,6 +516,7 @@ type loginRecord struct {
 	mu          sync.Mutex
 	count       int
 	lockedUntil time.Time
+	lastSeen    time.Time
 }
 
 var (
@@ -520,9 +530,27 @@ func getLoginRecord(ip string) *loginRecord {
 	if r, ok := loginRecords[ip]; ok {
 		return r
 	}
-	r := &loginRecord{}
-	loginRecords[ip] = r
+	if len(loginRecords) >= 4096 {
+		cleanupLoginRecordsLocked(time.Now())
+	}
+	r := &loginRecord{lastSeen: time.Now()}
+	// Unknown source addresses cannot grow this table without bound. The
+	// separate account budget still limits distributed guessing.
+	if len(loginRecords) < 4096 {
+		loginRecords[ip] = r
+	}
 	return r
+}
+
+func cleanupLoginRecordsLocked(now time.Time) {
+	for key, record := range loginRecords {
+		record.mu.Lock()
+		expired := now.After(record.lockedUntil) && (record.lastSeen.IsZero() || now.Sub(record.lastSeen) > time.Hour)
+		record.mu.Unlock()
+		if expired {
+			delete(loginRecords, key)
+		}
+	}
 }
 
 func loginScopeKey(scope, value string) string {
@@ -534,6 +562,10 @@ func IsLockedOut(ip string) bool {
 	r := getLoginRecord(ip)
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if !r.lastSeen.IsZero() && time.Since(r.lastSeen) > time.Hour && time.Now().After(r.lockedUntil) {
+		r.count = 0
+		r.lockedUntil = time.Time{}
+	}
 	return time.Now().Before(r.lockedUntil)
 }
 
@@ -552,6 +584,16 @@ func RecordFailedLogin(ip string, maxAttempts, lockoutMinutes int) {
 	r := getLoginRecord(ip)
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if maxAttempts <= 0 {
+		maxAttempts = 5
+	}
+	if lockoutMinutes <= 0 {
+		lockoutMinutes = 15
+	}
+	if !r.lastSeen.IsZero() && time.Since(r.lastSeen) > time.Hour && time.Now().After(r.lockedUntil) {
+		r.count = 0
+	}
+	r.lastSeen = time.Now()
 	// If lockout has expired, reset counter
 	if !r.lockedUntil.IsZero() && time.Now().After(r.lockedUntil) {
 		r.count = 0
@@ -591,14 +633,7 @@ func startLoginRecordCleaner(shutdownCh <-chan struct{}) {
 			case <-ticker.C:
 				loginMu.Lock()
 				now := time.Now()
-				for key, r := range loginRecords {
-					r.mu.Lock()
-					expired := r.count == 0 && (r.lockedUntil.IsZero() || now.After(r.lockedUntil))
-					r.mu.Unlock()
-					if expired {
-						delete(loginRecords, key)
-					}
-				}
+				cleanupLoginRecordsLocked(now)
 				loginMu.Unlock()
 			case <-shutdownCh:
 				return
@@ -631,7 +666,7 @@ func LoginBackoffDelay(keys ...string) time.Duration {
 		locked := time.Now().Before(r.lockedUntil)
 		r.mu.Unlock()
 		if locked {
-			return 0
+			return 2 * time.Second
 		}
 		if count > maxCount {
 			maxCount = count
@@ -861,7 +896,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		if !enabled || isAuthBypassed(r.URL.Path) || s.isTelnyxWebhookIngress(r.URL.Path) {
+		if !enabled || isAuthBypassed(r.URL.Path) || s.isTelnyxWebhookIngress(r.URL.Path) || (isSafeMethod(r.Method) && security.ValidCastMediaTicket(r.URL, time.Now())) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -1060,27 +1095,34 @@ func bearerCredential(header string) (string, bool) {
 }
 
 func validRouteBearer(s *Server, token, path, method string) bool {
-	if token == "" || s == nil || s.TokenManager == nil {
+	if token == "" || s == nil {
+		return false
+	}
+	tm := s.currentTokenManager()
+	if tm == nil {
 		return false
 	}
 	if isAdminProtectedPath(path) {
-		_, ok := s.TokenManager.Validate(token, "admin")
+		_, ok := tm.Validate(token, "admin")
 		return ok
 	}
 	if isDesktopScopedAPIPath(path) {
+		if strings.HasPrefix(path, "/api/desktop/chat") || strings.HasPrefix(path, "/api/desktop/logs/") {
+			return desktopTokenHasScope(s, token, desktopScopeAdmin)
+		}
 		return desktopTokenHasScope(s, token, desktopMethodScope(method))
 	}
 	if strings.HasPrefix(path, "/api/go2rtc/") {
-		if _, ok := s.TokenManager.Validate(token, "admin"); ok {
+		if _, ok := tm.Validate(token, "admin"); ok {
 			return true
 		}
 		if isSafeMethod(method) {
-			_, ok := s.TokenManager.Validate(token, go2RTCViewScope)
+			_, ok := tm.Validate(token, go2RTCViewScope)
 			return ok
 		}
 		return false
 	}
-	_, ok := s.TokenManager.Validate(token, "admin")
+	_, ok := tm.Validate(token, "admin")
 	return ok
 }
 

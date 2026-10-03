@@ -1,12 +1,14 @@
 package telnyx
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,11 +30,13 @@ type WebhookHandler struct {
 	onSMS       func(from, text string, mediaURLs []string) // callback for incoming SMS
 	onCallEvent func(event *WebhookEvent)                   // callback for call events
 
-	activeCalls  map[string]*CallSession
-	mu           sync.RWMutex
-	smsLimiter   *rateLimiter
-	seenEventIDs map[string]time.Time
-	seenMu       sync.Mutex
+	activeCalls   map[string]*CallSession
+	mu            sync.RWMutex
+	reconcileMu   sync.Mutex
+	lastReconcile time.Time
+	smsLimiter    *rateLimiter
+	seenEventIDs  map[string]time.Time
+	seenMu        sync.Mutex
 }
 
 // NewWebhookHandler creates a webhook handler.
@@ -113,6 +117,7 @@ func (h *WebhookHandler) processEvent(event *WebhookEvent) {
 	case EventMessageReceived:
 		h.handleIncomingSMS(event)
 	case EventCallInitiated:
+		h.reconcileActiveCalls(context.Background())
 		h.handleCallInitiated(event)
 	case EventCallAnswered:
 		h.handleCallAnswered(event)
@@ -269,6 +274,7 @@ func (h *WebhookHandler) handleRecordingSaved(event *WebhookEvent) {
 
 // GetActiveCalls returns a snapshot of all active calls.
 func (h *WebhookHandler) GetActiveCalls() []CallSession {
+	h.reconcileActiveCalls(context.Background())
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	calls := make([]CallSession, 0, len(h.activeCalls))
@@ -276,6 +282,55 @@ func (h *WebhookHandler) GetActiveCalls() []CallSession {
 		calls = append(calls, *s)
 	}
 	return calls
+}
+
+// Missing hangups require a provider-confirmed end time. A false is_alive alone
+// can also describe an asynchronous dial; errors retain the call for review.
+func (h *WebhookHandler) reconcileActiveCalls(parent context.Context) {
+	if !h.reconcileMu.TryLock() {
+		return
+	}
+	defer h.reconcileMu.Unlock()
+	if time.Since(h.lastReconcile) < time.Minute || h.client == nil || h.client.apiKey == "" {
+		return
+	}
+	h.lastReconcile = time.Now()
+	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
+	defer cancel()
+	h.mu.RLock()
+	snapshot := make(map[string]time.Time, len(h.activeCalls))
+	for id, call := range h.activeCalls {
+		snapshot[id] = call.LastActivity
+	}
+	h.mu.RUnlock()
+	for id, activity := range snapshot {
+		if ctx.Err() != nil {
+			break
+		}
+		body, _, err := h.client.get(ctx, "/calls/"+url.PathEscape(id))
+		if err != nil {
+			h.logger.Warn("Telnyx call reconciliation unavailable; retaining call")
+			continue
+		}
+		var response struct {
+			Data struct {
+				ID      string `json:"call_control_id"`
+				Alive   *bool  `json:"is_alive"`
+				EndTime string `json:"end_time"`
+			} `json:"data"`
+		}
+		if json.Unmarshal(body, &response) != nil || response.Data.ID != id || response.Data.Alive == nil || *response.Data.Alive {
+			continue
+		}
+		if _, err := time.Parse(time.RFC3339Nano, response.Data.EndTime); err != nil {
+			continue
+		}
+		h.mu.Lock()
+		if current := h.activeCalls[id]; current != nil && current.LastActivity.Equal(activity) {
+			delete(h.activeCalls, id)
+		}
+		h.mu.Unlock()
+	}
 }
 
 // normalizePhone strips all formatting characters, keeping only '+' and digits.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"time"
@@ -261,9 +262,7 @@ func handleStreamingResponse(
 		var ok bool
 		select {
 		case <-timer.C:
-			if strict {
-				midStreamError = fmt.Errorf("%w for %s: %w", errStreamIdleTimeout, idleTimeout, context.DeadlineExceeded)
-			}
+			midStreamError = fmt.Errorf("%w for %s: %w", errStreamIdleTimeout, idleTimeout, context.DeadlineExceeded)
 			currentLogger.Warn("[Stream] No chunks received within idle timeout; aborting stream", "timeout", idleTimeout.String())
 			telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
 			llm.ReportLLMHealthEvent(llm.HealthEvent{
@@ -304,10 +303,10 @@ func handleStreamingResponse(
 
 		chunk, rErr := rr.chunk, rr.err
 		if rErr != nil {
-			if strict && rErr.Error() != "EOF" {
+			if !errors.Is(rErr, io.EOF) {
 				midStreamError = fmt.Errorf("model stream interrupted: %w", rErr)
 			}
-			if rErr.Error() != "EOF" {
+			if !errors.Is(rErr, io.EOF) {
 				if llmCtx.Err() == context.Canceled || llm.IsContextError(rErr) {
 					currentLogger.Debug("Stream canceled", "error", rErr)
 					contextCancelled = true
@@ -391,10 +390,10 @@ func handleStreamingResponse(
 	}
 	_ = recvEg.Wait()
 	stm.Close()
-	if strict && midStreamError == nil {
+	if midStreamError == nil {
 		if llmCtx.Err() != nil {
 			midStreamError = fmt.Errorf("model stream interrupted: %w", llmCtx.Err())
-		} else if lastFinishReason == "" {
+		} else if lastFinishReason == "" && (assembledResponse.Len() > 0 || len(tcAssembler.Assemble()) > 0) {
 			midStreamError = fmt.Errorf("model stream ended without a completion marker; incomplete output was not applied")
 		} else if lastFinishReason != "stop" && lastFinishReason != "tool_calls" && (assembledResponse.Len() > 0 || len(tcAssembler.Assemble()) > 0) {
 			midStreamError = fmt.Errorf("model stream was incomplete (%s); incomplete output was not applied", lastFinishReason)
@@ -403,14 +402,7 @@ func handleStreamingResponse(
 	if strict {
 		currentLogger.Info("[Stream] Completion summary", "finish_reason", lastFinishReason, "text_bytes", assembledResponse.Len(), "reasoning_bytes", assembledReasoning.Len(), "tool_calls", len(tcAssembler.Assemble()), "interrupted", midStreamError != nil)
 	}
-	if midStreamError != nil {
-		return streamingResponseResult{
-			err:                  midStreamError,
-			contextCancelled:     contextCancelled,
-			interruptedReasoning: assembledReasoning.String(),
-		}
-	}
-	if doneTagStreamBuf != "" && !xmlToolCallSuppressed {
+	if midStreamError == nil && doneTagStreamBuf != "" && !xmlToolCallSuppressed {
 		remaining := strings.ReplaceAll(doneTagStreamBuf, doneTagStr, "")
 		if idx, ok := shouldSuppressStreamedToolCallText(remaining); ok {
 			remaining = remaining[:idx]
@@ -420,7 +412,9 @@ func handleStreamingResponse(
 		}
 		doneTagStreamBuf = ""
 	}
-	broker.SendLLMStreamDone(lastFinishReason)
+	if midStreamError == nil {
+		broker.SendLLMStreamDone(lastFinishReason)
+	}
 	content := assembledResponse.String()
 	reasoningContent := assembledReasoning.String()
 
@@ -436,13 +430,11 @@ func handleStreamingResponse(
 		completionTokens = streamAcct.providerCompletion
 		totalTokens = promptTokens + completionTokens
 		tokenSource = "provider_usage"
-	} else if contextCancelled {
-		promptTokens = 0
-		completionTokens = 0
-		totalTokens = 0
-		tokenSource = "provider_usage"
 	} else {
-		completionTokens = estimateTokensForModel(content, req.Model)
+		completionTokens = estimateTokensForModel(content+reasoningContent, req.Model)
+		for _, call := range assembledToolCalls {
+			completionTokens += estimateTokensForModel(call.Function.Name+call.Function.Arguments, req.Model)
+		}
 		for _, m := range req.Messages {
 			promptTokens += estimateTokensForModel(messageTextWithReasoningForAccounting(m), req.Model)
 		}
@@ -470,14 +462,19 @@ func handleStreamingResponse(
 		},
 		Usage: usage,
 	}
+	if midStreamError != nil {
+		resp.Choices = nil
+	}
 	return streamingResponseResult{
-		resp:             resp,
-		content:          content,
-		promptTokens:     promptTokens,
-		completionTokens: completionTokens,
-		totalTokens:      totalTokens,
-		tokenSource:      tokenSource,
-		contextCancelled: contextCancelled,
+		err:                  midStreamError,
+		interruptedReasoning: reasoningContent,
+		resp:                 resp,
+		content:              content,
+		promptTokens:         promptTokens,
+		completionTokens:     completionTokens,
+		totalTokens:          totalTokens,
+		tokenSource:          tokenSource,
+		contextCancelled:     contextCancelled,
 	}
 }
 

@@ -311,6 +311,10 @@
 
         appendImageMessage(chatLog, imgData) {
             if (!imgData || !imgData.path || this.seenSSEImages.has(imgData.path)) return;
+            if (!window.AuraChatCore || !window.AuraChatCore.isSafeMediaSource(imgData.path, 'img')) {
+                this.appendRichBubble(chatLog, 'agent', String(imgData.path));
+                return;
+            }
             this.seenSSEImages.add(imgData.path);
             const cap = this.escapeHtml(imgData.caption || '');
             const bubble = this.createBubble('agent', '');
@@ -333,6 +337,10 @@
 
         appendVideoMessage(chatLog, videoData) {
             if (!videoData || !videoData.path || this.seenSSEVideos.has(videoData.path)) return;
+            if (!window.AuraChatCore || !window.AuraChatCore.isSafeMediaSource(videoData.path, 'video')) {
+                this.appendRichBubble(chatLog, 'agent', String(videoData.path));
+                return;
+            }
             this.seenSSEVideos.add(videoData.path);
             const bubble = this.createBubble('agent', '');
             const video = document.createElement('video');
@@ -371,7 +379,7 @@
                 wrapper.appendChild(titleEl);
             }
 
-            if (streamData.path) {
+            if (streamData.path && window.AuraChatCore && window.AuraChatCore.isSafeMediaSource(streamData.path, 'img')) {
                 const img = document.createElement('img');
                 img.className = 'chat-video-player chat-live-stream';
                 img.src = streamData.path;

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
 
 	"aurago/internal/i18n"
 )
@@ -45,7 +44,7 @@ func verifyAdminCredentials(s *Server, r *http.Request, currentPassword, current
 	if hash == "" {
 		return stepUpResult{Status: http.StatusConflict, Code: "password_not_set", MessageKey: "backend.auth_not_configured"}
 	}
-	if IsLockedOutAny(ipKey, accountKey) {
+	if IsLockedOut(ipKey) {
 		return locked
 	}
 	if currentPassword == "" {
@@ -54,9 +53,11 @@ func verifyAdminCredentials(s *Server, r *http.Request, currentPassword, current
 	if totpActive && strings.TrimSpace(currentTOTPCode) == "" {
 		return stepUpResult{Status: http.StatusForbidden, Code: "current_totp_required", MessageKey: "backend.auth_current_totp_required"}
 	}
-	if delay := LoginBackoffDelay(ipKey, accountKey); delay > 0 {
-		time.Sleep(delay)
+	releaseVerification, allowed := beginAdminVerification(r.Context(), ipKey, accountKey)
+	if !allowed {
+		return locked
 	}
+	defer releaseVerification()
 	if !CheckPassword(currentPassword, hash) || (totpActive && !VerifyTOTP(totpSecret, currentTOTPCode)) {
 		RecordFailedLoginForKeys(maxAttempts, lockoutMinutes, ipKey, accountKey)
 		if s.Logger != nil {

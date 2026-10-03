@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/security"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -516,7 +517,7 @@ func ChromecastSpeak(deviceAddr string, devicePort int, text string, ttsCfg TTSC
 			host = "127.0.0.1"
 		}
 	}
-	audioURL := fmt.Sprintf("http://%s:%d/tts/%s", host, ccCfg.ServerPort, filename)
+	audioURL := security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/tts/%s", host, ccCfg.ServerPort, url.PathEscape(filename)))
 
 	// Cast to device
 	app, err := connectChromecast(deviceAddr, devicePort)

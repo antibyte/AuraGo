@@ -467,6 +467,10 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 	defer desktopMutationMu.Unlock()
 	defer s.invalidateListCache()
 
+	return s.writeFileBytesLocked(ctx, path, content, source, precondition, maxBytes)
+}
+
+func (s *Service) writeFileBytesLocked(ctx context.Context, path string, content []byte, source string, precondition FileWritePrecondition, maxBytes int64) (FileEntry, error) {
 	if err := s.guardNoteWrite(path, source, content); err != nil {
 		return FileEntry{}, err
 	}
@@ -479,10 +483,6 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 			return FileEntry{}, err
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return FileEntry{}, fmt.Errorf("create desktop file directory: %w", err)
-	}
-	_ = os.Chmod(filepath.Dir(path), 0o700)
 	rootAbs, err := filepath.Abs(s.Config().WorkspaceDir)
 	if err != nil {
 		return FileEntry{}, fmt.Errorf("resolve desktop root: %w", err)
@@ -491,10 +491,10 @@ func (s *Service) writeFileBytes(ctx context.Context, rawPath string, content []
 	if err != nil {
 		return FileEntry{}, fmt.Errorf("resolve desktop file directory: %w", err)
 	}
-	if err := validateNoSymlinkComponents(rootAbs, dirAbs, false); err != nil {
+	if err := validateNoSymlinkComponents(rootAbs, dirAbs, true); err != nil {
 		return FileEntry{}, err
 	}
-	info, err := secureWriteWorkspaceFile(path, content)
+	info, err := secureWriteWorkspaceFileRoot(ctx, rootAbs, path, content)
 	if err != nil {
 		return FileEntry{}, fmt.Errorf("write desktop file: %w", err)
 	}

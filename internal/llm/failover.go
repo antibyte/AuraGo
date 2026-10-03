@@ -142,6 +142,8 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 
 	fm.mu.Lock()
 	fm.primary = newPrimary
+	fm.errorThreshold = 3
+	fm.probeInterval = 60 * time.Second
 	fm.primaryType = cfg.LLM.ProviderType
 	fm.primaryModel = cfg.LLM.Model
 	fm.primaryBaseURL = cfg.LLM.BaseURL

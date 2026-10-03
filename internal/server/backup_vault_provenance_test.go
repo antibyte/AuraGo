@@ -10,7 +10,7 @@ import (
 	"aurago/internal/security"
 )
 
-func TestVaultBackupRoundTripPreservesSecretProvenance(t *testing.T) {
+func TestVaultBackupRoundTripRequiresFreshAgentGrant(t *testing.T) {
 	source, err := security.NewVault(strings.Repeat("c", 64), filepath.Join(t.TempDir(), "source.bin"))
 	if err != nil {
 		t.Fatal(err)
@@ -37,10 +37,10 @@ func TestVaultBackupRoundTripPreservesSecretProvenance(t *testing.T) {
 	if err != nil || count != 3 {
 		t.Fatalf("importVaultSecrets() count = %d, err = %v", count, err)
 	}
-	if value, err := target.ReadSecretForAgent("AGENT_VALUE"); err != nil || value != "agent-secret" {
-		t.Fatalf("agent value = %q, err = %v", value, err)
+	if value, err := target.ReadSecret("AGENT_VALUE"); err != nil || value != "agent-secret" {
+		t.Fatalf("restored value = %q, err = %v", value, err)
 	}
-	for _, key := range []string{"MODAL_VALUE", "LEGACY_VALUE"} {
+	for _, key := range []string{"AGENT_VALUE", "MODAL_VALUE", "LEGACY_VALUE"} {
 		if _, err := target.ReadSecretForAgent(key); !errors.Is(err, security.ErrSecretAgentAccessDenied) {
 			t.Fatalf("%s became agent-readable: %v", key, err)
 		}

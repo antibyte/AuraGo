@@ -288,7 +288,7 @@ func TestExecutePythonReportsMissingOptionalRuntime(t *testing.T) {
 
 func TestInstallPackageDoesNotInheritSensitiveEnv(t *testing.T) {
 	workspaceDir := t.TempDir()
-	installFakePip(t, workspaceDir)
+	installFakePython(t, workspaceDir)
 	setSensitiveEnvForSubprocessTest(t)
 	t.Setenv("AURAGO_FAKE_PYTHON", "1")
 

@@ -369,7 +369,7 @@ func TestWriteUserSecretContextStopsBeforePublish(t *testing.T) {
 	}
 }
 
-func TestVaultBackupSnapshotPreservesProvenanceAcrossMasterKeys(t *testing.T) {
+func TestVaultBackupSnapshotDoesNotGrantAccessAcrossMasterKeys(t *testing.T) {
 	source, err := NewVault(strings.Repeat("9", 64), filepath.Join(t.TempDir(), "source.bin"))
 	if err != nil {
 		t.Fatal(err)
@@ -404,10 +404,7 @@ func TestVaultBackupSnapshotPreservesProvenanceAcrossMasterKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if value, err := reopened.ReadSecretForAgent("AGENT_VALUE"); err != nil || value != "agent-secret" {
-		t.Fatalf("agent-readable value = %q, err = %v", value, err)
-	}
-	for _, key := range []string{"MODAL_VALUE", "LEGACY_VALUE"} {
+	for _, key := range []string{"AGENT_VALUE", "MODAL_VALUE", "LEGACY_VALUE"} {
 		if _, err := reopened.ReadSecretForAgent(key); !errors.Is(err, ErrSecretAgentAccessDenied) {
 			t.Fatalf("%s became agent-readable: %v", key, err)
 		}
@@ -422,6 +419,10 @@ func TestVaultRestoreLegacyAndManipulatedProvenanceFailsClosed(t *testing.T) {
 		{
 			name:     "legacy",
 			snapshot: map[string]string{"VALUE": "legacy-secret"},
+		},
+		{
+			name:     "forged-portable-v1",
+			snapshot: map[string]string{"VALUE": "forged-secret", vaultAgentReadableMetadataKey: `{"version":1,"keys":["VALUE"]}`},
 		},
 		{
 			name: "manipulated",

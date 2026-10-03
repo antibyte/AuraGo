@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 func TestMainTTSRouteServesSupertonicAudioContentTypes(t *testing.T) {
@@ -134,7 +135,7 @@ func TestDedicatedChromecastMediaServerServesTTSAndCastMedia(t *testing.T) {
 	client := &http.Client{Timeout: 500 * time.Millisecond}
 	assertDedicatedMedia := func(path, wantContentType string) {
 		t.Helper()
-		url := "http://127.0.0.1:" + mediaServer.Addr[strings.LastIndex(mediaServer.Addr, ":")+1:] + path
+		url := security.SignCastMediaURL("http://127.0.0.1:" + mediaServer.Addr[strings.LastIndex(mediaServer.Addr, ":")+1:] + path)
 		var resp *http.Response
 		var err error
 		for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {

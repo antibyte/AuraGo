@@ -10,6 +10,13 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ## Local Contracts
 
+### Conflict and graph integrity
+
+- Automatic conflict confirmation preserves unrelated archival and replacement state. Graph cleanup aborts the complete SQL transaction after any delete failure, then updates semantic indexes only for committed deletes and reports index errors.
+- Node merges retain both claim histories and prefer accepted active edges over retracted collisions. Canonical repair preserves the analysis envelope and provenance independently of graph identity. Batch large identifier lists; propagate identity-query failures before destructive writes.
+- OptimizeGraph keeps its explicit low-confidence/degree/protection policy; no implicit age threshold. Pending-write dedupe retains exhausted state and retry scheduling; enqueue does not reactivate work.
+- Verify `TestGraphCleanupRollsBackEarlierDeletesOnSQLFailure`, `TestGraphMergeKeepsAcceptedSourceAndBothClaimHistories`, `TestCanonicalRepairPreservesAnalysisEnvelope`, conflict and pending-write tests. Existing production data needs separately reviewed offline repair.
+
 ### Memory System
 - **Short-Term**: SQLite sliding-window conversation context
 - **Long-Term**: Vector database with semantic search (chromem-go)

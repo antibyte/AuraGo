@@ -198,10 +198,15 @@ func handleThreeDPrinterCameraStream(s *Server) http.HandlerFunc {
 			return
 		}
 		contentType := resp.Header.Get("Content-Type")
+		if contentType != "" && !passiveProxyContentType(contentType) {
+			jsonError(w, "Unsupported camera media type", http.StatusBadGateway)
+			return
+		}
 		if contentType == "" {
 			contentType = "multipart/x-mixed-replace"
 		}
 		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Accel-Buffering", "no")
 		w.WriteHeader(http.StatusOK)

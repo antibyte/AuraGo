@@ -153,7 +153,7 @@ func TestConfigMainUsesPrecisionStateForSaveAndDiscard(t *testing.T) {
 		`window.AuraConfigState.init(configData)`,
 		`window.AuraConfigState.beginSection(key)`,
 		`window.AuraConfigState.buildPatch()`,
-		`window.AuraConfigState.commit(configData)`,
+		`window.AuraConfigState.commitSent(configData, sentDraft)`,
 		`window.AuraConfigState.discard()`,
 		`config.unsaved_changes.save_and_continue`,
 	} {

@@ -49,9 +49,15 @@ func readOfficeParts(data []byte, mainPart string) (map[string][]byte, error) {
 			return nil, fmt.Errorf("open DOCX part: %w", err)
 		}
 		content, readErr := io.ReadAll(io.LimitReader(stream, remaining+1))
-		stream.Close()
+		closeErr := stream.Close()
 		if readErr != nil {
 			return nil, fmt.Errorf("read DOCX part: %w", readErr)
+		}
+		if closeErr != nil {
+			return nil, fmt.Errorf("close office part: %w", closeErr)
+		}
+		if strings.HasSuffix(strings.ToLower(file.Name), ".xml") && len(content) > 16<<20 {
+			return nil, fmt.Errorf("office XML part exceeds limit")
 		}
 		remaining -= int64(len(content))
 		if remaining < 0 {

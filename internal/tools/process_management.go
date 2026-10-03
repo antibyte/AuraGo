@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sort"
@@ -30,6 +31,11 @@ type ProcessBasicInfo struct {
 // ManageProcesses handles platform-independent process management.
 // The lang parameter is used for i18n of user-facing messages. If empty, English is used.
 func ManageProcesses(operation string, pid int32, lang string) string {
+	return ManageProcessesContext(context.Background(), operation, pid, lang, nil)
+}
+
+// ManageProcessesContext permits termination only through a managed process handle.
+func ManageProcessesContext(ctx context.Context, operation string, pid int32, lang string, registry *ProcessRegistry) string {
 	encode := func(r ProcResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -89,17 +95,29 @@ func ManageProcesses(operation string, pid int32, lang string) string {
 		})
 
 	case "kill":
+		if err := requireShellPermissionContext(ctx); err != nil {
+			return encode(ProcResult{Status: "error", Message: err.Error()})
+		}
 		if pid == 0 {
 			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_kill_zero_pid")})
 		}
 		if pid == 1 || pid == int32(os.Getpid()) {
 			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_kill_protected", pid)})
 		}
-		p, err := process.NewProcess(pid)
-		if err != nil {
-			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_not_found", pid, err)})
+		if pid < 0 || registry == nil {
+			return encode(ProcResult{Status: "error", Message: "Only AuraGo-managed processes can be terminated"})
 		}
-		if err := p.Kill(); err != nil {
+		info, ok := registry.Get(int(pid))
+		if !ok {
+			return encode(ProcResult{Status: "error", Message: "Process is not registered with AuraGo"})
+		}
+		info.mu.Lock()
+		managed := info.Alive && info.Process != nil && info.Process.Pid == int(pid)
+		info.mu.Unlock()
+		if !managed {
+			return encode(ProcResult{Status: "error", Message: "Managed process has already exited"})
+		}
+		if err := registry.Terminate(int(pid)); err != nil {
 			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_kill_failed", pid, err)})
 		}
 		return encode(ProcResult{Status: "success", Message: i18n.T(lang, "tools.process_terminated", pid)})

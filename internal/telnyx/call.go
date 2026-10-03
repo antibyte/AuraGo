@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 
 	"aurago/internal/config"
 )
@@ -32,7 +33,7 @@ func (c *Client) InitiateCall(ctx context.Context, connectionID, from, to string
 		req.WebhookURLMethod = "POST"
 	}
 
-	data, _, err := c.post(ctx, "/v2/calls", req)
+	data, _, err := c.post(ctx, "/calls", req)
 	if err != nil {
 		return nil, fmt.Errorf("initiate call: %w", err)
 	}
@@ -45,7 +46,7 @@ func (c *Client) InitiateCall(ctx context.Context, connectionID, from, to string
 
 // AnswerCall answers an incoming call.
 func (c *Client) AnswerCall(ctx context.Context, callControlID string) error {
-	path := fmt.Sprintf("/v2/calls/%s/actions/answer", callControlID)
+	path := fmt.Sprintf("/calls/%s/actions/answer", url.PathEscape(callControlID))
 	_, _, err := c.post(ctx, path, map[string]string{})
 	return err
 }
@@ -65,7 +66,7 @@ func (c *Client) SpeakText(ctx context.Context, callControlID, text, language, v
 		voice = "female"
 	}
 
-	path := fmt.Sprintf("/v2/calls/%s/actions/speak", callControlID)
+	path := fmt.Sprintf("/calls/%s/actions/speak", url.PathEscape(callControlID))
 	req := SpeakRequest{
 		Payload:     text,
 		PayloadType: "text",
@@ -85,7 +86,7 @@ func (c *Client) PlayAudio(ctx context.Context, callControlID, audioURL string) 
 		return fmt.Errorf("audio_url is required for play_audio")
 	}
 
-	path := fmt.Sprintf("/v2/calls/%s/actions/playback_start", callControlID)
+	path := fmt.Sprintf("/calls/%s/actions/playback_start", url.PathEscape(callControlID))
 	req := PlaybackStartRequest{
 		AudioURL: audioURL,
 	}
@@ -114,7 +115,7 @@ func (c *Client) GatherDTMF(ctx context.Context, callControlID, prompt, language
 		timeoutSecs = 10
 	}
 
-	path := fmt.Sprintf("/v2/calls/%s/actions/gather_using_speak", callControlID)
+	path := fmt.Sprintf("/calls/%s/actions/gather_using_speak", url.PathEscape(callControlID))
 	req := GatherSpeakRequest{
 		Payload:       prompt,
 		PayloadType:   "text",
@@ -136,7 +137,7 @@ func (c *Client) TransferCall(ctx context.Context, callControlID, to, from strin
 		return fmt.Errorf("invalid transfer 'to' number: %w", err)
 	}
 
-	path := fmt.Sprintf("/v2/calls/%s/actions/transfer", callControlID)
+	path := fmt.Sprintf("/calls/%s/actions/transfer", url.PathEscape(callControlID))
 	req := TransferRequest{
 		To:   to,
 		From: from,
@@ -157,7 +158,7 @@ func (c *Client) RecordStart(ctx context.Context, callControlID, format, channel
 		channels = "single"
 	}
 
-	path := fmt.Sprintf("/v2/calls/%s/actions/record_start", callControlID)
+	path := fmt.Sprintf("/calls/%s/actions/record_start", url.PathEscape(callControlID))
 	req := RecordStartRequest{
 		Format:   format,
 		Channels: channels,
@@ -172,7 +173,7 @@ func (c *Client) RecordStop(ctx context.Context, callControlID string) error {
 		return fmt.Errorf("call_control_id is required")
 	}
 
-	path := fmt.Sprintf("/v2/calls/%s/actions/record_stop", callControlID)
+	path := fmt.Sprintf("/calls/%s/actions/record_stop", url.PathEscape(callControlID))
 	_, _, err := c.post(ctx, path, map[string]string{})
 	return err
 }
@@ -183,7 +184,7 @@ func (c *Client) HangUp(ctx context.Context, callControlID string) error {
 		return fmt.Errorf("call_control_id is required")
 	}
 
-	path := fmt.Sprintf("/v2/calls/%s/actions/hangup", callControlID)
+	path := fmt.Sprintf("/calls/%s/actions/hangup", url.PathEscape(callControlID))
 	_, _, err := c.post(ctx, path, map[string]string{})
 	return err
 }

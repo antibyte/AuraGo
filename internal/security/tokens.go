@@ -1,6 +1,7 @@
 package security
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -14,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/fileutil"
 	"aurago/internal/uid"
 )
 
@@ -189,7 +191,9 @@ func writeFileAtomicSynced(path string, data []byte, perm os.FileMode) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := fileutil.RenameContext(ctx, tmpPath, path); err != nil {
 		return err
 	}
 	success = true

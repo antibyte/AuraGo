@@ -348,8 +348,7 @@ func handleDesktopStorePreviewStatus(s *Server, appID string) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
-		fromTailnet, tailnetDNS := s.storeTailnetRequestInfo(r)
-		openURL, _, err := store.OpenURL(r.Context(), appID, r.Host, fromTailnet, tailnetDNS, r.URL.Query().Get("port_id"))
+		openURL, _, err := store.OpenURL(r.Context(), appID, "127.0.0.1", false, "", r.URL.Query().Get("port_id"))
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
@@ -371,7 +370,9 @@ func handleDesktopStorePreviewStatus(s *Server, appID string) http.HandlerFunc {
 			return
 		}
 		req.Header.Set("Accept", "application/json")
-		resp, err := http.DefaultClient.Do(req)
+		client := &http.Client{Timeout: 2 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		defer client.CloseIdleConnections()
+		resp, err := client.Do(req)
 		if err != nil {
 			writeDesktopStorePreviewStatus(w, false, "")
 			return
@@ -385,7 +386,7 @@ func handleDesktopStorePreviewStatus(s *Server, appID string) http.HandlerFunc {
 			Ready  bool   `json:"ready"`
 			Target string `json:"target"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, resp.Body, 64<<10)).Decode(&body); err != nil {
 			writeDesktopStorePreviewStatus(w, false, "")
 			return
 		}

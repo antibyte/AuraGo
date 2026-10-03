@@ -17,6 +17,7 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/inventory"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 )
@@ -40,7 +41,7 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 		return fmt.Errorf("resolve local_path: %w", err)
 	}
 
-	source, err := os.Open(resolved)
+	source, err := tools.OpenToolInputFile(filepath.FromSlash(localPath), cfg)
 	if err != nil {
 		return fmt.Errorf("open local media: %w", err)
 	}
@@ -61,14 +62,23 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("create cast media dir: %w", err)
 	}
-	destPath := filepath.Join(destDir, baseName)
-	destFile, err := os.Create(destPath)
+	destFile, err := os.CreateTemp(destDir, "cast-*"+filepath.Ext(baseName))
 	if err != nil {
 		return fmt.Errorf("create cast media file: %w", err)
 	}
-	if _, err := io.Copy(destFile, source); err != nil {
+	destPath := destFile.Name()
+	published := false
+	defer func() {
 		destFile.Close()
+		if !published {
+			os.Remove(destPath)
+		}
+	}()
+	if _, err := io.Copy(destFile, source); err != nil {
 		return fmt.Errorf("copy cast media file: %w", err)
+	}
+	if err := destFile.Sync(); err != nil {
+		return fmt.Errorf("sync cast media file: %w", err)
 	}
 	if err := destFile.Close(); err != nil {
 		return fmt.Errorf("finalize cast media file: %w", err)
@@ -78,7 +88,11 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 	if port == 0 {
 		port = cfg.Server.Port
 	}
-	req.URL = fmt.Sprintf("http://%s:%d/cast-media/%s", getLocalIP(cfg), port, baseName)
+	req.URL = security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/cast-media/%s", getLocalIP(cfg), port, url.PathEscape(filepath.Base(destPath))))
+	if req.URL == "" {
+		return fmt.Errorf("create cast media ticket")
+	}
+	published = true
 	return nil
 }
 
@@ -483,7 +497,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.Chromecast.Enabled && cfg.Chromecast.TTSPort > 0 {
 				ttsPort = cfg.Chromecast.TTSPort // Chromecast has its own dedicated TTS server
 			}
-			audioURL := fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), ttsPort, filename)
+			audioURL := security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), ttsPort, url.PathEscape(filename)))
 			webPath := "/tts/" + filename
 			absLocalPath, _ := filepath.Abs(filepath.Join(cfg.Directories.DataDir, "tts", filename))
 			absLocalPath = filepath.ToSlash(absLocalPath)

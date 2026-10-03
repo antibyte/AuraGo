@@ -305,7 +305,7 @@ func TestChatRenderersDelegateToSharedChatCore(t *testing.T) {
 		"const CHAT_SANITIZER_ALLOWED_TAGS = new Set([",
 		"const CHAT_SANITIZER_ALLOWED_ATTRS = new Set([",
 		"node.setAttribute('sandbox', 'allow-scripts')",
-		"keepBlobMedia",
+		"isSafeMediaSource",
 	} {
 		if !strings.Contains(chatCoreJS, want) {
 			t.Fatalf("shared chat core sanitizer missing central security marker %q", want)

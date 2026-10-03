@@ -358,13 +358,7 @@ function wireWindow(win, id) {
             }
             if (dy > 80 && dy > Math.abs(dx) * 1.2 && dy / elapsed > 0.25) {
                 event.preventDefault();
-                animateThen(win, 'vd-window-closing', 130, () => {
-                    disposeAppWindow(state.windows.get(id));
-                    win.remove();
-                    state.windows.delete(id);
-                    renderTaskbar();
-                    scheduleFruityDockOcclusionCheck();
-                });
+                void closeWindow(id);
             }
         });
         bar.addEventListener('pointercancel', event => {

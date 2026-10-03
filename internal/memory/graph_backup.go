@@ -144,12 +144,15 @@ func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, node
 	}
 	defer tx.Rollback()
 
-	removedEdges := kg.collectSemanticEdgeIdentities(tx, `
+	removedEdges, err := kg.collectSemanticEdgeIdentities(tx, `
 		SELECT source, target, relation FROM kg_edges
 		WHERE json_valid(properties)
 		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
+	if err != nil {
+		return err
+	}
 	if _, err := tx.Exec(`
 		DELETE FROM kg_edges
 		WHERE json_valid(properties)

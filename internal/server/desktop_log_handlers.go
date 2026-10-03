@@ -1,8 +1,11 @@
 package server
 
 import (
+	"aurago/internal/security"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,7 +14,7 @@ import (
 
 func handleDesktopLogFiles(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodGet {
@@ -37,7 +40,7 @@ func handleDesktopLogFiles(s *Server) http.HandlerFunc {
 
 func handleDesktopLogTail(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodGet {
@@ -86,7 +89,7 @@ func handleDesktopLogTail(s *Server) http.HandlerFunc {
 
 func handleDesktopLogStream(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodGet {
@@ -134,7 +137,7 @@ func handleDesktopLogStream(s *Server) http.HandlerFunc {
 
 func handleDesktopLogSearch(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodGet {
@@ -180,7 +183,7 @@ func handleDesktopLogSearch(s *Server) http.HandlerFunc {
 
 func handleDesktopLogDownload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
 		if r.Method != http.MethodGet {
@@ -214,7 +217,13 @@ func handleDesktopLogDownload(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, sanitizeContentDisposition(name)))
-		http.ServeContent(w, r, name, stat.ModTime(), file)
+		body, err := io.ReadAll(io.LimitReader(file, (64<<20)+1))
+		if err != nil || len(body) > 64<<20 {
+			jsonError(w, "Log download exceeds the 64 MiB limit or could not be read", http.StatusRequestEntityTooLarge)
+			return
+		}
+		body = []byte(security.Scrub(security.RedactSensitiveInfo(string(body))))
+		http.ServeContent(w, r, name, stat.ModTime(), bytes.NewReader(body))
 	}
 }
 

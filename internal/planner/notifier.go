@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -11,23 +12,21 @@ import (
 
 // Notifier periodically checks for due appointment notifications and wakes the agent.
 type Notifier struct {
-	db               *sql.DB
-	logger           *slog.Logger
-	executor         func(string)
-	missionTrigger   func(Appointment)
-	todoTrigger      func(Todo)
-	seenOverdueTodos map[string]struct{}
-	mu               sync.Mutex
-	cancel           context.CancelFunc
-	running          bool
+	db             *sql.DB
+	logger         *slog.Logger
+	executor       func(string)
+	missionTrigger func(Appointment)
+	todoTrigger    func(Todo)
+	mu             sync.Mutex
+	cancel         context.CancelFunc
+	running        bool
 }
 
 // NewNotifier creates a new appointment notifier.
 func NewNotifier(db *sql.DB, logger *slog.Logger) *Notifier {
 	return &Notifier{
-		db:               db,
-		logger:           logger,
-		seenOverdueTodos: make(map[string]struct{}),
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -185,14 +184,16 @@ func (n *Notifier) checkOverdueTodos() {
 		if err != nil || dueAt.After(now) {
 			continue
 		}
-		key := todo.ID + "|" + todo.DueDate
-		n.mu.Lock()
-		_, seen := n.seenOverdueTodos[key]
-		if !seen {
-			n.seenOverdueTodos[key] = struct{}{}
+		key := fmt.Sprintf("overdue_todo:%x", sha256.Sum256([]byte(todo.ID+"\x00"+todo.DueDate)))
+		result, err := n.db.Exec(`INSERT INTO planner_meta(key,value)
+			SELECT ?, 'claimed' WHERE EXISTS(SELECT 1 FROM todos WHERE id=? AND due_date=? AND status!='done')
+			ON CONFLICT(key) DO NOTHING`, key, todo.ID, todo.DueDate)
+		if err != nil {
+			n.logger.Error("[Planner] Failed to claim overdue todo", "error", err)
+			continue
 		}
-		n.mu.Unlock()
-		if seen {
+		claimed, err := result.RowsAffected()
+		if err != nil || claimed != 1 {
 			continue
 		}
 		func(t Todo) {
@@ -202,6 +203,9 @@ func (n *Notifier) checkOverdueTodos() {
 				}
 			}()
 			todoTrigger(t)
+			if _, err := n.db.Exec(`UPDATE planner_meta SET value='dispatched' WHERE key=? AND value='claimed'`, key); err != nil {
+				n.logger.Error("[Planner] Failed to finish overdue todo claim", "error", err)
+			}
 		}(todo)
 	}
 }

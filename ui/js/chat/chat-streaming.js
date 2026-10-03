@@ -494,6 +494,10 @@ function handleSSEMessage(e) {
             try {
                 const imgData = JSON.parse(data.detail);
                 if (imgData && imgData.path) {
+                    if (!window.AuraChatCore || !window.AuraChatCore.isSafeMediaSource(imgData.path, 'img')) {
+                        appendMessage('assistant', String(imgData.path));
+                        return;
+                    }
                     seenSSEImages.add(imgData.path);
                     const cap = imgData.caption ? escapeHtml(imgData.caption) : '';
                     const safePath = escapeHtml(imgData.path);
@@ -622,9 +626,11 @@ function handleSSEMessage(e) {
             hideTodoPanel();
             resetSSEDedupSets();
             if (!_httpResponseRendered) {
+                const sessionId = getActiveSessionId();
+                const generation = historyGeneration;
                 setTimeout(() => {
-                    if (!_httpResponseRendered) {
-                        tryRecoverFromHistory();
+                    if (!_httpResponseRendered && sessionId === getActiveSessionId() && generation === historyGeneration) {
+                        tryRecoverFromHistory(sessionId, generation);
                     }
                 }, 1500);
             }

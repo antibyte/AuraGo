@@ -17,6 +17,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/httpstream"
 	"aurago/internal/tools"
 	"aurago/internal/webassets"
 )
@@ -1162,7 +1163,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve TTS audio files from data/tts/ on the main server
 	ttsDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
 	os.MkdirAll(ttsDir, 0755)
-	mainTTSHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ttsDir)))
+	mainTTSHandler := castMediaAssetHandler(ttsDir, "/tts/", false)
 	mux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", chatVoiceAudioMIMEType(r.URL.Path))
 		mainTTSHandler.ServeHTTP(w, r)
@@ -1171,7 +1172,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	// Serve local media files prepared for Chromecast playback.
 	castMediaDir := tools.CastMediaDir(s.Cfg.Directories.DataDir)
 	os.MkdirAll(castMediaDir, 0755)
-	mainCastMediaHandler := http.StripPrefix("/cast-media/", http.FileServer(http.Dir(castMediaDir)))
+	mainCastMediaHandler := castMediaAssetHandler(castMediaDir, "/cast-media/", false)
 	mux.HandleFunc("/cast-media/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", castMediaContentType(r.URL.Path))
 		mainCastMediaHandler.ServeHTTP(w, r)
@@ -1185,12 +1186,12 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		ccCastMediaDir := tools.CastMediaDir(s.Cfg.Directories.DataDir)
 		os.MkdirAll(ccCastMediaDir, 0755)
 		ttsMux := http.NewServeMux()
-		ttsFsHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ccTTSDir)))
+		ttsFsHandler := castMediaAssetHandler(ccTTSDir, "/tts/", true)
 		ttsMux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", chatVoiceAudioMIMEType(r.URL.Path))
 			ttsFsHandler.ServeHTTP(w, r)
 		})
-		castMediaFsHandler := http.StripPrefix("/cast-media/", http.FileServer(http.Dir(ccCastMediaDir)))
+		castMediaFsHandler := castMediaAssetHandler(ccCastMediaDir, "/cast-media/", true)
 		ttsMux.HandleFunc("/cast-media/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", castMediaContentType(r.URL.Path))
 			castMediaFsHandler.ServeHTTP(w, r)
@@ -1198,8 +1199,13 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 
 		ttsHost := chromecastMediaServerBindHost(s.Cfg.Server.Host)
 		ttsServer = &http.Server{
-			Addr:    fmt.Sprintf("%s:%d", ttsHost, s.Cfg.Chromecast.TTSPort),
-			Handler: ttsMux,
+			Addr:              fmt.Sprintf("%s:%d", ttsHost, s.Cfg.Chromecast.TTSPort),
+			Handler:           s.trackHTTP(httpstream.WithWriteTimeout(ttsMux, 30*time.Second)),
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       15 * time.Second,
+			IdleTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			MaxHeaderBytes:    16 << 10,
 		}
 
 		go func() {

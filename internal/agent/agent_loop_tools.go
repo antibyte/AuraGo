@@ -141,6 +141,16 @@ func executeAgentToolTurn(
 	triggerValue string,
 	xmlFallbackHandledThisTurn bool,
 ) (openai.ChatCompletionResponse, error, bool) {
+	if stopErr := toolDispatchStopReason(s, ctx, tc); stopErr != nil {
+		if useNativePath {
+			s.req.Messages = append(s.req.Messages, nativeAssistantMsg)
+			s.pendingTCs = append([]ToolCall{tc}, s.pendingTCs...)
+			appendSkippedNativeResults(s, s.runCfg.ShortTermMem, s.runCfg.HistoryManager, s.runCfg.SessionID, s.broker,
+				`{"status":"skipped","code":"tool_batch_stopped","message":"The run stopped before these declared calls could execute."}`)
+		}
+		s.pendingTCs = nil
+		return openai.ChatCompletionResponse{}, stopErr, false
+	}
 	tc = prepareToolCall(tc, s.makeDispatchContext(s.currentLogger))
 	cfg := s.runCfg.Config
 	shortTermMem := s.runCfg.ShortTermMem
@@ -363,6 +373,11 @@ func executeAgentToolTurn(
 			if finishCompletedRun(s) {
 				break
 			}
+			if toolDispatchStopReason(s, ctx, s.pendingTCs[0]) != nil {
+				appendSkippedNativeResults(s, shortTermMem, historyManager, sessionID, broker, `{"status":"skipped","code":"tool_batch_stopped","message":"Remaining declared calls were not executed after cancellation or a run budget limit."}`)
+				s.pendingTCs = nil
+				break
+			}
 
 			btc := prepareToolCall(s.pendingTCs[0], nativeDispatchCtx)
 			s.pendingTCs = s.pendingTCs[1:]
@@ -446,6 +461,27 @@ func executeAgentToolTurn(
 	case <-ctx.Done():
 		return resp, ctx.Err(), false
 	}
+}
+
+func toolDispatchStopReason(s *agentLoopState, ctx context.Context, tc ToolCall) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if checkAndClearInterrupt(s.runCfg.SessionID, s.loopStartedAt) {
+		InterruptSession(s.runCfg.SessionID)
+		return context.Canceled
+	}
+	if s.runCfg.RunComplete != nil && s.runCfg.RunComplete() {
+		return fmt.Errorf("server completed this run")
+	}
+	if (s.runCfg.IsCoAgent || isCoAgentSession(s.runCfg.SessionID)) && s.runCfg.CoAgentTokenLimit > 0 && s.sessionTokens >= s.runCfg.CoAgentTokenLimit {
+		return fmt.Errorf("co-agent token limit reached: %d of %d", s.sessionTokens, s.runCfg.CoAgentTokenLimit)
+	}
+	limit := calculateEffectiveMaxCalls(s.runCfg, tc, s.homepageUsedInChain, s.runCfg.Config.Personality.Engine, s.runCfg.ShortTermMem, s.currentLogger)
+	if s.toolCallCount >= limit {
+		return fmt.Errorf("agent tool limit reached: %d of %d", s.toolCallCount, limit)
+	}
+	return nil
 }
 
 func notExecutedDueToCircuitBreakerResult() string {

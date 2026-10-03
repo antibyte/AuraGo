@@ -254,7 +254,8 @@ func TestClearSessionCookieIncludesProxySecureAttribute(t *testing.T) {
 func TestHandleAuthLogoutReturnsJSONForAjaxRequests(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest(http.MethodGet, "/auth/logout", nil)
+	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	req.Header.Set("Origin", "http://example.com")
 	req.Header.Set("Accept", "application/json")
 	rec := httptest.NewRecorder()
 
@@ -276,6 +277,7 @@ func TestHandleAuthLogoutAPIReturnsJSON(t *testing.T) {
 	t.Parallel()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	req.Header.Set("Origin", "http://example.com")
 	req.Header.Set("Accept", "application/json")
 	rec := httptest.NewRecorder()
 

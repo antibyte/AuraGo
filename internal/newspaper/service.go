@@ -166,13 +166,15 @@ func (s *Service) startForDate(ctx context.Context, date string, newRevision boo
 	if minutes < 1 || minutes > 60 {
 		minutes = 30
 	}
-	work, cancel := context.WithTimeout(s.ctx, time.Duration(minutes)*time.Minute)
+	work, cancel := context.WithCancel(s.ctx)
+	researchCtx, cancelResearch := context.WithTimeout(work, time.Duration(minutes)*time.Minute)
 	s.running = cancel
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 		defer cancel()
-		s.execute(work, run, profile)
+		defer cancelResearch()
+		s.execute(work, researchCtx, run, profile)
 		s.mu.Lock()
 		s.running = nil
 		s.mu.Unlock()
@@ -200,11 +202,13 @@ func (s *Service) Stop(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Service) execute(ctx context.Context, r Run, p Profile) {
+func (s *Service) execute(ctx, researchCtx context.Context, r Run, p Profile) {
 	started := s.now().UTC()
 	progress := func(v Progress) {
+		progressCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		if v.Source != nil {
-			_ = s.store.RecordRunSource(context.Background(), r.ID, *v.Source)
+			_ = s.store.RecordRunSource(progressCtx, r.ID, *v.Source)
 		}
 		r.Phase = v.Phase
 		r.Sources = v.Sources
@@ -212,15 +216,20 @@ func (s *Service) execute(ctx context.Context, r Run, p Profile) {
 		if v.Research != nil {
 			r.Research = v.Research
 		}
-		_ = s.store.UpdateRun(context.Background(), r, v.Message)
+		_ = s.store.UpdateRun(progressCtx, r, v.Message)
 	}
-	draft, err := s.research(ctx, p, started, progress)
-	if !s.canWrite() {
-		r.Status, r.Phase, r.Reason = "cancelled", "finished", "Newspaper permission revoked"
-		_ = s.store.UpdateRun(context.Background(), r, "Publication stopped after permissions changed")
+	draft, err := s.research(researchCtx, p, started, progress)
+	if errors.Is(ctx.Err(), context.Canceled) {
+		r.Status, r.Phase, r.Reason = "cancelled", "finished", "Research cancelled"
+		_ = s.recordFinalRun(r, "Publication stopped after cancellation")
 		return
 	}
-	partial := err != nil || draft.Partial
+	if !s.canWrite() {
+		r.Status, r.Phase, r.Reason = "cancelled", "finished", "Newspaper permission revoked"
+		_ = s.recordFinalRun(r, "Publication stopped after permissions changed")
+		return
+	}
+	partial := err != nil || draft.Partial || errors.Is(researchCtx.Err(), context.DeadlineExceeded)
 	cutoff := s.now().UTC()
 	if vErr := ValidateDraft(draft, p, cutoff); vErr != nil {
 		if err == nil {
@@ -230,12 +239,12 @@ func (s *Service) execute(ctx context.Context, r Run, p Profile) {
 		if errors.Is(ctx.Err(), context.Canceled) {
 			r.Status = "cancelled"
 		}
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if errors.Is(researchCtx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
 			r.Status = "partial"
 		}
 		r.Phase = "finished"
 		r.Reason = err.Error()
-		_ = s.store.UpdateRun(context.Background(), r, "No verified edition could be published")
+		_ = s.recordFinalRun(r, "No verified edition could be published")
 		return
 	}
 	place := strings.TrimSpace(strings.Join([]string{p.City, p.Region, p.Country}, ", "))
@@ -246,26 +255,47 @@ func (s *Service) execute(ctx context.Context, r Run, p Profile) {
 	if err = e.Seal(); err != nil {
 		r.Status = "failed"
 		r.Reason = err.Error()
-		_ = s.store.UpdateRun(context.Background(), r, "Edition sealing failed")
+		_ = s.recordFinalRun(r, "Edition sealing failed")
 		return
 	}
-	if err = s.store.Publish(context.Background(), r, e); err != nil {
+	// The research deadline permits a partial edition; the separate run context
+	// still carries an explicit stop through publication and delivery.
+	publicationCtx, cancelPublication := context.WithTimeout(ctx, 30*time.Second)
+	defer cancelPublication()
+	stopShutdown := context.AfterFunc(s.ctx, cancelPublication)
+	defer stopShutdown()
+	if err = s.store.Publish(publicationCtx, r, e); err != nil {
 		r.Status = "failed"
 		r.Reason = err.Error()
-		_ = s.store.UpdateRun(context.Background(), r, "Edition publication failed")
+		_ = s.recordFinalRun(r, "Edition publication failed")
 		return
 	}
 	maxEditions := s.policy().MaxEditions
 	if maxEditions == 0 {
 		maxEditions = 365
 	}
-	_ = s.store.Prune(context.Background(), maxEditions)
+	if pruneErr := s.store.Prune(publicationCtx, maxEditions); pruneErr != nil {
+		// Publish committed this status; retention must never put it back in running.
+		r.Status, r.Phase = "published", "published"
+		retentionCtx, retentionCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		_ = s.store.UpdateRun(retentionCtx, r, "Archive retention failed")
+		retentionCancel()
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return
+	}
 	if p.EmailDaily && s.policy().Email {
-		_, _ = s.Deliver(context.Background(), e.ID, "email", "daily", "daily")
+		_, _ = s.Deliver(publicationCtx, e.ID, "email", "daily", "daily")
 	}
 	if p.TelegramDaily && s.policy().Telegram {
-		_, _ = s.Deliver(context.Background(), e.ID, "telegram", "daily", "daily")
+		_, _ = s.Deliver(publicationCtx, e.ID, "telegram", "daily", "daily")
 	}
+}
+
+func (s *Service) recordFinalRun(r Run, message string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return s.store.UpdateRun(ctx, r, message)
 }
 
 func (s *Service) Deliver(ctx context.Context, id, channel, kind, key string) (Delivery, error) {

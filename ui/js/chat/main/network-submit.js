@@ -1,8 +1,15 @@
+let outgoingGeneration = 0;
+
 async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') {
     closeComposerPanel();
     closeMoodFeedbackRow();
     let message = String(inputMessage || '').trim();
     if (!message && !pendingAttachments.length) return;
+    const requestGeneration = ++outgoingGeneration;
+    const sessionId = getActiveSessionId();
+    const viewGeneration = historyGeneration;
+    const current = () => requestGeneration === outgoingGeneration &&
+        viewGeneration === historyGeneration && sessionId === getActiveSessionId();
     const speechLabTurnToken = pendingSpeechLabTurnToken;
     pendingSpeechLabTurnToken = '';
     const hasTypedInput = message.length > 0;
@@ -67,7 +74,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         let response;
         try {
             const sessionHeaders = { 'Content-Type': 'application/json' };
-            const sid = getActiveSessionId();
+            const sid = sessionId;
             if (sid && sid !== 'default') {
                 sessionHeaders['X-Session-ID'] = sid;
             }
@@ -93,6 +100,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         }
 
         const data = await response.json();
+        if (!current()) return;
         const assistantMessage = data.choices[0].message;
 
         if (!_httpResponseRendered) {
@@ -105,6 +113,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         if (conversation.length > 200) { conversation = conversation.slice(-200); }
 
     } catch (error) {
+        if (!current()) return;
         if (error.name === 'AbortError') {
             appendMessage('assistant', t('chat.error_timeout'));
         } else if (error instanceof TypeError && window.AuraSSE && window.AuraSSE.isConnected()) {
@@ -116,12 +125,14 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
             // Try to recover the response from /history before showing an error.
             // This handles the case where the HTTP connection was lost during a
             // long agent run but the agent did complete and persisted the answer.
-            await tryRecoverFromHistory();
+            await tryRecoverFromHistory(sessionId, viewGeneration);
+            if (!current()) return;
             if (!_httpResponseRendered) {
                 appendMessage('assistant', t('chat.error_connection') + error.message);
             }
         }
     } finally {
+        if (!current()) return;
         userInput.disabled = false;
         sendBtn.disabled = false;
         userInput.focus();

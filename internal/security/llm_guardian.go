@@ -238,7 +238,9 @@ func (g *LLMGuardian) Evaluate(ctx context.Context, check GuardianCheck) Guardia
 
 	// Build prompt & call LLM
 	result := g.callLLM(ctx, check, start)
-	g.cache.Set(cacheKey, result)
+	if !strings.HasPrefix(result.Reason, "fail-safe:") {
+		g.cache.Set(cacheKey, result)
+	}
 	g.Metrics.Record(result)
 	return result
 }

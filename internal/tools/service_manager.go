@@ -1,11 +1,16 @@
 package tools
 
 import (
-	"bytes"
+	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
+	"time"
+
+	"aurago/internal/sandbox"
 )
 
 // ServiceManager handles native service operations (systemctl, launchctl, sc.exe)
@@ -18,11 +23,15 @@ func NewServiceManager() *ServiceManager {
 
 // ManageService performs the requested operation on the service
 func (sm *ServiceManager) ManageService(operation, service string) (string, error) {
-	if err := requireShellPermission(); err != nil {
+	return sm.ManageServiceContext(context.Background(), operation, service)
+}
+
+func (sm *ServiceManager) ManageServiceContext(ctx context.Context, operation, service string) (string, error) {
+	if err := requireShellPermissionContext(ctx); err != nil {
 		return "", err
 	}
-	if service == "" {
-		return "", fmt.Errorf("service name cannot be empty")
+	if !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.@-]{0,255}$`).MatchString(service) {
+		return "", fmt.Errorf("invalid service name")
 	}
 
 	var cmd *exec.Cmd
@@ -41,23 +50,25 @@ func (sm *ServiceManager) ManageService(operation, service string) (string, erro
 		return "", fmt.Errorf("unsupported operation '%s' for OS '%s'", operation, runtime.GOOS)
 	}
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-
-	outStr := strings.TrimSpace(stdout.String())
-	errStr := strings.TrimSpace(stderr.String())
+	if runtime.GOOS == "linux" {
+		cmd = sandbox.Get().PrepareExecCommand(cmd.Path, cmd.Args[1:], "")
+	}
+	cmd.Env = sandbox.FilterEnv(os.Environ())
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: 30 * time.Second, ScrubOutput: true})
+	stdout, stderr, err := runner.Run(ctx)
+	outStr := strings.TrimSpace(stdout)
+	errStr := strings.TrimSpace(stderr)
 
 	if err != nil {
 		if outStr != "" {
-			return outStr, fmt.Errorf("command failed: %v, stderr: %s", err, errStr)
+			return outStr, fmt.Errorf("service command failed: %w, stderr: %s", err, errStr)
 		}
 		if errStr != "" {
-			return errStr, fmt.Errorf("command failed: %v", err)
+			return errStr, fmt.Errorf("service command failed: %w", err)
 		}
-		return "", fmt.Errorf("command failed: %v", err)
+		return "", fmt.Errorf("service command failed: %w", err)
 	}
 
 	if outStr != "" {

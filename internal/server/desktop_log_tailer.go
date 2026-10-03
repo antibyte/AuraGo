@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/security"
 	"bufio"
 	"bytes"
 	"context"
@@ -53,6 +54,7 @@ type desktopLogTailResult struct {
 }
 
 func parseSlogLine(raw string) (desktopLogRecord, bool) {
+	raw = security.Scrub(security.RedactSensitiveInfo(raw))
 	rec := desktopLogRecord{Raw: raw, Attrs: map[string]string{}}
 	if raw == "" {
 		return rec, false

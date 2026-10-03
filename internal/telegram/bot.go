@@ -503,9 +503,16 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		cleanText, images := media.ExtractMarkdownImages(answer)
 		for _, img := range images {
 			var localPath string
+			staged := false
 			if strings.HasPrefix(img.URL, "/files/") {
 				// Local workspace file
-				localPath = filepath.Join(cfg.Directories.WorkspaceDir, strings.TrimPrefix(img.URL, "/files/"))
+				var err error
+				localPath, err = media.StageWorkspaceImage(cfg.Directories.WorkspaceDir, img.URL)
+				if err != nil {
+					logger.Warn("Workspace image rejected", "error", err)
+					continue
+				}
+				staged = true
 			} else if strings.HasPrefix(img.URL, "http://") || strings.HasPrefix(img.URL, "https://") {
 				// Remote URL: download and sanitize before sending
 				imagesDir := filepath.Join(cfg.Directories.WorkspaceDir, "images")
@@ -520,6 +527,9 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 			}
 			if err := sendTelegramPhoto(bot, msg.From.ID, localPath, img.Caption); err != nil {
 				logger.Warn("Failed to send Telegram photo", "path", localPath, "error", err)
+			}
+			if staged {
+				_ = os.Remove(localPath)
 			}
 		}
 		cleanText = AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)
@@ -714,7 +724,7 @@ func downloadFile(url string, logger *slog.Logger) (string, error) {
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("download Telegram media: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 

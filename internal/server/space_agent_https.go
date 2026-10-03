@@ -69,7 +69,7 @@ func (s *Server) startSpaceAgentHTTPSProxy(cfg *config.Config) error {
 
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      httpstream.WithWriteTimeout(handler, 5*time.Minute),
+		Handler:      s.trackHTTP(httpstream.WithWriteTimeout(handler, 5*time.Minute)),
 		TLSConfig:    tlsCfg,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 5 * time.Minute,

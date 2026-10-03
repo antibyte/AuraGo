@@ -27,7 +27,7 @@ func TestNewspaperResearchStatsPersistAndRevocationPreventsPublication(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.execute(ctx, r, DefaultProfile())
+	s.execute(ctx, ctx, r, DefaultProfile())
 	got, err := s.Run(ctx, r.ID)
 	if err != nil || got.Status != "cancelled" || got.Research == nil || got.Research.Candidates != 120 || got.Research.Rejected["stale"] != 3 {
 		t.Fatalf("run: %+v %v", got, err)

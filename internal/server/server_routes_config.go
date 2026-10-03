@@ -373,7 +373,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	})
 
 	// Token admin API (requires web config enabled)
-	if s.TokenManager != nil {
+	if s.currentTokenManager() != nil {
 		mux.HandleFunc("/api/tokens", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodGet:

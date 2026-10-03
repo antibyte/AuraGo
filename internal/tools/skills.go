@@ -380,11 +380,21 @@ func (w *limitWriter) Write(p []byte) (int, error) {
 }
 
 func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, manifest SkillManifest, absExecPath, argsString string, opts skillExecutionOptions) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if strings.HasSuffix(strings.ToLower(manifest.Executable), ".py") {
+		if err := requirePythonPermissionContext(ctx); err != nil {
+			return "", err
+		}
+	} else if err := requireShellPermissionContext(ctx); err != nil {
+		return "", err
+	}
 	if err := requireSkillExecutionPermission(manifest); err != nil {
 		return "", err
 	}
 	if strings.HasSuffix(strings.ToLower(manifest.Executable), ".py") {
-		if err := ensurePythonVenv(workspaceDir); err != nil {
+		if err := EnsureVenvContext(ctx, workspaceDir, slog.Default()); err != nil {
 			return "", fmt.Errorf("cannot execute Python skill %q: %w", skillName, err)
 		}
 	}
@@ -404,6 +414,11 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 	defer cancel()
 
 	cmd := buildSkillCommand(ctx, workspaceDir, manifest, absExecPath)
+	if runtime.GOOS == "linux" && !strings.HasSuffix(strings.ToLower(manifest.Executable), ".py") {
+		prepared := sandbox.Get().PrepareExecCommand(cmd.Path, cmd.Args[1:], workspaceDir)
+		cmd = exec.CommandContext(ctx, prepared.Path, prepared.Args[1:]...)
+		cmd.SysProcAttr = prepared.SysProcAttr
+	}
 	cmd.Dir = workspaceDir
 	cmd.Env = sandbox.FilterEnv(os.Environ())
 	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
@@ -429,6 +444,8 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start skill execution: %w", err)
 	}
+	stopKill := context.AfterFunc(ctx, func() { KillProcessTree(cmd.Process.Pid) })
+	defer stopKill()
 	defer func() {
 		if cmd.Process != nil {
 			KillProcessTree(cmd.Process.Pid)
@@ -604,6 +621,18 @@ print(json.dumps(result, ensure_ascii=False))
 
 // ProvisionSkillDependencies scans all skills and installs their pip dependencies into the venv.
 func ProvisionSkillDependencies(skillsDir, workspaceDir string, logger *slog.Logger) {
+	ProvisionSkillDependenciesContext(context.Background(), skillsDir, workspaceDir, logger)
+}
+
+func ProvisionSkillDependenciesContext(ctx context.Context, skillsDir, workspaceDir string, logger *slog.Logger) {
+	if err := requirePythonPermissionContext(ctx); err != nil {
+		logger.Warn("Skill dependency provisioning denied", "error", err)
+		return
+	}
+	if err := requireShellPermissionContext(ctx); err != nil {
+		logger.Warn("Skill dependency provisioning denied", "error", err)
+		return
+	}
 	skills, err := ListSkills(skillsDir)
 	if err != nil {
 		logger.Warn("Failed to scan skills for dependency provisioning", "error", err)
@@ -616,6 +645,10 @@ func ProvisionSkillDependencies(skillsDir, workspaceDir string, logger *slog.Log
 	for _, s := range skills {
 		for _, dep := range s.Dependencies {
 			dep = strings.TrimSpace(dep)
+			if dep != "" && !validPackageName.MatchString(dep) {
+				logger.Warn("Invalid skill dependency; provisioning aborted", "skill", s.Name)
+				return
+			}
 			if dep != "" && !seen[dep] {
 				seen[dep] = true
 				deps = append(deps, dep)
@@ -631,17 +664,17 @@ func ProvisionSkillDependencies(skillsDir, workspaceDir string, logger *slog.Log
 	logger.Info("Provisioning skill dependencies", "packages", strings.Join(deps, ", "))
 
 	// Ensure venv exists before installing
-	if err := EnsureVenv(workspaceDir, logger); err != nil {
+	if err := EnsureVenvContext(ctx, workspaceDir, logger); err != nil {
 		logger.Error("Failed to ensure Python virtual environment", "error", err)
 		return
 	}
 
-	pipBin := GetPipBin(workspaceDir)
-	args := append([]string{"install"}, deps...)
-	output, err := runTimedCommand(workspaceDir, skillDependencyInstallTimeout, pipBin, args...)
-	if err != nil {
-		logger.Error("Failed to provision skill dependencies", "error", err, "output", string(output))
-		return
+	for _, dep := range deps {
+		_, _, err := InstallPackageContext(ctx, dep, workspaceDir)
+		if err != nil {
+			logger.Error("Failed to provision skill dependencies", "error", err)
+			return
+		}
 	}
 	logger.Info("Skill dependencies provisioned successfully.")
 }
@@ -855,12 +888,20 @@ func missingPythonPackages(packages []string, installed map[string]bool) []strin
 }
 
 func runTimedCommand(workdir string, timeout time.Duration, command string, args ...string) ([]byte, error) {
+	if err := requirePythonPermission(); err != nil {
+		return nil, err
+	}
+	if err := requireShellPermission(); err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = workdir
 	ensureFilteredEnv(cmd)
-	output, err := cmd.CombinedOutput()
+	runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: timeout, ScrubOutput: true})
+	stdout, stderr, err := runner.Run(ctx)
+	output := []byte(stdout + stderr)
 	if ctx.Err() == context.DeadlineExceeded {
 		return output, fmt.Errorf("command timed out after %s", timeout)
 	}

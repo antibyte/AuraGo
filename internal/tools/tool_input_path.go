@@ -44,6 +44,38 @@ func ResolveToolInputPath(filePath string, cfg *config.Config) (string, error) {
 	return resolveToolInputPath(filePath, cfg)
 }
 
+// OpenToolInputFile keeps an authorized input bound to the workspace root while
+// opening it, including when a path component changes after validation.
+func OpenToolInputFile(filePath string, cfg *config.Config) (*os.File, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("config is required")
+	}
+	_, jailRoot := filesystemRoots(cfg.Directories.WorkspaceDir)
+	root, err := os.OpenRoot(jailRoot)
+	if err != nil {
+		return nil, fmt.Errorf("open workspace root: %w", err)
+	}
+	defer root.Close()
+	resolved, err := resolveToolInputPath(filePath, cfg)
+	if err != nil {
+		return nil, err
+	}
+	rel, err := filepath.Rel(jailRoot, resolved)
+	if err != nil {
+		return nil, fmt.Errorf("resolve workspace input: %w", err)
+	}
+	file, err := root.Open(rel)
+	if err != nil {
+		return nil, fmt.Errorf("open workspace input: %w", err)
+	}
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		file.Close()
+		return nil, fmt.Errorf("workspace input must be a regular file")
+	}
+	return file, nil
+}
+
 // ResolveRegisteredMediaFilePath resolves an application-registered media path
 // within the configured workspace, project, or data roots. Unlike normal tool
 // input, registry files may live in data_dir outside the agent workdir.

@@ -222,6 +222,34 @@
         return init(config == null ? draftConfig : config);
     }
 
+    // A save acknowledges the sent draft. Inputs changed while it was in flight
+    // remain a draft, including values changed back to the former baseline.
+    function commitSent(config, sentDraft) {
+        syncFromDOM();
+        const latest = clone(draftConfig);
+        const edits = [];
+        function compare(sent, current, path) {
+            if (same(sent, current)) return;
+            if (sent && current && typeof sent === 'object' && typeof current === 'object' &&
+                !Array.isArray(sent) && !Array.isArray(current)) {
+                new Set([...Object.keys(sent), ...Object.keys(current)]).forEach(key => {
+                    compare(sent[key], current[key], path ? path + '.' + key : key);
+                });
+            } else if (path) edits.push([path, current]);
+        }
+        compare(sentDraft, latest, '');
+        savedConfig = clone(config == null ? sentDraft : config);
+        draftConfig = clone(savedConfig);
+        changed.clear();
+        edits.forEach(([path, value]) => {
+            write(draftConfig, path, value);
+            if (!same(read(savedConfig, path), read(draftConfig, path))) changed.add(path);
+        });
+        restoreDOM();
+        notify();
+        return snapshot();
+    }
+
     function discard() {
         draftConfig = clone(savedConfig);
         changed.clear();
@@ -258,6 +286,7 @@
         validate: validate,
         setRules: setRules,
         commit: commit,
+        commitSent: commitSent,
         discard: discard,
         bind: bind,
         syncFromDOM: syncFromDOM,

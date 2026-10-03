@@ -419,6 +419,8 @@ func TestProviderSpecificHeaderTimeoutDoesNotExceedClientTimeout(t *testing.T) {
 func unwrapLLMTransport(rt http.RoundTripper) http.RoundTripper {
 	for {
 		switch t := rt.(type) {
+		case *providerURLTransport:
+			rt = t.base
 		case *usageObservationTransport:
 			rt = t.base
 		case *leadingSystemTransport:

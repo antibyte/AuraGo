@@ -733,8 +733,8 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 				securitySummary["vault_keys"] = len(keys)
 			}
 		}
-		if s.TokenManager != nil {
-			securitySummary["tokens"] = s.TokenManager.Count()
+		if tm := s.currentTokenManager(); tm != nil {
+			securitySummary["tokens"] = tm.Count()
 		}
 
 		// ── Context Summary ───────────────────────────────────

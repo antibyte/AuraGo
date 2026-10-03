@@ -186,7 +186,7 @@ function appendMessage(role, text, timestamp) {
         if (!displayContent) return; // nothing left to show
     }
 
-    let finalHTML = displayContent;
+    let finalHTML = escapeHtml(displayContent).replace(/\n/g, '<br>');
     if (isTechnical) {
         finalHTML = `<pre>${escapeHtml(displayContent)}</pre>`;
         finalHTML = replaceRedactedMarkers(finalHTML);
@@ -258,6 +258,7 @@ function appendMessage(role, text, timestamp) {
                 }
             }
         } catch (e) {
+            finalHTML = escapeHtml(displayContent).replace(/\n/g, '<br>');
             console.error("Markdown parsing failed:", e);
         }
     }
@@ -514,6 +515,10 @@ function safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds) {
 function createChatVideoElement(videoData) {
     const path = videoData && videoData.path ? String(videoData.path) : '';
     const wrapper = document.createElement('div');
+    if (!window.AuraChatCore || !window.AuraChatCore.isSafeMediaSource(path, 'video')) {
+        wrapper.textContent = path;
+        return wrapper;
+    }
     wrapper.className = 'chat-video-wrapper';
 
     const title = String((videoData && (videoData.title || videoData.filename)) || filenameFromPath(path) || '').trim();
@@ -614,7 +619,7 @@ function appendVideoMessage(videoData) {
 function createChatLiveStreamElement(streamData) {
     const path = streamData && streamData.path ? String(streamData.path) : '';
     const title = String((streamData && streamData.title) || 'Live stream').trim();
-    if (!path || !isSafeHref(path, true)) {
+    if (!path || !window.AuraChatCore || !window.AuraChatCore.isSafeMediaSource(path, 'img')) {
         const message = String((streamData && (streamData.message || streamData.error)) || '').trim();
         const streamUrl = String((streamData && streamData.stream_url) || '').trim();
         if (!message && !streamUrl) return null;

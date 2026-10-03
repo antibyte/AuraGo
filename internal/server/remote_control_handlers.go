@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -39,6 +40,10 @@ func handleRemoteWebSocket(s *Server) http.HandlerFunc {
 			s.Logger.Error("Remote WebSocket upgrade failed", "error", err)
 			return
 		}
+		defer wsConn.Close()
+		stopClose := context.AfterFunc(r.Context(), func() { _ = wsConn.Close() })
+		defer stopClose()
+		wsConn.SetReadLimit(64 << 10)
 
 		// Read the first message — must be auth
 		wsConn.SetReadDeadline(time.Now().Add(30 * time.Second))
@@ -69,21 +74,13 @@ func handleRemoteWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Find the connection that was just registered
-		var auth remote.AuthPayload
-		_ = json.Unmarshal(msg.Payload, &auth)
-		deviceID := auth.DeviceID
-		if deviceID == "" {
-			if id, _ := s.RemoteHub.FindByConn(wsConn); id != "" {
-				deviceID = id
-			}
-		}
-
-		conn := s.RemoteHub.GetConnection(deviceID)
+		// Only the socket registered by this handshake may own its reader.
+		_, conn := s.RemoteHub.FindByConn(wsConn)
 		if conn == nil {
 			// Not registered (pending approval, rejected, etc.)
 			return
 		}
+		wsConn.SetReadLimit(int64(s.RemoteHub.MaxFileSizeMB+1) << 21)
 
 		// Block on message handling
 		s.RemoteHub.HandleMessages(conn)

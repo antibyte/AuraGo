@@ -52,7 +52,11 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}) 
 	}
 
 	var lastErr error
-	for attempt := 0; attempt <= maxRetries; attempt++ {
+	retries := 0
+	if method == http.MethodGet || method == http.MethodHead {
+		retries = maxRetries
+	}
+	for attempt := 0; attempt <= retries; attempt++ {
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
@@ -108,6 +112,9 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}) 
 		return respBody, resp.StatusCode, nil
 	}
 
+	if retries == 0 {
+		return nil, 0, fmt.Errorf("request outcome unconfirmed; mutation was not retried: %w", lastErr)
+	}
 	return nil, 0, fmt.Errorf("max retries exceeded: %w", lastErr)
 }
 

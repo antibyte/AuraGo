@@ -172,7 +172,7 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 			return "Tool Output: [ERROR] 'operation' and 'service' are required for service_manager."
 		}
 		sm := tools.NewServiceManager()
-		out, err := sm.ManageService(operation, service)
+		out, err := sm.ManageServiceContext(ctx, operation, service)
 		if err != nil {
 			return fmt.Sprintf("Tool Output: [ERROR] %v", err)
 		}
@@ -223,7 +223,7 @@ func dispatchShellWithContext(ctx context.Context, tc ToolCall, dc *DispatchCont
 		if req.Package == "" {
 			return "Tool Output: [EXECUTION ERROR] 'package' is required for install_package"
 		}
-		stdout, stderr, err := tools.InstallPackage(req.Package, cfg.Directories.WorkspaceDir)
+		stdout, stderr, err := tools.InstallPackageContext(ctx, req.Package, cfg.Directories.WorkspaceDir)
 
 		var sb strings.Builder
 		sb.WriteString("Tool Output:\n")

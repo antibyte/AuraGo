@@ -393,13 +393,13 @@ func TestCorrectionCreatesLabeledImmutableRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.execute(ctx, first, DefaultProfile())
+	s.execute(ctx, ctx, first, DefaultProfile())
 	note := "The earlier headline stated the wrong opening date."
 	revised, err := s.Store().StartCorrected(ctx, date, true, note, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.execute(ctx, revised, DefaultProfile())
+	s.execute(ctx, ctx, revised, DefaultProfile())
 	previous, err := s.Get(ctx, first.ID)
 	if err != nil {
 		t.Fatal(err)

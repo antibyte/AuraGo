@@ -4,6 +4,8 @@
     let activePrompt = null;
     let activeOverlay = null;
     let submitting = false;
+    let expiryTimer = null;
+    let statusTimer = null;
 
     function activeSessionId() {
         if (typeof getActiveSessionId === 'function') return getActiveSessionId();
@@ -23,6 +25,9 @@
     }
 
     function closeVaultSecretPrompt() {
+        window.clearTimeout(expiryTimer);
+        window.clearInterval(statusTimer);
+        expiryTimer = statusTimer = null;
         clearSecretInput();
         if (activeOverlay) activeOverlay.remove();
         activeOverlay = null;
@@ -48,6 +53,7 @@
 
     async function submitPrompt(input, saveButton, cancelButton) {
         if (!activePrompt || submitting || !input || !input.value) return;
+        const submittedPrompt = activePrompt;
         submitting = true;
         saveButton.disabled = true;
         cancelButton.disabled = true;
@@ -70,6 +76,7 @@
             });
             requestBody = '';
             const response = await request;
+            if (activePrompt !== submittedPrompt) return;
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
                 const message = error && error.error_code
@@ -91,6 +98,7 @@
             closeVaultSecretPrompt();
         } catch (_) {
             requestBody = '';
+            if (activePrompt !== submittedPrompt) return;
             const errorNode = activeOverlay && activeOverlay.querySelector('.vault-secret-modal-error');
             if (errorNode) {
                 errorNode.textContent = tr('chat.vault_secret_error', 'The secret could not be stored.');
@@ -177,6 +185,13 @@
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
         activeOverlay = overlay;
+        const shownPrompt = activePrompt;
+        expiryTimer = window.setTimeout(function () {
+            if (activePrompt !== shownPrompt) return;
+            closeVaultSecretPrompt();
+            void cancelPrompt(shownPrompt, false);
+        }, 5 * 60 * 1000);
+        statusTimer = window.setInterval(checkPendingVaultSecretPrompt, 10000);
 
         cancel.addEventListener('click', async function () {
             const promptToCancel = activePrompt;
@@ -193,18 +208,22 @@
 
     async function checkPendingVaultSecretPrompt() {
         const sessionId = activeSessionId();
+        const expectedPrompt = activePrompt;
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 5000);
         try {
             const response = await fetch('/api/agent/vault-secret/status?session_id=' + encodeURIComponent(sessionId), {
-                credentials: 'same-origin'
+                credentials: 'same-origin', signal: controller.signal
             });
             if (!response.ok) return;
             const status = await response.json();
+            if (sessionId !== activeSessionId() || expectedPrompt !== activePrompt) return;
             if (status && status.status === 'pending' && status.prompt) {
                 showVaultSecretPrompt(status.prompt);
             } else if (activePrompt && activePrompt.session_id === sessionId) {
                 closeVaultSecretPrompt();
             }
-        } catch (_) { }
+        } catch (_) { } finally { window.clearTimeout(timeout); }
     }
 
     async function handleSessionChange(sessionId) {

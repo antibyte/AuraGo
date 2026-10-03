@@ -42,6 +42,9 @@ func init() {
 
 // isPrivateIP reports whether ip falls in a private or reserved range.
 func isPrivateIP(ip net.IP) bool {
+	if !isStrictPublicIP(ip) {
+		return true
+	}
 	if ipv4 := ip.To4(); ipv4 != nil {
 		ip = ipv4
 	}

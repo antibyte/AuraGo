@@ -23,7 +23,7 @@ func requireDesktopPermission(s *Server, w http.ResponseWriter, r *http.Request,
 		requiredScope = desktopScopeRead
 	}
 	if rawToken, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
-		if rawToken != "" && s != nil && s.TokenManager != nil {
+		if rawToken != "" && s != nil {
 			if desktopTokenHasScope(s, rawToken, requiredScope) {
 				return true
 			}
@@ -56,13 +56,17 @@ func requireDesktopPermission(s *Server, w http.ResponseWriter, r *http.Request,
 }
 
 func desktopTokenHasScope(s *Server, rawToken, requiredScope string) bool {
-	if s == nil || s.TokenManager == nil {
+	if s == nil {
 		return false
 	}
-	if _, ok := s.TokenManager.Validate(rawToken, requiredScope); ok {
+	tm := s.currentTokenManager()
+	if tm == nil {
+		return false
+	}
+	if _, ok := tm.Validate(rawToken, requiredScope); ok {
 		return true
 	}
-	if _, ok := s.TokenManager.Validate(rawToken, desktopScopeAdmin); ok {
+	if _, ok := tm.Validate(rawToken, desktopScopeAdmin); ok {
 		return true
 	}
 	return false

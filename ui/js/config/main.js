@@ -1034,7 +1034,22 @@ function highlightSidebarLabel(label, terms) {
     const uniqueTerms = [...new Set(terms)].sort((a, b) => b.length - a.length);
     const pattern = uniqueTerms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
     if (!pattern) return escapeHtml(label);
-    return escapeHtml(label).replace(new RegExp(pattern, 'gi'), match => `<mark class="cfg-search-match">${match}</mark>`);
+    // Match the original text; marking an HTML entity can corrupt its escaping.
+    const fragment = document.createDocumentFragment();
+    const expression = new RegExp(pattern, 'gi');
+    let offset = 0;
+    for (const match of String(label).matchAll(expression)) {
+        fragment.appendChild(document.createTextNode(String(label).slice(offset, match.index)));
+        const mark = document.createElement('mark');
+        mark.className = 'cfg-search-match';
+        mark.textContent = match[0];
+        fragment.appendChild(mark);
+        offset = match.index + match[0].length;
+    }
+    fragment.appendChild(document.createTextNode(String(label).slice(offset)));
+    const holder = document.createElement('span');
+    holder.appendChild(fragment);
+    return holder.innerHTML;
 }
 
 function applySidebarSearch(query) {
@@ -2967,6 +2982,8 @@ async function saveConfig() {
 
         clearConfigValidation();
         const patch = window.AuraConfigState ? window.AuraConfigState.buildPatch() : buildConfigPatchFromForm();
+        const sentDraft = window.AuraConfigState ? window.AuraConfigState.snapshot().draft : null;
+        const sentSnapshot = collectSnapshot();
         const likelyEmbeddingsChange = embeddingsConfigWillLikelyChange(patch);
         let scheduleResetAfterSave = false;
 
@@ -3024,7 +3041,7 @@ async function saveConfig() {
             // Use a retry loop so a briefly-restarting tunnel (e.g. Cloudflare hot-reload)
             // doesn't cause an HTML response to be parsed as JSON.
             // The PUT succeeded. Retain its values if the follow-up read is unavailable.
-            if (window.AuraConfigState) configData = window.AuraConfigState.snapshot().draft;
+            if (sentDraft) configData = sentDraft;
             for (let _i = 0; _i < 4; _i++) {
                 try {
                     const cfgResp = await fetch('/api/config');
@@ -3038,8 +3055,9 @@ async function saveConfig() {
                 } catch (_) { /* tunnel restarting, retry */ }
                 await new Promise(r => setTimeout(r, 800));
             }
-            if (window.AuraConfigState) window.AuraConfigState.commit(configData);
-            resetDirtySnapshot();
+            if (window.AuraConfigState) window.AuraConfigState.commitSent(configData, sentDraft);
+            initialSnapshot = sentSnapshot;
+            markDirty();
             document.dispatchEvent(new CustomEvent('aurago:config-saved', {
                 detail: { result }
             }));

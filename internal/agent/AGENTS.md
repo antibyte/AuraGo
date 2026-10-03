@@ -10,6 +10,13 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+### Accepted tool batches and bounded side effects
+
+- Queue sibling calls only after accepting the model response. Before each dispatch check cancellation, current interrupt generation, completion, tool allowance and cumulative co-agent token budget. Every declared native call gets one ordered result, including skipped calls; recovery guidance follows all results.
+- Treat unfinished streams as incomplete, including outside strict mode. Preserve partial usage; estimate missing usage instead of recording provider zero. Co-agent retries share one budget and never replay the original task after a tool side effect or saved continuation. Cancellation is terminal.
+- Helper-memory persistence and learned-rule generation use bounded, shutdown-owned side-effect contexts. HTTP request completion must not cancel an already accepted helper result; task shutdown must still stop it.
+- Verify `TestNativeBatchStopsBetweenCallsAndClosesEveryResult`, `TestNativeBudgetExhaustedBeforePrimaryDoesNotDispatch`, `TestPrimaryNativeRecoveryGuidanceFollowsToolResults`, stream and co-agent tests.
+
 ### Budget accounting
 
 - Keep one budget tracker across config reloads. Update its limits and reset time under its lock, persist snapshots atomically, and charge every completed provider response once before any early return. Co-agent runs enforce their configured token limit in the loop, not only in prompt guidance.

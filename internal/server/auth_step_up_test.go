@@ -203,7 +203,7 @@ func TestAuthTOTPConfirmRequiresStepUp(t *testing.T) {
 	}
 }
 
-func TestAuthStepUpFailuresShareLoginLockout(t *testing.T) {
+func TestAuthStepUpFailuresDoNotLockCorrectLoginFromAnotherIP(t *testing.T) {
 	s, cookie := newStepUpTestServer(t)
 	s.Cfg.Auth.MaxLoginAttempts = 2
 	s.Cfg.Auth.LockoutMinutes = 15
@@ -218,11 +218,11 @@ func TestAuthStepUpFailuresShareLoginLockout(t *testing.T) {
 	}
 
 	login := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"password":"`+stepUpTestPassword+`"}`))
-	login.RemoteAddr = "203.0.113.99:5000" // different IP: the account key alone must lock
+	login.RemoteAddr = "203.0.113.99:5000" // account backoff must allow correct credentials from another IP
 	login.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handleAuthLogin(s).ServeHTTP(rec, login)
-	if rec.Code != http.StatusTooManyRequests {
-		t.Fatalf("login after failed step-ups: status = %d, want 429", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("correct login from another IP: status = %d, want 200", rec.Code)
 	}
 }

@@ -93,7 +93,7 @@ Example tool call:
 - Python 3.10+ with isolated venv in `agent_workspace/workdir/venv`
 - Pre-installed: `requests`, `beautifulsoup4`, `pyyaml`, `pandas` (auto-installed on first use)
 - Working directory: `agent_workspace/workdir/`
-- Use `pip install` within the script if additional packages are needed
+- Prefer `install_package` for additional venv packages. Installation requires shell, Python and unsafe-host grants; package requirements reject pip flags, URLs and local paths. Provisioning and environment creation honor cancellation.
 
 ## Examples
 

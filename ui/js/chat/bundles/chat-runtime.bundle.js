@@ -444,12 +444,19 @@
                     node.removeAttribute(attr.name);
                     return;
                 }
-                if ((name === 'href' || name === 'src') && !isSafeHref(attr.value, true)) {
-                    let keepBlobMedia = false;
-                    if (name === 'src' && (node.tagName.toLowerCase() === 'video' || node.tagName.toLowerCase() === 'audio')) {
-                        try { keepBlobMedia = new URL(attr.value, window.location.origin).protocol === 'blob:'; } catch (_err) {}
+                if (name === 'href' && !isSafeHref(attr.value, true)) {
+                    node.removeAttribute(attr.name);
+                }
+                if ((name === 'src' || name === 'poster') && !isSafeMediaSource(attr.value, node.tagName.toLowerCase())) {
+                    if (name === 'src' && node.tagName.toLowerCase() === 'img' && isSafeHref(attr.value)) {
+                        const link = document.createElement('a');
+                        link.href = attr.value;
+                        link.textContent = node.getAttribute('alt') || attr.value;
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        node.replaceWith(link);
                     }
-                    if (!keepBlobMedia) node.removeAttribute(attr.name);
+                    node.removeAttribute(attr.name);
                 }
             });
             if (node.tagName.toLowerCase() === 'a') {
@@ -467,6 +474,19 @@
         const sanitized = chatSanitizeTemplate.innerHTML;
         chatSanitizeTemplate.innerHTML = '';
         return sanitized;
+    }
+
+    function isSafeMediaSource(value, tag) {
+        if (!value || /[\\\u0000-\u0020]/.test(value)) return false;
+        try {
+            const url = new URL(value, window.location.origin);
+            if (url.username || url.password || url.origin !== window.location.origin) return false;
+            if (url.protocol === 'blob:') return tag === 'audio' || tag === 'video';
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+            return ['/files/', '/tts/', '/cast-media/', '/img/', '/api/media/', '/api/desktop/files/', '/api/agodesk/tts/'].some(prefix => url.pathname.startsWith(prefix)) ||
+                /^\/api\/go2rtc\/proxy\/api\/(?:frame\.jpeg|stream\.mjpeg)$/.test(url.pathname) ||
+                /^\/api\/3d-printers\/[^/]+\/camera\/stream$/.test(url.pathname);
+        } catch (_err) { return false; }
     }
 
     function decorateEmojiGlyphs(root) {
@@ -811,6 +831,7 @@
         escapeHtml,
         escapeAttr,
         isSafeHref,
+        isSafeMediaSource,
         sanitizeRenderedHTML,
         isVideoHref,
         decorateEmojiGlyphs,
@@ -5593,11 +5614,18 @@ userInput.addEventListener('paste', (event) => {
 
 ;
 /* ui/js/chat/main/network-submit.js */
+let outgoingGeneration = 0;
+
 async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') {
     closeComposerPanel();
     closeMoodFeedbackRow();
     let message = String(inputMessage || '').trim();
     if (!message && !pendingAttachments.length) return;
+    const requestGeneration = ++outgoingGeneration;
+    const sessionId = getActiveSessionId();
+    const viewGeneration = historyGeneration;
+    const current = () => requestGeneration === outgoingGeneration &&
+        viewGeneration === historyGeneration && sessionId === getActiveSessionId();
     const speechLabTurnToken = pendingSpeechLabTurnToken;
     pendingSpeechLabTurnToken = '';
     const hasTypedInput = message.length > 0;
@@ -5662,7 +5690,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         let response;
         try {
             const sessionHeaders = { 'Content-Type': 'application/json' };
-            const sid = getActiveSessionId();
+            const sid = sessionId;
             if (sid && sid !== 'default') {
                 sessionHeaders['X-Session-ID'] = sid;
             }
@@ -5688,6 +5716,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         }
 
         const data = await response.json();
+        if (!current()) return;
         const assistantMessage = data.choices[0].message;
 
         if (!_httpResponseRendered) {
@@ -5700,6 +5729,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         if (conversation.length > 200) { conversation = conversation.slice(-200); }
 
     } catch (error) {
+        if (!current()) return;
         if (error.name === 'AbortError') {
             appendMessage('assistant', t('chat.error_timeout'));
         } else if (error instanceof TypeError && window.AuraSSE && window.AuraSSE.isConnected()) {
@@ -5711,12 +5741,14 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
             // Try to recover the response from /history before showing an error.
             // This handles the case where the HTTP connection was lost during a
             // long agent run but the agent did complete and persisted the answer.
-            await tryRecoverFromHistory();
+            await tryRecoverFromHistory(sessionId, viewGeneration);
+            if (!current()) return;
             if (!_httpResponseRendered) {
                 appendMessage('assistant', t('chat.error_connection') + error.message);
             }
         }
     } finally {
+        if (!current()) return;
         userInput.disabled = false;
         sendBtn.disabled = false;
         userInput.focus();
@@ -6957,7 +6989,7 @@ function appendMessage(role, text, timestamp) {
         if (!displayContent) return; // nothing left to show
     }
 
-    let finalHTML = displayContent;
+    let finalHTML = escapeHtml(displayContent).replace(/\n/g, '<br>');
     if (isTechnical) {
         finalHTML = `<pre>${escapeHtml(displayContent)}</pre>`;
         finalHTML = replaceRedactedMarkers(finalHTML);
@@ -7029,6 +7061,7 @@ function appendMessage(role, text, timestamp) {
                 }
             }
         } catch (e) {
+            finalHTML = escapeHtml(displayContent).replace(/\n/g, '<br>');
             console.error("Markdown parsing failed:", e);
         }
     }
@@ -7285,6 +7318,10 @@ function safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds) {
 function createChatVideoElement(videoData) {
     const path = videoData && videoData.path ? String(videoData.path) : '';
     const wrapper = document.createElement('div');
+    if (!window.AuraChatCore || !window.AuraChatCore.isSafeMediaSource(path, 'video')) {
+        wrapper.textContent = path;
+        return wrapper;
+    }
     wrapper.className = 'chat-video-wrapper';
 
     const title = String((videoData && (videoData.title || videoData.filename)) || filenameFromPath(path) || '').trim();
@@ -7385,7 +7422,7 @@ function appendVideoMessage(videoData) {
 function createChatLiveStreamElement(streamData) {
     const path = streamData && streamData.path ? String(streamData.path) : '';
     const title = String((streamData && streamData.title) || 'Live stream').trim();
-    if (!path || !isSafeHref(path, true)) {
+    if (!path || !window.AuraChatCore || !window.AuraChatCore.isSafeMediaSource(path, 'img')) {
         const message = String((streamData && (streamData.message || streamData.error)) || '').trim();
         const streamUrl = String((streamData && streamData.stream_url) || '').trim();
         if (!message && !streamUrl) return null;
@@ -8185,6 +8222,8 @@ function docFormatIcon(fmt) {
     let activePrompt = null;
     let activeOverlay = null;
     let submitting = false;
+    let expiryTimer = null;
+    let statusTimer = null;
 
     function activeSessionId() {
         if (typeof getActiveSessionId === 'function') return getActiveSessionId();
@@ -8204,6 +8243,9 @@ function docFormatIcon(fmt) {
     }
 
     function closeVaultSecretPrompt() {
+        window.clearTimeout(expiryTimer);
+        window.clearInterval(statusTimer);
+        expiryTimer = statusTimer = null;
         clearSecretInput();
         if (activeOverlay) activeOverlay.remove();
         activeOverlay = null;
@@ -8229,6 +8271,7 @@ function docFormatIcon(fmt) {
 
     async function submitPrompt(input, saveButton, cancelButton) {
         if (!activePrompt || submitting || !input || !input.value) return;
+        const submittedPrompt = activePrompt;
         submitting = true;
         saveButton.disabled = true;
         cancelButton.disabled = true;
@@ -8251,6 +8294,7 @@ function docFormatIcon(fmt) {
             });
             requestBody = '';
             const response = await request;
+            if (activePrompt !== submittedPrompt) return;
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
                 const message = error && error.error_code
@@ -8272,6 +8316,7 @@ function docFormatIcon(fmt) {
             closeVaultSecretPrompt();
         } catch (_) {
             requestBody = '';
+            if (activePrompt !== submittedPrompt) return;
             const errorNode = activeOverlay && activeOverlay.querySelector('.vault-secret-modal-error');
             if (errorNode) {
                 errorNode.textContent = tr('chat.vault_secret_error', 'The secret could not be stored.');
@@ -8358,6 +8403,13 @@ function docFormatIcon(fmt) {
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
         activeOverlay = overlay;
+        const shownPrompt = activePrompt;
+        expiryTimer = window.setTimeout(function () {
+            if (activePrompt !== shownPrompt) return;
+            closeVaultSecretPrompt();
+            void cancelPrompt(shownPrompt, false);
+        }, 5 * 60 * 1000);
+        statusTimer = window.setInterval(checkPendingVaultSecretPrompt, 10000);
 
         cancel.addEventListener('click', async function () {
             const promptToCancel = activePrompt;
@@ -8374,18 +8426,22 @@ function docFormatIcon(fmt) {
 
     async function checkPendingVaultSecretPrompt() {
         const sessionId = activeSessionId();
+        const expectedPrompt = activePrompt;
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 5000);
         try {
             const response = await fetch('/api/agent/vault-secret/status?session_id=' + encodeURIComponent(sessionId), {
-                credentials: 'same-origin'
+                credentials: 'same-origin', signal: controller.signal
             });
             if (!response.ok) return;
             const status = await response.json();
+            if (sessionId !== activeSessionId() || expectedPrompt !== activePrompt) return;
             if (status && status.status === 'pending' && status.prompt) {
                 showVaultSecretPrompt(status.prompt);
             } else if (activePrompt && activePrompt.session_id === sessionId) {
                 closeVaultSecretPrompt();
             }
-        } catch (_) { }
+        } catch (_) { } finally { window.clearTimeout(timeout); }
     }
 
     async function handleSessionChange(sessionId) {
@@ -8921,6 +8977,10 @@ function handleSSEMessage(e) {
             try {
                 const imgData = JSON.parse(data.detail);
                 if (imgData && imgData.path) {
+                    if (!window.AuraChatCore || !window.AuraChatCore.isSafeMediaSource(imgData.path, 'img')) {
+                        appendMessage('assistant', String(imgData.path));
+                        return;
+                    }
                     seenSSEImages.add(imgData.path);
                     const cap = imgData.caption ? escapeHtml(imgData.caption) : '';
                     const safePath = escapeHtml(imgData.path);
@@ -9049,9 +9109,11 @@ function handleSSEMessage(e) {
             hideTodoPanel();
             resetSSEDedupSets();
             if (!_httpResponseRendered) {
+                const sessionId = getActiveSessionId();
+                const generation = historyGeneration;
                 setTimeout(() => {
-                    if (!_httpResponseRendered) {
-                        tryRecoverFromHistory();
+                    if (!_httpResponseRendered && sessionId === getActiveSessionId() && generation === historyGeneration) {
+                        tryRecoverFromHistory(sessionId, generation);
                     }
                 }, 1500);
             }
@@ -9098,9 +9160,8 @@ async function renderHistoryMessagesBatched(history, current = () => true) {
     }
 }
 
-async function tryRecoverFromHistory() {
-    const generation = historyGeneration;
-    const sessionId = getActiveSessionId();
+async function tryRecoverFromHistory(sessionId = getActiveSessionId(), generation = historyGeneration) {
+    if (generation !== historyGeneration || sessionId !== getActiveSessionId()) return;
     try {
         const res = await fetch(buildHistoryUrl());
         if (!res.ok) return;
@@ -9243,6 +9304,12 @@ window._setActivePersonaIconKey = setActivePersonaIconKey;
 
 window.onSessionSwitch = async function (sessionId) {
     const generation = ++historyGeneration;
+    _httpResponseRendered = false;
+    _fetchConnectionLost = false;
+    if (typeof userInput !== 'undefined' && userInput) userInput.disabled = false;
+    if (typeof sendBtn !== 'undefined' && sendBtn) sendBtn.disabled = false;
+    if (typeof stopBtn !== 'undefined' && stopBtn) stopBtn.disabled = true;
+    if (typeof agentStatusDiv !== 'undefined' && agentStatusDiv) chatSetHidden(agentStatusDiv, true);
     const current = () => generation === historyGeneration && sessionId === getActiveSessionId();
     if (typeof window.handleVaultSecretSessionChange === 'function') {
         await window.handleVaultSecretSessionChange(sessionId);

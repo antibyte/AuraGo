@@ -14,7 +14,9 @@ import (
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/tools"
+	"net/url"
 
 	"github.com/gorilla/websocket"
 )
@@ -188,13 +190,14 @@ func TestPrepareChromecastLocalMediaURLCopiesWorkspaceFileToCastMediaDir(t *test
 	if err := prepareChromecastLocalMediaURL(cfg, &req); err != nil {
 		t.Fatalf("prepareChromecastLocalMediaURL: %v", err)
 	}
-	if req.URL != "http://192.168.6.238:8090/cast-media/ueberall_zuhause.mp3" {
+	u, _ := url.Parse(req.URL)
+	if u == nil || u.Host != "192.168.6.238:8090" || !strings.HasPrefix(u.Path, "/cast-media/cast-") || filepath.Ext(u.Path) != ".mp3" || !security.ValidCastMediaTicket(u, time.Now()) {
 		t.Fatalf("URL = %q", req.URL)
 	}
 	if req.ContentType != "audio/mpeg" {
 		t.Fatalf("ContentType = %q, want audio/mpeg", req.ContentType)
 	}
-	if _, err := os.Stat(filepath.Join(dataDir, "cast_media", "ueberall_zuhause.mp3")); err != nil {
+	if _, err := os.Stat(filepath.Join(dataDir, "cast_media", filepath.Base(u.Path))); err != nil {
 		t.Fatalf("expected published file in cast media dir: %v", err)
 	}
 }
@@ -230,13 +233,14 @@ func TestPrepareChromecastLocalMediaURLPublishesVideoWithDetectedMIME(t *testing
 			if err := prepareChromecastLocalMediaURL(cfg, &req); err != nil {
 				t.Fatalf("prepareChromecastLocalMediaURL: %v", err)
 			}
-			if req.URL != "http://192.168.6.238:8090/cast-media/"+tt.filename {
+			u, _ := url.Parse(req.URL)
+			if u == nil || u.Host != "192.168.6.238:8090" || !strings.HasPrefix(u.Path, "/cast-media/cast-") || filepath.Ext(u.Path) != filepath.Ext(tt.filename) || !security.ValidCastMediaTicket(u, time.Now()) {
 				t.Fatalf("URL = %q", req.URL)
 			}
 			if req.ContentType != tt.contentType {
 				t.Fatalf("ContentType = %q, want %s", req.ContentType, tt.contentType)
 			}
-			if _, err := os.Stat(filepath.Join(dataDir, "cast_media", tt.filename)); err != nil {
+			if _, err := os.Stat(filepath.Join(dataDir, "cast_media", filepath.Base(u.Path))); err != nil {
 				t.Fatalf("expected published video in cast media dir: %v", err)
 			}
 		})
@@ -283,7 +287,8 @@ func TestPrepareChromecastLocalMediaURLAllowsUnsupportedExtensionWithContentType
 	if err := prepareChromecastLocalMediaURL(cfg, &req); err != nil {
 		t.Fatalf("prepareChromecastLocalMediaURL: %v", err)
 	}
-	if req.URL != "http://192.168.6.238:8090/cast-media/camera-feed.bin" {
+	u, _ := url.Parse(req.URL)
+	if u == nil || u.Host != "192.168.6.238:8090" || !strings.HasPrefix(u.Path, "/cast-media/cast-") || filepath.Ext(u.Path) != ".bin" || !security.ValidCastMediaTicket(u, time.Now()) {
 		t.Fatalf("URL = %q", req.URL)
 	}
 	if req.ContentType != "video/mp4" {

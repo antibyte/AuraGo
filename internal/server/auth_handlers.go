@@ -158,7 +158,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		// Rate limit check
-		if IsLockedOutAny(ipKey, accountKey) {
+		if IsLockedOut(ipKey) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -185,9 +185,12 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if delay := LoginBackoffDelay(ipKey, accountKey); delay > 0 {
-			time.Sleep(delay)
+		releaseVerification, allowed := beginAdminVerification(r.Context(), ipKey, accountKey)
+		if !allowed {
+			http.Error(w, "Too many login attempts", http.StatusTooManyRequests)
+			return
 		}
+		defer releaseVerification()
 
 		s.CfgMu.RLock()
 		hash := s.Cfg.Auth.PasswordHash
@@ -258,6 +261,19 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 // purge its cache for this origin so the back button cannot reveal old pages.
 func handleAuthLogout(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkCSRFOriginWithPolicy(r, true) {
+			http.Error(w, "Invalid origin", http.StatusForbidden)
+			return
+		}
+		if !revokeRequestSession(s, r) {
+			http.Error(w, "Session revocation temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		ClearSessionCookie(w, r)
 		// Discard cached page content so the back button cannot reveal old pages.
 		// Only "cache" is cleared here — the cookie is already expired via Set-Cookie MaxAge:-1
@@ -284,8 +300,16 @@ func handleAuthLogout(s *Server) http.HandlerFunc {
 // around redirects and Clear-Site-Data handling.
 func handleAuthLogoutAPI(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost && r.Method != http.MethodGet {
+		if r.Method != http.MethodPost {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkCSRFOriginWithPolicy(r, true) {
+			http.Error(w, "Invalid origin", http.StatusForbidden)
+			return
+		}
+		if !revokeRequestSession(s, r) {
+			http.Error(w, "Session revocation temporarily unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		ClearSessionCookie(w, r)

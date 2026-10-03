@@ -224,6 +224,7 @@ func handleKnowledgeFile(s *Server) http.HandlerFunc {
 				return
 			}
 			if r.URL.Query().Get("inline") == "1" {
+				w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'")
 				w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, safeName))
 			} else {
 				w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, safeName))

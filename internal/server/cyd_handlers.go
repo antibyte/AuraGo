@@ -84,7 +84,8 @@ func cydBearerToken(r *http.Request) string {
 
 // authenticateCYD validates the device token without recording its use.
 func (s *Server) authenticateCYD(w http.ResponseWriter, r *http.Request) (tokenID, tokenName string, ok bool) {
-	if s.TokenManager == nil {
+	tm := s.currentTokenManager()
+	if tm == nil {
 		jsonError(w, "cyd tokens are not available", http.StatusServiceUnavailable)
 		return "", "", false
 	}
@@ -93,7 +94,7 @@ func (s *Server) authenticateCYD(w http.ResponseWriter, r *http.Request) (tokenI
 		jsonError(w, "unauthorized", http.StatusUnauthorized)
 		return "", "", false
 	}
-	meta, valid := s.TokenManager.Validate(raw, "cyd")
+	meta, valid := tm.Validate(raw, "cyd")
 	if !valid {
 		jsonError(w, "forbidden", http.StatusForbidden)
 		return "", "", false
@@ -106,7 +107,9 @@ func (s *Server) authenticateCYD(w http.ResponseWriter, r *http.Request) (tokenI
 func (s *Server) authorizeCYD(w http.ResponseWriter, r *http.Request) (tokenID, tokenName string, ok bool) {
 	tokenID, tokenName, ok = s.authenticateCYD(w, r)
 	if ok {
-		s.TokenManager.TouchLastUsed(tokenID)
+		if tm := s.currentTokenManager(); tm != nil {
+			tm.TouchLastUsed(tokenID)
+		}
 	}
 	return tokenID, tokenName, ok
 }
@@ -208,7 +211,9 @@ func handleCYDSnapshot(s *Server) http.HandlerFunc {
 			jsonError(w, "rate limited", http.StatusTooManyRequests)
 			return
 		}
-		s.TokenManager.TouchLastUsed(tokenID)
+		if tm := s.currentTokenManager(); tm != nil {
+			tm.TouchLastUsed(tokenID)
+		}
 		s.ensureCydHub().Heartbeat(tokenID, name, cyd.Heartbeat{})
 		body, err := json.Marshal(s.CydHub.Snapshot())
 		if err != nil {

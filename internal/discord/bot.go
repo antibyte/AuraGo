@@ -766,9 +766,16 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		cleanText, images := media.ExtractMarkdownImages(answer)
 		for _, img := range images {
 			var localPath string
+			staged := false
 			if strings.HasPrefix(img.URL, "/files/") {
 				// Local workspace file
-				localPath = filepath.Join(cfg.Directories.WorkspaceDir, strings.TrimPrefix(img.URL, "/files/"))
+				var err error
+				localPath, err = media.StageWorkspaceImage(cfg.Directories.WorkspaceDir, img.URL)
+				if err != nil {
+					logger.Warn("Workspace image rejected", "error", err)
+					continue
+				}
+				staged = true
 			} else if strings.HasPrefix(img.URL, "http://") || strings.HasPrefix(img.URL, "https://") {
 				// Remote URL: download and sanitize before sending
 				imagesDir := filepath.Join(cfg.Directories.WorkspaceDir, "images")
@@ -783,6 +790,9 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 			}
 			if err := SendDiscordImage(m.ChannelID, localPath, img.Caption, logger); err != nil {
 				logger.Warn("[Discord] Failed to send image", "path", localPath, "error", err)
+			}
+			if staged {
+				_ = os.Remove(localPath)
 			}
 		}
 		cleanText = telegram.AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)

@@ -1309,7 +1309,10 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	for rows.Next() {
 		var id, source string
 		var accessCount, degree int
-		if err := rows.Scan(&id, &accessCount, &source, &degree); err == nil {
+		if err := rows.Scan(&id, &accessCount, &source, &degree); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan optimization node: %w", err)
+		} else {
 			if kg.isKnowledgeGraphOptimizeProtected(id, source) {
 				continue
 			}
@@ -1322,6 +1325,10 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 			}
 		}
 	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, fmt.Errorf("iterate optimization nodes: %w", err)
+	}
 	if err := rows.Close(); err != nil {
 		return 0, fmt.Errorf("close optimization rows: %w", err)
 	}
@@ -1330,39 +1337,38 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 		return 0, nil
 	}
 
-	inPlaceholders := knowledgeGraphSQLInPlaceholders(len(toRemove))
-	inArgs := make([]interface{}, len(toRemove))
-	for i, id := range toRemove {
-		inArgs[i] = id
-	}
-
-	edgeArgs := make([]interface{}, 0, len(toRemove)*2)
-	for _, id := range toRemove {
-		edgeArgs = append(edgeArgs, id)
-	}
-	for _, id := range toRemove {
-		edgeArgs = append(edgeArgs, id)
-	}
-	removedEdges := kg.collectSemanticEdgeIdentities(tx,
-		fmt.Sprintf(`SELECT source, target, relation FROM kg_edges WHERE source IN (%s) OR target IN (%s)`, inPlaceholders, inPlaceholders),
-		edgeArgs...,
-	)
-
-	for _, id := range toRemove {
-		if err := cleanupKGClaimsForDeletedNodeTx(tx, id); err != nil {
-			return 0, fmt.Errorf("cleanup optimized node provenance %s: %w", id, err)
+	var removedEdges []semanticEdgeIdentity
+	var nodesDeleted int
+	for start := 0; start < len(toRemove); start += defaultInClauseChunkSize {
+		end := min(start+defaultInClauseChunkSize, len(toRemove))
+		chunk := toRemove[start:end]
+		placeholders := knowledgeGraphSQLInPlaceholders(len(chunk))
+		args := make([]interface{}, 0, len(chunk)*2)
+		for _, id := range chunk {
+			args = append(args, id)
 		}
+		args = append(args, args...)
+		edges, err := kg.collectSemanticEdgeIdentities(tx,
+			fmt.Sprintf("SELECT source, target, relation FROM kg_edges WHERE source IN (%s) OR target IN (%s)", placeholders, placeholders), args...)
+		if err != nil {
+			return 0, err
+		}
+		removedEdges = append(removedEdges, edges...)
+		for _, id := range chunk {
+			if err := cleanupKGClaimsForDeletedNodeTx(tx, id); err != nil {
+				return 0, fmt.Errorf("cleanup optimized node provenance %s: %w", id, err)
+			}
+		}
+		res, err := tx.Exec(fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", placeholders), args[:len(chunk)]...)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete optimized nodes: %w", err)
+		}
+		count, err := res.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("count optimized node deletes: %w", err)
+		}
+		nodesDeleted += int(count)
 	}
-	deleteRes, execErr := tx.Exec(
-		fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", inPlaceholders),
-		inArgs...,
-	)
-	if execErr != nil {
-		return 0, fmt.Errorf("batch delete optimized nodes: %w", execErr)
-	}
-	nodesDeleted64, _ := deleteRes.RowsAffected()
-	nodesDeleted := int(nodesDeleted64)
-
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
@@ -1497,7 +1503,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 	}
 	defer tx.Rollback()
 
-	staleEdges := kg.collectSemanticEdgeIdentities(tx, `
+	staleEdges, err := kg.collectSemanticEdgeIdentities(tx, `
 		SELECT e.source, e.target, e.relation FROM kg_edges e
 		LEFT JOIN kg_nodes ns ON ns.id = e.source
 		LEFT JOIN kg_nodes nt ON nt.id = e.target
@@ -1509,6 +1515,9 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 		  AND COALESCE(nt.protected, 0) = 0
 		  AND e.updated_at <= datetime('now', '-' || ? || ' days')
 	`, policy.LowConfidenceCoMentionMinWeight, options.PendingCoMentionDays)
+	if err != nil {
+		return 0, 0, err
+	}
 
 	if err := cleanupKGClaimsForDeletedSemanticEdgesTx(tx, staleEdges); err != nil {
 		return 0, 0, fmt.Errorf("cleanup stale pending edge provenance: %w", err)
@@ -1552,9 +1561,16 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 	}
 	for placeholderRows.Next() {
 		var id string
-		if err := placeholderRows.Scan(&id); err == nil {
+		if err := placeholderRows.Scan(&id); err != nil {
+			placeholderRows.Close()
+			return 0, 0, fmt.Errorf("scan stale placeholder: %w", err)
+		} else {
 			toRemove = append(toRemove, id)
 		}
+	}
+	if err := placeholderRows.Err(); err != nil {
+		placeholderRows.Close()
+		return 0, 0, fmt.Errorf("iterate stale placeholders: %w", err)
 	}
 	if err := placeholderRows.Close(); err != nil {
 		return 0, 0, fmt.Errorf("close stale placeholder rows: %w", err)
@@ -1573,12 +1589,19 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 
 		for rows.Next() {
 			var id, source string
-			if err := rows.Scan(&id, &source); err == nil {
+			if err := rows.Scan(&id, &source); err != nil {
+				rows.Close()
+				return 0, 0, fmt.Errorf("scan stale node: %w", err)
+			} else {
 				if kg.isKnowledgeGraphOptimizeProtected(id, source) {
 					continue
 				}
 				toRemove = append(toRemove, id)
 			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return 0, 0, fmt.Errorf("iterate stale nodes: %w", err)
 		}
 		if err := rows.Close(); err != nil {
 			return 0, 0, fmt.Errorf("close stale node rows: %w", err)
@@ -1601,15 +1624,19 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 
 	removedEdges := append([]semanticEdgeIdentity(nil), staleEdges...)
 	for _, id := range toRemove {
-		removedEdges = append(removedEdges, kg.collectSemanticEdgeIdentities(tx, "SELECT source, target, relation FROM kg_edges WHERE "+activeKGEdgePredicate("")+" AND (source = ? OR target = ?)", id, id)...)
+		edges, err := kg.collectSemanticEdgeIdentities(tx, "SELECT source, target, relation FROM kg_edges WHERE (source = ? OR target = ?)", id, id)
+		if err != nil {
+			return 0, 0, err
+		}
+		removedEdges = append(removedEdges, edges...)
 		if err := cleanupKGClaimsForDeletedNodeTx(tx, id); err != nil {
 			return 0, 0, fmt.Errorf("cleanup stale node provenance %s: %w", id, err)
 		}
 		if _, execErr := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); execErr != nil {
-			kg.logger.Warn("CleanupStaleGraph: failed to delete edges for node", "id", id, "error", execErr)
+			return 0, 0, fmt.Errorf("delete stale edges for node %s: %w", id, execErr)
 		}
 		if _, execErr := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); execErr != nil {
-			kg.logger.Warn("CleanupStaleGraph: failed to delete node", "id", id, "error", execErr)
+			return 0, 0, fmt.Errorf("delete stale node %s: %w", id, execErr)
 		}
 	}
 
@@ -1635,13 +1662,10 @@ func (kg *KnowledgeGraph) normalizeCleanupOptions(options KnowledgeGraphCleanupO
 	return options
 }
 
-func (kg *KnowledgeGraph) collectSemanticEdgeIdentities(tx *sql.Tx, query string, args ...interface{}) []semanticEdgeIdentity {
+func (kg *KnowledgeGraph) collectSemanticEdgeIdentities(tx *sql.Tx, query string, args ...interface{}) ([]semanticEdgeIdentity, error) {
 	rows, err := tx.Query(query, args...)
 	if err != nil {
-		if kg.logger != nil {
-			kg.logger.Warn("KnowledgeGraph: failed to collect semantic edge identities", "error", err)
-		}
-		return nil
+		return nil, fmt.Errorf("collect semantic edge identities: %w", err)
 	}
 	defer rows.Close()
 
@@ -1649,14 +1673,17 @@ func (kg *KnowledgeGraph) collectSemanticEdgeIdentities(tx *sql.Tx, query string
 	for rows.Next() {
 		var edge semanticEdgeIdentity
 		if err := rows.Scan(&edge.source, &edge.target, &edge.relation); err != nil {
-			if kg.logger != nil {
-				kg.logger.Warn("KnowledgeGraph: failed to scan semantic edge identity", "error", err)
-			}
-			continue
+			return nil, fmt.Errorf("scan semantic edge identity: %w", err)
 		}
 		edges = append(edges, edge)
 	}
-	return edges
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate semantic edge identities: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close semantic edge identities: %w", err)
+	}
+	return edges, nil
 }
 
 func (kg *KnowledgeGraph) removeSemanticIndexesForDeletedGraphData(nodeIDs []string, edges []semanticEdgeIdentity) {

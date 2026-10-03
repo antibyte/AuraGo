@@ -16,6 +16,8 @@ Manage system services (systemd on Linux, Services on Windows) directly.
 
 ## Key Behaviors
 
+- Service commands use filtered environments and a 30-second foreground deadline; cancellation terminates their process tree. Service names must be plain validated identifiers, never shell fragments.
+
 - Abstracted across OS: Uses `systemctl` on Linux and `Get-Service`/`Start-Service` on Windows seamlessly.
 - Will fail gracefully if the agent does not have sufficient privileges to control the requested service.
 - Works across local and active SSH connections.

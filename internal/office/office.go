@@ -119,25 +119,18 @@ func EncodeDocument(name string, doc Document) ([]byte, string, error) {
 }
 
 func DecodeDOCX(data []byte) (Document, error) {
-	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	parts, err := readOfficeParts(data, "word/document.xml")
 	if err != nil {
 		return Document{}, fmt.Errorf("open docx: %w", err)
 	}
 	var documentXML []byte
 	var title string
-	for _, file := range reader.File {
-		switch file.Name {
+	for name, content := range parts {
+		switch name {
 		case "word/document.xml":
-			documentXML, err = readZipFile(file)
-			if err != nil {
-				return Document{}, err
-			}
+			documentXML = content
 		case "docProps/core.xml":
-			coreXML, readErr := readZipFile(file)
-			if readErr != nil {
-				return Document{}, readErr
-			}
-			title = parseCoreTitle(coreXML)
+			title = parseCoreTitle(content)
 		}
 	}
 	if len(documentXML) == 0 {
@@ -422,7 +415,14 @@ func trailingNewline(text string) string {
 }
 
 func decodeXLSX(data []byte) (Workbook, error) {
-	f, err := excelize.OpenReader(bytes.NewReader(data))
+	parts, err := readOfficeParts(data, "xl/workbook.xml")
+	if err != nil {
+		return Workbook{}, err
+	}
+	if err := validateWorkbookAllocation(parts); err != nil {
+		return Workbook{}, err
+	}
+	f, err := excelize.OpenReader(bytes.NewReader(data), excelize.Options{UnzipSizeLimit: 128 << 20, UnzipXMLSizeLimit: 16 << 20})
 	if err != nil {
 		return Workbook{}, fmt.Errorf("open workbook: %w", err)
 	}
@@ -432,6 +432,16 @@ func decodeXLSX(data []byte) (Workbook, error) {
 		rows, err := f.GetRows(name, excelize.Options{RawCellValue: true})
 		if err != nil {
 			return Workbook{}, fmt.Errorf("read sheet %q: %w", name, err)
+		}
+		if len(rows) > 100000 {
+			return Workbook{}, fmt.Errorf("workbook row limit exceeded")
+		}
+		cells := 0
+		for _, row := range rows {
+			cells += len(row)
+			if cells > 1000000 || len(row) > 16384 {
+				return Workbook{}, fmt.Errorf("workbook cell limit exceeded")
+			}
 		}
 		sheet := Sheet{Name: name, Rows: make([][]Cell, len(rows))}
 		for r, row := range rows {

@@ -413,6 +413,10 @@ func (r *CoAgentRegistry) Complete(id, result string, tokensUsed, toolCalls int)
 	defer r.mu.Unlock()
 	if a, ok := r.agents[id]; ok {
 		a.mu.Lock()
+		if a.State != CoAgentRunning && a.State != CoAgentQueued {
+			a.mu.Unlock()
+			return
+		}
 		wasRunning := a.State == CoAgentRunning
 		a.State = CoAgentCompleted
 		a.CompletedAt = time.Now()
@@ -434,6 +438,10 @@ func (r *CoAgentRegistry) Fail(id, errMsg string, tokensUsed, toolCalls int) {
 	defer r.mu.Unlock()
 	if a, ok := r.agents[id]; ok {
 		a.mu.Lock()
+		if a.State != CoAgentRunning && a.State != CoAgentQueued {
+			a.mu.Unlock()
+			return
+		}
 		wasRunning := a.State == CoAgentRunning
 		a.State = CoAgentFailed
 		a.CompletedAt = time.Now()

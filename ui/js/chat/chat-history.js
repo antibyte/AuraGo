@@ -30,9 +30,8 @@ async function renderHistoryMessagesBatched(history, current = () => true) {
     }
 }
 
-async function tryRecoverFromHistory() {
-    const generation = historyGeneration;
-    const sessionId = getActiveSessionId();
+async function tryRecoverFromHistory(sessionId = getActiveSessionId(), generation = historyGeneration) {
+    if (generation !== historyGeneration || sessionId !== getActiveSessionId()) return;
     try {
         const res = await fetch(buildHistoryUrl());
         if (!res.ok) return;
@@ -175,6 +174,12 @@ window._setActivePersonaIconKey = setActivePersonaIconKey;
 
 window.onSessionSwitch = async function (sessionId) {
     const generation = ++historyGeneration;
+    _httpResponseRendered = false;
+    _fetchConnectionLost = false;
+    if (typeof userInput !== 'undefined' && userInput) userInput.disabled = false;
+    if (typeof sendBtn !== 'undefined' && sendBtn) sendBtn.disabled = false;
+    if (typeof stopBtn !== 'undefined' && stopBtn) stopBtn.disabled = true;
+    if (typeof agentStatusDiv !== 'undefined' && agentStatusDiv) chatSetHidden(agentStatusDiv, true);
     const current = () => generation === historyGeneration && sessionId === getActiveSessionId();
     if (typeof window.handleVaultSecretSessionChange === 'function') {
         await window.handleVaultSecretSessionChange(sessionId);

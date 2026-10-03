@@ -50,7 +50,7 @@ func (w *responseWriter) WriteHeader(status int) {
 		w.wroteHeader = true
 		contentType, _, _ := strings.Cut(w.Header().Get("Content-Type"), ";")
 		contentType = strings.ToLower(strings.TrimSpace(contentType))
-		w.streaming = status < 300 && (contentType == "text/event-stream" || contentType == "multipart/x-mixed-replace")
+		w.streaming = status < 300 && (contentType == "text/event-stream" || contentType == "multipart/x-mixed-replace" || strings.HasPrefix(contentType, "audio/") || strings.HasPrefix(contentType, "video/"))
 	}
 	if w.renewDeadline() == nil {
 		w.ResponseWriter.WriteHeader(status)

@@ -6,7 +6,7 @@ Publish prepared files with bounded, context-aware platform replacement retries.
 
 ## Ownership
 
-`Rename` and `RenameContext` own replacement retries. Callers own path authorization,
+`Rename`, `RenameContext` and `RenameRootContext` own replacement retries. Callers own path authorization,
 temporary file creation, permissions, syncing, serialization, cleanup, and publication
 acknowledgements. This package does not grant filesystem access.
 
@@ -16,6 +16,7 @@ acknowledgements. This package does not grant filesystem access.
 - Retry only Windows permission/sharing violations, at most eight attempts with
   15–105 ms delays. Context cancellation stops waiting and prevents later attempts.
 - Vault, Config, native editors, and both MissionV2 state files share this primitive.
+- Token storage and Desktop archive publication share the same retry behavior; rooted callers supply an authorized root rename callback, never an unchecked absolute-path fallback.
   Keep their existing filesystem gates, locks, file modes, and error handling.
 
 ## Work Guidance

@@ -249,6 +249,12 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Feature contracts | Canonical child DOX |
 | --- | --- |
 | Shared file replacement | `internal/fileutil/AGENTS.md` |
+| Desktop rooted files and archives | `internal/desktop/AGENTS.md` |
+| Security primitives, Vault import grants and Cast tickets | `internal/security/AGENTS.md` |
+| Remote enrollment and connection lifecycle | `internal/remote/AGENTS.md` |
+| LLM transport trust and failover | `internal/llm/AGENTS.md` |
+| HTTP stream write budgets | `internal/httpstream/AGENTS.md` |
+| Telnyx call/SMS transport and reconciliation | `internal/telnyx/AGENTS.md` |
 | Tool System; Prompt and Runtime Drift Contract | `internal/agent/AGENTS.md` |
 | Bluetooth Integration Contract | `internal/bluetooth/AGENTS.md` |
 | God's Eye View Store Contract | `internal/desktopstore/AGENTS.md` |
@@ -564,11 +570,13 @@ Current child AGENTS.md files:
 - `internal/acestep/AGENTS.md` — Private local music lifecycle, pinned runtime/models and hardware qualification.
 - `internal/agent/AGENTS.md` — Runtime prompt, tool-discovery, dispatch, and context rules.
 - `internal/bluetooth/AGENTS.md` — Native Bluetooth discovery, permissions, and playback.
-- `internal/desktop/pets_assets/AGENTS.md` — OpenPets sprite format, persona catalog, source ownership and pixel validation.
+- `internal/desktop/AGENTS.md` — Rooted Desktop file/archive operations; owns the pets-assets child index.
 - `internal/desktopstore/AGENTS.md` — Store app configuration, runtime, assets, and publication.
 - `internal/detective/AGENTS.md` — Isolated Desktop research cases, evidence, budgets, revisions and exports.
 - `internal/fritzbox/AGENTS.md` — TR-064 integration and Desktop widget behavior.
 - `internal/gamemaker/AGENTS.md` — Game planning, runtime feedback/progression, lifecycle, validation and exports; owns the asset-pack child index.
+- `internal/httpstream/AGENTS.md` — Finite stream write budgets and HTTP writer compatibility.
+- `internal/llm/AGENTS.md` — Provider transport trust, URL logging and failover state.
 - `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
 - `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
 - `internal/meshcore/AGENTS.md` — USB/BLE radio, trust, messaging, and agent replies.
@@ -579,12 +587,15 @@ Current child AGENTS.md files:
 - `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
 - `internal/planner/AGENTS.md` — Issue lifecycle, notification, and background retry policy.
 - `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.
+- `internal/remote/AGENTS.md` — Remote enrollment, socket ownership and command/result lifecycle.
 - `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.
 - `internal/server/AGENTS.md` — Server-owned HTTP and cross-component integration contracts.
+- `internal/security/AGENTS.md` — Vault/token persistence, public URL trust, Guardian caching and Cast tickets.
 - `internal/services/AGENTS.md` — Background services and workspace search.
 - `internal/sipphone/AGENTS.md` — Native telephone registration, calls, media, and agent policy.
 - `internal/speechlab/AGENTS.md` — Active ASR/TTS snapshots and speech-driven chat routing.
 - `internal/tresor/AGENTS.md` — Browser-encrypted Desktop Tresor storage, revisions, backups and agent file protection.
+- `internal/telnyx/AGENTS.md` — Call/SMS transport and bounded provider-confirmed reconciliation.
 - `internal/tools/AGENTS.md` — Agent filesystem and Docker tool safety boundaries.
 - `internal/upkeep/AGENTS.md` — Update transactions, artifact retention, maintenance CLI and cleanup safeguards.
 - `internal/virtualcomputers/AGENTS.md` — Workspace lease and managed Garage storage lifecycle.
