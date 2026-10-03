@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS सक्रिय है। लॉगिन अक्षम नहीं किया जा सकता।",
   "config.auth.totp_disable_confirm_title": "दो-कारक प्रमाणीकरण अक्षम करें?",
   "config.auth.unsafe_remote_title": "लॉगिन के बिना असुरक्षित दूरस्थ पहुँच",
-  "config.auth.unsafe_remote_desc": "बिना लॉगिन के AuraGo की दूरस्थ पहुँच देता है। Speech Lab दूर से बंद रहता है।"
+  "config.auth.unsafe_remote_desc": "बिना लॉगिन के AuraGo की दूरस्थ पहुँच देता है। Speech Lab दूर से बंद रहता है।",
+  "config.auth.current_password_placeholder": "वर्तमान पासवर्ड",
+  "config.auth.current_totp_placeholder": "वर्तमान 6-अंकीय कोड",
+  "config.auth.current_password_required": "अपना वर्तमान पासवर्ड दर्ज करें।",
+  "config.auth.current_totp_required": "अपने ऑथेंटिकेटर ऐप से वर्तमान कोड दर्ज करें।",
+  "config.auth.step_up_hint": "लॉगिन पासवर्ड या टू-फ़ैक्टर ऑथेंटिकेशन में बदलाव के लिए आपका वर्तमान पासवर्ड (और TOTP सक्रिय होने पर वर्तमान कोड) आवश्यक है।"
 }

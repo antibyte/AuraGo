@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS er aktiv. Innlogging kan ikke deaktiveres.",
   "config.auth.totp_disable_confirm_title": "Slå av tofaktorautentisering?",
   "config.auth.unsafe_remote_title": "Usikker fjerntilgang uten innlogging",
-  "config.auth.unsafe_remote_desc": "Tillater fjerntilgang til AuraGo uten innlogging. Speech Lab forblir sperret eksternt."
+  "config.auth.unsafe_remote_desc": "Tillater fjerntilgang til AuraGo uten innlogging. Speech Lab forblir sperret eksternt.",
+  "config.auth.current_password_placeholder": "Nåværende passord",
+  "config.auth.current_totp_placeholder": "Nåværende 6-sifret kode",
+  "config.auth.current_password_required": "Skriv inn ditt nåværende passord.",
+  "config.auth.current_totp_required": "Skriv inn den gjeldende koden fra autentiseringsappen din.",
+  "config.auth.step_up_hint": "Endringer av innloggingspassordet eller tofaktorautentiseringen krever ditt nåværende passord (og den gjeldende koden mens TOTP er aktiv)."
 }

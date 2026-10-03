@@ -240,5 +240,7 @@
   "backend.budget_mode_warn_en": "(警告のみ)",
   "backend.budget_mode_partial_en": "(共同エージェント + vision/STT を超えるとブロックされます)",
   "backend.budget_mode_full_en": "(超過すると全てブロックされます)",
-  "backend.speech_lab_audio_warning": "Speech Lab の音声を生成できませんでした。テキスト応答は引き続き利用できます。"
+  "backend.speech_lab_audio_warning": "Speech Lab の音声を生成できませんでした。テキスト応答は引き続き利用できます。",
+  "backend.auth_current_password_required": "この変更には現在のパスワードが必要です。",
+  "backend.auth_current_totp_required": "この変更には認証アプリの現在のコードが必要です。"
 }

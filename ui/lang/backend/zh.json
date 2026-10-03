@@ -240,5 +240,7 @@
   "backend.budget_mode_warn_de": "（努尔警告）",
   "backend.budget_mode_partial_de": "（超过限制时会阻止协同代理 + Vision/STT）",
   "backend.budget_mode_full_de": "（超出时全部阻止）",
-  "backend.speech_lab_audio_warning": "无法生成 Speech Lab 音频。文本回复仍然可用。"
+  "backend.speech_lab_audio_warning": "无法生成 Speech Lab 音频。文本回复仍然可用。",
+  "backend.auth_current_password_required": "此更改需要提供当前密码。",
+  "backend.auth_current_totp_required": "此更改需要提供身份验证器应用中的当前验证码。"
 }

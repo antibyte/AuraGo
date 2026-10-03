@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS ist aktiv. Anmeldung kann nicht deaktiviert werden.",
   "config.auth.totp_disable_confirm_title": "Zwei-Faktor-Authentifizierung deaktivieren?",
   "config.auth.unsafe_remote_title": "Unsicherer Fernzugriff ohne Anmeldung",
-  "config.auth.unsafe_remote_desc": "Erlaubt Fernzugriff auf AuraGo ohne Anmeldung. Speech Lab bleibt aus der Ferne gesperrt."
+  "config.auth.unsafe_remote_desc": "Erlaubt Fernzugriff auf AuraGo ohne Anmeldung. Speech Lab bleibt aus der Ferne gesperrt.",
+  "config.auth.current_password_placeholder": "Aktuelles Passwort",
+  "config.auth.current_totp_placeholder": "Aktueller 6-stelliger Code",
+  "config.auth.current_password_required": "Bitte gib dein aktuelles Passwort ein.",
+  "config.auth.current_totp_required": "Bitte gib den aktuellen Code aus deiner Authenticator-App ein.",
+  "config.auth.step_up_hint": "Änderungen am Login-Passwort oder an der Zwei-Faktor-Authentifizierung erfordern dein aktuelles Passwort (und bei aktivem TOTP den aktuellen Code)."
 }

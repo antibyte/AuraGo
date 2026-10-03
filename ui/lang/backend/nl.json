@@ -240,5 +240,7 @@
   "backend.budget_mode_warn_en": "(alleen waarschuwing)",
   "backend.budget_mode_partial_en": "(co-agenten + vision/STT geblokkeerd bij overschrijding)",
   "backend.budget_mode_full_en": "(allemaal geblokkeerd bij overschrijding)",
-  "backend.speech_lab_audio_warning": "Speech Lab-audio kon niet worden gegenereerd. Het tekstantwoord blijft beschikbaar."
+  "backend.speech_lab_audio_warning": "Speech Lab-audio kon niet worden gegenereerd. Het tekstantwoord blijft beschikbaar.",
+  "backend.auth_current_password_required": "Voor deze wijziging is je huidige wachtwoord vereist.",
+  "backend.auth_current_totp_required": "Voor deze wijziging is de huidige code uit je authenticator-app vereist."
 }

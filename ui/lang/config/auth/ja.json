@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPSが有効です。ログインを無効にすることはできません。",
   "config.auth.totp_disable_confirm_title": "二要素認証を無効にしますか？",
   "config.auth.unsafe_remote_title": "ログインなしの危険なリモートアクセス",
-  "config.auth.unsafe_remote_desc": "ログインせずに AuraGo へリモートアクセスできます。Speech Lab のリモートアクセスは引き続き禁止されます。"
+  "config.auth.unsafe_remote_desc": "ログインせずに AuraGo へリモートアクセスできます。Speech Lab のリモートアクセスは引き続き禁止されます。",
+  "config.auth.current_password_placeholder": "現在のパスワード",
+  "config.auth.current_totp_placeholder": "現在の6桁のコード",
+  "config.auth.current_password_required": "現在のパスワードを入力してください。",
+  "config.auth.current_totp_required": "認証アプリに表示されている現在のコードを入力してください。",
+  "config.auth.step_up_hint": "ログインパスワードまたは2要素認証を変更するには、現在のパスワード（TOTPが有効な場合は現在のコードも）が必要です。"
 }

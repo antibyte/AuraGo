@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS está activo. El inicio de sesión no se puede desactivar.",
   "config.auth.totp_disable_confirm_title": "¿Desactivar la autenticación de dos factores?",
   "config.auth.unsafe_remote_title": "Acceso remoto inseguro sin iniciar sesión",
-  "config.auth.unsafe_remote_desc": "Permite acceder a AuraGo de forma remota sin iniciar sesión. Speech Lab sigue bloqueado a distancia."
+  "config.auth.unsafe_remote_desc": "Permite acceder a AuraGo de forma remota sin iniciar sesión. Speech Lab sigue bloqueado a distancia.",
+  "config.auth.current_password_placeholder": "Contraseña actual",
+  "config.auth.current_totp_placeholder": "Código actual de 6 dígitos",
+  "config.auth.current_password_required": "Introduce tu contraseña actual.",
+  "config.auth.current_totp_required": "Introduce el código actual de tu aplicación de autenticación.",
+  "config.auth.step_up_hint": "Los cambios en la contraseña de inicio de sesión o en la autenticación de dos factores requieren tu contraseña actual (y el código actual mientras TOTP esté activo)."
 }

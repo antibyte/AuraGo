@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "Το HTTPS είναι ενεργό. Η σύνδεση δεν μπορεί να απενεργοποιηθεί.",
   "config.auth.totp_disable_confirm_title": "Απενεργοποίηση ελέγχου ταυτότητας δύο παραγόντων;",
   "config.auth.unsafe_remote_title": "Μη ασφαλής απομακρυσμένη πρόσβαση χωρίς σύνδεση",
-  "config.auth.unsafe_remote_desc": "Επιτρέπει απομακρυσμένη πρόσβαση στο AuraGo χωρίς σύνδεση. Το Speech Lab παραμένει κλειδωμένο εξ αποστάσεως."
+  "config.auth.unsafe_remote_desc": "Επιτρέπει απομακρυσμένη πρόσβαση στο AuraGo χωρίς σύνδεση. Το Speech Lab παραμένει κλειδωμένο εξ αποστάσεως.",
+  "config.auth.current_password_placeholder": "Τρέχων κωδικός πρόσβασης",
+  "config.auth.current_totp_placeholder": "Τρέχων 6ψήφιος κωδικός",
+  "config.auth.current_password_required": "Εισαγάγετε τον τρέχοντα κωδικό πρόσβασής σας.",
+  "config.auth.current_totp_required": "Εισαγάγετε τον τρέχοντα κωδικό από την εφαρμογή ελέγχου ταυτότητας.",
+  "config.auth.step_up_hint": "Οι αλλαγές στον κωδικό σύνδεσης ή στον έλεγχο ταυτότητας δύο παραγόντων απαιτούν τον τρέχοντα κωδικό πρόσβασής σας (και τον τρέχοντα κωδικό όσο το TOTP είναι ενεργό)."
 }

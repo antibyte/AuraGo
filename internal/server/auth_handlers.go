@@ -148,9 +148,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			return
 		}
 
-		ip := ClientIP(r, s.Cfg.Server.HTTPS.BehindProxy)
-		accountKey := loginScopeKey("account", "admin")
-		ipKey := loginScopeKey("ip", ip)
+		ip, ipKey, accountKey := adminLoginKeys(s, r)
 
 		s.CfgMu.RLock()
 		maxAttempts := s.Cfg.Auth.MaxLoginAttempts
@@ -302,7 +300,9 @@ func handleAuthLogoutAPI(s *Server) http.HandlerFunc {
 // ── Password Management ──────────────────────────────────────────────────────
 
 // handleAuthSetPassword sets or changes the login password.
-// Accessible if no password is set yet (first-time) OR the user is authenticated.
+// The first password (no hash yet) follows the setup bootstrap rules. Changing
+// an existing password requires an authenticated browser session plus the
+// current password and, while TOTP is active, a current code.
 func handleAuthSetPassword(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -352,7 +352,9 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		defer r.Body.Close()
 
 		var req struct {
-			NewPassword string `json:"new_password"`
+			NewPassword     string `json:"new_password"`
+			CurrentPassword string `json:"current_password"`
+			CurrentTOTPCode string `json:"current_totp_code"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_json"), http.StatusBadRequest)
@@ -363,6 +365,12 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_password_min_length")})
+			return
+		}
+
+		// Re-verify the owner before replacing an existing password so an open
+		// session alone cannot lock the owner out.
+		if !firstSetup && !requireAdminStepUp(s, w, r, req.CurrentPassword, req.CurrentTOTPCode) {
 			return
 		}
 
@@ -430,6 +438,8 @@ func handleAuthTOTPSetup(s *Server) http.HandlerFunc {
 }
 
 // handleAuthTOTPConfirm verifies the user's first TOTP code and activates 2FA.
+// Enrolling or replacing a secret requires the current password and, when a
+// secret is already active, a current code from it.
 func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -448,8 +458,10 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 		defer r.Body.Close()
 
 		var req struct {
-			Secret string `json:"secret"`
-			Code   string `json:"code"`
+			Secret          string `json:"secret"`
+			Code            string `json:"code"`
+			CurrentPassword string `json:"current_password"`
+			CurrentTOTPCode string `json:"current_totp_code"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil || req.Secret == "" || req.Code == "" {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_request"), http.StatusBadRequest)
@@ -460,6 +472,9 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_code")})
+			return
+		}
+		if !requireAdminStepUp(s, w, r, req.CurrentPassword, req.CurrentTOTPCode) {
 			return
 		}
 
@@ -478,7 +493,8 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 	}
 }
 
-// handleAuthTOTPDelete disables TOTP authentication.
+// handleAuthTOTPDelete disables TOTP authentication. The JSON body must carry
+// the current password and, while TOTP is active, a current code.
 func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
@@ -486,6 +502,26 @@ func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 			return
 		}
 		if !requireSession(s, w, r) {
+			return
+		}
+
+		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
+		if err != nil {
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_bad_request"), http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+		var req struct {
+			CurrentPassword string `json:"current_password"`
+			CurrentTOTPCode string `json:"current_totp_code"`
+		}
+		if strings.TrimSpace(string(body)) != "" {
+			if err := json.Unmarshal(body, &req); err != nil {
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_json"), http.StatusBadRequest)
+				return
+			}
+		}
+		if !requireAdminStepUp(s, w, r, req.CurrentPassword, req.CurrentTOTPCode) {
 			return
 		}
 

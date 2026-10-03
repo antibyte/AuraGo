@@ -240,5 +240,7 @@
   "backend.budget_mode_warn_en": "(kun advarsel)",
   "backend.budget_mode_partial_en": "(medagenter + vision/STT blokkert når overskredet)",
   "backend.budget_mode_full_en": "(alle blokkert når overskredet)",
-  "backend.speech_lab_audio_warning": "Speech Lab-lyden kunne ikke genereres. Tekstsvaret er fortsatt tilgjengelig."
+  "backend.speech_lab_audio_warning": "Speech Lab-lyden kunne ikke genereres. Tekstsvaret er fortsatt tilgjengelig.",
+  "backend.auth_current_password_required": "Denne endringen krever ditt nåværende passord.",
+  "backend.auth_current_totp_required": "Denne endringen krever den gjeldende koden fra autentiseringsappen din."
 }

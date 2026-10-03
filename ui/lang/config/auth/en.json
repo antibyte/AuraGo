@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS is active. Login cannot be disabled.",
   "config.auth.totp_disable_confirm_title": "Disable two-factor authentication?",
   "config.auth.unsafe_remote_title": "Unsafe remote access without login",
-  "config.auth.unsafe_remote_desc": "Allows remote access to AuraGo without login. Speech Lab remains blocked remotely."
+  "config.auth.unsafe_remote_desc": "Allows remote access to AuraGo without login. Speech Lab remains blocked remotely.",
+  "config.auth.current_password_placeholder": "Current password",
+  "config.auth.current_totp_placeholder": "Current 6-digit code",
+  "config.auth.current_password_required": "Enter your current password.",
+  "config.auth.current_totp_required": "Enter the current code from your authenticator app.",
+  "config.auth.step_up_hint": "Changes to the login password or two-factor authentication require your current password (and the current code while TOTP is active)."
 }

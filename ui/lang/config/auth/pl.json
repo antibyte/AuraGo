@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS jest aktywne. Logowanie nie może zostać wyłączone.",
   "config.auth.totp_disable_confirm_title": "Wyłączyć uwierzytelnianie dwuskładnikowe?",
   "config.auth.unsafe_remote_title": "Niebezpieczny dostęp zdalny bez logowania",
-  "config.auth.unsafe_remote_desc": "Pozwala na zdalny dostęp do AuraGo bez logowania. Speech Lab pozostaje zdalnie zablokowany."
+  "config.auth.unsafe_remote_desc": "Pozwala na zdalny dostęp do AuraGo bez logowania. Speech Lab pozostaje zdalnie zablokowany.",
+  "config.auth.current_password_placeholder": "Obecne hasło",
+  "config.auth.current_totp_placeholder": "Obecny 6-cyfrowy kod",
+  "config.auth.current_password_required": "Wpisz swoje obecne hasło.",
+  "config.auth.current_totp_required": "Wpisz aktualny kod z aplikacji uwierzytelniającej.",
+  "config.auth.step_up_hint": "Zmiana hasła logowania lub uwierzytelniania dwuskładnikowego wymaga podania obecnego hasła (oraz aktualnego kodu, gdy TOTP jest aktywne)."
 }

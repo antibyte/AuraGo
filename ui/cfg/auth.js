@@ -1,6 +1,7 @@
 // cfg/auth.js — Web Configuration, Login Guard, TOTP & Vault section module
 
 let _totpNewSecret = '';
+let _authStatus = { enabled: false, password_set: false, totp_enabled: false };
 
 function authSetStatus(el, level, text) {
     if (!el) return;
@@ -20,6 +21,7 @@ async function renderWebConfigSection(section) {
         const resp = await fetch('/api/auth/status');
         authStatus = await resp.json();
     } catch (e) { /* auth endpoint unavailable */ }
+    _authStatus = authStatus;
 
     const webCfg = configData.web_config || {};
     const authCfg = configData.auth || {};
@@ -91,13 +93,29 @@ async function renderWebConfigSection(section) {
             </div>`;
 
     // ── Password card
+    const pwStepUp = authStatus.password_set === true;
+    const totpStepUp = authStatus.totp_enabled === true;
     html += `<div class="field-group">
                 <div class="field-label">🔑 ${t('config.auth.password_label')}</div>
                 <div class="field-help">${authStatus.password_set
             ? t('config.auth.password_is_set')
             : t('config.auth.password_not_set')
-        }</div>
+        }</div>`;
+    if (pwStepUp) {
+        html += `<div class="field-help">${t('config.auth.step_up_hint')}</div>
                 <div class="auth-password-row">
+                    <div class="password-wrap auth-password-wrap">
+                        <input class="field-input" type="password" id="auth-current-pw"
+                            placeholder="${t('config.auth.current_password_placeholder')}"
+                            autocomplete="current-password">
+                        <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
+                    </div>
+                    ${totpStepUp ? `<input class="field-input auth-totp-confirm-input" type="text" id="auth-current-totp"
+                        inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+                        placeholder="${t('config.auth.current_totp_placeholder')}">` : ''}
+                </div>`;
+    }
+    html += `<div class="auth-password-row">
                     <div class="password-wrap auth-password-wrap">
                         <input class="field-input" type="password" id="auth-new-pw"
                             placeholder="${t('config.auth.new_password_placeholder')}"
@@ -124,7 +142,20 @@ async function renderWebConfigSection(section) {
                     <button onclick="authTOTPDisable()" class="auth-totp-disable-btn">
                         ${t('config.auth.totp_disable')}
                     </button>
-                </div>`;
+                </div>
+                <div class="field-help">${t('config.auth.step_up_hint')}</div>
+                <div class="auth-password-row">
+                    <div class="password-wrap auth-password-wrap">
+                        <input class="field-input" type="password" id="auth-totp-disable-current-pw"
+                            placeholder="${t('config.auth.current_password_placeholder')}"
+                            autocomplete="current-password">
+                        <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
+                    </div>
+                    <input class="field-input auth-totp-confirm-input" type="text" id="auth-totp-disable-current-totp"
+                        inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+                        placeholder="${t('config.auth.current_totp_placeholder')}">
+                </div>
+                <div id="auth-totp-disable-msg" class="auth-inline-msg is-hidden"></div>`;
     } else {
         html += `<div class="auth-totp-inactive-text">${t('config.auth.totp_not_active')}.</div>
                 <button onclick="authTOTPStartSetup()" id="btn-totp-start" class="auth-totp-start-btn">
@@ -139,6 +170,14 @@ async function renderWebConfigSection(section) {
                         <div class="auth-totp-manual-wrap">
                             <div class="auth-totp-manual-label">${t('config.auth.manual_key')}:</div>
                             <div id="totp-secret-display" class="auth-totp-secret"></div>
+                        </div>
+                    </div>
+                    <div class="auth-password-row">
+                        <div class="password-wrap auth-password-wrap">
+                            <input class="field-input" type="password" id="totp-setup-current-pw"
+                                placeholder="${t('config.auth.current_password_placeholder')}"
+                                autocomplete="current-password">
+                            <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                         </div>
                     </div>
                     <div>
@@ -172,6 +211,20 @@ async function renderWebConfigSection(section) {
     loadSecurityAuditPanel();
 }
 
+// Step-up credentials for password and TOTP changes. prefix selects the input
+// pair of the card that triggered the change.
+function authReadStepUp(prefix) {
+    const pw = (document.getElementById(prefix + '-current-pw') || {}).value || '';
+    const code = ((document.getElementById(prefix + '-current-totp') || {}).value || '').trim();
+    return { current_password: pw, current_totp_code: code };
+}
+
+function authStepUpMissing(stepUp) {
+    if (_authStatus.password_set && !stepUp.current_password) return t('config.auth.current_password_required');
+    if (_authStatus.totp_enabled && !stepUp.current_totp_code) return t('config.auth.current_totp_required');
+    return '';
+}
+
 async function authSetPassword() {
     const pw = (document.getElementById('auth-new-pw') || {}).value || '';
     const msgEl = document.getElementById('auth-pw-msg');
@@ -180,16 +233,25 @@ async function authSetPassword() {
         authSetStatus(msgEl, 'error', t('config.auth.password_min_length'));
         return;
     }
+    const stepUp = authReadStepUp('auth');
+    const missing = authStepUpMissing(stepUp);
+    if (missing) {
+        authSetStatus(msgEl, 'error', missing);
+        return;
+    }
     try {
         const resp = await fetch('/api/auth/password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ new_password: pw })
+            body: JSON.stringify(Object.assign({ new_password: pw }, stepUp))
         });
         const data = await resp.json();
         if (resp.ok && data.ok) {
             authSetStatus(msgEl, 'success', '✓ ' + (data.message || t('config.common.saved')));
-            document.getElementById('auth-new-pw').value = '';
+            ['auth-new-pw', 'auth-current-pw', 'auth-current-totp'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
         } else {
             authSetStatus(msgEl, 'error', data.error || t('config.common.error'));
         }
@@ -227,11 +289,18 @@ async function authTOTPStartSetup() {
 async function authTOTPConfirm() {
     const code = (document.getElementById('totp-confirm-code') || {}).value || '';
     const msgEl = document.getElementById('auth-totp-msg');
+    authSetStatus(msgEl, null, '');
+    const stepUp = authReadStepUp('totp-setup');
+    const missing = authStepUpMissing(stepUp);
+    if (missing) {
+        authSetStatus(msgEl, 'error', missing);
+        return;
+    }
     try {
         const resp = await fetch('/api/auth/totp/confirm', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ secret: _totpNewSecret, code })
+            body: JSON.stringify(Object.assign({ secret: _totpNewSecret, code }, stepUp))
         });
         const data = await resp.json();
         if (resp.ok && data.ok) {
@@ -246,14 +315,26 @@ async function authTOTPConfirm() {
 }
 
 async function authTOTPDisable() {
+    const msgEl = document.getElementById('auth-totp-disable-msg');
+    authSetStatus(msgEl, null, '');
+    const stepUp = authReadStepUp('auth-totp-disable');
+    const missing = authStepUpMissing(stepUp);
+    if (missing) {
+        authSetStatus(msgEl, 'error', missing);
+        return;
+    }
     if (!(await showConfirm(t('config.auth.totp_disable_confirm_title'), t('config.auth.totp_disable_confirm')))) return;
     try {
-        const resp = await fetch('/api/auth/totp', { method: 'DELETE' });
+        const resp = await fetch('/api/auth/totp', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(stepUp)
+        });
         const data = await resp.json();
         if (resp.ok) {
             selectSection('web_config');
         } else {
-            showToast(data.error || t('config.common.error'), 'error');
+            authSetStatus(msgEl, 'error', data.error || t('config.common.error'));
         }
     } catch (e) {
         showToast(t('config.common.network_error'), 'error');

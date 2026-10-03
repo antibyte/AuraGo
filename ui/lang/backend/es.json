@@ -240,5 +240,7 @@
   "backend.budget_mode_warn_en": "(solo advertencia)",
   "backend.budget_mode_partial_en": "(coagentes + vision/STT bloqueados cuando se excede)",
   "backend.budget_mode_full_en": "(todo bloqueado cuando se excede)",
-  "backend.speech_lab_audio_warning": "No se pudo generar el audio de Speech Lab. La respuesta de texto sigue disponible."
+  "backend.speech_lab_audio_warning": "No se pudo generar el audio de Speech Lab. La respuesta de texto sigue disponible.",
+  "backend.auth_current_password_required": "Para este cambio se requiere tu contraseña actual.",
+  "backend.auth_current_totp_required": "Para este cambio se requiere el código actual de tu aplicación de autenticación."
 }

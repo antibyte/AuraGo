@@ -127,12 +127,15 @@ POST /api/auth/password
 Content-Type: application/json
 
 {
-  "password": "neues-geheim",
-  "current_password": "altes-geheim"
+  "new_password": "neues-geheim",
+  "current_password": "altes-geheim",
+  "current_totp_code": "123456"
 }
 ```
 
-Setzt oder ändert das Login-Passwort. Ohne Authentifizierung nur erlaubt, wenn noch kein Passwort gesetzt ist; sonst aktive Session erforderlich.
+Setzt oder ändert das Login-Passwort. Ohne Session ist nur das erste Passwort erlaubt (noch kein Passwort gesetzt; im Lockdown zusätzlich mit dem Bootstrap-Header `X-Setup-Token`). Ein vorhandenes Passwort zu ändern erfordert eine aktive Browser-Session, `current_password` und bei aktivem TOTP `current_totp_code`. Fehlversuche zählen zur Login-Sperre (`auth.max_login_attempts`, `auth.lockout_minutes`). Die Änderung rotiert das Session-Secret und meldet alle Browser-Sessions ab.
+
+Fehler: `403` mit `code` `current_password_required` oder `current_totp_required`, `401` `invalid_credentials`, `429` `too_many_attempts`.
 
 ### TOTP einrichten
 ```http
@@ -147,18 +150,27 @@ POST /api/auth/totp/confirm
 Content-Type: application/json
 
 {
-  "code": "123456"
+  "secret": "BASE32SECRET",
+  "code": "123456",
+  "current_password": "geheim",
+  "current_totp_code": "654321"
 }
 ```
 
-Verifiziert den ersten TOTP-Code und aktiviert Zwei-Faktor-Authentifizierung.
+Verifiziert den ersten Code des neuen Secrets und aktiviert die Zwei-Faktor-Authentifizierung. Erfordert eine aktive Session und `current_password`; ist TOTP bereits aktiv, zusätzlich `current_totp_code` aus dem bisherigen Authenticator. Ohne gesetztes Passwort antwortet der Endpunkt mit `409`.
 
 ### TOTP deaktivieren
 ```http
 DELETE /api/auth/totp
+Content-Type: application/json
+
+{
+  "current_password": "geheim",
+  "current_totp_code": "123456"
+}
 ```
 
-Deaktiviert TOTP. Erfordert Authentifizierung.
+Deaktiviert TOTP. Erfordert eine aktive Session, `current_password` und `current_totp_code`.
 
 ### Login
 ```http

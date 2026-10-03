@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS is actief. Login kan niet worden uitgeschakeld.",
   "config.auth.totp_disable_confirm_title": "Tweefactorauthenticatie uitschakelen?",
   "config.auth.unsafe_remote_title": "Onveilige externe toegang zonder aanmelding",
-  "config.auth.unsafe_remote_desc": "Staat externe toegang tot AuraGo zonder aanmelding toe. Speech Lab blijft extern geblokkeerd."
+  "config.auth.unsafe_remote_desc": "Staat externe toegang tot AuraGo zonder aanmelding toe. Speech Lab blijft extern geblokkeerd.",
+  "config.auth.current_password_placeholder": "Huidig wachtwoord",
+  "config.auth.current_totp_placeholder": "Huidige 6-cijferige code",
+  "config.auth.current_password_required": "Voer je huidige wachtwoord in.",
+  "config.auth.current_totp_required": "Voer de huidige code uit je authenticator-app in.",
+  "config.auth.step_up_hint": "Wijzigingen aan het inlogwachtwoord of aan tweestapsverificatie vereisen je huidige wachtwoord (en de huidige code zolang TOTP actief is)."
 }

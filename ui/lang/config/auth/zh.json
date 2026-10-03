@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS 已启用，无法禁用登录。",
   "config.auth.totp_disable_confirm_title": "要停用双重身份验证吗？",
   "config.auth.unsafe_remote_title": "无需登录的不安全远程访问",
-  "config.auth.unsafe_remote_desc": "允许无需登录即可远程访问 AuraGo。Speech Lab 仍禁止远程访问。"
+  "config.auth.unsafe_remote_desc": "允许无需登录即可远程访问 AuraGo。Speech Lab 仍禁止远程访问。",
+  "config.auth.current_password_placeholder": "当前密码",
+  "config.auth.current_totp_placeholder": "当前 6 位验证码",
+  "config.auth.current_password_required": "请输入当前密码。",
+  "config.auth.current_totp_required": "请输入身份验证器应用中的当前验证码。",
+  "config.auth.step_up_hint": "更改登录密码或双重身份验证需要提供当前密码（TOTP 启用时还需要当前验证码）。"
 }

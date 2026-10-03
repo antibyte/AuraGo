@@ -36,5 +36,10 @@
   "config.auth.https_forces_auth": "HTTPS je aktivní. Přihlášení nelze deaktivovat.",
   "config.auth.totp_disable_confirm_title": "Vypnout dvoufázové ověření?",
   "config.auth.unsafe_remote_title": "Nezabezpečený vzdálený přístup bez přihlášení",
-  "config.auth.unsafe_remote_desc": "Povolí vzdálené připojení k AuraGo bez přihlášení. Speech Lab zůstane vzdáleně uzamčený."
+  "config.auth.unsafe_remote_desc": "Povolí vzdálené připojení k AuraGo bez přihlášení. Speech Lab zůstane vzdáleně uzamčený.",
+  "config.auth.current_password_placeholder": "Současné heslo",
+  "config.auth.current_totp_placeholder": "Aktuální 6místný kód",
+  "config.auth.current_password_required": "Zadejte své současné heslo.",
+  "config.auth.current_totp_required": "Zadejte aktuální kód z ověřovací aplikace.",
+  "config.auth.step_up_hint": "Změny přihlašovacího hesla nebo dvoufázového ověření vyžadují vaše současné heslo (a při aktivním TOTP také aktuální kód)."
 }
