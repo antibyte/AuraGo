@@ -119,6 +119,40 @@ func TestRegistryPrunesExpiredLeaseWithFakeClock(t *testing.T) {
 	}
 }
 
+func TestRegistryCancelsActionsOnTakeoverAndExpiry(t *testing.T) {
+	now := time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)
+	registry := NewRegistry(func() time.Time { return now })
+	first, _, err := registry.Acquire("browser", Session{ProfileID: "voice"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := registry.BeginAction("first", first.ID, "browser", "chat", cancel); err != nil {
+		t.Fatal(err)
+	}
+	second, _, err := registry.Acquire("browser", Session{ProfileID: "voice"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ctx.Err() != context.Canceled {
+		t.Fatal("takeover did not cancel the old action")
+	}
+	if _, ok := registry.ActionSession("first", "browser"); ok {
+		t.Fatal("old action survived takeover")
+	}
+	if err := registry.BeginAction("late", first.ID, "browser", "chat"); err == nil {
+		t.Fatal("stale lease accepted an action")
+	}
+	ctx, cancel = context.WithCancel(context.Background())
+	if err := registry.BeginAction("second", second.ID, "browser", "chat", cancel); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(sessionLeaseTTL + time.Second)
+	if _, ok := registry.ActionSession("second", "browser"); ok || ctx.Err() != context.Canceled {
+		t.Fatal("expired session retained its action")
+	}
+}
+
 func TestRegistryDoesNotRateLimitProviderResumption(t *testing.T) {
 	now := time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)
 	registry := NewRegistry(func() time.Time { return now })

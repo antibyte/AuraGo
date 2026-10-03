@@ -296,6 +296,7 @@
   "help.proxmox.url": "Proxmox VE API का URL, उदा. 'https://pve.example.com:8006'।",
   "help.rocketchat.alias": "Rocket.Chat में बॉट का प्रदर्शन नाम। डिफ़ॉल्ट: 'ऑरागो'।",
   "help.rocketchat.channel": "सुनने के लिए डिफ़ॉल्ट चैनल, उदा. 'सामान्य'।",
+  "help.rocketchat.allowed_users": "id:<ID> या username:<नाम> से उपयोगकर्ताओं को अनुमति दें। बिना उपसर्ग वाली ID मान्य रहती हैं और उपयोगकर्ता नाम से कभी मेल नहीं खातीं।",
   "help.rocketchat.enabled": "Rocket.Chat बॉट एकीकरण को सक्षम करता है।",
   "help.rocketchat.url": "Rocket.Chat उदाहरण का URL, उदा. 'https://chat.example.com'.",
   "help.rocketchat.user_id": "Rocket.Chat से बॉट उपयोगकर्ता आईडी (प्रोफ़ाइल > व्यक्तिगत एक्सेस टोकन)।",

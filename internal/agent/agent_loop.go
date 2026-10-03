@@ -415,6 +415,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	personalityPrepared := false
 	var personalityBasis *memory.PersonalitySnapshot
 	for {
+		if (runCfg.IsCoAgent || isCoAgentSession(sessionID)) && runCfg.CoAgentTokenLimit > 0 && sessionTokens >= runCfg.CoAgentTokenLimit {
+			return openai.ChatCompletionResponse{}, fmt.Errorf("co-agent token limit reached: %d of %d", sessionTokens, runCfg.CoAgentTokenLimit)
+		}
 		if runCfg.Checkpoint != nil {
 			if err := runCfg.Checkpoint(req.Messages); err != nil {
 				return openai.ChatCompletionResponse{}, fmt.Errorf("save agent continuation: %w", err)
@@ -1841,26 +1844,38 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, &resp)
 		// Log provider measurements even for empty-output recovery rounds. The
 		// local system_cache_hit metric is not a provider prefix-cache hit.
-		hookBudgetRecorded, hookBudgetWarning := false, false
+		if !stream {
+			promptTokens = resp.Usage.PromptTokens
+			completionTokens = resp.Usage.CompletionTokens
+			totalTokens = resp.Usage.TotalTokens
+			tokenSource = "provider_usage"
+		}
+		var usedFallbackEstimate bool
+		promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate = applyTokenEstimationFallback(
+			promptTokens, completionTokens, totalTokens, tokenSource, req, content)
+		if usedFallbackEstimate {
+			SetGlobalTokenEstimated(true)
+			s.currentLogger.Warn("[TokenEstimation] Provider returned zero tokens — falling back to estimation which may be inaccurate", "model", req.Model)
+		}
+		sessionTokens += totalTokens
+		localGlobalTotal := AddGlobalTokenCount(totalTokens)
+		localIsEstimated := tokenSource == "fallback_estimate"
+		broker.SendTokenUpdate(promptTokens, completionTokens, totalTokens, sessionTokens, int(localGlobalTotal), localIsEstimated, true, tokenSource)
+		budgetWarning := false
+		if budgetTracker != nil {
+			model := resp.Model
+			if model == "" {
+				model = req.Model
+			}
+			category := "chat"
+			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
+				category = "coagent"
+			}
+			budgetWarning = budgetTracker.RecordForCategory(category, model, promptTokens, completionTokens)
+		}
 		if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
 			measured := resp.Usage
-			if measured.PromptTokens == 0 && measured.CompletionTokens == 0 {
-				measured.PromptTokens, measured.CompletionTokens, measured.TotalTokens, _, _ = applyTokenEstimationFallback(0, 0, 0, "", req, content)
-			}
-			// Charge responses before an execution hook or empty-output retry can
-			// exit this round. The normal accounting block below must not double bill.
-			if budgetTracker != nil {
-				model := resp.Model
-				if model == "" {
-					model = req.Model
-				}
-				category := "chat"
-				if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
-					category = "coagent"
-				}
-				hookBudgetWarning = budgetTracker.RecordForCategory(category, model, measured.PromptTokens, measured.CompletionTokens)
-				hookBudgetRecorded = true
-			}
+			measured.PromptTokens, measured.CompletionTokens, measured.TotalTokens = promptTokens, completionTokens, totalTokens
 			if err := runCfg.ExecutionHooks.AfterResponse(measured); err != nil {
 				return openai.ChatCompletionResponse{}, err
 			}
@@ -1968,55 +1983,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(parsedToolResp.PendingToolCalls), "source", parsedToolResp.ParseSource)
 		}
 
-		// Unified token accounting: sync path uses provider usage directly.
-		// Streaming path has already finalized via streamAcct before this block.
-		if !stream {
-			promptTokens = resp.Usage.PromptTokens
-			completionTokens = resp.Usage.CompletionTokens
-			totalTokens = resp.Usage.TotalTokens
-			tokenSource = "provider_usage"
-		}
-
-		var usedFallbackEstimate bool
-		promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate = applyTokenEstimationFallback(
-			promptTokens,
-			completionTokens,
-			totalTokens,
-			tokenSource,
-			req,
-			content,
-		)
-		if usedFallbackEstimate {
-			SetGlobalTokenEstimated(true)
-			s.currentLogger.Warn("[TokenEstimation] Provider returned zero tokens — falling back to estimation which may be inaccurate", "model", req.Model)
-		}
-
-		sessionTokens += totalTokens
-		localGlobalTotal := AddGlobalTokenCount(totalTokens)
-		localIsEstimated := tokenSource == "fallback_estimate"
-
-		if cfg.CoAgents.CircuitBreaker.MaxTokens > 0 && sessionTokens >= cfg.CoAgents.CircuitBreaker.MaxTokens {
-			s.currentLogger.Warn("[Sync] Co-agent token budget exceeded", "used", sessionTokens, "budget", cfg.CoAgents.CircuitBreaker.MaxTokens)
-			breakerMsg := fmt.Sprintf("CIRCUIT BREAKER: Token budget of %d reached (used: %d). You MUST now provide your final answer immediately.", cfg.CoAgents.CircuitBreaker.MaxTokens, sessionTokens)
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: breakerMsg})
-		}
-
-		broker.SendTokenUpdate(promptTokens, completionTokens, totalTokens, sessionTokens, int(localGlobalTotal), localIsEstimated, true, tokenSource)
-
 		// Budget tracking: record cost and send status to UI
 		if budgetTracker != nil {
-			actualModel := resp.Model
-			if actualModel == "" {
-				actualModel = req.Model
-			}
-			budgetCategory := "chat"
-			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
-				budgetCategory = "coagent"
-			}
-			crossedWarning := hookBudgetWarning
-			if !hookBudgetRecorded {
-				crossedWarning = budgetTracker.RecordForCategory(budgetCategory, actualModel, promptTokens, completionTokens)
-			}
+			crossedWarning := budgetWarning
 			budgetJSON := budgetTracker.GetStatusJSON()
 			if budgetJSON != "" {
 				broker.SendJSON(budgetJSON)

@@ -163,10 +163,38 @@ func ExecuteTextDiff(operation, file1, file2, text1, text2, workspaceDir string)
 		if err != nil {
 			return encode(TextDiffResult{Status: "error", Message: fmt.Sprintf("invalid file2: %v", err)})
 		}
-		diff, err := runDiffCommand(f1, f2)
+		first, err := rootedToolReadFile(f1)
 		if err != nil {
 			return encode(TextDiffResult{Status: "error", Message: err.Error()})
 		}
+		second, err := rootedToolReadFile(f2)
+		if err != nil {
+			return encode(TextDiffResult{Status: "error", Message: err.Error()})
+		}
+		tempDir, err := os.MkdirTemp("", "aurago-diff-*")
+		if err != nil {
+			return encode(TextDiffResult{Status: "error", Message: err.Error()})
+		}
+		defer os.RemoveAll(tempDir)
+		sourceOne, sourceTwo := f1, f2
+		f1, f2 = filepath.Join(tempDir, "first"), filepath.Join(tempDir, "second")
+		if err := os.WriteFile(f1, first, 0o600); err != nil {
+			return encode(TextDiffResult{Status: "error", Message: err.Error()})
+		}
+		if err := os.WriteFile(f2, second, 0o600); err != nil {
+			return encode(TextDiffResult{Status: "error", Message: err.Error()})
+		}
+		diff, err := runDiffCommandInDir("first", "second", tempDir)
+		if err != nil {
+			return encode(TextDiffResult{Status: "error", Message: err.Error()})
+		}
+		diff = strings.NewReplacer(
+			"a/first", "a/"+filepath.ToSlash(sourceOne),
+			"b/second", "b/"+filepath.ToSlash(sourceTwo),
+			filepath.ToSlash(f1), filepath.ToSlash(sourceOne),
+			filepath.ToSlash(f2), filepath.ToSlash(sourceTwo),
+			f1, sourceOne, f2, sourceTwo,
+		).Replace(diff)
 		return encode(TextDiffResult{Status: "success", Diff: diff})
 
 	case "diff_strings":
@@ -199,13 +227,19 @@ func ExecuteTextDiff(operation, file1, file2, text1, text2, workspaceDir string)
 }
 
 func runDiffCommand(file1, file2 string) (string, error) {
+	return runDiffCommandInDir(file1, file2, "")
+}
+
+func runDiffCommandInDir(file1, file2, dir string) (string, error) {
 	// Try `git diff --no-index`
-	cmd := exec.Command("git", "diff", "--no-index", file1, file2)
+	cmd := exec.Command("git", "-c", "core.autocrlf=false", "diff", "--no-index", file1, file2)
+	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	// git diff exits with 1 if there are differences, which is normal
 	if err != nil && cmd.ProcessState.ExitCode() > 1 {
 		// Fallback to regular `diff -u`
 		cmd2 := exec.Command("diff", "-u", file1, file2)
+		cmd2.Dir = dir
 		out2, err2 := cmd2.CombinedOutput()
 		if err2 != nil && cmd2.ProcessState.ExitCode() > 1 {
 			return "", fmt.Errorf("diff failed: %s", string(out2))
@@ -226,9 +260,39 @@ func fileApplyPatch(resolved, patchContent, workspaceDir string, encode func(Fil
 			return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("patch validation failed: %v", err)})
 		}
 	}
+	name := filepath.Base(resolved)
+	count := 0
+	for _, line := range strings.Split(patchContent, "\n") {
+		matches := patchPathRegex.FindStringSubmatch(strings.TrimSpace(line))
+		if len(matches) < 2 {
+			continue
+		}
+		candidate := strings.TrimSpace(matches[1])
+		candidate = strings.TrimPrefix(strings.TrimPrefix(candidate, "a/"), "b/")
+		if candidate != name {
+			return encode(FileEditorResult{Status: "error", Message: "patch must target only the selected file"})
+		}
+		count++
+	}
+	if count != 2 {
+		return encode(FileEditorResult{Status: "error", Message: "patch must contain one file change"})
+	}
+	original, err := rootedToolReadFile(resolved)
+	if err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot read selected file: %v", err)})
+	}
+	stagingDir, err := os.MkdirTemp("", "aurago-patch-*")
+	if err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot stage patch: %v", err)})
+	}
+	defer os.RemoveAll(stagingDir)
+	stagedFile := filepath.Join(stagingDir, name)
+	if err := os.WriteFile(stagedFile, original, 0o600); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot stage selected file: %v", err)})
+	}
 
 	// Write patch to a temp file
-	tmpPatch, err := os.CreateTemp("", "patch-*.diff")
+	tmpPatch, err := os.CreateTemp(stagingDir, "patch-*.diff")
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Errorf("failed to create temp patch file: %v", err).Error()})
 	}
@@ -237,19 +301,19 @@ func fileApplyPatch(resolved, patchContent, workspaceDir string, encode func(Fil
 	tmpPatch.Close()
 
 	// Try `git apply`
-	cmd := exec.Command("git", "apply", "--whitespace=nowarn", tmpPatch.Name())
-	cmd.Dir = filepath.Dir(resolved) // run in same directory just in case it assumes paths
+	cmd := exec.Command("git", "-c", "core.autocrlf=false", "apply", "--whitespace=nowarn", tmpPatch.Name())
+	cmd.Dir = stagingDir
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
 		// Fallback to `patch`
 		cmd2 := exec.Command("patch", "-p1", "-i", tmpPatch.Name())
-		cmd2.Dir = filepath.Dir(resolved)
+		cmd2.Dir = stagingDir
 		out2, err2 := cmd2.CombinedOutput()
 		if err2 != nil {
 			// One more fallback, try without -p1
 			cmd3 := exec.Command("patch", "-i", tmpPatch.Name())
-			cmd3.Dir = filepath.Dir(resolved)
+			cmd3.Dir = stagingDir
 			out3, err3 := cmd3.CombinedOutput()
 			if err3 != nil {
 				return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("failed to apply patch: git apply said: %s \npatch -p1 said: %s \npatch said: %s", string(out), string(out2), string(out3))})
@@ -257,5 +321,12 @@ func fileApplyPatch(resolved, patchContent, workspaceDir string, encode func(Fil
 		}
 	}
 
+	updated, err := os.ReadFile(stagedFile)
+	if err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("patched file missing: %v", err)})
+	}
+	if err := rootedToolWriteFileAtomic(resolved, updated); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("cannot save patched file: %v", err)})
+	}
 	return encode(FileEditorResult{Status: "success", Message: "Patch applied successfully"})
 }

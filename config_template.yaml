@@ -1334,6 +1334,7 @@ obsidian:
 telnyx:
     enabled: false
     readonly: false
+    webhook_public_key: ""                # Account Public Key from Telnyx portal, base64; required for inbound webhooks
     phone_number: ""                        # Your Telnyx number in E.164 format (+1234567890)
     messaging_profile_id: ""                # From Telnyx portal
     connection_id: ""                       # SIP connection ID for voice calls
@@ -1520,7 +1521,7 @@ rocketchat:
     user_id: ""
     channel: ""
     alias: ""
-    allowed_users: []
+    allowed_users: []                     # Rocket.Chat: id:<user-id> or username:<name>; bare user IDs remain accepted
 tailscale:
     enabled: false
     readonly: false

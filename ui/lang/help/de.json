@@ -296,6 +296,7 @@
   "help.proxmox.url": "URL der Proxmox VE API, z.B. 'https://pve.example.com:8006'.",
   "help.rocketchat.alias": "Anzeigename des Bots in Rocket.Chat. Standard: 'AuraGo'.",
   "help.rocketchat.channel": "Standard-Kanal für eingehende Nachrichten, z.B. 'general'.",
+  "help.rocketchat.allowed_users": "Erlaube Nutzer mit id:<ID> oder username:<Name>. Bisherige bloße IDs bleiben gültig und passen nie auf einen Benutzernamen.",
   "help.rocketchat.enabled": "Aktiviert die Rocket.Chat Bot-Integration.",
   "help.rocketchat.url": "URL der Rocket.Chat Instanz, z.B. 'https://chat.example.com'.",
   "help.rocketchat.user_id": "Bot-Benutzer-ID aus Rocket.Chat (Profil > API-Zugangsdaten).",

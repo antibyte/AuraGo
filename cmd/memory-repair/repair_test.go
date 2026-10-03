@@ -35,6 +35,9 @@ func newRepairFixture(t *testing.T, ids ...string) *repairFixture {
 	f := &repairFixture{root: t.TempDir()}
 	f.path = filepath.Join(f.root, "memory.db")
 	f.vectors = filepath.Join(f.root, "vectors")
+	if err := os.WriteFile(filepath.Join(f.root, "config.yaml"), []byte("directories:\n  vectordb_dir: vectors\nsqlite:\n  short_term_path: memory.db\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(f.root, "aurago.lock"), nil, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -78,6 +81,19 @@ func newRepairFixture(t *testing.T, ids ...string) *repairFixture {
 	}
 	t.Cleanup(func() { f.db.Close() })
 	return f
+}
+
+func TestApplyRequiresConfiguredLockedDataPaths(t *testing.T) {
+	f := newRepairFixture(t, "a", "b")
+	other := newRepairFixture(t, "c", "d")
+	args := []string{"--db", other.path, "--vector-db", f.vectors, "--install-dir", f.root, "--plan", filepath.Join(f.root, "reports", "preview.json"), "--apply"}
+	if err := run(t.Context(), args); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("mismatched DB apply error = %v", err)
+	}
+	args[1], args[3] = f.path, other.vectors
+	if err := run(t.Context(), args); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("mismatched vector apply error = %v", err)
+	}
 }
 func (f *repairFixture) exec(t *testing.T, query string, args ...any) {
 	t.Helper()

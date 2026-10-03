@@ -608,6 +608,12 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		if err != nil || !ok {
 			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "authentication failed", nil, nil)
 		}
+		if err := ValidateTimestamp(msg.Timestamp); err != nil || h.nonceCache.Seen(device.ID, msg.Nonce, time.Now().UTC()) {
+			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
+		}
+		if err := UpdateDeviceStatus(h.db, device.ID, "connected"); err != nil {
+			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "device status update failed", nil, nil)
+		}
 
 		// Authenticated — register connection
 		conn := &RemoteConnection{
@@ -622,7 +628,6 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			Version:       auth.Version,
 		}
 		h.Register(device.ID, conn)
-		_ = UpdateDeviceStatus(h.db, device.ID, "connected")
 
 		// Do NOT echo back the shared key — the client already has it (it just used it to sign
 		// the auth message). Sending it here would transmit the key over the wire unnecessarily.
@@ -649,18 +654,15 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		} else {
 			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "HMAC required for token enrollment", nil, nil)
 		}
+		if err := ValidateTimestamp(msg.Timestamp); err != nil || h.nonceCache.Seen(enrollment.ID, msg.Nonce, time.Now().UTC()) {
+			return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
+		}
 		if enrollment.Used {
-			// Recovery path: the client lost its stored config.json but still has the
-			// original personalized binary with the consumed token. Re-key the device
-			// so the client can reconnect without needing a fresh binary download.
-			if enrollment.UsedByDevice != "" {
-				return h.reKeyDevice(wsConn, auth, enrollment.UsedByDevice, bootstrapKey)
-			}
 			return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "enrollment token already used", nil, nil)
 		}
 		// Check expiry
 		expiry, err := time.Parse(time.RFC3339, enrollment.ExpiresAt)
-		if err == nil && time.Now().After(expiry) {
+		if err != nil || time.Now().After(expiry) {
 			return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "enrollment token expired", nil, nil)
 		}
 
@@ -727,15 +729,26 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 	if err != nil {
 		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
 	}
+	cleanupRejectedEnrollment := func() {
+		if err := h.vault.DeleteSecret("remote_shared_key_" + deviceID); err != nil {
+			h.logger.Error("Failed to clean up rejected remote key", "device_id", deviceID, "error", err)
+		}
+		if err := DeleteDevice(h.db, deviceID); err != nil {
+			h.logger.Error("Failed to clean up rejected remote device", "device_id", deviceID, "error", err)
+		}
+	}
 
 	// Store shared key in vault
 	if err := h.vault.WriteSecret("remote_shared_key_"+deviceID, sharedKey); err != nil {
 		h.logger.Error("Failed to store shared key in vault", "device_id", deviceID, "error", err)
+		cleanupRejectedEnrollment()
+		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "credential storage failed", nil, nil)
 	}
 
-	// Mark enrollment as used
-	if enrollmentID != "" {
-		_ = MarkEnrollmentUsed(h.db, enrollmentID, deviceID)
+	if err := finalizeEnrollment(h.db, enrollmentID, deviceID); err != nil {
+		h.logger.Error("Failed to finalize remote enrollment", "device_id", deviceID, "error", err)
+		cleanupRejectedEnrollment()
+		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
 	}
 
 	// Register connection
@@ -750,59 +763,8 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 		Version:       auth.Version,
 	}
 	h.Register(deviceID, conn)
-	_ = UpdateDeviceStatus(h.db, deviceID, "connected")
 
 	return h.sendAuthResponse(wsConn, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &conn.ReadOnly, conn.AllowedPaths)
-}
-
-// reKeyDevice re-generates the shared key for an existing device.
-// This is the recovery path when the client's stored config was lost but the
-// original binary (with the consumed enrollment token) is still available.
-func (h *RemoteHub) reKeyDevice(wsConn *websocket.Conn, auth AuthPayload, deviceID, bootstrapSigningKey string) error {
-	device, err := GetDevice(h.db, deviceID)
-	if err != nil {
-		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "original device not found", nil, nil)
-	}
-	if device.Status == "revoked" {
-		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device has been revoked", nil, nil)
-	}
-
-	newKey, err := GenerateSharedKey()
-	if err != nil {
-		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "key generation failed", nil, nil)
-	}
-
-	device.SharedKeyHash = hashTokenSHA256(newKey)
-	device.Status = "approved"
-	device.Hostname = auth.Hostname
-	device.OS = auth.OS
-	device.Arch = auth.Arch
-	device.IPAddress = auth.IP
-	if err := UpdateDevice(h.db, device); err != nil {
-		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device update failed", nil, nil)
-	}
-
-	if err := h.vault.WriteSecret("remote_shared_key_"+deviceID, newKey); err != nil {
-		h.logger.Error("Failed to store re-keyed shared key", "device_id", deviceID, "error", err)
-	}
-
-	conn := &RemoteConnection{
-		Conn:          wsConn,
-		DeviceID:      deviceID,
-		Name:          device.Name,
-		SharedKey:     newKey,
-		LastHeartbeat: time.Now(),
-		Status:        "connected",
-		ReadOnly:      device.ReadOnly,
-		AllowedPaths:  device.AllowedPaths,
-		Version:       auth.Version,
-	}
-	h.Register(deviceID, conn)
-	_ = UpdateDeviceStatus(h.db, deviceID, "connected")
-
-	h.logger.Info("Device re-keyed after config loss", "device_id", deviceID, "name", device.Name)
-	// Send "enrolled" so the client saves the new shared key and device_id.
-	return h.sendAuthResponse(wsConn, bootstrapSigningKey, newKey, deviceID, "enrolled", "", &conn.ReadOnly, conn.AllowedPaths)
 }
 
 // ApproveDevice approves a pending device and generates credentials.

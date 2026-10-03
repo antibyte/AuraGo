@@ -106,6 +106,7 @@ func (r *Registry) Acquire(clientID string, session Session, takeover bool) (Ses
 			if !takeover {
 				return Session{}, existingID, fmt.Errorf("another microphone session is active")
 			}
+			r.cancelSessionActionsLocked(existingID)
 			delete(r.sessions, existingID)
 		}
 		delete(r.clientSessions, clientID)
@@ -204,14 +205,7 @@ func (r *Registry) Release(id, clientID string) bool {
 	if r.clientSessions[session.ClientID] == id {
 		delete(r.clientSessions, session.ClientID)
 	}
-	for requestID, action := range r.actions {
-		if action.sessionID == id {
-			if action.cancel != nil {
-				action.cancel()
-			}
-			delete(r.actions, requestID)
-		}
-	}
+	r.cancelSessionActionsLocked(id)
 	return true
 }
 
@@ -221,11 +215,13 @@ func (r *Registry) BeginAction(requestID, sessionID, clientID, chatSessionID str
 	if strings.TrimSpace(requestID) == "" || len(requestID) > 128 {
 		return fmt.Errorf("valid request_id is required")
 	}
-	if _, ok := r.Get(sessionID, clientID); !ok {
-		return fmt.Errorf("realtime speech session not found")
-	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.pruneLocked(r.now())
+	session, ok := r.sessions[sessionID]
+	if !ok || session.ClientID != clientID {
+		return fmt.Errorf("realtime speech session not found")
+	}
 	if _, exists := r.actions[requestID]; exists {
 		return fmt.Errorf("request_id is already active")
 	}
@@ -234,11 +230,9 @@ func (r *Registry) BeginAction(requestID, sessionID, clientID, chatSessionID str
 		cancel = cancels[0]
 	}
 	r.actions[requestID] = actionLease{sessionID: sessionID, chatSessionID: chatSessionID, startedAt: r.now(), cancel: cancel}
-	if session, ok := r.sessions[sessionID]; ok {
-		session.State = "executing"
-		session.LastActiveAt = r.now()
-		r.sessions[sessionID] = session
-	}
+	session.State = "executing"
+	session.LastActiveAt = r.now()
+	r.sessions[sessionID] = session
 	return nil
 }
 
@@ -246,6 +240,7 @@ func (r *Registry) BeginAction(requestID, sessionID, clientID, chatSessionID str
 func (r *Registry) EndAction(requestID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.pruneLocked(r.now())
 	action, ok := r.actions[requestID]
 	if !ok {
 		return
@@ -262,6 +257,7 @@ func (r *Registry) EndAction(requestID string) {
 // never interrupts another turn that happens to share the chat session.
 func (r *Registry) CancelAction(requestID, clientID string) bool {
 	r.mu.Lock()
+	r.pruneLocked(r.now())
 	action, ok := r.actions[requestID]
 	if !ok {
 		r.mu.Unlock()
@@ -284,6 +280,7 @@ func (r *Registry) CancelAction(requestID, clientID string) bool {
 func (r *Registry) ActionSession(requestID, clientID string) (string, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.pruneLocked(r.now())
 	action, ok := r.actions[requestID]
 	if !ok {
 		return "", false
@@ -399,6 +396,7 @@ func (r *Registry) pruneLocked(now time.Time) {
 			continue
 		}
 		r.finishParkLocked(session, now)
+		r.cancelSessionActionsLocked(id)
 		delete(r.sessions, id)
 		if r.clientSessions[session.ClientID] == id {
 			delete(r.clientSessions, session.ClientID)
@@ -421,6 +419,18 @@ func (r *Registry) pruneLocked(now time.Time) {
 			}
 			delete(r.actions, requestID)
 		}
+	}
+}
+
+func (r *Registry) cancelSessionActionsLocked(sessionID string) {
+	for requestID, action := range r.actions {
+		if action.sessionID != sessionID {
+			continue
+		}
+		if action.cancel != nil {
+			action.cancel()
+		}
+		delete(r.actions, requestID)
 	}
 }
 

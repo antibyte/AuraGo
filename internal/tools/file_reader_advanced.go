@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -84,7 +83,7 @@ func readLines(resolved string, start, end int, encode func(FileReaderResult) st
 		return encode(FileReaderResult{Status: "error", Message: "end_line must be >= start_line"})
 	}
 
-	f, err := os.Open(resolved)
+	f, err := rootedToolOpen(resolved)
 	if err != nil {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to open file: %v", err)})
 	}
@@ -123,7 +122,7 @@ func readLines(resolved string, start, end int, encode func(FileReaderResult) st
 
 // readTail reads the last N lines of a file.
 func readTail(resolved string, n int, encode func(FileReaderResult) string) string {
-	f, err := os.Open(resolved)
+	f, err := rootedToolOpen(resolved)
 	if err != nil {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to open file: %v", err)})
 	}
@@ -173,7 +172,7 @@ func readTail(resolved string, n int, encode func(FileReaderResult) string) stri
 
 // countLines counts the total number of lines in a file.
 func countLines(resolved string, encode func(FileReaderResult) string) string {
-	f, err := os.Open(resolved)
+	f, err := rootedToolOpen(resolved)
 	if err != nil {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to open file: %v", err)})
 	}
@@ -188,7 +187,7 @@ func countLines(resolved string, encode func(FileReaderResult) string) string {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
 
-	info, _ := os.Stat(resolved)
+	info, _ := rootedToolStat(resolved)
 	var size int64
 	if info != nil {
 		size = info.Size()
@@ -221,7 +220,7 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 	}
 
 	// Check file size before opening to prevent OOM on very large files
-	info, err := os.Stat(resolved)
+	info, err := rootedToolStat(resolved)
 	if err != nil {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to stat file: %v", err)})
 	}
@@ -237,7 +236,7 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 		})
 	}
 
-	f, err := os.Open(resolved)
+	f, err := rootedToolOpen(resolved)
 	if err != nil {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to open file: %v", err)})
 	}

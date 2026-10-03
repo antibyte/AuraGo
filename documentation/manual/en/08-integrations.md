@@ -618,13 +618,14 @@ Send/receive SMS and make voice calls.
 ### Web UI Setup
 1. Open **Config → Integrations → Telnyx**.
 2. Enable the integration.
-3. Enter your **Phone Number**, **Messaging Profile ID**, and **Connection ID**.
+3. Enter your **Phone Number**, **Messaging Profile ID**, **Connection ID**, and the account **Public Key** from Telnyx Mission Control.
 4. Save and restart.
 
 ### YAML Reference
 ```yaml
 telnyx:
     enabled: true
+    webhook_public_key: "BASE64_ED25519_ACCOUNT_PUBLIC_KEY"
     phone_number: "+1234567890"
     messaging_profile_id: "PROFILE_ID"
     allowed_numbers:
@@ -632,6 +633,7 @@ telnyx:
 ```
 
 `allowed_numbers` is an explicit E.164 allowlist for inbound calls/SMS and outbound notifications. Leave it empty to block Telnyx traffic until numbers are configured.
+The webhook public key verifies inbound signatures. The API key is for outbound API calls and does not authenticate webhooks.
 
 ---
 
@@ -1402,7 +1404,10 @@ rocketchat:
     enabled: true
     url: "https://chat.example.com"
     channel: "general"
+    allowed_users: ["id:USER_ID", "username:alice"]
 ```
+
+`allowed_users` accepts explicit `id:` and `username:` entries. Existing bare user IDs remain valid; a bare entry never matches a username.
 
 ---
 

@@ -597,6 +597,11 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 	newCfg, loadErr := config.Load(configPath)
 	if loadErr == nil {
 		newCfg.ApplyVaultSecrets(s.Vault)
+		newCfg.ResolveProviders()
+		if s.Vault != nil {
+			newCfg.ApplyOAuthTokens(s.Vault)
+		}
+		newCfg.Runtime = s.Cfg.Runtime
 		newCfg.ConfigPath = configPath
 		s.replaceConfigSnapshot(newCfg)
 	}
@@ -621,16 +626,10 @@ func handleSecurityStatus(s *Server) http.HandlerFunc {
 				"totp_enabled": s.Cfg.Auth.TOTPEnabled && s.Cfg.Auth.TOTPSecret != "",
 			},
 			"https": map[string]interface{}{
-				"enabled":      s.Cfg.Server.HTTPS.Enabled,
-				"domain":       s.Cfg.Server.HTTPS.Domain,
-				"email":        s.Cfg.Server.HTTPS.Email,
-				"https_port":   s.Cfg.Server.HTTPS.HTTPSPort,
-				"http_port":    s.Cfg.Server.HTTPS.HTTPPort,
-				"behind_proxy": s.Cfg.Server.HTTPS.BehindProxy,
+				"enabled": s.Cfg.Server.HTTPS.Enabled,
 			},
 			"connection": map[string]interface{}{
 				"secure": IsSecureRequest(r),
-				"proto":  r.Header.Get("X-Forwarded-Proto"),
 			},
 		}
 		s.CfgMu.RUnlock()

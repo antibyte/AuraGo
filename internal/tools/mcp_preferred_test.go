@@ -12,6 +12,18 @@ import (
 	"aurago/internal/config"
 )
 
+func assertStagedVisionPath(t *testing.T, value interface{}, original string) {
+	t.Helper()
+	got, ok := value.(string)
+	if !ok || got == original || filepath.Base(got) != filepath.Base(original) ||
+		!strings.HasPrefix(filepath.Base(filepath.Dir(got)), "aurago-mcp-vision-") {
+		t.Fatalf("MCP vision path = %v, want private staged copy of %q", value, original)
+	}
+	if _, err := os.Stat(got); !os.IsNotExist(err) {
+		t.Fatalf("staged MCP vision path was not removed: %v", err)
+	}
+}
+
 func TestCallPreferredMCPWebSearchUsesConfiguredSelection(t *testing.T) {
 	oldList := listPreferredMCPTools
 	oldCall := callPreferredMCPTool
@@ -169,9 +181,7 @@ func TestCallPreferredMCPVisionSupportsImageURLStyleInputs(t *testing.T) {
 	if !used {
 		t.Fatal("expected preferred MCP vision to be used")
 	}
-	if gotArgs["image_url"] != imgPath {
-		t.Fatalf("image_url = %v, want %q", gotArgs["image_url"], imgPath)
-	}
+	assertStagedVisionPath(t, gotArgs["image_url"], imgPath)
 	if gotArgs["question"] != "What is shown?" {
 		t.Fatalf("question = %v, want %q", gotArgs["question"], "What is shown?")
 	}
@@ -223,9 +233,7 @@ func TestCallPreferredMCPVisionSupportsCamelCaseInputs(t *testing.T) {
 	if !used {
 		t.Fatal("expected preferred MCP vision to be used")
 	}
-	if gotArgs["imageUrl"] != imgPath {
-		t.Fatalf("imageUrl = %v, want %q", gotArgs["imageUrl"], imgPath)
-	}
+	assertStagedVisionPath(t, gotArgs["imageUrl"], imgPath)
 	if gotArgs["fileName"] != "image.png" {
 		t.Fatalf("fileName = %v, want %q", gotArgs["fileName"], "image.png")
 	}
@@ -279,9 +287,7 @@ func TestCallPreferredMCPVisionSupportsWrappedSchemaProperties(t *testing.T) {
 	if !used {
 		t.Fatal("expected preferred MCP vision to be used")
 	}
-	if gotArgs["image_url"] != imgPath {
-		t.Fatalf("image_url = %v, want %q", gotArgs["image_url"], imgPath)
-	}
+	assertStagedVisionPath(t, gotArgs["image_url"], imgPath)
 	if gotArgs["prompt"] != "Describe it" {
 		t.Fatalf("prompt = %v, want %q", gotArgs["prompt"], "Describe it")
 	}
@@ -332,9 +338,7 @@ func TestCallPreferredMCPVisionSupportsImageSourceInputs(t *testing.T) {
 	if !used {
 		t.Fatal("expected preferred MCP vision to be used")
 	}
-	if gotArgs["image_source"] != imgPath {
-		t.Fatalf("image_source = %v, want %q", gotArgs["image_source"], imgPath)
-	}
+	assertStagedVisionPath(t, gotArgs["image_source"], imgPath)
 	if gotArgs["prompt"] != "Describe it" {
 		t.Fatalf("prompt = %v, want %q", gotArgs["prompt"], "Describe it")
 	}

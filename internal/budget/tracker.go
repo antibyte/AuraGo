@@ -145,6 +145,27 @@ func (t *Tracker) SetMissionCallback(cb func(eventType string, spentUSD, limitUS
 	t.missionCallback = cb
 }
 
+// UpdateConfig keeps in-flight users on the same tracker and applies new limits
+// and reset scheduling under the counter lock.
+func (t *Tracker) UpdateConfig(cfg *config.Config) {
+	if t == nil || cfg == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.cfg = cfg
+	if t.date != t.todayStr() {
+		t.resetForNewDayLocked(t.todayStr())
+	}
+	limit := cfg.Budget.DailyLimitUSD
+	t.exceeded = cfg.Budget.Enabled && limit > 0 && t.totalCostUSD >= limit
+	if t.midnightTimer != nil {
+		t.midnightTimer.Stop()
+	}
+	t.scheduleMidnightReset()
+	t.persistLocked()
+}
+
 // Record logs token usage for a model after an LLM call.
 // Returns true if a warning threshold was just crossed.
 func (t *Tracker) Record(model string, inputTokens, outputTokens int) bool {
@@ -160,6 +181,9 @@ func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputT
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if !t.cfg.Budget.Enabled {
+		return false
+	}
 
 	// Auto-reset on day boundary
 	today := t.todayStr()
@@ -250,6 +274,9 @@ func (t *Tracker) RecordCostForCategory(category string, costUSD float64) {
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if !t.cfg.Budget.Enabled {
+		return
+	}
 
 	today := t.todayStr()
 	if t.date != today {
@@ -321,7 +348,7 @@ func (t *Tracker) IsCategoryQuotaBlocked(category string, quotaPercent int) bool
 	}
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	if t.cfg.Budget.DailyLimitUSD <= 0 {
+	if !t.cfg.Budget.Enabled || t.cfg.Budget.DailyLimitUSD <= 0 {
 		return false
 	}
 	limit := t.cfg.Budget.DailyLimitUSD * (float64(quotaPercent) / 100.0)
@@ -341,7 +368,7 @@ func (t *Tracker) IsBlocked(category string) bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	if !t.exceeded {
+	if !t.cfg.Budget.Enabled || !t.exceeded {
 		return false
 	}
 
@@ -364,6 +391,9 @@ func (t *Tracker) IsExceeded() bool {
 	}
 	t.mu.RLock()
 	defer t.mu.RUnlock()
+	if !t.cfg.Budget.Enabled {
+		return false
+	}
 	return t.exceeded
 }
 
@@ -376,6 +406,9 @@ func (t *Tracker) GetPromptHint() string {
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
+	if !t.cfg.Budget.Enabled {
+		return ""
+	}
 
 	limit := t.cfg.Budget.DailyLimitUSD
 	if limit <= 0 {
@@ -403,6 +436,9 @@ func (t *Tracker) GetStatus() BudgetStatus {
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
+	if !t.cfg.Budget.Enabled {
+		return BudgetStatus{Event: "budget_update", Enabled: false}
+	}
 
 	limit := t.cfg.Budget.DailyLimitUSD
 	remaining := limit - t.totalCostUSD
@@ -594,7 +630,15 @@ func (t *Tracker) lookupRatesLocked(model string) (config.ModelCostRates, bool) 
 }
 
 func (t *Tracker) todayStr() string {
-	return time.Now().Format("2006-01-02")
+	return budgetPeriodDate(time.Now(), t.cfg.Budget.ResetHour)
+}
+
+func budgetPeriodDate(now time.Time, resetHour int) string {
+	boundary := time.Date(now.Year(), now.Month(), now.Day(), resetHour, 0, 0, 0, now.Location())
+	if now.Before(boundary) {
+		boundary = boundary.AddDate(0, 0, -1)
+	}
+	return boundary.Format("2006-01-02")
 }
 
 func (t *Tracker) nextResetTime() time.Time {
@@ -607,15 +651,9 @@ func (t *Tracker) nextResetTime() time.Time {
 	return next
 }
 
-// scheduleMidnightReset arms a one-shot timer that fires at the next calendar
-// midnight (local time) to reset the daily counters automatically. The timer
-// re-arms itself for the following night after each reset. This ensures the
-// budget resets even when the server runs continuously without LLM calls.
+// scheduleMidnightReset arms a one-shot timer at the configured reset hour.
 func (t *Tracker) scheduleMidnightReset() {
-	now := time.Now()
-	// Compute duration until next local midnight
-	nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 1, 0, now.Location())
-	d := time.Until(nextMidnight)
+	d := time.Until(t.nextResetTime().Add(time.Second))
 	t.midnightTimer = time.AfterFunc(d, func() {
 		t.mu.Lock()
 		today := t.todayStr()
@@ -625,10 +663,10 @@ func (t *Tracker) scheduleMidnightReset() {
 			t.resetForNewDayLocked(today)
 			t.doPersistLocked()
 			if t.logger != nil {
-				t.logger.Info("[Budget] Automatic midnight reset", "old_date", oldDate, "new_date", today, "previous_spent", oldSpent)
+				t.logger.Info("[Budget] Automatic daily reset", "old_date", oldDate, "new_date", today, "previous_spent", oldSpent)
 			}
 		}
-		t.scheduleMidnightReset() // re-arm for next night
+		t.scheduleMidnightReset()
 		t.mu.Unlock()
 	})
 }
@@ -713,7 +751,7 @@ func (t *Tracker) doPersistLocked() {
 		return
 	}
 
-	if err := os.WriteFile(t.persistPath, data, 0600); err != nil {
+	if err := config.WriteFileAtomic(t.persistPath, data, 0600); err != nil {
 		t.logger.Error("[Budget] Failed to persist state", "error", err)
 	}
 }

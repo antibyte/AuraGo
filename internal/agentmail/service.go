@@ -330,6 +330,9 @@ func (s *Service) handleMessage(ctx context.Context, msg Message) error {
 	if err := s.notify(ctx, BuildNotificationPrompt(s.cfg.InboxID, msg, s.relaySheet)); err != nil {
 		return err
 	}
+	if s.cfg.ReadOnly {
+		return nil
+	}
 	_, err := s.client.UpdateMessage(ctx, s.cfg.InboxID, msg.ID, UpdateMessageRequest{
 		AddLabels:    []string{"processed", "read"},
 		RemoveLabels: []string{"unread"},

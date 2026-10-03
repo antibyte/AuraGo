@@ -9,10 +9,57 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/budget"
 	"aurago/internal/memory"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+func TestAgentChargesEmptyResponseOnceBeforeRetry(t *testing.T) {
+	runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "budget-empty", "web_chat")
+	defer cleanup()
+	runCfg.SuppressTurnSideEffects = true
+	runCfg.Checkpoint = func([]openai.ChatCompletionMessage) error { return nil }
+	runCfg.Config.Budget.Enabled = true
+	runCfg.Config.Budget.DailyLimitUSD = 100
+	runCfg.BudgetTracker = budget.NewTracker(runCfg.Config, runCfg.Logger, t.TempDir())
+	defer runCfg.BudgetTracker.Flush()
+	client := &circuitBreakerSequenceClient{responses: []openai.ChatCompletionResponse{
+		{Usage: openai.Usage{PromptTokens: 10, CompletionTokens: 3, TotalTokens: 13},
+			Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant}}}},
+		{Usage: openai.Usage{PromptTokens: 20, CompletionTokens: 4, TotalTokens: 24},
+			Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "Done."}}}},
+	}}
+	runCfg.LLMClient = client
+	_, err := ExecuteAgentLoop(context.Background(), openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Finish."}}}, runCfg, false, NoopBroker{})
+	if err != nil || len(client.requests) != 2 {
+		t.Fatalf("agent response = %v, calls=%d", err, len(client.requests))
+	}
+	usage := runCfg.BudgetTracker.GetStatus().Models[runCfg.Config.LLM.Model]
+	if usage.Calls != 2 || usage.InputTokens != 30 || usage.OutputTokens != 7 {
+		t.Fatalf("budget usage = %+v, want two responses", usage)
+	}
+}
+
+func TestCoAgentTokenLimitStopsBeforeNextModelCall(t *testing.T) {
+	runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "coagent-limit", "co_agent")
+	defer cleanup()
+	runCfg.SuppressTurnSideEffects = true
+	runCfg.Checkpoint = func([]openai.ChatCompletionMessage) error { return nil }
+	runCfg.IsCoAgent = true
+	runCfg.CoAgentTokenLimit = 12
+	client := &circuitBreakerSequenceClient{responses: []openai.ChatCompletionResponse{
+		{Usage: openai.Usage{PromptTokens: 10, CompletionTokens: 3, TotalTokens: 13},
+			Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant}}}},
+	}}
+	runCfg.LLMClient = client
+	_, err := ExecuteAgentLoop(context.Background(), openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "Finish."}}}, runCfg, false, NoopBroker{})
+	if err == nil || !strings.Contains(err.Error(), "co-agent token limit reached") || len(client.requests) != 1 {
+		t.Fatalf("limit error = %v, calls=%d", err, len(client.requests))
+	}
+}
 
 func TestCircuitBreakerCompletesEveryRemainingNativeToolCallWithoutDispatch(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

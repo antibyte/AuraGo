@@ -3,6 +3,9 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"aurago/internal/config"
@@ -26,7 +29,27 @@ func ExecutePDFExtract(workspaceDir, filePath string) string {
 		return pdfError(err.Error())
 	}
 
-	f, r, err := pdf.Open(resolved)
+	input, err := rootedToolOpen(resolved)
+	if err != nil {
+		return pdfError(fmt.Sprintf("Failed to open PDF: %v", err))
+	}
+	defer input.Close()
+	stagingDir, err := os.MkdirTemp("", "aurago-pdf-extract-*")
+	if err != nil {
+		return pdfError(fmt.Sprintf("Failed to stage PDF: %v", err))
+	}
+	defer os.RemoveAll(stagingDir)
+	stagedPath := filepath.Join(stagingDir, "source.pdf")
+	staged, err := os.OpenFile(stagedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return pdfError(fmt.Sprintf("Failed to stage PDF: %v", err))
+	}
+	_, copyErr := io.Copy(staged, input)
+	closeErr := staged.Close()
+	if copyErr != nil || closeErr != nil {
+		return pdfError(fmt.Sprintf("Failed to stage PDF: %v %v", copyErr, closeErr))
+	}
+	f, r, err := pdf.Open(stagedPath)
 	if err != nil {
 		return pdfError(fmt.Sprintf("Failed to open PDF: %v", err))
 	}

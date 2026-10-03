@@ -346,6 +346,80 @@ func TestSecureResolveAllowsAgentWorkspaceSiblingsAndRejectsInstallRoot(t *testi
 	}
 }
 
+func TestSecureResolveRejectsAbsoluteSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(workdir, "outside")
+	if err := os.Symlink(root, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := secureResolve(workdir, filepath.Join(link, "config.yaml")); err == nil {
+		t.Fatal("absolute symlink escaped agent_workspace")
+	}
+}
+
+func TestRootedToolOperationsRejectDirectorySwap(t *testing.T) {
+	base := t.TempDir()
+	workdir := filepath.Join(base, "agent_workspace", "workdir")
+	dir := filepath.Join(workdir, "dir")
+	outside := filepath.Join(base, "outside")
+	for _, path := range []string{dir, outside} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	file := filepath.Join(dir, "note.txt")
+	if err := os.WriteFile(file, []byte("inside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := secureResolve(workdir, file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rootedToolWriteFileAtomic(resolved, []byte("updated")); err != nil {
+		t.Fatalf("replace existing file: %v", err)
+	}
+	if data, err := rootedToolReadFile(resolved); err != nil || string(data) != "updated" {
+		t.Fatalf("rooted read = %q, %v", data, err)
+	}
+	if err := os.Rename(dir, filepath.Join(workdir, "saved")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, dir); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := rootedToolReadFile(resolved); err == nil {
+		t.Fatal("read escaped through swapped directory")
+	}
+	if err := rootedToolWriteFileAtomic(resolved, []byte("escaped")); err == nil {
+		t.Fatal("write escaped through swapped directory")
+	}
+	if _, err := os.Stat(filepath.Join(outside, "note.txt")); !os.IsNotExist(err) {
+		t.Fatalf("outside file created: %v", err)
+	}
+}
+
+func TestExecuteFilesystemRejectsJailRootDeletion(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var result FSResult
+	if err := json.Unmarshal([]byte(ExecuteFilesystem("delete", "..", "", "", nil, workdir, 0, 0)), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "error" {
+		t.Fatalf("jail root deletion status = %s", result.Status)
+	}
+	if _, err := os.Stat(workdir); err != nil {
+		t.Fatalf("workdir deleted: %v", err)
+	}
+}
+
 func TestExecuteFilesystemRejectsInstallRootAndAllowsWorkspaceSkills(t *testing.T) {
 	root := t.TempDir()
 	workdir := filepath.Join(root, "agent_workspace", "workdir")

@@ -4,6 +4,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/discord"
+	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/security"
 	"aurago/internal/services"
@@ -338,19 +339,36 @@ func handleUILanguage(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if body.Language == "" {
-			jsonError(w, "Language required", http.StatusBadRequest)
+		validLanguage := false
+		for _, supported := range i18n.GetSupportedLanguages() {
+			if body.Language == supported {
+				validLanguage = true
+				break
+			}
+		}
+		if !validLanguage {
+			jsonError(w, "Unsupported language", http.StatusBadRequest)
 			return
 		}
 
-		s.CfgMu.Lock()
-		s.Cfg.Server.UILanguage = body.Language
-		if err := s.Cfg.Save(s.Cfg.ConfigPath); err != nil {
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+		s.CfgMu.RLock()
+		configPath := s.Cfg.ConfigPath
+		s.CfgMu.RUnlock()
+		if configPath == "" {
+			jsonError(w, "Config path not set", http.StatusInternalServerError)
+			return
+		}
+		if err := config.SaveUILanguage(configPath, body.Language); err != nil {
 			s.Logger.Error("Failed to save UI language", "error", err)
-			s.CfgMu.Unlock()
 			jsonError(w, "Failed to save configuration", http.StatusInternalServerError)
 			return
 		}
+		s.CfgMu.Lock()
+		cfgCopy := *s.Cfg
+		cfgCopy.Server.UILanguage = body.Language
+		s.replaceConfigSnapshot(&cfgCopy)
 		s.CfgMu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
@@ -834,6 +852,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// all synchronous auto-detection adjustments are complete.
 			s.replaceConfigSnapshot(newCfg)
 			tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(newCfg))
+			if s.DaemonSupervisor != nil {
+				s.DaemonSupervisor.RefreshRuntimePermissions()
+			}
 			if s.CronManager != nil {
 				if err := s.CronManager.RefreshRuntimePermissions(); err != nil {
 					if s.Logger != nil {

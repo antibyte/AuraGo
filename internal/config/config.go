@@ -3061,6 +3061,52 @@ func (c *Config) Save(path string) error {
 	return nil
 }
 
+// SaveUILanguage changes only the browser language in the existing YAML file.
+// Config.Save patches many runtime fields and must not be used for this endpoint.
+func SaveUILanguage(path, language string) error {
+	return saveConfigScalar(path, []string{"server", "ui_language"}, language)
+}
+
+// SaveCorePersonality updates only the selected profile in the existing YAML.
+func SaveCorePersonality(path, name string) error {
+	return saveConfigScalar(path, []string{"personality", "core_personality"}, name)
+}
+
+func saveConfigScalar(path string, field []string, value string) error {
+	configSaveMu.Lock()
+	defer configSaveMu.Unlock()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read config for field update: %w", err)
+	}
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return fmt.Errorf("parse config for field update: %w", err)
+	}
+	if err := setYAMLPathValue(&root, field, value); err != nil {
+		return fmt.Errorf("set config field: %w", err)
+	}
+	var output bytes.Buffer
+	encoder := yaml.NewEncoder(&output)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(&root); err != nil {
+		_ = encoder.Close()
+		return fmt.Errorf("encode config field update: %w", err)
+	}
+	if err := encoder.Close(); err != nil {
+		return fmt.Errorf("finalize config field update: %w", err)
+	}
+	perm := os.FileMode(0o600)
+	if info, err := os.Stat(path); err == nil && info.Mode().Perm() != 0 {
+		perm = info.Mode().Perm()
+	}
+	if err := WriteFileAtomic(path, output.Bytes(), perm); err != nil {
+		return fmt.Errorf("save config field: %w", err)
+	}
+	return nil
+}
+
 func setYAMLPathValue(root *yaml.Node, path []string, value interface{}) error {
 	if len(path) == 0 {
 		return nil

@@ -1,10 +1,62 @@
 package tools
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestTextDiffFilesReportsWorkspacePaths(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for this diff regression test")
+	}
+	workspace := t.TempDir()
+	for name, content := range map[string]string{"first.txt": "old\n", "second.txt": "new\n"} {
+		if err := os.WriteFile(filepath.Join(workspace, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var result TextDiffResult
+	if err := json.Unmarshal([]byte(ExecuteTextDiff("diff_files", "first.txt", "second.txt", "", "", workspace)), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "success" || strings.Contains(result.Diff, "aurago-diff-") || !strings.Contains(result.Diff, "first.txt") || !strings.Contains(result.Diff, "second.txt") {
+		t.Fatalf("diff should name workspace files without staging paths: %+v", result)
+	}
+}
+
+func TestFileApplyPatchStagesSingleSelectedFile(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for this patch regression test")
+	}
+	workspace := t.TempDir()
+	selected := filepath.Join(workspace, "file.txt")
+	other := filepath.Join(workspace, "other.txt")
+	if err := os.WriteFile(selected, []byte("old\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(other, []byte("untouched\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	encode := func(value FileEditorResult) string { raw, _ := json.Marshal(value); return string(raw) }
+	valid := "diff --git a/file.txt b/file.txt\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n"
+	if result := fileApplyPatch(selected, valid, workspace, encode); !strings.Contains(result, `"status":"success"`) {
+		t.Fatalf("valid patch: %s", result)
+	}
+	if data, err := os.ReadFile(selected); err != nil || string(data) != "new\n" {
+		t.Fatalf("selected file: %q, %v", data, err)
+	}
+	invalid := "--- a/other.txt\n+++ b/other.txt\n@@ -1 +1 @@\n-untouched\n+changed\n"
+	if result := fileApplyPatch(selected, invalid, workspace, encode); !strings.Contains(result, "patch must target only the selected file") {
+		t.Fatalf("unexpected patch rejection: %s", result)
+	}
+	if data, err := os.ReadFile(other); err != nil || string(data) != "untouched\n" {
+		t.Fatalf("other file changed: %q, %v", data, err)
+	}
+}
 
 func TestValidatePatchPaths(t *testing.T) {
 	// Create a temporary workspace directory

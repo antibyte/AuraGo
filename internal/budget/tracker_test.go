@@ -1,13 +1,58 @@
 package budget
 
 import (
+	"encoding/json"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
+
+func TestBudgetPeriodDateUsesConfiguredResetHour(t *testing.T) {
+	loc := time.FixedZone("test", 2*60*60)
+	before := time.Date(2026, 10, 3, 5, 59, 0, 0, loc)
+	after := before.Add(time.Minute)
+	if got := budgetPeriodDate(before, 6); got != "2026-10-02" {
+		t.Fatalf("before reset = %s", got)
+	}
+	if got := budgetPeriodDate(after, 6); got != "2026-10-03" {
+		t.Fatalf("after reset = %s", got)
+	}
+}
+
+func TestTrackerUpdateConfigKeepsBufferedCostAndAppliesLimit(t *testing.T) {
+	dir := t.TempDir()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	tracker := NewTracker(testConfig(10, "warn"), logger, dir)
+	defer tracker.Flush()
+	tracker.RecordCostForCategory("chat", 2)
+	updated := testConfig(1, "full")
+	tracker.UpdateConfig(updated)
+	status := tracker.GetStatus()
+	if status.SpentUSD != 2 || status.DailyLimit != 1 || !tracker.IsBlocked("chat") {
+		t.Fatalf("config update lost cost or limit: %+v", status)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "budget.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persisted persistedState
+	if err := json.Unmarshal(data, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	if persisted.TotalCostUSD != 2 {
+		t.Fatalf("persisted cost = %f", persisted.TotalCostUSD)
+	}
+	updated.Budget.Enabled = false
+	tracker.UpdateConfig(updated)
+	tracker.RecordCostForCategory("chat", 5)
+	if tracker.GetStatus().Enabled || tracker.totalCostUSD != 2 {
+		t.Fatal("disabled tracker charged or reported enabled")
+	}
+}
 
 func testConfig(limit float64, enforcement string) *config.Config {
 	cfg := &config.Config{}

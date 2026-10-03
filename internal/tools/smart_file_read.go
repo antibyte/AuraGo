@@ -48,7 +48,7 @@ func ExecuteSmartFileRead(ctx context.Context, llmCfg SummaryLLMConfig, logger *
 		return encode(SmartFileReadResult{Status: "error", Message: err.Error()})
 	}
 
-	info, err := os.Stat(resolved)
+	info, err := rootedToolStat(resolved)
 	if err != nil {
 		return encode(SmartFileReadResult{Status: "error", Message: fmt.Sprintf("Failed to stat file: %v", err)})
 	}
@@ -237,7 +237,7 @@ func buildSmartFileSummarySource(filePath, resolved string, sizeBytes int64, str
 		"sampling_strategy": strategy,
 	}
 	if sizeBytes <= int64(maxChars) {
-		data, err := os.ReadFile(resolved)
+		data, err := rootedToolReadFile(resolved)
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to read file for summary: %w", err)
 		}
@@ -288,7 +288,7 @@ func buildSmartFileSample(resolved, strategy string, lineCount int) (string, map
 		// For small files where lineCount covers most or all of the file,
 		// just return the full content instead of three overlapping sections.
 		if totalLines <= lineCount*2 {
-			data, err := os.ReadFile(resolved)
+			data, err := rootedToolReadFile(resolved)
 			if err != nil {
 				return "", nil, err
 			}
@@ -422,7 +422,7 @@ func truncateForSmartFile(s string, max int) string {
 }
 
 func readProbeBytes(path string, limit int) ([]byte, error) {
-	f, err := os.Open(path)
+	f, err := rootedToolOpen(path)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +441,7 @@ func formatSmartFileSection(title string, lines []string) string {
 }
 
 func countFileLinesDetailed(resolved string) (int, error) {
-	f, err := os.Open(resolved)
+	f, err := rootedToolOpen(resolved)
 	if err != nil {
 		return 0, fmt.Errorf("failed to open file: %w", err)
 	}
@@ -462,7 +462,7 @@ func readHeadLinesDetailed(resolved string, count int) ([]string, error) {
 }
 
 func readTailLinesDetailed(resolved string, count int) ([]string, error) {
-	f, err := os.Open(resolved)
+	f, err := rootedToolOpen(resolved)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
@@ -502,7 +502,7 @@ func readLineRangeDetailed(resolved string, start, end int) ([]string, error) {
 	if end < start {
 		end = start
 	}
-	f, err := os.Open(resolved)
+	f, err := rootedToolOpen(resolved)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}

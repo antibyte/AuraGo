@@ -318,6 +318,8 @@ revision publication and standalone export for Phaser and Three.js games.
   over source, assets, runtimes, output and plan before creating a revision.
   Generated asset writes share the source lock. Changed or missing fingerprints
   reject publication while preserving the working copy and playable revision.
+  A failed revision commit must retain staged blob work for retry or explicit cleanup;
+  rollback removes only records and blobs created by that failed attempt.
 - Browser gameplay evidence is a cooperative quality check, not independent
   attestation of hostile game code: the driver and project share one JavaScript
   realm. Preserve sandbox/API isolation; do not claim that window/channel checks

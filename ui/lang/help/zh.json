@@ -296,6 +296,7 @@
   "help.proxmox.url": "Proxmox VE API 的 URL，例如'https://pve.example.com:8006'。",
   "help.rocketchat.alias": "Rocket.Chat 中机器人的显示名称。默认值：“AuraGo”。",
   "help.rocketchat.channel": "默认收听频道，例如'一般的'。",
+  "help.rocketchat.allowed_users": "使用 id:<ID> 或 username:<名称> 允许用户。无前缀的 ID 仍然有效，但绝不会匹配用户名。",
   "help.rocketchat.enabled": "启用 Rocket.Chat 机器人集成。",
   "help.rocketchat.url": "Rocket.Chat 实例的 URL，例如'https://chat.example.com'。",
   "help.rocketchat.user_id": "来自 Rocket.Chat 的机器人用户 ID（个人资料 > 个人访问令牌）。",

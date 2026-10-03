@@ -359,7 +359,7 @@ func TestWorkspaceSearchLegacyFileSearchStaysWorkdirRelative(t *testing.T) {
 		t.Fatalf("rescan: %v", err)
 	}
 
-	findOutput, ok := svc.ExecuteLegacyFileSearch(ctx, "find", "", "", "**/*.md", "")
+	findOutput, ok := svc.ExecuteLegacyFileSearch(ctx, "find", "", "", "docs/*.md", "")
 	if !ok {
 		t.Fatal("legacy find should be handled by workspace search")
 	}
@@ -377,7 +377,7 @@ func TestWorkspaceSearchLegacyFileSearchStaysWorkdirRelative(t *testing.T) {
 		t.Fatalf("legacy find output = %#v, want one workdir-relative docs/readme.md", findParsed)
 	}
 
-	grepOutput, ok := svc.ExecuteLegacyFileSearch(ctx, "grep_recursive", "needle", "", "**/*.md", "")
+	grepOutput, ok := svc.ExecuteLegacyFileSearch(ctx, "grep_recursive", "needle", "", "docs/*.md", "")
 	if !ok {
 		t.Fatal("legacy grep_recursive should be handled by workspace search")
 	}

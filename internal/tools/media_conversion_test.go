@@ -76,6 +76,40 @@ func TestExecuteMediaConversionRejectsPathOutsideWorkspace(t *testing.T) {
 	}
 }
 
+func TestExecuteMediaConversionStagesExternalProcessIO(t *testing.T) {
+	workspaceDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceDir, "input.wav"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldLookPath, oldRunCommand := mediaConversionLookPath, mediaConversionRunCommand
+	t.Cleanup(func() {
+		mediaConversionLookPath, mediaConversionRunCommand = oldLookPath, oldRunCommand
+	})
+	mediaConversionLookPath = func(string) (string, error) { return "ffmpeg", nil }
+	mediaConversionRunCommand = func(_ context.Context, _ string, args []string) ([]byte, error) {
+		input := args[2]
+		output := args[len(args)-1]
+		if strings.HasPrefix(input, workspaceDir) || strings.HasPrefix(output, workspaceDir) {
+			t.Fatalf("converter received a workspace path: %q %q", input, output)
+		}
+		data, err := os.ReadFile(input)
+		if err != nil || string(data) != "source" {
+			t.Fatalf("staged input: %q, %v", data, err)
+		}
+		return nil, os.WriteFile(output, []byte("converted"), 0o600)
+	}
+	result := decodeMediaConversionResult(t, ExecuteMediaConversion(workspaceDir, mediaConversionTestConfig(true), MediaConversionRequest{
+		Operation: "audio_convert", FilePath: "input.wav", OutputFormat: "mp3",
+	}))
+	if result["status"] != "success" || result["file"] != filepath.Join(workspaceDir, "input.mp3") {
+		t.Fatalf("conversion result: %#v", result)
+	}
+	data, err := os.ReadFile(filepath.Join(workspaceDir, "input.mp3"))
+	if err != nil || string(data) != "converted" {
+		t.Fatalf("saved output: %q, %v", data, err)
+	}
+}
+
 func TestExecuteMediaConversionImageInfo(t *testing.T) {
 	workspaceDir := t.TempDir()
 	imagePath := filepath.Join(workspaceDir, "sample.png")

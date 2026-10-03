@@ -724,6 +724,7 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	sourceFileEdges := kg.collectSemanticEdgeIdentities(tx, `
 		SELECT source, target, relation FROM kg_edges
 		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
 	if err := cleanupKGClaimsForDeletedSemanticEdgesTx(tx, sourceFileEdges); err != nil {
@@ -732,6 +733,7 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	if _, err := tx.Exec(`
 		DELETE FROM kg_edges
 		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path); err != nil {
 		return 0, fmt.Errorf("delete source-file edges before node cleanup: %w", err)
@@ -740,6 +742,7 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	rows, err := tx.Query(`
 		SELECT id FROM kg_nodes
 		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 		  AND protected = 0
 	`, path)

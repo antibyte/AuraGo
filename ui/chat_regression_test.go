@@ -3763,12 +3763,12 @@ func TestChatSessionSwitchLoadsSessionScopedPlan(t *testing.T) {
 		}
 		js := string(content)
 		for _, marker := range []string{
-			"async function loadActivePlanForSession(sessionId)",
+			"async function loadActivePlanForSession(sessionId, current = () => true)",
 			"const sid = sessionId || getActiveSessionId();",
 			"'/api/plans/active?session_id=' + encodeURIComponent(sid || 'default')",
 			"updatePlanPanel(null);",
-			"await loadActivePlanForSession(sessionId);",
-			"await loadActivePlanForSession(getActiveSessionId());",
+			"if (current()) await loadActivePlanForSession(sessionId, current);",
+			"await loadActivePlanForSession(getActiveSessionId(), () => planGeneration === historyGeneration);",
 		} {
 			if !strings.Contains(js, marker) {
 				t.Fatalf("%s is missing session-scoped plan marker %q", path, marker)

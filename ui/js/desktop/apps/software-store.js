@@ -30,7 +30,7 @@
         let busy = new Map();
         const operationErrors = new Map();
         const pollingOperations = new Set();
-        const instance = { disposed: false, onDesktopEvent: null, pollingOperations, loadDebounceTimer: null };
+        const instance = { disposed: false, onDesktopEvent: null, pollingOperations, loadDebounceTimer: null, overlays: new Set() };
         let dockerAvailable = true;
         let mutationsAllowed = true;
         let mutationDisabledReason = '';
@@ -38,6 +38,23 @@
         let pendingCatalogRequest = null;
         let initialCatalogLoaded = false;
         instances.set(windowId, instance);
+
+        function trackOverlay(overlay) {
+            if (instance.disposed) return;
+            instance.overlays.add(overlay);
+            document.body.appendChild(overlay);
+        }
+
+        function closeOverlay(overlay) {
+            overlay.querySelectorAll('input, textarea').forEach(field => {
+                field.value = '';
+                field.defaultValue = '';
+                field.removeAttribute('value');
+            });
+            overlay.textContent = '';
+            overlay.remove();
+            instance.overlays.delete(overlay);
+        }
 
         host.innerHTML = `
             <div class="vd-store">
@@ -369,15 +386,15 @@
                     <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.store.install'))}</button>
                 </div>
             </form>`;
-            document.body.appendChild(overlay);
+            trackOverlay(overlay);
             const form = overlay.querySelector('form');
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
-            overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => closeOverlay(overlay));
+            overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(overlay); });
             form.addEventListener('submit', event => {
                 event.preventDefault();
                 const bind = form.querySelector('input[name="bind"]:checked').value;
                 const tailscale = form.querySelector('input[name="tailscale"]').checked;
-                overlay.remove();
+                closeOverlay(overlay);
                 startOperation(appId, 'install', '/api/desktop/store/install', 'POST', {
                     app_id: appId,
                     bind_mode: bind,
@@ -401,14 +418,14 @@
                     <button type="submit" class="vd-button vd-button-danger">${esc(t('desktop.store.uninstall'))}</button>
                 </div>
             </form>`;
-            document.body.appendChild(overlay);
+            trackOverlay(overlay);
             const form = overlay.querySelector('form');
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
-            overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => closeOverlay(overlay));
+            overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(overlay); });
             form.addEventListener('submit', event => {
                 event.preventDefault();
                 const deleteData = form.querySelector('input[name="delete-data"]').checked;
-                overlay.remove();
+                closeOverlay(overlay);
                 startOperation(appId, 'uninstall', '/api/desktop/store/apps/' + encodeURIComponent(appId) + '?delete_data=' + encodeURIComponent(deleteData), 'DELETE');
             });
         }
@@ -424,12 +441,14 @@
         }
 
         async function openStorePort(appId, portId) {
+            if (instance.disposed) return;
             const pendingWindow = window.open('about:blank', '_blank');
             if (pendingWindow) {
                 pendingWindow.opener = null;
             }
             try {
                 const body = await api('/api/desktop/store/apps/' + encodeURIComponent(appId) + '/open-url?port_id=' + encodeURIComponent(portId || ''));
+                if (instance.disposed) { pendingWindow?.close(); return; }
                 const safeURL = safeExternalURL(body.url);
                 if (safeURL) {
                     if (pendingWindow && !pendingWindow.closed) {
@@ -444,13 +463,14 @@
                 if (pendingWindow && !pendingWindow.closed) {
                     pendingWindow.close();
                 }
-                notify({ title: t('desktop.store.title'), message: err.message });
+                if (!instance.disposed) notify({ title: t('desktop.store.title'), message: err.message });
             }
         }
 
         async function openCredentialsModal(appId) {
             try {
                 const body = await api('/api/desktop/store/apps/' + encodeURIComponent(appId) + '/credentials');
+                if (instance.disposed) return;
                 const credentials = body.credentials || [];
                 const overlay = document.createElement('div');
                 overlay.className = 'vd-modal-backdrop';
@@ -461,11 +481,11 @@
                         <button type="button" class="vd-button vd-button-primary" data-action="close">${esc(t('desktop.close'))}</button>
                     </div>
                 </div>`;
-                document.body.appendChild(overlay);
-                overlay.querySelector('[data-action="close"]').addEventListener('click', () => overlay.remove());
-                overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+                trackOverlay(overlay);
+                overlay.querySelector('[data-action="close"]').addEventListener('click', () => closeOverlay(overlay));
+                overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(overlay); });
             } catch (err) {
-                notify({ title: t('desktop.store.title'), message: err.message });
+                if (!instance.disposed) notify({ title: t('desktop.store.title'), message: err.message });
             }
         }
 
@@ -482,10 +502,10 @@
                     <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.save'))}</button>
                 </div>
             </form>`;
-            document.body.appendChild(overlay);
+            trackOverlay(overlay);
             const form = overlay.querySelector('form');
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
-            overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => closeOverlay(overlay));
+            overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(overlay); });
             form.addEventListener('submit', async event => {
                 event.preventDefault();
                 try {
@@ -497,11 +517,12 @@
                             token: form.querySelector('[name="token"]').value
                         })
                     });
-                    overlay.remove();
+                    if (instance.disposed) return;
+                    closeOverlay(overlay);
                     scheduleLoad(true, true);
                     notify({ title: t('desktop.store.title'), message: t('desktop.store.agent_configured') });
                 } catch (err) {
-                    notify({ title: t('desktop.store.title'), message: err.message });
+                    if (!instance.disposed) notify({ title: t('desktop.store.title'), message: err.message });
                 }
             });
         }
@@ -542,7 +563,7 @@
                 let submitting = false;
                 const close = () => {
                     form.querySelectorAll('input[type="password"]').forEach(input => { input.value = ''; });
-                    overlay.remove();
+                    closeOverlay(overlay);
                     instance.closeConfig = null;
                     if (previousFocus && previousFocus.isConnected) previousFocus.focus();
                 };
@@ -572,6 +593,7 @@
                     form.querySelectorAll('button').forEach(button => { button.disabled = true; });
                     try {
                         const body = await api(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                        if (instance.disposed) return;
                         close();
                         if (instance.disposed) return;
                         if (body.operation) {
@@ -580,14 +602,14 @@
                             pollOperation(appId, body.operation.id);
                         }
                     } catch (err) {
-                        status.textContent = err.message || t('desktop.store.operation_failed');
+                        if (!instance.disposed) status.textContent = err.message || t('desktop.store.operation_failed');
                     } finally {
                         fields.forEach(([key]) => { delete keys[key]; });
                         submitting = false;
                         form.querySelectorAll('button').forEach(button => { button.disabled = false; });
                     }
                 });
-                document.body.appendChild(overlay);
+                trackOverlay(overlay);
                 form.querySelector('input').focus();
             } catch (err) {
                 notify({ title: t('desktop.store.title'), message: err.message });
@@ -602,6 +624,7 @@
         }
 
         async function startOperation(appId, action, url, method, payload) {
+            if (instance.disposed) return;
             operationErrors.delete(appId);
             renderCards();
             try {
@@ -610,13 +633,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: payload ? JSON.stringify(payload) : undefined
                 });
+                if (instance.disposed) return;
                 if (body.operation) {
                     busy.set(appId, body.operation);
                     renderCards();
                     pollOperation(appId, body.operation.id);
                 }
             } catch (err) {
-                showOperationError(appId, err.message);
+                if (!instance.disposed) showOperationError(appId, err.message);
             }
         }
 
@@ -629,6 +653,7 @@
                     await delay(1000);
                     if (instance.disposed) return;
                     const body = await api('/api/desktop/store/operations/' + encodeURIComponent(operationId));
+                    if (instance.disposed) return;
                     const op = body.operation;
                     if (!op) throw new Error(t('desktop.store.operation_failed'));
                     busy.set(appId, op);
@@ -677,6 +702,8 @@
         if (!instance) return;
         instance.disposed = true;
         if (instance.closeConfig) instance.closeConfig();
+        for (const overlay of instance.overlays) closeOverlay(overlay);
+        instance.overlays.clear();
         if (instance.loadDebounceTimer) {
             clearTimeout(instance.loadDebounceTimer);
             instance.loadDebounceTimer = null;

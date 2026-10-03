@@ -73,10 +73,12 @@ the station's genres, mood, tempo, vocals and themes. Even when the target is me
 one new track is requested per start and then after every four music starts;
 pause suppresses this refresh. Existing music bridges slow generation and is
 reused under the rotation rules. The target is not a prerequisite for playback.
-Default daily limits are 20 music generations, 48 editorial requests and 30,000
-TTS characters. Counters reset at midnight UTC. Failed/uncertain requests retain
-their reservation because providers may still charge them. AuraGo's global
-budget checks apply as well. Counts and cost estimates are not billing totals.
+Default daily limits per station are 20 music generations, 48 editorial requests
+and 30,000 TTS characters. Each station ID has its own counters, so a new
+station starts with unused station allowance. Counters reset at midnight UTC.
+Failed/uncertain requests retain their reservation because providers may still
+charge them. AuraGo's global budget checks apply across stations as well.
+Counts and cost estimates are not billing totals.
 
 The radio saves originals through the existing music integration and registers
 each in the shared media registry. It retains the generation prompt, style/genre,

@@ -25,7 +25,7 @@ func resolveToolPathForRead(filePath string, cfg *config.Config, allowDir bool) 
 	if err != nil {
 		return "", fmt.Errorf("path traversal denied: %w", err)
 	}
-	info, err := os.Stat(resolved)
+	info, err := rootedToolStat(resolved)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("file not found: %s", filePath)

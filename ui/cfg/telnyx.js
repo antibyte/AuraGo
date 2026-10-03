@@ -41,6 +41,13 @@ function renderTelnyxSection(section) {
     html += '<button class="btn btn-sm" onclick="saveTelnyxVault(\'api_key\')">' + t('config.telnyx.save_vault') + '</button>';
     html += '</div></div>';
 
+    // ── Account Public Key (webhook verification) ──
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.telnyx.webhook_public_key_label') + '</div>';
+    html += '<div class="field-help">' + t('help.telnyx.webhook_public_key') + '</div>';
+    html += '<input class="field-input" type="text" data-path="telnyx.webhook_public_key" value="' + escapeAttr(data.webhook_public_key || '') + '" autocomplete="off">';
+    html += '</div>';
+
     // ── Phone Number ──
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.telnyx.phone_number_label') + '</div>';

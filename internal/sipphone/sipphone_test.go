@@ -481,11 +481,12 @@ func TestManagerAnswerBrowserAssignsExclusivePeer(t *testing.T) {
 	defer manager.Close()
 	peer := &recordingMediaPeer{}
 	call := &activeCall{
-		record:       CallRecord{ID: "incoming", Backend: cfg.Voice.Backend},
+		record:       CallRecord{ID: "incoming", Backend: cfg.Voice.Backend, State: StateRinging},
 		serverDialog: &diago.DialogServerSession{},
 		decision:     make(chan string, 1),
 	}
 	manager.active = call
+	manager.state = StateRinging
 	if err := manager.AnswerBrowser("incoming", peer); err != nil {
 		t.Fatal(err)
 	}
@@ -500,6 +501,18 @@ func TestManagerAnswerBrowserAssignsExclusivePeer(t *testing.T) {
 	default:
 		t.Fatal("answer decision was not queued")
 	}
+	if err := manager.Reject("incoming"); !errors.Is(err, ErrBusy) {
+		t.Fatalf("duplicate decision error = %v", err)
+	}
+	call.decisionTaken = false
+	manager.state = StateActive
+	latePeer := &recordingMediaPeer{}
+	if err := manager.AnswerBrowser("incoming", latePeer); !errors.Is(err, ErrBusy) {
+		t.Fatalf("late browser answer error = %v", err)
+	}
+	if call.mediaPeer != peer {
+		t.Fatal("late browser answer replaced media peer")
+	}
 }
 
 func TestManagerBrowserAnswerRequiresManualRouteAndEnabledMedia(t *testing.T) {
@@ -511,10 +524,11 @@ func TestManagerBrowserAnswerRequiresManualRouteAndEnabledMedia(t *testing.T) {
 	}
 	defer manager.Close()
 	manager.active = &activeCall{
-		record:       CallRecord{ID: "incoming"},
+		record:       CallRecord{ID: "incoming", State: StateRinging},
 		serverDialog: &diago.DialogServerSession{},
 		decision:     make(chan string, 1),
 	}
+	manager.state = StateRinging
 	if err := manager.AnswerBrowser("incoming", &recordingMediaPeer{}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("browser answer error = %v", err)
 	}

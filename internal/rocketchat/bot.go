@@ -173,12 +173,10 @@ func isAllowedRocketChatUser(cfg *config.Config, msg message) bool {
 	if len(cfg.RocketChat.AllowedUsers) == 0 {
 		return false
 	}
-	for _, candidate := range []string{msg.User.ID, msg.User.Username} {
-		if candidate != "" && slices.Contains(cfg.RocketChat.AllowedUsers, candidate) {
-			return true
-		}
-	}
-	return false
+	id, username := msg.User.ID, msg.User.Username
+	return id != "" && (slices.Contains(cfg.RocketChat.AllowedUsers, "id:"+id) ||
+		slices.Contains(cfg.RocketChat.AllowedUsers, id)) ||
+		username != "" && slices.Contains(cfg.RocketChat.AllowedUsers, "username:"+username)
 }
 
 // resolveChannelID resolves a channel name to its ID.

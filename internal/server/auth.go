@@ -682,7 +682,6 @@ var authBypassPrefixes = []string{
 	"/api/openrouter/models",
 	"/api/composio/callback",
 	"/api/oauth/callback",
-	"/api/ui-language",
 	"/api/remote/ws",                 // Remote agent WebSocket — has its own key-based auth
 	"/api/agodesk/ws",                // agodesk WebSocket — performs pairing inside the socket protocol
 	"/api/agodesk/tts/",              // agodesk TTS assets — limited to cached TTS audio filenames
@@ -772,7 +771,6 @@ var noPasswordPrefixes = []string{
 	"/api/i18n",
 	"/api/personalities",
 	"/api/openrouter/models",
-	"/api/ui-language",
 	"/setup",
 	"/css/",
 	"/fonts/",
@@ -833,25 +831,9 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		// Only the minimal endpoints required to set a password remain accessible.
 		// There is NO bypass — auth.enabled = true means the server is protected, period.
 		if enabled && passwordHash == "" {
-			// Diagnose WHY the password is missing: wrong master key (decrypt failure)
-			// vs. password simply never set.
-			vaultDiag := "password was never set"
-			if s.Vault != nil {
-				if _, vaultErr := s.Vault.ReadSecret("auth_password_hash"); vaultErr != nil {
-					errStr := vaultErr.Error()
-					if strings.Contains(errStr, "decrypt") || strings.Contains(errStr, "cipher") || strings.Contains(errStr, "GCM") {
-						vaultDiag = "VAULT DECRYPTION FAILED — master key mismatch or corrupted vault: " + errStr
-					} else if strings.Contains(errStr, "not found") {
-						vaultDiag = "key 'auth_password_hash' not found in vault (password never set)"
-					} else {
-						vaultDiag = "vault read error: " + errStr
-					}
-				}
-			}
-			s.Logger.Error("[Auth] LOCKDOWN: auth.enabled is true but no password is set in the vault. "+
-				"All requests are blocked except the password-setup endpoints. "+
-				"Set a password via /config (local network only) or the /api/auth/password endpoint.",
-				"diagnosis", vaultDiag)
+			s.lockdownLogOnce.Do(func() {
+				s.Logger.Error("[Auth] LOCKDOWN: authentication is enabled but no password is available; configure an admin password to restore access")
+			})
 			if isAllowedWithoutPassword(r.URL.Path) {
 				next.ServeHTTP(w, r)
 				return

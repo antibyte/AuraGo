@@ -126,6 +126,57 @@ func (l *Ledger) ListWorkspaces(ctx context.Context, ownerSessionID string, incl
 	return workspaces, rows.Err()
 }
 
+func (l *Ledger) ListLeaseScanPage(ctx context.Context, afterID string) ([]Workspace, error) {
+	rows, err := l.db.QueryContext(ctx, `SELECT id, owner_session_id, mission_id, actor, machine_id, state, template,
+		network_profile, volume_id, capabilities_json, instance_nonce, control_owner, control_lease_expires_at,
+		last_error, created_at, updated_at, last_activity_at, lease_expires_at, max_expires_at
+		FROM workspaces WHERE state NOT IN (?, ?) AND id > ? ORDER BY id LIMIT 500`,
+		WorkspaceStateClosed, WorkspaceStateFailed, afterID)
+	if err != nil {
+		return nil, fmt.Errorf("list lease scan page: %w", err)
+	}
+	defer rows.Close()
+	var workspaces []Workspace
+	for rows.Next() {
+		workspace, err := scanWorkspace(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan lease workspace: %w", err)
+		}
+		workspaces = append(workspaces, workspace)
+	}
+	return workspaces, rows.Err()
+}
+
+func (l *Ledger) ClaimExpiredWorkspace(ctx context.Context, id string, now time.Time) (bool, error) {
+	result, err := l.db.ExecContext(ctx, `UPDATE workspaces SET state=?, updated_at=?
+		WHERE id=? AND state NOT IN (?, ?)
+		AND (julianday(lease_expires_at) <= julianday(?) OR julianday(max_expires_at) <= julianday(?))`,
+		WorkspaceStateClosing, timeText(now), id, WorkspaceStateClosed, WorkspaceStateFailed,
+		timeText(now), timeText(now))
+	if err != nil {
+		return false, fmt.Errorf("claim expired workspace: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	return rows == 1, err
+}
+
+func (l *Ledger) UpdateWorkspaceActivity(ctx context.Context, id string, activity, lease time.Time) error {
+	result, err := l.db.ExecContext(ctx, `UPDATE workspaces
+		SET last_activity_at=?, updated_at=?, lease_expires_at=?
+		WHERE id=? AND state=?`, timeText(activity), timeText(activity), timeText(lease), id, WorkspaceStateReady)
+	if err != nil {
+		return fmt.Errorf("update workspace activity: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check workspace activity update: %w", err)
+	}
+	if rows == 0 {
+		return WorkspaceRPCError{Code: "workspace_not_ready", Message: "workspace is no longer ready"}
+	}
+	return nil
+}
+
 func (l *Ledger) CountActiveWorkspaces(ctx context.Context) (int, error) {
 	var count int
 	if err := l.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM workspaces WHERE state IN (?, ?, ?)`,

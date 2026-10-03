@@ -354,6 +354,11 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			defer s.CfgMu.Unlock()
 
 			newCfg := reloadedCfg // already loaded + vault-secrets applied
+			newCfg.ResolveProviders()
+			if s.Vault != nil {
+				newCfg.ApplyOAuthTokens(s.Vault)
+			}
+			newCfg.Runtime = s.Cfg.Runtime
 
 			s.replaceConfigSnapshot(newCfg)
 			if s.LocalLLM != nil {

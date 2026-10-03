@@ -296,6 +296,7 @@
   "help.proxmox.url": "URL API Proxmox VE, np. 'https://pve.example.com:8006'.",
   "help.rocketchat.alias": "Wyświetlana nazwa bota w Rocket.Chat. Domyślnie: 'AuraGo'.",
   "help.rocketchat.channel": "Domyślny kanał do nasłuchiwania, np. 'general'.",
+  "help.rocketchat.allowed_users": "Zezwalaj użytkownikom przez id:<ID> lub username:<nazwa>. Identyfikatory bez prefiksu nadal działają i nigdy nie pasują do nazwy użytkownika.",
   "help.rocketchat.enabled": "Włącza integrację bota Rocket.Chat.",
   "help.rocketchat.url": "URL instancji Rocket.Chat, np. 'https://chat.example.com'.",
   "help.rocketchat.user_id": "ID użytkownika bota z Rocket.Chat (Profile > Personal Access Tokens).",

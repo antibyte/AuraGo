@@ -176,6 +176,10 @@ func (r *DaemonRunner) Start() error {
 
 // startLocked spawns the process. Caller must hold r.mu.
 func (r *DaemonRunner) startLocked() error {
+	if err := requireSkillExecutionPermission(r.manifest); err != nil {
+		r.status = DaemonStopped
+		return fmt.Errorf("daemon execution denied: %w", err)
+	}
 	r.status = DaemonStarting
 	r.logger.Info("Starting daemon")
 

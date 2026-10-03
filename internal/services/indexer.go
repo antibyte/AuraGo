@@ -461,7 +461,7 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		fi.logger.Debug("[Indexer] Directory does not exist, skipping", "dir", dir)
-		errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
+		errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths, true)...)
 		return 0, 0, errors
 	}
 
@@ -506,7 +506,7 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 		errors = append(errors, fmt.Sprintf("walk error %s: %v", dir, err))
 	}
 
-	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
+	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths, true)...)
 	return totalFiles, indexedFiles, errors
 }
 
@@ -964,7 +964,7 @@ func (fi *FileIndexer) syncIndexedFileToKG(path, collection string) {
 	}()
 }
 
-func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir, collection string, trackedPaths []string, seenPaths map[string]struct{}) []string {
+func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir, collection string, trackedPaths []string, seenPaths map[string]struct{}, requireMissing bool) []string {
 	var errors []string
 	for _, trackedPath := range trackedPaths {
 		if !isPathWithinDir(trackedPath, dir) {
@@ -972,6 +972,14 @@ func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir, collection string, tracke
 		}
 		if _, ok := seenPaths[trackedPath]; ok {
 			continue
+		}
+		if requireMissing {
+			if _, err := os.Lstat(trackedPath); err == nil {
+				continue
+			} else if !os.IsNotExist(err) {
+				errors = append(errors, fmt.Sprintf("verify deleted file %s: %v", trackedPath, err))
+				continue
+			}
 		}
 		if err := fi.removeTrackedFile(trackedPath, collection); err != nil {
 			errors = append(errors, fmt.Sprintf("deleted file cleanup %s: %v", trackedPath, err))

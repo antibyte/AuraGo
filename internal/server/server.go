@@ -135,11 +135,12 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
-	Cfg         *config.Config
-	cfgSnapshot atomic.Pointer[config.Config]
-	CfgMu       sync.RWMutex // protects Cfg during hot-reload
-	CfgSaveMu   sync.Mutex   // serializes config file writes to prevent TOCTOU races
-	SIPConfigMu sync.Mutex   // serializes SIP snapshots, Vault mutations, and config publication
+	Cfg             *config.Config
+	cfgSnapshot     atomic.Pointer[config.Config]
+	CfgMu           sync.RWMutex // protects Cfg during hot-reload
+	CfgSaveMu       sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	lockdownLogOnce sync.Once
+	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
 	// These live on the Server so tests can construct independent Server
 	// instances without racing on a shared package-level map.
@@ -371,11 +372,14 @@ func effectiveSpeechLabConfig(cfg *config.Config) config.SpeechLabConfig {
 	return speechCfg
 }
 
-// reinitBudgetTracker recreates the BudgetTracker from the current config and
-// re-registers the MissionManagerV2 callback. Must be called whenever the config
-// is reloaded so that budget threshold mission triggers keep firing.
+// reinitBudgetTracker keeps the existing tracker for in-flight agent runs and
+// re-registers the MissionManagerV2 callback after config reloads.
 func (s *Server) reinitBudgetTracker(cfg *config.Config) {
-	s.BudgetTracker = budget.NewTracker(cfg, s.Logger, cfg.Directories.DataDir)
+	if s.BudgetTracker == nil {
+		s.BudgetTracker = budget.NewTracker(cfg, s.Logger, cfg.Directories.DataDir)
+	} else {
+		s.BudgetTracker.UpdateConfig(cfg)
+	}
 	if s.BudgetTracker != nil && s.MissionManagerV2 != nil {
 		s.BudgetTracker.SetMissionCallback(func(eventType string, spentUSD, limitUSD, percentage float64) {
 			s.MissionManagerV2.NotifyBudgetEvent(eventType, spentUSD, limitUSD, percentage)

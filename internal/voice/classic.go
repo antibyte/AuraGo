@@ -79,10 +79,18 @@ type classicSession struct {
 	closed             bool
 	activeTurns        atomic.Int32
 	turnState          chan struct{}
+	producers          sync.WaitGroup
 }
 
 func (s *classicSession) run() {
-	defer close(s.events)
+	defer func() {
+		s.mu.Lock()
+		s.closed = true
+		s.mu.Unlock()
+		s.cancel()
+		s.producers.Wait()
+		close(s.events)
+	}()
 	s.emit("backend_started", "")
 	if s.call.Greeting != "" {
 		s.startAnnouncement(s.call.Greeting, "greeting")
@@ -145,7 +153,9 @@ func (s *classicSession) startAnnouncement(text, kind string) {
 	s.mu.Unlock()
 	s.activeTurns.Add(1)
 	s.signalTurnState()
+	s.producers.Add(1)
 	go func() {
+		defer s.producers.Done()
 		defer func() {
 			s.mu.Lock()
 			s.announcementCancel = nil
@@ -163,7 +173,9 @@ func (s *classicSession) startAnnouncement(text, kind string) {
 func (s *classicSession) startUtterance(samples []int16, sampleRate int) {
 	s.activeTurns.Add(1)
 	s.signalTurnState()
+	s.producers.Add(1)
 	go func() {
+		defer s.producers.Done()
 		defer func() {
 			s.activeTurns.Add(-1)
 			s.signalTurnState()

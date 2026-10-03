@@ -634,6 +634,7 @@ Fresh pairing:
 - agodesk sends it as `payload.pairing_token` in `session.start`.
 - AuraGo creates a RemoteHub device tagged `agodesk` and `desktop-client`.
 - The enrollment token is the approval step for agodesk pairing; there is no separate manual approval action in Remote Control.
+- Enrollment tokens are single use. If a pairing key is lost, an administrator revokes the old device and creates a fresh token for a new enrollment.
 - AuraGo stores the generated shared key in the Vault under `remote_shared_key_<device_id>`.
 - `session.accepted.shared_key` is returned only on fresh pairing.
 
@@ -643,6 +644,7 @@ Reconnect:
 - `shared_key_proof` is an object with `nonce`, `timestamp`, and `hmac` (hex HMAC-SHA256).
 - The proof is an HMAC-SHA256 over the `session.start` envelope id, device id, nonce, and proof timestamp.
 - AuraGo verifies the proof with the Vault-stored shared key.
+- Proof timestamps must be fresh and nonces must not have been used before for that device. Failed key storage or device registration never completes pairing.
 - Reconnect is allowed for paired devices in `approved`, `connected`, or `offline` status. `offline` only means no socket is currently connected.
 - Reconnect responses never echo the shared key.
 

@@ -57,7 +57,7 @@ func (c *CodeAnalyzer) SymbolSearchInWorkspace(workspaceDir, dirOrFile, symbol s
 
 // ExtractStructure parses a file to extract its major structural components using regex.
 func (c *CodeAnalyzer) ExtractStructure(filePath string) ([]StructureItem, error) {
-	file, err := os.Open(filePath)
+	file, err := rootedToolOpen(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
@@ -123,7 +123,7 @@ func (c *CodeAnalyzer) ExtractStructure(filePath string) ([]StructureItem, error
 // SymbolSearch searches for definitions of a given symbol via simple regex matching.
 // Useful for broad but fast discovery across files.
 func (c *CodeAnalyzer) SymbolSearch(dirOrFile string, symbol string) ([]string, error) {
-	info, err := os.Stat(dirOrFile)
+	info, err := rootedToolStat(dirOrFile)
 	if err != nil {
 		return nil, fmt.Errorf("stat failed: %w", err)
 	}
@@ -143,7 +143,7 @@ func (c *CodeAnalyzer) SymbolSearch(dirOrFile string, symbol string) ([]string, 
 			return nil
 		}
 
-		file, err := os.Open(path)
+		file, err := rootedToolOpen(path)
 		if err != nil {
 			return nil
 		}

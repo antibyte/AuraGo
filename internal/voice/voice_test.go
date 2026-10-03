@@ -178,6 +178,49 @@ func TestClassicBackendASRAgentTTSPipeline(t *testing.T) {
 	}
 }
 
+func TestClassicSessionKeepsEventsOpenUntilProducersFinish(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	s := &classicSession{ctx: ctx, cancel: cancel, audio: NewBridge(1), backend: &ClassicBackend{IdleTimeout: time.Hour}, events: make(chan VoiceEvent, 4), turnState: make(chan struct{}, 1)}
+	s.producers.Add(1)
+	cancel()
+	go s.run()
+	for range 2 {
+		select {
+		case _, ok := <-s.events:
+			if !ok {
+				t.Fatal("event channel closed before producer completed")
+			}
+		case <-time.After(time.Second):
+			t.Fatal("session did not stop")
+		}
+	}
+	select {
+	case _, ok := <-s.events:
+		if !ok {
+			t.Fatal("event channel closed while producer was active")
+		}
+	default:
+	}
+	s.emit("late_event", "")
+	s.producers.Done()
+	select {
+	case event := <-s.events:
+		if event.Type != "late_event" {
+			t.Fatalf("late event = %q", event.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("late event was not delivered")
+	}
+	select {
+	case _, ok := <-s.events:
+		if ok {
+			t.Fatal("expected closed event channel")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("event channel did not close")
+	}
+}
+
 func TestClassicSpeechStreamingStartsPlaybackBeforeNextBlockCompletes(t *testing.T) {
 	synthesizer := &stagedStreamingSynthesizer{
 		secondStarted: make(chan struct{}), releaseSecond: make(chan struct{}), done: make(chan struct{}),

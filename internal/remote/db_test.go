@@ -197,6 +197,9 @@ func TestEnrollmentCRUD(t *testing.T) {
 	if !marked.Used {
 		t.Error("enrollment should be marked as used")
 	}
+	if err := MarkEnrollmentUsed(db, id, "device-other"); err == nil {
+		t.Fatal("consumed enrollment was accepted again")
+	}
 }
 
 func TestCleanExpiredEnrollments(t *testing.T) {

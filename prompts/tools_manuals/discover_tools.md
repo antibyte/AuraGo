@@ -12,13 +12,14 @@ Browse and search the full tool catalog, including active, hidden, and disabled 
 `discover_tools` returns a JSON envelope under `Tool Output:`. Read the machine-readable fields first:
 
 - `status`: request status
-- `results[]` or `tool`: catalog entries
-- `kind`: `native`, `skill`, `custom`, or `mcp`
-- `status`: `active`, `hidden`, or `disabled`
-- `call_method`: `direct`, `invoke_tool`, `execute_skill`, `run_tool`, or `disabled`
+- `results[]` or `tool`: catalog entries; `categories[]` for category lists, `manual` for a guide
+- `kind`: catalog tool kind; `status`: `active`, `hidden`, or `disabled`
+- `call_method`: `direct`, `invoke_tool`, `execute_skill`, `run_tool`, `activate_agent_skill`, `composio_call`, `needs_setup`, or `disabled`
 - `callable_now`: whether the tool can be used immediately
 - `schema_available`: whether a parameter schema is included
 - `instruction`: concise call guidance
+- `hidden_reason`: why an unavailable entry cannot be called; discovery never grants permission
+- `next_cursor`: pass this cursor to continue a paged result or manual
 
 ## Operations
 
@@ -28,6 +29,7 @@ Browse tools organized by category. Shows active, hidden, and disabled catalog e
 ```json
 {"action": "discover_tools", "operation": "list_categories"}
 {"action": "discover_tools", "operation": "list_categories", "category": "network"}
+{"action": "discover_tools", "operation": "list_family", "category": "network"}
 ```
 
 Categories: `system`, `memory`, `files`, `network`, `media`, `smart_home`, `infrastructure`, `data_apis`, `communication`
@@ -40,21 +42,25 @@ Find tools by keyword across all categories. Matches tool names and descriptions
 {"action": "discover_tools", "operation": "search", "query": "email"}
 ```
 
-### get_tool_info
+### get_tool_info and get_manual
 Get the full parameter schema, usage guide, status, and call method for a specific tool. **Use this before calling a hidden tool** — it shows the exact parameters and whether to use `invoke_tool`, `execute_skill`, `run_tool`, or a direct native call.
 
 ```json
 {"action": "discover_tools", "operation": "get_tool_info", "tool_name": "docker"}
+{"action": "discover_tools", "operation": "get_manual", "tool_name": "docker"}
 ```
 
 ## Workflow
 1. Use `list_categories` or `search` to find the tool you need
-2. Use `get_tool_info` to see its full parameter schema
+2. Use `get_tool_info` to see its full parameter schema; use `get_manual` for workflow guidance
 3. Follow the returned `call_method`:
    - `direct`: call the native tool normally
    - `invoke_tool`: call `invoke_tool` with `tool_name` and `arguments`; the system will re-inject the real native schema for follow-up calls
    - `execute_skill`: use `execute_skill` with `skill` and `skill_args`
    - `run_tool`: use `run_tool`
+   - `activate_agent_skill`: load the package with `activate_agent_skill`
+   - `composio_call`: use the service instructions in the catalog result
+   - `needs_setup`: resolve `hidden_reason` before retrying
    - `disabled`: stop and tell the user the tool must be enabled first
 
 ## Important

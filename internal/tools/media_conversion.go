@@ -3,11 +3,13 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,6 +114,9 @@ func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConf
 	if op != "info" && cfg.ReadOnly {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "media conversion is in read-only mode"})
 	}
+	if strings.TrimSpace(workspaceDir) == "" {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "workspace directory is required", Operation: op})
+	}
 
 	if workspaceDir != "" && req.FilePath != "" {
 		resolved, err := secureResolve(workspaceDir, req.FilePath)
@@ -127,14 +132,58 @@ func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConf
 		}
 		req.OutputFile = resolved
 	}
+	if strings.TrimSpace(req.FilePath) == "" {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "file_path is required", Operation: op})
+	}
+	// External converters receive only private staged files. A workspace path can
+	// otherwise be swapped for a symlink after validation but before they open it.
+	input, err := rootedToolOpen(req.FilePath)
+	if err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot access input file: %v", err), Operation: op})
+	}
+	defer input.Close()
+	if err := checkMediaFileSize(cfg, req.FilePath); err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: op})
+	}
+	stagingDir, err := os.MkdirTemp("", "aurago-media-*")
+	if err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot stage input: %v", err), Operation: op})
+	}
+	defer os.RemoveAll(stagingDir)
+	stagedInput := filepath.Join(stagingDir, "input"+filepath.Ext(req.FilePath))
+	staged, err := os.OpenFile(stagedInput, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot stage input: %v", err), Operation: op})
+	}
+	_, copyErr := io.Copy(staged, input)
+	closeErr := staged.Close()
+	if copyErr != nil || closeErr != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot stage input: %v", errors.Join(copyErr, closeErr)), Operation: op})
+	}
+	var destination string
+	if op != "info" {
+		destination, _, err = resolveConversionOutput(req.FilePath, req.OutputFile, req.OutputFormat)
+		if err != nil {
+			return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: op})
+		}
+		if destination, err = secureResolve(workspaceDir, destination); err != nil {
+			return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("invalid output path: %v", err), Operation: op})
+		}
+		if err = requireUnprotectedNotesPath(destination, true); err != nil {
+			return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: op})
+		}
+		req.OutputFile = filepath.Join(stagingDir, "output"+filepath.Ext(destination))
+	}
+	req.FilePath = stagedInput
 
+	var result string
 	switch op {
 	case "audio_convert":
-		return executeFFmpegConversion(cfg, req, "audio")
+		result = executeFFmpegConversion(cfg, req, "audio")
 	case "video_convert":
-		return executeFFmpegConversion(cfg, req, "video")
+		result = executeFFmpegConversion(cfg, req, "video")
 	case "image_convert":
-		return executeImageMagickConversion(cfg, req)
+		result = executeImageMagickConversion(cfg, req)
 	case "info":
 		return executeMediaInfo(cfg, req)
 	default:
@@ -144,6 +193,20 @@ func ExecuteMediaConversion(workspaceDir string, cfg *config.MediaConversionConf
 			Operation: op,
 		})
 	}
+	var converted mediaConversionResult
+	if err := json.Unmarshal([]byte(result), &converted); err != nil || converted.Status != "success" {
+		return result
+	}
+	output, err := os.Open(req.OutputFile)
+	if err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot open converted output: %v", err), Operation: op})
+	}
+	defer output.Close()
+	if err := rootedToolWriteFromReaderAtomic(destination, output); err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot save converted output: %v", err), Operation: op})
+	}
+	converted.File = destination
+	return mediaConversionJSON(converted)
 }
 
 func MediaConversionHealth(ctx context.Context, cfg *config.MediaConversionConfig) map[string]interface{} {

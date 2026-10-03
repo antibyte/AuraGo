@@ -321,10 +321,18 @@ func GetDeviceByIDOrName(db *sql.DB, idOrName string) (DeviceRecord, error) {
 		return DeviceRecord{}, err // return original ID-lookup error
 	}
 	lower := strings.ToLower(idOrName)
+	var match *DeviceRecord
 	for _, dev := range devices {
 		if strings.ToLower(dev.Name) == lower {
-			return dev, nil
+			if match != nil {
+				return DeviceRecord{}, fmt.Errorf("device name %q is ambiguous; use its ID", idOrName)
+			}
+			copy := dev
+			match = &copy
 		}
+	}
+	if match != nil {
+		return *match, nil
 	}
 	return DeviceRecord{}, fmt.Errorf("device not found: %s", idOrName)
 }

@@ -990,6 +990,10 @@
       "title": "API Key",
       "description": "Your Telnyx API v2 key. Stored securely in the encrypted vault."
     },
+    "webhook_public_key": {
+      "title": "Webhook Public Key",
+      "description": "Your account Public Key from Telnyx Mission Control, Keys & Credentials. Base64 Ed25519; required to verify inbound webhooks. The API key and old API secret do not verify webhooks."
+    },
     "phone_number": {
       "title": "Phone Number",
       "description": "Your Telnyx phone number in E.164 format (e.g. +15551234567)."
@@ -1008,7 +1012,7 @@
     },
     "allowed_numbers": {
       "title": "Allowed Numbers",
-      "description": "Comma-separated list of phone numbers (E.164) that may interact with the agent. Leave empty to allow all."
+      "description": "Comma-separated list of phone numbers (E.164) that may interact with the agent. Empty denies all."
     },
     "call_timeout": {
       "title": "Call Timeout",

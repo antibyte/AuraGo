@@ -33,7 +33,7 @@ type fileTypeResult struct {
 // Uses net/http.DetectContentType for magic-byte sniffing (stdlib, no external dep).
 func detectOne(path string) fileTypeEntry {
 	entry := fileTypeEntry{Path: path}
-	f, err := os.Open(path) // #nosec G304 – path comes from an OS walk, not user HTTP input
+	f, err := rootedToolOpen(path)
 	if err != nil {
 		entry.Error = fmt.Sprintf("open: %v", err)
 		return entry
@@ -81,7 +81,7 @@ func DetectFileType(path string, recursive bool) string {
 		return encode(fileTypeResult{Status: "error"})
 	}
 
-	info, err := os.Stat(path)
+	info, err := rootedToolStat(path)
 	if err != nil {
 		return encode(fileTypeResult{
 			Status: "error",
@@ -111,7 +111,7 @@ func DetectFileType(path string, recursive bool) string {
 			entries = append(entries, detectOne(p))
 			return nil
 		}
-		_ = filepath.WalkDir(path, walkFn)
+		_ = rootedToolWalkDir(path, walkFn)
 	}
 
 	errorCount := 0

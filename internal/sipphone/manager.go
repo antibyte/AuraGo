@@ -145,6 +145,8 @@ type activeCall struct {
 	ctx                context.Context
 	cancel             context.CancelFunc
 	decision           chan string
+	decisionTaken      bool
+	decisionDeadline   time.Time
 	bridge             *voice.Bridge
 	backend            voice.VoiceSession
 	voiceBackend       voice.VoiceBackend
@@ -934,6 +936,9 @@ func (m *Manager) decideInbound(callID, decision string, peer MediaPeer) error {
 	if m.active == nil || m.active.record.ID != callID || m.active.serverDialog == nil {
 		return ErrCallNotFound
 	}
+	if m.state != StateRinging || m.active.record.State != StateRinging || m.active.decisionTaken || (!m.active.decisionDeadline.IsZero() && !time.Now().Before(m.active.decisionDeadline)) {
+		return ErrBusy
+	}
 	if peer != nil {
 		if !m.cfg.BrowserMedia.Enabled || m.cfg.Inbound.Route != "manual" {
 			return ErrPermissionDenied
@@ -946,12 +951,9 @@ func (m *Manager) decideInbound(callID, decision string, peer MediaPeer) error {
 		m.active.mediaPeer = peer
 		m.active.record.Backend = MediaModeBrowser
 	}
-	select {
-	case m.active.decision <- decision:
-		return nil
-	default:
-		return fmt.Errorf("SIP call already has a pending decision")
-	}
+	m.active.decisionTaken = true
+	m.active.decision <- decision
+	return nil
 }
 
 func (m *Manager) Hangup(ctx context.Context, callID string) error {
@@ -1311,37 +1313,55 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	call.dialogMu.Unlock()
 	decision := "answer"
 	if cfg.Inbound.Route == "manual" {
-		ringTimer := time.NewTimer(time.Duration(cfg.Inbound.RingTimeoutSeconds) * time.Second)
+		ringDuration := time.Duration(cfg.Inbound.RingTimeoutSeconds) * time.Second
+		m.mu.Lock()
+		call.decisionDeadline = time.Now().Add(ringDuration)
+		m.mu.Unlock()
+		ringTimer := time.NewTimer(ringDuration)
 		defer ringTimer.Stop()
 		select {
 		case decision = <-call.decision:
 		case <-ringTimer.C:
-			call.dialogMu.Lock()
-			_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
-			call.dialogMu.Unlock()
-			m.finishCall(call, "ring_timeout")
-			return
+			select {
+			case decision = <-call.decision:
+			default:
+				m.closeInboundDecision(call)
+				call.dialogMu.Lock()
+				_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
+				call.dialogMu.Unlock()
+				m.finishCall(call, "ring_timeout")
+				return
+			}
 		case <-call.ctx.Done():
+			m.closeInboundDecision(call)
 			m.finishCall(call, m.callCancellationReason(call))
 			return
 		case <-dialog.Context().Done():
+			m.closeInboundDecision(call)
 			m.finishCall(call, "remote_cancel")
 			return
 		}
 	} else if cfg.Inbound.AutoAnswerDelayMS > 0 {
-		timer := time.NewTimer(time.Duration(cfg.Inbound.AutoAnswerDelayMS) * time.Millisecond)
+		delay := time.Duration(cfg.Inbound.AutoAnswerDelayMS) * time.Millisecond
+		m.mu.Lock()
+		call.decisionDeadline = time.Now().Add(delay)
+		m.mu.Unlock()
+		timer := time.NewTimer(delay)
 		defer timer.Stop()
 		select {
 		case <-timer.C:
 		case decision = <-call.decision:
 		case <-call.ctx.Done():
+			m.closeInboundDecision(call)
 			m.finishCall(call, m.callCancellationReason(call))
 			return
 		case <-dialog.Context().Done():
+			m.closeInboundDecision(call)
 			m.finishCall(call, "remote_cancel")
 			return
 		}
 	}
+	m.closeInboundDecision(call)
 	if decision == "reject" {
 		call.dialogMu.Lock()
 		_ = dialog.Respond(sip.StatusGlobalDecline, "Decline", nil)
@@ -1365,6 +1385,12 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	call.dialogEstablished = true
 	m.mu.Unlock()
 	m.runEstablished(call, cfg)
+}
+
+func (m *Manager) closeInboundDecision(call *activeCall) {
+	m.mu.Lock()
+	call.decisionTaken = true
+	m.mu.Unlock()
 }
 
 func (m *Manager) networkConfigurationRequired(cfg config.SIPConfig) bool {

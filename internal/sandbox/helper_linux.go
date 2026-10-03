@@ -101,6 +101,9 @@ func RunExecHelper() {
 // applyLandlock creates a Landlock ruleset, adds path rules, and restricts
 // the current process. Requires no privileges (Linux 5.13+).
 func applyLandlock() error {
+	if envInt("AURAGO_SBX_ABI") < 3 {
+		return fmt.Errorf("Landlock ABI 3 or newer is required for truncate protection")
+	}
 	// Set no_new_privs — required before landlock_restrict_self
 	if err := unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0); err != nil {
 		return fmt.Errorf("prctl(NO_NEW_PRIVS): %w", err)

@@ -22,5 +22,5 @@ func (fi *FileIndexer) CleanupDirectory(indexingDir config.IndexingDirectory) []
 	if err != nil {
 		return []string{err.Error()}
 	}
-	return fi.cleanupDeletedTrackedFiles(indexingDir.Path, collection, trackedPaths, map[string]struct{}{})
+	return fi.cleanupDeletedTrackedFiles(indexingDir.Path, collection, trackedPaths, map[string]struct{}{}, false)
 }

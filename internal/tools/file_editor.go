@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	"aurago/internal/fileutil"
 )
 
 // maxEditFileSize limits file sizes for in-memory edit operations to prevent OOM.
@@ -16,7 +15,7 @@ const maxEditFileSize int64 = 10 * 1024 * 1024 // 10 MB
 
 // checkEditSizeLimit returns an error if the file exceeds the edit size limit.
 func checkEditSizeLimit(path string) error {
-	info, err := os.Stat(path)
+	info, err := rootedToolStat(path)
 	if err != nil {
 		return nil // let os.ReadFile report the real error
 	}
@@ -93,7 +92,7 @@ func fileStrReplace(resolved, old, new_ string, replaceAll bool, encode func(Fil
 	if err := checkEditSizeLimit(resolved); err != nil {
 		return encode(FileEditorResult{Status: "error", Message: err.Error()})
 	}
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -167,7 +166,7 @@ func fileInsertRelative(resolved, marker, content string, after bool, encode fun
 	if err := checkEditSizeLimit(resolved); err != nil {
 		return encode(FileEditorResult{Status: "error", Message: err.Error()})
 	}
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -219,7 +218,7 @@ func fileAppendPrepend(resolved, content string, appendMode bool, encode func(Fi
 	if err := checkEditSizeLimit(resolved); err != nil {
 		return encode(FileEditorResult{Status: "error", Message: err.Error()})
 	}
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		if os.IsNotExist(err) && appendMode {
 			// For append, create file if it doesn't exist
@@ -279,7 +278,7 @@ func fileDeleteLines(resolved string, startLine, endLine int, encode func(FileEd
 	if err := checkEditSizeLimit(resolved); err != nil {
 		return encode(FileEditorResult{Status: "error", Message: err.Error()})
 	}
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -316,43 +315,7 @@ func writeFileAtomic(path string, data []byte) error {
 	if err := requireUnprotectedNotesPath(path, true); err != nil {
 		return err
 	}
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create parent dir: %w", err)
-	}
-
-	tmp, err := os.CreateTemp(dir, ".aurago_edit_*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	tmpName := tmp.Name()
-
-	// Preserve original permissions if file exists
-	mode := os.FileMode(0644)
-	if info, err := os.Stat(path); err == nil {
-		mode = info.Mode()
-	}
-
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return fmt.Errorf("failed to write temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("failed to close temp file: %w", err)
-	}
-
-	if err := os.Chmod(tmpName, mode); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("failed to set permissions: %w", err)
-	}
-
-	if err := fileutil.Rename(tmpName, path); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("failed to rename temp file: %w", err)
-	}
-	return nil
+	return rootedToolWriteFileAtomic(path, data)
 }
 
 // fileStrReplaceRegex performs a regex-based replacement in a single file.
@@ -368,7 +331,7 @@ func fileStrReplaceRegex(resolved, pattern, replacement string, encode func(File
 	if err := checkEditSizeLimit(resolved); err != nil {
 		return encode(FileEditorResult{Status: "error", Message: err.Error()})
 	}
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -433,7 +396,7 @@ func fileStrReplaceGlob(workspaceDir, globPattern, old, new_ string, encode func
 			continue
 		}
 
-		info, err := os.Stat(path)
+		info, err := rootedToolStat(path)
 		if err != nil || info.IsDir() {
 			continue
 		}
@@ -441,7 +404,7 @@ func fileStrReplaceGlob(workspaceDir, globPattern, old, new_ string, encode func
 			skipped = append(skipped, filepath.Base(path)+" (too large)")
 			continue
 		}
-		data, err := os.ReadFile(path)
+		data, err := rootedToolReadFile(path)
 		if err != nil {
 			skipped = append(skipped, filepath.Base(path)+" (read error)")
 			continue

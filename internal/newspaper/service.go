@@ -150,16 +150,13 @@ func (s *Service) startForDate(ctx context.Context, date string, newRevision boo
 	if s.running != nil {
 		return Run{}, ErrBusy
 	}
+	var run Run
+	var err error
 	if scheduled {
-		attempted, err := s.store.hasRunForDate(ctx, date)
-		if err != nil {
-			return Run{}, err
-		}
-		if attempted {
-			return Run{}, ErrConflict
-		}
+		run, err = s.store.StartScheduled(ctx, date, s.now())
+	} else {
+		run, err = s.store.StartCorrected(ctx, date, newRevision, correction, s.now())
 	}
-	run, err := s.store.StartCorrected(ctx, date, newRevision, correction, s.now())
 	if err != nil {
 		return Run{}, err
 	}

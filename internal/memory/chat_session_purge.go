@@ -12,7 +12,7 @@ func (s *SQLiteMemory) PurgeChatSession(sessionID string) error {
 	defer tx.Rollback()
 	for _, table := range []string{
 		"messages", "archived_messages", "archive_events", "memory_usage_log",
-		"compressed_tool_outputs", "activity_turns", "audit_events", "journal_entries", "episodic_memories",
+		"compressed_tool_outputs", "activity_turns", "audit_events", "journal_entries", "episodic_memories", "memory_extraction_sources",
 	} {
 		var exists bool
 		if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?)`, table).Scan(&exists); err != nil {

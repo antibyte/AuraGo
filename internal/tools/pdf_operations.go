@@ -27,6 +27,10 @@ func pdfOpsJSON(r pdfOpsResult) string {
 
 // ExecutePDFOperations dispatches PDF manipulation operations via pdfcpu.
 func ExecutePDFOperations(workspaceDir, operation, inputFile, outputFile, pages, password, watermarkText, sourceFiles string) string {
+	return executePDFOperationsRooted(workspaceDir, operation, inputFile, outputFile, pages, password, watermarkText, sourceFiles)
+}
+
+func executePDFOperationsStaged(workspaceDir, operation, inputFile, outputFile, pages, password, watermarkText, sourceFiles string) string {
 	switch strings.ToLower(operation) {
 	case "merge":
 		return pdfMerge(workspaceDir, sourceFiles, outputFile)

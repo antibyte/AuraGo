@@ -1518,7 +1518,8 @@ type Config struct {
 		Enabled             bool     `yaml:"enabled"`
 		ReadOnly            bool     `yaml:"readonly"`                    // true = receive only, no outbound
 		APIKey              string   `yaml:"-" vault:"telnyx_api_key"`    // vault-only
-		APISecret           string   `yaml:"-" vault:"telnyx_api_secret"` // webhook signature verification
+		APISecret           string   `yaml:"-" vault:"telnyx_api_secret"` // legacy credential; not webhook proof
+		WebhookPublicKey    string   `yaml:"webhook_public_key"`         // account Ed25519 public key, base64
 		PhoneNumber         string   `yaml:"phone_number"`                // primary Telnyx number (E.164)
 		MessagingProfileID  string   `yaml:"messaging_profile_id"`        // Telnyx messaging profile
 		ConnectionID        string   `yaml:"connection_id"`               // SIP connection ID for voice calls

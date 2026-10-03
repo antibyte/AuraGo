@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/beevik/etree"
@@ -281,7 +280,7 @@ func xmlDelete(resolved, xpath string, encode func(XmlEditorResult) string) stri
 }
 
 func xmlValidate(resolved string, encode func(XmlEditorResult) string) string {
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(XmlEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}

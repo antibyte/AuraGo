@@ -10,6 +10,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+### Budget accounting
+
+- Keep one budget tracker across config reloads. Update its limits and reset time under its lock, persist snapshots atomically, and charge every completed provider response once before any early return. Co-agent runs enforce their configured token limit in the loop, not only in prompt guidance.
+
 ### Optional task LLM router
 
 - `PrepareTaskRouting` runs once before provider-dependent chat preprocessing

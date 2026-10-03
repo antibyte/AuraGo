@@ -2779,6 +2779,69 @@ func TestKGDeleteEdgesBySourceFile(t *testing.T) {
 	}
 }
 
+func TestKGFileReplacementNeverDeletesNonFileEntities(t *testing.T) {
+	kg := newTestKG(t)
+	path := "/docs/shared.md"
+	if err := kg.AddNode("a", "A", map[string]string{"source": "manual", "source_file": path}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddNode("b", "B", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("a", "b", "manual_relation", map[string]string{"source": "manual", "source_file": path}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.ReplaceExtractedEntitiesBySourceFile(path, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if count, err := kg.DeleteEdgesBySourceFile(path); err != nil || count != 0 {
+		t.Fatalf("non-file edges deleted: count=%d err=%v", count, err)
+	}
+	if count, err := kg.DeleteNodesBySourceFile(path); err != nil || count != 0 {
+		t.Fatalf("non-file nodes deleted: count=%d err=%v", count, err)
+	}
+	if err := kg.BulkMergeExtractedEntities(nil, []Edge{{Source: "a", Target: "b", Relation: "manual_relation", Properties: map[string]string{"source": "file_sync", "source_file": path}}}); err != nil {
+		t.Fatal(err)
+	}
+	edges, err := kg.GetAllEdges(20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edges) != 1 || edges[0].Properties["source"] != "manual" || edges[0].Properties["source_file"] != "" {
+		t.Fatalf("manual edge inherited file ownership: %+v", edges)
+	}
+	if _, err := kg.GetNode("a"); err != nil {
+		t.Fatalf("manual node lost: %v", err)
+	}
+}
+
+func TestKGChatExtractionRetainsSharedFileEdge(t *testing.T) {
+	kg := newTestKG(t)
+	path := "/docs/shared.md"
+	if err := kg.AddNode("a", "A", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddNode("b", "B", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("a", "b", "mentions", map[string]string{"source": "file_sync", "source_file": path}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.BulkMergeExtractedEntities(nil, []Edge{{Source: "a", Target: "b", Relation: "mentions", Properties: map[string]string{"source": "auto_extraction", "confidence": "0.9"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.ReplaceExtractedEntitiesBySourceFile(path, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	edges, err := kg.GetAllEdges(20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edges) != 1 || edges[0].Properties["source"] != "auto_extraction" || edges[0].Properties["source_file"] != "" {
+		t.Fatalf("chat edge lost independent provenance: %+v", edges)
+	}
+}
+
 func TestKGFindOrphanedFileSyncEntities(t *testing.T) {
 	kg := newTestKG(t)
 

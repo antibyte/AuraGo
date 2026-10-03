@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -681,17 +682,32 @@ func DockerCopy(cfg DockerConfig, containerID, src, dest, direction string) stri
 		return errJSON("src and dest required")
 	}
 
+	stagingDir, err := os.MkdirTemp("", "aurago-docker-copy-*")
+	if err != nil {
+		return errJSON("cannot stage Docker copy: %v", err)
+	}
+	defer os.RemoveAll(stagingDir)
 	var args []string
+	var hostDest string
 	if direction == "from_container" {
 		containerSrc, err := validateDockerCopyContainerPath(src)
 		if err != nil {
 			return errJSON("%v", err)
 		}
-		hostDest, err := resolveDockerCopyHostPath(cfg, dest)
+		hostDest, err = resolveDockerCopyHostPath(cfg, dest)
 		if err != nil {
 			return errJSON("%v", err)
 		}
-		args = []string{"cp", containerID + ":" + containerSrc, hostDest}
+		if info, statErr := rootedToolStat(hostDest); statErr == nil && info.IsDir() {
+			hostDest = filepath.Join(hostDest, pathpkg.Base(containerSrc))
+		}
+		if hostDest, err = secureResolve(cfg.WorkspaceDir, hostDest); err != nil {
+			return errJSON("invalid host destination: %v", err)
+		}
+		if err := requireUnprotectedNotesPath(hostDest, true); err != nil {
+			return errJSON("%v", err)
+		}
+		args = []string{"cp", containerID + ":" + containerSrc, filepath.Join(stagingDir, "payload")}
 	} else if direction == "to_container" {
 		hostSrc, err := resolveDockerCopyHostPath(cfg, src)
 		if err != nil {
@@ -701,12 +717,51 @@ func DockerCopy(cfg DockerConfig, containerID, src, dest, direction string) stri
 		if err != nil {
 			return errJSON("%v", err)
 		}
-		args = []string{"cp", hostSrc, containerID + ":" + containerDest}
+		input, err := rootedToolOpen(hostSrc)
+		if err != nil {
+			return errJSON("cannot open host source: %v", err)
+		}
+		defer input.Close()
+		if info, err := input.Stat(); err != nil || !info.Mode().IsRegular() {
+			return errJSON("Docker copy requires a regular host file")
+		}
+		stagedPath := filepath.Join(stagingDir, filepath.Base(hostSrc))
+		staged, err := os.OpenFile(stagedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err != nil {
+			return errJSON("cannot stage host source: %v", err)
+		}
+		_, copyErr := io.Copy(staged, input)
+		closeErr := staged.Close()
+		if copyErr != nil || closeErr != nil {
+			return errJSON("cannot stage host source: %v %v", copyErr, closeErr)
+		}
+		args = []string{"cp", stagedPath, containerID + ":" + containerDest}
 	} else {
 		return errJSON("direction must be from_container or to_container")
 	}
 
-	return runDockerCLIHelper(cfg, args...)
+	result := runDockerCLIHelper(cfg, args...)
+	if direction != "from_container" {
+		return result
+	}
+	var status struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(result), &status); err != nil || status.Status != "ok" {
+		return result
+	}
+	output, err := os.Open(filepath.Join(stagingDir, "payload"))
+	if err != nil {
+		return errJSON("cannot open copied output: %v", err)
+	}
+	defer output.Close()
+	if info, err := output.Stat(); err != nil || !info.Mode().IsRegular() {
+		return errJSON("Docker copy requires a regular container file")
+	}
+	if err := rootedToolWriteFromReaderAtomic(hostDest, output); err != nil {
+		return errJSON("cannot save copied output: %v", err)
+	}
+	return result
 }
 
 func resolveDockerCopyHostPath(cfg DockerConfig, userPath string) (string, error) {
@@ -855,8 +910,20 @@ func validateDockerBindMount(cfg DockerConfig, bind string) error {
 	if isSensitiveDockerHostPath(hostPath) {
 		return fmt.Errorf("mounting sensitive host path %q is not allowed for security reasons", hostPath)
 	}
+	resolvedHost, err := secureResolveFinalPath(filepath.FromSlash(hostPath))
+	if err != nil {
+		return fmt.Errorf("resolve bind mount host path: %w", err)
+	}
+	hostPath = cleanDockerHostPath(resolvedHost)
+	if isSensitiveDockerHostPath(hostPath) {
+		return fmt.Errorf("mounting sensitive host path %q is not allowed for security reasons", hostPath)
+	}
 	if cfg.WorkspaceDir != "" {
-		workspace := cleanDockerHostPath(cfg.WorkspaceDir)
+		resolvedWorkspace, err := secureResolveFinalPath(cfg.WorkspaceDir)
+		if err != nil {
+			return fmt.Errorf("resolve workspace directory: %w", err)
+		}
+		workspace := cleanDockerHostPath(resolvedWorkspace)
 		if !dockerPathEqualOrWithin(hostPath, workspace) {
 			return fmt.Errorf("bind mount host path %q must stay within the configured workspace", hostPath)
 		}

@@ -547,6 +547,16 @@ func mergeKnowledgeGraphPropertiesForExtraction(existing, incoming map[string]st
 	out := mergeKnowledgeGraphProperties(existing, incoming)
 	existingNorm := normalizeKnowledgeGraphProperties(existing)
 	incomingNorm := normalizeKnowledgeGraphProperties(incoming)
+	// A file reference is ownership metadata, not a general descriptive property.
+	// A non-file edge must never inherit it from a file extraction merge.
+	if strings.EqualFold(strings.TrimSpace(existingNorm["source"]), "file_sync") &&
+		strings.TrimSpace(incomingNorm["source"]) != "" &&
+		!strings.EqualFold(strings.TrimSpace(incomingNorm["source"]), "file_sync") {
+		out["source"] = incomingNorm["source"]
+	}
+	if !strings.EqualFold(strings.TrimSpace(out["source"]), "file_sync") {
+		delete(out, "source_file")
+	}
 	if strings.EqualFold(strings.TrimSpace(existingNorm["source"]), "manual") {
 		return out
 	}
@@ -560,7 +570,7 @@ func mergeKnowledgeGraphPropertiesForExtraction(existing, incoming map[string]st
 			continue
 		}
 		switch key {
-		case "source", "protected":
+		case "source", "source_file", "protected":
 			continue
 		default:
 			out[key] = value

@@ -70,7 +70,7 @@
         }
 
         // ── i18n: populate text ──
-        (function applyI18N() {
+        function applyI18N() {
             const el = id => document.getElementById(id);
             el('loginSubtitle').textContent       = t('login.subtitle');
             el('lblPassword').textContent          = t('login.password_label');
@@ -79,7 +79,9 @@
             el('lblTotp').textContent               = t('login.totp_label');
             el('btnText').textContent               = t('login.btn_submit');
             if (typeof TOTP_ENABLED !== 'undefined' && TOTP_ENABLED) el('totpSection').classList.remove('is-hidden');
-        })();
+        }
+        applyI18N();
+        window.addEventListener('aurago:language-changed', applyI18N);
 
         function getCurrentTheme() {
             return document.documentElement.getAttribute('data-theme') || 'dark';

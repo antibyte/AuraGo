@@ -218,19 +218,28 @@ func (c *PersonalityCommand) Execute(args []string, ctx Context) (string, error)
 
 	// Switch personality
 	target := strings.ToLower(args[0])
-	profilePath := filepath.Join(personalitiesDir, target+".md")
-	if _, err := os.Stat(profilePath); os.IsNotExist(err) {
+	if target == "" || strings.ContainsAny(target, ".:/\\") {
 		return i18n.T(ctx.Lang, "backend.cmd_personality_not_found", target), nil
 	}
-
-	ctx.Cfg.Personality.CorePersonality = target
+	profilePath := filepath.Join(personalitiesDir, target+".md")
+	info, err := os.Lstat(profilePath)
+	if os.IsNotExist(err) {
+		return i18n.T(ctx.Lang, "backend.cmd_personality_not_found", target), nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return i18n.T(ctx.Lang, "backend.cmd_personality_not_found", target), nil
+	}
 	configPath := ctx.Cfg.ConfigPath
 	if configPath == "" {
 		configPath = "config.yaml"
 	}
-	if err := ctx.Cfg.Save(configPath); err != nil {
+	if err := config.SaveCorePersonality(configPath, target); err != nil {
 		return "", err
 	}
+	ctx.Cfg.Personality.CorePersonality = target
 
 	return i18n.T(ctx.Lang, "backend.cmd_personality_changed", target), nil
 }

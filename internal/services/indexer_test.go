@@ -21,6 +21,18 @@ import (
 	"aurago/internal/memory"
 )
 
+func TestCleanupDeletedTrackedFilesKeepsUnseenExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "kept.txt")
+	if err := os.WriteFile(path, []byte("kept"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	indexer := &FileIndexer{}
+	if errs := indexer.cleanupDeletedTrackedFiles(dir, "file_index", []string{path}, map[string]struct{}{}, true); len(errs) != 0 {
+		t.Fatalf("existing unseen file cleanup errors = %v", errs)
+	}
+}
+
 type fakeIndexerVectorDB struct {
 	mu           sync.Mutex
 	storeOnce    sync.Once

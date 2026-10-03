@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"math/big"
 	"net"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -120,7 +119,7 @@ func certificateGenerateSelfSigned(domain, outputDir string, days int, workspace
 	if err != nil {
 		return encode(CertificateManagerResult{Status: "error", Message: err.Error()})
 	}
-	if err := os.MkdirAll(resolvedDir, 0755); err != nil {
+	if err := rootedToolMkdirAll(resolvedDir, 0755); err != nil {
 		return encode(CertificateManagerResult{Status: "error", Message: fmt.Sprintf("Failed to create output directory: %v", err)})
 	}
 
@@ -143,7 +142,7 @@ func certificateGenerateSelfSigned(domain, outputDir string, days int, workspace
 	if err := writeFileAtomic(keyPath, keyPEM); err != nil {
 		return encode(CertificateManagerResult{Status: "error", Message: fmt.Sprintf("Failed to write private key: %v", err)})
 	}
-	if err := os.Chmod(keyPath, 0600); err != nil {
+	if err := rootedToolChmod(keyPath, 0600); err != nil {
 		return encode(CertificateManagerResult{Status: "error", Message: fmt.Sprintf("Failed to protect private key: %v", err)})
 	}
 
@@ -160,7 +159,7 @@ func certificateGenerateSelfSigned(domain, outputDir string, days int, workspace
 }
 
 func readPEMCertificate(path string) (*x509.Certificate, error) {
-	data, err := os.ReadFile(path)
+	data, err := rootedToolReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read certificate: %w", err)
 	}

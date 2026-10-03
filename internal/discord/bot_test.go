@@ -156,3 +156,22 @@ func TestBuildDiscordAgentMessagesKeepsRecapAfterSystemPlaceholder(t *testing.T)
 		t.Fatalf("third message = (%q, %q), want preserved history user message", messages[2].Role, messages[2].Content)
 	}
 }
+
+func TestDiscordConversationIDScopesGuildChannelAndUser(t *testing.T) {
+	message := &discordgo.MessageCreate{Message: &discordgo.Message{
+		GuildID: "guild-1", ChannelID: "channel-1", Author: &discordgo.User{ID: "user-1"},
+	}}
+	want := "discord:guild-1:channel-1:user-1"
+	if got := discordConversationID(message); got != want {
+		t.Fatalf("conversation = %q, want %q", got, want)
+	}
+	for _, changed := range []*discordgo.MessageCreate{
+		{Message: &discordgo.Message{GuildID: "guild-2", ChannelID: "channel-1", Author: &discordgo.User{ID: "user-1"}}},
+		{Message: &discordgo.Message{GuildID: "guild-1", ChannelID: "channel-2", Author: &discordgo.User{ID: "user-1"}}},
+		{Message: &discordgo.Message{GuildID: "guild-1", ChannelID: "channel-1", Author: &discordgo.User{ID: "user-2"}}},
+	} {
+		if got := discordConversationID(changed); got == want {
+			t.Fatalf("conversation collision after dimension changed: %q", got)
+		}
+	}
+}

@@ -195,7 +195,16 @@ func CallPreferredMCPVision(ctx context.Context, cfg *config.Config, filePath, p
 	if err != nil {
 		return "", true, err
 	}
-	args, err := buildPreferredMCPVisionArgs(toolInfo, resolvedPath, prompt)
+	stagingDir, err := os.MkdirTemp("", "aurago-mcp-vision-*")
+	if err != nil {
+		return "", true, fmt.Errorf("stage MCP vision input: %w", err)
+	}
+	defer os.RemoveAll(stagingDir)
+	stagedPath := filepath.Join(stagingDir, filepath.Base(resolvedPath))
+	if err := stageRootedToolFile(resolvedPath, stagedPath); err != nil {
+		return "", true, fmt.Errorf("stage MCP vision input: %w", err)
+	}
+	args, err := buildPreferredMCPVisionArgs(toolInfo, stagedPath, prompt)
 	if err != nil {
 		return "", true, err
 	}

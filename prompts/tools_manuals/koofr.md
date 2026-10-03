@@ -69,7 +69,7 @@ Interact with Koofr Cloud Storage. Read, write, and manage folders and files in 
 - **Paths**: All paths must start with `/`. Root is `/`.
 - **mkdir**: The `path` should be the full path of the new directory
 - **write**: `destination` is the filename, `path` is the target directory, and `content` must be non-empty. If the filename is accidentally included in `path`, AuraGo splits it into directory and filename. Use `upload` for existing local files.
-- **upload**: `local_path` is the existing local source file, `path` is the Koofr target directory, and `destination` is the remote filename. If the filename is accidentally included in `path`, AuraGo splits it into directory and filename. The source file must exist and must not be 0 bytes.
+- **upload**: `local_path` is an existing file inside `agent_workspace`; AuraGo never reads the runtime `data` directory as an upload fallback. `path` is the Koofr target directory, and `destination` is the remote filename. If the filename is accidentally included in `path`, AuraGo splits it into directory and filename. The source file must exist and must not be 0 bytes.
 - **upload verification**: AuraGo verifies uploads with Koofr `files/info` for the final remote path, with directory listing as fallback.
 - **read**: Only for text files. For audio, images, PDFs, or other binary files use `download`
 - **download**: `destination` is a local workspace path such as `workdir/song.mp3`

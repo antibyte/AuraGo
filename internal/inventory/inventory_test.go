@@ -3,10 +3,30 @@ package inventory
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/dbutil"
 )
+
+func TestGetDeviceByIDOrNameRejectsAmbiguousName(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "inventory.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, id := range []string{"device-1", "device-2"} {
+		if err := AddDevice(db, DeviceRecord{ID: id, Name: "same-name", Type: "server", Protocol: "ssh"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := GetDeviceByIDOrName(db, "same-name"); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("ambiguous name error = %v", err)
+	}
+	if device, err := GetDeviceByIDOrName(db, "device-1"); err != nil || device.ID != "device-1" {
+		t.Fatalf("ID lookup failed: %+v %v", device, err)
+	}
+}
 
 func TestInventory(t *testing.T) {
 	dbPath := "test_infrastructure.db"

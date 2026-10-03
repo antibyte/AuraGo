@@ -344,7 +344,9 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 			call, _ := raw.(map[string]interface{})
 			s.busyTasks.Add(1)
 			s.signalActivity()
+			s.wg.Add(1)
 			go func() {
+				defer s.wg.Done()
 				defer func() {
 					s.busyTasks.Add(-1)
 					s.signalActivity()
@@ -446,7 +448,9 @@ func (s *geminiLiveSession) fail(message string, announce bool) {
 			s.emit("voice_backend_error", message, nil)
 			return
 		}
+		s.wg.Add(1)
 		go func() {
+			defer s.wg.Done()
 			s.waitForTurnComplete(3 * time.Second)
 			s.emit("voice_backend_error", message, nil)
 		}()

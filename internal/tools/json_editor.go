@@ -70,7 +70,7 @@ func jsonGet(resolved, jsonPath string, encode func(JsonEditorResult) string) st
 	if jsonPath == "" {
 		return encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for get"})
 	}
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -88,7 +88,7 @@ func jsonSet(resolved, jsonPath string, value interface{}, encode func(JsonEdito
 		return encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for set"})
 	}
 
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		if os.IsNotExist(err) {
 			data = []byte("{}")
@@ -127,7 +127,7 @@ func jsonDelete(resolved, jsonPath string, encode func(JsonEditorResult) string)
 		return encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for delete"})
 	}
 
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -154,7 +154,7 @@ func jsonDelete(resolved, jsonPath string, encode func(JsonEditorResult) string)
 }
 
 func jsonKeys(resolved, jsonPath string, encode func(JsonEditorResult) string) string {
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -193,7 +193,7 @@ func jsonKeys(resolved, jsonPath string, encode func(JsonEditorResult) string) s
 }
 
 func jsonValidate(resolved string, encode func(JsonEditorResult) string) string {
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -213,7 +213,7 @@ func jsonValidate(resolved string, encode func(JsonEditorResult) string) string 
 }
 
 func jsonFormat(resolved string, encode func(JsonEditorResult) string) string {
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}

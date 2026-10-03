@@ -722,18 +722,20 @@ Web Push benötigt HTTPS oder `localhost`, da Browser Service-Worker-Push auf un
 
 SMS senden/empfangen und Sprachanrufe über Telnyx.
 
-**Web-UI:** Config → Integrationen → Telnyx → Telefonnummer, Messaging Profile ID und Connection ID eingeben. API-Key im Vault speichern.
+**Web-UI:** Config → Integrationen → Telnyx → Telefonnummer, Messaging Profile ID, Connection ID und den öffentlichen Kontoschlüssel aus Telnyx Mission Control eingeben. API-Key im Vault speichern.
 
 ### YAML-Referenz
 ```yaml
 telnyx:
   enabled: true
+  webhook_public_key: "BASE64_ED25519_KONTOSCHLUESSEL"
   phone_number: "+491234567890"
   allowed_numbers:
     - "+491234567890"
 ```
 
 `allowed_numbers` ist eine explizite E.164-Allowlist für eingehende Anrufe/SMS und ausgehende Benachrichtigungen. Leer bedeutet: Telnyx-Verkehr bleibt blockiert, bis Nummern konfiguriert sind.
+Der öffentliche Webhook-Schlüssel prüft eingehende Signaturen. Der API-Key dient ausgehenden API-Aufrufen und authentifiziert keine Webhooks.
 
 ## VirusTotal Integration
 
@@ -1374,7 +1376,10 @@ rocketchat:
   enabled: true
   url: "https://chat.example.com"
   channel: "#general"
+  allowed_users: ["id:BENUTZER_ID", "username:alice"]
 ```
+
+`allowed_users` akzeptiert eindeutige Einträge mit `id:` oder `username:`. Bisherige bloße Benutzer-IDs bleiben gültig; ein bloßer Eintrag trifft nie auf einen Benutzernamen zu.
 
 ## TTS / Whisper
 

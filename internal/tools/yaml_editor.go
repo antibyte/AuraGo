@@ -68,7 +68,7 @@ func yamlGet(resolved, yamlPath string, encode func(YamlEditorResult) string) st
 	if yamlPath == "" {
 		return encode(YamlEditorResult{Status: "error", Message: "'yaml_path' is required for get"})
 	}
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(YamlEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -92,7 +92,7 @@ func yamlSet(resolved, yamlPath string, value interface{}, encode func(YamlEdito
 		return encode(YamlEditorResult{Status: "error", Message: "'yaml_path' is required for set"})
 	}
 
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		if os.IsNotExist(err) {
 			data = []byte("---\n")
@@ -134,7 +134,7 @@ func yamlDelete(resolved, yamlPath string, encode func(YamlEditorResult) string)
 		return encode(YamlEditorResult{Status: "error", Message: "'yaml_path' is required for delete"})
 	}
 
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(YamlEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -163,7 +163,7 @@ func yamlDelete(resolved, yamlPath string, encode func(YamlEditorResult) string)
 
 // yamlKeys lists keys at a dot-separated path in a YAML file.
 func yamlKeys(resolved, yamlPath string, encode func(YamlEditorResult) string) string {
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(YamlEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
@@ -199,7 +199,7 @@ func yamlKeys(resolved, yamlPath string, encode func(YamlEditorResult) string) s
 
 // yamlValidate checks if a YAML file is valid.
 func yamlValidate(resolved string, encode func(YamlEditorResult) string) string {
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(YamlEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}

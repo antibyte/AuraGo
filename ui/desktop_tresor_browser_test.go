@@ -266,6 +266,39 @@ func TestDesktopTresorBrowser(t *testing.T) {
 	if !stale.Bool() {
 		t.Fatal("pending work restored disposed vault UI")
 	}
+	rotated := page.MustEval(`async () => {
+        const labels = await (await fetch('/lang/desktop/de.json')).json();
+        TresorApp.render(document.getElementById('host'), 'rotated', {t: key => labels[key] || key});
+        const until = async (predicate, name) => {
+            for (let i = 0; i < 150; i++) {
+                if (predicate()) return;
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            throw Error('timeout: ' + name);
+        };
+        await until(() => document.querySelector('[data-form=unlock]'), 'new locked window');
+        const c = await import('/js/desktop/apps/tresor-crypto.js');
+        const current = await (await fetch('/api/desktop/tresor')).json();
+        const master = await c.unlockWithPassword(current.header, 'a strong vault password 123');
+        const changed = await c.changePassword(current.header, master, 'a changed vault password 456');
+        master.fill(0);
+        const response = await fetch('/api/desktop/tresor', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(changed)});
+        if (!response.ok) throw Error('external password change failed');
+        const submit = password => {
+            document.querySelector('[name=password]').value = password;
+            document.querySelector('[data-form=unlock]').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+        };
+        submit('a strong vault password 123');
+        await until(() => document.querySelector('[data-status][data-error=true]') && document.querySelector('.tresor-app')?.getAttribute('aria-busy') === 'false', 'old password rejected');
+        if (document.querySelector('.tresor-workspace')) throw Error('stale header unlocked with removed password');
+        submit('a changed vault password 456');
+        await until(() => document.querySelector('.tresor-workspace'), 'new password accepted');
+        TresorApp.dispose('rotated');
+        return true;
+    }`)
+	if !rotated.Bool() {
+		t.Fatal("stale Tresor window did not reload the changed header")
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if desktopReads != 1 || len(items) != 3 {

@@ -307,6 +307,7 @@ func SpawnCoAgent(
 			IsMaintenance:     false,
 			IsCoAgent:         true,
 			CoAgentSpecialist: req.Specialist,
+			CoAgentTokenLimit: maxTokensBudget,
 		}
 		addendumID := prompts.PromptAddendumCoAgent
 		if req.Specialist != "" {

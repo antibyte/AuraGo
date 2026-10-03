@@ -274,7 +274,7 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 	if filepath.IsAbs(userPath) {
 		cleanAbs := filepath.Clean(userPath)
 		rel, relErr := filepath.Rel(projectRoot, cleanAbs)
-		if relErr != nil || strings.HasPrefix(rel, "..") {
+		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			// Detect /workspace/... paths — these are container-internal paths that the
 			// homepage dev container exposes. The filesystem tool cannot access them; the
 			// agent must use the homepage tool instead with the /workspace/ prefix stripped.
@@ -299,11 +299,18 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 				userPath, projectRoot,
 			)
 		}
-		// Absolute path is within projectRoot — let it through as-is.
-		if err := requireUnprotectedNotesPath(cleanAbs, false); err != nil {
+		resolved, err := secureResolveFinalPath(cleanAbs)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve path %q: %w", userPath, err)
+		}
+		rel, err = filepath.Rel(projectRoot, resolved)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("path '%s' escapes the project root", userPath)
+		}
+		if err := requireUnprotectedNotesPath(resolved, false); err != nil {
 			return "", err
 		}
-		return cleanAbs, nil
+		return resolved, nil
 	}
 
 	// Normalize: strip workspace-dir prefix if the LLM passed a project-root-relative path.
@@ -333,7 +340,7 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 		return "", fmt.Errorf("path '%s' escapes the project root", userPath)
 	}
 	// Check if the relative path starts with ".." which means it's escaping
-	if strings.HasPrefix(rel, "..") {
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("path '%s' escapes the project root", userPath)
 	}
 
@@ -390,24 +397,24 @@ func filesystemBatchItemString(item map[string]interface{}, keys ...string) stri
 	return ""
 }
 
-func filesystemCopyFile(srcResolved, dstResolved string) error {
-	srcInfo, err := os.Stat(srcResolved)
+func filesystemCopyFile(root *os.Root, src, dst string) error {
+	srcInfo, err := root.Stat(src)
 	if err != nil {
 		return err
 	}
 	if srcInfo.IsDir() {
 		return fmt.Errorf("directory copy is not supported")
 	}
-	if err := os.MkdirAll(filepath.Dir(dstResolved), 0o755); err != nil {
+	if err := root.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	srcFile, err := os.Open(srcResolved)
+	srcFile, err := root.Open(src)
 	if err != nil {
 		return err
 	}
 	defer srcFile.Close()
 
-	dstFile, err := os.Create(dstResolved)
+	dstFile, err := root.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
@@ -416,7 +423,7 @@ func filesystemCopyFile(srcResolved, dstResolved string) error {
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		return err
 	}
-	return os.Chmod(dstResolved, srcInfo.Mode())
+	return root.Chmod(dst, srcInfo.Mode())
 }
 
 func filesystemBatchResult(operation string, items []map[string]interface{}, workspaceDir string) FSResult {
@@ -537,17 +544,36 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 			}
 		}
 	}
+	_, projectRoot := filesystemRoots(workspaceDir)
+	root, err := os.OpenRoot(projectRoot)
+	if err != nil {
+		return filesystemErrorResult(fmt.Sprintf("Failed to open workspace root: %v", err), "io_error", workspaceDir, path, projectRoot)
+	}
+	defer root.Close()
+	resolve := func(userPath string) (string, string, error) {
+		resolved, err := secureResolve(workspaceDir, userPath)
+		if err != nil {
+			return "", "", err
+		}
+		rel, err := filepath.Rel(projectRoot, resolved)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", "", fmt.Errorf("path '%s' escapes the project root", userPath)
+		}
+		return resolved, rel, nil
+	}
 
 	switch operation {
 	case "list_dir":
-		resolved, err := secureResolve(workspaceDir, path)
+		resolved, rel, err := resolve(path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
-		if path == "" || path == "." {
-			resolved = workspaceDir
+		dir, err := root.Open(rel)
+		if err != nil {
+			return filesystemErrorResult(fmt.Sprintf("Failed to list directory: %v", err), "io_error", workspaceDir, path, resolved)
 		}
-		entries, err := os.ReadDir(resolved)
+		defer dir.Close()
+		entries, err := dir.ReadDir(-1)
 		if err != nil {
 			return filesystemErrorResult(fmt.Sprintf("Failed to list directory: %v", err), "io_error", workspaceDir, path, resolved)
 		}
@@ -635,11 +661,11 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		if path == "" {
 			return FSResult{Status: "error", Message: "'path' is required for create_dir"}
 		}
-		resolved, err := secureResolve(workspaceDir, path)
+		resolved, rel, err := resolve(path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
-		if err := os.MkdirAll(resolved, 0755); err != nil {
+		if err := root.MkdirAll(rel, 0755); err != nil {
 			return filesystemWriteErrorResult("create directory", workspaceDir, path, resolved, err)
 		}
 		return FSResult{Status: "success", Message: fmt.Sprintf("Directory created: %s", path)}
@@ -648,11 +674,14 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		if path == "" {
 			return FSResult{Status: "error", Message: "'path' is required for delete"}
 		}
-		resolved, err := secureResolve(workspaceDir, path)
+		resolved, rel, err := resolve(path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
-		if err := os.RemoveAll(resolved); err != nil {
+		if rel == "." {
+			return FSResult{Status: "error", Message: "cannot delete the workspace root"}
+		}
+		if err := root.RemoveAll(rel); err != nil {
 			return filesystemWriteErrorResult("delete path", workspaceDir, path, resolved, err)
 		}
 		return FSResult{Status: "success", Message: fmt.Sprintf("Deleted: %s", path)}
@@ -661,13 +690,13 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		if path == "" {
 			return FSResult{Status: "error", Message: "'path' is required for read_file"}
 		}
-		resolved, err := secureResolve(workspaceDir, path)
+		resolved, rel, err := resolve(path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
 
 		// Check file size before reading to avoid OOM
-		info, err := os.Stat(resolved)
+		info, err := root.Stat(rel)
 		if err != nil {
 			return filesystemErrorResult(fmt.Sprintf("Failed to stat file: %v", err), "io_error", workspaceDir, path, resolved)
 		}
@@ -676,7 +705,7 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		maxRead := 32*1024 + 2048
 		if info.Size() > int64(maxRead) {
 			// Read only the first maxRead bytes
-			f, err := os.Open(resolved)
+			f, err := root.Open(rel)
 			if err != nil {
 				return filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved)
 			}
@@ -705,7 +734,7 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		}
 
 		// Small file, read entirely
-		data, err := os.ReadFile(resolved)
+		data, err := root.ReadFile(rel)
 		if err != nil {
 			return filesystemErrorResult(fmt.Sprintf("Failed to read file: %v", err), "io_error", workspaceDir, path, resolved)
 		}
@@ -721,7 +750,7 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		if path == "" {
 			return FSResult{Status: "error", Message: "'path' is required for write_file"}
 		}
-		resolved, err := secureResolve(workspaceDir, path)
+		resolved, rel, err := resolve(path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
@@ -729,10 +758,10 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 			return FSResult{Status: "error", Message: fmt.Sprintf("content exceeds the %d MB write limit", maxWriteBytes/(1024*1024))}
 		}
 		// Ensure parent directories exist
-		if err := os.MkdirAll(filepath.Dir(resolved), 0755); err != nil {
+		if err := root.MkdirAll(filepath.Dir(rel), 0755); err != nil {
 			return filesystemWriteErrorResult("create parent directory", workspaceDir, path, filepath.Dir(resolved), err)
 		}
-		if err := os.WriteFile(resolved, []byte(content), 0644); err != nil {
+		if err := root.WriteFile(rel, []byte(content), 0644); err != nil {
 			return filesystemWriteErrorResult("write file", workspaceDir, path, resolved, err)
 		}
 		return FSResult{Status: "success", Message: fmt.Sprintf("Wrote %d bytes to %s", len(content), path)}
@@ -741,15 +770,15 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		if path == "" || destination == "" {
 			return FSResult{Status: "error", Message: "'path' and 'destination' are required for copy"}
 		}
-		srcResolved, err := secureResolve(workspaceDir, path)
+		_, srcRel, err := resolve(path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
-		dstResolved, err := secureResolve(workspaceDir, destination)
+		dstResolved, dstRel, err := resolve(destination)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, destination, err)
 		}
-		if err := filesystemCopyFile(srcResolved, dstResolved); err != nil {
+		if err := filesystemCopyFile(root, srcRel, dstRel); err != nil {
 			return filesystemWriteErrorResult("copy path", workspaceDir, destination, dstResolved, err)
 		}
 		return FSResult{Status: "success", Message: fmt.Sprintf("Copied %s → %s", path, destination)}
@@ -758,18 +787,21 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		if path == "" || destination == "" {
 			return FSResult{Status: "error", Message: "'path' and 'destination' are required for move"}
 		}
-		srcResolved, err := secureResolve(workspaceDir, path)
+		srcResolved, srcRel, err := resolve(path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
-		dstResolved, err := secureResolve(workspaceDir, destination)
+		dstResolved, dstRel, err := resolve(destination)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, destination, err)
 		}
-		if err := os.MkdirAll(filepath.Dir(dstResolved), 0755); err != nil {
+		if srcRel == "." {
+			return FSResult{Status: "error", Message: "cannot move the workspace root"}
+		}
+		if err := root.MkdirAll(filepath.Dir(dstRel), 0755); err != nil {
 			return filesystemWriteErrorResult("create parent directory", workspaceDir, destination, filepath.Dir(dstResolved), err)
 		}
-		if err := os.Rename(srcResolved, dstResolved); err != nil {
+		if err := root.Rename(srcRel, dstRel); err != nil {
 			return filesystemWriteErrorResult("move path", workspaceDir, path, srcResolved, err)
 		}
 		return FSResult{Status: "success", Message: fmt.Sprintf("Moved %s → %s", path, destination)}
@@ -781,11 +813,11 @@ func executeFilesystemResultWithOptions(operation, path, destination, content st
 		if path == "" {
 			return FSResult{Status: "error", Message: "'path' is required for stat"}
 		}
-		resolved, err := secureResolve(workspaceDir, path)
+		resolved, rel, err := resolve(path)
 		if err != nil {
 			return filesystemResolveErrorResult(workspaceDir, path, err)
 		}
-		info, err := os.Stat(resolved)
+		info, err := root.Stat(rel)
 		if err != nil {
 			return filesystemErrorResult(fmt.Sprintf("Failed to stat: %v", err), "io_error", workspaceDir, path, resolved)
 		}

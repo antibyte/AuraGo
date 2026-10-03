@@ -296,6 +296,7 @@
   "help.proxmox.url": "Proxmox VE API の URL (例: 「https://pve.example.com:8006」。",
   "help.rocketchat.alias": "Rocket.Chat のボットの表示名。デフォルト:「AuraGo」。",
   "help.rocketchat.channel": "リッスンするデフォルトのチャンネル、例: '一般的な'。",
+  "help.rocketchat.allowed_users": "id:<ID> または username:<名前> でユーザーを許可します。接頭辞のない ID も有効で、ユーザー名には一致しません。",
   "help.rocketchat.enabled": "Rocket.Chat ボットの統合を有効にします。",
   "help.rocketchat.url": "Rocket.Chat インスタンスの URL (例: 「https://chat.example.com」。",
   "help.rocketchat.user_id": "Rocket.Chat のボット ユーザー ID ([プロファイル] > [パーソナル アクセス トークン])。",

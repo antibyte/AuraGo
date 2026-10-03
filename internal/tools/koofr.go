@@ -109,10 +109,7 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, localPath, works
 			if err != nil {
 				return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Invalid download destination: %v", err)})
 			}
-			if err := os.MkdirAll(filepath.Dir(resolvedDest), 0o755); err != nil {
-				return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to create destination directory: %v", err)})
-			}
-			if err := os.WriteFile(resolvedDest, respBytes, 0o644); err != nil {
+			if err := writeFileAtomic(resolvedDest, respBytes); err != nil {
 				return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to write downloaded file: %v", err)})
 			}
 			contentType, _ := classifyKoofrContent(respBytes)
@@ -467,33 +464,43 @@ func uploadKoofrMultipart(reqURL, username, password string, r io.Reader) ([]byt
 	return respBytes, written, err
 }
 
-func openKoofrUploadSource(workspaceDir, dataDir, localPath string) (*os.File, int64, error) {
+func openKoofrUploadSource(workspaceDir, _ string, localPath string) (*os.File, int64, error) {
 	if strings.TrimSpace(localPath) == "" {
 		return nil, 0, fmt.Errorf("local_path is required for Koofr upload")
 	}
-	resolved, err := secureResolve(workspaceDir, localPath)
-	if err != nil || resolved == "" {
-		// Fallback to dataDir if workspaceDir resolve fails
-		if dataDir != "" {
-			resolved, _ = secureResolve(dataDir, localPath)
-		}
-		if resolved == "" {
-			return nil, 0, fmt.Errorf("invalid upload source: path not found in workspace or data directory")
-		}
+	if strings.TrimSpace(workspaceDir) == "" {
+		return nil, 0, fmt.Errorf("workspace_dir is required for Koofr upload")
 	}
-	info, err := os.Stat(resolved)
+	resolved, err := secureResolve(workspaceDir, localPath)
 	if err != nil {
+		return nil, 0, fmt.Errorf("invalid upload source: %w", err)
+	}
+	_, rootPath := filesystemRoots(workspaceDir)
+	rel, err := filepath.Rel(rootPath, resolved)
+	if err != nil || !filepath.IsLocal(rel) {
+		return nil, 0, fmt.Errorf("upload source escapes its root")
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, 0, fmt.Errorf("open upload root: %w", err)
+	}
+	file, err := root.Open(rel)
+	root.Close()
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to open upload source: %w", err)
+	}
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
 		return nil, 0, fmt.Errorf("failed to stat upload source: %w", err)
 	}
 	if info.IsDir() {
+		file.Close()
 		return nil, 0, fmt.Errorf("upload source is a directory")
 	}
 	if info.Size() == 0 {
+		file.Close()
 		return nil, 0, fmt.Errorf("upload source is empty; refusing to create a 0-byte Koofr file")
-	}
-	file, err := os.Open(resolved)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to open upload source: %w", err)
 	}
 	return file, info.Size(), nil
 }

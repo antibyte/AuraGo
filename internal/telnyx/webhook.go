@@ -4,10 +4,10 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,10 +19,6 @@ const (
 	maxWebhookBodySize = 256 * 1024 // 256 KB
 	signatureMaxAge    = 5 * time.Minute
 )
-
-// TelnyxPublicKeyBase64 is Telnyx's Ed25519 public key for webhook signature verification.
-// See https://developers.telnyx.com/docs/api/v2/overview#webhook-signing
-const TelnyxPublicKeyBase64 = "lYf5jEOTv8mUb7LGFzaO3MV08Fa7b5lNdRiMPsOEiis="
 
 // WebhookHandler processes incoming Telnyx webhook events.
 type WebhookHandler struct {
@@ -70,12 +66,12 @@ func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// Signature verification is mandatory — reject if not configured.
-	if h.cfg.Telnyx.APISecret == "" {
-		h.logger.Warn("Telnyx webhook: API secret not configured, rejecting webhook")
+	if h.cfg.Telnyx.WebhookPublicKey == "" {
+		h.logger.Warn("Telnyx webhook: public key not configured, rejecting webhook")
 		http.Error(w, "Webhook verification not configured", http.StatusServiceUnavailable)
 		return
 	}
-	if !verifyWebhookSignature(r, body) {
+	if !verifyWebhookSignature(r, body, h.cfg.Telnyx.WebhookPublicKey) {
 		h.logger.Warn("Telnyx webhook: invalid signature")
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
@@ -107,7 +103,7 @@ func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 // processEvent routes the webhook event to the appropriate handler.
 func (h *WebhookHandler) processEvent(event *WebhookEvent) {
 	// Validate sender against allowed numbers
-	from := event.Data.Payload.From
+	from := string(event.Data.Payload.From)
 	if from != "" && !h.isAllowedNumber(from) {
 		h.logger.Warn("Telnyx webhook: number not in allowed list", "from", from)
 		return
@@ -137,7 +133,7 @@ func (h *WebhookHandler) processEvent(event *WebhookEvent) {
 
 // handleIncomingSMS processes an incoming SMS and optionally forwards to the agent.
 func (h *WebhookHandler) handleIncomingSMS(event *WebhookEvent) {
-	from := event.Data.Payload.From
+	from := string(event.Data.Payload.From)
 	text := event.Data.Payload.Text
 
 	h.logger.Info("Telnyx incoming SMS", "from", from, "length", len(text))
@@ -168,7 +164,7 @@ func (h *WebhookHandler) handleCallInitiated(event *WebhookEvent) {
 
 	session := &CallSession{
 		CallControlID: payload.CallControlID,
-		CallerNumber:  payload.From,
+		CallerNumber:  string(payload.From),
 		State:         CallStateRinging,
 		StartedAt:     time.Now(),
 		LastActivity:  time.Now(),
@@ -330,7 +326,7 @@ func (h *WebhookHandler) isDuplicateEvent(eventID string) bool {
 // ── Webhook Signature Verification ──────────────────────────────────────
 
 // verifyWebhookSignature verifies Telnyx's Ed25519 webhook signature.
-func verifyWebhookSignature(r *http.Request, body []byte) bool {
+func verifyWebhookSignature(r *http.Request, body []byte, publicKeyBase64 string) bool {
 	sigBase64 := r.Header.Get(SignatureHeader)
 	timestampStr := r.Header.Get(TimestampHeader)
 
@@ -338,24 +334,17 @@ func verifyWebhookSignature(r *http.Request, body []byte) bool {
 		return false
 	}
 
-	// Replay protection: reject timestamps > 5 minutes old
-	ts, err := time.Parse(time.RFC3339, timestampStr)
+	seconds, err := strconv.ParseInt(timestampStr, 10, 64)
 	if err != nil {
-		// Try unix timestamp as fallback
-		var unix float64
-		if _, err2 := fmt.Sscanf(timestampStr, "%f", &unix); err2 != nil {
-			return false
-		}
-		sec := int64(unix)
-		nsec := int64((unix - float64(sec)) * 1e9)
-		ts = time.Unix(sec, nsec)
+		return false
 	}
+	ts := time.Unix(seconds, 0)
 	if time.Since(ts).Abs() > signatureMaxAge {
 		return false
 	}
 
 	// Decode public key
-	pubKeyBytes, err := base64.StdEncoding.DecodeString(TelnyxPublicKeyBase64)
+	pubKeyBytes, err := base64.StdEncoding.DecodeString(strings.TrimSpace(publicKeyBase64))
 	if err != nil || len(pubKeyBytes) != ed25519.PublicKeySize {
 		return false
 	}

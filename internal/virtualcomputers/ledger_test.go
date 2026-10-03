@@ -196,6 +196,8 @@ func TestListTrackedVolumesVerifiesKnownCapabilities(t *testing.T) {
 		volume := Volume{ID: id}
 		if id == "vol-ok" {
 			volume.Format = WorkspaceVolumeFormat
+			volume.Availability = "previous_store"
+			volume.StorageEpochID = 7
 		}
 		if err := ledger.UpsertVolume(context.Background(), volume); err != nil {
 			t.Fatalf("UpsertVolume(%s): %v", id, err)
@@ -214,6 +216,9 @@ func TestListTrackedVolumesVerifiesKnownCapabilities(t *testing.T) {
 	}
 	if got := byID["vol-ok"].Format; got != WorkspaceVolumeFormat {
 		t.Fatalf("refreshed volume format = %q, want %q", got, WorkspaceVolumeFormat)
+	}
+	if got := byID["vol-ok"]; got.Availability != "previous_store" || got.StorageEpochID != 7 {
+		t.Fatalf("refreshed volume changed local storage identity: %+v", got)
 	}
 	if _, ok := byID["vol-missing"]; ok {
 		t.Fatalf("missing volume remained tracked: %+v", volumes)

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -64,8 +65,19 @@ func analyzeLocalImageWithPromptContext(ctx context.Context, filePath, prompt st
 		}
 	}
 
-	// Read and base64-encode the image
-	visionInfo, err := os.Stat(resolvedPath)
+	// Read from the opened workspace root so a swapped symlink cannot redirect the read.
+	var imageFile *os.File
+	var err error
+	if resolveWorkspacePath {
+		imageFile, err = rootedToolOpen(resolvedPath)
+	} else {
+		imageFile, err = os.Open(resolvedPath)
+	}
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("failed to open image file: %w", err)
+	}
+	defer imageFile.Close()
+	visionInfo, err := imageFile.Stat()
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("failed to stat image file: %w", err)
 	}
@@ -73,9 +85,12 @@ func analyzeLocalImageWithPromptContext(ctx context.Context, filePath, prompt st
 	if visionInfo.Size() > maxVisionBytes {
 		return "", 0, 0, fmt.Errorf("image file too large (%d bytes, max 50 MB)", visionInfo.Size())
 	}
-	imageData, err := os.ReadFile(resolvedPath)
+	imageData, err := io.ReadAll(io.LimitReader(imageFile, maxVisionBytes+1))
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("failed to read image file: %w", err)
+	}
+	if len(imageData) > maxVisionBytes {
+		return "", 0, 0, fmt.Errorf("image file too large (max 50 MB)")
 	}
 
 	mimeType := "image/jpeg"

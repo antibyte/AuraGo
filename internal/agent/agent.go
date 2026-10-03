@@ -1134,6 +1134,7 @@ type RunConfig struct {
 	IsMaintenance        bool
 	IsCoAgent            bool
 	CoAgentSpecialist    string
+	CoAgentTokenLimit    int
 	ParentSessionID      string
 	IsMission            bool   // true when triggered by a mission (skips RAG, personality, profiling)
 	MissionID            string // mission ID for logging/tracking

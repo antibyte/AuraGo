@@ -70,6 +70,26 @@ func TestResolveKoofrDownloadDestinationSupportsWorkdirAlias(t *testing.T) {
 	}
 }
 
+func TestKoofrUploadRejectsDataDirectoryFallback(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "agent_workspace", "workdir")
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	secret := filepath.Join(dataDir, "vault.bin")
+	if err := os.WriteFile(secret, []byte("synthetic secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if file, _, err := openKoofrUploadSource(workspace, dataDir, secret); err == nil {
+		file.Close()
+		t.Fatal("Koofr upload accepted a data directory file")
+	}
+}
+
 func TestResolveKoofrUploadTargetSplitsFilenameFromPathWhenDestinationMissing(t *testing.T) {
 	dir, filename := resolveKoofrUploadTarget("/aurgo/pictures/robot_spaghetti.jpeg", "", "img_20260428_220802_6d68e896a2d2.jpeg")
 	if dir != "/aurgo/pictures" {

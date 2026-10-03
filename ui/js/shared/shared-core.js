@@ -1209,6 +1209,7 @@ function injectLanguageSwitcher() {
         { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
     ];
 
+    const loginPreview = (window.location.pathname || '').includes('/login');
     const currentLangCode = document.documentElement.lang || 'en';
     const currentLang = langs.find(l => l.code === currentLangCode) || langs[0];
 
@@ -1244,14 +1245,42 @@ function injectLanguageSwitcher() {
         menu.classList.remove('open');
     });
 
+    async function previewLoginLanguage(lang) {
+        const resp = await fetch('/api/i18n?lang=' + encodeURIComponent(lang));
+        if (!resp.ok) throw new Error('Language preview failed');
+        const payload = await resp.json();
+        if (!payload.data || typeof payload.data !== 'object') throw new Error('Invalid language preview');
+        window.I18N = payload.data;
+        document.documentElement.lang = lang;
+        const selected = langs.find(item => item.code === lang);
+        if (selected) btn.querySelector('.ui-lang-flag').textContent = selected.flag;
+        menu.querySelectorAll('.ui-lang-option').forEach(item => item.classList.toggle('active', item.dataset.lang === lang));
+        window._auragoApplySharedI18n();
+        window.dispatchEvent(new Event('aurago:language-changed'));
+        try { sessionStorage.setItem('aurago.login.language', lang); } catch (_) { /* session storage is optional */ }
+    }
+
+    if (loginPreview) {
+        try {
+            const saved = sessionStorage.getItem('aurago.login.language');
+            if (saved && langs.some(item => item.code === saved) && saved !== currentLangCode) {
+                previewLoginLanguage(saved).catch(err => console.warn('Failed to restore login language preview:', err));
+            }
+        } catch (_) { /* session storage is optional */ }
+    }
+
     menu.addEventListener('click', async (e) => {
         const option = e.target.closest('.ui-lang-option');
         if (!option) return;
 
         const lang = option.dataset.lang;
-        if (lang === currentLangCode) return;
+        if (lang === document.documentElement.lang) return;
 
         try {
+            if (loginPreview) {
+                await previewLoginLanguage(lang);
+                return;
+            }
             const resp = await fetch('/api/ui-language', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },

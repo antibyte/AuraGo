@@ -11,7 +11,7 @@ Workbook and document preservation, editing, and assist.
 ## Local Contracts
 
 ### Desktop Workbook Contract
-- Tabellen uses exactly Univer OSS 0.25.1, Chart.js 4.5.1 and Excelize 2.11.0.
+- Tabellen uses exactly Univer OSS 1.0.3, Chart.js 4.5.1 and Excelize 2.11.0.
   Vendor assets/fonts stay local and permissive; never add Pro components.
 - `/api/desktop/office/workbook?representation=editor-v2` exposes typed native
   snapshots. PATCH requires ETag or create-only preconditions, applies the
@@ -26,7 +26,7 @@ Workbook and document preservation, editing, and assist.
   and explicit IndexedDB recovery. Conflict copies carry original source bytes.
 
 ### Desktop Office Document Contract
-- Autor uses the exact Apache-2.0 DOCX core 2.16.0, local fonts/WASM, and an MIT
+- Autor uses the exact Apache-2.0 DOCX core 2.23.0, local fonts/WASM, and an MIT
   review extension; no paid Pro dependency. The UI remains Vanilla JavaScript.
 - `/api/desktop/office/document?representation=docx` reads complete DOCX bytes;
   writes require `If-Match` or `If-None-Match: *` and use the desktop's atomic

@@ -9068,14 +9068,17 @@ function handleSSEMessage(e) {
 /* ui/js/chat/chat-history.js */
 // AuraGo Chat — History loading, session management, recovery
 
+let historyGeneration = 0;
+
 function nextAnimationFrame() {
     return new Promise((resolve) => window.requestAnimationFrame(resolve));
 }
 
-async function renderHistoryMessagesBatched(history) {
+async function renderHistoryMessagesBatched(history, current = () => true) {
     if (!Array.isArray(history) || history.length === 0) return;
     const renderBatchSize = 20;
     for (let index = 0; index < history.length; index++) {
+        if (!current()) return;
         const msg = history[index];
         if (!debugMode && isDebugOnlyHistoryMessage(msg)) {
             conversation.push(msg);
@@ -9096,10 +9099,13 @@ async function renderHistoryMessagesBatched(history) {
 }
 
 async function tryRecoverFromHistory() {
+    const generation = historyGeneration;
+    const sessionId = getActiveSessionId();
     try {
         const res = await fetch(buildHistoryUrl());
         if (!res.ok) return;
         const history = await res.json();
+        if (generation !== historyGeneration || sessionId !== getActiveSessionId()) return;
         if (!Array.isArray(history) || history.length === 0) return;
         let lastAssistant = null;
         for (let i = history.length - 1; i >= 0; i--) {
@@ -9148,12 +9154,14 @@ function buildClearUrl() {
     return '/clear';
 }
 
-async function loadActivePlanForSession(sessionId) {
+async function loadActivePlanForSession(sessionId, current = () => true) {
     const sid = sessionId || getActiveSessionId();
     try {
         const res = await fetch('/api/plans/active?session_id=' + encodeURIComponent(sid || 'default'));
+        if (!current()) return;
         if (res.ok) {
             const data = await res.json();
+            if (!current()) return;
             if (data && data.plan) {
                 updatePlanPanel(data.plan);
             } else {
@@ -9234,9 +9242,12 @@ window._hidePersonalityPreview = hidePersonaPreview;
 window._setActivePersonaIconKey = setActivePersonaIconKey;
 
 window.onSessionSwitch = async function (sessionId) {
+    const generation = ++historyGeneration;
+    const current = () => generation === historyGeneration && sessionId === getActiveSessionId();
     if (typeof window.handleVaultSecretSessionChange === 'function') {
         await window.handleVaultSecretSessionChange(sessionId);
     }
+    if (!current()) return;
     chatContent.innerHTML = '';
     conversation = [];
     hideTodoPanel();
@@ -9245,25 +9256,30 @@ window.onSessionSwitch = async function (sessionId) {
             ? '/history?session_id=' + encodeURIComponent(sessionId)
             : '/history';
         const res = await fetch(url);
+        if (!current()) return;
         if (res.ok) {
             const history = await res.json();
+            if (!current()) return;
             if (history && history.length > 0) {
                 if (window.ChatRobotMascot && typeof window.ChatRobotMascot.anchorImmediately === 'function') {
                     window.ChatRobotMascot.anchorImmediately();
                 }
-                await renderHistoryMessagesBatched(history);
+                await renderHistoryMessagesBatched(history, current);
             } else {
-                appendMessage('assistant', t('chat.greeting'));
+                if (current()) appendMessage('assistant', t('chat.greeting'));
             }
         }
     } catch (err) {
-        console.error('Failed to load session history:', err);
-        appendMessage('assistant', t('chat.greeting'));
+        if (current()) {
+            console.error('Failed to load session history:', err);
+            appendMessage('assistant', t('chat.greeting'));
+        }
     }
-    await loadActivePlanForSession(sessionId);
+    if (current()) await loadActivePlanForSession(sessionId, current);
 };
 
 async function initPage() {
+    const generation = historyGeneration;
     applyI18n();
     if (window.SessionDrawer) {
         window.SessionDrawer.init();
@@ -9284,18 +9300,19 @@ async function initPage() {
         const res = await fetch(buildHistoryUrl());
         if (res.ok) {
             const history = await res.json();
-            if (history && history.length > 0) {
+            if (generation === historyGeneration && history && history.length > 0) {
                 if (window.ChatRobotMascot && typeof window.ChatRobotMascot.anchorImmediately === 'function') {
                     window.ChatRobotMascot.anchorImmediately();
                 }
                 chatContent.innerHTML = '';
-                await renderHistoryMessagesBatched(history);
+                await renderHistoryMessagesBatched(history, () => generation === historyGeneration);
             }
         }
     } catch (err) {
         console.error("Failed to load history:", err);
     }
-    await loadActivePlanForSession(getActiveSessionId());
+    const planGeneration = historyGeneration;
+    await loadActivePlanForSession(getActiveSessionId(), () => planGeneration === historyGeneration);
     try {
         const res = await fetch('/api/system/notifications');
         if (res.ok) {

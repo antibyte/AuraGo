@@ -253,6 +253,25 @@ func TestValidateDockerBindMountRejectsWindowsWorkspaceEscape(t *testing.T) {
 	}
 }
 
+func TestValidateDockerBindMountRejectsSymlinkOutsideWorkspace(t *testing.T) {
+	base := t.TempDir()
+	workspace := filepath.Join(base, "workspace")
+	outside := filepath.Join(base, "outside")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(workspace, "link")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := validateDockerBindMount(DockerConfig{WorkspaceDir: workspace}, link+":/data"); err == nil {
+		t.Fatal("symlink escaped configured workspace")
+	}
+}
+
 func TestDockerCLIArgsIncludeConfiguredSocketHosts(t *testing.T) {
 	tests := []struct {
 		name string

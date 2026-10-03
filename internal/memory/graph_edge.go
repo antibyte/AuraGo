@@ -341,6 +341,7 @@ func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 	rows, err := tx.Query(`
 		SELECT source, target, relation FROM kg_edges
 		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
 	if err != nil {
@@ -362,6 +363,7 @@ func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 	res, err := tx.Exec(`
 		DELETE FROM kg_edges
 		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
 	if err != nil {

@@ -40,6 +40,8 @@ func ListTrackedVolumes(ctx context.Context, ledger *Ledger, client *Client) ([]
 				if fresh.Format == "" {
 					fresh.Format = volume.Format
 				}
+				fresh.Availability = volume.Availability
+				fresh.StorageEpochID = volume.StorageEpochID
 				now := time.Now().UTC()
 				fresh.LastVerifiedAt = &now
 				fresh.VerificationStatus = "verified"

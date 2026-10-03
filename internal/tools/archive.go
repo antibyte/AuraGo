@@ -45,6 +45,10 @@ func ExecuteArchive(workspaceDir, operation, archivePath, targetDir, sourceFiles
 		b, _ := json.Marshal(r)
 		return string(b)
 	}
+	operation = strings.ToLower(strings.TrimSpace(operation))
+	if operation == "create" && workspaceDir != "" && targetDir == "" && sourceFiles != "" {
+		targetDir = workspaceDir
+	}
 
 	if workspaceDir != "" {
 		if archivePath != "" {
@@ -63,9 +67,11 @@ func ExecuteArchive(workspaceDir, operation, archivePath, targetDir, sourceFiles
 		}
 	}
 
-	operation = strings.ToLower(strings.TrimSpace(operation))
 	switch operation {
 	case "create":
+		if err := requireUnprotectedNotesPath(archivePath, true); err != nil {
+			return encode(archiveResult{Status: "error", Message: err.Error()})
+		}
 		return encode(archiveCreate(archivePath, targetDir, sourceFiles, format))
 	case "extract":
 		if err := requireUnprotectedNotesPath(targetDir, true); err != nil {
@@ -106,7 +112,7 @@ func archiveCreate(archivePath, sourceDir, sourceFilesJSON, format string) archi
 
 	// Ensure output directory exists
 	if dir := filepath.Dir(archivePath); dir != "" {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
+		if err := rootedToolMkdirAll(dir, 0o750); err != nil {
 			return archiveResult{Status: "error", Message: fmt.Sprintf("mkdir: %v", err)}
 		}
 	}
@@ -147,10 +153,13 @@ func collectFiles(sourceDir, sourceFilesJSON string) ([]string, error) {
 				return nil, fmt.Errorf("path traversal not allowed in source_files: %q", p)
 			}
 		}
+		for i, p := range paths {
+			paths[i] = filepath.Join(sourceDir, p)
+		}
 		return paths, nil
 	}
 	var files []string
-	err := filepath.WalkDir(sourceDir, func(p string, d os.DirEntry, err error) error {
+	err := rootedToolWalkDir(sourceDir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -163,25 +172,20 @@ func collectFiles(sourceDir, sourceFilesJSON string) ([]string, error) {
 }
 
 func createZip(archivePath string, files []string, baseDir string) error {
-	f, err := os.Create(archivePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	w := zip.NewWriter(f)
-	defer w.Close()
-
-	for _, fpath := range files {
-		if err := addToZip(w, fpath, baseDir); err != nil {
-			return fmt.Errorf("add %s: %w", fpath, err)
+	return archiveWriteAtomic(archivePath, func(output io.Writer) error {
+		w := zip.NewWriter(output)
+		for _, fpath := range files {
+			if err := addToZip(w, fpath, baseDir); err != nil {
+				_ = w.Close()
+				return fmt.Errorf("add %s: %w", fpath, err)
+			}
 		}
-	}
-	return nil
+		return w.Close()
+	})
 }
 
 func addToZip(w *zip.Writer, fpath, baseDir string) error {
-	info, err := os.Stat(fpath)
+	info, err := rootedToolStat(fpath)
 	if err != nil {
 		return err
 	}
@@ -200,7 +204,7 @@ func addToZip(w *zip.Writer, fpath, baseDir string) error {
 	if err != nil {
 		return err
 	}
-	file, err := os.Open(fpath)
+	file, err := rootedToolOpen(fpath)
 	if err != nil {
 		return err
 	}
@@ -210,28 +214,45 @@ func addToZip(w *zip.Writer, fpath, baseDir string) error {
 }
 
 func createTarGz(archivePath string, files []string, baseDir string) error {
-	f, err := os.Create(archivePath)
+	return archiveWriteAtomic(archivePath, func(output io.Writer) error {
+		gzw := gzip.NewWriter(output)
+		tw := tar.NewWriter(gzw)
+		for _, fpath := range files {
+			if err := addToTar(tw, fpath, baseDir); err != nil {
+				_ = tw.Close()
+				_ = gzw.Close()
+				return fmt.Errorf("add %s: %w", fpath, err)
+			}
+		}
+		if err := tw.Close(); err != nil {
+			_ = gzw.Close()
+			return err
+		}
+		return gzw.Close()
+	})
+}
+
+func archiveWriteAtomic(path string, build func(io.Writer) error) error {
+	temp, err := os.CreateTemp("", "aurago-archive-*")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	gzw := gzip.NewWriter(f)
-	defer gzw.Close()
-
-	tw := tar.NewWriter(gzw)
-	defer tw.Close()
-
-	for _, fpath := range files {
-		if err := addToTar(tw, fpath, baseDir); err != nil {
-			return fmt.Errorf("add %s: %w", fpath, err)
-		}
+	defer os.Remove(temp.Name())
+	defer temp.Close()
+	if err := build(temp); err != nil {
+		return err
 	}
-	return nil
+	if err := temp.Sync(); err != nil {
+		return err
+	}
+	if _, err := temp.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	return rootedToolWriteFromReaderAtomic(path, temp)
 }
 
 func addToTar(tw *tar.Writer, fpath, baseDir string) error {
-	info, err := os.Stat(fpath)
+	info, err := rootedToolStat(fpath)
 	if err != nil {
 		return err
 	}
@@ -248,7 +269,7 @@ func addToTar(tw *tar.Writer, fpath, baseDir string) error {
 	if err := tw.WriteHeader(header); err != nil {
 		return err
 	}
-	file, err := os.Open(fpath)
+	file, err := rootedToolOpen(fpath)
 	if err != nil {
 		return err
 	}
@@ -287,18 +308,18 @@ func archiveExtract(archivePath, targetDir string) archiveResult {
 }
 
 func extractZip(archivePath, targetDir string) ([]string, error) {
-	r, err := zip.OpenReader(archivePath)
+	r, file, err := openRootedZip(archivePath)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer file.Close()
 
 	// Entry count limit to prevent zip bombs
 	if len(r.File) > maxArchiveEntries {
 		return nil, fmt.Errorf("archive contains too many entries (%d), maximum allowed is %d", len(r.File), maxArchiveEntries)
 	}
 
-	if err := os.MkdirAll(targetDir, 0o750); err != nil {
+	if err := rootedToolMkdirAll(targetDir, 0o750); err != nil {
 		return nil, err
 	}
 	baseDir, err := archiveBaseDir(targetDir)
@@ -322,7 +343,7 @@ func extractZip(archivePath, targetDir string) ([]string, error) {
 			if err := archiveEnsureSafePath(baseDir, dest, true); err != nil {
 				return nil, err
 			}
-			if err := os.MkdirAll(dest, 0o750); err != nil {
+			if err := rootedToolMkdirAll(dest, 0o750); err != nil {
 				return nil, err
 			}
 			continue
@@ -348,7 +369,7 @@ func extractZip(archivePath, targetDir string) ([]string, error) {
 		if err := archiveEnsureSafePath(baseDir, dest, false); err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
+		if err := rootedToolMkdirAll(filepath.Dir(dest), 0o750); err != nil {
 			return nil, err
 		}
 
@@ -356,25 +377,18 @@ func extractZip(archivePath, targetDir string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		outFile, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
-			rc.Close()
-			return nil, err
-		}
-		written, err := io.Copy(outFile, io.LimitReader(rc, maxExtractSize-totalBytes+int64(f.UncompressedSize64)))
+		err = rootedToolWriteFromReaderAtomicMode(dest, io.LimitReader(rc, maxExtractSize-totalBytes+int64(f.UncompressedSize64)), f.Mode().Perm())
 		rc.Close()
-		outFile.Close()
 		if err != nil {
 			return nil, err
 		}
-		_ = written
 		files = append(files, name)
 	}
 	return files, nil
 }
 
 func extractTarGz(archivePath, targetDir string) ([]string, error) {
-	f, err := os.Open(archivePath)
+	f, err := rootedToolOpen(archivePath)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +408,7 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 	defer gzr.Close()
 
 	tr := tar.NewReader(gzr)
-	if err := os.MkdirAll(targetDir, 0o750); err != nil {
+	if err := rootedToolMkdirAll(targetDir, 0o750); err != nil {
 		return nil, err
 	}
 	baseDir, err := archiveBaseDir(targetDir)
@@ -431,7 +445,7 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 			if err := archiveEnsureSafePath(baseDir, dest, true); err != nil {
 				return nil, err
 			}
-			if err := os.MkdirAll(dest, 0o750); err != nil {
+			if err := rootedToolMkdirAll(dest, 0o750); err != nil {
 				return nil, err
 			}
 		case tar.TypeSymlink, tar.TypeLink:
@@ -444,18 +458,12 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 			if err := archiveEnsureSafePath(baseDir, dest, false); err != nil {
 				return nil, err
 			}
-			if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
+			if err := rootedToolMkdirAll(filepath.Dir(dest), 0o750); err != nil {
 				return nil, err
 			}
-			outFile, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(header.Mode&07777))
-			if err != nil {
+			if err := rootedToolWriteFromReaderAtomicMode(dest, io.LimitReader(tr, header.Size), os.FileMode(header.Mode).Perm()); err != nil {
 				return nil, err
 			}
-			if _, err := io.Copy(outFile, io.LimitReader(tr, header.Size)); err != nil {
-				outFile.Close()
-				return nil, err
-			}
-			outFile.Close()
 			files = append(files, name)
 		}
 	}
@@ -499,11 +507,11 @@ func archiveList(archivePath string) archiveResult {
 }
 
 func listZip(archivePath string) archiveResult {
-	r, err := zip.OpenReader(archivePath)
+	r, file, err := openRootedZip(archivePath)
 	if err != nil {
 		return archiveResult{Status: "error", Message: fmt.Sprintf("open zip: %v", err)}
 	}
-	defer r.Close()
+	defer file.Close()
 
 	var names []string
 	for _, f := range r.File {
@@ -513,7 +521,7 @@ func listZip(archivePath string) archiveResult {
 }
 
 func listTarGz(archivePath string) archiveResult {
-	f, err := os.Open(archivePath)
+	f, err := rootedToolOpen(archivePath)
 	if err != nil {
 		return archiveResult{Status: "error", Message: fmt.Sprintf("open: %v", err)}
 	}
@@ -542,6 +550,23 @@ func listTarGz(archivePath string) archiveResult {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+func openRootedZip(path string) (*zip.Reader, *os.File, error) {
+	file, err := rootedToolOpen(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	info, err := file.Stat()
+	if err == nil {
+		var reader *zip.Reader
+		reader, err = zip.NewReader(file, info.Size())
+		if err == nil {
+			return reader, file, nil
+		}
+	}
+	file.Close()
+	return nil, nil, err
+}
+
 func detectArchiveFormat(path string) string {
 	lower := strings.ToLower(path)
 	if strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".tgz") {
@@ -557,9 +582,6 @@ func archiveBaseDir(targetDir string) (string, error) {
 	absBase, err := filepath.Abs(targetDir)
 	if err != nil {
 		return "", err
-	}
-	if resolved, err := filepath.EvalSymlinks(absBase); err == nil {
-		absBase = resolved
 	}
 	return filepath.Clean(absBase), nil
 }
@@ -577,6 +599,9 @@ func archiveSafeDestination(baseDir, name string) (string, error) {
 }
 
 func archiveEnsureSafePath(baseDir, dest string, dirTarget bool) error {
+	if err := requireUnprotectedNotesPath(dest, true); err != nil {
+		return err
+	}
 	rel, err := filepath.Rel(baseDir, dest)
 	if err != nil {
 		return err
@@ -592,7 +617,7 @@ func archiveEnsureSafePath(baseDir, dest string, dirTarget bool) error {
 	}
 	for i := 0; i < limit; i++ {
 		current = filepath.Join(current, parts[i])
-		info, err := os.Lstat(current)
+		info, err := rootedToolLstat(current)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -607,7 +632,7 @@ func archiveEnsureSafePath(baseDir, dest string, dirTarget bool) error {
 		}
 	}
 	if !dirTarget {
-		if info, err := os.Lstat(dest); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		if info, err := rootedToolLstat(dest); err == nil && info.Mode()&os.ModeSymlink != 0 {
 			return fmt.Errorf("refusing to overwrite symlink target: %s", dest)
 		}
 	}

@@ -1,13 +1,13 @@
 package tools
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"image"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -68,7 +68,7 @@ func ExecuteImageProcessing(workspaceDir, operation, inputFile, outputFile, outp
 }
 
 func loadImage(path string) (image.Image, string, error) {
-	f, err := os.Open(path)
+	f, err := rootedToolOpen(path)
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot open file: %w", err)
 	}
@@ -81,33 +81,30 @@ func loadImage(path string) (image.Image, string, error) {
 }
 
 func saveImage(img image.Image, path, format string, quality int) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return fmt.Errorf("cannot create output directory: %w", err)
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("cannot create file: %w", err)
-	}
-	defer f.Close()
-
+	var output bytes.Buffer
+	var err error
 	switch strings.ToLower(format) {
 	case "png":
-		return png.Encode(f, img)
+		err = png.Encode(&output, img)
 	case "jpeg", "jpg":
 		q := quality
 		if q <= 0 || q > 100 {
 			q = 85
 		}
-		return jpeg.Encode(f, img, &jpeg.Options{Quality: q})
+		err = jpeg.Encode(&output, img, &jpeg.Options{Quality: q})
 	case "gif":
-		return gif.Encode(f, img, nil)
+		err = gif.Encode(&output, img, nil)
 	case "bmp":
-		return bmp.Encode(f, img)
+		err = bmp.Encode(&output, img)
 	case "tiff", "tif":
-		return tiff.Encode(f, img, nil)
+		err = tiff.Encode(&output, img, nil)
 	default:
 		return fmt.Errorf("unsupported output format: %s (supported: png, jpeg, gif, bmp, tiff)", format)
 	}
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(path, output.Bytes())
 }
 
 func detectImageFormat(path string) string {
@@ -251,8 +248,8 @@ func imageCompress(inputFile, outputFile string, quality int) string {
 		return imageJSON(imageResult{Status: "error", Message: err.Error()})
 	}
 
-	origInfo, _ := os.Stat(inputFile)
-	newInfo, _ := os.Stat(outputFile)
+	origInfo, _ := rootedToolStat(inputFile)
+	newInfo, _ := rootedToolStat(outputFile)
 	var msg string
 	if origInfo != nil && newInfo != nil {
 		msg = fmt.Sprintf("compressed %s → %s (quality=%d, %s → %s)",
@@ -400,7 +397,7 @@ func imageInfo(inputFile string) string {
 	}
 
 	bounds := img.Bounds()
-	fi, _ := os.Stat(inputFile)
+	fi, _ := rootedToolStat(inputFile)
 	var sizeStr string
 	if fi != nil {
 		sizeStr = humanSize(fi.Size())

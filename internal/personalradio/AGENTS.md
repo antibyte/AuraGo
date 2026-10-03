@@ -43,7 +43,8 @@ User documentation: `documentation/personal-radio.md`.
   registration/import, including prompt, style, lyrics, language, provider/model,
   duration, generation time, cost and tags. Enrich an already registered media ID.
   Retry these stages without buying another generation even when the pool is full.
-  Daily allowances use UTC. No automatic durable music eviction.
+  Daily allowances are per station ID and use UTC; the global AuraGo budget
+  applies across stations. No automatic durable music eviction.
 - `Issue` only records/resolves sanitized operational issues through the
   existing supervisor lifecycle. Never emit chat, SSE chat or Telegram notices.
 - Editorial calls are tool-free, route-budgeted and isolated from private chat

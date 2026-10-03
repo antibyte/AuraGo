@@ -455,7 +455,7 @@ func (s *WorkspaceSearchService) Find(ctx context.Context, req WorkspaceSearchRe
 		if file == nil {
 			continue
 		}
-		if req.Glob != "" && !workspaceMatchesAnyGlob(req.Glob, rel) {
+		if req.Glob != "" && !workspaceMatchesAnyGlob(req.Glob, workspaceGlobPathInScope(rel, req.ScopePrefix)) {
 			continue
 		}
 		baseScore := 1.0
@@ -504,7 +504,7 @@ func (s *WorkspaceSearchService) Glob(ctx context.Context, req WorkspaceSearchRe
 		if !workspacePathInScope(rel, req.ScopePrefix) {
 			continue
 		}
-		if !workspaceMatchesAnyGlob(pattern, rel) {
+		if !workspaceMatchesAnyGlob(pattern, workspaceGlobPathInScope(rel, req.ScopePrefix)) {
 			continue
 		}
 		stat := stats[rel]
@@ -569,7 +569,7 @@ func (s *WorkspaceSearchService) Grep(ctx context.Context, req WorkspaceSearchRe
 		if !workspacePathInScope(rel, req.ScopePrefix) {
 			continue
 		}
-		if req.Glob != "" && !workspaceMatchesAnyGlob(req.Glob, rel) {
+		if req.Glob != "" && !workspaceMatchesAnyGlob(req.Glob, workspaceGlobPathInScope(rel, req.ScopePrefix)) {
 			continue
 		}
 		for i, line := range file.lines {
@@ -1209,6 +1209,14 @@ func workspacePathInScope(rel, scopePrefix string) bool {
 	}
 	rel = strings.Trim(filepath.ToSlash(rel), "/")
 	return rel == scopePrefix || strings.HasPrefix(rel, scopePrefix+"/")
+}
+
+func workspaceGlobPathInScope(rel, scopePrefix string) string {
+	scopePrefix = strings.Trim(filepath.ToSlash(strings.TrimSpace(scopePrefix)), "/")
+	if scopePrefix == "" || scopePrefix == "." {
+		return rel
+	}
+	return strings.TrimPrefix(rel, scopePrefix+"/")
 }
 
 func pathWithinRoot(path, root string) bool {

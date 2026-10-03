@@ -28,13 +28,21 @@ func Open(path string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(1)
 	var version int
-	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version > 1 {
+	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version > 2 {
 		db.Close()
 		return nil, fmt.Errorf("unsupported newspaper database version %d: %w", version, err)
+	}
+	if version == 1 {
+		backup := fmt.Sprintf("%s.pre-v2-%d.db", path, time.Now().UTC().UnixNano())
+		if _, err := db.Exec("VACUUM INTO ?", backup); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("back up newspaper database before migration: %w", err)
+		}
 	}
 	_, err = db.Exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS newspaper_profile(id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL, body BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS newspaper_runs(id TEXT PRIMARY KEY, local_date TEXT NOT NULL, revision INTEGER NOT NULL, status TEXT NOT NULL, body BLOB NOT NULL, UNIQUE(local_date,revision));
+CREATE TABLE IF NOT EXISTS newspaper_scheduler_attempts(local_date TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES newspaper_runs(id), attempted_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS newspaper_one_active ON newspaper_runs(status) WHERE status='running';
 CREATE INDEX IF NOT EXISTS newspaper_runs_date ON newspaper_runs(local_date DESC,revision DESC);
 CREATE TABLE IF NOT EXISTS newspaper_editions(id TEXT PRIMARY KEY, local_date TEXT NOT NULL, revision INTEGER NOT NULL, hash TEXT NOT NULL, body BLOB NOT NULL, created_at TEXT NOT NULL, UNIQUE(local_date,revision));
@@ -49,7 +57,7 @@ CREATE TABLE IF NOT EXISTS newspaper_events(id INTEGER PRIMARY KEY AUTOINCREMENT
 CREATE INDEX IF NOT EXISTS newspaper_events_run ON newspaper_events(run_id,id);
 CREATE TABLE IF NOT EXISTS newspaper_run_sources(run_id TEXT NOT NULL REFERENCES newspaper_runs(id) ON DELETE CASCADE, id TEXT NOT NULL, body BLOB NOT NULL, PRIMARY KEY(run_id,id));
 CREATE TABLE IF NOT EXISTS newspaper_email_challenges(address TEXT PRIMARY KEY, account_id TEXT NOT NULL, digest BLOB NOT NULL, expires_at TEXT NOT NULL, attempts INTEGER NOT NULL);
-PRAGMA user_version=1;`)
+PRAGMA user_version=2;`)
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate newspaper database: %w", err)
@@ -169,6 +177,14 @@ func (s *Store) Start(ctx context.Context, date string, newRevision bool, now ti
 }
 
 func (s *Store) StartCorrected(ctx context.Context, date string, newRevision bool, correction string, now time.Time) (Run, error) {
+	return s.startCorrected(ctx, date, newRevision, correction, now, false)
+}
+
+func (s *Store) StartScheduled(ctx context.Context, date string, now time.Time) (Run, error) {
+	return s.startCorrected(ctx, date, false, "", now, true)
+}
+
+func (s *Store) startCorrected(ctx context.Context, date string, newRevision bool, correction string, now time.Time, scheduled bool) (Run, error) {
 	correction = strings.TrimSpace(correction)
 	if len([]rune(correction)) > 300 || strings.ContainsAny(correction, "\r\n\x00") {
 		return Run{}, errors.New("correction note must be single-line text up to 300 characters")
@@ -181,6 +197,15 @@ func (s *Store) StartCorrected(ctx context.Context, date string, newRevision boo
 		return Run{}, err
 	}
 	defer tx.Rollback()
+	if scheduled {
+		var attempted bool
+		if err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM newspaper_scheduler_attempts WHERE local_date=?)", date).Scan(&attempted); err != nil {
+			return Run{}, err
+		}
+		if attempted {
+			return Run{}, ErrConflict
+		}
+	}
 	var active []byte
 	err = tx.QueryRowContext(ctx, "SELECT body FROM newspaper_runs WHERE status='running' LIMIT 1").Scan(&active)
 	if err == nil {
@@ -216,6 +241,11 @@ func (s *Store) StartCorrected(ctx context.Context, date string, newRevision boo
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO newspaper_events(run_id,at,phase,text) VALUES(?,?,?,?)", id, now.UTC().Format(time.RFC3339Nano), "finding", "Research started"); err != nil {
 		return Run{}, err
+	}
+	if scheduled {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO newspaper_scheduler_attempts(local_date,run_id,attempted_at) VALUES(?,?,?)", date, id, now.UTC().Format(time.RFC3339Nano)); err != nil {
+			return Run{}, err
+		}
 	}
 	return r, tx.Commit()
 }
@@ -302,12 +332,6 @@ func (s *Store) LatestRun(ctx context.Context) (Run, error) {
 		err = json.Unmarshal(b, &r)
 	}
 	return r, err
-}
-
-func (s *Store) hasRunForDate(ctx context.Context, date string) (bool, error) {
-	var exists bool
-	err := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM newspaper_runs WHERE local_date=?)", date).Scan(&exists)
-	return exists, err
 }
 
 func (s *Store) Publish(ctx context.Context, run Run, e Edition) error {

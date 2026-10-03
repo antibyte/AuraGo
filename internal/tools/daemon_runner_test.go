@@ -109,6 +109,36 @@ func TestDaemonRunner_StartMissingExecutable(t *testing.T) {
 	}
 }
 
+func TestDaemonRunnerStartAndRestartRequireSkillPermission(t *testing.T) {
+	previous, configured := currentRuntimePermissions()
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
+	ConfigureRuntimePermissions(RuntimePermissions{AllowPython: true})
+	runner := NewDaemonRunner(DaemonRunnerConfig{
+		SkillID: "python-daemon", SkillName: "python-daemon",
+		Manifest:  SkillManifest{Name: "python-daemon", Executable: "watcher.py"},
+		SkillsDir: t.TempDir(), WorkspaceDir: t.TempDir(), Logger: noopLogger(),
+	})
+	if err := runner.Start(); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+		t.Fatalf("start with no host grant = %v", err)
+	}
+	if runner.Status() != DaemonStopped {
+		t.Fatalf("denied daemon status = %s", runner.Status())
+	}
+	runner.mu.Lock()
+	runner.status = DaemonCrashed
+	err := runner.startLocked()
+	runner.mu.Unlock()
+	if err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+		t.Fatalf("restart with no host grant = %v", err)
+	}
+}
+
 func TestDaemonRunner_IncrementCounters(t *testing.T) {
 	runner := NewDaemonRunner(DaemonRunnerConfig{
 		SkillID:   "test-id",

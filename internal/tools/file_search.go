@@ -298,7 +298,7 @@ func matchSearchGlobSegments(patternParts, pathParts []string) bool {
 
 // grepFile searches a single file for regex matches, returning matches with line numbers.
 func grepFile(absPath string, re *regexp.Regexp, displayPath string) ([]FileSearchMatch, error) {
-	f, err := os.Open(absPath)
+	f, err := rootedToolOpen(absPath)
 	if err != nil {
 		return nil, err
 	}

@@ -160,9 +160,15 @@ func (s *Service) publish(ctx context.Context, stage string, project Project, jo
 		return Revision{}, fmt.Errorf("publish game maker project: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		_ = os.RemoveAll(target)
+		if restoreErr := os.Rename(target, stage); restoreErr != nil {
+			return Revision{}, errors.Join(fmt.Errorf("commit game maker revision: %w", err),
+				fmt.Errorf("preserve staged project at %s: %w", stage, restoreErr))
+		}
 		if hadTarget {
-			_ = os.Rename(backup, target)
+			if restoreErr := os.Rename(backup, target); restoreErr != nil {
+				return Revision{}, errors.Join(fmt.Errorf("commit game maker revision: %w", err),
+					fmt.Errorf("restore published project from %s: %w", backup, restoreErr))
+			}
 		}
 		return Revision{}, fmt.Errorf("commit game maker revision: %w", err)
 	}
@@ -342,7 +348,12 @@ func (s *Service) RestoreRevision(ctx context.Context, projectID string, number 
 	if err := os.MkdirAll(stage, 0o750); err != nil {
 		return Revision{}, err
 	}
-	defer os.RemoveAll(stage)
+	removeStage := true
+	defer func() {
+		if removeStage {
+			_ = os.RemoveAll(stage)
+		}
+	}()
 	rows, err := s.db.QueryContext(ctx, `SELECT path,content_hash,size FROM gm_revision_files WHERE revision_id=? ORDER BY path`, revision.ID)
 	if err != nil {
 		return Revision{}, fmt.Errorf("list game maker revision files: %w", err)
@@ -381,6 +392,7 @@ func (s *Service) RestoreRevision(ctx context.Context, projectID string, number 
 	restoreJob := Job{ID: writerID, ProjectID: projectID}
 	published, err := s.publish(ctx, stage, project, restoreJob, "restore", fmt.Sprintf("Restored revision %d", number))
 	if err != nil {
+		removeStage = false
 		return Revision{}, err
 	}
 	_, _ = s.emit(ctx, projectID, "", "revision", map[string]any{"revision": published, "restored_from": number})

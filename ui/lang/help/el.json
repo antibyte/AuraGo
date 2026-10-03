@@ -296,6 +296,7 @@
   "help.proxmox.url": "URL για Proxmox VE API, e.g. 'https://pve.example.com:8006'.",
   "help.rocketchat.alias": "Εμφανιζόμενο όνομα του bot στο Rocket.Chat. Προεπιλογή: 'AuraGo'.",
   "help.rocketchat.channel": "Προεπιλεγμένο κανάλι ακρόασης, π.χ. 'general'.",
+  "help.rocketchat.allowed_users": "Επιτρέψτε χρήστες με id:<ID> ή username:<όνομα>. Τα σκέτα ID εξακολουθούν να ισχύουν και δεν ταιριάζουν ποτέ με όνομα χρήστη.",
   "help.rocketchat.enabled": "Ενεργοποιεί the Rocket.Chat bot integration.",
   "help.rocketchat.url": "URL για Rocket.Chat instance, e.g. 'https://chat.example.com'.",
   "help.rocketchat.user_id": "Περιγραφή: Bot user ID from Rocket.Chat (Profile > Personal Access Tokens).",

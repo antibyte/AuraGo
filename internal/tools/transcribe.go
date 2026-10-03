@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,10 +32,16 @@ func TranscribeAudioFile(filePath string, cfg *config.Config) (string, float64, 
 		return "", 0.0, fmt.Errorf("invalid audio file path: %w", err)
 	}
 
-	if transcriptionMode(cfg) == "multimodal" {
-		return transcribeMultimodal(resolvedPath, cfg)
+	input, err := rootedToolOpen(resolvedPath)
+	if err != nil {
+		return "", 0, fmt.Errorf("open audio file: %w", err)
 	}
-	return transcribeWhisper(resolvedPath, cfg)
+	defer input.Close()
+	audioData, err := io.ReadAll(io.LimitReader(input, maxTranscriptionAudioBytes+1))
+	if err != nil {
+		return "", 0, fmt.Errorf("read audio file: %w", err)
+	}
+	return TranscribeAudio(context.Background(), filepath.Base(resolvedPath), audioData, cfg)
 }
 
 // TranscribeAudio transcribes an in-memory audio payload without creating a

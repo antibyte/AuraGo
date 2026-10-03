@@ -1229,74 +1229,89 @@ func (m *WorkspaceManager) reconcileLeases(ctx context.Context) {
 	if !cfg.AgentControl.Enabled {
 		return
 	}
-	workspaces, err := m.ledger.ListWorkspaces(ctx, "", false, 500)
-	if err != nil {
-		m.logger.Warn("[VirtualWorkspace] lease scan failed", "error", err)
-		return
-	}
 	client, clientErr := m.clientFactory(cfg)
 	var transport WorkspaceTransport
 	if clientErr == nil {
 		transport = m.transportFactory(client)
 	}
-	for _, workspace := range workspaces {
-		grants, _ := m.ledger.ListCredentialGrants(ctx, workspace.ID)
-		for _, grant := range grants {
-			if (grant.Status != GrantActive && grant.Status != GrantPending) || grant.ExpiresAt.After(m.now()) || grant.UsageType != GrantUsageShell || grant.JobID == "" {
-				continue
-			}
-			if transport == nil {
-				detail := "workspace transport is unavailable"
-				if clientErr != nil {
-					detail = clientErr.Error()
+	afterID := ""
+	for {
+		workspaces, err := m.ledger.ListLeaseScanPage(ctx, afterID)
+		if err != nil {
+			m.logger.Warn("[VirtualWorkspace] lease scan failed", "error", err)
+			return
+		}
+		if len(workspaces) == 0 {
+			break
+		}
+		for _, workspace := range workspaces {
+			afterID = workspace.ID
+			grants, _ := m.ledger.ListCredentialGrants(ctx, workspace.ID)
+			for _, grant := range grants {
+				if (grant.Status != GrantActive && grant.Status != GrantPending) || grant.ExpiresAt.After(m.now()) || grant.UsageType != GrantUsageShell || grant.JobID == "" {
+					continue
 				}
-				m.reportIssue(WorkspaceOperationalIssue{Kind: "credential_expiry_cleanup_failed", WorkspaceID: workspace.ID, Detail: detail, Severity: "error"})
-				continue
-			}
-			cancelErr := transport.Call(ctx, workspace.MachineID, "job.cancel", map[string]string{"job_id": grant.JobID}, nil)
-			var revokeErr error
-			if grant.Status == GrantActive {
-				revokeErr = transport.Call(ctx, workspace.MachineID, "credential.revoke", map[string]string{"grant_id": grant.ID}, nil)
-			}
-			if cancelErr != nil || revokeErr != nil {
-				detail := fmt.Sprintf("cancel job: %v; revoke credential: %v", cancelErr, revokeErr)
-				m.reportIssue(WorkspaceOperationalIssue{Kind: "credential_expiry_cleanup_failed", WorkspaceID: workspace.ID, Detail: detail, Severity: "error"})
-				continue
-			}
-			if job, ok, _ := m.ledger.GetWorkspaceJob(ctx, grant.JobID); ok && (job.State == JobStateQueued || job.State == JobStateRunning) {
-				now := m.now()
-				job.State = JobStateCanceled
-				job.Error = "credential grant expired"
-				job.UpdatedAt = now
-				job.CompletedAt = &now
-				_ = m.ledger.UpsertWorkspaceJob(ctx, job)
-			}
-		}
-		if workspace.ControlOwner == ControlOwnerHuman && workspace.ControlLeaseExpiresAt != nil && !workspace.ControlLeaseExpiresAt.After(m.now()) {
-			workspace.ControlOwner = ControlOwnerAgent
-			workspace.ControlLeaseExpiresAt = nil
-			workspace.UpdatedAt = m.now()
-			_ = m.ledger.UpsertWorkspace(ctx, workspace)
-			m.syncBrowserControl(ctx, workspace)
-		}
-		hasActiveJob := m.refreshWorkspaceJobs(ctx, workspace, transport)
-		if hasActiveJob && clientErr == nil && workspace.MaxExpiresAt.After(m.now()) {
-			if err := m.touch(ctx, cfg, client, workspace); err != nil {
-				m.reportIssue(WorkspaceOperationalIssue{Kind: "lease_extension_failed", WorkspaceID: workspace.ID, Detail: err.Error(), Severity: "warning"})
-			} else {
-				now := m.now()
-				workspace.LastActivityAt = now
-				workspace.LeaseExpiresAt = now.Add(time.Duration(cfg.AgentControl.IdleTTLSeconds) * time.Second)
-				if workspace.LeaseExpiresAt.After(workspace.MaxExpiresAt) {
-					workspace.LeaseExpiresAt = workspace.MaxExpiresAt
+				if transport == nil {
+					detail := "workspace transport is unavailable"
+					if clientErr != nil {
+						detail = clientErr.Error()
+					}
+					m.reportIssue(WorkspaceOperationalIssue{Kind: "credential_expiry_cleanup_failed", WorkspaceID: workspace.ID, Detail: detail, Severity: "error"})
+					continue
+				}
+				cancelErr := transport.Call(ctx, workspace.MachineID, "job.cancel", map[string]string{"job_id": grant.JobID}, nil)
+				var revokeErr error
+				if grant.Status == GrantActive {
+					revokeErr = transport.Call(ctx, workspace.MachineID, "credential.revoke", map[string]string{"grant_id": grant.ID}, nil)
+				}
+				if cancelErr != nil || revokeErr != nil {
+					detail := fmt.Sprintf("cancel job: %v; revoke credential: %v", cancelErr, revokeErr)
+					m.reportIssue(WorkspaceOperationalIssue{Kind: "credential_expiry_cleanup_failed", WorkspaceID: workspace.ID, Detail: detail, Severity: "error"})
+					continue
+				}
+				if job, ok, _ := m.ledger.GetWorkspaceJob(ctx, grant.JobID); ok && (job.State == JobStateQueued || job.State == JobStateRunning) {
+					now := m.now()
+					job.State = JobStateCanceled
+					job.Error = "credential grant expired"
+					job.UpdatedAt = now
+					job.CompletedAt = &now
+					_ = m.ledger.UpsertWorkspaceJob(ctx, job)
 				}
 			}
-		}
-		if !workspace.MaxExpiresAt.After(m.now()) || !workspace.LeaseExpiresAt.After(m.now()) {
-			identity := WorkspaceIdentity{SessionID: workspace.OwnerSessionID, MissionID: workspace.MissionID, Actor: "workspace_reaper", Admin: true}
-			if err := m.CloseWorkspace(ctx, cfg, identity, workspace.ID); err != nil {
-				m.logger.Warn("[VirtualWorkspace] automatic close failed", "workspace_id", workspace.ID, "error", err)
-				m.reportIssue(WorkspaceOperationalIssue{Kind: "lease_close_failed", WorkspaceID: workspace.ID, Detail: err.Error(), Severity: "warning"})
+			if workspace.ControlOwner == ControlOwnerHuman && workspace.ControlLeaseExpiresAt != nil && !workspace.ControlLeaseExpiresAt.After(m.now()) {
+				workspace.ControlOwner = ControlOwnerAgent
+				workspace.ControlLeaseExpiresAt = nil
+				workspace.UpdatedAt = m.now()
+				_ = m.ledger.UpsertWorkspace(ctx, workspace)
+				m.syncBrowserControl(ctx, workspace)
+			}
+			hasActiveJob := m.refreshWorkspaceJobs(ctx, workspace, transport)
+			if hasActiveJob && clientErr == nil && workspace.MaxExpiresAt.After(m.now()) {
+				if err := m.touch(ctx, cfg, client, workspace); err != nil {
+					m.reportIssue(WorkspaceOperationalIssue{Kind: "lease_extension_failed", WorkspaceID: workspace.ID, Detail: err.Error(), Severity: "warning"})
+				} else {
+					now := m.now()
+					workspace.LastActivityAt = now
+					workspace.LeaseExpiresAt = now.Add(time.Duration(cfg.AgentControl.IdleTTLSeconds) * time.Second)
+					if workspace.LeaseExpiresAt.After(workspace.MaxExpiresAt) {
+						workspace.LeaseExpiresAt = workspace.MaxExpiresAt
+					}
+				}
+			}
+			if !workspace.MaxExpiresAt.After(m.now()) || !workspace.LeaseExpiresAt.After(m.now()) {
+				claimed, claimErr := m.ledger.ClaimExpiredWorkspace(ctx, workspace.ID, m.now())
+				if claimErr != nil {
+					m.logger.Warn("[VirtualWorkspace] lease claim failed", "workspace_id", workspace.ID, "error", claimErr)
+					continue
+				}
+				if !claimed {
+					continue
+				}
+				identity := WorkspaceIdentity{SessionID: workspace.OwnerSessionID, MissionID: workspace.MissionID, Actor: "workspace_reaper", Admin: true}
+				if err := m.CloseWorkspace(ctx, cfg, identity, workspace.ID); err != nil {
+					m.logger.Warn("[VirtualWorkspace] automatic close failed", "workspace_id", workspace.ID, "error", err)
+					m.reportIssue(WorkspaceOperationalIssue{Kind: "lease_close_failed", WorkspaceID: workspace.ID, Detail: err.Error(), Severity: "warning"})
+				}
 			}
 		}
 	}
@@ -1426,9 +1441,6 @@ func (m *WorkspaceManager) touch(ctx context.Context, cfg ToolConfig, client *Cl
 	if lease.After(workspace.MaxExpiresAt) {
 		lease = workspace.MaxExpiresAt
 	}
-	workspace.LastActivityAt = now
-	workspace.UpdatedAt = now
-	workspace.LeaseExpiresAt = lease
 	remaining := int(lease.Sub(now).Seconds())
 	if remaining < MinTTLSeconds {
 		remaining = MinTTLSeconds
@@ -1439,7 +1451,7 @@ func (m *WorkspaceManager) touch(ctx context.Context, cfg ToolConfig, client *Cl
 	if _, err := client.ExtendMachine(ctx, workspace.MachineID, remaining); err != nil {
 		return err
 	}
-	return m.ledger.UpsertWorkspace(ctx, workspace)
+	return m.ledger.UpdateWorkspaceActivity(ctx, workspace.ID, now, lease)
 }
 
 func (m *WorkspaceManager) touchBestEffort(ctx context.Context, cfg ToolConfig, client *Client, workspace Workspace) {

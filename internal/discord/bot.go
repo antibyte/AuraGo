@@ -46,6 +46,14 @@ func buildDiscordAgentMessages(historyManager *memory.HistoryManager) []openai.C
 	return append(finalMessages, historyManager.Get()...)
 }
 
+func discordConversationID(m *discordgo.MessageCreate) string {
+	guild := m.GuildID
+	if guild == "" {
+		guild = "dm"
+	}
+	return "discord:" + guild + ":" + m.ChannelID + ":" + m.Author.ID
+}
+
 // session holds the active Discord session so tools can send messages.
 var (
 	session   *discordgo.Session
@@ -514,7 +522,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		return
 	}
 
-	sessionID := "default"
+	sessionID := discordConversationID(m)
 	if tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
 			tools.CompleteQuestion(sessionID, response)
@@ -530,7 +538,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	if strings.HasPrefix(inputText, "/") {
 		cmdCtx := commands.Context{
 			STM:         shortTermMem,
-			HM:          historyManager,
+			SessionID:   sessionID,
 			Vault:       vault,
 			InventoryDB: inventoryDB,
 			Cfg:         cfg,
@@ -578,7 +586,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	}()
 
 	// Process through the agent
-	processDiscordMessage(s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub)
+	processDiscordMessage(s, m, inputText, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, kg, inventoryDB, missionManagerV2, remoteHub)
 	stopTyping()
 }
 
@@ -674,14 +682,15 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 	return fileNote
 }
 
-func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub) {
+func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inputText string, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub) {
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-	sessionID := "default"
+	sessionID := discordConversationID(m)
 
 	// Add message to history
-	mid, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
-	if sessionID == "default" && historyManager != nil && agent.ShouldAppendHistoryMessage(mid, err) {
-		historyManager.Add(openai.ChatMessageRoleUser, inputText, mid, false, false)
+	_, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
+	if err != nil {
+		logger.Error("[Discord] Failed to store message", "error", err)
+		return
 	}
 
 	// Build RunConfig first so it can be used for prompt flag derivation
@@ -690,7 +699,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 		Logger:             logger,
 		LLMClient:          client,
 		ShortTermMem:       shortTermMem,
-		HistoryManager:     historyManager,
+		HistoryManager:     nil,
 		LongTermMem:        longTermMem,
 		KG:                 kg,
 		InventoryDB:        inventoryDB,
@@ -710,7 +719,17 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 	}
 
 	// Assemble final messages for LLM
-	finalMessages := buildDiscordAgentMessages(historyManager)
+	finalMessages := buildDiscordAgentMessages(nil)
+	recent, err := shortTermMem.GetRecentMessages(sessionID, 60)
+	if err != nil {
+		logger.Error("[Discord] Failed to load conversation", "error", err)
+		return
+	}
+	for _, msg := range recent {
+		if msg.Role == openai.ChatMessageRoleUser || msg.Role == openai.ChatMessageRoleAssistant {
+			finalMessages = append(finalMessages, msg)
+		}
+	}
 
 	req := openai.ChatCompletionRequest{
 		Model:    cfg.LLM.Model,

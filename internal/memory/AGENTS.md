@@ -14,6 +14,7 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - **Short-Term**: SQLite sliding-window conversation context
 - **Long-Term**: Vector database with semantic search (chromem-go)
 - **Knowledge Graph**: Entity-relationship store for structured facts
+- **File Sync Provenance**: Only nodes and edges carrying `source=file_sync` and the matching `source_file` belong to file-sync cleanup. Preserve other provenance even when it names the same file; remove claims for identities that are truly deleted. Review legacy markings on a backed-up copy before any repair and restore already deleted facts only from verified backups.
 - **Core Memory**: Permanent facts always included in context
 - **Native Chunking**: File, documentation, and tool-guide indexing use the Go `internal/chunking` package. `indexing.chunking` defaults to recursive chunking with 3,500 chars, 200 overlap, and 200 chunks per file; chunking parameters are part of index fingerprints so config changes trigger clean reindexing.
 - **Collection Write Receipts**: Collection stores return all allocated IDs together with a write error, including a failed single or multimodal write. Indexer retries stop when a receipt is present so the caller can reconcile the partial attempt before another write. Verify `TestCollectionStorePreservesFailedWriteReceipts` and `TestIndexerRetryPreservesPartialWriteReceipts`.

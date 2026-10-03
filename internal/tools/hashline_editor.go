@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -194,7 +193,7 @@ func readHashlineEditableFile(resolved string, anchorLine int, anchorHash string
 	if err := checkEditSizeLimit(resolved); err != nil {
 		return nil, nil, encode(FileEditorResult{Status: "error", Message: err.Error()})
 	}
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return nil, nil, encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}

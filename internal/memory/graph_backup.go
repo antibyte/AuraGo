@@ -147,11 +147,13 @@ func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, node
 	removedEdges := kg.collectSemanticEdgeIdentities(tx, `
 		SELECT source, target, relation FROM kg_edges
 		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
 	if _, err := tx.Exec(`
 		DELETE FROM kg_edges
 		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path); err != nil {
 		return fmt.Errorf("delete stale source-file edges: %w", err)
@@ -167,6 +169,7 @@ func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, node
 	candidateRows, err := tx.Query(`
 		SELECT id FROM kg_nodes
 		WHERE json_valid(properties)
+		  AND json_extract(properties, '$.source') = 'file_sync'
 		  AND json_extract(properties, '$.source_file') = ?
 		  AND protected = 0
 	`, path)
@@ -203,6 +206,11 @@ func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, node
 	}
 
 	if len(deleteIDs) > 0 {
+		for _, id := range deleteIDs {
+			if err := cleanupKGClaimsForDeletedNodeTx(tx, id); err != nil {
+				return fmt.Errorf("cleanup stale source-file node claims: %w", err)
+			}
+		}
 		if _, err := execChunkedInDeleteStringsResult(tx, "kg_nodes", "id", deleteIDs, defaultInClauseChunkSize); err != nil {
 			return fmt.Errorf("delete stale source-file nodes: %w", err)
 		}
@@ -211,6 +219,17 @@ func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, node
 	indexNodes, indexEdges, err := kg.mergeExtractedEntitiesTx(tx, nodes, edges)
 	if err != nil {
 		return err
+	}
+	for _, edge := range removedEdges {
+		var stillPresent bool
+		if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM kg_edges WHERE source = ? AND target = ? AND relation = ?)`, edge.source, edge.target, edge.relation).Scan(&stillPresent); err != nil {
+			return fmt.Errorf("check replaced source-file edge: %w", err)
+		}
+		if !stillPresent {
+			if err := cleanupKGClaimsForDeletedEdgeTx(tx, edge.source, edge.target, edge.relation); err != nil {
+				return fmt.Errorf("cleanup stale source-file edge claims: %w", err)
+			}
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

@@ -87,6 +87,32 @@ func TestDaemonSupervisor_StopDaemonNotFound(t *testing.T) {
 	}
 }
 
+func TestDaemonSupervisorStopsRunningDaemonAfterPermissionRevocation(t *testing.T) {
+	previous, configured := currentRuntimePermissions()
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
+	sv := NewDaemonSupervisor(DaemonSupervisorConfig{Enabled: true}, nil, nil, nil, nil, noopLogger())
+	runner := NewDaemonRunner(DaemonRunnerConfig{
+		SkillID: "python-daemon", SkillName: "python-daemon",
+		Manifest: SkillManifest{Name: "python-daemon", Executable: "watcher.py"},
+		Logger:   noopLogger(),
+	})
+	canceled := false
+	runner.status = DaemonRunning
+	runner.cancel = func() { canceled = true }
+	sv.runners[runner.skillID] = runner
+	ConfigureRuntimePermissions(RuntimePermissions{AllowPython: true})
+	sv.RefreshRuntimePermissions()
+	if !canceled || runner.Status() != DaemonStopped {
+		t.Fatalf("revoked daemon remains active: canceled=%v status=%s", canceled, runner.Status())
+	}
+}
+
 func TestDaemonSupervisor_GateAccess(t *testing.T) {
 	sv := NewDaemonSupervisor(
 		DaemonSupervisorConfig{

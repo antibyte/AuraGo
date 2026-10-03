@@ -343,7 +343,7 @@ func GetEnrollmentByTokenHash(db *sql.DB, tokenHash string) (EnrollmentRecord, e
 
 // MarkEnrollmentUsed marks an enrollment as consumed by a device.
 func MarkEnrollmentUsed(db *sql.DB, enrollmentID, deviceID string) error {
-	res, err := db.Exec(`UPDATE remote_enrollments SET used = 1, used_by_device = ? WHERE id = ?`,
+	res, err := db.Exec(`UPDATE remote_enrollments SET used = 1, used_by_device = ? WHERE id = ? AND used = 0`,
 		deviceID, enrollmentID)
 	if err != nil {
 		return err
@@ -353,7 +353,38 @@ func MarkEnrollmentUsed(db *sql.DB, enrollmentID, deviceID string) error {
 		return fmt.Errorf("check updated remote enrollment rows: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("remote enrollment not found: %s", enrollmentID)
+		return fmt.Errorf("remote enrollment not found or already used: %s", enrollmentID)
+	}
+	return nil
+}
+
+// finalizeEnrollment consumes a token and marks its new device connected in one DB transaction.
+func finalizeEnrollment(db *sql.DB, enrollmentID, deviceID string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin remote enrollment finalization: %w", err)
+	}
+	defer tx.Rollback()
+	if enrollmentID != "" {
+		res, err := tx.Exec(`UPDATE remote_enrollments SET used = 1, used_by_device = ? WHERE id = ? AND used = 0`, deviceID, enrollmentID)
+		if err != nil {
+			return fmt.Errorf("consume remote enrollment: %w", err)
+		}
+		rows, err := res.RowsAffected()
+		if err != nil || rows != 1 {
+			return fmt.Errorf("remote enrollment already used or missing: %s", enrollmentID)
+		}
+	}
+	res, err := tx.Exec(`UPDATE remote_devices SET status = 'connected', last_seen = ? WHERE id = ?`, time.Now().UTC().Format(time.RFC3339), deviceID)
+	if err != nil {
+		return fmt.Errorf("mark enrolled device connected: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil || rows != 1 {
+		return fmt.Errorf("enrolled device missing: %s", deviceID)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit remote enrollment: %w", err)
 	}
 	return nil
 }

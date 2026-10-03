@@ -25,6 +25,7 @@ func TestPurgeChatSessionRemovesTranscriptBearingRecords(t *testing.T) {
 		`INSERT INTO audit_events(timestamp, session_id, summary) VALUES(CURRENT_TIMESTAMP, ?, 'private transcript')`,
 		`INSERT INTO journal_entries(entry_type, title, content, date, session_id) VALUES('chat', 'call', 'private transcript', '2026-07-22', ?)`,
 		`INSERT INTO episodic_memories(event_date, title, summary, session_id) VALUES('2026-07-22', 'call', 'private transcript', ?)`,
+		`INSERT INTO memory_extraction_sources(doc_id, source_type, session_id, first_seen_at, last_seen_at) VALUES('doc-1', 'chat', ?, '2026-07-22', '2026-07-22')`,
 	}
 	for _, statement := range statements {
 		if _, err := store.db.Exec(statement, sessionID); err != nil {
@@ -34,7 +35,7 @@ func TestPurgeChatSessionRemovesTranscriptBearingRecords(t *testing.T) {
 	if err := store.PurgeChatSession(sessionID); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"messages", "archived_messages", "compressed_tool_outputs", "activity_turns", "audit_events", "journal_entries", "episodic_memories"} {
+	for _, table := range []string{"messages", "archived_messages", "compressed_tool_outputs", "activity_turns", "audit_events", "journal_entries", "episodic_memories", "memory_extraction_sources"} {
 		var count int
 		if err := store.db.QueryRow(`SELECT COUNT(*) FROM `+table+` WHERE session_id = ?`, sessionID).Scan(&count); err != nil {
 			t.Fatal(err)

@@ -19,6 +19,8 @@ import (
 	"syscall"
 	"time"
 
+	"aurago/internal/config"
+
 	"github.com/gofrs/flock"
 	chromem "github.com/philippgille/chromem-go"
 	_ "modernc.org/sqlite"
@@ -262,6 +264,11 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("AuraGo is running; stop the agent before offline memory repair")
 	}
 	defer lock.Unlock()
+	if *apply {
+		if err := verifyLockedRepairPaths(install, database, vectors); err != nil {
+			return err
+		}
+	}
 	reports := filepath.Join(install, "reports")
 	if relative, err := filepath.Rel(vectors, reports); err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
 		return fmt.Errorf("reports must be outside the vector store to avoid recursive backups")
@@ -363,6 +370,38 @@ func run(ctx context.Context, args []string) error {
 	fmt.Printf("Applied: %d groups; %d incomplete groups; %d review items; evidence: %s\n", completed, len(failed), len(remaining), work)
 	if len(failed) > 0 {
 		return fmt.Errorf("some groups remain unchanged or pending; inspect result.json")
+	}
+	return nil
+}
+
+func verifyLockedRepairPaths(install, database, vectors string) error {
+	cfg, err := config.Load(filepath.Join(install, "config.yaml"))
+	if err != nil {
+		return fmt.Errorf("load locked installation config: %w", err)
+	}
+	for _, pair := range []struct {
+		actual, configured string
+		directory          bool
+		label              string
+	}{
+		{database, cfg.SQLite.ShortTermPath, false, "memory database"},
+		{vectors, cfg.Directories.VectorDBDir, true, "vector directory"},
+	} {
+		configured, err := existingPath(pair.configured, pair.directory)
+		if err != nil {
+			return fmt.Errorf("resolve configured %s: %w", pair.label, err)
+		}
+		actualInfo, err := os.Stat(pair.actual)
+		if err != nil {
+			return err
+		}
+		configuredInfo, err := os.Stat(configured)
+		if err != nil {
+			return err
+		}
+		if !os.SameFile(actualInfo, configuredInfo) {
+			return fmt.Errorf("%s does not match the locked installation config", pair.label)
+		}
 	}
 	return nil
 }

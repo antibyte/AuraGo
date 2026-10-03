@@ -250,6 +250,25 @@ func (s *DaemonSupervisor) StopDaemon(skillID string) error {
 	return nil
 }
 
+// RefreshRuntimePermissions stops daemons whose execution permission was revoked.
+func (s *DaemonSupervisor) RefreshRuntimePermissions() {
+	s.mu.RLock()
+	runners := make([]*DaemonRunner, 0, len(s.runners))
+	for _, runner := range s.runners {
+		runners = append(runners, runner)
+	}
+	s.mu.RUnlock()
+	for _, runner := range runners {
+		if err := requireSkillExecutionPermission(runner.manifest); err != nil {
+			if runner.Status() == DaemonRunning || runner.Status() == DaemonStarting || runner.Status() == DaemonCrashed {
+				_ = runner.Stop()
+				s.logger.Warn("Stopped daemon after permission revocation", "skill_id", runner.skillID, "error", err)
+				s.broadcastStatus(runner.skillID, runner)
+			}
+		}
+	}
+}
+
 // StartDaemon starts (or restarts) a specific daemon by skill ID.
 // If no runner exists yet (daemon had enabled=false in manifest), the manifest is
 // loaded from disk, enabled=true is persisted, and a new runner is created.
@@ -296,6 +315,9 @@ func (s *DaemonSupervisor) startDaemonOnDemand(skillID string) error {
 		}
 		if manifest.Daemon == nil {
 			return fmt.Errorf("skill %q is not a daemon skill", skillID)
+		}
+		if err := requireSkillExecutionPermission(manifest); err != nil {
+			return fmt.Errorf("daemon execution denied: %w", err)
 		}
 		// Persist enabled=true so the daemon survives restarts / RefreshSkills calls.
 		manifest.Daemon.Enabled = true

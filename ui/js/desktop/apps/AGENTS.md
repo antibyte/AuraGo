@@ -240,7 +240,7 @@ buttons and menu popovers remain excluded from those gestures.
   GET/PUT `/api/desktop/store/apps/gods-eye-view/config` returns flags/origins,
   never saved keys. Empty fields preserve, checkboxes explicitly delete, and
   pending changes remain visibly inactive after a failed container replacement.
-  Keep the dialog keyboard accessible, focus trapped and disposed on app close.
+  Keep the dialog keyboard accessible, focus trapped and disposed on app close. Every Store modal close clears credential values and attributes, removes its overlay, and ignores late asynchronous responses.
 - Installation preselects the current AuraGo origin. The dialog accepts further
   exact HTTP(S) origins and explains optional LAN access/provider quota use,
   browser-visible Google/Cesium credentials, and secure-context microphone

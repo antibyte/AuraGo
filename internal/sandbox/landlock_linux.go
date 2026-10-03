@@ -64,7 +64,7 @@ func NewLandlockSandbox(cfg ShellSandboxConfig, caps Capabilities, workspaceDir 
 	}
 }
 
-func (s *LandlockSandbox) Available() bool { return s.caps.LandlockABI >= 1 }
+func (s *LandlockSandbox) Available() bool { return s.caps.LandlockABI >= 3 }
 func (s *LandlockSandbox) Name() string    { return "landlock" }
 
 // PrepareCommand returns an exec.Cmd that re-invokes the AuraGo binary in

@@ -1,6 +1,9 @@
 package telnyx
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // ── Telnyx API v2 request/response types ──────────────────────────────────
 
@@ -158,7 +161,7 @@ type WebhookPayload struct {
 	ClientState   string `json:"client_state,omitempty"`
 
 	// Call event fields
-	From         string `json:"from,omitempty"`
+	From         WebhookPhoneNumber `json:"from,omitempty"`
 	To           string `json:"to,omitempty"`
 	Direction    string `json:"direction,omitempty"`
 	State        string `json:"state,omitempty"`
@@ -185,6 +188,23 @@ type WebhookPayload struct {
 
 	// Machine detection
 	MachineResult string `json:"machine_result,omitempty"` // "human", "machine", "not_sure"
+}
+
+// WebhookPhoneNumber accepts the voice string and messaging sender object.
+type WebhookPhoneNumber string
+
+func (n *WebhookPhoneNumber) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
+		return json.Unmarshal(data, (*string)(n))
+	}
+	var sender struct {
+		PhoneNumber string `json:"phone_number"`
+	}
+	if err := json.Unmarshal(data, &sender); err != nil {
+		return err
+	}
+	*n = WebhookPhoneNumber(sender.PhoneNumber)
+	return nil
 }
 
 // RecordingURLs holds download links for a recording.

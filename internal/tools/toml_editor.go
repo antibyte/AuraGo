@@ -155,7 +155,7 @@ func tomlKeys(resolved, tomlPath string, encode func(TomlEditorResult) string) s
 }
 
 func tomlValidate(resolved string, encode func(TomlEditorResult) string) string {
-	data, err := os.ReadFile(resolved)
+	data, err := rootedToolReadFile(resolved)
 	if err != nil {
 		return encode(TomlEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}

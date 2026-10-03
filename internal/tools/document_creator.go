@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,15 +129,36 @@ func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.Document
 			return documentCreatorError(err.Error())
 		}
 		if len(paths) > 0 {
+			stagingDir, err := os.MkdirTemp("", "aurago-document-source-*")
+			if err != nil {
+				return documentCreatorError(fmt.Sprintf("cannot stage source files: %v", err))
+			}
+			defer os.RemoveAll(stagingDir)
 			resolved := make([]string, 0, len(paths))
 			tmpCfg := &config.Config{}
 			tmpCfg.Directories.WorkspaceDir = workspaceDir
-			for _, p := range paths {
+			for index, p := range paths {
 				rp, err := resolveToolInputPath(p, tmpCfg)
 				if err != nil {
 					return fmt.Sprintf(`{"status":"error","message":"invalid source path %q: %v"}`, p, err)
 				}
-				resolved = append(resolved, rp)
+				input, err := rootedToolOpen(rp)
+				if err != nil {
+					return documentCreatorError(fmt.Sprintf("cannot open source file: %v", err))
+				}
+				stagedPath := filepath.Join(stagingDir, fmt.Sprintf("source-%d%s", index, filepath.Ext(rp)))
+				staged, err := os.OpenFile(stagedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+				if err != nil {
+					input.Close()
+					return documentCreatorError(fmt.Sprintf("cannot stage source file: %v", err))
+				}
+				_, copyErr := io.Copy(staged, input)
+				closeErr := staged.Close()
+				input.Close()
+				if copyErr != nil || closeErr != nil {
+					return documentCreatorError(fmt.Sprintf("cannot stage source file: %v %v", copyErr, closeErr))
+				}
+				resolved = append(resolved, stagedPath)
 			}
 			data, _ := json.Marshal(resolved)
 			sourceFilesJSON = string(data)

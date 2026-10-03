@@ -46,6 +46,15 @@ func TestLandlockHandledAccessForABIIncludesVersionedRights(t *testing.T) {
 	}
 }
 
+func TestWritableLandlockRequiresTruncateABI(t *testing.T) {
+	for _, abi := range []int{0, 1, 2, 3, 5} {
+		sb := NewLandlockSandbox(ShellSandboxConfig{}, Capabilities{LandlockABI: abi}, t.TempDir(), testLogger())
+		if got := sb.Available(); got != (abi >= 3) {
+			t.Fatalf("Landlock ABI %d available = %v", abi, got)
+		}
+	}
+}
+
 func TestLandlockPrepareCommandBlocksWhenSelfExecutableUnavailable(t *testing.T) {
 	old := executablePath
 	executablePath = func() (string, error) { return "", errors.New("boom") }

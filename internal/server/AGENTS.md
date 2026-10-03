@@ -64,6 +64,8 @@ Server-owned HTTP and cross-component integration contracts.
 - Verify with `go test ./internal/server -run TestNewspaper` and the Newspaper browser test. Core state contracts live in `internal/newspaper/AGENTS.md`.
 
 ### Ingress Security and Browser Lab
+- `PUT /api/ui-language` requires an authenticated admin session, accepts only supported locales and saves through the config serialization lock. Login/setup language selection is a local preview until authentication. Public security status returns only setup/lockdown necessities; repeated lockdown status reads must not touch Vault or log each request.
+- Normalize provider, OAuth and runtime config completely before publishing a new auth/setup configuration snapshot. A failed normalization or persistence step must leave the previous live snapshot in place.
 - Browser sessions retain the configured initial `auth.session_timeout_hours`.
   Same-origin POST `/api/auth/activity` requires a still-valid signed cookie and
   extends its remaining lifetime to at least ten minutes. Never shorten a longer

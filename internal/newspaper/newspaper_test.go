@@ -2,12 +2,58 @@ package newspaper
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestSchedulerMigrationBacksUpLegacyCopy(t *testing.T) {
+	root := t.TempDir()
+	legacy := filepath.Join(root, "legacy.db")
+	store, err := Open(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`DROP TABLE newspaper_scheduler_attempts; PRAGMA user_version=1`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copyPath := filepath.Join(root, "migration-copy.db")
+	if err := os.WriteFile(copyPath, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	migrated, err := Open(copyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer migrated.Close()
+	backups, err := filepath.Glob(copyPath + ".pre-v2-*.db")
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("migration backups = %v, %v", backups, err)
+	}
+	for path, want := range map[string]int{legacy: 1, backups[0]: 1, copyPath: 2} {
+		db, err := sql.Open("sqlite", path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var version int
+		err = db.QueryRow("PRAGMA user_version").Scan(&version)
+		_ = db.Close()
+		if err != nil || version != want {
+			t.Fatalf("%s version = %d, %v; want %d", path, version, err, want)
+		}
+	}
+}
 
 func testDraft(now time.Time) Draft {
 	quote := "The city council approved a new public library on Tuesday."
@@ -139,7 +185,7 @@ func TestStoreRevisionPublicationAndDeliveryIdempotency(t *testing.T) {
 	}
 }
 
-func TestFailedRunCanBeRetriedManuallyWithoutScheduledReplay(t *testing.T) {
+func TestFailedManualRunDoesNotBlockOneScheduledAttempt(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 9, 25, 6, 30, 0, 0, time.UTC)
 	s, err := New(Options{
@@ -177,11 +223,34 @@ func TestFailedRunCanBeRetriedManuallyWithoutScheduledReplay(t *testing.T) {
 	}
 	s.tick()
 	latest, err := s.LatestRun(ctx)
-	if err != nil || latest.ID != first.ID || latest.Revision != 1 {
-		t.Fatalf("daily scheduler replayed failed run: %+v, %v", latest, err)
+	if err != nil || latest.ID == first.ID || latest.Revision != 2 {
+		t.Fatalf("daily scheduler did not start after failed manual run: %+v, %v", latest, err)
 	}
-	retry, err := s.Start(ctx, false)
-	if err != nil || retry.Revision != 2 || retry.ID == first.ID {
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		latest, err = s.LatestRun(ctx)
+		if err == nil && latest.Status == "failed" {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if latest.Status != "failed" {
+		t.Fatalf("scheduled run did not finish: %+v, %v", latest, err)
+	}
+	s.tick()
+	afterTick, err := s.LatestRun(ctx)
+	if err != nil || afterTick.ID != latest.ID {
+		t.Fatalf("daily scheduler repeated its attempt: %+v, %v", afterTick, err)
+	}
+	var retry Run
+	for time.Now().Before(deadline) {
+		retry, err = s.Start(ctx, false)
+		if err != ErrBusy {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil || retry.Revision != 3 || retry.ID == first.ID {
 		t.Fatalf("manual retry: %+v, %v", retry, err)
 	}
 	previous, err := s.Run(ctx, first.ID)
