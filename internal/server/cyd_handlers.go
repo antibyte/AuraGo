@@ -75,12 +75,11 @@ func (s *Server) ensureCydHub() *cyd.Hub {
 	return s.CydHub
 }
 
+// cydBearerToken returns everything after the Bearer scheme. CYD codes may be
+// sent grouped ("K7M 2PQ 9XH"); NormalizeAPIToken strips the grouping later.
 func cydBearerToken(r *http.Request) string {
-	auth := strings.TrimSpace(r.Header.Get("Authorization"))
-	if len(auth) >= 7 && strings.EqualFold(auth[:7], "Bearer ") {
-		return strings.TrimSpace(auth[7:])
-	}
-	return ""
+	rest, _ := bearerScheme(r.Header.Get("Authorization"))
+	return rest
 }
 
 // authenticateCYD validates the device token without recording its use.

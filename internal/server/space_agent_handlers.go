@@ -130,9 +130,8 @@ func handleSpaceAgentBridgeMessages(s *Server) http.HandlerFunc {
 			return
 		}
 		token := strings.TrimSpace(cfg.SpaceAgent.BridgeToken)
-		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-		expectedAuth := "Bearer " + token
-		if token == "" || subtle.ConstantTimeCompare([]byte(authHeader), []byte(expectedAuth)) != 1 {
+		presented, isBearer := bearerCredential(r.Header.Get("Authorization"))
+		if token == "" || !isBearer || subtle.ConstantTimeCompare([]byte(presented), []byte(token)) != 1 {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

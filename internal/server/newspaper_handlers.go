@@ -43,7 +43,7 @@ func newspaperOriginOK(r *http.Request) bool {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		return true
 	}
-	if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+	if _, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
 		return true
 	}
 	return checkCSRFOriginWithPolicy(r, true)

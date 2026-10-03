@@ -27,8 +27,17 @@ func resolveToManifestName(s *Server, rawID string) string {
 // ── Daemon Skills API Handlers ──────────────────────────────────────────────
 // Provides REST endpoints for the Web UI to manage long-running daemon skills.
 
-// isDaemonAuthOK returns true if auth is disabled or the request is authenticated.
+// isDaemonAuthOK mirrors requireAdmin: a Bearer token must carry admin scope
+// (no cookie fallback); otherwise auth must be disabled or the request must
+// carry a valid browser session.
 func isDaemonAuthOK(s *Server, r *http.Request) bool {
+	if rawToken, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
+		if rawToken == "" || s.TokenManager == nil {
+			return false
+		}
+		_, ok := s.TokenManager.Validate(rawToken, "admin")
+		return ok
+	}
 	s.CfgMu.RLock()
 	enabled := s.Cfg.Auth.Enabled
 	secret := s.Cfg.Auth.SessionSecret

@@ -43,9 +43,7 @@ func registerGo2RTCRoutes(mux *http.ServeMux, s *Server) {
 
 func requireGo2RTCView(s *Server, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		if rawToken, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
 			if rawToken != "" && s != nil && s.TokenManager != nil {
 				if _, ok := s.TokenManager.Validate(rawToken, go2RTCViewScope); ok {
 					next(w, r)
@@ -502,10 +500,8 @@ func go2RTCProxyNeedsAdmin(path string) bool {
 }
 
 func go2RTCRequestIsAdmin(s *Server, r *http.Request) bool {
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if strings.HasPrefix(authHeader, "Bearer ") {
-		token := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
-		if s != nil && s.TokenManager != nil {
+	if token, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
+		if token != "" && s != nil && s.TokenManager != nil {
 			_, ok := s.TokenManager.Validate(token, "admin")
 			return ok
 		}

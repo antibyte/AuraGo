@@ -105,11 +105,7 @@ func desktopRemoteBearerToken(r *http.Request) (string, bool) {
 	if r == nil {
 		return "", false
 	}
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return "", false
-	}
-	return strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer ")), true
+	return bearerCredential(r.Header.Get("Authorization"))
 }
 
 func desktopRemoteTokenAllowsDevice(s *Server, rawToken string, device inventory.DeviceRecord) bool {
@@ -208,9 +204,8 @@ func desktopRequestSessionHash(r *http.Request) string {
 		material = cookie.Value
 	}
 	if material == "" {
-		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			material = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		if rawToken, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
+			material = rawToken
 		}
 	}
 	if material == "" {

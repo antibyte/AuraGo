@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strings"
 )
 
 func registerLocalMusicRoutes(mux *http.ServeMux, s *Server) {
@@ -31,7 +30,7 @@ func handleLocalMusic(s *Server, route string) http.HandlerFunc {
 			return
 		}
 		if route != "status" {
-			if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") && !checkCSRFOrigin(r) {
+			if _, isBearer := bearerCredential(r.Header.Get("Authorization")); !isBearer && !checkCSRFOrigin(r) {
 				jsonError(w, "csrf_check_failed", http.StatusForbidden)
 				return
 			}

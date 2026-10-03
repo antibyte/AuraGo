@@ -425,9 +425,7 @@ func requireAdminUnlessGET(s *Server, next http.Handler) http.Handler {
 // built-in admin identity; API Bearer tokens must explicitly carry admin scope.
 func requireAdmin(s *Server, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		if rawToken, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
 			if rawToken != "" && s != nil && s.TokenManager != nil {
 				if _, ok := s.TokenManager.Validate(rawToken, "admin"); ok {
 					next.ServeHTTP(w, r)
@@ -1029,15 +1027,36 @@ func checkCSRFOriginWithPolicy(r *http.Request, requireOriginHeader bool) bool {
 	return requestOriginMatches(r, originHeader)
 }
 
-func bearerCredential(header string) (string, bool) {
-	fields := strings.Fields(strings.TrimSpace(header))
-	if len(fields) == 0 || !strings.EqualFold(fields[0], "Bearer") {
+// bearerScheme reports whether header uses the HTTP Bearer scheme. The scheme
+// name is case-insensitive (RFC 7235) and must be followed by a space, a tab or
+// nothing; rest is the trimmed remainder after the scheme name.
+func bearerScheme(header string) (rest string, ok bool) {
+	const scheme = "Bearer"
+	header = strings.TrimSpace(header)
+	if len(header) < len(scheme) || !strings.EqualFold(header[:len(scheme)], scheme) {
 		return "", false
 	}
-	if len(fields) != 2 {
+	remainder := header[len(scheme):]
+	if remainder != "" && remainder[0] != ' ' && remainder[0] != '\t' {
+		return "", false
+	}
+	return strings.TrimSpace(remainder), true
+}
+
+// bearerCredential returns the single Bearer credential. present is true for
+// every Bearer header; a missing or multi-part credential yields "". Every
+// Authorization: Bearer check in this package goes through this function or
+// bearerScheme.
+func bearerCredential(header string) (string, bool) {
+	rest, ok := bearerScheme(header)
+	if !ok {
+		return "", false
+	}
+	fields := strings.Fields(rest)
+	if len(fields) != 1 {
 		return "", true
 	}
-	return fields[1], true
+	return fields[0], true
 }
 
 func validRouteBearer(s *Server, token, path, method string) bool {

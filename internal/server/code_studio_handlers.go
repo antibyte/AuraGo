@@ -922,9 +922,8 @@ func (h codeStudioHandlers) isAuthenticated(r *http.Request) bool {
 	if h.server == nil || h.server.Cfg == nil {
 		return false
 	}
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if strings.HasPrefix(authHeader, "Bearer ") {
-		return desktopTokenHasScope(h.server, strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer ")), desktopScopeWrite)
+	if rawToken, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
+		return rawToken != "" && desktopTokenHasScope(h.server, rawToken, desktopScopeWrite)
 	}
 	h.server.CfgMu.RLock()
 	enabled := h.server.Cfg.Auth.Enabled

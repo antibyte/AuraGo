@@ -1813,7 +1813,7 @@ func virtualComputersActor(r *http.Request) string {
 	if r == nil {
 		return "server"
 	}
-	if strings.HasPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ") {
+	if _, isBearer := bearerCredential(r.Header.Get("Authorization")); isBearer {
 		return "desktop_token"
 	}
 	return "ui"
