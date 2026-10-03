@@ -2,11 +2,17 @@ package bluetooth
 
 import (
 	"context"
+	"errors"
 	"io"
+	"log/slog"
 	"strconv"
 	"sync"
 	"time"
 )
+
+// errHeadsetNotInPipeWire marks the short gap between a BlueZ connection and
+// PipeWire creating the device; activation waits instead of failing.
+var errHeadsetNotInPipeWire = errors.New("PipeWire does not know the headset yet")
 
 const (
 	// HeadsetReady means the headset is in an HFP profile and records.
@@ -43,6 +49,7 @@ type headsetLinkConfig struct {
 	lookup        func(context.Context) (Device, bool)
 	changes       <-chan Change
 	release       func()
+	logger        *slog.Logger
 	pollInterval  time.Duration
 	readyTimeout  time.Duration
 	retryInterval time.Duration
@@ -81,6 +88,9 @@ func startHeadsetLink(parent context.Context, cfg headsetLinkConfig) *HeadsetLin
 	}
 	if cfg.retryInterval <= 0 {
 		cfg.retryInterval = headsetRetryInterval
+	}
+	if cfg.logger == nil {
+		cfg.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	ctx, cancel := context.WithCancel(parent)
 	link := &HeadsetLink{
@@ -163,16 +173,22 @@ func (l *HeadsetLink) reconcile() {
 	if err := l.activate(); err != nil {
 		l.deactivate()
 		l.announce(HeadsetLost)
-		if ErrorCode(err) == ErrorHeadsetProfileUnavailable {
-			l.announceError(ErrorHeadsetProfileUnavailable)
+		if l.ctx.Err() != nil {
+			return
 		}
+		code := ErrorCode(err)
+		if code != ErrorHeadsetProfileUnavailable {
+			code = ErrorHeadsetAudioUnavailable
+		}
+		l.announceError(code, err)
 		return
 	}
 	l.announce(HeadsetReady)
 }
 
 func (l *HeadsetLink) activate() error {
-	graph, err := l.graph(l.ctx)
+	deadline := time.Now().Add(l.cfg.readyTimeout)
+	graph, err := l.awaitGraph(deadline, func(headsetGraph) bool { return true })
 	if err != nil {
 		return err
 	}
@@ -190,19 +206,11 @@ func (l *HeadsetLink) activate() error {
 			return codedError(ErrorHeadsetProfileUnavailable, "The headset did not switch to its microphone profile.", err)
 		}
 	}
-	deadline := time.Now().Add(l.cfg.readyTimeout)
-	for !isHeadsetProfile(graph.Current.Name) || graph.Source == "" || graph.Sink == "" {
-		if time.Now().After(deadline) {
-			return codedError(ErrorHeadsetAudioUnavailable, "The headset microphone did not appear in PipeWire.", nil)
-		}
-		select {
-		case <-l.ctx.Done():
-			return l.ctx.Err()
-		case <-time.After(l.cfg.pollInterval):
-		}
-		if graph, err = l.graph(l.ctx); err != nil {
-			return err
-		}
+	graph, err = l.awaitGraph(deadline, func(g headsetGraph) bool {
+		return isHeadsetProfile(g.Current.Name) && g.Source != "" && g.Sink != ""
+	})
+	if err != nil {
+		return err
 	}
 	recorder, err := l.cfg.runner.Pipe(l.ctx, "pw-record", "--target", graph.Source,
 		"--rate", strconv.Itoa(HeadsetInputRate), "--channels", "1", "--format", "s16", "-")
@@ -215,7 +223,34 @@ func (l *HeadsetLink) activate() error {
 	l.sink = graph.Sink
 	l.mu.Unlock()
 	go l.readMicrophone(recorder)
+	l.cfg.logger.Info("[Bluetooth] Live Speech headset ready", "address", l.cfg.address,
+		"profile", graph.Current.Name, "source", graph.Source, "sink", graph.Sink)
 	return nil
+}
+
+// awaitGraph polls PipeWire until ready accepts the headset's graph or the
+// deadline passes. A device PipeWire does not know yet is waited for.
+func (l *HeadsetLink) awaitGraph(deadline time.Time, ready func(headsetGraph) bool) (headsetGraph, error) {
+	for {
+		graph, err := l.graph(l.ctx)
+		if err == nil && ready(graph) {
+			return graph, nil
+		}
+		if err != nil && !errors.Is(err, errHeadsetNotInPipeWire) {
+			return headsetGraph{}, err
+		}
+		if time.Now().After(deadline) {
+			if err != nil {
+				return headsetGraph{}, err
+			}
+			return headsetGraph{}, codedError(ErrorHeadsetAudioUnavailable, "The headset microphone did not appear in PipeWire.", nil)
+		}
+		select {
+		case <-l.ctx.Done():
+			return headsetGraph{}, l.ctx.Err()
+		case <-time.After(l.cfg.pollInterval):
+		}
+	}
 }
 
 func (l *HeadsetLink) graph(ctx context.Context) (headsetGraph, error) {
@@ -228,7 +263,7 @@ func (l *HeadsetLink) graph(ctx context.Context) (headsetGraph, error) {
 		return headsetGraph{}, codedError(ErrorHeadsetAudioUnavailable, "PipeWire returned unreadable data.", err)
 	}
 	if !found {
-		return headsetGraph{}, codedError(ErrorHeadsetAudioUnavailable, "PipeWire does not know the headset yet.", nil)
+		return headsetGraph{}, codedError(ErrorHeadsetAudioUnavailable, "PipeWire does not know the headset yet.", errHeadsetNotInPipeWire)
 	}
 	return graph, nil
 }
@@ -303,12 +338,15 @@ func (l *HeadsetLink) announce(kind string) {
 	}
 }
 
-func (l *HeadsetLink) announceError(code string) {
+// announceError reports a failure once per connection and logs its cause, so
+// a headset that never becomes ready is visible in the panel and server log.
+func (l *HeadsetLink) announceError(code string, cause error) {
 	l.mu.Lock()
 	changed := l.errorSent != code
 	l.errorSent = code
 	l.mu.Unlock()
 	if changed {
+		l.cfg.logger.Warn("[Bluetooth] Live Speech headset not ready", "address", l.cfg.address, "code", code, "error", cause)
 		l.emit(HeadsetEvent{Type: HeadsetError, Code: code})
 	}
 }

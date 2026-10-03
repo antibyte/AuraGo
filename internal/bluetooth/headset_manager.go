@@ -74,6 +74,7 @@ func (m *Manager) OpenHeadset(ctx context.Context, address string) (*HeadsetLink
 		lookup:  func(ctx context.Context) (Device, bool) { return m.headsetDevice(ctx, normalized) },
 		changes: changes,
 		release: release,
+		logger:  m.logger,
 	}), nil
 }
 

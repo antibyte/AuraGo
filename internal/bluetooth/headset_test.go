@@ -630,3 +630,32 @@ func TestHeadsetLinkUsesPipeWire16LoopbackNodes(t *testing.T) {
 		t.Fatalf("A2DP not restored: %v", runner.callLog())
 	}
 }
+
+func TestHeadsetLinkReportsMissingAudioNodesOnce(t *testing.T) {
+	runner := newFakeHeadsetRunner("a2dp-sink")
+	// The profile never changes, so the HFP microphone never appears.
+	runner.dump = func(string) []byte { return headsetDump("a2dp-sink") }
+	link := startTestHeadsetLink(t, runner, connectedHeadset, nil)
+	expectHeadsetEvent(t, link, HeadsetLost, "")
+	expectHeadsetEvent(t, link, HeadsetError, ErrorHeadsetAudioUnavailable)
+	select {
+	case event := <-link.Events():
+		t.Fatalf("repeated event %+v while nothing changed", event)
+	case <-time.After(700 * time.Millisecond):
+	}
+}
+
+func TestHeadsetLinkWaitsUntilPipeWireKnowsTheHeadset(t *testing.T) {
+	runner := newFakeHeadsetRunner("headset-head-unit")
+	var known atomic.Bool
+	runner.dump = func(profile string) []byte {
+		if !known.Load() {
+			return []byte("[]")
+		}
+		return headsetDump(profile)
+	}
+	link := startTestHeadsetLink(t, runner, connectedHeadset, nil)
+	time.AfterFunc(100*time.Millisecond, func() { known.Store(true) })
+	// A device BlueZ connected before PipeWire created it is not an error.
+	expectHeadsetEvent(t, link, HeadsetReady, "")
+}
