@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -16,6 +17,18 @@ import (
 )
 
 type panicVectorDB struct{}
+
+// newSetupTestVault returns a throwaway vault. Production always runs with a
+// vault (startup exits without one), and patchAuthConfig refuses to drop the
+// admin password hash when no vault is available.
+func newSetupTestVault(t *testing.T) *security.Vault {
+	t.Helper()
+	v, err := security.NewVault(strings.Repeat("c", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	return v
+}
 
 func addSetupCSRFTokenForTest(s *Server, token string) {
 	s.SetupCSRFMu.Lock()
@@ -638,6 +651,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 	s := &Server{
 		Cfg:    &config.Config{ConfigPath: configPath},
 		Logger: slog.Default(),
+		Vault:  newSetupTestVault(t),
 	}
 	s.Cfg.Server.UILanguage = "de"
 	s.Cfg.Auth.Enabled = true
@@ -791,6 +805,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstTemplateConfig(t *testing
 	s := &Server{
 		Cfg:    &config.Config{ConfigPath: configPath},
 		Logger: slog.Default(),
+		Vault:  newSetupTestVault(t),
 	}
 	s.Cfg.Server.UILanguage = "de"
 	s.Cfg.Auth.Enabled = true
@@ -851,6 +866,7 @@ func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) 
 		Cfg:         &config.Config{ConfigPath: configPath},
 		Logger:      slog.Default(),
 		LongTermMem: panicVectorDB{},
+		Vault:       newSetupTestVault(t),
 	}
 	s.Cfg.Server.UILanguage = "de"
 	s.Cfg.Auth.Enabled = true

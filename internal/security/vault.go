@@ -380,6 +380,56 @@ func (v *Vault) DeleteAgentSecret(key string) error {
 	return v.deleteSecret(key, true)
 }
 
+// WriteSecrets stores several user/system secrets and removes others in one
+// encrypted publication: either every change is persisted or none is.
+// Written keys are not agent-readable. Reserved metadata keys are rejected
+// before anything is written.
+func (v *Vault) WriteSecrets(set map[string]string, remove []string) error {
+	if len(set) == 0 && len(remove) == 0 {
+		return nil
+	}
+	for key := range set {
+		if isReservedVaultMetadataKey(key) {
+			return ErrReservedVaultKey
+		}
+	}
+	for _, key := range remove {
+		if isReservedVaultMetadataKey(key) {
+			return ErrReservedVaultKey
+		}
+	}
+
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	// Double-check: mutex guards this goroutine; flock guards other processes.
+	if err := v.fileLock.Lock(); err != nil {
+		return fmt.Errorf("failed to acquire vault file lock: %w", err)
+	}
+	defer v.fileLock.Unlock()
+
+	secrets, err := v.loadAndDecrypt()
+	if err != nil {
+		return err
+	}
+	readable, err := v.loadAgentReadableKeys(secrets)
+	if err != nil {
+		return err
+	}
+	for key, value := range set {
+		secrets[key] = value
+		delete(readable, key)
+	}
+	for _, key := range remove {
+		delete(secrets, key)
+		delete(readable, key)
+	}
+	if err := v.storeAgentReadableKeys(secrets, readable); err != nil {
+		return err
+	}
+	return v.encryptAndSave(secrets)
+}
+
 func (v *Vault) deleteSecret(key string, agentOnly bool) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()

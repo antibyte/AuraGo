@@ -66,6 +66,7 @@ Server-owned HTTP and cross-component integration contracts.
 ### Ingress Security and Browser Lab
 - `PUT /api/ui-language` requires an authenticated admin session, accepts only supported locales and saves through the config serialization lock. Login/setup language selection is a local preview until authentication. Public security status returns only setup/lockdown necessities; repeated lockdown status reads must not touch Vault or log each request.
 - Normalize provider, OAuth and runtime config completely before publishing a new auth/setup configuration snapshot. A failed normalization or persistence step must leave the previous live snapshot in place.
+- `patchAuthConfig` callers hold `CfgSaveMu` (setup already does; the function never locks it). It stages `config.yaml`, then writes all auth Vault keys in one `Vault.WriteSecrets` batch, loads the candidate snapshot, and on any failure restores the previous YAML bytes and Vault values without publishing. Vault fields without a Vault are an error, never silently dropped. Verify `TestPatchAuthConfig*` and `TestVaultWriteSecrets*`.
 - Browser sessions retain the configured initial `auth.session_timeout_hours`.
   Same-origin POST `/api/auth/activity` requires a still-valid signed cookie and
   extends its remaining lifetime to at least ten minutes. Never shorten a longer

@@ -3,7 +3,9 @@ package server
 import (
 	"aurago/internal/config"
 	"aurago/internal/i18n"
+	"aurago/internal/security"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -389,11 +391,14 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Patch config file
-		if err := patchAuthConfig(s, map[string]interface{}{
+		// Patch config file under the config serialization lock.
+		s.CfgSaveMu.Lock()
+		patchErr := patchAuthConfig(s, map[string]interface{}{
 			"password_hash":  newHash,
 			"session_secret": newSecret,
-		}); err != nil {
+		})
+		s.CfgSaveMu.Unlock()
+		if err := patchErr; err != nil {
 			s.Logger.Error("[Auth] Failed to save password", "error", err)
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
 			return
@@ -478,11 +483,14 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Activate TOTP
-		if err := patchAuthConfig(s, map[string]interface{}{
+		// Activate TOTP under the config serialization lock.
+		s.CfgSaveMu.Lock()
+		patchErr := patchAuthConfig(s, map[string]interface{}{
 			"totp_secret":  req.Secret,
 			"totp_enabled": true,
-		}); err != nil {
+		})
+		s.CfgSaveMu.Unlock()
+		if err := patchErr; err != nil {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_totp_config"), http.StatusInternalServerError)
 			return
 		}
@@ -525,10 +533,13 @@ func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if err := patchAuthConfig(s, map[string]interface{}{
+		s.CfgSaveMu.Lock()
+		patchErr := patchAuthConfig(s, map[string]interface{}{
 			"totp_secret":  "",
 			"totp_enabled": false,
-		}); err != nil {
+		})
+		s.CfgSaveMu.Unlock()
+		if err := patchErr; err != nil {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
 			return
 		}
@@ -569,36 +580,43 @@ var vaultAuthKeys = map[string]string{
 	"totp_secret":    "auth_totp_secret",
 }
 
-// patchAuthConfig writes the given key-value pairs for the "auth" config section.
-// Vault-only fields (password_hash, session_secret, totp_secret) are stored in the
-// encrypted vault; remaining fields go into config.yaml. Both paths hot-reload the
-// running config so the change takes effect immediately without a restart.
+// patchAuthConfig persists auth fields and publishes a fresh config snapshot.
+// Vault-only fields (password_hash, session_secret, totp_secret) are written to
+// the encrypted vault in one batch; the remaining fields go into config.yaml.
+//
+// Callers must hold s.CfgSaveMu (the config serialization lock);
+// handleSetupSave already does, so this function never locks it itself.
+// config.yaml is written first, then the vault batch, then the candidate
+// snapshot is loaded. Any failure restores the previous config.yaml bytes and
+// vault values and leaves the live snapshot untouched.
 func patchAuthConfig(s *Server, fields map[string]interface{}) error {
+	s.CfgMu.RLock()
 	configPath := s.Cfg.ConfigPath
+	s.CfgMu.RUnlock()
+	if configPath == "" {
+		return errors.New("config path not set")
+	}
 
 	// Split vault-only fields from regular YAML-persisted fields.
 	vaultUpdates := map[string]string{}
 	yamlFields := map[string]interface{}{}
 	for k, v := range fields {
 		if vaultKey, isVault := vaultAuthKeys[k]; isVault {
-			if str, ok := v.(string); ok {
-				vaultUpdates[vaultKey] = str
+			str, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("auth field %q must be a string", k)
 			}
+			vaultUpdates[vaultKey] = str
 		} else {
 			yamlFields[k] = v
 		}
 	}
-
-	// Write sensitive fields to the vault.
-	if s.Vault != nil {
-		for vaultKey, val := range vaultUpdates {
-			if err := s.Vault.WriteSecret(vaultKey, val); err != nil {
-				return fmt.Errorf("writing %q to vault: %w", vaultKey, err)
-			}
-		}
+	if len(vaultUpdates) > 0 && s.Vault == nil {
+		return errors.New("vault unavailable: auth secrets cannot be stored")
 	}
 
-	// Write non-vault fields to config.yaml (skip file I/O when there is nothing to persist).
+	// Stage config.yaml in memory before anything is written.
+	var originalYAML, updatedYAML []byte
 	if len(yamlFields) > 0 {
 		data, err := os.ReadFile(configPath)
 		if err != nil {
@@ -622,27 +640,72 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
-		if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
-			return err
+		originalYAML, updatedYAML = data, out
+	}
+
+	// Remember the current vault values so a later failure can restore them.
+	previousVault := map[string]string{}
+	var absentVault []string
+	for vaultKey := range vaultUpdates {
+		value, err := s.Vault.ReadSecret(vaultKey)
+		switch {
+		case err == nil:
+			previousVault[vaultKey] = value
+		case errors.Is(err, security.ErrSecretNotFound):
+			absentVault = append(absentVault, vaultKey)
+		default:
+			return fmt.Errorf("reading %q from vault: %w", vaultKey, err)
 		}
 	}
 
-	// Hot-reload: re-read config.yaml and re-apply vault secrets so that all
-	// vault-only fields (including the ones just written above) are populated.
-	s.CfgMu.Lock()
-	newCfg, loadErr := config.Load(configPath)
-	if loadErr == nil {
-		newCfg.ApplyVaultSecrets(s.Vault)
-		newCfg.ResolveProviders()
-		if s.Vault != nil {
-			newCfg.ApplyOAuthTokens(s.Vault)
+	restoreYAML := func() {
+		if originalYAML == nil {
+			return
 		}
-		newCfg.Runtime = s.Cfg.Runtime
-		newCfg.ConfigPath = configPath
-		s.replaceConfigSnapshot(newCfg)
+		if err := config.WriteFileAtomic(configPath, originalYAML, 0o600); err != nil && s.Logger != nil {
+			s.Logger.Error("[Auth] Failed to restore config.yaml after a failed auth update", "error", err)
+		}
 	}
+	restoreVault := func() {
+		if len(vaultUpdates) == 0 {
+			return
+		}
+		if err := s.Vault.WriteSecrets(previousVault, absentVault); err != nil && s.Logger != nil {
+			s.Logger.Error("[Auth] Failed to restore auth vault secrets after a failed auth update", "error", err)
+		}
+	}
+
+	if updatedYAML != nil {
+		if err := config.WriteFileAtomic(configPath, updatedYAML, 0o600); err != nil {
+			return err
+		}
+	}
+	if len(vaultUpdates) > 0 {
+		if err := s.Vault.WriteSecrets(vaultUpdates, nil); err != nil {
+			restoreYAML()
+			return fmt.Errorf("writing auth secrets to vault: %w", err)
+		}
+	}
+
+	// Load and normalize the candidate snapshot before publishing it.
+	newCfg, err := config.Load(configPath)
+	if err != nil {
+		restoreVault()
+		restoreYAML()
+		return err
+	}
+	newCfg.ApplyVaultSecrets(s.Vault)
+	newCfg.ResolveProviders()
+	if s.Vault != nil {
+		newCfg.ApplyOAuthTokens(s.Vault)
+	}
+	newCfg.ConfigPath = configPath
+
+	s.CfgMu.Lock()
+	newCfg.Runtime = s.Cfg.Runtime
+	s.replaceConfigSnapshot(newCfg)
 	s.CfgMu.Unlock()
-	return loadErr
+	return nil
 }
 
 // handleSecurityStatus returns security configuration status (HTTPS, Auth, etc.)
