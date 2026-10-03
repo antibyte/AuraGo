@@ -212,7 +212,8 @@ func (l *HeadsetLink) activate() error {
 	if err != nil {
 		return err
 	}
-	recorder, err := l.cfg.runner.Pipe(l.ctx, "pw-record", "--target", graph.Source,
+	// --raw: without it pw-record/pw-play treat "-" as a sound file (libsndfile).
+	recorder, err := l.cfg.runner.Pipe(l.ctx, "pw-record", "--raw", "--target", graph.Source,
 		"--rate", strconv.Itoa(HeadsetInputRate), "--channels", "1", "--format", "s16", "-")
 	if err != nil {
 		return codedError(ErrorHeadsetAudioUnavailable, "The headset microphone could not be opened.", err)

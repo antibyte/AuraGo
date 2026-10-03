@@ -354,7 +354,7 @@ func TestHeadsetLinkSwitchesToHeadsetProfileAndRestoresIt(t *testing.T) {
 	if !runner.called("wpctl set-profile 71 3") {
 		t.Fatalf("profile switch missing: %v", runner.callLog())
 	}
-	if !runner.called("pw-record --target bluez_input.AA_BB_CC_DD_EE_FF.0 --rate 16000 --channels 1 --format s16 -") {
+	if !runner.called("pw-record --raw --target bluez_input.AA_BB_CC_DD_EE_FF.0 --rate 16000 --channels 1 --format s16 -") {
 		t.Fatalf("recorder missing: %v", runner.callLog())
 	}
 	recorder := runner.pipe(t, "pw-record", 0)
@@ -451,7 +451,7 @@ func TestHeadsetLinkPlaysBrowserAudioPerStream(t *testing.T) {
 	if err := link.Write(0, []byte{1, 2, 3, 4}); err != nil {
 		t.Fatal(err)
 	}
-	if !runner.called("pw-play --target bluez_output.AA_BB_CC_DD_EE_FF.0 --rate 24000 --channels 1 --format s16 -") {
+	if !runner.called("pw-play --raw --target bluez_output.AA_BB_CC_DD_EE_FF.0 --rate 24000 --channels 1 --format s16 -") {
 		t.Fatalf("player missing: %v", runner.callLog())
 	}
 	reply := runner.pipe(t, "pw-play", 0)
@@ -616,13 +616,13 @@ func TestHeadsetLinkUsesPipeWire16LoopbackNodes(t *testing.T) {
 	if !runner.called("wpctl set-profile 62 196865") {
 		t.Fatalf("profile switch missing: %v", runner.callLog())
 	}
-	if !runner.called("pw-record --target bluez_input.AA:BB:CC:DD:EE:FF --rate 16000 --channels 1 --format s16 -") {
+	if !runner.called("pw-record --raw --target bluez_input.AA:BB:CC:DD:EE:FF --rate 16000 --channels 1 --format s16 -") {
 		t.Fatalf("recorder missing: %v", runner.callLog())
 	}
 	if err := link.Write(0, []byte{1, 2}); err != nil {
 		t.Fatal(err)
 	}
-	if !runner.called("pw-play --target bluez_output.AA:BB:CC:DD:EE:FF --rate 24000 --channels 1 --format s16 -") {
+	if !runner.called("pw-play --raw --target bluez_output.AA:BB:CC:DD:EE:FF --rate 24000 --channels 1 --format s16 -") {
 		t.Fatalf("player missing: %v", runner.callLog())
 	}
 	_ = link.Close()

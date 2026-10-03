@@ -92,7 +92,7 @@ func (l *HeadsetLink) Write(stream int, pcm []byte) error {
 	}
 	player := l.players[stream]
 	if player == nil || !player.alive() {
-		process, err := l.cfg.runner.Pipe(l.ctx, "pw-play", "--target", l.sink,
+		process, err := l.cfg.runner.Pipe(l.ctx, "pw-play", "--raw", "--target", l.sink,
 			"--rate", strconv.Itoa(HeadsetOutputRate), "--channels", "1", "--format", "s16", "-")
 		if err != nil {
 			return codedError(ErrorHeadsetAudioUnavailable, "The headset speaker could not be opened.", err)
