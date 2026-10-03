@@ -200,13 +200,14 @@ func TestDesktopCoreFileCreationUsesLocalPathJoinHelper(t *testing.T) {
 			t.Fatalf("%s must use workspaceJoinPath from the desktop core runtime", signature)
 		}
 	}
-	if strings.Contains(source, "joinPath(state.filesPath, 'untitled.txt')") {
+	// renderFiles (the desktop file toolbar) lives in editor-filemenu.js.
+	settings := rawDesktopAssetText(t, "js/desktop/apps/editor-filemenu.js")
+	if strings.Contains(settings, "joinPath(state.filesPath, 'untitled.txt')") {
 		t.Fatal("desktop file toolbar must not reference the file-manager-local joinPath helper")
 	}
-	if !strings.Contains(source, "workspaceJoinPath(state.filesPath, 'untitled.txt')") {
+	if !strings.Contains(settings, "workspaceJoinPath(state.filesPath, 'untitled.txt')") {
 		t.Fatal("desktop file toolbar must use workspaceJoinPath for new file paths")
 	}
-	settings := rawDesktopAssetText(t, "js/desktop/apps/editor-filemenu.js")
 	if strings.Contains(settings, "joinPath(path || state.filesPath, 'untitled.txt')") {
 		t.Fatal("desktop fallback file menu must not reference the file-manager-local joinPath helper")
 	}

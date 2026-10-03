@@ -1,3 +1,74 @@
+    async function renderFiles(id, path) {
+        const host = contentEl(id);
+        if (!host) return;
+        state.filesPath = path || '';
+        if (window.FileManager && typeof window.FileManager.render === 'function') {
+            window.FileManager.render(host, id, state.filesPath, Object.assign(desktopFileDialogContext(), {
+                esc,
+                api,
+                t,
+                fmtBytes,
+                iconMarkup,
+                iconForFile,
+                iconForDirectory,
+                showContextMenu,
+                closeContextMenu,
+                promptDialog,
+                confirmDialog,
+                showNotification: showDesktopNotification,
+                readonly: !!((state.bootstrap || {}).readonly),
+                maxFileSize: Number((((state.bootstrap || {}).workspace || {}).max_file_size) || 0),
+                setWindowMenus,
+                clearWindowMenus,
+                wireContextMenuBoundary,
+                openFile: (entry) => {
+                    if (entry.name && /\.zip$/i.test(entry.name)) return openApp('zipper', { path: entry.path });
+                    if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
+                    if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
+                    if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
+                    if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
+                    if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);
+                    openEditorFile(entry.path);
+                },
+                openMedia: (entry) => openMediaPreview(entry),
+                openApp: (appId, ctx) => openApp(appId, ctx),
+                addFileToChat: (entry) => addFileContextToChat(entry),
+                askAgentAboutFile: (entry) => askAgentAboutFile(entry),
+                refreshDesktop: loadBootstrap,
+                restoreFromTrash: restorePathsFromTrash,
+                emptyTrash,
+                onPathChange: (newPath) => {
+                    state.filesPath = newPath;
+                    const item = state.windows.get(id);
+                    if (item) {
+                        const subtitle = item.element.querySelector('.vd-window-subtitle');
+                        if (subtitle) subtitle.textContent = newPath || t('desktop.workspace_root');
+                    }
+                },
+                directories: (state.bootstrap && state.bootstrap.workspace && state.bootstrap.workspace.directories) || []
+            }));
+            return;
+        }
+        // Fallback: old file browser if FileManager module is not loaded
+        host.innerHTML = `<div class="vd-panel">
+            <div class="vd-toolbar">
+                <button class="vd-tool-button" type="button" data-action="up">${iconMarkup('arrow-up', 'U', 'vd-tool-icon', 15)}<span>${esc(t('desktop.up'))}</span></button>
+                <button class="vd-tool-button" type="button" data-action="new-file">${iconMarkup('file-plus', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.new_file'))}</span></button>
+                <button class="vd-tool-button" type="button" data-action="new-folder">${iconMarkup('folder-plus', '+', 'vd-tool-icon', 15)}<span>${esc(t('desktop.new_folder'))}</span></button>
+                <span class="vd-path">${esc(state.filesPath || t('desktop.workspace_root'))}</span>
+            </div>
+            <div class="vd-file-list">${esc(t('desktop.loading'))}</div>
+        </div>`;
+        host.querySelector('[data-action="up"]').addEventListener('click', () => {
+            const parts = state.filesPath.split('/').filter(Boolean);
+            parts.pop();
+            renderFiles(id, parts.join('/'));
+        });
+        host.querySelector('[data-action="new-file"]').addEventListener('click', () => openApp('editor', { path: workspaceJoinPath(state.filesPath, 'untitled.txt'), content: '' }));
+        host.querySelector('[data-action="new-folder"]').addEventListener('click', () => createFolderInPath(state.filesPath));
+        setFallbackFileMenus(id, state.filesPath);
+        try {
+            const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
             const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}" data-web-path="${esc(file.web_path || '')}" data-media-kind="${esc(file.media_kind || '')}" data-mime-type="${esc(file.mime_type || '')}">
                 ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
@@ -396,15 +467,3 @@
             }
         ]);
     }
-
-    function evaluateProgrammerExpression(expression, base) {
-        const tokens = tokenizeProgrammerExpression(expression, base);
-        return parseProgrammerExpression(tokens);
-    }
-
-    function tokenizeProgrammerExpression(expression, base) {
-        const tokens = [];
-        let index = 0;
-        const isDigit = ch => {
-            if (base === 8) return ch >= '0' && ch <= '7';
-            if (base === 10) return ch >= '0' && ch <= '9';

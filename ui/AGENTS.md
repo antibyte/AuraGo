@@ -441,6 +441,9 @@ worker. Keep packaging, recovery and offline instructions in
   Verify with `TestDesktopLiveWallpapersBrowser`.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
+  Every Desktop main-bundle part starts and ends at a function boundary inside the shell IIFE (only
+  `desktop-foundation.js` opens and `sdk-events-bootstrap.js` closes it); never cut a function across
+  part files to meet the line budget. Verify with `npm run test:ui-regressions`.
 - `ui/css/desktop-polish.css` is the Desktop's finishing layer and stays the
   last part of the shell CSS bundle: it only refines existing surfaces (ambient
   wallpaper light in taskbar, dock, menubar and menus, focus edge light and

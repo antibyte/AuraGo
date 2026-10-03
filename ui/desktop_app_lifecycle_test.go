@@ -126,7 +126,7 @@ func TestDesktopMainBundleKeepsWidgetDrawerOutsideSDKMenuItemSplit(t *testing.T)
 		t.Fatalf("desktop main bundle missing expected split markers: widget=%d menus=%d quickconnect=%d bootstrap=%d", widgetIndex, menusIndex, quickConnectIndex, bootstrapIndex)
 	}
 	if widgetIndex > menusIndex {
-		t.Fatal("widget drawer runtime must load before menus-and-routing because that file starts the renderFiles split")
+		t.Fatal("widget drawer runtime must load before menus-and-routing so its helpers stay in the desktop shell scope")
 	}
 
 	renderFilesBody := jsFunctionBodyInWindowMenuTest(t, bundle, "async function renderFiles")

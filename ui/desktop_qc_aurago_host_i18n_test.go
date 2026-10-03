@@ -10,7 +10,7 @@ import (
 func TestDesktopQcAuragoHostI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	source := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
 	for _, want := range []string{
 		"t('desktop.qc_aurago_host')",
 		"t('desktop.qc_aurago_host_description')",

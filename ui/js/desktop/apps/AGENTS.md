@@ -2202,23 +2202,23 @@ registration lives in `internal/desktop/types.go`.
   `data-nm-create-mode`; the segment buttons carry
   `data-nm-mode="simple|custom"`. Emits `generate, change, mode, play-result,
   show-in-library, new-song`.
-- `editor-filemenu.js` implements file management helpers and the inline text
+- `editor-filemenu.js` implements `renderFiles`, file management helpers and the inline text
   editor with window menus (file, edit, agent, help). Fallback file-list
   empty-state load failures use `desktop.load_failed`. Bundled in the
   main shell bundle (`desktopMainParts` in `build-ui-bundles.js`) because
   it is referenced directly by the desktop foundation runtime.
-- `planning-gallery-music.js` - Planner/todo, gallery, Webamp music, and
-  Quick Connect device list. Bundled in the main shell. The synthetic
-  AuraGo host card uses `desktop.qc_aurago_host` and
-  `desktop.qc_aurago_host_description`. Todo, Gallery, and Quick
-  Connect device-list empty-state load failures use
-  `desktop.load_failed`. Webamp unsupported-browser errors use
+- `planning-gallery-music.js` - Planner/todo, gallery and Webamp music.
+  Bundled in the main shell. Todo and Gallery empty-state load failures
+  use `desktop.load_failed`. Webamp unsupported-browser errors use
   `desktop.winamp_unsupported`; launcher `notifyError` maps the
   English sentinel and reuses `desktop.load_failed` for other
   load failures. Leave the Webamp skin unchanged. No child DOX
   file needed.
-- `quickconnect-launchpad-chat.js` - Store/launchpad, generated-app
-  host, and Quick Connect session chrome. Store terminal-preview load
+- `quickconnect-launchpad-chat.js` - Quick Connect (`renderQuickConnect`
+  device list and session chrome), store/launchpad and generated-app
+  host. The synthetic AuraGo host card uses `desktop.qc_aurago_host` and
+  `desktop.qc_aurago_host_description`; device-list empty-state load
+  failures use `desktop.load_failed`. Store terminal-preview load
   failures use `desktop.store_terminal_load_failed`. Generated-app
   host empty-state, store container-app frame errors, start toasts,
   and external-open notifications use `desktop.load_failed`. Bundled

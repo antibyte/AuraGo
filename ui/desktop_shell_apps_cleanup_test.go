@@ -20,9 +20,9 @@ func TestDesktopCalculatorRegistersWindowCleanup(t *testing.T) {
 func TestDesktopQuickConnectCleanupRemovesModals(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	source := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
 	if !strings.Contains(source, "function renderQuickConnect(id)") {
-		t.Fatal("renderQuickConnect missing in planning-gallery-music fragment")
+		t.Fatal("renderQuickConnect missing in quickconnect-launchpad-chat fragment")
 	}
 	for _, want := range []string{
 		"registerWindowCleanup(id, () =>",
@@ -54,7 +54,7 @@ func TestDesktopLaunchpadCleanupRemovesModals(t *testing.T) {
 func TestDesktopQuickConnectSetupBadgeUsesI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
+	source := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
 	if !strings.Contains(source, "desktop.qc_badge_setup") {
 		t.Fatal("quick connect must use desktop.qc_badge_setup for template badge")
 	}

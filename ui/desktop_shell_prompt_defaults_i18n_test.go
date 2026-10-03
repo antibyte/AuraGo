@@ -14,11 +14,14 @@ func TestDesktopShellPromptDefaultsI18n(t *testing.T) {
 	for _, want := range []string{
 		"promptDialog(t('desktop.new_file'), t('desktop.new_file_default'))",
 		"promptDialog(t('desktop.new_folder'), t('desktop.new_folder'))",
-		"workspaceJoinPath(state.filesPath, 'untitled.txt')",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("shell prompt default i18n missing marker %q", want)
 		}
+	}
+	// The file toolbar (renderFiles) lives in editor-filemenu.js.
+	if files := readDesktopAssetText(t, "js/desktop/apps/editor-filemenu.js"); !strings.Contains(files, "workspaceJoinPath(state.filesPath, 'untitled.txt')") {
+		t.Fatal("shell prompt default i18n missing marker \"workspaceJoinPath(state.filesPath, 'untitled.txt')\"")
 	}
 	for _, forbidden := range []string{
 		"promptDialog(t('desktop.new_file'), 'untitled.txt')",

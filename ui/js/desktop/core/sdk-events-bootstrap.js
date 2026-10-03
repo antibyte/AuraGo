@@ -1,3 +1,5 @@
+    function sdkMenuItems(client, items) {
+        return (Array.isArray(items) ? items : []).map(item => {
             if (!item || item.hidden) return null;
             if (item.type === 'separator' || item.separator) return { type: 'separator' };
             const actionId = item.actionId || (typeof item.action === 'string' ? item.action : '') || item.id || '';

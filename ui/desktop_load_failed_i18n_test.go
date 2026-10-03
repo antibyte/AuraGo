@@ -20,12 +20,11 @@ func TestDesktopLoadFailedI18n(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/planning-gallery-music.js")
 	if strings.Count(source, "t('desktop.load_failed')") < 4 {
-		t.Fatal("todo, gallery, quick connect device list, and webamp notifyError must localize desktop.load_failed")
+		t.Fatal("todo, gallery, and webamp launcher errors must localize desktop.load_failed")
 	}
 	for _, forbidden := range []string{
 		".vd-todo-list').innerHTML = `<div class=\"vd-empty\">${esc(err.message)}</div>`",
 		"grid.innerHTML = `<div class=\"vd-empty\">${esc(err.message)}</div>`",
-		"deviceList.innerHTML = `<div class=\"vd-empty\">${esc(err.message)}</div>`",
 	} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("planning gallery still dumps err.message via %q", forbidden)
@@ -38,6 +37,12 @@ func TestDesktopLoadFailedI18n(t *testing.T) {
 	}
 	if strings.Contains(generated, "host.innerHTML = `<div class=\"vd-empty\">${esc(err.message)}</div>`") {
 		t.Fatal("generated-app host still dumps err.message")
+	}
+	if strings.Contains(generated, "deviceList.innerHTML = `<div class=\"vd-empty\">${esc(err.message)}</div>`") {
+		t.Fatal("quick connect device list still dumps err.message")
+	}
+	if !strings.Contains(generated, "deviceList.innerHTML = `<div class=\"vd-empty\">${esc(t('desktop.load_failed'))}</div>`") {
+		t.Fatal("quick connect device list empty state must localize desktop.load_failed")
 	}
 
 	people := readDesktopAssetText(t, "js/desktop/apps/people.js")

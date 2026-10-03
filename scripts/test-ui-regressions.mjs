@@ -2384,6 +2384,35 @@ async function testDashboardCronjobsIgnoreLateResponses() {
   assert.equal(cardEvents.some(event => event.startsWith('error:')), false, 'a stale failure must not show an error over current data');
 }
 
+function listDesktopMainBundleParts() {
+  const script = read('scripts/build-ui-bundles.js');
+  const start = script.indexOf('const desktopMainParts = [');
+  assert.notEqual(start, -1, 'missing desktopMainParts in scripts/build-ui-bundles.js');
+  const end = script.indexOf('];', start);
+  return [...script.slice(start, end).matchAll(/'(ui\/[^']+\.js)'/g)].map(match => match[1]);
+}
+
+function testDesktopMainBundlePartsEndAtFunctionBoundaries() {
+  const parts = listDesktopMainBundleParts();
+  const opener = 'ui/js/desktop/core/desktop-foundation.js';
+  const closer = 'ui/js/desktop/core/sdk-events-bootstrap.js';
+  assert.equal(parts.includes(opener), true, 'desktop-foundation.js opens the shell IIFE');
+  assert.equal(parts.includes(closer), true, 'sdk-events-bootstrap.js closes the shell IIFE');
+  const failures = [];
+  for (const part of parts) {
+    const source = read(part).replace(/^﻿/, '');
+    const wrapped = part === opener ? `${source}\n})();`
+      : part === closer ? `(function () {\n${source}`
+      : `(function () {\n${source}\n})`;
+    try {
+      new vm.Script(wrapped, { filename: part });
+    } catch (error) {
+      failures.push(`${part}: ${error.message}`);
+    }
+  }
+  assert.deepEqual(failures, [], `desktop main bundle parts must start and end at function boundaries:\n${failures.join('\n')}`);
+}
+
 const tests = [
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
@@ -2429,6 +2458,7 @@ const tests = [
   ['Quick Connect SFTP navigator ignores stale listings', testQuickConnectSFTPNavigatorIgnoresStaleListings],
   ['Dashboard audit search ignores late responses', testDashboardAuditIgnoresLateResponses],
   ['Dashboard cronjob search ignores late responses', testDashboardCronjobsIgnoreLateResponses],
+  ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

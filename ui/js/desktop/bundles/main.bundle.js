@@ -15670,6 +15670,8 @@ if (appId === 'pixel') {
         } catch (err) { renderAppError(id, appId, err); return undefined; }
     }
 
+;
+/* ui/js/desktop/apps/editor-filemenu.js */
     async function renderFiles(id, path) {
         const host = contentEl(id);
         if (!host) return;
@@ -15741,9 +15743,6 @@ if (appId === 'pixel') {
         setFallbackFileMenus(id, state.filesPath);
         try {
             const body = await api('/api/desktop/files?path=' + encodeURIComponent(state.filesPath));
-
-;
-/* ui/js/desktop/apps/editor-filemenu.js */
             const files = body.files || [];
             host.querySelector('.vd-file-list').innerHTML = files.length ? files.map(file => `<div class="vd-file-row" data-type="${esc(file.type)}" data-path="${esc(file.path)}" data-web-path="${esc(file.web_path || '')}" data-media-kind="${esc(file.media_kind || '')}" data-mime-type="${esc(file.mime_type || '')}">
                 ${iconMarkup(iconForFile(file), file.type === 'directory' ? 'D' : file.name, 'vd-sprite-file', 26)}
@@ -16143,204 +16142,8 @@ if (appId === 'pixel') {
         ]);
     }
 
-    function evaluateProgrammerExpression(expression, base) {
-        const tokens = tokenizeProgrammerExpression(expression, base);
-        return parseProgrammerExpression(tokens);
-    }
-
-    function tokenizeProgrammerExpression(expression, base) {
-        const tokens = [];
-        let index = 0;
-        const isDigit = ch => {
-            if (base === 8) return ch >= '0' && ch <= '7';
-            if (base === 10) return ch >= '0' && ch <= '9';
-
 ;
 /* ui/js/desktop/apps/planning-gallery-music.js */
-            if (base === 8) return ch >= '0' && ch <= '7';
-            if (base === 10) return ch >= '0' && ch <= '9';
-            if (base === 16) return /[0-9A-Fa-f]/.test(ch);
-            return false;
-        };
-        while (index < expression.length) {
-            const ch = expression[index];
-            if (ch === ' ' || ch === '\t') { index++; continue; }
-            if (isDigit(ch)) {
-                let value = '';
-                while (index < expression.length && isDigit(expression[index])) {
-                    value += expression[index];
-                    index++;
-                }
-                tokens.push({ type: 'number', value: parseInt(value, base) });
-                continue;
-            }
-            if (ch === 'N' && expression.slice(index, index + 3) === 'NOT') {
-                tokens.push({ type: 'operator', value: 'NOT' });
-                index += 3;
-                continue;
-            }
-            if (ch === 'A' && expression.slice(index, index + 3) === 'AND') {
-                tokens.push({ type: 'operator', value: 'AND' });
-                index += 3;
-                continue;
-            }
-            if (ch === 'O' && expression.slice(index, index + 2) === 'OR') {
-                tokens.push({ type: 'operator', value: 'OR' });
-                index += 2;
-                continue;
-            }
-            if (ch === 'X' && expression.slice(index, index + 3) === 'XOR') {
-                tokens.push({ type: 'operator', value: 'XOR' });
-                index += 3;
-                continue;
-            }
-            if (ch === 'M' && expression.slice(index, index + 3) === 'MOD') {
-                tokens.push({ type: 'operator', value: 'MOD' });
-                index += 3;
-                continue;
-            }
-            if (ch === 'S' && expression.slice(index, index + 3) === 'SHL') {
-                tokens.push({ type: 'operator', value: 'SHL' });
-                index += 3;
-                continue;
-            }
-            if (ch === 'S' && expression.slice(index, index + 3) === 'SHR') {
-                tokens.push({ type: 'operator', value: 'SHR' });
-                index += 3;
-                continue;
-            }
-            if (ch === '<' && expression[index + 1] === '<') {
-                tokens.push({ type: 'operator', value: 'SHL' });
-                index += 2;
-                continue;
-            }
-            if (ch === '>' && expression[index + 1] === '>') {
-                tokens.push({ type: 'operator', value: 'SHR' });
-                index += 2;
-                continue;
-            }
-            if (ch === '&') { tokens.push({ type: 'operator', value: 'AND' }); index++; continue; }
-            if (ch === '|') { tokens.push({ type: 'operator', value: 'OR' }); index++; continue; }
-            if (ch === '^') { tokens.push({ type: 'operator', value: 'XOR' }); index++; continue; }
-            if (ch === '~') { tokens.push({ type: 'operator', value: 'NOT' }); index++; continue; }
-            if (ch === '%') { tokens.push({ type: 'operator', value: 'MOD' }); index++; continue; }
-            if (ch === '+') { tokens.push({ type: 'operator', value: '+' }); index++; continue; }
-            if (ch === '-') { tokens.push({ type: 'operator', value: '-' }); index++; continue; }
-            if (ch === '*' || ch === '×') { tokens.push({ type: 'operator', value: '*' }); index++; continue; }
-            if (ch === '/' || ch === '÷') { tokens.push({ type: 'operator', value: '/' }); index++; continue; }
-            if (ch === '(') { tokens.push({ type: 'lparen', value: '(' }); index++; continue; }
-            if (ch === ')') { tokens.push({ type: 'rparen', value: ')' }); index++; continue; }
-            throw new Error('Invalid expression');
-        }
-        tokens.push({ type: 'eof', value: '' });
-        return tokens;
-    }
-
-    function parseProgrammerExpression(tokens) {
-        let index = 0;
-        const current = () => tokens[index];
-        const consume = () => tokens[index++];
-        const expect = type => {
-            if (current().type !== type) throw new Error('Invalid expression');
-            return consume();
-        };
-
-        const parseExpression = () => parseOrExpression();
-
-        const parseOrExpression = () => {
-            let left = parseXorExpression();
-            while (current().value === 'OR') {
-                consume();
-                left = left | parseXorExpression();
-            }
-            return left;
-        };
-
-        const parseXorExpression = () => {
-            let left = parseAndExpression();
-            while (current().value === 'XOR') {
-                consume();
-                left = left ^ parseAndExpression();
-            }
-            return left;
-        };
-
-        const parseAndExpression = () => {
-            let left = parseShiftExpression();
-            while (current().value === 'AND') {
-                consume();
-                left = left & parseShiftExpression();
-            }
-            return left;
-        };
-
-        const parseShiftExpression = () => {
-            let left = parseAdditiveExpression();
-            while (['SHL', 'SHR'].includes(current().value)) {
-                const op = consume().value;
-                const right = parseAdditiveExpression();
-                left = op === 'SHL' ? left << right : left >> right;
-            }
-            return left;
-        };
-
-        const parseAdditiveExpression = () => {
-            let left = parseMultiplicativeExpression();
-            while (['+', '-'].includes(current().value)) {
-                const op = consume().value;
-                const right = parseMultiplicativeExpression();
-                left = op === '+' ? left + right : left - right;
-            }
-            return left;
-        };
-
-        const parseMultiplicativeExpression = () => {
-            let left = parseUnaryExpression();
-            while (['*', '/', 'MOD'].includes(current().value)) {
-                const op = consume().value;
-                const right = parseUnaryExpression();
-                rejectZeroDivisor(op, right);
-                if (op === '*') left = left * right;
-                else if (op === '/') {
-                    left = Math.trunc(left / right);
-                } else {
-                    left = left % right;
-                }
-            }
-            return left;
-        };
-
-        const parseUnaryExpression = () => {
-            if (current().value === 'NOT') {
-                consume();
-                return ~parseUnaryExpression();
-            }
-            if (current().value === '-') {
-                consume();
-                return -parseUnaryExpression();
-            }
-            return parsePrimaryExpression();
-        };
-
-        const parsePrimaryExpression = () => {
-            if (current().type === 'number') {
-                return consume().value;
-            }
-            if (current().type === 'lparen') {
-                consume();
-                const value = parseExpression();
-                expect('rparen');
-                return value;
-            }
-            throw new Error('Invalid expression');
-        };
-
-        const result = parseExpression();
-        if (current().type !== 'eof') throw new Error('Invalid expression');
-        if (!Number.isFinite(result) || !Number.isInteger(result)) throw new Error('Invalid expression');
-        return result;
-    }
-
     async function plannerJSON(url, method, payload) {
         return api(url, {
             method: method || 'POST',
@@ -16848,6 +16651,8 @@ if (appId === 'pixel') {
         ]);
     }
 
+;
+/* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
     function renderQuickConnect(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -17050,9 +16855,6 @@ if (appId === 'pixel') {
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
             }
-
-;
-/* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
         }
 
         function showNotify(msg) {
@@ -18488,11 +18290,10 @@ if (appId === 'pixel') {
         }, '*');
     }
 
-    function sdkMenuItems(client, items) {
-        return (Array.isArray(items) ? items : []).map(item => {
-
 ;
 /* ui/js/desktop/core/sdk-events-bootstrap.js */
+    function sdkMenuItems(client, items) {
+        return (Array.isArray(items) ? items : []).map(item => {
             if (!item || item.hidden) return null;
             if (item.type === 'separator' || item.separator) return { type: 'separator' };
             const actionId = item.actionId || (typeof item.action === 'string' ? item.action : '') || item.id || '';
