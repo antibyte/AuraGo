@@ -111,6 +111,71 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	return routed
 }
 
+type legacyOutcomeEnvelope struct {
+	Status   string `json:"status"`
+	Code     string `json:"code"`
+	Success  *bool  `json:"success"`
+	ExitCode *int   `json:"exit_code"`
+}
+
+// firstOutcomeEnvelope decodes the outcome keys of a JSON result envelope using
+// their FIRST occurrence. Handler templates write the outcome first, while
+// encoding/json keeps the last duplicate (matching keys case-insensitively), so
+// a value interpolated into a hand-built template could otherwise append
+// `"status":"ok"` and turn a failure into a success.
+func firstOutcomeEnvelope(value string) (legacyOutcomeEnvelope, bool) {
+	var envelope legacyOutcomeEnvelope
+	if json.Unmarshal([]byte(value), &envelope) != nil {
+		return envelope, false
+	}
+	decoder := json.NewDecoder(strings.NewReader(value))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return envelope, true
+	}
+	seen := make(map[string]bool, 4)
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return envelope, true
+		}
+		key, _ := token.(string)
+		key = strings.ToLower(key)
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			return envelope, true
+		}
+		if seen[key] {
+			continue
+		}
+		switch key {
+		case "status":
+			var first string
+			if json.Unmarshal(raw, &first) == nil {
+				envelope.Status = first
+			}
+		case "code":
+			var first string
+			if json.Unmarshal(raw, &first) == nil {
+				envelope.Code = first
+			}
+		case "success":
+			var first *bool
+			if json.Unmarshal(raw, &first) == nil {
+				envelope.Success = first
+			}
+		case "exit_code":
+			var first *int
+			if json.Unmarshal(raw, &first) == nil {
+				envelope.ExitCode = first
+			}
+		default:
+			continue
+		}
+		seen[key] = true
+	}
+	return envelope, true
+}
+
 // classifyLegacyToolResult is the single adapter for string-returning handlers.
 // Unknown prose is retained, but is not evidence for success-based learning.
 func classifyLegacyToolResult(output string) ToolResultStatus {
@@ -124,13 +189,7 @@ func classifyLegacyToolResult(output string) ToolResultStatus {
 			break
 		}
 	}
-	var envelope struct {
-		Status   string `json:"status"`
-		Code     string `json:"code"`
-		Success  *bool  `json:"success"`
-		ExitCode *int   `json:"exit_code"`
-	}
-	if json.Unmarshal([]byte(value), &envelope) == nil {
+	if envelope, ok := firstOutcomeEnvelope(value); ok {
 		for _, status := range []string{envelope.Code, envelope.Status} {
 			switch strings.ToLower(strings.TrimSpace(status)) {
 			case "policy_denied", "tool_scope_denied", "permission_denied", "denied", "blocked":

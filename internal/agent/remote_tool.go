@@ -85,7 +85,7 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 	case "desktop_browser_disconnect":
 		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserDisconnect, 15*time.Second, false)
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, shell_session_start, shell_session_read, shell_session_input, shell_session_stop, shell_session_list, read_file, write_file, file_patch, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced, desktop_screenshot, desktop_permission_request, desktop_input, desktop_list_displays, desktop_list_windows, desktop_active_window, desktop_host_info, desktop_ui_tree, desktop_ui_action, desktop_browser_connect, desktop_browser_snapshot, desktop_browser_action, desktop_browser_disconnect"}`, tc.Operation)
+		return toolErrorf("Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, shell_session_start, shell_session_read, shell_session_input, shell_session_stop, shell_session_list, read_file, write_file, file_patch, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced, desktop_screenshot, desktop_permission_request, desktop_input, desktop_list_displays, desktop_list_windows, desktop_active_window, desktop_host_info, desktop_ui_tree, desktop_ui_action, desktop_browser_connect, desktop_browser_snapshot, desktop_browser_action, desktop_browser_disconnect", tc.Operation)
 	}
 }
 
@@ -116,7 +116,7 @@ func resolveRemoteDevice(hub *remote.RemoteHub, tc ToolCall) (string, error) {
 func remoteListDevices(hub *remote.RemoteHub, logger *slog.Logger) string {
 	devices, err := remote.ListDevices(hub.DB())
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 
 	type deviceView struct {
@@ -161,12 +161,12 @@ func remoteListDevices(hub *remote.RemoteHub, logger *slog.Logger) string {
 func remoteDeviceStatus(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 
 	device, err := remote.GetDevice(hub.DB(), deviceID)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device not found: %s"}`, deviceID)
+		return toolErrorf("device not found: %s", deviceID)
 	}
 
 	info := map[string]interface{}{
@@ -199,10 +199,10 @@ func remoteDeviceStatus(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 func remoteExecuteCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	command := tc.Command
 	if command == "" {
@@ -219,7 +219,7 @@ func remoteExecuteCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logge
 		},
 	}, 60*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -234,10 +234,10 @@ func remoteExecuteCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logge
 func remoteShellSessionCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	params := nestedRemoteToolParams(tc.Params)
 	operation := strings.TrimSpace(firstNonEmptyToolString(tc.Operation, toolArgString(params, "operation")))
@@ -280,14 +280,14 @@ func remoteShellSessionCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.
 		remoteOp = remote.OpShellSessionList
 		copyRemoteArgIfPresent(args, params, "limit")
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"unsupported shell session operation %q"}`, operation)
+		return toolErrorf("unsupported shell session operation %q", operation)
 	}
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
 		Operation: remoteOp,
 		Args:      args,
 	}, remoteShellSessionTimeout(params))
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	return remoteCommandResultOutput(result, "result")
 }
@@ -363,10 +363,10 @@ func remoteCommandResultOutput(result remote.ResultPayload, resultKey string) st
 func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	params := nestedRemoteToolParams(tc.Params)
 	path := firstNonEmptyToolString(toolArgString(params, "path", "file_path"), tc.Path, tc.FilePath)
@@ -384,10 +384,10 @@ func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if result.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+		return toolErrorJSON(result.Error)
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -401,10 +401,10 @@ func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	path := tc.Path
 	if path == "" {
@@ -415,7 +415,7 @@ func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 		return `Tool Output: {"status":"error","message":"'content' is required for write_file"}`
 	}
 	if err := validateRemoteWriteContentSize(cfg, content); err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 
 	args := map[string]interface{}{
@@ -431,10 +431,10 @@ func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if result.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+		return toolErrorJSON(result.Error)
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -459,14 +459,14 @@ func remoteFilePatch(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 		return `Tool Output: {"status":"error","message":"'patches' is required for file_patch"}`
 	}
 	if err := validateRemotePatchPayloadSize(cfg, patches); err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	dryRun := true
 	if value, ok := toolArgBool(params, "dry_run"); ok {
@@ -486,7 +486,7 @@ func remoteFilePatch(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	return remoteCommandResultOutput(result, "result")
 }
@@ -525,10 +525,10 @@ func validateRemotePatchPayloadSize(cfg *config.Config, patches interface{}) err
 func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	params := nestedRemoteToolParams(tc.Params)
 	path := firstNonEmptyToolString(toolArgString(params, "path", "file_path"), tc.Path, tc.FilePath)
@@ -551,10 +551,10 @@ func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) st
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if result.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+		return toolErrorJSON(result.Error)
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -568,20 +568,20 @@ func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) st
 func remoteSysinfo(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
 		Operation: remote.OpSysinfo,
 	}, 15*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if result.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+		return toolErrorJSON(result.Error)
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -667,7 +667,7 @@ func remoteDesktopJSONCommand(hub *remote.RemoteHub, tc ToolCall, operation stri
 		args["action"] = tc.Action
 	}
 	if requireAction && strings.TrimSpace(toolArgString(args, "action")) == "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"'action' is required for %s"}`, operation)
+		return toolErrorf("'action' is required for %s", operation)
 	}
 	result, err := remoteDesktopCommand(hub, tc, operation, args, timeout)
 	if err != nil {
@@ -800,25 +800,25 @@ func copyRemoteDesktopParams(params map[string]interface{}) map[string]interface
 }
 
 func remoteToolError(message string) string {
-	return `Tool Output: {"status":"error","message":"` + escapeJSONMessage(message) + `"}`
+	return toolErrorJSON(message)
 }
 
 func remoteRevokeDevice(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 
 	if hub.IsConnected(deviceID) {
 		if err := hub.SendRevoke(deviceID); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to revoke device %s: %s"}`, deviceID, err.Error())
+			return toolErrorf("failed to revoke device %s: %s", deviceID, err.Error())
 		}
 	} else if hub.DB() != nil {
 		if err := remote.UpdateDeviceStatus(hub.DB(), deviceID, "revoked"); err != nil {
 			if logger != nil {
 				logger.Warn("Failed to persist revoked device status", "device_id", deviceID, "error", err)
 			}
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to persist revoked status for device %s: %s"}`, deviceID, err.Error())
+			return toolErrorf("failed to persist revoked status for device %s: %s", deviceID, err.Error())
 		}
 	}
 
@@ -832,10 +832,10 @@ func remoteRevokeDevice(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger)
 func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
@@ -874,10 +874,10 @@ func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if result.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+		return toolErrorJSON(result.Error)
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -890,10 +890,10 @@ func remoteEditFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
@@ -920,10 +920,10 @@ func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if result.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+		return toolErrorJSON(result.Error)
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -936,10 +936,10 @@ func remoteJsonEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
@@ -966,10 +966,10 @@ func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if result.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+		return toolErrorJSON(result.Error)
 	}
 
 	data, _ := json.Marshal(map[string]interface{}{
@@ -982,10 +982,10 @@ func remoteYamlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 
 	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
@@ -1015,10 +1015,10 @@ func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if result.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, result.Error)
+		return toolErrorJSON(result.Error)
 	}
 
 	respData, _ := json.Marshal(map[string]interface{}{
@@ -1031,10 +1031,10 @@ func remoteXmlEdit(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) stri
 func remoteFileSearch(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 
 	params := nestedRemoteToolParams(tc.Params)
@@ -1063,10 +1063,10 @@ func remoteFileSearch(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) s
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if cmdResult.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, cmdResult.Error)
+		return toolErrorJSON(cmdResult.Error)
 	}
 
 	respData, _ := json.Marshal(map[string]interface{}{
@@ -1124,10 +1124,10 @@ func isRemoteFileSearchOperation(op string) bool {
 func remoteFileReadAdvanced(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if !hub.IsConnected(deviceID) {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+		return toolErrorf("device %s is not connected", deviceID)
 	}
 	path := firstNonEmptyToolString(toolArgString(tc.Params, "path", "file_path"), tc.Path, tc.FilePath)
 	if path == "" {
@@ -1161,10 +1161,10 @@ func remoteFileReadAdvanced(hub *remote.RemoteHub, tc ToolCall, logger *slog.Log
 		Args:      args,
 	}, 30*time.Second)
 	if err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+		return toolErrorJSON(err.Error())
 	}
 	if cmdResult.Error != "" {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, cmdResult.Error)
+		return toolErrorJSON(cmdResult.Error)
 	}
 
 	respData, _ := json.Marshal(map[string]interface{}{
