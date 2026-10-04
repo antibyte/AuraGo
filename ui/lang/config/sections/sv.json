@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Tillåt radering av arkiv",
+  "config.github.allow_delete_hint": "Avstängt som standard. Radering kräver också åtkomst till arkivet och att skrivskyddet är avstängt.",
+  "config.github.trust_migration_hint": "Äldre behörighet: välj uttryckligen detta arkiv och spara konfigurationen för att godkänna åtkomst.",
   "config.github.agent_badge": "AI-agent",
   "config.github.agent_created_always_allowed": "Skapad av agent - alltid tillåten",
   "config.github.agent_created_note": "Repos som skapats av agenten är alltid tillgängliga – även utan uttryckligt godkännande.",

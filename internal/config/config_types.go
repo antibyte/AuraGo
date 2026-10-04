@@ -1976,6 +1976,7 @@ type Config struct {
 	GitHub struct {
 		Enabled        bool     `yaml:"enabled"`
 		ReadOnly       bool     `yaml:"readonly"`        // true = only list/get/search, block create/delete/update
+		AllowDelete    bool     `yaml:"allow_delete"`    // explicit opt-in for repository deletion
 		Token          string   `yaml:"-" vault:"token"` // Personal Access Token (from vault)
 		Owner          string   `yaml:"owner"`           // GitHub username or organisation
 		DefaultPrivate bool     `yaml:"default_private"` // true = new repos are private by default

@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Autoriser la suppression de dépôts",
+  "config.github.allow_delete_hint": "Désactivé par défaut. La suppression nécessite aussi l’accès au dépôt et la désactivation du mode lecture seule.",
+  "config.github.trust_migration_hint": "Ancienne autorisation : sélectionne explicitement ce dépôt et enregistre la configuration pour approuver l’accès.",
   "config.github.agent_badge": "Agent IA",
   "config.github.agent_created_always_allowed": "Créé par l'agent - toujours autorisé",
   "config.github.agent_created_note": "Les depots crees par l'agent sont toujours accessibles - meme sans approbation explicite.",

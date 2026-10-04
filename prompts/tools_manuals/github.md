@@ -9,7 +9,7 @@ Manage GitHub repositories, issues, pull requests, branches, files, commits, and
 | `list_repos` | List repositories allowed by policy | `limit` |
 | `get_repo` | Get repository details | `name` |
 | `create_repo` | Create a new repository and auto-track it as agent-created | `name`, `description` |
-| `delete_repo` | Delete a repository | `name` |
+| `delete_repo` | Delete a repository; requires `github.allow_delete` | `name` |
 | `search_repos` | Search repositories | `query`, `limit` |
 | `list_issues` | List issues | `name`, `value` (state filter) |
 | `create_issue` | Create an issue | `name`, `title`, `description`, `label` |
@@ -45,7 +45,9 @@ Manage GitHub repositories, issues, pull requests, branches, files, commits, and
 ## Notes
 - `owner` defaults to the configured GitHub owner if omitted
 - `github.allowed_repos` is strict. Prefer `owner/repo`; legacy bare repo names only match the configured owner.
-- If `github.allowed_repos` is empty, the agent may only access repos AuraGo created and tracked with `agent_created=true`.
+- If `github.allowed_repos` is empty, the agent may only access repos recorded by AuraGo in its protected server trust ledger after creation. Workspace `agent_created` flags do not grant access. Old entries require an administrator to approve the repository in Settings.
+- `delete_repo` additionally requires `github.allow_delete`, which defaults off. Read-only mode still blocks deletion.
+- A successful creation with `trust_migration_required` means the repository exists but needs administrator approval. Do not repeat the creation.
 - `track_project` only records local project metadata and does not grant remote GitHub access.
 - `value` is used as state filter for issues/PRs (`open`, `closed`, `all`)
 - File content for `create_or_update_file` must be base64-encoded

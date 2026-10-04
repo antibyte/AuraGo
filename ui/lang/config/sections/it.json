@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Consenti l’eliminazione dei repository",
+  "config.github.allow_delete_hint": "Disattivato per impostazione predefinita. L’eliminazione richiede anche l’accesso al repository e la disattivazione della modalità di sola lettura.",
+  "config.github.trust_migration_hint": "Autorizzazione precedente: seleziona esplicitamente questo repository e salva la configurazione per approvare l’accesso.",
   "config.github.agent_badge": "Agente",
   "config.github.agent_created_always_allowed": "Creato dall'agente - sempre consentito",
   "config.github.agent_created_note": "I repo creati dall'agente sono sempre accessibili - anche senza approvazione esplicita.",

@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "रिपॉज़िटरी हटाने की अनुमति दें",
+  "config.github.allow_delete_hint": "डिफ़ॉल्ट रूप से बंद। हटाने के लिए रिपॉज़िटरी तक पहुँच और केवल पढ़ने वाला मोड बंद होना भी आवश्यक है।",
+  "config.github.trust_migration_hint": "पुरानी विश्वसनीयता प्रविष्टि: पहुँच की मंज़ूरी देने के लिए इस रिपॉज़िटरी को स्पष्ट रूप से चुनें और कॉन्फ़िगरेशन सहेजें।",
   "config.github.agent_badge": "एजेंट",
   "config.github.agent_created_always_allowed": "एजेंट द्वारा बनाया गया - हमेशा अनुमत",
   "config.github.agent_created_note": "एजेंट द्वारा बनाई गई रिपॉज़िटरी हमेशा उपलब्ध रहती हैं - स्पष्ट अनुमति के बिना भी।",

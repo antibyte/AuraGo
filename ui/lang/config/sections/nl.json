@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Verwijderen van repositories toestaan",
+  "config.github.allow_delete_hint": "Standaard uit. Verwijderen vereist ook toegang tot de repository en een uitgeschakelde alleen-lezenmodus.",
+  "config.github.trust_migration_hint": "Oude vertrouwensvermelding: selecteer deze repository expliciet en sla de configuratie op om toegang goed te keuren.",
   "config.github.agent_badge": "AI-agent",
   "config.github.agent_created_always_allowed": "Gemaakt door agent - altijd toegestaan",
   "config.github.agent_created_note": "Repos die de agent heeft aangemaakt zijn altijd toegankelijk - ook zonder expliciete goedkeuring.",

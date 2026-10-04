@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Allow repository deletion",
+  "config.github.allow_delete_hint": "Off by default. Deletion also requires repository access and read-only mode to be disabled.",
+  "config.github.trust_migration_hint": "Legacy trust entry: explicitly select this repository and save the configuration to approve access.",
   "config.github.agent_badge": "Agent",
   "config.github.agent_created_always_allowed": "Created by agent - always allowed",
   "config.github.agent_created_note": "Repos created by the agent are always accessible - even without explicit approval.",

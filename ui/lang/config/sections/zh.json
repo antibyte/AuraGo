@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "允许删除仓库",
+  "config.github.allow_delete_hint": "默认关闭。删除还需要仓库访问权限，并关闭只读模式。",
+  "config.github.trust_migration_hint": "旧版信任记录：请明确选中此仓库并保存配置，以批准访问。",
   "config.github.agent_badge": "代理",
   "config.github.agent_created_always_allowed": "由代理创建 - 始终允许",
   "config.github.agent_created_note": "代理创建的仓库始终可访问——即使没有明确批准。",

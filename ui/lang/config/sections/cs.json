@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Povolit mazání repozitářů",
+  "config.github.allow_delete_hint": "Ve výchozím stavu vypnuto. Mazání vyžaduje také přístup k repozitáři a vypnutý režim pouze pro čtení.",
+  "config.github.trust_migration_hint": "Starý záznam důvěry: pro schválení přístupu výslovně vyber tento repozitář a ulož konfiguraci.",
   "config.github.agent_badge": "AI agent",
   "config.github.agent_created_always_allowed": "Vytvořeno agentem - vždy povoleno",
   "config.github.agent_created_note": "Repozitare vytvorene agentem jsou vzdy pristupne - i bez explicitniho schvaleni.",

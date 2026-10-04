@@ -131,6 +131,7 @@
 .pw-page[data-workspace-page="config"] .gh-repo-check { accent-color:var(--accent); width:15px; height:15px; margin-top:0.2rem; flex-shrink:0; }
 .pw-page[data-workspace-page="config"] .gh-repos-container { max-height:360px; overflow-y:auto; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); background:var(--bg-secondary); }
 .pw-page[data-workspace-page="config"] .gh-actions-row { display:flex; align-items:center; gap:0.8rem; margin-bottom:0.8rem; flex-wrap:wrap; }
+.pw-page[data-workspace-page="config"] .gh-actions-row > button { flex:0 0 auto; min-width:max-content; }
 .pw-page[data-workspace-page="config"] .gh-fetch-status { font-size:var(--text-sm); color:var(--text-secondary); }
 .pw-page[data-workspace-page="config"] .gh-count { font-size:var(--text-sm); margin-left:auto; }
 .pw-page[data-workspace-page="config"] .gh-count-empty { color:var(--text-tertiary); }

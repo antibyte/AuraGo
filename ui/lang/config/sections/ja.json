@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "リポジトリの削除を許可",
+  "config.github.allow_delete_hint": "初期状態では無効です。削除にはリポジトリへのアクセス許可と読み取り専用モードの解除も必要です。",
+  "config.github.trust_migration_hint": "古い信頼設定です。アクセスを承認するには、このリポジトリを明示的に選択して設定を保存してください。",
   "config.github.agent_badge": "エージェント",
   "config.github.agent_created_always_allowed": "エージェントが作成 - 常に許可",
   "config.github.agent_created_note": "エージェントが作成したリポジトリは、明示的な承認がなくても常にアクセスできます。",

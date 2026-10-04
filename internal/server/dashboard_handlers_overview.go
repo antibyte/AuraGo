@@ -431,8 +431,8 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 			return
 		}
 
-		trustedRepos := tools.GitHubTrustedProjectRepos(s.Cfg.Directories.WorkspaceDir)
-		trustedMap := tools.GitHubTrustedProjectMap(s.Cfg.Directories.WorkspaceDir)
+		trustedRepos := tools.GitHubTrustedProjectRepos(s.Cfg.Directories.DataDir, s.Cfg.GitHub.BaseURL)
+		trustedMap := tools.GitHubTrustedProjectMap(s.Cfg.Directories.DataDir, s.Cfg.GitHub.BaseURL)
 		ghCfg := tools.GitHubConfig{
 			Token:        token,
 			Owner:        s.Cfg.GitHub.Owner,
@@ -530,7 +530,7 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 			BaseURL:               s.Cfg.GitHub.BaseURL,
 			ReadOnly:              s.Cfg.GitHub.ReadOnly,
 			AllowedRepos:          s.Cfg.GitHub.AllowedRepos,
-			TrustedRepos:          tools.GitHubTrustedProjectRepos(s.Cfg.Directories.WorkspaceDir),
+			TrustedRepos:          tools.GitHubTrustedProjectRepos(s.Cfg.Directories.DataDir, s.Cfg.GitHub.BaseURL),
 			ListReposUnrestricted: true,
 		}
 
@@ -557,7 +557,11 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 			Owner:        s.Cfg.GitHub.Owner,
 			AllowedRepos: s.Cfg.GitHub.AllowedRepos,
 		}
-		trustedMap := tools.GitHubTrustedProjectMap(s.Cfg.Directories.WorkspaceDir)
+		trustedMap := tools.GitHubTrustedProjectMap(s.Cfg.Directories.DataDir, s.Cfg.GitHub.BaseURL)
+		legacyMap := make(map[string]bool)
+		for _, repo := range tools.GitHubLegacyProjectRepos(s.Cfg.Directories.WorkspaceDir) {
+			legacyMap[repo] = true
+		}
 		repos := result["repos"]
 		if repoList, ok := repos.([]interface{}); ok {
 			for _, r := range repoList {
@@ -566,6 +570,7 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 					canonical := tools.GitHubCanonicalRepo(repoOwner, repoName)
 					rm["allowed"] = tools.GitHubRepoAllowed(allowedCfg, repoOwner, repoName)
 					rm["agent_created"] = trustedMap[canonical]
+					rm["trust_migration_required"] = legacyMap[canonical] && !trustedMap[canonical] && !tools.GitHubRepoAllowed(allowedCfg, repoOwner, repoName)
 				}
 			}
 		}

@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Tillat sletting av repositorier",
+  "config.github.allow_delete_hint": "Av som standard. Sletting krever også tilgang til repositoriet og at skrivebeskyttelse er slått av.",
+  "config.github.trust_migration_hint": "Eldre tillatelse: velg dette repositoriet uttrykkelig og lagre konfigurasjonen for å godkjenne tilgang.",
   "config.github.agent_badge": "AI-agent",
   "config.github.agent_created_always_allowed": "Opprettet av agent - alltid tillatt",
   "config.github.agent_created_note": "Repos opprettet av agenten er alltid tilgjengelige – selv uten eksplisitt godkjenning.",

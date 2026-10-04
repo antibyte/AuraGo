@@ -1601,6 +1601,7 @@ egg_mode:
 github:
     enabled: false
     readonly: false
+    allow_delete: false # explicit opt-in; independent of the repository allowlist
     owner: ""
     default_private: false
     base_url: ""

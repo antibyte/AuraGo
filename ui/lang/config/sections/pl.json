@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Zezwalaj na usuwanie repozytoriów",
+  "config.github.allow_delete_hint": "Domyślnie wyłączone. Usuwanie wymaga też dostępu do repozytorium i wyłączenia trybu tylko do odczytu.",
+  "config.github.trust_migration_hint": "Stary wpis zaufania: jawnie wybierz to repozytorium i zapisz konfigurację, aby zatwierdzić dostęp.",
   "config.github.agent_badge": "Agent AI",
   "config.github.agent_created_always_allowed": "Utworzone przez agenta - zawsze dozwolone",
   "config.github.agent_created_note": "Repozytoria utworzone przez agenta sa zawsze dostepne - nawet bez wyraznego zezwolenia.",

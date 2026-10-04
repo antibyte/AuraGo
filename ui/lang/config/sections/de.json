@@ -1,4 +1,7 @@
 {
+  "config.github.allow_delete_label": "Repositories löschen erlauben",
+  "config.github.allow_delete_hint": "Standardmäßig aus. Löschen benötigt zusätzlich eine Repository-Freigabe und deaktivierten Nur-Lesen-Modus.",
+  "config.github.trust_migration_hint": "Alter Vertrauenseintrag: Wähle dieses Repository ausdrücklich aus und speichere die Konfiguration, um es freizugeben.",
   "config.github.agent_badge": "KI-Agent",
   "config.github.agent_created_always_allowed": "Vom Agent erstellt - immer erlaubt",
   "config.github.agent_created_note": "Repos die der Agent selbst erstellt hat, sind immer zugänglich - auch ohne explizite Freigabe.",

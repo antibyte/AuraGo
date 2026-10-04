@@ -160,7 +160,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### GitHub Integration Contract
 - `github.allowed_repos` is a strict allowlist; prefer `owner/repo` entries. Legacy bare repo names only match the configured `github.owner`.
-- An empty `github.allowed_repos` list permits only repositories AuraGo created through the GitHub tool and tracks with `agent_created=true`.
+- An empty `github.allowed_repos` list permits only repositories recorded in the protected `directories.data_dir/github_trust.json` ledger after successful creation. Grants bind API base and canonical repository identity. Workspace `agent_created` markers never grant access; existing markers expose `trust_migration_required` until an administrator explicitly selects the repository in the allowlist.
+- `github.allow_delete` defaults off and is required in addition to repository access and disabled read-only mode. Revoke the protected grant before deletion. Preserve the last valid ledger with a synced atomic replacement and private backup; do not automatically import legacy markers.
 - Manual `track_project` entries are local inventory only and must never grant remote repository access.
 
 ### Homepage Managed Website Ledger
