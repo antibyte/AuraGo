@@ -67,6 +67,9 @@ var genericSinkNames = map[string]bool{
 	"entity_id": true, "device": true, "device_id": true, "device_name": true, "device_addr": true, "mac": true,
 	"mac_address": true, "server_id": true, "node_id": true, "container_id": true, "machine_id": true,
 	"workspace_id": true, "vmid": true, "topic": true, "payload": true, "service_data": true, "headers": true,
+	// what a container exposes on the host (docker "ports" maps container to host ports;
+	// no other tool has a parameter of this name, "port" is no sink)
+	"ports": true,
 	// what the main agent reads in its prompt (planner titles)
 	"title": true,
 }
@@ -97,6 +100,17 @@ func isGenericFileContentName(name string) bool {
 	return genericFileContentNames[strings.ToLower(name)]
 }
 
+// genericPageInputParams type into a live web page: a browser or form automation tool
+// fills fields with them, and a submitted form sends the data away. They are sinks for
+// these tools only; "text" and "value" are no sinks by name elsewhere (outside the file
+// tools). remote_control_desktop types too, but as a code-running tool every text
+// parameter of it is a sink already.
+var genericPageInputParams = map[string]map[string]bool{
+	"virtual_browser":    {"text": true, "value": true},
+	"browser_automation": {"text": true, "value": true},
+	"form_automation":    {"fields": true},
+}
+
 // genericFileTool reports whether a tool works on or writes files: the files category,
 // tools whose name says so or that fileTools lists (genericFileish), and fileWritingTools.
 func genericFileTool(tool GenericTool) bool {
@@ -124,7 +138,8 @@ func genericAllTextSinks(tool GenericTool) bool {
 // tool loses "background" (a detached process outlives the node's timeout and the
 // run's cancellation); every text parameter of a genericAllTextSinks tool is a sink,
 // and so is every file content parameter of a file tool, also one level down a JSON
-// parameter (remote_control_files "patches" holds new_text).
+// parameter (remote_control_files "patches" holds new_text), and every page input of
+// a browser or form automation tool (genericPageInputParams).
 func genericToolParams(tool GenericTool) ([]ParamSpec, map[string]bool) {
 	params, jsonStrings := paramsFromSchema(tool.Schema)
 	if codeRunningTools[tool.Name] {
@@ -140,7 +155,7 @@ func genericToolParams(tool GenericTool) ([]ParamSpec, map[string]bool) {
 	props, _ := tool.Schema["properties"].(map[string]any)
 	for i := range params {
 		p := &params[i]
-		if allText && p.Kind != ParamBool && p.Kind != ParamNumber {
+		if (allText && p.Kind != ParamBool && p.Kind != ParamNumber) || genericPageInputParams[tool.Name][p.Name] {
 			p.SensitiveSink = true
 		}
 		if fileTool && !p.SensitiveSink {

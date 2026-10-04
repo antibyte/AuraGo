@@ -133,6 +133,69 @@ func TestGenericFileContentSinks(t *testing.T) {
 	}
 }
 
+// Host port mappings and what a browser or form automation types into a page are
+// sinks; a "text" elsewhere (outside file and code-running tools) is not.
+func TestGenericPortsAndPageInputSinks(t *testing.T) {
+	ops := func(props map[string]any, values ...string) map[string]any {
+		props["operation"] = genericEnumProp(values...)
+		return genericSchemaOf(props)
+	}
+	tools := []GenericTool{
+		{Name: "docker", Category: "infrastructure", Schema: ops(map[string]any{"image": genericProp("string", ""), "name": genericProp("string", ""),
+			"restart": genericProp("string", ""), "ports": genericProp("string", "Port mappings: {'container_port': 'host_port'}. Provide as a JSON object string.")},
+			"list_containers", "run")},
+		{Name: "virtual_browser", Category: "infrastructure", Schema: ops(genericTextProps("workspace_id", "url", "text", "value", "key", "selector"),
+			"open", "type", "select", "press")},
+		{Name: "browser_automation", Category: "network", Schema: ops(genericTextProps("session_id", "url", "text", "value", "key", "selector"),
+			"navigate", "type", "select")},
+		{Name: "form_automation", Category: "network", Schema: ops(map[string]any{"url": genericProp("string", ""), "selector": genericProp("string", ""),
+			"fields": genericProp("string", "JSON object mapping CSS selector to value for fill_submit")}, "get_fields", "fill_submit")},
+		// Controls: a radio message and spoken text are no sinks.
+		{Name: "meshcore", Category: "communication", Schema: ops(genericTextProps("node_key", "text"), "status", "send_direct")},
+		{Name: "bluetooth", Category: "media", Schema: ops(genericTextProps("device", "text"), "status", "speak")},
+	}
+	reg := newTestRegistry(t)
+	if n := RefreshGenericTools(reg, tools, nil); n != len(tools) {
+		t.Fatalf("registered %d", n)
+	}
+	want := map[string][]string{
+		"docker":             {"image", "operation", "ports"},
+		"virtual_browser":    {"operation", "text", "url", "value", "workspace_id"},
+		"browser_automation": {"operation", "text", "url", "value"},
+		"form_automation":    {"fields", "operation", "url"},
+		"meshcore":           {"node_key", "operation"},
+		"bluetooth":          {"device", "operation"},
+	}
+	for tool, sinks := range want {
+		if got := genericSinks(lookupDef(t, reg, GenericTypePrefix+tool)); !reflect.DeepEqual(got, sinks) {
+			t.Errorf("%s sinks = %v, want %v", tool, got, sinks)
+		}
+	}
+	cases := []struct {
+		typ    string
+		params map[string]any
+		warnOn string
+	}{
+		{"tool.docker", map[string]any{"operation": "run", "image": "nginx", "ports": "{{trigger.data.ports}}"}, "ports"},
+		{"tool.virtual_browser", map[string]any{"operation": "type", "workspace_id": "w", "text": "{{trigger.data.text}}"}, "text"},
+		{"tool.form_automation", map[string]any{"operation": "fill_submit", "url": "https://x.example", "fields": "{{trigger.data.fields}}"}, "fields"},
+		{"tool.meshcore", map[string]any{"operation": "send_direct", "node_key": "k", "text": "{{trigger.data.text}}"}, ""},
+	}
+	for _, c := range cases {
+		b := newFlow(c.typ)
+		trg := b.node("trg", "test.untrusted_trigger", nil)
+		n := b.node("gen", c.typ, c.params)
+		b.edge(trg, PortOut, n)
+		var params []string
+		for _, is := range LintUntrustedData(b.build(), reg) {
+			params = append(params, is.Param)
+		}
+		if c.warnOn == "" && len(params) != 0 || c.warnOn != "" && !reflect.DeepEqual(params, []string{c.warnOn}) {
+			t.Errorf("%s: lint warns on %v, want %q", c.typ, params, c.warnOn)
+		}
+	}
+}
+
 // A code-running tool cannot start a detached process that outlives the node.
 func TestGenericCodeToolsDropBackground(t *testing.T) {
 	reg := genericTestRegistry(t)
