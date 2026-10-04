@@ -25,9 +25,12 @@ const (
 
 // Defaults applied by Normalize.
 const (
-	DefaultMaxRunSeconds = 1800
-	DefaultNotifyOnError = "desktop"
-	MaxRetryCount        = 5
+	DefaultMaxRunSeconds  = 1800
+	DefaultNotifyOnError  = "desktop"
+	MaxRetryCount         = 5
+	MaxRetryDelaySeconds  = 3600  // upper bound for RetryPolicy.DelaySeconds
+	MaxNodeTimeoutSeconds = 86400 // upper bound for NodeSettings.TimeoutSeconds
+	MaxRunSecondsLimit    = 86400 // upper bound for FlowSettings.MaxRunSeconds
 )
 
 // Kind distinguishes normal flows (which own a mission) from building blocks.
@@ -67,7 +70,9 @@ const (
 )
 
 var (
-	ErrDocumentTooLarge  = errors.New("flow document exceeds the size limit")
+	// ErrDocumentTooLarge is returned by ParseFlow when the document exceeds MaxDocumentBytes.
+	ErrDocumentTooLarge = errors.New("flow document exceeds the size limit")
+	// ErrUnsupportedSchema is returned (wrapped) by ParseFlow when the schema version is not SchemaVersion.
 	ErrUnsupportedSchema = errors.New("unsupported flow schema version")
 )
 
@@ -157,6 +162,7 @@ type Viewport struct {
 }
 
 // ParseFlow decodes a flow document, checks size and schema and applies defaults.
+// Numbers inside node params decode as float64, as with any JSON decoded into any.
 func ParseFlow(data []byte) (*Flow, error) {
 	if len(data) > MaxDocumentBytes {
 		return nil, ErrDocumentTooLarge
@@ -172,9 +178,10 @@ func ParseFlow(data []byte) (*Flow, error) {
 	return &f, nil
 }
 
-// Normalize fills defaults and clamps settings. It is idempotent.
+// Normalize fills defaults, clamps numeric settings to their bounds and coerces
+// unknown enum values to their defaults. It is idempotent.
 func (f *Flow) Normalize() {
-	if f.Kind == "" {
+	if f.Kind != KindFlow && f.Kind != KindBlock {
 		f.Kind = KindFlow
 	}
 	if f.Nodes == nil {
@@ -183,11 +190,16 @@ func (f *Flow) Normalize() {
 	if f.Edges == nil {
 		f.Edges = []Edge{}
 	}
-	if f.Settings.Concurrency == "" {
+	switch f.Settings.Concurrency {
+	case ConcurrencyQueue, ConcurrencyParallel, ConcurrencySkip:
+	default:
 		f.Settings.Concurrency = ConcurrencyQueue
 	}
 	if f.Settings.MaxRunSeconds <= 0 {
 		f.Settings.MaxRunSeconds = DefaultMaxRunSeconds
+	}
+	if f.Settings.MaxRunSeconds > MaxRunSecondsLimit {
+		f.Settings.MaxRunSeconds = MaxRunSecondsLimit
 	}
 	if f.Settings.NotifyOnError == "" {
 		f.Settings.NotifyOnError = DefaultNotifyOnError
@@ -200,7 +212,9 @@ func (f *Flow) Normalize() {
 		if n.Params == nil {
 			n.Params = map[string]any{}
 		}
-		if n.Settings.OnError == "" {
+		switch n.Settings.OnError {
+		case ErrorStop, ErrorContinue, ErrorPort:
+		default:
 			n.Settings.OnError = ErrorStop
 		}
 		if n.Settings.Retry.Count < 0 {
@@ -212,8 +226,14 @@ func (f *Flow) Normalize() {
 		if n.Settings.Retry.DelaySeconds < 0 {
 			n.Settings.Retry.DelaySeconds = 0
 		}
+		if n.Settings.Retry.DelaySeconds > MaxRetryDelaySeconds {
+			n.Settings.Retry.DelaySeconds = MaxRetryDelaySeconds
+		}
 		if n.Settings.TimeoutSeconds < 0 {
 			n.Settings.TimeoutSeconds = 0
+		}
+		if n.Settings.TimeoutSeconds > MaxNodeTimeoutSeconds {
+			n.Settings.TimeoutSeconds = MaxNodeTimeoutSeconds
 		}
 	}
 }
@@ -223,7 +243,8 @@ func (f *Flow) Marshal() ([]byte, error) {
 	return json.Marshal(f)
 }
 
-// Clone returns a deep copy of the flow.
+// Clone returns a deep copy of the flow. It copies through JSON, so numbers
+// inside node params come back as float64.
 func (f *Flow) Clone() (*Flow, error) {
 	data, err := json.Marshal(f)
 	if err != nil {
@@ -306,7 +327,10 @@ func NewRunID() string { return "run_" + randomSuffix(12) }
 
 var umlautReplacer = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue", "ß", "ss", "Ä", "ae", "Ö", "oe", "Ü", "ue")
 
-// KeyFromLabel derives a unique, valid node key from a display label.
+// KeyFromLabel derives a unique, valid node key from a display label. The
+// result is not added to taken; the caller records it. It appends a numeric
+// suffix on collisions and assumes fewer than 1000 of them, which holds with
+// MaxNodes = 500 (the suffix keeps the key within the 40 character limit).
 func KeyFromLabel(label string, taken map[string]bool) string {
 	s := strings.ToLower(umlautReplacer.Replace(strings.TrimSpace(label)))
 	var b strings.Builder

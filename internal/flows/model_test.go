@@ -2,6 +2,7 @@ package flows
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -136,5 +137,88 @@ func TestFlowLookupAndClone(t *testing.T) {
 	clone.Nodes[0].Params["value"] = "changed"
 	if f.Nodes[0].Params["value"] != "1" {
 		t.Fatal("Clone must deep-copy params")
+	}
+}
+
+func TestNormalizeClampsAndCoerces(t *testing.T) {
+	f := &Flow{
+		Schema:   SchemaVersion,
+		ID:       "flow_x",
+		Kind:     "weird",
+		Settings: FlowSettings{Concurrency: "bogus", MaxRunSeconds: 18446744074},
+		Nodes: []Node{{
+			ID: "n_aaaaaaaa", Key: "a", Type: "test.echo",
+			Settings: NodeSettings{
+				OnError:        "explode",
+				Retry:          RetryPolicy{Count: 3, DelaySeconds: 1e12},
+				TimeoutSeconds: 1e12,
+			},
+		}},
+	}
+	f.Normalize()
+	if f.Kind != KindFlow {
+		t.Errorf("Kind = %q, want %q", f.Kind, KindFlow)
+	}
+	if f.Settings.Concurrency != ConcurrencyQueue {
+		t.Errorf("Concurrency = %q, want %q", f.Settings.Concurrency, ConcurrencyQueue)
+	}
+	if f.Settings.MaxRunSeconds != MaxRunSecondsLimit {
+		t.Errorf("MaxRunSeconds = %d, want %d", f.Settings.MaxRunSeconds, MaxRunSecondsLimit)
+	}
+	n := f.Nodes[0]
+	if n.Settings.OnError != ErrorStop {
+		t.Errorf("OnError = %q, want %q", n.Settings.OnError, ErrorStop)
+	}
+	if n.Settings.Retry.DelaySeconds != MaxRetryDelaySeconds {
+		t.Errorf("Retry.DelaySeconds = %d, want %d", n.Settings.Retry.DelaySeconds, MaxRetryDelaySeconds)
+	}
+	if n.Settings.Retry.Count != 3 {
+		t.Errorf("Retry.Count = %d, want 3 (in range, must be kept)", n.Settings.Retry.Count)
+	}
+	if n.Settings.TimeoutSeconds != MaxNodeTimeoutSeconds {
+		t.Errorf("TimeoutSeconds = %d, want %d", n.Settings.TimeoutSeconds, MaxNodeTimeoutSeconds)
+	}
+
+	again, err := f.Clone()
+	if err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+	f.Normalize()
+	if !reflect.DeepEqual(f, again) {
+		t.Fatalf("Normalize is not idempotent:\nfirst:  %+v\nsecond: %+v", again, f)
+	}
+}
+
+func TestNormalizeLowerBoundsAndValidValues(t *testing.T) {
+	f := &Flow{
+		Schema:   SchemaVersion,
+		Kind:     KindBlock,
+		Settings: FlowSettings{Concurrency: ConcurrencySkip, MaxRunSeconds: 0},
+		Nodes: []Node{
+			{ID: "n_aaaaaaaa", Key: "a", Settings: NodeSettings{
+				OnError: ErrorPort, Retry: RetryPolicy{Count: -2, DelaySeconds: -5}, TimeoutSeconds: -7,
+			}},
+			{ID: "n_aaaaaaab", Key: "b", Settings: NodeSettings{OnError: ErrorContinue}},
+		},
+	}
+	f.Normalize()
+	if f.Kind != KindBlock || f.Settings.Concurrency != ConcurrencySkip {
+		t.Errorf("valid Kind/Concurrency must be kept: %q / %q", f.Kind, f.Settings.Concurrency)
+	}
+	if f.Settings.MaxRunSeconds != DefaultMaxRunSeconds {
+		t.Errorf("MaxRunSeconds 0 = %d, want default %d", f.Settings.MaxRunSeconds, DefaultMaxRunSeconds)
+	}
+	a := f.Nodes[0].Settings
+	if a.Retry.Count != 0 || a.Retry.DelaySeconds != 0 || a.TimeoutSeconds != 0 {
+		t.Errorf("negative values not raised to 0: %+v", a)
+	}
+	if a.OnError != ErrorPort || f.Nodes[1].Settings.OnError != ErrorContinue {
+		t.Errorf("valid OnError must be kept: %q / %q", a.OnError, f.Nodes[1].Settings.OnError)
+	}
+
+	f.Settings.MaxRunSeconds = -10
+	f.Normalize()
+	if f.Settings.MaxRunSeconds != DefaultMaxRunSeconds {
+		t.Errorf("negative MaxRunSeconds = %d, want default %d", f.Settings.MaxRunSeconds, DefaultMaxRunSeconds)
 	}
 }
