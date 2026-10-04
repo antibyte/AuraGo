@@ -41,6 +41,7 @@ const (
 	IssueSchema                  = "FLOW_SCHEMA"
 	IssueNameRequired            = "FLOW_NAME_REQUIRED"
 	IssueTooManyNodes            = "FLOW_TOO_MANY_NODES"
+	IssueTooManyIssues           = "FLOW_TOO_MANY_ISSUES"
 	IssueNoTrigger               = "FLOW_NO_TRIGGER"
 	IssueCycle                   = "FLOW_CYCLE"
 	IssueNodeIDInvalid           = "NODE_ID_INVALID"
