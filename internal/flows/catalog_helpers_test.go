@@ -2,6 +2,7 @@ package flows
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 )
@@ -40,6 +41,23 @@ func (f *fakeTools) count() int {
 	return len(f.calls)
 }
 
+// allCalls returns a copy of the recorded calls. Use it, not f.calls, when the
+// fake is called from other goroutines (the runner runs nodes on workers).
+func (f *fakeTools) allCalls() []ToolRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]ToolRequest(nil), f.calls...)
+}
+
+// setRespond replaces the responder under the lock, so a test can change it while
+// workers are calling the fake. Assigning f.respond directly is only safe before
+// the fake is shared.
+func (f *fakeTools) setRespond(respond func(ToolRequest) (ToolResponse, error)) {
+	f.mu.Lock()
+	f.respond = respond
+	f.mu.Unlock()
+}
+
 // toolReply answers every call with the given raw tool output.
 func toolReply(output string) func(ToolRequest) (ToolResponse, error) {
 	return func(ToolRequest) (ToolResponse, error) {
@@ -70,6 +88,25 @@ func (f *fakeLLM) Step(_ context.Context, req LLMRequest) (LLMResponse, error) {
 		f.responses = f.responses[1:]
 	}
 	return resp, nil
+}
+
+// callCount returns the number of recorded Step calls.
+func (f *fakeLLM) callCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.calls)
+}
+
+// callAt returns the i-th recorded Step call (0 is the first). It panics when
+// there is no such call, which fails the test loudly instead of returning a zero
+// request that could pass an assertion by accident.
+func (f *fakeLLM) callAt(i int) LLMRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if i < 0 || i >= len(f.calls) {
+		panic(fmt.Sprintf("fakeLLM.callAt(%d): %d calls recorded", i, len(f.calls)))
+	}
+	return f.calls[i]
 }
 
 // execDef runs a definition like the engine: parameter defaults first, then Execute.

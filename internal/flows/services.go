@@ -26,11 +26,14 @@ type ToolInvoker interface {
 
 // ToolRequest is one tool call made by a flow node.
 type ToolRequest struct {
-	FlowID       string
-	RunID        string
-	NodeID       string
-	Mode         RunMode
-	Tool         string
+	FlowID string
+	RunID  string
+	NodeID string
+	Mode   RunMode
+	Tool   string
+	// Args is read-only for the invoker and may alias run data (a node passes
+	// resolved parameter values on without copying them): clone before changing
+	// anything, append included. It is never nil when callTool made the request.
 	Args         map[string]any
 	AllowedTools []string
 }

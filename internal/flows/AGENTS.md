@@ -36,6 +36,14 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   recipient, device). The lint follows only template refs and `passesInputs`: no flag, no warning.
 - List every outward effect. A new `Effect` constant needs an `effectOrder` entry and a deliberate
   `IsRisky` decision; unknown effects count as not risky.
+- Tools: call them only through `callTool` (`catalog_tools.go`). It fails on a cancelled context, rejects raw
+  output over 16 MiB (`FLOW_OUTPUT_TOO_LARGE`) before parsing, classifies by the response status first
+  (`denied` gives `FLOW_TOOL_DENIED`, `needs_setup` gives `FLOW_NODE_UNAVAILABLE`) and cuts tool text echoed in
+  errors to 300 runes. `Args` is read-only and may alias run data.
+- `ParseToolOutput` limits: numbers decode as float64 engine-wide, so 64-bit ids must be strings.
+- `ParseToolOutput` limits: JSON followed by trailing text is not JSON and falls back to `{"text": …}`.
+- `ParseToolOutput` limits: nesting deeper than about 10000 levels falls back to text, and the engine fails
+  a node whose output is nested beyond its own depth limit.
 
 ## Document and template invariants
 - `SchemaVersion` is 1. Limits: `MaxNodes` 500, `MaxEdges` 2000, `MaxDocumentBytes` 2 MiB. `Normalize`

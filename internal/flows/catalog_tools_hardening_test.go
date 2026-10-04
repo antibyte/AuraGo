@@ -19,14 +19,6 @@ func toolInput(tools ToolInvoker) ExecInput {
 	}
 }
 
-// ctxTools answers with the context error, so a test can see that the node's
-// context reaches the invoker.
-type ctxTools struct{}
-
-func (ctxTools) InvokeTool(ctx context.Context, _ ToolRequest) (ToolResponse, error) {
-	return ToolResponse{}, ctx.Err()
-}
-
 // errorTools returns a fixed error from the invoker.
 type errorTools struct{ err error }
 
@@ -189,18 +181,57 @@ func TestCallToolFailureOutputAccompaniesError(t *testing.T) {
 	}
 }
 
+// ctxProbeKey carries a marker through the context so an invoker can prove it
+// received the very context callTool was given.
+type ctxProbeKey struct{}
+
+// ctxProbeTools records the context it is invoked with and cancels it mid-call.
+type ctxProbeTools struct {
+	cancel context.CancelFunc
+	marker any
+	done   bool
+}
+
+func (p *ctxProbeTools) InvokeTool(ctx context.Context, _ ToolRequest) (ToolResponse, error) {
+	p.marker = ctx.Value(ctxProbeKey{})
+	p.cancel()
+	p.done = ctx.Err() != nil // the cancel above is visible through the forwarded context
+	return ToolResponse{}, ctx.Err()
+}
+
 func TestCallToolForwardsContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), ctxProbeKey{}, "marker"))
+	defer cancel()
+	probe := &ctxProbeTools{cancel: cancel}
+	_, err := callTool(ctx, toolInput(probe), "x", nil)
+	if probe.marker != "marker" {
+		t.Fatalf("the invoker did not receive the caller's context: marker = %v", probe.marker)
+	}
+	if !probe.done {
+		t.Fatal("cancelling the caller's context must be visible inside the invoker")
+	}
+	if ne := asNodeError(err); ne.Code != "FLOW_NODE_FAILED" || !strings.Contains(ne.Message, "canceled") {
+		t.Fatalf("a cancel during the call comes back as a failure, got %v", err)
+	}
+}
+
+func TestCallToolFailsOnDoneContext(t *testing.T) {
+	tools := &fakeTools{}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := callTool(ctx, toolInput(ctxTools{}), "x", nil)
+	_, err := callTool(ctx, toolInput(tools), "x", nil)
 	if ne := asNodeError(err); ne.Code != "FLOW_NODE_FAILED" || !strings.Contains(ne.Message, "canceled") {
-		t.Fatalf("a cancelled context must reach the invoker, got %v", err)
+		t.Fatalf("cancelled = %v", err)
 	}
 	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 	defer cancel()
-	_, err = callTool(ctx, toolInput(ctxTools{}), "x", nil)
+	_, err = callTool(ctx, toolInput(tools), "x", nil)
 	if ne := asNodeError(err); ne.Code != "FLOW_NODE_TIMEOUT" {
 		t.Fatalf("an expired deadline maps to a timeout, got %v", err)
+	}
+	// An invoker that ignores its context must not be reached at all.
+	if tools.count() != 0 {
+		t.Fatalf("a finished context must not start a tool call, %d calls made", tools.count())
 	}
 }
 
