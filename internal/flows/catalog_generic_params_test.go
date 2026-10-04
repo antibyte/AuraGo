@@ -1,6 +1,7 @@
 package flows
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 	"testing"
@@ -192,6 +193,179 @@ func TestGenericPortsAndPageInputSinks(t *testing.T) {
 		}
 		if c.warnOn == "" && len(params) != 0 || c.warnOn != "" && !reflect.DeepEqual(params, []string{c.warnOn}) {
 			t.Errorf("%s: lint warns on %v, want %q", c.typ, params, c.warnOn)
+		}
+	}
+}
+
+// genericOpsSchema adds an operation enum to props.
+func genericOpsSchema(props map[string]any, ops ...string) map[string]any {
+	props["operation"] = genericEnumProp(ops...)
+	return genericSchemaOf(props)
+}
+
+// genericLintParams returns the params the lint warns on when an untrusted trigger
+// feeds a node of typ with params.
+func genericLintParams(reg *Registry, typ string, params map[string]any) []string {
+	b := newFlow(typ)
+	trg := b.node("trg", "test.untrusted_trigger", nil)
+	n := b.node("gen", typ, params)
+	b.edge(trg, PortOut, n)
+	var warned []string
+	for _, is := range LintUntrustedData(b.build(), reg) {
+		warned = append(warned, is.Param)
+	}
+	return warned
+}
+
+// Parameters that expose a service to the network, and content that ends up in a
+// repository, a model or a note, are sinks of their tools (shapes of the real schemas).
+func TestGenericExposureAndContentSinks(t *testing.T) {
+	acl := map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{
+		"level": genericProp("string", ""), "principal": genericProp("string", "")}}}
+	tools := []GenericTool{
+		{Name: "fritzbox_network", Category: "smart_home", Schema: genericOpsSchema(map[string]any{
+			"external_port": genericProp("string", ""), "internal_port": genericProp("string", ""), "internal_client": genericProp("string", ""),
+			"hostname": genericProp("string", ""), "protocol": genericProp("string", ""), "description": genericProp("string", ""),
+			"enabled": genericProp("boolean", "")}, "get_port_forwards", "add_port_forward", "delete_port_forward")},
+		{Name: "cloudflare_tunnel", Category: "network", Schema: genericOpsSchema(map[string]any{"port": genericProp("integer", "")}, "status", "quick_tunnel")},
+		{Name: "tailscale", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("query", "value"), "routes", "enable_routes")},
+		{Name: "network_shares", Category: "infrastructure", Schema: genericOpsSchema(map[string]any{"acl": acl,
+			"clients": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "path": genericProp("string", ""),
+			"name": genericProp("string", ""), "comment": genericProp("string", ""), "guest": genericProp("boolean", "")}, "list", "create")},
+		{Name: "github", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("content", "value", "path", "title", "body", "owner"),
+			"list_repos", "create_or_update_file", "list_pull_requests")},
+		{Name: "openscad_render", Category: "infrastructure", Schema: genericSchemaOf(map[string]any{"source_scad": genericProp("string", ""),
+			"model_name": genericProp("string", ""), "window_id": genericProp("string", ""),
+			"exports": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}})},
+		{Name: "desktop_notes", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("content", "title", "folder", "path", "query", "tag"),
+			"list", "create")},
+	}
+	reg := newTestRegistry(t)
+	if n := RefreshGenericTools(reg, tools, nil); n != len(tools) {
+		t.Fatalf("registered %d", n)
+	}
+	want := map[string][]string{
+		"fritzbox_network":  {"external_port", "hostname", "internal_client", "internal_port", "operation"},
+		"cloudflare_tunnel": {"operation", "port"},
+		"tailscale":         {"operation", "query", "value"},
+		"network_shares":    {"acl", "clients", "operation", "path"},
+		"github":            {"content", "operation", "path", "title"}, // not value: a SHA or state filter
+		"openscad_render":   {"source_scad"},
+		"desktop_notes":     {"content", "folder", "operation", "path", "query", "title"},
+	}
+	for tool, sinks := range want {
+		if got := genericSinks(lookupDef(t, reg, GenericTypePrefix+tool)); !reflect.DeepEqual(got, sinks) {
+			t.Errorf("%s sinks = %v, want %v", tool, got, sinks)
+		}
+	}
+	cases := []struct {
+		typ    string
+		params map[string]any
+		warnOn string
+	}{
+		{"tool.fritzbox_network", map[string]any{"operation": "add_port_forward", "external_port": "{{trigger.data.port}}",
+			"internal_port": "22", "internal_client": "192.168.1.5", "protocol": "TCP"}, "external_port"},
+		{"tool.fritzbox_network", map[string]any{"operation": "add_port_forward", "external_port": "2222", "internal_port": "22",
+			"internal_client": "{{trigger.data.ip}}"}, "internal_client"},
+		{"tool.cloudflare_tunnel", map[string]any{"operation": "quick_tunnel", "port": "{{trigger.data.port}}"}, "port"},
+		{"tool.tailscale", map[string]any{"operation": "enable_routes", "query": "node1", "value": "{{trigger.data.routes}}"}, "value"},
+		{"tool.github", map[string]any{"operation": "create_or_update_file", "path": ".github/workflows/ci.yml",
+			"content": "{{trigger.data.b64}}"}, "content"},
+	}
+	for _, c := range cases {
+		if got := genericLintParams(reg, c.typ, c.params); !reflect.DeepEqual(got, []string{c.warnOn}) {
+			t.Errorf("%s: lint warns on %v, want %q", c.typ, got, c.warnOn)
+		}
+	}
+	// Reads of github are no system change, "pull" or not.
+	github := lookupDef(t, reg, "tool.github")
+	if got := github.EffectsOf(&Node{Params: map[string]any{"operation": "list_pull_requests"}}); got != nil {
+		t.Errorf("list_pull_requests effects = %v", got)
+	}
+	if got := github.EffectsOf(&Node{Params: map[string]any{"operation": "create_or_update_file"}}); !reflect.DeepEqual(got, []Effect{EffectSystemChange}) {
+		t.Errorf("create_or_update_file effects = %v", got)
+	}
+}
+
+// Operations that take a secret as a plain value are gone, with their parameters;
+// Validate and Execute refuse them like any operation the list does not hold.
+func TestGenericDroppedSecretOperations(t *testing.T) {
+	envProps := func(extra string) map[string]any { return genericTextProps("env_key", "env_value", extra) }
+	tools := []GenericTool{
+		{Name: "invasion_tasks", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("key", "value", "nest_id", "task", "body"),
+			"send_task", "task_status", "send_secret")},
+		{Name: "netlify", Category: "infrastructure", Schema: genericOpsSchema(envProps("site_id"), "list_env", "get_env", "set_env", "delete_env")},
+		{Name: "vercel", Category: "infrastructure", Schema: genericOpsSchema(envProps("project_id"), "list_env", "get_env", "set_env", "delete_env")},
+	}
+	reg := NewRegistry()
+	if n := RefreshGenericTools(reg, tools, nil); n != 3 {
+		t.Fatalf("registered %d", n)
+	}
+	vc := ValidateContext{Mode: ModePublish}
+	for _, c := range []struct {
+		tool, dropped string
+		params        []string
+	}{
+		{"invasion_tasks", "send_secret", []string{"body", "nest_id", "operation", "task"}},
+		{"netlify", "set_env", []string{"env_key", "operation", "site_id"}},
+		{"vercel", "set_env", []string{"env_key", "operation", "project_id"}},
+	} {
+		def := lookupDef(t, reg, GenericTypePrefix+c.tool)
+		if got := genericParamNames(def); !reflect.DeepEqual(got, c.params) {
+			t.Errorf("%s params = %v, want %v", c.tool, got, c.params)
+		}
+		_, choices := genericOperation(def.Params)
+		if slices.Contains(choices, c.dropped) || len(choices) == 0 {
+			t.Errorf("%s operations = %v", c.tool, choices)
+		}
+		node := &Node{ID: testNodeID(1), Key: "gen", Params: map[string]any{"operation": c.dropped}}
+		if issues := def.Validate(node, vc); len(issues) != 1 || issues[0].Code != IssueParamInvalid {
+			t.Errorf("%s: Validate(%s) = %+v", c.tool, c.dropped, issues)
+		}
+		fake := &fakeTools{}
+		_, err := execDef(def, map[string]any{"operation": c.dropped, "key": "API", "value": "s3cr3t", "env_key": "TOKEN",
+			"env_value": "s3cr3t"}, &Services{Tools: fake})
+		if ne := asNodeError(err); ne == nil || ne.Code != "FLOW_PARAM_INVALID" || fake.count() != 0 {
+			t.Errorf("%s: Execute(%s) = %v with %d calls", c.tool, c.dropped, err, fake.count())
+		}
+	}
+	// The other operations still work, without the dropped parameters.
+	fake := &fakeTools{}
+	if _, err := execDef(lookupDef(t, reg, "tool.invasion_tasks"), map[string]any{"operation": "send_task", "task": "x", "nest_id": "n",
+		"key": "API", "value": "s3cr3t"}, &Services{Tools: fake}); err != nil ||
+		!reflect.DeepEqual(fake.last(t).Args, map[string]any{"operation": "send_task", "task": "x", "nest_id": "n"}) {
+		t.Errorf("send_task: %v, %v", fake.last(t).Args, err)
+	}
+	fake = &fakeTools{}
+	if _, err := execDef(lookupDef(t, reg, "tool.netlify"), map[string]any{"operation": "get_env", "env_key": "A"}, &Services{Tools: fake}); err != nil ||
+		!reflect.DeepEqual(fake.last(t).Args, map[string]any{"operation": "get_env", "env_key": "A"}) {
+		t.Errorf("get_env: %v, %v", fake.last(t).Args, err)
+	}
+	// A tool left without an operation, or whose operations are no list to filter,
+	// gets no node.
+	for name, schema := range map[string]map[string]any{
+		"only the dropped operation": genericOpsSchema(genericTextProps("key", "value"), "send_secret"),
+		"free-text operation":        genericSchemaOf(genericTextProps("operation", "key", "value")),
+	} {
+		reg := NewRegistry()
+		if n := RefreshGenericTools(reg, []GenericTool{{Name: "invasion_tasks", Schema: schema}}, nil); n != 0 {
+			t.Errorf("%s: registered %d", name, n)
+		}
+	}
+}
+
+// A sink name one level down is found whatever the number of names and the map order.
+func TestGenericNestedSinkLooksAtEveryName(t *testing.T) {
+	nested := map[string]any{}
+	for i := 0; i < 3*maxGenericParams; i++ {
+		nested[fmt.Sprintf("field_%03d", i)] = genericProp("string", "")
+	}
+	nested["zz_url"] = genericProp("string", "")
+	schema := genericSchemaOf(map[string]any{"rules": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": nested}}})
+	for i := 0; i < 20; i++ {
+		params, _ := paramsFromSchema(schema)
+		if len(params) != 1 || !params[0].SensitiveSink {
+			t.Fatalf("run %d: %+v", i, params)
 		}
 	}
 }

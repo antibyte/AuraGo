@@ -93,8 +93,8 @@ func isGenericDef(d *NodeDef) bool { return strings.HasPrefix(d.Type, GenericTyp
 // RefreshGenericTools replaces all generic tool nodes with nodes for tools in one
 // atomic step (Registry.ReplaceWhere) and returns how many were registered. Skipped:
 // excluded tools (IsGenericToolExcluded), tools a registered curated definition calls
-// (its Tool) unless genericCuratedAllowed lists them, invalid names and repeated names
-// (the first one wins).
+// (its Tool) unless genericCuratedAllowed lists them, tools that genericDroppedOperations
+// leave without an operation, invalid names and repeated names (the first one wins).
 func RefreshGenericTools(reg *Registry, tools []GenericTool, env CatalogEnv) int {
 	if reg == nil {
 		return 0
@@ -113,19 +113,25 @@ func RefreshGenericTools(reg *Registry, tools []GenericTool, env CatalogEnv) int
 			continue
 		}
 		seen[tool.Name] = true
-		defs = append(defs, genericToolDef(tool, env))
+		if def := genericToolDef(tool, env); def != nil {
+			defs = append(defs, def)
+		}
 	}
 	reg.ReplaceWhere(isGenericDef, defs)
 	return len(defs)
 }
 
-// genericToolDef builds the node of one tool. The output is untrusted; parameters and
-// sinks come from genericToolParams. The operation parameter ("operation", else
+// genericToolDef builds the node of one tool, or returns nil when genericToolParams
+// leaves it without an operation. The output is untrusted; parameters and sinks come
+// from genericToolParams. The operation parameter ("operation", else
 // "action") decides the effects: a literal one is classified (genericEffects);
 // anything else gets the worst case, the union over the operations the schema lists,
 // which Execute enforces, or every effect when there is no list (genericWorstEffects).
 func genericToolDef(tool GenericTool, env CatalogEnv) *NodeDef {
-	params, jsonStrings := genericToolParams(tool)
+	params, jsonStrings, ok := genericToolParams(tool)
+	if !ok {
+		return nil
+	}
 	category := tool.Category
 	if !genericNameOK(category, maxGenericCategory, true) {
 		category = "other"

@@ -37,10 +37,13 @@ var (
 	// toolReadOperations replace the verb rule (isReadOperation) for tools where it is
 	// wrong: only the listed operations are reads. sql_query runs any statement under
 	// "query"; ansible's check (a dry run of a playbook), ping and facts run modules on
-	// the hosts.
+	// the hosts; github's list_pull_requests says "pull" but only lists.
 	toolReadOperations = map[string]map[string]bool{
 		"sql_query": {},
 		"ansible":   {"status": true, "list_playbooks": true, "inventory": true},
+		"github": {"list_repos": true, "get_repo": true, "list_issues": true, "list_pull_requests": true,
+			"list_branches": true, "get_file": true, "list_commits": true, "list_workflow_runs": true,
+			"search_repos": true, "list_projects": true},
 	}
 	// systemChangingTools change the host, its services, devices on the network or the
 	// infrastructure and accounts AuraGo manages. github pushes files and workflows,

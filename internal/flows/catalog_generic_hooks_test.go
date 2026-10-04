@@ -136,6 +136,8 @@ func TestGenericEffectsOfRealTools(t *testing.T) {
 		{"github", "infrastructure", "create_or_update_file", []Effect{sys}},
 		{"github", "infrastructure", "delete_repo", []Effect{del, sys}},
 		{"github", "infrastructure", "list_workflow_runs", nil},
+		{"github", "infrastructure", "list_pull_requests", nil}, // "pull" in a read
+		{"github", "infrastructure", "track_project", []Effect{sys}},
 		{"manus", "data_apis", "create_task", []Effect{run}},
 		{"manus", "data_apis", "list_projects", nil},
 		{"remote_control_shell", "infrastructure", "shell_session_read", []Effect{run}},

@@ -2,6 +2,7 @@ package flows
 
 import (
 	"encoding/json"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -111,6 +112,67 @@ var genericPageInputParams = map[string]map[string]bool{
 	"form_automation":    {"fields": true},
 }
 
+// genericExposureParams open a service to more of the network: the ports and the LAN
+// target of a router port forward, the local port a quick tunnel puts on the internet,
+// the routes tailscale advertises (enable_routes) and the clients and ACL entries of a
+// network share.
+var genericExposureParams = map[string]map[string]bool{
+	"fritzbox_network":  {"external_port": true, "internal_port": true, "internal_client": true},
+	"cloudflare_tunnel": {"port": true},
+	"tailscale":         {"value": true},
+	"network_shares":    {"clients": true, "acl": true},
+}
+
+// genericToolContentParams carry content that ends up in a file or a program outside
+// the file-tool rule: a file pushed to GitHub (create_or_update_file), OpenSCAD source
+// and a Desktop Note. github is no fileTools entry, because that would also make its
+// "value" (a SHA or state filter) a sink and list a file write for create_issue.
+var genericToolContentParams = map[string]map[string]bool{
+	"github":          {"content": true},
+	"openscad_render": {"source_scad": true},
+	"desktop_notes":   {"content": true},
+}
+
+// genericToolSinkParam reports whether a per-tool rule makes param of tool a sink.
+func genericToolSinkParam(tool, param string) bool {
+	return genericPageInputParams[tool][param] || genericExposureParams[tool][param] || genericToolContentParams[tool][param]
+}
+
+// genericDroppedOperations remove operations that take a secret as a plain parameter
+// value, which would be stored in clear in the flow, its versions and the run records,
+// together with the parameters only those operations use. The schemas do not say which
+// operation uses which parameter, so the parameters are listed by hand (env_key stays:
+// get_env and delete_env use it). Validate and Execute refuse a dropped operation like
+// any operation the schema does not list; a tool left without an operation, or whose
+// operations are no list that could be filtered, gets no generic node.
+var genericDroppedOperations = map[string]struct{ ops, params []string }{
+	"invasion_tasks": {ops: []string{"send_secret"}, params: []string{"key", "value"}},
+	"netlify":        {ops: []string{"set_env"}, params: []string{"env_value"}},
+	"vercel":         {ops: []string{"set_env"}, params: []string{"env_value"}},
+}
+
+// genericDropOperations applies genericDroppedOperations to the parameters of tool and
+// reports whether the tool keeps an operation.
+func genericDropOperations(tool string, params []ParamSpec, jsonStrings map[string]bool) ([]ParamSpec, bool) {
+	drop, ok := genericDroppedOperations[tool]
+	if !ok {
+		return params, true
+	}
+	params = slices.DeleteFunc(params, func(p ParamSpec) bool { return slices.Contains(drop.params, p.Name) })
+	for _, name := range drop.params {
+		delete(jsonStrings, name)
+	}
+	opName, _ := genericOperation(params)
+	if opName == "" {
+		return params, true
+	}
+	i := slices.IndexFunc(params, func(p ParamSpec) bool { return p.Name == opName })
+	params[i].Options = slices.DeleteFunc(slices.Clone(params[i].Options), func(o Option) bool {
+		return slices.ContainsFunc(drop.ops, func(op string) bool { return strings.EqualFold(op, o.Value) })
+	})
+	return params, len(params[i].Options) > 0
+}
+
 // genericFileTool reports whether a tool works on or writes files: the files category,
 // tools whose name says so or that fileTools lists (genericFileish), and fileWritingTools.
 func genericFileTool(tool GenericTool) bool {
@@ -138,62 +200,49 @@ func genericAllTextSinks(tool GenericTool) bool {
 // tool loses "background" (a detached process outlives the node's timeout and the
 // run's cancellation); every text parameter of a genericAllTextSinks tool is a sink,
 // and so is every file content parameter of a file tool, also one level down a JSON
-// parameter (remote_control_files "patches" holds new_text), and every page input of
-// a browser or form automation tool (genericPageInputParams).
-func genericToolParams(tool GenericTool) ([]ParamSpec, map[string]bool) {
-	params, jsonStrings := paramsFromSchema(tool.Schema)
+// parameter (remote_control_files "patches" holds new_text), and so is every parameter
+// a per-tool rule names (genericToolSinkParam). genericDroppedOperations are removed;
+// ok is false when the tool is left without an operation.
+func genericToolParams(tool GenericTool) (params []ParamSpec, jsonStrings map[string]bool, ok bool) {
+	params, jsonStrings = paramsFromSchema(tool.Schema)
 	if codeRunningTools[tool.Name] {
-		kept := params[:0]
-		for _, p := range params {
-			if p.Name != "background" {
-				kept = append(kept, p)
-			}
-		}
-		params = kept
+		params = slices.DeleteFunc(params, func(p ParamSpec) bool { return p.Name == "background" })
+	}
+	if params, ok = genericDropOperations(tool.Name, params, jsonStrings); !ok {
+		return nil, nil, false
 	}
 	allText, fileTool := genericAllTextSinks(tool), genericFileTool(tool)
 	props, _ := tool.Schema["properties"].(map[string]any)
 	for i := range params {
 		p := &params[i]
-		if (allText && p.Kind != ParamBool && p.Kind != ParamNumber) || genericPageInputParams[tool.Name][p.Name] {
+		if (allText && p.Kind != ParamBool && p.Kind != ParamNumber) || genericToolSinkParam(tool.Name, p.Name) {
 			p.SensitiveSink = true
 		}
 		if fileTool && !p.SensitiveSink {
 			prop, _ := props[p.Name].(map[string]any)
-			p.SensitiveSink = isGenericFileContentName(p.Name) || anyName(schemaNestedNames(prop), isGenericFileContentName)
+			p.SensitiveSink = isGenericFileContentName(p.Name) || schemaNestedHas(prop, isGenericFileContentName)
 		}
 	}
-	return params, jsonStrings
+	return params, jsonStrings, true
 }
 
-// schemaNestedNames returns the property names one level down a schema property: of
-// an object's "properties" and of an array's "items" "properties", at most
-// maxGenericParams of each.
-func schemaNestedNames(p map[string]any) []string {
-	var names []string
-	add := func(props map[string]any) {
-		n := 0
+// schemaNestedHas reports whether a property name one level down a schema property
+// (in an object's "properties" or an array's "items" "properties") satisfies pred. It
+// looks at every name, so the answer does not depend on map order.
+func schemaNestedHas(p map[string]any, pred func(string) bool) bool {
+	has := func(props map[string]any) bool {
 		for name := range props {
-			if n++; n > maxGenericParams {
-				return
+			if pred(name) {
+				return true
 			}
-			names = append(names, name)
 		}
+		return false
 	}
-	if props, ok := p["properties"].(map[string]any); ok {
-		add(props)
+	if props, ok := p["properties"].(map[string]any); ok && has(props) {
+		return true
 	}
 	if items, ok := p["items"].(map[string]any); ok {
-		if props, ok := items["properties"].(map[string]any); ok {
-			add(props)
-		}
-	}
-	return names
-}
-
-func anyName(names []string, pred func(string) bool) bool {
-	for _, n := range names {
-		if pred(n) {
+		if props, ok := items["properties"].(map[string]any); ok && has(props) {
 			return true
 		}
 	}
@@ -286,7 +335,7 @@ func paramsFromSchema(schema map[string]any) ([]ParamSpec, map[string]bool) {
 		desc = strings.TrimSpace(validUTF8(desc))
 		spec := ParamSpec{Name: name, Label: humanizeToolName(name), Help: truncateRunes(desc, maxGenericHelpRunes),
 			Required: required[name], Templatable: true,
-			SensitiveSink: isGenericSinkName(name) || anyName(schemaNestedNames(p), isGenericSinkName)}
+			SensitiveSink: isGenericSinkName(name) || schemaNestedHas(p, isGenericSinkName)}
 		typ := schemaType(p["type"])
 		enum := schemaEnum(p["enum"])
 		lowerDesc := strings.ToLower(desc)
