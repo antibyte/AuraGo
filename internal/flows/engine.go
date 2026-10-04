@@ -175,7 +175,12 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	}
 	fail := func(ne *NodeError) nodeDone {
 		// A copy, not a cut in place: the node may return a shared error value.
-		ne = &NodeError{Code: ne.Code, Message: truncateRunes(ne.Message, maxErrorMessageRunes)}
+		// The code is the UI's translation key, so an empty one becomes FLOW_NODE_FAILED.
+		code := ne.Code
+		if code == "" {
+			code = "FLOW_NODE_FAILED"
+		}
+		ne = &NodeError{Code: code, Message: truncateRunes(ne.Message, maxErrorMessageRunes)}
 		d.err = ne
 		step.ErrorCode, step.ErrorMessage = ne.Code, ne.Message
 		return finish(StepError)

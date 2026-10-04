@@ -129,6 +129,24 @@ func TestToolTextIsValidUTF8(t *testing.T) {
 	}
 }
 
+func TestCallToolDefaultsEmptyInvokerErrorCode(t *testing.T) {
+	for name, invokerErr := range map[string]error{
+		"bare":    &NodeError{Message: "m"},
+		"wrapped": fmt.Errorf("outer: %w", &NodeError{Message: "m"}),
+	} {
+		_, err := callTool(context.Background(), toolInput(errorTools{invokerErr}), "x", nil)
+		ne := asNodeError(err)
+		if ne.Code != "FLOW_NODE_FAILED" || ne.Message != "m" {
+			t.Errorf("%s: got %q %q, want FLOW_NODE_FAILED \"m\"", name, ne.Code, ne.Message)
+		}
+	}
+	// A code the invoker did set is kept.
+	_, err := callTool(context.Background(), toolInput(errorTools{&NodeError{Code: "TOOL_BUSY", Message: "m"}}), "x", nil)
+	if ne := asNodeError(err); ne.Code != "TOOL_BUSY" {
+		t.Fatalf("code = %q", ne.Code)
+	}
+}
+
 func TestCallToolPassesArgsThrough(t *testing.T) {
 	var got []ToolRequest
 	tools := &fakeTools{respond: func(req ToolRequest) (ToolResponse, error) {

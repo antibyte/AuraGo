@@ -15,7 +15,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Error codes are stable strings the UI translates (the message is the fallback). Reuse the engine's:
   `FLOW_TEMPLATE_ERROR`, `FLOW_NODE_FAILED`, `FLOW_NODE_TIMEOUT`, `FLOW_NODE_PANIC`, `FLOW_OUTPUT_INVALID`,
   `FLOW_OUTPUT_TOO_LARGE`, `FLOW_PORT_INVALID`. A plain error becomes `FLOW_NODE_FAILED`, one wrapping
-  `context.DeadlineExceeded` becomes `FLOW_NODE_TIMEOUT`.
+  `context.DeadlineExceeded` becomes `FLOW_NODE_TIMEOUT`; a `NodeError` with an empty code gets `FLOW_NODE_FAILED`.
 - Every error is retried per the node's `Retry` settings, so side effects must tolerate a re-run.
   Honour `ctx`; the timeout applies per attempt.
 - Output must be JSON-encodable (else `FLOW_OUTPUT_INVALID`). `Ports == nil` means the default port;
@@ -37,7 +37,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - List every outward effect. A new `Effect` constant needs an `effectOrder` entry and a deliberate
   `IsRisky` decision; unknown effects count as not risky.
 - Tools: call them only through `callTool` (`catalog_tools.go`). It fails on a cancelled context, rejects raw
-  output over 16 MiB (`FLOW_OUTPUT_TOO_LARGE`) before parsing, classifies by the response status first
+  output over 8 MiB (`FLOW_OUTPUT_TOO_LARGE`) before parsing, classifies by the response status first
   (`denied` gives `FLOW_TOOL_DENIED`, `needs_setup` gives `FLOW_NODE_UNAVAILABLE`) and cuts tool text echoed in
   errors to 300 runes. `Args` is read-only and may alias run data.
 - `ParseToolOutput` limits: numbers decode as float64 engine-wide, so 64-bit ids must be strings.

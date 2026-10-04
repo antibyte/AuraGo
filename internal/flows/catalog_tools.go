@@ -67,8 +67,10 @@ const (
 
 	// maxToolOutputBytes caps the raw tool output callTool accepts. json.Unmarshal
 	// cannot be cancelled and needs about 50 times the input in memory, so the
-	// engine's MaxOutputBytes (checked after parsing) is no protection.
-	maxToolOutputBytes = 16 << 20
+	// engine's MaxOutputBytes (5 MiB, checked after parsing) is no protection.
+	// The cap sits a little above it: output that big fails in the engine anyway,
+	// and 16 MiB of adversarial input already costs about 0.9 GiB per call.
+	maxToolOutputBytes = 8 << 20
 
 	replacementRune = "�"
 )
@@ -182,11 +184,17 @@ func toolMessage(m map[string]any, fallback string) string {
 }
 
 // invokeError converts an error returned by the tool invoker into a NodeError
-// whose message is valid UTF-8 and cut. It never returns nil for a non-nil err,
-// and it copies, so an error shared by the invoker is not modified.
+// whose message is valid UTF-8 and cut, and whose code is never empty (the code is
+// the UI's translation key; an empty one becomes FLOW_NODE_FAILED). It never
+// returns nil for a non-nil err, and it copies, so an error shared by the invoker
+// is not modified.
 func invokeError(err error) *NodeError {
 	ne := asNodeError(err)
-	return &NodeError{Code: ne.Code, Message: truncateRunes(validUTF8(ne.Message), maxToolMessageRunes)}
+	code := ne.Code
+	if code == "" {
+		code = "FLOW_NODE_FAILED"
+	}
+	return &NodeError{Code: code, Message: truncateRunes(validUTF8(ne.Message), maxToolMessageRunes)}
 }
 
 func nodeIDOf(in ExecInput) string {
