@@ -42,29 +42,19 @@ func templateKey(id, part string) string { return "easydrag.template." + id + ".
 // text. (100000 runes could be 400 KB and fail the node with a large body.)
 const templateUntrustedRunes = 40000
 
-// literalTemplateText makes a translation safe to use as (part of) a template parameter.
-// A parameter is a template, so a translation that holds "{{" would start an expression
-// of its own that nobody reviewed. The template syntax has an escape for it: "\{{" renders
-// a literal "{{". Only "{{" is special in running text; "}}" needs no escape. A translation
-// is plain text and never template code, so every "{{" is escaped, also one that already
-// has a backslash in front of it: "\{{" becomes "\\{{", which renders as "\{{" again.
-//
-// A text that ends in a backslash must not be followed directly by an expression, because
-// the backslash would then escape the "{{" of the expression. The templates below always
-// put a line break or a space between a translated text and an expression.
-func literalTemplateText(s string) string { return strings.ReplaceAll(s, "{{", `\{{`) }
-
 // templateSpecs builds the templates with texts translated by tr. Node keys are fixed
 // English identifiers so that template strings can reference them in every language.
 //
-// Every translated text goes through literalTemplateText, so a translation cannot add
-// template expressions to a node parameter: the only expressions are the ones written in
-// this file. (The name and the description of a template and the labels of its nodes are
-// not parameters; TemplateFlow takes them from tr as they are.)
+// A translated text is trusted template text. The language files of the editor
+// (ui/lang/easydrag) ship with the repository, and some of their texts hold expressions on
+// purpose: the reminder message reads {{trigger.data.title}}, the budget message reads
+// {{trigger.data.percentage}}. The texts are therefore used as they are, as a node
+// parameter, and an expression in one must read data the trigger or a node before it really
+// produces, like any other. (The validator does not check trigger fields; the hardening
+// tests check the two texts above against the trigger samples.) The name and the
+// description of a template and the labels of its nodes are plain text.
 func templateSpecs(tr func(string) string) []templateSpec {
-	text := func(id string, n int) string {
-		return literalTemplateText(tr(templateKey(id, fmt.Sprintf("text_%d", n))))
-	}
+	text := func(id string, n int) string { return tr(templateKey(id, fmt.Sprintf("text_%d", n))) }
 	info := func(id string, texts int, categories ...string) TemplateInfo {
 		ti := TemplateInfo{ID: id, NameKey: templateKey(id, "name"), DescriptionKey: templateKey(id, "description"), Categories: categories}
 		for i := 1; i <= texts; i++ {

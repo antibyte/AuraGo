@@ -134,12 +134,12 @@ func (o tplRunOutcome) call(t *testing.T, tool string) map[string]any {
 	return found[0].Args
 }
 
-// tplRun fills the blanks of a template, checks that it is publishable then, and runs it
-// from its trigger with data. The translator returns the keys, so the texts are known.
-func tplRun(t *testing.T, id string, fill map[string]map[string]any, data map[string]any) tplRunOutcome {
+// tplRun fills the blanks of a template built with tr, checks that it is publishable then,
+// and runs it from its trigger with data (the trigger sample when data is nil).
+func tplRun(t *testing.T, id string, tr func(string) string, fill map[string]map[string]any, data map[string]any) tplRunOutcome {
 	t.Helper()
 	reg := catalogRegistry(t, fullEnv())
-	f := tplBuild(t, id, tplIdentity)
+	f := tplBuild(t, id, tr)
 	for key, params := range fill {
 		n := f.NodeByKey(key)
 		if n == nil {
@@ -181,12 +181,13 @@ func tplWant(t *testing.T, what string, got, want any) {
 // Every starter template runs from its trigger once its blanks are filled in: the values
 // of the plan pass the strict readers of the nodes, every reference reads data the node
 // before it really produced, and the text of the model, the file of the PDF and the
-// entries of the list end up where the template sends them.
+// entries of the list end up where the template sends them. The texts are the keys, so
+// they are known; the last two subtests use the texts that hold expressions.
 func TestStarterTemplatesRun(t *testing.T) {
 	const key = "easydrag.template."
 
 	t.Run("ai_news_pdf_telegram", func(t *testing.T) {
-		o := tplRun(t, "ai_news_pdf_telegram", nil, nil)
+		o := tplRun(t, "ai_news_pdf_telegram", tplIdentity, nil, nil)
 		search := o.call(t, BraveSearchTool)
 		tplWant(t, "query", search["query"], key+"ai_news_pdf_telegram.text_1")
 		tplWant(t, "count", search["count"], 5)
@@ -201,7 +202,7 @@ func TestStarterTemplatesRun(t *testing.T) {
 
 	t.Run("webhook_summary_email", func(t *testing.T) {
 		data := NormalizeTriggerData("webhook", `{"text":"Hallo"}`)
-		o := tplRun(t, "webhook_summary_email", map[string]map[string]any{
+		o := tplRun(t, "webhook_summary_email", tplIdentity, map[string]map[string]any{
 			"hook": {"webhook": "wh_1"}, "mail": {"to": "me@example.com"}}, data)
 		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"webhook_summary_email.text_1\n\n"+`{"text":"Hallo"}`)
 		mail := o.call(t, "send_email")
@@ -211,35 +212,55 @@ func TestStarterTemplatesRun(t *testing.T) {
 	})
 
 	t.Run("appointment_reminder", func(t *testing.T) {
-		o := tplRun(t, "appointment_reminder", nil, nil)
+		o := tplRun(t, "appointment_reminder", tplIdentity, nil, nil)
 		tplWant(t, "message", o.call(t, "send_telegram")["message"], key+"appointment_reminder.text_1")
 	})
 
 	t.Run("leaving_home", func(t *testing.T) {
 		fill := map[string]map[string]any{"presence": {"entity": "device_tracker.phone"}, "lights": {"entity": "light.hall"}}
-		o := tplRun(t, "leaving_home", fill, map[string]any{"entity_id": "device_tracker.phone", "new_state": "not_home", "old_state": "home"})
+		o := tplRun(t, "leaving_home", tplIdentity, fill, map[string]any{"entity_id": "device_tracker.phone", "new_state": "not_home", "old_state": "home"})
 		ha := o.call(t, "home_assistant")
 		tplWant(t, "domain", ha["domain"], "light")
 		tplWant(t, "service", ha["service"], "turn_off")
 		tplWant(t, "entity", ha["entity_id"], "light.hall")
 
 		// Somebody arrives: the condition is false and the lights stay as they are.
-		o = tplRun(t, "leaving_home", fill, map[string]any{"entity_id": "device_tracker.phone", "new_state": "home", "old_state": "not_home"})
+		o = tplRun(t, "leaving_home", tplIdentity, fill, map[string]any{"entity_id": "device_tracker.phone", "new_state": "home", "old_state": "not_home"})
 		if n := o.tools.count(); n != 0 {
 			t.Errorf("a home state called %d tools, want none", n)
 		}
 	})
 
 	t.Run("budget_guard", func(t *testing.T) {
-		o := tplRun(t, "budget_guard", nil, nil)
+		o := tplRun(t, "budget_guard", tplIdentity, nil, nil)
 		push := o.call(t, "send_notification")
 		tplWant(t, "channel", push["channel"], "all")
 		tplWant(t, "title", push["title"], key+"budget_guard.text_1")
 		tplWant(t, "message", push["message"], key+"budget_guard.text_2")
 	})
 
+	// The texts of plan 1c read the trigger data. The data is what Mission Control sends
+	// (NotifyPlannerAppointmentDue and NotifyBudgetEvent in internal/tools/missions_v2.go).
+	t.Run("appointment_reminder with the shipped text", func(t *testing.T) {
+		data := NormalizeTriggerData("planner_appointment_due",
+			`{"appointment_id":"apt-7","title":"Dentist","date_time":"2026-10-05T09:00:00Z","time":"2026-10-05T08:00:00Z"}`)
+		o := tplRun(t, "appointment_reminder", tplShipped, nil, data)
+		tplWant(t, "message", o.call(t, "send_telegram")["message"], "Reminder: Dentist (2026-10-05T09:00:00Z)")
+	})
+
+	// percentage is the share of the daily limit as a ratio (spent/limit, 0.84 for 84 %), as
+	// the budget tracker reports it, so the shipped text reads "0.84 %" for a warning at 84 %.
+	t.Run("budget_guard with the shipped text", func(t *testing.T) {
+		data := NormalizeTriggerData("budget_warning",
+			`{"event":"budget_warning","spent_usd":4.2,"limit_usd":5,"percentage":0.84,"time":"2026-10-03T07:00:00Z"}`)
+		o := tplRun(t, "budget_guard", tplShipped, nil, data)
+		push := o.call(t, "send_notification")
+		tplWant(t, "title", push["title"], "AI budget warning")
+		tplWant(t, "message", push["message"], "0.84 % of the daily budget is used.")
+	})
+
 	t.Run("rss_digest", func(t *testing.T) {
-		o := tplRun(t, "rss_digest", map[string]map[string]any{
+		o := tplRun(t, "rss_digest", tplIdentity, map[string]map[string]any{
 			"feed": {"url": "https://example.org/feed"}, "mail": {"to": "me@example.com"}}, nil)
 		feed := o.call(t, "web_scraper")
 		tplWant(t, "url", feed["url"], "https://example.org/feed")

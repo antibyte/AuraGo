@@ -59,99 +59,64 @@ func tplExpressions(t *testing.T, f *Flow) []string {
 	return out
 }
 
-// tplRoots are the roots a run offers to the parameters of a template flow before any
-// node but the trigger ran: the trigger sample and the run. Other nodes are absent, so
-// their expressions read nothing, which is enough to see whether a text resolves.
-func tplRoots(t *testing.T, reg *Registry, f *Flow) *Env {
-	t.Helper()
-	return &Env{Location: time.UTC, Roots: map[string]any{
-		"trigger": map[string]any{"data": TriggerSample(tplTrigger(t, reg, f))},
-		"run":     map[string]any{"started_at": "2026-10-03T07:00:00Z"},
-	}}
+// tplShipped returns the English texts plan 1c ships for the two templates whose texts hold
+// expressions on purpose; every other key returns the key.
+func tplShipped(key string) string {
+	switch key {
+	case "easydrag.template.appointment_reminder.text_1":
+		return "Reminder: {{trigger.data.title}} ({{trigger.data.date_time}})"
+	case "easydrag.template.budget_guard.text_1":
+		return "AI budget warning"
+	case "easydrag.template.budget_guard.text_2":
+		return "{{trigger.data.percentage}} % of the daily budget is used."
+	}
+	return key
 }
 
-// A translation is plain text. One that holds template syntax must neither add an
-// expression to a parameter nor break the template: the escape of the template syntax
-// renders it as the text it is. The expressions of a template flow are the ones written in
-// templates_builtin.go, whatever the translator returns.
-func TestTemplateTextsCannotInjectExpressions(t *testing.T) {
+// A translated text is trusted template text from the language files in the repository,
+// and two starter templates keep expressions in them on purpose. They are used as they are:
+// the expressions stay in the parameters, no template issue of any severity is reported,
+// every trigger.data field they read is in the sample of the trigger's event, and the taint
+// lint stays quiet.
+func TestTemplateTextsMayHoldExpressions(t *testing.T) {
 	reg := catalogRegistry(t, fullEnv())
-	variants := []string{
-		"a {{ b",
-		"{{trigger.data.raw}}",
-		"{{ search.results }} and {{",
-		"{{{ x }}}",
-		"{{{{",
-		`\{{ x`,
-		`\\{{ x`,
-		`ends with a backslash\`,
-		"}} {{ }}",
-		"{{ run.started_at | date(\"DD.MM.YYYY\") }}",
-	}
-	for _, info := range Templates() {
-		baseline := tplExpressions(t, tplBuild(t, info.ID, tplIdentity))
-		for _, variant := range variants {
-			tr := func(key string) string {
-				if strings.Contains(key, ".text_") || strings.HasSuffix(key, ".name") || strings.HasSuffix(key, ".description") {
-					return variant
-				}
-				return key
-			}
-			f := tplBuild(t, info.ID, tr)
-			if got := tplExpressions(t, f); !reflect.DeepEqual(got, baseline) {
-				t.Errorf("%s with %q: expressions %v, want %v", info.ID, variant, got, baseline)
-			}
-			// Name and description are not parameters: they stay exactly as translated.
-			if f.Name != variant || f.Description != variant {
-				t.Errorf("%s with %q: name %q, description %q", info.ID, variant, f.Name, f.Description)
-			}
-			vc := ValidateContext{Mode: ModeDraft, Now: time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC), Location: time.UTC}
+	for _, tc := range []struct {
+		id, event string
+		want      []string
+	}{
+		{"appointment_reminder", "appointment_due",
+			[]string{"telegram.message: trigger.data.title", "telegram.message: trigger.data.date_time"}},
+		{"budget_guard", "warning", []string{"push.message: trigger.data.percentage"}},
+	} {
+		f := tplBuild(t, tc.id, tplShipped)
+		if got := tplExpressions(t, f); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: expressions %v, want %v", tc.id, got, tc.want)
+		}
+		for _, mode := range []ValidationMode{ModeDraft, ModePublish} {
+			vc := ValidateContext{Mode: mode, Now: time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC), Location: time.UTC}
 			for _, is := range Validate(f, reg, vc) {
-				if is.Severity == SeverityError || is.Code == IssueTemplateSyntax {
-					t.Errorf("%s with %q: %+v", info.ID, variant, is)
-				}
-			}
-			// Every text must resolve to what the translator gave, whatever it holds.
-			env := tplRoots(t, reg, f)
-			var resolved []string
-			for i := range f.Nodes {
-				params, err := ResolveParams(f.Nodes[i].Params, env)
-				if err != nil {
-					t.Fatalf("%s.%s with %q: %v", info.ID, f.Nodes[i].Key, variant, err)
-				}
-				for _, v := range params {
-					if s, ok := v.(string); ok {
-						resolved = append(resolved, s)
-					}
-				}
-			}
-			all := strings.Join(resolved, "\x00")
-			if len(info.textKeys) > 0 && !strings.Contains(all, variant) {
-				t.Errorf("%s with %q: the text did not come through, resolved %q", info.ID, variant, resolved)
+				t.Errorf("%s mode %d: unexpected issue %+v", tc.id, mode, is)
 			}
 		}
-	}
-}
-
-// literalTemplateText is the one place that escapes, so pin what it does: every "{{" gets
-// the escape, and the template parser turns the result back into the original text.
-func TestLiteralTemplateTextRoundTrips(t *testing.T) {
-	for _, s := range []string{"", "plain", "a {{ b", "{{", "{{{", "{{{{", `\{{`, `\\{{`, `a\`, "}}", "{{x}} {{y}}", "ä {{ ö", `\n {{`} {
-		escaped := literalTemplateText(s)
-		if !strings.Contains(s, "{{") && escaped != s {
-			t.Errorf("%q changed to %q although it holds no {{", s, escaped)
+		if issues := LintUntrustedData(f, reg); len(issues) != 0 {
+			t.Errorf("%s: lint warnings %+v", tc.id, issues)
 		}
-		if HasTemplate(escaped) {
-			t.Errorf("%q: the escaped text %q still starts an expression", s, escaped)
+		trigger := tplTrigger(t, reg, f)
+		if got := trigger.Params["event"]; got != tc.event {
+			t.Fatalf("%s: the trigger waits for %v, the test assumes %s", tc.id, got, tc.event)
 		}
-		tpl, err := ParseTemplate(escaped)
-		if err != nil {
-			t.Errorf("%q: %v", s, err)
-			continue
-		}
-		got, err := tpl.Evaluate(&Env{})
-		if err != nil || (s != "" && got != s) || (s == "" && got != "") {
-			t.Errorf("%q renders as %#v, %v", s, got, err)
+		sample := TriggerSample(trigger)
+		for i := range f.Nodes {
+			refs, _ := CollectTemplateRefs(f.Nodes[i].Params)
+			for _, ref := range refs {
+				if ref.Expr.Root != "trigger" || len(ref.Expr.Path) < 2 || ref.Expr.Path[0].Field != "data" {
+					continue
+				}
+				if _, ok := sample[ref.Expr.Path[1].Field]; !ok {
+					t.Errorf("%s: {{%s}}: the %s sample has no field %q (it has %v)",
+						tc.id, ref.Expr.Source, trigger.Type, ref.Expr.Path[1].Field, tplSortedKeys(sample))
+				}
+			}
 		}
 	}
 }
@@ -170,15 +135,29 @@ func TestTemplateReferencesNameRealFields(t *testing.T) {
 		"flow": {"id", "name"},
 	}
 	triggerOutput := []string{"data", "fired_at", "type", "node"}
+	for _, tc := range []struct {
+		name string
+		tr   func(string) string
+		min  int // the expressions the walk must see
+	}{
+		{"keys as texts", tplIdentity, 9},
+		{"shipped texts", tplShipped, 12}, // three more, in the reminder and the budget message
+	} {
+		tplCheckReferences(t, reg, tc.name, tc.tr, tc.min, known, triggerOutput)
+	}
+}
+
+func tplCheckReferences(t *testing.T, reg *Registry, name string, tr func(string) string, min int, known map[string][]string, triggerOutput []string) {
+	t.Helper()
 	checked := 0
 	for _, info := range Templates() {
-		f := tplBuild(t, info.ID, tplIdentity)
+		f := tplBuild(t, info.ID, tr)
 		for i := range f.Nodes {
 			n := &f.Nodes[i]
 			refs, _ := CollectTemplateRefs(n.Params)
 			for _, ref := range refs {
 				e := ref.Expr
-				where := info.ID + " " + n.Key + "." + ref.Param + " {{" + e.Source + "}}"
+				where := name + ": " + info.ID + " " + n.Key + "." + ref.Param + " {{" + e.Source + "}}"
 				if len(e.Path) == 0 || e.Path[0].IsIndex {
 					t.Errorf("%s: names no field", where)
 					continue
@@ -222,9 +201,9 @@ func TestTemplateReferencesNameRealFields(t *testing.T) {
 			}
 		}
 	}
-	// A guard against an empty walk: the six templates have nine expressions.
-	if checked < 9 {
-		t.Fatalf("only %d references checked", checked)
+	// A guard against an empty walk.
+	if checked < min {
+		t.Fatalf("%s: only %d references checked, want %d", name, checked, min)
 	}
 }
 
