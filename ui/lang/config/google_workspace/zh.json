@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — 更改标签",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "允许更改标签、已读/未读状态和归档。需要关闭只读模式，可能还需重新连接 OAuth。",
   "config.google_workspace.enabled_label": "启用 Google Workspace 集成",
   "config.google_workspace.readonly_label": "只读模式",
   "config.google_workspace.readonly_hint": "启用时，仅允许读取操作（不允许发送邮件、创建日程、编辑文档等）",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "断开连接",
   "config.google_workspace.test_btn": "测试连接",
   "config.google_workspace.scopes_title": "权限 (Scopes)",
-  "config.google_workspace.scopes_desc": "选择代理可以访问哪些 Google 服务。更改将在下次 OAuth2 授权时生效。",
+  "config.google_workspace.scopes_desc": "保存后代理权限会更新。新增 OAuth 权限可能需要重新连接。",
   "config.google_workspace.scope_gmail": "Gmail — 读取",
   "config.google_workspace.scope_gmail_hint": "列出并读取邮件",
   "config.google_workspace.scope_gmail_send": "Gmail — 发送",

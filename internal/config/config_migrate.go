@@ -43,12 +43,13 @@ func (c *Config) FindProvider(id string) *ProviderEntry {
 func (c *Config) googleWorkspaceOAuthScopes() string {
 	scopes := []string{}
 	gw := c.GoogleWorkspace
-	if gw.Gmail || gw.GmailSend {
-		if gw.GmailSend {
-			scopes = append(scopes, "https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send")
-		} else {
-			scopes = append(scopes, "https://www.googleapis.com/auth/gmail.readonly")
-		}
+	if gw.GmailModifyLabels && !gw.ReadOnly {
+		scopes = append(scopes, "https://www.googleapis.com/auth/gmail.modify")
+	} else if gw.Gmail {
+		scopes = append(scopes, "https://www.googleapis.com/auth/gmail.readonly")
+	}
+	if gw.GmailSend && !gw.ReadOnly {
+		scopes = append(scopes, "https://www.googleapis.com/auth/gmail.send")
 	}
 	if gw.Calendar || gw.CalendarWrite {
 		if gw.CalendarWrite {

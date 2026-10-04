@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Modifier les libellés",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Autorise les changements de libellés, du statut de lecture et l’archivage. Nécessite de désactiver le mode lecture seule et parfois de reconnecter OAuth.",
   "config.google_workspace.enabled_label": "Intégration Google Workspace activée",
   "config.google_workspace.readonly_label": "Mode lecture seule",
   "config.google_workspace.readonly_hint": "Quand actif, seules les opérations de lecture sont autorisées (pas d'envoi d'e-mails, de création d'événements, d'édition de documents, etc.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Déconnecter",
   "config.google_workspace.test_btn": "Tester la connexion",
   "config.google_workspace.scopes_title": "Autorisations (étendues)",
-  "config.google_workspace.scopes_desc": "Sélectionnez les services Google auxquels l'agent peut accéder. Les modifications prennent effet lors de la prochaine autorisation OAuth2.",
+  "config.google_workspace.scopes_desc": "Les droits de l’agent changent après l’enregistrement. De nouveaux droits OAuth peuvent nécessiter une reconnexion.",
   "config.google_workspace.scope_gmail": "Gmail — Lecture",
   "config.google_workspace.scope_gmail_hint": "Lister et lire les e-mails",
   "config.google_workspace.scope_gmail_send": "Gmail — Envoi",

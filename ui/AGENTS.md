@@ -32,6 +32,8 @@ worker. Keep packaging, recovery and offline instructions in
 
 ### Render and asynchronous ownership
 
+- Google Workspace exposes separate Gmail read, send and label-change grants. Revocation applies after saving; enabling additional OAuth scopes may require reconnecting. Label changes default off and readonly overrides them. Verify TestGmailLabelPermissionBrowser and all sixteen locale bundles.
+
 - LDAP Config offers one transport dropdown (LDAPS, StartTLS, plain), preserves the legacy use_tls selection until edited, and retains custom ports when switching modes. All sixteen LDAP locale bundles describe the transport; verify TestLDAPTransportConfigBrowser.
 
 - Escape text before every Markdown fallback. Generic image/audio/video sources use the shared same-origin media allowlist; external images become deliberate links. Preview iframes retain sandboxing. Logout sends same-origin POST.

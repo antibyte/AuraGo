@@ -924,7 +924,7 @@ func ExecuteGoogleWorkspace(cfg config.Config, vault *security.Vault, operation 
 		"gmail_list":          gw.Gmail,
 		"gmail_read":          gw.Gmail,
 		"gmail_send":          gw.GmailSend,
-		"gmail_modify_labels": gw.Gmail,
+		"gmail_modify_labels": gw.GmailModifyLabels,
 		"calendar_list":       gw.Calendar,
 		"calendar_create":     gw.CalendarWrite,
 		"calendar_update":     gw.CalendarWrite,

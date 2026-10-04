@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Ändra etiketter",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Tillåt ändringar av etiketter, lässtatus och arkivering. Skrivskydd måste vara avstängt och OAuth kan behöva anslutas igen.",
   "config.google_workspace.enabled_label": "Google Workspace-integrering aktiverad",
   "config.google_workspace.readonly_label": "Skrivskyddat läge",
   "config.google_workspace.readonly_hint": "När aktiv tillåts bara läsoperationer (ingen e-postsändning, skapande av händelser, dokumentredigering osv.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Koppla från",
   "config.google_workspace.test_btn": "Testa anslutning",
   "config.google_workspace.scopes_title": "Behörigheter (Scopes)",
-  "config.google_workspace.scopes_desc": "Välj vilka Google-tjänster agenten får åtkomst till. Ändringar träder i kraft vid nästa OAuth2-auktorisering.",
+  "config.google_workspace.scopes_desc": "Agentens behörigheter ändras efter sparandet. Ytterligare OAuth-behörigheter kan kräva återanslutning.",
   "config.google_workspace.scope_gmail": "Gmail — Läs",
   "config.google_workspace.scope_gmail_hint": "Visa och läs e-post",
   "config.google_workspace.scope_gmail_send": "Gmail — Skicka",

@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Změny štítků",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Umožní měnit štítky zpráv, stav přečtení a archivaci. Vyžaduje vypnutý režim jen pro čtení a případně nové připojení OAuth.",
   "config.google_workspace.enabled_label": "Integrace Google Workspace povolena",
   "config.google_workspace.readonly_label": "Režim jen pro čtení",
   "config.google_workspace.readonly_hint": "Pokud je aktivní, jsou povoleny pouze operace čtení (bez odesílání e-mailů, vytváření událostí, úprav dokumentů atd.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Odpojit",
   "config.google_workspace.test_btn": "Testovat připojení",
   "config.google_workspace.scopes_title": "Oprávnění (Scopes)",
-  "config.google_workspace.scopes_desc": "Vyberte, ke kterým službám Google má agent přístup. Změny se projeví při příštím OAuth2 ověření.",
+  "config.google_workspace.scopes_desc": "Oprávnění agenta se změní po uložení. Nová oprávnění OAuth mohou vyžadovat opětovné připojení.",
   "config.google_workspace.scope_gmail": "Gmail — Čtení",
   "config.google_workspace.scope_gmail_hint": "Zobrazení a čtení e-mailů",
   "config.google_workspace.scope_gmail_send": "Gmail — Odesílání",

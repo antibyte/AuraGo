@@ -2310,22 +2310,23 @@ type Config struct {
 		IdleTTLSec int `yaml:"idle_ttl_sec"`
 	} `yaml:"sql_connections"`
 	GoogleWorkspace struct {
-		Enabled       bool   `yaml:"enabled"`
-		ReadOnly      bool   `yaml:"readonly"`       // true = only read operations, block send/create/update/write
-		Gmail         bool   `yaml:"gmail"`          // Gmail read access
-		GmailSend     bool   `yaml:"gmail_send"`     // Gmail send (requires !readonly)
-		Calendar      bool   `yaml:"calendar"`       // Calendar read access
-		CalendarWrite bool   `yaml:"calendar_write"` // Calendar create/update (requires !readonly)
-		Drive         bool   `yaml:"drive"`          // Drive read access
-		Docs          bool   `yaml:"docs"`           // Docs read access
-		DocsWrite     bool   `yaml:"docs_write"`     // Docs create/write (requires !readonly)
-		Sheets        bool   `yaml:"sheets"`         // Sheets read access
-		SheetsWrite   bool   `yaml:"sheets_write"`   // Sheets write (requires !readonly)
-		ClientID      string `yaml:"client_id"`      // Google OAuth2 Client ID
-		ClientSecret  string `yaml:"-" json:"-"`     // vault-only: google_workspace_client_secret
-		AccessToken   string `yaml:"-" json:"-"`     // resolved from OAuth token in vault
-		RefreshToken  string `yaml:"-" json:"-"`     // resolved from OAuth token in vault
-		TokenExpiry   string `yaml:"-" json:"-"`     // resolved: RFC3339 expiry
+		Enabled           bool   `yaml:"enabled"`
+		ReadOnly          bool   `yaml:"readonly"`            // true = only read operations, block send/create/update/write
+		Gmail             bool   `yaml:"gmail"`               // Gmail read access
+		GmailSend         bool   `yaml:"gmail_send"`          // Gmail send (requires !readonly)
+		GmailModifyLabels bool   `yaml:"gmail_modify_labels"` // Gmail label changes (default off, requires !readonly)
+		Calendar          bool   `yaml:"calendar"`            // Calendar read access
+		CalendarWrite     bool   `yaml:"calendar_write"`      // Calendar create/update (requires !readonly)
+		Drive             bool   `yaml:"drive"`               // Drive read access
+		Docs              bool   `yaml:"docs"`                // Docs read access
+		DocsWrite         bool   `yaml:"docs_write"`          // Docs create/write (requires !readonly)
+		Sheets            bool   `yaml:"sheets"`              // Sheets read access
+		SheetsWrite       bool   `yaml:"sheets_write"`        // Sheets write (requires !readonly)
+		ClientID          string `yaml:"client_id"`           // Google OAuth2 Client ID
+		ClientSecret      string `yaml:"-" json:"-"`          // vault-only: google_workspace_client_secret
+		AccessToken       string `yaml:"-" json:"-"`          // resolved from OAuth token in vault
+		RefreshToken      string `yaml:"-" json:"-"`          // resolved from OAuth token in vault
+		TokenExpiry       string `yaml:"-" json:"-"`          // resolved: RFC3339 expiry
 	} `yaml:"google_workspace"`
 	ImageGeneration struct {
 		Enabled           bool   `yaml:"enabled"`

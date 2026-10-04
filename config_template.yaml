@@ -1612,6 +1612,7 @@ google_workspace:
     readonly: false
     gmail: false
     gmail_send: false
+    gmail_modify_labels: false # separate permission for label changes, including read/unread and archiving
     calendar: false
     calendar_write: false
     drive: false

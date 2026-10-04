@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Αλλαγή ετικετών",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Επιτρέπει αλλαγές ετικετών, κατάστασης ανάγνωσης και αρχειοθέτηση. Απαιτεί απενεργοποίηση της λειτουργίας μόνο ανάγνωσης και ενδεχομένως νέα σύνδεση OAuth.",
   "config.google_workspace.enabled_label": "Ενσωμάτωση Google Workspace ενεργοποιημένη",
   "config.google_workspace.readonly_label": "Λειτουργία μόνο ανάγνωσης",
   "config.google_workspace.readonly_hint": "Όταν είναι ενεργό, επιτρέπονται μόνο λειτουργίες ανάγνωσης (χωρίς αποστολή email, δημιουργία γεγονότων, επεξεργασία εγγράφων κ.λπ.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Αποσύνδεση",
   "config.google_workspace.test_btn": "Δοκιμή σύνδεσης",
   "config.google_workspace.scopes_title": "Δικαιώματα (Scopes)",
-  "config.google_workspace.scopes_desc": "Επιλέξτε σε ποιες υπηρεσίες Google μπορεί να έχει πρόσβαση ο πράκτορας. Οι αλλαγές ισχύουν από την επόμενη εξουσιοδότηση OAuth2.",
+  "config.google_workspace.scopes_desc": "Τα δικαιώματα του πράκτορα αλλάζουν μετά την αποθήκευση. Πρόσθετα δικαιώματα OAuth μπορεί να απαιτούν επανασύνδεση.",
   "config.google_workspace.scope_gmail": "Gmail — Ανάγνωση",
   "config.google_workspace.scope_gmail_hint": "Λίστα και ανάγνωση email",
   "config.google_workspace.scope_gmail_send": "Gmail — Αποστολή",

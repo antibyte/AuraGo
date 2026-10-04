@@ -1,4 +1,6 @@
 {
+  "config.google_workspace.scope_gmail_modify_labels": "Gmail — Labels wijzigen",
+  "config.google_workspace.scope_gmail_modify_labels_hint": "Sta wijzigingen aan labels, leesstatus en archivering toe. Alleen-lezen moet uit staan; opnieuw verbinden met OAuth kan nodig zijn.",
   "config.google_workspace.enabled_label": "Google Workspace-integratie ingeschakeld",
   "config.google_workspace.readonly_label": "Alleen-lezen modus",
   "config.google_workspace.readonly_hint": "Wanneer actief zijn alleen leesbewerkingen toegestaan (geen e-mails verzenden, evenementen aanmaken, documenten bewerken, enz.)",
@@ -14,7 +16,7 @@
   "config.google_workspace.disconnect_btn": "Verbreken",
   "config.google_workspace.test_btn": "Verbinding testen",
   "config.google_workspace.scopes_title": "Rechten (Scopes)",
-  "config.google_workspace.scopes_desc": "Selecteer tot welke Google-diensten de agent toegang mag hebben. Wijzigingen worden van kracht bij de volgende OAuth2-autorisatie.",
+  "config.google_workspace.scopes_desc": "Agentrechten veranderen na het opslaan. Extra OAuth-rechten kunnen opnieuw verbinden vereisen.",
   "config.google_workspace.scope_gmail": "Gmail — Lezen",
   "config.google_workspace.scope_gmail_hint": "E-mails weergeven en lezen",
   "config.google_workspace.scope_gmail_send": "Gmail — Verzenden",
