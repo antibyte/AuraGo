@@ -379,21 +379,8 @@ func CloudflareTunnelInstall(cfg CloudflareTunnelConfig, logger *slog.Logger) st
 // ──────────────────────────────────────────────────────────────────────────
 
 // cfTunnelConfig is the remotely-managed cloudflared ingress/origin config.
-type cfTunnelConfig struct {
-	Ingress       []cfIngressRule  `json:"ingress,omitempty"`
-	OriginRequest *cfOriginRequest `json:"originRequest,omitempty"`
-}
-
-type cfIngressRule struct {
-	Hostname      string           `json:"hostname,omitempty"`
-	Service       string           `json:"service"`
-	Path          string           `json:"path,omitempty"`
-	OriginRequest *cfOriginRequest `json:"originRequest,omitempty"`
-}
-
-type cfOriginRequest struct {
-	NoTLSVerify bool `json:"noTLSVerify"`
-}
+// Preserve provider fields when updating one origin's TLS policy.
+type cfTunnelConfig map[string]any
 
 type cfAPIError struct {
 	Code    int    `json:"code"`
@@ -427,8 +414,7 @@ type cfTunnelConfigResult struct {
 }
 
 // applyNoTLSVerifyViaAPI reads the current remotely-managed tunnel configuration
-// from the Cloudflare API and ensures noTLSVerify is set at the top-level
-// originRequest. This is necessary when HTTPS is enabled because cloudflared
+// from the Cloudflare API and scopes noTLSVerify to AuraGo local HTTPS rules. This is necessary when HTTPS is enabled because cloudflared
 // overrides local CLI flags with the Dashboard-pushed ingress configuration.
 //
 // The vault secret "cloudflare_api_token" must be set with a Zero Trust write
@@ -461,23 +447,73 @@ func applyNoTLSVerifyViaAPI(ctx context.Context, cfg CloudflareTunnelConfig, api
 		return
 	}
 
-	// Already configured? Nothing to do.
-	if current.OriginRequest != nil && current.OriginRequest.NoTLSVerify {
-		logger.Info("[CloudflareTunnel] noTLSVerify already enabled in Dashboard config", "tunnelID", tunnelID)
+	if !scopeCloudflareTLSException(*current, cfg) {
 		return
 	}
-
-	// Set top-level noTLSVerify; this default applies to all ingress rules.
-	if current.OriginRequest == nil {
-		current.OriginRequest = &cfOriginRequest{}
-	}
-	current.OriginRequest.NoTLSVerify = true
 
 	if err := cfPutTunnelConfig(ctx, cfg.AccountID, apiToken, tunnelID, current); err != nil {
 		logger.Warn("[CloudflareTunnel] Cannot PUT tunnel config via Cloudflare API", "tunnelID", tunnelID, "error", err)
 		return
 	}
-	logger.Info("[CloudflareTunnel] Successfully set noTLSVerify=true via Cloudflare API", "tunnelID", tunnelID)
+	logger.Info("[CloudflareTunnel] Scoped local TLS exception via Cloudflare API", "tunnelID", tunnelID)
+}
+
+// cloudflareLocalHTTPSOrigin matches only the configured AuraGo TLS listener.
+// A port match alone must never disable TLS for a different upstream host.
+func cloudflareLocalHTTPSOrigin(cfg CloudflareTunnelConfig, service string) bool {
+	if !cfg.HTTPSEnabled || cfg.LoopbackPort != 0 {
+		return false
+	}
+	u, err := url.Parse(service)
+	if err != nil || u.Scheme != "https" || u.User != nil {
+		return false
+	}
+	switch strings.ToLower(u.Hostname()) {
+	case "localhost", "127.0.0.1", "::1", "host.docker.internal":
+	default:
+		return false
+	}
+	port := u.Port()
+	if port == "" {
+		port = "443"
+	}
+	return port == fmt.Sprint(effectiveHTTPSPort(cfg))
+}
+
+func scopeCloudflareTLSException(current cfTunnelConfig, cfg CloudflareTunnelConfig) bool {
+	rules, ok := current["ingress"].([]any)
+	if !ok {
+		return false
+	}
+	changed, matched := false, false
+	for _, value := range rules {
+		rule, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		service, _ := rule["service"].(string)
+		if !cloudflareLocalHTTPSOrigin(cfg, service) {
+			continue
+		}
+		matched = true
+		origin, _ := rule["originRequest"].(map[string]any)
+		if origin == nil {
+			origin = make(map[string]any)
+			rule["originRequest"] = origin
+		}
+		if origin["noTLSVerify"] != true {
+			origin["noTLSVerify"] = true
+			changed = true
+		}
+	}
+	// Migrate the former global exception only when this is an AuraGo tunnel.
+	if matched {
+		if origin, ok := current["originRequest"].(map[string]any); ok && origin["noTLSVerify"] == true {
+			delete(origin, "noTLSVerify")
+			changed = true
+		}
+	}
+	return changed
 }
 
 // cfLookupTunnelID resolves a tunnel UUID by its display name.
@@ -1166,6 +1202,9 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 			sb.WriteString("    path: " + r.Path + "\n")
 		}
 		sb.WriteString("    service: " + r.Service + "\n")
+		if cloudflareLocalHTTPSOrigin(cfg, r.Service) {
+			sb.WriteString("    originRequest:\n      noTLSVerify: true\n")
+		}
 	}
 
 	// Auto-generate a catch-all for the AuraGo Web UI if no custom rule already covers
@@ -1187,6 +1226,9 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 
 	if cfg.ExposeWebUI && webUISvc != "" && !hasIngressForService(cfg.CustomIngress, cfg.WebUIPort) {
 		sb.WriteString("  - service: " + webUISvc + "\n")
+		if cloudflareLocalHTTPSOrigin(cfg, webUISvc) {
+			sb.WriteString("    originRequest:\n      noTLSVerify: true\n")
+		}
 	}
 	if cfg.ExposeHomepage && cfg.HomepagePort > 0 && !hasIngressForService(cfg.CustomIngress, cfg.HomepagePort) {
 		sb.WriteString("  - service: " + fmt.Sprintf("http://localhost:%d", cfg.HomepagePort) + "\n")
@@ -1194,13 +1236,6 @@ func writeNamedTunnelConfig(cfg CloudflareTunnelConfig, credPath, configPath str
 
 	// Required catch-all (cloudflared rejects configs without it).
 	sb.WriteString("  - service: http_status:404\n")
-
-	// When AuraGo uses HTTPS with a self-signed certificate, tell cloudflared to skip
-	// TLS verification for the local connection to the origin service.
-	// Not needed when LoopbackPort is set because the origin is plain HTTP.
-	if cfg.HTTPSEnabled && cfg.LoopbackPort == 0 {
-		sb.WriteString("\noriginRequest:\n  noTLSVerify: true\n")
-	}
 
 	return os.WriteFile(configPath, []byte(sb.String()), 0600)
 }
