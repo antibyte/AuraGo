@@ -68,23 +68,31 @@ func TestTemplateFlowUnknownTemplate(t *testing.T) {
 	}
 }
 
-// A translator without translations returns "" (or the key). The flow still has a name, a
+// A translator without translations returns "" or the key. The flow still has a name, a
 // label for every node and a text in every parameter, and it passes draft validation: a
-// missing translation must not make the template unusable.
+// missing translation must not make the template unusable. An empty answer falls back to the
+// template id for the name and the description; an answer that is the key stays the key.
 func TestTemplateFlowWithoutTranslations(t *testing.T) {
 	reg := catalogRegistry(t, fullEnv())
-	for name, tr := range map[string]func(string) string{
-		"blank": func(string) string { return "" },
-		"keys":  tplIdentity,
-		"nil":   nil,
+	for name, tc := range map[string]struct {
+		tr   func(string) string
+		keys bool // the name and the description are the keys, not the template id
+	}{
+		"blank": {func(string) string { return "" }, false},
+		"keys":  {tplIdentity, true},
+		"nil":   {nil, true},
 	} {
 		for _, info := range Templates() {
-			f, err := TemplateFlow(info.ID, tr)
+			f, err := TemplateFlow(info.ID, tc.tr)
 			if err != nil {
 				t.Fatalf("%s %s: %v", name, info.ID, err)
 			}
-			if f.Name != info.ID || f.Description != info.ID {
-				t.Errorf("%s %s: name %q, description %q, want the template id", name, info.ID, f.Name, f.Description)
+			wantName, wantDescription := info.ID, info.ID
+			if tc.keys {
+				wantName, wantDescription = info.NameKey, info.DescriptionKey
+			}
+			if f.Name != wantName || f.Description != wantDescription {
+				t.Errorf("%s %s: name %q, description %q, want %q and %q", name, info.ID, f.Name, f.Description, wantName, wantDescription)
 			}
 			for _, n := range f.Nodes {
 				if n.Label != n.Key {
@@ -110,5 +118,39 @@ func TestTemplateFlowWithoutTranslations(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// The service creates a flow from a template with the identity translator and expects the
+// name to be the key (1b-12, TestServiceCreateAndSave): a key that comes back as it is is a
+// translation like any other, not a missing one.
+func TestTemplateFlowIdentityTranslatorKeepsTheKeys(t *testing.T) {
+	f, err := TemplateFlow("ai_news_pdf_telegram", func(k string) string { return k })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Name != "easydrag.template.ai_news_pdf_telegram.name" || len(f.Nodes) != 5 {
+		t.Errorf("name %q with %d nodes", f.Name, len(f.Nodes))
+	}
+	if f.Description != "easydrag.template.ai_news_pdf_telegram.description" {
+		t.Errorf("description %q", f.Description)
+	}
+	if got := f.NodeByKey("search").Params["query"]; got != "easydrag.template.ai_news_pdf_telegram.text_1" {
+		t.Errorf("query %v", got)
+	}
+}
+
+// An answer of white space only is no translation for a name or a text. (A node label keeps
+// the plan's localize, which only treats "" as missing.)
+func TestTemplateFlowWhitespaceTranslation(t *testing.T) {
+	f, err := TemplateFlow("appointment_reminder", func(string) string { return " \t\n" })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Name != "appointment_reminder" || f.Description != "appointment_reminder" {
+		t.Errorf("name %q, description %q, want the template id", f.Name, f.Description)
+	}
+	if got := f.NodeByKey("telegram").Params["message"]; got != "easydrag.template.appointment_reminder.text_1" {
+		t.Errorf("message %q, want the key", got)
 	}
 }

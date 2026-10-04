@@ -171,11 +171,22 @@ func Templates() []TemplateInfo {
 	return out
 }
 
+// translatedOr returns tr(key), or fallback when tr returns nothing but white space. Unlike
+// localize it takes a translator's answer as it is, the key itself included: a translator
+// that returns the key for what it does not know (the identity translator) gives the key.
+func translatedOr(tr func(string) string, key, fallback string) string {
+	if v := tr(key); strings.TrimSpace(v) != "" {
+		return v
+	}
+	return fallback
+}
+
 // TemplateFlow builds a new flow document from a template. tr translates i18n keys; only
-// the keys of the requested template and the labels of its nodes are asked for. A key
-// without a translation (tr returns "" or the key) falls back to the template id for the
-// name and the description, to the label's node key for a label and to the key itself for
-// a text, so that no name or parameter is blank. An unknown id is ErrUnknownTemplate.
+// the keys of the requested template and the labels of its nodes are asked for. When tr
+// returns "" (or white space only) for a key, the name and the description fall back to the
+// template id and a text to its key, so that no name or parameter is blank; an answer that
+// is the key itself stays the key. A node label without a translation (localize) falls back
+// to the node key. An unknown id is ErrUnknownTemplate.
 func TemplateFlow(id string, tr func(string) string) (*Flow, error) {
 	if tr == nil {
 		tr = func(k string) string { return k }
@@ -184,10 +195,13 @@ func TemplateFlow(id string, tr func(string) string) (*Flow, error) {
 		if def.info.ID != id {
 			continue
 		}
-		text := func(n int) string { return localize(tr, templateKey(id, fmt.Sprintf("text_%d", n)), "") }
+		text := func(n int) string {
+			key := templateKey(id, fmt.Sprintf("text_%d", n))
+			return translatedOr(tr, key, key)
+		}
 		nodes, edges := def.build(text)
-		f := &Flow{Schema: SchemaVersion, ID: NewFlowID(), Kind: KindFlow, Name: localize(tr, def.info.NameKey, id),
-			Description: localize(tr, def.info.DescriptionKey, id)}
+		f := &Flow{Schema: SchemaVersion, ID: NewFlowID(), Kind: KindFlow, Name: translatedOr(tr, def.info.NameKey, id),
+			Description: translatedOr(tr, def.info.DescriptionKey, id)}
 		ids := map[string]string{}
 		for _, tn := range nodes {
 			nodeID := NewNodeID()
