@@ -10,6 +10,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- MeshCentral run_command requires agent.allow_remote_shell in addition to integration enablement, readonly and blocked-operation policy. Check it before resolving credentials or opening a connection.
+
 ### Accepted tool batches and bounded side effects
 
 - Queue sibling calls only after accepting the model response. Before each dispatch check cancellation, current interrupt generation, completion, tool allowance and cumulative co-agent token budget. Every declared native call gets one ordered result, including skipped calls; recovery guidance follows all results.

@@ -138,7 +138,7 @@ func TestHomepageDeployVercelAllowsFrameworkSourceBuildWithoutStaticIndex(t *tes
 
 	result := HomepageDeployVercel(
 		HomepageConfig{WorkspacePath: dir},
-		VercelConfig{Token: "token", DefaultProjectID: "next-site"},
+		VercelConfig{Token: "token", DefaultProjectID: "next-site", AllowDeploy: true},
 		"next-site", "", "", "preview", "", "", false, false, slogDiscard(),
 	)
 	if !deployCalled {

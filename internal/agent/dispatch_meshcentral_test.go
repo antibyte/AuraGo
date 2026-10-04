@@ -79,6 +79,7 @@ func TestDispatchMeshCentralDoesNotLogCommandBody(t *testing.T) {
 	defer server.Close()
 
 	cfg := &config.Config{}
+	cfg.Agent.AllowRemoteShell = true
 	cfg.MeshCentral.Enabled = true
 	cfg.MeshCentral.URL = server.URL
 	cfg.MeshCentral.Username = "admin"

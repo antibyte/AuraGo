@@ -516,7 +516,7 @@ Use `deploy_vercel` when the homepage project should be published to Vercel from
 | `project_dir` | string | yes | Homepage workspace directory to deploy |
 | `project_id` | string | no | Vercel project name or ID to link before deploying; falls back to `vercel.default_project_id` |
 | `build_dir` | string | no | Explicit directory to upload; otherwise auto-detected after build |
-| `target` | string | no | `preview` or `production` (default: `preview`) |
+| `target` | string | no | `preview` or `production` (default: `preview`, production requires explicit selection) |
 | `alias` | string | no | Alias or domain to assign after a successful deployment |
 | `domain` | string | no | Custom domain to add/verify before alias assignment |
 

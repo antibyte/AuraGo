@@ -455,6 +455,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.MeshCentral.ReadOnly && !meshCentralReadOnlyAllowed(op) {
 				return meshCentralError(fmt.Sprintf("MeshCentral operation '%s' blocked: meshcentral.readonly is enabled.", req.Operation))
 			}
+			if op == "run_command" && !cfg.Agent.AllowRemoteShell {
+				return meshCentralError("MeshCentral run_command requires agent.allow_remote_shell=true.")
+			}
 
 			for _, blocked := range cfg.MeshCentral.BlockedOperations {
 				if normalizeMeshCentralOp(blocked) == op && op != "" {
@@ -1141,8 +1144,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
 					return validation
 				}
-				if !cfg.Vercel.AllowDeploy {
-					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable vercel.allow_deploy in config."}`
+				if cfg.Vercel.ReadOnly || !cfg.Vercel.AllowDeploy {
+					return `Tool Output: {"status":"error","message":"Deployment requires vercel.readonly=false and vercel.allow_deploy=true."}`
 				}
 				if !cfg.Vercel.Enabled {
 					return `Tool Output: {"status":"error","message":"Vercel integration is not enabled. Set vercel.enabled=true in config.yaml."}`

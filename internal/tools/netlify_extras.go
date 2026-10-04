@@ -148,16 +148,18 @@ func NetlifyGetEnvVar(cfg NetlifyConfig, siteID, key string) string {
 		return errJSON("Failed to get env var: %v", err)
 	}
 	if code != 200 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":"Failed to read environment variable metadata"}`, code)
 	}
 
-	// Return raw response (contains values with context info)
+	// Only an allowlisted metadata projection may reach the agent.
 	var env map[string]interface{}
 	if err := json.Unmarshal(data, &env); err != nil {
 		return errJSON("Failed to parse env var: %v", err)
 	}
 
-	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "env_var": env})
+	values, _ := env["values"].([]interface{})
+	metadata := map[string]interface{}{"key": strVal(env, "key"), "scopes": toStringSlice(env["scopes"]), "updated_at": strVal(env, "updated_at"), "values_count": len(values), "redacted": true}
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "env_var": metadata})
 	return string(out)
 }
 

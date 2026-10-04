@@ -77,6 +77,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
 ### Integration state preservation
+- Homepage Vercel deploy checks readonly and allow_deploy before build/CLI/network side effects. Omitted targets remain preview; production must be explicit. Netlify environment reads return metadata only, including on error paths; no raw provider values reach the agent.
 - LDAP tls_mode selects ldaps, starttls or plain; an empty mode preserves legacy use_tls. StartTLS must complete with certificate verification and a socket deadline before any bind. Searches page within one request budget and fail without partial output on paging errors or resource limits.
 - TrueNAS clients own their HTTP transport; Close releases idle keep-alive connections after each integration call.
 - OneDrive and Google Workspace OAuth use canonical expiry (legacy token_expiry remains readable), reload authoritative Vault state before refresh, serialize same-provider refreshes, and publish in-memory replacements only after atomic compare-and-swap persistence succeeds.
