@@ -310,3 +310,318 @@ func TestCollectTemplateRefs(t *testing.T) {
 		t.Fatal("TopParam mismatch")
 	}
 }
+
+func TestCollectTemplateRefsIgnoresEscapedBraces(t *testing.T) {
+	refs, problems := CollectTemplateRefs(map[string]any{
+		"e":    `\{{x}}`,
+		"mid":  `a \{{y}} b`,
+		"list": []any{`\{{z}}`},
+	})
+	if len(refs) != 0 || len(problems) != 0 {
+		t.Fatalf("escaped braces are text: refs = %+v, problems = %+v", refs, problems)
+	}
+	refs, problems = CollectTemplateRefs(map[string]any{"t": `\{{x}} {{real}}`})
+	if len(refs) != 1 || refs[0].Expr.Root != "real" || len(problems) != 0 {
+		t.Fatalf("refs = %+v, problems = %+v; want only the unescaped expression", refs, problems)
+	}
+}
+
+func TestTemplateEvaluateNestedMapPath(t *testing.T) {
+	env := &Env{Location: time.UTC, Roots: map[string]any{
+		"a": map[string]any{"b": map[string]any{"c": "deep", "n": 7.0}},
+	}}
+	for src, want := range map[string]any{
+		"{{a.b.c}}":         "deep",
+		"{{a.b.n}}":         7.0,
+		"{{a.b.c.d}}":       nil,
+		"{{a.x.c}}":         nil,
+		`<{{a["b"]["c"]}}>`: "<deep>",
+	} {
+		tpl, err := ParseTemplate(src)
+		if err != nil {
+			t.Fatalf("parse %q: %v", src, err)
+		}
+		got, err := tpl.Evaluate(env)
+		if err != nil {
+			t.Fatalf("evaluate %q: %v", src, err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("evaluate %q = %#v, want %#v", src, got, want)
+		}
+	}
+}
+
+func TestEvaluateNilTemplate(t *testing.T) {
+	var tpl *Template
+	for _, env := range []*Env{nil, evalEnv()} {
+		got, err := tpl.Evaluate(env)
+		if got != nil || err != nil {
+			t.Fatalf("nil template: got %#v, %v; want nil, nil", got, err)
+		}
+	}
+}
+
+func TestTemplateEvaluateOutputCap(t *testing.T) {
+	mib := strings.Repeat("x", 1<<20)
+	env := &Env{Location: time.UTC, Roots: map[string]any{"a": mib, "empty": ""}}
+	evaluate := func(src string) (any, error) {
+		t.Helper()
+		tpl, err := ParseTemplate(src)
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		return tpl.Evaluate(env)
+	}
+
+	// 200 copies of a 1 MiB value would be 200 MiB: it must stop at the cap.
+	got, err := evaluate(strings.Repeat("{{a}}", 200))
+	if err == nil || got != nil || !strings.Contains(err.Error(), "8 MiB") {
+		t.Fatalf("200 x 1 MiB: got %T, err %v; want an error naming the 8 MiB limit", got, err)
+	}
+	if len(err.Error()) > 100 {
+		t.Errorf("the error should be short, got %d bytes", len(err.Error()))
+	}
+
+	// Exactly at the cap is fine, one byte over is not.
+	got, err = evaluate(strings.Repeat("{{a}}", 8))
+	if s, _ := got.(string); err != nil || len(s) != maxTemplateOutputBytes {
+		t.Fatalf("8 x 1 MiB should fit exactly, got len %d, err %v", len(s), err)
+	}
+	if _, err = evaluate(strings.Repeat("{{a}}", 8) + "!"); err == nil {
+		t.Fatal("8 MiB + 1 byte: expected an error")
+	}
+
+	// Literal parts count too, wherever they sit.
+	if _, err = evaluate(strings.Repeat("y", 5<<20) + strings.Repeat("{{a}}", 4)); err == nil {
+		t.Fatal("5 MiB literal + 4 MiB value: expected an error")
+	}
+	if _, err = evaluate(strings.Repeat("{{a}}", 4) + strings.Repeat("y", 5<<20)); err == nil {
+		t.Fatal("4 MiB value + 5 MiB literal: expected an error")
+	}
+	if _, err = evaluate(strings.Repeat("y", maxTemplateOutputBytes+1) + "{{empty}}"); err == nil {
+		t.Fatal("a literal over the cap: expected an error")
+	}
+
+	// A single expression keeps its value; the cap is for assembled text.
+	got, err = evaluate("{{a}}")
+	if s, _ := got.(string); err != nil || len(s) != 1<<20 {
+		t.Fatalf("single expression: len %d, err %v", len(s), err)
+	}
+
+	// Through ResolveParams the error names the parameter.
+	_, err = ResolveParams(map[string]any{"body": strings.Repeat("{{a}}", 200)}, env)
+	if err == nil || !strings.HasPrefix(err.Error(), "body: ") {
+		t.Fatalf("ResolveParams: got %v", err)
+	}
+}
+
+func nestedMaps(n int, leaf any) any {
+	v := leaf
+	for i := 0; i < n; i++ {
+		v = map[string]any{"k": v}
+	}
+	return v
+}
+
+func nestedLists(n int, leaf any) any {
+	v := leaf
+	for i := 0; i < n; i++ {
+		v = []any{v}
+	}
+	return v
+}
+
+func TestResolveDepthLimit(t *testing.T) {
+	const tooDeep = "parameters nested deeper than 32 levels"
+	env := evalEnv()
+	builders := map[string]func(int, any) any{"maps": nestedMaps, "lists": nestedLists}
+	for name, build := range builders {
+		// ResolveValue: the value itself is level 1, so 32 containers pass.
+		got, err := ResolveValue(build(maxParamDepth, "{{a.n}}"), env)
+		if err != nil {
+			t.Fatalf("%s: depth %d must pass: %v", name, maxParamDepth, err)
+		}
+		if !reflect.DeepEqual(got, build(maxParamDepth, 2.0)) {
+			t.Errorf("%s: leaf was not resolved at the deepest allowed level", name)
+		}
+		for _, n := range []int{maxParamDepth + 1, 40} {
+			_, err = ResolveValue(build(n, "{{a.n}}"), env)
+			if err == nil || !strings.Contains(err.Error(), tooDeep) {
+				t.Fatalf("%s: depth %d: got %v, want %q", name, n, err, tooDeep)
+			}
+			if len(err.Error()) > 400 {
+				t.Errorf("%s: depth %d: the wrapped error is %d bytes long", name, n, len(err.Error()))
+			}
+		}
+
+		// ResolveParams: the parameter map is level 1, its values start at level 2.
+		params, err := ResolveParams(map[string]any{"p": build(maxParamDepth-1, "{{a.n}}")}, env)
+		if err != nil || !reflect.DeepEqual(params["p"], build(maxParamDepth-1, 2.0)) {
+			t.Fatalf("%s: params depth %d must pass: %v", name, maxParamDepth, err)
+		}
+		for _, n := range []int{maxParamDepth, 40} {
+			_, err = ResolveParams(map[string]any{"p": build(n, "{{a.n}}")}, env)
+			if err == nil || !strings.HasPrefix(err.Error(), "p: ") || !strings.Contains(err.Error(), tooDeep) {
+				t.Fatalf("%s: params depth %d: got %v, want %q under p", name, n, err, tooDeep)
+			}
+		}
+	}
+}
+
+func TestCollectTemplateRefsDepthLimit(t *testing.T) {
+	const tooDeep = "parameters nested deeper than 32 levels"
+	cases := []struct {
+		name  string
+		build func(int, any) any
+		step  string
+	}{
+		{"maps", nestedMaps, ".k"},
+		{"lists", nestedLists, "[0]"},
+	}
+	for _, tc := range cases {
+		// Deepest allowed: the leaf expression at level 32 is still collected.
+		refs, problems := CollectTemplateRefs(map[string]any{"p": tc.build(maxParamDepth-1, "{{a.n}}")})
+		if len(problems) != 0 || len(refs) != 1 || refs[0].Param != "p"+strings.Repeat(tc.step, maxParamDepth-1) {
+			t.Fatalf("%s: depth %d: refs = %+v, problems = %+v", tc.name, maxParamDepth, refs, problems)
+		}
+
+		// One level too deep, and 40: one problem at the first container over the
+		// limit, nothing below it collected, siblings still walked.
+		for _, n := range []int{maxParamDepth, 40} {
+			refs, problems = CollectTemplateRefs(map[string]any{"p": tc.build(n, "{{a.n}}"), "q": "{{b}}"})
+			if len(refs) != 1 || refs[0].Param != "q" || refs[0].Expr.Root != "b" {
+				t.Fatalf("%s: depth %d: refs = %+v, want only q", tc.name, n, refs)
+			}
+			wantPath := "p" + strings.Repeat(tc.step, maxParamDepth-1)
+			if len(problems) != 1 || problems[0].Param != wantPath ||
+				problems[0].Err == nil || problems[0].Err.Error() != tooDeep {
+				t.Fatalf("%s: depth %d: problems = %+v, want one at %q", tc.name, n, problems, wantPath)
+			}
+		}
+	}
+}
+
+// Single-expression templates hand out the value from env without copying it.
+// This test pins that: it is documented on Evaluate, ResolveValue and
+// ResolveParams, and callers rely on treating such values as read-only. Making
+// Evaluate copy instead must be a deliberate change, not a side effect.
+func TestSingleExpressionSharesContainersWithEnv(t *testing.T) {
+	env := evalEnv()
+	w := env.Roots["w"].(map[string]any)
+	results := w["results"].([]any)
+	ptr := func(v any) uintptr { return reflect.ValueOf(v).Pointer() }
+
+	tpl, err := ParseTemplate("{{w.results}}")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	got, err := tpl.Evaluate(env)
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if ptr(got) != ptr(results) {
+		t.Error("Evaluate no longer returns the list shared with env; update the aliasing docs and every caller that relies on it")
+	}
+
+	resolved, err := ResolveParams(map[string]any{"list": "{{w.results}}", "obj": "{{w}}"}, env)
+	if err != nil {
+		t.Fatalf("ResolveParams: %v", err)
+	}
+	if ptr(resolved["list"]) != ptr(results) || ptr(resolved["obj"]) != ptr(w) {
+		t.Error("ResolveParams no longer returns env containers for single-expression strings")
+	}
+
+	// The containers of the input itself are rebuilt, never shared with the result.
+	in := map[string]any{"l": []any{1.0}, "m": map[string]any{"a": 1.0}}
+	out, err := ResolveParams(in, env)
+	if err != nil {
+		t.Fatalf("ResolveParams: %v", err)
+	}
+	if ptr(out["l"]) == ptr(in["l"]) || ptr(out["m"]) == ptr(in["m"]) {
+		t.Error("ResolveParams must rebuild the containers of its input")
+	}
+}
+
+// Text that comes out of a template, or that sits in env data, is plain data:
+// it is never parsed as a template again.
+func TestResolvedValuesAreNotReevaluated(t *testing.T) {
+	env := &Env{Location: time.UTC, Roots: map[string]any{
+		"t": "{{a.n}}",
+		"l": []any{"{{a.n}}"},
+		"a": map[string]any{"n": 2.0},
+	}}
+	got, err := ResolveParams(map[string]any{
+		"single": "{{t}}",
+		"mixed":  "x {{t}}",
+		"list":   "{{l}}",
+		"deep":   []any{map[string]any{"v": "{{t}}"}},
+	}, env)
+	if err != nil {
+		t.Fatalf("ResolveParams: %v", err)
+	}
+	want := map[string]any{
+		"single": "{{a.n}}",
+		"mixed":  "x {{a.n}}",
+		"list":   []any{"{{a.n}}"},
+		"deep":   []any{map[string]any{"v": "{{a.n}}"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ResolveParams = %#v, want %#v", got, want)
+	}
+}
+
+func TestResolveErrorsAreDeterministic(t *testing.T) {
+	broken := func() map[string]any {
+		m := make(map[string]any)
+		for i := 0; i < 8; i++ {
+			m["k"+strconv.Itoa(i)] = "{{bad" + strings.Repeat("x", i)
+		}
+		return m
+	}
+	env := evalEnv()
+	cases := map[string]func() error{
+		"params": func() error { _, err := ResolveParams(broken(), env); return err },
+		"nested": func() error { _, err := ResolveParams(map[string]any{"p": broken()}, env); return err },
+		"value":  func() error { _, err := ResolveValue(broken(), env); return err },
+	}
+	for name, run := range cases {
+		first := run()
+		if first == nil {
+			t.Fatalf("%s: expected an error", name)
+		}
+		if !strings.Contains(first.Error(), "k0: ") || strings.Contains(first.Error(), "k1: ") {
+			t.Fatalf("%s: the error should name the first key in order, got %v", name, first)
+		}
+		for i := 0; i < 20; i++ {
+			if again := run(); again == nil || again.Error() != first.Error() {
+				t.Fatalf("%s: run %d gave %v, first run gave %v", name, i, again, first)
+			}
+		}
+	}
+}
+
+func TestEchoKeyQuotesUnprintableKeys(t *testing.T) {
+	for key, want := range map[string]string{
+		"title":    "title",
+		"my key":   "my key",
+		"größe":    "größe",
+		"a\nFAKE":  `"a\nFAKE"`,
+		"a\x1b[0m": `"a\x1b[0m"`,
+		"a\xffb":   `"a\xffb"`,
+	} {
+		if got := echoKey(key); got != want {
+			t.Errorf("echoKey(%q) = %s, want %s", key, got, want)
+		}
+	}
+	// Cut first, then quoted: the result stays short.
+	long := strings.Repeat("\n", 500)
+	got := echoKey(long)
+	if len(got) > 150 || strings.Contains(got, "\n") || !strings.HasSuffix(got, `…"`) {
+		t.Errorf("echoKey(500 newlines) = %q", got)
+	}
+
+	_, err := ResolveParams(map[string]any{"a\nFAKE": "{{a"}, evalEnv())
+	if err == nil || strings.Contains(err.Error(), "\n") || !strings.HasPrefix(err.Error(), `"a\nFAKE": `) {
+		t.Fatalf("a key with a line break must not break the error line, got %q", err)
+	}
+}

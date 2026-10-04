@@ -86,18 +86,23 @@ func applyFilter(name string, in any, args []any, env *Env) (any, error) {
 	return filters[name].fn(in, args, env)
 }
 
-// quoteForError renders s as a quoted string for an error message, cut to
-// maxErrorEchoRunes runes plus an ellipsis so a huge input cannot flood logs or
-// run records through a failing filter.
-func quoteForError(s string) string {
+// truncateForError cuts s to maxErrorEchoRunes runes plus an ellipsis so a huge
+// input cannot flood logs or run records. It does not quote or escape.
+func truncateForError(s string) string {
 	n := 0
 	for i := range s {
 		if n == maxErrorEchoRunes {
-			return strconv.Quote(s[:i] + "…")
+			return s[:i] + "…"
 		}
 		n++
 	}
-	return strconv.Quote(s)
+	return s
+}
+
+// quoteForError renders s as a quoted string for an error message, cut like
+// truncateForError.
+func quoteForError(s string) string {
+	return strconv.Quote(truncateForError(s))
 }
 
 func intArg(args []any, i, def, lower int) (int, error) {

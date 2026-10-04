@@ -370,6 +370,23 @@ func TestQuoteForErrorTruncates(t *testing.T) {
 	}
 }
 
+func TestTruncateForError(t *testing.T) {
+	exact := strings.Repeat("ä", maxErrorEchoRunes)
+	if got := truncateForError(exact); got != exact {
+		t.Errorf("truncateForError(40 runes) = %q, want it unchanged", got)
+	}
+	if got := truncateForError(exact + "x"); got != exact+"…" {
+		t.Errorf("truncateForError(41 runes) = %q", got)
+	}
+	// It cuts only; quoting and escaping stay with quoteForError.
+	if got := truncateForError("a\"b\n"); got != "a\"b\n" {
+		t.Errorf("truncateForError must not quote, got %q", got)
+	}
+	if got := truncateForError(""); got != "" {
+		t.Errorf("truncateForError(empty) = %q", got)
+	}
+}
+
 func TestFilterErrorsDoNotEchoLongInput(t *testing.T) {
 	long := strings.Repeat("ä", 500)
 	cases := []struct {

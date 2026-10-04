@@ -14,6 +14,8 @@ import (
 // map[string]any. Other Go types are not interpreted.
 
 // Env holds the values templates can read and the location used for dates.
+// Roots must hold JSON shapes (map[string]any, []any, scalars); a path step into
+// any other shape, such as a typed map or a struct, reads as null.
 type Env struct {
 	Roots    map[string]any
 	Location *time.Location
