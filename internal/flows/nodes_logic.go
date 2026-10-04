@@ -23,6 +23,10 @@ const (
 const (
 	maxSwitchCases = 20
 	maxWait        = time.Hour
+	// maxStopMessageRunes caps Stop.Message, which the engine copies into the
+	// run's error message (published and persisted). The message in the node's
+	// output stays whole; the engine bounds outputs.
+	maxStopMessageRunes = 500
 )
 
 var clockPattern = regexp.MustCompile(`^([01]\d|2[0-3]):([0-5]\d)$`)
@@ -77,6 +81,38 @@ func conditionIssues(n *Node, param string, v any) []Issue {
 	return nil
 }
 
+// caseConditionIssues validates the condition of one switch case. Unlike the
+// condition of an if node, which the required-param check covers, a case
+// condition is not a node parameter of its own, so a missing one is reported
+// here. A condition without rows is reported too: it always matches and would
+// shadow the cases after it.
+func caseConditionIssues(n *Node, param string, v any) []Issue {
+	if isNilValue(v) {
+		return []Issue{paramIssue(n, IssueParamRequired, SeverityError, param, "a condition is required")}
+	}
+	group, err := DecodeConditionGroup(v)
+	if err != nil {
+		return []Issue{paramIssue(n, IssueParamInvalid, SeverityError, param, err.Error())}
+	}
+	if len(group.Rows) == 0 {
+		return []Issue{paramIssue(n, IssueParamRequired, SeverityError, param, "the condition needs at least one row")}
+	}
+	return nil
+}
+
+// isNilValue reports nil and the typed nil maps and lists that decode as null.
+func isNilValue(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return true
+	case map[string]any:
+		return x == nil
+	case []any:
+		return x == nil
+	}
+	return false
+}
+
 func ifNodeDef() *NodeDef {
 	def := logicDef(TypeIf, "git-branch")
 	def.Outputs = []string{PortTrue, PortFalse}
@@ -118,14 +154,24 @@ func switchNodeDef() *NodeDef {
 	}
 	def.OutputFields = []FieldSpec{{Name: "case", Type: "text", Primary: true}, {Name: "matched", Type: "list"}}
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {
-		cases, _ := n.Params["cases"].([]any)
+		raw := n.Params["cases"]
+		cases, isList := raw.([]any)
+		if raw != nil && !isList {
+			// The output ports come from the raw list, so a templated list would
+			// route nowhere.
+			return []Issue{paramIssue(n, IssueParamInvalid, SeverityError, "cases", "cases must be a list of cases; templates are not supported here")}
+		}
 		var issues []Issue
 		if len(cases) > maxSwitchCases {
 			issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "cases", fmt.Sprintf("at most %d cases", maxSwitchCases)))
 		}
 		for i, c := range cases {
-			m, _ := c.(map[string]any)
-			issues = append(issues, conditionIssues(n, fmt.Sprintf("cases[%d].condition", i), m["condition"])...)
+			m, ok := c.(map[string]any)
+			if !ok {
+				issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, fmt.Sprintf("cases[%d]", i), "a case must be an object with a condition"))
+				continue
+			}
+			issues = append(issues, caseConditionIssues(n, fmt.Sprintf("cases[%d].condition", i), m["condition"])...)
 		}
 		return issues
 	}
@@ -139,7 +185,9 @@ func switchNodeDef() *NodeDef {
 			m, _ := c.(map[string]any)
 			ok, err := evaluateConditionParam(m["condition"], in.Services.Loc())
 			if err != nil {
-				return ExecResult{}, err
+				// Name the failing case; the message is already bounded.
+				ne := asNodeError(err)
+				return ExecResult{}, NewNodeError(ne.Code, "case %d: %s", i+1, ne.Message)
 			}
 			if !ok {
 				continue
@@ -172,7 +220,15 @@ func mergeNodeDef() *NodeDef {
 		{Name: "field", Kind: ParamText, LabelKey: "easydrag.param.merge_field", Default: "items",
 			VisibleIf: &Visibility{Param: "mode", Equals: []string{"append"}}},
 	}
-	def.OutputFields = []FieldSpec{{Name: "items", Type: "list", Primary: true}}
+	// The output depends on the mode: wait_all (the default, and what Execute does
+	// for any mode other than append) outputs one entry per upstream node key, which
+	// are not known here, so no fields are declared; append outputs items and count.
+	def.OutputFieldsFunc = func(n *Node) []FieldSpec {
+		if Stringify(n.Params["mode"]) != "append" {
+			return nil
+		}
+		return []FieldSpec{{Name: "items", Type: "list", Primary: true}, {Name: "count", Type: "number"}}
+	}
 	// Execute builds fresh maps and slices and only reads the received inputs
 	// (see the read-only contract on ExecInput).
 	def.Execute = func(_ context.Context, in ExecInput) (ExecResult, error) {
@@ -214,7 +270,13 @@ func waitNodeDef() *NodeDef {
 	def.OutputFields = []FieldSpec{{Name: "waited_seconds", Type: "number", Primary: true}}
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {
 		if Stringify(n.Params["mode"]) == "until" {
-			if v, ok := n.Params["until"].(string); ok && v != "" && !HasTemplate(v) && !clockPattern.MatchString(v) {
+			raw := n.Params["until"]
+			if s, ok := raw.(string); ok && HasTemplate(s) {
+				return nil
+			}
+			// Trim and stringify like Execute does, so " 07:30" passes and a
+			// non-text value such as 730 is rejected here instead of at run time.
+			if v := strings.TrimSpace(Stringify(raw)); v != "" && !clockPattern.MatchString(v) {
 				return []Issue{paramIssue(n, IssueParamInvalid, SeverityError, "until", "use the format HH:MM")}
 			}
 			return nil
@@ -264,6 +326,7 @@ func waitDuration(in ExecInput) (time.Duration, error) {
 		}
 		return d, nil
 	}
+	// A missing seconds relies on the engine applying the ParamSpec default (60).
 	f, ok := toNumber(in.Params["seconds"])
 	if !ok || f < 1 || f > maxWait.Seconds() {
 		return 0, NewNodeError("FLOW_PARAM_INVALID", "seconds must be between 1 and 3600")
@@ -292,14 +355,23 @@ func setNodeDef() *NodeDef {
 			m, _ := f.(map[string]any)
 			name := strings.TrimSpace(Stringify(m["name"]))
 			param := fmt.Sprintf("fields[%d].name", i)
-			if name == "" {
+			switch {
+			case name == "":
 				issues = append(issues, paramIssue(n, IssueParamRequired, SeverityError, param, "field name is required"))
-				continue
-			}
-			if seen[name] {
+			case seen[name]:
 				issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityWarning, param, "duplicate field name "+quoteForError(name)))
 			}
-			seen[name] = true
+			if name != "" {
+				seen[name] = true
+			}
+			// Execute reads the type with Stringify, so the check does too.
+			typ := m["type"]
+			if s, ok := typ.(string); ok && HasTemplate(s) {
+				continue
+			}
+			if text := Stringify(typ); !fieldTypes[text] {
+				issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, fmt.Sprintf("fields[%d].type", i), "unknown field type "+quoteForError(text)))
+			}
 		}
 		return issues
 	}
@@ -329,6 +401,10 @@ func setNodeDef() *NodeDef {
 	}
 	return def
 }
+
+// fieldTypes lists the field types of the set node, the ones convertValue
+// handles; the empty type means auto.
+var fieldTypes = map[string]bool{"": true, "auto": true, "text": true, "number": true, "bool": true, "list": true, "object": true}
 
 func convertValue(v any, typ string) (any, error) {
 	switch typ {
@@ -386,7 +462,7 @@ func stopNodeDef() *NodeDef {
 		msg := Stringify(in.Params["message"])
 		return ExecResult{
 			Output: map[string]any{"status": string(status), "message": msg},
-			Stop:   &StopSignal{Status: status, Message: msg},
+			Stop:   &StopSignal{Status: status, Message: truncateRunes(msg, maxStopMessageRunes)},
 		}, nil
 	}
 	return def

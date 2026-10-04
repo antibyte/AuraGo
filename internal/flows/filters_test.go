@@ -440,6 +440,36 @@ func TestTruncateForError(t *testing.T) {
 	}
 }
 
+func TestTruncateRunes(t *testing.T) {
+	cases := []struct {
+		name  string
+		in    string
+		limit int
+		want  string
+	}{
+		{"empty", "", 3, ""},
+		{"shorter", "ab", 3, "ab"},
+		{"exact", "abc", 3, "abc"},
+		{"longer", "abcd", 3, "abc…"},
+		{"multi-byte exact", "äöü", 3, "äöü"},
+		{"multi-byte cut", "äöüx", 3, "äöü…"},
+		{"cut keeps runes whole", "日本語です", 2, "日本…"},
+		{"zero limit", "a", 0, "…"},
+		{"zero limit, empty", "", 0, ""},
+		{"negative limit counts as zero", "a", -5, "…"},
+		{"no quoting", "a\"b\n", 10, "a\"b\n"},
+	}
+	for _, c := range cases {
+		if got := truncateRunes(c.in, c.limit); got != c.want {
+			t.Errorf("%s: truncateRunes(%q, %d) = %q, want %q", c.name, c.in, c.limit, got, c.want)
+		}
+	}
+	long := strings.Repeat("ä", 3*maxErrorEchoRunes)
+	if truncateForError(long) != truncateRunes(long, maxErrorEchoRunes) {
+		t.Error("truncateForError must cut like truncateRunes at maxErrorEchoRunes")
+	}
+}
+
 func TestFilterErrorsDoNotEchoLongInput(t *testing.T) {
 	long := strings.Repeat("ä", 500)
 	cases := []struct {

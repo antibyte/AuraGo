@@ -89,9 +89,19 @@ func applyFilter(name string, in any, args []any, env *Env) (any, error) {
 // truncateForError cuts s to maxErrorEchoRunes runes plus an ellipsis so a huge
 // input cannot flood logs or run records. It does not quote or escape.
 func truncateForError(s string) string {
+	return truncateRunes(s, maxErrorEchoRunes)
+}
+
+// truncateRunes cuts s to limit runes plus an ellipsis when it is longer, and
+// returns it unchanged otherwise. A limit below zero counts as zero. It does not
+// quote or escape.
+func truncateRunes(s string, limit int) string {
+	if limit < 0 {
+		limit = 0
+	}
 	n := 0
 	for i := range s {
-		if n == maxErrorEchoRunes {
+		if n == limit {
 			return s[:i] + "…"
 		}
 		n++
