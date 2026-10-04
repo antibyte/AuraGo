@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalog_sha256": "a9136b1a9a8605afd20657f0c4365fd1b0a213e3d1f629c51722cf49caba84e6",
+  "catalog_sha256": "b81c6bb680bc1aa98aed3fc06fc32d3fee9b507de7b323bf4beac4736f12317f",
   "sources": {
     "prompts/tools_manuals/activate_agent_skill.md": "1cd868f578936cbaaa313ffad3aeb33bcb40e6fa39d5410f578d2246e1da4620",
     "prompts/tools_manuals/address_book.md": "e293e5e4593960f04000ded38ac04eb625b194a6672372d085d8ec294aacc509",
@@ -18,7 +18,7 @@
     "prompts/tools_manuals/certificate_manager.md": "bf403aa8e58f03e8ceb19ffdb011fbe6e8a9d88136f6129a6de70e727f89b9e4",
     "prompts/tools_manuals/cheatsheet.md": "3f813160980dfa3a7bac054cb34e5cbb24a7c6471c509b0cb22d77ed21f7a7f1",
     "prompts/tools_manuals/chromecast.md": "9000599e20c5718ec686ec2768b2a61b8ee799af0a89771e796681d4dafd376d",
-    "prompts/tools_manuals/cloudflare_tunnel.md": "282b28c2f18ab43b572d1f7ce3d3b8dafaa9a5e822bfc3f239cc253eafc169bd",
+    "prompts/tools_manuals/cloudflare_tunnel.md": "1461be768892ef4db4ecc87b7199e60ff5f6cf6d2fe914d5b6c89380f94b2b3c",
     "prompts/tools_manuals/co_agent.md": "c84c2919ab02fe212c0bdc61cc3afe72e7ffd13bdbbfe23ad61433c8d8c6f771",
     "prompts/tools_manuals/composio_call.md": "142f74dc55c0a381e4a4074a1e87250d09826f910f7dca9c512059312d4d2f7f",
     "prompts/tools_manuals/context_manager.md": "f0ff64daa5e8380a6182e95a1b32e4d29826f2878e11d8ffb6031e931788d67f",
@@ -185,7 +185,7 @@
     "prompts/tools_manuals/xml_editor.md": "70a334eb6e3cb4c798d71ab00e233e75a14bbd41c50398c7a7be4589c6b3077e",
     "prompts/tools_manuals/yaml_editor.md": "3019e5bcda6867a4a5ff6732e690daa77fabc3ab8b1444ef3c8776fce787779b",
     "prompts/tools_manuals/yepapi.md": "da38a9f36c026917a53666302aa3a9b91abec88e0bb86feda62f79b5ff574ca9",
-    "training/operation_contracts.json": "2fd415f86c54b799e4030269c1e86ebfd549074f38a6f61aedeff0f3fe89e844",
+    "training/operation_contracts.json": "5e1472f398e908a1437724744d93f92a185e99170580f93da99d55b5f0199cdb",
     "training/tool_tiers.json": "30bbf3e1f29594d9f3774400f59bb0a8848e3a6bd19beba390d59d910e1e040e"
   },
   "tools": [
@@ -3610,7 +3610,7 @@
     },
     {
       "name": "cloudflare_tunnel",
-      "description": "Manage a Cloudflare Tunnel (cloudflared) to expose local services to the internet securely. Supports Docker and native binary modes, token/named/quick tunnel authentication.",
+      "description": "Manage administrative named/token tunnels, or temporarily publish a registered Homepage project snapshot. Quick tunnels cannot expose arbitrary ports or the AuraGo UI.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -3632,9 +3632,9 @@
             ],
             "type": "string"
           },
-          "port": {
-            "description": "Port to expose (for quick_tunnel; defaults to web UI port)",
-            "type": "integer"
+          "project_dir": {
+            "description": "Registered Homepage project for quick_tunnel or quick start/restart; defaults to the administrator-selected quick_project_dir. Build static output first.",
+            "type": "string"
           }
         },
         "required": [
@@ -3664,9 +3664,9 @@
           ],
           "type": "string"
         },
-        "port": {
-          "description": "Port to expose (for quick_tunnel; defaults to web UI port)",
-          "type": "integer"
+        "project_dir": {
+          "description": "Registered Homepage project for quick_tunnel or quick start/restart; defaults to the administrator-selected quick_project_dir. Build static output first.",
+          "type": "string"
         }
       },
       "tier": "extended",
@@ -3748,7 +3748,8 @@
             "selector": "operation",
             "value": "quick_tunnel",
             "arguments": {
-              "operation": "quick_tunnel"
+              "operation": "quick_tunnel",
+              "project_dir": "my-site"
             },
             "required_fields": [
               "operation"
@@ -49600,12 +49601,12 @@
     {
       "id": "cloudflare_tunnel",
       "path": "prompts/tools_manuals/cloudflare_tunnel.md",
-      "sha256": "282b28c2f18ab43b572d1f7ce3d3b8dafaa9a5e822bfc3f239cc253eafc169bd",
-      "body": "# Cloudflare Tunnel Tool (`cloudflare_tunnel`)\n\nManage a Cloudflare Tunnel to expose local services to the internet securely.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `start` | Start the tunnel | — |\n| `stop` | Stop the tunnel | — |\n| `restart` | Restart the tunnel | — |\n| `status` | Get tunnel status | — |\n| `quick_tunnel` | Start a quick (temporary) tunnel | `port` |\n| `logs` | View tunnel logs | — |\n| `list_routes` | List configured routes | — |\n| `install` | Install cloudflared binary | — |\n\n## Examples\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"status\"}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"quick_tunnel\", \"port\": 8080}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"start\"}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"logs\"}\n```\n\n## Notes\n- Supports Docker and native binary modes\n- Token, named tunnel, and quick tunnel authentication\n- Token tunnels use the Cloudflare dashboard-managed connector token from the Vault key `cloudflared_token`; AuraGo starts `cloudflared tunnel run` and does not add a local `--url` for token mode\n- Quick tunnels are temporary and get a random subdomain\n- Quick tunnels use `--url` and respect an explicit `port` before falling back to loopback, HTTPS, Homepage, or Web UI runtime ports\n",
+      "sha256": "1461be768892ef4db4ecc87b7199e60ff5f6cf6d2fe914d5b6c89380f94b2b3c",
+      "body": "# Cloudflare Tunnel Tool (`cloudflare_tunnel`)\n\nManage administrative named/token tunnels and temporary publication of registered Homepage projects.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `start` | Start the tunnel | — |\n| `stop` | Stop the tunnel | — |\n| `restart` | Restart the tunnel | — |\n| `status` | Get tunnel status | — |\n| `quick_tunnel` | Publish a registered Homepage static snapshot | `project_dir` |\n| `logs` | View tunnel logs | — |\n| `list_routes` | List configured routes | — |\n| `install` | Install cloudflared binary | — |\n\n## Examples\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"status\"}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"quick_tunnel\", \"project_dir\": \"my-site\"}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"start\"}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"logs\"}\n```\n\n## Notes\n- Supports Docker and native binary modes\n- Quick Docker publication requires a local engine socket or a verified parent AuraGo container. Use native mode with remote engines or custom container hostnames.\n- Token, named tunnel, and quick tunnel authentication\n- Token tunnels use the Cloudflare dashboard-managed connector token from the Vault key `cloudflared_token`; AuraGo starts `cloudflared tunnel run` and does not add a local `--url` for token mode\n- Quick tunnels are temporary and get a random subdomain\n- Quick tunnels require an active registered Homepage project. Build it first; AuraGo snapshots its static output (up to 64 MiB), allocates the origin port, and publishes only those files. Explicit ports and Web UI fallbacks are rejected.\n- `project_dir` also selects the project for quick `start` and `restart`; when omitted, the administrator-selected `cloudflare_tunnel.quick_project_dir` is used. All quick entry points use the same boundary.\n- Both integrations must be enabled and Cloudflare must be writable. Archiving a project revokes serving immediately; stopping the tunnel or shutting down cleans up the snapshot. Administrative named/token ingress remains separate.\n",
       "tools": [
         "cloudflare_tunnel"
       ],
-      "description": "Manage a Cloudflare Tunnel (cloudflared) to expose local services to the internet securely. Supports Docker and native binary modes, token/named/quick tunnel authentication."
+      "description": "Manage administrative named/token tunnels, or temporarily publish a registered Homepage project snapshot. Quick tunnels cannot expose arbitrary ports or the AuraGo UI."
     },
     {
       "id": "co_agent",

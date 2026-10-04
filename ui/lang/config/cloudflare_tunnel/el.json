@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Ιστοσελίδα για προσωρινή σήραγγα",
+  "config.cloudflare_tunnel.quick_project_help": "Δημοσιεύει αντίγραφο των τελευταίων στατικών αρχείων του επιλεγμένου έργου. Ενεργοποίησε το Homepage και το Cloudflare. Το AuraGo εκχωρεί αυτόματα τη θύρα.",
+  "config.cloudflare_tunnel.quick_project_select": "Επίλεξε έργο",
+  "config.cloudflare_tunnel.quick_project_error": "Το έργο δεν είναι διαθέσιμο. Έλεγξε τις ρυθμίσεις Homepage και την καταχώριση του έργου.",
   "config.cloudflare_tunnel.enabled_label": "Ενεργοποίηση Cloudflare Tunnel",
   "config.cloudflare_tunnel.readonly_label": "Λειτουργία μόνο για ανάγνωση (μόνο κατάσταση)",
   "config.cloudflare_tunnel.auto_start_label": "Αυτόματη εκκίνηση κατά την εκκίνηση",

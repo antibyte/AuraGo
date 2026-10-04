@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Website voor tijdelijke tunnel",
+  "config.cloudflare_tunnel.quick_project_help": "Publiceert een kopie van de laatst gebouwde statische bestanden van het gekozen project. Schakel Homepage en Cloudflare in. AuraGo wijst de poort automatisch toe.",
+  "config.cloudflare_tunnel.quick_project_select": "Selecteer een project",
+  "config.cloudflare_tunnel.quick_project_error": "Project niet beschikbaar. Controleer de Homepage-instellingen en projectregistratie.",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel ingeschakeld",
   "config.cloudflare_tunnel.readonly_label": "Alleen-lezen modus (alleen status)",
   "config.cloudflare_tunnel.auto_start_label": "Automatisch starten bij opstarten",

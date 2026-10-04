@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "クイックトンネルで公開するサイト",
+  "config.cloudflare_tunnel.quick_project_help": "選択したプロジェクトの最新ビルド済み静的ファイルのコピーを公開します。Homepage と Cloudflare を有効にしてください。ポートは AuraGo が自動的に割り当てます。",
+  "config.cloudflare_tunnel.quick_project_select": "プロジェクトを選択",
+  "config.cloudflare_tunnel.quick_project_error": "プロジェクトを利用できません。Homepage の設定とプロジェクト登録を確認してください。",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel有効",
   "config.cloudflare_tunnel.readonly_label": "読み取り専用モード（ステータスのみ）",
   "config.cloudflare_tunnel.auto_start_label": "起動時に自動開始",

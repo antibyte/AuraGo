@@ -3758,6 +3758,10 @@ transform:none; filter:none;
     margin-top: 1rem;
 }
 
+@media (max-width:640px) {
+    .pw-page[data-workspace-page="config"] .cft-grid { grid-template-columns:minmax(0,1fr); }
+}
+
 .pw-page[data-workspace-page="config"] .cft-field-label {
     display: block;
 }

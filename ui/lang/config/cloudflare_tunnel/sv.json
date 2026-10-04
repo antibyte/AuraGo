@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Webbplats för tillfällig tunnel",
+  "config.cloudflare_tunnel.quick_project_help": "Publicerar en kopia av det valda projektets senast byggda statiska filer. Aktivera Homepage och Cloudflare. AuraGo tilldelar porten automatiskt.",
+  "config.cloudflare_tunnel.quick_project_select": "Välj ett projekt",
+  "config.cloudflare_tunnel.quick_project_error": "Projektet är inte tillgängligt. Kontrollera Homepage-inställningarna och projektregistreringen.",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel aktiverad",
   "config.cloudflare_tunnel.readonly_label": "Skrivskyddat läge (endast status)",
   "config.cloudflare_tunnel.auto_start_label": "Autostart vid start",

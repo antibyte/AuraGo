@@ -1751,7 +1751,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)
 		if tools.IsTunnelRunning() {
 			tunnelCfg := tools.CloudflareTunnelConfig{DockerHost: s.Cfg.Docker.Host}
-			tools.CloudflareTunnelStop(tunnelCfg, s.Registry, s.Logger)
+			tools.CloudflareTunnelShutdown(tunnelCfg, s.Registry, s.Logger, false)
 		}
 
 		s.closeRuntimeResources()

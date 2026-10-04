@@ -165,6 +165,7 @@ Server-owned HTTP and cross-component integration contracts.
 - Manual `track_project` entries are local inventory only and must never grant remote repository access.
 
 ### Homepage Managed Website Ledger
+- Quick tunnels use active registry identities and a private static snapshot through the shared Cloudflare publication boundary. The config UI selects `cloudflare_tunnel.quick_project_dir` from registered projects. Explicit tool/API ports and the former in-container arbitrary-port entry point fail closed. Disable/read-only, workspace/registry changes and project selection changes revoke active quick publication; shutdown cannot be blocked by agent read-only grants. Named/token tunnels remain separate.
 - Managed homepage/web projects use `data/homepage_registry.db` as the system of record for project identity, local file state, structured events, revision links, deployment targets, deployment history, remote observations, and drift status.
 - Homepage project identity is the `project_dir` relative to `homepage.workspace_path`; avoid storing absolute workspace paths as the canonical project key.
 - Mutating homepage operations must keep the ledger current by recording structured events and, when files change, revisions plus file-state snapshots. Remote deploys must be linked to provider IDs/URLs and build artifact hashes when available.

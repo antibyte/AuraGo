@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "b1325eb4886887411a16ecc528c2c58ab407a7724afde98e578f057d6a528c6d",
+  "schema_sha256": "62982e4d7adaba67bc5a966746a9724a3fd0953c7329da807601883e7de40666",
   "tools": {
     "treg_call": {
       "default_arguments": {
@@ -1282,7 +1282,8 @@
           "selector": "operation",
           "value": "quick_tunnel",
           "arguments": {
-            "operation": "quick_tunnel"
+            "operation": "quick_tunnel",
+            "project_dir": "my-site"
           },
           "required_fields": [
             "operation"

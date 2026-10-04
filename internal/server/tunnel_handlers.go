@@ -62,13 +62,20 @@ func handleTunnelQuick(s *Server) http.HandlerFunc {
 		}
 
 		var body struct {
-			Port int `json:"port"`
+			Port       int    `json:"port"`
+			ProjectDir string `json:"project_dir"`
 		}
 		if r.Body != nil {
-			json.NewDecoder(r.Body).Decode(&body)
+			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+				jsonError(w, "Invalid quick publication request", http.StatusBadRequest)
+				return
+			}
 		}
 
 		cfg := s.buildTunnelConfig()
+		if body.ProjectDir != "" {
+			cfg.QuickProjectDir = body.ProjectDir
+		}
 		result := tools.CloudflareTunnelQuickTunnel(cfg, s.Registry, s.Logger, body.Port)
 		w.Write([]byte(result))
 	}

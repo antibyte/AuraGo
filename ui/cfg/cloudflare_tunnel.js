@@ -82,6 +82,16 @@ async function renderCloudflareTunnelSection(section) {
     </label>`;
 
     html += `<label class="cft-field-label">
+        <span class="cft-field-caption">${t('config.cloudflare_tunnel.quick_project')}</span>
+        <div class="field-help">${t('config.cloudflare_tunnel.quick_project_help')}</div>
+        <select id="cf-quick-project" class="field-select cft-field-input" data-path="cloudflare_tunnel.quick_project_dir" onchange="setNestedValue(configData,'cloudflare_tunnel.quick_project_dir',this.value);setDirty(true)">
+            <option value="">${t('config.cloudflare_tunnel.quick_project_select')}</option>
+            ${cfg.quick_project_dir ? `<option selected value="${escapeAttr(cfg.quick_project_dir)}">${escapeAttr(cfg.quick_project_dir)}</option>` : ''}
+        </select>
+        <div id="cf-quick-project-status" class="field-help" role="status"></div>
+    </label>`;
+
+    html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.tunnel_name')}</span>
         <div class="field-help">${t('config.cloudflare_tunnel.tunnel_name_help')}</div>
         <input class="field-input cft-field-input" data-path="cloudflare_tunnel.tunnel_name" value="${escapeAttr(cfg.tunnel_name || '')}"
@@ -204,6 +214,36 @@ async function renderCloudflareTunnelSection(section) {
     html += `</div>`;
     document.getElementById('content').innerHTML = html;
     cloudflareTunnelCheckStatus();
+    const projectSelect = document.getElementById('cf-quick-project');
+    const projectStatus = document.getElementById('cf-quick-project-status');
+    projectSelect.disabled = true;
+    fetch('/api/homepage/sites').then(async response => {
+        if (!response.ok) throw new Error('project list unavailable');
+        const data = await response.json();
+        if (!projectSelect.isConnected) return;
+        const sites = Array.isArray(data.sites) ? data.sites : [];
+        const saved = cfg.quick_project_dir || '';
+        projectSelect.innerHTML = `<option value="">${t('config.cloudflare_tunnel.quick_project_select')}</option>`;
+        const projects = sites.filter(site => site.status === 'active' && site.project_dir);
+        projects.forEach(site => {
+            const option = document.createElement('option');
+            option.value = site.project_dir;
+            option.textContent = site.name ? `${site.name} (${site.project_dir})` : site.project_dir;
+            projectSelect.appendChild(option);
+        });
+        if (saved && !projects.some(site => site.project_dir === saved)) {
+            const unavailable = document.createElement('option');
+            unavailable.value = saved;
+            unavailable.textContent = saved;
+            unavailable.disabled = true;
+            projectSelect.appendChild(unavailable);
+            projectStatus.textContent = t('config.cloudflare_tunnel.quick_project_error');
+        }
+        projectSelect.value = saved;
+        projectSelect.disabled = false;
+    }).catch(() => {
+        if (projectSelect.isConnected) projectStatus.textContent = t('config.cloudflare_tunnel.quick_project_error');
+    });
 }
 
 function cloudflareTunnelSetBanner(state, text) {

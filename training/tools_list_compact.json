@@ -480,7 +480,7 @@
   },
   {
     "name": "cloudflare_tunnel",
-    "description": "Manage a Cloudflare Tunnel (cloudflared) to expose local services to the internet securely. Supports Docker and native binary modes, token/named/quick tunnel authentication.",
+    "description": "Manage administrative named/token tunnels, or temporarily publish a registered Homepage project snapshot. Quick tunnels cannot expose arbitrary ports or the AuraGo UI.",
     "required": [
       "operation"
     ],

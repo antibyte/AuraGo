@@ -136,6 +136,12 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 				}
 			}
 			tunnelCfg := tools.CloudflareTunnelConfigFromConfig(cfg)
+			if req.ProjectDir != "" {
+				tunnelCfg.QuickProjectDir = req.ProjectDir
+			}
+			if req.Port != 0 {
+				return `Tool Output: {"status":"error","message":"Port selection is disabled; use a registered project_dir for quick publication."}`
+			}
 			switch req.Operation {
 			case "start":
 				logger.Info("LLM requested Cloudflare Tunnel start")

@@ -1565,6 +1565,7 @@ truenas:
         default_days: 0
         max_snapshots: 0
 cloudflare_tunnel:
+    quick_project_dir: "" # active registered Homepage project; static snapshot, server-selected port
     enabled: false
     readonly: false
     mode: auto                              # "auto" (docker preferred, native fallback), "docker", "native"

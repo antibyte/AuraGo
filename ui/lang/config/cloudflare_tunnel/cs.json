@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Web pro rychlý tunel",
+  "config.cloudflare_tunnel.quick_project_help": "Zveřejní kopii posledních sestavených statických souborů vybraného projektu. Zapni Homepage a Cloudflare. AuraGo přidělí port automaticky.",
+  "config.cloudflare_tunnel.quick_project_select": "Vyber projekt",
+  "config.cloudflare_tunnel.quick_project_error": "Projekt není dostupný. Zkontroluj nastavení Homepage a registraci projektu.",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel povolen",
   "config.cloudflare_tunnel.readonly_label": "Režim jen pro čtení (pouze stav)",
   "config.cloudflare_tunnel.auto_start_label": "Automatické spuštění při startu",

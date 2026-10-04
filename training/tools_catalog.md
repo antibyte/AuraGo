@@ -371,7 +371,7 @@ Control Chromecast and Google Cast devices on the local network. Discover device
 
 ## `cloudflare_tunnel`
 
-Manage a Cloudflare Tunnel (cloudflared) to expose local services to the internet securely. Supports Docker and native binary modes, token/named/quick tunnel authentication.
+Manage administrative named/token tunnels, or temporarily publish a registered Homepage project snapshot. Quick tunnels cannot expose arbitrary ports or the AuraGo UI.
 
 - Tier: `extended`
 - Required: `operation`
@@ -382,7 +382,7 @@ Manage a Cloudflare Tunnel (cloudflared) to expose local services to the interne
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
 | `operation` | `string` | Operation to perform |
-| `port` | `integer` | Port to expose (for quick_tunnel; defaults to web UI port) |
+| `project_dir` | `string` | Registered Homepage project for quick_tunnel or quick start/restart; defaults to the administrator-selected quick_project_dir. Build static output first. |
 
 ## `co_agent`
 

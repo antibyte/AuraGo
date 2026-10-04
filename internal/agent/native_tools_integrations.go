@@ -1126,14 +1126,14 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.CloudflareTunnelEnabled {
 		tools = append(tools, tool("cloudflare_tunnel",
-			"Manage a Cloudflare Tunnel (cloudflared) to expose local services to the internet securely. Supports Docker and native binary modes, token/named/quick tunnel authentication.",
+			"Manage administrative named/token tunnels, or temporarily publish a registered Homepage project snapshot. Quick tunnels cannot expose arbitrary ports or the AuraGo UI.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
 					"enum":        []string{"start", "stop", "restart", "status", "quick_tunnel", "logs", "list_routes", "install"},
 				},
-				"port": map[string]interface{}{"type": "integer", "description": "Port to expose (for quick_tunnel; defaults to web UI port)"},
+				"project_dir": prop("string", "Registered Homepage project for quick_tunnel or quick start/restart; defaults to the administrator-selected quick_project_dir. Build static output first."),
 			}, "operation"),
 		))
 	}

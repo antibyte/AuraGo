@@ -1872,20 +1872,21 @@ type Config struct {
 		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {
-		Enabled        bool                    `yaml:"enabled"`         // master toggle
-		ReadOnly       bool                    `yaml:"readonly"`        // agent: status-only, no start/stop/route changes
-		Mode           string                  `yaml:"mode"`            // "auto" (default), "docker", "native"
-		AutoStart      bool                    `yaml:"auto_start"`      // start tunnel on AuraGo boot
-		AuthMethod     string                  `yaml:"auth_method"`     // "token" (default), "named", "quick"
-		TunnelName     string                  `yaml:"tunnel_name"`     // named tunnel: tunnel name
-		AccountID      string                  `yaml:"account_id"`      // Cloudflare account ID (for API access)
-		TunnelID       string                  `yaml:"tunnel_id"`       // optional: explicit tunnel UUID (used to auto-configure noTLSVerify via API)
-		LoopbackPort   int                     `yaml:"loopback_port"`   // optional plain-HTTP loopback port for cloudflared on 127.0.0.1 (0=use server.port for internal jobs when HTTPS is active)
-		ExposeWebUI    bool                    `yaml:"expose_web_ui"`   // auto-route AuraGo web UI through tunnel
-		ExposeHomepage bool                    `yaml:"expose_homepage"` // auto-route homepage web server through tunnel
-		CustomIngress  []CloudflareIngressRule `yaml:"custom_ingress"`  // additional ingress rules
-		MetricsPort    int                     `yaml:"metrics_port"`    // cloudflared metrics (0=disabled)
-		LogLevel       string                  `yaml:"log_level"`       // "info" (default), "debug", "warn", "error"
+		QuickProjectDir string                  `yaml:"quick_project_dir"` // registered Homepage project for temporary publication
+		Enabled         bool                    `yaml:"enabled"`           // master toggle
+		ReadOnly        bool                    `yaml:"readonly"`          // agent: status-only, no start/stop/route changes
+		Mode            string                  `yaml:"mode"`              // "auto" (default), "docker", "native"
+		AutoStart       bool                    `yaml:"auto_start"`        // start tunnel on AuraGo boot
+		AuthMethod      string                  `yaml:"auth_method"`       // "token" (default), "named", "quick"
+		TunnelName      string                  `yaml:"tunnel_name"`       // named tunnel: tunnel name
+		AccountID       string                  `yaml:"account_id"`        // Cloudflare account ID (for API access)
+		TunnelID        string                  `yaml:"tunnel_id"`         // optional: explicit tunnel UUID (used to auto-configure noTLSVerify via API)
+		LoopbackPort    int                     `yaml:"loopback_port"`     // optional plain-HTTP loopback port for cloudflared on 127.0.0.1 (0=use server.port for internal jobs when HTTPS is active)
+		ExposeWebUI     bool                    `yaml:"expose_web_ui"`     // auto-route AuraGo web UI through tunnel
+		ExposeHomepage  bool                    `yaml:"expose_homepage"`   // auto-route homepage web server through tunnel
+		CustomIngress   []CloudflareIngressRule `yaml:"custom_ingress"`    // additional ingress rules
+		MetricsPort     int                     `yaml:"metrics_port"`      // cloudflared metrics (0=disabled)
+		LogLevel        string                  `yaml:"log_level"`         // "info" (default), "debug", "warn", "error"
 	} `yaml:"cloudflare_tunnel"`
 	Ansible struct {
 		Enabled          bool   `yaml:"enabled"`

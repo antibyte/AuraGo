@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "Site para o túnel temporário",
+  "config.cloudflare_tunnel.quick_project_help": "Publica uma cópia dos últimos ficheiros estáticos compilados do projeto escolhido. Ativa Homepage e Cloudflare. O AuraGo atribui a porta automaticamente.",
+  "config.cloudflare_tunnel.quick_project_select": "Seleciona um projeto",
+  "config.cloudflare_tunnel.quick_project_error": "Projeto indisponível. Verifica as definições do Homepage e o registo do projeto.",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel ativado",
   "config.cloudflare_tunnel.readonly_label": "Modo somente leitura (apenas status)",
   "config.cloudflare_tunnel.auto_start_label": "Iniciar automaticamente na inicialização",

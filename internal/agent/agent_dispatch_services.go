@@ -1028,12 +1028,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage webserver_status")
 				return "Tool Output: " + tools.HomepageWebServerStatus(homepageCfg, logger)
 			case "tunnel":
-				logger.Info("LLM requested homepage tunnel", "port", req.Port)
-				port := req.Port
-				if port <= 0 {
-					port = 3000
-				}
-				return "Tool Output: " + tools.HomepageTunnel(homepageCfg, port, logger)
+				tunnelCfg := tools.CloudflareTunnelConfigFromConfig(cfg)
+				tunnelCfg.QuickProjectDir = req.ProjectDir
+				return "Tool Output: " + tools.CloudflareTunnelQuickTunnel(tunnelCfg, dc.Registry, logger, req.Port)
 			case "publish_local":
 				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
 					return validation

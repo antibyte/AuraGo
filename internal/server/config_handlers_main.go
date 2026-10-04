@@ -1308,6 +1308,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Revocation closes managed publication before acknowledging configuration changes.
+			if !newCfg.CloudflareTunnel.Enabled || newCfg.CloudflareTunnel.ReadOnly || !newCfg.Homepage.Enabled ||
+				oldCfg.CloudflareTunnel.QuickProjectDir != newCfg.CloudflareTunnel.QuickProjectDir ||
+				oldCfg.Homepage.WorkspacePath != newCfg.Homepage.WorkspacePath ||
+				oldCfg.SQLite.HomepageRegistryPath != newCfg.SQLite.HomepageRegistryPath {
+				tools.CloudflareTunnelShutdown(cloudflareTunnelRuntimeConfig(&oldCfg), s.Registry, s.Logger, true)
+			}
+
 			// Hot-reload Cloudflare Tunnel: stop immediately when disabled, start when enabled.
 			cfEnabledChanged := oldCfg.CloudflareTunnel.Enabled != newCfg.CloudflareTunnel.Enabled
 			if cfEnabledChanged {
@@ -1318,7 +1326,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				if !newCfg.CloudflareTunnel.Enabled {
 					// Disabled → stop the tunnel immediately (security: no tunnel without explicit enable).
 					go func() {
-						result := tools.CloudflareTunnelStop(cfBaseCfg, reg, log)
+						result := tools.CloudflareTunnelShutdown(cfBaseCfg, reg, log, false)
 						log.Info("[CloudflareTunnel] Hot-reload: tunnel stopped because cloudflare_tunnel.enabled=false", "result", result)
 					}()
 				} else if cloudflareTunnelAutoStartAllowed(newCfg) {

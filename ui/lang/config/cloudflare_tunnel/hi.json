@@ -1,4 +1,8 @@
 {
+  "config.cloudflare_tunnel.quick_project": "त्वरित टनल के लिए वेबसाइट",
+  "config.cloudflare_tunnel.quick_project_help": "चुने गए प्रोजेक्ट की नवीनतम बनी स्थिर फ़ाइलों की एक प्रति प्रकाशित करता है। Homepage और Cloudflare चालू करें। AuraGo पोर्ट अपने आप चुनता है।",
+  "config.cloudflare_tunnel.quick_project_select": "प्रोजेक्ट चुनें",
+  "config.cloudflare_tunnel.quick_project_error": "प्रोजेक्ट उपलब्ध नहीं है। Homepage सेटिंग और प्रोजेक्ट पंजीकरण जाँचें।",
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel सक्षम",
   "config.cloudflare_tunnel.readonly_label": "केवल पठन मोड (केवल स्थिति)",
   "config.cloudflare_tunnel.auto_start_label": "स्टार्टअप पर ऑटोस्टार्ट",

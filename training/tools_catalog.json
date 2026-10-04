@@ -1284,7 +1284,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/ansible.md",
-      "manual_snippet": "# ansible — Ansible Automation\n\nRun Ansible playbooks, ad-hoc commands, and inventory queries.\nTwo execution modes are supported — choose with `ansible.mode` in `config.yaml`:\n\n| Mode | How it works | When to use |\n|---|---|---|\n| `sidecar` (default) | Calls the Ansible HTTP sidecar API (`ansible.url`) | Docker / containerised deployments |\n| `local` | Runs `ansible` / `ansible-playbook` binaries directly on the host | Bare-metal / VM installs where Ansible is already installed |\n\n\u003e **Sidecar mode** requires the `ansible` container in `docker-compose.yml` plus matching `ansible.url` and `ansible.token`.\n\u003e **Local mode** requires `ansible` to be on the system `PATH` and `ansible.playbooks_dir` / `ansible.default_inventory` to be set.\n\n---\n\n## Operations\n\n### status\nCheck that the sideca…"
+      "manual_snippet": "# ansible — Ansible Automation\n\nRun Ansible playbooks, ad-hoc commands, and inventory queries.\nTwo execution modes are supported — choose with `ansible.mode` in `config.yaml`:\n\n| Mode | How it works | When to use |\n|---|---|---|\n| `sidecar` (default) | Calls the Ansible HTTP sidecar API (`ansible.url`) | Docker / containerised deployments |\n| `local` | Runs `ansible` / `ansible-playbook` binaries directly on the host | Bare-metal / VM installs where Ansible is already installed |\n\n\u003e **Sidecar mode** requires the `ansible` container in `docker-compose.yml` plus matching `ansible.url` and `ansible.token`.\n\u003e **Local mode** requires `ansible` to be on the system `PATH` and `ansible.playbooks_dir` / `ansible.default_inventory` to be set.\n\nLocal mode requires the effective shell permission f…"
     },
     {
       "name": "api_request",
@@ -2348,7 +2348,7 @@
     },
     {
       "name": "cloudflare_tunnel",
-      "description": "Manage a Cloudflare Tunnel (cloudflared) to expose local services to the internet securely. Supports Docker and native binary modes, token/named/quick tunnel authentication.",
+      "description": "Manage administrative named/token tunnels, or temporarily publish a registered Homepage project snapshot. Quick tunnels cannot expose arbitrary ports or the AuraGo UI.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -2370,9 +2370,9 @@
             ],
             "type": "string"
           },
-          "port": {
-            "description": "Port to expose (for quick_tunnel; defaults to web UI port)",
-            "type": "integer"
+          "project_dir": {
+            "description": "Registered Homepage project for quick_tunnel or quick start/restart; defaults to the administrator-selected quick_project_dir. Build static output first.",
+            "type": "string"
           }
         },
         "required": [
@@ -2402,9 +2402,9 @@
           ],
           "type": "string"
         },
-        "port": {
-          "description": "Port to expose (for quick_tunnel; defaults to web UI port)",
-          "type": "integer"
+        "project_dir": {
+          "description": "Registered Homepage project for quick_tunnel or quick start/restart; defaults to the administrator-selected quick_project_dir. Build static output first.",
+          "type": "string"
         }
       },
       "tier": "extended",
@@ -2443,7 +2443,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/cloudflare_tunnel.md",
-      "manual_snippet": "# Cloudflare Tunnel Tool (`cloudflare_tunnel`)\n\nManage a Cloudflare Tunnel to expose local services to the internet securely.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `start` | Start the tunnel | — |\n| `stop` | Stop the tunnel | — |\n| `restart` | Restart the tunnel | — |\n| `status` | Get tunnel status | — |\n| `quick_tunnel` | Start a quick (temporary) tunnel | `port` |\n| `logs` | View tunnel logs | — |\n| `list_routes` | List configured routes | — |\n| `install` | Install cloudflared binary | — |\n\n## Examples\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"status\"}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"quick_tunnel\", \"port\": 8080}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"sta…"
+      "manual_snippet": "# Cloudflare Tunnel Tool (`cloudflare_tunnel`)\n\nManage administrative named/token tunnels and temporary publication of registered Homepage projects.\n\n## Operations\n\n| Operation | Description | Parameters |\n|-----------|-------------|------------|\n| `start` | Start the tunnel | — |\n| `stop` | Stop the tunnel | — |\n| `restart` | Restart the tunnel | — |\n| `status` | Get tunnel status | — |\n| `quick_tunnel` | Publish a registered Homepage static snapshot | `project_dir` |\n| `logs` | View tunnel logs | — |\n| `list_routes` | List configured routes | — |\n| `install` | Install cloudflared binary | — |\n\n## Examples\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"status\"}\n```\n\n```json\n{\"action\": \"cloudflare_tunnel\", \"operation\": \"quick_tunnel\", \"project_dir\": \"my-site\"}\n```\n\n``…"
     },
     {
       "name": "co_agent",
@@ -2719,7 +2719,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/composio_call.md",
-      "manual_snippet": "# composio_call\n\n## Overview\n\n`composio_call` lets the agent search and use user-approved Composio toolkits through AuraGo's own policy gates. It is intentionally a single native tool entry point: do not expect every Composio tool to appear as an individual AuraGo tool.\n\nUse it when the user wants to work through an external integration that has been selected in the Composio config UI, such as GitHub, Gmail, Slack, Notion, Google Calendar, or another Composio toolkit.\n\n## Operations\n\nList AuraGo-approved Composio capabilities:\n\n```json\n{\"action\":\"composio_call\",\"operation\":\"capabilities\"}\n```\n\nCheck a selected toolkit and its connection status without exposing account IDs:\n\n```json\n{\"action\":\"composio_call\",\"operation\":\"capabilities\",\"toolkit_slug\":\"gmail\"}\n```\n\nSearch toolkits:\n\n```json\n{…"
+      "manual_snippet": "# composio_call\n\n## Overview\n\n`composio_call` lets the agent search and use user-approved Composio toolkits through AuraGo's own policy gates. It is intentionally a single native tool entry point: do not expect every Composio tool to appear as an individual AuraGo tool.\n\nExecution requires available metadata identifying the requested tool and\ntoolkit. An unavailable lookup blocks execution; supplied toolkit names cannot\nreplace that evidence. Read-only mode always wins over explicit tool allowlists.\n\nUse it when the user wants to work through an external integration that has been selected in the Composio config UI, such as GitHub, Gmail, Slack, Notion, Google Calendar, or another Composio toolkit.\n\n## Operations\n\nList AuraGo-approved Composio capabilities:\n\n```json\n{\"action\":\"composio_call…"
     },
     {
       "name": "context_manager",
@@ -13447,7 +13447,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/github.md",
-      "manual_snippet": "# GitHub Tool (`github`)\n\nManage GitHub repositories, issues, pull requests, branches, files, commits, and workflow runs.\n\n## Operations\n\n| Operation | Description | Key Parameters |\n|-----------|-------------|----------------|\n| `list_repos` | List repositories allowed by policy | `limit` |\n| `get_repo` | Get repository details | `name` |\n| `create_repo` | Create a new repository and auto-track it as agent-created | `name`, `description` |\n| `delete_repo` | Delete a repository | `name` |\n| `search_repos` | Search repositories | `query`, `limit` |\n| `list_issues` | List issues | `name`, `value` (state filter) |\n| `create_issue` | Create an issue | `name`, `title`, `description`, `label` |\n| `close_issue` | Close an issue | `name`, `id` |\n| `list_pull_requests` | List PRs | `name`, `value` …"
+      "manual_snippet": "# GitHub Tool (`github`)\n\nManage GitHub repositories, issues, pull requests, branches, files, commits, and workflow runs.\n\n## Operations\n\n| Operation | Description | Key Parameters |\n|-----------|-------------|----------------|\n| `list_repos` | List repositories allowed by policy | `limit` |\n| `get_repo` | Get repository details | `name` |\n| `create_repo` | Create a new repository and auto-track it as agent-created | `name`, `description` |\n| `delete_repo` | Delete a repository; requires `github.allow_delete` | `name` |\n| `search_repos` | Search repositories | `query`, `limit` |\n| `list_issues` | List issues | `name`, `value` (state filter) |\n| `create_issue` | Create an issue | `name`, `title`, `description`, `label` |\n| `close_issue` | Close an issue | `name`, `id` |\n| `list_pull_request…"
     },
     {
       "name": "go2rtc",
@@ -16313,7 +16313,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/huggingface.md",
-      "manual_snippet": "# Hugging Face\n\nUse the `huggingface` tool for Hugging Face platform workflows, not only model inference.\n\nSupported read operations include Hub discovery (`search_models`, `get_model`, `search_datasets`, `get_dataset`, `search_spaces`, `get_space`, `list_files`), bounded workspace downloads, Dataset Viewer rows/search/filter/parquet/statistics, Papers, and Job status/log inspection with bounded snapshots via `tail`. Job inspection requires a Vault token and `allow_jobs=true`, but remains available in read-only mode.\n\nWrite and compute operations are policy-gated. AuraGo starts with the integration disabled, read-only mode enabled, writes disabled, deletes disabled, Jobs disabled, and Job token injection disabled. A Hugging Face token belongs in the Vault under `huggingface_token`; never p…"
+      "manual_snippet": "# Hugging Face\n\nUse the `huggingface` tool for Hugging Face platform workflows, not only model inference.\n\nUse literal canonical repository IDs. Writes require `namespace/repository`;\nencoded IDs, traversal segments, backslashes and ambiguous IDs are rejected.\nAuthenticated API redirects remain at the configured origin. File downloads\nmay follow public HTTPS redirects without forwarding the Vault token.\n\nSupported read operations include Hub discovery (`search_models`, `get_model`, `search_datasets`, `get_dataset`, `search_spaces`, `get_space`, `list_files`), bounded workspace downloads, Dataset Viewer rows/search/filter/parquet/statistics, Papers, and Job status/log inspection with bounded snapshots via `tail`. Job inspection requires a Vault token and `allow_jobs=true`, but remains avail…"
     },
     {
       "name": "image_processing",
