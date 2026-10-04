@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Καθολικά μόνο για ανάγνωση",
   "config.sql_connections.readonly_help": "Αποκλείει όλες τις λειτουργίες εγγραφής ανεξαρτήτως δικαιωμάτων σύνδεσης.",
   "config.sql_connections.allow_management_label": "Να επιτρέπεται η διαχείριση",
-  "config.sql_connections.allow_management_help": "Επιτρέπει στον πράκτορα να δημιουργεί, να επεξεργάζεται και να διαγράφει συνδέσεις."
+  "config.sql_connections.sqlite_import": "Εισαγωγή αντιγράφου SQLite",
+  "config.sql_connections.sqlite_import_help": "Ανέβασε συνεπές, αυτοτελές αντίγραφο (έως 64 MiB). Η αποθήκευση το εισάγει σε προστατευμένο χώρο και διατηρεί τα πρωτότυπα.",
+  "config.sql_connections.sqlite_import_required": "Απαιτείται εισαγωγή SQLite",
+  "config.sql_connections.allow_management_help": "Ο πράκτορας αλλάζει μόνο περιγραφές. Ρυθμίσεις, διαπιστευτήρια και δικαιώματα ανήκουν στον διαχειριστή."
 }

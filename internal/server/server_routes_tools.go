@@ -197,15 +197,17 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 		mux.HandleFunc("/api/launchpad/icons/download", handleDownloadLaunchpadIcon(s))
 
 		// ── SQL Connections API ──
-		mux.HandleFunc("/api/sql-connections", handleSQLConnections(s))
-		mux.HandleFunc("/api/sql-connections/", func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("/api/sql-connections", requireAdmin(s, handleSQLConnections(s)))
+		mux.Handle("/api/sql-connections/", requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := strings.TrimPrefix(r.URL.Path, "/api/sql-connections/")
-			if strings.HasSuffix(path, "/test") {
+			if strings.HasSuffix(path, "/import") {
+				handleSQLiteImport(s)(w, r)
+			} else if strings.HasSuffix(path, "/test") {
 				handleSQLConnectionTest(s)(w, r)
 			} else {
 				handleSQLConnectionByID(s)(w, r)
 			}
-		})
+		})))
 
 		// ── Knowledge Files API ──
 		mux.HandleFunc("/api/knowledge", handleKnowledgeFiles(s))

@@ -3,7 +3,7 @@
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
 - Tools: **216**
-- Enumerated operations: **1152**
+- Enumerated operations: **1149**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
 
@@ -2050,32 +2050,19 @@ Create, inspect, and update the active structured work plan for the current sess
 
 ## `manage_sql_connections`
 
-Manage external database connections. By default, the agent can only list, get, and test connections. Creating, updating, and deleting connections requires explicit administrator enablement via sql_connections.allow_management. Supports PostgreSQL, MySQL/MariaDB, and SQLite. Credentials are stored securely in the vault. Use 'docker_create' to spin up a new database container via Docker.
+List, inspect and test administrator-configured database connections. With allow_management, update their description. Targets, credentials, permissions and connection setup are administrator-only.
 
 - Tier: `extended`
 - Required: `operation`
-- Operations: 7
+- Operations: 4
 - Manual: `prompts/tools_manuals/manage_sql_connections.md`
 
 | Parameter | Type | Description |
 |---|---|---|
 | `_todo` | `string` | Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused. |
-| `allow_change` | `boolean` | Allow UPDATE queries (default: false) |
-| `allow_delete` | `boolean` | Allow DELETE queries (default: false) |
-| `allow_read` | `boolean` | Allow SELECT queries (default: true) |
-| `allow_write` | `boolean` | Allow INSERT queries (default: false) |
-| `connection_name` | `string` | Connection name (unique identifier) |
-| `credential_action` | `string` | Credential handling for update: keep, replace, or delete |
-| `database_name` | `string` | Database name or SQLite file path |
-| `description` | `string` | Short description of the database purpose |
-| `docker_template` | `string` | Docker template for docker_create: postgres, mysql, mariadb |
-| `driver` | `string` | Database driver |
-| `host` | `string` | Database host (IP or hostname) |
-| `operation` | `string` | Operation to perform |
-| `password` | `string` | Database password (stored in vault) |
-| `port` | `integer` | Database port (default: 5432 for postgres, 3306 for mysql) |
-| `ssl_mode` | `string` | SSL mode: disable, require, verify-ca, verify-full (default: disable) |
-| `username` | `string` | Database username (stored in vault) |
+| `connection_name` | `string` | Existing connection name |
+| `description` | `string` | New description for update |
+| `operation` | `string` |  |
 
 ## `manage_todos`
 

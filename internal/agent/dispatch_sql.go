@@ -160,56 +160,8 @@ func handleManageSQLConnectionsTool(ctx context.Context, tc ToolCall, dc *Dispat
 			"ssl_mode":      c.SSLMode,
 		})
 
-	case "create":
-		if !service.CanManage() {
-			return sqlToolError("SQL connection management is disabled. Administrator must enable sql_connections.allow_management in config to allow creating connections.")
-		}
-		if req.ConnectionName == "" || req.Driver == "" {
-			return sqlToolError("'connection_name' and 'driver' are required for create")
-		}
-
-		allowRead := true
-		if req.AllowRead != nil {
-			allowRead = *req.AllowRead
-		}
-		allowWrite := false
-		if req.AllowWrite != nil {
-			allowWrite = *req.AllowWrite
-		}
-		allowChange := false
-		if req.AllowChange != nil {
-			allowChange = *req.AllowChange
-		}
-		allowDelete := false
-		if req.AllowDelete != nil {
-			allowDelete = *req.AllowDelete
-		}
-
-		sslMode := req.SSLMode
-		if sslMode == "" {
-			sslMode = "disable"
-		}
-
-		result, err := service.Create(sqlconnections.CreateRequest{
-			Name:         req.ConnectionName,
-			Driver:       req.Driver,
-			Host:         req.Host,
-			Port:         req.Port,
-			DatabaseName: req.DatabaseName,
-			Description:  req.Description,
-			Username:     req.Username,
-			Password:     req.Password,
-			SSLMode:      sslMode,
-			AllowRead:    allowRead,
-			AllowWrite:   allowWrite,
-			AllowChange:  allowChange,
-			AllowDelete:  allowDelete,
-		})
-		if err != nil {
-			return sqlToolSanitizedError(err)
-		}
-
-		return sqlToolOutput(map[string]interface{}{"status": "success", "message": "Connection created", "id": result.ID, "name": result.Name})
+	case "create", "delete", "docker_create":
+		return sqlToolError("Connection setup, targets, credentials and permissions are administrator-only. Use the SQL Connections UI.")
 
 	case "update":
 		if !service.CanManage() {
@@ -224,92 +176,13 @@ func handleManageSQLConnectionsTool(ctx context.Context, tc ToolCall, dc *Dispat
 			return sqlToolSanitizedError(err)
 		}
 
-		allowRead := existing.AllowRead
-		if req.AllowRead != nil {
-			allowRead = *req.AllowRead
+		if req.Driver != "" || req.Host != "" || req.Port != 0 || req.DatabaseName != "" || req.SSLMode != "" || req.Username != "" || req.Password != "" || req.CredentialAction != "" || req.AllowRead != nil || req.AllowWrite != nil || req.AllowChange != nil || req.AllowDelete != nil {
+			return sqlToolError("Only the description may be changed by the agent; security fields are administrator-only.")
 		}
-		allowWrite := existing.AllowWrite
-		if req.AllowWrite != nil {
-			allowWrite = *req.AllowWrite
-		}
-		allowChange := existing.AllowChange
-		if req.AllowChange != nil {
-			allowChange = *req.AllowChange
-		}
-		allowDelete := existing.AllowDelete
-		if req.AllowDelete != nil {
-			allowDelete = *req.AllowDelete
-		}
-
-		credentialAction := req.CredentialAction
-		if credentialAction == "" {
-			if req.Username != "" || req.Password != "" {
-				credentialAction = "replace"
-			} else {
-				credentialAction = "keep"
-			}
-		}
-
-		updateReq := sqlconnections.UpdateRequest{
-			ID:               existing.ID,
-			Name:             existing.Name,
-			Driver:           existing.Driver,
-			Host:             existing.Host,
-			Port:             existing.Port,
-			DatabaseName:     existing.DatabaseName,
-			Description:      existing.Description,
-			SSLMode:          existing.SSLMode,
-			AllowRead:        allowRead,
-			AllowWrite:       allowWrite,
-			AllowChange:      allowChange,
-			AllowDelete:      allowDelete,
-			CredentialAction: credentialAction,
-		}
-
-		if req.Driver != "" {
-			updateReq.Driver = req.Driver
-		}
-		if req.Host != "" {
-			updateReq.Host = req.Host
-		}
-		if req.Port > 0 {
-			updateReq.Port = req.Port
-		}
-		if req.DatabaseName != "" {
-			updateReq.DatabaseName = req.DatabaseName
-		}
-		if req.Description != "" {
-			updateReq.Description = req.Description
-		}
-		if req.SSLMode != "" {
-			updateReq.SSLMode = req.SSLMode
-		}
-		if credentialAction == "replace" {
-			updateReq.Username = req.Username
-			updateReq.Password = req.Password
-		}
-
-		if err := service.Update(updateReq); err != nil {
+		if _, err := dc.SQLConnectionsDB.ExecContext(ctx, "UPDATE sql_connections SET description = ? WHERE id = ?", req.Description, existing.ID); err != nil {
 			return sqlToolSanitizedError(err)
 		}
-		return sqlToolOutput(map[string]interface{}{"status": "success", "message": "Connection updated", "name": req.ConnectionName})
-
-	case "delete":
-		if !service.CanManage() {
-			return sqlToolError("SQL connection management is disabled. Administrator must enable sql_connections.allow_management in config to allow deleting connections.")
-		}
-		if req.ConnectionName == "" {
-			return sqlToolError("'connection_name' is required for delete")
-		}
-
-		existing, err := service.GetByName(req.ConnectionName)
-		if err != nil {
-			return sqlToolSanitizedError(err)
-		}
-		if err := service.Delete(sqlconnections.DeleteRequest{ID: existing.ID}); err != nil {
-			return sqlToolSanitizedError(err)
-		}
-		return sqlToolOutput(map[string]interface{}{"status": "success", "message": "Connection deleted", "name": req.ConnectionName})
+		return sqlToolOutput(map[string]interface{}{"status": "success", "message": "Connection description updated"})
 
 	case "test":
 		if req.ConnectionName == "" {
@@ -325,34 +198,7 @@ func handleManageSQLConnectionsTool(ctx context.Context, tc ToolCall, dc *Dispat
 		}
 		return sqlToolOutput(map[string]interface{}{"status": "success", "message": "Connection test successful", "name": req.ConnectionName, "driver": rec.Driver})
 
-	case "docker_create":
-		if !service.CanManage() {
-			return sqlToolError("SQL connection management is disabled. Administrator must enable sql_connections.allow_management in config to allow creating connections via docker.")
-		}
-		if req.ConnectionName == "" {
-			return sqlToolError("'connection_name' is required for docker_create")
-		}
-
-		templateName := req.DockerTemplate
-		if templateName == "" {
-			return sqlToolError("'docker_template' is required (postgres, mysql, mariadb)")
-		}
-		dbName := req.DatabaseName
-		if dbName == "" {
-			dbName = req.ConnectionName
-		}
-
-		dockerReq, err := sqlconnections.PrepareDockerDB(templateName, req.ConnectionName, dbName)
-		if err != nil {
-			return sqlToolSanitizedError(err)
-		}
-		return sqlToolOutput(map[string]interface{}{
-			"status":  "success",
-			"message": "Docker database prepared. Use the 'docker' tool with operation 'run' to start the container, then create the connection with 'manage_sql_connections' create.",
-			"docker":  dockerReq,
-		})
-
 	default:
-		return sqlToolError("Unknown operation. Use: list, get, create, update, delete, test, docker_create")
+		return sqlToolError("Unknown operation. Use: list, get, update, test")
 	}
 }

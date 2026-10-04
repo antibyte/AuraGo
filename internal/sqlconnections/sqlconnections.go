@@ -16,6 +16,7 @@ import (
 // Actual credentials (username/password) are stored in the vault, referenced by VaultSecretID.
 type ConnectionRecord struct {
 	ID            string `json:"id"`
+	State         string `json:"state,omitempty"`
 	Name          string `json:"name"`
 	Driver        string `json:"driver"`        // "postgres", "mysql", "sqlite"
 	Host          string `json:"host"`          // hostname or IP; empty for sqlite
@@ -122,6 +123,9 @@ func GetByID(db *sql.DB, id string) (ConnectionRecord, error) {
 	c.AllowWrite = aw == 1
 	c.AllowChange = ac == 1
 	c.AllowDelete = ad == 1
+	if c.Driver == "sqlite" && !managedSQLiteID.MatchString(c.DatabaseName) {
+		c.State = SQLiteImportRequired
+	}
 	return c, nil
 }
 
@@ -146,6 +150,9 @@ func GetByName(db *sql.DB, name string) (ConnectionRecord, error) {
 	c.AllowWrite = aw == 1
 	c.AllowChange = ac == 1
 	c.AllowDelete = ad == 1
+	if c.Driver == "sqlite" && !managedSQLiteID.MatchString(c.DatabaseName) {
+		c.State = SQLiteImportRequired
+	}
 	return c, nil
 }
 
@@ -173,6 +180,9 @@ func List(db *sql.DB) ([]ConnectionRecord, error) {
 		c.AllowWrite = aw == 1
 		c.AllowChange = ac == 1
 		c.AllowDelete = ad == 1
+		if c.Driver == "sqlite" && !managedSQLiteID.MatchString(c.DatabaseName) {
+			c.State = SQLiteImportRequired
+		}
 		result = append(result, c)
 	}
 	if err := rows.Err(); err != nil {

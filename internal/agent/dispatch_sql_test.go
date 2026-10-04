@@ -61,7 +61,7 @@ func decodeToolOutputMap(t *testing.T, out string) map[string]interface{} {
 	return decoded
 }
 
-func TestDispatchServicesManageSQLConnectionsCreateUsesServiceDefaults(t *testing.T) {
+func TestDispatchServicesManageSQLConnectionsCreateIsAdminOnly(t *testing.T) {
 	dc, cleanup := newSQLDispatchTestContext(t)
 	defer cleanup()
 
@@ -79,20 +79,15 @@ func TestDispatchServicesManageSQLConnectionsCreateUsesServiceDefaults(t *testin
 	}
 
 	decoded := decodeToolOutputMap(t, out)
-	if decoded["status"] != "success" {
-		t.Fatalf("unexpected output: %v", decoded)
+	if decoded["status"] != "error" {
+		t.Fatalf("agent created a connection: %v", decoded)
 	}
-
-	stored, err := newSQLConnectionServiceForDispatch(dc).GetByName("analytics")
-	if err != nil {
-		t.Fatalf("GetByName() error = %v", err)
-	}
-	if !stored.AllowRead || stored.AllowWrite || stored.AllowChange || stored.AllowDelete {
-		t.Fatalf("unexpected permissions: %+v", stored)
+	if _, err := newSQLConnectionServiceForDispatch(dc).GetByName("analytics"); err == nil {
+		t.Fatal("blocked create changed metadata")
 	}
 }
 
-func TestDispatchServicesManageSQLConnectionsUpdateDeletesCredentials(t *testing.T) {
+func TestDispatchServicesManageSQLConnectionsCannotChangeCredentials(t *testing.T) {
 	dc, cleanup := newSQLDispatchTestContext(t)
 	defer cleanup()
 
@@ -132,7 +127,7 @@ func TestDispatchServicesManageSQLConnectionsUpdateDeletesCredentials(t *testing
 	}
 
 	decoded := decodeToolOutputMap(t, out)
-	if decoded["status"] != "success" {
+	if decoded["status"] != "error" {
 		t.Fatalf("unexpected output: %v", decoded)
 	}
 
@@ -140,10 +135,10 @@ func TestDispatchServicesManageSQLConnectionsUpdateDeletesCredentials(t *testing
 	if err != nil {
 		t.Fatalf("GetByName() after update error = %v", err)
 	}
-	if updated.VaultSecretID != "" {
+	if updated.VaultSecretID != stored.VaultSecretID {
 		t.Fatalf("VaultSecretID = %q, want empty", updated.VaultSecretID)
 	}
-	if _, err := dc.Vault.ReadSecret(stored.VaultSecretID); err == nil {
+	if _, err := dc.Vault.ReadSecret(stored.VaultSecretID); err != nil {
 		t.Fatalf("expected old secret %q to be deleted", stored.VaultSecretID)
 	}
 }

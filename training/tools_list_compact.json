@@ -3199,24 +3199,12 @@
   },
   {
     "name": "manage_sql_connections",
-    "description": "Manage external database connections. By default, the agent can only list, get, and test connections. Creating, updating, and deleting connections requires explicit administrator enablement via sql_connections.allow_management. Supports PostgreSQL, MySQL/MariaDB, and SQLite. Credentials are stored securely in the vault. Use 'docker_create' to spin up a new database container via Docker.",
+    "description": "List, inspect and test administrator-configured database connections. With allow_management, update their description. Targets, credentials, permissions and connection setup are administrator-only.",
     "required": [
       "operation"
     ],
     "tier": "extended",
     "operations": [
-      {
-        "selector": "operation",
-        "value": "create"
-      },
-      {
-        "selector": "operation",
-        "value": "delete"
-      },
-      {
-        "selector": "operation",
-        "value": "docker_create"
-      },
       {
         "selector": "operation",
         "value": "get"

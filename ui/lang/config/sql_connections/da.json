@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Global skrivebeskyttelse",
   "config.sql_connections.readonly_help": "Blokerer alle skriveoperationer uanset forbindelsestilladelser.",
   "config.sql_connections.allow_management_label": "Tillad administration",
-  "config.sql_connections.allow_management_help": "Giver agenten mulighed for at oprette, redigere og slette forbindelser."
+  "config.sql_connections.sqlite_import": "Importér SQLite-sikkerhedskopi",
+  "config.sql_connections.sqlite_import_help": "Upload en konsistent, selvstændig sikkerhedskopi (op til 64 MiB). Gem importerer til beskyttet lager og bevarer originalerne.",
+  "config.sql_connections.sqlite_import_required": "SQLite-import påkrævet",
+  "config.sql_connections.allow_management_help": "Agenten må kun ændre beskrivelser. Opsætning, legitimationsoplysninger og rettigheder er for administratoren."
 }

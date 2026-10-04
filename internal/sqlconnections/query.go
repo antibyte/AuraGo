@@ -41,6 +41,29 @@ func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, con
 	if err := CheckPermission(rec, stmtType); err != nil {
 		return nil, err
 	}
+	// A CTE may contain several different mutations. Require every grant,
+	// rather than authorizing the entire statement by its first CTE body.
+	structure, _ := sqlStructure(query)
+	if firstKeyword(structure) == "WITH" {
+		for _, token := range strings.FieldsFunc(strings.ToUpper(structure), func(r rune) bool { return !isSQLIdentChar(r) }) {
+			kind := StmtUnknown
+			switch token {
+			case "INSERT", "REPLACE":
+				kind = StmtInsert
+			case "UPDATE":
+				kind = StmtUpdate
+			case "DELETE":
+				kind = StmtDelete
+			case "CREATE", "DROP", "ALTER", "TRUNCATE":
+				kind = StmtDDL
+			}
+			if kind != StmtUnknown {
+				if err := CheckPermission(rec, kind); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
 	slog.Default().Info("SQL query executed", "connection", connName, "type", stmtType.String())
 
 	db, err := pool.GetConnection(rec.ID)
@@ -48,17 +71,40 @@ func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, con
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
 
+	if queryTimeout <= 0 {
+		queryTimeout = 30 * time.Second
+	}
 	queryCtx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
 	if stmtType == StmtSelect {
-		return executeSelect(queryCtx, db, query, maxRows)
+		if rec.Driver == "sqlite" {
+			reader, err := pool.openWithMode(rec, true)
+			if err != nil {
+				return nil, err
+			}
+			defer reader.Close()
+			db = reader
+		}
+		tx, err := db.BeginTx(queryCtx, &sql.TxOptions{ReadOnly: true})
+		if err != nil {
+			return nil, fmt.Errorf("start read-only transaction: %w", err)
+		}
+		defer tx.Rollback()
+		stmt, err := tx.PrepareContext(queryCtx, query)
+		if err != nil {
+			return nil, fmt.Errorf("prepare read query: %w", err)
+		}
+		defer stmt.Close()
+		return executeSelect(queryCtx, preparedRead{stmt}, query, maxRows)
 	}
 	return executeExec(queryCtx, db, query)
 }
 
 // executeSelect runs a SELECT-like query and returns columnar results.
-func executeSelect(ctx context.Context, db *sql.DB, query string, maxRows int) (*QueryResult, error) {
+func executeSelect(ctx context.Context, db interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, query string, maxRows int) (*QueryResult, error) {
 	maxRows = effectiveMaxRows(maxRows)
 
 	rows, err := db.QueryContext(ctx, query)
@@ -367,4 +413,10 @@ func isLetter(r rune) bool {
 
 func isDigit(r rune) bool {
 	return r >= '0' && r <= '9'
+}
+
+type preparedRead struct{ *sql.Stmt }
+
+func (p preparedRead) QueryContext(ctx context.Context, _ string, args ...any) (*sql.Rows, error) {
+	return p.Stmt.QueryContext(ctx, args...)
 }

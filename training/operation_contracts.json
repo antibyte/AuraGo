@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "a26aa7ed653b35fe55b4b26a746675a007b1303ac0a2986d7ca9dbff07c06c82",
+  "schema_sha256": "b1325eb4886887411a16ecc528c2c58ab407a7724afde98e578f057d6a528c6d",
   "tools": {
     "treg_call": {
       "default_arguments": {
@@ -7915,71 +7915,6 @@
       "operations": [
         {
           "selector": "operation",
-          "value": "create",
-          "arguments": {
-            "allow_change": false,
-            "allow_delete": false,
-            "allow_read": false,
-            "allow_write": false,
-            "connection_name": "example-name",
-            "database_name": "example-name",
-            "description": "example",
-            "driver": "postgres",
-            "host": "device.example.com",
-            "operation": "create",
-            "password": "[redacted]",
-            "port": 1,
-            "ssl_mode": "example",
-            "username": "example-name"
-          },
-          "required_fields": [
-            "allow_change",
-            "allow_delete",
-            "allow_read",
-            "allow_write",
-            "connection_name",
-            "database_name",
-            "description",
-            "driver",
-            "host",
-            "operation",
-            "password",
-            "port",
-            "ssl_mode",
-            "username"
-          ],
-          "excluded_fields": []
-        },
-        {
-          "selector": "operation",
-          "value": "delete",
-          "arguments": {
-            "connection_name": "example-name",
-            "operation": "delete"
-          },
-          "required_fields": [
-            "connection_name",
-            "operation"
-          ],
-          "excluded_fields": []
-        },
-        {
-          "selector": "operation",
-          "value": "docker_create",
-          "arguments": {
-            "connection_name": "example-name",
-            "docker_template": "postgres",
-            "operation": "docker_create"
-          },
-          "required_fields": [
-            "connection_name",
-            "docker_template",
-            "operation"
-          ],
-          "excluded_fields": []
-        },
-        {
-          "selector": "operation",
           "value": "get",
           "arguments": {
             "connection_name": "example-name",
@@ -8020,13 +7955,13 @@
           "value": "update",
           "arguments": {
             "connection_name": "example-name",
-            "credential_action": "keep",
-            "operation": "update"
+            "operation": "update",
+            "description": "Updated database description"
           },
           "required_fields": [
+            "operation",
             "connection_name",
-            "credential_action",
-            "operation"
+            "description"
           ],
           "excluded_fields": []
         }

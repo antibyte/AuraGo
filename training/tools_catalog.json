@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
   "tool_count": 216,
-  "operation_count": 1152,
+  "operation_count": 1149,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -3590,7 +3590,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/discover_tools.md",
-      "manual_snippet": "# discover_tools\n\nBrowse and search the full tool catalog, including active, hidden, and disabled tools.\n\n## When to use\n- You need a tool that is **not in your current tool list** (hidden by adaptive filtering)\n- You want to find the right tool for a task but aren't sure which one exists\n- You need to see the **exact parameters** and the correct call method before calling a hidden tool\n\n## Output\n\n`discover_tools` returns a JSON envelope under `Tool Output:`. Read the machine-readable fields first:\n\n- `status`: request status\n- `results[]` or `tool`: catalog entries\n- `kind`: `native`, `skill`, `custom`, or `mcp`\n- `status`: `active`, `hidden`, or `disabled`\n- `call_method`: `direct`, `invoke_tool`, `execute_skill`, `run_tool`, or `disabled`\n- `callable_now`: whether the tool can be used …"
+      "manual_snippet": "# discover_tools\n\nBrowse and search the full tool catalog, including active, hidden, and disabled tools.\n\n## When to use\n- You need a tool that is **not in your current tool list** (hidden by adaptive filtering)\n- You want to find the right tool for a task but aren't sure which one exists\n- You need to see the **exact parameters** and the correct call method before calling a hidden tool\n\n## Output\n\n`discover_tools` returns a JSON envelope under `Tool Output:`. Read the machine-readable fields first:\n\n- `status`: request status\n- `results[]` or `tool`: catalog entries; `categories[]` for category lists, `manual` for a guide\n- `kind`: catalog tool kind; `status`: `active`, `hidden`, or `disabled`\n- `call_method`: `direct`, `invoke_tool`, `execute_skill`, `run_tool`, `activate_agent_skill`, `…"
     },
     {
       "name": "dns_lookup",
@@ -19389,7 +19389,7 @@
     },
     {
       "name": "manage_sql_connections",
-      "description": "Manage external database connections. By default, the agent can only list, get, and test connections. Creating, updating, and deleting connections requires explicit administrator enablement via sql_connections.allow_management. Supports PostgreSQL, MySQL/MariaDB, and SQLite. Credentials are stored securely in the vault. Use 'docker_create' to spin up a new database container via Docker.",
+      "description": "List, inspect and test administrator-configured database connections. With allow_management, update their description. Targets, credentials, permissions and connection setup are administrator-only.",
       "parameters": {
         "additionalProperties": false,
         "properties": {
@@ -19397,92 +19397,21 @@
             "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
             "type": "string"
           },
-          "allow_change": {
-            "description": "Allow UPDATE queries (default: false)",
-            "type": "boolean"
-          },
-          "allow_delete": {
-            "description": "Allow DELETE queries (default: false)",
-            "type": "boolean"
-          },
-          "allow_read": {
-            "description": "Allow SELECT queries (default: true)",
-            "type": "boolean"
-          },
-          "allow_write": {
-            "description": "Allow INSERT queries (default: false)",
-            "type": "boolean"
-          },
           "connection_name": {
-            "description": "Connection name (unique identifier)",
-            "type": "string"
-          },
-          "credential_action": {
-            "description": "Credential handling for update: keep, replace, or delete",
-            "enum": [
-              "keep",
-              "replace",
-              "delete"
-            ],
-            "type": "string"
-          },
-          "database_name": {
-            "description": "Database name or SQLite file path",
+            "description": "Existing connection name",
             "type": "string"
           },
           "description": {
-            "description": "Short description of the database purpose",
-            "type": "string"
-          },
-          "docker_template": {
-            "description": "Docker template for docker_create: postgres, mysql, mariadb",
-            "enum": [
-              "postgres",
-              "mysql",
-              "mariadb"
-            ],
-            "type": "string"
-          },
-          "driver": {
-            "description": "Database driver",
-            "enum": [
-              "postgres",
-              "mysql",
-              "sqlite"
-            ],
-            "type": "string"
-          },
-          "host": {
-            "description": "Database host (IP or hostname)",
+            "description": "New description for update",
             "type": "string"
           },
           "operation": {
-            "description": "Operation to perform",
             "enum": [
               "list",
               "get",
-              "create",
-              "update",
-              "delete",
               "test",
-              "docker_create"
+              "update"
             ],
-            "type": "string"
-          },
-          "password": {
-            "description": "Database password (stored in vault)",
-            "type": "string"
-          },
-          "port": {
-            "description": "Database port (default: 5432 for postgres, 3306 for mysql)",
-            "type": "integer"
-          },
-          "ssl_mode": {
-            "description": "SSL mode: disable, require, verify-ca, verify-full (default: disable)",
-            "type": "string"
-          },
-          "username": {
-            "description": "Database username (stored in vault)",
             "type": "string"
           }
         },
@@ -19499,109 +19428,26 @@
           "description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
           "type": "string"
         },
-        "allow_change": {
-          "description": "Allow UPDATE queries (default: false)",
-          "type": "boolean"
-        },
-        "allow_delete": {
-          "description": "Allow DELETE queries (default: false)",
-          "type": "boolean"
-        },
-        "allow_read": {
-          "description": "Allow SELECT queries (default: true)",
-          "type": "boolean"
-        },
-        "allow_write": {
-          "description": "Allow INSERT queries (default: false)",
-          "type": "boolean"
-        },
         "connection_name": {
-          "description": "Connection name (unique identifier)",
-          "type": "string"
-        },
-        "credential_action": {
-          "description": "Credential handling for update: keep, replace, or delete",
-          "enum": [
-            "keep",
-            "replace",
-            "delete"
-          ],
-          "type": "string"
-        },
-        "database_name": {
-          "description": "Database name or SQLite file path",
+          "description": "Existing connection name",
           "type": "string"
         },
         "description": {
-          "description": "Short description of the database purpose",
-          "type": "string"
-        },
-        "docker_template": {
-          "description": "Docker template for docker_create: postgres, mysql, mariadb",
-          "enum": [
-            "postgres",
-            "mysql",
-            "mariadb"
-          ],
-          "type": "string"
-        },
-        "driver": {
-          "description": "Database driver",
-          "enum": [
-            "postgres",
-            "mysql",
-            "sqlite"
-          ],
-          "type": "string"
-        },
-        "host": {
-          "description": "Database host (IP or hostname)",
+          "description": "New description for update",
           "type": "string"
         },
         "operation": {
-          "description": "Operation to perform",
           "enum": [
             "list",
             "get",
-            "create",
-            "update",
-            "delete",
             "test",
-            "docker_create"
+            "update"
           ],
-          "type": "string"
-        },
-        "password": {
-          "description": "Database password (stored in vault)",
-          "type": "string"
-        },
-        "port": {
-          "description": "Database port (default: 5432 for postgres, 3306 for mysql)",
-          "type": "integer"
-        },
-        "ssl_mode": {
-          "description": "SSL mode: disable, require, verify-ca, verify-full (default: disable)",
-          "type": "string"
-        },
-        "username": {
-          "description": "Database username (stored in vault)",
           "type": "string"
         }
       },
       "tier": "extended",
       "operations": [
-        {
-          "selector": "operation",
-          "value": "create"
-        },
-        {
-          "selector": "operation",
-          "value": "delete"
-        },
-        {
-          "selector": "operation",
-          "value": "docker_create"
-        },
         {
           "selector": "operation",
           "value": "get"
@@ -19620,7 +19466,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/manage_sql_connections.md",
-      "manual_snippet": "# SQL Connections (`manage_sql_connections`)\n\nManage external database connections that the agent can query. Create, update, delete, list, and test connections to PostgreSQL, MySQL/MariaDB, and SQLite databases. Credentials are stored securely in the encrypted vault.\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `list` | List all registered database connections |\n| `get` | Get details of a specific connection |\n| `create` | Register a new database connection |\n| `update` | Update an existing connection |\n| `delete` | Remove a database connection and its vault credentials |\n| `test` | Test connectivity to a registered database |\n| `docker_create` | Prepare a Docker container configuration for a new database |\n\n## Parameters\n\n| Parameter | Type | Required | Descri…"
+      "manual_snippet": "# SQL Connections (`manage_sql_connections`)\n\nUse administrator-configured PostgreSQL, MySQL/MariaDB and managed SQLite connections.\n\n| Operation | Inputs | Effect |\n| --- | --- | --- |\n| `list` | none | List configured connections and grants |\n| `get` | `connection_name` | Inspect one connection |\n| `test` | `connection_name` | Test saved connectivity |\n| `update` | `connection_name`, `description` | Change the description when `sql_connections.allow_management` is enabled |\n\nTargets, drivers, credentials, permissions, creation and deletion are administrator-only in Config \u003e SQL Connections. Never request credentials in model arguments. SQLite requires an explicit administrator import of a consistent standalone backup into protected storage; a host path is never an agent database target. …"
     },
     {
       "name": "manage_todos",
@@ -23618,7 +23464,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/process_management.md",
-      "manual_snippet": "# Process Management (`manage_processes`)\n\nPlatform-independent management of system processes: listing, killing, and resource inspection.\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `list` | Returns the top 50 processes sorted by CPU usage |\n| `kill` | Terminates a process by PID |\n| `stats` | Returns detailed memory and CPU info for a specific PID |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | One of: list, kill, stats |\n| `pid` | integer | for kill/stats | Process ID to target |\n\n## Examples\n\n**List top processes:**\n```json\n{\"action\": \"manage_processes\", \"operation\": \"list\"}\n```\n\n**Kill a process:**\n```json\n{\"action\": \"manage_processes\", \"operation\": \"kill\", \"pid\":…"
+      "manual_snippet": "# Process Management (`manage_processes`)\n\nPlatform-independent process listing and resource inspection. Termination is limited to live processes owned by AuraGo's background-process registry.\n\n## Operations\n\n| Operation | Description |\n|-----------|-------------|\n| `list` | Returns the top 50 processes sorted by CPU usage |\n| `kill` | Terminates an AuraGo-owned live background process by PID; requires `allow_shell` |\n| `stats` | Returns detailed memory and CPU info for a specific PID |\n\n## Parameters\n\n| Parameter | Type | Required | Description |\n|-----------|------|----------|-------------|\n| `operation` | string | yes | One of: list, kill, stats |\n| `pid` | integer | for kill/stats | Process ID to target |\n\n## Examples\n\n**List top processes:**\n```json\n{\"action\": \"manage_processes\", \"ope…"
     },
     {
       "name": "proxmox",

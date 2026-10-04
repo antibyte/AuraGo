@@ -272,6 +272,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | System World Tower Voice; 3D Printer Integration Contract; go2rtc Integration Contract; AI Gateway Contract; here.now Integration Contract; GitHub Integration Contract; Homepage Managed Website Ledger; Configuration UI Integration Test Contract | `internal/server/AGENTS.md` |
 | Workspace Search System | `internal/services/AGENTS.md` |
 | Native SIP Telephony Contract | `internal/sipphone/AGENTS.md` |
+| External SQL permissions and managed SQLite imports | `internal/sqlconnections/AGENTS.md` |
 | Update artifact retention contract | `internal/upkeep/AGENTS.md` |
 | Speech Lab Integration Contract | `internal/speechlab/AGENTS.md` |
 | Desktop Tresor Storage Contract | `internal/tresor/AGENTS.md` |

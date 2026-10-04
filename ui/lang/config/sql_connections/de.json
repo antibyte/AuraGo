@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Global nur lesend",
   "config.sql_connections.readonly_help": "Blockiert alle schreibenden Operationen unabhängig von den Verbindungsberechtigungen.",
   "config.sql_connections.allow_management_label": "Verwaltung erlauben",
-  "config.sql_connections.allow_management_help": "Erlaubt dem Agenten, Verbindungen zu erstellen, zu bearbeiten und zu löschen."
+  "config.sql_connections.sqlite_import": "SQLite-Sicherung importieren",
+  "config.sql_connections.sqlite_import_help": "Lade eine konsistente, eigenständige Sicherung hoch (bis 64 MiB). Speichern importiert sie in die geschützte Ablage und erhält die Originale.",
+  "config.sql_connections.sqlite_import_required": "SQLite-Import erforderlich",
+  "config.sql_connections.allow_management_help": "Der Agent darf nur Beschreibungen ändern. Einrichtung, Zugangsdaten und Rechte verwaltest Du als Admin."
 }

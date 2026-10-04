@@ -185,6 +185,7 @@ func TestService_CreateSQLiteWithoutCredentialsConnectsWithoutVaultSecret(t *tes
 		t.Fatalf("VaultSecretID = %q, want empty", conn.VaultSecretID)
 	}
 
+	importFixture(t, pool, res.ID)
 	opened, err := pool.GetConnection(res.ID)
 	if err != nil {
 		t.Fatalf("GetConnection() error = %v", err)

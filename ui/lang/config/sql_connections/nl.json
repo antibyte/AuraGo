@@ -66,5 +66,8 @@
   "config.sql_connections.readonly_label": "Globaal alleen-lezen",
   "config.sql_connections.readonly_help": "Blokkeert alle schrijfbewerkingen ongeacht de verbindingstoestemmingen.",
   "config.sql_connections.allow_management_label": "Beheer toestaan",
-  "config.sql_connections.allow_management_help": "Staat de agent toe verbindingen te maken, bewerken en verwijderen."
+  "config.sql_connections.sqlite_import": "SQLite-back-up importeren",
+  "config.sql_connections.sqlite_import_help": "Upload een consistente, zelfstandige back-up (maximaal 64 MiB). Opslaan importeert deze in beschermde opslag en behoudt originelen.",
+  "config.sql_connections.sqlite_import_required": "SQLite-import vereist",
+  "config.sql_connections.allow_management_help": "De agent mag alleen beschrijvingen wijzigen. Instellingen, inloggegevens en rechten zijn voorbehouden aan de beheerder."
 }
