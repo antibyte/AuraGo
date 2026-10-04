@@ -44,6 +44,19 @@ var (
 	// messagingTools reach someone outside AuraGo although their name does not start
 	// with send_ (a send_ tool always does).
 	messagingTools = map[string]bool{"call_webhook": true, "sip_phone": true, "telnyx_call": true}
+	// sendWordTools outside the communication category send a message when their
+	// operation has a send word (google_workspace "gmail_send").
+	sendWordTools = map[string]bool{"google_workspace": true}
+	// fileTools work on files outside the files category, like every tool whose name
+	// says "file" or "document" (genericFileish): an operation with a write word writes
+	// files. In the files category every operation that is no read and no pure delete does.
+	fileTools = map[string]bool{"office_workbook": true, "video_download": true, "s3_storage": true,
+		"browser_automation": true, "invasion_artifacts": true}
+	// fileWritingTools write a file with every call that is not a read: a transfer, a
+	// capture, a conversion, a rendering, a generated medium or certificate.
+	fileWritingTools = map[string]bool{"transfer_remote_file": true, "web_capture": true, "media_conversion": true,
+		"tts": true, "generate_image": true, "generate_music": true, "generate_video": true, "openscad_render": true,
+		"certificate_manager": true}
 	// deviceTools control devices outside the smart_home category.
 	deviceTools = map[string]bool{"bluetooth": true, "chromecast": true, "three_d_printer": true,
 		"cyd_display": true, "jellyfin": true, "meshcentral": true, "remote_control_desktop": true}
@@ -71,8 +84,10 @@ var (
 	codeOperationWords = []string{"exec", "execute", "run", "adhoc", "playbook"}
 	// deleteWords are matched anywhere in the operation, as in "remove_image".
 	deleteWords = []string{"delete", "remove", "purge", "destroy", "drop", "clear", "wipe", "erase", "prune", "uninstall"}
-	// writeWords make a files operation that also deletes ("delete_and_write") a write.
-	writeWords = []string{"write", "create", "move", "copy", "upload", "save", "rename", "mkdir"}
+	// writeWords make an operation of a fileTools entry a write, and a files operation
+	// that also deletes ("delete_and_write") one.
+	writeWords = []string{"write", "edit", "patch", "download", "upload", "save", "create", "move", "copy", "rename",
+		"mkdir", "export", "set", "replace", "append", "insert", "optimize", "convert"}
 	// sendWords make an operation of a communication tool a message.
 	sendWords = []string{"send", "post", "reply", "call", "sms", "forward", "initiate", "dial", "notify"}
 )
@@ -150,7 +165,12 @@ func genericCanSend(tool, category string) bool {
 	if strings.HasPrefix(tool, "fetch_") || strings.HasPrefix(tool, "list_") {
 		return false
 	}
-	return strings.HasPrefix(tool, "send_") || messagingTools[tool] || category == "communication"
+	return strings.HasPrefix(tool, "send_") || messagingTools[tool] || sendWordTools[tool] || category == "communication"
+}
+
+// genericFileish reports whether a tool outside the files category works on files.
+func genericFileish(tool string) bool {
+	return fileTools[tool] || strings.Contains(tool, "file") || strings.Contains(tool, "document")
 }
 
 // genericEffects derives the effects of a generic tool call from tool name, category
@@ -180,8 +200,13 @@ func genericEffects(tool, category, op string) []Effect {
 	if genericCanSend(tool, category) && (strings.HasPrefix(tool, "send_") || messagingTools[tool] || containsAny(op, sendWords...)) {
 		set[EffectSendsMessage] = true
 	}
-	if category == "files" && op != "" && (!deletes || containsAny(op, writeWords...)) {
+	switch {
+	case category == "files":
+		set[EffectWritesFiles] = op != "" && (!deletes || containsAny(op, writeWords...))
+	case fileWritingTools[tool]:
 		set[EffectWritesFiles] = true
+	case genericFileish(tool):
+		set[EffectWritesFiles] = containsAny(op, writeWords...)
 	}
 	if category == "smart_home" || deviceTools[tool] {
 		set[EffectControlsDevices] = true
@@ -199,7 +224,7 @@ func genericAllEffects(tool, category string) []Effect {
 	if genericCanSend(tool, category) {
 		set[EffectSendsMessage] = true
 	}
-	if category == "files" {
+	if category == "files" || fileWritingTools[tool] || genericFileish(tool) {
 		set[EffectWritesFiles] = true
 	}
 	if category == "smart_home" || deviceTools[tool] {

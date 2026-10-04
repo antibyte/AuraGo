@@ -157,6 +157,34 @@ func TestGenericEffectsOfRealTools(t *testing.T) {
 		{"detect_file_type", "files", "", nil},
 		{"bluetooth", "media", "play", []Effect{dev}},
 		{"three_d_printer", "infrastructure", "start_print", []Effect{dev}},
+		// a send word sends outside the communication category for google_workspace
+		{"google_workspace", "files", "gmail_send", []Effect{msg, wr}},
+		// no read verb first: the files rule lists a (not risky) write, but no message
+		{"google_workspace", "files", "gmail_list", []Effect{wr}},
+		{"google_workspace", "files", "calendar_create", []Effect{wr}},
+		// file tools outside the files category write with a write word
+		{"homepage_file", "infrastructure", "write_file", []Effect{wr}},
+		{"homepage_file", "infrastructure", "json_edit", []Effect{wr}},
+		{"homepage_file", "infrastructure", "read_file", nil},
+		{"virtual_desktop_files", "infrastructure", "patch_file", []Effect{wr}},
+		{"virtual_desktop_files", "infrastructure", "export_file", []Effect{wr}},
+		{"virtual_desktop_files", "infrastructure", "delete_file", []Effect{del}},
+		{"office_document", "infrastructure", "write", []Effect{wr}},
+		{"office_document", "infrastructure", "read", nil},
+		{"office_workbook", "infrastructure", "set_cell", []Effect{wr}},
+		{"video_download", "media", "download", []Effect{wr}},
+		{"video_download", "media", "search", nil},
+		{"remote_control_files", "infrastructure", "write_file", []Effect{wr, sys}},
+		{"s3_storage", "infrastructure", "upload", []Effect{wr}},
+		// tools that write a file with every call that is no read
+		{"transfer_remote_file", "infrastructure", "", []Effect{wr}},
+		{"web_capture", "network", "screenshot", []Effect{wr}},
+		{"media_conversion", "media", "audio_convert", []Effect{wr}},
+		{"media_conversion", "media", "info", nil},
+		{"tts", "media", "", []Effect{wr}},
+		{"certificate_manager", "network", "generate_self_signed", []Effect{wr}},
+		{"certificate_manager", "network", "check_remote", nil},
+		{"send_document", "media", "", []Effect{msg}},
 	}
 	for _, tc := range cases {
 		if got := genericEffects(tc.tool, tc.category, tc.op); !reflect.DeepEqual(got, tc.want) {

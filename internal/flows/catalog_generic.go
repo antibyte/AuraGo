@@ -88,7 +88,7 @@ var genericDroppedParams = map[string]bool{"_todo": true, "vault_keys": true, "c
 var genericSinkNames = map[string]bool{
 	// what runs
 	"command": true, "cmd": true, "code": true, "script": true, "sql": true, "sql_query": true, "query": true,
-	"operation": true, "action": true, "command_args": true, "image": true, "env": true, "volumes": true,
+	"operation": true, "action": true, "command_args": true, "arguments": true, "image": true, "env": true, "volumes": true,
 	"package": true, "packages": true, "libraries": true, "dependencies": true,
 	// which file
 	"path": true, "paths": true, "file": true, "file_path": true, "filepath": true, "filename": true,
@@ -111,6 +111,20 @@ var genericSinkSuffixes = []string{"_path", "_paths", "_dir", "_file", "_files",
 // the main agent's prompts read it (memories, notes, journal, knowledge graph): every
 // text parameter of them is a sink, like a planner title.
 const genericPromptCategory = "memory"
+
+// genericProgramTools carry a program, a task for an agent or keystrokes in parameters
+// whose names do not say so (an instruction, a task, an input, app files), like every
+// codeRunningTools entry: a virtual computer that runs shell and desktop tasks, ansible
+// (module, playbook, extra variables) and the Manus agent, which acts with the user's
+// connected accounts.
+var genericProgramTools = map[string]bool{"virtual_computers": true, "ansible": true, "manus": true}
+
+// genericAllTextSinks reports whether every parameter of tool that is no bool or
+// number is a sink: memory tools (the agent's prompts read what they store) and tools
+// whose text runs or steers something (codeRunningTools, genericProgramTools).
+func genericAllTextSinks(tool GenericTool) bool {
+	return tool.Category == genericPromptCategory || codeRunningTools[tool.Name] || genericProgramTools[tool.Name]
+}
 
 func isGenericSinkName(name string) bool {
 	name = strings.ToLower(name)
@@ -182,14 +196,16 @@ func RefreshGenericTools(reg *Registry, tools []GenericTool, env CatalogEnv) int
 	return len(defs)
 }
 
-// genericToolDef builds the node of one tool. The output is untrusted. The operation
+// genericToolDef builds the node of one tool. The output is untrusted. Sinks are the
+// parameters isGenericSinkName names, and every text parameter of a tool for which
+// genericAllTextSinks holds. The operation
 // parameter ("operation", else "action") decides the effects: a literal one is
 // classified (genericEffects); anything else gets the worst case, the union over the
 // operations the schema lists, which Execute enforces, or every effect when there is
 // no list (genericWorstEffects).
 func genericToolDef(tool GenericTool, env CatalogEnv) *NodeDef {
 	params, jsonStrings := paramsFromSchema(tool.Schema)
-	if tool.Category == genericPromptCategory {
+	if genericAllTextSinks(tool) {
 		for i := range params {
 			if params[i].Kind != ParamBool && params[i].Kind != ParamNumber {
 				params[i].SensitiveSink = true

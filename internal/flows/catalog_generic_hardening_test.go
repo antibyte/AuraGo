@@ -198,14 +198,14 @@ func TestGenericSinkParams(t *testing.T) {
 	reg := genericTestRegistry(t)
 	want := map[string][]string{
 		"execute_shell":       {"command"},
-		"execute_python":      {"code"},
+		"execute_python":      {"code", "description"}, // code-running: every text parameter
 		"docker":              {"command", "container_id", "image", "operation", "volumes"},
 		"adguard":             {"operation", "query", "url"},
 		"truenas":             {"action", "path"},
 		"manage_appointments": {"operation", "query", "title"},
 		"remember":            {"category", "content", "tags", "title"}, // memory: every text parameter
 		"filesystem":          {"destination", "file_path", "operation"},
-		"sql_query":           {"operation", "sql_query"},
+		"sql_query":           {"connection_name", "operation", "sql_query"},
 		"send_image":          {"path"},
 		"call_webhook":        {"webhook_name"},
 	}
@@ -220,7 +220,7 @@ func TestGenericSinkParams(t *testing.T) {
 	}
 	for _, name := range []string{"command", "cmd", "code", "script", "path", "file_path", "filepath", "url", "uri", "to",
 		"recipient", "recipients", "entity_id", "topic", "host", "query", "sql", "title", "output_path", "project_dir",
-		"image_url", "source_files", "Command", "server_id", "payload", "headers"} {
+		"image_url", "source_files", "Command", "server_id", "payload", "headers", "arguments"} {
 		if !isGenericSinkName(name) {
 			t.Errorf("%s must be a sink", name)
 		}
@@ -243,6 +243,82 @@ func TestGenericSinkParams(t *testing.T) {
 		"agent_instruction": "run rm -rf", "wake_agent": true}, &Services{Tools: tools})
 	if err != nil || !reflect.DeepEqual(tools.last(t).Args, map[string]any{"operation": "add", "title": "x"}) {
 		t.Errorf("dropped params reached the tool: %+v, %v", tools.last(t).Args, err)
+	}
+}
+
+// Tools whose text runs or steers something have every parameter that is no bool or
+// number as a sink, whatever its name; other tools keep the name rule.
+func TestGenericProgramToolsMarkEveryTextParam(t *testing.T) {
+	schema := map[string]any{"type": "object", "properties": map[string]any{
+		"instruction": genericProp("string", "Instruction"), "input": genericProp("string", "PTY input"),
+		"manifest": map[string]any{"type": "object"}, "files": genericProp("string", "App files. Provide as a JSON object string."),
+		"keys": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "mode": genericEnumProp("a", "b"),
+		"settings": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
+		"enabled":  genericProp("boolean", ""), "count": genericProp("integer", ""), "ratio": genericProp("number", ""),
+	}}
+	var tools []string
+	for name := range codeRunningTools {
+		tools = append(tools, name)
+	}
+	for name := range genericProgramTools {
+		tools = append(tools, name)
+	}
+	slices.Sort(tools)
+	if len(tools) < 18 {
+		t.Fatalf("only %d tools: %v", len(tools), tools)
+	}
+	for _, name := range tools {
+		reg := NewRegistry()
+		if n := RefreshGenericTools(reg, []GenericTool{{Name: name, Category: "infrastructure", Schema: schema}}, nil); n != 1 {
+			t.Errorf("%s: registered %d", name, n)
+			continue
+		}
+		def := lookupDef(t, reg, GenericTypePrefix+name)
+		for _, p := range def.Params {
+			if want := p.Kind != ParamBool && p.Kind != ParamNumber; p.SensitiveSink != want {
+				t.Errorf("%s.%s (%s): sink %v, want %v", name, p.Name, p.Kind, p.SensitiveSink, want)
+			}
+		}
+	}
+	reg := NewRegistry()
+	RefreshGenericTools(reg, []GenericTool{{Name: "docker", Category: "infrastructure", Schema: schema}}, nil)
+	if got := genericSinks(lookupDef(t, reg, "tool.docker")); len(got) != 0 {
+		t.Errorf("docker keeps the name rule: sinks %v", got)
+	}
+
+	// The program parameters of the real catalog (internal/agent native_tools*.go).
+	text := func(names ...string) map[string]any {
+		props := map[string]any{}
+		for _, n := range names {
+			props[n] = genericProp("string", "")
+		}
+		return props
+	}
+	real := []struct {
+		tool  string
+		props map[string]any
+		sinks []string
+	}{
+		{"space_agent", text("instruction", "information", "session_id"), []string{"information", "instruction", "session_id"}},
+		{"invasion_tasks", text("task", "message", "body", "content"), []string{"body", "content", "message", "task"}},
+		{"remote_control_shell", text("input", "cwd_id"), []string{"cwd_id", "input"}},
+		{"remote_control_desktop", text("text", "key", "value"), []string{"key", "text", "value"}},
+		{"virtual_computers", text("instruction", "content", "template"), []string{"content", "instruction", "template"}},
+		{"virtual_workspace", text("input", "content", "working_dir"), []string{"content", "input", "working_dir"}},
+		{"virtual_desktop_app_install", map[string]any{"files": genericProp("string", "Files. Provide as a JSON object string."),
+			"manifest": map[string]any{"type": "object"}}, []string{"files", "manifest"}},
+		{"virtual_desktop_widgets", text("content", "widget", "app_id"), []string{"app_id", "content", "widget"}},
+		{"ansible", text("module", "body", "name", "tags"), []string{"body", "module", "name", "tags"}},
+		{"manus", text("message", "title"), []string{"message", "title"}},
+	}
+	for _, c := range real {
+		c.props["flag"] = genericProp("boolean", "")
+		c.props["limit"] = genericProp("integer", "")
+		reg := NewRegistry()
+		RefreshGenericTools(reg, []GenericTool{{Name: c.tool, Category: "infrastructure", Schema: map[string]any{"properties": c.props}}}, nil)
+		if got := genericSinks(lookupDef(t, reg, GenericTypePrefix+c.tool)); !reflect.DeepEqual(got, c.sinks) {
+			t.Errorf("%s sinks = %v, want %v", c.tool, got, c.sinks)
+		}
 	}
 }
 
