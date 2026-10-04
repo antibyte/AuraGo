@@ -472,3 +472,89 @@ func TestDescribeGenericNodeIgnoresAnOperationDefault(t *testing.T) {
 		t.Errorf("effects %v risky %v", info.Effects, info.Risky)
 	}
 }
+
+// catalogKeysRequested returns the i18n keys DescribeNodeTypes asks the translator for
+// when it describes reg: the set the translation files of the editor must cover. Generic
+// tool nodes carry literal text and ask for none (TestDescribeNodeTypesRequestedKeys), so
+// for a registry with generic tools this is the set of the non-generic types. A key that
+// is empty is never asked for.
+func catalogKeysRequested(reg *Registry) map[string]bool {
+	asked := map[string]bool{}
+	DescribeNodeTypes(reg, func(key string) string {
+		asked[key] = true
+		return key
+	})
+	return asked
+}
+
+// The real catalog asks for well-formed keys only, and a generic tool node asks for none.
+func TestDescribeNodeTypesRequestedKeys(t *testing.T) {
+	reg := catalogRegistry(t, fullEnv())
+	asked := catalogKeysRequested(reg)
+	if len(asked) == 0 {
+		t.Fatal("the catalog asks for no key")
+	}
+	for key := range asked {
+		if key == "" || !strings.HasPrefix(key, "easydrag.") || strings.TrimSpace(key) != key {
+			t.Errorf("malformed key %q", key)
+		}
+	}
+	for _, want := range []string{
+		"easydrag.node.ai_step.label",         // a node label
+		"easydrag.node.web_search.label",      // another one
+		"easydrag.param.search_query",         // a parameter label
+		"easydrag.option.search_auto",         // an option label
+		"easydrag.help.ha_service",            // a help text
+		"easydrag.param.field_name",           // inside a fields parameter
+		"easydrag.node.trigger_webhook.label", // a trigger
+	} {
+		if !asked[want] {
+			t.Errorf("missing key %s", want)
+		}
+	}
+
+	// Generic tool nodes add no key, whatever the tool's schema holds.
+	generic := NewRegistry()
+	RefreshGenericTools(generic, []GenericTool{
+		{Name: "docker", Category: "infrastructure", Description: "Containers", Schema: sampleToolSchema()},
+		{Name: "execute_shell", Category: "system", Schema: map[string]any{"type": "object",
+			"properties": map[string]any{"command": map[string]any{"type": "string"}}}},
+	}, StaticEnv{})
+	if len(generic.All()) != 2 {
+		t.Fatalf("setup: %d generic nodes", len(generic.All()))
+	}
+	if keys := catalogKeysRequested(generic); len(keys) != 0 {
+		t.Errorf("generic nodes ask for keys: %v", keys)
+	}
+	RefreshGenericTools(reg, []GenericTool{{Name: "docker", Category: "infrastructure", Schema: sampleToolSchema()}}, StaticEnv{})
+	if with := catalogKeysRequested(reg); !reflect.DeepEqual(with, asked) {
+		t.Error("adding a generic node changed the requested keys")
+	}
+}
+
+// Keys of every kind are asked for: node texts, parameters and their nested fields,
+// options, help, static and dynamic output fields. A hook that panics loses only its own
+// keys, and a text without a key is not asked for.
+func TestDescribeNodeTypesRequestedKeysFromDefinitions(t *testing.T) {
+	logs := catDescCaptureLogs(t)
+	reg := NewRegistry()
+	reg.MustRegister(&NodeDef{Type: "test.dyn", Category: "test", LabelKey: "k.label", DescriptionKey: "k.desc",
+		Params: []ParamSpec{{Name: "p", Kind: ParamFields, LabelKey: "k.p", HelpKey: "k.p.help",
+			Options: []Option{{Value: "v", LabelKey: "k.opt"}, {Value: "raw", Label: "Raw"}},
+			Fields:  []ParamSpec{{Name: "inner", LabelKey: "k.inner", Options: []Option{{Value: "w", LabelKey: "k.inner.opt"}}}}}},
+		OutputFields:     []FieldSpec{{Name: "static", DescriptionKey: "k.static"}, {Name: "plain"}},
+		OutputFieldsFunc: func(*Node) []FieldSpec { return []FieldSpec{{Name: "dynamic", DescriptionKey: "k.dynamic"}} }})
+	reg.MustRegister(&NodeDef{Type: "test.panics", Category: "test", LabelKey: "k.panics", SummaryKey: "k.panics.sum",
+		OutputFields:     []FieldSpec{{Name: "lost", DescriptionKey: "k.lost"}},
+		OutputFieldsFunc: func(*Node) []FieldSpec { panic("boom") }})
+	reg.MustRegister(&NodeDef{Type: "test.literal", Category: "test", Label: "Literal", Description: "Literal text",
+		Params: []ParamSpec{{Name: "q", Kind: ParamText, Label: "Q", Help: "help"}}})
+	want := map[string]bool{"k.label": true, "k.desc": true, "k.p": true, "k.p.help": true, "k.opt": true, "k.inner": true,
+		"k.inner.opt": true, "k.dynamic": true, "k.panics": true, "k.panics.sum": true}
+	if got := catalogKeysRequested(reg); !reflect.DeepEqual(got, want) {
+		t.Errorf("keys = %v\nwant   %v", got, want)
+	}
+	if got, want := logs.fallbacks(), []string{"test.panics/OutputFieldsFunc"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("logged %v, want %v", got, want)
+	}
+}
