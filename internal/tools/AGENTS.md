@@ -10,6 +10,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- Email watchers inherit the server context. Stop cancels and joins polling, IMAP TCP/TLS and commands, Guardian evaluation, mission callbacks and loopback notifications before database shutdown. A failed initial account seed must be retried before forwarding old unseen mail. A stopped watcher can start with a fresh context; callbacks run outside its mutex.
+
 - YepAPI POST operations are sent once because results may be billable or mutate provider jobs. YepAPI and Dograh bind custom credential headers to one HTTP origin. Proxmox error responses use JSON encoding for dynamic messages.
 
 ### GitHub repository trust

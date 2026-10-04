@@ -211,6 +211,7 @@ type Server struct {
 	systemWorldOnce         sync.Once
 	systemWorld             *systemWorldRuntime
 	MissionManagerV2        *tools.MissionManagerV2
+	EmailWatcher            *tools.EmailWatcher
 	missionRuns             *missionRunRegistry // cancellable contexts of in-flight local mission runs
 	missionRunsOnce         sync.Once
 	EggHub                  *bridge.EggHub

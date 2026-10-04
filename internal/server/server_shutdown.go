@@ -18,6 +18,10 @@ func (s *Server) closeRuntimeResources() {
 	s.stopHomeAssistantPoller()
 	s.stopFritzPoller()
 	s.stopUptimeKumaPoller()
+	if s.EmailWatcher != nil {
+		s.EmailWatcher.Stop()
+		s.EmailWatcher = nil
+	}
 	s.fritzWidgetMu.Lock()
 	widget := s.fritzWidget
 	s.fritzWidgetMu.Unlock()
