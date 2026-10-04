@@ -96,6 +96,20 @@ func TestGraphTopoOrderTieBreaksByDocumentOrder(t *testing.T) {
 	}
 }
 
+// A node that becomes ready later still goes before the ready nodes that come
+// after it in the document: r1 frees "late" (document position 0), which must be
+// picked before r2 and r3.
+func TestGraphTopoOrderPicksNewlyReadyEarlierNode(t *testing.T) {
+	f := &Flow{
+		Nodes: []Node{{ID: "late"}, {ID: "r1"}, {ID: "r2"}, {ID: "r3"}},
+		Edges: []Edge{{ID: "e_1", Source: PortRef{Node: "r1", Port: PortOut}, Target: PortRef{Node: "late", Port: PortIn}}},
+	}
+	order, cyclic := buildGraph(f).topoOrder()
+	if !reflect.DeepEqual(order, []string{"r1", "late", "r2", "r3"}) || cyclic != nil {
+		t.Fatalf("topoOrder = %v, %v", order, cyclic)
+	}
+}
+
 func TestGraphSelfLoopsAndDuplicateEdges(t *testing.T) {
 	b := newFlow("Loops")
 	tr := b.node("start", "test.trigger", nil)

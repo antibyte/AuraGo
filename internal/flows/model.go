@@ -19,7 +19,11 @@ const SchemaVersion = 1
 
 // Document limits.
 const (
-	MaxNodes         = 500
+	MaxNodes = 500
+	// MaxEdges caps the connections in one flow. MaxDocumentBytes alone still
+	// allows tens of thousands of nodes and edges, so Validate rejects a flow over
+	// MaxNodes or MaxEdges before it does any per-node, per-edge or graph work.
+	MaxEdges         = 2000
 	MaxDocumentBytes = 2 << 20
 )
 

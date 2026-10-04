@@ -23,7 +23,10 @@ func (h *positionHeap) Pop() any {
 // It only reads the flow it was built from; the maps hold pointers into the
 // flow's Nodes and Edges slices.
 type graph struct {
-	nodes    map[string]*Node
+	// nodes indexes the first node of each id: membership only; iterate f.Nodes
+	// or the topo order for deterministic output.
+	nodes map[string]*Node
+	// order holds the node ids in document order, duplicates removed.
 	order    []string
 	incoming map[string][]*Edge
 	outgoing map[string][]*Edge
@@ -32,8 +35,9 @@ type graph struct {
 func buildGraph(f *Flow) *graph {
 	g := &graph{
 		nodes:    make(map[string]*Node, len(f.Nodes)),
-		incoming: map[string][]*Edge{},
-		outgoing: map[string][]*Edge{},
+		order:    make([]string, 0, len(f.Nodes)),
+		incoming: make(map[string][]*Edge, len(f.Nodes)),
+		outgoing: make(map[string][]*Edge, len(f.Nodes)),
 	}
 	for i := range f.Nodes {
 		n := &f.Nodes[i]
@@ -54,7 +58,8 @@ func buildGraph(f *Flow) *graph {
 	return g
 }
 
-// ancestors returns all nodes with a path to id (id itself excluded).
+// ancestors returns all nodes with a path to id (id itself excluded). The result
+// is membership only; iterate f.Nodes or the topo order for deterministic output.
 func (g *graph) ancestors(id string) map[string]bool {
 	seen := map[string]bool{}
 	stack := []string{id}
