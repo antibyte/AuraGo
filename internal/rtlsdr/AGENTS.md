@@ -13,6 +13,7 @@ Keep the AuraGo binary CGO-free. `runtime/` must not expose any network port.
   Release the device before probing partial audio, registering media or ASR.
 - Every live client has an expiring lease. Window close keeps the page-level
   audio runtime alive; explicit Stop drops the lease, without cancelling jobs.
+- Open streams inherit their exact lease context. Stop, expiry, disablement and shutdown cancel the request and close its body even when another listener keeps the receiver running. Reusing a client ID creates a new lease; late heartbeats cannot revive an expired one. Unknown Stop IDs return not-found and do not stop the receiver.
 - Record lossless PCM before the shared MP3 encoder and before browser controls.
   Preserve partial files and gap counts. Never delete recordings to free quota.
 - `receiver.OUTPUT` calibrates every analog mode's level for live audio,
