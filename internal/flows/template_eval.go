@@ -18,8 +18,11 @@ const (
 	// handed to ResolveValue), so a container at level 33 is rejected.
 	maxParamDepth = 32
 	// maxTemplateRefs caps the refs plus problems one CollectTemplateRefs call
-	// returns, which also bounds the walk over parameter structures built in Go
-	// that share sub-maps (two keys pointing at the same child, nested).
+	// returns, so the returned slices stay bounded however the parameters are
+	// shaped. It does not bound the time of the walk itself for parameter
+	// structures built in Go that share plain (non-template) sub-maps, such as two
+	// keys pointing at the same child, nested; JSON-decoded parameters are always
+	// trees.
 	maxTemplateRefs = 1000
 )
 
@@ -219,7 +222,9 @@ type TemplateProblem struct {
 // or list nested deeper than 32 levels is reported as a problem at its path and
 // not walked further. Refs and problems together are capped at 1000: when the
 // walk would exceed that, one more problem at the current path says so and the
-// walk stops, so the result is bounded however the parameters are shaped.
+// walk stops, so the returned slices are bounded however the parameters are
+// shaped. The walk time is not bounded for hand-built Go structures that share
+// plain (non-template) leaves; JSON-decoded parameters are always trees.
 func CollectTemplateRefs(params map[string]any) ([]TemplateRef, []TemplateProblem) {
 	var refs []TemplateRef
 	var problems []TemplateProblem

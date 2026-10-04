@@ -30,8 +30,8 @@ const (
 	maxPatternLength = 200
 	// maxPatternInsts caps the compiled program of a "matches" pattern. The source
 	// cap alone does not bound it: "a{1000}" repeated 25 times fits into 176 bytes
-	// but compiles to about 25,000 instructions. Ordinary patterns use fewer than
-	// 200.
+	// but compiles to about 25,000 instructions. Ordinary patterns use a few
+	// hundred at most.
 	maxPatternInsts = 1000
 )
 
@@ -188,7 +188,7 @@ func compilePattern(pattern string) (*regexp.Regexp, error) {
 		return nil, patternError(err)
 	}
 	if len(prog.Inst) > maxPatternInsts {
-		return nil, errors.New("the pattern is too complex")
+		return nil, errors.New("the pattern is too complex (large repeat counts such as {1,1000} are not supported)")
 	}
 	re, err := regexp.Compile(pattern)
 	if err != nil {

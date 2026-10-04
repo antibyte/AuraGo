@@ -86,7 +86,9 @@ type pendingRun struct {
 // Every run that has an id has an event log on the bus from the moment it is
 // recorded, also while it waits, and the log ends with a run_finished event however
 // the run ends: finished, cancelled while waiting, shut down or failed by a panic in
-// the runner.
+// the runner. A queued run that waits longer than the bus's leak horizon has its log
+// recreated at launch, and subscribers attached during the wait see their channel
+// close (see EventBus.Rearm).
 type Runner struct {
 	engine *Engine
 	store  *Store

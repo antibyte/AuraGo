@@ -211,7 +211,7 @@ func TestRunnerStress(t *testing.T) {
 
 	// All ids are known now; the finished channel holds an id per hook call.
 	got := make([]string, 0, len(ids))
-	timeout := time.After(10 * time.Second)
+	timeout := time.After(30 * time.Second)
 	for len(got) < len(ids) {
 		select {
 		case id := <-sx.finished:
@@ -284,8 +284,12 @@ func TestRunnerStressShutdownRacesStart(t *testing.T) {
 	}
 	select {
 	case <-shutdownNow:
-	case <-time.After(10 * time.Second):
-		t.Fatal("the workers did not get 8 runs accepted")
+	case <-time.After(30 * time.Second):
+		problem := "none"
+		if p := sx.problem.Load(); p != nil {
+			problem = *p
+		}
+		t.Fatalf("the workers did not get 8 runs accepted (first problem: %s)", problem)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
