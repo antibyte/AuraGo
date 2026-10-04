@@ -3,6 +3,7 @@ package flows
 import (
 	"encoding/json"
 	"math"
+	"strings"
 	"testing"
 	"time"
 )
@@ -283,6 +284,43 @@ func TestTruthyAndEmpty(t *testing.T) {
 	for _, v := range []any{"x", 0.0, false, []any{nil}} {
 		if isEmptyValue(v) {
 			t.Errorf("isEmptyValue(%#v) = true", v)
+		}
+	}
+}
+
+func TestMarshalCompact(t *testing.T) {
+	// Compact, sorted keys, no HTML escaping, no trailing newline.
+	in := map[string]any{"b": []any{1.0, nil, "x"}, "a": "<b>&amp;</b>"}
+	got, err := marshalCompact(in)
+	if err != nil {
+		t.Fatalf("marshalCompact: unexpected error %v", err)
+	}
+	if want := `{"a":"<b>&amp;</b>","b":[1,null,"x"]}`; got != want {
+		t.Errorf("marshalCompact = %s, want %s", got, want)
+	}
+	if got != strings.TrimRight(got, "\n") {
+		t.Errorf("marshalCompact kept a trailing newline: %q", got)
+	}
+	if display := compactJSON(in); display != got {
+		t.Errorf("compactJSON = %s, want the marshalCompact text %s", display, got)
+	}
+
+	cyclic := map[string]any{}
+	cyclic["self"] = cyclic
+	for name, bad := range map[string]any{
+		"NaN":    map[string]any{"x": math.NaN()},
+		"Inf":    []any{math.Inf(-1)},
+		"cyclic": cyclic,
+	} {
+		out, err := marshalCompact(bad)
+		if err == nil {
+			t.Errorf("marshalCompact(%s) = %q, want an error", name, out)
+		}
+		if out != "" {
+			t.Errorf("marshalCompact(%s) returned %q alongside the error, want an empty string", name, out)
+		}
+		if display := compactJSON(bad); display != "<unserializable>" {
+			t.Errorf("compactJSON(%s) = %q, want the placeholder", name, display)
 		}
 	}
 }

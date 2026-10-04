@@ -7,9 +7,20 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
+)
+
+const (
+	// maxFilterOutputBytes caps the text a single replace call may produce.
+	maxFilterOutputBytes = 8 << 20
+	// maxSplitParts caps the number of elements a single split call may produce.
+	maxSplitParts = 100000
+	// maxErrorEchoRunes caps how much of a value an error message repeats.
+	maxErrorEchoRunes = 40
 )
 
 // FilterCall is one "| name(args)" step of a template expression.
@@ -56,7 +67,7 @@ func FilterNames() []string {
 func checkFilterCall(c FilterCall) error {
 	spec, ok := filters[c.Name]
 	if !ok {
-		return fmt.Errorf("unknown filter %q", c.Name)
+		return fmt.Errorf("unknown filter %s", quoteForError(c.Name))
 	}
 	if len(c.Args) < spec.minArgs || len(c.Args) > spec.maxArgs {
 		if spec.minArgs == spec.maxArgs {
@@ -75,7 +86,21 @@ func applyFilter(name string, in any, args []any, env *Env) (any, error) {
 	return filters[name].fn(in, args, env)
 }
 
-func intArg(args []any, i, def, min int) (int, error) {
+// quoteForError renders s as a quoted string for an error message, cut to
+// maxErrorEchoRunes runes plus an ellipsis so a huge input cannot flood logs or
+// run records through a failing filter.
+func quoteForError(s string) string {
+	n := 0
+	for i := range s {
+		if n == maxErrorEchoRunes {
+			return strconv.Quote(s[:i] + "…")
+		}
+		n++
+	}
+	return strconv.Quote(s)
+}
+
+func intArg(args []any, i, def, lower int) (int, error) {
 	if i >= len(args) {
 		return def, nil
 	}
@@ -83,8 +108,11 @@ func intArg(args []any, i, def, min int) (int, error) {
 	if !ok || f != math.Trunc(f) {
 		return 0, errors.New("argument must be a whole number")
 	}
-	if int(f) < min {
-		return 0, fmt.Errorf("argument must be at least %d", min)
+	if f > math.MaxInt32 || f < -math.MaxInt32 {
+		return 0, errors.New("argument too large")
+	}
+	if int(f) < lower {
+		return 0, fmt.Errorf("argument must be at least %d", lower)
 	}
 	return int(f), nil
 }
@@ -144,7 +172,11 @@ func filterSplit(in any, args []any, _ *Env) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	parts := strings.Split(Stringify(in), sep)
+	// SplitN with a bound keeps the allocation small even for hostile input.
+	parts := strings.SplitN(Stringify(in), sep, maxSplitParts+1)
+	if len(parts) > maxSplitParts {
+		return nil, fmt.Errorf("split would produce more than %d parts", maxSplitParts)
+	}
 	out := make([]any, len(parts))
 	for i, p := range parts {
 		out[i] = p
@@ -160,10 +192,11 @@ func filterFirst(in any, _ []any, _ *Env) (any, error) {
 		}
 		return x[0], nil
 	case string:
-		for _, r := range x {
-			return string(r), nil
+		r, size := utf8.DecodeRuneInString(x)
+		if size == 0 {
+			return "", nil
 		}
-		return "", nil
+		return string(r), nil
 	}
 	return nil, nil
 }
@@ -176,8 +209,8 @@ func filterLast(in any, _ []any, _ *Env) (any, error) {
 		}
 		return x[len(x)-1], nil
 	case string:
-		r, _ := utf8.DecodeLastRuneInString(x)
-		if r == utf8.RuneError {
+		r, size := utf8.DecodeLastRuneInString(x)
+		if size == 0 {
 			return "", nil
 		}
 		return string(r), nil
@@ -227,28 +260,55 @@ func filterJSON(in any, _ []any, _ *Env) (any, error) {
 	return s, nil
 }
 
+type zoneLookup struct {
+	loc *time.Location
+	err error
+}
+
+// zoneCache remembers time.LoadLocation results, failures included, by zone
+// name so a template evaluated in a loop does not hit the zoneinfo files again.
+var zoneCache sync.Map
+
+func loadZone(name string) (*time.Location, error) {
+	if cached, ok := zoneCache.Load(name); ok {
+		res := cached.(zoneLookup)
+		return res.loc, res.err
+	}
+	loc, err := time.LoadLocation(name)
+	zoneCache.Store(name, zoneLookup{loc: loc, err: err})
+	return loc, err
+}
+
+// filterDate formats a date with the tokens of formatDatePattern. The input is
+// read like everywhere else: values and strings that carry a zone keep it, and
+// zone-less strings are interpreted in the Env's zone (the flow/server zone).
+// The optional second argument names the IANA zone the result is shown in; an
+// empty name counts as not given, which shows the result in the Env's zone.
 func filterDate(in any, args []any, env *Env) (any, error) {
 	pattern, err := stringArg(args, 0, "")
 	if err != nil {
 		return nil, err
 	}
-	loc := env.loc()
+	base := env.loc()
+	target := base
 	if len(args) > 1 {
 		name, err := stringArg(args, 1, "")
 		if err != nil {
 			return nil, err
 		}
-		loaded, err := time.LoadLocation(name)
-		if err != nil {
-			return nil, fmt.Errorf("unknown time zone %q", name)
+		if name != "" {
+			loaded, err := loadZone(name)
+			if err != nil {
+				return nil, fmt.Errorf("unknown time zone %s", quoteForError(name))
+			}
+			target = loaded
 		}
-		loc = loaded
 	}
-	t, ok := toTime(in, loc)
+	t, ok := toTime(in, base)
 	if !ok {
-		return nil, fmt.Errorf("%q is not a date", Stringify(in))
+		return nil, fmt.Errorf("%s is not a date", quoteForError(Stringify(in)))
 	}
-	return formatDatePattern(t.In(loc), pattern), nil
+	return formatDatePattern(t.In(target), pattern), nil
 }
 
 // formatDatePattern formats with the tokens YYYY MM DD HH mm ss; everything else is literal.
@@ -293,10 +353,19 @@ func filterRound(in any, args []any, _ *Env) (any, error) {
 	}
 	f, ok := toNumber(in)
 	if !ok {
-		return nil, fmt.Errorf("%q is not a number", Stringify(in))
+		return nil, fmt.Errorf("%s is not a number", quoteForError(Stringify(in)))
 	}
+	// math.Round rounds half away from zero; the editor's JS mirror copies that.
 	scale := math.Pow(10, float64(decimals))
-	return math.Round(f*scale) / scale, nil
+	r := math.Round(f*scale) / scale
+	if math.IsInf(r, 0) || math.IsNaN(r) {
+		// f*scale overflowed: f is too large to have any decimals left to round.
+		return f, nil
+	}
+	if r == 0 {
+		r = 0 // normalise -0, which would print as "-0" and compare oddly
+	}
+	return r, nil
 }
 
 func filterReplace(in any, args []any, _ *Env) (any, error) {
@@ -308,15 +377,40 @@ func filterReplace(in any, args []any, _ *Env) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	s := Stringify(in)
 	if oldText == "" {
-		return Stringify(in), nil
+		return s, nil
 	}
-	return strings.ReplaceAll(Stringify(in), oldText, newText), nil
+	if n := strings.Count(s, oldText); n > 0 {
+		size := int64(len(s)) + int64(n)*(int64(len(newText))-int64(len(oldText)))
+		if size > maxFilterOutputBytes {
+			return nil, fmt.Errorf("replace result would exceed %d bytes", maxFilterOutputBytes)
+		}
+	}
+	return strings.ReplaceAll(s, oldText, newText), nil
 }
 
-var htmlTagPattern = regexp.MustCompile(`<[^>]*>`)
+// The strip_html patterns are separate RE2 expressions (no backreferences, so
+// matching stays linear). The tag pattern needs a letter after "<" and a plain
+// tag name, so comparisons ("x < 5") and addresses ("<max@example.com>") are
+// not mistaken for markup.
+var (
+	htmlScriptPattern  = regexp.MustCompile(`(?is)<script\b[^>]*>.*?</script\s*>`)
+	htmlStylePattern   = regexp.MustCompile(`(?is)<style\b[^>]*>.*?</style\s*>`)
+	htmlCommentPattern = regexp.MustCompile(`(?s)<!--.*?-->`)
+	htmlTagPattern     = regexp.MustCompile(`</?[A-Za-z][A-Za-z0-9:_-]*(?:\s[^>]*)?/?>`)
+)
 
+// filterStripHTML removes markup and returns plain text: script and style
+// blocks with their content, comments and tags go, entities are unescaped and
+// whitespace is collapsed. The result is plain text, NOT HTML-safe (an input
+// like "&lt;b&gt;" comes out as "<b>"); consumers that put it into HTML must
+// escape it. It is a text extractor, not a sanitizer.
 func filterStripHTML(in any, _ []any, _ *Env) (any, error) {
-	text := htmlTagPattern.ReplaceAllString(Stringify(in), " ")
+	text := Stringify(in)
+	text = htmlScriptPattern.ReplaceAllString(text, " ")
+	text = htmlStylePattern.ReplaceAllString(text, " ")
+	text = htmlCommentPattern.ReplaceAllString(text, " ")
+	text = htmlTagPattern.ReplaceAllString(text, " ")
 	return strings.Join(strings.Fields(html.UnescapeString(text)), " "), nil
 }
