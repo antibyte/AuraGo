@@ -389,6 +389,43 @@ func (r *Registry) RemoveWhere(pred func(*NodeDef) bool) int {
 	return removed
 }
 
+// ReplaceWhere removes all definitions matching pred and adds defs (a later def
+// replaces an earlier one of the same type) under one write lock, so a concurrent
+// Lookup sees the old set or the new one, never a gap in between. It returns how
+// many definitions were removed. Like Replace it panics on a nil definition or one
+// without a type; that is checked before anything changes. A nil pred removes
+// nothing. pred runs while the registry is locked and must not call back into the
+// registry; if it panics, the registry is left unchanged.
+func (r *Registry) ReplaceWhere(pred func(*NodeDef) bool, defs []*NodeDef) int {
+	for _, def := range defs {
+		if def == nil || def.Type == "" {
+			panic("flows: ReplaceWhere needs definitions with a type")
+		}
+	}
+	for _, def := range defs {
+		if def.Version <= 0 {
+			def.Version = 1
+		}
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var stale []string
+	if pred != nil {
+		for typ, def := range r.defs {
+			if pred(def) {
+				stale = append(stale, typ)
+			}
+		}
+	}
+	for _, typ := range stale {
+		delete(r.defs, typ)
+	}
+	for _, def := range defs {
+		r.defs[def.Type] = def
+	}
+	return len(stale)
+}
+
 // Lookup returns the definition of typ.
 func (r *Registry) Lookup(typ string) (*NodeDef, bool) {
 	r.mu.RLock()
