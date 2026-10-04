@@ -73,6 +73,9 @@ func TestFilters(t *testing.T) {
 		{"strip_html", "<style>p { color: red }</style>Text", nil, "Text"},
 		{"strip_html", "a<!-- hidden <b>x</b> -->b", nil, "a b"},
 		{"strip_html", "a<!--\nmulti\nline\n-->b", nil, "a b"},
+		{"strip_html", "<?xml version=\"1.0\"?><!DOCTYPE html><html><head><title>T</title></head><body>B</body></html>", nil, "T B"},
+		{"strip_html", "a<![CDATA[hidden]]>b", nil, "a b"},
+		{"strip_html", "<!doctype html>Hi", nil, "Hi"},
 		{"strip_html", "Tom &amp; Jerry &lt;3 &eacute;", nil, "Tom & Jerry <3 é"},
 		{"strip_html", nil, nil, ""},
 	}

@@ -398,19 +398,27 @@ var (
 	htmlScriptPattern  = regexp.MustCompile(`(?is)<script\b[^>]*>.*?</script\s*>`)
 	htmlStylePattern   = regexp.MustCompile(`(?is)<style\b[^>]*>.*?</style\s*>`)
 	htmlCommentPattern = regexp.MustCompile(`(?s)<!--.*?-->`)
-	htmlTagPattern     = regexp.MustCompile(`</?[A-Za-z][A-Za-z0-9:_-]*(?:\s[^>]*)?/?>`)
+	// Doctype and CDATA openers ("<!DOCTYPE html>", "<![CDATA[...]]>") and
+	// processing instructions ("<?xml ...?>").
+	htmlDeclPattern = regexp.MustCompile(`(?i)<![A-Za-z\[][^>]*>|<\?[^>]*\?>`)
+	htmlTagPattern  = regexp.MustCompile(`</?[A-Za-z][A-Za-z0-9:_-]*(?:\s[^>]*)?/?>`)
 )
 
 // filterStripHTML removes markup and returns plain text: script and style
-// blocks with their content, comments and tags go, entities are unescaped and
-// whitespace is collapsed. The result is plain text, NOT HTML-safe (an input
-// like "&lt;b&gt;" comes out as "<b>"); consumers that put it into HTML must
-// escape it. It is a text extractor, not a sanitizer.
+// blocks with their content, comments, doctype/CDATA/processing-instruction
+// declarations and tags go, entities are unescaped and whitespace is collapsed.
+// The result is plain text, NOT HTML-safe (an input like "&lt;b&gt;" comes out
+// as "<b>"); consumers that put it into HTML must escape it. It is a text
+// extractor, not a sanitizer, with known limits: a ">" inside a quoted
+// attribute value can leave fragments behind, letter-adjacent text such as
+// "a<b and c>d" looks like a tag and is removed, and an unclosed script or
+// style element keeps its body.
 func filterStripHTML(in any, _ []any, _ *Env) (any, error) {
 	text := Stringify(in)
 	text = htmlScriptPattern.ReplaceAllString(text, " ")
 	text = htmlStylePattern.ReplaceAllString(text, " ")
 	text = htmlCommentPattern.ReplaceAllString(text, " ")
+	text = htmlDeclPattern.ReplaceAllString(text, " ")
 	text = htmlTagPattern.ReplaceAllString(text, " ")
 	return strings.Join(strings.Fields(html.UnescapeString(text)), " "), nil
 }
