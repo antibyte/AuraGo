@@ -17,17 +17,24 @@ const (
 	// nest. Counting starts at 1 for the parameter map itself (or for the value
 	// handed to ResolveValue), so a container at level 33 is rejected.
 	maxParamDepth = 32
+	// maxTemplateRefs caps the refs plus problems one CollectTemplateRefs call
+	// returns, which also bounds the walk over parameter structures built in Go
+	// that share sub-maps (two keys pointing at the same child, nested).
+	maxTemplateRefs = 1000
 )
 
 var (
 	errTemplateOutputTooLarge = fmt.Errorf("template output exceeds %d MiB", maxTemplateOutputBytes>>20)
 	errParamsTooDeep          = fmt.Errorf("parameters nested deeper than %d levels", maxParamDepth)
+	errTooManyTemplateRefs    = fmt.Errorf("more than %d template expressions in the parameters", maxTemplateRefs)
 )
 
 // Evaluate resolves the template against env. A single-expression template
 // returns the expression's value with its JSON type; otherwise all parts are
-// concatenated as text, which fails when the text would exceed 8 MiB (literal
-// parts count too). A nil template yields nil.
+// concatenated as text, which fails when the assembled text (literals plus
+// expressions) would exceed 8 MiB. The cap is for assembled text only: a single
+// expression returns its value as-is, bounded just by what its filters bound
+// (replace, join and split are capped). A nil template yields nil.
 //
 // Aliasing: a single-expression template returns the value itself, not a copy,
 // so a list or object it returns is shared with env (and with whatever data
@@ -188,14 +195,20 @@ func echoKey(k string) string {
 	return s
 }
 
-// TemplateRef is one expression found in node parameters.
+// TemplateRef is one expression found in node parameters. Param is a display
+// path such as "rows[0].left": every key in it is cut like an error echo (40
+// runes plus an ellipsis), so a huge key cannot bloat the path of each of its
+// refs. TopParam therefore returns the full parameter name only for names of 40
+// runes or fewer, which covers every real one.
 type TemplateRef struct {
 	Param string
 	Expr  *Expr
 }
 
-// TemplateProblem is a parameter whose template does not parse, or a container
-// nested deeper than 32 levels.
+// TemplateProblem is a parameter whose template does not parse, a container
+// nested deeper than 32 levels, or the point where CollectTemplateRefs gave up
+// after more than 1000 expressions and problems. Param is a display path cut
+// like TemplateRef.Param.
 type TemplateProblem struct {
 	Param string
 	Err   error
@@ -204,12 +217,30 @@ type TemplateProblem struct {
 // CollectTemplateRefs walks params (keys sorted) and returns every expression
 // with its parameter path, e.g. "rows[0].left", plus all parse problems. A map
 // or list nested deeper than 32 levels is reported as a problem at its path and
-// not walked further.
+// not walked further. Refs and problems together are capped at 1000: when the
+// walk would exceed that, one more problem at the current path says so and the
+// walk stops, so the result is bounded however the parameters are shaped.
 func CollectTemplateRefs(params map[string]any) ([]TemplateRef, []TemplateProblem) {
 	var refs []TemplateRef
 	var problems []TemplateProblem
+	total := 0
+	stopped := false
+	// reserve takes one of the maxTemplateRefs slots. When none is left it
+	// reports the overflow at path instead and stops the whole walk.
+	reserve := func(path string) bool {
+		if total >= maxTemplateRefs {
+			problems = append(problems, TemplateProblem{Param: path, Err: errTooManyTemplateRefs})
+			stopped = true
+			return false
+		}
+		total++
+		return true
+	}
 	var walk func(path string, v any, depth int)
 	walk = func(path string, v any, depth int) {
+		if stopped {
+			return
+		}
 		switch x := v.(type) {
 		case string:
 			if !strings.Contains(x, "{{") {
@@ -217,32 +248,50 @@ func CollectTemplateRefs(params map[string]any) ([]TemplateRef, []TemplateProble
 			}
 			tpl, err := ParseTemplate(x)
 			if err != nil {
-				problems = append(problems, TemplateProblem{Param: path, Err: err})
+				if reserve(path) {
+					problems = append(problems, TemplateProblem{Param: path, Err: err})
+				}
 				return
 			}
 			for _, e := range tpl.Exprs() {
+				if !reserve(path) {
+					return
+				}
 				refs = append(refs, TemplateRef{Param: path, Expr: e})
 			}
 		case map[string]any:
 			if depth > maxParamDepth {
-				problems = append(problems, TemplateProblem{Param: path, Err: errParamsTooDeep})
+				if reserve(path) {
+					problems = append(problems, TemplateProblem{Param: path, Err: errParamsTooDeep})
+				}
 				return
 			}
 			for _, k := range sortedKeys(x) {
-				walk(path+"."+k, x[k], depth+1)
+				walk(path+"."+truncateForError(k), x[k], depth+1)
+				if stopped {
+					return
+				}
 			}
 		case []any:
 			if depth > maxParamDepth {
-				problems = append(problems, TemplateProblem{Param: path, Err: errParamsTooDeep})
+				if reserve(path) {
+					problems = append(problems, TemplateProblem{Param: path, Err: errParamsTooDeep})
+				}
 				return
 			}
 			for i, item := range x {
 				walk(path+"["+strconv.Itoa(i)+"]", item, depth+1)
+				if stopped {
+					return
+				}
 			}
 		}
 	}
 	for _, k := range sortedKeys(params) {
-		walk(k, params[k], 2)
+		walk(truncateForError(k), params[k], 2)
+		if stopped {
+			break
+		}
 	}
 	return refs, problems
 }

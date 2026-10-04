@@ -370,6 +370,59 @@ func TestQuoteForErrorTruncates(t *testing.T) {
 	}
 }
 
+func TestJoinOutputIsBounded(t *testing.T) {
+	ones := func(n int) []any {
+		items := make([]any, n)
+		for i := range items {
+			items[i] = "x"
+		}
+		return items
+	}
+
+	// Separators alone can blow the limit: 200 items, 1 MiB separator.
+	_, err := applyFilter("join", ones(200), []any{strings.Repeat("-", 1<<20)}, nil)
+	if err == nil || !strings.Contains(err.Error(), "join result would exceed") {
+		t.Fatalf("200 items x 1 MiB separator: got %v", err)
+	}
+
+	// So can the items; the limit counts the parts as join renders them.
+	big := strings.Repeat("y", 1<<20)
+	nine := []any{big, big, big, big, big, big, big, big, big}
+	if _, err = applyFilter("join", nine, []any{","}, nil); err == nil {
+		t.Fatal("9 MiB of items: expected an error")
+	}
+	if _, err = applyFilter("join", nine[:8], []any{""}, nil); err != nil {
+		t.Fatalf("exactly 8 MiB of items must pass: %v", err)
+	}
+	if _, err = applyFilter("join", nine[:8], []any{","}, nil); err == nil {
+		t.Fatal("8 MiB of items plus separators: expected an error")
+	}
+
+	// The limit is on the result size, to the byte: parts "a" and "b" plus the
+	// separator make 2+len(sep).
+	got, err := applyFilter("join", []any{"a", "b"}, []any{strings.Repeat("-", maxFilterOutputBytes-2)}, nil)
+	if s, _ := got.(string); err != nil || len(s) != maxFilterOutputBytes {
+		t.Fatalf("result of exactly %d bytes: len %d, err %v", maxFilterOutputBytes, len(s), err)
+	}
+	if _, err = applyFilter("join", []any{"a", "b"}, []any{strings.Repeat("-", maxFilterOutputBytes-1)}, nil); err == nil {
+		t.Fatal("result one byte over the limit: expected an error")
+	}
+
+	// One item or none has no separators, so a huge separator is harmless.
+	hugeSep := []any{strings.Repeat("-", maxFilterOutputBytes+1)}
+	if got, err = applyFilter("join", []any{"a"}, hugeSep, nil); err != nil || got != "a" {
+		t.Errorf("one item: got %#v, %v", got, err)
+	}
+	if got, err = applyFilter("join", []any{}, hugeSep, nil); err != nil || got != "" {
+		t.Errorf("no items: got %#v, %v", got, err)
+	}
+
+	// Ordinary joins are unchanged.
+	if got, err = applyFilter("join", []any{"a", 1.0, nil, true}, nil, nil); err != nil || got != "a, 1, , true" {
+		t.Errorf("small join: got %#v, %v", got, err)
+	}
+}
+
 func TestTruncateForError(t *testing.T) {
 	exact := strings.Repeat("ä", maxErrorEchoRunes)
 	if got := truncateForError(exact); got != exact {

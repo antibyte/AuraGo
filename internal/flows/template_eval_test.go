@@ -625,3 +625,197 @@ func TestEchoKeyQuotesUnprintableKeys(t *testing.T) {
 		t.Fatalf("a key with a line break must not break the error line, got %q", err)
 	}
 }
+
+const tooManyRefsMsg = "more than 1000 template expressions in the parameters"
+
+func paramBytes(refs []TemplateRef, problems []TemplateProblem) int {
+	n := 0
+	for _, r := range refs {
+		n += len(r.Param)
+	}
+	for _, p := range problems {
+		n += len(p.Param)
+	}
+	return n
+}
+
+// A huge key must not be copied into the path of each of its refs: with 5000
+// templated siblings under a 100 KB key that used to retain hundreds of MB.
+func TestCollectTemplateRefsBoundsPathsOfHugeKeys(t *testing.T) {
+	hugeKey := strings.Repeat("k", 100000)
+	siblings := func() map[string]any {
+		m := make(map[string]any, 5000)
+		for i := 0; i < 5000; i++ {
+			m["s"+strconv.Itoa(i)] = "{{a.n}}"
+		}
+		return m
+	}
+	cases := map[string]struct {
+		params  map[string]any
+		wantTop string
+	}{
+		"top-level key": {map[string]any{hugeKey: siblings()}, truncateForError(hugeKey)},
+		"nested key":    {map[string]any{"rows": map[string]any{hugeKey: siblings()}}, "rows"},
+		"list in key":   {map[string]any{"rows": map[string]any{hugeKey: []any{siblings()}}}, "rows"},
+	}
+	for name, tc := range cases {
+		refs, problems := CollectTemplateRefs(tc.params)
+		if len(refs) != maxTemplateRefs {
+			t.Fatalf("%s: %d refs, want %d", name, len(refs), maxTemplateRefs)
+		}
+		if len(problems) != 1 || problems[0].Err == nil || problems[0].Err.Error() != tooManyRefsMsg {
+			t.Fatalf("%s: problems = %+v, want the cap problem only", name, problems)
+		}
+		if got := paramBytes(refs, problems); got > 2<<20 {
+			t.Errorf("%s: the paths hold %d bytes, want well under 2 MB", name, got)
+		}
+		for _, r := range refs {
+			if strings.Contains(r.Param, strings.Repeat("k", 50)) {
+				t.Fatalf("%s: a path repeats the huge key: %.80s", name, r.Param)
+			}
+			if TopParam(r.Param) != tc.wantTop {
+				t.Fatalf("%s: TopParam(%.60s) = %.60q, want %.60q", name, r.Param, TopParam(r.Param), tc.wantTop)
+			}
+		}
+	}
+
+	// Also without the cap: a few refs under a huge key keep short paths.
+	refs, problems := CollectTemplateRefs(map[string]any{hugeKey: map[string]any{hugeKey: "{{a}}"}})
+	if len(problems) != 0 || len(refs) != 1 {
+		t.Fatalf("refs = %+v, problems = %+v", refs, problems)
+	}
+	if want := truncateForError(hugeKey) + "." + truncateForError(hugeKey); refs[0].Param != want {
+		t.Errorf("Param = %.80q, want both keys cut", refs[0].Param)
+	}
+}
+
+func TestCollectTemplateRefsTopParamKeepsShortNames(t *testing.T) {
+	hugeKey := strings.Repeat("k", 100000)
+	name40 := strings.Repeat("n", maxErrorEchoRunes)
+	name41 := name40 + "n"
+	refs, problems := CollectTemplateRefs(map[string]any{
+		"title": "{{a}}",
+		"rows":  []any{map[string]any{"left": "{{b}}"}},
+		"cfg":   map[string]any{hugeKey: "{{c}}"},
+		name40:  "{{d}}",
+		name41:  "{{e}}",
+	})
+	if len(problems) != 0 {
+		t.Fatalf("problems = %+v", problems)
+	}
+	want := map[string]string{
+		"a": "title",
+		"b": "rows",
+		"c": "cfg",
+		"d": name40, // 40 runes: the full name comes back
+		"e": name40 + "…",
+	}
+	if len(refs) != len(want) {
+		t.Fatalf("refs = %+v", refs)
+	}
+	for _, r := range refs {
+		if got := TopParam(r.Param); got != want[r.Expr.Root] {
+			t.Errorf("TopParam of the ref to %s = %.60q, want %.60q", r.Expr.Root, got, want[r.Expr.Root])
+		}
+	}
+}
+
+func TestCollectTemplateRefsCap(t *testing.T) {
+	// Exactly at the cap: no problem. One over: exactly one cap problem.
+	refs, problems := CollectTemplateRefs(map[string]any{"t": strings.Repeat("{{a}}", maxTemplateRefs)})
+	if len(refs) != maxTemplateRefs || len(problems) != 0 {
+		t.Fatalf("1000 refs: %d refs, problems = %+v", len(refs), problems)
+	}
+	refs, problems = CollectTemplateRefs(map[string]any{"t": strings.Repeat("{{a}}", maxTemplateRefs+1)})
+	if len(refs) != maxTemplateRefs || len(problems) != 1 ||
+		problems[0].Param != "t" || problems[0].Err.Error() != tooManyRefsMsg {
+		t.Fatalf("1001 refs: %d refs, problems = %+v", len(refs), problems)
+	}
+
+	// The same across many parameters; the problem names the one that overflowed.
+	params := make(map[string]any)
+	for i := 0; i <= maxTemplateRefs; i++ {
+		params["p"+strconv.Itoa(10000+i)] = "{{a}}"
+	}
+	refs, problems = CollectTemplateRefs(params)
+	if len(refs) != maxTemplateRefs || len(problems) != 1 || problems[0].Param != "p"+strconv.Itoa(10000+maxTemplateRefs) {
+		t.Fatalf("1001 params: %d refs, problems = %+v", len(refs), problems)
+	}
+
+	// Refs and problems share the budget; nothing is collected after the cap.
+	params = make(map[string]any)
+	for i := 0; i < maxTemplateRefs-1; i++ {
+		params["a"+strconv.Itoa(10000+i)] = "{{a}}"
+	}
+	for _, k := range []string{"z0", "z1", "z2"} {
+		params[k] = "{{bad"
+	}
+	params["zz"] = "{{late}}"
+	refs, problems = CollectTemplateRefs(params)
+	if len(refs) != maxTemplateRefs-1 {
+		t.Fatalf("%d refs, want %d", len(refs), maxTemplateRefs-1)
+	}
+	if len(problems) != 2 || problems[0].Param != "z0" || problems[1].Param != "z1" || problems[1].Err.Error() != tooManyRefsMsg {
+		t.Fatalf("problems = %+v, want the z0 parse problem and the cap problem at z1", problems)
+	}
+	if _, ok := problems[0].Err.(*TemplateError); !ok {
+		t.Errorf("the first problem should be the parse error, got %T", problems[0].Err)
+	}
+
+	// Depth problems count against the same budget.
+	params = map[string]any{"deep": nestedMaps(40, "{{a}}")}
+	for i := 0; i < maxTemplateRefs; i++ {
+		params["x"+strconv.Itoa(10000+i)] = "{{a}}"
+	}
+	refs, problems = CollectTemplateRefs(params)
+	if len(refs)+len(problems) != maxTemplateRefs+1 || problems[len(problems)-1].Err.Error() != tooManyRefsMsg {
+		t.Fatalf("%d refs, problems = %+v", len(refs), problems)
+	}
+}
+
+// Parameters built in Go can share a child between two keys, so a walk over
+// them is exponential in the depth. The cap stops it long before that matters.
+func TestCollectTemplateRefsSharedChildrenTerminate(t *testing.T) {
+	child := any(map[string]any{"leaf": "{{a.n}}"})
+	for i := 0; i < 20; i++ {
+		child = map[string]any{"l": child, "r": child}
+	}
+	start := time.Now()
+	refs, problems := CollectTemplateRefs(map[string]any{"p": child})
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("the walk took %v", elapsed)
+	}
+	if len(refs) != maxTemplateRefs || len(problems) != 1 || problems[0].Err.Error() != tooManyRefsMsg {
+		t.Fatalf("%d refs, problems = %+v", len(refs), problems)
+	}
+	if got := paramBytes(refs, problems); got > 1<<20 {
+		t.Errorf("the paths hold %d bytes", got)
+	}
+}
+
+// A single expression is not covered by the cap on assembled template text, so
+// the join filter bounds its own result.
+func TestTemplateEvaluateJoinIsBounded(t *testing.T) {
+	items := make([]any, 200)
+	for i := range items {
+		items[i] = "x"
+	}
+	env := &Env{Location: time.UTC, Roots: map[string]any{"x": items}}
+	sep := strings.Repeat("-", 1<<20)
+	for _, src := range []string{
+		`{{x | join("` + sep + `")}}`,
+		`a {{x | join("` + sep + `")}} b`,
+	} {
+		tpl, err := ParseTemplate(src)
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		got, err := tpl.Evaluate(env)
+		if err == nil || got != nil {
+			t.Fatalf("200 items x 1 MiB separator: got %T, err %v; want an error", got, err)
+		}
+		if !strings.Contains(err.Error(), "join result would exceed") || len(err.Error()) > 400 {
+			t.Errorf("the error should be short and name the limit, got %d bytes: %.200s", len(err.Error()), err)
+		}
+	}
+}

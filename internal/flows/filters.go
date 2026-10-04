@@ -165,9 +165,24 @@ func filterJoin(in any, args []any, _ *Env) (any, error) {
 	if !ok {
 		return Stringify(in), nil
 	}
+	// The separators alone can exceed the cap (200 items, 1 MiB separator), and
+	// a single expression is not covered by the cap on assembled template text,
+	// so check before building: separators first, then the parts as they are
+	// rendered, which stops at the first item that crosses the limit.
+	var total int64
+	if len(list) > 1 {
+		total = int64(len(list)-1) * int64(len(sep))
+	}
+	if total > maxFilterOutputBytes {
+		return nil, fmt.Errorf("join result would exceed %d bytes", maxFilterOutputBytes)
+	}
 	parts := make([]string, len(list))
 	for i, item := range list {
 		parts[i] = Stringify(item)
+		total += int64(len(parts[i]))
+		if total > maxFilterOutputBytes {
+			return nil, fmt.Errorf("join result would exceed %d bytes", maxFilterOutputBytes)
+		}
 	}
 	return strings.Join(parts, sep), nil
 }
