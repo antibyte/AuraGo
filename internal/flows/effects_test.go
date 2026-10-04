@@ -345,14 +345,30 @@ func TestEffectOrderListsEveryEffect(t *testing.T) {
 			}
 			for _, spec := range gd.Specs {
 				vs := spec.(*ast.ValueSpec)
-				if typ, ok := vs.Type.(*ast.Ident); !ok || typ.Name != "Effect" {
-					continue
+				// const EffectX Effect = "x"
+				typed := false
+				if typ, ok := vs.Type.(*ast.Ident); ok && typ.Name == "Effect" {
+					typed = true
 				}
 				for i, name := range vs.Names {
 					if i >= len(vs.Values) {
-						t.Fatalf("constant %s has no explicit value", name.Name)
+						if typed {
+							t.Fatalf("constant %s has no explicit value", name.Name)
+						}
+						continue
 					}
-					lit, ok := vs.Values[i].(*ast.BasicLit)
+					expr := vs.Values[i]
+					isEffect := typed
+					// const EffectX = Effect("x")
+					if call, ok := expr.(*ast.CallExpr); ok && len(call.Args) == 1 {
+						if fun, ok := call.Fun.(*ast.Ident); ok && fun.Name == "Effect" {
+							expr, isEffect = call.Args[0], true
+						}
+					}
+					if !isEffect {
+						continue
+					}
+					lit, ok := expr.(*ast.BasicLit)
 					if !ok || lit.Kind != gotoken.STRING {
 						t.Fatalf("constant %s is not a string literal", name.Name)
 					}

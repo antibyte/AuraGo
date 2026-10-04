@@ -7,12 +7,34 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
 - Node types live in a `Registry`. `RegisterLogicNodes` adds the built-in logic nodes; integration
   and trigger nodes are registered by the server wiring.
+
+## Writing a node (NodeDef)
+- `Execute` returns an `ExecResult` and a literal `nil`, or a `*NodeError` (`NewNodeError(code, format, …)`).
+  Never return a nil `*NodeError` variable as `error`: it is a non-nil interface and fails the node with
+  `FLOW_NODE_FAILED` ("the node returned a nil error value").
+- Error codes are stable strings the UI translates (the message is the fallback). Reuse the engine's:
+  `FLOW_TEMPLATE_ERROR`, `FLOW_NODE_FAILED`, `FLOW_NODE_TIMEOUT`, `FLOW_NODE_PANIC`, `FLOW_OUTPUT_INVALID`,
+  `FLOW_OUTPUT_TOO_LARGE`, `FLOW_PORT_INVALID`. A plain error becomes `FLOW_NODE_FAILED`, one wrapping
+  `context.DeadlineExceeded` becomes `FLOW_NODE_TIMEOUT`.
+- Every error is retried per the node's `Retry` settings, so side effects must tolerate a re-run.
+  Honour `ctx`; the timeout applies per attempt.
+- Output must be JSON-encodable (else `FLOW_OUTPUT_INVALID`). `Ports == nil` means the default port;
+  every returned port must be declared.
 - Read-only contract: resolved params and inputs may alias run data (a single-expression template
-  returns the env value itself). `Execute` must not modify params, inputs or anything inside them;
-  clone first, `append` included. Engine outputs are normalised through JSON, so stored outputs never
-  alias inputs. A param that resolves to null is present with a nil value (defaults do not replace it).
-- User-controlled text in errors and issue messages goes through `quoteForError`, `truncateForError`
-  or `echoKey` (40 runes), so a message stays short whatever the document holds.
+  returns the env value itself). Never modify them or anything inside them; clone first, `append`
+  included. Engine outputs are normalised through JSON, so stored outputs never alias inputs. A param
+  that resolves to null is present with a nil value (defaults do not replace it).
+- User data in error and issue text goes through `quoteForError`, `truncateForError` or `echoKey`
+  (40 runes), so a message stays short whatever the document holds.
+- Hooks (`OutputsFunc`, `OutputFieldsFunc`, `EffectsFunc`, `Validate`, `AvailabilityFunc`) see the RAW
+  node: params unresolved (a template is still a string), any type, nil or huge. Keep them pure, cheap,
+  deterministic and panic-free; a panic is recovered but still fails the run or is reported as an
+  issue. `OutputPorts(nil)` and `FieldsOf(nil)` ignore their hooks.
+- Set `UntrustedOutput` on a def whose output an attacker can influence (web, mail, webhook, chat) and
+  `SensitiveSink` on a `ParamSpec` where such data is dangerous (command, code, script, path, url,
+  recipient, device). The lint follows only template refs and `passesInputs`: no flag, no warning.
+- List every outward effect. A new `Effect` constant needs an `effectOrder` entry and a deliberate
+  `IsRisky` decision; unknown effects count as not risky.
 
 ## Document and template invariants
 - `SchemaVersion` is 1. Limits: `MaxNodes` 500, `MaxEdges` 2000, `MaxDocumentBytes` 2 MiB. `Normalize`
@@ -29,7 +51,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Validation and lint
 - Structural problems are always errors; publish rules are errors only in `ModePublish` (warnings in
   `ModeDraft`). `NODE_UNREACHABLE`, `TEMPLATE_UNKNOWN_FIELD` and the lint are always warnings. Callers
-  save a draft only when `!HasErrors(Validate(…, ModeDraft))`. A cycle is only a draft warning (an error when publishing).
+  save a draft only when `!HasErrors(Validate(…, ModeDraft))`. A cycle is only a draft warning
+  (an error when publishing).
 - Above `MaxNodes` nodes or `MaxEdges` edges `Validate` returns right after the document checks (one
   `FLOW_TOO_MANY_NODES` error per exceeded limit). Emit issues in document or topological order, never
   by ranging over a map, so the output stays deterministic.
@@ -38,11 +61,14 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   anything was dropped it adds `FLOW_TOO_MANY_ISSUES` on top of the 500, an error whenever a dropped
   issue was an error, so `HasErrors` gating holds.
 - Output-port and declared-field lookups are memoized per node; ancestors are computed once per node.
+- `Validate` calls definition hooks under a recover: a panic gives one `PARAM_INVALID` issue for the
+  node ("the node definition crashed: …"), skips its other hooks and goes on. It is a publish rule (a
+  draft warning, so the draft stays saveable). `Validate` also probes `EffectsFunc`, because
+  `CollectEffects` leaves out a node whose hook panics. The lint calls no hooks.
 - `LintUntrustedData`: taint flows through template refs and through `passesInputs` nodes (merge, and
   set with keep_input). Disabled nodes neither warn nor taint; a cyclic flow gets no lint issues. If the
   ref cap is hit while a taint source exists, the node counts as tainted and every sink param is warned.
-- A new node whose `Execute` copies `in.Inputs` into its output must be added to `passesInputs`. A new
-  `Effect` constant must be added to `effectOrder` (`TestEffectOrderListsEveryEffect` checks).
+- A new node whose `Execute` copies `in.Inputs` into its output must be added to `passesInputs`.
 
 ## Engine semantics
 - One coordinator goroutine per run owns all state; nodes run on workers (at most `parallel`, default 4).
@@ -78,8 +104,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Test runs ignore per-flow policies but use the global limit. `queue` keeps at most `MaxQueuedPerFlow`
   runs waiting (`RunnerConfig`, default 20), `skip` drops triggers while a live run is admitted or
   queued (no run id), `parallel` only obeys the global limit. The global queue is FIFO.
-  `MaxQueuedPerFlow` also caps, apart, the flow's runs waiting for a global slot; `Start` then returns
-  `ErrQueueFull`.
+  `MaxQueuedPerFlow` also caps, separately, the flow's runs waiting for a global slot; `Start` then
+  returns `ErrQueueFull`.
 - Every run with an id has an event log from its creation (queued runs too), and the log always ends
   with `run_finished`: `endLog` publishes it for runs that end without the engine (cancelled while
   queued, `FLOW_SHUTDOWN`, runner panic). A runner panic gives `FLOW_RUNNER_PANIC` and frees the slot.

@@ -29,6 +29,11 @@ type EffectSummary struct {
 }
 
 // CollectEffects summarises the outward effects of all enabled nodes for the publish dialog.
+//
+// An EffectsFunc that panics is recovered, and its node then contributes no
+// effects: there is no way to report the problem here. Validate probes the same
+// hook and reports the crash, as an error when publishing, so publish flows that
+// validate first never show a summary that silently leaves a node out.
 func CollectEffects(f *Flow, reg *Registry) []EffectSummary {
 	byEffect := map[Effect][]string{}
 	for i := range f.Nodes {
@@ -40,8 +45,12 @@ func CollectEffects(f *Flow, reg *Registry) []EffectSummary {
 		if !ok {
 			continue
 		}
+		var nodeEffects []Effect
+		if catchPanic(func() { nodeEffects = def.EffectsOf(n) }) != nil {
+			continue
+		}
 		seen := map[Effect]bool{}
-		for _, e := range def.EffectsOf(n) {
+		for _, e := range nodeEffects {
 			if !seen[e] {
 				seen[e] = true
 				byEffect[e] = append(byEffect[e], n.ID)
@@ -120,7 +129,9 @@ func passesInputs(n *Node) bool {
 //
 // The result follows topological order, then the node's references in sorted
 // parameter order, then the cap warnings in the definition's parameter order. The
-// flow and the registry's definitions are only read.
+// flow and the registry's definitions are only read. The lint reads the Trigger,
+// UntrustedOutput and Params fields of a definition and calls none of its hooks,
+// so a crashing hook cannot affect it.
 func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 	g := buildGraph(f)
 	order, cyclic := g.topoOrder()

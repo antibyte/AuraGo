@@ -188,7 +188,7 @@ func compilePattern(pattern string) (*regexp.Regexp, error) {
 		return nil, patternError(err)
 	}
 	if len(prog.Inst) > maxPatternInsts {
-		return nil, errors.New("the pattern is too complex (large repeat counts such as {1,1000} are not supported)")
+		return nil, errors.New("the pattern is too complex (keep repeat counts below a few hundred)")
 	}
 	re, err := regexp.Compile(pattern)
 	if err != nil {

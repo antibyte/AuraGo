@@ -186,6 +186,14 @@ func asNodeError(err error) *NodeError {
 }
 
 // NodeDef defines a node type. UI metadata (keys, icon, color) is served by plan 1b's catalog API.
+//
+// The hooks OutputsFunc, OutputFieldsFunc, EffectsFunc, AvailabilityFunc and
+// Validate see the raw node of a draft that may be half finished: parameters are
+// unresolved (a template is still a string) and any value can be nil, of another
+// type than expected, or huge. A hook must be pure, cheap, deterministic and must
+// never panic. The engine at run start, Validate and CollectEffects recover from a
+// panicking hook anyway (see catchPanic), so a faulty definition cannot take down
+// the caller, but the node then fails or reports a problem.
 type NodeDef struct {
 	Type             string
 	Version          int
@@ -213,6 +221,14 @@ type NodeDef struct {
 	AvailabilityFunc func() Availability
 	Validate         func(n *Node, vc ValidateContext) []Issue
 	Execute          ExecuteFunc
+}
+
+// catchPanic runs fn, a call into a node definition's hook, and returns the value
+// of a panic in it, or nil when fn returned normally.
+func catchPanic(fn func()) (panicked any) {
+	defer func() { panicked = recover() }()
+	fn()
+	return nil
 }
 
 // InputPorts returns the input ports (none for triggers).

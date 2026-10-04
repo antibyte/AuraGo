@@ -19,6 +19,9 @@ const (
 	// maxIssueMessageRunes cuts Message. Messages built here are shorter already;
 	// this covers the ones node validators build.
 	maxIssueMessageRunes = 300
+	// maxHookPanicRunes cuts the panic text in the issue about a crashing definition
+	// hook; finish cuts the whole message to maxIssueMessageRunes in any case.
+	maxHookPanicRunes = 200
 )
 
 // Validate checks f. Structural problems are always errors. Publish rules are
@@ -47,6 +50,14 @@ const (
 // CollectTemplateRefs returns them), then the flow-wide issues and the cycle
 // issues, then the untrusted-data warnings. Validate only reads f and the
 // registry's definitions.
+//
+// A node definition's hooks (OutputsFunc, OutputFieldsFunc, AvailabilityFunc,
+// Validate, and EffectsFunc, which is probed once per enabled node so that a
+// crash is not left to CollectEffects) are called under a recover. A panic gives
+// one IssueParamInvalid issue for that node, "the node definition crashed: ...",
+// and the node's remaining hooks are skipped; validation goes on with the other
+// nodes. The issue is a publish rule: a warning in ModeDraft, so the draft can
+// still be saved, and an error in ModePublish.
 func Validate(f *Flow, reg *Registry, vc ValidateContext) []Issue {
 	v := newValidator(f, reg, vc)
 	v.run()
@@ -75,6 +86,9 @@ type validator struct {
 	// are only ever looked up.
 	outPorts  map[*Node]map[string]bool
 	fieldSets map[*Node]map[string]bool
+	// crashed holds the nodes whose definition hooks panicked. Each is reported
+	// once and none of its hooks is called again. Only ever looked up.
+	crashed map[*Node]bool
 	// ancestorWalks counts the ancestor sets computed. templates computes one per
 	// node that references another node, never one per reference; the tests check
 	// that.
@@ -187,14 +201,39 @@ func (v *validator) nodeByKey(key string) *Node {
 	return v.byKey[key]
 }
 
+// callDefHook runs fn, a call into one of n's definition hooks, under a recover
+// and reports whether it returned. A node whose hook panicked is reported once as
+// an IssueParamInvalid issue, with the publish-rule severity so that a draft with
+// a crashing node can still be saved, and none of its hooks is called again.
+func (v *validator) callDefHook(n *Node, fn func()) bool {
+	if v.crashed[n] {
+		return false
+	}
+	r := catchPanic(fn)
+	if r == nil {
+		return true
+	}
+	if v.crashed == nil {
+		v.crashed = make(map[*Node]bool)
+	}
+	v.crashed[n] = true
+	v.add(IssueParamInvalid, v.publishSeverity(), n.ID, "", "",
+		"the node definition crashed: "+truncateRunes(fmt.Sprint(r), maxHookPanicRunes))
+	return false
+}
+
 // outputPorts returns the output ports of node n as a set, calling the
 // definition once per node however many edges leave it. A logic.switch builds a
-// port per case on every OutputPorts call.
-func (v *validator) outputPorts(n *Node, def *NodeDef) map[string]bool {
-	if set, ok := v.outPorts[n]; ok {
-		return set
+// port per case on every OutputPorts call. known is false when the definition
+// crashed; the ports are then not known and edges leaving n are not checked.
+func (v *validator) outputPorts(n *Node, def *NodeDef) (map[string]bool, bool) {
+	if cached, ok := v.outPorts[n]; ok {
+		return cached, true
 	}
-	ports := def.OutputPorts(n)
+	var ports []string
+	if !v.callDefHook(n, func() { ports = def.OutputPorts(n) }) {
+		return nil, false
+	}
 	set := make(map[string]bool, len(ports))
 	for _, p := range ports {
 		set[p] = true
@@ -203,19 +242,24 @@ func (v *validator) outputPorts(n *Node, def *NodeDef) map[string]bool {
 		v.outPorts = make(map[*Node]map[string]bool)
 	}
 	v.outPorts[n] = set
-	return set
+	return set, true
 }
 
 // declaredFields returns the names of the output fields node n declares, or nil
-// when it declares none (then references into it are not checked). It calls the
-// definition once per node however many references read it; OutputFieldsFunc can
-// build the whole field list on every call.
+// when it declares none (then references into it are not checked, and neither
+// are they when the definition crashed). It calls the definition once per node
+// however many references read it; OutputFieldsFunc can build the whole field
+// list on every call.
 func (v *validator) declaredFields(n *Node, def *NodeDef) map[string]bool {
 	if set, ok := v.fieldSets[n]; ok {
 		return set
 	}
+	var fields []FieldSpec
+	if !v.callDefHook(n, func() { fields = def.FieldsOf(n) }) {
+		return nil
+	}
 	var set map[string]bool
-	if fields := def.FieldsOf(n); len(fields) > 0 {
+	if len(fields) > 0 {
 		set = make(map[string]bool, len(fields))
 		for _, fs := range fields {
 			set[fs.Name] = true
@@ -298,8 +342,10 @@ func (v *validator) structure() {
 			v.add(IssueEdgeSelf, SeverityError, src.ID, e.ID, "", "a node cannot connect to itself")
 			continue
 		}
-		if def, ok := v.reg.Lookup(src.Type); ok && !v.outputPorts(src, def)[e.Source.Port] {
-			v.add(IssueEdgePortInvalid, SeverityError, src.ID, e.ID, "", fmt.Sprintf("node %s has no output %s", echoKey(src.Key), quoteForError(e.Source.Port)))
+		if def, ok := v.reg.Lookup(src.Type); ok {
+			if ports, known := v.outputPorts(src, def); known && !ports[e.Source.Port] {
+				v.add(IssueEdgePortInvalid, SeverityError, src.ID, e.ID, "", fmt.Sprintf("node %s has no output %s", echoKey(src.Key), quoteForError(e.Source.Port)))
+			}
 		}
 		if def, ok := v.reg.Lookup(dst.Type); ok && !containsString(def.InputPorts(), e.Target.Port) {
 			v.add(IssueEdgePortInvalid, SeverityError, dst.ID, e.ID, "", fmt.Sprintf("node %s has no input %s", echoKey(dst.Key), quoteForError(e.Target.Port)))
@@ -336,19 +382,26 @@ func (v *validator) publishRules() {
 		if n.Settings.Disabled {
 			continue
 		}
-		if a := def.Availability(); a.State != AvailableState {
-			v.add(IssueNodeUnavailable, sev, n.ID, "", "", fmt.Sprintf("node %s is not available (%s)", echoKey(n.Key), a.State))
+		var avail Availability
+		if v.callDefHook(n, func() { avail = def.Availability() }) && avail.State != AvailableState {
+			v.add(IssueNodeUnavailable, sev, n.ID, "", "", fmt.Sprintf("node %s is not available (%s)", echoKey(n.Key), avail.State))
 		}
+		// CollectEffects leaves out the effects of a node whose hook panics, so the
+		// crash must not go unnoticed here: publishing is blocked until it is fixed.
+		v.callDefHook(n, func() { _ = def.EffectsOf(n) })
 		v.requiredParams(n, def, sev)
 		if def.Validate != nil {
-			for _, is := range def.Validate(n, v.vc) {
-				if is.Severity == SeverityError && v.vc.Mode == ModeDraft {
-					is.Severity = SeverityWarning
+			var found []Issue
+			if v.callDefHook(n, func() { found = def.Validate(n, v.vc) }) {
+				for _, is := range found {
+					if is.Severity == SeverityError && v.vc.Mode == ModeDraft {
+						is.Severity = SeverityWarning
+					}
+					if is.NodeID == "" {
+						is.NodeID = n.ID
+					}
+					v.emit(is)
 				}
-				if is.NodeID == "" {
-					is.NodeID = n.ID
-				}
-				v.emit(is)
 			}
 		}
 		v.templates(n, g, sev)
