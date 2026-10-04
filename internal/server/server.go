@@ -148,6 +148,7 @@ type Server struct {
 	httpDrainCtx    context.Context
 	httpDrainCancel context.CancelFunc
 	httpRequests    sync.WaitGroup
+	httpHijacked    map[*drainHTTPConn]struct{}
 	lockdownLogOnce sync.Once
 	SIPConfigMu     sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
