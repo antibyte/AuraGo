@@ -35,6 +35,9 @@ const (
 	// maxAIProblemRunes caps how much of a problem description goes back to the
 	// model in the repair prompt and into the error message.
 	maxAIProblemRunes = 300
+	// maxAIJSONCandidates is how many opening braces extractJSONObject tries when it
+	// looks for the answer's JSON object inside prose.
+	maxAIJSONCandidates = 8
 )
 
 var (
@@ -223,11 +226,32 @@ func aiFieldProblems(params map[string]any) []aiFieldProblem {
 	return out
 }
 
+// aiModeKnown reports whether v is a usable output mode: absent or empty (text),
+// "text" or "fields". Anything else would silently run as text.
+func aiModeKnown(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return true
+	case string:
+		return x == "" || x == "text" || x == "fields"
+	}
+	return false
+}
+
 func validateAIFields(n *Node, _ ValidateContext) []Issue {
-	if n == nil || !aiFieldsMode(n.Params) {
+	if n == nil {
 		return nil
 	}
 	var issues []Issue
+	// A template is resolved at run time and cannot be judged here.
+	if mode := n.Params["output_mode"]; !aiModeKnown(mode) {
+		if s, isText := mode.(string); !isText || !HasTemplate(s) {
+			issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "output_mode", "the output mode must be text or fields"))
+		}
+	}
+	if !aiFieldsMode(n.Params) {
+		return issues
+	}
 	for _, p := range aiFieldProblems(n.Params) {
 		issues = append(issues, paramIssue(n, p.code, SeverityError, p.param, p.msg))
 	}
@@ -250,6 +274,9 @@ func executeAIStep(ctx context.Context, in ExecInput) (ExecResult, error) {
 	if len(model) > maxAIModelBytes {
 		return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "the model name is %d bytes; the limit is %d", len(model), maxAIModelBytes)
 	}
+	if !aiModeKnown(in.Params["output_mode"]) {
+		return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "output_mode must be text or fields")
+	}
 	llm := in.Services.LLM
 	req := LLMRequest{
 		FlowID: in.Run.FlowID, RunID: in.Run.ID, NodeID: nodeIDOf(in),
@@ -260,7 +287,11 @@ func executeAIStep(ctx context.Context, in ExecInput) (ExecResult, error) {
 		if err != nil {
 			return ExecResult{}, err
 		}
-		return ExecResult{Output: aiOutput(map[string]any{"text": strings.TrimSpace(resp.Text)}, resp)}, nil
+		text := strings.TrimSpace(resp.Text)
+		if text == "" {
+			return ExecResult{}, NewNodeError("FLOW_AI_OUTPUT_INVALID", "the model returned an empty answer")
+		}
+		return ExecResult{Output: aiOutput(map[string]any{"text": text}, resp)}, nil
 	}
 	if problems := aiFieldProblems(in.Params); len(problems) > 0 {
 		return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "%s: %s", problems[0].param, problems[0].msg)
@@ -274,15 +305,19 @@ func executeAIStep(ctx context.Context, in ExecInput) (ExecResult, error) {
 	for i, f := range fields {
 		names[i] = f.Name
 	}
-	req.System = strings.TrimSpace(req.System + "\n\nAnswer with exactly one JSON object with the fields: " + strings.Join(names, ", ") + ".")
+	req.System = strings.TrimSpace(req.System + "\n\nAnswer with exactly one JSON object with the fields: " + strings.Join(names, ", ") + "." + aiFieldHints(fields))
 	var lastErr error
+	var inputTokens, outputTokens int // every attempt is paid for
 	for attempt := 0; attempt < 2; attempt++ {
 		resp, err := aiCall(ctx, llm, req)
 		if err != nil {
 			return ExecResult{}, err
 		}
+		inputTokens += resp.InputTokens
+		outputTokens += resp.OutputTokens
 		values, verr := coerceAIFields(resp, fields)
 		if verr == nil {
+			resp.InputTokens, resp.OutputTokens = inputTokens, outputTokens
 			return ExecResult{Output: aiOutput(values, resp)}, nil
 		}
 		lastErr = verr
@@ -320,11 +355,36 @@ func aiProblemText(err error) string {
 	return truncateRunes(validUTF8(err.Error()), maxAIProblemRunes)
 }
 
+// aiFieldHints describes the declared fields to the model, one line each:
+// "- name (type): description". The JSON schema alone does not reach every
+// provider (an adapter may only use it to switch on JSON mode), so the system
+// prompt carries the types and descriptions too. A description is flattened to one
+// line. The field and description caps bound the result.
+func aiFieldHints(fields []aiField) string {
+	var sb strings.Builder
+	for _, f := range fields {
+		typ := aiFieldTypes[f.Type]
+		if f.Type == "list" {
+			typ = "array of strings"
+		}
+		sb.WriteString("\n- " + f.Name + " (" + typ + ")")
+		if desc := strings.Join(strings.Fields(f.Description), " "); desc != "" {
+			sb.WriteString(": " + desc)
+		}
+	}
+	return sb.String()
+}
+
+// aiSchema is the JSON schema of the answer. The schema object is read-only and is
+// shared by the attempts of one run.
 func aiSchema(fields []aiField) map[string]any {
 	props := map[string]any{}
 	required := make([]any, 0, len(fields))
 	for _, f := range fields {
 		prop := map[string]any{"type": aiFieldTypes[f.Type]}
+		if f.Type == "list" {
+			prop["items"] = map[string]any{"type": "string"}
+		}
 		if f.Description != "" {
 			prop["description"] = f.Description
 		}
@@ -382,23 +442,30 @@ func coerceAIFields(resp LLMResponse, fields []aiField) (map[string]any, error) 
 	return out, nil
 }
 
-// extractJSONObject finds the outermost JSON object in text (tolerates code fences and
-// prose). Text over maxAIResponseBytes is not parsed.
+// extractJSONObject finds the answer's JSON object in text that can hold prose, code
+// fences, braces of its own and several objects. It decodes one JSON value at each of
+// the first maxAIJSONCandidates opening braces and returns the first that is an object;
+// whatever follows it is ignored. Trying only a few braces keeps the cost at a few
+// scans of the text, which is capped at maxAIResponseBytes (longer text is not parsed).
 func extractJSONObject(text string) (map[string]any, bool) {
 	if len(text) > maxAIResponseBytes {
 		return nil, false
 	}
 	s := strings.TrimSpace(text)
-	if i := strings.Index(s, "{"); i >= 0 {
-		if j := strings.LastIndex(s, "}"); j > i {
-			s = s[i : j+1]
+	pos := 0
+	for tries := 0; tries < maxAIJSONCandidates; tries++ {
+		i := strings.IndexByte(s[pos:], '{')
+		if i < 0 {
+			break
 		}
+		start := pos + i
+		var m map[string]any
+		if err := json.NewDecoder(strings.NewReader(s[start:])).Decode(&m); err == nil && m != nil {
+			return m, true
+		}
+		pos = start + 1
 	}
-	var m map[string]any
-	if json.Unmarshal([]byte(s), &m) != nil || m == nil {
-		return nil, false
-	}
-	return m, true
+	return nil, false
 }
 
 func aiOutput(values map[string]any, resp LLMResponse) map[string]any {

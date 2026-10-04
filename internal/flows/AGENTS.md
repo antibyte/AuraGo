@@ -17,7 +17,14 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `FLOW_OUTPUT_TOO_LARGE`, `FLOW_PORT_INVALID`. A plain error becomes `FLOW_NODE_FAILED`, one wrapping
   `context.DeadlineExceeded` becomes `FLOW_NODE_TIMEOUT`; a `NodeError` with an empty code gets `FLOW_NODE_FAILED`.
 - Every error is retried per the node's `Retry` settings, so side effects must tolerate a re-run.
-  Honour `ctx`; the timeout applies per attempt.
+  Honour `ctx`; the timeout applies per attempt. Exception: a failure with a code in `nonRetryableCodes`
+  (`engine.go`) is final at once, because a retry cannot fix it and would only pay for the same refusal
+  again (an `ai.step` under Retry 5 could make 12 model calls). The set: `FLOW_PARAM_INVALID`,
+  `FLOW_CONDITION_INVALID` (the node's own parameters), `FLOW_AI_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`,
+  `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOL_DENIED` (missing or refused capability), `FLOW_BUDGET_EXCEEDED`,
+  `FLOW_OUTPUT_TOO_LARGE`. Everything else is retried, in particular `FLOW_NODE_FAILED`,
+  `FLOW_NODE_TIMEOUT`, `FLOW_TOOL_ERROR` and `FLOW_AI_OUTPUT_INVALID`, where a new attempt can answer
+  differently. Choose the code of a new error with that in mind.
 - Output must be JSON-encodable (else `FLOW_OUTPUT_INVALID`). `Ports == nil` means the default port;
   every returned port must be declared.
 - Read-only contract: resolved params and inputs may alias run data (a single-expression template
@@ -92,8 +99,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   triggers and nodes outside an `OnlyNode` scope are skipped without one.
 - `on_error`: `stop` fails the run, `continue` delivers `{error}` on the first non-error port (`true` for
   if, `case_1` for switch, `default` for a switch without cases), `error_port` delivers `{error}` on
-  `error` only. Retries re-run the whole node; timeouts are per attempt. Timeouts and retry delays are
-  clamped (`MaxNodeTimeoutSeconds`, `MaxRetryDelaySeconds`, `MaxRunSecondsLimit`).
+  `error` only. Retries re-run the whole node (not after a `nonRetryableCodes` error); timeouts are per
+  attempt. Timeouts and retry delays are clamped (`MaxNodeTimeoutSeconds`, `MaxRetryDelaySeconds`,
+  `MaxRunSecondsLimit`).
 - Params are resolved on the worker before the node timeout starts and cannot be cancelled (known
   limit: a huge filter chain over a large value can take about a second).
 - The first terminal outcome wins: a stop does not override an earlier failure, cancel or timeout. A run

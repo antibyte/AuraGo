@@ -107,6 +107,9 @@ func TestAIHooksSurviveOddParams(t *testing.T) {
 			if ne.Code == "FLOW_PARAM_INVALID" && strings.HasPrefix(ne.Message, "fields") && aiFieldsMode(params) && len(issues) == 0 {
 				fail("%s: Execute rejected the fields (%s) but Validate reported nothing", label, ne.Message)
 			}
+			if ne.Code == "FLOW_PARAM_INVALID" && strings.HasPrefix(ne.Message, "output_mode") && len(issues) == 0 {
+				fail("%s: Execute rejected the output mode (%s) but Validate reported nothing", label, ne.Message)
+			}
 		} else if raw, err := json.Marshal(res.Output); err != nil || !utf8.Valid(raw) {
 			fail("%s: output does not encode: %v", label, err)
 		}

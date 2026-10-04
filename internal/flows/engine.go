@@ -115,6 +115,10 @@ func (e *Engine) Services() *Services { return e.services }
 // data. The inner maps of RunResult.Outputs (and the flow) must therefore be
 // treated as read-only.
 //
+// A failed node is retried per its Retry setting, except when it fails with one of
+// the codes in nonRetryableCodes (invalid parameters, missing capability, denied,
+// budget used up, too large): those are final at once.
+//
 // Known limits of node execution:
 //   - A node's parameters are resolved on its worker before its timeout starts,
 //     and the resolution cannot be cancelled. Expensive templates (for example
@@ -161,8 +165,39 @@ func clampInt(v, lo, hi int) int {
 	return v
 }
 
+// nonRetryableCodes are the node error codes that a retry can never fix: the node's
+// own parameters (FLOW_PARAM_INVALID, FLOW_CONDITION_INVALID), a missing or refused
+// capability (FLOW_AI_UNAVAILABLE, FLOW_TOOLS_UNAVAILABLE, FLOW_NODE_UNAVAILABLE,
+// FLOW_TOOL_DENIED), a used-up budget (FLOW_BUDGET_EXCEEDED) and data over the size
+// limits (FLOW_OUTPUT_TOO_LARGE). When an attempt fails with one of them the node's
+// Retry setting is ignored and the failure is final at once, so a refusal is not paid
+// for again (an ai.step under Retry 5 could otherwise make 12 model calls).
+//
+// Everything else is retried, in particular FLOW_NODE_FAILED, FLOW_NODE_TIMEOUT,
+// FLOW_TOOL_ERROR and FLOW_AI_OUTPUT_INVALID, where a new attempt can answer
+// differently. The set is a contract for node authors (see AGENTS.md): a node picks
+// its code knowing this.
+var nonRetryableCodes = map[string]bool{
+	"FLOW_PARAM_INVALID":     true,
+	"FLOW_CONDITION_INVALID": true,
+	"FLOW_BUDGET_EXCEEDED":   true,
+	"FLOW_TOOL_DENIED":       true,
+	"FLOW_NODE_UNAVAILABLE":  true,
+	"FLOW_TOOLS_UNAVAILABLE": true,
+	"FLOW_AI_UNAVAILABLE":    true,
+	"FLOW_OUTPUT_TOO_LARGE":  true,
+}
+
+// hopeless reports whether err, a node's failure, is final whatever the Retry
+// setting says (see nonRetryableCodes). It looks through wrapped errors.
+func hopeless(err error) bool {
+	ne := asNodeError(err)
+	return ne != nil && nonRetryableCodes[ne.Code]
+}
+
 // executeNode runs one node with retries and timeouts. It runs on a worker
-// goroutine and must not touch the run state.
+// goroutine and must not touch the run state. A failure with a non-retryable code
+// ends the attempts at once.
 func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput) nodeDone {
 	d := nodeDone{nodeID: n.ID}
 	step := StepRecord{NodeID: n.ID, NodeKey: n.Key, Attempt: 1, StartedAt: e.services.Now()}
@@ -218,6 +253,8 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 		}
 		if timedOut {
 			runErr = &NodeError{Code: "FLOW_NODE_TIMEOUT", Message: fmt.Sprintf("the node did not finish within %s", timeout)}
+		} else if hopeless(runErr) {
+			break
 		}
 	}
 	if runErr != nil {
