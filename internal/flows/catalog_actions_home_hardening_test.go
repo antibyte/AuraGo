@@ -399,12 +399,13 @@ func TestHomeAssistantServiceAnswer(t *testing.T) {
 }
 
 // What the flags say about the data: the entity and the service data decide what is
-// switched, the topic and the payload what a device is told. The service is a literal.
+// switched, the topic and the payload what a device is told, a planner title is listed in
+// the agent's prompt (planner.BuildPromptContextText). The service is a literal.
 func TestHomeSinkAndTaintFlags(t *testing.T) {
 	reg := homeRegistry(t)
 	sinks := map[string][]string{
 		TypeHomeAssistant: {"entity", "service_data"}, TypeMQTTPublish: {"payload", "topic"},
-		TypeAppointmentAdd: nil, TypeTodoAdd: nil,
+		TypeAppointmentAdd: {"title"}, TypeTodoAdd: {"title"},
 	}
 	untrusted := map[string]bool{TypeHomeAssistant: true}
 	for typ, want := range sinks {
@@ -430,7 +431,8 @@ func TestHomeSinkAndTaintFlags(t *testing.T) {
 	}
 }
 
-// The lint follows the flags: webhook data in a sink warns, in content does not; what
+// The lint follows the flags: webhook data in a sink warns (a planner title included,
+// the agent's prompt lists it), in content does not; what
 // Home Assistant reports is untrusted by itself; a payload or description that goes only
 // to the effect does not make what the node returns untrusted, a title or topic that is
 // echoed does.
@@ -460,7 +462,7 @@ func TestHomeNodesInTheLint(t *testing.T) {
 		}
 		byNode[is.NodeID] = append(byNode[is.NodeID], is.Param)
 	}
-	for id, want := range map[string][]string{nodes["ha"]: {"entity", "service_data"}, nodes["mq"]: {"payload", "topic"}, nodes["ap"]: nil, nodes["td"]: nil} {
+	for id, want := range map[string][]string{nodes["ha"]: {"entity", "service_data"}, nodes["mq"]: {"payload", "topic"}, nodes["ap"]: {"title"}, nodes["td"]: {"title"}} {
 		got := byNode[id]
 		slices.Sort(got)
 		if !reflect.DeepEqual(got, want) {

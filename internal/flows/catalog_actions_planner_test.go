@@ -69,14 +69,19 @@ func TestPlannerDescription(t *testing.T) {
 }
 
 func TestAppointmentDateAndReminder(t *testing.T) {
-	// Times without a zone are read in the run's location (UTC in these tests).
-	for in, want := range map[string]string{
-		"2026-10-05 09:00": "2026-10-05T09:00:00Z", "2026-10-05T09:00": "2026-10-05T09:00:00Z", "2026-10-05": "2026-10-05T00:00:00Z",
-		"2026-10-05T09:00:00+02:00": "2026-10-05T09:00:00+02:00", " 2026-10-05T07:00:00Z ": "2026-10-05T07:00:00Z", "2026-10-05 09:00:30": "2026-10-05T09:00:30Z",
+	// Times without a zone are read in the run's location (UTC in these tests). The tool
+	// always gets UTC; the output keeps the zone the date was written in.
+	for _, c := range []struct{ in, arg, out string }{
+		{"2026-10-05 09:00", "2026-10-05T09:00:00Z", "2026-10-05T09:00:00Z"},
+		{"2026-10-05T09:00", "2026-10-05T09:00:00Z", "2026-10-05T09:00:00Z"},
+		{"2026-10-05", "2026-10-05T00:00:00Z", "2026-10-05T00:00:00Z"},
+		{"2026-10-05T09:00:00+02:00", "2026-10-05T07:00:00Z", "2026-10-05T09:00:00+02:00"},
+		{" 2026-10-05T07:00:00Z ", "2026-10-05T07:00:00Z", "2026-10-05T07:00:00Z"},
+		{"2026-10-05 09:00:30", "2026-10-05T09:00:30Z", "2026-10-05T09:00:30Z"},
 	} {
-		tools, res, err := homeRun(t, TypeAppointmentAdd, map[string]any{"date_time": in})
-		if err != nil || tools.last(t).Args["date_time"] != want || res.Output["date_time"] != want {
-			t.Errorf("date_time %q: %v %v", in, err, tools.last(t).Args)
+		tools, res, err := homeRun(t, TypeAppointmentAdd, map[string]any{"date_time": c.in})
+		if err != nil || tools.last(t).Args["date_time"] != c.arg || res.Output["date_time"] != c.out {
+			t.Errorf("date_time %q: %v %v, output %v", c.in, err, tools.last(t).Args, res.Output["date_time"])
 		}
 	}
 	for _, c := range []struct {
@@ -154,7 +159,7 @@ func TestTodoPriorityAndDueDate(t *testing.T) {
 			t.Errorf("due_date %#v: %v %v", v, err, tools.last(t).Args)
 		}
 	}
-	for in, want := range map[string]string{"2026-10-06": "2026-10-06T00:00:00Z", "2026-10-06 18:30": "2026-10-06T18:30:00Z", "2026-10-06T18:30:00-05:00": "2026-10-06T18:30:00-05:00"} {
+	for in, want := range map[string]string{"2026-10-06": "2026-10-06T00:00:00Z", "2026-10-06 18:30": "2026-10-06T18:30:00Z", "2026-10-06T18:30:00-05:00": "2026-10-06T23:30:00Z"} {
 		tools, _, err := homeRun(t, TypeTodoAdd, map[string]any{"due_date": in})
 		if err != nil || tools.last(t).Args["due_date"] != want {
 			t.Errorf("due_date %q: %v %v", in, err, tools.last(t).Args["due_date"])

@@ -72,7 +72,7 @@ func TestPlannerNodes(t *testing.T) {
 	if err != nil || res.Output["id"] != "apt_1" || res.Output["date_time"] != "2026-10-05T09:00:00+02:00" {
 		t.Fatalf("appointment = %#v, %v", res.Output, err)
 	}
-	want := map[string]any{"operation": "add", "title": "Zahnarzt", "date_time": "2026-10-05T09:00:00+02:00", "notification_at": "2026-10-05T08:30:00+02:00"}
+	want := map[string]any{"operation": "add", "title": "Zahnarzt", "date_time": "2026-10-05T07:00:00Z", "notification_at": "2026-10-05T06:30:00Z"}
 	if args := tools.last(t).Args; !reflect.DeepEqual(args, want) {
 		t.Fatalf("appointment args = %#v", args)
 	}
@@ -86,7 +86,7 @@ func TestPlannerNodes(t *testing.T) {
 	if err != nil || res.Output["id"] != "todo_1" {
 		t.Fatalf("todo = %#v, %v", res.Output, err)
 	}
-	if args := tools.last(t).Args; args["operation"] != "add" || args["priority"] != "medium" || args["due_date"] != "2026-10-06T00:00:00+02:00" {
+	if args := tools.last(t).Args; args["operation"] != "add" || args["priority"] != "medium" || args["due_date"] != "2026-10-05T22:00:00Z" {
 		t.Fatalf("todo args = %#v", args)
 	}
 }

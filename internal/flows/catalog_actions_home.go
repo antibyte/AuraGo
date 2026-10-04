@@ -38,13 +38,16 @@ func registerHomeNodes(reg *Registry, env CatalogEnv) error {
 // Risk: a service call can do anything Home Assistant can: shell_command.*,
 // python_script.*, script.*, automation.*, hassio.* and homeassistant.restart are
 // services like light.turn_on. The home_assistant tool has no list of dangerous
-// domains of its own. Its only guards are the settings home_assistant.read_only (no
+// domains of its own. Its only guards are the settings home_assistant.readonly (no
 // call_service at all) and home_assistant.blocked_services / allowed_services (exact
 // "domain.service" names, no allow list means every service is allowed), which the
 // dispatcher and tools.HACallService apply to every call, a flow's included. This node
 // adds no list of its own: the service is the author's choice and has to be written
 // out (it is not templatable, and Execute refuses a template there even though the run
-// resolved it), and the settings are the place to forbid a service. With a plain
+// resolved it), and the settings are the place to forbid a service. What the node can
+// do is show the author what a literal service does: shell_command and python_script
+// count as running code, hassio and homeassistant.restart/stop as a system change (see
+// homeAssistantEffects), which makes the publish dialog ask. With a plain
 // service ("turn_on") the domain is the entity's, so an entity that comes from
 // untrusted data chooses the domain: write "light.turn_on" to pin it. The entity and
 // service_data are sensitive sinks; the service is a literal and so is no sink.
@@ -74,16 +77,7 @@ func homeAssistantDef(env CatalogEnv) *NodeDef {
 	def.OutputFields = []FieldSpec{{Name: "state", Type: "text", Primary: true}, {Name: "attributes", Type: "object"},
 		{Name: "affected_entities", Type: "list"}, {Name: "entity_id", Type: "text"},
 		{Name: "last_changed", Type: "text"}, {Name: "ok", Type: "bool"}, {Name: "service", Type: "text"}}
-	def.EffectsFunc = func(n *Node) []Effect {
-		// Only a get_state that is written out is read-only: a template, a value that
-		// cannot be read and a missing node are assumed to change something.
-		if n != nil {
-			if op, ok := choiceParam(n.Params["operation"], "call_service", haOperations...); ok && op == "get_state" {
-				return nil
-			}
-		}
-		return []Effect{EffectControlsDevices}
-	}
+	def.EffectsFunc = homeAssistantEffects
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {
 		if n == nil {
 			return nil
@@ -156,6 +150,47 @@ func homeAssistantDef(env CatalogEnv) *NodeDef {
 	return def
 }
 
+// homeAssistantEffects lists what a home.assistant node does outwardly. Only a
+// get_state that is written out is read-only: a template, a value that cannot be read
+// and a missing node are assumed to change something. A service call controls devices;
+// a literal service of the shell_command or python_script domain also runs code, and one
+// of the hassio domain or homeassistant.restart and homeassistant.stop changes the
+// system, which the publish dialog then asks about (IsRisky). The domain of a plain
+// service is the entity's, when that is written out too. A service that is a template
+// or cannot be read stays a plain device control, as the run decides it. It is a hook:
+// it copes with a nil node and any parameter.
+func homeAssistantEffects(n *Node) []Effect {
+	effects := []Effect{EffectControlsDevices}
+	if n == nil {
+		return effects
+	}
+	if op, ok := choiceParam(n.Params["operation"], "call_service", haOperations...); ok && op == "get_state" {
+		return nil
+	}
+	domain, service, err := haServiceName(n.Params["service"])
+	if err != nil {
+		return effects
+	}
+	if domain == "" {
+		id, err := haEntityID(n.Params["entity"])
+		if err != nil {
+			return effects
+		}
+		domain, _, _ = strings.Cut(id, ".")
+	}
+	switch domain {
+	case "shell_command", "python_script":
+		effects = append(effects, EffectRunsCode)
+	case "hassio":
+		effects = append(effects, EffectSystemChange)
+	case "homeassistant":
+		if service == "restart" || service == "stop" {
+			effects = append(effects, EffectSystemChange)
+		}
+	}
+	return effects
+}
+
 // homeGetState reads one entity. The answer must hold the entity with a text state;
 // anything else (a plain-text refusal, a different object) is not a state. The attributes
 // are cut off when they nest deeper than maxJSONDepth: the engine fails a node whose
@@ -210,7 +245,7 @@ func mqttPublishDef(env CatalogEnv) *NodeDef {
 			return nil
 		}
 		issues := literalIssueIfSet(n, "topic", mqttTopic)
-		issues = append(issues, literalIssueIfSet(n, "payload", func(v any) (string, error) { return mqttPayload(v) })...)
+		issues = append(issues, literalIssueIfSet(n, "payload", mqttPayload)...)
 		issues = append(issues, literalIssue(n, "qos", readerCheck(mqttQoS))...)
 		return append(issues, literalIssue(n, "retain", readerCheck(mqttRetain))...)
 	}
@@ -231,6 +266,12 @@ func mqttPublishDef(env CatalogEnv) *NodeDef {
 		if err != nil {
 			return ExecResult{}, err
 		}
+		// An empty retained message clears the topic. A payload that is written out as
+		// blank (or left out) says so on purpose, the MQTT idiom; a payload template that
+		// found nothing (a missing field) must not do it by accident.
+		if retain && in.Params["payload"] == nil && in.Node != nil && isTemplateText(in.Node.Params["payload"]) {
+			return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "the payload template resolved to nothing; a retained empty message would clear the topic")
+		}
 		out, err := callTool(ctx, in, "mqtt_publish", map[string]any{"topic": topic, "payload": payload, "qos": qos, "retain": retain})
 		if err != nil {
 			return ExecResult{}, err
@@ -245,13 +286,23 @@ func mqttPublishDef(env CatalogEnv) *NodeDef {
 
 // plannerDef is the common part of the planner nodes. They write into the user's own
 // planner, which is not an outward effect (the planner decides later whether a reminder
-// goes out), so they list none. Title and description are content, not sinks: they do
-// not pick a calendar or an account, the tool has only the one planner. The titles of
-// open todos and upcoming appointments do become part of the agent's prompt, which is
-// why a title is one bounded line; the nodes offer no wake_agent or agent_instruction.
-// The title is part of the output (the node returns it with the id), so only the
-// description is OutputIndependent. A planner add is not idempotent: Retry after an
-// answer that got lost creates the entry twice.
+// goes out), so they list none. Nothing picks a calendar or an account (the tool has
+// only the one planner) and the description is plain content, so it is no sink. The
+// title is a sensitive sink: planner.BuildPromptContextText lists the titles of open
+// todos and upcoming appointments in the main agent's system prompt, so an untrusted
+// title is a persistent prompt-injection channel; that is also why a title is one
+// bounded line. The nodes offer no wake_agent or agent_instruction, and the description
+// is not in the prompt snapshot. The title is part of the output (the node returns it
+// with the id), so only the description is OutputIndependent.
+//
+// Times: the planner stores a time string as it is and compares it as TEXT, in SQL,
+// with time.Now().UTC().Format(RFC3339) (planner.GetDueNotifications,
+// AutoExpireAppointments). A time sent in another zone ("...+02:00") sorts by its local
+// digits, so a reminder fires late by the offset (early in a negative zone) and an
+// appointment is marked overdue at the wrong time. The nodes therefore send every time
+// to the tool in UTC (the form with "Z"); the node's own output keeps the zone the
+// date was written in. A planner add is not idempotent: Retry after an answer that got
+// lost creates the entry twice.
 func plannerDef(typ, icon, tool string, env CatalogEnv) *NodeDef {
 	def := actionDef(typ, "planner", icon, tool, env)
 	def.PrimaryInput = "title"
@@ -261,7 +312,7 @@ func plannerDef(typ, icon, tool string, env CatalogEnv) *NodeDef {
 func appointmentAddDef(env CatalogEnv) *NodeDef {
 	def := plannerDef(TypeAppointmentAdd, "calendar-plus", "manage_appointments", env)
 	def.Params = []ParamSpec{
-		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.title", Required: true, Templatable: true},
+		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.title", Required: true, Templatable: true, SensitiveSink: true},
 		{Name: "date_time", Kind: ParamDateTime, LabelKey: "easydrag.param.date_time", Required: true, Templatable: true},
 		{Name: "description", Kind: ParamTextarea, LabelKey: "easydrag.param.description", Templatable: true, OutputIndependent: true},
 		{Name: "remind_minutes", Kind: ParamNumber, LabelKey: "easydrag.param.remind_minutes", Default: 0.0},
@@ -296,14 +347,14 @@ func appointmentAddDef(env CatalogEnv) *NodeDef {
 		if err != nil {
 			return ExecResult{}, err
 		}
-		args := map[string]any{"operation": "add", "title": title, "date_time": at.Format(time.RFC3339)}
+		args := map[string]any{"operation": "add", "title": title, "date_time": at.UTC().Format(time.RFC3339)}
 		setArg(args, "description", description)
 		if remind > 0 {
 			notify := at.Add(-time.Duration(remind * float64(time.Minute)))
 			if notify.Year() < 0 {
 				return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "the reminder would fall before the year 0")
 			}
-			args["notification_at"] = notify.Format(time.RFC3339)
+			args["notification_at"] = notify.UTC().Format(time.RFC3339)
 		}
 		out, err := callTool(ctx, in, "manage_appointments", args)
 		if err != nil {
@@ -320,7 +371,7 @@ func appointmentAddDef(env CatalogEnv) *NodeDef {
 func todoAddDef(env CatalogEnv) *NodeDef {
 	def := plannerDef(TypeTodoAdd, "checkbox", "manage_todos", env)
 	def.Params = []ParamSpec{
-		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.title", Required: true, Templatable: true},
+		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.title", Required: true, Templatable: true, SensitiveSink: true},
 		{Name: "description", Kind: ParamTextarea, LabelKey: "easydrag.param.description", Templatable: true, OutputIndependent: true},
 		{Name: "priority", Kind: ParamSelect, LabelKey: "easydrag.param.priority", Default: "medium",
 			Options: []Option{option("low", "priority_low"), option("medium", "priority_medium"), option("high", "priority_high")}},
@@ -356,7 +407,9 @@ func todoAddDef(env CatalogEnv) *NodeDef {
 		args := map[string]any{"operation": "add", "title": title, "priority": priority}
 		setArg(args, "description", description)
 		if hasDue {
-			args["due_date"] = due.Format(time.RFC3339)
+			// A date without a time is midnight in the run's zone, in UTC like the others
+			// (the planner's own date-only form is midnight UTC).
+			args["due_date"] = due.UTC().Format(time.RFC3339)
 		}
 		out, err := callTool(ctx, in, "manage_todos", args)
 		if err != nil {
