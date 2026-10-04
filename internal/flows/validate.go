@@ -53,7 +53,9 @@ const (
 //
 // A node definition's hooks (OutputsFunc, OutputFieldsFunc, AvailabilityFunc,
 // Validate, and EffectsFunc, which is probed once per enabled node so that a
-// crash is not left to CollectEffects) are called under a recover. A panic gives
+// crash is not left to CollectEffects) are called under a recover. OutputsFunc is
+// also probed once for every node, leaf and disabled nodes included, because the
+// engine needs the ports of every node at run start. A panic gives
 // one IssueParamInvalid issue for that node, "the node definition crashed: ...",
 // and the node's remaining hooks are skipped; validation goes on with the other
 // nodes. The issue is a publish rule: a warning in ModeDraft, so the draft can
@@ -379,6 +381,11 @@ func (v *validator) publishRules() {
 		} else if len(g.incoming[n.ID]) == 0 {
 			v.add(IssueNodeUnreachable, SeverityWarning, n.ID, "", "", fmt.Sprintf("node %s has no incoming connection and never runs", echoKey(n.Key)))
 		}
+		// structure only asks for the ports of nodes with outgoing edges. The engine
+		// computes them for every node at run start, disabled ones included, and fails
+		// the whole run when the hook panics, so probe them all. The result is
+		// memoized, so a node with edges costs no extra call.
+		v.outputPorts(n, def)
 		if n.Settings.Disabled {
 			continue
 		}

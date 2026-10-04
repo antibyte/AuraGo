@@ -29,7 +29,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Hooks (`OutputsFunc`, `OutputFieldsFunc`, `EffectsFunc`, `Validate`, `AvailabilityFunc`) see the RAW
   node: params unresolved (a template is still a string), any type, nil or huge. Keep them pure, cheap,
   deterministic and panic-free; a panic is recovered but still fails the run or is reported as an
-  issue. `OutputPorts(nil)` and `FieldsOf(nil)` ignore their hooks.
+  issue. `OutputPorts(nil)` and `FieldsOf(nil)` ignore their hooks. Any new caller of a hook (for example
+  a 1b catalog API calling `AvailabilityFunc`) must go through `catchPanic`.
 - Set `UntrustedOutput` on a def whose output an attacker can influence (web, mail, webhook, chat) and
   `SensitiveSink` on a `ParamSpec` where such data is dangerous (command, code, script, path, url,
   recipient, device). The lint follows only template refs and `passesInputs`: no flag, no warning.
@@ -63,8 +64,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Output-port and declared-field lookups are memoized per node; ancestors are computed once per node.
 - `Validate` calls definition hooks under a recover: a panic gives one `PARAM_INVALID` issue for the
   node ("the node definition crashed: …"), skips its other hooks and goes on. It is a publish rule (a
-  draft warning, so the draft stays saveable). `Validate` also probes `EffectsFunc`, because
-  `CollectEffects` leaves out a node whose hook panics. The lint calls no hooks.
+  draft warning, so the draft stays saveable). `Validate` also probes `EffectsFunc` (`CollectEffects`
+  leaves out a node whose hook panics) and the output ports of every node, leaves and disabled nodes
+  included (the engine needs them at run start). The lint calls no hooks.
 - `LintUntrustedData`: taint flows through template refs and through `passesInputs` nodes (merge, and
   set with keep_input). Disabled nodes neither warn nor taint; a cyclic flow gets no lint issues. If the
   ref cap is hit while a taint source exists, the node counts as tainted and every sink param is warned.

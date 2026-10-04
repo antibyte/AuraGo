@@ -191,9 +191,10 @@ func asNodeError(err error) *NodeError {
 // Validate see the raw node of a draft that may be half finished: parameters are
 // unresolved (a template is still a string) and any value can be nil, of another
 // type than expected, or huge. A hook must be pure, cheap, deterministic and must
-// never panic. The engine at run start, Validate and CollectEffects recover from a
-// panicking hook anyway (see catchPanic), so a faulty definition cannot take down
-// the caller, but the node then fails or reports a problem.
+// never panic. Validate and CollectEffects call hooks through catchPanic, and the
+// engine recovers in describeNode and runNode, so a faulty definition cannot take
+// down the caller, but the run then fails or the node is reported. Any other
+// caller of a hook must go through catchPanic as well.
 type NodeDef struct {
 	Type             string
 	Version          int

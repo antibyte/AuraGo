@@ -65,6 +65,28 @@ func TestValidateRecoversCrashingHooks(t *testing.T) {
 	}
 }
 
+// The ports of a node without outgoing edges are probed too: the engine needs them
+// for every node, disabled ones included, so a crashing OutputsFunc on a leaf would
+// otherwise validate clean and fail every run at start.
+func TestValidateProbesOutputPortsOfLeafNodes(t *testing.T) {
+	reg := crashingRegistry(t)
+	for _, disabled := range []bool{false, true} {
+		b := newFlow("Leaf")
+		tr := b.node("start", "test.trigger", nil)
+		leaf := b.node("crash", "test.crash_ports", nil)
+		b.edge(tr, PortOut, leaf)
+		f := b.build()
+		f.NodeByID(leaf).Settings.Disabled = disabled
+		for _, ctx := range []ValidateContext{draftCtx(), publishCtx()} {
+			issues := Validate(f, reg, ctx)
+			if len(issues) != 1 || issues[0].Code != IssueParamInvalid || issues[0].NodeID != leaf ||
+				!strings.Contains(issues[0].Message, "ports kaputt") {
+				t.Fatalf("disabled=%v mode=%v: issues = %+v, want one crash issue", disabled, ctx.Mode, issues)
+			}
+		}
+	}
+}
+
 // The other nodes are still validated, and the panic text is bounded.
 func TestValidateGoesOnAfterACrashingHook(t *testing.T) {
 	reg := crashingRegistry(t)
