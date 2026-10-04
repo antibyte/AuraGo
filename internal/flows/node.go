@@ -163,9 +163,20 @@ func NewNodeError(code, format string, args ...any) *NodeError {
 	return &NodeError{Code: code, Message: fmt.Sprintf(format, args...)}
 }
 
+// asNodeError converts an error into a NodeError and returns nil only for a nil
+// error. A typed-nil *NodeError wrapped in an error (a node that returns a nil
+// *NodeError variable as its error) is reported as a failure with a fixed
+// message instead of a nil pointer, so callers can always read Code and Message
+// of a non-nil result.
 func asNodeError(err error) *NodeError {
+	if err == nil {
+		return nil
+	}
 	var ne *NodeError
 	if errors.As(err, &ne) {
+		if ne == nil {
+			return &NodeError{Code: "FLOW_NODE_FAILED", Message: "the node returned a nil error value"}
+		}
 		return ne
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -205,6 +216,7 @@ type NodeDef struct {
 }
 
 // InputPorts returns the input ports (none for triggers).
+// The result can be the definition's own Inputs slice; treat it as read-only.
 func (d *NodeDef) InputPorts() []string {
 	if d.Trigger {
 		return nil
@@ -217,6 +229,8 @@ func (d *NodeDef) InputPorts() []string {
 
 // OutputPorts returns the output ports of node n, including "error" when the node uses an error port.
 // The returned slice is always a fresh copy, so callers may append to it.
+// With a nil node OutputsFunc is not consulted: the ports come from Outputs, or
+// are ["out"] when Outputs is nil, and no error port is added.
 func (d *NodeDef) OutputPorts(n *Node) []string {
 	var ports []string
 	switch {
@@ -252,6 +266,7 @@ func (d *NodeDef) Availability() Availability {
 }
 
 // FieldsOf returns the declared output fields of node n (dynamic when OutputFieldsFunc is set).
+// The result can be the definition's own OutputFields slice; treat it as read-only.
 func (d *NodeDef) FieldsOf(n *Node) []FieldSpec {
 	if d.OutputFieldsFunc != nil && n != nil {
 		return d.OutputFieldsFunc(n)
@@ -260,6 +275,7 @@ func (d *NodeDef) FieldsOf(n *Node) []FieldSpec {
 }
 
 // EffectsOf returns the effects of node n.
+// The result can be the definition's own Effects slice; treat it as read-only.
 func (d *NodeDef) EffectsOf(n *Node) []Effect {
 	if d.EffectsFunc != nil {
 		return d.EffectsFunc(n)
@@ -267,10 +283,16 @@ func (d *NodeDef) EffectsOf(n *Node) []Effect {
 	return d.Effects
 }
 
-// Timeout returns the per-attempt timeout for node n.
+// Timeout returns the per-attempt timeout for node n. The node's timeout is
+// clamped to MaxNodeTimeoutSeconds, so the result does not depend on the flow
+// having been normalized.
 func (d *NodeDef) Timeout(n *Node) time.Duration {
 	if n != nil && n.Settings.TimeoutSeconds > 0 {
-		return time.Duration(n.Settings.TimeoutSeconds) * time.Second
+		secs := n.Settings.TimeoutSeconds
+		if secs > MaxNodeTimeoutSeconds {
+			secs = MaxNodeTimeoutSeconds
+		}
+		return time.Duration(secs) * time.Second
 	}
 	if d.DefaultTimeout > 0 {
 		return d.DefaultTimeout
@@ -314,8 +336,12 @@ func (r *Registry) MustRegister(def *NodeDef) {
 	}
 }
 
-// Replace adds or overwrites a definition.
+// Replace adds or overwrites a definition. Like MustRegister it panics on
+// misuse: a nil definition or one without a type is a programming error.
 func (r *Registry) Replace(def *NodeDef) {
+	if def == nil || def.Type == "" {
+		panic("flows: Replace needs a definition with a type")
+	}
 	if def.Version <= 0 {
 		def.Version = 1
 	}

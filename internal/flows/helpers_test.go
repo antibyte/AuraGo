@@ -56,16 +56,23 @@ func (c *fakeClock) Advance(d time.Duration) {
 		}
 		kept = append(kept, w)
 	}
+	clear(c.waiters[len(kept):]) // drop the stale tail so fired channels can be collected
 	c.waiters = kept
 }
 
+// pending counts the After channels that have not fired yet. It also counts
+// abandoned ones: a Sleep cancelled through its context leaves its channel here
+// until Advance passes its deadline.
 func (c *fakeClock) pending() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return len(c.waiters)
 }
 
-// WaitForWaiters blocks until at least n goroutines wait on the clock.
+// WaitForWaiters blocks until at least n After channels are pending (see
+// pending). Abandoned channels of cancelled sleeps count too, so after a
+// cancelled sleep a wait for the next sleeper can be satisfied by a stale entry;
+// advance the clock past the abandoned deadline first when that matters.
 func (c *fakeClock) WaitForWaiters(t *testing.T, n int) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)

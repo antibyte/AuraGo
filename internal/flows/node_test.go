@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"sync"
 	"testing"
@@ -171,6 +172,68 @@ func TestAsNodeError(t *testing.T) {
 	}
 	if NewNodeError("X", "m").Error() != "X: m" {
 		t.Fatal("Error() format")
+	}
+}
+
+func TestAsNodeErrorNilSafety(t *testing.T) {
+	if ne := asNodeError(nil); ne != nil {
+		t.Fatalf("asNodeError(nil) = %+v, want nil", ne)
+	}
+	// A nil *NodeError stored in an error value is not a nil error: this is what
+	// "out, ne := parse(...); return res, ne" produces on success.
+	var typedNil *NodeError
+	var err error = typedNil
+	if err == nil {
+		t.Fatal("test setup: a typed-nil error must not compare equal to nil")
+	}
+	for name, e := range map[string]error{
+		"typed nil":         err,
+		"wrapped typed nil": fmt.Errorf("step failed: %w", err),
+	} {
+		ne := asNodeError(e)
+		if ne == nil {
+			t.Fatalf("%s: asNodeError returned nil", name)
+		}
+		if ne.Code != "FLOW_NODE_FAILED" || ne.Message == "" {
+			t.Fatalf("%s: = %+v", name, ne)
+		}
+	}
+	// A real NodeError wrapped by another error still passes through.
+	wrapped := fmt.Errorf("outer: %w", NewNodeError("X", "inner"))
+	if ne := asNodeError(wrapped); ne.Code != "X" || ne.Message != "inner" {
+		t.Fatalf("wrapped NodeError = %+v", ne)
+	}
+}
+
+func TestNodeDefTimeoutClamped(t *testing.T) {
+	def := &NodeDef{Type: "t"}
+	huge := &Node{Settings: NodeSettings{TimeoutSeconds: math.MaxInt}}
+	if got := def.Timeout(huge); got != 24*time.Hour {
+		t.Fatalf("Timeout(huge) = %v, want 24h", got)
+	}
+	atLimit := &Node{Settings: NodeSettings{TimeoutSeconds: MaxNodeTimeoutSeconds}}
+	if got := def.Timeout(atLimit); got != 24*time.Hour {
+		t.Fatalf("Timeout(limit) = %v, want 24h", got)
+	}
+	if got := def.Timeout(&Node{Settings: NodeSettings{TimeoutSeconds: -3}}); got != DefaultNodeTimeout {
+		t.Fatalf("negative timeout must fall back to the default, got %v", got)
+	}
+}
+
+func TestRegistryReplaceMisusePanics(t *testing.T) {
+	reg := NewRegistry()
+	for name, def := range map[string]*NodeDef{"nil": nil, "no type": {}} {
+		func() {
+			defer func() {
+				if r := recover(); r != "flows: Replace needs a definition with a type" {
+					t.Fatalf("%s: recovered %v", name, r)
+				}
+			}()
+			reg.Replace(def)
+		}()
+	}
+	if n := len(reg.All()); n != 0 {
+		t.Fatalf("a rejected Replace must not register anything, have %d", n)
 	}
 }
 
