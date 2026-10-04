@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "Failed",
   "config.onedrive.test_success": "Success",
   "config.onedrive.testing": "Testing…",
-  "config.remote_control.allowed_paths_hint": "one per line, empty = all",
+  "config.remote_control.allowed_paths_hint": "One per line; an empty list denies file access.",
   "config.remote_control.allowed_paths_label": "Allowed paths",
   "config.remote_control.audit_log_label": "Enable audit log",
   "config.remote_control.auto_approve_label": "Auto-approve new devices (⚠️ only on trusted networks)",

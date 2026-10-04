@@ -690,6 +690,7 @@ func Start(opts StartOptions) error {
 		s.RemoteHub.OnAudit = func(event remote.RemoteAuditEvent) {
 			recordRemoteAuditEvent(shortTermMem, event)
 		}
+		s.RemoteHub.SetEnabled(cfg.RemoteControl.Enabled)
 		s.RemoteHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second)
 		if err := remote.TrimAuditLog(remoteControlDB, 10000); err != nil {
 			logger.Warn("Failed to trim remote audit log", "error", err)

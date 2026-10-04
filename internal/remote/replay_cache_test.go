@@ -36,8 +36,8 @@ func TestIsTrustedAutoApproveRemoteAddr(t *testing.T) {
 		addr net.Addr
 		want bool
 	}{
-		{name: "loopback", addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8443}, want: true},
-		{name: "private", addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.25"), Port: 8443}, want: true},
+		{name: "loopback", addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8443}, want: false},
+		{name: "private", addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.25"), Port: 8443}, want: false},
 		{name: "public", addr: &net.TCPAddr{IP: net.ParseIP("8.8.8.8"), Port: 8443}, want: false},
 		{name: "nil", addr: nil, want: false},
 	}

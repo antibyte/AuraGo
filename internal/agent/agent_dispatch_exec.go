@@ -1647,7 +1647,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Invalid local path: %v"}`, err)
 			}
-			workspaceWorkdir := filepath.Join(cfg.Directories.WorkspaceDir, "workdir")
+			workspaceWorkdir, rootErr := filepath.Abs(filepath.Join(cfg.Directories.WorkspaceDir, "workdir"))
+			if rootErr != nil || tools.IsProtectedSystemPath(absLocal, workspaceWorkdir, cfg) {
+				return tools.ErrorJSON("Protected or invalid local path")
+			}
+			if req.Direction == "download" && !cfg.Agent.AllowFilesystemWrite {
+				return tools.ErrorJSON("Filesystem writes are disabled")
+			}
 			if absLocal != workspaceWorkdir && !strings.HasPrefix(absLocal, workspaceWorkdir+string(os.PathSeparator)) {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Permission denied: local_path must be within %s"}`, workspaceWorkdir)
 			}
@@ -1662,7 +1668,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			rCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()
-			err = remote.TransferFile(rCtx, access.Host, access.Port, access.Username, access.Secret, absLocal, req.RemotePath, req.Direction)
+			err = remote.TransferFile(rCtx, access.Host, access.Port, access.Username, access.Secret, absLocal, req.RemotePath, req.Direction, workspaceWorkdir)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "File transfer failed: %v"}`, err)
 			}

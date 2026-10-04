@@ -170,6 +170,8 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 
 ## Notes
 
+- **Enrollment**: An administrator supplies a fresh single-use pairing token. Private network addresses never authenticate a device; manual approval returns a new token. Disabling Remote Control closes connections and cancels pending commands.
+- **Revocation**: An empty `allowed_paths` list denies all classic remote file access. SSH file transfers use rooted workspace paths; downloads require filesystem-write permission and retain the prior destination on failure. Uploads require atomic rename support on the SFTP server.
 - **Timeouts**: Command execution has 60s timeout, file operations have 30s timeout, sysinfo has 15s timeout
 - **Read-only mode**: execute_command, all shell_session operations, write_file, file_patch, revoke_device, edit operations, desktop_input, desktop_ui_action, and desktop_browser_action are blocked when read-only mode is enabled. Discovery, UI tree reads, browser connect/snapshot/disconnect, screenshots, and permission probes remain allowed.
 - **Shell sessions**: Use one-shot `execute_command` unless the command is interactive or long-running. Poll after `shell_session_start`; AuraGo does not persist processes, so reconnect recovery is `shell_session_list` plus read/input/stop against client-owned sessions.

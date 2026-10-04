@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "Niepowodzenie",
   "config.onedrive.test_success": "Sukces",
   "config.onedrive.testing": "Testowanie…",
-  "config.remote_control.allowed_paths_hint": "jedna na linię, puste = wszystkie",
+  "config.remote_control.allowed_paths_hint": "Jedna ścieżka w wierszu; pusta lista blokuje dostęp do plików.",
   "config.remote_control.allowed_paths_label": "Dozwolone ścieżki",
   "config.remote_control.audit_log_label": "Włącz dziennik audytu",
   "config.remote_control.auto_approve_label": "Automatycznie zatwierdzaj nowe urządzenia (⚠️ tylko w zaufanych sieciach)",

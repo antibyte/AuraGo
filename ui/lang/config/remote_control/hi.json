@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "विफल",
   "config.onedrive.test_success": "सफल",
   "config.onedrive.testing": "टेस्ट हो रहा है…",
-  "config.remote_control.allowed_paths_hint": "प्रति पंक्ति एक, खाली = सभी",
+  "config.remote_control.allowed_paths_hint": "प्रति पंक्ति एक पथ; खाली सूची फ़ाइलों तक पहुँच रोकती है।",
   "config.remote_control.allowed_paths_label": "अनुमत पथ",
   "config.remote_control.audit_log_label": "ऑडिट लॉग सक्षम करें",
   "config.remote_control.auto_approve_label": "नए उपकरणों को स्वचालित रूप से स्वीकृत करें (⚠️ केवल विश्वसनीय नेटवर्क पर)",

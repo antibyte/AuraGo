@@ -1434,6 +1434,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"smb_writable", networkSharesStatus.SMB.Writable,
 				"nfs_writable", networkSharesStatus.NFS.Writable)
 		}
+		if loadErr == nil && newCfg != nil && s.RemoteHub != nil {
+			s.RemoteHub.SetEnabled(newCfg.RemoteControl.Enabled)
+			if newCfg.RemoteControl.Enabled {
+				s.RemoteHub.StartHeartbeatMonitor(30*time.Second, 90*time.Second)
+			}
+		}
 		if loadErr == nil && discordChanged && newCfg != nil && !newCfg.EggMode.Enabled {
 			discord.StopBot(s.Logger)
 			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)

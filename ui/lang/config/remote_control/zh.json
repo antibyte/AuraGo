@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "失败",
   "config.onedrive.test_success": "成功",
   "config.onedrive.testing": "测试中…",
-  "config.remote_control.allowed_paths_hint": "每行一个，留空 = 全部",
+  "config.remote_control.allowed_paths_hint": "每行一个路径；空列表禁止文件访问。",
   "config.remote_control.allowed_paths_label": "允许的路径",
   "config.remote_control.audit_log_label": "启用审计日志",
   "config.remote_control.auto_approve_label": "自动批准新设备（⚠️ 仅限受信任网络）",

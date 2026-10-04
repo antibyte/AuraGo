@@ -219,8 +219,8 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 
 	// ── Remote Control API (handlers guard themselves with s.RemoteHub == nil check) ──
 	if s.RemoteHub != nil {
-		mux.HandleFunc("/api/remote/devices", handleRemoteDevices(s))
-		mux.HandleFunc("/api/remote/devices/", func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("/api/remote/devices", requireAdmin(s, handleRemoteDevices(s)))
+		mux.Handle("/api/remote/devices/", requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := strings.TrimPrefix(r.URL.Path, "/api/remote/devices/")
 			if strings.HasSuffix(path, "/approve") {
 				handleRemoteDeviceApprove(s)(w, r)
@@ -231,11 +231,11 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 			} else {
 				handleRemoteDevice(s)(w, r)
 			}
-		})
-		mux.HandleFunc("/api/remote/enroll", handleRemoteEnrollmentCreate(s))
-		mux.HandleFunc("/api/remote/audit", handleRemoteAuditLog(s))
-		mux.HandleFunc("/api/remote/platforms", handleRemotePlatforms(s))
-		mux.HandleFunc("/api/remote/download/", handleRemoteDownload(s))
+		})))
+		mux.Handle("/api/remote/enroll", requireAdmin(s, handleRemoteEnrollmentCreate(s)))
+		mux.Handle("/api/remote/audit", requireAdmin(s, handleRemoteAuditLog(s)))
+		mux.Handle("/api/remote/platforms", requireAdmin(s, handleRemotePlatforms(s)))
+		mux.Handle("/api/remote/download/", requireAdmin(s, handleRemoteDownload(s)))
 		mux.HandleFunc("/api/remote/ws", handleRemoteWebSocket(s))
 		s.Logger.Info("Remote Control API registered at /api/remote/...")
 	}

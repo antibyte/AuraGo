@@ -3,6 +3,7 @@
 package remote
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -75,16 +76,22 @@ func (rc *RemoteConnection) NextSeq() uint64 {
 
 // RemoteHub manages all connected remote agents on the supervisor side.
 type RemoteHub struct {
-	mu           sync.RWMutex
-	connections  map[string]*RemoteConnection   // device_id → conn
-	connIndex    map[*websocket.Conn]string     // websocket conn → device_id
-	transports   map[string]CommandTransport    // name → alternate command transport
-	pending      map[string]chan *RemoteMessage // cmd_id → result channel
-	pendingMu    sync.Mutex
-	enrollmentMu sync.Mutex // serializes bounded unauthenticated pending registrations
-	db           *sql.DB
-	vault        *security.Vault
-	logger       *slog.Logger
+	mu            sync.RWMutex
+	connections   map[string]*RemoteConnection   // device_id → conn
+	connIndex     map[*websocket.Conn]string     // websocket conn → device_id
+	transports    map[string]CommandTransport    // name → alternate command transport
+	pending       map[string]chan *RemoteMessage // cmd_id → result channel
+	pendingMu     sync.Mutex
+	pendingOwners map[string]*RemoteConnection
+	disabled      bool
+	disableCh     chan struct{}
+	monitorMu     sync.Mutex
+	monitorCancel context.CancelFunc
+	monitorDone   chan struct{}
+	enrollmentMu  sync.Mutex // serializes bounded unauthenticated pending registrations
+	db            *sql.DB
+	vault         *security.Vault
+	logger        *slog.Logger
 
 	// Config-driven defaults (set by caller after construction)
 	DefaultReadOnly bool // default read-only setting for newly enrolled devices
@@ -108,6 +115,8 @@ func NewRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Logger) *Remot
 		connIndex:       make(map[*websocket.Conn]string),
 		transports:      make(map[string]CommandTransport),
 		pending:         make(map[string]chan *RemoteMessage),
+		pendingOwners:   make(map[string]*RemoteConnection),
+		disableCh:       make(chan struct{}),
 		db:              db,
 		vault:           vault,
 		logger:          logger,
@@ -126,6 +135,13 @@ func (h *RemoteHub) DB() *sql.DB {
 func (h *RemoteHub) Register(deviceID string, conn *RemoteConnection) {
 	var old *RemoteConnection
 	h.mu.Lock()
+	if h.disabled {
+		h.mu.Unlock()
+		if conn != nil && conn.Conn != nil {
+			_ = conn.Conn.Close()
+		}
+		return
+	}
 	if h.connections == nil {
 		h.connections = make(map[string]*RemoteConnection)
 	}
@@ -286,6 +302,12 @@ func (h *RemoteHub) UnregisterCommandTransport(name string) {
 
 // SendCommand sends a command to a remote and waits for the result.
 func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout time.Duration) (ResultPayload, error) {
+	h.mu.RLock()
+	disabled, disableCh := h.disabled, h.disableCh
+	h.mu.RUnlock()
+	if disabled {
+		return ResultPayload{}, fmt.Errorf("remote control is disabled")
+	}
 	cmd = prepareCommandPayload(cmd, timeout)
 	conn := h.GetConnection(deviceID)
 	if h.commandBlockedByReadOnly(deviceID, conn, cmd.Operation) {
@@ -311,12 +333,18 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 	// Create result channel
 	resultCh := make(chan *RemoteMessage, 1)
 	h.pendingMu.Lock()
+	if _, exists := h.pending[cmd.CommandID]; exists {
+		h.pendingMu.Unlock()
+		return ResultPayload{}, fmt.Errorf("command ID is already pending")
+	}
 	h.pending[cmd.CommandID] = resultCh
+	h.pendingOwners[cmd.CommandID] = conn
 	h.pendingMu.Unlock()
 
 	defer func() {
 		h.pendingMu.Lock()
 		delete(h.pending, cmd.CommandID)
+		delete(h.pendingOwners, cmd.CommandID)
 		h.pendingMu.Unlock()
 	}()
 
@@ -332,6 +360,8 @@ func (h *RemoteHub) SendCommand(deviceID string, cmd CommandPayload, timeout tim
 			return ResultPayload{}, fmt.Errorf("failed to unmarshal result: %w", err)
 		}
 		return result, nil
+	case <-disableCh:
+		return ResultPayload{}, fmt.Errorf("remote control was disabled")
 	case <-time.After(timeout):
 		return ResultPayload{
 			CommandID: cmd.CommandID,
@@ -463,6 +493,10 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 			continue
 		}
 
+		if msg.DeviceID != conn.DeviceID || h.GetConnection(conn.DeviceID) != conn {
+			continue
+		}
+
 		// Verify HMAC
 		ok, err := VerifyMessage(msg, conn.SharedKey)
 		if err != nil || !ok {
@@ -535,16 +569,22 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 		case MsgResult:
 			var result ResultPayload
 			if err := json.Unmarshal(msg.Payload, &result); err == nil {
+				h.mu.RLock()
 				h.pendingMu.Lock()
 				ch, ok := h.pending[result.CommandID]
-				h.pendingMu.Unlock()
+				ok = ok && h.pendingOwners[result.CommandID] == conn && h.connections[conn.DeviceID] == conn && !h.disabled
 				if ok {
 					select {
 					case ch <- &msg:
 					default:
-						h.logger.Debug("Duplicate remote result ignored", "command_id", result.CommandID)
 					}
 				}
+				h.pendingMu.Unlock()
+				h.mu.RUnlock()
+				if !ok {
+					continue
+				}
+
 				// Audit log
 				if h.db != nil && h.AuditLogEnabled {
 					_ = LogAudit(h.db, conn.DeviceID, "result", result.CommandID, result.Status, result.DurationMs)
@@ -600,6 +640,9 @@ func remoteAuditStatus(status string) string {
 
 // HandleEnrollment processes an auth message from a new or returning remote.
 func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) error {
+	if !h.Enabled() {
+		return fmt.Errorf("remote control is disabled")
+	}
 	var auth AuthPayload
 	if err := json.Unmarshal(msg.Payload, &auth); err != nil {
 		return fmt.Errorf("invalid auth payload: %w", err)
@@ -688,14 +731,8 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 	}
 
 	// ── Case 3: Auto-approve or manual-approval (pending) ──
-	if h.AutoApprove {
-		// Auto-approve remains intentionally constrained to private or loopback
-		// origins. Public unauthenticated joins must still enter the approval flow.
-		if isTrustedAutoApproveRemoteAddr(wsConn.RemoteAddr()) {
-			return h.completeEnrollment(wsConn, auth, "", auth.Hostname, "")
-		}
-		h.logger.Warn("Auto-approve bypassed for untrusted remote origin", "remote_addr", wsConn.RemoteAddr().String(), "hostname", auth.Hostname)
-	}
+	// A private peer address can be a reverse proxy or NAT. It is not identity.
+	// Tokenless joins always need an explicit administrator-issued token.
 
 	deviceName := auth.Hostname
 	if deviceName == "" {
@@ -803,34 +840,50 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 	return h.sendAuthResponse(wsConn, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &conn.ReadOnly, conn.AllowedPaths)
 }
 
-// ApproveDevice approves a pending device and generates credentials.
-// Returns the shared key for delivery to the device on next connection.
-func (h *RemoteHub) ApproveDevice(deviceID string) error {
+// ApproveDevice replaces a pending observation with a fresh, single-use token.
+// Only the administrator receives this token; no key is delivered to an
+// unauthenticated socket and previously consumed tokens remain invalid.
+func (h *RemoteHub) ApproveDevice(deviceID string) (string, string, error) {
+	if !h.Enabled() {
+		return "", "", fmt.Errorf("remote control is disabled")
+	}
 	device, err := GetDevice(h.db, deviceID)
 	if err != nil {
-		return fmt.Errorf("device not found: %w", err)
+		return "", "", fmt.Errorf("device not found: %w", err)
 	}
 	if device.Status != "pending" {
-		return fmt.Errorf("device is not pending approval (status: %s)", device.Status)
+		return "", "", fmt.Errorf("device is not pending approval")
 	}
-
-	sharedKey, err := GenerateSharedKey()
+	token, err := GenerateSharedKey()
 	if err != nil {
-		return fmt.Errorf("key generation failed: %w", err)
+		return "", "", err
 	}
-
-	device.Status = "approved"
-	device.SharedKeyHash = hashTokenSHA256(sharedKey)
-	if err := UpdateDevice(h.db, device); err != nil {
-		return fmt.Errorf("failed to update device: %w", err)
+	id, err := GenerateNonce()
+	if err != nil {
+		return "", "", err
 	}
-
-	if err := h.vault.WriteSecret("remote_shared_key_"+deviceID, sharedKey); err != nil {
-		return fmt.Errorf("failed to store shared key in vault: %w", err)
+	expires := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
+	tx, err := h.db.Begin()
+	if err != nil {
+		return "", "", err
 	}
-
-	h.logger.Info("Device approved", "device_id", deviceID, "name", device.Name)
-	return nil
+	defer tx.Rollback()
+	if _, err = tx.Exec(`INSERT INTO remote_enrollments (id, token_hash, device_name, created_at, expires_at, used, used_by_device) VALUES (?, ?, ?, ?, ?, 0, '')`, id, DeriveEnrollmentAuthKey(token), device.Name, time.Now().UTC().Format(time.RFC3339), expires); err != nil {
+		return "", "", err
+	}
+	result, err := tx.Exec(`DELETE FROM remote_devices WHERE id = ? AND status = 'pending'`, deviceID)
+	if err != nil {
+		return "", "", err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil || rows != 1 {
+		return "", "", fmt.Errorf("pending enrollment changed")
+	}
+	if err = tx.Commit(); err != nil {
+		return "", "", err
+	}
+	security.RegisterSensitive(token)
+	return token, expires, nil
 }
 
 // RejectDevice rejects a pending device.
@@ -874,28 +927,74 @@ func (h *RemoteHub) effectiveMaxFileSizeMB() int {
 }
 
 func isTrustedAutoApproveRemoteAddr(addr net.Addr) bool {
-	if addr == nil {
-		return false
+	// Kept for callers migrating from the legacy heuristic. An address alone
+	// can never authenticate a device, including loopback behind a proxy.
+	return false
+}
+
+func (h *RemoteHub) Enabled() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return !h.disabled
+}
+
+// SetEnabled serializes lifecycle transitions and drains the heartbeat monitor.
+func (h *RemoteHub) SetEnabled(enabled bool) {
+	h.monitorMu.Lock()
+	defer h.monitorMu.Unlock()
+	h.mu.Lock()
+	changed := h.disabled == enabled
+	h.disabled = !enabled
+	if changed {
+		if !enabled && h.disableCh != nil {
+			close(h.disableCh)
+		}
+		if enabled {
+			h.disableCh = make(chan struct{})
+		}
 	}
-	host := addr.String()
-	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
-		host = parsedHost
+	var conns []*RemoteConnection
+	if !enabled {
+		for _, conn := range h.connections {
+			conns = append(conns, conn)
+		}
 	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return false
+	h.mu.Unlock()
+	if !enabled {
+		if h.monitorCancel != nil {
+			h.monitorCancel()
+			<-h.monitorDone
+			h.monitorCancel = nil
+		}
+		for _, conn := range conns {
+			h.unregisterConnection(conn.DeviceID, conn)
+		}
 	}
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
 }
 
 // ── Heartbeat monitor ───────────────────────────────────────────────────────
 
 // StartHeartbeatMonitor periodically checks all connections for stale heartbeats.
 func (h *RemoteHub) StartHeartbeatMonitor(interval, maxAge time.Duration) {
+	h.monitorMu.Lock()
+	defer h.monitorMu.Unlock()
+	if !h.Enabled() || h.monitorCancel != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	h.monitorCancel = cancel
+	done := make(chan struct{})
+	h.monitorDone = done
 	go func() {
+		defer close(done)
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
 			h.mu.RLock()
 			var stale []*RemoteConnection
 			for _, conn := range h.connections {

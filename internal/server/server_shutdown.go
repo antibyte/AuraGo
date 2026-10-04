@@ -33,6 +33,10 @@ func (s *Server) closeRuntimeResources() {
 		s.WorkspaceSearch = nil
 	}
 
+	if s.RemoteHub != nil {
+		s.RemoteHub.SetEnabled(false)
+	}
+
 	if s.SQLConnectionPool != nil {
 		s.SQLConnectionPool.CloseAll()
 	}

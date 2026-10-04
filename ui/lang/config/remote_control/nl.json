@@ -24,7 +24,7 @@
   "config.onedrive.test_failed": "Mislukt",
   "config.onedrive.test_success": "Succes",
   "config.onedrive.testing": "Testen…",
-  "config.remote_control.allowed_paths_hint": "één per regel, leeg = alles",
+  "config.remote_control.allowed_paths_hint": "Eén pad per regel; een lege lijst blokkeert bestandstoegang.",
   "config.remote_control.allowed_paths_label": "Toegestane paden",
   "config.remote_control.audit_log_label": "Auditlogboek inschakelen",
   "config.remote_control.auto_approve_label": "Nieuwe apparaten automatisch goedkeuren (⚠️ alleen op vertrouwde netwerken)",

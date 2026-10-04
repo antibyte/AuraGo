@@ -58,6 +58,45 @@ func enrollmentTestSocket(t *testing.T, hub *RemoteHub) func(*RemoteMessage) Aut
 	}
 }
 
+func TestManualApprovalIssuesOneTimeToken(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	vault, err := security.NewVault(strings.Repeat("c", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hub := NewRemoteHub(db, vault, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	hub.AutoApprove = true
+	exchange := enrollmentTestSocket(t, hub)
+	unauthenticated, _ := NewMessage(MsgAuth, "", "", 1, AuthPayload{Hostname: "pending"})
+	pending := exchange(unauthenticated)
+	if pending.Status != "pending" {
+		t.Fatalf("address authenticated a device: %+v", pending)
+	}
+	token, _, err := hub.ApproveDevice(pending.DeviceID)
+	if err != nil || token == "" {
+		t.Fatalf("approval: %v", err)
+	}
+	if _, _, err := hub.ApproveDevice(pending.DeviceID); err == nil {
+		t.Fatal("approval repeated")
+	}
+	key := DeriveEnrollmentAuthKey(token)
+	for attempt := 0; attempt < 2; attempt++ {
+		message, _ := NewMessage(MsgAuth, "", key, 1, AuthPayload{TokenHash: key, Hostname: "pending"})
+		response := exchange(message)
+		want := "enrolled"
+		if attempt == 1 {
+			want = "rejected"
+		}
+		if response.Status != want {
+			t.Fatalf("attempt %d: %s", attempt, response.Status)
+		}
+	}
+}
+
 func TestEnrollmentTokenSingleUseAndReconnectReplay(t *testing.T) {
 	db, err := InitDB(filepath.Join(t.TempDir(), "remote.db"))
 	if err != nil {
