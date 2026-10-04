@@ -118,7 +118,7 @@ async function yepapiTestConnection() {
     }
 
     try {
-        const resp = await fetch('/api/yepapi/test');
+        const resp = await fetch('/api/yepapi/test', { method: 'POST' });
         const data = await resp.json();
         if (!result) return;
         if (data.status === 'ok') {

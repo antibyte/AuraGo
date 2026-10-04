@@ -295,7 +295,7 @@ func proxmoxBuildNodeSummary(items []map[string]interface{}) map[string]interfac
 func ProxmoxListNodes(cfg ProxmoxConfig) string {
 	data, code, err := proxmoxRequest(cfg, "GET", "/nodes", "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to list nodes: %v"}`, err)
+		return errJSON("Failed to list nodes: %v", err)
 	}
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
@@ -311,12 +311,12 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 	if node != "" {
 		data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/qemu", node), "")
 		if err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"Failed to list VMs: %v"}`, err)
+			return errJSON("Failed to list VMs: %v", err)
 		}
 		if code == 200 {
 			var raw []map[string]interface{}
 			if err := json.Unmarshal(proxmoxExtractData(data), &raw); err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"Failed to parse VMs: %v"}`, err)
+				return errJSON("Failed to parse VMs: %v", err)
 			}
 			if len(raw) > 0 {
 				normalized := proxmoxNormalizeResourceList(raw, "qemu", node)
@@ -337,7 +337,7 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 		if node == "" {
 			return `{"status":"error","message":"No node specified. Set proxmox.node in config or provide node parameter."}`
 		}
-		return fmt.Sprintf(`{"status":"error","message":"Failed to list VMs: %v"}`, err)
+		return errJSON("Failed to list VMs: %v", err)
 	}
 	filtered := proxmoxFilterClusterResources(resources, "qemu", node, "")
 	normalized := proxmoxNormalizeResourceList(filtered, "qemu", node)
@@ -360,12 +360,12 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 	if node != "" {
 		data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/lxc", node), "")
 		if err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"Failed to list containers: %v"}`, err)
+			return errJSON("Failed to list containers: %v", err)
 		}
 		if code == 200 {
 			var raw []map[string]interface{}
 			if err := json.Unmarshal(proxmoxExtractData(data), &raw); err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"Failed to parse containers: %v"}`, err)
+				return errJSON("Failed to parse containers: %v", err)
 			}
 			if len(raw) > 0 {
 				normalized := proxmoxNormalizeResourceList(raw, "lxc", node)
@@ -386,7 +386,7 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 		if node == "" {
 			return `{"status":"error","message":"No node specified."}`
 		}
-		return fmt.Sprintf(`{"status":"error","message":"Failed to list containers: %v"}`, err)
+		return errJSON("Failed to list containers: %v", err)
 	}
 	filtered := proxmoxFilterClusterResources(resources, "lxc", node, "")
 	normalized := proxmoxNormalizeResourceList(filtered, "lxc", node)
@@ -439,7 +439,7 @@ func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/status/current", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
 	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get status: %v"}`, err)
+		return errJSON("Failed to get status: %v", err)
 	}
 	if code == 200 {
 		return fmt.Sprintf(`{"status":"ok","data":%s}`, proxmoxExtractData(data))
@@ -487,12 +487,12 @@ func ProxmoxVMAction(cfg ProxmoxConfig, node string, vmType string, vmid string,
 		"reboot": true, "suspend": true, "resume": true, "reset": true,
 	}
 	if !validActions[action] {
-		return fmt.Sprintf(`{"status":"error","message":"Invalid action '%s'. Use: start, stop, shutdown, reboot, suspend, resume, reset"}`, action)
+		return errJSON("Invalid action '%s'. Use: start, stop, shutdown, reboot, suspend, resume, reset", action)
 	}
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/status/%s", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid), url.PathEscape(action))
 	data, code, err := proxmoxRequest(cfg, "POST", endpoint, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Action failed: %v"}`, err)
+		return errJSON("Action failed: %v", err)
 	}
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
@@ -510,7 +510,7 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 	}
 	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/status", url.PathEscape(node)), "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get node status: %v"}`, err)
+		return errJSON("Failed to get node status: %v", err)
 	}
 	if code == 200 {
 		return fmt.Sprintf(`{"status":"ok","data":%s}`, proxmoxExtractData(data))
@@ -536,7 +536,7 @@ func ProxmoxNodeStatus(cfg ProxmoxConfig, node string) string {
 func ProxmoxOverview(cfg ProxmoxConfig, node string) string {
 	allResources, _, err := proxmoxGetClusterResourceList(cfg, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get cluster overview: %v"}`, err)
+		return errJSON("Failed to get cluster overview: %v", err)
 	}
 
 	filteredNodes := proxmoxFilterClusterResources(allResources, "node", node, "")
@@ -574,7 +574,7 @@ func ProxmoxClusterResources(cfg ProxmoxConfig, resType string) string {
 	}
 	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get resources: %v"}`, err)
+		return errJSON("Failed to get resources: %v", err)
 	}
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
@@ -592,7 +592,7 @@ func ProxmoxGetStorage(cfg ProxmoxConfig, node string) string {
 	}
 	data, code, err := proxmoxRequest(cfg, "GET", fmt.Sprintf("/nodes/%s/storage", url.PathEscape(node)), "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get storage: %v"}`, err)
+		return errJSON("Failed to get storage: %v", err)
 	}
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
@@ -611,7 +611,7 @@ func ProxmoxGetTaskLog(cfg ProxmoxConfig, node string, upid string) string {
 	endpoint := fmt.Sprintf("/nodes/%s/tasks/%s/log", url.PathEscape(node), url.PathEscape(upid))
 	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to get task log: %v"}`, err)
+		return errJSON("Failed to get task log: %v", err)
 	}
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
@@ -648,7 +648,7 @@ func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, desc
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/snapshot", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
 	data, code, err := proxmoxRequest(cfg, "POST", endpoint, body)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Snapshot failed: %v"}`, err)
+		return errJSON("Snapshot failed: %v", err)
 	}
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
@@ -679,7 +679,7 @@ func ProxmoxListSnapshots(cfg ProxmoxConfig, node, vmType, vmid string) string {
 	endpoint := fmt.Sprintf("/nodes/%s/%s/%s/snapshot", url.PathEscape(node), url.PathEscape(vmType), url.PathEscape(vmid))
 	data, code, err := proxmoxRequest(cfg, "GET", endpoint, "")
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"Failed to list snapshots: %v"}`, err)
+		return errJSON("Failed to list snapshots: %v", err)
 	}
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))

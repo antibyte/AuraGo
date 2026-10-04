@@ -416,6 +416,12 @@ func applyDograhPatch(w http.ResponseWriter, r *http.Request, cfg *config.Config
 		return false
 	}
 	patch := req.Dograh
+	if strings.TrimSpace(patch.APIURL) != "" &&
+		strings.TrimRight(strings.TrimSpace(patch.APIURL), "/") != strings.TrimRight(strings.TrimSpace(cfg.Dograh.APIURL), "/") &&
+		strings.TrimSpace(patch.APIKey) == "" {
+		jsonError(w, "A changed Dograh API URL requires an explicit API key; saved credentials are bound to the saved target", http.StatusBadRequest)
+		return false
+	}
 	if patch.Enabled {
 		cfg.Dograh.Enabled = true
 	}

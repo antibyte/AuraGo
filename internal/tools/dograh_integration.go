@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 const (
@@ -1143,6 +1144,7 @@ type DograhAPIClient struct {
 }
 
 func (c DograhAPIClient) do(ctx context.Context, method, path string, body interface{}, out interface{}) (int, error) {
+	security.RegisterSensitive(c.APIKey)
 	base := strings.TrimRight(strings.TrimSpace(c.BaseURL), "/")
 	if base == "" {
 		return 0, fmt.Errorf("Dograh API URL is required")
@@ -1169,7 +1171,9 @@ func (c DograhAPIClient) do(ctx context.Context, method, path string, body inter
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
-	resp, err := client.Do(req)
+	boundClient := *client
+	boundClient.CheckRedirect = security.SameOriginRedirect
+	resp, err := boundClient.Do(req)
 	if err != nil {
 		return 0, err
 	}
