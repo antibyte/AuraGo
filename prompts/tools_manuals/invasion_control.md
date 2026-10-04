@@ -156,6 +156,12 @@ Task results may include `artifact_ids`. These are host-local artifacts created 
 - **Egg messages**: Rate-limited notifications from eggs; they can wake the host agent, but the agent must inspect them with `list_egg_messages`
 - **Secrets**: Credentials or sensitive data passed to running eggs
 
+## Protocol compatibility
+
+Master and Eggs require protocol v2. If `invasion_protocol_upgrade_required` is
+reported, ask the operator to update both binaries and restart/re-hatch the Egg;
+never bypass authentication or weaken TLS settings. Keep system clocks synchronized.
+
 ## Notes
 
 - Nests and eggs are the core concepts in the invasion control system

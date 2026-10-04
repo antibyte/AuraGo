@@ -66,7 +66,7 @@ func TestRegister_Success(t *testing.T) {
 		SharedKey: validKey(t),
 	}
 
-	if err := hub.Register("nest-1", conn); err != nil {
+	if err := registerTestConnection(t, hub, "nest-1", conn); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
 	if !hub.IsConnected("nest-1") {
@@ -88,8 +88,8 @@ func TestRegister_ReplacesExisting(t *testing.T) {
 	conn1 := &EggConnection{Conn: s1, EggID: "egg-1", NestID: "nest-1", SharedKey: validKey(t)}
 	conn2 := &EggConnection{Conn: s2, EggID: "egg-1", NestID: "nest-1", SharedKey: validKey(t)}
 
-	_ = hub.Register("nest-1", conn1)
-	if err := hub.Register("nest-1", conn2); err != nil {
+	_ = registerTestConnection(t, hub, "nest-1", conn1)
+	if err := registerTestConnection(t, hub, "nest-1", conn2); err != nil {
 		t.Fatalf("Register replacement: %v", err)
 	}
 
@@ -115,11 +115,11 @@ func TestRegister_MaxConnections(t *testing.T) {
 	conn1 := &EggConnection{Conn: s1, EggID: "egg-1", NestID: "nest-1", SharedKey: validKey(t)}
 	conn2 := &EggConnection{Conn: s2, EggID: "egg-2", NestID: "nest-2", SharedKey: validKey(t)}
 
-	if err := hub.Register("nest-1", conn1); err != nil {
+	if err := registerTestConnection(t, hub, "nest-1", conn1); err != nil {
 		t.Fatalf("Register first: %v", err)
 	}
 
-	if err := hub.Register("nest-2", conn2); err == nil {
+	if err := registerTestConnection(t, hub, "nest-2", conn2); err == nil {
 		t.Fatal("expected error when max connections reached")
 	}
 }
@@ -136,9 +136,9 @@ func TestRegister_MaxConnections_AllowsReplacement(t *testing.T) {
 	conn1 := &EggConnection{Conn: s1, EggID: "egg-1", NestID: "nest-1", SharedKey: validKey(t)}
 	conn2 := &EggConnection{Conn: s2, EggID: "egg-1", NestID: "nest-1", SharedKey: validKey(t)}
 
-	_ = hub.Register("nest-1", conn1)
+	_ = registerTestConnection(t, hub, "nest-1", conn1)
 	// Replacing same nest should work even at max
-	if err := hub.Register("nest-1", conn2); err != nil {
+	if err := registerTestConnection(t, hub, "nest-1", conn2); err != nil {
 		t.Fatalf("replacement at max limit should succeed: %v", err)
 	}
 }
@@ -156,7 +156,7 @@ func TestUnregister_Existing(t *testing.T) {
 	}
 
 	conn := &EggConnection{Conn: s, EggID: "egg-1", NestID: "nest-1", SharedKey: validKey(t)}
-	_ = hub.Register("nest-1", conn)
+	_ = registerTestConnection(t, hub, "nest-1", conn)
 	hub.Unregister("nest-1")
 
 	if hub.IsConnected("nest-1") {
@@ -189,8 +189,8 @@ func TestConnectedNests(t *testing.T) {
 	s2, _, c2 := wsPair(t)
 	defer c2()
 
-	_ = hub.Register("nest-a", &EggConnection{Conn: s1, EggID: "e1", NestID: "nest-a", SharedKey: validKey(t)})
-	_ = hub.Register("nest-b", &EggConnection{Conn: s2, EggID: "e2", NestID: "nest-b", SharedKey: validKey(t)})
+	_ = registerTestConnection(t, hub, "nest-a", &EggConnection{Conn: s1, EggID: "e1", NestID: "nest-a", SharedKey: validKey(t)})
+	_ = registerTestConnection(t, hub, "nest-b", &EggConnection{Conn: s2, EggID: "e2", NestID: "nest-b", SharedKey: validKey(t)})
 
 	nests := hub.ConnectedNests()
 	if len(nests) != 2 {
@@ -213,7 +213,7 @@ func TestSendTask_Connected(t *testing.T) {
 	sConn, cConn, cleanup := wsPair(t)
 	defer cleanup()
 
-	_ = hub.Register("nest-1", &EggConnection{
+	_ = registerTestConnection(t, hub, "nest-1", &EggConnection{
 		Conn: sConn, EggID: "egg-1", NestID: "nest-1", SharedKey: key,
 	})
 
@@ -265,7 +265,7 @@ func TestSendSecret_Connected(t *testing.T) {
 	sConn, cConn, cleanup := wsPair(t)
 	defer cleanup()
 
-	_ = hub.Register("nest-1", &EggConnection{
+	_ = registerTestConnection(t, hub, "nest-1", &EggConnection{
 		Conn: sConn, EggID: "egg-1", NestID: "nest-1", SharedKey: key,
 	})
 
@@ -288,7 +288,7 @@ func TestSendStop_Connected(t *testing.T) {
 	sConn, cConn, cleanup := wsPair(t)
 	defer cleanup()
 
-	_ = hub.Register("nest-1", &EggConnection{
+	_ = registerTestConnection(t, hub, "nest-1", &EggConnection{
 		Conn: sConn, EggID: "egg-1", NestID: "nest-1", SharedKey: key,
 	})
 
@@ -329,12 +329,13 @@ func TestHandleMessages_Heartbeat(t *testing.T) {
 	conn := &EggConnection{
 		Conn: sConn, EggID: "egg-1", NestID: "nest-1", SharedKey: key,
 	}
-	_ = hub.Register("nest-1", conn)
+	_ = registerTestConnection(t, hub, "nest-1", conn)
 
 	// Send heartbeat from client side
 	hbMsg, _ := NewMessage(MsgHeartbeat, "egg-1", "nest-1", key, HeartbeatPayload{
 		CPUPercent: 25.0, MemPercent: 60.0, Status: "idle",
 	})
+	testSession(t, "egg-1", "nest-1", "egg").Prepare(hbMsg, key)
 	cConn.WriteJSON(hbMsg)
 
 	// Start HandleMessages in background (it will read the heartbeat then block on next read)
@@ -367,7 +368,7 @@ func TestHandleMessages_InvalidHMAC(t *testing.T) {
 	conn := &EggConnection{
 		Conn: sConn, EggID: "egg-1", NestID: "nest-1", SharedKey: key,
 	}
-	_ = hub.Register("nest-1", conn)
+	_ = registerTestConnection(t, hub, "nest-1", conn)
 
 	// Send message with wrong key
 	wrongKey := validKey(t)
@@ -410,11 +411,12 @@ func TestHandleMessages_Result(t *testing.T) {
 	conn := &EggConnection{
 		Conn: sConn, EggID: "egg-1", NestID: "nest-1", SharedKey: key,
 	}
-	_ = hub.Register("nest-1", conn)
+	_ = registerTestConnection(t, hub, "nest-1", conn)
 
 	resultMsg, _ := NewMessage(MsgResult, "egg-1", "nest-1", key, ResultPayload{
 		TaskID: "task-42", Status: "success", Output: "done",
 	})
+	testSession(t, "egg-1", "nest-1", "egg").Prepare(resultMsg, key)
 	cConn.WriteJSON(resultMsg)
 
 	done := make(chan struct{})
@@ -486,7 +488,7 @@ func TestRegister_OnConnect(t *testing.T) {
 	}
 
 	conn := &EggConnection{Conn: s, EggID: "egg-1", NestID: "nest-1", SharedKey: validKey(t)}
-	_ = hub.Register("nest-1", conn)
+	_ = registerTestConnection(t, hub, "nest-1", conn)
 
 	if connectedNest != "nest-1" {
 		t.Errorf("OnConnect nest = %q, want %q", connectedNest, "nest-1")
@@ -506,4 +508,21 @@ func TestEggConnection_GetTelemetry(t *testing.T) {
 	if tel.Status != "busy" {
 		t.Errorf("status = %q, want %q", tel.Status, "busy")
 	}
+}
+
+func registerTestConnection(t *testing.T, hub *EggHub, nestID string, conn *EggConnection) error {
+	t.Helper()
+	if conn.Session == nil {
+		conn.Session = testSession(t, conn.EggID, nestID, "master")
+	}
+	return hub.Register(nestID, conn)
+}
+
+func testSession(t *testing.T, eggID, nestID, role string) *Session {
+	t.Helper()
+	s, err := NewSession(strings.Repeat("a", 64), eggID, nestID, role)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }

@@ -1075,7 +1075,7 @@ func main() {
 		eggClient.OnSecret = func(secret bridge.SecretPayload) {
 			appLog.Info("Secret received from master", "key", secret.Key)
 			// Decrypt the value with the shared key, then store in local vault
-			plaintext, err := bridge.DecryptWithSharedKey(secret.EncryptedValue, cfg.EggMode.SharedKey)
+			plaintext, err := bridge.DecryptWithSharedKey(secret.EncryptedValue, eggClient.SharedKeySnapshot())
 			if err != nil {
 				appLog.Error("Failed to decrypt received secret", "key", secret.Key, "error", err)
 				return

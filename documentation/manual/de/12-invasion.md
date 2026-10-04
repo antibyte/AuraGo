@@ -515,6 +515,18 @@ WebSocket-Verbindung verloren oder Egg antwortet nicht. Re-Hatch oder Remote-Pro
 
 ---
 
+## Protokoll-Upgrade
+
+Master und Eggs müssen Protokoll v2 unterstützen. Eine ältere Gegenstelle wird mit
+`invasion_protocol_upgrade_required` abgewiesen. Aktualisiere beide Binärdateien
+und starte das betroffene Egg neu oder führe einen neuen Hatch aus. Es gibt keinen
+Rückfall auf die alte Authentifizierung. Halte die Systemuhren synchron.
+Jede Verbindung erhält eine neue Challenge; Identitäten, Nachrichten-IDs und
+Sequenznummern sind signiert. Aufgezeichnete Nachrichten können keine andere
+Verbindung authentifizieren. Nutze WSS oder ein authentifiziertes verschlüsseltes
+Netz für Vertraulichkeit. SSH-Deployment und Rekonfiguration übertragen private
+Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
+
 ## Sicherheitshinweise
 
 > ⚠️ **Wichtig:**

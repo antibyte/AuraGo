@@ -2,10 +2,12 @@ package bridge
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -26,25 +28,36 @@ type EggConnection struct {
 	Telemetry     HeartbeatPayload
 	KeyVersion    int
 	mu            sync.Mutex
-	writeMu       sync.Mutex
+	Session       *Session
+	closed        atomic.Bool
 }
 
 // Send writes a signed message to the egg.
 func (ec *EggConnection) Send(msg *Message) error {
 	ec.mu.Lock()
-	conn := ec.Conn
-	ec.mu.Unlock()
-	if conn == nil {
+	defer ec.mu.Unlock()
+	return ec.sendLocked(msg)
+}
+
+func (ec *EggConnection) sendLocked(msg *Message) error {
+	if ec.Conn == nil || ec.closed.Load() {
 		return fmt.Errorf("egg connection is closed")
 	}
-	ec.writeMu.Lock()
-	defer ec.writeMu.Unlock()
-	return conn.WriteJSON(msg)
+	if err := ec.Session.Prepare(msg, ec.SharedKey); err != nil {
+		return err
+	}
+	_ = ec.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	return ec.Conn.WriteJSON(msg)
+}
+
+func (ec *EggConnection) newMessage(kind string, payload interface{}) (*Message, error) {
+	ec.mu.Lock()
+	defer ec.mu.Unlock()
+	return NewMessage(kind, ec.EggID, ec.NestID, ec.SharedKey, payload)
 }
 
 func (ec *EggConnection) close() error {
-	ec.writeMu.Lock()
-	defer ec.writeMu.Unlock()
+	ec.closed.Store(true)
 	if ec.Conn == nil {
 		return nil
 	}
@@ -61,10 +74,11 @@ func (ec *EggConnection) GetTelemetry() HeartbeatPayload {
 // EggHub manages all connected egg workers on the master side.
 type EggHub struct {
 	mu             sync.RWMutex
+	lifecycleMu    sync.Mutex
 	connections    map[string]*EggConnection // keyed by nest_id
 	logger         *slog.Logger
 	MaxConnections int // 0 = unlimited
-	pendingAcks    map[string]chan AckPayload
+	pendingAcks    map[string]pendingAck
 	ackTimeout     time.Duration
 
 	// Callbacks (set by the server layer)
@@ -75,11 +89,16 @@ type EggHub struct {
 	OnMissionResult func(nestID string, result MissionResultPayload)
 }
 
+type pendingAck struct {
+	conn *EggConnection
+	ch   chan AckPayload
+}
+
 // NewEggHub creates a new hub for managing egg connections.
 func NewEggHub(logger *slog.Logger) *EggHub {
 	return &EggHub{
 		connections: make(map[string]*EggConnection),
-		pendingAcks: make(map[string]chan AckPayload),
+		pendingAcks: make(map[string]pendingAck),
 		ackTimeout:  15 * time.Second,
 		logger:      logger,
 	}
@@ -87,21 +106,27 @@ func NewEggHub(logger *slog.Logger) *EggHub {
 
 // Register adds an authenticated egg connection to the hub.
 func (h *EggHub) Register(nestID string, conn *EggConnection) error {
+	if conn == nil || conn.Session == nil || conn.Session.Role != "master" || conn.Session.NestID != nestID || conn.Session.EggID != conn.EggID || conn.NestID != nestID {
+		return fmt.Errorf("authenticated session required")
+	}
+	h.lifecycleMu.Lock()
+	defer h.lifecycleMu.Unlock()
 	h.mu.Lock()
-	// Close existing connection for this nest if any
-	if old, ok := h.connections[nestID]; ok {
-		h.logger.Warn("Replacing existing egg connection", "nest_id", nestID)
-		_ = old.close()
-	} else if h.MaxConnections > 0 && len(h.connections) >= h.MaxConnections {
+	old := h.connections[nestID]
+	if old == nil && h.MaxConnections > 0 && len(h.connections) >= h.MaxConnections {
 		h.mu.Unlock()
 		return fmt.Errorf("max connections reached (%d)", h.MaxConnections)
 	}
+	conn.mu.Lock()
 	if conn.LastHeartbeat.IsZero() {
 		conn.LastHeartbeat = time.Now()
 	}
+	conn.mu.Unlock()
 	h.connections[nestID] = conn
 	h.mu.Unlock()
-
+	if old != nil && old != conn {
+		_ = old.close()
+	}
 	h.logger.Info("Egg connected", "nest_id", nestID, "egg_id", conn.EggID)
 	if h.OnConnect != nil {
 		h.OnConnect(nestID, conn.EggID)
@@ -109,25 +134,38 @@ func (h *EggHub) Register(nestID string, conn *EggConnection) error {
 	return nil
 }
 
-// Unregister removes an egg connection from the hub.
+// Unregister explicitly revokes the current connection for an administrative action.
 func (h *EggHub) Unregister(nestID string) {
-	h.unregister(nestID, true)
+	h.unregister(nestID, nil, true, 0, nil)
 }
 
-func (h *EggHub) unregister(nestID string, notify bool) {
+// Connection-owned cleanup can remove only that exact generation.
+func (h *EggHub) unregister(nestID string, expected *EggConnection, notify bool, maxAge time.Duration, onStale func(string, string)) {
+	h.lifecycleMu.Lock()
+	defer h.lifecycleMu.Unlock()
 	h.mu.Lock()
-	conn, ok := h.connections[nestID]
-	if ok {
-		delete(h.connections, nestID)
+	conn := h.connections[nestID]
+	if conn == nil || (expected != nil && conn != expected) {
+		h.mu.Unlock()
+		return
 	}
-	h.mu.Unlock()
-
-	if ok {
-		_ = conn.close()
-		h.logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", conn.EggID)
-		if notify && h.OnDisconnect != nil {
-			h.OnDisconnect(nestID, conn.EggID)
+	if maxAge > 0 {
+		conn.mu.Lock()
+		stale := !conn.LastHeartbeat.IsZero() && time.Since(conn.LastHeartbeat) > maxAge
+		conn.mu.Unlock()
+		if !stale {
+			h.mu.Unlock()
+			return
 		}
+	}
+	delete(h.connections, nestID)
+	h.mu.Unlock()
+	_ = conn.close()
+	if notify && h.OnDisconnect != nil {
+		h.OnDisconnect(nestID, conn.EggID)
+	}
+	if onStale != nil {
+		onStale(nestID, conn.EggID)
 	}
 }
 
@@ -170,7 +208,7 @@ func (h *EggHub) SendTask(nestID string, task TaskPayload) error {
 	if conn == nil {
 		return fmt.Errorf("no active connection for nest %s", nestID)
 	}
-	msg, err := NewMessage(MsgTask, conn.EggID, nestID, conn.SharedKey, task)
+	msg, err := conn.newMessage(MsgTask, task)
 	if err != nil {
 		return fmt.Errorf("failed to create task message: %w", err)
 	}
@@ -212,7 +250,7 @@ func (h *EggHub) sendMissionMessageContext(ctx context.Context, nestID, msgType 
 	if conn == nil {
 		return fmt.Errorf("no active connection for nest %s", nestID)
 	}
-	msg, err := NewMessage(msgType, conn.EggID, nestID, conn.SharedKey, payload)
+	msg, err := conn.newMessage(msgType, payload)
 	if err != nil {
 		return fmt.Errorf("failed to create %s message: %w", msgType, err)
 	}
@@ -229,7 +267,7 @@ func (h *EggHub) sendWithAckContext(ctx context.Context, conn *EggConnection, ms
 	}
 	ackCh := make(chan AckPayload, 1)
 	h.mu.Lock()
-	h.pendingAcks[msg.ID] = ackCh
+	h.pendingAcks[msg.ID] = pendingAck{conn: conn, ch: ackCh}
 	timeout := h.ackTimeout
 	h.mu.Unlock()
 
@@ -261,11 +299,12 @@ func (h *EggHub) sendWithAckContext(ctx context.Context, conn *EggConnection, ms
 	}
 }
 
-func (h *EggHub) resolveAck(ack AckPayload) {
+func (h *EggHub) resolveAck(conn *EggConnection, ack AckPayload) {
 	h.mu.RLock()
-	ch := h.pendingAcks[ack.RefID]
+	pending := h.pendingAcks[ack.RefID]
+	ch := pending.ch
 	h.mu.RUnlock()
-	if ch == nil {
+	if ch == nil || pending.conn != conn {
 		return
 	}
 	select {
@@ -275,7 +314,7 @@ func (h *EggHub) resolveAck(ack AckPayload) {
 }
 
 func (h *EggHub) sendAck(conn *EggConnection, refID string, success bool, detail string) error {
-	ack, err := NewMessage(MsgAck, conn.EggID, conn.NestID, conn.SharedKey, AckPayload{
+	ack, err := conn.newMessage(MsgAck, AckPayload{
 		RefID:   refID,
 		Success: success,
 		Detail:  detail,
@@ -293,7 +332,7 @@ func (h *EggHub) SendSecret(nestID, key, encryptedValue string) error {
 		return fmt.Errorf("no active connection for nest %s", nestID)
 	}
 	payload := SecretPayload{Key: key, EncryptedValue: encryptedValue}
-	msg, err := NewMessage(MsgSecret, conn.EggID, nestID, conn.SharedKey, payload)
+	msg, err := conn.newMessage(MsgSecret, payload)
 	if err != nil {
 		return fmt.Errorf("failed to create secret message: %w", err)
 	}
@@ -307,7 +346,7 @@ func (h *EggHub) SendSafeReconfigure(nestID string, payload ReconfigurePayload) 
 	if conn == nil {
 		return fmt.Errorf("no active connection for nest %s", nestID)
 	}
-	msg, err := NewMessage(MsgSafeReconfigure, conn.EggID, nestID, conn.SharedKey, payload)
+	msg, err := conn.newMessage(MsgSafeReconfigure, payload)
 	if err != nil {
 		return fmt.Errorf("failed to create safe_reconfigure message: %w", err)
 	}
@@ -320,14 +359,14 @@ func (h *EggHub) SendStop(nestID string) error {
 	if conn == nil {
 		return fmt.Errorf("no active connection for nest %s", nestID)
 	}
-	msg, err := NewMessage(MsgStop, conn.EggID, nestID, conn.SharedKey, nil)
+	msg, err := conn.newMessage(MsgStop, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create stop message: %w", err)
 	}
 	if err := conn.Send(msg); err != nil {
 		return err
 	}
-	h.Unregister(nestID)
+	h.unregister(nestID, conn, true, 0, nil)
 	return nil
 }
 
@@ -340,35 +379,26 @@ func (h *EggHub) SendRekey(nestID, newKeyHex string) error {
 		return fmt.Errorf("no active connection for nest %s", nestID)
 	}
 
-	// Encrypt the new key with the current shared key
+	key, err := hex.DecodeString(newKeyHex)
+	if err != nil || len(key) != 32 {
+		return fmt.Errorf("invalid new shared key")
+	}
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
 	encrypted, err := EncryptWithSharedKey([]byte(newKeyHex), conn.SharedKey)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt new key: %w", err)
+		return fmt.Errorf("encrypt new shared key: %w", err)
 	}
-
-	conn.mu.Lock()
-	conn.KeyVersion++
-	version := conn.KeyVersion
-	conn.mu.Unlock()
-
-	payload := RekeyPayload{
-		NewKeyEncrypted: encrypted,
-		KeyVersion:      version,
-	}
-	msg, err := NewMessage(MsgRekey, conn.EggID, nestID, conn.SharedKey, payload)
+	version := conn.KeyVersion + 1
+	msg, err := NewMessage(MsgRekey, conn.EggID, nestID, conn.SharedKey, RekeyPayload{NewKeyEncrypted: encrypted, KeyVersion: version})
 	if err != nil {
-		return fmt.Errorf("failed to create rekey message: %w", err)
-	}
-	if err := conn.Send(msg); err != nil {
 		return err
 	}
-
-	// Rotate keys: current → previous, new → current
-	conn.mu.Lock()
-	conn.PreviousKey = conn.SharedKey
-	conn.PreviousKeyAt = time.Now()
-	conn.SharedKey = newKeyHex
-	conn.mu.Unlock()
+	if err := conn.sendLocked(msg); err != nil {
+		return err
+	}
+	conn.PreviousKey, conn.PreviousKeyAt = conn.SharedKey, time.Now()
+	conn.SharedKey, conn.KeyVersion = newKeyHex, version
 
 	h.logger.Info("Key rotated for egg", "nest_id", nestID, "version", version)
 	return nil
@@ -377,7 +407,10 @@ func (h *EggHub) SendRekey(nestID, newKeyHex string) error {
 // HandleMessages reads messages from an egg connection and dispatches them.
 // Blocks until the connection closes or an error occurs.
 func (h *EggHub) HandleMessages(conn *EggConnection) {
-	defer h.Unregister(conn.NestID)
+	defer h.unregister(conn.NestID, conn, true, 0, nil)
+	if conn.closed.Load() || conn.Conn == nil {
+		return
+	}
 	conn.Conn.SetReadLimit(MaxEggWebSocketMessageBytes)
 
 	// Rate limit: max 100 messages per second per connection
@@ -416,25 +449,19 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 			continue
 		}
 
-		// Verify HMAC (try current key, fall back to previous key within grace period)
 		conn.mu.Lock()
-		currentKey := conn.SharedKey
-		prevKey := conn.PreviousKey
-		prevKeyAt := conn.PreviousKeyAt
-		conn.mu.Unlock()
-
-		ok, err := VerifyMessage(msg, currentKey)
-		if (err != nil || !ok) && prevKey != "" && time.Since(prevKeyAt) < 60*time.Second {
-			ok, err = VerifyMessage(msg, prevKey)
+		previous := ""
+		if time.Since(conn.PreviousKeyAt) < time.Minute {
+			previous = conn.PreviousKey
 		}
-		if err != nil || !ok {
-			h.logger.Warn("HMAC verification failed", "nest_id", conn.NestID)
-			errMsg, _ := NewMessage(MsgError, conn.EggID, conn.NestID, conn.SharedKey,
-				ErrorPayload{Code: "invalid_hmac", Message: "HMAC verification failed"})
-			if errMsg != nil {
-				_ = conn.Send(errMsg)
-			}
-			continue
+		err = conn.Session.Accept(msg, conn.SharedKey, previous)
+		conn.mu.Unlock()
+		if err != nil {
+			h.logger.Warn("Rejected egg message", "nest_id", conn.NestID, "error", err)
+			return
+		}
+		if h.GetConnection(conn.NestID) != conn {
+			return
 		}
 
 		switch msg.Type {
@@ -468,7 +495,7 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 		case MsgAck:
 			var ack AckPayload
 			if err := json.Unmarshal(msg.Payload, &ack); err == nil {
-				h.resolveAck(ack)
+				h.resolveAck(conn, ack)
 			}
 			h.logger.Debug("Ack received from egg", "nest_id", conn.NestID, "msg_id", msg.ID)
 		case MsgStatus:
@@ -499,21 +526,15 @@ func (h *EggHub) StartHeartbeatMonitor(ctx context.Context, interval, maxAge tim
 			case <-ticker.C:
 			}
 			h.mu.RLock()
-			var stale []struct{ nestID, eggID string }
-			for nestID, conn := range h.connections {
-				if !conn.LastHeartbeat.IsZero() && time.Since(conn.LastHeartbeat) > maxAge {
-					stale = append(stale, struct{ nestID, eggID string }{nestID, conn.EggID})
-				}
+			candidates := make([]*EggConnection, 0, len(h.connections))
+			for _, conn := range h.connections {
+				candidates = append(candidates, conn)
 			}
 			h.mu.RUnlock()
-
-			for _, s := range stale {
-				h.logger.Warn("Egg heartbeat stale", "nest_id", s.nestID, "egg_id", s.eggID)
-				if onStale != nil {
-					onStale(s.nestID, s.eggID)
-				}
-				h.unregister(s.nestID, false)
+			for _, conn := range candidates {
+				h.unregister(conn.NestID, conn, false, maxAge, onStale)
 			}
+
 		}
 	}()
 }

@@ -534,7 +534,7 @@ var wsUpgrader = websocket.Upgrader{
 
 func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.InvasionDB == nil {
+		if s.InvasionDB == nil || s.EggHub == nil || s.Vault == nil {
 			jsonError(w, "Invasion Control is not enabled", http.StatusServiceUnavailable)
 			return
 		}
@@ -545,7 +545,20 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Wait for auth message
+		defer conn.Close()
+		conn.SetReadLimit(64 << 10)
+		challenge, err := bridge.NewChallenge()
+		if err != nil {
+			return
+		}
+		_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		// Legacy clients understand error envelopes and display this upgrade notice.
+		// Protocol v2 clients recognize the versioned challenge before sending auth.
+		notice, _ := json.Marshal(bridge.ErrorPayload{Code: "invasion_protocol_upgrade_required", Message: bridge.UpgradeRequired})
+		if err := conn.WriteJSON(bridge.Message{Protocol: bridge.ProtocolVersion, Type: bridge.MsgError, Session: challenge, Payload: notice}); err != nil {
+			return
+		}
+		// Wait for a signed response to this connection's challenge.
 		conn.SetReadDeadline(time.Now().Add(15 * time.Second))
 		_, data, err := conn.ReadMessage()
 		if err != nil {
@@ -562,6 +575,10 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
+		if authMsg.Protocol != bridge.ProtocolVersion {
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, bridge.UpgradeRequired), time.Now().Add(time.Second))
+			return
+		}
 		// Validate egg and nest
 		nest, err := invasion.GetNest(s.InvasionDB, authMsg.NestID)
 		if err != nil {
@@ -577,7 +594,7 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		if !egg.Active {
+		if !egg.Active || !nest.Active || nest.EggID != egg.ID {
 			s.Logger.Warn("Auth failed: egg is inactive", "egg_id", authMsg.EggID)
 			conn.Close()
 			return
@@ -591,24 +608,19 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Verify HMAC
-		ok, err := bridge.VerifyMessage(authMsg, sharedKey)
-		if err != nil || !ok {
-			s.Logger.Warn("Auth failed: HMAC mismatch", "nest_id", nest.ID)
-			conn.Close()
+		session, err := bridge.NewSession(challenge, authMsg.EggID, authMsg.NestID, "master")
+		if err != nil || session.Accept(authMsg, sharedKey, "") != nil {
 			return
 		}
-
-		// Send ack
-		ackMsg, err := bridge.NewMessage(bridge.MsgAck, authMsg.EggID, authMsg.NestID, sharedKey,
-			bridge.AckPayload{RefID: authMsg.ID, Success: true, Detail: "authenticated"})
-		if err == nil {
-			_ = conn.WriteJSON(ackMsg)
+		ackMsg, err := bridge.NewMessage(bridge.MsgAck, authMsg.EggID, authMsg.NestID, sharedKey, bridge.AckPayload{RefID: authMsg.ID, Success: true, Detail: "authenticated"})
+		if err != nil || session.Prepare(ackMsg, sharedKey) != nil || conn.WriteJSON(ackMsg) != nil {
+			return
 		}
 
 		// Register connection
 		eggConn := &bridge.EggConnection{
 			Conn:          conn,
+			Session:       session,
 			EggID:         authMsg.EggID,
 			NestID:        authMsg.NestID,
 			SharedKey:     sharedKey,

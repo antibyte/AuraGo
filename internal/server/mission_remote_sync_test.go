@@ -28,7 +28,12 @@ func setupInvasionTestDB(t *testing.T) *sql.DB {
 
 func registerFakeEggConnection(t *testing.T, hub *bridge.EggHub, nestID, eggID string) {
 	t.Helper()
+	session, err := bridge.NewSession(strings.Repeat("a", 64), eggID, nestID, "master")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := hub.Register(nestID, &bridge.EggConnection{
+		Session:   session,
 		EggID:     eggID,
 		NestID:    nestID,
 		SharedKey: strings.Repeat("1", 64),

@@ -579,6 +579,16 @@ The Egg lost its WebSocket connection or stopped responding. Re-hatch or investi
 
 ---
 
+## Protocol upgrade
+
+Master and Eggs must both support protocol v2. An older peer is refused with
+`invasion_protocol_upgrade_required`; update both binaries and restart or re-hatch
+the affected Egg. There is no legacy authentication fallback. Keep clocks synchronized.
+Every connection uses a fresh challenge and signed identities, message IDs and
+ordered sequence numbers; captured messages cannot authenticate another connection.
+Use WSS or an authenticated encrypted network for confidentiality. SSH deployment
+and reconfiguration send private files over encrypted stdin and publish them atomically.
+
 ## Security Notes
 
 > ⚠️ **Important:**

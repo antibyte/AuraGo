@@ -261,6 +261,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Docker Engine transport and version negotiation | `internal/dockerutil/AGENTS.md` |
 | Desktop rooted files and archives | `internal/desktop/AGENTS.md` |
 | Security primitives, Vault import grants and Cast tickets | `internal/security/AGENTS.md` |
+| Invasion worker protocol and deployment | `internal/invasion/AGENTS.md` |
 | Remote enrollment and connection lifecycle | `internal/remote/AGENTS.md` |
 | LLM transport trust and failover | `internal/llm/AGENTS.md` |
 | HTTP stream write budgets | `internal/httpstream/AGENTS.md` |
@@ -588,6 +589,7 @@ Current child AGENTS.md files:
 - `internal/fritzbox/AGENTS.md` — TR-064 integration and Desktop widget behavior.
 - `internal/gamemaker/AGENTS.md` — Game planning, runtime feedback/progression, lifecycle, validation and exports; owns the asset-pack child index.
 - `internal/httpstream/AGENTS.md` — Finite stream write budgets and HTTP writer compatibility.
+- `internal/invasion/AGENTS.md` — Egg/nest authentication, connection generations, key rotation and private deployment.
 - `internal/llm/AGENTS.md` — Provider transport trust, URL logging and failover state.
 - `internal/localllm/AGENTS.md` — Local model lifecycle, routing, attestation, and qualification.
 - `internal/memory/AGENTS.md` — Memory retrieval, hygiene, indexing, and maintenance.
