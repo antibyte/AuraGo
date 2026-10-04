@@ -171,7 +171,7 @@ func handleDesktopArchiveEntry(s *Server) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
 			return
 		}
-		if r.Method != http.MethodGet {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -198,6 +198,13 @@ func handleDesktopArchiveEntry(s *Server) http.HandlerFunc {
 		if mimeType == "" {
 			mimeType = "application/octet-stream"
 		}
+		switch strings.ToLower(filepath.Ext(entry.Name)) {
+		case ".html", ".htm", ".js", ".mjs":
+			mimeType = "text/plain; charset=utf-8"
+		}
+		// Cover direct navigation and any additional active MIME type too. CSP
+		// sandbox must be a response header, not an iframe attribute or meta tag.
+		w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'")
 		w.Header().Set("Content-Type", mimeType)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=60")

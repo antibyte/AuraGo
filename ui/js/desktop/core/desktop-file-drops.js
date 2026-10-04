@@ -252,7 +252,7 @@
             event.stopPropagation();
             btn.classList.remove('vd-trash-drop-target');
             try {
-                for (const path of payload.paths) await movePathToTrash(path);
+                await movePathsToTrash(payload.paths);
             } catch (err) {
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message });
             }

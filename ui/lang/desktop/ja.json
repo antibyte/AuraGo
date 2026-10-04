@@ -1,4 +1,8 @@
 {
+  "desktop.file_conflict_title": "ファイルの競合",
+  "desktop.file_conflict_message": "ファイル「{{path}}」は既に存在するか、変更されています。",
+  "desktop.file_conflict_replace": "置き換える",
+  "desktop.file_conflict_copy": "コピーを保持",
   "newspaper.tool_brave_search": "Brave Search",
   "newspaper.tool_ddg_search": "DuckDuckGo",
   "newspaper.tool_rss": "RSS / Atom",

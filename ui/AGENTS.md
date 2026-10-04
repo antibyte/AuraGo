@@ -14,6 +14,13 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Ownership
 
+- Desktop file mutations use the shared conflict runtime: strong ETags for
+  observed versions, create-only requests for new files, and explicit Replace /
+  Keep copy / Cancel after a server conflict. Each editor/SDK client owns the
+  version it read; a global path cache must not grant another window an overwrite.
+  Adopt the server's returned path after a copy decision. Rebuild Desktop bundles
+  and verify `TestDesktopFileConflictBrowser` for changes to this flow.
+
 - Precision Workspace is an opt-in design system. Operational consumers are
   `config.html`, `dashboard.html`, `plans.html`, `missions_v2.html`,
   `cheatsheets.html`, `knowledge.html`, `skills.html`, `containers.html`,

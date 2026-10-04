@@ -1,4 +1,8 @@
 {
+  "desktop.file_conflict_title": "Filkonflikt",
+  "desktop.file_conflict_message": "Filen »{{path}}« findes allerede eller er blevet ændret.",
+  "desktop.file_conflict_replace": "Erstat",
+  "desktop.file_conflict_copy": "Behold en kopi",
   "newspaper.tool_brave_search": "Brave Search",
   "newspaper.tool_ddg_search": "DuckDuckGo",
   "newspaper.tool_rss": "RSS / Atom",

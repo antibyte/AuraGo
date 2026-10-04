@@ -1,4 +1,8 @@
 {
+  "desktop.file_conflict_title": "फ़ाइल में टकराव",
+  "desktop.file_conflict_message": "फ़ाइल “{{path}}” पहले से मौजूद है या बदल गई है।",
+  "desktop.file_conflict_replace": "बदलें",
+  "desktop.file_conflict_copy": "एक प्रति रखें",
   "newspaper.tool_brave_search": "Brave Search",
   "newspaper.tool_ddg_search": "DuckDuckGo",
   "newspaper.tool_rss": "RSS / Atom",

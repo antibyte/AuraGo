@@ -246,8 +246,10 @@ func TestPixelLoadsDesktopPreviewAsImageSource(t *testing.T) {
 		t.Fatalf("Pixel actions should expose a shared desktop image loader for dialog, recent, photo, drop, and launch paths")
 	}
 	loadBody := jsFunctionBodyInWindowMenuTest(t, actions, "loadDesktopImagePath: Pixel.bindRuntime(runtime, async function loadDesktopImagePath(")
-	if !strings.Contains(loadBody, "await this.loadImageToCanvas('/api/desktop/preview?path=' + encodeURIComponent(this.filePath));") {
-		t.Fatalf("Pixel desktop image loader should pass the inline preview URL directly to loadImageToCanvas: %s", loadBody)
+	for _, want := range []string{"fetch('/api/desktop/preview?path='", "response.blob()", "response.headers.get('ETag')", "URL.revokeObjectURL", "this.state.fileVersion"} {
+		if !strings.Contains(loadBody, want) {
+			t.Fatalf("Pixel must bind the loaded image to its observed version and release its object URL; missing %s", want)
+		}
 	}
 	if !strings.Contains(shell, "loadDesktopImagePath(filePath).catch(() => {});") {
 		t.Fatalf("Pixel initial launch with ctx.path should load that desktop image path")
@@ -358,7 +360,8 @@ func TestPixelWiredActionsExistInMarkup(t *testing.T) {
 	}
 }
 
-func TestPixelBindRuntimeDoesNotUseEval(t *testing.T) {state := readDesktopAssetText(t, "js/desktop/apps/pixel-state.js")
+func TestPixelBindRuntimeDoesNotUseEval(t *testing.T) {
+	state := readDesktopAssetText(t, "js/desktop/apps/pixel-state.js")
 	for _, forbidden := range []string{"eval(", "new Function(", "Function('runtime'"} {
 		if strings.Contains(state, forbidden) {
 			t.Fatalf("pixel-state.js must not use runtime code evaluation (%s)", forbidden)

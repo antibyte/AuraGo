@@ -386,19 +386,18 @@
                     filenameInput.focus();
                     return;
                 }
-                const path = fileDialogJoinPath(currentPath, filename);
-                if (!(await confirmOverwrite(path, options))) return;
+                let path = fileDialogJoinPath(currentPath, filename);
                 if (settled) return;
                 if (typeof options.content === 'string') {
                     saving = true;
                     confirmButton.disabled = true;
                     overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = true; });
                     setStatus(fileDialogText('desktop.loading', 'Loading...'));
-                    try { await api(options.fileEndpoint || '/api/desktop/file', {
+                    try { const saved = await api(options.fileEndpoint || '/api/desktop/file', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ path, content: options.content })
-                    }); } finally {
+                    }); path = saved.path || path; } finally {
                         saving = false;
                         confirmButton.disabled = false;
                         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = false; });
@@ -504,8 +503,9 @@
                         const form = new FormData();
                         form.append('path', normalizeFileDialogPath(options.path || options.initialPath || state.filesPath || 'Documents'));
                         form.append('file', file);
-                        await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form });
-                        uploaded.push({ name: file.name, path: fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name), size: file.size, type: file.type });
+                        const saved = await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form });
+                        const path = saved.path || fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name);
+                        uploaded.push({ name: fileDialogBaseName(path), path, version: saved.version, size: file.size, type: file.type });
                     }
                     if (typeof loadBootstrap === 'function') loadBootstrap().catch(() => {});
                     finish({ canceled: false, files: uploaded, paths: uploaded.map(item => item.path) });

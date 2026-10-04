@@ -133,18 +133,26 @@
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);
                 return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''));
-            case 'fs:read':
+            case 'fs:read': {
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''));
-            case 'fs:write':
+                const result = await api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''));
+                if (!client.fileVersions) client.fileVersions = new Map();
+                client.fileVersions.set(payload.path || '', result.version);
+                return result;
+            }
+            case 'fs:write': {
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                await api('/api/desktop/file', {
+                const version = payload.version || client.fileVersions?.get(payload.path || '');
+                const result = await api('/api/desktop/file', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
                     body: JSON.stringify({ path: payload.path || '', content: payload.content || '' })
                 });
+                if (!client.fileVersions) client.fileVersions = new Map();
+                client.fileVersions.set(result.path || payload.path || '', result.version);
                 await loadBootstrap();
-                return { status: 'ok' };
+                return result;
+            }
             case 'dialog:open-file':
                 requirePermission(client, ['files:read', 'filesystem:read']);
                 return openDesktopFileDialog(payload || {});

@@ -1,4 +1,8 @@
 {
+  "desktop.file_conflict_title": "Διένεξη αρχείου",
+  "desktop.file_conflict_message": "Το αρχείο «{{path}}» υπάρχει ήδη ή έχει αλλάξει.",
+  "desktop.file_conflict_replace": "Αντικατάσταση",
+  "desktop.file_conflict_copy": "Διατήρηση αντιγράφου",
   "newspaper.tool_brave_search": "Brave Search",
   "newspaper.tool_ddg_search": "DuckDuckGo",
   "newspaper.tool_rss": "RSS / Atom",

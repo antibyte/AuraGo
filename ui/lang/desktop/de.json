@@ -1,4 +1,8 @@
 {
+  "desktop.file_conflict_title": "Dateikonflikt",
+  "desktop.file_conflict_message": "Die Datei „{{path}}“ existiert bereits oder wurde geändert.",
+  "desktop.file_conflict_replace": "Ersetzen",
+  "desktop.file_conflict_copy": "Kopie behalten",
   "newspaper.tool_brave_search": "Brave Search",
   "newspaper.tool_ddg_search": "DuckDuckGo",
   "newspaper.tool_rss": "RSS / Atom",

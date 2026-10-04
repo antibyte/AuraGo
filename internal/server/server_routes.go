@@ -573,6 +573,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/file", handleDesktopFile(s))
 	mux.HandleFunc("/api/desktop/directory", handleDesktopDirectory(s))
 	mux.HandleFunc("/api/desktop/copy", handleDesktopCopy(s))
+	mux.HandleFunc("/api/desktop/trash", handleDesktopTrash(s))
 	mux.HandleFunc("/api/desktop/preview", handleDesktopPreview(s))
 	mux.HandleFunc("/api/desktop/archive", handleDesktopArchive(s))
 	mux.HandleFunc("/api/desktop/archive/list", handleDesktopArchiveList(s))

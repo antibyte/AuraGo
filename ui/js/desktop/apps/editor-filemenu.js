@@ -36,6 +36,7 @@
                 askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,
                 restoreFromTrash: restorePathsFromTrash,
+                moveToTrash: movePathsToTrash,
                 emptyTrash,
                 onPathChange: (newPath) => {
                     state.filesPath = newPath;
@@ -387,29 +388,39 @@
         </div>`;
         const textarea = host.querySelector('textarea');
         const status = host.querySelector('[data-status]');
+        let version = '';
+        let saving = false;
         textarea.value = initialContent;
         if (!initialContent) {
             try {
                 const body = await api('/api/desktop/file?path=' + encodeURIComponent(path));
                 textarea.value = body.content || '';
+                version = body.version || '';
             } catch (_) {
                 textarea.value = '';
             }
         }
         const saveEditor = async () => {
+            if (saving || desktopReadonly()) return;
+            saving = true;
+            const content = textarea.value;
             status.textContent = t('desktop.saving');
             try {
-                await api('/api/desktop/file', {
+                const saved = await api('/api/desktop/file', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path, content: textarea.value })
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
+                    body: JSON.stringify({ path, content })
                 });
-                status.textContent = t('desktop.saved');
+                path = saved.path || path;
+                version = saved.version || '';
+                host.querySelector('.vd-path').textContent = path;
+                const win = state.windows.get(id);
+                if (win) win.path = path;
+                status.textContent = textarea.value === content ? t('desktop.saved') : '';
                 await loadBootstrap();
             } catch (err) {
-                status.textContent = err.message;
-                throw err;
-            }
+                status.textContent = err.name === 'AbortError' ? '' : t('desktop.request_failed');
+            } finally { saving = false; }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
     }

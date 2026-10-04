@@ -79,13 +79,13 @@
         const parent = parentPath(path);
         const nextPath = joinPath(parent, newName.trim());
         try {
-            await api('/api/desktop/file', {
+            const renamed = await api('/api/desktop/file', {
                 method: 'PATCH',
                 body: JSON.stringify({ old_path: path, new_path: nextPath })
             });
             pushToUndo({
                 type: 'rename',
-                items: [{ oldPath: path, newPath: nextPath }]
+                items: [{ oldPath: path, newPath: renamed.path || nextPath }]
             });
             refresh();
         } catch (err) {
@@ -305,6 +305,13 @@
 
     async function moveDroppedDesktopFilesToFolder(paths, destPath) {
         if (isReadonly()) return;
+        if (String(destPath).toLowerCase() === 'trash') {
+            if (fm.callbacks && fm.callbacks.moveToTrash) await fm.callbacks.moveToTrash(paths);
+            clearSelection();
+            refresh();
+            return;
+        }
+        if (isReadonly()) return;
         const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
         if (!cleanPaths.length) return;
         
@@ -328,11 +335,11 @@
             }
             
             try {
-                await api('/api/desktop/file', {
+                const moved = await api('/api/desktop/file', {
                     method: 'PATCH',
                     body: JSON.stringify({ old_path: src, new_path: newPath })
                 });
-                undoItems.push({ oldPath: src, newPath: newPath });
+                undoItems.push({ oldPath: src, newPath: moved.path || newPath });
             } catch (err) {
                 showNotification({ type: 'error', message: (err.message || String(err)) });
             }

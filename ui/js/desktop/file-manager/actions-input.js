@@ -906,9 +906,6 @@
             if (exists && clipboard.mode === 'copy') {
                 const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
                 destPath = joinPath(targetBase, newName);
-            } else if (exists && clipboard.mode === 'cut') {
-                const overwrite = await confirmDialog(t('desktop.fm.paste_exists', { name: name }));
-                if (!overwrite) continue;
             }
 
             if (progress) {
@@ -922,11 +919,11 @@
                         body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
                     });
                 } else {
-                    await api('/api/desktop/file', {
+                    const moved = await api('/api/desktop/file', {
                         method: 'PATCH',
                         body: JSON.stringify({ old_path: srcPath, new_path: destPath })
                     });
-                    undoItems.push({ oldPath: srcPath, newPath: destPath });
+                    undoItems.push({ oldPath: srcPath, newPath: moved.path || destPath });
                 }
             } catch (err) {
                 showNotification({ type: 'error', message: (err.message || String(err)) });

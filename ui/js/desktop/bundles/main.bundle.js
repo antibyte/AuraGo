@@ -1262,16 +1262,22 @@
 
     async function api(url, options) {
         const requestOptions = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
-        const resp = await fetch(url, requestOptions);
-        const contentType = resp.headers.get('content-type') || '';
-        const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
-        const body = shouldParseJSON ? await resp.json() : {};
-        if (!resp.ok) {
-            const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
-            err.body = body;
-            throw err;
+        const mutation = prepareDesktopFileMutation(url, requestOptions);
+        for (;;) {
+            const resp = await fetch(url, requestOptions);
+            const contentType = resp.headers.get('content-type') || '';
+            const shouldParseJSON = requestOptions.method !== 'HEAD' && (contentType.includes('application/json') || String(url).includes('.json'));
+            const body = shouldParseJSON ? await resp.json() : {};
+            if (!resp.ok) {
+                if (await resolveDesktopFileConflict(mutation, requestOptions, body)) continue;
+                const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+                err.body = body;
+                err.status = resp.status;
+                throw err;
+            }
+            if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
+            return body;
         }
-        return body;
     }
 
     function callAppDispose(app, windowId) {
@@ -3928,8 +3934,10 @@
     }
 
     async function handleTrashDropForIcons(icons) {
+        const paths = (icons || []).filter(icon => icon && icon.dataset.desktopEntry === 'true' && !isTrashIcon(icon)).map(icon => icon.dataset.path);
+        if (paths.length) await movePathsToTrash(paths);
         for (const icon of icons || []) {
-            if (icon && !isTrashIcon(icon)) await handleTrashDrop(icon);
+            if (icon && icon.dataset.desktopEntry !== 'true' && !isTrashIcon(icon)) await handleTrashDrop(icon);
         }
     }
 
@@ -8255,19 +8263,18 @@ function wireWindow(win, id) {
                     filenameInput.focus();
                     return;
                 }
-                const path = fileDialogJoinPath(currentPath, filename);
-                if (!(await confirmOverwrite(path, options))) return;
+                let path = fileDialogJoinPath(currentPath, filename);
                 if (settled) return;
                 if (typeof options.content === 'string') {
                     saving = true;
                     confirmButton.disabled = true;
                     overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = true; });
                     setStatus(fileDialogText('desktop.loading', 'Loading...'));
-                    try { await api(options.fileEndpoint || '/api/desktop/file', {
+                    try { const saved = await api(options.fileEndpoint || '/api/desktop/file', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ path, content: options.content })
-                    }); } finally {
+                    }); path = saved.path || path; } finally {
                         saving = false;
                         confirmButton.disabled = false;
                         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = false; });
@@ -8373,8 +8380,9 @@ function wireWindow(win, id) {
                         const form = new FormData();
                         form.append('path', normalizeFileDialogPath(options.path || options.initialPath || state.filesPath || 'Documents'));
                         form.append('file', file);
-                        await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form });
-                        uploaded.push({ name: file.name, path: fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name), size: file.size, type: file.type });
+                        const saved = await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form });
+                        const path = saved.path || fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name);
+                        uploaded.push({ name: fileDialogBaseName(path), path, version: saved.version, size: file.size, type: file.type });
                     }
                     if (typeof loadBootstrap === 'function') loadBootstrap().catch(() => {});
                     finish({ canceled: false, files: uploaded, paths: uploaded.map(item => item.path) });
@@ -8408,6 +8416,73 @@ function wireWindow(win, id) {
         importHostFiles,
         exportWorkspaceFile
     };
+
+;
+/* ui/js/desktop/core/file-conflict-runtime.js */
+    // Versions belong to the editor/SDK client that read the bytes, never to a
+    // global path cache (another window may have read a newer revision).
+    function prepareDesktopFileMutation(url, options) {
+        const endpoint = String(url).split('?')[0];
+        const method = String(options.method || 'GET').toUpperCase();
+        let field = '';
+        if (endpoint === '/api/desktop/file' && method === 'PUT') field = 'path';
+        if (endpoint === '/api/desktop/file' && method === 'PATCH') field = 'new_path';
+        if (endpoint === '/api/desktop/copy' && method === 'POST') field = 'dest_path';
+        if (endpoint === '/api/pixel/save' && method === 'POST') field = 'path';
+        const trash = endpoint === '/api/desktop/trash' && method === 'POST';
+        const upload = endpoint === '/api/desktop/upload' && method === 'POST' && options.body instanceof FormData;
+        if (!field && !upload && !trash) return null;
+        const headers = new Headers(options.headers || {});
+        if (!headers.has('If-Match') && !headers.has('If-None-Match')) headers.set('If-None-Match', '*');
+        options.headers = headers;
+        const body = upload ? options.body : JSON.parse(options.body || '{}');
+        const file = upload ? body.get('file') : null;
+        const originalPath = upload ? workspaceJoinPath(body.get('path') || '', file.name) : body[field];
+        return { body, file, field, upload, trash, originalPath, copy: 0, copying: false };
+    }
+
+    async function resolveDesktopFileConflict(mutation, options, body) {
+        if (!mutation || !['file_conflict', 'directory_conflict'].includes(body.code)) return false;
+        if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        const conflict = body.conflict || {};
+        const decision = mutation.copying ? 'copy' : await modalDialog({
+            title: t('desktop.file_conflict_title'),
+            message: t('desktop.file_conflict_message').replace('{{path}}', conflict.path || mutation.originalPath),
+            signal: options.signal,
+            choices: [
+                { value: 'replace', label: t('desktop.file_conflict_replace'), disabled: !conflict.version },
+                { value: 'copy', label: t('desktop.file_conflict_copy') }
+            ]
+        });
+        if (!decision) throw new DOMException('Cancelled', 'AbortError');
+        if (mutation.trash) {
+            mutation.body.resolutions ||= {};
+            mutation.body.resolutions[conflict.source] = decision === 'replace'
+                ? { version: String(conflict.version) }
+                : { copy: true };
+            options.body = JSON.stringify(mutation.body);
+            return true;
+        }
+        options.headers.delete('If-Match');
+        options.headers.delete('If-None-Match');
+        if (decision === 'replace' && conflict.version) {
+            options.headers.set('If-Match', conflict.version);
+        } else {
+            // Only retry a create-only copy, never an uncertain mutation or an
+            // overwrite. Each occupied candidate is rejected by the server.
+            if (++mutation.copy > 999) return false;
+            mutation.copying = true;
+            const path = mutation.originalPath;
+            const name = pathBaseName(path);
+            const dot = name.lastIndexOf('.');
+            const copyName = dot > 0 ? name.slice(0, dot) + ' (' + mutation.copy + ')' + name.slice(dot) : name + ' (' + mutation.copy + ')';
+            if (mutation.upload) mutation.body.set('file', mutation.file, copyName);
+            else mutation.body[mutation.field] = workspaceJoinPath(pathDir(path), copyName);
+            options.headers.set('If-None-Match', '*');
+        }
+        options.body = mutation.upload ? mutation.body : JSON.stringify(mutation.body);
+        return true;
+    }
 
 ;
 /* ui/js/desktop/core/session-runtime.js */
@@ -9870,7 +9945,7 @@ function wireWindow(win, id) {
             event.stopPropagation();
             btn.classList.remove('vd-trash-drop-target');
             try {
-                for (const path of payload.paths) await movePathToTrash(path);
+                await movePathsToTrash(payload.paths);
             } catch (err) {
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message });
             }
@@ -14590,25 +14665,33 @@ function updateTaskbarSystemButtonsForMobile() {
         return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, setWindowMenus, clearWindowMenus, wireContextMenuBoundary, openApp });
     }
 
-function modalDialog(options) {
+    let desktopModalQueue = Promise.resolve();
+    function modalDialog(options) {
+        const pending = desktopModalQueue.then(() => renderDesktopModal(options));
+        desktopModalQueue = pending.catch(() => {});
+        return pending;
+    }
+
+    function renderDesktopModal(options) {
+        if (options.signal?.aborted) return Promise.resolve(false);
         closeContextMenu();
         const previousFocus = document.activeElement;
         const overlay = document.createElement('div');
         overlay.className = 'vd-modal-backdrop';
-        overlay.innerHTML = `<form class="vd-modal" role="dialog" aria-modal="true">
+        overlay.innerHTML = `<form class="vd-modal" role="dialog" aria-modal="true" aria-label="${esc(options.title || '')}">
             <div class="vd-modal-title">${esc(options.title || '')}</div>
             ${options.message ? `<div class="vd-modal-copy">${esc(options.message)}</div>` : ''}
             ${options.input ? `<input class="vd-modal-input" value="${esc(options.value || '')}" autocomplete="off">` : ''}
             <div class="vd-modal-actions">
                 <button type="button" class="vd-button" data-cancel>${esc(t('desktop.cancel'))}</button>
-                <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>
+                ${options.choices ? options.choices.map(choice => `<button type="button" class="vd-button" data-choice="${esc(choice.value)}" ${choice.disabled ? 'disabled' : ''}>${esc(choice.label)}</button>`).join('') : `<button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>`}
             </div>
         </form>`;
         document.body.appendChild(overlay);
         desktopSound('dialog.open');
         const form = overlay.querySelector('form');
         const input = overlay.querySelector('input');
-        const primaryBtn = overlay.querySelector('[type="submit"]');
+        const primaryBtn = overlay.querySelector('[type="submit"]') || overlay.querySelector('[data-cancel]');
         if (input) {
             input.focus();
             input.select();
@@ -14623,18 +14706,37 @@ function modalDialog(options) {
         }
         document.addEventListener('focusin', trapFocus);
         return new Promise(resolve => {
+            let finished = false;
             const finish = value => {
+                if (finished) return;
+                finished = true;
                 document.removeEventListener('focusin', trapFocus);
+                document.removeEventListener('keydown', onKey, true);
+                options.signal?.removeEventListener('abort', onAbort);
                 overlay.remove();
                 if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
                 if (value === true) desktopSound('dialog.confirm');
                 else if (value === false) desktopSound('dialog.cancel');
                 resolve(value);
             };
+            const onAbort = () => finish(false);
+            const onKey = event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); finish(options.input ? null : false); }
+                if (event.key === 'Tab') {
+                    const controls = [...form.querySelectorAll('input,button:not(:disabled)')];
+                    const current = controls.indexOf(document.activeElement);
+                    event.preventDefault();
+                    controls[(current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length]?.focus();
+                }
+            };
+            document.addEventListener('keydown', onKey, true);
+            options.signal?.addEventListener('abort', onAbort, { once: true });
+            overlay.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => finish(button.dataset.choice)));
             overlay.querySelector('[data-cancel]').addEventListener('click', () => finish(options.input ? null : false));
             overlay.addEventListener('click', event => { if (event.target === overlay) finish(options.input ? null : false); });
             form.addEventListener('submit', event => {
                 event.preventDefault();
+                if (options.choices) return;
                 finish(options.input ? input.value.trim() : true);
             });
         });
@@ -14645,7 +14747,7 @@ function modalDialog(options) {
         if (!name) return;
         const path = workspaceJoinPath(basePath, name);
         try {
-            await api('/api/desktop/file', {
+            const saved = await api('/api/desktop/file', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, content: '' })
@@ -14653,7 +14755,7 @@ function modalDialog(options) {
             await loadBootstrap();
             const active = state.windows.get(state.activeWindowId);
             if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
-            openApp('editor', { path, content: '' });
+            openApp('editor', { path: saved.path || path, content: '' });
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -14713,20 +14815,26 @@ function modalDialog(options) {
     }
 
     async function movePathToTrash(path) {
-        const cleanPath = normalizeDesktopPath(path);
-        if (!cleanPath || isTrashPath(cleanPath) || isInsideTrashPath(cleanPath)) return;
+        return movePathsToTrash([path]);
+    }
+
+    async function movePathsToTrash(paths) {
+        if (desktopReadonly()) return [];
+        const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
+        if (!cleanPaths.length) return [];
         try {
-            const trashDestination = await uniqueTrashDestination(cleanPath);
-            await api('/api/desktop/file', {
-                method: 'PATCH',
+            const result = await api('/api/desktop/trash', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_path: cleanPath, new_path: trashDestination })
+                body: JSON.stringify({ paths: cleanPaths })
             });
-            removeIconPosition('desktop-entry-' + cleanPath);
+            cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path));
             desktopSound('file.trash');
             await refreshDesktopAfterFileChange();
+            return result.moves || [];
         } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+            return [];
         }
     }
 
@@ -14786,19 +14894,15 @@ function modalDialog(options) {
         if (desktopReadonly()) return [];
         const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
         if (!unique.length) return [];
-        const restored = [];
-        for (const path of unique) {
-            try {
-                const dest = await uniqueRestoreDestination('Desktop', pathBaseName(path) || 'item');
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: path, new_path: dest })
-                });
-                restored.push(dest);
-            } catch (err) {
-                showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
-            }
+        let restored = [];
+        try {
+            const result = await api('/api/desktop/trash', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paths: unique, restore: true })
+            });
+            restored = (result.moves || []).map(move => move.path);
+        } catch (err) {
+            if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
         if (restored.length) {
             await refreshDesktopAfterFileChange();
@@ -15718,6 +15822,7 @@ if (appId === 'pixel') {
                 askAgentAboutFile: (entry) => askAgentAboutFile(entry),
                 refreshDesktop: loadBootstrap,
                 restoreFromTrash: restorePathsFromTrash,
+                moveToTrash: movePathsToTrash,
                 emptyTrash,
                 onPathChange: (newPath) => {
                     state.filesPath = newPath;
@@ -16069,29 +16174,39 @@ if (appId === 'pixel') {
         </div>`;
         const textarea = host.querySelector('textarea');
         const status = host.querySelector('[data-status]');
+        let version = '';
+        let saving = false;
         textarea.value = initialContent;
         if (!initialContent) {
             try {
                 const body = await api('/api/desktop/file?path=' + encodeURIComponent(path));
                 textarea.value = body.content || '';
+                version = body.version || '';
             } catch (_) {
                 textarea.value = '';
             }
         }
         const saveEditor = async () => {
+            if (saving || desktopReadonly()) return;
+            saving = true;
+            const content = textarea.value;
             status.textContent = t('desktop.saving');
             try {
-                await api('/api/desktop/file', {
+                const saved = await api('/api/desktop/file', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path, content: textarea.value })
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
+                    body: JSON.stringify({ path, content })
                 });
-                status.textContent = t('desktop.saved');
+                path = saved.path || path;
+                version = saved.version || '';
+                host.querySelector('.vd-path').textContent = path;
+                const win = state.windows.get(id);
+                if (win) win.path = path;
+                status.textContent = textarea.value === content ? t('desktop.saved') : '';
                 await loadBootstrap();
             } catch (err) {
-                status.textContent = err.message;
-                throw err;
-            }
+                status.textContent = err.name === 'AbortError' ? '' : t('desktop.request_failed');
+            } finally { saving = false; }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
     }
@@ -18435,18 +18550,26 @@ if (appId === 'pixel') {
             case 'fs:list':
                 requirePermission(client, ['files:read', 'filesystem:read']);
                 return api('/api/desktop/files?path=' + encodeURIComponent(payload.path || ''));
-            case 'fs:read':
+            case 'fs:read': {
                 requirePermission(client, ['files:read', 'filesystem:read']);
-                return api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''));
-            case 'fs:write':
+                const result = await api('/api/desktop/file?path=' + encodeURIComponent(payload.path || ''));
+                if (!client.fileVersions) client.fileVersions = new Map();
+                client.fileVersions.set(payload.path || '', result.version);
+                return result;
+            }
+            case 'fs:write': {
                 requirePermission(client, ['files:write', 'filesystem:write']);
-                await api('/api/desktop/file', {
+                const version = payload.version || client.fileVersions?.get(payload.path || '');
+                const result = await api('/api/desktop/file', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
                     body: JSON.stringify({ path: payload.path || '', content: payload.content || '' })
                 });
+                if (!client.fileVersions) client.fileVersions = new Map();
+                client.fileVersions.set(result.path || payload.path || '', result.version);
                 await loadBootstrap();
-                return { status: 'ok' };
+                return result;
+            }
             case 'dialog:open-file':
                 requirePermission(client, ['files:read', 'filesystem:read']);
                 return openDesktopFileDialog(payload || {});

@@ -1030,16 +1030,22 @@
 
     async function api(url, options) {
         const requestOptions = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
-        const resp = await fetch(url, requestOptions);
-        const contentType = resp.headers.get('content-type') || '';
-        const shouldParseJSON = contentType.includes('application/json') || String(url).includes('.json');
-        const body = shouldParseJSON ? await resp.json() : {};
-        if (!resp.ok) {
-            const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
-            err.body = body;
-            throw err;
+        const mutation = prepareDesktopFileMutation(url, requestOptions);
+        for (;;) {
+            const resp = await fetch(url, requestOptions);
+            const contentType = resp.headers.get('content-type') || '';
+            const shouldParseJSON = requestOptions.method !== 'HEAD' && (contentType.includes('application/json') || String(url).includes('.json'));
+            const body = shouldParseJSON ? await resp.json() : {};
+            if (!resp.ok) {
+                if (await resolveDesktopFileConflict(mutation, requestOptions, body)) continue;
+                const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+                err.body = body;
+                err.status = resp.status;
+                throw err;
+            }
+            if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
+            return body;
         }
-        return body;
     }
 
     function callAppDispose(app, windowId) {

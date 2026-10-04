@@ -1,4 +1,8 @@
 {
+  "desktop.file_conflict_title": "Bestandsconflict",
+  "desktop.file_conflict_message": "Het bestand ‘{{path}}’ bestaat al of is gewijzigd.",
+  "desktop.file_conflict_replace": "Vervangen",
+  "desktop.file_conflict_copy": "Kopie bewaren",
   "newspaper.tool_brave_search": "Brave Search",
   "newspaper.tool_ddg_search": "DuckDuckGo",
   "newspaper.tool_rss": "RSS / Atom",

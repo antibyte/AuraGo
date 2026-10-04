@@ -1,4 +1,8 @@
 {
+  "desktop.file_conflict_title": "文件冲突",
+  "desktop.file_conflict_message": "文件“{{path}}”已存在或已被修改。",
+  "desktop.file_conflict_replace": "替换",
+  "desktop.file_conflict_copy": "保留副本",
   "newspaper.tool_brave_search": "Brave Search",
   "newspaper.tool_ddg_search": "DuckDuckGo",
   "newspaper.tool_rss": "RSS / Atom",

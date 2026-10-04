@@ -359,7 +359,9 @@
     }
 
     async function handleTrashDropForIcons(icons) {
+        const paths = (icons || []).filter(icon => icon && icon.dataset.desktopEntry === 'true' && !isTrashIcon(icon)).map(icon => icon.dataset.path);
+        if (paths.length) await movePathsToTrash(paths);
         for (const icon of icons || []) {
-            if (icon && !isTrashIcon(icon)) await handleTrashDrop(icon);
+            if (icon && icon.dataset.desktopEntry !== 'true' && !isTrashIcon(icon)) await handleTrashDrop(icon);
         }
     }

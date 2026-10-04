@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -93,7 +94,7 @@ func parseDesktopFilesInt(raw string, fallback int) int {
 
 func handleDesktopFile(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+		if !requireDesktopOperation(s, w, r, desktopMethodScope(r.Method), desktopMethodOperation(r.Method)) {
 			return
 		}
 		svc, hub, err := s.getDesktopService(r.Context())
@@ -102,6 +103,19 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 			return
 		}
 		switch r.Method {
+		case http.MethodHead:
+			data, entry, err := svc.ReadFileBytes(r.Context(), r.URL.Query().Get("path"))
+			if err != nil {
+				status := http.StatusBadRequest
+				if errors.Is(err, os.ErrNotExist) {
+					status = http.StatusNotFound
+				}
+				w.WriteHeader(status)
+				return
+			}
+			w.Header().Set("ETag", desktop.NoteVersion(data))
+			w.Header().Set("Content-Length", strconv.FormatInt(entry.Size, 10))
+			w.WriteHeader(http.StatusOK)
 		case http.MethodGet:
 			content, entry, err := svc.ReadFile(r.Context(), r.URL.Query().Get("path"))
 			if err != nil {
@@ -113,8 +127,15 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "entry": entry, "content": content})
+			version := desktop.NoteVersion([]byte(content))
+			w.Header().Set("ETag", version)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "entry": entry, "content": content, "version": version})
 		case http.MethodPut:
+			precondition, err := desktopFilePrecondition(r)
+			if err != nil {
+				writeDesktopFileError(w, err)
+				return
+			}
 			var body struct {
 				Path    string `json:"path"`
 				Content string `json:"content"`
@@ -126,15 +147,22 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 			if body.Path == "" {
 				body.Path = r.URL.Query().Get("path")
 			}
-			if err := svc.WriteFile(r.Context(), body.Path, body.Content, desktop.SourceUser); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+			if _, err := svc.WriteFileBytesConditional(r.Context(), body.Path, []byte(body.Content), desktop.SourceUser, precondition); err != nil {
+				writeDesktopFileError(w, err)
 				return
 			}
 			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "write_file", "path": body.Path}, CreatedAt: time.Now().UTC()}
 			broadcastDesktopEvent(s, hub, event)
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+			version := desktop.NoteVersion([]byte(body.Content))
+			w.Header().Set("ETag", version)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": body.Path, "version": version})
 		case http.MethodPatch:
+			precondition, err := desktopFilePrecondition(r)
+			if err != nil {
+				writeDesktopFileError(w, err)
+				return
+			}
 			var body struct {
 				OldPath string `json:"old_path"`
 				NewPath string `json:"new_path"`
@@ -143,14 +171,14 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
-			if err := svc.MovePath(r.Context(), body.OldPath, body.NewPath, desktop.SourceUser); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+			if err := svc.MovePathTo(r.Context(), body.OldPath, body.NewPath, desktop.SourceUser, precondition); err != nil {
+				writeDesktopFileError(w, err)
 				return
 			}
 			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "move_path", "old_path": body.OldPath, "new_path": body.NewPath}, CreatedAt: time.Now().UTC()}
 			broadcastDesktopEvent(s, hub, event)
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": body.NewPath})
 		case http.MethodDelete:
 			path := r.URL.Query().Get("path")
 			if err := svc.DeletePath(r.Context(), path, desktop.SourceUser); err != nil {
@@ -169,7 +197,7 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 
 func handleDesktopDirectory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+		if !requireDesktopOperation(s, w, r, desktopScopeWrite, desktopWrite) {
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -201,7 +229,7 @@ func handleDesktopDirectory(s *Server) http.HandlerFunc {
 
 func handleDesktopCopy(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+		if !requireDesktopOperation(s, w, r, desktopScopeWrite, desktopWrite) {
 			return
 		}
 		if r.Method != http.MethodPost {
@@ -225,14 +253,19 @@ func handleDesktopCopy(s *Server) http.HandlerFunc {
 			jsonError(w, "source_path and dest_path are required", http.StatusBadRequest)
 			return
 		}
-		if err := svc.CopyPath(r.Context(), body.SourcePath, body.DestPath, desktop.SourceUser); err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+		precondition, err := desktopFilePrecondition(r)
+		if err != nil {
+			writeDesktopFileError(w, err)
+			return
+		}
+		if err := svc.CopyPathConditional(r.Context(), body.SourcePath, body.DestPath, desktop.SourceUser, precondition); err != nil {
+			writeDesktopFileError(w, err)
 			return
 		}
 		event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "copy_path", "source_path": body.SourcePath, "dest_path": body.DestPath}, CreatedAt: time.Now().UTC()}
 		broadcastDesktopEvent(s, hub, event)
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": body.DestPath})
 	}
 }
 
@@ -241,7 +274,7 @@ func handleDesktopPreview(s *Server) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
 			return
 		}
-		if r.Method != http.MethodGet {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -268,6 +301,17 @@ func handleDesktopPreview(s *Server) http.HandlerFunc {
 			jsonError(w, "desktop preview file exceeds max size", http.StatusRequestEntityTooLarge)
 			return
 		}
+		hash := sha256.New()
+		n, err := io.Copy(hash, io.LimitReader(file, maxSize+1))
+		if err != nil || n > maxSize {
+			jsonError(w, "Could not read image", http.StatusBadRequest)
+			return
+		}
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			jsonError(w, "Could not read image", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("ETag", fmt.Sprintf(`"%x"`, hash.Sum(nil)))
 		w.Header().Set("Content-Type", mimeType)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=120")
@@ -321,11 +365,20 @@ func desktopUploadNameCandidate(name string, index int) string {
 	return fmt.Sprintf("%s (%d)%s", base, index, ext)
 }
 
-func writeDesktopUploadFile(ctx context.Context, svc *desktop.Service, destDir, safeName string, content []byte, unique bool) (string, error) {
+func writeDesktopUploadFile(ctx context.Context, svc *desktop.Service, destDir, safeName string, content []byte, unique bool, conditions ...desktop.FileWritePrecondition) (string, error) {
 	destDir = strings.TrimRight(destDir, "/")
 	if !unique {
 		destPath := destDir + "/" + safeName
-		if err := svc.WriteFileBytes(ctx, destPath, content, desktop.SourceUser); err != nil {
+		condition := func(state desktop.FileWriteState) error {
+			if state.Exists {
+				return errDesktopUploadTargetExists
+			}
+			return nil
+		}
+		if len(conditions) > 0 && conditions[0] != nil {
+			condition = conditions[0]
+		}
+		if _, err := svc.WriteFileBytesConditional(ctx, destPath, content, desktop.SourceUser, condition); err != nil {
 			return "", err
 		}
 		return destPath, nil
@@ -352,11 +405,16 @@ func writeDesktopUploadFile(ctx context.Context, svc *desktop.Service, destDir, 
 
 func handleDesktopUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+		if !requireDesktopOperation(s, w, r, desktopScopeWrite, desktopWrite) {
 			return
 		}
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		precondition, err := desktopFilePrecondition(r)
+		if err != nil {
+			writeDesktopFileError(w, err)
 			return
 		}
 		svc, hub, err := s.getDesktopService(r.Context())
@@ -373,6 +431,7 @@ func handleDesktopUpload(s *Server) http.HandlerFunc {
 			jsonError(w, "File too large or invalid form data", http.StatusBadRequest)
 			return
 		}
+		defer r.MultipartForm.RemoveAll()
 		file, header, err := r.FormFile("file")
 		if err != nil {
 			jsonError(w, "Missing file field", http.StatusBadRequest)
@@ -387,19 +446,21 @@ func handleDesktopUpload(s *Server) http.HandlerFunc {
 		}
 		safeName := sanitizeUploadFilename(header.Filename)
 		unique := r.FormValue("unique") == "1"
-		destPath, err := writeDesktopUploadFile(r.Context(), svc, destDir, safeName, content, unique)
+		destPath, err := writeDesktopUploadFile(r.Context(), svc, destDir, safeName, content, unique, precondition)
 		if err != nil {
 			if strings.Contains(err.Error(), "could not find a free upload filename") {
 				jsonError(w, err.Error(), http.StatusConflict)
 				return
 			}
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			writeDesktopFileError(w, err)
 			return
 		}
 		event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "upload_file", "path": destPath}, CreatedAt: time.Now().UTC()}
 		broadcastDesktopEvent(s, hub, event)
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": destPath})
+		version := desktop.NoteVersion(content)
+		w.Header().Set("ETag", version)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": destPath, "version": version})
 	}
 }
 

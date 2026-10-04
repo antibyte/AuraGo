@@ -24,6 +24,10 @@
                                     e.preventDefault();
                                     const w = parseInt(dlg.querySelector('[data-new-w]').value) || 1024;
                                     const h = parseInt(dlg.querySelector('[data-new-h]').value) || 1024;
+                                    this.state.imageRead?.abort();
+                                    this.filePath = '';
+                                    this.state.fileVersion = '';
+                                    this.state.versionPath = '';
                                     this.newBlankCanvas(Math.min(w, 8192), Math.min(h, 8192));
                                     dlg.remove();
                                 });
@@ -52,15 +56,26 @@
             loadDesktopImagePath: Pixel.bindRuntime(runtime, async function loadDesktopImagePath(path, options) {
                                 const nextPath = String(path || '').trim();
                                 if (!nextPath) return;
-                                this.filePath = nextPath;
-                                this.fileName = this.filePath.split('/').pop();
-                                this.isDirty = false;
-                                if (!options || options.saveRecent !== false) this.saveRecentFile(this.filePath);
+                                this.state.imageRead?.abort();
+                                const controller = new AbortController();
+                                this.state.imageRead = controller;
+                                let objectURL = '';
                                 try {
-                                    await this.loadImageToCanvas('/api/desktop/preview?path=' + encodeURIComponent(this.filePath));
-                                } catch (_) {
-                                    this.notify({ type: 'error', message: this.t('pixel.error_load') });
-                                }
+                                    const response = await fetch('/api/desktop/preview?path=' + encodeURIComponent(nextPath), { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
+                                    if (!response.ok) throw new Error('image');
+                                    objectURL = URL.createObjectURL(await response.blob());
+                                    const current = () => !controller.signal.aborted && !this.state.disposed && this.state.imageRead === controller;
+                                    if (!await this.loadImageToCanvas(objectURL, current)) return;
+                                    this.filePath = nextPath;
+                                    this.fileName = nextPath.split('/').pop();
+                                    this.state.fileVersion = response.headers.get('ETag') || '';
+                                    this.state.versionPath = nextPath;
+                                    this.isDirty = false;
+                                    if (!options || options.saveRecent !== false) this.saveRecentFile(nextPath);
+                                    this.updateStatus();
+                                } catch (err) {
+                                    if (err.name !== 'AbortError' && !this.state.disposed) this.notify({ type: 'error', message: this.t('pixel.error_load') });
+                                } finally { if (objectURL) URL.revokeObjectURL(objectURL); }
             }),
             loadPhotos: Pixel.bindRuntime(runtime, async function loadPhotos() {
                                 const grid = this.host.querySelector('[data-photos-grid]');
@@ -84,9 +99,14 @@
                                     await this.loadDesktopImagePath(result.path);
                                 }
             }),
-            saveFile: Pixel.bindRuntime(runtime, async function saveFile() {
-                                if (!this.canvas.width) return;
-                                if (!this.filePath) { await this.saveFileAs(); return; }
+            saveFile: Pixel.bindRuntime(runtime, async function saveFile(destination) {
+                                if (!this.canvas.width || this.ctx.readonly || this.state.saveBusy) return;
+                                const path = typeof destination === 'string' ? destination : this.filePath;
+                                if (!path || /^(Photos|Music|Videos|AuraGo Documents)\//i.test(path)) { await this.saveFileAs(); return; }
+                                const previousPath = this.filePath;
+                                const historyEntry = this.history[this.historyIdx];
+                                const version = this.state.versionPath === path ? this.state.fileVersion : '';
+                                this.state.saveBusy = true;
                                 this.setStatus(this.t('pixel.status_saving'));
                                 try {
                                     const tmpC = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
@@ -98,35 +118,38 @@
                                         else { tmpX.globalAlpha = 1; tmpX.drawImage(this.canvas, 0, 0); }
                                     }
                                     tmpX.globalAlpha = 1;
-                                    const ext = (this.filePath.split('.').pop() || 'png').toLowerCase();
+                                    const ext = (path.split('.').pop() || 'png').toLowerCase();
                                     const isJPEG = ext === 'jpg' || ext === 'jpeg';
                                     const dataURL = isJPEG ? tmpC.toDataURL('image/jpeg', 0.92) : tmpC.toDataURL('image/png');
                                     this.releaseTempCanvas(tmpC);
-                                    await this.api('/api/pixel/save', {
+                                    const saved = await this.api('/api/pixel/save', {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ path: this.filePath, data: dataURL, format: isJPEG ? 'jpeg' : 'png' })
+                                        headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
+                                        body: JSON.stringify({ path, data: dataURL, format: isJPEG ? 'jpeg' : 'png' })
                                     });
-                                    this.isDirty = false;
+                                    if (this.state.disposed || this.filePath !== previousPath) return;
+                                    this.filePath = saved.path || path;
+                                    this.fileName = this.filePath.split('/').pop();
+                                    this.state.fileVersion = saved.version || '';
+                                    this.state.versionPath = this.filePath;
+                                    this.isDirty = this.history[this.historyIdx] !== historyEntry;
                                     this.updateStatus();
                                     this.notify({ type: 'success', message: this.t('pixel.saved') });
                                 } catch (err) {
+                                    if (err.name === 'AbortError' || this.state.disposed) return;
                                     this.notify({ type: 'error', message: this.t('pixel.error_save') });
                                     this.setStatus(this.t('pixel.error_save'));
-                                }
+                                } finally { this.state.saveBusy = false; }
             }),
             saveFileAs: Pixel.bindRuntime(runtime, async function saveFileAs() {
-                                if (!this.canvas.width) return;
+                                if (!this.canvas.width || this.ctx.readonly || this.state.saveBusy) return;
                                 if (!this.ctx.saveFileDialog) return;
-                                const result = await this.ctx.saveFileDialog({ filters: [
+                                const result = await this.ctx.saveFileDialog({ initialPath: 'Pictures', filters: [
                                     { label: this.t('desktop.file_dialog_png'), extensions: ['png'] },
-                                    { label: this.t('desktop.file_dialog_jpeg'), extensions: ['jpg'] },
-                                    { label: this.t('desktop.file_dialog_webp'), extensions: ['webp'] }
+                                    { label: this.t('desktop.file_dialog_jpeg'), extensions: ['jpg', 'jpeg'] }
                                 ] });
                                 if (result && !result.canceled && result.path) {
-                                    this.filePath = result.path;
-                                    this.fileName = this.filePath.split('/').pop();
-                                    await this.saveFile();
+                                    await this.saveFile(result.path);
                                 }
             }),
             exportFile: Pixel.bindRuntime(runtime, function exportFile() {

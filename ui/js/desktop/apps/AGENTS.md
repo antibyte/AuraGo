@@ -471,8 +471,8 @@ buttons and menu popovers remain excluded from those gestures.
   `compressed`, `ZIP Archives`, or `B`/`KiB`/`MiB` there. Zipper
   `t` stays key-only.   Pixel open-dialog filter uses
   `desktop.file_dialog_images`. Pixel save-dialog filters use
-  `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`, and
-  `desktop.file_dialog_webp`. Do not hardcode `Images`,
+  `desktop.file_dialog_png` and `desktop.file_dialog_jpeg` (the server validates
+  the actual PNG/JPEG data). WebP remains an export format. Do not hardcode `Images`,
   `PNG Image`, `JPEG Image`, or `WebP Image` there.
   Pixel `t` stays key-only. Leave File Manager and
   OpenSCAD byte formatters unchanged.
@@ -638,11 +638,13 @@ buttons and menu popovers remain excluded from those gestures.
 
 - Restore is File Manager only. The desktop trash icon keeps Open, Empty, and
   Properties — never a Restore action (no single target).
-- Restore only moves paths under `trash/…`. Destination is `Desktop/<name>`
-  with unique names via `trashNameCandidate`. Never overwrite an existing
-  Desktop name. Nested `Trash/foo/bar` restores the basename to `Desktop/bar`.
-- Origin paths are not persisted in v1. Do not change `listTrashEntries` or
-  `movePathToTrash` to record origin.
+- Restore only moves paths under `trash/…` through the batch `/api/desktop/trash`
+  operation. Ordinary legacy entries restore to `Desktop/<name>`. Notes under
+  `Trash/Notes/<uuid>/<subpath>` restore to `Documents/Notes/<subpath>`.
+  No origin is guessed for legacy ordinary entries. Conflicts require the shared
+  Replace / Keep copy / Cancel dialog; replacement rechecks the observed version.
+- Trash drops from desktop icons and File Manager preflight the entire selection
+  server-side before moving the first entry; Notes roots and ancestors are protected.
 - Readonly denies restore and empty-trash mutations. Delete inside Trash stays
   a permanent DELETE.
 - Shell callbacks `restoreFromTrash` and `emptyTrash` are injected from

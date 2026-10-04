@@ -151,7 +151,7 @@ func TestDesktopFileDragPayloadCanDropOnTrash(t *testing.T) {
 		"btn.addEventListener('dragover', event =>",
 		"btn.addEventListener('drop', async event =>",
 		"event.stopPropagation()",
-		"await movePathToTrash(path)",
+		"await movePathsToTrash(payload.paths)",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop file drag-to-trash integration missing marker %q", marker)
