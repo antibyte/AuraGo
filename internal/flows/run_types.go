@@ -42,7 +42,11 @@ const (
 	StepCancelled StepStatus = "cancelled"
 )
 
-// StepRecord is the outcome of one node in one run.
+// StepRecord is the outcome of one node in one run. Params (the resolved
+// parameters) and Output are bounded: above MaxStoredOutputBytes they hold only
+// {"_preview": "<start of the encoded JSON>"} and ParamsTruncated or
+// OutputTruncated is set. Parameters that cannot be encoded are stored as
+// {"_preview": "<unserializable>"} with ParamsTruncated set.
 type StepRecord struct {
 	NodeID          string         `json:"node_id"`
 	NodeKey         string         `json:"node_key"`
@@ -52,6 +56,7 @@ type StepRecord struct {
 	FinishedAt      time.Time      `json:"finished_at"`
 	DurationMS      int64          `json:"duration_ms"`
 	Params          map[string]any `json:"params,omitempty"`
+	ParamsTruncated bool           `json:"params_truncated,omitempty"`
 	Output          map[string]any `json:"output,omitempty"`
 	OutputTruncated bool           `json:"output_truncated,omitempty"`
 	ItemCount       int            `json:"item_count,omitempty"`
