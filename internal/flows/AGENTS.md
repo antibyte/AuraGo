@@ -29,13 +29,14 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Validation and lint
 - Structural problems are always errors; publish rules are errors only in `ModePublish` (warnings in
   `ModeDraft`). `NODE_UNREACHABLE`, `TEMPLATE_UNKNOWN_FIELD` and the lint are always warnings. Callers
-  save a draft only when `!HasErrors(Validate(…, ModeDraft))`. A cycle is only a draft warning.
+  save a draft only when `!HasErrors(Validate(…, ModeDraft))`. A cycle is only a draft warning (an error when publishing).
 - Above `MaxNodes` nodes or `MaxEdges` edges `Validate` returns right after the document checks (one
   `FLOW_TOO_MANY_NODES` error per exceeded limit). Emit issues in document or topological order, never
   by ranging over a map, so the output stays deterministic.
 - `finish()` clamps NodeID/EdgeID to 64 runes, Param to 200 and Message to 300, and caps the list at 500
-  issues (all errors first, then the earliest warnings). If anything was dropped it adds
-  `FLOW_TOO_MANY_ISSUES`, an error whenever a dropped issue was an error, so `HasErrors` gating holds.
+  issues: the cap selects errors first, then the earliest warnings, and keeps the original order. If
+  anything was dropped it adds `FLOW_TOO_MANY_ISSUES` on top of the 500, an error whenever a dropped
+  issue was an error, so `HasErrors` gating holds.
 - Output-port and declared-field lookups are memoized per node; ancestors are computed once per node.
 - `LintUntrustedData`: taint flows through template refs and through `passesInputs` nodes (merge, and
   set with keep_input). Disabled nodes neither warn nor taint; a cyclic flow gets no lint issues. If the
@@ -75,9 +76,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 
 ## Runner and event bus
 - Test runs ignore per-flow policies but use the global limit. `queue` keeps at most `MaxQueuedPerFlow`
-  (20) runs waiting, `skip` drops triggers while a live run is admitted or queued (no run id),
-  `parallel` only obeys the global limit. The global queue is FIFO. `MaxQueuedPerFlow` also caps, apart,
-  the flow's runs waiting for a global slot; `Start` then returns `ErrQueueFull`.
+  runs waiting (`RunnerConfig`, default 20), `skip` drops triggers while a live run is admitted or
+  queued (no run id), `parallel` only obeys the global limit. The global queue is FIFO.
+  `MaxQueuedPerFlow` also caps, apart, the flow's runs waiting for a global slot; `Start` then returns
+  `ErrQueueFull`.
 - Every run with an id has an event log from its creation (queued runs too), and the log always ends
   with `run_finished`: `endLog` publishes it for runs that end without the engine (cancelled while
   queued, `FLOW_SHUTDOWN`, runner panic). A runner panic gives `FLOW_RUNNER_PANIC` and frees the slot.
@@ -96,9 +98,11 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Times are stored as fixed-width UTC text (`timeLayout`) so text order is time order. There is no
   corruption auto-recovery: a failed open is an error, so users' flows never vanish silently.
 - Test runs store their document in `flow_runs.doc_json`; live runs reference `flow_versions` (last 50).
-- Not-found cases are typed (`ErrFlowExists`, `ErrNotFound`, `ErrRunNotFound`; also
-  `ErrRevisionConflict`) and come from conditional writes (`WHERE EXISTS` on the parent row). The schema
-  version is checked on write and the kind is normalised; `SaveDraft` needs `f.ID == id`.
+- Not-found and exists cases are typed (`ErrFlowExists`, `ErrNotFound`, `ErrRunNotFound`). Inserts and
+  upserts of child rows are guarded by `WHERE EXISTS` on the parent row; plain updates by id
+  (`SetMissionID`, `SetRunStatus`, `FinishRun`) use the affected row count. A stale draft revision is
+  `ErrRevisionConflict`. The schema version is checked on write and the kind is normalised; `SaveDraft`
+  needs `f.ID == id`.
 - Any read-then-write transaction must start with the write: SQLite does not run the busy handler when a
   read upgrades to a write (see `Publish`, `ReplaceTimers`).
 - List queries (`ListRuns`, `LastLiveRuns`) do not load trigger data; only `GetRun` does. Trigger data in
