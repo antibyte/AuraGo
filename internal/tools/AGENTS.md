@@ -77,6 +77,9 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
 ### Integration state preservation
+- WebDAV/Koofr/OneDrive deletion rejects root aliases and traversal after decoding/normalization, before any network call. OneDrive download responses require HTTP 200, successful bounded reads, and explicit truncation; public download redirects never receive the Graph bearer token.
+- Discovery can refresh only unverified observations for an existing name, never target identity or credential fields. New discoveries have protocol none and no credentials until explicit configuration.
+- Obsidian resolves current Vault credentials before cache lookup; TLS and timeout settings participate in client identity. Paperless document IDs are canonical positive decimal integers. Both clients keep credentials on their configured origin.
 - Elegoo SDCP 386 is a write: only enable_camera/disable_camera may send it, behind read-only gates. Camera URL/snapshot/stream reads use a bounded in-memory URL cache populated by successful explicit activation, bound to printer ID, URL and board. Restart requires a new explicit activation.
 - Frigate config/config_raw returns a conservative parsed projection: strings, unknown scalar fields and secret-bearing sections are redacted. Preserve only allowlisted numeric/boolean settings and structure. Unsupported YAML, aliases, duplicate keys or parse failures have no raw fallback; upstream error bodies never become config output. Frigate credentials and printer camera requests cannot follow foreign-origin redirects.
 - AdGuard filtering toggles must read and preserve the configured update interval; missing or malformed status forbids the write.

@@ -372,20 +372,13 @@ func (c *OneDriveClient) readFile(path string) string {
 		if downloadURL == "" {
 			return odErrJSON("Got redirect but no Location header")
 		}
-		dlResp, err := odHTTPClient.Get(downloadURL)
+		dlResp, err := odDownloadHTTPClient.Get(downloadURL)
 		if err != nil {
 			return odErrJSON("Download failed: %v", err)
 		}
 		defer dlResp.Body.Close()
 
-		body, _ := io.ReadAll(io.LimitReader(dlResp.Body, 512*1024)) // Limit to 512KB for text content
-		return odOkJSON(map[string]interface{}{
-			"status":    "ok",
-			"path":      path,
-			"size":      len(body),
-			"content":   string(body),
-			"truncated": len(body) >= 512*1024,
-		})
+		return readOneDriveFileResponse(dlResp, path)
 	}
 
 	if resp.StatusCode != 200 {
@@ -396,14 +389,7 @@ func (c *OneDriveClient) readFile(path string) string {
 		return odErrJSON("Read failed (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
-	return odOkJSON(map[string]interface{}{
-		"status":    "ok",
-		"path":      path,
-		"size":      len(body),
-		"content":   string(body),
-		"truncated": len(body) >= 512*1024,
-	})
+	return readOneDriveFileResponse(resp, path)
 }
 
 func (c *OneDriveClient) search(query string, maxResults int) string {
@@ -589,6 +575,9 @@ func (c *OneDriveClient) createFolder(path string) string {
 }
 
 func (c *OneDriveClient) deleteItem(path string) string {
+	if err := validateCloudDeletePath(path); err != nil {
+		return odErrJSON("%v", err)
+	}
 	if path == "" {
 		return odErrJSON("Path is required for delete operation")
 	}
@@ -788,4 +777,23 @@ func (c *OneDriveClient) createShareLink(path string) string {
 		"share_url": shareResp.Link.WebURL,
 		"link_type": shareResp.Link.Type,
 	})
+}
+
+// Download URLs are unsigned requests to public storage, never credential-bearing redirects.
+var odDownloadHTTPClient = security.NewSSRFProtectedHTTPClient(60 * time.Second)
+
+func readOneDriveFileResponse(resp *http.Response, path string) string {
+	if resp.StatusCode != http.StatusOK {
+		return odErrJSON("Download failed (HTTP %d)", resp.StatusCode)
+	}
+	const limit = 512 * 1024
+	body, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	if err != nil {
+		return odErrJSON("Download body could not be read: %v", err)
+	}
+	truncated := len(body) > limit
+	if truncated {
+		body = body[:limit]
+	}
+	return odOkJSON(map[string]interface{}{"status": "ok", "path": path, "size": len(body), "content": string(body), "truncated": truncated})
 }

@@ -4,6 +4,7 @@ package obsidian
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -30,7 +31,7 @@ type Client struct {
 var clientCache sync.Map
 
 func clientCacheKey(baseURL, apiKey string) string {
-	return fmt.Sprintf("%s|%s", baseURL, apiKey)
+	return fmt.Sprintf("%s|%x", baseURL, sha256.Sum256([]byte(apiKey)))
 }
 
 func normalizeObsidianHost(host string) (string, error) {
@@ -101,7 +102,8 @@ func NewClient(cfg config.ObsidianConfig, vault *security.Vault) (*Client, error
 		return nil, fmt.Errorf("Obsidian API key is required (set in vault as 'obsidian_api_key')")
 	}
 
-	cacheKey := clientCacheKey(baseURL, apiKey)
+	security.RegisterSensitive(apiKey)
+	cacheKey := fmt.Sprintf("%s|%t|%d|%d", clientCacheKey(baseURL, apiKey), cfg.InsecureSSL, cfg.ConnectTimeout, cfg.RequestTimeout)
 	if client, ok := clientCache.Load(cacheKey); ok {
 		return client.(*Client), nil
 	}
@@ -129,7 +131,8 @@ func NewClient(cfg config.ObsidianConfig, vault *security.Vault) (*Client, error
 		baseURL: baseURL,
 		apiKey:  apiKey,
 		httpClient: &http.Client{
-			Timeout: time.Duration(requestTimeout) * time.Second,
+			Timeout:       time.Duration(requestTimeout) * time.Second,
+			CheckRedirect: security.SameOriginRedirect,
 			Transport: &http.Transport{
 				TLSClientConfig:       tlsConfig,
 				DialContext:           dialer.DialContext,

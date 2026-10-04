@@ -89,3 +89,5 @@ A JSON object with:
 - Duplicate devices (same UDN appearing via multiple interfaces) are deduplicated automatically.
 - This tool is disabled by default. Enable it in config: `tools.upnp_scan.enabled: true`
 - Unlike `mdns_scan`, UPnP does not use mDNS — it uses SSDP multicast on 239.255.255.250:1900.
+
+Discovery is unverified. `overwrite` refreshes only the discovery description of an existing device; its address, protocol, port, credentials, tags and MAC remain unchanged. New devices use protocol `none` until explicitly configured.
