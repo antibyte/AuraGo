@@ -28,7 +28,7 @@ func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, con
 		return nil, fmt.Errorf("connection '%s' not found: %w", connName, err)
 	}
 
-	stmtType, err := DetectStatementType(query)
+	stmtType, err := detectStatementType(query, rec.Driver)
 	if err != nil {
 		return nil, fmt.Errorf("invalid query: %w", err)
 	}
@@ -43,7 +43,7 @@ func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, con
 	}
 	// A CTE may contain several different mutations. Require every grant,
 	// rather than authorizing the entire statement by its first CTE body.
-	structure, _ := sqlStructure(query)
+	structure, _ := sqlStructureDialect(query, rec.Driver)
 	if firstKeyword(structure) == "WITH" {
 		for _, token := range strings.FieldsFunc(strings.ToUpper(structure), func(r rune) bool { return !isSQLIdentChar(r) }) {
 			kind := StmtUnknown

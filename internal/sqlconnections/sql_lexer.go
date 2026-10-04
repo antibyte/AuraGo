@@ -8,7 +8,9 @@ import (
 
 // sqlStructure retains SQL syntax while replacing literal contents. Unsupported
 // escape modes are rejected: a connection's SQL mode must never change our boundary.
-func sqlStructure(s string) (string, error) {
+func sqlStructure(s string) (string, error) { return sqlStructureDialect(s, "") }
+
+func sqlStructureDialect(s, driver string) (string, error) {
 	var out strings.Builder
 	ended := false
 	for i := 0; i < len(s); {
@@ -57,6 +59,9 @@ func sqlStructure(s string) (string, error) {
 			return "", fmt.Errorf("unsupported SQL escape or comment syntax")
 		}
 		if c == '$' {
+			if driver != "" && driver != "postgres" {
+				return "", fmt.Errorf("dollar syntax is unsupported in this SQL dialect")
+			}
 			j := i + 1
 			for j < len(s) && ((s[j] >= 'a' && s[j] <= 'z') || (s[j] >= 'A' && s[j] <= 'Z') || s[j] == '_' || (j > i+1 && s[j] >= '0' && s[j] <= '9')) {
 				j++
@@ -72,7 +77,7 @@ func sqlStructure(s string) (string, error) {
 				continue
 			}
 		}
-		if c == '\'' || c == '"' || c == '`' || c == '[' {
+		if c == '\'' || c == '"' || c == '`' || (c == '[' && driver == "sqlite") {
 			close := c
 			if c == '[' {
 				close = ']'
@@ -114,18 +119,28 @@ func sqlStructure(s string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
+var sqlTypedLiteralPattern = regexp.MustCompile(`(?i)([a-z_][a-z0-9_.$]*)\s*'literal'`)
+
 var sqlFunctionPattern = regexp.MustCompile(`(?i)([a-z_][a-z0-9_.$]*)\s*\(`)
 
 // Unknown/user-defined functions are not read capabilities. DB read-only mode
 // alone cannot prevent network/file effects of privileged extension functions.
 func validateReadStructure(s string) error {
 	upper := strings.Join(strings.Fields(strings.ToUpper(s)), " ")
+	if strings.Contains(s, "::") {
+		return fmt.Errorf("SQL casts require an explicitly supported form")
+	}
+	for _, match := range sqlTypedLiteralPattern.FindAllStringSubmatch(s, -1) {
+		if !strings.Contains(" SELECT AS LIKE ILIKE WHEN THEN ELSE IS NOT DISTINCT FROM WHERE AND OR IN ON HAVING BETWEEN ESCAPE INTERVAL DATE TIME TIMESTAMP TEXT UUID BYTEA X N E ", " "+strings.ToUpper(match[1])+" ") {
+			return fmt.Errorf("unsupported typed SQL literal")
+		}
+	}
 	for _, word := range []string{"INTO", "OUTFILE", "DUMPFILE", "FOR UPDATE", "FOR SHARE", "LOCK IN", "PROCEDURE", "ANALYZE"} {
 		if strings.Contains(" "+upper+" ", " "+word+" ") {
 			return fmt.Errorf("side-effecting SQL is not allowed in a read query")
 		}
 	}
-	allowed := " COUNT SUM AVG MIN MAX ABS ROUND FLOOR CEIL CEILING LENGTH CHAR_LENGTH CHARACTER_LENGTH OCTET_LENGTH LOWER UPPER TRIM LTRIM RTRIM SUBSTR SUBSTRING REPLACE CONCAT CONCAT_WS COALESCE NULLIF IFNULL IIF IF CAST CONVERT EXTRACT DATE TIME DATETIME STRFTIME JULIANDAY UNIXEPOCH DATE_TRUNC DATE_PART TO_CHAR TO_DATE TO_TIMESTAMP NOW CURRENT_DATE CURRENT_TIME CURRENT_TIMESTAMP AGE GREATEST LEAST MOD POWER SQRT SIGN TRUNC RANDOM RAND STRING_AGG GROUP_CONCAT ARRAY_AGG JSON_AGG JSONB_AGG JSON_OBJECT JSON_ARRAY JSON_EXTRACT JSON_VALUE JSON_TYPE JSON_ARRAY_LENGTH ROW_NUMBER RANK DENSE_RANK NTILE LAG LEAD FIRST_VALUE LAST_VALUE NTH_VALUE PERCENT_RANK CUME_DIST BOOL_AND BOOL_OR EVERY STDDEV VARIANCE IN EXISTS AS OVER FILTER VALUES DISTINCT ALL SELECT WITH PARTITION "
+	allowed := " COUNT SUM AVG MIN MAX ABS ROUND FLOOR CEIL CEILING LENGTH CHAR_LENGTH CHARACTER_LENGTH OCTET_LENGTH LOWER UPPER TRIM LTRIM RTRIM SUBSTR SUBSTRING REPLACE CONCAT CONCAT_WS COALESCE NULLIF IFNULL IIF IF EXTRACT DATE TIME DATETIME STRFTIME JULIANDAY UNIXEPOCH DATE_TRUNC DATE_PART TO_CHAR TO_DATE TO_TIMESTAMP NOW CURRENT_DATE CURRENT_TIME CURRENT_TIMESTAMP AGE GREATEST LEAST MOD POWER SQRT SIGN TRUNC RANDOM RAND STRING_AGG GROUP_CONCAT ARRAY_AGG JSON_AGG JSONB_AGG JSON_OBJECT JSON_ARRAY JSON_EXTRACT JSON_VALUE JSON_TYPE JSON_ARRAY_LENGTH ROW_NUMBER RANK DENSE_RANK NTILE LAG LEAD FIRST_VALUE LAST_VALUE NTH_VALUE PERCENT_RANK CUME_DIST BOOL_AND BOOL_OR EVERY STDDEV VARIANCE IN EXISTS AS OVER FILTER VALUES DISTINCT ALL SELECT WITH PARTITION "
 	for _, match := range sqlFunctionPattern.FindAllStringSubmatch(s, -1) {
 		name := strings.ToUpper(match[1])
 		name = strings.TrimPrefix(name, "PG_CATALOG.")

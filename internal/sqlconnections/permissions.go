@@ -52,8 +52,10 @@ func stripSQLComments(s string) string {
 // are blocked rather than allowed. Edge cases like PRAGMA, EXPLAIN variants,
 // CTEs with unknown inner DML, and administrative commands are treated as
 // potentially dangerous and blocked.
-func DetectStatementType(query string) (StatementType, error) {
-	trimmed, err := sqlStructure(query)
+func DetectStatementType(query string) (StatementType, error) { return detectStatementType(query, "") }
+
+func detectStatementType(query, driver string) (StatementType, error) {
+	trimmed, err := sqlStructureDialect(query, driver)
 	if err != nil {
 		return StmtUnknown, err
 	}
