@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -252,6 +253,16 @@ func TestEngineUnknownTypeTemplateErrorAndDefaults(t *testing.T) {
 	}
 }
 
+// mustStep returns the step of nodeID and fails the test when there is none.
+func mustStep(t *testing.T, res RunResult, nodeID string) *StepRecord {
+	t.Helper()
+	s := stepOf(res, nodeID)
+	if s == nil {
+		t.Fatalf("no step for node %s; steps: %v", nodeID, stepIDs(res))
+	}
+	return s
+}
+
 // stepIDs returns the node ids of the run's steps in record order.
 func stepIDs(res RunResult) []string {
 	ids := make([]string, len(res.Steps))
@@ -338,8 +349,8 @@ func TestEngineSchedulesInTopologicalOrder(t *testing.T) {
 	if got, want := stepIDs(res), []string{tr, s1, s2, m, n}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("step order = %v, want %v", got, want)
 	}
-	if stepOf(res, s2).Status != StepSkipped || stepOf(res, m).Status != StepSuccess {
-		t.Fatalf("s2 = %s, m = %s", stepOf(res, s2).Status, stepOf(res, m).Status)
+	if mustStep(t, res, s2).Status != StepSkipped || mustStep(t, res, m).Status != StepSuccess {
+		t.Fatalf("s2 = %s, m = %s", mustStep(t, res, s2).Status, mustStep(t, res, m).Status)
 	}
 
 	// A chain listed in reverse document order is skipped in chain order.
@@ -408,11 +419,11 @@ func TestEngineClosesUnstartedNodes(t *testing.T) {
 			if got, want := stepIDs(res), []string{tr, first, x, y}; !reflect.DeepEqual(got, want) {
 				t.Fatalf("steps = %v, want %v (one per node)", got, want)
 			}
-			if s := stepOf(res, first); s.Status != tc.wantFirst {
+			if s := mustStep(t, res, first); s.Status != tc.wantFirst {
 				t.Fatalf("first = %s, want %s", s.Status, tc.wantFirst)
 			}
 			for _, id := range []string{x, y} {
-				if s := stepOf(res, id); s.Status != tc.wantRest {
+				if s := mustStep(t, res, id); s.Status != tc.wantRest {
 					t.Fatalf("node %s = %s, want %s", id, s.Status, tc.wantRest)
 				}
 			}
@@ -422,5 +433,193 @@ func TestEngineClosesUnstartedNodes(t *testing.T) {
 				t.Fatalf("events = %v", capture.types())
 			}
 		})
+	}
+}
+
+// registerLateStop registers test.latestop: it returns a stop (status success)
+// only after the run's context ended. started, when not nil, is closed on entry.
+func registerLateStop(reg *Registry, started chan<- struct{}) {
+	reg.MustRegister(&NodeDef{Type: "test.latestop", Execute: func(ctx context.Context, _ ExecInput) (ExecResult, error) {
+		if started != nil {
+			close(started)
+		}
+		<-ctx.Done()
+		return ExecResult{Stop: &StopSignal{Status: RunSuccess}}, nil
+	}})
+}
+
+// TestEngineStopDoesNotOverrideFailureOrCancel checks that the first terminal
+// outcome wins: a stop that arrives after a failure or a cancel is ignored.
+func TestEngineStopDoesNotOverrideFailureOrCancel(t *testing.T) {
+	t.Run("failure", func(t *testing.T) {
+		reg := newTestRegistry(t)
+		registerLateStop(reg, nil)
+		b, tr, fail := singleNodeFlow("StopAfterFailure", "fail", "test.fail", nil)
+		halt := b.node("halt", "test.latestop", nil)
+		b.edge(tr, PortOut, halt)
+		res, _ := runWith(context.Background(), newTestEngine(reg, nil, 4), b.build(), RunRequest{TriggerNode: tr})
+		if res.Status != RunError || res.ErrorCode != "TEST_FAILED" || res.ErrorNodeID != fail {
+			t.Fatalf("result = %s %s %s", res.Status, res.ErrorCode, res.ErrorNodeID)
+		}
+		if s := mustStep(t, res, halt); s.Status != StepSuccess {
+			t.Fatalf("halt = %s", s.Status)
+		}
+	})
+	t.Run("cancel", func(t *testing.T) {
+		reg := newTestRegistry(t)
+		started := make(chan struct{})
+		registerLateStop(reg, started)
+		b, tr, halt := singleNodeFlow("StopAfterCancel", "halt", "test.latestop", nil)
+		after := b.node("after", "test.echo", nil)
+		b.edge(halt, PortOut, after)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			<-started
+			cancel()
+		}()
+		res, _ := runWith(ctx, newTestEngine(reg, nil, 4), b.build(), RunRequest{TriggerNode: tr})
+		if res.Status != RunCancelled || res.ErrorCode != "FLOW_CANCELLED" {
+			t.Fatalf("result = %s %s", res.Status, res.ErrorCode)
+		}
+		if s := mustStep(t, res, after); s.Status != StepCancelled {
+			t.Fatalf("after = %s, want cancelled", s.Status)
+		}
+	})
+}
+
+// TestEngineFinishedRunIsNotInterrupted checks that a cancel which interrupts
+// nothing does not change the outcome of a run whose nodes all finished.
+func TestEngineFinishedRunIsNotInterrupted(t *testing.T) {
+	reg := newTestRegistry(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	reg.MustRegister(&NodeDef{Type: "test.cancelparent", Execute: func(context.Context, ExecInput) (ExecResult, error) {
+		cancel()
+		return ExecResult{Output: map[string]any{"ok": true}}, nil
+	}})
+	b, tr, n := singleNodeFlow("Late", "late", "test.cancelparent", nil)
+	res, _ := runWith(ctx, newTestEngine(reg, nil, 4), b.build(), RunRequest{TriggerNode: tr})
+	if s := mustStep(t, res, n); res.Status != RunSuccess || res.ErrorCode != "" || s.Status != StepSuccess {
+		t.Fatalf("result = %s %s, node %s", res.Status, res.ErrorCode, s.Status)
+	}
+}
+
+func TestEngineDefinitionHookPanicFailsRun(t *testing.T) {
+	reg := newTestRegistry(t)
+	reg.MustRegister(&NodeDef{Type: "test.badports", OutputsFunc: func(*Node) []string { panic("ports kaputt") },
+		Execute: func(context.Context, ExecInput) (ExecResult, error) { return ExecResult{}, nil }})
+	reg.MustRegister(&NodeDef{Type: "test.badtrigger", Trigger: true, OutputsFunc: func(*Node) []string { panic("trigger ports kaputt") }})
+	eng := newTestEngine(reg, nil, 4)
+
+	b, tr, bad := singleNodeFlow("BadPorts", "bad", "test.badports", nil)
+	res, capture := runWith(context.Background(), eng, b.build(), RunRequest{TriggerNode: tr})
+	if res.Status != RunError || res.ErrorCode != "FLOW_NODE_PANIC" || res.ErrorNodeID != bad || len(res.Steps) != 0 {
+		t.Fatalf("result = %s %s %s, %d steps", res.Status, res.ErrorCode, res.ErrorNodeID, len(res.Steps))
+	}
+	if !strings.Contains(res.ErrorMessage, `"bad"`) || !strings.Contains(res.ErrorMessage, "ports kaputt") {
+		t.Fatalf("message = %q", res.ErrorMessage)
+	}
+	if !reflect.DeepEqual(capture.types(), []string{EventRunStarted, EventRunFinished}) {
+		t.Fatalf("events = %v", capture.types())
+	}
+
+	b = newFlow("BadTrigger")
+	tr = b.node("start", "test.badtrigger", nil)
+	if res, _ := runWith(context.Background(), eng, b.build(), RunRequest{TriggerNode: tr}); res.ErrorCode != "FLOW_NODE_PANIC" || res.ErrorNodeID != tr {
+		t.Fatalf("trigger = %s %s", res.ErrorCode, res.ErrorNodeID)
+	}
+}
+
+// TestEngineKeepsDefinitionsForTheRun checks that a definition replaced during
+// a run does not affect that run: each node keeps the definition it started with.
+func TestEngineKeepsDefinitionsForTheRun(t *testing.T) {
+	reg := newTestRegistry(t)
+	version := func(v string) *NodeDef {
+		return &NodeDef{Type: "test.version", Execute: func(context.Context, ExecInput) (ExecResult, error) {
+			return ExecResult{Output: map[string]any{"v": v}}, nil
+		}}
+	}
+	reg.MustRegister(version("old"))
+	reg.MustRegister(&NodeDef{Type: "test.replace", Execute: func(context.Context, ExecInput) (ExecResult, error) {
+		reg.Replace(version("new"))
+		return ExecResult{}, nil
+	}})
+	b, tr, swap := singleNodeFlow("Swap", "swap", "test.replace", nil)
+	v := b.node("v", "test.version", nil)
+	b.edge(swap, PortOut, v)
+	res, _ := runWith(context.Background(), newTestEngine(reg, nil, 4), b.build(), RunRequest{TriggerNode: tr})
+	if res.Status != RunSuccess || res.Outputs["v"]["v"] != "old" {
+		t.Fatalf("result = %s %#v", res.Status, res.Outputs["v"])
+	}
+}
+
+func TestEngineNewEngineNeedsRegistry(t *testing.T) {
+	var r any
+	func() {
+		defer func() { r = recover() }()
+		NewEngine(nil, nil, nil, 0)
+	}()
+	if r != "flows: NewEngine needs a registry" {
+		t.Fatalf("panic = %v", r)
+	}
+}
+
+func TestEngineOnlyNodeNotFound(t *testing.T) {
+	reg := newTestRegistry(t)
+	b, tr, _ := singleNodeFlow("Missing", "a", "test.echo", nil)
+	res, _ := runWith(context.Background(), newTestEngine(reg, nil, 4), b.build(), RunRequest{TriggerNode: tr, OnlyNode: "n_zzzzzzzz"})
+	if res.Status != RunError || res.ErrorCode != "FLOW_NODE_NOT_FOUND" || len(res.Steps) != 0 {
+		t.Fatalf("result = %s %s, %d steps", res.Status, res.ErrorCode, len(res.Steps))
+	}
+}
+
+func TestEngineEventSeqOnBranchingRun(t *testing.T) {
+	reg := newTestRegistry(t)
+	b := newFlow("Branch")
+	tr := b.node("start", "test.trigger", nil)
+	check := b.node("check", TypeIf, map[string]any{"condition": cond("{{trigger.data.n}}", "gt", 3.0)})
+	yes := b.node("yes", "test.echo", map[string]any{"value": "big"})
+	no := b.node("no", "test.echo", map[string]any{"value": "small"})
+	other := b.node("other", "test.echo", map[string]any{"value": "parallel"})
+	join := b.node("join", TypeMerge, nil)
+	b.edge(tr, PortOut, check)
+	b.edge(tr, PortOut, other)
+	b.edge(check, PortTrue, yes)
+	b.edge(check, PortFalse, no)
+	b.edge(yes, PortOut, join)
+	b.edge(no, PortOut, join)
+	b.edge(other, PortOut, join)
+	res, capture := runWith(context.Background(), newTestEngine(reg, nil, 4), b.build(),
+		RunRequest{RunID: "run_branch", TriggerNode: tr, TriggerData: map[string]any{"n": 5.0}})
+	if res.Status != RunSuccess || len(res.Steps) != 6 {
+		t.Fatalf("result = %s, %d steps", res.Status, len(res.Steps))
+	}
+	evs := capture.events
+	if evs[0].Type != EventRunStarted || evs[len(evs)-1].Type != EventRunFinished {
+		t.Fatalf("events = %v", capture.types())
+	}
+	started, finished := map[string]int{}, map[string]int{}
+	for i, ev := range evs {
+		if ev.Seq != i+1 || ev.RunID != "run_branch" {
+			t.Fatalf("event %d (%s) = seq %d run %q", i, ev.Type, ev.Seq, ev.RunID)
+		}
+		switch ev.Type {
+		case EventStepStarted:
+			started[ev.NodeID]++
+		case EventStepFinished:
+			if ev.Step == nil || ev.Step.NodeID != ev.NodeID || (ev.Step.Status != StepSkipped && ev.NodeID != tr && started[ev.NodeID] != 1) {
+				t.Fatalf("event %d: step_finished for %s without a matching start", i, ev.NodeID)
+			}
+			finished[ev.NodeID]++
+		}
+	}
+	for _, id := range []string{tr, check, yes, no, other, join} {
+		if finished[id] != 1 {
+			t.Fatalf("node %s finished %d times", id, finished[id])
+		}
+	}
+	if len(started) != 4 || started[no] != 0 {
+		t.Fatalf("started = %v", started)
 	}
 }

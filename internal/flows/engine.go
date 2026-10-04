@@ -12,7 +12,11 @@ import (
 
 // Output limits and engine defaults.
 const (
-	MaxOutputBytes          = 5 << 20
+	MaxOutputBytes = 5 << 20
+	// MaxRunOutputBytes caps the encoded size of all successful outputs of one
+	// run, the trigger's included. Decoded JSON can take about 16 times its
+	// encoded size in memory, so this bounds a run to roughly 0.5 GB worst case.
+	MaxRunOutputBytes       = 32 << 20
 	MaxStoredOutputBytes    = 256 << 10
 	storedPreviewBytes      = 64 << 10
 	DefaultMaxParallelNodes = 4
@@ -22,9 +26,14 @@ const (
 	maxErrorMessageRunes = 1000
 	// maxErrorLabelRunes caps the node label that prefixes a run's error message.
 	maxErrorLabelRunes = 80
+	// defaultAbandonAfter is how long a run waits, after its context ended, for
+	// nodes that do not return before it gives up on them.
+	defaultAbandonAfter = 30 * time.Second
 )
 
-// RunRequest describes one run for the engine.
+// RunRequest describes one run for the engine. Flow must not be modified
+// during the run, nor while abandoned node workers may still read it (see
+// Execute).
 type RunRequest struct {
 	RunID       string
 	Flow        *Flow
@@ -51,13 +60,20 @@ type Engine struct {
 	services *Services
 	logger   *slog.Logger
 	parallel int
+	// abandonAfter is the real-time grace for running nodes after the run's
+	// context ended; tests shorten it.
+	abandonAfter time.Duration
 }
 
 // NewEngine returns an engine that runs at most parallel nodes of one run at a time.
 // A node holds its slot until it returns, including while it waits: a
 // logic.wait node can hold one for up to an hour, so with the default of 4
 // parallel nodes a few waiting branches block the other branches of the run.
+// reg must not be nil. services must not be modified after NewEngine.
 func NewEngine(reg *Registry, services *Services, logger *slog.Logger, parallel int) *Engine {
+	if reg == nil {
+		panic("flows: NewEngine needs a registry")
+	}
 	if parallel <= 0 {
 		parallel = DefaultMaxParallelNodes
 	}
@@ -67,7 +83,7 @@ func NewEngine(reg *Registry, services *Services, logger *slog.Logger, parallel 
 	if services == nil {
 		services = &Services{}
 	}
-	return &Engine{reg: reg, services: services, logger: logger, parallel: parallel}
+	return &Engine{reg: reg, services: services, logger: logger, parallel: parallel, abandonAfter: defaultAbandonAfter}
 }
 
 // Registry returns the engine's node registry.
@@ -76,11 +92,26 @@ func (e *Engine) Registry() *Registry { return e.reg }
 // Services returns the engine's services.
 func (e *Engine) Services() *Services { return e.services }
 
-// Execute runs req to completion. Node failures and panics become run results, never panics.
+// Execute runs req to completion. Node failures and panics become run results,
+// never panics. It is safe for concurrent use; each call is an independent run.
 //
-// A missing flow (FLOW_INVALID), one over MaxNodes or MaxEdges (FLOW_TOO_LARGE)
-// and one with a loop (FLOW_CYCLE) fail the run before any node runs; test runs
-// execute unpublished drafts, so these checks are their only guard.
+// A missing flow (FLOW_INVALID), one over MaxNodes or MaxEdges (FLOW_TOO_LARGE),
+// one with a loop (FLOW_CYCLE) and a node definition whose port hooks panic
+// (FLOW_NODE_PANIC) fail the run before any node runs; test runs execute
+// unpublished drafts, so these checks are their only guard.
+//
+// The first terminal outcome wins: a stop signal is ignored once a node failed
+// or the run was cancelled or timed out. A run is reported cancelled or timed
+// out only if that actually interrupted a node; a run whose nodes all finished
+// is a success.
+//
+// Stuck nodes: after the run's context ended (failure, stop, cancel or timeout),
+// Execute waits a grace period (30 s) for running nodes, then abandons the ones
+// that still did not return (FLOW_NODE_ABANDONED) and returns. Trade-offs: an
+// abandoned worker keeps running in the background, so its side effects may
+// happen after the run is reported finished, and it may still read the run's
+// data. The inner maps of RunResult.Outputs (and the flow) must therefore be
+// treated as read-only.
 //
 // Known limits of node execution:
 //   - A node's parameters are resolved on its worker before its timeout starts,
@@ -100,6 +131,7 @@ type nodeDone struct {
 	nodeID    string
 	step      StepRecord
 	result    ExecResult
+	size      int // encoded size of result.Output, for the run-wide budget
 	err       *NodeError
 	cancelled bool
 }
@@ -162,13 +194,14 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	var res ExecResult
 	var runErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
-		step.Attempt = attempt
 		if attempt > 1 && delay > 0 {
 			if err := e.services.Sleep(ctx, delay); err != nil {
 				runErr = err
 				break
 			}
 		}
+		// Counted only once it runs: a cancel during the delay leaves the count.
+		step.Attempt = attempt
 		nodeCtx, cancel := context.WithTimeout(ctx, timeout)
 		res, runErr = safeExecute(nodeCtx, def.Execute, in)
 		timedOut := errors.Is(nodeCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
@@ -188,16 +221,17 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 		}
 		return fail(asNodeError(runErr))
 	}
-	output, size, err := normalizeOutput(res.Output)
+	output, data, err := normalizeOutput(res.Output)
 	if err != nil {
 		return fail(&NodeError{Code: "FLOW_OUTPUT_INVALID", Message: err.Error()})
 	}
-	if size > MaxOutputBytes {
-		return fail(&NodeError{Code: "FLOW_OUTPUT_TOO_LARGE", Message: fmt.Sprintf("the node produced %d bytes; the limit is %d", size, MaxOutputBytes)})
+	if len(data) > MaxOutputBytes {
+		return fail(&NodeError{Code: "FLOW_OUTPUT_TOO_LARGE", Message: fmt.Sprintf("the node produced %d bytes; the limit is %d", len(data), MaxOutputBytes)})
 	}
 	res.Output = output
 	d.result = res
-	step.Output, step.OutputTruncated = storedOutput(output, size)
+	d.size = len(data)
+	step.Output, step.OutputTruncated = storedOutput(output, data)
 	step.ItemCount = res.ItemCount
 	if step.ItemCount == 0 {
 		if items, ok := output["items"].([]any); ok {
@@ -225,6 +259,14 @@ func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInpu
 	return e.executeNode(ctx, def, n, in)
 }
 
+// exitedNode is the result a worker reports when runNode never returns
+// (runtime.Goexit inside a node); the worker sends it from a deferred call.
+func exitedNode(n *Node, started time.Time) nodeDone {
+	ne := &NodeError{Code: "FLOW_NODE_PANIC", Message: "the node exited without a result"}
+	return nodeDone{nodeID: n.ID, err: ne, step: StepRecord{NodeID: n.ID, NodeKey: n.Key, Attempt: 1,
+		Status: StepError, StartedAt: started, FinishedAt: started, ErrorCode: ne.Code, ErrorMessage: ne.Message}}
+}
+
 func safeExecute(ctx context.Context, fn ExecuteFunc, in ExecInput) (res ExecResult, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -239,35 +281,36 @@ func panicError(r any) *NodeError {
 	return &NodeError{Code: "FLOW_NODE_PANIC", Message: truncateRunes(fmt.Sprintf("the node crashed: %v", r), maxErrorMessageRunes)}
 }
 
-// normalizeOutput turns the output into plain JSON values and reports its encoded size.
-// Oversized outputs are returned as nil with their size.
-func normalizeOutput(out map[string]any) (map[string]any, int, error) {
+// normalizeOutput turns the output into plain JSON values and also returns its
+// JSON encoding, whose length is the output's size. An oversized output is
+// returned as nil with its encoding.
+func normalizeOutput(out map[string]any) (map[string]any, []byte, error) {
 	if out == nil {
-		return map[string]any{}, 2, nil
+		return map[string]any{}, []byte("{}"), nil
 	}
 	data, err := json.Marshal(out)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	if len(data) > MaxOutputBytes {
-		return nil, len(data), nil
+		return nil, data, nil
 	}
 	var norm map[string]any
 	if err := json.Unmarshal(data, &norm); err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	if norm == nil {
 		norm = map[string]any{}
 	}
-	return norm, len(data), nil
+	return norm, data, nil
 }
 
-// storedOutput returns what the run log keeps: the output, or a preview when it is large.
-func storedOutput(out map[string]any, size int) (map[string]any, bool) {
-	if size <= MaxStoredOutputBytes {
+// storedOutput returns what the run log keeps: the output, or a preview of its
+// encoding data (from normalizeOutput) when it is large.
+func storedOutput(out map[string]any, data []byte) (map[string]any, bool) {
+	if len(data) <= MaxStoredOutputBytes {
 		return out, false
 	}
-	data, _ := json.Marshal(out)
 	return previewOf(data), true
 }
 
