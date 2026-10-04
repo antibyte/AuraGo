@@ -796,6 +796,7 @@ consolidation:
     auto_optimize: true
     archive_retain_days: 30
     max_batch_messages: 200
+    catchup_minutes: 0                                # optional daily catch-up after the morning briefing (0 = off, max 60)
     optimize_threshold: 1
     chat_session_limit: 10                               # max chat sessions retained before archival rotation
     stm_retention_messages: 500                          # max STM rows per session before archive+trim (0 = disabled)

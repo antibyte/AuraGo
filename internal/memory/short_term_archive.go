@@ -14,8 +14,8 @@ const archiveableRolesSQL = `role IN ('user', 'assistant', 'tool')`
 // extraWhere must start with "AND" when non-empty. sessionID is always bound as the first arg.
 func (s *SQLiteMemory) archiveMessagesInTx(tx *sql.Tx, sessionID, extraWhere string, extraArgs ...interface{}) (int64, error) {
 	query := `
-	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
-	SELECT session_id, role, content, timestamp
+	INSERT INTO archived_messages (session_id, role, content, is_internal, original_timestamp)
+	SELECT session_id, role, content, is_internal, timestamp
 	FROM messages
 	WHERE session_id = ? AND ` + archiveableRolesSQL
 	if extraWhere != "" {

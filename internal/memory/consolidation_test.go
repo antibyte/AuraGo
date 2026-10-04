@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -118,6 +119,90 @@ func TestDeleteOldMessagesArchivesToolMessages(t *testing.T) {
 		if msg.Role == "tool" {
 			t.Fatalf("tool message entered consolidation candidates: %+v", candidates)
 		}
+	}
+}
+
+func TestArchivedMessagesPreserveInternalOrigin(t *testing.T) {
+	stm := newTestConsolidationDB(t)
+	rows := []struct {
+		role, content string
+		internal      bool
+	}{
+		{"user", "[SYSTEM CRON TRIGGER] quoted by a user", false},
+		{"user", "[SYSTEM CRON TRIGGER] actual scheduled work", true},
+		{"assistant", `{"action":"filesystem"}`, true},
+		{"assistant", `{"action":"filesystem","purpose":"example"}`, false},
+		{"assistant", "The backup target is the NAS.", false},
+		{"user", "newest message stays in STM", false},
+	}
+	for _, row := range rows {
+		if _, err := stm.InsertMessage("default", row.role, row.content, false, row.internal); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := stm.DeleteOldMessages("default", 1); err != nil {
+		t.Fatal(err)
+	}
+	archived, err := stm.db.Query(`SELECT content, is_internal FROM archived_messages ORDER BY id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer archived.Close()
+	for _, want := range rows[:len(rows)-1] {
+		if !archived.Next() {
+			t.Fatalf("missing archived message %q", want.content)
+		}
+		var content string
+		var internal sql.NullBool
+		if err := archived.Scan(&content, &internal); err != nil {
+			t.Fatal(err)
+		}
+		if content != want.content || !internal.Valid || internal.Bool != want.internal {
+			t.Fatalf("archived message = %q, %+v; want %q, internal=%v", content, internal, want.content, want.internal)
+		}
+	}
+	if archived.Next() {
+		t.Fatal("unexpected extra archived message")
+	}
+	if err := archived.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if err := archived.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if count, err := stm.CountConsolidationCandidates(3); err != nil || count != 3 {
+		t.Fatalf("candidate count = %d, %v; want 3", count, err)
+	}
+	if excluded, err := stm.FinalizeIneligibleConsolidationCandidates(); err != nil || excluded != 2 {
+		t.Fatalf("excluded = %d, %v; want 2", excluded, err)
+	}
+}
+
+func TestLegacyInternalArchiveRowsAreExcludedWithoutSuppressingUserContent(t *testing.T) {
+	stm := newTestConsolidationDB(t)
+	_, err := stm.db.Exec(`INSERT INTO archived_messages (session_id, role, content, is_internal, original_timestamp) VALUES
+		('default', 'user', '[SYSTEM CRON TRIGGER] run scheduled work', NULL, CURRENT_TIMESTAMP),
+		('default', 'user', 'ERROR: Your last native function call was invalid', NULL, CURRENT_TIMESTAMP),
+		('default', 'assistant', '{"action":"homepage_file"}', NULL, CURRENT_TIMESTAMP),
+		('default', 'assistant', '...', NULL, CURRENT_TIMESTAMP),
+		('default', 'user', 'Remember the NAS backup target', NULL, CURRENT_TIMESTAMP),
+		('default', 'user', '[SYSTEM CRON TRIGGER] quoted by a user', 0, CURRENT_TIMESTAMP),
+		('default', 'assistant', 'internal ordinary response', 1, CURRENT_TIMESTAMP)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, err := stm.GetConsolidationCandidates(20, 3)
+	if err != nil || len(candidates) != 2 {
+		t.Fatalf("candidates = %v, %v; want two user messages", candidates, err)
+	}
+	if count, err := stm.CountConsolidationCandidates(3); err != nil || count != 2 {
+		t.Fatalf("candidate count = %d, %v; want 2", count, err)
+	}
+	if excluded, err := stm.FinalizeIneligibleConsolidationCandidates(); err != nil || excluded != 5 {
+		t.Fatalf("excluded = %d, %v; want 5", excluded, err)
+	}
+	if count, err := stm.CountConsolidationCandidates(3); err != nil || count != 2 {
+		t.Fatalf("candidate count after exclusion = %d, %v; want 2", count, err)
 	}
 }
 
@@ -417,6 +502,23 @@ func TestNewSQLiteMemoryNormalizesInvalidConsolidationStatuses(t *testing.T) {
 		t.Fatalf("NewSQLiteMemory: %v", err)
 	}
 	t.Cleanup(func() { stm.Close() })
+	backups, err := filepath.Glob(path + ".archived-message-origin-v1-*.bak")
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("origin migration backups = %v, %v; want one", backups, err)
+	}
+	backupDB, err := sql.Open("sqlite", backups[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backupDB.Close()
+	var backupHasOrigin int
+	if err := backupDB.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('archived_messages') WHERE name = 'is_internal'`).Scan(&backupHasOrigin); err != nil || backupHasOrigin != 0 {
+		t.Fatalf("backup origin column = %d, %v; want absent before migration", backupHasOrigin, err)
+	}
+	var origin sql.NullBool
+	if err := stm.db.QueryRow("SELECT is_internal FROM archived_messages WHERE content = 'pending item'").Scan(&origin); err != nil || origin.Valid {
+		t.Fatalf("legacy origin = %+v, %v; want unknown", origin, err)
+	}
 
 	var pendingStatus, doneStatus string
 	if err := stm.db.QueryRow("SELECT consolidation_status FROM archived_messages WHERE content = 'pending item'").Scan(&pendingStatus); err != nil {

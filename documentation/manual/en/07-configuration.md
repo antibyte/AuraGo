@@ -1115,7 +1115,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `guardian` | Regex-based input scanning. | `guardian:`<br>`  max_scan_bytes: 16384`<br>`  scan_edge_bytes: 6144` |
 | `ai_gateway` | Cloudflare AI Gateway routing, privacy logging, request handling, and metadata headers. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""`<br>`  mode: auto`<br>`  log_mode: metadata_only`<br>`  metadata: {}` |
 | `mcp_server` | Expose AuraGo as MCP server. | `mcp_server:`<br>`  enabled: false`<br>`  allowed_tools: []`<br>`  require_auth: true` |
-| `consolidation` | Nightly memory optimization. | `consolidation:`<br>`  enabled: true`<br>`  auto_optimize: true`<br>`  archive_retain_days: 30`<br>`  max_batch_messages: 200` |
+| `consolidation` | Nightly memory optimization; optional daily backlog catch-up after the morning briefing. | `consolidation:`<br>`  enabled: true`<br>`  auto_optimize: true`<br>`  archive_retain_days: 30`<br>`  max_batch_messages: 200`<br>`  catchup_minutes: 0` |
 | `web_config` | Web-based config editor. | `web_config:`<br>`  enabled: true` |
 | `remote_control` | Distributed remote execution. | `remote_control:`<br>`  enabled: false`<br>`  readonly: false`<br>`  discovery_port: 8092`<br>`  max_file_size_mb: 50` |
 | `mission_preparation` | Pre-analyze missions via LLM. | `mission_preparation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  timeout_seconds: 120`<br>`  max_essential_tools: 5` |

@@ -1307,6 +1307,7 @@ type Config struct {
 		AutoOptimize         bool   `yaml:"auto_optimize"`          // run optimize_memory after consolidation (default true)
 		ArchiveRetainDays    int    `yaml:"archive_retain_days"`    // keep archived messages for N days (default 30)
 		MaxBatchMessages     int    `yaml:"max_batch_messages"`     // max messages per consolidation batch (default 200)
+		CatchupMinutes       int    `yaml:"catchup_minutes"`        // optional daily post-maintenance consolidation budget (0 = disabled, max 60)
 		OptimizeThreshold    int    `yaml:"optimize_threshold"`     // priority threshold for auto-optimize (default 1)
 		ChatSessionLimit     int    `yaml:"chat_session_limit"`     // max chat sessions retained before archival rotation (default 10)
 		StmRetentionMessages int    `yaml:"stm_retention_messages"` // max STM rows per session before archive+trim (default 500, 0 = disabled)
