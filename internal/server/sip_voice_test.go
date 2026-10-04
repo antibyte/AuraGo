@@ -41,6 +41,24 @@ func TestSIPSpeechLabVoiceDriftFailsClosed(t *testing.T) {
 	}
 }
 
+func TestSIPSpeechLabNoSpeechKeepsCallAvailable(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-S2S-ASR-ID", "asr-fixture")
+		_, _ = w.Write([]byte(`{"text":""}`))
+	}))
+	defer upstream.Close()
+	client, err := speechlab.NewClient(config.SpeechLabConfig{Enabled: true, BaseURL: upstream.URL, TimeoutSeconds: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recognizer := &sipSpeechRecognizer{cfg: &config.Config{}, speechLab: client, expectedASRID: "asr-fixture"}
+	text, err := recognizer.Recognize(context.Background(), tools.PCMToWAV(make([]byte, 320), 16000, 2, 1), 16000, "de")
+	if err != nil || text != "" {
+		t.Fatalf("no-speech became a provider failure: %q %v", text, err)
+	}
+}
+
 func TestTelephoneTTSChunksPreserveCompleteResponse(t *testing.T) {
 	text := strings.Repeat("A long telephone sentence ends here. ", 45) + strings.Repeat("界", 520)
 	chunks := splitTelephoneTTSChunks(text, 500)

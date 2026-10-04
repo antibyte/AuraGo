@@ -81,10 +81,10 @@ func DestinationAllowed(cfg config.SIPOutboundConfig, accountDomain string, uri 
 		return false
 	}
 	if len(cfg.AllowedUsers) == 0 && len(cfg.AllowedE164Prefixes) == 0 {
-		return true
+		return false
 	}
 	for _, user := range cfg.AllowedUsers {
-		if strings.TrimSpace(user) == uri.User {
+		if (!strings.ContainsAny(user, "*?") || isFritzInternalNumber(user)) && strings.TrimSpace(user) == uri.User {
 			return true
 		}
 	}
@@ -103,9 +103,9 @@ func DestinationAllowed(cfg config.SIPOutboundConfig, accountDomain string, uri 
 // OutboundPolicyMigrationRequired reports legacy wildcard allow entries. They
 // remain loadable for configuration compatibility but never grant access.
 func OutboundPolicyMigrationRequired(cfg config.SIPOutboundConfig) bool {
-	for _, values := range [][]string{cfg.AllowedDomains, cfg.AllowedUsers} {
+	for index, values := range [][]string{cfg.AllowedDomains, cfg.AllowedUsers} {
 		for _, value := range values {
-			if strings.ContainsAny(value, "*?") {
+			if strings.ContainsAny(value, "*?") && !(index == 1 && isFritzInternalNumber(value)) {
 				return true
 			}
 		}

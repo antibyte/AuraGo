@@ -44,7 +44,7 @@ func ApplySetupActivation(ctx context.Context, cfg *config.SIPConfig, presetID s
 		cfg.Outbound.AllowedE164Prefixes = nil
 		cfg.Permissions.OriginateOutbound = false
 	case SetupScopeAll:
-		enableGuidedOutbound(cfg, nil, nil)
+		enableGuidedOutbound(cfg, nil, []string{"+1", "+2", "+3", "+4", "+5", "+6", "+7", "+8", "+9"})
 	case SetupScopeDomestic:
 		preset, ok := sipProviderPreset(presetID)
 		if !ok || preset.domesticPrefix == "" {

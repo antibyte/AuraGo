@@ -183,18 +183,18 @@ func TestNormalizeSIPConfigMovesDeniedE164Users(t *testing.T) {
 	}
 }
 
-func TestNormalizeSIPConfigMigratesUniversalOutboundWildcard(t *testing.T) {
+func TestNormalizeSIPConfigPreservesWildcardForManualMigration(t *testing.T) {
 	var cfg SIPConfig
 	ApplySIPDefaults(&cfg)
 	cfg.Domain = "pbx.example"
 	cfg.Outbound.AllowedDomains = []string{"*"}
 	cfg.Outbound.AllowedUsers = []string{"*", "desk"}
 	NormalizeSIPConfig(&cfg)
-	if len(cfg.Outbound.AllowedUsers) != 0 {
-		t.Fatalf("universal user wildcard was not removed: %#v", cfg.Outbound.AllowedUsers)
+	if len(cfg.Outbound.AllowedUsers) != 2 || cfg.Outbound.AllowedUsers[0] != "*" {
+		t.Fatalf("legacy wildcard was lost: %#v", cfg.Outbound.AllowedUsers)
 	}
-	if len(cfg.Outbound.AllowedDomains) != 1 || cfg.Outbound.AllowedDomains[0] != cfg.Domain {
-		t.Fatalf("universal domain wildcard did not fall back to account domain: %#v", cfg.Outbound.AllowedDomains)
+	if len(cfg.Outbound.AllowedDomains) != 1 || cfg.Outbound.AllowedDomains[0] != "*" {
+		t.Fatalf("legacy domain wildcard was lost: %#v", cfg.Outbound.AllowedDomains)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -38,6 +39,9 @@ func (r *sipSpeechRecognizer) Recognize(ctx context.Context, wav []byte, _ int, 
 	}
 	if r.speechLab != nil {
 		result, err := r.speechLab.Transcribe(ctx, wav, language, r.expectedASRID)
+		if errors.Is(err, speechlab.ErrNoSpeechDetected) {
+			return "", nil
+		}
 		return result.Text, err
 	}
 	text, _, err := tools.TranscribeAudio(ctx, "sip-call.wav", wav, r.cfg)

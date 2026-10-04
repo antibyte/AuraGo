@@ -239,18 +239,7 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	cfg.Outbound.DeniedUsers = normalizedUnique(cfg.Outbound.DeniedUsers, false)
 	cfg.Outbound.AllowedE164Prefixes = normalizedUnique(cfg.Outbound.AllowedE164Prefixes, false)
 	cfg.Outbound.DeniedE164Prefixes = normalizedUnique(cfg.Outbound.DeniedE164Prefixes, false)
-	// A legacy universal wildcard now maps to the explicit empty-list semantics:
-	// all users at the account domain. Partial wildcards remain visible so the
-	// runtime can require an administrator migration instead of widening them.
-	if slicesContainExactSIPWildcard(cfg.Outbound.AllowedUsers) {
-		cfg.Outbound.AllowedUsers = nil
-	}
-	if slicesContainExactSIPWildcard(cfg.Outbound.AllowedDomains) {
-		cfg.Outbound.AllowedDomains = removeExactSIPWildcard(cfg.Outbound.AllowedDomains)
-		if cfg.Domain != "" {
-			cfg.Outbound.AllowedDomains = normalizedUnique(append(cfg.Outbound.AllowedDomains, cfg.Domain), true)
-		}
-	}
+	// Preserve legacy wildcard entries so migration remains visible; they grant nothing.
 	// Exact E.164 values are destinations/prefixes, not SIP URI users. Keep them
 	// in the prefix list so dial policy and validation stay consistent.
 	if len(cfg.Outbound.AllowedUsers) > 0 {
@@ -279,7 +268,7 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	}
 	// Dial requires an allowlisted domain. When destinations exist and the
 	// account domain is known, include it so saved numbers are actually usable.
-	if cfg.Domain != "" && (len(cfg.Outbound.AllowedUsers) > 0 || len(cfg.Outbound.AllowedE164Prefixes) > 0) {
+	if cfg.Domain != "" && len(cfg.Outbound.AllowedDomains) == 0 && (len(cfg.Outbound.AllowedUsers) > 0 || len(cfg.Outbound.AllowedE164Prefixes) > 0) {
 		hasDomain := false
 		for _, domain := range cfg.Outbound.AllowedDomains {
 			if domain == cfg.Domain {
