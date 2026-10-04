@@ -276,6 +276,16 @@ func TestFileExistsProbe(t *testing.T) {
 		{"missing, reason past 300 runes", fsError("Failed to stat: statat "+longPath+strings.Repeat("x", 600)+": no such file or directory", "io_error"), nil, false, ""},
 		{"missing, 1 MiB message", fsError(bigMessage, "io_error"), nil, false, ""},
 		{"bare io_error", fsError("stat failed", "io_error"), nil, false, ""},
+		{"io_error without a message", fsError("", "io_error"), nil, false, ""},
+		{"found, any letter case", ToolResponse{Output: `{"status":"SUCCESS","data":{"name":"a"}}`, Status: "success"}, nil, true, ""},
+		{"unknown reason fails closed", fsError("Failed to stat: statat a.txt: something unexpected happened", "io_error"), nil, false, "FLOW_TOOL_ERROR"},
+		{"path escapes fails closed", fsError("Failed to stat: statat a: path escapes from parent", "io_error"), nil, false, "FLOW_TOOL_ERROR"},
+		{"unknown reason, other operation", fsError("Failed to open workspace root: open /x: odd", "io_error"), nil, false, "FLOW_TOOL_ERROR"},
+		{"unknown reason, any letter case", fsError("failed to stat: statat a: odd", "io_error"), nil, false, "FLOW_TOOL_ERROR"},
+		{"unknown reason, long message", fsError("Failed to stat: statat "+strings.Repeat("q", 2000)+": odd", "io_error"), nil, false, "FLOW_TOOL_ERROR"},
+		{"plain text refusal is no yes", ToolResponse{Output: "Tool Output: [PERMISSION DENIED] filesystem write operations are disabled in settings."}, nil, false, "FLOW_TOOL_ERROR"},
+		{"empty answer is no yes", ToolResponse{Output: "", Status: "success"}, nil, false, "FLOW_TOOL_ERROR"},
+		{"status that is not success", ToolResponse{Output: `{"status":"partial","data":{}}`, Status: "success"}, nil, false, "FLOW_TOOL_ERROR"},
 		{"missing, file named permission denied", fsError("Failed to stat: statat permission denied: no such file or directory", "io_error"), nil, false, ""},
 		{"permission denied", fsError("Failed to stat: statat a.txt: permission denied", "io_error"), nil, false, "FLOW_TOOL_ERROR"},
 		{"access denied", fsError(`Failed to stat: CreateFile C:\a.txt: Access is denied.`, "io_error"), nil, false, "FLOW_TOOL_ERROR"},
@@ -338,8 +348,9 @@ func TestFileWriteDoesNotWriteAfterContextEnds(t *testing.T) {
 
 // The tool's refusals of a path and of a read-only target cannot be fixed by a retry
 // and become FLOW_TOOL_DENIED; other failures stay retryable. FLOW_FILE_EXISTS
-// stays retryable too: nothing was written, so a retry costs only the delay, and
-// changing the engine's set of final codes is not this node's decision.
+// stays retryable too: changing the engine's set of final codes is not this node's
+// decision (a retry after a write whose answer was lost sees the file the first
+// attempt made, see freeTarget).
 func TestFileToolRefusalsAreFinalAndOtherFailuresRetried(t *testing.T) {
 	reg := docRegistry(t, nil)
 	for _, c := range []struct {

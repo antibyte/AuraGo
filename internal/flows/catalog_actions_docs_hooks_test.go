@@ -83,8 +83,8 @@ func TestPDFCreateChoicesAndName(t *testing.T) {
 }
 
 // A successful read always carries text: a tool answer without it is an error, not an
-// empty document that a flow would go on with. The extractor's summary mode answers
-// plain text.
+// empty document that a flow would go on with. The extractor's summary mode answers in
+// the same {"status":"success","content":…} envelope as a plain extraction.
 func TestPDFAndFileReadNeedText(t *testing.T) {
 	reg := docRegistry(t, nil)
 	pdf, file := lookupDef(t, reg, TypePDFRead), lookupDef(t, reg, TypeFileRead)
@@ -102,7 +102,9 @@ func TestPDFAndFileReadNeedText(t *testing.T) {
 	}{
 		{"pdf content", pdf, ok(`{"status":"success","content":"Seite 1"}`), "text", "Seite 1"},
 		{"pdf empty content", pdf, ok(`{"status":"success","content":""}`), "text", ""},
-		{"pdf summary", pdf, ok("A short summary."), "text", "A short summary."},
+		{"pdf summary mode", pdf, ok("{\"status\":\"success\",\"content\":\"<external_data>\\nA short summary.\\n</external_data>\"}"), "text", "A short summary."},
+		{"pdf plain text is no summary", pdf, ok("A short summary."), "text", "\x00"},
+		{"pdf text field is no content", pdf, ok(`{"status":"success","text":"A short summary."}`), "text", "\x00"},
 		{"pdf no text", pdf, ok(`{"status":"success"}`), "text", "\x00"},
 		{"pdf content object", pdf, ok(`{"status":"success","content":{"a":1}}`), "text", "\x00"},
 		{"file text", file, ok(`{"status":"success","data":"Hallo"}`), "content", "Hallo"},
