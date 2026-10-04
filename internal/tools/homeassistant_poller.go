@@ -19,7 +19,7 @@ func StartHomeAssistantPoller(ctx context.Context, cfg HAConfig, m *MissionManag
 	// Track previous state for trigger edges
 	lastStateMap := make(map[string]string)
 
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTimer(0)
 	defer ticker.Stop()
 
 	for {
@@ -28,6 +28,7 @@ func StartHomeAssistantPoller(ctx context.Context, cfg HAConfig, m *MissionManag
 			logger.Info("Home Assistant poller shutting down")
 			return
 		case <-ticker.C:
+			ticker.Reset(15 * time.Second)
 			// Fetch states only for monitored entities
 			monitoredEntities := make(map[string]bool)
 			for _, mission := range m.List() {
@@ -44,7 +45,10 @@ func StartHomeAssistantPoller(ctx context.Context, cfg HAConfig, m *MissionManag
 			}
 
 			for entityID := range monitoredEntities {
-				data, code, err := haRequest(cfg, "GET", "/api/states/"+entityID, "")
+				if ctx.Err() != nil {
+					return
+				}
+				data, code, err := haRequestContext(ctx, cfg, "GET", haEntityStateEndpoint(entityID), "")
 				if err != nil {
 					logger.Debug("HA poller request failed for entity", "entity", entityID, "error", err)
 					continue
@@ -71,7 +75,7 @@ func StartHomeAssistantPoller(ctx context.Context, cfg HAConfig, m *MissionManag
 					continue
 				}
 
-				if oldState != state {
+				if oldState != state && ctx.Err() == nil {
 					// State changed! Notify mission manager
 					lastStateMap[entityID] = state
 					m.NotifyHomeAssistantEvent(entityID, state, oldState)

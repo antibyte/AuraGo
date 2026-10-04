@@ -184,6 +184,12 @@ Server-owned HTTP and cross-component integration contracts.
 - HTTP requests and agent turns inherit the runtime context. Shutdown waits for message processing before closing databases. Integration credentials never follow a foreign redirect.
 - Verify `TestRocketChat` in `internal/rocketchat` and `internal/server`.
 
+### Mission and Home Assistant Lifetimes
+- Mission manager StartContext inherits the server lifetime; repeated Start is idempotent. Stop is terminal, refuses further work, and waits for the queue, invocation callbacks, timeout guards and completion work. Invocation callbacks must use the manager Context and must not detach their work.
+- Mission HTTP handlers remain independent of a caller disconnect, but inherit server shutdown. Their registry cancels and drains every generation before database closure, including replaced runs. History completion finishes within the tracked invocation.
+- Home Assistant polling owns one cancellable generation. Publish changed credentials/URL/enablement before draining outside config locks and starting a replacement. Shutdown drains polling before closing mission databases. Entity IDs use the shared path encoder and credentials cannot follow a foreign-origin redirect.
+- Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
+
 ## Verification
 
 - Run `go test ./internal/server` and the named cross-component checks in the contracts above when those paths change.

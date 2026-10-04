@@ -185,6 +185,11 @@ type MissionManagerV2 struct {
 	callback           func(prompt string, missionID string) // agent invocation callback with mission ID
 	ctx                context.Context
 	cancel             context.CancelFunc
+	workMu             sync.Mutex
+	workWG             sync.WaitGroup
+	workClosed         bool
+	started            bool
+	stopParent         func() bool
 	emailWatcher       EmailWatcherInterface
 	webhookMgr         WebhookManagerInterface
 	mqttMgr            MQTTManagerInterface
@@ -363,9 +368,19 @@ func (m *MissionManagerV2) SetPreparationStatus(missionID, status string) {
 }
 
 // Start loads missions and initializes triggers
-func (m *MissionManagerV2) Start() error {
+func (m *MissionManagerV2) Start() error { return m.StartContext(context.Background()) }
+
+// StartContext binds all queue work to the owning server lifetime. Stop is terminal.
+func (m *MissionManagerV2) StartContext(parent context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if m.ctx.Err() != nil {
+		return fmt.Errorf("mission manager is stopped")
+	}
+	if m.started {
+		return nil
+	}
 
 	// Load missions
 	data, err := os.ReadFile(m.file)
@@ -434,14 +449,46 @@ func (m *MissionManagerV2) Start() error {
 	m.notifySystemStartupLocked()
 
 	// Start queue processor
-	go m.processQueue()
+	m.stopParent = context.AfterFunc(parent, m.cancel)
+	if parent.Err() != nil {
+		m.cancel()
+		return parent.Err()
+	}
+	m.started = true
+	if !m.runAsync(m.processQueue) {
+		return fmt.Errorf("mission manager is stopped")
+	}
 
 	return nil
 }
 
 // Stop shuts down the mission manager
 func (m *MissionManagerV2) Stop() {
+	m.workMu.Lock()
+	m.workClosed = true
 	m.cancel()
+	m.workMu.Unlock()
+	m.workWG.Wait()
+	m.mu.Lock()
+	if m.stopParent != nil {
+		m.stopParent()
+		m.stopParent = nil
+	}
+	m.mu.Unlock()
+}
+
+// Context lets a managed invocation callback inherit shutdown cancellation.
+func (m *MissionManagerV2) Context() context.Context { return m.ctx }
+
+func (m *MissionManagerV2) runAsync(fn func()) bool {
+	m.workMu.Lock()
+	defer m.workMu.Unlock()
+	if m.workClosed || m.ctx.Err() != nil {
+		return false
+	}
+	m.workWG.Add(1)
+	go func() { defer m.workWG.Done(); fn() }()
+	return true
 }
 
 func (m *MissionManagerV2) save() error {
@@ -741,6 +788,9 @@ func (m *MissionManagerV2) processQueue() {
 
 // processNext executes the next mission in queue if none is running
 func (m *MissionManagerV2) processNext() {
+	if m.ctx.Err() != nil {
+		return
+	}
 	item, ok := m.queue.TryStartNext()
 	if !ok {
 		return
@@ -875,12 +925,12 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 
 	prompt = appendIsolatedTriggerContext(prompt, item.TriggerType, item.TriggerData)
 	// Start timeout guardian to prevent permanent queue blocking if callback hangs
-	guardCtx, guardCancel := context.WithCancel(context.Background())
+	guardCtx, guardCancel := context.WithCancel(m.ctx)
 	m.mu.Lock()
 	m.missionGuards[missionID] = guardCancel
 	m.mu.Unlock()
 
-	go func() {
+	m.runAsync(func() {
 		timer := time.NewTimer(40 * time.Minute)
 		defer timer.Stop()
 		select {
@@ -892,9 +942,9 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 		case <-m.ctx.Done():
 			// System shutdown
 		}
-	}()
+	})
 	dispatched = true
-	go callback(prompt, missionID)
+	m.runAsync(func() { callback(prompt, missionID) })
 }
 
 func appendIsolatedTriggerContext(prompt, triggerType, triggerData string) string {
@@ -1023,8 +1073,8 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		recordMissionAuditCompletion(m.auditRecorder, runID, missionID, missionName, result, output)
 		if m.historyDB != nil {
 			hdb := m.historyDB
-			// Write history outside the lock to avoid contention
-			go func() {
+			// Complete history before the tracked callback returns during shutdown.
+			func() {
 				var histErr error
 				if result == MissionResultSuccess || result == "success" {
 					histErr = RecordMissionCompletion(hdb, runID, "success", output)
@@ -1084,7 +1134,7 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		slog.Error("[MissionV2] Failed to persist queue after dependent trigger", "mission_id", missionID, "error", err)
 	}
 	if completeCB != nil {
-		go completeCB(missionID, result, output)
+		m.runAsync(func() { completeCB(missionID, result, output) })
 	}
 }
 
@@ -1097,6 +1147,9 @@ func (m *MissionManagerV2) TriggerMission(missionID, triggerType, triggerData st
 // extraCheatsheetIDs are appended to the mission prompt in addition to the mission's own cheatsheets.
 // extraPromptSuffix is appended verbatim after cheatsheet expansion.
 func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, triggerData string, extraCheatsheetIDs []string, extraPromptSuffix string) error {
+	if m.ctx.Err() != nil {
+		return fmt.Errorf("mission manager is stopped")
+	}
 	if err := requireMissionMutationPermission(); err != nil {
 		return err
 	}
@@ -1654,10 +1707,10 @@ func (m *MissionManagerV2) startRemoteRunGuardLocked(missionID string) {
 		cancel()
 		delete(m.remoteRunGuards, missionID)
 	}
-	guardCtx, cancel := context.WithCancel(context.Background())
+	guardCtx, cancel := context.WithCancel(m.ctx)
 	m.remoteRunGuards[missionID] = cancel
 	timeout := remoteMissionResultTimeout
-	go func() {
+	m.runAsync(func() {
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
 		select {
@@ -1666,7 +1719,7 @@ func (m *MissionManagerV2) startRemoteRunGuardLocked(missionID string) {
 		case <-guardCtx.Done():
 		case <-m.ctx.Done():
 		}
-	}()
+	})
 }
 
 func (m *MissionManagerV2) completeRemoteMissionTimeout(missionID string) {

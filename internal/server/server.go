@@ -281,6 +281,9 @@ type Server struct {
 	rocketChatLifecycleMu sync.Mutex
 	rocketChatBot         atomic.Pointer[rocketchat.Bot]
 	rocketChatClosed      bool
+	haPollerMu            sync.Mutex
+	haPoller              atomic.Pointer[homeAssistantPollerRuntime]
+	haPollerClosed        bool
 }
 
 func (s *Server) accessLogger() *slog.Logger {
@@ -332,7 +335,7 @@ func missionRunBaseContext(s *Server, missionID string) (context.Context, func()
 	if missionID == "" {
 		return context.Background(), func() {}
 	}
-	return s.missionRunTracker().begin(missionID)
+	return s.missionRunTracker().beginContext(s.integrationCtx, missionID)
 }
 
 func (s *Server) initConfigSnapshot() {
@@ -361,6 +364,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	if bot := s.rocketChatBot.Load(); bot != nil {
 		bot.CancelIfConfigChanged(cfg)
+	}
+	if poller := s.haPoller.Load(); poller != nil {
+		poller.cancelIfChanged(cfg)
 	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
@@ -848,7 +854,7 @@ func Start(opts StartOptions) error {
 
 	// Start MissionManagerV2 with enhanced callback that reports completion
 	missionCallbackV2 := func(prompt string, missionID string) {
-		go func() {
+		func() {
 			recordMissionIssue := func(title, detail string) {
 				if s.PlannerDB == nil {
 					return
@@ -916,7 +922,7 @@ func Start(opts StartOptions) error {
 			headers.Set("X-Internal-Token", s.internalToken)
 			headers.Set("X-Mission-ID", missionID)
 			client := NewInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
-			resp, err := DoInternalRequestWithStartupRetry(serverCtx, client, http.MethodPost, url, body, headers, 15*time.Second)
+			resp, err := DoInternalRequestWithStartupRetry(s.MissionManagerV2.Context(), client, http.MethodPost, url, body, headers, 15*time.Second)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
 				setMissionError("", err.Error())
@@ -1071,7 +1077,7 @@ func Start(opts StartOptions) error {
 	// Use reinitBudgetTracker so the callback is always registered after a reload too.
 	s.reinitBudgetTracker(cfg)
 
-	if err := s.MissionManagerV2.Start(); err != nil {
+	if err := s.MissionManagerV2.StartContext(serverCtx); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
 	} else if shouldSeedWelcomeContent(s.IsFirstStart) {
 		// Seed bundled example missions only during first-start setup.
@@ -1084,15 +1090,7 @@ func Start(opts StartOptions) error {
 		tools.SeedWelcomeCheatsheets(cheatsheetDB, installDir, logger)
 	}
 
-	// Start Home Assistant Poller
-	if cfg.HomeAssistant.Enabled && cfg.HomeAssistant.URL != "" && cfg.HomeAssistant.AccessToken != "" {
-		haCfg := tools.HAConfig{
-			URL:         cfg.HomeAssistant.URL,
-			AccessToken: cfg.HomeAssistant.AccessToken,
-		}
-		// Context from server could be passed, but Background is safe for background daemon
-		go tools.StartHomeAssistantPoller(serverCtx, haCfg, s.MissionManagerV2, logger)
-	}
+	s.configureHomeAssistantPoller()
 
 	// Initialize Notes schema in SQLite (idempotent: CREATE TABLE IF NOT EXISTS)
 	if err := shortTermMem.InitNotesTables(); err != nil {

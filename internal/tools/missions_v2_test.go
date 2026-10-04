@@ -1446,8 +1446,7 @@ func TestScheduledMissionIdempotentRegistration(t *testing.T) {
 		t.Fatalf("failed to create mission: %v", err)
 	}
 
-	// Trigger a second Start() (e.g. config reload) – should not duplicate jobs
-	mm.Stop()
+	// A repeated Start must not duplicate jobs or queue processors.
 	if err := mm.Start(); err != nil {
 		t.Fatalf("failed to re-start mission manager: %v", err)
 	}

@@ -729,6 +729,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		embeddingsChanged := false
 		discordChanged := false
 		rocketChatChanged := false
+		homeAssistantChanged := false
 		restartFileIndexerAfterUnlock := false
 		fileIndexerEnabledAfterReload := false
 		restartAgentMailAfterUnlock := false
@@ -752,6 +753,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			newCfg.Runtime = oldCfg.Runtime
 			bluetoothChanged = !reflect.DeepEqual(oldCfg.Bluetooth, newCfg.Bluetooth)
 			rocketChatChanged = !reflect.DeepEqual(oldCfg.RocketChat, newCfg.RocketChat) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
+			homeAssistantChanged = !reflect.DeepEqual(oldCfg.HomeAssistant, newCfg.HomeAssistant) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			networkSharesChanged = !reflect.DeepEqual(oldCfg.NetworkShares, newCfg.NetworkShares) ||
 				oldCfg.Agent.SudoEnabled != newCfg.Agent.SudoEnabled ||
 				oldCfg.Agent.SudoUnrestricted != newCfg.Agent.SudoUnrestricted
@@ -1454,6 +1456,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			discord.StopBot(s.Logger)
 			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 			s.Logger.Info("[Config UI] Discord bot hot-reloaded", "enabled", newCfg.Discord.Enabled)
+		}
+		if loadErr == nil && homeAssistantChanged {
+			s.configureHomeAssistantPoller()
 		}
 		if loadErr == nil && rocketChatChanged {
 			s.configureRocketChatBot()

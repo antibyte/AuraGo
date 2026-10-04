@@ -16,7 +16,7 @@ import (
 // Home Assistant is a homelab integration and commonly lives on RFC1918 or
 // mDNS/local addresses, so it must not use the generic SSRF-protected client
 // reserved for agent-supplied arbitrary URLs.
-var haHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var haHTTPClient = &http.Client{Timeout: 30 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // HAConfig holds the Home Assistant connection parameters.
 type HAConfig struct {
@@ -41,6 +41,9 @@ func haRequest(cfg HAConfig, method, endpoint string, body string) ([]byte, int,
 }
 
 func haRequestContext(ctx context.Context, cfg HAConfig, method, endpoint string, body string) ([]byte, int, error) {
+	if err := security.ValidateHTTPBaseURL(cfg.URL); err != nil {
+		return nil, 0, err
+	}
 	if cfg.AccessToken != "" {
 		security.RegisterSensitive(cfg.AccessToken)
 	}

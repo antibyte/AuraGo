@@ -15,6 +15,11 @@ func (s *Server) closeRuntimeResources() {
 		return
 	}
 	s.stopRocketChatBot()
+	s.stopHomeAssistantPoller()
+	if s.MissionManagerV2 != nil {
+		s.MissionManagerV2.Stop()
+	}
+	s.missionRunTracker().close()
 
 	if manager := currentVaultSecretPrompter(s); manager != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
