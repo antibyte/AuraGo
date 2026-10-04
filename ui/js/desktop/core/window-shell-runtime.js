@@ -83,11 +83,23 @@
     }
 
     function renderQuickChatWidget(container) {
+        let disposed = false;
+        let controller = null;
+        const stop = () => {
+            controller?.abort();
+            if (controller && state.quickChatOwner === controller) {
+                state.quickChatOwner = null;
+                state.chatBusy = false;
+            }
+        };
+        const onPolicy = event => { if (event.detail?.readonly || event.detail?.enabled === false) stop(); };
+        document.addEventListener('aurago:desktop-policy', onPolicy);
+        registerWidgetCleanup(() => { disposed = true; stop(); document.removeEventListener('aurago:desktop-policy', onPolicy); });
         container.innerHTML = `<div class="vd-quickchat vd-quickchat-collapsed">
             <div class="vd-quickchat-response"></div>
             <form class="vd-quickchat-form">
-                <input class="vd-quickchat-input" autocomplete="off" placeholder="${esc(t('desktop.chat_placeholder'))}">
-                <button class="vd-quickchat-send" type="submit">${iconMarkup('chat', 'S', 'vd-quickchat-send-icon', 14)}</button>
+                <input class="vd-quickchat-input" autocomplete="off" aria-label="${esc(t('desktop.chat_placeholder'))}" placeholder="${esc(t('desktop.chat_placeholder'))}">
+                <button class="vd-quickchat-send" type="submit" aria-label="${esc(t('desktop.send'))}">${iconMarkup('chat', 'S', 'vd-quickchat-send-icon', 14)}</button>
             </form>
         </div>`;
         const input = container.querySelector('.vd-quickchat-input');
@@ -95,20 +107,23 @@
         const wrapper = container.querySelector('.vd-quickchat');
         container.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (state.chatBusy) return;
+            if (disposed || state.chatBusy || desktopReadonly()) return;
             const message = input.value.trim();
             if (!message) return;
             input.value = '';
             state.chatBusy = true;
+            controller = new AbortController();
+            const request = controller;
+            state.quickChatOwner = request;
             responseEl.textContent = t('desktop.thinking');
             responseEl.classList.add('vd-quickchat-active');
             wrapper.classList.remove('vd-quickchat-collapsed');
             try {
-                await sendQuickChatStream(responseEl, message);
+                await sendQuickChatStream(responseEl, message, request.signal);
             } catch (err) {
-                responseEl.textContent = err.message || t('desktop.quickchat_error');
+                if (!disposed && !request.signal.aborted) responseEl.textContent = t('desktop.quickchat_error');
             } finally {
-                state.chatBusy = false;
+                if (state.quickChatOwner === request) { state.chatBusy = false; state.quickChatOwner = null; }
             }
         });
     }
@@ -130,35 +145,46 @@
         }
     }
 
-    async function sendQuickChatStream(responseEl, message) {
+    async function sendQuickChatStream(responseEl, message, signal) {
         let streamingContent = '';
         let petAnnouncementText = '';
         let finalized = false;
         return new Promise((resolve, reject) => {
-            const ctrl = new AbortController();
+            let reader = null;
+            const onAbort = () => {
+                if (reader) reader.cancel().catch(() => {});
+                doReject(new DOMException('Chat cancelled', 'AbortError'));
+            };
+            signal.addEventListener('abort', onAbort, { once: true });
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
+                signal.removeEventListener('abort', onAbort);
+                if (signal.aborted || !responseEl.isConnected) { resolve(); return; }
                 announceQuickChatResponseToPet(petAnnouncementText || streamingContent);
                 resolve();
             }
             function doReject(err) {
                 if (finalized) return;
                 finalized = true;
+                signal.removeEventListener('abort', onAbort);
                 reject(err);
             }
+            if (signal.aborted) { onAbort(); return; }
             fetch('/api/desktop/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message }),
-                signal: ctrl.signal
+                signal
             }).then(response => {
                 if (!response.ok) return response.text().then(text => { throw new Error(text || ('HTTP ' + response.status)); });
-                const reader = response.body.getReader();
+                reader = response.body.getReader();
+                if (signal.aborted || !responseEl.isConnected) { onAbort(); return; }
                 const decoder = new TextDecoder();
                 let buffer = '';
                 function processChunk() {
                     reader.read().then(({ done, value }) => {
+                        if (finalized || signal.aborted || !responseEl.isConnected) { onAbort(); return; }
                         if (done) { doFinalize(); return; }
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
@@ -1360,7 +1386,7 @@
         const windowContext = Object.assign({}, context || {});
         if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
-        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
+        state.windows.set(id, { id, sessionKey: sessionRestore?.key || id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
         if (!sessionRestore) desktopSound('window.open');
@@ -1368,7 +1394,10 @@
         else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
-        if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
+        if (sessionRestore && sessionRestore.minimized) {
+            win.style.display = 'none';
+            if (state.activeWindowId === id) state.activeWindowId = '';
+        }
         applySpaceVisibility();
         renderAppContent(id, appId, windowContext);
         if (!sessionRestore && windowContext.path) recordRecentFile(windowContext.path, appId, windowContext.pathKind);

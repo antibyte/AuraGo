@@ -200,7 +200,7 @@
     async function desktopSound(eventId, options) {
         options = options || {};
         if (options.silent || document.hidden) return;
-        if (options.sessionRestore) return;
+        if (options.sessionRestore || (typeof state !== 'undefined' && state.sessionRestoring)) return;
         if (!soundsEnabled() && !options.preview) return;
         const category = EVENT_CATEGORY[eventId];
         if (!categoryEnabled(category)) return;
@@ -212,6 +212,7 @@
         try {
             const themeId = options.theme || currentThemeId();
             await ensureBuffers(themeId);
+            if (document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
             const buffer = cache.buffers[eventId] || cache.buffers['notify.info'];
             if (!buffer) return;
             const meta = cache.stats[eventId] || {};

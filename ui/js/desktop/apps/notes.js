@@ -293,9 +293,7 @@
             }
             const page='<!doctype html><html lang="'+esc(document.documentElement.lang||'en')+'"><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font:16px/1.65 system-ui,sans-serif;color:#182331;background:white;margin:24mm;overflow-wrap:anywhere}img{max-width:100%}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aab4c4;padding:8px}pre{white-space:pre-wrap;background:#edf0f4;padding:12px}blockquote{border-left:3px solid #8a9ab0;padding-left:16px}h1,h2,h3{line-height:1.25;break-after:avoid}tr,img{break-inside:avoid}@page{size:A4;margin:0}</style>'+wrapper.innerHTML+'</html>';
             if(format==='html'){download(page,'text/html;charset=utf-8',basename(current.path).replace(/\.md$/i,'.html'));return;}
-            const frame=document.createElement('iframe');frame.className='notes-print-frame';frame.title=tr('print');frame.srcdoc=page;document.body.append(frame);
-            frame.onload=async()=>{frame.contentWindow.addEventListener('afterprint',()=>frame.remove(),{once:true});await frame.contentDocument.fonts.ready;await Promise.all([...frame.contentDocument.images].map(img=>img.decode().catch(()=>{})));frame.contentWindow.focus();frame.contentWindow.print();};
-            life.signal.addEventListener('abort',()=>frame.remove(),{once:true});
+            await window.AuraDesktopPrint.printHTML({html:page,title:tr('print'),failureMessage:ctx.t('desktop.print_failed'),className:'notes-print-frame',signal:life.signal});
         }
         function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
         async function act(action,event){

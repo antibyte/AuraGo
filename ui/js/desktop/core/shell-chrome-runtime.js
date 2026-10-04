@@ -33,9 +33,13 @@
         updateNotificationBadge();
     }
 
-    function closeNotificationCenter() {
+    function closeNotificationCenter(restoreFocus = false) {
         const panel = document.getElementById('vd-notification-center');
-        if (panel) panel.hidden = true;
+        if (panel) {
+            panel.hidden = true;
+            panel._returnFocus?.setAttribute('aria-expanded', 'false');
+            if (restoreFocus && panel._returnFocus?.isConnected) panel._returnFocus.focus();
+        }
     }
 
     function renderNotificationCenter() {
@@ -45,8 +49,14 @@
             panel.id = 'vd-notification-center';
             panel.className = 'vd-notification-center';
             panel.hidden = true;
+            panel.setAttribute('role', 'dialog');
+            panel.tabIndex = -1;
+            panel.addEventListener('keydown', event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeNotificationCenter(true); }
+            });
             document.body.appendChild(panel);
         }
+        panel.setAttribute('aria-label', t('desktop.notifications_title'));
         const items = state.notificationHistory || [];
         const list = items.length
             ? items.map(entry => `<button type="button" class="vd-notification-item${entry.read ? '' : ' unread'}" data-notification-id="${esc(entry.id)}" data-app-id="${esc(entry.appId || '')}">
@@ -88,6 +98,9 @@
             return;
         }
         panel.hidden = false;
+        panel._returnFocus = anchor || document.activeElement;
+        panel._returnFocus?.setAttribute('aria-expanded', 'true');
+        panel.focus();
         desktopSound('menu.open');
         markAllNotificationsRead();
         if (anchor && anchor.getBoundingClientRect) {
@@ -102,9 +115,14 @@
         return date.toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
     }
 
-    function closeClockPopup() {
+    function closeClockPopup(restoreFocus = false) {
         const popup = document.getElementById('vd-clock-popup');
-        if (popup) popup.hidden = true;
+        if (popup) {
+            popup.hidden = true;
+            popup._request = (popup._request || 0) + 1;
+            popup._returnFocus?.setAttribute('aria-expanded', 'false');
+            if (restoreFocus && popup._returnFocus?.isConnected) popup._returnFocus.focus();
+        }
     }
 
     async function openClockPopup(anchor) {
@@ -114,9 +132,19 @@
             popup = document.createElement('div');
             popup.id = 'vd-clock-popup';
             popup.className = 'vd-clock-popup';
+            popup.setAttribute('role', 'dialog');
+            popup.tabIndex = -1;
+            popup.addEventListener('keydown', event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeClockPopup(true); }
+            });
             document.body.appendChild(popup);
         }
+        const request = popup._request = (popup._request || 0) + 1;
+        popup.setAttribute('aria-label', t('desktop.clock_today'));
+        popup._returnFocus = anchor || document.activeElement;
+        popup._returnFocus?.setAttribute('aria-expanded', 'true');
         popup.hidden = false;
+        popup.focus();
         popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
         if (anchor && anchor.getBoundingClientRect) {
             const rect = anchor.getBoundingClientRect();
@@ -129,6 +157,7 @@
         } catch (_) {
             appointments = [];
         }
+        if (popup.hidden || popup._request !== request || !popup.isConnected) return;
         const now = new Date();
         const todayKey = now.toISOString().slice(0, 10);
         const todayItems = (appointments || []).filter(item => String(item.date_time || '').startsWith(todayKey));
@@ -274,6 +303,14 @@
             clock.dataset.shellChromeWired = 'true';
             clock.style.cursor = 'pointer';
             clock.title = t('desktop.clock_open_calendar');
+            clock.setAttribute('aria-label', t('desktop.clock_open_calendar'));
+            clock.setAttribute('role', 'button');
+            clock.setAttribute('aria-haspopup', 'dialog');
+            clock.setAttribute('aria-expanded', 'false');
+            clock.tabIndex = 0;
+            clock.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openClockPopup(clock); }
+            });
             clock.addEventListener('click', event => {
                 event.stopPropagation();
                 openClockPopup(clock);
@@ -282,6 +319,9 @@
         const notifyBtn = document.getElementById('vd-notification-button');
         if (notifyBtn && !notifyBtn.dataset.shellChromeWired) {
             notifyBtn.dataset.shellChromeWired = 'true';
+            notifyBtn.setAttribute('aria-label', t('desktop.notifications_title'));
+            notifyBtn.setAttribute('aria-haspopup', 'dialog');
+            notifyBtn.setAttribute('aria-expanded', 'false');
             notifyBtn.addEventListener('click', event => {
                 event.stopPropagation();
                 toggleNotificationCenter(notifyBtn);

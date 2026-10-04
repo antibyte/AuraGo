@@ -170,9 +170,6 @@ func normalizeConfig(cfg Config) (Config, error) {
 	if cfg.MaxFileSizeMB <= 0 {
 		cfg.MaxFileSizeMB = 50
 	}
-	if cfg.ControlLevel == "" {
-		cfg.ControlLevel = ControlConfirmDestructive
-	}
 	if cfg.MaxWSClients <= 0 {
 		cfg.MaxWSClients = 8
 	}
@@ -741,7 +738,6 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 		AllowAgentControl:  cfg.AllowAgentControl,
 		AllowGeneratedApps: cfg.AllowGeneratedApps,
 		AllowPythonJobs:    cfg.AllowPythonJobs,
-		ControlLevel:       cfg.ControlLevel,
 		Workspace: WorkspaceInfo{
 			Root:        "/",
 			Directories: DefaultDirectories(),

@@ -12,7 +12,6 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 	if cfg == nil {
 		return Config{
 			MaxFileSizeMB:            50,
-			ControlLevel:             ControlConfirmDestructive,
 			MaxWSClients:             8,
 			RemoteMaxSessionMinutes:  60,
 			RemoteIdleTimeoutMinutes: 5,
@@ -22,10 +21,6 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 	maxFileSizeMB := desktopCfg.MaxFileSizeMB
 	if maxFileSizeMB <= 0 {
 		maxFileSizeMB = 50
-	}
-	controlLevel := strings.TrimSpace(desktopCfg.ControlLevel)
-	if controlLevel == "" {
-		controlLevel = ControlConfirmDestructive
 	}
 	maxWSClients := desktopCfg.MaxWSClients
 	if maxWSClients <= 0 {
@@ -69,7 +64,6 @@ func ConfigFromAuraConfig(cfg *config.Config) Config {
 		MediaRegistryPath:        strings.TrimSpace(cfg.SQLite.MediaRegistryPath),
 		ImageGalleryPath:         strings.TrimSpace(cfg.SQLite.ImageGalleryPath),
 		MaxFileSizeMB:            maxFileSizeMB,
-		ControlLevel:             controlLevel,
 		MaxWSClients:             maxWSClients,
 		RemoteMaxSessionMinutes:  remoteMaxSessionMinutes,
 		RemoteIdleTimeoutMinutes: remoteIdleTimeoutMinutes,

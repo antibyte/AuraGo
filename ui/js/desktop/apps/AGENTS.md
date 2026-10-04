@@ -594,6 +594,12 @@ buttons and menu popovers remain excluded from those gestures.
   plus the throw message. Sheets notifies and returns.
   Call `t(key)` with no fallback string. Do not hardcode English
   `print frame unavailable`.
+- Notes, Writer, Sheets and Viewer share `AuraDesktopPrint` from
+  `core/print-runtime.js`. Set iframe sandbox before insertion to
+  `allow-same-origin allow-modals`, never allow scripts; only the parent prints.
+  Preserve sanitization, await fonts/images, bind the frame to its owner signal,
+  and translate timeout errors at the caller. Browser regression:
+  `TestDesktopPrintSandboxBrowser`.
 - Store container-app frame errors, terminal-preview frame errors,
   store start toasts, and external-open notifications reuse
   `desktop.load_failed`. Do not dump raw `err.message` there.
@@ -848,8 +854,14 @@ buttons and menu popovers remain excluded from those gestures.
   cycling spaces.
 - Thumbnails clone DOM window content when possible; iframe-heavy windows show
   a live-window fallback instead of a blank capture.
-- Media keys and `navigator.mediaSession` route to the active Webamp music
-  player only while `state.webampMusic` is alive; no global OS volume control.
+- `AuraDesktopMediaSession` owns OS media handlers/metadata. Registrations are
+  owner-bound; disposal releases only that owner. Personal Radio has priority
+  over Webamp, then the latest active Radio/TeeVee/RTL-SDR player. Metadata
+  refreshes do not steal ownership. Radio direct streams use native no-CORS
+  audio; background TeeVee playback remains intentional. No global volume control.
+- Chess disposes its AudioContext and scheduled tones. Galaxa cancels RAF while
+  inactive and restarts at most one loop on visibility/focus return. Gallery
+  errors use translated messages; Detective renders invalid URLs as text.
 
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent

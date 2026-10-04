@@ -446,7 +446,7 @@ worker. Keep packaging, recovery and offline instructions in
   reports not-ready so the next frame retries instead of locking in a black
   texture.
 - Animated wallpapers (`silk_flow`, `firefly_dusk` calm; `neon_overdrive`,
-  `fractal_trip` wild) are fragment shaders in the self-contained module
+  `fractal_trip` wild) are fragment shaders in the module
   `js/desktop/live-wallpapers.js`, painted on one WebGL canvas in
   `#vd-wallpaper-live` (fixed, `z-index: -1`, behind the whole shell). A new
   one needs its id in `internal/desktop/types.go`, `spaces-runtime.js`, the
@@ -457,6 +457,16 @@ worker. Keep packaging, recovery and offline instructions in
   still frame for reduced motion or `data-animations="false"`, release the
   context for other wallpapers and keep brightness pulses gentle (no flashes).
   Verify with `TestDesktopLiveWallpapersBrowser`.
+- `wallpaper-visibility.js` owns the shared maximized-window/screensaver
+  occlusion predicate. City Rain also stops while hidden or covered; repeated
+  pagehide/pageshow must reinstall observers exactly once and reject stale loads.
+- Shell session v2 adds stable window keys and an active-window key; restore
+  focus independently of always-on-top stacking and suppress restore sounds.
+  Compact mode preserves the logical active space. Resize/snap share clamped
+  app minimums, with reachable viewport bounds taking precedence.
+- Spotlight responses belong to a search generation and open instance. Quick
+  Chat owns its AbortController/reader through widget cleanup. Shell popups
+  close on Escape and return focus to their accessible opener.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
   Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
   Every Desktop main-bundle part starts and ends at a function boundary inside the shell IIFE (only

@@ -263,7 +263,7 @@
             refs['legend-down'].textContent = latest ? fritzFormatBits(latest.down) : '–';
             refs['legend-up'].textContent = latest ? fritzFormatBits(latest.up) : '–';
             const spanMinutes = Math.max(1, Math.round((range.end - range.start) / 60000));
-            refs['legend-span'].textContent = label('window_label', { span: spanMinutes + ' min' });
+            refs['legend-span'].textContent = label('window_label', { span: new Intl.NumberFormat(lang(), { style: 'unit', unit: 'minute', unitDisplay: 'short' }).format(spanMinutes) });
             let peakDown = 0;
             let peakUp = 0;
             for (const sample of samples) {

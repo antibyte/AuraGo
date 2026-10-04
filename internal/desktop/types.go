@@ -8,9 +8,6 @@ import (
 )
 
 const (
-	ControlConfirmDestructive = "confirm_destructive"
-	ControlTrusted            = "trusted"
-
 	SourceAgent = "agent"
 	SourceUser  = "user"
 
@@ -36,7 +33,6 @@ type Config struct {
 	MediaRegistryPath        string
 	ImageGalleryPath         string
 	MaxFileSizeMB            int
-	ControlLevel             string
 	MaxWSClients             int
 	RemoteMaxSessionMinutes  int
 	RemoteIdleTimeoutMinutes int
@@ -105,7 +101,6 @@ type BootstrapPayload struct {
 	AllowAgentControl  bool              `json:"allow_agent_control"`
 	AllowGeneratedApps bool              `json:"allow_generated_apps"`
 	AllowPythonJobs    bool              `json:"allow_python_jobs"`
-	ControlLevel       string            `json:"control_level"`
 	Workspace          WorkspaceInfo     `json:"workspace"`
 	BuiltinApps        []AppManifest     `json:"builtin_apps"`
 	InstalledApps      []AppManifest     `json:"installed_apps"`

@@ -141,7 +141,6 @@ func TestServiceRepairsBrokenDefaultPetSeed(t *testing.T) {
 		MaxFileSizeMB:      1,
 		AllowGeneratedApps: true,
 		AllowAgentControl:  true,
-		ControlLevel:       ControlConfirmDestructive,
 	}
 	svc := testServiceWithConfig(t, cfg)
 	ctx := context.Background()

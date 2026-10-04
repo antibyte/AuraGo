@@ -26,6 +26,8 @@ const desktopMainParts = [
   'ui/js/desktop/core/shortcut-runtime.js',
   'ui/js/desktop/core/file-dialog-runtime.js',
   'ui/js/desktop/core/file-conflict-runtime.js',
+  'ui/js/desktop/core/print-runtime.js',
+  'ui/js/desktop/core/media-session-runtime.js',
   'ui/js/desktop/core/session-runtime.js',
   'ui/js/desktop/core/spaces-runtime.js',
   'ui/js/desktop/core/spaces-overview-runtime.js',

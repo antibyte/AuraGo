@@ -162,7 +162,6 @@
     function refreshSpacesForViewport() {
         if (!spacesEnabled() && isSpacesOverviewOpen()) closeSpacesOverview();
         renderSpacePager();
-        if (!spacesEnabled()) state.activeSpaceId = DEFAULT_SPACE_ID;
         applyActiveSpaceWallpaper();
         applySpaceVisibility();
         renderTaskbar();

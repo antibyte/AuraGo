@@ -17,6 +17,9 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Work Guidance
 
+- Desktop authority consists of scopes, readonly and runtime/tool grants.
+  `control_level` is retired; old YAML remains readable and normal config saves
+  remove that unused key. Never derive permissions from a UI confirmation mode.
 - Live readonly changes use `SetReadOnly` and preserve the service/database and
   read clients. HTTP owner contexts carry a revocable final-publication gate.
 - SSH/VNC cancellation begins before TCP and handshake; close both transports

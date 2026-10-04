@@ -12,8 +12,8 @@ func TestDesktopRadioMediaSessionI18n(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/radio.js")
 	for _, want := range []string{
-		"updateMediaSession(station, t)",
-		"function updateMediaSession(station, t)",
+		"updateMediaSession(station, t, mediaOwner,",
+		"function updateMediaSession(station, t, owner, handlers)",
 		"translate('desktop.app_radio')",
 		"translate('desktop.radio_album')",
 	} {

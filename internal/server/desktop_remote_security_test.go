@@ -219,7 +219,6 @@ func TestWithDesktopRemoteGuardWritesRequestAuditAttribution(t *testing.T) {
 		MaxFileSizeMB:      1,
 		AllowGeneratedApps: true,
 		AllowAgentControl:  true,
-		ControlLevel:       desktop.ControlConfirmDestructive,
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)

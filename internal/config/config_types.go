@@ -547,7 +547,6 @@ type VirtualDesktopConfig struct {
 	AllowPythonJobs          bool             `yaml:"allow_python_jobs" json:"allow_python_jobs"`                     // allow desktop apps to request backend Python jobs via the agent
 	WorkspaceDir             string           `yaml:"workspace_dir" json:"workspace_dir"`                             // persistent desktop workspace root
 	MaxFileSizeMB            int              `yaml:"max_file_size_mb" json:"max_file_size_mb"`                       // max text file read/write size
-	ControlLevel             string           `yaml:"control_level" json:"control_level"`                             // "confirm_destructive" (default) or "trusted"
 	MaxWSClients             int              `yaml:"max_ws_clients" json:"max_ws_clients"`                           // max concurrent desktop websocket clients
 	RemoteMaxSessionMinutes  int              `yaml:"remote_max_session_minutes" json:"remote_max_session_minutes"`   // max SSH/VNC remote session duration
 	RemoteIdleTimeoutMinutes int              `yaml:"remote_idle_timeout_minutes" json:"remote_idle_timeout_minutes"` // idle timeout for SSH/VNC remote sessions

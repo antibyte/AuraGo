@@ -21,7 +21,6 @@ func testService(t *testing.T) *Service {
 		MaxFileSizeMB:      1,
 		AllowGeneratedApps: true,
 		AllowAgentControl:  true,
-		ControlLevel:       ControlConfirmDestructive,
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
@@ -50,7 +49,6 @@ func testMediaService(t *testing.T) *Service {
 		MediaRegistryPath: mediaDBPath,
 		ImageGalleryPath:  imageDBPath,
 		MaxFileSizeMB:     1,
-		ControlLevel:      ControlConfirmDestructive,
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
@@ -256,7 +254,6 @@ func TestServiceMutationLockIsSharedAcrossServices(t *testing.T) {
 		WorkspaceDir:  root,
 		DBPath:        dbPath,
 		MaxFileSizeMB: 1,
-		ControlLevel:  ControlConfirmDestructive,
 	}
 	svc1 := testServiceWithConfig(t, cfg)
 	svc2 := testServiceWithConfig(t, cfg)
@@ -823,7 +820,6 @@ func TestServiceAuditMigrationAddsRequestColumns(t *testing.T) {
 		MaxFileSizeMB:      1,
 		AllowGeneratedApps: true,
 		AllowAgentControl:  true,
-		ControlLevel:       ControlConfirmDestructive,
 	})
 
 	rows, err := svc.getDB().Query(`SELECT name FROM pragma_table_info('desktop_audit')`)

@@ -117,17 +117,17 @@
      * @param {string} [entry.favicon] - Radio-style artwork URL.
      * @param {string} [album] - Album name shown in media session.
      */
-    function updateMediaSession(entry, album) {
+    function updateMediaSession(entry, album, owner, handlers) {
         if (!('mediaSession' in navigator) || !entry) return;
         try {
             const country = clean(entry.country || entry.countrycode || '');
             const artwork = clean(entry.logo || entry.favicon || '');
-            navigator.mediaSession.metadata = new MediaMetadata({
+            window.AuraDesktopMediaSession?.claim(owner, { priority: 10, activate: true, handlers, metadata: {
                 title: clean(entry.name) || 'AuraGo Media',
                 artist: country,
                 album: album || 'AuraGo',
                 artwork: artwork ? [{ src: artwork, sizes: '96x96', type: 'image/png' }] : []
-            });
+            } });
         } catch (_) {}
     }
 

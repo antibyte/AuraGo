@@ -53,9 +53,6 @@ func TestConfigFromAuraConfigResolvesDesktopDefaults(t *testing.T) {
 	if got.MaxFileSizeMB <= 0 {
 		t.Fatalf("max file size should have a safe default, got %d", got.MaxFileSizeMB)
 	}
-	if got.ControlLevel == "" {
-		t.Fatal("control level should have a default")
-	}
 	if got.DockerHost != cfg.Docker.Host {
 		t.Fatalf("docker host = %q, want %q", got.DockerHost, cfg.Docker.Host)
 	}

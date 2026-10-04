@@ -6,9 +6,10 @@
     function render(host, windowId, context) {
         if (!host) return;
         dispose(windowId);
-        instances.set(windowId, { container: host });
+        const life = new AbortController();
+        instances.set(windowId, { container: host, life });
         const ctx = context || {};
-        const esc = ctx.esc || (value => String(value == null ? '' : value));
+        const esc = ctx.esc || (value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])));
         const rawT = ctx.t || ((key, vars) => interpolate(key, vars));
         const t = (key, fallback, vars) => {
             if (fallback && typeof fallback === 'object' && !Array.isArray(fallback)) {
@@ -165,22 +166,6 @@
         }
 
         async function printPdfDocument() {
-            const frame = document.createElement('iframe');
-            frame.className = 'vd-print-frame';
-            frame.title = 'Print';
-            let cleaned = false;
-            const cleanup = () => {
-                if (cleaned) return;
-                cleaned = true;
-                frame.remove();
-            };
-            document.body.appendChild(frame);
-            const printDoc = frame.contentDocument;
-            const printWindow = frame.contentWindow;
-            if (!printDoc || !printWindow) {
-                cleanup();
-                throw new Error(t('desktop.print_failed'));
-            }
             const pages = [];
             for (let pageNumber = 1; pageNumber <= pdfDoc.numPages; pageNumber++) {
                 const page = await pdfDoc.getPage(pageNumber);
@@ -192,22 +177,14 @@
                 await page.render({ canvasContext, viewport }).promise;
                 pages.push(canvas.toDataURL('image/png'));
             }
-            printDoc.open();
-            printDoc.write(`<!doctype html><html><head><title>${esc(fileName)}</title><style>
+            const job = await window.AuraDesktopPrint.create({ title: t('viewer.print'), failureMessage: t('desktop.print_failed'), signal: life.signal, html: `<!doctype html><html><head><title>${esc(fileName)}</title><style>
                 @page { margin: 0; }
                 html, body { margin: 0; padding: 0; background: #fff; }
                 img { display: block; width: 100%; height: auto; page-break-after: always; break-after: page; }
                 img:last-child { page-break-after: auto; break-after: auto; }
-            </style></head><body>${pages.map(src => `<img alt="" src="${src}">`).join('')}</body></html>`);
-            printDoc.close();
-            await Promise.all(Array.from(printDoc.images).map(img => img.complete ? Promise.resolve() : new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-            })));
-            printWindow.addEventListener('afterprint', cleanup, { once: true });
-            window.setTimeout(cleanup, 60000);
-            printWindow.focus();
-            printWindow.print();
+            </style></head><body>${pages.map(src => `<img alt="" src="${src}">`).join('')}</body></html>` });
+
+            await job.print();
         }
 
         async function printRenderedContent() {
@@ -216,24 +193,7 @@
                 notify(t('viewer.loading'));
                 return;
             }
-            const frame = document.createElement('iframe');
-            frame.className = 'vd-print-frame';
-            frame.title = 'Print';
-            let cleaned = false;
-            const cleanup = () => {
-                if (cleaned) return;
-                cleaned = true;
-                frame.remove();
-            };
-            document.body.appendChild(frame);
-            const printDoc = frame.contentDocument;
-            const printWindow = frame.contentWindow;
-            if (!printDoc || !printWindow) {
-                cleanup();
-                throw new Error(t('desktop.print_failed'));
-            }
-            printDoc.open();
-            printDoc.write(`<!doctype html><html><head><title>${esc(fileName)}</title><style>
+            const job = await window.AuraDesktopPrint.create({ title: t('viewer.print'), failureMessage: t('desktop.print_failed'), signal: life.signal, html: `<!doctype html><html><head><title>${esc(fileName)}</title><style>
                 @page { margin: 14mm; }
                 html, body { margin: 0; padding: 0; background: #fff; color: #111; font: 14px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
                 body { padding: 0; }
@@ -245,17 +205,10 @@
                 table { border-collapse: collapse; width: 100%; font-size: 12px; }
                 th, td { border: 1px solid #ccc; padding: 5px 7px; text-align: left; }
                 th { background: #f2f2f2; }
-            </style></head><body></body></html>`);
-            printDoc.close();
-            printDoc.body.appendChild(source.cloneNode(true));
-            await Promise.all(Array.from(printDoc.images).map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
-                img.onload = resolve;
-                img.onerror = resolve;
-            })));
-            printWindow.addEventListener('afterprint', cleanup, { once: true });
-            window.setTimeout(cleanup, 60000);
-            printWindow.focus();
-            printWindow.print();
+            </style></head><body></body></html>` });
+
+            job.document.body.appendChild(source.cloneNode(true));
+            await job.print();
         }
 
         async function loadContent() {
@@ -410,6 +363,7 @@
     function dispose(windowId) {
         const instance = instances.get(windowId);
         if (instance) {
+            instance.life?.abort();
             if (instance.pdfLoadingTask && typeof instance.pdfLoadingTask.destroy === 'function') {
                 try { instance.pdfLoadingTask.destroy(); } catch (_) {}
             }

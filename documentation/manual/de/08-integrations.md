@@ -2023,7 +2023,6 @@ virtual_desktop:
   allow_python_jobs: false
   workspace_dir: agent_workspace/virtual_desktop
   max_file_size_mb: 50
-  control_level: confirm_destructive
   max_ws_clients: 8
   code_studio:
     enabled: true

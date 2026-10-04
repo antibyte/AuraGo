@@ -257,10 +257,24 @@
                 gameCtx.G._prevSt = gameCtx.G.st; gameCtx.G.st = 'PAUSED'; gameCtx.G.pauseSel = 0;
             }
         };
-        const focusLost = () => { if (!isActive() || document.hidden) gameCtx.pauseForFocus(); };
+        let loopReady = false;
+        const suspendLoop = () => {
+            cancelAnimationFrame(gameCtx.rafId); gameCtx.rafId = 0;
+            gameCtx.pauseForFocus(); gameCtx.MusicEngine.setPaused(true);
+            if (gameCtx.GalagaMusic) gameCtx.GalagaMusic.stop();
+        };
+        const syncLoop = () => {
+            if (state.disposed) return;
+            if (!isActive()) { suspendLoop(); return; }
+            if (loopReady && !gameCtx.rafId) { clockT = 0; gameCtx.rafId = requestAnimationFrame(gameCtx.loop); }
+        };
         const activate = () => host.focus({ preventScroll: true });
-        window.addEventListener('blur', gameCtx.pauseForFocus);
-        document.addEventListener('visibilitychange', focusLost);
+        window.addEventListener('blur', suspendLoop);
+        window.addEventListener('focus', syncLoop);
+        document.addEventListener('visibilitychange', syncLoop);
+        document.addEventListener('focusin', syncLoop);
+        const visibilityObserver = new MutationObserver(syncLoop);
+        visibilityObserver.observe(host.closest('.vd-window') || host, { attributes: true, attributeFilter: ['class', 'style', 'hidden', 'data-space-hidden'] });
         host.addEventListener('pointerdown', activate);
         if (ctx.onReady) ctx.onReady(gameCtx);
 
@@ -284,7 +298,7 @@
                 if (state.disposed) return;
                 overlayEl.classList.remove('active'); overlayEl.replaceChildren();
                 gameCtx.G.st = 'TITLE'; gameCtx.showTitle(); activate();
-                gameCtx.rafId = requestAnimationFrame(gameCtx.loop);
+                loopReady = true; syncLoop();
                 if (gameCtx.checkDailyStreak) gameCtx.checkDailyStreak();
             } catch (error) {
                 state.loadError = String(error);
@@ -301,7 +315,8 @@
             state.disposed = true; cancelAnimationFrame(gameCtx.rafId); gameCtx.MusicEngine.stop(); if (gameCtx.GalagaMusic) gameCtx.GalagaMusic.stop(); gameCtx.G.pendingBooms = []; gameCtx.G.levelSkipTimer = 0;
             gameCtx.G.demoMode = false; if (gameCtx.G.ai) { Object.keys(gameCtx.G.ai).forEach(function(k) { gameCtx.G.ai[k] = false; }); }
             document.removeEventListener('keydown', gameCtx.onKey); document.removeEventListener('keyup', gameCtx.onKeyUp);
-            window.removeEventListener('blur', gameCtx.pauseForFocus); document.removeEventListener('visibilitychange', focusLost);
+            window.removeEventListener('blur', suspendLoop); window.removeEventListener('focus', syncLoop);
+            document.removeEventListener('visibilitychange', syncLoop); document.removeEventListener('focusin', syncLoop); visibilityObserver.disconnect();
             host.removeEventListener('pointerdown', activate); cancelAnimationFrame(gameCtx.resizeRaf);
             gameCtx.clearGameSchedule(); if (gameCtx.disposeAudio) gameCtx.disposeAudio();
             ro.disconnect(); gameCtx.radialGradientCache.clear(); if (gameCtx.clearSpriteAtlasCache) gameCtx.clearSpriteAtlasCache();

@@ -124,7 +124,6 @@ func (s *Server) disabledDesktopBootstrap() desktop.BootstrapPayload {
 		AllowAgentControl:  desktopCfg.AllowAgentControl,
 		AllowGeneratedApps: desktopCfg.AllowGeneratedApps,
 		AllowPythonJobs:    desktopCfg.AllowPythonJobs,
-		ControlLevel:       desktopCfg.ControlLevel,
 		Workspace: desktop.WorkspaceInfo{
 			Root:        "/",
 			Directories: desktop.DefaultDirectories(),

@@ -1400,24 +1400,6 @@
         </div>`;
     }
 
-    function trapFocus(element) {
-        const focusable = element.querySelectorAll('button, input, select, textarea, [tabindex]:not(-1)');
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        element.addEventListener('keydown', event => {
-            if (event.key !== 'Tab') return;
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        });
-        first.focus();
-    }
-
     // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
     // Used for parallel boot with icon manifests and for refresh paths.
     async function fetchBootstrapState() {
@@ -2185,7 +2167,7 @@
     async function desktopSound(eventId, options) {
         options = options || {};
         if (options.silent || document.hidden) return;
-        if (options.sessionRestore) return;
+        if (options.sessionRestore || (typeof state !== 'undefined' && state.sessionRestoring)) return;
         if (!soundsEnabled() && !options.preview) return;
         const category = EVENT_CATEGORY[eventId];
         if (!categoryEnabled(category)) return;
@@ -2197,6 +2179,7 @@
         try {
             const themeId = options.theme || currentThemeId();
             await ensureBuffers(themeId);
+            if (document.hidden || (typeof state !== 'undefined' && state.sessionRestoring)) return;
             const buffer = cache.buffers[eventId] || cache.buffers['notify.info'];
             if (!buffer) return;
             const meta = cache.stats[eventId] || {};
@@ -5244,11 +5227,23 @@
     }
 
     function renderQuickChatWidget(container) {
+        let disposed = false;
+        let controller = null;
+        const stop = () => {
+            controller?.abort();
+            if (controller && state.quickChatOwner === controller) {
+                state.quickChatOwner = null;
+                state.chatBusy = false;
+            }
+        };
+        const onPolicy = event => { if (event.detail?.readonly || event.detail?.enabled === false) stop(); };
+        document.addEventListener('aurago:desktop-policy', onPolicy);
+        registerWidgetCleanup(() => { disposed = true; stop(); document.removeEventListener('aurago:desktop-policy', onPolicy); });
         container.innerHTML = `<div class="vd-quickchat vd-quickchat-collapsed">
             <div class="vd-quickchat-response"></div>
             <form class="vd-quickchat-form">
-                <input class="vd-quickchat-input" autocomplete="off" placeholder="${esc(t('desktop.chat_placeholder'))}">
-                <button class="vd-quickchat-send" type="submit">${iconMarkup('chat', 'S', 'vd-quickchat-send-icon', 14)}</button>
+                <input class="vd-quickchat-input" autocomplete="off" aria-label="${esc(t('desktop.chat_placeholder'))}" placeholder="${esc(t('desktop.chat_placeholder'))}">
+                <button class="vd-quickchat-send" type="submit" aria-label="${esc(t('desktop.send'))}">${iconMarkup('chat', 'S', 'vd-quickchat-send-icon', 14)}</button>
             </form>
         </div>`;
         const input = container.querySelector('.vd-quickchat-input');
@@ -5256,20 +5251,23 @@
         const wrapper = container.querySelector('.vd-quickchat');
         container.querySelector('form').addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (state.chatBusy) return;
+            if (disposed || state.chatBusy || desktopReadonly()) return;
             const message = input.value.trim();
             if (!message) return;
             input.value = '';
             state.chatBusy = true;
+            controller = new AbortController();
+            const request = controller;
+            state.quickChatOwner = request;
             responseEl.textContent = t('desktop.thinking');
             responseEl.classList.add('vd-quickchat-active');
             wrapper.classList.remove('vd-quickchat-collapsed');
             try {
-                await sendQuickChatStream(responseEl, message);
+                await sendQuickChatStream(responseEl, message, request.signal);
             } catch (err) {
-                responseEl.textContent = err.message || t('desktop.quickchat_error');
+                if (!disposed && !request.signal.aborted) responseEl.textContent = t('desktop.quickchat_error');
             } finally {
-                state.chatBusy = false;
+                if (state.quickChatOwner === request) { state.chatBusy = false; state.quickChatOwner = null; }
             }
         });
     }
@@ -5291,35 +5289,46 @@
         }
     }
 
-    async function sendQuickChatStream(responseEl, message) {
+    async function sendQuickChatStream(responseEl, message, signal) {
         let streamingContent = '';
         let petAnnouncementText = '';
         let finalized = false;
         return new Promise((resolve, reject) => {
-            const ctrl = new AbortController();
+            let reader = null;
+            const onAbort = () => {
+                if (reader) reader.cancel().catch(() => {});
+                doReject(new DOMException('Chat cancelled', 'AbortError'));
+            };
+            signal.addEventListener('abort', onAbort, { once: true });
             function doFinalize() {
                 if (finalized) return;
                 finalized = true;
+                signal.removeEventListener('abort', onAbort);
+                if (signal.aborted || !responseEl.isConnected) { resolve(); return; }
                 announceQuickChatResponseToPet(petAnnouncementText || streamingContent);
                 resolve();
             }
             function doReject(err) {
                 if (finalized) return;
                 finalized = true;
+                signal.removeEventListener('abort', onAbort);
                 reject(err);
             }
+            if (signal.aborted) { onAbort(); return; }
             fetch('/api/desktop/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message }),
-                signal: ctrl.signal
+                signal
             }).then(response => {
                 if (!response.ok) return response.text().then(text => { throw new Error(text || ('HTTP ' + response.status)); });
-                const reader = response.body.getReader();
+                reader = response.body.getReader();
+                if (signal.aborted || !responseEl.isConnected) { onAbort(); return; }
                 const decoder = new TextDecoder();
                 let buffer = '';
                 function processChunk() {
                     reader.read().then(({ done, value }) => {
+                        if (finalized || signal.aborted || !responseEl.isConnected) { onAbort(); return; }
                         if (done) { doFinalize(); return; }
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
@@ -6521,7 +6530,7 @@
         const windowContext = Object.assign({}, context || {});
         if (windowContext.sessionRestore) delete windowContext.sessionRestore;
         if (windowContext.path != null) windowContext.path = normalizeDesktopPath(windowContext.path);
-        state.windows.set(id, { id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
+        state.windows.set(id, { id, sessionKey: sessionRestore?.key || id, appId, title, element: win, maximized: false, restoreBounds: null, context: windowContext, spaceId: win.dataset.spaceId, alwaysOnTop: !!(sessionRestore && sessionRestore.alwaysOnTop) });
         wireWindow(win, id);
         animateThen(win, 'vd-window-opening', 240);
         if (!sessionRestore) desktopSound('window.open');
@@ -6529,7 +6538,10 @@
         else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
-        if (sessionRestore && sessionRestore.minimized) minimizeWindow(id);
+        if (sessionRestore && sessionRestore.minimized) {
+            win.style.display = 'none';
+            if (state.activeWindowId === id) state.activeWindowId = '';
+        }
         applySpaceVisibility();
         renderAppContent(id, appId, windowContext);
         if (!sessionRestore && windowContext.path) recordRecentFile(windowContext.path, appId, windowContext.pathKind);
@@ -7200,12 +7212,8 @@ function wireWindow(win, id) {
     }
 
     function applyWindowSnap(win, zone) {
-        const workspace = $('vd-workspace') || document.body;
-        const ww = workspace.clientWidth;
-        let wh = workspace.clientHeight;
-        const taskbar = document.querySelector('.vd-taskbar');
-        const taskbarReserve = (!isFruityTheme() && taskbar) ? taskbar.offsetHeight : 0;
-        wh = Math.max(1, wh - taskbarReserve);
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width, wh = limits.height;
         const positions = {
             'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
             'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
@@ -7230,10 +7238,12 @@ function wireWindow(win, id) {
             }
             item.restoreBounds = windowBounds(win);
             item.snapped = zone;
-            win.style.left = p.left + 'px';
-            win.style.top = p.top + 'px';
-            win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
-            win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
+            const width = Math.min(ww, Math.max(limits.minWidth, p.width));
+            const height = Math.min(wh, Math.max(limits.minHeight, p.height));
+            win.style.left = Math.min(p.left, ww - width) + 'px';
+            win.style.top = Math.min(p.top, wh - height) + 'px';
+            win.style.width = width + 'px';
+            win.style.height = height + 'px';
         });
         desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
@@ -7358,12 +7368,12 @@ function wireWindow(win, id) {
                 item.maximized = false;
             } else {
                 item.restoreBounds = windowBounds(win);
-                const bounds = workspaceBoundsForWindow();
+                const bounds = windowLayoutLimits(win);
                 win.classList.add('maximized');
                 win.style.left = '0';
                 win.style.top = '0';
-                win.style.width = Math.max(WINDOW_MIN_W, bounds.width) + 'px';
-                win.style.height = Math.max(WINDOW_MIN_H, bounds.height) + 'px';
+                win.style.width = bounds.width + 'px';
+                win.style.height = bounds.height + 'px';
                 item.maximized = true;
             }
         });
@@ -7425,28 +7435,30 @@ function wireWindow(win, id) {
         });
     }
 
-    function applyResize(win, edge, start, dx, dy) {
+    function windowLayoutLimits(win) {
         const workspace = workspaceBoundsForWindow();
-        const minWidth = parseFloat(win.style.minWidth) || WINDOW_MIN_W;
-        const minHeight = parseFloat(win.style.minHeight) || WINDOW_MIN_H;
-        let left = start.left;
-        let top = start.top;
-        let width = start.width;
-        let height = start.height;
-        if (edge.includes('e')) width = Math.max(minWidth, start.width + dx);
-        if (edge.includes('s')) height = Math.max(minHeight, start.height + dy);
-        if (edge.includes('w')) {
-            width = Math.max(minWidth, start.width - dx);
-            left = start.left + (start.width - width);
-        }
-        if (edge.includes('n')) {
-            height = Math.max(minHeight, start.height - dy);
-            top = start.top + (start.height - height);
-        }
-        left = Math.max(8, Math.min(left, workspace.width - 80));
-        top = Math.max(8, Math.min(top, workspace.height - 80));
-        width = Math.min(width, workspace.width - left - 8);
-        height = Math.min(height, workspace.height - top - 8);
+        const minimum = appWindowMinSize(win.dataset.appId);
+        const minWidth = Math.min(workspace.width, minimum.width || WINDOW_MIN_W);
+        const minHeight = Math.min(workspace.height, minimum.height || WINDOW_MIN_H);
+        win.style.minWidth = minWidth + 'px';
+        win.style.minHeight = minHeight + 'px';
+        return { ...workspace, minWidth, minHeight };
+    }
+
+    function applyResize(win, edge, start, dx, dy) {
+        const limits = windowLayoutLimits(win);
+        const axis = (origin, size, delta, backwards, forwards, minimum, available) => {
+            const clamp = (value, low, high) => Math.max(low, Math.min(value, high));
+            if (backwards) {
+                const end = clamp(origin + size, minimum, available);
+                const begin = clamp(origin + delta, 0, end - minimum);
+                return [begin, end - begin];
+            }
+            const begin = clamp(origin, 0, available - minimum);
+            return [begin, clamp(size + (forwards ? delta : 0), minimum, available - begin)];
+        };
+        const [left, width] = axis(start.left, start.width, dx, edge.includes('w'), edge.includes('e'), limits.minWidth, limits.width);
+        const [top, height] = axis(start.top, start.height, dy, edge.includes('n'), edge.includes('s'), limits.minHeight, limits.height);
         win.style.left = left + 'px';
         win.style.top = top + 'px';
         win.style.width = width + 'px';
@@ -8485,6 +8497,93 @@ function wireWindow(win, id) {
     }
 
 ;
+/* ui/js/desktop/core/print-runtime.js */
+(function () {
+    'use strict';
+    if (window.AuraDesktopPrint) return;
+
+    // Parent-owned printing: the document can load images/fonts but never run
+    // scripts, submit forms or navigate its parent. Keep sanitization at callers.
+    async function create({ html, title = '', className = 'vd-print-frame', failureMessage = 'desktop.print_failed', signal } = {}) {
+        const frame = document.createElement('iframe');
+        frame.className = className;
+        frame.title = title;
+        frame.setAttribute('sandbox', 'allow-same-origin allow-modals');
+        let timer = 0, disposed = false;
+        let rejectLoad;
+        const dispose = () => {
+            if (disposed) return;
+            disposed = true;
+            window.clearTimeout(timer);
+            signal?.removeEventListener('abort', dispose);
+            frame.remove();
+            rejectLoad?.(new DOMException('Print cancelled', 'AbortError'));
+        };
+        if (signal?.aborted) throw new DOMException('Print cancelled', 'AbortError');
+        signal?.addEventListener('abort', dispose, { once: true });
+        const loaded = new Promise((resolve, reject) => {
+            rejectLoad = reject;
+            frame.addEventListener('load', resolve, { once: true });
+            timer = window.setTimeout(() => { reject(new Error(failureMessage)); dispose(); }, 15000);
+        });
+        frame.srcdoc = html || '<!doctype html><html><head></head><body></body></html>';
+        document.body.appendChild(frame);
+        try { await loaded; } catch (error) { dispose(); throw error; }
+        rejectLoad = null;
+        window.clearTimeout(timer);
+        const doc = frame.contentDocument;
+        const print = async () => {
+            if (disposed || signal?.aborted) throw new DOMException('Print cancelled', 'AbortError');
+            let readyTimer;
+            try {
+                await Promise.race([
+                    Promise.all([doc.fonts?.ready, ...Array.from(doc.images, image => image.decode().catch(() => {}))]),
+                    new Promise((_, reject) => { rejectLoad = reject; readyTimer = window.setTimeout(() => reject(new Error(failureMessage)), 15000); })
+                ]);
+                if (disposed || signal?.aborted) throw new DOMException('Print cancelled', 'AbortError');
+                frame.contentWindow.addEventListener('afterprint', dispose, { once: true });
+                timer = window.setTimeout(dispose, 60000);
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            } catch (error) { dispose(); throw error; }
+            finally { rejectLoad = null; window.clearTimeout(readyTimer); }
+        };
+        return { frame, document: doc, print, dispose };
+    }
+
+    async function printHTML(options) { const job = await create(options); await job.print(); }
+    window.AuraDesktopPrint = { create, printHTML };
+})();
+
+;
+/* ui/js/desktop/core/media-session-runtime.js */
+(function () {
+    'use strict';
+    const owners = new Map();
+    const actions = new Set(['play', 'pause', 'stop', 'previoustrack', 'nexttrack', 'seekbackward', 'seekforward', 'seekto']);
+    let sequence = 0;
+    function render() {
+        if (!('mediaSession' in navigator)) return;
+        const selected = [...owners.values()].sort((a, b) => b.priority - a.priority || b.order - a.order)[0];
+        for (const action of actions) {
+            try { navigator.mediaSession.setActionHandler(action, selected?.handlers?.[action] || null); } catch (_) { /* unsupported action */ }
+        }
+        try { navigator.mediaSession.metadata = selected?.metadata ? new MediaMetadata(selected.metadata) : null; } catch (_) { /* unsupported metadata */ }
+        try { navigator.mediaSession.playbackState = selected?.playbackState || 'none'; } catch (_) { /* unsupported state */ }
+    }
+    window.AuraDesktopMediaSession = Object.freeze({
+        claim(owner, options) {
+            if (!owner) return;
+            const prior = owners.get(owner);
+            owners.set(owner, { ...options, priority: options.priority || 0, order: options.activate ? ++sequence : (prior?.order || ++sequence) });
+            Object.keys(options.handlers || {}).forEach(action => actions.add(action));
+            render();
+        },
+        release(owner) { if (owners.delete(owner)) render(); }
+    });
+})();
+
+;
 /* ui/js/desktop/core/session-runtime.js */
     const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'music-player']);
     const SESSION_CONTEXT_KEYS = ['path', 'category'];
@@ -8565,6 +8664,7 @@ function wireWindow(win, id) {
             if (!el) return;
             const bounds = (item.maximized && item.restoreBounds) || el.style;
             windows.push({
+                key: item.sessionKey || item.id,
                 appId: item.appId,
                 left: parseInt(bounds.left, 10) || 0,
                 top: parseInt(bounds.top, 10) || 0,
@@ -8581,6 +8681,7 @@ function wireWindow(win, id) {
         return {
             version: 2,
             activeSpaceId: normalizeSpaceId(state.activeSpaceId),
+            activeWindowKey: state.windows.get(state.activeWindowId)?.sessionKey || state.activeWindowId || '',
             windows
         };
     }
@@ -8628,40 +8729,44 @@ function wireWindow(win, id) {
         restoreActiveSpaceFromSnapshot(snapshot);
         renderSpacePager();
         const sorted = snapshot.windows.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
-        for (let i = 0; i < sorted.length; i++) {
-            const entry = sorted[i];
-            if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
-            if (!appById(entry.appId)) continue;
-            const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
-                forceNew: true,
-                sessionRestore: {
-                    left: entry.left,
-                    top: entry.top,
-                    width: entry.width,
-                    height: entry.height,
-                    maximized: !!entry.maximized,
-                    minimized: !!entry.minimized,
-                    z: entry.z || 0,
-                    spaceId: entry.spaceId,
-                    alwaysOnTop: !!entry.alwaysOnTop,
-                    active: i === sorted.length - 1
-                }
-            });
-            openApp(entry.appId, ctx);
-            await new Promise(resolve => window.setTimeout(resolve, 60));
-        }
-        state.sessionRestoring = false;
-        applySpaceVisibility();
-        const visibleOnSpace = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
-        if (visibleOnSpace.length) {
-            const top = visibleOnSpace.reduce((best, win) => {
-                const z = parseInt(win.element.style.zIndex, 10) || 0;
-                const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
-                return z >= bestZ ? win : best;
-            });
-            focusWindow(top.id);
-        } else {
-            state.activeWindowId = '';
+        try {
+            for (let i = 0; i < sorted.length; i++) {
+                const entry = sorted[i];
+                if (!entry || !entry.appId || SESSION_SKIP_APP_IDS.has(entry.appId)) continue;
+                if (!appById(entry.appId)) continue;
+                const ctx = Object.assign({}, sanitizeSessionContext(entry.context), {
+                    forceNew: true,
+                    sessionRestore: {
+                        key: typeof entry.key === 'string' ? entry.key : '',
+                        left: entry.left,
+                        top: entry.top,
+                        width: entry.width,
+                        height: entry.height,
+                        maximized: !!entry.maximized,
+                        minimized: !!entry.minimized,
+                        z: entry.z || 0,
+                        spaceId: entry.spaceId,
+                        alwaysOnTop: !!entry.alwaysOnTop,
+                    }
+                });
+                openApp(entry.appId, ctx);
+                await new Promise(resolve => window.setTimeout(resolve, 60));
+            }
+            applySpaceVisibility();
+            const visibleOnSpace = taskbarWindows().filter(win => win.element && win.element.style.display !== 'none');
+            if (visibleOnSpace.length) {
+                const top = visibleOnSpace.reduce((best, win) => {
+                    const z = parseInt(win.element.style.zIndex, 10) || 0;
+                    const bestZ = parseInt(best.element.style.zIndex, 10) || 0;
+                    return z >= bestZ ? win : best;
+                });
+                const active = visibleOnSpace.find(win => snapshot.activeWindowKey && win.sessionKey === snapshot.activeWindowKey);
+                focusWindow((active || top).id);
+            } else {
+                state.activeWindowId = '';
+            }
+        } finally {
+            state.sessionRestoring = false;
         }
         scheduleSessionPersist();
     }
@@ -8910,7 +9015,6 @@ function wireWindow(win, id) {
     function refreshSpacesForViewport() {
         if (!spacesEnabled() && isSpacesOverviewOpen()) closeSpacesOverview();
         renderSpacePager();
-        if (!spacesEnabled()) state.activeSpaceId = DEFAULT_SPACE_ID;
         applyActiveSpaceWallpaper();
         applySpaceVisibility();
         renderTaskbar();
@@ -9207,9 +9311,13 @@ function wireWindow(win, id) {
         updateNotificationBadge();
     }
 
-    function closeNotificationCenter() {
+    function closeNotificationCenter(restoreFocus = false) {
         const panel = document.getElementById('vd-notification-center');
-        if (panel) panel.hidden = true;
+        if (panel) {
+            panel.hidden = true;
+            panel._returnFocus?.setAttribute('aria-expanded', 'false');
+            if (restoreFocus && panel._returnFocus?.isConnected) panel._returnFocus.focus();
+        }
     }
 
     function renderNotificationCenter() {
@@ -9219,8 +9327,14 @@ function wireWindow(win, id) {
             panel.id = 'vd-notification-center';
             panel.className = 'vd-notification-center';
             panel.hidden = true;
+            panel.setAttribute('role', 'dialog');
+            panel.tabIndex = -1;
+            panel.addEventListener('keydown', event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeNotificationCenter(true); }
+            });
             document.body.appendChild(panel);
         }
+        panel.setAttribute('aria-label', t('desktop.notifications_title'));
         const items = state.notificationHistory || [];
         const list = items.length
             ? items.map(entry => `<button type="button" class="vd-notification-item${entry.read ? '' : ' unread'}" data-notification-id="${esc(entry.id)}" data-app-id="${esc(entry.appId || '')}">
@@ -9262,6 +9376,9 @@ function wireWindow(win, id) {
             return;
         }
         panel.hidden = false;
+        panel._returnFocus = anchor || document.activeElement;
+        panel._returnFocus?.setAttribute('aria-expanded', 'true');
+        panel.focus();
         desktopSound('menu.open');
         markAllNotificationsRead();
         if (anchor && anchor.getBoundingClientRect) {
@@ -9276,9 +9393,14 @@ function wireWindow(win, id) {
         return date.toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
     }
 
-    function closeClockPopup() {
+    function closeClockPopup(restoreFocus = false) {
         const popup = document.getElementById('vd-clock-popup');
-        if (popup) popup.hidden = true;
+        if (popup) {
+            popup.hidden = true;
+            popup._request = (popup._request || 0) + 1;
+            popup._returnFocus?.setAttribute('aria-expanded', 'false');
+            if (restoreFocus && popup._returnFocus?.isConnected) popup._returnFocus.focus();
+        }
     }
 
     async function openClockPopup(anchor) {
@@ -9288,9 +9410,19 @@ function wireWindow(win, id) {
             popup = document.createElement('div');
             popup.id = 'vd-clock-popup';
             popup.className = 'vd-clock-popup';
+            popup.setAttribute('role', 'dialog');
+            popup.tabIndex = -1;
+            popup.addEventListener('keydown', event => {
+                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeClockPopup(true); }
+            });
             document.body.appendChild(popup);
         }
+        const request = popup._request = (popup._request || 0) + 1;
+        popup.setAttribute('aria-label', t('desktop.clock_today'));
+        popup._returnFocus = anchor || document.activeElement;
+        popup._returnFocus?.setAttribute('aria-expanded', 'true');
         popup.hidden = false;
+        popup.focus();
         popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
         if (anchor && anchor.getBoundingClientRect) {
             const rect = anchor.getBoundingClientRect();
@@ -9303,6 +9435,7 @@ function wireWindow(win, id) {
         } catch (_) {
             appointments = [];
         }
+        if (popup.hidden || popup._request !== request || !popup.isConnected) return;
         const now = new Date();
         const todayKey = now.toISOString().slice(0, 10);
         const todayItems = (appointments || []).filter(item => String(item.date_time || '').startsWith(todayKey));
@@ -9448,6 +9581,14 @@ function wireWindow(win, id) {
             clock.dataset.shellChromeWired = 'true';
             clock.style.cursor = 'pointer';
             clock.title = t('desktop.clock_open_calendar');
+            clock.setAttribute('aria-label', t('desktop.clock_open_calendar'));
+            clock.setAttribute('role', 'button');
+            clock.setAttribute('aria-haspopup', 'dialog');
+            clock.setAttribute('aria-expanded', 'false');
+            clock.tabIndex = 0;
+            clock.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openClockPopup(clock); }
+            });
             clock.addEventListener('click', event => {
                 event.stopPropagation();
                 openClockPopup(clock);
@@ -9456,6 +9597,9 @@ function wireWindow(win, id) {
         const notifyBtn = document.getElementById('vd-notification-button');
         if (notifyBtn && !notifyBtn.dataset.shellChromeWired) {
             notifyBtn.dataset.shellChromeWired = 'true';
+            notifyBtn.setAttribute('aria-label', t('desktop.notifications_title'));
+            notifyBtn.setAttribute('aria-haspopup', 'dialog');
+            notifyBtn.setAttribute('aria-expanded', 'false');
             notifyBtn.addEventListener('click', event => {
                 event.stopPropagation();
                 toggleNotificationCenter(notifyBtn);
@@ -9516,8 +9660,15 @@ function wireWindow(win, id) {
 ;
 /* ui/js/desktop/core/spotlight-runtime.js */
     let spotlightOpen = false;
+    let spotlightInstance = null;
 
     function closeSpotlight() {
+        if (spotlightInstance) {
+            spotlightInstance.generation++;
+            spotlightInstance.controller?.abort();
+            window.clearTimeout(spotlightInstance.timer);
+            spotlightInstance = null;
+        }
         const backdrop = document.getElementById('vd-spotlight-backdrop');
         if (backdrop) {
             desktopSound('menu.close');
@@ -9581,11 +9732,11 @@ function wireWindow(win, id) {
         openApp('viewer', { path: normalized });
     }
 
-    async function spotlightFileEntries(query) {
+    async function spotlightFileEntries(query, signal) {
         const q = String(query || '').trim();
         if (q.length < 2) return [];
         try {
-            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q));
+            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q), { signal });
             return (body.files || body.results || []).slice(0, 8).map(file => ({
                 id: 'file-' + file.path,
                 title: file.name || pathBaseName(file.path),
@@ -9611,11 +9762,15 @@ function wireWindow(win, id) {
     }
 
     async function refreshSpotlightResults(input, stateObj) {
+        const generation = ++stateObj.generation;
+        stateObj.controller?.abort();
+        stateObj.controller = new AbortController();
         const query = input.value || '';
         const settings = spotlightSettingsEntries().filter(entry => !query || entry.title.toLowerCase().includes(query.toLowerCase()));
         const apps = spotlightAppEntries(query);
         const recent = spotlightRecentFileEntries(query);
-        const files = await spotlightFileEntries(query);
+        const files = await spotlightFileEntries(query, stateObj.controller.signal);
+        if (spotlightInstance !== stateObj || generation !== stateObj.generation || !stateObj.backdrop.isConnected) return;
         stateObj.entries = []
             .concat(settings.map(entry => ({ id: entry.id, title: entry.title, subtitle: t('desktop.spotlight_settings'), action: entry.action })))
             .concat(recent)
@@ -9648,11 +9803,13 @@ function wireWindow(win, id) {
         </div>`;
         document.body.appendChild(backdrop);
         const input = backdrop.querySelector('.vd-spotlight-input');
-        const stateObj = { entries: [], activeIndex: 0 };
-        let timer = 0;
+        const stateObj = { entries: [], activeIndex: 0, generation: 0, controller: null, timer: 0, backdrop };
+        spotlightInstance = stateObj;
         const scheduleRefresh = () => {
-            if (timer) window.clearTimeout(timer);
-            timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
+            ++stateObj.generation;
+            stateObj.controller?.abort();
+            window.clearTimeout(stateObj.timer);
+            stateObj.timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
         };
         input.addEventListener('input', scheduleRefresh);
         input.addEventListener('keydown', event => {
@@ -11467,7 +11624,7 @@ function updateTaskbarSystemButtonsForMobile() {
             refs['legend-down'].textContent = latest ? fritzFormatBits(latest.down) : '–';
             refs['legend-up'].textContent = latest ? fritzFormatBits(latest.up) : '–';
             const spanMinutes = Math.max(1, Math.round((range.end - range.start) / 60000));
-            refs['legend-span'].textContent = label('window_label', { span: spanMinutes + ' min' });
+            refs['legend-span'].textContent = label('window_label', { span: new Intl.NumberFormat(lang(), { style: 'unit', unit: 'minute', unitDisplay: 'short' }).format(spanMinutes) });
             let peakDown = 0;
             let peakUp = 0;
             for (const sample of samples) {
@@ -12024,6 +12181,8 @@ function updateTaskbarSystemButtonsForMobile() {
 ;
 /* ui/js/desktop/core/media-keys-runtime.js */
     let desktopMediaKeysWired = false;
+    const webampMediaOwner = {};
+    const webampMediaHandlers = {};
 
     function webampMusicActive() {
         return !!(state.webampMusic && state.webampMusic.instance);
@@ -12060,36 +12219,27 @@ function updateTaskbarSystemButtonsForMobile() {
     function updateWebampMediaSessionMetadata() {
         if (!('mediaSession' in navigator) || !webampMusicActive()) return;
         try {
-            navigator.mediaSession.metadata = new MediaMetadata({
+            window.AuraDesktopMediaSession.claim(webampMediaOwner, { priority: 50, handlers: webampMediaHandlers, metadata: {
                 title: t('desktop.app_music_player'),
                 artist: 'AuraGo',
                 album: t('desktop.winamp_tracks')
-            });
+            } });
         } catch (_) { /* ignore metadata errors */ }
     }
 
     function bindDesktopMediaSessionAction(action, handler) {
         if (!('mediaSession' in navigator)) return;
         try {
-            navigator.mediaSession.setActionHandler(action, handler);
+            webampMediaHandlers[action] = handler;
         } catch (_) { /* unsupported action */ }
     }
 
     function clearDesktopMediaSessionHandlers() {
-        if (!('mediaSession' in navigator)) return;
-        ['play', 'pause', 'previoustrack', 'nexttrack', 'stop'].forEach(action => {
-            try {
-                navigator.mediaSession.setActionHandler(action, null);
-            } catch (_) { /* ignore */ }
-        });
-        try {
-            navigator.mediaSession.metadata = null;
-        } catch (_) { /* ignore */ }
+        window.AuraDesktopMediaSession.release(webampMediaOwner);
     }
 
     function refreshDesktopMediaSessionHandlers() {
         if (!('mediaSession' in navigator)) return;
-        if (window.PersonalRadioRuntime && window.PersonalRadioRuntime.active) return;
         if (!webampMusicActive()) {
             clearDesktopMediaSessionHandlers();
             return;

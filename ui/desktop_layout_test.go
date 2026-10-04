@@ -63,8 +63,8 @@ func TestVirtualDesktopMaximizeUsesFullWorkspace(t *testing.T) {
 	for _, marker := range []string{
 		"win.style.left = '0';",
 		"win.style.top = '0';",
-		"win.style.width = Math.max(WINDOW_MIN_W, bounds.width) + 'px';",
-		"win.style.height = Math.max(WINDOW_MIN_H, bounds.height) + 'px';",
+		"win.style.width = bounds.width + 'px';",
+		"win.style.height = bounds.height + 'px';",
 	} {
 		if !strings.Contains(js, marker) {
 			t.Fatalf("desktop maximize logic is missing full-workspace marker %q", marker)

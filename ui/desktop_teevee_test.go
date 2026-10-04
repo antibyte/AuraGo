@@ -82,7 +82,7 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"xhrSetup: teeveeHlsXhrSetup",
 		"function teeveeCreateHls(forceProxy)",
 		"requestFullscreen",
-		"mediaSession",
+		"AuraDesktopMediaSession",
 		"Stream unavailable",
 		"setWindowMenus",
 		"wireContextMenuBoundary",
@@ -202,7 +202,7 @@ func TestDesktopTeeVeeMediaHelpers(t *testing.T) {
 		"function countryDisplayName(code)",
 		"function debounce(fn, delay)",
 		"function createToast(container)",
-		"function updateMediaSession(entry, album)",
+		"function updateMediaSession(entry, album, owner, handlers)",
 		"'use strict'",
 	} {
 		if !strings.Contains(helper, want) {

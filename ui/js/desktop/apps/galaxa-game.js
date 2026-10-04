@@ -758,9 +758,15 @@
             }
         };
         function loop() {
+            ctx.rafId = 0;
             if (ctx.state.disposed) return;
+            if (!ctx.isActive()) {
+                ctx.pauseForFocus();
+                ctx.MusicEngine.setPaused(true);
+                if (ctx.GalagaMusic) ctx.GalagaMusic.stop();
+                return;
+            }
             const dt = ctx.frameDelta();
-            if (!ctx.isActive()) ctx.pauseForFocus();
             ctx.stepFrame(dt);
             syncGalagaMusic();
             ctx.MusicEngine.setPaused(ctx.G.st === 'PAUSED' || !ctx.isActive());
