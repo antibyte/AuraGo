@@ -17,6 +17,7 @@ func (s *Server) closeRuntimeResources() {
 	s.stopRocketChatBot()
 	s.stopHomeAssistantPoller()
 	s.stopFritzPoller()
+	s.stopUptimeKumaPoller()
 	s.fritzWidgetMu.Lock()
 	widget := s.fritzWidget
 	s.fritzWidgetMu.Unlock()

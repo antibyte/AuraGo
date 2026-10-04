@@ -2,6 +2,7 @@ package config
 
 import (
 	"aurago/internal/meshcore"
+	"context"
 	"fmt"
 	"strings"
 	"unicode"
@@ -942,6 +943,8 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
+	// RegisterEvomapNode is server-owned and serializes registration with config/Vault writes.
+	RegisterEvomapNode func(context.Context) (nodeID, claimURL string, secretConfigured bool, err error) `yaml:"-" json:"-"`
 	// AuthorizationSnapshots preserves publication identity across scoped copies.
 	// It returns the source and current immutable configs; never serialize it.
 	AuthorizationSnapshots func() (*Config, *Config) `yaml:"-" json:"-"`
@@ -1520,7 +1523,7 @@ type Config struct {
 		ReadOnly            bool     `yaml:"readonly"`                    // true = receive only, no outbound
 		APIKey              string   `yaml:"-" vault:"telnyx_api_key"`    // vault-only
 		APISecret           string   `yaml:"-" vault:"telnyx_api_secret"` // legacy credential; not webhook proof
-		WebhookPublicKey    string   `yaml:"webhook_public_key"`         // account Ed25519 public key, base64
+		WebhookPublicKey    string   `yaml:"webhook_public_key"`          // account Ed25519 public key, base64
 		PhoneNumber         string   `yaml:"phone_number"`                // primary Telnyx number (E.164)
 		MessagingProfileID  string   `yaml:"messaging_profile_id"`        // Telnyx messaging profile
 		ConnectionID        string   `yaml:"connection_id"`               // SIP connection ID for voice calls

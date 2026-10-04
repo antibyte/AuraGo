@@ -12,11 +12,7 @@ import (
 	"aurago/internal/security"
 )
 
-type evomapSecretWriter interface {
-	WriteSecret(key, value string) error
-}
-
-func dispatchEvomapCall(ctx context.Context, req evomapArgs, cfg *config.Config, secretWriters ...evomapSecretWriter) string {
+func dispatchEvomapCall(ctx context.Context, req evomapArgs, cfg *config.Config) string {
 	if cfg == nil || !cfg.Evomap.Enabled {
 		return `Tool Output: {"status":"error","message":"EvoMap is disabled. Enable evomap.enabled in config.yaml."}`
 	}
@@ -44,11 +40,7 @@ func dispatchEvomapCall(ctx context.Context, req evomapArgs, cfg *config.Config,
 		})
 
 	case "register_node":
-		client, err := evomapClientFromConfig(cfg)
-		if err != nil {
-			return evomapErrorOutput(op, err)
-		}
-		return dispatchEvomapRegisterNode(ctx, client, req, cfg, secretWriters...)
+		return dispatchEvomapRegisterNode(ctx, cfg)
 
 	case "fetch_capsules":
 		client, err := evomapClientFromConfig(cfg)
@@ -122,47 +114,21 @@ func dispatchEvomapCall(ctx context.Context, req evomapArgs, cfg *config.Config,
 	}
 }
 
-func dispatchEvomapRegisterNode(ctx context.Context, client *evomapclient.Client, req evomapArgs, cfg *config.Config, secretWriters ...evomapSecretWriter) string {
-	var writer evomapSecretWriter
-	if len(secretWriters) > 0 {
-		writer = secretWriters[0]
+func dispatchEvomapRegisterNode(ctx context.Context, cfg *config.Config) string {
+	if cfg.Evomap.ReadOnly {
+		return evomapPolicyDenied("register_node", "EvoMap is read-only; node registration is disabled.")
 	}
-	if writer == nil {
-		return evomapPolicyDenied("register_node", "EvoMap node registration requires a vault writer so node_secret can be stored without exposing it.")
+	if cfg.RegisterEvomapNode == nil {
+		return evomapPolicyDenied("register_node", "EvoMap registration requires the server configuration writer.")
 	}
-	result, err := client.RegisterNode(ctx, evomapclient.RegisterRequest{
-		Capabilities: []string{"status", "fetch_capsules", "get_asset", "kg_query"},
-		Metadata: map[string]interface{}{
-			"client": "aurago",
-		},
-	})
+	nodeID, claimURL, secretConfigured, err := cfg.RegisterEvomapNode(ctx)
 	if err != nil {
 		return evomapErrorOutput("register_node", err)
 	}
-	if strings.TrimSpace(result.NodeSecret) != "" {
-		security.RegisterSensitive(result.NodeSecret)
-		if err := writer.WriteSecret("evomap_node_secret", result.NodeSecret); err != nil {
-			return evomapErrorOutput("register_node", fmt.Errorf("store EvoMap node secret: %w", err))
-		}
-		cfg.Evomap.NodeSecret = result.NodeSecret
-	}
-	if strings.TrimSpace(result.NodeID) != "" {
-		cfg.Evomap.NodeID = strings.TrimSpace(result.NodeID)
-		if strings.TrimSpace(cfg.ConfigPath) != "" {
-			if err := cfg.Save(cfg.ConfigPath); err != nil {
-				return evomapErrorOutput("register_node", fmt.Errorf("persist EvoMap node_id: %w", err))
-			}
-		}
-	}
 	return evomapJSONOutput(map[string]interface{}{
-		"status":                  "success",
-		"operation":               "register_node",
-		"node_id":                 cfg.Evomap.NodeID,
-		"claim_url":               result.ClaimURL,
-		"node_secret_configured":  strings.TrimSpace(cfg.Evomap.NodeSecret) != "",
-		"node_secret_vault_key":   "evomap_node_secret",
-		"node_secret_was_hidden":  true,
-		"external_raw_suppressed": true,
+		"status": "success", "operation": "register_node", "node_id": nodeID, "claim_url": claimURL,
+		"node_secret_configured": secretConfigured, "node_secret_vault_key": "evomap_node_secret",
+		"node_secret_was_hidden": true, "external_raw_suppressed": true,
 	})
 }
 

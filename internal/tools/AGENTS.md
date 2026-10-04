@@ -76,6 +76,11 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Home Assistant polling owns one cancellable generation. Publish changed credentials/URL/enablement before draining outside config locks and starting a replacement. Shutdown drains polling before closing mission databases. Entity IDs use the shared path encoder and credentials cannot follow a foreign-origin redirect.
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
+### Integration state preservation
+- AdGuard filtering toggles must read and preserve the configured update interval; missing or malformed status forbids the write.
+- Uptime Kuma pollers inherit an owner context. Stop is terminal, cancels I/O and waits for completion; callbacks must not detach unbounded work.
+- Python Vault export requires both agent-created provenance and the system-key blocklist. Reserve actual `sql_`, `cloudflared_`, `cloudflare_` and `three_d_printer_klipper_` integration prefixes alongside legacy names.
+
 ## Verification
 
 - Hugging Face repository IDs are validated by the shared canonical validator

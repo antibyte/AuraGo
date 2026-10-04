@@ -226,7 +226,6 @@ type Server struct {
 	MaintenanceScheduler    *agent.MaintenanceController
 	MQTTController          *mqtt.MQTTController
 	HeartbeatScheduler      *heartbeat.Scheduler
-	UptimeKumaPoller        *tools.UptimeKumaPoller
 	AgentMailService        *agentmail.Service
 	AgentMailMu             sync.Mutex
 	CheatsheetDB            *sql.DB
@@ -290,6 +289,9 @@ type Server struct {
 	fritzLoopbackSem      chan struct{}
 	fritzWidgetMu         sync.Mutex
 	fritzWidget           *fritzWidgetCache
+	uptimeKumaMu          sync.Mutex
+	uptimeKuma            atomic.Pointer[uptimeKumaRuntime]
+	uptimeKumaClosed      bool
 }
 
 func (s *Server) accessLogger() *slog.Logger {
@@ -377,6 +379,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if poller := s.fritzPoller.Load(); poller != nil {
 		poller.CancelIfConfigChanged(cfg)
 	}
+	if runtime := s.uptimeKuma.Load(); runtime != nil && (runtime.initial != cfg.UptimeKuma || runtime.eggMode != cfg.EggMode.Enabled) {
+		runtime.cancel()
+	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
 	s.Cfg = cfg
@@ -411,6 +416,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 }
 
 func (s *Server) bindConfigAuthorization(cfg *config.Config) {
+	cfg.RegisterEvomapNode = func(ctx context.Context) (string, string, bool, error) {
+		return s.registerEvomapNode(ctx, cfg.Evomap)
+	}
 	cfg.AuthorizationSnapshots = func() (*config.Config, *config.Config) {
 		return cfg, s.ConfigSnapshot()
 	}
@@ -1708,9 +1716,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 				s.Logger.Warn("Maintenance scheduler shutdown did not complete cleanly", "error", err)
 			}
 		}
-		if s.UptimeKumaPoller != nil {
-			s.UptimeKumaPoller.Stop()
-		}
+		s.stopUptimeKumaPoller()
 		if s.AgentMailService != nil {
 			s.AgentMailService.Stop(ctx)
 		}

@@ -177,8 +177,21 @@ func AdGuardFilteringStatus(cfg AdGuardConfig) string {
 
 // AdGuardFilteringToggle enables or disables DNS filtering globally.
 func AdGuardFilteringToggle(cfg AdGuardConfig, enabled bool) string {
-	body := fmt.Sprintf(`{"enabled":%t,"interval":0}`, enabled)
-	return adgPost(cfg, "/control/filtering/config", body)
+	data, code, err := adguardRequest(cfg, http.MethodGet, "/control/filtering/status", "")
+	if err != nil {
+		return adgError("read existing filtering interval: %v", err)
+	}
+	if code != http.StatusOK {
+		return adgHTTPError(code, data)
+	}
+	var current struct {
+		Interval *int `json:"interval"`
+	}
+	if err := json.Unmarshal(data, &current); err != nil || current.Interval == nil || *current.Interval < 0 {
+		return adgError("existing filtering interval is unavailable; filtering was not changed")
+	}
+	body, _ := json.Marshal(map[string]interface{}{"enabled": enabled, "interval": *current.Interval})
+	return adgPost(cfg, "/control/filtering/config", string(body))
 }
 
 // AdGuardFilteringAddURL adds a new filter list by URL.

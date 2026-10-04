@@ -201,3 +201,6 @@ Tools are defined in `internal/tools/`:
 ## Child DOX Index
 
 None.
+
+### EvoMap registration
+- Register nodes only when EvoMap is enabled and writable, through the server-owned configuration callback. Agent snapshots are immutable; no direct config.Save or Vault registration writes from dispatch. The callback rechecks current permissions and serializes persistence.

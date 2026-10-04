@@ -190,6 +190,11 @@ Server-owned HTTP and cross-component integration contracts.
 - Home Assistant polling owns one cancellable generation. Publish changed credentials/URL/enablement before draining outside config locks and starting a replacement. Shutdown drains polling before closing mission databases. Entity IDs use the shared path encoder and credentials cannot follow a foreign-origin redirect.
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
+### Uptime Kuma and EvoMap
+- Uptime Kuma uses one server-owned cancellable generation, one notification consumer, at most sixteen pending prompts and a five-minute per-turn deadline. Overflow is logged. Monitor fields are bounded external data; use a dedicated session. Config publication cancels stale generations, and shutdown drains them before database closure.
+- EvoMap registration is writable-only in the agent and API. The server callback owns network registration and serialized config/Vault publication under CfgSaveMu; never mutate captured config snapshots or save them from the agent. Persist only the node ID into current YAML, keep secrets in Vault, restore prior local state on save failure, and never retry uncertain registration automatically.
+- Verify Uptime Kuma lifecycle, EvoMap registration/revocation and configuration preservation regressions.
+
 ## Verification
 
 - Run `go test ./internal/server` and the named cross-component checks in the contracts above when those paths change.

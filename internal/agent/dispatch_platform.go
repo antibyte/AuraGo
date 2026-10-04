@@ -1145,9 +1145,6 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 
 		case "evomap":
 			req := decodeEvomapArgs(tc)
-			if vault != nil {
-				return dispatchEvomapCall(ctx, req, cfg, vault)
-			}
 			return dispatchEvomapCall(ctx, req, cfg)
 
 		case "truenas",

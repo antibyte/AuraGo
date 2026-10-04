@@ -730,6 +730,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		discordChanged := false
 		rocketChatChanged := false
 		homeAssistantChanged := false
+		uptimeKumaChanged := false
 		fritzBoxChanged := false
 		restartFileIndexerAfterUnlock := false
 		fileIndexerEnabledAfterReload := false
@@ -943,10 +944,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			if oldCfg.UptimeKuma != newCfg.UptimeKuma {
-				s.restartUptimeKumaPoller()
-				s.Logger.Info("[Config UI] Uptime Kuma poller restarted")
-			}
+			uptimeKumaChanged = oldCfg.UptimeKuma != newCfg.UptimeKuma || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 
 			// Hot-reload File Indexer when any indexing setting changes.
 			if !reflect.DeepEqual(oldCfg.Indexing, newCfg.Indexing) {
@@ -1458,6 +1456,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			discord.StopBot(s.Logger)
 			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 			s.Logger.Info("[Config UI] Discord bot hot-reloaded", "enabled", newCfg.Discord.Enabled)
+		}
+		if loadErr == nil && uptimeKumaChanged {
+			s.restartUptimeKumaPoller()
 		}
 		if loadErr == nil && fritzBoxChanged {
 			s.configureFritzPoller()
