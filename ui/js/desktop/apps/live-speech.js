@@ -91,7 +91,7 @@
         async function refresh() {
             try {
                 const [statusResult, realtimeResult] = await Promise.allSettled([
-                    fetch('/api/speech-lab/status', { credentials: 'same-origin', cache: 'no-store' }),
+                    fetch('/api/desktop/integrations/speech-lab/status', { credentials: 'same-origin', cache: 'no-store' }),
                     window.AuraRealtimeSpeech.initialize()
                 ]);
                 if (statusResult.status !== 'fulfilled') throw statusResult.reason;
@@ -146,7 +146,7 @@
                 start.hidden = true;
                 status.textContent = text('desktop.live_speech_lab_starting', 'Starting the Speech Lab container…');
                 try {
-                    const response = await fetch('/api/speech-lab/deployment/start', {
+                    const response = await fetch('/api/desktop/integrations/speech-lab/deployment/start', {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: { 'Content-Type': 'application/json' },
@@ -169,7 +169,7 @@
                 activating = true;
                 activate.hidden = true;
                 try {
-                    const response = await fetch('/api/realtime-speech/speech-lab/activate', {
+                    const response = await fetch('/api/desktop/integrations/realtime-speech/speech-lab/activate', {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: { 'Content-Type': 'application/json' },

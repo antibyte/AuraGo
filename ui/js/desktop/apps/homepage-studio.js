@@ -497,7 +497,7 @@
             statusText.textContent = t('homepage_studio.checking_status');
             statusPill.title = t('homepage_studio.checking_status');
             try {
-                const data = await api('/api/homepage/status');
+                const data = await api('/api/desktop/integrations/homepage/status');
                 state.statusLoaded = true;
                 state.homepageEnabled = data && data.status !== 'disabled';
 
@@ -587,8 +587,8 @@
             state.targetsLoading = (async () => {
                 const nextTargets = [];
                 const [sitesData, webhostsData] = await Promise.all([
-                    safeHomepageApi('/api/homepage/sites'),
-                    safeHomepageApi('/api/integrations/webhosts')
+                    safeHomepageApi('/api/desktop/integrations/homepage/sites'),
+                    safeHomepageApi('/api/desktop/integrations/integrations/webhosts')
                 ]);
 
                 const webhosts = Array.isArray(webhostsData && webhostsData.webhosts) ? webhostsData.webhosts : [];
@@ -606,7 +606,7 @@
                 await Promise.all(sites.map(async site => {
                     const id = Number(site && site.id);
                     if (!Number.isFinite(id) || id <= 0) return;
-                    const detail = await safeHomepageApi('/api/homepage/sites/' + encodeURIComponent(String(id)));
+                    const detail = await safeHomepageApi('/api/desktop/integrations/homepage/sites/' + encodeURIComponent(String(id)));
                     collectHomepageTargetsFromSite(detail && detail.site, nextTargets);
                 }));
 

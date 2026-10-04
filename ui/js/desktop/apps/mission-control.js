@@ -168,7 +168,7 @@
         // ── data ──
         async function loadData() {
             try {
-                const data = await api('/api/missions/v2');
+                const data = await api('/api/desktop/integrations/missions/v2');
                 if (state.disposed) return;
                 applyData(data);
                 state.initialLoad = true;
@@ -315,7 +315,7 @@
             if (h.filter === 'success') params.set('result', 'success');
             if (h.filter === 'error' || h.filter === 'cancelled') params.set('result', 'error');
             try {
-                const data = await api('/api/missions/v2/history?' + params.toString());
+                const data = await api('/api/desktop/integrations/missions/v2/history?' + params.toString());
                 if (state.disposed || h.missionId !== state.selectedId) return;
                 const entries = Array.isArray(data && data.entries) ? data.entries : [];
                 h.items = reset ? entries : h.items.concat(entries);
@@ -354,17 +354,17 @@
             setTab,
             toggleList: () => { state.listCollapsed = !state.listCollapsed; root.classList.toggle('is-list-collapsed', state.listCollapsed); const tb = $('[data-mc-list-toggle]'); tb.setAttribute('aria-pressed', String(!state.listCollapsed)); tb.title = t(state.listCollapsed ? 'desktop.mc_list_expand' : 'desktop.mc_list_collapse'); savePrefs(state); syncMenus(); },
             runMission: (id) => withBusy('run', async () => {
-                const data = await api('/api/missions/v2/' + encodeURIComponent(id) + '/run', { method: 'POST' });
+                const data = await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/run', { method: 'POST' });
                 notify(toastForMissionDispatch(data || {}));
                 await loadData();
             }),
             cancelMission: (id) => withBusy('cancel', async () => {
-                await api('/api/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
+                await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
                 state.cancelling.add(id);
                 notify(t('desktop.mc_toast_cancel_requested'));
             }),
             removeMissionFromQueue: (id) => withBusy('removeQueue', async () => {
-                await api('/api/missions/v2/' + encodeURIComponent(id) + '/queue', { method: 'DELETE' });
+                await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/queue', { method: 'DELETE' });
                 notify(t('desktop.mc_toast_removed_queue'));
                 await loadData();
             }),
@@ -385,19 +385,19 @@
                 const ok = await confirmDialog(t('desktop.mc_delete_title'), t('desktop.mc_delete_message', { name: m.name }));
                 if (!ok) return;
                 await withBusy('delete', async () => {
-                    await api('/api/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });
+                    await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id), { method: 'DELETE' });
                     notify(t('desktop.mc_toast_deleted'));
                     if (state.selectedId === id) state.selectedId = '';
                     await loadData();
                 });
             },
             prepareMission: (id) => withBusy('prepare', async () => {
-                await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepare', { method: 'POST' });
+                await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/prepare', { method: 'POST' });
                 notify(t('desktop.mc_toast_prepare_started'));
                 await loadData();
             }),
             invalidatePrepMission: (id) => withBusy('invalidatePrep', async () => {
-                await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepared', { method: 'DELETE' });
+                await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/prepared', { method: 'DELETE' });
                 state.preparedOpen = false;
                 detail.setPrepared(null, false);
                 notify(t('desktop.mc_toast_prep_discarded'));
@@ -407,7 +407,7 @@
                 if (state.preparedOpen) { state.preparedOpen = false; detail.setPrepared(null, false); return; }
                 detail.setPrepared(null, true);
                 try {
-                    const data = await api('/api/missions/v2/' + encodeURIComponent(id) + '/prepared');
+                    const data = await api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) + '/prepared');
                     if (state.selectedId !== id) return;
                     state.preparedOpen = true;
                     detail.setPrepared(data || {}, false);
@@ -428,7 +428,7 @@
         function putMission(mission, patch) {
             const body = Object.assign({}, mission, patch);
             delete body.next_run;
-            return api('/api/missions/v2/' + encodeURIComponent(mission.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            return api('/api/desktop/integrations/missions/v2/' + encodeURIComponent(mission.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         }
 
         // ── editor ──
@@ -464,7 +464,7 @@
             editor.setSaving(true);
             editor.setServerError('');
             try {
-                const url = mode === 'edit' ? '/api/missions/v2/' + encodeURIComponent(id) : '/api/missions/v2';
+                const url = mode === 'edit' ? '/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) : '/api/desktop/integrations/missions/v2';
                 const res = await api(url, { method: mode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 notify(t(mode === 'edit' ? 'desktop.mc_toast_saved' : 'desktop.mc_toast_created'));
                 const newId = mode === 'edit' ? id : (res && res.id) || '';

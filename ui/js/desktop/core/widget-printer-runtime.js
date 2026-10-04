@@ -53,7 +53,7 @@
         }
         function startCamera() {
             if (disposed || document.hidden || !refs.select.value) return;
-            refs.image.src = '/api/3d-printers/' + encodeURIComponent(refs.select.value) + '/camera/stream?t=' + Date.now();
+            refs.image.src = '/api/desktop/integrations/3d-printers/' + encodeURIComponent(refs.select.value) + '/camera/stream?t=' + Date.now();
         }
         refs.image.addEventListener('load', () => {
             refs.image.hidden = false;
@@ -75,7 +75,7 @@
             controller = request;
             try {
                 if (!refs.select.options.length) {
-                    const list = await api('/api/3d-printers/status', { signal: request.signal });
+                    const list = await api('/api/desktop/integrations/3d-printers/status', { signal: request.signal });
                     if (disposed || request.signal.aborted) return;
                     for (const printer of list.printers || []) refs.select.add(new Option(printer.name || printer.id, printer.id));
                     const preferred = localStorage.getItem('aurago.desktop.printer_id') || list.default_printer;
@@ -87,7 +87,7 @@
                     }
                     startCamera();
                 }
-                const raw = await api('/api/3d-printers/status?printer_id=' + encodeURIComponent(refs.select.value), { signal: request.signal });
+                const raw = await api('/api/desktop/integrations/3d-printers/status?printer_id=' + encodeURIComponent(refs.select.value), { signal: request.signal });
                 if (disposed || request.signal.aborted) return;
                 const data = printerWidgetData(raw);
                 if (!refs.image.hasAttribute('src')) startCamera();

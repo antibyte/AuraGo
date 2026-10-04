@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
@@ -97,6 +98,10 @@ func (s *Server) getDesktopService(ctx context.Context) (*desktop.Service, *desk
 			openSCADContainer.SetDockerClient(newOpenSCADDockerAdapter(svc.Config(), s.Logger))
 		}
 		s.DesktopService = svc
+		s.desktopPolicyService.Store(svc)
+		if live := s.cfgSnapshot.Load(); live != nil {
+			svc.SetReadOnly(live.VirtualDesktop.ReadOnly)
+		}
 		s.DesktopHub = desktop.NewHub(desktopCfg.MaxWSClients)
 		// Share the long-lived instance with the agent tool layer so that
 		// virtual_desktop / office tool calls reuse the same service instead of
@@ -191,12 +196,18 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 			return
 		}
 		defer cancel()
+		conn.SetReadLimit(64 << 10)
+		s.CfgMu.RLock()
+		lastReadonly, lastEnabled := s.Cfg.VirtualDesktop.ReadOnly, s.Cfg.VirtualDesktop.Enabled
+		s.CfgMu.RUnlock()
 		if bootstrap, err := svc.Bootstrap(r.Context()); err == nil {
 			s.enrichDesktopBootstrap(&bootstrap)
+			bootstrap = filterDesktopBootstrap(s, r, bootstrap)
 			_ = conn.WriteJSON(map[string]interface{}{"type": "welcome", "payload": bootstrap})
 		}
 
 		done := make(chan struct{})
+		pongs := make(chan struct{}, 1)
 		go func() {
 			defer close(done)
 			for {
@@ -205,17 +216,47 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 					return
 				}
 				if msgType, _ := msg["type"].(string); msgType == "ping" {
-					_ = conn.WriteJSON(map[string]interface{}{"type": "pong"})
+					select {
+					case pongs <- struct{}{}:
+					default:
+					}
 					continue
 				}
 			}
 		}()
+		policyTick := time.NewTicker(time.Second)
+		defer policyTick.Stop()
 
 		for {
 			select {
+			case <-policyTick.C:
+				if token, bearer := bearerCredential(r.Header.Get("Authorization")); bearer && !desktopTokenHasScope(s, token, desktopScopeRead) {
+					return
+				}
+				s.CfgMu.RLock()
+				readonly, enabled := s.Cfg.VirtualDesktop.ReadOnly, s.Cfg.VirtualDesktop.Enabled
+				s.CfgMu.RUnlock()
+				if readonly != lastReadonly || enabled != lastEnabled {
+					lastReadonly, lastEnabled = readonly, enabled
+					payload := filterDesktopBootstrap(s, r, desktop.BootstrapPayload{ReadOnly: readonly, Enabled: enabled})
+					if err := conn.WriteJSON(desktop.Event{Type: "desktop_policy", Payload: map[string]interface{}{"readonly": payload.ReadOnly, "enabled": enabled}, CreatedAt: time.Now().UTC()}); err != nil {
+						return
+					}
+				}
+			case <-pongs:
+				if err := conn.WriteJSON(map[string]interface{}{"type": "pong"}); err != nil {
+					return
+				}
 			case event, ok := <-events:
 				if !ok {
 					return
+				}
+				if token, bearer := bearerCredential(r.Header.Get("Authorization")); bearer && !desktopTokenHasScope(s, token, desktopScopeRead) {
+					return
+				}
+				event, ok = filterDesktopEvent(s, r, event)
+				if !ok {
+					continue
 				}
 				if err := conn.WriteJSON(event); err != nil {
 					return

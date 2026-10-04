@@ -550,6 +550,11 @@ worker. Keep packaging, recovery and offline instructions in
 
 ## Verification
 
+- Desktop apps use the server-owned `/api/desktop/integrations/` entry points
+  for shared APIs, including fetch, EventSource and WebSocket URLs. Preserve the
+  integration's own gates. `desktop_policy` updates the live shell policy and
+  emits `aurago:desktop-policy` without disposing open editors or Tresor drafts.
+
 - Syntax for every rollout JavaScript change:
   `$files = git diff --name-only 0773dfa52e3d21f420f9009c480bdd817e761882 -- '*.js'; foreach ($file in $files) { node --check $file; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }`.
 - Static contracts: `go test -count=1 ./ui/... -run 'Precision|Config|I18N'`.

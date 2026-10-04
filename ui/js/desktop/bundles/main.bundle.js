@@ -4098,7 +4098,7 @@
 
     async function refreshSIPPhoneState() {
         try {
-            const appState = await sipPhoneRequest('/api/sip/app/state');
+            const appState = await sipPhoneRequest('/api/desktop/integrations/sip/app/state');
             const previousCall = sipPhoneShellState.appState && sipPhoneShellState.appState.active_call;
             sipPhoneShellState.appState = appState;
             const call = appState.active_call;
@@ -4147,7 +4147,7 @@
 
     function connectSIPPhoneEvents() {
         if (sipPhoneShellState.eventSource) sipPhoneShellState.eventSource.close();
-        const source = new EventSource('/api/sip/events', { withCredentials: true });
+        const source = new EventSource('/api/desktop/integrations/sip/events', { withCredentials: true });
         sipPhoneShellState.eventSource = source;
         source.addEventListener('open', () => {
             refreshSIPPhoneState();
@@ -4297,7 +4297,7 @@
             const offer = await pendingPeerConnection.createOffer();
             await pendingPeerConnection.setLocalDescription(offer);
             await waitForSIPPhoneICE(pendingPeerConnection);
-            const session = await sipPhoneRequest('/api/sip/browser-media/sessions', {
+            const session = await sipPhoneRequest('/api/desktop/integrations/sip/browser-media/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -4327,7 +4327,7 @@
         sipPhoneEmit();
         try {
             await prepareSIPPhoneMedia();
-            const call = await sipPhoneRequest('/api/sip/calls', {
+            const call = await sipPhoneRequest('/api/desktop/integrations/sip/calls', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -4361,7 +4361,7 @@
         sipPhoneEmit();
         try {
             await prepareSIPPhoneMedia();
-            await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/answer', {
+            await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/answer', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -4388,7 +4388,7 @@
     async function rejectSIPPhone(callID) {
         const id = String(callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id) || '');
         if (!id) return;
-        await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/reject', { method: 'POST' });
+        await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/reject', { method: 'POST' });
         stopSIPPhoneRinging();
         removeSIPPhoneIncomingNotice();
         await refreshSIPPhoneState();
@@ -4397,7 +4397,7 @@
     async function hangupSIPPhone() {
         const id = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (id) {
-            await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/hangup', {
+            await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/hangup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: '{}'
@@ -4412,7 +4412,7 @@
     async function sendSIPPhoneDTMF(digit) {
         const id = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (!id || !/^[0-9*#ABCD]$/.test(String(digit || ''))) return;
-        await sipPhoneRequest('/api/sip/calls/' + encodeURIComponent(id) + '/dtmf', {
+        await sipPhoneRequest('/api/desktop/integrations/sip/calls/' + encodeURIComponent(id) + '/dtmf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ digit: String(digit) })
@@ -4610,7 +4610,7 @@
         const localStream = sipPhoneShellState.localStream;
         const remoteAudio = sipPhoneShellState.remoteAudio;
         if (deleteSession && sessionID) {
-            fetch('/api/sip/browser-media/sessions/' + encodeURIComponent(sessionID), {
+            fetch('/api/desktop/integrations/sip/browser-media/sessions/' + encodeURIComponent(sessionID), {
                 method: 'DELETE',
                 credentials: 'same-origin',
                 cache: 'no-store',
@@ -4798,7 +4798,7 @@
         removeSIPPhoneIncomingNotice();
         const callID = sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id);
         if (callID && sipPhoneShellState.peerConnection) {
-            fetch('/api/sip/calls/' + encodeURIComponent(callID) + '/hangup', {
+            fetch('/api/desktop/integrations/sip/calls/' + encodeURIComponent(callID) + '/hangup', {
                 method: 'POST',
                 credentials: 'same-origin',
                 keepalive: true,
@@ -9299,7 +9299,7 @@ function wireWindow(win, id) {
         }
         let appointments = [];
         try {
-            appointments = await api('/api/appointments?status=all');
+            appointments = await api('/api/desktop/integrations/appointments?status=all');
         } catch (_) {
             appointments = [];
         }
@@ -10334,7 +10334,7 @@ function updateTaskbarSystemButtonsForMobile() {
 ;
 /* ui/js/desktop/core/widget-sysmon-runtime.js */
     /* System Monitor widget: live host metrics. Initial fetch of
-       /api/dashboard/system, then live updates via the server-side
+       /api/desktop/integrations/dashboard/system, then live updates via the server-side
        'system_metrics' SSE broadcast (every 10s). All updates happen in
        place (text/attributes only) so re-renders never rebuild the DOM. */
     const SYSMON_HISTORY_LEN = 30; // 30 samples at 10s interval = 5 minutes
@@ -10516,7 +10516,7 @@ function updateTaskbarSystemButtonsForMobile() {
             refs.root.classList.add('is-ready');
         }
 
-        api('/api/dashboard/system')
+        api('/api/desktop/integrations/dashboard/system')
             .then(data => renderMetrics(data))
             .catch(() => {
                 if (disposed) return;
@@ -10699,7 +10699,7 @@ function updateTaskbarSystemButtonsForMobile() {
             if (disposed || refreshing) return;
             refreshing = true;
             try {
-                const data = await api('/api/meshcore/messenger/bootstrap');
+                const data = await api('/api/desktop/integrations/meshcore/messenger/bootstrap');
                 if (!disposed) renderData(data || {});
             } catch (error) {
                 if (!disposed) renderError(error);
@@ -10797,7 +10797,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         function startCamera() {
             if (disposed || document.hidden || !refs.select.value) return;
-            refs.image.src = '/api/3d-printers/' + encodeURIComponent(refs.select.value) + '/camera/stream?t=' + Date.now();
+            refs.image.src = '/api/desktop/integrations/3d-printers/' + encodeURIComponent(refs.select.value) + '/camera/stream?t=' + Date.now();
         }
         refs.image.addEventListener('load', () => {
             refs.image.hidden = false;
@@ -10819,7 +10819,7 @@ function updateTaskbarSystemButtonsForMobile() {
             controller = request;
             try {
                 if (!refs.select.options.length) {
-                    const list = await api('/api/3d-printers/status', { signal: request.signal });
+                    const list = await api('/api/desktop/integrations/3d-printers/status', { signal: request.signal });
                     if (disposed || request.signal.aborted) return;
                     for (const printer of list.printers || []) refs.select.add(new Option(printer.name || printer.id, printer.id));
                     const preferred = localStorage.getItem('aurago.desktop.printer_id') || list.default_printer;
@@ -10831,7 +10831,7 @@ function updateTaskbarSystemButtonsForMobile() {
                     }
                     startCamera();
                 }
-                const raw = await api('/api/3d-printers/status?printer_id=' + encodeURIComponent(refs.select.value), { signal: request.signal });
+                const raw = await api('/api/desktop/integrations/3d-printers/status?printer_id=' + encodeURIComponent(refs.select.value), { signal: request.signal });
                 if (disposed || request.signal.aborted) return;
                 const data = printerWidgetData(raw);
                 if (!refs.image.hasAttribute('src')) startCamera();
@@ -12670,7 +12670,7 @@ function updateTaskbarSystemButtonsForMobile() {
         const total = Math.max(1, Math.min(CAL_REPEAT_LIMIT, Number(count) || 1));
         const start = calendarDate(payload.date_time);
         if (!start || repeat === 'none' || total <= 1) {
-            await plannerJSON('/api/appointments', 'POST', payload);
+            await plannerJSON('/api/desktop/integrations/appointments', 'POST', payload);
             return 1;
         }
         const reminderOffset = payload.notification_at ? start - new Date(payload.notification_at) : null;
@@ -12679,7 +12679,7 @@ function updateTaskbarSystemButtonsForMobile() {
             const when = calendarShiftDate(start, repeat, index);
             const body = Object.assign({}, payload, { date_time: when.toISOString() });
             if (reminderOffset !== null) body.notification_at = new Date(when.getTime() - reminderOffset).toISOString();
-            await plannerJSON('/api/appointments', 'POST', body);
+            await plannerJSON('/api/desktop/integrations/appointments', 'POST', body);
             created += 1;
         }
         return created;
@@ -12687,7 +12687,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function loadCalendarContacts(session) {
         if (!session.contactsPromise) {
-            session.contactsPromise = api('/api/contacts').then(data => {
+            session.contactsPromise = api('/api/desktop/integrations/contacts').then(data => {
                 const list = Array.isArray(data) ? data : (data && (data.contacts || data.items)) || [];
                 return list.filter(c => c && c.id && c.name).map(c => ({ id: String(c.id), name: String(c.name), email: c.email || '', relationship: c.relationship || '' }));
             }).catch(() => []);
@@ -12962,7 +12962,7 @@ function updateTaskbarSystemButtonsForMobile() {
             setBusy(true);
             try {
                 if (appointment) {
-                    await plannerJSON(`/api/appointments/${encodeURIComponent(appointment.id)}`, 'PUT', result.payload);
+                    await plannerJSON(`/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`, 'PUT', result.payload);
                     closeCalendarEditor(session);
                     await session.reload({ silent: true });
                     session.snack({ message: t('desktop.cal_saved') });
@@ -13225,7 +13225,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (progress && session.loaded) progress.hidden = false;
         if (!session.loaded) paintCalendar(session);
         try {
-            const data = await api('/api/appointments?status=all');
+            const data = await api('/api/desktop/integrations/appointments?status=all');
             session.appointments = normalizeCalendarAppointments(data);
             session.loaded = true;
             session.error = null;
@@ -13497,7 +13497,7 @@ function updateTaskbarSystemButtonsForMobile() {
         Object.assign(appointment, patch);
         session.appointments.sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
         paintCalendar(session);
-        const url = `/api/appointments/${encodeURIComponent(appointment.id)}`;
+        const url = `/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`;
         try {
             await plannerJSON(url, 'PUT', patch);
         } catch (err) {
@@ -13524,7 +13524,7 @@ function updateTaskbarSystemButtonsForMobile() {
         appointment.status = status;
         paintCalendar(session);
         closeCalendarPeek(session);
-        const url = `/api/appointments/${encodeURIComponent(appointment.id)}`;
+        const url = `/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`;
         try {
             await plannerJSON(url, 'PUT', { status });
         } catch (err) {
@@ -13548,7 +13548,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     async function deleteCalendarAppointment(session, appointment) {
         if (!appointment) return;
-        await api(`/api/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
+        await api(`/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
         session.appointments = session.appointments.filter(item => item.id !== appointment.id);
         closeCalendarPeek(session);
         paintCalendar(session);
@@ -13562,7 +13562,7 @@ function updateTaskbarSystemButtonsForMobile() {
             message: t('desktop.cal_deleted'),
             actionLabel: t('desktop.cal_undo'),
             onAction: async () => {
-                await plannerJSON('/api/appointments', 'POST', restore);
+                await plannerJSON('/api/desktop/integrations/appointments', 'POST', restore);
                 await loadCalendarAppointments(session, { silent: true });
                 session.snack({ message: t('desktop.cal_restored') });
             }
@@ -16286,15 +16286,15 @@ if (appId === 'pixel') {
             event.preventDefault();
             showContextMenu(event.clientX, event.clientY, [
                 { labelKey: 'desktop.context_open', icon: 'folder-open', action: () => renderTodoDetail(host, todo, reload) },
-                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todo.status === 'done', action: async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                { labelKey: 'desktop.todo_complete', icon: 'check-square', disabled: todo.status === 'done', action: async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
                 { separator: true },
-                { labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                { labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
             ]);
             return true;
         };
         wireContextMenuBoundary(host);
         const load = async (selectedID) => {
-            const todos = await api('/api/todos?status=all');
+            const todos = await api('/api/desktop/integrations/todos?status=all');
             const filtered = todos.filter(todo => host.dataset.todoFilter === 'all' || todo.status === host.dataset.todoFilter)
                 .sort((a, b) => (({ high: 0, medium: 1, low: 2 }[a.priority] ?? 3) - (({ high: 0, medium: 1, low: 2 }[b.priority] ?? 3)) || String(a.due_date || '9999').localeCompare(String(b.due_date || '9999'))));
             const list = host.querySelector('.vd-todo-list');
@@ -16322,7 +16322,7 @@ if (appId === 'pixel') {
             const input = event.currentTarget.querySelector('input');
             const title = input.value.trim();
             if (!title) return;
-            const result = await plannerJSON('/api/todos', 'POST', { title, priority: event.currentTarget.querySelector('select').value, status: 'open' });
+            const result = await plannerJSON('/api/desktop/integrations/todos', 'POST', { title, priority: event.currentTarget.querySelector('select').value, status: 'open' });
             input.value = '';
             await load(result.id);
         });
@@ -16348,7 +16348,7 @@ if (appId === 'pixel') {
     async function setTodoDone(todo, done, reload) {
         if (!todo) return;
         if (done) {
-            await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
+            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true });
             await reload(todo.id);
             return;
         }
@@ -16356,13 +16356,13 @@ if (appId === 'pixel') {
         if (Array.isArray(todo.items) && todo.items.length) {
             payload.items = todo.items.map(item => Object.assign({}, item, { is_done: false }));
         }
-        await plannerJSON('/api/todos/' + encodeURIComponent(todo.id), 'PUT', payload);
+        await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', payload);
         await reload(todo.id);
     }
 
     async function updateTodoItem(todo, itemID, patch, reload) {
         if (!todo || !itemID) return;
-        await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(itemID), 'PUT', patch);
+        await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(itemID), 'PUT', patch);
         await reload(todo.id);
     }
 
@@ -16373,12 +16373,12 @@ if (appId === 'pixel') {
         pane.querySelector('.vd-todo-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
-            await plannerJSON('/api/todos/' + encodeURIComponent(todo.id), 'PUT', { title: form.title.value.trim(), description: form.description.value, priority: form.priority.value, due_date: form.due_date.value, remind_daily: form.remind_daily.checked });
+            await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), 'PUT', { title: form.title.value.trim(), description: form.description.value, priority: form.priority.value, due_date: form.due_date.value, remind_daily: form.remind_daily.checked });
             await reload(todo.id);
         });
-        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
-        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
-        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
+        pane.querySelector('[data-action="complete"]').addEventListener('click', async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); });
+        pane.querySelector('[data-action="delete"]').addEventListener('click', async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } });
+        pane.querySelector('.vd-todo-item-add').addEventListener('submit', async event => { event.preventDefault(); const input = event.currentTarget.querySelector('input'); if (!input.value.trim()) return; await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items', 'POST', { title: input.value.trim() }); await reload(todo.id); });
         pane.querySelectorAll('[data-item-toggle]').forEach(input => input.addEventListener('change', async () => { await updateTodoItem(todo, input.dataset.itemToggle, { is_done: input.checked }, reload); }));
         pane.querySelectorAll('[data-item-title]').forEach(titleInput => {
             titleInput.addEventListener('keydown', async event => {
@@ -16402,7 +16402,7 @@ if (appId === 'pixel') {
                 await updateTodoItem(todo, titleInput.dataset.itemTitle, { title: titleInput.value.trim() }, reload);
             });
         });
-        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
+        pane.querySelectorAll('[data-item-delete]').forEach(btn => btn.addEventListener('click', async () => { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/items/' + encodeURIComponent(btn.dataset.itemDelete), { method: 'DELETE' }); await reload(todo.id); }));
         setTodoMenus(host, todo, reload);
     }
 
@@ -16425,8 +16425,8 @@ if (appId === 'pixel') {
                 id: 'edit',
                 labelKey: 'desktop.menu_edit',
                 items: [
-                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', action: async () => { await plannerJSON('/api/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
-                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
+                    { id: 'complete', labelKey: 'desktop.todo_complete', icon: 'check-square', action: async () => { await plannerJSON('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id) + '/complete', 'POST', { complete_items_too: true }); await reload(todo.id); } },
+                    { id: 'delete', labelKey: 'desktop.delete', icon: 'trash', action: async () => { if (await confirmDialog(t('desktop.todo_delete_confirm'), todo.title)) { await api('/api/desktop/integrations/todos/' + encodeURIComponent(todo.id), { method: 'DELETE' }); await reload(); } } }
                 ]
             }
         ]);
@@ -16865,8 +16865,8 @@ if (appId === 'pixel') {
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
             try {
                 const [devBody, credBody] = await Promise.all([
-                    api('/api/devices'),
-                    api('/api/credentials')
+                    api('/api/desktop/integrations/devices'),
+                    api('/api/desktop/integrations/credentials')
                 ]);
                 cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
@@ -16973,7 +16973,7 @@ if (appId === 'pixel') {
             const ok = await showConfirmModal(t('desktop.qc_delete_confirm'), t('desktop.qc_delete_confirm_msg').replace('{{name}}', device.name));
             if (!ok) return;
             try {
-                await api('/api/devices/' + device.id, { method: 'DELETE' });
+                await api('/api/desktop/integrations/devices/' + device.id, { method: 'DELETE' });
                 await loadAll();
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
@@ -17125,7 +17125,7 @@ if (appId === 'pixel') {
             if (dlPwBtn && existingCred) {
                 dlPwBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=password');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=password');
                         downloadText(body.content, (existingCred.name || 'password') + '.txt');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -17135,7 +17135,7 @@ if (appId === 'pixel') {
             if (dlCertBtn && existingCred) {
                 dlCertBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=certificate');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=certificate');
                         downloadText(body.content, (existingCred.name || 'key') + '_key.pem');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -17175,25 +17175,25 @@ if (appId === 'pixel') {
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            await api('/api/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            await api('/api/desktop/integrations/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         } else {
                             // Create credential and link
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                             existingDevice.credential_id = created.id;
                         }
                         // Update device
-                        await api('/api/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
+                        await api('/api/desktop/integrations/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
                     } else {
                         // Create credential first
                         const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                         if (password) credBody.password = password;
                         if (certificateText) credBody.certificate_text = certificateText;
-                        const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                        const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         // Create device linked to credential
-                        await api('/api/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
+                        await api('/api/desktop/integrations/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
                     }
                     overlay.remove();
                     await loadAll();
@@ -17846,9 +17846,9 @@ if (appId === 'pixel') {
 
         async function load() {
             try {
-                const url = selectedCategory ? '/api/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/launchpad/links';
+                const url = selectedCategory ? '/api/desktop/integrations/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/desktop/integrations/launchpad/links';
                 links = await api(url);
-                categories = await api('/api/launchpad/categories');
+                categories = await api('/api/desktop/integrations/launchpad/categories');
                 updateCategorySelect();
                 render();
             } catch (e) { showDesktopNotification({ message: t('desktop.launchpad_load_error') }); }
@@ -17908,7 +17908,7 @@ if (appId === 'pixel') {
         async function deleteLink(linkId) {
             const ok = await confirmDialog(t('desktop.launchpad_delete_confirm'), '');
             if (!ok) return;
-            try { await api('/api/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
+            try { await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
             catch (e) { showDesktopNotification({ message: t('desktop.launchpad_delete_error') }); }
         }
 
@@ -17975,7 +17975,7 @@ if (appId === 'pixel') {
             if (!query.trim()) { resultsEl.innerHTML = ''; return; }
             resultsEl.innerHTML = '<div class="vd-loading">' + esc(t('desktop.loading')) + '</div>';
             try {
-                const results = await api('/api/launchpad/icons/search?q=' + encodeURIComponent(query));
+                const results = await api('/api/desktop/integrations/launchpad/icons/search?q=' + encodeURIComponent(query));
                 const items = (results || []).filter(r => r.url_png || r.url_webp || r.url_svg);
                 if (!items.length) {
                     resultsEl.innerHTML = '<div class="lp-icon-msg muted">' + esc(t('desktop.launchpad_icon_no_results')) + '</div>';
@@ -18013,7 +18013,7 @@ if (appId === 'pixel') {
             const iconUrl = activeTab && activeTab.dataset.tab === 'search' ? selectedIconURL : modal.querySelector('.lp-icon-url').value.trim();
             if (iconUrl) {
                 try {
-                    const dl = await api('/api/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
+                    const dl = await api('/api/desktop/integrations/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
                     if (dl && dl.local_path) iconPath = dl.local_path;
                 } catch (e) { /* ignore download errors */ }
             }
@@ -18021,9 +18021,9 @@ if (appId === 'pixel') {
             const payload = { title, url, category, description, icon_path: iconPath };
             try {
                 if (linkId) {
-                    await api('/api/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
                 } else {
-                    await api('/api/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
                 }
                 modal.closest('.vd-modal-backdrop').remove();
                 await load();
@@ -18734,6 +18734,11 @@ if (appId === 'pixel') {
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'desktop_policy') {
+            Object.assign(state.bootstrap || (state.bootstrap = {}), event.payload || {});
+            document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: event.payload || {} }));
+            return;
+        }
         if (event.type === 'rtl_sdr_recording_soon') {
             await window.AuraDesktopModules.loadAppI18nSections('rtl-sdr');
             showDesktopNotification({ title: 'RTL-SDR', message: t('rtlSdr.recording_soon'), appId: 'rtl-sdr' });

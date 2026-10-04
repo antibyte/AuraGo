@@ -2,18 +2,18 @@
     'use strict';
     const NS = window.SysWorld = window.SysWorld || {};
     const paths = {
-        overview: ['/api/dashboard/overview', 10000],
+        overview: ['/api/desktop/integrations/dashboard/overview', 10000],
         world: ['/api/desktop/system-world/snapshot', 10000],
-        memory: ['/api/dashboard/memory', 30000],
-        activity: ['/api/dashboard/activity', 15000],
-        missions: ['/api/missions/v2', 15000],
-        tools: ['/api/dashboard/tool-stats', 60000],
-        containers: ['/api/containers', 30000],
-        daemons: ['/api/daemons', 30000],
-        nodes: ['/api/knowledge-graph/nodes?limit=300', 90000],
-        edges: ['/api/knowledge-graph/edges?limit=500', 90000],
-        budget: ['/api/budget', 30000],
-        operations: ['/api/operational-issues?status=open&limit=100', 30000],
+        memory: ['/api/desktop/integrations/dashboard/memory', 30000],
+        activity: ['/api/desktop/integrations/dashboard/activity', 15000],
+        missions: ['/api/desktop/integrations/missions/v2', 15000],
+        tools: ['/api/desktop/integrations/dashboard/tool-stats', 60000],
+        containers: ['/api/desktop/integrations/containers', 30000],
+        daemons: ['/api/desktop/integrations/daemons', 30000],
+        nodes: ['/api/desktop/integrations/knowledge-graph/nodes?limit=300', 90000],
+        edges: ['/api/desktop/integrations/knowledge-graph/edges?limit=500', 90000],
+        budget: ['/api/desktop/integrations/budget', 30000],
+        operations: ['/api/desktop/integrations/operational-issues?status=open&limit=100', 30000],
     };
     const subscribers = new Set(), sources = {}, inFlight = new Map(), events = [], actionStates = new Map();
     let timer = 0, pendingNotify = 0, generation = 0, handlers = [], sequence = 0;

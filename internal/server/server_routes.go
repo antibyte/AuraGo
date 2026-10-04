@@ -70,6 +70,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	startAgentActionReconciler(serverCtx, s, NewSSEBrokerAdapter(sse))
 	go func() {
 		<-shutdownCh
+		s.revokeDesktopRuns()
 		s.DesktopMu.Lock()
 		if s.DesktopHub != nil {
 			s.DesktopHub.Close()
@@ -650,6 +651,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/looper/runs/", handleLooperRunByID(s))
 	mux.HandleFunc("/api/desktop/looper/run", handleLooperRun(s))
 	mux.HandleFunc("/api/desktop/looper/stop", handleLooperStop(s))
+	mux.Handle("/api/desktop/integrations/", desktopIntegrationHandler(s, mux))
 	mux.HandleFunc("/api/desktop/looper/pause", handleLooperPause(s))
 	mux.HandleFunc("/api/desktop/looper/resume", handleLooperResume(s))
 	mux.HandleFunc("/api/desktop/looper/status", handleLooperStatus(s))

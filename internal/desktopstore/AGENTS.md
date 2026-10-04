@@ -50,6 +50,11 @@ Store app configuration, runtime, assets, and publication.
 
 ## Verification
 
+- Desktop Store jobs inherit the Desktop revocation context. Stop remains an
+  explicit cleanup action, still subject to Docker permissions. Interrupted
+  pending/running operations record a bounded cleanup failure using
+  `InterruptOperation`; already terminal operations cannot be overwritten.
+
 - Run `go test ./internal/desktopstore` and the named cross-component checks in the contracts above when those paths change.
 
 ## Child DOX Index

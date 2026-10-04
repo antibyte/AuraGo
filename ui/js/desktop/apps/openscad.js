@@ -799,7 +799,7 @@ model();`;
 
     async function loadStatus(state) {
         try {
-            const body = await state.ctx.api('/api/openscad/status');
+            const body = await state.ctx.api('/api/desktop/integrations/openscad/status');
             const status = body && body.openscad;
             setStatus(state, status && status.running ? t(state.ctx, 'desktop.openscad.status_running', 'Compiler running') : t(state.ctx, 'desktop.openscad.ready', 'Ready'));
         } catch (err) {
@@ -876,7 +876,7 @@ model();`;
     }
 
     function renderOpenSCADRequest(state, exports, signal) {
-        return state.ctx.api('/api/openscad/render', {
+        return state.ctx.api('/api/desktop/integrations/openscad/render', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal,
@@ -1089,7 +1089,7 @@ model();`;
         try {
             const savedResults = [];
             for (const jobID of openSCADResultJobIDs(state.result)) {
-                const body = await state.ctx.api(`/api/openscad/jobs/${encodeURIComponent(jobID)}/save`, { method: 'POST' });
+                const body = await state.ctx.api(`/api/desktop/integrations/openscad/jobs/${encodeURIComponent(jobID)}/save`, { method: 'POST' });
                 if (body && body.result) savedResults.push(body.result);
             }
             state.result = savedResults.reduce((merged, result) => mergeOpenSCADResults(merged, result), null) || state.result;

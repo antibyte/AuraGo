@@ -13,7 +13,7 @@ import (
 )
 
 // Opt-in headless smoke test for the Mission Control desktop app. Renders the
-// real modules against a fake /api/missions/v2 backend, walks list → detail →
+// real modules against a fake /api/desktop/integrations/missions/v2 backend, walks list → detail →
 // history → editor → compact mode and checks text safety and translations.
 // Set AURAGO_RUN_BROWSER_SMOKE=1 to run, AURAGO_BROWSER_ARTIFACT_DIR to keep PNGs.
 func TestDesktopMissionControlBrowser(t *testing.T) {
@@ -57,12 +57,12 @@ window.missions=[
 window.queue={items:[{mission_id:'m2'},{mission_id:'m3'}],running:'m2'};
 window.runHistory={entries:[{id:'r1',mission_id:'m1',trigger_type:'scheduled',status:'success',output:'ok',started_at:new Date(now-3600e3).toISOString(),completed_at:new Date(now-3590e3).toISOString(),duration_ms:10000},{id:'r2',mission_id:'m1',trigger_type:'manual',status:'error',output:'Cancelled by user',started_at:new Date(now-7200e3).toISOString(),duration_ms:2000}],total:2,limit:25,offset:0};
 const api=async(url,opts)=>{requests.push([opts&&opts.method||'GET',url,opts&&opts.body||null]);
- if(opts&&opts.method==='POST'&&url==='/api/missions/v2'){const m=Object.assign({id:'m4',status:'idle',run_count:0},JSON.parse(opts.body));window.missions.push(m);return m;}
- if(url==='/api/missions/v2')return {missions:window.missions,queue:window.queue};
- if(url.startsWith('/api/missions/v2/history?'))return window.runHistory;
- if(url==='/api/missions/v2/remote-targets')return {targets:[{nest_id:'n1',egg_id:'e1',nest_name:'Nest One',egg_name:'Egg A'}]};
- if(url.startsWith('/api/cheatsheets'))return [{id:'c1',name:'Docker',abstract:'Container basics'}];
- if(url==='/api/webhooks')return [{id:'w1',slug:'digest',name:'Digest hook'}];
+ if(opts&&opts.method==='POST'&&url==='/api/desktop/integrations/missions/v2'){const m=Object.assign({id:'m4',status:'idle',run_count:0},JSON.parse(opts.body));window.missions.push(m);return m;}
+ if(url==='/api/desktop/integrations/missions/v2')return {missions:window.missions,queue:window.queue};
+ if(url.startsWith('/api/desktop/integrations/missions/v2/history?'))return window.runHistory;
+ if(url==='/api/desktop/integrations/missions/v2/remote-targets')return {targets:[{nest_id:'n1',egg_id:'e1',nest_name:'Nest One',egg_name:'Egg A'}]};
+ if(url.startsWith('/api/desktop/integrations/cheatsheets'))return [{id:'c1',name:'Docker',abstract:'Container basics'}];
+ if(url==='/api/desktop/integrations/webhooks')return [{id:'w1',slug:'digest',name:'Digest hook'}];
  if(url.endsWith('/prepared'))return {analysis:{summary:'Plan summary',step_plan:[{step:1,action:'Check disk',expectation:'free space'}],essential_tools:[{tool_name:'shell',purpose:'run rsync'}],pitfalls:[{risk:'slow link',mitigation:'retry'}]},confidence:0.87};
  if(url.endsWith('/cancel'))return {status:'cancelling'};
  if(url.endsWith('/run'))return {status:'queued'};
@@ -134,7 +134,7 @@ window.MissionControlApp.render(document.getElementById('win'),'w1',ctx);</scrip
 				t.Fatal("running mission hero did not expose cancel/progress")
 			}
 			page.MustEval(`()=>document.querySelector('[data-mc-action="cancel"]').click()`)
-			waitForJSBool(t, page, `()=>requests.some(r=>r[0]==='POST'&&r[1]==='/api/missions/v2/m2/cancel')`)
+			waitForJSBool(t, page, `()=>requests.some(r=>r[0]==='POST'&&r[1]==='/api/desktop/integrations/missions/v2/m2/cancel')`)
 			shoot("running")
 
 			// History tab on m1 loads the fake entries and shows the cancelled pill.
@@ -142,7 +142,7 @@ window.MissionControlApp.render(document.getElementById('win'),'w1',ctx);</scrip
 			waitForJSBool(t, page, `()=>document.querySelector('.vd-mc-hero-title').textContent.includes('Backup')`)
 			page.MustEval(`()=>document.querySelector('[data-mc-tab="history"]').click()`)
 			waitForJSBool(t, page, `()=>document.querySelectorAll('.vd-mc-run').length===2`)
-			if !page.MustEval(`()=>document.querySelector('.vd-mc-run .vd-mc-pill[data-state="cancelled"]')!==null && requests.some(r=>r[1].startsWith('/api/missions/v2/history?mission_id=m1'))`).Bool() {
+			if !page.MustEval(`()=>document.querySelector('.vd-mc-run .vd-mc-pill[data-state="cancelled"]')!==null && requests.some(r=>r[1].startsWith('/api/desktop/integrations/missions/v2/history?mission_id=m1'))`).Bool() {
 				t.Fatal("history did not render the cancelled run")
 			}
 			shoot("history")
@@ -185,7 +185,7 @@ window.MissionControlApp.render(document.getElementById('win'),'w1',ctx);</scrip
 			}
 			page.MustEval(`()=>{window.confirmAnswer=true;document.querySelector('[data-mc-editor-save]').click();}`)
 			waitForJSBool(t, page, `()=>document.querySelector('.vd-mc-editor').hidden && document.querySelector('.vd-mc-hero-title').textContent==='Weekly report'`)
-			if !page.MustEval(`()=>{const r=requests.find(x=>x[0]==='POST'&&x[1]==='/api/missions/v2');const b=JSON.parse(r[2]);return b.schedule==='0 9 * * 1,5' && b.execution_type==='scheduled' && b.enabled===true && b.trigger_config===null;}`).Bool() {
+			if !page.MustEval(`()=>{const r=requests.find(x=>x[0]==='POST'&&x[1]==='/api/desktop/integrations/missions/v2');const b=JSON.parse(r[2]);return b.schedule==='0 9 * * 1,5' && b.execution_type==='scheduled' && b.enabled===true && b.trigger_config===null;}`).Bool() {
 				t.Fatal("save payload mismatch")
 			}
 			if !page.MustEval(`()=>toasts.some(x=>x[0]===t('desktop.mc_toast_created'))`).Bool() {

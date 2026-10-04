@@ -58,7 +58,7 @@
             detailRequest?.abort();const controller=new AbortController();detailRequest=controller;
             const timeout=setTimeout(()=>controller.abort(),10000);
             try{
-                const response=await fetch('/api/knowledge-graph/node?id='+encodeURIComponent(entity.payload.id),{credentials:'same-origin',signal:controller.signal});
+                const response=await fetch('/api/desktop/integrations/knowledge-graph/node?id='+encodeURIComponent(entity.payload.id),{credentials:'same-origin',signal:controller.signal});
                 if(!response.ok)return;const data=await response.json();
                 if(inst.disposed||inst.selected!==entity.id||detailRequest!==controller)return;
                 if(Array.isArray(data.edges))entity.payload.related=data.edges.slice(0,100);

@@ -76,9 +76,9 @@
     };
 
     const SOURCES = {
-        webhooks: { url: '/api/webhooks', items: (d) => (Array.isArray(d) ? d : []), label: (w) => `${w.name || w.id} (${w.slug || ''})`, name: (w) => w.slug || '' },
-        eggs: { url: '/api/invasion/eggs', items: (d) => (d && (d.eggs || (Array.isArray(d) ? d : []))) || [], label: (e) => e.name || e.id, name: (e) => e.name || '' },
-        nests: { url: '/api/invasion/nests', items: (d) => (d && (d.nests || (Array.isArray(d) ? d : []))) || [], label: (n) => n.name || n.id, name: (n) => n.name || '' }
+        webhooks: { url: '/api/desktop/integrations/webhooks', items: (d) => (Array.isArray(d) ? d : []), label: (w) => `${w.name || w.id} (${w.slug || ''})`, name: (w) => w.slug || '' },
+        eggs: { url: '/api/desktop/integrations/invasion/eggs', items: (d) => (d && (d.eggs || (Array.isArray(d) ? d : []))) || [], label: (e) => e.name || e.id, name: (e) => e.name || '' },
+        nests: { url: '/api/desktop/integrations/invasion/nests', items: (d) => (d && (d.nests || (Array.isArray(d) ? d : []))) || [], label: (n) => n.name || n.id, name: (n) => n.name || '' }
     };
 
     function byKey(key) { return TYPES.find(type => type.key === key) || null; }

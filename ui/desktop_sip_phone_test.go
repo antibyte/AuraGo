@@ -64,7 +64,7 @@ func TestDesktopSIPPhoneBrowserMediaAndShellContracts(t *testing.T) {
 		"Number(codec.clockRate) === 8000",
 		"media_mode: 'browser'",
 		"browser_session_id: sipPhoneShellState.browserSessionID",
-		"new EventSource('/api/sip/events'",
+		"new EventSource('/api/desktop/integrations/sip/events'",
 		"sipPhoneTerminalEventMessage(event.data, sipPhoneShellState.callID)",
 		"describeEndReason: sipPhoneEndReasonMessage",
 		"await refreshSIPPhoneState()",
@@ -119,7 +119,7 @@ func TestDesktopSIPPhoneComfortAndPrivacyContracts(t *testing.T) {
 
 	app := readDesktopAssetText(t, "js/desktop/apps/sip-phone.js")
 	for _, marker := range []string{
-		"'/api/contacts'",
+		"'/api/desktop/integrations/contacts'",
 		"['contacts', 'users', 'C', text(instance, 'contacts', 'Contacts')]",
 		"function renderContactsView(instance)",
 		"data-sip-contact-dial",

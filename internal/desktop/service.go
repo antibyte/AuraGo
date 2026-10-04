@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -51,6 +52,7 @@ type mediaMount struct {
 
 // Service owns the virtual desktop workspace and registry database.
 type Service struct {
+	readOnlyOverride    atomic.Pointer[bool]
 	plantMu             sync.Mutex // Serializes actions for the one shared Leafy plant.
 	mu                  sync.Mutex
 	cfg                 Config
@@ -181,8 +183,15 @@ func normalizeConfig(cfg Config) (Config, error) {
 func (s *Service) Config() Config {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.cfg
+	cfg := s.cfg
+	if value := s.readOnlyOverride.Load(); value != nil {
+		cfg.ReadOnly = *value
+	}
+	return cfg
 }
+
+// SetReadOnly updates the live policy without closing stores or active readers.
+func (s *Service) SetReadOnly(readOnly bool) { s.readOnlyOverride.Store(&readOnly) }
 
 // Init creates workspace folders and opens the desktop registry database.
 func (s *Service) Init(ctx context.Context) error {

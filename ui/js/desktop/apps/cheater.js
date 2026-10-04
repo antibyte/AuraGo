@@ -223,7 +223,7 @@
 
     async function loadSearchIndex(state) {
         try {
-            const list = await state.api('/api/cheatsheets');
+            const list = await state.api('/api/desktop/integrations/cheatsheets');
             state.searchIndex = normalizeSheetEntries(list);
         } catch (err) {
             console.warn('cheater search index load failed', err);
@@ -327,7 +327,7 @@
     async function pollRemote(state) {
         if (!state.sheet) return;
         try {
-            const fresh = await state.api('/api/cheatsheets/' + encodeURIComponent(state.sheet.id));
+            const fresh = await state.api('/api/desktop/integrations/cheatsheets/' + encodeURIComponent(state.sheet.id));
             if (!fresh) return;
             if (fresh.updated_at && state.sheet.updated_at && fresh.updated_at > state.sheet.updated_at && !state.dirty) {
                 showUpdateBadge(state, fresh);
@@ -387,7 +387,7 @@
 
     async function loadSheet(state, id) {
         try {
-            const data = await state.api('/api/cheatsheets/' + encodeURIComponent(id));
+            const data = await state.api('/api/desktop/integrations/cheatsheets/' + encodeURIComponent(id));
             openSheet(state, data);
         } catch (err) {
             state.notify('cheater.error.load_failed', 'error');
@@ -622,7 +622,7 @@
                 name: sheet.name,
                 content: sheet.content
             };
-            const updated = await state.api('/api/cheatsheets/' + encodeURIComponent(sheet.id), {
+            const updated = await state.api('/api/desktop/integrations/cheatsheets/' + encodeURIComponent(sheet.id), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -847,7 +847,7 @@
             submitBtn.disabled = true;
             submitBtn.textContent = t('cheater.creating');
             try {
-                const created = await state.api('/api/cheatsheets', {
+                const created = await state.api('/api/desktop/integrations/cheatsheets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

@@ -195,7 +195,7 @@ func handleDesktopStoreInstall(s *Server) http.HandlerFunc {
 			writeDesktopStoreStartError(w, err)
 			return
 		}
-		s.runDesktopStoreOperation(op.ID)
+		s.runDesktopStoreOperation(store, op)
 		writeDesktopStoreOperationAccepted(w, op)
 	}
 }
@@ -278,10 +278,19 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
 			return
 		}
-		if rejectDesktopStoreMutationIfDisabled(s, w) {
+		if action != desktopstore.OperationStop && rejectDesktopStoreMutationIfDisabled(s, w) {
 			return
 		}
 		opType := action
+		if opType == desktopstore.OperationStop {
+			s.CfgMu.RLock()
+			allowed := s.Cfg.Docker.Enabled && !s.Cfg.Docker.ReadOnly
+			s.CfgMu.RUnlock()
+			if !allowed {
+				jsonError(w, "Docker mutation is disabled", http.StatusForbidden)
+				return
+			}
+		}
 		switch opType {
 		case desktopstore.OperationStart, desktopstore.OperationStop, desktopstore.OperationRestart, desktopstore.OperationUpdate:
 		default:
@@ -298,7 +307,7 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 			writeDesktopStoreStartError(w, err)
 			return
 		}
-		s.runDesktopStoreOperation(op.ID)
+		s.runDesktopStoreOperation(store, op)
 		writeDesktopStoreOperationAccepted(w, op)
 	}
 }
@@ -573,21 +582,24 @@ func handleDesktopStoreDelete(s *Server, appID string) http.HandlerFunc {
 			writeDesktopStoreStartError(w, err)
 			return
 		}
-		s.runDesktopStoreOperation(op.ID)
+		s.runDesktopStoreOperation(store, op)
 		writeDesktopStoreOperationAccepted(w, op)
 	}
 }
 
-func (s *Server) runDesktopStoreOperation(operationID string) {
+func (s *Server) runDesktopStoreOperation(store *desktopstore.Service, operation desktopstore.Operation) {
+	operationID := operation.ID
 	go func() {
 		ctx, cancel := desktopStoreOperationContext(s.ShutdownCh, 30*time.Minute)
 		defer cancel()
-		store, err := s.getDesktopStoreService(ctx)
-		if err != nil {
-			if s.Logger != nil {
-				s.Logger.Warn("Desktop store operation skipped", "operation_id", operationID, "error", err)
+		if operation.Type != desktopstore.OperationStop {
+			runCtx, runDone, err := s.beginDesktopRun(ctx)
+			if err != nil {
+				_ = store.InterruptOperation(operationID, err)
+				return
 			}
-			return
+			defer runDone()
+			ctx = runCtx
 		}
 		if err := store.RunOperation(ctx, operationID); err != nil && s.Logger != nil {
 			s.Logger.Warn("Desktop store operation failed", "operation_id", operationID, "error", err)

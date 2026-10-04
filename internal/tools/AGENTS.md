@@ -100,6 +100,12 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Verification
 
+- Image generation owners pass `GenerateImageContext`; provider requests and
+  returned-image downloads inherit it. Image/music files publish atomically
+  through the inherited owner gate, and media records must not appear after
+  revocation. Keep provider work outside publication locks. Verify
+  `TestGenerateImageContextCancelsProviderAndRejectsLatePublication`.
+
 - Hugging Face repository IDs are validated by the shared canonical validator
   before permission checks and HTTP path construction. Mutations require an
   explicit namespace/repository. Encoded/traversal identities never grant access.

@@ -70,7 +70,7 @@ func generateAgnesImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to marshal Agnes AI image request: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(jsonBody))
+	req, err := http.NewRequestWithContext(cfg.requestContext(), http.MethodPost, endpoint, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create Agnes AI image request: %w", err)
 	}
@@ -95,7 +95,7 @@ func generateAgnesImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, "", fmt.Errorf("failed to parse Agnes AI image response: %w", err)
 	}
-	imgData, format, err := extractImageFromAnyResponse(result)
+	imgData, format, err := extractImageFromAnyResponseContext(cfg.requestContext(), result)
 	if err != nil {
 		return nil, "", fmt.Errorf("Agnes AI returned no image data: %w", err)
 	}

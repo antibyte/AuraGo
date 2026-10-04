@@ -551,6 +551,11 @@ func (s *Service) rejectActiveOperationLocked(ctx context.Context, appID string,
 
 // RunOperation executes a pending operation and stores its terminal state.
 func (s *Service) RunOperation(ctx context.Context, operationID string) error {
+	defer func() {
+		if err := ctx.Err(); err != nil {
+			_ = s.InterruptOperation(operationID, err)
+		}
+	}()
 	op, err := s.Operation(ctx, operationID)
 	if err != nil {
 		return err

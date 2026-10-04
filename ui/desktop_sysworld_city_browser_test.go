@@ -106,19 +106,19 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
             }
             const fixtures={
                 '/api/desktop/system-world/snapshot':{at:Date.now(),metrics:{cpu:12,ram:24,disk:38,uptime:60},entities:[{id:'mission:m1',kind:'mission',district:'missions',label:'Morning briefing',state:'running',at:Date.now(),actions:['cancel']}]},
-                '/api/dashboard/overview':{agent:{model:'AuraGo Spark',provider:'Local',personality:'Thinker',context_window:32768,busy:false},missions:{total:12,running:2,queued:3},integrations:{home_assistant:true,docker:true,telegram:false,mqtt:true,meshcore:true,proxmox:true}},
-                '/api/dashboard/memory':{vectordb_entries:4216,core_memory_facts:68,journal_entries:129,notes_count:48,chat_messages:1864},
-                '/api/dashboard/activity':{coagents:[{id:'c1',name:'Research',status:'running',model:'Spark'}],cron_jobs:[{id:'cron1',name:'Nightly care',expr:'0 3 * * *'}]},
-                '/api/missions/v2':{missions:[{id:'m1',name:'Morning briefing',status:'running',run_count:24,success_rate:.96},{id:'m2',name:'Library maintenance',status:'queued'}]},
-                '/api/containers':[{id:'docker1',name:'Home Assistant',state:'running',image:'homeassistant:stable'}],
-                '/api/daemons':[{id:'d1',name:'Indexer',status:'running',restarts:0}],
-                '/api/dashboard/tool-stats':{top_tools:[{name:'web_search',count:152},{name:'read_file',count:84}]},
-                '/api/budget':{spent:2.34},
-                '/api/knowledge-graph/nodes?limit=300':{nodes:[{id:'n1',label:'AuraGo',type:'project',access_count:48},{id:'n2',label:'Andi',type:'person',access_count:129}]},
-                '/api/knowledge-graph/edges?limit=500':{edges:[{source:'n1',target:'n2',relation:'maintained by'}]},
-                '/api/operational-issues?status=open&limit=100':{items:cityIssueSeverity?[{id:'op1',title:'MQTT reconnect',severity:cityIssueSeverity,occurrences:2}]:[],total:cityIssueSeverity?1:0},
+                '/api/desktop/integrations/dashboard/overview':{agent:{model:'AuraGo Spark',provider:'Local',personality:'Thinker',context_window:32768,busy:false},missions:{total:12,running:2,queued:3},integrations:{home_assistant:true,docker:true,telegram:false,mqtt:true,meshcore:true,proxmox:true}},
+                '/api/desktop/integrations/dashboard/memory':{vectordb_entries:4216,core_memory_facts:68,journal_entries:129,notes_count:48,chat_messages:1864},
+                '/api/desktop/integrations/dashboard/activity':{coagents:[{id:'c1',name:'Research',status:'running',model:'Spark'}],cron_jobs:[{id:'cron1',name:'Nightly care',expr:'0 3 * * *'}]},
+                '/api/desktop/integrations/missions/v2':{missions:[{id:'m1',name:'Morning briefing',status:'running',run_count:24,success_rate:.96},{id:'m2',name:'Library maintenance',status:'queued'}]},
+                '/api/desktop/integrations/containers':[{id:'docker1',name:'Home Assistant',state:'running',image:'homeassistant:stable'}],
+                '/api/desktop/integrations/daemons':[{id:'d1',name:'Indexer',status:'running',restarts:0}],
+                '/api/desktop/integrations/dashboard/tool-stats':{top_tools:[{name:'web_search',count:152},{name:'read_file',count:84}]},
+                '/api/desktop/integrations/budget':{spent:2.34},
+                '/api/desktop/integrations/knowledge-graph/nodes?limit=300':{nodes:[{id:'n1',label:'AuraGo',type:'project',access_count:48},{id:'n2',label:'Andi',type:'person',access_count:129}]},
+                '/api/desktop/integrations/knowledge-graph/edges?limit=500':{edges:[{source:'n1',target:'n2',relation:'maintained by'}]},
+                '/api/desktop/integrations/operational-issues?status=open&limit=100':{items:cityIssueSeverity?[{id:'op1',title:'MQTT reconnect',severity:cityIssueSeverity,occurrences:2}]:[],total:cityIssueSeverity?1:0},
             };
-            if(cityFailures&&path==='/api/dashboard/overview')return Promise.resolve(new Response('{}',{status:503}));
+            if(cityFailures&&path==='/api/desktop/integrations/dashboard/overview')return Promise.resolve(new Response('{}',{status:503}));
             if(path in fixtures)return Promise.resolve(new Response(JSON.stringify(fixtures[path]),{headers:{'Content-Type':'application/json'}}));
             return cityNativeFetch(url,opts);
         };

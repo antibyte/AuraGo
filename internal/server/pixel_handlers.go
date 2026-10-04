@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/desktop"
+	"aurago/internal/fileutil"
 	"aurago/internal/tools"
 )
 
@@ -114,7 +115,7 @@ func handlePixelGenerate(s *Server) http.HandlerFunc {
 			Style:   req.Style,
 		}
 
-		result, err := tools.GenerateImage(genCfg, req.Prompt, opts)
+		result, err := tools.GenerateImageContext(r.Context(), genCfg, req.Prompt, opts)
 		if err != nil {
 			s.Logger.Error("Pixel generate failed", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -122,7 +123,10 @@ func handlePixelGenerate(s *Server) http.HandlerFunc {
 			return
 		}
 
-		tools.SaveGeneratedImage(s.ImageGalleryDB, result)
+		if err := publishDesktopResult(r.Context(), func() error { _, err := tools.SaveGeneratedImage(s.ImageGalleryDB, result); return err }); err != nil {
+			jsonError(w, "Image publication cancelled or failed", http.StatusConflict)
+			return
+		}
 
 		imgPath := filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename)
 		width, height := imageDimensions(imgPath)
@@ -210,7 +214,7 @@ func handlePixelEnhance(s *Server) http.HandlerFunc {
 			SourceImage: sourcePath,
 		}
 
-		result, err := tools.GenerateImage(genCfg, prompt, opts)
+		result, err := tools.GenerateImageContext(r.Context(), genCfg, prompt, opts)
 		if err != nil {
 			s.Logger.Error("Pixel enhance failed", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -218,7 +222,10 @@ func handlePixelEnhance(s *Server) http.HandlerFunc {
 			return
 		}
 
-		tools.SaveGeneratedImage(s.ImageGalleryDB, result)
+		if err := publishDesktopResult(r.Context(), func() error { _, err := tools.SaveGeneratedImage(s.ImageGalleryDB, result); return err }); err != nil {
+			jsonError(w, "Image publication cancelled or failed", http.StatusConflict)
+			return
+		}
 
 		imgPath := filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename)
 		width, height := imageDimensions(imgPath)
@@ -310,7 +317,7 @@ func handlePixelRemoveBG(s *Server) http.HandlerFunc {
 		}
 
 		prompt := "Remove the background completely. Transparent background, isolated subject, clean cutout, no backdrop."
-		result, err := tools.GenerateImage(genCfg, prompt, opts)
+		result, err := tools.GenerateImageContext(r.Context(), genCfg, prompt, opts)
 		if err != nil {
 			s.Logger.Error("Pixel remove-bg failed", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -318,7 +325,10 @@ func handlePixelRemoveBG(s *Server) http.HandlerFunc {
 			return
 		}
 
-		tools.SaveGeneratedImage(s.ImageGalleryDB, result)
+		if err := publishDesktopResult(r.Context(), func() error { _, err := tools.SaveGeneratedImage(s.ImageGalleryDB, result); return err }); err != nil {
+			jsonError(w, "Image publication cancelled or failed", http.StatusConflict)
+			return
+		}
 
 		imgPath := filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename)
 		width, height := imageDimensions(imgPath)
@@ -404,7 +414,7 @@ func handlePixelUpscale(s *Server) http.HandlerFunc {
 		}
 		filename := fmt.Sprintf("pixel_upscale_%d.png", time.Now().UnixNano())
 		outPath := filepath.Join(outDir, filename)
-		if err := os.WriteFile(outPath, upscaled.PNGBytes, 0644); err != nil {
+		if err := fileutil.WriteFileContext(r.Context(), outPath, upscaled.PNGBytes, 0644); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "failed to write upscaled image"})
 			return
@@ -431,7 +441,7 @@ func pixelDecodeDataURL(dataURL string) ([]byte, error) {
 }
 
 func pixelWriteTempSource(dataDir string, imgBytes []byte, prefix string) (path string, cleanup func(), err error) {
-	dir := filepath.Join(dataDir, "generated_images")
+	dir := filepath.Join(dataDir, "tmp", "pixel_sources")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", nil, fmt.Errorf("failed to prepare source")
 	}

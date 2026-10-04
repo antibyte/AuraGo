@@ -251,6 +251,7 @@ type Server struct {
 	WarningsRegistry        *warnings.Registry // Runtime warnings and health issues
 	DaemonSupervisor        *tools.DaemonSupervisor
 	DesktopService          *desktop.Service
+	desktopPolicyService    atomic.Pointer[desktop.Service]
 	DesktopStore            *desktopstore.Service
 	DesktopHub              *desktop.Hub
 	VirtualComputersDB      *virtualcomputers.Ledger
@@ -265,6 +266,7 @@ type Server struct {
 	gameMakerSkills         []gamemaker.SkillInfo
 	gameMakerSkillsReady    bool
 	DesktopMu               sync.Mutex
+	desktopRuns             desktopRunRegistry
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -371,6 +373,12 @@ func (s *Server) ConfigSnapshot() *config.Config {
 func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
+	}
+	if cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.Enabled {
+		s.revokeDesktopRuns()
+	}
+	if svc := s.desktopPolicyService.Load(); svc != nil {
+		svc.SetReadOnly(cfg.VirtualDesktop.ReadOnly)
 	}
 	if bot := s.rocketChatBot.Load(); bot != nil {
 		bot.CancelIfConfigChanged(cfg)

@@ -298,7 +298,11 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 			return
 		}
 
-		loopCtx, loopCancel := context.WithTimeout(context.Background(), looperRunTimeout(req.MaxRounds))
+		loopCtx, loopCancel, err := s.beginDesktopBackgroundRun(looperRunTimeout(req.MaxRounds))
+		if err != nil {
+			writeDesktopPolicyError(w, err.Error(), "Desktop execution is unavailable.")
+			return
+		}
 		if err := runner.TryStart(req.MaxRounds, loopCancel); err != nil {
 			loopCancel()
 			looperError(w, http.StatusConflict, "already_running", err.Error())
@@ -414,7 +418,11 @@ func handleLooperResume(s *Server) http.HandlerFunc {
 			return
 		}
 
-		loopCtx, loopCancel := context.WithTimeout(context.Background(), looperRunTimeout(req.MaxRounds))
+		loopCtx, loopCancel, err := s.beginDesktopBackgroundRun(looperRunTimeout(req.MaxRounds))
+		if err != nil {
+			writeDesktopPolicyError(w, err.Error(), "Desktop execution is unavailable.")
+			return
+		}
 		if err := runner.TryStartResume(req.MaxRounds, rs.Round, loopCancel); err != nil {
 			loopCancel()
 			looperError(w, http.StatusConflict, "already_running", err.Error())

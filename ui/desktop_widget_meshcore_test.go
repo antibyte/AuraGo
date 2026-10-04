@@ -16,7 +16,7 @@ func TestDesktopMeshCoreWidgetRuntimeIsRegistered(t *testing.T) {
 	runtime := readDesktopAssetText(t, "js/desktop/core/widget-meshcore-runtime.js")
 	for _, want := range []string{
 		"function renderMeshCoreWidget(container)",
-		"api('/api/meshcore/messenger/bootstrap')",
+		"api('/api/desktop/integrations/meshcore/messenger/bootstrap')",
 		"document.addEventListener('aurago:meshcore-change', onChange)",
 		"document.removeEventListener('aurago:meshcore-change', onChange)",
 		"registerWidgetCleanup(() => {",

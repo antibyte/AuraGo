@@ -17,6 +17,12 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Work Guidance
 
+- Live readonly changes use `SetReadOnly` and preserve the service/database and
+  read clients. HTTP owner contexts carry a revocable final-publication gate.
+- SSH/VNC cancellation begins before TCP and handshake; close both transports
+  on cancellation and never install a late SSH client. Verify
+  `TestDesktopSSHDialCancelsStalledHandshake` and the proxy/RFB suites.
+
 Keep temporary files private and clean them on failure.
 
 ## Verification

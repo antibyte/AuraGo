@@ -82,6 +82,8 @@ func encodeVNCRFBSecurityFailure(code, message string) []byte {
 func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, options ...RemoteProxyOptions) http.HandlerFunc {
 	proxyOptions := normalizeRemoteProxyOptions(options...)
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), proxyOptions.MaxSessionDuration)
+		defer cancel()
 		deviceID := strings.TrimSpace(r.URL.Query().Get("device_id"))
 		if deviceID == "" {
 			http.Error(w, "missing device_id", http.StatusBadRequest)
@@ -95,6 +97,8 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 		defer conn.Close()
+		stopWS := context.AfterFunc(ctx, func() { _ = conn.Close() })
+		defer stopWS()
 		conn.SetReadLimit(remoteProxyReadLimit)
 
 		device, err := inventory.GetDeviceByID(inventoryDB, deviceID)
@@ -115,12 +119,15 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 		}
 
 		addr := vncDialAddress(host, port)
-		vncConn, err := net.Dial("tcp", addr)
+		dialer := net.Dialer{Timeout: remoteProxyWriteTimeout}
+		vncConn, err := dialer.DialContext(ctx, "tcp", addr)
 		if err != nil {
 			sendVNCClientError(conn, rfbClient, "dial_failed", fmt.Sprintf("VNC connection failed: %v", err))
 			return
 		}
 		defer vncConn.Close()
+		stopVNC := context.AfterFunc(ctx, func() { _ = vncConn.Close() })
+		defer stopVNC()
 		handshakeDeadline := time.Now().Add(remoteProxyWriteTimeout)
 		_ = vncConn.SetDeadline(handshakeDeadline)
 		_ = conn.SetReadDeadline(handshakeDeadline)
@@ -153,9 +160,6 @@ func HandleVNCProxy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			sendVNCError(conn, "init_failed", fmt.Sprintf("VNC client initialization failed: %v", err))
 			return
 		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), proxyOptions.MaxSessionDuration)
-		defer cancel()
 
 		// Bidirectional copy between WebSocket and VNC TCP connection.
 		var wg sync.WaitGroup

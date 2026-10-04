@@ -147,7 +147,7 @@
         if (progress && session.loaded) progress.hidden = false;
         if (!session.loaded) paintCalendar(session);
         try {
-            const data = await api('/api/appointments?status=all');
+            const data = await api('/api/desktop/integrations/appointments?status=all');
             session.appointments = normalizeCalendarAppointments(data);
             session.loaded = true;
             session.error = null;
@@ -419,7 +419,7 @@
         Object.assign(appointment, patch);
         session.appointments.sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
         paintCalendar(session);
-        const url = `/api/appointments/${encodeURIComponent(appointment.id)}`;
+        const url = `/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`;
         try {
             await plannerJSON(url, 'PUT', patch);
         } catch (err) {
@@ -446,7 +446,7 @@
         appointment.status = status;
         paintCalendar(session);
         closeCalendarPeek(session);
-        const url = `/api/appointments/${encodeURIComponent(appointment.id)}`;
+        const url = `/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`;
         try {
             await plannerJSON(url, 'PUT', { status });
         } catch (err) {
@@ -470,7 +470,7 @@
 
     async function deleteCalendarAppointment(session, appointment) {
         if (!appointment) return;
-        await api(`/api/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
+        await api(`/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`, { method: 'DELETE' });
         session.appointments = session.appointments.filter(item => item.id !== appointment.id);
         closeCalendarPeek(session);
         paintCalendar(session);
@@ -484,7 +484,7 @@
             message: t('desktop.cal_deleted'),
             actionLabel: t('desktop.cal_undo'),
             onAction: async () => {
-                await plannerJSON('/api/appointments', 'POST', restore);
+                await plannerJSON('/api/desktop/integrations/appointments', 'POST', restore);
                 await loadCalendarAppointments(session, { silent: true });
                 session.snack({ message: t('desktop.cal_restored') });
             }

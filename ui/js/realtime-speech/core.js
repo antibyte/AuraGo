@@ -164,12 +164,15 @@
 
             if (this.channel) this.channel.addEventListener('message', event => this.handleChannelMessage(event.data));
             window.addEventListener('aurago:chat-visible-message', this.boundVisibleMessage);
+            if (window.AuraDesktopModules) document.addEventListener('aurago:desktop-policy', event => {
+                if (event.detail && (event.detail.readonly || event.detail.enabled === false)) void this.stop();
+            });
             window.addEventListener('beforeunload', () => {
                 if (this.sessionId) {
                     const url = '/api/realtime-speech/sessions/' + encodeURIComponent(this.sessionId) +
                         '?client_id=' + encodeURIComponent(this.clientId);
                     try {
-                        void fetch(url, {
+                        void Common.apiFetch(url, {
                             method: 'DELETE',
                             credentials: 'same-origin',
                             keepalive: true,
@@ -215,7 +218,7 @@
             const allowed = new Set(['connecting', 'listening', 'speaking', 'executing', 'parked', 'reconnecting', 'error']);
             if (!allowed.has(state)) return;
             try {
-                const response = await fetch('/api/realtime-speech/sessions/' + encodeURIComponent(this.sessionId) +
+                const response = await Common.apiFetch('/api/realtime-speech/sessions/' + encodeURIComponent(this.sessionId) +
                     '?client_id=' + encodeURIComponent(this.clientId), {
                     method: 'PATCH',
                     credentials: 'same-origin',
@@ -246,8 +249,8 @@
         async initialize(force) {
             if (!force && this.config && this.catalog) return { config: this.config, catalog: this.catalog };
             const [configResponse, catalogResponse] = await Promise.all([
-                fetch('/api/realtime-speech/config', { credentials: 'same-origin', cache: 'no-store' }),
-                fetch('/api/realtime-speech/catalog', { credentials: 'same-origin', cache: 'no-store' })
+                Common.apiFetch('/api/realtime-speech/config', { credentials: 'same-origin', cache: 'no-store' }),
+                Common.apiFetch('/api/realtime-speech/catalog', { credentials: 'same-origin', cache: 'no-store' })
             ]);
             if (!configResponse.ok) throw await readError(configResponse);
             if (!catalogResponse.ok) throw await readError(catalogResponse);
@@ -358,7 +361,7 @@
         }
 
         async createSession(extra, takeover) {
-            const response = await fetch('/api/realtime-speech/sessions', {
+            const response = await Common.apiFetch('/api/realtime-speech/sessions', {
                 method: 'POST',
                 credentials: 'same-origin',
                 cache: 'no-store',
@@ -583,7 +586,7 @@
             this.pendingAssistantTranscript = '';
             this.emitDisplay('assistant', assistant, 'direct');
             try {
-                const response = await fetch('/api/realtime-speech/turns', {
+                const response = await Common.apiFetch('/api/realtime-speech/turns', {
                     method: 'POST',
                     credentials: 'same-origin',
                     cache: 'no-store',
@@ -698,7 +701,7 @@
             const playback = { controller: new AbortController(), audio: null, url: '' };
             this.actionProgressPlayback = playback;
             try {
-                const response = await fetch('/api/realtime-speech/progress-audio', {
+                const response = await Common.apiFetch('/api/realtime-speech/progress-audio', {
                     method: 'POST',
                     credentials: 'same-origin',
                     cache: 'no-store',
@@ -740,7 +743,7 @@
             let finalText = '';
             let status = 'completed';
             try {
-                const response = await fetch('/api/realtime-speech/actions', {
+                const response = await Common.apiFetch('/api/realtime-speech/actions', {
                     method: 'POST',
                     credentials: 'same-origin',
                     cache: 'no-store',
@@ -832,7 +835,7 @@
             action.cancelled = true;
             this.stopActionProgress();
             try {
-                const response = await fetch('/api/realtime-speech/actions/' + encodeURIComponent(action.requestId) +
+                const response = await Common.apiFetch('/api/realtime-speech/actions/' + encodeURIComponent(action.requestId) +
                     '?client_id=' + encodeURIComponent(this.clientId), {
                     method: 'DELETE',
                     credentials: 'same-origin',
@@ -1085,7 +1088,7 @@
             }
             if (options.notifyServer && sessionId) {
                 try {
-                    await fetch('/api/realtime-speech/sessions/' + encodeURIComponent(sessionId) +
+                    await Common.apiFetch('/api/realtime-speech/sessions/' + encodeURIComponent(sessionId) +
                         '?client_id=' + encodeURIComponent(this.clientId), {
                         method: 'DELETE',
                         credentials: 'same-origin',

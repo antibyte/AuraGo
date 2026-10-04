@@ -317,6 +317,11 @@
 
     async function handleDesktopEvent(event) {
         if (!event || !event.type) return;
+        if (event.type === 'desktop_policy') {
+            Object.assign(state.bootstrap || (state.bootstrap = {}), event.payload || {});
+            document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: event.payload || {} }));
+            return;
+        }
         if (event.type === 'rtl_sdr_recording_soon') {
             await window.AuraDesktopModules.loadAppI18nSections('rtl-sdr');
             showDesktopNotification({ title: 'RTL-SDR', message: t('rtlSdr.recording_soon'), appId: 'rtl-sdr' });

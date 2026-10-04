@@ -56,6 +56,9 @@ func handleDesktopChat(s *Server) http.HandlerFunc {
 		}
 		unlockSession := lockSessionRequest(desktopChatSessionID)
 		defer unlockSession()
+		if !checkDesktopOperation(s, w, r, desktopExecute) {
+			return
+		}
 		if answer, handled, err := handleDesktopSlashCommand(s, body.Message); handled {
 			if err != nil {
 				if s.Logger != nil {
@@ -114,6 +117,9 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 
 		unlockSession := lockSessionRequest(desktopChatSessionID)
 		defer unlockSession()
+		if !checkDesktopOperation(s, w, r, desktopExecute) {
+			return
+		}
 		if answer, handled, err := handleDesktopSlashCommand(s, body.Message); handled {
 			if err != nil {
 				sseWriteData(w, "error_recovery", chatCompletionErrorMessage(desktopUILanguage(s), err))

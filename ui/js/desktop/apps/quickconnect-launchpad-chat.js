@@ -87,8 +87,8 @@
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
             try {
                 const [devBody, credBody] = await Promise.all([
-                    api('/api/devices'),
-                    api('/api/credentials')
+                    api('/api/desktop/integrations/devices'),
+                    api('/api/desktop/integrations/credentials')
                 ]);
                 cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.protocol === 'vnc' || d.type === 'server' || d.type === 'generic' || d.type === 'linux' || d.type === 'vm' || !d.type));
                 cachedCredentials = credBody || [];
@@ -195,7 +195,7 @@
             const ok = await showConfirmModal(t('desktop.qc_delete_confirm'), t('desktop.qc_delete_confirm_msg').replace('{{name}}', device.name));
             if (!ok) return;
             try {
-                await api('/api/devices/' + device.id, { method: 'DELETE' });
+                await api('/api/desktop/integrations/devices/' + device.id, { method: 'DELETE' });
                 await loadAll();
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
@@ -347,7 +347,7 @@
             if (dlPwBtn && existingCred) {
                 dlPwBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=password');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=password');
                         downloadText(body.content, (existingCred.name || 'password') + '.txt');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -357,7 +357,7 @@
             if (dlCertBtn && existingCred) {
                 dlCertBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/credentials/export/' + existingCred.id + '?type=certificate');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=certificate');
                         downloadText(body.content, (existingCred.name || 'key') + '_key.pem');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -397,25 +397,25 @@
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            await api('/api/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            await api('/api/desktop/integrations/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         } else {
                             // Create credential and link
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                             existingDevice.credential_id = created.id;
                         }
                         // Update device
-                        await api('/api/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
+                        await api('/api/desktop/integrations/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
                     } else {
                         // Create credential first
                         const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                         if (password) credBody.password = password;
                         if (certificateText) credBody.certificate_text = certificateText;
-                        const created = await api('/api/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                        const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         // Create device linked to credential
-                        await api('/api/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
+                        await api('/api/desktop/integrations/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
                     }
                     overlay.remove();
                     await loadAll();
@@ -1068,9 +1068,9 @@
 
         async function load() {
             try {
-                const url = selectedCategory ? '/api/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/launchpad/links';
+                const url = selectedCategory ? '/api/desktop/integrations/launchpad/links?category=' + encodeURIComponent(selectedCategory) : '/api/desktop/integrations/launchpad/links';
                 links = await api(url);
-                categories = await api('/api/launchpad/categories');
+                categories = await api('/api/desktop/integrations/launchpad/categories');
                 updateCategorySelect();
                 render();
             } catch (e) { showDesktopNotification({ message: t('desktop.launchpad_load_error') }); }
@@ -1130,7 +1130,7 @@
         async function deleteLink(linkId) {
             const ok = await confirmDialog(t('desktop.launchpad_delete_confirm'), '');
             if (!ok) return;
-            try { await api('/api/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
+            try { await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
             catch (e) { showDesktopNotification({ message: t('desktop.launchpad_delete_error') }); }
         }
 
@@ -1197,7 +1197,7 @@
             if (!query.trim()) { resultsEl.innerHTML = ''; return; }
             resultsEl.innerHTML = '<div class="vd-loading">' + esc(t('desktop.loading')) + '</div>';
             try {
-                const results = await api('/api/launchpad/icons/search?q=' + encodeURIComponent(query));
+                const results = await api('/api/desktop/integrations/launchpad/icons/search?q=' + encodeURIComponent(query));
                 const items = (results || []).filter(r => r.url_png || r.url_webp || r.url_svg);
                 if (!items.length) {
                     resultsEl.innerHTML = '<div class="lp-icon-msg muted">' + esc(t('desktop.launchpad_icon_no_results')) + '</div>';
@@ -1235,7 +1235,7 @@
             const iconUrl = activeTab && activeTab.dataset.tab === 'search' ? selectedIconURL : modal.querySelector('.lp-icon-url').value.trim();
             if (iconUrl) {
                 try {
-                    const dl = await api('/api/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
+                    const dl = await api('/api/desktop/integrations/launchpad/icons/download', { method: 'POST', body: JSON.stringify({ image_url: iconUrl, link_id: linkId || 'new' }) });
                     if (dl && dl.local_path) iconPath = dl.local_path;
                 } catch (e) { /* ignore download errors */ }
             }
@@ -1243,9 +1243,9 @@
             const payload = { title, url, category, description, icon_path: iconPath };
             try {
                 if (linkId) {
-                    await api('/api/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
                 } else {
-                    await api('/api/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
                 }
                 modal.closest('.vd-modal-backdrop').remove();
                 await load();

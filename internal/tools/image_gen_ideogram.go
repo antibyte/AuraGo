@@ -44,7 +44,7 @@ func generateIdeogram(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (
 		return nil, "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(jsonBody))
+	req, err := http.NewRequestWithContext(cfg.requestContext(), "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -78,7 +78,7 @@ func generateIdeogram(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (
 	}
 
 	// Download the image from the returned URL
-	imgData, err := downloadImage(result.Data[0].URL)
+	imgData, err := downloadImageContext(cfg.requestContext(), result.Data[0].URL, maxGeneratedImageBytes)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to download Ideogram image: %w", err)
 	}

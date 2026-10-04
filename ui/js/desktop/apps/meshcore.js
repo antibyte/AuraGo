@@ -1,7 +1,7 @@
 (function () {
     'use strict';
     const instances = new Map();
-    const API = '/api/meshcore/messenger/';
+    const API = '/api/desktop/integrations/meshcore/messenger/';
     const encoder = new TextEncoder();
     const GROUP_GAP_SECONDS = 300;
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

@@ -125,7 +125,7 @@
         }
         let appointments = [];
         try {
-            appointments = await api('/api/appointments?status=all');
+            appointments = await api('/api/desktop/integrations/appointments?status=all');
         } catch (_) {
             appointments = [];
         }

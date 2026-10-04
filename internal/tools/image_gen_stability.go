@@ -52,7 +52,7 @@ func generateStability(cfg ImageGenConfig, prompt string, opts ImageGenOptions) 
 		return nil, "", err
 	}
 
-	req, err := http.NewRequest("POST", url, body)
+	req, err := http.NewRequestWithContext(cfg.requestContext(), "POST", url, body)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}

@@ -13,6 +13,11 @@ acknowledgements. This package does not grant filesystem access.
 ## Local Contracts
 
 - Use `os.Rename` without removing the destination first. Preserve its errors.
+- `WithPublicationGate` lets an owner serialize each final local rename against
+  revocation. The callback is bounded, invokes the commit at most once, and must
+  not enter another gated operation. It grants no path permission. Network work,
+  preparation and Windows retry delays stay outside the gate. `WriteFileContext`
+  prepares and syncs a temporary file, then uses this same replacement boundary.
 - Retry only Windows permission/sharing violations, at most eight attempts with
   15–105 ms delays. Context cancellation stops waiting and prevents later attempts.
 - Vault, Config, native editors, and both MissionV2 state files share this primitive.

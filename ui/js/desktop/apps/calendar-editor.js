@@ -70,7 +70,7 @@
         const total = Math.max(1, Math.min(CAL_REPEAT_LIMIT, Number(count) || 1));
         const start = calendarDate(payload.date_time);
         if (!start || repeat === 'none' || total <= 1) {
-            await plannerJSON('/api/appointments', 'POST', payload);
+            await plannerJSON('/api/desktop/integrations/appointments', 'POST', payload);
             return 1;
         }
         const reminderOffset = payload.notification_at ? start - new Date(payload.notification_at) : null;
@@ -79,7 +79,7 @@
             const when = calendarShiftDate(start, repeat, index);
             const body = Object.assign({}, payload, { date_time: when.toISOString() });
             if (reminderOffset !== null) body.notification_at = new Date(when.getTime() - reminderOffset).toISOString();
-            await plannerJSON('/api/appointments', 'POST', body);
+            await plannerJSON('/api/desktop/integrations/appointments', 'POST', body);
             created += 1;
         }
         return created;
@@ -87,7 +87,7 @@
 
     function loadCalendarContacts(session) {
         if (!session.contactsPromise) {
-            session.contactsPromise = api('/api/contacts').then(data => {
+            session.contactsPromise = api('/api/desktop/integrations/contacts').then(data => {
                 const list = Array.isArray(data) ? data : (data && (data.contacts || data.items)) || [];
                 return list.filter(c => c && c.id && c.name).map(c => ({ id: String(c.id), name: String(c.name), email: c.email || '', relationship: c.relationship || '' }));
             }).catch(() => []);
@@ -362,7 +362,7 @@
             setBusy(true);
             try {
                 if (appointment) {
-                    await plannerJSON(`/api/appointments/${encodeURIComponent(appointment.id)}`, 'PUT', result.payload);
+                    await plannerJSON(`/api/desktop/integrations/appointments/${encodeURIComponent(appointment.id)}`, 'PUT', result.payload);
                     closeCalendarEditor(session);
                     await session.reload({ silent: true });
                     session.snack({ message: t('desktop.cal_saved') });

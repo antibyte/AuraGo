@@ -1,5 +1,5 @@
 /* Homepage Studio history panel: search, type filter, pagination and
-   shell-dialog deletes for /api/homepage/history entries. */
+   shell-dialog deletes for /api/desktop/integrations/homepage/history entries. */
 (function () {
     'use strict';
 
@@ -75,7 +75,7 @@
                 if (state.projectId) params.set('project_id', String(state.projectId));
                 params.set('limit', String(PAGE_SIZE));
                 params.set('offset', String(offset));
-                const url = '/api/homepage/history?' + params.toString();
+                const url = '/api/desktop/integrations/homepage/history?' + params.toString();
                 const data = await deps.api(url, { signal: abortCtrl.signal });
                 if (isDisposed()) return;
                 if (data && data.status === 'success') {
@@ -155,7 +155,7 @@
                 : false;
             if (!confirmed) return;
             try {
-                await deps.api('/api/homepage/history?id=' + encodeURIComponent(id), { method: 'DELETE' });
+                await deps.api('/api/desktop/integrations/homepage/history?id=' + encodeURIComponent(id), { method: 'DELETE' });
                 state.entries = state.entries.filter(entry => String(entry.id) !== String(id));
                 state.total = Math.max(state.entries.length, state.total - 1);
                 renderHistory(state.entries);

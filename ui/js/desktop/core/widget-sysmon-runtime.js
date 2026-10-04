@@ -1,5 +1,5 @@
     /* System Monitor widget: live host metrics. Initial fetch of
-       /api/dashboard/system, then live updates via the server-side
+       /api/desktop/integrations/dashboard/system, then live updates via the server-side
        'system_metrics' SSE broadcast (every 10s). All updates happen in
        place (text/attributes only) so re-renders never rebuild the DOM. */
     const SYSMON_HISTORY_LEN = 30; // 30 samples at 10s interval = 5 minutes
@@ -181,7 +181,7 @@
             refs.root.classList.add('is-ready');
         }
 
-        api('/api/dashboard/system')
+        api('/api/desktop/integrations/dashboard/system')
             .then(data => renderMetrics(data))
             .catch(() => {
                 if (disposed) return;

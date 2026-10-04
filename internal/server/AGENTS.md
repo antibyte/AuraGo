@@ -211,6 +211,23 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Verification
 
+- Desktop authority is enforced by `desktop_operation.go` in addition to token
+  scopes and integration policy. Readonly blocks writes and execution even for
+  administrators; reads and explicit stop actions remain available. Config
+  publication revokes admitted request/background runs. Bounded local results
+  use `publishDesktopResult` or the inherited file publication gate; never hold
+  that gate during provider/network work. Keep the shared Desktop service alive
+  when only readonly changes, so readers, stores and encrypted drafts survive.
+- Shared integrations used by Desktop enter through the administrator-only
+  `/api/desktop/integrations/` allowlist, retaining the original handler's
+  permissions. Client Origin/header claims never select Desktop policy.
+- HTTP bootstrap and WebSocket welcome/events share the same scope projection.
+  Scoped non-admin clients receive no administrative settings, provider choices
+  or management events. Keep WebSocket writes serialized and recheck token
+  revocation; policy events update open browsers without remounting editors.
+- Verify `TestDesktopReadonly*`, `TestDesktopRevocation*`,
+  `TestDesktopIntegrationRoutes*` and `TestDesktopHTTPAndWebSocket*`.
+
 - Run `go test ./internal/server` and the named cross-component checks in the contracts above when those paths change.
 
 ## Child DOX Index

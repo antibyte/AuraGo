@@ -506,7 +506,7 @@
             const select = $(`looper-provider-${windowId}`);
             select.innerHTML = '<option value="">' + esc(t('desktop.looper_default_provider')) + '</option>';
             try {
-                const res = await api('/api/providers');
+                const res = await api('/api/desktop/integrations/providers');
                 const providers = Array.isArray(res) ? res : ((res && res.providers) || []);
                 state.providers = providers;
                 providers.forEach(p => {

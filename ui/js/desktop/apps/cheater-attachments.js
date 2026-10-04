@@ -31,7 +31,7 @@
 
         async function refresh() {
             try {
-                const data = await state.api('/api/cheatsheets/' + encodeURIComponent(state.sheet.id));
+                const data = await state.api('/api/desktop/integrations/cheatsheets/' + encodeURIComponent(state.sheet.id));
                 state.sheet.attachments = data.attachments || [];
                 render();
             } catch (err) {
@@ -96,7 +96,7 @@
             const form = new FormData();
             form.append('file', file);
             try {
-                await state.api('/api/cheatsheets/' + encodeURIComponent(state.sheet.id) + '/attachments', {
+                await state.api('/api/desktop/integrations/cheatsheets/' + encodeURIComponent(state.sheet.id) + '/attachments', {
                     method: 'POST',
                     body: form
                 });
@@ -115,7 +115,7 @@
             });
             const timer = setTimeout(async () => {
                 try {
-                    await state.api('/api/cheatsheets/' + encodeURIComponent(state.sheet.id) + '/attachments/' + encodeURIComponent(id), { method: 'DELETE' });
+                    await state.api('/api/desktop/integrations/cheatsheets/' + encodeURIComponent(state.sheet.id) + '/attachments/' + encodeURIComponent(id), { method: 'DELETE' });
                 } catch (err) {
                     console.error('cheater delete attachment failed', err);
                 }
