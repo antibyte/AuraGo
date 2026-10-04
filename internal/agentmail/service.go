@@ -49,10 +49,14 @@ type Service struct {
 	relaySheet  RelayCheatsheet
 	notify      NotifyFunc
 
-	mu      sync.Mutex
-	cancel  context.CancelFunc
-	running bool
-	seen    map[string]struct{}
+	relayMu       sync.Mutex
+	pendingLabels map[string]struct{}
+	mu            sync.Mutex
+	cancel        context.CancelFunc
+	done          chan struct{}
+	stopping      bool
+	running       bool
+	seen          map[string]struct{}
 }
 
 var (
@@ -73,15 +77,16 @@ func NewService(cfg ServiceConfig) *Service {
 		logger = slog.Default()
 	}
 	return &Service{
-		cfg:         normalizeConfig(cfg.Config),
-		client:      cfg.Client,
-		logger:      logger,
-		guardian:    cfg.Guardian,
-		llmGuardian: cfg.LLMGuardian,
-		scanEmails:  cfg.ScanEmails,
-		relaySheet:  cfg.RelayCheatsheet,
-		notify:      cfg.Notify,
-		seen:        make(map[string]struct{}),
+		cfg:           normalizeConfig(cfg.Config),
+		client:        cfg.Client,
+		logger:        logger,
+		guardian:      cfg.Guardian,
+		llmGuardian:   cfg.LLMGuardian,
+		scanEmails:    cfg.ScanEmails,
+		relaySheet:    cfg.RelayCheatsheet,
+		notify:        cfg.Notify,
+		seen:          make(map[string]struct{}),
+		pendingLabels: make(map[string]struct{}),
 	}
 }
 
@@ -89,6 +94,9 @@ func (s *Service) Start(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.running {
+		if s.stopping {
+			return fmt.Errorf("agentmail relay is still stopping")
+		}
 		return nil
 	}
 	if err := s.validateConfig(); err != nil {
@@ -103,6 +111,8 @@ func (s *Service) Start(ctx context.Context) error {
 	}
 	runCtx, cancel := context.WithCancel(ctx)
 	s.cancel = cancel
+	s.done = make(chan struct{})
+	s.stopping = false
 	s.running = true
 	go s.run(runCtx)
 	return nil
@@ -111,11 +121,19 @@ func (s *Service) Start(ctx context.Context) error {
 func (s *Service) Stop(ctx context.Context) {
 	s.mu.Lock()
 	cancel := s.cancel
-	s.cancel = nil
-	s.running = false
+	done := s.done
+	if cancel != nil {
+		s.stopping = true
+	}
 	s.mu.Unlock()
 	if cancel != nil {
 		cancel()
+	}
+	if done != nil {
+		select {
+		case <-done:
+		case <-ctx.Done():
+		}
 	}
 }
 
@@ -144,14 +162,33 @@ func (s *Service) validateConfig() error {
 func (s *Service) run(ctx context.Context) {
 	defer func() {
 		s.mu.Lock()
-		if s.cancel != nil {
-			s.running = false
-			s.cancel = nil
-		}
+		s.running = false
+		s.stopping = false
+		s.cancel = nil
+		close(s.done)
 		s.mu.Unlock()
 	}()
 
-	s.seed(ctx)
+	for !s.seed(ctx) {
+		if !sleepContext(ctx, s.pollInterval()) {
+			return
+		}
+	}
+	labelDone := make(chan struct{})
+	go func() {
+		defer close(labelDone)
+		ticker := time.NewTicker(s.pollInterval())
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.retryLabels(ctx)
+			}
+		}
+	}()
+	defer func() { <-labelDone }()
 	if s.cfg.UseWebSocket {
 		for ctx.Err() == nil {
 			if err := s.runWebSocket(ctx); err != nil && ctx.Err() == nil {
@@ -189,20 +226,28 @@ func (s *Service) runPolling(ctx context.Context) {
 	}
 }
 
-func (s *Service) seed(ctx context.Context) {
-	res, err := s.client.ListMessages(ctx, s.cfg.InboxID, ListMessagesOptions{Limit: 50, Labels: []string{"unread"}})
-	if err != nil {
-		s.logger.Warn("[AgentMail] Initial seed failed", "error", err)
-		return
-	}
-	s.mu.Lock()
-	for _, msg := range res.Messages {
-		if msg.ID != "" {
-			s.seen[msg.ID] = struct{}{}
+func (s *Service) seed(ctx context.Context) bool {
+	cursor := ""
+	for pages := 0; pages < 1000; pages++ {
+		res, err := s.client.ListMessages(ctx, s.cfg.InboxID, ListMessagesOptions{Limit: 100, Labels: []string{"unread"}, Cursor: cursor})
+		if err != nil {
+			s.logger.Warn("[AgentMail] Initial seed failed", "error", err)
+			return false
 		}
+		for _, msg := range res.Messages {
+			if msg.ID != "" {
+				s.markSeen(msg.ID)
+			}
+		}
+		if res.NextCursor == "" {
+			return true
+		}
+		if res.NextCursor == cursor {
+			return false
+		}
+		cursor = res.NextCursor
 	}
-	s.mu.Unlock()
-	s.logger.Info("[AgentMail] Seeded inbox relay", "inbox_id", s.cfg.InboxID, "messages", len(res.Messages))
+	return false
 }
 
 func (s *Service) pollOnce(ctx context.Context) {
@@ -326,18 +371,45 @@ func isTransientWebSocketClose(err error) bool {
 }
 
 func (s *Service) handleMessage(ctx context.Context, msg Message) error {
+	s.relayMu.Lock()
+	defer s.relayMu.Unlock()
+	if msg.ID == "" || s.isSeen(msg.ID) {
+		return nil
+	}
 	msg = s.sanitizeMessage(ctx, msg)
 	if err := s.notify(ctx, BuildNotificationPrompt(s.cfg.InboxID, msg, s.relaySheet)); err != nil {
 		return err
 	}
-	if s.cfg.ReadOnly {
-		return nil
+	s.markSeen(msg.ID)
+	if !s.cfg.ReadOnly {
+		s.mu.Lock()
+		s.pendingLabels[msg.ID] = struct{}{}
+		s.mu.Unlock()
+		s.retryLabels(ctx)
 	}
-	_, err := s.client.UpdateMessage(ctx, s.cfg.InboxID, msg.ID, UpdateMessageRequest{
-		AddLabels:    []string{"processed", "read"},
-		RemoveLabels: []string{"unread"},
-	})
-	return err
+	return nil
+}
+
+func (s *Service) retryLabels(ctx context.Context) {
+	s.mu.Lock()
+	ids := make([]string, 0, len(s.pendingLabels))
+	for id := range s.pendingLabels {
+		ids = append(ids, id)
+	}
+	s.mu.Unlock()
+	for _, id := range ids {
+		if ctx.Err() != nil {
+			return
+		}
+		_, err := s.client.UpdateMessage(ctx, s.cfg.InboxID, id, UpdateMessageRequest{AddLabels: []string{"processed", "read"}, RemoveLabels: []string{"unread"}})
+		if err != nil {
+			s.logger.Warn("[AgentMail] Label update pending", "error", err)
+			continue
+		}
+		s.mu.Lock()
+		delete(s.pendingLabels, id)
+		s.mu.Unlock()
+	}
 }
 
 func (s *Service) sanitizeMessage(ctx context.Context, msg Message) Message {

@@ -200,6 +200,15 @@ All potentially dangerous operations are gated via config:
 ### Sensitive Data Scrubbing
 Use `security.RegisterSensitive(value)` to prevent values from appearing in logs or LLM outputs.
 
+Register credentials before the first network call, including SDK constructors.
+The shared logger scrubs messages, bound attributes and nested errors. Telegram
+text delivery splits at its UTF-16 limit without cutting a Unicode code point.
+AgentMail retries only GET/HEAD automatically; uncertain mutations are never
+replayed. Its relay completes initial seeding before forwarding, deduplicates an
+accepted notification independently of label updates, and drains on shutdown.
+Web Push retains subscriptions on transient errors and counts only 2xx delivery;
+only 404/410 removes a subscription.
+
 ### Agent Reports & Analysis Files
 
 Keep analysis reports, logs, and files that may contain sensitive data under ignored `reports/`, never `documentation/`; do not commit them. Never stage master keys, Vault secrets, API keys, tokens, passwords, credentials, sensitive logs, memory dumps, or conversation history.

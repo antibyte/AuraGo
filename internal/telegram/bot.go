@@ -58,6 +58,7 @@ func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logg
 	}
 	integrationstatus.SetTelegramConfigured(true, cfg.Telegram.UserID != 0)
 
+	security.RegisterSensitive(cfg.Telegram.BotToken)
 	bot, err := tgbotapi.NewBotAPI(cfg.Telegram.BotToken)
 	if err != nil {
 		integrationstatus.MarkTelegramUnavailable("telegram_init_failed", time.Now())
@@ -558,9 +559,12 @@ func shouldBlockTelegramPromptInjection(inputText string, guardian *security.Gua
 
 func sendTelegramMessage(bot *tgbotapi.BotAPI, chatID int64, text string) error {
 	text = security.Scrub(text)
-	msg := tgbotapi.NewMessage(chatID, text)
-	_, err := bot.Send(msg)
-	return err
+	for _, part := range telegramTextChunks(text) {
+		if _, err := bot.Send(tgbotapi.NewMessage(chatID, part)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AppendMissingYouTubeLinks appends captured YouTube links to text channels when

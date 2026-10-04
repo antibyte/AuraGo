@@ -121,8 +121,12 @@ func (c *Client) do(ctx context.Context, method, path string, q url.Values, payl
 		}
 	}
 
+	maxRetries := c.maxRetries
+	if method != http.MethodGet && method != http.MethodHead {
+		maxRetries = 0
+	}
 	var lastErr error
-	for attempt := 0; attempt <= c.maxRetries; attempt++ {
+	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 && lastErr != nil {
 			// Only retry transient status codes; transport errors are retried too.
 		}
@@ -139,7 +143,7 @@ func (c *Client) do(ctx context.Context, method, path string, q url.Values, payl
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			lastErr = err
-			if attempt < c.maxRetries {
+			if attempt < maxRetries {
 				c.retrySleep(time.Duration(attempt+1) * time.Second)
 				continue
 			}
@@ -152,7 +156,7 @@ func (c *Client) do(ctx context.Context, method, path string, q url.Values, payl
 			return fmt.Errorf("read agentmail response: %w", readErr)
 		}
 
-		if shouldRetry(resp.StatusCode) && attempt < c.maxRetries {
+		if shouldRetry(resp.StatusCode) && attempt < maxRetries {
 			lastErr = parseAPIError(resp.StatusCode, data)
 			c.retrySleep(parseRetryAfter(resp.Header.Get("Retry-After"), attempt))
 			continue
