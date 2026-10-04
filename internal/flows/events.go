@@ -33,13 +33,14 @@ var closedEvents = func() <-chan RunEvent {
 // than MaxNodes nodes and every node yields at most a step_started and a
 // step_finished event, which makes about 2*MaxNodes+2 (1002) events per run.
 //
-// Concurrency: every method is safe for concurrent use. The runner calls Open and
-// Finish. The engine's coordinator goroutine publishes through the runner's sink
-// (Publish only). HTTP handlers call Subscribe and the cancel funcs. Sweep may be
-// called by a janitor. All state changes, every send to a subscriber channel and
-// every close of one happen under mu, and a channel is closed only together with
-// its removal from the subscriber map of its log. So no channel is closed twice
-// and none is sent to after it was closed.
+// Concurrency: every method is safe for concurrent use. The runner calls Open,
+// Rearm and Finish, and Publish for the closing run_finished event of runs that
+// end without the engine's. The engine's coordinator goroutine publishes through
+// the runner's sink (Publish only). HTTP handlers call Subscribe and the cancel
+// funcs. Sweep may be called by a janitor. All state changes, every send to a
+// subscriber channel and every close of one happen under mu, and a channel is
+// closed only together with its removal from the subscriber map of its log. So no
+// channel is closed twice and none is sent to after it was closed.
 type EventBus struct {
 	mu        sync.Mutex
 	runs      map[string]*runLog
@@ -49,10 +50,11 @@ type EventBus struct {
 }
 
 type runLog struct {
-	events   []RunEvent
-	subs     map[int]chan RunEvent
-	nextID   int
-	done     bool
+	events []RunEvent
+	subs   map[int]chan RunEvent
+	nextID int
+	done   bool
+	// openedAt starts the leak clock: when the log was opened or last rearmed.
 	openedAt time.Time
 	doneAt   time.Time
 }
@@ -78,6 +80,24 @@ func (b *EventBus) Open(runID string) {
 	}
 	if _, ok := b.runs[runID]; !ok {
 		b.runs[runID] = &runLog{subs: map[int]chan RunEvent{}, openedAt: now}
+	}
+}
+
+// Rearm restarts the leak clock of an open log (see Sweep) and opens the log again
+// when a sweep forgot it. A finished log is left alone. The runner calls it when a
+// run leaves its queue: MaxRunSecondsLimit bounds the run itself, not the time it
+// waited, and the runner opens the log already when the run is queued.
+func (b *EventBus) Rearm(runID string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	now := b.now()
+	log := b.runs[runID]
+	if log == nil {
+		b.runs[runID] = &runLog{subs: map[int]chan RunEvent{}, openedAt: now}
+		return
+	}
+	if !log.done {
+		log.openedAt = now
 	}
 }
 
@@ -179,9 +199,10 @@ func (b *EventBus) Subscribe(runID string, afterSeq int) ([]RunEvent, <-chan Run
 //
 // It also forgets leaked logs: a run whose Finish never came (a runner bug, a panic
 // between Open and Finish) would otherwise stay in memory forever. A log still open
-// after MaxRunSecondsLimit plus one hour plus the retention, counted from Open, is
-// removed after its subscriber channels were closed, so their consumers are released.
-// No run can legitimately live that long. Events published to a removed run are ignored.
+// after MaxRunSecondsLimit plus one hour plus the retention, counted from Open or
+// from the last Rearm, is removed after its subscriber channels were closed, so their
+// consumers are released. No run can legitimately live that long after the runner
+// rearmed its log at launch. Events published to a removed run are ignored.
 func (b *EventBus) Sweep() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()

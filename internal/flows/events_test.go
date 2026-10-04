@@ -193,6 +193,54 @@ func TestEventBusSweepRemovesLeakedOpenLogs(t *testing.T) {
 	}
 }
 
+// Rearm restarts the leak clock of an open log, so a run whose log was opened when it was
+// queued keeps the log for the full horizon after it starts. Rearm also reopens a log a
+// sweep forgot, and it leaves finished logs alone.
+func TestEventBusRearm(t *testing.T) {
+	clock := newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC))
+	retain := time.Minute
+	leakedAfter := MaxRunSecondsLimit*time.Second + time.Hour + retain
+	bus := NewEventBus(retain, clock.Now)
+
+	bus.Open("run_waited")
+	clock.Advance(20 * time.Hour) // the run waited in a queue
+	bus.Rearm("run_waited")
+	clock.Advance(leakedAfter) // the whole horizon after Rearm, far beyond it after Open
+	if removed := bus.Sweep(); removed != 0 || !bus.Has("run_waited") {
+		t.Fatalf("a rearmed log within its horizon was swept: removed=%d", removed)
+	}
+	clock.Advance(time.Nanosecond)
+	if removed := bus.Sweep(); removed != 1 || bus.Has("run_waited") {
+		t.Fatalf("a rearmed log past its horizon survived: removed=%d", removed)
+	}
+
+	bus.Rearm("run_waited") // forgotten by the sweep, so Rearm opens it again
+	_, ch, cancel, ok := bus.Subscribe("run_waited", 0)
+	defer cancel()
+	if !ok {
+		t.Fatal("Rearm must reopen a log that a sweep forgot")
+	}
+	bus.Publish(RunEvent{RunID: "run_waited", Seq: 1, Type: EventRunStarted})
+	if ev, open, ready := receiveNow(ch); !open || !ready || ev.Seq != 1 {
+		t.Fatalf("event on the reopened log = %+v open=%v ready=%v", ev, open, ready)
+	}
+
+	bus.Open("run_done")
+	bus.Publish(RunEvent{RunID: "run_done", Seq: 1, Type: EventRunFinished})
+	bus.Finish("run_done")
+	clock.Advance(retain)
+	bus.Rearm("run_done") // must neither reopen the log nor delay its expiry
+	backlog, finished, _, _ := bus.Subscribe("run_done", 0)
+	if _, open, ready := receiveNow(finished); open || !ready || len(backlog) != 1 {
+		t.Fatalf("finished log after Rearm: %d events, open=%v ready=%v", len(backlog), open, ready)
+	}
+	clock.Advance(time.Nanosecond)
+	if removed := bus.Sweep(); removed != 1 || bus.Has("run_done") || !bus.Has("run_waited") {
+		t.Fatalf("Sweep removed %d; finished log present=%v, reopened log present=%v",
+			removed, bus.Has("run_done"), bus.Has("run_waited"))
+	}
+}
+
 // The bus has no goroutine, so Open sweeps when at least the retention has passed since the
 // last sweep, and not before.
 func TestEventBusOpenSweepsLazily(t *testing.T) {

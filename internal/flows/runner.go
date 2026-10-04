@@ -22,9 +22,13 @@ var (
 	ErrRunnerClosed = errors.New("the flow runner is shut down")
 )
 
-// RunnerConfig limits concurrent runs.
+// RunnerConfig limits concurrent runs. Values of zero or less mean the defaults.
 type RunnerConfig struct {
-	MaxParallelRuns  int
+	// MaxParallelRuns caps the runs that execute at the same time.
+	MaxParallelRuns int
+	// MaxQueuedPerFlow caps a flow's runs queued behind its active run (queue
+	// policy), and also, counted separately, the flow's runs that wait for a global
+	// slot (parallel policy and test runs). Start refuses more with ErrQueueFull.
 	MaxQueuedPerFlow int
 }
 
@@ -37,7 +41,10 @@ type RunnerHooks struct {
 	OnRunFinished func(rec RunRecord, res RunResult)
 }
 
-// StartRequest asks the runner for a run.
+// StartRequest asks the runner for a run. Start refuses it with ErrQueueFull when
+// the run would wait and the flow already has RunnerConfig.MaxQueuedPerFlow runs
+// waiting the same way: queued behind its active run (queue policy) or waiting for
+// a global slot (parallel policy and test runs).
 type StartRequest struct {
 	Flow         *Flow
 	Revision     int
@@ -141,7 +148,8 @@ func (r *Runner) Bus() *EventBus { return r.bus }
 // The run record is written without holding the runner's lock, so Cancel, IsBusy
 // and finishing runs never wait for the database; Starts are serialized instead.
 // The policy is applied under the lock in two steps: before the record is written
-// Start refuses the run (shut down, skip policy, full queue), after it the run is
+// Start refuses the run (shut down, skip policy, full queue or too many runs of the
+// flow waiting for a global slot, see RunnerConfig), after it the run is
 // queued or admitted. In between only finishing and cancelled runs change the state
 // (Shutdown waits for a Start in progress), and they only make the flow less busy:
 // a run that passed the first step still fits, and one that found its flow busy
@@ -163,14 +171,19 @@ func (r *Runner) Start(req StartRequest) (StartResult, error) {
 	defer r.startMu.Unlock()
 	r.mu.Lock()
 	closed, busy := r.closed, exclusive && r.busyLocked(flowID)
-	full := len(r.flowQueue[flowID]) >= r.cfg.MaxQueuedPerFlow
+	full := busy && len(r.flowQueue[flowID]) >= r.cfg.MaxQueuedPerFlow
+	if !exclusive && r.slots >= r.cfg.MaxParallelRuns {
+		// Only Start adds runs like this one to the waiting list, so the cap holds
+		// exactly; for a queue or skip flow's test run, its waiting live run counts too.
+		full = r.waitingLocked(flowID) >= r.cfg.MaxQueuedPerFlow
+	}
 	r.mu.Unlock()
 	switch {
 	case closed:
 		return StartResult{}, ErrRunnerClosed
 	case busy && policy == ConcurrencySkip:
 		return StartResult{Status: StartSkipped}, nil
-	case busy && full:
+	case full:
 		return StartResult{}, ErrQueueFull
 	}
 
@@ -234,6 +247,9 @@ func (r *Runner) execute(ctx context.Context, cancel context.CancelFunc, p *pend
 	defer cancel()
 	runID := p.rec.ID
 	defer r.bus.Finish(runID) // idempotent; no way out leaves the log open
+	// The log was opened when the run was queued; its leak clock must count the
+	// run's own time only, and a sweep may have forgotten it during a long wait.
+	r.bus.Rearm(runID)
 	res := r.runAndRecord(ctx, p)
 	r.bus.Finish(runID)
 	rec := p.rec
@@ -255,9 +271,10 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 	// The sink runs on this goroutine (the engine's coordinator), so the deferred
 	// recover may read what it recorded.
 	lastSeq, ended := 0, false
+	launched := r.now()
 	defer func() {
 		if v := recover(); v != nil {
-			res = r.panicked(p, v, lastSeq, ended)
+			res = r.panicked(p, v, launched, lastSeq, ended)
 		}
 	}()
 	if err := r.store.SetRunStatus(bg, runID, RunRunning); err != nil {
@@ -299,15 +316,16 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 }
 
 // panicked turns a panic v in the runner's code during a run into the run's result,
-// a FLOW_RUNNER_PANIC error. lastSeq and ended describe the events published so far.
-// Recording the result is best effort: store errors, and panics, are only logged.
-func (r *Runner) panicked(p *pendingRun, v any, lastSeq int, ended bool) RunResult {
+// a FLOW_RUNNER_PANIC error. launched is when the run left its queue, so the
+// duration leaves out the wait. lastSeq and ended describe the events published so
+// far. Recording the result is best effort: store errors, and panics, are only logged.
+func (r *Runner) panicked(p *pendingRun, v any, launched time.Time, lastSeq int, ended bool) RunResult {
 	runID := p.rec.ID
 	r.logger.Error("flow runner panicked during a run", "run", runID, "panic", v, "stack", string(debug.Stack()))
 	now := r.now()
 	res := RunResult{Status: RunError, ErrorCode: "FLOW_RUNNER_PANIC",
 		ErrorMessage: "the flow runner failed unexpectedly; the AuraGo log has the details",
-		StartedAt:    p.rec.StartedAt, FinishedAt: now, DurationMS: now.Sub(p.rec.StartedAt).Milliseconds()}
+		StartedAt:    launched, FinishedAt: now, DurationMS: now.Sub(launched).Milliseconds()}
 	func() {
 		defer func() {
 			if v := recover(); v != nil {
@@ -356,6 +374,7 @@ func (r *Runner) release(p *pendingRun) {
 	}
 	for !r.closed && r.slots < r.cfg.MaxParallelRuns && len(r.waiting) > 0 {
 		next := r.waiting[0]
+		r.waiting[0] = nil // the backing array must not keep the run's trigger data
 		r.waiting = r.waiting[1:]
 		r.launchLocked(next)
 	}
@@ -373,6 +392,7 @@ func (r *Runner) releaseFlowLocked(flowID string) {
 	}
 	if q := r.flowQueue[flowID]; len(q) > 0 {
 		next := q[0]
+		q[0] = nil // the backing array must not keep the run's trigger data
 		if len(q) == 1 {
 			delete(r.flowQueue, flowID)
 		} else {
@@ -395,6 +415,7 @@ func (r *Runner) callHook(rec RunRecord, res RunResult) {
 }
 
 // Cancel stops a running run or removes a queued one. It returns false for unknown runs.
+// A run whose Start has not returned yet is not known to Cancel.
 func (r *Runner) Cancel(runID string) bool {
 	r.mu.Lock()
 	if cancel, ok := r.cancels[runID]; ok {
@@ -461,6 +482,17 @@ func (r *Runner) IsBusy(flowID string) bool {
 
 func (r *Runner) busyLocked(flowID string) bool {
 	return r.live[flowID] > 0 || len(r.flowQueue[flowID]) > 0
+}
+
+// waitingLocked counts the flow's runs that wait for a global slot.
+func (r *Runner) waitingLocked(flowID string) int {
+	n := 0
+	for _, p := range r.waiting {
+		if p.rec.FlowID == flowID {
+			n++
+		}
+	}
+	return n
 }
 
 // Subscribe forwards to the event bus.

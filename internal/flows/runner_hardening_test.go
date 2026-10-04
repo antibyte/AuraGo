@@ -2,11 +2,41 @@ package flows
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 )
+
+// newClockedRunnerFixture is newRunnerFixture with the engine, and so the event bus,
+// on clock.
+func newClockedRunnerFixture(t *testing.T, cfg RunnerConfig, clock Clock) *runnerFixture {
+	t.Helper()
+	reg := newTestRegistry(t)
+	g := newGate()
+	reg.MustRegister(&NodeDef{Type: "test.gate", DefaultTimeout: 10 * time.Second,
+		Params: []ParamSpec{{Name: "name", Kind: ParamText, Templatable: true}},
+		Execute: func(ctx context.Context, in ExecInput) (ExecResult, error) {
+			name := Stringify(in.Params["name"])
+			g.started <- name
+			select {
+			case <-g.ch(name):
+				return ExecResult{Output: map[string]any{"name": name}}, nil
+			case <-ctx.Done():
+				return ExecResult{}, ctx.Err()
+			}
+		}})
+	store := openTestStore(t)
+	started := make(chan RunRecord, 32)
+	finished := make(chan RunRecord, 32)
+	r := NewRunner(newTestEngine(reg, &Services{Clock: clock, Location: time.UTC}, 4), store, RunnerHooks{
+		OnRunStarted:  func(rec RunRecord) { started <- rec },
+		OnRunFinished: func(rec RunRecord, _ RunResult) { finished <- rec },
+	}, cfg, discardLogger())
+	t.Cleanup(func() { _ = r.Shutdown(context.Background()) })
+	return &runnerFixture{r: r, store: store, gate: g, started: started, finished: finished}
+}
 
 // drainEvents reads ch until it is closed and returns the events it got.
 func drainEvents(t *testing.T, ch <-chan RunEvent) []RunEvent {
@@ -268,4 +298,65 @@ func TestRunnerGlobalQueueIsFIFO(t *testing.T) {
 	fx.gate.waitStarted(t, "b")
 	fx.gate.release("b")
 	fx.waitFinished(t)
+}
+
+// A flow's parallel-policy and test runs that wait for a global slot are capped at
+// MaxQueuedPerFlow, like a queue-policy flow's queue. A refused start records no run,
+// and other flows are not affected.
+func TestRunnerCapsRunsWaitingForASlot(t *testing.T) {
+	fx := newRunnerFixture(t, RunnerConfig{MaxParallelRuns: 1, MaxQueuedPerFlow: 2})
+	par := fx.flow(t, "flow_aaaaaaaadg", ConcurrencyParallel)
+	fx.start(t, par, ModeLive, "a")
+	fx.gate.waitStarted(t, "a")
+	if res := fx.start(t, par, ModeLive, "b"); res.Status != StartQueued {
+		t.Fatalf("first waiting start = %+v, want queued", res)
+	}
+	if res := fx.start(t, par, ModeTest, "c"); res.Status != StartQueued {
+		t.Fatalf("second waiting start = %+v, want queued", res)
+	}
+	for _, mode := range []RunMode{ModeLive, ModeTest} {
+		if _, err := fx.r.Start(StartRequest{Flow: par, Mode: mode, TriggerNode: par.Nodes[0].ID}); !errors.Is(err, ErrQueueFull) {
+			t.Fatalf("third waiting %s start = %v, want ErrQueueFull", mode, err)
+		}
+	}
+	if runs, err := fx.store.ListRuns(context.Background(), par.ID, RunFilter{}); err != nil || len(runs) != 3 {
+		t.Fatalf("stored runs = %d, %v; refused starts must not record a run", len(runs), err)
+	}
+	other := fx.flow(t, "flow_aaaaaaaadh", ConcurrencyParallel)
+	if res := fx.start(t, other, ModeLive, "d"); res.Status != StartQueued {
+		t.Fatalf("another flow's start = %+v, want queued", res)
+	}
+	for _, name := range []string{"a", "b", "c", "d"} {
+		fx.gate.release(name)
+	}
+	for i := 0; i < 4; i++ {
+		fx.waitFinished(t)
+	}
+}
+
+// The leak clock of a run's event log restarts when the run leaves its queue: a run
+// that waited 20 h keeps its log while it runs, also past the leak horizon counted
+// from when it was queued.
+func TestRunnerRearmsTheLogAtLaunch(t *testing.T) {
+	clock := newFakeClock(storeNow)
+	fx := newClockedRunnerFixture(t, RunnerConfig{}, clock)
+	f := fx.flow(t, "flow_aaaaaaaadi", ConcurrencyQueue)
+	fx.start(t, f, ModeLive, "a")
+	fx.gate.waitStarted(t, "a")
+	queued := fx.start(t, f, ModeLive, "b")
+	clock.Advance(20 * time.Hour)
+	fx.gate.release("a")
+	fx.waitFinished(t)
+	fx.gate.waitStarted(t, "b")
+	clock.Advance(6 * time.Hour) // 26 h after b was queued, 6 h after it started
+	fx.r.Bus().Sweep()
+	_, _, cancel, ok := fx.r.Subscribe(queued.RunID, 0)
+	cancel()
+	if !ok {
+		t.Fatal("the log of a run that waited 20 h was swept 6 h after the run started")
+	}
+	fx.gate.release("b")
+	if rec := fx.waitFinished(t); rec.ID != queued.RunID || rec.Status != RunSuccess {
+		t.Fatalf("finished = %+v", rec)
+	}
 }
