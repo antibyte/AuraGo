@@ -213,7 +213,8 @@ type EmailWatcherInterface interface {
 
 // WebhookManagerInterface for webhook trigger integration
 type WebhookManagerInterface interface {
-	RegisterMissionTrigger(webhookID string, callback func(payload []byte))
+	RegisterMissionTriggerForKey(key, webhookID string, callback func([]byte))
+	UnregisterMissionTrigger(key string)
 }
 
 // MQTTManagerInterface for MQTT trigger integration
@@ -265,6 +266,9 @@ func (m *MissionManagerV2) SetEmailWatcher(watcher EmailWatcherInterface) {
 func (m *MissionManagerV2) SetWebhookManager(mgr WebhookManagerInterface) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	for _, mission := range m.missions {
+		m.unregisterWebhookTriggerLocked(mission)
+	}
 	m.webhookMgr = mgr
 	m.setupTriggersLocked()
 }
@@ -470,6 +474,9 @@ func (m *MissionManagerV2) Stop() {
 	m.workMu.Unlock()
 	m.workWG.Wait()
 	m.mu.Lock()
+	for _, mission := range m.missions {
+		m.unregisterWebhookTriggerLocked(mission)
+	}
 	if m.stopParent != nil {
 		m.stopParent()
 		m.stopParent = nil
@@ -652,8 +659,8 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 			if !m.markTriggerRegistrationLocked(mission, "webhook|"+webhookID) {
 				return
 			}
-			m.webhookMgr.RegisterMissionTrigger(
-				webhookID,
+			m.webhookMgr.RegisterMissionTriggerForKey(
+				missionID+"|"+string(TriggerWebhook), webhookID,
 				func(payload []byte) {
 					if !m.triggerRegistrationIsCurrent(missionID, TriggerWebhook, func(current *TriggerConfig) bool {
 						return current.WebhookID == webhookID
@@ -736,6 +743,17 @@ func missionHasActiveLocalMQTTTrigger(mission *MissionV2) bool {
 		mission.TriggerType == TriggerMQTTMessage &&
 		mission.TriggerConfig != nil &&
 		mission.TriggerConfig.MQTTTopic != ""
+}
+
+func (m *MissionManagerV2) unregisterWebhookTriggerLocked(mission *MissionV2) {
+	if mission == nil {
+		return
+	}
+	key := mission.ID + "|" + string(TriggerWebhook)
+	if m.webhookMgr != nil {
+		m.webhookMgr.UnregisterMissionTrigger(key)
+	}
+	delete(m.registeredTriggers, key)
 }
 
 func (m *MissionManagerV2) unregisterMQTTTriggerLocked(mission *MissionV2) {
@@ -1932,6 +1950,9 @@ func (m *MissionManagerV2) ApplySyncedMission(mission *MissionV2) error {
 	if existing, ok := m.missions[mission.ID]; ok && existing.ExecutionType == ExecutionScheduled && existing.Schedule != "" && m.cron != nil {
 		_, _ = m.cron.ManageSchedule("remove", "mission_"+mission.ID, "", "", "")
 	}
+	if existing, ok := m.missions[mission.ID]; ok {
+		m.unregisterWebhookTriggerLocked(existing)
+	}
 	if existing, ok := m.missions[mission.ID]; ok && missionHasActiveLocalMQTTTrigger(existing) && !missionHasActiveLocalMQTTTrigger(mission) {
 		m.unregisterMQTTTriggerLocked(existing)
 	}
@@ -1985,6 +2006,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	}
 
 	// Unregister old triggers
+	m.unregisterWebhookTriggerLocked(mission)
 	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
 		cronID := "mission_" + id
 		m.cron.ManageSchedule("remove", cronID, "", "", "")
@@ -2073,6 +2095,7 @@ func (m *MissionManagerV2) DeleteSyncedMission(id string) error {
 		m.unregisterMQTTTriggerLocked(mission)
 	}
 
+	m.unregisterWebhookTriggerLocked(mission)
 	delete(m.missions, id)
 	m.queue.Remove(id)
 
@@ -2127,6 +2150,7 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 		cancel()
 	}
 
+	m.unregisterWebhookTriggerLocked(mission)
 	delete(m.missions, id)
 	m.queue.Remove(id)
 

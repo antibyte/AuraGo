@@ -195,6 +195,12 @@ Server-owned HTTP and cross-component integration contracts.
 - EvoMap registration is writable-only in the agent and API. The server callback owns network registration and serialized config/Vault publication under CfgSaveMu; never mutate captured config snapshots or save them from the agent. Persist only the node ID into current YAML, keep secrets in Vault, restore prior local state on save failure, and never retry uncertain registration automatically.
 - Verify Uptime Kuma lifecycle, EvoMap registration/revocation and configuration preservation regressions.
 
+### Webhook publication
+- Mission webhook registrations use stable mission keys, replacing the old callback and removing it on disable, delete, manager replacement or shutdown. A-B-A trigger changes must not accumulate callbacks.
+- Incoming webhook handlers obtain current immutable config and Guardian services together under the server config lock. Disabled integrations reject new deliveries; scan policy changes take effect without restart.
+- Webhook config load errors fail closed and preserve the source. Validate a detached candidate, persist atomically, then publish; failed create/update/delete and signature migration must preserve the last valid in-memory state. Return detached read values.
+- Verify webhook transaction, callback roundtrip and live policy regression tests plus mission suites.
+
 ## Verification
 
 - Run `go test ./internal/server` and the named cross-component checks in the contracts above when those paths change.

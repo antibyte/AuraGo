@@ -865,6 +865,11 @@ func Start(opts StartOptions) error {
 			s.WebhookManager = whMgr
 			s.WebhookHandler = webhooks.NewHandler(whMgr, tm, vault, s.Guardian, s.LLMGuardian, cfg, logger, cfg.Server.Port, int64(cfg.Webhooks.MaxPayloadSize), cfg.Webhooks.RateLimit)
 			s.WebhookHandler.SetTokenManagerSource(s.currentTokenManager)
+			s.WebhookHandler.SetRuntimeSource(func() (*config.Config, *security.Guardian, *security.LLMGuardian) {
+				s.CfgMu.RLock()
+				defer s.CfgMu.RUnlock()
+				return s.ConfigSnapshot(), s.Guardian, s.LLMGuardian
+			})
 			s.WebhookHandler.SetInternalToken(s.internalToken)
 			logger.Info("Webhook system initialized", "max_webhooks", webhooks.MaxWebhooks)
 		}

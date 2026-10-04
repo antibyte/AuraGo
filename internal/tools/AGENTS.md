@@ -78,6 +78,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ### Integration state preservation
 - AdGuard filtering toggles must read and preserve the configured update interval; missing or malformed status forbids the write.
+- Mission webhook callbacks must be keyed by mission ID, replaced on trigger changes and removed on disable/delete/shutdown.
 - Uptime Kuma pollers inherit an owner context. Stop is terminal, cancels I/O and waits for completion; callbacks must not detach unbounded work.
 - Python Vault export requires both agent-created provenance and the system-key blocklist. Reserve actual `sql_`, `cloudflared_`, `cloudflare_` and `three_d_printer_klipper_` integration prefixes alongside legacy names.
 

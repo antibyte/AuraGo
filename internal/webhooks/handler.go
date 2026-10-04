@@ -39,6 +39,7 @@ type Handler struct {
 	guardian       *security.Guardian
 	llmGuardian    *security.LLMGuardian
 	cfg            *config.Config
+	runtimeSource  func() (*config.Config, *security.Guardian, *security.LLMGuardian)
 	logger         *slog.Logger
 	serverPort     int
 	internalToken  string
@@ -72,6 +73,24 @@ func (h *Handler) Reconfigure(maxPayloadSize int64, rateLimit int) {
 	h.maxPayloadSize = maxPayloadSize
 	h.rateLimiter = NewRateLimiter(rateLimit)
 	h.mu.Unlock()
+}
+
+// SetRuntimeSource resolves the current config and matching security services.
+// The source must return an immutable snapshot and must not retain handler locks.
+func (h *Handler) SetRuntimeSource(source func() (*config.Config, *security.Guardian, *security.LLMGuardian)) {
+	h.mu.Lock()
+	h.runtimeSource = source
+	h.mu.Unlock()
+}
+
+func (h *Handler) runtimeSnapshot() (*config.Config, *security.Guardian, *security.LLMGuardian) {
+	h.mu.RLock()
+	source, cfg, guardian, llmGuardian := h.runtimeSource, h.cfg, h.guardian, h.llmGuardian
+	h.mu.RUnlock()
+	if source != nil {
+		return source()
+	}
+	return cfg, guardian, llmGuardian
 }
 
 // SetSSE sets the SSE broadcaster for notification delivery.
@@ -126,6 +145,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	maxPayloadSize := h.maxPayloadSize
 	rateLimiter := h.rateLimiter
 	internalToken := h.internalToken
+	liveRuntime := h.runtimeSource != nil
 	h.mu.RUnlock()
 
 	// Extract slug from path: /webhook/{slug}
@@ -136,7 +156,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sourceIP := requestSourceIP(r, h.cfg != nil && h.cfg.Server.HTTPS.BehindProxy)
+	cfg, guardian, llmGuardian := h.runtimeSnapshot()
+	if liveRuntime && (cfg == nil || !cfg.Webhooks.Enabled) {
+		http.Error(w, `{"error":"webhooks disabled"}`, http.StatusServiceUnavailable)
+		return
+	}
+	sourceIP := requestSourceIP(r, cfg != nil && cfg.Server.HTTPS.BehindProxy)
 
 	// 1. Lookup webhook by slug
 	wh, err := h.manager.GetBySlug(slug)
@@ -261,16 +286,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 8. Scan raw payload for injection attempts before rendering.
 	// All webhook payloads are external, untrusted data — always isolate them.
-	if h.guardian != nil {
-		scan := h.guardian.ScanForInjection(string(body))
+	if guardian != nil {
+		scan := guardian.ScanForInjection(string(body))
 		if scan.Level >= security.ThreatHigh {
 			h.log().Warn("[Webhook] Blocked high-threat injection pattern in payload", "webhook", wh.Name, "threat", scan.Level, "source_ip", sourceIP)
 			h.logEvent(wh.ID, wh.Name, 403, sourceIP, rawPayloadSize, false, "guardian blocked payload")
 			http.Error(w, `{"error":"payload blocked by guardian"}`, http.StatusForbidden)
 			return
-		} else if h.llmGuardian != nil && h.cfg != nil && h.cfg.LLMGuardian.ScanDocuments {
+		} else if llmGuardian != nil && cfg != nil && cfg.LLMGuardian.ScanDocuments {
 			// LLM Guardian: deeper content scan if regex didn't flag HIGH
-			llmResult := h.llmGuardian.EvaluateContent(r.Context(), "document", string(body))
+			llmResult := llmGuardian.EvaluateContent(r.Context(), "document", string(body))
 			if llmResult.Decision == security.DecisionBlock {
 				h.log().Warn("[Webhook] LLM Guardian blocked payload", "webhook", wh.Name, "reason", llmResult.Reason, "source_ip", sourceIP)
 				h.logEvent(wh.ID, wh.Name, 403, sourceIP, rawPayloadSize, false, "llm guardian blocked payload")
@@ -358,18 +383,19 @@ func (h *Handler) acquireDeliverySlot() (func(), bool) {
 
 // internalAPIURL returns the base URL for internal loopback API calls, respecting HTTPS config.
 func (h *Handler) internalAPIURL() string {
-	if h.cfg == nil {
+	cfg, _, _ := h.runtimeSnapshot()
+	if cfg == nil {
 		return fmt.Sprintf("http://127.0.0.1:%d", h.serverPort)
 	}
-	if port := dedicatedInternalLoopbackPort(h.cfg); port > 0 {
+	if port := dedicatedInternalLoopbackPort(cfg); port > 0 {
 		return fmt.Sprintf("http://127.0.0.1:%d", port)
 	}
 	scheme := "http"
 	port := h.serverPort
-	if h.cfg.Server.HTTPS.Enabled {
+	if cfg.Server.HTTPS.Enabled {
 		scheme = "https"
-		if h.cfg.Server.HTTPS.HTTPSPort > 0 {
-			port = h.cfg.Server.HTTPS.HTTPSPort
+		if cfg.Server.HTTPS.HTTPSPort > 0 {
+			port = cfg.Server.HTTPS.HTTPSPort
 		} else {
 			port = 443
 		}

@@ -1027,14 +1027,26 @@ func TestMissionPreparationChecksumChangesWhenCheatsheetDeactivates(t *testing.T
 }
 
 type fakeWebhookTriggerManager struct {
+	keys      map[string]string
 	callbacks map[string][]func([]byte)
 }
 
-func (f *fakeWebhookTriggerManager) RegisterMissionTrigger(webhookID string, callback func(payload []byte)) {
+func (f *fakeWebhookTriggerManager) RegisterMissionTriggerForKey(key, webhookID string, callback func([]byte)) {
+	f.UnregisterMissionTrigger(key)
 	if f.callbacks == nil {
 		f.callbacks = make(map[string][]func([]byte))
 	}
+	if f.keys == nil {
+		f.keys = make(map[string]string)
+	}
+	f.keys[key] = webhookID
 	f.callbacks[webhookID] = append(f.callbacks[webhookID], callback)
+}
+func (f *fakeWebhookTriggerManager) UnregisterMissionTrigger(key string) {
+	if old, ok := f.keys[key]; ok {
+		delete(f.callbacks, old)
+		delete(f.keys, key)
+	}
 }
 
 func (f *fakeWebhookTriggerManager) Fire(webhookID string, payload []byte) {
