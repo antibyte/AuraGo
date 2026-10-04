@@ -36,6 +36,15 @@ func TestConditionRows(t *testing.T) {
 		{ConditionRow{Left: "5", Op: "lte", Right: 5.0, Type: "number"}, true},
 		{ConditionRow{Left: "10", Op: "lt", Right: "9", Type: "text"}, true},
 		{ConditionRow{Left: 3.0, Op: "gte", Right: 3.0}, true},
+		{ConditionRow{Left: 1.7e9, Op: "gt", Right: 1.6e9, Type: "date"}, true},
+		{ConditionRow{Left: "2026-10-03", Op: "lt", Right: "2026-10-04", Type: "date"}, true},
+		{ConditionRow{Left: "yes", Op: "eq", Right: true, Type: "bool"}, true},
+		{ConditionRow{Left: "no", Op: "lt", Right: true, Type: "bool"}, true},
+		{ConditionRow{Left: true, Op: "gt", Right: false}, true},
+		// contains on an object checks an exact, case-sensitive key.
+		{ConditionRow{Left: map[string]any{"K": 1.0}, Op: "contains", Right: "k"}, false},
+		{ConditionRow{Left: "not an address", Op: "matches", Right: `^[\w.+-]+@[\w-]+\.[\w.]+$`}, false},
+		{ConditionRow{Left: "jo.doe+x@mail-host.example.org", Op: "matches", Right: `^[\w.+-]+@[\w-]+\.[\w.]+$`}, true},
 	}
 	for _, tc := range cases {
 		got, err := tc.row.Evaluate(time.UTC)
@@ -57,10 +66,48 @@ func TestConditionRowErrors(t *testing.T) {
 		{Left: "abc", Op: "gt", Right: 1.0, Type: "number"},
 		{Left: "x", Op: "foo", Right: "y"},
 		{Left: "x", Op: "eq", Right: "y", Type: "weird"},
+		{Left: "x", Op: "eq", Right: "2026-10-04", Type: "date"},
 	} {
 		if _, err := row.Evaluate(time.UTC); err == nil {
 			t.Errorf("%+v: expected error", row)
 		}
+	}
+}
+
+func TestConditionMatchesProgramCap(t *testing.T) {
+	// 176 bytes, well under maxPatternLength, but about 25,000 instructions: matching
+	// it against a large input would run for seconds and cannot be cancelled.
+	wide := strings.Repeat("a{1000}", 25) + "b"
+	if len(wide) > maxPatternLength {
+		t.Fatalf("test pattern is %d bytes, want at most %d", len(wide), maxPatternLength)
+	}
+	input := strings.Repeat("a", 64*1024)
+	for _, pattern := range []string{wide, strings.Repeat(`\pL{1000}`, 20) + "b"} {
+		start := time.Now()
+		_, err := ConditionRow{Left: input, Op: "matches", Right: pattern}.Evaluate(time.UTC)
+		if err == nil || !strings.Contains(err.Error(), "too complex") {
+			t.Errorf("pattern of %d bytes: error = %v, want a too-complex error", len(pattern), err)
+		}
+		if elapsed := time.Since(start); elapsed > 5*time.Second {
+			t.Errorf("pattern of %d bytes took %v to reject", len(pattern), elapsed)
+		}
+	}
+	// An ordinary pattern stays far below the cap and still matches.
+	email := `^[\w.+-]+@[\w-]+\.[\w.]+$`
+	got, err := ConditionRow{Left: "a.b+c@host-1.example.org", Op: "matches", Right: email}.Evaluate(time.UTC)
+	if err != nil || !got {
+		t.Errorf("email pattern = %v, %v; want true", got, err)
+	}
+	_, err = ConditionRow{Left: "x", Op: "matches", Right: strings.Repeat("a", 201)}.Evaluate(time.UTC)
+	if err == nil || !strings.Contains(err.Error(), "bytes") {
+		t.Errorf("long pattern error = %v, want it to count bytes", err)
+	}
+}
+
+func TestDecodeConditionGroupErrorHidesGoTypes(t *testing.T) {
+	_, err := DecodeConditionGroup("text")
+	if err == nil || strings.Contains(err.Error(), "Go") || strings.Contains(err.Error(), "flows.") {
+		t.Errorf("decode error leaks Go types: %v", err)
 	}
 }
 
@@ -152,6 +199,18 @@ func TestConditionGroup(t *testing.T) {
 		if err != nil || got != tc.want {
 			t.Errorf("case %d = %v, %v; want %v", i, got, err, tc.want)
 		}
+	}
+}
+
+func TestConditionGroupErrorAfterTrueRow(t *testing.T) {
+	// Built directly, not via Decode: an "all" group stops at the first false row,
+	// but a true row followed by an invalid one must surface the error.
+	g := ConditionGroup{Match: "all", Rows: []ConditionRow{
+		{Left: "a", Op: "eq", Right: "a"},
+		{Left: "a", Op: "foo", Right: "a"},
+	}}
+	if got, err := g.Evaluate(time.UTC); err == nil || got {
+		t.Errorf("Evaluate = %v, %v; want false and an error", got, err)
 	}
 }
 

@@ -25,7 +25,15 @@ type ConditionRow struct {
 	Type  string `json:"type,omitempty"`
 }
 
-const maxPatternLength = 200
+const (
+	// maxPatternLength caps the source size of a "matches" pattern in bytes.
+	maxPatternLength = 200
+	// maxPatternInsts caps the compiled program of a "matches" pattern. The source
+	// cap alone does not bound it: "a{1000}" repeated 25 times fits into 176 bytes
+	// but compiles to about 25,000 instructions. Ordinary patterns use fewer than
+	// 200.
+	maxPatternInsts = 1000
+)
 
 var conditionOps = map[string]bool{
 	"eq": true, "ne": true, "contains": true, "not_contains": true, "starts_with": true,
@@ -50,7 +58,8 @@ func ConditionOperators() []string {
 
 // DecodeConditionGroup converts a (resolved or raw) parameter value into a group
 // and checks match, operators and types. The value is copied through JSON, so the
-// returned group never aliases v.
+// returned group never aliases v. Numbers become float64, so integers above 2^53
+// lose precision; compare long numeric IDs with type "text".
 func DecodeConditionGroup(v any) (ConditionGroup, error) {
 	var g ConditionGroup
 	if v == nil {
@@ -66,7 +75,8 @@ func DecodeConditionGroup(v any) (ConditionGroup, error) {
 		return g, errors.New("condition is missing")
 	}
 	if err := json.Unmarshal(data, &g); err != nil {
-		return g, fmt.Errorf("condition must be an object with rows: %w", err)
+		// Fixed text: the json error names Go types, which must not reach the editor.
+		return g, errors.New("condition must be an object with rows")
 	}
 	if g.Match != "" && g.Match != "all" && g.Match != "any" {
 		return g, fmt.Errorf("unknown match %s", quoteForError(g.Match))
@@ -101,7 +111,11 @@ func (g ConditionGroup) Evaluate(loc *time.Location) (bool, error) {
 }
 
 // Evaluate compares one row. contains/starts_with/ends_with ignore case; eq/ne do not.
-// It only reads Left and Right, which may be shared with the flow's runtime data.
+// contains on an object checks for an exact, case-sensitive key. With type auto (or
+// none) numeric strings compare as numbers, so long numeric IDs should use type
+// "text". The cost of "matches" is bounded by len(input) times maxPatternInsts.
+// Evaluate only reads Left and Right, which may be shared with the flow's runtime
+// data.
 func (r ConditionRow) Evaluate(loc *time.Location) (bool, error) {
 	switch r.Op {
 	case "empty":
@@ -119,13 +133,9 @@ func (r ConditionRow) Evaluate(loc *time.Location) (bool, error) {
 	case "ends_with":
 		return strings.HasSuffix(lowerText(r.Left), lowerText(r.Right)), nil
 	case "matches":
-		pattern := Stringify(r.Right)
-		if len(pattern) > maxPatternLength {
-			return false, fmt.Errorf("the pattern is longer than %d characters", maxPatternLength)
-		}
-		re, err := regexp.Compile(pattern)
+		re, err := compilePattern(Stringify(r.Right))
 		if err != nil {
-			return false, patternError(err)
+			return false, err
 		}
 		return re.MatchString(Stringify(r.Left)), nil
 	case "before", "after":
@@ -159,6 +169,32 @@ func (r ConditionRow) Evaluate(loc *time.Location) (bool, error) {
 		}
 	}
 	return false, fmt.Errorf("unknown operator %s", quoteForError(r.Op))
+}
+
+// compilePattern compiles a "matches" pattern after bounding its size. Go's regexp
+// cannot be cancelled, so the pattern is parsed and compiled once up front to
+// count instructions; matching then costs at most len(input) times
+// maxPatternInsts steps.
+func compilePattern(pattern string) (*regexp.Regexp, error) {
+	if len(pattern) > maxPatternLength {
+		return nil, fmt.Errorf("the pattern is longer than %d bytes", maxPatternLength)
+	}
+	parsed, err := syntax.Parse(pattern, syntax.Perl)
+	if err != nil {
+		return nil, patternError(err)
+	}
+	prog, err := syntax.Compile(parsed.Simplify())
+	if err != nil {
+		return nil, patternError(err)
+	}
+	if len(prog.Inst) > maxPatternInsts {
+		return nil, errors.New("the pattern is too complex")
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, patternError(err)
+	}
+	return re, nil
 }
 
 // patternError describes a regexp compile failure without echoing the whole
