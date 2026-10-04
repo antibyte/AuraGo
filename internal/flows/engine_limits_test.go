@@ -499,3 +499,37 @@ func TestEngineClampsRunTimeout(t *testing.T) {
 		}
 	}
 }
+
+// RunRequest.Timeout overrides max_run_seconds but is held to MaxRunSecondsLimit as well, so
+// no run outlives the horizon after which the event bus treats an open log as leaked.
+func TestEngineClampsRequestTimeout(t *testing.T) {
+	reg := newTestRegistry(t)
+	reg.MustRegister(&NodeDef{Type: "test.deadline", DefaultTimeout: 1000 * time.Hour, Execute: func(ctx context.Context, _ ExecInput) (ExecResult, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			return ExecResult{}, NewNodeError("NO_DEADLINE", "the context has no deadline")
+		}
+		return ExecResult{Output: map[string]any{"left": time.Until(deadline).Seconds()}}, nil
+	}})
+	eng := newTestEngine(reg, nil, 4)
+	limit := time.Duration(MaxRunSecondsLimit) * time.Second
+	cases := []struct {
+		name    string
+		timeout time.Duration
+		want    time.Duration // the run's time budget
+	}{
+		{"above the limit", 2 * limit, limit},
+		{"just above the limit", limit + time.Second, limit},
+		{"huge", time.Duration(math.MaxInt64), limit},
+		{"at the limit", limit, limit},
+		{"below the limit", 2 * time.Hour, 2 * time.Hour},
+	}
+	for _, tc := range cases {
+		b, tr, _ := singleNodeFlow("ReqClamp", "dl", "test.deadline", nil)
+		res, _ := runWith(context.Background(), eng, b.build(), RunRequest{TriggerNode: tr, Timeout: tc.timeout})
+		left, _ := res.Outputs["dl"]["left"].(float64)
+		if want := tc.want.Seconds(); res.Status != RunSuccess || left > want || left < want-3600 {
+			t.Fatalf("%s: %s, %.0f s left, want about %.0f", tc.name, res.Status, left, want)
+		}
+	}
+}

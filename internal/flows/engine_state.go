@@ -146,6 +146,9 @@ func (s *runState) run(parent context.Context) RunResult {
 		return s.finish(RunError, code, msg, nodeID)
 	}
 	timeout := s.req.Timeout
+	if limit := MaxRunSecondsLimit * time.Second; timeout > limit {
+		timeout = limit
+	}
 	if timeout <= 0 {
 		// Clamp before multiplying: a huge value would overflow the duration.
 		timeout = time.Duration(clampInt(s.req.Flow.Settings.MaxRunSeconds, 0, MaxRunSecondsLimit)) * time.Second

@@ -193,6 +193,105 @@ func TestEventBusSweepRemovesLeakedOpenLogs(t *testing.T) {
 	}
 }
 
+// The bus has no goroutine, so Open sweeps when at least the retention has passed since the
+// last sweep, and not before.
+func TestEventBusOpenSweepsLazily(t *testing.T) {
+	clock := newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC))
+	retain := time.Minute
+	bus := NewEventBus(retain, clock.Now)
+
+	bus.Open("run_a") // the first Open sweeps nothing and starts the interval
+	bus.Publish(RunEvent{RunID: "run_a", Seq: 1, Type: EventRunFinished})
+	bus.Finish("run_a")
+
+	clock.Advance(retain - time.Nanosecond)
+	bus.Open("run_b")
+	if !bus.Has("run_a") {
+		t.Fatal("a finished log inside the retention was swept")
+	}
+
+	clock.Advance(time.Nanosecond) // a sweep is due now, but the log is only as old as the retention
+	bus.Open("run_c")
+	if !bus.Has("run_a") {
+		t.Fatal("a log exactly as old as the retention was swept")
+	}
+
+	clock.Advance(time.Nanosecond) // the log has expired, but the last sweep was a moment ago
+	bus.Open("run_d")
+	if !bus.Has("run_a") {
+		t.Fatal("Open swept again before the retention passed since the last sweep")
+	}
+
+	clock.Advance(retain - time.Nanosecond) // a full retention since the last sweep
+	bus.Open("run_e")
+	if bus.Has("run_a") {
+		t.Fatal("Open must forget a finished log once the retention has passed")
+	}
+	if _, _, _, ok := bus.Subscribe("run_a", 0); ok {
+		t.Fatal("a swept run is unknown")
+	}
+	for _, id := range []string{"run_b", "run_c", "run_d", "run_e"} {
+		if !bus.Has(id) {
+			t.Fatalf("%s is open and young, but it was forgotten", id)
+		}
+	}
+
+	// An explicit Sweep counts as a sweep for the interval.
+	bus.Finish("run_d")
+	clock.Advance(retain)
+	if removed := bus.Sweep(); removed != 0 {
+		t.Fatalf("Sweep removed %d logs that are not older than the retention", removed)
+	}
+	clock.Advance(time.Nanosecond) // run_d has expired, but a sweep ran a moment ago
+	bus.Open("run_f")
+	if !bus.Has("run_d") {
+		t.Fatal("Open swept again right after an explicit Sweep")
+	}
+	clock.Advance(retain)
+	bus.Open("run_g")
+	if bus.Has("run_d") {
+		t.Fatal("Open must forget the expired log once the retention has passed since the explicit Sweep")
+	}
+}
+
+func TestEventBusSubscribeUnknownRunReturnsNothing(t *testing.T) {
+	bus := NewEventBus(time.Minute, nil)
+	backlog, ch, cancel, ok := bus.Subscribe("run_missing", 0)
+	if ok || backlog != nil || ch != nil || cancel == nil {
+		t.Fatalf("unknown run: backlog=%v ch=%v cancel nil=%v ok=%v", backlog, ch, cancel == nil, ok)
+	}
+	cancel()
+}
+
+// The backlog is a copy of the log, cut at the first Seq after afterSeq; changing the returned
+// slice must not change what later subscribers get.
+func TestEventBusBacklogIsACopyCutAtAfterSeq(t *testing.T) {
+	bus := NewEventBus(time.Minute, nil)
+	bus.Open("run_b")
+	for i := 1; i <= 5; i++ {
+		bus.Publish(RunEvent{RunID: "run_b", Seq: i, Type: EventStepStarted})
+	}
+	for after, want := range map[int]int{-1: 5, 0: 5, 1: 4, 4: 1, 5: 0, 6: 0, 1000: 0} {
+		backlog, _, cancel, _ := bus.Subscribe("run_b", after)
+		cancel()
+		if len(backlog) != want {
+			t.Fatalf("after %d: %d events, want %d", after, len(backlog), want)
+		}
+		if want > 0 && backlog[0].Seq != 5-want+1 {
+			t.Fatalf("after %d: backlog starts at Seq %d", after, backlog[0].Seq)
+		}
+	}
+	backlog, _, cancel, _ := bus.Subscribe("run_b", 0)
+	cancel()
+	backlog[0].Type = "tampered"
+	backlog[1] = RunEvent{}
+	again, _, cancel, _ := bus.Subscribe("run_b", 0)
+	cancel()
+	if again[0].Type != EventStepStarted || again[1].Seq != 2 {
+		t.Fatalf("the log changed through a backlog: %+v %+v", again[0], again[1])
+	}
+}
+
 // Publishers, subscribers, cancels, Sweep and Finish run from separate goroutines. Whatever
 // the interleaving, every subscriber receives the events of its run as one gap-free,
 // in-order stretch of the Seq sequence, and nothing panics (a double close or a send on a
@@ -267,7 +366,13 @@ func TestEventBusConcurrentPublishSubscribeCancel(t *testing.T) {
 	}
 
 	stopSweep := make(chan struct{})
+	var stopOnce sync.Once
+	stopSweeping := func() { stopOnce.Do(func() { close(stopSweep) }) }
 	var sweeper sync.WaitGroup
+	t.Cleanup(func() { // also on the failure path below
+		stopSweeping()
+		sweeper.Wait()
+	})
 	sweeper.Add(1)
 	go func() {
 		defer sweeper.Done()
@@ -419,7 +524,7 @@ func TestEventBusConcurrentPublishSubscribeCancel(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("concurrent subscribers did not finish; a channel was probably never closed")
 	}
-	close(stopSweep)
+	stopSweeping()
 	sweeper.Wait()
 
 	for _, runID := range runIDs {

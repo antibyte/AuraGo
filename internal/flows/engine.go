@@ -47,7 +47,9 @@ type RunRequest struct {
 	TriggerData map[string]any
 	// OnlyNode limits a test run to this node and its ancestors.
 	OnlyNode string
-	// Timeout overrides the flow's max_run_seconds when > 0.
+	// Timeout overrides the flow's max_run_seconds when > 0. Either way a run
+	// lasts at most MaxRunSecondsLimit seconds, which the event bus relies on to
+	// recognise leaked logs.
 	Timeout time.Duration
 }
 
