@@ -3,6 +3,7 @@ package flows
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -120,6 +121,120 @@ func TestTimerServiceStopDuringStartupKeepsLoopFromStarting(t *testing.T) {
 	if got := h.clock.afterCalls(); len(got) != 0 {
 		t.Fatalf("a loop was started after Stop: After calls = %v", got)
 	}
+}
+
+// threeDueTimers arms three timers that are due at at and returns a fire callback that
+// blocks in the first call until release is closed, after announcing it on entered.
+func threeDueTimers(t *testing.T, h *hardTimers, at time.Time) (fire TimerFireFunc, calls *timerCalls, entered chan struct{}, release chan struct{}) {
+	t.Helper()
+	calls = &timerCalls{}
+	entered = make(chan struct{}, 1)
+	release = make(chan struct{})
+	h.arm(t,
+		TimerRecord{NodeID: "n_aaaaaaab", FireAt: at},
+		TimerRecord{NodeID: "n_aaaaaaac", FireAt: at},
+		TimerRecord{NodeID: "n_aaaaaaad", FireAt: at})
+	fire = func(flowID, nodeID string, scheduledFor time.Time) {
+		calls.fire(flowID, nodeID, scheduledFor)
+		select {
+		case entered <- struct{}{}:
+		default:
+		}
+		<-release
+	}
+	return fire, calls, entered, release
+}
+
+// timerNodes lists the node ids of timers, for messages and comparisons.
+func timerNodes(list []TimerRecord) string {
+	ids := make([]string, len(list))
+	for i, tm := range list {
+		ids[i] = tm.NodeID
+	}
+	return strings.Join(ids, ",")
+}
+
+func TestTimerServiceStopDuringStartupPassStopsBeforeNextTimer(t *testing.T) {
+	h := newHardTimers(t, storeNow)
+	fire, calls, entered, release := threeDueTimers(t, h, storeNow.Add(-time.Minute))
+	svc := h.service(t, fire, nil, nil)
+	startErr := make(chan error, 1)
+	go func() { startErr <- svc.Start(context.Background()) }()
+
+	select {
+	case <-entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the start-up pass did not reach the first callback")
+	}
+	svc.Stop() // Start's goroutine is in the callback; Stop does not wait for it
+	close(release)
+	select {
+	case err := <-startErr:
+		if !errors.Is(err, errTimerServiceStopped) {
+			t.Fatalf("Start = %v, want errTimerServiceStopped", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Start did not return")
+	}
+	// The pass must not go on to the other two: their triggers stay for the next start.
+	calls.assertCalls(t, "fire:n_aaaaaaab")
+	if left := timerNodes(h.timers(t)); left != "n_aaaaaaac,n_aaaaaaad" {
+		t.Fatalf("stored timers = %s, want the two that were not processed", left)
+	}
+}
+
+func TestTimerServiceStopDuringLoopPassStopsBeforeNextTimer(t *testing.T) {
+	h := newHardTimers(t, storeNow)
+	fire, calls, entered, release := threeDueTimers(t, h, storeNow.Add(time.Hour))
+	svc := h.service(t, fire, nil, nil)
+	if err := svc.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	h.clock.WaitForWaiters(t, 1)
+	h.clock.Advance(time.Hour)
+	select {
+	case <-entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the loop did not reach the first callback")
+	}
+	stopped := make(chan struct{})
+	go func() {
+		svc.Stop() // waits for the callback the loop is in
+		close(stopped)
+	}()
+	waitUntil(t, "Stop to signal the loop", func() bool {
+		select {
+		case <-svc.stop:
+			return true
+		default:
+			return false
+		}
+	})
+	close(release)
+	select {
+	case <-stopped:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Stop did not return")
+	}
+	calls.assertCalls(t, "fire:n_aaaaaaab")
+	if left := timerNodes(h.timers(t)); left != "n_aaaaaaac,n_aaaaaaad" {
+		t.Fatalf("stored timers = %s, want the two that were not processed", left)
+	}
+}
+
+func TestTimerServiceGraceBoundaryAtStartup(t *testing.T) {
+	h := newHardTimers(t, storeNow)
+	calls := &timerCalls{}
+	svc := h.service(t, calls.fire, calls.missed, nil)
+	h.arm(t,
+		TimerRecord{NodeID: "n_aaaaaaab", FireAt: storeNow.Add(-MissedTimerGrace)},
+		TimerRecord{NodeID: "n_aaaaaaac", FireAt: storeNow.Add(-MissedTimerGrace - time.Microsecond)})
+	if err := svc.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// Exactly the grace period late still fires; a microsecond later is missed (the
+	// later timer is listed first because it was due earlier).
+	calls.assertCalls(t, "missed:n_aaaaaaac", "fire:n_aaaaaaab")
 }
 
 func TestTimerServiceFailedStartCanBeRetried(t *testing.T) {

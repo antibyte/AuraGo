@@ -347,6 +347,36 @@ func TestTimerServiceStoreReadErrorBacksOffAndRecovers(t *testing.T) {
 	calls.assertCalls(t, "fire:n_aaaaaaab")
 }
 
+func TestTimerServiceReplaceLiftsTheRetryBackoff(t *testing.T) {
+	h := newHardTimers(t, storeNow)
+	ctx := context.Background()
+	calls := &timerCalls{}
+	svc := h.service(t, calls.fire, calls.missed, nil)
+	h.arm(t, TimerRecord{NodeID: "n_aaaaaaab", FireAt: storeNow.Add(time.Hour)})
+	if err := svc.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	h.clock.WaitForWaiters(t, 1)
+	h.blockTimerDeletes(t)
+	h.clock.Advance(time.Hour)
+	waitUntil(t, "the timer to fire", func() bool { return calls.count("fire:n_aaaaaaab") == 1 })
+	h.clock.WaitForWaiters(t, 1) // the retry wait
+	h.clock.assertWaits(t, time.Hour, timerRetryTestDelay)
+
+	// The store works again and the flow is edited: a timer due sooner than the end of
+	// the backoff must not wait for it.
+	h.unblockTimerDeletes(t)
+	if err := svc.Replace(ctx, h.flow.ID, []TimerRecord{{NodeID: "n_aaaaaaac", FireAt: h.clock.Now().Add(2 * time.Second)}}); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, "the loop to re-plan", func() bool { return len(h.clock.afterCalls()) == 3 })
+	if waits := h.clock.afterCalls(); waits[2] != 2*time.Second {
+		t.Fatalf("After calls = %v, want the new timer's 2s wait last", waits)
+	}
+	h.clock.Advance(2 * time.Second)
+	waitUntil(t, "the new timer to fire", func() bool { return calls.count("fire:n_aaaaaaac") == 1 })
+}
+
 func TestTimerServiceFailedStoreUpdateDoesNotRepeatCallbacks(t *testing.T) {
 	h := newHardTimers(t, storeNow)
 	ctx := context.Background()

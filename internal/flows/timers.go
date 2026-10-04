@@ -24,11 +24,12 @@ var errTimerServiceStopped = errors.New("the flow timer service was stopped")
 // TimerFireFunc is called when a Date/Time trigger is due, or, for the missed
 // callback, when it became due while AuraGo was off for longer than MissedTimerGrace.
 //
-// Callbacks run synchronously on the timer goroutine, one at a time. While one runs,
-// no other timer fires and Stop waits, so a callback must return quickly: starting a
-// run is fine (Runner.Start writes one database row), anything slower belongs in a
-// goroutine that the callback starts. A callback must not call Stop, which would wait
-// for the callback itself.
+// Callbacks run synchronously, one at a time: on the timer goroutine, except those of
+// the start-up pass, which run on the goroutine that called Start. While one runs, no
+// other timer fires, and Stop waits for the one on the timer goroutine, so a callback
+// must return quickly: starting a run is fine (Runner.Start writes one database row),
+// anything slower belongs in a goroutine that the callback starts. A callback must not
+// call Stop, which would wait for the callback itself.
 //
 // A panic in a callback is recovered and logged at Error level. The timer then counts
 // as handled like after a normal return: a one-off timer is deleted and a yearly one
@@ -142,8 +143,14 @@ func (t *TimerService) Replace(ctx context.Context, flowID string, timers []Time
 	return nil
 }
 
-// Stop ends the wait loop and waits until it has finished the callback it may be in.
-// It is safe to call more than once, concurrently and before Start. It must not be
+// Stop ends the wait loop. A pass that is running does not start another timer: Stop
+// waits until the loop has finished the callback it is in, then returns. Timers that
+// were not processed yet stay stored for the next start (at-least-once delivery).
+//
+// A callback in the start-up pass runs on Start's goroutine, which Stop does not wait
+// for; it stops there before its next timer, and Start then returns an error.
+//
+// Stop is safe to call more than once, concurrently and before Start. It must not be
 // called from a timer callback.
 func (t *TimerService) Stop() {
 	t.mu.Lock()
@@ -164,11 +171,17 @@ func (t *TimerService) Stop() {
 // retries after retryDelay (and so recovers on its own when the store works again,
 // instead of waiting for a Replace that may never come). When they can be read but a
 // due timer cannot be settled, that timer stays stored and is due, so its wait is
-// stretched to notBefore.
+// stretched to notBefore. A Replace lifts that wait: it just wrote to the store and may
+// have changed what is due, and each Replace allows only one extra attempt.
 func (t *TimerService) loop() {
 	defer close(t.done)
 	var notBefore time.Time
 	for {
+		select {
+		case <-t.stop: // also after a pass that Stop cut short
+			return
+		default:
+		}
 		next, ok, planErr := t.nextFire()
 		if planErr != nil {
 			notBefore = t.clock.Now().Add(t.retryDelay)
@@ -189,6 +202,7 @@ func (t *TimerService) loop() {
 		case <-t.stop:
 			return
 		case <-t.reload:
+			notBefore = time.Time{}
 		case <-wait:
 			if planErr != nil {
 				continue // only the retry delay ran out; read the timers again
@@ -218,7 +232,10 @@ func (t *TimerService) nextFire() (next time.Time, ok bool, err error) {
 // processDue fires (or, at start-up beyond the grace period, reports as missed)
 // every timer that is due, then deletes one-off timers and moves yearly ones forward.
 // It stops at the first store error; the timers not settled yet stay stored and the
-// next pass handles them, calling a callback only for those that have not run it.
+// next pass handles them, calling a callback only for those that have not run it. It
+// also stops, without error, before the next timer once Stop was called: the rest stays
+// stored for the next start, so a callback never runs after Stop in the middle of a
+// shutdown.
 func (t *TimerService) processDue(ctx context.Context, startup bool) error {
 	timers, err := t.store.ListTimers(ctx)
 	if err != nil {
@@ -227,6 +244,11 @@ func (t *TimerService) processDue(ctx context.Context, startup bool) error {
 	t.forgetGone(timers)
 	now := t.clock.Now()
 	for _, tm := range timers {
+		select {
+		case <-t.stop:
+			return nil
+		default:
+		}
 		if tm.FireAt.After(now) {
 			break
 		}
@@ -248,16 +270,22 @@ func (t *TimerService) processDue(ctx context.Context, startup bool) error {
 }
 
 // settle removes a one-off timer or moves a yearly one to its next date after now.
+//
+// Both steps are conditional on the occurrence that fired. processDue works on a
+// snapshot, and a Replace (a republished flow) or a deleted flow may have changed or
+// removed the row while the callback ran; then there is nothing left to settle, and the
+// newly armed timer must survive.
 func (t *TimerService) settle(ctx context.Context, tm TimerRecord, now time.Time) error {
-	if tm.Repeat != RepeatYearly {
+	if tm.FireAt.IsZero() {
+		// ListTimers yields a zero time for a row whose fire_at cannot be read. The
+		// conditional forms below could never match it, so the row would be due and
+		// fired again and again.
 		return t.store.DeleteTimer(ctx, tm.FlowID, tm.NodeID)
 	}
-	tm.FireAt = nextYearly(tm.FireAt, now)
-	err := t.store.UpsertTimer(ctx, tm)
-	if errors.Is(err, ErrNotFound) {
-		return nil // the flow was deleted meanwhile and took its timers along
+	if tm.Repeat != RepeatYearly {
+		return t.store.DeleteTimerAt(ctx, tm.FlowID, tm.NodeID, tm.FireAt)
 	}
-	return err
+	return t.store.MoveTimer(ctx, tm.FlowID, tm.NodeID, tm.FireAt, nextYearly(tm.FireAt, now))
 }
 
 // forgetGone drops unsettled entries whose timer is no longer stored (the flow was

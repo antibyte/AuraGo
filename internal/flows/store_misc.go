@@ -130,6 +130,28 @@ func (s *Store) DeleteTimer(ctx context.Context, flowID, nodeID string) error {
 	return err
 }
 
+// DeleteTimerAt removes the timer only while it is still armed for fireAt. A timer
+// that was re-armed for another time, or that is gone, is left alone and that is not an
+// error: the caller settles one fired occurrence and must not wipe what a concurrent
+// ReplaceTimers armed since. fireAt is compared at the store's microsecond precision.
+func (s *Store) DeleteTimerAt(ctx context.Context, flowID, nodeID string, fireAt time.Time) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM flow_timers WHERE flow_id = ? AND node_id = ? AND fire_at = ?`,
+		flowID, nodeID, formatTime(fireAt))
+	return err
+}
+
+// MoveTimer sets the fire time of a timer from one time to another, only while the
+// timer is still armed for from. Like DeleteTimerAt it does nothing, without an error,
+// when the timer was re-armed, deleted or its flow is gone. It rejects a zero to.
+func (s *Store) MoveTimer(ctx context.Context, flowID, nodeID string, from, to time.Time) error {
+	if err := checkFireAt(TimerRecord{NodeID: nodeID, FireAt: to}); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE flow_timers SET fire_at = ? WHERE flow_id = ? AND node_id = ? AND fire_at = ?`,
+		formatTime(to), flowID, nodeID, formatTime(from))
+	return err
+}
+
 // ListTimers returns all timers ordered by fire time.
 func (s *Store) ListTimers(ctx context.Context) ([]TimerRecord, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT flow_id, node_id, fire_at, repeat FROM flow_timers ORDER BY fire_at, flow_id, node_id`)
