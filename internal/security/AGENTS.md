@@ -10,6 +10,8 @@ This package owns reusable primitives; server owns session and HTTP policy.
 
 ## Local Contracts
 
+- OAuth rotation uses compare-and-swap against the exact previous Vault value under both process mutex and file lock; revocation or a new login cannot be overwritten. Rotated values remain agent-hidden.
+
 - Public-only egress rejects unspecified/private/reserved and IPv6 transition addresses; retain DNS pinning and redirect validation. Explicit LAN integration permissions remain separate.
 - Administrator-selected integration bases require absolute HTTP(S) URLs without userinfo, query or fragment. Credentialed API redirects stay on the exact scheme/host/effective-port origin; public download redirects use a fresh pinned client without inherited headers.
 - Cache only completed valid Guardian verdicts. Provider failures are unavailable scans, never cached domain decisions.

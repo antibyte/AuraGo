@@ -77,6 +77,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
 ### Integration state preservation
+- TrueNAS clients own their HTTP transport; Close releases idle keep-alive connections after each integration call.
+- OneDrive and Google Workspace OAuth use canonical expiry (legacy token_expiry remains readable), reload authoritative Vault state before refresh, serialize same-provider refreshes, and publish in-memory replacements only after atomic compare-and-swap persistence succeeds.
 - WebDAV/Koofr/OneDrive deletion rejects root aliases and traversal after decoding/normalization, before any network call. OneDrive download responses require HTTP 200, successful bounded reads, and explicit truncation; public download redirects never receive the Graph bearer token.
 - Discovery can refresh only unverified observations for an existing name, never target identity or credential fields. New discoveries have protocol none and no credentials until explicit configuration.
 - Obsidian resolves current Vault credentials before cache lookup; TLS and timeout settings participate in client identity. Paperless document IDs are canonical positive decimal integers. Both clients keep credentials on their configured origin.
