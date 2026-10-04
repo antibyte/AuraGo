@@ -102,6 +102,15 @@ func TestOutputIndependentParamsAreNotInTheOutput(t *testing.T) {
 			t.Errorf("%s: %v after %d calls", name, err, tools.count())
 			continue
 		}
+		// The marker must have reached the tool, or the check below proves nothing: a
+		// parameter that never gets there is not in the output either.
+		reached := slices.ContainsFunc(tools.allCalls(), func(c ToolRequest) bool {
+			raw, _ := json.Marshal(c.Args)
+			return strings.Contains(string(raw), marker)
+		})
+		if !reached {
+			t.Errorf("%s never reached the tool: %+v", name, tools.allCalls())
+		}
 		if raw, _ := json.Marshal(res.Output); strings.Contains(string(raw), marker) {
 			t.Errorf("%s is copied into the output %s", name, raw)
 		}

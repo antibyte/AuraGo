@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 )
 
 // catDescLogs collects the records of the default logger while a test runs.
@@ -240,37 +241,13 @@ func TestDescribeNodeTypesHookPanics(t *testing.T) {
 			d.EffectsFunc = func(*Node) []Effect { panic(strings.Repeat("x", 1<<20)) }
 		}))
 		DescribeNodeTypes(reg, nil)
-		if got := logs.attr(0, "panic"); len(got) == 0 || len(got) > 200 {
-			t.Errorf("logged panic value has %d bytes", len(got))
+		// The multi-byte text makes the rune count differ from the byte count: the value is
+		// cut to maxHookPanicRunes runes plus the ellipsis, like the validator's issue.
+		got := logs.attr(0, "panic")
+		if n := utf8.RuneCountInString(got); n > maxHookPanicRunes+1 || n < maxHookPanicRunes {
+			t.Errorf("logged panic value has %d runes, want %d and the ellipsis", n, maxHookPanicRunes)
 		}
 	})
-}
-
-// The trigger sample comes from a table the definition does not own, so it is injected
-// there for this test. The sample of a trigger that panics is left out; the next trigger
-// still has its own.
-func TestDescribeNodeTypesTriggerSamplePanics(t *testing.T) {
-	logs := catDescCaptureLogs(t)
-	const typ = "test.panic_sample"
-	table := triggerTypes()
-	table[typ] = triggerType{sample: func(*Node) map[string]any { panic("sample boom") }}
-	t.Cleanup(func() { delete(table, typ) })
-
-	reg := NewRegistry()
-	reg.MustRegister(&NodeDef{Type: typ, Category: "trigger", Label: "Panics", Trigger: true})
-	if err := RegisterTriggerNodes(reg); err != nil {
-		t.Fatal(err)
-	}
-	byType := catDescByType(DescribeNodeTypes(reg, nil))
-	if info := byType[typ]; info.Sample != nil || !info.Trigger || !reflect.DeepEqual(info.Outputs, []string{PortOut}) {
-		t.Errorf("panicking trigger = %+v", info)
-	}
-	if byType[TypeTriggerWebhook].Sample["payload"] == nil {
-		t.Error("the webhook trigger lost its sample")
-	}
-	if got, want := logs.fallbacks(), []string{typ + "/TriggerSample"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("logged %v, want %v", got, want)
-	}
 }
 
 func catDescToolSchema(ops ...string) map[string]any {
@@ -301,8 +278,9 @@ func TestDescribeNodeTypesRealCatalog(t *testing.T) {
 		{Name: "bare", Category: "other"},
 	}
 	registered := RefreshGenericTools(reg, tools, fullEnv())
-	if registered < 4 {
-		t.Fatalf("only %d generic nodes registered", registered)
+	// Every tool becomes a node, "bare" (no schema, so no parameters) included.
+	if registered != len(tools) {
+		t.Fatalf("%d generic nodes registered, want %d", registered, len(tools))
 	}
 	infos := DescribeNodeTypes(reg, nil)
 	if len(infos) != 35+registered {
@@ -431,22 +409,26 @@ func TestDescribeGenericNodesReportTheWorstCase(t *testing.T) {
 			"properties": map[string]any{"city": map[string]any{"type": "string"}}}},
 	}, StaticEnv{})
 	byType := catDescByType(DescribeNodeTypes(reg, nil))
+	// A risky tool is marked risky and lists the effect that makes it so (not the exact
+	// list: the other effects are the effect rules' business); a read-only one is neither.
 	for _, c := range []struct {
-		tool    string
-		effects []Effect
-		risky   bool
+		tool string
+		key  Effect // "" for a tool that is not risky
 	}{
-		{"docker", []Effect{EffectDeletes, EffectSystemChange}, true},
-		{"proxmox", nil, false},
-		{"execute_shell", []Effect{EffectRunsCode}, true},
-		{"weather", nil, false},
+		{"docker", EffectDeletes},
+		{"proxmox", ""},
+		{"execute_shell", EffectRunsCode},
+		{"weather", ""},
 	} {
 		info, ok := byType[GenericTypePrefix+c.tool]
 		if !ok {
 			t.Fatalf("no node for %s", c.tool)
 		}
-		if info.Risky != c.risky || !slices.Equal(info.Effects, c.effects) {
-			t.Errorf("%s: effects %v risky %v, want %v %v", c.tool, info.Effects, info.Risky, c.effects, c.risky)
+		switch {
+		case c.key != "" && (!info.Risky || !slices.Contains(info.Effects, c.key)):
+			t.Errorf("%s: effects %v risky %v, want risky with %s", c.tool, info.Effects, info.Risky, c.key)
+		case c.key == "" && (info.Risky || IsRisky(info.Effects)):
+			t.Errorf("%s: effects %v risky %v, want neither", c.tool, info.Effects, info.Risky)
 		}
 	}
 }

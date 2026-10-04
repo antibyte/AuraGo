@@ -3,6 +3,7 @@ package flows
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 )
@@ -123,5 +124,67 @@ func TestCloneParamValue(t *testing.T) {
 	}
 	if v := cloneParamValue([]string(nil)); v != nil {
 		t.Errorf("nil list = %#v", v)
+	}
+	// JSON has no text for NaN and the infinities, nor for an invalid number: they become
+	// nil, also inside a list, and a valid json.Number becomes the number.
+	for _, v := range []any{math.NaN(), math.Inf(1), math.Inf(-1), float32(math.NaN()), float32(math.Inf(1)),
+		[]any{1.0, math.NaN()}, map[string]any{"x": math.Inf(1)}, json.Number("not a number")} {
+		if got := cloneParamValue(v); got != nil {
+			t.Errorf("%#v = %#v, want nil", v, got)
+		}
+	}
+	if got := cloneParamValue(json.Number("1.5")); got != 1.5 {
+		t.Errorf("json.Number = %#v", got)
+	}
+	if got := cloneParamValue(float32(1.5)); got != float32(1.5) {
+		t.Errorf("float32 = %#v", got)
+	}
+}
+
+// One bad static default (NaN, +Inf) cannot break the encoding of the palette: it is
+// described as no default, also inside nested fields, and the hooks see it as null.
+func TestDescribeNodeTypesEncodesBadDefaults(t *testing.T) {
+	var seen any = "unset"
+	reg := NewRegistry()
+	reg.MustRegister(&NodeDef{Type: "test.nan", Category: "test", Label: "NaN",
+		Params: []ParamSpec{
+			{Name: "n", Kind: ParamNumber, Default: math.NaN()},
+			{Name: "m", Kind: ParamJSON, Default: []any{math.Inf(1)}},
+			{Name: "f", Kind: ParamFields, Fields: []ParamSpec{{Name: "inner", Kind: ParamNumber, Default: math.Inf(-1)}}},
+		},
+		EffectsFunc: func(n *Node) []Effect {
+			v, present := n.Params["n"]
+			if !present {
+				v = "absent"
+			}
+			seen = v
+			return nil
+		}})
+	infos := DescribeNodeTypes(reg, nil)
+	if _, err := json.Marshal(infos); err != nil {
+		t.Fatalf("the palette does not encode: %v", err)
+	}
+	p := infos[0].Params
+	if p[0].Default != nil || p[1].Default != nil || p[2].Fields[0].Default != nil {
+		t.Errorf("defaults = %v %v %v", p[0].Default, p[1].Default, p[2].Fields[0].Default)
+	}
+	if seen != nil {
+		t.Errorf("the hook saw %#v, want a null value", seen)
+	}
+}
+
+// cloneVisibility copies the whole struct and the list, and keeps nil.
+func TestCloneVisibility(t *testing.T) {
+	if cloneVisibility(nil) != nil {
+		t.Error("nil became non-nil")
+	}
+	v := &Visibility{Param: "mode", Equals: []string{"a", "b"}}
+	c := cloneVisibility(v)
+	if c == v || !reflect.DeepEqual(c, v) {
+		t.Fatalf("clone = %+v", c)
+	}
+	c.Equals[0], c.Param = "changed", "changed"
+	if v.Equals[0] != "a" || v.Param != "mode" {
+		t.Errorf("the original was changed: %+v", v)
 	}
 }

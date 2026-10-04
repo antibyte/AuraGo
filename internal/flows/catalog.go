@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"slices"
 	"sort"
 )
@@ -30,6 +31,12 @@ func RegisterCatalog(reg *Registry, env CatalogEnv) error {
 //
 // A NodeTypeInfo shares no memory with the definition it describes: the slices, maps
 // and pointers in it are copies, so a caller may modify it freely.
+//
+// Effects and Risky describe a node with default parameters, which is all a palette
+// entry has. A palette entry can therefore hide a worst case that depends on a
+// parameter: the method of http.request, the service of home.assistant. A generic tool
+// node is the exception and shows the worst case over its operations. What a flow does
+// is decided at publish time, from the real parameters of each node (CollectEffects).
 type NodeTypeInfo struct {
 	Type           string         `json:"type"`
 	Version        int            `json:"version"`
@@ -110,7 +117,8 @@ var (
 // The description calls definition hooks (ports, effects, fields, availability and
 // the trigger sample) on a sample node. Hooks are not trusted: a hook that panics is
 // logged and replaced by a safe fallback, so one faulty definition cannot take the
-// whole palette down. See describeNodeType for the fallbacks.
+// whole palette down. See describeNodeType for the fallbacks. Trigger samples come
+// from TriggerSample.
 func DescribeNodeTypes(reg *Registry, tr func(key string) string) []NodeTypeInfo {
 	if reg == nil {
 		return []NodeTypeInfo{}
@@ -121,7 +129,7 @@ func DescribeNodeTypes(reg *Registry, tr func(key string) string) []NodeTypeInfo
 	defs := reg.All()
 	out := make([]NodeTypeInfo, 0, len(defs))
 	for _, def := range defs {
-		out = append(out, describeNodeType(def, tr))
+		out = append(out, describeNodeType(def, tr, TriggerSample))
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		ci, cj := categoryRank(out[i].Category), categoryRank(out[j].Category)
@@ -161,19 +169,41 @@ func localize(tr func(string) string, key, raw string) string {
 
 // hookFailedAvailability is what the palette shows for a node type whose availability
 // check panicked. The node cannot be used (blocked, not "needs setup": no setting fixes
-// a crash), and the reason is fixed text: the panic value stays in the log.
+// a crash), and the reason is fixed text: the panic value stays in the log. Like every
+// Availability.Reason it is raw text (English here, or whatever the CatalogEnv gave) that
+// the editor shows as it is; it has no i18n key.
 var hookFailedAvailability = Availability{State: BlockedState, Reason: "the availability check of this node type failed"}
 
+// unknownStateReason is the reason shown for an availability state the palette does not
+// know when the definition gave none.
+const unknownStateReason = "the availability check of this node type returned an unknown state"
+
+// normalizeAvailability makes an availability fit the three states of the palette. Any
+// other state, the empty one included, cannot be used (the validator treats everything
+// but "available" as unavailable too): it becomes blocked and keeps its reason and
+// config section; without a reason it gets unknownStateReason.
+func normalizeAvailability(a Availability) Availability {
+	switch a.State {
+	case AvailableState, NeedsSetupState, BlockedState:
+		return a
+	}
+	a.State = BlockedState
+	if a.Reason == "" {
+		a.Reason = unknownStateReason
+	}
+	return a
+}
+
 // describeHook calls fn, a call into a hook of def, and reports whether it returned
-// normally. A panic is logged (type, hook, bounded panic value) and reported as false;
-// the caller then uses its fallback.
+// normally. A panic is logged (type, hook, panic value cut to maxHookPanicRunes) and
+// reported as false; the caller then uses its fallback.
 func describeHook(def *NodeDef, hook string, fn func()) bool {
 	p := catchPanic(fn)
 	if p == nil {
 		return true
 	}
 	slog.Warn("flows: a node definition hook panicked while describing the node type; using a fallback",
-		"type", def.Type, "hook", hook, "panic", truncateForError(fmt.Sprint(p)))
+		"type", def.Type, "hook", hook, "panic", truncateRunes(fmt.Sprint(p), maxHookPanicRunes))
 	return false
 }
 
@@ -217,7 +247,11 @@ func effectsSampleNode(def *NodeDef) *Node {
 //   - EffectsFunc: the node counts as risky (fail closed) and lists no effects;
 //   - OutputsFunc: the static ports of the definition (Outputs, or "out");
 //   - OutputFieldsFunc and the trigger sample: none.
-func describeNodeType(def *NodeDef, tr func(string) string) NodeTypeInfo {
+//
+// An availability whose state is not one of the three known ones is shown as blocked
+// (normalizeAvailability). sample gives the trigger sample of a node (TriggerSample); it
+// is a parameter so a test can hand in one that panics. Its result is copied.
+func describeNodeType(def *NodeDef, tr func(string) string, sample func(*Node) map[string]any) NodeTypeInfo {
 	info := NodeTypeInfo{
 		Type: def.Type, Version: def.Version, Category: def.Category, Icon: def.Icon, Color: def.Color,
 		Label:          firstNonEmpty(localize(tr, def.LabelKey, def.Label), def.Type),
@@ -250,7 +284,7 @@ func describeNodeType(def *NodeDef, tr func(string) string) NodeTypeInfo {
 
 	var availability Availability
 	if describeHook(def, "AvailabilityFunc", func() { availability = def.Availability() }) {
-		info.Availability = availability
+		info.Availability = normalizeAvailability(availability)
 	}
 
 	for _, p := range def.Params {
@@ -266,9 +300,10 @@ func describeNodeType(def *NodeDef, tr func(string) string) NodeTypeInfo {
 	}
 
 	if def.Trigger {
-		var sample map[string]any
-		if describeHook(def, "TriggerSample", func() { sample = TriggerSample(sampleNode(def)) }) {
-			info.Sample = sample
+		var data map[string]any
+		// The copy is part of the hook call: a sampler may return a map it keeps.
+		if describeHook(def, "TriggerSample", func() { data = cloneJSONMap(sample(sampleNode(def))) }) {
+			info.Sample = data
 		}
 	}
 	return info
@@ -290,23 +325,36 @@ func describeParam(p ParamSpec, tr func(string) string) ParamInfo {
 	return info
 }
 
-// cloneVisibility copies v, so the Equals list of the definition is not shared.
+// cloneVisibility copies v, so the Equals list of the definition is not shared. Other
+// fields are copied by value, so a field added to Visibility later is kept.
 func cloneVisibility(v *Visibility) *Visibility {
 	if v == nil {
 		return nil
 	}
-	return &Visibility{Param: v.Param, Equals: slices.Clone(v.Equals)}
+	c := *v
+	c.Equals = slices.Clone(v.Equals)
+	return &c
 }
 
 // cloneParamValue returns a copy of a parameter default that shares no memory with it.
 // Scalars are returned as they are. Lists and objects (a default can be a []any or a
 // map[string]any, and a definition may use other types) are copied through JSON, which
 // is how the editor receives them; a value JSON cannot encode becomes nil rather than
-// being shared.
+// being shared. That includes NaN and the infinities, which JSON has no text for: one
+// bad static default must not make json.Marshal of the whole palette fail.
 func cloneParamValue(v any) any {
-	switch v.(type) {
-	case nil, bool, string, float64, float32, int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, json.Number:
+	switch x := v.(type) {
+	case float64:
+		if math.IsNaN(x) || math.IsInf(x, 0) {
+			return nil
+		}
+		return v
+	case float32:
+		if f := float64(x); math.IsNaN(f) || math.IsInf(f, 0) {
+			return nil
+		}
+		return v
+	case nil, bool, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return v
 	}
 	data, err := json.Marshal(v)
