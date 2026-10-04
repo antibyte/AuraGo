@@ -141,13 +141,18 @@ func registerDocNodes(reg *Registry, env CatalogEnv) error {
 // which stored document gets replaced. (The document tool keeps only the base name,
 // so the name cannot leave its directory.) Known limit: with format "html" the
 // content is rendered by Gotenberg, which fetches whatever the HTML points to.
+//
+// Title and content are OutputIndependent: the output names the file the tool made,
+// and that name comes from filename or the tool's own default (doc_<time>), never from
+// the title or the content. Untrusted text inside a document therefore does not taint
+// the document's path.
 func pdfCreateDef(env CatalogEnv) *NodeDef {
 	def := actionDef(TypePDFCreate, "documents", "file-type-pdf", "document_creator", env)
 	def.PrimaryInput = "content"
 	def.Effects = []Effect{EffectWritesFiles}
 	def.Params = []ParamSpec{
-		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.pdf_title", Templatable: true},
-		{Name: "content", Kind: ParamTextarea, LabelKey: "easydrag.param.pdf_content", Required: true, Templatable: true},
+		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.pdf_title", Templatable: true, OutputIndependent: true},
+		{Name: "content", Kind: ParamTextarea, LabelKey: "easydrag.param.pdf_content", Required: true, Templatable: true, OutputIndependent: true},
 		{Name: "format", Kind: ParamSegmented, LabelKey: "easydrag.param.pdf_format", Default: "text",
 			Options: []Option{option("text", "pdf_format_text"), option("markdown", "pdf_format_markdown"), option("html", "pdf_format_html")}},
 		{Name: "paper_size", Kind: ParamSelect, LabelKey: "easydrag.param.paper_size", Default: "A4",
@@ -368,7 +373,8 @@ func fileReadDef(env CatalogEnv) *NodeDef {
 // fileWriteDef defines file.write. Path and content are both sensitive sinks:
 // untrusted data must not pick which file is written, nor become the content of a
 // file that something else may run or read later. The filesystem tool enforces its
-// own sandbox (allowed directories) and may be set read-only.
+// own sandbox (allowed directories) and may be set read-only. The content is also
+// OutputIndependent: the output is the file reference (path and size), never the text.
 //
 // if_exists "unique" and "fail" probe first and write second. These are two tool
 // calls and the tool has no exclusive create, so a concurrent writer can still win
@@ -379,7 +385,7 @@ func fileWriteDef(env CatalogEnv) *NodeDef {
 	def.Effects = []Effect{EffectWritesFiles}
 	def.Params = []ParamSpec{
 		{Name: "path", Kind: ParamText, LabelKey: "easydrag.param.file_path", Required: true, Templatable: true, SensitiveSink: true},
-		{Name: "content", Kind: ParamTextarea, LabelKey: "easydrag.param.file_content", Templatable: true, SensitiveSink: true},
+		{Name: "content", Kind: ParamTextarea, LabelKey: "easydrag.param.file_content", Templatable: true, SensitiveSink: true, OutputIndependent: true},
 		{Name: "if_exists", Kind: ParamSegmented, LabelKey: "easydrag.param.if_exists", Default: "overwrite",
 			Options: []Option{option("overwrite", "if_exists_overwrite"), option("unique", "if_exists_unique"), option("fail", "if_exists_fail")}},
 	}

@@ -42,6 +42,12 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Set `UntrustedOutput` on a def whose output an attacker can influence (web, mail, webhook, chat) and
   `SensitiveSink` on a `ParamSpec` where such data is dangerous (command, code, script, path, url,
   recipient, device). The lint follows only template refs and `passesInputs`: no flag, no warning.
+- Set `OutputIndependent` on a `ParamSpec` that reaches only the node's effect and is never copied into its
+  output (the text of a message, the content of a document or file): a ref there does not taint the node's
+  output, so "untrusted text goes into a PDF, the PDF's path goes on" is not warned about at every step.
+  A param that is also a `SensitiveSink` still warns. Check `Execute` first: a param that picks a name, path
+  or address ends up in the output (a file name, `to`) and must not carry the flag. The cap path (a node
+  with more than 1000 refs) taints regardless. The flag is not part of the editor's JSON.
 - List every outward effect. A new `Effect` constant needs an `effectOrder` entry and a deliberate
   `IsRisky` decision; unknown effects count as not risky.
 - Tools: call them only through `callTool` (`catalog_tools.go`). It fails on a cancelled context, rejects raw

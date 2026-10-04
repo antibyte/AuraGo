@@ -72,7 +72,9 @@ func requiredText(in ExecInput, param, msg string) (string, error) {
 // which is the point of the node, as the content of doc.pdf_create does. The
 // parameters that decide where a message goes or what is attached are. The outputs
 // are made from the node's own parameters and the cleaned results of the tool, so
-// they are trusted.
+// they are trusted. Message, title, subject and body are OutputIndependent: the
+// output never holds them (email returns its recipients, push the channels' results),
+// so untrusted text in a message does not taint what the node returns.
 func notifyDef(typ, icon, tool string, env CatalogEnv) *NodeDef {
 	def := actionDef(typ, "notify", icon, tool, env)
 	def.Effects = []Effect{EffectSendsMessage}
@@ -95,8 +97,8 @@ func telegramDef(env CatalogEnv) *NodeDef {
 	def := notifyDef(TypeTelegram, "brand-telegram", "send_telegram", env)
 	def.PrimaryInput = "message"
 	def.Params = []ParamSpec{
-		{Name: "message", Kind: ParamTextarea, LabelKey: "easydrag.param.message", Required: true, Templatable: true},
-		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.title", Templatable: true},
+		{Name: "message", Kind: ParamTextarea, LabelKey: "easydrag.param.message", Required: true, Templatable: true, OutputIndependent: true},
+		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.title", Templatable: true, OutputIndependent: true},
 		{Name: "file", Kind: ParamFile, LabelKey: "easydrag.param.attachment", Templatable: true, SensitiveSink: true},
 	}
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {
@@ -156,8 +158,8 @@ func emailDef(env CatalogEnv) *NodeDef {
 	def.PrimaryInput = "body"
 	def.Params = []ParamSpec{
 		{Name: "to", Kind: ParamText, LabelKey: "easydrag.param.email_to", Required: true, Templatable: true, SensitiveSink: true},
-		{Name: "subject", Kind: ParamText, LabelKey: "easydrag.param.email_subject", Templatable: true},
-		{Name: "body", Kind: ParamTextarea, LabelKey: "easydrag.param.email_body", Required: true, Templatable: true},
+		{Name: "subject", Kind: ParamText, LabelKey: "easydrag.param.email_subject", Templatable: true, OutputIndependent: true},
+		{Name: "body", Kind: ParamTextarea, LabelKey: "easydrag.param.email_body", Required: true, Templatable: true, OutputIndependent: true},
 		{Name: "attachment", Kind: ParamFile, LabelKey: "easydrag.param.attachment", Templatable: true, SensitiveSink: true},
 		{Name: "account", Kind: ParamSelect, LabelKey: "easydrag.param.email_account", OptionsSource: "email_accounts", SensitiveSink: true},
 	}
@@ -221,8 +223,8 @@ func pushDef(env CatalogEnv) *NodeDef {
 	def.PrimaryInput = "message"
 	def.Params = []ParamSpec{
 		{Name: "channel", Kind: ParamSelect, LabelKey: "easydrag.param.push_channel", Default: "all", OptionsSource: "notification_channels", SensitiveSink: true},
-		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.title", Templatable: true},
-		{Name: "message", Kind: ParamTextarea, LabelKey: "easydrag.param.message", Required: true, Templatable: true},
+		{Name: "title", Kind: ParamText, LabelKey: "easydrag.param.title", Templatable: true, OutputIndependent: true},
+		{Name: "message", Kind: ParamTextarea, LabelKey: "easydrag.param.message", Required: true, Templatable: true, OutputIndependent: true},
 		{Name: "priority", Kind: ParamSelect, LabelKey: "easydrag.param.priority", Default: "normal",
 			Options: []Option{option("low", "priority_low"), option("normal", "priority_normal"), option("high", "priority_high"), option("critical", "priority_critical")}},
 	}
@@ -285,7 +287,7 @@ func discordDef(env CatalogEnv) *NodeDef {
 	def := notifyDef(TypeDiscord, "brand-discord", "send_discord", env)
 	def.PrimaryInput = "message"
 	def.Params = []ParamSpec{
-		{Name: "message", Kind: ParamTextarea, LabelKey: "easydrag.param.message", Required: true, Templatable: true},
+		{Name: "message", Kind: ParamTextarea, LabelKey: "easydrag.param.message", Required: true, Templatable: true, OutputIndependent: true},
 		{Name: "channel_id", Kind: ParamText, LabelKey: "easydrag.param.discord_channel", SensitiveSink: true},
 	}
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {

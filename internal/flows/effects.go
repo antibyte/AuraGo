@@ -120,6 +120,13 @@ func passesInputs(n *Node) bool {
 // tainted node on an incoming edge. Disabled nodes neither warn nor taint, as they
 // do not run.
 //
+// A reference in a parameter flagged OutputIndependent (it reaches only the node's
+// effect, such as the content of a PDF or the text of a message, never its output)
+// does not taint the node's output. It still warns if that parameter is a sink.
+// This keeps "untrusted text goes into a document, the document's path goes on"
+// from warning at every step; a parameter that picks the document (its name) is
+// not independent and taints as before.
+//
 // CollectTemplateRefs drops the references past its cap in sorted key order, and
 // a flow author controls that order. When a node hits the cap while an untrusted
 // source exists, the lint cannot tell what the dropped references read, so it
@@ -161,9 +168,13 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 		}
 		nodeTainted := def.UntrustedOutput
 		sinks := map[string]bool{}
+		independent := map[string]bool{}
 		for _, spec := range def.Params {
 			if spec.SensitiveSink {
 				sinks[spec.Name] = true
+			}
+			if spec.OutputIndependent {
+				independent[spec.Name] = true
 			}
 		}
 		reported := map[string]bool{}
@@ -176,8 +187,12 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 			if !(root == "trigger" && triggerUntrusted) && !tainted[root] {
 				continue
 			}
-			nodeTainted = true
 			param := TopParam(ref.Param)
+			// A param that only feeds the node's effect (OutputIndependent) does not make
+			// what the node returns untrusted; it still warns when it is a sink.
+			if !independent[param] {
+				nodeTainted = true
+			}
 			key := param + "|" + root
 			if sinks[param] && !reported[key] {
 				reported[key] = true

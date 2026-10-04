@@ -88,7 +88,14 @@ type ParamSpec struct {
 	OptionsSource string      `json:"options_source,omitempty"`
 	VisibleIf     *Visibility `json:"visible_if,omitempty"`
 	SensitiveSink bool        `json:"sensitive_sink,omitempty"`
-	Fields        []ParamSpec `json:"fields,omitempty"`
+	// OutputIndependent: the param reaches only the node's effect, never its output;
+	// a ref here does not taint the output. A param that is also a SensitiveSink
+	// still warns. Only set it after checking that Execute copies nothing of the
+	// param into the output (the effect of the node, a file, a message, is what the
+	// data is for, and what the node returns is built from other params and from
+	// the tool's answer). The lint reads it; it is not part of the editor's API.
+	OutputIndependent bool        `json:"-"`
+	Fields            []ParamSpec `json:"fields,omitempty"`
 }
 
 // FieldSpec describes one declared output field.
