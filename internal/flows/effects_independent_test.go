@@ -8,39 +8,46 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // independentParams lists every parameter flagged OutputIndependent: it reaches only
 // the node's effect and never the node's output. Adding to this list needs a look at
 // Execute, which is what TestOutputIndependentParamsAreNotInTheOutput automates.
+// Generic tool nodes (tool.*) never set the flag, so none is listed.
 var independentParams = []string{
 	"doc.pdf_create.content", "doc.pdf_create.title",
 	"file.write.content",
+	"mqtt.publish.payload",
 	"notify.discord.message",
 	"notify.email.body", "notify.email.subject",
 	"notify.push.message", "notify.push.title",
 	"notify.telegram.message", "notify.telegram.title",
+	"planner.appointment_add.description", "planner.todo_add.description",
 }
 
+// independentRegistry is the whole phase-1 catalog (RegisterCatalog), so a node type
+// added to it is covered without touching this helper.
 func independentRegistry(t *testing.T) *Registry {
 	t.Helper()
 	reg := NewRegistry()
-	for _, err := range []error{
-		RegisterLogicNodes(reg), RegisterTriggerNodes(reg), registerWebNodes(reg, nil),
-		RegisterAINodes(reg), registerDocNodes(reg, nil), registerNotifyNodes(reg, nil),
-	} {
-		if err != nil {
-			t.Fatal(err)
-		}
+	if err := RegisterCatalog(reg, fullEnv()); err != nil {
+		t.Fatal(err)
 	}
 	return reg
 }
 
 // The flag is on exactly these parameters and no sink that picks a name, path or
-// address carries it.
+// address carries it. The registry holds a generic tool node as well: none of its
+// parameters may carry the flag.
 func TestOutputIndependentFlagIsOnTheListedParams(t *testing.T) {
 	var got []string
-	for _, def := range independentRegistry(t).All() {
+	reg := independentRegistry(t)
+	RefreshGenericTools(reg, []GenericTool{{Name: "docker", Category: "infrastructure", Schema: sampleToolSchema()}}, StaticEnv{})
+	if _, ok := reg.Lookup(GenericTypePrefix + "docker"); !ok {
+		t.Fatal("setup: no generic node")
+	}
+	for _, def := range reg.All() {
 		for _, p := range def.Params {
 			if p.OutputIndependent {
 				got = append(got, def.Type+"."+p.Name)
@@ -65,8 +72,13 @@ func TestOutputIndependentParamsAreNotInTheOutput(t *testing.T) {
 	bases := map[string]map[string]any{
 		TypePDFCreate: {"content": "c"}, TypeFileWrite: {"path": "out.txt"},
 		TypeTelegram: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
+		TypeMQTTPublish: homeBases[TypeMQTTPublish], TypeAppointmentAdd: homeBases[TypeAppointmentAdd], TypeTodoAdd: homeBases[TypeTodoAdd],
 	}
 	answers := func(req ToolRequest) (ToolResponse, error) {
+		switch req.Tool {
+		case "mqtt_publish", "manage_appointments", "manage_todos":
+			return homeAnswers(req)
+		}
 		if req.Tool == "document_creator" {
 			return ToolResponse{Output: `{"status":"success","file_path":"/data/documents/x.pdf","web_path":"/files/documents/x.pdf","filename":"x.pdf"}`, Status: "success"}, nil
 		}
@@ -85,7 +97,7 @@ func TestOutputIndependentParamsAreNotInTheOutput(t *testing.T) {
 		}
 		params[param] = marker
 		tools := &fakeTools{respond: answers}
-		res, err := execDef(lookupDef(t, reg, typ), params, &Services{Tools: tools})
+		res, err := execDef(lookupDef(t, reg, typ), params, &Services{Tools: tools, Location: time.UTC})
 		if err != nil || tools.count() == 0 {
 			t.Errorf("%s: %v after %d calls", name, err, tools.count())
 			continue

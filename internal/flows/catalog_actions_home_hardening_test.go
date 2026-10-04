@@ -509,34 +509,17 @@ func TestHomeNodesInTheLint(t *testing.T) {
 	}
 }
 
-// The flag says the parameter never reaches the output: run each flagged parameter with
-// a marker and look for the marker in what the node returns. The echoed ones, the topic
+// The parameters the flag is on (mqtt.publish.payload and the planner descriptions) are
+// pinned in independentParams (effects_independent_test.go), which checks the flag and
+// runs each of them with a marker. This is the other side: the echoed ones, the topic
 // and the titles, are not flagged and are in the output.
 func TestHomeOutputIndependentFlags(t *testing.T) {
-	const marker = "MARKER-5c2e81"
-	want := []string{"mqtt.publish.payload", "planner.appointment_add.description", "planner.todo_add.description"}
 	var flagged []string
 	for _, def := range homeRegistry(t).All() {
 		for _, p := range def.Params {
 			if p.OutputIndependent {
 				flagged = append(flagged, def.Type+"."+p.Name)
 			}
-		}
-	}
-	slices.Sort(flagged)
-	if !reflect.DeepEqual(flagged, want) {
-		t.Fatalf("flagged %v, want %v", flagged, want)
-	}
-	for _, name := range want {
-		i := strings.LastIndex(name, ".")
-		typ, param := name[:i], name[i+1:]
-		_, res, err := homeRun(t, typ, map[string]any{param: marker})
-		if err != nil {
-			t.Errorf("%s: %v", name, err)
-			continue
-		}
-		if raw, _ := json.Marshal(res.Output); strings.Contains(string(raw), marker) {
-			t.Errorf("%s is copied into the output %s", name, raw)
 		}
 	}
 	for _, name := range []string{"mqtt.publish.topic", "planner.appointment_add.title", "planner.todo_add.title"} {
