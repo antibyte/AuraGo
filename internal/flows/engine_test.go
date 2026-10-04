@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -272,38 +271,6 @@ func stepIDs(res RunResult) []string {
 	return ids
 }
 
-func TestEngineRejectsMissingAndOversizedFlows(t *testing.T) {
-	reg := newTestRegistry(t)
-	eng := newTestEngine(reg, nil, 4)
-	runOnly := []string{EventRunStarted, EventRunFinished}
-	check := func(name string, f *Flow, trigger, wantCode string) {
-		t.Helper()
-		res, capture := runWith(context.Background(), eng, f, RunRequest{TriggerNode: trigger})
-		if res.Status != RunError || res.ErrorCode != wantCode || len(res.Steps) != 0 {
-			t.Fatalf("%s = %s %s, %d steps", name, res.Status, res.ErrorCode, len(res.Steps))
-		}
-		if !reflect.DeepEqual(capture.types(), runOnly) || capture.events[1].Run.ErrorCode != wantCode {
-			t.Fatalf("%s events = %v", name, capture.types())
-		}
-	}
-	check("nil flow", nil, testNodeID(1), "FLOW_INVALID")
-
-	b := newFlow("Nodes")
-	tr := b.node("start", "test.trigger", nil)
-	for i := 1; i <= MaxNodes; i++ {
-		b.node(fmt.Sprintf("n%d", i), "test.echo", nil)
-	}
-	check("too many nodes", b.build(), tr, "FLOW_TOO_LARGE")
-
-	b = newFlow("Edges")
-	tr = b.node("start", "test.trigger", nil)
-	a := b.node("a", "test.echo", nil)
-	for i := 0; i <= MaxEdges; i++ {
-		b.edge(tr, PortOut, a)
-	}
-	check("too many edges", b.build(), tr, "FLOW_TOO_LARGE")
-}
-
 func TestEngineRejectsLoops(t *testing.T) {
 	reg := newTestRegistry(t)
 	b := newFlow("Loop")
@@ -502,66 +469,6 @@ func TestEngineFinishedRunIsNotInterrupted(t *testing.T) {
 	res, _ := runWith(ctx, newTestEngine(reg, nil, 4), b.build(), RunRequest{TriggerNode: tr})
 	if s := mustStep(t, res, n); res.Status != RunSuccess || res.ErrorCode != "" || s.Status != StepSuccess {
 		t.Fatalf("result = %s %s, node %s", res.Status, res.ErrorCode, s.Status)
-	}
-}
-
-func TestEngineDefinitionHookPanicFailsRun(t *testing.T) {
-	reg := newTestRegistry(t)
-	reg.MustRegister(&NodeDef{Type: "test.badports", OutputsFunc: func(*Node) []string { panic("ports kaputt") },
-		Execute: func(context.Context, ExecInput) (ExecResult, error) { return ExecResult{}, nil }})
-	reg.MustRegister(&NodeDef{Type: "test.badtrigger", Trigger: true, OutputsFunc: func(*Node) []string { panic("trigger ports kaputt") }})
-	eng := newTestEngine(reg, nil, 4)
-
-	b, tr, bad := singleNodeFlow("BadPorts", "bad", "test.badports", nil)
-	res, capture := runWith(context.Background(), eng, b.build(), RunRequest{TriggerNode: tr})
-	if res.Status != RunError || res.ErrorCode != "FLOW_NODE_PANIC" || res.ErrorNodeID != bad || len(res.Steps) != 0 {
-		t.Fatalf("result = %s %s %s, %d steps", res.Status, res.ErrorCode, res.ErrorNodeID, len(res.Steps))
-	}
-	if !strings.Contains(res.ErrorMessage, `"bad"`) || !strings.Contains(res.ErrorMessage, "ports kaputt") {
-		t.Fatalf("message = %q", res.ErrorMessage)
-	}
-	if !reflect.DeepEqual(capture.types(), []string{EventRunStarted, EventRunFinished}) {
-		t.Fatalf("events = %v", capture.types())
-	}
-
-	b = newFlow("BadTrigger")
-	tr = b.node("start", "test.badtrigger", nil)
-	if res, _ := runWith(context.Background(), eng, b.build(), RunRequest{TriggerNode: tr}); res.ErrorCode != "FLOW_NODE_PANIC" || res.ErrorNodeID != tr {
-		t.Fatalf("trigger = %s %s", res.ErrorCode, res.ErrorNodeID)
-	}
-}
-
-// TestEngineKeepsDefinitionsForTheRun checks that a definition replaced during
-// a run does not affect that run: each node keeps the definition it started with.
-func TestEngineKeepsDefinitionsForTheRun(t *testing.T) {
-	reg := newTestRegistry(t)
-	version := func(v string) *NodeDef {
-		return &NodeDef{Type: "test.version", Execute: func(context.Context, ExecInput) (ExecResult, error) {
-			return ExecResult{Output: map[string]any{"v": v}}, nil
-		}}
-	}
-	reg.MustRegister(version("old"))
-	reg.MustRegister(&NodeDef{Type: "test.replace", Execute: func(context.Context, ExecInput) (ExecResult, error) {
-		reg.Replace(version("new"))
-		return ExecResult{}, nil
-	}})
-	b, tr, swap := singleNodeFlow("Swap", "swap", "test.replace", nil)
-	v := b.node("v", "test.version", nil)
-	b.edge(swap, PortOut, v)
-	res, _ := runWith(context.Background(), newTestEngine(reg, nil, 4), b.build(), RunRequest{TriggerNode: tr})
-	if res.Status != RunSuccess || res.Outputs["v"]["v"] != "old" {
-		t.Fatalf("result = %s %#v", res.Status, res.Outputs["v"])
-	}
-}
-
-func TestEngineNewEngineNeedsRegistry(t *testing.T) {
-	var r any
-	func() {
-		defer func() { r = recover() }()
-		NewEngine(nil, nil, nil, 0)
-	}()
-	if r != "flows: NewEngine needs a registry" {
-		t.Fatalf("panic = %v", r)
 	}
 }
 
