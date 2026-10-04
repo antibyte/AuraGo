@@ -1827,6 +1827,9 @@ func TestLoadOpenSCADDefaults(t *testing.T) {
 }
 
 func TestLoadMigratesLegacyBrowserAutomationDockerURLOutsideDocker(t *testing.T) {
+	if probeDockerContainer() {
+		t.Skip("host URL migration applies outside containers; both modes are covered by TestNormalizeLegacySidecarURL")
+	}
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	configContent := `

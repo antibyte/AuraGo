@@ -18,6 +18,11 @@ func TestToolsDockerAdapterCopyToContainerUsesArchiveEndpoint(t *testing.T) {
 
 	var sawArchive bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
 		if r.URL.Path != "/v1.45/containers/aurago-store-olivetin/archive" {
 			t.Fatalf("path = %s", r.URL.Path)
 		}

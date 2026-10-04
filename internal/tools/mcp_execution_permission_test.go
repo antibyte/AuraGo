@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/sandbox"
 )
 
 func TestMCPStdioChecksPermissionsBeforeProcessOrWorkspaceCreation(t *testing.T) {
@@ -55,6 +57,16 @@ func TestMCPStdioSnapshotCannotWidenLiveExecutionRights(t *testing.T) {
 }
 
 func TestMCPStdioRejectsSandboxControlOverride(t *testing.T) {
+	previous, configured := CurrentRuntimePermissionsForTest()
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
+	ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	t.Cleanup(sandbox.SetForTest(&sandbox.FallbackSandbox{}))
 	_, err := newMCPConn("fixture", "must-not-execute", nil, map[string]string{"AURAGO_SBX_RW": "/"}, slog.New(slog.NewTextHandler(io.Discard, nil)), "local", t.TempDir(), "")
 	if err == nil || !strings.Contains(err.Error(), "sandbox controls") {
 		t.Fatalf("sandbox environment override accepted: %v", err)

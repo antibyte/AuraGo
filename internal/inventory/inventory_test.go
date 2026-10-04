@@ -1,7 +1,6 @@
 package inventory
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -29,8 +28,7 @@ func TestGetDeviceByIDOrNameRejectsAmbiguousName(t *testing.T) {
 }
 
 func TestInventory(t *testing.T) {
-	dbPath := "test_infrastructure.db"
-	defer os.Remove(dbPath)
+	dbPath := filepath.Join(t.TempDir(), "infrastructure.db")
 
 	db, err := InitDB(dbPath)
 	if err != nil {

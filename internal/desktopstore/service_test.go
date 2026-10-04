@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2040,11 +2041,16 @@ func waitForAsyncDockerCleanup(t *testing.T, docker *fakeDockerAdapter, containe
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if docker.removedContainers != nil && docker.removedContainers[container] > 0 && len(docker.removedVolumes) > 0 {
+		docker.cleanupMu.Lock()
+		done := docker.removedContainers[container] > 0 && len(docker.removedVolumes) > 0
+		docker.cleanupMu.Unlock()
+		if done {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
+	docker.cleanupMu.Lock()
+	defer docker.cleanupMu.Unlock()
 	t.Fatalf("timed out waiting for async docker cleanup of %s: containers=%#v volumes=%#v", container, docker.removedContainers, docker.removedVolumes)
 }
 
@@ -2175,6 +2181,7 @@ func fixedPorts(values ...int) PortAllocator {
 }
 
 type fakeDockerAdapter struct {
+	cleanupMu              sync.Mutex
 	pulled                 []string
 	pullErr                error
 	builtImages            []string
@@ -2364,6 +2371,8 @@ func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bo
 	if f.removeContainerBlock != nil {
 		<-f.removeContainerBlock
 	}
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
 	if f.removedContainers == nil {
 		f.removedContainers = map[string]int{}
 	}
@@ -2372,6 +2381,8 @@ func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bo
 }
 
 func (f *fakeDockerAdapter) RemoveVolume(_ context.Context, name string, _ bool) error {
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
 	f.removedVolumes = append(f.removedVolumes, name)
 	return nil
 }

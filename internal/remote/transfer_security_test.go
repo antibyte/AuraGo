@@ -8,7 +8,9 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -42,8 +44,18 @@ func TestTransferPublicationPreservesPriorFile(t *testing.T) {
 		t.Fatal("prior destination changed")
 	}
 	outside := t.TempDir()
-	if err := os.Symlink(outside, filepath.Join(dir, "escape")); err != nil {
-		t.Skipf("symlink unavailable: %v", err)
+	if err := os.WriteFile(filepath.Join(outside, "stolen"), []byte("outside-original"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "escape")
+	if err := os.Symlink(outside, link); err != nil {
+		if runtime.GOOS != "windows" {
+			t.Fatalf("create escape symlink: %v", err)
+		}
+		// Directory junctions exercise Windows reparse points without symlink privilege.
+		if output, junctionErr := exec.Command("cmd", "/c", "mklink", "/J", link, outside).CombinedOutput(); junctionErr != nil {
+			t.Fatalf("create escape junction: %v: %s", junctionErr, output)
+		}
 	}
 	if err := publishTransferDownload(context.Background(), root, "escape/stolen", strings.NewReader("secret")); err == nil {
 		t.Fatal("symlink escaped root")
@@ -51,8 +63,8 @@ func TestTransferPublicationPreservesPriorFile(t *testing.T) {
 	if _, err := root.Open("escape/stolen"); err == nil {
 		t.Fatal("rooted read escaped")
 	}
-	if _, err := os.Stat(filepath.Join(outside, "stolen")); !os.IsNotExist(err) {
-		t.Fatal("outside target exists")
+	if data, err := os.ReadFile(filepath.Join(outside, "stolen")); err != nil || string(data) != "outside-original" {
+		t.Fatalf("outside target changed: %q, %v", data, err)
 	}
 }
 
