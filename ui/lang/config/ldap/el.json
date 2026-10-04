@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "Ασφάλεια σύνδεσης",
+  "config.ldap.plain_label": "LDAP (χωρίς κρυπτογράφηση)",
+  "help.ldap.tls_mode": "Το LDAPS χρησιμοποιεί τη θύρα 636. Το StartTLS κρυπτογραφεί τη σύνδεση πριν από την είσοδο στη θύρα 389. Σε περίπτωση σφάλματος, η είσοδος αποκλείεται.",
   "config.ldap.base_dn_label": "Βασικό DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Κωδικός Bind (Vault)",

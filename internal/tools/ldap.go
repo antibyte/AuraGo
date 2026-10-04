@@ -36,6 +36,7 @@ func LDAP(cfg *config.Config, vault *security.Vault, operation string, args map[
 		Host:               cfg.LDAP.Host,
 		Port:               cfg.LDAP.Port,
 		UseTLS:             cfg.LDAP.UseTLS,
+		TLSMode:            cfg.LDAP.TLSMode,
 		InsecureSkipVerify: cfg.LDAP.InsecureSkipVerify,
 		BaseDN:             cfg.LDAP.BaseDN,
 		BindDN:             cfg.LDAP.BindDN,

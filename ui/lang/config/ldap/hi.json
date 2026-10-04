@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "कनेक्शन सुरक्षा",
+  "config.ldap.plain_label": "LDAP (बिना एन्क्रिप्शन)",
+  "help.ldap.tls_mode": "LDAPS पोर्ट 636 का उपयोग करता है। StartTLS पोर्ट 389 पर साइन इन करने से पहले कनेक्शन को एन्क्रिप्ट करता है। विफल होने पर साइन इन रोक दिया जाता है।",
   "config.ldap.base_dn_label": "बेस DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Bind पासवर्ड (Vault)",

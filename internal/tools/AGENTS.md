@@ -77,6 +77,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
 ### Integration state preservation
+- LDAP tls_mode selects ldaps, starttls or plain; an empty mode preserves legacy use_tls. StartTLS must complete with certificate verification and a socket deadline before any bind. Searches page within one request budget and fail without partial output on paging errors or resource limits.
 - TrueNAS clients own their HTTP transport; Close releases idle keep-alive connections after each integration call.
 - OneDrive and Google Workspace OAuth use canonical expiry (legacy token_expiry remains readable), reload authoritative Vault state before refresh, serialize same-provider refreshes, and publish in-memory replacements only after atomic compare-and-swap persistence succeeds.
 - WebDAV/Koofr/OneDrive deletion rejects root aliases and traversal after decoding/normalization, before any network call. OneDrive download responses require HTTP 200, successful bounded reads, and explicit truncation; public download redirects never receive the Graph bearer token.

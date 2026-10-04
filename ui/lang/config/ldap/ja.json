@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "接続のセキュリティ",
+  "config.ldap.plain_label": "LDAP（暗号化なし）",
+  "help.ldap.tls_mode": "LDAPS はポート 636 を使用します。StartTLS はポート 389 で認証前に接続を暗号化します。暗号化に失敗すると認証を中止します。",
   "config.ldap.base_dn_label": "ベースDN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Bindパスワード（Vault）",

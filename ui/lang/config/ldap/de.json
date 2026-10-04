@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "Verbindungssicherheit",
+  "config.ldap.plain_label": "LDAP (unverschlüsselt)",
+  "help.ldap.tls_mode": "LDAPS verwendet Port 636. StartTLS verschlüsselt die Verbindung vor der Anmeldung auf Port 389. Bei einem Fehler wird die Anmeldung blockiert.",
   "config.ldap.base_dn_label": "Basis-DN",
   "config.ldap.bind_dn_label": "Bind-DN",
   "config.ldap.bind_password_label": "Bind-Passwort (Vault)",

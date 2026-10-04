@@ -1907,7 +1907,8 @@ ldap:
     readonly: true                         # when enabled, only search/authenticate are allowed; mutations require explicit configuration
     host: ""                               # LDAP server hostname or IP
     port: 636                              # LDAPS port (default: 636); use 389 for plain LDAP
-    use_tls: true                         # use LDAPS (recommended); set false for plain LDAP on port 389
+    use_tls: true                         # legacy fallback when tls_mode is empty
+    tls_mode: ""                          # ldaps, starttls (port 389), or plain; empty preserves use_tls
     insecure_skip_verify: false           # skip TLS certificate verification (for self-signed certs only)
     base_dn: ""                           # base DN for all searches (e.g. "dc=example,dc=com")
     bind_dn: ""                            # service account DN for binding (e.g. "cn=admin,dc=example,dc=com")

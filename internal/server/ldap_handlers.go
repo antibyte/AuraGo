@@ -57,6 +57,7 @@ func handleLDAPTest(s *Server) http.HandlerFunc {
 			Host:               cfg.Host,
 			Port:               cfg.Port,
 			UseTLS:             cfg.UseTLS,
+			TLSMode:            cfg.TLSMode,
 			InsecureSkipVerify: cfg.InsecureSkipVerify,
 			BaseDN:             cfg.BaseDN,
 			BindDN:             cfg.BindDN,

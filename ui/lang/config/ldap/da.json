@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "Forbindelsessikkerhed",
+  "config.ldap.plain_label": "LDAP (ukrypteret)",
+  "help.ldap.tls_mode": "LDAPS bruger port 636. StartTLS krypterer forbindelsen før login på port 389. Ved fejl blokeres login.",
   "config.ldap.base_dn_label": "Basis-DN",
   "config.ldap.bind_dn_label": "Bind-DN",
   "config.ldap.bind_password_label": "Bind-adgangskode (Vault)",

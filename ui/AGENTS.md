@@ -32,6 +32,8 @@ worker. Keep packaging, recovery and offline instructions in
 
 ### Render and asynchronous ownership
 
+- LDAP Config offers one transport dropdown (LDAPS, StartTLS, plain), preserves the legacy use_tls selection until edited, and retains custom ports when switching modes. All sixteen LDAP locale bundles describe the transport; verify TestLDAPTransportConfigBrowser.
+
 - Escape text before every Markdown fallback. Generic image/audio/video sources use the shared same-origin media allowlist; external images become deliberate links. Preview iframes retain sandboxing. Logout sends same-origin POST.
 - Config saves bind to the sent snapshot and retain edits made while requests are in flight. Chat HTTP/SSE/recovery responses bind to session and request generation. All close gestures await the window's asynchronous guard; file dialogs remain pending while a write is in flight.
 - Shared modals queue independent promises. Vault prompts have bounded expiry and cancellation, clear sensitive drafts on close, and never let late results close a newer prompt. Highlight original text nodes rather than escaped HTML.

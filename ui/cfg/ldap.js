@@ -46,16 +46,16 @@ function renderLDAPSection(section) {
     html += '<input class="field-input" type="number" data-path="ldap.port" value="' + (data.port || 636) + '" placeholder="636">';
     html += '</div>';
 
-    // ── Use TLS toggle ──
-    const helpUseTLS = t('help.ldap.use_tls');
-    const useTLSOn = data.use_tls !== false;
+    // Transport selection keeps legacy use_tls configurations readable.
+    const tlsMode = data.tls_mode || (data.use_tls === false ? 'plain' : 'ldaps');
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.ldap.use_tls_label') + '</div>';
-    if (helpUseTLS) html += '<div class="field-help">' + helpUseTLS + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (useTLSOn ? ' on' : '') + '" data-path="ldap.use_tls" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (useTLSOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
+    html += '<label class="field-label" for="ldap-transport">' + t('config.ldap.transport_label') + '</label>';
+    html += '<div class="field-help">' + t('help.ldap.tls_mode') + '</div>';
+    html += '<select id="ldap-transport" class="field-select" data-path="ldap.tls_mode" onchange="ldapTransportChanged(this,event)">';
+    [['ldaps', 'LDAPS'], ['starttls', 'StartTLS'], ['plain', t('config.ldap.plain_label')]].forEach(([value, label]) => {
+        html += '<option value="' + value + '"' + (tlsMode === value ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+    });
+    html += '</select></div>';
 
     // ── Insecure Skip Verify toggle ──
     const helpInsecure = t('help.ldap.insecure_skip_verify');
@@ -122,6 +122,14 @@ function renderLDAPSection(section) {
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
+}
+
+function ldapTransportChanged(select, event) {
+    const port = document.querySelector('[data-path="ldap.port"]');
+    if (port && (port.value === '389' || port.value === '636')) {
+        port.value = select.value === 'ldaps' ? '636' : '389';
+    }
+    markDirty(event);
 }
 
 function ldapTestConnection() {

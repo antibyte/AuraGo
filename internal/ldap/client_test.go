@@ -1,6 +1,7 @@
 package ldap
 
 import (
+	"crypto/tls"
 	"errors"
 	"testing"
 	"time"
@@ -59,7 +60,8 @@ func (f *fakeLDAPConn) Del(delRequest *ldappkg.DelRequest) error {
 	return f.deleteErr
 }
 
-func (f *fakeLDAPConn) Close() error { return nil }
+func (f *fakeLDAPConn) Close() error               { return nil }
+func (f *fakeLDAPConn) StartTLS(*tls.Config) error { return nil }
 
 func (f *fakeLDAPConn) SetTimeout(timeout time.Duration) {
 	f.timeout = timeout

@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "Sicurezza della connessione",
+  "config.ldap.plain_label": "LDAP (non cifrato)",
+  "help.ldap.tls_mode": "LDAPS usa la porta 636. StartTLS cifra la connessione prima dell’accesso sulla porta 389. In caso di errore, l’accesso viene bloccato.",
   "config.ldap.base_dn_label": "DN di base",
   "config.ldap.bind_dn_label": "DN di bind",
   "config.ldap.bind_password_label": "Password Bind (Vault)",

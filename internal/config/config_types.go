@@ -2583,6 +2583,7 @@ type LDAPConfig struct {
 	Host               string `yaml:"host"`                 // LDAP server hostname or IP
 	Port               int    `yaml:"port"`                 // LDAPS port (default: 636) or LDAP port (default: 389)
 	UseTLS             bool   `yaml:"use_tls"`              // use LDAPS (default: true)
+	TLSMode            string `yaml:"tls_mode"`             // ldaps, starttls or plain; empty preserves legacy use_tls
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"` // skip TLS certificate verification (default: false)
 	BaseDN             string `yaml:"base_dn"`              // base DN for searches (e.g. "dc=example,dc=com")
 	BindDN             string `yaml:"bind_dn"`              // service account DN for binding

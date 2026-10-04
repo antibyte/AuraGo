@@ -1,4 +1,7 @@
 {
+  "config.ldap.transport_label": "Verbindingsbeveiliging",
+  "config.ldap.plain_label": "LDAP (onversleuteld)",
+  "help.ldap.tls_mode": "LDAPS gebruikt poort 636. StartTLS versleutelt de verbinding vóór het aanmelden op poort 389. Bij een fout wordt het aanmelden geblokkeerd.",
   "config.ldap.base_dn_label": "Basis-DN",
   "config.ldap.bind_dn_label": "Bind-DN",
   "config.ldap.bind_password_label": "Bind-wachtwoord (Vault)",
