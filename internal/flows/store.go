@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -62,6 +65,8 @@ var schemaStatements = []string{
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	)`,
+	// Not unique: flows without a mission all share the empty mission id.
+	`CREATE INDEX IF NOT EXISTS idx_flows_mission ON flows(mission_id)`,
 	`CREATE TABLE IF NOT EXISTS flow_versions (
 		flow_id TEXT NOT NULL REFERENCES flows(id) ON DELETE CASCADE,
 		revision INTEGER NOT NULL,
@@ -134,12 +139,25 @@ type Store struct {
 	logger *slog.Logger
 }
 
-// OpenStore opens (and migrates) the flows database at path.
+// OpenStore opens (and migrates) the flows database at path and creates the
+// parent directory when it is missing.
+//
+// It deliberately does not use dbutil.WithCorruptionRecovery. That option reacts
+// to any open or configure error, including I/O, permission and PRAGMA failures,
+// by renaming the database to a fixed ".bak" name and starting an empty one, so
+// the flows people drew would silently vanish (and a second failure would
+// overwrite the backup). A database that cannot be opened is reported instead,
+// and the file stays untouched for the user to repair or restore.
 func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	db, err := dbutil.Open(path, dbutil.WithCorruptionRecovery(logger))
+	if !skipsDirectoryCreation(path) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			return nil, fmt.Errorf("create flows database directory: %w", err)
+		}
+	}
+	db, err := dbutil.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open flows database: %w", err)
 	}
@@ -151,6 +169,15 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		}
 	}
 	return s, nil
+}
+
+// skipsDirectoryCreation reports whether path is not an ordinary file path:
+// an in-memory database, a "file:" URI or an empty name (a private temporary
+// database). dbutil.Open cuts a DSN at "?" and treats these specially, so
+// there is no directory to create for them.
+func skipsDirectoryCreation(path string) bool {
+	base, _, _ := strings.Cut(path, "?")
+	return base == "" || base == ":memory:" || strings.HasPrefix(base, "file:")
 }
 
 // Close closes the database.
@@ -214,12 +241,27 @@ func scanFlow(row scanner) (*FlowRecord, error) {
 	return &r, nil
 }
 
+// storedKind returns the value of the kind column for a document: an empty or
+// unknown kind becomes KindFlow, the rule Flow.Normalize applies when the
+// document is read back, so the column and the document cannot disagree.
+func storedKind(k Kind) Kind {
+	if k == KindFlow || k == KindBlock {
+		return k
+	}
+	return KindFlow
+}
+
 // CreateFlow stores a new flow as draft revision 1. It returns ErrFlowExists
 // (wrapped) when a flow with the same id is already stored and leaves that flow
-// untouched. It does not modify f.
+// untouched, and ErrUnsupportedSchema (wrapped) when f.Schema is not
+// SchemaVersion, because ParseFlow could never read such a row back. It does not
+// modify f.
 func (s *Store) CreateFlow(ctx context.Context, f *Flow, missionID string, now time.Time) (*FlowRecord, error) {
 	if f == nil || f.ID == "" {
 		return nil, errors.New("flow id is required")
+	}
+	if f.Schema != SchemaVersion {
+		return nil, fmt.Errorf("%w: %d", ErrUnsupportedSchema, f.Schema)
 	}
 	data, err := f.Marshal()
 	if err != nil {
@@ -230,7 +272,7 @@ func (s *Store) CreateFlow(ctx context.Context, f *Flow, missionID string, now t
 	}
 	ts := formatTime(now)
 	res, err := s.db.ExecContext(ctx, `INSERT INTO flows (id, kind, name, description, mission_id, draft_json, draft_revision, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT(id) DO NOTHING`, f.ID, string(f.Kind), f.Name, f.Description, missionID, string(data), ts, ts)
+		VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT(id) DO NOTHING`, f.ID, string(storedKind(f.Kind)), f.Name, f.Description, missionID, string(data), ts, ts)
 	if err != nil {
 		return nil, fmt.Errorf("create flow: %w", err)
 	}
@@ -279,14 +321,20 @@ func (s *Store) ListFlows(ctx context.Context, kind Kind) ([]*FlowRecord, error)
 // SaveDraft replaces the draft if baseRevision is current and returns the new revision.
 // On a conflict it returns the current revision and ErrRevisionConflict.
 // The stored document must name the row it lives in, so f.ID has to equal id;
-// SaveDraft rejects a mismatch rather than rewriting the id, and it does not
-// modify f.
+// SaveDraft rejects a mismatch rather than rewriting the id. It also rejects a
+// flow whose Schema is not SchemaVersion (ErrUnsupportedSchema, wrapped), since
+// ParseFlow could not read the row back. A rejected save returns revision 0 and
+// changes nothing. The kind, name and description columns follow the document.
+// SaveDraft does not modify f.
 func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision int, now time.Time) (int, error) {
 	if f == nil {
 		return 0, errors.New("flow is required")
 	}
 	if f.ID != id {
 		return 0, fmt.Errorf("draft carries flow id %s but is saved under %s", quoteForError(f.ID), quoteForError(id))
+	}
+	if f.Schema != SchemaVersion {
+		return 0, fmt.Errorf("%w: %d", ErrUnsupportedSchema, f.Schema)
 	}
 	data, err := f.Marshal()
 	if err != nil {
@@ -295,9 +343,9 @@ func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision 
 	if len(data) > MaxDocumentBytes {
 		return 0, ErrDocumentTooLarge
 	}
-	res, err := s.db.ExecContext(ctx, `UPDATE flows SET draft_json = ?, name = ?, description = ?,
+	res, err := s.db.ExecContext(ctx, `UPDATE flows SET draft_json = ?, kind = ?, name = ?, description = ?,
 		draft_revision = draft_revision + 1, updated_at = ? WHERE id = ? AND draft_revision = ?`,
-		string(data), f.Name, f.Description, formatTime(now), id, baseRevision)
+		string(data), string(storedKind(f.Kind)), f.Name, f.Description, formatTime(now), id, baseRevision)
 	if err != nil {
 		return 0, fmt.Errorf("save draft: %w", err)
 	}
@@ -316,36 +364,53 @@ func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision 
 }
 
 // Publish copies the draft to the live revision, stores a version and keeps the last 50 versions.
+// It returns ErrRevisionConflict when baseRevision is not the current draft
+// revision. Publishing a draft revision that is already live is a no-op: it
+// returns the current record without a new version, so a repeated or concurrent
+// publish of the same revision is harmless.
 func (s *Store) Publish(ctx context.Context, id string, baseRevision int, now time.Time) (*FlowRecord, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	var draftJSON string
-	var draftRev, liveRev int
-	err = tx.QueryRowContext(ctx, `SELECT draft_json, draft_revision, live_revision FROM flows WHERE id = ?`, id).
-		Scan(&draftJSON, &draftRev, &liveRev)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	if draftRev != baseRevision {
-		return nil, ErrRevisionConflict
-	}
-	next := liveRev + 1
 	ts := formatTime(now)
-	if _, err := tx.ExecContext(ctx, `UPDATE flows SET live_json = ?, live_revision = ?, published_draft_revision = ?,
-		published_at = ?, updated_at = ? WHERE id = ?`, draftJSON, next, draftRev, ts, ts, id); err != nil {
+	// The conditional write is the first statement, like in SaveDraft, so the
+	// transaction takes SQLite's write lock right away and the busy handler can
+	// wait for it. A read-then-write transaction cannot: SQLite never runs the
+	// busy handler when a read transaction upgrades to a write, so a concurrent
+	// writer made the upgrade fail at once with "database is locked".
+	res, err := tx.ExecContext(ctx, `UPDATE flows SET live_json = draft_json, live_revision = live_revision + 1,
+		published_draft_revision = draft_revision, published_at = ?, updated_at = ?
+		WHERE id = ? AND draft_revision = ? AND (live_revision = 0 OR published_draft_revision <> draft_revision)`,
+		ts, ts, id, baseRevision)
+	if err != nil {
+		return nil, fmt.Errorf("publish: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		var draftRev int
+		err := tx.QueryRowContext(ctx, `SELECT draft_revision FROM flows WHERE id = ?`, id).Scan(&draftRev)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		if err != nil {
+			return nil, err
+		}
+		if draftRev != baseRevision {
+			return nil, ErrRevisionConflict
+		}
+		// The revision matches but the UPDATE skipped it: it is already live.
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return s.GetFlow(ctx, id)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO flow_versions (flow_id, revision, json, published_at)
+		SELECT id, live_revision, live_json, published_at FROM flows WHERE id = ?`, id); err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO flow_versions (flow_id, revision, json, published_at) VALUES (?, ?, ?, ?)`,
-		id, next, draftJSON, ts); err != nil {
-		return nil, err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM flow_versions WHERE flow_id = ? AND revision <= ?`, id, next-maxStoredVersions); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM flow_versions WHERE flow_id = ?
+		AND revision <= (SELECT live_revision FROM flows WHERE id = ?) - ?`, id, id, maxStoredVersions); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
