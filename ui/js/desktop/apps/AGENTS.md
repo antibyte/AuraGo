@@ -350,6 +350,13 @@ buttons and menu popovers remain excluded from those gestures.
   `desktop.widget_fritzbox_*` plus reused `desktop.copy`, `desktop.copied`,
   `desktop.retry`, `desktop.load_failed`, `desktop.system_info_updated` and
   the sysmon byte/uptime formatters in all 16 desktop locales.
+- Fritz!Box overview errors belong to individual sections. Preserve a failed
+  section across unrelated partial polls and clear it only after its own
+  successful read or capability removal. Name the affected sections in the
+  banner; a telephony/device failure must not mark fresh connection data stale
+  or claim the router is unreachable. Request failures use a neutral data-load
+  message. Verify the partial-error and recovery cases in
+  `TestDesktopFritzBoxWidgetBrowser`.
 
 - All widget cards, including sticky notes and generated iframe widgets, use
   `widgetWidth()` (320px, reduced only for a narrower workspace). Content resize

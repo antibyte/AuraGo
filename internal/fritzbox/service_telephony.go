@@ -79,9 +79,9 @@ type callEntry struct {
 }
 
 func (c *Client) fetchCallListXML(rawURL string) ([]CallEntry, error) {
-	// Use the TR-064 base URL to build the full URL if rawURL is a relative path.
-	if strings.HasPrefix(rawURL, "/") {
-		rawURL = c.tr.baseURL + rawURL
+	rawURL, err := c.routerListURL(rawURL, "/calllist.lua", c.tr.baseURL)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
@@ -172,8 +172,9 @@ type contactXML struct {
 }
 
 func (c *Client) fetchPhonebookXML(rawURL string) ([]PhonebookEntry, error) {
-	if strings.HasPrefix(rawURL, "/") {
-		rawURL = c.tr.baseURL + rawURL
+	rawURL, err := c.routerListURL(rawURL, "/phonebook.lua", c.tr.baseURL)
+	if err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -235,8 +236,9 @@ type tamMsgXML struct {
 }
 
 func (c *Client) fetchTAMListXML(rawURL string) ([]TAMEntry, error) {
-	if strings.HasPrefix(rawURL, "/") {
-		rawURL = c.webURL + rawURL
+	rawURL, err := c.routerListURL(rawURL, "/tamcalllist.lua", c.webURL)
+	if err != nil {
+		return nil, err
 	}
 	// Prefer SID-authenticated fetch; fall back to Digest for TR-064-hosted URLs.
 	resp, err := c.sid.GetWithSID(rawURL)

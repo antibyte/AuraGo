@@ -200,12 +200,13 @@ func TestDesktopFritzBoxWidgetI18n(t *testing.T) {
 	t.Parallel()
 
 	placeholders := map[string][]string{
-		"desktop.widget_fritzbox_connected_for": {"{duration}"},
-		"desktop.widget_fritzbox_of_max":        {"{rate}"},
-		"desktop.widget_fritzbox_window_label":  {"{span}"},
-		"desktop.widget_fritzbox_devices_total": {"{total}"},
-		"desktop.widget_fritzbox_more_devices":  {"{count}"},
-		"desktop.widget_fritzbox_page_of":       {"{current}", "{total}"},
+		"desktop.widget_fritzbox_connected_for":  {"{duration}"},
+		"desktop.widget_fritzbox_of_max":         {"{rate}"},
+		"desktop.widget_fritzbox_window_label":   {"{span}"},
+		"desktop.widget_fritzbox_devices_total":  {"{total}"},
+		"desktop.widget_fritzbox_more_devices":   {"{count}"},
+		"desktop.widget_fritzbox_page_of":        {"{current}", "{total}"},
+		"desktop.widget_fritzbox_error_sections": {"{sections}"},
 	}
 	keys := []string{
 		"desktop.widget_fritzbox_title",
