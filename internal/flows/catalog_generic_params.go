@@ -114,13 +114,15 @@ var genericPageInputParams = map[string]map[string]bool{
 
 // genericExposureParams open a service to more of the network: the ports and the LAN
 // target of a router port forward, the local port a quick tunnel puts on the internet,
-// the routes tailscale advertises (enable_routes) and the clients and ACL entries of a
-// network share.
+// the routes tailscale advertises (enable_routes), the clients and ACL entries of a
+// network share, and where netlify sends deploy notifications ("value" is the email
+// recipient of a create_hook of type email).
 var genericExposureParams = map[string]map[string]bool{
 	"fritzbox_network":  {"external_port": true, "internal_port": true, "internal_client": true},
 	"cloudflare_tunnel": {"port": true},
 	"tailscale":         {"value": true},
 	"network_shares":    {"clients": true, "acl": true},
+	"netlify":           {"value": true},
 }
 
 // genericToolContentParams carry content that ends up in a file or a program outside
@@ -143,16 +145,19 @@ func genericToolSinkParam(tool, param string) bool {
 // together with the parameters only those operations use. The schemas do not say which
 // operation uses which parameter, so the parameters are listed by hand (env_key stays:
 // get_env and delete_env use it). Validate and Execute refuse a dropped operation like
-// any operation the schema does not list; a tool left without an operation, or whose
-// operations are no list that could be filtered, gets no generic node.
+// any operation the schema does not list. A tool whose operation parameter has no list
+// (free text) or a list the filter empties gets no generic node. A tool without any
+// operation parameter keeps its node with the parameters dropped: its node cannot name
+// an operation, so it cannot ask for a dropped one.
 var genericDroppedOperations = map[string]struct{ ops, params []string }{
 	"invasion_tasks": {ops: []string{"send_secret"}, params: []string{"key", "value"}},
 	"netlify":        {ops: []string{"set_env"}, params: []string{"env_value"}},
 	"vercel":         {ops: []string{"set_env"}, params: []string{"env_value"}},
 }
 
-// genericDropOperations applies genericDroppedOperations to the parameters of tool and
-// reports whether the tool keeps an operation.
+// genericDropOperations applies genericDroppedOperations to the parameters of tool. It
+// reports false when the tool has an operation parameter without a listed operation
+// left; a tool without an operation parameter reports true.
 func genericDropOperations(tool string, params []ParamSpec, jsonStrings map[string]bool) ([]ParamSpec, bool) {
 	drop, ok := genericDroppedOperations[tool]
 	if !ok {

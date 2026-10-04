@@ -239,6 +239,11 @@ func TestGenericExposureAndContentSinks(t *testing.T) {
 			"exports": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}})},
 		{Name: "desktop_notes", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("content", "title", "folder", "path", "query", "tag"),
 			"list", "create")},
+		// netlify's value is a hook's email recipient; the rule is netlify's alone.
+		{Name: "netlify", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("hook_type", "url", "value", "env_key"),
+			"list_hooks", "create_hook")},
+		{Name: "vercel", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("env_key", "value", "project_id"),
+			"list_env", "get_env")},
 	}
 	reg := newTestRegistry(t)
 	if n := RefreshGenericTools(reg, tools, nil); n != len(tools) {
@@ -252,6 +257,8 @@ func TestGenericExposureAndContentSinks(t *testing.T) {
 		"github":            {"content", "operation", "path", "title"}, // not value: a SHA or state filter
 		"openscad_render":   {"source_scad"},
 		"desktop_notes":     {"content", "folder", "operation", "path", "query", "title"},
+		"netlify":           {"operation", "url", "value"},
+		"vercel":            {"operation"}, // no value sink
 	}
 	for tool, sinks := range want {
 		if got := genericSinks(lookupDef(t, reg, GenericTypePrefix+tool)); !reflect.DeepEqual(got, sinks) {
