@@ -67,18 +67,30 @@ func Stringify(v any) string {
 	}
 }
 
-// compactJSON encodes v as compact JSON without HTML escaping or a trailing
-// newline. Values that cannot be encoded (NaN/Inf numbers, cyclic structures,
-// unsupported types) yield the fixed text "<unserializable>"; it deliberately
-// does not fall back to fmt.Sprint, which recurses forever on cyclic maps.
-func compactJSON(v any) string {
+// marshalCompact encodes v as compact JSON without HTML escaping or a trailing
+// newline and reports values that cannot be encoded (NaN/Inf numbers, cyclic
+// structures, unsupported types) as an error. Callers that must not hide such
+// values, like the json filter, use it directly; compactJSON wraps it for
+// display.
+func marshalCompact(v any) (string, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(v); err != nil {
+		return "", err
+	}
+	return strings.TrimRight(buf.String(), "\n"), nil
+}
+
+// compactJSON is marshalCompact for display: values that cannot be encoded
+// yield the fixed text "<unserializable>"; it deliberately does not fall back to
+// fmt.Sprint, which recurses forever on cyclic maps.
+func compactJSON(v any) string {
+	s, err := marshalCompact(v)
+	if err != nil {
 		return "<unserializable>"
 	}
-	return strings.TrimRight(buf.String(), "\n")
+	return s
 }
 
 // toNumber converts the numeric shapes of JSON-decoded data (float64,
