@@ -105,7 +105,7 @@ func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
 }
 
 // ExecuteRemoteCommand runs a command on a remote host via SSH and returns the combined output.
-func ExecuteRemoteCommand(ctx context.Context, host string, port int, user string, secret []byte, cmd string) (string, error) {
+func ExecuteRemoteCommand(ctx context.Context, host string, port int, user string, secret []byte, cmd string, input ...io.Reader) (string, error) {
 	config, err := GetSSHConfig(user, secret)
 	if err != nil {
 		return "", fmt.Errorf("failed to get ssh config: %w", err)
@@ -155,6 +155,9 @@ func ExecuteRemoteCommand(ctx context.Context, host string, port int, user strin
 	}()
 
 	// Capture output
+	if len(input) > 0 {
+		session.Stdin = input[0]
+	}
 	output, err := session.CombinedOutput(cmd)
 	if ctx.Err() != nil {
 		return string(output), fmt.Errorf("command cancelled: %w", ctx.Err())

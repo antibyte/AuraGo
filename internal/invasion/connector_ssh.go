@@ -4,6 +4,7 @@ import (
 	"aurago/internal/remote"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
@@ -65,6 +66,9 @@ func (c *SSHConnector) Validate(ctx context.Context, nest NestRecord, secret []b
 }
 
 func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
+	if key, err := hex.DecodeString(payload.MasterKey); err != nil || len(key) != 32 {
+		return fmt.Errorf("deployment requires a 32-byte hexadecimal master key")
+	}
 	baseDir, err := sshEggBaseDir(nest.ID)
 	if err != nil {
 		return err
@@ -96,10 +100,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 
 	// 3. Write config
 	remoteConfig := baseDir + "/config.yaml"
-	// Use base64 encoding to safely transfer config content without shell escaping issues
-	configB64 := base64.StdEncoding.EncodeToString(payload.ConfigYAML)
-	writeCmd := fmt.Sprintf("printf %%s %s | base64 -d > %s", shellQuote(configB64), shellPath(remoteConfig))
-	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
+	if err := writeSSHDeployFile(ctx, nest, secret, remoteConfig, payload.ConfigYAML); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -119,9 +120,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	// 5. Write vault if included
 	if payload.IncludeVault && len(payload.VaultData) > 0 {
 		remoteVault := baseDir + "/data/vault.enc"
-		// Write vault bytes via base64
-		vaultWriteCmd := fmt.Sprintf("printf %%s %s | base64 -d > %s", shellQuote(base64.StdEncoding.EncodeToString(payload.VaultData)), shellPath(remoteVault))
-		if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, vaultWriteCmd); err != nil {
+		if err := writeSSHDeployFile(ctx, nest, secret, remoteVault, payload.VaultData); err != nil {
 			return fmt.Errorf("failed to write vault: %w", err)
 		}
 	}
@@ -129,8 +128,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	// 6. Write master key to .env
 	envContent := fmt.Sprintf("AURAGO_MASTER_KEY=%s", payload.MasterKey)
 	envPath := baseDir + "/.env"
-	envCmd := fmt.Sprintf("printf '%%s\\n' %s > %s && chmod 600 %s", shellQuote(envContent), shellPath(envPath), shellPath(envPath))
-	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, envCmd); err != nil {
+	if err := writeSSHDeployFile(ctx, nest, secret, envPath, []byte(envContent+"\n")); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
 	}
 
@@ -139,6 +137,22 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 		return c.installService(ctx, nest, secret, baseDir)
 	}
 	return c.startProcess(ctx, nest, secret, baseDir)
+}
+
+func sshDeployFileScript(path string, data []byte) string {
+	// Only the fixed bash -s command is sent as an SSH exec argument. Payload
+	// bytes travel through stdin; mktemp/rename preserve the previous valid file.
+	return "set -eu\numask 077\n" +
+		"target=" + shellPath(path) + "\n" +
+		"tmp=$(mktemp \"${target}.tmp.XXXXXXXX\")\n" +
+		"trap 'rm -f -- \"$tmp\"' EXIT HUP INT TERM\n" +
+		"base64 -d > \"$tmp\" <<'AURAGO_DEPLOY_DATA'\n" + base64.StdEncoding.EncodeToString(data) + "\nAURAGO_DEPLOY_DATA\n" +
+		"chmod 600 -- \"$tmp\"\nmv -f -- \"$tmp\" \"$target\"\ntrap - EXIT HUP INT TERM\n"
+}
+
+func writeSSHDeployFile(ctx context.Context, nest NestRecord, secret []byte, path string, data []byte) error {
+	_, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "bash -s", strings.NewReader(sshDeployFileScript(path, data)))
+	return err
 }
 
 func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte) error {
@@ -270,10 +284,8 @@ func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret 
 		return fmt.Errorf("failed to stop egg for reconfigure: %w", err)
 	}
 
-	// 2. Write the new config via base64 to avoid shell escaping issues
-	configB64 := base64.StdEncoding.EncodeToString(configYAML)
-	writeCmd := fmt.Sprintf("printf %%s %s | base64 -d > %s", shellQuote(configB64), shellPath(remoteConfig))
-	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
+	// 2. Publish the private config through encrypted SSH stdin.
+	if err := writeSSHDeployFile(ctx, nest, secret, remoteConfig, configYAML); err != nil {
 		return fmt.Errorf("failed to write patched config: %w", err)
 	}
 

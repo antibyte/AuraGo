@@ -16,6 +16,7 @@ This package owns connection identity; server routes own HTTP/WebSocket acceptan
 - Private/loopback addresses never authenticate enrollment. Manual approval atomically replaces a pending observation with a fresh one-time token shown only to the administrator.
 - Disabling Remote Control blocks new actions and registration, cancels pending commands, closes sockets and drains the heartbeat monitor; shutdown does the same.
 - SSH TCP dialing and handshake have finite budgets; cancellation closes the transport throughout commands and SFTP. Agent local transfers use an explicit os.Root, protected-path/write grants, synced temporary downloads and atomic publication. Uploads require the server atomic-rename extension.
+- Secret-bearing deployment scripts use ExecuteRemoteCommand's optional stdin reader with a fixed command. Never embed Master keys, Vault bytes or encoded credentials in SSH exec arguments. Invasion publishes mode-0600 temporary files atomically as the configured SSH user; it does not escalate to root.
 - HTTP drain closes accepted sockets so remote handlers finish before DB shutdown.
 
 ## Work Guidance
