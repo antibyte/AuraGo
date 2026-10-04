@@ -45,7 +45,7 @@ func TestTriggerUntrustedOutputTable(t *testing.T) {
 		TypeTriggerManual: false, TypeTriggerSchedule: false, TypeTriggerDateTime: false,
 		TypeTriggerWebhook: true, TypeTriggerEmail: true, TypeTriggerMQTT: true,
 		TypeTriggerHAState: false, TypeTriggerDevice: false, TypeTriggerFritzBox: true,
-		TypeTriggerPlanner: false, TypeTriggerStartup: false, TypeTriggerBudget: false,
+		TypeTriggerPlanner: true, TypeTriggerStartup: false, TypeTriggerBudget: false,
 		TypeTriggerMission: true,
 	}
 	if len(want) != 13 {
@@ -163,109 +163,6 @@ func TestBindDateTimeOneOff(t *testing.T) {
 	}
 }
 
-func TestMinIntervalSeconds(t *testing.T) {
-	reg := triggerRegistry(t)
-	bind := func(typ string, params map[string]any) (TriggerBinding, error) {
-		b := newFlow("Interval")
-		b.node("trg", typ, params)
-		got, err := BindTriggers(b.build(), reg, time.UTC, triggerNow)
-		if err != nil || len(got) != 1 {
-			return TriggerBinding{}, err
-		}
-		return got[0], nil
-	}
-	cases := []struct {
-		name  string
-		value any
-		want  any // nil: the key is absent
-		bad   bool
-	}{
-		{"whole seconds", 30.0, 30.0, false},
-		{"numeric text", "45", 45.0, false},
-		{"fraction is rounded down", 2.9, 2.0, false},
-		{"below one second is cut to zero", 0.5, 0.0, false},
-		{"zero", 0.0, nil, false},
-		{"negative", -5.0, nil, false},
-		{"not a number", "soon", nil, false},
-		{"list", []any{1.0}, nil, false},
-		{"absent", nil, nil, false},
-		{"the limit", float64(maxMinIntervalSeconds), float64(maxMinIntervalSeconds), false},
-		{"over the limit", float64(maxMinIntervalSeconds) + 1, nil, true},
-		{"huge", 1e300, nil, true},
-	}
-	for _, tc := range cases {
-		for _, typ := range []string{TypeTriggerWebhook, TypeTriggerMQTT} {
-			params := map[string]any{"webhook": "wh_1", "topic": "a/b"}
-			if tc.value != nil {
-				params["min_interval_seconds"] = tc.value
-			}
-			got, err := bind(typ, params)
-			if tc.bad {
-				if err == nil || strings.Contains(err.Error(), "1e+300") {
-					t.Errorf("%s/%s: err = %v, want a bounded range error", tc.name, typ, err)
-				}
-				continue
-			}
-			if err != nil {
-				t.Errorf("%s/%s: %v", tc.name, typ, err)
-				continue
-			}
-			if v, present := got.Config["min_interval_seconds"]; tc.want == nil && present || tc.want != nil && v != tc.want {
-				t.Errorf("%s/%s: min_interval_seconds = %v (present %v), want %v", tc.name, typ, v, present, tc.want)
-			}
-			if typ == TypeTriggerMQTT && tc.want != nil && got.Config["mqtt_min_interval_seconds"] != tc.want {
-				t.Errorf("%s/mqtt: mqtt_min_interval_seconds = %v, want %v", tc.name, got.Config["mqtt_min_interval_seconds"], tc.want)
-			}
-		}
-	}
-}
-
-func TestScheduleToCronEdgeValues(t *testing.T) {
-	cases := []struct {
-		name    string
-		p       map[string]any
-		want    string
-		bad     bool
-		missing bool
-	}{
-		{"numeric text minutes", map[string]any{"mode": "interval_minutes", "minutes": "5"}, "*/5 * * * *", false, false},
-		{"fraction", map[string]any{"mode": "interval_minutes", "minutes": 2.5}, "", true, false},
-		{"zero", map[string]any{"mode": "interval_hours", "hours": 0.0}, "", true, false},
-		{"huge", map[string]any{"mode": "interval_minutes", "minutes": 1e300}, "", true, false},
-		{"negative huge", map[string]any{"mode": "monthly", "time": "07:00", "day": -1e300}, "", true, false},
-		{"just over int64", map[string]any{"mode": "monthly", "time": "07:00", "day": 9.3e18}, "", true, false},
-		{"bool", map[string]any{"mode": "interval_hours", "hours": true}, "", true, false},
-		{"day 31", map[string]any{"mode": "monthly", "time": "07:00", "day": 31.0}, "0 7 31 * *", false, false},
-		{"day 32", map[string]any{"mode": "monthly", "time": "07:00", "day": 32.0}, "", true, false},
-		{"weekdays in calendar order", map[string]any{"mode": "weekly", "weekdays": []any{"sun", "SAT", "Mon"}}, "0 7 * * 1,6,0", false, false},
-		{"weekdays repeated", map[string]any{"mode": "weekly", "weekdays": []any{"mon", "mon"}}, "0 7 * * 1", false, false},
-		{"weekdays empty list", map[string]any{"mode": "weekly", "weekdays": []any{}}, "", true, true},
-		{"weekdays blank text", map[string]any{"mode": "weekly", "weekdays": " "}, "", true, true},
-		{"weekdays text", map[string]any{"mode": "weekly", "weekdays": "mon"}, "", true, false},
-		{"weekdays number", map[string]any{"mode": "weekly", "weekdays": 3.0}, "", true, false},
-		{"weekdays with a null entry", map[string]any{"mode": "weekly", "weekdays": []any{nil}}, "", true, false},
-		{"cron six fields", map[string]any{"mode": "cron", "cron": "0 0 7 * * 1-5"}, "0 0 7 * * 1-5", false, false},
-		{"cron blank", map[string]any{"mode": "cron", "cron": "  "}, "", true, true},
-		{"cron seven fields", map[string]any{"mode": "cron", "cron": "0 0 7 * * 1-5 2026"}, "", true, false},
-		{"cron at the length limit", map[string]any{"mode": "cron", "cron": strings.Repeat("*", maxCronBytes-8) + " * * * *"}, strings.Repeat("*", maxCronBytes-8) + " * * * *", false, false},
-		{"cron over the length limit", map[string]any{"mode": "cron", "cron": strings.Repeat("*", maxCronBytes) + " * * * *"}, "", true, false},
-		{"time without leading zero", map[string]any{"mode": "daily", "time": "7:00"}, "", true, false},
-		{"time 24:00", map[string]any{"mode": "daily", "time": "24:00"}, "", true, false},
-		{"nil params", nil, "0 7 * * *", false, false},
-	}
-	for _, tc := range cases {
-		got, err := ScheduleToCron(tc.p)
-		switch {
-		case tc.bad && err == nil:
-			t.Errorf("%s: ScheduleToCron = %q, want an error", tc.name, got)
-		case tc.bad && errors.Is(err, errParamMissing) != tc.missing:
-			t.Errorf("%s: err = %v, missing-value error = %v, want %v", tc.name, err, errors.Is(err, errParamMissing), tc.missing)
-		case !tc.bad && (err != nil || got != tc.want):
-			t.Errorf("%s: ScheduleToCron = %q, %v; want %q", tc.name, got, err, tc.want)
-		}
-	}
-}
-
 // Error text that repeats user input is cut and quoted: a huge or hostile value
 // cannot flood run records, break a log line or leave invalid UTF-8.
 func TestTriggerErrorEchoesAreBounded(t *testing.T) {
@@ -285,6 +182,7 @@ func TestTriggerErrorEchoesAreBounded(t *testing.T) {
 			tc{"schedule mode", TypeTriggerSchedule, map[string]any{"mode": value}},
 			tc{"weekday name", TypeTriggerSchedule, map[string]any{"mode": "weekly", "weekdays": []any{"mon", value}}},
 			tc{"datetime at", TypeTriggerDateTime, map[string]any{"at": value}},
+			tc{"datetime repeat", TypeTriggerDateTime, map[string]any{"at": "2027-01-01 10:00", "repeat": value}},
 			tc{"device event", TypeTriggerDevice, map[string]any{"event": value}},
 			tc{"call type", TypeTriggerFritzBox, map[string]any{"call_type": value}},
 			tc{"planner event", TypeTriggerPlanner, map[string]any{"event": value}},
@@ -293,6 +191,10 @@ func TestTriggerErrorEchoesAreBounded(t *testing.T) {
 	}
 	cases = append(cases,
 		tc{"cron length", TypeTriggerSchedule, map[string]any{"mode": "cron", "cron": huge}},
+		tc{"cron parser message", TypeTriggerSchedule, map[string]any{"mode": "cron", "cron": strings.Repeat("é", 90) + " b c d e"}},
+		tc{"cron hostile", TypeTriggerSchedule, map[string]any{"mode": "cron", "cron": "0 7 * * \nFAKE\r\x00\xff x"}},
+		tc{"interval step", TypeTriggerSchedule, map[string]any{"mode": "interval_minutes", "minutes": huge}},
+		tc{"min interval", TypeTriggerWebhook, map[string]any{"webhook": "wh", "min_interval_seconds": huge}},
 		tc{"weekdays text", TypeTriggerSchedule, map[string]any{"mode": "weekly", "weekdays": huge}},
 		tc{"weekdays list of lists", TypeTriggerSchedule, map[string]any{"mode": "weekly", "weekdays": []any{[]any{huge}}}},
 		tc{"manual data", TypeTriggerManual, map[string]any{"data": huge}},

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -42,10 +41,6 @@ const (
 	// maxMinIntervalSeconds bounds min_interval_seconds. Mission Control keeps it as
 	// an int, and a value beyond a month only mutes the trigger for good.
 	maxMinIntervalSeconds = 30 * 24 * 3600
-
-	// maxCronBytes bounds a cron expression. Real ones have a few dozen characters;
-	// the expression is stored in a Mission Control schedule.
-	maxCronBytes = 200
 )
 
 // BindingKind says how a trigger node is armed.
@@ -172,20 +167,53 @@ func missionTriggerType(typ, icon string, untrusted bool, params []ParamSpec, co
 			return TriggerBinding{}, err
 		}
 		if set {
-			cfg["min_interval_seconds"] = v
+			cfg[intervalKey(mt)] = v
 		}
 		return TriggerBinding{NodeID: n.ID, Kind: BindingMission, MissionTrigger: mt, Config: cfg}, nil
 	}
 	return newTriggerType(typ, icon, untrusted, params, bind, staticSample(sample))
 }
 
+// intervalKey names the Mission Control field that holds the minimum interval of a
+// trigger type. MQTT has its own field and gets only that one: with the generic
+// throttle on top, every second message would be dropped.
+func intervalKey(missionTrigger string) string {
+	if missionTrigger == "mqtt_message" {
+		return "mqtt_min_interval_seconds"
+	}
+	return "min_interval_seconds"
+}
+
+// withEventSamples gives a trigger type a different sample per value of its "event"
+// parameter, so the editor's data tree and test runs show the fields of the event the
+// node waits for. The type's own sample stays the default: it is used when the event is
+// missing, blank, the default event or unknown. Samples are copied on every call.
+func withEventSamples(tt triggerType, byEvent map[string]map[string]any) triggerType {
+	fallback := tt.sample
+	tt.sample = func(n *Node) map[string]any {
+		if sample, ok := byEvent[textParam(n.Params, "event")]; ok {
+			return cloneJSONMap(sample)
+		}
+		return fallback(n)
+	}
+	return tt
+}
+
 // minIntervalSeconds reads the min_interval_seconds parameter as whole seconds. set is
-// false when the value is missing, not a number or not positive. A value over
-// maxMinIntervalSeconds is an error (Mission Control stores the field as an int, and
-// converting a huge float to int is implementation-defined).
+// false when the value is empty (missing, null, blank) or not positive. A value that
+// is not a number, or is over maxMinIntervalSeconds, is an error (Mission Control
+// stores the field as an int, and converting a huge float to int is
+// implementation-defined).
 func minIntervalSeconds(p map[string]any) (secs float64, set bool, err error) {
-	v, ok := toNumber(p["min_interval_seconds"])
-	if !ok || v <= 0 {
+	raw := p["min_interval_seconds"]
+	if isEmptyValue(raw) {
+		return 0, false, nil
+	}
+	v, ok := toNumber(raw)
+	if !ok {
+		return 0, false, errors.New("min_interval_seconds must be a number")
+	}
+	if v <= 0 {
 		return 0, false, nil
 	}
 	if v > maxMinIntervalSeconds {
@@ -209,7 +237,12 @@ func choose(p map[string]any, key, def string, allowed ...string) (string, error
 	return "", fmt.Errorf("%s has an unknown value %s", key, quoteForError(v))
 }
 
-const sampleTime = "2026-10-03T07:00:00Z"
+const (
+	sampleTime = "2026-10-03T07:00:00Z"
+
+	// defaultEmailFolder is the folder the email trigger watches when none is set.
+	defaultEmailFolder = "INBOX"
+)
 
 func buildTriggerTypes() []triggerType {
 	minInterval := ParamSpec{Name: "min_interval_seconds", Kind: ParamNumber, LabelKey: "easydrag.param.min_interval_seconds",
@@ -255,13 +288,17 @@ func buildTriggerTypes() []triggerType {
 			return "webhook", map[string]any{"webhook_id": id}, nil
 		}, map[string]any{"raw": `{"text":"Hallo"}`, "payload": map[string]any{"text": "Hallo"}}),
 		missionTriggerType(TypeTriggerEmail, "mail", true, []ParamSpec{
-			{Name: "folder", Kind: ParamText, LabelKey: "easydrag.param.email_folder", Default: "INBOX"},
+			{Name: "folder", Kind: ParamText, LabelKey: "easydrag.param.email_folder", Default: defaultEmailFolder},
 			{Name: "subject_contains", Kind: ParamText, LabelKey: "easydrag.param.email_subject_contains"},
 			{Name: "from_contains", Kind: ParamText, LabelKey: "easydrag.param.email_from_contains"},
 			minInterval,
 		}, func(p map[string]any) (string, map[string]any, error) {
+			folder := textParam(p, "folder")
+			if folder == "" {
+				folder = defaultEmailFolder
+			}
 			return "email_received", map[string]any{
-				"email_folder":           textParam(p, "folder"),
+				"email_folder":           folder,
 				"email_subject_contains": textParam(p, "subject_contains"),
 				"email_from_contains":    textParam(p, "from_contains"),
 			}, nil
@@ -275,15 +312,7 @@ func buildTriggerTypes() []triggerType {
 			if topic == "" {
 				return "", nil, fmt.Errorf("%w: topic", errParamMissing)
 			}
-			cfg := map[string]any{"mqtt_topic": topic, "mqtt_payload_contains": textParam(p, "payload_contains")}
-			v, set, err := minIntervalSeconds(p)
-			if err != nil {
-				return "", nil, err
-			}
-			if set {
-				cfg["mqtt_min_interval_seconds"] = v
-			}
-			return "mqtt_message", cfg, nil
+			return "mqtt_message", map[string]any{"mqtt_topic": topic, "mqtt_payload_contains": textParam(p, "payload_contains")}, nil
 		}, map[string]any{"topic": "home/door/state", "payload": `{"open":true}`, "json": map[string]any{"open": true}}),
 		missionTriggerType(TypeTriggerHAState, "home-signal", false, []ParamSpec{
 			{Name: "entity", Kind: ParamSelect, LabelKey: "easydrag.param.ha_entity", Required: true, OptionsSource: "ha_entities"},
@@ -296,7 +325,7 @@ func buildTriggerTypes() []triggerType {
 			}
 			return "home_assistant_state", map[string]any{"ha_entity_id": entity, "ha_state_equals": textParam(p, "state_equals")}, nil
 		}, map[string]any{"entity_id": "binary_sensor.door", "new_state": "on", "old_state": "off", "time": sampleTime}),
-		missionTriggerType(TypeTriggerDevice, "device-desktop", false, []ParamSpec{
+		withEventSamples(missionTriggerType(TypeTriggerDevice, "device-desktop", false, []ParamSpec{
 			{Name: "event", Kind: ParamSegmented, LabelKey: "easydrag.param.device_event", Default: "connected",
 				Options: []Option{option("connected", "device_connected"), option("disconnected", "device_disconnected")}},
 			{Name: "device_id", Kind: ParamText, LabelKey: "easydrag.param.device_id"},
@@ -308,6 +337,7 @@ func buildTriggerTypes() []triggerType {
 			}
 			return "device_" + event, map[string]any{"device_id": textParam(p, "device_id")}, nil
 		}, map[string]any{"event": "device_connected", "device_id": "dev-1", "device_name": "Laptop", "time": sampleTime}),
+			map[string]map[string]any{"disconnected": {"event": "device_disconnected", "device_id": "dev-1", "device_name": "Laptop", "time": sampleTime}}),
 		// The call summary carries the caller's number and display name, which the caller
 		// (or the network) chooses, so the output is untrusted.
 		missionTriggerType(TypeTriggerFritzBox, "phone-incoming", true, []ParamSpec{
@@ -324,7 +354,9 @@ func buildTriggerTypes() []triggerType {
 			}
 			return "fritzbox_call", map[string]any{"call_type": ct}, nil
 		}, map[string]any{"call_type": "call", "summary": "Anruf von 030 1234567", "time": sampleTime}),
-		missionTriggerType(TypeTriggerPlanner, "calendar-event", false, []ParamSpec{
+		// Titles come from the planner, which calendar sync and agent-written todos also fill,
+		// so the output is untrusted.
+		withEventSamples(missionTriggerType(TypeTriggerPlanner, "calendar-event", true, []ParamSpec{
 			{Name: "event", Kind: ParamSegmented, LabelKey: "easydrag.param.planner_event", Default: "appointment_due",
 				Options: []Option{option("appointment_due", "planner_appointment_due"), option("todo_overdue", "planner_todo_overdue")}},
 			{Name: "title_contains", Kind: ParamText, LabelKey: "easydrag.param.planner_title_contains"},
@@ -336,10 +368,11 @@ func buildTriggerTypes() []triggerType {
 			}
 			return "planner_" + event, map[string]any{"planner_title_contains": textParam(p, "title_contains")}, nil
 		}, map[string]any{"appointment_id": "apt-1", "title": "Zahnarzt", "date_time": "2026-10-05T09:00:00Z", "time": sampleTime}),
+			map[string]map[string]any{"todo_overdue": {"todo_id": "todo-1", "title": "Rechnung bezahlen", "due_date": "2026-10-02T17:00:00Z", "time": sampleTime}}),
 		missionTriggerType(TypeTriggerStartup, "power", false, nil,
 			func(map[string]any) (string, map[string]any, error) { return "system_startup", map[string]any{}, nil },
 			map[string]any{"event": "system_startup", "time": sampleTime}),
-		missionTriggerType(TypeTriggerBudget, "coin", false, []ParamSpec{
+		withEventSamples(missionTriggerType(TypeTriggerBudget, "coin", false, []ParamSpec{
 			{Name: "event", Kind: ParamSegmented, LabelKey: "easydrag.param.budget_event", Default: "warning",
 				Options: []Option{option("warning", "budget_warning"), option("exceeded", "budget_exceeded")}},
 		}, func(p map[string]any) (string, map[string]any, error) {
@@ -348,7 +381,8 @@ func buildTriggerTypes() []triggerType {
 				return "", nil, err
 			}
 			return "budget_" + event, map[string]any{}, nil
-		}, map[string]any{"event": "budget_warning", "spent_usd": 4.2, "limit_usd": 5.0, "percentage": 84.0, "time": sampleTime}),
+		}, map[string]any{"event": "budget_warning", "spent_usd": 4.2, "limit_usd": 5.0, "percentage": 0.84, "time": sampleTime}),
+			map[string]map[string]any{"exceeded": {"event": "budget_exceeded", "spent_usd": 5.3, "limit_usd": 5.0, "percentage": 1.06, "time": sampleTime}}),
 		// The output of the source mission is text an agent produced, possibly from web
 		// pages or mail, so it is as untrusted as the data the agent read.
 		missionTriggerType(TypeTriggerMission, "checks", true, []ParamSpec{
@@ -373,6 +407,11 @@ func buildTriggerTypes() []triggerType {
 // service when it re-arms, so a Feb 29 date fires only in leap years instead of drifting
 // to Mar 1.
 func bindDateTime(n *Node, loc *time.Location, now time.Time) (TriggerBinding, error) {
+	// Checked first, so a wrong repeat is reported even while the date is still missing.
+	repeat, err := choose(n.Params, "repeat", "none", "none", RepeatYearly)
+	if err != nil {
+		return TriggerBinding{}, err
+	}
 	raw := textParam(n.Params, "at")
 	if raw == "" {
 		return TriggerBinding{}, fmt.Errorf("%w: at", errParamMissing)
@@ -381,7 +420,7 @@ func bindDateTime(n *Node, loc *time.Location, now time.Time) (TriggerBinding, e
 	if !ok {
 		return TriggerBinding{}, fmt.Errorf("%s is not a date and time", quoteForError(raw))
 	}
-	if textParam(n.Params, "repeat") == RepeatYearly {
+	if repeat == RepeatYearly {
 		return TriggerBinding{NodeID: n.ID, Kind: BindingTimer, FireAt: nextYearly(at, now), Repeat: RepeatYearly}, nil
 	}
 	if !at.After(now) {
@@ -390,146 +429,12 @@ func bindDateTime(n *Node, loc *time.Location, now time.Time) (TriggerBinding, e
 	return TriggerBinding{NodeID: n.ID, Kind: BindingTimer, FireAt: at}, nil
 }
 
-var weekdayNumbers = []struct {
-	key string
-	num int
-}{{"mon", 1}, {"tue", 2}, {"wed", 3}, {"thu", 4}, {"fri", 5}, {"sat", 6}, {"sun", 0}}
-
-func scheduleParams() []ParamSpec {
-	when := func(modes ...string) *Visibility { return &Visibility{Param: "mode", Equals: modes} }
-	days := make([]Option, 0, len(weekdayNumbers))
-	for _, d := range weekdayNumbers {
-		days = append(days, option(d.key, "weekday_"+d.key))
-	}
-	return []ParamSpec{
-		{Name: "mode", Kind: ParamSelect, LabelKey: "easydrag.param.schedule_mode", Default: "daily", Options: []Option{
-			option("interval_minutes", "schedule_interval_minutes"), option("interval_hours", "schedule_interval_hours"),
-			option("daily", "schedule_daily"), option("weekdays", "schedule_weekdays"), option("weekly", "schedule_weekly"),
-			option("monthly", "schedule_monthly"), option("cron", "schedule_cron")}},
-		{Name: "minutes", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_minutes", Required: true, Default: 15.0, VisibleIf: when("interval_minutes")},
-		{Name: "hours", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_hours", Required: true, Default: 1.0, VisibleIf: when("interval_hours")},
-		{Name: "time", Kind: ParamText, LabelKey: "easydrag.param.schedule_time", Required: true, Default: "07:00", VisibleIf: when("daily", "weekdays", "weekly", "monthly")},
-		{Name: "weekdays", Kind: ParamMultiSelect, LabelKey: "easydrag.param.schedule_weekdays", Required: true, Options: days, VisibleIf: when("weekly")},
-		{Name: "day", Kind: ParamNumber, LabelKey: "easydrag.param.schedule_day", Required: true, Default: 1.0, VisibleIf: when("monthly")},
-		{Name: "cron", Kind: ParamCron, LabelKey: "easydrag.param.schedule_cron", Required: true, VisibleIf: when("cron")},
-	}
-}
-
-// ScheduleToCron converts schedule parameters into a cron expression. Missing values fall
-// back to the parameter defaults (daily at 07:00, every 15 minutes, every hour, day 1).
-// The parameters can be of any type; every echo of them in an error is cut.
-func ScheduleToCron(p map[string]any) (string, error) {
-	mode := textParam(p, "mode")
-	if mode == "" {
-		mode = "daily"
-	}
-	number := func(key string, def, lo, hi int) (int, error) {
-		v, present := p[key]
-		if !present || isEmptyValue(v) {
-			return def, nil
-		}
-		// Compare as floats: converting a huge float to int is implementation-defined.
-		f, ok := toNumber(v)
-		if !ok || f != math.Trunc(f) || f < float64(lo) || f > float64(hi) {
-			return 0, fmt.Errorf("%s must be a whole number from %d to %d", key, lo, hi)
-		}
-		return int(f), nil
-	}
-	switch mode {
-	case "interval_minutes":
-		n, err := number("minutes", 15, 1, 59)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("*/%d * * * *", n), nil
-	case "interval_hours":
-		n, err := number("hours", 1, 1, 23)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("0 */%d * * *", n), nil
-	case "daily", "weekdays", "weekly", "monthly":
-		clock := textParam(p, "time")
-		if clock == "" {
-			clock = "07:00"
-		}
-		m := clockPattern.FindStringSubmatch(clock)
-		if m == nil {
-			return "", fmt.Errorf("time must use the format HH:MM, got %s", quoteForError(clock))
-		}
-		hour, _ := strconv.Atoi(m[1])
-		minute, _ := strconv.Atoi(m[2])
-		switch mode {
-		case "daily":
-			return fmt.Sprintf("%d %d * * *", minute, hour), nil
-		case "weekdays":
-			return fmt.Sprintf("%d %d * * 1-5", minute, hour), nil
-		case "weekly":
-			days, err := weekdayList(p["weekdays"])
-			if err != nil {
-				return "", err
-			}
-			return fmt.Sprintf("%d %d * * %s", minute, hour, days), nil
-		default:
-			day, err := number("day", 1, 1, 31)
-			if err != nil {
-				return "", err
-			}
-			return fmt.Sprintf("%d %d %d * *", minute, hour, day), nil
-		}
-	case "cron":
-		text := textParam(p, "cron")
-		if len(text) > maxCronBytes {
-			return "", fmt.Errorf("a cron expression can be at most %d characters", maxCronBytes)
-		}
-		expr := strings.Join(strings.Fields(text), " ")
-		if expr == "" {
-			return "", fmt.Errorf("%w: cron", errParamMissing)
-		}
-		if n := len(strings.Fields(expr)); n != 5 && n != 6 {
-			return "", fmt.Errorf("a cron expression needs 5 or 6 fields, got %d", n)
-		}
-		return expr, nil
-	}
-	return "", fmt.Errorf("unknown schedule mode %s", quoteForError(mode))
-}
-
-// weekdayList turns the weekdays parameter (a list of mon..sun) into a cron day list
-// in Monday-to-Sunday order. An empty value counts as missing; anything else that is
-// not a list of known names is an error that names the first offender.
-func weekdayList(v any) (string, error) {
-	if isEmptyValue(v) {
-		return "", fmt.Errorf("%w: weekdays", errParamMissing)
-	}
-	list, ok := v.([]any)
-	if !ok {
-		return "", errors.New("weekdays must be a list of weekday names")
-	}
-	selected := map[string]bool{}
-	for _, item := range list {
-		name := strings.ToLower(Stringify(item))
-		known := false
-		for _, d := range weekdayNumbers {
-			if d.key == name {
-				known = true
-				break
-			}
-		}
-		if !known {
-			return "", fmt.Errorf("unknown weekday %s", quoteForError(name))
-		}
-		selected[name] = true
-	}
-	var parts []string
-	for _, d := range weekdayNumbers {
-		if selected[d.key] {
-			parts = append(parts, strconv.Itoa(d.num))
-		}
-	}
-	return strings.Join(parts, ","), nil
-}
-
 // BindTriggers returns the bindings of all enabled trigger nodes in document order.
+//
+// now decides whether a one-off date is still ahead and which yearly date comes next. A
+// zero now means the current time, like in Validate, and a nil loc means time.Local.
+// Callers should pass the same now (and loc) to Validate and BindTriggers, so that what
+// the editor accepted is what gets armed.
 func BindTriggers(f *Flow, reg *Registry, loc *time.Location, now time.Time) ([]TriggerBinding, error) {
 	if f == nil {
 		return nil, nil
@@ -539,6 +444,9 @@ func BindTriggers(f *Flow, reg *Registry, loc *time.Location, now time.Time) ([]
 	}
 	if loc == nil {
 		loc = time.Local
+	}
+	if now.IsZero() {
+		now = time.Now()
 	}
 	table := triggerTypes()
 	var out []TriggerBinding
