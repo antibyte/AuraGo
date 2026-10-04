@@ -96,7 +96,7 @@ func getFrigateClient(cfg FrigateConfig) *http.Client {
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: cfg.Insecure}
-	client := &http.Client{Timeout: 30 * time.Second, Transport: transport}
+	client := &http.Client{Timeout: 30 * time.Second, Transport: transport, CheckRedirect: security.SameOriginRedirect}
 	actual, _ := frigateClientCache.LoadOrStore(cacheKey, client)
 	return actual.(*http.Client)
 }
@@ -119,6 +119,9 @@ func frigateBaseURL(cfg FrigateConfig) (string, error) {
 	baseURL := strings.TrimRight(strings.TrimSpace(cfg.URL), "/")
 	if baseURL == "" {
 		return "", fmt.Errorf("frigate url is required")
+	}
+	if err := security.ValidateHTTPBaseURL(baseURL); err != nil {
+		return "", err
 	}
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
@@ -159,8 +162,8 @@ func frigateRequest(cfg FrigateConfig, method, path string) ([]byte, int, error)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		resp, err := getFrigateClient(cfg).Do(req.WithContext(ctx))
-		cancel()
 		if err != nil {
+			cancel()
 			lastErr = fmt.Errorf("request failed: %w", err)
 			if attempt < attempts {
 				time.Sleep(time.Duration(attempt) * 50 * time.Millisecond)
@@ -170,6 +173,7 @@ func frigateRequest(cfg FrigateConfig, method, path string) ([]byte, int, error)
 		}
 		data, readErr := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 		_ = resp.Body.Close()
+		cancel()
 		lastData = data
 		lastCode = resp.StatusCode
 		if readErr != nil {
@@ -496,10 +500,22 @@ func FrigateRecordingsSummary(cfg FrigateConfig, params FrigateMediaParams) stri
 
 // FrigateConfigRead reads Frigate config.
 func FrigateConfigRead(cfg FrigateConfig, raw bool) string {
+	path := "/api/config"
 	if raw {
-		return frigateGetJSON(cfg, "/api/config/raw")
+		path += "/raw"
 	}
-	return frigateGetJSON(cfg, "/api/config")
+	data, code, err := frigateRequest(cfg, http.MethodGet, path)
+	if err != nil {
+		return frigateJSONError("Frigate configuration request failed: %s", security.Scrub(err.Error()))
+	}
+	if code < 200 || code >= 300 {
+		return frigateJSONError("Frigate configuration returned HTTP %d", code)
+	}
+	redacted, err := redactFrigateConfig(data, raw)
+	if err != nil {
+		return frigateJSONError("Frigate configuration could not be safely redacted")
+	}
+	return string(redacted)
 }
 
 func firstNonEmptyString(values ...string) string {

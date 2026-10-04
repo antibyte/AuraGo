@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
 var threeDPrinterStreamHTTPClient = &http.Client{
+	CheckRedirect: security.SameOriginRedirect,
 	Transport: &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   10 * time.Second,
@@ -33,15 +35,21 @@ func handleThreeDPrinterTest(s *Server) http.HandlerFunc {
 		}
 		req := tools.ThreeDPrinterRequest{Operation: "test_connection"}
 		if r.Body != nil {
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil && err != io.EOF {
 				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
 				return
 			}
 		}
+		if req.Operation != "" && req.Operation != "test_connection" {
+			jsonError(w, "Only test_connection is supported by this endpoint", http.StatusBadRequest)
+			return
+		}
+		req.Operation = "test_connection"
 		w.Header().Set("Content-Type", "application/json")
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
-		cfg := tools.BuildThreeDPrinterRuntimeConfig(s.Cfg)
+		cfg := tools.BuildThreeDPrinterRuntimeConfig(s.ConfigSnapshot())
+		cfg.ReadOnly = true
 		if strings.TrimSpace(req.URL) != "" {
 			id := strings.TrimSpace(req.PrinterID)
 			if id == "" {

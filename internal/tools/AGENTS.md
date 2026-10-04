@@ -77,6 +77,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
 ### Integration state preservation
+- Frigate config/config_raw returns a conservative parsed projection: strings, unknown scalar fields and secret-bearing sections are redacted. Preserve only allowlisted numeric/boolean settings and structure. Unsupported YAML, aliases, duplicate keys or parse failures have no raw fallback; upstream error bodies never become config output. Frigate credentials and printer camera requests cannot follow foreign-origin redirects.
 - AdGuard filtering toggles must read and preserve the configured update interval; missing or malformed status forbids the write.
 - Mission webhook callbacks must be keyed by mission ID, replaced on trigger changes and removed on disable/delete/shutdown.
 - Uptime Kuma pollers inherit an owner context. Stop is terminal, cancels I/O and waits for completion; callbacks must not detach unbounded work.

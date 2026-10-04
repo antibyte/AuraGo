@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 
 	"github.com/gorilla/websocket"
 )
@@ -364,7 +365,7 @@ func FetchThreeDPrinterSnapshot(ctx context.Context, streamURL string) ([]byte, 
 	if err != nil {
 		return nil, "", fmt.Errorf("create snapshot request: %w", err)
 	}
-	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	resp, err := (&http.Client{Timeout: 20 * time.Second, CheckRedirect: security.SameOriginRedirect}).Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("fetch camera stream: %w", err)
 	}

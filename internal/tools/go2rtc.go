@@ -366,11 +366,9 @@ func (m *Go2RTCManager) Status(ctx context.Context) Go2RTCStatus {
 	owner := m.go2RTCOwner()
 	status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
 	if ctx != nil && cfg.Enabled {
-		tested, err := m.Test(ctx)
-		if err == nil {
-			status = tested
-			status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
-		}
+		tested, _ := m.Test(ctx)
+		status = tested
+		status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
 	}
 	return status
 }

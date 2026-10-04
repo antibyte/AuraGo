@@ -125,6 +125,7 @@ Server-owned HTTP and cross-component integration contracts.
   `TestSystemWorldVoice*` and `TestSystemWorldMemoryArtifacts*`.
 
 ### 3D Printer Integration Contract
+- `/api/3d-printers/test` is admin-only, accepts only `test_connection`, and executes with read-only runtime rights. Ad-hoc setup probes do not enable the saved integration. Printer snapshot/stream redirects remain at their initial HTTP origin.
 - The opt-in `builtin-printer` Desktop widget uses authenticated GET `/api/3d-printers/status`: without `printer_id` it lists only configured IDs/names and the default, with an explicit ID it executes only `status`. Disabled integration blocks reads. Camera expansion reuses the existing same-origin camera stream; widget polling never stores camera snapshots or invokes an LLM.
 - Elegoo SDCP status/attributes reads wait for a nonempty matching `Status`/`Attributes` snapshot (top-level or under `Data`), not a command ACK or unrelated push. Negative ACKs fail; the whole command shares one deadline and honors cancellation. Verify with `go test ./internal/tools -run 'Elegoo|ThreeDPrinter'`.
 - Klipper/Moonraker API keys are vault-only. Store them under per-printer keys derived from the printer ID (`three_d_printer_klipper_<sanitized-id>_api_key`); never serialize them into `config.yaml`, API config responses, or tool output.
@@ -132,6 +133,7 @@ Server-owned HTTP and cross-component integration contracts.
 - Camera snapshot and stream APIs must enforce `three_d_printers.enabled`. Klipper snapshots prefer Moonraker `snapshot_url`; live streams require a valid HTTP(S) `stream_url` on the configured printer host.
 
 ### go2rtc Integration Contract
+- A go2rtc status probe publishes and returns its current failure state; never reuse an earlier successful API status after a failed probe.
 - AuraGo manages only its own pinned go2rtc Docker sidecar. API/UI port 1984 is loopback-only for native AuraGo and Docker-internal for containerized AuraGo; RTSP port 8554 is never host-published.
 - Stream source URLs and the internal API password are Vault-only. Generated go2rtc configuration must contain neither sources nor plaintext credentials; inject enabled sources through the authenticated runtime stream API after startup.
 - Keep upstream go2rtc logging disabled because producer warnings can contain runtime source URLs. Bound snapshot memory and stored-media retention so viewer access cannot exhaust AuraGo memory or disk.

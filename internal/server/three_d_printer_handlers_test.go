@@ -12,12 +12,46 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"aurago/internal/config"
 
 	"github.com/gorilla/websocket"
 )
+
+func TestPrinterConnectionTestRejectsEveryOtherOperation(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1) }))
+	defer srv.Close()
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	for _, op := range []string{"start_print", "cancel_print", "set_camera_light", "camera_url", "status", "list_printers"} {
+		body := fmt.Sprintf(`{"operation":%q,"url":%q,"protocol":"klipper","filename":"fixture.gcode"}`, op, srv.URL)
+		w := httptest.NewRecorder()
+		handleThreeDPrinterTest(s)(w, httptest.NewRequest(http.MethodPost, "/api/3d-printers/test", strings.NewReader(body)))
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("operation %s accepted: %d", op, w.Code)
+		}
+	}
+	if calls.Load() != 0 || s.Cfg.ThreeDPrinters.Enabled {
+		t.Fatal("test mutated printer/configuration")
+	}
+}
+
+func TestPrinterStreamHTTPClientRejectsForeignRedirect(t *testing.T) {
+	var calls atomic.Int32
+	foreign := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1) }))
+	defer foreign.Close()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, foreign.URL, http.StatusFound) }))
+	defer srv.Close()
+	resp, err := threeDPrinterStreamHTTPClient.Get(srv.URL)
+	if resp != nil {
+		resp.Body.Close()
+	}
+	if err == nil || calls.Load() != 0 {
+		t.Fatal("camera proxy followed foreign redirect")
+	}
+}
 
 func TestHandleThreeDPrinterSnapshotStoresImageFromConfiguredPrinterHost(t *testing.T) {
 	imageServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
