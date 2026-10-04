@@ -14,14 +14,14 @@ import (
 // sequence in an edit shows up in TestNotifyTestConstants instead of silently
 // turning a test into one that proves nothing.
 const (
-	cr   = "\r"
-	lf   = "\n"
-	crlf = "\r\n"
-	nul  = "\x00"
+	notifyCR   = "\r"
+	notifyLF   = "\n"
+	notifyCRLF = "\r\n"
+	notifyNUL  = "\x00"
 )
 
 func TestNotifyTestConstants(t *testing.T) {
-	if !reflect.DeepEqual([]byte(crlf), []byte{13, 10}) || []byte(cr)[0] != 13 || []byte(lf)[0] != 10 || !reflect.DeepEqual([]byte(nul), []byte{0}) {
+	if !reflect.DeepEqual([]byte(notifyCRLF), []byte{13, 10}) || []byte(notifyCR)[0] != 13 || []byte(notifyLF)[0] != 10 || !reflect.DeepEqual([]byte(notifyNUL), []byte{0}) {
 		t.Fatal("an escape sequence in a test constant was mangled")
 	}
 }
@@ -38,18 +38,18 @@ func notifyAnswers(req ToolRequest) (ToolResponse, error) {
 	return ToolResponse{Output: notifyReplies[req.Tool], Status: "success"}, nil
 }
 
-// runNotify executes a notification node against tools that always succeed.
-func runNotify(t *testing.T, typ string, params map[string]any) (*fakeTools, ExecResult, error) {
+// notifyRun executes a notification node against tools that always succeed.
+func notifyRun(t *testing.T, typ string, params map[string]any) (*fakeTools, ExecResult, error) {
 	t.Helper()
 	tools := &fakeTools{respond: notifyAnswers}
 	res, err := execDef(lookupDef(t, notifyRegistry(t), typ), params, &Services{Tools: tools})
 	return tools, res, err
 }
 
-// wantInvalid fails unless err is a FLOW_PARAM_INVALID raised before any tool call,
+// notifyWantInvalid fails unless err is a FLOW_PARAM_INVALID raised before any tool call,
 // with a short, clean message that does not echo the value (echo, when it is long
 // enough to be telling).
-func wantInvalid(t *testing.T, label string, tools *fakeTools, err error, echo string) {
+func notifyWantInvalid(t *testing.T, label string, tools *fakeTools, err error, echo string) {
 	t.Helper()
 	ne := asNodeError(err)
 	switch {
@@ -59,19 +59,19 @@ func wantInvalid(t *testing.T, label string, tools *fakeTools, err error, echo s
 		t.Errorf("%s: code %s: %.100s", label, ne.Code, ne.Message)
 	case tools.count() != 0:
 		t.Errorf("%s: the tool was called", label)
-	case len(ne.Message) > maxEchoMessageBytes || !utf8.ValidString(ne.Message) || strings.ContainsAny(ne.Message, lf+cr+nul):
+	case len(ne.Message) > maxEchoMessageBytes || !utf8.ValidString(ne.Message) || strings.ContainsAny(ne.Message, notifyLF+notifyCR+notifyNUL):
 		t.Errorf("%s: unclean or long message %.100q", label, ne.Message)
 	case len(echo) >= 4 && strings.Contains(ne.Message, echo):
 		t.Errorf("%s: the message echoes the value: %q", label, ne.Message)
 	}
 }
 
-func echoOf(v any) string {
+func notifyEchoOf(v any) string {
 	s, _ := v.(string)
 	return strings.TrimSpace(s)
 }
 
-func addressList(n int) (list, normalized string) {
+func notifyAddressList(n int) (list, normalized string) {
 	var parts []string
 	for i := 1; i <= n; i++ {
 		parts = append(parts, fmt.Sprintf("u%d@x.de", i))
@@ -83,15 +83,15 @@ func addressList(n int) (list, normalized string) {
 // so only plain addresses pass: no display name, no angle brackets, no line break,
 // at most 20, and the text is normalised to "a, b".
 func TestEmailRecipientRules(t *testing.T) {
-	twenty, twentyNormal := addressList(20)
-	twentyOne, _ := addressList(21)
+	twenty, twentyNormal := notifyAddressList(20)
+	twentyOne, _ := notifyAddressList(21)
 	good := []struct {
 		name string
 		to   any
 		want string
 	}{
 		{"single", "a@b.de", "a@b.de"},
-		{"padded", " a@b.de" + lf, "a@b.de"},
+		{"padded", " a@b.de" + notifyLF, "a@b.de"},
 		{"two", "a@b.de,c@d.de", "a@b.de, c@d.de"},
 		{"blanks around commas", "a@b.de ,\tc@d.de ,  e@f.de", "a@b.de, c@d.de, e@f.de"},
 		{"plus and dots", "first.last+tag@sub.example.com", "first.last+tag@sub.example.com"},
@@ -99,7 +99,7 @@ func TestEmailRecipientRules(t *testing.T) {
 		{"twenty", twenty, twentyNormal},
 	}
 	for _, c := range good {
-		tools, res, err := runNotify(t, TypeEmail, map[string]any{"to": c.to, "body": "b"})
+		tools, res, err := notifyRun(t, TypeEmail, map[string]any{"to": c.to, "body": "b"})
 		if err != nil || res.Output["to"] != c.want || tools.last(t).Args["to"] != c.want {
 			t.Errorf("%s: err %v, output %v", c.name, err, res.Output)
 		}
@@ -113,16 +113,16 @@ func TestEmailRecipientRules(t *testing.T) {
 		{"display name", "Anna Blume <a@b.de>"}, {"angle brackets", "<a@b.de>"}, {"comment", "a@b.de (Anna)"},
 		{"quoted local part", `"a b"@c.de`}, {"quoted comma", `"a,b"@c.de`},
 		{"no at sign", "abc"}, {"two at signs", "a@@b.de"}, {"space inside", "a b@c.de"}, {"semicolon", "a@b.de;c@d.de"},
-		{"line feed and a header", "a@b.de" + lf + "Bcc: evil@x.de"}, {"crlf and a header", "a@b.de" + crlf + "Bcc: evil@x.de"},
-		{"carriage return", "a@b.de" + cr + "Bcc: evil@x.de"}, {"line feed after a comma", "a@b.de," + lf + "evil@x.de"},
-		{"nul", "a@b.de" + nul}, {"bell", "a@b.de\a"}, {"delete", "a@b.de\x7f"}, {"invalid utf-8", "a@b.de\xff"},
+		{"line feed and a header", "a@b.de" + notifyLF + "Bcc: evil@x.de"}, {"crlf and a header", "a@b.de" + notifyCRLF + "Bcc: evil@x.de"},
+		{"carriage return", "a@b.de" + notifyCR + "Bcc: evil@x.de"}, {"line feed after a comma", "a@b.de," + notifyLF + "evil@x.de"},
+		{"nul", "a@b.de" + notifyNUL}, {"bell", "a@b.de\a"}, {"delete", "a@b.de\x7f"}, {"invalid utf-8", "a@b.de\xff"},
 		{"address too long", strings.Repeat("a", 250) + "@b.de"},
 		{"twenty one", twentyOne}, {"huge list", strings.Repeat("a@b.de,", 1000)}, {"huge text", strings.Repeat("a", 1<<20)},
 		{"number", 5.0}, {"flag", true}, {"list", []any{"a@b.de"}}, {"object", map[string]any{"a": "b@c.de"}},
 	}
 	for _, c := range bad {
-		tools, _, err := runNotify(t, TypeEmail, map[string]any{"to": c.to, "body": "b"})
-		wantInvalid(t, "to "+c.name, tools, err, echoOf(c.to))
+		tools, _, err := notifyRun(t, TypeEmail, map[string]any{"to": c.to, "body": "b"})
+		notifyWantInvalid(t, "to "+c.name, tools, err, notifyEchoOf(c.to))
 	}
 }
 
@@ -140,8 +140,8 @@ func TestEmailHeaderFieldsRejectLineBreaks(t *testing.T) {
 		return p
 	}
 	attacks := []string{
-		"x" + crlf + "Bcc: evil@x.de", "x" + lf + "Bcc: evil@x.de", "x" + cr + "Bcc: evil@x.de",
-		"x" + nul + "evil", "x" + crlf + crlf + "evil body", crlf + "x" + lf + "y",
+		"x" + notifyCRLF + "Bcc: evil@x.de", "x" + notifyLF + "Bcc: evil@x.de", "x" + notifyCR + "Bcc: evil@x.de",
+		"x" + notifyNUL + "evil", "x" + notifyCRLF + notifyCRLF + "evil body", notifyCRLF + "x" + notifyLF + "y",
 	}
 	for _, field := range []string{"to", "subject", "account"} {
 		for i, attack := range attacks {
@@ -149,11 +149,11 @@ func TestEmailHeaderFieldsRejectLineBreaks(t *testing.T) {
 			if field == "to" {
 				value = "a@b.de," + attack
 			}
-			tools, _, err := runNotify(t, TypeEmail, with(field, value))
-			wantInvalid(t, fmt.Sprintf("%s attack %d", field, i), tools, err, "evil")
+			tools, _, err := notifyRun(t, TypeEmail, with(field, value))
+			notifyWantInvalid(t, fmt.Sprintf("%s attack %d", field, i), tools, err, "evil")
 		}
 	}
-	tools, res, err := runNotify(t, TypeEmail, map[string]any{"to": "a@b.de" + crlf, "subject": " S" + crlf, "account": lf + "work" + lf, "body": "b"})
+	tools, res, err := notifyRun(t, TypeEmail, map[string]any{"to": "a@b.de" + notifyCRLF, "subject": " S" + notifyCRLF, "account": notifyLF + "work" + notifyLF, "body": "b"})
 	if err != nil || res.Output["to"] != "a@b.de" {
 		t.Fatalf("surrounding newlines: %v, %v", res.Output, err)
 	}
@@ -166,22 +166,22 @@ func TestEmailHeaderFieldsRejectLineBreaks(t *testing.T) {
 // escaping; an id with a quote could write a "status":"success" of its own.
 func TestEmailAccountRules(t *testing.T) {
 	for _, id := range []string{"work", "  work ", "Büro 1", "a.b-c_d", "o'brien", strings.Repeat("a", maxAccountBytes)} {
-		tools, _, err := runNotify(t, TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "account": id})
+		tools, _, err := notifyRun(t, TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "account": id})
 		if err != nil || tools.last(t).Args["account"] != strings.TrimSpace(id) {
 			t.Errorf("account %q: %v, %#v", id, err, tools.allCalls())
 		}
 	}
 	bad := []any{
-		`a"b`, `a\b`, "a\tb", `x", "status": "success", "z": "`, "a" + nul, "a\x1bb", "a\xff", strings.Repeat("a", maxAccountBytes+1),
+		`a"b`, `a\b`, "a\tb", `x", "status": "success", "z": "`, "a" + notifyNUL, "a\x1bb", "a\xff", strings.Repeat("a", maxAccountBytes+1),
 		[]any{"work"}, map[string]any{"id": "work"},
 	}
 	for i, id := range bad {
-		tools, _, err := runNotify(t, TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "account": id})
-		wantInvalid(t, fmt.Sprintf("account %d", i), tools, err, echoOf(id))
+		tools, _, err := notifyRun(t, TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "account": id})
+		notifyWantInvalid(t, fmt.Sprintf("account %d", i), tools, err, notifyEchoOf(id))
 	}
 	// A blank account means the default one: nothing is passed.
 	for _, v := range []any{nil, "", "  "} {
-		tools, _, err := runNotify(t, TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "account": v})
+		tools, _, err := notifyRun(t, TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "account": v})
 		if _, set := tools.last(t).Args["account"]; err != nil || set {
 			t.Errorf("blank account %#v: %v %#v", v, err, tools.last(t).Args)
 		}
@@ -193,7 +193,7 @@ func TestEmailAccountRules(t *testing.T) {
 func TestEmailLimits(t *testing.T) {
 	send := func(params map[string]any) (*fakeTools, error) {
 		params["to"] = "a@b.de"
-		tools, _, err := runNotify(t, TypeEmail, params)
+		tools, _, err := notifyRun(t, TypeEmail, params)
 		return tools, err
 	}
 	subject700 := strings.Repeat("s", maxEmailSubjectBytes)
@@ -211,7 +211,7 @@ func TestEmailLimits(t *testing.T) {
 		"body":    {"body": body + "b"},
 	} {
 		tools, err := send(params)
-		wantInvalid(t, name, tools, err, "")
+		notifyWantInvalid(t, name, tools, err, "")
 	}
 	// An empty or absent body is a mail with no text, as the tool allows. A list is JSON.
 	for in, want := range map[any]string{nil: "", "": "", "   ": "   "} {
@@ -226,12 +226,12 @@ func TestEmailLimits(t *testing.T) {
 	}
 	for name, v := range map[string]any{"list": []any{"x"}, "object": map[string]any{}} {
 		tools, err := send(map[string]any{"body": "b", "subject": v})
-		wantInvalid(t, "subject "+name, tools, err, "")
+		notifyWantInvalid(t, "subject "+name, tools, err, "")
 	}
 	cyclic := map[string]any{}
 	cyclic["self"] = cyclic
 	tools, err = send(map[string]any{"body": cyclic})
-	wantInvalid(t, "body that cannot be encoded", tools, err, "")
+	notifyWantInvalid(t, "body that cannot be encoded", tools, err, "")
 }
 
 // Both attachment parameters take a path that the tool reads from the workspace. A
@@ -252,7 +252,7 @@ func TestAttachmentsAreBoundedAndNeverDropped(t *testing.T) {
 			for k, x := range c.base {
 				params[k] = x
 			}
-			return runNotify(t, c.typ, params)
+			return notifyRun(t, c.typ, params)
 		}
 		want := func(p string) any {
 			if c.typ == TypeEmail {
@@ -260,7 +260,7 @@ func TestAttachmentsAreBoundedAndNeverDropped(t *testing.T) {
 			}
 			return p
 		}
-		for name, v := range map[string]any{"text": "docs/a.pdf", "padded": " docs/a.pdf" + lf, "file object": FileRef("docs/a.pdf", "", "", "", 0), "object with extras": map[string]any{"path": "docs/a.pdf", "x": 1.0}} {
+		for name, v := range map[string]any{"text": "docs/a.pdf", "padded": " docs/a.pdf" + notifyLF, "file object": FileRef("docs/a.pdf", "", "", "", 0), "object with extras": map[string]any{"path": "docs/a.pdf", "x": 1.0}} {
 			if tools, _, err := run(v); err != nil || !reflect.DeepEqual(tools.last(t).Args[c.arg], want("docs/a.pdf")) {
 				t.Errorf("%s %s: %v, %#v", c.typ, name, err, tools.allCalls())
 			}
@@ -275,14 +275,14 @@ func TestAttachmentsAreBoundedAndNeverDropped(t *testing.T) {
 			}
 		}
 		bad := map[string]any{
-			"nul": "a" + nul + "b", "invalid utf-8": "a\xff", "too long": path4096 + "p",
+			"nul": "a" + notifyNUL + "b", "invalid utf-8": "a\xff", "too long": path4096 + "p",
 			"object without a path": map[string]any{"name": "a.pdf"}, "object with an empty path": map[string]any{"path": ""},
 			"object with a number": map[string]any{"path": 5.0}, "object with a list": map[string]any{"path": []any{"a"}},
 			"number": 5.0, "flag": true, "list": []any{"a.pdf"}, "huge": strings.Repeat("p", 1<<20),
 		}
 		for name, v := range bad {
 			tools, _, err := run(v)
-			wantInvalid(t, c.typ+" "+name, tools, err, echoOf(v))
+			notifyWantInvalid(t, c.typ+" "+name, tools, err, notifyEchoOf(v))
 		}
 	}
 }
@@ -358,7 +358,7 @@ func TestNotifySinkFlags(t *testing.T) {
 // there is none) and the tool does not split, so what does not fit is refused.
 func TestTelegramSizeLimit(t *testing.T) {
 	send := func(msg, title any) (*fakeTools, error) {
-		tools, _, err := runNotify(t, TypeTelegram, map[string]any{"message": msg, "title": title})
+		tools, _, err := notifyRun(t, TypeTelegram, map[string]any{"message": msg, "title": title})
 		return tools, err
 	}
 	ascii := func(n int) string { return strings.Repeat("m", n) }
@@ -385,18 +385,18 @@ func TestTelegramSizeLimit(t *testing.T) {
 			}
 			continue
 		}
-		wantInvalid(t, c.name, tools, err, "")
+		notifyWantInvalid(t, c.name, tools, err, "")
 	}
 	title250 := strings.Repeat("ä", maxNotifyTitleRunes)
 	if tools, err := send("m", title250); err != nil || tools.last(t).Args["title"] != title250 {
 		t.Errorf("a title at the limit: %v", err)
 	}
 	for name, title := range map[string]any{
-		"too long": title250 + "ä", "line feed": "a" + lf + "b", "crlf": "a" + crlf + "b", "tab": "a\tb", "nul": "a" + nul, "invalid utf-8": "a\xff",
+		"too long": title250 + "ä", "line feed": "a" + notifyLF + "b", "crlf": "a" + notifyCRLF + "b", "tab": "a\tb", "nul": "a" + notifyNUL, "invalid utf-8": "a\xff",
 		"list": []any{"t"}, "object": map[string]any{},
 	} {
 		tools, err := send("m", title)
-		wantInvalid(t, "title "+name, tools, err, echoOf(title))
+		notifyWantInvalid(t, "title "+name, tools, err, notifyEchoOf(title))
 	}
 	// An absent title is not passed, so the tool applies its own.
 	if tools, err := send("m", nil); err != nil || tools.last(t).Args["title"] != nil {
@@ -409,7 +409,7 @@ func TestPushRules(t *testing.T) {
 		if _, ok := params["message"]; !ok {
 			params["message"] = "m"
 		}
-		tools, _, err := runNotify(t, TypePush, params)
+		tools, _, err := notifyRun(t, TypePush, params)
 		return tools, err
 	}
 	msg := strings.Repeat("m", maxPushMessageBytes)
@@ -422,7 +422,7 @@ func TestPushRules(t *testing.T) {
 	}
 	for name, m := range map[string]any{"one byte over": msg + "m", "umlauts over": umlauts + "ä", "blank": " ", "nil": nil, "cyclic": func() any { c := map[string]any{}; c["x"] = c; return c }()} {
 		tools, err := send(map[string]any{"message": m})
-		wantInvalid(t, "message "+name, tools, err, "")
+		notifyWantInvalid(t, "message "+name, tools, err, "")
 	}
 
 	for in, want := range map[any]string{nil: "all", "": "all", "  ": "all", " NTFY ": "ntfy", "pushover": "pushover", "Web-Push_2": "web-push_2"} {
@@ -430,9 +430,9 @@ func TestPushRules(t *testing.T) {
 			t.Errorf("channel %#v: %v %#v", in, err, tools.last(t).Args)
 		}
 	}
-	for i, ch := range []any{"a b", "nt" + lf + "fy", `x"y`, "all;drop", "ü", strings.Repeat("a", maxChannelBytes+1), []any{"ntfy"}, 5.0, true} {
+	for i, ch := range []any{"a b", "nt" + notifyLF + "fy", `x"y`, "all;drop", "ü", strings.Repeat("a", maxChannelBytes+1), []any{"ntfy"}, 5.0, true} {
 		tools, err := send(map[string]any{"channel": ch})
-		wantInvalid(t, fmt.Sprintf("channel %d", i), tools, err, echoOf(ch))
+		notifyWantInvalid(t, fmt.Sprintf("channel %d", i), tools, err, notifyEchoOf(ch))
 	}
 
 	for in, want := range map[any]string{nil: "normal", "": "normal", "HIGH": "high", " critical ": "critical", "low": "low"} {
@@ -440,15 +440,15 @@ func TestPushRules(t *testing.T) {
 			t.Errorf("priority %#v: %v %#v", in, err, tools.last(t).Args)
 		}
 	}
-	for i, p := range []any{"urgent", "hi" + lf + "gh", 2.0, true, []any{"low"}} {
+	for i, p := range []any{"urgent", "hi" + notifyLF + "gh", 2.0, true, []any{"low"}} {
 		tools, err := send(map[string]any{"priority": p})
-		wantInvalid(t, fmt.Sprintf("priority %d", i), tools, err, echoOf(p))
+		notifyWantInvalid(t, fmt.Sprintf("priority %d", i), tools, err, notifyEchoOf(p))
 	}
 
 	// The title is an HTTP header (ntfy): one line only. Without one it is not passed.
-	for i, title := range []any{"a" + lf + "b", "a" + crlf + "X-Evil: 1", strings.Repeat("t", maxNotifyTitleRunes+1)} {
+	for i, title := range []any{"a" + notifyLF + "b", "a" + notifyCRLF + "X-Evil: 1", strings.Repeat("t", maxNotifyTitleRunes+1)} {
 		tools, err := send(map[string]any{"title": title})
-		wantInvalid(t, fmt.Sprintf("title %d", i), tools, err, "evil")
+		notifyWantInvalid(t, fmt.Sprintf("title %d", i), tools, err, "evil")
 	}
 	if tools, err := send(map[string]any{}); err != nil || tools.last(t).Args["title"] != nil {
 		t.Errorf("no title: %v %#v", err, tools.last(t).Args)
@@ -460,7 +460,7 @@ func TestDiscordRules(t *testing.T) {
 		if _, ok := params["message"]; !ok {
 			params["message"] = "m"
 		}
-		tools, _, err := runNotify(t, TypeDiscord, params)
+		tools, _, err := notifyRun(t, TypeDiscord, params)
 		return tools, err
 	}
 	id20 := strings.Repeat("9", maxDiscordIDDigits)
@@ -475,20 +475,20 @@ func TestDiscordRules(t *testing.T) {
 		}
 	}
 	// A number is floating point in a flow and loses the lower digits of an id.
-	for i, id := range []any{id20 + "9", "12a", "-1", "1.5", "1e3", `1", "status": "success`, "1" + lf + "2", "١٢٣", 123.0, 1.2345678901234568e17, 7, true, []any{"1"}} {
+	for i, id := range []any{id20 + "9", "12a", "-1", "1.5", "1e3", `1", "status": "success`, "1" + notifyLF + "2", "١٢٣", 123.0, 1.2345678901234568e17, 7, true, []any{"1"}} {
 		tools, err := send(map[string]any{"channel_id": id})
-		wantInvalid(t, fmt.Sprintf("channel id %d", i), tools, err, echoOf(id))
+		notifyWantInvalid(t, fmt.Sprintf("channel id %d", i), tools, err, notifyEchoOf(id))
 	}
 	// Discord takes 2000 characters and the tool splits longer text; the node stops at 8000.
 	long := strings.Repeat("ä", maxDiscordMessageRunes)
 	if tools, err := send(map[string]any{"message": long}); err != nil || tools.last(t).Args["message"] != long {
 		t.Errorf("a message at the limit: %v", err)
 	}
-	for name, m := range map[string]any{"one over": long + "ä", "blank": " " + lf, "nil": nil, "list that is empty": []any{}} {
+	for name, m := range map[string]any{"one over": long + "ä", "blank": " " + notifyLF, "nil": nil, "list that is empty": []any{}} {
 		tools, err := send(map[string]any{"message": m})
-		wantInvalid(t, "message "+name, tools, err, "")
+		notifyWantInvalid(t, "message "+name, tools, err, "")
 	}
-	if tools, _, err := runNotify(t, TypeDiscord, map[string]any{"message": []any{"a", map[string]any{"b": 1.0}}}); err != nil ||
+	if tools, _, err := notifyRun(t, TypeDiscord, map[string]any{"message": []any{"a", map[string]any{"b": 1.0}}}); err != nil ||
 		tools.last(t).Args["message"] != `["a",{"b":1}]` {
 		t.Errorf("a structured message is sent as JSON: %v", err)
 	}
@@ -499,9 +499,61 @@ func TestNotifyOutputsAreJSON(t *testing.T) {
 	for typ, params := range map[string]map[string]any{
 		TypeTelegram: {"message": "m"}, TypeEmail: {"to": "a@b.de", "body": "b"}, TypePush: {"message": "m"}, TypeDiscord: {"message": "m"},
 	} {
-		_, res, err := runNotify(t, typ, params)
+		_, res, err := notifyRun(t, typ, params)
 		if _, jsonErr := json.Marshal(res.Output); err != nil || jsonErr != nil || res.Output["sent"] != true {
 			t.Errorf("%s: %v %v %v", typ, err, jsonErr, res.Output)
 		}
+	}
+}
+
+// The limits are numbers the real tools and channels dictate. The other tests use the
+// constants, so a constant that drifts would still pass them: pin each limit to its
+// literal, one below or at the limit passes and one over fails.
+func TestNotifyLimitsAreTheDocumentedNumbers(t *testing.T) {
+	rep := func(s string, n int) string { return strings.Repeat(s, n) }
+	to20, _ := notifyAddressList(20)
+	to21, _ := notifyAddressList(21)
+	cases := []struct {
+		name   string
+		typ    string
+		params map[string]any
+		ok     bool
+	}{
+		// Telegram: 4096 UTF-16 units for "AuraGo" + newline + message, so 4089 and not 4090.
+		{"telegram 4089", TypeTelegram, map[string]any{"message": rep("m", 4089)}, true},
+		{"telegram 4090", TypeTelegram, map[string]any{"message": rep("m", 4090)}, false},
+		{"telegram title 250", TypeTelegram, map[string]any{"message": "m", "title": rep("t", 250)}, true},
+		{"telegram title 251", TypeTelegram, map[string]any{"message": "m", "title": rep("t", 251)}, false},
+		{"telegram file 4096", TypeTelegram, map[string]any{"message": "m", "file": rep("p", 4096)}, true},
+		{"telegram file 4097", TypeTelegram, map[string]any{"message": "m", "file": rep("p", 4097)}, false},
+		// Email: a subject of 700 bytes, 20 recipients, a body of 64 KiB.
+		{"subject 700", TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "subject": rep("s", 700)}, true},
+		{"subject 701", TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "subject": rep("s", 701)}, false},
+		{"20 recipients", TypeEmail, map[string]any{"to": to20, "body": "b"}, true},
+		{"21 recipients", TypeEmail, map[string]any{"to": to21, "body": "b"}, false},
+		{"body 64 KiB", TypeEmail, map[string]any{"to": "a@b.de", "body": rep("b", 65536)}, true},
+		{"body 64 KiB + 1", TypeEmail, map[string]any{"to": "a@b.de", "body": rep("b", 65537)}, false},
+		{"attachment 4096", TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "attachment": rep("p", 4096)}, true},
+		{"attachment 4097", TypeEmail, map[string]any{"to": "a@b.de", "body": "b", "attachment": rep("p", 4097)}, false},
+		// Push: 4096 bytes, a title of 250 characters.
+		{"push 4096", TypePush, map[string]any{"message": rep("m", 4096)}, true},
+		{"push 4097", TypePush, map[string]any{"message": rep("m", 4097)}, false},
+		{"push title 250", TypePush, map[string]any{"message": "m", "title": rep("t", 250)}, true},
+		{"push title 251", TypePush, map[string]any{"message": "m", "title": rep("t", 251)}, false},
+		// Discord: 8000 characters, a channel id of 20 digits.
+		{"discord 8000", TypeDiscord, map[string]any{"message": rep("m", 8000)}, true},
+		{"discord 8001", TypeDiscord, map[string]any{"message": rep("m", 8001)}, false},
+		{"discord id 20", TypeDiscord, map[string]any{"message": "m", "channel_id": rep("7", 20)}, true},
+		{"discord id 21", TypeDiscord, map[string]any{"message": "m", "channel_id": rep("7", 21)}, false},
+	}
+	for _, c := range cases {
+		tools, _, err := notifyRun(t, c.typ, c.params)
+		if c.ok {
+			if err != nil || tools.count() != 1 {
+				t.Errorf("%s: refused: %v", c.name, err)
+			}
+			continue
+		}
+		notifyWantInvalid(t, c.name, tools, err, "")
 	}
 }

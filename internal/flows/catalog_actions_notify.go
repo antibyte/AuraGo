@@ -22,34 +22,37 @@ func registerNotifyNodes(reg *Registry, env CatalogEnv) error {
 	return nil
 }
 
-// notificationFailure reports an error when no channel of a send_notification-style
-// answer sent the message. One sent channel is a success even when others failed
-// (they are all in the results the node returns). Only the status "sent" counts as
-// sent: an entry with any other status, or one that is not even an object, did not
-// send. An answer with no results at all is not judged here (callers have checked the
-// status already; the real tools always list their channels). The message is the
-// channels' own text, cleaned and bounded by notifyText; it is not wrapped in quotes,
-// so that a plain "chat not found" stays "chat not found".
-func notificationFailure(out map[string]any) error {
-	raw, present := out["results"]
-	if !present || raw == nil {
-		return nil
+// notificationResults reads the channels of a send_notification-style answer and
+// fails when none of them sent the message. One sent channel is a success even when
+// others failed (all channels are in the results it returns). Only the status "sent"
+// counts as sent: an entry with any other status, or one that is not even an object,
+// did not send.
+//
+// The answer must list at least one channel. send_telegram and send_notification both
+// run tools.SendNotification, which always lists the channels it tried, so a success
+// without results is not a send the node can vouch for: FLOW_TOOL_ERROR ("listed no
+// channel"), the same code every other answer that does not confirm a send gets.
+// The failure message is the channels' own text, cleaned and bounded by notifyText;
+// it is not wrapped in quotes, so that a plain "chat not found" stays "chat not found".
+func notificationResults(out map[string]any) ([]notifyResult, error) {
+	if out["results"] == nil {
+		return nil, NewNodeError("FLOW_TOOL_ERROR", "the notification tool listed no channel")
 	}
 	results, isList := notifyResults(out)
 	if !isList {
-		return NewNodeError("FLOW_NOTIFY_FAILED", "the notification tool returned a result list that cannot be read")
+		return nil, NewNodeError("FLOW_NOTIFY_FAILED", "the notification tool returned a result list that cannot be read")
 	}
 	if len(results) == 0 {
-		return nil
+		return nil, NewNodeError("FLOW_TOOL_ERROR", "the notification tool listed no channel")
 	}
 	var failed []string
 	for _, r := range results {
 		if r.sent() {
-			return nil
+			return results, nil
 		}
 		failed = append(failed, firstNonEmpty(r.detail, r.channel, r.status, "a channel failed"))
 	}
-	return &NodeError{Code: "FLOW_NOTIFY_FAILED", Message: truncateRunes(strings.Join(failed, "; "), maxToolMessageRunes)}
+	return nil, &NodeError{Code: "FLOW_NOTIFY_FAILED", Message: truncateRunes(strings.Join(failed, "; "), maxToolMessageRunes)}
 }
 
 // requiredText is the trimmed text of a parameter, or FLOW_PARAM_INVALID with msg
@@ -83,8 +86,11 @@ func notifyDef(typ, icon, tool string, env CatalogEnv) *NodeDef {
 //
 // Known limit, for the tool invoker (plan 1c): today send_telegram reads only message,
 // title and priority and drops file_path without a word, so a file is not sent. The
-// invoker has to send it (the send_document tool takes a path) or refuse the call;
-// the node cannot tell from the answer.
+// send_document tool is no substitute: it copies a file into data/documents for the
+// chat UI and sends nothing to Telegram, and the repository has no Telegram
+// document-send code at all. Plan 1c has to add a Telegram sendDocument helper and
+// route file_path to it, or refuse the call; until then the file is dropped, and the
+// node cannot tell from the answer.
 func telegramDef(env CatalogEnv) *NodeDef {
 	def := notifyDef(TypeTelegram, "brand-telegram", "send_telegram", env)
 	def.PrimaryInput = "message"
@@ -127,7 +133,7 @@ func telegramDef(env CatalogEnv) *NodeDef {
 		if err := requireSuccess(out, "Telegram tool"); err != nil {
 			return ExecResult{}, err
 		}
-		if err := notificationFailure(out); err != nil {
+		if _, err := notificationResults(out); err != nil {
 			return ExecResult{}, err
 		}
 		return ExecResult{Output: map[string]any{"sent": true}}, nil
@@ -256,11 +262,11 @@ func pushDef(env CatalogEnv) *NodeDef {
 		if err := requireSuccess(out, "notification tool"); err != nil {
 			return ExecResult{}, err
 		}
-		if err := notificationFailure(out); err != nil {
+		entries, err := notificationResults(out)
+		if err != nil {
 			return ExecResult{}, err
 		}
 		results := []any{}
-		entries, _ := notifyResults(out)
 		for _, r := range entries {
 			entry := map[string]any{"channel": r.channel, "status": r.status}
 			if r.detail != "" {

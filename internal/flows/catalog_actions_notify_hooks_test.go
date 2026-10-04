@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 )
 
-func entry(channel, status, detail string) map[string]any {
+func notifyEntry(channel, status, detail string) map[string]any {
 	m := map[string]any{"channel": channel, "status": status}
 	if detail != "" {
 		m["detail"] = detail
@@ -20,13 +20,19 @@ func entry(channel, status, detail string) map[string]any {
 	return m
 }
 
-func failureOf(results ...any) error {
-	return notificationFailure(map[string]any{"status": "success", "results": results})
+func notifyFailureOf(results ...any) error {
+	_, err := notificationResults(map[string]any{"status": "success", "results": results})
+	return err
+}
+
+func notifyResultsError(out map[string]any) error {
+	_, err := notificationResults(out)
+	return err
 }
 
 const (
-	botToken = "bot123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
-	topicURL = `https://ntfy.sh/secret-topic-1234`
+	notifyBotToken = "bot123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
+	notifyTopicURL = `https://ntfy.sh/secret-topic-1234`
 )
 
 // A send_notification answer lists every channel. One that sent is enough; if none
@@ -40,63 +46,64 @@ func TestNotificationFailureMessages(t *testing.T) {
 			t.Errorf("%s: %v", label, err)
 			return
 		}
-		if strings.ContainsAny(ne.Message, lf+cr+nul+"\x1b\t") || !utf8.ValidString(ne.Message) || utf8.RuneCountInString(ne.Message) > maxToolMessageRunes+1 {
+		if strings.ContainsAny(ne.Message, notifyLF+notifyCR+notifyNUL+"\x1b\t") || !utf8.ValidString(ne.Message) || utf8.RuneCountInString(ne.Message) > maxToolMessageRunes+1 {
 			t.Errorf("%s: unclean message %.100q", label, ne.Message)
 		}
 	}
-	wantFailure("one failure", failureOf(entry("telegram", "error", "chat not found")), "chat not found")
-	wantFailure("two failures", failureOf(entry("ntfy", "error", "ntfy down"), entry("push", "error", "push off")), "ntfy down; push off")
-	wantFailure("no detail", failureOf(entry("ntfy", "error", "")), "ntfy")
-	wantFailure("only a status", failureOf(map[string]any{"status": "error"}), "error")
-	wantFailure("an empty entry", failureOf(map[string]any{}), "a channel failed")
-	wantFailure("a status that is not sent", failureOf(entry("ntfy", "queued", "")), "ntfy")
-	wantFailure("entries that are no objects", failureOf("x", 5.0, nil), "a channel failed; a channel failed; a channel failed")
-	wantFailure("a list that is not one", notificationFailure(map[string]any{"results": "ok"}), "")
-	wantFailure("an object instead of a list", notificationFailure(map[string]any{"results": map[string]any{"status": "sent"}}), "")
+	wantFailure("one failure", notifyFailureOf(notifyEntry("telegram", "error", "chat not found")), "chat not found")
+	wantFailure("two failures", notifyFailureOf(notifyEntry("ntfy", "error", "ntfy down"), notifyEntry("push", "error", "push off")), "ntfy down; push off")
+	wantFailure("no detail", notifyFailureOf(notifyEntry("ntfy", "error", "")), "ntfy")
+	wantFailure("only a status", notifyFailureOf(map[string]any{"status": "error"}), "error")
+	wantFailure("an empty entry", notifyFailureOf(map[string]any{}), "a channel failed")
+	wantFailure("a status that is not sent", notifyFailureOf(notifyEntry("ntfy", "queued", "")), "ntfy")
+	wantFailure("entries that are no objects", notifyFailureOf("x", 5.0, nil), "a channel failed; a channel failed; a channel failed")
+	wantFailure("a list that is not one", notifyResultsError(map[string]any{"results": "ok"}), "")
+	wantFailure("an object instead of a list", notifyResultsError(map[string]any{"results": map[string]any{"status": "sent"}}), "")
 
 	// Partial success and the lenient cases.
 	for name, results := range map[string][]any{
-		"one of two":      {entry("ntfy", "error", "down"), entry("push", "sent", "")},
-		"upper case":      {entry("ntfy", "SENT", "")},
-		"padded":          {entry("ntfy", " sent ", "")},
-		"sent after fail": {entry("a", "error", "x"), entry("b", "error", "y"), entry("c", "sent", "")},
+		"one of two":      {notifyEntry("ntfy", "error", "down"), notifyEntry("push", "sent", "")},
+		"upper case":      {notifyEntry("ntfy", "SENT", "")},
+		"padded":          {notifyEntry("ntfy", " sent ", "")},
+		"sent after fail": {notifyEntry("a", "error", "x"), notifyEntry("b", "error", "y"), notifyEntry("c", "sent", "")},
 	} {
-		if err := failureOf(results...); err != nil {
+		if err := notifyFailureOf(results...); err != nil {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
+	// An answer that lists no channel confirms nothing: FLOW_TOOL_ERROR, not a send.
 	for name, out := range map[string]map[string]any{
-		"absent": {"status": "success"}, "null": {"results": nil}, "empty list": {"results": []any{}},
+		"absent": {"status": "success"}, "null": {"results": nil}, "empty list": {"results": []any{}}, "nil list": {"results": []any(nil)},
 	} {
-		if err := notificationFailure(out); err != nil {
-			t.Errorf("%s: %v", name, err)
+		if ne := asNodeError(notifyResultsError(out)); ne == nil || ne.Code != "FLOW_TOOL_ERROR" || ne.Message != "the notification tool listed no channel" {
+			t.Errorf("%s: %v", name, ne)
 		}
 	}
 
 	// Cleaning.
-	wantFailure("control characters", failureOf(entry("t", "error", "line1"+lf+"line2\x1b[31m"+crlf+"\tx"+nul)), "line1 line2 [31m x")
-	wantFailure("a hostile channel and status", failureOf(map[string]any{"channel": "a" + lf + "b", "status": "ERROR" + cr}), "a b")
-	long := failureOf(entry("t", "error", strings.Repeat("x", 10000)))
+	wantFailure("control characters", notifyFailureOf(notifyEntry("t", "error", "line1"+notifyLF+"line2\x1b[31m"+notifyCRLF+"\tx"+notifyNUL)), "line1 line2 [31m x")
+	wantFailure("a hostile channel and status", notifyFailureOf(map[string]any{"channel": "a" + notifyLF + "b", "status": "ERROR" + notifyCR}), "a b")
+	long := notifyFailureOf(notifyEntry("t", "error", strings.Repeat("x", 10000)))
 	wantFailure("a huge detail", long, "")
 	if n := utf8.RuneCountInString(asNodeError(long).Message); n != maxNotifyDetailText+1 {
 		t.Errorf("a huge detail is %d runes", n)
 	}
-	wantFailure("invalid utf-8", failureOf(entry("t", "error", "a\xffb")), "a"+replacementRune+"b")
+	wantFailure("invalid utf-8", notifyFailureOf(notifyEntry("t", "error", "a\xffb")), "a"+replacementRune+"b")
 	var many []any
 	for i := 0; i < 30; i++ {
-		many = append(many, entry("c", "error", strings.Repeat("d", 100)))
+		many = append(many, notifyEntry("c", "error", strings.Repeat("d", 100)))
 	}
-	wantFailure("many failures", failureOf(many...), "")
+	wantFailure("many failures", notifyFailureOf(many...), "")
 
 	// A failed HTTP call carries its URL, and the URL a Telegram bot token or a ntfy topic.
-	wantFailure("an HTTP error", failureOf(entry("ntfy", "error", `ntfy request failed: Post "`+topicURL+`": dial tcp: lookup ntfy.sh: no such host`)),
+	wantFailure("an HTTP error", notifyFailureOf(notifyEntry("ntfy", "error", `ntfy request failed: Post "`+notifyTopicURL+`": dial tcp: lookup ntfy.sh: no such host`)),
 		`ntfy request failed: Post "[url]": dial tcp: lookup ntfy.sh: no such host`)
 	for name, detail := range map[string]string{
-		"a URL that is cut off": `telegram request failed: Post "https://api.telegram.org/` + botToken + `/sendMes`,
-		"a bare token":          `bad url https://api.telegram.org/` + botToken + `/sendMessage`,
-		"a Get":                 `Get "https://api.telegram.org/` + botToken + `/getMe": EOF`,
+		"a URL that is cut off": `telegram request failed: Post "https://api.telegram.org/` + notifyBotToken + `/sendMes`,
+		"a bare token":          `bad url https://api.telegram.org/` + notifyBotToken + `/sendMessage`,
+		"a Get":                 `Get "https://api.telegram.org/` + notifyBotToken + `/getMe": EOF`,
 	} {
-		err := failureOf(entry("telegram", "error", detail))
+		err := notifyFailureOf(notifyEntry("telegram", "error", detail))
 		wantFailure(name, err, "")
 		if msg := asNodeError(err).Message; strings.Contains(msg, "AAHdq") || strings.Contains(msg, "123456789") {
 			t.Errorf("%s: the token is in %q", name, msg)
@@ -107,9 +114,9 @@ func TestNotificationFailureMessages(t *testing.T) {
 // The push node returns the channels' entries; what it returns is cleaned the same way.
 func TestPushResultsAreCleaned(t *testing.T) {
 	var entries []any
-	entries = append(entries, entry("ntfy"+lf, "SENT", ""), entry("push", "error", `Post "`+topicURL+`": `+strings.Repeat("e", 500)), "junk", entry("c", "error", "a"+crlf+"b"))
+	entries = append(entries, notifyEntry("ntfy"+notifyLF, "SENT", ""), notifyEntry("push", "error", `Post "`+notifyTopicURL+`": `+strings.Repeat("e", 500)), "junk", notifyEntry("c", "error", "a"+notifyCRLF+"b"))
 	for i := 0; i < 30; i++ {
-		entries = append(entries, entry(fmt.Sprintf("c%d", i), "error", "x"))
+		entries = append(entries, notifyEntry(fmt.Sprintf("c%d", i), "error", "x"))
 	}
 	raw, err := json.Marshal(map[string]any{"status": "success", "results": entries})
 	if err != nil {
@@ -169,7 +176,7 @@ func TestNotifyFailsClosed(t *testing.T) {
 			tools := &fakeTools{respond: func(ToolRequest) (ToolResponse, error) { return resp, nil }}
 			res, err := execDef(def, p, &Services{Tools: tools})
 			ne := asNodeError(err)
-			if ne == nil || ne.Code != "FLOW_TOOL_ERROR" || res.Output != nil || len(ne.Message) > maxEchoMessageBytes || strings.ContainsAny(ne.Message, lf+cr) {
+			if ne == nil || ne.Code != "FLOW_TOOL_ERROR" || res.Output != nil || len(ne.Message) > maxEchoMessageBytes || strings.ContainsAny(ne.Message, notifyLF+notifyCR) {
 				t.Errorf("%s %s: %v, output %v", typ, name, err, res.Output)
 			}
 		}
@@ -223,20 +230,20 @@ func TestNotifyValidate(t *testing.T) {
 		{"email bare", TypeEmail, map[string]any{}, nil},
 		{"email templates", TypeEmail, map[string]any{"to": "{{trigger.data.to}}", "subject": "Re: {{trigger.data.s}}", "account": "{{trigger.data.a}}", "attachment": "{{trigger.data.f}}", "body": "{{trigger.data.b}}"}, nil},
 		{"email bad address", TypeEmail, map[string]any{"to": "Anna <a@b.de>"}, []string{"to"}},
-		{"email header injection", TypeEmail, map[string]any{"to": "a@b.de", "subject": "S" + crlf + "Bcc: evil@x.de", "account": "w" + lf + "x"}, []string{"subject", "account"}},
+		{"email header injection", TypeEmail, map[string]any{"to": "a@b.de", "subject": "S" + notifyCRLF + "Bcc: evil@x.de", "account": "w" + notifyLF + "x"}, []string{"subject", "account"}},
 		{"email recipient list too long", TypeEmail, map[string]any{"to": strings.Repeat("a@b.de,", 21) + "a@b.de"}, []string{"to"}},
 		{"email account with a quote", TypeEmail, map[string]any{"account": `a"b`}, []string{"account"}},
-		{"email attachment", TypeEmail, map[string]any{"attachment": "a" + nul}, []string{"attachment"}},
+		{"email attachment", TypeEmail, map[string]any{"attachment": "a" + notifyNUL}, []string{"attachment"}},
 		{"email body too large", TypeEmail, map[string]any{"body": long(maxEmailBodyBytes + 1)}, []string{"body"}},
 		{"email wrong types", TypeEmail, map[string]any{"to": []any{"a@b.de"}, "subject": map[string]any{"a": "b"}, "account": []any{"w"}}, []string{"to", "subject", "account"}},
 		{"email empty wrong types", TypeEmail, map[string]any{"subject": map[string]any{}, "account": []any{}}, nil},
 		{"telegram fine", TypeTelegram, map[string]any{"message": "m", "title": "t", "file": "a.pdf"}, nil},
 		{"telegram too long", TypeTelegram, map[string]any{"message": long(telegramTextLimit)}, []string{"message"}},
-		{"telegram title", TypeTelegram, map[string]any{"message": "m", "title": "a" + lf + "b"}, []string{"title"}},
+		{"telegram title", TypeTelegram, map[string]any{"message": "m", "title": "a" + notifyLF + "b"}, []string{"title"}},
 		{"telegram file", TypeTelegram, map[string]any{"file": map[string]any{"name": "x"}}, []string{"file"}},
 		{"telegram templates", TypeTelegram, map[string]any{"message": "{{trigger.data.m}}", "title": "{{trigger.data.t}}", "file": "{{trigger.data.f}}"}, nil},
 		{"push fine", TypePush, map[string]any{"message": "m", "channel": "ntfy", "priority": "high"}, nil},
-		{"push bad", TypePush, map[string]any{"message": long(maxPushMessageBytes + 1), "channel": "a b", "priority": "urgent", "title": "a" + lf}, []string{"channel", "message", "priority"}},
+		{"push bad", TypePush, map[string]any{"message": long(maxPushMessageBytes + 1), "channel": "a b", "priority": "urgent", "title": "a" + notifyLF}, []string{"channel", "message", "priority"}},
 		{"push templates", TypePush, map[string]any{"message": "{{x.y}}", "channel": "{{x.c}}", "priority": "{{x.p}}"}, nil},
 		{"discord fine", TypeDiscord, map[string]any{"message": "m", "channel_id": "123"}, nil},
 		{"discord bad", TypeDiscord, map[string]any{"message": long(maxDiscordMessageRunes + 1), "channel_id": "12a"}, []string{"message", "channel_id"}},
@@ -254,7 +261,7 @@ func TestNotifyValidate(t *testing.T) {
 		for _, is := range def.Validate(node, ValidateContext{Mode: ModePublish}) {
 			got = append(got, is.Param)
 			if is.Code != IssueParamInvalid || is.Severity != SeverityError || is.NodeID != node.ID || !declared[is.Param] ||
-				len(is.Message) > maxEchoMessageBytes || strings.ContainsAny(is.Message, lf+cr) || strings.Contains(is.Message, "evil") {
+				len(is.Message) > maxEchoMessageBytes || strings.ContainsAny(is.Message, notifyLF+notifyCR) || strings.Contains(is.Message, "evil") {
 				t.Errorf("%s: bad issue %+v", c.name, is)
 			}
 		}
@@ -280,9 +287,9 @@ func TestNotifyValidate(t *testing.T) {
 	}
 }
 
-// checkNotifyArgs describes what is wrong with the arguments a notification tool got,
+// notifyCheckArgs describes what is wrong with the arguments a notification tool got,
 // or "". Whatever the parameters were, the tool only sees bounded, well formed values.
-func checkNotifyArgs(c ToolRequest) string {
+func notifyCheckArgs(c ToolRequest) string {
 	text := func(key string) (string, bool) { s, ok := c.Args[key].(string); return s, ok || c.Args[key] == nil }
 	str := func(key string) string { s, _ := text(key); return s }
 	for key := range c.Args {
@@ -290,7 +297,7 @@ func checkNotifyArgs(c ToolRequest) string {
 			return "argument " + key + " is not text"
 		}
 	}
-	if p := str("file_path"); len(p) > maxFilePathBytes || strings.Contains(p, nul) || !utf8.ValidString(p) {
+	if p := str("file_path"); len(p) > maxFilePathBytes || strings.Contains(p, notifyNUL) || !utf8.ValidString(p) {
 		return "bad file_path"
 	}
 	switch c.Tool {
@@ -310,9 +317,12 @@ func checkNotifyArgs(c ToolRequest) string {
 				return "a recipient is not a plain address"
 			}
 		}
-		if list, ok := c.Args["attachments"].([]any); c.Args["attachments"] != nil {
-			p, _ := func() (string, bool) { s, isText := list[0].(string); return s, isText }()
-			if !ok || len(list) != 1 || len(p) == 0 || len(p) > maxFilePathBytes || strings.Contains(p, nul) || !utf8.ValidString(p) {
+		if raw := c.Args["attachments"]; raw != nil {
+			list, ok := raw.([]any)
+			if !ok || len(list) != 1 {
+				return "bad attachments"
+			}
+			if p, _ := list[0].(string); len(p) == 0 || len(p) > maxFilePathBytes || strings.Contains(p, notifyNUL) || !utf8.ValidString(p) {
 				return "bad attachments"
 			}
 		}
@@ -352,7 +362,7 @@ func TestNotifyHooksSurviveOddParams(t *testing.T) {
 	var failures []string
 	fail := func(format string, args ...any) { failures = append(failures, fmt.Sprintf(format, args...)) }
 	clean := func(msg string) bool {
-		return len(msg) <= maxEchoMessageBytes && utf8.ValidString(msg) && !strings.ContainsAny(msg, lf+cr+nul)
+		return len(msg) <= maxEchoMessageBytes && utf8.ValidString(msg) && !strings.ContainsAny(msg, notifyLF+notifyCR+notifyNUL)
 	}
 	runs := 0
 
@@ -412,7 +422,7 @@ func TestNotifyHooksSurviveOddParams(t *testing.T) {
 			if _, err := json.Marshal(c.Args); err != nil || len(c.AllowedTools) != 1 || c.AllowedTools[0] != c.Tool || c.Tool != def.Tool {
 				fail("%s: malformed tool request %v: %+v", label, err, c.Tool)
 			}
-			if problem := checkNotifyArgs(c); problem != "" {
+			if problem := notifyCheckArgs(c); problem != "" {
 				fail("%s: %s", label, problem)
 			}
 		}
@@ -461,5 +471,34 @@ func TestNotifyHooksSurviveOddParams(t *testing.T) {
 			failures = append(failures[:15], fmt.Sprintf("... and %d more", len(failures)-15))
 		}
 		t.Fatalf("%d of %d combinations failed:\n%s", len(failures), runs, strings.Join(failures, "\n"))
+	}
+}
+
+// send_telegram and send_notification both run SendNotification, which always lists the
+// channels it tried. A success without a list confirms no send: it fails closed, for
+// the telegram and the push node alike (the push node would otherwise report
+// "sent" and an empty result list).
+func TestNotifyNeedsAListedChannel(t *testing.T) {
+	for _, typ := range []string{TypeTelegram, TypePush} {
+		def := lookupDef(t, notifyRegistry(t), typ)
+		for name, reply := range map[string]string{
+			"no results":    `Tool Output: {"status":"success"}`,
+			"null results":  `Tool Output: {"status":"success","results":null}`,
+			"empty results": `Tool Output: {"status":"success","results":[]}`,
+		} {
+			tools := &fakeTools{respond: toolReply(reply)}
+			res, err := execDef(def, map[string]any{"message": "m"}, &Services{Tools: tools})
+			ne := asNodeError(err)
+			if ne == nil || ne.Code != "FLOW_TOOL_ERROR" || !strings.Contains(ne.Message, "listed no channel") || res.Output != nil || tools.count() != 1 {
+				t.Errorf("%s %s: %v, output %v", typ, name, err, res.Output)
+			}
+		}
+	}
+	// Email and Discord answer with a message, not a channel list.
+	for typ, params := range map[string]map[string]any{TypeEmail: {"to": "a@b.de", "body": "b"}, TypeDiscord: {"message": "m"}} {
+		tools := &fakeTools{respond: toolReply(`Tool Output: {"status":"success"}`)}
+		if res, err := execDef(lookupDef(t, notifyRegistry(t), typ), params, &Services{Tools: tools}); err != nil || res.Output["sent"] != true {
+			t.Errorf("%s: %v", typ, err)
+		}
 	}
 }
