@@ -64,11 +64,11 @@ func tplExpressions(t *testing.T, f *Flow) []string {
 func tplShipped(key string) string {
 	switch key {
 	case "easydrag.template.appointment_reminder.text_1":
-		return "Reminder: {{trigger.data.title}} ({{trigger.data.date_time}})"
+		return `Reminder: {{trigger.data.title}} ({{trigger.data.date_time | date("DD.MM.YYYY HH:mm")}})`
 	case "easydrag.template.budget_guard.text_1":
 		return "AI budget warning"
 	case "easydrag.template.budget_guard.text_2":
-		return "{{trigger.data.percentage}} % of the daily budget is used."
+		return "{{trigger.data.spent_usd | round(2)}} of {{trigger.data.limit_usd | round(2)}} USD of the daily budget are used."
 	}
 	return key
 }
@@ -85,8 +85,9 @@ func TestTemplateTextsMayHoldExpressions(t *testing.T) {
 		want      []string
 	}{
 		{"appointment_reminder", "appointment_due",
-			[]string{"telegram.message: trigger.data.title", "telegram.message: trigger.data.date_time"}},
-		{"budget_guard", "warning", []string{"push.message: trigger.data.percentage"}},
+			[]string{"telegram.message: trigger.data.title", `telegram.message: trigger.data.date_time | date("DD.MM.YYYY HH:mm")`}},
+		{"budget_guard", "warning",
+			[]string{"push.message: trigger.data.spent_usd | round(2)", "push.message: trigger.data.limit_usd | round(2)"}},
 	} {
 		f := tplBuild(t, tc.id, tplShipped)
 		if got := tplExpressions(t, f); !reflect.DeepEqual(got, tc.want) {
@@ -141,7 +142,7 @@ func TestTemplateReferencesNameRealFields(t *testing.T) {
 		min  int // the expressions the walk must see
 	}{
 		{"keys as texts", tplIdentity, 9},
-		{"shipped texts", tplShipped, 12}, // three more, in the reminder and the budget message
+		{"shipped texts", tplShipped, 13}, // four more, in the reminder and the budget message
 	} {
 		tplCheckReferences(t, reg, tc.name, tc.tr, tc.min, known, triggerOutput)
 	}

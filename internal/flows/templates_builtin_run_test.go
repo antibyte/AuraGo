@@ -241,22 +241,33 @@ func TestStarterTemplatesRun(t *testing.T) {
 
 	// The texts of plan 1c read the trigger data. The data is what Mission Control sends
 	// (NotifyPlannerAppointmentDue and NotifyBudgetEvent in internal/tools/missions_v2.go).
+	// The date filter shows a date in the zone of the flow (UTC here), whatever zone the
+	// string carries.
 	t.Run("appointment_reminder with the shipped text", func(t *testing.T) {
-		data := NormalizeTriggerData("planner_appointment_due",
-			`{"appointment_id":"apt-7","title":"Dentist","date_time":"2026-10-05T09:00:00Z","time":"2026-10-05T08:00:00Z"}`)
-		o := tplRun(t, "appointment_reminder", tplShipped, nil, data)
-		tplWant(t, "message", o.call(t, "send_telegram")["message"], "Reminder: Dentist (2026-10-05T09:00:00Z)")
+		for _, tc := range []struct{ dateTime, want string }{
+			{"2026-10-05T09:00:00Z", "Reminder: Dentist (05.10.2026 09:00)"},
+			{"2026-10-05T09:00:00+02:00", "Reminder: Dentist (05.10.2026 07:00)"},
+		} {
+			data := NormalizeTriggerData("planner_appointment_due",
+				`{"appointment_id":"apt-7","title":"Dentist","date_time":"`+tc.dateTime+`","time":"2026-10-05T08:00:00Z"}`)
+			o := tplRun(t, "appointment_reminder", tplShipped, nil, data)
+			tplWant(t, "message for "+tc.dateTime, o.call(t, "send_telegram")["message"], tc.want)
+		}
 	})
 
-	// percentage is the share of the daily limit as a ratio (spent/limit, 0.84 for 84 %), as
-	// the budget tracker reports it, so the shipped text reads "0.84 %" for a warning at 84 %.
+	// round(2) rounds half away from zero and prints no trailing zeros: 4.2367 is 4.24 and 5 is 5.
 	t.Run("budget_guard with the shipped text", func(t *testing.T) {
-		data := NormalizeTriggerData("budget_warning",
-			`{"event":"budget_warning","spent_usd":4.2,"limit_usd":5,"percentage":0.84,"time":"2026-10-03T07:00:00Z"}`)
-		o := tplRun(t, "budget_guard", tplShipped, nil, data)
-		push := o.call(t, "send_notification")
-		tplWant(t, "title", push["title"], "AI budget warning")
-		tplWant(t, "message", push["message"], "0.84 % of the daily budget is used.")
+		for _, tc := range []struct{ spent, limit, want string }{
+			{"8.4", "10", "8.4 of 10 USD of the daily budget are used."},
+			{"4.2367", "5.0", "4.24 of 5 USD of the daily budget are used."},
+		} {
+			data := NormalizeTriggerData("budget_warning",
+				`{"event":"budget_warning","spent_usd":`+tc.spent+`,"limit_usd":`+tc.limit+`,"percentage":0.84,"time":"2026-10-03T07:00:00Z"}`)
+			o := tplRun(t, "budget_guard", tplShipped, nil, data)
+			push := o.call(t, "send_notification")
+			tplWant(t, "title", push["title"], "AI budget warning")
+			tplWant(t, "message for "+tc.spent+"/"+tc.limit, push["message"], tc.want)
+		}
 	})
 
 	t.Run("rss_digest", func(t *testing.T) {
