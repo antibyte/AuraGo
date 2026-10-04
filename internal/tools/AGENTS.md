@@ -24,6 +24,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Verify with `go test ./internal/tools -run TestNewspaperBundled`.
 
 ### Security Egress and Host Execution
+- Local Ansible performs effective context-bound shell/unsafe-host checks at the execution point, including check, status, inventory and facts. Preserve the selected sandbox and filtered environment. Stage bounded, rooted playbook snapshots and static inventories before execution; no absolute-path or executable-inventory bypass. SSH host-key checking defaults on. Verify `TestAnsibleLocalOperationsRequireEffectiveShellGrant` and `TestAnsibleInputsSnapshotAndRejectUncontrolledPaths`.
 - Process termination requires the shell grant and a live process handle owned by the background registry; never terminate an arbitrary PID. Listing and statistics retain their read behavior.
 - Dependency installation is host code execution. Provisioning and reuse pass the run context and effective Python/shell/unsafe-host gates before venv creation or pip. Accept package requirements only, rejecting URLs, paths, pip flags and requirements files. Prepared shell/native skills follow the selected shell sandbox; service operations use bounded foreground execution and filtered environments.
 - Cast staging reads through `OpenToolInputFile`, publishes unique synced snapshots, and issues a ticket for that exact basename. A later upload must not replace bytes reachable through an older ticket.

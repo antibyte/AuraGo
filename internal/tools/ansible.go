@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -323,7 +324,7 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 	// Build environment variables
 	env := []string{
 		"PORT=5001",
-		"ANSIBLE_HOST_KEY_CHECKING=False",
+		"ANSIBLE_HOST_KEY_CHECKING=True",
 	}
 	if sidecarCfg.Token != "" {
 		env = append(env, "ANSIBLE_API_TOKEN="+sidecarCfg.Token)
@@ -482,6 +483,8 @@ func ansibleSSHDir() string {
 
 // AnsibleLocalConfig holds settings for direct (non-sidecar) ansible execution.
 type AnsibleLocalConfig struct {
+	Context          context.Context
+	WorkDir          string
 	PlaybooksDir     string // directory containing playbook files
 	DefaultInventory string // default inventory file path
 	Timeout          int    // max seconds per command (default 300)
@@ -508,26 +511,50 @@ func ansibleLocalResult(stdout, stderr string, err error) string {
 }
 
 // ansibleRunCmd executes a command with a timeout and returns stdout, stderr, and error.
-func ansibleRunCmd(timeout int, name string, args ...string) (string, string, error) {
-	if timeout <= 0 {
-		timeout = 300
+func ansibleRunCmd(cfg AnsibleLocalConfig, name string, args ...string) (string, string, error) {
+	ctx := cfg.Context
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	if err := requireShellPermissionContext(ctx); err != nil {
+		return "", "", err
+	}
+	perms, _ := EffectiveRuntimePermissions(ctx)
+	sb := sandbox.Get()
+	if !sb.Available() && !perms.AllowUnsafeHostExecution {
+		return "", "", fmt.Errorf("local Ansible requires agent.allow_unsafe_host_execution when no sandbox is available")
+	}
+	if sb.Name() == "blocked" {
+		return "", "", fmt.Errorf("required shell sandbox is unavailable")
+	}
+	if !sb.Available() {
+		slog.Warn("Unsafe host execution authorized", "kind", "ansible")
+	}
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = 300
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(cfg.Timeout)*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, name, args...)
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	err := cmd.Run()
-	if ctx.Err() == context.DeadlineExceeded {
-		return outBuf.String(), errBuf.String(), fmt.Errorf("command timed out after %ds", timeout)
+	staging, stagedArgs, err := stageAnsibleInputs(ctx, cfg, name, args)
+	if err != nil {
+		return "", "", err
 	}
-	return outBuf.String(), errBuf.String(), err
+	defer os.RemoveAll(staging)
+	binary, err := exec.LookPath(name)
+	if err != nil {
+		return "", "", err
+	}
+	cmd := sb.PrepareExecCommand(binary, stagedArgs, staging)
+	ensureFilteredEnv(cmd)
+	cmd.Env = append(cmd.Env, "ANSIBLE_HOST_KEY_CHECKING=True", "ANSIBLE_CONFIG="+filepath.Join(staging, "_safe.cfg"), "ANSIBLE_INVENTORY_ENABLED=ini,yaml")
+	SetupCmd(cmd)
+	runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: time.Duration(cfg.Timeout) * time.Second, Graceful: true, KillWait: shellKillWait})
+	return runner.Run(ctx)
 }
 
 // AnsibleLocalStatus returns ansible and ansible-playbook version information.
 func AnsibleLocalStatus(cfg AnsibleLocalConfig) string {
-	stdout, stderr, err := ansibleRunCmd(30, "ansible", "--version")
+	stdout, stderr, err := ansibleRunCmd(cfg, "ansible", "--version")
 	return ansibleLocalResult(stdout, stderr, err)
 }
 
@@ -572,7 +599,7 @@ func AnsibleLocalListInventory(cfg AnsibleLocalConfig, inventoryPath string) str
 	if inv != "" {
 		args = append(args, "-i", inv)
 	}
-	stdout, stderr, err := ansibleRunCmd(cfg.Timeout, "ansible-inventory", args...)
+	stdout, stderr, err := ansibleRunCmd(cfg, "ansible-inventory", args...)
 	return ansibleLocalResult(stdout, stderr, err)
 }
 
@@ -589,7 +616,7 @@ func AnsibleLocalPing(cfg AnsibleLocalConfig, hosts, inventoryPath string) strin
 	if inv != "" {
 		args = append(args, "-i", inv)
 	}
-	stdout, stderr, err := ansibleRunCmd(cfg.Timeout, "ansible", args...)
+	stdout, stderr, err := ansibleRunCmd(cfg, "ansible", args...)
 	return ansibleLocalResult(stdout, stderr, err)
 }
 
@@ -616,7 +643,7 @@ func AnsibleLocalAdhoc(cfg AnsibleLocalConfig, hosts, module, moduleArgs, invent
 		b, _ := json.Marshal(extraVars)
 		args = append(args, "--extra-vars", string(b))
 	}
-	stdout, stderr, err := ansibleRunCmd(cfg.Timeout, "ansible", args...)
+	stdout, stderr, err := ansibleRunCmd(cfg, "ansible", args...)
 	return ansibleLocalResult(stdout, stderr, err)
 }
 
@@ -625,18 +652,8 @@ func AnsibleLocalRunPlaybook(cfg AnsibleLocalConfig, playbook, inventoryPath, li
 	if playbook == "" {
 		return `{"status":"error","message":"playbook name is required"}`
 	}
-	// Resolve playbook path
 	playbookPath := playbook
-	if cfg.PlaybooksDir != "" && !filepath.IsAbs(playbook) {
-		playbookPath = filepath.Join(cfg.PlaybooksDir, playbook)
-		base := filepath.Clean(cfg.PlaybooksDir) + string(os.PathSeparator)
-		if !strings.HasPrefix(filepath.Clean(playbookPath)+string(os.PathSeparator), base) {
-			return `{"status":"error","message":"playbook path escapes the configured playbooks directory"}`
-		}
-	}
-	if _, statErr := os.Stat(playbookPath); statErr != nil {
-		return fmt.Sprintf(`{"status":"error","message":"playbook not found: %s"}`, playbookPath)
-	}
+
 	inv := inventoryPath
 	if inv == "" {
 		inv = cfg.DefaultInventory
@@ -664,7 +681,7 @@ func AnsibleLocalRunPlaybook(cfg AnsibleLocalConfig, playbook, inventoryPath, li
 	if diff {
 		args = append(args, "--diff")
 	}
-	stdout, stderr, err := ansibleRunCmd(cfg.Timeout, "ansible-playbook", args...)
+	stdout, stderr, err := ansibleRunCmd(cfg, "ansible-playbook", args...)
 	return ansibleLocalResult(stdout, stderr, err)
 }
 
@@ -681,7 +698,7 @@ func AnsibleLocalGatherFacts(cfg AnsibleLocalConfig, hosts, inventoryPath string
 	if inv != "" {
 		args = append(args, "-i", inv)
 	}
-	stdout, stderr, err := ansibleRunCmd(cfg.Timeout, "ansible", args...)
+	stdout, stderr, err := ansibleRunCmd(cfg, "ansible", args...)
 	// Truncate large fact output to 8 KB to match sidecar behavior and avoid
 	// overwhelming the context window.
 	if len(stdout) > 8192 {
