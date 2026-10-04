@@ -10,6 +10,9 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- MCP connection tests require enabled MCP gates, test only the selected server and bind Vault aliases to its saved launch configuration. The automatic Dograh client grants private access only to the managed service's exact origin. Local/Docker stdio observes shell, sandbox, unsafe-host and Docker mutation grants at launch.
+- The incoming MCP endpoint checks Host against configured names/local addresses independently of Origin. Configure server.host or server.https.domain for an external name. Never resolve a request-supplied hostname as authority. MCP sessions are random, signed, expire after 24 hours and bind to the authenticated credential; stateless requests get independent sessions. The MCP allowlist is a hard scope for direct, wrapped and ask_aurago calls; enabling the IDE preset must not widen an explicitly selected list.
+
 - Integration connection tests bind stored credentials to saved targets. A Dograh target override requires an explicit credential. YepAPI tests accept POST only, use the saved base URL and read the free model catalog; they never create a paid search or claim that a public catalog proves key validity.
 
 ### HTTP trust and shutdown boundaries

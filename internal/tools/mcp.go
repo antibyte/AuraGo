@@ -28,24 +28,26 @@ import (
 
 // MCPServerConfig describes one MCP server from the config.
 type MCPServerConfig struct {
-	Name                string            `yaml:"name"                     json:"name"`
-	Transport           string            `yaml:"transport,omitempty"      json:"transport"`
-	URL                 string            `yaml:"url,omitempty"            json:"url"`
-	Headers             map[string]string `yaml:"headers,omitempty"        json:"headers"`
-	Command             string            `yaml:"command"                  json:"command"`
-	Args                []string          `yaml:"args"                     json:"args"`
-	Env                 map[string]string `yaml:"env"                      json:"env"`
-	Enabled             bool              `yaml:"enabled"                  json:"enabled"`
-	Runtime             string            `yaml:"runtime,omitempty"        json:"runtime"`
-	DockerImage         string            `yaml:"docker_image,omitempty"   json:"docker_image"`
-	DockerCommand       string            `yaml:"docker_command,omitempty" json:"docker_command"`
-	AllowLocalFallback  bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
-	AllowPrivateNetwork bool              `yaml:"allow_private_network,omitempty" json:"allow_private_network"`
-	HostWorkdir         string            `yaml:"host_workdir,omitempty"   json:"host_workdir"`
-	ContainerWorkdir    string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
-	AllowedTools        []string          `yaml:"allowed_tools,omitempty"  json:"allowed_tools,omitempty"`
-	AllowDestructive    bool              `yaml:"allow_destructive,omitempty" json:"allow_destructive,omitempty"`
-	Secrets             map[string]string `yaml:"-"                        json:"-"`
+	Name                 string              `yaml:"name"                     json:"name"`
+	Transport            string              `yaml:"transport,omitempty"      json:"transport"`
+	URL                  string              `yaml:"url,omitempty"            json:"url"`
+	Headers              map[string]string   `yaml:"headers,omitempty"        json:"headers"`
+	Command              string              `yaml:"command"                  json:"command"`
+	Args                 []string            `yaml:"args"                     json:"args"`
+	Env                  map[string]string   `yaml:"env"                      json:"env"`
+	Enabled              bool                `yaml:"enabled"                  json:"enabled"`
+	Runtime              string              `yaml:"runtime,omitempty"        json:"runtime"`
+	DockerImage          string              `yaml:"docker_image,omitempty"   json:"docker_image"`
+	DockerCommand        string              `yaml:"docker_command,omitempty" json:"docker_command"`
+	AllowLocalFallback   bool                `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
+	AllowPrivateNetwork  bool                `yaml:"allow_private_network,omitempty" json:"allow_private_network"`
+	HostWorkdir          string              `yaml:"host_workdir,omitempty"   json:"host_workdir"`
+	ContainerWorkdir     string              `yaml:"container_workdir,omitempty" json:"container_workdir"`
+	AllowedTools         []string            `yaml:"allowed_tools,omitempty"  json:"allowed_tools,omitempty"`
+	AllowDestructive     bool                `yaml:"allow_destructive,omitempty" json:"allow_destructive,omitempty"`
+	Secrets              map[string]string   `yaml:"-"                        json:"-"`
+	ExecutionPermissions *RuntimePermissions `yaml:"-" json:"-"`
+	MCPEnabled           bool                `yaml:"-" json:"-"`
 }
 
 // MCPToolInfo describes a tool exposed by an MCP server.
@@ -290,17 +292,43 @@ func resolveMCPCommandPath(command string) string {
 	return command
 }
 
-func newMCPConn(name, command string, args []string, env map[string]string, logger *slog.Logger, runtimeName, hostWorkdir, containerWorkdir string) (*mcpConn, error) {
+func newMCPConn(name, command string, args []string, env map[string]string, logger *slog.Logger, runtimeName, hostWorkdir, containerWorkdir string, contexts ...context.Context) (*mcpConn, error) {
+	ctx := context.Background()
+	if len(contexts) > 0 {
+		ctx = contexts[0]
+	}
+	if err := requireShellPermissionContext(ctx); err != nil {
+		return nil, err
+	}
+	perms, _ := EffectiveRuntimePermissions(ctx)
+	sb := sandbox.Get()
+	if sb.Name() == "blocked" || (!sb.Available() && !perms.AllowUnsafeHostExecution) {
+		return nil, fmt.Errorf("MCP stdio requires the configured shell sandbox or explicit unsafe host execution permission")
+	}
+	if runtimeName == "docker" && (!perms.DockerEnabled || perms.DockerReadOnly) {
+		return nil, fmt.Errorf("MCP Docker stdio requires Docker mutation permission")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := ensureMCPHostWorkdir(hostWorkdir); err != nil {
+		return nil, err
+	}
 	command = resolveMCPCommandPath(expandMCPPathValue(strings.TrimSpace(command)))
 	args = normalizeMCPArgs(args)
 	env = normalizeMCPEnv(env)
 
-	cmd := exec.Command(command, args...)
+	cmd := sb.PrepareExecCommand(command, args, hostWorkdir)
+	SetupCmd(cmd)
 
 	// Build environment from a scrubbed base; MCP servers must not inherit host secrets.
-	cmdEnv := sandbox.FilterEnv(os.Environ())
+	ensureFilteredEnv(cmd)
+	cmdEnv := cmd.Env
 	if len(env) > 0 {
 		for k, v := range env {
+			if strings.HasPrefix(strings.ToUpper(k), "AURAGO_SBX_") {
+				return nil, fmt.Errorf("MCP environment must not override shell sandbox controls")
+			}
 			cmdEnv = append(cmdEnv, k+"="+v)
 		}
 	}
@@ -345,15 +373,15 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 	return conn, nil
 }
 
-func newLocalMCPConn(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
+func newLocalMCPConn(srv MCPServerConfig, logger *slog.Logger, contexts ...context.Context) (*mcpConn, error) {
 	args, env, err := resolveMCPLaunchArgsAndEnv(srv, false)
 	if err != nil {
 		return nil, err
 	}
-	return newMCPConn(srv.Name, srv.Command, args, env, logger, "local", srv.HostWorkdir, srv.ContainerWorkdir)
+	return newMCPConn(srv.Name, srv.Command, args, env, logger, "local", srv.HostWorkdir, srv.ContainerWorkdir, contexts...)
 }
 
-func newDockerMCPConn(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
+func newDockerMCPConn(srv MCPServerConfig, logger *slog.Logger, contexts ...context.Context) (*mcpConn, error) {
 	if strings.TrimSpace(srv.DockerImage) == "" {
 		return nil, fmt.Errorf("docker_image is required for MCP server %q when runtime=docker", srv.Name)
 	}
@@ -387,7 +415,7 @@ func newDockerMCPConn(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error
 	dockerArgs = append(dockerArgs, strings.TrimSpace(srv.DockerImage), containerCommand)
 	dockerArgs = append(dockerArgs, args...)
 
-	return newMCPConn(srv.Name, "docker", dockerArgs, nil, logger, "docker", srv.HostWorkdir, containerWorkdir)
+	return newMCPConn(srv.Name, "docker", dockerArgs, nil, logger, "docker", srv.HostWorkdir, containerWorkdir, contexts...)
 }
 
 func mcpTransportMode(srv MCPServerConfig) string {
@@ -415,23 +443,32 @@ func mcpUsesNetworkTransport(srv MCPServerConfig) bool {
 }
 
 func startMCPServerConnection(ctx context.Context, srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
+	if srv.ExecutionPermissions != nil {
+		if !srv.MCPEnabled {
+			return nil, fmt.Errorf("MCP is disabled by runtime permissions")
+		}
+		ctx = WithRuntimePermissions(ctx, *srv.ExecutionPermissions)
+	}
 	var (
 		conn *mcpConn
 		err  error
 	)
 	switch mcpTransportMode(srv) {
 	case "stdio":
+		if err := requireShellPermissionContext(ctx); err != nil {
+			return nil, err
+		}
 		if mcpRuntimeMode(srv.Runtime) == "docker" {
-			conn, err = newDockerMCPConn(srv, logger)
+			conn, err = newDockerMCPConn(srv, logger, ctx)
 			if err != nil && srv.AllowLocalFallback {
 				logger.Warn("[MCP] Docker runtime failed, falling back to local execution", "server", srv.Name, "error", err)
-				conn, err = newLocalMCPConn(srv, logger)
+				conn, err = newLocalMCPConn(srv, logger, ctx)
 			}
 		} else {
 			if strings.TrimSpace(srv.Command) == "" {
 				return nil, fmt.Errorf("command is required for MCP server %q when transport=stdio", srv.Name)
 			}
-			conn, err = newLocalMCPConn(srv, logger)
+			conn, err = newLocalMCPConn(srv, logger, ctx)
 		}
 	case "streamable_http", "sse", "websocket":
 		conn, err = newNetworkMCPConn(ctx, srv, logger)
@@ -454,7 +491,11 @@ func startMCPServerConnection(ctx context.Context, srv MCPServerConfig, logger *
 }
 
 func TestMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (MCPConnectionTestResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
+	return TestMCPServerConnectionContext(context.Background(), srv, logger)
+}
+
+func TestMCPServerConnectionContext(parent context.Context, srv MCPServerConfig, logger *slog.Logger) (MCPConnectionTestResult, error) {
+	ctx, cancel := context.WithTimeout(parent, mcpCallToolTimeout)
 	defer cancel()
 	conn, err := startMCPServerConnection(ctx, srv, logger)
 	if err != nil {

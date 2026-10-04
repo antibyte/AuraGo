@@ -351,7 +351,9 @@ func TestExecuteAgentLoopFitsTrustedAddendumIntoSingleSystemMessage(t *testing.T
 }
 
 func TestAskAuraGoBridgeUsesAgentLoopSystemPromptAndPreservesBridgeHistory(t *testing.T) {
+	const vscodeDebugBridgeSessionID = "mcp-test-bridge"
 	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, vscodeDebugBridgeSessionID, "")
+	runCfg.AllowedTools = []string{"query_memory"}
 	defer cleanup()
 	if _, err := runCfg.ShortTermMem.InsertMessage(vscodeDebugBridgeSessionID, openai.ChatMessageRoleAssistant, "prior bridge answer", false, false); err != nil {
 		t.Fatalf("insert prior bridge message: %v", err)

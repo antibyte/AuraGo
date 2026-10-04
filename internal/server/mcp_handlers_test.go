@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -186,7 +187,7 @@ func TestBuildRuntimeMCPConfigsResolvesNetworkSecrets(t *testing.T) {
 func TestHandleMCPRuntimeTestConnection(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	oldTest := testExternalMCPServer
-	testExternalMCPServer = func(cfg tools.MCPServerConfig, _ *slog.Logger) (tools.MCPConnectionTestResult, error) {
+	testExternalMCPServer = func(_ context.Context, cfg tools.MCPServerConfig, _ *slog.Logger) (tools.MCPConnectionTestResult, error) {
 		if cfg.Transport != "websocket" || cfg.URL != "ws://example.test/mcp" {
 			t.Fatalf("unexpected runtime config: %+v", cfg)
 		}
@@ -198,6 +199,8 @@ func TestHandleMCPRuntimeTestConnection(t *testing.T) {
 		Cfg:    &config.Config{},
 		Logger: logger,
 	}
+	s.Cfg.Agent.AllowMCP = true
+	s.Cfg.MCP.Enabled = true
 	req := httptest.NewRequest(http.MethodPost, "/api/mcp-runtime/test-connection", strings.NewReader(`{
 		"name": "remote-tools",
 		"transport": "websocket",

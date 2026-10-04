@@ -45,6 +45,10 @@ Response contains the tool's output text.
 - MCP clients can connect to local/Docker stdio servers or to network servers via streamable HTTP, SSE, or WebSocket.
 - AuraGo negotiates MCP `2025-11-25` by default and accepts `2024-11-05` from legacy servers. Use `streamable_http` for the current HTTP transport; `sse` is the separate legacy HTTP+SSE transport.
 - Local and Docker stdio servers can execute arbitrary code; network servers can expose remote capabilities. Only add trusted MCP servers.
+- Stdio also requires `agent.allow_shell` and the selected shell sandbox. Without available isolation, `agent.allow_unsafe_host_execution` must explicitly allow host execution; required isolation never falls back. Docker stdio additionally requires Docker write permission.
+- Connection tests use only the selected server. Save edited launch targets before testing Vault aliases; a test cannot send a saved alias to a changed URL, command or environment.
+- Incoming `/mcp` checks configured hostnames and local IP addresses as well as Origin. Set `server.host` or `server.https.domain` for external DNS names. A matching attacker-supplied Host and Origin does not grant access.
+- IDE clients receive independent MCP sessions (24-hour expiry, bound to their credential). `ask_aurago` and wrapped calls inherit the MCP allowed-tools list and current runtime gates. An explicit list takes precedence over the IDE preset.
 
 ## Configuration
 ```yaml

@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/config"
 	"aurago/internal/tools"
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"regexp"
@@ -36,7 +37,7 @@ func resolveMCPHostWorkdir(cfg *config.Config, srv config.MCPServer, logger *slo
 		}
 		return '-'
 	}, safeName)
-	safeName = strings.Trim(safeName, "-")
+	safeName = strings.Trim(safeName, "-.")
 	if safeName == "" {
 		safeName = "server"
 	}
@@ -67,6 +68,10 @@ func resolveMCPHostWorkdir(cfg *config.Config, srv config.MCPServer, logger *slo
 }
 
 func buildRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logger *slog.Logger) []tools.MCPServerConfig {
+	return buildSelectedRuntimeMCPConfigs(cfg, vault, logger, true)
+}
+
+func buildSelectedRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logger *slog.Logger, includeDograh bool) []tools.MCPServerConfig {
 	if cfg == nil {
 		return nil
 	}
@@ -87,28 +92,31 @@ func buildRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logge
 
 	runtimeConfigs := make([]tools.MCPServerConfig, 0, len(cfg.MCP.Servers))
 	for _, srv := range cfg.MCP.Servers {
+		permissions := tools.RuntimePermissionsFromConfig(cfg)
 		runtimeConfigs = append(runtimeConfigs, tools.MCPServerConfig{
-			Name:                srv.Name,
-			Transport:           strings.ToLower(strings.TrimSpace(srv.Transport)),
-			URL:                 strings.TrimSpace(srv.URL),
-			Headers:             mapsCloneStringString(srv.Headers),
-			Command:             srv.Command,
-			Args:                append([]string(nil), srv.Args...),
-			Env:                 mapsCloneStringString(srv.Env),
-			Enabled:             srv.Enabled,
-			Runtime:             strings.ToLower(strings.TrimSpace(srv.Runtime)),
-			DockerImage:         strings.TrimSpace(srv.DockerImage),
-			DockerCommand:       strings.TrimSpace(srv.DockerCommand),
-			AllowLocalFallback:  srv.AllowLocalFallback,
-			AllowPrivateNetwork: srv.AllowPrivateNetwork,
-			HostWorkdir:         resolveMCPHostWorkdir(cfg, srv, logger),
-			ContainerWorkdir:    strings.TrimSpace(srv.ContainerWorkdir),
-			AllowedTools:        append([]string(nil), srv.AllowedTools...),
-			AllowDestructive:    srv.AllowDestructive,
-			Secrets:             mapsCloneStringString(secretValues),
+			ExecutionPermissions: &permissions,
+			MCPEnabled:           cfg.Agent.AllowMCP && cfg.MCP.Enabled,
+			Name:                 srv.Name,
+			Transport:            strings.ToLower(strings.TrimSpace(srv.Transport)),
+			URL:                  strings.TrimSpace(srv.URL),
+			Headers:              mapsCloneStringString(srv.Headers),
+			Command:              srv.Command,
+			Args:                 append([]string(nil), srv.Args...),
+			Env:                  mapsCloneStringString(srv.Env),
+			Enabled:              srv.Enabled,
+			Runtime:              strings.ToLower(strings.TrimSpace(srv.Runtime)),
+			DockerImage:          strings.TrimSpace(srv.DockerImage),
+			DockerCommand:        strings.TrimSpace(srv.DockerCommand),
+			AllowLocalFallback:   srv.AllowLocalFallback,
+			AllowPrivateNetwork:  srv.AllowPrivateNetwork,
+			HostWorkdir:          resolveMCPHostWorkdir(cfg, srv, logger),
+			ContainerWorkdir:     strings.TrimSpace(srv.ContainerWorkdir),
+			AllowedTools:         append([]string(nil), srv.AllowedTools...),
+			AllowDestructive:     srv.AllowDestructive,
+			Secrets:              mapsCloneStringString(secretValues),
 		})
 	}
-	if shouldAppendDograhMCPRuntime(cfg, runtimeConfigs) {
+	if includeDograh && shouldAppendDograhMCPRuntime(cfg, runtimeConfigs) {
 		runtimeConfigs = append(runtimeConfigs, tools.MCPServerConfig{
 			Name:      "dograh",
 			Transport: "streamable_http",
@@ -116,10 +124,28 @@ func buildRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logge
 			Headers: map[string]string{
 				"X-API-Key": strings.TrimSpace(cfg.Dograh.APIKey),
 			},
-			Enabled: true,
+			Enabled:             true,
+			AllowPrivateNetwork: managedDograhMCPOrigin(cfg),
 		})
 	}
 	return runtimeConfigs
+}
+
+func managedDograhMCPOrigin(cfg *config.Config) bool {
+	if cfg == nil || (cfg.Dograh.Mode != "" && cfg.Dograh.Mode != "managed") {
+		return false
+	}
+	port := cfg.Dograh.APIPort
+	if port <= 0 {
+		port = 8000
+	}
+	host := "127.0.0.1"
+	if cfg.Runtime.IsDocker {
+		host = "dograh-api"
+	} else if cfg.Dograh.APIHostPort > 0 {
+		port = cfg.Dograh.APIHostPort
+	}
+	return strings.TrimRight(strings.TrimSpace(cfg.Dograh.APIURL), "/") == fmt.Sprintf("http://%s:%d", host, port)
 }
 
 func shouldAppendDograhMCPRuntime(cfg *config.Config, existing []tools.MCPServerConfig) bool {

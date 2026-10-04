@@ -10,6 +10,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- MCP ask_aurago inherits the caller's explicit tool scope and unique session. Never default it to an unrestricted run or a shared IDE conversation. Preserve the configuration authorization resolver so revoked runtime gates and changed allowlists stop subsequent dispatch; nested invoke_tool cannot widen the inherited scope.
+
 - MeshCentral run_command requires agent.allow_remote_shell in addition to integration enablement, readonly and blocked-operation policy. Check it before resolving credentials or opening a connection.
 
 ### Accepted tool batches and bounded side effects

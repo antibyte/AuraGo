@@ -212,6 +212,7 @@ type Server struct {
 	systemWorld             *systemWorldRuntime
 	MissionManagerV2        *tools.MissionManagerV2
 	EmailWatcher            *tools.EmailWatcher
+	mcpSessions             mcpSessionSigner
 	missionRuns             *missionRunRegistry // cancellable contexts of in-flight local mission runs
 	missionRunsOnce         sync.Once
 	EggHub                  *bridge.EggHub

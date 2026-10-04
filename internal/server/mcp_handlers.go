@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 
 	"aurago/internal/tools"
@@ -17,7 +18,7 @@ import (
 var (
 	initExternalMCPManager     = tools.InitMCPManager
 	shutdownExternalMCPManager = tools.ShutdownMCPManager
-	testExternalMCPServer      = tools.TestMCPServerConnection
+	testExternalMCPServer      = tools.TestMCPServerConnectionContext
 )
 
 type mcpIncomingServerFieldPresence struct {
@@ -528,14 +529,28 @@ func handleMCPRuntimeTestConnection(s *Server) http.HandlerFunc {
 		s.CfgMu.RLock()
 		cfgCopy := *s.Cfg
 		s.CfgMu.RUnlock()
+		if !cfgCopy.Agent.AllowMCP || !cfgCopy.MCP.Enabled {
+			jsonError(w, "MCP is disabled by runtime permissions", http.StatusForbidden)
+			return
+		}
+		// Secret aliases are bound to the saved administrator-reviewed launch target.
+		// Testing an edited target requires saving that target first.
+		if mcpTestUsesAliases(srv) && !mcpSavedTestTarget(cfgCopy.MCP.Servers, srv) {
+			jsonError(w, "Save the MCP server target before testing with Vault aliases", http.StatusBadRequest)
+			return
+		}
 		cfgCopy.MCP.Servers = []config.MCPServer{srv}
-		runtimeConfigs := buildRuntimeMCPConfigs(&cfgCopy, s.Vault, s.Logger)
+		var vault config.SecretReader
+		if s.Vault != nil {
+			vault = s.Vault
+		}
+		runtimeConfigs := buildSelectedRuntimeMCPConfigs(&cfgCopy, vault, s.Logger, false)
 		if len(runtimeConfigs) != 1 {
 			jsonError(w, "MCP server config is invalid", http.StatusBadRequest)
 			return
 		}
 
-		result, err := testExternalMCPServer(runtimeConfigs[0], s.Logger)
+		result, err := testExternalMCPServer(r.Context(), runtimeConfigs[0], s.Logger)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
@@ -548,4 +563,22 @@ func handleMCPRuntimeTestConnection(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	}
+}
+
+func mcpTestUsesAliases(srv config.MCPServer) bool {
+	data, _ := json.Marshal(srv)
+	return strings.Contains(string(data), "{{")
+}
+
+func mcpSavedTestTarget(servers []config.MCPServer, candidate config.MCPServer) bool {
+	for _, saved := range servers {
+		if saved.Name != candidate.Name {
+			continue
+		}
+		saved.Enabled = candidate.Enabled
+		if reflect.DeepEqual(saved, candidate) {
+			return true
+		}
+	}
+	return false
 }
