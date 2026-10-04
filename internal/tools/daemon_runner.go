@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/fileutil"
 	"aurago/internal/sandbox"
 )
 
@@ -672,7 +673,7 @@ func (r *DaemonRunner) rotateDaemonLog(logPath string) {
 		r.logger.Warn("Failed to write rotated daemon log", "path", tmpPath, "error", err)
 		return
 	}
-	if err := os.Rename(tmpPath, logPath); err != nil {
+	if err := fileutil.Rename(tmpPath, logPath); err != nil {
 		r.logger.Warn("Failed to replace daemon log after rotation", "path", logPath, "error", err)
 		_ = os.Remove(tmpPath)
 	}
