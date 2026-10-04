@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -13,7 +12,7 @@ func TestDockerUpdateContainerImageRecreatesRunningContainerWithFreshImage(t *te
 	var calls []string
 	var createPayload map[string]interface{}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
 		calls = append(calls, r.Method+" "+path)
 
@@ -119,7 +118,7 @@ func TestDockerUpdateContainerImageRecreatesRunningContainerWithFreshImage(t *te
 }
 
 func TestDockerUpdateContainerImageRejectsImageIDOnlyContainer(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeDockerJSON(w, http.StatusOK, map[string]interface{}{
 			"Id":     "old-container-id",
 			"Name":   "/anonymous",

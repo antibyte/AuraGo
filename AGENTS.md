@@ -258,6 +258,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Feature contracts | Canonical child DOX |
 | --- | --- |
 | Shared file replacement | `internal/fileutil/AGENTS.md` |
+| Docker Engine transport and version negotiation | `internal/dockerutil/AGENTS.md` |
 | Desktop rooted files and archives | `internal/desktop/AGENTS.md` |
 | Security primitives, Vault import grants and Cast tickets | `internal/security/AGENTS.md` |
 | Remote enrollment and connection lifecycle | `internal/remote/AGENTS.md` |
@@ -583,6 +584,7 @@ Current child AGENTS.md files:
 - `internal/desktop/AGENTS.md` — Rooted Desktop file/archive operations; owns the pets-assets child index.
 - `internal/desktopstore/AGENTS.md` — Store app configuration, runtime, assets, and publication.
 - `internal/detective/AGENTS.md` — Isolated Desktop research cases, evidence, budgets, revisions and exports.
+- `internal/dockerutil/AGENTS.md` — Engine transport, API negotiation, mutation retry and streaming cancellation boundaries.
 - `internal/fritzbox/AGENTS.md` — TR-064 integration and Desktop widget behavior.
 - `internal/gamemaker/AGENTS.md` — Game planning, runtime feedback/progression, lifecycle, validation and exports; owns the asset-pack child index.
 - `internal/httpstream/AGENTS.md` — Finite stream write budgets and HTTP writer compatibility.

@@ -179,6 +179,9 @@ Requires `file` pointing to the `docker-compose.yml` path.
 ```
 
 ## Important Notes
+- Docker mutations are sent once. A lost response can leave a successful remote operation; inspect its existing container/exec ID before retrying. Do not automatically repeat the command.
+- `exec` follows the tool run's cancellation and a ten-minute ceiling. Cancelling the HTTP stream does not prove that the command inside the container has stopped; verify its state before retrying.
+- AuraGo negotiates the Engine API before operations. Socket proxies must allow `GET /version`; unsupported API ranges fail explicitly before mutation.
 - `container_id` accepts both container IDs (short or full) and container names
 - `name` is mandatory for every `create` and `run`, including short-lived jobs
 - `run` = `create` + auto-`start` in a single call

@@ -276,6 +276,12 @@ func DockerSystemInfo(cfg DockerConfig) string {
 }
 
 func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user string, env []string) (int, string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	return dockerExecRawContext(ctx, cfg, containerID, cmdArray, user, env)
+}
+
+func dockerExecRawContext(ctx context.Context, cfg DockerConfig, containerID string, cmdArray []string, user string, env []string) (int, string, error) {
 	payload := map[string]interface{}{
 		"AttachStdout": true,
 		"AttachStderr": true,
@@ -291,7 +297,7 @@ func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user
 	body, _ := json.Marshal(payload)
 
 	// Create exec instance
-	data, code, err := dockerRequest(cfg, "POST", "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
+	data, code, err := DockerRequestContext(ctx, cfg, "POST", "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
 	if err != nil {
 		return -1, "", fmt.Errorf("failed to map exec: %w", err)
 	}
@@ -310,9 +316,9 @@ func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user
 
 	// Start exec instance and read output
 	startPayload := `{"Detach": false, "Tty": false}`
-	outData, outCode, err := dockerRequest(cfg, "POST", "/exec/"+execID+"/start", startPayload)
+	outData, outCode, err := DockerRequestContext(ctx, cfg, "POST", "/exec/"+url.PathEscape(execID)+"/start", startPayload)
 	if err != nil {
-		return -1, "", fmt.Errorf("failed to start exec: %w", err)
+		return -1, "", fmt.Errorf("exec %s outcome uncertain after start; inspect before retrying: %w", execID, err)
 	}
 	if outCode != 200 {
 		return -1, "", fmt.Errorf("API error: %s", dockerBodyErr(outCode, outData))
@@ -322,7 +328,7 @@ func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user
 
 	// Inspect exec instance to get exit code
 	exitCode := -1
-	inspectData, inspectCode, inspectErr := dockerRequest(cfg, "GET", "/exec/"+execID+"/json", "")
+	inspectData, inspectCode, inspectErr := DockerRequestContext(ctx, cfg, "GET", "/exec/"+url.PathEscape(execID)+"/json", "")
 	if inspectErr == nil && inspectCode == 200 {
 		var inspectResp map[string]interface{}
 		if json.Unmarshal(inspectData, &inspectResp) == nil {
@@ -336,9 +342,18 @@ func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user
 }
 
 func dockerDetectShell(cfg DockerConfig, containerID string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	return dockerDetectShellContext(ctx, cfg, containerID)
+}
+
+func dockerDetectShellContext(ctx context.Context, cfg DockerConfig, containerID string) string {
 	shells := []string{"/bin/sh", "/bin/bash", "/bin/ash", "sh", "bash"}
 	for _, shell := range shells {
-		ec, out, err := dockerExecRaw(cfg, containerID, []string{shell, "-c", "echo 1"}, "", nil)
+		if ctx.Err() != nil {
+			return ""
+		}
+		ec, out, err := dockerExecRawContext(ctx, cfg, containerID, []string{shell, "-c", "echo 1"}, "", nil)
 		if err == nil && ec == 0 && strings.TrimSpace(out) == "1" {
 			return shell
 		}
@@ -349,17 +364,23 @@ func dockerDetectShell(cfg DockerConfig, containerID string) string {
 // dockerExecInternal executes a command inside a running container using the REST API.
 // Pass env as nil when no additional environment variables are needed.
 func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []string) string {
+	return dockerExecInternalContext(context.Background(), cfg, containerID, cmd, user, env)
+}
+
+func dockerExecInternalContext(ctx context.Context, cfg DockerConfig, containerID, cmd, user string, env []string) string {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
 	if err := validateDockerName(containerID); err != nil {
 		return errJSON("%v", err)
 	}
 
-	shell := dockerDetectShell(cfg, containerID)
+	shell := dockerDetectShellContext(ctx, cfg, containerID)
 	if shell == "" {
 		shell = "/bin/sh"
 	}
 	cmdArray := []string{shell, "-c", cmd}
 
-	exitCode, outputStr, err := dockerExecRaw(cfg, containerID, cmdArray, user, env)
+	exitCode, outputStr, err := dockerExecRawContext(ctx, cfg, containerID, cmdArray, user, env)
 	if err != nil {
 		return errJSON("%v", err)
 	}
@@ -387,6 +408,12 @@ func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []s
 // DockerExec executes a command inside a running container using the REST API.
 func DockerExec(cfg DockerConfig, containerID, cmd, user string) string {
 	return dockerExecInternal(cfg, containerID, cmd, user, nil)
+}
+
+// DockerExecContext cancels HTTP execution with the caller's run. An interrupted
+// connection does not prove that the command in the container has terminated.
+func DockerExecContext(ctx context.Context, cfg DockerConfig, containerID, cmd, user string) string {
+	return dockerExecInternalContext(ctx, cfg, containerID, cmd, user, nil)
 }
 
 // DockerStats retrieves real-time resource usage of a container.

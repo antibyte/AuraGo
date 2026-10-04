@@ -252,6 +252,10 @@ func clampTerminalDimension(value, fallback, min, max int) int {
 }
 
 func openDockerExecStartStream(ctx context.Context, cfg tools.DockerConfig, execID string) (io.ReadWriteCloser, error) {
+	version, err := dockerutil.NegotiatedAPIVersion(ctx, cfg.Host)
+	if err != nil {
+		return nil, err
+	}
 	body := []byte(`{"Detach":false,"Tty":true}`)
 	conn, err := dockerutil.DialContext(ctx, cfg.Host)
 	if err != nil {
@@ -259,7 +263,7 @@ func openDockerExecStartStream(ctx context.Context, cfg tools.DockerConfig, exec
 	}
 
 	endpoint := "/exec/" + url.PathEscape(execID) + "/start"
-	reqURL := "http://localhost/" + dockerutil.APIVersion + endpoint
+	reqURL := "http://localhost/" + version + endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewReader(body))
 	if err != nil {
 		_ = conn.Close()

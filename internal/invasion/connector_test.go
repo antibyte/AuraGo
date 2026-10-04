@@ -244,6 +244,10 @@ func mockDockerAPI(t *testing.T, handlers map[string]http.HandlerFunc) *httptest
 		return len(patterns[i]) > len(patterns[j])
 	})
 	return testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			json.NewEncoder(w).Encode(map[string]string{"ApiVersion": "1.45", "MinAPIVersion": "1.25"})
+			return
+		}
 		// Strip API version prefix
 		path := r.URL.Path
 		parts := strings.SplitN(path, "/", 3)

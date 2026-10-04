@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -131,7 +130,7 @@ func TestStopManifestSidecarsDoesNotRequireManagedSecrets(t *testing.T) {
 	defer ClearRuntimePermissionsForTest()
 
 	var calls []string
-	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	api := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.Method+" "+r.URL.String())
 		w.WriteHeader(http.StatusNoContent)
 	}))

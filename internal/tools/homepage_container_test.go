@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -39,7 +38,7 @@ func TestHomepageInitCreatesContainerWithProcessReaper(t *testing.T) {
 	}
 
 	var createPayload map[string]interface{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
 		switch {
 		case r.Method == http.MethodGet && path == "/_ping":
@@ -84,7 +83,7 @@ func TestHomepageInitKeepsRunningLegacyContainerUntilExplicitRebuild(t *testing.
 		return `{"status":"ok","exit_code":0,"output":""}`
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/"+dockerAPIVersion)
 		switch {
 		case r.Method == http.MethodGet && path == "/_ping":

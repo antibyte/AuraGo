@@ -28,9 +28,19 @@ func configureDockerSecurityTestPermissions(t *testing.T, readOnly bool) {
 
 func fakeDockerHost(t *testing.T, handler http.HandlerFunc) string {
 	t.Helper()
-	server := httptest.NewServer(handler)
+	server := newDockerAPITestServer(handler)
 	t.Cleanup(server.Close)
 	return "tcp://" + strings.TrimPrefix(server.URL, "http://")
+}
+
+func newDockerAPITestServer(handler http.Handler) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			w.Write([]byte(`{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`))
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}))
 }
 
 func TestPullImageWaitAllowsLocalImageButRejectsReadOnlyPull(t *testing.T) {

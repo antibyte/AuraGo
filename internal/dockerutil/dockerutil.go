@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// APIVersion is the Docker Engine API version used for AuraGo Docker requests.
+// APIVersion is the highest Docker API version supported by AuraGo's payloads.
 const APIVersion = "v1.45"
 
 const (

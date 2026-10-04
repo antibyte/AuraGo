@@ -386,6 +386,7 @@ services:
       - NETWORKS=1
       - VOLUMES=1
       - INFO=1          # passive runtime inventory (including NVIDIA container runtime availability)
+      - VERSION=1       # negotiate a mutually supported Engine API before operations
       - POST=1          # allow start/stop/restart/create (needed for managed sidecars and Invasion Control)
       - BUILD=0          # keep Docker build API access disabled by default; prefer published images
       - COMMIT=0

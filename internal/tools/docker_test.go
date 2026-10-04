@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -20,7 +19,7 @@ func TestDockerBodyMessageExtractsEngineError(t *testing.T) {
 
 func TestBuildImageWaitUsesDockerAPIBuildEndpoint(t *testing.T) {
 	var sawBuild bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/"+dockerAPIVersion+"/build" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
@@ -72,7 +71,7 @@ func TestBuildImageWaitUsesDockerAPIBuildEndpoint(t *testing.T) {
 
 func TestBuildImageContextWaitIncludesAdditionalFiles(t *testing.T) {
 	var sawHelper bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tr := tar.NewReader(r.Body)
 		entries := map[string]string{}
 		for {
@@ -121,7 +120,7 @@ func TestBuildImageContextWaitIncludesAdditionalFiles(t *testing.T) {
 }
 
 func TestBuildImageWaitReturnsDockerBuildStreamError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"errorDetail":{"message":"apt failed"},"error":"apt failed"}` + "\n"))
 	}))
@@ -139,7 +138,7 @@ func TestBuildImageWaitReturnsDockerBuildStreamError(t *testing.T) {
 
 func TestPullImageForceSkipsLocalImageCheckAndPullsTag(t *testing.T) {
 	var paths []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.Path)
 		if r.URL.Path != "/"+dockerAPIVersion+"/images/create" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
@@ -165,7 +164,7 @@ func TestPullImageForceSkipsLocalImageCheckAndPullsTag(t *testing.T) {
 }
 
 func TestPullImageForceReturnsDockerStreamError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/"+dockerAPIVersion+"/images/create" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}

@@ -306,14 +306,14 @@ func (c *DockerConnector) httpClient(nest NestRecord) *http.Client {
 		dockerHost := dockerLocalHost()
 		return &http.Client{
 			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
+			Transport: dockerutil.NewVersionTransport(&http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 					return dockerutil.DialContext(ctx, dockerHost)
 				},
-			},
+			}),
 		}
 	}
-	return &http.Client{Timeout: 30 * time.Second}
+	return &http.Client{Timeout: 30 * time.Second, Transport: dockerutil.NewVersionTransport(http.DefaultTransport)}
 }
 
 func dockerLocalHost() string {

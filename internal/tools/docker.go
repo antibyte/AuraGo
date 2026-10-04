@@ -71,7 +71,7 @@ func getDockerClient(cfg DockerConfig) *http.Client {
 		},
 	}
 
-	dockerHTTPClient = &http.Client{Transport: transport, Timeout: 60 * time.Second}
+	dockerHTTPClient = &http.Client{Transport: dockerutil.NewVersionTransport(transport), Timeout: 60 * time.Second}
 	dockerHTTPClientHost = host
 	return dockerHTTPClient
 }
@@ -98,7 +98,7 @@ func getPullDockerClient(cfg DockerConfig) *http.Client {
 	}
 
 	// No Timeout — streaming responses run until context is cancelled.
-	dockerPullHTTPClient = &http.Client{Transport: transport}
+	dockerPullHTTPClient = &http.Client{Transport: dockerutil.NewVersionTransport(transport)}
 	dockerPullHTTPClientHost = host
 	return dockerPullHTTPClient
 }
@@ -180,8 +180,12 @@ func dockerMethodMutates(method string) bool {
 }
 
 // dockerRequestWithRetry performs a request against the Docker Engine API with retry logic.
-// It retries on transient errors (network timeouts, 5xx errors) with exponential backoff.
+// Only GET and HEAD may retry transient errors. A mutation may already have
+// succeeded when its response is lost and must never be sent a second time.
 func dockerRequestWithRetry(cfg DockerConfig, method, endpoint string, body string, maxRetries int) ([]byte, int, error) {
+	if dockerMethodMutates(method) || maxRetries < 1 {
+		maxRetries = 1
+	}
 	var lastErr error
 	var lastCode int
 

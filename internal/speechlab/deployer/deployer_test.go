@@ -273,6 +273,10 @@ func (f *fakeDocker) find(value string) *fakeContainer {
 }
 
 func (f *fakeDocker) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/version" {
+		json.NewEncoder(w).Encode(map[string]string{"ApiVersion": "1.45", "MinAPIVersion": "1.25"})
+		return
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if r.URL.Path == "/manifest" {

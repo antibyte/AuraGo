@@ -33,7 +33,7 @@ func NewClient(host string, timeout time.Duration) *Client {
 	return &Client{
 		host: host,
 		httpClient: &http.Client{
-			Transport: transport,
+			Transport: NewVersionTransport(transport),
 			Timeout:   timeout,
 		},
 	}
