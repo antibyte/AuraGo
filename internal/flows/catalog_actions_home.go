@@ -268,8 +268,11 @@ func mqttPublishDef(env CatalogEnv) *NodeDef {
 		}
 		// An empty retained message clears the topic. A payload that is written out as
 		// blank (or left out) says so on purpose, the MQTT idiom; a payload template that
-		// found nothing (a missing field) must not do it by accident.
-		if retain && in.Params["payload"] == nil && in.Node != nil && isTemplateText(in.Node.Params["payload"]) {
+		// found nothing (a missing field) must not do it by accident. A filter does not
+		// make it safe: {{x.y | trim}} turns a missing field into "". So a template whose
+		// result is nothing or empty text is refused; text that mixes a template with
+		// other words renders something and passes.
+		if retain && payload == "" && in.Node != nil && isTemplateText(in.Node.Params["payload"]) {
 			return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "the payload template resolved to nothing; a retained empty message would clear the topic")
 		}
 		out, err := callTool(ctx, in, "mqtt_publish", map[string]any{"topic": topic, "payload": payload, "qos": qos, "retain": retain})
@@ -351,7 +354,8 @@ func appointmentAddDef(env CatalogEnv) *NodeDef {
 		setArg(args, "description", description)
 		if remind > 0 {
 			notify := at.Add(-time.Duration(remind * float64(time.Minute)))
-			if notify.Year() < 0 {
+			// The time is sent in UTC, so the year that counts is the UTC one.
+			if notify.UTC().Year() < 0 {
 				return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "the reminder would fall before the year 0")
 			}
 			args["notification_at"] = notify.UTC().Format(time.RFC3339)

@@ -331,6 +331,12 @@ func plannerTime(v any, loc *time.Location, what string) (time.Time, bool, error
 	}
 	if len(s) <= maxPlannerTimeBytes {
 		if at, ok := toTime(s, loc); ok {
+			// The nodes send the time in UTC and the planner reads RFC 3339, which has
+			// four digit years: a time whose UTC year is outside 0 to 9999 (a date near
+			// the edge in a zone with an offset) cannot be sent.
+			if y := at.UTC().Year(); y < 0 || y > 9999 {
+				return time.Time{}, false, NewNodeError("FLOW_PARAM_INVALID", "%s is out of range (the planner takes years 0 to 9999 in UTC)", what)
+			}
 			return at, true, nil
 		}
 	}
