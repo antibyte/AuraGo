@@ -9,6 +9,12 @@ import "strings"
 // list an effect too many: an operation that is not a known read lists what the tool
 // can do, and an operation that is not a literal (a template, a value of another type)
 // lists the worst case (genericWorstEffects), never "no effects".
+//
+// Not covered: browser_automation, virtual_browser, form_automation and web_capture
+// click, type, submit forms and upload files on web pages, and no effect category
+// stands for acting on a website. Their urls, selectors' targets and file paths are
+// sinks by name (genericSinkNames), so the lint still warns when untrusted data picks
+// where they go or what they upload.
 
 var (
 	// codeRunningTools run a program, a command or a statement the call carries, or
@@ -20,19 +26,26 @@ var (
 		"execute_remote_shell": true, "ssh_exec": true,
 		// a root shell in a VM, keystrokes on a remote desktop
 		"virtual_workspace": true, "remote_control_desktop": true,
-		// tasks for other agents, which can run commands where they live
-		"space_agent": true, "invasion_tasks": true,
-		// arbitrary SQL statements (see programTools)
+		// tasks for other agents, which can run commands where they live; Manus acts
+		// with the user's connected accounts
+		"space_agent": true, "invasion_tasks": true, "manus": true,
+		// arbitrary SQL statements (see toolReadOperations)
 		"sql_query": true,
 		// app and widget code that runs in the user's desktop UI
 		"virtual_desktop_app_install": true, "virtual_desktop_widgets": true,
 	}
-	// programTools say what they do in a parameter (the statement), not in the
-	// operation: even a "query" can drop a table, so no operation makes them a read.
-	programTools = map[string]bool{"sql_query": true}
+	// toolReadOperations replace the verb rule (isReadOperation) for tools where it is
+	// wrong: only the listed operations are reads. sql_query runs any statement under
+	// "query"; ansible's check (a dry run of a playbook), ping and facts run modules on
+	// the hosts.
+	toolReadOperations = map[string]map[string]bool{
+		"sql_query": {},
+		"ansible":   {"status": true, "list_playbooks": true, "inventory": true},
+	}
 	// systemChangingTools change the host, its services, devices on the network or the
-	// infrastructure and accounts AuraGo manages.
-	systemChangingTools = map[string]bool{"docker": true, "process_management": true, "package_manager": true,
+	// infrastructure and accounts AuraGo manages. github pushes files and workflows,
+	// which run CI code with the repository's secrets.
+	systemChangingTools = map[string]bool{"github": true, "docker": true, "process_management": true, "package_manager": true,
 		"firewall": true, "proxmox": true, "ansible": true, "tailscale": true, "cloudflare_tunnel": true,
 		"virtual_computers": true, "manage_updates": true, "execute_sudo": true, "truenas": true,
 		"network_shares": true, "adguard": true, "fritzbox_system": true, "fritzbox_network": true,
@@ -173,16 +186,25 @@ func genericFileish(tool string) bool {
 	return fileTools[tool] || strings.Contains(tool, "file") || strings.Contains(tool, "document")
 }
 
+// genericIsRead reports whether op (lower case, trimmed) is a read of tool: by
+// toolReadOperations when the tool has an entry, else by isReadOperation.
+func genericIsRead(tool, op string) bool {
+	if reads, ok := toolReadOperations[tool]; ok {
+		return reads[op]
+	}
+	return isReadOperation(op)
+}
+
 // genericEffects derives the effects of a generic tool call from tool name, category
-// and the literal operation op ("" for a tool without one). A read operation (see
-// isReadOperation) has no effects, unless the tool is a programTools entry. An op that
-// is not an operation name (a template, other text) gives genericAllEffects.
+// and the literal operation op ("" for a tool without one). A read operation
+// (genericIsRead) has no effects. An op that is not an operation name (a template,
+// other text) gives genericAllEffects.
 func genericEffects(tool, category, op string) []Effect {
 	op = strings.ToLower(strings.TrimSpace(op))
 	if op != "" && !isOperationName(op) {
 		return genericAllEffects(tool, category)
 	}
-	if op != "" && isReadOperation(op) && !programTools[tool] {
+	if op != "" && genericIsRead(tool, op) {
 		return nil
 	}
 	words := operationWords(op)

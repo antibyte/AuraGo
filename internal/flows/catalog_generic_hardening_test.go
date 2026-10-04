@@ -69,9 +69,12 @@ func genericTestTools() []GenericTool {
 			"tags": genericProp("string", "Comma-separated tags"),
 		}, "content")},
 		{Name: "filesystem", Category: "files", Schema: schema(map[string]any{
-			"operation": genericEnumProp("read_file", "write_file", "delete", "copy", "move", "list_dir", "create_dir", "stat"),
+			"operation": genericEnumProp("read_file", "write_file", "delete", "copy", "move", "list_dir", "create_dir", "stat",
+				"delete_batch"),
 			"file_path": genericProp("string", "Path"), "destination": genericProp("string", "Destination path"),
 			"content": genericProp("string", "Content to write"), "preview": genericProp("boolean", ""),
+			"items": map[string]any{"type": "array", "description": "Batch items", "items": map[string]any{"type": "object",
+				"properties": map[string]any{"file_path": genericProp("string", ""), "destination": genericProp("string", "")}}},
 		}, "operation")},
 		{Name: "sql_query", Category: "infrastructure", Schema: schema(map[string]any{
 			"operation":       genericEnumProp("query", "describe", "list_tables"),
@@ -127,9 +130,16 @@ func TestGenericExclusionCoversCuratedTools(t *testing.T) {
 		}
 	}
 	// Tools a curated node calls besides its Tool, and the ones whose rules matter most.
-	for _, tool := range []string{BraveSearchTool, "home_assistant", "document_creator", PDFExtractorTool, "api_request", "mqtt_publish"} {
+	// Dynamic names (skills, custom tools, MCP and package tools) are excluded by prefix.
+	for _, tool := range []string{BraveSearchTool, "home_assistant", "document_creator", PDFExtractorTool, "api_request", "mqtt_publish",
+		"skill__x", "tool__x", "game_maker_x", "mcp__server__tool", "package__pkg__tool"} {
 		if !IsGenericToolExcluded(tool) {
 			t.Errorf("%s must be excluded", tool)
+		}
+	}
+	for _, tool := range []string{"mcp", "package_manager", "skills", "tool_x"} {
+		if IsGenericToolExcluded(tool) {
+			t.Errorf("%s must not be excluded by a prefix", tool)
 		}
 	}
 }
@@ -203,8 +213,8 @@ func TestGenericSinkParams(t *testing.T) {
 		"adguard":             {"operation", "query", "url"},
 		"truenas":             {"action", "path"},
 		"manage_appointments": {"operation", "query", "title"},
-		"remember":            {"category", "content", "tags", "title"}, // memory: every text parameter
-		"filesystem":          {"destination", "file_path", "operation"},
+		"remember":            {"category", "content", "tags", "title"},                      // memory: every text parameter
+		"filesystem":          {"content", "destination", "file_path", "items", "operation"}, // file content, paths in items
 		"sql_query":           {"connection_name", "operation", "sql_query"},
 		"send_image":          {"path"},
 		"call_webhook":        {"webhook_name"},
@@ -232,7 +242,7 @@ func TestGenericSinkParams(t *testing.T) {
 	}
 	// Secret injection, the Python tool bridge, the agent wake-up and the session task
 	// list never become parameters.
-	if got := genericParamNames(lookupDef(t, reg, "tool.execute_python")); !reflect.DeepEqual(got, []string{"background", "code", "description"}) {
+	if got := genericParamNames(lookupDef(t, reg, "tool.execute_python")); !reflect.DeepEqual(got, []string{"code", "description"}) {
 		t.Errorf("execute_python params = %v", got)
 	}
 	if got := genericParamNames(lookupDef(t, reg, "tool.manage_appointments")); slices.Contains(got, "agent_instruction") || slices.Contains(got, "wake_agent") {
@@ -335,6 +345,9 @@ func TestGenericLintWarnsForUntrustedData(t *testing.T) {
 		{"memory content", "tool.remember", map[string]any{"content": "{{trigger.data.text}}"}, false, "content"},
 		{"appointment title", "tool.manage_appointments", map[string]any{"operation": "add", "title": "{{trigger.data.subject}}"}, false, "title"},
 		{"chosen operation", "tool.docker", map[string]any{"operation": "{{trigger.data.op}}"}, false, "operation"},
+		{"written file content", "tool.filesystem", map[string]any{"operation": "write_file", "file_path": "notes.txt",
+			"content": "{{trigger.data.text}}"}, false, "content"},
+		{"batch delete paths", "tool.filesystem", map[string]any{"operation": "delete_batch", "items": "{{trigger.data.items}}"}, false, "items"},
 		{"no sink", "tool.send_image", map[string]any{"path": "a.png", "caption": "{{trigger.data.text}}"}, false, ""},
 	}
 	for _, c := range cases {
@@ -426,11 +439,21 @@ func TestRefreshGenericToolsIsAtomic(t *testing.T) {
 	RefreshGenericTools(reg, tools, nil)
 	var misses, lookups atomic.Int64
 	done := make(chan struct{})
-	var wg sync.WaitGroup
+	var wg, started sync.WaitGroup
+	var stop sync.Once
+	// halt stops the readers and waits for them; deferred, it also runs when the test
+	// fails early, so no reader keeps spinning.
+	halt := func() {
+		stop.Do(func() { close(done) })
+		wg.Wait()
+	}
+	defer halt()
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
+		started.Add(1)
 		go func() {
 			defer wg.Done()
+			started.Done()
 			for {
 				select {
 				case <-done:
@@ -444,6 +467,7 @@ func TestRefreshGenericToolsIsAtomic(t *testing.T) {
 			}
 		}()
 	}
+	started.Wait()
 	for i := 0; i < 500; i++ {
 		list := tools
 		if i%2 == 1 {
@@ -451,8 +475,10 @@ func TestRefreshGenericToolsIsAtomic(t *testing.T) {
 		}
 		RefreshGenericTools(reg, list, nil)
 	}
-	close(done)
-	wg.Wait()
+	halt()
+	if lookups.Load() == 0 {
+		t.Fatal("no lookup ran during the refreshes")
+	}
 	if misses.Load() != 0 {
 		t.Fatalf("%d of %d lookups missed tool.docker during refreshes", misses.Load(), lookups.Load())
 	}
