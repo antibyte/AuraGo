@@ -23,7 +23,7 @@ func (c *Client) SendSMS(ctx context.Context, from, to, text, messagingProfileID
 	if err := ValidateE164(from); err != nil {
 		return nil, fmt.Errorf("from number: %w", err)
 	}
-	if err := ValidateE164(to); err != nil {
+	if err := c.validateDestination(to); err != nil {
 		return nil, fmt.Errorf("to number: %w", err)
 	}
 	if text == "" {
@@ -55,7 +55,7 @@ func (c *Client) SendMMS(ctx context.Context, from, to, text string, mediaURLs [
 	if err := ValidateE164(from); err != nil {
 		return nil, fmt.Errorf("from number: %w", err)
 	}
-	if err := ValidateE164(to); err != nil {
+	if err := c.validateDestination(to); err != nil {
 		return nil, fmt.Errorf("to number: %w", err)
 	}
 	if len(mediaURLs) == 0 {

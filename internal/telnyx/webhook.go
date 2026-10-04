@@ -44,7 +44,7 @@ func NewWebhookHandler(cfg *config.Config, logger *slog.Logger, onSMS func(strin
 	h := &WebhookHandler{
 		cfg:          cfg,
 		logger:       logger,
-		client:       NewClient(cfg.Telnyx.APIKey, logger),
+		client:       newConfiguredClient(cfg, logger),
 		onSMS:        onSMS,
 		onCallEvent:  onCallEvent,
 		activeCalls:  make(map[string]*CallSession),
@@ -106,15 +106,12 @@ func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 
 // processEvent routes the webhook event to the appropriate handler.
 func (h *WebhookHandler) processEvent(event *WebhookEvent) {
-	// Validate sender against allowed numbers
-	from := string(event.Data.Payload.From)
-	if from != "" && !h.isAllowedNumber(from) {
-		h.logger.Warn("Telnyx webhook: number not in allowed list", "from", from)
-		return
-	}
-
 	switch event.Data.EventType {
 	case EventMessageReceived:
+		if !h.isAllowedNumber(string(event.Data.Payload.From)) {
+			h.logger.Warn("Telnyx webhook: number not in allowed list")
+			return
+		}
 		h.handleIncomingSMS(event)
 	case EventCallInitiated:
 		h.reconcileActiveCalls(context.Background())
@@ -164,6 +161,10 @@ func (h *WebhookHandler) handleCallInitiated(event *WebhookEvent) {
 	if payload.Direction != "incoming" {
 		return
 	}
+	if !h.cfg.Telnyx.Enabled || h.cfg.Telnyx.ReadOnly || !h.isAllowedNumber(string(payload.From)) {
+		h.rejectIncomingCall(payload.CallControlID, "CALL_REJECTED")
+		return
+	}
 
 	h.logger.Info("Telnyx incoming call", "from", payload.From, "call_control_id", payload.CallControlID)
 
@@ -176,13 +177,26 @@ func (h *WebhookHandler) handleCallInitiated(event *WebhookEvent) {
 	}
 
 	h.mu.Lock()
+	if _, exists := h.activeCalls[payload.CallControlID]; exists {
+		h.mu.Unlock()
+		return
+	}
 	if len(h.activeCalls) >= h.cfg.Telnyx.MaxConcurrentCalls {
 		h.mu.Unlock()
 		h.logger.Warn("Telnyx: max concurrent calls reached, rejecting", "from", payload.From)
+		h.rejectIncomingCall(payload.CallControlID, "USER_BUSY")
 		return
 	}
 	h.activeCalls[payload.CallControlID] = session
 	h.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := h.client.AnswerCall(ctx, payload.CallControlID); err != nil {
+		// Retain the reservation: the provider may have accepted the command.
+		// Reconciliation or a hangup event can safely release it.
+		h.logger.Warn("Telnyx: answer result unconfirmed", "error", err)
+		return
+	}
 
 	if h.onCallEvent != nil {
 		h.onCallEvent(event)
@@ -345,16 +359,7 @@ func normalizePhone(number string) string {
 
 // isAllowedNumber checks if a phone number is in the allowed list.
 func (h *WebhookHandler) isAllowedNumber(number string) bool {
-	if len(h.cfg.Telnyx.AllowedNumbers) == 0 {
-		return false
-	}
-	clean := normalizePhone(number)
-	for _, allowed := range h.cfg.Telnyx.AllowedNumbers {
-		if clean == normalizePhone(allowed) {
-			return true
-		}
-	}
-	return false
+	return allowedNumber(number, h.cfg.Telnyx.AllowedNumbers)
 }
 
 // isDuplicateEvent checks the in-memory dedup cache for a previously processed event ID.

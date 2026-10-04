@@ -23,6 +23,7 @@ type Client struct {
 	httpClient *http.Client
 	baseURL    string
 	logger     *slog.Logger
+	policy     *numberPolicy
 }
 
 // NewClient creates a Telnyx API client.
@@ -125,6 +126,9 @@ func (c *Client) get(ctx context.Context, path string) ([]byte, int, error) {
 
 // post performs a POST request.
 func (c *Client) post(ctx context.Context, path string, body interface{}) ([]byte, int, error) {
+	if c.policy != nil && c.policy.readOnly {
+		return nil, 0, fmt.Errorf("Telnyx is in read-only mode")
+	}
 	return c.do(ctx, http.MethodPost, path, body)
 }
 

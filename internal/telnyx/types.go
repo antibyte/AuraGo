@@ -75,6 +75,7 @@ type CreateCallRequest struct {
 	WebhookURLMethod          string `json:"webhook_url_method,omitempty"`
 	AnsweringMachineDetection string `json:"answering_machine_detection,omitempty"`
 	TimeoutSecs               int    `json:"timeout_secs,omitempty"`
+	TimeLimitSecs             int    `json:"time_limit_secs,omitempty"`
 }
 
 // CallResponse represents a Telnyx call control API response.
@@ -162,11 +163,11 @@ type WebhookPayload struct {
 
 	// Call event fields
 	From         WebhookPhoneNumber `json:"from,omitempty"`
-	To           string `json:"to,omitempty"`
-	Direction    string `json:"direction,omitempty"`
-	State        string `json:"state,omitempty"`
-	HangupCause  string `json:"hangup_cause,omitempty"`
-	HangupSource string `json:"hangup_source,omitempty"`
+	To           string             `json:"to,omitempty"`
+	Direction    string             `json:"direction,omitempty"`
+	State        string             `json:"state,omitempty"`
+	HangupCause  string             `json:"hangup_cause,omitempty"`
+	HangupSource string             `json:"hangup_source,omitempty"`
 
 	// DTMF / Gather fields
 	Digits string `json:"digits,omitempty"`
