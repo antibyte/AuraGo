@@ -3,6 +3,7 @@ package flows
 import (
 	"errors"
 	"fmt"
+	"sort"
 )
 
 var effectOrder = []Effect{
@@ -48,10 +49,24 @@ func CollectEffects(f *Flow, reg *Registry) []EffectSummary {
 		}
 	}
 	var out []EffectSummary
+	known := make(map[Effect]bool, len(effectOrder))
 	for _, e := range effectOrder {
+		known[e] = true
 		if ids := byEffect[e]; len(ids) > 0 {
 			out = append(out, EffectSummary{Effect: e, NodeIDs: ids})
 		}
+	}
+	// A confirmation dialog must never drop an effect it does not know: list any
+	// effect missing from effectOrder after the known ones, sorted by name.
+	var extra []Effect
+	for e := range byEffect {
+		if !known[e] {
+			extra = append(extra, e)
+		}
+	}
+	sort.Slice(extra, func(i, j int) bool { return extra[i] < extra[j] })
+	for _, e := range extra {
+		out = append(out, EffectSummary{Effect: e, NodeIDs: byEffect[e]})
 	}
 	return out
 }
@@ -67,9 +82,34 @@ func hasTooManyRefs(problems []TemplateProblem) bool {
 	return false
 }
 
+// passesInputs reports whether node n copies the outputs of its inputs into its
+// own output, so that what it outputs is as tainted as what it receives even
+// though no template reference says so. logic.merge always does; logic.set does
+// when keep_input is on, which for a template string is assumed, because its value
+// is only known at run time.
+//
+// Any node type whose Execute copies in.Inputs into its output must be listed
+// here; otherwise untrusted data can pass through it unnoticed.
+func passesInputs(n *Node) bool {
+	switch n.Type {
+	case TypeMerge:
+		return true
+	case TypeSet:
+		raw := n.Params["keep_input"]
+		if s, ok := raw.(string); ok && HasTemplate(s) {
+			return true
+		}
+		return truthy(raw)
+	}
+	return false
+}
+
 // LintUntrustedData warns when data from an untrusted source (untrusted triggers,
 // nodes with UntrustedOutput, and anything derived from them) reaches a parameter
-// flagged SensitiveSink. Taint flows through template references in topological order.
+// flagged SensitiveSink. Taint flows through template references in topological
+// order, and through nodes that copy their inputs (see passesInputs) from any
+// tainted node on an incoming edge. Disabled nodes neither warn nor taint, as they
+// do not run.
 //
 // CollectTemplateRefs drops the references past its cap in sorted key order, and
 // a flow author controls that order. When a node hits the cap while an untrusted
@@ -100,6 +140,10 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 	var issues []Issue
 	for _, id := range order {
 		n := g.nodes[id]
+		if n.Settings.Disabled {
+			tainted[n.Key] = false
+			continue
+		}
 		def, ok := reg.Lookup(n.Type)
 		if !ok {
 			continue
@@ -145,6 +189,14 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 					Message: fmt.Sprintf("%s has more than %d template expressions, so they are not checked; assuming unchecked data flows into %s.%s",
 						nodeKey, maxTemplateRefs, nodeKey, echoKey(spec.Name)),
 				})
+			}
+		}
+		if !nodeTainted && passesInputs(n) {
+			for _, e := range g.incoming[id] {
+				if src := g.nodes[e.Source.Node]; src != nil && tainted[src.Key] {
+					nodeTainted = true
+					break
+				}
 			}
 		}
 		tainted[n.Key] = nodeTainted
