@@ -249,6 +249,16 @@ func (t *TimerService) processDue(ctx context.Context, startup bool) error {
 			return nil
 		default:
 		}
+		if tm.FireAt.IsZero() {
+			// ListTimers yields a zero time for a row whose fire_at cannot be read. Firing it
+			// would start a run "scheduled" for year 1, so drop it without a callback.
+			t.logger.Warn("flow timer has no readable fire time and is dropped without firing",
+				"flow", quoteForError(tm.FlowID), "node", quoteForError(tm.NodeID))
+			if err := t.settle(ctx, tm, now); err != nil {
+				return err
+			}
+			continue
+		}
 		if tm.FireAt.After(now) {
 			break
 		}
@@ -277,9 +287,10 @@ func (t *TimerService) processDue(ctx context.Context, startup bool) error {
 // newly armed timer must survive.
 func (t *TimerService) settle(ctx context.Context, tm TimerRecord, now time.Time) error {
 	if tm.FireAt.IsZero() {
-		// ListTimers yields a zero time for a row whose fire_at cannot be read. The
-		// conditional forms below could never match it, so the row would be due and
-		// fired again and again.
+		// A damaged row (processDue never fires it). The conditional forms below could
+		// never match it, so it would stay and be found again and again; it is deleted
+		// by flow and node instead. That reopens the Replace race of the comment above,
+		// but only for a row that was never valid, which is accepted.
 		return t.store.DeleteTimer(ctx, tm.FlowID, tm.NodeID)
 	}
 	if tm.Repeat != RepeatYearly {

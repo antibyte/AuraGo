@@ -2,6 +2,8 @@ package flows
 
 import (
 	"context"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 )
@@ -60,21 +62,39 @@ func TestTimerServiceReplaceDuringCallbackKeepsNewYearlyTime(t *testing.T) {
 }
 
 func TestTimerServiceUnreadableTimerRowIsDroppedNotRepeated(t *testing.T) {
-	h := newHardTimers(t, storeNow)
-	calls := &timerCalls{}
-	svc := h.service(t, calls.fire, calls.missed, nil)
-	h.arm(t,
-		TimerRecord{NodeID: "n_aaaaaaab", FireAt: storeNow},
-		TimerRecord{NodeID: "n_aaaaaaac", FireAt: storeNow, Repeat: RepeatYearly})
-	// Not reachable through the store's own writes; a damaged database is.
-	h.exec(t, `UPDATE flow_timers SET fire_at = 'not a time'`)
-	if err := svc.processDue(context.Background(), false); err != nil {
-		t.Fatal(err)
-	}
-	// Settling by the fired time can never match such a row; it must still go, or
-	// the loop would fire it again and again.
-	calls.assertCalls(t, "fire:n_aaaaaaab", "fire:n_aaaaaaac")
-	if list := h.timers(t); len(list) != 0 {
-		t.Fatalf("unreadable timers must be dropped, got %+v", list)
+	for _, startup := range []bool{true, false} {
+		name := "loop pass"
+		if startup {
+			name = "start-up pass"
+		}
+		t.Run(name, func(t *testing.T) {
+			h := newHardTimers(t, storeNow)
+			calls := &timerCalls{}
+			logs := &syncBuffer{}
+			svc := h.service(t, calls.fire, calls.missed, slog.New(slog.NewTextHandler(logs, nil)))
+			h.arm(t,
+				TimerRecord{NodeID: "n_aaaaaaab", FireAt: storeNow},
+				TimerRecord{NodeID: "n_aaaaaaac", FireAt: storeNow, Repeat: RepeatYearly},
+				TimerRecord{NodeID: "n_aaaaaaad", FireAt: storeNow.Add(-time.Minute)})
+			// Not reachable through the store's own writes; a damaged database is.
+			h.exec(t, `UPDATE flow_timers SET fire_at = 'not a time' WHERE node_id IN ('n_aaaaaaab', 'n_aaaaaaac')`)
+			if err := svc.processDue(context.Background(), startup); err != nil {
+				t.Fatal(err)
+			}
+			// A damaged row has no time to run for: no callback, not even "missed" (a run
+			// "scheduled" for year 1). Settling by time can never match it either, so it
+			// must still go, or the loop would find it again and again. The valid timer
+			// next to it is not affected.
+			calls.assertCalls(t, "fire:n_aaaaaaad")
+			if list := h.timers(t); len(list) != 0 {
+				t.Fatalf("damaged timers must be dropped and the valid one settled, got %+v", list)
+			}
+			out := logs.String()
+			for _, want := range []string{"level=WARN", "n_aaaaaaab", "n_aaaaaaac"} {
+				if !strings.Contains(out, want) {
+					t.Fatalf("dropping a damaged timer must be logged as a warning naming %q, log: %s", want, out)
+				}
+			}
+		})
 	}
 }
