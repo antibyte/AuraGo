@@ -284,6 +284,12 @@ type Server struct {
 	haPollerMu            sync.Mutex
 	haPoller              atomic.Pointer[homeAssistantPollerRuntime]
 	haPollerClosed        bool
+	fritzPollerMu         sync.Mutex
+	fritzPoller           atomic.Pointer[fritzbox.Poller]
+	fritzPollerClosed     bool
+	fritzLoopbackSem      chan struct{}
+	fritzWidgetMu         sync.Mutex
+	fritzWidget           *fritzWidgetCache
 }
 
 func (s *Server) accessLogger() *slog.Logger {
@@ -367,6 +373,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	if poller := s.haPoller.Load(); poller != nil {
 		poller.cancelIfChanged(cfg)
+	}
+	if poller := s.fritzPoller.Load(); poller != nil {
+		poller.CancelIfConfigChanged(cfg)
 	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
@@ -503,6 +512,7 @@ func Start(opts StartOptions) error {
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
 	s.integrationCtx = serverCtx
+	s.fritzLoopbackSem = loopbackSem
 	s.MQTTController = mqtt.NewMQTTController(logger)
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
@@ -1282,50 +1292,7 @@ func Start(opts StartOptions) error {
 		logger.Info("Docker is disabled; skipping managed sidecar auto-start")
 	}
 
-	// Start Fritz!Box telephony poller if enabled
-	if cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled && cfg.FritzBox.Telephony.Polling.Enabled {
-		fbPoller := fritzbox.NewPoller(*cfg, func(kind, summary string) {
-			// Fire mission triggers for Fritz!Box events
-			s.MissionManagerV2.NotifyFritzBoxEvent(kind, summary)
-			go func() {
-				if err := acquireLoopbackSem(serverCtx, loopbackSem); err != nil {
-					return
-				}
-				defer releaseLoopbackSem(loopbackSem)
-
-				url := InternalAPIURL(cfg) + "/v1/chat/completions"
-				prompt := fmt.Sprintf("[FRITZ!BOX EVENT: %s] %s", kind, summary)
-				payload := map[string]interface{}{
-					"model":  "aurago",
-					"stream": false,
-					"messages": []map[string]string{
-						{"role": "user", "content": prompt},
-					},
-				}
-				body, _ := json.Marshal(payload)
-				req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
-				if err != nil {
-					logger.Error("[FritzBox Poller] Failed to create loopback request", "error", err)
-					return
-				}
-				req.Header.Set("Content-Type", "application/json")
-				req.Header.Set("X-Internal-FollowUp", "true")
-				req.Header.Set("X-Internal-Token", s.internalToken)
-				client := NewInternalHTTPClient(10 * time.Minute)
-				if resp, err := client.Do(req); err != nil {
-					logger.Error("[FritzBox Poller] Loopback request failed", "error", err)
-				} else {
-					_ = resp.Body.Close()
-				}
-			}()
-		}, logger)
-		fbPoller.Start()
-		logger.Info("[FritzBox Poller] Telephony polling started")
-		go func() {
-			<-shutdownCh
-			fbPoller.Stop()
-		}()
-	}
+	s.configureFritzPoller()
 
 	// Initialize A2A Protocol support
 	if cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled {

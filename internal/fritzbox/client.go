@@ -4,11 +4,15 @@
 package fritzbox
 
 import (
+	"aurago/internal/security"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -17,16 +21,22 @@ import (
 // Client is the unified Fritz!Box client.
 // Use NewClient to construct it; call Close when done to logout the SID session.
 type Client struct {
-	Cfg    config.Config // full config available for feature checks
-	webURL string        // web interface base URL (port 80/443) for SID-authenticated requests
-	tr     *TR064Client
-	aha    *AHAClient
-	sid    *SIDAuth // kept for explicit logout
+	cancel    context.CancelFunc
+	closeOnce sync.Once
+	Cfg       config.Config // full config available for feature checks
+	webURL    string        // web interface base URL (port 80/443) for SID-authenticated requests
+	tr        *TR064Client
+	aha       *AHAClient
+	sid       *SIDAuth // kept for explicit logout
 }
 
 // NewClient constructs a Client from the application config.
 // The password must already be populated (loaded from vault by the caller).
 func NewClient(cfg config.Config) (*Client, error) {
+	return NewClientContext(context.Background(), cfg)
+}
+
+func NewClientContext(parent context.Context, cfg config.Config) (*Client, error) {
 	fb := cfg.FritzBox
 	if !fb.Enabled {
 		return nil, fmt.Errorf("fritzbox: integration is not enabled")
@@ -38,11 +48,34 @@ func NewClient(cfg config.Config) (*Client, error) {
 	baseURL := buildBaseURL(fb.Host, fb.Port, fb.HTTPS)
 	webURL := buildWebURL(fb.Host, fb.HTTPS, fb.WebPort) // SID/AHA use the web interface port, not TR-064 (49000)
 	timeout := time.Duration(fb.Timeout) * time.Second
+	if timeout <= 0 || timeout > time.Minute {
+		timeout = 10 * time.Second
+	}
+	security.RegisterSensitive(fb.Password)
 
 	tr := newTR064Client(baseURL, fb.Username, fb.Password, timeout, fb.InsecureSkipVerify)
 	aha := newAHAClient(webURL, fb.Username, fb.Password, timeout, fb.InsecureSkipVerify)
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
+	trOrigin, err := url.Parse(baseURL)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	webOrigin, err := url.Parse(webURL)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	for _, client := range []*http.Client{tr.httpClient, aha.httpClient, aha.sid.client} {
+		client.Transport = &boundTransport{parent: ctx, base: client.Transport, origins: []*url.URL{trOrigin, webOrigin}}
+	}
+	aha.sid.ctx = ctx
 
 	return &Client{
+		cancel: cancel,
 		Cfg:    cfg,
 		webURL: webURL,
 		tr:     tr,
@@ -53,9 +86,21 @@ func NewClient(cfg config.Config) (*Client, error) {
 
 // Close logs out the AHA session and releases resources.
 func (c *Client) Close() {
-	if c.sid != nil {
-		c.sid.Logout()
-	}
+	c.closeOnce.Do(func() {
+		if c.cancel != nil {
+			c.cancel()
+		}
+		if c.sid != nil {
+			c.sid.Logout()
+			c.sid.client.CloseIdleConnections()
+		}
+		if c.tr != nil {
+			c.tr.httpClient.CloseIdleConnections()
+		}
+		if c.aha != nil {
+			c.aha.httpClient.CloseIdleConnections()
+		}
+	})
 }
 
 // ──────────────────────────────────────────────

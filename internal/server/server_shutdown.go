@@ -16,6 +16,13 @@ func (s *Server) closeRuntimeResources() {
 	}
 	s.stopRocketChatBot()
 	s.stopHomeAssistantPoller()
+	s.stopFritzPoller()
+	s.fritzWidgetMu.Lock()
+	widget := s.fritzWidget
+	s.fritzWidgetMu.Unlock()
+	if widget != nil {
+		widget.close()
+	}
 	if s.MissionManagerV2 != nil {
 		s.MissionManagerV2.Stop()
 	}

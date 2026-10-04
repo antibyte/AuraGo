@@ -5,6 +5,7 @@
 package fritzbox
 
 import (
+	"aurago/internal/security"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -89,7 +90,7 @@ func (c *Client) fetchCallListXML(rawURL string) ([]CallEntry, error) {
 	}
 	resp, err := c.tr.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetch call list: %w", err)
+		return nil, fmt.Errorf("fetch call list: %w", scrubFritzError(err))
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
@@ -180,7 +181,7 @@ func (c *Client) fetchPhonebookXML(rawURL string) ([]PhonebookEntry, error) {
 	}
 	resp, err := c.tr.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetch phonebook: %w", err)
+		return nil, fmt.Errorf("fetch phonebook: %w", scrubFritzError(err))
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
@@ -252,7 +253,7 @@ func (c *Client) fetchTAMListXML(rawURL string) ([]TAMEntry, error) {
 		}
 		resp, err = c.tr.httpClient.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("fetch tam list: %w", err)
+			return nil, fmt.Errorf("fetch tam list: %w", scrubFritzError(err))
 		}
 	}
 	defer resp.Body.Close()
@@ -320,7 +321,7 @@ func (c *Client) GetTAMMessageURL(tamIndex, msgIndex int) (string, error) {
 			} else {
 				audioURL = m.Path
 			}
-			slog.Info("Fritz!Box TAM audio URL resolved", "tam", tamIndex, "msg", msgIndex, "raw_path", m.Path, "url", audioURL)
+			slog.Info("Fritz!Box TAM audio URL resolved", "tam", tamIndex, "msg", msgIndex, "source", "configured router")
 			return audioURL, nil
 		}
 	}
@@ -344,7 +345,6 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 		resp        *http.Response
 		lastErrBody string
 		lastStatus  int
-		lastURL     string
 	)
 	for _, candidate := range candidates {
 		resp, err = c.sid.GetWithSID(candidate)
@@ -365,12 +365,11 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 		}
 
 		if err != nil {
-			return fmt.Errorf("download TAM audio: %w", err)
+			return fmt.Errorf("download TAM audio: %w", scrubFritzError(err))
 		}
 
 		if resp.StatusCode == http.StatusOK {
 			defer resp.Body.Close()
-			lastURL = candidate
 			break
 		}
 
@@ -378,18 +377,17 @@ func (c *Client) DownloadTAMMessage(tamIndex, msgIndex int, destPath string) err
 		_ = resp.Body.Close()
 		lastErrBody = strings.TrimSpace(string(body))
 		lastStatus = resp.StatusCode
-		lastURL = candidate
 
 		// Some Fritz!Box models return Path entries without extension in the TAM
 		// XML list while the downloadable file on disk has ".wav". Retry with
 		// URL variants before failing hard.
 		if resp.StatusCode != http.StatusNotFound {
-			return fmt.Errorf("download TAM audio: HTTP %d (url: %s) body: %s", resp.StatusCode, candidate, lastErrBody)
+			return fmt.Errorf("download TAM audio: HTTP %d: %s", resp.StatusCode, security.Scrub(lastErrBody))
 		}
 	}
 
 	if resp == nil || resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download TAM audio: HTTP %d (url: %s) body: %s", lastStatus, lastURL, lastErrBody)
+		return fmt.Errorf("download TAM audio: HTTP %d: %s", lastStatus, security.Scrub(lastErrBody))
 	}
 
 	f, err := os.Create(destPath)

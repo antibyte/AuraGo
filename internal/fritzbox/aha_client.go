@@ -4,6 +4,7 @@
 package fritzbox
 
 import (
+	"aurago/internal/security"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,7 +24,7 @@ type AHAClient struct {
 // newAHAClient creates an AHA-HTTP client.
 func newAHAClient(baseURL, username, password string, timeout time.Duration, insecureSkipVerify bool) *AHAClient {
 	transport := newHTTPTransport(insecureSkipVerify)
-	httpClient := &http.Client{Transport: transport, Timeout: timeout}
+	httpClient := &http.Client{Transport: transport, Timeout: timeout, CheckRedirect: security.SameOriginRedirect}
 	// SIDAuth uses the same transport policy for the login handshake.
 	sidAuth := newSIDAuth(baseURL, username, password, timeout, transport)
 	return &AHAClient{
@@ -57,12 +58,12 @@ func (c *AHAClient) Command(ain, cmd string, params map[string]string) (string, 
 	reqURL := c.baseURL + "/webservices/homeautoswitch.lua?" + q.Encode()
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("aha: build request: %w", err)
+		return "", fmt.Errorf("aha: build request: %w", scrubFritzError(err))
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("aha: request %s: %w", cmd, err)
+		return "", fmt.Errorf("aha: request %s: %w", cmd, scrubFritzError(err))
 	}
 	defer resp.Body.Close()
 
@@ -77,11 +78,11 @@ func (c *AHAClient) Command(ain, cmd string, params map[string]string) (string, 
 		reqURL = c.baseURL + "/webservices/homeautoswitch.lua?" + q.Encode()
 		req, err = http.NewRequest(http.MethodGet, reqURL, nil)
 		if err != nil {
-			return "", fmt.Errorf("aha: build retry request: %w", err)
+			return "", fmt.Errorf("aha: build retry request: %w", scrubFritzError(err))
 		}
 		resp2, err2 := c.httpClient.Do(req)
 		if err2 != nil {
-			return "", fmt.Errorf("aha: retry %s: %w", cmd, err2)
+			return "", fmt.Errorf("aha: retry %s: %w", cmd, scrubFritzError(err2))
 		}
 		defer resp2.Body.Close()
 		resp = resp2

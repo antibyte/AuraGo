@@ -7,7 +7,9 @@
 package fritzbox
 
 import (
+	"aurago/internal/security"
 	"bytes"
+	"context"
 	"crypto/md5" //nolint:gosec // MD5 is required by the legacy Fritz!Box auth protocol
 	"encoding/binary"
 	"encoding/hex"
@@ -35,10 +37,12 @@ const (
 
 // SIDAuth manages Fritz!OS session authentication via login_sid.lua.
 type SIDAuth struct {
-	baseURL  string
-	username string
-	password string
-	client   *http.Client
+	ctx          context.Context
+	logoutClient *http.Client
+	baseURL      string
+	username     string
+	password     string
+	client       *http.Client
 
 	mu        sync.Mutex
 	sid       string
@@ -48,12 +52,15 @@ type SIDAuth struct {
 // newSIDAuth creates an SIDAuth for the given host.
 func newSIDAuth(baseURL, username, password string, timeout time.Duration, transport http.RoundTripper) *SIDAuth {
 	return &SIDAuth{
-		baseURL:  baseURL,
-		username: username,
-		password: password,
+		ctx:          context.Background(),
+		logoutClient: &http.Client{Transport: transport, Timeout: 2 * time.Second, CheckRedirect: security.SameOriginRedirect},
+		baseURL:      baseURL,
+		username:     username,
+		password:     password,
 		client: &http.Client{
-			Transport: transport,
-			Timeout:   timeout,
+			Transport:     transport,
+			Timeout:       timeout,
+			CheckRedirect: security.SameOriginRedirect,
 		},
 	}
 }
@@ -64,6 +71,7 @@ func (a *SIDAuth) SID() (string, error) {
 	defer a.mu.Unlock()
 
 	if a.sid != "" && a.sid != sidUnauthorized && time.Now().Before(a.expiresAt) {
+		security.RegisterSensitive(a.sid)
 		return a.sid, nil
 	}
 	return a.login()
@@ -87,7 +95,11 @@ func (a *SIDAuth) Logout() {
 		logoutURL := fmt.Sprintf("%s%s&sid=%s&logout=1", a.baseURL, sidEndpoint, url.QueryEscape(sid))
 		req, err := http.NewRequest(http.MethodGet, logoutURL, nil)
 		if err == nil {
-			resp, _ := a.client.Do(req)
+			client := a.logoutClient
+			if client == nil {
+				client = a.client
+			}
+			resp, _ := client.Do(req)
 			if resp != nil {
 				io.Copy(io.Discard, resp.Body) //nolint:errcheck
 				resp.Body.Close()
@@ -111,12 +123,13 @@ func (a *SIDAuth) GetWithSID(rawURL string) (*http.Response, error) {
 	}
 	req, err := http.NewRequest(http.MethodGet, rawURL+sep+"sid="+sid, nil)
 	if err != nil {
-		return nil, fmt.Errorf("build SID request: %w", err)
+		return nil, fmt.Errorf("build SID request: %w", scrubFritzError(err))
 	}
 	// Send SID as cookie too — download.lua and similar endpoints check the cookie,
 	// not (only) the query parameter.
 	req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
-	return a.client.Do(req)
+	resp, err := a.client.Do(req)
+	return resp, scrubFritzError(err)
 }
 
 // login performs the full challenge-response login and stores the resulting SID.
@@ -128,7 +141,20 @@ func (a *SIDAuth) login() (string, error) {
 	}
 
 	if blockSecs > 0 {
-		time.Sleep(time.Duration(blockSecs) * time.Second)
+		if blockSecs > 60 {
+			return "", fmt.Errorf("fritzbox sid: authentication blocked; retry later")
+		}
+		ctx := a.ctx
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		timer := time.NewTimer(time.Duration(blockSecs) * time.Second)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-timer.C:
+		}
 	}
 
 	var response string
@@ -145,10 +171,11 @@ func (a *SIDAuth) login() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fritzbox sid: send response: %w", err)
 	}
-	if sid == sidUnauthorized {
+	if sid == sidUnauthorized || len(sid) != sidLength {
 		return "", fmt.Errorf("fritzbox sid: authentication failed – check username/password")
 	}
 
+	security.RegisterSensitive(sid)
 	a.sid = sid
 	a.expiresAt = time.Now().Add(19 * time.Minute) // Fritz!OS sessions expire after 20 min of inactivity
 	return sid, nil

@@ -64,16 +64,16 @@ func (d *DigestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return resp, nil
 	}
 
-	// Drain and close the 401 body before retrying.
-	io.Copy(io.Discard, resp.Body) //nolint:errcheck
-	resp.Body.Close()
-
 	// Parse WWW-Authenticate header.
 	wwwAuth := resp.Header.Get("WWW-Authenticate")
 	if !strings.HasPrefix(wwwAuth, "Digest ") {
 		// Not digest – return original response.
 		return resp, nil
 	}
+
+	// Drain and close the 401 body before retrying.
+	io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10)) //nolint:errcheck
+	resp.Body.Close()
 
 	d.mu.Lock()
 	d.parseChallenge(wwwAuth)
@@ -200,4 +200,10 @@ func cloneRequest(r *http.Request) (*http.Request, error) {
 	r.Body = io.NopCloser(strings.NewReader(string(body)))
 	clone.Body = io.NopCloser(strings.NewReader(string(body)))
 	return clone, nil
+}
+
+func (d *DigestTransport) CloseIdleConnections() {
+	if closer, ok := d.transport.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
+	}
 }

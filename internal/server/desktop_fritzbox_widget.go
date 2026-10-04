@@ -13,6 +13,7 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -168,6 +169,7 @@ func fritzWidgetCapabilitiesFor(cfg *config.Config) fritzWidgetCapabilities {
 // ---------------------------------------------------------------------------
 
 type fritzWidgetEntry struct {
+	configKey   string
 	data        any
 	err         error
 	fetchedAt   time.Time
@@ -175,11 +177,19 @@ type fritzWidgetEntry struct {
 	inflight    chan struct{}
 }
 
+type fritzWidgetLease struct {
+	backend fritzWidgetBackend
+	users   int
+	retired bool
+}
+
 type fritzWidgetCache struct {
+	users      sync.WaitGroup
+	closed     bool
 	mu         sync.Mutex
 	now        func() time.Time
 	newBackend func(cfg *config.Config) (fritzWidgetBackend, error)
-	backend    fritzWidgetBackend
+	backend    *fritzWidgetLease
 	backendKey string
 	backendAt  time.Time
 	entries    map[string]*fritzWidgetEntry
@@ -202,7 +212,11 @@ func newFritzWidgetClient(s *Server, cfg *config.Config) (fritzWidgetBackend, er
 			clientCfg.FritzBox.Password = v
 		}
 	}
-	client, err := fritzbox.NewClient(clientCfg)
+	parent := context.Background()
+	if s != nil && s.integrationCtx != nil {
+		parent = s.integrationCtx
+	}
+	client, err := fritzbox.NewClientContext(parent, clientCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -210,52 +224,81 @@ func newFritzWidgetClient(s *Server, cfg *config.Config) (fritzWidgetBackend, er
 }
 
 func fritzWidgetBackendKey(cfg *config.Config) string {
-	fb := cfg.FritzBox
-	return fmt.Sprintf("%s|%d|%t|%d|%t|%d|%s|%t|%t", fb.Host, fb.Port, fb.HTTPS, fb.WebPort, fb.InsecureSkipVerify, fb.Timeout, fb.Username, fb.Network.Enabled, fb.Telephony.Enabled)
+	raw, _ := json.Marshal(cfg.FritzBox)
+	return fmt.Sprintf("%x", sha256.Sum256(append(raw, []byte(cfg.FritzBox.Password)...)))
 }
 
-func (c *fritzWidgetCache) backendFor(cfg *config.Config) (fritzWidgetBackend, error) {
+// backendFor acquires a lease. Replaced clients close only after their last reader.
+func (c *fritzWidgetCache) backendFor(cfg *config.Config) (*fritzWidgetLease, error) {
 	key := fritzWidgetBackendKey(cfg)
 	c.mu.Lock()
-	if c.backend != nil && c.backendKey == key && c.now().Sub(c.backendAt) < fritzWidgetBackendMaxAge {
-		backend := c.backend
+	if c.closed {
 		c.mu.Unlock()
-		return backend, nil
+		return nil, fmt.Errorf("Fritz!Box widget is closed")
 	}
-	old := c.backend
-	c.backend = nil
-	c.mu.Unlock()
-	if old != nil {
-		old.Close()
+	if c.backend != nil && c.backendKey == key && c.now().Sub(c.backendAt) < fritzWidgetBackendMaxAge {
+		lease := c.backend
+		lease.users++
+		c.users.Add(1)
+		c.mu.Unlock()
+		return lease, nil
 	}
 	backend, err := c.newBackend(cfg)
 	if err != nil {
+		c.mu.Unlock()
 		return nil, err
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.backend != nil {
-		// Another refresh rebuilt the client concurrently; keep that one.
-		go backend.Close()
-		return c.backend, nil
+	old := c.backend
+	if old != nil {
+		old.retired = true
 	}
-	c.backend = backend
+	closeOld := old != nil && old.users == 0
+	lease := &fritzWidgetLease{backend: backend, users: 1}
+	c.backend = lease
 	c.backendKey = key
 	c.backendAt = c.now()
-	return backend, nil
+	c.users.Add(1)
+	c.mu.Unlock()
+	if closeOld {
+		old.backend.Close()
+	}
+	return lease, nil
 }
 
-func (c *fritzWidgetCache) dropBackend(backend fritzWidgetBackend) {
+func (c *fritzWidgetCache) dropBackend(lease *fritzWidgetLease) {
 	c.mu.Lock()
-	if c.backend != backend {
-		c.mu.Unlock()
-		return
+	defer c.mu.Unlock()
+	if c.backend == lease {
+		c.backend = nil
+		lease.retired = true
 	}
-	c.backend = nil
+}
+
+func (c *fritzWidgetCache) releaseBackend(lease *fritzWidgetLease) {
+	c.mu.Lock()
+	lease.users--
+	closeNow := lease.retired && lease.users == 0
 	c.mu.Unlock()
-	if backend != nil {
-		backend.Close()
+	if closeNow {
+		lease.backend.Close()
 	}
+	c.users.Done()
+}
+
+func (c *fritzWidgetCache) close() {
+	c.mu.Lock()
+	c.closed = true
+	old := c.backend
+	c.backend = nil
+	if old != nil {
+		old.retired = true
+	}
+	closeNow := old != nil && old.users == 0
+	c.mu.Unlock()
+	if closeNow {
+		old.backend.Close()
+	}
+	c.users.Wait()
 }
 
 // section returns cached data for one section. Fresh entries are served
@@ -265,9 +308,10 @@ func (c *fritzWidgetCache) dropBackend(backend fritzWidgetBackend) {
 func (c *fritzWidgetCache) section(ctx context.Context, cfg *config.Config, name string, ttl time.Duration, waitWhenStale bool,
 	fetch func(fritzWidgetBackend) (any, error)) (any, time.Time, bool, error) {
 	c.mu.Lock()
+	key := fritzWidgetBackendKey(cfg)
 	entry := c.entries[name]
-	if entry == nil {
-		entry = &fritzWidgetEntry{}
+	if entry == nil || entry.configKey != key {
+		entry = &fritzWidgetEntry{configKey: key}
 		c.entries[name] = entry
 	}
 	now := c.now()
@@ -304,13 +348,14 @@ func (c *fritzWidgetCache) section(ctx context.Context, cfg *config.Config, name
 
 func (c *fritzWidgetCache) refresh(cfg *config.Config, entry *fritzWidgetEntry, fetch func(fritzWidgetBackend) (any, error), done chan struct{}) {
 	defer close(done)
-	backend, err := c.backendFor(cfg)
+	lease, err := c.backendFor(cfg)
 	var data any
 	if err == nil {
-		data, err = fetch(backend)
+		defer c.releaseBackend(lease)
+		data, err = fetch(lease.backend)
 		if err != nil {
 			// Force a rebuild (fresh Vault password, fresh digest state) on the next attempt.
-			c.dropBackend(backend)
+			c.dropBackend(lease)
 		}
 	}
 	c.mu.Lock()
@@ -625,7 +670,13 @@ func fritzWidgetParseSections(raw string, caps fritzWidgetCapabilities) []string
 // ---------------------------------------------------------------------------
 
 func handleDesktopFritzBoxOverview(s *Server) http.HandlerFunc {
-	return handleDesktopFritzBoxOverviewWithCache(s, newFritzWidgetCache(s))
+	s.fritzWidgetMu.Lock()
+	if s.fritzWidget == nil {
+		s.fritzWidget = newFritzWidgetCache(s)
+	}
+	cache := s.fritzWidget
+	s.fritzWidgetMu.Unlock()
+	return handleDesktopFritzBoxOverviewWithCache(s, cache)
 }
 
 func handleDesktopFritzBoxOverviewWithCache(s *Server, cache *fritzWidgetCache) http.HandlerFunc {

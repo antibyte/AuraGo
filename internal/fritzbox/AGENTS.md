@@ -17,6 +17,13 @@ TR-064 integration and Desktop widget behavior.
 - One shared per-section TTL cache with single-flight serves all widget clients: system 5 min, connection 4 s (waits for a fresh value), devices/telephony 45 s (stale-while-revalidate), 10 s retry window after errors, backend client rebuilt after 10 min or on error, request wait capped at 15 s. Traffic history is a client-only ring buffer seeded from `X_AVM-DE_GetOnlineMonitor`; there is no server-side sampler or persistence.
 - WAN reads live in `internal/fritzbox/service_wan.go` (`GetWANStatus`, `GetWANLinkInfo`, `GetOnlineMonitor`; PPP first, then IP connection) and require the Network feature group. Verify with `go test ./internal/fritzbox ./internal/desktop`, `go test ./internal/server -run 'FritzBox'` and `go test ./ui -run TestDesktopFritzBoxWidget`.
 
+### Credentials and Runtime Lifetime
+- New template installations start every Fritz!Box feature group read-only; explicitly saved write grants remain intact.
+- Register session IDs before authenticated requests and scrub URL-bearing errors at the client boundary. Router credentials stay bound to the configured TR-064/web origins and cannot follow foreign redirects. Non-Digest 401 responses retain their unread body.
+- Pollers own their pooled client and inherit the server context. Configuration changes cancel the old generation immediately; drain it outside config locks before replacement. Stop waits for client operations and synchronous callbacks, then closes the client once. Login block waits and response bodies must be cancellable; logout is best-effort with a separate two-second limit.
+- The server owns the Desktop widget cache. Acquire/release a backend lease for every refresh; retirement and shutdown close a client only after its last reader. Configuration/credential changes invalidate cache entries and backend identity. Preserve concurrent section refreshes.
+- Verify lifecycle/security tests in fritzbox, configuration template/default tests and Fritz widget/runtime tests in server. Hardware acceptance remains separate.
+
 ## Verification
 
 - Run `go test ./internal/fritzbox` and the named cross-component checks in the contracts above when those paths change.
