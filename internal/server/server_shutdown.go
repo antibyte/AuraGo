@@ -14,6 +14,7 @@ func (s *Server) closeRuntimeResources() {
 	if s == nil {
 		return
 	}
+	s.stopRocketChatBot()
 
 	if manager := currentVaultSecretPrompter(s); manager != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)

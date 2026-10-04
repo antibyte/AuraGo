@@ -178,6 +178,12 @@ Server-owned HTTP and cross-component integration contracts.
 - The probes use the integrations' documented read-only authentication/status requests. Any new production HTTP client must be classified in `internal/audit.NetworkClientInventory`, and action text must be present in every `ui/lang/config/common/` locale.
 - `/api/models/catalog` uses the bundled provider/model catalog for its list. For exact provider/model matches, its structured-output flag follows the `models.dev` registry instead of the catalog's API-family inference; unmatched models keep their catalog flag. Verify with `TestHandleModelCatalogStructuredOutputMatchesModelsDev`.
 
+### Rocket.Chat Runtime Contract
+- One server-owned consumer processes history chronologically with bounded pagination, including messages sharing a timestamp. Accept ISO timestamps and the legacy date object.
+- Every turn uses a current immutable config/client snapshot. Publishing changed Rocket.Chat credentials, channel, allowlist or enablement cancels the old generation immediately; drain outside config locks before starting its replacement. Egg mode and shutdown forbid restart.
+- HTTP requests and agent turns inherit the runtime context. Shutdown waits for message processing before closing databases. Integration credentials never follow a foreign redirect.
+- Verify `TestRocketChat` in `internal/rocketchat` and `internal/server`.
+
 ## Verification
 
 - Run `go test ./internal/server` and the named cross-component checks in the contracts above when those paths change.

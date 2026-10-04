@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -25,25 +26,18 @@ import (
 )
 
 // rcHTTPClient is a shared HTTP client for Rocket.Chat REST API calls.
-var rcHTTPClient = &http.Client{Timeout: 30 * time.Second}
-
-// StartBot initializes the Rocket.Chat bot and begins polling for new messages.
-func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
-	if !cfg.RocketChat.Enabled {
-		return
-	}
-	if cfg.RocketChat.URL == "" || cfg.RocketChat.AuthToken == "" || cfg.RocketChat.UserID == "" {
-		logger.Warn("[RocketChat] Missing URL, user_id, or auth_token — skipping start")
-		return
-	}
-
-	logger.Info("[RocketChat] Bot starting", "url", cfg.RocketChat.URL, "channel", cfg.RocketChat.Channel)
-
-	go pollLoop(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian)
-}
+var rcHTTPClient = &http.Client{Timeout: 30 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // rcRequest performs a REST API request against the Rocket.Chat server.
 func rcRequest(cfg *config.Config, method, endpoint string, body string) ([]byte, int, error) {
+	return rcRequestContext(context.Background(), cfg, method, endpoint, body)
+}
+
+func rcRequestContext(ctx context.Context, cfg *config.Config, method, endpoint string, body string) ([]byte, int, error) {
+	if err := security.ValidateHTTPBaseURL(cfg.RocketChat.URL); err != nil {
+		return nil, 0, err
+	}
+	security.RegisterSensitive(cfg.RocketChat.AuthToken)
 	url := strings.TrimRight(cfg.RocketChat.URL, "/") + "/api/v1" + endpoint
 
 	var reqBody io.Reader
@@ -51,7 +45,7 @@ func rcRequest(cfg *config.Config, method, endpoint string, body string) ([]byte
 		reqBody = strings.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -61,11 +55,14 @@ func rcRequest(cfg *config.Config, method, endpoint string, body string) ([]byte
 
 	resp, err := rcHTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %w", err)
+		return nil, 0, fmt.Errorf("request failed: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, (2<<20)+1))
+	if len(data) > 2<<20 {
+		return nil, resp.StatusCode, fmt.Errorf("Rocket.Chat response exceeds 2 MiB")
+	}
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -74,6 +71,10 @@ func rcRequest(cfg *config.Config, method, endpoint string, body string) ([]byte
 
 // SendMessage sends a text message to a Rocket.Chat channel.
 func SendMessage(cfg *config.Config, channel, text string) error {
+	return sendMessageContext(context.Background(), cfg, channel, text)
+}
+
+func sendMessageContext(ctx context.Context, cfg *config.Config, channel, text string) error {
 	text = security.Scrub(text)
 	if channel == "" {
 		channel = cfg.RocketChat.Channel
@@ -83,7 +84,7 @@ func SendMessage(cfg *config.Config, channel, text string) error {
 		alias = "AuraGo"
 	}
 
-	_, code, err := rcRequest(cfg, "POST", "/chat.sendMessage", fmt.Sprintf(`{"message":{"rid":%q,"msg":%q,"alias":%q}}`, channel, text, alias))
+	_, code, err := rcRequestContext(ctx, cfg, "POST", "/chat.sendMessage", fmt.Sprintf(`{"message":{"rid":%q,"msg":%q,"alias":%q}}`, channel, text, alias))
 	if err != nil {
 		return fmt.Errorf("send message failed: %w", err)
 	}
@@ -102,71 +103,7 @@ type message struct {
 		ID       string `json:"_id"`
 		Username string `json:"username"`
 	} `json:"u"`
-	Timestamp struct {
-		Date int64 `json:"$date"`
-	} `json:"ts"`
-}
-
-// pollLoop continuously polls for new messages in the configured channel.
-func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
-	channel := cfg.RocketChat.Channel
-	if channel == "" {
-		logger.Error("[RocketChat] No channel configured")
-		return
-	}
-
-	// Resolve channel ID from channel name
-	channelID, err := resolveChannelID(cfg, channel)
-	if err != nil {
-		logger.Error("[RocketChat] Failed to resolve channel", "channel", channel, "error", err)
-		return
-	}
-	logger.Info("[RocketChat] Resolved channel", "name", channel, "id", channelID)
-
-	lastTS := time.Now()
-	basePollInterval := 3 * time.Second
-	pollInterval := basePollInterval
-	maxPollInterval := 30 * time.Second
-
-	for {
-		time.Sleep(pollInterval)
-
-		messages, err := fetchNewMessages(cfg, channelID, lastTS)
-		if err != nil {
-			logger.Error("[RocketChat] Poll failed", "error", err)
-			pollInterval *= 2
-			if pollInterval > maxPollInterval {
-				pollInterval = maxPollInterval
-			}
-			continue
-		}
-		pollInterval = basePollInterval
-
-		for _, msg := range messages {
-			// Skip bot's own messages
-			if msg.User.ID == cfg.RocketChat.UserID {
-				continue
-			}
-			// Skip empty
-			if strings.TrimSpace(msg.Msg) == "" {
-				continue
-			}
-
-			msgTime := time.UnixMilli(msg.Timestamp.Date)
-			if msgTime.After(lastTS) {
-				lastTS = msgTime
-			}
-
-			if !isAllowedRocketChatUser(cfg, msg) {
-				logger.Warn("[RocketChat] Blocked unauthorized message", "user_id", msg.User.ID, "username", msg.User.Username)
-				continue
-			}
-
-			logger.Info("[RocketChat] Received message", "user", msg.User.Username, "text_len", len(msg.Msg))
-
-			go processMessage(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channelID, msg, missionManagerV2, remoteHub, guardian)
-		}
-	}
+	Timestamp messageTimestamp `json:"ts"`
 }
 
 func isAllowedRocketChatUser(cfg *config.Config, msg message) bool {
@@ -180,9 +117,9 @@ func isAllowedRocketChatUser(cfg *config.Config, msg message) bool {
 }
 
 // resolveChannelID resolves a channel name to its ID.
-func resolveChannelID(cfg *config.Config, channel string) (string, error) {
+func resolveChannelID(ctx context.Context, cfg *config.Config, channel string) (string, error) {
 	// Try direct channels first
-	data, code, err := rcRequest(cfg, "GET", "/channels.info?roomName="+channel, "")
+	data, code, err := rcRequestContext(ctx, cfg, "GET", "/channels.info?roomName="+url.QueryEscape(channel), "")
 	if err != nil {
 		return "", err
 	}
@@ -200,28 +137,11 @@ func resolveChannelID(cfg *config.Config, channel string) (string, error) {
 	return channel, nil
 }
 
-// fetchNewMessages fetches messages newer than the given timestamp.
-func fetchNewMessages(cfg *config.Config, channelID string, since time.Time) ([]message, error) {
-	ts := since.UTC().Format("2006-01-02T15:04:05.000Z")
-	endpoint := fmt.Sprintf("/channels.history?roomId=%s&oldest=%s&count=50", channelID, ts)
-	data, code, err := rcRequest(cfg, "GET", endpoint, "")
-	if err != nil {
-		return nil, err
-	}
-	if code != 200 {
-		return nil, fmt.Errorf("HTTP %d: %s", code, string(data))
-	}
-	var resp struct {
-		Messages []message `json:"messages"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, fmt.Errorf("JSON parse error: %w", err)
-	}
-	return resp.Messages, nil
-}
-
 // processMessage handles a single incoming Rocket.Chat message.
-func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+	if ctx.Err() != nil || !cfg.RocketChat.Enabled || !isAllowedRocketChatUser(cfg, msg) {
+		return
+	}
 	inputText := msg.Msg
 
 	// Command interception
@@ -237,17 +157,17 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		cmdResult, isCmd, err := commands.Handle(inputText, cmdCtx)
 		if err != nil {
 			logger.Error("[RocketChat] Command execution failed", "error", err)
-			_ = SendMessage(cfg, channelID, "⚠️ Fehler beim Ausführen des Befehls.")
+			_ = sendMessageContext(ctx, cfg, channelID, "⚠️ Fehler beim Ausführen des Befehls.")
 			return
 		}
 		if isCmd {
-			_ = SendMessage(cfg, channelID, cmdResult)
+			_ = sendMessageContext(ctx, cfg, channelID, cmdResult)
 			return
 		}
 	}
 
 	if shouldBlockRocketChatPromptInjection(inputText, guardian, logger, msg.User.Username) {
-		_ = SendMessage(cfg, channelID, "Your message was blocked by the security guardian.")
+		_ = sendMessageContext(ctx, cfg, channelID, "Your message was blocked by the security guardian.")
 		return
 	}
 	inputText = security.IsolateExternalData(inputText)
@@ -296,20 +216,20 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		Messages: finalMessages,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 
 	response, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, agent.NoopBroker{})
 	if err != nil {
 		logger.Error("[RocketChat] Agent loop failed", "error", err)
-		_ = SendMessage(cfg, channelID, "⚠️ Fehler beim Verarbeiten der Anfrage.")
+		_ = sendMessageContext(ctx, cfg, channelID, "⚠️ Fehler beim Verarbeiten der Anfrage.")
 		return
 	}
 
 	if len(response.Choices) > 0 {
 		reply := security.StripThinkingTags(response.Choices[0].Message.Content)
 		if reply != "" {
-			if err := SendMessage(cfg, channelID, reply); err != nil {
+			if err := sendMessageContext(ctx, cfg, channelID, reply); err != nil {
 				logger.Error("[RocketChat] Failed to send reply", "error", err)
 			}
 		}

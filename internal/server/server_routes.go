@@ -18,7 +18,6 @@ import (
 	"aurago/internal/discord"
 	"aurago/internal/memory"
 	"aurago/internal/planner"
-	"aurago/internal/rocketchat"
 	"aurago/internal/telegram"
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
@@ -709,7 +708,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.configureAgentMailRelay(s.Cfg)
 
 		// Rocket.Chat Bot: listen for messages and relay to the agent
-		rocketchat.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
+		s.configureRocketChatBot()
 
 		// MQTT Client: connect to broker and register bridge
 		if s.MQTTController != nil {

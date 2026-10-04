@@ -728,6 +728,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		restartReasons := []string{}
 		embeddingsChanged := false
 		discordChanged := false
+		rocketChatChanged := false
 		restartFileIndexerAfterUnlock := false
 		fileIndexerEnabledAfterReload := false
 		restartAgentMailAfterUnlock := false
@@ -750,6 +751,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Carry over runtime detection (computed once at startup, not on reload)
 			newCfg.Runtime = oldCfg.Runtime
 			bluetoothChanged = !reflect.DeepEqual(oldCfg.Bluetooth, newCfg.Bluetooth)
+			rocketChatChanged = !reflect.DeepEqual(oldCfg.RocketChat, newCfg.RocketChat) || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled
 			networkSharesChanged = !reflect.DeepEqual(oldCfg.NetworkShares, newCfg.NetworkShares) ||
 				oldCfg.Agent.SudoEnabled != newCfg.Agent.SudoEnabled ||
 				oldCfg.Agent.SudoUnrestricted != newCfg.Agent.SudoUnrestricted
@@ -1452,6 +1454,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			discord.StopBot(s.Logger)
 			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)
 			s.Logger.Info("[Config UI] Discord bot hot-reloaded", "enabled", newCfg.Discord.Enabled)
+		}
+		if loadErr == nil && rocketChatChanged {
+			s.configureRocketChatBot()
 		}
 		if restartFileIndexerAfterUnlock && newCfg != nil {
 			s.restartFileIndexer(newCfg)

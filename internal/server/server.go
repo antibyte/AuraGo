@@ -49,6 +49,7 @@ import (
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
+	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
 	"aurago/internal/security"
 	"aurago/internal/services"
@@ -276,6 +277,10 @@ type Server struct {
 	spaceAgentHTTPS *http.Server // HTTPS reverse proxy for the managed Space Agent web UI
 
 	backgroundCompletions backgroundCompletionCache
+	integrationCtx        context.Context
+	rocketChatLifecycleMu sync.Mutex
+	rocketChatBot         atomic.Pointer[rocketchat.Bot]
+	rocketChatClosed      bool
 }
 
 func (s *Server) accessLogger() *slog.Logger {
@@ -353,6 +358,9 @@ func (s *Server) ConfigSnapshot() *config.Config {
 func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
+	}
+	if bot := s.rocketChatBot.Load(); bot != nil {
+		bot.CancelIfConfigChanged(cfg)
 	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
@@ -488,6 +496,7 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	s.integrationCtx = serverCtx
 	s.MQTTController = mqtt.NewMQTTController(logger)
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
