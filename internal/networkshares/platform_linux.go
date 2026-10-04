@@ -305,12 +305,12 @@ func (a *linuxAdapter) listSMB(ctx context.Context, options Options) ([]observed
 		return nil, fmt.Errorf("list effective Samba shares: %w", err)
 	}
 	var registryShares []observedShare
-	for _, name := range strings.Fields(string(output)) {
+	for _, name := range strings.Split(string(output), "\n") {
 		name = strings.TrimSpace(name)
-		if sambaSystemShare(name) {
+		if name == "" || sambaSystemShare(name) {
 			continue
 		}
-		detail, detailErr := a.runRead(ctx, options, "net", "conf", "showshare", name)
+		detail, detailErr := a.runRead(ctx, options, "net", "conf", "showshare", "--", name)
 		if detailErr != nil {
 			return nil, fmt.Errorf("show Samba registry share %q: %w", name, detailErr)
 		}
@@ -558,7 +558,7 @@ func (a *linuxAdapter) smbAdd(ctx context.Context, options Options, share ShareS
 		guest = "guest_ok=y"
 	}
 	if _, err := a.runner.Run(ctx, options, true, "net",
-		[]string{"conf", "addshare", share.Name, share.Path, writeable, guest, share.Comment}, nil); err != nil {
+		[]string{"conf", "addshare", "--", share.Name, share.Path, writeable, guest, share.Comment}, nil); err != nil {
 		return fmt.Errorf("add Samba registry share: %w", err)
 	}
 	if err := a.applySMBParameters(ctx, options, share); err != nil {
@@ -601,7 +601,7 @@ func (a *linuxAdapter) applySMBParameters(ctx context.Context, options Options, 
 			params[key] = joinSambaList(values)
 			continue
 		}
-		_, _ = a.runner.Run(ctx, options, true, "net", []string{"conf", "delparm", share.Name, key}, nil)
+		_, _ = a.runner.Run(ctx, options, true, "net", []string{"conf", "delparm", "--", share.Name, key}, nil)
 	}
 	keys := make([]string, 0, len(params))
 	for key := range params {
@@ -610,7 +610,7 @@ func (a *linuxAdapter) applySMBParameters(ctx context.Context, options Options, 
 	sort.Strings(keys)
 	for _, key := range keys {
 		if _, err := a.runner.Run(ctx, options, true, "net",
-			[]string{"conf", "setparm", share.Name, key, params[key]}, nil); err != nil {
+			[]string{"conf", "setparm", "--", share.Name, key, params[key]}, nil); err != nil {
 			return fmt.Errorf("set Samba parameter %q: %w", key, err)
 		}
 	}
@@ -618,7 +618,7 @@ func (a *linuxAdapter) applySMBParameters(ctx context.Context, options Options, 
 }
 
 func (a *linuxAdapter) smbDeleteRaw(ctx context.Context, options Options, name string) error {
-	_, err := a.runner.Run(ctx, options, true, "net", []string{"conf", "delshare", name}, nil)
+	_, err := a.runner.Run(ctx, options, true, "net", []string{"conf", "delshare", "--", name}, nil)
 	if err != nil {
 		return fmt.Errorf("delete Samba registry share: %w", err)
 	}
