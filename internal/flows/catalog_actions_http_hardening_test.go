@@ -1,14 +1,19 @@
 package flows
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net/url"
 	"reflect"
+	"regexp"
+	"sort"
 	"strings"
 	"testing"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -67,10 +72,73 @@ var testSecrets = []string{
 	"tok_" + secretMarker + "1e5b",
 	`qu"ote\` + secretMarker + `<&>`,
 	"p&q " + secretMarker + "+s/t=é",
+	"ab/cd+ef==" + secretMarker,
+	"it's " + secretMarker + "üñ😀",
+}
+
+var (
+	percentEscape = regexp.MustCompile(`%[0-9A-F]{2}`)
+	phpHTML       = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&#039;")
+)
+
+// jsonEcho writes value as the string content of a JSON document, the way the
+// common encoders do: Go escapes <, > and & (escapeHTML); PHP writes "/" as "\/"
+// (phpSlash); Python and PHP write non-ASCII characters as \uXXXX (ascii), Java in
+// upper case hex (upper).
+func jsonEcho(value string, escapeHTML, phpSlash, ascii, upper bool) string {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(escapeHTML)
+	_ = enc.Encode(value)
+	s := strings.TrimSuffix(buf.String(), "\n")
+	s = s[1 : len(s)-1]
+	if phpSlash {
+		s = strings.ReplaceAll(s, "/", `\/`)
+	}
+	if !ascii {
+		return s
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if r < 0x80 {
+			b.WriteRune(r)
+			continue
+		}
+		for _, u := range utf16.Encode([]rune{r}) {
+			if upper {
+				fmt.Fprintf(&b, `\u%04X`, u)
+			} else {
+				fmt.Fprintf(&b, `\u%04x`, u)
+			}
+		}
+	}
+	return b.String()
+}
+
+// echoForms are the ways a server writes a header value back into a response.
+func echoForms(value string) map[string]string {
+	query := url.QueryEscape(value)
+	lower := percentEscape.ReplaceAllStringFunc(query, strings.ToLower)
+	return map[string]string{
+		"as it is":         value,
+		"go json":          jsonEcho(value, true, false, false, false),
+		"js json":          jsonEcho(value, false, false, false, false),
+		"php slash":        jsonEcho(value, false, true, false, false),
+		"python ascii":     jsonEcho(value, false, false, true, false),
+		"php ascii":        jsonEcho(value, false, true, true, false),
+		"upper hex":        jsonEcho(value, false, false, true, true),
+		"go html":          html.EscapeString(value),
+		"php html":         phpHTML.Replace(value),
+		"query":            query,
+		"lower case query": lower,
+		"lower case %20":   strings.ReplaceAll(lower, "+", "%20"),
+		"path":             url.PathEscape(value),
+		"lower case path":  percentEscape.ReplaceAllStringFunc(url.PathEscape(value), strings.ToLower),
+	}
 }
 
 // echoServer answers like a debug endpoint that repeats the request headers: as
-// they are, as JSON (quotes and backslashes escaped) and URL encoded.
+// they are, and the credential once in every encoding of echoForms.
 func echoServer(status int) func(ToolRequest) (ToolResponse, error) {
 	return func(req ToolRequest) (ToolResponse, error) {
 		headers, _ := req.Args["headers"].(map[string]any)
@@ -78,9 +146,16 @@ func echoServer(status int) func(ToolRequest) (ToolResponse, error) {
 		for name, v := range headers {
 			fmt.Fprintf(&raw, "%s: %v\n", name, v)
 		}
-		asJSON, _ := json.Marshal(map[string]any{"headers": headers})
-		asURL := url.QueryEscape(Stringify(headers["Authorization"]))
-		return apiAnswer(status, raw.String()+string(asJSON)+"\n"+asURL), nil
+		forms := echoForms(Stringify(headers["Authorization"]))
+		names := make([]string, 0, len(forms))
+		for name := range forms {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			fmt.Fprintf(&raw, "<%s> %s\n", name, forms[name])
+		}
+		return apiAnswer(status, raw.String()), nil
 	}
 }
 
@@ -112,6 +187,15 @@ func TestHTTPSecretIsNotInTheOutput(t *testing.T) {
 		if !strings.Contains(body, redactedText) || !strings.Contains(body, "Authorization: Bearer "+redactedText) {
 			t.Errorf("body = %q, want the secret replaced", body)
 		}
+		// One line per encoding of the echo: each must be scrubbed, and the lines show which not.
+		for _, line := range strings.Split(body, "\n") {
+			if strings.Contains(line, secretMarker) {
+				t.Errorf("secret %q is still in the body: %.200q", secret, line)
+			}
+		}
+		if got := strings.Count(body, "\n<"); got != len(echoForms("x")) {
+			t.Errorf("the body holds %d encodings, want %d", got, len(echoForms("x")))
+		}
 		if _, ok := res.Output["json"]; ok {
 			t.Errorf("an echo that is not JSON has no json field: %#v", res.Output["json"])
 		}
@@ -126,7 +210,9 @@ func TestHTTPSecretIsNotInTheOutput(t *testing.T) {
 	for _, secret := range testSecrets {
 		escaped := ""
 		for _, r := range secret {
-			escaped += fmt.Sprintf(`\u%04x`, r)
+			for _, u := range utf16.Encode([]rune{r}) {
+				escaped += fmt.Sprintf(`\u%04x`, u)
+			}
 		}
 		respond := answerWith(apiAnswer(200, `{"echo":"`+escaped+`","list":["`+escaped+`"],"n":1}`))
 		res, _, err := runHTTP(t, map[string]any{"url": "https://api", "auth_secret": "tok"}, respond, fakeSecrets{"tok": secret})
@@ -217,6 +303,50 @@ func TestHTTPSecretIsNotInErrors(t *testing.T) {
 	res, _, err = runHTTP(t, map[string]any{"url": "https://api", "auth_secret": "tok"}, answerWith(apiAnswer(200, "a bit of t")), fakeSecrets{"tok": secret})
 	if err != nil || res.Output["body"] != "a bit of t" {
 		t.Errorf("short body = %#v, %v", res.Output["body"], err)
+	}
+
+	// A cut in the middle of a multi-byte character of the secret leaves U+FFFD at the
+	// end of the body (the tool's answer is JSON encoded), which hides the start of the
+	// secret from a plain suffix check. The same goes for an error message.
+	multi := "tok_" + secretMarker + "é1e5b"
+	head := "tok_" + secretMarker + "\xC3" // é is C3 A9
+	res, _, err = runHTTP(t, map[string]any{"url": "https://api", "auth_secret": "tok"},
+		answerWith(apiAnswer(200, strings.Repeat("y", apiBodyLimit-len(head))+head)), fakeSecrets{"tok": multi})
+	body, _ = res.Output["body"].(string)
+	if err != nil || strings.Contains(body, "tok_") || strings.Contains(body, "�") || !strings.HasSuffix(body, "y") {
+		t.Errorf("body cut inside a character: %v, tail %q", err, body[len(body)-20:])
+	}
+	_, _, err = runHTTP(t, map[string]any{"url": "https://api", "auth_secret": "tok"},
+		answerWith(toolErrorAnswer(strings.Repeat("x", 280)+" tok_"+secretMarker+"éééééééééééééééééééé")), fakeSecrets{"tok": "tok_" + secretMarker + "ééééééééééééééééééééé"})
+	if msg := asNodeError(err).Message; strings.Contains(msg, secretMarker) || strings.Contains(msg, "tok_") || !strings.HasSuffix(msg, "…") {
+		t.Errorf("message cut inside a secret with non-ASCII characters: %q", msg[len(msg)-30:])
+	}
+}
+
+// The secret is removed in one pass over each text: a secret that is part of the
+// replacement text itself must not mangle the output, and the parsed body is not
+// scrubbed a second time. Keys of the parsed body are scrubbed too.
+func TestHTTPSecretScrubIsASinglePass(t *testing.T) {
+	run := func(secret, body string) ExecResult {
+		res, _, err := runHTTP(t, map[string]any{"url": "https://api", "auth_secret": "k", "auth_prefix": ""}, answerWith(apiAnswer(200, body)), fakeSecrets{"k": secret})
+		if err != nil {
+			t.Fatalf("%q: %v", secret, err)
+		}
+		return res
+	}
+	for _, secret := range []string{"red", "act", "[", "d]", "e"} {
+		res := run(secret, `{"a":"`+secret+`","`+secret+`":1}`)
+		want := map[string]any{"a": redactedText, redactedText: 1.0}
+		if !reflect.DeepEqual(res.Output["json"], want) || res.Output["body"] != `{"a":"[redacted]","[redacted]":1}` {
+			t.Errorf("secret %q: body %q, json %#v", secret, res.Output["body"], res.Output["json"])
+		}
+	}
+	// Keys: also where the server wrote the secret with \u escapes the text scrub does not see.
+	secret := testSecrets[0]
+	res := run(secret, `{"`+secret+`":1,"tok_`+secretMarker+`1e5b":2,"n":{"`+secret+`":[3]}}`)
+	noMarker(t, "json", res.Output["json"])
+	if m, _ := res.Output["json"].(map[string]any); m == nil || m["n"] == nil || m[redactedText] == nil {
+		t.Errorf("json = %#v", res.Output["json"])
 	}
 }
 

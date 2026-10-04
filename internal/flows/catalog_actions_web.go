@@ -82,15 +82,6 @@ func scalarTextParam(v any, what string) (string, error) {
 	return s, nil
 }
 
-// boolParam reads a flag. Null gives def: a template that resolves to nothing must
-// not switch a safety flag such as fail_on_error off.
-func boolParam(v any, def bool) bool {
-	if v == nil {
-		return def
-	}
-	return truthy(v)
-}
-
 // webURLParam reads a web address: text of at most maxWebURLBytes, valid UTF-8, free
 // of control characters and starting with http:// or https://. The tools check the
 // scheme and refuse private addresses on their own; this is the early, clear
@@ -112,6 +103,19 @@ func webURLParam(v any) (string, error) {
 		return "", NewNodeError("FLOW_PARAM_INVALID", "the web address must start with http:// or https://")
 	}
 	return s, nil
+}
+
+// webURLIssue reports a literal address that Execute always rejects. A template is
+// judged at run time, and an absent address is the required-parameter check's business.
+func webURLIssue(n *Node) []Issue {
+	v := n.Params["url"]
+	if isEmptyValue(v) || isTemplateText(v) {
+		return nil
+	}
+	if _, err := webURLParam(v); err != nil {
+		return []Issue{paramIssue(n, IssueParamInvalid, SeverityError, "url", asNodeError(err).Message)}
+	}
+	return nil
 }
 
 func hasWebScheme(s string) bool {
@@ -223,9 +227,10 @@ func searchCountParam(v any) (int, error) {
 	return int(math.Max(1, math.Min(maxSearchResults, f))), nil
 }
 
-// resolveSearchProvider picks the provider: "auto" prefers Brave when it is set up,
-// and a provider chosen by name must be available (a configuration error that a
-// retry cannot fix, unlike the tool's own refusal).
+// resolveSearchProvider picks the provider: "auto" prefers Brave and then
+// DuckDuckGo, whichever is set up, and a provider chosen by name must be available.
+// Neither being ready is a configuration error that a retry cannot fix, unlike the
+// tool's own refusal.
 func resolveSearchProvider(env CatalogEnv, choice string) (string, error) {
 	ready := func(tool string) bool { return availabilityOf(env, tool)().State == AvailableState }
 	switch choice {
@@ -238,9 +243,13 @@ func resolveSearchProvider(env CatalogEnv, choice string) (string, error) {
 			return "", NewNodeError("FLOW_NODE_UNAVAILABLE", "DuckDuckGo search is not available")
 		}
 	default:
-		choice = "duckduckgo"
-		if ready(BraveSearchTool) {
+		switch {
+		case ready(BraveSearchTool):
 			choice = "brave"
+		case ready(DDGSearchTool):
+			choice = "duckduckgo"
+		default:
+			return "", NewNodeError("FLOW_NODE_UNAVAILABLE", "no search provider is set up")
 		}
 	}
 	return choice, nil
@@ -305,7 +314,7 @@ func webReadDef(env CatalogEnv) *NodeDef {
 		if n == nil {
 			return nil
 		}
-		issues := choiceIssue(n, "mode", "auto", scrapeModes)
+		issues := append(webURLIssue(n), choiceIssue(n, "mode", "auto", scrapeModes)...)
 		if sel, ok := n.Params["selector"].(string); ok && strings.TrimSpace(sel) != "" && !HasTemplate(sel) {
 			if mode, ok := choiceParam(n.Params["mode"], "auto", scrapeModes...); ok && mode == "rss" {
 				issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "selector", "a CSS selector cannot be used in rss mode"))

@@ -170,7 +170,9 @@ func TestWebSearchParams(t *testing.T) {
 		"brave not set up":        {ddgOnly, "brave", "", "FLOW_NODE_UNAVAILABLE"},
 		"duckduckgo not set up":   {braveOnly, "duckduckgo", "", "FLOW_NODE_UNAVAILABLE"},
 		"no environment":          {nil, "duckduckgo", "", "FLOW_NODE_UNAVAILABLE"},
-		"no environment and auto": {nil, "auto", DDGSearchTool, ""},
+		"no environment and auto": {nil, "auto", "", "FLOW_NODE_UNAVAILABLE"},
+		"nothing set up, auto":    {StaticEnv{}, nil, "", "FLOW_NODE_UNAVAILABLE"},
+		"nothing ready, auto":     {StaticEnv{BraveSearchTool: {State: NeedsSetupState}, DDGSearchTool: {State: BlockedState}}, "", "", "FLOW_NODE_UNAVAILABLE"},
 	} {
 		tools, res, err := run(c.env, map[string]any{"query": "q", "provider": c.provider})
 		if c.code != "" {
@@ -424,6 +426,35 @@ func TestLintFlagsUntrustedDataInWebNodes(t *testing.T) {
 		id := c.build(b)
 		if got := warned(b.build(), id); got != c.want {
 			t.Errorf("%s: warned parameters %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// Validate hears of a literal address that Execute always rejects; a template, which
+// is judged at run time, and an absent address (the required check's business) pass.
+func TestWebReadValidatesALiteralAddress(t *testing.T) {
+	def := readNodeDef(t)
+	for name, c := range map[string]struct {
+		url any
+		bad bool
+	}{
+		"https": {"https://x/a", false}, "upper case": {"HTTP://X", false}, "template": {"{{trigger.data.u}}", false},
+		"part template": {"https://x/{{trigger.data.p}}", false}, "absent": {nil, false}, "blank": {"  ", false},
+		"ftp": {"ftp://x", true}, "no scheme": {"x.com", true}, "file": {"file:///etc/passwd", true}, "number": {5.0, true},
+		"list": {[]any{"https://x"}, true}, "CRLF": {"https://x/\r\nEvil", true}, "too long": {"https://x/" + strings.Repeat("p", maxWebURLBytes), true},
+	} {
+		params := map[string]any{}
+		if c.url != nil {
+			params["url"] = c.url
+		}
+		issues := def.Validate(&Node{ID: testNodeID(1), Params: params}, ValidateContext{Mode: ModePublish})
+		if c.bad != (len(issues) == 1 && issues[0].Param == "url") || len(issues) > 1 {
+			t.Errorf("%s: issues = %+v", name, issues)
+		}
+		for _, is := range issues {
+			if strings.Contains(is.Message, "Evil") || strings.Contains(is.Message, "pppp") || len(is.Message) > 200 {
+				t.Errorf("%s: message echoes the address: %.100q", name, is.Message)
+			}
 		}
 	}
 }

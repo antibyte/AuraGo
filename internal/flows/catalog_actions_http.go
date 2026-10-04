@@ -70,9 +70,11 @@ func validHeaderValue(v string) bool {
 // would let the transport pick one at random), a list or object as a value and a
 // null value all fail with FLOW_PARAM_INVALID. The message never echoes a value and
 // echoes only a name that already is a valid, bounded token. skipTemplates is for
-// Validate, which sees unresolved templates: entries that hold one are not judged.
+// Validate, which sees unresolved templates: entries that hold one are not judged,
+// and neither is a headers value that is a template as a whole (it resolves to the
+// object at run time).
 func parseHeaders(v any, skipTemplates bool) ([]httpHeader, error) {
-	if isEmptyValue(v) {
+	if isEmptyValue(v) || skipTemplates && isTemplateText(v) {
 		return nil, nil
 	}
 	m, ok := v.(map[string]any)
@@ -138,6 +140,46 @@ func headerTotals(list []httpHeader) error {
 	return nil
 }
 
+// isTemplateText reports whether v is text that holds a template: its value is only
+// known at run time, so Validate cannot judge it.
+func isTemplateText(v any) bool {
+	s, ok := v.(string)
+	return ok && HasTemplate(s)
+}
+
+// literalIssue runs check, the function Execute reads parameter param with, on a
+// value that is not a template, and reports what it rejects.
+func literalIssue(n *Node, param string, check func(any) (string, error)) []Issue {
+	v := n.Params[param]
+	if isTemplateText(v) {
+		return nil
+	}
+	if _, err := check(v); err != nil {
+		return []Issue{paramIssue(n, IssueParamInvalid, SeverityError, param, asNodeError(err).Message)}
+	}
+	return nil
+}
+
+// failsOnError reports whether an HTTP error status fails the node. Only an explicit
+// off (false, 0, "no", "off", "nein") tolerates it; null, a blank, a word that is
+// not a flag, a list or an object keep the default, which is to fail.
+func failsOnError(v any) bool {
+	on, known := flagValue(v)
+	return on || !known
+}
+
+// authPrefixValue reads auth_prefix: text without control characters, "" when null.
+func authPrefixValue(v any) (string, error) {
+	s, err := scalarTextParam(v, "auth_prefix")
+	if err != nil {
+		return "", err
+	}
+	if !validHeaderValue(s) {
+		return "", NewNodeError("FLOW_PARAM_INVALID", "auth_prefix contains characters that are not allowed in a header")
+	}
+	return s, nil
+}
+
 // authHeaderName reads auth_header: a valid header name, "Authorization" when blank.
 func authHeaderName(v any) (string, error) {
 	s, err := scalarTextParam(v, "auth_header")
@@ -176,12 +218,9 @@ func withAuthSecret(in ExecInput, headers []httpHeader) ([]httpHeader, *secretSc
 	if err != nil {
 		return nil, nil, err
 	}
-	prefix, err := scalarTextParam(in.Params["auth_prefix"], "auth_prefix")
+	prefix, err := authPrefixValue(in.Params["auth_prefix"])
 	if err != nil {
 		return nil, nil, err
-	}
-	if !validHeaderValue(prefix) {
-		return nil, nil, NewNodeError("FLOW_PARAM_INVALID", "auth_prefix contains characters that are not allowed in a header")
 	}
 	if in.Services == nil || in.Services.Secrets == nil {
 		return nil, nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the vault is not available")
@@ -191,13 +230,13 @@ func withAuthSecret(in ExecInput, headers []httpHeader) ([]httpHeader, *secretSc
 		return nil, nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s could not be read", quoteForError(key))
 	}
 	secret := strings.TrimSpace(raw)
-	scrub := newSecretScrubber(secret)
 	switch {
 	case secret == "":
 		return nil, nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s is empty", quoteForError(key))
 	case !validHeaderValue(secret):
 		return nil, nil, NewNodeError("FLOW_SECRET_UNAVAILABLE", "the secret %s holds line breaks or other characters that cannot be sent in a header", quoteForError(key))
 	}
+	scrub := newSecretScrubber(secret)
 	merged := make([]httpHeader, 0, len(headers)+1)
 	for _, h := range headers {
 		if !strings.EqualFold(h.name, name) {
@@ -317,7 +356,8 @@ func httpRequestEffects(n *Node) []Effect {
 //
 // Errors: an HTTP error status is not a tool failure. The tool reports a status of
 // 400 or more as status "error" together with status_code, and that becomes
-// FLOW_HTTP_STATUS (or the output, with fail_on_error off); below 400, a redirect
+// FLOW_HTTP_STATUS (or the output, with fail_on_error explicitly off: see failsOnError;
+// anything it cannot read keeps the default, which is to fail); below 400, a redirect
 // that was not followed included, is a success with ok true. Everything else the tool
 // reports, a refused address (SSRF protection), a request that could not be made, a
 // denial or plain-text refusal, is a tool failure: FLOW_TOOL_ERROR, FLOW_TOOL_DENIED
@@ -350,17 +390,23 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		if n == nil {
 			return nil
 		}
-		issues := choiceIssue(n, "method", "GET", httpMethods)
+		// Only what Execute would reject whatever the run brings: a template is judged at
+		// run time, an absent url is the required-parameter check's business.
+		issues := append(webURLIssue(n), choiceIssue(n, "method", "GET", httpMethods)...)
 		if _, err := parseHeaders(n.Params["headers"], true); err != nil {
 			issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "headers", asNodeError(err).Message))
 		}
-		// auth_header only matters, and is only checked by Execute, when a secret is set;
-		// a template or a secret name that is not known yet cannot be judged.
-		if secret := n.Params["auth_secret"]; !isEmptyValue(secret) {
-			if s, isText := n.Params["auth_header"].(string); !isText || !HasTemplate(s) {
-				if _, err := authHeaderName(n.Params["auth_header"]); err != nil {
-					issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "auth_header", asNodeError(err).Message))
-				}
+		// auth_header and auth_prefix only matter, and are only checked by Execute, when a
+		// secret is set.
+		if !isEmptyValue(n.Params["auth_secret"]) {
+			issues = append(issues, literalIssue(n, "auth_header", authHeaderName)...)
+			issues = append(issues, literalIssue(n, "auth_prefix", authPrefixValue)...)
+		}
+		// Execute does not reject a fail_on_error it cannot read, it keeps the default
+		// (fail); the publish check is where the author hears about it.
+		if v := n.Params["fail_on_error"]; v != nil && !isTemplateText(v) {
+			if _, known := flagValue(v); !known {
+				issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "fail_on_error", "fail_on_error must be true or false"))
 			}
 		}
 		return issues
@@ -401,8 +447,8 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		// The answer is scrubbed before anything is read from it, so no message or
 		// output built below can carry the secret. The body is a text that the tool
 		// may have cut at apiBodyLimit, in the middle of an echoed secret.
-		bodyText := Stringify(out["body"])
-		bodyText = scrub.text(bodyText, len(bodyText) >= apiBodyLimit)
+		rawBody := Stringify(out["body"])
+		bodyText := scrub.text(rawBody, len(rawBody) >= apiBodyLimit)
 		out = scrubAnswer(scrub, out)
 		code, hasCode := httpStatusCode(out)
 		if err != nil {
@@ -421,7 +467,7 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 				return ExecResult{}, NewNodeError("FLOW_TOOL_ERROR", "the HTTP tool did not report a status code")
 			}
 		}
-		if code >= 400 && boolParam(in.Params["fail_on_error"], true) {
+		if code >= 400 && failsOnError(in.Params["fail_on_error"]) {
 			return ExecResult{}, NewNodeError("FLOW_HTTP_STATUS", "the server answered with HTTP %d", code)
 		}
 		respHeaders, _ := out["headers"].(map[string]any)
@@ -429,9 +475,13 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 			respHeaders = map[string]any{}
 		}
 		result := map[string]any{"status_code": float64(code), "ok": code < 400, "headers": respHeaders, "body": bodyText}
+		// json is parsed from the raw body and scrubbed once, keys included, which also
+		// finds a secret the text scrub cannot see (written with \u escapes). It is only
+		// offered when the scrubbed text is still JSON: a secret in the place of a number
+		// or a literal breaks it, and the number must not be carried over.
 		var parsed any
-		if json.Unmarshal([]byte(bodyText), &parsed) == nil && nestingWithin(parsed, maxJSONDepth) {
-			result["json"] = scrub.value(parsed)
+		if json.Unmarshal([]byte(rawBody), &parsed) == nil && (bodyText == rawBody || json.Valid([]byte(bodyText))) && nestingWithin(parsed, maxJSONDepth) {
+			result["json"] = scrub.valueKeys(parsed)
 		}
 		return ExecResult{Output: result}, nil
 	}

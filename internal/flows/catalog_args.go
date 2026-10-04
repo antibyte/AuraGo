@@ -2,8 +2,6 @@ package flows
 
 import (
 	"encoding/json"
-	"net/url"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -170,117 +168,26 @@ func requireSuccess(out map[string]any, what string) error {
 	return NewNodeError("FLOW_TOOL_ERROR", "the %s did not report success", what)
 }
 
-// redactedText replaces a secret in text a node returns.
-const redactedText = "[redacted]"
-
-// secretScrubber removes one secret value from what a node returns. A server can
-// echo the request headers back (a debug endpoint, an error page) and the tool puts
-// its own error text, URL and server answers into its output, so a secret a node
-// sent could otherwise end up in the run record, in a later AI prompt or in a
-// message. It removes the value as it is and in the encodings a server's echo
-// usually has: JSON string escapes (with and without HTML escaping) and URL
-// escapes. Other transformations (base64 of "user:password", a hash) are not
-// recognised; the invoker registers the vault value with the output scrubber as
-// well (see SecretReader).
-type secretScrubber struct {
-	forms []string
-	// replacer removes all forms in one pass, so the replacement text is never
-	// searched again (a short secret can be part of "[redacted]" itself).
-	replacer *strings.Replacer
-}
-
-// newSecretScrubber returns a scrubber for secret; for an empty secret it removes nothing.
-func newSecretScrubber(secret string) *secretScrubber {
-	s := &secretScrubber{}
-	if secret == "" {
-		return s
-	}
-	add := func(form string) {
-		if form != "" && !slices.Contains(s.forms, form) {
-			s.forms = append(s.forms, form)
-		}
-	}
-	add(secret)
-	if b, err := json.Marshal(secret); err == nil && len(b) >= 2 {
-		add(string(b[1 : len(b)-1]))
-	}
-	if compact, err := marshalCompact(secret); err == nil && len(compact) >= 2 {
-		add(compact[1 : len(compact)-1])
-	}
-	add(url.QueryEscape(secret))
-	add(url.PathEscape(secret))
-	// Longest first, so that an escaped form is not broken up by its shorter relative.
-	slices.SortStableFunc(s.forms, func(a, b string) int { return len(b) - len(a) })
-	oldnew := make([]string, 0, 2*len(s.forms))
-	for _, form := range s.forms {
-		oldnew = append(oldnew, form, redactedText)
-	}
-	s.replacer = strings.NewReplacer(oldnew...)
-	return s
-}
-
-// text replaces every occurrence of the secret in v. cut says that v was cut at an
-// arbitrary place (a message cut to its rune limit, a response body cut at the
-// tool's size limit): then the start of the secret at its end, which no full match
-// covers, is dropped as well, like the rest of the secret the cut removed. The
-// ellipsis that ends a cut message stays. Only pass cut for a text that really was
-// cut: the end of an intact text may start like the secret by chance, and it would
-// lose those characters.
-func (s *secretScrubber) text(v string, cut bool) string {
-	if s == nil || len(s.forms) == 0 || v == "" {
-		return v
-	}
-	v = s.replacer.Replace(v)
-	if !cut {
-		return v
-	}
-	base := strings.TrimSuffix(v, "…")
-	ellipsis := v[len(base):]
-	longest := 0
-	for _, form := range s.forms {
-		for k := min(len(form)-1, len(base)); k > longest; k-- {
-			if strings.HasSuffix(base, form[:k]) {
-				longest = k
-				break
-			}
-		}
-	}
-	if longest == 0 {
-		return v
-	}
-	return base[:len(base)-longest] + ellipsis
-}
-
-// value removes the secret from every text inside v, in place: v must be data this
-// node owns (a freshly parsed tool answer), never a parameter or an input. Object
-// keys are left alone.
-func (s *secretScrubber) value(v any) any {
-	if s == nil || len(s.forms) == 0 {
-		return v
-	}
+// flagValue reads a yes/no parameter that may arrive as a template result: a bool,
+// a number (zero is off) or one of the words true, yes, 1, ja, on and false, no, off,
+// 0, nein (ignoring case and blanks). known is false for anything else, null
+// included, so that a caller can keep its default instead of guessing: a flag that
+// protects something (fail_on_error) must only be switched off by an explicit off.
+func flagValue(v any) (on, known bool) {
 	switch x := v.(type) {
+	case bool:
+		return x, true
 	case string:
-		return s.text(x, false)
-	case map[string]any:
-		for k, item := range x {
-			x[k] = s.value(item)
+		switch strings.ToLower(strings.TrimSpace(x)) {
+		case "true", "yes", "1", "ja", "on":
+			return true, true
+		case "false", "no", "off", "0", "nein":
+			return false, true
 		}
-	case []any:
-		for i, item := range x {
-			x[i] = s.value(item)
-		}
+		return false, false
 	}
-	return v
-}
-
-// err returns err with the secret removed from its message. The message of a tool
-// error is cut to maxToolMessageRunes before the node sees it (truncateRunes ends a
-// cut text with an ellipsis), so a message with an ellipsis is scrubbed as a cut
-// text. A nil error stays nil; the code is kept.
-func (s *secretScrubber) err(err error) error {
-	if err == nil || s == nil || len(s.forms) == 0 {
-		return err
+	if f, ok := toNumber(v); ok {
+		return f != 0, true
 	}
-	ne := asNodeError(err)
-	return &NodeError{Code: ne.Code, Message: s.text(ne.Message, strings.HasSuffix(ne.Message, "…"))}
+	return false, false
 }

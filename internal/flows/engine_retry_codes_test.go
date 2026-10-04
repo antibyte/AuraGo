@@ -52,7 +52,7 @@ func runRetryProbe(t *testing.T, err error, delaySeconds int) (int32, RunResult)
 func TestEngineDoesNotRetryHopelessErrors(t *testing.T) {
 	hopeless := []string{
 		"FLOW_PARAM_INVALID", "FLOW_BUDGET_EXCEEDED", "FLOW_TOOL_DENIED", "FLOW_NODE_UNAVAILABLE",
-		"FLOW_TOOLS_UNAVAILABLE", "FLOW_AI_UNAVAILABLE", "FLOW_OUTPUT_TOO_LARGE", "FLOW_CONDITION_INVALID",
+		"FLOW_TOOLS_UNAVAILABLE", "FLOW_AI_UNAVAILABLE", "FLOW_OUTPUT_TOO_LARGE", "FLOW_CONDITION_INVALID", "FLOW_SECRET_UNAVAILABLE",
 	}
 	for _, code := range hopeless {
 		t.Run(code, func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestNonRetryableCodesAreTheDocumentedSet(t *testing.T) {
 	want := map[string]bool{
 		"FLOW_PARAM_INVALID": true, "FLOW_BUDGET_EXCEEDED": true, "FLOW_TOOL_DENIED": true,
 		"FLOW_NODE_UNAVAILABLE": true, "FLOW_TOOLS_UNAVAILABLE": true, "FLOW_AI_UNAVAILABLE": true,
-		"FLOW_OUTPUT_TOO_LARGE": true, "FLOW_CONDITION_INVALID": true,
+		"FLOW_OUTPUT_TOO_LARGE": true, "FLOW_CONDITION_INVALID": true, "FLOW_SECRET_UNAVAILABLE": true,
 	}
 	if len(nonRetryableCodes) != len(want) {
 		t.Fatalf("nonRetryableCodes = %v", nonRetryableCodes)

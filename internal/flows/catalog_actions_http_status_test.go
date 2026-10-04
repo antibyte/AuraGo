@@ -195,3 +195,51 @@ func TestHTTPDoesNotChangeItsParameters(t *testing.T) {
 		t.Errorf("the request shares its headers with the parameters: %#v", headers)
 	}
 }
+
+// An HTTP error status is only tolerated when fail_on_error is explicitly off: false,
+// 0, or one of the words false, no, off, 0, nein. Everything else, a blank, a word
+// that is not a flag, a list, an object, a number other than 0, keeps the default
+// (fail), because this flag protects the flow from going on with an error answer.
+func TestHTTPFailOnErrorOnlyAnExplicitOffTolerates(t *testing.T) {
+	off := []any{false, 0.0, 0, int64(0), "false", "FALSE", " False ", "no", "No", "off", " OFF\n", "0", "nein", "NEIN"}
+	on := []any{nil, true, 1.0, 2.0, -1.0, "", " ", "true", "yes", "1", "ja", "on", "maybe", "of", "nope", "0.0", "00", "off!", "falsch",
+		[]any{}, []any{false}, map[string]any{}, map[string]any{"a": false}, math.NaN(), math.Inf(1), json.Number("x")}
+	run := func(v any) (ExecResult, error) {
+		res, _, err := runHTTP(t, map[string]any{"url": "https://api", "fail_on_error": v}, answerWith(apiAnswer(503, "down")), nil)
+		return res, err
+	}
+	for _, v := range off {
+		if res, err := run(v); err != nil || res.Output["ok"] != false || res.Output["status_code"] != 503.0 {
+			t.Errorf("fail_on_error %#v: %#v, %v; want the error status tolerated", v, res.Output, err)
+		}
+	}
+	for _, v := range on {
+		if _, err := run(v); asNodeError(err) == nil || asNodeError(err).Code != "FLOW_HTTP_STATUS" {
+			t.Errorf("fail_on_error %#v: %v; want FLOW_HTTP_STATUS", v, err)
+		}
+	}
+	// A success is a success either way.
+	for _, v := range append(off, on...) {
+		res, _, err := runHTTP(t, map[string]any{"url": "https://api", "fail_on_error": v}, answerWith(apiAnswer(200, "up")), nil)
+		if err != nil || res.Output["ok"] != true {
+			t.Errorf("fail_on_error %#v on a 200: %v", v, err)
+		}
+	}
+	// The publish check hears about a value Execute cannot read (and keeps failing on).
+	def := httpNodeDef(t)
+	for _, v := range append(off, on...) {
+		node := &Node{ID: testNodeID(1), Params: map[string]any{"url": "https://api", "fail_on_error": v}}
+		issues := def.Validate(node, ValidateContext{Mode: ModePublish})
+		_, known := flagValue(v)
+		if v == nil {
+			known = true
+		}
+		if flagged := len(issues) == 1 && issues[0].Param == "fail_on_error"; flagged == known || len(issues) > 1 {
+			t.Errorf("fail_on_error %#v: issues %+v, readable = %v", v, issues, known)
+		}
+	}
+	node := &Node{ID: testNodeID(1), Params: map[string]any{"url": "https://api", "fail_on_error": "{{trigger.data.strict}}"}}
+	if issues := def.Validate(node, ValidateContext{}); len(issues) != 0 {
+		t.Errorf("template: %+v", issues)
+	}
+}

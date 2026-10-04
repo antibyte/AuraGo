@@ -1,11 +1,13 @@
 package flows
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -59,7 +61,9 @@ func TestHTTPRequestValidate(t *testing.T) {
 	def := httpNodeDef(t)
 	check := func(params map[string]any, want ...string) {
 		t.Helper()
-		params["url"] = "https://api"
+		if _, has := params["url"]; !has {
+			params["url"] = "https://api"
+		}
 		issues := def.Validate(&Node{ID: testNodeID(1), Params: params}, ValidateContext{Mode: ModePublish})
 		var got []string
 		for _, is := range issues {
@@ -85,6 +89,27 @@ func TestHTTPRequestValidate(t *testing.T) {
 	check(map[string]any{"auth_secret": "{{trigger.data.s}}", "auth_header": "X\r\nEvil"}, "auth_header")
 	check(map[string]any{"auth_secret": "tok", "auth_header": " X-Key "})
 	check(map[string]any{"auth_secret": "tok"})
+	// The headers as a whole can be a template that resolves to the object.
+	check(map[string]any{"headers": "{{trigger.data.h}}"})
+	check(map[string]any{"headers": " {{trigger.data.h}} "})
+	// A literal address that Execute always rejects; an absent one is the required check's.
+	check(map[string]any{"url": "ftp://x"}, "url")
+	check(map[string]any{"url": "example.com"}, "url")
+	check(map[string]any{"url": "https://x/\r\nEvil"}, "url")
+	check(map[string]any{"url": 5.0}, "url")
+	check(map[string]any{"url": []any{"https://x"}}, "url")
+	check(map[string]any{"url": "{{trigger.data.u}}"})
+	check(map[string]any{"url": "https://x/{{trigger.data.p}}"})
+	check(map[string]any{"url": ""})
+	check(map[string]any{"url": nil})
+	// auth_prefix counts when a secret is used, like auth_header.
+	check(map[string]any{"auth_secret": "tok", "auth_prefix": "Bearer\r\nEvil: 1"}, "auth_prefix")
+	check(map[string]any{"auth_secret": "tok", "auth_prefix": []any{"Bearer "}}, "auth_prefix")
+	check(map[string]any{"auth_secret": "tok", "auth_prefix": "Token "})
+	check(map[string]any{"auth_secret": "tok", "auth_prefix": ""})
+	check(map[string]any{"auth_secret": "tok", "auth_prefix": "{{trigger.data.p}}"})
+	check(map[string]any{"auth_prefix": "Bearer\r\nEvil: 1"})
+	check(map[string]any{"fail_on_error": "maybe"}, "fail_on_error")
 	check(map[string]any{"method": "FETCH", "headers": []any{"x"}, "auth_secret": "tok", "auth_header": ":"}, "method", "headers", "auth_header")
 	if issues := def.Validate(nil, ValidateContext{}); issues != nil {
 		t.Errorf("nil node: %+v", issues)
@@ -141,16 +166,18 @@ func TestWebHooksSurviveOddParams(t *testing.T) {
 		clean := func(msg string) bool {
 			return len(msg) <= maxEchoMessageBytes && utf8.ValidString(msg) && !strings.ContainsAny(msg, "\n\r\x00")
 		}
-		if len(issues) > 4 {
+		if len(issues) > 6 {
 			fail("%s: %d issues", label, len(issues))
 		}
 		for _, is := range issues {
 			if is.Code != IssueParamInvalid || is.Severity != SeverityError || is.NodeID != node.ID || !declared[is.Param] || !clean(is.Message) {
 				fail("%s: bad issue %.200q", label, fmt.Sprintf("%+v", is))
 			}
-		}
-		if len(issues) > 0 && execErr == nil {
-			fail("%s: Validate rejected %s but Execute succeeded", label, issues[0].Param)
+			// fail_on_error is the one flag Validate is stricter about than Execute: an
+			// unreadable value keeps the default (fail) at run time, it is not rejected.
+			if is.Param != "fail_on_error" && execErr == nil {
+				fail("%s: Validate rejected %s but Execute succeeded", label, is.Param)
+			}
 		}
 		if execErr != nil {
 			ne := asNodeError(execErr)
@@ -231,5 +258,39 @@ func TestWebHooksSurviveOddParams(t *testing.T) {
 			failures = append(failures[:15], fmt.Sprintf("... and %d more", len(failures)-15))
 		}
 		t.Fatalf("%d of %d combinations failed:\n%s", len(failures), runs, strings.Join(failures, "\n"))
+	}
+}
+
+// A flow whose headers are one template can be published: the validator cannot
+// judge the object before the run, and the run accepts it once it is resolved.
+func TestHTTPTemplatedHeadersCanBePublished(t *testing.T) {
+	reg := triggerRegistry(t)
+	if err := registerWebNodes(reg, StaticEnv{"api_request": {}}); err != nil {
+		t.Fatal(err)
+	}
+	b := newFlow("Templated headers")
+	tr := b.node("start", TypeTriggerManual, nil)
+	call := b.node("call", TypeHTTPRequest, map[string]any{"url": "https://api", "headers": "{{trigger.data.h}}"})
+	b.edge(tr, PortOut, call)
+	f := b.build()
+	issues := Validate(f, reg, ValidateContext{Mode: ModePublish, Now: time.Now()})
+	if HasErrors(issues) {
+		t.Fatalf("publishing is blocked: %+v", issues)
+	}
+	tools := &fakeTools{respond: answerWith(apiAnswer(200, "ok"))}
+	res, _ := runWith(context.Background(), newTestEngine(reg, &Services{Tools: tools, Location: time.UTC}, 2), f,
+		RunRequest{TriggerNode: tr, TriggerData: map[string]any{"h": map[string]any{"X-A": "1"}}})
+	if res.Status != RunSuccess {
+		t.Fatalf("status %s: %s", res.Status, res.ErrorMessage)
+	}
+	if got := tools.last(t).Args["headers"]; !reflect.DeepEqual(got, map[string]any{"X-A": "1"}) {
+		t.Errorf("headers sent = %#v", got)
+	}
+	// What the template resolves to is still checked at run time.
+	tools = &fakeTools{respond: answerWith(apiAnswer(200, "ok"))}
+	res, _ = runWith(context.Background(), newTestEngine(reg, &Services{Tools: tools, Location: time.UTC}, 2), f,
+		RunRequest{TriggerNode: tr, TriggerData: map[string]any{"h": map[string]any{"X-A": "1\r\nX-Evil: 1"}}})
+	if res.Status == RunSuccess || res.ErrorCode != "FLOW_PARAM_INVALID" || tools.count() != 0 {
+		t.Errorf("a bad resolved header: status %s code %s after %d calls", res.Status, res.ErrorCode, tools.count())
 	}
 }

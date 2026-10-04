@@ -21,7 +21,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   (`engine.go`) is final at once, because a retry cannot fix it and would only pay for the same refusal
   again (an `ai.step` under Retry 5 could make 12 model calls). The set: `FLOW_PARAM_INVALID`,
   `FLOW_CONDITION_INVALID` (the node's own parameters), `FLOW_AI_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`,
-  `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOL_DENIED` (missing or refused capability), `FLOW_BUDGET_EXCEEDED`,
+  `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOL_DENIED`, `FLOW_SECRET_UNAVAILABLE` (missing, refused or unusable
+  capability, a vault entry included), `FLOW_BUDGET_EXCEEDED`,
   `FLOW_OUTPUT_TOO_LARGE`. Everything else is retried, in particular `FLOW_NODE_FAILED`,
   `FLOW_NODE_TIMEOUT`, `FLOW_TOOL_ERROR` and `FLOW_AI_OUTPUT_INVALID`, where a new attempt can answer
   differently. Choose the code of a new error with that in mind.
