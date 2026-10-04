@@ -870,12 +870,17 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 		now := m.currentTime()
 		record := m.newCallRecordLocked("outbound", canonical, MediaModeAgent, now)
 		start, end := localDayBounds(now)
-		historyCtx, historyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		configVersion := m.callConfigVersion
+		m.preparingCall = true
+		m.mu.Unlock()
+		historyCtx, historyCancel := context.WithTimeout(ctx, 5*time.Second)
 		result, admissionErr := m.submitHistoryCommand(historyCtx, historyCommand{
 			kind: historyAdmitAgentOutbound, request: persistRequest{record: record, stage: "outbound_created"},
 			dayStart: start, dayEnd: end, dailyLimit: cfg.Voice.MaxOutboundCallsPerDay,
 		})
 		historyCancel()
+		m.mu.Lock()
+		m.preparingCall = false
 		if admissionErr != nil {
 			m.mu.Unlock()
 			m.reportPersistenceFailure(record.ID, "outbound_admission", admissionErr)
@@ -888,6 +893,13 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 				retryAfter = 1
 			}
 			return CallRecord{}, &AgentDailyCallLimitError{Used: result.dailyUsed, Limit: cfg.Voice.MaxOutboundCallsPerDay, RetryAfterSeconds: retryAfter, ResetsAt: end}
+		}
+		if configVersion != m.callConfigVersion || endpoint != m.endpoint || !m.cfg.Enabled || m.active != nil || ctx.Err() != nil || (m.rootCtx != nil && m.rootCtx.Err() != nil) {
+			ended := time.Now().UTC()
+			record.EndedAt, record.State, record.EndReason = &ended, StateEnded, "admission_cancelled"
+			m.persistCall(record, "outbound_admission_cancelled")
+			m.mu.Unlock()
+			return CallRecord{}, ErrBusy
 		}
 		call = m.activateCallLocked(record)
 	} else {
@@ -1748,6 +1760,17 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 		backend := call.backend
 		mediaPeer := call.mediaPeer
 		established := call.dialogEstablished
+		m.mu.Unlock()
+		// Close joins backend producers before releasing the call or purging its session.
+		if backend != nil {
+			_ = backend.Close()
+		}
+		if mediaPeer != nil {
+			mediaPeer.Detach(call.record.ID)
+		}
+		sendHangup := established && reason != "remote_hangup" && reason != "remote_cancel"
+		_ = m.endCallDialog(call, sendHangup)
+		m.mu.Lock()
 		call.record.EndedAt = &now
 		call.record.State = StateEnded
 		call.record.EndReason = reason
@@ -1765,14 +1788,6 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 		}
 		m.emitLocked("status", nil, nil)
 		m.mu.Unlock()
-		if backend != nil {
-			_ = backend.Close()
-		}
-		if mediaPeer != nil {
-			mediaPeer.Detach(call.record.ID)
-		}
-		sendHangup := established && reason != "remote_hangup" && reason != "remote_cancel"
-		_ = m.endCallDialog(call, sendHangup)
 		if m.callFinished != nil {
 			m.callFinished(call.record, call.persistTranscripts)
 		}

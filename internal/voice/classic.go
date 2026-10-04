@@ -54,6 +54,7 @@ func (b *ClassicBackend) Start(ctx context.Context, call CallContext, audio Dupl
 		audio:       audio,
 		backend:     b,
 		events:      make(chan VoiceEvent, 32),
+		done:        make(chan struct{}),
 		detector:    NewTurnDetector(20, 120, 600, 200),
 		inputRate:   8000,
 		framePeriod: 20 * time.Millisecond,
@@ -80,6 +81,7 @@ type classicSession struct {
 	activeTurns        atomic.Int32
 	turnState          chan struct{}
 	producers          sync.WaitGroup
+	done               chan struct{}
 }
 
 func (s *classicSession) run() {
@@ -90,6 +92,9 @@ func (s *classicSession) run() {
 		s.cancel()
 		s.producers.Wait()
 		close(s.events)
+		if s.done != nil {
+			close(s.done)
+		}
 	}()
 	s.emit("backend_started", "")
 	if s.call.Greeting != "" {
@@ -417,13 +422,12 @@ func (s *classicSession) Events() <-chan VoiceEvent { return s.events }
 
 func (s *classicSession) Close() error {
 	s.mu.Lock()
-	if s.closed {
-		s.mu.Unlock()
-		return nil
-	}
 	s.closed = true
 	s.mu.Unlock()
 	s.cancel()
+	if s.done != nil {
+		<-s.done
+	}
 	return nil
 }
 

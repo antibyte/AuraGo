@@ -27,6 +27,10 @@ Native telephone registration, calls, media, and agent policy.
 - Terminate established local/outbound call failures with one BYE and close every dialog exactly once; cancellation while an outbound INVITE is pending must flow through its context-driven CANCEL. Keep provider audio and VAD buffers bounded, normalize external sample rates before the fixed 8/16/24 kHz media bus, and never write SIP ASR audio to disk.
 - The PCM `MediaPeer`, incoming-call handler, history schema, REST actions, and SSE events are compatibility anchors for the future authenticated WebRTC desktop phone and bounded Media-Registry answering machine; neither future feature may expose SIP credentials or raw RTP to the browser.
 
+- VoiceSession.Close cancels and joins all active provider/turn producers. Keep the active-call reservation until that join completes; only then release it and invoke transcript cleanup. Do not wait while holding the manager mutex.
+- Outbound daily admission reserves preparation, queries history outside the manager mutex, then rechecks the configuration generation, endpoint and contexts before INVITE. An admitted attempt cancelled by a configuration change is recorded as ended.
+- Gemini output uses a bounded thirty-second PCM queue and 160-sample frames at twenty-millisecond cadence. Interruptions flush both provider backlog and the media bridge; overflow is a visible failure, never silent truncation. Cancel pending WebSocket setup and reject late connection installation after closure.
+
 ## Verification
 
 - Run `go test ./internal/sipphone` and the named cross-component checks in the contracts above when those paths change.
