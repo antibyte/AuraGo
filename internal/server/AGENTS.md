@@ -125,6 +125,7 @@ Server-owned HTTP and cross-component integration contracts.
   `TestSystemWorldVoice*` and `TestSystemWorldMemoryArtifacts*`.
 
 ### 3D Printer Integration Contract
+- Elegoo SDCP 386 is a write: only enable_camera/disable_camera may send it, behind read-only gates. Camera URL/snapshot/stream reads use a bounded in-memory URL cache populated by successful explicit activation, bound to printer ID, URL and board. Restart requires a new explicit activation.
 - `/api/3d-printers/test` is admin-only, accepts only `test_connection`, and executes with read-only runtime rights. Ad-hoc setup probes do not enable the saved integration. Printer snapshot/stream redirects remain at their initial HTTP origin.
 - The opt-in `builtin-printer` Desktop widget uses authenticated GET `/api/3d-printers/status`: without `printer_id` it lists only configured IDs/names and the default, with an explicit ID it executes only `status`. Disabled integration blocks reads. Camera expansion reuses the existing same-origin camera stream; widget polling never stores camera snapshots or invokes an LLM.
 - Elegoo SDCP status/attributes reads wait for a nonempty matching `Status`/`Attributes` snapshot (top-level or under `Data`), not a command ACK or unrelated push. Negative ACKs fail; the whole command shares one deadline and honors cancellation. Verify with `go test ./internal/tools -run 'Elegoo|ThreeDPrinter'`.

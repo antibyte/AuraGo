@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/tools"
 
 	"github.com/gorilla/websocket"
 )
@@ -72,6 +73,9 @@ func TestHandleThreeDPrinterSnapshotStoresImageFromConfiguredPrinterHost(t *test
 		ID:  "lab",
 		URL: wsURL,
 	}}
+	if out := tools.ExecuteThreeDPrinter(context.Background(), tools.BuildThreeDPrinterRuntimeConfig(cfg), tools.ThreeDPrinterRequest{Operation: "enable_camera"}); !strings.Contains(out, `"status":"ok"`) {
+		t.Fatal(out)
+	}
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/3d-printers/lab/camera/snapshot", nil)
@@ -105,6 +109,9 @@ func TestHandleThreeDPrinterStreamRejectsMismatchedCameraHost(t *testing.T) {
 		ID:  "lab",
 		URL: wsURL,
 	}}
+	if out := tools.ExecuteThreeDPrinter(context.Background(), tools.BuildThreeDPrinterRuntimeConfig(cfg), tools.ThreeDPrinterRequest{Operation: "enable_camera"}); !strings.Contains(out, "does not match") {
+		t.Fatal(out)
+	}
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/3d-printers/lab/camera/stream", nil)

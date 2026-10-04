@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "source": "aurago internal/agent.BuildNativeToolSchemaSnapshot.StrictSchemas (all feature flags enabled)",
   "tool_count": 216,
-  "operation_count": 1149,
+  "operation_count": 1151,
   "call_format": "OpenAI-compatible native function calling with assistant tool_calls and role=tool results linked by tool_call_id.",
   "tools": [
     {
@@ -27755,7 +27755,9 @@
               "pause_print",
               "resume_print",
               "cancel_print",
-              "set_camera_light"
+              "set_camera_light",
+              "enable_camera",
+              "disable_camera"
             ],
             "type": "string"
           },
@@ -27826,7 +27828,9 @@
             "pause_print",
             "resume_print",
             "cancel_print",
-            "set_camera_light"
+            "set_camera_light",
+            "enable_camera",
+            "disable_camera"
           ],
           "type": "string"
         },
@@ -27875,6 +27879,14 @@
         },
         {
           "selector": "operation",
+          "value": "disable_camera"
+        },
+        {
+          "selector": "operation",
+          "value": "enable_camera"
+        },
+        {
+          "selector": "operation",
           "value": "files"
         },
         {
@@ -27915,7 +27927,7 @@
         }
       ],
       "manual_path": "prompts/tools_manuals/three_d_printer.md",
-      "manual_snippet": "# three_d_printer\n\nUse the `three_d_printer` tool to inspect and control configured 3D printers.\n\nSupported protocols:\n\n- Elegoo Centauri Carbon over local SDCP WebSocket.\n- Klipper through Moonraker HTTP API standard printer actions.\n\n## Safety\n\n- The integration must be enabled with `three_d_printers.enabled` before normal tool/API use. `test_connection` is the exception and may be used for ad-hoc setup checks before enabling.\n- Always pass `printer_id` unless `three_d_printers.default_printer` is explicitly configured. The tool does not silently select the first configured printer.\n- Respect `three_d_printers.readonly`. When read-only mode is active, do not attempt `start_print`, `pause_print`, `resume_print`, `cancel_print`, or `set_camera_light`.\n- Never guess a print filename. For `s…"
+      "manual_snippet": "# three_d_printer\n\nUse the `three_d_printer` tool to inspect and control configured 3D printers.\n\nSupported protocols:\n\n- Elegoo Centauri Carbon over local SDCP WebSocket.\n- Klipper through Moonraker HTTP API standard printer actions.\n\n## Safety\n\n- The integration must be enabled with `three_d_printers.enabled` before normal tool/API use. `test_connection` is the exception and may be used for ad-hoc setup checks before enabling.\n- Always pass `printer_id` unless `three_d_printers.default_printer` is explicitly configured. The tool does not silently select the first configured printer.\n- Respect `three_d_printers.readonly`. When read-only mode is active, do not attempt `start_print`, `pause_print`, `resume_print`, `cancel_print`, `set_camera_light`, `enable_camera`, or `disable_camera`.\n- N…"
     },
     {
       "name": "toml_editor",

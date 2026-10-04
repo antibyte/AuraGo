@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "catalog_sha256": "09e950f63587e3a2be703496248dd70ac04fb02bdbb51c48a7e14ff9b59ad324",
+  "catalog_sha256": "d63b775410def074dad33c3cecf3f778d5386c90ae712785c83c21c1c9ab1844",
   "sources": {
     "prompts/tools_manuals/activate_agent_skill.md": "1cd868f578936cbaaa313ffad3aeb33bcb40e6fa39d5410f578d2246e1da4620",
     "prompts/tools_manuals/address_book.md": "e293e5e4593960f04000ded38ac04eb625b194a6672372d085d8ec294aacc509",
@@ -155,7 +155,7 @@
     "prompts/tools_manuals/tailscale.md": "d05a807e0c6233341da75d290d43bb15d3a55ff2470ef95e78fe761a6681b2e6",
     "prompts/tools_manuals/telnyx.md": "f17de90d80779b2286c8192683ed980ca6d0c078af5fcfb61e5e9a101c4dbbdd",
     "prompts/tools_manuals/text_diff.md": "4569dd188a044841ff40ed3902854fe49862877a74b33e0497c22b7d69517e5c",
-    "prompts/tools_manuals/three_d_printer.md": "b5a792964f200c449acce33eeda4c41201b1cc790796b949c6ef14ec874a85b6",
+    "prompts/tools_manuals/three_d_printer.md": "8f9f6b201b01ebed8a27780d80dbff33c896110b146e25a5590c3af2087f4e03",
     "prompts/tools_manuals/toml_editor.md": "d5c12355bded81269725b34973995cd9fb193f1f6d99ce1e756c32e9ab3cd246",
     "prompts/tools_manuals/transcribe_audio.md": "b6e0a72b402fdd064d563474e55c1367aba0f0d2f3d3f9722dd0d4877a0fc02f",
     "prompts/tools_manuals/treg.md": "195e536e5ebfeab41a6853543348525db7b14111c6c03e069e00dc18d2379635",
@@ -185,7 +185,7 @@
     "prompts/tools_manuals/xml_editor.md": "70a334eb6e3cb4c798d71ab00e233e75a14bbd41c50398c7a7be4589c6b3077e",
     "prompts/tools_manuals/yaml_editor.md": "3019e5bcda6867a4a5ff6732e690daa77fabc3ab8b1444ef3c8776fce787779b",
     "prompts/tools_manuals/yepapi.md": "da38a9f36c026917a53666302aa3a9b91abec88e0bb86feda62f79b5ff574ca9",
-    "training/operation_contracts.json": "5e1472f398e908a1437724744d93f92a185e99170580f93da99d55b5f0199cdb",
+    "training/operation_contracts.json": "312e7e685d82222d671bfb6a4b1b731c2e0993b8c9b2e53535fc9cbd27b82174",
     "training/tool_tiers.json": "30bbf3e1f29594d9f3774400f59bb0a8848e3a6bd19beba390d59d910e1e040e"
   },
   "tools": [
@@ -39972,7 +39972,9 @@
               "pause_print",
               "resume_print",
               "cancel_print",
-              "set_camera_light"
+              "set_camera_light",
+              "enable_camera",
+              "disable_camera"
             ],
             "type": "string"
           },
@@ -40043,7 +40045,9 @@
             "pause_print",
             "resume_print",
             "cancel_print",
-            "set_camera_light"
+            "set_camera_light",
+            "enable_camera",
+            "disable_camera"
           ],
           "type": "string"
         },
@@ -40089,6 +40093,14 @@
         {
           "selector": "operation",
           "value": "cancel_print"
+        },
+        {
+          "selector": "operation",
+          "value": "disable_camera"
+        },
+        {
+          "selector": "operation",
+          "value": "enable_camera"
         },
         {
           "selector": "operation",
@@ -40195,6 +40207,32 @@
             "value": "cancel_print",
             "arguments": {
               "operation": "cancel_print",
+              "printer_id": "example-id"
+            },
+            "required_fields": [
+              "operation",
+              "printer_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "disable_camera",
+            "arguments": {
+              "operation": "disable_camera",
+              "printer_id": "example-id"
+            },
+            "required_fields": [
+              "operation",
+              "printer_id"
+            ],
+            "excluded_fields": []
+          },
+          {
+            "selector": "operation",
+            "value": "enable_camera",
+            "arguments": {
+              "operation": "enable_camera",
               "printer_id": "example-id"
             },
             "required_fields": [
@@ -50991,8 +51029,8 @@
     {
       "id": "three_d_printer",
       "path": "prompts/tools_manuals/three_d_printer.md",
-      "sha256": "b5a792964f200c449acce33eeda4c41201b1cc790796b949c6ef14ec874a85b6",
-      "body": "# three_d_printer\n\nUse the `three_d_printer` tool to inspect and control configured 3D printers.\n\nSupported protocols:\n\n- Elegoo Centauri Carbon over local SDCP WebSocket.\n- Klipper through Moonraker HTTP API standard printer actions.\n\n## Safety\n\n- The integration must be enabled with `three_d_printers.enabled` before normal tool/API use. `test_connection` is the exception and may be used for ad-hoc setup checks before enabling.\n- Always pass `printer_id` unless `three_d_printers.default_printer` is explicitly configured. The tool does not silently select the first configured printer.\n- Respect `three_d_printers.readonly`. When read-only mode is active, do not attempt `start_print`, `pause_print`, `resume_print`, `cancel_print`, or `set_camera_light`.\n- Never guess a print filename. For `start_print`, first list files and ask the user to confirm the exact file if it is not explicitly provided.\n- Treat camera images as local user data. Only analyze them for the printer-related task the user requested.\n- For Klipper, use only standard Moonraker actions. Do not request arbitrary G-code, macros, shell commands, file deletion, restart, update manager, or configuration writes.\n- Klipper `api_key` values are vault-only. They are accepted through the config UI/save flow, shown only as a mask, and must not be stored in `config.yaml` or tool output.\n\n## Operations\n\n- `list_printers`: list configured printers and the default printer.\n- `test_connection` / `status`: request current printer status.\n- For Elegoo print progress, use `status` and inspect `Status.PrintInfo` (or `Data.Status.PrintInfo`): report `Progress`, layer counts and timing only when the printer supplies them. A command acknowledgement alone is not a print status; missing values stay unknown.\n- `attributes`: fetch printer metadata and capabilities.\n- `files`: list G-code files. Elegoo accepts optional `directory`, default `/local`; Klipper lists Moonraker `gcodes`.\n- `history`: fetch print history IDs.\n- `camera_url`: get the printer camera stream URL as data only. The response includes `url` for the raw printer stream and `proxy_url` for AuraGo's same-origin browser proxy. Use `proxy_url` in generated desktop apps/widgets; it avoids browser mixed-content/CORS issues and keeps the stream routed through AuraGo. Klipper live streams require a valid HTTP(S) `stream_url` on the configured printer host.\n- `camera_snapshot`: capture, store, and register a snapshot in AuraGo's media registry when available. Klipper prefers `snapshot_url`; `stream_url` is only used as a snapshot fallback when no snapshot URL is configured.\n- `analyze_camera`: capture, store, and register a snapshot, then analyze it with the configured Vision provider.\n- `show_live_stream`: render the live camera in chat through AuraGo's same-origin MJPEG/image-stream proxy. Use this for requests like \"show the camera\", \"open the printer video\", or \"let me watch the printer\". Do not capture or convert frames for this operation.\n- `start_print`: start an explicit `filename`. Elegoo also supports `start_layer`, `calibration`, and `time_lapse`; Klipper sends the filename to Moonraker unchanged.\n- `pause_print`, `resume_print`, `cancel_print`: control the active job when write access is allowed.\n- `set_camera_light`: set `light_on` true or false for Elegoo when write access is allowed. Klipper v1 does not support light control.\n\n## Examples\n\n```json\n{\"operation\":\"status\",\"printer_id\":\"lab-printer\"}\n```\n\n```json\n{\"operation\":\"analyze_camera\",\"printer_id\":\"lab-printer\",\"prompt\":\"Check whether the print is still adhering to the bed.\"}\n```\n\n```json\n{\"operation\":\"show_live_stream\",\"printer_id\":\"lab-printer\"}\n```\n\n```json\n{\"operation\":\"start_print\",\"printer_id\":\"lab-printer\",\"filename\":\"/local/bracket.gcode\",\"calibration\":true}\n```\n",
+      "sha256": "8f9f6b201b01ebed8a27780d80dbff33c896110b146e25a5590c3af2087f4e03",
+      "body": "# three_d_printer\n\nUse the `three_d_printer` tool to inspect and control configured 3D printers.\n\nSupported protocols:\n\n- Elegoo Centauri Carbon over local SDCP WebSocket.\n- Klipper through Moonraker HTTP API standard printer actions.\n\n## Safety\n\n- The integration must be enabled with `three_d_printers.enabled` before normal tool/API use. `test_connection` is the exception and may be used for ad-hoc setup checks before enabling.\n- Always pass `printer_id` unless `three_d_printers.default_printer` is explicitly configured. The tool does not silently select the first configured printer.\n- Respect `three_d_printers.readonly`. When read-only mode is active, do not attempt `start_print`, `pause_print`, `resume_print`, `cancel_print`, `set_camera_light`, `enable_camera`, or `disable_camera`.\n- Never guess a print filename. For `start_print`, first list files and ask the user to confirm the exact file if it is not explicitly provided.\n- Treat camera images as local user data. Only analyze them for the printer-related task the user requested.\n- For Klipper, use only standard Moonraker actions. Do not request arbitrary G-code, macros, shell commands, file deletion, restart, update manager, or configuration writes.\n- Klipper `api_key` values are vault-only. They are accepted through the config UI/save flow, shown only as a mask, and must not be stored in `config.yaml` or tool output.\n\n## Operations\n\n- `list_printers`: list configured printers and the default printer.\n- `test_connection` / `status`: request current printer status.\n- For Elegoo print progress, use `status` and inspect `Status.PrintInfo` (or `Data.Status.PrintInfo`): report `Progress`, layer counts and timing only when the printer supplies them. A command acknowledgement alone is not a print status; missing values stay unknown.\n- `attributes`: fetch printer metadata and capabilities.\n- `files`: list G-code files. Elegoo accepts optional `directory`, default `/local`; Klipper lists Moonraker `gcodes`.\n- `history`: fetch print history IDs.\n- `enable_camera` / `disable_camera`: explicitly switch the Elegoo camera on/off (write access required). Camera reads never switch it on. After restarting AuraGo, enable it again to establish the confirmed stream URL. Klipper manages cameras externally.\n- `camera_url`: get the printer camera stream URL as data only. The response includes `url` for the raw printer stream and `proxy_url` for AuraGo's same-origin browser proxy. Use `proxy_url` in generated desktop apps/widgets; it avoids browser mixed-content/CORS issues and keeps the stream routed through AuraGo. Klipper live streams require a valid HTTP(S) `stream_url` on the configured printer host.\n- `camera_snapshot`: capture, store, and register a snapshot in AuraGo's media registry when available. Klipper prefers `snapshot_url`; `stream_url` is only used as a snapshot fallback when no snapshot URL is configured.\n- `analyze_camera`: capture, store, and register a snapshot, then analyze it with the configured Vision provider.\n- `show_live_stream`: render the live camera in chat through AuraGo's same-origin MJPEG/image-stream proxy. Use this for requests like \"show the camera\", \"open the printer video\", or \"let me watch the printer\". Do not capture or convert frames for this operation.\n- `start_print`: start an explicit `filename`. Elegoo also supports `start_layer`, `calibration`, and `time_lapse`; Klipper sends the filename to Moonraker unchanged.\n- `pause_print`, `resume_print`, `cancel_print`: control the active job when write access is allowed.\n- `set_camera_light`: set `light_on` true or false for Elegoo when write access is allowed. Klipper v1 does not support light control.\n\n## Examples\n\n```json\n{\"operation\":\"status\",\"printer_id\":\"lab-printer\"}\n```\n\n```json\n{\"operation\":\"analyze_camera\",\"printer_id\":\"lab-printer\",\"prompt\":\"Check whether the print is still adhering to the bed.\"}\n```\n\n```json\n{\"operation\":\"show_live_stream\",\"printer_id\":\"lab-printer\"}\n```\n\n```json\n{\"operation\":\"start_print\",\"printer_id\":\"lab-printer\",\"filename\":\"/local/bracket.gcode\",\"calibration\":true}\n```\n",
       "tools": [
         "three_d_printer"
       ],

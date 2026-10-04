@@ -5074,6 +5074,14 @@
       },
       {
         "selector": "operation",
+        "value": "disable_camera"
+      },
+      {
+        "selector": "operation",
+        "value": "enable_camera"
+      },
+      {
+        "selector": "operation",
         "value": "files"
       },
       {

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "schema_sha256": "62982e4d7adaba67bc5a966746a9724a3fd0953c7329da807601883e7de40666",
+  "schema_sha256": "991ce638a4401e7b23b26480d2d8b39a48fdb2e8fb044cb6ea28bb7f602be395",
   "tools": {
     "treg_call": {
       "default_arguments": {
@@ -12004,6 +12004,32 @@
           "value": "cancel_print",
           "arguments": {
             "operation": "cancel_print",
+            "printer_id": "example-id"
+          },
+          "required_fields": [
+            "operation",
+            "printer_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "disable_camera",
+          "arguments": {
+            "operation": "disable_camera",
+            "printer_id": "example-id"
+          },
+          "required_fields": [
+            "operation",
+            "printer_id"
+          ],
+          "excluded_fields": []
+        },
+        {
+          "selector": "operation",
+          "value": "enable_camera",
+          "arguments": {
+            "operation": "enable_camera",
             "printer_id": "example-id"
           },
           "required_fields": [

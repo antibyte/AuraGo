@@ -3,7 +3,7 @@
 Generated deterministically from `BuildNativeToolSchemaSnapshot(...).StrictSchemas()` with all feature flags enabled.
 
 - Tools: **216**
-- Enumerated operations: **1149**
+- Enumerated operations: **1151**
 - Native format: assistant `tool_calls` followed by adjacent `role=tool` messages with matching `tool_call_id`.
 - Hidden format: `discover_tools`, then the returned binding `call_method` such as `invoke_tool`.
 
@@ -3409,7 +3409,7 @@ Inspect and control configured 3D printers. Supports Elegoo Centauri Carbon and 
 
 - Tier: `extended`
 - Required: `operation`
-- Operations: 15
+- Operations: 17
 - Manual: `prompts/tools_manuals/three_d_printer.md`
 
 | Parameter | Type | Description |

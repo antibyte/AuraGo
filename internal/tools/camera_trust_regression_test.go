@@ -9,7 +9,55 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
+
+func TestElegooCameraReadsNeverActivateAndWritesRequirePermission(t *testing.T) {
+	var calls atomic.Int32
+	wsURL, closeServer := mockElegooWebSocket(t, func(t *testing.T, payload map[string]interface{}, conn *websocket.Conn) {
+		calls.Add(1)
+		data := payload["Data"].(map[string]interface{})
+		if data["Cmd"].(float64) != 386 {
+			t.Error("unexpected camera command")
+		}
+		_ = conn.WriteJSON(map[string]interface{}{"Data": map[string]interface{}{"RequestID": data["RequestID"], "Data": map[string]interface{}{"Ack": 0, "VideoUrl": "http://127.0.0.1:3031/video"}}})
+	})
+	defer closeServer()
+	p := ElegooCentauriCarbonPrinter{ID: "camera-boundary", URL: wsURL, TimeoutSeconds: 2}
+	cfg := ThreeDPrinterConfig{Enabled: true, ReadOnly: true, DefaultPrinter: p.ID, ElegooCentauriCarbon: ElegooCentauriCarbonConfig{Enabled: true, Printers: []ElegooCentauriCarbonPrinter{p}}}
+	for _, op := range []string{"enable_camera", "disable_camera", "camera_url", "camera_snapshot", "show_live_stream"} {
+		if got := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: op}); !strings.Contains(got, `"status":"error"`) {
+			t.Fatalf("%s accepted: %s", op, got)
+		}
+	}
+	if calls.Load() != 0 {
+		t.Fatal("read/denied operation sent an activation command")
+	}
+	cfg.ReadOnly = false
+	if got := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "enable_camera"}); !strings.Contains(got, `"status":"ok"`) {
+		t.Fatal(got)
+	}
+	cfg.ReadOnly = true
+	if got := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "camera_url"}); !strings.Contains(got, `"status":"ok"`) {
+		t.Fatal(got)
+	}
+	if calls.Load() != 1 {
+		t.Fatal("camera read sent a command")
+	}
+	changed := p
+	changed.MainboardID = "replacement"
+	if _, err := cachedElegooCameraURL(changed); err == nil {
+		t.Fatal("cache crossed printer identity")
+	}
+	cfg.ReadOnly = false
+	if got := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "disable_camera"}); !strings.Contains(got, `"status":"ok"`) {
+		t.Fatal(got)
+	}
+	if _, err := cachedElegooCameraURL(p); err == nil {
+		t.Fatal("disabled camera URL retained")
+	}
+}
 
 func TestFrigateConfigRedactsBeforeReturningEitherFormat(t *testing.T) {
 	for _, raw := range []bool{false, true} {

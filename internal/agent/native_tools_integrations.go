@@ -1079,7 +1079,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description": "Operation to perform",
 					"enum": []string{"list_printers", "test_connection", "status", "attributes", "files", "history",
 						"camera_url", "camera_snapshot", "analyze_camera", "show_live_stream",
-						"start_print", "pause_print", "resume_print", "cancel_print", "set_camera_light"},
+						"start_print", "pause_print", "resume_print", "cancel_print", "set_camera_light", "enable_camera", "disable_camera"},
 				},
 				"printer_id":   prop("string", "Configured printer id or name. Omit to use the default printer."),
 				"filename":     prop("string", "G-code filename/path for start_print. Required; never guess this value."),
