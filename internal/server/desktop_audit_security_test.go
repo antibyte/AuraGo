@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/png"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -26,6 +27,63 @@ func desktopAuditPNG(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	return b.Bytes()
+}
+
+func TestPixelSaveRejectsOversizeBeforeReplacingOriginal(t *testing.T) {
+	s := newDesktopFilesystemTestServer(t)
+	s.Cfg.VirtualDesktop.MaxFileSizeMB = 1
+	svc, _, err := s.getDesktopService(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := desktopAuditPNG(t)
+	if err := svc.WriteFileBytes(context.Background(), "Pictures/limit.png", original, desktop.SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]string{"path": "Pictures/limit.png", "data": base64.StdEncoding.EncodeToString(make([]byte, 2<<20))})
+	r := httptest.NewRequest("POST", "/api/pixel/save", bytes.NewReader(body))
+	r.Header.Set("If-Match", desktop.NoteVersion(original))
+	w := httptest.NewRecorder()
+	handlePixelSave(s)(w, r)
+	if w.Code != 413 {
+		t.Fatalf("size limit: %d %s", w.Code, w.Body.String())
+	}
+	got, _, err := svc.ReadFileBytes(context.Background(), "Pictures/limit.png")
+	if err != nil || !bytes.Equal(got, original) {
+		t.Fatal("original changed")
+	}
+}
+
+func TestDesktopTruncatedUploadPreservesObservedFile(t *testing.T) {
+	s := newDesktopFilesystemTestServer(t)
+	svc, _, err := s.getDesktopService(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.WriteFile(context.Background(), "Documents/upload.txt", "original", desktop.SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	_ = writer.WriteField("path", "Documents")
+	part, err := writer.CreateFormFile("file", "upload.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = part.Write([]byte("partial"))
+	// Deliberately omit the terminating multipart boundary, as on disconnect.
+	r := httptest.NewRequest("POST", "/api/desktop/upload", bytes.NewReader(body.Bytes()))
+	r.Header.Set("Content-Type", writer.FormDataContentType())
+	r.Header.Set("If-Match", desktop.NoteVersion([]byte("original")))
+	w := httptest.NewRecorder()
+	handleDesktopUpload(s)(w, r)
+	if w.Code < 400 {
+		t.Fatal("accepted truncated upload")
+	}
+	got, _, err := svc.ReadFileBytes(context.Background(), "Documents/upload.txt")
+	if err != nil || string(got) != "original" {
+		t.Fatal("original changed")
+	}
 }
 
 func TestDesktopFileConcurrentVersionsPreserveWinner(t *testing.T) {

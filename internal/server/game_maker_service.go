@@ -20,10 +20,10 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-func gameMakerPolicy(cfg config.GameMakerConfig) gamemaker.Policy {
+func gameMakerPolicy(cfg config.GameMakerConfig, desktopReadonly bool) gamemaker.Policy {
 	return gamemaker.Policy{
 		Enabled:              cfg.Enabled,
-		ReadOnly:             cfg.ReadOnly,
+		ReadOnly:             cfg.ReadOnly || desktopReadonly,
 		AllowCreate:          cfg.AllowCreate,
 		AllowEdit:            cfg.AllowEdit,
 		AllowDelete:          cfg.AllowDelete,
@@ -50,7 +50,7 @@ func (s *Server) initGameMaker() {
 		DBPath:               s.Cfg.SQLite.GameMakerPath,
 		WorkspacePath:        cfg.WorkspacePath,
 		Enabled:              cfg.Enabled,
-		ReadOnly:             cfg.ReadOnly,
+		ReadOnly:             cfg.ReadOnly || s.Cfg.VirtualDesktop.ReadOnly,
 		AllowCreate:          cfg.AllowCreate,
 		AllowEdit:            cfg.AllowEdit,
 		AllowDelete:          cfg.AllowDelete,
@@ -70,7 +70,7 @@ func (s *Server) initGameMaker() {
 		return
 	}
 	service.SetSkillStatus(s.gameMakerSkills, s.gameMakerSkillsReady)
-	service.UpdatePolicy(gameMakerPolicy(cfg))
+	service.UpdatePolicy(gameMakerPolicy(cfg, s.Cfg.VirtualDesktop.ReadOnly))
 	service.SetRunner(&gameMakerAgentRunner{server: s, service: service})
 	s.GameMaker = service
 	gamemaker.SetDefaultService(service)
@@ -485,6 +485,11 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	if s == nil || s.Cfg == nil || s.LLMClient == nil {
 		return fmt.Errorf("Game Maker LLM is not configured")
 	}
+	ctx, release, err := s.beginDesktopRun(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	s.CfgMu.RLock()
 	cfg := *s.Cfg
 	s.CfgMu.RUnlock()

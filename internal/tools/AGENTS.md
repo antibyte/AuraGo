@@ -98,6 +98,17 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Uptime Kuma pollers inherit an owner context. Stop is terminal, cancels I/O and waits for completion; callbacks must not detach unbounded work.
 - Python Vault export requires both agent-created provenance and the system-key blocklist. Reserve actual `sql_`, `cloudflared_`, `cloudflare_` and `three_d_printer_klipper_` integration prefixes alongside legacy names.
 
+## Desktop invocation ownership
+
+- Desktop-triggered local missions use QueueOwnedMission. Persist the ephemeral
+  owner marker before queued status, retain its context through dispatch, and
+  retain it for dependent local missions and release it after the last callback.
+  Cancelled owners and ownerless recovered queue entries must never run. Queue
+  snapshots retain non-replayable IDs across completion/status-save crashes until
+  a deliberate independent invocation supersedes them. Regular scheduled/admin missions retain their
+  independent lifecycle. Remote mission execution is unavailable through this
+  Desktop entry until its protocol can acknowledge cancellation.
+
 ## Verification
 
 - Image generation owners pass `GenerateImageContext`; provider requests and

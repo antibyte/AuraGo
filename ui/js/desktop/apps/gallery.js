@@ -630,13 +630,14 @@
 
         /** Renames `item` to `name` on the server and patches local state. Returns the updated item or null. */
         async function applyRename(item, name) {
-            const updated = L.renamedItem(item, name);
+            let updated = L.renamedItem(item, name);
             try {
-                await api('/api/desktop/file', {
+                const result = await api('/api/desktop/file', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ old_path: item.path, new_path: updated.path })
                 });
+                if (result && result.path) updated = { ...updated, path: result.path, name: result.path.split('/').pop() };
             } catch (err) {
                 notify({ title: t('desktop.notification'), message: t('desktop.load_failed') });
                 return null;

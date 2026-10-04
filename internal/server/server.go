@@ -347,7 +347,18 @@ func missionRunBaseContext(s *Server, missionID string) (context.Context, func()
 	if missionID == "" {
 		return context.Background(), func() {}
 	}
-	return s.missionRunTracker().beginContext(s.integrationCtx, missionID)
+	parent := s.integrationCtx
+	if s.MissionManagerV2 != nil {
+		if owner, owned := s.MissionManagerV2.ActiveOwnerContext(missionID); owned {
+			parent = owner
+			if parent == nil {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				parent = ctx
+			}
+		}
+	}
+	return s.missionRunTracker().beginContext(parent, missionID)
 }
 
 func (s *Server) initConfigSnapshot() {
@@ -376,6 +387,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	if cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.Enabled {
 		s.revokeDesktopRuns()
+	}
+	if s.GameMaker != nil {
+		s.GameMaker.UpdatePolicy(gameMakerPolicy(cfg.GameMaker, cfg.VirtualDesktop.ReadOnly))
 	}
 	if svc := s.desktopPolicyService.Load(); svc != nil {
 		svc.SetReadOnly(cfg.VirtualDesktop.ReadOnly)
@@ -888,6 +902,13 @@ func Start(opts StartOptions) error {
 	// Start MissionManagerV2 with enhanced callback that reports completion
 	missionCallbackV2 := func(prompt string, missionID string) {
 		func() {
+			callbackCtx := s.MissionManagerV2.Context()
+			if owner, owned := s.MissionManagerV2.ActiveOwnerContext(missionID); owned {
+				if owner == nil {
+					return
+				}
+				callbackCtx = owner
+			}
 			recordMissionIssue := func(title, detail string) {
 				if s.PlannerDB == nil {
 					return
@@ -955,7 +976,7 @@ func Start(opts StartOptions) error {
 			headers.Set("X-Internal-Token", s.internalToken)
 			headers.Set("X-Mission-ID", missionID)
 			client := NewInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
-			resp, err := DoInternalRequestWithStartupRetry(s.MissionManagerV2.Context(), client, http.MethodPost, url, body, headers, 15*time.Second)
+			resp, err := DoInternalRequestWithStartupRetry(callbackCtx, client, http.MethodPost, url, body, headers, 15*time.Second)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
 				setMissionError("", err.Error())

@@ -155,6 +155,7 @@ func handleDesktopChatStream(s *Server) http.HandlerFunc {
 			defer close(done)
 			sseBroker := NewSSEBrokerAdapterWithSession(s.SSE, desktopChatSessionID)
 			combinedBroker := &desktopStreamCombinedBroker{
+				ctx:          llmCtx,
 				stream:       broker,
 				sse:          sseBroker,
 				shortTermMem: s.ShortTermMem,
@@ -223,6 +224,7 @@ func (b *desktopStreamBroker) sendHeartbeat() bool {
 }
 
 type desktopStreamCombinedBroker struct {
+	ctx            context.Context
 	stream         *desktopStreamBroker
 	sse            *SSEBrokerAdapter
 	shortTermMem   *memory.SQLiteMemory
@@ -231,6 +233,9 @@ type desktopStreamCombinedBroker struct {
 }
 
 func (b *desktopStreamCombinedBroker) Send(event, message string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.Send(event, message)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -259,6 +264,9 @@ func (b *desktopStreamCombinedBroker) Send(event, message string) {
 }
 
 func (b *desktopStreamCombinedBroker) SendJSON(jsonStr string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendJSON(jsonStr)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -279,6 +287,9 @@ func (b *desktopStreamCombinedBroker) SendTyped(eventType string, payload interf
 
 func (b *desktopStreamCombinedBroker) SendTypedWithTransport(eventType string, payload interface{}) (bool, string) {
 	if b == nil || strings.TrimSpace(eventType) == "" {
+		return false, "pending"
+	}
+	if b.ctx != nil && b.ctx.Err() != nil {
 		return false, "pending"
 	}
 	sessionID := strings.TrimSpace(b.sessionID)
@@ -313,6 +324,9 @@ func (b *desktopStreamCombinedBroker) SendTypedWithTransport(eventType string, p
 }
 
 func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendLLMStreamDelta(content, toolName, toolID, index, finishReason)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -339,6 +353,9 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, tool
 }
 
 func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendLLMStreamDone(finishReason)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -358,6 +375,9 @@ func (b *desktopStreamCombinedBroker) SendLLMStreamDone(finishReason string) {
 }
 
 func (b *desktopStreamCombinedBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal, isEstimated, isFinal, source)
 	b.stream.mu.Lock()
 	if b.stream.closed {
@@ -384,6 +404,9 @@ func (b *desktopStreamCombinedBroker) SendTokenUpdate(prompt, completion, total,
 }
 
 func (b *desktopStreamCombinedBroker) SendThinkingBlock(provider, content, state string) {
+	if b.ctx != nil && b.ctx.Err() != nil {
+		return
+	}
 	b.sse.SendThinkingBlock(provider, content, state)
 	b.stream.mu.Lock()
 	if b.stream.closed {

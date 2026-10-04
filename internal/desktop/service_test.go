@@ -1195,7 +1195,7 @@ func TestServiceCreateMoveAndDeletePath(t *testing.T) {
 	}
 }
 
-func TestServiceMovePathCanReplaceDanglingSymlinkDestination(t *testing.T) {
+func TestServiceMovePathPreservesExistingSymlinkDestination(t *testing.T) {
 	t.Parallel()
 
 	svc := testService(t)
@@ -1207,17 +1207,17 @@ func TestServiceMovePathCanReplaceDanglingSymlinkDestination(t *testing.T) {
 	if err := os.Symlink(filepath.Join(svc.Config().WorkspaceDir, "Desktop", "missing.md"), link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if err := svc.MovePath(ctx, "Documents/The Last Lantern Keeper.md", "Desktop/The Last Lantern Keeper.md", SourceUser); err != nil {
-		t.Fatalf("MovePath should replace dangling destination symlink entry: %v", err)
+	if err := svc.MovePath(ctx, "Documents/The Last Lantern Keeper.md", "Desktop/The Last Lantern Keeper.md", SourceUser); err == nil {
+		t.Fatal("MovePath must not silently replace an existing destination symlink")
 	}
 	info, err := os.Lstat(link)
 	if err != nil {
 		t.Fatalf("destination after move: %v", err)
 	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		t.Fatal("destination should be the moved file, not the stale symlink")
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("rejected move replaced the destination symlink")
 	}
-	data, _, err := svc.ReadFile(ctx, "Desktop/The Last Lantern Keeper.md")
+	data, _, err := svc.ReadFile(ctx, "Documents/The Last Lantern Keeper.md")
 	if err != nil {
 		t.Fatalf("ReadFile moved file: %v", err)
 	}

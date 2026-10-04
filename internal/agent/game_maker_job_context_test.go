@@ -34,6 +34,7 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 		data, _ := json.Marshal(args)
 		return NativeToolCallToToolCall(openai.ToolCall{Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "game_maker_file", Arguments: string(data)}}, nil)
 	}
+	verified := make(chan struct{}, 1)
 	s.SetRunner(gameMakerPlanTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
 		bound := gamemaker.WithJobContext(ctx, run.Job.ID)
 		write := native(map[string]any{"path": "src/probe.ts", "content": "export const probe = 7;"})
@@ -144,9 +145,10 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 		}
 		s.UpdatePolicy(gamemaker.Policy{Enabled: true, ReadOnly: true, AllowEdit: true})
 		out, _ = dispatchGameMaker(bound, write, nil)
-		if !strings.Contains(out, "read-only") {
+		if !strings.Contains(out, "read-only") && !strings.Contains(out, "context canceled") {
 			return fmt.Errorf("bound write bypassed read-only: %s", out)
 		}
+		verified <- struct{}{}
 		return fmt.Errorf("verified bound writes")
 	}))
 	job, err := s.StartJob(context.Background(), project.ID, gamemaker.StartJobRequest{})
@@ -156,8 +158,13 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 	for deadline := time.Now().Add(5 * time.Second); ; {
 		finished, err := s.GetJob(context.Background(), job.ID)
 		if err == nil && (finished.Status == "failed" || finished.Status == "cancelled") {
-			if finished.Error != "verified bound writes" {
+			if finished.Status != "cancelled" {
 				t.Fatalf("unexpected result: %+v", finished)
+			}
+			select {
+			case <-verified:
+			default:
+				t.Fatalf("bound write checks did not finish: %+v", finished)
 			}
 			break
 		}

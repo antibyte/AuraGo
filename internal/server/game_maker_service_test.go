@@ -87,9 +87,12 @@ func TestGameMakerConfigSeparatesLivePolicyFromRuntimeSettings(t *testing.T) {
 	if gameMakerRuntimeConfigChanged(oldCfg, livePolicyChange) {
 		t.Fatal("permission-only Game Maker change unexpectedly requires restart")
 	}
-	policy := gameMakerPolicy(livePolicyChange)
+	policy := gameMakerPolicy(livePolicyChange, false)
 	if policy.ReadOnly || !policy.AllowCreate {
 		t.Fatalf("live policy = %+v", policy)
+	}
+	if !gameMakerPolicy(livePolicyChange, true).ReadOnly {
+		t.Fatal("desktop readonly must narrow Game Maker policy")
 	}
 	runtimeChange := livePolicyChange
 	runtimeChange.MaxAssetSizeMB++

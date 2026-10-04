@@ -51,3 +51,9 @@ This is not a host administrator security boundary: pre-existing unrestricted pr
 - Actual Desktop theme matrix: additionally set `AURAGO_NOTES_MATRIX=1` and run `TestDesktopAuroraBrowser`.
 
 The browser suite covers rich/source editing, opaque frontmatter, format-aware search, relative link preservation, delayed saves, conflicts/copies, unavailable draft storage, readonly editing, stale/explicit AI proposals and a 420k-character source note. The shell matrix covers Standard/Fruity dark/light, both densities, 1920×1080, 1366×768 and touch 430×932, menus, focus and lifecycle. Build a matching resource set and binary and run `--check-assets` before installation.
+
+The file manager uses the same protected Notes trash namespace, including nested
+folders. A batch containing a Notes root, its ancestor, or overlapping paths is
+rejected before moving anything. Existing ordinary Trash entries are not
+reclassified by guessed provenance. Notes, Writer, Sheets and Viewer print
+through a shared script-free sandbox frame; the parent owns the print dialog.

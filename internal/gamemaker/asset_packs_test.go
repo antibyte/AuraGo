@@ -19,7 +19,9 @@ import (
 func TestSpritePackContent(t *testing.T) {
 	s := newTestService(t)
 	packs, err := s.ListAssetPacks()
-	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool { return p.Kind == "model3d" || p.ManifestSchema == 2 || presentationPack(p.ID) })
+	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool {
+		return p.Kind == "model3d" || p.ManifestSchema == 2 || presentationPack(p.ID)
+	})
 	if err != nil || len(packs) != 18 {
 		t.Fatalf("catalog: %d packs, %v", len(packs), err)
 	}
@@ -255,7 +257,9 @@ func TestSpritePackSelectionImportAndOfflineExport(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")
 	packs, _ := s.ListAssetPacks()
-	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool { return p.Kind == "model3d" || p.ManifestSchema == 2 || presentationPack(p.ID) })
+	packs = slices.DeleteFunc(packs, func(p AssetPackSummary) bool {
+		return p.Kind == "model3d" || p.ManifestSchema == 2 || presentationPack(p.ID)
+	})
 	ids := []string{}
 	for _, p := range packs {
 		ids = append(ids, p.ID)
@@ -370,6 +374,7 @@ func TestSpritePackImportFailuresLeaveNoPartialPair(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			s := newTestService(t)
 			project := createTestProject(t, s, "2d")
+			verified := make(chan struct{}, 1)
 			s.SetRunner(testRunner{service: s, mutate: func(ctx context.Context, run JobRun) error {
 				stage, _ := s.JobDirectory(run.Job.ID)
 				target := filepath.Join(stage, "assets", "builtin", "space-shooter", "2")
@@ -424,13 +429,24 @@ func TestSpritePackImportFailuresLeaveNoPartialPair(t *testing.T) {
 				} else if _, err := os.Stat(target); !os.IsNotExist(err) {
 					return fmt.Errorf("partial destination remains: %v", err)
 				}
+				verified <- struct{}{}
 				return errors.New("fixture finished")
 			}})
 			job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if done := waitJob(t, s, job.ID); done.Error != "fixture finished" {
+			done := waitJob(t, s, job.ID)
+			select {
+			case <-verified:
+			default:
+				t.Fatalf("failure checks did not finish: %+v", done)
+			}
+			if kind == "disabled" || kind == "readonly" || kind == "edit_disabled" {
+				if done.Status != "cancelled" {
+					t.Fatalf("policy revocation did not cancel: %+v", done)
+				}
+			} else if done.Error != "fixture finished" {
 				t.Fatalf("failure fixture: %+v", done)
 			}
 		})

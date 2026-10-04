@@ -448,6 +448,13 @@ Do not patch a published game merely because a new starter changed.
 
 - Version both the Three.js module and core filenames. Installing a new runtime must not overwrite the shared `three.core.min.js` used by older published games. Preview/asset fallbacks retain the r185 pair; export selects the pair already referenced by the published revision, including older Voxel exports.
 
+## Desktop invocation ownership
+
+- Server policy combines Game Maker and Desktop readonly. Policy revocation cancels
+  active job contexts under policyMu -> mu; publication keeps its policy lock and
+  validation gates. Agent phases also carry the revocable Desktop publication
+  context. Cancel remains available after readonly; saved failed drafts survive.
+
 ## Verification
 
 - `TestVoxel*` covers deterministic worlds, chunk collision/mesh updates,

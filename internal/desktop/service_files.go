@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"aurago/internal/fileutil"
 	"context"
 	"fmt"
 	"io"
@@ -577,7 +578,7 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if err := s.guardNoteMutation(path, source); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(path, 0o700); err != nil {
+	if err := fileutil.PublishContext(ctx, func() error { return os.MkdirAll(path, 0o700) }); err != nil {
 		return fmt.Errorf("create desktop directory: %w", err)
 	}
 	_ = os.Chmod(path, 0o700)
@@ -889,7 +890,7 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 		if err := s.guardNoteMutation(path, source); err != nil {
 			return err
 		}
-		if err := os.RemoveAll(path); err != nil {
+		if err := fileutil.PublishContext(ctx, func() error { return os.RemoveAll(path) }); err != nil {
 			return fmt.Errorf("delete desktop media path: %w", err)
 		}
 		s.softDeleteMediaRegistries(ctx, mount, path)
@@ -906,7 +907,7 @@ func (s *Service) DeletePath(ctx context.Context, rawPath, source string) error 
 	if err := s.guardNoteMutation(path, source); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(path); err != nil {
+	if err := fileutil.PublishContext(ctx, func() error { return os.RemoveAll(path) }); err != nil {
 		return fmt.Errorf("delete desktop path: %w", err)
 	}
 	_ = s.Audit(ctx, "delete_path", s.relativePath(path), map[string]interface{}{}, source)

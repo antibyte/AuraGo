@@ -827,9 +827,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 
 			newCfg.ConfigPath = s.Cfg.ConfigPath
-			if s.GameMaker != nil {
-				s.GameMaker.UpdatePolicy(gameMakerPolicy(newCfg.GameMaker))
-			}
 			if s.TsNetManager != nil {
 				s.TsNetManager.UpdateConfig(newCfg)
 			}

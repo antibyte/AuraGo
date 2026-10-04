@@ -15,6 +15,12 @@ and tool dispatch; Desktop adapters own UI state.
 - Every export binds an immutable report revision and uses the same content.
 - Changes to research policy must cover direct and wrapped tool calls.
 
+## Desktop invocation ownership
+
+- Server research runners retain Desktop admission through provider work and
+  report/evidence publication. Readonly revokes active provider requests; Stop
+  remains available. Finish still produces a report and is a write operation.
+
 ## Verification
 Run `go test ./internal/detective ./internal/agent ./internal/server ./ui` with
 the focused Detective tests first. Browser tests use the production app modules.

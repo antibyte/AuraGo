@@ -118,6 +118,11 @@ func detectiveSchemas(cfg *config.Config, s *Server, req detective.Request) []op
 
 func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error {
 	s := r.server
+	ctx, release, err := s.beginDesktopRun(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
 	cfgPtr := s.ConfigSnapshot()
 	if cfgPtr == nil {
 		return errors.New("server configuration unavailable")
@@ -244,11 +249,17 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 			if tc.Action != "detective_report" {
 				return "", false
 			}
-			return detectiveReportCall(job, tc), true
+			var result string
+			if err := publishDesktopResult(ctx, func() error { result = detectiveReportCall(job, tc); return nil }); err != nil {
+				return `{"error":"desktop_readonly"}`, true
+			}
+			return result, true
 		},
 		AfterTool: func(ctx context.Context, tc agent.ToolCall, out string) string {
 			resources.observe(tc, out)
-			return detectiveCapture(job, tc, out)
+			result := out
+			_ = publishDesktopResult(ctx, func() error { result = detectiveCapture(job, tc, out); return nil })
+			return result
 		},
 		AfterResponse: func(u openai.Usage) error {
 			cached := 0

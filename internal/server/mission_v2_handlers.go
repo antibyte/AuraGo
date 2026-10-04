@@ -339,7 +339,7 @@ func handleMissionRunV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 		return
 	}
 
-	if err := s.MissionManagerV2.RunNow(id); err != nil {
+	if err := dispatchDesktopOwnedMission(s, r, id, "manual", ""); err != nil {
 		jsonError(w, err.Error(), missionErrorStatus(err))
 		return
 	}
@@ -361,7 +361,7 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 		return
 	}
 
-	if err := s.MissionManagerV2.TriggerMission(id, "api", payload.TriggerData); err != nil {
+	if err := dispatchDesktopOwnedMission(s, r, id, "api", payload.TriggerData); err != nil {
 		if writeMissionDispatchResponse(w, s.MissionManagerV2, id, err) {
 			return
 		}
@@ -498,10 +498,22 @@ func handleMissionPrepare(s *Server, w http.ResponseWriter, r *http.Request, id 
 		return
 	}
 
-	// Run preparation asynchronously — use a detached context since the
-	// HTTP request context will be cancelled once the handler returns.
+	// Retain the server lifetime and the trusted Desktop owner when present.
+	parent := s.integrationCtx
+	if parent == nil {
+		parent = context.Background()
+	}
+	prepCtx, cancel := context.WithTimeout(parent, 5*time.Minute)
+	if grant, _ := r.Context().Value(desktopRunContextKey{}).(*desktopRunGrant); grant != nil {
+		cancel()
+		var err error
+		prepCtx, cancel, err = s.beginDesktopBackgroundRun(5 * time.Minute)
+		if err != nil {
+			writeDesktopPolicyError(w, "desktop_readonly", "The desktop action was revoked.")
+			return
+		}
+	}
 	go func() {
-		prepCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 		if _, err := s.PreparationService.PrepareMission(prepCtx, id); err != nil {
 			s.Logger.Error("Manual mission preparation failed", "mission", id, "error", err)

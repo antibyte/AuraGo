@@ -971,7 +971,17 @@ func handleVirtualComputersTasks(s *Server) http.HandlerFunc {
 				jsonError(w, err.Error(), http.StatusServiceUnavailable)
 				return
 			}
-			task, err := manager.Submit(client, req.MachineID, req.Kind, req.Instruction)
+			owner, release, err := s.beginDesktopBackgroundRun(time.Hour)
+			if err != nil {
+				writeDesktopPolicyError(w, "desktop_readonly", "The desktop action was revoked.")
+				return
+			}
+			task, done, err := manager.SubmitContext(owner, client, req.MachineID, req.Kind, req.Instruction)
+			if err == nil {
+				go func() { <-done; release() }()
+			} else {
+				release()
+			}
 			if err != nil {
 				writeVirtualComputersAPIError(w, "invalid_argument", err.Error(), http.StatusBadRequest)
 				return
@@ -1004,14 +1014,6 @@ func handleVirtualComputersTask(s *Server) http.HandlerFunc {
 			}
 			writeJSON(w, map[string]interface{}{"status": "ok", "task": task})
 		case http.MethodDelete:
-			cfg := virtualComputersConfigSnapshot(s)
-			if !virtualComputersMutationAllowed(s, w) {
-				return
-			}
-			if !cfg.AllowAgentTasks {
-				jsonError(w, "virtual computer agent tasks are disabled", http.StatusForbidden)
-				return
-			}
 			if !manager.CancelTask(taskID) {
 				writeVirtualComputersAPIError(w, "not_found", "running agent task was not found", http.StatusNotFound)
 				return

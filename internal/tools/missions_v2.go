@@ -528,11 +528,7 @@ func (m *MissionManagerV2) save() error {
 }
 
 func (m *MissionManagerV2) saveQueueLocked() error {
-	items, running := m.queue.Snapshot()
-	snapshot := missionQueueSnapshot{
-		Items:   items,
-		Running: running,
-	}
+	snapshot := m.queue.persistedSnapshot()
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return err
@@ -563,9 +559,20 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 	}
 	items := make([]QueueItem, 0, len(snapshot.Items))
 	statusChanged := false
+	for _, id := range snapshot.NonReplayableIDs {
+		if mission, ok := m.missions[id]; ok && (mission.Status == MissionStatusQueued || mission.Status == MissionStatusRunning) {
+			mission.Status = MissionStatusIdle
+			statusChanged = true
+		}
+	}
 	for _, item := range snapshot.Items {
 		mission, ok := m.missions[item.MissionID]
 		if !ok || !mission.Enabled || isRemoteMission(mission) {
+			continue
+		}
+		if item.RequiresOwner {
+			mission.Status = MissionStatusIdle
+			statusChanged = true
 			continue
 		}
 		if item.EnqueuedAt.IsZero() {
@@ -578,7 +585,13 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 		}
 	}
 	running := ""
-	if snapshot.Running != "" {
+	if snapshot.RunningRequiresOwner {
+		if mission, ok := m.missions[snapshot.Running]; ok {
+			mission.Status = MissionStatusIdle
+			statusChanged = true
+		}
+	}
+	if snapshot.Running != "" && !snapshot.RunningRequiresOwner {
 		if mission, ok := m.missions[snapshot.Running]; ok && mission.Enabled && !isRemoteMission(mission) {
 			item := QueueItem{
 				MissionID:   snapshot.Running,
@@ -594,6 +607,7 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 		}
 	}
 	m.queue.Restore(items, running)
+	m.queue.restoreNonReplayable(snapshot.NonReplayableIDs)
 	return statusChanged, nil
 }
 
@@ -818,6 +832,11 @@ func (m *MissionManagerV2) processNext() {
 
 func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	dispatched := false
+	defer func() {
+		if !dispatched && item.releaseOwner != nil {
+			item.releaseOwner()
+		}
+	}()
 	muLocked := false
 	defer func() {
 		if r := recover(); r != nil {
@@ -848,7 +867,11 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	m.mu.Lock()
 	muLocked = true
 	mission, exists := m.missions[item.MissionID]
-	if !exists || !mission.Enabled {
+	if !exists || !mission.Enabled || (item.RequiresOwner && (item.ownerContext == nil || item.ownerContext.Err() != nil)) {
+		if exists {
+			mission.Status = MissionStatusIdle
+			_ = m.save()
+		}
 		m.queue.Done()
 		if err := m.saveQueueLocked(); err != nil {
 			slog.Error("[MissionV2] Failed to persist queue after dropping invalid item", "error", err)
@@ -962,7 +985,12 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 		}
 	})
 	dispatched = true
-	m.runAsync(func() { callback(prompt, missionID) })
+	m.runAsync(func() {
+		if item.releaseOwner != nil {
+			defer item.releaseOwner()
+		}
+		callback(prompt, missionID)
+	})
 }
 
 func appendIsolatedTriggerContext(prompt, triggerType, triggerData string) string {
@@ -1067,8 +1095,32 @@ func (m *MissionManagerV2) shouldFireTriggerLocked(mission *MissionV2, triggerTy
 
 // OnMissionComplete handles mission completion and triggers dependent missions
 func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	owner := m.queue.activeItem(missionID)
+	complete := func(result, output string, allowDependents bool) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if owner.RequiresOwner && m.queue.activeItem(missionID).ownerContext != owner.ownerContext {
+			return
+		}
+		m.completeMissionLocked(missionID, result, output, owner, allowDependents)
+	}
+	if owner.RequiresOwner {
+		if owner.ownerContext != nil {
+			if err := fileutil.PublishContext(owner.ownerContext, func() error {
+				complete(result, output, true)
+				return nil
+			}); err == nil {
+				return
+			}
+		}
+		// Cleanup is allowed after revocation; success and dependent runs are not.
+		complete(MissionResultError, MissionCancelledOutput, false)
+		return
+	}
+	complete(result, output, true)
+}
+
+func (m *MissionManagerV2) completeMissionLocked(missionID, result, output string, owner QueueItem, allowDependents bool) {
 
 	// Cancel timeout guardian if active
 	if cancel, ok := m.missionGuards[missionID]; ok {
@@ -1122,7 +1174,7 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 
 	// Check for missions triggered by this completion
 	for _, mission := range m.missions {
-		if !mission.Enabled ||
+		if !allowDependents || !mission.Enabled ||
 			mission.ExecutionType != ExecutionTriggered ||
 			mission.TriggerType != TriggerMissionCompleted {
 			continue
@@ -1142,15 +1194,29 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		}
 
 		// Queue the triggered mission
-		m.queue.Enqueue(mission.ID, mission.Priority, "mission_completed",
-			fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result))
+		item := QueueItem{MissionID: mission.ID, Priority: prioFromString(mission.Priority), EnqueuedAt: time.Now(), TriggerType: "mission_completed",
+			TriggerData: fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result)}
+		if owner.RequiresOwner {
+			if owner.retainOwner == nil || isRemoteMission(mission) {
+				continue
+			}
+			item.RequiresOwner, item.ownerContext, item.retainOwner = true, owner.ownerContext, owner.retainOwner
+			item.releaseOwner = owner.retainOwner()
+		}
+		if !m.queue.enqueueItem(item) {
+			if item.releaseOwner != nil {
+				item.releaseOwner()
+			}
+			continue
+		}
 		mission.Status = MissionStatusQueued
 	}
 	completeCB := m.onMissionComplete
-	m.save() // Second save: persist queued status of triggered dependents
 	if err := m.saveQueueLocked(); err != nil {
 		slog.Error("[MissionV2] Failed to persist queue after dependent trigger", "mission_id", missionID, "error", err)
+		return
 	}
+	m.save() // Persist queued statuses only after their owner markers.
 	if completeCB != nil {
 		m.runAsync(func() { completeCB(missionID, result, output) })
 	}

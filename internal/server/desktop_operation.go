@@ -38,6 +38,17 @@ func requireDesktopOperation(s *Server, w http.ResponseWriter, r *http.Request, 
 
 func desktopRequestOperation(r *http.Request) desktopOperation {
 	path := r.URL.Path
+	if r.Method == http.MethodPost {
+		parts := strings.Split(strings.Trim(path, "/"), "/")
+		if (len(parts) == 5 && parts[0] == "api" && parts[1] == "game-maker" && parts[2] == "jobs" && parts[4] == "cancel") ||
+			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "personal-radio" && parts[3] == "stations" && (parts[5] == "stop" || parts[5] == "pause")) ||
+			path == "/api/desktop/rtl-sdr/stop" {
+			return desktopStop
+		}
+	}
+	if r.Method == http.MethodDelete && path == "/api/desktop/rtl-sdr/scan" {
+		return desktopStop
+	}
 	if r.Method == http.MethodPost && strings.HasPrefix(path, "/api/desktop/store/apps/") && strings.HasSuffix(path, "/stop") {
 		return desktopStop
 	}

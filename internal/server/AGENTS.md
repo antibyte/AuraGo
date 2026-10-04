@@ -209,6 +209,20 @@ Server-owned HTTP and cross-component integration contracts.
 - Webhook config load errors fail closed and preserve the source. Validate a detached candidate, persist atomically, then publish; failed create/update/delete and signature migration must preserve the last valid in-memory state. Return detached read values.
 - Verify webhook transaction, callback roundtrip and live policy regression tests plus mission suites.
 
+## Desktop invocation ownership
+
+- Desktop-owned shared integration routes use server-selected handlers and keep
+  original integration gates. Never trust a header or client origin assertion as
+  Desktop ownership. Readonly has stable HTTP 403 code desktop_readonly; it also
+  revokes background owner contexts and rejects late local publication.
+- Stop/pause/cancel routes require the normal authenticated scope but bypass
+  readonly write admission. Body-selected actions (Detective) are decoded and
+  classified once; finish/resume/new execution remain writes.
+- Game Maker policy publication and agent phases, Detective reports, queued
+  local missions, mission preparation and Virtual Computer tasks retain this
+  ownership across HTTP completion. Server cancellation drains before stores close.
+- Desktop HTTP/SDK file and archive contracts are in documentation/desktop-api.md.
+
 ## Verification
 
 - Desktop authority is enforced by `desktop_operation.go` in addition to token

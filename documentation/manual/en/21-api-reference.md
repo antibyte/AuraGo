@@ -2772,3 +2772,7 @@ The API uses standard HTTP status codes:
 - [Chat Commands](20-chat-commands.md) – Alternative API via chat
 - [Mission Control](11-missions.md) – Automation
 - [Security](14-security.md) – Authentication & Vault
+
+## Desktop workspace API
+
+See the [Desktop HTTP and SDK contract](../../desktop-api.md) for readonly, scoped bootstrap/events, conditional file writes, conflict handling, archive previews and session compatibility.

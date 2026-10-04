@@ -2770,3 +2770,7 @@ Die API verwendet standard HTTP-Statuscodes:
 - [Chat-Commands](20-chat-commands.md) – Alternative API via Chat
 - [Mission Control](11-missions.md) – Automatisierung
 - [Sicherheit](14-sicherheit.md) – Authentifizierung & Vault
+
+## Desktop-Workspace-API
+
+Im [Desktop-HTTP- und SDK-Vertrag](../../desktop-api.md) findest Du die Regeln für Schreibschutz, Berechtigungen, versionierte Dateizugriffe, Konfliktabfragen, Archivvorschauen und Sitzungskompatibilität.
