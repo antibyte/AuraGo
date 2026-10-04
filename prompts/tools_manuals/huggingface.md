@@ -2,6 +2,11 @@
 
 Use the `huggingface` tool for Hugging Face platform workflows, not only model inference.
 
+Use literal canonical repository IDs. Writes require `namespace/repository`;
+encoded IDs, traversal segments, backslashes and ambiguous IDs are rejected.
+Authenticated API redirects remain at the configured origin. File downloads
+may follow public HTTPS redirects without forwarding the Vault token.
+
 Supported read operations include Hub discovery (`search_models`, `get_model`, `search_datasets`, `get_dataset`, `search_spaces`, `get_space`, `list_files`), bounded workspace downloads, Dataset Viewer rows/search/filter/parquet/statistics, Papers, and Job status/log inspection with bounded snapshots via `tail`. Job inspection requires a Vault token and `allow_jobs=true`, but remains available in read-only mode.
 
 Write and compute operations are policy-gated. AuraGo starts with the integration disabled, read-only mode enabled, writes disabled, deletes disabled, Jobs disabled, and Job token injection disabled. A Hugging Face token belongs in the Vault under `huggingface_token`; never put it in `config.yaml`, tool arguments, Python environment variables, or prompts.

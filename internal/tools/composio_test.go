@@ -389,8 +389,8 @@ func TestComposioPolicyRequiresSelectedToolkitAndBlocksRisk(t *testing.T) {
 	if decision := EvaluateComposioToolPolicy(cfg, ComposioToolInfo{Slug: "DROPBOX_GET_FILE", ToolkitSlug: "dropbox"}); decision.Allowed || !strings.Contains(decision.Reason, "not enabled") {
 		t.Fatalf("expected unselected toolkit blocked, got %+v", decision)
 	}
-	if decision := EvaluateComposioToolPolicy(cfg, ComposioToolInfo{Slug: "GMAIL_SEND_EMAIL", ToolkitSlug: "gmail"}); !decision.Allowed {
-		t.Fatalf("expected per-toolkit allowlist override to allow send, got %+v", decision)
+	if decision := EvaluateComposioToolPolicy(cfg, ComposioToolInfo{Slug: "GMAIL_SEND_EMAIL", ToolkitSlug: "gmail"}); decision.Allowed {
+		t.Fatalf("toolkit allowlist must not override read-only, got %+v", decision)
 	}
 	if decision := EvaluateComposioToolPolicy(cfg, ComposioToolInfo{Slug: "SLACK_GET_CHANNEL", ToolkitSlug: "slack"}); decision.Allowed || !strings.Contains(decision.Reason, "blocked") {
 		t.Fatalf("expected blocked slug denied, got %+v", decision)

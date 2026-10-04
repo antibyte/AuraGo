@@ -181,7 +181,7 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 		}
 	}
 
-	if providerType == "workers-ai" && accountID != "" {
+	if providerType == "workers-ai" && accountID != "" && baseURLRaw == "" {
 		clientConfig.BaseURL = fmt.Sprintf(
 			"https://api.cloudflare.com/client/v4/accounts/%s/ai/v1",
 			accountID,
@@ -189,7 +189,7 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 	}
 
 	if cfg != nil && cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isLocal {
-		route := ResolveAIGatewayRoute(cfg, providerType, accountID)
+		route := ResolveAIGatewayRoute(cfg, providerType, accountID, baseURLRaw)
 		if route.RouteSupported {
 			clientConfig.BaseURL = route.Endpoint
 			if route.AuthHeader == "cf-aig-authorization" {
@@ -511,7 +511,7 @@ type AIGatewayRoute struct {
 }
 
 // ResolveAIGatewayRoute returns the runtime route AuraGo will use for an LLM provider.
-func ResolveAIGatewayRoute(cfg *config.Config, providerType, providerAccountID string) AIGatewayRoute {
+func ResolveAIGatewayRoute(cfg *config.Config, providerType, providerAccountID string, providerBaseURL ...string) AIGatewayRoute {
 	provider := strings.ToLower(strings.TrimSpace(providerType))
 	route := AIGatewayRoute{
 		Status:      "disabled",
@@ -542,6 +542,13 @@ func ResolveAIGatewayRoute(cfg *config.Config, providerType, providerAccountID s
 		route.Status = "local_provider"
 		route.Message = "Local providers are not routed through Cloudflare AI Gateway"
 		route.Warnings = append(route.Warnings, "Local providers are excluded from AI Gateway routing.")
+		return route
+	}
+	if aiGatewaySegment(provider) != "" && len(providerBaseURL) != 0 && !canonicalAIGatewayProviderEndpoint(provider, providerAccountID, providerBaseURL[0]) {
+		route.Status = "custom_endpoint"
+		route.Message = "Custom provider endpoint preserved; AI Gateway routing skipped"
+		route.Endpoint = redactProviderURL(providerBaseURL[0])
+		route.Warnings = append(route.Warnings, route.Message)
 		return route
 	}
 	if provider == "workers-ai" {

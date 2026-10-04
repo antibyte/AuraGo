@@ -14,6 +14,27 @@ import (
 
 type aiGatewayRoundTripFunc func(*http.Request) (*http.Response, error)
 
+func TestHandleAIGatewayCustomEndpointSkipsLiveProbe(t *testing.T) {
+	old := http.DefaultTransport
+	http.DefaultTransport = aiGatewayRoundTripFunc(func(*http.Request) (*http.Response, error) { t.Fatal("custom route was probed"); return nil, nil })
+	t.Cleanup(func() { http.DefaultTransport = old })
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.LLM.ProviderType = "openai"
+	s.Cfg.LLM.BaseURL = "https://private.example/v1?credential=fixture-secret"
+	s.Cfg.AIGateway.Enabled = true
+	s.Cfg.AIGateway.AccountID = "fixture-account"
+	s.Cfg.AIGateway.GatewayID = "fixture-gateway"
+	w := httptest.NewRecorder()
+	writeAIGatewayProbeResult(w, s, true)
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["status"] != "custom_endpoint" || body["route_supported"] != false || strings.Contains(w.Body.String(), "fixture-secret") {
+		t.Fatalf("unexpected diagnostics: %s", w.Body.String())
+	}
+}
+
 func (fn aiGatewayRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
 }

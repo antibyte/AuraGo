@@ -66,6 +66,13 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Verification
 
+- Hugging Face repository IDs are validated by the shared canonical validator
+  before permission checks and HTTP path construction. Mutations require an
+  explicit namespace/repository. Encoded/traversal identities never grant access.
+- Composio execution requires successfully fetched matching tool metadata.
+  Global or toolkit read-only gates override tool allowlists. Custom API keys
+  remain at their configured origin across redirects; validate base URL syntax.
+
 - Run `go test ./internal/tools` and the named cross-component checks in the contracts above when those paths change.
 
 ## Child DOX Index

@@ -4,6 +4,10 @@
 
 `composio_call` lets the agent search and use user-approved Composio toolkits through AuraGo's own policy gates. It is intentionally a single native tool entry point: do not expect every Composio tool to appear as an individual AuraGo tool.
 
+Execution requires available metadata identifying the requested tool and
+toolkit. An unavailable lookup blocks execution; supplied toolkit names cannot
+replace that evidence. Read-only mode always wins over explicit tool allowlists.
+
 Use it when the user wants to work through an external integration that has been selected in the Composio config UI, such as GitHub, Gmail, Slack, Notion, Google Calendar, or another Composio toolkit.
 
 ## Operations

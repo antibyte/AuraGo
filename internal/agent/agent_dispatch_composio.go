@@ -222,7 +222,7 @@ func composioCapabilityToolkits(policy tools.ComposioPolicyConfig, onlySlug stri
 		seen[slug] = true
 		readOnly := policy.ReadOnly
 		if tk.ReadOnly != nil {
-			readOnly = *tk.ReadOnly
+			readOnly = readOnly || *tk.ReadOnly
 		}
 		allowDestructive := policy.AllowDestructive
 		if tk.AllowDestructive != nil {
@@ -303,13 +303,10 @@ func dispatchComposioExecute(ctx context.Context, client *tools.ComposioClient, 
 	}
 	toolInfo, err := client.GetTool(ctx, req.ToolSlug)
 	if err != nil {
-		if strings.TrimSpace(req.ToolkitSlug) == "" {
-			return composioErrorOutput("get_tool", err)
-		}
-		toolInfo = tools.ComposioToolInfo{Slug: req.ToolSlug, ToolkitSlug: req.ToolkitSlug}
+		return composioErrorOutput("get_tool", err)
 	}
-	if toolInfo.ToolkitSlug == "" {
-		toolInfo.ToolkitSlug = req.ToolkitSlug
+	if toolInfo.ToolkitSlug == "" || !strings.EqualFold(strings.TrimSpace(toolInfo.Slug), strings.TrimSpace(req.ToolSlug)) || (req.ToolkitSlug != "" && !strings.EqualFold(req.ToolkitSlug, toolInfo.ToolkitSlug)) {
+		return composioErrorOutput("get_tool", fmt.Errorf("Composio tool metadata does not match the requested identity"))
 	}
 	decision := tools.EvaluateComposioToolPolicy(policy, toolInfo)
 	if !decision.Allowed {
@@ -348,7 +345,7 @@ func dispatchComposioExecute(ctx context.Context, client *tools.ComposioClient, 
 	}
 
 	result, err := client.ExecuteTool(ctx, tools.ComposioExecuteRequest{
-		ToolSlug:           req.ToolSlug,
+		ToolSlug:           toolInfo.Slug,
 		ToolkitSlug:        toolInfo.ToolkitSlug,
 		ConnectedAccountID: accountID,
 		UserID:             cfg.Composio.UserID,

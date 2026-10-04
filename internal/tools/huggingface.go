@@ -59,6 +59,11 @@ func EvaluateHuggingFacePolicy(cfg config.HuggingFaceConfig, req HuggingFaceRequ
 	if !cfg.Enabled {
 		return fmt.Errorf("Hugging Face integration is not enabled. Set huggingface.enabled=true in config.yaml")
 	}
+	if id := requestRepoID(req); id != "" && (isHFWriteOperation(op) || op == "get_model" || op == "get_dataset" || op == "get_space" || op == "list_files" || op == "download_file") {
+		if _, err := hf.CanonicalRepoID(id); err != nil {
+			return err
+		}
+	}
 	if cfg.MaxDatasetRows <= 0 {
 		cfg.MaxDatasetRows = 100
 	}
@@ -408,7 +413,14 @@ func validateHuggingFaceUploadSource(workspaceDir, requestedPath string, maxUplo
 }
 
 func checkHFRepoAllowlist(cfg config.HuggingFaceConfig, repoID string) error {
-	repoID = strings.ToLower(strings.Trim(repoID, "/"))
+	canonical, err := hf.CanonicalRepoID(repoID)
+	if err != nil {
+		return err
+	}
+	repoID = strings.ToLower(canonical)
+	if !strings.Contains(repoID, "/") {
+		return fmt.Errorf("Hugging Face writes require an explicit namespace/repository identity")
+	}
 	if len(cfg.AllowedRepos) == 0 && len(cfg.AllowedNamespaces) == 0 {
 		return fmt.Errorf("Hugging Face writes require huggingface.allowed_repos or huggingface.allowed_namespaces")
 	}

@@ -146,6 +146,7 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### AI Gateway Contract
 - Cloudflare AI Gateway routing must use provider-native segments where supported. In `auto` mode, unsupported providers must skip gateway routing and report a warning instead of silently falling back to `/openai`.
+- Gateway probes and runtime preserve explicit custom endpoints; only canonical provider HTTPS endpoints may be rewritten. Report custom_endpoint locally without making a probe request.
 - Workers AI uses the Cloudflare REST base (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) with `cf-aig-gateway-id`; provider-native routes use `cf-aig-authorization` for the optional authenticated-gateway token.
 - AI Gateway status checks must stay local and non-token-consuming; live Workers AI connection tests validate the Cloudflare API token/account via `/ai/models/search` and include `cf-aig-gateway-id`.
 - The privacy-safe default is `log_mode: metadata_only`; metadata headers must never contain secrets.
