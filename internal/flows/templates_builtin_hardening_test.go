@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"slices"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 )
@@ -265,14 +264,10 @@ func TestTemplateKeysMatchTheCatalogList(t *testing.T) {
 		listed[k] = true
 	}
 	for _, info := range Templates() {
-		// TemplateFlow translates the texts of every template to find the one it builds, so
-		// the translator is asked for the texts of the others too; only this template's
-		// own keys and the labels of its nodes count.
+		// Nothing else is asked for: TemplateFlow translates only the template it builds.
 		asked := map[string]bool{}
 		f := tplBuild(t, info.ID, func(key string) string {
-			if strings.HasPrefix(key, templateKey(info.ID, "")) || strings.HasPrefix(key, "easydrag.node.") {
-				asked[key] = true
-			}
+			asked[key] = true
 			return key
 		})
 		want := map[string]bool{info.NameKey: true, info.DescriptionKey: true}
@@ -403,45 +398,42 @@ func TestCatalogI18nKeysWithoutRegistry(t *testing.T) {
 }
 
 // tplModeFieldKeys collects the description keys of the output fields a definition with
-// an OutputFieldsFunc declares for each value of each parameter that has literal options:
-// the sample node is the defaults plus that one option. A hook that panics skips its sample.
+// an OutputFieldsFunc declares for each value of each top-level parameter that has literal
+// options: the sample node is the defaults plus that one option. The nested Fields of a
+// parameter are not parameters of the node and are not set. A hook that panics skips its
+// sample.
 func tplModeFieldKeys(reg *Registry) map[string]bool {
 	keys := map[string]bool{}
 	for _, def := range reg.All() {
 		if isGenericDef(def) || def.OutputFieldsFunc == nil {
 			continue
 		}
-		var visit func(params []ParamSpec)
-		visit = func(params []ParamSpec) {
-			for _, p := range params {
-				for _, o := range p.Options {
-					n := sampleNode(def)
-					n.Params[p.Name] = o.Value
-					var fields []FieldSpec
-					if catchPanic(func() { fields = def.FieldsOf(n) }) != nil {
-						continue
-					}
-					for _, f := range fields {
-						if f.DescriptionKey != "" {
-							keys[f.DescriptionKey] = true
-						}
+		for _, p := range def.Params {
+			for _, o := range p.Options {
+				n := sampleNode(def)
+				n.Params[p.Name] = o.Value
+				var fields []FieldSpec
+				if catchPanic(func() { fields = def.FieldsOf(n) }) != nil {
+					continue
+				}
+				for _, f := range fields {
+					if f.DescriptionKey != "" {
+						keys[f.DescriptionKey] = true
 					}
 				}
-				visit(p.Fields)
 			}
 		}
-		visit(def.Params)
 	}
 	return keys
 }
 
 // The fields of ai.step and logic.merge depend on a parameter (output_mode, mode), and a
 // field of such a node could carry a description key that only exists in one mode.
-// CatalogI18nKeys lists the keys of the static OutputFields only; DescribeNodeTypes asks
-// for those of the default mode. Today no definition gives a dynamic field a description
-// key (the fields of ai.step and logic.merge have none), so there is nothing to add and this
-// test passes. It fails the day one does, which is when CatalogI18nKeys has to walk the
-// modes too (and the translation files get the key).
+// CatalogI18nKeys lists the keys of the fields of the default sample (what DescribeNodeTypes
+// asks for), not those of the other modes. Today no definition gives a dynamic field a
+// description key (the fields of ai.step and logic.merge have none), so there is nothing to
+// add and this test passes. It fails the day one does, which is when CatalogI18nKeys has to
+// walk the modes too (and the translation files get the key).
 func TestCatalogI18nKeysCoverModeDependentFields(t *testing.T) {
 	// The collector finds a key where there is one, in a registry that has such a definition.
 	probe := NewRegistry()
@@ -456,6 +448,16 @@ func TestCatalogI18nKeysCoverModeDependentFields(t *testing.T) {
 	probe.MustRegister(&NodeDef{Type: "test.panics", Category: "test",
 		Params:           []ParamSpec{{Name: "mode", Options: []Option{{Value: "a"}}}},
 		OutputFieldsFunc: func(*Node) []FieldSpec { panic("boom") }})
+	// Only the parameters of the node are set: "inner" is a field of the parameter "list",
+	// and a node never has a parameter of that name.
+	probe.MustRegister(&NodeDef{Type: "test.nested", Category: "test",
+		Params: []ParamSpec{{Name: "list", Kind: ParamFields, Fields: []ParamSpec{{Name: "inner", Options: []Option{{Value: "x"}}}}}},
+		OutputFieldsFunc: func(n *Node) []FieldSpec {
+			if n.Params["inner"] == "x" {
+				return []FieldSpec{{Name: "wrong", DescriptionKey: "k.nested_as_param"}}
+			}
+			return nil
+		}})
 	if got := tplModeFieldKeys(probe); !reflect.DeepEqual(got, map[string]bool{"k.only_in_b": true}) {
 		t.Fatalf("the collector found %v in the probe registry", got)
 	}
@@ -469,5 +471,34 @@ func TestCatalogI18nKeysCoverModeDependentFields(t *testing.T) {
 		if !listed[k] {
 			t.Errorf("a mode-dependent field asks for %s, CatalogI18nKeys does not list it", k)
 		}
+	}
+}
+
+// CatalogI18nKeys asks for the keys of the output fields exactly as DescribeNodeTypes does:
+// the fields of the sample node. The static OutputFields count only for a definition
+// without an OutputFieldsFunc, and a hook that panics adds nothing.
+func TestCatalogI18nKeysFieldsLikeDescribeNodeTypes(t *testing.T) {
+	logs := catDescCaptureLogs(t)
+	reg := NewRegistry()
+	reg.MustRegister(&NodeDef{Type: "test.static", Category: "test",
+		OutputFields: []FieldSpec{{Name: "a", DescriptionKey: "k.static"}}})
+	reg.MustRegister(&NodeDef{Type: "test.dynamic", Category: "test",
+		OutputFields:     []FieldSpec{{Name: "hidden", DescriptionKey: "k.hidden"}},
+		OutputFieldsFunc: func(*Node) []FieldSpec { return []FieldSpec{{Name: "b", DescriptionKey: "k.dynamic"}} }})
+	reg.MustRegister(&NodeDef{Type: "test.panics", Category: "test",
+		OutputFields:     []FieldSpec{{Name: "lost", DescriptionKey: "k.lost"}},
+		OutputFieldsFunc: func(*Node) []FieldSpec { panic("boom") }})
+	listed := map[string]bool{}
+	for _, k := range CatalogI18nKeys(reg) {
+		listed[k] = true
+	}
+	asked := catalogKeysRequested(reg)
+	for key, want := range map[string]bool{"k.static": true, "k.dynamic": true, "k.hidden": false, "k.lost": false} {
+		if listed[key] != want || asked[key] != want {
+			t.Errorf("%s: listed %v, asked by DescribeNodeTypes %v, want %v", key, listed[key], asked[key], want)
+		}
+	}
+	if len(logs.fallbacks()) == 0 {
+		t.Error("the panicking hook was not logged")
 	}
 }

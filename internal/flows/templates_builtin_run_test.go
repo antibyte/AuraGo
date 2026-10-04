@@ -2,7 +2,10 @@ package flows
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"html"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -90,14 +93,53 @@ func TestTemplatePromptsAreBounded(t *testing.T) {
 	}
 }
 
+// tplIsolated is how the tools wrap text of the outside (security.IsolateExternalData):
+// HTML special characters escaped, between <external_data> tags.
+func tplIsolated(text string) string {
+	if text == "" {
+		return ""
+	}
+	return "<external_data>\n" + html.EscapeString(text) + "\n</external_data>"
+}
+
+// tplJSON encodes a fake tool answer.
+func tplJSON(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+// The texts the fake tools return, wrapped and escaped by tplIsolated; the characters &, < and >
+// come back as entities in the tool's answer. callTool unwraps the answer and undoes the
+// escaping (ParseToolOutput), so a node, and the prompt built from it, sees the plain text.
+var (
+	tplSnippet1 = "Chips & fish"
+	tplSnippet2 = "Use <b> sparingly"
+	tplTitleA   = "Title A & more"
+	tplTitleC   = "Title C"
+)
+
 // tplRunTools answers the tools the templates call, the way the real ones answer.
-func tplRunTools() *fakeTools {
+//
+// brave_search (ExecuteBraveSearch in internal/tools/brave.go) answers with a title, a url and
+// a description, title and description wrapped in <external_data>, and a "published" date
+// when there is one; an empty description stays empty. The web search node maps description
+// to snippet. web_scraper in rss mode (internal/tools/scraper.go) answers with items that
+// have title, link, description, published and guid, the keys left out when empty, title and
+// description wrapped; an item may have no title.
+func tplRunTools(t *testing.T) *fakeTools {
 	reply := func(out string) (ToolResponse, error) { return ToolResponse{Output: out, Status: "success"}, nil }
 	return &fakeTools{respond: func(req ToolRequest) (ToolResponse, error) {
 		switch req.Tool {
 		case BraveSearchTool, DDGSearchTool:
-			return reply(`{"status":"success","results":[{"title":"T1","url":"https://a.example","snippet":"S1 snippet"},` +
-				`{"title":"T2","url":"https://b.example","snippet":"S2 snippet"}]}`)
+			return reply(tplJSON(t, map[string]any{"status": "success", "query": "q", "result_count": 3, "results": []any{
+				map[string]any{"title": tplIsolated("Go & AI"), "url": "https://a.example", "description": tplIsolated(tplSnippet1), "published": "2026-10-02"},
+				map[string]any{"title": tplIsolated("Second"), "url": "https://b.example", "description": tplIsolated(tplSnippet2)},
+				map[string]any{"title": tplIsolated("No description"), "url": "https://c.example", "description": ""},
+			}}))
 		case "document_creator":
 			return reply(`{"status":"success","file_path":"/data/documents/news.pdf","filename":"news.pdf","web_path":"/files/documents/news.pdf"}`)
 		case "send_telegram", "send_notification":
@@ -105,7 +147,13 @@ func tplRunTools() *fakeTools {
 		case "send_email":
 			return reply(`{"status":"success"}`)
 		case "web_scraper":
-			return reply(`{"status":"success","mode":"rss","title":"Feed","content":"md","items":[{"title":"Title A"},{"title":"Title B"}]}`)
+			return reply(tplJSON(t, map[string]any{"status": "success", "mode": "rss", "title": tplIsolated("Feed"), "content": "md", "items": []any{
+				map[string]any{"title": tplIsolated(tplTitleA), "link": "https://example.org/a", "description": tplIsolated("Desc A"),
+					"published": "Sat, 03 Oct 2026 06:00:00 +0000", "guid": "a-1"},
+				map[string]any{"link": "https://example.org/b", "description": tplIsolated("Desc B"),
+					"published": "Sat, 03 Oct 2026 05:00:00 +0000", "guid": "b-1"},
+				map[string]any{"title": tplIsolated(tplTitleC), "link": "https://example.org/c", "guid": "c-1"},
+			}}))
 		case "home_assistant":
 			return reply(`{"status":"success","affected_entities":["light.hall"]}`)
 		}
@@ -157,7 +205,7 @@ func tplRun(t *testing.T, id string, tr func(string) string, fill map[string]map
 	if issues := LintUntrustedData(f, reg); len(issues) != 0 {
 		t.Fatalf("%s: lint warnings once filled in: %+v", id, issues)
 	}
-	out := tplRunOutcome{tools: tplRunTools(), llm: &fakeLLM{responses: []LLMResponse{{Text: "SUMMARY", Model: "m", InputTokens: 10, OutputTokens: 5}}}}
+	out := tplRunOutcome{tools: tplRunTools(t), llm: &fakeLLM{responses: []LLMResponse{{Text: "SUMMARY", Model: "m", InputTokens: 10, OutputTokens: 5}}}}
 	trigger := tplTrigger(t, reg, f)
 	if data == nil {
 		data = TriggerSample(trigger)
@@ -190,8 +238,13 @@ func TestStarterTemplatesRun(t *testing.T) {
 		o := tplRun(t, "ai_news_pdf_telegram", tplIdentity, nil, nil)
 		search := o.call(t, BraveSearchTool)
 		tplWant(t, "query", search["query"], key+"ai_news_pdf_telegram.text_1")
-		tplWant(t, "count", search["count"], 5)
-		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"ai_news_pdf_telegram.text_2\n\nS1 snippet\nS2 snippet")
+		// The type is pinned too: the tool gets a whole number, not a float.
+		if !reflect.DeepEqual(search["count"], 5) {
+			t.Errorf("count = %#v, want the int 5", search["count"])
+		}
+		// The snippets, unwrapped and unescaped. The third result has none, which leaves an empty
+		// last line that the ai.step trims with the rest of the prompt.
+		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"ai_news_pdf_telegram.text_2\n\n"+tplSnippet1+"\n"+tplSnippet2)
 		pdf := o.call(t, "document_creator")
 		tplWant(t, "pdf content", pdf["content"], "SUMMARY")
 		tplWant(t, "pdf title", pdf["title"], key+"ai_news_pdf_telegram.text_3 03.10.2026")
@@ -276,7 +329,8 @@ func TestStarterTemplatesRun(t *testing.T) {
 		feed := o.call(t, "web_scraper")
 		tplWant(t, "url", feed["url"], "https://example.org/feed")
 		tplWant(t, "mode", feed["mode"], "rss")
-		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"rss_digest.text_1\n\nTitle A\nTitle B")
+		// The titles, unwrapped and unescaped; the item without a title is an empty line.
+		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"rss_digest.text_1\n\n"+tplTitleA+"\n\n"+tplTitleC)
 		mail := o.call(t, "send_email")
 		tplWant(t, "body", mail["body"], "SUMMARY")
 		tplWant(t, "subject", mail["subject"], key+"rss_digest.text_2")
