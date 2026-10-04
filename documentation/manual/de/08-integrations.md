@@ -1780,7 +1780,7 @@ Hintergrund-Wake-up-Scheduler für autonome Statusprüfungen in konfigurierbaren
 
 ### YAML-Referenz
 
-> ⚠️ **Hinweis:** Die Heartbeat-Konfiguration erfolgt derzeit vollständig über die **Web-UI** (`Config → Integrationen → Heartbeat`). Ein dedizierter `heartbeat:`-Block in `config.yaml` wird aktuell nicht ausgewertet – die oben gezeigten Werte (Tag-/Nacht-Fenster, Intervalle, `additional_prompt` etc.) werden intern im Heartbeat-Service persistiert.
+Der Loader und der Scheduler lesen den `heartbeat:`-Block in `config.yaml`. Du kannst ihn über **Config → Integrationen → Heartbeat** oder direkt in YAML konfigurieren. `config_template.yaml` enthält alle Felder. `heartbeat.enabled` aktiviert den Zeitplan; `day_time_window` und `night_time_window` enthalten jeweils `start`, `end` und `interval`. Der gespeicherte Laufzeitstatus ersetzt diese Konfiguration nicht.
 
 Die Standardeinstellungen sind:
 

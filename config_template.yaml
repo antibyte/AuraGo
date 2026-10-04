@@ -1955,3 +1955,98 @@ treg:
     readonly: true
     max_call_cost_micro: 1000000              # 1 USD per call; 0 is a zero budget
     allowed_endpoints: []                    # UI grants bind endpoint_id, method, path, operation
+
+# Optional Agent-to-Agent transport. Store authentication in the Vault via Config UI.
+a2a:
+    server:
+        enabled: false
+        port: 0                             # 0 = share the main HTTP listener
+        base_path: "/a2a"
+        agent_name: "AuraGo"
+        agent_description: ""
+        agent_version: "1.0.0"
+        agent_url: ""                       # empty = derive the public Agent Card URL
+        streaming: false
+        push_notifications: false
+        bindings:
+            rest: true
+            json_rpc: false
+            grpc: false
+            grpc_port: 50051
+        skills: []
+    client:
+        enabled: false
+        remote_agents: []                   # entries: id, name, card_url, enabled
+    auth:
+        api_key_enabled: true               # Vault: a2a_api_key; required before enabling the server
+        bearer_enabled: false               # Vault: a2a_bearer_secret
+    llm:
+        provider: ""                        # empty = main LLM; use a configured provider ID
+
+# Multi-account IMAP/SMTP. Add accounts in Config UI; passwords stay in the Vault.
+email_accounts: []
+# Example account fields (Vault password key: email_<id>_password):
+# - id: personal
+#   name: Personal
+#   imap_host: imap.example.com
+#   imap_port: 993
+#   smtp_host: smtp.example.com
+#   smtp_port: 587
+#   username: user@example.com
+#   from_address: user@example.com
+#   disabled: true
+#   readonly: true
+#   watch_enabled: false
+#   watch_interval_seconds: 120
+#   watch_folder: INBOX
+
+firewall:
+    enabled: false
+    mode: "readonly"                        # readonly or guard; requires supported host access
+    poll_interval_seconds: 60
+
+golangci_lint:
+    enabled: false                          # requires the golangci-lint executable
+
+# Loader and scheduler both use this section; enabled activates the configured schedule.
+heartbeat:
+    enabled: false
+    check_tasks: false
+    check_appointments: false
+    check_emails: false
+    additional_prompt: ""
+    day_time_window:
+        start: "08:00"
+        end: "22:00"
+        interval: "1h"
+    night_time_window:
+        start: "22:00"
+        end: "08:00"
+        interval: "4h"
+
+journal:
+    auto_entries: true                      # matches loader default; tools.journal controls tool access
+    daily_summary: true                     # generated during maintenance
+
+# Optional managed TLS/security proxy. Credentials are stored only in the Vault.
+security_proxy:
+    enabled: false
+    domain: ""
+    email: ""                               # ACME contact address
+    https_port: 443
+    http_port: 80
+    docker_host: ""                         # empty = inherit docker.host / automatic selection
+    rate_limiting:
+        enabled: false
+        requests_per_second: 10
+        burst: 50
+    ip_filter:
+        enabled: false
+        mode: "blocklist"                    # blocklist or allowlist
+        addresses: []
+    basic_auth:
+        enabled: false                      # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
+    geo_blocking:
+        enabled: false
+        allowed_countries: []               # ISO 3166-1 alpha-2 codes
+    additional_routes: []
