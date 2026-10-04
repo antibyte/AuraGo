@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -25,16 +26,24 @@ type TimerRecord struct {
 	Repeat string    `json:"repeat,omitempty"`
 }
 
-// PutTestData stores sample or pinned data for a node.
+// PutTestData stores sample or pinned data for a node. It returns ErrNotFound when
+// the flow does not exist. The store does not limit the size of data; the caller
+// (the API) does.
 func (s *Store) PutTestData(ctx context.Context, flowID, nodeID, kind string, data map[string]any, now time.Time) error {
 	encoded, err := marshalMap(data)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO flow_test_data (flow_id, node_id, kind, json, updated_at) VALUES (?, ?, ?, ?, ?)
+	// The WHERE clause is required by SQLite to tell the upsert's ON CONFLICT from the
+	// SELECT, and it is what turns a missing flow into "no row" rather than a foreign-key error.
+	res, err := s.db.ExecContext(ctx, `INSERT INTO flow_test_data (flow_id, node_id, kind, json, updated_at)
+		SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)
 		ON CONFLICT(flow_id, node_id, kind) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`,
-		flowID, nodeID, kind, encoded, formatTime(now))
-	return err
+		flowID, nodeID, kind, encoded, formatTime(now), flowID)
+	if err != nil {
+		return err
+	}
+	return requireRow(res, ErrNotFound)
 }
 
 // GetTestData returns stored data; ok is false when none exists.
@@ -55,31 +64,64 @@ func (s *Store) GetTestData(ctx context.Context, flowID, nodeID, kind string) (m
 	return data, true, nil
 }
 
-// ReplaceTimers sets the timers of one flow (none when timers is empty).
+// checkFireAt rejects a timer without a fire time: it would be stored as an empty
+// string, sort before every real time and fire at once.
+func checkFireAt(t TimerRecord) error {
+	if t.FireAt.IsZero() {
+		return fmt.Errorf("timer of node %s needs a fire_at time", quoteForError(t.NodeID))
+	}
+	return nil
+}
+
+// ReplaceTimers sets the timers of one flow (none when timers is empty). It stores
+// them under flowID and ignores TimerRecord.FlowID. It rejects a timer without a
+// FireAt before changing anything, and returns ErrNotFound (leaving the old timers)
+// when the flow does not exist. Clearing the timers of a missing flow succeeds:
+// there is nothing left to clear.
 func (s *Store) ReplaceTimers(ctx context.Context, flowID string, timers []TimerRecord) error {
+	for _, t := range timers {
+		if err := checkFireAt(t); err != nil {
+			return err
+		}
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	// The DELETE comes first: the transaction takes the write lock right away, so the
+	// busy handler can wait for it (a read-then-write transaction cannot).
 	if _, err := tx.ExecContext(ctx, `DELETE FROM flow_timers WHERE flow_id = ?`, flowID); err != nil {
 		return err
 	}
 	for _, t := range timers {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO flow_timers (flow_id, node_id, fire_at, repeat) VALUES (?, ?, ?, ?)`,
-			flowID, t.NodeID, formatTime(t.FireAt), t.Repeat); err != nil {
+		res, err := tx.ExecContext(ctx, `INSERT INTO flow_timers (flow_id, node_id, fire_at, repeat)
+			SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`,
+			flowID, t.NodeID, formatTime(t.FireAt), t.Repeat, flowID)
+		if err != nil {
+			return err
+		}
+		if err := requireRow(res, ErrNotFound); err != nil {
 			return err
 		}
 	}
 	return tx.Commit()
 }
 
-// UpsertTimer stores one timer.
+// UpsertTimer stores one timer. It rejects a zero FireAt and returns ErrNotFound
+// when the flow does not exist.
 func (s *Store) UpsertTimer(ctx context.Context, t TimerRecord) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO flow_timers (flow_id, node_id, fire_at, repeat) VALUES (?, ?, ?, ?)
+	if err := checkFireAt(t); err != nil {
+		return err
+	}
+	res, err := s.db.ExecContext(ctx, `INSERT INTO flow_timers (flow_id, node_id, fire_at, repeat)
+		SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)
 		ON CONFLICT(flow_id, node_id) DO UPDATE SET fire_at = excluded.fire_at, repeat = excluded.repeat`,
-		t.FlowID, t.NodeID, formatTime(t.FireAt), t.Repeat)
-	return err
+		t.FlowID, t.NodeID, formatTime(t.FireAt), t.Repeat, t.FlowID)
+	if err != nil {
+		return err
+	}
+	return requireRow(res, ErrNotFound)
 }
 
 // DeleteTimer removes one timer.

@@ -106,6 +106,11 @@ type RunResult struct {
 }
 
 // RunRecord is the persisted header of a run.
+//
+// TriggerData is the trigger's data object. Of the records read from the store
+// only GetRun fills it; ListRuns and LastLiveRuns leave it empty because the
+// payload can be large. The store keeps at most MaxStoredOutputBytes of it: a
+// larger payload is stored as {"_preview": "<start of the encoded JSON>"}.
 type RunRecord struct {
 	ID           string         `json:"id"`
 	FlowID       string         `json:"flow_id"`
