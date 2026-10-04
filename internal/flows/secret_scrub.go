@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf16"
+	"unicode/utf8"
 )
 
 // redactedText replaces a secret in text a node returns.
@@ -21,7 +22,8 @@ const redactedText = "[redacted]"
 // message.
 //
 // It removes the value as it is and in the encodings an echo usually has:
-//   - JSON string escapes, with and without HTML escaping (Go writes < for "<"),
+//   - JSON string escapes, with and without HTML escaping (Go writes "<", ">" and "&"
+//     as unicode escapes),
 //     with and without PHP's "\/" for "/", and with non-ASCII characters written as
 //     \uXXXX (the default of Python's json.dumps and PHP's json_encode), in lower
 //     and upper case hex;
@@ -162,7 +164,7 @@ func (s *secretScrubber) text(v string, cut bool) string {
 	}
 	base := strings.TrimSuffix(v, "…")
 	ellipsis := v[len(base):]
-	kept := strings.TrimRight(base, "�")
+	kept := strings.TrimRight(base, string(utf8.RuneError))
 	longest := 0
 	for _, form := range s.forms {
 		for k := min(len(form)-1, len(kept)); k > longest; k-- {
@@ -215,6 +217,39 @@ func (s *secretScrubber) deep(v any, keys bool) any {
 		}
 	}
 	return v
+}
+
+// holdsSecret reports whether the JSON encoding of v still carries the secret in any
+// form. value and valueKeys replace what sits in one string or key, so a secret that
+// the JSON syntax splits (a secret that holds quotes and commas can span several
+// strings of a list, or a key and its value) survives them, while the text scrub
+// removed it from the body. A caller that cannot repair v drops it. The redaction
+// text itself is not a leak, though a short secret can be part of it: matches that
+// lie inside it are skipped. A value that cannot be encoded counts as holding it.
+func (s *secretScrubber) holdsSecret(v any) bool {
+	if s == nil || len(s.forms) == 0 {
+		return false
+	}
+	enc, err := marshalCompact(v)
+	if err != nil {
+		return true
+	}
+	if s.replacer.Replace(enc) == enc {
+		return false
+	}
+	for i := 0; i < len(enc); {
+		if strings.HasPrefix(enc[i:], redactedText) {
+			i += len(redactedText)
+			continue
+		}
+		for _, form := range s.forms {
+			if strings.HasPrefix(enc[i:], form) {
+				return true
+			}
+		}
+		i++
+	}
+	return false
 }
 
 // err returns err with the secret removed from its message. The message of a tool

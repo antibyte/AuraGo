@@ -313,7 +313,7 @@ func TestHTTPSecretIsNotInErrors(t *testing.T) {
 	res, _, err = runHTTP(t, map[string]any{"url": "https://api", "auth_secret": "tok"},
 		answerWith(apiAnswer(200, strings.Repeat("y", apiBodyLimit-len(head))+head)), fakeSecrets{"tok": multi})
 	body, _ = res.Output["body"].(string)
-	if err != nil || strings.Contains(body, "tok_") || strings.Contains(body, "�") || !strings.HasSuffix(body, "y") {
+	if err != nil || strings.Contains(body, "tok_") || strings.Contains(body, string(utf8.RuneError)) || !strings.HasSuffix(body, "y") {
 		t.Errorf("body cut inside a character: %v, tail %q", err, body[len(body)-20:])
 	}
 	_, _, err = runHTTP(t, map[string]any{"url": "https://api", "auth_secret": "tok"},
@@ -341,12 +341,22 @@ func TestHTTPSecretScrubIsASinglePass(t *testing.T) {
 			t.Errorf("secret %q: body %q, json %#v", secret, res.Output["body"], res.Output["json"])
 		}
 	}
-	// Keys: also where the server wrote the secret with \u escapes the text scrub does not see.
+	// Keys, as the server wrote them: the secret itself, nested.
 	secret := testSecrets[0]
-	res := run(secret, `{"`+secret+`":1,"tok_`+secretMarker+`1e5b":2,"n":{"`+secret+`":[3]}}`)
+	res := run(secret, `{"`+secret+`":1,"n":{"`+secret+`":[3]}}`)
 	noMarker(t, "json", res.Output["json"])
-	if m, _ := res.Output["json"].(map[string]any); m == nil || m["n"] == nil || m[redactedText] == nil {
+	m, _ := res.Output["json"].(map[string]any)
+	if nested, _ := m["n"].(map[string]any); m[redactedText] != 1.0 || nested == nil || nested[redactedText] == nil || len(m) != 2 {
 		t.Errorf("json = %#v", res.Output["json"])
+	}
+	// A key written with a \u escape for one character: the text scrub does not see
+	// that, the parsed key is the secret and is scrubbed (the body text keeps the
+	// escape, which is not a form the scrubber knows).
+	escaped := string(rune(92)) + "u0074ok_" + secretMarker + "1e5b"
+	res = run(secret, `{"`+escaped+`":2,"n":1}`)
+	noMarker(t, "json with an escaped key", res.Output["json"])
+	if want := map[string]any{redactedText: 2.0, "n": 1.0}; !reflect.DeepEqual(res.Output["json"], want) {
+		t.Errorf("json with an escaped key = %#v, want %#v", res.Output["json"], want)
 	}
 }
 

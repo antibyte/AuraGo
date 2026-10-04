@@ -243,3 +243,39 @@ func TestHTTPFailOnErrorOnlyAnExplicitOffTolerates(t *testing.T) {
 		t.Errorf("template: %+v", issues)
 	}
 }
+
+// A secret that holds quotes and commas can span several strings of the parsed body
+// (the elements of a list, a key and its value). The text scrub removes it from the
+// body, which stays valid JSON, but the parsed value is scrubbed string by string and
+// would still carry it: such a json field is dropped, and one that is clean is kept.
+func TestHTTPJSONThatStillHoldsTheSecretIsDropped(t *testing.T) {
+	marked := secretMarker + "x"
+	for name, c := range map[string]struct {
+		secret, body, wantBody string
+		wantJSON               bool
+	}{
+		"list elements":  {marked + `","b`, `["` + marked + `","b"]`, `["[redacted]"]`, false},
+		"key and value":  {marked + `","b":"y`, `{"a":"` + marked + `","b":"y"}`, `{"a":"[redacted]"}`, false},
+		"nested":         {marked + `","b`, `{"k":["` + marked + `","b"],"n":1}`, `{"k":["[redacted]"],"n":1}`, false},
+		"not the secret": {marked + `","b`, `{"k":"` + marked + `","n":1}`, `{"k":"` + marked + `","n":1}`, true},
+		"clean":          {"zzzzzz", `["a","b"]`, `["a","b"]`, true},
+		"whole string":   {marked, `["` + marked + `","b"]`, `["[redacted]","b"]`, true},
+	} {
+		res, _, err := runHTTP(t, map[string]any{"url": "https://api", "auth_secret": "k", "auth_prefix": ""}, answerWith(apiAnswer(200, c.body)), fakeSecrets{"k": c.secret})
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		_, has := res.Output["json"]
+		if name != "not the secret" {
+			// the secret is not in the output in any field, and the body is scrubbed
+			noMarker(t, name, res.Output)
+			if res.Output["body"] != c.wantBody {
+				t.Errorf("%s: body = %q, want %q", name, res.Output["body"], c.wantBody)
+			}
+		}
+		if has != c.wantJSON {
+			t.Errorf("%s: json present = %v (%#v), want %v", name, has, res.Output["json"], c.wantJSON)
+		}
+	}
+}

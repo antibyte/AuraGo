@@ -478,10 +478,14 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		// json is parsed from the raw body and scrubbed once, keys included, which also
 		// finds a secret the text scrub cannot see (written with \u escapes). It is only
 		// offered when the scrubbed text is still JSON: a secret in the place of a number
-		// or a literal breaks it, and the number must not be carried over.
+		// or a literal breaks it, and the number must not be carried over. A secret that
+		// the JSON syntax splits (it holds quotes and commas) is not found string by
+		// string, so the scrubbed value is encoded and dropped if it still carries one.
 		var parsed any
 		if json.Unmarshal([]byte(rawBody), &parsed) == nil && (bodyText == rawBody || json.Valid([]byte(bodyText))) && nestingWithin(parsed, maxJSONDepth) {
-			result["json"] = scrub.valueKeys(parsed)
+			if scrubbed := scrub.valueKeys(parsed); !scrub.holdsSecret(scrubbed) {
+				result["json"] = scrubbed
+			}
 		}
 		return ExecResult{Output: result}, nil
 	}
