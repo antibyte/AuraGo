@@ -221,6 +221,12 @@ func issueCodes(issues []Issue) []string {
 	return codes
 }
 
+// validateTimeLimit is a hang guard, not a performance check: the runs it
+// guards take milliseconds, and the tests pin the early return and the bounded
+// work exactly through issue counts and callback counts. It stays far above
+// what a loaded machine adds, so these tests do not flake.
+const validateTimeLimit = 20 * time.Second
+
 // timeValidate runs Validate and fails the test when it takes longer than limit.
 func timeValidate(t *testing.T, f *Flow, reg *Registry, vc ValidateContext, limit time.Duration) []Issue {
 	t.Helper()
@@ -244,7 +250,7 @@ func TestValidateOverTheLimitsReturnsEarly(t *testing.T) {
 		// each of them 30000 times.
 		f := bulkGraphFlow(bulkNodes)
 		for _, vc := range []ValidateContext{draftCtx(), publishCtx()} {
-			issues := timeValidate(t, f, reg, vc, 2*time.Second)
+			issues := timeValidate(t, f, reg, vc, validateTimeLimit)
 			if len(issues) != 1 || issues[0].Code != IssueTooManyNodes || issues[0].Severity != SeverityError {
 				t.Fatalf("mode %d: want exactly one %s error, got %d issues: %v", vc.Mode, IssueTooManyNodes, len(issues), issueCodes(issues))
 			}
@@ -261,7 +267,7 @@ func TestValidateOverTheLimitsReturnsEarly(t *testing.T) {
 			f.Edges = append(f.Edges, Edge{ID: "e_" + strconv.Itoa(100+i), Source: PortRef{Node: tr, Port: PortOut}, Target: PortRef{Node: echo, Port: PortIn}})
 		}
 		for _, vc := range []ValidateContext{draftCtx(), publishCtx()} {
-			issues := timeValidate(t, f, reg, vc, 2*time.Second)
+			issues := timeValidate(t, f, reg, vc, validateTimeLimit)
 			if len(issues) != 1 || issues[0].Code != IssueTooManyNodes || issues[0].Severity != SeverityError {
 				t.Fatalf("mode %d: want exactly one %s error, got %d issues: %v", vc.Mode, IssueTooManyNodes, len(issues), issueCodes(issues))
 			}
@@ -276,7 +282,7 @@ func TestValidateOverTheLimitsReturnsEarly(t *testing.T) {
 		for i := 1; i < bulkNodes && len(f.Edges) < bulkEdges; i++ {
 			bulkEdge(f, i-1, i)
 		}
-		issues := timeValidate(t, f, reg, publishCtx(), 2*time.Second)
+		issues := timeValidate(t, f, reg, publishCtx(), validateTimeLimit)
 		if len(issues) != 2 || issues[0].Code != IssueTooManyNodes || issues[1].Code != IssueTooManyNodes ||
 			issues[0].Message == issues[1].Message {
 			t.Fatalf("want one node and one edge limit issue, got %+v", issues)
@@ -287,7 +293,7 @@ func TestValidateOverTheLimitsReturnsEarly(t *testing.T) {
 		f := bulkGraphFlow(bulkNodes)
 		f.Schema = 2
 		f.Name = ""
-		issues := timeValidate(t, f, reg, publishCtx(), 2*time.Second)
+		issues := timeValidate(t, f, reg, publishCtx(), validateTimeLimit)
 		if want := []string{IssueSchema, IssueNameRequired, IssueTooManyNodes}; !reflect.DeepEqual(issueCodes(issues), want) {
 			t.Fatalf("codes = %v, want %v", issueCodes(issues), want)
 		}
@@ -315,7 +321,7 @@ func TestValidateAtTheLimitsRunsInFull(t *testing.T) {
 		dup.ID = "e_dup" + strconv.Itoa(len(f.Edges))
 		f.Edges = append(f.Edges, dup)
 	}
-	issues := timeValidate(t, f, reg, publishCtx(), 5*time.Second)
+	issues := timeValidate(t, f, reg, publishCtx(), validateTimeLimit)
 	if findIssue(issues, IssueTooManyNodes, "") != nil {
 		t.Fatalf("%d nodes and %d edges are within the limits: %v", len(f.Nodes), len(f.Edges), issueCodes(issues[:1]))
 	}

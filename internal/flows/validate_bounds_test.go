@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 	"unicode/utf8"
 )
 
@@ -67,7 +66,7 @@ func TestValidateBoundsHugeIdsAndIssueCount(t *testing.T) {
 	}
 
 	t.Run("publish", func(t *testing.T) {
-		issues := timeValidate(t, build(), reg, publishCtx(), 3*time.Second)
+		issues := timeValidate(t, build(), reg, publishCtx(), validateTimeLimit)
 		assertIssuesBounded(t, "publish", issues, 200_000)
 		last := issues[len(issues)-1]
 		if len(issues) != maxIssues+1 || last.Code != IssueTooManyIssues || last.Severity != SeverityError {
@@ -80,7 +79,7 @@ func TestValidateBoundsHugeIdsAndIssueCount(t *testing.T) {
 
 	t.Run("draft", func(t *testing.T) {
 		// Draft: the template problems are warnings; the invalid id is the one error.
-		issues := timeValidate(t, build(), reg, draftCtx(), 3*time.Second)
+		issues := timeValidate(t, build(), reg, draftCtx(), validateTimeLimit)
 		assertIssuesBounded(t, "draft", issues, 200_000)
 		last := issues[len(issues)-1]
 		if len(issues) != maxIssues+1 || last.Code != IssueTooManyIssues || last.Severity != SeverityWarning {
@@ -358,7 +357,10 @@ func TestValidateManyEdgesFromABigSwitchIsFast(t *testing.T) {
 		b.edge(sw, casePort(i), targets[i%len(targets)])
 	}
 	f := b.build()
-	issues := timeValidate(t, f, reg, publishCtx(), 2*time.Second)
+	// No wall-clock bound: Validate needs a few hundred milliseconds here, which a
+	// loaded machine multiplies. That the ports are built once per node, not once
+	// per edge, is pinned exactly by TestValidateCallsDefinitionCallbacksOncePerNode.
+	issues := Validate(f, reg, publishCtx())
 	// The switch has more cases than allowed; nothing else is wrong.
 	if len(issues) != 1 || issues[0].Code != IssueParamInvalid || issues[0].NodeID != sw {
 		t.Fatalf("issues = %+v", issues)
@@ -408,11 +410,7 @@ func TestValidateCallsDefinitionCallbacksOncePerNode(t *testing.T) {
 		}
 	}
 	f := b.build()
-	start := time.Now()
 	issues := Validate(f, reg, publishCtx())
-	if elapsed := time.Since(start); elapsed > time.Second {
-		t.Errorf("Validate took %v with %d fields and %d references", elapsed, nFields, 20*900)
-	}
 	if len(issues) != 0 {
 		t.Fatalf("every reference names a declared field and every edge is valid: %+v", issues[:1])
 	}

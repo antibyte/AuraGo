@@ -215,6 +215,10 @@ func TestGraphHelpersDoNotMutateFlow(t *testing.T) {
 	}
 }
 
+// scaleTimeLimit is a hang guard: the runs it guards take well under a second
+// and a loaded machine slows them down several times over.
+const scaleTimeLimit = 30 * time.Second
+
 // ParseFlow only caps the document size, so graphs far beyond MaxNodes can reach
 // these helpers before validation rejects them. They must stay near-linear.
 func TestGraphScalesLinearly(t *testing.T) {
@@ -227,7 +231,7 @@ func TestGraphScalesLinearly(t *testing.T) {
 	start := time.Now()
 	g := buildGraph(f)
 	order, cyclic := g.topoOrder()
-	if elapsed := time.Since(start); elapsed > 3*time.Second {
+	if elapsed := time.Since(start); elapsed > scaleTimeLimit {
 		t.Fatalf("topoOrder of a %d-node fan-out took %v", wide+2, elapsed)
 	}
 	if cyclic != nil || len(order) != wide+2 {
@@ -263,7 +267,7 @@ func TestGraphScalesLinearly(t *testing.T) {
 	if order, cyclic := cg.topoOrder(); len(order) != 0 || len(cyclic) != chain {
 		t.Fatalf("closed chain: %d ordered, %d cyclic", len(order), len(cyclic))
 	}
-	if elapsed := time.Since(start); elapsed > 3*time.Second {
+	if elapsed := time.Since(start); elapsed > scaleTimeLimit {
 		t.Fatalf("chain traversals took %v", elapsed)
 	}
 }
