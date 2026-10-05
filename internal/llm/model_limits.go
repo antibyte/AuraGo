@@ -181,9 +181,6 @@ func resolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap 
 	} else if registryOK && registry.ContextWindow > 0 {
 		limits.ContextWindow = registry.ContextWindow
 		limits.ContextSource = "model_registry"
-	} else if contextWindow, ok := lookupKnownContextWindow(route.Model); ok {
-		limits.ContextWindow = contextWindow
-		limits.ContextSource = "model_registry"
 	}
 
 	if route.MaxOutputTokensOverride > 0 {
@@ -243,6 +240,15 @@ func resolveModelLimits(ctx context.Context, route ModelRoute, globalContextCap 
 		}
 	} else {
 		limits.ProbeStatus = "not_needed"
+	}
+	// The legacy table contains family-prefix estimates, not model-specific
+	// metadata. Prefer a positive provider probe over those estimates so, for
+	// example, a locally configured 8K Llama model is not budgeted as 128K.
+	if limits.ContextWindow <= 0 {
+		if contextWindow, ok := lookupKnownContextWindow(route.Model); ok {
+			limits.ContextWindow = contextWindow
+			limits.ContextSource = "legacy_prefix"
+		}
 	}
 
 	unknownContext := limits.ContextWindow <= 0
@@ -426,7 +432,7 @@ func probeOllamaModelLimits(ctx context.Context, route ModelRoute, logger *slog.
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logger.Debug("[ModelLimits] Ollama metadata probe failed", "model", route.Model, "error", err)
+		logger.Debug("[ModelLimits] Ollama metadata probe failed", "model", route.Model, "error", redactProviderError(err))
 		return providerModelLimitProbe{}
 	}
 	defer resp.Body.Close()
@@ -484,7 +490,7 @@ func queryModelLimitsEndpoint(ctx context.Context, endpoint, apiKey, model strin
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logger.Debug("[ModelLimits] Provider metadata probe failed", "model", model, "error", err)
+		logger.Debug("[ModelLimits] Provider metadata probe failed", "model", model, "error", redactProviderError(err))
 		return providerModelLimitProbe{}, false
 	}
 	defer resp.Body.Close()

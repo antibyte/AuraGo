@@ -1,6 +1,7 @@
 package services
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"database/sql"
 	"fmt"
@@ -810,6 +811,6 @@ func (f *fakeFileKGLLM) CreateChatCompletion(_ context.Context, _ openai.ChatCom
 	}, nil
 }
 
-func (f *fakeFileKGLLM) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (f *fakeFileKGLLM) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }

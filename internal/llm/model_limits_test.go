@@ -2,11 +2,13 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -161,6 +163,67 @@ func TestResolveModelLimitsUsesAndCachesProviderProbe(t *testing.T) {
 	}
 	if second.ProbeCacheHit != true || calls.Load() != 1 {
 		t.Fatalf("cache hit=%v calls=%d, want true/1", second.ProbeCacheHit, calls.Load())
+	}
+}
+
+func TestProviderMetadataPrecedesLegacyContextPrefix(t *testing.T) {
+	InvalidateModelLimitCache()
+	defer InvalidateModelLimitCache()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/show" {
+			t.Errorf("probe path = %q, want /api/show", r.URL.Path)
+		}
+		fmt.Fprint(w, `{"model_info":{"llama.context_length":8192}}`)
+	}))
+	defer server.Close()
+
+	route := ModelRoute{ProviderType: "ollama", BaseURL: server.URL + "/v1", Model: "llama3-local-8k", Primary: true}
+	limits := ResolveModelLimits(context.Background(), route, 0, nil)
+	if limits.ContextWindow != 8192 || limits.ContextSource != "provider_probe" {
+		t.Fatalf("provider model metadata did not precede family estimate: %+v", limits)
+	}
+	if limits.MetadataSource == "" || strings.Contains(limits.MetadataSource, "model_registry") {
+		t.Fatalf("metadata source misreported probe result: %q", limits.MetadataSource)
+	}
+	if detected := DetectContextWindow(route.BaseURL, "", route.Model, route.ProviderType, nil); detected != 8192 {
+		t.Fatalf("DetectContextWindow() = %d, want probe metadata 8192", detected)
+	}
+	if cached := ResolveModelLimitsCached(route, 0); cached.ContextWindow != 8192 || cached.ContextSource != "provider_probe" {
+		t.Fatalf("cached resolver did not preserve probe precedence: %+v", cached)
+	}
+	overridden := route
+	overridden.ContextWindowOverride = 16384
+	if got := ResolveModelLimits(context.Background(), overridden, 0, nil); got.ContextWindow != 16384 || got.ContextSource != "provider_override" {
+		t.Fatalf("provider override lost to smaller probe metadata: %+v", got)
+	}
+}
+
+func TestLegacyContextPrefixIsReportedAsHeuristic(t *testing.T) {
+	InvalidateModelLimitCache()
+	defer InvalidateModelLimitCache()
+	limits := ResolveModelLimits(context.Background(), ModelRoute{ProviderType: "custom", Model: "llama3-local"}, 0, nil)
+	if limits.ContextWindow != 131072 || limits.ContextSource != "legacy_prefix" {
+		t.Fatalf("legacy estimate = %d from %q, want 131072 from legacy_prefix", limits.ContextWindow, limits.ContextSource)
+	}
+	if strings.Contains(limits.MetadataSource, "model_registry") {
+		t.Fatalf("heuristic was mislabeled as registry metadata: %q", limits.MetadataSource)
+	}
+}
+
+func TestProviderProbeErrorRedactsEmbeddedURL(t *testing.T) {
+	err := &url.Error{
+		Op:  "Get",
+		URL: "https://alice:password@example.test/v1?token=query-secret#fragment-secret",
+		Err: errors.New("dial failed"),
+	}
+	got := redactProviderError(err)
+	for _, secret := range []string{"alice", "password", "query-secret", "fragment-secret"} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("redacted probe error exposed %q: %s", secret, got)
+		}
+	}
+	if !strings.Contains(got, "https://example.test/v1") {
+		t.Fatalf("redacted probe error omitted endpoint: %s", got)
 	}
 }
 

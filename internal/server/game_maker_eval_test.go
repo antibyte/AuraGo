@@ -147,7 +147,7 @@ func TestGameMakerLiveEvaluation(t *testing.T) {
 	}
 	defer server.ShortTermMem.Close()
 	first := cfg.Providers[0]
-	server.LLMClient = llm.NewClientFromProviderWithConfig(cfg, first.Type, first.BaseURL, first.APIKey, first.AccountID)
+	server.LLMClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, first.Type, first.BaseURL, first.APIKey, first.AccountID))
 	service.SetRunner(&gameMakerAgentRunner{server: server, service: service})
 	var mu sync.RWMutex
 	var projectID, jobID string

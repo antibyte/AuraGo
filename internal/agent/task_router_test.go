@@ -29,7 +29,7 @@ func taskRouterFixture() (*config.Config, RunConfig, openai.ChatCompletionReques
 	cfg.LLMRouter.HelperFallback = false
 	cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "openai", Model: "gpt-4o", ContextWindow: 128000, MaxOutputTokens: 4096}, {ID: "coding", Type: "openai", Model: "gpt-4o-mini", APIKey: "test-fixture", ContextWindow: 128000, MaxOutputTokens: 4096}}
 	cfg.LLMRouter.Areas["coding"] = config.LLMRouterTarget{Provider: "coding"}
-	run := RunConfig{Config: cfg, LLMClient: llm.NewClient(cfg), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), MessageSource: "web_chat", UserIntent: "Implement a Go function", SessionID: "task-router-test", NativeToolSchemas: []openai.Tool{}}
+	run := RunConfig{Config: cfg, LLMClient: llm.WrapOpenAIClient(llm.NewClient(cfg)), Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), MessageSource: "web_chat", UserIntent: "Implement a Go function", SessionID: "task-router-test", NativeToolSchemas: []openai.Tool{}}
 	req := openai.ChatCompletionRequest{Model: cfg.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: "user", Content: run.UserIntent}}}
 	return cfg, run, req
 }

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -273,6 +274,21 @@ func redactProviderURL(raw string) string {
 	u.RawQuery = ""
 	u.Fragment = ""
 	return u.String()
+}
+
+func redactProviderError(err error) string {
+	if err == nil {
+		return ""
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		message := urlErr.Op + " " + redactProviderURL(urlErr.URL)
+		if urlErr.Err != nil {
+			message += ": " + urlErr.Err.Error()
+		}
+		return message
+	}
+	return err.Error()
 }
 
 // loopbackHTTPSTransport returns an http.Transport suitable for loopback HTTPS:

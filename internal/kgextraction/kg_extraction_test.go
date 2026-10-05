@@ -1,6 +1,7 @@
 package kgextraction
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -497,14 +498,14 @@ func (m *mockChatClient) CreateChatCompletion(_ context.Context, req openai.Chat
 	return m.response, m.err
 }
 
-func (m *mockChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (m *mockChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 
 // Compile-time interface check.
 var _ interface {
 	CreateChatCompletion(context.Context, openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error)
-	CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error)
+	CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error)
 } = (*mockChatClient)(nil)
 
 type canceledKGExtractionClient struct {
@@ -516,7 +517,7 @@ func (c *canceledKGExtractionClient) CreateChatCompletion(context.Context, opena
 	return openai.ChatCompletionResponse{}, nil
 }
 
-func (c *canceledKGExtractionClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *canceledKGExtractionClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

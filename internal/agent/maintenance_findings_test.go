@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"errors"
 	"io"
@@ -28,7 +29,7 @@ func (c *countingMaintenanceLLMClient) CreateChatCompletion(context.Context, ope
 	}, nil
 }
 
-func (c *countingMaintenanceLLMClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *countingMaintenanceLLMClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming is not used in maintenance tests")
 }
 

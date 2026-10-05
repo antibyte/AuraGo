@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -34,7 +35,7 @@ func (f noisemakerFakeChatClient) CreateChatCompletion(ctx context.Context, req 
 	}, nil
 }
 
-func (f noisemakerFakeChatClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (f noisemakerFakeChatClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

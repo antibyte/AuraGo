@@ -159,7 +159,7 @@ func (r *gameMakerAgentRunner) reviewGameImages(ctx context.Context, cfg *config
 	reviewCfg.LLM.APIKey = route.APIKey
 	reviewCfg.LLM.AccountID = route.AccountID
 	reviewCfg.LLM.Model = route.Model
-	client := llm.NewClientFromProviderWithConfig(&reviewCfg, route.Type, route.BaseURL, route.APIKey, route.AccountID)
+	client := llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&reviewCfg, route.Type, route.BaseURL, route.APIKey, route.AccountID))
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	plan, _ := json.Marshal(map[string]any{"design": compactGameMakerPlan(run.Plan), "project_id": run.Project.ID, "job_id": run.Job.ID, "build_id": review.BuildID, "project_name": run.Project.Name})

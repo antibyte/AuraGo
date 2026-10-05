@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"errors"
@@ -69,7 +70,7 @@ func TestGameMakerReasoningOnlyBuildReachesBoundedImplementationRecovery(t *test
 	cfg.Directories.ToolsDir, cfg.Directories.WorkspaceDir = filepath.Join(root, "tools"), root
 	cc := openai.DefaultConfig("test-only")
 	cc.BaseURL = provider.URL
-	s := &Server{Cfg: cfg, LLMClient: openai.NewClientWithConfig(cc), GameMaker: svc, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
+	s := &Server{Cfg: cfg, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(cc)), GameMaker: svc, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), HistoryManager: memory.NewEphemeralHistoryManager()}
 	s.Registry = tools.NewProcessRegistry(s.Logger)
 	s.ShortTermMem, err = memory.NewSQLiteMemory(":memory:", s.Logger)
 	if err != nil {

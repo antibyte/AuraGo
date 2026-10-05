@@ -267,7 +267,7 @@ func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Co
 	if model == "" {
 		return memory.ActivityDigest{}, fmt.Errorf("memory analysis model is empty")
 	}
-	return buildActivityDigestWithLLM(ctx, client, model, userRequest, assistantReply, toolNames, toolSummaries)
+	return buildActivityDigestWithLLM(ctx, llm.WrapOpenAIClient(client), model, userRequest, assistantReply, toolNames, toolSummaries)
 }
 
 func buildActivityDigestWithLLM(ctx context.Context, client llm.ChatClient, model, userRequest, assistantReply string, toolNames, toolSummaries []string) (memory.ActivityDigest, error) {

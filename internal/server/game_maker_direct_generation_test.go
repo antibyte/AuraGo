@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"errors"
@@ -71,7 +72,7 @@ func TestGameMakerDirectGenerationPreservesValidationAndRepairBudget(t *testing.
 			cfg.Agent.ContextWindow = 65536
 			cc := openai.DefaultConfig("test-only")
 			cc.BaseURL = provider.URL
-			srv := &Server{Cfg: cfg, GameMaker: svc, LLMClient: openai.NewClientWithConfig(cc), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+			srv := &Server{Cfg: cfg, GameMaker: svc, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(cc)), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 			runner := &gameMakerAgentRunner{server: srv, service: svc}
 			svc.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
 				switch run.Stage {

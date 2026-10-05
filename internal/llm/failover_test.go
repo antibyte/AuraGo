@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -40,6 +41,55 @@ func TestFailoverManagerActiveProviderAndModelTracksFallback(t *testing.T) {
 	providerType, model = fm.ActiveProviderAndModel()
 	if providerType != "ollama" || model != "fallback-model" {
 		t.Fatalf("fallback active endpoint = (%q, %q), want (%q, %q)", providerType, model, "ollama", "fallback-model")
+	}
+}
+
+func TestReconfigureRedactsURLAndResetsUnsetRetryControls(t *testing.T) {
+	originalIntervals := defaultRetryIntervalsCopy()
+	originalTimeout := perAttemptTimeout()
+	originalFinalInterval := FinalRetryInterval()
+	t.Cleanup(func() {
+		defaultRetryIntervalsMu.Lock()
+		defaultRetryIntervals = originalIntervals
+		defaultRetryIntervalsMu.Unlock()
+		SetPerAttemptTimeout(originalTimeout)
+		ConfigureFinalRetryInterval(originalFinalInterval)
+	})
+
+	ConfigureDefaultRetryIntervals([]string{"9s"}, nil)
+	SetPerAttemptTimeout(25 * time.Second)
+	ConfigureFinalRetryInterval(5 * time.Second)
+	var logOutput bytes.Buffer
+	fm := &FailoverManager{
+		logger: slog.New(slog.NewTextHandler(&logOutput, nil)),
+		stopCh: make(chan struct{}),
+		clientFactory: func(*config.Config) *openai.Client {
+			return openai.NewClient("test-key")
+		},
+	}
+	cfg := &config.Config{}
+	cfg.LLM.BaseURL = "https://alice:password@example.test/v1?token=query-secret#fragment-secret"
+	fm.Reconfigure(cfg)
+	fm.Stop()
+
+	logs := logOutput.String()
+	for _, secret := range []string{"alice", "password", "query-secret", "fragment-secret"} {
+		if strings.Contains(logs, secret) {
+			t.Fatalf("reconfigure log exposed URL component %q: %s", secret, logs)
+		}
+	}
+	if !strings.Contains(logs, "https://example.test/v1") {
+		t.Fatalf("reconfigure log omitted redacted endpoint: %s", logs)
+	}
+	intervals := defaultRetryIntervalsCopy()
+	if len(intervals) != 2 || intervals[0] != 30*time.Second || intervals[1] != 2*time.Minute {
+		t.Fatalf("intervals after empty config = %v, want [30s 2m]", intervals)
+	}
+	if got := perAttemptTimeout(); got != defaultPerAttemptTimeout {
+		t.Fatalf("timeout after empty config = %s, want %s", got, defaultPerAttemptTimeout)
+	}
+	if got := FinalRetryInterval(); got != 30*time.Second {
+		t.Fatalf("final retry interval after empty config = %s, want 30s", got)
 	}
 }
 
@@ -108,7 +158,7 @@ type failoverStreamBody struct {
 
 func (body *failoverStreamBody) Read(buffer []byte) (int, error) {
 	if body.sent {
-		return 0, immediateFailoverTestError{}
+		return 0, errors.New("stream interrupted after first chunk")
 	}
 	body.sent = true
 	return copy(buffer, body.payload), nil
@@ -232,10 +282,11 @@ func TestStreamFailureAfterFirstByteDoesNotRetryFallback(t *testing.T) {
 			fallbackCalls++
 			return completionResponse("must-not-run"), nil
 		})),
-		primaryModel:  "aurago-qwen",
-		fallbackType:  "openai",
-		fallbackModel: "gpt-4o",
-		logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		primaryModel:   "aurago-qwen",
+		fallbackType:   "openai",
+		fallbackModel:  "gpt-4o",
+		errorThreshold: 3,
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	stream, err := fm.CreateChatCompletionStream(context.Background(), openai.ChatCompletionRequest{})
 	if err != nil {
@@ -248,8 +299,134 @@ func TestStreamFailureAfterFirstByteDoesNotRetryFallback(t *testing.T) {
 	if _, err := stream.Recv(); err == nil {
 		t.Fatal("expected stream failure after first byte")
 	}
-	if fallbackCalls != 0 || fm.isOnFallback {
-		t.Fatalf("fallback was used after stream began: calls=%d onFallback=%v", fallbackCalls, fm.isOnFallback)
+	if fallbackCalls != 0 || fm.isOnFallback || fm.errorCount != 1 {
+		t.Fatalf("stream failure state: fallback calls=%d onFallback=%v errorCount=%d", fallbackCalls, fm.isOnFallback, fm.errorCount)
+	}
+}
+
+func TestRepeatedPostOpenStreamErrorsReachFailoverThresholdWithoutReplay(t *testing.T) {
+	fallbackCalls := 0
+	fm := &FailoverManager{
+		primary: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+				Body:       &failoverStreamBody{payload: "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"first\"}}]}\n\n"},
+			}, nil
+		})),
+		fallback: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			fallbackCalls++
+			return completionResponse("must-not-run"), nil
+		})),
+		primaryModel:   "primary-model",
+		fallbackType:   "openai",
+		fallbackModel:  "fallback-model",
+		errorThreshold: 3,
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	for i := 0; i < fm.errorThreshold; i++ {
+		stream, err := fm.CreateChatCompletionStream(context.Background(), openai.ChatCompletionRequest{})
+		if err != nil {
+			t.Fatalf("stream %d creation failed: %v", i+1, err)
+		}
+		if _, err := stream.Recv(); err != nil {
+			t.Fatalf("stream %d first chunk failed: %v", i+1, err)
+		}
+		if _, err := stream.Recv(); err == nil {
+			t.Fatalf("stream %d unexpectedly completed", i+1)
+		}
+		_ = stream.Close()
+		if i+1 < fm.errorThreshold && fm.isOnFallback {
+			t.Fatalf("switched before threshold after %d errors", i+1)
+		}
+	}
+	if !fm.isOnFallback || fallbackCalls != 0 {
+		t.Fatalf("threshold outcome: onFallback=%v fallbackCalls=%d, want true/0 (no replay)", fm.isOnFallback, fallbackCalls)
+	}
+}
+
+func TestStreamOpenDoesNotCountAsSuccessAndFinishMarkerResetsErrors(t *testing.T) {
+	fm := &FailoverManager{
+		primary: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+				Body: io.NopCloser(strings.NewReader(
+					"data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n" +
+						"data: [DONE]\n\n",
+				)),
+			}, nil
+		})),
+		primaryModel:   "primary-model",
+		errorThreshold: 3,
+		errorCount:     2,
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	stream, err := fm.CreateChatCompletionStream(context.Background(), openai.ChatCompletionRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fm.errorCount != 2 {
+		t.Fatalf("opening an HTTP 200 stream reset errors to %d; want 2 until a finish marker", fm.errorCount)
+	}
+	if _, err := stream.Recv(); err != nil {
+		t.Fatalf("finish chunk failed: %v", err)
+	}
+	if fm.errorCount != 0 {
+		t.Fatalf("finish marker left error count at %d, want 0", fm.errorCount)
+	}
+	if _, err := stream.Recv(); err != io.EOF {
+		t.Fatalf("post-finish Recv error = %v, want EOF", err)
+	}
+	if fm.errorCount != 0 {
+		t.Fatalf("normal EOF after finish changed error count to %d", fm.errorCount)
+	}
+}
+
+func TestStreamOutcomeFromOldConfigDoesNotAffectReconfiguredRoute(t *testing.T) {
+	originalIntervals := defaultRetryIntervalsCopy()
+	originalTimeout := perAttemptTimeout()
+	t.Cleanup(func() {
+		defaultRetryIntervalsMu.Lock()
+		defaultRetryIntervals = originalIntervals
+		defaultRetryIntervalsMu.Unlock()
+		SetPerAttemptTimeout(originalTimeout)
+	})
+
+	fm := &FailoverManager{
+		primary: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+				Body:       &failoverStreamBody{payload: "data: {\"id\":\"old\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"first\"}}]}\n\n"},
+			}, nil
+		})),
+		primaryModel:   "old-model",
+		errorThreshold: 3,
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		stopCh:         make(chan struct{}),
+		clientFactory: func(*config.Config) *openai.Client {
+			return failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+				return completionResponse("new-route"), nil
+			}))
+		},
+	}
+	stream, err := fm.CreateChatCompletionStream(context.Background(), openai.ChatCompletionRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fm.Reconfigure(&config.Config{})
+	defer fm.Stop()
+	fm.errorCount = 2
+	if _, err := stream.Recv(); err != nil {
+		t.Fatalf("old stream first chunk failed: %v", err)
+	}
+	if _, err := stream.Recv(); err == nil {
+		t.Fatal("expected old stream to fail")
+	}
+	if fm.errorCount != 2 || fm.isOnFallback {
+		t.Fatalf("stale stream changed current route state: errors=%d fallback=%v", fm.errorCount, fm.isOnFallback)
 	}
 }
 

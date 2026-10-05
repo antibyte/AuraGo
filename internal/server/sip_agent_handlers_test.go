@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -254,7 +255,7 @@ func (c *sipLiveTestClient) CreateChatCompletion(_ context.Context, request open
 	}}}, nil
 }
 
-func (*sipLiveTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (*sipLiveTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, fmt.Errorf("streaming is not expected")
 }
 

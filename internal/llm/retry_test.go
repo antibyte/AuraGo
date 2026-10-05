@@ -44,7 +44,7 @@ func (m *mockRetryClient) CreateChatCompletion(ctx context.Context, req openai.C
 	return openai.ChatCompletionResponse{}, nil
 }
 
-func (m *mockRetryClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (m *mockRetryClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (CompletionStream, error) {
 	m.callCount++
 	if m.callCount <= len(m.shouldRetry) && m.shouldRetry[m.callCount-1] != nil {
 		return nil, m.shouldRetry[m.callCount-1]
@@ -71,7 +71,7 @@ func (c *providerSwitchRetryClient) CreateChatCompletion(ctx context.Context, re
 	return openai.ChatCompletionResponse{}, nil
 }
 
-func (c *providerSwitchRetryClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *providerSwitchRetryClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (CompletionStream, error) {
 	c.callCount++
 	if c.callCount == 1 {
 		return nil, errors.New("temporary upstream failure")
@@ -101,7 +101,7 @@ func (c *perAttemptTimeoutClient) CreateChatCompletion(ctx context.Context, req 
 	return openai.ChatCompletionResponse{}, nil
 }
 
-func (c *perAttemptTimeoutClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *perAttemptTimeoutClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (CompletionStream, error) {
 	c.callCount++
 	if c.callCount == 1 {
 		<-ctx.Done()
@@ -118,7 +118,7 @@ func (c *capturingStreamContextClient) CreateChatCompletion(ctx context.Context,
 	return openai.ChatCompletionResponse{}, nil
 }
 
-func (c *capturingStreamContextClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *capturingStreamContextClient) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (CompletionStream, error) {
 	c.captured = ctx
 	return nil, nil
 }
@@ -340,6 +340,32 @@ func TestConfigureDefaultRetryIntervalsParsesConfig(t *testing.T) {
 		if updated[i] != want[i] {
 			t.Fatalf("configured interval %d = %v, want %v", i, updated[i], want[i])
 		}
+	}
+}
+
+func TestRetrySettingsResetToDefaultsWhenReloadValuesAreUnset(t *testing.T) {
+	originalIntervals := defaultRetryIntervalsCopy()
+	originalTimeout := perAttemptTimeout()
+	t.Cleanup(func() {
+		defaultRetryIntervalsMu.Lock()
+		defaultRetryIntervals = originalIntervals
+		defaultRetryIntervalsMu.Unlock()
+		SetPerAttemptTimeout(originalTimeout)
+	})
+
+	for _, specs := range [][]string{nil, {"", "invalid", "0s"}} {
+		ConfigureDefaultRetryIntervals([]string{"7s"}, nil)
+		ConfigureDefaultRetryIntervals(specs, nil)
+		got := defaultRetryIntervalsCopy()
+		if len(got) != 2 || got[0] != 30*time.Second || got[1] != 2*time.Minute {
+			t.Fatalf("intervals after reload %v = %v, want [30s 2m]", specs, got)
+		}
+	}
+
+	SetPerAttemptTimeout(45 * time.Second)
+	SetPerAttemptTimeout(0)
+	if got := perAttemptTimeout(); got != defaultPerAttemptTimeout {
+		t.Fatalf("unset per-attempt timeout = %s, want %s", got, defaultPerAttemptTimeout)
 	}
 }
 

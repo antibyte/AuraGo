@@ -190,7 +190,7 @@ func handleStreamingResponse(
 	strict := len(requireComplete) > 0 && requireComplete[0]
 	streamAcct := streamingAccountingState{}
 	contextCancelled := false
-	var stm *openai.ChatCompletionStream
+	var stm llm.CompletionStream
 	streamCancel := func() {}
 	var streamErr error
 	var midStreamError error

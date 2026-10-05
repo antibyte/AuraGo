@@ -1884,7 +1884,7 @@ func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, f
 		}
 		helperClient := llm.NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
 		if helperClient != nil {
-			return helperClient, helperCfg.Model
+			return llm.WrapOpenAIClient(helperClient), helperCfg.Model
 		}
 	}
 	return fallbackClient, strings.TrimSpace(fallbackModel)

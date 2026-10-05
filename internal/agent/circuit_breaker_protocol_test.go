@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"errors"
 	"io"
@@ -154,7 +155,7 @@ func (c *circuitBreakerSequenceClient) CreateChatCompletion(_ context.Context, r
 	return c.responses[len(c.requests)-1], nil
 }
 
-func (*circuitBreakerSequenceClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (*circuitBreakerSequenceClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, nil
 }
 

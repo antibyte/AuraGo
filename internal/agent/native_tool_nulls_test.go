@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -225,7 +226,7 @@ func TestStrictProviderChecksActualAgentRequests(t *testing.T) {
 	defer provider.Close()
 	clientCfg := openai.DefaultConfig("local-fixture")
 	clientCfg.BaseURL = provider.URL
-	client := openai.NewClientWithConfig(clientCfg)
+	client := llm.WrapOpenAIClient(openai.NewClientWithConfig(clientCfg))
 	bad := tool("bad", "negative control", schema(map[string]interface{}{"optional": prop("string", "Optional")}))
 	bad.Function.Strict = true
 	if _, err := client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{Model: "gpt-4o", Tools: []openai.Tool{bad}}); err == nil {

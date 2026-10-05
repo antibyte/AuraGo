@@ -476,7 +476,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	}
 
 	inst := &helperLLMManager{
-		client:       client,
+		client:       llm.WrapOpenAIClient(client),
 		model:        newInstCfg.Model,
 		providerID:   newInstCfg.ProviderType + "|" + newInstCfg.BaseURL,
 		providerType: newInstCfg.ProviderType,

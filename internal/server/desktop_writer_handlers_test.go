@@ -2,6 +2,7 @@ package server
 
 import (
 	"archive/zip"
+	"aurago/internal/llm"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -114,7 +115,7 @@ func (c *writerAssistClient) CreateChatCompletion(ctx context.Context, req opena
 	}
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: openai.FinishReasonStop, Message: openai.ChatCompletionMessage{Role: "assistant", Content: "A clearer sentence."}}}}, nil
 }
-func (c *writerAssistClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *writerAssistClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("not used")
 }
 func TestDesktopWriterAssistIsIsolatedAndRevisionBound(t *testing.T) {

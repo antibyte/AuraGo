@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"errors"
@@ -76,7 +77,7 @@ func TestIsolatedStreamIdleRetry(t *testing.T) {
 			defer provider.Close()
 			clientCfg := openai.DefaultConfig("local-test")
 			clientCfg.BaseURL = provider.URL
-			runCfg.LLMClient = openai.NewClientWithConfig(clientCfg)
+			runCfg.LLMClient = llm.WrapOpenAIClient(openai.NewClientWithConfig(clientCfg))
 			_, err := ExecuteAgentLoop(ctx, openai.ChatCompletionRequest{Model: runCfg.Config.LLM.Model, Stream: true, Messages: []openai.ChatCompletionMessage{
 				{Role: "user", Content: "Create the current game."},
 				{Role: "assistant", ToolCalls: []openai.ToolCall{{ID: "completed-read", Type: "function", Function: openai.FunctionCall{Name: "game_maker_file", Arguments: `{"operation":"read"}`}}}},

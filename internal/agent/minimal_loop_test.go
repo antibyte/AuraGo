@@ -36,7 +36,7 @@ func (c *minimalLoopRouteClient) CreateChatCompletion(_ context.Context, req ope
 	}}}, nil
 }
 
-func (c *minimalLoopRouteClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *minimalLoopRouteClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming not implemented")
 }
 

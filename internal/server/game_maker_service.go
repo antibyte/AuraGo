@@ -506,7 +506,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		cfg.LLM.APIKey = provider.APIKey
 		cfg.LLM.AccountID = provider.AccountID
 		cfg.LLM.Model = provider.Model
-		client = llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
 	}
 	if model := strings.TrimSpace(run.Job.Model); model != "" {
 		cfg.LLM.Model = model

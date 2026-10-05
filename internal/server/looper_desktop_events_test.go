@@ -61,7 +61,7 @@ func (c *looperDesktopClient) CreateChatCompletion(_ context.Context, req openai
 	return openai.ChatCompletionResponse{}, errors.New("unexpected request: " + last.Content)
 }
 
-func (c *looperDesktopClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *looperDesktopClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming not implemented")
 }
 

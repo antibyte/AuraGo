@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"errors"
@@ -223,7 +224,7 @@ func TestGameMakerSourceStreamRecovery(t *testing.T) {
 				cfg.LLM.Provider, cfg.LLM.BaseURL = "source-test", provider.URL
 				cfg.Providers = []config.ProviderEntry{{ID: "source-test", Type: "openai", Model: cfg.LLM.Model, BaseURL: provider.URL, ContextWindow: contextWindow, MaxOutputTokens: 32768}}
 			}
-			srv := &Server{Cfg: cfg, GameMaker: svc, LLMClient: openai.NewClientWithConfig(cc), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+			srv := &Server{Cfg: cfg, GameMaker: svc, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(cc)), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 			runner := &gameMakerAgentRunner{server: srv, service: svc}
 			svc.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
 				if run.Stage == "planning" {

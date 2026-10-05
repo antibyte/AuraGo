@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"errors"
@@ -39,7 +40,7 @@ func (f *fakeDesktopChessChatClient) CreateChatCompletion(_ context.Context, req
 	}, nil
 }
 
-func (f *fakeDesktopChessChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (f *fakeDesktopChessChatClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming is not used by chess agent move")
 }
 

@@ -66,7 +66,7 @@ func (c *looperScriptClient) CreateChatCompletion(ctx context.Context, req opena
 	}, nil
 }
 
-func (c *looperScriptClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *looperScriptClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("streaming not implemented")
 }
 

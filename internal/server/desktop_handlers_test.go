@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -591,7 +592,7 @@ func TestDesktopChatStreamEmitsLLMDeltaBeforeDone(t *testing.T) {
 
 	openaiCfg := openai.DefaultConfig("test-key")
 	openaiCfg.BaseURL = upstream.URL + "/v1"
-	s.LLMClient = openai.NewClientWithConfig(openaiCfg)
+	s.LLMClient = llm.WrapOpenAIClient(openai.NewClientWithConfig(openaiCfg))
 
 	body := bytes.NewBufferString(`{"message":"hello desktop"}`)
 	rec := httptest.NewRecorder()
@@ -659,7 +660,7 @@ func TestDesktopChatStreamPreservesUTF8AcrossHoldBoundary(t *testing.T) {
 
 	openaiCfg := openai.DefaultConfig("test-key")
 	openaiCfg.BaseURL = upstream.URL + "/v1"
-	s.LLMClient = openai.NewClientWithConfig(openaiCfg)
+	s.LLMClient = llm.WrapOpenAIClient(openai.NewClientWithConfig(openaiCfg))
 
 	body := bytes.NewBufferString(`{"message":"hello desktop"}`)
 	rec := httptest.NewRecorder()

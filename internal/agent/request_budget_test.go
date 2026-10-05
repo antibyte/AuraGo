@@ -27,7 +27,7 @@ func (*budgetPlainClient) CreateChatCompletion(context.Context, openai.ChatCompl
 	return openai.ChatCompletionResponse{}, errors.New("not implemented")
 }
 
-func (*budgetPlainClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (*budgetPlainClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -42,7 +42,7 @@ func (c *budgetRouteClient) CreateChatCompletion(context.Context, openai.ChatCom
 	return openai.ChatCompletionResponse{}, errors.New("not implemented")
 }
 
-func (c *budgetRouteClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (c *budgetRouteClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, errors.New("not implemented")
 }
 

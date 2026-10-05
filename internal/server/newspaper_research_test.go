@@ -23,7 +23,7 @@ func (c *newspaperStoryTestClient) CreateChatCompletion(_ context.Context, reque
 	return c.response, nil
 }
 
-func (*newspaperStoryTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (*newspaperStoryTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, fmt.Errorf("unexpected streamed story request")
 }
 

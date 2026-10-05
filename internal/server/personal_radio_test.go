@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/personalradio"
 	"aurago/internal/speechlab"
 	"bytes"
@@ -141,7 +142,7 @@ func (f *personalRadioChatFake) CreateChatCompletion(ctx context.Context, r open
 	}
 	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: reason, Message: openai.ChatCompletionMessage{Role: "assistant", Content: content}}}}, nil
 }
-func (*personalRadioChatFake) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+func (*personalRadioChatFake) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (llm.CompletionStream, error) {
 	return nil, fmt.Errorf("stream not expected")
 }
 func TestPersonalRadioEditorialRetryIsToolFree(t *testing.T) {

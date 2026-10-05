@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"fmt"
 	"io"
@@ -49,7 +50,7 @@ func TestStrictStreamCompletionRejectsIncompleteWork(t *testing.T) {
 				idle = 150 * time.Millisecond
 			}
 			retries := 0
-			result := handleStreamingResponse(ctx, openai.ChatCompletionRequest{Model: "test", Stream: true}, openai.NewClientWithConfig(cfg), false, defaultRecoveryPolicy(), slog.New(slog.NewTextHandler(io.Discard, nil)), &captureBroker{}, AgentTelemetryScope{}, cancel, idle, &retries, true)
+			result := handleStreamingResponse(ctx, openai.ChatCompletionRequest{Model: "test", Stream: true}, llm.WrapOpenAIClient(openai.NewClientWithConfig(cfg)), false, defaultRecoveryPolicy(), slog.New(slog.NewTextHandler(io.Discard, nil)), &captureBroker{}, AgentTelemetryScope{}, cancel, idle, &retries, true)
 			valid := kind == "stop" || kind == "tool_calls" || kind == "reasoning_length"
 			if valid {
 				if result.err != nil || len(result.resp.Choices) != 1 || string(result.resp.Choices[0].FinishReason) != strings.TrimPrefix(kind, "reasoning_") {
@@ -85,7 +86,7 @@ func TestStreamPreservesReportedCacheMissVersusUnknown(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			retries := 0
-			result := handleStreamingResponse(ctx, openai.ChatCompletionRequest{Model: "test", Stream: true}, openai.NewClientWithConfig(cfg), false, defaultRecoveryPolicy(), slog.New(slog.NewTextHandler(io.Discard, nil)), &captureBroker{}, AgentTelemetryScope{}, cancel, time.Second, &retries, true)
+			result := handleStreamingResponse(ctx, openai.ChatCompletionRequest{Model: "test", Stream: true}, llm.WrapOpenAIClient(openai.NewClientWithConfig(cfg)), false, defaultRecoveryPolicy(), slog.New(slog.NewTextHandler(io.Discard, nil)), &captureBroker{}, AgentTelemetryScope{}, cancel, time.Second, &retries, true)
 			details := result.resp.Usage.PromptTokensDetails
 			if result.err != nil || (details != nil) != tt.known || (details != nil && details.CachedTokens != tt.cached) {
 				t.Fatalf("cache usage: details=%+v, error=%v", details, result.err)

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/llm"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -150,7 +151,7 @@ func TestGameMakerUnchangedStarterGetsBoundedCodeRecovery(t *testing.T) {
 			cfg.LLM.Model, cfg.LLM.ProviderType = "test-model", "openai"
 			cfg.Agent.ContextWindow = 65536
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			srv := &Server{Cfg: cfg, GameMaker: svc, LLMClient: openai.NewClientWithConfig(clientCfg), Logger: logger}
+			srv := &Server{Cfg: cfg, GameMaker: svc, LLMClient: llm.WrapOpenAIClient(openai.NewClientWithConfig(clientCfg)), Logger: logger}
 			runner := &gameMakerAgentRunner{server: srv, service: svc}
 			svc.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
 				if run.Stage == "planning" {
