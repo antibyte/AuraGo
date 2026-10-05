@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -197,4 +198,82 @@ func TestConnectRejectsEnrolledWithInvalidSharedKey(t *testing.T) {
 		t.Fatalf("invalid enrolled response must not change config: %+v", client.cfg)
 	}
 	assertNoStoredConfig(t)
+}
+
+func TestConnectRejectsAuthenticatedWithoutSharedKey(t *testing.T) {
+	isolateRemoteHome(t)
+	readOnly := false
+	resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-1", remote.DeriveEnrollmentAuthKey("tok"), 1, remote.AuthResponsePayload{
+		Status: "authenticated", DeviceID: "dev-1", ReadOnly: &readOnly, AllowedPaths: []string{"/"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), EnrollToken: "tok"})
+	client.readOnly = true
+
+	err = client.connect()
+	if err == nil || !strings.Contains(err.Error(), "without a device shared key") {
+		t.Fatalf("expected authenticated response without device key to be rejected, got %v", err)
+	}
+	if client.cfg.SharedKey != "" || client.cfg.DeviceID != "" || client.cfg.EnrollToken != "tok" {
+		t.Fatalf("authenticated response without device key must not change config: %+v", client.cfg)
+	}
+	if !client.readOnly || client.allowedPaths != nil {
+		t.Fatalf("rejected authenticated response must not change bootstrap settings: read_only=%v allowed_paths=%v", client.readOnly, client.allowedPaths)
+	}
+	assertNoStoredConfig(t)
+}
+
+func writeStoredConfig(t *testing.T, cfg clientConfig) {
+	t.Helper()
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(configDir(), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath(), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadConfigIgnoresStoredDeviceIDWithoutSharedKey(t *testing.T) {
+	isolateRemoteHome(t)
+	stored := clientConfig{SupervisorURL: "ws://supervisor.example/remote", DeviceID: "dev-pending"}
+	writeStoredConfig(t, stored)
+	before, err := os.ReadFile(configPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := loadConfig("", "tok", "")
+	if cfg.DeviceID != "" || cfg.SharedKey != "" {
+		t.Fatalf("stored device id without shared key must be ignored: %+v", cfg)
+	}
+	if cfg.EnrollToken != "tok" {
+		t.Fatalf("configured enrollment token must survive, got %q", cfg.EnrollToken)
+	}
+	if cfg.SupervisorURL != stored.SupervisorURL {
+		t.Fatalf("stored supervisor URL must still be used, got %q", cfg.SupervisorURL)
+	}
+	after, err := os.ReadFile(configPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("loadConfig must not rewrite the stored config:\nbefore: %s\nafter:  %s", before, after)
+	}
+}
+
+func TestLoadConfigKeepsStoredDeviceWithSharedKey(t *testing.T) {
+	isolateRemoteHome(t)
+	sharedKey := strings.Repeat("ab", 32)
+	writeStoredConfig(t, clientConfig{SupervisorURL: "ws://supervisor.example/remote", DeviceID: "dev-1", SharedKey: sharedKey})
+
+	cfg := loadConfig("", "", "")
+	if cfg.DeviceID != "dev-1" || cfg.SharedKey != sharedKey {
+		t.Fatalf("enrolled device identity must be restored: %+v", cfg)
+	}
 }

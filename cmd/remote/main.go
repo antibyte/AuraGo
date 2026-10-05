@@ -174,6 +174,14 @@ func loadConfig(supervisorURL, token, name string) clientConfig {
 		}
 		cfg.DeviceID = stored.DeviceID
 		cfg.SharedKey = stored.SharedKey
+		// Older agents persisted the device id from an unsigned "pending" answer.
+		// Without a shared key that id can never authenticate, and keeping it
+		// would suppress the enrollment token below. The file is left as is;
+		// the next "enrolled" answer saves a consistent config.
+		if cfg.DeviceID != "" && cfg.SharedKey == "" {
+			slog.Warn("stored device id without shared key ignored; re-enrolling", "device_id", cfg.DeviceID)
+			cfg.DeviceID = ""
+		}
 		if stored.DeviceName != "" {
 			cfg.DeviceName = stored.DeviceName
 		}
@@ -452,6 +460,10 @@ func (c *Client) connect() error {
 			c.logger.Error("Failed to save config after enrollment", "error", err)
 		}
 	case "authenticated":
+		if c.cfg.SharedKey == "" {
+			conn.Close()
+			return fmt.Errorf("authenticated response without a device shared key")
+		}
 		c.applyBootstrapSettings(authResp)
 		c.logger.Info("Authenticated", "device_id", authResp.DeviceID)
 	case "pending":
