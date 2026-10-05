@@ -503,7 +503,7 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 			Title: "Docker: agent Compose stacks may use host access",
 			Description: "docker.allow_host_access is on, so agent docker compose up/create/build may bind host paths outside the agent workspace (including /var/run/docker.sock), pass devices and use privileged mode, host network/PID/IPC/UTS/user/cgroup namespaces, cap_add and unconfined security options. " +
 				"AuraGo's own data directory, config.yaml, .env and master key stay blocked, but a bind of a parent directory such as / still exposes them to that container. " +
-				"Configurations created before this setting existed have it switched on automatically. Turn it off in Config → Danger Zone if the agent only deploys stacks whose files live in the agent workspace.",
+				"Configurations created before this setting existed have it switched on automatically. Turn it off in Config → Danger Zone if the agent only deploys stacks that use files inside the agent workspace and need no devices, privileged mode, host namespaces or cap_add.",
 			AutoFixable: false,
 		})
 	}

@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
@@ -1726,4 +1728,34 @@ func shellFunctionBody(t *testing.T, script, name string) string {
 		t.Fatalf("shell function %s has no closing brace", name)
 	}
 	return tail[:end+2]
+}
+
+// The template-less minimal config is a fresh install: it must write
+// docker.allow_host_access: false, because an absent key loads as the legacy
+// grandfather (true).
+func TestDockerEntrypointMinimalConfigWritesDockerHostAccessFalse(t *testing.T) {
+	t.Parallel()
+
+	entrypoint := strings.ReplaceAll(readRepoFile(t, "docker-entrypoint.sh"), "\r\n", "\n")
+	const opener = "cat > \"$CONFIG_FILE\" << 'EOF'\n"
+	start := strings.Index(entrypoint, opener)
+	if start < 0 {
+		t.Fatal("docker-entrypoint.sh minimal config heredoc not found")
+	}
+	body := entrypoint[start+len(opener):]
+	end := strings.Index(body, "\nEOF\n")
+	if end < 0 {
+		t.Fatal("docker-entrypoint.sh minimal config heredoc is not terminated")
+	}
+	var minimal map[string]interface{}
+	if err := yaml.Unmarshal([]byte(body[:end+1]), &minimal); err != nil {
+		t.Fatalf("minimal config is not valid YAML: %v", err)
+	}
+	docker, ok := minimal["docker"].(map[string]interface{})
+	if !ok || docker["allow_host_access"] != false {
+		t.Fatalf("minimal config docker section = %#v, want allow_host_access: false", minimal["docker"])
+	}
+	if _, ok := minimal["server"].(map[string]interface{}); !ok {
+		t.Fatalf("minimal config lost its server section: %#v", minimal)
+	}
 }

@@ -348,3 +348,20 @@ func TestCheckSecurityWarnsWhileDockerHostAccessIsOn(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckSecurityDockerHostAccessHintNamesWhenToSwitchOff(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Docker.Enabled, cfg.Docker.AllowHostAccess = true, true
+	hint := findSecurityHint(CheckSecurity(cfg), "docker_compose_host_access")
+	if hint == nil {
+		t.Fatal("docker_compose_host_access hint missing")
+	}
+	if !strings.Contains(hint.Description, "use files inside the agent workspace and need no devices, privileged mode, host namespaces or cap_add") {
+		t.Fatalf("hint does not name the full switch-off condition: %q", hint.Description)
+	}
+	if hint.AutoFixable || hint.FixPatch != nil {
+		t.Fatalf("hint must not be auto-fixable: %+v", hint)
+	}
+}

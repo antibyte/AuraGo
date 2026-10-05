@@ -121,6 +121,7 @@
   "help.discord.enabled": "Habilita el bot de Discord.",
   "help.discord.guild_id": "ID del servidor de Discord (Gremio).",
   "help.discord.read_only": "Cuando está habilitado, el agente solo puede leer mensajes de Discord pero no puede enviarlos.",
+  "help.docker.allow_host_access": "Se activa automáticamente en las configuraciones creadas antes de que existiera este ajuste. Solo se aplica mientras Docker está habilitado y no está en modo de solo lectura.",
   "help.docker.enabled": "Habilita la gestión de contenedores Docker.",
   "help.docker.host": "Host Docker remoto opcional (por ejemplo, tcp://192.168.1.5:2375). Déjelo en blanco para el enchufe local.",
   "help.docker.read_only": "Cuando está habilitado, el agente solo puede enumerar e inspeccionar contenedores Docker, pero no puede iniciarlos, detenerlos, crearlos ni eliminarlos.",

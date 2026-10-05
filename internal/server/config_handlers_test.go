@@ -1581,3 +1581,14 @@ func TestConfigSaveKeepsGrandfatheredDockerHostAccess(t *testing.T) {
 		t.Fatalf("an unrelated save wrote the template value:\n%s", data)
 	}
 }
+
+func TestInjectDockerHostAccessDefaultReplacesNullDockerSection(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.AllowHostAccess = true
+	raw := map[string]interface{}{"docker": nil}
+	injectDockerHostAccessDefault(raw, cfg)
+	docker, ok := raw["docker"].(map[string]interface{})
+	if !ok || docker["allow_host_access"] != true {
+		t.Fatalf("null docker section not shown with the loaded value: %#v", raw)
+	}
+}

@@ -121,6 +121,7 @@
   "help.discord.enabled": "Włącza bota Discord.",
   "help.discord.guild_id": "ID serwera Discord (Guild).",
   "help.discord.read_only": "Gdy włączone, agent może tylko czytać wiadomości Discord, ale nie może ich wysyłać.",
+  "help.docker.allow_host_access": "Włącza się automatycznie w konfiguracjach utworzonych przed wprowadzeniem tego ustawienia. Działa tylko wtedy, gdy Docker jest włączony i nie pracuje w trybie tylko do odczytu.",
   "help.docker.enabled": "Włącza zarządzanie kontenerami Docker.",
   "help.docker.host": "Opcjonalny zdalny host Docker (np. tcp://192.168.1.5:2375). Pozostaw puste dla lokalnego socketu.",
   "help.docker.read_only": "Gdy włączone, agent może tylko listować i inspekcjonować kontenery Docker, ale nie może ich uruchamiać, zatrzymywać, tworzyć ani usuwać.",

@@ -121,6 +121,7 @@
   "help.discord.enabled": "Abilita il bot Discord.",
   "help.discord.guild_id": "ID del server Discord (Guild).",
   "help.discord.read_only": "Quando abilitato, l'agente può solo leggere i messaggi Discord ma non inviarli.",
+  "help.docker.allow_host_access": "Viene attivata automaticamente per le configurazioni create prima che esistesse questa impostazione. Ha effetto solo mentre Docker è abilitato e non è in modalità di sola lettura.",
   "help.docker.enabled": "Abilita la gestione dei container Docker.",
   "help.docker.host": "Host Docker remoto opzionale (es. tcp://192.168.1.5:2375). Lascia vuoto per socket locale.",
   "help.docker.read_only": "Quando abilitato, l'agente può solo elencare e ispezionare i container Docker ma non avviarli, fermarli, crearli o rimuoverli.",
