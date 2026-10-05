@@ -46,12 +46,13 @@ type MissionBridge interface {
 // the fields hold what is still known.
 type RunFinishedInfo struct {
 	// MissionID is the mission the run was recorded in at its start, else the flow's
-	// mission. It is empty only when the flow is gone and the run never started.
+	// mission. It is empty when the flow has no mission, or when the flow is gone and
+	// the run never started.
 	MissionID string
 	// HistoryID is the mission history entry FlowRunStarted returned. It is empty when
 	// FlowRunStarted was not called: the run never started (cancelled while queued, or
-	// shut down), or its flow could not be read at the start. The bridge then records
-	// the run without an entry to complete, or skips it.
+	// shut down), its flow could not be read at the start, or the flow has no mission.
+	// The bridge then records the run without an entry to complete, or skips it.
 	HistoryID string
 	// FlowName is the flow's current name, or the name in the run's document when the
 	// flow is gone; empty when neither can be read.
