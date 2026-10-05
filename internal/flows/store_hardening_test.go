@@ -132,6 +132,21 @@ func TestStoreConcurrentPublishesNeverFailWithLockErrors(t *testing.T) {
 	}
 }
 
+// The test has two phases against an unthrottled autosave loop.
+//
+// The racy phase fires 80 GetFlow+Publish pairs while the loop saves as fast as
+// it can. Every Publish must return nil or ErrRevisionConflict, as must every
+// SaveDraft. How many of these publishes win is up to the scheduler: the loop can
+// bump the draft revision between every GetFlow and Publish, so the racy phase
+// alone cannot promise a success, and a real editor saves debounced anyway.
+//
+// The handshake round makes the success deterministic, without sleeps. The main
+// goroutine asks the loop to park (pause); the loop answers with one last save,
+// so the draft is fresh and was never published, signals that it is parked and
+// waits for resume. While it is parked, but still alive and mid-loop, the main
+// goroutine runs one GetFlow+Publish pair, which no writer can interleave with.
+// That Publish must succeed. Afterwards the loop is released and stopped, and the
+// version bookkeeping must match the live revision.
 func TestStorePublishRunsAgainstAnAutosaveLoop(t *testing.T) {
 	s := openTestStore(t)
 	ctx := context.Background()
@@ -139,30 +154,66 @@ func TestStorePublishRunsAgainstAnAutosaveLoop(t *testing.T) {
 	if _, err := s.CreateFlow(ctx, f, "", storeNow); err != nil {
 		t.Fatal(err)
 	}
-	var autosaveErr error // written by the goroutine, read after wg.Wait
+	var autosaveErr error // written by the goroutine before it closes done, read only after <-done
 	stop := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(1)
+	done := make(chan struct{})
+	pause := make(chan struct{})  // main -> loop: park after a fresh save
+	parked := make(chan struct{}) // loop -> main: the fresh save is in, the loop is waiting
+	resume := make(chan struct{}) // main -> loop: carry on
+	var stopOnce sync.Once
+	stopLoop := func() {
+		stopOnce.Do(func() { close(stop) })
+		<-done
+	}
+	// Also stops the loop when a Fatal below ends the test early. Registered after
+	// openTestStore, so it runs before the store is closed.
+	t.Cleanup(stopLoop)
+	autosaveFailed := func() { t.Fatalf("SaveDraft = %v, want nil or ErrRevisionConflict", autosaveErr) }
+
 	go func() {
-		defer wg.Done()
+		defer close(done)
 		rev := 1
+		save := func() bool {
+			cur, err := s.SaveDraft(ctx, f.ID, f, rev, storeNow)
+			switch {
+			case err == nil, errors.Is(err, ErrRevisionConflict):
+				rev = cur
+				return true
+			default:
+				autosaveErr = err
+				return false
+			}
+		}
 		for {
 			select {
 			case <-stop:
 				return
 			default:
 			}
-			cur, err := s.SaveDraft(ctx, f.ID, f, rev, storeNow)
-			switch {
-			case err == nil, errors.Is(err, ErrRevisionConflict):
-				rev = cur
-			default:
-				autosaveErr = err
+			if !save() {
 				return
+			}
+			select {
+			case <-pause:
+				if !save() {
+					return
+				}
+				select {
+				case parked <- struct{}{}:
+				case <-stop:
+					return
+				}
+				select {
+				case <-resume:
+				case <-stop:
+					return
+				}
+			default:
 			}
 		}
 	}()
 
+	// Racy phase: properties only, no promise that a publish wins.
 	published := 0
 	for i := 0; i < 80; i++ {
 		rec, err := s.GetFlow(ctx, f.ID)
@@ -177,10 +228,39 @@ func TestStorePublishRunsAgainstAnAutosaveLoop(t *testing.T) {
 			break
 		}
 	}
-	close(stop)
-	wg.Wait()
+	t.Logf("racy phase: %d of 80 publishes won against the autosave loop", published)
+
+	// Handshake round: one Publish next to a parked, still running autosave loop.
+	select {
+	case pause <- struct{}{}:
+	case <-done:
+		autosaveFailed()
+	}
+	select {
+	case <-parked:
+	case <-done:
+		autosaveFailed()
+	}
+	before, err := s.GetFlow(ctx, f.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !before.HasUnpublishedChanges() {
+		t.Fatalf("the parked loop's last save left no unpublished draft: %+v", before)
+	}
+	got, publishErr := s.Publish(ctx, f.ID, before.DraftRevision, storeNow)
+	close(resume)
+	if publishErr != nil {
+		t.Fatalf("Publish while the autosave loop is parked = %v, want nil", publishErr)
+	}
+	if got.LiveRevision != before.LiveRevision+1 || got.PublishedDraftRevision != before.DraftRevision {
+		t.Fatalf("handshake Publish: live revision %d (was %d), published draft revision %d, want %d and %d",
+			got.LiveRevision, before.LiveRevision, got.PublishedDraftRevision, before.LiveRevision+1, before.DraftRevision)
+	}
+
+	stopLoop()
 	if autosaveErr != nil {
-		t.Fatalf("SaveDraft = %v, want nil or ErrRevisionConflict", autosaveErr)
+		autosaveFailed()
 	}
 	rec, err := s.GetFlow(ctx, f.ID)
 	if err != nil {
@@ -191,8 +271,8 @@ func TestStorePublishRunsAgainstAnAutosaveLoop(t *testing.T) {
 	if want > maxStoredVersions {
 		want = maxStoredVersions
 	}
-	if published == 0 || count != want || highest != rec.LiveRevision {
-		t.Fatalf("published %d times; live revision %d, versions %d (highest %d)", published, rec.LiveRevision, count, highest)
+	if rec.LiveRevision < got.LiveRevision || count != want || highest != rec.LiveRevision {
+		t.Fatalf("handshake published revision %d; live revision %d, versions %d (highest %d)", got.LiveRevision, rec.LiveRevision, count, highest)
 	}
 }
 
