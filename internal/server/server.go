@@ -1719,6 +1719,10 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		}
 		s.httpRequests.Wait()
 
+		// Flow runs use tools, MQTT, mail, MCP, the sandbox, the mission history and the
+		// planner. Cancel and join them before any of those stop (see shutdownFlows).
+		s.shutdownFlows(ctx)
+
 		// Relay runs can own network, database and tool activity. Cancel and
 		// join them before shutting down any of their dependencies.
 		if s.MQTTController != nil {
@@ -1752,8 +1756,6 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		tools.ShutdownSandboxManager()
 		// Shut down Looper if running
 		shutdownLooper()
-		// Flow runs use tools, the mission history and the planner; stop them before the databases close.
-		s.shutdownFlows(ctx)
 		// Shut down Discord bot
 		discord.StopBot(s.Logger)
 		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)

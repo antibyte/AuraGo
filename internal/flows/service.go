@@ -176,6 +176,10 @@ func (s *Service) Store() *Store { return s.store }
 // Runner returns the run scheduler.
 func (s *Service) Runner() *Runner { return s.runner }
 
+// Location returns the zone triggers are bound in and yearly timers recur in
+// (Services.Loc).
+func (s *Service) Location() *time.Location { return s.services.Loc() }
+
 // Start marks runs interrupted by a restart, arms the timers and starts the retention loop.
 // Runs started after NewService (for example by Mission Control during startup) are kept,
 // so Start may be called after MissionManagerV2.Start.

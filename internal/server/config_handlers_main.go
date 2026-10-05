@@ -795,6 +795,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Game Maker service")
 			}
+			if flowsRuntimeConfigChanged(oldCfg.Flows, newCfg.Flows) {
+				needsRestart = true
+				restartReasons = append(restartReasons, "EasyDrag flows")
+			}
 			if embeddingsConfigChanged(oldCfg, *newCfg) {
 				embeddingsChanged = true
 				needsRestart = true

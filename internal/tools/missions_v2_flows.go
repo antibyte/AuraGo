@@ -624,14 +624,39 @@ func (m *MissionManagerV2) shouldFireFlowSpecLocked(missionID string, spec FlowT
 	return true
 }
 
+// startFlowRun starts a flow run through hooks. Callers do not hold m.mu.
 func (m *MissionManagerV2) startFlowRun(hooks FlowHooks, missionID, nodeID, triggerType, data string) {
 	if hooks == nil {
 		slog.Warn("[MissionV2] Flow trigger fired but flows are not available", "mission_id", missionID, "node", nodeID)
+		m.mu.Lock()
+		m.noteFlowsUnavailableLocked(missionID)
+		m.mu.Unlock()
 		return
 	}
 	if err := hooks.StartFlowRun(missionID, nodeID, triggerType, data); err != nil {
 		slog.Warn("[MissionV2] Flow trigger could not start a run", "mission_id", missionID, "node", nodeID,
 			"trigger", triggerType, "error", err)
+	}
+}
+
+// flowsUnavailableOutput is the LastOutput of a flow mission whose trigger fired while no
+// flow service is wired in: flows.enabled is off, or the flow store could not be opened.
+const flowsUnavailableOutput = "EasyDrag flows are not available (switched off, or their store could not be opened); the flow did not run"
+
+// noteFlowsUnavailableLocked shows on a flow mission that a trigger fired while flows are
+// not available: LastResult "error" with flowsUnavailableOutput. Nothing else changes (no
+// run is counted and no dependent fires). It saves only when the mission did not show that
+// already, so a trigger that keeps firing does not rewrite the missions file every time.
+// Caller holds m.mu for writing.
+func (m *MissionManagerV2) noteFlowsUnavailableLocked(missionID string) {
+	mission, ok := m.missions[missionID]
+	if !ok || !isFlowMission(mission) ||
+		(mission.LastResult == MissionResultError && mission.LastOutput == flowsUnavailableOutput) {
+		return
+	}
+	mission.LastResult, mission.LastOutput = MissionResultError, flowsUnavailableOutput
+	if err := m.save(); err != nil {
+		slog.Warn("[MissionV2] Failed to persist the flow mission state", "mission_id", missionID, "error", err)
 	}
 }
 
@@ -681,8 +706,10 @@ type flowRunRequest struct {
 // notifyFlowsLocked starts the runs of enabled flows whose specs match an event. Caller holds
 // m.mu, so the runs go to the event dispatcher (the hooks call back into the manager). The
 // dispatcher keeps event order; when its queue is full, the runs of the event are dropped.
+// Without flow hooks no run starts and every matching flow mission shows why
+// (noteFlowsUnavailableLocked).
 func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, data any) {
-	if m.flowHooks == nil || m.ctx.Err() != nil {
+	if m.ctx.Err() != nil {
 		return
 	}
 	type start struct{ missionID, nodeID string }
@@ -699,6 +726,13 @@ func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, 
 		}
 	}
 	if len(starts) == 0 {
+		return
+	}
+	if m.flowHooks == nil {
+		for _, s := range starts {
+			m.noteFlowsUnavailableLocked(s.missionID)
+		}
+		slog.Warn("[MissionV2] Flow trigger fired but flows are not available", "trigger", string(trigger), "runs", len(starts))
 		return
 	}
 	raw := ""
