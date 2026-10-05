@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"mime"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -107,25 +108,48 @@ func readEmailAttachmentData(r io.Reader, size, remaining int64) ([]byte, error)
 	return buf.Bytes(), nil
 }
 
+// Limits that keep an attachment's Content-Type one valid header line.
+const (
+	// emailMaxMediaTypeNameLen is the RFC 6838 limit for a type and for a subtype name.
+	emailMaxMediaTypeNameLen = 127
+	// emailMaxCharsetLen is the length limit of IANA charset names.
+	emailMaxCharsetLen = 40
+	// emailMaxHeaderLineLen is the RFC 5322 limit for a line, without its CRLF.
+	emailMaxHeaderLineLen = 998
+)
+
+// emailCharsetPattern matches the charset names an attachment keeps (utf-8, iso-8859-1,
+// windows-1252, shift_jis, …); they need no quoting.
+var emailCharsetPattern = regexp.MustCompile(`^[A-Za-z0-9._:+-]+$`)
+
 // emailAttachmentHeaders returns the values of the Content-Type and Content-Disposition
-// headers of an attachment part. Both are always one line that names the attachment:
+// headers of an attachment part. Both are always one valid line that names the attachment:
 //   - The name is emailAttachmentName(a.Name). mime.FormatMediaType quotes it, or encodes it
 //     per RFC 2231 when it holds non-ASCII characters.
-//   - The content type keeps its parameters: mime.TypeByExtension gives text types a
-//     charset, a form mime.FormatMediaType cannot take as type.
-//   - A type that does not parse, has no subtype, or is composite (multipart/*, message/*,
-//     which must not be base64-encoded) is sent as application/octet-stream.
+//   - Of the caller's content type only the type and a plain charset of at most 40
+//     characters are kept; mime.TypeByExtension gives text types such a charset, a form
+//     mime.FormatMediaType cannot take as type. Other parameters are dropped.
+//   - A type that does not parse, has no subtype, has a type or subtype name over the 127
+//     characters RFC 6838 allows, or is composite (multipart/*, message/*, which must not be
+//     base64-encoded) is sent as application/octet-stream. So is any type whose header line
+//     would still pass 998 characters.
 //   - Should mime.FormatMediaType still give no value, both headers use
 //     emailAttachmentFallbackName.
 func emailAttachmentHeaders(a EmailAttachment) (contentType, disposition string) {
 	name := emailAttachmentName(a.Name)
-	mediaType, params, err := mime.ParseMediaType(a.ContentType)
-	if err != nil || !strings.Contains(mediaType, "/") ||
-		strings.HasPrefix(mediaType, "multipart/") || strings.HasPrefix(mediaType, "message/") {
-		mediaType, params = "application/octet-stream", map[string]string{}
+	params := map[string]string{"name": name}
+	mediaType, original, err := mime.ParseMediaType(a.ContentType)
+	major, sub, hasSub := strings.Cut(mediaType, "/")
+	if err != nil || !hasSub || len(major) > emailMaxMediaTypeNameLen || len(sub) > emailMaxMediaTypeNameLen ||
+		major == "multipart" || major == "message" {
+		mediaType = "application/octet-stream"
+	} else if charset := original["charset"]; len(charset) <= emailMaxCharsetLen && emailCharsetPattern.MatchString(charset) {
+		params["charset"] = charset
 	}
-	params["name"] = name
 	contentType = mime.FormatMediaType(mediaType, params)
+	if len("Content-Type: ")+len(contentType) > emailMaxHeaderLineLen {
+		contentType = mime.FormatMediaType("application/octet-stream", map[string]string{"name": name})
+	}
 	disposition = mime.FormatMediaType("attachment", map[string]string{"filename": name})
 	if contentType == "" || disposition == "" {
 		fallback := emailAttachmentFallbackName(name)
@@ -136,16 +160,17 @@ func emailAttachmentHeaders(a EmailAttachment) (contentType, disposition string)
 }
 
 // emailAttachmentName is the name an attachment is sent under: valid UTF-8, every control
-// character (CR and LF included) replaced by "_", and at most emailMaxAttachmentNameBytes
-// bytes, cut before a short extension so the extension survives. An empty name, "." and
-// ".." become "attachment".
+// character (CR and LF included) and every bidi control (such as U+202E, which makes
+// "rechnung\u202Efdp.exe" display as "rechnungexe.pdf") replaced by "_", and at most
+// emailMaxAttachmentNameBytes bytes, cut before a short extension so the extension survives.
+// An empty name, "." and ".." become "attachment".
 func emailAttachmentName(name string) string {
 	name = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) || unicode.Is(unicode.Bidi_Control, r) {
 			return '_'
 		}
 		return r
-	}, strings.ToValidUTF8(name, "�"))
+	}, strings.ToValidUTF8(name, "\uFFFD"))
 	name = strings.TrimSpace(name)
 	if name == "" || name == "." || name == ".." {
 		return "attachment"
@@ -190,6 +215,12 @@ func sendEmailWithAttachments(smtpHost string, smtpPort int, username, password,
 	if from == "" {
 		from = username
 	}
+	if _, err := checkEmailEnvelope(from, to); err != nil {
+		return err
+	}
+	if err := checkEmailAttachmentLimits(attachments); err != nil {
+		return err
+	}
 	msg := buildEmailMessage(from, to, subject, body, time.Now(), attachments, newEmailBoundary())
 	if err := deliverSMTP(smtpHost, smtpPort, username, password, from, to, msg, implicitTLS); err != nil {
 		return err
@@ -201,22 +232,46 @@ func sendEmailWithAttachments(smtpHost string, smtpPort int, username, password,
 	return nil
 }
 
+// checkEmailAttachmentLimits applies the limits of LoadEmailAttachments to attachments that
+// were built some other way: at most emailMaxAttachments files and emailMaxAttachmentBytes
+// together.
+func checkEmailAttachmentLimits(attachments []EmailAttachment) error {
+	if len(attachments) > emailMaxAttachments {
+		return fmt.Errorf("at most %d attachments are allowed", emailMaxAttachments)
+	}
+	total := 0
+	for _, a := range attachments {
+		total += len(a.Data)
+		if total > emailMaxAttachmentBytes {
+			return errEmailAttachmentsTooLarge
+		}
+	}
+	return nil
+}
+
 func newEmailBoundary() string {
 	buf := make([]byte, 12)
 	_, _ = rand.Read(buf)
 	return "aurago-" + hex.EncodeToString(buf)
 }
 
-// writeBase64Lines writes data as base64 in lines of at most 76 characters (RFC 2045).
+// writeBase64Lines writes data as base64 in lines of at most 76 characters (RFC 2045). It
+// encodes 57 input bytes per line through a stack buffer, so it allocates nothing beyond b;
+// 57 is a multiple of 3, so the lines are the ones the whole encoding cut every 76
+// characters would give.
 func writeBase64Lines(b *strings.Builder, data []byte) {
-	encoded := base64.StdEncoding.EncodeToString(data)
-	for len(encoded) > 76 {
-		b.WriteString(encoded[:76])
-		b.WriteString("\r\n")
-		encoded = encoded[76:]
+	var line [78]byte
+	for len(data) > 0 {
+		n := min(57, len(data))
+		enc := base64.StdEncoding.EncodedLen(n)
+		base64.StdEncoding.Encode(line[:enc], data[:n])
+		line[enc], line[enc+1] = '\r', '\n'
+		b.Write(line[:enc+2])
+		data = data[n:]
 	}
-	if encoded != "" {
-		b.WriteString(encoded)
-		b.WriteString("\r\n")
-	}
+}
+
+// base64LinesLen is the number of bytes writeBase64Lines writes for n bytes of data.
+func base64LinesLen(n int) int {
+	return base64.StdEncoding.EncodedLen(n) + 2*((n+56)/57)
 }

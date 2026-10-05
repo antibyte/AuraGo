@@ -546,6 +546,9 @@ func SendEmail(smtpHost string, smtpPort int, username, password, from, to, subj
 	if from == "" {
 		from = username
 	}
+	if _, err := checkEmailEnvelope(from, to); err != nil {
+		return err
+	}
 	msg := buildEmailMessage(from, to, subject, body, time.Now(), nil, "")
 	if err := deliverSMTP(smtpHost, smtpPort, username, password, from, to, msg, false); err != nil {
 		return err
@@ -561,6 +564,9 @@ func SendEmailTLS(smtpHost string, smtpPort int, username, password, from, to, s
 	if from == "" {
 		from = username
 	}
+	if _, err := checkEmailEnvelope(from, to); err != nil {
+		return err
+	}
 	msg := buildEmailMessage(from, to, subject, body, time.Now(), nil, "")
 	if err := deliverSMTP(smtpHost, smtpPort, username, password, from, to, msg, true); err != nil {
 		return err
@@ -571,8 +577,22 @@ func SendEmailTLS(smtpHost string, smtpPort int, username, password, from, to, s
 
 // buildEmailMessage renders an RFC 5322 message. Without attachments it is the plain
 // text/plain message AuraGo always sent; with attachments it is multipart/mixed.
+//
+// The body goes through normalizeEmailLineEndings, so a bare CR or LF in it becomes CRLF.
+// That changes the bytes on the wire only for a body with a bare CR (the SMTP data writer
+// already turned a bare LF into CRLF); every other message is the one AuraGo always sent.
+// The builder is sized up front, so a message with attachments is allocated once.
 func buildEmailMessage(from, to, subject, body string, now time.Time, attachments []EmailAttachment, boundary string) string {
+	body = normalizeEmailLineEndings(body)
+	headers := make([][2]string, len(attachments))
+	size := len(from) + len(to) + base64.StdEncoding.EncodedLen(len(subject)) + len(body) + 3*len(boundary) + 512
+	for i, a := range attachments {
+		contentType, disposition := emailAttachmentHeaders(a)
+		headers[i] = [2]string{contentType, disposition}
+		size += len(boundary) + len(contentType) + len(disposition) + 128 + base64LinesLen(len(a.Data))
+	}
 	var msg strings.Builder
+	msg.Grow(size)
 	msg.WriteString(fmt.Sprintf("From: %s\r\n", from))
 	msg.WriteString(fmt.Sprintf("To: %s\r\n", to))
 	msg.WriteString(fmt.Sprintf("Subject: =?UTF-8?B?%s?=\r\n", base64.StdEncoding.EncodeToString([]byte(subject))))
@@ -591,16 +611,49 @@ func buildEmailMessage(from, to, subject, body string, now time.Time, attachment
 	msg.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
 	msg.WriteString(body)
 	msg.WriteString("\r\n")
-	for _, a := range attachments {
-		contentType, disposition := emailAttachmentHeaders(a)
+	for i, a := range attachments {
 		msg.WriteString("--" + boundary + "\r\n")
-		msg.WriteString("Content-Type: " + contentType + "\r\n")
-		msg.WriteString("Content-Disposition: " + disposition + "\r\n")
+		msg.WriteString("Content-Type: " + headers[i][0] + "\r\n")
+		msg.WriteString("Content-Disposition: " + headers[i][1] + "\r\n")
 		msg.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
 		writeBase64Lines(&msg, a.Data)
 	}
 	msg.WriteString("--" + boundary + "--\r\n")
 	return msg.String()
+}
+
+// normalizeEmailLineEndings turns every bare CR and every bare LF of body into CRLF. The SMTP
+// data writer turns a bare LF into CRLF itself, but it passes a bare CR on, and it does not
+// dot-stuff a line that starts after one: an untrusted body with "\r.\r\n" could end the DATA
+// early for a server that also takes a bare CR as line end, and smuggle a second message
+// after it. A body without bare line ends is returned as it is.
+func normalizeEmailLineEndings(body string) string {
+	var b strings.Builder
+	start := 0 // body[start:i] has not been copied to b yet
+	for i := 0; i < len(body); i++ {
+		switch body[i] {
+		case '\r':
+			if i+1 < len(body) && body[i+1] == '\n' {
+				i++
+				continue
+			}
+		case '\n':
+			// A LF that follows a CR was skipped above, so this one is bare.
+		default:
+			continue
+		}
+		if start == 0 {
+			b.Grow(len(body) + 64)
+		}
+		b.WriteString(body[start:i])
+		b.WriteString("\r\n")
+		start = i + 1
+	}
+	if start == 0 {
+		return body
+	}
+	b.WriteString(body[start:])
+	return b.String()
 }
 
 // smtpRootCAs are the roots deliverSMTP verifies the server certificate against. nil, the
@@ -610,22 +663,35 @@ var smtpRootCAs *x509.CertPool
 // smtpMaxEchoRunes bounds how much of a recipient or subject an error or log line repeats.
 const smtpMaxEchoRunes = 200
 
-// The deadline of one SMTP session (see smtpSessionTimeout). Variables, so tests can lower
+// The deadlines of one SMTP session (see smtpSessionTimeout). Variables, so tests can lower
 // them.
 var (
 	smtpSessionBaseTimeout     = 2 * time.Minute
 	smtpSessionTimeoutPerChunk = time.Minute
+	// smtpFinalReplyTimeout is how long the server may take to accept the message after the
+	// final dot: RFC 5321 (4.5.3.2.6) asks clients to wait 10 minutes for that reply.
+	smtpFinalReplyTimeout = 10 * time.Minute
+	// smtpQuitTimeout bounds QUIT, which comes after the server accepted the message.
+	smtpQuitTimeout = 10 * time.Second
 )
 
 // smtpSessionTimeoutChunkBytes is the message size that earns one more smtpSessionTimeoutPerChunk.
 const smtpSessionTimeoutChunkBytes = 5 << 20
 
-// smtpSessionTimeout is how long a whole SMTP session may take after the dial, from the
-// greeting to QUIT, for a message of messageBytes: two minutes plus one minute for every
-// full 5 MiB. A server that stops answering mid-session then fails the send instead of
-// blocking it for ever. A plain message gets two minutes; a message at the attachment limit
-// (20 MiB, about 27 MiB in base64) gets seven, which still lets a link of about 65 KB/s
+// smtpWriteChunkBytes is the size of the buffer writeSMTPData copies a message through.
+const smtpWriteChunkBytes = 32 << 10
+
+// smtpSessionTimeout is how long an SMTP session may take after the dial, from the greeting
+// to the end of the message data, for a message of messageBytes: two minutes plus one minute
+// for every full 5 MiB. A server that stops answering mid-session then fails the send instead
+// of blocking it for ever. A plain message gets two minutes; a message at the attachment
+// limit (20 MiB, about 27 MiB in base64) gets seven, which still lets a link of about 65 KB/s
 // deliver it.
+//
+// Two waits follow with their own deadlines: up to smtpFinalReplyTimeout (10 minutes) for
+// the server to accept the message after the final dot, then up to smtpQuitTimeout for QUIT.
+// Closing a TLS connection sends a close_notify alert with a write deadline of its own, so a
+// failing TLS session can return up to 5 seconds after these deadlines.
 func smtpSessionTimeout(messageBytes int) time.Duration {
 	return smtpSessionBaseTimeout + time.Duration(messageBytes/smtpSessionTimeoutChunkBytes)*smtpSessionTimeoutPerChunk
 }
@@ -656,10 +722,13 @@ func checkEmailEnvelope(from, to string) ([]string, error) {
 }
 
 // deliverSMTP sends a rendered message over STARTTLS (implicitTLS=false) or implicit TLS.
-// It first checks from and to with checkEmailEnvelope, before any connection, so every send
-// path refuses header injection. The whole session after the dial is bounded by
-// smtpSessionTimeout. The SMTP error texts are the ones SendEmail and SendEmailTLS always
-// returned, except that a refused recipient is repeated with at most smtpMaxEchoRunes runes.
+// It checks from and to with checkEmailEnvelope before any connection; the senders check
+// them before building the message too, and this check keeps every path to the wire
+// covered. The session is bounded by smtpSessionTimeout and the waits it describes. Once the
+// server has accepted the message, the send counts as done: a failing QUIT no longer turns
+// it into an error, which would make a retry send the message twice. The SMTP error texts
+// are the ones SendEmail and SendEmailTLS always returned, except that a refused recipient
+// is repeated with at most smtpMaxEchoRunes runes.
 func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, message string, implicitTLS bool) error {
 	recipients, err := checkEmailEnvelope(from, to)
 	if err != nil {
@@ -668,6 +737,10 @@ func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, me
 	addr := net.JoinHostPort(smtpHost, fmt.Sprintf("%d", smtpPort))
 	timeout := smtpSessionTimeout(len(message))
 	label := "SMTP"
+	// conn carries the deadlines. On the STARTTLS path it is the plain connection, and its
+	// deadline also bounds the session after STARTTLS: the TLS layer reads and writes
+	// through it.
+	var conn net.Conn
 	var client *smtp.Client
 	if implicitTLS {
 		label = "SMTPS"
@@ -675,7 +748,8 @@ func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, me
 		if err != nil {
 			return fmt.Errorf("SMTPS TLS dial failed: %w", err)
 		}
-		_ = tlsConn.SetDeadline(time.Now().Add(timeout))
+		conn = tlsConn
+		_ = conn.SetDeadline(time.Now().Add(timeout))
 		c, err := smtp.NewClient(tlsConn, smtpHost)
 		if err != nil {
 			tlsConn.Close()
@@ -683,16 +757,15 @@ func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, me
 		}
 		client = c
 	} else {
-		conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
+		plainConn, err := net.DialTimeout("tcp", addr, 15*time.Second)
 		if err != nil {
 			return fmt.Errorf("SMTP connection failed: %w", err)
 		}
-		// Set on the plain connection, the deadline also bounds the session after STARTTLS:
-		// the TLS layer reads and writes through this connection.
+		conn = plainConn
 		_ = conn.SetDeadline(time.Now().Add(timeout))
-		c, err := smtp.NewClient(conn, smtpHost)
+		c, err := smtp.NewClient(plainConn, smtpHost)
 		if err != nil {
-			conn.Close()
+			plainConn.Close()
 			return fmt.Errorf("SMTP client creation failed: %w", err)
 		}
 		client = c
@@ -723,13 +796,34 @@ func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, me
 	if err != nil {
 		return fmt.Errorf("%s DATA failed: %w", label, err)
 	}
-	if _, err := io.WriteString(w, message); err != nil {
+	if err := writeSMTPData(w, message); err != nil {
 		return fmt.Errorf("%s write failed: %w", label, err)
 	}
+	// Close sends the final dot and waits for the server to accept the message.
+	_ = conn.SetDeadline(time.Now().Add(smtpFinalReplyTimeout))
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("%s close failed: %w", label, err)
 	}
-	return client.Quit()
+	// The server has accepted the message. QUIT is a courtesy: its failure is ignored.
+	_ = conn.SetDeadline(time.Now().Add(smtpQuitTimeout))
+	_ = client.Quit()
+	return nil
+}
+
+// writeSMTPData writes message to the SMTP data writer in chunks through one reused buffer.
+// The data writer has no WriteString, so io.WriteString, and io.Copy from a strings.Reader,
+// would copy the whole message (up to about 27 MiB) once more. The writer keeps its
+// line-ending and dot-stuffing state across Write calls, so a chunk may end mid-line.
+func writeSMTPData(w io.Writer, message string) error {
+	buf := make([]byte, min(len(message), smtpWriteChunkBytes))
+	for len(message) > 0 {
+		n := copy(buf, message)
+		if _, err := w.Write(buf[:n]); err != nil {
+			return err
+		}
+		message = message[n:]
+	}
+	return nil
 }
 
 // ── Multipart helper ────────────────────────────────────────────────────────

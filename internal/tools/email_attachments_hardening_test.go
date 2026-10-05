@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -11,14 +12,18 @@ import (
 	"io/fs"
 	"log/slog"
 	"maps"
+	"math/rand/v2"
 	"mime"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/mail"
+	"net/textproto"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -32,11 +37,13 @@ import (
 
 // ── Fake SMTP server ────────────────────────────────────────────────────────
 
-// c05Mail is one message the fake SMTP server accepted.
+// c05Mail is one message the fake SMTP server received.
 type c05Mail struct {
 	from  string   // the MAIL command line
 	rcpts []string // the RCPT command lines
-	data  string   // the DATA content as sent, dot-unstuffed, without the final ".\r\n"
+	raw   string   // the DATA lines as they came over the wire, without the final ".\r\n"
+	data  string   // the same, dot-unstuffed
+	size  int      // the byte count of raw, also when the server discards the data
 }
 
 // c05FakeSMTP is a minimal SMTP server on 127.0.0.1. It offers STARTTLS on a plain
@@ -47,9 +54,15 @@ type c05FakeSMTP struct {
 	implicitTLS bool
 	tlsConfig   *tls.Config
 	// hangAt makes the server stop answering: "greeting" right after the connection (after
-	// the handshake under implicit TLS), or at the first command with this verb ("MAIL").
+	// the handshake under implicit TLS), "DOT" after the final dot of the data (the message
+	// is recorded, the reply never comes), or at the first command with this verb ("MAIL").
 	hangAt     string
 	rejectRcpt bool
+	// finalReplyDelay delays the reply to the final dot.
+	finalReplyDelay time.Duration
+	// discardData counts the data instead of keeping it, so the server allocates nothing
+	// per message.
+	discardData bool
 
 	ln   net.Listener
 	done chan struct{}
@@ -130,6 +143,8 @@ func (s *c05FakeSMTP) hang() {
 
 func (s *c05FakeSMTP) serve(conn net.Conn) {
 	defer conn.Close()
+	// A connection the client leaks fails here instead of holding the test until its timeout.
+	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
 	if tc, ok := conn.(*tls.Conn); ok {
 		if err := tc.Handshake(); err != nil {
 			return
@@ -191,21 +206,23 @@ func (s *c05FakeSMTP) serve(conn net.Conn) {
 			reply("250 ok")
 		case "DATA":
 			reply("354 end with .")
-			var data strings.Builder
-			for {
-				l, err := r.ReadString('\n')
-				if err != nil {
-					return
-				}
-				if l == ".\r\n" {
-					break
-				}
-				data.WriteString(strings.TrimPrefix(l, "."))
+			if cur.raw, cur.data, cur.size, err = c05ReadData(r, !s.discardData); err != nil {
+				return
 			}
-			cur.data = data.String()
 			s.mu.Lock()
 			s.mails = append(s.mails, cur)
 			s.mu.Unlock()
+			if s.hangAt == "DOT" {
+				s.hang()
+				return
+			}
+			if s.finalReplyDelay > 0 {
+				select {
+				case <-time.After(s.finalReplyDelay):
+				case <-s.done:
+					return
+				}
+			}
 			reply("250 queued")
 		case "QUIT":
 			reply("221 bye")
@@ -214,6 +231,66 @@ func (s *c05FakeSMTP) serve(conn net.Conn) {
 			reply("250 ok")
 		}
 	}
+}
+
+// c05ReadData reads SMTP DATA lines up to the final ".\r\n". It returns them as they came
+// (raw), dot-unstuffed (data), and their byte count. With keep false it only counts, and
+// allocates nothing.
+func c05ReadData(r *bufio.Reader, keep bool) (raw, data string, size int, err error) {
+	var rawB, dataB strings.Builder
+	lineStart := true
+	for {
+		// A line longer than the reader's buffer comes in several chunks (ErrBufferFull).
+		chunk, err := r.ReadSlice('\n')
+		if err != nil && !errors.Is(err, bufio.ErrBufferFull) {
+			return "", "", 0, err
+		}
+		complete := err == nil
+		if lineStart && complete && string(chunk) == ".\r\n" {
+			return rawB.String(), dataB.String(), size, nil
+		}
+		size += len(chunk)
+		if keep {
+			rawB.Write(chunk)
+			if lineStart && chunk[0] == '.' {
+				chunk = chunk[1:]
+			}
+			dataB.Write(chunk)
+		}
+		lineStart = complete
+	}
+}
+
+// c05WireData is what the fake server records as data when the SMTP data writer sends msg.
+func c05WireData(t *testing.T, msg string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	bw := bufio.NewWriter(&buf)
+	w := textproto.NewWriter(bw).DotWriter()
+	if _, err := io.WriteString(w, msg); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := bw.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	_, data, _, err := c05ReadData(bufio.NewReader(&buf), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+// c05Allocated returns the bytes the process allocated while fn ran.
+func c05Allocated(fn func()) uint64 {
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	fn()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
 }
 
 func (s *c05FakeSMTP) snapshot() (accepted, hung int, mails []c05Mail) {
@@ -444,7 +521,7 @@ func TestBuildEmailMessageAttachmentHeadersAreValidForAnyNameAndType(t *testing.
 		{"only controls", "\x00\x01", "application/pdf", "__", "application/pdf"},
 		{"tab", "a\tb.pdf", "application/pdf", "a_b.pdf", "application/pdf"},
 		{"quotes and backslash", "a \"b\" c\\d.pdf", "application/pdf", "a \"b\" c\\d.pdf", "application/pdf"},
-		{"invalid UTF-8", "\xff\xfe.pdf", "application/pdf", "�.pdf", "application/pdf"},
+		{"invalid UTF-8", "\xff\xfe.pdf", "application/pdf", "\uFFFD.pdf", "application/pdf"},
 		{"emoji", "Grüße 🎉.pdf", "application/pdf", "Grüße 🎉.pdf", "application/pdf"},
 		{"long name keeps extension", strings.Repeat("ä", 400) + ".pdf", "application/pdf", strings.Repeat("ä", 125) + ".pdf", "application/pdf"},
 		{"type with parameters", "notiz.txt", "text/plain; charset=utf-8", "notiz.txt", "text/plain"},
@@ -454,6 +531,16 @@ func TestBuildEmailMessageAttachmentHeadersAreValidForAnyNameAndType(t *testing.
 		{"not a type", "x.bin", "not a type", "x.bin", "application/octet-stream"},
 		{"empty type", "x.bin", "", "x.bin", "application/octet-stream"},
 		{"type with line break", "x.bin", "text/plain\r\nBcc: evil@example.com", "x.bin", "application/octet-stream"},
+		{"bidi override", "rechnung\u202Efdp.exe", "application/pdf", "rechnung_fdp.exe", "application/pdf"},
+		{"bidi isolate and mark", "a\u2066b\u200Fc.pdf", "application/pdf", "a_b_c.pdf", "application/pdf"},
+		{"2000-char subtype", "a.pdf", "application/" + strings.Repeat("b", 2000), "a.pdf", "application/octet-stream"},
+		{"2000-char type", "a.pdf", strings.Repeat("a", 2000) + "/pdf", "a.pdf", "application/octet-stream"},
+		{"2000-char parameter", "a.pdf", "application/pdf; x=" + strings.Repeat("a", 2000), "a.pdf", "application/pdf"},
+		{"2000-char charset", "a.txt", "text/plain; charset=" + strings.Repeat("u", 2000), "a.txt", "text/plain"},
+		{"longest type names", "a.pdf", strings.Repeat("a", 127) + "/" + strings.Repeat("b", 127), "a.pdf",
+			strings.Repeat("a", 127) + "/" + strings.Repeat("b", 127)},
+		{"longest type names and name", strings.Repeat("ä", 400) + ".pdf", strings.Repeat("a", 127) + "/" + strings.Repeat("b", 127),
+			strings.Repeat("ä", 125) + ".pdf", "application/octet-stream"},
 	}
 	for _, c := range cases {
 		t.Run(c.label, func(t *testing.T) {
@@ -469,6 +556,14 @@ func TestBuildEmailMessageAttachmentHeadersAreValidForAnyNameAndType(t *testing.
 			c05AssertHeaderKeys(t, part.header, "Content-Type", "Content-Disposition", "Content-Transfer-Encoding")
 			if part.mediaType != c.wantType || part.typeParams["name"] != c.wantName {
 				t.Fatalf("content type = %q %q", part.mediaType, part.typeParams)
+			}
+			for key := range part.typeParams {
+				if key != "name" && key != "charset" {
+					t.Fatalf("content type keeps parameter %q", key)
+				}
+			}
+			if charset := part.typeParams["charset"]; len(charset) > emailMaxCharsetLen {
+				t.Fatalf("content type keeps a %d-character charset", len(charset))
 			}
 			if part.disposition != "attachment" || part.dispParams["filename"] != c.wantName {
 				t.Fatalf("disposition = %q %q", part.disposition, part.dispParams)
@@ -717,5 +812,330 @@ func TestSendEmailPlainMessageIsUnchangedOnTheWire(t *testing.T) {
 				t.Fatalf("envelope from = %q", mails[0].from)
 			}
 		})
+	}
+}
+
+// ── Review round: memory ────────────────────────────────────────────────────
+
+// c05OldWriteBase64Lines is writeBase64Lines as it was before it streamed.
+func c05OldWriteBase64Lines(b *strings.Builder, data []byte) {
+	encoded := base64.StdEncoding.EncodeToString(data)
+	for len(encoded) > 76 {
+		b.WriteString(encoded[:76])
+		b.WriteString("\r\n")
+		encoded = encoded[76:]
+	}
+	if encoded != "" {
+		b.WriteString(encoded)
+		b.WriteString("\r\n")
+	}
+}
+
+func c05RandomBytes(seed uint64, n int) []byte {
+	rng := rand.New(rand.NewPCG(seed, seed+1))
+	data := make([]byte, n)
+	for i := range data {
+		data[i] = byte(rng.Uint32())
+	}
+	return data
+}
+
+func TestWriteBase64LinesMatchesTheOldOutput(t *testing.T) {
+	for _, size := range []int{0, 1, 2, 3, 56, 57, 58, 113, 114, 115, 1<<20 + 3} {
+		data := c05RandomBytes(uint64(size), size)
+		var got, want strings.Builder
+		writeBase64Lines(&got, data)
+		c05OldWriteBase64Lines(&want, data)
+		if got.String() != want.String() {
+			t.Fatalf("size %d: output differs from the old function", size)
+		}
+		if got.Len() != base64LinesLen(size) {
+			t.Fatalf("size %d: base64LinesLen = %d, written %d", size, base64LinesLen(size), got.Len())
+		}
+	}
+}
+
+func TestEmailSendOf20MiBAllocatesTheMessageAboutOnce(t *testing.T) {
+	attachments := []EmailAttachment{{Name: "a.bin", ContentType: "application/octet-stream", Data: c05RandomBytes(7, emailMaxAttachmentBytes)}}
+	encoded := base64LinesLen(emailMaxAttachmentBytes)
+	for _, implicitTLS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("implicitTLS=%v", implicitTLS), func(t *testing.T) {
+			srv := c05StartFakeSMTP(t, implicitTLS, func(s *c05FakeSMTP) { s.discardData = true })
+			send := SendEmailWithAttachments
+			if implicitTLS {
+				send = SendEmailTLSWithAttachments
+			}
+			var err error
+			allocated := c05Allocated(func() {
+				err = send(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "Bericht", "Siehe Anhang", attachments, c05Logger())
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, _, mails := srv.snapshot(); len(mails) != 1 || mails[0].size < encoded {
+				t.Fatalf("the message did not arrive whole: %+v", len(mails))
+			}
+			t.Logf("20 MiB attachment, %.1f MiB encoded: the send allocated %.1f MiB", float64(encoded)/(1<<20), float64(allocated)/(1<<20))
+			// The message itself is one allocation of about the encoded size; the old code
+			// allocated about 234 MiB.
+			if allocated > 2*uint64(encoded) {
+				t.Fatalf("the send allocated %.1f MiB, more than twice the %.1f MiB message", float64(allocated)/(1<<20), float64(encoded)/(1<<20))
+			}
+		})
+	}
+}
+
+func TestEmailRefusedEnvelopeBuildsNoMessage(t *testing.T) {
+	attachments := []EmailAttachment{{Name: "a.bin", ContentType: "application/octet-stream", Data: make([]byte, emailMaxAttachmentBytes)}}
+	body := strings.Repeat("x", 10<<20)
+	logger := c05Logger()
+	bad := "b@example.com\r\nBcc: evil@example.com"
+	sends := map[string]func() error{
+		"SendEmail": func() error {
+			return SendEmail("127.0.0.1", 1, "user", "pass", "a@example.com", bad, "s", body, logger)
+		},
+		"SendEmailTLS": func() error {
+			return SendEmailTLS("127.0.0.1", 1, "user", "pass", "a@example.com", bad, "s", body, logger)
+		},
+		"SendEmailWithAttachments": func() error {
+			return SendEmailWithAttachments("127.0.0.1", 1, "user", "pass", "a@example.com", bad, "s", "b", attachments, logger)
+		},
+		"SendEmailTLSWithAttachments": func() error {
+			return SendEmailTLSWithAttachments("127.0.0.1", 1, "user", "pass", "a@example.com", bad, "s", "b", attachments, logger)
+		},
+	}
+	for name, send := range sends {
+		var err error
+		allocated := c05Allocated(func() { err = send() })
+		if err == nil {
+			t.Fatalf("%s sent a refused recipient", name)
+		}
+		if allocated > 1<<20 {
+			t.Fatalf("%s allocated %.1f MiB for a refused recipient", name, float64(allocated)/(1<<20))
+		}
+	}
+}
+
+// ── Review round: end of the session ────────────────────────────────────────
+
+func TestDeliverSMTPTreatsAnAcceptedMessageAsSent(t *testing.T) {
+	previous := smtpQuitTimeout
+	smtpQuitTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { smtpQuitTimeout = previous })
+	for _, implicitTLS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("implicitTLS=%v", implicitTLS), func(t *testing.T) {
+			srv := c05StartFakeSMTP(t, implicitTLS, func(s *c05FakeSMTP) { s.hangAt = "QUIT" })
+			send := SendEmail
+			if implicitTLS {
+				send = SendEmailTLS
+			}
+			start := time.Now()
+			err := send(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "Betreff", "Text", c05Logger())
+			if err != nil {
+				t.Fatalf("a message the server accepted reported %v", err)
+			}
+			if elapsed := time.Since(start); elapsed > 10*time.Second {
+				t.Fatalf("QUIT held the send for %v", elapsed)
+			}
+			if _, hung, mails := srv.snapshot(); hung != 1 || len(mails) != 1 {
+				t.Fatalf("hung %d, %d messages", hung, len(mails))
+			}
+		})
+	}
+}
+
+func TestDeliverSMTPWaitsForTheFinalReplyOnItsOwnDeadline(t *testing.T) {
+	base, final := smtpSessionBaseTimeout, smtpFinalReplyTimeout
+	t.Cleanup(func() { smtpSessionBaseTimeout, smtpFinalReplyTimeout = base, final })
+
+	// A server that takes longer than the session deadline to accept the message is waited for.
+	smtpSessionBaseTimeout, smtpFinalReplyTimeout = 500*time.Millisecond, 10*time.Second
+	srv := c05StartFakeSMTP(t, true, func(s *c05FakeSMTP) { s.finalReplyDelay = time.Second })
+	if err := SendEmailTLS(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "Betreff", "Text", c05Logger()); err != nil {
+		t.Fatalf("a slow final reply failed the send: %v", err)
+	}
+
+	// A server that never accepts it fails the send after smtpFinalReplyTimeout, not after
+	// the longer session deadline.
+	smtpSessionBaseTimeout, smtpFinalReplyTimeout = 2*time.Minute, time.Second
+	for _, implicitTLS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("implicitTLS=%v", implicitTLS), func(t *testing.T) {
+			srv := c05StartFakeSMTP(t, implicitTLS, func(s *c05FakeSMTP) { s.hangAt = "DOT" })
+			send := SendEmail
+			if implicitTLS {
+				send = SendEmailTLS
+			}
+			start := time.Now()
+			err := send(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "Betreff", "Text", c05Logger())
+			if !errors.Is(err, os.ErrDeadlineExceeded) || !strings.Contains(err.Error(), "close failed") {
+				t.Fatalf("error = %v, want a deadline error at the final dot", err)
+			}
+			if elapsed := time.Since(start); elapsed > 15*time.Second {
+				t.Fatalf("the send took %v", elapsed)
+			}
+		})
+	}
+}
+
+// ── Review round: bare line ends ────────────────────────────────────────────
+
+func TestNormalizeEmailLineEndings(t *testing.T) {
+	for in, want := range map[string]string{
+		"":                      "",
+		"Text":                  "Text",
+		"a\r\nb\r\n":            "a\r\nb\r\n",
+		"a\nb":                  "a\r\nb",
+		"a\rb":                  "a\r\nb",
+		"\r":                    "\r\n",
+		"\n":                    "\r\n",
+		"\r\r\n":                "\r\n\r\n",
+		"\n\r":                  "\r\n\r\n",
+		"a\r.\r\nMAIL FROM:<x>": "a\r\n.\r\nMAIL FROM:<x>",
+		"x\r\n.\ry\n\rz":        "x\r\n.\r\ny\r\n\r\nz",
+		"ä\r\n🎉\r\x00\nend\r\n": "ä\r\n🎉\r\n\x00\r\nend\r\n",
+	} {
+		if got := normalizeEmailLineEndings(in); got != want {
+			t.Errorf("normalizeEmailLineEndings(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestEmailBodyBareCRCannotEndTheData(t *testing.T) {
+	body := "a\r.\r\nMAIL FROM:<x>"
+	plain := buildEmailMessage("a@example.com", "b@example.com", "s", body, emailTestTime, nil, "")
+	if !strings.HasSuffix(plain, "\r\n\r\na\r\n.\r\nMAIL FROM:<x>") {
+		t.Fatalf("plain message = %q", plain)
+	}
+	attachments := []EmailAttachment{{Name: "a.txt", ContentType: "text/plain", Data: []byte("x")}}
+	_, text, _ := c05ParseMessage(t, buildEmailMessage("a@example.com", "b@example.com", "s", "a\rb\nc", emailTestTime, attachments, "b0"))
+	if text != "a\r\nb\r\nc" {
+		t.Fatalf("text part = %q", text)
+	}
+	for _, implicitTLS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("implicitTLS=%v", implicitTLS), func(t *testing.T) {
+			srv := c05StartFakeSMTP(t, implicitTLS, nil)
+			send := SendEmail
+			if implicitTLS {
+				send = SendEmailTLS
+			}
+			if err := send(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "s", body, c05Logger()); err != nil {
+				t.Fatal(err)
+			}
+			_, _, mails := srv.snapshot()
+			if len(mails) != 1 {
+				t.Fatalf("%d messages arrived", len(mails))
+			}
+			// The dot line is dot-stuffed on the wire, and no bare CR is left.
+			if !strings.HasSuffix(mails[0].raw, "\r\n\r\na\r\n..\r\nMAIL FROM:<x>\r\n") || strings.Contains(mails[0].raw, "a\r.") {
+				t.Fatalf("wire data = %q", mails[0].raw)
+			}
+			if !strings.HasSuffix(mails[0].data, "\r\n\r\na\r\n.\r\nMAIL FROM:<x>\r\n") {
+				t.Fatalf("data = %q", mails[0].data)
+			}
+		})
+	}
+}
+
+// c05ReplaceBareCR turns only the bare CRs of s into CRLF: the one way the wire bytes of a
+// plain message differ from the old code. (A bare LF became CRLF on the wire before, too.)
+func c05ReplaceBareCR(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		b.WriteByte(s[i])
+		if s[i] == '\r' && (i+1 == len(s) || s[i+1] != '\n') {
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
+}
+
+var c05DateHeader = regexp.MustCompile(`(?m)^Date: ([^\r\n]*)\r\n`)
+
+func TestSendEmailPlainWireMatchesTheOldMessageExceptBareCR(t *testing.T) {
+	rng := rand.New(rand.NewPCG(1, 2))
+	alphabet := []string{"a", "ä", ".", "\r", "\n", "\r\n", " ", "-", "🎉", "\x00", "=", "?", "\t", "\xff"}
+	gen := func(n int) string {
+		var b strings.Builder
+		for range n {
+			b.WriteString(alphabet[rng.IntN(len(alphabet))])
+		}
+		return b.String()
+	}
+	for _, implicitTLS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("implicitTLS=%v", implicitTLS), func(t *testing.T) {
+			srv := c05StartFakeSMTP(t, implicitTLS, nil)
+			send := SendEmail
+			if implicitTLS {
+				send = SendEmailTLS
+			}
+			withoutBareCR := 0
+			for i := range 100 {
+				body := gen(rng.IntN(2000))
+				switch i % 10 {
+				case 0:
+					body = strings.Repeat("x", 5000) + "\n." + body
+				case 1:
+					body = strings.ReplaceAll(body, "\r", "")
+				}
+				subject := gen(rng.IntN(120))
+				from := []string{"", "a@example.com", "Jürgen <j@example.com>"}[rng.IntN(3)]
+				to := []string{"b@example.com", "b@example.com, c@example.com", " b@example.com ,c@example.com "}[rng.IntN(3)]
+				if err := send(srv.host, srv.port, "user", "pass", from, to, subject, body, c05Logger()); err != nil {
+					t.Fatal(err)
+				}
+				_, _, mails := srv.snapshot()
+				got := mails[len(mails)-1].data
+				match := c05DateHeader.FindStringSubmatch(got)
+				if match == nil {
+					t.Fatalf("case %d: no Date header", i)
+				}
+				sent, err := time.Parse(time.RFC1123Z, match[1])
+				if err != nil {
+					t.Fatal(err)
+				}
+				if from == "" {
+					from = "user"
+				}
+				want := c05WireData(t, c05LegacyPlainMessage(from, to, subject, c05ReplaceBareCR(body), sent))
+				if got != want {
+					t.Fatalf("case %d differs from the old message:\n%q\nwant\n%q", i, got, want)
+				}
+				if c05ReplaceBareCR(body) == body {
+					withoutBareCR++
+				}
+			}
+			if withoutBareCR < 10 {
+				t.Fatalf("only %d bodies without a bare CR were compared unchanged", withoutBareCR)
+			}
+		})
+	}
+}
+
+// ── Review round: attachments built outside LoadEmailAttachments ────────────
+
+func TestSendEmailWithAttachmentsEnforcesTheLimits(t *testing.T) {
+	srv := c05StartFakeSMTP(t, false, nil)
+	logger := c05Logger()
+	small := EmailAttachment{Name: "a.txt", ContentType: "text/plain", Data: []byte("x")}
+	tooMany := slices.Repeat([]EmailAttachment{small}, emailMaxAttachments+1)
+	if err := SendEmailWithAttachments(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "s", "b", tooMany, logger); err == nil {
+		t.Fatal("more than 10 attachments were sent")
+	}
+	tooLarge := []EmailAttachment{
+		{Name: "a.bin", ContentType: "application/octet-stream", Data: make([]byte, 10<<20)},
+		{Name: "b.bin", ContentType: "application/octet-stream", Data: make([]byte, 10<<20+1)},
+	}
+	if err := SendEmailTLSWithAttachments(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "s", "b", tooLarge, logger); !errors.Is(err, errEmailAttachmentsTooLarge) {
+		t.Fatalf("attachments over 20 MB together: %v", err)
+	}
+	if accepted, _, _ := srv.snapshot(); accepted != 0 {
+		t.Fatalf("refused attachments reached the server: %d connections", accepted)
+	}
+	atLimit := slices.Repeat([]EmailAttachment{small}, emailMaxAttachments)
+	if err := SendEmailWithAttachments(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "s", "b", atLimit, logger); err != nil {
+		t.Fatalf("10 attachments: %v", err)
+	}
+	if _, _, mails := srv.snapshot(); len(mails) != 1 {
+		t.Fatalf("%d messages arrived", len(mails))
 	}
 }
