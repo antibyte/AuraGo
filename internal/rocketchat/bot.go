@@ -147,12 +147,13 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	// Command interception
 	if strings.HasPrefix(inputText, "/") {
 		cmdCtx := commands.Context{
-			STM:         shortTermMem,
-			HM:          historyManager,
-			Vault:       vault,
-			InventoryDB: inventoryDB,
-			Cfg:         cfg,
-			PromptsDir:  cfg.Directories.PromptsDir,
+			STM:           shortTermMem,
+			HM:            historyManager,
+			Vault:         vault,
+			InventoryDB:   inventoryDB,
+			Cfg:           cfg,
+			PromptsDir:    cfg.Directories.PromptsDir,
+			AllowOperator: cfg.RocketChat.AllowOperatorCommands,
 		}
 		cmdResult, isCmd, err := commands.Handle(inputText, cmdCtx)
 		if err != nil {

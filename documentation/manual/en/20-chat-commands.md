@@ -17,15 +17,17 @@ Slash commands start with `/`. They are shortcuts, not a second API.
 | `/help` | Shows all available commands with short descriptions | Always |
 | `/reset` | Clears chat history and short-term memory | Always |
 | `/stop` | Interrupts the current agent action | Always |
-| `/restart` | Restarts the AuraGo server | Always |
-| `/debug [on/off]` | Enables/Disables debug mode | Always |
-| `/personality [name]` | Lists or switches personalities | Always |
+| `/restart` | Restarts the AuraGo server | Operator |
+| `/debug [on/off]` | Enables/Disables debug mode | Operator |
+| `/personality [name]` | Lists or switches personalities | Operator |
 | `/budget [en]` | Shows current budget status | If budget tracking enabled |
-| `/sudopwd <password>` | Stores sudo password in vault | Always |
-| `/voice [on/off]` | Toggles voice output (TTS) | Always |
+| `/sudopwd <password>` | Stores sudo password in vault | Operator |
+| `/voice [on/off]` | Toggles voice output (TTS) | Operator |
 | `/warnings` | Lists active system warnings | Always |
-| `/addssh` | Registers a new SSH server | Always |
+| `/addssh` | Registers a new SSH server | Operator |
 | `/credits` | Shows OpenRouter credits and usage | OpenRouter only |
+
+**Operator** commands change host or process state. They are accepted in the web console, the desktop chat, Telegram private chats and Discord DMs; Telegram groups, Discord server channels and the shared Rocket.Chat room refuse them (Rocket.Chat accepts them with `rocketchat.allow_operator_commands: true`).
 
 ---
 

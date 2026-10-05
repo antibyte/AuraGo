@@ -859,6 +859,7 @@ func handleDesktopSlashCommand(s *Server, message string) (string, bool, error) 
 		WarningsRegistry: s.WarningsRegistry,
 		Lang:             desktopUILanguage(s),
 		SessionID:        desktopChatSessionID,
+		AllowOperator:    true, // both callers require desktopScopeAdmin
 	}
 	return commands.Handle(message, cmdCtx)
 }

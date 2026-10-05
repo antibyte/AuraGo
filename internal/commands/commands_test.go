@@ -3,9 +3,11 @@ package commands
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/i18n"
 	"aurago/internal/memory"
 	"aurago/ui"
@@ -125,6 +127,60 @@ func TestHelpCommandDefaultsToGerman(t *testing.T) {
 	}
 	if !strings.Contains(out, "Verfügbare Befehle") {
 		t.Fatalf("German fallback help header missing: %s", out)
+	}
+}
+
+// The gate must refuse operator commands before they execute: /restart
+// schedules os.Exit, so this test never runs it with AllowOperator set.
+func TestOperatorCommandsRequireOperatorContext(t *testing.T) {
+	i18n.Load(ui.Content, slog.Default())
+
+	out, isCmd, err := Handle("/restart", Context{Lang: "en"})
+	if err != nil || !isCmd {
+		t.Fatalf("restart must be intercepted as a command: isCmd=%v err=%v", isCmd, err)
+	}
+	if !strings.Contains(out, "private") || !strings.Contains(out, "/restart") {
+		t.Fatalf("operator command without AllowOperator must be refused with the private-only message, got %q", out)
+	}
+
+	operator := []string{"sudopwd", "addssh", "restart", "personality", "debug", "voice"}
+	conversational := []string{"help", "reset", "stop", "budget", "credits", "warnings"}
+	for _, name := range operator {
+		if !operatorCommands[name] {
+			t.Fatalf("%s must be classified as an operator command", name)
+		}
+		out, isCmd, err := Handle("/"+name+" on", Context{Lang: "en"})
+		if err != nil || !isCmd || !strings.Contains(out, "private") {
+			t.Fatalf("/%s without AllowOperator must be refused: out=%q isCmd=%v err=%v", name, out, isCmd, err)
+		}
+	}
+	for _, name := range conversational {
+		if operatorCommands[name] {
+			t.Fatalf("%s must stay a conversational command", name)
+		}
+	}
+	// Every registered command needs an explicit decision, so a new command
+	// cannot silently land on the conversational side.
+	classified := len(operator) + len(conversational)
+	if len(registry) != classified {
+		t.Fatalf("registry has %d commands, %d are classified; classify the new command in operatorCommands or this test", len(registry), classified)
+	}
+
+	out, _, _ = Handle("/help", Context{Lang: "en"})
+	if strings.Contains(out, "private") {
+		t.Fatalf("help must work without AllowOperator, got %q", out)
+	}
+
+	promptsDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(promptsDir, "personalities"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(promptsDir, "personalities", "operatorcheck.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, _, err = Handle("/personality", Context{Lang: "en", Cfg: &config.Config{}, PromptsDir: promptsDir, AllowOperator: true})
+	if err != nil || !strings.Contains(out, "operatorcheck") {
+		t.Fatalf("AllowOperator must let /personality run, got %q err=%v", out, err)
 	}
 }
 

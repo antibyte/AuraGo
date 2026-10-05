@@ -537,12 +537,13 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	// Slash command interception
 	if strings.HasPrefix(inputText, "/") {
 		cmdCtx := commands.Context{
-			STM:         shortTermMem,
-			SessionID:   sessionID,
-			Vault:       vault,
-			InventoryDB: inventoryDB,
-			Cfg:         cfg,
-			PromptsDir:  cfg.Directories.PromptsDir,
+			STM:           shortTermMem,
+			SessionID:     sessionID,
+			Vault:         vault,
+			InventoryDB:   inventoryDB,
+			Cfg:           cfg,
+			PromptsDir:    cfg.Directories.PromptsDir,
+			AllowOperator: decision.IsDM,
 		}
 		cmdResult, isCmd, err := commands.Handle(inputText, cmdCtx)
 		if err != nil {

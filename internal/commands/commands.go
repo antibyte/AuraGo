@@ -1,3 +1,7 @@
+// Package commands implements the slash commands shared by the web console,
+// the desktop and the chat bots. Contract: operator commands (operatorCommands)
+// run only when the caller sets Context.AllowOperator, which callers derive from
+// a private owner chat or an admin session; everyone else gets a refusal.
 package commands
 
 import (
@@ -29,6 +33,21 @@ type Context struct {
 	WarningsRegistry *warnings.Registry
 	Lang             string // UI language for i18n
 	SessionID        string // chat session targeted by session-scoped commands; empty means "default"
+	// AllowOperator permits commands that change host or process state
+	// (vault writes, SSH inventory, restart, global modes). Bots set it only
+	// for private conversations with the allow-listed owner; web/desktop
+	// admin sessions always set it.
+	AllowOperator bool
+}
+
+// operatorCommands change state beyond the conversation; see Context.AllowOperator.
+var operatorCommands = map[string]bool{
+	"sudopwd":     true,
+	"addssh":      true,
+	"restart":     true,
+	"personality": true,
+	"debug":       true,
+	"voice":       true,
 }
 
 // Command defines the interface for a slash command.
@@ -60,6 +79,9 @@ func Handle(input string, ctx Context) (string, bool, error) {
 	cmd, exists := registry[cmdName]
 	if !exists {
 		return i18n.T(lang, "backend.cmd_unknown", cmdName), true, nil
+	}
+	if operatorCommands[cmdName] && !ctx.AllowOperator {
+		return i18n.T(lang, "backend.cmd_operator_private_only", "/"+cmdName), true, nil
 	}
 
 	result, err := cmd.Execute(args, ctx)

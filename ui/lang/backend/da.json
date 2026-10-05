@@ -9,6 +9,7 @@
   "backend.operational_issue_severity_warning": "advarsel",
   "backend.operational_issue_severity_info": "information",
   "backend.cmd_unknown": "❌ Ukendt kommando. Skriv /help for en liste over kommandoer.",
+  "backend.cmd_operator_private_only": "{0} changes host or process state and is only accepted in a private chat with the owner or in the web console.",
   "backend.cmd_reset_success": "🧹 Chat-historik og korttidshukommelse er slettet.",
   "backend.cmd_reset_help": "Sletter den aktuelle chat-historik (korttidshukommelse).",
   "backend.cmd_help_header": "📜 **Tilgængelige kommandoer:**",

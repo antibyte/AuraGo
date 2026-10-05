@@ -1410,9 +1410,12 @@ rocketchat:
     url: "https://chat.example.com"
     channel: "general"
     allowed_users: ["id:USER_ID", "username:alice"]
+    allow_operator_commands: false
 ```
 
 `allowed_users` accepts explicit `id:` and `username:` entries. Existing bare user IDs remain valid; a bare entry never matches a username.
+
+The channel is shared, so operator commands (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/addssh`) are refused there unless `allow_operator_commands: true`.
 
 ---
 

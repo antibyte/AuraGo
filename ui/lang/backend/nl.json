@@ -9,6 +9,7 @@
   "backend.operational_issue_severity_warning": "waarschuwing",
   "backend.operational_issue_severity_info": "informatie",
   "backend.cmd_unknown": "❌ Onbekend commando. Typ /help voor een lijst met commando's.",
+  "backend.cmd_operator_private_only": "{0} changes host or process state and is only accepted in a private chat with the owner or in the web console.",
   "backend.cmd_reset_success": "🧹 Chatgeschiedenis en kortetermijngeheugen zijn verwijderd.",
   "backend.cmd_reset_help": "Verwijdert de huidige chatgeschiedenis (kortetermijngeheugen).",
   "backend.cmd_help_header": "📜 **Beschikbare commando's:**",

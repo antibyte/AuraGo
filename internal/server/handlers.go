@@ -377,6 +377,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				WarningsRegistry: s.WarningsRegistry,
 				Lang:             s.Cfg.Server.UILanguage,
 				SessionID:        sessionID,
+				// /v1/chat/completions needs a login session, an admin bearer or
+				// the internal loopback token; loopback senders wrap external
+				// payloads, so those never start with "/".
+				AllowOperator: true,
 			}
 			cmdResult, isCommand, err := commands.Handle(lastUserMsg.Content, cmdCtx)
 			if err != nil {

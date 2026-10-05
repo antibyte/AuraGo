@@ -9,6 +9,7 @@
   "backend.operational_issue_severity_warning": "Warnung",
   "backend.operational_issue_severity_info": "Information",
   "backend.cmd_unknown": "❌ Unbekannter Befehl. Tippe /help für eine Liste der Befehle.",
+  "backend.cmd_operator_private_only": "{0} ändert Host- oder Prozesszustand und wird nur im privaten Chat mit dem Besitzer oder in der Web-Konsole angenommen.",
   "backend.cmd_reset_success": "🧹 Chat-Verlauf und Kurzzeitgedächtnis wurden gelöscht.",
   "backend.cmd_reset_help": "Löscht den aktuellen Chat-Verlauf (Short-Term Memory).",
   "backend.cmd_help_header": "📜 **Verfügbare Befehle:**",

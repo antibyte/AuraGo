@@ -1855,6 +1855,9 @@ type Config struct {
 		Channel      string   `yaml:"channel"`              // default channel to listen on
 		Alias        string   `yaml:"alias"`                // display name
 		AllowedUsers []string `yaml:"allowed_users"`        // allowed user IDs or usernames; empty = deny all
+		// AllowOperatorCommands permits operator slash commands (/sudopwd, /addssh, /restart,
+		// /personality, /debug, /voice) from the shared channel (default false).
+		AllowOperatorCommands bool `yaml:"allow_operator_commands"`
 	} `yaml:"rocketchat"`
 	Tailscale struct {
 		Enabled  bool   `yaml:"enabled"`

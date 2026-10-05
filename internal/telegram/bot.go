@@ -374,12 +374,13 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	// Check for slash commands
 	if strings.HasPrefix(msg.Text, "/") {
 		cmdCtx := commands.Context{
-			STM:         shortTermMem,
-			HM:          historyManager,
-			Vault:       vault,
-			InventoryDB: inventoryDB,
-			Cfg:         cfg,
-			PromptsDir:  cfg.Directories.PromptsDir,
+			STM:           shortTermMem,
+			HM:            historyManager,
+			Vault:         vault,
+			InventoryDB:   inventoryDB,
+			Cfg:           cfg,
+			PromptsDir:    cfg.Directories.PromptsDir,
+			AllowOperator: msg.Chat != nil && msg.Chat.IsPrivate(),
 		}
 		cmdResult, isCmd, err := commands.Handle(msg.Text, cmdCtx)
 		if err != nil {

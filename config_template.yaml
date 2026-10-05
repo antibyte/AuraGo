@@ -1524,6 +1524,7 @@ rocketchat:
     channel: ""
     alias: ""
     allowed_users: []                     # Rocket.Chat: id:<user-id> or username:<name>; bare user IDs remain accepted
+    allow_operator_commands: false        # operator commands (/sudopwd, /addssh, /restart, ...) from the shared room
 tailscale:
     enabled: false
     readonly: false

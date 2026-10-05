@@ -1382,9 +1382,12 @@ rocketchat:
   url: "https://chat.example.com"
   channel: "#general"
   allowed_users: ["id:BENUTZER_ID", "username:alice"]
+  allow_operator_commands: false
 ```
 
 `allowed_users` akzeptiert eindeutige Einträge mit `id:` oder `username:`. Bisherige bloße Benutzer-IDs bleiben gültig; ein bloßer Eintrag trifft nie auf einen Benutzernamen zu.
+
+Der Channel ist geteilt, deshalb werden Operator-Befehle (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/addssh`) dort abgelehnt, solange `allow_operator_commands: true` nicht gesetzt ist.
 
 ## TTS / Whisper
 

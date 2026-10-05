@@ -17,15 +17,17 @@ Slash-Commands beginnen mit `/`. Abkürzungen, keine zweite API.
 | `/help` | Zeigt alle verfügbaren Befehle mit Kurzbeschreibung | Immer |
 | `/reset` | Löscht den Chat-Verlauf und das Kurzzeitgedächtnis | Immer |
 | `/stop` | Unterbricht die aktuelle Aktion des Agenten | Immer |
-| `/restart` | Startet den AuraGo-Server neu | Immer |
-| `/debug [on/off]` | Aktiviert/Deaktiviert den Debug-Modus | Immer |
-| `/personality [name]` | Listet Persönlichkeiten auf oder wechselt sie | Immer |
+| `/restart` | Startet den AuraGo-Server neu | Operator |
+| `/debug [on/off]` | Aktiviert/Deaktiviert den Debug-Modus | Operator |
+| `/personality [name]` | Listet Persönlichkeiten auf oder wechselt sie | Operator |
 | `/budget [en]` | Zeigt den aktuellen Budget-Status | Wenn Budget-Tracking aktiv |
-| `/sudopwd <passwort>` | Speichert oder löscht (`--clear`) das sudo-Passwort im Vault | Immer |
-| `/voice [on/off]` | Schaltet Sprachausgabe (TTS) ein/aus | Immer |
+| `/sudopwd <passwort>` | Speichert oder löscht (`--clear`) das sudo-Passwort im Vault | Operator |
+| `/voice [on/off]` | Schaltet Sprachausgabe (TTS) ein/aus | Operator |
 | `/warnings` | Zeigt aktive System-Warnungen an | Immer |
-| `/addssh` | Registriert einen neuen SSH-Server | Immer |
+| `/addssh` | Registriert einen neuen SSH-Server | Operator |
 | `/credits` | Zeigt OpenRouter Credits und Verbrauch | Nur bei OpenRouter |
+
+**Operator**-Befehle ändern Host- oder Prozesszustand. Sie werden in der Web-Konsole, im Desktop-Chat, in privaten Telegram-Chats und in Discord-DMs angenommen; Telegram-Gruppen, Discord-Serverkanäle und der geteilte Rocket.Chat-Raum lehnen sie ab (Rocket.Chat nimmt sie mit `rocketchat.allow_operator_commands: true` an).
 
 ---
 

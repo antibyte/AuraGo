@@ -131,6 +131,30 @@ func TestShouldHandleDiscordMessageIgnoresOtherChannelWithoutMention(t *testing.
 	}
 }
 
+// IsDM feeds commands.Context.AllowOperator: only direct messages may run
+// operator slash commands, guild channels never.
+func TestShouldHandleDiscordMessageMarksOnlyDirectMessagesAsDM(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.AllowedUserID = "user-1"
+	cfg.Discord.DefaultChannelID = "channel-1"
+	author := &discordgo.User{ID: "user-1", Username: "Andi"}
+
+	for _, tc := range []struct {
+		name   string
+		msg    *discordgo.Message
+		wantDM bool
+	}{
+		{"direct message", &discordgo.Message{Author: author, ChannelID: "dm-1", Content: "/restart"}, true},
+		{"default guild channel", &discordgo.Message{Author: author, GuildID: "guild-1", ChannelID: "channel-1", Content: "/restart"}, false},
+		{"mention in guild channel", &discordgo.Message{Author: author, GuildID: "guild-1", ChannelID: "channel-2", Content: "<@bot-1> /restart", Mentions: []*discordgo.User{{ID: "bot-1"}}}, false},
+	} {
+		decision := shouldHandleDiscordMessage("bot-1", &discordgo.MessageCreate{Message: tc.msg}, cfg)
+		if !decision.Accepted || decision.IsDM != tc.wantDM {
+			t.Fatalf("%s: decision = %+v, want accepted with IsDM=%v", tc.name, decision, tc.wantDM)
+		}
+	}
+}
+
 func TestBuildDiscordAgentMessagesKeepsRecapAfterSystemPlaceholder(t *testing.T) {
 	historyManager := memory.NewEphemeralHistoryManager()
 	t.Cleanup(historyManager.Close)
