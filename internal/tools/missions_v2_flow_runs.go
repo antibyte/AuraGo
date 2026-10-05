@@ -19,9 +19,10 @@ const flowHistoryTriggerDataMaxBytes = 16 << 10
 // flowHistoryTruncatedMarker ends trigger data that flowHistoryTriggerData cut.
 const flowHistoryTruncatedMarker = "...[truncated]"
 
-// flowCompletionOutputsMaxBytes bounds the encoded outputs of a flow that mission_completed
-// hands to every dependent. Outputs can reach 32 MiB (flows.MaxRunOutputBytes), and the queue
-// that carries them to prompt missions is persisted. Larger outputs become
+// flowCompletionOutputsMaxBytes bounds the encoded `outputs` field (the outputs of a flow's
+// final nodes) that mission_completed hands to every dependent; the `output` text has its own
+// cap, completionOutputMaxBytes. Outputs can reach 32 MiB (flows.MaxRunOutputBytes), and the
+// queue that carries them to prompt missions is persisted. Larger outputs become
 // {"_truncated": true, "_preview": "<first flowCompletionOutputsPreviewBytes of the JSON>"},
 // close to the {"_preview": …} shape of the flow run log.
 const (
@@ -29,17 +30,34 @@ const (
 	flowCompletionOutputsPreviewBytes = 4 << 10
 )
 
+// completionOutputMaxBytes caps the `output` text of mission_completed trigger data, and
+// flowLastOutputMaxBytes the LastOutput of a flow mission. Both cut at a rune boundary and
+// end with completionTruncatedMarker.
+const (
+	completionOutputMaxBytes  = 2000
+	flowLastOutputMaxBytes    = 500
+	completionTruncatedMarker = "..."
+)
+
+// cutWithMarker returns s when it has at most limit bytes, else its longest prefix that
+// leaves room for marker without splitting a UTF-8 sequence, followed by marker.
+func cutWithMarker(s string, limit int, marker string) string {
+	if len(s) <= limit {
+		return s
+	}
+	return cutAtRuneBoundary(s, limit-len(marker)) + marker
+}
+
 // flowHistoryTriggerData returns data cut to flowHistoryTriggerDataMaxBytes at a rune
 // boundary, ending with flowHistoryTruncatedMarker when it was cut.
 func flowHistoryTriggerData(data string) string {
-	if len(data) <= flowHistoryTriggerDataMaxBytes {
-		return data
-	}
-	return cutAtRuneBoundary(data, flowHistoryTriggerDataMaxBytes-len(flowHistoryTruncatedMarker)) + flowHistoryTruncatedMarker
+	return cutWithMarker(data, flowHistoryTriggerDataMaxBytes, flowHistoryTruncatedMarker)
 }
 
 // boundedCompletionOutputs encodes a flow's outputs once for its mission_completed
-// dependents, as a preview beyond flowCompletionOutputsMaxBytes.
+// dependents, as a preview beyond flowCompletionOutputsMaxBytes. It can take a while for
+// large outputs, so callers run it without m.mu held. A truncation is logged at Debug with
+// sizes only.
 func boundedCompletionOutputs(outputs map[string]any) json.RawMessage {
 	enc, err := json.Marshal(outputs)
 	if err == nil && len(enc) <= flowCompletionOutputsMaxBytes {
@@ -48,6 +66,10 @@ func boundedCompletionOutputs(outputs map[string]any) json.RawMessage {
 	preview := "<unserializable>"
 	if err == nil {
 		preview = cutAtRuneBoundary(string(enc), flowCompletionOutputsPreviewBytes)
+		slog.Debug("[MissionV2] Flow outputs for mission_completed dependents truncated", "size_bytes", len(enc),
+			"limit_bytes", flowCompletionOutputsMaxBytes, "preview_bytes", len(preview))
+	} else {
+		slog.Debug("[MissionV2] Flow outputs for mission_completed dependents could not be encoded", "keys", len(outputs))
 	}
 	enc, _ = json.Marshal(map[string]any{"_truncated": true, "_preview": preview})
 	return enc
@@ -102,6 +124,11 @@ func (m *MissionManagerV2) FlowRunStarted(missionID, triggerType, triggerData st
 // The history entry historyID is completed even when the mission is gone, because deleting a
 // flow deletes its mission before it cancels the flow's runs.
 func (m *MissionManagerV2) FlowRunFinished(missionID, historyID, result, output string, outputs map[string]any) {
+	// Outputs can reach 32 MiB: encode them before taking the lock.
+	var encodedOutputs json.RawMessage
+	if outputs != nil {
+		encodedOutputs = boundedCompletionOutputs(outputs)
+	}
 	m.mu.Lock()
 	historyDB, recorder := m.historyDB, m.auditRecorder
 	mission, ok := m.missions[missionID]
@@ -133,11 +160,11 @@ func (m *MissionManagerV2) FlowRunFinished(missionID, historyID, result, output 
 		mission.Status = MissionStatusIdle
 	}
 	mission.LastResult = result
-	mission.LastOutput = truncateString(output, 500)
+	mission.LastOutput = cutWithMarker(output, flowLastOutputMaxBytes, completionTruncatedMarker)
 	mission.RunCount++
 	name := mission.Name
 	completeCB := m.onMissionComplete
-	queued := m.enqueueCompletionDependentsLocked(missionID, result, output, outputs)
+	queued := m.enqueueCompletionDependentsLocked(missionID, result, output, encodedOutputs)
 	if err := m.save(); err != nil {
 		slog.Error("[MissionV2] Failed to persist flow run result", "mission_id", missionID, "error", err)
 	}
@@ -182,13 +209,15 @@ func completeFlowRunHistory(historyDB *sql.DB, recorder func(memory.AuditEvent) 
 }
 
 // enqueueCompletionDependentsLocked queues prompt missions and starts flows that wait for
-// sourceID. The trigger data carries the output (≤ 2000 chars) and, for flow sources, the
-// outputs of the flow's final nodes (bounded, see boundedCompletionOutputs). It returns the
-// number of prompt missions it queued. Caller holds m.mu.
-func (m *MissionManagerV2) enqueueCompletionDependentsLocked(sourceID, result, output string, outputs map[string]any) int {
-	data := map[string]any{"source_mission": sourceID, "result": result, "output": truncateString(output, 2000)}
+// sourceID. The trigger data carries the output (≤ completionOutputMaxBytes, rune-safe) and,
+// for flow sources, the outputs of the flow's final nodes, already encoded and bounded by
+// boundedCompletionOutputs (prompt sources pass nil). It returns the number of prompt
+// missions it queued. Caller holds m.mu.
+func (m *MissionManagerV2) enqueueCompletionDependentsLocked(sourceID, result, output string, outputs json.RawMessage) int {
+	data := map[string]any{"source_mission": sourceID, "result": result,
+		"output": cutWithMarker(output, completionOutputMaxBytes, completionTruncatedMarker)}
 	if outputs != nil {
-		data["outputs"] = boundedCompletionOutputs(outputs)
+		data["outputs"] = outputs
 	}
 	raw, _ := json.Marshal(data)
 	queued := 0
@@ -245,7 +274,14 @@ func (m *MissionManagerV2) updateFlowMissionLocked(mission, updated *MissionV2) 
 	enabledChanged := mission.Enabled != updated.Enabled
 	mission.Enabled = updated.Enabled
 	mission.Locked = updated.Locked
-	regErr := m.syncFlowTriggersLocked(mission)
+	// Only the enabled switch changes the registrations; a lock change keeps them (and the
+	// MQTT min-interval state) and only registers what is missing.
+	var regErr error
+	if enabledChanged {
+		regErr = m.syncFlowTriggersLocked(mission)
+	} else {
+		regErr = m.ensureFlowTriggersLocked(mission)
+	}
 	saveErr := m.save()
 	if enabledChanged && m.flowHooks != nil {
 		hooks, id, enabled := m.flowHooks, mission.ID, mission.Enabled

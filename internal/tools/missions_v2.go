@@ -1096,6 +1096,8 @@ func (m *MissionManagerV2) TriggerMission(missionID, triggerType, triggerData st
 // TriggerMissionWithOptions triggers a mission with optional transient daemon extras.
 // extraCheatsheetIDs are appended to the mission prompt in addition to the mission's own cheatsheets.
 // extraPromptSuffix is appended verbatim after cheatsheet expansion.
+// A flow mission starts a flow run through FlowHooks instead; the daemon extras
+// (extraCheatsheetIDs, extraPromptSuffix) are prompt-only and ignored for it.
 func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, triggerData string, extraCheatsheetIDs []string, extraPromptSuffix string) error {
 	if err := requireMissionMutationPermission(); err != nil {
 		return err
@@ -2103,12 +2105,11 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 	if mission.Locked {
 		return fmt.Errorf("mission is locked")
 	}
-	if isFlowMission(mission) {
+	isFlow := isFlowMission(mission)
+	flowRuns := m.flowActive[id]
+	if isFlow {
 		m.unregisterFlowTriggersLocked(mission)
 		delete(m.flowActive, id)
-		if hooks := m.flowHooks; hooks != nil {
-			go hooks.FlowMissionDeleted(id)
-		}
 	}
 
 	// Unregister triggers
@@ -2136,7 +2137,26 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 		DeletePreparedMission(m.preparedDB, id)
 	}
 
-	return m.save()
+	if err := m.save(); err != nil {
+		if isFlow {
+			// The missions file still holds the flow mission: keep it in memory too, with its
+			// triggers and runs, so a later save does not drop it while its flow lives on.
+			m.missions[id] = mission
+			if flowRuns > 0 {
+				m.flowActive[id] = flowRuns
+			}
+			if regErr := m.ensureFlowTriggersLocked(mission); regErr != nil {
+				slog.Warn("[MissionV2] Failed to restore flow triggers after a failed delete", "mission_id", id, "error", regErr)
+			}
+		}
+		return err
+	}
+	// The flow service deletes the flow only once the mission's removal is saved; otherwise
+	// the mission would come back after a restart without its flow.
+	if hooks := m.flowHooks; isFlow && hooks != nil {
+		go hooks.FlowMissionDeleted(id)
+	}
+	return nil
 }
 
 // Get returns a single mission

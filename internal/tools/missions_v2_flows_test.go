@@ -98,6 +98,7 @@ func eventually(t *testing.T, what string, cond func() bool) {
 func newFlowTestManager(t *testing.T) (*MissionManagerV2, *fakeFlowHooks, *fakeWebhookTriggerManager) {
 	t.Helper()
 	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	t.Cleanup(mm.Stop) // ends the flow event dispatcher
 	hooks := newFakeFlowHooks()
 	webhooks := &fakeWebhookTriggerManager{}
 	mm.SetFlowHooks(hooks)

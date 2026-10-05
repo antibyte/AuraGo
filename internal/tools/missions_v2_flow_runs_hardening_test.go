@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -49,6 +50,7 @@ func c08ManagerWithHistory(t *testing.T) (*MissionManagerV2, *sql.DB, *c08Audit)
 	t.Helper()
 	dir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(dir, nil)
+	t.Cleanup(mm.Stop) // ends the flow event dispatcher
 	hist, err := InitMissionHistoryDB(filepath.Join(dir, "history.db"))
 	if err != nil {
 		t.Fatalf("history db: %v", err)
@@ -539,4 +541,421 @@ func TestFlowNextRunAndDeleteUseOnlyFlowCronJobs(t *testing.T) {
 		defer hooks.mu.Unlock()
 		return len(hooks.deleted) == 1 && hooks.deleted[0] == id
 	})
+}
+
+// c08BlockingOutput is a flow output whose encoding reports its start and then waits for
+// release.
+type c08BlockingOutput struct {
+	once    sync.Once
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (b *c08BlockingOutput) MarshalJSON() ([]byte, error) {
+	b.once.Do(func() { close(b.entered) })
+	<-b.release
+	return []byte(`"encoded"`), nil
+}
+
+// Review M1: FlowRunFinished encodes the outputs (up to 32 MiB) before it takes the manager
+// lock, so Mission Control reads and writes go on during the encoding.
+func TestFlowRunFinishedEncodesOutputsOutsideTheLock(t *testing.T) {
+	mm, _, _ := newFlowTestManager(t)
+	id := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	c08AddPromptDependent(mm, "c08_dependent", id)
+	slow := &c08BlockingOutput{entered: make(chan struct{}), release: make(chan struct{})}
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(slow.release) }) }
+	t.Cleanup(release)
+
+	run := mm.FlowRunStarted(id, "manual", "")
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		mm.FlowRunFinished(id, run, MissionResultSuccess, "Fertig.", map[string]any{"slow": slow})
+	}()
+	select {
+	case <-slow.entered:
+	case <-time.After(c07DeadlockGuard):
+		t.Fatal("the outputs were never encoded")
+	}
+	c07Within(t, "List, Get and SetCompletionCallback while the outputs are encoded", func() {
+		mm.List()
+		if _, ok := mm.Get(id); !ok {
+			t.Errorf("Get(%s) found no mission", id)
+		}
+		mm.SetCompletionCallback(nil) // the write lock
+	})
+	release()
+	select {
+	case <-finished:
+	case <-time.After(c07DeadlockGuard):
+		t.Fatal("FlowRunFinished did not return after the encoding")
+	}
+	items := mm.queue.List()
+	if len(items) != 1 || !strings.Contains(items[0].TriggerData, `"outputs":{"slow":"encoded"}`) {
+		t.Fatalf("queued dependents = %+v", items)
+	}
+	if m, _ := mm.Get(id); m.RunCount != 1 || m.Status != MissionStatusIdle {
+		t.Fatalf("flow mission = %+v", m)
+	}
+}
+
+// Review M2: the output caps of mission_completed and of a flow's LastOutput cut at a rune
+// boundary and end with a marker.
+func TestCompletionOutputCapsAreRuneSafe(t *testing.T) {
+	long := strings.Repeat("€", 700) // 2100 bytes
+	mm, _, _ := newFlowTestManager(t)
+	source := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	c08AddPromptDependent(mm, "c08_flow_dependent", source)
+	mm.mu.Lock()
+	mm.missions["c08_prompt_source"] = &MissionV2{ID: "c08_prompt_source", Name: "Src", Prompt: "p", ExecutionType: ExecutionManual,
+		Enabled: true, Priority: "medium", Status: MissionStatusRunning}
+	mm.mu.Unlock()
+	c08AddPromptDependent(mm, "c08_prompt_dependent", "c08_prompt_source")
+
+	run := mm.FlowRunStarted(source, "manual", "")
+	mm.FlowRunFinished(source, run, MissionResultSuccess, long, nil)
+	mm.OnMissionComplete("c08_prompt_source", MissionResultSuccess, long)
+
+	expect := func(limit int) string {
+		return strings.Repeat("€", (limit-len(completionTruncatedMarker))/len("€")) + completionTruncatedMarker
+	}
+	check := func(what, got string, limit int) {
+		t.Helper()
+		if got != expect(limit) || len(got) > limit || !utf8.ValidString(got) || strings.ContainsRune(got, utf8.RuneError) {
+			t.Fatalf("%s: %d bytes, valid %v, tail %q", what, len(got), utf8.ValidString(got), got[max(0, len(got)-8):])
+		}
+	}
+	items := mm.queue.List()
+	if len(items) != 2 {
+		t.Fatalf("queued dependents = %d", len(items))
+	}
+	for _, item := range items {
+		var data struct {
+			Output string `json:"output"`
+		}
+		if err := json.Unmarshal([]byte(item.TriggerData), &data); err != nil {
+			t.Fatal(err)
+		}
+		check(item.MissionID+" output", data.Output, completionOutputMaxBytes)
+	}
+	m, _ := mm.Get(source)
+	check("flow LastOutput", m.LastOutput, flowLastOutputMaxBytes)
+}
+
+// Review M3: Delete tells the flow service only after the mission's removal is saved. A failed
+// save keeps the flow mission (in memory as on disk, with its cron job and running slot), so
+// neither a restart nor a later save leaves a mission without its flow or a flow without its
+// mission.
+func TestDeleteNotifiesTheFlowServiceOnlyAfterTheSave(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	cronMgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mm := NewMissionManagerV2(dir, cronMgr)
+	t.Cleanup(mm.Stop)
+	hooks := newFakeFlowHooks()
+	mm.SetFlowHooks(hooks)
+	failing := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"})
+	saved := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	mm.FlowRunStarted(failing, "manual", "")
+	deletedCalls := func() []string {
+		hooks.mu.Lock()
+		defer hooks.mu.Unlock()
+		return append([]string(nil), hooks.deleted...)
+	}
+
+	// A directory where save writes its temporary file makes the save fail.
+	blocker := mm.file + ".tmp"
+	if err := os.Mkdir(blocker, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := mm.Delete(failing); err == nil {
+		t.Fatal("Delete succeeded although the save failed")
+	}
+	if err := os.Remove(blocker); err != nil {
+		t.Fatal(err)
+	}
+	if m, ok := mm.Get(failing); !ok || m.Status != MissionStatusRunning {
+		t.Fatalf("the failed delete dropped the flow mission from memory: %+v", m)
+	}
+	if active, _ := c08FlowActive(mm, failing); active != 1 || !hasCronJob(cronMgr, flowCronJobID(failing, "n_aaaaaaaa")) {
+		t.Fatalf("the failed delete lost the running slot (%d) or the cron job", active)
+	}
+
+	if err := mm.Delete(saved); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	// The saved delete's hook is launched after the failed delete returned; correct code never
+	// launches one for the failed delete.
+	eventually(t, "FlowMissionDeleted of the saved delete", func() bool { return len(deletedCalls()) > 0 })
+	if deleted := deletedCalls(); len(deleted) != 1 || deleted[0] != saved {
+		t.Fatalf("FlowMissionDeleted calls = %v, want only %s", deleted, saved)
+	}
+	persisted, err := os.ReadFile(mm.file)
+	if err != nil || !strings.Contains(string(persisted), failing) || strings.Contains(string(persisted), saved) {
+		t.Fatalf("the later save dropped the flow mission of the failed delete: %v", err)
+	}
+
+	if err := mm.Delete(failing); err != nil {
+		t.Fatalf("retrying the delete: %v", err)
+	}
+	eventually(t, "FlowMissionDeleted of the retried delete", func() bool { return len(deletedCalls()) == 2 })
+	if hasCronJob(cronMgr, flowCronJobID(failing, "n_aaaaaaaa")) {
+		t.Fatal("the retried delete left the flow's cron job")
+	}
+}
+
+// Review M4: a lock-only Update keeps the flow's trigger registrations (keyed MQTT is neither
+// unregistered nor registered again); the enabled switch still re-syncs them.
+func TestFlowLockToggleKeepsTheTriggerRegistrations(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	t.Cleanup(mm.Stop)
+	mm.SetFlowHooks(newFakeFlowHooks())
+	mqtt := &c07KeyedMQTT{}
+	mm.SetMQTTManager(mqtt)
+	id := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerMQTTMessage,
+		TriggerConfig: &TriggerConfig{MQTTTopic: "home/door", MQTTMinIntervalSeconds: 60}})
+	registers, unregisters := mqtt.counts()
+	if registers != 1 || unregisters != 0 {
+		t.Fatalf("setup: %d registers, %d unregisters", registers, unregisters)
+	}
+	for _, locked := range []bool{true, false} {
+		m, _ := mm.Get(id)
+		m.Locked = locked
+		if err := mm.Update(id, m); err != nil {
+			t.Fatalf("Update(locked=%v): %v", locked, err)
+		}
+		if r, u := mqtt.counts(); r != registers || u != unregisters {
+			t.Fatalf("locked=%v re-registered MQTT: %d/%d registers, %d/%d unregisters", locked, r, registers, u, unregisters)
+		}
+		if got, _ := mm.Get(id); got.Locked != locked {
+			t.Fatalf("Locked = %v, want %v", got.Locked, locked)
+		}
+	}
+
+	m, _ := mm.Get(id)
+	m.Enabled = false
+	if err := mm.Update(id, m); err != nil {
+		t.Fatal(err)
+	}
+	if r, u := mqtt.counts(); r != registers || u != unregisters+1 || len(mqtt.registered()) != 0 {
+		t.Fatalf("disabling: %d registers, %d unregisters, %d live", r, u, len(mqtt.registered()))
+	}
+	m.Enabled = true
+	if err := mm.Update(id, m); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := mqtt.counts(); r != registers+1 || len(mqtt.registered()) != 1 {
+		t.Fatalf("enabling: %d registers, %d live", r, len(mqtt.registered()))
+	}
+}
+
+// Review M5 (adopted probe): concurrent runs, Mission Control reads and lock toggles keep the
+// running counter balanced.
+func TestFlowConcurrentRunsStayBalanced(t *testing.T) {
+	mm, _, _ := newFlowTestManager(t)
+	id := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	c08AddPromptDependent(mm, "c08_dependent", id)
+	const n = 200
+	stop := make(chan struct{})
+	var readers sync.WaitGroup
+	for r := 0; r < 4; r++ {
+		readers.Add(1)
+		go func(r int) {
+			defer readers.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				mm.List()
+				mm.Get(id)
+				mm.NextRun(id)
+				if r == 0 {
+					m, _ := mm.Get(id)
+					m.Locked = !m.Locked
+					_ = mm.Update(id, m)
+				}
+				// Keep the agent queue empty so the dependent is queued again.
+				mm.mu.Lock()
+				mm.queue.Remove("c08_dependent")
+				mm.mu.Unlock()
+			}
+		}(r)
+	}
+	var runs sync.WaitGroup
+	for i := 0; i < n; i++ {
+		runs.Add(1)
+		go func(i int) {
+			defer runs.Done()
+			run := mm.FlowRunStarted(id, "manual", "")
+			result := MissionResultSuccess
+			if i%3 == 0 {
+				result = MissionResultError
+			}
+			mm.FlowRunFinished(id, run, result, fmt.Sprintf("out %d", i), map[string]any{"i": i})
+		}(i)
+	}
+	done := make(chan struct{})
+	go func() {
+		runs.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		close(stop)
+		t.Fatal("the runs did not finish within 30 s: deadlock")
+	}
+	close(stop)
+	readers.Wait()
+	m, _ := mm.Get(id)
+	if active, ok := c08FlowActive(mm, id); ok || active != 0 || m.Status != MissionStatusIdle || m.RunCount != n {
+		t.Fatalf("after %d runs: active=%d/%v status=%s runs=%d", n, active, ok, m.Status, m.RunCount)
+	}
+}
+
+// c08OldDependentsLoop is the dependents loop of OnMissionComplete before 1c-08, copied
+// verbatim, so the parity test compares against it.
+func c08OldDependentsLoop(m *MissionManagerV2, missionID, result string) {
+	for _, mission := range m.missions {
+		if !mission.Enabled ||
+			mission.ExecutionType != ExecutionTriggered ||
+			mission.TriggerType != TriggerMissionCompleted {
+			continue
+		}
+		cfg := mission.TriggerConfig
+		if cfg == nil || cfg.SourceMissionID != missionID {
+			continue
+		}
+		if cfg.RequireSuccess && result != MissionResultSuccess {
+			continue
+		}
+		if !m.shouldFireTriggerLocked(mission, string(TriggerMissionCompleted), time.Now()) {
+			continue
+		}
+		m.queue.Enqueue(mission.ID, mission.Priority, "mission_completed",
+			fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result))
+		mission.Status = MissionStatusQueued
+	}
+}
+
+// c08DependentsManager returns a manager with a running prompt source "src" and dependents
+// that each hit one branch of the dependents loop.
+func c08DependentsManager(t *testing.T) *MissionManagerV2 {
+	t.Helper()
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	add := func(m *MissionV2) {
+		if m.Priority == "" {
+			m.Priority = "medium"
+		}
+		if m.Status == "" {
+			m.Status = MissionStatusIdle
+		}
+		mm.missions[m.ID] = m
+	}
+	add(&MissionV2{ID: "src", Name: "src", Prompt: "p", ExecutionType: ExecutionManual, Enabled: true, Status: MissionStatusRunning})
+	triggered := func(id string, cfg *TriggerConfig, mod func(*MissionV2)) {
+		m := &MissionV2{ID: id, Name: id, Prompt: "p", ExecutionType: ExecutionTriggered, TriggerType: TriggerMissionCompleted,
+			TriggerConfig: cfg, Enabled: true}
+		if mod != nil {
+			mod(m)
+		}
+		add(m)
+	}
+	triggered("d_plain", &TriggerConfig{SourceMissionID: "src"}, nil)
+	triggered("d_high", &TriggerConfig{SourceMissionID: "src"}, func(m *MissionV2) { m.Priority = "high" })
+	triggered("d_reqsucc", &TriggerConfig{SourceMissionID: "src", RequireSuccess: true}, nil)
+	triggered("d_disabled", &TriggerConfig{SourceMissionID: "src"}, func(m *MissionV2) { m.Enabled = false })
+	triggered("d_other", &TriggerConfig{SourceMissionID: "other"}, nil)
+	triggered("d_nocfg", nil, nil)
+	triggered("d_rate_recent", &TriggerConfig{SourceMissionID: "src", MinIntervalSeconds: 3600}, nil)
+	triggered("d_rate_fresh", &TriggerConfig{SourceMissionID: "src", MinIntervalSeconds: 3600}, nil)
+	triggered("d_queued", &TriggerConfig{SourceMissionID: "src"}, nil)
+	triggered("d_remote", &TriggerConfig{SourceMissionID: "src"}, func(m *MissionV2) { m.RunnerType = "remote"; m.RemoteNestID = "n" })
+	add(&MissionV2{ID: "d_sched", Name: "d_sched", Prompt: "p", ExecutionType: ExecutionScheduled, TriggerType: TriggerMissionCompleted,
+		TriggerConfig: &TriggerConfig{SourceMissionID: "src"}, Enabled: true})
+	mm.lastTriggerFire["d_rate_recent|mission_completed"] = time.Now().Add(-time.Minute)
+	mm.queue.Enqueue("d_queued", "low", "manual", "old")
+	return mm
+}
+
+// c08DependentsSnapshot returns the queue items (without trigger data), the statuses and the
+// min-interval slots. Items of the same priority follow map order, so they are sorted.
+func c08DependentsSnapshot(mm *MissionManagerV2) string {
+	var state struct {
+		Items  []string
+		Status map[string]string
+		Fires  []string
+	}
+	for _, item := range mm.queue.List() {
+		state.Items = append(state.Items, fmt.Sprintf("%s/%d/%s", item.MissionID, item.Priority, item.TriggerType))
+	}
+	sort.Strings(state.Items)
+	state.Status = map[string]string{}
+	for id, m := range mm.missions {
+		state.Status[id] = m.Status
+	}
+	for key := range mm.lastTriggerFire {
+		state.Fires = append(state.Fires, key)
+	}
+	sort.Strings(state.Fires)
+	out, _ := json.Marshal(state)
+	return string(out)
+}
+
+// Review M5 (adopted probe): for prompt missions the new dependents helper queues exactly
+// what the old loop queued; only the trigger data payload differs.
+func TestPromptDependentsMatchTheOldLoop(t *testing.T) {
+	for _, result := range []string{MissionResultSuccess, MissionResultError} {
+		oldMM, newMM := c08DependentsManager(t), c08DependentsManager(t)
+		oldMM.mu.Lock()
+		c08OldDependentsLoop(oldMM, "src", result)
+		oldMM.mu.Unlock()
+		newMM.mu.Lock()
+		newMM.enqueueCompletionDependentsLocked("src", result, "out", nil)
+		newMM.mu.Unlock()
+		if before, after := c08DependentsSnapshot(oldMM), c08DependentsSnapshot(newMM); before != after {
+			t.Fatalf("result %s:\nold %s\nnew %s", result, before, after)
+		}
+		for _, item := range newMM.queue.List() {
+			if item.MissionID == "d_queued" && item.TriggerData != "old" {
+				t.Fatalf("an already queued mission got new trigger data: %q", item.TriggerData)
+			}
+		}
+	}
+}
+
+// Review M5 (adopted probe): a prompt mission's completion starts a flow that waits for it,
+// with the output and without outputs; a flow mission is never queued by mission_completed.
+func TestPromptSourceStartsFlowFollower(t *testing.T) {
+	mm, hooks, _ := newFlowTestManager(t)
+	mm.mu.Lock()
+	mm.missions["src"] = &MissionV2{ID: "src", Name: "Src", Prompt: "p", ExecutionType: ExecutionManual, Enabled: true,
+		Priority: "medium", Status: MissionStatusRunning}
+	mm.mu.Unlock()
+	follower, err := mm.CreateFlowMission("flow_bbbbbbbbbb", "Folge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mm.SyncFlowMission(follower, "Folge", []FlowTriggerSpec{{NodeID: "n_bbbbbbbb", TriggerType: TriggerMissionCompleted,
+		TriggerConfig: &TriggerConfig{SourceMissionID: "src"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := mm.SetFlowMissionEnabled(follower, true); err != nil {
+		t.Fatal(err)
+	}
+	mm.OnMissionComplete("src", MissionResultSuccess, "Ergebnis")
+	c := hooks.waitStart(t)
+	if c.missionID != follower || !strings.Contains(c.data, `"output":"Ergebnis"`) || strings.Contains(c.data, `"outputs"`) {
+		t.Fatalf("start = %+v", c)
+	}
+	if items := mm.queue.List(); len(items) != 0 {
+		t.Fatalf("queue = %+v", items)
+	}
+	if m, _ := mm.Get(follower); m.Status != MissionStatusIdle {
+		t.Fatalf("follower status = %s", m.Status)
+	}
 }
