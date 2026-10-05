@@ -464,9 +464,10 @@ worker. Keep packaging, recovery and offline instructions in
   focus independently of always-on-top stacking and suppress restore sounds.
   Compact mode preserves the logical active space. Resize/snap share clamped
   app minimums, with reachable viewport bounds taking precedence.
-- The start menu is categorized: `AppManifest.Category` (set for every builtin,
-  `desktop.DesktopAppCategories()` in display order, Store apps without a known
-  category fall into `installed`) drives a rail (`#vd-start-rail`, tablist) beside
+- The start menu is categorized: `AppManifest.Category` (set for every builtin
+  and copied from `CatalogEntry.Category` for Store apps,
+  `desktop.DesktopAppCategories()` in display order; only apps without a known
+  category, e.g. agent-generated ones, fall into `installed`) drives a rail (`#vd-start-rail`, tablist) beside
   the app pane (`#vd-start-pane-head` + `#vd-start-apps`). "Recent" appears only
   with history, "All apps" lists sections per category, search shows a flat result
   list and dims the rail. `START_MENU_CATEGORIES` in `core/window-shell-runtime.js`

@@ -27,6 +27,13 @@ Store app configuration, runtime, assets, and publication.
   Store operation slot. GET returns configured flags, exact allowed HTTP(S)
   origins and pending status only; PUT accepts known keys, explicit removals and
   at most eight origins. Blank/omitted key fields preserve existing values.
+- Every catalog entry declares `Category` from `desktop.DesktopAppCategories()`
+  (office, media, creative, ai, dev, system, comms, games; never `installed`),
+  and an entry that fronts a builtin (`DesktopAppID`) uses that builtin's
+  category. `desktopAppManifest` copies it into the Desktop manifest, so the
+  start menu sorts Store apps with the builtins; `ScheduleBrandingReconcile`
+  back-fills installed apps after a restart. Verify
+  `TestStoreCatalogEntriesCarryStartMenuCategories`.
 - Every Store catalog icon must pass the real Desktop icon allowlist before
   app/shortcut registration. `gods-eye-view` is a dedicated allowed icon using
   the packaged logo. Verify catalog icons and installation with the real

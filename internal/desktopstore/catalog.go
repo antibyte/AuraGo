@@ -6,6 +6,7 @@ func DefaultCatalog() []CatalogEntry {
 	return withCatalogDefaults([]CatalogEntry{
 		{
 			ID:          GodsEyeAppID,
+			Category:    "media",
 			Name:        "God's Eye View",
 			Description: "Explore a 3D globe with live flights, satellites and public data. Optional provider keys enable additional maps, ships and voice control.",
 			Image:       "ghcr.io/antibyte/aurago-gods-eye-view:gev-7596522-1",
@@ -18,6 +19,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "homarr",
+			Category:    "system",
 			Name:        "Homarr",
 			Description: "Dashboard for home-lab services and quick links.",
 			Image:       "ghcr.io/homarr-labs/homarr:latest",
@@ -34,6 +36,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "n8n",
+			Category:    "dev",
 			Name:        "n8n",
 			Description: "Workflow automation with integrations, triggers, and visual flows.",
 			Image:       "ghcr.io/n8n-io/n8n:latest",
@@ -51,6 +54,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "node-red",
+			Category:    "dev",
 			Name:        "Node-RED",
 			Description: "Low-code automation flows for devices, APIs, and services.",
 			Image:       "ghcr.io/node-red/node-red:latest",
@@ -64,6 +68,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "open-webui",
+			Category:    "ai",
 			Name:        "Open WebUI",
 			Description: "Self-hosted chat interface for local and remote LLM providers.",
 			Image:       "ghcr.io/open-webui/open-webui:main",
@@ -77,6 +82,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "bytestash",
+			Category:    "dev",
 			Name:        "ByteStash",
 			Description: "Self-hosted snippet manager for storing and searching code.",
 			Image:       "ghcr.io/jordan-dalby/bytestash:latest",
@@ -102,6 +108,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "it-tools",
+			Category:    "dev",
 			Name:        "IT Tools",
 			Description: "Collection of handy browser-based tools for developers and IT work.",
 			Image:       "ghcr.io/corentinth/it-tools:latest",
@@ -112,6 +119,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "filebrowser-quantum",
+			Category:    "system",
 			Name:        "FileBrowser Quantum",
 			Description: "Modern web file manager for browsing, uploading, and sharing files.",
 			Image:       "ghcr.io/gtsteffaniak/filebrowser:stable",
@@ -126,6 +134,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "olivetin",
+			Category:    "system",
 			Name:        "OliveTin",
 			Description: "Web UI for running predefined shell automation actions.",
 			Image:       "ghcr.io/olivetin/olivetin:latest",
@@ -142,6 +151,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "adguard-home",
+			Category:    "system",
 			Name:        "AdGuard Home",
 			Description: "Network-wide ad blocking and DNS filtering; v1 exposes only the setup web UI. Keep the admin web port on 3000 during setup.",
 			Image:       "adguard/adguardhome",
@@ -156,6 +166,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "excalidraw",
+			Category:    "creative",
 			Name:        "Excalidraw",
 			Description: "Collaborative sketching and diagramming canvas.",
 			Image:       "excalidraw/excalidraw:latest",
@@ -166,6 +177,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "uptime-kuma",
+			Category:    "system",
 			Name:        "Uptime Kuma",
 			Description: "Friendly uptime monitoring, alerting, and status pages.",
 			Image:       "ghcr.io/louislam/uptime-kuma:2",
@@ -182,6 +194,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "stirling-pdf",
+			Category:    "office",
 			Name:        "Stirling PDF",
 			Description: "Local PDF toolkit for merging, splitting, converting, signing, and OCR workflows.",
 			Image:       "ghcr.io/stirling-tools/stirling-pdf:latest",
@@ -198,6 +211,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "quakejs-rootless",
+			Category:    "games",
 			Name:        "QuakeJS Rootless",
 			Description: "Browser-playable QuakeJS server packaged for rootless container deployments.",
 			Image:       "docker.io/awakenedpower/quakejs-rootless:latest",
@@ -212,6 +226,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "romm",
+			Category:    "games",
 			Name:        "RomM",
 			Description: "ROM library manager with metadata, browser players, saves, and collection management.",
 			Image:       "ghcr.io/rommapp/romm:latest",
@@ -266,6 +281,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "beszel",
+			Category:    "system",
 			Name:        "Beszel",
 			Description: "Lightweight server monitoring hub with an optional local host agent.",
 			Image:       "ghcr.io/henrygd/beszel/beszel:latest",
@@ -301,6 +317,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "dozzle",
+			Category:    "dev",
 			Name:        "Dozzle",
 			Description: "Real-time Docker log viewer for local containers.",
 			Image:       "ghcr.io/amir20/dozzle:latest",
@@ -317,6 +334,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "arcane",
+			Category:    "system",
 			Name:        "Arcane",
 			Description: "Modern Docker management UI for containers, images, volumes, networks, and projects.",
 			Image:       "ghcr.io/getarcaneapp/manager:latest",
@@ -379,6 +397,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "code-server",
+			Category:    "dev",
 			Name:        "code-server",
 			Description: "Browser-based VS Code development environment.",
 			Image:       "ghcr.io/linuxserver/code-server:latest",
@@ -400,6 +419,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "termix",
+			Category:    "dev",
 			Name:        "Termix",
 			Description: "Self-hosted SSH and remote desktop management platform with RDP, VNC, and Telnet support.",
 			Image:       "ghcr.io/lukegus/termix:latest",
@@ -430,6 +450,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:          "commandcode",
+			Category:    "dev",
 			Name:        "CommandCode",
 			Description: "Console-first development workspace with Command Code and full-stack toolchains preinstalled. Installation can take several minutes because AuraGo may build the image locally. Command Code requires login or an API key; browser auth shows a key you can paste into the terminal.",
 			Image:       "ghcr.io/antibyte/aurago-commandcode:latest",
@@ -454,6 +475,7 @@ func DefaultCatalog() []CatalogEntry {
 		},
 		{
 			ID:           "openscad",
+			Category:     "creative",
 			Name:         "OpenSCAD",
 			Description:  "Script-based parametric CAD compiler with previews and export files.",
 			Image:        "openscad/openscad:latest",

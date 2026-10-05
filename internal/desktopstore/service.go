@@ -2108,6 +2108,7 @@ func (s *Service) desktopAppManifest(entry CatalogEntry, app InstalledApp) deskt
 		Entry:       "index.html",
 		Runtime:     RuntimeContainerWebApp,
 		Description: entry.Description,
+		Category:    entry.Category,
 		Metadata: map[string]string{
 			"store_app_id":   entry.ID,
 			"logo_path":      app.LogoPath,

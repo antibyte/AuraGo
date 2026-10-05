@@ -45,6 +45,7 @@ type CatalogEntry struct {
 	ID               string              `json:"id"`
 	Name             string              `json:"name"`
 	Description      string              `json:"description"`
+	Category         string              `json:"category,omitempty"`
 	Image            string              `json:"image"`
 	Icon             string              `json:"icon"`
 	LogoSlug         string              `json:"logo_slug"`
