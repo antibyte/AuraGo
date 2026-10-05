@@ -544,75 +544,12 @@ func SendEmail(smtpHost string, smtpPort int, username, password, from, to, subj
 	if from == "" {
 		from = username
 	}
-
-	addr := net.JoinHostPort(smtpHost, fmt.Sprintf("%d", smtpPort))
-
-	// Build RFC 5322 message
-	var msg strings.Builder
-	msg.WriteString(fmt.Sprintf("From: %s\r\n", from))
-	msg.WriteString(fmt.Sprintf("To: %s\r\n", to))
-	msg.WriteString(fmt.Sprintf("Subject: =?UTF-8?B?%s?=\r\n", base64.StdEncoding.EncodeToString([]byte(subject))))
-	msg.WriteString(fmt.Sprintf("Date: %s\r\n", time.Now().Format(time.RFC1123Z)))
-	msg.WriteString("MIME-Version: 1.0\r\n")
-	msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	msg.WriteString("Content-Transfer-Encoding: 8bit\r\n")
-	msg.WriteString("\r\n")
-	msg.WriteString(body)
-
-	// Connect and negotiate STARTTLS
-	conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
-	if err != nil {
-		return fmt.Errorf("SMTP connection failed: %w", err)
+	msg := buildEmailMessage(from, to, subject, body, time.Now(), nil, "")
+	if err := deliverSMTP(smtpHost, smtpPort, username, password, from, to, msg, false); err != nil {
+		return err
 	}
-
-	client, err := smtp.NewClient(conn, smtpHost)
-	if err != nil {
-		conn.Close()
-		return fmt.Errorf("SMTP client creation failed: %w", err)
-	}
-	defer client.Close()
-
-	// STARTTLS — required. Credentials must not be sent over unencrypted connections.
-	if ok, _ := client.Extension("STARTTLS"); ok {
-		if err := client.StartTLS(&tls.Config{ServerName: smtpHost}); err != nil {
-			return fmt.Errorf("STARTTLS failed: %w", err)
-		}
-	} else {
-		return fmt.Errorf("SMTP server %s does not support STARTTLS: refusing to send credentials over unencrypted connection (use port 465 with TLS instead)", smtpHost)
-	}
-
-	// Authenticate
-	auth := smtp.PlainAuth("", username, password, smtpHost)
-	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("SMTP auth failed: %w", err)
-	}
-
-	// Send
-	if err := client.Mail(from); err != nil {
-		return fmt.Errorf("SMTP MAIL FROM failed: %w", err)
-	}
-
-	recipients := strings.Split(to, ",")
-	for _, rcpt := range recipients {
-		rcpt = strings.TrimSpace(rcpt)
-		if err := client.Rcpt(rcpt); err != nil {
-			return fmt.Errorf("SMTP RCPT TO <%s> failed: %w", rcpt, err)
-		}
-	}
-
-	w, err := client.Data()
-	if err != nil {
-		return fmt.Errorf("SMTP DATA failed: %w", err)
-	}
-	if _, err := io.WriteString(w, msg.String()); err != nil {
-		return fmt.Errorf("SMTP write failed: %w", err)
-	}
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("SMTP close failed: %w", err)
-	}
-
 	logger.Info("[Email] Message sent", "from", from, "to", to, "subject", subject)
-	return client.Quit()
+	return nil
 }
 
 // ── SMTP via TLS (port 465) ─────────────────────────────────────────────────
@@ -622,67 +559,110 @@ func SendEmailTLS(smtpHost string, smtpPort int, username, password, from, to, s
 	if from == "" {
 		from = username
 	}
+	msg := buildEmailMessage(from, to, subject, body, time.Now(), nil, "")
+	if err := deliverSMTP(smtpHost, smtpPort, username, password, from, to, msg, true); err != nil {
+		return err
+	}
+	logger.Info("[Email] Message sent via TLS", "from", from, "to", to, "subject", subject)
+	return nil
+}
 
-	addr := net.JoinHostPort(smtpHost, fmt.Sprintf("%d", smtpPort))
-
-	// Build RFC 5322 message
+// buildEmailMessage renders an RFC 5322 message. Without attachments it is the plain
+// text/plain message AuraGo always sent; with attachments it is multipart/mixed.
+func buildEmailMessage(from, to, subject, body string, now time.Time, attachments []EmailAttachment, boundary string) string {
 	var msg strings.Builder
 	msg.WriteString(fmt.Sprintf("From: %s\r\n", from))
 	msg.WriteString(fmt.Sprintf("To: %s\r\n", to))
 	msg.WriteString(fmt.Sprintf("Subject: =?UTF-8?B?%s?=\r\n", base64.StdEncoding.EncodeToString([]byte(subject))))
-	msg.WriteString(fmt.Sprintf("Date: %s\r\n", time.Now().Format(time.RFC1123Z)))
+	msg.WriteString(fmt.Sprintf("Date: %s\r\n", now.Format(time.RFC1123Z)))
 	msg.WriteString("MIME-Version: 1.0\r\n")
-	msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	msg.WriteString("Content-Transfer-Encoding: 8bit\r\n")
-	msg.WriteString("\r\n")
-	msg.WriteString(body)
-
-	// Direct TLS connection
-	tlsConn, err := tls.DialWithDialer(
-		&net.Dialer{Timeout: 15 * time.Second},
-		"tcp", addr,
-		&tls.Config{ServerName: smtpHost},
-	)
-	if err != nil {
-		return fmt.Errorf("SMTPS TLS dial failed: %w", err)
+	if len(attachments) == 0 {
+		msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+		msg.WriteString("Content-Transfer-Encoding: 8bit\r\n")
+		msg.WriteString("\r\n")
+		msg.WriteString(body)
+		return msg.String()
 	}
+	msg.WriteString("Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n\r\n")
+	msg.WriteString("--" + boundary + "\r\n")
+	msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	msg.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
+	msg.WriteString(body)
+	msg.WriteString("\r\n")
+	for _, a := range attachments {
+		msg.WriteString("--" + boundary + "\r\n")
+		msg.WriteString("Content-Type: " + mime.FormatMediaType(a.ContentType, map[string]string{"name": a.Name}) + "\r\n")
+		msg.WriteString("Content-Disposition: " + mime.FormatMediaType("attachment", map[string]string{"filename": a.Name}) + "\r\n")
+		msg.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
+		writeBase64Lines(&msg, a.Data)
+	}
+	msg.WriteString("--" + boundary + "--\r\n")
+	return msg.String()
+}
 
-	client, err := smtp.NewClient(tlsConn, smtpHost)
-	if err != nil {
-		tlsConn.Close()
-		return fmt.Errorf("SMTPS client creation failed: %w", err)
+// deliverSMTP sends a rendered message over STARTTLS (implicitTLS=false) or implicit TLS.
+// The error texts are the ones SendEmail and SendEmailTLS always returned.
+func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, message string, implicitTLS bool) error {
+	addr := net.JoinHostPort(smtpHost, fmt.Sprintf("%d", smtpPort))
+	label := "SMTP"
+	var client *smtp.Client
+	if implicitTLS {
+		label = "SMTPS"
+		tlsConn, err := tls.DialWithDialer(&net.Dialer{Timeout: 15 * time.Second}, "tcp", addr, &tls.Config{ServerName: smtpHost})
+		if err != nil {
+			return fmt.Errorf("SMTPS TLS dial failed: %w", err)
+		}
+		c, err := smtp.NewClient(tlsConn, smtpHost)
+		if err != nil {
+			tlsConn.Close()
+			return fmt.Errorf("SMTPS client creation failed: %w", err)
+		}
+		client = c
+	} else {
+		conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
+		if err != nil {
+			return fmt.Errorf("SMTP connection failed: %w", err)
+		}
+		c, err := smtp.NewClient(conn, smtpHost)
+		if err != nil {
+			conn.Close()
+			return fmt.Errorf("SMTP client creation failed: %w", err)
+		}
+		client = c
 	}
 	defer client.Close()
-
-	// Authenticate
-	auth := smtp.PlainAuth("", username, password, smtpHost)
-	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("SMTPS auth failed: %w", err)
+	if !implicitTLS {
+		// STARTTLS — required. Credentials must not be sent over unencrypted connections.
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			if err := client.StartTLS(&tls.Config{ServerName: smtpHost}); err != nil {
+				return fmt.Errorf("STARTTLS failed: %w", err)
+			}
+		} else {
+			return fmt.Errorf("SMTP server %s does not support STARTTLS: refusing to send credentials over unencrypted connection (use port 465 with TLS instead)", smtpHost)
+		}
 	}
-
-	// Send
+	if err := client.Auth(smtp.PlainAuth("", username, password, smtpHost)); err != nil {
+		return fmt.Errorf("%s auth failed: %w", label, err)
+	}
 	if err := client.Mail(from); err != nil {
-		return fmt.Errorf("SMTPS MAIL FROM failed: %w", err)
+		return fmt.Errorf("%s MAIL FROM failed: %w", label, err)
 	}
-	recipients := strings.Split(to, ",")
-	for _, rcpt := range recipients {
+	for _, rcpt := range strings.Split(to, ",") {
 		rcpt = strings.TrimSpace(rcpt)
 		if err := client.Rcpt(rcpt); err != nil {
-			return fmt.Errorf("SMTPS RCPT TO <%s> failed: %w", rcpt, err)
+			return fmt.Errorf("%s RCPT TO <%s> failed: %w", label, rcpt, err)
 		}
 	}
 	w, err := client.Data()
 	if err != nil {
-		return fmt.Errorf("SMTPS DATA failed: %w", err)
+		return fmt.Errorf("%s DATA failed: %w", label, err)
 	}
-	if _, err := io.WriteString(w, msg.String()); err != nil {
-		return fmt.Errorf("SMTPS write failed: %w", err)
+	if _, err := io.WriteString(w, message); err != nil {
+		return fmt.Errorf("%s write failed: %w", label, err)
 	}
 	if err := w.Close(); err != nil {
-		return fmt.Errorf("SMTPS close failed: %w", err)
+		return fmt.Errorf("%s close failed: %w", label, err)
 	}
-
-	logger.Info("[Email] Message sent via TLS", "from", from, "to", to, "subject", subject)
 	return client.Quit()
 }
 
