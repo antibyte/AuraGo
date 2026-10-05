@@ -1101,11 +1101,7 @@ func CheckLegacyWorkbookRewrite(name string, original []byte) error {
 	if ext != ".xlsx" && ext != ".xlsm" {
 		return nil
 	}
-	parts, err := readOfficeParts(original, "xl/workbook.xml")
-	if err != nil {
-		return err
-	}
-	f, err := excelize.OpenReader(bytes.NewReader(original))
+	parts, f, err := openValidatedXLSX(original)
 	if err != nil {
 		return err
 	}

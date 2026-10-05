@@ -82,3 +82,18 @@ func validateWorkbookAllocation(parts map[string][]byte) error {
 	}
 	return nil
 }
+
+func openValidatedXLSX(data []byte) (map[string][]byte, *excelize.File, error) {
+	parts, err := readOfficeParts(data, "xl/workbook.xml")
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := validateWorkbookAllocation(parts); err != nil {
+		return nil, nil, err
+	}
+	f, err := excelize.OpenReader(bytes.NewReader(data), excelize.Options{UnzipSizeLimit: 128 << 20, UnzipXMLSizeLimit: 16 << 20})
+	if err != nil {
+		return nil, nil, fmt.Errorf("open workbook: %w", err)
+	}
+	return parts, f, nil
+}

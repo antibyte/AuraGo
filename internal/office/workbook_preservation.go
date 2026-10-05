@@ -465,13 +465,17 @@ func applyEditorFilteredRows(f *excelize.File, before, after EditorWorkbook) err
 }
 
 func EncodeEditorCSV(data []byte, name string) ([]byte, error) {
-	f, err := excelize.OpenReader(bytes.NewReader(data))
+	_, f, err := openValidatedXLSX(data)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 	if name == "" {
-		name = f.GetSheetList()[0]
+		sheets := f.GetSheetList()
+		if len(sheets) == 0 {
+			return nil, fmt.Errorf("workbook has no worksheets")
+		}
+		name = sheets[0]
 	}
 	rows, err := f.GetRows(name)
 	if err != nil {

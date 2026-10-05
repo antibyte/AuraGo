@@ -1,6 +1,7 @@
 package office
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -24,5 +25,24 @@ func TestWorkbookPreflightRejectsSparseAllocationBeforeDecode(t *testing.T) {
 	body.WriteString("</sheetData></worksheet>")
 	if err := validateWorkbookAllocation(map[string][]byte{"xl/worksheets/sheet1.xml": []byte(body.String())}); err == nil {
 		t.Fatal("expanded cell budget accepted")
+	}
+}
+
+func TestLegacyWorkbookRewriteAndCSVPreflightSparseRows(t *testing.T) {
+	parts, err := readOfficeParts(editorFixture(t), "xl/workbook.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sheet := sheetPartByName(parts, "Budget")
+	parts[sheet] = bytes.Replace(parts[sheet], []byte("</sheetData>"), []byte(`<row r="100001"><c r="A100001"><v>overflow</v></c></row></sheetData>`), 1)
+	sparse, err := writeOfficeParts(parts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckLegacyWorkbookRewrite("book.xlsx", sparse); err == nil || !strings.Contains(err.Error(), "workbook row limit exceeded") {
+		t.Fatalf("legacy rewrite sparse row error = %v", err)
+	}
+	if _, err := EncodeEditorCSV(sparse, "Budget"); err == nil || !strings.Contains(err.Error(), "workbook row limit exceeded") {
+		t.Fatalf("CSV sparse row error = %v", err)
 	}
 }

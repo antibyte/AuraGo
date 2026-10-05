@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 	"aurago/internal/httpstream"
 	"aurago/internal/tools"
 	"aurago/internal/webassets"
@@ -344,30 +346,15 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 		http.NotFound(w, r)
 		return true
 	}
-	fullPath := filepath.Join(desktopDir, filepath.FromSlash(relPath))
-	rootAbs, rootErr := filepath.Abs(desktopDir)
-	fullAbs, fullErr := filepath.Abs(fullPath)
-	if rootErr != nil || fullErr != nil {
-		http.NotFound(w, r)
-		return true
-	}
-	relToRoot, relErr := filepath.Rel(rootAbs, fullAbs)
-	if relErr != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(os.PathSeparator)) || filepath.IsAbs(relToRoot) {
-		http.NotFound(w, r)
-		return true
-	}
-	info, err := os.Stat(fullAbs)
-	if err != nil || info.IsDir() {
-		return false
-	}
-	content, err := os.ReadFile(fullAbs)
+	content, info, err := readRootedDesktopContent(desktopDir, relPath)
 	if err != nil {
-		return false
+		http.NotFound(w, r)
+		return true
 	}
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, desktopTicketFromRequest(r))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", desktopWidgetWorkspaceCSP)
-	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopWidgetAutoResizeHTML(content)))
+	http.ServeContent(w, r, filepath.Base(relPath), info.ModTime(), bytes.NewReader(injectDesktopWidgetAutoResizeHTML(content)))
 	return true
 }
 
@@ -463,29 +450,12 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 	if err != nil || !strings.EqualFold(filepath.Base(relPath), "index.html") {
 		return false
 	}
-	fullPath := filepath.Join(desktopDir, filepath.FromSlash(relPath))
-	rootAbs, rootErr := filepath.Abs(desktopDir)
-	fullAbs, fullErr := filepath.Abs(fullPath)
-	if rootErr != nil || fullErr != nil {
-		http.NotFound(w, r)
-		return true
-	}
-	relToRoot, relErr := filepath.Rel(rootAbs, fullAbs)
-	if relErr != nil || relToRoot == ".." || strings.HasPrefix(relToRoot, ".."+string(os.PathSeparator)) || filepath.IsAbs(relToRoot) {
-		http.NotFound(w, r)
-		return true
-	}
-	info, err := os.Stat(fullAbs)
-	if err != nil || info.IsDir() {
-		http.NotFound(w, r)
-		return true
-	}
-	content, err := os.ReadFile(fullAbs)
+	content, info, err := readRootedDesktopContent(desktopDir, relPath)
 	if err != nil {
 		http.NotFound(w, r)
 		return true
 	}
-	content = inlineDesktopAppSiblingScripts(content, fullAbs)
+	content = inlineDesktopAppSiblingScripts(content, desktopDir, relPath)
 	embedToken := desktopTicketFromRequest(r)
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, embedToken)
 	content = rewriteDesktopAppResourceURLs(content, info.ModTime(), embedToken)
@@ -493,17 +463,33 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSPForRequest(r))
-	http.ServeContent(w, r, filepath.Base(fullAbs), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
+	http.ServeContent(w, r, filepath.Base(relPath), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
 	return true
 }
 
-func inlineDesktopAppSiblingScripts(content []byte, indexFilePath string) []byte {
-	if len(content) == 0 || !bytes.Contains(content, []byte(`<script`)) {
-		return content
-	}
-	indexDir := filepath.Dir(indexFilePath)
-	indexDirAbs, err := filepath.Abs(indexDir)
+func readRootedDesktopContent(desktopDir, relPath string) ([]byte, os.FileInfo, error) {
+	rootFS, err := desktop.NewRootedHTTPFileSystem(desktopDir)
 	if err != nil {
+		return nil, nil, err
+	}
+	file, err := rootFS.Open("/" + strings.TrimPrefix(filepath.ToSlash(relPath), "/"))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, nil, os.ErrNotExist
+	}
+	content, err := io.ReadAll(file)
+	return content, info, err
+}
+
+func inlineDesktopAppSiblingScripts(content []byte, desktopDir, indexRelPath string) []byte {
+	if len(content) == 0 || !bytes.Contains(content, []byte(`<script`)) {
 		return content
 	}
 	return desktopAppExternalScriptPattern.ReplaceAllFunc(content, func(match []byte) []byte {
@@ -515,12 +501,7 @@ func inlineDesktopAppSiblingScripts(content []byte, indexFilePath string) []byte
 		if !shouldInlineDesktopAppSiblingAsset(src) {
 			return match
 		}
-		assetPath := filepath.Join(indexDir, filepath.FromSlash(src))
-		assetAbs, err := filepath.Abs(assetPath)
-		if err != nil || !desktopPathWithinRoot(indexDirAbs, assetAbs) {
-			return match
-		}
-		data, err := os.ReadFile(assetAbs)
+		data, _, err := readRootedDesktopContent(desktopDir, filepath.Join(filepath.Dir(indexRelPath), filepath.FromSlash(src)))
 		if err != nil || len(data) == 0 {
 			return match
 		}
@@ -1113,7 +1094,11 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		desktopDir = filepath.Join(s.Cfg.Directories.WorkspaceDir, "virtual_desktop")
 	}
 	os.MkdirAll(desktopDir, 0755)
-	desktopFileHandler := http.StripPrefix("/files/desktop/", http.FileServer(neuteredFileSystem{http.Dir(desktopDir)}))
+	desktopFS, desktopFSErr := desktop.NewRootedHTTPFileSystem(desktopDir)
+	var desktopFileHandler http.Handler = http.NotFoundHandler()
+	if desktopFSErr == nil {
+		desktopFileHandler = http.StripPrefix("/files/desktop/", http.FileServer(neuteredFileSystem{desktopFS}))
+	}
 	mux.HandleFunc("/files/desktop/", func(w http.ResponseWriter, r *http.Request) {
 		if !s.Cfg.VirtualDesktop.Enabled {
 			http.NotFound(w, r)
@@ -1150,7 +1135,11 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		desktopFileHandler.ServeHTTP(w, r)
 	})
 
-	fsHandler := http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{http.Dir(s.Cfg.Directories.WorkspaceDir)}))
+	workspaceFS, err := desktop.NewRootedHTTPFileSystem(s.Cfg.Directories.WorkspaceDir)
+	var fsHandler http.Handler = http.NotFoundHandler()
+	if err == nil {
+		fsHandler = http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{workspaceFS}))
+	}
 	mux.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if isActiveContentExtension(r.URL.Path) {

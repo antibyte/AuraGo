@@ -415,16 +415,9 @@ func trailingNewline(text string) string {
 }
 
 func decodeXLSX(data []byte) (Workbook, error) {
-	parts, err := readOfficeParts(data, "xl/workbook.xml")
+	_, f, err := openValidatedXLSX(data)
 	if err != nil {
 		return Workbook{}, err
-	}
-	if err := validateWorkbookAllocation(parts); err != nil {
-		return Workbook{}, err
-	}
-	f, err := excelize.OpenReader(bytes.NewReader(data), excelize.Options{UnzipSizeLimit: 128 << 20, UnzipXMLSizeLimit: 16 << 20})
-	if err != nil {
-		return Workbook{}, fmt.Errorf("open workbook: %w", err)
 	}
 	defer f.Close()
 	var workbook Workbook
