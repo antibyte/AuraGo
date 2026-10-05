@@ -408,7 +408,16 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			return
 		}
 
-		client := &http.Client{Timeout: 5 * time.Second}
+		// The host passed the loopback allowlist above; never follow a redirect
+		// off it and never route the request through an environment proxy.
+		client := &http.Client{
+			Timeout:   5 * time.Second,
+			Transport: &http.Transport{Proxy: nil},
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+		defer client.CloseIdleConnections()
 		resp, err := client.Get(ollamaHost + "/api/tags")
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
@@ -420,13 +429,17 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			return
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			jsonError(w, fmt.Sprintf("Ollama answered with status %d", resp.StatusCode), http.StatusBadGateway)
+			return
+		}
 
 		var tagsResp struct {
 			Models []struct {
 				Name string `json:"name"`
 			} `json:"models"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&tagsResp); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&tagsResp); err != nil {
 			jsonError(w, "Failed to parse Ollama response", http.StatusBadGateway)
 			return
 		}

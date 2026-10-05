@@ -1,6 +1,9 @@
 package server
 
 import (
+	"net/http"
+	"net/http/httptest"
+	neturl "net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -285,6 +288,80 @@ func TestBuildSchemaHidesHelperOwnedLegacyLLMSelectionFields(t *testing.T) {
 		}
 		if hasChild(toolSection, "summary_provider") {
 			t.Fatalf("expected %s.summary_provider to be hidden from config schema", toolKey)
+		}
+	}
+}
+
+func TestHandleOllamaModelsDoesNotFollowRedirects(t *testing.T) {
+	t.Parallel()
+
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"models":[{"name":"leaked:latest"}]}`))
+	}))
+	defer target.Close()
+	redirecting := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/api/tags", http.StatusFound)
+	}))
+	defer redirecting.Close()
+
+	s := &Server{}
+	req := httptest.NewRequest(http.MethodGet, "/api/ollama/models?url="+neturl.QueryEscape(redirecting.URL), nil)
+	rec := httptest.NewRecorder()
+	handleOllamaModels(s)(rec, req)
+
+	if strings.Contains(rec.Body.String(), "leaked:latest") {
+		t.Fatalf("redirect target content must not be returned: %s", rec.Body.String())
+	}
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d for a redirecting Ollama host", rec.Code, http.StatusBadGateway)
+	}
+}
+
+func TestHandleOllamaModelsRejectsNonOKStatus(t *testing.T) {
+	t.Parallel()
+
+	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"models":[{"name":"error-body:latest"}]}`))
+	}))
+	defer ollama.Close()
+
+	s := &Server{}
+	req := httptest.NewRequest(http.MethodGet, "/api/ollama/models?url="+neturl.QueryEscape(ollama.URL), nil)
+	rec := httptest.NewRecorder()
+	handleOllamaModels(s)(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d for a failing Ollama host", rec.Code, http.StatusBadGateway)
+	}
+	if strings.Contains(rec.Body.String(), "error-body:latest") {
+		t.Fatalf("model list must not be parsed from a non-200 response: %s", rec.Body.String())
+	}
+}
+
+func TestHandleOllamaModelsListsModelsOnOK(t *testing.T) {
+	t.Parallel()
+
+	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/tags" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"models":[{"name":"llama3:latest"},{"name":"qwen3:8b"}]}`))
+	}))
+	defer ollama.Close()
+
+	s := &Server{}
+	req := httptest.NewRequest(http.MethodGet, "/api/ollama/models?url="+neturl.QueryEscape(ollama.URL+"/v1"), nil)
+	rec := httptest.NewRecorder()
+	handleOllamaModels(s)(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	for _, want := range []string{"llama3:latest", "qwen3:8b"} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("response %q does not list %q", rec.Body.String(), want)
 		}
 	}
 }
