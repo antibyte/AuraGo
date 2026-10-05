@@ -58,3 +58,58 @@ func TestTimerServiceYearlyKeepsLocalTimeAcrossDST(t *testing.T) {
 		})
 	}
 }
+
+// tzRearm arms one yearly timer at fireAt, lets a timer service in loc fire it during
+// Start (five minutes late, within the grace) and returns the time it re-armed it for.
+func tzRearm(t *testing.T, loc *time.Location, fireAt time.Time) time.Time {
+	t.Helper()
+	h := newHardTimers(t, fireAt.Add(5*time.Minute))
+	h.arm(t, TimerRecord{NodeID: "n_aaaaaaaa", FireAt: fireAt, Repeat: RepeatYearly})
+	svc := h.service(t, func(string, string, time.Time) {}, nil, nil)
+	svc.SetLocation(loc)
+	if err := svc.Start(context.Background()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	list := h.timers(t)
+	if len(list) != 1 || list[0].Repeat != RepeatYearly {
+		t.Fatalf("re-armed timers = %+v", list)
+	}
+	return list[0].FireAt
+}
+
+// The edges of yearly timers in a zone with daylight saving time (Europe/Berlin).
+func TestTimerServiceYearlyZoneEdges(t *testing.T) {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Skip("tzdata missing")
+	}
+	local := func(tm time.Time) string { return tm.In(berlin).Format("2006-01-02 15:04 MST") }
+
+	// Feb 29 00:30 local is Feb 28 in UTC; it recurs on the next local Feb 29.
+	leap := time.Date(2028, 2, 29, 0, 30, 0, 0, berlin)
+	if got := tzRearm(t, berlin, leap); local(got) != "2032-02-29 00:30 CET" {
+		t.Fatalf("Feb 29 re-armed for %s", local(got))
+	}
+
+	// The spring-forward gap, the documented limit: 02:30 does not exist on 2027-03-28,
+	// the timer moves to 03:30 and stays there the year after.
+	gap := time.Date(2026, 3, 28, 2, 30, 0, 0, berlin)
+	y2027 := tzRearm(t, berlin, gap)
+	if local(y2027) != "2027-03-28 03:30 CEST" {
+		t.Fatalf("gap year 2027 = %s", local(y2027))
+	}
+	if y2028 := tzRearm(t, berlin, y2027); local(y2028) != "2028-03-28 03:30 CEST" {
+		t.Fatalf("gap year 2028 = %s", local(y2028))
+	}
+
+	// The autumn overlap keeps the wall-clock time: from an overlap day to an ordinary
+	// day, and from an ordinary day to the next year's overlap day (2027-10-31), where
+	// either of the two instants of 02:30 is acceptable.
+	if got := tzRearm(t, berlin, time.Date(2026, 10, 25, 2, 30, 0, 0, berlin)); local(got) != "2027-10-25 02:30 CEST" {
+		t.Fatalf("overlap day re-armed for %s", local(got))
+	}
+	got := tzRearm(t, berlin, time.Date(2026, 10, 31, 2, 30, 0, 0, berlin)).In(berlin)
+	if got.Format("2006-01-02 15:04") != "2027-10-31 02:30" {
+		t.Fatalf("re-armed into the overlap for %s", local(got))
+	}
+}

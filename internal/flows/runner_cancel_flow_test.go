@@ -2,6 +2,7 @@ package flows
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -73,6 +74,90 @@ drain:
 	}
 	if n := fx.r.CancelFlow(a.ID); n != 0 {
 		t.Fatalf("CancelFlow of an idle flow = %d", n)
+	}
+}
+
+// CancelFlow counts only the runs it cancels itself. A running run whose node ignores
+// its context stays active after a cancel; neither a second CancelFlow nor one after
+// Cancel counts it again, while a newly queued run of the flow is counted.
+func TestRunnerCancelFlowCountsOnlyNewCancels(t *testing.T) {
+	fx := newRunnerFixture(t, RunnerConfig{})
+	entered := make(chan string, 4)
+	release := make(chan struct{})
+	var once sync.Once
+	letGo := func() { once.Do(func() { close(release) }) }
+	t.Cleanup(letGo) // runs before the fixture's Shutdown
+	fx.r.engine.reg.MustRegister(&NodeDef{Type: "test.stubborn", DefaultTimeout: 10 * time.Second,
+		Execute: func(_ context.Context, in ExecInput) (ExecResult, error) {
+			entered <- in.Run.ID
+			<-release // ignores the context on purpose
+			return ExecResult{}, nil
+		}})
+	stubborn := func(id string) *Flow {
+		b := newFlow("Stur")
+		tr := b.node("start", "test.trigger", nil)
+		b.edge(tr, PortOut, b.node("stubborn", "test.stubborn", nil))
+		f := b.build()
+		f.ID = id
+		if _, err := fx.store.CreateFlow(context.Background(), f, "", storeNow); err != nil {
+			t.Fatalf("CreateFlow: %v", err)
+		}
+		return f
+	}
+	start := func(f *Flow) StartResult {
+		t.Helper()
+		res, err := fx.r.Start(StartRequest{Flow: f, Mode: ModeLive, TriggerNode: f.Nodes[0].ID})
+		if err != nil {
+			t.Fatalf("Start: %v", err)
+		}
+		return res
+	}
+	waitEntered := func(runID string) {
+		t.Helper()
+		select {
+		case got := <-entered:
+			if got != runID {
+				t.Fatalf("node entered by %s, want %s", got, runID)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatalf("run %s did not reach its node", runID)
+		}
+	}
+
+	a := stubborn("flow_aaaaaaaaed")
+	runA := start(a)
+	waitEntered(runA.RunID)
+	if n := fx.r.CancelFlow(a.ID); n != 1 {
+		t.Fatalf("first CancelFlow = %d, want 1", n)
+	}
+	if n := fx.r.CancelFlow(a.ID); n != 0 {
+		t.Fatalf("second CancelFlow = %d, want 0 for the run cancelled already", n)
+	}
+	queued := start(a)
+	if queued.Status != StartQueued {
+		t.Fatalf("second start = %+v, want queued", queued)
+	}
+	if n := fx.r.CancelFlow(a.ID); n != 1 {
+		t.Fatalf("CancelFlow with a new queued run = %d, want 1", n)
+	}
+
+	b := stubborn("flow_aaaaaaaaee")
+	runB := start(b)
+	waitEntered(runB.RunID)
+	if !fx.r.Cancel(runB.RunID) {
+		t.Fatal("Cancel(running) = false")
+	}
+	if n := fx.r.CancelFlow(b.ID); n != 0 {
+		t.Fatalf("CancelFlow after Cancel = %d, want 0", n)
+	}
+
+	letGo()
+	ended := map[string]bool{}
+	for i := 0; i < 3; i++ {
+		ended[fx.waitFinished(t).ID] = true
+	}
+	if !ended[runA.RunID] || !ended[queued.RunID] || !ended[runB.RunID] {
+		t.Fatalf("finished runs = %v", ended)
 	}
 }
 

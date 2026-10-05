@@ -172,8 +172,18 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - A store error makes the loop wait `retryDelay` (30 s) before retrying; `Stop` takes effect between
   timers; `Start` is idempotent and fails after `Stop`.
 - Yearly timers keep their anchor day (Feb 29 fires only in leap years). The arithmetic runs in the
-  zone set by `SetLocation` (UTC when unset; the Service sets `Services.Loc()`), so a yearly timer keeps
-  its local time of day across daylight saving changes. Fire times are stored as UTC.
+  zone set by `SetLocation` (UTC when unset; the Service sets `Services.Loc()`); fire times are stored
+  as UTC. In the zone a yearly timer keeps its local date and wall-clock time across daylight saving
+  changes, a local Feb 29 included, with one limit: a time in the spring-forward gap (02:30 on the
+  switch day) becomes 03:30 and stays 03:30 in later years, because the stored time is all the timer
+  remembers, until `armTimers` rebinds the flow from its document (Publish, SetEnabled).
+
+## Service
+- A `MissionBridge` must not synchronously call a Service method that takes a flow lock, for any flow:
+  today `Publish`, `SetEnabled`, `DeleteFlow` and `DeleteFlowForMission`. The Service calls the bridge
+  under a flow lock, and runner hooks can run inside such an operation. Lock-free reads (`GetFlow`,
+  `ListFlows`, the timer queries) may be called synchronously and must stay lock-free. Run paths
+  (starting runs, runner hooks, timer callbacks) never take a flow lock.
 
 ## Tests
 - `go test ./internal/flows/ -count=1`; the race detector needs cgo, so `go test -race ./internal/flows/`

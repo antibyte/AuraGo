@@ -80,9 +80,11 @@ type pendingRun struct {
 }
 
 // activeRun is a launched run: its flow, for CancelFlow, and how to cancel it.
+// cancelled records that Cancel, CancelFlow or Shutdown cancelled it already.
 type activeRun struct {
-	flowID string
-	cancel context.CancelFunc
+	flowID    string
+	cancel    context.CancelFunc
+	cancelled bool
 }
 
 // Runner admits, executes and persists runs. Test runs bypass the per-flow policy
@@ -427,6 +429,8 @@ func (r *Runner) callHook(rec RunRecord, res RunResult) {
 func (r *Runner) Cancel(runID string) bool {
 	r.mu.Lock()
 	if run, ok := r.cancels[runID]; ok {
+		run.cancelled = true
+		r.cancels[runID] = run
 		r.mu.Unlock()
 		run.cancel()
 		return true
@@ -469,10 +473,12 @@ func (r *Runner) removeQueuedLocked(runID string) *pendingRun {
 }
 
 // CancelFlow cancels every run of the flow that the runner knows, test runs included,
-// and returns how many it cancelled. Running runs are cancelled through their context,
-// like Cancel does, and end in the background. Runs queued behind the flow's active run
-// or waiting for a global slot end at once with FLOW_CANCELLED; OnRunFinished is called
-// for them before CancelFlow returns, outside all locks.
+// and returns how many runs this call cancelled; a running run that Cancel, CancelFlow
+// or Shutdown cancelled before is not counted again while it winds down. Running runs
+// are cancelled through their context, like Cancel does, and end in the background.
+// Runs queued behind the flow's active run or waiting for a global slot end at once
+// with FLOW_CANCELLED; OnRunFinished is called for them before CancelFlow returns,
+// outside all locks.
 //
 // CancelFlow first waits for a Start that is writing its run record, like Shutdown, so
 // every run whose Start returned before CancelFlow was called is cancelled. A Start that
@@ -502,8 +508,10 @@ func (r *Runner) CancelFlow(flowID string) int {
 		r.releaseFlowLocked(flowID)
 	}
 	var cancels []context.CancelFunc
-	for _, run := range r.cancels {
-		if run.flowID == flowID {
+	for id, run := range r.cancels {
+		if run.flowID == flowID && !run.cancelled {
+			run.cancelled = true
+			r.cancels[id] = run
 			cancels = append(cancels, run.cancel)
 		}
 	}
@@ -585,6 +593,10 @@ func (r *Runner) Shutdown(ctx context.Context) error {
 	pending = append(pending, r.waiting...)
 	r.flowQueue = map[string][]*pendingRun{}
 	r.waiting = nil
+	for id, run := range r.cancels { // baseStop below cancels them all
+		run.cancelled = true
+		r.cancels[id] = run
+	}
 	r.mu.Unlock()
 	r.startMu.Unlock()
 

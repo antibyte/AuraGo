@@ -137,9 +137,13 @@ func (t *TimerService) Start(ctx context.Context) error {
 // The store keeps fire times in UTC, so without the zone a yearly timer keeps its UTC
 // time of day: a date in the weeks where the daylight saving switch moves from year to
 // year (end of March and of October in Europe) then comes out an hour off its local
-// time. A local time that does not exist on the next date (02:30 on the spring switch)
-// moves the way time.Date normalizes it. SetLocation may be called at any time; the
-// zone applies to the timers settled afterwards.
+// time, and a local Feb 29 whose UTC date is Feb 28 drifts to Mar 1. In the zone both
+// keep their local date and time, with one limit: a time in the spring-forward gap
+// (02:30 on the switch day) does not exist, time.Date moves it to 03:30, and since the
+// stored time is all the timer remembers it stays at 03:30 in the following years until
+// the flow is armed again from its document (Publish or SetEnabled). A time in the
+// autumn overlap keeps its wall-clock time; which of the two instants is not defined.
+// SetLocation may be called at any time; the zone applies to the timers settled afterwards.
 func (t *TimerService) SetLocation(loc *time.Location) {
 	t.mu.Lock()
 	t.loc = loc

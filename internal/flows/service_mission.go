@@ -16,15 +16,20 @@ import (
 //
 // There is one lock per flow id, so flows never wait for each other. An entry lives
 // while somebody holds or waits for it and is removed with the last one, so the map
-// only holds flows with an operation in progress. Waiting honours the caller's context.
+// only holds flows with an operation in progress.
+//
+// The caller's context bounds waiting for the lock and the steps up to the first one
+// that cannot be undone (the store publish, the mission switch, the mission delete).
+// From there on the operation runs with context.WithoutCancel, so a caller that goes
+// away (an HTTP client disconnecting) cannot leave the mission and the timers apart.
 //
 // Lock order and why it cannot deadlock: a flow lock is the outermost lock. While it is
 // held the Service calls the store, the bridge, TimerService.Replace (no timer lock,
 // a non-blocking wake-up) and Runner.CancelFlow (the runner's locks, released before
 // it calls OnRunFinished for the runs it ended, on this goroutine). None of these may
-// call back into a flow operation: the run paths (starting runs, runner hooks, timer
-// callbacks) never take a flow lock, and bridge implementations must not call back into
-// the Service synchronously (see MissionBridge).
+// take a flow lock: the run paths (starting runs, runner hooks, timer callbacks) never
+// do, and a bridge must not synchronously call a Service method that does (see
+// MissionBridge).
 type flowLocks struct {
 	mu    sync.Mutex
 	locks map[string]*flowLock
@@ -36,9 +41,13 @@ type flowLock struct {
 	refs int // holders and waiters; guarded by flowLocks.mu
 }
 
-// lock takes the lock of flow id, or gives up with ctx's error when ctx ends first.
-// The returned function releases the lock; call it exactly once.
+// lock takes the lock of flow id, or gives up with ctx's error when ctx ends first; a
+// ctx that has already ended never takes the lock, even a free one. The returned function
+// releases the lock; calling it again does nothing.
 func (l *flowLocks) lock(ctx context.Context, id string) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	l.mu.Lock()
 	if l.locks == nil {
 		l.locks = map[string]*flowLock{}
@@ -52,9 +61,12 @@ func (l *flowLocks) lock(ctx context.Context, id string) (func(), error) {
 	l.mu.Unlock()
 	select {
 	case fl.sem <- struct{}{}:
+		var once sync.Once
 		return func() {
-			<-fl.sem
-			l.drop(id, fl)
+			once.Do(func() {
+				<-fl.sem
+				l.drop(id, fl)
+			})
 		}, nil
 	case <-ctx.Done():
 		l.drop(id, fl)
@@ -80,7 +92,12 @@ func (l *flowLocks) drop(id string, fl *flowLock) {
 // timers were not updated. Publishing the same draft revision again repeats the update:
 // the store treats a revision that is already live as a no-op, so no version is added
 // and the bindings and timers are synced from the live revision. Any later successful
-// publish heals it too.
+// publish heals it too. Once the store published, the rest runs to the end even if ctx
+// is cancelled (see flowLocks).
+//
+// Known limit, no repair at start-up: when AuraGo stops between the store publish and the
+// mission sync, Start does not detect it; the next successful Publish of the flow
+// repairs it (see Service.Start).
 //
 // A trigger.mission_completed that waits for the flow's own mission is refused: every
 // run would start the next one. Loops across several flows are not detected.
@@ -112,6 +129,9 @@ func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*Fl
 	if err != nil {
 		return nil, issues, err
 	}
+	// The revision is live: Mission Control and the timers must follow it even when the
+	// caller goes away (an HTTP client that disconnects cancels ctx).
+	ctx = context.WithoutCancel(ctx)
 	if err := s.bridge.SyncFlowMission(pub.MissionID, pub.Live.Name, bindings); err != nil {
 		return pub, issues, fmt.Errorf("update the flow mission: %w", err)
 	}
@@ -149,6 +169,7 @@ func selfTriggerIssues(f *Flow, missionID string) []Issue {
 
 // SetEnabled activates or deactivates a published flow. It holds the flow's lock, like
 // Publish, so it never arms the timers of a revision that a concurrent Publish replaced.
+// From the mission switch on it ignores the cancellation of ctx (see flowLocks).
 func (s *Service) SetEnabled(ctx context.Context, id string, enabled bool) error {
 	unlock, err := s.locks.lock(ctx, id)
 	if err != nil {
@@ -162,6 +183,8 @@ func (s *Service) SetEnabled(ctx context.Context, id string, enabled bool) error
 	if enabled && rec.Live == nil {
 		return ErrNotPublished
 	}
+	// Once the switch is flipped the timers must follow, whatever happens to the caller.
+	ctx = context.WithoutCancel(ctx)
 	if err := s.bridge.SetFlowMissionEnabled(rec.MissionID, enabled); err != nil {
 		return err
 	}
@@ -195,6 +218,7 @@ func (s *Service) armTimers(ctx context.Context, rec *FlowRecord) error {
 // The order is: the mission, the timers, the runs, the flow. When a step fails the
 // steps before it stay done and DeleteFlow can simply be called again: deleting a
 // mission that is already gone is not an error (see MissionBridge.DeleteFlowMission).
+// Once the mission is deleted the rest ignores the cancellation of ctx.
 func (s *Service) DeleteFlow(ctx context.Context, id string) error {
 	unlock, err := s.locks.lock(ctx, id)
 	if err != nil {
@@ -210,12 +234,14 @@ func (s *Service) DeleteFlow(ctx context.Context, id string) error {
 			return err
 		}
 	}
-	return s.deleteLocked(ctx, id)
+	// The mission is gone; finish the delete even when the caller goes away.
+	return s.deleteLocked(context.WithoutCancel(ctx), id)
 }
 
 // DeleteFlowForMission is called when Mission Control deletes a flow mission. A mission
 // that no flow holds is ignored. When several flows hold it, it returns
-// ErrMissionAmbiguous and deletes nothing.
+// ErrMissionAmbiguous and deletes nothing. Once it holds the flow's lock it ignores the
+// cancellation of ctx: the mission is gone already.
 func (s *Service) DeleteFlowForMission(ctx context.Context, missionID string) error {
 	rec, err := s.store.GetFlowByMission(ctx, missionID)
 	if errors.Is(err, ErrNotFound) {
@@ -229,6 +255,8 @@ func (s *Service) DeleteFlowForMission(ctx context.Context, missionID string) er
 		return err
 	}
 	defer unlock()
+	// Mission Control has deleted the mission already; finish even when the caller goes away.
+	ctx = context.WithoutCancel(ctx)
 	// The flow may have been deleted while this call waited for the lock.
 	cur, err := s.store.GetFlow(ctx, rec.ID)
 	if errors.Is(err, ErrNotFound) {

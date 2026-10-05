@@ -14,13 +14,16 @@ import (
 // MissionBridge connects flows with Mission Control. Plan 1c implements it on top of
 // MissionManagerV2, the mission history, the planner and notifications.
 //
-// Implementations must not call back into the Service synchronously, from any method.
-// The Service calls the bridge while it holds the flow's lock (Publish, SetEnabled,
-// DeleteFlow) and from runner hooks, which can run inside such an operation (deleting a
-// flow ends its queued runs on the caller's goroutine); a synchronous call back into
-// one of these operations for the same flow would wait for itself. Work that must reach
-// the Service (a deleted mission, a dependent mission to start) goes through a
-// goroutine, as FlowHooks.FlowMissionDeleted does.
+// The rule for implementations: no method of the bridge may synchronously call a
+// Service method that takes a flow lock, for any flow. Today those are Publish,
+// SetEnabled, DeleteFlow and DeleteFlowForMission. The Service calls the bridge while
+// it holds a flow lock, and runner hooks (FlowRunStarted, FlowRunFinished) can run
+// inside such an operation (deleting a flow ends its queued runs on the caller's
+// goroutine), so such a call could wait for itself, or for another operation that waits
+// for it. Work that needs one of these methods goes through a goroutine, as
+// FlowHooks.FlowMissionDeleted does. Lock-free reads (GetFlow, ListFlows, and the timer
+// queries the run part of the Service provides) may be called synchronously; they must
+// stay lock-free.
 type MissionBridge interface {
 	// CreateFlowMission creates the (disabled) mission that represents a flow.
 	CreateFlowMission(flowID, name string) (string, error)
@@ -152,6 +155,12 @@ func (s *Service) Runner() *Runner { return s.runner }
 // there is never a second retention loop. Concurrent calls wait for each other. After a
 // failed Start nothing runs and Start may be called again. After Shutdown, Start returns
 // ErrRunnerClosed.
+//
+// Known limits: Start repairs nothing that a crash cut short. A stop between the store
+// publish and the mission sync (Publish), or between the mission switch and the timers
+// (SetEnabled), leaves the mission or the timers behind the store until the next
+// successful Publish or SetEnabled of that flow. Shutdown does not wait for flow
+// operations in flight; stop the API before closing the store (see Shutdown).
 func (s *Service) Start(ctx context.Context) error {
 	s.startMu.Lock()
 	defer s.startMu.Unlock()
@@ -194,6 +203,11 @@ func (s *Service) Start(ctx context.Context) error {
 // Shutdown stops the timers, cancels the runs and waits for them and for the retention
 // loop, or until ctx ends (then it returns ctx's error and the rest ends in the
 // background). It may be called more than once, and without Start.
+//
+// Known limit: Shutdown does not wait for flow operations in flight (CreateFlow,
+// SaveDraft, Publish, SetEnabled, the deletes), which may still use the store and the
+// bridge. The caller stops the API and Mission Control's calls into the Service first,
+// and closes the store only after Shutdown.
 func (s *Service) Shutdown(ctx context.Context) error {
 	s.mu.Lock()
 	s.closed = true
@@ -297,7 +311,8 @@ func (s *Service) CreateFlow(ctx context.Context, req CreateRequest) (*FlowRecor
 	return rec, nil
 }
 
-// GetFlow returns a flow.
+// GetFlow returns a flow. It takes no flow lock, so a MissionBridge may call it
+// synchronously (see MissionBridge); keep it that way.
 func (s *Service) GetFlow(ctx context.Context, id string) (*FlowRecord, error) {
 	return s.store.GetFlow(ctx, id)
 }
@@ -352,7 +367,8 @@ type PreviewNode struct {
 	Category string  `json:"category"`
 }
 
-// ListFlows returns the start page cards.
+// ListFlows returns the start page cards. It takes no flow lock, so a MissionBridge may
+// call it synchronously (see MissionBridge); keep it that way.
 func (s *Service) ListFlows(ctx context.Context) ([]FlowSummary, error) {
 	records, err := s.store.ListFlows(ctx, KindFlow)
 	if err != nil {

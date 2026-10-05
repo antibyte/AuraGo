@@ -128,6 +128,50 @@ func TestFlowLocksAreKeyedAndCancellable(t *testing.T) {
 	}
 }
 
+// A context that has ended never takes a lock, not even a free one, and leaves no entry.
+// Releasing twice is harmless: the second call neither blocks nor frees the lock of the
+// next holder.
+func TestFlowLocksRefuseEndedContextsAndReleaseOnce(t *testing.T) {
+	var l flowLocks
+	ctx := context.Background()
+	ended, cancel := context.WithCancel(ctx)
+	cancel()
+	if unlock, err := l.lock(ended, "a"); !errors.Is(err, context.Canceled) || unlock != nil {
+		t.Fatalf("lock of a free flow with an ended context = %v (unlock set: %v)", err, unlock != nil)
+	}
+	if n := len(l.locks); n != 0 {
+		t.Fatalf("%d lock entries after a refused lock", n)
+	}
+
+	first, err := l.lock(ctx, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first()
+	next, err := l.lock(ctx, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svcWithin(t, 5*time.Second, "a second release", func() error { first(); return nil }); err != nil {
+		t.Fatal(err)
+	}
+	short, cancelShort := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancelShort()
+	if _, err := l.lock(short, "a"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("lock while the next holder has it = %v; a repeated release freed it", err)
+	}
+	next()
+	next()
+	if n := len(l.locks); n != 0 {
+		t.Fatalf("%d lock entries after all releases", n)
+	}
+	again, err := l.lock(ctx, "a")
+	if err != nil {
+		t.Fatalf("lock after repeated releases: %v", err)
+	}
+	again()
+}
+
 // While SetEnabled of flow A waits in the bridge, a Publish of A waits for it (and gives
 // up with its context), operations on flow B go ahead, and a Publish of A's next
 // revision that waited runs after SetEnabled finished, so the enabled flow ends up with
