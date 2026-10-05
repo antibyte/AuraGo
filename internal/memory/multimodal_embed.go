@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"aurago/internal/httporigin"
 )
 
 // MultimodalEmbedder computes embedding vectors for non-text files (images, audio)
@@ -42,7 +44,8 @@ func NewMultimodalEmbedder(baseURL, apiKey, model, format, providerType string, 
 		model:   model,
 		format:  resolvedFormat,
 		logger:  logger,
-		client:  &http.Client{Timeout: 120 * time.Second},
+		// The key and the file content stay on the configured origin.
+		client: httporigin.NewClient(120 * time.Second),
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 	"aurago/internal/sanotts"
 	"aurago/internal/speechlab"
 )
@@ -70,7 +71,9 @@ type TTSConfig struct {
 	}
 }
 
-var ttsHTTPClient = &http.Client{Timeout: 30 * time.Second}
+// ttsHTTPClient carries the ElevenLabs xi-api-key and the Mistral/MiniMax
+// bearer keys, so it never follows a redirect to another origin.
+var ttsHTTPClient = httporigin.NewClient(30 * time.Second)
 
 // TTSSynthesize generates speech audio from text and returns the filename (relative to data/tts/).
 // The file is saved as MP3 in {DataDir}/tts/{hash}.mp3.

@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"aurago/internal/httporigin"
 )
 
 // privateRanges holds all IP ranges that must not be reachable via user-supplied URLs.
@@ -201,6 +203,9 @@ func validatedSSRFDialTarget(ctx context.Context, addr string) (networkAddr stri
 
 // NewSSRFProtectedHTTPClient returns an HTTP client that validates the initial URL,
 // revalidates redirects, and pins outbound dials to a public IP selected during validation.
+// Its redirect check is SSRF-only: a hop to another public origin is followed and
+// a 307/308 re-sends the body. Requests that carry credentials use
+// NewSSRFProtectedHTTPClientSameOrigin instead.
 func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
@@ -247,6 +252,23 @@ func NewSSRFProtectedHTTPClient(timeout time.Duration) *http.Client {
 		}
 		*req = *req.WithContext(context.WithValue(req.Context(), ssrfPinnedIPsKey{}, pinned))
 		return nil
+	}
+	return client
+}
+
+// NewSSRFProtectedHTTPClientSameOrigin is NewSSRFProtectedHTTPClient for
+// credentialed requests. Every redirect must first stay on the original
+// request's exact scheme/host/effective-port origin (httporigin.SameOriginRedirect,
+// so a foreign target is refused before it is resolved) and is then
+// re-validated and re-pinned by the unchanged SSRF check.
+func NewSSRFProtectedHTTPClientSameOrigin(timeout time.Duration) *http.Client {
+	client := NewSSRFProtectedHTTPClient(timeout)
+	ssrfCheck := client.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := httporigin.SameOriginRedirect(req, via); err != nil {
+			return err
+		}
+		return ssrfCheck(req, via)
 	}
 	return client
 }

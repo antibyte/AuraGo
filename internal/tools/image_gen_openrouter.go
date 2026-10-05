@@ -12,7 +12,10 @@ import (
 	"aurago/internal/security"
 )
 
-var imageGenHTTPClient = security.NewSSRFProtectedHTTPClient(120 * time.Second)
+// imageGenHTTPClient carries every image provider's API key and prompt, so a
+// redirect must stay on the provider's origin before the SSRF re-check.
+// Returned-image downloads carry no credentials and use imageDownloadHTTPClient.
+var imageGenHTTPClient = security.NewSSRFProtectedHTTPClientSameOrigin(120 * time.Second)
 
 // generateOpenRouter generates an image using OpenRouter's chat/completions endpoint.
 // Supports models like flux-2-pro, gpt-5-image that return base64 images inline.

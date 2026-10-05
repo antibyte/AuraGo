@@ -168,9 +168,9 @@ func TestGenerateAgnesImageNormalizesChatModelAndAcceptsURLResponse(t *testing.T
 	serverURL = server.URL
 	defer server.Close()
 
-	oldClient := imageGenHTTPClient
-	imageGenHTTPClient = server.Client()
-	defer func() { imageGenHTTPClient = oldClient }()
+	oldClient, oldDownloadClient := imageGenHTTPClient, imageDownloadHTTPClient
+	imageGenHTTPClient, imageDownloadHTTPClient = server.Client(), server.Client()
+	defer func() { imageGenHTTPClient, imageDownloadHTTPClient = oldClient, oldDownloadClient }()
 
 	result, err := GenerateImage(ImageGenConfig{
 		ProviderType: "agnes",
@@ -206,9 +206,9 @@ func TestDownloadImageRejectsOversizedBody(t *testing.T) {
 	}))
 	defer server.Close()
 
-	oldClient := imageGenHTTPClient
-	imageGenHTTPClient = server.Client()
-	defer func() { imageGenHTTPClient = oldClient }()
+	oldClient := imageDownloadHTTPClient
+	imageDownloadHTTPClient = server.Client()
+	defer func() { imageDownloadHTTPClient = oldClient }()
 
 	if _, err := downloadImageWithLimit(server.URL, 16); err == nil {
 		t.Fatal("oversized image download unexpectedly succeeded")

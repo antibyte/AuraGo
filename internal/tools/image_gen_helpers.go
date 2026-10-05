@@ -11,9 +11,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"aurago/internal/security"
 )
 
 const maxGeneratedImageBytes int64 = 50 * 1024 * 1024
+
+// imageDownloadHTTPClient fetches provider-returned image URLs. The requests
+// carry no credentials, so redirects to another origin (such as a CDN) are
+// still followed; every hop is SSRF re-validated and pinned.
+var imageDownloadHTTPClient = security.NewSSRFProtectedHTTPClient(120 * time.Second)
 
 // loadSourceImage reads an image file from disk for image-to-image operations.
 func loadSourceImage(path string) ([]byte, error) {
@@ -67,7 +75,7 @@ func downloadImageContext(ctx context.Context, url string, maxBytes int64) ([]by
 	if err != nil {
 		return nil, err
 	}
-	resp, err := imageGenHTTPClient.Do(req)
+	resp, err := imageDownloadHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download image: %w", err)
 	}

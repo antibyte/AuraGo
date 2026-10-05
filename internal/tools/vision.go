@@ -15,11 +15,14 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 	"aurago/internal/providerutil"
 	"aurago/internal/security"
 )
 
-var visionHTTPClient = &http.Client{Timeout: 60 * time.Second}
+// visionHTTPClient sends the Vision API key and the image to the configured
+// base URL, so it never follows a redirect to another origin.
+var visionHTTPClient = httporigin.NewClient(60 * time.Second)
 var validatePublicImageURL = security.ValidatePublicHTTPURL
 
 const DefaultVisionModel = "google/gemini-2.0-flash-001"
