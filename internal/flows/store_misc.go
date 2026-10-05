@@ -152,6 +152,30 @@ func (s *Store) MoveTimer(ctx context.Context, flowID, nodeID string, from, to t
 	return err
 }
 
+// nextTimerSQL reads the earliest fire time of one flow's timers. flow_id is the first
+// column of the table's primary key, so it reads only that flow's rows; it is a constant
+// so a test can check its query plan. The GLOB keeps only times in the stored layout
+// (timeLayout): a row whose fire_at cannot be read would otherwise sort before or after
+// the real times as text, and the timer service drops such rows without firing them.
+const nextTimerSQL = `SELECT MIN(fire_at) FROM flow_timers WHERE flow_id = ? AND fire_at GLOB ` +
+	`'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9]Z'`
+
+// NextTimerAt returns the earliest fire time among the timers of one flow; ok is false
+// when the flow has none (also when it does not exist). Rows whose fire_at is not in the
+// stored layout are left out; an earliest value in the layout that is no valid time
+// (only a damaged row can hold one) gives ok false.
+func (s *Store) NextTimerAt(ctx context.Context, flowID string) (next time.Time, ok bool, err error) {
+	var fireAt sql.NullString
+	if err := s.db.QueryRowContext(ctx, nextTimerSQL, flowID).Scan(&fireAt); err != nil {
+		return time.Time{}, false, err
+	}
+	if !fireAt.Valid {
+		return time.Time{}, false, nil
+	}
+	next = parseTime(fireAt.String)
+	return next, !next.IsZero(), nil
+}
+
 // ListTimers returns all timers ordered by fire time.
 func (s *Store) ListTimers(ctx context.Context) ([]TimerRecord, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT flow_id, node_id, fire_at, repeat FROM flow_timers ORDER BY fire_at, flow_id, node_id`)

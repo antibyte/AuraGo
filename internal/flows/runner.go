@@ -79,10 +79,12 @@ type pendingRun struct {
 	counted bool
 }
 
-// activeRun is a launched run: its flow, for CancelFlow, and how to cancel it.
-// cancelled records that Cancel, CancelFlow or Shutdown cancelled it already.
+// activeRun is a launched run: its flow and mode, for CancelFlow and CancelFlowMode, and
+// how to cancel it. cancelled records that Cancel, CancelFlow, CancelFlowMode or Shutdown
+// cancelled it already.
 type activeRun struct {
 	flowID    string
+	mode      RunMode
 	cancel    context.CancelFunc
 	cancelled bool
 }
@@ -247,7 +249,7 @@ func (r *Runner) admitLocked(p *pendingRun) bool {
 func (r *Runner) launchLocked(p *pendingRun) {
 	r.slots++
 	ctx, cancel := context.WithCancel(r.baseCtx)
-	r.cancels[p.rec.ID] = activeRun{flowID: p.rec.FlowID, cancel: cancel}
+	r.cancels[p.rec.ID] = activeRun{flowID: p.rec.FlowID, mode: p.rec.Mode, cancel: cancel}
 	r.wg.Add(1)
 	go r.execute(ctx, cancel, p)
 }

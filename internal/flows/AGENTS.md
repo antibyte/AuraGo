@@ -143,6 +143,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   waiting ones at once (`FLOW_CANCELLED`, `OnRunFinished` before it returns). It waits for a `Start` in
   progress; a Start that begins later is not affected, so deleting a flow calls it before and after the
   store delete (after it, Start can no longer record a run of the flow).
+- `CancelFlowMode(flowID, mode)` is `CancelFlow` for one mode (same queue, slot and `startMu` handling, counts
+  only new cancels). Runs of other modes keep their places; a cancelled waiting run frees its flow slot, which
+  admits the flow's next queued run of another mode. Mission Control's cancel uses it with `ModeLive`.
 - A closed subscriber channel means the run finished, the subscriber was dropped for falling more than
   256 events behind, or it was cancelled. A consumer that did not see `run_finished` resubscribes with
   its last `Seq`. Events are shared by all subscribers and the run result: read-only.
@@ -170,6 +173,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   conditional `UPDATE … AND NOT EXISTS(…)` and a matching guard in the insert (or a partial unique index), with
   an `ErrMissionTaken` sentinel.
 - Timers are settled conditionally on the occurrence that fired (`DeleteTimerAt`, `MoveTimer`).
+- `NextTimerAt(flowID)` is one `MIN(fire_at)` over the flow's rows (primary key `flow_id` prefix, pinned by
+  `TestStoreNextTimerAtUsesThePrimaryKey`); rows whose `fire_at` is not in `timeLayout` are left out.
 - Keep migrations idempotent (`CREATE … IF NOT EXISTS`); add columns with `dbutil.MigrateAddColumn`.
 
 ## Timers
@@ -324,19 +329,26 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `now`, stores the revision, syncs the mission and calls `armTimers`. Timers are armed only while the flow's
   mission is enabled; `SetEnabled(false)` clears them and `SetEnabled(true)` needs a published flow
   (`ErrNotPublished`).
-- Lock order: the per-flow lock (`flowLocks`) is the outermost lock. `Publish`, `SetEnabled`, `DeleteFlow` and
-  `DeleteFlowForMission` hold it. Under it the Service calls only the store, the bridge, `TimerService.Replace`
-  and `Runner.CancelFlow`, and none of those may take a flow lock. Run paths (starting runs, runner hooks, timer
-  callbacks) never take it; `armTimers` requires it to be held.
+- Lock order: the per-flow lock (`flowLocks`) is the outermost lock. `Publish`, `SetEnabled`, `DeleteFlow`,
+  `DeleteFlowForMission` and `MissionEnabledChanged` hold it. Under it the Service calls only the store, the
+  bridge, `TimerService.Replace` and `Runner.CancelFlow`, and none of those may take a flow lock. Run paths
+  (starting runs, runner hooks, timer callbacks) never take it; `armTimers` requires it to be held.
 - Bridge rule: a `MissionBridge` must not synchronously call a Service method that takes a flow lock, for any
-  flow (today `Publish`, `SetEnabled`, `DeleteFlow` and `DeleteFlowForMission`). The Service calls the bridge
-  under a flow lock, and runner hooks can run inside such an operation. Lock-free reads (`GetFlow`,
-  `ListFlows`, the timer queries) and `TriggerFromMission` (also from inside `FlowRunFinished`) may be called
-  synchronously and must stay lock-free.
-- Any new Service method that reads a flow and then changes its mission or timers (for example 1c's
-  `MissionEnabledChanged`) takes the flow lock (`s.locks.lock`) from the read through the timers, and
+  flow (today `Publish`, `SetEnabled`, `DeleteFlow`, `DeleteFlowForMission` and `MissionEnabledChanged`). The
+  Service calls the bridge under a flow lock, and runner hooks can run inside such an operation. Lock-free
+  reads (`GetFlow`, `ListFlows`, `NextTimer`) and `TriggerFromMission` (also from inside `FlowRunFinished`)
+  may be called synchronously and must stay lock-free.
+- Any new Service method that reads a flow and then changes its mission or timers takes the flow lock
+  (`s.locks.lock`) from the read through the timers, reads the flow again once it holds the lock, and
   switches to `context.WithoutCancel(ctx)` right after its first step that cannot be undone, so a
   caller that goes away cannot leave the store, the mission and the timers apart.
+- Mission Control helpers (`service_missions.go`): `MissionEnabledChanged` follows that rule (its only step
+  that cannot be undone is the timer write, its last, so it never detaches); it runs from
+  `go FlowHooks.FlowEnabledChanged`, ignores a mission no flow holds and a flow deleted while it waited.
+  `CancelMissionRuns` takes no flow lock: it calls `Runner.CancelFlowMode(flow, ModeLive)` (`ErrNotFound`
+  for an unknown mission) and reports the runs that never started to `FlowRunFinished` on the caller's
+  goroutine. `NextTimer` is lock-free (`GetFlowByMission` plus `Store.NextTimerAt`); the bridge's
+  `broadcastMissionState` calls it synchronously.
 - Delete order: mission → timers off → `Runner.CancelFlow` → store delete → `CancelFlow` again (it catches a
   `Start` that raced the delete). A failed step leaves the earlier ones done and `DeleteFlow` can be called again
   (deleting a gone mission is not an error). `DeleteFlowForMission` ignores a mission no flow holds and, when
@@ -377,5 +389,5 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Catalog and service tests share fakes (`catalog_helpers_test.go`, `service_helpers_test.go`): extend them only
   additively and give new helpers a task prefix. Locking and cancel tests to repeat under `-race -count=20` on
   aurago-test: `TestServiceSerializesOperationsPerFlow`, `TestServiceConcurrentPublishAndEnable`,
-  `TestServiceDeleteCancelsTheFlowsRuns`, `TestRunnerCancelFlow*`, `TestFlowLocksAreKeyedAndCancellable` and
-  `TestServiceLifecycle`.
+  `TestServiceDeleteCancelsTheFlowsRuns`, `TestRunnerCancelFlow*`, `TestFlowLocksAreKeyedAndCancellable`,
+  `TestServiceLifecycle`, `TestServiceMissionEnabledChanged*` and `TestServiceCancelMissionRuns*`.

@@ -8,11 +8,11 @@ import (
 )
 
 // flowLocks serializes the Service operations that change a flow's mission and timers:
-// Publish, SetEnabled, DeleteFlow and DeleteFlowForMission. Each reads the flow record
-// and then updates Mission Control and the timers from what it read; interleaved, an
-// operation working from an older record could undo a newer one (SetEnabled arming the
-// timers of a revision that a concurrent Publish just replaced). SaveDraft needs no
-// lock: the store's revision check covers it.
+// Publish, SetEnabled, DeleteFlow, DeleteFlowForMission and MissionEnabledChanged. Each
+// reads the flow record and then updates Mission Control and the timers from what it
+// read; interleaved, an operation working from an older record could undo a newer one
+// (SetEnabled arming the timers of a revision that a concurrent Publish just replaced).
+// SaveDraft needs no lock: the store's revision check covers it.
 //
 // There is one lock per flow id, so flows never wait for each other. An entry lives
 // while somebody holds or waits for it and is removed with the last one, so the map
@@ -22,6 +22,7 @@ import (
 // that cannot be undone (the store publish, the mission switch, the mission delete).
 // From there on the operation runs with context.WithoutCancel, so a caller that goes
 // away (an HTTP client disconnecting) cannot leave the mission and the timers apart.
+// MissionEnabledChanged needs no switch: its only such step is its last, the timer write.
 //
 // Lock order and why it cannot deadlock: a flow lock is the outermost lock. While it is
 // held the Service calls the store, the bridge, TimerService.Replace (no timer lock,

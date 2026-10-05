@@ -63,14 +63,42 @@ func (r *Runner) removeQueuedLocked(runID string) *pendingRun {
 // begins later is not affected. A caller that deletes the flow therefore calls CancelFlow
 // again once the flow row is gone: from then on Start cannot record a run of the flow.
 func (r *Runner) CancelFlow(flowID string) int {
+	return r.cancelFlowRuns(flowID, func(RunMode) bool { return true })
+}
+
+// CancelFlowMode is CancelFlow for the flow's runs of one mode: it cancels the runs of
+// that mode the runner knows (running, queued behind the flow's active run, waiting for a
+// global slot, or with a Start in progress, which it waits for) and returns how many runs
+// this call cancelled, the same way. Runs of other modes keep running and keep their
+// places; when a cancelled run that waited for a global slot held the flow's slot, the
+// flow's next queued run of another mode is admitted. Mission Control's cancel button
+// uses it with ModeLive, so the editor's test runs go on.
+func (r *Runner) CancelFlowMode(flowID string, mode RunMode) int {
+	return r.cancelFlowRuns(flowID, func(m RunMode) bool { return m == mode })
+}
+
+// cancelFlowRuns cancels the flow's runs whose mode match accepts; see CancelFlow.
+func (r *Runner) cancelFlowRuns(flowID string, match func(RunMode) bool) int {
 	r.startMu.Lock()
 	r.mu.Lock()
-	pending := append([]*pendingRun(nil), r.flowQueue[flowID]...)
-	delete(r.flowQueue, flowID)
+	var pending, keptQueue []*pendingRun
+	for _, p := range r.flowQueue[flowID] {
+		if match(p.rec.Mode) {
+			pending = append(pending, p)
+		} else {
+			keptQueue = append(keptQueue, p)
+		}
+	}
+	// A new slice: the old backing array must not keep the cancelled runs' trigger data.
+	if len(keptQueue) == 0 {
+		delete(r.flowQueue, flowID)
+	} else {
+		r.flowQueue[flowID] = keptQueue
+	}
 	released := 0
 	kept := r.waiting[:0]
 	for _, p := range r.waiting {
-		if p.rec.FlowID != flowID {
+		if p.rec.FlowID != flowID || !match(p.rec.Mode) {
 			kept = append(kept, p)
 			continue
 		}
@@ -81,13 +109,15 @@ func (r *Runner) CancelFlow(flowID string) int {
 	}
 	clear(r.waiting[len(kept):]) // the backing array must not keep the runs' trigger data
 	r.waiting = kept
-	// The flow's queue is gone, so freeing the flow slots of its waiting runs admits nothing.
+	// Each counted waiting run holds one of the flow's slots, so the flow becomes free with
+	// the last release at the earliest. Only then is the next run left in the flow's queue
+	// (one of another mode) admitted; with the whole queue cancelled nothing is.
 	for ; released > 0; released-- {
 		r.releaseFlowLocked(flowID)
 	}
 	var cancels []context.CancelFunc
 	for id, run := range r.cancels {
-		if run.flowID == flowID && !run.cancelled {
+		if run.flowID == flowID && !run.cancelled && match(run.mode) {
 			run.cancelled = true
 			r.cancels[id] = run
 			cancels = append(cancels, run.cancel)
