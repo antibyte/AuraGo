@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	pathpkg "path"
 	"path/filepath"
 	"strings"
@@ -30,13 +31,15 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 			return toolErrorJSON(msg), true
 		}
 		if strings.TrimSpace(req.FilePath) != "" {
-			logger.Info("LLM requested telegram document", "title", req.Title)
-			return "Tool Output: " + tools.SendTelegramFile(ctx, cfg, logger, req.FilePath, req.Title, req.Message), true
+			logger.Info("LLM requested telegram document", "title", boundedRunes(req.Title, logTextRunes))
+			out := tools.SendTelegramFile(ctx, cfg, logger, req.FilePath, req.Title, req.Message)
+			logTelegramDocumentSent(logger, out)
+			return "Tool Output: " + out, true
 		}
 		if strings.TrimSpace(req.Message) == "" {
 			return `Tool Output: {"status":"error","message":"message is required"}`, true
 		}
-		logger.Info("LLM requested telegram message", "title", req.Title)
+		logger.Info("LLM requested telegram message", "title", boundedRunes(req.Title, logTextRunes))
 		return "Tool Output: " + tools.SendNotification(cfg, logger, "telegram", req.Title, req.Message, req.Priority, nil, nil), true
 
 	case "send_agodesk_chat":
@@ -213,16 +216,30 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	return "", false
 }
 
-// telegramFilePathArgError refuses a file_path that is present but not a string, a list for
-// example. decodeSendTelegramArgs skips it, and the call would then send the message
-// without the file the model named. A missing, null or empty file_path is no file and no
-// error: such a call is a plain message, as before.
+// telegramFilePathArgError refuses a file_path or path that is present but not a string, a
+// list for example. decodeSendTelegramArgs skips it, and the call would then send the message
+// without the file the model named. A missing, null or empty value is no file and no error:
+// such a call is a plain message, as before.
 func telegramFilePathArgError(params map[string]interface{}) string {
-	switch v := params["file_path"].(type) {
-	case nil, string:
-		return ""
-	default:
-		return "file_path must be one file path string, not " + toolArgJSONType(v)
+	for _, key := range []string{"file_path", "path"} {
+		switch v := params[key].(type) {
+		case nil, string:
+		default:
+			return key + " must be one file path string, not " + toolArgJSONType(v)
+		}
+	}
+	return ""
+}
+
+// logTelegramDocumentSent logs the document a successful SendTelegramFile result names, by
+// base name, so that a file that left AuraGo can be traced. The name is cut to logTextRunes.
+func logTelegramDocumentSent(logger *slog.Logger, result string) {
+	var sent struct {
+		Status   string `json:"status"`
+		Document string `json:"document"`
+	}
+	if json.Unmarshal([]byte(result), &sent) == nil && sent.Status == "success" && sent.Document != "" {
+		logger.Info("Telegram document sent", "file", boundedRunes(sent.Document, logTextRunes))
 	}
 }
 

@@ -810,6 +810,10 @@ func guardianPromptParamLimit(key string) int {
 		return 300
 	case "body", "code", "content", "items_summary", "payload":
 		return 1200
+	case "attachments":
+		// send_email lists every attachment path (see guardianAttachmentList in the agent
+		// package); the default would cut the middle of the list out of the prompt.
+		return 600
 	default:
 		return 200
 	}

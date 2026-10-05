@@ -231,23 +231,25 @@ func TestC06SendTelegramFileNeedsTelegramJustLikeAMessageDoes(t *testing.T) {
 
 func TestC06SendTelegramRefusesAFileThatIsNotAString(t *testing.T) {
 	cfg, _ := c06TelegramConfig(t)
-	for name, value := range map[string]interface{}{
-		"list":   []interface{}{"a.pdf"},
-		"object": map[string]interface{}{"path": "a.pdf"},
-		"number": float64(5),
-		"bool":   true,
-	} {
-		t.Run(name, func(t *testing.T) {
-			bot := c06FakeBot(t)
-			out := c06SendTelegram(cfg, map[string]interface{}{"message": "x", "file_path": value})
-			result := c06Result(t, out)
-			if result["status"] != "error" || !strings.Contains(c06Message(t, out), "file_path must be one file path string") {
-				t.Fatalf("output = %s", out)
-			}
-			if got := bot.all(); len(got) != 0 {
-				t.Fatalf("a refused call sent %+v", got)
-			}
-		})
+	for _, key := range []string{"file_path", "path"} {
+		for name, value := range map[string]interface{}{
+			"list":   []interface{}{"a.pdf"},
+			"object": map[string]interface{}{"path": "a.pdf"},
+			"number": float64(5),
+			"bool":   true,
+		} {
+			t.Run(key+"/"+name, func(t *testing.T) {
+				bot := c06FakeBot(t)
+				out := c06SendTelegram(cfg, map[string]interface{}{"message": "x", key: value})
+				result := c06Result(t, out)
+				if result["status"] != "error" || !strings.Contains(c06Message(t, out), key+" must be one file path string") {
+					t.Fatalf("output = %s", out)
+				}
+				if got := bot.all(); len(got) != 0 {
+					t.Fatalf("a refused call sent %+v", got)
+				}
+			})
+		}
 	}
 }
 
@@ -515,8 +517,8 @@ func TestC06SendEmailLogBoundsRecipientAndSubject(t *testing.T) {
 		found = true
 		for _, key := range []string{"to", "subject"} {
 			value, _ := record[key].(string)
-			if n := utf8.RuneCountInString(value); n == 0 || n > emailLogRunes+1 {
-				t.Fatalf("log %s has %d runes, want at most %d", key, n, emailLogRunes+1)
+			if n := utf8.RuneCountInString(value); n == 0 || n > logTextRunes+1 {
+				t.Fatalf("log %s has %d runes, want at most %d", key, n, logTextRunes+1)
 			}
 		}
 		if record["attachments"] != float64(0) {

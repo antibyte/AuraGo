@@ -721,6 +721,15 @@ func checkEmailEnvelope(from, to string) ([]string, error) {
 	return recipients, nil
 }
 
+// CheckEmailRecipients applies the recipient part of checkEmailEnvelope to a recipient list:
+// a CR, LF or NUL, or an empty entry, is refused. The senders check it again; callers that
+// do work for a message before sending it (reading attachments) use it to refuse such a
+// message first. The error never repeats the list.
+func CheckEmailRecipients(to string) error {
+	_, err := checkEmailEnvelope("", to)
+	return err
+}
+
 // deliverSMTP sends a rendered message over STARTTLS (implicitTLS=false) or implicit TLS.
 // It checks from and to with checkEmailEnvelope before any connection; the senders check
 // them before building the message too, and this check keeps every path to the wire

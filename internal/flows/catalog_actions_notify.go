@@ -86,13 +86,13 @@ func notifyDef(typ, icon, tool string, env CatalogEnv) *NodeDef {
 // that is configured (telegram_user_id): there is no recipient parameter. The file is
 // a sensitive sink, an untrusted path would post any workspace file to the chat.
 //
-// Known limit, for the tool invoker (plan 1c): today send_telegram reads only message,
-// title and priority and drops file_path without a word, so a file is not sent. The
-// send_document tool is no substitute: it copies a file into data/documents for the
-// chat UI and sends nothing to Telegram, and the repository has no Telegram
-// document-send code at all. Plan 1c has to add a Telegram sendDocument helper and
-// route file_path to it, or refuse the call; until then the file is dropped, and the
-// node cannot tell from the answer.
+// The tool sends the file as a Telegram document (tools.SendTelegramFile), with title and
+// message as its caption, and fails the call when the file cannot be sent: it must be in the
+// workspace or the documents folder, at most 50 MB, and Telegram must be configured. The
+// send_document tool is no substitute: it copies a file into data/documents for the chat UI
+// and sends nothing to Telegram. A call whose text went out as a message of its own and
+// whose document then failed answers with "text_sent": true next to the error, so a retry
+// sends that text again.
 func telegramDef(env CatalogEnv) *NodeDef {
 	def := notifyDef(TypeTelegram, "brand-telegram", "send_telegram", env)
 	def.PrimaryInput = "message"
@@ -148,11 +148,12 @@ func telegramDef(env CatalogEnv) *NodeDef {
 // with it, or which of the configured mailboxes it is sent from.
 //
 // send_email writes the recipients into the To header as they are, splits them at the
-// commas, and sends one text part. Known limit, for the tool invoker (plan 1c): it
-// reads no attachments (its schema has no such argument and the dispatcher drops
-// them), so a file is not sent; the invoker has to implement it or refuse the call.
-// Also, a transport error after the server took the mail (the answer is lost, QUIT
-// fails) is reported as a failure, and a retry sends the mail again.
+// commas, and sends one text part, or a multipart/mixed message when there is an
+// attachment: the node's single file goes to the tool's attachments list, which must name
+// a file in the workspace or the documents folder (at most 20 MB); a file that cannot be
+// attached fails the call and nothing is sent. Also, a transport error after the server
+// took the mail (the answer is lost, QUIT fails) is reported as a failure, and a retry
+// sends the mail again.
 func emailDef(env CatalogEnv) *NodeDef {
 	def := notifyDef(TypeEmail, "mail", "send_email", env)
 	def.PrimaryInput = "body"

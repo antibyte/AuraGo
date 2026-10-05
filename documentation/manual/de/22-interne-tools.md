@@ -506,7 +506,7 @@ Sendet eine Nachricht oder eine Datei als Dokument über den konfigurierten Tele
 | `message` | string | Nachrichtentext |
 | `title` | string | Optional: Titel für die Nachricht |
 | `priority` | string | Optional: Priorität (normal, high, low) |
-| `file_path` | string | Optional: Datei im Workspace oder im Dokumentenordner, die als Telegram-Dokument gesendet wird. `title` und `message` werden ihre Bildunterschrift (ein längerer Text geht zuerst als Nachricht raus). Bis 50 MB. Eine fehlende Datei, ein Pfad außerhalb beider Ordner oder ein nicht konfiguriertes Telegram lässt den Aufruf fehlschlagen |
+| `file_path` | string | Optional: Datei im Workspace oder im Dokumentenordner, die als Telegram-Dokument gesendet wird. `title` und `message` werden ihre Bildunterschrift (ein längerer Text wird zuerst als eigene Nachricht gesendet). Bis 50 MB. Eine fehlende Datei, ein Pfad außerhalb beider Ordner oder ein nicht konfiguriertes Telegram lässt den Aufruf fehlschlagen |
 
 ### `send_youtube_video`
 Sendet ein YouTube-Video als eingebetteten Player oder Link an den Benutzer.
@@ -1302,7 +1302,7 @@ E-Mails über registrierte Konten versenden.
 | `subject` | string | Optional: Betreff |
 | `body` | string | Optional: Text der Mail (Klartext) |
 | `account` | string | Optional: Konto-ID, von der gesendet wird (Standard: erstes aktives Konto) |
-| `attachments` | array | Optional: Dateipfade im Workspace oder im Dokumentenordner, die angehängt werden (max. 10 Dateien, zusammen 20 MB). Ein einzelner Pfad als String wird als Liste mit einer Datei akzeptiert. Ein Pfad woanders, eine fehlende Datei oder eine Liste über den Grenzen lässt den Aufruf fehlschlagen, und es wird nichts gesendet |
+| `attachments` | array | Optional: Dateipfade im Workspace oder im Dokumentenordner, die angehängt werden (max. 10 Dateien, zusammen 20 MB). Ein einzelner Pfad als String wird als Liste mit einer Datei akzeptiert. Ein Pfad außerhalb dieser Ordner, eine fehlende Datei oder eine Liste, die die Grenzen überschreitet, lässt den Aufruf fehlschlagen, und es wird nichts gesendet |
 
 ### `list_email_accounts`
 Registrierte E-Mail-Konten auflisten.
