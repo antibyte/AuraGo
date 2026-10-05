@@ -15,15 +15,35 @@ import (
 // flowCatalogEnv answers tool availability for the node catalog and keeps the generic
 // "tool.*" nodes in sync with the configured agent tools. Results are cached per
 // configuration snapshot; saving the configuration swaps the pointer.
+//
+// Locking. refreshMu is the outer lock and mu the inner one:
+//   - refreshMu serialises refreshRegistry from the snapshot through the check to the
+//     install, and guards regCfg. It is held across the schema build and across
+//     flows.RefreshGenericTools, which is safe because ToolAvailability never takes it.
+//   - mu guards the cache (namesCfg, names, generic). It is held only to read or swap
+//     the cache, never across a call out of this type: schemas runs without it, so a
+//     slow build never blocks a ToolAvailability that hits the cache. Two callers that
+//     miss the cache at the same time may both build it (the agent caches the schemas
+//     per tool flag set, so this is cheap); the one for the current configuration is
+//     kept.
+//
+// ToolAvailability takes only mu, and only briefly. It is therefore safe to call from
+// the availability hooks that flows.DescribeNodeTypes runs (every generic node calls it
+// lazily), also while a refresh is in progress.
+//
+// The cached names and generic tools are shared by all callers and read-only. The
+// schemas inside them are the agent's cached schema maps, also read-only.
 type flowCatalogEnv struct {
 	schemas func(cfg *config.Config) []openai.Tool
 	current func() *config.Config
+
+	refreshMu sync.Mutex
+	regCfg    *config.Config // the configuration whose tools the registry holds; refreshMu
 
 	mu       sync.Mutex
 	namesCfg *config.Config
 	names    map[string]bool
 	generic  []flows.GenericTool
-	regCfg   *config.Config
 }
 
 func newFlowCatalogEnv(s *Server) *flowCatalogEnv {
@@ -39,15 +59,21 @@ func (e *flowCatalogEnv) toolNames(cfg *config.Config) map[string]bool {
 	return names
 }
 
+// snapshot returns the tool names and the generic tools of cfg, from the cache when it
+// holds cfg. A new snapshot is built without a lock held and cached when cfg is the
+// current configuration (or nothing is cached yet).
 func (e *flowCatalogEnv) snapshot(cfg *config.Config) (map[string]bool, []flows.GenericTool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
 	if cfg == nil {
 		return map[string]bool{}, nil
 	}
+	e.mu.Lock()
 	if cfg == e.namesCfg && e.names != nil {
-		return e.names, e.generic
+		names, generic := e.names, e.generic
+		e.mu.Unlock()
+		return names, generic
 	}
+	e.mu.Unlock()
+
 	names := map[string]bool{}
 	var generic []flows.GenericTool
 	for _, tool := range e.schemas(cfg) {
@@ -56,27 +82,79 @@ func (e *flowCatalogEnv) snapshot(cfg *config.Config) (map[string]bool, []flows.
 		}
 		name := tool.Function.Name
 		names[name] = true
+		if flowToolSpends(cfg, name) {
+			continue
+		}
 		generic = append(generic, flows.GenericTool{Name: name, Description: tool.Function.Description,
 			Category: flowToolCategory(name), Schema: flowSchemaMap(tool.Function.Parameters)})
 	}
-	e.namesCfg, e.names, e.generic = cfg, names, generic
+
+	current := e.current()
+	e.mu.Lock()
+	if cfg == current || e.names == nil {
+		e.namesCfg, e.names, e.generic = cfg, names, generic
+	}
+	e.mu.Unlock()
 	return names, generic
 }
 
-// refreshRegistry rebuilds the generic tool nodes when the configuration changed.
+// refreshRegistry rebuilds the generic tool nodes when the configuration changed. It
+// installs only the tools of the current configuration: when cfg was replaced while its
+// snapshot was built, it installs nothing, and the refresh for the newer configuration
+// (serialised after this one) installs its own. regCfg records what was installed.
 func (e *flowCatalogEnv) refreshRegistry(reg *flows.Registry, cfg *config.Config) {
 	if reg == nil || cfg == nil {
 		return
 	}
-	_, generic := e.snapshot(cfg)
-	e.mu.Lock()
+	e.refreshMu.Lock()
+	defer e.refreshMu.Unlock()
 	if e.regCfg == cfg {
-		e.mu.Unlock()
 		return
 	}
-	e.regCfg = cfg
-	e.mu.Unlock()
+	_, generic := e.snapshot(cfg)
+	if cfg != e.current() {
+		return
+	}
 	flows.RefreshGenericTools(reg, generic, e)
+	e.regCfg = cfg
+}
+
+// flowSpendingTools are agent tools whose every call spends model tokens or money that
+// the flow budget does not see; in phase 1 they never become generic flow nodes (the
+// value says why). flowSpendingToolPrefixes do the same for tool families. Tools with
+// cheap operations next to spending ones keep their node without the spending ones
+// (genericDroppedOperations in internal/flows). The curated nodes decide for their own
+// tools; ddg_search and web_scraper, whose summary modes spend as well, are curated.
+var (
+	flowSpendingTools = map[string]string{
+		"analyze_image":    "a vision model call (budget category vision)",
+		"manus":            "Manus tasks use Manus credits",
+		"huggingface":      "the job_run operations run paid Hugging Face compute",
+		"memory_reflect":   "the reflection is a model call",
+		"treg_call":        "calls paid treg endpoints",
+		"transcribe_audio": "speech-to-text (budget category stt)",
+	}
+	flowSpendingToolPrefixes = map[string]string{
+		"generate_": "image, music and video generation (budget categories image_generation, music_generation, " +
+			"video_generation); generate_image's enhance_prompt is a model call too",
+		"yepapi_": "every YepAPI call is billed (budget category yepapi)",
+		"telnyx_": "SMS and calls are billed by Telnyx; telnyx_manage only reads, but goes with its family",
+	}
+)
+
+// flowToolSpends reports whether a tool spends outside the flow budget with cfg: a
+// flowSpendingTools entry, a flowSpendingToolPrefixes family, or wikipedia_search while
+// its summary mode is on (every search is then summarised by a model).
+func flowToolSpends(cfg *config.Config, name string) bool {
+	if _, ok := flowSpendingTools[name]; ok {
+		return true
+	}
+	for prefix := range flowSpendingToolPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return name == "wikipedia_search" && cfg != nil && cfg.Tools.Wikipedia.SummaryMode
 }
 
 // ToolAvailability implements flows.CatalogEnv.

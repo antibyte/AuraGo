@@ -257,8 +257,13 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     `token`, `api_key`, `secret`, …) or suffix (`_password`, `_token`, `_secret`, `_api_key`, …); there is
     deliberately no `_key` suffix. A value typed into a node sits in clear in the document, its versions and
     the run's step params.
-  - Dropped secret operations (`genericDroppedOperations`): `send_secret` of `invasion_tasks` and `set_env` of
-    `netlify` and `vercel`, with their value params. A tool left without an operation gets no node.
+  - Dropped operations (`genericDroppedOperations`): the secret ones (`send_secret` of `invasion_tasks` and
+    `set_env` of `netlify` and `vercel`, with their value params) and the ones that spend tokens or money outside
+    the flow budget (`smart_file_read` `summarize` with `query`, `go2rtc` `analyze_snapshot` and `three_d_printer`
+    `analyze_camera` with `prompt`, `video_download` `transcribe`, `fritzbox_telephony` `transcribe_tam_message`,
+    `rtl_sdr` `transcribe` with the `transcribe` switch of record and schedule). A tool left without an operation
+    gets no node. Tools that spend on every call never reach `RefreshGenericTools`: the server leaves them out
+    (`flowSpendingTools` in `internal/server/flows_catalog_env.go`).
   - Sinks: by name for every generic tool (`genericSinkNames` and suffixes: command, code, path, url, to,
     entity_id, topic, headers, title, …), nested (a JSON param whose `properties` or `items.properties` one
     level down hold a sink name), file content names for file tools (`content`, `new_text`, `patches`, …),
