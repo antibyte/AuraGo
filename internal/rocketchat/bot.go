@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/budget"
 	"aurago/internal/commands"
 	"aurago/internal/config"
 	"aurago/internal/llm"
@@ -138,7 +139,7 @@ func resolveChannelID(ctx context.Context, cfg *config.Config, channel string) (
 }
 
 // processMessage handles a single incoming Rocket.Chat message.
-func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTracker *budget.Tracker) {
 	if ctx.Err() != nil || !cfg.RocketChat.Enabled || !isAllowedRocketChatUser(cfg, msg) {
 		return
 	}
@@ -195,6 +196,7 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		Vault:              vault,
 		Registry:           registry,
 		Manifest:           manifest,
+		BudgetTracker:      budgetTracker,
 		CronManager:        cronManager,
 		MissionManagerV2:   missionManagerV2,
 		PreparationService: nil,
@@ -207,7 +209,7 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	if currentSummary := historyManager.GetSummary(); currentSummary != "" {
 		finalMessages = append([]openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
+			Content: agent.FormatContextRecapForPrompt(currentSummary),
 		}}, finalMessages...)
 	}
 

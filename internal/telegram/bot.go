@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/budget"
 	"aurago/internal/commands"
 	"aurago/internal/config"
 	"aurago/internal/integrationstatus"
@@ -42,7 +43,7 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 	if currentSummary != "" {
 		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
+			Content: agent.FormatContextRecapForPrompt(currentSummary),
 		})
 	}
 	return append(finalMessages, historyManager.Get()...)
@@ -50,7 +51,7 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 
 // StartLongPolling initializes the Telegram bot in Long Polling mode.
 // It runs in a background goroutine and processes incoming messages.
-func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTracker *budget.Tracker) {
 	if cfg.Telegram.BotToken == "" {
 		integrationstatus.SetTelegramConfigured(false, false)
 		logger.Warn("Telegram Bot Token is missing, skipping Long Polling start.")
@@ -111,15 +112,33 @@ func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logg
 		}
 
 		// Acquire worker slot (blocks if all slots are busy)
-		workerSem <- struct{}{}
+		if !acquireTelegramWorker(ctx, workerSem) {
+			return
+		}
 		go func(upd tgbotapi.Update) {
 			defer func() { <-workerSem }()
-			processUpdate(bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian)
+			processUpdate(ctx, bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTracker)
 		}(update)
 	})
 }
 
 const telegramPollingIssueFingerprint = "telegram|long_polling"
+
+func acquireTelegramWorker(ctx context.Context, slots chan struct{}) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	select {
+	case slots <- struct{}{}:
+		if ctx.Err() != nil {
+			<-slots
+			return false
+		}
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
 
 var telegramPollingInitialBackoff = time.Second
 
@@ -219,11 +238,14 @@ func telegramTestMessage(now time.Time) string {
 	return "AuraGo Telegram test (manual) — " + now.UTC().Format(time.RFC3339)
 }
 
-func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTracker *budget.Tracker) {
 	// Maintenance check: Inform the user but allow the tool-based interaction
 	inMaintenance := tools.IsBusy()
 	if inMaintenance {
 		logger.Info("Telegram processing in Maintenance Mode")
+	}
+	if ctx.Err() != nil {
+		return
 	}
 	msg := update.Message
 	logger.Info("Received authorized Telegram message", "id", msg.From.ID, "hasText", msg.Text != "", "hasVoice", msg.Voice != nil, "hasPhoto", len(msg.Photo) > 0)
@@ -274,7 +296,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 			logger.Error("Failed to read converted voice file", "error", err)
 			return
 		}
-		text, _, err := tools.TranscribeAudio(context.Background(), filepath.Base(mp3Path), audioData, cfg)
+		text, _, err := tools.TranscribeAudio(ctx, filepath.Base(mp3Path), audioData, cfg)
 		if err != nil {
 			logger.Error("Failed to transcribe voice", "error", err)
 			return
@@ -429,7 +451,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		CronManager:        cronManager,
 		MissionManagerV2:   missionManagerV2,
 		CoAgentRegistry:    nil,
-		BudgetTracker:      nil,
+		BudgetTracker:      budgetTracker,
 		PreparationService: nil,
 		SessionID:          sessionID,
 		IsMaintenance:      tools.IsBusy(),
@@ -446,11 +468,15 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	}
 
 	// Start typing indicator
-	typingCtx, stopTyping := context.WithCancel(context.Background())
+	typingCtx, stopTyping := context.WithCancel(ctx)
+	defer stopTyping()
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for {
+			if typingCtx.Err() != nil {
+				return
+			}
 			bot.Send(tgbotapi.NewChatAction(msg.From.ID, tgbotapi.ChatTyping))
 			select {
 			case <-ticker.C:
@@ -460,13 +486,15 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		}
 	}()
 
-	// Run the loop
-	ctx := context.Background()
+	// Run the loop with the polling owner's cancellation context.
 
 	// Use TelegramBroker to capture audio events for native sending
 	broker := &TelegramBroker{bot: bot, chatID: msg.From.ID, logger: logger}
 	resp, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, broker)
 	stopTyping() // Stop the indicator as soon as the agent is done
+	if ctx.Err() != nil {
+		return
+	}
 
 	if err != nil {
 		logger.Error("Telegram agent loop failed", "error", err)

@@ -23,6 +23,11 @@ func formatConversationSummaryForPrompt(label, summary string) string {
 }
 
 func formatContextRecapForPrompt(summary string) string {
+	return FormatContextRecapForPrompt(summary)
+}
+
+// FormatContextRecapForPrompt isolates generated summaries consistently across chat channels.
+func FormatContextRecapForPrompt(summary string) string {
 	return formatConversationSummaryForPrompt(
 		"[CONTEXT_RECAP]: Previous relevant discussion summary. Do not echo or repeat this recap in your response.",
 		summary,

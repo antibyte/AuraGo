@@ -30,7 +30,7 @@ func (s *Server) configureRocketChatBot() {
 	if parent == nil {
 		parent = context.Background()
 	}
-	bot := rocketchat.StartBot(parent, cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, func() (*config.Config, llm.ChatClient) {
+	bot := rocketchat.StartBot(parent, cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.BudgetTracker, func() (*config.Config, llm.ChatClient) {
 		s.CfgMu.RLock()
 		defer s.CfgMu.RUnlock()
 		current := s.ConfigSnapshot()
