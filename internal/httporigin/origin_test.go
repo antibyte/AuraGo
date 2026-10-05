@@ -3,10 +3,83 @@ package httporigin
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
+
+// TestNewClientRejectsCrossOriginRedirect is the live fixture for the policy
+// client: server A answers a credentialed POST with a 307 to server B (another
+// loopback port), and B must never see the request, its headers or its body.
+func TestNewClientRejectsCrossOriginRedirect(t *testing.T) {
+	var secondHits atomic.Int32
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		secondHits.Add(1)
+	}))
+	defer second.Close()
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", second.URL+r.URL.Path)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}))
+	defer first.Close()
+
+	client := NewClient(5 * time.Second)
+	if client.Timeout != 5*time.Second {
+		t.Fatalf("Timeout = %v, want 5s", client.Timeout)
+	}
+	req, err := http.NewRequest(http.MethodPost, first.URL+"/v1/upload", strings.NewReader("SECRET-BODY"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer sk-test")
+	req.Header.Set("cf-aig-authorization", "Bearer gateway-test")
+	resp, err := client.Do(req)
+	if err == nil {
+		resp.Body.Close()
+	}
+	if hits := secondHits.Load(); hits != 0 {
+		t.Fatalf("second origin received %d request(s)", hits)
+	}
+	if !errors.Is(err, ErrCrossOriginRedirect) {
+		t.Fatalf("error = %v, want ErrCrossOriginRedirect", err)
+	}
+}
+
+func TestNewClientFollowsSameOriginRedirectWithBodyAndAuth(t *testing.T) {
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		if r.URL.Path == "/v1/upload" {
+			w.Header().Set("Location", "/v2/upload")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		if string(body) != "BODY" || r.Header.Get("Authorization") == "" {
+			t.Errorf("same-origin hop lost body or auth: body=%q auth=%q", body, r.Header.Get("Authorization"))
+		}
+	}))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/upload", strings.NewReader("BODY"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer sk-test")
+	resp, err := NewClient(5 * time.Second).Do(req)
+	if err != nil {
+		t.Fatalf("same-origin redirect: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || hits.Load() != 2 {
+		t.Fatalf("status = %d, hits = %d; want 200 after one followed redirect", resp.StatusCode, hits.Load())
+	}
+}
 
 func TestSameOriginRedirectRequiresExactOrigin(t *testing.T) {
 	original, _ := http.NewRequest(http.MethodGet, "https://example.com/api", nil)

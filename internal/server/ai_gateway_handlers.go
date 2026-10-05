@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 	"aurago/internal/llm"
 )
 
@@ -150,7 +151,9 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, prov
 		req.Header.Set("cf-aig-gateway-id", route.GatewayID)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	// cf-aig-authorization is a custom header that net/http forwards to any
+	// redirect target, so the probe never leaves the gateway origin (audit H9).
+	resp, err := httporigin.NewClient(20 * time.Second).Do(req)
 	if err != nil {
 		if test {
 			w.WriteHeader(http.StatusServiceUnavailable)

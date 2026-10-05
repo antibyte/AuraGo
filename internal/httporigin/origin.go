@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // ErrCrossOriginRedirect is returned by SameOriginRedirect. net/http wraps it
@@ -44,4 +45,11 @@ func SameOriginRedirect(req *http.Request, via []*http.Request) error {
 		return ErrCrossOriginRedirect
 	}
 	return nil
+}
+
+// NewClient returns an http.Client for credentialed requests: it applies
+// SameOriginRedirect and the given total timeout (zero means none). Transport
+// stays nil, so requests use http.DefaultTransport and its proxy settings.
+func NewClient(timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, CheckRedirect: SameOriginRedirect}
 }

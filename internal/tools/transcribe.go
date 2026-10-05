@@ -14,12 +14,14 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
 )
 
-var multimodalTranscribeHTTPClient = &http.Client{Timeout: 60 * time.Second}
+// The provider key and the audio never follow a redirect off the provider origin (audit H9).
+var multimodalTranscribeHTTPClient = httporigin.NewClient(60 * time.Second)
 
 const maxTranscriptionAudioBytes = 100 * 1024 * 1024
 
@@ -113,12 +115,18 @@ func transcribeWhisperRequest(parent context.Context, request openai.AudioReques
 	apiKey := cfg.Whisper.APIKey
 	baseURL := cfg.Whisper.BaseURL
 
-	client := openai.NewClient(apiKey)
-	if baseURL != "" {
-		c := openai.DefaultConfig(apiKey)
-		c.BaseURL = baseURL
-		client = openai.NewClientWithConfig(c)
+	timeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 10 * time.Minute
 	}
+
+	c := openai.DefaultConfig(apiKey)
+	if baseURL != "" {
+		c.BaseURL = baseURL
+	}
+	// The key and the audio upload never follow a redirect off the provider origin (audit H9).
+	c.HTTPClient = httporigin.NewClient(timeout)
+	client := openai.NewClientWithConfig(c)
 
 	model := strings.TrimSpace(cfg.Whisper.Model)
 	if strings.EqualFold(cfg.Whisper.ProviderType, "mistral") &&
@@ -129,10 +137,6 @@ func transcribeWhisperRequest(parent context.Context, request openai.AudioReques
 	}
 	request.Model = model
 
-	timeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
-	if timeout <= 0 {
-		timeout = 10 * time.Minute
-	}
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 

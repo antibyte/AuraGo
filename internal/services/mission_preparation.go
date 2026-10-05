@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/fileutil"
+	"aurago/internal/httporigin"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -226,6 +227,11 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 		return nil, fmt.Errorf("no API key configured for mission preparation")
 	}
 
+	timeout := time.Duration(prepCfg.TimeoutSeconds) * time.Second
+	if timeout == 0 {
+		timeout = 120 * time.Second
+	}
+
 	clientCfg := openai.DefaultConfig(apiKey)
 	if prepCfg.BaseURL != "" {
 		url := strings.TrimRight(prepCfg.BaseURL, "/")
@@ -234,12 +240,10 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 		}
 		clientCfg.BaseURL = url
 	}
+	// The key and mission prompt never follow a redirect off the provider origin (audit H9).
+	clientCfg.HTTPClient = httporigin.NewClient(timeout)
 	client := openai.NewClientWithConfig(clientCfg)
 
-	timeout := time.Duration(prepCfg.TimeoutSeconds) * time.Second
-	if timeout == 0 {
-		timeout = 120 * time.Second
-	}
 	llmCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 

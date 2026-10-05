@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 	"aurago/internal/llm"
 	"aurago/internal/security"
 
@@ -120,6 +122,8 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 		}
 		clientCfg.BaseURL = url
 	}
+	// The key and source content never follow a redirect off the provider origin (audit H9).
+	clientCfg.HTTPClient = httporigin.NewClient(60 * time.Second)
 	client := openai.NewClientWithConfig(clientCfg)
 
 	req := openai.ChatCompletionRequest{

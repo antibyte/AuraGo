@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -41,12 +42,13 @@ func TranscribeVoice(filePath string, cfg *config.Config) (string, error) {
 	apiKey := cfg.Whisper.APIKey
 	baseURL := cfg.Whisper.BaseURL
 
-	client := openai.NewClient(apiKey)
+	c := openai.DefaultConfig(apiKey)
 	if baseURL != "" {
-		c := openai.DefaultConfig(apiKey)
 		c.BaseURL = baseURL
-		client = openai.NewClientWithConfig(c)
 	}
+	// The key and the audio upload never follow a redirect off the provider origin (audit H9).
+	c.HTTPClient = httporigin.NewClient(10 * time.Minute)
+	client := openai.NewClientWithConfig(c)
 
 	model := cfg.Whisper.Model
 	if model == "" {
@@ -168,7 +170,7 @@ func TranscribeMultimodal(filePath string, cfg *config.Config) (string, error) {
 	req.Header.Set("HTTP-Referer", "https://github.com/andre/aurago")
 	req.Header.Set("X-Title", "AuraGo")
 
-	client := &http.Client{Timeout: 120 * time.Second}
+	client := httporigin.NewClient(120 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("request failed: %w", err)
