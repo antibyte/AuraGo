@@ -12,7 +12,11 @@ import (
 // reason. Keep it empty unless a vendor documents such a redirect.
 var credentialedRedirectAllowlist = map[string]string{}
 
-const credentialedRedirectPendingReason = "credentialed client not yet bound to its origin; follow-up task C14"
+const (
+	credentialedRedirectPendingReason = "credentialed client not yet bound to its origin; follow-up task C14"
+	credentialedRedirectOAuthReason   = "OAuth flow, needs behaviour review before binding; C14 candidate (overview backlog)"
+	credentialedRedirectVendorReason  = "vendor API, needs behaviour review; C14 candidate (overview backlog)"
+)
 
 // credentialedRedirectPending is a ratchet of known credentialed clients that
 // still follow redirects to any origin. It may only shrink: bind a client,
@@ -20,18 +24,18 @@ const credentialedRedirectPendingReason = "credentialed client not yet bound to 
 var credentialedRedirectPending = map[string]string{
 	"internal/a2a/client.go":                          credentialedRedirectPendingReason,
 	"internal/agentmail/client.go":                    credentialedRedirectPendingReason,
-	"internal/discord/connection.go":                  credentialedRedirectPendingReason + " (vendor API, needs behaviour review)",
+	"internal/discord/connection.go":                  credentialedRedirectVendorReason,
 	"internal/embeddings/llama_docker.go":             credentialedRedirectPendingReason,
 	"internal/embeddings/llama_embedder.go":           credentialedRedirectPendingReason,
 	"internal/evomap/client.go":                       credentialedRedirectPendingReason,
 	"internal/jellyfin/client.go":                     credentialedRedirectPendingReason,
 	"internal/realtimespeech/client.go":               credentialedRedirectPendingReason,
-	"internal/server/copilot_handlers.go":             credentialedRedirectPendingReason + " (OAuth flow, needs behaviour review before binding)",
-	"internal/server/onedrive_handlers.go":            credentialedRedirectPendingReason + " (OAuth flow, needs behaviour review before binding)",
+	"internal/server/copilot_handlers.go":             credentialedRedirectOAuthReason,
+	"internal/server/onedrive_handlers.go":            credentialedRedirectOAuthReason,
 	"internal/telnyx/client.go":                       credentialedRedirectPendingReason,
 	"internal/tools/adguard.go":                       credentialedRedirectPendingReason,
 	"internal/tools/ansible.go":                       credentialedRedirectPendingReason,
-	"internal/tools/cloudflare_tunnel.go":             credentialedRedirectPendingReason + " (vendor API, needs behaviour review)",
+	"internal/tools/cloudflare_tunnel.go":             credentialedRedirectVendorReason,
 	"internal/tools/github.go":                        credentialedRedirectPendingReason,
 	"internal/tools/go2rtc.go":                        credentialedRedirectPendingReason,
 	"internal/tools/grafana.go":                       credentialedRedirectPendingReason,
@@ -42,7 +46,7 @@ var credentialedRedirectPending = map[string]string{
 	"internal/tools/notification.go":                  credentialedRedirectPendingReason,
 	"internal/tools/proxmox.go":                       credentialedRedirectPendingReason,
 	"internal/tools/space_agent.go":                   credentialedRedirectPendingReason,
-	"internal/tools/tailscale.go":                     credentialedRedirectPendingReason + " (vendor API, needs behaviour review)",
+	"internal/tools/tailscale.go":                     credentialedRedirectVendorReason,
 	"internal/tools/uptime_kuma.go":                   credentialedRedirectPendingReason,
 	"internal/tools/vercel.go":                        credentialedRedirectPendingReason,
 	"internal/tools/video_generation.go":              credentialedRedirectPendingReason,
@@ -62,17 +66,34 @@ var credentialedRedirectPending = map[string]string{
 // have their own fixture tests. Files still pending are listed in
 // credentialedRedirectPending, which may only shrink.
 //
+// A second check covers go-openai clients: a file outside internal/llm and
+// internal/localllm that calls openai.DefaultConfig must also assign
+// .HTTPClient, so the provider client gets an origin-bound http.Client.
+//
 // This is a tripwire, not a complete check. Known blind spots:
 //   - Header names that are not literals are invisible, such as the vault
 //     secret headers in internal/tools/webhooks.go and the agent-supplied
 //     headers in internal/tools/api_client.go.
 //   - Granularity is per file: any CheckRedirect in a file satisfies every
-//     client built in that file.
+//     client built in that file, and any .HTTPClient assignment satisfies
+//     every openai.DefaultConfig call.
+//   - A client built in one file and given credentials in another is
+//     invisible. imageGenHTTPClient has that shape; it is caught only because
+//     image_gen_openrouter.go itself also sets Authorization.
+//   - The bare word CheckRedirect anywhere in a file, even in a comment,
+//     makes the file count as compliant.
+//   - http.Client{ without &, http.DefaultClient and map-style headers
+//     (req.Header["Authorization"] = ...) are not matched.
+//   - Credential headers outside the three names above are not matched.
+//     Unbound today: internal/tools/virustotal.go (x-apikey) and
+//     internal/manus/client.go (x-manus-api-key); the tree also uses
+//     x-goog-api-key, x-api-key, X-Subscription-Token and X-Auth-Token.
 func TestCredentialedHTTPClientsBindRedirectsToOrigin(t *testing.T) {
 	t.Parallel()
 
 	clientPattern := regexp.MustCompile(`&http\.Client\s*\{|security\.NewSSRFProtectedHTTPClient(?:ForURL)?\(`)
 	credentialPattern := regexp.MustCompile(`(?i)\b(?:Set|Add|WithRequestHeader)\(\s*"(?:authorization|xi-api-key|cf-aig-authorization)"|\.SetBasicAuth\(`)
+	openAIConfigPattern := regexp.MustCompile(`openai\.DefaultConfig\(`)
 	exempt := []string{"internal/llm/", "internal/localllm/", "internal/httporigin/"}
 
 	for path, reason := range credentialedRedirectPending {
@@ -81,14 +102,18 @@ func TestCredentialedHTTPClientsBindRedirectsToOrigin(t *testing.T) {
 		}
 	}
 
-	var unbound []string
+	var unbound, unboundOpenAI []string
 	stillPending := map[string]bool{}
+	// walkGoFiles already skips disposable/ and other non-source directories.
 	walkGoFiles(t, repoPath("."), func(path string, content string) {
-		if strings.HasSuffix(path, "_test.go") || strings.Contains(path, "/disposable/") {
+		if strings.HasSuffix(path, "_test.go") {
 			return
 		}
 		if slices.ContainsFunc(exempt, func(prefix string) bool { return strings.HasPrefix(path, prefix) }) {
 			return
+		}
+		if openAIConfigPattern.MatchString(content) && !strings.Contains(content, ".HTTPClient =") {
+			unboundOpenAI = append(unboundOpenAI, path)
 		}
 		if !clientPattern.MatchString(content) || !credentialPattern.MatchString(content) || strings.Contains(content, "CheckRedirect") {
 			return
@@ -106,6 +131,10 @@ func TestCredentialedHTTPClientsBindRedirectsToOrigin(t *testing.T) {
 	if len(unbound) > 0 {
 		slices.Sort(unbound)
 		t.Errorf("credentialed HTTP clients follow redirects to any origin; bind them with httporigin.NewClient, security.NewSSRFProtectedHTTPClientSameOrigin or a CheckRedirect policy (do not add them to credentialedRedirectPending):\n%s", strings.Join(unbound, "\n"))
+	}
+	if len(unboundOpenAI) > 0 {
+		slices.Sort(unboundOpenAI)
+		t.Errorf("go-openai clients built with openai.DefaultConfig keep the default http.Client; assign an origin-bound .HTTPClient (httporigin.NewClient):\n%s", strings.Join(unboundOpenAI, "\n"))
 	}
 
 	var resolved []string

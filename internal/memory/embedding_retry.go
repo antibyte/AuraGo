@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/httporigin"
+
 	chromem "github.com/philippgille/chromem-go"
 )
 
@@ -61,6 +63,11 @@ func shouldRetryEmbeddingError(ctx context.Context, err error) bool {
 		return false
 	}
 	if ctx != nil && ctx.Err() != nil {
+		return false
+	}
+	// A rejected cross-origin redirect is a configuration fault, not a
+	// transient one; its message can still contain a port such as 50312.
+	if errors.Is(err, httporigin.ErrCrossOriginRedirect) {
 		return false
 	}
 	if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {

@@ -3,8 +3,10 @@ package memory
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -41,7 +43,9 @@ func TestMultimodalEmbedderDoesNotFollowCrossOriginRedirect(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			}))
 			defer second.Close()
+			var providerHits atomic.Int32
 			provider := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				providerHits.Add(1)
 				w.Header().Set("Location", second.URL+r.URL.Path)
 				w.WriteHeader(http.StatusTemporaryRedirect)
 			}))
@@ -55,7 +59,19 @@ func TestMultimodalEmbedderDoesNotFollowCrossOriginRedirect(t *testing.T) {
 			if hits := secondHits.Load(); hits != 0 {
 				t.Fatalf("second origin received %d request(s); auth=%v", hits, secondSawAuth.Load())
 			}
+			if hits := providerHits.Load(); hits != 1 {
+				t.Fatalf("provider received %d request(s), want 1: a rejected redirect must not be retried", hits)
+			}
 		})
+	}
+}
+
+// The rejection error carries the request URL, whose port may contain a
+// "transient" status fragment such as 503; it must still not be retried.
+func TestEmbeddingRetryTreatsRejectedRedirectAsFinal(t *testing.T) {
+	err := fmt.Errorf("embedding request failed: %w", &url.Error{Op: "Post", URL: "http://127.0.0.1:50312/v1/embeddings", Err: httporigin.ErrCrossOriginRedirect})
+	if shouldRetryEmbeddingError(context.Background(), err) {
+		t.Fatalf("rejected redirect classified retryable: %v", err)
 	}
 }
 

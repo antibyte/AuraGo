@@ -18,9 +18,10 @@ import (
 
 const maxGeneratedImageBytes int64 = 50 * 1024 * 1024
 
-// imageDownloadHTTPClient fetches provider-returned image URLs. The requests
-// carry no credentials, so redirects to another origin (such as a CDN) are
-// still followed; every hop is SSRF re-validated and pinned.
+// imageDownloadHTTPClient fetches provider-returned image URLs and follows
+// redirects to another origin (such as a CDN); every hop is SSRF re-validated
+// and pinned. Never attach credentials to requests on this client;
+// authenticated downloads need an origin-bound client.
 var imageDownloadHTTPClient = security.NewSSRFProtectedHTTPClient(120 * time.Second)
 
 // loadSourceImage reads an image file from disk for image-to-image operations.
