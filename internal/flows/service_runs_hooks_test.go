@@ -311,6 +311,38 @@ func TestServiceRunFinishedMarksStartedRuns(t *testing.T) {
 	}
 }
 
+// svcRunPanicBridge records FlowRunStarted and then panics, as a faulty bridge can.
+type svcRunPanicBridge struct{ *svcRunBridge }
+
+func (b svcRunPanicBridge) FlowRunStarted(missionID string, rec RunRecord) string {
+	b.svcRunBridge.FlowRunStarted(missionID, rec)
+	panic("mission history broke")
+}
+
+// A FlowRunStarted that panics (the runner recovers it) was still called: the run is
+// reported as started, with the outputs and the setting of the document it executed.
+func TestServiceRunStartedStaysMarkedWhenTheBridgePanics(t *testing.T) {
+	bridge := svcRunPanicBridge{newSvcRunBridge()}
+	s := svcRunNewService(t, &fakeTools{}, bridge, nil, ServiceConfig{})
+	pub := svcRunPublish(t, s, simpleFlow("Panik"))
+	res, err := s.RunNow(context.Background(), pub.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := bridge.waitInfo(t, res.RunID)
+	greet, _ := info.Outputs["greet"].(map[string]any)
+	if !info.Started || info.HistoryID != "" || info.MissionID != pub.MissionID || info.FlowName != "Panik" ||
+		info.NotifyOnError != DefaultNotifyOnError || greet["greeting"] != "Hallo Welt" || info.Result.Status != RunSuccess {
+		t.Fatalf("report of a run whose FlowRunStarted panicked = %+v", info)
+	}
+	if n := len(bridge.startedRuns()); n != 1 {
+		t.Fatalf("FlowRunStarted was called %d times", n)
+	}
+	if n := svcRunHistoryLen(s); n != 0 {
+		t.Fatalf("%d history entries left", n)
+	}
+}
+
 // A run that never started reports without reading any document: it ends inside the
 // delete, Cancel or Shutdown, once per queued run. Damaged documents prove it, since
 // reading one would log a warning.

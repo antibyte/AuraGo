@@ -275,25 +275,30 @@ type runHistory struct {
 
 // onRunStarted records a live run in the mission history. It reads only the flow's
 // mission and name (no documents), and remembers them for onRunFinished; the entry it
-// stores also marks the run as started.
+// stores also marks the run as started. The entry is stored also when FlowRunStarted
+// panics (the runner recovers it): the bridge was called and may already count the run
+// as running, so onRunFinished must report it as started.
 func (s *Service) onRunStarted(rec RunRecord) {
 	if rec.Mode == ModeTest {
 		return
 	}
 	var h runHistory
+	defer func() { // runs after the bridge call; s.mu is never held during it
+		s.mu.Lock()
+		s.history[rec.ID] = h
+		s.mu.Unlock()
+	}()
 	missionID, name, err := s.store.flowMissionAndName(context.Background(), rec.FlowID)
 	if err != nil {
 		s.logLookup("the flow of a started run could not be read; Mission Control does not record the run", rec.ID, err)
-	} else {
-		h.known, h.missionID, h.flowName = true, missionID, name
-		if missionID != "" {
-			h.historyID = s.bridge.FlowRunStarted(missionID, bridgeRecord(rec))
-			h.reported = true
-		}
+		return
 	}
-	s.mu.Lock()
-	s.history[rec.ID] = h
-	s.mu.Unlock()
+	h.known, h.missionID, h.flowName = true, missionID, name
+	if missionID != "" {
+		bounded := bridgeRecord(rec)
+		h.reported = true
+		h.historyID = s.bridge.FlowRunStarted(missionID, bounded)
+	}
 }
 
 // onRunFinished tells Mission Control that a live run ended. It reports every live run,
