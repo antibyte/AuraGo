@@ -7,6 +7,10 @@ import (
 	"os"
 )
 
+// platformCommand runs privileged commands without root through `sudo -n`,
+// with the caller's stdin only. The Vault password never reaches the command:
+// the runner validates it into the shared sudo ticket first (see
+// acquireSudoTicket).
 func platformCommand(options Options, privileged bool, name string, args []string, stdin []byte) (string, []string, []byte, error) {
 	if !privileged || os.Geteuid() == 0 {
 		return name, args, stdin, nil
@@ -14,16 +18,8 @@ func platformCommand(options Options, privileged bool, name string, args []strin
 	if !options.SudoEnabled || !options.SudoUnrestricted || options.NoNewPrivileges || options.ProtectSystemStrict {
 		return "", nil, nil, codedError(ErrorPermissionDenied, "Host-wide share changes require unrestricted sudo and a writable system configuration.", nil)
 	}
-	sudoArgs := []string{"--", name}
-	commandInput := stdin
-	if options.SudoPassword != "" {
-		sudoArgs = []string{"-S", "-p", "", "--", name}
-		commandInput = append([]byte(options.SudoPassword+"\n"), stdin...)
-	} else {
-		sudoArgs = append([]string{"-n"}, sudoArgs...)
-	}
-	sudoArgs = append(sudoArgs, args...)
-	return "sudo", sudoArgs, commandInput, nil
+	sudoArgs := append([]string{"-n", "--", name}, args...)
+	return "sudo", sudoArgs, stdin, nil
 }
 
 func platformElevated() bool {

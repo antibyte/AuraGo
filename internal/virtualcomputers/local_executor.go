@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"aurago/internal/sudoticket"
 )
 
 type CommandRunner func(ctx context.Context, name string, args ...string) (string, error)
@@ -87,27 +89,45 @@ func (e LocalCommandExecutor) RunScript(ctx context.Context, script string) (str
 	if e.euid() == 0 {
 		return e.runner()(ctx, "bash", path)
 	}
-	if e.SudoPassword != "" {
-		if _, err := e.runner()(ctx, "sudo", "-n", "true"); err != nil {
-			return e.inputRunner()(ctx, "sudo", e.SudoPassword+"\n", "-S", "-p", "", "bash", path)
-		}
+	lease, authOut, err := e.sudoTicket(ctx)
+	if err != nil {
+		return authOut, err
 	}
-	return e.runner()(ctx, "sudo", "-n", "bash", path)
+	defer lease.Release()
+	out, err := e.runner()(ctx, "sudo", "-n", "bash", path)
+	return out, lease.Explain(err)
 }
 
+// runScriptInTransientSystemdService pipes script into `systemd-run --pipe
+// ... /bin/bash -s`. Its stdin is the script alone: a password line in front
+// of it would run as the first root command.
 func (e LocalCommandExecutor) runScriptInTransientSystemdService(ctx context.Context, script string) (string, error) {
 	args := transientSystemdScriptArgs()
 	if e.euid() == 0 {
 		return e.inputRunner()(ctx, "systemd-run", script, args...)
 	}
-	if e.SudoPassword != "" {
-		if _, err := e.runner()(ctx, "sudo", "-n", "true"); err != nil {
-			sudoArgs := append([]string{"-S", "-p", "", "systemd-run"}, args...)
-			return e.inputRunner()(ctx, "sudo", e.SudoPassword+"\n"+script, sudoArgs...)
-		}
+	lease, authOut, err := e.sudoTicket(ctx)
+	if err != nil {
+		return authOut, err
 	}
+	defer lease.Release()
 	sudoArgs := append([]string{"-n", "systemd-run"}, args...)
-	return e.inputRunner()(ctx, "sudo", script, sudoArgs...)
+	out, err := e.inputRunner()(ctx, "sudo", script, sudoArgs...)
+	return out, lease.Explain(err)
+}
+
+// sudoTicket prepares one `sudo -n` run. Without a Vault password, or when
+// `sudo -n true` already succeeds, it returns a nil lease and the run relies
+// on root rules or NOPASSWD. Otherwise the password goes only to the shared
+// sudo ticket (package sudoticket), never to the command's stdin.
+func (e LocalCommandExecutor) sudoTicket(ctx context.Context) (*sudoticket.Lease, string, error) {
+	if e.SudoPassword == "" {
+		return nil, "", nil
+	}
+	if _, err := e.runner()(ctx, "sudo", "-n", "true"); err == nil {
+		return nil, "", nil
+	}
+	return sudoticket.Acquire(ctx, "", e.SudoPassword)
 }
 
 func transientSystemdScriptArgs() []string {
@@ -175,14 +195,20 @@ func (e LocalCommandExecutor) inputRunner() InputCommandRunner {
 		return e.InputCommandRunner
 	}
 	return func(ctx context.Context, name, input string, args ...string) (string, error) {
-		cmd := exec.CommandContext(ctx, name, args...)
-		cmd.Stdin = strings.NewReader(input)
-		out, err := cmd.CombinedOutput()
+		out, err := newInputCommand(ctx, name, input, args...).CombinedOutput()
 		if err != nil {
 			return string(out), fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
 		}
 		return string(out), nil
 	}
+}
+
+// newInputCommand builds the process the default input runner starts, with
+// input as its whole stdin.
+func newInputCommand(ctx context.Context, name, input string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdin = strings.NewReader(input)
+	return cmd
 }
 
 func (e LocalCommandExecutor) osRelease() (string, string) {
@@ -244,7 +270,12 @@ func (e LocalCommandExecutor) hasSudoOrRoot(ctx context.Context) bool {
 	if e.SudoPassword == "" {
 		return false
 	}
-	_, err = e.inputRunner()(ctx, "sudo", e.SudoPassword+"\n", "-S", "-p", "", "true")
+	lease, _, err := sudoticket.Acquire(ctx, "", e.SudoPassword)
+	if err != nil {
+		return false
+	}
+	defer lease.Release()
+	_, err = e.runner()(ctx, "sudo", "-n", "true")
 	return err == nil
 }
 

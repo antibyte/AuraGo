@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"aurago/internal/sudoticket"
 )
 
 const maxCommandOutputBytes = 512 * 1024
@@ -22,6 +24,37 @@ func (execCommandRunner) LookPath(file string) (string, error) {
 }
 
 func (execCommandRunner) Run(ctx context.Context, options Options, privileged bool, name string, args []string, stdin []byte) ([]byte, error) {
+	cmd, err := newRunnerCommand(ctx, options, privileged, name, args, stdin)
+	if err != nil {
+		return nil, err
+	}
+	lease, authOut, err := acquireSudoTicket(ctx, options, cmd)
+	if err != nil {
+		if message := limitMessage(authOut); message != "" {
+			return nil, fmt.Errorf("%s failed: %w: %s", name, err, message)
+		}
+		return nil, fmt.Errorf("%s failed: %w", name, err)
+	}
+	defer lease.Release()
+	var stdout, stderr cappedBuffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		message := limitMessage(stderr.String())
+		if message == "" {
+			message = limitMessage(stdout.String())
+		}
+		if message != "" {
+			return nil, lease.Explain(fmt.Errorf("%s failed: %s", name, message))
+		}
+		return nil, lease.Explain(fmt.Errorf("%s failed: %w", name, err))
+	}
+	return stdout.Bytes(), nil
+}
+
+// newRunnerCommand builds the process for one runner call: the platform
+// decides about elevation, and stdin is the platform's command input.
+func newRunnerCommand(ctx context.Context, options Options, privileged bool, name string, args []string, stdin []byte) (*exec.Cmd, error) {
 	commandName, commandArgs, commandInput, err := platformCommand(options, privileged, name, args, stdin)
 	if err != nil {
 		return nil, err
@@ -30,23 +63,27 @@ func (execCommandRunner) Run(ctx context.Context, options Options, privileged bo
 	if len(commandInput) > 0 {
 		cmd.Stdin = bytes.NewReader(commandInput)
 	}
-	var stdout, stderr cappedBuffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		message := strings.TrimSpace(stderr.String())
-		if message == "" {
-			message = strings.TrimSpace(stdout.String())
-		}
-		if len(message) > 400 {
-			message = message[:400]
-		}
-		if message != "" {
-			return nil, fmt.Errorf("%s failed: %s", name, message)
-		}
-		return nil, fmt.Errorf("%s failed: %w", name, err)
+	return cmd, nil
+}
+
+// acquireSudoTicket validates the Vault sudo password into the shared sudo
+// ticket before a `sudo -n` run (Linux, see platformCommand). Other commands,
+// and sudo without a password, get a nil lease: sudo -n then relies on root
+// rules or NOPASSWD.
+func acquireSudoTicket(ctx context.Context, options Options, cmd *exec.Cmd) (*sudoticket.Lease, string, error) {
+	if options.SudoPassword == "" || len(cmd.Args) == 0 || cmd.Args[0] != "sudo" {
+		return nil, "", nil
 	}
-	return stdout.Bytes(), nil
+	return sudoticket.Acquire(ctx, "", options.SudoPassword)
+}
+
+// limitMessage trims command output for an error message.
+func limitMessage(output string) string {
+	message := strings.TrimSpace(output)
+	if len(message) > 400 {
+		message = message[:400]
+	}
+	return message
 }
 
 type cappedBuffer struct {
