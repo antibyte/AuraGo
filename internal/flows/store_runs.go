@@ -247,6 +247,20 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 	return rec, steps, rows.Err()
 }
 
+// GetRunHeader returns a run's header as the list queries read it, without the trigger
+// data (an empty map stands in) and without the steps, or ErrRunNotFound. Use it where only
+// the status, the mode or the flow matter: GetRun also reads every step's params and output.
+func (s *Store) GetRunHeader(ctx context.Context, runID string) (*RunRecord, error) {
+	rec, err := scanRun(s.db.QueryRowContext(ctx, `SELECT `+runListColumns+` FROM flow_runs WHERE id = ?`, runID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrRunNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return rec, nil
+}
+
 // GetRunDoc returns the flow document a run executed: the stored draft for test runs,
 // otherwise the published version. Pruned versions yield ErrNotFound, and so does a
 // test run whose document was not stored (see CreateRun): its revision is a draft

@@ -132,6 +132,12 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", problem)
 			return true
 		}
+		// The run list of a flow that does not exist is FLOW_NOT_FOUND, not an empty list
+		// (GetFlow is a lock-free read).
+		if _, err := s.Flows.GetFlow(ctx, id); err != nil {
+			s.flowsErrorFrom(w, r, err)
+			return true
+		}
 		runs, err := s.Flows.Runs(ctx, id, filter)
 		if err != nil {
 			s.flowsErrorFrom(w, r, err)
@@ -140,8 +146,14 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 		s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"runs": runs})
 	case action == "test-data" && len(rest) == 1:
 		// Sample data can hold anything the user pasted, a secret included: both answers
-		// are scrubbed by value.
+		// are scrubbed by value. Only an enabled trigger of the draft has sample data (the
+		// service answers FLOW_NO_TRIGGER for any other node); an id that cannot be a node
+		// id is refused before the flow is read.
 		node := rest[0]
+		if !flows.ValidNodeID(node) {
+			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the node id is not valid")
+			return true
+		}
 		switch r.Method {
 		case http.MethodGet:
 			data, err := s.Flows.TriggerSampleData(ctx, id, node)
@@ -214,25 +226,29 @@ func (s *Server) flowsRunRoute(w http.ResponseWriter, r *http.Request, rest []st
 	}
 }
 
-// cancelFlowRun answers POST runs/{run}/cancel: 202 {"cancelled": true} when the runner
-// stopped or dequeued the run, 404 FLOW_RUN_NOT_FOUND for a run the store does not know, and
-// 409 FLOW_RUN_FINISHED for a stored run that is no longer active (finished, or ending at
-// this moment). The runner forgets a run once it ended, so the run is read from the store
-// first; Service.Run takes no flow lock. A cancelled live run goes to the audit timeline
-// (flow_run_cancel); test runs belong to the editor and are not audited.
+// cancelFlowRun answers POST runs/{run}/cancel: 202 {"cancelled": true} when the run is
+// active (also again while a cancelled run winds down: the cancel is idempotent), 404
+// FLOW_RUN_NOT_FOUND for a run the store does not know, and 409 FLOW_RUN_FINISHED for a
+// stored run that is no longer active (finished, or ending at this moment). The runner
+// forgets a run once it ended, so the run's header is read from the store first
+// (Service.RunHeader: no steps, no flow lock). The first cancel of a live run goes to the
+// audit timeline (flow_run_cancel); test runs belong to the editor and are not audited.
 func (s *Server) cancelFlowRun(w http.ResponseWriter, r *http.Request, runID string) {
 	ctx := r.Context()
-	detail, err := s.Flows.Run(ctx, runID, false)
+	run, err := s.Flows.RunHeader(ctx, runID)
 	if err != nil {
 		s.flowsErrorFrom(w, r, err)
 		return
 	}
-	run := detail.Run
-	if run == nil || run.Status.Terminal() || !s.Flows.Cancel(runID) {
+	known, first := false, false
+	if !run.Status.Terminal() {
+		known, first = s.Flows.CancelRun(runID)
+	}
+	if !known {
 		flowsError(w, http.StatusConflict, "FLOW_RUN_FINISHED", "the run has already finished")
 		return
 	}
-	if run.Mode == flows.ModeLive {
+	if first && run.Mode == flows.ModeLive {
 		// The run is cancelled; a client that went away must not leave the entry without
 		// the flow's name.
 		name, label := "", run.FlowID
@@ -334,14 +350,17 @@ func flowStreamAfter(r *http.Request) int {
 //
 // End versus resync: the bus closes a subscriber's channel when the run finished, when the
 // subscriber fell more than 256 events behind (this handler blocks on a slow client's
-// connection), or when its sweep forgot a leaked log. "end" is sent only when the stream
+// connection), or when its sweep forgot a leaked log. "end" is sent when the stream
 // delivered run_finished, when the snapshot (read after subscribing) shows the run
-// finished, or when the bus does not know the run (forgotten after its retention, or a run
-// of an earlier process). The bus closes the channel only after the runner stored the
-// run's result, so a client that reloads the run on "end" finds it final. Any other close
-// sends "resync": the run goes on, and a new stream with ?after= continues from the log
-// without a gap. A finished run's stream (a reconnect included) ends at once with snapshot
-// and "end", and a reconnect after the last event cannot loop on "resync".
+// finished, when the bus does not know the run (forgotten after its retention, or a run
+// of an earlier process), or when the channel closed before it delivered a single event:
+// a dropped subscriber has 256 buffered events to read first, so such a close is a run
+// that already ended (or a forgotten leaked log). The bus closes the channel only after
+// the runner stored the run's result, so a client that reloads the run on "end" finds it
+// final. Any other close sends "resync": the run goes on, and a new stream with ?after=
+// continues from the log without a gap. A finished run's stream (a reconnect included, also
+// one after the last event or for a run whose stored status is stale because FinishRun
+// failed) ends at once with snapshot and "end", so a client never loops on "resync".
 //
 // The stream also ends when the client goes away and when the server drains for a
 // shutdown: trackHTTP cancels the request context on beginHTTPDrain, so an open stream does
@@ -391,7 +410,8 @@ func (s *Server) streamFlowRunEvents(w http.ResponseWriter, r *http.Request, run
 		return writeFlowSSE(w, flusher, "event", ev.Seq, ev)
 	}
 	for _, ev := range backlog {
-		if send(ev) != nil {
+		// A drained or departed client stops the backlog too (each event is scrubbed).
+		if ctx.Err() != nil || send(ev) != nil {
 			return
 		}
 	}
@@ -401,6 +421,7 @@ func (s *Server) streamFlowRunEvents(w http.ResponseWriter, r *http.Request, run
 	}
 	heartbeat := time.NewTicker(flowStreamHeartbeat)
 	defer heartbeat.Stop()
+	received := 0 // events read from the channel
 	for {
 		select {
 		case <-ctx.Done():
@@ -412,12 +433,13 @@ func (s *Server) streamFlowRunEvents(w http.ResponseWriter, r *http.Request, run
 			flusher.Flush()
 		case ev, open := <-events:
 			if open {
+				received++
 				if send(ev) != nil {
 					return
 				}
 				continue
 			}
-			if finished || (detail.Run != nil && detail.Run.Status.Terminal()) {
+			if finished || received == 0 || (detail.Run != nil && detail.Run.Status.Terminal()) {
 				_ = writeFlowSSE(w, flusher, "end", 0, map[string]any{})
 			} else {
 				_ = writeFlowSSE(w, flusher, "resync", 0, map[string]int{"after": last})

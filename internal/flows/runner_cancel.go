@@ -5,21 +5,32 @@ import "context"
 // Cancel stops a running run or removes a queued one. It returns false for unknown runs.
 // A run whose Start has not returned yet is not known to Cancel.
 func (r *Runner) Cancel(runID string) bool {
+	known, _ := r.CancelRun(runID)
+	return known
+}
+
+// CancelRun is Cancel that also reports whether this call cancelled the run: known is what
+// Cancel returns, and first is false for a running run that Cancel, CancelRun, CancelFlow,
+// CancelFlowMode or Shutdown cancelled before (it is still winding down). A queued run is
+// removed by exactly one call, so for it first equals known. A caller that records a cancel
+// (an audit entry) does so only when first is true.
+func (r *Runner) CancelRun(runID string) (known, first bool) {
 	r.mu.Lock()
 	if run, ok := r.cancels[runID]; ok {
+		first = !run.cancelled
 		run.cancelled = true
 		r.cancels[runID] = run
 		r.mu.Unlock()
 		run.cancel()
-		return true
+		return true, first
 	}
 	p := r.removeQueuedLocked(runID)
 	r.mu.Unlock()
 	if p == nil {
-		return false
+		return false, false
 	}
 	r.finishUnstarted(p, "FLOW_CANCELLED", "the run was cancelled before it started")
-	return true
+	return true, true
 }
 
 func (r *Runner) removeQueuedLocked(runID string) *pendingRun {

@@ -64,11 +64,11 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 	}
 	data := req.TriggerData
 	if data == nil {
-		if data, err = s.TriggerSampleData(ctx, id, trigger); err != nil {
+		if data, err = s.triggerSample(ctx, rec, trigger); err != nil {
 			return StartResult{}, err
 		}
 	} else if req.RememberData {
-		if err := s.SaveTriggerSample(ctx, id, trigger, data); err != nil {
+		if err := s.saveTriggerSample(ctx, id, trigger, data); err != nil {
 			return StartResult{}, err
 		}
 	}
@@ -76,24 +76,44 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 		TriggerNode: trigger, TriggerType: "test", TriggerData: data, OnlyNode: req.OnlyNode})
 }
 
-// TriggerSampleData returns the remembered sample data of a trigger node, or its built-in sample.
+// TriggerSampleData returns the remembered sample data of a trigger node, or its built-in
+// sample. A node that is not an enabled trigger of the draft is ErrNoTrigger (wrapped,
+// bounded id), like in SaveTriggerSample.
 func (s *Service) TriggerSampleData(ctx context.Context, flowID, nodeID string) (map[string]any, error) {
-	data, ok, err := s.store.GetTestData(ctx, flowID, nodeID, TestDataTriggerSample)
+	rec, err := s.store.GetFlow(ctx, flowID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.requireTrigger(rec, nodeID); err != nil {
+		return nil, err
+	}
+	return s.triggerSample(ctx, rec, nodeID)
+}
+
+// triggerSample is TriggerSampleData for a trigger node of rec's draft.
+func (s *Service) triggerSample(ctx context.Context, rec *FlowRecord, nodeID string) (map[string]any, error) {
+	data, ok, err := s.store.GetTestData(ctx, rec.ID, nodeID, TestDataTriggerSample)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
 		return data, nil
 	}
-	rec, err := s.store.GetFlow(ctx, flowID)
-	if err != nil {
-		return nil, err
-	}
 	n := rec.Draft.NodeByID(nodeID)
 	if n == nil {
 		return map[string]any{}, nil
 	}
 	return TriggerSample(n), nil
+}
+
+// requireTrigger returns nil when nodeID is an enabled trigger of rec's draft, and
+// ErrNoTrigger naming the node (bounded) otherwise. It keeps remembered sample data to the
+// nodes that can use it, so the store gets no rows for made-up node ids.
+func (s *Service) requireTrigger(rec *FlowRecord, nodeID string) error {
+	if nodeID == "" || s.pickTrigger(rec.Draft, nodeID) != nodeID {
+		return fmt.Errorf("%w: %s is not an enabled trigger of the draft", ErrNoTrigger, quoteForError(nodeID))
+	}
+	return nil
 }
 
 // RunNow starts the published flow from its manual trigger (or its first trigger). The
@@ -231,19 +251,41 @@ func (s *Service) Run(ctx context.Context, runID string, includeDoc bool) (*RunD
 	return detail, nil
 }
 
+// RunHeader returns a run's header only (Store.GetRunHeader): no trigger data, no steps.
+func (s *Service) RunHeader(ctx context.Context, runID string) (*RunRecord, error) {
+	return s.store.GetRunHeader(ctx, runID)
+}
+
 // Cancel stops or dequeues a run.
 func (s *Service) Cancel(runID string) bool { return s.runner.Cancel(runID) }
+
+// CancelRun is Cancel that also reports whether this call was the first to cancel the run
+// (Runner.CancelRun); a caller that records the cancel does so only then.
+func (s *Service) CancelRun(runID string) (known, first bool) { return s.runner.CancelRun(runID) }
 
 // Subscribe returns the event backlog after afterSeq and a channel for new events.
 func (s *Service) Subscribe(runID string, afterSeq int) ([]RunEvent, <-chan RunEvent, func(), bool) {
 	return s.runner.Subscribe(runID, afterSeq)
 }
 
-// SaveTriggerSample remembers sample data for a trigger node. Data whose JSON encoding,
-// as the store writes it (HTML-escaped, so "<" takes six bytes), exceeds
-// MaxStoredOutputBytes is refused with ErrTestDataTooLarge (wrapped), data that cannot
-// be encoded with an error; nothing is stored then.
+// SaveTriggerSample remembers sample data for a trigger node. A node that is not an
+// enabled trigger of the draft is refused with ErrNoTrigger (wrapped, bounded id). Data
+// whose JSON encoding, as the store writes it (HTML-escaped, so "<" takes six bytes),
+// exceeds MaxStoredOutputBytes is refused with ErrTestDataTooLarge (wrapped), data that
+// cannot be encoded with an error; nothing is stored then.
 func (s *Service) SaveTriggerSample(ctx context.Context, flowID, nodeID string, data map[string]any) error {
+	rec, err := s.store.GetFlow(ctx, flowID)
+	if err != nil {
+		return err
+	}
+	if err := s.requireTrigger(rec, nodeID); err != nil {
+		return err
+	}
+	return s.saveTriggerSample(ctx, flowID, nodeID, data)
+}
+
+// saveTriggerSample is SaveTriggerSample for a node known to be a trigger of the draft.
+func (s *Service) saveTriggerSample(ctx context.Context, flowID, nodeID string, data map[string]any) error {
 	encoded, err := marshalMap(data) // the encoding PutTestData stores
 	if err != nil {
 		return fmt.Errorf("the test data cannot be stored as JSON: %w", err)
