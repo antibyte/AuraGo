@@ -84,6 +84,13 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   built-ins independently of Python. Verify TestRunTool* and
   TestExecuteSkillGoBuiltinStillWorksWithoutPython.
 
+- Composio service manuals resolve exact selected service IDs, unique names and
+  registered aliases through the enabled, in-scope composio_call manual binding.
+  Never use fuzzy service search to resolve a manual ID. Canonical service IDs
+  share the existing manual pagination, content revision and output budget;
+  disabled/unselected services cannot expose the binding. Service details already
+  provide direct call instructions. Verify TestComposioServiceManual*.
+
 - treg exposes three schemas for the dynamic catalog, never a schema per endpoint.
   Trace calls by endpoint and stored action class; specialized roles only receive
   read grants. Preserve an explicitly unknown sent outcome through cancellation,
