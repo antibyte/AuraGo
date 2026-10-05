@@ -221,8 +221,16 @@ func createPDFMaroto(outputDir, title, content, filename, paperSize string, land
 	}
 
 	webPath := "/files/documents/" + filename
-	return fmt.Sprintf(`{"status":"success","file_path":"%s","web_path":"%s","filename":"%s","backend":"maroto"}`,
-		outPath, webPath, filename)
+	return documentSuccessJSON(outPath, webPath, filename, "maroto")
+}
+
+// documentSuccessJSON encodes a successful document_creator result. json.Marshal keeps
+// Windows paths valid; a Sprintf template turned `data\documents` into an invalid `\d` escape.
+func documentSuccessJSON(filePath, webPath, filename, backend string) string {
+	data, _ := json.Marshal(map[string]string{
+		"status": "success", "file_path": filePath, "web_path": webPath, "filename": filename, "backend": backend,
+	})
+	return string(data)
 }
 
 func buildMarotoConfig(paperSize string, landscape bool) *entity.Config {
