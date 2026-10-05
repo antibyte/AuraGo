@@ -171,6 +171,8 @@ var genericDroppedOperations = map[string]struct{ ops, params []string }{
 	"video_download":     {ops: []string{"transcribe"}},                                   // speech-to-text
 	"fritzbox_telephony": {ops: []string{"transcribe_tam_message"}},                       // speech-to-text
 	"rtl_sdr":            {ops: []string{"transcribe"}, params: []string{"transcribe"}},   // speech-to-text
+	// legacy boringd-LLM tasks; command stays (exec uses it)
+	"virtual_computers": {ops: []string{"run_shell_task", "run_desktop_task"}, params: []string{"instruction"}},
 }
 
 // genericDropOperations applies genericDroppedOperations to the parameters of tool. It

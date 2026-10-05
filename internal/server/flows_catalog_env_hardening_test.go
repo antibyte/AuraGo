@@ -27,7 +27,7 @@ import (
 // c12DeadlockGuard bounds every wait in these tests, so a deadlock fails instead of hanging.
 const c12DeadlockGuard = 10 * time.Second
 
-// c12MinGenericNodes is a floor for the generic nodes of the full configuration (152
+// c12MinGenericNodes is a floor for the generic nodes of the full configuration (151
 // today): far fewer means tools vanish from the palette by accident.
 const c12MinGenericNodes = 100
 
@@ -438,11 +438,19 @@ func TestC12SpendingToolsNeverBecomeGenericNodes(t *testing.T) {
 			t.Errorf("no tool of the full configuration starts with %s", prefix)
 		}
 	}
-	for _, name := range []string{"analyze_image", "generate_image", "generate_music", "generate_video", "manus",
-		"huggingface", "memory_reflect", "treg_call", "transcribe_audio", "telnyx_sms", "telnyx_call", "telnyx_manage",
-		"yepapi_amazon", "yepapi_instagram", "yepapi_scrape", "yepapi_seo", "yepapi_serp", "yepapi_tiktok", "yepapi_youtube"} {
+	spending := []string{"analyze_image", "generate_image", "generate_music", "generate_video", "manus",
+		"huggingface", "memory_reflect", "space_agent", "treg_call", "transcribe_audio", "telnyx_sms", "telnyx_call",
+		"telnyx_manage", "yepapi_amazon", "yepapi_instagram", "yepapi_scrape", "yepapi_seo", "yepapi_serp",
+		"yepapi_tiktok", "yepapi_youtube"}
+	for _, name := range spending {
 		if !names[name] {
 			t.Errorf("%s is no tool of the full configuration", name)
+		}
+		if !flowToolSpends(cfg, name) {
+			t.Errorf("%s is not on the spend list", name)
+		}
+		if _, isNode := reg.Lookup(flows.GenericTypePrefix + name); isNode {
+			t.Errorf("tool.%s spends outside the flow budget but is a generic node", name)
 		}
 	}
 	for name := range names {
@@ -451,9 +459,20 @@ func TestC12SpendingToolsNeverBecomeGenericNodes(t *testing.T) {
 			t.Errorf("tool.%s spends outside the flow budget but is a generic node", name)
 		}
 	}
-	for _, name := range []string{"treg_catalog", "treg_status", "wikipedia_search"} {
+	for _, name := range []string{"treg_catalog", "treg_status", "wikipedia_search", "tts"} {
 		if _, ok := reg.Lookup(flows.GenericTypePrefix + name); !ok {
 			t.Errorf("tool.%s spends nothing here and must stay a generic node", name)
+		}
+	}
+	// Accepted on purpose: speaking spends no model tokens.
+	for _, name := range []string{"bluetooth", "chromecast"} {
+		def, ok := reg.Lookup(flows.GenericTypePrefix + name)
+		if !ok {
+			t.Errorf("tool.%s must stay a generic node", name)
+			continue
+		}
+		if options, _ := c12Options(def, "operation"); !slices.Contains(options, "speak") {
+			t.Errorf("tool.%s operations = %v; speak is accepted and must stay", name, options)
 		}
 	}
 
@@ -484,49 +503,51 @@ func TestC12SpendingOperationsAreDropped(t *testing.T) {
 		schemas[tool.Name] = tool
 	}
 	cases := []struct {
-		tool, dropped, cheap string
-		params               []string
+		tool, cheap   string
+		dropped       []string
+		params, keeps []string // parameters dropped with the operations, and shared ones that stay
 	}{
-		{"smart_file_read", "summarize", "analyze", []string{"query"}},
-		{"go2rtc", "analyze_snapshot", "status", []string{"prompt"}},
-		{"three_d_printer", "analyze_camera", "status", []string{"prompt"}},
-		{"video_download", "transcribe", "search", nil},
-		{"fritzbox_telephony", "transcribe_tam_message", "get_call_list", nil},
-		{"rtl_sdr", "transcribe", "status", []string{"transcribe"}},
+		{"smart_file_read", "analyze", []string{"summarize"}, []string{"query"}, []string{"file_path"}},
+		{"go2rtc", "status", []string{"analyze_snapshot"}, []string{"prompt"}, []string{"stream_id"}},
+		{"three_d_printer", "status", []string{"analyze_camera"}, []string{"prompt"}, []string{"printer_id"}},
+		{"video_download", "search", []string{"transcribe"}, nil, []string{"url"}},
+		{"fritzbox_telephony", "get_call_list", []string{"transcribe_tam_message"}, nil, []string{"tam_index"}},
+		{"rtl_sdr", "status", []string{"transcribe"}, []string{"transcribe"}, []string{"id"}},
+		{"virtual_computers", "status", []string{"run_shell_task", "run_desktop_task"}, []string{"instruction"},
+			[]string{"command", "task_id"}},
 	}
 	for _, c := range cases {
 		t.Run(c.tool, func(t *testing.T) {
 			ops := c12SchemaOperations(schemas[c.tool])
-			if !slices.Contains(ops, c.dropped) || !slices.Contains(ops, c.cheap) {
-				t.Fatalf("the real %s schema lists %v; it must list %s and %s", c.tool, ops, c.dropped, c.cheap)
+			for _, op := range append([]string{c.cheap}, c.dropped...) {
+				if !slices.Contains(ops, op) {
+					t.Fatalf("the real %s schema lists %v; it must list %s", c.tool, ops, op)
+				}
 			}
 			def, ok := reg.Lookup(flows.GenericTypePrefix + c.tool)
 			if !ok {
-				t.Fatalf("tool.%s is missing; only its spending operation is dropped", c.tool)
+				t.Fatalf("tool.%s is missing; only its spending operations are dropped", c.tool)
 			}
 			options, _ := c12Options(def, "operation")
-			if slices.Contains(options, c.dropped) || !slices.Contains(options, c.cheap) {
-				t.Fatalf("operation options = %v, want %s without %s", options, c.cheap, c.dropped)
-			}
-			if len(options) != len(ops)-1 {
-				t.Fatalf("operation options = %v; only %s may be dropped from %v", options, c.dropped, ops)
+			if !slices.Contains(options, c.cheap) || len(options) != len(ops)-len(c.dropped) {
+				t.Fatalf("operation options = %v; only %v may be dropped from %v", options, c.dropped, ops)
 			}
 			for _, param := range c.params {
 				if _, has := c12Options(def, param); has {
-					t.Errorf("parameter %s of the dropped operation is still offered", param)
+					t.Errorf("parameter %s of the dropped operations is still offered", param)
+				}
+			}
+			for _, param := range c.keeps {
+				if _, has := c12Options(def, param); !has {
+					t.Errorf("parameter %s is used by other operations and must stay", param)
 				}
 			}
 
-			node := &flows.Node{ID: "n_c12aaaaa", Type: def.Type, Params: map[string]any{"operation": c.dropped}}
-			if issues := def.Validate(node, flows.ValidateContext{}); len(issues) != 1 || issues[0].Code != flows.IssueParamInvalid {
-				t.Errorf("validating %s gave %+v, want one %s issue", c.dropped, issues, flows.IssueParamInvalid)
-			}
-			node.Params["operation"] = c.cheap
+			inv := &c12Invoker{}
+			node := &flows.Node{ID: "n_c12aaaaa", Type: def.Type, Params: map[string]any{"operation": c.cheap}}
 			if issues := def.Validate(node, flows.ValidateContext{}); len(issues) != 0 {
 				t.Errorf("validating %s gave %+v, want none", c.cheap, issues)
 			}
-
-			inv := &c12Invoker{}
 			in := flows.ExecInput{Node: node, Params: map[string]any{"operation": c.cheap}, Services: &flows.Services{Tools: inv}}
 			if _, err := def.Execute(context.Background(), in); err != nil {
 				t.Fatalf("running %s failed: %v", c.cheap, err)
@@ -534,14 +555,23 @@ func TestC12SpendingOperationsAreDropped(t *testing.T) {
 			if inv.count() != 1 || inv.last().Tool != c.tool || inv.last().Args["operation"] != c.cheap {
 				t.Fatalf("running %s made calls %+v", c.cheap, inv.calls)
 			}
-			in.Params = map[string]any{"operation": c.dropped}
-			_, err := def.Execute(context.Background(), in)
-			var ne *flows.NodeError
-			if !errors.As(err, &ne) || ne.Code != "FLOW_PARAM_INVALID" {
-				t.Fatalf("running %s gave %v, want FLOW_PARAM_INVALID", c.dropped, err)
+			for _, op := range c.dropped {
+				if slices.Contains(options, op) {
+					t.Errorf("operation options = %v still hold %s", options, op)
+				}
+				node.Params["operation"] = op
+				if issues := def.Validate(node, flows.ValidateContext{}); len(issues) != 1 || issues[0].Code != flows.IssueParamInvalid {
+					t.Errorf("validating %s gave %+v, want one %s issue", op, issues, flows.IssueParamInvalid)
+				}
+				in.Params = map[string]any{"operation": op}
+				_, err := def.Execute(context.Background(), in)
+				var ne *flows.NodeError
+				if !errors.As(err, &ne) || ne.Code != "FLOW_PARAM_INVALID" {
+					t.Errorf("running %s gave %v, want FLOW_PARAM_INVALID", op, err)
+				}
 			}
 			if inv.count() != 1 {
-				t.Fatalf("running %s called the tool", c.dropped)
+				t.Fatalf("running a dropped operation called the tool: %+v", inv.calls)
 			}
 		})
 	}

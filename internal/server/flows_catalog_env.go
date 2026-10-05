@@ -125,12 +125,14 @@ func (e *flowCatalogEnv) refreshRegistry(reg *flows.Registry, cfg *config.Config
 // cheap operations next to spending ones keep their node without the spending ones
 // (genericDroppedOperations in internal/flows). The curated nodes decide for their own
 // tools; ddg_search and web_scraper, whose summary modes spend as well, are curated.
+// Accepted on purpose: tts and the bluetooth/chromecast speak operations (no model tokens; the agent treats them alike).
 var (
 	flowSpendingTools = map[string]string{
 		"analyze_image":    "a vision model call (budget category vision)",
 		"manus":            "Manus tasks use Manus credits",
 		"huggingface":      "the job_run operations run paid Hugging Face compute",
 		"memory_reflect":   "the reflection is a model call",
+		"space_agent":      "a sidecar agent that spends model tokens on every instruction",
 		"treg_call":        "calls paid treg endpoints",
 		"transcribe_audio": "speech-to-text (budget category stt)",
 	}
