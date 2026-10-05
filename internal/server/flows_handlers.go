@@ -1,21 +1,37 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 
 	"aurago/internal/flows"
 	"aurago/internal/i18n"
+	"aurago/internal/memory"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
 const (
 	flowsDocBodyLimit   = 4 << 20
 	flowsSmallBodyLimit = 256 << 10
+	// flowsLogPathRunes bounds the request path a flow API log line carries.
+	flowsLogPathRunes = 200
+	// flowsInternalMessage is the whole answer of a FLOW_INTERNAL error; the cause (a
+	// path, SQL, driver or vault text) only goes to the log.
+	flowsInternalMessage = "the flow service failed; see the server log"
+	// flowPublishIncompleteMessage answers a publish that made the revision live but could
+	// not update Mission Control or the timers (see flowPublishIncomplete).
+	flowPublishIncompleteMessage = "Published, but Mission Control could not be updated: publish again to finish."
 )
+
+// flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that name
+// a collection route of the API contract, not a flow id.
+var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true}
 
 func registerFlowsRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/desktop/flows", s.handleFlows)
@@ -57,41 +73,111 @@ func nonNilIssues(issues []flows.Issue) []flows.Issue {
 	return issues
 }
 
-// flowsErrorFrom maps service errors to the API error codes of the contract.
-func flowsErrorFrom(w http.ResponseWriter, err error) {
+// flowsErrorFrom maps a flow service error to the API error codes of the contract (plan
+// 1c, "HTTP API contract"), extended by FLOW_TOO_LARGE (413: a document, test data or a
+// request body over its limit), FLOW_EXISTS (409) and FLOW_MISSION_AMBIGUOUS (409).
+//
+//   - A request whose client went away (r's context ended and err is that context's
+//     error) gets no answer; it is logged at Debug.
+//   - A mapped error echoes its text scrubbed and cut to flowErrorRunes runes (the flow
+//     package already bounds the user data it quotes).
+//   - Anything else is FLOW_INTERNAL with flowsInternalMessage only: the error can hold
+//     file paths, SQL, driver or vault text, so it goes to the log at Warn, scrubbed and
+//     bounded, with the route and the flow id.
+func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err error) {
+	if r.Context().Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+		s.Logger.Debug("Flow API request ended by the client", "method", r.Method, "path", flowBoundRunes(r.URL.Path, flowsLogPathRunes))
+		return
+	}
 	var ve *flows.ValidationError
 	var ne *flows.NodeError
+	var tooLarge *http.MaxBytesError
 	switch {
 	case errors.As(err, &ve):
-		flowsJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "code": "FLOW_INVALID", "issues": nonNilIssues(ve.Issues)})
+		flowsJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": flowsErrorText(err), "code": "FLOW_INVALID", "issues": nonNilIssues(ve.Issues)})
 	case errors.Is(err, flows.ErrNotFound):
-		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", err.Error())
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRunNotFound):
-		flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", err.Error())
+		flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRevisionConflict):
-		flowsError(w, http.StatusConflict, "FLOW_REVISION_CONFLICT", err.Error())
+		flowsError(w, http.StatusConflict, "FLOW_REVISION_CONFLICT", flowsErrorText(err))
 	case errors.Is(err, flows.ErrNotPublished):
-		flowsError(w, http.StatusConflict, "FLOW_NOT_PUBLISHED", err.Error())
+		flowsError(w, http.StatusConflict, "FLOW_NOT_PUBLISHED", flowsErrorText(err))
 	case errors.Is(err, flows.ErrNoTrigger):
-		flowsError(w, http.StatusConflict, "FLOW_NO_TRIGGER", err.Error())
+		flowsError(w, http.StatusConflict, "FLOW_NO_TRIGGER", flowsErrorText(err))
+	case errors.Is(err, flows.ErrFlowExists):
+		flowsError(w, http.StatusConflict, "FLOW_EXISTS", flowsErrorText(err))
+	case errors.Is(err, flows.ErrMissionAmbiguous):
+		flowsError(w, http.StatusConflict, "FLOW_MISSION_AMBIGUOUS",
+			"more than one flow is linked to the same Mission Control mission, so it is not clear which one is meant; delete the extra flow")
+	case errors.Is(err, tools.ErrMissionLocked):
+		flowsError(w, http.StatusConflict, "FLOW_LOCKED", "the flow's mission is locked in Mission Control; unlock it there first")
 	case errors.Is(err, flows.ErrQueueFull):
-		flowsError(w, http.StatusTooManyRequests, "FLOW_RUN_LIMIT", err.Error())
+		flowsError(w, http.StatusTooManyRequests, "FLOW_RUN_LIMIT", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRunnerClosed):
-		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", err.Error())
-	case errors.Is(err, flows.ErrDocumentTooLarge), errors.Is(err, flows.ErrUnsupportedSchema):
-		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", err.Error())
+		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", flowsErrorText(err))
+	case errors.Is(err, flows.ErrDocumentTooLarge):
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsDocumentTooLargeMessage())
+	case errors.Is(err, flows.ErrTestDataTooLarge):
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsErrorText(err))
+	case errors.As(err, &tooLarge):
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", tooLarge.Limit>>10))
+	case errors.Is(err, flows.ErrUnsupportedSchema), errors.Is(err, flows.ErrUnknownTemplate):
+		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", flowsErrorText(err))
 	case errors.As(err, &ne):
-		flowsError(w, http.StatusBadRequest, ne.Code, ne.Message)
-	case strings.Contains(err.Error(), "mission is locked"):
-		flowsError(w, http.StatusConflict, "FLOW_LOCKED", err.Error())
+		code := ne.Code
+		if code == "" {
+			code = "FLOW_NODE_FAILED"
+		}
+		flowsError(w, http.StatusBadRequest, code, flowBoundRunes(security.Scrub(ne.Message), flowErrorRunes))
 	default:
-		flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", err.Error())
+		s.Logger.Warn("Flow API request failed", "method", r.Method, "path", flowBoundRunes(r.URL.Path, flowsLogPathRunes),
+			"flow_id", flowsLogFlowID(r), "error", flowsErrorText(err))
+		flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", flowsInternalMessage)
 	}
 }
 
+// flowsErrorText is err's text for an answer or a log line: registered secrets and
+// credential-looking pairs redacted (as flowScrubbedError does), cut to flowErrorRunes.
+func flowsErrorText(err error) string {
+	return flowBoundRunes(security.RedactSensitiveInfo(security.Scrub(err.Error())), flowErrorRunes)
+}
+
+func flowsDocumentTooLargeMessage() string {
+	return fmt.Sprintf("the flow document is larger than %d MiB", flows.MaxDocumentBytes>>20)
+}
+
+// flowsDocumentError answers a document flows.ParseFlow refused: FLOW_TOO_LARGE (413)
+// above flows.MaxDocumentBytes, else FLOW_BAD_REQUEST (400) with the bounded reason (a
+// JSON decode error or an unsupported schema version).
+func flowsDocumentError(w http.ResponseWriter, err error) {
+	if errors.Is(err, flows.ErrDocumentTooLarge) {
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsDocumentTooLargeMessage())
+		return
+	}
+	flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", flowsErrorText(err))
+}
+
+// flowsLogFlowID returns the flow id of a /api/desktop/flows/{id}/… request for a log line
+// (bounded), or "" for the collection routes, which name no flow.
+func flowsLogFlowID(r *http.Request) string {
+	parts := flowsPathParts(r.URL.Path)
+	if len(parts) == 0 || flowsCollectionRoutes[parts[0]] {
+		return ""
+	}
+	return flowBoundRunes(parts[0], flowNameEchoRunes)
+}
+
+// flowsDecode reads a JSON body of at most limit bytes into dst. A larger body is
+// FLOW_TOO_LARGE (413), anything that does not decode FLOW_BAD_REQUEST (400).
 func flowsDecode(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", limit>>10))
+			return false
+		}
 		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the request body is not valid JSON")
 		return false
 	}
@@ -172,7 +258,7 @@ func (s *Server) flowsCollection(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		list, err := s.Flows.ListFlows(r.Context())
 		if err != nil {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
 		flowsJSON(w, http.StatusOK, map[string]any{"flows": list})
@@ -185,14 +271,14 @@ func (s *Server) flowsCollection(w http.ResponseWriter, r *http.Request) {
 		if len(body.Import) > 0 && string(body.Import) != "null" {
 			doc, err := flows.ParseFlow(body.Import)
 			if err != nil {
-				flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", err.Error())
+				flowsDocumentError(w, err)
 				return
 			}
 			req.Import = doc
 		}
 		rec, err := s.Flows.CreateFlow(r.Context(), req)
 		if err != nil {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
 		event := "flow_create"
@@ -223,7 +309,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		case http.MethodGet:
 			rec, err := s.Flows.GetFlow(ctx, id)
 			if err != nil {
-				flowsErrorFrom(w, err)
+				s.flowsErrorFrom(w, r, err)
 				return
 			}
 			issues := s.Flows.Validate(rec.Draft, flows.ModeDraft)
@@ -238,12 +324,12 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			}
 			doc, err := flows.ParseFlow(body.Doc)
 			if err != nil {
-				flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", err.Error())
+				flowsDocumentError(w, err)
 				return
 			}
 			rev, issues, err := s.Flows.SaveDraft(ctx, id, doc, body.BaseRevision)
 			if err != nil {
-				flowsErrorFrom(w, err)
+				s.flowsErrorFrom(w, r, err)
 				return
 			}
 			s.broadcastFlowsChanged(id, "saved")
@@ -251,11 +337,11 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		case http.MethodDelete:
 			rec, err := s.Flows.GetFlow(ctx, id)
 			if err != nil {
-				flowsErrorFrom(w, err)
+				s.flowsErrorFrom(w, r, err)
 				return
 			}
 			if err := s.Flows.DeleteFlow(ctx, id); err != nil {
-				flowsErrorFrom(w, err)
+				s.flowsErrorFrom(w, r, err)
 				return
 			}
 			s.recordFlowAudit("flow_delete", id, rec.Name, "Flow "+rec.Name+" deleted")
@@ -271,7 +357,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		}
 		preview, err := s.Flows.PublishPreview(ctx, id)
 		if err != nil {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
 		flowsJSON(w, http.StatusOK, preview)
@@ -287,8 +373,12 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			return
 		}
 		rec, issues, err := s.Flows.Publish(ctx, id, body.BaseRevision)
+		if err != nil && rec != nil {
+			s.flowPublishIncomplete(w, rec, issues, err)
+			return
+		}
 		if err != nil {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
 		s.recordFlowAudit("flow_publish", id, rec.Name, "Flow "+rec.Name+" published")
@@ -306,14 +396,20 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			return
 		}
 		if err := s.Flows.SetEnabled(ctx, id, body.Enabled); err != nil {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
-		event := "flow_disable"
+		event, state := "flow_disable", "disabled"
 		if body.Enabled {
-			event = "flow_enable"
+			event, state = "flow_enable", "enabled"
 		}
-		s.recordFlowAudit(event, id, "", "Flow "+id+" switched")
+		// The name for the audit entry comes from the lock-free read; the switch is done,
+		// so a client that went away does not leave the entry without it.
+		name, label := "", id
+		if rec, err := s.Flows.GetFlow(context.WithoutCancel(ctx), id); err == nil {
+			name, label = rec.Name, rec.Name
+		}
+		s.recordFlowAudit(event, id, name, "Flow "+label+" "+state)
 		s.broadcastFlowsChanged(id, "enabled")
 		flowsJSON(w, http.StatusOK, map[string]bool{"enabled": body.Enabled})
 	case "export":
@@ -323,7 +419,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		}
 		rec, err := s.Flows.GetFlow(ctx, id)
 		if err != nil {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
 		w.Header().Set("Content-Disposition", `attachment; filename="`+flowExportName(rec.Name)+`"`)
@@ -331,6 +427,27 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 	default:
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
 	}
+}
+
+// flowPublishIncomplete answers a publish that Service.Publish returned with a record AND
+// an error: the store published the draft (the new revision is live and
+// HasUnpublishedChanges is false), but the Mission Control sync or the timer update
+// failed. The flow is broadcast as published and audited with status warning, and the
+// answer is 200 with
+//
+//	{"flow": FlowRecord, "issues": [Issue], "partial": true,
+//	 "code": "FLOW_PUBLISH_INCOMPLETE", "error": flowPublishIncompleteMessage}
+//
+// so the editor can tell it from a failure (an error status) and from a full publish (no
+// "partial"). Publishing the same draft revision again repeats the update (the heal path
+// of Service.Publish), so the editor keeps its Publish button. The cause stays in the log.
+func (s *Server) flowPublishIncomplete(w http.ResponseWriter, rec *flows.FlowRecord, issues []flows.Issue, err error) {
+	s.Logger.Warn("Flow published, but Mission Control could not be updated", "flow_id", rec.ID, "error", flowsErrorText(err))
+	s.recordFlowAuditStatus("flow_publish", rec.ID, rec.Name, memory.AuditStatusWarning,
+		"Flow "+rec.Name+" published; Mission Control update failed")
+	s.broadcastFlowsChanged(rec.ID, "published")
+	flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "issues": nonNilIssues(issues), "partial": true,
+		"code": "FLOW_PUBLISH_INCOMPLETE", "error": flowPublishIncompleteMessage})
 }
 
 // flowExportName turns a flow name into "<slug>.easydrag.json".
@@ -368,7 +485,7 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 		}
 		keys, err := s.Vault.ListKeys()
 		if err != nil {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
 		names := []string{}
@@ -399,14 +516,14 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 			return
 		}
 		if err := s.Vault.WriteUserSecret(flowSecretPrefix+name, body.Value, true); err != nil {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
 		s.recordFlowAudit("flow_secret_set", "", name, "Flow secret "+name+" saved")
 		flowsJSON(w, http.StatusOK, map[string]string{"status": "saved"})
 	case http.MethodDelete:
 		if err := s.Vault.DeleteSecret(flowSecretPrefix + name); err != nil && !errors.Is(err, security.ErrSecretNotFound) {
-			flowsErrorFrom(w, err)
+			s.flowsErrorFrom(w, r, err)
 			return
 		}
 		s.recordFlowAudit("flow_secret_delete", "", name, "Flow secret "+name+" deleted")

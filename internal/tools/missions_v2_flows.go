@@ -219,7 +219,7 @@ func (m *MissionManagerV2) DeleteFlowMission(missionID string) error {
 		return fmt.Errorf("mission %s is not a flow mission", missionID)
 	}
 	if mission.Locked {
-		return fmt.Errorf("mission is locked")
+		return ErrMissionLocked
 	}
 	m.unregisterFlowTriggersLocked(mission)
 	delete(m.missions, missionID)

@@ -159,12 +159,22 @@ func (s *Server) flowsAvailable() bool {
 }
 
 // recordFlowAudit writes a user action on a flow to the audit timeline.
+//
+// The event types (flow_create, flow_import, flow_publish, flow_enable, flow_disable,
+// flow_delete, flow_secret_set, flow_secret_delete) are listed in the dashboard's audit
+// type filter (ui/dashboard.html) and labelled in ui/lang/dashboard/*.json
+// (dashboard.audit_type_<type>); a new type needs both.
 func (s *Server) recordFlowAudit(eventType, flowID, name, summary string) {
+	s.recordFlowAuditStatus(eventType, flowID, name, memory.AuditStatusSuccess, summary)
+}
+
+// recordFlowAuditStatus is recordFlowAudit with an audit status (memory.AuditStatus*).
+func (s *Server) recordFlowAuditStatus(eventType, flowID, name, status, summary string) {
 	if s.ShortTermMem == nil {
 		return
 	}
 	if _, err := s.ShortTermMem.RecordAuditEvent(memory.AuditEvent{Source: memory.AuditSourceMission, EventType: eventType,
-		Actor: "user", SessionID: "easydrag", TargetID: flowID, TargetName: name, Status: memory.AuditStatusSuccess,
+		Actor: "user", SessionID: "easydrag", TargetID: flowID, TargetName: name, Status: status,
 		Summary: summary}); err != nil {
 		s.Logger.Warn("Flow audit event could not be recorded", "event", eventType, "error", err)
 	}

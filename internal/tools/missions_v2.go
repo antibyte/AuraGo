@@ -2077,6 +2077,10 @@ func (m *MissionManagerV2) DeleteSyncedMission(id string) error {
 	return m.save()
 }
 
+// ErrMissionLocked refuses to delete a locked mission (Delete, DeleteWithOptions,
+// DeleteFlowMission). Match it with errors.Is; the text stays "mission is locked".
+var ErrMissionLocked = errors.New("mission is locked")
+
 // Delete removes a mission
 func (m *MissionManagerV2) Delete(id string) error {
 	return m.DeleteWithOptions(id, DeleteMissionOptions{})
@@ -2101,7 +2105,7 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 		return fmt.Errorf("mission not found")
 	}
 	if mission.Locked {
-		return fmt.Errorf("mission is locked")
+		return ErrMissionLocked
 	}
 	isFlow := isFlowMission(mission)
 	flowRuns := m.flowActive[id]
