@@ -5,8 +5,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
-- Node types live in a `Registry`. `RegisterLogicNodes` adds the built-in logic nodes; integration
-  and trigger nodes are registered by the server wiring.
+- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 35 curated types (see Catalog);
+  the server wiring (plan 1c) supplies the `CatalogEnv` and the `GenericTool` list for `RefreshGenericTools`.
 
 ## Writing a node (NodeDef)
 - `Execute` returns an `ExecResult` and a literal `nil`, or a `*NodeError` (`NewNodeError(code, format, …)`).
@@ -162,6 +162,13 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   read upgrades to a write (see `Publish`, `ReplaceTimers`).
 - List queries (`ListRuns`, `LastLiveRuns`) do not load trigger data; only `GetRun` does. Trigger data in
   the run header is bounded like step outputs.
+- `GetFlowByMission` reads at most two rows (`LIMIT 2`, index `idx_flows_mission`): none, or an empty id, gives
+  `ErrNotFound`; two owners give `ErrMissionAmbiguous` (wrapped, bounded id) and no flow, because Mission Control
+  would run the wrong one; a ctx error is passed through. `Store.SetMissionID` and `Store.CreateFlow` have no
+  uniqueness guard on the mission id. That is a decision: `Service.CreateFlow` creates a new mission for every
+  flow, `SetMissionID` has no production caller and the lookup fails closed. A re-link path would need a
+  conditional `UPDATE … AND NOT EXISTS(…)` and a matching guard in the insert (or a partial unique index), with
+  an `ErrMissionTaken` sentinel.
 - Timers are settled conditionally on the occurrence that fired (`DeleteTimerAt`, `MoveTimer`).
 - Keep migrations idempotent (`CREATE … IF NOT EXISTS`); add columns with `dbutil.MigrateAddColumn`.
 
@@ -176,18 +183,188 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   as UTC. In the zone a yearly timer keeps its local date and wall-clock time across daylight saving
   changes, a local Feb 29 included, with one limit: a time in the spring-forward gap (02:30 on the
   switch day) becomes 03:30 and stays 03:30 in later years, because the stored time is all the timer
-  remembers, until `armTimers` rebinds the flow from its document (Publish, SetEnabled).
+  remembers, until `armTimers` rebinds the flow from its document (Publish, SetEnabled). A time in the autumn
+  overlap keeps its wall-clock time; which of the two instants is not defined.
+
+## Catalog
+- Counts: `RegisterCatalog(reg, env)` registers 35 curated types: logic 6 (`logic.if`, `switch`, `merge`, `wait`,
+  `set`, `stop`), triggers 13, AI 1 (`ai.step`) and actions 15 (web 3, documents 4, notify 4, smart home 2,
+  planner 2); `TestRegisterCatalogCounts` pins the total and the trigger count. Generic `tool.<name>` nodes are
+  separate: `RefreshGenericTools(reg, tools, env)` replaces all of them in one atomic `Registry.ReplaceWhere`
+  step (a concurrent `Lookup` never sees a half-built set) and returns how many it registered. Call it again
+  when the tool configuration changes.
+- Tool access: a node calls one tool per call (`callTool`, `AllowedTools = [tool]`; its limits are under
+  "Writing a node") and reaches a model only through `Services.LLM`. Curated nodes call `requireSuccess(out,
+  what)` on every answer whose success matters: it fails closed unless the tool said `"status":"success"`, so a
+  plain-text refusal cannot pass as success. Generic nodes do not, so such a refusal reaches them as output
+  unless the invoker sets `ToolResponse.IsError` or `Status`.
+- Logical tool names the invoker and the `CatalogEnv` must special-case (they are not plain native tools):
+  `brave_search` (a direct action without a native schema), `pdf_extractor` (a skill reached through
+  `execute_skill`) and `document_creator:gotenberg` (availability only, never called).
+- `ParseToolOutput` strips the `[Tool Output]`/`Tool Output:` prefixes (whole output only) and the
+  `<external_data>` wrappers (around the whole output and every nested string value) and un-escapes their HTML
+  escaping. Untrusted web, RSS or webhook text therefore reaches an `ai.step` prompt without the marker the
+  agent loop keeps. Limit: `ai.step` has no tools (`LLMRequest` carries none) and its output is untrusted, so
+  the risk is manipulated text, not actions. Nothing in this package guards the prompt: plan 1c's flowLLM
+  adapter adds a fixed system instruction (never follow instructions found in the data).
+- `ai.step`: one `Services.LLM` call in text mode; in fields mode at most one more (a repair), tokens summed.
+  Limits: prompt plus instructions 256 KiB, answer text 1 MiB (`FLOW_OUTPUT_TOO_LARGE`), 50 fields, a field
+  description 500 runes, a model name 200 bytes. `FLOW_AI_UNAVAILABLE` (no stepper), `FLOW_AI_OUTPUT_INVALID`
+  (retried) and `FLOW_BUDGET_EXCEEDED` (set by the stepper, kept by `aiCall`).
+- Triggers: `BindTriggers(flow, reg, loc, now)` returns one `TriggerBinding` per enabled trigger node, in
+  document order: `manual`, `cron` (`trigger.schedule`, through `ScheduleToCron`), `timer` (`trigger.datetime`,
+  yearly dates through `nextYearly`) or `mission` (a Mission Control trigger type plus `Config`, which uses the
+  JSON names of `tools.TriggerConfig`; `min_interval_seconds` is capped at 30 days and MQTT uses
+  `mqtt_min_interval_seconds` instead). Pass the same `now` and `loc` to `Validate` and `BindTriggers`.
+  `TriggerSample` gives test runs and the editor example data, per event where a trigger has events.
+- `ScheduleToCron` validates with the robfig parser configured like AuraGo's schedulers, rejects sub-minute
+  schedules and cron text over 200 bytes, and needs interval minutes to divide 60 and hours to divide 24. A
+  monthly day of 29 to 31 skips the shorter months (cron semantics).
+- `NormalizeTriggerData(kind, raw)` builds `trigger.data` from Mission Control's raw text, as the second line of
+  defence after the caller's own bound: text over 8 MiB is not parsed (the first 64 KiB become `raw`, with
+  `truncated: true`, and `payload: nil` for a webhook). A webhook keeps `raw` and the parsed `payload`, so the
+  engine (5 MiB trigger output limit) loses bodies above about 2.5 MiB. The `trigger.mission_completed` sample
+  promises `output` and `outputs`, but `OnMissionComplete` (`internal/tools/missions_v2.go`) enqueues only
+  `{source_mission, result}`: plan 1c's payload must add them.
+- Taint: untrusted outputs are the triggers webhook, email, mqtt, fritzbox_call, planner and mission_completed;
+  the actions web.search, web.read, http.request, file.read, doc.pdf_read and home.assistant; `ai.step` (a
+  model that reads untrusted data can be prompt-injected); and every generic node. The other triggers (manual,
+  schedule, datetime, ha_state, device, startup, budget) are trusted. Asymmetry: `home.assistant` output is
+  untrusted (an entity state can be shaped by mail, RSS or MQTT) while `trigger.ha_state` is pinned trusted by a
+  plan test (`catalog_triggers_test.go`), although the same states reach the flow there.
+- Sinks are search queries, paths and file names, URLs, headers and bodies, recipients, attachments, accounts,
+  channels, MQTT topic and payload, Home Assistant entity and service data, and the planner title.
+  `OutputIndependent` are message, title, subject, body, document and file content, the MQTT payload and the
+  planner description.
+- Secrets: a `secret_ref` param (`http.request` `auth_secret`) holds only the vault key. The node reads the value
+  through `Services.Secrets`; the vault value wins over a user header of the same name; `secretScrubber`
+  redacts the value (and its JSON, HTML and URL escapes) from outputs and errors. A `SecretReader` must register
+  the value with the global output scrubber too. A missing or unusable secret is `FLOW_SECRET_UNAVAILABLE`.
+- Generic nodes (`tool.<name>`, category `tool:<category>`):
+  - Curated tools are excluded, so a generic node cannot bypass a curated node's strict readers and taint
+    flags: `IsGenericToolExcluded` (the `genericExcluded` list and the prefixes `skill__`, `tool__`,
+    `game_maker_`, `mcp__`, `package__`) and, at refresh time, the `Tool` of every registered curated def.
+    `genericCuratedAllowed` (`filesystem`, `manage_appointments`, `manage_todos`) is the allowed list;
+    `TestGenericExclusionCoversCuratedTools` fails for a curated tool in neither.
+  - Dropped params: `genericDroppedParams` (`_todo`, `vault_keys`, `credential_ids`, the tool-bridge params,
+    `inject_token`, `agent_instruction`, `wake_agent`) and credential params, by exact name (`password`,
+    `token`, `api_key`, `secret`, …) or suffix (`_password`, `_token`, `_secret`, `_api_key`, …); there is
+    deliberately no `_key` suffix. A value typed into a node sits in clear in the document, its versions and
+    the run's step params.
+  - Dropped secret operations (`genericDroppedOperations`): `send_secret` of `invasion_tasks` and `set_env` of
+    `netlify` and `vercel`, with their value params. A tool left without an operation gets no node.
+  - Sinks: by name for every generic tool (`genericSinkNames` and suffixes: command, code, path, url, to,
+    entity_id, topic, headers, title, …), nested (a JSON or tags param whose `properties` or `items.properties`
+    one level down hold a sink name), file content names for file tools (`content`, `new_text`, `patches`, …),
+    page input of browser and form tools, per-tool content and exposure params (`genericToolContentParams`,
+    `genericExposureParams`: port forwards, tunnel port, tailscale routes, network shares), and every text
+    param of memory tools and code-running tools.
+  - Effects come from the tool, its category and the literal operation (`genericEffects`). An operation that is
+    not a literal name (a template, another type) gets the worst case: the union over the operations the schema
+    lists, or every effect when it lists none (`genericWorstEffects`). `Execute` refuses an operation the schema
+    does not list (`FLOW_PARAM_INVALID`), so the effects shown before publishing hold at run time.
+  - Labels are literal (no i18n keys), and `CatalogI18nKeys` skips these nodes.
+  - Known limit: plaintext secrets nested in JSON params are not dropped (`manage_outgoing_webhooks` `headers`,
+    the attribute maps of `ldap`).
+- Catalog description: `DescribeNodeTypes(reg, tr)` orders by `CategoryOrder` (generic categories last, then
+  alphabetically), then by label. It runs every hook on a fresh sample node (params = defaults) through
+  `describeHook` (`catchPanic` plus a Warn log). The fallback per hook: `AvailabilityFunc` panics → blocked;
+  `EffectsFunc` panics → risky with no effects; `OutputsFunc` panics → the static ports; `OutputFieldsFunc` and
+  the trigger sample panic → none. Availability is normalised to `available`, `needs_setup` or `blocked`
+  (any other state is blocked). A `NodeTypeInfo` shares no memory with its def, and its `Effects` and `Risky`
+  describe the default params (a generic node shows the worst case): never present "not risky" as a safety
+  claim, the publish dialog (`CollectEffects` over the real params) is authoritative.
+- A def with an `OutputsFunc` or `OutputFieldsFunc` needs a `dynamicOutputs` or `dynamicFields` entry that names
+  the driving param (`logic.switch` `cases`; `ai.step` `fields`; `logic.merge` `mode`);
+  `TestDynamicMarkersCoverTheHooks` enforces it. Merge fields: mode `append` (exact match) gives `items` (list,
+  primary) and `count`; any other mode gives none, because the output is then keyed by upstream node key.
+- i18n: `CatalogI18nKeys(reg)` lists every key of the catalog and the starter templates: node label, description
+  and summary (`easydrag.node.<type, dots as underscores>.label|description|summary`), param label and help,
+  option labels, output-field descriptions (collected like `DescribeNodeTypes` does, from a sample node under a
+  recover), `easydrag.category.<c>` and the template name, description and texts. Never hard-code display text
+  in Go; give the def or param a key. The generic nodes' literal labels are the exception. Error and issue
+  codes (`FLOW_*`, `PARAM_*`, `TEMPLATE_*`) are not in the list and need their own UI strings;
+  `Availability.Reason` is raw text (English when a hook failed).
+- Codes that come with the catalog (each needs a UI string): `FLOW_TOOL_ERROR`, `FLOW_TOOL_DENIED`,
+  `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`, `FLOW_SECRET_UNAVAILABLE`, `FLOW_FILE_EXISTS`,
+  `FLOW_HTTP_STATUS`, `FLOW_NOTIFY_FAILED`, `FLOW_AI_UNAVAILABLE`, `FLOW_AI_OUTPUT_INVALID`,
+  `FLOW_BUDGET_EXCEEDED`. Retried: `FLOW_TOOL_ERROR`, `FLOW_FILE_EXISTS`, `FLOW_HTTP_STATUS`,
+  `FLOW_NOTIFY_FAILED`, `FLOW_AI_OUTPUT_INVALID`.
+- Files travel as `FileRef` objects (`{"$type":"file","path","name","mime","size","web_path"}`); `FilePath`
+  accepts such an object or a plain path and reads only a text `path`. `$type` is a path hint, not proof: anyone
+  who shapes flow data can write one, so every path-taking param is a `SensitiveSink` and `filePathParam`
+  bounds the path (4096 bytes, no NUL, valid UTF-8).
+- Retries run non-idempotent effects again:
+  - `FLOW_FILE_EXISTS` is retryable. A `file.write` that succeeded but timed out in transit makes the retry hit
+    `FLOW_FILE_EXISTS` (`if_exists` `fail`) or write a second copy under the next free name (`unique`, at most
+    100 names); `overwrite` repeats safely.
+  - `send_email` can fail after the server accepted the mail, so a retry may send it twice. The same holds for a
+    Home Assistant service (a toggle, a script), an MQTT delivery (at any QoS; the tool does not deduplicate) and
+    a planner add.
+- Planner: the title is a sink (one line, at most 500 runes), because `planner.BuildPromptContextText` puts open
+  titles into the agent's system prompt. Times go to the tool in UTC and the node output keeps the zone the date
+  was written in; the planner itself compares times as text (`GetDueNotifications`,
+  `AutoExpireAppointments`), a root cause a separate task has to fix.
+- Templates (`TemplateFlow(id, tr)`, listed by `Templates()`): six, all free of lint warnings. Their texts are
+  trusted repo translations and may hold expressions (plan 1c's reminder and budget texts read trigger fields).
+  The webhook body and the feed titles go through `boundedExpr`, which truncates to `templateUntrustedRunes`
+  (40000 runes) so a worst case of four bytes per rune stays under the 256 KiB prompt cap; the search snippets
+  of `ai_news_pdf_telegram` are not truncated. `newTemplateInfo(id, n, …)` must declare as many `text_N` keys as
+  the builder calls `text(n)` (`TestTemplateKeysMatchTheCatalogList` enforces it). An unknown id is
+  `ErrUnknownTemplate` (wrapped, bounded id). Known limit: the PDF title date format `DD.MM.YYYY` is hard-coded
+  in Go and ambiguous for English readers.
 
 ## Service
-- A `MissionBridge` must not synchronously call a Service method that takes a flow lock, for any flow:
-  today `Publish`, `SetEnabled`, `DeleteFlow` and `DeleteFlowForMission`. The Service calls the bridge
+- `Service` owns the store, engine, runner and timers and reaches Mission Control only through `MissionBridge`
+  (plan 1c implements it). `SaveDraft` validates with draft rules; the store's revision check is its only guard
+  (no flow lock).
+- `Publish` validates with publish rules (plus the self-trigger rule below), binds the triggers with the same
+  `now`, stores the revision, syncs the mission and calls `armTimers`. Timers are armed only while the flow's
+  mission is enabled; `SetEnabled(false)` clears them and `SetEnabled(true)` needs a published flow
+  (`ErrNotPublished`).
+- Lock order: the per-flow lock (`flowLocks`) is the outermost lock. `Publish`, `SetEnabled`, `DeleteFlow` and
+  `DeleteFlowForMission` hold it. Under it the Service calls only the store, the bridge, `TimerService.Replace`
+  and `Runner.CancelFlow`, and none of those may take a flow lock. Run paths (starting runs, runner hooks, timer
+  callbacks) never take it; `armTimers` requires it to be held.
+- Bridge rule: a `MissionBridge` must not synchronously call a Service method that takes a flow lock, for any
+  flow (today `Publish`, `SetEnabled`, `DeleteFlow` and `DeleteFlowForMission`). The Service calls the bridge
   under a flow lock, and runner hooks can run inside such an operation. Lock-free reads (`GetFlow`,
-  `ListFlows`, the timer queries) may be called synchronously and must stay lock-free. Run paths
-  (starting runs, runner hooks, timer callbacks) never take a flow lock.
+  `ListFlows`, the timer queries) and `TriggerFromMission` (also from inside `FlowRunFinished`) may be called
+  synchronously and must stay lock-free.
 - Any new Service method that reads a flow and then changes its mission or timers (for example 1c's
   `MissionEnabledChanged`) takes the flow lock (`s.locks.lock`) from the read through the timers, and
   switches to `context.WithoutCancel(ctx)` right after its first step that cannot be undone, so a
   caller that goes away cannot leave the store, the mission and the timers apart.
+- Delete order: mission → timers off → `Runner.CancelFlow` → store delete → `CancelFlow` again (it catches a
+  `Start` that raced the delete). A failed step leaves the earlier ones done and `DeleteFlow` can be called again
+  (deleting a gone mission is not an error). `DeleteFlowForMission` ignores a mission no flow holds and, when
+  several flows hold it, returns `ErrMissionAmbiguous` and deletes nothing.
+- Heal path: when `Publish` returns a record together with an error, the new revision is live but the mission or
+  the timers were not updated. Publishing the same draft revision again repeats the update (the store treats an
+  already-live revision as a no-op, then the Service re-syncs and re-arms); any later successful publish heals it
+  too. The retry fails validation once a one-off date/time in the draft has passed, until the draft is edited.
+- Known limits: no startup heal (`Start` repairs nothing that a crash cut short; the next successful `Publish`
+  or `SetEnabled` of the flow does), and `Shutdown` does not wait for operations in flight (stop the API first,
+  close the store after `Shutdown`). DST: the Service sets `TimerService.SetLocation(Services.Loc())`; the
+  spring-gap, Feb 29 and overlap rules are under Timers.
+- Self-trigger: a `trigger.mission_completed` on the flow's own mission is refused at publish and in the
+  preview (`PARAM_INVALID`, param `source`), because every run would start the next one. Loops across several
+  flows are not detected.
+- Test runs (`StartTestRun`) execute the draft and are never reported to Mission Control (both run hooks return
+  early for `ModeTest`). They validate with draft rules first (errors give a `*ValidationError`, an unknown
+  `OnlyNode` gives `IssueNodeNotFound`); remembered sample data over `MaxStoredOutputBytes` is refused with
+  `ErrTestDataTooLarge` before anything is stored. Without data the remembered or built-in sample is used.
+- Live runs (`RunNow`, `TriggerFromMission`, timer callbacks, all through `startLive`) execute the published
+  revision (`ErrNotPublished` without one, `ErrNoTrigger` without a matching enabled trigger) and report start and
+  finish: `FlowRunStarted` returns the history id, and `FlowRunFinished(RunFinishedInfo)` carries the leaf
+  outputs (nodes without successors, by key) of the document the run executed, for dependent
+  `mission_completed` triggers. A run is reported even when its flow was deleted meanwhile (the hook remembers
+  mission and name), so no history entry stays "running"; a run that never started (cancelled while queued,
+  shutdown) is reported with `Started` false. `ErrQueueFull` and `ErrRunnerClosed` from the runner pass through.
+- Trigger input from Mission Control is untrusted and bounded: the trigger type is kept only as 1 to 40 characters
+  of `[a-z0-9_]` (else `unknown`), the run header and the bridge record keep at most `MaxStoredOutputBytes` of
+  trigger data (`{"_preview": …}` beyond), and the engine replaces trigger data that would exceed
+  `MaxOutputBytes` with `{}`. The caller bounds the raw text at the source (`NormalizeTriggerData`).
 
 ## Tests
 - `go test ./internal/flows/ -count=1`; the race detector needs cgo, so `go test -race ./internal/flows/`
@@ -195,3 +372,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Run timing-sensitive tests alone in a fresh process. On Windows the first local-time format in a
   process costs about 48 ms; gate such tests on a `started` channel, not on a short run timeout.
 - `fakeClock` keeps abandoned waiters until `Advance` passes their deadline; `WaitForWaiters` counts them.
+- Catalog and service tests share fakes (`catalog_helpers_test.go`, `service_helpers_test.go`): extend them only
+  additively and give new helpers a task prefix. Locking and cancel tests to repeat under `-race -count=20` on
+  aurago-test: `TestServiceSerializesOperationsPerFlow`, `TestServiceConcurrentPublishAndEnable`,
+  `TestServiceDeleteCancelsTheFlowsRuns`, `TestRunnerCancelFlow*`, `TestFlowLocksAreKeyedAndCancellable` and
+  `TestServiceLifecycle`.
