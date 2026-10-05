@@ -154,8 +154,10 @@ func telegramDef(env CatalogEnv) *NodeDef {
 // attachment: the node's single file goes to the tool's attachments list, which must name
 // a file in the workspace or the documents folder (at most 20 MB); a file that cannot be
 // attached fails the call and nothing is sent. Also, a transport error after the server
-// took the mail (the answer is lost, QUIT fails) is reported as a failure, and a retry
-// sends the mail again.
+// took the mail (its final answer is lost) is reported as a failure, and a retry sends the
+// mail again; a QUIT that fails after the server took the mail is ignored and counts as
+// sent. The SMTP delivery takes no context: an attempt returns only when the session ends,
+// so attempts never overlap (see flowToolInvoker in internal/server/flows_tool_invoker.go).
 func emailDef(env CatalogEnv) *NodeDef {
 	def := notifyDef(TypeEmail, "mail", "send_email", env)
 	def.PrimaryInput = "body"

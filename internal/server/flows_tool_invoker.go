@@ -45,6 +45,21 @@ import (
 //     not retry, and a later attempt of the same node in the same run is refused without a
 //     dispatch. The engine retries a node whose attempt timed out whatever the code says,
 //     so the memory is what keeps the text from being sent twice.
+//   - Documents: a file.read or doc.pdf_read of a documents-folder path (what doc.pdf_create
+//     returns) reads a scratch copy in the workspace, made through the attachment jail
+//     (bridgeDocument, flows_tool_invoker_documents.go).
+//
+// send_email: the SMTP delivery (deliverSMTP) takes no context, so the dispatch, and with it
+// InvokeTool, returns only when the SMTP session has ended: at most about 7 minutes for the
+// session of the largest mail, 10 minutes for the final reply and 10 seconds for QUIT. The
+// node's per-attempt timeout cannot cut that short, and the engine starts a retry only after
+// the attempt returned (executeNode runs the attempts one after another on one goroutine),
+// so two attempts of one email node never overlap. When the run itself is cancelled or
+// times out, the engine abandons the node 30 seconds later and does not retry it; the mail
+// may still go out in the background. A failure reported after the server took the mail (the
+// answer was lost) is retried and can send the mail twice, as emailDef in
+// internal/flows/catalog_actions_notify.go says; a QUIT failure after acceptance counts as
+// sent.
 type flowToolInvoker struct {
 	s        *Server
 	names    func(cfg *config.Config) map[string]bool
@@ -197,6 +212,11 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 		payload["block_remote_content"] = true
 	case "mqtt_publish":
 		flowNormalizeMQTTArgs(payload)
+	}
+	cleanup, refusal := bridgeDocument(cfg, req, payload)
+	defer cleanup()
+	if refusal != nil {
+		return *refusal, nil
 	}
 	tc, err := flowToolCall(action, skill, payload)
 	if err != nil {

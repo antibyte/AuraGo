@@ -206,6 +206,15 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Logical tool names the invoker and the `CatalogEnv` must special-case (they are not plain native tools):
   `brave_search` (a direct action without a native schema), `pdf_extractor` (a skill reached through
   `execute_skill`) and `document_creator:gotenberg` (availability only, never called).
+- The server's invoker (`internal/server/flows_tool_invoker*.go`) sets `IsError` for plain-text failures and maps
+  known refusal texts (read-only, not enabled, SSRF, runtime gates, path refusals) to `denied`/`needs_setup`; a
+  cancelled context comes back as the context's error. It dispatches with the summary modes of `web_scraper`,
+  `ddg_search`, `wikipedia_search` and `pdf_extractor` off and without the preferred MCP web search, always sets
+  `block_remote_content` for `document_creator`, refuses Home Assistant `script`, `shell_command`,
+  `python_script` and `hassio` services unless `home_assistant.allowed_services` lists them, and denies a
+  `send_telegram` retry once its text went out (`text_sent`). A `file.read` or `doc.pdf_read` of a
+  documents-folder path (what `doc.pdf_create` returns, or `/files/documents/<name>`) reads a scratch copy in
+  the workspace made through `tools.OpenOutgoingAttachment`, so the output's `file.path` stays the original.
 - `ParseToolOutput` strips the `[Tool Output]`/`Tool Output:` prefixes (whole output only) and the
   `<external_data>` wrappers (around the whole output and every nested string value) and un-escapes their HTML
   escaping. Untrusted web, RSS or webhook text therefore reaches an `ai.step` prompt without the marker the
