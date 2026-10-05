@@ -454,3 +454,23 @@ func TestStoreIndexesMissionID(t *testing.T) {
 		}
 	}
 }
+
+// A context that ends right after Publish committed does not hide the committed record:
+// the publishing path and the already-live path both return it, not the context's error.
+func TestStorePublishReturnsTheRecordAfterCommit(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	f := sampleFlow("flow_aaaaaaaapc")
+	if _, err := s.CreateFlow(ctx, f, "", storeNow); err != nil {
+		t.Fatalf("CreateFlow: %v", err)
+	}
+	for _, path := range []string{"publish", "already live"} {
+		cctx, cancel := context.WithCancel(ctx)
+		s.afterPublishCommit = cancel
+		rec, err := s.Publish(cctx, f.ID, 1, storeNow)
+		s.afterPublishCommit = nil
+		if err != nil || rec == nil || rec.LiveRevision != 1 || cctx.Err() == nil {
+			t.Fatalf("%s: Publish cancelled after the commit = %+v, %v (ctx %v)", path, rec, err, cctx.Err())
+		}
+	}
+}

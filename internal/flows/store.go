@@ -137,6 +137,10 @@ var schemaStatements = []string{
 type Store struct {
 	db     *sql.DB
 	logger *slog.Logger
+	// afterPublishCommit, when set, runs right after Publish committed and before it reads
+	// the record back. It is nil outside tests, which use it to end the caller's context
+	// at that moment.
+	afterPublishCommit func()
 }
 
 // OpenStore opens (and migrates) the flows database at path and creates the
@@ -368,6 +372,10 @@ func (s *Store) SaveDraft(ctx context.Context, id string, f *Flow, baseRevision 
 // revision. Publishing a draft revision that is already live is a no-op: it
 // returns the current record without a new version, so a repeated or concurrent
 // publish of the same revision is harmless.
+//
+// Once the transaction committed, the record is read back without ctx's cancellation:
+// a committed publish always returns its record (or a read error), never a context
+// error, so the caller can bring Mission Control and the timers in line with it.
 func (s *Store) Publish(ctx context.Context, id string, baseRevision int, now time.Time) (*FlowRecord, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -403,7 +411,7 @@ func (s *Store) Publish(ctx context.Context, id string, baseRevision int, now ti
 		if err := tx.Commit(); err != nil {
 			return nil, err
 		}
-		return s.GetFlow(ctx, id)
+		return s.readPublished(ctx, id)
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO flow_versions (flow_id, revision, json, published_at)
 		SELECT id, live_revision, live_json, published_at FROM flows WHERE id = ?`, id); err != nil {
@@ -416,7 +424,15 @@ func (s *Store) Publish(ctx context.Context, id string, baseRevision int, now ti
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return s.GetFlow(ctx, id)
+	return s.readPublished(ctx, id)
+}
+
+// readPublished reads the record of a committed publish, see Publish.
+func (s *Store) readPublished(ctx context.Context, id string) (*FlowRecord, error) {
+	if s.afterPublishCommit != nil {
+		s.afterPublishCommit()
+	}
+	return s.GetFlow(context.WithoutCancel(ctx), id)
 }
 
 // GetVersion returns a published revision.

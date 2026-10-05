@@ -184,6 +184,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   under a flow lock, and runner hooks can run inside such an operation. Lock-free reads (`GetFlow`,
   `ListFlows`, the timer queries) may be called synchronously and must stay lock-free. Run paths
   (starting runs, runner hooks, timer callbacks) never take a flow lock.
+- Any new Service method that reads a flow and then changes its mission or timers (for example 1c's
+  `MissionEnabledChanged`) takes the flow lock (`s.locks.lock`) from the read through the timers, and
+  switches to `context.WithoutCancel(ctx)` right after its first step that cannot be undone, so a
+  caller that goes away cannot leave the store, the mission and the timers apart.
 
 ## Tests
 - `go test ./internal/flows/ -count=1`; the race detector needs cgo, so `go test -race ./internal/flows/`

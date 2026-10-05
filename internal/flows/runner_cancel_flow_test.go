@@ -2,6 +2,7 @@ package flows
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -79,7 +80,7 @@ drain:
 
 // CancelFlow counts only the runs it cancels itself. A running run whose node ignores
 // its context stays active after a cancel; neither a second CancelFlow nor one after
-// Cancel counts it again, while a newly queued run of the flow is counted.
+// Cancel or Shutdown counts it again, while a newly queued run of the flow is counted.
 func TestRunnerCancelFlowCountsOnlyNewCancels(t *testing.T) {
 	fx := newRunnerFixture(t, RunnerConfig{})
 	entered := make(chan string, 4)
@@ -151,12 +152,24 @@ func TestRunnerCancelFlowCountsOnlyNewCancels(t *testing.T) {
 		t.Fatalf("CancelFlow after Cancel = %d, want 0", n)
 	}
 
+	c := stubborn("flow_aaaaaaaaef")
+	runC := start(c)
+	waitEntered(runC.RunID)
+	stopped, stop := context.WithCancel(context.Background())
+	stop() // Shutdown cancels the runs, then returns at once instead of waiting for them
+	if err := fx.r.Shutdown(stopped); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Shutdown with stuck runs and an ended context = %v", err)
+	}
+	if n := fx.r.CancelFlow(c.ID); n != 0 {
+		t.Fatalf("CancelFlow after Shutdown = %d, want 0 for the run Shutdown cancelled", n)
+	}
+
 	letGo()
 	ended := map[string]bool{}
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 4; i++ {
 		ended[fx.waitFinished(t).ID] = true
 	}
-	if !ended[runA.RunID] || !ended[queued.RunID] || !ended[runB.RunID] {
+	if !ended[runA.RunID] || !ended[queued.RunID] || !ended[runB.RunID] || !ended[runC.RunID] {
 		t.Fatalf("finished runs = %v", ended)
 	}
 }

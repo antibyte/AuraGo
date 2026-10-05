@@ -120,6 +120,30 @@ func TestServiceFinishesIrreversibleStepsAfterCancel(t *testing.T) {
 	}
 }
 
+// A caller whose context ends right after the store committed the publish, before the
+// record is read back, still gets the record, and Mission Control and the timers follow
+// the new revision.
+func TestServicePublishFollowsACommitDespiteCancel(t *testing.T) {
+	fx := newSvcFixture(t)
+	ctx := context.Background()
+	rec := fx.published(t, "Commit", svcDateTimeFlow("Commit", 10, "2026-10-04 09:00"))
+	if err := fx.s.SetEnabled(ctx, rec.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	rev, _, err := fx.s.SaveDraft(ctx, rec.ID, svcDateTimeFlow("Commit", 11, "2026-10-05 09:00"), rec.DraftRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cctx, cancel := context.WithCancel(ctx)
+	fx.s.store.afterPublishCommit = cancel
+	pub, _, err := fx.s.Publish(cctx, rec.ID, rev)
+	fx.s.store.afterPublishCommit = nil
+	if err != nil || pub == nil || pub.LiveRevision != 2 || cctx.Err() == nil {
+		t.Fatalf("Publish cancelled after the commit = %+v, %v (ctx %v)", pub, err, cctx.Err())
+	}
+	svcCheckArmed(t, fx, rec.ID, true) // revision 2's bindings and timer
+}
+
 // svcLateRunFixture is a published flow (manual trigger, then a web search on blocking
 // tools) with one run inside its tool call and one queued behind it.
 type svcLateRunFixture struct {

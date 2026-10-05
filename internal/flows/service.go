@@ -17,10 +17,9 @@ import (
 // The rule for implementations: no method of the bridge may synchronously call a
 // Service method that takes a flow lock, for any flow. Today those are Publish,
 // SetEnabled, DeleteFlow and DeleteFlowForMission. The Service calls the bridge while
-// it holds a flow lock, and runner hooks (FlowRunStarted, FlowRunFinished) can run
-// inside such an operation (deleting a flow ends its queued runs on the caller's
-// goroutine), so such a call could wait for itself, or for another operation that waits
-// for it. Work that needs one of these methods goes through a goroutine, as
+// it holds a flow lock, and FlowRunFinished can run inside such an operation (deleting a
+// flow ends its queued runs through Runner.CancelFlow on the caller's goroutine), so
+// such a call could wait for itself, or for another operation that waits for it. Work that needs one of these methods goes through a goroutine, as
 // FlowHooks.FlowMissionDeleted does. Lock-free reads (GetFlow, ListFlows, and the timer
 // queries the run part of the Service provides) may be called synchronously; they must
 // stay lock-free.
