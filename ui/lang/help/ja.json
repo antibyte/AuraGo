@@ -297,6 +297,7 @@
   "help.rocketchat.alias": "Rocket.Chat のボットの表示名。デフォルト:「AuraGo」。",
   "help.rocketchat.channel": "リッスンするデフォルトのチャンネル、例: '一般的な'。",
   "help.rocketchat.allowed_users": "id:<ID> または username:<名前> でユーザーを許可します。接頭辞のない ID も有効で、ユーザー名には一致しません。",
+  "help.rocketchat.allow_operator_commands": "共有ルームの許可済みメンバー全員がオペレーターコマンドを使えるようにします（sudo パスワードの保存、SSH ホストの追加、AuraGo の再起動）。既定ではオフです。",
   "help.rocketchat.enabled": "Rocket.Chat ボットの統合を有効にします。",
   "help.rocketchat.url": "Rocket.Chat インスタンスの URL (例: 「https://chat.example.com」。",
   "help.rocketchat.user_id": "Rocket.Chat のボット ユーザー ID ([プロファイル] > [パーソナル アクセス トークン])。",

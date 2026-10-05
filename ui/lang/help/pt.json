@@ -297,6 +297,7 @@
   "help.rocketchat.alias": "Nome de exibição do bot no Rocket.Chat. Padrão: 'AuraGo'.",
   "help.rocketchat.channel": "Canal padrão para ouvir, p.ex. 'general'.",
   "help.rocketchat.allowed_users": "Permita usuários com id:<ID> ou username:<nome>. IDs sem prefixo continuam válidos e nunca correspondem a um nome de usuário.",
+  "help.rocketchat.allow_operator_commands": "Permite que todo membro autorizado da sala compartilhada use comandos de operador: salvar a senha do sudo, adicionar hosts SSH e reiniciar o AuraGo. Desativado por padrão.",
   "help.rocketchat.enabled": "Habilita Rocket.Chat.",
   "help.rocketchat.url": "URL para Rocket.Chat instance, e.g. 'https://chat.example.com'.",
   "help.rocketchat.user_id": "Descrição: Bot user ID from Rocket.Chat (Profile > Personal Access Tokens).",

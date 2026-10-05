@@ -1,7 +1,9 @@
 // Package commands implements the slash commands shared by the web console,
 // the desktop and the chat bots. Contract: operator commands (operatorCommands)
-// run only when the caller sets Context.AllowOperator, which callers derive from
-// a private owner chat or an admin session; everyone else gets a refusal.
+// run only when the caller sets Context.AllowOperator: Telegram private chats,
+// Discord DMs, Rocket.Chat with rocketchat.allow_operator_commands, the web
+// console and the desktop chat (owner turns and mission runs, not model-written
+// follow-up turns). Everyone else gets a refusal.
 package commands
 
 import (
@@ -34,9 +36,11 @@ type Context struct {
 	Lang             string // UI language for i18n
 	SessionID        string // chat session targeted by session-scoped commands; empty means "default"
 	// AllowOperator permits commands that change host or process state
-	// (vault writes, SSH inventory, restart, global modes). Bots set it only
-	// for private conversations with the allow-listed owner; web/desktop
-	// admin sessions always set it.
+	// (vault writes, SSH inventory, restart, global modes). Telegram and
+	// Discord set it only for private chats with the allow-listed owner,
+	// Rocket.Chat only when rocketchat.allow_operator_commands opts the shared
+	// room in. The web console and the desktop chat (admin surfaces) set it,
+	// except for model-written follow-up loopback turns.
 	AllowOperator bool
 }
 

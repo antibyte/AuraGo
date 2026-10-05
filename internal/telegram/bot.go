@@ -380,7 +380,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 			InventoryDB:   inventoryDB,
 			Cfg:           cfg,
 			PromptsDir:    cfg.Directories.PromptsDir,
-			AllowOperator: msg.Chat != nil && msg.Chat.IsPrivate(),
+			AllowOperator: telegramChatAllowsOperator(msg),
 		}
 		cmdResult, isCmd, err := commands.Handle(msg.Text, cmdCtx)
 		if err != nil {
@@ -541,6 +541,12 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 			}
 		}
 	}
+}
+
+// telegramChatAllowsOperator reports whether operator slash commands may run:
+// only in a private chat with the owner, never in groups or channels.
+func telegramChatAllowsOperator(msg *tgbotapi.Message) bool {
+	return msg != nil && msg.Chat != nil && msg.Chat.IsPrivate()
 }
 
 func shouldBlockTelegramPromptInjection(inputText string, guardian *security.Guardian, logger *slog.Logger, userID int64) bool {

@@ -94,6 +94,7 @@ func TestLoadI18NBackendKeys(t *testing.T) {
 
 	backendMustHave := []string{
 		"backend.cmd_unknown",
+		"backend.cmd_operator_private_only",
 		"backend.cmd_reset_success",
 		"backend.cmd_help_header",
 		"backend.budget_disabled",

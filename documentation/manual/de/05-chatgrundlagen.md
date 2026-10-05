@@ -75,7 +75,7 @@ Spezielle Steuerbefehle für den Chat:
 | `/credits` | OpenRouter Credits anzeigen | `/credits` |
 | `/addssh` | SSH-Server zum Inventar hinzufügen | `/addssh server.com user key` |
 
-Operator-Befehle (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/addssh`) werden nur in privaten Chats und in der Web-Konsole angenommen; Rocket.Chat braucht `rocketchat.allow_operator_commands: true`.
+Operator-Befehle (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/addssh`) werden nur in privaten Chats, in der Web-Konsole und im Desktop-Chat angenommen; Rocket.Chat braucht `rocketchat.allow_operator_commands: true`.
 
 ### Mehrzeilige Nachrichten
 

@@ -197,6 +197,8 @@ All potentially dangerous operations are gated via config:
 - `allow_mcp` - Model Context Protocol
 - `allow_web_scraper` - Web scraping
 
+Operator slash commands (`/sudopwd`, `/addssh`, `/restart`, `/personality`, `/debug`, `/voice`) run only with `commands.Context.AllowOperator`: Telegram private chats, Discord DMs, `rocketchat.allow_operator_commands`, the web console, the desktop chat and mission runs, never model-written follow-up loopback turns. Classify every new command in `operatorCommands` or its test.
+
 ### Sensitive Data Scrubbing
 Use `security.RegisterSensitive(value)` to prevent values from appearing in logs or LLM outputs.
 

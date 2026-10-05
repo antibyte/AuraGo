@@ -256,7 +256,7 @@ Agent: Your name is Alex. ← Remembers from earlier
 | `/credits` | Shows OpenRouter credit balance |
 | `/addssh host=NAME user=USER ...` | Registers a new SSH server |
 
-Operator commands (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/addssh`) are accepted only in private chats and the web console; Rocket.Chat needs `rocketchat.allow_operator_commands: true`.
+Operator commands (`/restart`, `/debug`, `/personality`, `/voice`, `/sudopwd`, `/addssh`) are accepted only in private chats, the web console and the desktop chat; Rocket.Chat needs `rocketchat.allow_operator_commands: true`.
 
 ### When to Reset
 

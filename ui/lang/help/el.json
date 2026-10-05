@@ -297,6 +297,7 @@
   "help.rocketchat.alias": "Εμφανιζόμενο όνομα του bot στο Rocket.Chat. Προεπιλογή: 'AuraGo'.",
   "help.rocketchat.channel": "Προεπιλεγμένο κανάλι ακρόασης, π.χ. 'general'.",
   "help.rocketchat.allowed_users": "Επιτρέψτε χρήστες με id:<ID> ή username:<όνομα>. Τα σκέτα ID εξακολουθούν να ισχύουν και δεν ταιριάζουν ποτέ με όνομα χρήστη.",
+  "help.rocketchat.allow_operator_commands": "Επιτρέπει σε κάθε εγκεκριμένο μέλος του κοινόχρηστου χώρου να χρησιμοποιεί εντολές διαχειριστή: αποθήκευση του κωδικού sudo, προσθήκη κεντρικών υπολογιστών SSH και επανεκκίνηση του AuraGo. Απενεργοποιημένο από προεπιλογή.",
   "help.rocketchat.enabled": "Ενεργοποιεί the Rocket.Chat bot integration.",
   "help.rocketchat.url": "URL για Rocket.Chat instance, e.g. 'https://chat.example.com'.",
   "help.rocketchat.user_id": "Περιγραφή: Bot user ID from Rocket.Chat (Profile > Personal Access Tokens).",

@@ -297,6 +297,7 @@
   "help.rocketchat.alias": "Visningsnamn för boten i Rocket.Chat. Standard: 'AuraGo'.",
   "help.rocketchat.channel": "Standardkanal att lyssna på, t.ex. 'general'.",
   "help.rocketchat.allowed_users": "Tillåt användare med id:<ID> eller username:<namn>. ID:n utan prefix fungerar fortfarande och matchar aldrig ett användarnamn.",
+  "help.rocketchat.allow_operator_commands": "Låter varje tillåten medlem i det delade rummet använda operatörskommandon: spara sudo-lösenordet, lägga till SSH-värdar och starta om AuraGo. Av som standard.",
   "help.rocketchat.enabled": "Aktiverar the Rocket.Chat bot integration.",
   "help.rocketchat.url": "URL till Rocket.Chat instance, e.g. 'https://chat.example.com'.",
   "help.rocketchat.user_id": "Beskrivning: Bot user ID from Rocket.Chat (Profile > Personal Access Tokens).",

@@ -297,6 +297,7 @@
   "help.rocketchat.alias": "Zobrazovaný název bota v Rocket.Chat. Výchozí: 'AuraGo'.",
   "help.rocketchat.channel": "Výchozí kanál pro poslech, např. 'general'.",
   "help.rocketchat.allowed_users": "Povolte uživatele pomocí id:<ID> nebo username:<jméno>. Samostatná ID zůstávají platná; nikdy neodpovídají uživatelskému jménu.",
+  "help.rocketchat.allow_operator_commands": "Umožní každému povolenému členovi sdílené místnosti používat operátorské příkazy: uložit heslo pro sudo, přidat SSH hostitele a restartovat AuraGo. Ve výchozím stavu vypnuto.",
   "help.rocketchat.enabled": "Povoluje Rocket.Chat integraci.",
   "help.rocketchat.url": "URL pro rocketchat.",
   "help.rocketchat.user_id": "Uzivatelske jmeno pro rocketchat.",

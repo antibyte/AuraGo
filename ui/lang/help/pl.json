@@ -297,6 +297,7 @@
   "help.rocketchat.alias": "Wyświetlana nazwa bota w Rocket.Chat. Domyślnie: 'AuraGo'.",
   "help.rocketchat.channel": "Domyślny kanał do nasłuchiwania, np. 'general'.",
   "help.rocketchat.allowed_users": "Zezwalaj użytkownikom przez id:<ID> lub username:<nazwa>. Identyfikatory bez prefiksu nadal działają i nigdy nie pasują do nazwy użytkownika.",
+  "help.rocketchat.allow_operator_commands": "Pozwala każdemu dozwolonemu członkowi wspólnego pokoju używać komend operatora: zapisać hasło sudo, dodać hosty SSH i zrestartować AuraGo. Domyślnie wyłączone.",
   "help.rocketchat.enabled": "Włącza integrację bota Rocket.Chat.",
   "help.rocketchat.url": "URL instancji Rocket.Chat, np. 'https://chat.example.com'.",
   "help.rocketchat.user_id": "ID użytkownika bota z Rocket.Chat (Profile > Personal Access Tokens).",

@@ -161,9 +161,17 @@ func TestOperatorCommandsRequireOperatorContext(t *testing.T) {
 	}
 	// Every registered command needs an explicit decision, so a new command
 	// cannot silently land on the conversational side.
-	classified := len(operator) + len(conversational)
-	if len(registry) != classified {
-		t.Fatalf("registry has %d commands, %d are classified; classify the new command in operatorCommands or this test", len(registry), classified)
+	listed := map[string]int{}
+	for _, name := range append(append([]string{}, operator...), conversational...) {
+		listed[name]++
+	}
+	for name := range registry {
+		if listed[name] != 1 {
+			t.Fatalf("/%s must appear in exactly one of the operator or conversational lists (found %d); classify it in operatorCommands and this test", name, listed[name])
+		}
+	}
+	if len(registry) != len(listed) {
+		t.Fatalf("registry has %d commands, the lists name %d", len(registry), len(listed))
 	}
 
 	out, _, _ = Handle("/help", Context{Lang: "en"})

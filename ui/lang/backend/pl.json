@@ -9,7 +9,7 @@
   "backend.operational_issue_severity_warning": "ostrzeżenie",
   "backend.operational_issue_severity_info": "informacja",
   "backend.cmd_unknown": "❌ Nieznana komenda. Wpisz /help, aby wyświetlić listę komend.",
-  "backend.cmd_operator_private_only": "{0} changes host or process state and is only accepted in a private chat with the owner or in the web console.",
+  "backend.cmd_operator_private_only": "{0} zmienia stan hosta lub procesu, dlatego przyjmuję tę komendę tylko w prywatnym czacie ze mną, w konsoli webowej lub w czacie pulpitu. W Rocket.Chat ustawienie rocketchat.allow_operator_commands: true zezwala na nią we wspólnym pokoju.",
   "backend.cmd_reset_success": "🧹 Historia czatu i pamięć krótkotrwała zostały usunięte.",
   "backend.cmd_reset_help": "Usuwa bieżącą historię czatu (pamięć krótkotrwała).",
   "backend.cmd_help_header": "📜 **Dostępne komendy:**",
