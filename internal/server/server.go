@@ -1065,6 +1065,8 @@ func Start(opts StartOptions) error {
 	// Use reinitBudgetTracker so the callback is always registered after a reload too.
 	s.reinitBudgetTracker(cfg)
 
+	// EasyDrag flows hook into Mission Control before it starts (flow triggers, startup trigger).
+	s.initFlows()
 	if err := s.MissionManagerV2.Start(); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
 	} else if shouldSeedWelcomeContent(s.IsFirstStart) {
@@ -1072,6 +1074,7 @@ func Start(opts StartOptions) error {
 		// Deleted examples must stay deleted on later restarts.
 		tools.SeedWelcomeMissions(s.MissionManagerV2, installDir, logger)
 	}
+	s.startFlows(serverCtx)
 
 	if cheatsheetDB != nil && shouldSeedWelcomeContent(s.IsFirstStart) {
 		// Seed bundled example cheat sheets only during first-start setup.
@@ -1749,6 +1752,8 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		tools.ShutdownSandboxManager()
 		// Shut down Looper if running
 		shutdownLooper()
+		// Flow runs use tools, the mission history and the planner; stop them before the databases close.
+		s.shutdownFlows(ctx)
 		// Shut down Discord bot
 		discord.StopBot(s.Logger)
 		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)

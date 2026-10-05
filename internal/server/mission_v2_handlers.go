@@ -394,6 +394,20 @@ func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		jsonError(w, err.Error(), missionErrorStatus(err))
 		return
 	}
+	if mission, ok := s.MissionManagerV2.Get(id); ok && mission.ExecutionType == tools.ExecutionFlow {
+		if s.Flows == nil {
+			jsonError(w, "flows are not available", http.StatusServiceUnavailable)
+			return
+		}
+		if n, err := s.Flows.CancelMissionRuns(r.Context(), id); err != nil || n == 0 {
+			jsonError(w, "mission run cannot be cancelled yet", http.StatusConflict)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "cancelling"})
+		return
+	}
 	if !s.missionRunTracker().cancel(id) {
 		jsonError(w, "mission run cannot be cancelled yet", http.StatusConflict)
 		return

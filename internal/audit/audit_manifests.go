@@ -256,6 +256,7 @@ func DBMigrationManifest() []DBMigrationDomain {
 		{Domain: "cheatsheets", PackagePath: "internal/tools", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "mission-preparation", PackagePath: "internal/tools", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "newspaper", PackagePath: "internal/newspaper", SchemaVersioned: true, OwnsRuntimeData: true},
+		{Domain: "flows", PackagePath: "internal/flows", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "media-registry", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "skills-registry", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "system-tasks", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
