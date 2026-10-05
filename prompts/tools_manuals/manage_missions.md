@@ -18,7 +18,7 @@ Missions support four execution types (set via the V2 API):
 - **manual** — Run on demand via `run` operation
 - **scheduled** — Run on a cron schedule
 - **triggered** — Run automatically when an event occurs (webhook, mission completed, email, MQTT, system startup, invasion, device, Fritz!Box, budget, Home Assistant, and Planner appointment reminder events)
-- **flow** — an EasyDrag flow (visual workflow). Its triggers are the flow's trigger nodes; it runs on its own engine and never waits in the mission queue. For a flow mission only `list`, `history` and `run` work (`run` starts a flow run). Every other operation that names it returns an error: `update`, `delete`, and any attempt to enable, disable, lock, unlock or re-prioritize it. `add` cannot create a flow either (`execution_type: "flow"` is refused). Flows are created, edited and deleted in the EasyDrag app, and switched on or off there or in Mission Control.
+- **flow** — an EasyDrag flow (visual workflow). Its triggers are the flow's trigger nodes; it runs on its own engine and never waits in the mission queue. For a flow mission only `list`, `history` and `run` work (`run` only requests the run; follow it with `history`). Every other operation that names it returns an error: `update`, `delete`, and any attempt to enable, disable, lock, unlock or re-prioritize it. `add` cannot create a flow either (`execution_type: "flow"` is refused). Flows are created, edited and deleted in the EasyDrag app, and switched on or off there or in Mission Control.
 
 ## Examples
 

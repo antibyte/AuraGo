@@ -1277,17 +1277,22 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return `Tool Output: {"status":"error","message":"Missions are in read-only mode. Disable tools.missions.read_only to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested mission management", "op", req.Operation)
+			logger.Info("LLM requested mission management", "op", boundEchoRunes(req.Operation))
 			if missionManagerV2 == nil {
 				return `Tool Output: {"status": "error", "message": "Mission control storage not available"}`
 			}
 			// EasyDrag owns flow missions. Every operation outside the allowlist that names
 			// one is refused here, before the switch, so an operation added later cannot
 			// reach a flow mission by accident.
-			if req.ID != "" && !flowMissionOperationAllowed(req.Operation) {
-				if existing, ok := missionManagerV2.Get(req.ID); ok && existing.ExecutionType == tools.ExecutionFlow {
-					return flowMissionManagedOutput(req.ID)
+			targetIsFlow := false
+			if req.ID != "" {
+				if target, ok := missionManagerV2.Get(req.ID); ok && target.ExecutionType == tools.ExecutionFlow {
+					targetIsFlow = true
 				}
+			}
+			if targetIsFlow && !flowMissionOperationAllowed(req.Operation) {
+				logger.Info("manage_missions refused to change a flow mission", "op", boundEchoRunes(req.Operation), "id", boundEchoRunes(req.ID))
+				return flowMissionManagedOutput(req.ID)
 			}
 
 			switch req.Operation {
@@ -1300,6 +1305,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				// The agent cannot create flows; this path only builds manual and scheduled
 				// missions and would otherwise ignore the requested type.
 				if strings.EqualFold(strings.TrimSpace(toolArgString(tc.Params, "execution_type")), string(tools.ExecutionFlow)) {
+					logger.Info("manage_missions refused to create a flow mission", "op", boundEchoRunes(req.Operation))
 					return flowMissionManagedOutput("")
 				}
 				if req.Title == "" || req.Command == "" {
@@ -1326,7 +1332,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				err := missionManagerV2.Create(m)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+					return missionReply("error", err.Error())
 				}
 				b, _ := json.Marshal(map[string]interface{}{"status": "success", "message": "Mission created"})
 				return "Tool Output: " + string(b)
@@ -1337,7 +1343,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				existing, ok := missionManagerV2.Get(req.ID)
 				if !ok {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Mission %s not found"}`, req.ID)
+					return missionReply("error", "Mission "+boundEchoRunes(req.ID)+" not found")
 				}
 
 				if req.Title != "" {
@@ -1367,7 +1373,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 				err := missionManagerV2.Update(req.ID, existing)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+					return missionReply("error", err.Error())
 				}
 				return `Tool Output: {"status": "success", "message": "Mission updated"}`
 
@@ -1377,7 +1383,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				err := missionManagerV2.Delete(req.ID)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+					return missionReply("error", err.Error())
 				}
 				return `Tool Output: {"status": "success", "message": "Mission deleted"}`
 
@@ -1387,7 +1393,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				err := missionManagerV2.RunNow(req.ID)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+					return missionReply("error", err.Error())
+				}
+				if targetIsFlow {
+					// Flows run on EasyDrag's own engine and never wait in the mission queue.
+					return missionReply("success", "Flow run requested. EasyDrag runs flows on its own engine, not in the mission queue; use operation=history to follow it.")
 				}
 				return `Tool Output: {"status": "success", "message": "Mission scheduled for immediate execution by the background task queue"}`
 
@@ -1412,12 +1422,12 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				page, err := tools.QueryMissionHistory(historyDB, filter)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"History query failed: %v"}`, err)
+					return missionReply("error", "History query failed: "+err.Error())
 				}
 				return "Tool Output: " + tools.FormatMissionHistoryJSON(page)
 
 			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, req.Operation)
+				return missionReply("error", "Unknown operation: "+boundEchoRunes(req.Operation))
 			}
 
 		case "manage_daemon":
@@ -2232,8 +2242,29 @@ func upnpParseLocation(location string) (ip string, port int) {
 	return ip, port
 }
 
-// flowMissionIDEchoRunes bounds the model-supplied mission id that flowMissionManagedOutput echoes.
-const flowMissionIDEchoRunes = 100
+// missionEchoRunes bounds model-supplied text (mission ids, operation names) that manage_missions
+// and the cron tools echo into replies and logs.
+const missionEchoRunes = 100
+
+// boundEchoRunes cuts s to missionEchoRunes runes and marks a cut with an ellipsis.
+func boundEchoRunes(s string) string {
+	count := 0
+	for i := range s {
+		if count == missionEchoRunes {
+			return s[:i] + "…"
+		}
+		count++
+	}
+	return s
+}
+
+// missionReply builds a manage_missions reply with a marshalled message, so quotes, backslashes
+// and control characters in error text cannot break the JSON.
+func missionReply(status, message string) string {
+	s, _ := json.Marshal(status)
+	m, _ := json.Marshal(message)
+	return fmt.Sprintf(`Tool Output: {"status": %s, "message": %s}`, s, m)
+}
 
 // flowMissionOperationAllowed reports whether manage_missions may apply an operation to a
 // flow mission: the agent may read flows (list, history) and start a run, nothing else.
@@ -2246,20 +2277,36 @@ func flowMissionOperationAllowed(operation string) bool {
 }
 
 // flowMissionManagedOutput tells the agent that EasyDrag owns a flow mission. An empty id
-// answers a request to create one. The echoed id is cut to flowMissionIDEchoRunes runes.
+// answers a request to create one. The echoed id is cut to missionEchoRunes runes.
 func flowMissionManagedOutput(id string) string {
 	text := "EasyDrag flows are created and edited in the EasyDrag app. manage_missions cannot create them."
 	if id != "" {
-		count := 0
-		for i := range id {
-			if count == flowMissionIDEchoRunes {
-				id = id[:i] + "…"
-				break
-			}
-			count++
-		}
-		text = fmt.Sprintf("Mission %s is an EasyDrag flow. Open it in the EasyDrag app to change or delete it.", id)
+		text = fmt.Sprintf("Mission %s is an EasyDrag flow. manage_missions can only list it, show its history or run it; change or delete it in the EasyDrag app.", boundEchoRunes(id))
 	}
 	msg, _ := json.Marshal(text)
+	return fmt.Sprintf(`Tool Output: {"status":"error","code":"flow_mission","message":%s}`, msg)
+}
+
+// flowCronJobRefusal answers a cron tool call that would change a job EasyDrag owns, or "" when
+// the job is free for the agent. A flow's schedule jobs are mission_<mission>__<node>; they are
+// refused while the flow exists, even if the job is absent (so none can be planted under the id),
+// and whenever an existing job carries the flow source. Listing is always allowed.
+func flowCronJobRefusal(missions *tools.MissionManagerV2, crons *tools.CronManager, operation, jobID string) string {
+	if operation == "list" || jobID == "" {
+		return ""
+	}
+	owned := missions != nil && missions.OwnsFlowCronJob(jobID)
+	if !owned && crons != nil {
+		for _, job := range crons.GetJobs() {
+			if job.ID == jobID && job.IsFlowJob() {
+				owned = true
+				break
+			}
+		}
+	}
+	if !owned {
+		return ""
+	}
+	msg, _ := json.Marshal(fmt.Sprintf("Cron job %s belongs to an EasyDrag flow. The scheduler tools can only list it; change the flow's schedule in the EasyDrag app.", boundEchoRunes(jobID)))
 	return fmt.Sprintf(`Tool Output: {"status":"error","code":"flow_mission","message":%s}`, msg)
 }

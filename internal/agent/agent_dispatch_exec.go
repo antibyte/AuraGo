@@ -1679,7 +1679,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return `Tool Output: {"status":"error","message":"Scheduler is in read-only mode. Disable tools.scheduler.read_only to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested cron management", "operation", req.Operation)
+			logger.Info("LLM requested cron management", "operation", boundEchoRunes(req.Operation))
+			// A flow's schedule jobs belong to EasyDrag: the agent may list them, nothing else.
+			if refusal := flowCronJobRefusal(dc.MissionManagerV2, cronManager, req.Operation, req.ID); refusal != "" {
+				logger.Info("cron tool refused to change a flow schedule job", "operation", boundEchoRunes(req.Operation), "id", boundEchoRunes(req.ID))
+				return refusal
+			}
 			result, err := cronManager.ManageSchedule(req.Operation, req.ID, req.CronExpr, req.TaskPrompt, cfg.Server.UILanguage)
 			if err != nil {
 				return fmt.Sprintf("Tool Output: ERROR in manage_schedule: %v", err)
@@ -1717,7 +1722,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Tools.Scheduler.ReadOnly {
 				return `Tool Output: {"status":"error","message":"Scheduler is in read-only mode. Disable tools.scheduler.read_only to allow changes."}`
 			}
-			logger.Info("LLM requested cron job removal", "id", req.ID)
+			logger.Info("LLM requested cron job removal", "id", boundEchoRunes(req.ID))
+			if refusal := flowCronJobRefusal(dc.MissionManagerV2, cronManager, "remove", req.ID); refusal != "" {
+				logger.Info("cron tool refused to change a flow schedule job", "operation", "remove", "id", boundEchoRunes(req.ID))
+				return refusal
+			}
 			result, _ := cronManager.ManageSchedule("remove", req.ID, "", "", cfg.Server.UILanguage)
 			return result
 

@@ -92,6 +92,23 @@ func (f *mm1c09Fixture) flow(t *testing.T) tools.MissionV2 {
 	return *m
 }
 
+// mm1c09Decode parses a manage_missions reply ("Tool Output: {json}") and returns its status and
+// message. The reply must be valid JSON.
+func mm1c09Decode(t *testing.T, out string) (status, message string) {
+	t.Helper()
+	if !strings.HasPrefix(out, "Tool Output: ") {
+		t.Fatalf("missing the Tool Output prefix: %q", out)
+	}
+	var env struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(out, "Tool Output: ")), &env); err != nil {
+		t.Fatalf("not valid JSON: %v: %q", err, out)
+	}
+	return env.Status, env.Message
+}
+
 // mm1c09RequireRefused checks the flow_mission refusal envelope.
 func mm1c09RequireRefused(t *testing.T, label, out string) {
 	t.Helper()
@@ -207,6 +224,11 @@ func TestManageMissionsFlowMissionsStayReadableAndRunnable(t *testing.T) {
 		if !strings.Contains(out, `"status": "success"`) || strings.Contains(out, "flow_mission") {
 			t.Fatalf("%s: %q", op, out)
 		}
+		// A flow run is not queued: the reply must say so and name the way to follow it.
+		const wantMessage = "Flow run requested. EasyDrag runs flows on its own engine, not in the mission queue; use operation=history to follow it."
+		if status, message := mm1c09Decode(t, out); status != "success" || message != wantMessage {
+			t.Fatalf("%s: the flow run reply is wrong: %q", op, out)
+		}
 	}
 	want := f.flowID + "||manual|" // mission, default trigger node, manual, no trigger data
 	if got := f.hooks.runs(); len(got) != 2 || got[0] != want || got[1] != want {
@@ -301,6 +323,10 @@ func TestManageMissionsLeavesOrdinaryMissionsAlone(t *testing.T) {
 	if out := f.call(t, map[string]interface{}{"operation": "enable", "id": m.ID}); !strings.Contains(out, "Unknown operation: enable") || strings.Contains(out, "flow_mission") {
 		t.Fatalf("enable: %q", out)
 	}
+	// An ordinary mission still goes to the mission queue, and its reply says so.
+	if out := f.call(t, map[string]interface{}{"operation": "run", "id": m.ID}); !strings.Contains(out, `"status": "success"`) || !strings.Contains(out, "background task queue") || strings.Contains(out, "Flow run requested") {
+		t.Fatalf("run of an ordinary mission: %q", out)
+	}
 	if out := f.call(t, map[string]interface{}{"operation": "delete", "id": m.ID}); !strings.Contains(out, `"status": "success"`) {
 		t.Fatalf("delete: %q", out)
 	}
@@ -358,15 +384,15 @@ func TestFlowMissionManagedOutputIsBoundedValidJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(strings.TrimPrefix(flowMissionManagedOutput(long), "Tool Output: ")), &env); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(env.Message, strings.Repeat("a", flowMissionIDEchoRunes)+"…") || strings.Contains(env.Message, strings.Repeat("a", flowMissionIDEchoRunes+1)) {
-		t.Fatalf("the echoed id must be cut to %d runes: %q", flowMissionIDEchoRunes, env.Message)
+	if !strings.Contains(env.Message, strings.Repeat("a", missionEchoRunes)+"…") || strings.Contains(env.Message, strings.Repeat("a", missionEchoRunes+1)) {
+		t.Fatalf("the echoed id must be cut to %d runes: %q", missionEchoRunes, env.Message)
 	}
 	short := flowMissionManagedOutput("mission_123")
 	if !strings.Contains(short, "mission_123") || strings.Contains(short, "…") {
 		t.Fatalf("a short id is echoed whole: %q", short)
 	}
-	exact := strings.Repeat("b", flowMissionIDEchoRunes)
+	exact := strings.Repeat("b", missionEchoRunes)
 	if out := flowMissionManagedOutput(exact); !strings.Contains(out, exact) || strings.Contains(out, "…") {
-		t.Fatalf("an id of exactly %d runes is echoed whole: %q", flowMissionIDEchoRunes, out)
+		t.Fatalf("an id of exactly %d runes is echoed whole: %q", missionEchoRunes, out)
 	}
 }

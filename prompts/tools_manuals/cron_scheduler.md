@@ -58,3 +58,4 @@ Schedule tasks to run automatically at future times or on recurring intervals. S
 - **One-time vs recurring:** Specific month/day combinations (e.g. `0 0 12 25 3 *`) run annually unless combined with conditions.
 - **Task prompts:** When triggered, the task_prompt is sent as a new message to the agent for execution.
 - **Due date reminders:** For to-do reminders, use `manage_notes` with `due_date` combined with a cron entry for notification timing.
+- **EasyDrag flow schedules:** `list` also shows the schedule jobs of EasyDrag flows (ids like `mission_<mission>__<node>`). Only `list` works for them; `add`, `remove`, `enable` and `disable` on such an id return a `flow_mission` error. Change a flow's schedule in the EasyDrag app.

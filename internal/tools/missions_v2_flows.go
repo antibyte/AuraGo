@@ -316,6 +316,23 @@ func (m *MissionManagerV2) pruneFlowCronJobsLocked() {
 	}
 }
 
+// IsFlowJob reports whether the job is a flow's schedule job. EasyDrag owns those.
+func (j CronJob) IsFlowJob() bool { return j.Source == flowCronSource }
+
+// OwnsFlowCronJob reports whether jobID ("mission_<mission>__<node>") names a schedule job of an
+// existing flow mission. It is true while the job itself is absent, so nobody can plant a job
+// under a flow's id before the flow registers it. The agent's cron tools use it to leave
+// flow schedules to EasyDrag.
+func (m *MissionManagerV2) OwnsFlowCronJob(jobID string) bool {
+	missionID, _, ok := splitFlowCronJobID(jobID)
+	if !ok {
+		return false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return isFlowMission(m.missions[missionID])
+}
+
 // runFlowCronJob is the cron runner of flowCronSource jobs.
 func (m *MissionManagerV2) runFlowCronJob(jobID, _ string) {
 	missionID, nodeID, ok := splitFlowCronJobID(jobID)
