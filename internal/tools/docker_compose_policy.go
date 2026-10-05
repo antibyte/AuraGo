@@ -211,17 +211,26 @@ var (
 	dockerComposeQuotedSpan = regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
 	dockerComposeLogLevel   = regexp.MustCompile(`(?i)\blevel=(\w+)`)
 	dockerComposeLogMessage = regexp.MustCompile(`\bmsg=("(?:[^"\\]|\\.)*")`)
+	// Compose's dotenv parser echoes env-file content: `unexpected character
+	// "X" in variable name "<line>"` (Go %q) and `unterminated quoted value
+	// <rest of the value>` (raw, without a closing quote).
+	dockerComposeEnvEchoQuoted       = regexp.MustCompile(`(unexpected character |variable name )"(?:[^"\\]|\\.)*"`)
+	dockerComposeEnvEchoUnterminated = regexp.MustCompile(`(?s)(unterminated quoted value ).*$`)
 )
 
 // dockerComposeStderrDetail keeps the part of Compose's stderr that explains a
 // failure. Warning, info and debug lines are dropped (Compose prints them before
 // the error), only the last few remaining lines are kept, the message of a
-// logrus-formatted error line is unquoted, double-quoted spans longer than 64
+// logrus-formatted error line is unquoted, env-file content the dotenv parser
+// echoes is redacted at any length, other double-quoted spans longer than 64
 // characters become "…" because Compose quotes file content in them, and an
 // over-long detail keeps its end, where the error is.
 func dockerComposeStderrDetail(stderr []byte) string {
+	// The unterminated-value echo runs to the end of the output, possibly over
+	// several lines, so it is cut before the text is split into lines.
+	text := dockerComposeEnvEchoUnterminated.ReplaceAllString(string(stderr), "${1}…")
 	var lines []string
-	for _, line := range strings.Split(string(stderr), "\n") {
+	for _, line := range strings.Split(text, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || dockerComposeNoiseLine(line) {
 			continue
@@ -231,7 +240,7 @@ func dockerComposeStderrDetail(stderr []byte) string {
 				line = message
 			}
 		}
-		lines = append(lines, line)
+		lines = append(lines, dockerComposeEnvEchoQuoted.ReplaceAllString(line, `${1}"…"`))
 	}
 	if len(lines) > dockerComposeErrorDetailLines {
 		lines = lines[len(lines)-dockerComposeErrorDetailLines:]

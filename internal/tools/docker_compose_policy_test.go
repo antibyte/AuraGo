@@ -168,10 +168,29 @@ func TestDockerComposeConfigResultKeepsTheErrorAndRedactsLongQuotedSpans(t *test
 			t.Fatalf("error leaked %q: %s", leaked, msg)
 		}
 	}
-	for _, kept := range []string{"exit status 1", "failed to read /ws/creds.env: line 1: unexpected character \"{\" in variable name", `"…"`} {
+	for _, kept := range []string{"exit status 1", `failed to read /ws/creds.env: line 1: unexpected character "…" in variable name "…"`} {
 		if !strings.Contains(msg, kept) {
 			t.Fatalf("error lost %q: %s", kept, msg)
 		}
+	}
+
+	// Compose's dotenv parser echoes file content; it is redacted at any length.
+	// The first case is the reviewer's ws2/e.yml (a 48-character span).
+	for stderr, want := range map[string]string{
+		"failed to read /ws/secret/creds.json: line 1: unexpected character \"{\" in variable name \"{\\\"token\\\":\\\"tok-SECRET-999\\\",\\\"refresh\\\":\\\"r\\\"}\"\n": `failed to read /ws/secret/creds.json: line 1: unexpected character "…" in variable name "…"`,
+		"failed to read /ws/semi.env: line 1: unexpected character \";\" in variable name \"K;SECRET=v\"\n":                                                                `failed to read /ws/semi.env: line 1: unexpected character "…" in variable name "…"`,
+		"failed to read /ws/quote.env: line 1: unexpected character \"\\\"\" in variable name \"\\\"SECRET-key\\\"=v\"\n":                                                  `failed to read /ws/quote.env: line 1: unexpected character "…" in variable name "…"`,
+		"failed to read /ws/multi.env: line 5: unterminated quoted value \"opened SECRET-start\nC=SECRET-line-two\nD=SECRET-line-three\n":                                  `failed to read /ws/multi.env: line 5: unterminated quoted value …`,
+		"time=\"2026-10-05T23:32:38+02:00\" level=fatal msg=\"failed to read /ws/a.env: line 2: unterminated quoted value \\\"SECRET-in-logrus\"\n":                        `failed to read /ws/a.env: line 2: unterminated quoted value …`,
+	} {
+		_, err := dockerComposeConfigResult(nil, []byte(stderr), errors.New("exit status 1"))
+		if err == nil || strings.Contains(err.Error(), "SECRET") || !strings.Contains(err.Error(), want) {
+			t.Fatalf("env-file echo not redacted or error lost\nstderr: %q\ngot:    %v\nwant:   %s", stderr, err, want)
+		}
+	}
+	_, err = dockerComposeConfigResult(nil, []byte("env file \"/ws/stack/missing.env\" not found\n"), errors.New("exit status 1"))
+	if err == nil || !strings.Contains(err.Error(), `env file "/ws/stack/missing.env" not found`) {
+		t.Fatalf("short quoted path was not kept readable: %v", err)
 	}
 
 	noisy := strings.Repeat("progress line that is not a warning\n", 200) + "env file /ws/missing.env not found\n"
