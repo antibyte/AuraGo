@@ -8,7 +8,8 @@ import (
 )
 
 // flowLocks serializes the Service operations that change a flow's mission and timers:
-// Publish, SetEnabled, DeleteFlow, DeleteFlowForMission and MissionEnabledChanged. Each
+// Publish, SetEnabled, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged and
+// ReconcileMissions (one flow at a time). Each
 // reads the flow record and then updates Mission Control and the timers from what it
 // read; interleaved, an operation working from an older record could undo a newer one
 // (SetEnabled arming the timers of a revision that a concurrent Publish just replaced).
@@ -97,9 +98,14 @@ func (l *flowLocks) drop(id string, fl *flowLock) {
 // publish heals it too. Once the store published, the rest runs to the end even if ctx
 // is cancelled (see flowLocks).
 //
-// Known limit, no repair at start-up: when AuraGo stops between the store publish and the
-// mission sync, Start does not detect it; the next successful Publish of the flow
-// repairs it (see Service.Start).
+// When AuraGo stops between the store publish and the mission sync, Start does not
+// detect it; ReconcileMissions after the next start re-syncs the mission, and so does the
+// next successful Publish of the flow (see Service.Start).
+//
+// A flow whose mission is gone from Mission Control stays broken: the sync fails ("flow
+// mission not found") after the store published, so Publish returns the record with that
+// error and never recreates the mission. Deleting the flow works (a gone mission is no
+// error); ReconcileMissions reports such flows.
 //
 // A trigger.mission_completed that waits for the flow's own mission is refused: every
 // run would start the next one. Loops across several flows are not detected.

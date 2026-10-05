@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"time"
 
@@ -54,13 +55,25 @@ func (s *Server) initFlows() {
 // startFlows marks runs of the previous process as interrupted and arms the Date/Time
 // timers. Call it after MissionManagerV2.Start (the timers ask Mission Control whether a
 // flow is enabled).
+//
+// Then, on a goroutine of its own so that a large flows.db does not hold up the start, it
+// reconciles Mission Control with the flow store once (Service.ReconcileMissions): a crash
+// between a flows.db write and the Mission Control update leaves them apart.
+// shutdownFlows waits for it through Service.Shutdown.
 func (s *Server) startFlows(ctx context.Context) {
 	if s.Flows == nil {
 		return
 	}
 	if err := s.Flows.Start(ctx); err != nil {
 		s.Logger.Error("EasyDrag flows could not start", "error", err)
+		return
 	}
+	svc, logger := s.Flows, s.Logger
+	go func() {
+		if err := svc.ReconcileMissions(ctx); err != nil && !errors.Is(err, flows.ErrRunnerClosed) && ctx.Err() == nil {
+			logger.Warn("EasyDrag flows could not be checked against Mission Control", "error", err)
+		}
+	}()
 }
 
 // flowsShutdownTimeout is how long shutdownFlows waits for the flow runs to stop. It is a
@@ -72,8 +85,8 @@ const flowsShutdownTimeout = 15 * time.Second
 //
 // The server calls it once the HTTP API is drained, so no flow API request is in flight,
 // and before MQTT, mail, MCP, the sandbox, the mission history and the planner stop: flow
-// runs use all of them. The order is Service.Shutdown (timers, runs, the retention loop),
-// then the store. Shutdown gets flowsShutdownTimeout whatever is left of ctx (ctx's
+// runs use all of them. The order is Service.Shutdown (timers, runs, the retention loop,
+// a startup reconciliation still in progress), then the store. Shutdown gets flowsShutdownTimeout whatever is left of ctx (ctx's
 // cancellation is ignored); runs that do not stop in time end in the background, and
 // their last writes then fail on the closed store and are logged.
 //

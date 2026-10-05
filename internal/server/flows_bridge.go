@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"errors"
+	"reflect"
+	"strings"
 	"time"
 
 	"aurago/internal/desktop"
@@ -22,7 +24,8 @@ const (
 // history, the planner and notifications.
 //
 // Like every MissionBridge it never calls a Service method that takes a flow lock
-// (Publish, SetEnabled, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged): the
+// (Publish, SetEnabled, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged,
+// ReconcileMissions): the
 // Service calls it while it holds one. broadcastMissionState, which most methods call,
 // reads the missions and the queue under the manager's own lock and asks each flow
 // mission's next run through FlowHooks.NextFlowRun, which ends in the lock-free
@@ -81,6 +84,49 @@ func (b flowMissionBridge) FlowMissionEnabled(missionID string) bool {
 	}
 	m, ok := mm.Get(missionID)
 	return ok && m.Enabled
+}
+
+var _ flows.MissionReconciler = flowMissionBridge{}
+
+// FlowMissions implements flows.MissionReconciler: the flow missions Mission Control
+// holds, mission id → flow id; nil without Mission Control.
+func (b flowMissionBridge) FlowMissions() map[string]string {
+	mm, err := b.missions()
+	if err != nil {
+		return nil
+	}
+	out := map[string]string{}
+	for _, m := range mm.List() {
+		if m.ExecutionType == tools.ExecutionFlow {
+			out[m.ID] = m.FlowID
+		}
+	}
+	return out
+}
+
+// FlowMissionInSync implements flows.MissionReconciler: the mission is a published flow
+// mission whose name and trigger specs equal what SyncFlowMission would store (a blank
+// name keeps the stored one there, so it matches any).
+func (b flowMissionBridge) FlowMissionInSync(missionID, name string, bindings []flows.TriggerBinding) bool {
+	mm, err := b.missions()
+	if err != nil {
+		return false
+	}
+	specs, err := flowTriggerSpecs(bindings)
+	if err != nil {
+		return false
+	}
+	m, ok := mm.Get(missionID)
+	if !ok || m.ExecutionType != tools.ExecutionFlow || !m.FlowPublished {
+		return false
+	}
+	if strings.TrimSpace(name) != "" && m.Name != name {
+		return false
+	}
+	if len(m.FlowTriggers) == 0 && len(specs) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(m.FlowTriggers, specs)
 }
 
 // DeleteFlowMission implements flows.MissionBridge.

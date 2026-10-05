@@ -95,6 +95,30 @@ func (s *Store) flowIDByMission(ctx context.Context, missionID string) (string, 
 	}
 }
 
+// flowMissionRef is a flow id with the mission that represents it.
+type flowMissionRef struct {
+	id, missionID string
+}
+
+// flowMissionRefs lists every flow with its mission id, ordered by flow id, without
+// reading the documents (ReconcileMissions).
+func (s *Store) flowMissionRefs(ctx context.Context) ([]flowMissionRef, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, mission_id FROM flows ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []flowMissionRef
+	for rows.Next() {
+		var ref flowMissionRef
+		if err := rows.Scan(&ref.id, &ref.missionID); err != nil {
+			return nil, err
+		}
+		out = append(out, ref)
+	}
+	return out, rows.Err()
+}
+
 // flowMissionAndName reads only the mission id and the name of a flow, without
 // parsing its documents: the run hooks need nothing more, and they run inside
 // DeleteFlow and Shutdown once per run. It returns ErrNotFound when the flow does not

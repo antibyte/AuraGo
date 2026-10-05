@@ -16,7 +16,8 @@ import (
 //
 // The rule for implementations: no method of the bridge may synchronously call a
 // Service method that takes a flow lock, for any flow. Today those are Publish,
-// SetEnabled, DeleteFlow, DeleteFlowForMission and MissionEnabledChanged. The Service
+// SetEnabled, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged and
+// ReconcileMissions. The Service
 // calls the bridge while it holds a flow lock, and FlowRunFinished can run inside such an
 // operation (deleting a flow ends its queued runs through Runner.CancelFlow on the
 // caller's goroutine), so such a call could wait for itself, or for another operation that
@@ -136,6 +137,9 @@ type Service struct {
 	stop     chan struct{}
 	done     chan struct{}
 	stopOnce sync.Once
+	// reconciling counts the ReconcileMissions calls in progress; Shutdown waits for them.
+	// Add happens only under mu while !closed, so it never races with Shutdown's Wait.
+	reconciling sync.WaitGroup
 }
 
 // NewService wires engine, runner and timers. Call Start, and Shutdown when done.
@@ -191,9 +195,10 @@ func (s *Service) Location() *time.Location { return s.services.Loc() }
 //
 // Known limits: Start repairs nothing that a crash cut short. A stop between the store
 // publish and the mission sync (Publish), or between the mission switch and the timers
-// (SetEnabled), leaves the mission or the timers behind the store until the next
-// successful Publish or SetEnabled of that flow. Shutdown does not wait for flow
-// operations in flight; stop the API before closing the store (see Shutdown).
+// (SetEnabled), leaves the mission or the timers behind the store until
+// ReconcileMissions (which the server runs once after Start) or the next successful
+// Publish or SetEnabled of that flow. Shutdown does not wait for flow operations in
+// flight; stop the API before closing the store (see Shutdown).
 func (s *Service) Start(ctx context.Context) error {
 	s.startMu.Lock()
 	defer s.startMu.Unlock()
@@ -233,8 +238,9 @@ func (s *Service) Start(ctx context.Context) error {
 	return nil
 }
 
-// Shutdown stops the timers, cancels the runs and waits for them and for the retention
-// loop, or until ctx ends (then it returns ctx's error and the rest ends in the
+// Shutdown stops the timers, cancels the runs and waits for them, for the retention
+// loop and for a ReconcileMissions in progress (which stops after the flow it is
+// working on), or until ctx ends (then it returns ctx's error and the rest ends in the
 // background). It may be called more than once, and without Start.
 //
 // Known limit: Shutdown does not wait for flow operations in flight (CreateFlow,
@@ -256,6 +262,18 @@ func (s *Service) Shutdown(ctx context.Context) error {
 			if err == nil {
 				err = ctx.Err()
 			}
+		}
+	}
+	reconciled := make(chan struct{})
+	go func() {
+		s.reconciling.Wait()
+		close(reconciled)
+	}()
+	select {
+	case <-reconciled:
+	case <-ctx.Done():
+		if err == nil {
+			err = ctx.Err()
 		}
 	}
 	return err

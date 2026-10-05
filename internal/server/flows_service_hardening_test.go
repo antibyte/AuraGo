@@ -271,6 +271,63 @@ func TestC16ShutdownReportsActiveRunsToMissionControl(t *testing.T) {
 	}
 }
 
+func TestC16StartupReconcilesMissionControl(t *testing.T) {
+	logs := &c15LogBuffer{}
+	s := c16Server(t, true, c15Logger(logs))
+	s.initFlows()
+	if s.Flows == nil {
+		t.Fatal("flows were not initialised")
+	}
+	ctx := context.Background()
+	t.Cleanup(func() { s.shutdownFlows(ctx) })
+	mm := s.MissionManagerV2
+	if err := mm.Start(); err != nil {
+		t.Fatalf("missions: %v", err)
+	}
+	pub := c16PublishedFlow(t, s, greetFlowJSON)
+	bridge := flowMissionBridge{s: s}
+	bound, err := flows.BindTriggers(pub.Live, s.Flows.Registry(), s.Flows.Location(), pub.PublishedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bridge.FlowMissionInSync(pub.MissionID, pub.Live.Name, bound) {
+		t.Fatal("a freshly published flow mission is not in sync")
+	}
+	// A crash after the store publish left the mission behind; another flow is gone.
+	if err := mm.SyncFlowMission(pub.MissionID, "Alt", nil); err != nil {
+		t.Fatal(err)
+	}
+	if bridge.FlowMissionInSync(pub.MissionID, pub.Live.Name, bound) {
+		t.Fatal("a diverged mission counts as in sync")
+	}
+	orphan, err := mm.CreateFlowMission("flow_c16gone00", "Waise")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := bridge.FlowMissions(); got[pub.MissionID] != pub.ID || got[orphan] != "flow_c16gone00" {
+		t.Fatalf("FlowMissions = %v", got)
+	}
+
+	s.startFlows(ctx)
+	deadline := time.Now().Add(3 * time.Second)
+	for !strings.Contains(logs.String(), "flow missions reconciled") {
+		if time.Now().After(deadline) {
+			t.Fatalf("no reconciliation after start:\n%s", logs.String())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	m, _ := mm.Get(pub.MissionID)
+	if m.Name != "Gruss" || len(m.FlowTriggers) != 1 || m.FlowTriggers[0].TriggerType != tools.FlowTriggerManual {
+		t.Fatalf("mission after reconcile: %+v", m)
+	}
+	if out := logs.String(); !strings.Contains(out, "mission_id="+orphan) || !strings.Contains(out, "whose flow is gone") {
+		t.Fatalf("the orphan mission was not reported:\n%s", out)
+	}
+	if _, ok := mm.Get(orphan); !ok {
+		t.Fatal("the orphan mission was deleted")
+	}
+}
+
 func TestC16HooksAfterShutdownOnlyLog(t *testing.T) {
 	logs := &c15LogBuffer{}
 	s := c16StartedServer(t, c15Logger(logs))

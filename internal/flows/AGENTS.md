@@ -348,11 +348,13 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   mission is enabled; `SetEnabled(false)` clears them and `SetEnabled(true)` needs a published flow
   (`ErrNotPublished`).
 - Lock order: the per-flow lock (`flowLocks`) is the outermost lock. `Publish`, `SetEnabled`, `DeleteFlow`,
-  `DeleteFlowForMission` and `MissionEnabledChanged` hold it. Under it the Service calls only the store, the
+  `DeleteFlowForMission`, `MissionEnabledChanged` and `ReconcileMissions` (one flow at a time) hold it. Under it
+  the Service calls only the store, the
   bridge, `TimerService.Replace` and `Runner.CancelFlow`, and none of those may take a flow lock. Run paths
   (starting runs, runner hooks, timer callbacks) never take it; `armTimers` requires it to be held.
 - Bridge rule: a `MissionBridge` must not synchronously call a Service method that takes a flow lock, for any
-  flow (today `Publish`, `SetEnabled`, `DeleteFlow`, `DeleteFlowForMission` and `MissionEnabledChanged`). The
+  flow (today `Publish`, `SetEnabled`, `DeleteFlow`, `DeleteFlowForMission`, `MissionEnabledChanged` and
+  `ReconcileMissions`; the same holds for the optional `MissionReconciler` methods). The
   Service calls the bridge under a flow lock, and runner hooks can run inside such an operation. Lock-free
   reads (`GetFlow`, `ListFlows`, `NextTimer`) and `TriggerFromMission` (also from inside `FlowRunFinished`)
   may be called synchronously and must stay lock-free.
@@ -377,10 +379,17 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   the timers were not updated. Publishing the same draft revision again repeats the update (the store treats an
   already-live revision as a no-op, then the Service re-syncs and re-arms); any later successful publish heals it
   too. The retry fails validation once a one-off date/time in the draft has passed, until the draft is edited.
-- Known limits: no startup heal (`Start` repairs nothing that a crash cut short; the next successful `Publish`
-  or `SetEnabled` of the flow does), and `Shutdown` does not wait for operations in flight (stop the API first,
-  close the store after `Shutdown`). DST: the Service sets `TimerService.SetLocation(Services.Loc())`; the
-  spring-gap, Feb 29 and overlap rules are under Timers.
+- Startup heal: `ReconcileMissions` (`service_reconcile.go`; the server runs it once on a goroutine after `Start`)
+  takes each flow's lock in turn (at most `reconcileLockWait` per flow, a busy flow is skipped) and, for a published
+  flow, re-syncs the mission from the live revision bound at its `PublishedAt` (skipped when the optional
+  `MissionReconciler` bridge extension reports it in sync) and makes the timers follow Mission Control's enabled
+  switch (clear when disabled, arm only when enabled and none is stored, never re-bind stored timers). It deletes
+  nothing: it warns about a flow without its mission and, with the extension, a flow mission without its flow.
+  `Publish` never recreates a missing mission (the sync fails after the store published). `Shutdown` waits for a
+  reconciliation in progress and ends its lock waits.
+- Known limits: `Start` itself repairs nothing that a crash cut short, and `Shutdown` does not wait for operations
+  in flight (stop the API first, close the store after `Shutdown`). DST: the Service sets
+  `TimerService.SetLocation(Services.Loc())`; the spring-gap, Feb 29 and overlap rules are under Timers.
 - Self-trigger: a `trigger.mission_completed` on the flow's own mission is refused at publish and in the
   preview (`PARAM_INVALID`, param `source`), because every run would start the next one. Loops across several
   flows are not detected.
