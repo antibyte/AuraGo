@@ -2,8 +2,10 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -926,5 +928,63 @@ func TestDecodeDocumentCreatorArgsUsesParamsFallback(t *testing.T) {
 	}
 	if !req.Landscape || req.Sections == "" || req.SourceFiles == "" {
 		t.Fatalf("unexpected document options: %+v", req)
+	}
+}
+
+func TestDispatchCommRefusesPingAndPortScanWhenToolDisabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.NetworkPing.Enabled = false
+	useRuntimePermissionsForTest(t, cfg)
+	dc := &DispatchContext{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+
+	for _, action := range []string{"network_ping", "port_scanner"} {
+		out, handled := dispatchComm(context.Background(), ToolCall{Action: action, Params: map[string]interface{}{"host": "127.0.0.1", "port_range": "1-2"}}, dc)
+		if !handled {
+			t.Fatalf("%s not handled", action)
+		}
+		if !strings.Contains(out, "PERMISSION DENIED") || !strings.Contains(out, "tools.network_ping.enabled") {
+			t.Fatalf("%s must be refused at dispatch when disabled, got %q", action, out)
+		}
+	}
+}
+
+func TestDispatchCommAllowsPingWhenToolEnabled(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	cfg := &config.Config{}
+	cfg.Tools.NetworkPing.Enabled = true
+	useRuntimePermissionsForTest(t, cfg)
+	dc := &DispatchContext{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+
+	out, handled := dispatchComm(context.Background(), ToolCall{
+		Action: "port_scanner",
+		Params: map[string]interface{}{
+			"host":       "127.0.0.1",
+			"port_range": fmt.Sprintf("%d-%d", port, port),
+			"timeout_ms": 500,
+		},
+	}, dc)
+	if !handled {
+		t.Fatal("port_scanner not handled")
+	}
+	if strings.Contains(out, "PERMISSION DENIED") {
+		t.Fatalf("port_scanner must run when tools.network_ping.enabled is true, got %q", out)
+	}
+	if !strings.Contains(out, `"status":"success"`) || !strings.Contains(out, fmt.Sprintf(`"port":%d`, port)) {
+		t.Fatalf("expected a successful scan reporting open port %d, got %q", port, out)
 	}
 }

@@ -1115,6 +1115,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + tools.WebPerformanceAudit(ctx, req.URL, req.Viewport)
 
 		case "network_ping":
+			if !cfg.Tools.NetworkPing.Enabled {
+				return "Tool Output: [PERMISSION DENIED] network_ping is disabled in settings (tools.network_ping.enabled: false)."
+			}
 			req := decodeNetworkPingArgs(tc)
 			logger.Info("LLM requested network ping", "host", req.Host)
 			return "Tool Output: " + tools.NetworkPing(req.Host, req.Count, req.Timeout, cfg.Server.UILanguage)
@@ -1130,6 +1133,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + tools.DNSLookup(req.Host, req.RecordType, cfg.Server.UILanguage)
 
 		case "port_scanner":
+			if !cfg.Tools.NetworkPing.Enabled {
+				return "Tool Output: [PERMISSION DENIED] port_scanner is disabled in settings (tools.network_ping.enabled: false; it shares the network_ping gate)."
+			}
 			req := decodePortScannerArgs(tc)
 			logger.Info("LLM requested port scan", "host", req.Host, "port_range", req.PortRange)
 			return "Tool Output: " + tools.ScanPorts(ctx, req.Host, req.PortRange, req.TimeoutMs)
