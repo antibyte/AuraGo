@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -27,25 +28,40 @@ import (
 // follow the HTTP(S)_PROXY environment the same way.
 var telegramAPIBase = "https://api.telegram.org"
 
-// telegramUploadClient sends documents. It does not follow redirects: a document counts
-// as sent only when the Bot API endpoint itself answers ok:true.
-var telegramUploadClient = &http.Client{
-	Timeout: 2 * time.Minute,
-	CheckRedirect: func(*http.Request, []*http.Request) error {
-		return http.ErrUseLastResponse
-	},
+// telegramNoRedirect keeps a Telegram call on the Bot API endpoint: a redirect is returned
+// as the answer and fails, instead of being followed to a page that may say ok:true.
+func telegramNoRedirect(*http.Request, []*http.Request) error {
+	return http.ErrUseLastResponse
 }
+
+// telegramUploadClient sends documents. Its timeout is only a backstop: each upload gets a
+// deadline that grows with the file size (telegramUploadTimeout).
+var telegramUploadClient = &http.Client{Timeout: 15 * time.Minute, CheckRedirect: telegramNoRedirect}
+
+// telegramMessageClient sends the text messages of sendTelegramNotification. It is not
+// notifyHTTPClient, which ntfy and Pushover share and which follows redirects.
+var telegramMessageClient = &http.Client{Timeout: 15 * time.Second, CheckRedirect: telegramNoRedirect}
 
 const (
 	telegramMaxDocumentBytes = 50 << 20
 	// telegramMaxCaptionUnits is Telegram's caption limit. Telegram counts text length in
 	// UTF-16 code units, so an emoji outside the BMP counts twice.
 	telegramMaxCaptionUnits = 1024
+	// telegramMaxMessageUnits is Telegram's limit for the text of a message, in UTF-16 code
+	// units after entity parsing.
+	telegramMaxMessageUnits = 4096
 	// telegramMaxReplyBytes bounds how much of Telegram's answer is read.
 	telegramMaxReplyBytes = 64 << 10
 	// telegramMaxEchoRunes bounds how much of an answer or a transport error an error repeats.
 	telegramMaxEchoRunes = 300
 )
+
+// telegramUploadTimeout is the deadline for uploading a document of size bytes: a minute,
+// plus a second for every 128 KiB (about 1 Mbit/s), at most ten minutes. A 50 MB document
+// gets about 7.7 minutes.
+func telegramUploadTimeout(size int64) time.Duration {
+	return min(time.Minute+time.Duration(size/(128<<10))*time.Second, 10*time.Minute)
+}
 
 // SendTelegramDocument uploads a file as a document to the configured Telegram chat. The
 // file must qualify as outgoing attachment: it is opened with OpenOutgoingAttachment, so
@@ -67,11 +83,18 @@ func SendTelegramDocument(ctx context.Context, cfg *config.Config, path, caption
 // A text longer than a caption is sent as a message first. The file is opened and its size
 // checked before anything is sent, so a refused file sends no text either. The result
 // mirrors SendNotification: {"status", "results":[{"channel","status","detail"}], "document"}.
+// When the title and text went out as a message of their own, the result also holds
+// "text_sent": true. That is true on success and on error: an error with "text_sent" means
+// the text was delivered and only the document failed, so a retry sends the text again.
 func SendTelegramFile(ctx context.Context, cfg *config.Config, logger *slog.Logger, filePath, title, message string) string {
 	if logger == nil {
 		logger = slog.Default()
 	}
+	textSent := false
 	encode := func(v map[string]any) string {
+		if textSent {
+			v["text_sent"] = true
+		}
 		data, _ := json.Marshal(v)
 		return string(data)
 	}
@@ -92,7 +115,6 @@ func SendTelegramFile(ctx context.Context, cfg *config.Config, logger *slog.Logg
 	}
 	name := telegramDocumentName(filepath.Base(path))
 	caption := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.TrimSpace(message))
-	textSent := false
 	if utf16Units(caption) > telegramMaxCaptionUnits {
 		if err := ctx.Err(); err != nil {
 			return fail(err)
@@ -144,9 +166,16 @@ func telegramDocumentSize(f *os.File) (int64, error) {
 }
 
 // sendTelegramDocumentFile uploads the already open file f as a document named name. The
-// caller has checked that f may leave AuraGo (OpenOutgoingAttachment) and closes it. The
-// multipart body is streamed through a pipe, so the file is never held in memory; the
-// writer goroutine always ends before this function returns.
+// caller has checked that f may leave AuraGo (OpenOutgoingAttachment) and closes it.
+//
+// The document is the file as large as its Stat says: a file that grows meanwhile is sent
+// up to that size, one that shrinks makes the upload fail. The upload gets a deadline from
+// the size (telegramUploadTimeout) on top of ctx.
+//
+// The multipart body is streamed through a pipe, so the file is never held in memory; the
+// writer goroutine always ends before this function returns. That join waits for a file
+// read in progress, so a read that stalls (a hung network mount, for example) keeps this
+// call from returning even after ctx is cancelled.
 func sendTelegramDocumentFile(ctx context.Context, cfg *config.Config, f *os.File, name, caption string) error {
 	token, chatID, err := telegramDocumentTarget(cfg)
 	if err != nil {
@@ -158,6 +187,8 @@ func sendTelegramDocumentFile(ctx context.Context, cfg *config.Config, f *os.Fil
 	}
 	name = telegramDocumentName(name)
 	caption = truncateUTF16Units(strings.TrimSpace(strings.ToValidUTF8(caption, "�")), telegramMaxCaptionUnits)
+	ctx, cancel := context.WithTimeout(ctx, telegramUploadTimeout(size))
+	defer cancel()
 
 	pr, pw := io.Pipe()
 	form := multipart.NewWriter(pw)
@@ -165,8 +196,8 @@ func sendTelegramDocumentFile(ctx context.Context, cfg *config.Config, f *os.Fil
 	written := make(chan struct{})
 	go func() {
 		defer close(written)
-		// LimitReader keeps the upload at the size that was checked, even if the file grows.
-		pw.CloseWithError(writeTelegramDocumentForm(form, chatID, caption, name, telegramFileReader{io.LimitReader(f, size)}))
+		content := telegramFileReader{io.NewSectionReader(f, 0, size)}
+		pw.CloseWithError(writeTelegramDocumentForm(form, chatID, caption, name, content, size))
 	}()
 	// Closing the reader side makes a writer that still waits on the pipe fail and end.
 	// Waiting for it keeps the goroutine from outliving this call and from reading f after
@@ -179,20 +210,21 @@ func sendTelegramDocumentFile(ctx context.Context, cfg *config.Config, f *os.Fil
 	endpoint := telegramAPIBase + "/bot" + url.PathEscape(token) + "/sendDocument"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, pr)
 	if err != nil {
-		return fmt.Errorf("telegram request failed: %s", telegramErrorText(err.Error(), token))
+		return telegramRequestError(err, token)
 	}
 	req.Header.Set("Content-Type", contentType)
 	resp, err := telegramUploadClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("telegram request failed: %s", telegramErrorText(err.Error(), token))
+		return telegramRequestError(err, token)
 	}
 	defer resp.Body.Close()
-	return checkTelegramReply(resp, token)
+	return checkTelegramReply(resp, token, "document")
 }
 
-// writeTelegramDocumentForm writes the sendDocument form. Its error closes the pipe, so the
-// request fails with it instead of sending a cut document.
-func writeTelegramDocumentForm(form *multipart.Writer, chatID int64, caption, name string, content io.Reader) error {
+// writeTelegramDocumentForm writes the sendDocument form with exactly size bytes of content.
+// Its error closes the pipe, so the request fails with it instead of sending a cut document:
+// without the closing boundary the server cannot take the form as complete.
+func writeTelegramDocumentForm(form *multipart.Writer, chatID int64, caption, name string, content io.Reader, size int64) error {
 	if err := form.WriteField("chat_id", strconv.FormatInt(chatID, 10)); err != nil {
 		return err
 	}
@@ -205,8 +237,12 @@ func writeTelegramDocumentForm(form *multipart.Writer, chatID int64, caption, na
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(part, content); err != nil {
+	n, err := io.Copy(part, content)
+	if err != nil {
 		return err
+	}
+	if n != size {
+		return fmt.Errorf("the file changed while it was sent: %d of %d bytes", n, size)
 	}
 	return form.Close()
 }
@@ -222,9 +258,31 @@ func (t telegramFileReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// telegramError is a Telegram failure whose text is safe to show: the bot token is
+// redacted and the echo is bounded. It keeps its cause, without the request URL a
+// *url.Error carries, so errors.Is still sees a cancellation or a deadline.
+type telegramError struct {
+	text  string
+	cause error
+}
+
+func (e *telegramError) Error() string { return e.text }
+func (e *telegramError) Unwrap() error { return e.cause }
+
+// telegramRequestError reports a request that got no answer. The error of a failed request
+// repeats its URL, and with it the bot token, so only the redacted text is shown.
+func telegramRequestError(err error, token string) error {
+	cause := err
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		cause = urlErr.Err
+	}
+	return &telegramError{text: "telegram request failed: " + telegramErrorText(err.Error(), token), cause: cause}
+}
+
 // checkTelegramReply accepts only an answer that is 2xx and says ok:true. Telegram, or a
-// proxy in between, can answer 200 with ok:false.
-func checkTelegramReply(resp *http.Response, token string) error {
+// proxy in between, can answer 200 with ok:false. what names the sent object in the error.
+func checkTelegramReply(resp *http.Response, token, what string) error {
 	data, readErr := readHTTPResponseBody(resp.Body, telegramMaxReplyBytes)
 	var reply struct {
 		OK          bool   `json:"ok"`
@@ -248,7 +306,7 @@ func checkTelegramReply(resp *http.Response, token string) error {
 		return telegramReplyError(fmt.Sprintf("telegram returned HTTP %d with an answer that is not a Bot API reply", resp.StatusCode), detail, token)
 	}
 	if !reply.OK {
-		return telegramReplyError("telegram did not accept the document", detail, token)
+		return telegramReplyError("telegram did not accept the "+what, detail, token)
 	}
 	return nil
 }
@@ -262,10 +320,20 @@ func telegramReplyError(prefix, detail, token string) error {
 
 // sendTelegramFileText sends the title and text as a Telegram message ahead of a document
 // whose caption they do not fit. A title without text becomes the text.
+//
+// Telegram limits a message to telegramMaxMessageUnits after MarkdownV2 parsing. That counts
+// the heading, the line break and the text that sendTelegramNotification joins, but not its
+// escapes or bold markers. A heading over a caption's length is cut to it, and the text is
+// cut to what is left, so a long text cannot keep the document from being sent.
 func sendTelegramFileText(cfg *config.Config, logger *slog.Logger, title, message string) error {
 	if strings.TrimSpace(message) == "" {
 		title, message = "", title
 	}
+	if title == "" {
+		title = defaultNotificationTitle
+	}
+	title = truncateUTF16Units(title, telegramMaxCaptionUnits)
+	message = truncateUTF16Units(message, telegramMaxMessageUnits-utf16Units(title)-1)
 	out := SendNotification(cfg, logger, string(ChannelTelegram), title, message, "normal", nil)
 	var res struct {
 		Status  string `json:"status"`
@@ -312,7 +380,7 @@ func telegramDocumentName(name string) string {
 }
 
 // telegramErrorText makes text from Telegram or the transport safe to repeat in an error:
-// the bot token is replaced in every form a URL carries it, control characters become
+// the bot token is replaced in every form it can take there, control characters become
 // spaces, and at most telegramMaxEchoRunes runes are kept. The token is replaced before the
 // cut, so a cut can never leave part of it behind.
 func telegramErrorText(text, token string) string {
@@ -326,18 +394,49 @@ func telegramErrorText(text, token string) string {
 	return truncateStr(strings.TrimSpace(text), telegramMaxEchoRunes)
 }
 
-// redactTelegramToken replaces the bot token, raw and URL-escaped (a *url.Error prints the
-// request URL), with "***". Longer forms go first, so no form leaves a piece of another.
+// redactTelegramToken replaces the bot token with "***" in every form an error can carry
+// it: raw, URL-escaped (a *url.Error prints the request URL), Go-quoted (%q) and
+// JSON-escaped (an answer that is not decoded, with and without HTML escaping). One pass
+// with the longer forms first, so no form leaves a piece of another.
 func redactTelegramToken(text, token string) string {
 	if token == "" {
 		return text
 	}
-	forms := []string{token, url.PathEscape(token), url.QueryEscape(token)}
-	sort.Slice(forms, func(i, j int) bool { return len(forms[i]) > len(forms[j]) })
-	for _, form := range forms {
-		text = strings.ReplaceAll(text, form, "***")
+	quoted := strconv.Quote(token)
+	forms := []string{
+		token,
+		url.PathEscape(token),
+		url.QueryEscape(token),
+		quoted[1 : len(quoted)-1],
+		jsonStringInner(token, true),
+		jsonStringInner(token, false),
 	}
-	return text
+	sort.SliceStable(forms, func(i, j int) bool { return len(forms[i]) > len(forms[j]) })
+	pairs := make([]string, 0, 2*len(forms))
+	seen := make(map[string]bool, len(forms))
+	for _, form := range forms {
+		if form == "" || seen[form] {
+			continue
+		}
+		seen[form] = true
+		pairs = append(pairs, form, "***")
+	}
+	return strings.NewReplacer(pairs...).Replace(text)
+}
+
+// jsonStringInner is s as it appears inside a JSON string, without the quotes.
+func jsonStringInner(s string, escapeHTML bool) string {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(escapeHTML)
+	if err := enc.Encode(s); err != nil {
+		return ""
+	}
+	out := strings.TrimSuffix(buf.String(), "\n")
+	if len(out) < 2 {
+		return ""
+	}
+	return out[1 : len(out)-1]
 }
 
 // utf16Units counts s the way Telegram counts text length: in UTF-16 code units.

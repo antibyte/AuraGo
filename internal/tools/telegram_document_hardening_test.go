@@ -1,14 +1,17 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
@@ -146,6 +149,18 @@ func tg04RandomBytes(t *testing.T, n int) []byte {
 		t.Fatal(err)
 	}
 	return data
+}
+
+// tg04Next returns the next request, or fails when none reaches the bot in time.
+func tg04Next(t *testing.T, requests <-chan tg04Request, what string) tg04Request {
+	t.Helper()
+	select {
+	case req := <-requests:
+		return req
+	case <-time.After(10 * time.Second):
+		t.Fatalf("%s: no request reached the bot", what)
+		return tg04Request{}
+	}
 }
 
 func tg04NoRequest(t *testing.T, requests <-chan tg04Request, what string) {
@@ -323,13 +338,32 @@ func TestTelegramDocumentNeedsOKTrue(t *testing.T) {
 	}
 }
 
-// The token never shows in an error, raw or URL-escaped, also when a transport error
-// prints the request URL or Telegram echoes it.
-func TestTelegramDocumentErrorsHideEveryTokenForm(t *testing.T) {
-	const token = "4711:sé cr+et/?&=#%x"
-	forms := []string{token, url.PathEscape(token), url.QueryEscape(token)}
-	if forms[1] == token || forms[2] == token || forms[1] == forms[2] {
-		t.Fatalf("the token does not change under escaping: %q", forms)
+// tg04JSONInner is s as it appears inside a JSON string, written independently of the code
+// under test.
+func tg04JSONInner(t *testing.T, s string, escapeHTML bool) string {
+	t.Helper()
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(escapeHTML)
+	if err := enc.Encode(s); err != nil {
+		t.Fatal(err)
+	}
+	out := strings.TrimSpace(buf.String())
+	return out[1 : len(out)-1]
+}
+
+// The token never shows in an error, raw, URL-escaped, Go-quoted or JSON-escaped, also
+// when a transport error prints the request URL or Telegram echoes it, for documents and
+// for the text messages of sendTelegramNotification.
+func TestTelegramErrorsHideEveryTokenForm(t *testing.T) {
+	const token = "4711:sé cr+et/?&=#%x\"q\\b<t>\x01"
+	quoted := strconv.Quote(token)
+	forms := []string{token, url.PathEscape(token), url.QueryEscape(token), quoted[1 : len(quoted)-1],
+		tg04JSONInner(t, token, true), tg04JSONInner(t, token, false)}
+	for i, form := range forms[1:] {
+		if form == token {
+			t.Fatalf("form %d leaves the token as it is, so it proves nothing", i+1)
+		}
 	}
 	hidden := func(t *testing.T, what, text string) {
 		t.Helper()
@@ -345,6 +379,10 @@ func TestTelegramDocumentErrorsHideEveryTokenForm(t *testing.T) {
 	cfg, dir := tg04Config(t, token)
 	doc := tg04File(t, dir, "a.pdf", []byte("%PDF"))
 	ctx := context.Background()
+	sends := map[string]func() error{
+		"sendDocument": func() error { return SendTelegramDocument(ctx, cfg, doc, "") },
+		"sendMessage":  func() error { return sendTelegramNotification(cfg, "t", "m") },
+	}
 
 	t.Run("a transport error prints the URL", func(t *testing.T) {
 		tg04Server(t, func(w http.ResponseWriter, r *http.Request) {
@@ -355,44 +393,61 @@ func TestTelegramDocumentErrorsHideEveryTokenForm(t *testing.T) {
 			}
 			_ = conn.Close()
 		})
-		err := SendTelegramDocument(ctx, cfg, doc, "")
-		if err == nil {
-			t.Fatal("a hang-up must fail")
-		}
-		hidden(t, "hang-up", err.Error())
-		if !strings.Contains(err.Error(), "/bot***/sendDocument") {
-			t.Errorf("the error does not carry the redacted URL, so this case proves nothing: %v", err)
+		for method, send := range sends {
+			err := send()
+			if err == nil {
+				t.Fatalf("%s: a hang-up must fail", method)
+			}
+			hidden(t, method+" hang-up", err.Error())
+			if !strings.Contains(err.Error(), "/bot***/"+method) {
+				t.Errorf("%s: the error does not carry the redacted URL, so this case proves nothing: %v", method, err)
+			}
 		}
 	})
 
 	echo := "Unauthorized: " + strings.Join(forms, " | ")
 	t.Run("Telegram echoes the token", func(t *testing.T) {
 		var status int
+		var asJSON bool
 		requests := tg04API(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(status)
-			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "description": echo})
+			if asJSON {
+				_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "description": echo})
+				return
+			}
+			_, _ = w.Write([]byte(echo)) // a proxy page: the forms as they are, not decoded
 		})
-		for _, status = range []int{http.StatusUnauthorized, http.StatusOK} {
-			err := SendTelegramDocument(ctx, cfg, doc, "")
-			if err == nil {
-				t.Fatalf("HTTP %d with ok:false must fail", status)
-			}
-			hidden(t, "HTTP "+strconv.Itoa(status), err.Error())
-			if !strings.Contains(err.Error(), "***") {
-				t.Errorf("HTTP %d: the echo was dropped instead of redacted: %v", status, err)
-			}
-			if req := <-requests; req.path != "/bot"+token+"/sendDocument" {
-				t.Errorf("the token reached the bot as %q", req.path)
+		for _, asJSON = range []bool{true, false} {
+			for _, status = range []int{http.StatusUnauthorized, http.StatusOK} {
+				for method, send := range sends {
+					what := fmt.Sprintf("%s HTTP %d json=%v", method, status, asJSON)
+					err := send()
+					if err == nil {
+						t.Fatalf("%s: must fail", what)
+					}
+					hidden(t, what, err.Error())
+					if strings.Count(err.Error(), "***") < len(forms)-1 {
+						t.Errorf("%s: the echo was dropped instead of redacted: %v", what, err)
+					}
+					if req := tg04Next(t, requests, what); req.path != "/bot"+token+"/"+method {
+						t.Errorf("%s: the token reached the bot as %q", what, req.path)
+					}
+				}
 			}
 		}
 	})
 
 	t.Run("the text message of a long caption", func(t *testing.T) {
-		tg04API(t, func(w http.ResponseWriter, r *http.Request) {
+		requests := tg04API(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "description": echo})
 		})
 		out := SendTelegramFile(ctx, cfg, tg04Logger(), "a.pdf", "", strings.Repeat("😀", 600))
+		// The text message really reached the bot, so the error is the bot's echo.
+		if req := tg04Next(t, requests, "the text message"); req.method != "sendMessage" || req.path != "/bot"+token+"/sendMessage" || req.parseErr != "" {
+			t.Fatalf("request = %+v", req)
+		}
+		tg04NoRequest(t, requests, "a failed text message")
 		// json.Marshal escapes & and <, so the decoded texts are checked, not the JSON.
 		var res struct {
 			Status  string `json:"status"`
@@ -432,6 +487,9 @@ func TestTelegramFileSendsLongCaptionsAsAMessageFirst(t *testing.T) {
 		if !strings.Contains(out, `"status":"success"`) {
 			t.Fatalf("%s: result = %s", tc.name, out)
 		}
+		if marked := strings.Contains(out, `"text_sent":true`); marked != tc.split {
+			t.Errorf("%s: text_sent marker = %v, want %v: %s", tc.name, marked, tc.split, truncateStr(out, 120))
+		}
 		if tc.split {
 			msg := <-requests
 			want := "*" + escapeMarkdownV2(tc.heading) + "*\n" + escapeMarkdownV2(tc.text)
@@ -464,8 +522,29 @@ func TestTelegramFileSendsLongCaptionsAsAMessageFirst(t *testing.T) {
 	}
 }
 
+// tg04Result decodes a SendTelegramFile result.
+type tg04Result struct {
+	Status   string `json:"status"`
+	Message  string `json:"message"`
+	TextSent *bool  `json:"text_sent"`
+	Results  []struct {
+		Channel string `json:"channel"`
+		Status  string `json:"status"`
+		Detail  string `json:"detail"`
+	} `json:"results"`
+}
+
+func tg04Decode(t *testing.T, out string) tg04Result {
+	t.Helper()
+	var res tg04Result
+	if err := json.Unmarshal([]byte(out), &res); err != nil {
+		t.Fatalf("the result is not JSON: %v: %s", err, out)
+	}
+	return res
+}
+
 // When the text message fails, no document follows; when the document fails after the
-// text, the error says the text went out.
+// text, the error says the text went out, in words and as "text_sent": true.
 func TestTelegramFileReportsWhichPartOfASplitSendFailed(t *testing.T) {
 	var failMessage, failDocument atomic.Bool
 	requests := tg04API(t, func(w http.ResponseWriter, r *http.Request) {
@@ -486,6 +565,9 @@ func TestTelegramFileReportsWhichPartOfASplitSendFailed(t *testing.T) {
 	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "the text message could not be sent") || !strings.Contains(out, "nope") {
 		t.Fatalf("result = %s", out)
 	}
+	if res := tg04Decode(t, out); res.TextSent != nil {
+		t.Errorf("a text that failed is marked as sent: %s", out)
+	}
 	if req := <-requests; req.method != "sendMessage" {
 		t.Fatalf("request = %s", req.method)
 	}
@@ -496,6 +578,9 @@ func TestTelegramFileReportsWhichPartOfASplitSendFailed(t *testing.T) {
 	out = SendTelegramFile(context.Background(), cfg, tg04Logger(), "a.pdf", "", long)
 	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "the text was sent as a message, but the document was not") {
 		t.Fatalf("result = %s", out)
+	}
+	if res := tg04Decode(t, out); res.TextSent == nil || !*res.TextSent || len(res.Results) != 1 || res.Results[0].Status != "error" {
+		t.Errorf("the result does not mark the text as sent: %s", out)
 	}
 	if first, second := <-requests, <-requests; first.method != "sendMessage" || second.method != "sendDocument" {
 		t.Fatalf("requests = %s, %s", first.method, second.method)
@@ -672,4 +757,305 @@ func TestTelegramDocumentUploadAlwaysEndsItsWriter(t *testing.T) {
 			tg04WaitNoUploadWriters(t, "transport")
 		}
 	})
+}
+
+// tg04ReadingTransport reads the request body as a server would: the first after bytes,
+// then mid(), then the rest. A body that ends cleanly and parses is answered with ok:true,
+// as Telegram would accept a well-formed document, even a cut one; the document goes to got.
+type tg04ReadingTransport struct {
+	after int64
+	mid   func()
+	got   chan<- []byte
+}
+
+func (tr tg04ReadingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	defer r.Body.Close()
+	var buf bytes.Buffer
+	if _, err := io.CopyN(&buf, r.Body, tr.after); err != nil {
+		return nil, err
+	}
+	tr.mid()
+	if _, err := io.Copy(&buf, r.Body); err != nil {
+		return nil, err
+	}
+	_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, err
+	}
+	mr := multipart.NewReader(&buf, params["boundary"])
+	for {
+		part, err := mr.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if part.FormName() == "document" {
+			data, err := io.ReadAll(part)
+			if err != nil {
+				return nil, err
+			}
+			tr.got <- data
+		}
+	}
+	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Request: r,
+		Body: io.NopCloser(strings.NewReader(`{"ok":true}`))}, nil
+}
+
+// A file that shrinks while it is sent fails instead of arriving cut; one that grows is
+// sent as it was at the check.
+func TestTelegramDocumentRefusesAFileThatShrinksWhileItIsSent(t *testing.T) {
+	cfg, dir := tg04Config(t, "123:secret")
+	orig := tg04RandomBytes(t, 4<<20)
+	p := tg04File(t, dir, "doc.bin", orig)
+	old := telegramUploadClient
+	t.Cleanup(func() { telegramUploadClient = old })
+
+	for _, tc := range []struct {
+		name    string
+		mid     func() error
+		success bool
+	}{
+		{"shrink to 1 MiB", func() error { return os.Truncate(p, 1<<20) }, false},
+		{"grow by 1 MiB", func() error {
+			f, err := os.OpenFile(p, os.O_WRONLY|os.O_APPEND, 0)
+			if err != nil {
+				return err
+			}
+			if _, err := f.Write(bytes.Repeat([]byte("B"), 1<<20)); err != nil {
+				f.Close()
+				return err
+			}
+			return f.Close()
+		}, true},
+	} {
+		if err := os.WriteFile(p, orig, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got := make(chan []byte, 1)
+		telegramUploadClient = &http.Client{Transport: tg04ReadingTransport{after: 256 << 10, got: got, mid: func() {
+			if err := tc.mid(); err != nil {
+				t.Errorf("%s: %v", tc.name, err)
+			}
+		}}}
+		out := SendTelegramFile(context.Background(), cfg, tg04Logger(), "doc.bin", "", "")
+		tg04WaitNoUploadWriters(t, tc.name)
+		if !tc.success {
+			if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "the file changed while it was sent: 1048576 of 4194304 bytes") {
+				t.Errorf("%s: result = %s", tc.name, out)
+			}
+			select {
+			case data := <-got:
+				t.Errorf("%s: a cut document of %d bytes reached the bot", tc.name, len(data))
+			default:
+			}
+			continue
+		}
+		if !strings.Contains(out, `"status":"success"`) {
+			t.Fatalf("%s: result = %s", tc.name, out)
+		}
+		if data := <-got; sha256.Sum256(data) != sha256.Sum256(orig) {
+			t.Errorf("%s: the bot got %d bytes, not the %d bytes of the checked file", tc.name, len(data), len(orig))
+		}
+	}
+}
+
+// tg04FuncTransport answers with fn.
+type tg04FuncTransport func(*http.Request) (*http.Response, error)
+
+func (fn tg04FuncTransport) RoundTrip(r *http.Request) (*http.Response, error) { return fn(r) }
+
+// The upload deadline grows with the size, so a 50 MB document gets minutes, not the
+// client's fixed timeout, and the client's timeout is only a backstop above it.
+func TestTelegramUploadTimeoutGrowsWithTheSize(t *testing.T) {
+	for size, want := range map[int64]time.Duration{
+		0:                        time.Minute,
+		100 << 10:                time.Minute,
+		1 << 20:                  time.Minute + 8*time.Second,
+		telegramMaxDocumentBytes: time.Minute + 400*time.Second, // 7m40s
+		1 << 30:                  10 * time.Minute,
+	} {
+		if got := telegramUploadTimeout(size); got != want {
+			t.Errorf("telegramUploadTimeout(%d) = %v, want %v", size, got, want)
+		}
+	}
+	if telegramUploadClient.Timeout <= telegramUploadTimeout(1<<40) {
+		t.Errorf("the client timeout %v cuts uploads before their deadline", telegramUploadClient.Timeout)
+	}
+
+	// The deadline reaches the request.
+	cfg, dir := tg04Config(t, "123:secret")
+	doc := tg04File(t, dir, "a.bin", tg04RandomBytes(t, 2<<20))
+	old := telegramUploadClient
+	t.Cleanup(func() { telegramUploadClient = old })
+	var deadline time.Time
+	var hasDeadline bool
+	telegramUploadClient = &http.Client{Transport: tg04FuncTransport(func(r *http.Request) (*http.Response, error) {
+		deadline, hasDeadline = r.Context().Deadline()
+		_, _ = io.Copy(io.Discard, r.Body)
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Request: r,
+			Body: io.NopCloser(strings.NewReader(`{"ok":true}`))}, nil
+	})}
+	start := time.Now()
+	if err := SendTelegramDocument(context.Background(), cfg, doc, ""); err != nil {
+		t.Fatal(err)
+	}
+	want := telegramUploadTimeout(2 << 20)
+	if left := deadline.Sub(start); !hasDeadline || left > want+5*time.Second || left < want-5*time.Second {
+		t.Errorf("the request deadline is %v away (set: %v), want about %v", left, hasDeadline, want)
+	}
+}
+
+// A text over Telegram's message limit is cut, counted after MarkdownV2 parsing (the
+// heading, a line break and the text), and the document still follows.
+func TestTelegramFileCutsATextOverTheMessageLimit(t *testing.T) {
+	requests := tg04API(t, nil)
+	cfg, dir := tg04Config(t, "123:secret")
+	tg04File(t, dir, "a.pdf", []byte("%PDF"))
+
+	for _, tc := range []struct{ name, title, message, heading, text string }{
+		{"5000 runes", "", strings.Repeat("ä", 5000), "AuraGo", strings.Repeat("ä", 4088) + "…"},
+		{"3000 emoji with a title", "Titel", strings.Repeat("😀", 3000), "Titel", strings.Repeat("😀", 2044) + "…"},
+		{"a long title and a long text", strings.Repeat("😀", 1000), strings.Repeat("ä", 5000), strings.Repeat("😀", 511) + "…", strings.Repeat("ä", 3071) + "…"},
+		{"reserved characters do not count", "", strings.Repeat(".", 5000), "AuraGo", strings.Repeat(".", 4088) + "…"},
+	} {
+		out := SendTelegramFile(context.Background(), cfg, tg04Logger(), "a.pdf", tc.title, tc.message)
+		if res := tg04Decode(t, out); res.Status != "success" || res.TextSent == nil || !*res.TextSent {
+			t.Fatalf("%s: result = %s", tc.name, truncateStr(out, 200))
+		}
+		msg := <-requests
+		want := "*" + escapeMarkdownV2(tc.heading) + "*\n" + escapeMarkdownV2(tc.text)
+		if msg.method != "sendMessage" || msg.text != want {
+			t.Fatalf("%s: message of %d units after parsing, want %d", tc.name, utf16Units(msg.text), utf16Units(tc.heading)+1+utf16Units(tc.text))
+		}
+		if n := utf16Units(tc.heading) + 1 + utf16Units(tc.text); n > telegramMaxMessageUnits {
+			t.Fatalf("%s: the expected message has %d units", tc.name, n)
+		}
+		if doc := <-requests; doc.method != "sendDocument" || doc.fields["caption"] != "" {
+			t.Fatalf("%s: second request = %+v", tc.name, doc)
+		}
+		tg04NoRequest(t, requests, tc.name)
+	}
+}
+
+// sendTelegramNotification also needs a 2xx answer with ok:true, does not follow a
+// redirect, and SendNotification keeps returning valid JSON whatever Telegram answers.
+func TestTelegramMessageNeedsOKTrue(t *testing.T) {
+	type reply struct {
+		status   int
+		location string
+		body     string
+	}
+	var current reply
+	requests := tg04API(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/elsewhere" {
+			_, _ = w.Write([]byte(`{"ok":true}`))
+			return
+		}
+		if current.location != "" {
+			w.Header().Set("Location", current.location)
+		}
+		w.WriteHeader(current.status)
+		_, _ = w.Write([]byte(current.body))
+	})
+	cfg, _ := tg04Config(t, "123:secret")
+	hostile := "bad\xff\xfe\"}\n\x00"
+
+	for _, tc := range []struct {
+		name  string
+		reply reply
+		want  string // "" means sent
+	}{
+		{"ok", reply{status: 200, body: `{"ok":true,"result":{"message_id":7}}`}, ""},
+		{"200 with ok false", reply{status: 200, body: `{"ok":false,"description":"Forbidden: bot was blocked by the user"}`}, "telegram did not accept the message: Forbidden: bot was blocked by the user"},
+		{"200 that is not JSON", reply{status: 200, body: `<html>login</html>`}, "not a Bot API reply: <html>login</html>"},
+		{"400 with a description", reply{status: 400, body: `{"ok":false,"description":"Bad Request: can't parse entities"}`}, "telegram returned HTTP 400: Bad Request: can't parse entities"},
+		{"a redirect is not followed", reply{status: 302, location: "/elsewhere"}, "telegram returned HTTP 302"},
+		{"a hostile short body", reply{status: 400, body: hostile}, "telegram returned HTTP 400: bad"},
+		{"a hostile huge body", reply{status: 400, body: hostile + strings.Repeat("q", 1<<20)}, "telegram returned HTTP 400"},
+	} {
+		current = tc.reply
+		out := SendNotification(cfg, tg04Logger(), "telegram", "t", "m", "normal", nil)
+		if req := <-requests; req.method != "sendMessage" {
+			t.Fatalf("%s: request = %+v", tc.name, req)
+		}
+		tg04NoRequest(t, requests, tc.name)
+		res := tg04Decode(t, out)
+		if len(res.Results) != 1 {
+			t.Fatalf("%s: result = %s", tc.name, out)
+		}
+		entry := res.Results[0]
+		if tc.want == "" {
+			if entry.Status != "sent" {
+				t.Errorf("%s: result = %s", tc.name, out)
+			}
+			continue
+		}
+		if entry.Status != "error" || !strings.Contains(entry.Detail, tc.want) {
+			t.Errorf("%s: detail = %q, want %q", tc.name, entry.Detail, tc.want)
+		}
+		if !utf8.ValidString(entry.Detail) || strings.ContainsAny(entry.Detail, "\n\x00") || utf8.RuneCountInString(entry.Detail) > 400 {
+			t.Errorf("%s: the detail is not clean and bounded: %q", tc.name, truncateStr(entry.Detail, 80))
+		}
+	}
+}
+
+// The redacted errors keep their cause, without the *url.Error and its URL, so a caller
+// can tell a cancellation or a deadline apart.
+func TestTelegramErrorsKeepTheirCause(t *testing.T) {
+	release := make(chan struct{})
+	tg04Server(t, func(w http.ResponseWriter, r *http.Request) { <-release })
+	t.Cleanup(func() { close(release) })
+	cfg, dir := tg04Config(t, "123:secret")
+	doc := tg04File(t, dir, "a.pdf", []byte("%PDF"))
+
+	check := func(what string, err, cause error) {
+		t.Helper()
+		var urlErr *url.Error
+		switch {
+		case err == nil:
+			t.Errorf("%s: no error", what)
+		case !errors.Is(err, cause):
+			t.Errorf("%s: %v is not %v", what, err, cause)
+		case errors.As(err, &urlErr):
+			t.Errorf("%s: the chain still holds the *url.Error with the URL", what)
+		case strings.Contains(err.Error(), "secret"):
+			t.Errorf("%s: the token is in %v", what, err)
+		}
+	}
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	check("cancelled document", SendTelegramDocument(cancelled, cfg, doc, ""), context.Canceled)
+
+	short, cancelShort := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancelShort()
+	check("document past its deadline", SendTelegramDocument(short, cfg, doc, ""), context.DeadlineExceeded)
+
+	old := telegramMessageClient
+	t.Cleanup(func() { telegramMessageClient = old })
+	telegramMessageClient = &http.Client{Timeout: 100 * time.Millisecond, CheckRedirect: telegramNoRedirect}
+	check("message past the client timeout", sendTelegramNotification(cfg, "t", "m"), context.DeadlineExceeded)
+
+	err := fmt.Errorf("the text was sent as a message, but the document was not: %w", SendTelegramDocument(cancelled, cfg, doc, ""))
+	check("wrapped", err, context.Canceled)
+}
+
+// The title SendNotification logs is bounded.
+func TestSendNotificationBoundsTheLoggedTitle(t *testing.T) {
+	tg04API(t, nil)
+	cfg, _ := tg04Config(t, "123:secret")
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	out := SendNotification(cfg, logger, "telegram", strings.Repeat("x", 1000), "m", "normal", nil)
+	if !strings.Contains(out, `"status":"sent"`) {
+		t.Fatalf("result = %s", out)
+	}
+	if !strings.Contains(logs.String(), "Notification sent") || !strings.Contains(logs.String(), strings.Repeat("x", 100)) {
+		t.Fatalf("the title was not logged: %s", truncateStr(logs.String(), 200))
+	}
+	if strings.Contains(logs.String(), strings.Repeat("x", 101)) {
+		t.Errorf("the log holds more than 100 runes of the title")
+	}
 }

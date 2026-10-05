@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -29,6 +30,9 @@ const (
 
 // notifyHTTPClient is shared across notification calls with a bounded timeout.
 var notifyHTTPClient = &http.Client{Timeout: 15 * time.Second}
+
+// defaultNotificationTitle is the title of a notification sent without one.
+const defaultNotificationTitle = "AuraGo"
 
 // markdownV2Replacer escapes text for Telegram MarkdownV2. The backslash is escaped too,
 // otherwise a "\" before a reserved character, or at the end, makes Telegram answer 400.
@@ -62,7 +66,7 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 		return encode(map[string]interface{}{"status": "error", "message": "message is required"})
 	}
 	if title == "" {
-		title = "AuraGo"
+		title = defaultNotificationTitle
 	}
 	if priority == "" {
 		priority = "normal"
@@ -111,7 +115,7 @@ func SendNotification(cfg *config.Config, logger *slog.Logger, channel, title, m
 			logger.Warn("Notification failed", "channel", c, "error", err)
 			results = append(results, result{Channel: string(c), Status: "error", Detail: err.Error()})
 		} else {
-			logger.Info("Notification sent", "channel", c, "title", title)
+			logger.Info("Notification sent", "channel", c, "title", truncateStr(title, 100))
 			results = append(results, result{Channel: string(c), Status: "sent"})
 		}
 	}
@@ -260,6 +264,10 @@ func sendPushover(cfg *config.Config, title, message, priority string) error {
 
 // ── Telegram (standalone HTTP, no dependency on telegram package state) ──────
 
+// sendTelegramNotification sends title and message as one MarkdownV2 message. It counts as
+// sent only when the Bot API answers 2xx with ok:true (checkTelegramReply); a redirect is
+// not followed. Its errors never carry the bot token, and a failed request keeps its cause
+// (telegramError), so a deadline or cancellation can be told apart.
 func sendTelegramNotification(cfg *config.Config, title, message string) error {
 	botToken := cfg.Telegram.BotToken
 	chatID := cfg.Telegram.UserID
@@ -275,22 +283,13 @@ func sendTelegramNotification(cfg *config.Config, title, message string) error {
 		"parse_mode": "MarkdownV2",
 	})
 
-	url := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPIBase, botToken)
-	resp, err := notifyHTTPClient.Post(url, "application/json", bytes.NewReader(payload))
+	endpoint := telegramAPIBase + "/bot" + url.PathEscape(botToken) + "/sendMessage"
+	resp, err := telegramMessageClient.Post(endpoint, "application/json", bytes.NewReader(payload))
 	if err != nil {
-		// The error repeats the request URL, and with it the bot token.
-		return fmt.Errorf("telegram request failed: %s", telegramErrorText(err.Error(), botToken))
+		return telegramRequestError(err, botToken)
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
-		if err != nil {
-			return fmt.Errorf("telegram returned HTTP %d and response body could not be read safely: %w", resp.StatusCode, err)
-		}
-		return fmt.Errorf("telegram returned HTTP %d: %s", resp.StatusCode, telegramErrorText(string(body), botToken))
-	}
-	return nil
+	return checkTelegramReply(resp, botToken, "message")
 }
 
 // escapeMarkdownV2 escapes special characters for Telegram MarkdownV2 format.
