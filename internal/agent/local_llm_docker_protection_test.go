@@ -38,8 +38,10 @@ func TestManagedLocalLLMComposeProtectionIsFailClosed(t *testing.T) {
 	originalResolver := resolveDockerComposeConfig
 	t.Cleanup(func() { resolveDockerComposeConfig = originalResolver })
 	resolveDockerComposeConfig = func(_ tools.DockerConfig, file string) (string, error) {
-		payload, err := os.ReadFile(filepath.Join(workspace, filepath.Base(file)))
-		return string(payload), err
+		if _, err := os.Stat(filepath.Join(workspace, filepath.Base(file))); err != nil {
+			return "", err
+		}
+		return `{"services":{"app":{"image":"example.invalid/app"}}}`, nil
 	}
 	protected := filepath.Join(workspace, "protected.yml")
 	if err := os.WriteFile(protected, []byte("services:\n  app:\n    volumes:\n      - aurago_models:/models\n"), 0o600); err != nil {
@@ -69,8 +71,10 @@ func TestManagedLocalLLMComposeProtectionIsFailClosed(t *testing.T) {
 		t.Fatal("interpolated volumes_from was not blocked")
 	}
 	resolveDockerComposeConfig = func(_ tools.DockerConfig, file string) (string, error) {
-		payload, err := os.ReadFile(filepath.Join(workspace, filepath.Base(file)))
-		return string(payload), err
+		if _, err := os.Stat(filepath.Join(workspace, filepath.Base(file))); err != nil {
+			return "", err
+		}
+		return `{"services":{"app":{"image":"example.invalid/app"}}}`, nil
 	}
 	for _, file := range []string{"missing.yml", filepath.Join("..", "outside.yml")} {
 		if !dockerComposeReferencesProtectedLocalLLMVolume(cfg, file) {

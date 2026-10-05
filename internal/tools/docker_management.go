@@ -849,8 +849,9 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 }
 
 // DockerComposeResolvedConfig returns Compose's fully interpolated model for a
-// read-only policy preflight. Errors are intentionally returned to let callers
-// fail closed before executing any Compose action.
+// read-only policy preflight: stdout of `docker compose config --format json`
+// only, so stderr warnings never corrupt the JSON. Errors carry stderr and are
+// returned so callers fail closed before executing any Compose action.
 func DockerComposeResolvedConfig(cfg DockerConfig, file string) (string, error) {
 	if err := requireDockerPermission(); err != nil {
 		return "", err
@@ -862,11 +863,8 @@ func DockerComposeResolvedConfig(cfg DockerConfig, file string) (string, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	args := dockerCLIArgs(cfg, "compose", "-f", composeFile, "config", "--format", "json")
-	output, err := exec.CommandContext(ctx, "docker", args...).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("resolve Compose config: %w", err)
-	}
-	return string(output), nil
+	stdout, stderr, err := runDockerComposeConfig(ctx, args)
+	return dockerComposeConfigResult(stdout, stderr, err)
 }
 
 // DockerComposeCommandMutates reports whether an allowed Compose command can

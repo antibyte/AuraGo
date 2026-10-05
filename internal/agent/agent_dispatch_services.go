@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -637,14 +636,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
 			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedLocalLLMVolume(dockerCfg, req.File) {
-				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed local LLM volumes is blocked."}`
-			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedGarage(dockerCfg, req.File) {
-				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed Boring Computers Garage is blocked."}`
-			}
-			if req.Operation == "compose" && dockerComposeReferencesProtectedHomepage(dockerCfg, req.File) {
-				return dockerAgentError("docker_managed_homepage_resource", "Docker Compose access to AuraGo-managed homepage resources is blocked. Use homepage_project, homepage_file, or homepage_deploy.")
+			if req.Operation == "compose" {
+				if denied := dockerComposePolicy(ctx, cfg, dockerCfg, req); denied != "" {
+					return denied
+				}
 			}
 			switch req.Operation {
 			case "list_containers", "ps":
@@ -1654,92 +1649,8 @@ func dockerRequestMountsProtectedGaragePath(volumes []string) bool {
 	return false
 }
 
-func dockerComposeReferencesProtectedGarage(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
-		return true
-	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	for _, token := range []string{
-		dockerutil.BoringGarageContainerName,
-		"boring-garage",
-		"data/sidecars/garage",
-		`aurago.managed: boring-garage`,
-		`"aurago.managed":"boring-garage"`,
-		`aurago.managed=boring-garage`,
-	} {
-		if strings.Contains(lower, strings.ToLower(token)) {
-			return true
-		}
-	}
-	return false
-}
-
-func dockerComposeReferencesProtectedHomepage(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
-		return true
-	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	return strings.Contains(lower, dockerutil.HomepageContainerName) ||
-		strings.Contains(lower, dockerutil.HomepageWebContainerName) ||
-		strings.Contains(lower, dockerutil.HomepageImageRepository)
-}
-
 func dockerProtectedLocalLLMVolumeName(name string) bool {
 	return acestep.IsResourceName(name) || dockerutil.IsLocalLLMVolumeName(name)
-}
-
-func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file string) bool {
-	base, err := filepath.Abs(cfg.WorkspaceDir)
-	if err != nil {
-		return true
-	}
-	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
-	if err != nil {
-		return true
-	}
-	relative, err := filepath.Rel(base, path)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
-		return true
-	}
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	lower := strings.ToLower(string(payload))
-	if dockerComposePayloadReferencesProtectedLocalLLM(lower) {
-		return true
-	}
-	resolved, err := resolveDockerComposeConfig(
-		cfg,
-		file,
-	)
-	return err != nil || dockerComposePayloadReferencesProtectedLocalLLM(strings.ToLower(resolved))
 }
 
 func dockerComposePayloadReferencesProtectedLocalLLM(payload string) bool {
