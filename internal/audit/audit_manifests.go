@@ -457,8 +457,14 @@ func RemoteLifecycleManifest() []RemoteLifecycleBoundary {
 		{
 			Name:         "remote-agent-frame-replay-guard",
 			Subsystem:    "cmd/remote",
-			Scenario:     "the agent drops supervisor frames for another device, with a malformed nonce, outside the timestamp window or with a replayed nonce; its nonce cache fails closed when full instead of evicting live entries; signed auth responses must be fresh and unseen; and all frames are ignored without a device shared key",
-			TestCoverage: "cmd/remote/main_test.go:TestRejectReplayedFrameChecksDeviceTimestampAndNonce, TestRejectReplayedFrameRejectsSequenceShiftedNonce, TestRejectReplayedFrameFailsClosedWhenCacheFull, TestRejectReplayedFrameDoesNotCacheErrorFrames, TestRejectReplayedFrameCacheCoversFullTimestampWindow, TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne, TestConnectRejectsStaleSignedAuthResponse, TestConnectRejectsReplayedSignedAuthResponse, TestReadMessagesFailsClosedWithoutSharedKey, TestReadMessagesDispatchesSignedFrameOnceAndDropsReplay",
+			Scenario:     "the agent drops supervisor frames for another device, with a malformed nonce, outside the timestamp window or with a replayed nonce; its nonce cache fails closed when full instead of evicting live entries; and all frames are ignored without a device shared key",
+			TestCoverage: "cmd/remote/main_test.go:TestRejectReplayedFrameChecksDeviceTimestampAndNonce, TestRejectReplayedFrameRejectsSequenceShiftedNonce, TestRejectReplayedFrameFailsClosedWhenCacheFull, TestRejectReplayedFrameDoesNotCacheErrorFrames, TestRejectReplayedFrameCacheCoversFullTimestampWindow, TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne, TestReadMessagesFailsClosedWithoutSharedKey, TestReadMessagesDispatchesSignedFrameOnceAndDropsReplay",
+		},
+		{
+			Name:         "remote-auth-response-binding",
+			Subsystem:    "cmd/remote",
+			Scenario:     "every auth response the supervisor signs echoes the nonce of the auth frame it answers; the agent refuses a signed response whose request nonce is missing or names another request, so a captured answer cannot be replayed on a later connect; stale or malformed signed responses are refused as a sanity check",
+			TestCoverage: "internal/remote/hub_enrollment_security_test.go:TestAuthResponsesEchoRequestNonce; cmd/remote/main_test.go:TestConnectAcceptsBoundEnrolledResponse, TestConnectRejectsAuthResponseNotBoundToRequest, TestConnectRejectsCapturedAuthResponseOnLaterConnect, TestConnectRejectsStaleSignedAuthResponse",
 		},
 		{
 			Name:         "remote-enrollment-key-split",

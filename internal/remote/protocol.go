@@ -124,6 +124,9 @@ type AuthResponsePayload struct {
 	ReadOnly      *bool    `json:"read_only,omitempty"`
 	AllowedPaths  []string `json:"allowed_paths"`
 	MaxFileSizeMB int      `json:"max_file_size_mb,omitempty"`
+	// RequestNonce echoes the Nonce of the auth frame this answers. It is
+	// covered by the HMAC, so a signed answer is valid for that one request.
+	RequestNonce string `json:"request_nonce,omitempty"`
 }
 
 // HeartbeatPayload is sent periodically by the remote.

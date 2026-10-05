@@ -360,8 +360,8 @@ const (
 )
 
 // minStableSession is how long a supervisor session must last before the
-// reconnect backoff resets to initialBackoff. Every dial adds an auth-response
-// nonce to the fail-closed replay cache, so a session that an on-path attacker
+// reconnect backoff resets to initialBackoff. Frames delivered in a session go
+// into the fail-closed replay cache, so a session that an on-path attacker
 // hangs up right after auth must cost a backoff wait, not an immediate redial.
 const minStableSession = 60 * time.Second
 
@@ -503,17 +503,17 @@ func (c *Client) connect() error {
 		conn.Close()
 		return err
 	}
-	if signed {
-		if reason := c.rejectReplayedAuthResponse(resp); reason != "" {
-			conn.Close()
-			return errors.New(reason)
-		}
-	}
 
 	var authResp remote.AuthResponsePayload
 	if err := json.Unmarshal(resp.Payload, &authResp); err != nil {
 		conn.Close()
 		return fmt.Errorf("invalid auth response payload: %w", err)
+	}
+	if signed {
+		if reason := checkAuthResponseBinding(resp, authResp, msg.Nonce); reason != "" {
+			conn.Close()
+			return errors.New(reason)
+		}
 	}
 	if !signed && authResp.Status != "pending" && authResp.Status != "rejected" {
 		conn.Close()
@@ -680,23 +680,20 @@ func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
 	return ""
 }
 
-// authResponseReplayNamespace keys auth-response nonces in the replay cache.
-// It cannot be the device id, which is empty while enrolling.
-const authResponseReplayNamespace = "auth"
-
-// rejectReplayedAuthResponse makes a signed auth response fresh and single-use
-// within this process. connect() applies its read-only flag, allowed paths and
-// file-size limit, so a captured reply must not restore stale, looser settings
-// on a forced reconnect.
-//
-// This is a wire-compatible stopgap. The proper fix is for the supervisor to
-// echo the agent's auth nonce in the response, a wire change scheduled with
-// task C12.
-func (c *Client) rejectReplayedAuthResponse(resp remote.RemoteMessage) string {
-	if !remote.ValidNonce(resp.Nonce) ||
-		remote.ValidateTimestamp(resp.Timestamp) != nil ||
-		c.replayCache().Seen(authResponseReplayNamespace, resp.Nonce, time.Now()) {
-		return "stale or replayed auth response"
+// checkAuthResponseBinding vets a signed auth response against the auth frame
+// this connect() sent, whose nonce is requestNonce. connect() applies the
+// response's read-only flag, allowed paths and file-size limit, so a captured
+// answer must not restore stale, looser settings on a later connect. The
+// supervisor echoes the auth frame's nonce in RequestNonce under the HMAC and
+// every connect() sends a fresh nonce, so an answer is valid for one request.
+// The nonce-format and timestamp checks are cheap sanity checks on top.
+// It returns the rejection reason or "".
+func checkAuthResponseBinding(resp remote.RemoteMessage, payload remote.AuthResponsePayload, requestNonce string) string {
+	if !remote.ValidNonce(resp.Nonce) || remote.ValidateTimestamp(resp.Timestamp) != nil {
+		return "stale or malformed auth response"
+	}
+	if payload.RequestNonce == "" || payload.RequestNonce != requestNonce {
+		return "auth response not bound to this request"
 	}
 	return ""
 }

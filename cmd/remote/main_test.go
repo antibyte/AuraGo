@@ -260,6 +260,49 @@ func TestConnectAcceptsUnsignedPendingWithoutPersisting(t *testing.T) {
 	assertNoStoredConfig(t)
 }
 
+// boundAuthResponse answers an auth frame the way the supervisor does: the
+// reply echoes the frame's nonce in RequestNonce and is signed with key.
+func boundAuthResponse(t *testing.T, key string, payload remote.AuthResponsePayload) func(remote.RemoteMessage) *remote.RemoteMessage {
+	t.Helper()
+	return func(auth remote.RemoteMessage) *remote.RemoteMessage {
+		reply := payload
+		reply.RequestNonce = auth.Nonce
+		resp, err := remote.NewAuthResponseMessage(reply.DeviceID, key, reply)
+		if err != nil {
+			t.Error(err)
+			return nil
+		}
+		return resp
+	}
+}
+
+// startBoundSupervisor answers every auth frame with a bound, signed reply.
+func startBoundSupervisor(t *testing.T, key string, payload remote.AuthResponsePayload) string {
+	t.Helper()
+	url, _ := startScriptedSupervisor(t, boundAuthResponse(t, key, payload))
+	return url
+}
+
+func TestConnectAcceptsBoundEnrolledResponse(t *testing.T) {
+	isolateRemoteHome(t)
+	sharedKey := strings.Repeat("ab", 32)
+	url := startBoundSupervisor(t, remote.DeriveEnrollmentAuthKey("tok"), remote.AuthResponsePayload{
+		Status: "enrolled", DeviceID: "dev-1", SharedKey: sharedKey,
+	})
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: url, EnrollToken: "tok"})
+
+	if err := client.connect(); err != nil {
+		t.Fatalf("a bound enrolled answer signed with the MAC key must be accepted: %v", err)
+	}
+	if client.cfg.DeviceID != "dev-1" || client.cfg.SharedKey != sharedKey || client.cfg.EnrollToken != "" {
+		t.Fatalf("enrollment must adopt the device identity and drop the token: %+v", client.cfg)
+	}
+	stored := loadStoredConfig()
+	if stored == nil || stored.DeviceID != "dev-1" || stored.SharedKey != sharedKey {
+		t.Fatalf("enrollment must be persisted: %+v", stored)
+	}
+}
+
 func TestConnectRejectsEnrolledWithInvalidSharedKey(t *testing.T) {
 	for name, sharedKey := range map[string]string{
 		"short non-hex":   "nothex",
@@ -267,15 +310,12 @@ func TestConnectRejectsEnrolledWithInvalidSharedKey(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			isolateRemoteHome(t)
-			resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-1", remote.DeriveEnrollmentAuthKey("tok"), 1, remote.AuthResponsePayload{
+			url := startBoundSupervisor(t, remote.DeriveEnrollmentAuthKey("tok"), remote.AuthResponsePayload{
 				Status: "enrolled", DeviceID: "dev-1", SharedKey: sharedKey,
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), EnrollToken: "tok"})
+			client := newConnectTestClient(t, clientConfig{SupervisorURL: url, EnrollToken: "tok"})
 
-			err = client.connect()
+			err := client.connect()
 			if err == nil || !strings.Contains(err.Error(), "invalid shared key") {
 				t.Fatalf("expected enrolled response with invalid shared key to be rejected, got %v", err)
 			}
@@ -289,15 +329,12 @@ func TestConnectRejectsEnrolledWithInvalidSharedKey(t *testing.T) {
 
 func TestConnectRejectsEnrolledWithoutDeviceID(t *testing.T) {
 	isolateRemoteHome(t)
-	resp, err := remote.NewMessage(remote.MsgAuthResponse, "", remote.DeriveEnrollmentAuthKey("tok"), 1, remote.AuthResponsePayload{
+	url := startBoundSupervisor(t, remote.DeriveEnrollmentAuthKey("tok"), remote.AuthResponsePayload{
 		Status: "enrolled", SharedKey: strings.Repeat("ab", 32),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), EnrollToken: "tok"})
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: url, EnrollToken: "tok"})
 
-	err = client.connect()
+	err := client.connect()
 	if err == nil || !strings.Contains(err.Error(), "carries no device id") {
 		t.Fatalf("expected enrolled response without device id to be rejected, got %v", err)
 	}
@@ -310,16 +347,13 @@ func TestConnectRejectsEnrolledWithoutDeviceID(t *testing.T) {
 func TestConnectRejectsAuthenticatedWithoutSharedKey(t *testing.T) {
 	isolateRemoteHome(t)
 	readOnly := false
-	resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-1", remote.DeriveEnrollmentAuthKey("tok"), 1, remote.AuthResponsePayload{
+	url := startBoundSupervisor(t, remote.DeriveEnrollmentAuthKey("tok"), remote.AuthResponsePayload{
 		Status: "authenticated", DeviceID: "dev-1", ReadOnly: &readOnly, AllowedPaths: []string{"/"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), EnrollToken: "tok"})
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: url, EnrollToken: "tok"})
 	client.readOnly = true
 
-	err = client.connect()
+	err := client.connect()
 	if err == nil || !strings.Contains(err.Error(), "without a device shared key") {
 		t.Fatalf("expected authenticated response without device key to be rejected, got %v", err)
 	}
@@ -332,18 +366,11 @@ func TestConnectRejectsAuthenticatedWithoutSharedKey(t *testing.T) {
 	assertNoStoredConfig(t)
 }
 
-// looseAuthenticatedResponse is a signed "authenticated" reply that would lift
+// looseAuthenticatedPayload is an "authenticated" answer that would lift
 // read-only mode and open every path if the agent applied it.
-func looseAuthenticatedResponse(t *testing.T, key string) *remote.RemoteMessage {
-	t.Helper()
+func looseAuthenticatedPayload() remote.AuthResponsePayload {
 	readOnly := false
-	resp, err := remote.NewAuthResponseMessage("dev-1", key, remote.AuthResponsePayload{
-		Status: "authenticated", DeviceID: "dev-1", ReadOnly: &readOnly, AllowedPaths: []string{"/"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return resp
+	return remote.AuthResponsePayload{Status: "authenticated", DeviceID: "dev-1", ReadOnly: &readOnly, AllowedPaths: []string{"/"}}
 }
 
 func assertRestrictedSettingsKept(t *testing.T, client *Client) {
@@ -355,46 +382,116 @@ func assertRestrictedSettingsKept(t *testing.T, client *Client) {
 	}
 }
 
+func newRestrictedReconnectClient(t *testing.T, url, key string) *Client {
+	t.Helper()
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: url, DeviceID: "dev-1", SharedKey: key})
+	client.readOnly = true
+	client.allowedPaths = []string{"/safe"}
+	return client
+}
+
 func TestConnectRejectsStaleSignedAuthResponse(t *testing.T) {
 	isolateRemoteHome(t)
 	key := strings.Repeat("ab", 32)
-	resp := looseAuthenticatedResponse(t, key)
-	resp.Timestamp = time.Now().Add(-remote.MaxTimestampDrift - time.Minute).UTC().Format(time.RFC3339)
-	if err := remote.SignMessage(resp, key); err != nil {
-		t.Fatal(err)
-	}
-	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), DeviceID: "dev-1", SharedKey: key})
-	client.readOnly = true
-	client.allowedPaths = []string{"/safe"}
+	bound := boundAuthResponse(t, key, looseAuthenticatedPayload())
+	url, _ := startScriptedSupervisor(t, func(auth remote.RemoteMessage) *remote.RemoteMessage {
+		resp := bound(auth)
+		resp.Timestamp = time.Now().Add(-remote.MaxTimestampDrift - time.Minute).UTC().Format(time.RFC3339)
+		if err := remote.SignMessage(resp, key); err != nil {
+			t.Error(err)
+			return nil
+		}
+		return resp
+	})
+	client := newRestrictedReconnectClient(t, url, key)
 
 	err := client.connect()
-	if err == nil || err.Error() != "stale or replayed auth response" {
+	if err == nil || err.Error() != "stale or malformed auth response" {
 		t.Fatalf("expected the stale auth response to be rejected, got %v", err)
 	}
 	assertRestrictedSettingsKept(t, client)
 }
 
-func TestConnectRejectsReplayedSignedAuthResponse(t *testing.T) {
-	isolateRemoteHome(t)
+// A signed answer is only valid for the auth frame it echoes. One that names a
+// different request, or none, is refused before anything from it is applied.
+func TestConnectRejectsAuthResponseNotBoundToRequest(t *testing.T) {
 	key := strings.Repeat("ab", 32)
-	// The fake supervisor answers every connection with this same captured reply.
-	client := newConnectTestClient(t, clientConfig{
-		SupervisorURL: startFakeSupervisor(t, looseAuthenticatedResponse(t, key)), DeviceID: "dev-1", SharedKey: key,
-	})
-	if err := client.connect(); err != nil {
-		t.Fatalf("first delivery of a fresh auth response must be accepted: %v", err)
+	for name, requestNonce := range map[string]string{
+		"foreign request nonce": "0123456789abcdef0123456789abcdef",
+		"no request nonce":      "",
+	} {
+		t.Run(name, func(t *testing.T) {
+			isolateRemoteHome(t)
+			payload := looseAuthenticatedPayload()
+			payload.RequestNonce = requestNonce
+			resp, err := remote.NewAuthResponseMessage("dev-1", key, payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := newRestrictedReconnectClient(t, startFakeSupervisor(t, resp), key)
+
+			err = client.connect()
+			if err == nil || err.Error() != "auth response not bound to this request" {
+				t.Fatalf("expected the unbound auth response to be rejected, got %v", err)
+			}
+			assertRestrictedSettingsKept(t, client)
+		})
 	}
 
+	t.Run("enrolled answer for another request", func(t *testing.T) {
+		isolateRemoteHome(t)
+		payload := remote.AuthResponsePayload{Status: "enrolled", DeviceID: "dev-1", SharedKey: strings.Repeat("cd", 32), RequestNonce: "0123456789abcdef0123456789abcdef"}
+		resp, err := remote.NewAuthResponseMessage("dev-1", remote.DeriveEnrollmentAuthKey("tok"), payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), EnrollToken: "tok"})
+		err = client.connect()
+		if err == nil || err.Error() != "auth response not bound to this request" {
+			t.Fatalf("expected the unbound enrolled answer to be rejected, got %v", err)
+		}
+		if client.cfg.DeviceID != "" || client.cfg.SharedKey != "" || client.cfg.EnrollToken != "tok" {
+			t.Fatalf("unbound enrolled answer must not change config: %+v", client.cfg)
+		}
+		assertNoStoredConfig(t)
+	})
+}
+
+// A captured, correctly signed answer cannot be replayed on a later connect:
+// every connect sends a fresh auth nonce, which the old answer does not echo.
+func TestConnectRejectsCapturedAuthResponseOnLaterConnect(t *testing.T) {
+	isolateRemoteHome(t)
+	key := strings.Repeat("ab", 32)
+	bound := boundAuthResponse(t, key, looseAuthenticatedPayload())
+	var mu sync.Mutex
+	var captured *remote.RemoteMessage
+	url, frames := startScriptedSupervisor(t, func(auth remote.RemoteMessage) *remote.RemoteMessage {
+		mu.Lock()
+		defer mu.Unlock()
+		if captured == nil {
+			captured = bound(auth)
+		}
+		return captured
+	})
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: url, DeviceID: "dev-1", SharedKey: key})
+	if err := client.connect(); err != nil {
+		t.Fatalf("a bound auth response must be accepted: %v", err)
+	}
+	first := receiveAuthFrame(t, frames)
+
 	// The admin then restricts the device; a forced reconnect must not let the
-	// captured reply undo that.
+	// captured answer undo that.
 	client.stateMu.Lock()
 	client.readOnly = true
 	client.allowedPaths = []string{"/safe"}
 	client.stateMu.Unlock()
 
 	err := client.connect()
-	if err == nil || err.Error() != "stale or replayed auth response" {
+	if err == nil || err.Error() != "auth response not bound to this request" {
 		t.Fatalf("expected the replayed auth response to be rejected, got %v", err)
+	}
+	if second := receiveAuthFrame(t, frames); second.Nonce == first.Nonce {
+		t.Fatal("each connect must send a fresh auth nonce")
 	}
 	assertRestrictedSettingsKept(t, client)
 }
@@ -418,8 +515,8 @@ func (l *runEventLog) snapshot() []string {
 	return append([]string(nil), l.events...)
 }
 
-// An on-path attacker can hang up every session right after auth. Each dial
-// adds an auth-response nonce to the fail-closed cache, so Run must back off
+// An on-path attacker can hang up every session right after auth. Frames that
+// reach the agent go into its fail-closed replay cache, so Run must back off
 // after a short session and reset the backoff only after a stable one.
 func TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne(t *testing.T) {
 	isolateRemoteHome(t)
@@ -427,7 +524,7 @@ func TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne(t *testing.T) {
 	log := &runEventLog{}
 
 	// The fake supervisor authenticates every dial with a fresh signed reply
-	// and hangs up immediately.
+	// bound to that dial's auth frame and hangs up immediately.
 	upgrader := websocket.Upgrader{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -436,10 +533,11 @@ func TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne(t *testing.T) {
 		}
 		defer conn.Close()
 		log.add("dial")
-		if _, _, err := conn.ReadMessage(); err != nil {
+		var auth remote.RemoteMessage
+		if err := conn.ReadJSON(&auth); err != nil {
 			return
 		}
-		reply, err := remote.NewAuthResponseMessage("dev-1", key, remote.AuthResponsePayload{Status: "authenticated", DeviceID: "dev-1"})
+		reply, err := remote.NewAuthResponseMessage("dev-1", key, remote.AuthResponsePayload{Status: "authenticated", DeviceID: "dev-1", RequestNonce: auth.Nonce})
 		if err != nil {
 			return
 		}

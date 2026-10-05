@@ -692,28 +692,28 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 	if auth.DeviceID != "" {
 		device, err := GetDevice(h.db, auth.DeviceID)
 		if err != nil {
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "unknown device", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "unknown device", nil, nil)
 		}
 		if device.Status == "revoked" {
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "device has been revoked", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "device has been revoked", nil, nil)
 		}
 
 		// Verify shared key by looking up vault
 		storedKey, err := h.vault.ReadSecret("remote_shared_key_" + device.ID)
 		if err != nil {
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "missing shared key", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "missing shared key", nil, nil)
 		}
 
 		// Verify the incoming message HMAC using stored key
 		ok, err := VerifyMessage(msg, storedKey)
 		if err != nil || !ok {
-			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "authentication failed", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", "authentication failed", nil, nil)
 		}
 		if err := ValidateTimestamp(msg.Timestamp); err != nil || !ValidNonce(msg.Nonce) || h.nonceCache.Seen(device.ID, msg.Nonce, time.Now().UTC()) {
-			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
 		}
 		if err := UpdateDeviceStatus(h.db, device.ID, "connected"); err != nil {
-			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "device status update failed", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", "device status update failed", nil, nil)
 		}
 
 		// Authenticated — register connection
@@ -732,7 +732,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 
 		// Do NOT echo back the shared key — the client already has it (it just used it to sign
 		// the auth message). Sending it here would transmit the key over the wire unnecessarily.
-		return h.sendAuthResponse(wsConn, storedKey, "", device.ID, "authenticated", "", &conn.ReadOnly, conn.AllowedPaths)
+		return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", device.ID, "authenticated", "", &conn.ReadOnly, conn.AllowedPaths)
 	}
 
 	// ── Case 2: Token-based enrollment ──
@@ -743,44 +743,44 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 	// signed answer it could not have made itself.
 	if auth.TokenHash != "" {
 		if auth.KDF != EnrollmentKDFVersion {
-			return h.rejectPreUpgradeEnrollment(wsConn, auth)
+			return h.rejectPreUpgradeEnrollment(wsConn, msg.Nonce, auth)
 		}
 		enrollment, err := GetEnrollmentByTokenHash(h.db, auth.TokenHash)
 		if err != nil {
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "invalid enrollment token", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "invalid enrollment token", nil, nil)
 		}
 		// The MAC key of a consumed token is gone, so this is decided first.
 		if enrollment.Used {
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "enrollment token already used", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "enrollment token already used", nil, nil)
 		}
 		if h.vault == nil {
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "credential storage unavailable", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "credential storage unavailable", nil, nil)
 		}
 		authKey, err := h.vault.ReadSecret(enrollmentAuthKeyName(enrollment.ID))
 		if errors.Is(err, security.ErrSecretNotFound) {
 			h.logger.Warn("Remote enrollment token has no MAC key; it predates the key split", "enrollment_id", enrollment.ID)
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", preUpgradeEnrollmentMessage, nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", preUpgradeEnrollmentMessage, nil, nil)
 		}
 		if err != nil {
 			h.logger.Error("Failed to read remote enrollment key from vault", "enrollment_id", enrollment.ID, "error", err)
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "credential storage unavailable", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "credential storage unavailable", nil, nil)
 		}
 		if msg.HMAC == "" {
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "HMAC required for token enrollment", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "HMAC required for token enrollment", nil, nil)
 		}
 		if ok, err := VerifyMessage(msg, authKey); err != nil || !ok {
-			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "authentication failed", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "authentication failed", nil, nil)
 		}
 		if err := ValidateTimestamp(msg.Timestamp); err != nil || !ValidNonce(msg.Nonce) || h.nonceCache.Seen(enrollment.ID, msg.Nonce, time.Now().UTC()) {
-			return h.sendAuthResponse(wsConn, authKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, authKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
 		}
 		// Check expiry
 		expiry, err := time.Parse(time.RFC3339, enrollment.ExpiresAt)
 		if err != nil || time.Now().After(expiry) {
-			return h.sendAuthResponse(wsConn, authKey, "", "", "rejected", "enrollment token expired", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, authKey, "", "", "rejected", "enrollment token expired", nil, nil)
 		}
 
-		return h.completeEnrollment(wsConn, auth, enrollment.ID, enrollment.DeviceName, authKey)
+		return h.completeEnrollment(wsConn, msg.Nonce, auth, enrollment.ID, enrollment.DeviceName, authKey)
 	}
 
 	// ── Case 3: Auto-approve or manual-approval (pending) ──
@@ -797,7 +797,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 	var deviceID string
 	err := h.db.QueryRow(`SELECT id FROM remote_devices WHERE status='pending' AND hostname=? AND ip_address=? LIMIT 1`, auth.Hostname, peerHost).Scan(&deviceID)
 	if err == nil {
-		return h.sendAuthResponse(wsConn, "", "", deviceID, "pending", "awaiting approval in AuraGo UI", nil, nil)
+		return h.sendAuthResponse(wsConn, msg.Nonce, "", "", deviceID, "pending", "awaiting approval in AuraGo UI", nil, nil)
 	}
 	if err != sql.ErrNoRows {
 		return fmt.Errorf("read pending remote enrollment: %w", err)
@@ -807,7 +807,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		return fmt.Errorf("count pending remote enrollments: %w", err)
 	}
 	if pendingCount >= 100 {
-		return h.sendAuthResponse(wsConn, "", "", "", "rejected", "pending enrollment limit reached", nil, nil)
+		return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "pending enrollment limit reached", nil, nil)
 	}
 	deviceID, err = CreateDevice(h.db, DeviceRecord{
 		Name:      deviceName,
@@ -819,18 +819,19 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		ReadOnly:  h.DefaultReadOnly,
 	})
 	if err != nil {
-		return h.sendAuthResponse(wsConn, "", "", "", "rejected", "internal error", nil, nil)
+		return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "internal error", nil, nil)
 	}
 
 	h.logger.Info("New device pending approval", "device_id", deviceID, "hostname", auth.Hostname, "ip", auth.IP)
-	return h.sendAuthResponse(wsConn, "", "", deviceID, "pending", "awaiting approval in AuraGo UI", nil, nil)
+	return h.sendAuthResponse(wsConn, msg.Nonce, "", "", deviceID, "pending", "awaiting approval in AuraGo UI", nil, nil)
 }
 
 // completeEnrollment generates shared key, creates device, and sends credentials.
-func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload, enrollmentID, deviceName, bootstrapSigningKey string) error {
+// requestNonce is the Nonce of the auth frame being answered.
+func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce string, auth AuthPayload, enrollmentID, deviceName, bootstrapSigningKey string) error {
 	sharedKey, err := GenerateSharedKey()
 	if err != nil {
-		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "key generation failed", nil, nil)
+		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "key generation failed", nil, nil)
 	}
 
 	name := deviceName
@@ -853,7 +854,7 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 		SharedKeyHash: keyHash,
 	})
 	if err != nil {
-		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
+		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
 	}
 	cleanupRejectedEnrollment := func() {
 		if err := h.vault.DeleteSecret("remote_shared_key_" + deviceID); err != nil {
@@ -868,13 +869,13 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 	if err := h.vault.WriteSecret("remote_shared_key_"+deviceID, sharedKey); err != nil {
 		h.logger.Error("Failed to store shared key in vault", "device_id", deviceID, "error", err)
 		cleanupRejectedEnrollment()
-		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "credential storage failed", nil, nil)
+		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "credential storage failed", nil, nil)
 	}
 
 	if err := finalizeEnrollment(h.db, h.vault, enrollmentID, deviceID); err != nil {
 		h.logger.Error("Failed to finalize remote enrollment", "device_id", deviceID, "error", err)
 		cleanupRejectedEnrollment()
-		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
+		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
 	}
 
 	// Register connection
@@ -890,7 +891,7 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 	}
 	h.Register(deviceID, conn)
 
-	return h.sendAuthResponse(wsConn, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &conn.ReadOnly, conn.AllowedPaths)
+	return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &conn.ReadOnly, conn.AllowedPaths)
 }
 
 // ApproveDevice replaces a pending observation with a fresh, single-use token.
@@ -989,13 +990,13 @@ const preUpgradeEnrollmentMessage = "enrollment token predates the upgrade; crea
 // so signing the refusal with that hash is what lets it show the reason. The
 // value is the requester's own and the refusal changes nothing, so the
 // signature proves nothing to anyone; no frame is ever accepted on it.
-func (h *RemoteHub) rejectPreUpgradeEnrollment(wsConn *websocket.Conn, auth AuthPayload) error {
+func (h *RemoteHub) rejectPreUpgradeEnrollment(wsConn *websocket.Conn, requestNonce string, auth AuthPayload) error {
 	h.logger.Warn("Refusing enrollment from an agent or token that predates the key split", "kdf", auth.KDF)
 	signingKey := auth.TokenHash
 	if _, err := decodeSharedKey(signingKey); err != nil {
 		signingKey = "" // not a usable key: refuse unsigned
 	}
-	return h.sendAuthResponse(wsConn, signingKey, "", "", "rejected", preUpgradeEnrollmentMessage, nil, nil)
+	return h.sendAuthResponse(wsConn, requestNonce, signingKey, "", "", "rejected", preUpgradeEnrollmentMessage, nil, nil)
 }
 
 // RejectDevice rejects a pending device.
@@ -1010,7 +1011,11 @@ func (h *RemoteHub) RejectDevice(deviceID string) error {
 	return DeleteDevice(h.db, deviceID)
 }
 
-func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, signingKeyHex, sharedKey, deviceID, status, message string, readOnly *bool, allowedPaths []string) error {
+// sendAuthResponse answers the auth frame whose Nonce is requestNonce. The
+// answer echoes that nonce under its HMAC, so the agent accepts a signed
+// answer only for the request it just sent and a captured one cannot be
+// replayed on a later connect.
+func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, requestNonce, signingKeyHex, sharedKey, deviceID, status, message string, readOnly *bool, allowedPaths []string) error {
 	resp := AuthResponsePayload{
 		Status:        status,
 		DeviceID:      deviceID,
@@ -1019,6 +1024,7 @@ func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, signingKeyHex, shar
 		ReadOnly:      readOnly,
 		AllowedPaths:  allowedPaths,
 		MaxFileSizeMB: h.effectiveMaxFileSizeMB(),
+		RequestNonce:  requestNonce,
 	}
 	msg, err := NewAuthResponseMessage(deviceID, signingKeyHex, resp)
 	if err != nil {

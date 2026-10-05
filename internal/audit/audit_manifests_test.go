@@ -1328,6 +1328,7 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 		"supervisor-nonce-replay-cache",
 		"remote-agent-frame-replay-guard",
 		"remote-enrollment-key-split",
+		"remote-auth-response-binding",
 		"remote-agent-duplicate-command-id",
 		"remote-file-allowed-paths",
 		"invasion-artifact-integrity",
@@ -1372,8 +1373,16 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 	if !strings.Contains(agentSource, "remote.DeriveEnrollmentLookupHash(c.cfg.EnrollToken)") {
 		t.Fatal("remote agent must send the enrollment lookup hash, not the MAC key")
 	}
+	// Signed auth responses are bound to the auth frame they answer.
+	if !strings.Contains(hubSource, "RequestNonce:  requestNonce") {
+		t.Fatal("remote hub auth responses must echo the request nonce")
+	}
+	if !strings.Contains(agentSource, "auth response not bound to this request") {
+		t.Fatal("remote agent must refuse auth responses not bound to its auth frame")
+	}
 	for _, entry := range RemoteLifecycleManifest() {
-		if entry.Name == "remote-enrollment-key-split" {
+		switch entry.Name {
+		case "remote-enrollment-key-split", "remote-auth-response-binding":
 			assertRemoteManifestTestsExist(t, entry)
 		}
 	}

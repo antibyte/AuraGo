@@ -421,6 +421,41 @@ func TestCleanExpiredEnrollmentsRemovesOrphanedVaultKeys(t *testing.T) {
 	}
 }
 
+// Every answer to an auth frame echoes that frame's nonce under the HMAC, so the
+// agent can tell it answers this request and not an earlier one.
+func TestAuthResponsesEchoRequestNonce(t *testing.T) {
+	hub, _, _ := newEnrollmentTestHub(t)
+	exchange := enrollmentExchange(t, hub)
+	token := "fresh-admin-token"
+	issueTestEnrollment(t, hub, token)
+
+	enroll := enrollmentFrame(t, token, 1)
+	response, enrolled := exchange(enroll)
+	if enrolled.Status != "enrolled" || enrolled.RequestNonce != enroll.Nonce {
+		t.Fatalf("enrolled answer must echo the auth nonce %s: %+v", enroll.Nonce, enrolled)
+	}
+	if ok, err := VerifyMessage(response, DeriveEnrollmentAuthKey(token)); err != nil || !ok {
+		t.Fatalf("enrolled answer must be signed: ok=%v err=%v", ok, err)
+	}
+
+	reconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 2, AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, authenticated := exchange(reconnect)
+	if authenticated.Status != "authenticated" || authenticated.RequestNonce != reconnect.Nonce {
+		t.Fatalf("authenticated answer must echo the auth nonce %s: %+v", reconnect.Nonce, authenticated)
+	}
+	if ok, err := VerifyMessage(response, enrolled.SharedKey); err != nil || !ok {
+		t.Fatalf("authenticated answer must be signed: ok=%v err=%v", ok, err)
+	}
+
+	again := enrollmentFrame(t, token, 3)
+	if _, refused := exchange(again); refused.Status != "rejected" || refused.RequestNonce != again.Nonce {
+		t.Fatalf("refusals echo the auth nonce too: %+v", refused)
+	}
+}
+
 // shiftSequenceIntoNonce moves the last sequence digit into the nonce. The HMAC
 // still verifies because hmacData joins the two fields without a delimiter.
 func shiftSequenceIntoNonce(t *testing.T, msg *RemoteMessage, key string) *RemoteMessage {
@@ -486,7 +521,7 @@ func TestEnrollmentVaultFailureLeavesTokenUnused(t *testing.T) {
 	defer cleanup()
 	done := make(chan error, 1)
 	go func() {
-		done <- hub.completeEnrollment(serverConn, AuthPayload{Hostname: "test"}, id, "test", DeriveEnrollmentAuthKey(token))
+		done <- hub.completeEnrollment(serverConn, strings.Repeat("0", 32), AuthPayload{Hostname: "test"}, id, "test", DeriveEnrollmentAuthKey(token))
 	}()
 	var response RemoteMessage
 	_ = clientConn.SetReadDeadline(time.Now().Add(5 * time.Second))
