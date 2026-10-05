@@ -146,22 +146,25 @@ func genericToolSinkParam(tool, param string) bool {
 //   - operations that take a secret as a plain parameter value, which would be stored
 //     in clear in the flow, its versions and the run records;
 //   - operations that spend model tokens or money the flow budget does not see (a
-//     vision model, a summary model, speech-to-text): phase 1 has no way to charge
-//     them to a run. Tools that spend on every call are left out whole by the server
-//     (flowSpendingTools in internal/server); this list keeps the cheap operations of
-//     the others. rtl_sdr also loses "transcribe", the switch that makes record and
-//     schedule transcribe afterwards; without it they record only.
+//     vision model, a summary model, speech-to-text, a whole agent turn or voice call):
+//     phase 1 has no way to charge them to a run. Tools that spend on every call are
+//     left out whole by the server (flowSpendingTools in internal/server); this list
+//     keeps the cheap operations of the others. rtl_sdr also loses "transcribe", the
+//     switch that makes record and schedule transcribe afterwards; without it they
+//     record only.
 //
 // The schemas do not say which operation uses which parameter, so the parameters are
-// listed by hand (env_key stays: get_env and delete_env use it). Validate and Execute
-// refuse a dropped operation like any operation the schema does not list. A tool whose
-// operation parameter has no list (free text) or a list the filter empties gets no
-// generic node. A tool without any operation parameter keeps its node with the
-// parameters dropped: its node cannot name an operation, so it cannot ask for a dropped
-// one.
+// listed by hand from the agent's dispatcher (env_key stays: get_env and delete_env use
+// it). Validate and Execute refuse a dropped operation like any operation the schema
+// does not list. A tool whose operation parameter has no list (free text) or a list the
+// filter empties gets no generic node. A tool without any operation parameter keeps its
+// node with the parameters dropped: its node cannot name an operation, so it cannot ask
+// for a dropped one.
 var genericDroppedOperations = map[string]struct{ ops, params []string }{
-	// secrets as plain values
-	"invasion_tasks": {ops: []string{"send_secret"}, params: []string{"key", "value"}},
+	// secrets as plain values (invasion_tasks send_secret), and invasion_tasks
+	// send_task, which runs a full agent turn on the egg; content, nest_id and egg_id
+	// stay (send_host_message and list_egg_messages read them)
+	"invasion_tasks": {ops: []string{"send_secret", "send_task"}, params: []string{"key", "value", "task", "egg_name"}},
 	"netlify":        {ops: []string{"set_env"}, params: []string{"env_value"}},
 	"vercel":         {ops: []string{"set_env"}, params: []string{"env_value"}},
 	// spending outside the flow budget
@@ -171,6 +174,8 @@ var genericDroppedOperations = map[string]struct{ ops, params []string }{
 	"video_download":     {ops: []string{"transcribe"}},                                   // speech-to-text
 	"fritzbox_telephony": {ops: []string{"transcribe_tam_message"}},                       // speech-to-text
 	"rtl_sdr":            {ops: []string{"transcribe"}, params: []string{"transcribe"}},   // speech-to-text
+	"knowledge_graph":    {ops: []string{"optimize", "optimize_graph"}},                   // a model call per memory compressed
+	"sip_phone":          {ops: []string{"dial"}, params: []string{"target"}},             // starts the telephone agent (STT, LLM, TTS)
 	// legacy boringd-LLM tasks; command stays (exec uses it)
 	"virtual_computers": {ops: []string{"run_shell_task", "run_desktop_task"}, params: []string{"instruction"}},
 }

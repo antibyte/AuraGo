@@ -299,7 +299,7 @@ func TestGenericExposureAndContentSinks(t *testing.T) {
 func TestGenericDroppedSecretOperations(t *testing.T) {
 	envProps := func(extra string) map[string]any { return genericTextProps("env_key", "env_value", extra) }
 	tools := []GenericTool{
-		{Name: "invasion_tasks", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("key", "value", "nest_id", "task", "body"),
+		{Name: "invasion_tasks", Category: "infrastructure", Schema: genericOpsSchema(genericTextProps("key", "value", "nest_id", "task", "body", "egg_name"),
 			"send_task", "task_status", "send_secret")},
 		{Name: "netlify", Category: "infrastructure", Schema: genericOpsSchema(envProps("site_id"), "list_env", "get_env", "set_env", "delete_env")},
 		{Name: "vercel", Category: "infrastructure", Schema: genericOpsSchema(envProps("project_id"), "list_env", "get_env", "set_env", "delete_env")},
@@ -313,7 +313,9 @@ func TestGenericDroppedSecretOperations(t *testing.T) {
 		tool, dropped string
 		params        []string
 	}{
-		{"invasion_tasks", "send_secret", []string{"body", "nest_id", "operation", "task"}},
+		// send_task (an agent turn on the egg) is dropped as well, with task and egg_name
+		{"invasion_tasks", "send_secret", []string{"body", "nest_id", "operation"}},
+		{"invasion_tasks", "send_task", []string{"body", "nest_id", "operation"}},
 		{"netlify", "set_env", []string{"env_key", "operation", "site_id"}},
 		{"vercel", "set_env", []string{"env_key", "operation", "project_id"}},
 	} {
@@ -338,10 +340,10 @@ func TestGenericDroppedSecretOperations(t *testing.T) {
 	}
 	// The other operations still work, without the dropped parameters.
 	fake := &fakeTools{}
-	if _, err := execDef(lookupDef(t, reg, "tool.invasion_tasks"), map[string]any{"operation": "send_task", "task": "x", "nest_id": "n",
+	if _, err := execDef(lookupDef(t, reg, "tool.invasion_tasks"), map[string]any{"operation": "task_status", "task": "x", "nest_id": "n",
 		"key": "API", "value": "s3cr3t"}, &Services{Tools: fake}); err != nil ||
-		!reflect.DeepEqual(fake.last(t).Args, map[string]any{"operation": "send_task", "task": "x", "nest_id": "n"}) {
-		t.Errorf("send_task: %v, %v", fake.last(t).Args, err)
+		!reflect.DeepEqual(fake.last(t).Args, map[string]any{"operation": "task_status", "nest_id": "n"}) {
+		t.Errorf("task_status: %v, %v", fake.last(t).Args, err)
 	}
 	fake = &fakeTools{}
 	if _, err := execDef(lookupDef(t, reg, "tool.netlify"), map[string]any{"operation": "get_env", "env_key": "A"}, &Services{Tools: fake}); err != nil ||

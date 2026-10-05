@@ -310,11 +310,12 @@ func TestGenericProgramToolsMarkEveryTextParam(t *testing.T) {
 		sinks []string
 	}{
 		{"space_agent", text("instruction", "information", "session_id"), []string{"information", "instruction", "session_id"}},
-		{"invasion_tasks", text("task", "message", "body", "content"), []string{"body", "content", "message", "task"}},
+		// task is dropped with send_task (genericDroppedOperations)
+		{"invasion_tasks", text("task", "message", "body", "content"), []string{"body", "content", "message"}},
 		{"remote_control_shell", text("input", "cwd_id"), []string{"cwd_id", "input"}},
 		{"remote_control_desktop", text("text", "key", "value"), []string{"key", "text", "value"}},
 		// instruction is dropped with run_shell_task and run_desktop_task (genericDroppedOperations)
-		{"virtual_computers", text("name", "content", "template"), []string{"content", "name", "template"}},
+		{"virtual_computers", text("instruction", "name", "content", "template"), []string{"content", "name", "template"}},
 		{"virtual_workspace", text("input", "content", "working_dir"), []string{"content", "input", "working_dir"}},
 		{"virtual_desktop_app_install", map[string]any{"files": genericProp("string", "Files. Provide as a JSON object string."),
 			"manifest": map[string]any{"type": "object"}}, []string{"files", "manifest"}},
