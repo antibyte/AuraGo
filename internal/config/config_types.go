@@ -1926,6 +1926,7 @@ type Config struct {
 	GameMaker         GameMakerConfig         `yaml:"game_maker"`
 	Detective         DetectiveConfig         `yaml:"detective"`
 	Newspaper         NewspaperConfig         `yaml:"newspaper"`
+	Flows             FlowsConfig             `yaml:"flows"`
 	VirtualComputers  VirtualComputersConfig  `yaml:"virtual_computers"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`
