@@ -41,8 +41,8 @@
     const DUNE_PARALLAX_X = [4, 7, 11];
     const DUNE_PARALLAX_Y = [0.012, 0.022, 0.035];
     const POINTER_RADIUS = 110;
-    const FLASH_PULSE_MS = 110;
-    const FLASH_SECOND_MS = 90;
+    const FLASH_PULSE_MS = 170;
+    const FLASH_SECOND_MS = 140;
 
     // ─── WebGL Fog Config ───
     const FOG_VERTEX = `
@@ -166,7 +166,7 @@
             over(col, a, vec3(1.0, 0.92, 0.72), rays * 0.5 * sunVis * (1.0 - u_storm * 0.5));
             over(col, a, dustCol, density * (0.17 + u_storm * 0.2) * (0.65 + low * 0.35));
             over(col, a, wallCol, wall * 0.74);
-            over(col, a, vec3(0.93, 0.92, 1.0), u_flash * (0.16 + wall * 0.4 + density * 0.18));
+            over(col, a, vec3(0.93, 0.92, 1.0), u_flash * (0.24 + wall * 0.45 + density * 0.2));
             a = min(a, 0.94);
 
             gl_FragColor = vec4(col, a);
@@ -1050,11 +1050,11 @@
         const points = [];
         const startX = width * rand(0.15, 0.85);
         let x = startX, y = -12;
-        const endY = height * rand(0.32, 0.58);
-        const segments = 9 + Math.floor(rand(0, 6));
+        const endY = height * rand(0.42, 0.66);
+        const segments = 11 + Math.floor(rand(0, 7));
         points.push([x, y]);
         for (let i = 0; i < segments; i++) {
-            x += rand(-22, 22);
+            x += rand(-30, 30);
             y += (endY + 12) / segments * rand(0.6, 1.4);
             points.push([x, y]);
         }
@@ -1106,11 +1106,12 @@
         if (!sctx || flash <= 0.01 || !bolt) return;
         sctx.save();
         // A pale flash across the whole scene, strongest near the bolt.
-        sctx.fillStyle = `rgba(228, 226, 255, ${0.07 * flash})`;
+        sctx.fillStyle = `rgba(230, 228, 255, ${0.13 * flash})`;
         sctx.fillRect(0, 0, width, height);
-        const glow = sctx.createRadialGradient(bolt.glowX, bolt.glowY, 0, bolt.glowX, bolt.glowY, height * 0.42);
-        glow.addColorStop(0, `rgba(232, 228, 255, ${0.3 * flash})`);
-        glow.addColorStop(1, 'rgba(232, 228, 255, 0)');
+        const glow = sctx.createRadialGradient(bolt.glowX, bolt.glowY, 0, bolt.glowX, bolt.glowY, height * 0.55);
+        glow.addColorStop(0, `rgba(236, 232, 255, ${0.5 * flash})`);
+        glow.addColorStop(0.5, `rgba(236, 232, 255, ${0.18 * flash})`);
+        glow.addColorStop(1, 'rgba(236, 232, 255, 0)');
         sctx.fillStyle = glow;
         sctx.fillRect(0, 0, width, height);
 
@@ -1122,16 +1123,17 @@
         };
         sctx.lineJoin = 'round';
         sctx.lineCap = 'round';
-        sctx.shadowBlur = 22;
-        sctx.shadowColor = `rgba(200, 206, 255, ${0.9 * flash})`;
-        sctx.strokeStyle = `rgba(190, 196, 255, ${0.28 * flash})`;
-        sctx.lineWidth = 6;
+        sctx.shadowBlur = 34;
+        sctx.shadowColor = `rgba(205, 210, 255, ${0.95 * flash})`;
+        sctx.strokeStyle = `rgba(196, 202, 255, ${0.42 * flash})`;
+        sctx.lineWidth = 11;
         strokePath(bolt.points);
-        sctx.strokeStyle = `rgba(255, 252, 240, ${0.95 * flash})`;
-        sctx.lineWidth = 2;
+        sctx.shadowBlur = 14;
+        sctx.strokeStyle = `rgba(255, 253, 245, ${0.98 * flash})`;
+        sctx.lineWidth = 3.2;
         strokePath(bolt.points);
-        sctx.lineWidth = 1.2;
-        sctx.strokeStyle = `rgba(255, 250, 235, ${0.7 * flash})`;
+        sctx.lineWidth = 1.8;
+        sctx.strokeStyle = `rgba(255, 250, 235, ${0.8 * flash})`;
         for (let b = 0; b < bolt.branches.length; b++) strokePath(bolt.branches[b]);
         sctx.restore();
     }

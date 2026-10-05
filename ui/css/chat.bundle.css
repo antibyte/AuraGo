@@ -12810,6 +12810,7 @@ pre,
         var(--sand-dune-near) center bottom / 100% 200px no-repeat,
         var(--sand-dune-mid) center bottom / 100% 250px no-repeat,
         var(--sand-dune-far) center bottom / 100% 300px no-repeat,
+        radial-gradient(circle at 82% 13%, rgba(255, 246, 220, 0.9) 0, rgba(255, 236, 190, 0.78) 2.6%, rgba(255, 214, 140, 0.3) 3.4%, rgba(255, 196, 110, 0.12) 5.5%, transparent 9%),
         linear-gradient(180deg, transparent 0%, transparent 58%, rgba(224, 150, 60, 0.1) 76%, rgba(226, 150, 62, 0.04) 100%);
     opacity: 1;
     transition: opacity 0.9s ease;
@@ -13911,7 +13912,7 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
     [data-theme="sandstorm"] body::before {
-        background-size: 100% 150px, 100% 190px, 100% 230px, auto;
+        background-size: 100% 150px, 100% 190px, 100% 230px, auto, auto;
     }
 
     [data-theme="sandstorm"] #chat-box::before {
