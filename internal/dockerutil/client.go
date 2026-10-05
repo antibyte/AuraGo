@@ -45,6 +45,11 @@ func Endpoint(path string) string {
 }
 
 // DoJSON sends a Docker Engine request and optionally decodes its JSON body.
+// The returned status is 0 when no HTTP response arrived: request building,
+// transport and API-version negotiation failures return 0 with an error. A
+// non-2xx answer returns the real status code with an error carrying the
+// Engine's message, so callers classify Docker answers (404 gone, 304 not
+// modified, 409 conflict) by code and never by matching error text.
 func (c *Client) DoJSON(ctx context.Context, method, path string, requestBody, responseBody any) (int, error) {
 	var body io.Reader
 	if requestBody != nil {

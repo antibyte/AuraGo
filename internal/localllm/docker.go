@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -404,8 +405,9 @@ func (m *Manager) gpuGroupIDs(renderNode string) []string {
 }
 
 // imagePullTimeout bounds one runtime image pull. CUDA and SYCL runtime images
-// are several GB, like the ACE-Step CUDA image that uses the same bound; the
-// install context (6 h) and desired-state cancellation still stop it earlier.
+// are several GB, like the ACE-Step CUDA image that uses the same bound. The
+// pull ends at whichever comes first: this timeout, the install context (6 h)
+// or desired-state cancellation.
 const imagePullTimeout = 2 * time.Hour
 
 // maxPullFailureDetail caps the Docker reason kept after "pull_image_failed: ".
@@ -415,7 +417,7 @@ func (m *Manager) pullImage(ctx context.Context, reference string) error {
 	path := "images/create?fromImage=" + url.QueryEscape(reference)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, dockerutil.Endpoint(path), nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("pull_image_failed: %w", err)
 	}
 	client := m.docker.HTTPClientWithTimeout(imagePullTimeout)
 	if client == nil {
@@ -435,7 +437,10 @@ func (m *Manager) pullImage(ctx context.Context, reference string) error {
 	if err := dockerutil.DrainJSONMessages(resp.Body); err != nil {
 		var event *dockerutil.JSONMessageError
 		if errors.As(err, &event) {
-			return fmt.Errorf("pull_image_failed: %s", pullFailureDetail(event.Message))
+			if detail := pullFailureDetail(event.Message); detail != "" {
+				return fmt.Errorf("pull_image_failed: %s", detail)
+			}
+			return fmt.Errorf("pull_image_failed")
 		}
 		return fmt.Errorf("pull_image_failed: %w", err)
 	}
@@ -454,11 +459,22 @@ func engineErrorDetail(body []byte) string {
 	return pullFailureDetail(string(body))
 }
 
-// pullFailureDetail keeps the Docker reason on one bounded line so a registry
-// response cannot inject control characters or unbounded text into logs.
+// logPullFailure writes the sanitised Docker reason of a failed runtime pull to
+// the server log. The API and status expose only the error code.
+func (m *Manager) logPullFailure(reference string, err error) {
+	logger := m.logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	logger.Warn("[LocalLLM] runtime image pull failed", "image", reference, "error", err)
+}
+
+// pullFailureDetail keeps the Docker reason on one bounded line of printable
+// runes so a registry response cannot inject control characters, line or
+// paragraph separators, bidi overrides or unbounded text into logs.
 func pullFailureDetail(message string) string {
 	message = strings.TrimSpace(strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		if !unicode.IsPrint(r) {
 			return ' '
 		}
 		return r

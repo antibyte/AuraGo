@@ -1,16 +1,19 @@
 package localllm
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"testing/iotest"
 	"time"
+	"unicode"
 
 	"aurago/internal/dockerutil"
 )
@@ -130,8 +133,12 @@ func TestPullImageRejectsTruncatedStream(t *testing.T) {
 	t.Run("stream ends inside a message", func(t *testing.T) {
 		body := strings.NewReader(`{"status":"Downloading"}` + "\n" + `{"status":"Downlo`)
 		manager := &Manager{docker: &pullTestEngine{client: pullStreamClient(http.StatusOK, body)}}
-		if err := manager.pullImage(context.Background(), testRuntimeImage); codeOrEmpty(err) != "pull_image_failed" {
+		err := manager.pullImage(context.Background(), testRuntimeImage)
+		if codeOrEmpty(err) != "pull_image_failed" {
 			t.Fatalf("pullImage() error = %v, want pull_image_failed", err)
+		}
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
+			t.Fatalf("pullImage() error = %v, want it to wrap io.ErrUnexpectedEOF", err)
 		}
 	})
 	t.Run("connection lost", func(t *testing.T) {
@@ -216,4 +223,91 @@ func TestRuntimeStopClassifiesByStatusCode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPullImageHardensFailureDetail(t *testing.T) {
+	t.Run("non-JSON error body is kept as the detail", func(t *testing.T) {
+		manager := &Manager{docker: &pullTestEngine{client: pullStreamClient(http.StatusBadGateway, strings.NewReader("<html>bad gateway</html>"))}}
+		err := manager.pullImage(context.Background(), testRuntimeImage)
+		if codeOrEmpty(err) != "pull_image_failed" || !strings.Contains(err.Error(), "Docker returned 502: <html>bad gateway</html>") {
+			t.Fatalf("pullImage() error = %v, want pull_image_failed naming the 502 body", err)
+		}
+	})
+	t.Run("an error event of only non-printable runes has no detail", func(t *testing.T) {
+		// U+0001 and U+001B are controls, U+202E a bidi override, U+200B a
+		// zero-width space; none is whitespace, so the event is still an error.
+		body := `{"error":"\u0001\u001b\u202e\u200b"}` + "\n"
+		manager := &Manager{docker: &pullTestEngine{client: pullStreamClient(http.StatusOK, strings.NewReader(body))}}
+		err := manager.pullImage(context.Background(), testRuntimeImage)
+		if err == nil || err.Error() != "pull_image_failed" {
+			t.Fatalf("pullImage() error = %v, want exactly pull_image_failed", err)
+		}
+	})
+	t.Run("separators and bidi overrides cannot pass", func(t *testing.T) {
+		body := `{"error":"denied\u2028token\u2029expired\u202e\u0000end"}` + "\n"
+		manager := &Manager{docker: &pullTestEngine{client: pullStreamClient(http.StatusOK, strings.NewReader(body))}}
+		err := manager.pullImage(context.Background(), testRuntimeImage)
+		if codeOrEmpty(err) != "pull_image_failed" {
+			t.Fatalf("pullImage() error = %v, want pull_image_failed", err)
+		}
+		for _, r := range err.Error() {
+			if !unicode.IsPrint(r) {
+				t.Fatalf("pullImage() error = %q contains non-printable rune %U", err.Error(), r)
+			}
+		}
+		for _, want := range []string{"denied", "token", "expired", "end"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("pullImage() error = %q, want it to keep %q", err.Error(), want)
+			}
+		}
+	})
+}
+
+func TestPullImageCancellationStaysInspectable(t *testing.T) {
+	firstLine := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"status":"Downloading","id":"layer"}`+"\n")
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		select {
+		case firstLine <- struct{}{}:
+		default:
+		}
+		// A slow stream: nothing more arrives until the client gives up.
+		select {
+		case <-r.Context().Done():
+		case <-time.After(10 * time.Second):
+		}
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-firstLine
+		cancel()
+	}()
+	manager := &Manager{docker: dockerutil.NewClient("tcp://"+strings.TrimPrefix(server.URL, "http://"), time.Minute)}
+	err := manager.pullImage(ctx, testRuntimeImage)
+	if codeOrEmpty(err) != "pull_image_failed" || !errors.Is(err, context.Canceled) {
+		t.Fatalf("pullImage() error = %v, want pull_image_failed wrapping context.Canceled", err)
+	}
+}
+
+func TestLogPullFailureWritesReasonAndToleratesMissingLogger(t *testing.T) {
+	var logged bytes.Buffer
+	manager := &Manager{logger: slog.New(slog.NewTextHandler(&logged, nil))}
+	manager.logPullFailure(testRuntimeImage, errors.New("pull_image_failed: no matching manifest for linux/amd64"))
+	for _, want := range []string{"runtime image pull failed", testRuntimeImage, "no matching manifest for linux/amd64"} {
+		if !strings.Contains(logged.String(), want) {
+			t.Fatalf("log = %q, want it to contain %q", logged.String(), want)
+		}
+	}
+	// A Manager built without NewManager has no logger; it must fall back to
+	// the default logger instead of panicking.
+	(&Manager{}).logPullFailure(testRuntimeImage, errors.New("pull_image_failed"))
 }

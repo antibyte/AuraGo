@@ -722,6 +722,7 @@ func (m *Manager) install(parent context.Context) error {
 	}
 	m.mu.Unlock()
 	if err := m.pullImage(ctx, plan.Image.Reference); err != nil {
+		m.logPullFailure(plan.Image.Reference, err)
 		return m.failGeneration(generation, errorCode(err), err)
 	}
 	if err := m.startWithPlan(ctx, plan); err != nil {
