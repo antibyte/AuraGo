@@ -171,8 +171,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   start-up go to the `missed` callback.
 - A store error makes the loop wait `retryDelay` (30 s) before retrying; `Stop` takes effect between
   timers; `Start` is idempotent and fails after `Stop`.
-- Yearly timers keep their anchor day (Feb 29 fires only in leap years). The arithmetic runs in UTC; a
-  location is still to be wired in (plan 1b-12).
+- Yearly timers keep their anchor day (Feb 29 fires only in leap years). The arithmetic runs in the
+  zone set by `SetLocation` (UTC when unset; the Service sets `Services.Loc()`), so a yearly timer keeps
+  its local time of day across daylight saving changes. Fire times are stored as UTC.
 
 ## Tests
 - `go test ./internal/flows/ -count=1`; the race detector needs cgo, so `go test -race ./internal/flows/`

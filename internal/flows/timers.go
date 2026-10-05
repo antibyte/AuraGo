@@ -70,9 +70,11 @@ type TimerService struct {
 	stopOnce sync.Once
 
 	startMu     sync.Mutex // serializes Start
-	mu          sync.Mutex // guards the two flags below
+	mu          sync.Mutex // guards the two flags and loc below
 	loopStarted bool
 	stopped     bool
+	// loc is the zone yearly timers recur in; nil means UTC. See SetLocation.
+	loc *time.Location
 
 	// unsettled holds the timers whose callback ran but whose delete or move failed.
 	// It is touched only by processDue, which never runs concurrently with itself:
@@ -129,6 +131,29 @@ func (t *TimerService) Start(ctx context.Context) error {
 	t.loopStarted = true
 	go t.loop()
 	return nil
+}
+
+// SetLocation sets the zone in which yearly timers recur; nil means UTC, the default.
+// The store keeps fire times in UTC, so without the zone a yearly timer keeps its UTC
+// time of day: a date in the weeks where the daylight saving switch moves from year to
+// year (end of March and of October in Europe) then comes out an hour off its local
+// time. A local time that does not exist on the next date (02:30 on the spring switch)
+// moves the way time.Date normalizes it. SetLocation may be called at any time; the
+// zone applies to the timers settled afterwards.
+func (t *TimerService) SetLocation(loc *time.Location) {
+	t.mu.Lock()
+	t.loc = loc
+	t.mu.Unlock()
+}
+
+// location returns the zone set by SetLocation, or UTC.
+func (t *TimerService) location() *time.Location {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.loc == nil {
+		return time.UTC
+	}
+	return t.loc
 }
 
 // Replace sets the timers of one flow and re-plans.
@@ -279,7 +304,8 @@ func (t *TimerService) processDue(ctx context.Context, startup bool) error {
 	return nil
 }
 
-// settle removes a one-off timer or moves a yearly one to its next date after now.
+// settle removes a one-off timer or moves a yearly one to its next date after now,
+// computed in the service's zone (SetLocation) and stored as UTC.
 //
 // Both steps are conditional on the occurrence that fired. processDue works on a
 // snapshot, and a Replace (a republished flow) or a deleted flow may have changed or
@@ -296,7 +322,7 @@ func (t *TimerService) settle(ctx context.Context, tm TimerRecord, now time.Time
 	if tm.Repeat != RepeatYearly {
 		return t.store.DeleteTimerAt(ctx, tm.FlowID, tm.NodeID, tm.FireAt)
 	}
-	return t.store.MoveTimer(ctx, tm.FlowID, tm.NodeID, tm.FireAt, nextYearly(tm.FireAt, now))
+	return t.store.MoveTimer(ctx, tm.FlowID, tm.NodeID, tm.FireAt, nextYearly(tm.FireAt.In(t.location()), now).UTC())
 }
 
 // forgetGone drops unsettled entries whose timer is no longer stored (the flow was
