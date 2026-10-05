@@ -632,7 +632,7 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 	response, refused := exchange(oldEnroll)
 	// The binary is what is outdated, whatever the token's age, so the reason
 	// names the agent download (which also issues a new token).
-	if refused.Status != "rejected" || refused.Message != "agent predates the supervisor upgrade; download the agent again from AuraGo (Remote Control) — that also issues a new token" || refused.RequestNonce != oldEnroll.Nonce {
+	if refused.Status != "rejected" || refused.Message != "agent predates the supervisor upgrade; download the agent again from AuraGo (Remote Control), which also issues a new token" || refused.RequestNonce != oldEnroll.Nonce {
 		t.Fatalf("pre-upgrade enrollment = %+v", refused)
 	}
 	var rawRefusal map[string]any

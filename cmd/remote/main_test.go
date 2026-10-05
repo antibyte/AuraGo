@@ -277,19 +277,24 @@ func TestConnectReportsUnsignedRefusalAsUnverified(t *testing.T) {
 // An unverified reason comes from whoever answered, so it is capped and
 // quoted before it reaches the log.
 func TestUnverifiedRefusalReasonIsCappedAndQuoted(t *testing.T) {
-	for name, reason := range map[string]string{
-		"ascii":      strings.Repeat("x", 1000),
-		"multi-byte": strings.Repeat("ä", 300),
-		"newlines":   "line one\nforged log line",
+	for name, tc := range map[string]struct {
+		reason  string
+		wantLen int
+	}{
+		"ascii": {strings.Repeat("x", 1000), maxUnverifiedReasonBytes},
+		// 256 is not a multiple of the 3-byte rune, so the cut backs up to 255.
+		"multi-byte": {strings.Repeat("€", 100), 255},
+		"newlines":   {"line one\nforged log line", len("line one\nforged log line")},
 	} {
+		reason := tc.reason
 		err := unverifiedRefusal(reason)
 		quoted := strings.TrimPrefix(err.Error(), "supervisor refused (unverified): ")
 		got, uerr := strconv.Unquote(quoted)
 		if uerr != nil {
 			t.Fatalf("%s: reason must be a quoted string: %q", name, err.Error())
 		}
-		if len(got) > maxUnverifiedReasonBytes || !utf8.ValidString(got) || !strings.HasPrefix(reason, got) {
-			t.Fatalf("%s: reason must be a valid prefix of at most %d bytes, got %d bytes", name, maxUnverifiedReasonBytes, len(got))
+		if len(got) != tc.wantLen || !utf8.ValidString(got) || !strings.HasPrefix(reason, got) {
+			t.Fatalf("%s: reason must be a valid %d-byte prefix, got %d bytes", name, tc.wantLen, len(got))
 		}
 		if strings.Contains(err.Error(), "\n") || !errors.Is(err, errUnverifiedRefusal) {
 			t.Fatalf("%s: error = %q", name, err.Error())

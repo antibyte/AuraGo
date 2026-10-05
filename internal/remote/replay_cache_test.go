@@ -50,7 +50,7 @@ func TestNonceReplayCacheExportedWrapperMatchesSupervisorCache(t *testing.T) {
 // A frame is accepted while its timestamp is within ±MaxTimestampDrift, so a
 // nonce first seen when the frame is future-dated must stay cached until the
 // frame turns stale. The supervisor's own cache is checked in
-// hub_result_security_test.go (the hub is not in the remote_minimal build).
+// hub_replay_test.go (the hub is not in the remote_minimal build).
 func TestNonceReplayCacheCoversFullTimestampWindow(t *testing.T) {
 	assertNonceCacheCoversTimestampWindow(t, newNonceReplayCache(0, 10))
 }

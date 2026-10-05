@@ -994,7 +994,7 @@ remote_control:
 > ⚠️ **Upgrade note (enrollment key split):** Enrollment tokens issued before the upgrade are invalid; create new ones.
 > Remote agents deployed before the upgrade cannot reconnect and must be replaced with a download from the upgraded AuraGo (**Remote Control**). Their device keys survive, so no re-enrollment is needed.
 > The supervisor logs `unsupported frame version` for each affected device.
-> A token's enrollment key is held in the Vault as `remote_enroll_key_<id>` until the token is used or expires.
+> A token's enrollment key is held in the Vault as `remote_enroll_key_<id>` until the token is used, or swept after it expires (at the next token issuance).
 
 ### AgoDesk / AgoChat Desktop Companion
 

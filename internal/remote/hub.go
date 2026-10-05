@@ -1038,7 +1038,8 @@ const (
 	preUpgradeEnrollmentMessage = "enrollment token predates the upgrade; create a new one"
 	// An unversioned enrollment frame: the agent binary is outdated whatever
 	// the token's age, and downloading the agent again also issues a token.
-	preUpgradeAgentMessage = "agent predates the supervisor upgrade; download the agent again from AuraGo (Remote Control) — that also issues a new token"
+	// ASCII only: old agents print it raw, and legacy code pages garble the rest.
+	preUpgradeAgentMessage = "agent predates the supervisor upgrade; download the agent again from AuraGo (Remote Control), which also issues a new token"
 	// No row for the lookup hash. Rows issued before the key split are stored
 	// under the plain token hash and end up here as well.
 	unknownEnrollmentMessage = "invalid or pre-upgrade enrollment token; create a new one"
