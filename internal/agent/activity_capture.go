@@ -13,6 +13,7 @@ import (
 	"aurago/internal/kgquality"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -429,5 +430,5 @@ func truncateActivityDigestInput(text string, maxLen int) string {
 	if maxLen <= 0 || len(text) <= maxLen {
 		return text
 	}
-	return strings.TrimSpace(text[:maxLen-1]) + "…"
+	return strings.TrimSpace(prompts.TruncateWithEllipsis(text, maxLen))
 }
