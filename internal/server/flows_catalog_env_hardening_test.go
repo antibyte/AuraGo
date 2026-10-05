@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -15,7 +16,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/sashabaranov/go-openai"
 
@@ -24,8 +24,9 @@ import (
 	"aurago/internal/flows"
 )
 
-// c12DeadlockGuard bounds every wait in these tests, so a deadlock fails instead of hanging.
-const c12DeadlockGuard = 10 * time.Second
+// Tests of flowCatalogEnv over the agent's REAL tool schemas: the spend list, the
+// palette wiring, the agent's permissions and the config UI sections. The concurrency
+// tests are in flows_catalog_env_concurrency_test.go.
 
 // c12MinGenericNodes is a floor for the generic nodes of the full configuration (151
 // today): far fewer means tools vanish from the palette by accident.
@@ -87,31 +88,6 @@ func c12RealEnv(cur *atomic.Pointer[config.Config], logger *slog.Logger) *flowCa
 	}
 }
 
-// c12Within runs fn and fails the test when it does not return within c12DeadlockGuard.
-func c12Within(t *testing.T, what string, fn func()) {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		fn()
-	}()
-	select {
-	case <-done:
-	case <-time.After(c12DeadlockGuard):
-		t.Fatalf("%s did not return within %s: deadlock", what, c12DeadlockGuard)
-	}
-}
-
-// c12Wait waits for ch and fails the test after c12DeadlockGuard.
-func c12Wait(t *testing.T, what string, ch <-chan struct{}) {
-	t.Helper()
-	select {
-	case <-ch:
-	case <-time.After(c12DeadlockGuard):
-		t.Fatalf("timed out after %s waiting for %s", c12DeadlockGuard, what)
-	}
-}
-
 // c12LogBuffer collects slog output behind a mutex.
 type c12LogBuffer struct {
 	mu  sync.Mutex
@@ -131,12 +107,19 @@ func (b *c12LogBuffer) String() string {
 }
 
 // c12CaptureDefault routes the default slog logger at level into a buffer for the test.
+// slog.SetDefault also points the log package at the new handler, and restoring the
+// previous default does not undo that, so the log package's writer and flags are
+// restored as well.
 func c12CaptureDefault(t *testing.T, level slog.Level) *c12LogBuffer {
 	t.Helper()
 	logs := &c12LogBuffer{}
-	previous := slog.Default()
+	previous, writer, flags := slog.Default(), log.Writer(), log.Flags()
 	slog.SetDefault(slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: level})))
-	t.Cleanup(func() { slog.SetDefault(previous) })
+	t.Cleanup(func() {
+		slog.SetDefault(previous)
+		log.SetOutput(writer)
+		log.SetFlags(flags)
+	})
 	return logs
 }
 
@@ -225,189 +208,6 @@ func c12ConfigUISections(t *testing.T) map[string]bool {
 	return keys
 }
 
-// Requirement 1: two refreshes that race end with the tools of the current
-// configuration, whatever order they finish their snapshots in.
-func TestC12ConcurrentRefreshesInstallTheCurrentConfig(t *testing.T) {
-	cfg1, cfg2 := &config.Config{}, &config.Config{}
-	var cur atomic.Pointer[config.Config]
-	cur.Store(cfg1)
-	entered, release := make(chan struct{}), make(chan struct{})
-	var enterOnce, releaseOnce sync.Once
-	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
-	var builds1, builds2 atomic.Int32
-	env := &flowCatalogEnv{
-		current: cur.Load,
-		schemas: func(cfg *config.Config) []openai.Tool {
-			if cfg == cfg1 {
-				builds1.Add(1)
-				enterOnce.Do(func() { close(entered) })
-				<-release
-				return []openai.Tool{fnTool("filesystem"), fnTool("c12_old_only")}
-			}
-			builds2.Add(1)
-			return []openai.Tool{fnTool("filesystem"), fnTool("proxmox")}
-		},
-	}
-	reg := flows.NewRegistry()
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		env.refreshRegistry(reg, cfg1)
-	}()
-	c12Wait(t, "the refresh of the old configuration", entered)
-	cur.Store(cfg2)
-	go func() {
-		defer wg.Done()
-		env.refreshRegistry(reg, cfg2)
-	}()
-	releaseOnce.Do(func() { close(release) })
-	c12Within(t, "the two refreshes", wg.Wait)
-
-	if _, ok := reg.Lookup(flows.GenericTypePrefix + "proxmox"); !ok {
-		t.Fatal("the registry lacks tool.proxmox of the current configuration")
-	}
-	if _, ok := reg.Lookup(flows.GenericTypePrefix + "c12_old_only"); ok {
-		t.Fatal("the registry holds a tool of the replaced configuration")
-	}
-	if builds1.Load() != 1 || builds2.Load() != 1 {
-		t.Fatalf("schemas built %d times for the old and %d times for the current configuration, want 1 and 1",
-			builds1.Load(), builds2.Load())
-	}
-	if a := env.ToolAvailability("proxmox"); a.State != flows.AvailableState {
-		t.Fatalf("proxmox = %+v, want available", a)
-	}
-	if a := env.ToolAvailability("c12_old_only"); a.State != flows.NeedsSetupState {
-		t.Fatalf("c12_old_only = %+v, want needs_setup", a)
-	}
-}
-
-// Requirement 1: a refresh for a configuration that is no longer current installs
-// nothing and does not replace the cached snapshot of the current one.
-func TestC12StaleRefreshInstallsNothing(t *testing.T) {
-	cfg1, cfg2 := &config.Config{}, &config.Config{}
-	var cur atomic.Pointer[config.Config]
-	cur.Store(cfg2)
-	var builds1, builds2 atomic.Int32
-	env := &flowCatalogEnv{
-		current: cur.Load,
-		schemas: func(cfg *config.Config) []openai.Tool {
-			if cfg == cfg1 {
-				builds1.Add(1)
-				return []openai.Tool{fnTool("filesystem"), fnTool("c12_old_only")}
-			}
-			builds2.Add(1)
-			return []openai.Tool{fnTool("filesystem"), fnTool("proxmox")}
-		},
-	}
-	reg := flows.NewRegistry()
-	env.refreshRegistry(reg, cfg2)
-	env.refreshRegistry(reg, cfg1)
-	if _, ok := reg.Lookup(flows.GenericTypePrefix + "c12_old_only"); ok {
-		t.Fatal("a stale refresh installed the tools of the replaced configuration")
-	}
-	if _, ok := reg.Lookup(flows.GenericTypePrefix + "proxmox"); !ok {
-		t.Fatal("a stale refresh removed the tools of the current configuration")
-	}
-	if a := env.ToolAvailability("proxmox"); a.State != flows.AvailableState {
-		t.Fatalf("proxmox = %+v, want available", a)
-	}
-	env.refreshRegistry(reg, cfg2)
-	if builds2.Load() != 1 {
-		t.Fatalf("the current configuration's schemas were built %d times; the stale snapshot replaced the cache", builds2.Load())
-	}
-	if builds1.Load() != 1 {
-		t.Fatalf("the stale configuration's schemas were built %d times, want 1", builds1.Load())
-	}
-}
-
-// Requirement 1 and 5: a slow schema build holds no lock that ToolAvailability needs.
-func TestC12ToolAvailabilityDoesNotWaitForASchemaBuild(t *testing.T) {
-	cfg1, cfg2 := &config.Config{}, &config.Config{}
-	var cur atomic.Pointer[config.Config]
-	cur.Store(cfg2)
-	entered, release := make(chan struct{}), make(chan struct{})
-	var enterOnce, releaseOnce sync.Once
-	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
-	env := &flowCatalogEnv{
-		current: cur.Load,
-		schemas: func(cfg *config.Config) []openai.Tool {
-			if cfg == cfg1 {
-				enterOnce.Do(func() { close(entered) })
-				<-release
-			}
-			return []openai.Tool{fnTool("filesystem"), fnTool("proxmox")}
-		},
-	}
-	reg := flows.NewRegistry()
-	env.refreshRegistry(reg, cfg2)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		env.refreshRegistry(reg, cfg1)
-	}()
-	c12Wait(t, "the slow schema build", entered)
-	c12Within(t, "ToolAvailability during a schema build", func() {
-		if a := env.ToolAvailability("proxmox"); a.State != flows.AvailableState {
-			t.Errorf("proxmox = %+v, want available", a)
-		}
-	})
-	releaseOnce.Do(func() { close(release) })
-	c12Wait(t, "the stale refresh", done)
-}
-
-// Requirement 5: describing the palette (whose hooks call ToolAvailability) while the
-// configuration changes and the generic nodes are refreshed neither deadlocks nor ends
-// with tools of a replaced configuration.
-func TestC12DescribeWhileRefreshing(t *testing.T) {
-	cfgs := []*config.Config{{}, {}}
-	var cur atomic.Pointer[config.Config]
-	cur.Store(cfgs[0])
-	env := &flowCatalogEnv{
-		current: cur.Load,
-		schemas: func(cfg *config.Config) []openai.Tool {
-			if cfg == cfgs[1] {
-				return []openai.Tool{fnTool("filesystem"), fnTool("proxmox")}
-			}
-			return []openai.Tool{fnTool("filesystem"), fnTool("c12_other")}
-		},
-	}
-	reg := flows.NewRegistry()
-	if err := flows.RegisterCatalog(reg, env); err != nil {
-		t.Fatal(err)
-	}
-	const rounds = 50
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < rounds; i++ {
-			cfg := cfgs[(i+1)%2]
-			cur.Store(cfg)
-			env.refreshRegistry(reg, cfg)
-		}
-	}()
-	go func() {
-		defer wg.Done()
-		for i := 0; i < rounds; i++ {
-			for _, info := range flows.DescribeNodeTypes(reg, nil) {
-				if info.Availability.State == flows.BlockedState {
-					t.Errorf("%s is blocked: %s", info.Type, info.Availability.Reason)
-					return
-				}
-			}
-		}
-	}()
-	c12Within(t, "describing while refreshing", wg.Wait)
-	final := cur.Load()
-	env.refreshRegistry(reg, final)
-	_, hasProxmox := reg.Lookup(flows.GenericTypePrefix + "proxmox")
-	_, hasOther := reg.Lookup(flows.GenericTypePrefix + "c12_other")
-	if hasProxmox != (final == cfgs[1]) || hasOther != (final == cfgs[0]) {
-		t.Fatalf("the registry holds proxmox=%v c12_other=%v, which is not the current configuration", hasProxmox, hasOther)
-	}
-}
-
 // Requirement 2: tools that spend outside the flow budget on every call never become
 // generic nodes; every name on the list is a real tool, so a rename is noticed.
 func TestC12SpendingToolsNeverBecomeGenericNodes(t *testing.T) {
@@ -437,6 +237,9 @@ func TestC12SpendingToolsNeverBecomeGenericNodes(t *testing.T) {
 		if len(family[prefix]) == 0 {
 			t.Errorf("no tool of the full configuration starts with %s", prefix)
 		}
+		// The prefixes are fail-closed: show who they catch, so a new member is seen.
+		slices.Sort(family[prefix])
+		t.Logf("spending family %s*: %v", prefix, family[prefix])
 	}
 	spending := []string{"analyze_image", "generate_image", "generate_music", "generate_video", "manus",
 		"huggingface", "memory_reflect", "space_agent", "treg_call", "transcribe_audio", "telnyx_sms", "telnyx_call",
@@ -515,6 +318,10 @@ func TestC12SpendingOperationsAreDropped(t *testing.T) {
 		{"rtl_sdr", "status", []string{"transcribe"}, []string{"transcribe"}, []string{"id"}},
 		{"virtual_computers", "status", []string{"run_shell_task", "run_desktop_task"}, []string{"instruction"},
 			[]string{"command", "task_id"}},
+		{"knowledge_graph", "search", []string{"optimize", "optimize_graph"}, nil, []string{"content", "limit"}},
+		{"invasion_tasks", "task_status", []string{"send_secret", "send_task"}, []string{"key", "value", "task", "egg_name"},
+			[]string{"content", "nest_id", "egg_id", "task_id"}},
+		{"sip_phone", "status", []string{"dial"}, []string{"target"}, []string{"call_id"}},
 	}
 	for _, c := range cases {
 		t.Run(c.tool, func(t *testing.T) {
@@ -628,8 +435,15 @@ func TestC12DescribeNodeTypesWithTheRealToolSchemas(t *testing.T) {
 			t.Errorf("a hook fell back while describing: %s", line)
 		}
 	}
-	if logs := schemaLogs.String(); logs != "" {
-		t.Errorf("building the tool schemas warned:\n%s", logs)
+	// The agent's schema build may warn about what it leaves out (a skill that collides
+	// with a built-in, say); that is its business, not a wiring fault. Errors are.
+	for _, line := range strings.Split(strings.TrimSpace(schemaLogs.String()), "\n") {
+		switch {
+		case strings.Contains(line, "level=ERROR"):
+			t.Errorf("building the tool schemas failed: %s", line)
+		case line != "":
+			t.Logf("building the tool schemas warned: %s", line)
+		}
 	}
 	t.Logf("generic nodes: %d of %d node types; DescribeNodeTypes JSON payload: %d bytes", generic, len(infos), len(data))
 }

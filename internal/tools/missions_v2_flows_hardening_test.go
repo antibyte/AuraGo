@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -245,12 +246,19 @@ func c07CaptureWarnings(t *testing.T) *c07LogBuffer {
 }
 
 // c07CaptureLogs routes the default slog logger at level into a buffer for the test.
+// slog.SetDefault also points the log package at the new handler, and restoring the
+// previous default does not undo that, so the log package's writer and flags are
+// restored as well.
 func c07CaptureLogs(t *testing.T, level slog.Level) *c07LogBuffer {
 	t.Helper()
 	logs := &c07LogBuffer{}
-	previous := slog.Default()
+	previous, writer, flags := slog.Default(), log.Writer(), log.Flags()
 	slog.SetDefault(slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: level})))
-	t.Cleanup(func() { slog.SetDefault(previous) })
+	t.Cleanup(func() {
+		slog.SetDefault(previous)
+		log.SetOutput(writer)
+		log.SetFlags(flags)
+	})
 	return logs
 }
 

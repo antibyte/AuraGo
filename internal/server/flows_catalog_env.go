@@ -38,7 +38,7 @@ type flowCatalogEnv struct {
 	current func() *config.Config
 
 	refreshMu sync.Mutex
-	regCfg    *config.Config // the configuration whose tools the registry holds; refreshMu
+	regCfg    *config.Config // the configuration whose tools the registry holds; guarded by refreshMu
 
 	mu       sync.Mutex
 	namesCfg *config.Config
@@ -125,7 +125,18 @@ func (e *flowCatalogEnv) refreshRegistry(reg *flows.Registry, cfg *config.Config
 // cheap operations next to spending ones keep their node without the spending ones
 // (genericDroppedOperations in internal/flows). The curated nodes decide for their own
 // tools; ddg_search and web_scraper, whose summary modes spend as well, are curated.
-// Accepted on purpose: tts and the bluetooth/chromecast speak operations (no model tokens; the agent treats them alike).
+//
+// Accepted on purpose: tts and the bluetooth/chromecast speak operations (no model
+// tokens; the agent's budget does not track them either).
+//
+// Finding spenders when tools change: the budgetTracker.Record* and IsBlocked call sites
+// in internal/agent (vision, stt, image/music/video generation, yepapi, coagent), the
+// callers of the summary and helper models (tools.SummariseContent and
+// SummariseScrapedContent, resolveHelperBackedLLM, llm.ExecuteWithRetry and
+// CreateChatCompletion outside the agent loop), and operations that start another
+// agent: a co-agent, an invasion egg task (invasion_tasks send_task), the telephone
+// agent (sip_phone dial; answer stays, because the tool answers only manual-route calls,
+// which run without the agent pipeline) or a sidecar (space_agent).
 var (
 	flowSpendingTools = map[string]string{
 		"analyze_image":    "a vision model call (budget category vision)",
@@ -136,6 +147,9 @@ var (
 		"treg_call":        "calls paid treg endpoints",
 		"transcribe_audio": "speech-to-text (budget category stt)",
 	}
+	// The prefixes are fail-closed by design: a new tool of one of these families is no
+	// generic node until someone decides otherwise (telnyx_manage, which only reads,
+	// is left out for that reason).
 	flowSpendingToolPrefixes = map[string]string{
 		"generate_": "image, music and video generation (budget categories image_generation, music_generation, " +
 			"video_generation); generate_image's enhance_prompt is a model call too",
