@@ -334,6 +334,29 @@ func TestRejectReplayedFrameChecksDeviceTimestampAndNonce(t *testing.T) {
 	}
 }
 
+// The agent's lazily created cache must keep a nonce for the whole ±drift
+// window the timestamp check accepts, matching remote.NonceReplayTTL.
+func TestRejectReplayedFrameCacheCoversFullTimestampWindow(t *testing.T) {
+	client := &Client{cfg: clientConfig{DeviceID: "dev-1", SharedKey: strings.Repeat("ab", 32)}, logger: slog.Default()}
+	fresh, err := remote.NewMessage(remote.MsgCommand, "dev-1", client.cfg.SharedKey, 1, map[string]string{"cmd_id": "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t0 := time.Now()
+	if reason := client.rejectReplayedFrame(*fresh); reason != "" {
+		t.Fatalf("fresh frame must pass, got %q", reason)
+	}
+	if client.replay == nil {
+		t.Fatal("rejectReplayedFrame must create the replay cache")
+	}
+	if !client.replay.Seen("dev-1", fresh.Nonce, t0.Add(remote.MaxTimestampDrift+time.Minute)) {
+		t.Fatal("nonce must stay cached past MaxTimestampDrift while the frame can still be fresh")
+	}
+	if client.replay.Seen("dev-1", fresh.Nonce, t0.Add(remote.NonceReplayTTL+time.Minute)) {
+		t.Fatal("nonce should expire after remote.NonceReplayTTL")
+	}
+}
+
 // dialFrameSupervisor returns an agent-side connection to a fake supervisor
 // that writes frames as soon as the agent connects and then closes normally.
 func dialFrameSupervisor(t *testing.T, frames ...*remote.RemoteMessage) *websocket.Conn {

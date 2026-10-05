@@ -122,7 +122,9 @@ func NewRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Logger) *Remot
 		logger:          logger,
 		MaxFileSizeMB:   DefaultMaxFileSizeMB,
 		AuditLogEnabled: true,
-		nonceCache:      newNonceReplayCache(MaxTimestampDrift, 10000),
+		// ValidateTimestamp accepts ±MaxTimestampDrift, so a nonce must stay
+		// cached for the full window.
+		nonceCache: newNonceReplayCache(NonceReplayTTL, 10000),
 	}
 }
 

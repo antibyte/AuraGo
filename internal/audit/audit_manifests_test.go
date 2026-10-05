@@ -1326,6 +1326,7 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 
 	required := []string{
 		"supervisor-nonce-replay-cache",
+		"remote-agent-frame-replay-guard",
 		"remote-agent-duplicate-command-id",
 		"remote-file-allowed-paths",
 		"invasion-artifact-integrity",

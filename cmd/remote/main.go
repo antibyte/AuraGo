@@ -592,7 +592,9 @@ func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
 	}
 	c.replayOnce.Do(func() {
 		if c.replay == nil {
-			c.replay = remote.NewNonceReplayCache(remote.MaxTimestampDrift, 10000)
+			// ValidateTimestamp accepts ±MaxTimestampDrift, so a nonce must stay
+			// cached for the full window.
+			c.replay = remote.NewNonceReplayCache(remote.NonceReplayTTL, 10000)
 		}
 	})
 	if c.replay.Seen(c.cfg.DeviceID, msg.Nonce, time.Now()) {

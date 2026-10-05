@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+// NonceReplayTTL is how long a frame nonce stays cached on both ends.
+// ValidateTimestamp accepts ±MaxTimestampDrift, so a nonce must stay cached for
+// the full window.
+const NonceReplayTTL = 2 * MaxTimestampDrift
+
 type nonceReplayCache struct {
 	mu         sync.Mutex
 	entries    map[string]time.Time
@@ -15,7 +20,7 @@ type nonceReplayCache struct {
 
 func newNonceReplayCache(ttl time.Duration, maxEntries int) *nonceReplayCache {
 	if ttl <= 0 {
-		ttl = MaxTimestampDrift
+		ttl = NonceReplayTTL
 	}
 	if maxEntries <= 0 {
 		maxEntries = 10000
