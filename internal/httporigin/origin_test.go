@@ -81,6 +81,23 @@ func TestNewClientFollowsSameOriginRedirectWithBodyAndAuth(t *testing.T) {
 	}
 }
 
+// NewClient(0) is the policy-only client for calls bounded by the caller's
+// context: no client timeout, but the redirect policy still applies.
+func TestNewClientZeroTimeoutKeepsPolicy(t *testing.T) {
+	client := NewClient(0)
+	if client.Timeout != 0 {
+		t.Fatalf("Timeout = %v, want none", client.Timeout)
+	}
+	if client.CheckRedirect == nil {
+		t.Fatal("NewClient(0) installed no redirect policy")
+	}
+	first, _ := http.NewRequest(http.MethodPost, "http://llm.lan:8080/v1/chat/completions", nil)
+	cross, _ := http.NewRequest(http.MethodPost, "http://other.lan:8080/v1/chat/completions", nil)
+	if err := client.CheckRedirect(cross, []*http.Request{first}); !errors.Is(err, ErrCrossOriginRedirect) {
+		t.Fatalf("cross-origin redirect error = %v, want ErrCrossOriginRedirect", err)
+	}
+}
+
 func TestSameOriginRedirectRequiresExactOrigin(t *testing.T) {
 	original, _ := http.NewRequest(http.MethodGet, "https://example.com/api", nil)
 	for name, raw := range map[string]string{

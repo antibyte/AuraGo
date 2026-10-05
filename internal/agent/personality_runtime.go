@@ -44,11 +44,11 @@ func resolvePersonalityAnalyzerClient(cfg *config.Config, fallback memory.Person
 	v2Cfg := openai.DefaultConfig(v2Key)
 	v2Cfg.BaseURL = v2URL
 	// The V2 key and conversation excerpt never follow a redirect off v2URL's
-	// origin (audit H9). Callers bound each call by context (v2_timeout_secs);
-	// the client timeout is a backstop that never undercuts that setting.
-	timeout := 60 * time.Second
-	if configured := time.Duration(cfg.Personality.V2TimeoutSecs) * time.Second; configured > timeout {
-		timeout = configured
+	// origin (audit H9). The client timeout is v2_timeout_secs (none when
+	// unset); the callers' contexts bound each call.
+	timeout := time.Duration(0)
+	if cfg.Personality.V2TimeoutSecs > 0 {
+		timeout = time.Duration(cfg.Personality.V2TimeoutSecs) * time.Second
 	}
 	v2Cfg.HTTPClient = httporigin.NewClient(timeout)
 	return openai.NewClientWithConfig(v2Cfg)

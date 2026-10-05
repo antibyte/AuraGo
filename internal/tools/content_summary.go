@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/httporigin"
@@ -122,8 +121,10 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 		}
 		clientCfg.BaseURL = url
 	}
-	// The key and source content never follow a redirect off the provider origin (audit H9).
-	clientCfg.HTTPClient = httporigin.NewClient(60 * time.Second)
+	// The key and source content never follow a redirect off the provider origin
+	// (audit H9). No client timeout: ctx bounds the call, so slow local summary
+	// models keep the caller's budget.
+	clientCfg.HTTPClient = httporigin.NewClient(0)
 	client := openai.NewClientWithConfig(clientCfg)
 
 	req := openai.ChatCompletionRequest{
