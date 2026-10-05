@@ -392,7 +392,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   a due one-off too). It deletes nothing: it warns about a flow without its mission and, with the extension, a
   flow mission without its flow that Mission Control still holds at report time.
   `Publish` never recreates a missing mission (the sync fails after the store published). `Shutdown` waits for a
-  reconciliation in progress and ends its lock waits.
+  reconciliation in progress and ends its lock waits. Limit: `staleTimers` compares node ids and repeat kinds
+  only, so a Date/Time node whose date or time changed while its repeat kind stayed the same is not healed;
+  after a crash between `store.Publish` and `armTimers` its stale timer fires once at the old time (a yearly
+  node: every year) until the next `Publish` or `SetEnabled` of the flow re-arms it.
 - Known limits: `Start` itself repairs nothing that a crash cut short, and `Shutdown` does not wait for operations
   in flight (stop the API first, close the store after `Shutdown`). DST: the Service sets
   `TimerService.SetLocation(Services.Loc())`; the spring-gap, Feb 29 and overlap rules are under Timers.
