@@ -167,11 +167,16 @@ Use `direction: "from_container"` or `"to_container"`. Path maps to the host's a
 ```
 
 #### compose — Run docker compose commands
-Requires `file` pointing to the `docker-compose.yml` path.
+`file` is a Compose file inside the agent workspace (relative paths resolve against it).
 ```json
-{"action": "docker", "operation": "compose", "command": "up -d", "file": "/path/to/project/docker-compose.yml"}
-{"action": "docker", "operation": "compose", "command": "down", "file": "/path/to/project/docker-compose.yml"}
+{"action": "docker", "operation": "compose", "command": "up -d", "file": "stacks/web/docker-compose.yml"}
+{"action": "docker", "operation": "compose", "command": "down", "file": "stacks/web/docker-compose.yml"}
 ```
+- AuraGo resolves the file with `docker compose config` before anything runs. A file that does not resolve returns `docker_compose_preflight_failed` with Compose's error.
+- Every compose command is rejected when the stack touches AuraGo-managed containers, labels, images or volumes.
+- `up`, `create` and `build` (and `config`/`convert` for env files, secret and config files) also reject anything that points into AuraGo's own data directory, config, `.env` or master key (`docker_compose_protected_path_denied`), even with host access.
+- Unless the administrator enabled **Docker host access** (`docker.allow_host_access`), `up`/`create`/`build` also reject binds outside the workspace, `/var/run/docker.sock`, devices, `privileged`, host network/PID/IPC/UTS/user/cgroup namespaces, `cap_add`, unconfined `security_opt`, local bind volumes, `provider` services, `develop.watch` paths outside the workspace, build SSH (`build.ssh`, `build --ssh`), privileged builds and build entitlements, and env files, secrets, configs or build contexts outside the workspace (`docker_compose_host_access_denied`). Tell the user which setting is needed; do not retry unchanged.
+- `down`, `stop`, `start`, `restart`, `rm`, `kill`, `pause`, `unpause`, `pull`, `ps`, `logs` and the other inspection commands are never blocked by the host-access check.
 
 #### info — Docker engine system info (version, resource counts)
 ```json

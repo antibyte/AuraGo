@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -23,7 +24,11 @@ import (
 // (stdout only; it is the validity gate) and the all-profiles model. Texts are
 // lower-cased.
 type dockerComposePreflight struct {
-	file     string
+	file string
+	// root is the absolute jail root the file was confined to: the agent
+	// workspace, or the process working directory when none is configured.
+	// Path checks of the host-access policy use the same root.
+	root     string
 	raw      string
 	resolved string
 	model    tools.DockerComposeModel
@@ -50,20 +55,26 @@ type dockerComposeRawModel struct {
 // dockerComposeEffectiveModel is what one Compose command runs.
 type dockerComposeEffectiveModel struct {
 	// model holds every service of the default model plus each service the
-	// command names as a positional argument of up/create that only an
-	// inactive profile defines, with its depends_on closure, and the top-level
-	// volumes, networks, secrets and configs of those services. Definitions come
-	// from the all-profiles model when it exists (env_file kept as paths),
-	// otherwise from the default model.
+	// command names as a positional argument of up/create/build/pull/config/
+	// convert that only an inactive profile defines, with its depends_on and
+	// `service:` build-context closure, and the top-level volumes, networks,
+	// secrets (including build secrets) and configs of those services.
+	// Definitions come from the all-profiles model when it exists (env_file
+	// kept as paths), otherwise from the default model.
 	model tools.DockerComposeModel
 	// profileServices lists the services added from inactive profiles, sorted.
 	profileServices []string
 	// unverified lists named services outside the default model that could not
-	// be checked because this Compose cannot produce the all-profiles model.
+	// be checked because this Compose cannot produce the all-profiles model
+	// (never for config/convert, which create nothing).
 	unverified []string
 	// profileText is the lower-cased raw JSON of the added services and the
 	// resources they add, for the text token checks.
 	profileText string
+	// fromAllProfiles reports that the service definitions come from the
+	// all-profiles model, so their env_file entries are the real paths. In the
+	// default-model fallback env files are inlined and their paths unknown.
+	fromAllProfiles bool
 }
 
 // loadDockerComposePreflight resolves the Compose file once per variant. Every
@@ -79,6 +90,10 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 			return nil, fmt.Errorf("determine working directory for the compose file: %w", err)
 		}
 		cfg.WorkspaceDir = workdir
+	}
+	root, err := filepath.Abs(cfg.WorkspaceDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve the compose jail root: %w", err)
 	}
 	composeFile, err := tools.ResolveDockerComposeFile(cfg, file)
 	if err != nil {
@@ -101,6 +116,7 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 	}
 	preflight := &dockerComposePreflight{
 		file:     composeFile,
+		root:     filepath.Clean(root),
 		raw:      strings.ToLower(string(raw)),
 		resolved: strings.ToLower(resolved),
 		model:    model,
@@ -173,14 +189,16 @@ func readDockerComposeFile(path string) ([]byte, error) {
 // effectiveModel returns what command runs (see dockerComposeEffectiveModel).
 // The default model is always part of it; a service of an inactive profile is
 // added only when command names it, together with the services it depends on
-// (`up -d a` also starts a's same-profile dependency). Resolved depends_on
-// already includes links, volumes_from and network_mode service: references.
+// (`up -d a` also starts a's same-profile dependency) and the services it
+// names as additional build contexts (`service:b` builds b too). Resolved
+// depends_on already includes links, volumes_from and network_mode service:
+// references.
 func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEffectiveModel {
 	source := p.model
 	if p.allProfilesModel != nil {
 		source = *p.allProfilesModel
 	}
-	effective := dockerComposeEffectiveModel{model: tools.DockerComposeModel{
+	effective := dockerComposeEffectiveModel{fromAllProfiles: p.allProfilesModel != nil, model: tools.DockerComposeModel{
 		Name:     p.model.Name,
 		Services: make(map[string]tools.DockerComposeService, len(p.model.Services)),
 		Volumes:  map[string]tools.DockerComposeNamedVolume{},
@@ -206,7 +224,11 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 		}
 	}
 	if p.allProfilesModel == nil {
-		effective.unverified = missing
+		// config/convert only print the model and create nothing; without the
+		// all-profiles model they keep running as before, unchecked.
+		if !dockerComposeRendersModel(command) {
+			effective.unverified = missing
+		}
 		return effective
 	}
 	all, raw := p.allProfilesModel, p.allProfilesRaw
@@ -232,6 +254,16 @@ func (p *dockerComposePreflight) effectiveModel(command string) dockerComposeEff
 		}
 		_ = json.Unmarshal(raw.Services[name], &refs)
 		queue = append(queue, dockerComposeRefNames(refs.DependsOn)...)
+		if build := service.Build; build != nil {
+			for _, key := range sortedDockerComposeContextKeys(build.AdditionalContexts) {
+				if target, ok := strings.CutPrefix(strings.TrimSpace(build.AdditionalContexts[key]), "service:"); ok {
+					queue = append(queue, strings.TrimSpace(target))
+				}
+			}
+			for _, key := range build.Secrets {
+				addDockerComposeResource(effective.model.Secrets, all.Secrets, raw.Secrets, key, &text)
+			}
+		}
 		for _, mount := range service.Volumes {
 			if strings.EqualFold(strings.TrimSpace(mount.Type), "volume") {
 				addDockerComposeResource(effective.model.Volumes, all.Volumes, raw.Volumes, mount.Source, &text)
@@ -317,18 +349,44 @@ func dockerComposeRefNames(raw json.RawMessage) []string {
 	return names
 }
 
+// dockerComposeRendersModel reports a `config` or `convert` command.
+func dockerComposeRendersModel(command string) bool {
+	parts := strings.Fields(command)
+	return len(parts) > 0 && (parts[0] == "config" || parts[0] == "convert")
+}
+
+// sortedDockerComposeContextKeys returns the keys of a build's
+// additional_contexts in a stable order.
+func sortedDockerComposeContextKeys(contexts map[string]string) []string {
+	keys := make([]string, 0, len(contexts))
+	for key := range contexts {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // dockerComposeStartedServiceNames returns the services command names as
-// positional arguments of `up` or `create`, including after `--`. Naming a
-// service activates its profiles (verified with --dry-run); the service values
-// of --scale, --exit-code-from, --attach and --no-attach do not, and start and
-// restart only act on containers that already exist.
+// positional arguments of `up`, `create`, `build`, `pull`, `config` or
+// `convert`, including after `--`. Naming a service activates its profiles
+// (verified with --dry-run): up/create start it, build builds it, pull pulls
+// its image and config/convert print it. The service values of --scale,
+// --exit-code-from, --attach and --no-attach do not, and start and restart
+// only act on containers that already exist.
 func dockerComposeStartedServiceNames(command string) []string {
 	parts := strings.Fields(command)
 	if len(parts) == 0 {
 		return nil
 	}
+	valueFlags, shortValueFlags := dockerComposeValueFlags, dockerComposeShortValueFlags
 	switch parts[0] {
 	case "up", "create":
+	case "build":
+		valueFlags, shortValueFlags = dockerComposeBuildValueFlags, dockerComposeBuildShortValueFlags
+	case "pull":
+		valueFlags, shortValueFlags = dockerComposePullValueFlags, nil
+	case "config", "convert":
+		valueFlags, shortValueFlags = dockerComposeConfigValueFlags, dockerComposeConfigShortValueFlags
 	default:
 		return nil
 	}
@@ -347,8 +405,8 @@ func dockerComposeStartedServiceNames(command string) []string {
 		if strings.Contains(arg, "=") {
 			continue
 		}
-		if dockerComposeValueFlags[arg] ||
-			(!strings.HasPrefix(arg, "--") && len(arg) > 2 && dockerComposeShortValueFlags[arg[len(arg)-1]]) {
+		if valueFlags[arg] ||
+			(!strings.HasPrefix(arg, "--") && len(arg) > 2 && shortValueFlags[arg[len(arg)-1]]) {
 			i++ // the flag's value, e.g. `-t 5` or the combined `-dt 5`
 		}
 	}
@@ -365,6 +423,26 @@ var dockerComposeValueFlags = map[string]bool{
 // dockerComposeShortValueFlags are the short up/create flags that take a value;
 // in a combined form such as `-dt 5` the last letter takes the next argument.
 var dockerComposeShortValueFlags = map[byte]bool{'t': true}
+
+// dockerComposeBuildValueFlags are the build flags that take a separate value
+// (--progress for older Compose releases). build's --pull takes none.
+var dockerComposeBuildValueFlags = map[string]bool{
+	"--build-arg": true, "--builder": true, "-m": true, "--memory": true,
+	"--progress": true, "--provenance": true, "--sbom": true, "--ssh": true,
+}
+
+var dockerComposeBuildShortValueFlags = map[byte]bool{'m': true}
+
+// dockerComposePullValueFlags are the pull flags that take a separate value.
+var dockerComposePullValueFlags = map[string]bool{"--policy": true}
+
+// dockerComposeConfigValueFlags are the config/convert flags that take a
+// separate value.
+var dockerComposeConfigValueFlags = map[string]bool{
+	"--format": true, "--hash": true, "-o": true, "--output": true,
+}
+
+var dockerComposeConfigShortValueFlags = map[byte]bool{'o': true}
 
 // protectedOwner keeps every text match that blocked a call before the model
 // existed (LocalLLM on raw and resolved text, Garage and Homepage on raw text)
@@ -425,7 +503,9 @@ func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file
 }
 
 // dockerComposePolicy runs before every agent Compose call. It returns a Tool
-// Output envelope that blocks the call, or "" to continue.
+// Output envelope that blocks the call, or "" to continue. The ownership
+// checks apply to every subcommand; the host-access policy only to
+// up/create/build and, for AuraGo state, config/convert.
 func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tools.DockerConfig, req dockerArgs) string {
 	preflight, err := loadDockerComposePreflight(ctx, dockerCfg, req.File)
 	var outside *dockerComposeOutsideJailError
@@ -443,7 +523,7 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 				". Fix the Compose file (for example a missing env_file or invalid YAML) or install the Docker Compose plugin.")
 	}
 	if preflight.allProfilesErr != nil {
-		slog.Default().Warn("Docker Compose could not resolve all profiles; up/create naming a service of an inactive profile is denied",
+		slog.Default().Warn("Docker Compose could not resolve all profiles; commands naming a service of an inactive profile are denied and env_file paths are unknown",
 			"file", preflight.file, "error", dockerComposeErrorTail(preflight.allProfilesErr.Error(), 600))
 	}
 	effective := preflight.effectiveModel(req.Command)
@@ -454,7 +534,7 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 		return dockerAgentError("docker_compose_profile_service_unverified", fmt.Sprintf(
 			"Service %q is not part of the default Compose profiles, and this Docker Compose version cannot resolve services of inactive profiles for AuraGo's ownership check, so nothing was run. Profile checks need Docker Compose v2.35 or newer: update the Compose plugin, or start only services without a profile.", effective.unverified[0]))
 	}
-	return ""
+	return dockerComposeHostAccessPolicy(ctx, cfg, req, preflight, effective)
 }
 
 // dockerComposeErrorTail bounds a preflight error and keeps its end: Compose
