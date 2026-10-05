@@ -49,6 +49,29 @@ func TestRedactSensitiveInfoRedactsShortCredentialValues(t *testing.T) {
 	}
 }
 
+func TestRedactSensitiveInfoRedactsPrefixedEnvironmentCredentials(t *testing.T) {
+	for _, input := range []string{
+		`OPENAI_API_KEY=sk-proj-supersecret123`,
+		`AWS_SECRET_ACCESS_KEY = "super-secret-value"`,
+		`GITHUB_TOKEN: ghp_super_secret_value`,
+	} {
+		got := RedactSensitiveInfo(input)
+		if !containsRedacted(got) || strings.Contains(got, "supersecret") || strings.Contains(got, "super-secret-value") || strings.Contains(got, "ghp_super_secret_value") {
+			t.Errorf("credential was not redacted: %q -> %q", input, got)
+		}
+	}
+
+	for _, input := range []string{
+		`local_key_path=/home/user/config`,
+		`OPENAI_API_KEY_PATH=/home/user/key`,
+		`token_bucket=enabled`,
+	} {
+		if got := RedactSensitiveInfo(input); got != input {
+			t.Errorf("benign identifier was changed: %q -> %q", input, got)
+		}
+	}
+}
+
 func TestRedactSensitiveInfoRedactsFragmentedAndEncodedValues(t *testing.T) {
 	tests := []string{
 		`token: s k - 1 2 3 4 5 6 7 8`,
