@@ -21,6 +21,8 @@ func TestDrainJSONMessages(t *testing.T) {
 		{name: "final message without newline", stream: `{"status":"Downloading"}` + "\n" + `{}`},
 		{name: "blank lines", stream: "\n\r\n" + `{"status":"Extracting"}` + "\n\n"},
 		{name: "non JSON line skipped", stream: "plain text from a proxy\n" + `{"status":"Pull complete"}` + "\n"},
+		{name: "non JSON last line", stream: `{"status":"Pull complete"}` + "\n" + "plain text from a proxy\n"},
+		{name: "non JSON line before final fragment", stream: "plain text from a proxy\n" + `{}`},
 		{name: "error detail before error", stream: `{"status":"Pulling fs layer"}` + "\n" + `{"errorDetail":{"message":"no matching manifest for linux/arm64"},"error":"short text"}` + "\n", wantMessage: "no matching manifest for linux/arm64"},
 		{name: "error field only", stream: `{"error":"toomanyrequests: rate limit"}` + "\n", wantMessage: "toomanyrequests: rate limit"},
 		{name: "error detail only", stream: `{"errorDetail":{"message":"registry denied"}}` + "\n", wantMessage: "registry denied"},
