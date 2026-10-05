@@ -208,6 +208,8 @@ type MissionManagerV2 struct {
 	flowActive         map[string]int // flow missionID → live runs in progress
 	// permanent flow webhook/email/plain-MQTT registrations by slot and key
 	flowRegistered map[string]bool
+	// Notify* flow runs waiting for the event dispatcher; created with the first one
+	flowEvents chan flowRunRequest
 }
 
 // EmailWatcherInterface for email trigger integration
@@ -418,14 +420,13 @@ func (m *MissionManagerV2) Start() error {
 	}
 
 	// Setup triggers
+	m.pruneFlowCronJobsLocked()
 	m.setupTriggersLocked()
 
 	// Setup cron schedules for enabled scheduled missions (ensures they survive restarts)
 	if m.cron != nil {
+		m.cron.RegisterRunner(flowCronSource, m.runFlowCronJob)
 		m.cron.RegisterRunner("mission", func(jobID, prompt string) {
-			if m.fireFlowCronJob(jobID) {
-				return
-			}
 			missionID := strings.TrimPrefix(jobID, "mission_")
 			if missionID != "" {
 				m.TriggerMission(missionID, "cron", "")
@@ -563,7 +564,7 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 func (m *MissionManagerV2) setupTriggersLocked() {
 	for _, mission := range m.missions {
 		if isFlowMission(mission) {
-			if err := m.syncFlowTriggersLocked(mission); err != nil {
+			if err := m.ensureFlowTriggersLocked(mission); err != nil {
 				slog.Warn("[MissionV2] Failed to register flow triggers", "mission_id", mission.ID, "error", err)
 			}
 			continue
@@ -1836,14 +1837,23 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	if mission.ExecutionType == ExecutionFlow {
 		return ErrFlowMissionManaged
 	}
+	// Flow fields belong to flow missions only.
+	mission.FlowID, mission.FlowTriggers, mission.FlowPublished = "", nil, false
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	mission.RunnerType = normalizeMissionRunner(mission.RunnerType)
 	mission.Prompt = StripMissionExecutionPlanAdvisory(mission.Prompt)
+	if existing, ok := m.missions[mission.ID]; ok && isFlowMission(existing) {
+		return ErrFlowMissionManaged
+	}
 	if mission.ID == "" {
 		mission.ID = fmt.Sprintf("mission_%d", time.Now().UnixNano())
+	}
+	if existing, ok := m.missions[mission.ID]; ok && isFlowMission(existing) {
+		// Generated in the same clock tick as a flow mission's id.
+		mission.ID = m.newMissionIDLocked()
 	}
 	if mission.Priority == "" {
 		mission.Priority = "medium"

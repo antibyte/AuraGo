@@ -3,13 +3,16 @@ package tools
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -89,9 +92,17 @@ func (f *c07PlainMQTT) registered() []func(topic, payload string) {
 
 // c07KeyedMQTT replaces and removes registrations by key, like the real MQTT bridge.
 type c07KeyedMQTT struct {
-	mu    sync.Mutex
-	byKey map[string]func(topic, payload string)
-	plain int
+	mu          sync.Mutex
+	byKey       map[string]func(topic, payload string)
+	plain       int
+	registers   int
+	unregisters int
+}
+
+func (f *c07KeyedMQTT) counts() (registers, unregisters int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.registers, f.unregisters
 }
 
 func (f *c07KeyedMQTT) RegisterMissionTrigger(_, _ string, _ int, _ func(topic, payload string)) {
@@ -107,12 +118,14 @@ func (f *c07KeyedMQTT) RegisterMissionTriggerForKey(key, _, _ string, _ int, cal
 		f.byKey = make(map[string]func(topic, payload string))
 	}
 	f.byKey[key] = callback
+	f.registers++
 }
 
 func (f *c07KeyedMQTT) UnregisterMissionTrigger(key string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	delete(f.byKey, key)
+	f.unregisters++
 }
 
 func (f *c07KeyedMQTT) registered() []func(topic, payload string) {
@@ -179,6 +192,19 @@ func (h *c07ReentrantHooks) waitRun(t *testing.T, want string) {
 	}
 }
 
+// c07WaitStart waits for one flow run with the deadlock guard instead of waitStart's 2 s, for
+// runs that a real cron engine starts.
+func c07WaitStart(t *testing.T, hooks *fakeFlowHooks) flowStartCall {
+	t.Helper()
+	select {
+	case c := <-hooks.starts:
+		return c
+	case <-time.After(c07DeadlockGuard):
+		t.Fatalf("no flow run within %s", c07DeadlockGuard)
+	}
+	return flowStartCall{}
+}
+
 // c07Within runs fn on its own goroutine and fails when it does not return within the guard.
 func c07Within(t *testing.T, what string, fn func()) {
 	t.Helper()
@@ -215,11 +241,29 @@ func (b *c07LogBuffer) String() string {
 // c07CaptureWarnings routes the default slog logger at Warn level into a buffer for the test.
 func c07CaptureWarnings(t *testing.T) *c07LogBuffer {
 	t.Helper()
+	return c07CaptureLogs(t, slog.LevelWarn)
+}
+
+// c07CaptureLogs routes the default slog logger at level into a buffer for the test.
+func c07CaptureLogs(t *testing.T, level slog.Level) *c07LogBuffer {
+	t.Helper()
 	logs := &c07LogBuffer{}
 	previous := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	slog.SetDefault(slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: level})))
 	t.Cleanup(func() { slog.SetDefault(previous) })
 	return logs
+}
+
+// c07Await polls cond until it holds or the deadlock guard expires.
+func c07Await(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(c07DeadlockGuard)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out after %s waiting for %s", c07DeadlockGuard, what)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 const c07DropMessage = "Flow trigger payload too large"
@@ -244,13 +288,13 @@ func c07Payload(n int) []byte {
 	return out
 }
 
-func c07MissionCronRunner(t *testing.T, cronMgr *CronManager) func(jobID, prompt string) {
+func c07CronRunner(t *testing.T, cronMgr *CronManager, source string) func(jobID, prompt string) {
 	t.Helper()
 	cronMgr.mu.Lock()
-	runner := cronMgr.runners["mission"]
+	runner := cronMgr.runners[source]
 	cronMgr.mu.Unlock()
 	if runner == nil {
-		t.Fatal("the mission manager registered no cron runner")
+		t.Fatalf("the mission manager registered no %q cron runner", source)
 	}
 	return runner
 }
@@ -265,8 +309,25 @@ func c07FlowCronJobs(cronMgr *CronManager, missionID string) int {
 	return n
 }
 
-// Extra 1: a cron job id is only routed to a flow when it splits into an existing flow
-// mission and does not name an existing mission as a whole.
+func c07CronJob(cronMgr *CronManager, id string) (CronJob, bool) {
+	for _, job := range cronMgr.GetJobs() {
+		if job.ID == id {
+			return job, true
+		}
+	}
+	return CronJob{}, false
+}
+
+// c07CronEntry returns the engine entry of a job; a rewritten job gets a new one.
+func c07CronEntry(cronMgr *CronManager, id string) int {
+	cronMgr.mu.Lock()
+	defer cronMgr.mu.Unlock()
+	return int(cronMgr.cronEntryIDs[id])
+}
+
+// Extra 1 / review item 1: flow schedules are cron jobs of their own source and run only
+// through the "flow" runner; prompt jobs, with or without "__" in the mission id, keep the
+// unchanged "mission" runner.
 func TestFlowCronJobsNeverCapturePromptMissionJobs(t *testing.T) {
 	dir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(dir)
@@ -280,8 +341,8 @@ func TestFlowCronJobsNeverCapturePromptMissionJobs(t *testing.T) {
 		mm.OnMissionComplete(missionID, MissionResultSuccess, "ok")
 	})
 	flowID := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"})
-	// One prompt id with "__" whose head is no mission, one whose head is the flow mission.
-	promptIDs := []string{"mission_a__b", flowID + flowCronSeparator + "n_bbbbbbbb"}
+	// An ordinary id, one with "__" whose head is no mission, one whose head is the flow mission.
+	promptIDs := []string{"mission_plain", "mission_a__b", flowID + flowCronSeparator + "n_bbbbbbbb"}
 	for _, id := range promptIDs {
 		if err := mm.Create(&MissionV2{ID: id, Name: id, Prompt: "run", ExecutionType: ExecutionManual}); err != nil {
 			t.Fatalf("Create(%s): %v", id, err)
@@ -291,10 +352,14 @@ func TestFlowCronJobsNeverCapturePromptMissionJobs(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	t.Cleanup(mm.Stop)
-	run := c07MissionCronRunner(t, cronMgr)
+	if job, ok := c07CronJob(cronMgr, flowCronJobID(flowID, "n_aaaaaaaa")); !ok || job.Source != flowCronSource {
+		t.Fatalf("flow cron job = %+v (found %v), want source %q", job, ok, flowCronSource)
+	}
+	runMission := c07CronRunner(t, cronMgr, "mission")
+	runFlow := c07CronRunner(t, cronMgr, flowCronSource)
 
 	for _, id := range promptIDs {
-		run("mission_"+id, "run")
+		runMission("mission_"+id, "run")
 		select {
 		case got := <-prompts:
 			if got != id {
@@ -306,17 +371,144 @@ func TestFlowCronJobsNeverCapturePromptMissionJobs(t *testing.T) {
 		hooks.expectNoStart(t)
 	}
 
-	run(flowCronJobID(flowID, "n_aaaaaaaa"), "EasyDrag flow trigger")
+	runFlow(flowCronJobID(flowID, "n_aaaaaaaa"), "EasyDrag flow trigger")
 	if c := hooks.waitStart(t); c != (flowStartCall{flowID, "n_aaaaaaaa", "cron", ""}) {
 		t.Fatalf("flow cron start = %+v", c)
 	}
+	// Flow jobs that name no flow mission, or a prompt mission, start nothing.
+	runFlow("mission_mission_a__b", "EasyDrag flow trigger")
+	runFlow("mission_plain", "EasyDrag flow trigger")
+	hooks.expectNoStart(t)
 	select {
 	case id := <-prompts:
-		t.Fatalf("the flow cron job also ran prompt mission %s", id)
+		t.Fatalf("a flow cron job ran prompt mission %s", id)
 	case <-time.After(100 * time.Millisecond):
 	}
 	if queue, _ := mm.GetQueue(); len(queue.List()) != 0 {
 		t.Fatalf("flow cron jobs must not use the agent queue: %+v", queue.List())
+	}
+}
+
+// Review item 1: before MissionManagerV2.Start registers the "flow" runner (the startup
+// window after CronManager.Start), a persisted flow cron job never reaches the agent
+// fallback, while prompt jobs keep using it; once the runners exist both run normally.
+func TestFlowCronJobNeverReachesTheAgentFallback(t *testing.T) {
+	logs := c07CaptureLogs(t, slog.LevelInfo)
+	dir := tempSystemTaskDir(t)
+	setupCron := NewCronManager(dir)
+	setup := NewMissionManagerV2(dir, setupCron)
+	flowID := publishTestFlow(t, setup, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "* * * * * *"})
+	if err := setup.Create(&MissionV2{ID: "mission_every_second", Name: "Tick", Prompt: "c07 prompt mission tick",
+		ExecutionType: ExecutionScheduled, Schedule: "* * * * * *"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := setupCron.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	cronMgr := NewCronManager(dir)
+	var fallbackMu sync.Mutex
+	var fallback []string
+	if err := cronMgr.Start(func(prompt string) {
+		fallbackMu.Lock()
+		defer fallbackMu.Unlock()
+		fallback = append(fallback, prompt)
+	}); err != nil {
+		t.Fatalf("cron start: %v", err)
+	}
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	fallbackPrompts := func() []string {
+		fallbackMu.Lock()
+		defer fallbackMu.Unlock()
+		return append([]string(nil), fallback...)
+	}
+	flowJob := flowCronJobID(flowID, "n_aaaaaaaa")
+	c07Await(t, "a skipped flow job and a prompt job on the fallback", func() bool {
+		out := logs.String()
+		return strings.Contains(out, "flow runner was ready; skipped") && strings.Contains(out, "id="+flowJob) &&
+			len(fallbackPrompts()) > 0
+	})
+
+	mm := NewMissionManagerV2(dir, cronMgr)
+	hooks := newFakeFlowHooks()
+	mm.SetFlowHooks(hooks)
+	prompts := make(chan string, 64)
+	mm.SetCallback(func(_ string, missionID string) {
+		select {
+		case prompts <- missionID:
+		default:
+		}
+		mm.OnMissionComplete(missionID, MissionResultSuccess, "ok")
+	})
+	if err := mm.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(mm.Stop)
+	if c := c07WaitStart(t, hooks); c.missionID != flowID || c.nodeID != "n_aaaaaaaa" || c.triggerType != "cron" {
+		t.Fatalf("flow start after Start = %+v", c)
+	}
+	select {
+	case id := <-prompts:
+		if id != "mission_every_second" {
+			t.Fatalf("prompt runner ran %s", id)
+		}
+	case <-time.After(c07DeadlockGuard):
+		t.Fatal("the prompt cron job did not run through the mission runner")
+	}
+	for _, prompt := range fallbackPrompts() {
+		if prompt != "c07 prompt mission tick" {
+			t.Fatalf("the agent fallback received %q", prompt)
+		}
+	}
+}
+
+// Review item 1: disabling, re-enabling or deleting a flow leaves the cron job of a prompt
+// mission whose id is "<flow>__<x>" alone, and a flow schedule never replaces such a job.
+func TestFlowCronJobsLeavePromptJobsAlone(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	cronMgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mm := NewMissionManagerV2(dir, cronMgr)
+	mm.SetFlowHooks(newFakeFlowHooks())
+	flowID := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"})
+	promptID := flowID + flowCronSeparator + "x"
+	clashID := flowID + flowCronSeparator + "n_bbbbbbbb"
+	for _, id := range []string{promptID, clashID} {
+		if err := mm.Create(&MissionV2{ID: id, Name: id, Prompt: "prompt " + id, ExecutionType: ExecutionScheduled, Schedule: "0 9 * * *"}); err != nil {
+			t.Fatalf("Create(%s): %v", id, err)
+		}
+	}
+	promptJobsIntact := func(step string) {
+		t.Helper()
+		for _, id := range []string{promptID, clashID} {
+			job, ok := c07CronJob(cronMgr, "mission_"+id)
+			if !ok || job.Source != "mission" || job.CronExpr != "0 9 * * *" || job.TaskPrompt != "prompt "+id {
+				t.Fatalf("%s: prompt job of %s = %+v (found %v)", step, id, job, ok)
+			}
+		}
+	}
+
+	err := mm.SyncFlowMission(flowID, "Morgenbericht", []FlowTriggerSpec{
+		{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"},
+		{NodeID: "n_bbbbbbbb", TriggerType: FlowTriggerSchedule, Schedule: "0 6 * * *"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "belongs to another scheduler entry") {
+		t.Fatalf("a flow schedule on a prompt job id = %v", err)
+	}
+	promptJobsIntact("sync")
+	for _, enabled := range []bool{false, true} {
+		_ = mm.SetFlowMissionEnabled(flowID, enabled)
+		promptJobsIntact(fmt.Sprintf("enabled=%v", enabled))
+	}
+	if !hasCronJob(cronMgr, flowCronJobID(flowID, "n_aaaaaaaa")) {
+		t.Fatal("re-enabling lost the flow's own cron job")
+	}
+	if err := mm.DeleteFlowMission(flowID); err != nil {
+		t.Fatal(err)
+	}
+	promptJobsIntact("delete")
+	if hasCronJob(cronMgr, flowCronJobID(flowID, "n_aaaaaaaa")) {
+		t.Fatal("delete left the flow's cron job")
 	}
 }
 
@@ -511,8 +703,8 @@ func TestDeletedFlowMissionLeavesNoLiveTriggers(t *testing.T) {
 	for _, callback := range mqttCallbacks { // an in-flight delivery of the removed registration
 		callback("home/door", "{}")
 	}
-	if mm.fireFlowCronJob(flowCronJobID(id, "n_aaaaaaaa")) {
-		t.Fatal("a stale cron job of a deleted flow must fall back to the prompt path")
+	if mm.fireFlowSchedule(id, "n_aaaaaaaa") {
+		t.Fatal("a stale cron job of a deleted flow must find no flow mission")
 	}
 	hooks.expectNoStart(t)
 	if err := mm.DeleteFlowMission(id); err != nil {
@@ -642,7 +834,7 @@ func TestFlowHooksMayCallBackIntoTheManager(t *testing.T) {
 		{"webhook", "webhook", func() { webhooks.fire("hook-1", []byte(`{}`)) }},
 		{"email", "email", func() { emailCallbacks[0]("Rechnung", "shop@example.com", "Hallo") }},
 		{"mqtt", "mqtt", func() { mqttCallbacks[0]("home/door", "{}") }},
-		{"cron", "cron", func() { mm.fireFlowCronJob(flowCronJobID(id, "n_aaaaaaaa")) }},
+		{"cron", "cron", func() { mm.runFlowCronJob(flowCronJobID(id, "n_aaaaaaaa"), "") }},
 		{"device event", "device_connected", func() { mm.NotifyDeviceEvent("device_connected", "dev-1", "Laptop") }},
 		{"startup event", "system_startup", mm.NotifySystemStartup},
 	}
@@ -913,4 +1105,346 @@ func TestHomeAssistantMonitoredEntitiesKeepsPromptBehaviour(t *testing.T) {
 	if got := homeAssistantMonitoredEntities(mm.List()); len(got) != 0 {
 		t.Fatalf("disabled flow entities = %v", got)
 	}
+}
+
+// Review item 2: queue items and a running item of a flow mission in the persisted queue are
+// not restored at Start, while prompt items still are.
+func TestStartKeepsPersistedFlowQueueItemsOut(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	mm := NewMissionManagerV2(dir, nil)
+	flowID := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	const promptID = "mission_prompt_queued"
+	if err := mm.Create(&MissionV2{ID: promptID, Name: "Prompt", Prompt: "run", ExecutionType: ExecutionManual}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(missionQueueSnapshot{
+		Items: []QueueItem{
+			{MissionID: flowID, Priority: 3, EnqueuedAt: time.Now(), TriggerType: "manual"},
+			{MissionID: promptID, Priority: 2, EnqueuedAt: time.Now(), TriggerType: "manual"},
+		},
+		Running: flowID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "missions_v2_queue.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	restarted := NewMissionManagerV2(dir, nil)
+	restarted.SetFlowHooks(newFakeFlowHooks())
+	release := make(chan struct{})
+	restarted.SetCallback(func(string, string) { <-release }) // a dispatched prompt stays running
+	if err := restarted.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { close(release); restarted.Stop() })
+	queue, running := restarted.GetQueue()
+	items := queue.List()
+	if m, _ := restarted.Get(flowID); m.Status != MissionStatusIdle {
+		t.Fatalf("flow mission status after restart = %q", m.Status)
+	}
+	promptRestored := running == promptID
+	for _, item := range items {
+		if item.MissionID == flowID {
+			t.Fatalf("the flow mission was restored into the queue: %+v", items)
+		}
+		promptRestored = promptRestored || item.MissionID == promptID
+	}
+	if running == flowID {
+		t.Fatal("the flow mission was restored as the running item")
+	}
+	if !promptRestored {
+		t.Fatalf("the prompt item was not restored: items %+v running %q", items, running)
+	}
+}
+
+// Review item 2: a flow mission that reaches the queue anyway is dropped by the dispatcher
+// without calling the agent.
+func TestQueueDispatcherDropsFlowMissions(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	flowID := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	called := make(chan string, 1)
+	mm.SetCallback(func(_ string, missionID string) { called <- missionID })
+	mm.queue.Enqueue(flowID, "high", "manual", "")
+	mm.processNext()
+	queue, running := mm.GetQueue()
+	m, _ := mm.Get(flowID)
+	if len(queue.List()) != 0 || running != "" || m.Status != MissionStatusIdle {
+		t.Fatalf("after dispatch: items %+v running %q status %q", queue.List(), running, m.Status)
+	}
+	select {
+	case id := <-called:
+		t.Fatalf("the agent ran flow mission %s", id)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// Review item 4: Notify* flow runs start in event order.
+func TestFlowNotifyRunsStartInEventOrder(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	hooks := newFakeFlowHooks()
+	mm.SetFlowHooks(hooks)
+	publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerHomeAssistantState, TriggerConfig: &TriggerConfig{HAEntityID: "binary_sensor.door"}})
+	const events = 250 // fits the dispatcher queue, so none is dropped
+	state := func(i int) string {
+		if i%2 == 0 {
+			return "on"
+		}
+		return "off"
+	}
+	for i := 0; i < events; i++ {
+		mm.NotifyHomeAssistantEvent("binary_sensor.door", state(i), fmt.Sprintf("seq-%03d", i))
+	}
+	for i := 0; i < events; i++ {
+		c := hooks.waitStart(t)
+		var data struct {
+			NewState string `json:"new_state"`
+			OldState string `json:"old_state"`
+		}
+		if err := json.Unmarshal([]byte(c.data), &data); err != nil {
+			t.Fatal(err)
+		}
+		if want := fmt.Sprintf("seq-%03d", i); data.OldState != want || data.NewState != state(i) {
+			t.Fatalf("run %d started for %s/%s, want %s/%s", i, data.OldState, data.NewState, want, state(i))
+		}
+	}
+	hooks.expectNoStart(t)
+}
+
+// c07GateHooks blocks every StartFlowRun until release is closed.
+type c07GateHooks struct {
+	started chan struct{}
+	release chan struct{}
+	count   atomic.Int64
+}
+
+func (h *c07GateHooks) StartFlowRun(_, _, _, _ string) error {
+	h.count.Add(1)
+	select {
+	case h.started <- struct{}{}:
+	default:
+	}
+	<-h.release
+	return nil
+}
+
+func (h *c07GateHooks) FlowMissionDeleted(string) {}
+
+func (h *c07GateHooks) FlowEnabledChanged(string, bool) {}
+
+func (h *c07GateHooks) NextFlowRun(string) (time.Time, bool) { return time.Time{}, false }
+
+// Review item 4: a slow hook neither multiplies goroutines nor queues without bound; runs
+// over the queue size are dropped with a Warn.
+func TestFlowNotifyQueueIsBounded(t *testing.T) {
+	logs := c07CaptureWarnings(t)
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	hooks := &c07GateHooks{started: make(chan struct{}, 1), release: make(chan struct{})}
+	mm.SetFlowHooks(hooks)
+	released := false
+	t.Cleanup(func() {
+		if !released {
+			close(hooks.release)
+		}
+	})
+	publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerDeviceConnected, TriggerConfig: &TriggerConfig{}})
+	mm.NotifyDeviceEvent("device_connected", "dev-0", "Laptop")
+	select {
+	case <-hooks.started: // the dispatcher now blocks in the first run
+	case <-time.After(c07DeadlockGuard):
+		t.Fatal("the first run did not start")
+	}
+	const extra = 44
+	before := runtime.NumGoroutine()
+	for i := 1; i <= flowEventQueueSize+extra; i++ {
+		mm.NotifyDeviceEvent("device_connected", fmt.Sprintf("dev-%d", i), "Laptop")
+	}
+	if grown := runtime.NumGoroutine() - before; grown > 10 {
+		t.Fatalf("%d events started %d goroutines", flowEventQueueSize+extra, grown)
+	}
+	if got := strings.Count(logs.String(), "Flow event queue is full"); got != extra {
+		t.Fatalf("%d drop warnings, want %d:\n%s", got, extra, logs.String())
+	}
+	close(hooks.release)
+	released = true
+	want := int64(1 + flowEventQueueSize)
+	c07Await(t, "the queued runs", func() bool { return hooks.count.Load() == want })
+	time.Sleep(100 * time.Millisecond)
+	if got := hooks.count.Load(); got != want {
+		t.Fatalf("%d runs started, want %d", got, want)
+	}
+}
+
+// Review item 5: the manager setters only register missing flow triggers; they neither
+// rewrite flow cron jobs nor re-register keyed MQTT triggers.
+func TestFlowManagerSettersOnlyRegisterMissingTriggers(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	cronMgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mm := NewMissionManagerV2(dir, cronMgr)
+	hooks := newFakeFlowHooks()
+	mm.SetFlowHooks(hooks)
+	mqtt := &c07KeyedMQTT{}
+	mm.SetMQTTManager(mqtt)
+	id := publishTestFlow(t, mm,
+		FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerMQTTMessage, TriggerConfig: &TriggerConfig{MQTTTopic: "home/door"}},
+		FlowTriggerSpec{NodeID: "n_bbbbbbbb", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"},
+		FlowTriggerSpec{NodeID: "n_cccccccc", TriggerType: TriggerWebhook, TriggerConfig: &TriggerConfig{WebhookID: "hook-1"}},
+	)
+	jobID := flowCronJobID(id, "n_bbbbbbbb")
+	entry := c07CronEntry(cronMgr, jobID)
+	registers, unregisters := mqtt.counts()
+	if entry == 0 || registers != 1 {
+		t.Fatalf("setup: cron entry %d, MQTT registrations %d", entry, registers)
+	}
+
+	mm.SetEmailWatcher(&c07Emails{})
+	webhooks := &c07Webhooks{}
+	mm.SetWebhookManager(webhooks)
+	if r, u := mqtt.counts(); r != registers || u != unregisters {
+		t.Fatalf("the setters re-registered keyed MQTT: registrations %d->%d, unregistrations %d->%d", registers, r, unregisters, u)
+	}
+	if got := c07CronEntry(cronMgr, jobID); got != entry {
+		t.Fatalf("the setters rewrote the flow cron job (entry %d -> %d)", entry, got)
+	}
+	if webhooks.count("hook-1") != 1 {
+		t.Fatalf("the webhook setter registered %d flow webhooks, want the missing one", webhooks.count("hook-1"))
+	}
+	webhooks.fire("hook-1", []byte(`{}`))
+	if c := hooks.waitStart(t); c.nodeID != "n_cccccccc" {
+		t.Fatalf("webhook start = %+v", c)
+	}
+}
+
+// Review item 5: Start removes flow cron jobs that no enabled schedule owns and keeps the
+// current ones without rewriting them.
+func TestStartPrunesStaleFlowCronJobs(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	cronMgr := NewCronManager(dir)
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mm := NewMissionManagerV2(dir, cronMgr)
+	id := publishTestFlow(t, mm,
+		FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"},
+		FlowTriggerSpec{NodeID: "n_cccccccc", TriggerType: FlowTriggerSchedule, Schedule: "0 8 * * *"},
+	)
+	keep, changed := flowCronJobID(id, "n_aaaaaaaa"), flowCronJobID(id, "n_cccccccc")
+	stale := []string{flowCronJobID(id, "n_bbbbbbbb"), flowCronJobID("mission_gone", "n_aaaaaaaa")}
+	for _, jobID := range stale {
+		if _, err := cronMgr.ManageScheduleWithSource("add", jobID, "0 9 * * *", "EasyDrag flow trigger", "", flowCronSource); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A schedule that the store holds with an old expression.
+	if _, err := cronMgr.ManageScheduleWithSource("add", changed, "0 5 * * *", "EasyDrag flow trigger", "", flowCronSource); err != nil {
+		t.Fatal(err)
+	}
+	entry := c07CronEntry(cronMgr, keep)
+
+	restarted := NewMissionManagerV2(dir, cronMgr)
+	if err := restarted.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(restarted.Stop)
+	for _, jobID := range stale {
+		if hasCronJob(cronMgr, jobID) {
+			t.Fatalf("stale flow cron job %s survived Start", jobID)
+		}
+	}
+	if job, ok := c07CronJob(cronMgr, changed); !ok || job.CronExpr != "0 8 * * *" {
+		t.Fatalf("changed schedule after Start = %+v (found %v)", job, ok)
+	}
+	if got := c07CronEntry(cronMgr, keep); got == 0 || got != entry {
+		t.Fatalf("Start rewrote a current flow cron job (entry %d -> %d)", entry, got)
+	}
+}
+
+// Review item 6: Create never replaces a flow mission and drops flow fields of prompt missions.
+func TestCreateNeverReplacesAFlowMission(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	id := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	if err := mm.Create(&MissionV2{ID: id, Name: "x", Prompt: "y", ExecutionType: ExecutionManual}); !errors.Is(err, ErrFlowMissionManaged) {
+		t.Fatalf("Create(existing flow id) = %v", err)
+	}
+	if m, _ := mm.Get(id); !isFlowMission(m) || m.FlowID != "flow_aaaaaaaaaa" || !m.FlowPublished || len(m.FlowTriggers) != 1 {
+		t.Fatalf("the flow mission changed: %+v", m)
+	}
+
+	var in MissionV2
+	if err := json.Unmarshal([]byte(`{"name":"x","prompt":"y","execution_type":"manual","flow_id":"flow_zz",
+		"flow_published":true,"flow_triggers":[{"node_id":"n_aaaaaaaa","trigger_type":"webhook"}]}`), &in); err != nil {
+		t.Fatal(err)
+	}
+	if err := mm.Create(&in); err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := mm.Get(in.ID); m.FlowID != "" || m.FlowPublished || m.FlowTriggers != nil {
+		t.Fatalf("a prompt mission kept flow fields: %+v", m)
+	}
+
+	// A generated id from the same clock tick as a flow mission's id (frequent on Windows)
+	// gets a fresh id instead of an error or a replaced flow mission.
+	for i := 0; i < 100; i++ {
+		flowID, err := mm.CreateFlowMission(fmt.Sprintf("flow_c07_%03d", i), "Flow")
+		if err != nil {
+			t.Fatal(err)
+		}
+		prompt := &MissionV2{Name: "Prompt", Prompt: "run", ExecutionType: ExecutionManual}
+		if err := mm.Create(prompt); err != nil {
+			t.Fatalf("Create right after CreateFlowMission: %v", err)
+		}
+		if m, _ := mm.Get(flowID); prompt.ID == flowID || !isFlowMission(m) {
+			t.Fatalf("Create took flow mission %s (prompt id %s)", flowID, prompt.ID)
+		}
+	}
+}
+
+// Review item 7: SyncFlowMission only takes distinct node ids in the flow format.
+func TestSyncFlowMissionRejectsInvalidNodeIDs(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	good := FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual}
+	id := publishTestFlow(t, mm, good)
+	for _, nodeID := range []string{"", "x__y", "n_aaaa__aa", "n_AAAAAAAA", "n_aaaaaaa", "n_aaaaaaaaa", "n_aaaaaaa1", "n_aaaa|aaa", " n_aaaaaaaa"} {
+		specs := []FlowTriggerSpec{good, {NodeID: nodeID, TriggerType: FlowTriggerManual}}
+		if err := mm.SyncFlowMission(id, "Neu", specs); err == nil {
+			t.Errorf("node id %q was accepted", nodeID)
+		}
+	}
+	if err := mm.SyncFlowMission(id, "Neu", []FlowTriggerSpec{good, good}); err == nil {
+		t.Error("duplicate node ids were accepted")
+	}
+	err := mm.SyncFlowMission(id, "Neu", []FlowTriggerSpec{{NodeID: strings.Repeat("x", 5000)}})
+	if err == nil || len(err.Error()) > 200 {
+		t.Fatalf("a long invalid node id must be refused with a bounded message: %d bytes", len(fmt.Sprint(err)))
+	}
+	if m, _ := mm.Get(id); m.Name != "Morgenbericht" || !reflect.DeepEqual(m.FlowTriggers, []FlowTriggerSpec{good}) {
+		t.Fatalf("a refused sync changed the mission: %+v", m)
+	}
+}
+
+// Review item 8: one event queues a matching prompt mission and starts a matching flow.
+func TestNotifyStartsFlowsAndQueuesPromptMissions(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	hooks := newFakeFlowHooks()
+	mm.SetFlowHooks(hooks)
+	const promptID = "mission_prompt_device"
+	if err := mm.Create(&MissionV2{ID: promptID, Name: "Device", Prompt: "greet", ExecutionType: ExecutionTriggered,
+		TriggerType: TriggerDeviceConnected, TriggerConfig: &TriggerConfig{DeviceID: "dev-1"}}); err != nil {
+		t.Fatal(err)
+	}
+	flowID := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerDeviceConnected, TriggerConfig: &TriggerConfig{DeviceID: "dev-1"}})
+	mm.NotifyDeviceEvent("device_connected", "dev-1", "Laptop")
+	if c := hooks.waitStart(t); c.missionID != flowID || c.triggerType != "device_connected" || !strings.Contains(c.data, `"device_id":"dev-1"`) {
+		t.Fatalf("flow start = %+v", c)
+	}
+	queue, _ := mm.GetQueue()
+	items := queue.List()
+	if len(items) != 1 || items[0].MissionID != promptID || items[0].TriggerType != "device_connected" ||
+		!strings.Contains(items[0].TriggerData, `"device_id":"dev-1"`) {
+		t.Fatalf("queue = %+v", items)
+	}
+	if m, _ := mm.Get(promptID); m.Status != MissionStatusQueued {
+		t.Fatalf("prompt mission status = %q", m.Status)
+	}
+	hooks.expectNoStart(t)
 }

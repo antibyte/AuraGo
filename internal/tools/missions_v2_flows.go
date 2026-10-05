@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -24,6 +25,17 @@ const (
 
 // flowCronSeparator separates mission and node in flow cron job ids: "mission_<mission>__<node>".
 const flowCronSeparator = "__"
+
+// flowCronSource is the cron job source of flow schedules. Only the runner that Start
+// registers for it runs them; the cron manager never hands them to its agent fallback.
+const flowCronSource = "flow"
+
+// flowNodeIDPattern mirrors flows.ValidNodeID (internal/flows/model.go): "n_" and eight
+// base32 characters. It keeps "__" and other separators out of cron job ids and slots.
+var flowNodeIDPattern = regexp.MustCompile(`^n_[a-z2-7]{8}$`)
+
+// flowEventQueueSize bounds the Notify* flow runs that wait for the event dispatcher.
+const flowEventQueueSize = 256
 
 // flowMaxEventPayloadBytes bounds the untrusted webhook, email and MQTT payloads that reach a
 // flow run. Queued runs keep their trigger data in memory, and the flow engine drops trigger
@@ -145,8 +157,13 @@ func (m *MissionManagerV2) CreateFlowMission(flowID, name string) (string, error
 }
 
 // SyncFlowMission stores the name and trigger specs of a published flow and registers them.
+// Every spec needs a distinct node id in the flow format. The new state is saved even when a
+// trigger registration fails; the returned error then reports the registration problem.
 func (m *MissionManagerV2) SyncFlowMission(missionID, name string, specs []FlowTriggerSpec) error {
 	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+	if err := validateFlowTriggerSpecs(specs); err != nil {
 		return err
 	}
 	m.mu.Lock()
@@ -164,7 +181,9 @@ func (m *MissionManagerV2) SyncFlowMission(missionID, name string, specs []FlowT
 	return errors.Join(regErr, m.save())
 }
 
-// SetFlowMissionEnabled switches the Mission Control triggers of a flow on or off.
+// SetFlowMissionEnabled switches the Mission Control triggers of a flow on or off. The new
+// state is saved even when a trigger registration fails; the returned error then reports
+// the registration problem.
 func (m *MissionManagerV2) SetFlowMissionEnabled(missionID string, enabled bool) error {
 	if err := requireMissionMutationPermission(); err != nil {
 		return err
@@ -212,10 +231,32 @@ func (m *MissionManagerV2) flowMissionLocked(missionID string) (*MissionV2, erro
 	return mission, nil
 }
 
+// validateFlowTriggerSpecs requires a distinct node id in the flow format for every spec.
+func validateFlowTriggerSpecs(specs []FlowTriggerSpec) error {
+	seen := make(map[string]bool, len(specs))
+	for _, spec := range specs {
+		if !flowNodeIDPattern.MatchString(spec.NodeID) {
+			return fmt.Errorf("invalid flow trigger node id %q", cutAtRuneBoundary(spec.NodeID, 40))
+		}
+		if seen[spec.NodeID] {
+			return fmt.Errorf("duplicate flow trigger node id %q", spec.NodeID)
+		}
+		seen[spec.NodeID] = true
+	}
+	return nil
+}
+
 // syncFlowTriggersLocked re-registers the triggers of a flow mission; a disabled mission
 // keeps none. Caller holds m.mu.
 func (m *MissionManagerV2) syncFlowTriggersLocked(mission *MissionV2) error {
 	m.unregisterFlowTriggersLocked(mission)
+	return m.ensureFlowTriggersLocked(mission)
+}
+
+// ensureFlowTriggersLocked registers the triggers of an enabled flow mission that are not
+// registered yet. Current cron jobs and keyed MQTT registrations stay untouched, so the
+// manager setters neither rewrite cron jobs nor reset MQTT rate limits. Caller holds m.mu.
+func (m *MissionManagerV2) ensureFlowTriggersLocked(mission *MissionV2) error {
 	if !mission.Enabled {
 		return nil
 	}
@@ -223,7 +264,9 @@ func (m *MissionManagerV2) syncFlowTriggersLocked(mission *MissionV2) error {
 	for _, spec := range mission.FlowTriggers {
 		switch spec.TriggerType {
 		case FlowTriggerSchedule:
-			errs = append(errs, m.addFlowCronLocked(mission.ID, spec))
+			if !m.flowCronJobCurrentLocked(mission.ID, spec) {
+				errs = append(errs, m.addFlowCronLocked(mission.ID, spec))
+			}
 		case TriggerWebhook:
 			m.registerFlowWebhookLocked(mission.ID, spec)
 		case TriggerEmailReceived:
@@ -235,9 +278,57 @@ func (m *MissionManagerV2) syncFlowTriggersLocked(mission *MissionV2) error {
 	return errors.Join(errs...)
 }
 
+// flowCronJobCurrentLocked reports whether the flow cron job of spec exists with its schedule.
+func (m *MissionManagerV2) flowCronJobCurrentLocked(missionID string, spec FlowTriggerSpec) bool {
+	if m.cron == nil {
+		return false
+	}
+	jobID := flowCronJobID(missionID, spec.NodeID)
+	for _, job := range m.cron.GetJobs() {
+		if job.ID == jobID {
+			return job.Source == flowCronSource && job.CronExpr == spec.Schedule
+		}
+	}
+	return false
+}
+
+// pruneFlowCronJobsLocked removes flow cron jobs that no enabled schedule spec owns any more,
+// for example after a crash or while the scheduler refused removals. Start runs it before
+// the triggers are set up. Caller holds m.mu.
+func (m *MissionManagerV2) pruneFlowCronJobsLocked() {
+	if m.cron == nil {
+		return
+	}
+	for _, job := range m.cron.GetJobs() {
+		if job.Source != flowCronSource {
+			continue
+		}
+		missionID, nodeID, ok := splitFlowCronJobID(job.ID)
+		if ok {
+			mission := m.missions[missionID]
+			if isFlowMission(mission) && mission.Enabled {
+				if spec, found := flowSpec(mission, nodeID); found && spec.TriggerType == FlowTriggerSchedule && spec.Schedule == job.CronExpr {
+					continue
+				}
+			}
+		}
+		_, _ = m.cron.ManageSchedule("remove", job.ID, "", "", "")
+	}
+}
+
+// runFlowCronJob is the cron runner of flowCronSource jobs.
+func (m *MissionManagerV2) runFlowCronJob(jobID, _ string) {
+	missionID, nodeID, ok := splitFlowCronJobID(jobID)
+	if !ok || !m.fireFlowSchedule(missionID, nodeID) {
+		slog.Debug("[MissionV2] Flow cron job has no flow mission", "job_id", jobID)
+	}
+}
+
 // unregisterFlowTriggersLocked removes the cron jobs and keyed MQTT registrations of a flow
 // mission. Webhook, email and plain MQTT registrations cannot be removed: they stay in
 // flowRegistered (so re-registering never duplicates them) and their callbacks re-check the spec.
+// Only flowCronSource jobs are removed, so a prompt mission whose id is "<flow>__<x>" keeps
+// its own cron job.
 func (m *MissionManagerV2) unregisterFlowTriggersLocked(mission *MissionV2) {
 	if mission == nil {
 		return
@@ -245,7 +336,7 @@ func (m *MissionManagerV2) unregisterFlowTriggersLocked(mission *MissionV2) {
 	if m.cron != nil {
 		prefix := "mission_" + mission.ID + flowCronSeparator
 		for _, job := range m.cron.GetJobs() {
-			if strings.HasPrefix(job.ID, prefix) {
+			if job.Source == flowCronSource && strings.HasPrefix(job.ID, prefix) {
 				_, _ = m.cron.ManageSchedule("remove", job.ID, "", "", "")
 			}
 		}
@@ -271,7 +362,15 @@ func (m *MissionManagerV2) addFlowCronLocked(missionID string, spec FlowTriggerS
 	if m.cron == nil {
 		return fmt.Errorf("cron manager is not configured")
 	}
-	out, err := m.cron.ManageScheduleWithSource("add", flowCronJobID(missionID, spec.NodeID), spec.Schedule, "EasyDrag flow trigger", "", "mission")
+	// The cron store keys jobs by id alone and an add replaces any job with that id, so a
+	// job of another source (a prompt mission "<flow>__<node>") is never overwritten.
+	jobID := flowCronJobID(missionID, spec.NodeID)
+	for _, job := range m.cron.GetJobs() {
+		if job.ID == jobID && job.Source != flowCronSource {
+			return fmt.Errorf("register flow schedule %s: cron job %s belongs to another scheduler entry", spec.NodeID, jobID)
+		}
+	}
+	out, err := m.cron.ManageScheduleWithSource("add", jobID, spec.Schedule, "EasyDrag flow trigger", "", flowCronSource)
 	if err != nil {
 		return fmt.Errorf("register flow schedule %s: %w", spec.NodeID, err)
 	}
@@ -468,26 +567,8 @@ func (m *MissionManagerV2) dropOversizedFlowEvent(missionID, nodeID string, trig
 		"trigger", string(trigger), "size_bytes", size, "limit_bytes", flowMaxEventPayloadBytes)
 }
 
-// fireFlowCronJob handles a "mission" cron job that belongs to a flow. It reports false, and
-// the cron runner then takes the unchanged prompt-mission path with the full job id, when the
-// id does not split into an existing flow mission and node, or when the whole id names an
-// existing mission: prompt mission ids created through the API may contain "__".
-func (m *MissionManagerV2) fireFlowCronJob(jobID string) bool {
-	missionID, nodeID, ok := splitFlowCronJobID(jobID)
-	if !ok {
-		return false
-	}
-	m.mu.RLock()
-	_, whole := m.missions[strings.TrimPrefix(jobID, "mission_")]
-	m.mu.RUnlock()
-	if whole {
-		return false
-	}
-	return m.fireFlowSchedule(missionID, nodeID)
-}
-
 // fireFlowSchedule handles a flow cron job. It reports false when missionID is not a flow
-// mission, so the cron runner treats the job as a prompt mission job.
+// mission.
 func (m *MissionManagerV2) fireFlowSchedule(missionID, nodeID string) bool {
 	m.mu.Lock()
 	mission, ok := m.missions[missionID]
@@ -570,10 +651,17 @@ func flowEventMatches(spec FlowTriggerSpec, trigger TriggerType, ev flowEvent) b
 	}
 }
 
+// flowRunRequest is one flow run that a Notify* event asked for.
+type flowRunRequest struct {
+	hooks                                FlowHooks
+	missionID, nodeID, triggerType, data string
+}
+
 // notifyFlowsLocked starts the runs of enabled flows whose specs match an event. Caller holds
-// m.mu, so the runs start on a new goroutine (the hooks call back into the manager).
+// m.mu, so the runs go to the event dispatcher (the hooks call back into the manager). The
+// dispatcher keeps event order; when its queue is full, the runs of the event are dropped.
 func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, data any) {
-	if m.flowHooks == nil {
+	if m.flowHooks == nil || m.ctx.Err() != nil {
 		return
 	}
 	type start struct{ missionID, nodeID string }
@@ -598,12 +686,36 @@ func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, 
 			raw = string(b)
 		}
 	}
-	hooks := m.flowHooks
-	go func() {
-		for _, s := range starts {
-			m.startFlowRun(hooks, s.missionID, s.nodeID, string(trigger), raw)
+	if m.flowEvents == nil {
+		m.flowEvents = make(chan flowRunRequest, flowEventQueueSize)
+		go m.dispatchFlowEvents(m.flowEvents)
+	}
+	dropped := 0
+	for _, s := range starts {
+		select {
+		case m.flowEvents <- flowRunRequest{hooks: m.flowHooks, missionID: s.missionID, nodeID: s.nodeID, triggerType: string(trigger), data: raw}:
+		default:
+			dropped++
 		}
-	}()
+	}
+	if dropped > 0 {
+		slog.Warn("[MissionV2] Flow event queue is full; flow runs dropped", "trigger", string(trigger),
+			"dropped", dropped, "capacity", flowEventQueueSize)
+	}
+}
+
+// dispatchFlowEvents starts the flow runs of Notify* events one at a time, in event order.
+// notifyFlowsLocked starts it with the first matching event; it ends when Stop cancels the
+// manager context.
+func (m *MissionManagerV2) dispatchFlowEvents(events <-chan flowRunRequest) {
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case req := <-events:
+			m.startFlowRun(req.hooks, req.missionID, req.nodeID, req.triggerType, req.data)
+		}
+	}
 }
 
 // homeAssistantMonitoredEntities lists the entities that enabled prompt missions and flows watch.

@@ -116,6 +116,13 @@ func (m *CronManager) scheduleInternal(job CronJob) error {
 	entryID, err := m.engine.AddFunc(j.CronExpr, func() {
 		m.mu.Lock()
 		runner := m.runners[j.Source]
+		if runner == nil && j.Source == flowCronSource {
+			// Flow schedules run only through the mission manager's flow runner, never as an
+			// agent prompt; before that runner exists (startup) the run is skipped.
+			m.mu.Unlock()
+			slog.Info("[CronManager] Flow cron job fired before the flow runner was ready; skipped", "id", j.ID)
+			return
+		}
 		if runner == nil && m.callback != nil {
 			cb := m.callback
 			m.mu.Unlock()
