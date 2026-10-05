@@ -153,6 +153,81 @@ func TestParseDockerComposeModelReadsResolvedShapes(t *testing.T) {
 	}
 }
 
+func TestDockerComposeConfigResultKeepsTheErrorAndRedactsLongQuotedSpans(t *testing.T) {
+	secret := strings.Repeat("tok-SECRET-", 8) // 88 characters
+	stderr := "time=\"2026-10-05T23:32:38+02:00\" level=warning msg=\"The \\\"A1\\\" variable is not set. Defaulting to a blank string.\"\n" +
+		"WARN[0000] /ws/compose.yml: the attribute `version` is obsolete, it will be ignored\n" +
+		"failed to read /ws/creds.env: line 1: unexpected character \"{\" in variable name \"{\\\"token\\\":\\\"" + secret + "\\\"}\"\n"
+	_, err := dockerComposeConfigResult(nil, []byte(stderr), errors.New("exit status 1"))
+	if err == nil {
+		t.Fatal("dockerComposeConfigResult() accepted a failed run")
+	}
+	msg := err.Error()
+	for _, leaked := range []string{"variable is not set", "obsolete", "SECRET"} {
+		if strings.Contains(msg, leaked) {
+			t.Fatalf("error leaked %q: %s", leaked, msg)
+		}
+	}
+	for _, kept := range []string{"exit status 1", "failed to read /ws/creds.env: line 1: unexpected character \"{\" in variable name", `"…"`} {
+		if !strings.Contains(msg, kept) {
+			t.Fatalf("error lost %q: %s", kept, msg)
+		}
+	}
+
+	noisy := strings.Repeat("progress line that is not a warning\n", 200) + "env file /ws/missing.env not found\n"
+	_, err = dockerComposeConfigResult(nil, []byte(noisy), errors.New("exit status 1"))
+	if err == nil || !strings.HasSuffix(err.Error(), "env file /ws/missing.env not found") || len(err.Error()) > 600 {
+		t.Fatalf("long stderr did not keep its final error line within bounds (%d bytes): %v", len(err.Error()), err)
+	}
+
+	fatal := "time=\"2026-10-05T23:32:38+02:00\" level=fatal msg=\"service \\\"web\\\" refers to undefined network backend: invalid compose project\"\n"
+	_, err = dockerComposeConfigResult(nil, []byte(fatal), errors.New("exit status 15"))
+	if err == nil || !strings.Contains(err.Error(), `service "web" refers to undefined network backend: invalid compose project`) {
+		t.Fatalf("logrus error message was not kept readable: %v", err)
+	}
+}
+
+func TestDockerComposeModelOwnerChecksTopLevelVolumeAndNetworkLabels(t *testing.T) {
+	cases := map[string]struct {
+		resolved string
+		want     string
+	}{
+		"homepage volume label":      {`{"services":{},"volumes":{"v":{"name":"x_v","labels":{"aurago.managed":"homepage"}}}}`, dockerutil.HomepageOwner},
+		"legacy llm volume label":    {`{"services":{},"volumes":{"v":{"name":"x_v","labels":{"com.aurago.managed":"true","com.aurago.owner":"local-llm"}}}}`, dockerutil.LocalLLMOwner},
+		"garage network label":       {`{"services":{},"networks":{"n":{"name":"x_n","labels":{"aurago.managed":"boring-garage"}}}}`, dockerutil.BoringGarageOwner},
+		"app network label":          {`{"services":{},"networks":{"default":{"name":"x_default","labels":{"aurago.managed":"aurago-app"}}}}`, dockerutil.AppOwner},
+		"plain labels":               {`{"services":{},"volumes":{"v":{"name":"x_v","labels":{"team":"web"}}},"networks":{"n":{"name":"x_n","labels":{"aurago.managed":"other"}}}}`, ""},
+		"external network, no label": {`{"services":{},"networks":{"proxy":{"name":"aurago_default","external":true}}}`, ""},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			model, err := ParseDockerComposeModel(tc.resolved)
+			if err != nil {
+				t.Fatalf("ParseDockerComposeModel() error = %v", err)
+			}
+			if got := DockerComposeModelOwner(model); got != tc.want {
+				t.Fatalf("DockerComposeModelOwner() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseDockerComposeModelDeviceForms(t *testing.T) {
+	model, err := ParseDockerComposeModel(`{"services":{"w":{"devices":["/dev/a:/dev/b:rwm","/dev/c"]}}}`)
+	if err != nil {
+		t.Fatalf("ParseDockerComposeModel() error = %v", err)
+	}
+	devices := model.Services["w"].Devices
+	if len(devices) != 2 || devices[0].Source != "/dev/a" || devices[0].Target != "/dev/b" || devices[1].Source != "/dev/c" || devices[1].Target != "" {
+		t.Fatalf("devices = %+v", devices)
+	}
+	for _, device := range []string{`42`, `["/dev/a"]`, `true`} {
+		if _, err := ParseDockerComposeModel(`{"services":{"w":{"devices":[` + device + `]}}}`); err == nil {
+			t.Fatalf("device %s was accepted", device)
+		}
+	}
+}
+
 func TestParseDockerComposeModelRejectsEmptyAndNonJSON(t *testing.T) {
 	for _, resolved := range []string{"", "   ", "services:\n  web:\n    image: alpine\n"} {
 		if _, err := ParseDockerComposeModel(resolved); err == nil {

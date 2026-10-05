@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"aurago/internal/acestep"
 	"aurago/internal/dockerutil"
@@ -21,6 +24,7 @@ type DockerComposeModel struct {
 	Name     string                               `json:"name"`
 	Services map[string]DockerComposeService      `json:"services"`
 	Volumes  map[string]DockerComposeNamedVolume  `json:"volumes"`
+	Networks map[string]DockerComposeNetwork      `json:"networks"`
 	Secrets  map[string]DockerComposeFileResource `json:"secrets"`
 	Configs  map[string]DockerComposeFileResource `json:"configs"`
 }
@@ -96,6 +100,14 @@ type DockerComposeNamedVolume struct {
 	Name       string            `json:"name"`
 	Driver     string            `json:"driver"`
 	DriverOpts map[string]string `json:"driver_opts"`
+	Labels     map[string]string `json:"labels"`
+}
+
+// DockerComposeNetwork is a resolved top-level network.
+type DockerComposeNetwork struct {
+	Name   string            `json:"name"`
+	Driver string            `json:"driver"`
+	Labels map[string]string `json:"labels"`
 }
 
 // DockerComposeFileResource is a resolved top-level secret or config.
@@ -160,11 +172,11 @@ var runDockerComposeConfig = func(ctx context.Context, args []string) ([]byte, [
 }
 
 // dockerComposeConfigResult returns the model from stdout only. Compose prints
-// warnings such as "the attribute `version` is obsolete" on stderr; they go
-// into the error text when the command fails and are dropped otherwise.
+// warnings such as "the attribute `version` is obsolete" on stderr; they are
+// dropped, and a failure carries only the sanitised error detail.
 func dockerComposeConfigResult(stdout, stderr []byte, err error) (string, error) {
 	if err != nil {
-		detail := strings.TrimSpace(string(stderr))
+		detail := dockerComposeStderrDetail(stderr)
 		if detail == "" {
 			return "", fmt.Errorf("resolve Compose config: %w", err)
 		}
@@ -173,11 +185,80 @@ func dockerComposeConfigResult(stdout, stderr []byte, err error) (string, error)
 	return string(stdout), nil
 }
 
+const (
+	dockerComposeErrorDetailLimit = 480
+	dockerComposeErrorDetailLines = 3
+	dockerComposeQuotedSpanLimit  = 64
+)
+
+var (
+	dockerComposeQuotedSpan = regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
+	dockerComposeLogLevel   = regexp.MustCompile(`(?i)\blevel=(\w+)`)
+	dockerComposeLogMessage = regexp.MustCompile(`\bmsg=("(?:[^"\\]|\\.)*")`)
+)
+
+// dockerComposeStderrDetail keeps the part of Compose's stderr that explains a
+// failure. Warning, info and debug lines are dropped (Compose prints them before
+// the error), only the last few remaining lines are kept, the message of a
+// logrus-formatted error line is unquoted, double-quoted spans longer than 64
+// characters become "…" because Compose quotes file content in them, and an
+// over-long detail keeps its end, where the error is.
+func dockerComposeStderrDetail(stderr []byte) string {
+	var lines []string
+	for _, line := range strings.Split(string(stderr), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || dockerComposeNoiseLine(line) {
+			continue
+		}
+		if match := dockerComposeLogMessage.FindStringSubmatch(line); match != nil && dockerComposeLogLevel.MatchString(line) {
+			if message, err := strconv.Unquote(match[1]); err == nil {
+				line = message
+			}
+		}
+		lines = append(lines, line)
+	}
+	if len(lines) > dockerComposeErrorDetailLines {
+		lines = lines[len(lines)-dockerComposeErrorDetailLines:]
+	}
+	detail := dockerComposeQuotedSpan.ReplaceAllStringFunc(strings.Join(lines, " | "), func(span string) string {
+		if utf8.RuneCountInString(span)-2 > dockerComposeQuotedSpanLimit {
+			return `"…"`
+		}
+		return span
+	})
+	return dockerComposeKeepEnd(detail, dockerComposeErrorDetailLimit)
+}
+
+func dockerComposeNoiseLine(line string) bool {
+	if match := dockerComposeLogLevel.FindStringSubmatch(line); match != nil {
+		switch strings.ToLower(match[1]) {
+		case "warning", "warn", "info", "debug", "trace":
+			return true
+		}
+		return false
+	}
+	upper := strings.ToUpper(line)
+	return strings.HasPrefix(upper, "WARN") || strings.HasPrefix(upper, "WARNING:")
+}
+
+// dockerComposeKeepEnd shortens text to at most limit bytes, keeping its end.
+func dockerComposeKeepEnd(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+	const marker = "…"
+	start := len(text) - (limit - len(marker))
+	for start < len(text) && !utf8.RuneStart(text[start]) {
+		start++
+	}
+	return marker + text[start:]
+}
+
 // DockerComposeModelOwner reports the first AuraGo owner whose resources the
 // resolved model names, or "". It checks container_name, aurago.managed labels
-// (canonical and legacy), the homepage image repository, named and bind volume
-// sources, local bind volume devices, volumes_from and container: namespace
-// references. Owners: acestep.Owner, dockerutil.LocalLLMOwner,
+// (canonical and legacy) on services, top-level volumes and networks, the
+// homepage image repository, named and bind volume sources, local bind volume
+// devices, volumes_from and container: namespace references. Owners: acestep.Owner, dockerutil.LocalLLMOwner,
 // BoringGarageOwner, HomepageOwner and AppOwner. The app container matches only
 // its exact name "aurago" or the aurago-app owner label: this tier also binds
 // grandfathered configs, and user stacks name containers like "dev-aurago".
@@ -187,10 +268,8 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		if owner := dockerComposeContainerOwner(service.ContainerName); owner != "" {
 			return owner
 		}
-		for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner} {
-			if dockerutil.ManagedBy(service.Labels, owner) {
-				return owner
-			}
+		if owner := dockerComposeLabelOwner(service.Labels); owner != "" {
+			return owner
 		}
 		if dockerutil.IsHomepageImageReference(service.Image) {
 			return dockerutil.HomepageOwner
@@ -227,6 +306,25 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		}
 		if dockerutil.IsBoringGarageDataPath(volume.DriverOpts["device"]) {
 			return dockerutil.BoringGarageOwner
+		}
+		if owner := dockerComposeLabelOwner(volume.Labels); owner != "" {
+			return owner
+		}
+	}
+	for _, key := range sortedDockerComposeKeys(model.Networks) {
+		if owner := dockerComposeLabelOwner(model.Networks[key].Labels); owner != "" {
+			return owner
+		}
+	}
+	return ""
+}
+
+// dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy
+// aurago.managed labels on a service, volume or network.
+func dockerComposeLabelOwner(labels map[string]string) string {
+	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner} {
+		if dockerutil.ManagedBy(labels, owner) {
+			return owner
 		}
 	}
 	return ""

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"aurago/internal/acestep"
 	"aurago/internal/config"
@@ -185,7 +186,7 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 	preflight, err := loadDockerComposePreflight(ctx, dockerCfg, req.File)
 	if err != nil {
 		return dockerAgentError("docker_compose_preflight_failed",
-			"Docker Compose could not resolve this file, so nothing was run: "+Truncate(err.Error(), 600)+
+			"Docker Compose could not resolve this file, so nothing was run: "+dockerComposeErrorTail(err.Error(), 600)+
 				". Fix the Compose file (for example a missing env_file or invalid YAML) or install the Docker Compose plugin.")
 	}
 	if denied := dockerComposeOwnerDenial(preflight.protectedOwner()); denied != "" {
@@ -196,6 +197,20 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 			"Service %q is not part of the default Compose profiles, and this Docker Compose version cannot resolve services of inactive profiles for AuraGo's ownership check, so nothing was run. Update the Docker Compose plugin (it needs `config --profile '*' --no-env-resolution`), or start only services without a profile.", service))
 	}
 	return ""
+}
+
+// dockerComposeErrorTail bounds a preflight error and keeps its end: Compose
+// reports the actual error last.
+func dockerComposeErrorTail(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+	const marker = "…"
+	start := len(text) - (limit - len(marker))
+	for start < len(text) && !utf8.RuneStart(text[start]) {
+		start++
+	}
+	return marker + text[start:]
 }
 
 func dockerComposeOwnerDenial(owner string) string {

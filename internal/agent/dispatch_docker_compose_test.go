@@ -324,6 +324,21 @@ func TestDockerComposePolicyRunsComposeUnderTheDispatchContext(t *testing.T) {
 	}
 }
 
+func TestDockerComposePolicyKeepsTheEndOfLongPreflightErrors(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return "", errors.New("resolve Compose config: exit status 1: " + strings.Repeat("context ", 200) + "env file missing.env not found")
+	})
+	got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "ps"})
+	if !strings.Contains(got, `"code":"docker_compose_preflight_failed"`) || !strings.Contains(got, "env file missing.env not found") {
+		t.Fatalf("long preflight error lost its final error: %s", got)
+	}
+	if len(got) > 1200 {
+		t.Fatalf("preflight error is not bounded: %d bytes", len(got))
+	}
+}
+
 func TestDockerComposePolicyReportsPreflightFailure(t *testing.T) {
 	workspace := t.TempDir()
 	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n    env_file: [missing.env]\n")
