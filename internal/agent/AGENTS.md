@@ -76,6 +76,14 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   identity and authorization remain intact. Verify TestStrict* and the schema,
   prepared-profile and Game Maker settings tests.
 
+- Advertise run_tool only with AllowPython. Adaptive/hard-always selection and
+  the Looper intersect that enabled schema set; discovery keeps a disabled,
+  non-callable entry. Live Python revocation disables the captured catalog and
+  denies direct/wrapped dispatch before hooks. Hook gate comparisons, like gate
+  intersection, skip private config bookkeeping. execute_skill retains its Go
+  built-ins independently of Python. Verify TestRunTool* and
+  TestExecuteSkillGoBuiltinStillWorksWithoutPython.
+
 - treg exposes three schemas for the dynamic catalog, never a schema per endpoint.
   Trace calls by endpoint and stored action class; specialized roles only receive
   read grants. Preserve an explicitly unknown sent outcome through cancellation,
