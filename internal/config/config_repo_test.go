@@ -95,3 +95,29 @@ func TestRepositoryConfigTemplateJellyfinDefaults(t *testing.T) {
 		t.Fatalf("jellyfin.port = %#v, want 8096", jellyfin["port"])
 	}
 }
+
+// Fresh installs must write allow_unsandboxed_shell: false explicitly: an absent
+// key would grant the legacy unsandboxed-shell grandfather at load time.
+func TestRepositoryConfigTemplateWritesUnsandboxedShellFalse(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join("..", "..", "config_template.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+	if !strings.Contains(string(data), "allow_unsandboxed_shell: false") {
+		t.Fatal("config_template.yaml must write agent.allow_unsandboxed_shell: false")
+	}
+	if !yamlHasPath(data, "agent", "allow_unsandboxed_shell") {
+		t.Fatal("config_template.yaml must place allow_unsandboxed_shell under agent")
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("parse config_template.yaml into Config: %v", err)
+	}
+	if cfg.Agent.AllowUnsandboxedShell {
+		t.Fatal("template agent.allow_unsandboxed_shell = true, want false")
+	}
+}

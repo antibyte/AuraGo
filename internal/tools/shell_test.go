@@ -181,18 +181,48 @@ func shellPrintSensitiveEnvAndSleepCommand() string {
 	return shellPrintSensitiveEnvCommand() + "; sleep 0.5"
 }
 
-func TestHostShellFallbackErrorRequiresUnsafeHostFlagOnLinux(t *testing.T) {
+// availableShellSandboxForTest stands in for an active sandbox backend such as Landlock.
+type availableShellSandboxForTest struct{}
+
+func (availableShellSandboxForTest) Available() bool { return true }
+func (availableShellSandboxForTest) Name() string    { return "landlock" }
+func (availableShellSandboxForTest) PrepareCommand(command, workDir string) *exec.Cmd {
+	cmd := exec.Command("echo", "unused")
+	cmd.Dir = workDir
+	return cmd
+}
+func (availableShellSandboxForTest) PrepareExecCommand(binary string, args []string, workDir string) *exec.Cmd {
+	cmd := exec.Command("echo", "unused")
+	cmd.Dir = workDir
+	return cmd
+}
+
+func TestHostShellFallbackErrorRequiresAFlagWithoutSandbox(t *testing.T) {
 	fallback := &sandbox.FallbackSandbox{}
 	perms := defaultRuntimePermissionsForTests()
 	perms.AllowUnsafeHostExecution = false
 	perms.AllowUnsandboxedShell = false
 
-	err := hostShellFallbackError("linux", fallback, perms)
-	if err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
-		t.Fatalf("expected unsafe-host gate error naming both flags on linux without sandbox, got %v", err)
+	for _, goos := range []string{"linux", "darwin"} {
+		err := hostShellFallbackError(goos, fallback, perms)
+		if err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+			t.Fatalf("expected unsafe-host gate error naming both flags on %s without sandbox, got %v", goos, err)
+		}
 	}
-	if err := hostShellFallbackError("windows", fallback, perms); err != nil {
-		t.Fatalf("windows has its own gate, got %v", err)
+	passes := []struct {
+		name string
+		goos string
+		sb   sandbox.ShellSandbox
+	}{
+		{"windows has its own gate", "windows", fallback},
+		{"active sandbox", "linux", availableShellSandboxForTest{}},
+		{"blocked sandbox reports its own error later", "linux", &sandbox.BlockingSandbox{}},
+		{"no sandbox instance", "linux", nil},
+	}
+	for _, tc := range passes {
+		if err := hostShellFallbackError(tc.goos, tc.sb, perms); err != nil {
+			t.Fatalf("%s: expected no gate error without flags, got %v", tc.name, err)
+		}
 	}
 	perms.AllowUnsandboxedShell = true
 	if err := hostShellFallbackError("linux", fallback, perms); err != nil {
@@ -202,5 +232,27 @@ func TestHostShellFallbackErrorRequiresUnsafeHostFlagOnLinux(t *testing.T) {
 	perms.AllowUnsafeHostExecution = true
 	if err := hostShellFallbackError("linux", fallback, perms); err != nil {
 		t.Fatalf("explicit flag must allow the host shell, got %v", err)
+	}
+}
+
+func TestHostShellEntryPointsRefuseWithoutFlagOrSandbox(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the Windows host shell has its own gate")
+	}
+	t.Cleanup(sandbox.SetForTest(&sandbox.FallbackSandbox{}))
+	perms := defaultRuntimePermissionsForTests()
+	perms.AllowUnsafeHostExecution = false
+	perms.AllowUnsandboxedShell = false
+	ConfigureRuntimePermissions(perms)
+	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
+
+	if _, _, err := ExecuteShell("echo must-not-run", t.TempDir()); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+		t.Fatalf("ExecuteShell() error = %v, want host shell gate", err)
+	}
+	if _, err := ExecuteShellBackground("echo must-not-run", t.TempDir(), NewProcessRegistry(slog.Default())); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+		t.Fatalf("ExecuteShellBackground() error = %v, want host shell gate", err)
+	}
+	if _, _, err := ExecuteSudo("id", t.TempDir(), "password"); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+		t.Fatalf("ExecuteSudo() error = %v, want host shell gate", err)
 	}
 }

@@ -42,7 +42,7 @@
                     icon: '⚠️',
                     title: t('config.danger.unsafe_host_execution.title'),
                     desc: t('config.danger.unsafe_host_execution.desc'),
-                    badge: 'host Python / Windows shell'
+                    badge: 'host Python / Windows shell / unsandboxed Linux+macOS shell'
                 },
                 {
                     path: 'agent.allow_filesystem_write',

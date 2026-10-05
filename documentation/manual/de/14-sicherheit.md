@@ -343,6 +343,7 @@ agent:
   allow_shell: false                    # Shell-Ausführung
   allow_python: false                   # Python-Ausführung
   allow_unsafe_host_execution: false    # zusätzlich nötig für Windows-Shell und Host-Python
+  allow_unsandboxed_shell: false        # erlaubt die Linux-/macOS-Host-Shell ohne Sandbox
   allow_filesystem_write: false
   allow_network_requests: false         # api_request
   allow_remote_shell: false
@@ -353,7 +354,7 @@ agent:
   sudo_unrestricted: false
 ```
 
-`allow_unsafe_host_execution` ist eine bewusste Ausnahme: Ohne sie läuft Windows-Shell und Host-Python (auch Skills und Hintergrund-Jobs) nicht, unabhängig von `allow_shell`/`allow_python`. Details unter [Ausgehende Verbindungen und Host-Ausführung](#ausgehende-verbindungen-und-host-ausführung).
+`allow_unsafe_host_execution` ist eine bewusste Ausnahme: Ohne sie läuft Windows-Shell und Host-Python (auch Skills und Hintergrund-Jobs) nicht, unabhängig von `allow_shell`/`allow_python`. `allow_unsandboxed_shell` ist die engere Ausnahme nur für die Linux-/macOS-Host-Shell ohne Sandbox. Details unter [Ausgehende Verbindungen und Host-Ausführung](#ausgehende-verbindungen-und-host-ausführung).
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Tools → Tool-Berechtigungen**.
@@ -577,7 +578,7 @@ browser_automation:
 
 ### Host-Ausführung ohne Isolation
 
-Windows-Shell und jeder Host-Python-Pfad — inklusive Agent-Skill-Skripten und Hintergrund-Python-Jobs — brauchen zusätzlich zum bestehenden Tool-Gate `agent.allow_unsafe_host_execution: true`. Jede erlaubte Ausführung erzeugt eine Audit-Warnung im Log. Die Linux-Shell ohne wirksame Sandbox braucht `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`; Updates über `update.sh` und Docker setzen `allow_unsandboxed_shell: true` für Konfigurationen, in denen die Shell bereits aktiviert war. Desktop-Notes-Schutz und Datei-Jails gelten unabhängig davon.
+Windows-Shell und jeder Host-Python-Pfad — inklusive Agent-Skill-Skripten und Hintergrund-Python-Jobs — brauchen zusätzlich zum bestehenden Tool-Gate `agent.allow_unsafe_host_execution: true`. Jede erlaubte Ausführung erzeugt eine Audit-Warnung im Log. Die Linux-/macOS-Host-Shell ohne wirksame Sandbox braucht `agent.allow_unsandboxed_shell: true` oder `agent.allow_unsafe_host_execution: true`; Updates über `update.sh` und Docker schreiben `allow_unsandboxed_shell` (`true` für Konfigurationen, in denen die Shell bereits aktiviert war, sonst `false`). Konfigurationen, die nie durch den config-merger laufen und in denen der Schlüssel nie geschrieben wurde, bleiben auch dann freigestellt, wenn die Shell später aktiviert wird; schreibe `agent.allow_unsandboxed_shell` ausdrücklich, damit die Entscheidung dauerhaft gilt. Desktop-Notes-Schutz und Datei-Jails gelten unabhängig davon.
 
 ```yaml
 agent:
@@ -804,7 +805,7 @@ hmac = SHA256(secret + payload)
 | Tunnel / VPN | Cloudflare Tunnel oder Tailscale statt Port-Forward |
 | Webhooks | Token oder HMAC, enge Scopes, Rate-Limits |
 | Danger Zone | Aus, bis du das Feature wirklich brauchst |
-| Unsafe-Ausnahmen | `allow_unauthenticated_remote` und `allow_unsafe_host_execution` bleiben `false` |
+| Unsafe-Ausnahmen | `allow_unauthenticated_remote`, `allow_unsafe_host_execution` und `allow_unsandboxed_shell` bleiben `false` |
 | Backups | `.ago`-Backups verschlüsseln, Passphrase nicht ins Repo |
 
 Bei Verdacht: Keys beim Provider drehen, Webhook-Tokens ungültig machen, Logs lesen, Vault-Secrets neu erzeugen.
@@ -821,6 +822,7 @@ Bei Verdacht: Keys beim Provider drehen, Webhook-Tokens ungültig machen, Logs l
 | Proxy-Vertrauen | `server.https.trusted_proxy_cidrs` | Explizite Proxy-IPs/CIDRs |
 | SSRF-Schutz | `internal/security/ssrf.go` | Immer aktiv, kein Gate |
 | Host-Ausführung | `agent.allow_unsafe_host_execution` | `false` |
+| Host-Shell ohne Sandbox | `agent.allow_unsandboxed_shell` | `false` |
 | Docker-Gate | `docker.readonly` | `true` (Monitoring) |
 | Vault-Gate | `tools.secrets_vault.readonly` | `true` |
 

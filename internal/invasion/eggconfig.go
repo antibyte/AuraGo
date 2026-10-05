@@ -125,6 +125,7 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		"debug_mode":                 false,
 		"user_profiling":             false,
 		"allow_shell":                allowShell,
+		"allow_unsandboxed_shell":    allowShell, // explicit, so a hatched egg never relies on the legacy shell grandfather
 		"allow_python":               allowPython,
 		"allow_filesystem_write":     true,
 		"allow_network_requests":     true,
@@ -284,6 +285,7 @@ func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, e
 		}
 		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
 			agent["allow_shell"] = allowShell
+			agent["allow_unsandboxed_shell"] = allowShell
 			agent["allow_python"] = allowPython
 		}
 	}

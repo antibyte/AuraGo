@@ -158,6 +158,7 @@ func TestCheckSecurityReportsLegacyUnsandboxedHostShell(t *testing.T) {
 	oldGOOS := runtimeGOOS
 	runtimeGOOS = "linux"
 	t.Cleanup(func() { runtimeGOOS = oldGOOS })
+	t.Cleanup(sandbox.SetForTest(&sandbox.FallbackSandbox{}))
 
 	hint := findSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy")
 	if hint == nil {
@@ -169,10 +170,25 @@ func TestCheckSecurityReportsLegacyUnsandboxedHostShell(t *testing.T) {
 	if !strings.Contains(hint.Description, "agent.allow_unsandboxed_shell: true") {
 		t.Fatalf("legacy hint must name the explicit allow_unsandboxed_shell option: %s", hint.Description)
 	}
+	const hostShellRule = "Without agent.allow_unsandboxed_shell or agent.allow_unsafe_host_execution the Linux/macOS host shell is refused."
 	shellHint := findSecurityHint(CheckSecurity(cfg), "shell_no_sandbox")
-	if shellHint == nil || !strings.Contains(shellHint.Description, "Without agent.allow_unsandboxed_shell or agent.allow_unsafe_host_execution the Linux host shell is refused.") {
-		t.Fatalf("shell_no_sandbox must state the Linux host shell rule, got %#v", shellHint)
+	if shellHint == nil || !strings.Contains(shellHint.Description, hostShellRule) {
+		t.Fatalf("shell_no_sandbox must state the host shell rule, got %#v", shellHint)
 	}
+
+	cfg.Agent.LegacyUnsandboxedShell = false
+	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
+		t.Fatal("did not expect shell_unsafe_host_legacy without the legacy grandfather")
+	}
+	cfg.Agent.LegacyUnsandboxedShell = true
+
+	cfg.ShellSandbox.Enabled = true
+	restoreBlocked := sandbox.SetForTest(&sandbox.BlockingSandbox{})
+	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
+		t.Fatal("did not expect shell_unsafe_host_legacy while the blocked sandbox refuses the shell")
+	}
+	restoreBlocked()
+	cfg.ShellSandbox.Enabled = false
 
 	cfg.Agent.AllowUnsafeHostExecution = true
 	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
@@ -187,8 +203,12 @@ func TestCheckSecurityReportsLegacyUnsandboxedHostShell(t *testing.T) {
 
 	cfg.Agent.AllowUnsandboxedShell = false
 	runtimeGOOS = "windows"
-	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
+	windowsHints := CheckSecurity(cfg)
+	if hasSecurityHint(windowsHints, "shell_unsafe_host_legacy") {
 		t.Fatal("did not expect shell_unsafe_host_legacy on Windows, which has its own shell gate")
+	}
+	if shellHint := findSecurityHint(windowsHints, "shell_no_sandbox"); shellHint == nil || strings.Contains(shellHint.Description, hostShellRule) {
+		t.Fatalf("shell_no_sandbox on Windows must omit the Linux/macOS host shell rule, got %#v", shellHint)
 	}
 }
 

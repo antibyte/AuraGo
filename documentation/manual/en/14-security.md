@@ -141,6 +141,7 @@ agent:
   allow_shell: false
   allow_python: false
   allow_unsafe_host_execution: false   # additionally required for Windows shell and host Python
+  allow_unsandboxed_shell: false       # lets the Linux/macOS host shell run without a sandbox
   allow_filesystem_write: false
   allow_network_requests: false
   allow_remote_shell: false
@@ -269,7 +270,7 @@ browser_automation:
 
 ### Host execution without isolation
 
-Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. The Linux shell without an effective sandbox needs `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`; updates via `update.sh` and Docker set `allow_unsandboxed_shell: true` for configurations that already had the shell enabled. Desktop Notes protection and file jails apply regardless.
+Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. The Linux/macOS host shell without an effective sandbox needs `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`; updates via `update.sh` and Docker write `allow_unsandboxed_shell` (`true` for configurations that already had the shell enabled, `false` otherwise). Configurations that never run config-merger and never had the key written are grandfathered even if the shell is enabled later; write `agent.allow_unsandboxed_shell` explicitly to make the decision durable. Desktop Notes protection and file jails apply regardless.
 
 ```yaml
 agent:
@@ -388,7 +389,7 @@ The German security chapter contains a more detailed public-exposure checklist; 
 | Cloudflare Tunnel / Tailscale | Prefer private tunnels or VPN access over direct port forwarding |
 | Webhooks | Require tokens/HMAC, narrow scopes, and rate limits |
 | Tool permissions | Keep Danger Zone toggles disabled until a feature is actually needed |
-| Unsafe exceptions | Keep `allow_unauthenticated_remote` and `allow_unsafe_host_execution` at `false` |
+| Unsafe exceptions | Keep `allow_unauthenticated_remote`, `allow_unsafe_host_execution` and `allow_unsandboxed_shell` at `false` |
 | Backups | Encrypt `.ago` backups and store passphrases outside the repository |
 
 For incident response, rotate exposed API keys immediately, invalidate webhook tokens, review recent logs, and regenerate credentials stored in Vault if compromise is suspected.

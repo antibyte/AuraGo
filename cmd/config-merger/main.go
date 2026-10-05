@@ -211,13 +211,14 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		}
 	}
 
-	// The Linux host shell without a sandbox now needs agent.allow_unsandboxed_shell
-	// (or allow_unsafe_host_execution). Configurations that already had the shell
-	// enabled keep it: write the explicit opt-in instead of the template's false.
-	if userAgent, ok := asStringMap(user["agent"]); ok && userAgent["allow_shell"] == true {
-		_, userSetUnsandboxed := userAgent["allow_unsandboxed_shell"]
-		if agentMap, ok := asStringMap(merged["agent"]); ok && !userSetUnsandboxed && agentMap["allow_unsandboxed_shell"] != true {
-			agentMap["allow_unsandboxed_shell"] = true
+	// The non-Windows host shell without a sandbox now needs
+	// agent.allow_unsandboxed_shell (or allow_unsafe_host_execution). Materialise
+	// the key on every upgrade so a merged config never relies on the load-time
+	// grandfather: true where the shell was already enabled, false otherwise.
+	userAgent, _ := asStringMap(user["agent"])
+	if _, userSetUnsandboxed := userAgent["allow_unsandboxed_shell"]; !userSetUnsandboxed {
+		if agentMap, ok := asStringMap(merged["agent"]); ok {
+			agentMap["allow_unsandboxed_shell"] = userAgent["allow_shell"] == true
 			merged["agent"] = agentMap
 			changed = true
 		}

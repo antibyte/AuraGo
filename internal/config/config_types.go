@@ -1091,7 +1091,7 @@ type Config struct {
 		AllowShell               bool `yaml:"allow_shell"`                 // allow execute_shell
 		AllowPython              bool `yaml:"allow_python"`                // allow execute_python / save_tool / execute_skill
 		AllowUnsafeHostExecution bool `yaml:"allow_unsafe_host_execution"` // explicitly permit host Python, Windows shell and unsandboxed Linux shell
-		AllowUnsandboxedShell    bool `yaml:"allow_unsandboxed_shell"`     // let the Linux shell run without a sandbox even when allow_unsafe_host_execution is false; upgrades of configurations with allow_shell: true set it to true, fresh installs get false
+		AllowUnsandboxedShell    bool `yaml:"allow_unsandboxed_shell"`     // let the Linux/macOS host shell run without a sandbox even when allow_unsafe_host_execution is false; upgrades of configurations with allow_shell: true set it to true, fresh installs get false
 		// LegacyUnsandboxedShell is set at load time when allow_shell is on but
 		// allow_unsandboxed_shell was never written to config.yaml (an install
 		// that config-merger has not upgraded yet). It keeps the Linux host shell

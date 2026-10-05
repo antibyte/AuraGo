@@ -384,12 +384,16 @@ func TestApplyUpgradeSafetyDefaults_PreservesUnsandboxedShellForEnabledShell(t *
 	}{
 		{"shell on, key absent", map[string]interface{}{"allow_shell": true}, true, true},
 		{"shell on, key written false", map[string]interface{}{"allow_shell": true, "allow_unsandboxed_shell": false}, false, false},
-		{"shell absent", map[string]interface{}{"debug_mode": true}, false, false},
-		{"shell off", map[string]interface{}{"allow_shell": false}, false, false},
+		{"shell absent", map[string]interface{}{"debug_mode": true}, false, true},
+		{"shell off", map[string]interface{}{"allow_shell": false}, false, true},
+		{"no agent section", nil, false, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			user := map[string]interface{}{"agent": tc.userAgent}
+			user := map[string]interface{}{}
+			if tc.userAgent != nil {
+				user["agent"] = tc.userAgent
+			}
 			merged := deepMerge(template, user)
 
 			changed := applyUpgradeSafetyDefaults(merged, user)

@@ -313,24 +313,28 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		if facing {
 			sev = SevCritical
 		}
+		description := "Shell execution is enabled, but the Landlock shell sandbox is not effectively available. " +
+			"Unisolated commands run with the AuraGo process user's permissions and can bypass Desktop Notes protection in native file tools. " +
+			"Enable shell_sandbox on a supported Linux host, or disable shell execution for this environment."
+		if runtimeGOOS != "windows" {
+			description += " Without agent.allow_unsandboxed_shell or agent.allow_unsafe_host_execution the Linux/macOS host shell is refused."
+		}
 		hints = append(hints, SecurityHint{
 			ID: "shell_no_sandbox", Severity: sev,
-			Title: "Shell execution without effective sandbox",
-			Description: "Shell execution is enabled, but the Landlock shell sandbox is not effectively available. " +
-				"Unisolated commands run with the AuraGo process user's permissions and can bypass Desktop Notes protection in native file tools. " +
-				"Enable shell_sandbox on a supported Linux host, or disable shell execution for this environment. " +
-				"Without agent.allow_unsandboxed_shell or agent.allow_unsafe_host_execution the Linux host shell is refused.",
+			Title:       "Shell execution without effective sandbox",
+			Description: description,
 			AutoFixable: false,
 		})
 	}
 
-	// 7c2. shell_unsafe_host_legacy — host shell permitted by the pre-flag default
-	if cfg.Agent.AllowShell && cfg.Agent.LegacyUnsandboxedShell && !cfg.Agent.AllowUnsafeHostExecution && !cfg.Agent.AllowUnsandboxedShell && !shellSandboxReady(cfg) && runtimeGOOS != "windows" {
+	// 7c2. shell_unsafe_host_legacy — host shell permitted by the pre-flag default.
+	// A blocked sandbox refuses the shell anyway, so the hint would be wrong there.
+	if cfg.Agent.AllowShell && cfg.Agent.LegacyUnsandboxedShell && !cfg.Agent.AllowUnsafeHostExecution && !cfg.Agent.AllowUnsandboxedShell && !shellSandboxReady(cfg) && !sandbox.IsBlocked() && runtimeGOOS != "windows" {
 		hints = append(hints, SecurityHint{
 			ID: "shell_unsafe_host_legacy", Severity: SevWarning,
 			Title: "Host shell runs under a legacy default",
 			Description: "agent.allow_shell is enabled, no shell sandbox is active and agent.allow_unsandboxed_shell is not written in config.yaml. " +
-				"AuraGo keeps the host shell working for this existing configuration. Write agent.allow_unsandboxed_shell: true to make the decision explicit, " +
+				"AuraGo keeps the Linux/macOS host shell working for this existing configuration. Write agent.allow_unsandboxed_shell: true to make the decision explicit, " +
 				"or enable shell_sandbox on a supported Linux host. Writing the key as false stops the host shell unless agent.allow_unsafe_host_execution is true.",
 			AutoFixable: false,
 		})

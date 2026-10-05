@@ -270,17 +270,24 @@ func requireShellPermissionContext(ctx context.Context) error {
 	return nil
 }
 
+// unsandboxedHostShell reports whether a non-Windows shell command would run
+// directly on the host. Windows has its own gate in
+// requireShellPermissionContext; a blocked sandbox reports its own error when
+// the command runs.
+func unsandboxedHostShell(goos string, sb sandbox.ShellSandbox) bool {
+	return goos != "windows" && sb != nil && !sb.Available() && sb.Name() != "blocked"
+}
+
 // hostShellFallbackError is the gate for running a host shell outside any
-// sandbox. Windows has its own gate in requireShellPermissionContext; a blocked
-// sandbox reports its own error when the command runs.
+// sandbox.
 func hostShellFallbackError(goos string, sb sandbox.ShellSandbox, perms RuntimePermissions) error {
-	if goos == "windows" || sb == nil || sb.Available() || sb.Name() == "blocked" {
+	if !unsandboxedHostShell(goos, sb) {
 		return nil
 	}
 	if perms.AllowUnsafeHostExecution || perms.AllowUnsandboxedShell {
 		return nil
 	}
-	return fmt.Errorf("host shell without an active shell sandbox requires agent.allow_unsandboxed_shell or agent.allow_unsafe_host_execution (or enable shell_sandbox on a supported Linux host)")
+	return fmt.Errorf("Linux/macOS host shell without an active shell sandbox requires agent.allow_unsandboxed_shell or agent.allow_unsafe_host_execution (or enable shell_sandbox on a supported Linux host)")
 }
 
 // requireHostShellExecutionContext gates execute_shell/execute_sudo: the shell
@@ -295,8 +302,8 @@ func requireHostShellExecutionContext(ctx context.Context) error {
 	if err := hostShellFallbackError(runtime.GOOS, sb, perms); err != nil {
 		return err
 	}
-	if runtime.GOOS != "windows" && sb != nil && !sb.Available() && sb.Name() != "blocked" {
-		slog.Warn("Unsafe host execution authorized", "kind", "linux_shell", "legacy_default", !perms.AllowUnsafeHostExecution)
+	if unsandboxedHostShell(runtime.GOOS, sb) {
+		slog.Warn("Unsafe host execution authorized", "kind", "host_shell", "unsafe_host_flag", perms.AllowUnsafeHostExecution, "goos", runtime.GOOS)
 	}
 	return nil
 }

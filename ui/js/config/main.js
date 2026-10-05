@@ -1653,6 +1653,7 @@ async function renderSection(key) {
         'allow_shell', 'allow_python', 'allow_filesystem_write',
         'allow_network_requests', 'allow_remote_shell', 'allow_self_update', 'allow_package_manager',
         'allow_mcp',               // → Danger Zone
+        'allow_unsandboxed_shell', // → Danger Zone; absent key keeps the legacy shell grandfather
         'allow_web_scraper',        // → deprecated, migrated to tools.web_scraper.enabled
         'sudo_enabled',            // → Danger Zone
         'core_personality',         // → Prompts & Personas

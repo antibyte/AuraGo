@@ -113,6 +113,9 @@ func TestGenerateEggConfig_AllowedTools_ShellOnly(t *testing.T) {
 	if agent["allow_shell"] != true {
 		t.Error("allow_shell should be true for shell tool")
 	}
+	if agent["allow_unsandboxed_shell"] != true {
+		t.Error("allow_unsandboxed_shell should be written explicitly and follow allow_shell")
+	}
 	if agent["allow_python"] != false {
 		t.Error("allow_python should be false when python not in AllowedTools")
 	}
@@ -134,6 +137,9 @@ func TestGenerateEggConfig_AllowedTools_PythonOnly(t *testing.T) {
 	agent := parsed["agent"].(map[string]interface{})
 	if agent["allow_shell"] != false {
 		t.Error("allow_shell should be false")
+	}
+	if unsandboxed, written := agent["allow_unsandboxed_shell"]; !written || unsandboxed != false {
+		t.Errorf("allow_unsandboxed_shell = %v (written %v), want explicit false", unsandboxed, written)
 	}
 	if agent["allow_python"] != true {
 		t.Error("allow_python should be true for python_execute tool")
@@ -519,6 +525,9 @@ func TestApplySafeConfigPatch_AllowedTools(t *testing.T) {
 	agent := cfg["agent"].(map[string]interface{})
 	if agent["allow_shell"] != false {
 		t.Error("allow_shell should be false when only python is allowed")
+	}
+	if agent["allow_unsandboxed_shell"] != false {
+		t.Error("allow_unsandboxed_shell should follow allow_shell to false")
 	}
 	if agent["allow_python"] != true {
 		t.Error("allow_python should be true")
