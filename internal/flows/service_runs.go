@@ -2,8 +2,25 @@ package flows
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
+
+// ErrTestDataTooLarge refuses trigger sample data to remember (SaveTriggerSample,
+// StartTestRun with RememberData) whose JSON encoding exceeds MaxStoredOutputBytes. The
+// store keeps test data without a limit of its own.
+var ErrTestDataTooLarge = fmt.Errorf("the test data is larger than %d KiB", MaxStoredOutputBytes>>10)
+
+// Trigger types stored with a run. TriggerFromMission accepts only maxTriggerTypeBytes
+// of [a-z0-9_] from Mission Control and records anything else as unknownTriggerType.
+const (
+	maxTriggerTypeBytes = 40
+	unknownTriggerType  = "unknown"
+)
+
+// issueTestNodeMissing is the issue a test run of an OnlyNode that is not in the draft
+// gets. It is the code the engine gives the same case at run time.
+const issueTestNodeMissing = "FLOW_NODE_NOT_FOUND"
 
 // TestRunRequest starts a test run of the draft. Without TriggerData the remembered
 // sample (or the trigger's built-in sample) is used.
@@ -22,14 +39,28 @@ type RunDetail struct {
 }
 
 // StartTestRun runs the draft from a trigger (the manual trigger or the first one by default).
+//
+// The draft is validated with the draft rules first, because the engine only checks
+// the structure it needs to run: errors refuse the run with a *ValidationError holding
+// all issues, warnings do not. An OnlyNode that is not in the draft is refused the same
+// way (issue FLOW_NODE_NOT_FOUND). Data to remember is refused with ErrTestDataTooLarge
+// above MaxStoredOutputBytes, before anything is stored. The runner's ErrQueueFull and
+// ErrRunnerClosed are returned unchanged.
 func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunRequest) (StartResult, error) {
 	rec, err := s.store.GetFlow(ctx, id)
 	if err != nil {
 		return StartResult{}, err
 	}
+	if issues := Validate(rec.Draft, s.reg, s.vc(ModeDraft)); HasErrors(issues) {
+		return StartResult{}, &ValidationError{Issues: issues}
+	}
 	trigger := s.pickTrigger(rec.Draft, req.TriggerNode)
 	if trigger == "" {
 		return StartResult{}, ErrNoTrigger
+	}
+	if req.OnlyNode != "" && rec.Draft.NodeByID(req.OnlyNode) == nil {
+		return StartResult{}, &ValidationError{Issues: []Issue{{Code: issueTestNodeMissing, Severity: SeverityError,
+			Message: "the node to test " + quoteForError(req.OnlyNode) + " does not exist"}}}
 	}
 	data := req.TriggerData
 	if data == nil {
@@ -37,7 +68,7 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 			return StartResult{}, err
 		}
 	} else if req.RememberData {
-		if err := s.store.PutTestData(ctx, id, trigger, TestDataTriggerSample, data, s.now()); err != nil {
+		if err := s.SaveTriggerSample(ctx, id, trigger, data); err != nil {
 			return StartResult{}, err
 		}
 	}
@@ -65,7 +96,8 @@ func (s *Service) TriggerSampleData(ctx context.Context, flowID, nodeID string) 
 	return TriggerSample(n), nil
 }
 
-// RunNow starts the published flow from its manual trigger (or its first trigger).
+// RunNow starts the published flow from its manual trigger (or its first trigger). The
+// runner's ErrQueueFull and ErrRunnerClosed are returned unchanged.
 func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 	rec, err := s.store.GetFlow(ctx, id)
 	if err != nil {
@@ -76,6 +108,15 @@ func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 
 // TriggerFromMission starts a live run when Mission Control fires one of the flow's
 // triggers. An empty nodeID picks the manual trigger or the first trigger.
+//
+// triggerType is recorded with the run only when it is 1 to 40 characters of
+// [a-z0-9_]; anything else is recorded as "unknown". data comes from webhooks, mail,
+// MQTT and the like and is not trusted: the run header keeps at most
+// MaxStoredOutputBytes of it (a {"_preview": …} beyond, see Store.CreateRun), and the
+// engine replaces data whose trigger output would exceed MaxOutputBytes with {}. Until
+// the run executes, the data is held in memory in full, so the caller bounds it at the
+// source (NormalizeTriggerData caps raw text at 8 MiB). The runner's ErrQueueFull and
+// ErrRunnerClosed are returned unchanged.
 func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data map[string]any) (StartResult, error) {
 	rec, err := s.store.GetFlowByMission(context.Background(), missionID)
 	if err != nil {
@@ -99,7 +140,23 @@ func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data ma
 		}
 	}
 	return s.runner.Start(StartRequest{Flow: rec.Live, Revision: rec.LiveRevision, Mode: ModeLive,
-		TriggerNode: trigger, TriggerType: triggerType, TriggerData: data})
+		TriggerNode: trigger, TriggerType: cleanTriggerType(triggerType), TriggerData: data})
+}
+
+// cleanTriggerType returns t when it is 1 to maxTriggerTypeBytes characters of
+// [a-z0-9_], and unknownTriggerType otherwise. The type is stored with the run and shown
+// in the run list, and Mission Control passes whatever its trigger says.
+func cleanTriggerType(t string) string {
+	if t == "" || len(t) > maxTriggerTypeBytes {
+		return unknownTriggerType
+	}
+	for i := 0; i < len(t); i++ {
+		c := t[i]
+		if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '_' {
+			return unknownTriggerType
+		}
+	}
+	return t
 }
 
 // pickTrigger returns nodeID when it is an enabled trigger; with an empty nodeID the manual
@@ -166,8 +223,17 @@ func (s *Service) Subscribe(runID string, afterSeq int) ([]RunEvent, <-chan RunE
 	return s.runner.Subscribe(runID, afterSeq)
 }
 
-// SaveTriggerSample remembers sample data for a trigger node.
+// SaveTriggerSample remembers sample data for a trigger node. Data whose compact JSON
+// encoding exceeds MaxStoredOutputBytes is refused with ErrTestDataTooLarge (wrapped),
+// data that cannot be encoded with an error; nothing is stored then.
 func (s *Service) SaveTriggerSample(ctx context.Context, flowID, nodeID string, data map[string]any) error {
+	encoded, err := marshalCompact(data)
+	if err != nil {
+		return fmt.Errorf("the test data cannot be stored as JSON: %w", err)
+	}
+	if len(encoded) > MaxStoredOutputBytes {
+		return fmt.Errorf("%w (%d bytes)", ErrTestDataTooLarge, len(encoded))
+	}
 	return s.store.PutTestData(ctx, flowID, nodeID, TestDataTriggerSample, data, s.now())
 }
 
