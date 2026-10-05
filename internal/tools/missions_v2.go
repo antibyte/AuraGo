@@ -171,6 +171,11 @@ type MissionV2 struct {
 	PreparationStatus string     `json:"preparation_status,omitempty"` // none|preparing|prepared|stale|error
 	LastPreparedAt    *time.Time `json:"last_prepared_at,omitempty"`
 	AutoPrepare       bool       `json:"auto_prepare,omitempty"`
+
+	// EasyDrag flow fields (execution_type "flow"; owned by the flow service)
+	FlowID        string            `json:"flow_id,omitempty"`
+	FlowTriggers  []FlowTriggerSpec `json:"flow_triggers,omitempty"`
+	FlowPublished bool              `json:"flow_published,omitempty"`
 }
 
 // QueueItem represents a mission in the execution queue
@@ -199,6 +204,8 @@ type MissionManagerV2 struct {
 	remoteClient       RemoteMissionClient
 	registeredTriggers map[string]string
 	lastTriggerFire    map[string]time.Time
+	flowHooks          FlowHooks      // EasyDrag flow service; nil until wired
+	flowActive         map[string]int // flow missionID → live runs in progress
 }
 
 // EmailWatcherInterface for email trigger integration
@@ -238,6 +245,7 @@ func NewMissionManagerV2(dataDir string, cronMgr *CronManager) *MissionManagerV2
 		remoteRunGuards:    make(map[string]context.CancelFunc),
 		registeredTriggers: make(map[string]string),
 		lastTriggerFire:    make(map[string]time.Time),
+		flowActive:         make(map[string]int),
 	}
 }
 
@@ -378,7 +386,10 @@ func (m *MissionManagerV2) Start() error {
 			mission.RunnerType = normalizeMissionRunner(mission.RunnerType)
 			mission.Prompt = StripMissionExecutionPlanAdvisory(mission.Prompt)
 			m.missions[mission.ID] = mission
-			if mission.Status == MissionStatusRunning || mission.Status == MissionStatusQueued {
+			if isFlowMission(mission) {
+				// Flow runs never survive a restart; the flow service marks them interrupted.
+				mission.Status = MissionStatusIdle
+			} else if mission.Status == MissionStatusRunning || mission.Status == MissionStatusQueued {
 				mission.Status = MissionStatusQueued
 			}
 		}
@@ -410,6 +421,9 @@ func (m *MissionManagerV2) Start() error {
 	// Setup cron schedules for enabled scheduled missions (ensures they survive restarts)
 	if m.cron != nil {
 		m.cron.RegisterRunner("mission", func(jobID, prompt string) {
+			if flowMission, nodeID, ok := splitFlowCronJobID(jobID); ok && m.fireFlowSchedule(flowMission, nodeID) {
+				return
+			}
 			missionID := strings.TrimPrefix(jobID, "mission_")
 			if missionID != "" {
 				m.TriggerMission(missionID, "cron", "")
@@ -511,7 +525,7 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 	statusChanged := false
 	for _, item := range snapshot.Items {
 		mission, ok := m.missions[item.MissionID]
-		if !ok || !mission.Enabled || isRemoteMission(mission) {
+		if !ok || !mission.Enabled || isRemoteMission(mission) || isFlowMission(mission) {
 			continue
 		}
 		if item.EnqueuedAt.IsZero() {
@@ -525,7 +539,7 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 	}
 	running := ""
 	if snapshot.Running != "" {
-		if mission, ok := m.missions[snapshot.Running]; ok && mission.Enabled && !isRemoteMission(mission) {
+		if mission, ok := m.missions[snapshot.Running]; ok && mission.Enabled && !isRemoteMission(mission) && !isFlowMission(mission) {
 			item := QueueItem{
 				MissionID:   snapshot.Running,
 				Priority:    prioFromString(mission.Priority),
@@ -546,6 +560,12 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 // setupTriggersLocked initializes all active triggers. Caller must hold m.mu.
 func (m *MissionManagerV2) setupTriggersLocked() {
 	for _, mission := range m.missions {
+		if isFlowMission(mission) {
+			if err := m.syncFlowTriggersLocked(mission); err != nil {
+				slog.Warn("[MissionV2] Failed to register flow triggers", "mission_id", mission.ID, "error", err)
+			}
+			continue
+		}
 		if !mission.Enabled || mission.ExecutionType != ExecutionTriggered {
 			continue
 		}
@@ -780,7 +800,7 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	m.mu.Lock()
 	muLocked = true
 	mission, exists := m.missions[item.MissionID]
-	if !exists || !mission.Enabled {
+	if !exists || !mission.Enabled || isFlowMission(mission) {
 		m.queue.Done()
 		if err := m.saveQueueLocked(); err != nil {
 			slog.Error("[MissionV2] Failed to persist queue after dropping invalid item", "error", err)
@@ -1223,6 +1243,7 @@ func (m *MissionManagerV2) notifySystemStartupLocked() {
 		mission.Status = MissionStatusQueued
 		queued = true
 	}
+	m.notifyFlowsLocked(TriggerSystemStartup, flowEvent{}, map[string]string{"event": "system_startup", "time": now.Format(time.RFC3339)})
 	if queued {
 		m.save()
 		if err := m.saveQueueLocked(); err != nil {
@@ -1272,6 +1293,7 @@ func (m *MissionManagerV2) NotifyDeviceEvent(eventType, deviceID, deviceName str
 		mission.Status = MissionStatusQueued
 		queued = true
 	}
+	m.notifyFlowsLocked(trigType, flowEvent{DeviceID: deviceID, DeviceName: deviceName}, map[string]string{"event": eventType, "device_id": deviceID, "device_name": deviceName, "time": now.Format(time.RFC3339)})
 	if queued {
 		m.save()
 		if err := m.saveQueueLocked(); err != nil {
@@ -1317,6 +1339,7 @@ func (m *MissionManagerV2) NotifyFritzBoxEvent(callType, summary string) {
 		mission.Status = MissionStatusQueued
 		queued = true
 	}
+	m.notifyFlowsLocked(TriggerFritzBoxCall, flowEvent{CallType: callType}, map[string]string{"call_type": callType, "summary": summary, "time": now.Format(time.RFC3339)})
 	if queued {
 		m.save()
 		if err := m.saveQueueLocked(); err != nil {
@@ -1356,6 +1379,7 @@ func (m *MissionManagerV2) NotifyBudgetEvent(eventType string, spentUSD, limitUS
 		mission.Status = MissionStatusQueued
 		queued = true
 	}
+	m.notifyFlowsLocked(trigType, flowEvent{}, map[string]interface{}{"event": eventType, "spent_usd": spentUSD, "limit_usd": limitUSD, "percentage": percentage, "time": now.Format(time.RFC3339)})
 	if queued {
 		m.save()
 		if err := m.saveQueueLocked(); err != nil {
@@ -1404,6 +1428,7 @@ func (m *MissionManagerV2) NotifyHomeAssistantEvent(entityID, newState, oldState
 		mission.Status = MissionStatusQueued
 		queued = true
 	}
+	m.notifyFlowsLocked(TriggerHomeAssistantState, flowEvent{EntityID: entityID, NewState: newState}, map[string]string{"entity_id": entityID, "new_state": newState, "old_state": oldState, "time": now.Format(time.RFC3339)})
 	if queued {
 		m.save()
 		if err := m.saveQueueLocked(); err != nil {
@@ -1453,6 +1478,7 @@ func (m *MissionManagerV2) NotifyPlannerAppointmentDue(appointmentID, title, dat
 		mission.LastResult = ""
 		queued = true
 	}
+	m.notifyFlowsLocked(TriggerPlannerAppointmentDue, flowEvent{Title: title}, map[string]string{"appointment_id": appointmentID, "title": title, "date_time": dateTime, "time": now.Format(time.RFC3339)})
 	if queued {
 		m.save()
 		if err := m.saveQueueLocked(); err != nil {
@@ -1502,6 +1528,7 @@ func (m *MissionManagerV2) NotifyPlannerTodoOverdue(todoID, title, dueDate strin
 		mission.LastResult = ""
 		queued = true
 	}
+	m.notifyFlowsLocked(TriggerPlannerTodoOverdue, flowEvent{Title: title}, map[string]string{"todo_id": todoID, "title": title, "due_date": dueDate, "time": now.Format(time.RFC3339)})
 	if queued {
 		m.save()
 		if err := m.saveQueueLocked(); err != nil {
@@ -1804,6 +1831,9 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	if err := requireMissionMutationPermission(); err != nil {
 		return err
 	}
+	if mission.ExecutionType == ExecutionFlow {
+		return ErrFlowMissionManaged
+	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -2103,6 +2133,7 @@ func (m *MissionManagerV2) Get(id string) (*MissionV2, bool) {
 		cp.CheatsheetIDs = make([]string, len(mission.CheatsheetIDs))
 		copy(cp.CheatsheetIDs, mission.CheatsheetIDs)
 	}
+	cp.FlowTriggers = copyFlowTriggers(mission.FlowTriggers)
 	return &cp, true
 }
 
@@ -2176,6 +2207,7 @@ func (m *MissionManagerV2) List() []*MissionV2 {
 			cp.CheatsheetIDs = make([]string, len(ms.CheatsheetIDs))
 			copy(cp.CheatsheetIDs, ms.CheatsheetIDs)
 		}
+		cp.FlowTriggers = copyFlowTriggers(ms.FlowTriggers)
 		missions = append(missions, &cp)
 	}
 
