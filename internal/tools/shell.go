@@ -159,11 +159,11 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	}
 
 	absWorkDir := getAbsWorkspace(workspaceDir)
-	release, authOut, err := withSudoTicket(password, absWorkDir)
+	lease, authOut, err := withSudoTicket(password, absWorkDir)
 	if err != nil {
 		return "", normalizeSudoStderr(authOut), err
 	}
-	defer release()
+	defer lease.Release()
 
 	cmd := newSudoRunCommand(command, absWorkDir)
 	ensureFilteredEnv(cmd)
@@ -184,5 +184,5 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	if err != nil {
 		stderr = normalizeSudoStderr(stderr)
 	}
-	return stdout, stderr, err
+	return stdout, stderr, lease.Explain(err)
 }

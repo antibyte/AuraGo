@@ -29,12 +29,13 @@ func sudoRun(sudoPassword string, args ...string) ([]byte, error) {
 	if err == nil || sudoPassword == "" || !errors.As(err, &exitErr) {
 		return out, err
 	}
-	release, authOut, authErr := withSudoTicket(sudoPassword, ".")
+	lease, authOut, authErr := withSudoTicket(sudoPassword, ".")
 	if authErr != nil {
 		return []byte(authOut), authErr
 	}
-	defer release()
-	return runSudoFirewallCommand(args...)
+	defer lease.Release()
+	out, err = runSudoFirewallCommand(args...)
+	return out, lease.Explain(err)
 }
 
 // runSudoFirewallCommand runs `sudo -n args...` with a closed stdin, a filtered

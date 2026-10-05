@@ -19,9 +19,9 @@ Run a shell command with root privileges via `sudo`. The sudo password is stored
 
 - Reads `sudo_password` from the vault automatically — you do **not** need to fetch it yourself.
 - The password only ever reaches `sudo -v`, which checks it and runs no command. The command itself then runs with `sudo -n` and a closed stdin, so it can never read the password.
-- Prerequisite: sudo timestamp caching enabled (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user. Without either, the tool returns an error before the command runs.
+- Prerequisite: sudo timestamp caching enabled (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user. Without either, `sudo -n` refuses the command before it runs and the tool returns an error saying timestamp caching is disabled.
 - Returns combined stdout/stderr output.
-- Timeout: 30 seconds.
+- Timeout: the foreground execution timeout, `tools.python_timeout_seconds` (default 30 seconds). A command still running then is stopped and reported as a timeout.
 
 ### When to use
 
