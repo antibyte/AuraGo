@@ -218,8 +218,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `mqtt_min_interval_seconds` instead). Pass the same `now` and `loc` to `Validate` and `BindTriggers`.
   `TriggerSample` gives test runs and the editor example data, per event where a trigger has events.
 - `ScheduleToCron` validates with the robfig parser configured like AuraGo's schedulers, rejects sub-minute
-  schedules and cron text over 200 bytes, and needs interval minutes to divide 60 and hours to divide 24. A
-  monthly day of 29 to 31 skips the shorter months (cron semantics).
+  schedules and cron text over 200 bytes, and needs interval minutes to be a proper divisor of 60 and hours of
+  24 (60 minutes and 24 hours themselves are refused). A monthly day of 29 to 31 skips the shorter months (cron
+  semantics).
 - `NormalizeTriggerData(kind, raw)` builds `trigger.data` from Mission Control's raw text, as the second line of
   defence after the caller's own bound: text over 8 MiB is not parsed (the first 64 KiB become `raw`, with
   `truncated: true`, and `payload: nil` for a webhook). A webhook keeps `raw` and the parsed `payload`, so the
@@ -234,8 +235,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   plan test (`catalog_triggers_test.go`), although the same states reach the flow there.
 - Sinks are search queries, paths and file names, URLs, headers and bodies, recipients, attachments, accounts,
   channels, MQTT topic and payload, Home Assistant entity and service data, and the planner title.
-  `OutputIndependent` are message, title, subject, body, document and file content, the MQTT payload and the
-  planner description.
+  `OutputIndependent` are the message, the pdf and notify titles (not the planner title, a sink), subject, body,
+  document and file content, the MQTT payload and the planner description.
 - Secrets: a `secret_ref` param (`http.request` `auth_secret`) holds only the vault key. The node reads the value
   through `Services.Secrets`; the vault value wins over a user header of the same name; `secretScrubber`
   redacts the value (and its JSON, HTML and URL escapes) from outputs and errors. A `SecretReader` must register
@@ -254,15 +255,17 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   - Dropped secret operations (`genericDroppedOperations`): `send_secret` of `invasion_tasks` and `set_env` of
     `netlify` and `vercel`, with their value params. A tool left without an operation gets no node.
   - Sinks: by name for every generic tool (`genericSinkNames` and suffixes: command, code, path, url, to,
-    entity_id, topic, headers, title, …), nested (a JSON or tags param whose `properties` or `items.properties`
-    one level down hold a sink name), file content names for file tools (`content`, `new_text`, `patches`, …),
+    entity_id, topic, headers, title, …), nested (a JSON param whose `properties` or `items.properties` one
+    level down hold a sink name), file content names for file tools (`content`, `new_text`, `patches`, …),
     page input of browser and form tools, per-tool content and exposure params (`genericToolContentParams`,
     `genericExposureParams`: port forwards, tunnel port, tailscale routes, network shares), and every text
     param of memory tools and code-running tools.
   - Effects come from the tool, its category and the literal operation (`genericEffects`). An operation that is
-    not a literal name (a template, another type) gets the worst case: the union over the operations the schema
-    lists, or every effect when it lists none (`genericWorstEffects`). `Execute` refuses an operation the schema
-    does not list (`FLOW_PARAM_INVALID`), so the effects shown before publishing hold at run time.
+    not a literal name (a template, another type) gets the worst case (`genericWorstEffects`): the union over
+    the operations the schema lists, or, when it lists none, every effect the tool could have
+    (`genericAllEffects`: `runs_code` and `deletes` always, `system_change`, `sends_message`, `writes_files` and
+    `controls_devices` by tool or category). `Execute` refuses an operation the schema does not list
+    (`FLOW_PARAM_INVALID`), so the effects shown before publishing hold at run time.
   - Labels are literal (no i18n keys), and `CatalogI18nKeys` skips these nodes.
   - Known limit: plaintext secrets nested in JSON params are not dropped (`manage_outgoing_webhooks` `headers`,
     the attribute maps of `ldap`).
@@ -282,14 +285,13 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   and summary (`easydrag.node.<type, dots as underscores>.label|description|summary`), param label and help,
   option labels, output-field descriptions (collected like `DescribeNodeTypes` does, from a sample node under a
   recover), `easydrag.category.<c>` and the template name, description and texts. Never hard-code display text
-  in Go; give the def or param a key. The generic nodes' literal labels are the exception. Error and issue
-  codes (`FLOW_*`, `PARAM_*`, `TEMPLATE_*`) are not in the list and need their own UI strings;
+  in Go; give the def or param a key (generic nodes are the exception, see above). Error and issue codes
+  (`FLOW_*`, `PARAM_*`, `TEMPLATE_*`) are not in the list and need their own UI strings;
   `Availability.Reason` is raw text (English when a hook failed).
-- Codes that come with the catalog (each needs a UI string): `FLOW_TOOL_ERROR`, `FLOW_TOOL_DENIED`,
-  `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`, `FLOW_SECRET_UNAVAILABLE`, `FLOW_FILE_EXISTS`,
-  `FLOW_HTTP_STATUS`, `FLOW_NOTIFY_FAILED`, `FLOW_AI_UNAVAILABLE`, `FLOW_AI_OUTPUT_INVALID`,
-  `FLOW_BUDGET_EXCEEDED`. Retried: `FLOW_TOOL_ERROR`, `FLOW_FILE_EXISTS`, `FLOW_HTTP_STATUS`,
-  `FLOW_NOTIFY_FAILED`, `FLOW_AI_OUTPUT_INVALID`.
+- Codes that come with the catalog (each needs a UI string, with the three `ai.step` codes above):
+  `FLOW_TOOL_ERROR`, `FLOW_TOOL_DENIED`, `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`,
+  `FLOW_SECRET_UNAVAILABLE`, `FLOW_FILE_EXISTS`, `FLOW_HTTP_STATUS` and `FLOW_NOTIFY_FAILED`. The last two are
+  retried: they are not in the non-retryable set under "Writing a node".
 - Files travel as `FileRef` objects (`{"$type":"file","path","name","mime","size","web_path"}`); `FilePath`
   accepts such an object or a plain path and reads only a text `path`. `$type` is a path hint, not proof: anyone
   who shapes flow data can write one, so every path-taking param is a `SensitiveSink` and `filePathParam`
@@ -309,10 +311,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   trusted repo translations and may hold expressions (plan 1c's reminder and budget texts read trigger fields).
   The webhook body and the feed titles go through `boundedExpr`, which truncates to `templateUntrustedRunes`
   (40000 runes) so a worst case of four bytes per rune stays under the 256 KiB prompt cap; the search snippets
-  of `ai_news_pdf_telegram` are not truncated. `newTemplateInfo(id, n, …)` must declare as many `text_N` keys as
-  the builder calls `text(n)` (`TestTemplateKeysMatchTheCatalogList` enforces it). An unknown id is
-  `ErrUnknownTemplate` (wrapped, bounded id). Known limit: the PDF title date format `DD.MM.YYYY` is hard-coded
-  in Go and ambiguous for English readers.
+  of `ai_news_pdf_telegram` are not truncated. `newTemplateInfo(id, texts, categories…)` must declare as many
+  `text_N` keys as the builder calls `text(n)` (`TestTemplateKeysMatchTheCatalogList` enforces it). An unknown
+  id is `ErrUnknownTemplate` (wrapped, bounded id). Known limit: the PDF title date format `DD.MM.YYYY` is
+  hard-coded in Go and ambiguous for English readers.
 
 ## Service
 - `Service` owns the store, engine, runner and timers and reaches Mission Control only through `MissionBridge`
