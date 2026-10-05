@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/llm"
@@ -27,9 +28,11 @@ import (
 // looperScriptClient plays a scripted work/review conversation. review gets
 // the 1-based round and the attempt (0 first answer, 1 the JSON-only retry).
 type looperScriptClient struct {
-	mu     sync.Mutex
-	work   int
-	review func(round, attempt int) string
+	mu            sync.Mutex
+	work          int
+	workAttempts  int
+	failFirstWork bool
+	review        func(round, attempt int) string
 }
 
 func (c *looperScriptClient) CandidateRoutes(openai.ChatCompletionRequest) []llm.ModelRoute {
@@ -49,6 +52,11 @@ func (c *looperScriptClient) CreateChatCompletion(ctx context.Context, req opena
 	case strings.Contains(last, "not valid JSON"):
 		text = c.review(c.work, 1)
 	default:
+		c.workAttempts++
+		if c.failFirstWork && c.workAttempts == 1 {
+			c.mu.Unlock()
+			return openai.ChatCompletionResponse{Usage: openai.Usage{PromptTokens: 11, CompletionTokens: 2}}, errors.New("provider interrupted after reporting usage")
+		}
 		c.work++
 		text = "Wrote draft number " + string(rune('0'+c.work))
 	}
@@ -171,6 +179,32 @@ func TestLooperLoopUnusableReviewIsNotAZeroScore(t *testing.T) {
 	runs, err := h.store.ListRuns(context.Background())
 	if err != nil || len(runs) != 1 || runs[0].Status != "completed" || runs[0].FinalScore != 95 {
 		t.Fatalf("history = %+v err=%v", runs, err)
+	}
+}
+
+func TestLooperRetryKeepsUsageFromFailedAttemptExactlyOnce(t *testing.T) {
+	h := newLooperLoopHarness(t, func(round, attempt int) string { return looperReview(95) })
+	h.client.failFirstWork = true
+	h.auraCfg.Budget.Enabled = true
+	h.auraCfg.Budget.DefaultCost = config.ModelCostRates{InputPerMillion: 1, OutputPerMillion: 3}
+	tracker := budget.NewTracker(h.auraCfg, slog.New(slog.NewTextHandler(io.Discard, nil)), t.TempDir())
+	defer tracker.Flush()
+	h.dispatch.BudgetTracker = tracker
+
+	if err := h.run(t, desktop.LooperRunConfig{MaxRounds: 1, TargetScore: 90, StallRounds: 2}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	state := h.runner.State()
+	if state.InputTokens != 211 || state.OutputTokens != 42 {
+		t.Fatalf("Looper usage = input %d, output %d; want failed work 11/2 + retry 100/20 + review 100/20", state.InputTokens, state.OutputTokens)
+	}
+	usage := tracker.GetStatus().Models["test-model"]
+	if usage.InputTokens != 211 || usage.OutputTokens != 42 || usage.Calls != 3 {
+		t.Fatalf("budget usage = %+v; want input 211, output 42, calls 3", usage)
+	}
+	if tracker.CategorySpendUSD("looper") <= 0 {
+		t.Fatal("failed attempt and retries must be charged to the looper category")
 	}
 }
 

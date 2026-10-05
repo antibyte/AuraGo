@@ -24,14 +24,21 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 	if err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 	var text strings.Builder
 	var reasoning strings.Builder
 	var finish openai.FinishReason
 	var usage openai.Usage
+	var responseModel string
 	defer func() {
-		if retErr != nil && reasoning.Len() > 0 {
-			response = openai.ChatCompletionResponse{Usage: usage, Choices: []openai.ChatCompletionChoice{{Message: interruptedReasoningMessage(reasoning.String())}}}
+		if retErr == nil {
+			return
+		}
+		response = openai.ChatCompletionResponse{Model: responseModel, Usage: usage}
+		if text.Len() > 0 || reasoning.Len() > 0 {
+			response.Choices = []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{
+				Role: openai.ChatMessageRoleAssistant, Content: text.String(), ReasoningContent: reasoning.String(),
+			}}}
 		}
 	}()
 	chunks, lastChunk := 0, time.Now()
@@ -45,10 +52,13 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 		}
 		chunks++
 		lastChunk = time.Now()
+		if chunk.Model != "" {
+			responseModel = chunk.Model
+		}
 		if chunk.Usage != nil {
 			usage.PromptTokens = max(usage.PromptTokens, chunk.Usage.PromptTokens)
 			usage.CompletionTokens = max(usage.CompletionTokens, chunk.Usage.CompletionTokens)
-			usage.TotalTokens = max(usage.TotalTokens, chunk.Usage.TotalTokens, usage.PromptTokens+usage.CompletionTokens)
+			usage.TotalTokens = max(usage.TotalTokens, chunk.Usage.TotalTokens)
 			if details := chunk.Usage.PromptTokensDetails; details != nil && (usage.PromptTokensDetails == nil || details.CachedTokens >= usage.PromptTokensDetails.CachedTokens) {
 				copy := *details
 				usage.PromptTokensDetails = &copy
@@ -81,7 +91,7 @@ func minimalLoopStreamText(ctx context.Context, client llm.ChatClient, req opena
 	if finish == "" {
 		return openai.ChatCompletionResponse{}, fmt.Errorf("%w (%d chunks, %d text bytes, %d reasoning bytes); incomplete output was discarded", ErrIncompleteTextStream, chunks, text.Len(), reasoning.Len())
 	}
-	return openai.ChatCompletionResponse{Usage: usage, Choices: []openai.ChatCompletionChoice{{
+	return openai.ChatCompletionResponse{Model: responseModel, Usage: usage, Choices: []openai.ChatCompletionChoice{{
 		FinishReason: finish,
 		Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: text.String(), ReasoningContent: reasoning.String()},
 	}}}, nil

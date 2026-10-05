@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	"strings"
 
 	"aurago/internal/config"
@@ -10,6 +11,12 @@ import (
 // AnalyzeImage sends a downloaded channel image through the shared Vision path.
 // This keeps provider-specific input restrictions consistent across channels.
 func AnalyzeImage(filePath string, cfg *config.Config) (string, error) {
+	return AnalyzeImageContext(context.Background(), filePath, cfg)
+}
+
+// AnalyzeImageContext analyzes an application-managed local image using ctx for
+// the provider request while preserving the trusted-file path boundary.
+func AnalyzeImageContext(ctx context.Context, filePath string, cfg *config.Config) (string, error) {
 	const prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 	visionCfg := cfg
 	if cfg != nil && strings.TrimSpace(cfg.Vision.Model) == "" {
@@ -17,6 +24,6 @@ func AnalyzeImage(filePath string, cfg *config.Config) (string, error) {
 		cfgCopy.Vision.Model = "google/gemini-2.5-flash-lite-preview-09-2025"
 		visionCfg = &cfgCopy
 	}
-	analysis, _, _, err := tools.AnalyzeTrustedImageFileWithPrompt(filePath, prompt, visionCfg)
+	analysis, _, _, err := tools.AnalyzeTrustedImageFileWithPromptContext(ctx, filePath, prompt, visionCfg)
 	return analysis, err
 }

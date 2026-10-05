@@ -699,10 +699,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──
 	if !s.Cfg.EggMode.Enabled {
 		// Phase 35.2: Start the Telegram Long Polling loop
-		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.BudgetTracker)
+		telegram.StartLongPolling(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.PlannerDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot)
 
 		// Discord Bot: listen for messages and relay to the agent
-		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.BudgetTracker)
+		discord.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian, s.budgetTrackerSnapshot)
 
 		// Email Watcher: poll IMAP for new messages and wake the agent
 		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.CheatsheetDB)

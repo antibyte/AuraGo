@@ -43,7 +43,14 @@ func AnalyzeImageWithPromptContext(ctx context.Context, filePath, prompt string,
 // such as a temporary Telegram/Discord download. Agent-provided paths must use
 // AnalyzeImageWithPrompt so workspace boundary checks remain enforced.
 func AnalyzeTrustedImageFileWithPrompt(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
-	return analyzeLocalImageWithPromptContext(context.Background(), filePath, prompt, cfg, false)
+	return AnalyzeTrustedImageFileWithPromptContext(context.Background(), filePath, prompt, cfg)
+}
+
+// AnalyzeTrustedImageFileWithPromptContext analyzes an application-managed
+// local file and binds the provider request to ctx. Agent-provided paths must
+// use AnalyzeImageWithPromptContext so workspace boundary checks remain enforced.
+func AnalyzeTrustedImageFileWithPromptContext(ctx context.Context, filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+	return analyzeLocalImageWithPromptContext(ctx, filePath, prompt, cfg, false)
 }
 
 func analyzeLocalImageWithPromptContext(ctx context.Context, filePath, prompt string, cfg *config.Config, resolveWorkspacePath bool) (string, int, int, error) {

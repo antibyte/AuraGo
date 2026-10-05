@@ -76,8 +76,8 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		throughput := gameMakerStreamThroughput
 		throughput.Base, throughput.ReserveTokens = timeout, maxOutputTokens
 		callCtx, cancel := llm.NewThroughputDeadline(ctx, throughput)
-		dispatchCtx := &agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}
-		opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, StreamText: true, MaxOutputTokens: maxOutputTokens, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer}
+		dispatchCtx := &agent.DispatchContext{Cfg: cfg, Guardian: r.server.Guardian, BudgetTracker: r.server.BudgetTracker, SessionID: "game-maker-" + run.Job.ID, MessageSource: "game_maker", ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}
+		opts := &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "game_maker", StreamText: true, MaxOutputTokens: maxOutputTokens, PreserveReasoning: true, Checkpoint: checkpoint, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer}
 		response, completion, err := agent.ExecuteMinimalLoop(callCtx, client, cfg.LLM.Model, system, prompt, nil,
 			dispatchCtx, requestHistory, r.server.Logger, opts)
 		for _, fallback := range outputCandidates {
@@ -92,7 +92,7 @@ func (r *gameMakerAgentRunner) gameStarterCompletion(ctx context.Context, cfg *c
 		}
 		timedOut := errors.Is(callCtx.Err(), context.DeadlineExceeded) && errors.Is(err, context.DeadlineExceeded)
 		cancel()
-		broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.PromptTokens+response.CompletionTokens, 0, 0, false, false, "provider_usage")
+		broker.SendTokenUpdate(response.PromptTokens, response.CompletionTokens, response.TotalTokens, 0, 0, response.UsedFallbackEstimate, true, response.TokenSource)
 		formatError := errors.Is(err, agent.ErrUnexpectedToolCallText) && response.FinishReason == openai.FinishReasonStop
 		outputLimited := response.FinishReason == openai.FinishReasonLength && (err == nil || errors.Is(err, agent.ErrUnexpectedToolCallText))
 		if outputLimited {

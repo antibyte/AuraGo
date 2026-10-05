@@ -189,7 +189,7 @@ func (r *gameMakerAgentRunner) reviewGameImages(ctx context.Context, cfg *config
 			// images, but make the single correction a plain JSON request.
 			responseFormat = nil
 		}
-		response, sent, err := agent.ExecuteMinimalLoop(ctx, client, route.Model, "", "Return bounded JSON visual observations only.", nil, &agent.DispatchContext{Cfg: &reviewCfg, ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}, history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, ResponseFormat: responseFormat, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer})
+		response, sent, err := agent.ExecuteMinimalLoop(ctx, client, route.Model, "", "Return bounded JSON visual observations only.", nil, &agent.DispatchContext{Cfg: &reviewCfg, BudgetTracker: r.server.BudgetTracker, ToolScopeRestricted: true, AllowedTools: map[string]struct{}{}}, history, r.server.Logger, &agent.MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "game_maker", ResponseFormat: responseFormat, PreparedPrompt: profile, PreparedPromptReused: attempt > 0, UsageObserver: observer})
 		if err != nil || response.FinishReason != openai.FinishReasonStop {
 			reason := gameVisualFailureReason(err, response.FinishReason)
 			// A route may reject a structured multimodal request that it serves as

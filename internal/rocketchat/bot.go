@@ -139,7 +139,7 @@ func resolveChannelID(ctx context.Context, cfg *config.Config, channel string) (
 }
 
 // processMessage handles a single incoming Rocket.Chat message.
-func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTracker *budget.Tracker) {
+func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker) {
 	if ctx.Err() != nil || !cfg.RocketChat.Enabled || !isAllowedRocketChatUser(cfg, msg) {
 		return
 	}
@@ -183,6 +183,10 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	}
 
 	// Build RunConfig first so it can be used for prompt flag derivation
+	var budgetTracker *budget.Tracker
+	if budgetTrackerSnapshot != nil {
+		budgetTracker = budgetTrackerSnapshot()
+	}
 	runCfg := agent.RunConfig{
 		Config:             cfg,
 		Logger:             logger,

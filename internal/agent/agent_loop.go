@@ -369,6 +369,35 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	homepageUsedInChain := s.homepageUsedInChain
 	helperManager := s.helperManager
 	lastActivity := s.lastActivity
+	accountSyncResponse := func(response openai.ChatCompletionResponse, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+		response, prompt, completion, total, source, estimated, shouldAccount := normalizeResponseUsage(request, response)
+		if !shouldAccount {
+			return response, nil
+		}
+		if estimated {
+			SetGlobalTokenEstimated(true)
+		}
+		sessionTokens += total
+		globalTotal := AddGlobalTokenCount(total)
+		broker.SendTokenUpdate(prompt, completion, total, sessionTokens, int(globalTotal), estimated, false, source)
+		if budgetTracker != nil {
+			model := response.Model
+			if model == "" {
+				model = request.Model
+			}
+			category := "chat"
+			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
+				category = "coagent"
+			}
+			budgetTracker.RecordForCategory(category, model, prompt, completion)
+		}
+		if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
+			if err := runCfg.ExecutionHooks.AfterResponse(response.Usage); err != nil {
+				return response, err
+			}
+		}
+		return response, nil
+	}
 	lastTool := s.lastTool
 	recentTools := s.recentTools
 	explicitTools := s.explicitTools
@@ -1852,7 +1881,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				if result.totalTokens > 0 {
 					sessionTokens += result.totalTokens
 					globalTotal := AddGlobalTokenCount(result.totalTokens)
-					estimated := result.tokenSource == "fallback_estimate"
+					estimated := result.usedFallbackEstimate
 					if estimated {
 						SetGlobalTokenEstimated(true)
 					}
@@ -1862,7 +1891,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
 							category = "coagent"
 						}
-						budgetTracker.RecordForCategory(category, req.Model, result.promptTokens, result.completionTokens)
+						model := result.resp.Model
+						if model == "" {
+							model = req.Model
+						}
+						budgetTracker.RecordForCategory(category, model, result.promptTokens, result.completionTokens)
 					}
 					if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
 						if err := runCfg.ExecutionHooks.AfterResponse(result.resp.Usage); err != nil {
@@ -1891,19 +1924,29 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			tokenSource = result.tokenSource
 		} else {
 			result := handleSyncLLMCall(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, &retry422Count)
-			observeUsage(result.resp, result.err)
 			if result.recoveryContinue {
+				response, accountingErr := accountSyncResponse(result.resp, req)
+				if accountingErr != nil {
+					return response, accountingErr
+				}
+				observeUsage(response, result.err)
 				currentUserIndex = genuineUserIndexByOccurrence(result.recoveredMessages, genuineUserOccurrence(req.Messages, currentUserIndex))
 				if !validTaskAnchor(result.recoveredMessages, currentUserIndex, taskAnchorText) {
-					return openai.ChatCompletionResponse{}, fmt.Errorf("provider recovery removed the original user request")
+					return response, fmt.Errorf("provider recovery removed the original user request")
 				}
 				taskAnchorIndex = currentUserIndex
 				req.Messages = result.recoveredMessages
 				continue
 			}
 			if result.err != nil {
-				return openai.ChatCompletionResponse{}, result.err
+				response, accountingErr := accountSyncResponse(result.resp, req)
+				observeUsage(response, result.err)
+				if accountingErr != nil {
+					return response, accountingErr
+				}
+				return response, result.err
 			}
+			observeUsage(result.resp, result.err)
 			resp = result.resp
 			content = result.content
 			telemetryScope = result.telemetryScope
@@ -1920,9 +1963,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			totalTokens = resp.Usage.TotalTokens
 			tokenSource = "provider_usage"
 		}
+		streamTokenSource := tokenSource
 		var usedFallbackEstimate bool
-		promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate = applyTokenEstimationFallback(
-			promptTokens, completionTokens, totalTokens, tokenSource, req, content)
+		resp, promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate, shouldAccount := normalizeResponseUsage(req, resp)
+		if stream && streamTokenSource == "fallback_estimate" {
+			tokenSource = streamTokenSource
+			usedFallbackEstimate = true
+		}
+		if !shouldAccount {
+			promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate = 0, 0, 0, "", false
+		}
 		if usedFallbackEstimate {
 			SetGlobalTokenEstimated(true)
 			s.currentLogger.Warn("[TokenEstimation] Provider returned zero tokens — falling back to estimation which may be inaccurate", "model", req.Model)
@@ -1930,9 +1980,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		sessionTokens += totalTokens
 		localGlobalTotal := AddGlobalTokenCount(totalTokens)
 		localIsEstimated := tokenSource == "fallback_estimate"
-		broker.SendTokenUpdate(promptTokens, completionTokens, totalTokens, sessionTokens, int(localGlobalTotal), localIsEstimated, true, tokenSource)
+		if shouldAccount {
+			broker.SendTokenUpdate(promptTokens, completionTokens, totalTokens, sessionTokens, int(localGlobalTotal), localIsEstimated, true, tokenSource)
+		}
 		budgetWarning := false
-		if budgetTracker != nil {
+		if shouldAccount && budgetTracker != nil {
 			model := resp.Model
 			if model == "" {
 				model = req.Model
@@ -1943,7 +1995,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			budgetWarning = budgetTracker.RecordForCategory(category, model, promptTokens, completionTokens)
 		}
-		if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
+		if shouldAccount && runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.AfterResponse != nil {
 			measured := resp.Usage
 			measured.PromptTokens, measured.CompletionTokens, measured.TotalTokens = promptTokens, completionTokens, totalTokens
 			if err := runCfg.ExecutionHooks.AfterResponse(measured); err != nil {

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 
@@ -197,6 +198,105 @@ func TestExecuteMinimalLoopCancelledBeforeSend(t *testing.T) {
 	}
 	if len(client.requests) != 0 {
 		t.Fatalf("LLM calls = %d, want 0", len(client.requests))
+	}
+}
+
+func TestExecuteMinimalLoopAccountsProviderUsageBeforeEmptyChoiceError(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.ContextWindow = 6000
+	cfg.Budget.Enabled = true
+	cfg.Budget.DailyLimitUSD = 10
+	tracker := budget.NewTracker(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), t.TempDir())
+	t.Cleanup(tracker.Flush)
+	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
+	client.respond = func(openai.ChatCompletionRequest, int) (openai.ChatCompletionResponse, error) {
+		return openai.ChatCompletionResponse{Model: "actual-route-model", Usage: openai.Usage{PromptTokens: 41}}, nil
+	}
+	dc := &DispatchContext{Cfg: cfg, BudgetTracker: tracker}
+	result, _, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Return an answer.", "Current task", nil, dc, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), &MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "writer"})
+	if err == nil || !strings.Contains(err.Error(), "empty response") {
+		t.Fatalf("error = %v, want empty response", err)
+	}
+	if result.PromptTokens != 41 || result.CompletionTokens != 0 || result.TotalTokens != 41 {
+		t.Fatalf("result usage = (%d,%d,%d), want (41,0,41)", result.PromptTokens, result.CompletionTokens, result.TotalTokens)
+	}
+	usage := tracker.GetStatus().Models["actual-route-model"]
+	if usage.Calls != 1 || usage.InputTokens != 41 || usage.OutputTokens != 0 {
+		t.Fatalf("booked usage = %+v, want one provider response", usage)
+	}
+}
+
+func TestExecuteMinimalLoopDoesNotEstimateWhenNoResponseEvidenceExists(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.ContextWindow = 6000
+	cfg.Budget.Enabled = true
+	cfg.Budget.DailyLimitUSD = 10
+	tracker := budget.NewTracker(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), t.TempDir())
+	t.Cleanup(tracker.Flush)
+	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes(), respond: func(openai.ChatCompletionRequest, int) (openai.ChatCompletionResponse, error) {
+		return openai.ChatCompletionResponse{}, nil
+	}}
+	result, _, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Return an answer.", "Current task", nil, &DispatchContext{Cfg: cfg, BudgetTracker: tracker}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), &MinimalLoopOptions{MaxToolRounds: 0})
+	if err == nil || result.PromptTokens != 0 || result.CompletionTokens != 0 || result.TotalTokens != 0 {
+		t.Fatalf("result=%+v error=%v, want unaccounted empty response", result, err)
+	}
+	if len(tracker.GetStatus().Models) != 0 {
+		t.Fatalf("empty response created budget usage: %+v", tracker.GetStatus().Models)
+	}
+}
+
+func TestExecuteMinimalLoopAccountsPartialUsageOnProviderError(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.ContextWindow = 6000
+	cfg.Budget.Enabled = true
+	cfg.Budget.DailyLimitUSD = 10
+	tracker := budget.NewTracker(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), t.TempDir())
+	t.Cleanup(tracker.Flush)
+	partialText := "partial output before cancellation"
+	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes(), respond: func(openai.ChatCompletionRequest, int) (openai.ChatCompletionResponse, error) {
+		return openai.ChatCompletionResponse{Model: "actual-route-model", Usage: openai.Usage{PromptTokens: 17}, Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: partialText}}}}, context.Canceled
+	}}
+	result, _, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Return an answer.", "Current task", nil, &DispatchContext{Cfg: cfg, BudgetTracker: tracker}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), &MinimalLoopOptions{MaxToolRounds: 0, BudgetCategory: "personal_radio"})
+	if !errors.Is(err, context.Canceled) || result.Response != "" {
+		t.Fatalf("result=%+v error=%v, want canceled without applying partial output", result, err)
+	}
+	wantCompletion := estimateTokensForModel(partialText, "actual-route-model")
+	if result.PromptTokens != 17 || result.CompletionTokens != wantCompletion || result.TotalTokens != 17+wantCompletion || !result.UsedFallbackEstimate {
+		t.Fatalf("partial result usage = %+v, want prompt 17 and estimated partial completion %d", result, wantCompletion)
+	}
+	usage := tracker.GetStatus().Models["actual-route-model"]
+	if usage.Calls != 1 || usage.InputTokens != 17 || usage.OutputTokens != wantCompletion {
+		t.Fatalf("budget usage = %+v, want one recorded partial provider response", usage)
+	}
+}
+
+func TestExecuteMinimalLoopAccountsEmptySummaryResponseBeforeReturning(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.ContextWindow = 6000
+	cfg.Budget.Enabled = true
+	cfg.Budget.DailyLimitUSD = 10
+	tracker := budget.NewTracker(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), t.TempDir())
+	t.Cleanup(tracker.Flush)
+	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes(), respond: func(req openai.ChatCompletionRequest, callNumber int) (openai.ChatCompletionResponse, error) {
+		if len(req.Tools) == 0 {
+			return openai.ChatCompletionResponse{Model: "actual-route-model", Usage: openai.Usage{PromptTokens: 11}}, nil
+		}
+		return openai.ChatCompletionResponse{Model: "actual-route-model", Usage: openai.Usage{PromptTokens: 5, CompletionTokens: 2, TotalTokens: 7}, Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{
+			Role:      openai.ChatMessageRoleAssistant,
+			ToolCalls: []openai.ToolCall{{ID: "call-tool-" + string(rune('0'+callNumber)), Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "test_tool", Arguments: `{}`}}},
+		}}}}, nil
+	}}
+	tool := openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: "test_tool", Parameters: map[string]any{"type": "object"}}}
+	result, _, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Use the tool.", "Current task", []openai.Tool{tool}, &DispatchContext{Cfg: cfg, BudgetTracker: tracker}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), &MinimalLoopOptions{MaxToolRounds: 1, BudgetCategory: "looper"})
+	if err == nil || !strings.Contains(err.Error(), "empty summary") || len(client.requests) != 3 {
+		t.Fatalf("result=%+v error=%v calls=%d, want summary error after two tool rounds", result, err, len(client.requests))
+	}
+	if result.PromptTokens != 21 || result.CompletionTokens != 4 || result.TotalTokens != 25 {
+		t.Fatalf("aggregate usage = (%d,%d,%d), want (21,4,25)", result.PromptTokens, result.CompletionTokens, result.TotalTokens)
+	}
+	usage := tracker.GetStatus().Models["actual-route-model"]
+	if usage.Calls != 3 || usage.InputTokens != 21 || usage.OutputTokens != 4 {
+		t.Fatalf("budget usage = %+v, want all three provider responses", usage)
 	}
 }
 
