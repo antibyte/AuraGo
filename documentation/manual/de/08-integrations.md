@@ -1152,6 +1152,11 @@ remote_control:
 
 `allowed_paths` ist eine explizite Allowlist für Remote-Dateioperationen. Leer blockiert Remote-Dateilesen, -schreiben und Verzeichnislisten.
 
+> ⚠️ **Upgrade-Hinweis (getrennter Enrollment-Schlüssel):** Vor dem Upgrade ausgestellte Enrollment-Tokens sind ungültig; erstelle neue.
+> Vor dem Upgrade verteilte Remote-Agenten können sich nicht mehr verbinden und müssen durch einen Download vom aktualisierten AuraGo (**Remote Control**) ersetzt werden. Ihre Geräteschlüssel bleiben erhalten, ein erneutes Enrollment ist nicht nötig.
+> Der Supervisor protokolliert für jedes betroffene Gerät `unsupported frame version`.
+> Der Enrollment-Schlüssel eines Tokens liegt bis zu seiner Verwendung oder seinem Ablauf im Vault als `remote_enroll_key_<id>`.
+
 ### AgoDesk / AgoChat Desktop-Begleiter
 
 AuraGo kann sich mit dem **AgoDesk**-Desktop-Client per WebSocket koppeln. Bei verbundenem Gerät kann der Agent proaktive Nachrichten über `send_agodesk_chat` senden und Remote-Desktop-Befehle über das AgoDesk-Protokoll ausführen.

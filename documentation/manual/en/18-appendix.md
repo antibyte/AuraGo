@@ -1003,6 +1003,7 @@ When updating AuraGo:
 □ Restart service
 □ Verify functionality with /help command
 □ Check logs for errors
+□ Remote Control: create new enrollment tokens and replace pre-upgrade remote agents if the release notes say so
 ```
 
 ---

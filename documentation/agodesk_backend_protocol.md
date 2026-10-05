@@ -635,6 +635,7 @@ Fresh pairing:
 - AuraGo creates a RemoteHub device tagged `agodesk` and `desktop-client`.
 - The enrollment token is the approval step for agodesk pairing; there is no separate manual approval action in Remote Control.
 - Enrollment tokens are single use. If a pairing key is lost, an administrator revokes the old device and creates a fresh token for a new enrollment.
+- Pairing tokens issued before the enrollment key split (AuraGo stores only a lookup hash of the token) are invalid and are refused as an invalid token; create a new one.
 - AuraGo stores the generated shared key in the Vault under `remote_shared_key_<device_id>`.
 - `session.accepted.shared_key` is returned only on fresh pairing.
 
