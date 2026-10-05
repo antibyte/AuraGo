@@ -2,13 +2,11 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
 
 	"aurago/internal/desktop"
 	"aurago/internal/flows"
-	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -97,15 +95,14 @@ func (b flowMissionBridge) DeleteFlowMission(missionID string) error {
 }
 
 // FlowRunStarted implements flows.MissionBridge. The trigger data (untrusted, at most
-// flows.MaxStoredOutputBytes of JSON) is scrubbed value by value before it is encoded for
-// the history, which keeps 16 KiB of it.
+// flows.MaxStoredOutputBytes of JSON) is scrubbed value by value, within the budget of what
+// the history keeps (boundFlowTriggerData), before it is encoded for the history.
 func (b flowMissionBridge) FlowRunStarted(missionID string, rec flows.RunRecord) string {
 	mm, err := b.missions()
 	if err != nil {
 		return ""
 	}
-	data, _ := json.Marshal(scrubFlowMap(rec.TriggerData))
-	id := mm.FlowRunStarted(missionID, rec.TriggerType, string(data))
+	id := mm.FlowRunStarted(missionID, rec.TriggerType, boundFlowTriggerData(rec.TriggerData))
 	broadcastMissionState(b.s)
 	return id
 }
@@ -134,12 +131,11 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 	if err != nil {
 		return
 	}
-	info.Outputs = scrubFlowMap(info.Outputs)
-	result, output := flowRunOutcome(info)
-	// The success text comes from the scrubbed outputs; this pass covers the run's error
-	// text, which the engine caps at 1000 runes, so the cut in flowRunOutcome never reaches it.
-	output = security.Scrub(output)
-	mm.FlowRunFinished(info.MissionID, info.HistoryID, result, output, info.Outputs)
+	// One bounded, scrubbed copy of the outputs, encoded once, gives the dependents' outputs
+	// and the success text; the work does not grow with the outputs (up to 32 MiB).
+	outputs := boundFlowOutputs(info.Outputs)
+	result, output := flowOutcome(info, outputs)
+	mm.FlowRunFinished(info.MissionID, info.HistoryID, result, output, outputs.mission)
 	if info.Result.Status != flows.RunCancelled {
 		failed := result != tools.MissionResultSuccess
 		b.s.flowIssue(info, failed, output)

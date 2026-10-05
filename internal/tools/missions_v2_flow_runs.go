@@ -48,6 +48,9 @@ func cutWithMarker(s string, limit int, marker string) string {
 	return cutAtRuneBoundary(s, limit-len(marker)) + marker
 }
 
+// CutWithMarker is cutWithMarker for other packages (the flow bridge in internal/server).
+func CutWithMarker(s string, limit int, marker string) string { return cutWithMarker(s, limit, marker) }
+
 // flowHistoryTriggerData returns data cut to flowHistoryTriggerDataMaxBytes at a rune
 // boundary, ending with flowHistoryTruncatedMarker when it was cut.
 func flowHistoryTriggerData(data string) string {

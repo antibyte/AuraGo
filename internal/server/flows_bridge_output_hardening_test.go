@@ -2,8 +2,11 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"unicode/utf8"
 
@@ -29,9 +32,9 @@ func TestC15ScrubWalksValues(t *testing.T) {
 		"plain": "short",
 		"typed": map[string]string{"x": secret},
 	}
-	// The JSON text scrub of the plan could not find it.
+	// Background only: the JSON text scrub of the plan could not find it.
 	if raw, _ := json.Marshal(in); !strings.Contains(security.Scrub(string(raw)), escapedText) {
-		t.Fatal("the text scrubber now finds escaped secrets; the walk is still right but the test premise changed")
+		t.Log("security.Scrub now finds JSON-escaped secrets in text; the walk does not depend on it")
 	}
 	out := scrubFlowMap(in)
 	raw, err := json.Marshal(out)
@@ -127,5 +130,135 @@ func TestC15MissionOutputIsBounded(t *testing.T) {
 	}
 	if run := e.c15Run(t, histID); run.Status != "success" || len(run.Output) > 2000 {
 		t.Fatalf("history: %q, %d bytes", run.Status, len(run.Output))
+	}
+}
+
+// c15CountScrub counts the bytes the bridge hands to the scrubber until the test ends.
+func c15CountScrub(t *testing.T) *atomic.Int64 {
+	t.Helper()
+	var n atomic.Int64
+	old := flowScrub
+	t.Cleanup(func() { flowScrub = old })
+	flowScrub = func(s string) string {
+		n.Add(int64(len(s)))
+		return old(s)
+	}
+	return &n
+}
+
+// c15BigOutputs returns the outputs of nodes final nodes, each a list of perNode 8-byte
+// strings (the shape of the reviewer's probe).
+func c15BigOutputs(nodes, perNode int) map[string]any {
+	out := map[string]any{}
+	for n := range nodes {
+		items := make([]any, perNode)
+		for i := range items {
+			items[i] = fmt.Sprintf("%08d", i)
+		}
+		out[fmt.Sprintf("node%d", n)] = map[string]any{"items": items}
+	}
+	return out
+}
+
+// The scrub work of a run is bounded by the budgets, not by the size of its outputs or
+// trigger data, and Mission Control gets the preview shape of the tools package for
+// outputs that did not fit.
+func TestC15ScrubCostIsBounded(t *testing.T) {
+	big := c15BigOutputs(7, 100000) // about 7 MiB of JSON in 700000 strings
+	scrubbed := c15CountScrub(t)
+
+	bounded := boundFlowOutputs(big)
+	if n := scrubbed.Load(); n > flowOutputsScrubBudget+flowScrubOverlapBytes {
+		t.Fatalf("scrubbed %d bytes for the outputs", n)
+	}
+	preview, _ := bounded.mission["_preview"].(string)
+	if bounded.mission["_truncated"] != true || len(bounded.mission) != 2 || len(preview) > flowOutputsPreviewBytes ||
+		!strings.HasPrefix(preview, `{"node0":{"items":["00000000","00000001"`) {
+		t.Fatalf("mission outputs = %v", bounded.mission)
+	}
+	if enc, _ := json.Marshal(bounded.mission); len(enc) > flowOutputsScrubBudget {
+		t.Fatalf("the preview encodes to %d bytes; the tools package would cut it again", len(enc))
+	}
+	if len(bounded.text) > flowMissionOutputMaxBytes || !strings.HasSuffix(bounded.text, flowCutMarker) ||
+		!strings.HasPrefix(bounded.text, `{"node0":{"items":["00000000"`) {
+		t.Fatalf("text: %d bytes, %q", len(bounded.text), flowBoundRunes(bounded.text, 40))
+	}
+	if again := boundFlowOutputs(big); again.text != bounded.text || !reflect.DeepEqual(again.mission, bounded.mission) {
+		t.Fatal("the bounded copy depends on map order")
+	}
+
+	// Through the bridge: one run's start and end.
+	e := c15NewEnv(t)
+	id := e.c15Mission(t, "flow_c15costly01", "Costly")
+	scrubbed.Store(0)
+	histID := e.bridge.FlowRunStarted(id, flows.RunRecord{ID: "run_c15costly001", FlowID: "flow_c15costly01", TriggerType: "webhook",
+		TriggerData: map[string]any{"payload": c15BigOutputs(1, 25000)}}) // about 250 KiB
+	if n := scrubbed.Load(); n > flowTriggerDataScrubBudget+flowScrubOverlapBytes {
+		t.Fatalf("scrubbed %d bytes for the trigger data", n)
+	}
+	if td := e.c15Run(t, histID).TriggerData; !strings.HasSuffix(td, flowCutMarker) && !strings.HasSuffix(td, "...[truncated]") {
+		t.Fatalf("the cut trigger data is not marked: %q", td[max(len(td)-40, 0):])
+	}
+	scrubbed.Store(0)
+	e.bridge.FlowRunFinished(flows.RunFinishedInfo{MissionID: id, HistoryID: histID, FlowName: "Costly", Started: true,
+		Record: flows.RunRecord{ID: "run_c15costly001", FlowID: "flow_c15costly01"}, Result: flows.RunResult{Status: flows.RunSuccess},
+		Outputs: big})
+	if n := scrubbed.Load(); n > flowOutputsScrubBudget+flowScrubOverlapBytes {
+		t.Fatalf("scrubbed %d bytes for the run's end", n)
+	}
+	if m, _ := e.s.MissionManagerV2.Get(id); m.LastResult != tools.MissionResultSuccess || !strings.HasPrefix(m.LastOutput, `{"node0":`) {
+		t.Fatalf("mission = %+v", m)
+	}
+}
+
+// Values that fit stay whole; a tight budget keeps keys in sorted order and a scrubbed
+// prefix of the string it cuts.
+func TestC15BoundedScrubKeepsWhatFits(t *testing.T) {
+	secret := "c15-bounded-secret"
+	release := security.RegisterScopedSensitiveExact(secret)
+	t.Cleanup(release)
+	in := map[string]any{"b": []any{"x", 1.0, map[string]any{"k": secret}}, "a": "text"}
+	copied, truncated := scrubFlowMapBounded(in, flowOutputsScrubBudget)
+	if truncated || !reflect.DeepEqual(copied, scrubFlowMap(in)) {
+		t.Fatalf("copy = %v, truncated %v", copied, truncated)
+	}
+	// "{}" takes 2 bytes, the key "a" 5, so 3 bytes of "text" are left.
+	if copied, truncated := scrubFlowMapBounded(in, 12); !truncated || !reflect.DeepEqual(copied, map[string]any{"a": "tex"}) {
+		t.Fatalf("tight copy = %v, truncated %v", copied, truncated)
+	}
+	// A secret across the cut is scrubbed as a whole before the cut.
+	long := map[string]any{"t": strings.Repeat("y", 30) + secret}
+	copied, _ = scrubFlowMapBounded(long, 2+5+2+35)
+	if text, _ := copied["t"].(string); strings.Contains(text, secret[:5]) || len(text) != 35 {
+		t.Fatalf("cut text = %q", text)
+	}
+	if copied, truncated := scrubFlowMapBounded(nil, 10); copied != nil || truncated {
+		t.Fatal("a nil map must stay nil")
+	}
+}
+
+// Numbers are scrubbed as their JSON text, like scrubJSONStrings does, so a numeric secret
+// does not pass as a number.
+func TestC15ScrubWalkScrubsNumbers(t *testing.T) {
+	release := security.RegisterScopedSensitiveExact("12345678901")
+	t.Cleanup(release)
+	out := scrubFlowMap(map[string]any{"id": 12345678901.0, "n": 42.0, "nan": math.NaN()})
+	if out["id"] != security.RedactedText("") || out["n"] != 42.0 || out["nan"] != nil {
+		t.Fatalf("out = %v", out)
+	}
+}
+
+// flowScrubMinBytes rests on internal/security registering no value shorter than 8 bytes.
+func TestC15ScrubIgnoresShortValues(t *testing.T) {
+	short := "c15abcd" // 7 bytes
+	security.RegisterSensitive(short)
+	t.Cleanup(security.RegisterScopedSensitiveExact(short))
+	if got := security.Scrub("x " + short + " y"); got != "x "+short+" y" {
+		t.Fatalf("security scrubs %d-byte values now (%q); lower flowScrubMinBytes", len(short), got)
+	}
+	eight := "c15abcde"
+	t.Cleanup(security.RegisterScopedSensitiveExact(eight))
+	if len(eight) != flowScrubMinBytes || scrubFlowText(eight) != security.RedactedText("") {
+		t.Fatalf("an %d-byte value is not scrubbed", len(eight))
 	}
 }

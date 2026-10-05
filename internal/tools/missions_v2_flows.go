@@ -535,6 +535,10 @@ func cutAtRuneBoundary(s string, limit int) string {
 	return s[:cut]
 }
 
+// CutAtRuneBoundary is cutAtRuneBoundary for other packages (the flow bridge in
+// internal/server).
+func CutAtRuneBoundary(s string, limit int) string { return cutAtRuneBoundary(s, limit) }
+
 // flowEventSpecLocked returns the spec of an enabled flow mission's node while it still has
 // the trigger type and matches. Caller holds m.mu.
 func (m *MissionManagerV2) flowEventSpecLocked(missionID, nodeID string, trigger TriggerType, match func(*TriggerConfig) bool) (FlowTriggerSpec, bool) {
