@@ -33,6 +33,7 @@ import (
 	"aurago/internal/detective"
 	"aurago/internal/discord"
 	"aurago/internal/dockerutil"
+	"aurago/internal/flows"
 	"aurago/internal/fritzbox"
 	"aurago/internal/gamemaker"
 	"aurago/internal/heartbeat"
@@ -256,6 +257,8 @@ type Server struct {
 	GameMaker               *gamemaker.Service
 	Detective               *detective.Service
 	Newspaper               *newspaper.Service
+	Flows                   *flows.Service
+	flowsCatalog            *flowCatalogEnv
 	newspaperSkillReady     bool
 	PersonalRadio           *personalradio.Service
 	RTLSDR                  *rtlsdr.Service
