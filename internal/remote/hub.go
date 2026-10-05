@@ -511,6 +511,18 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 			continue
 		}
 
+		// hmacData has no field delimiters, so only a well-formed nonce stops a
+		// sequence digit shifted into it from minting a fresh replay-cache key.
+		if !ValidNonce(msg.Nonce) {
+			h.logger.Warn("Invalid nonce format", "device_id", conn.DeviceID)
+			errMsg, _ := NewMessage(MsgError, conn.DeviceID, conn.SharedKey, conn.NextSeq(),
+				ErrorPayload{Code: "replay", Message: "invalid nonce format"})
+			if errMsg != nil {
+				_ = conn.Send(errMsg)
+			}
+			continue
+		}
+
 		// Validate timestamp (anti-replay)
 		if err := ValidateTimestamp(msg.Timestamp); err != nil {
 			h.logger.Warn("Replay detection", "device_id", conn.DeviceID, "error", err)
@@ -671,7 +683,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		if err != nil || !ok {
 			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "authentication failed", nil, nil)
 		}
-		if err := ValidateTimestamp(msg.Timestamp); err != nil || h.nonceCache.Seen(device.ID, msg.Nonce, time.Now().UTC()) {
+		if err := ValidateTimestamp(msg.Timestamp); err != nil || !ValidNonce(msg.Nonce) || h.nonceCache.Seen(device.ID, msg.Nonce, time.Now().UTC()) {
 			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
 		}
 		if err := UpdateDeviceStatus(h.db, device.ID, "connected"); err != nil {
@@ -717,7 +729,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		} else {
 			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "HMAC required for token enrollment", nil, nil)
 		}
-		if err := ValidateTimestamp(msg.Timestamp); err != nil || h.nonceCache.Seen(enrollment.ID, msg.Nonce, time.Now().UTC()) {
+		if err := ValidateTimestamp(msg.Timestamp); err != nil || !ValidNonce(msg.Nonce) || h.nonceCache.Seen(enrollment.ID, msg.Nonce, time.Now().UTC()) {
 			return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
 		}
 		if enrollment.Used {

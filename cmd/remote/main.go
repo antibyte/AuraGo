@@ -590,6 +590,11 @@ func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
 	if err := remote.ValidateTimestamp(msg.Timestamp); err != nil {
 		return err.Error()
 	}
+	// hmacData has no field delimiters; a malformed nonce could be sequence
+	// digits shifted into it, which the cache would see as a fresh nonce.
+	if !remote.ValidNonce(msg.Nonce) {
+		return "invalid nonce format"
+	}
 	c.replayOnce.Do(func() {
 		if c.replay == nil {
 			// ValidateTimestamp accepts ±MaxTimestampDrift, so a nonce must stay

@@ -3,6 +3,7 @@
 package remote
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,71 @@ import (
 	"aurago/internal/testutil"
 	"github.com/gorilla/websocket"
 )
+
+// hmacData joins Sequence and Nonce without a delimiter, so a captured frame
+// with seq=12 still verifies as seq=1 with nonce "2"+nonce. The supervisor
+// must reject that shifted copy instead of treating it as a fresh nonce.
+func TestHandleMessagesRejectsSequenceShiftedNonce(t *testing.T) {
+	hub := NewRemoteHub(nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	key := strings.Repeat("b", 64)
+	serverConn, clientConn, cleanup := newWebSocketPairForHubTest(t)
+	conn := &RemoteConnection{Conn: serverConn, DeviceID: "dev-1", SharedKey: key}
+	hub.Register("dev-1", conn)
+	heartbeats := make(chan HeartbeatPayload, 4)
+	hub.OnHeartbeat = func(_ string, hb HeartbeatPayload) { heartbeats <- hb }
+	handled := make(chan struct{})
+	go func() {
+		hub.HandleMessages(conn)
+		close(handled)
+	}()
+	defer func() {
+		cleanup()
+		select {
+		case <-handled:
+		case <-time.After(5 * time.Second):
+			t.Error("HandleMessages still running after the connection closed")
+		}
+	}()
+
+	frame, err := NewMessage(MsgHeartbeat, "dev-1", key, 12, HeartbeatPayload{Hostname: "original"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shifted := *frame
+	shifted.Sequence = 1
+	shifted.Nonce = "2" + frame.Nonce
+	if ok, err := VerifyMessage(shifted, key); err != nil || !ok {
+		t.Fatalf("shifted frame is expected to keep a valid HMAC (delimiter-free encoding): ok=%v err=%v", ok, err)
+	}
+
+	if err := clientConn.WriteJSON(frame); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-heartbeats:
+	case <-time.After(5 * time.Second):
+		t.Fatal("fresh heartbeat was not handled")
+	}
+
+	if err := clientConn.WriteJSON(&shifted); err != nil {
+		t.Fatal(err)
+	}
+	_ = clientConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var reply RemoteMessage
+	if err := clientConn.ReadJSON(&reply); err != nil {
+		t.Fatalf("expected an error frame for the shifted nonce: %v", err)
+	}
+	var errPayload ErrorPayload
+	if reply.Type != MsgError || json.Unmarshal(reply.Payload, &errPayload) != nil ||
+		errPayload.Code != "replay" || errPayload.Message != "invalid nonce format" {
+		t.Fatalf("unexpected reply to shifted frame: type=%s payload=%s", reply.Type, reply.Payload)
+	}
+	select {
+	case hb := <-heartbeats:
+		t.Fatalf("shifted frame reached the heartbeat handler: %+v", hb)
+	default:
+	}
+}
 
 func TestResultRequiresAuthenticatedDeviceAndConnection(t *testing.T) {
 	hub := NewRemoteHub(nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))

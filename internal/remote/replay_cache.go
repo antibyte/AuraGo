@@ -84,7 +84,8 @@ func replayCacheKey(deviceID, nonce string) string {
 }
 
 // NonceReplayCache is the exported form for the remote agent, which must apply
-// the same per-connection replay window as the supervisor.
+// the same replay window as the supervisor: per-hub on the supervisor, across
+// reconnects on the agent.
 type NonceReplayCache struct{ inner *nonceReplayCache }
 
 func NewNonceReplayCache(ttl time.Duration, maxEntries int) *NonceReplayCache {

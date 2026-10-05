@@ -50,6 +50,32 @@ func TestGenerateNonce(t *testing.T) {
 	}
 }
 
+func TestValidNonce(t *testing.T) {
+	generated, err := GenerateNonce()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name  string
+		nonce string
+		want  bool
+	}{
+		{name: "generated", nonce: generated, want: true},
+		{name: "lowercase hex", nonce: "0123456789abcdef0123456789abcdef", want: true},
+		{name: "uppercase hex", nonce: "0123456789ABCDEF0123456789ABCDEF", want: false},
+		{name: "empty", nonce: "", want: false},
+		{name: "short", nonce: "0123456789abcdef0123456789abcde", want: false},
+		{name: "long (sequence digit shifted in)", nonce: "2" + "0123456789abcdef0123456789abcdef", want: false},
+		{name: "non-hex", nonce: "0123456789abcdef0123456789abcdeg", want: false},
+		{name: "non-ascii (32 bytes)", nonce: "0123456789abcdef0123456789abcd" + "é", want: false},
+	}
+	for _, tt := range tests {
+		if got := ValidNonce(tt.nonce); got != tt.want {
+			t.Errorf("%s: ValidNonce(%q) = %v; want %v", tt.name, tt.nonce, got, tt.want)
+		}
+	}
+}
+
 func TestGenerateSharedKey(t *testing.T) {
 	k, err := GenerateSharedKey()
 	if err != nil {

@@ -145,6 +145,63 @@ func TestEnrollmentTokenSingleUseAndReconnectReplay(t *testing.T) {
 	}
 }
 
+// shiftSequenceIntoNonce moves the last sequence digit into the nonce. The HMAC
+// still verifies because hmacData joins the two fields without a delimiter.
+func shiftSequenceIntoNonce(t *testing.T, msg *RemoteMessage, key string) *RemoteMessage {
+	t.Helper()
+	if msg.Sequence != 12 {
+		t.Fatalf("shift helper expects sequence 12, got %d", msg.Sequence)
+	}
+	shifted := *msg
+	shifted.Sequence = 1
+	shifted.Nonce = "2" + msg.Nonce
+	if ok, err := VerifyMessage(shifted, key); err != nil || !ok {
+		t.Fatalf("shifted frame is expected to keep a valid HMAC (delimiter-free encoding): ok=%v err=%v", ok, err)
+	}
+	return &shifted
+}
+
+func TestHandleEnrollmentRejectsSequenceShiftedNonce(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hub := NewRemoteHub(db, vault, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	exchange := enrollmentTestSocket(t, hub)
+	bootstrapKey := DeriveEnrollmentAuthKey("fresh-admin-token")
+	if _, err := CreateEnrollment(db, EnrollmentRecord{TokenHash: bootstrapKey, DeviceName: "test", ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}); err != nil {
+		t.Fatal(err)
+	}
+
+	enroll, err := NewMessage(MsgAuth, "", bootstrapKey, 12, AuthPayload{TokenHash: bootstrapKey, Hostname: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := exchange(shiftSequenceIntoNonce(t, enroll, bootstrapKey)); got.Status != "rejected" {
+		t.Fatalf("shifted enrollment = %+v", got)
+	}
+	enrolled := exchange(enroll)
+	if enrolled.Status != "enrolled" || enrolled.DeviceID == "" {
+		t.Fatalf("original enrollment after rejected shift = %+v", enrolled)
+	}
+
+	reconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 12, AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := exchange(shiftSequenceIntoNonce(t, reconnect, enrolled.SharedKey)); got.Status != "rejected" {
+		t.Fatalf("shifted reconnect = %+v", got)
+	}
+	if got := exchange(reconnect); got.Status != "authenticated" {
+		t.Fatalf("original reconnect after rejected shift = %+v", got)
+	}
+}
+
 func TestEnrollmentVaultFailureLeavesTokenUnused(t *testing.T) {
 	db, err := InitDB(filepath.Join(t.TempDir(), "remote.db"))
 	if err != nil {

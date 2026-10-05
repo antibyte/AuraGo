@@ -191,6 +191,16 @@ type ErrorPayload struct {
 // ── HMAC signing ────────────────────────────────────────────────────────────
 
 // hmacData builds the canonical string for HMAC computation.
+//
+// The fields are concatenated without delimiters, so on its own the encoding is
+// ambiguous: a frame signed with sequence 12 and nonce N also verifies as
+// sequence 1 with nonce "2"+N. What keeps it unambiguous today are the
+// receivers' checks: ValidNonce pins the nonce to exactly 32 hex characters, so
+// nothing moves across either nonce boundary; the RFC3339 timestamp parse and
+// the JSON payload reject characters moved across the timestamp boundary; any
+// other shift leaves the nonce unchanged for the replay cache to catch. The
+// long-term fix is a delimited canonical form; that is a wire change and must
+// ship on the agent and the supervisor together.
 func hmacData(msg *RemoteMessage) string {
 	return msg.Type + msg.DeviceID + msg.MessageID +
 		fmt.Sprintf("%d", msg.Sequence) + msg.Nonce +
@@ -233,6 +243,25 @@ func GenerateNonce() (string, error) {
 		return "", fmt.Errorf("failed to generate nonce: %w", err)
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// nonceHexLen is the length of a GenerateNonce value: 16 bytes as hex.
+const nonceHexLen = 32
+
+// ValidNonce reports whether nonce has the exact GenerateNonce format: 32
+// lowercase hex characters. Receivers must check it before consulting the
+// replay cache, because hmacData lets sequence digits shift into the nonce.
+func ValidNonce(nonce string) bool {
+	if len(nonce) != nonceHexLen {
+		return false
+	}
+	for i := 0; i < len(nonce); i++ {
+		c := nonce[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // NewMessage creates a signed RemoteMessage with the given payload.

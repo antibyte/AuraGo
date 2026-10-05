@@ -310,27 +310,56 @@ func TestLoadConfigKeepsStoredDeviceWithSharedKey(t *testing.T) {
 
 func TestRejectReplayedFrameChecksDeviceTimestampAndNonce(t *testing.T) {
 	client := &Client{cfg: clientConfig{DeviceID: "dev-1", SharedKey: strings.Repeat("ab", 32)}, logger: slog.Default()}
-	fresh, _ := remote.NewMessage(remote.MsgCommand, "dev-1", client.cfg.SharedKey, 1, map[string]string{"cmd_id": "x"})
+	fresh, err := remote.NewMessage(remote.MsgCommand, "dev-1", client.cfg.SharedKey, 1, map[string]string{"cmd_id": "x"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if reason := client.rejectReplayedFrame(*fresh); reason != "" {
 		t.Fatalf("fresh frame must pass, got %q", reason)
 	}
-	if reason := client.rejectReplayedFrame(*fresh); reason == "" {
-		t.Fatal("identical nonce must be rejected as a replay")
+	if reason := client.rejectReplayedFrame(*fresh); reason != "nonce missing or replayed" {
+		t.Fatalf("identical nonce must be rejected as a replay, got %q", reason)
 	}
 
 	foreign := *fresh
 	foreign.DeviceID = "dev-2"
 	foreign.Nonce = "0123456789abcdef0123456789abcdef"
-	if reason := client.rejectReplayedFrame(foreign); reason == "" {
-		t.Fatal("frame for another device must be rejected")
+	if reason := client.rejectReplayedFrame(foreign); reason != "device_id mismatch" {
+		t.Fatalf("frame for another device must be rejected, got %q", reason)
 	}
 
 	stale := *fresh
 	stale.Nonce = "fedcba9876543210fedcba9876543210"
 	stale.Timestamp = time.Now().Add(-remote.MaxTimestampDrift - time.Minute).UTC().Format(time.RFC3339)
-	if reason := client.rejectReplayedFrame(stale); reason == "" {
-		t.Fatal("stale frame must be rejected")
+	if reason := client.rejectReplayedFrame(stale); !strings.HasPrefix(reason, "timestamp drift ") ||
+		!strings.HasSuffix(reason, "exceeds maximum "+remote.MaxTimestampDrift.String()) {
+		t.Fatalf("stale frame must be rejected for timestamp drift, got %q", reason)
+	}
+}
+
+// hmacData joins Sequence and Nonce without a delimiter, so a captured frame
+// with seq=12 still verifies as seq=1 with nonce "2"+nonce. The fixed nonce
+// format is what keeps that shifted copy out of the replay cache.
+func TestRejectReplayedFrameRejectsSequenceShiftedNonce(t *testing.T) {
+	key := strings.Repeat("ab", 32)
+	client := &Client{cfg: clientConfig{DeviceID: "dev-1", SharedKey: key}, logger: slog.Default()}
+	frame, err := remote.NewMessage(remote.MsgCommand, "dev-1", key, 12, remote.CommandPayload{CommandID: "cmd-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reason := client.rejectReplayedFrame(*frame); reason != "" {
+		t.Fatalf("fresh frame must pass, got %q", reason)
+	}
+
+	shifted := *frame
+	shifted.Sequence = 1
+	shifted.Nonce = "2" + frame.Nonce
+	if ok, err := remote.VerifyMessage(shifted, key); err != nil || !ok {
+		t.Fatalf("shifted frame is expected to keep a valid HMAC (delimiter-free encoding): ok=%v err=%v", ok, err)
+	}
+	if reason := client.rejectReplayedFrame(shifted); reason != "invalid nonce format" {
+		t.Fatalf("shifted frame must be rejected for its nonce format, got %q", reason)
 	}
 }
 
@@ -399,13 +428,26 @@ func readMessagesDispatched(t *testing.T, client *Client) []remote.RemoteMessage
 		dispatched = append(dispatched, msg)
 		mu.Unlock()
 	}
-	t.Cleanup(func() { handleMessageHook = prev })
 
+	conn := client.currentConn()
 	finished := make(chan struct{})
 	go func() {
 		client.readMessages()
 		close(finished)
 	}()
+	// Stop the read loop before restoring the hook so a timed-out loop cannot
+	// observe the swap.
+	t.Cleanup(func() {
+		if conn != nil {
+			_ = conn.Close()
+		}
+		select {
+		case <-finished:
+		case <-time.After(5 * time.Second):
+			t.Error("readMessages still running after its connection was closed")
+		}
+		handleMessageHook = prev
+	})
 	select {
 	case <-finished:
 	case <-time.After(10 * time.Second):
