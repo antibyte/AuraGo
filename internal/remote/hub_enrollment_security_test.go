@@ -1,3 +1,5 @@
+//go:build !remote_minimal
+
 package remote
 
 import (
@@ -240,6 +242,37 @@ func TestApproveDeviceVaultFailureCreatesNoToken(t *testing.T) {
 	}
 }
 
+// The sweep compares RFC3339 strings, so expiry times are stored in UTC
+// whatever offset the caller used; an unparsable expiry creates no token.
+func TestIssueEnrollmentTokenNormalizesExpiryToUTC(t *testing.T) {
+	hub, db, _ := newEnrollmentTestHub(t)
+	if _, err := hub.IssueEnrollmentToken("offset-token", "test", "2099-01-01T05:00:00+02:00"); err != nil {
+		t.Fatal(err)
+	}
+	enrollment, err := GetEnrollmentByTokenHash(db, DeriveEnrollmentLookupHash("offset-token"))
+	if err != nil || enrollment.ExpiresAt != "2099-01-01T03:00:00Z" {
+		t.Fatalf("expiry must be stored in UTC: %+v, %v", enrollment, err)
+	}
+	if _, err := hub.IssueEnrollmentToken("bad-expiry-token", "test", "tomorrow"); err == nil {
+		t.Fatal("an unparsable expiry must be refused")
+	}
+	if _, err := GetEnrollmentByTokenHash(db, DeriveEnrollmentLookupHash("bad-expiry-token")); err == nil {
+		t.Fatal("no token may be created with an unparsable expiry")
+	}
+
+	// A token that expired an hour ago, given in a +02:00 offset, is swept.
+	past := time.Now().Add(-time.Hour).In(time.FixedZone("plus2", 2*60*60)).Format(time.RFC3339)
+	if _, err := hub.IssueEnrollmentToken("expired-offset-token", "test", past); err != nil {
+		t.Fatal(err)
+	}
+	if err := hub.SweepExpiredEnrollments(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := GetEnrollmentByTokenHash(db, DeriveEnrollmentLookupHash("expired-offset-token")); err == nil {
+		t.Fatal("an expired token given with an offset must be swept")
+	}
+}
+
 func TestIssueEnrollmentTokenVaultFailureCreatesNoToken(t *testing.T) {
 	hub, db := newBrokenVaultTestHub(t)
 	if _, err := hub.IssueEnrollmentToken("fresh-admin-token", "test", time.Now().Add(time.Hour).UTC().Format(time.RFC3339)); err == nil {
@@ -312,8 +345,9 @@ func TestEnrollmentRequiresAuthKeyNotLookupHash(t *testing.T) {
 	}
 }
 
-// A row without a vault MAC key was created before the key split, stored the
-// plain token hash, and must not be accepted under any key.
+// A row stored under the lookup hash but without a vault MAC key (the vault
+// entry was lost, or the row was written by something other than
+// IssueEnrollmentToken) must not be accepted under any key.
 func TestEnrollmentRejectsTokenWithoutVaultKey(t *testing.T) {
 	hub, db, _ := newEnrollmentTestHub(t)
 	exchange := enrollmentTestSocket(t, hub)
@@ -323,10 +357,32 @@ func TestEnrollmentRejectsTokenWithoutVaultKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := exchange(enrollmentFrame(t, token, 1))
-	if got.Status != "rejected" || got.Message != "enrollment token predates the upgrade; create a new one" {
+	if got.Status != "rejected" || got.Message != "enrollment token has no key on this supervisor; create a new one" {
 		t.Fatalf("row without vault key = %+v", got)
 	}
 	assertEnrollmentUnused(t, db, token, id)
+	assertNoDevices(t, db)
+}
+
+// Tokens issued before the key split are stored under the plain SHA-256 of the
+// token, which a current agent's lookup hash never matches. They are refused as
+// not found, with wording that covers the pre-upgrade case.
+func TestEnrollmentRefusesPreUpgradeRowAsNotFound(t *testing.T) {
+	hub, db, _ := newEnrollmentTestHub(t)
+	exchange := enrollmentTestSocket(t, hub)
+	token := "remote_0123456789abcdef0123456789abcdef"
+	id, err := CreateEnrollment(db, EnrollmentRecord{TokenHash: plainSHA256Hex(token), DeviceName: "test", ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := exchange(enrollmentFrame(t, token, 1))
+	if got.Status != "rejected" || got.Message != "invalid or pre-upgrade enrollment token; create a new one" {
+		t.Fatalf("pre-upgrade row = %+v", got)
+	}
+	enrollment, err := GetEnrollmentByTokenHash(db, plainSHA256Hex(token))
+	if err != nil || enrollment.ID != id || enrollment.Used {
+		t.Fatalf("pre-upgrade row must stay untouched: %+v, %v", enrollment, err)
+	}
 	assertNoDevices(t, db)
 }
 
@@ -401,8 +457,8 @@ func TestCleanExpiredEnrollmentsRemovesOrphanedVaultKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := CleanExpiredEnrollments(db, vault); err != nil {
-		t.Fatalf("CleanExpiredEnrollments: %v", err)
+	if err := hub.SweepExpiredEnrollments(); err != nil {
+		t.Fatalf("SweepExpiredEnrollments: %v", err)
 	}
 
 	for _, id := range []string{expired, consumed, "deleted-row"} {
@@ -421,6 +477,57 @@ func TestCleanExpiredEnrollmentsRemovesOrphanedVaultKeys(t *testing.T) {
 	}
 	if _, err := GetEnrollmentByTokenHash(db, DeriveEnrollmentLookupHash("live-token")); err != nil {
 		t.Fatalf("live enrollment row must be kept: %v", err)
+	}
+}
+
+// A reconnect frame that fails verification is refused unsigned: a signed
+// refusal would hand an unauthenticated requester a frame only the supervisor
+// can make. Refusals echo the request nonce only when it is well formed.
+func TestReconnectRefusalsAreUnsignedUntilVerifiedAndEchoOnlyValidNonces(t *testing.T) {
+	hub, _, _ := newEnrollmentTestHub(t)
+	exchange := enrollmentExchange(t, hub)
+	token := "fresh-admin-token"
+	issueTestEnrollment(t, hub, token)
+	_, enrolled := exchange(enrollmentFrame(t, token, 1))
+	if enrolled.Status != "enrolled" {
+		t.Fatalf("enrollment = %+v", enrolled)
+	}
+	hub.Unregister(enrolled.DeviceID)
+
+	forged, err := NewMessage(MsgAuth, enrolled.DeviceID, strings.Repeat("ef", 32), 2, AuthPayload{DeviceID: enrolled.DeviceID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, refused := exchange(forged)
+	if refused.Status != "rejected" || refused.Message != "authentication failed" || response.HMAC != "" {
+		t.Fatalf("failed reconnect must be refused unsigned: %+v (hmac %q)", refused, response.HMAC)
+	}
+	if hub.IsConnected(enrolled.DeviceID) {
+		t.Fatal("a failed reconnect must not register a connection")
+	}
+
+	valid := strings.Repeat("0123456789abcdef", 2)
+	for name, nonce := range map[string]string{
+		"empty":     "",
+		"short":     "xyz",
+		"uppercase": strings.ToUpper("abcdef" + valid[6:]),
+		"33 chars":  valid + "0",
+	} {
+		frame, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 3, AuthPayload{DeviceID: enrolled.DeviceID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		frame.Nonce = nonce
+		if err := SignMessage(frame, enrolled.SharedKey); err != nil {
+			t.Fatal(err)
+		}
+		response, refused := exchange(frame)
+		if refused.Status != "rejected" || refused.Message != "stale or replayed authentication" || refused.RequestNonce != "" {
+			t.Fatalf("%s nonce: refusal must not echo it: %+v", name, refused)
+		}
+		if ok, err := VerifyMessage(response, enrolled.SharedKey); err != nil || !ok {
+			t.Fatalf("%s nonce: a refusal to a verified frame stays signed: ok=%v err=%v", name, ok, err)
+		}
 	}
 }
 
@@ -523,8 +630,14 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 	}
 	oldEnroll = legacySigned(t, oldEnroll, plainHash)
 	response, refused := exchange(oldEnroll)
-	if refused.Status != "rejected" || refused.Message != preUpgradeEnrollmentMessage || refused.RequestNonce != oldEnroll.Nonce {
+	// The binary is what is outdated, whatever the token's age, so the reason
+	// names the agent download (which also issues a new token).
+	if refused.Status != "rejected" || refused.Message != "agent predates the supervisor upgrade; download the agent again from AuraGo (Remote Control) — that also issues a new token" || refused.RequestNonce != oldEnroll.Nonce {
 		t.Fatalf("pre-upgrade enrollment = %+v", refused)
+	}
+	var rawRefusal map[string]any
+	if err := json.Unmarshal(response.Payload, &rawRefusal); err != nil || len(rawRefusal) != 3 {
+		t.Fatalf("a legacy refusal carries only status, message and request_nonce: %s", response.Payload)
 	}
 	if response.Version != 0 || !verifiesLegacy(response, plainHash) || !ValidNonce(response.Nonce) || ValidateTimestamp(response.Timestamp) != nil {
 		t.Fatalf("the refusal must be a fresh frame an old agent can verify: %+v", response)
@@ -552,7 +665,7 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 	oldReconnect = legacySigned(t, oldReconnect, enrolled.SharedKey)
 	response, refused = exchange(oldReconnect)
 	if refused.Status != "rejected" || refused.Message != preUpgradeReconnectMessage || refused.RequestNonce != oldReconnect.Nonce ||
-		refused.DeviceID != "" || refused.SharedKey != "" || refused.ReadOnly != nil || len(refused.AllowedPaths) != 0 {
+		refused.DeviceID != "" || refused.SharedKey != "" || refused.ReadOnly != nil || refused.AllowedPaths != nil || refused.MaxFileSizeMB != 0 {
 		t.Fatalf("unversioned reconnect of a known device = %+v", refused)
 	}
 	if response.Version != 0 || !verifiesLegacy(response, enrolled.SharedKey) || !ValidNonce(response.Nonce) || ValidateTimestamp(response.Timestamp) != nil {
@@ -646,6 +759,23 @@ func newCorruptVaultTestHub(t *testing.T) (*RemoteHub, *sql.DB) {
 		t.Fatal(err)
 	}
 	return NewRemoteHub(db, vault, slog.New(slog.NewTextHandler(io.Discard, nil))), db
+}
+
+// An unsigned enrollment frame is refused before the vault is touched.
+func TestUnsignedEnrollmentFrameRefusedBeforeVaultRead(t *testing.T) {
+	hub, db := newCorruptVaultTestHub(t)
+	exchange := enrollmentTestSocket(t, hub)
+	token := "fresh-admin-token"
+	if _, err := CreateEnrollment(db, EnrollmentRecord{TokenHash: DeriveEnrollmentLookupHash(token), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}); err != nil {
+		t.Fatal(err)
+	}
+	unsigned, err := NewMessage(MsgAuth, "", "", 1, AuthPayload{KDF: EnrollmentKDFVersion, TokenHash: DeriveEnrollmentLookupHash(token)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := exchange(unsigned); got.Status != "rejected" || got.Message != "HMAC required for token enrollment" {
+		t.Fatalf("unsigned enrollment frame = %+v", got)
+	}
 }
 
 // A vault that cannot be used must leave the token unused and no device behind,

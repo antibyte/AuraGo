@@ -19,6 +19,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/remote"
 
@@ -557,6 +558,10 @@ func (c *Client) connect() error {
 		return fmt.Errorf("pending approval")
 	case "rejected":
 		conn.Close()
+		if !signed {
+			// Tokenless knock: nothing to verify the reason with.
+			return unverifiedRefusal(authResp.Message)
+		}
 		return fmt.Errorf("enrollment rejected: %s", authResp.Message)
 	default:
 		conn.Close()
@@ -804,6 +809,34 @@ func (c *Client) handleConfigUpdate(msg remote.RemoteMessage) {
 // holds an enrollment token or device key.
 var errUnsignedAuthResponse = errors.New("received unsigned auth response despite bootstrap key")
 
+// errUnverifiedRefusal marks a refusal whose reason could not be verified;
+// errors.Is tells it from a signed refusal.
+var errUnverifiedRefusal = errors.New("unverified refusal")
+
+// maxUnverifiedReasonBytes caps an unverified refusal reason in the log.
+const maxUnverifiedReasonBytes = 256
+
+// unverifiedRefusalError is a refusal from an unsigned answer. Its reason came
+// from whoever answered, so it is capped and quoted.
+type unverifiedRefusalError struct{ reason string }
+
+func (e *unverifiedRefusalError) Error() string {
+	return fmt.Sprintf("supervisor refused (unverified): %q", e.reason)
+}
+
+func (e *unverifiedRefusalError) Unwrap() error { return errUnverifiedRefusal }
+
+func unverifiedRefusal(reason string) error {
+	if len(reason) > maxUnverifiedReasonBytes {
+		cut := maxUnverifiedReasonBytes
+		for cut > 0 && !utf8.RuneStart(reason[cut]) {
+			cut--
+		}
+		reason = reason[:cut]
+	}
+	return &unverifiedRefusalError{reason: reason}
+}
+
 // unsignedRefusalError turns an unsigned answer to an agent holding a key into
 // its error. The supervisor sends the refusals it cannot or must not sign
 // (unknown or used token, token without a MAC key, failed authentication)
@@ -814,7 +847,7 @@ func unsignedRefusalError(resp remote.RemoteMessage, err error) error {
 	if json.Unmarshal(resp.Payload, &payload) != nil || payload.Status != "rejected" {
 		return err
 	}
-	return fmt.Errorf("enrollment rejected (unverified): %q", payload.Message)
+	return unverifiedRefusal(payload.Message)
 }
 
 // verifyAuthResponse verifies the auth response with the bootstrap secret.

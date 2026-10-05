@@ -724,10 +724,12 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "missing shared key", nil, nil)
 		}
 
-		// Verify the incoming message HMAC using stored key
+		// Verify the incoming message HMAC using stored key. The refusal of
+		// a frame that fails is unsigned: a signed one would hand an
+		// unauthenticated requester a frame only the supervisor can make.
 		ok, err := VerifyMessage(msg, storedKey)
 		if err != nil || !ok {
-			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", "authentication failed", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "authentication failed", nil, nil)
 		}
 		if err := ValidateTimestamp(msg.Timestamp); err != nil || !ValidNonce(msg.Nonce) || h.nonceCache.Seen(device.ID, msg.Nonce, time.Now().UTC()) {
 			return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", "", "rejected", "stale or replayed authentication", nil, nil)
@@ -765,28 +767,31 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		if auth.KDF != EnrollmentKDFVersion {
 			return h.rejectPreUpgradeEnrollment(wsConn, msg, auth)
 		}
+		// Rows issued before the key split are stored under the plain token
+		// hash, which a current agent's lookup hash never matches, so they
+		// land here too.
 		enrollment, err := GetEnrollmentByTokenHash(h.db, auth.TokenHash)
 		if err != nil {
-			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "invalid enrollment token", nil, nil)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", unknownEnrollmentMessage, nil, nil)
 		}
 		// The MAC key of a consumed token is gone, so this is decided first.
 		if enrollment.Used {
 			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "enrollment token already used", nil, nil)
+		}
+		if msg.HMAC == "" {
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "HMAC required for token enrollment", nil, nil)
 		}
 		if h.vault == nil {
 			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "credential storage unavailable", nil, nil)
 		}
 		authKey, err := h.vault.ReadSecret(enrollmentAuthKeyName(enrollment.ID))
 		if errors.Is(err, security.ErrSecretNotFound) {
-			h.logger.Warn("Remote enrollment token has no MAC key; it predates the key split", "enrollment_id", enrollment.ID)
-			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", preUpgradeEnrollmentMessage, nil, nil)
+			h.logger.Warn("Remote enrollment token has no MAC key in the vault", "enrollment_id", enrollment.ID)
+			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", keylessEnrollmentMessage, nil, nil)
 		}
 		if err != nil {
 			h.logger.Error("Failed to read remote enrollment key from vault", "enrollment_id", enrollment.ID, "error", err)
 			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "credential storage unavailable", nil, nil)
-		}
-		if msg.HMAC == "" {
-			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "HMAC required for token enrollment", nil, nil)
 		}
 		if ok, err := VerifyMessage(msg, authKey); err != nil || !ok {
 			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "authentication failed", nil, nil)
@@ -954,9 +959,29 @@ func (h *RemoteHub) ApproveDevice(deviceID string) (string, string, error) {
 // IssueEnrollmentToken registers a raw one-time enrollment token and returns
 // its enrollment ID. remote_enrollments stores only the token's lookup hash;
 // its MAC key goes to the vault. If the key cannot be stored, no token is
-// created.
+// created. expiresAt is RFC3339 in any offset; it is stored in UTC.
 func (h *RemoteHub) IssueEnrollmentToken(token, deviceName, expiresAt string) (string, error) {
 	return h.issueEnrollment(token, deviceName, expiresAt, nil)
+}
+
+// SweepExpiredEnrollments removes expired enrollments and every MAC key that
+// no longer belongs to a live enrollment (see CleanExpiredEnrollments).
+func (h *RemoteHub) SweepExpiredEnrollments() error {
+	h.enrollmentKeyMu.Lock()
+	defer h.enrollmentKeyMu.Unlock()
+	return CleanExpiredEnrollments(h.db, h.vault)
+}
+
+// DiscardEnrollmentKey deletes the MAC key of an enrollment consumed outside
+// HandleEnrollment (agodesk pairing). A failure is only logged; the consumed
+// row already refuses the token and the next sweep removes the key.
+func (h *RemoteHub) DiscardEnrollmentKey(enrollmentID string) {
+	if h == nil || h.vault == nil || enrollmentID == "" {
+		return
+	}
+	if err := h.vault.DeleteSecret(enrollmentAuthKeyName(enrollmentID)); err != nil {
+		h.logger.Warn("Failed to delete consumed remote enrollment key", "enrollment_id", enrollmentID, "error", err)
+	}
 }
 
 // issueEnrollment inserts the enrollment row, runs alsoInTx (may be nil) and
@@ -967,6 +992,12 @@ func (h *RemoteHub) issueEnrollment(token, deviceName, expiresAt string, alsoInT
 	if h.vault == nil {
 		return "", fmt.Errorf("enrollment key storage unavailable")
 	}
+	// The sweep compares RFC3339 strings, which only works in one offset.
+	expiry, err := time.Parse(time.RFC3339, expiresAt)
+	if err != nil {
+		return "", fmt.Errorf("invalid enrollment expiry: %w", err)
+	}
+	expiresAt = expiry.UTC().Format(time.RFC3339)
 	h.enrollmentKeyMu.Lock()
 	defer h.enrollmentKeyMu.Unlock()
 	if err := CleanExpiredEnrollments(h.db, h.vault); err != nil {
@@ -1001,13 +1032,21 @@ func (h *RemoteHub) issueEnrollment(token, deviceName, expiresAt string, alsoInT
 	return id, nil
 }
 
-// preUpgradeEnrollmentMessage refuses enrollment tokens and agents from before
-// the lookup-hash/MAC-key split.
-const preUpgradeEnrollmentMessage = "enrollment token predates the upgrade; create a new one"
-
-// preUpgradeReconnectMessage refuses an enrolled device whose agent binary
-// predates the canonical HMAC form.
-const preUpgradeReconnectMessage = "unsupported frame version; replace the agent binary with a download from the upgraded supervisor"
+// Refusal reasons around the lookup-hash/MAC-key split.
+const (
+	// A current-version enrollment frame without kdf 2.
+	preUpgradeEnrollmentMessage = "enrollment token predates the upgrade; create a new one"
+	// An unversioned enrollment frame: the agent binary is outdated whatever
+	// the token's age, and downloading the agent again also issues a token.
+	preUpgradeAgentMessage = "agent predates the supervisor upgrade; download the agent again from AuraGo (Remote Control) — that also issues a new token"
+	// No row for the lookup hash. Rows issued before the key split are stored
+	// under the plain token hash and end up here as well.
+	unknownEnrollmentMessage = "invalid or pre-upgrade enrollment token; create a new one"
+	// A row without a vault MAC key.
+	keylessEnrollmentMessage = "enrollment token has no key on this supervisor; create a new one"
+	// An enrolled device whose agent binary predates the canonical HMAC form.
+	preUpgradeReconnectMessage = "unsupported frame version; replace the agent binary with a download from the upgraded supervisor"
+)
 
 // rejectPreUpgradeEnrollment refuses an enrollment frame from an agent that
 // predates the key split (no kdf 2) or the canonical HMAC form (no version).
@@ -1016,12 +1055,13 @@ const preUpgradeReconnectMessage = "unsupported frame version; replace the agent
 // sent, so it gets a refusal built that way (legacyRefusal) and can show the
 // reason. A current-version frame without kdf 2 is refused unsigned.
 func (h *RemoteHub) rejectPreUpgradeEnrollment(wsConn *websocket.Conn, msg RemoteMessage, auth AuthPayload) error {
-	h.logger.Warn("Refusing enrollment from an agent or token that predates the upgrade; create a new token and download the agent again",
+	h.logger.Warn("Refusing enrollment from an agent or token that predates the upgrade; download the agent again from Remote Control",
 		"frame_version", msg.Version, "kdf", auth.KDF, "hostname", auth.Hostname)
 	if msg.Version < FrameVersion {
-		if refusal, err := legacyRefusal(msg.Nonce, auth.TokenHash, preUpgradeEnrollmentMessage, h.effectiveMaxFileSizeMB()); err == nil {
+		if refusal, err := legacyRefusal(msg.Nonce, auth.TokenHash, preUpgradeAgentMessage); err == nil {
 			return wsConn.WriteJSON(refusal)
 		}
+		return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", preUpgradeAgentMessage, nil, nil)
 	}
 	return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", preUpgradeEnrollmentMessage, nil, nil)
 }
@@ -1035,7 +1075,7 @@ func (h *RemoteHub) rejectPreUpgradeEnrollment(wsConn *websocket.Conn, msg Remot
 func (h *RemoteHub) rejectPreUpgradeReconnect(wsConn *websocket.Conn, msg RemoteMessage, deviceID string) error {
 	if device, err := GetDevice(h.db, deviceID); err == nil && device.Status != "revoked" && h.vault != nil {
 		if key, err := h.vault.ReadSecret("remote_shared_key_" + device.ID); err == nil {
-			if refusal, err := legacyRefusal(msg.Nonce, key, preUpgradeReconnectMessage, h.effectiveMaxFileSizeMB()); err == nil {
+			if refusal, err := legacyRefusal(msg.Nonce, key, preUpgradeReconnectMessage); err == nil {
 				return wsConn.WriteJSON(refusal)
 			}
 		}
@@ -1048,10 +1088,12 @@ func (h *RemoteHub) rejectPreUpgradeReconnect(wsConn *websocket.Conn, msg Remote
 // signed with the key that agent verifies with (the plain token hash it sent
 // when enrolling, or its device key when reconnecting) so it can show the
 // reason. They grant nothing, and current agents reject unversioned frames
-// outright. The request nonce is echoed only if it is well formed, so the
+// outright. The payload holds only status, message and request nonce: older
+// agents apply bootstrap settings from an auth response before they look at
+// its status. The request nonce is echoed only if it is well formed, so the
 // signed bytes stay fixed apart from server-chosen values. It fails if keyHex
 // is not a usable key.
-func legacyRefusal(requestNonce, keyHex, message string, maxFileSizeMB int) (*RemoteMessage, error) {
+func legacyRefusal(requestNonce, keyHex, message string) (*RemoteMessage, error) {
 	key, err := decodeSharedKey(keyHex)
 	if err != nil {
 		return nil, err
@@ -1059,13 +1101,11 @@ func legacyRefusal(requestNonce, keyHex, message string, maxFileSizeMB int) (*Re
 	if !ValidNonce(requestNonce) {
 		requestNonce = ""
 	}
-	payload, err := json.Marshal(AuthResponsePayload{
-		Status:        "rejected",
-		Message:       message,
-		AllowedPaths:  []string{},
-		MaxFileSizeMB: maxFileSizeMB,
-		RequestNonce:  requestNonce,
-	})
+	payload, err := json.Marshal(struct {
+		Status       string `json:"status"`
+		Message      string `json:"message"`
+		RequestNonce string `json:"request_nonce,omitempty"`
+	}{Status: "rejected", Message: message, RequestNonce: requestNonce})
 	if err != nil {
 		return nil, err
 	}
@@ -1109,8 +1149,12 @@ func (h *RemoteHub) RejectDevice(deviceID string) error {
 // sendAuthResponse answers the auth frame whose Nonce is requestNonce. The
 // answer echoes that nonce under its HMAC, so the agent accepts a signed
 // answer only for the request it just sent and a captured one cannot be
-// replayed on a later connect.
+// replayed on a later connect. A malformed request nonce is not echoed, so a
+// requester cannot place arbitrary bytes under a signature.
 func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, requestNonce, signingKeyHex, sharedKey, deviceID, status, message string, readOnly *bool, allowedPaths []string) error {
+	if !ValidNonce(requestNonce) {
+		requestNonce = ""
+	}
 	resp := AuthResponsePayload{
 		Status:        status,
 		DeviceID:      deviceID,

@@ -417,6 +417,12 @@ func finalizeEnrollment(db *sql.DB, vault *security.Vault, enrollmentID, deviceI
 // deletes every vault MAC key that no longer belongs to a live (unused,
 // unexpired) enrollment: keys of expired rows, of tokens consumed elsewhere
 // (agodesk pairing) and of rows that are gone. vault may be nil.
+//
+// With a vault it must only run under RemoteHub.enrollmentKeyMu (use
+// RemoteHub.SweepExpiredEnrollments): token issuance writes a key before its
+// row commits, and an unserialized sweep would delete that key. expires_at is
+// compared as an RFC3339 string, so rows must store it in UTC, as
+// RemoteHub.IssueEnrollmentToken does.
 func CleanExpiredEnrollments(db *sql.DB, vault *security.Vault) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	if _, err := db.Exec(`DELETE FROM remote_enrollments WHERE expires_at < ? AND used = 0`, now); err != nil {

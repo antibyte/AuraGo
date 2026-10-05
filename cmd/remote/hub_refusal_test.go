@@ -3,6 +3,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -19,9 +22,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// End to end against the real hub: a current agent learns why its token is
-// refused, including the spec text for tokens without a MAC key. The hub is
-// not part of the remote_minimal build, hence the separate file.
+// End to end against the real hub: a current agent learns, marked unverified,
+// why its token is refused. "keyless-token" is a lookup-hash row without a
+// vault MAC key; "pre-upgrade-token" is stored under the plain SHA-256 of the
+// token, as rows issued before the key split are. The hub is not part of the
+// remote_minimal build, hence the separate file.
 func TestConnectShowsHubEnrollmentRefusals(t *testing.T) {
 	isolateRemoteHome(t)
 	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
@@ -54,6 +59,10 @@ func TestConnectShowsHubEnrollmentRefusals(t *testing.T) {
 	if _, err := remote.CreateEnrollment(db, remote.EnrollmentRecord{TokenHash: remote.DeriveEnrollmentLookupHash("keyless-token"), ExpiresAt: expires}); err != nil {
 		t.Fatal(err)
 	}
+	plain := sha256.Sum256([]byte("pre-upgrade-token"))
+	if _, err := remote.CreateEnrollment(db, remote.EnrollmentRecord{TokenHash: hex.EncodeToString(plain[:]), ExpiresAt: expires}); err != nil {
+		t.Fatal(err)
+	}
 	usedID, err := hub.IssueEnrollmentToken("used-token", "", expires)
 	if err != nil {
 		t.Fatal(err)
@@ -62,13 +71,14 @@ func TestConnectShowsHubEnrollmentRefusals(t *testing.T) {
 		t.Fatal(err)
 	}
 	for token, reason := range map[string]string{
-		"keyless-token": "enrollment token predates the upgrade; create a new one",
-		"used-token":    "enrollment token already used",
-		"unknown-token": "invalid enrollment token",
+		"keyless-token":     "enrollment token has no key on this supervisor; create a new one",
+		"pre-upgrade-token": "invalid or pre-upgrade enrollment token; create a new one",
+		"used-token":        "enrollment token already used",
+		"unknown-token":     "invalid or pre-upgrade enrollment token; create a new one",
 	} {
 		client := newConnectTestClient(t, clientConfig{SupervisorURL: url, EnrollToken: token})
 		err := client.connect()
-		if want := fmt.Sprintf("enrollment rejected (unverified): %q", reason); err == nil || err.Error() != want {
+		if want := fmt.Sprintf("supervisor refused (unverified): %q", reason); err == nil || err.Error() != want || !errors.Is(err, errUnverifiedRefusal) {
 			t.Fatalf("%s: got %v, want %s", token, err, want)
 		}
 		if client.cfg.DeviceID != "" || client.cfg.SharedKey != "" || client.cfg.EnrollToken != token {

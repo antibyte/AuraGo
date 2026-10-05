@@ -13,8 +13,8 @@ returned to you.
 | `vault_key` | yes | Named reference matching `[A-Z0-9_]{1,64}`. Lowercase input is normalized to uppercase. |
 | `replace` | no | Replace an existing value. Defaults to `true`. |
 
-The prefixes `provider_`, `oauth_`, `remote_shared_key_`, and AuraGo's internal
-metadata namespace are reserved.
+The prefixes `provider_`, `oauth_`, `remote_shared_key_`, `remote_enroll_key_`,
+and AuraGo's internal metadata namespace are reserved.
 
 ## Results
 

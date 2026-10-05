@@ -1668,6 +1668,7 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to store agodesk shared key"
 	}
 	_ = remote.MarkEnrollmentUsed(s.RemoteHub.DB(), enrollment.ID, deviceID)
+	s.RemoteHub.DiscardEnrollmentKey(enrollment.ID)
 	advertised := agodesk.NegotiateCapabilities(payload.ClientCapabilities, serverCapabilities)
 	return agodesk.SessionAcceptedPayload{
 		SessionID:              "agodesk:" + deviceID,

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -2107,6 +2108,9 @@ func TestAgodeskSessionStartWithPairingTokenCreatesRemoteDevice(t *testing.T) {
 	}
 	if !enrollment.Used || enrollment.UsedByDevice != accepted.DeviceID || enrollment.ID != enrollID {
 		t.Fatalf("enrollment after pairing = %+v", enrollment)
+	}
+	if _, err := s.Vault.ReadSecret("remote_enroll_key_" + enrollID); !errors.Is(err, security.ErrSecretNotFound) {
+		t.Fatalf("pairing must delete the consumed token's MAC key, got %v", err)
 	}
 }
 

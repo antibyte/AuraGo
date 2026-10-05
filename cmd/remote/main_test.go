@@ -17,6 +17,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/remote"
 
@@ -232,12 +233,14 @@ func TestConnectRejectsUnsignedEnrolledResponse(t *testing.T) {
 }
 
 // The supervisor sends refusals it cannot or must not sign (unknown or used
-// token, failed authentication) unsigned. An agent holding a key reports the
-// reason, marked unverified, and applies nothing from the answer.
+// token, failed authentication) unsigned, and a tokenless knock has nothing to
+// verify with. The agent reports the reason marked unverified, as an error
+// errors.Is can tell from a verified refusal, and applies nothing.
 func TestConnectReportsUnsignedRefusalAsUnverified(t *testing.T) {
 	for name, cfg := range map[string]clientConfig{
 		"enrollment token": {EnrollToken: "tok"},
 		"device key":       {DeviceID: "dev-1", SharedKey: strings.Repeat("ab", 32)},
+		"no key":           {},
 	} {
 		t.Run(name, func(t *testing.T) {
 			isolateRemoteHome(t)
@@ -256,7 +259,7 @@ func TestConnectReportsUnsignedRefusalAsUnverified(t *testing.T) {
 			client.allowedPaths = []string{"/safe"}
 
 			err = client.connect()
-			if err == nil || err.Error() != `enrollment rejected (unverified): "enrollment token already used"` {
+			if err == nil || err.Error() != `supervisor refused (unverified): "enrollment token already used"` || !errors.Is(err, errUnverifiedRefusal) {
 				t.Fatalf("expected the unverified refusal reason, got %v", err)
 			}
 			if client.cfg != want {
@@ -268,6 +271,29 @@ func TestConnectReportsUnsignedRefusalAsUnverified(t *testing.T) {
 			}
 			assertNoStoredConfig(t)
 		})
+	}
+}
+
+// An unverified reason comes from whoever answered, so it is capped and
+// quoted before it reaches the log.
+func TestUnverifiedRefusalReasonIsCappedAndQuoted(t *testing.T) {
+	for name, reason := range map[string]string{
+		"ascii":      strings.Repeat("x", 1000),
+		"multi-byte": strings.Repeat("ä", 300),
+		"newlines":   "line one\nforged log line",
+	} {
+		err := unverifiedRefusal(reason)
+		quoted := strings.TrimPrefix(err.Error(), "supervisor refused (unverified): ")
+		got, uerr := strconv.Unquote(quoted)
+		if uerr != nil {
+			t.Fatalf("%s: reason must be a quoted string: %q", name, err.Error())
+		}
+		if len(got) > maxUnverifiedReasonBytes || !utf8.ValidString(got) || !strings.HasPrefix(reason, got) {
+			t.Fatalf("%s: reason must be a valid prefix of at most %d bytes, got %d bytes", name, maxUnverifiedReasonBytes, len(got))
+		}
+		if strings.Contains(err.Error(), "\n") || !errors.Is(err, errUnverifiedRefusal) {
+			t.Fatalf("%s: error = %q", name, err.Error())
+		}
 	}
 }
 

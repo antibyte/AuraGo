@@ -294,10 +294,12 @@ func TestVerifyMessageRejectsUnsupportedFrameVersions(t *testing.T) {
 	key, _ := GenerateSharedKey()
 	keyBytes, _ := hex.DecodeString(key)
 
+	// The old form, spelled out here so this test does not depend on the
+	// supervisor-only legacyHMACData.
 	legacy := *signedTestFrame(t, key, 3)
 	legacy.Version = 0
 	mac := hmac.New(sha256.New, keyBytes)
-	mac.Write(legacyHMACData(&legacy))
+	mac.Write([]byte(legacy.Type + legacy.DeviceID + legacy.MessageID + "3" + legacy.Nonce + legacy.Timestamp + string(legacy.Payload)))
 	legacy.HMAC = hex.EncodeToString(mac.Sum(nil))
 	if ok, err := VerifyMessage(legacy, key); ok || !errors.Is(err, ErrUnsupportedFrameVersion) {
 		t.Fatalf("unversioned frame: ok=%v err=%v", ok, err)
