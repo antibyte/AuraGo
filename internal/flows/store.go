@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,6 +48,11 @@ func parseTime(s string) time.Time {
 	}
 	return t
 }
+
+// storeSchemaVersion is the flows.db schema this code creates and migrates to; it is
+// stored as flows_meta.schema_version. OpenStore refuses a database with a greater
+// version (a newer AuraGo migrated it), so an older AuraGo never writes into it.
+const storeSchemaVersion = 1
 
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -130,7 +136,7 @@ var schemaStatements = []string{
 		updated_at TEXT NOT NULL,
 		PRIMARY KEY (flow_id, node_id, kind)
 	)`,
-	`INSERT OR IGNORE INTO flows_meta (key, value) VALUES ('schema_version', '1')`,
+	`INSERT OR IGNORE INTO flows_meta (key, value) VALUES ('schema_version', '` + strconv.Itoa(storeSchemaVersion) + `')`,
 }
 
 // Store persists flows, versions, runs, timers and test data in SQLite.
@@ -151,7 +157,8 @@ type Store struct {
 // by renaming the database to a fixed ".bak" name and starting an empty one, so
 // the flows people drew would silently vanish (and a second failure would
 // overwrite the backup). A database that cannot be opened is reported instead,
-// and the file stays untouched for the user to repair or restore.
+// and the file stays untouched for the user to repair or restore. So is a database
+// that a newer AuraGo migrated (checkStoreSchema).
 func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 	if logger == nil {
 		logger = slog.Default()
@@ -165,6 +172,10 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open flows database: %w", err)
 	}
+	if err := checkStoreSchema(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	s := &Store{db: db, logger: logger}
 	for _, stmt := range schemaStatements {
 		if _, err := db.Exec(stmt); err != nil {
@@ -173,6 +184,36 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		}
 	}
 	return s, nil
+}
+
+// checkStoreSchema refuses a database whose flows_meta.schema_version is greater than
+// storeSchemaVersion, or not a number, before any migration runs, so the file stays
+// untouched. A database without flows_meta or without the row is new (or from before the
+// version row) and is migrated.
+func checkStoreSchema(db *sql.DB) error {
+	var tables int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'flows_meta'`).Scan(&tables); err != nil {
+		return fmt.Errorf("read flows database schema: %w", err)
+	}
+	if tables == 0 {
+		return nil
+	}
+	var raw string
+	err := db.QueryRow(`SELECT value FROM flows_meta WHERE key = 'schema_version'`).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read flows database schema: %w", err)
+	}
+	version, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return fmt.Errorf("flows database schema version %s is not a number", quoteForError(raw))
+	}
+	if version > storeSchemaVersion {
+		return fmt.Errorf("flows database schema %d is newer than this AuraGo supports (%d)", version, storeSchemaVersion)
+	}
+	return nil
 }
 
 // skipsDirectoryCreation reports whether path is not an ordinary file path:

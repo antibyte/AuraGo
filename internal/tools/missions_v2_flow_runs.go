@@ -260,7 +260,7 @@ func (m *MissionManagerV2) flowMissionRoute(missionID string) (FlowHooks, bool, 
 		return nil, true, fmt.Errorf("mission is disabled")
 	}
 	if m.flowHooks == nil {
-		return nil, true, fmt.Errorf("flows are not available")
+		return nil, true, ErrFlowsUnavailable
 	}
 	return m.flowHooks, true, nil
 }

@@ -68,6 +68,10 @@ type FlowHooks interface {
 // "not supported" so the mission API answers 400.
 var ErrFlowMissionManaged = errors.New("flow missions are managed in EasyDrag; changing them here is not supported")
 
+// ErrFlowsUnavailable refuses a run of a flow mission while no flow service is wired in
+// (flows.enabled is off, or the flow store could not be opened). The mission API answers 503.
+var ErrFlowsUnavailable = errors.New("flows are not available")
+
 func isFlowMission(m *MissionV2) bool { return m != nil && m.ExecutionType == ExecutionFlow }
 
 func copyFlowTriggers(in []FlowTriggerSpec) []FlowTriggerSpec {
@@ -331,6 +335,32 @@ func (m *MissionManagerV2) OwnsFlowCronJob(jobID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return isFlowMission(m.missions[missionID])
+}
+
+// IsFlowCronJob reports whether an existing cron job under jobID is a flow's schedule job
+// (the flow source). Editing, toggling and deleting such a job is EasyDrag's business.
+// crons may be nil.
+func IsFlowCronJob(crons *CronManager, jobID string) bool {
+	if crons == nil || jobID == "" {
+		return false
+	}
+	for _, job := range crons.GetJobs() {
+		if job.ID == jobID {
+			return job.IsFlowJob()
+		}
+	}
+	return false
+}
+
+// FlowOwnsCronJob reports whether EasyDrag owns the cron job id for any change, an add
+// included: a flow mission claims the id (OwnsFlowCronJob, also while the job is absent,
+// so none can be planted under it) or an existing job under it is a flow job
+// (IsFlowCronJob). missions and crons may be nil.
+func FlowOwnsCronJob(missions *MissionManagerV2, crons *CronManager, jobID string) bool {
+	if missions != nil && missions.OwnsFlowCronJob(jobID) {
+		return true
+	}
+	return IsFlowCronJob(crons, jobID)
 }
 
 // runFlowCronJob is the cron runner of flowCronSource jobs.
@@ -627,10 +657,13 @@ func (m *MissionManagerV2) shouldFireFlowSpecLocked(missionID string, spec FlowT
 // startFlowRun starts a flow run through hooks. Callers do not hold m.mu.
 func (m *MissionManagerV2) startFlowRun(hooks FlowHooks, missionID, nodeID, triggerType, data string) {
 	if hooks == nil {
-		slog.Warn("[MissionV2] Flow trigger fired but flows are not available", "mission_id", missionID, "node", nodeID)
 		m.mu.Lock()
-		m.noteFlowsUnavailableLocked(missionID)
+		changed := m.noteFlowsUnavailableLocked(missionID)
+		if changed {
+			m.saveFlowNotesLocked()
+		}
 		m.mu.Unlock()
+		logFlowsUnavailable(changed, "mission_id", missionID, "node", nodeID)
 		return
 	}
 	if err := hooks.StartFlowRun(missionID, nodeID, triggerType, data); err != nil {
@@ -645,19 +678,36 @@ const flowsUnavailableOutput = "EasyDrag flows are not available (switched off, 
 
 // noteFlowsUnavailableLocked shows on a flow mission that a trigger fired while flows are
 // not available: LastResult "error" with flowsUnavailableOutput. Nothing else changes (no
-// run is counted and no dependent fires). It saves only when the mission did not show that
-// already, so a trigger that keeps firing does not rewrite the missions file every time.
-// Caller holds m.mu for writing.
-func (m *MissionManagerV2) noteFlowsUnavailableLocked(missionID string) {
+// run is counted and no dependent fires). It reports whether the mission changed, that is
+// whether it did not show that already; it does not save, so a caller noting several
+// missions saves once (saveFlowNotesLocked) and a trigger that keeps firing does not
+// rewrite the missions file. Caller holds m.mu for writing.
+func (m *MissionManagerV2) noteFlowsUnavailableLocked(missionID string) bool {
 	mission, ok := m.missions[missionID]
 	if !ok || !isFlowMission(mission) ||
 		(mission.LastResult == MissionResultError && mission.LastOutput == flowsUnavailableOutput) {
-		return
+		return false
 	}
 	mission.LastResult, mission.LastOutput = MissionResultError, flowsUnavailableOutput
+	return true
+}
+
+// saveFlowNotesLocked persists the notes of noteFlowsUnavailableLocked. Caller holds m.mu.
+func (m *MissionManagerV2) saveFlowNotesLocked() {
 	if err := m.save(); err != nil {
-		slog.Warn("[MissionV2] Failed to persist the flow mission state", "mission_id", missionID, "error", err)
+		slog.Warn("[MissionV2] Failed to persist the flow mission state", "error", err)
 	}
+}
+
+// logFlowsUnavailable logs a flow trigger refused for lack of flow hooks: at Warn when it
+// changed a mission (the first refusal shows up), at Debug when it repeats.
+func logFlowsUnavailable(changed bool, args ...any) {
+	const msg = "[MissionV2] Flow trigger fired but flows are not available"
+	if changed {
+		slog.Warn(msg, args...)
+		return
+	}
+	slog.Debug(msg, args...)
 }
 
 // flowEvent carries the values that event trigger specs filter on.
@@ -729,10 +779,14 @@ func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, 
 		return
 	}
 	if m.flowHooks == nil {
+		changed := false
 		for _, s := range starts {
-			m.noteFlowsUnavailableLocked(s.missionID)
+			changed = m.noteFlowsUnavailableLocked(s.missionID) || changed
 		}
-		slog.Warn("[MissionV2] Flow trigger fired but flows are not available", "trigger", string(trigger), "runs", len(starts))
+		if changed {
+			m.saveFlowNotesLocked() // once per event, however many flows it refused
+		}
+		logFlowsUnavailable(changed, "trigger", string(trigger), "runs", len(starts))
 		return
 	}
 	raw := ""

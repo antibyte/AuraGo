@@ -3,8 +3,10 @@ package flows
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -48,17 +50,24 @@ func (b *c16PlainBridge) SyncFlowMission(missionID, name string, bindings []Trig
 	return b.fakeBridge.SyncFlowMission(missionID, name, bindings)
 }
 
-// c16Bridge adds the MissionReconciler extension to c16PlainBridge.
+// c16Bridge adds the MissionReconciler extension to c16PlainBridge. afterSnapshot, when
+// set, runs once after the next FlowMissions snapshot was taken.
 type c16Bridge struct {
 	c16PlainBridge
+	afterSnapshot func()
 }
 
 func (b *c16Bridge) FlowMissions() map[string]string {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	out := map[string]string{}
 	for id, m := range b.missions {
 		out[id] = m.flowID
+	}
+	hook := b.afterSnapshot
+	b.afterSnapshot = nil
+	b.mu.Unlock()
+	if hook != nil {
+		hook()
 	}
 	return out
 }
@@ -70,7 +79,9 @@ func (b *c16Bridge) FlowMissionInSync(missionID, name string, bindings []Trigger
 	return m != nil && m.name == name && reflect.DeepEqual(m.bindings, bindings)
 }
 
-func newC16Bridge() *c16Bridge { return &c16Bridge{c16PlainBridge{fakeBridge: newFakeBridge()}} }
+func newC16Bridge() *c16Bridge {
+	return &c16Bridge{c16PlainBridge: c16PlainBridge{fakeBridge: newFakeBridge()}}
+}
 
 // diverge makes a mission look like the sync after a publish never happened.
 func (b *c16PlainBridge) diverge(missionID string) {
@@ -296,6 +307,83 @@ func TestC16ReconcileReportsMissingMissionsAndOrphans(t *testing.T) {
 	}
 }
 
+func TestC16ReconcileSkipsAnOrphanDeletedMeanwhile(t *testing.T) {
+	logs := &c16Logs{}
+	bridge := newC16Bridge()
+	s := c16Service(t, newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC)), bridge, logs.logger())
+	c16Publish(t, s, simpleFlow("Gruss"))
+	bridge.mu.Lock()
+	bridge.missions["mission_orphan"] = &fakeMission{flowID: "flow_gone", name: "Waise"}
+	// Mission Control deletes the mission right after the first snapshot.
+	bridge.afterSnapshot = func() { bridge.drop("mission_orphan") }
+	bridge.mu.Unlock()
+	if err := s.ReconcileMissions(context.Background()); err != nil {
+		t.Fatalf("ReconcileMissions: %v", err)
+	}
+	if out := logs.String(); strings.Contains(out, "whose flow is gone") || !strings.Contains(out, "problems=0") {
+		t.Fatalf("a mission deleted meanwhile was reported:\n%s", out)
+	}
+}
+
+func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "flows.db")
+	raw, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	if _, err := raw.Exec(`CREATE TABLE flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		INSERT INTO flows_meta (key, value) VALUES ('schema_version', '2')`); err != nil {
+		t.Fatal(err)
+	}
+	setVersion := func(v string) {
+		t.Helper()
+		if _, err := raw.Exec(`UPDATE flows_meta SET value = ? WHERE key = 'schema_version'`, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for version, want := range map[string]string{
+		"2":    "flows database schema 2 is newer than this AuraGo supports (1)",
+		"zwei": "is not a number",
+	} {
+		setVersion(version)
+		if s, err := OpenStore(path, discardLogger()); err == nil || !strings.Contains(err.Error(), want) {
+			if s != nil {
+				_ = s.Close()
+			}
+			t.Fatalf("OpenStore at schema %q = %v, want %q", version, err, want)
+		}
+		// The file is untouched: no migration ran.
+		var tables int
+		if err := raw.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'flows'`).Scan(&tables); err != nil || tables != 0 {
+			t.Fatalf("schema %q: flows table count %d (%v), want 0", version, tables, err)
+		}
+		var stored string
+		if err := raw.QueryRow(`SELECT value FROM flows_meta WHERE key = 'schema_version'`).Scan(&stored); err != nil || stored != version {
+			t.Fatalf("schema %q: stored version %q (%v)", version, stored, err)
+		}
+	}
+	// The supported version and a database without the row open and migrate.
+	setVersion("1")
+	s, err := OpenStore(path, discardLogger())
+	if err != nil {
+		t.Fatalf("OpenStore at schema 1: %v", err)
+	}
+	_ = s.Close()
+	if _, err := raw.Exec(`DELETE FROM flows_meta`); err != nil {
+		t.Fatal(err)
+	}
+	s, err = OpenStore(path, discardLogger())
+	if err != nil {
+		t.Fatalf("OpenStore without a version row: %v", err)
+	}
+	defer s.Close()
+	var stored string
+	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key = 'schema_version'`).Scan(&stored); err != nil || stored != "1" {
+		t.Fatalf("version row after migration = %q (%v)", stored, err)
+	}
+}
+
 func TestC16ReconcileWithoutTheExtensionReportsAFailedSync(t *testing.T) {
 	logs := &c16Logs{}
 	bridge := &c16PlainBridge{fakeBridge: newFakeBridge()}
@@ -346,6 +434,45 @@ func TestC16ReconcileTimersFollowTheMissionSwitch(t *testing.T) {
 	}
 	if tm := c16Timers(t, s, pub.ID); len(tm) != 1 || !tm[0].FireAt.Equal(due.FireAt) {
 		t.Fatalf("a stored timer was re-bound: %+v", tm)
+	}
+
+	// Stale timers (a crash between the store publish and armTimers) are armed again: a
+	// node of an older revision, or the right node with another repeat.
+	for name, stale := range map[string]TimerRecord{
+		"old node":     {FlowID: pub.ID, NodeID: "n_zzzzzzzz", FireAt: nine.Add(time.Hour)},
+		"other repeat": {FlowID: pub.ID, NodeID: when, FireAt: nine.Add(time.Hour), Repeat: RepeatYearly},
+	} {
+		if err := s.Store().ReplaceTimers(ctx, pub.ID, []TimerRecord{stale}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.ReconcileMissions(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if tm := c16Timers(t, s, pub.ID); len(tm) != 1 || tm[0].NodeID != when || !tm[0].FireAt.Equal(nine) || tm[0].Repeat != "" {
+			t.Fatalf("%s: timers after reconcile: %+v", name, tm)
+		}
+	}
+
+	// Once the one-off time has passed, its stored timer is due and stays; once it fired
+	// (and was deleted) nothing is armed again.
+	clock.Advance(3 * time.Hour)
+	if err := s.ReconcileMissions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if tm := c16Timers(t, s, pub.ID); len(tm) != 1 || !tm[0].FireAt.Equal(nine) {
+		t.Fatalf("a due one-off timer was dropped: %+v", tm)
+	}
+	if err := s.Store().ReplaceTimers(ctx, pub.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ReconcileMissions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if tm := c16Timers(t, s, pub.ID); len(tm) != 0 {
+		t.Fatalf("a fired one-off timer came back: %+v", tm)
+	}
+	if err := s.Store().ReplaceTimers(ctx, pub.ID, []TimerRecord{{FlowID: pub.ID, NodeID: when, FireAt: nine}}); err != nil {
+		t.Fatal(err)
 	}
 
 	// Disabled in Mission Control while timers stayed armed.

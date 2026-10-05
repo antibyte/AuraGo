@@ -9,11 +9,11 @@ import (
 
 // flowLocks serializes the Service operations that change a flow's mission and timers:
 // Publish, SetEnabled, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged and
-// ReconcileMissions (one flow at a time). Each
-// reads the flow record and then updates Mission Control and the timers from what it
-// read; interleaved, an operation working from an older record could undo a newer one
-// (SetEnabled arming the timers of a revision that a concurrent Publish just replaced).
-// SaveDraft needs no lock: the store's revision check covers it.
+// ReconcileMissions (one flow at a time). Each reads the flow record and then updates
+// Mission Control and the timers from what it read; interleaved, an operation working
+// from an older record could undo a newer one (SetEnabled arming the timers of a
+// revision that a concurrent Publish just replaced). SaveDraft needs no lock: the
+// store's revision check covers it.
 //
 // There is one lock per flow id, so flows never wait for each other. An entry lives
 // while somebody holds or waits for it and is removed with the last one, so the map

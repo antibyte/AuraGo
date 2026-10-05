@@ -2,6 +2,8 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,7 +115,7 @@ func TestC16FlowMissionsWithoutHooksNeverRunAsAgentMissions(t *testing.T) {
 		"RunNow":         func() error { return mm.RunNow(startupFlow) },
 		"TriggerMission": func() error { return mm.TriggerMission(startupFlow, "api", `{"x":1}`) },
 	} {
-		if err := run(); err == nil || !strings.Contains(err.Error(), "flows are not available") {
+		if err := run(); !errors.Is(err, ErrFlowsUnavailable) {
 			t.Fatalf("%s on a flow mission without hooks: %v", name, err)
 		}
 	}
@@ -141,7 +143,101 @@ func TestC16FlowMissionsWithoutHooksNeverRunAsAgentMissions(t *testing.T) {
 	c16ExpectNoAgentRun(t, calls, startupFlow, dependentFlow)
 }
 
+// c16LogLines counts the log lines that contain all of parts.
+func c16LogLines(out string, parts ...string) int {
+	n := 0
+	for _, line := range strings.Split(out, "\n") {
+		all := line != ""
+		for _, p := range parts {
+			all = all && strings.Contains(line, p)
+		}
+		if all {
+			n++
+		}
+	}
+	return n
+}
+
+func TestC16RefusedNotifyEventSavesOncePerEvent(t *testing.T) {
+	logs := c07CaptureLogs(t, slog.LevelDebug)
+	dir := tempSystemTaskDir(t)
+	mm := NewMissionManagerV2(dir, nil) // no SetFlowHooks: EasyDrag is off
+	t.Cleanup(mm.Stop)
+	spec := FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerDeviceConnected}
+	first, second := publishTestFlow(t, mm, spec), publishTestFlow(t, mm, spec)
+	// Every save fails while a directory sits where save writes its temporary file, and
+	// each failed save logs once: the log counts the save attempts.
+	if err := os.Mkdir(mm.file+".tmp", 0o700); err != nil {
+		t.Fatal(err)
+	}
+	const saveFailed = "Failed to persist the flow mission state"
+
+	mm.NotifyDeviceEvent(string(TriggerDeviceConnected), "dev-1", "Telefon")
+	for _, id := range []string{first, second} {
+		if m, _ := mm.Get(id); m.LastOutput != flowsUnavailableOutput {
+			t.Fatalf("flow mission %s after the event: %+v", id, m)
+		}
+	}
+	out := logs.String()
+	if got := c16LogLines(out, saveFailed); got != 1 {
+		t.Fatalf("save attempts for one event refusing two flows = %d, want 1:\n%s", got, out)
+	}
+	if got := c16LogLines(out, "level=WARN", "flows are not available", "runs=2"); got != 1 {
+		t.Fatalf("warnings for the first refusal = %d, want 1:\n%s", got, out)
+	}
+
+	// The same event again changes nothing: no save, logged at Debug only.
+	mm.NotifyDeviceEvent(string(TriggerDeviceConnected), "dev-1", "Telefon")
+	out = logs.String()
+	if got := c16LogLines(out, saveFailed); got != 1 {
+		t.Fatalf("save attempts after a repeated event = %d, want still 1:\n%s", got, out)
+	}
+	if c16LogLines(out, "level=WARN", "flows are not available") != 1 || c16LogLines(out, "level=DEBUG", "flows are not available") != 1 {
+		t.Fatalf("a repeated refusal must log at Debug:\n%s", out)
+	}
+}
+
+func TestC16FlowCronOwnership(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	crons := NewCronManager(dir)
+	t.Cleanup(func() { _ = crons.Close() })
+	mm := NewMissionManagerV2(dir, nil)
+	t.Cleanup(mm.Stop)
+	missionID, err := mm.CreateFlowMission("flow_c16cron00", "Zeitplan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flowJob, claimed := flowCronJobID(missionID, "n_aaaaaaaa"), flowCronJobID(missionID, "n_bbbbbbbb")
+	if _, err := crons.ManageScheduleWithSource("add", flowJob, "0 9 * * *", "EasyDrag flow trigger", "en", flowCronSource); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := crons.ManageScheduleWithSource("add", "agent_job", "0 8 * * *", "run", "en", ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		id            string
+		isJob, claims bool
+	}{
+		{flowJob, true, true},
+		{claimed, false, true}, // absent, but a flow mission claims it
+		{"agent_job", false, false},
+		{"mission_unknown__n_aaaaaaaa", false, false},
+		{"", false, false},
+	} {
+		if got := IsFlowCronJob(crons, tc.id); got != tc.isJob {
+			t.Fatalf("IsFlowCronJob(%q) = %v, want %v", tc.id, got, tc.isJob)
+		}
+		if got := FlowOwnsCronJob(mm, crons, tc.id); got != tc.claims {
+			t.Fatalf("FlowOwnsCronJob(%q) = %v, want %v", tc.id, got, tc.claims)
+		}
+	}
+	if IsFlowCronJob(nil, flowJob) || !FlowOwnsCronJob(nil, crons, flowJob) || FlowOwnsCronJob(nil, nil, claimed) {
+		t.Fatal("nil managers must be tolerated")
+	}
+}
+
 func TestC16FlowEventTriggersWithoutHooksOnlyShowTheReason(t *testing.T) {
+	logs := c07CaptureLogs(t, slog.LevelDebug)
 	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
 	t.Cleanup(mm.Stop)
 	webhooks := &c07Webhooks{}
@@ -161,6 +257,10 @@ func TestC16FlowEventTriggersWithoutHooksOnlyShowTheReason(t *testing.T) {
 	after, _ := mm.Get(flowID)
 	if after.LastResult != before.LastResult || after.LastOutput != before.LastOutput || after.RunCount != 0 {
 		t.Fatalf("second refused event changed the mission: %+v", after)
+	}
+	if out := logs.String(); c16LogLines(out, "level=WARN", "flows are not available") != 1 ||
+		c16LogLines(out, "level=DEBUG", "flows are not available") != 1 {
+		t.Fatalf("want one warning for the first refusal and Debug for the repeat:\n%s", out)
 	}
 	queue, running := mm.GetQueue()
 	if len(queue.List()) != 0 || running != "" {

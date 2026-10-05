@@ -2290,21 +2290,13 @@ func flowMissionManagedOutput(id string) string {
 // flowCronJobRefusal answers a cron tool call that would change a job EasyDrag owns, or "" when
 // the job is free for the agent. A flow's schedule jobs are mission_<mission>__<node>; they are
 // refused while the flow exists, even if the job is absent (so none can be planted under the id),
-// and whenever an existing job carries the flow source. Listing is always allowed.
+// and whenever an existing job carries the flow source (tools.FlowOwnsCronJob, shared with the
+// dashboard). Listing is always allowed.
 func flowCronJobRefusal(missions *tools.MissionManagerV2, crons *tools.CronManager, operation, jobID string) string {
 	if operation == "list" || jobID == "" {
 		return ""
 	}
-	owned := missions != nil && missions.OwnsFlowCronJob(jobID)
-	if !owned && crons != nil {
-		for _, job := range crons.GetJobs() {
-			if job.ID == jobID && job.IsFlowJob() {
-				owned = true
-				break
-			}
-		}
-	}
-	if !owned {
+	if !tools.FlowOwnsCronJob(missions, crons, jobID) {
 		return ""
 	}
 	msg, _ := json.Marshal(fmt.Sprintf("Cron job %s belongs to an EasyDrag flow. The scheduler tools can only list it; change the flow's schedule in the EasyDrag app.", boundEchoRunes(jobID)))

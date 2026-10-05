@@ -17,13 +17,13 @@ import (
 // The rule for implementations: no method of the bridge may synchronously call a
 // Service method that takes a flow lock, for any flow. Today those are Publish,
 // SetEnabled, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged and
-// ReconcileMissions. The Service
-// calls the bridge while it holds a flow lock, and FlowRunFinished can run inside such an
-// operation (deleting a flow ends its queued runs through Runner.CancelFlow on the
-// caller's goroutine), so such a call could wait for itself, or for another operation that
-// waits for it. Work that needs one of these methods goes through a goroutine, as
-// FlowHooks.FlowMissionDeleted and FlowHooks.FlowEnabledChanged do. Lock-free reads
-// (GetFlow, ListFlows, NextTimer) may be called synchronously; they must stay lock-free.
+// ReconcileMissions. The Service calls the bridge while it holds a flow lock, and
+// FlowRunFinished can run inside such an operation (deleting a flow ends its queued runs
+// through Runner.CancelFlow on the caller's goroutine), so such a call could wait for
+// itself, or for another operation that waits for it. Work that needs one of these
+// methods goes through a goroutine, as FlowHooks.FlowMissionDeleted and
+// FlowHooks.FlowEnabledChanged do. Lock-free reads (GetFlow, ListFlows, NextTimer) may
+// be called synchronously; they must stay lock-free.
 type MissionBridge interface {
 	// CreateFlowMission creates the (disabled) mission that represents a flow.
 	CreateFlowMission(flowID, name string) (string, error)

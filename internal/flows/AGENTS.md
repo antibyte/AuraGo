@@ -155,6 +155,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 ## Store
 - Times are stored as fixed-width UTC text (`timeLayout`) so text order is time order. There is no
   corruption auto-recovery: a failed open is an error, so users' flows never vanish silently.
+- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (1). `OpenStore` refuses a database
+  with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
+  so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
+  migration a previous release cannot work with.
 - Test runs store their document in `flow_runs.doc_json`; live runs reference `flow_versions` (last 50).
 - Not-found and exists cases are typed (`ErrFlowExists`, `ErrNotFound`, `ErrRunNotFound`). Inserts and
   upserts of child rows are guarded by `WHERE EXISTS` on the parent row; plain updates by id
@@ -348,16 +352,16 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   mission is enabled; `SetEnabled(false)` clears them and `SetEnabled(true)` needs a published flow
   (`ErrNotPublished`).
 - Lock order: the per-flow lock (`flowLocks`) is the outermost lock. `Publish`, `SetEnabled`, `DeleteFlow`,
-  `DeleteFlowForMission`, `MissionEnabledChanged` and `ReconcileMissions` (one flow at a time) hold it. Under it
-  the Service calls only the store, the
-  bridge, `TimerService.Replace` and `Runner.CancelFlow`, and none of those may take a flow lock. Run paths
-  (starting runs, runner hooks, timer callbacks) never take it; `armTimers` requires it to be held.
+  `DeleteFlowForMission`, `MissionEnabledChanged` and `ReconcileMissions` (one flow at a time) hold it. Under
+  it the Service calls only the store, the bridge, `TimerService.Replace` and `Runner.CancelFlow`, and none of
+  those may take a flow lock. Run paths (starting runs, runner hooks, timer callbacks) never take it;
+  `armTimers` requires it to be held.
 - Bridge rule: a `MissionBridge` must not synchronously call a Service method that takes a flow lock, for any
   flow (today `Publish`, `SetEnabled`, `DeleteFlow`, `DeleteFlowForMission`, `MissionEnabledChanged` and
-  `ReconcileMissions`; the same holds for the optional `MissionReconciler` methods). The
-  Service calls the bridge under a flow lock, and runner hooks can run inside such an operation. Lock-free
-  reads (`GetFlow`, `ListFlows`, `NextTimer`) and `TriggerFromMission` (also from inside `FlowRunFinished`)
-  may be called synchronously and must stay lock-free.
+  `ReconcileMissions`; the same holds for the optional `MissionReconciler` methods). The Service calls the
+  bridge under a flow lock, and runner hooks can run inside such an operation. Lock-free reads (`GetFlow`,
+  `ListFlows`, `NextTimer`) and `TriggerFromMission` (also from inside `FlowRunFinished`) may be called
+  synchronously and must stay lock-free.
 - Any new Service method that reads a flow and then changes its mission or timers takes the flow lock
   (`s.locks.lock`) before it reads the flow and holds it through the timers; a method that must first look
   the flow up (by mission) reads it again once it holds the lock. It switches to `context.WithoutCancel(ctx)`
@@ -383,8 +387,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   takes each flow's lock in turn (at most `reconcileLockWait` per flow, a busy flow is skipped) and, for a published
   flow, re-syncs the mission from the live revision bound at its `PublishedAt` (skipped when the optional
   `MissionReconciler` bridge extension reports it in sync) and makes the timers follow Mission Control's enabled
-  switch (clear when disabled, arm only when enabled and none is stored, never re-bind stored timers). It deletes
-  nothing: it warns about a flow without its mission and, with the extension, a flow mission without its flow.
+  switch and the live revision (clear when disabled; when enabled re-arm only stale timers, `staleTimers`: a
+  node or repeat the live revision lacks, or a trigger without its timer; matching timers keep their fire time,
+  a due one-off too). It deletes nothing: it warns about a flow without its mission and, with the extension, a
+  flow mission without its flow that Mission Control still holds at report time.
   `Publish` never recreates a missing mission (the sync fails after the store published). `Shutdown` waits for a
   reconciliation in progress and ends its lock waits.
 - Known limits: `Start` itself repairs nothing that a crash cut short, and `Shutdown` does not wait for operations

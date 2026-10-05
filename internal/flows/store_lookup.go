@@ -119,6 +119,25 @@ func (s *Store) flowMissionRefs(ctx context.Context) ([]flowMissionRef, error) {
 	return out, rows.Err()
 }
 
+// flowTimerSlots returns the stored timers of a flow as node id → repeat, without their
+// fire times (ReconcileMissions).
+func (s *Store) flowTimerSlots(ctx context.Context, flowID string) (map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT node_id, repeat FROM flow_timers WHERE flow_id = ?`, flowID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var node, repeat string
+		if err := rows.Scan(&node, &repeat); err != nil {
+			return nil, err
+		}
+		out[node] = repeat
+	}
+	return out, rows.Err()
+}
+
 // flowMissionAndName reads only the mission id and the name of a flow, without
 // parsing its documents: the run hooks need nothing more, and they run inside
 // DeleteFlow and Shutdown once per run. It returns ErrNotFound when the flow does not

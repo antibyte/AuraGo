@@ -44,10 +44,11 @@ type reconcileTally struct {
 //     its publish time so that a one-off date that has passed since still binds as it did
 //     then, unless the bridge (MissionReconciler) reports them in sync already;
 //   - lets the Date/Time timers follow the mission's enabled switch, which Mission Control
-//     owns (the store keeps no enabled flag): a disabled flow loses its timers, and an
-//     enabled flow with Date/Time triggers but no stored timer is armed. Stored timers of
-//     an enabled flow stay as they are, so an occurrence that is due right now is never
-//     dropped by a re-bind.
+//     owns (the store keeps no enabled flag), and the live revision: a disabled flow loses
+//     its timers, and an enabled flow whose stored timers are stale (staleTimers: a node
+//     or repeat that the live revision does not have, or a trigger without its timer) is
+//     armed again. Timers that match stay as they are, so an occurrence that is due right
+//     now is never dropped by a re-bind.
 //
 // It deletes nothing. It logs at Warn a flow whose mission is empty or gone (also an
 // unpublished one) and, with a MissionReconciler, a flow mission whose flow is gone. A
@@ -97,7 +98,7 @@ func (s *Service) ReconcileMissions(ctx context.Context) error {
 		}
 	}
 	if missions != nil {
-		s.reportOrphanMissions(ctx, missions, refs, &tally)
+		s.reportOrphanMissions(ctx, recon, missions, refs, &tally)
 	}
 	s.logger.Debug("flow missions reconciled with Mission Control", "flows", len(refs), "synced", tally.synced,
 		"timers_armed", tally.armed, "timers_cleared", tally.cleared, "busy", tally.busy, "problems", tally.problems,
@@ -214,63 +215,98 @@ func (s *Service) reconcileBindings(rec *FlowRecord, recon MissionReconciler, ta
 }
 
 // reconcileTimers lets the Date/Time timers of a published flow follow the mission's
-// enabled switch. It writes only when they disagree: timers of a disabled flow are
-// cleared, an enabled flow with Date/Time triggers and no stored timer is armed. The
-// caller holds the flow's lock.
+// enabled switch and the live revision. It writes only when they disagree: the timers of
+// a disabled flow are cleared, and an enabled flow is armed again (armTimers) when its
+// stored timers are stale (staleTimers). Otherwise the stored fire times stay as they
+// are, so an occurrence that is due now is never dropped. The caller holds the flow's
+// lock.
 func (s *Service) reconcileTimers(ctx context.Context, rec *FlowRecord, tally *reconcileTally) {
 	enabled := s.bridge.FlowMissionEnabled(rec.MissionID)
-	_, stored, err := s.store.NextTimerAt(ctx, rec.ID)
+	stored, err := s.store.flowTimerSlots(ctx, rec.ID)
 	if err != nil {
 		tally.problems++
 		s.logger.Warn("the timers of a flow could not be read", "flow", rec.ID, "error", err)
 		return
 	}
 	switch {
-	case !enabled && stored:
+	case !enabled && len(stored) > 0:
 		if err := s.timers.Replace(ctx, rec.ID, nil); err != nil {
 			tally.problems++
 			s.logger.Warn("the timers of a disabled flow could not be cleared", "flow", rec.ID, "error", err)
 			return
 		}
 		tally.cleared++
-	case enabled && !stored && hasDateTimeTrigger(rec.Live):
+	case enabled && s.staleTimers(rec, stored):
 		if err := s.armTimers(ctx, rec); err != nil {
 			tally.problems++
 			s.logger.Warn("the timers of an enabled flow could not be armed", "flow", rec.ID, "error", err)
 			return
 		}
-		if _, armed, err := s.store.NextTimerAt(ctx, rec.ID); err == nil && armed {
-			tally.armed++
-		}
+		tally.armed++
 	}
 }
 
-// hasDateTimeTrigger reports whether f has an enabled Date/Time trigger.
-func hasDateTimeTrigger(f *Flow) bool {
-	for i := range f.Nodes {
-		if n := &f.Nodes[i]; !n.Settings.Disabled && n.Type == TypeTriggerDateTime {
+// staleTimers reports whether the stored timers (node id → repeat) of an enabled flow
+// disagree with its live revision, as after a crash between the store publish and
+// armTimers: a stored timer whose node is no enabled Date/Time trigger of the live
+// revision or repeats differently (bound at the publish time, like the bindings), or an
+// armTimers candidate (a trigger that binds now) without a stored timer of the same
+// repeat. A stored one-off timer whose time has passed is no candidate any more but
+// still belongs to the revision: it is due, and it stays.
+func (s *Service) staleTimers(rec *FlowRecord, stored map[string]string) bool {
+	at := rec.PublishedAt
+	if at.IsZero() {
+		at = s.now()
+	}
+	loc, now := s.services.Loc(), s.now()
+	live := map[string]string{}
+	for i := range rec.Live.Nodes {
+		n := &rec.Live.Nodes[i]
+		if n.Settings.Disabled || n.Type != TypeTriggerDateTime {
+			continue
+		}
+		if b, err := bindDateTime(n, loc, at); err == nil {
+			live[n.ID] = b.Repeat
+		}
+		if b, err := bindDateTime(n, loc, now); err == nil {
+			if repeat, ok := stored[n.ID]; !ok || repeat != b.Repeat {
+				return true // an armTimers candidate without its timer
+			}
+		}
+	}
+	for node, repeat := range stored {
+		if want, ok := live[node]; !ok || want != repeat {
 			return true
 		}
 	}
 	return false
 }
 
-// reportOrphanMissions logs every flow mission in the snapshot whose flow is gone: no
-// listed flow holds it and the store, asked again, knows no flow for it. Nothing is
-// deleted; Mission Control's delete removes such a mission.
-func (s *Service) reportOrphanMissions(ctx context.Context, missions map[string]string, refs []flowMissionRef, tally *reconcileTally) {
+// reportOrphanMissions logs every flow mission whose flow is gone: no listed flow holds
+// it, Mission Control still holds it now (a fresh snapshot, so a mission deleted
+// meanwhile is not reported) and the store, asked again, knows no flow for it. Nothing
+// is deleted; Mission Control's delete removes such a mission.
+func (s *Service) reportOrphanMissions(ctx context.Context, recon MissionReconciler, missions map[string]string,
+	refs []flowMissionRef, tally *reconcileTally) {
 	held := make(map[string]bool, len(refs))
 	for _, ref := range refs {
 		held[ref.missionID] = true
 	}
-	ids := make([]string, 0, len(missions))
+	var ids []string
 	for id := range missions {
 		if !held[id] {
 			ids = append(ids, id)
 		}
 	}
+	if len(ids) == 0 {
+		return
+	}
+	current := recon.FlowMissions()
 	sort.Strings(ids)
 	for _, missionID := range ids {
+		if _, ok := current[missionID]; !ok {
+			continue // deleted meanwhile, or Mission Control cannot tell now
+		}
 		if _, err := s.store.flowIDByMission(ctx, missionID); !errors.Is(err, ErrNotFound) {
 			continue // made meanwhile, or the store failed: no report
 		}
