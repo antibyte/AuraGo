@@ -261,6 +261,7 @@ type Server struct {
 	flowsCatalog            *flowCatalogEnv
 	flowNotify              flowFailureNotifier // flood rule and send slots of flow failure notifications
 	flowSecretRate          flowRateLimiter     // per-IP limit of flow secret writes and deletes
+	flowStreams             flowStreamLimiter   // open flow run event streams, per run and in total
 	newspaperSkillReady     bool
 	PersonalRadio           *personalradio.Service
 	RTLSDR                  *rtlsdr.Service
