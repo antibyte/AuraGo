@@ -1898,6 +1898,14 @@ func (m *MissionManagerV2) ApplySyncedMission(mission *MissionV2) error {
 	if mission.ID == "" {
 		return fmt.Errorf("mission id is required")
 	}
+	// A master never installs or overwrites a flow mission: EasyDrag owns them.
+	if mission.ExecutionType == ExecutionFlow {
+		return ErrFlowMissionManaged
+	}
+	if existing, ok := m.missions[mission.ID]; ok && isFlowMission(existing) {
+		return ErrFlowMissionManaged
+	}
+	mission.FlowID, mission.FlowTriggers, mission.FlowPublished = "", nil, false
 	if mission.Priority == "" {
 		mission.Priority = "medium"
 	}
@@ -1959,6 +1967,11 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	if isFlowMission(mission) {
 		return m.updateFlowMissionLocked(mission, updated)
 	}
+	if updated.ExecutionType == ExecutionFlow {
+		return ErrFlowMissionManaged
+	}
+	// Flow fields belong to flow missions only.
+	updated.FlowID, updated.FlowTriggers, updated.FlowPublished = "", nil, false
 	updated.RunnerType = normalizeMissionRunner(updated.RunnerType)
 	updated.Prompt = StripMissionExecutionPlanAdvisory(updated.Prompt)
 	if err := validateRemoteMission(*updated); err != nil {
