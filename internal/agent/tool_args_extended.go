@@ -222,6 +222,7 @@ type notificationArgs struct {
 	Title    string
 	Message  string
 	Priority string
+	FilePath string
 }
 
 type cydDisplayArgs struct {
@@ -242,10 +243,11 @@ type emailFetchArgs struct {
 }
 
 type emailSendArgs struct {
-	Account string
-	To      string
-	Subject string
-	Body    string
+	Account     string
+	To          string
+	Subject     string
+	Body        string
+	Attachments []string
 }
 
 type sendMediaArgs struct {
@@ -736,6 +738,7 @@ func decodeNotificationArgs(tc ToolCall) notificationArgs {
 func decodeSendTelegramArgs(tc ToolCall) notificationArgs {
 	req := decodeNotificationArgs(tc)
 	req.Channel = "telegram"
+	req.FilePath = firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path"))
 	return req
 }
 
@@ -749,10 +752,11 @@ func decodeEmailFetchArgs(tc ToolCall) emailFetchArgs {
 
 func decodeEmailSendArgs(tc ToolCall) emailSendArgs {
 	return emailSendArgs{
-		Account: firstNonEmptyToolString(tc.Account, toolArgString(tc.Params, "account")),
-		To:      firstNonEmptyToolString(tc.To, toolArgString(tc.Params, "to")),
-		Subject: firstNonEmptyToolString(tc.Subject, toolArgString(tc.Params, "subject")),
-		Body:    firstNonEmptyToolString(tc.Body, tc.Content, toolArgString(tc.Params, "body", "content")),
+		Account:     firstNonEmptyToolString(tc.Account, toolArgString(tc.Params, "account")),
+		To:          firstNonEmptyToolString(tc.To, toolArgString(tc.Params, "to")),
+		Subject:     firstNonEmptyToolString(tc.Subject, toolArgString(tc.Params, "subject")),
+		Body:        firstNonEmptyToolString(tc.Body, tc.Content, toolArgString(tc.Params, "body", "content")),
+		Attachments: toolArgStringSlice(tc.Params, "attachments"),
 	}
 }
 

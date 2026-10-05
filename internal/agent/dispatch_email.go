@@ -160,7 +160,17 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		body := req.Body
 		logger.Info("LLM requested email send", "account", acct.ID, "to", to, "subject", subject)
 		var sendErr error
-		if acct.SMTPPort == 465 {
+		if len(req.Attachments) > 0 {
+			files, err := tools.LoadEmailAttachments(cfg, req.Attachments)
+			if err != nil {
+				return "Tool Output: " + tools.EncodeEmailResult(tools.EmailResult{Status: "error", Message: err.Error()}), true
+			}
+			if acct.SMTPPort == 465 {
+				sendErr = tools.SendEmailTLSWithAttachments(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, files, logger)
+			} else {
+				sendErr = tools.SendEmailWithAttachments(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, files, logger)
+			}
+		} else if acct.SMTPPort == 465 {
 			sendErr = tools.SendEmailTLS(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, logger)
 		} else {
 			sendErr = tools.SendEmail(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, logger)

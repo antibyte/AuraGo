@@ -100,6 +100,8 @@ Returns a JSON array of email objects:
 | subject   | string | no       | Email subject line (defaults to "(no subject)")  |
 | body      | string | no       | Plain text email body. `content` also accepted   |
 
+`attachments` (list of paths) attaches files (max 10, 20 MB).
+
 ### Response
 ```json
 {

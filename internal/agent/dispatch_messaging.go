@@ -26,6 +26,10 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		return dispatchMeshCore(ctx, tc, dc), true
 	case "send_telegram":
 		req := decodeSendTelegramArgs(tc)
+		if strings.TrimSpace(req.FilePath) != "" {
+			logger.Info("LLM requested telegram document", "title", req.Title)
+			return "Tool Output: " + tools.SendTelegramFile(ctx, cfg, logger, req.FilePath, req.Title, req.Message), true
+		}
 		if strings.TrimSpace(req.Message) == "" {
 			return `Tool Output: {"status":"error","message":"message is required"}`, true
 		}

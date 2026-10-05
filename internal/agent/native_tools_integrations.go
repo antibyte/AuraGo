@@ -1154,6 +1154,8 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"subject": prop("string", "Email subject"),
 					"body":    prop("string", "Email body (plain text)"),
 					"account": prop("string", "Email account ID to send from (omit for default)"),
+					"attachments": map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"},
+						"description": "Optional file paths in the workspace or the documents folder to attach (max 10 files, 20 MB together)"},
 				}, "to"),
 			),
 			tool("list_email_accounts",
@@ -1255,9 +1257,10 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		tools = append(tools, tool("send_telegram",
 			"Send a Telegram message to the configured default chat (telegram_user_id).",
 			schema(map[string]interface{}{
-				"message":  prop("string", "Message text to send"),
-				"title":    prop("string", "Optional title prefix"),
-				"priority": prop("string", "Priority label (normal/high)"),
+				"message":   prop("string", "Message text to send"),
+				"title":     prop("string", "Optional title prefix"),
+				"priority":  prop("string", "Priority label (normal/high)"),
+				"file_path": prop("string", "Optional file in the workspace or the documents folder to send as a document; message and title become its caption"),
 			}, "message"),
 		))
 	}
