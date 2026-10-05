@@ -101,14 +101,18 @@ type RemoteMessage struct {
 
 // AuthPayload is sent by the remote during enrollment or reconnection.
 type AuthPayload struct {
-	Version   string `json:"version"`
-	Hostname  string `json:"hostname,omitempty"`
-	OS        string `json:"os,omitempty"`
-	Arch      string `json:"arch,omitempty"`
-	IP        string `json:"ip,omitempty"`
-	Token     string `json:"token,omitempty"`      // legacy raw enrollment token (kept for backward compatibility)
-	TokenHash string `json:"token_hash,omitempty"` // SHA-256 hex of the enrollment token for authenticated bootstrap
-	DeviceID  string `json:"device_id,omitempty"`  // set on reconnection
+	Version  string `json:"version"`
+	Hostname string `json:"hostname,omitempty"`
+	OS       string `json:"os,omitempty"`
+	Arch     string `json:"arch,omitempty"`
+	IP       string `json:"ip,omitempty"`
+	// KDF names the token derivation behind TokenHash and the frame's HMAC
+	// key; enrollment requires EnrollmentKDFVersion.
+	KDF int `json:"kdf,omitempty"`
+	// TokenHash is DeriveEnrollmentLookupHash(token). It only selects the
+	// enrollment row; it is not the key that signs this frame.
+	TokenHash string `json:"token_hash,omitempty"`
+	DeviceID  string `json:"device_id,omitempty"` // set on reconnection
 }
 
 // AuthResponsePayload is sent by the supervisor after enrollment/auth.
@@ -354,10 +358,31 @@ func GenerateSharedKey() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// DeriveEnrollmentAuthKey derives the authenticated-bootstrap signing key from
-// a raw enrollment token. The result is a 32-byte SHA-256 hex string suitable
-// for HMAC signing and stable lookup.
+// EnrollmentKDFVersion is the AuthPayload.KDF value for the split derivation
+// below. Enrollment frames without it come from agents that sent the plain
+// SHA-256 of the token, which doubled as the HMAC key.
+const EnrollmentKDFVersion = 2
+
+// Domain separators for the two values derived from one enrollment token.
+const (
+	enrollmentLookupDomain = "aurago-remote-enroll-lookup\n"
+	enrollmentAuthDomain   = "aurago-remote-enroll-auth\n"
+)
+
+// DeriveEnrollmentLookupHash derives the value the agent sends in the clear to
+// select its enrollment row; remote_enrollments.token_hash stores it. It is
+// domain-separated from DeriveEnrollmentAuthKey, so it cannot be turned into
+// the MAC key.
+func DeriveEnrollmentLookupHash(token string) string {
+	sum := sha256.Sum256([]byte(enrollmentLookupDomain + token))
+	return hex.EncodeToString(sum[:])
+}
+
+// DeriveEnrollmentAuthKey derives the HMAC key (32 bytes, hex) that signs the
+// enrollment frame and the supervisor's answer. It never travels: the agent
+// derives it from its token and the supervisor keeps it in the vault until the
+// token is consumed or expires.
 func DeriveEnrollmentAuthKey(token string) string {
-	sum := sha256.Sum256([]byte(token))
+	sum := sha256.Sum256([]byte(enrollmentAuthDomain + token))
 	return hex.EncodeToString(sum[:])
 }

@@ -465,8 +465,12 @@ func (c *Client) connect() error {
 	}
 	authSigningKey := c.cfg.SharedKey
 	if c.cfg.DeviceID == "" && c.cfg.EnrollToken != "" {
-		auth.TokenHash = remote.DeriveEnrollmentAuthKey(c.cfg.EnrollToken)
-		authSigningKey = auth.TokenHash
+		// The frame carries only the lookup hash. The MAC key derived from the
+		// same token signs it and never leaves this process, so whoever reads
+		// this frame cannot sign an answer to it.
+		auth.KDF = remote.EnrollmentKDFVersion
+		auth.TokenHash = remote.DeriveEnrollmentLookupHash(c.cfg.EnrollToken)
+		authSigningKey = remote.DeriveEnrollmentAuthKey(c.cfg.EnrollToken)
 	}
 
 	msg, err := remote.NewMessage(remote.MsgAuth, c.cfg.DeviceID, authSigningKey, c.nextSeq(), auth)

@@ -318,14 +318,10 @@ func handleRemoteEnrollmentCreate(s *Server) http.HandlerFunc {
 			return
 		}
 
-		tokenHash := hashSHA256(rawToken)
 		expires := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
 
-		enrollID, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-			TokenHash:  tokenHash,
-			DeviceName: req.DeviceName,
-			ExpiresAt:  expires,
-		})
+		// Stores the token's lookup hash and puts its MAC key in the vault.
+		enrollID, err := s.RemoteHub.IssueEnrollmentToken(rawToken, req.DeviceName, expires)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Enrollment creation failed", "Failed to create remote enrollment", err)
 			return
@@ -407,15 +403,12 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			return
 		}
 
-		tokenHash := hashSHA256(rawToken)
 		deviceName := r.URL.Query().Get("name")
 		expires := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
 
-		_, err = remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-			TokenHash:  tokenHash,
-			DeviceName: deviceName,
-			ExpiresAt:  expires,
-		})
+		// The trailer carries the raw token; the supervisor keeps only its
+		// lookup hash and, in the vault, its MAC key.
+		_, err = s.RemoteHub.IssueEnrollmentToken(rawToken, deviceName, expires)
 		if err != nil {
 			recordDownloadFailure()
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Enrollment creation failed", "Failed to create download enrollment", err, "platform", platform)
@@ -527,6 +520,8 @@ func generateRemoteToken() (string, error) {
 	return "remote_" + hex.EncodeToString(b), nil
 }
 
+// hashSHA256 is the plain SHA-256 hex of s, used for device shared_key_hash
+// values. Enrollment tokens use remote.DeriveEnrollmentLookupHash instead.
 func hashSHA256(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])

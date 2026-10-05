@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"aurago/internal/dbutil"
+	"aurago/internal/security"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -38,7 +40,10 @@ type DeviceRecord struct {
 
 // EnrollmentRecord tracks one-time enrollment tokens.
 type EnrollmentRecord struct {
-	ID           string `json:"id"`
+	ID string `json:"id"`
+	// TokenHash is DeriveEnrollmentLookupHash(token), which is not a usable
+	// secret. The token's MAC key lives in the vault under
+	// enrollmentAuthKeyName(ID).
 	TokenHash    string `json:"-"`
 	DeviceName   string `json:"device_name"`
 	CreatedAt    string `json:"created_at"`
@@ -313,7 +318,9 @@ func scanDevices(rows *sql.Rows) ([]DeviceRecord, error) {
 
 // ── Enrollments CRUD ────────────────────────────────────────────────────────
 
-// CreateEnrollment stores a new enrollment token record.
+// CreateEnrollment stores a new enrollment token record. It stores no MAC key,
+// so the remote agent cannot enroll with it; issue agent tokens through
+// RemoteHub.IssueEnrollmentToken.
 func CreateEnrollment(db *sql.DB, e EnrollmentRecord) (string, error) {
 	e.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -327,7 +334,8 @@ func CreateEnrollment(db *sql.DB, e EnrollmentRecord) (string, error) {
 	return e.ID, nil
 }
 
-// GetEnrollmentByTokenHash finds an enrollment by the SHA-256 hash of the raw token.
+// GetEnrollmentByTokenHash finds an enrollment by its lookup hash
+// (DeriveEnrollmentLookupHash of the raw token).
 func GetEnrollmentByTokenHash(db *sql.DB, tokenHash string) (EnrollmentRecord, error) {
 	var e EnrollmentRecord
 	var used int
@@ -358,8 +366,19 @@ func MarkEnrollmentUsed(db *sql.DB, enrollmentID, deviceID string) error {
 	return nil
 }
 
-// finalizeEnrollment consumes a token and marks its new device connected in one DB transaction.
-func finalizeEnrollment(db *sql.DB, enrollmentID, deviceID string) error {
+// enrollmentAuthKeyPrefix prefixes the vault entries holding enrollment MAC keys.
+const enrollmentAuthKeyPrefix = "remote_enroll_key_"
+
+// enrollmentAuthKeyName is the vault entry holding the MAC key of an enrollment.
+func enrollmentAuthKeyName(enrollmentID string) string {
+	return enrollmentAuthKeyPrefix + enrollmentID
+}
+
+// finalizeEnrollment consumes a token and marks its new device connected in one
+// DB transaction, then deletes the token's MAC key from the vault. A failed
+// delete is only logged: the consumed row already refuses the token, and
+// CleanExpiredEnrollments removes the leftover key.
+func finalizeEnrollment(db *sql.DB, vault *security.Vault, enrollmentID, deviceID string) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin remote enrollment finalization: %w", err)
@@ -386,14 +405,46 @@ func finalizeEnrollment(db *sql.DB, enrollmentID, deviceID string) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit remote enrollment: %w", err)
 	}
+	if vault != nil && enrollmentID != "" {
+		if err := vault.DeleteSecret(enrollmentAuthKeyName(enrollmentID)); err != nil {
+			slog.Warn("failed to delete consumed remote enrollment key", "enrollment_id", enrollmentID, "error", err)
+		}
+	}
 	return nil
 }
 
-// CleanExpiredEnrollments removes enrollments that have expired.
-func CleanExpiredEnrollments(db *sql.DB) error {
+// CleanExpiredEnrollments removes enrollments that have expired unused, then
+// deletes every vault MAC key that no longer belongs to a live (unused,
+// unexpired) enrollment: keys of expired rows, of tokens consumed elsewhere
+// (agodesk pairing) and of rows that are gone. vault may be nil.
+func CleanExpiredEnrollments(db *sql.DB, vault *security.Vault) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`DELETE FROM remote_enrollments WHERE expires_at < ? AND used = 0`, now)
-	return err
+	if _, err := db.Exec(`DELETE FROM remote_enrollments WHERE expires_at < ? AND used = 0`, now); err != nil {
+		return err
+	}
+	if vault == nil {
+		return nil
+	}
+	keys, err := vault.ListKeys()
+	if err != nil {
+		return fmt.Errorf("list remote enrollment keys: %w", err)
+	}
+	for _, key := range keys {
+		enrollmentID, ok := strings.CutPrefix(key, enrollmentAuthKeyPrefix)
+		if !ok {
+			continue
+		}
+		var live int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM remote_enrollments WHERE id = ? AND used = 0 AND expires_at >= ?`, enrollmentID, now).Scan(&live); err != nil {
+			return fmt.Errorf("check remote enrollment %s: %w", enrollmentID, err)
+		}
+		if live == 0 {
+			if err := vault.DeleteSecret(key); err != nil {
+				return fmt.Errorf("delete remote enrollment key %s: %w", enrollmentID, err)
+			}
+		}
+	}
+	return nil
 }
 
 // ── Audit log ───────────────────────────────────────────────────────────────

@@ -252,6 +252,40 @@ func TestNewAuthResponseMessageSigned(t *testing.T) {
 	}
 }
 
+// The agent's first frame carries the lookup hash in the clear, so the MAC key
+// that signs the enrollment answer must not be computable from it.
+func TestEnrollmentLookupHashDoesNotRevealAuthKey(t *testing.T) {
+	const token = "remote_0123456789abcdef0123456789abcdef"
+	lookup := DeriveEnrollmentLookupHash(token)
+	authKey := DeriveEnrollmentAuthKey(token)
+	plain := sha256.Sum256([]byte(token))
+	plainHex := hex.EncodeToString(plain[:])
+
+	if lookup == authKey {
+		t.Fatal("lookup hash and MAC key must differ")
+	}
+	if lookup == plainHex || authKey == plainHex {
+		t.Fatal("neither derivation may be the plain SHA-256 of the token")
+	}
+	for name, derived := range map[string]string{"lookup": lookup, "auth": authKey} {
+		if len(derived) != 64 {
+			t.Fatalf("%s derivation has %d hex chars, want 64", name, len(derived))
+		}
+	}
+	if _, err := decodeSharedKey(authKey); err != nil {
+		t.Fatalf("MAC key must be a usable HMAC key: %v", err)
+	}
+	// Agent and supervisor must derive the same values: pin the wire contract.
+	wantLookup := sha256.Sum256([]byte("aurago-remote-enroll-lookup\n" + token))
+	wantAuth := sha256.Sum256([]byte("aurago-remote-enroll-auth\n" + token))
+	if lookup != hex.EncodeToString(wantLookup[:]) || authKey != hex.EncodeToString(wantAuth[:]) {
+		t.Fatal("enrollment derivations changed; agent and supervisor would disagree")
+	}
+	if DeriveEnrollmentLookupHash(token+"x") == lookup || DeriveEnrollmentAuthKey(token+"x") == authKey {
+		t.Fatal("derivations must depend on the token")
+	}
+}
+
 func TestNewAuthResponseMessageUnsigned(t *testing.T) {
 	msg, err := NewAuthResponseMessage("", "", AuthResponsePayload{Status: "pending"})
 	if err != nil {

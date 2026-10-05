@@ -1617,7 +1617,7 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorPairingRequired, "pairing_token is required for this agodesk session."
 	}
 
-	tokenHash := hashSHA256(strings.TrimSpace(payload.PairingToken))
+	tokenHash := remote.DeriveEnrollmentLookupHash(strings.TrimSpace(payload.PairingToken))
 	enrollment, err := remote.GetEnrollmentByTokenHash(s.RemoteHub.DB(), tokenHash)
 	if err != nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "invalid pairing token"

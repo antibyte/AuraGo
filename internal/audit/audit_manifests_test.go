@@ -1327,6 +1327,7 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 	required := []string{
 		"supervisor-nonce-replay-cache",
 		"remote-agent-frame-replay-guard",
+		"remote-enrollment-key-split",
 		"remote-agent-duplicate-command-id",
 		"remote-file-allowed-paths",
 		"invasion-artifact-integrity",
@@ -1362,6 +1363,20 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 			t.Fatalf("remote hub source is missing revoked-device lifecycle guard %q", needle)
 		}
 	}
+	// The enrollment MAC key comes from the vault, never from the frame.
+	for _, needle := range []string{"auth.KDF != EnrollmentKDFVersion", "h.vault.ReadSecret(enrollmentAuthKeyName(enrollment.ID))", "VerifyMessage(msg, authKey)", "DeriveEnrollmentLookupHash(token)"} {
+		if !strings.Contains(hubSource, needle) {
+			t.Fatalf("remote hub source is missing enrollment key-split guard %q", needle)
+		}
+	}
+	if !strings.Contains(agentSource, "remote.DeriveEnrollmentLookupHash(c.cfg.EnrollToken)") {
+		t.Fatal("remote agent must send the enrollment lookup hash, not the MAC key")
+	}
+	for _, entry := range RemoteLifecycleManifest() {
+		if entry.Name == "remote-enrollment-key-split" {
+			assertRemoteManifestTestsExist(t, entry)
+		}
+	}
 	hubTests := readRepoFile(t, "internal/remote/hub_ws_test.go")
 	if !strings.Contains(hubTests, "TestHandleEnrollmentRejectsRevokedDeviceReconnectOverWebSocket") {
 		t.Fatal("remote hub websocket tests must cover revoked-device reconnect rejection")
@@ -1376,6 +1391,24 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 	for _, needle := range []string{"already used", "artifact sha256 mismatch"} {
 		if !strings.Contains(artifactSource, needle) {
 			t.Fatalf("invasion artifact source is missing lifecycle guard %q", needle)
+		}
+	}
+}
+
+// assertRemoteManifestTestsExist checks a TestCoverage of the form
+// "path:TestA, TestB; path2:TestC" names tests that exist in those files.
+func assertRemoteManifestTestsExist(t *testing.T, entry RemoteLifecycleBoundary) {
+	t.Helper()
+	for _, group := range strings.Split(entry.TestCoverage, ";") {
+		path, names, ok := strings.Cut(strings.TrimSpace(group), ":")
+		if !ok {
+			t.Fatalf("%s: coverage group %q is not path:Test, Test", entry.Name, group)
+		}
+		source := readRepoFile(t, path)
+		for _, name := range strings.Split(names, ",") {
+			if name = strings.TrimSpace(name); !strings.Contains(source, "func "+name+"(") {
+				t.Fatalf("%s: %s has no test %s", entry.Name, path, name)
+			}
 		}
 	}
 }

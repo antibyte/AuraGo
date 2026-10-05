@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/remote"
+	"aurago/internal/security"
 )
 
 func TestRemoteEnrollmentCreateReturnsOneTimeToken(t *testing.T) {
@@ -37,19 +38,98 @@ func TestRemoteEnrollmentCreateReturnsOneTimeToken(t *testing.T) {
 	if payload.EnrollmentID == "" || payload.Token == "" || payload.ExpiresAt == "" {
 		t.Fatalf("payload missing required fields: %+v", payload)
 	}
-	enrollment, err := remote.GetEnrollmentByTokenHash(s.RemoteHub.DB(), hashSHA256(payload.Token))
-	if err != nil {
-		t.Fatalf("GetEnrollmentByTokenHash: %v", err)
-	}
+	enrollment := assertRemoteTokenStoredAsLookupHash(t, s, payload.Token)
 	if enrollment.ID != payload.EnrollmentID || enrollment.DeviceName != "agodesk-desktop" || enrollment.Used {
 		t.Fatalf("stored enrollment = %+v, response = %+v", enrollment, payload)
 	}
-	var rawCount int
-	if err := s.RemoteHub.DB().QueryRow(`SELECT COUNT(*) FROM remote_enrollments WHERE token_hash = ?`, payload.Token).Scan(&rawCount); err != nil {
-		t.Fatalf("query raw token count: %v", err)
+}
+
+// assertRemoteTokenStoredAsLookupHash checks that remote_enrollments holds only
+// the lookup hash of token and the vault holds its MAC key.
+func assertRemoteTokenStoredAsLookupHash(t *testing.T, s *Server, token string) remote.EnrollmentRecord {
+	t.Helper()
+	enrollment, err := remote.GetEnrollmentByTokenHash(s.RemoteHub.DB(), remote.DeriveEnrollmentLookupHash(token))
+	if err != nil {
+		t.Fatalf("enrollment not stored under its lookup hash: %v", err)
 	}
-	if rawCount != 0 {
-		t.Fatal("raw enrollment token must not be stored in remote_enrollments")
+	for name, value := range map[string]string{
+		"raw token":  token,
+		"plain hash": hashSHA256(token),
+		"MAC key":    remote.DeriveEnrollmentAuthKey(token),
+	} {
+		var count int
+		if err := s.RemoteHub.DB().QueryRow(`SELECT COUNT(*) FROM remote_enrollments WHERE token_hash = ?`, value).Scan(&count); err != nil {
+			t.Fatalf("query %s count: %v", name, err)
+		}
+		if count != 0 {
+			t.Fatalf("remote_enrollments must not hold the %s", name)
+		}
+	}
+	key, err := s.Vault.ReadSecret("remote_enroll_key_" + enrollment.ID)
+	if err != nil || key != remote.DeriveEnrollmentAuthKey(token) {
+		t.Fatalf("vault MAC key for enrollment %s: %v", enrollment.ID, err)
+	}
+	return enrollment
+}
+
+func TestRemoteEnrollmentCreateFailsWhenMACKeyCannotBeStored(t *testing.T) {
+	s, cleanup := newRemoteDownloadTestServer(t, nil)
+	defer cleanup()
+	brokenVault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(t.TempDir(), "missing", "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Vault = brokenVault
+	s.RemoteHub = remote.NewRemoteHub(s.RemoteHub.DB(), brokenVault, slog.Default())
+
+	for name, serve := range map[string]func() *httptest.ResponseRecorder{
+		"create": func() *httptest.ResponseRecorder {
+			rec := httptest.NewRecorder()
+			handleRemoteEnrollmentCreate(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/remote/enroll", strings.NewReader(`{"device_name":"x"}`)))
+			return rec
+		},
+		"download": func() *httptest.ResponseRecorder {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/api/remote/download/linux/amd64?name=nas", nil)
+			req.Host = "localhost:8090"
+			handleRemoteDownload(s).ServeHTTP(rec, req)
+			return rec
+		},
+	} {
+		if rec := serve(); rec.Code != http.StatusInternalServerError {
+			t.Fatalf("%s: status = %d, want 500; body=%s", name, rec.Code, rec.Body.String())
+		}
+	}
+	var count int
+	if err := s.RemoteHub.DB().QueryRow(`SELECT COUNT(*) FROM remote_enrollments`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("a token without a stored MAC key must not be created, got %d rows", count)
+	}
+}
+
+func TestRemoteDownloadTrailerCarriesRawTokenAndStoresLookupHash(t *testing.T) {
+	s, cleanup := newRemoteDownloadTestServer(t, nil)
+	defer cleanup()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/remote/download/linux/amd64?name=nas", nil)
+	req.Host = "localhost:8090"
+	handleRemoteDownload(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	trailer, err := remote.ParseBinaryTrailer(rec.Body.Bytes())
+	if err != nil {
+		t.Fatalf("parse personalized binary trailer: %v", err)
+	}
+	if !strings.HasPrefix(trailer.EnrollToken, "remote_") || trailer.DeviceName != "nas" {
+		t.Fatalf("trailer must carry the raw token and device name: %+v", trailer)
+	}
+	enrollment := assertRemoteTokenStoredAsLookupHash(t, s, trailer.EnrollToken)
+	if enrollment.DeviceName != "nas" || enrollment.Used {
+		t.Fatalf("stored enrollment = %+v", enrollment)
 	}
 }
 
@@ -132,6 +212,11 @@ func newRemoteDownloadTestServer(t *testing.T, mutate func(*config.Config)) (*Se
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
+	vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(tmp, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+
 	cfg := &config.Config{}
 	cfg.Server.Port = 8090
 	if mutate != nil {
@@ -140,7 +225,8 @@ func newRemoteDownloadTestServer(t *testing.T, mutate func(*config.Config)) (*Se
 	s := &Server{
 		Cfg:       cfg,
 		Logger:    slog.Default(),
-		RemoteHub: remote.NewRemoteHub(db, nil, slog.Default()),
+		Vault:     vault,
+		RemoteHub: remote.NewRemoteHub(db, vault, slog.Default()),
 	}
 	cleanup := func() {
 		_ = os.Chdir(oldWD)

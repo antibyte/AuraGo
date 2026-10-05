@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/remote"
+	"aurago/internal/security"
 )
 
 func TestOAuthCallbackDoesNotRenderProviderErrorHTML(t *testing.T) {
@@ -181,12 +182,19 @@ func TestRemoteDownloadSuccessDoesNotIncrementLoginLockout(t *testing.T) {
 	}
 	defer db.Close()
 
+	// Each download stores its enrollment MAC key in the vault.
+	vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(tmp, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+
 	cfg := &config.Config{}
 	cfg.Server.Port = 8088
 	s := &Server{
 		Cfg:       cfg,
 		Logger:    slog.Default(),
-		RemoteHub: remote.NewRemoteHub(db, nil, slog.Default()),
+		Vault:     vault,
+		RemoteHub: remote.NewRemoteHub(db, vault, slog.Default()),
 	}
 	handler := handleRemoteDownload(s)
 	clientIP := "203.0.113.10"

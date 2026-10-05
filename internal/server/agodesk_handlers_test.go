@@ -2045,13 +2045,11 @@ func TestAgodeskPersonaAssetsRequestReturnsActivePersonaAvatarIconAndPrompt(t *t
 func TestAgodeskSessionStartWithPairingTokenCreatesRemoteDevice(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "remote_test_pairing_token"
-	enrollID, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256(token),
-		DeviceName: "desktop-pc",
-		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
-	})
+	// Issue the token the way the Remote Control UI does, so pairing keeps
+	// working with what remote_enrollments actually stores.
+	enrollID, err := s.RemoteHub.IssueEnrollmentToken(token, "desktop-pc", time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
 	if err != nil {
-		t.Fatalf("CreateEnrollment: %v", err)
+		t.Fatalf("IssueEnrollmentToken: %v", err)
 	}
 
 	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws")
@@ -2103,7 +2101,7 @@ func TestAgodeskSessionStartWithPairingTokenCreatesRemoteDevice(t *testing.T) {
 	if secret != accepted.SharedKey {
 		t.Fatal("vault shared key does not match accepted payload")
 	}
-	enrollment, err := remote.GetEnrollmentByTokenHash(s.RemoteHub.DB(), hashSHA256(token))
+	enrollment, err := remote.GetEnrollmentByTokenHash(s.RemoteHub.DB(), remote.DeriveEnrollmentLookupHash(token))
 	if err != nil {
 		t.Fatalf("GetEnrollmentByTokenHash: %v", err)
 	}
@@ -2116,7 +2114,7 @@ func TestAgodeskSessionStartFailsWhenSharedKeyCannotBeStored(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	s.Vault = nil
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256("vault-fail-token"),
+		TokenHash:  remote.DeriveEnrollmentLookupHash("vault-fail-token"),
 		DeviceName: "agodesk-vault-fail",
 		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
 	}); err != nil {
@@ -2158,7 +2156,7 @@ func TestAgodeskSessionAcceptedAdvertisesNegotiatedClientCapabilities(t *testing
 	s := newAgodeskPairingTestServer(t)
 	token := "agodesk-advertised-capabilities-token"
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256(token),
+		TokenHash:  remote.DeriveEnrollmentLookupHash(token),
 		DeviceName: "desktop-pc",
 		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
 	}); err != nil {
@@ -2437,7 +2435,7 @@ func TestAgodeskDesktopCommandRoutesThroughPairedSocket(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "desktop-command-pairing-token"
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256(token),
+		TokenHash:  remote.DeriveEnrollmentLookupHash(token),
 		DeviceName: "desktop-pc",
 		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
 	}); err != nil {
@@ -2546,7 +2544,7 @@ func TestAgodeskDesktopCommandWithoutClientCapabilityFailsFast(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "desktop-command-no-capability-token"
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256(token),
+		TokenHash:  remote.DeriveEnrollmentLookupHash(token),
 		DeviceName: "chat-only-pc",
 		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
 	}); err != nil {
@@ -2601,7 +2599,7 @@ func TestAgodeskFileCommandsRequireClientCapabilities(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "agodesk-file-no-capability-token"
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256(token),
+		TokenHash:  remote.DeriveEnrollmentLookupHash(token),
 		DeviceName: "chat-only-file-pc",
 		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
 	}); err != nil {
@@ -3031,7 +3029,7 @@ func TestAgodeskChatMessageCommandSendsServerPushResponse(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "agodesk-chat-push-token"
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256(token),
+		TokenHash:  remote.DeriveEnrollmentLookupHash(token),
 		DeviceName: "agodesk-chat",
 		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
 	}); err != nil {
@@ -3093,7 +3091,7 @@ func TestAgodeskDesktopResultAcceptsLargeScreenshotPayload(t *testing.T) {
 	s := newAgodeskPairingTestServer(t)
 	token := "desktop-command-large-screenshot-token"
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256(token),
+		TokenHash:  remote.DeriveEnrollmentLookupHash(token),
 		DeviceName: "large-screenshot-pc",
 		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
 	}); err != nil {
@@ -3271,7 +3269,7 @@ func pairAgodeskTestClient(t *testing.T, s *Server, token string, clientCapabili
 func pairAgodeskTestClientWithFileAccess(t *testing.T, s *Server, token string, clientCapabilities []string, fileAccess *agodesk.FileAccessPayload) (*websocket.Conn, func(), agodesk.SessionAcceptedPayload) {
 	t.Helper()
 	if _, err := remote.CreateEnrollment(s.RemoteHub.DB(), remote.EnrollmentRecord{
-		TokenHash:  hashSHA256(token),
+		TokenHash:  remote.DeriveEnrollmentLookupHash(token),
 		DeviceName: "agodesk-test-client",
 		ExpiresAt:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
 	}); err != nil {

@@ -461,6 +461,12 @@ func RemoteLifecycleManifest() []RemoteLifecycleBoundary {
 			TestCoverage: "cmd/remote/main_test.go:TestRejectReplayedFrameChecksDeviceTimestampAndNonce, TestRejectReplayedFrameRejectsSequenceShiftedNonce, TestRejectReplayedFrameFailsClosedWhenCacheFull, TestRejectReplayedFrameDoesNotCacheErrorFrames, TestRejectReplayedFrameCacheCoversFullTimestampWindow, TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne, TestConnectRejectsStaleSignedAuthResponse, TestConnectRejectsReplayedSignedAuthResponse, TestReadMessagesFailsClosedWithoutSharedKey, TestReadMessagesDispatchesSignedFrameOnceAndDropsReplay",
 		},
 		{
+			Name:         "remote-enrollment-key-split",
+			Subsystem:    "internal/remote",
+			Scenario:     "the agent's enrollment frame carries only the token's lookup hash and is signed with a separately derived MAC key; remote_enrollments stores the lookup hash and the vault holds the MAC key until the token is consumed or expires; frames signed with the lookup hash, without kdf 2 or for tokens without a vault key are refused; a token whose key cannot be stored is not created",
+			TestCoverage: "internal/remote/protocol_test.go:TestEnrollmentLookupHashDoesNotRevealAuthKey; internal/remote/hub_enrollment_security_test.go:TestEnrollmentRequiresAuthKeyNotLookupHash, TestEnrollmentRejectsTokenWithoutVaultKey, TestEnrollmentRejectsFrameWithoutKDF, TestFinalizeEnrollmentRemovesVaultKey, TestCleanExpiredEnrollmentsRemovesOrphanedVaultKeys, TestApproveDeviceVaultFailureCreatesNoToken, TestIssueEnrollmentTokenVaultFailureCreatesNoToken; internal/server/remote_control_handlers_test.go:TestRemoteEnrollmentCreateReturnsOneTimeToken, TestRemoteDownloadTrailerCarriesRawTokenAndStoresLookupHash, TestRemoteEnrollmentCreateFailsWhenMACKeyCannotBeStored; cmd/remote/main_test.go:TestConnectSendsLookupHashAndSignsWithAuthKey",
+		},
+		{
 			Name:         "remote-agent-duplicate-command-id",
 			Subsystem:    "cmd/remote",
 			Scenario:     "a replayed command id returns the cached first result and does not execute side effects twice",

@@ -110,6 +110,16 @@ func assertNoStoredConfig(t *testing.T) {
 // for the agent to hang up.
 func startFakeSupervisor(t *testing.T, reply *remote.RemoteMessage) string {
 	t.Helper()
+	url, _ := startScriptedSupervisor(t, func(remote.RemoteMessage) *remote.RemoteMessage { return reply })
+	return url
+}
+
+// startScriptedSupervisor answers each auth frame with answer(frame) and then
+// waits for the agent to hang up; a nil answer hangs up at once. Every auth
+// frame it receives is also sent on the returned channel.
+func startScriptedSupervisor(t *testing.T, answer func(auth remote.RemoteMessage) *remote.RemoteMessage) (string, <-chan remote.RemoteMessage) {
+	t.Helper()
+	frames := make(chan remote.RemoteMessage, 16)
 	upgrader := websocket.Upgrader{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -117,14 +127,76 @@ func startFakeSupervisor(t *testing.T, reply *remote.RemoteMessage) string {
 			return
 		}
 		defer conn.Close()
-		if _, _, err := conn.ReadMessage(); err != nil {
+		var auth remote.RemoteMessage
+		if err := conn.ReadJSON(&auth); err != nil {
+			return
+		}
+		select {
+		case frames <- auth:
+		default:
+		}
+		reply := answer(auth)
+		if reply == nil {
 			return
 		}
 		_ = conn.WriteJSON(reply)
 		_, _, _ = conn.ReadMessage()
 	}))
 	t.Cleanup(srv.Close)
-	return "ws" + strings.TrimPrefix(srv.URL, "http")
+	return "ws" + strings.TrimPrefix(srv.URL, "http"), frames
+}
+
+func receiveAuthFrame(t *testing.T, frames <-chan remote.RemoteMessage) remote.RemoteMessage {
+	t.Helper()
+	select {
+	case frame := <-frames:
+		return frame
+	case <-time.After(5 * time.Second):
+		t.Fatal("the agent sent no auth frame")
+		return remote.RemoteMessage{}
+	}
+}
+
+// The enrollment frame travels before anything is authenticated, possibly over
+// ws:// or to an impostor. It may carry the lookup hash but never the key that
+// signs the supervisor's answer.
+func TestConnectSendsLookupHashAndSignsWithAuthKey(t *testing.T) {
+	isolateRemoteHome(t)
+	const token = "remote_0123456789abcdef0123456789abcdef"
+	url, frames := startScriptedSupervisor(t, func(remote.RemoteMessage) *remote.RemoteMessage { return nil })
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: url, EnrollToken: token})
+
+	if err := client.connect(); err == nil {
+		t.Fatal("connect must fail when the supervisor does not answer")
+	}
+	frame := receiveAuthFrame(t, frames)
+	var auth remote.AuthPayload
+	if err := json.Unmarshal(frame.Payload, &auth); err != nil {
+		t.Fatal(err)
+	}
+	if auth.KDF != remote.EnrollmentKDFVersion || auth.TokenHash != remote.DeriveEnrollmentLookupHash(token) || auth.DeviceID != "" {
+		t.Fatalf("enrollment payload = %+v", auth)
+	}
+	if ok, err := remote.VerifyMessage(frame, remote.DeriveEnrollmentAuthKey(token)); err != nil || !ok {
+		t.Fatalf("enrollment frame must be signed with the MAC key: ok=%v err=%v", ok, err)
+	}
+	if ok, _ := remote.VerifyMessage(frame, auth.TokenHash); ok {
+		t.Fatal("enrollment frame must not be signed with the lookup hash it carries")
+	}
+	raw, err := json.Marshal(frame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain := sha256.Sum256([]byte(token))
+	for name, secret := range map[string]string{
+		"raw token":  token,
+		"plain hash": hex.EncodeToString(plain[:]),
+		"MAC key":    remote.DeriveEnrollmentAuthKey(token),
+	} {
+		if strings.Contains(string(raw), secret) {
+			t.Fatalf("enrollment frame leaks the %s", name)
+		}
+	}
 }
 
 func newConnectTestClient(t *testing.T, cfg clientConfig) *Client {

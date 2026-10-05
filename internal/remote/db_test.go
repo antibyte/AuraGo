@@ -222,7 +222,7 @@ func TestCleanExpiredEnrollments(t *testing.T) {
 	}
 	CreateEnrollment(db, e2)
 
-	if err := CleanExpiredEnrollments(db); err != nil {
+	if err := CleanExpiredEnrollments(db, nil); err != nil {
 		t.Fatalf("CleanExpiredEnrollments: %v", err)
 	}
 
