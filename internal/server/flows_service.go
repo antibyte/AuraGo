@@ -11,12 +11,15 @@ import (
 	"aurago/internal/memory"
 )
 
-// flowsDBPath places flows.db next to the other desktop databases.
+// flowsDBPath places flows.db next to the other desktop databases (config.FlowsDBPath).
+// It has no sqlite setting of its own, so backup and export tooling must include it by
+// name: config.SQLiteDatabasePaths lists it (the backup and the agent's protected files
+// use that list).
 func (s *Server) flowsDBPath() string {
-	if s.Cfg != nil && s.Cfg.SQLite.GameMakerPath != "" {
-		return filepath.Join(filepath.Dir(s.Cfg.SQLite.GameMakerPath), "flows.db")
+	if path := config.FlowsDBPath(s.Cfg); path != "" {
+		return path
 	}
-	return "data/flows.db"
+	return filepath.Join("data", config.FlowsDBFilename)
 }
 
 // initFlows creates the flow service and connects it to Mission Control. It must run

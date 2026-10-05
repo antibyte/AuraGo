@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/flows"
 	"aurago/internal/tools"
 	"context"
 	"encoding/json"
@@ -394,12 +395,30 @@ func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		jsonError(w, err.Error(), missionErrorStatus(err))
 		return
 	}
+	// Get returns a copy and releases the manager's lock, so CancelMissionRuns runs without
+	// it: it reports runs that never started to Mission Control (FlowRunFinished) on this
+	// goroutine, and that takes the manager's lock.
 	if mission, ok := s.MissionManagerV2.Get(id); ok && mission.ExecutionType == tools.ExecutionFlow {
 		if s.Flows == nil {
 			jsonError(w, "flows are not available", http.StatusServiceUnavailable)
 			return
 		}
-		if n, err := s.Flows.CancelMissionRuns(r.Context(), id); err != nil || n == 0 {
+		// Detached: a client that goes away must not end the lookup half-way and get a
+		// cancel reported as failed.
+		n, err := s.Flows.CancelMissionRuns(context.WithoutCancel(r.Context()), id)
+		switch {
+		case errors.Is(err, flows.ErrNotFound):
+			jsonError(w, "the flow of this mission does not exist", http.StatusNotFound)
+			return
+		case errors.Is(err, flows.ErrMissionAmbiguous):
+			jsonError(w, "several flows hold this mission; cancel their runs in EasyDrag", http.StatusConflict)
+			return
+		case err != nil:
+			s.Logger.Warn("Flow runs of a mission could not be cancelled", "mission_id", id,
+				"error", flowBoundRunes(err.Error(), flowErrorRunes))
+			jsonError(w, "the flow runs could not be cancelled", http.StatusInternalServerError)
+			return
+		case n == 0:
 			jsonError(w, "mission run cannot be cancelled yet", http.StatusConflict)
 			return
 		}

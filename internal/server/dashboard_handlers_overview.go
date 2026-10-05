@@ -176,6 +176,10 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				jsonError(w, "id required when disabled is true", http.StatusBadRequest)
 				return
 			}
+			if body.ID != "" && dashboardFlowCronJob(s, s.CronManager.GetJobs(), body.ID, true) {
+				jsonError(w, flowCronManagedMessage, http.StatusConflict)
+				return
+			}
 			result, err := s.CronManager.ManageSchedule("add", body.ID, body.CronExpr, body.TaskPrompt, dashboardLanguage(s))
 			if err != nil {
 				if s.Logger != nil {
@@ -207,6 +211,10 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				jsonError(w, "id required", http.StatusBadRequest)
 				return
 			}
+			if dashboardFlowCronJob(s, s.CronManager.GetJobs(), id, false) {
+				jsonError(w, flowCronManagedMessage, http.StatusConflict)
+				return
+			}
 			result, err := s.CronManager.ManageSchedule("remove", id, "", "", dashboardLanguage(s))
 			if err != nil {
 				if s.Logger != nil {
@@ -228,8 +236,13 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 			body.ID = strings.TrimSpace(body.ID)
 			body.CronExpr = strings.TrimSpace(body.CronExpr)
 			body.TaskPrompt = strings.TrimSpace(body.TaskPrompt)
-			if !dashboardCronjobExists(s.CronManager.GetJobs(), body.ID) {
+			jobs := s.CronManager.GetJobs()
+			if !dashboardCronjobExists(jobs, body.ID) {
 				jsonError(w, "Cron job not found", http.StatusNotFound)
+				return
+			}
+			if dashboardFlowCronJob(s, jobs, body.ID, false) {
+				jsonError(w, flowCronManagedMessage, http.StatusConflict)
 				return
 			}
 			if _, err := dashboardCronParser().Parse(body.CronExpr); err != nil {

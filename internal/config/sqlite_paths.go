@@ -12,7 +12,19 @@ const (
 	GalaxaDBFilename       = "galaxa.db"
 	DesktopStoreDBFilename = "desktop_store.db"
 	TresorDBFilename       = "tresor.db"
+	// FlowsDBFilename is the EasyDrag flow store. It has no sqlite setting of its own and
+	// lives next to sqlite.game_maker_path (FlowsDBPath).
+	FlowsDBFilename = "flows.db"
 )
+
+// FlowsDBPath returns where the EasyDrag flow store lives: next to the Game Maker
+// database, or "" when sqlite.game_maker_path is not set.
+func FlowsDBPath(cfg *Config) string {
+	if cfg == nil || cfg.SQLite.GameMakerPath == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(cfg.SQLite.GameMakerPath), FlowsDBFilename)
+}
 
 // SQLiteDatabasePaths returns absolute SQLite database paths that should be
 // included in backups. Long-term memory lives in directories.vectordb_dir
@@ -46,6 +58,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 		cfg.SQLite.PushPath,
 		cfg.SQLite.LaunchpadPath,
 		cfg.SQLite.NetworkSharesPath,
+		FlowsDBPath(cfg),
 	}
 
 	if dataDir := cfg.Directories.DataDir; dataDir != "" {

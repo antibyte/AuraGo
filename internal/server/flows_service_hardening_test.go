@@ -19,8 +19,8 @@ import (
 	"aurago/internal/tools"
 )
 
-// c16Server builds a server like newFlowsTestServer, with the flows switch, the logger
-// and an optional hook that runs before initFlows; it starts nothing.
+// c16Server builds a server like newFlowsTestServer with the given flows switch and
+// logger (nil discards); it initialises and starts nothing.
 func c16Server(t *testing.T, enabled bool, logger *slog.Logger) *Server {
 	t.Helper()
 	s, _, _ := testDesktopPermissionServer(t)
@@ -358,5 +358,190 @@ func TestC16HooksAfterShutdownOnlyLog(t *testing.T) {
 	// The mission list still renders: broadcastMissionState asks every flow mission's next run.
 	if payloads := missionPayloads(s.MissionManagerV2, s.MissionManagerV2.List()); len(payloads) == 0 {
 		t.Fatal("no mission payloads after shutdown")
+	}
+}
+
+// c16Cancel sends Mission Control's cancel for missionID with ctx.
+func c16Cancel(s *Server, ctx context.Context, missionID string) *httptest.ResponseRecorder {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/missions/v2/"+missionID+"/cancel", nil).WithContext(ctx)
+	handleMissionCancelV2(s, w, req, missionID)
+	return w
+}
+
+func TestC16MissionControlCancelMapsFlowErrors(t *testing.T) {
+	s := c16StartedServer(t, nil)
+	ctx := context.Background()
+	mm := s.MissionManagerV2
+
+	// The mission names a flow the store does not hold.
+	orphan, err := mm.CreateFlowMission("flow_c16gone00", "Ohne Flow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mm.FlowRunStarted(orphan, "manual", "")
+	if w := c16Cancel(s, ctx, orphan); w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), "does not exist") {
+		t.Fatalf("cancel without a flow = %d %s", w.Code, w.Body.String())
+	}
+
+	// The flow exists but has no live run.
+	idle := createTestFlow(t, s, greetFlowJSON)
+	mm.FlowRunStarted(idle.MissionID, "manual", "")
+	if w := c16Cancel(s, ctx, idle.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "cannot be cancelled yet") {
+		t.Fatalf("cancel without runs = %d %s", w.Code, w.Body.String())
+	}
+
+	// Two flows hold the same mission.
+	twin := createTestFlow(t, s, greetFlowJSON)
+	if err := s.Flows.Store().SetMissionID(ctx, twin.ID, idle.MissionID); err != nil {
+		t.Fatal(err)
+	}
+	if w := c16Cancel(s, ctx, idle.MissionID); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "several flows") {
+		t.Fatalf("cancel of an ambiguous mission = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestC16MissionControlCancelSurvivesAClientDisconnect(t *testing.T) {
+	s := c16StartedServer(t, nil)
+	ctx := context.Background()
+	rec := c16PublishedFlow(t, s, waitFlowJSON)
+	started, err := s.Flows.RunNow(ctx, rec.ID)
+	if err != nil {
+		t.Fatalf("RunNow: %v", err)
+	}
+	c16WaitStatus(t, s, rec.MissionID, tools.MissionStatusRunning)
+	gone, cancel := context.WithCancel(ctx)
+	cancel() // the client went away before the handler ran
+	if w := c16Cancel(s, gone, rec.MissionID); w.Code != http.StatusAccepted {
+		t.Fatalf("cancel = %d %s", w.Code, w.Body.String())
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		detail, _ := s.Flows.Run(ctx, started.RunID, false)
+		if detail != nil && detail.Run.Status == flows.RunCancelled {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("run not cancelled: %+v", detail)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// c16CronRequest sends one request to a dashboard cron handler.
+func c16CronRequest(h http.Handler, method, target, body string) *httptest.ResponseRecorder {
+	w := httptest.NewRecorder()
+	var reader io.Reader
+	if body != "" {
+		reader = strings.NewReader(body)
+	}
+	req := httptest.NewRequest(method, target, reader)
+	req.Header.Set("Content-Type", "application/json")
+	h.ServeHTTP(w, req)
+	return w
+}
+
+func TestC16DashboardRefusesFlowCronJobs(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{SchedulerEnabled: true, MissionsEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	cronMgr := tools.NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = cronMgr.Close() })
+	mm := tools.NewMissionManagerV2(t.TempDir(), nil)
+	t.Cleanup(mm.Stop)
+	missionID, err := mm.CreateFlowMission("flow_c16cron00", "Zeitplan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flowJob := "mission_" + missionID + "__n_aaaaaaaa"
+	claimed := "mission_" + missionID + "__n_bbbbbbbb"
+	if _, err := cronMgr.ManageScheduleWithSource("add", flowJob, "0 9 * * *", "EasyDrag flow trigger", "en", "flow"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cronMgr.ManageScheduleWithSource("add", "agent_job", "0 8 * * *", "run agent", "en", ""); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{CronManager: cronMgr, MissionManagerV2: mm, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	dashboard, byID, legacy := handleDashboardCronjobs(s), handleDashboardCronjobByID(s), handleCronAPI(s)
+
+	w := c16CronRequest(dashboard, http.MethodGet, "/api/dashboard/cronjobs", "")
+	var list struct {
+		Jobs []map[string]any `json:"jobs"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil || w.Code != http.StatusOK {
+		t.Fatalf("list = %d %s (%v)", w.Code, w.Body.String(), err)
+	}
+	for _, job := range list.Jobs {
+		managed, has := job["managed_by"]
+		if job["id"] == flowJob && managed != "easydrag" {
+			t.Fatalf("flow job not marked: %v", job)
+		}
+		if job["id"] == "agent_job" && has {
+			t.Fatalf("agent job marked: %v", job)
+		}
+	}
+
+	refused := []struct {
+		name                 string
+		handler              http.Handler
+		method, target, body string
+	}{
+		{"dashboard edit", dashboard, http.MethodPut, "/api/dashboard/cronjobs",
+			`{"id":"` + flowJob + `","cron_expr":"0 10 * * *","task_prompt":"other"}`},
+		{"dashboard toggle", dashboard, http.MethodPut, "/api/dashboard/cronjobs",
+			`{"id":"` + flowJob + `","cron_expr":"0 9 * * *","task_prompt":"EasyDrag flow trigger","disabled":true}`},
+		{"dashboard delete", byID, http.MethodDelete, "/api/dashboard/cronjobs/" + flowJob, ""},
+		{"legacy add over a flow job", legacy, http.MethodPost, "/api/cron",
+			`{"id":"` + flowJob + `","cron_expr":"0 7 * * *","task_prompt":"planted"}`},
+		{"legacy add under a claimed id", legacy, http.MethodPost, "/api/cron",
+			`{"id":"` + claimed + `","cron_expr":"0 7 * * *","task_prompt":"planted"}`},
+		{"legacy edit", legacy, http.MethodPut, "/api/cron",
+			`{"id":"` + flowJob + `","cron_expr":"0 10 * * *","task_prompt":"other","disabled":true}`},
+		{"legacy delete", legacy, http.MethodDelete, "/api/cron?id=" + flowJob, ""},
+	}
+	for _, tc := range refused {
+		w := c16CronRequest(tc.handler, tc.method, tc.target, tc.body)
+		if w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), flowCronManagedMessage) {
+			t.Fatalf("%s = %d %s, want 409", tc.name, w.Code, w.Body.String())
+		}
+	}
+	jobs := cronMgr.GetJobs()
+	if len(jobs) != 2 {
+		t.Fatalf("jobs after the refused changes: %+v", jobs)
+	}
+	for _, job := range jobs {
+		if job.ID == flowJob && (job.CronExpr != "0 9 * * *" || job.Disabled || !job.IsFlowJob() || job.TaskPrompt != "EasyDrag flow trigger") {
+			t.Fatalf("the flow job changed: %+v", job)
+		}
+	}
+	// Other jobs stay editable.
+	if w := c16CronRequest(byID, http.MethodDelete, "/api/dashboard/cronjobs/agent_job", ""); w.Code != http.StatusOK {
+		t.Fatalf("delete agent job = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestC16FlowsDatabaseIsBackedUpAndProtected(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = filepath.Join(dir, "data")
+	cfg.SQLite.GameMakerPath = filepath.Join(dir, "desktop", "game_maker.db")
+	s := &Server{Cfg: cfg}
+	want := filepath.Join(dir, "desktop", config.FlowsDBFilename)
+	if got := s.flowsDBPath(); got != want {
+		t.Fatalf("flowsDBPath = %q, want %q", got, want)
+	}
+	if !containsString(config.SQLiteDatabasePaths(cfg), want) {
+		t.Fatalf("backups miss flows.db: %v", config.SQLiteDatabasePaths(cfg))
+	}
+	if protected := config.SQLiteProtectedPaths(cfg); !containsString(protected, want) || !containsString(protected, want+"-wal") {
+		t.Fatalf("agent file tools may touch flows.db: %v", protected)
+	}
+	bare := &Server{Cfg: &config.Config{}}
+	if got := bare.flowsDBPath(); got != filepath.Join("data", "flows.db") {
+		t.Fatalf("flowsDBPath without a Game Maker path = %q", got)
+	}
+	for _, path := range config.SQLiteDatabasePaths(bare.Cfg) {
+		if filepath.Base(path) == config.FlowsDBFilename {
+			t.Fatalf("a relative flows.db is listed: %v", config.SQLiteDatabasePaths(bare.Cfg))
+		}
 	}
 }
