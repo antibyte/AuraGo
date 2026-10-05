@@ -314,11 +314,15 @@ Manage Docker containers, images, and networks.
 
 ### Agent Compose stacks and host access
 
-The agent can run `docker compose` for files inside its workspace. Before `up`, `create` or `build`, AuraGo resolves the file with `docker compose config` and checks the result:
+The agent can run `docker compose` for files inside its workspace. Before every Compose command, AuraGo resolves the file with `docker compose config` and checks the result:
 
-- **Always blocked:** AuraGo-managed containers, labels, images and volumes (local LLM, ACE-Step, Garage, homepage, the AuraGo app container) and binds, env files, secrets, configs or build contexts that point into AuraGo's own data directory, `config.yaml`, the `.env` next to it, `/etc/aurago` or the master key secret.
-- **Needs `docker.allow_host_access: true`:** binds outside the agent workspace (for example `/srv/media`), sensitive host paths such as `/var/run/docker.sock`, `/etc/localtime` or `/`, Windows named pipes, `devices`, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unconfined `security_opt`, local volumes that bind a host directory, and env files, secrets, configs or build contexts outside the workspace.
-- `down`, `stop`, `start`, `restart`, `pull`, `ps`, `logs` and the other read-only commands are never blocked by this check, so stacks you already run stay manageable.
+- **Blocked for every Compose command:** stacks that touch AuraGo-managed containers, labels, images or volumes (local LLM, ACE-Step, Garage, homepage, the AuraGo app container).
+- **Always blocked for `up`, `create` and `build`, even with host access:** binds, env files, secrets, configs, build contexts or watch paths that point into AuraGo's own data directory, `config.yaml`, the `.env` next to it, `/etc/aurago` or the master key secret, and AuraGo's master key value itself. `config` and `convert` print env files inlined, so they reject env files, secrets and configs inside AuraGo's state and the master key value too.
+- **Needs `docker.allow_host_access: true` (checked only for `up`, `create` and `build`):** binds outside the agent workspace (for example `/srv/media`), sensitive host paths such as `/var/run/docker.sock`, `/etc/localtime` or `/`, Windows named pipes, `devices`, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unconfined `security_opt`, local volumes that bind a host directory, `provider` services (Compose runs them as programs on the host), build SSH (`build.ssh`, `build --ssh`), privileged builds and build entitlements, and env files, secrets, configs, build contexts or `develop.watch` paths outside the workspace.
+- `down`, `stop`, `start`, `restart`, `rm`, `kill`, `pause`, `unpause`, `pull`, `ps`, `logs` and the inspection commands are never checked for host access, so stacks you already run stay manageable.
+- Only what a command runs is checked: a service of an inactive profile counts once a command names it (for example `up -d tools` or `build tools`).
+
+With a Docker Compose older than v2.35 AuraGo cannot list env file paths or services of inactive profiles. Without host access it then rejects `up`/`create` for files that use `env_file`, and with or without it any `up`, `create`, `build` or `pull` that names a service of an inactive profile.
 
 Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter or media servers with host folders need host access. Configurations created before this setting existed have it switched on automatically (the updater writes `allow_host_access: true`); fresh installs start with `false`. Toggle it in **Config → Danger Zone → Docker host access for agent Compose stacks**. The security check warns while it is on.
 
