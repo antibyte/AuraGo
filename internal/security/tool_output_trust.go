@@ -13,6 +13,12 @@ const (
 	toolOutputSourceData
 )
 
+// IsExecutionToolOutput reports whether SanitizeToolOutput treats action as an
+// execution tool, whose benign output is bounded in the readable source form.
+func IsExecutionToolOutput(action string) bool {
+	return classifyToolOutput(action) == toolOutputSemiTrusted
+}
+
 func classifyToolOutput(action string) toolOutputTrust {
 	switch strings.ToLower(strings.TrimSpace(action)) {
 	case "activate_tools", "context_manager", "discover_tools", "get_tool_info":

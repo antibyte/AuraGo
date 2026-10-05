@@ -87,7 +87,7 @@ func discoveryJSONWithinBudget(response DiscoverToolsResponse, budget int) strin
 	if len(output) <= budget {
 		return output
 	}
-	return boundedToolResult(output, budget, classifyLegacyToolResult(output))
+	return boundedToolResult("discover_tools", output, budget, classifyLegacyToolResult(output))
 }
 
 func discoverySummaryResults(entries []*ToolCatalogEntry, session string) []DiscoverToolResult {

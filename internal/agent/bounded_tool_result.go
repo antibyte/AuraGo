@@ -8,9 +8,13 @@ import (
 
 // boundedToolResult never clips JSON in the middle of a token. A large opaque
 // result becomes an explicit bounded envelope, preserving the execution status.
-func boundedToolResult(output string, limit int, status ToolResultStatus) string {
+// Readable execution output keeps its head instead (truncateExecutionOutput).
+func boundedToolResult(action, output string, limit int, status ToolResultStatus) string {
 	if limit <= 0 || len(output) <= limit {
 		return output
+	}
+	if bounded, ok := truncateExecutionOutput(action, output, limit, truncateToolOutput); ok {
+		return bounded
 	}
 	value, isolated, raw := toolResultPayloadForm(output)
 	prefix := toolResultPresentationPrefix(output)
@@ -56,6 +60,44 @@ func boundedToolResult(output string, limit int, status ToolResultStatus) string
 		return "{}"
 	}
 	return truncateToolOutput(output, limit)
+}
+
+// isolationBoundaryLen is what IsolateSourceData adds around a body.
+const isolationBoundaryLen = len("<external_data>\n") + len("\n</external_data>")
+
+// truncateExecutionOutput keeps the head of oversized execution output inside
+// its boundary, as plain-text truncation did before execution output was
+// always isolated. It applies to readable bodies only: the raw source form, or
+// the escaped form whose text has no quote or angle character (the form
+// IsolateSourceData itself picks for such text). An escaped body with those
+// characters was escaped on purpose (scanner hit or boundary-like text) and,
+// like JSON and the output of every other tool, keeps the never-clip envelope.
+// The decoded text is truncated and re-isolated, so nothing is escaped twice;
+// the presentation prefix and any trailing guidance are kept when they fit.
+func truncateExecutionOutput(action, output string, limit int, truncate func(string, int) string) (string, bool) {
+	if !security.IsExecutionToolOutput(action) {
+		return "", false
+	}
+	payload, isolated, raw := toolResultPayloadForm(output)
+	if !isolated || (!raw && strings.ContainsAny(payload, `"'<>`)) {
+		return "", false
+	}
+	if value, _ := toolResultPayload(payload); json.Valid([]byte(value)) {
+		return "", false
+	}
+	prefix := toolResultPresentationPrefix(output)
+	for _, suffix := range []string{toolResultPresentationSuffix(output), ""} {
+		budget := limit - len(prefix) - isolationBoundaryLen - len(suffix)
+		// Escaping can lengthen the re-isolated text; shrink by the overflow.
+		for attempt := 0; attempt < 8 && budget > 0; attempt++ {
+			bounded := prefix + security.IsolateSourceData(truncate(payload, budget)) + suffix
+			if len(bounded) <= limit {
+				return bounded, true
+			}
+			budget -= len(bounded) - limit
+		}
+	}
+	return "", false
 }
 
 func toolResultPresentationPrefix(output string) string {

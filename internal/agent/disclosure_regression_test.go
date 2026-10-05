@@ -230,7 +230,7 @@ func TestDisclosureRegressionSchemaBudgetCanBeRaised(t *testing.T) {
 
 func TestDisclosureRegressionTextModeKeepsExternalDataBoundary(t *testing.T) {
 	raw := "[Tool Output]\n" + security.IsolateExternalData(strings.Repeat("untrusted data ", 100))
-	result := boundedToolResult(raw, 200, ToolResultSuccess)
+	result := boundedToolResult("", raw, 200, ToolResultSuccess)
 	if strings.Contains(result, "<external_data>") && !strings.Contains(result, "</external_data>") {
 		t.Fatalf("text-mode output lost closing isolation boundary: %q", result)
 	}

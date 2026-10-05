@@ -378,7 +378,7 @@ func executeMinimalToolCall(
 	if dispatchCtx.Cfg != nil && dispatchCtx.Cfg.Agent.ToolOutputLimit > 0 {
 		limit = dispatchCtx.Cfg.Agent.ToolOutputLimit
 	}
-	return boundedToolResult(dispatched.Output, limit, dispatched.Status)
+	return boundedToolResult(toolCall.Action, dispatched.Output, limit, dispatched.Status)
 
 }
 

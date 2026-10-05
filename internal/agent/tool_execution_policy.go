@@ -163,7 +163,7 @@ func finalizeToolExecution(
 		limit = cfg.Agent.ToolOutputLimit
 	}
 
-	policyResult := applyToolOutputPolicy(rawContent, limit, scope, status)
+	policyResult := applyToolOutputPolicy(tc.Action, rawContent, limit, scope, status)
 	rawContent = policyResult.Content
 
 	// Apply compression after truncation so expensive filters only process the
@@ -242,7 +242,7 @@ func finalizeToolExecution(
 	}
 
 	if limit > 0 && len(rawContent) > limit {
-		postCompressionPolicy := applyToolOutputPolicy(rawContent, limit, scope, status)
+		postCompressionPolicy := applyToolOutputPolicy(tc.Action, rawContent, limit, scope, status)
 		postCompressionPolicy.Truncated = postCompressionPolicy.Truncated || policyResult.Truncated
 		if postCompressionPolicy.ErrorSummary == "" {
 			postCompressionPolicy.ErrorSummary = policyResult.ErrorSummary
@@ -396,7 +396,7 @@ func finalizeToolExecution(
 		})
 	}
 
-	resultContent = boundedToolResult(resultContent, effectiveToolOutputLimit(cfg), status)
+	resultContent = boundedToolResult(tc.Action, resultContent, effectiveToolOutputLimit(cfg), status)
 
 	return toolExecutionResult{
 		Status:       status,

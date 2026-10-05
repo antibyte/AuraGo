@@ -11,7 +11,7 @@ func TestApplyToolOutputPolicyTruncatesLargeSuccessOutput(t *testing.T) {
 	resetAgentTelemetryForTest()
 
 	scope := AgentTelemetryScope{ProviderType: "openrouter", Model: "gpt-4o-mini"}
-	result := applyToolOutputPolicy(strings.Repeat("A", 300), 160, scope)
+	result := applyToolOutputPolicy("", strings.Repeat("A", 300), 160, scope)
 
 	if !result.Truncated {
 		t.Fatal("expected result to be truncated")
@@ -42,7 +42,7 @@ func TestApplyToolOutputPolicyPreservesErrorSummaryWhenTruncated(t *testing.T) {
 	longTail := strings.Repeat("X", 400)
 	raw := `{"status":"error","message":"permission denied while deploying homepage","details":"` + longTail + `"}`
 
-	result := applyToolOutputPolicy(raw, 220, scope)
+	result := applyToolOutputPolicy("", raw, 220, scope)
 
 	if !result.Truncated {
 		t.Fatal("expected error result to be truncated")
@@ -77,7 +77,7 @@ func TestApplyToolOutputPolicyProducesValidUTF8WithinLimit(t *testing.T) {
 
 	scope := AgentTelemetryScope{ProviderType: "openrouter", Model: "gpt-4o-mini"}
 	limit := 160
-	result := applyToolOutputPolicy(strings.Repeat("界", 120), limit, scope)
+	result := applyToolOutputPolicy("", strings.Repeat("界", 120), limit, scope)
 
 	if !result.Truncated {
 		t.Fatal("expected result to be truncated")
@@ -103,7 +103,7 @@ func TestApplyToolOutputPolicyPreservesErrorSummaryWithinLimit(t *testing.T) {
 	limit := 220
 	raw := `{"status":"error","message":"界界界 permission denied while deploying homepage","details":"` + strings.Repeat("界", 150) + `"}`
 
-	result := applyToolOutputPolicy(raw, limit, scope)
+	result := applyToolOutputPolicy("", raw, limit, scope)
 
 	if !result.Truncated {
 		t.Fatal("expected result to be truncated")
