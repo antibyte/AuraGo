@@ -175,6 +175,7 @@ func scoreBasedTrimming(
 	totalTokens int,
 	tokenFn func(string) int,
 	logger *slog.Logger,
+	protectedIndices ...int,
 ) ([]openai.ChatCompletionMessage, []int, int) {
 	if len(messages) <= 3 {
 		return messages, nil, totalTokens
@@ -222,11 +223,20 @@ func scoreBasedTrimming(
 	})
 
 	removed := make(map[int]bool)
+	protected := make(map[int]struct{}, len(protectedIndices))
+	for _, index := range protectedIndices {
+		if index >= 0 && index < len(messages) {
+			protected[index] = struct{}{}
+		}
+	}
 	currentTokens := totalTokens
 
 	for _, item := range scored {
 		if currentTokens <= maxHistoryTokens {
 			break
+		}
+		if _, keep := protected[item.idx]; keep {
+			continue
 		}
 		if item.score >= ImportanceCritical {
 			break
@@ -246,7 +256,8 @@ func scoreBasedTrimming(
 			// Check if any member has already been removed individually.
 			allRemovable := true
 			for _, gi := range groupIndices {
-				if removed[gi] {
+				_, keep := protected[gi]
+				if removed[gi] || keep {
 					allRemovable = false
 					break
 				}
@@ -292,6 +303,10 @@ func TrimByImportance(
 	model string,
 	logger *slog.Logger,
 ) ([]openai.ChatCompletionMessage, []int, int) {
+	return trimByImportanceProtecting(messages, maxTokens, model, logger)
+}
+
+func trimByImportanceProtecting(messages []openai.ChatCompletionMessage, maxTokens int, model string, logger *slog.Logger, protectedIndices ...int) ([]openai.ChatCompletionMessage, []int, int) {
 	tokenFn := func(s string) int {
 		return prompts.CountTokensForModel(s, model)
 	}
@@ -299,7 +314,7 @@ func TrimByImportance(
 	for _, m := range messages {
 		totalTokens += tokenFn(messageTextWithReasoningForAccounting(m)) + 4
 	}
-	return scoreBasedTrimming(messages, maxTokens, totalTokens, tokenFn, logger)
+	return scoreBasedTrimming(messages, maxTokens, totalTokens, tokenFn, logger, protectedIndices...)
 }
 
 // logImportanceScores logs what would be dropped without actually dropping.

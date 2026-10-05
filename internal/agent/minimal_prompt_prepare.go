@@ -16,10 +16,11 @@ import (
 )
 
 type minimalPromptPreparation struct {
-	Budget          *RequestBudget
-	BuilderRevision string
-	ProviderType    string
-	Usage           []RequestTokenUsage
+	Budget           *RequestBudget
+	BuilderRevision  string
+	ProviderType     string
+	Usage            []RequestTokenUsage
+	CurrentUserIndex int
 }
 
 func prepareMinimalLoopRequest(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
@@ -31,6 +32,20 @@ func prepareMinimalLoopRequestWithReasoning(ctx context.Context, cfg *config.Con
 }
 
 func prepareMinimalLoopRequestWithProfile(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, profile *PreparedPromptProfile, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
+	return prepareMinimalLoopRequestWithProfileAndAnchor(ctx, cfg, client, req, baseSystemPrompt, guardian, logger, tokenCache, toolCallCount, preserveReasoning, profile, "", addenda...)
+}
+
+// prepareMinimalLoopRequestWithProfileAndAnchor keeps the original human task
+// as the budget anchor even when a prepared workflow appends a correction turn.
+func prepareMinimalLoopRequestWithProfileAndAnchor(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, profile *PreparedPromptProfile, currentUserText string, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
+	anchorIndex := -1
+	if req != nil {
+		anchorIndex = protectedTaskMessageIndex(req.Messages, currentUserText)
+	}
+	return prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, cfg, client, req, baseSystemPrompt, guardian, logger, tokenCache, toolCallCount, preserveReasoning, profile, currentUserText, anchorIndex, addenda...)
+}
+
+func prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx context.Context, cfg *config.Config, client llm.ChatClient, req *openai.ChatCompletionRequest, baseSystemPrompt string, guardian *security.Guardian, logger *slog.Logger, tokenCache *tokenCountCache, toolCallCount int, preserveReasoning bool, profile *PreparedPromptProfile, currentUserText string, currentUserIndex int, addenda ...prompts.PromptAddendum) (minimalPromptPreparation, error) {
 	if req == nil {
 		return minimalPromptPreparation{}, fmt.Errorf("chat completion request is required")
 	}
@@ -40,18 +55,39 @@ func prepareMinimalLoopRequestWithProfile(ctx context.Context, cfg *config.Confi
 	if tokenCache == nil {
 		tokenCache = newTokenCountCache(256)
 	}
+	if currentUserIndex < 0 && strings.TrimSpace(currentUserText) != "" {
+		currentUserIndex = exactTaskMessageIndex(req.Messages, currentUserText)
+	} else if currentUserIndex < 0 {
+		currentUserIndex = latestGenuineUserIndex(req.Messages)
+	}
+	if !validTaskAnchor(req.Messages, currentUserIndex, currentUserText) {
+		return minimalPromptPreparation{}, fmt.Errorf("minimal loop is missing its original user request")
+	}
+	currentUserText = messageText(req.Messages[currentUserIndex])
+	userOrdinal := genuineUserOccurrence(req.Messages, currentUserIndex)
 
 	nonSystemMessages := make([]openai.ChatCompletionMessage, 0, len(req.Messages))
+	nonSystemAnchorIndex := -1
 	for i, message := range req.Messages {
 		if message.Role == openai.ChatMessageRoleSystem && (profile == nil || i == 0) {
 			continue
 		}
+		if i == currentUserIndex {
+			nonSystemAnchorIndex = len(nonSystemMessages)
+		}
 		nonSystemMessages = append(nonSystemMessages, message)
+	}
+	if nonSystemAnchorIndex < 0 {
+		return minimalPromptPreparation{}, fmt.Errorf("minimal loop could not retain its original user request")
 	}
 	budgetReq := *req
 	budgetReq.Messages = nonSystemMessages
+	budgetAnchorIndex := nonSystemAnchorIndex
 	if profile != nil {
-		budgetReq.Messages = minimumPreparedMessages(nonSystemMessages)
+		budgetReq.Messages, budgetAnchorIndex = minimumPreparedMessagesWithTaskAnchor(nonSystemMessages, nonSystemAnchorIndex)
+		if budgetAnchorIndex < 0 {
+			return minimalPromptPreparation{}, fmt.Errorf("prepared prompt is missing its original user request")
+		}
 	}
 
 	requiredTools := make(map[string]bool, len(req.Tools))
@@ -78,7 +114,7 @@ func prepareMinimalLoopRequestWithProfile(ctx context.Context, cfg *config.Confi
 	if strings.TrimSpace(baseSystemPrompt) != "" {
 		systemBudgetMessages := nonSystemMessages
 		if profile != nil {
-			systemBudgetMessages = minimumPreparedMessages(nonSystemMessages)
+			systemBudgetMessages, _ = minimumPreparedMessagesWithTaskAnchor(nonSystemMessages, nonSystemAnchorIndex)
 		}
 		systemBudget, err := budget.systemPromptBudget(systemBudgetMessages, req.Tools, req.Model, tokenCache)
 		if err != nil {
@@ -115,31 +151,38 @@ func prepareMinimalLoopRequestWithProfile(ctx context.Context, cfg *config.Confi
 			return minimalPromptPreparation{}, promptBudgetExceededForRoutes(budget, promptResult.BudgetExceeded.RequiredTokens)
 		}
 		req.Messages = append([]openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem, Content: promptResult.Text}}, nonSystemMessages...)
+		currentUserIndex = nonSystemAnchorIndex + 1
 	} else {
 		req.Messages = nonSystemMessages
+		currentUserIndex = nonSystemAnchorIndex
 	}
 
 	applyPromptSecurityToRequest(req, cfg, guardian, promptResult.Text, logger)
 	before := len(req.Messages)
 	sanitized, droppedOrphans := SanitizeToolMessages(req.Messages)
 	req.Messages = sanitized
+	currentUserIndex = genuineUserIndexByOccurrence(req.Messages, userOrdinal)
+	if !validTaskAnchor(req.Messages, currentUserIndex, "") {
+		return minimalPromptPreparation{}, fmt.Errorf("minimal loop lost its original user request during prompt preparation")
+	}
+	// PromptSec may sanitize the packet's text. Keep identity through the
+	// captured genuine-user occurrence, then use its post-sanitization text for
+	// strict checks during subsequent trimming.
+	currentUserText = messageText(req.Messages[currentUserIndex])
 	if droppedOrphans > 0 {
 		logger.Warn("[PreSend] Sanitized orphaned tool messages before context trimming",
 			"dropped", droppedOrphans, "before", before, "after", len(sanitized))
 	}
-	currentUserText := ""
-	if index := latestGenuineUserIndex(req.Messages); index >= 0 {
-		currentUserText = messageText(req.Messages[index])
-	}
 	if profile != nil {
-		req.Messages, err = trimPreparedHistory(budget, req.Messages, currentUserText, promptResult.Text, req.Tools, tokenCache)
+		req.Messages, currentUserIndex, err = trimPreparedHistoryWithTaskAnchor(budget, req.Messages, currentUserText, currentUserIndex, promptResult.Text, req.Tools, tokenCache)
 		if err != nil {
 			return minimalPromptPreparation{}, err
 		}
 	}
-	workingMessages, workingDropped, workingStats := budget.trimHistoryWorkingSet(req.Messages, currentUserText, promptResult.Text, req.Tools, tokenCache)
-	req.Messages = appendRecapWithinWorkingSet(budget, workingMessages, currentUserText, promptResult.Text, req.Tools, workingDropped, tokenCache)
-	trimmed, droppedHistory, err := budget.trimHistory(req.Messages, req.Tools, false, logger, tokenCache)
+	workingMessages, workingDropped, workingStats := budget.trimHistoryWorkingSetWithTaskAnchor(req.Messages, currentUserText, currentUserIndex, promptResult.Text, req.Tools, tokenCache)
+	currentUserIndex = workingStats.CurrentUserIndex
+	req.Messages, currentUserIndex = appendRecapWithinWorkingSetWithTaskAnchor(budget, workingMessages, currentUserText, currentUserIndex, promptResult.Text, req.Tools, workingDropped, tokenCache)
+	trimmed, droppedHistory, currentUserIndex, err := budget.trimHistoryWithTaskAnchor(req.Messages, req.Tools, false, logger, tokenCache, currentUserText, currentUserIndex)
 	if err != nil {
 		return minimalPromptPreparation{}, err
 	}
@@ -173,7 +216,7 @@ func prepareMinimalLoopRequestWithProfile(ctx context.Context, cfg *config.Confi
 			"history_tokens", usage.HistoryTokens,
 			"history_working_limit_tokens", workingStats.LimitTokens,
 			"current_request_tokens", workingStats.CurrentTokens,
-			"kept_history_tokens", budget.maxCarriedHistoryTokens(req.Messages, currentUserMessageIndex(req.Messages, currentUserText), tokenCache),
+			"kept_history_tokens", budget.maxCarriedHistoryTokens(req.Messages, currentUserIndex, tokenCache),
 			"summary_tokens", budget.maxSummaryTokens(req.Messages, tokenCache),
 			"output_tokens", usage.CompletionTokens,
 			"safety_tokens", usage.SafetyTokens,
@@ -181,7 +224,7 @@ func prepareMinimalLoopRequestWithProfile(ctx context.Context, cfg *config.Confi
 	}
 	appendPreparedPromptLog(cfg, *req, providerType, promptResult.Revision, toolRecoveryState{}, 0, toolCallCount, logger)
 	return minimalPromptPreparation{
-		Budget: budget, BuilderRevision: promptResult.Revision, ProviderType: providerType, Usage: finalized.Usage,
+		Budget: budget, BuilderRevision: promptResult.Revision, ProviderType: providerType, Usage: finalized.Usage, CurrentUserIndex: currentUserIndex,
 	}, nil
 }
 

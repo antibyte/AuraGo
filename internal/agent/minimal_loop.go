@@ -157,6 +157,8 @@ func ExecuteMinimalLoop(
 		}
 	}
 	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: userPrompt})
+	currentUserIndex := len(messages) - 1
+	currentTaskText := userPrompt
 	if profile != nil {
 		baseSystemPrompt = profile.SystemPrompt()
 	}
@@ -183,9 +185,13 @@ func ExecuteMinimalLoop(
 				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
 			}
 		}
-		prepared, prepareErr := prepareMinimalLoopRequestWithProfile(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, addenda...)
+		prepared, prepareErr := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, addenda...)
 		if prepareErr != nil {
 			return result, req.Messages, prepareErr
+		}
+		currentUserIndex = prepared.CurrentUserIndex
+		if currentUserIndex >= 0 && currentUserIndex < len(req.Messages) && req.Messages[currentUserIndex].Role == openai.ChatMessageRoleUser {
+			currentTaskText = messageText(req.Messages[currentUserIndex])
 		}
 		var resp openai.ChatCompletionResponse
 		if dispatchCtx.DiscoveryRunID != "" {
@@ -289,9 +295,11 @@ func ExecuteMinimalLoop(
 	} else {
 		req.Tools = nil
 	}
-	if _, err := prepareMinimalLoopRequestWithProfile(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, addenda...); err != nil {
+	prepared, err := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, addenda...)
+	if err != nil {
 		return result, req.Messages, err
 	}
+	currentUserIndex = prepared.CurrentUserIndex
 	provider := ""
 	if dispatchCtx.Cfg != nil {
 		provider = dispatchCtx.Cfg.LLM.ProviderType

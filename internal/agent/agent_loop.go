@@ -408,6 +408,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	toolLimitFinalizing := false
 	conversationRecall, recalledHistoryTokens := buildConversationRecallMessage(shortTermMem, sessionID, initialUserMsg, req.Model)
 	req.Messages = insertConversationRecall(req.Messages, conversationRecall)
+	taskAnchorIndex := latestGenuineUserIndex(req.Messages)
+	taskAnchorText := ""
+	if taskAnchorIndex >= 0 {
+		taskAnchorText = messageText(req.Messages[taskAnchorIndex])
+	}
 
 	var requestBudget *RequestBudget
 
@@ -1531,6 +1536,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		promptBuildDuration := time.Since(promptBuildStarted)
 
 		applyPromptSecurityToRequest(&req, cfg, s.guardian, sysPrompt, s.currentLogger)
+		if taskAnchorIndex >= 0 && taskAnchorIndex < len(req.Messages) && req.Messages[taskAnchorIndex].Role == openai.ChatMessageRoleUser {
+			taskAnchorText = messageText(req.Messages[taskAnchorIndex])
+		}
 
 		s.currentLogger.Debug("[Sync] System prompt ready",
 			"cache_hit", cacheHit,
@@ -1542,11 +1550,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			"active_daemons", flags.ActiveProcesses,
 		)
 
+		taskAnchorIndex = rebaseTaskAnchorForGeneratedSystemPrompt(req.Messages, taskAnchorIndex, lastGeneratedSystemPrompt)
 		req.Messages = ensureGeneratedSystemPromptMessage(req.Messages, sysPrompt, lastGeneratedSystemPrompt)
 		lastGeneratedSystemPrompt = sysPrompt
+		if taskAnchorIndex >= 0 && taskAnchorIndex < len(req.Messages) && req.Messages[taskAnchorIndex].Role == openai.ChatMessageRoleUser {
+			taskAnchorText = messageText(req.Messages[taskAnchorIndex])
+		}
 		if runCfg.PreparedPrompt != nil {
 			var trimErr error
-			req.Messages, trimErr = trimPreparedHistory(requestBudget, req.Messages, initialUserMsg, sysPrompt, req.Tools, tokenCache)
+			req.Messages, taskAnchorIndex, trimErr = trimPreparedHistoryWithTaskAnchor(requestBudget, req.Messages, taskAnchorText, taskAnchorIndex, sysPrompt, req.Tools, tokenCache)
 			if trimErr != nil {
 				return openai.ChatCompletionResponse{}, trimErr
 			}
@@ -1556,7 +1568,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Tool schemas, output capacity, the protocol margin and the generated
 		// system prompt have already been reserved. Compression therefore receives
 		// only the capacity that is genuinely available to history.
-		currentUserIndex := currentUserMessageIndex(req.Messages, initialUserMsg)
+		currentUserIndex := taskAnchorIndex
 		historyBudget := requestBudget.historyWorkingSetLimitForMessages(req.Messages, currentUserIndex, sysPrompt, req.Tools, tokenCache)
 		historyTokens := requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserIndex, tokenCache)
 		runHistoryCompression := shouldRunHistoryCompression(loopIterationCount, historyTokens, historyBudget)
@@ -1567,6 +1579,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if compactionOptions.KeepRecentToolRoundsFull < 2 {
 				compactionOptions.KeepRecentToolRoundsFull = 2
 			}
+			anchorOccurrence := genuineUserOccurrence(req.Messages, taskAnchorIndex)
 			compactedMessages, historyCompaction := CompactHistoryToolRounds(req.Messages, compactionOptions)
 			compactedMessages, textCompaction := CompactHistoryTextToolRounds(compactedMessages, compactionOptions)
 			historyCompaction.Compacted = historyCompaction.Compacted || textCompaction.Compacted
@@ -1574,6 +1587,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			historyCompaction.MessagesDropped += textCompaction.MessagesDropped
 			if historyCompaction.Compacted {
 				req.Messages = compactedMessages
+				taskAnchorIndex = genuineUserIndexByOccurrence(req.Messages, anchorOccurrence)
+				currentUserIndex = taskAnchorIndex
+				if taskAnchorIndex >= 0 && taskAnchorIndex < len(req.Messages) {
+					taskAnchorText = messageText(req.Messages[taskAnchorIndex])
+				}
 				if lastCompressionMsg > len(req.Messages) {
 					lastCompressionMsg = 0
 				}
@@ -1598,7 +1616,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					if persistable {
 						persistentResult := compressPersistentHistory(ctx, runCfg, historyBudget, 0, false, compressionModel, compressionClient, s.currentLogger)
 						if persistentResult.Compressed {
-							req.Messages = applyPersistentCompressionToRequest(req.Messages, persistentResult)
+							req.Messages, currentUserIndex = applyPersistentCompressionToRequestWithTaskAnchor(req.Messages, persistentResult, currentUserIndex)
+							taskAnchorIndex = currentUserIndex
+							if currentUserIndex >= 0 && currentUserIndex < len(req.Messages) {
+								taskAnchorText = messageText(req.Messages[currentUserIndex])
+							}
 							compRes = CompressHistoryResult{
 								Compressed: true, DroppedCount: len(persistentResult.Dropped), Summary: persistentResult.Summary,
 								SummaryTokens: prompts.CountTokensForModel(persistentResult.Summary, compressionModel),
@@ -1611,9 +1633,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						if len(req.Messages) > 0 {
 							compressionEnvelope += tokenCache.Count(messageTextWithReasoningForAccounting(req.Messages[0]), compressionModel) + 4
 						}
-						req.Messages, lastCompressionMsg, compRes = CompressHistory(
-							ctx, req.Messages, compressionEnvelope, compressionModel, compressionClient, lastCompressionMsg, s.currentLogger,
+						req.Messages, lastCompressionMsg, compRes = compressHistoryForTaskAnchor(
+							ctx, req.Messages, compressionEnvelope, compressionModel, compressionClient, lastCompressionMsg, s.currentLogger, taskAnchorText, currentUserIndex,
 						)
+						currentUserIndex = compRes.CurrentUserIndex
+						taskAnchorIndex = currentUserIndex
+						if currentUserIndex >= 0 && currentUserIndex < len(req.Messages) {
+							taskAnchorText = messageText(req.Messages[currentUserIndex])
+						}
 					}
 					lease.release(compRes.Compressed)
 				}
@@ -1625,19 +1652,26 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Repair tool-call integrity before trimming so conversation groups are
 		// formed from the exact request that can be sent to the provider.
+		anchorOccurrence := genuineUserOccurrence(req.Messages, currentUserIndex)
 		sanitizedMessages, droppedToolMessages := SanitizeToolMessages(req.Messages)
 		beforeSanitizeMessages := len(req.Messages)
 		req.Messages = sanitizedMessages
+		currentUserIndex = genuineUserIndexByOccurrence(req.Messages, anchorOccurrence)
+		taskAnchorIndex = currentUserIndex
+		if currentUserIndex >= 0 && currentUserIndex < len(req.Messages) {
+			taskAnchorText = messageText(req.Messages[currentUserIndex])
+		}
 		if droppedToolMessages > 0 {
 			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before context trimming",
 				"dropped", droppedToolMessages, "before", beforeSanitizeMessages, "after", len(sanitizedMessages))
 		}
 
-		workingMessages, workingDropped, workingStats := requestBudget.trimHistoryWorkingSet(req.Messages, initialUserMsg, sysPrompt, req.Tools, tokenCache)
+		workingMessages, workingDropped, workingStats := requestBudget.trimHistoryWorkingSetWithTaskAnchor(req.Messages, taskAnchorText, currentUserIndex, sysPrompt, req.Tools, tokenCache)
 		if len(workingDropped) > 0 {
 			broker.Send("thinking", "Condensing older conversation context...")
-			req.Messages = appendRecapWithinWorkingSet(requestBudget, workingMessages, initialUserMsg, sysPrompt, req.Tools, workingDropped, tokenCache)
-			workingStats.KeptTokens = requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserMessageIndex(req.Messages, initialUserMsg), tokenCache)
+			req.Messages, currentUserIndex = appendRecapWithinWorkingSetWithTaskAnchor(requestBudget, workingMessages, taskAnchorText, workingStats.CurrentUserIndex, sysPrompt, req.Tools, workingDropped, tokenCache)
+			taskAnchorIndex = currentUserIndex
+			workingStats.KeptTokens = requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserIndex, tokenCache)
 			workingStats.SummaryTokens = requestBudget.maxSummaryTokens(req.Messages, tokenCache)
 			s.currentLogger.Info("[ContextGuard] History working set reduced",
 				"working_limit_tokens", workingStats.LimitTokens,
@@ -1657,14 +1691,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.currentLogger.Info("[ImportanceScoring] log_only mode — scores computed but not applied", "would_drop_count", len(droppedIndices))
 		}
 
-		trimmedMessages, droppedMessages, trimErr := requestBudget.trimHistory(req.Messages, req.Tools, useImportance, s.currentLogger, tokenCache)
+		trimmedMessages, droppedMessages, currentUserIndex, trimErr := requestBudget.trimHistoryWithTaskAnchor(req.Messages, req.Tools, useImportance, s.currentLogger, tokenCache, taskAnchorText, currentUserIndex)
 		if trimErr != nil {
 			return openai.ChatCompletionResponse{}, trimErr
 		}
+		taskAnchorIndex = currentUserIndex
 		if len(droppedMessages) > 0 {
 			broker.Send("thinking", "Trimming context window...")
-			req.Messages = appendRecapWithinBudget(requestBudget, trimmedMessages, req.Tools, droppedMessages, tokenCache)
-			req.Messages = trim422Messages(req.Messages)
+			req.Messages, currentUserIndex = appendRecapWithinBudgetWithTaskAnchor(requestBudget, trimmedMessages, req.Tools, droppedMessages, tokenCache, currentUserIndex)
+			taskAnchorIndex = currentUserIndex
 			s.currentLogger.Info("[ContextGuard] History trimmed",
 				"remaining_messages", len(req.Messages), "dropped_messages", len(droppedMessages), "mode", cfg.Agent.ImportanceScoring.Mode)
 		} else {
@@ -1690,8 +1725,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if finalizeErr != nil {
 			return openai.ChatCompletionResponse{}, finalizeErr
 		}
-		workingStats.CurrentTokens = requestBudget.maxMessageTokensAt(req.Messages, currentUserMessageIndex(req.Messages, initialUserMsg), tokenCache)
-		workingStats.KeptTokens = requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserMessageIndex(req.Messages, initialUserMsg), tokenCache)
+		workingStats.CurrentTokens = requestBudget.maxMessageTokensAt(req.Messages, currentUserIndex, tokenCache)
+		workingStats.KeptTokens = requestBudget.maxCarriedHistoryTokens(req.Messages, currentUserIndex, tokenCache)
 		workingStats.SummaryTokens = requestBudget.maxSummaryTokens(req.Messages, tokenCache)
 		for _, usage := range finalizedRequest.Usage {
 			s.currentLogger.Info("[PromptBudget] Request ready",
@@ -1803,6 +1838,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout, &retry422Count, runCfg.RequireCompleteStream)
 			observeUsage(result.resp, result.err)
 			if result.recoveryContinue {
+				currentUserIndex = genuineUserIndexByOccurrence(result.recoveredMessages, genuineUserOccurrence(req.Messages, currentUserIndex))
+				if !validTaskAnchor(result.recoveredMessages, currentUserIndex, taskAnchorText) {
+					return openai.ChatCompletionResponse{}, fmt.Errorf("provider recovery removed the original user request")
+				}
+				taskAnchorIndex = currentUserIndex
 				req.Messages = result.recoveredMessages
 				continue
 			}
@@ -1853,6 +1893,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			result := handleSyncLLMCall(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, &retry422Count)
 			observeUsage(result.resp, result.err)
 			if result.recoveryContinue {
+				currentUserIndex = genuineUserIndexByOccurrence(result.recoveredMessages, genuineUserOccurrence(req.Messages, currentUserIndex))
+				if !validTaskAnchor(result.recoveredMessages, currentUserIndex, taskAnchorText) {
+					return openai.ChatCompletionResponse{}, fmt.Errorf("provider recovery removed the original user request")
+				}
+				taskAnchorIndex = currentUserIndex
 				req.Messages = result.recoveredMessages
 				continue
 			}
