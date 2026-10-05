@@ -6077,19 +6077,19 @@
     function selectStartCategory(id, options) {
         options = options || {};
         window.clearTimeout(startCategoryHoverTimer);
+        let leavingSearch = false;
         if (options.clearQuery && state.startQuery.trim()) {
+            // Leaving a search keeps the rail (and the clicked button) in place; only the pane changes.
             state.startQuery = '';
             const search = $('vd-start-search');
             if (search) search.value = '';
-            state.startCategory = id;
-            writeJSONStorage(START_CATEGORY_KEY, id);
-            renderStartApps({ switching: true });
-            if (options.focus) focusStartCategory(id);
-            return;
+            const menu = $('vd-start-menu');
+            if (menu) menu.classList.remove('vd-start-searching');
+            leavingSearch = true;
         }
         const model = startMenuModel();
         if (!model.rail.some(entry => entry.id === id)) return;
-        const changed = state.startCategory !== id;
+        const changed = state.startCategory !== id || leavingSearch;
         state.startCategory = id;
         writeJSONStorage(START_CATEGORY_KEY, id);
         const rail = $('vd-start-rail');
@@ -19345,8 +19345,9 @@ if (appId === 'pixel') {
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             if (!event.target.closest('.vd-window-menubar')) closeWindowMenu();
             const menu = $('vd-start-menu');
-            // Protect both classic start button and Fruity Dock orb from the outside-click closer
-            if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb]')) {
+            // Protect every launcher (classic start button, Fruity dock orb, Fruity menubar brand) from
+            // the outside-click closer. A target that a re-render detached was inside the menu too.
+            if (!menu.hidden && event.target.isConnected && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb], .vd-global-brand')) {
                 closeStartMenu();
             }
         });

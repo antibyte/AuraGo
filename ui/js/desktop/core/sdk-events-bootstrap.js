@@ -520,8 +520,9 @@
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
             if (!event.target.closest('.vd-window-menubar')) closeWindowMenu();
             const menu = $('vd-start-menu');
-            // Protect both classic start button and Fruity Dock orb from the outside-click closer
-            if (!menu.hidden && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb]')) {
+            // Protect every launcher (classic start button, Fruity dock orb, Fruity menubar brand) from
+            // the outside-click closer. A target that a re-render detached was inside the menu too.
+            if (!menu.hidden && event.target.isConnected && !menu.contains(event.target) && !event.target.closest('#vd-start-button, [data-fruity-dock-orb], .vd-global-brand')) {
                 closeStartMenu();
             }
         });

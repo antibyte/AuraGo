@@ -93,4 +93,17 @@ func TestDesktopStartMenuCategoriesStayInSync(t *testing.T) {
 	if !strings.Contains(polish, ".vd-start-category") {
 		t.Fatal("category buttons must receive the pointer light (POINTER_LIGHT_TARGETS)")
 	}
+
+	// The outside-click closer must spare every launcher (the Fruity menubar brand opens the menu
+	// without stopping propagation) and a target that a re-render detached from the menu.
+	bootstrap := readDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
+	closer := regexp.MustCompile(`if \(!menu\.hidden && [^\n]*closeStartMenu`).FindString(strings.ReplaceAll(bootstrap, "\n", " "))
+	if closer == "" {
+		closer = regexp.MustCompile(`if \(!menu\.hidden &&[^{]*\{`).FindString(bootstrap)
+	}
+	for _, want := range []string{"event.target.isConnected", "#vd-start-button", "[data-fruity-dock-orb]", ".vd-global-brand"} {
+		if !strings.Contains(closer, want) {
+			t.Fatalf("start menu outside-click closer must contain %q, got %q", want, closer)
+		}
+	}
 }

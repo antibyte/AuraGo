@@ -928,19 +928,19 @@
     function selectStartCategory(id, options) {
         options = options || {};
         window.clearTimeout(startCategoryHoverTimer);
+        let leavingSearch = false;
         if (options.clearQuery && state.startQuery.trim()) {
+            // Leaving a search keeps the rail (and the clicked button) in place; only the pane changes.
             state.startQuery = '';
             const search = $('vd-start-search');
             if (search) search.value = '';
-            state.startCategory = id;
-            writeJSONStorage(START_CATEGORY_KEY, id);
-            renderStartApps({ switching: true });
-            if (options.focus) focusStartCategory(id);
-            return;
+            const menu = $('vd-start-menu');
+            if (menu) menu.classList.remove('vd-start-searching');
+            leavingSearch = true;
         }
         const model = startMenuModel();
         if (!model.rail.some(entry => entry.id === id)) return;
-        const changed = state.startCategory !== id;
+        const changed = state.startCategory !== id || leavingSearch;
         state.startCategory = id;
         writeJSONStorage(START_CATEGORY_KEY, id);
         const rail = $('vd-start-rail');
