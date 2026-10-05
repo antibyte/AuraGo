@@ -291,7 +291,7 @@ func TestHelperLLMManagerAnalyzeConsolidationBatchesRejectsMissingBatchIDs(t *te
 	if err == nil {
 		t.Fatal("expected missing batch ID to be rejected")
 	}
-	if !strings.Contains(err.Error(), "missing consolidation batch IDs") {
+	if !strings.Contains(err.Error(), "helper response missing") {
 		t.Fatalf("err = %v, want missing batch IDs error", err)
 	}
 }
