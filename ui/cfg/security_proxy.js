@@ -224,10 +224,11 @@ async function _proxyAction(action) {
         const data = await res.json();
         if (data.status === 'ok') {
             showToast(data.message || action + ' successful', 'success');
+            setTimeout(_proxyFetchStatus, 1500);
         } else {
             showToast(data.message || 'Action failed', 'error');
+            _proxyFetchStatus();
         }
-        setTimeout(_proxyFetchStatus, 1500);
     } catch(e) {
         showToast('Error: ' + e.message, 'error');
         _proxyFetchStatus();
