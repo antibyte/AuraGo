@@ -956,6 +956,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + tools.AnalyzeProcesses(req.Operation, req.Name, req.PID, req.Limit)
 
 		case "web_capture":
+			if !cfg.Tools.WebCapture.Enabled {
+				return "Tool Output: [PERMISSION DENIED] web_capture is disabled in settings (tools.web_capture.enabled: false)."
+			}
 			req := decodeWebCaptureArgs(tc)
 			logger.Info("LLM requested web capture", "operation", req.Operation, "url", req.URL)
 			return "Tool Output: " + tools.WebCapture(ctx, req.Operation, req.URL, req.Selector, req.FullPage, req.OutputDir)
@@ -1110,6 +1113,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + exec.Output
 
 		case "web_performance_audit":
+			if !cfg.Tools.WebCapture.Enabled {
+				return "Tool Output: [PERMISSION DENIED] web_performance_audit is disabled in settings (tools.web_capture.enabled: false; it shares the web_capture gate)."
+			}
 			req := decodeWebPerformanceAuditArgs(tc)
 			logger.Info("LLM requested web performance audit", "url", req.URL, "viewport", req.Viewport)
 			return "Tool Output: " + tools.WebPerformanceAudit(ctx, req.URL, req.Viewport)

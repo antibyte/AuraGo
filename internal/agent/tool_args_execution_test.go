@@ -931,24 +931,46 @@ func TestDecodeDocumentCreatorArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
-func TestDispatchCommRefusesPingAndPortScanWhenToolDisabled(t *testing.T) {
+func TestDispatchCommRefusesFlagGatedToolsWhenDisabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Tools.NetworkPing.Enabled = false
-	useRuntimePermissionsForTest(t, cfg)
+	cfg.Tools.WebCapture.Enabled = false
 	dc := &DispatchContext{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 
-	for _, action := range []string{"network_ping", "port_scanner"} {
-		out, handled := dispatchComm(context.Background(), ToolCall{Action: action, Params: map[string]interface{}{"host": "127.0.0.1", "port_range": "1-2"}}, dc)
-		if !handled {
-			t.Fatalf("%s not handled", action)
-		}
-		if !strings.Contains(out, "PERMISSION DENIED") || !strings.Contains(out, "tools.network_ping.enabled") {
-			t.Fatalf("%s must be refused at dispatch when disabled, got %q", action, out)
-		}
+	for _, tc := range []struct {
+		action     string
+		configPath string
+	}{
+		{"network_ping", "tools.network_ping.enabled"},
+		{"port_scanner", "tools.network_ping.enabled"},
+		{"web_capture", "tools.web_capture.enabled"},
+		{"web_performance_audit", "tools.web_capture.enabled"},
+	} {
+		t.Run(tc.action, func(t *testing.T) {
+			out, handled := dispatchComm(context.Background(), ToolCall{Action: tc.action, Params: map[string]interface{}{
+				"host":       "127.0.0.1",
+				"port_range": "1-2",
+				"operation":  "screenshot",
+				"url":        "https://example.com",
+			}}, dc)
+			if !handled {
+				t.Fatalf("%s not handled", tc.action)
+			}
+			wantPrefix := "Tool Output: [PERMISSION DENIED] " + tc.action + " is disabled"
+			if !strings.HasPrefix(out, wantPrefix) {
+				t.Fatalf("%s must be refused at dispatch when disabled, want prefix %q, got %q", tc.action, wantPrefix, out)
+			}
+			if !strings.Contains(out, tc.configPath) {
+				t.Fatalf("%s refusal must name %s, got %q", tc.action, tc.configPath, out)
+			}
+			if got := classifyLegacyToolResult(out); got != ToolResultDenied {
+				t.Fatalf("%s refusal classified as %v, want %v", tc.action, got, ToolResultDenied)
+			}
+		})
 	}
 }
 
-func TestDispatchCommAllowsPingWhenToolEnabled(t *testing.T) {
+func TestDispatchCommAllowsPortScanWhenNetworkPingEnabled(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -967,7 +989,7 @@ func TestDispatchCommAllowsPingWhenToolEnabled(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Tools.NetworkPing.Enabled = true
-	useRuntimePermissionsForTest(t, cfg)
+	cfg.Agent.AllowNetworkRequests = false // gate is independent of allow_network_requests
 	dc := &DispatchContext{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 
 	out, handled := dispatchComm(context.Background(), ToolCall{
