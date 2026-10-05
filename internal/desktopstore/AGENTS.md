@@ -10,6 +10,15 @@ Store app configuration, runtime, assets, and publication.
 
 ## Local Contracts
 
+### CommandCode Image
+
+- `commandcode_assets/Dockerfile` pins `command-code@1.74.1` on Node 22.
+  The release workflow and embedded fallback build share this build context;
+  update the exact package version here to invalidate Docker's install cache.
+  Verify `command-code --version` as the unprivileged image user after updates.
+- The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest`. Source updates
+  require image publication and a Store update before installed apps change.
+
 ### God's Eye View Store Contract
 
 - `internal/desktopstore/gods_eye.go` owns app-specific setup for catalog ID

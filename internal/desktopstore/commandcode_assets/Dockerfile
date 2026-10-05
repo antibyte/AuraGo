@@ -76,7 +76,7 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --p
     && chmod -R a+rX "$RUSTUP_HOME" "$CARGO_HOME"
 
 RUN npm install -g --force \
-        command-code@latest \
+        command-code@1.74.1 \
         http-server \
         nodemon \
         pnpm \
