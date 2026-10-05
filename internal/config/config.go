@@ -609,10 +609,10 @@ func Load(path string) (*Config, error) {
 	cfg.Newspaper.MaxSearches = 32
 	cfg.Newspaper.MaxEditions = 365
 	cfg.Flows.Enabled = true
-	cfg.Flows.MaxParallelRuns = 8
-	cfg.Flows.MaxParallelNodesPerRun = 4
-	cfg.Flows.RunRetentionDays = 30
-	cfg.Flows.MaxRunsPerFlow = 200
+	cfg.Flows.MaxParallelRuns = flowsDefaultMaxParallelRuns
+	cfg.Flows.MaxParallelNodesPerRun = flowsDefaultMaxParallelNodes
+	cfg.Flows.RunRetentionDays = flowsDefaultRunRetentionDays
+	cfg.Flows.MaxRunsPerFlow = flowsDefaultMaxRunsPerFlow
 	cfg.GameMaker.WorkspacePath = "agent_workspace/virtual_desktop"
 	cfg.GameMaker.MaxProjects = 25
 	cfg.GameMaker.MaxFilesPerProject = 250

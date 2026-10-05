@@ -1148,11 +1148,11 @@ flows:
   max_parallel_runs: 8                                  # concurrent flow runs, 1-32
   max_parallel_nodes_per_run: 4                         # parallel branches inside one run, 1-16
   run_retention_days: 30                                # keep finished runs this many days, 1-365
-  max_runs_per_flow: 200                                # keep at most this many finished runs per flow
+  max_runs_per_flow: 200                                # keep at most this many finished runs per flow, 10-5000
   ai_provider: ""                                       # provider id for AI steps; empty = main model
   agent:
-    read_only: false                                    # phase 4: agent may only read flows
-    allow_publish: false                                # phase 4: agent may publish flows
+    read_only: false                                    # reserved; not enforced yet: agent may only read flows
+    allow_publish: false                                # reserved; not enforced yet: agent may publish flows
 
 game_maker:
     enabled: false                                         # enable Game Maker Studio APIs and agent tools
