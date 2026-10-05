@@ -62,7 +62,10 @@ func RegisterAINodes(reg *Registry) error {
 // it: UntrustedOutput makes the lint treat the result like web data (the same
 // decision as for the mission_completed trigger). The prompt itself is deliberately
 // not a sensitive sink: summarising untrusted text is the node's main job, and a
-// warning for it would be noise. The node has no outward effect of its own.
+// warning for it would be noise. The instructions are a sink: they become the system
+// message, after the adapter's guard against instructions found in the data, and carry
+// the author's authority there, so untrusted data belongs in the prompt. The node has
+// no outward effect of its own.
 func aiStepDef() *NodeDef {
 	def := &NodeDef{
 		Type: TypeAIStep, Version: 1, Category: "ai", Icon: "sparkles", Color: "ai",
@@ -71,7 +74,7 @@ func aiStepDef() *NodeDef {
 		PrimaryInput: "prompt",
 		Params: []ParamSpec{
 			{Name: "prompt", Kind: ParamTextarea, LabelKey: "easydrag.param.ai_prompt", Required: true, Templatable: true},
-			{Name: "instructions", Kind: ParamTextarea, LabelKey: "easydrag.param.ai_instructions", Templatable: true},
+			{Name: "instructions", Kind: ParamTextarea, LabelKey: "easydrag.param.ai_instructions", Templatable: true, SensitiveSink: true},
 			{Name: "output_mode", Kind: ParamSegmented, LabelKey: "easydrag.param.ai_output_mode", Default: "text",
 				Options: []Option{option("text", "ai_output_text"), option("fields", "ai_output_fields")}},
 			{Name: "fields", Kind: ParamFields, LabelKey: "easydrag.param.ai_fields", Required: true,

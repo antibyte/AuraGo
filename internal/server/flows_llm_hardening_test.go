@@ -572,6 +572,22 @@ func TestC14SecretsRegisterTheStoredAndTheTrimmedValue(t *testing.T) {
 	}
 }
 
+func TestC14WhitespaceOnlySecretsAreNotRegistered(t *testing.T) {
+	blanks := map[string]string{"tabs": "\t\t\t\t\t\t\t\t\t", "mixed": " \n \n \n \n \n "}
+	vault, _ := c14SecretVault(t, blanks)
+	secrets := flowSecrets{s: &Server{Vault: vault}}
+	for name, value := range blanks {
+		if v, err := secrets.ReadSecret(name); err != nil || v != value {
+			t.Fatalf("%s: ReadSecret = %q, %v", name, v, err)
+		}
+	}
+	for _, text := range []string{"func f() {\n\t\t\t\t\t\t\t\t\treturn\n}", "a \n \n \n \n \n b"} {
+		if got := security.Scrub(text); got != text {
+			t.Errorf("a whitespace-only secret must not redact indentation: %q", got)
+		}
+	}
+}
+
 func TestC14SecretErrorsAreBounded(t *testing.T) {
 	vault, path := c14SecretVault(t, map[string]string{"token": "c14-token-value-0123456789"})
 	secrets := flowSecrets{s: &Server{Vault: vault}}

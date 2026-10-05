@@ -248,7 +248,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   untrusted (an entity state can be shaped by mail, RSS or MQTT) while `trigger.ha_state` is pinned trusted by a
   plan test (`catalog_triggers_test.go`), although the same states reach the flow there.
 - Sinks are search queries, paths and file names, URLs, headers and bodies, recipients, attachments, accounts,
-  channels, MQTT topic and payload, Home Assistant entity and service data, and the planner title.
+  channels, MQTT topic and payload, Home Assistant entity and service data, the planner title and the `ai.step`
+  instructions (they become the system message; untrusted data belongs in the prompt, which is no sink).
   `OutputIndependent` are the message, the pdf and notify titles (not the planner title, a sink), subject, body,
   document and file content, the MQTT payload and the planner description.
 - Secrets: a `secret_ref` param (`http.request` `auth_secret`) holds only the vault key. The node reads the value

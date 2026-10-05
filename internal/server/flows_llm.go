@@ -415,9 +415,11 @@ type flowSecrets struct{ s *Server }
 // ReadSecret implements flows.SecretReader. The value is returned as stored. Nodes send it
 // trimmed (http.request uses strings.TrimSpace of it), so the stored and the trimmed value
 // are both registered with the output scrubber: it derives the encoded forms it removes as
-// well (base64, hex) from the registered text only. The scrubber ignores values shorter
-// than 8 bytes (security.RegisterSensitive), so a shorter flow secret is not redacted from
-// other output; the node's own scrubber still removes it from the node's result.
+// well (base64, hex) from the registered text only. A value that is only whitespace is not
+// registered: the node refuses it as empty, and eight tabs would otherwise be redacted from
+// every indented text. The scrubber ignores values shorter than 8 bytes
+// (security.RegisterSensitive), so a shorter flow secret is not redacted from other output;
+// the node's own scrubber still removes it from the node's result.
 func (f flowSecrets) ReadSecret(name string) (string, error) {
 	if !flowSecretNamePattern.MatchString(name) {
 		return "", fmt.Errorf("%s is not a valid flow secret name", flowQuoteName(name))
@@ -433,7 +435,9 @@ func (f flowSecrets) ReadSecret(name string) (string, error) {
 		// Vault errors name the lock or the file and never a value; scrubbed all the same.
 		return "", flowScrubbedError("the flow secret "+flowQuoteName(name)+" cannot be read: ", err)
 	}
-	security.RegisterSensitive(value)
-	security.RegisterSensitive(strings.TrimSpace(value))
+	if trimmed := strings.TrimSpace(value); trimmed != "" {
+		security.RegisterSensitive(value)
+		security.RegisterSensitive(trimmed)
+	}
 	return value, nil
 }
