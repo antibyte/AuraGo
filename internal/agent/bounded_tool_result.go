@@ -82,19 +82,27 @@ func truncateExecutionOutput(action, output string, limit int, truncate func(str
 	if !isolated || (!raw && strings.ContainsAny(payload, `"'<>`)) {
 		return "", false
 	}
+	// toolResultPayload only strips the "Tool Output" prefixes here; no boundary
+	// can nest, as raw bodies never hold the closing tag and escaped bodies with
+	// "<" were rejected above.
 	if value, _ := toolResultPayload(payload); json.Valid([]byte(value)) {
 		return "", false
 	}
 	prefix := toolResultPresentationPrefix(output)
 	for _, suffix := range []string{toolResultPresentationSuffix(output), ""} {
-		budget := limit - len(prefix) - isolationBoundaryLen - len(suffix)
-		// Escaping can lengthen the re-isolated text; shrink by the overflow.
+		avail := limit - len(prefix) - len(suffix) - isolationBoundaryLen
+		budget := avail
 		for attempt := 0; attempt < 8 && budget > 0; attempt++ {
-			bounded := prefix + security.IsolateSourceData(truncate(payload, budget)) + suffix
+			text := truncate(payload, budget)
+			bounded := prefix + security.IsolateSourceData(text) + suffix
 			if len(bounded) <= limit {
 				return bounded, true
 			}
-			budget -= len(bounded) - limit
+			// Re-escaping grew the text past the limit. Scale the input by the
+			// observed growth: body exceeds avail here, so the next budget is
+			// always below len(text) and every attempt shrinks the input.
+			body := len(bounded) - len(prefix) - len(suffix)
+			budget = len(text) * avail / body
 		}
 	}
 	return "", false

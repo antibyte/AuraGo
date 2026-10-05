@@ -37,12 +37,12 @@ func applyToolOutputPolicy(action, result string, limit int, scope AgentTelemetr
 	if decision.WasError {
 		RecordToolRecoveryEventForScope(scope, "error_output_truncated_preserved")
 	}
-	// Readable execution output keeps the plain-text policy inside its boundary.
-	// The preserved summary comes from the decoded text, as it did before the
-	// boundary existed, so the boundary tag never lands inside the body.
+	// Readable execution output keeps the plain-text policy inside its boundary;
+	// ErrorSummary is already taken from the decoded payload.
+	summary := decision.ErrorSummary
 	if content, ok := truncateExecutionOutput(action, result, limit, func(text string, budget int) string {
 		if decision.WasError {
-			return truncateToolErrorPreserving(text, budget, extractErrorMessage(text))
+			return truncateToolErrorPreserving(text, budget, summary)
 		}
 		return truncateToolOutput(text, budget)
 	}); ok {

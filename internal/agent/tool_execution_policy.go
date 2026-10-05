@@ -63,6 +63,10 @@ type outputVaultPayload struct {
 	Message       string `json:"message"`
 }
 
+// suggestedNextStepHeader introduces the recovery hint that
+// augmentToolFailureContent appends to a failed plain-text result.
+const suggestedNextStepHeader = "\n\n[Suggested next step]\n"
+
 func augmentToolFailureContent(tc ToolCall, content string, errorSummary string) string {
 	if errorSummary == "" {
 		errorSummary = extractErrorMessage(content)
@@ -81,7 +85,16 @@ func augmentToolFailureContent(tc ToolCall, content string, errorSummary string)
 		encoded, _ := json.Marshal(payload)
 		return string(encoded)
 	}
-	return content + "\n\n[Suggested next step]\n" + hint
+	return content + suggestedNextStepHeader + hint
+}
+
+// failureHintLen is what augmentToolFailureContent appends to a failed
+// plain-text result with this error summary.
+func failureHintLen(tc ToolCall, errorSummary string) int {
+	if hint := recoveryHintForToolFailure(tc, errorSummary); hint != "" {
+		return len(suggestedNextStepHeader) + len(hint)
+	}
+	return 0
 }
 
 func blockedToolOutputFromRequest(req *openai.ChatCompletionRequest) string {
@@ -162,8 +175,17 @@ func finalizeToolExecution(
 	if cfg != nil {
 		limit = cfg.Agent.ToolOutputLimit
 	}
+	// A failure gets its recovery hint appended after the policy. Reserve it so
+	// the final bound does not cut the preserved error summary again.
+	policyLimit := limit
+	if status.IsError() {
+		effective := effectiveToolOutputLimit(cfg)
+		if reserve := failureHintLen(trackingTC, extractErrorMessage(rawContent)); reserve > 0 && reserve < effective/2 {
+			policyLimit = effective - reserve
+		}
+	}
 
-	policyResult := applyToolOutputPolicy(tc.Action, rawContent, limit, scope, status)
+	policyResult := applyToolOutputPolicy(tc.Action, rawContent, policyLimit, scope, status)
 	rawContent = policyResult.Content
 
 	// Apply compression after truncation so expensive filters only process the
@@ -241,8 +263,8 @@ func finalizeToolExecution(
 		}
 	}
 
-	if limit > 0 && len(rawContent) > limit {
-		postCompressionPolicy := applyToolOutputPolicy(tc.Action, rawContent, limit, scope, status)
+	if limit > 0 && len(rawContent) > policyLimit {
+		postCompressionPolicy := applyToolOutputPolicy(tc.Action, rawContent, policyLimit, scope, status)
 		postCompressionPolicy.Truncated = postCompressionPolicy.Truncated || policyResult.Truncated
 		if postCompressionPolicy.ErrorSummary == "" {
 			postCompressionPolicy.ErrorSummary = policyResult.ErrorSummary
