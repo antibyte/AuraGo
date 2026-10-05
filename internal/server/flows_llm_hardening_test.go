@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -406,5 +408,81 @@ func TestC14ProviderCredentialsComeFromTheVault(t *testing.T) {
 	_, err = f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: strings.Repeat("m", 500)})
 	if ne := c14NodeError(t, err, "FLOW_AI_UNAVAILABLE"); utf8.RuneCountInString(ne.Message) > 100 {
 		t.Fatalf("an unknown provider id must be echoed bounded: %q", ne.Message)
+	}
+}
+
+func TestC14FlowsAIProviderIsAProviderReference(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Flows.AIProvider = " fast "
+	refs := providerReferences(cfg, "fast")
+	if len(refs) != 1 || refs[0].Path != "flows.ai_provider" || refs[0].Role != "flows" {
+		t.Fatalf("references = %+v", refs)
+	}
+	if refs := providerReferences(cfg, "other"); len(refs) != 0 {
+		t.Fatalf("another provider must not be referenced: %+v", refs)
+	}
+}
+
+// c14SecretVault returns a vault holding the flow secrets in values (names without the
+// easydrag_ prefix) and its file path.
+func c14SecretVault(t *testing.T, values map[string]string) (*security.Vault, string) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("d", 64), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, value := range values {
+		if err := vault.WriteUserSecret(flowSecretPrefix+name, value, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return vault, path
+}
+
+func TestC14SecretsRegisterTheStoredAndTheTrimmedValue(t *testing.T) {
+	raw := "  c14-padded-flow-secret-value \n"
+	vault, _ := c14SecretVault(t, map[string]string{"padded": raw, "short": " pin7 "})
+	secrets := flowSecrets{s: &Server{Vault: vault}}
+	if v, err := secrets.ReadSecret("padded"); err != nil || v != raw {
+		t.Fatalf("ReadSecret = %q, %v (the value is returned as stored)", v, err)
+	}
+	// Nodes send the trimmed value; the scrubber derives its encoded forms (here the one of
+	// a Basic authorization header) only from a registered value itself.
+	trimmed := strings.TrimSpace(raw)
+	for _, leak := range []string{trimmed, base64.StdEncoding.EncodeToString([]byte(trimmed))} {
+		if got := security.Scrub("sent " + leak + " today"); strings.Contains(got, leak) {
+			t.Fatalf("the trimmed value nodes send must be scrubbed: %q", got)
+		}
+	}
+	// Documented limit: the global scrubber ignores values under 8 bytes.
+	if v, err := secrets.ReadSecret("short"); err != nil || v != " pin7 " {
+		t.Fatalf("ReadSecret = %q, %v", v, err)
+	}
+	if got := security.Scrub("code pin7"); !strings.Contains(got, "pin7") {
+		t.Fatalf("short secrets are below the scrubber's bound: %q", got)
+	}
+}
+
+func TestC14SecretErrorsAreBounded(t *testing.T) {
+	vault, path := c14SecretVault(t, map[string]string{"token": "c14-token-value-0123456789"})
+	secrets := flowSecrets{s: &Server{Vault: vault}}
+	_, err := secrets.ReadSecret(strings.Repeat("Ä", 5000))
+	if err == nil || utf8.RuneCountInString(err.Error()) > 100 {
+		t.Fatalf("an invalid name must be echoed bounded: %v", err)
+	}
+	if _, err := secrets.ReadSecret("missing"); err == nil || !strings.Contains(err.Error(), `"missing" does not exist`) {
+		t.Fatalf("missing secret = %v", err)
+	}
+	if err := os.WriteFile(path, []byte("not a vault"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err = secrets.ReadSecret("token")
+	if err == nil || !strings.HasPrefix(err.Error(), `the flow secret "token" cannot be read: `) ||
+		utf8.RuneCountInString(err.Error()) > len(`the flow secret "token" cannot be read: `)+flowErrorRunes+1 {
+		t.Fatalf("vault error = %v", err)
+	}
+	if _, err := (flowSecrets{s: &Server{}}).ReadSecret("token"); err == nil {
+		t.Fatal("without a vault no secret can be read")
 	}
 }

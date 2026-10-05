@@ -348,21 +348,28 @@ var flowSecretNamePattern = regexp.MustCompile(`^[a-z0-9_]{1,40}$`)
 // flowSecrets resolves secret_ref parameters and registers the values with the scrubber.
 type flowSecrets struct{ s *Server }
 
-// ReadSecret implements flows.SecretReader.
+// ReadSecret implements flows.SecretReader. The value is returned as stored. Nodes send it
+// trimmed (http.request uses strings.TrimSpace of it), so the stored and the trimmed value
+// are both registered with the output scrubber: it derives the encoded forms it removes as
+// well (base64, hex) from the registered text only. The scrubber ignores values shorter
+// than 8 bytes (security.RegisterSensitive), so a shorter flow secret is not redacted from
+// other output; the node's own scrubber still removes it from the node's result.
 func (f flowSecrets) ReadSecret(name string) (string, error) {
 	if !flowSecretNamePattern.MatchString(name) {
-		return "", fmt.Errorf("%q is not a valid flow secret name", name)
+		return "", fmt.Errorf("%s is not a valid flow secret name", flowQuoteName(name))
 	}
 	if f.s.Vault == nil {
 		return "", errors.New("the vault is not available")
 	}
 	value, err := f.s.Vault.ReadSecret(flowSecretPrefix + name)
 	if errors.Is(err, security.ErrSecretNotFound) {
-		return "", fmt.Errorf("the flow secret %q does not exist; add it in EasyDrag", name)
+		return "", fmt.Errorf("the flow secret %s does not exist; add it in EasyDrag", flowQuoteName(name))
 	}
 	if err != nil {
-		return "", fmt.Errorf("the flow secret %q cannot be read: %w", name, err)
+		// Vault errors name the lock or the file and never a value; scrubbed all the same.
+		return "", flowScrubbedError("the flow secret "+flowQuoteName(name)+" cannot be read: ", err)
 	}
 	security.RegisterSensitive(value)
+	security.RegisterSensitive(strings.TrimSpace(value))
 	return value, nil
 }

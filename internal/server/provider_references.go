@@ -34,6 +34,7 @@ func providerReferences(cfg *config.Config, providerID string) []providerReferen
 	add("embeddings.provider", "embeddings", cfg.Embeddings.Provider)
 	add("llm_guardian.provider", "llm_guardian", cfg.LLMGuardian.Provider)
 	add("mission_preparation.provider", "mission_preparation", cfg.MissionPreparation.Provider)
+	add("flows.ai_provider", "flows", cfg.Flows.AIProvider)
 	add("image_generation.provider", "image_generation", cfg.ImageGeneration.Provider)
 	add("music_generation.provider", "music_generation", cfg.MusicGeneration.Provider)
 	add("video_generation.provider", "video_generation", cfg.VideoGeneration.Provider)
