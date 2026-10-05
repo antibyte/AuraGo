@@ -509,6 +509,27 @@ worker. Keep packaging, recovery and offline instructions in
   Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
+- Dark Sun is an eclipse scene. `body` paints the violet-black sky, star specks
+  and the horizon glow; `body::before` carries the static eclipse and lava
+  horizon SVG (the no-JS, reduced-motion and narrow-screen baseline) and fades
+  out while the engine is live. `js/chat/dark-sun-shader.js` is the whole
+  engine: `#dark-sun-sky` (WebGL, at most 1280x720: stars, breathing corona,
+  prominence loops, the black disc, a travelling diamond-ring glint, the
+  eruption plume and light wave) and `#dark-sun-scene` (2D basalt plain with
+  cached glowing cracks, ridge silhouettes and the 2D eclipse fallback) sit
+  behind the chat; `#dark-sun-overlay` (2D, screen blend) carries embers that
+  rise from the cracks, sparks when an ember meets a bubble, pointer heat and
+  the light wave over the chat. Pools: 160 embers, 240 sparks; a single RAF
+  loop; canvas bounds never transition. Every 20–35 s a 5 s eruption triples
+  the ember spawn, launches the wave after one second and publishes
+  `html[data-darksun="calm"|"flare"]` plus `--darksun-flash` on
+  `.app-header`/`.app-footer`; `css/chat-themes.css` reacts and `stop()`
+  clears both. Bubble tails keep the anchored `::before` contract. Gates:
+  theme, hidden tab, reduced motion and `innerWidth >= 768`. The DOM ember
+  layer (`dark-sun-embers.js`) is retired; `theme-effects.js` loads only the
+  engine. Contracts: `TestDarkSunEclipseBrowserSmoke`
+  (`AURAGO_RUN_BROWSER_SMOKE=1`, `AURAGO_DARKSUN_BENCHMARK=1` for 120
+  native-RAF frames at 1920x1080) and `TestChatFrontend_DarkSunSceneStaysPolished`.
 - Sandstorm is a layered desert scene. `body` paints sky, sun bloom and static
   SVG dunes (the no-JS, reduced-motion and narrow-screen baseline). The engine
   adds `#sandstorm-fog` (WebGL sky, sun, crepuscular rays, dust, the dust wall
