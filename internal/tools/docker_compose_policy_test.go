@@ -181,6 +181,7 @@ func TestDockerComposeConfigResultKeepsTheErrorAndRedactsLongQuotedSpans(t *test
 		"failed to read /ws/semi.env: line 1: unexpected character \";\" in variable name \"K;SECRET=v\"\n":                                                                `failed to read /ws/semi.env: line 1: unexpected character "…" in variable name "…"`,
 		"failed to read /ws/quote.env: line 1: unexpected character \"\\\"\" in variable name \"\\\"SECRET-key\\\"=v\"\n":                                                  `failed to read /ws/quote.env: line 1: unexpected character "…" in variable name "…"`,
 		"failed to read /ws/multi.env: line 5: unterminated quoted value \"opened SECRET-start\nC=SECRET-line-two\nD=SECRET-line-three\n":                                  `failed to read /ws/multi.env: line 5: unterminated quoted value …`,
+		"failed to read /ws/secret/tpl.env: Invalid template: \"${bad SECRET-TPL-42\"\n":                                                                                   `failed to read /ws/secret/tpl.env: Invalid template: "…"`,
 		"time=\"2026-10-05T23:32:38+02:00\" level=fatal msg=\"failed to read /ws/a.env: line 2: unterminated quoted value \\\"SECRET-in-logrus\"\n":                        `failed to read /ws/a.env: line 2: unterminated quoted value …`,
 	} {
 		_, err := dockerComposeConfigResult(nil, []byte(stderr), errors.New("exit status 1"))

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -212,10 +213,16 @@ func TestDockerComposePolicyChecksProfileServicesOnTheAllProfilesModel(t *testin
 		return `{"services":{"web":{"image":"alpine"}}}`, nil
 	})
 	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
-	for _, command := range []string{"up -d hidden", "create hidden", "ps"} {
+	for _, command := range []string{"up -d hidden", "create hidden", "up -d -- hidden", "up -dt 5 hidden"} {
 		got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "prof/compose.yml", Command: command})
 		if !strings.Contains(got, "Boring Computers Garage") {
 			t.Fatalf("%s: profile-gated garage container was not blocked: %s", command, got)
+		}
+	}
+	// Commands that do not name the hidden service never activate its profile.
+	for _, command := range []string{"ps", "up -d", "up -d web", "start hidden", "logs hidden"} {
+		if got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "prof/compose.yml", Command: command}); got != "" {
+			t.Fatalf("%s: an unused profile service blocked the call: %s", command, got)
 		}
 	}
 	var gate, allProfiles int
@@ -229,8 +236,133 @@ func TestDockerComposePolicyChecksProfileServicesOnTheAllProfilesModel(t *testin
 			gate++
 		}
 	}
-	if gate != 3 || allProfiles != 3 {
+	if gate != 9 || allProfiles != 9 {
 		t.Fatalf("resolver calls: %d default, %d all-profiles; want one of each per policy call", gate, allProfiles)
+	}
+}
+
+func TestDockerComposePolicyIgnoresUnusedProfileServices(t *testing.T) {
+	// prof4: an unused debug profile joins AuraGo's app container namespace.
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n  debug:\n    image: alpine\n    profiles: [debug]\n    network_mode: \"container:aurago\"\n")
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return `{"services":{"web":{"image":"alpine"},"debug":{"image":"alpine","profiles":["debug"],"network_mode":"container:aurago"}}}`, nil
+		}
+		return `{"services":{"web":{"image":"alpine"}}}`, nil
+	})
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
+	}
+	for _, command := range []string{"ps", "up -d web", "up -d", "up -d --scale debug=2 web", "up -d --exit-code-from debug web", "down"} {
+		if got := policy(command); got != "" {
+			t.Fatalf("%s: unused profile service blocked the call: %s", command, got)
+		}
+	}
+	for _, command := range []string{"up -d debug", "create debug", "up -d web -- debug"} {
+		if got := policy(command); !strings.Contains(got, `"code":"docker_managed_aurago_resource"`) {
+			t.Fatalf("%s: named profile service in the app container namespace was not blocked: %s", command, got)
+		}
+	}
+}
+
+func TestDockerComposePolicyFollowsDependenciesOfNamedProfileServices(t *testing.T) {
+	// `up -d a` also starts a's same-profile dependency f (verified with --dry-run).
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n  a:\n    image: alpine\n    profiles: [p]\n    depends_on: [f]\n  f:\n    image: alpine\n    profiles: [p]\n    container_name: aurago-${G}\n")
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return `{"services":{"web":{"image":"alpine"},"a":{"image":"alpine","profiles":["p"],"depends_on":{"f":{"condition":"service_started","required":true}}},"f":{"image":"alpine","profiles":["p"],"container_name":"aurago-boring-garage"}}}`, nil
+		}
+		return `{"services":{"web":{"image":"alpine"}}}`, nil
+	})
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
+	}
+	if got := policy("up -d a"); !strings.Contains(got, "Boring Computers Garage") {
+		t.Fatalf("dependency of a named profile service was not checked: %s", got)
+	}
+	if got := policy("up -d web"); got != "" {
+		t.Fatalf("unused profile services blocked up -d web: %s", got)
+	}
+}
+
+func TestDockerComposeEffectiveModelHoldsWhatTheCommandRuns(t *testing.T) {
+	// prof5: an unused privileged profile service must not appear in the model
+	// later policies evaluate for `up -d`.
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n  tool:\n    image: alpine\n    profiles: [tools]\n    privileged: true\n")
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return `{"name":"p5","services":{
+				"web":{"image":"alpine","networks":{"default":null}},
+				"tool":{"image":"alpine","profiles":["tools"],"privileged":true,
+					"volumes":[{"type":"volume","source":"toolvol","target":"/t"}],
+					"networks":{"toolnet":null},"secrets":[{"source":"toolsecret","target":"/run/secrets/toolsecret"}]},
+				"other":{"image":"alpine","profiles":["other"],"volumes":[{"type":"volume","source":"othervol","target":"/o"}]}},
+				"volumes":{"toolvol":{"name":"p5_toolvol"},"othervol":{"name":"p5_othervol"}},
+				"networks":{"default":{"name":"p5_default"},"toolnet":{"name":"p5_toolnet"}},
+				"secrets":{"toolsecret":{"name":"p5_toolsecret","file":"/ws/secret.txt"}}}`, nil
+		}
+		return `{"name":"p5","services":{"web":{"image":"alpine","networks":{"default":null}}},"networks":{"default":{"name":"p5_default"}}}`, nil
+	})
+	preflight, err := loadDockerComposePreflight(context.Background(), tools.DockerConfig{WorkspaceDir: workspace}, "compose.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plain := preflight.effectiveModel("up -d")
+	if len(plain.model.Services) != 1 || len(plain.profileServices) != 0 || len(plain.unverified) != 0 {
+		t.Fatalf("up -d effective model = %+v", plain)
+	}
+	if _, ok := plain.model.Services["tool"]; ok {
+		t.Fatal("unused privileged profile service is in the effective model of up -d")
+	}
+	if len(plain.model.Volumes) != 0 || len(plain.model.Secrets) != 0 || len(plain.model.Networks) != 1 {
+		t.Fatalf("up -d top-level resources = %+v %+v %+v", plain.model.Volumes, plain.model.Networks, plain.model.Secrets)
+	}
+
+	named := preflight.effectiveModel("up -d tool")
+	if tool, ok := named.model.Services["tool"]; !ok || !tool.Privileged || len(named.model.Services) != 2 {
+		t.Fatalf("up -d tool services = %+v", named.model.Services)
+	}
+	if strings.Join(named.profileServices, ",") != "tool" {
+		t.Fatalf("profileServices = %q", named.profileServices)
+	}
+	if _, ok := named.model.Volumes["toolvol"]; !ok {
+		t.Fatalf("volume of the named service missing: %+v", named.model.Volumes)
+	}
+	if _, ok := named.model.Volumes["othervol"]; ok {
+		t.Fatal("volume of an unused profile service is in the effective model")
+	}
+	if _, ok := named.model.Networks["toolnet"]; !ok || named.model.Secrets["toolsecret"].File != "/ws/secret.txt" {
+		t.Fatalf("network or secret of the named service missing: %+v %+v", named.model.Networks, named.model.Secrets)
+	}
+}
+
+func TestDockerComposePolicyLogsTheAllProfilesFailure(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", profileComposeFixture)
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return "", errors.New("resolve Compose config: exit status 1: unknown flag: --no-env-resolution")
+		}
+		return `{"services":{"web":{"image":"alpine"}}}`, nil
+	})
+	var logged strings.Builder
+	original := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, nil)))
+	t.Cleanup(func() { slog.SetDefault(original) })
+
+	got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "up -d hidden"})
+	if !strings.Contains(got, `"code":"docker_compose_profile_service_unverified"`) || !strings.Contains(got, "2.35") {
+		t.Fatalf("unverified message = %s, want the code and the minimum Compose version", got)
+	}
+	if strings.Contains(got, "no-env-resolution") {
+		t.Fatalf("agent message carries the Compose error: %s", got)
+	}
+	if !strings.Contains(logged.String(), "unknown flag: --no-env-resolution") {
+		t.Fatalf("server log lacks the all-profiles failure: %q", logged.String())
 	}
 }
 
@@ -280,7 +412,7 @@ func TestDockerComposePolicyFallsBackWhenComposeCannotResolveAllProfiles(t *test
 	policy := func(command string) string {
 		return dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
 	}
-	for _, command := range []string{"up -d hidden", "up --timeout 10 -d hidden", "create hidden", "start hidden", "restart -t 5 hidden", "up -d web hidden"} {
+	for _, command := range []string{"up -d hidden", "up --timeout 10 -d hidden", "create hidden", "up -d web hidden", "up -dt 5 hidden", "up -d -- hidden"} {
 		got := policy(command)
 		if !strings.Contains(got, `"code":"docker_compose_profile_service_unverified"`) || !strings.Contains(got, "hidden") {
 			t.Fatalf("%s: got %s, want docker_compose_profile_service_unverified naming the service", command, got)
@@ -289,7 +421,9 @@ func TestDockerComposePolicyFallsBackWhenComposeCannotResolveAllProfiles(t *test
 			t.Fatalf("%s: classified as %v", command, classifyLegacyToolResult(got))
 		}
 	}
-	for _, command := range []string{"up -d", "up -d web", "up -d --timeout 10 web", "up --scale web=2 -d", "create --pull always web", "ps hidden", "logs hidden", "stop hidden", "down", "config"} {
+	// start and restart never create containers; -dt takes its value from the
+	// next argument; --scale and --exit-code-from name services without starting them.
+	for _, command := range []string{"up -d", "up -d web", "up -d --timeout 10 web", "up -dt 5 web", "up -t5 web", "up --scale web=2 -d", "up -d --scale hidden=0 web", "up --exit-code-from hidden web", "create --pull always web", "start hidden", "restart -t 5 hidden", "ps hidden", "logs hidden", "stop hidden", "down", "config"} {
 		if got := policy(command); got != "" {
 			t.Fatalf("%s: fallback blocked a call that names only default services: %s", command, got)
 		}

@@ -212,9 +212,10 @@ var (
 	dockerComposeLogLevel   = regexp.MustCompile(`(?i)\blevel=(\w+)`)
 	dockerComposeLogMessage = regexp.MustCompile(`\bmsg=("(?:[^"\\]|\\.)*")`)
 	// Compose's dotenv parser echoes env-file content: `unexpected character
-	// "X" in variable name "<line>"` (Go %q) and `unterminated quoted value
-	// <rest of the value>` (raw, without a closing quote).
-	dockerComposeEnvEchoQuoted       = regexp.MustCompile(`(unexpected character |variable name )"(?:[^"\\]|\\.)*"`)
+	// "X" in variable name "<line>"` and `Invalid template: "<value>"` (Go %q),
+	// and `unterminated quoted value <rest of the value>` (raw, without a
+	// closing quote).
+	dockerComposeEnvEchoQuoted       = regexp.MustCompile(`(unexpected character |variable name |Invalid template: )"(?:[^"\\]|\\.)*"`)
 	dockerComposeEnvEchoUnterminated = regexp.MustCompile(`(?s)(unterminated quoted value ).*$`)
 )
 
