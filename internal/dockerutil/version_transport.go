@@ -15,7 +15,9 @@ import (
 )
 
 // VersionTransport negotiates before sending any versioned request. It never
-// replays the requested operation, including after an uncertain mutation.
+// replays the requested operation, including after an uncertain mutation. It
+// forgets the negotiated version after an HTTP 400 or a transport error the
+// caller did not cancel or time out, so the next request probes again.
 type VersionTransport struct {
 	base    http.RoundTripper
 	mu      sync.Mutex
@@ -157,10 +159,16 @@ func (t *VersionTransport) invalidate(version string) {
 
 // staleVersionSignal reports outcomes that can follow an Engine restart with a
 // different API range: a transport failure the caller did not cause by
-// cancelling, or HTTP 400, which the Engine returns for an unsupported API
-// version before any handler runs. The response body is never read here.
+// cancelling or timing out, or HTTP 400, which the Engine returns for an
+// unsupported API version before any handler runs. The response body is never
+// read here.
 func staleVersionSignal(ctx context.Context, resp *http.Response, err error) bool {
 	if err != nil {
+		if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+			// Client.Timeout or a caller deadline: the legacy req.Cancel timer
+			// fires with the context deadline and can beat ctx.Err().
+			return false
+		}
 		return ctx.Err() == nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
 	}
 	return resp != nil && resp.StatusCode == http.StatusBadRequest

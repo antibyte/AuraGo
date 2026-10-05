@@ -173,6 +173,45 @@ func TestVersionTransportRenegotiatesAfterTransportFailure(t *testing.T) {
 
 func TestVersionTransportKeepsVersionAfterCallerCancellation(t *testing.T) {
 	var probes, creates atomic.Int32
+	arrived := make(chan struct{})
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			probes.Add(1)
+			fmt.Fprint(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.24"}`)
+			return
+		}
+		if creates.Add(1) == 1 {
+			close(arrived)
+			<-r.Context().Done()
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer s.Close()
+	client := NewClient("tcp://"+strings.TrimPrefix(s.URL, "http://"), 5*time.Second)
+	defer client.CloseIdleConnections()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-arrived: // the create is in flight; now the caller gives up
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	if _, err := client.DoJSON(ctx, "POST", "/containers/create", nil, nil); err == nil {
+		t.Fatal("cancelled create succeeded")
+	}
+	if _, err := client.DoJSON(context.Background(), "POST", "/containers/create", nil, nil); err != nil {
+		t.Fatalf("create after cancellation: %v", err)
+	}
+	if probes.Load() != 1 || creates.Load() != 2 {
+		t.Fatalf("probes=%d creates=%d; want 1, 2 (caller cancellation keeps the negotiated version)", probes.Load(), creates.Load())
+	}
+}
+
+func TestVersionTransportKeepsVersionAfterClientTimeout(t *testing.T) {
+	var probes, creates atomic.Int32
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/version" {
 			probes.Add(1)
@@ -186,17 +225,18 @@ func TestVersionTransportKeepsVersionAfterCallerCancellation(t *testing.T) {
 		w.WriteHeader(http.StatusCreated)
 	}))
 	defer s.Close()
-	client := NewClient("tcp://"+strings.TrimPrefix(s.URL, "http://"), 5*time.Second)
+	// Client.Timeout arms the legacy request-cancel timer next to the context
+	// deadline, so the base transport can report "request canceled" while the
+	// context still reads nil. That is a timeout, not a stale version.
+	client := NewClient("tcp://"+strings.TrimPrefix(s.URL, "http://"), 150*time.Millisecond)
 	defer client.CloseIdleConnections()
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-	if _, err := client.DoJSON(ctx, "POST", "/containers/create", nil, nil); err == nil {
-		t.Fatal("cancelled create succeeded")
+	if _, err := client.DoJSON(context.Background(), "POST", "/containers/create", nil, nil); err == nil {
+		t.Fatal("create past the client timeout succeeded")
 	}
 	if _, err := client.DoJSON(context.Background(), "POST", "/containers/create", nil, nil); err != nil {
-		t.Fatalf("create after cancellation: %v", err)
+		t.Fatalf("create after client timeout: %v", err)
 	}
 	if probes.Load() != 1 || creates.Load() != 2 {
-		t.Fatalf("probes=%d creates=%d; want 1, 2 (caller cancellation keeps the negotiated version)", probes.Load(), creates.Load())
+		t.Fatalf("probes=%d creates=%d; want 1, 2 (a client timeout keeps the negotiated version)", probes.Load(), creates.Load())
 	}
 }
