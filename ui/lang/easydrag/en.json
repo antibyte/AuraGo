@@ -7,7 +7,7 @@
   "easydrag.category.smart_home": "Smart home",
   "easydrag.category.trigger": "Triggers",
   "easydrag.category.web": "Web",
-  "easydrag.help.auth_secret": "Name of an EasyDrag secret (stored in the vault, never readable by the agent). Its value is sent in the header below and is never stored in the flow.",
+  "easydrag.help.auth_secret": "Name of an EasyDrag secret (stored in the Vault, never readable by the agent). Its value is sent in the header below and is never stored in the flow.",
   "easydrag.help.ha_service": "Home Assistant service without the domain, for example turn_on or toggle.",
   "easydrag.help.manual_data": "Example data for test runs and “Run now”, as a JSON object.",
   "easydrag.help.min_interval_seconds": "Ignore further events for this many seconds after a run started. 0 = never ignore.",
