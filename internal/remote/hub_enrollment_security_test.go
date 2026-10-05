@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -504,10 +505,11 @@ func verifiesLegacy(msg RemoteMessage, key string) bool {
 	return hmac.Equal([]byte(expected), []byte(hex.EncodeToString(mac.Sum(nil))))
 }
 
-// Agents built before the canonical HMAC form send unversioned frames. Only
-// their enrollment frame is still answered specifically: with a refusal in the
-// old form, signed with the plain token hash that agent verifies with, so it can
-// show the reason. Every other unversioned frame is refused unsigned.
+// Agents built before the canonical HMAC form send unversioned frames. Nothing
+// in them is verified or granted. An enrollment frame gets a refusal in the old
+// form signed with the plain token hash that agent verifies with; a reconnect
+// naming a known device gets one signed with that device's key. Both let the
+// old agent show the reason. Every other unversioned frame is refused unsigned.
 func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 	hub, db, _ := newEnrollmentTestHub(t)
 	exchange := enrollmentExchange(t, hub)
@@ -539,16 +541,50 @@ func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
 		t.Fatalf("current enrollment = %+v", enrolled)
 	}
 	hub.Unregister(enrolled.DeviceID)
+	before, err := GetDevice(db, enrolled.DeviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	oldReconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 3, AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "old-agent"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, refused = exchange(legacySigned(t, oldReconnect, enrolled.SharedKey))
-	if refused.Status != "rejected" || refused.Message != "unsupported frame version" || response.HMAC != "" {
-		t.Fatalf("unversioned reconnect = %+v (hmac %q)", refused, response.HMAC)
+	oldReconnect = legacySigned(t, oldReconnect, enrolled.SharedKey)
+	response, refused = exchange(oldReconnect)
+	if refused.Status != "rejected" || refused.Message != preUpgradeReconnectMessage || refused.RequestNonce != oldReconnect.Nonce ||
+		refused.DeviceID != "" || refused.SharedKey != "" || refused.ReadOnly != nil || len(refused.AllowedPaths) != 0 {
+		t.Fatalf("unversioned reconnect of a known device = %+v", refused)
+	}
+	if response.Version != 0 || !verifiesLegacy(response, enrolled.SharedKey) || !ValidNonce(response.Nonce) || ValidateTimestamp(response.Timestamp) != nil {
+		t.Fatalf("the refusal must be a fresh frame the old agent can verify with its device key: %+v", response)
+	}
+	if ok, _ := VerifyMessage(response, enrolled.SharedKey); ok {
+		t.Fatal("the legacy refusal must not pass current verification")
 	}
 	if hub.IsConnected(enrolled.DeviceID) {
 		t.Fatal("an unversioned reconnect must not register a connection")
+	}
+	if after, err := GetDevice(db, enrolled.DeviceID); err != nil || after.Status != before.Status || after.LastSeen != before.LastSeen {
+		t.Fatalf("an unversioned reconnect must not touch the device: before %+v, after %+v, %v", before, after, err)
+	}
+
+	// Unknown and revoked devices get the unsigned refusal.
+	revokedID, err := CreateDevice(db, DeviceRecord{Name: "revoked", Status: "revoked"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hub.vault.WriteSecret("remote_shared_key_"+revokedID, strings.Repeat("cd", 32)); err != nil {
+		t.Fatal(err)
+	}
+	for name, deviceID := range map[string]string{"unknown": "no-such-device", "revoked": revokedID} {
+		frame, err := NewMessage(MsgAuth, deviceID, strings.Repeat("cd", 32), 4, AuthPayload{DeviceID: deviceID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, refused = exchange(legacySigned(t, frame, strings.Repeat("cd", 32)))
+		if refused.Status != "rejected" || refused.Message != "unsupported frame version" || response.HMAC != "" {
+			t.Fatalf("unversioned reconnect of a %s device = %+v (hmac %q)", name, refused, response.HMAC)
+		}
 	}
 
 	oldKnock, err := NewMessage(MsgAuth, "", "", 4, AuthPayload{Hostname: "old-knock"})
@@ -592,22 +628,58 @@ func TestHandleEnrollmentRejectsSequenceShiftedNonce(t *testing.T) {
 	}
 }
 
+// newCorruptVaultTestHub returns a hub whose vault file exists but cannot be
+// decrypted, so every read fails with an error other than ErrSecretNotFound.
+func newCorruptVaultTestHub(t *testing.T) (*RemoteHub, *sql.DB) {
+	t.Helper()
+	db, err := InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	vaultPath := filepath.Join(t.TempDir(), "vault.bin")
+	if err := os.WriteFile(vaultPath, []byte(strings.Repeat("not a vault ", 8)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	vault, err := security.NewVault(strings.Repeat("a", 64), vaultPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewRemoteHub(db, vault, slog.New(slog.NewTextHandler(io.Discard, nil))), db
+}
+
 // A vault that cannot be used must leave the token unused and no device behind,
 // whether it fails when the MAC key is read or when the new device key is
 // stored.
 func TestEnrollmentVaultFailureLeavesTokenUnused(t *testing.T) {
-	hub, db := newBrokenVaultTestHub(t)
-	exchange := enrollmentTestSocket(t, hub)
 	token := "fresh-admin-token"
-	id, err := CreateEnrollment(db, EnrollmentRecord{TokenHash: DeriveEnrollmentLookupHash(token), DeviceName: "test", ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)})
+	expires := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
+	for name, newHub := range map[string]func(*testing.T) (*RemoteHub, *sql.DB){
+		"missing vault directory": newBrokenVaultTestHub,
+		"corrupt vault file":      newCorruptVaultTestHub,
+	} {
+		t.Run("read fails: "+name, func(t *testing.T) {
+			hub, db := newHub(t)
+			exchange := enrollmentTestSocket(t, hub)
+			id, err := CreateEnrollment(db, EnrollmentRecord{TokenHash: DeriveEnrollmentLookupHash(token), DeviceName: "test", ExpiresAt: expires})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// A read error is not a missing key: it must not be reported as a
+			// pre-upgrade token.
+			if got := exchange(enrollmentFrame(t, token, 1)); got.Status != "rejected" || got.Message != "credential storage unavailable" {
+				t.Fatalf("vault read failure response = %+v", got)
+			}
+			assertEnrollmentUnused(t, db, token, id)
+			assertNoDevices(t, db)
+		})
+	}
+
+	hub, db := newBrokenVaultTestHub(t)
+	id, err := CreateEnrollment(db, EnrollmentRecord{TokenHash: DeriveEnrollmentLookupHash(token), DeviceName: "test", ExpiresAt: expires})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := exchange(enrollmentFrame(t, token, 1)); got.Status != "rejected" {
-		t.Fatalf("vault read failure response = %+v", got)
-	}
-	assertEnrollmentUnused(t, db, token, id)
-	assertNoDevices(t, db)
 
 	// The MAC key was read; storing the device key fails.
 	serverConn, clientConn, cleanup := newWebSocketPairForHubTest(t)

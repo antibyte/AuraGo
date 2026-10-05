@@ -501,6 +501,9 @@ func (c *Client) connect() error {
 	signed, err := c.verifyAuthResponse(resp)
 	if err != nil {
 		conn.Close()
+		if errors.Is(err, errUnsignedAuthResponse) {
+			return unsignedRefusalError(resp, err)
+		}
 		return err
 	}
 
@@ -797,9 +800,27 @@ func (c *Client) handleConfigUpdate(msg remote.RemoteMessage) {
 	c.logger.Info("Config updated", "read_only", c.readOnly, "max_file_size_mb", maxFileSizeFromUpdate(update.MaxFileSizeMB))
 }
 
+// errUnsignedAuthResponse reports an unsigned auth response to an agent that
+// holds an enrollment token or device key.
+var errUnsignedAuthResponse = errors.New("received unsigned auth response despite bootstrap key")
+
+// unsignedRefusalError turns an unsigned answer to an agent holding a key into
+// its error. The supervisor sends the refusals it cannot or must not sign
+// (unknown or used token, token without a MAC key, failed authentication)
+// unsigned, so a "rejected" answer is reported with its reason marked
+// unverified; nothing in it is applied. Any other unsigned status stays err.
+func unsignedRefusalError(resp remote.RemoteMessage, err error) error {
+	var payload remote.AuthResponsePayload
+	if json.Unmarshal(resp.Payload, &payload) != nil || payload.Status != "rejected" {
+		return err
+	}
+	return fmt.Errorf("enrollment rejected (unverified): %q", payload.Message)
+}
+
 // verifyAuthResponse verifies the auth response with the bootstrap secret.
 // It returns signed=false when the agent holds no secret at all (tokenless
-// knock); the caller must then accept only pending/rejected.
+// knock); the caller must then accept only pending/rejected. An unsigned
+// response despite a secret is errUnsignedAuthResponse.
 func (c *Client) verifyAuthResponse(resp remote.RemoteMessage) (signed bool, err error) {
 	verifyKey := ""
 	if c.cfg.SharedKey != "" {
@@ -811,7 +832,7 @@ func (c *Client) verifyAuthResponse(resp remote.RemoteMessage) (signed bool, err
 		return false, nil
 	}
 	if resp.HMAC == "" {
-		return false, fmt.Errorf("received unsigned auth response despite bootstrap key")
+		return false, errUnsignedAuthResponse
 	}
 	ok, err := remote.VerifyMessage(resp, verifyKey)
 	if err != nil {

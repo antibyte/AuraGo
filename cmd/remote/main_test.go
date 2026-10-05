@@ -231,6 +231,84 @@ func TestConnectRejectsUnsignedEnrolledResponse(t *testing.T) {
 	assertNoStoredConfig(t)
 }
 
+// The supervisor sends refusals it cannot or must not sign (unknown or used
+// token, failed authentication) unsigned. An agent holding a key reports the
+// reason, marked unverified, and applies nothing from the answer.
+func TestConnectReportsUnsignedRefusalAsUnverified(t *testing.T) {
+	for name, cfg := range map[string]clientConfig{
+		"enrollment token": {EnrollToken: "tok"},
+		"device key":       {DeviceID: "dev-1", SharedKey: strings.Repeat("ab", 32)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			isolateRemoteHome(t)
+			readOnly := false
+			resp, err := remote.NewAuthResponseMessage("", "", remote.AuthResponsePayload{
+				Status: "rejected", Message: "enrollment token already used",
+				ReadOnly: &readOnly, AllowedPaths: []string{"/"}, MaxFileSizeMB: 1,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.SupervisorURL = startFakeSupervisor(t, resp)
+			want := cfg
+			client := newConnectTestClient(t, cfg)
+			client.readOnly = true
+			client.allowedPaths = []string{"/safe"}
+
+			err = client.connect()
+			if err == nil || err.Error() != `enrollment rejected (unverified): "enrollment token already used"` {
+				t.Fatalf("expected the unverified refusal reason, got %v", err)
+			}
+			if client.cfg != want {
+				t.Fatalf("an unsigned refusal must not change config: %+v", client.cfg)
+			}
+			assertRestrictedSettingsKept(t, client)
+			if got, want := client.executor.maxFileSizeBytesSnapshot(), int64(remote.DefaultMaxFileSizeMB)*1024*1024; got != want {
+				t.Fatalf("an unsigned refusal must not change the file size limit: got %d bytes, want %d", got, want)
+			}
+			assertNoStoredConfig(t)
+		})
+	}
+}
+
+// Only an unsigned refusal is reported; any other unsigned status to an agent
+// holding a key stays an error that carries nothing from the answer.
+func TestConnectRefusesOtherUnsignedResponsesWithKey(t *testing.T) {
+	for _, status := range []string{"enrolled", "authenticated", "pending"} {
+		for name, cfg := range map[string]clientConfig{
+			"enrollment token": {EnrollToken: "tok"},
+			"device key":       {DeviceID: "dev-1", SharedKey: strings.Repeat("ab", 32)},
+		} {
+			t.Run(status+"/"+name, func(t *testing.T) {
+				isolateRemoteHome(t)
+				readOnly := false
+				resp, err := remote.NewAuthResponseMessage("dev-attacker", "", remote.AuthResponsePayload{
+					Status: status, DeviceID: "dev-attacker", SharedKey: strings.Repeat("cd", 32), Message: "attacker text",
+					ReadOnly: &readOnly, AllowedPaths: []string{"/"},
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				cfg.SupervisorURL = startFakeSupervisor(t, resp)
+				want := cfg
+				client := newConnectTestClient(t, cfg)
+				client.readOnly = true
+				client.allowedPaths = []string{"/safe"}
+
+				err = client.connect()
+				if err == nil || err.Error() != "received unsigned auth response despite bootstrap key" {
+					t.Fatalf("expected the unsigned %s answer to be refused, got %v", status, err)
+				}
+				if client.cfg != want {
+					t.Fatalf("an unsigned %s answer must not change config: %+v", status, client.cfg)
+				}
+				assertRestrictedSettingsKept(t, client)
+				assertNoStoredConfig(t)
+			})
+		}
+	}
+}
+
 func TestConnectAcceptsUnsignedPendingWithoutPersisting(t *testing.T) {
 	isolateRemoteHome(t)
 	readOnly := false

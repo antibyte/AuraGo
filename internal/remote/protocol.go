@@ -219,11 +219,11 @@ type ErrorPayload struct {
 // Frames without a version used the undelimited concatenation of the same
 // fields minus the version. That form was ambiguous (sequence 12 with nonce N
 // also verified as sequence 1 with nonce "2"+N) and is no longer verified
-// anywhere. Its only remaining use is legacyEnrollmentRefusal in hub.go: the
-// supervisor answers a pre-upgrade agent's enrollment frame, which it never
-// verifies, with a refusal that agent can check. Agent and supervisor ship
-// together (agents are downloaded from the supervisor), so that is the whole
-// compatibility window.
+// anywhere. Its only remaining use is legacyRefusal in hub.go: the supervisor
+// answers a pre-upgrade agent's enrollment frame, or its reconnect frame for a
+// known device, without verifying it, with a fixed refusal that agent can
+// check. Agent and supervisor ship together (agents are downloaded from the
+// supervisor), so that is the whole compatibility window.
 func hmacData(msg *RemoteMessage) []byte {
 	var b []byte
 	field := func(s string) {
