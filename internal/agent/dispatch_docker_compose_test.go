@@ -148,6 +148,34 @@ func TestDockerComposePolicyWithoutWorkspaceResolvesAgainstWorkingDirectory(t *t
 	}
 }
 
+func TestDockerComposePolicyWithoutWorkspaceJailsToWorkingDirectory(t *testing.T) {
+	// Before the shared preflight, an empty workspace made the Compose checks
+	// jail to the process working directory: files inside it ran, files outside
+	// it were blocked. The outside file exists, so only the jail can block it.
+	root := t.TempDir()
+	workdir := filepath.Join(root, "work")
+	inside := writeComposeFixture(t, workdir, "stack/compose.yml", "services:\n  web:\n    image: alpine\n")
+	outside := writeComposeFixture(t, root, "outside.yml", "services:\n  web:\n    image: alpine\n")
+	t.Chdir(workdir)
+	seen := stubDockerComposeResolver(t, func(string) (string, error) { return `{"services":{"web":{"image":"alpine"}}}`, nil })
+
+	for _, file := range []string{"stack/compose.yml", inside} {
+		if got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{}, dockerArgs{Operation: "compose", File: file, Command: "ps"}); got != "" {
+			t.Fatalf("%s: compose file inside the working directory was blocked: %s", file, got)
+		}
+	}
+	allowedCalls := len(*seen)
+	for _, file := range []string{filepath.Join("..", "outside.yml"), outside} {
+		got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{}, dockerArgs{Operation: "compose", File: file, Command: "ps"})
+		if !strings.Contains(got, `"code":"docker_compose_preflight_failed"`) || !strings.Contains(got, "must stay within the configured workspace") {
+			t.Fatalf("%s: compose file outside the working directory was not jailed: %s", file, got)
+		}
+	}
+	if len(*seen) != allowedCalls {
+		t.Fatalf("resolver ran for a file outside the working directory: %q", *seen)
+	}
+}
+
 func TestDockerComposePolicyReportsPreflightFailure(t *testing.T) {
 	workspace := t.TempDir()
 	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n    env_file: [missing.env]\n")

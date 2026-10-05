@@ -24,9 +24,16 @@ type dockerComposePreflight struct {
 
 // loadDockerComposePreflight resolves the Compose file exactly once. Every
 // failure is returned so the caller blocks the call, as before this preflight.
-// Without a configured workspace the file resolves against the process working
-// directory with no jail, exactly as DockerCompose itself resolves it.
+// Without a configured workspace the process working directory is the jail,
+// exactly as the Compose checks before this preflight confined the file.
 func loadDockerComposePreflight(cfg tools.DockerConfig, file string) (*dockerComposePreflight, error) {
+	if strings.TrimSpace(cfg.WorkspaceDir) == "" {
+		workdir, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("determine working directory for the compose file: %w", err)
+		}
+		cfg.WorkspaceDir = workdir
+	}
 	composeFile, err := tools.ResolveDockerComposeFile(cfg, file)
 	if err != nil {
 		return nil, err
