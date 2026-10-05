@@ -301,6 +301,7 @@ func TestServiceMissionEnabledChangedRereadsTheFlowInsideTheLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(unlock) // a failing test must not leave a waiting call blocked; a second release is harmless
 	short, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
 	err = fx.s.MissionEnabledChanged(short, a.MissionID)
 	cancel()
@@ -331,15 +332,17 @@ func TestServiceMissionEnabledChangedRereadsTheFlowInsideTheLock(t *testing.T) {
 	}
 
 	// The flow is deleted while the call waits for the lock.
-	if unlock, err = fx.s.locks.lock(ctx, a.ID); err != nil {
+	unlockAgain, err := fx.s.locks.lock(ctx, a.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(unlockAgain)
 	go func() { done <- fx.s.MissionEnabledChanged(ctx, a.MissionID) }()
 	c10WaitLockWaiters(t, fx.s, a.ID, 2)
 	if err := fx.s.Store().DeleteFlow(ctx, a.ID); err != nil {
 		t.Fatal(err)
 	}
-	unlock()
+	unlockAgain()
 	if err := svcWithin(t, 10*time.Second, "MissionEnabledChanged", func() error { return <-done }); err != nil {
 		t.Fatalf("MissionEnabledChanged for a flow deleted meanwhile = %v, want nil", err)
 	}
@@ -747,4 +750,160 @@ func TestRunnerCancelFlowModeKeepsOtherModes(t *testing.T) {
 		}
 		c10RunnerIdle(t, fx.r)
 	})
+}
+
+// CancelFlowMode waits for a Start that is still writing its run record, like CancelFlow,
+// so a live run whose Start was in progress is cancelled rather than left to start.
+func TestRunnerCancelFlowModeWaitsForAStartInProgress(t *testing.T) {
+	fx := newRunnerFixture(t, RunnerConfig{})
+	f := fx.flow(t, "flow_aaaaaaaakd", ConcurrencyQueue)
+	ctx := context.Background()
+	tx, err := fx.store.db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTx: %v", err)
+	}
+	t.Cleanup(func() { _ = tx.Rollback() }) // runs before the fixture's Shutdown
+	if _, err := tx.ExecContext(ctx, `UPDATE flows SET name = name WHERE id = ?`, f.ID); err != nil {
+		t.Fatalf("taking the write lock: %v", err)
+	}
+	inUse := fx.store.db.Stats().InUse
+	type outcome struct {
+		res StartResult
+		err error
+	}
+	started := make(chan outcome, 1)
+	go func() {
+		res, err := fx.r.Start(StartRequest{Flow: f, Mode: ModeLive, TriggerNode: f.Nodes[0].ID, TriggerType: "manual",
+			TriggerData: map[string]any{"gate": "a"}})
+		started <- outcome{res, err}
+	}()
+	// Start holds the runner's start lock while it waits for the database.
+	for deadline := time.Now().Add(5 * time.Second); fx.store.db.Stats().InUse <= inUse; runtime.Gosched() {
+		if time.Now().After(deadline) {
+			t.Fatal("Start did not reach the database")
+		}
+	}
+
+	cancelled := make(chan int, 1)
+	go func() { cancelled <- fx.r.CancelFlowMode(f.ID, ModeLive) }()
+	select {
+	case n := <-cancelled:
+		t.Fatalf("CancelFlowMode returned %d while a Start was still recording its run", n)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatalf("Rollback: %v", err)
+	}
+	var out outcome
+	select {
+	case out = <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Start did not return after the database was free")
+	}
+	if out.err != nil || out.res.RunID == "" {
+		t.Fatalf("Start = %+v, %v", out.res, out.err)
+	}
+	select {
+	case n := <-cancelled:
+		if n != 1 {
+			t.Fatalf("CancelFlowMode = %d, want 1 (the run whose Start it waited for)", n)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("CancelFlowMode did not return after Start")
+	}
+	if rec := fx.waitFinished(t); rec.ID != out.res.RunID || rec.Status != RunCancelled {
+		t.Fatalf("finished = %+v, want the run cancelled", rec)
+	}
+}
+
+// Once MissionEnabledChanged holds the flow's lock, Mission Control's switch has happened
+// and the timers must follow it: a context cancelled after that still arms them.
+func TestServiceMissionEnabledChangedFinishesAfterCancel(t *testing.T) {
+	fx, bridge := newC10Fixture(t, nil)
+	a := fx.published(t, "A", svcDateTimeFlow("A", 10, "2026-10-04 09:00"))
+	if err := bridge.fakeBridge.SetFlowMissionEnabled(a.MissionID, true); err != nil {
+		t.Fatal(err)
+	}
+	release := bridge.holdRead(a.MissionID)
+	t.Cleanup(release) // runs before the fixture's Shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	done := make(chan error, 1)
+	go func() { done <- fx.s.MissionEnabledChanged(ctx, a.MissionID) }()
+	bridge.waitReading(t, a.MissionID) // it holds the lock and has read the flow
+	cancel()
+	release()
+	if err := svcWithin(t, 10*time.Second, "MissionEnabledChanged", func() error { return <-done }); err != nil {
+		t.Fatalf("MissionEnabledChanged cancelled after taking the lock = %v, want nil", err)
+	}
+	if got := svcTimers(t, fx.s); len(got) != 1 || got[0] != testNodeID(10)+"@2026-10-04T09:00:00Z" {
+		t.Fatalf("timers = %v, want the flow's timer armed despite the cancel", got)
+	}
+	svcCheckArmed(t, fx, a.ID, true)
+}
+
+// NextTimer reads no flow document: with both documents of the flow damaged it still
+// returns the armed timer. A mission that two flows hold gives no timer, although one of
+// them has one.
+func TestServiceNextTimerReadsNoDocument(t *testing.T) {
+	fx := newSvcFixture(t)
+	ctx := context.Background()
+	a := fx.published(t, "A", svcDateTimeFlow("A", 10, "2026-10-04 09:00"))
+	if err := fx.s.SetEnabled(ctx, a.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	want := time.Date(2026, 10, 4, 9, 0, 0, 0, time.UTC)
+	if _, err := fx.s.Store().db.ExecContext(ctx, `UPDATE flows SET draft_json = '{', live_json = '{' WHERE id = ?`, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.s.GetFlow(ctx, a.ID); err == nil {
+		t.Fatal("the damaged flow must not be readable")
+	}
+	if got, ok := fx.s.NextTimer(ctx, a.MissionID); !ok || !got.Equal(want) {
+		t.Fatalf("NextTimer with damaged documents = %v %v, want %v", got, ok, want)
+	}
+
+	b, err := fx.s.CreateFlow(ctx, CreateRequest{Name: "B"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.s.Store().SetMissionID(ctx, b.ID, a.MissionID); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := fx.s.NextTimer(ctx, a.MissionID); ok {
+		t.Fatalf("NextTimer of an ambiguous mission = %v, want none", got)
+	}
+	if _, err := fx.s.Store().flowIDByMission(ctx, a.MissionID); !errors.Is(err, ErrMissionAmbiguous) {
+		t.Fatalf("flowIDByMission(ambiguous) = %v", err)
+	}
+	if _, err := fx.s.Store().flowIDByMission(ctx, ""); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("flowIDByMission(\"\") = %v", err)
+	}
+}
+
+// The id lookup behind NextTimer uses the mission index (EXPLAIN QUERY PLAN on the real
+// statement).
+func TestStoreFlowIDByMissionUsesTheMissionIndex(t *testing.T) {
+	s := openTestStore(t)
+	rows, err := s.db.Query(`EXPLAIN QUERY PLAN `+flowIDByMissionSQL, "mission_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var details []string
+	for rows.Next() {
+		var id, parent, notUsed int
+		var detail string
+		if err := rows.Scan(&id, &parent, &notUsed, &detail); err != nil {
+			t.Fatal(err)
+		}
+		details = append(details, detail)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	plan := strings.Join(details, "; ")
+	if strings.Contains(plan, "SCAN") || !strings.Contains(plan, "idx_flows_mission") {
+		t.Fatalf("the id lookup does not search idx_flows_mission: %s", plan)
+	}
 }

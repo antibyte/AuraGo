@@ -34,9 +34,9 @@ func (s *Service) CancelMissionRuns(ctx context.Context, missionID string) (int,
 // armed, like SetEnabled, so it never arms the timers of a revision that a concurrent
 // Publish replaced. The flow is read again once the lock is held, because it may have been
 // published or deleted while this call waited (a deleted flow is no error). ctx bounds the
-// wait for the lock. There is no switch to context.WithoutCancel: the only step that
-// cannot be undone is the timer write itself (TimerService.Replace stores the timers in
-// one transaction, so a cancelled ctx leaves the old ones), and nothing follows it.
+// lookup and the wait for the lock. Once the lock is held the rest ignores the
+// cancellation of ctx: Mission Control's switch has happened already, and the timers must
+// follow it even when the caller goes away.
 //
 // Taking the lock cannot deadlock: Mission Control calls this from a goroutine of its own
 // (go FlowHooks.FlowEnabledChanged), never while it holds its own lock, and under the flow
@@ -56,6 +56,8 @@ func (s *Service) MissionEnabledChanged(ctx context.Context, missionID string) e
 		return err
 	}
 	defer unlock()
+	// The mission is switched already; arm or clear the timers even when the caller goes away.
+	ctx = context.WithoutCancel(ctx)
 	cur, err := s.store.GetFlow(ctx, rec.ID)
 	if errors.Is(err, ErrNotFound) {
 		return nil // deleted while this call waited for the lock
@@ -69,16 +71,17 @@ func (s *Service) MissionEnabledChanged(ctx context.Context, missionID string) e
 // NextTimer returns the earliest armed Date/Time timer of the flow behind a mission; ok is
 // false when no single flow holds the mission, the flow has no timer or the store fails.
 //
-// It takes no flow lock and reads one flow and one indexed aggregate over that flow's
-// timers, so a MissionBridge may call it synchronously (Mission Control's
-// broadcastMissionState asks for every flow mission's next run through
+// It takes no flow lock and reads no flow document: one indexed lookup of the flow's id
+// (at most two rows) and one indexed aggregate over that flow's timers. So it works even
+// when a document cannot be parsed, and a MissionBridge may call it synchronously
+// (Mission Control's broadcastMissionState asks for every flow mission's next run through
 // FlowHooks.NextFlowRun). Keep it lock-free and cheap.
 func (s *Service) NextTimer(ctx context.Context, missionID string) (time.Time, bool) {
-	rec, err := s.store.GetFlowByMission(ctx, missionID)
+	flowID, err := s.store.flowIDByMission(ctx, missionID)
 	if err != nil {
 		return time.Time{}, false
 	}
-	next, ok, err := s.store.NextTimerAt(ctx, rec.ID)
+	next, ok, err := s.store.NextTimerAt(ctx, flowID)
 	if err != nil {
 		return time.Time{}, false
 	}

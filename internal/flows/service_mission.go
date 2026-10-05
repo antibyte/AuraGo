@@ -22,7 +22,8 @@ import (
 // that cannot be undone (the store publish, the mission switch, the mission delete).
 // From there on the operation runs with context.WithoutCancel, so a caller that goes
 // away (an HTTP client disconnecting) cannot leave the mission and the timers apart.
-// MissionEnabledChanged needs no switch: its only such step is its last, the timer write.
+// MissionEnabledChanged switches as soon as it holds the lock: Mission Control switched
+// the mission before calling it, and the timers must follow that switch.
 //
 // Lock order and why it cannot deadlock: a flow lock is the outermost lock. While it is
 // held the Service calls the store, the bridge, TimerService.Replace (no timer lock,

@@ -56,6 +56,45 @@ func (s *Store) GetFlowByMission(ctx context.Context, missionID string) (*FlowRe
 	return r, nil
 }
 
+// flowIDByMissionSQL reads at most two ids of a mission's flows, like flowByMissionSQL but
+// without the documents. It is a constant so a test can check its query plan (it must use
+// idx_flows_mission).
+const flowIDByMissionSQL = `SELECT id FROM flows WHERE mission_id = ? LIMIT 2`
+
+// flowIDByMission returns the id of the flow that owns a mission without reading its
+// documents, so it works even when a document cannot be parsed. Like GetFlowByMission it
+// returns ErrNotFound when no flow holds the mission (an empty id included) and
+// ErrMissionAmbiguous (wrapped, with the bounded mission id) when several do.
+func (s *Store) flowIDByMission(ctx context.Context, missionID string) (string, error) {
+	if missionID == "" {
+		return "", ErrNotFound
+	}
+	rows, err := s.db.QueryContext(ctx, flowIDByMissionSQL, missionID)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return "", err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	switch len(ids) {
+	case 0:
+		return "", ErrNotFound
+	case 1:
+		return ids[0], nil
+	default:
+		return "", fmt.Errorf("%w: %s", ErrMissionAmbiguous, quoteForError(missionID))
+	}
+}
+
 // flowMissionAndName reads only the mission id and the name of a flow, without
 // parsing its documents: the run hooks need nothing more, and they run inside
 // DeleteFlow and Shutdown once per run. It returns ErrNotFound when the flow does not

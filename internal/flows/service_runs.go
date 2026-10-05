@@ -267,11 +267,13 @@ type runHistory struct {
 }
 
 // The run hooks and the timer callbacks below run on the runner's and the timer
-// service's goroutines, and the run hooks also inside Runner.CancelFlow, Cancel and
-// Shutdown, so inside a DeleteFlow that holds the flow's lock. They never take a flow
-// lock (that would deadlock against the delete), call the bridge only without s.mu, and
-// treat a flow that is gone as normal: it was deleted meanwhile, which is logged at
-// Debug; other store errors are logged at Warn.
+// service's goroutines, and the run hooks also inside Runner.CancelFlow, CancelFlowMode,
+// Cancel and Shutdown: inside a DeleteFlow that holds the flow's lock (CancelFlow), and on
+// the goroutine of CancelMissionRuns (CancelFlowMode; Mission Control's cancel, from an
+// HTTP handler, without a flow lock). They never take a flow lock (that would deadlock
+// against the delete), call the bridge only without s.mu, and treat a flow that is gone
+// as normal: it was deleted meanwhile, which is logged at Debug; other store errors are
+// logged at Warn.
 
 // onRunStarted records a live run in the mission history. It reads only the flow's
 // mission and name (no documents), and remembers them for onRunFinished; the entry it
@@ -308,7 +310,8 @@ func (s *Service) onRunStarted(rec RunRecord) {
 // the live revision, else from the draft; without any document the outputs are empty.
 // A run that never started has no outputs: it reads no document, only the flow's
 // mission and name, because it ends inside Runner.CancelFlow (DeleteFlow, with the flow
-// lock held), Cancel or Shutdown, once per queued run.
+// lock held), Runner.CancelFlowMode (CancelMissionRuns, on an HTTP goroutine without a
+// flow lock), Cancel or Shutdown, once per queued run.
 func (s *Service) onRunFinished(rec RunRecord, res RunResult) {
 	if rec.Mode == ModeTest {
 		return

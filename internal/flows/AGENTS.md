@@ -339,15 +339,17 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   reads (`GetFlow`, `ListFlows`, `NextTimer`) and `TriggerFromMission` (also from inside `FlowRunFinished`)
   may be called synchronously and must stay lock-free.
 - Any new Service method that reads a flow and then changes its mission or timers takes the flow lock
-  (`s.locks.lock`) from the read through the timers, reads the flow again once it holds the lock, and
-  switches to `context.WithoutCancel(ctx)` right after its first step that cannot be undone, so a
-  caller that goes away cannot leave the store, the mission and the timers apart.
-- Mission Control helpers (`service_missions.go`): `MissionEnabledChanged` follows that rule (its only step
-  that cannot be undone is the timer write, its last, so it never detaches); it runs from
+  (`s.locks.lock`) before it reads the flow and holds it through the timers; a method that must first look
+  the flow up (by mission) reads it again once it holds the lock. It switches to `context.WithoutCancel(ctx)`
+  right after its first step that cannot be undone, so a caller that goes away cannot leave the store, the
+  mission and the timers apart.
+- Mission Control helpers (`service_missions.go`): `MissionEnabledChanged` follows that rule and detaches as
+  soon as it holds the lock (Mission Control switched the mission before calling it); it runs from
   `go FlowHooks.FlowEnabledChanged`, ignores a mission no flow holds and a flow deleted while it waited.
   `CancelMissionRuns` takes no flow lock: it calls `Runner.CancelFlowMode(flow, ModeLive)` (`ErrNotFound`
   for an unknown mission) and reports the runs that never started to `FlowRunFinished` on the caller's
-  goroutine. `NextTimer` is lock-free (`GetFlowByMission` plus `Store.NextTimerAt`); the bridge's
+  goroutine. `NextTimer` is lock-free and reads no document (`flowIDByMission`, `LIMIT 2` on
+  `idx_flows_mission`, then `Store.NextTimerAt`; not exactly one flow gives false); the bridge's
   `broadcastMissionState` calls it synchronously.
 - Delete order: mission → timers off → `Runner.CancelFlow` → store delete → `CancelFlow` again (it catches a
   `Start` that raced the delete). A failed step leaves the earlier ones done and `DeleteFlow` can be called again
@@ -390,4 +392,5 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   additively and give new helpers a task prefix. Locking and cancel tests to repeat under `-race -count=20` on
   aurago-test: `TestServiceSerializesOperationsPerFlow`, `TestServiceConcurrentPublishAndEnable`,
   `TestServiceDeleteCancelsTheFlowsRuns`, `TestRunnerCancelFlow*`, `TestFlowLocksAreKeyedAndCancellable`,
-  `TestServiceLifecycle`, `TestServiceMissionEnabledChanged*` and `TestServiceCancelMissionRuns*`.
+  `TestServiceLifecycle`, `TestServiceMissionEnabledChanged*`, `TestServiceCancelMissionRuns*` and
+  `TestServiceNextTimerPerFlow`.
