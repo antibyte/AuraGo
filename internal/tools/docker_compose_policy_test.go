@@ -53,6 +53,50 @@ func TestDockerComposeResolvedConfigReturnsStdoutOnly(t *testing.T) {
 	}
 }
 
+func TestDockerComposeResolvedConfigContextResolvesAllProfilesWithTheCallerContext(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	workspace := t.TempDir()
+	composeFile := filepath.Join(workspace, "compose.yml")
+	if err := os.WriteFile(composeFile, []byte("services:\n  web:\n    image: alpine\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	original := runDockerComposeConfig
+	t.Cleanup(func() { runDockerComposeConfig = original })
+	type dispatchKey struct{}
+	parent, cancel := context.WithCancel(context.WithValue(context.Background(), dispatchKey{}, "dispatch"))
+	defer cancel()
+	var gotArgs []string
+	var gotCtx context.Context
+	runDockerComposeConfig = func(ctx context.Context, args []string) ([]byte, []byte, error) {
+		gotArgs = append([]string(nil), args...)
+		gotCtx = ctx
+		return []byte(`{"services":{"web":{"image":"alpine"}}}`), nil, nil
+	}
+
+	if _, err := DockerComposeResolvedConfigContext(parent, DockerConfig{WorkspaceDir: workspace}, "compose.yml", DockerComposeConfigOptions{AllProfiles: true}); err != nil {
+		t.Fatalf("DockerComposeResolvedConfigContext() error = %v", err)
+	}
+	want := []string{"compose", "-f", composeFile, "--profile", "*", "config", "--format", "json", "--no-env-resolution"}
+	if strings.Join(gotArgs, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("args = %q, want %q", gotArgs, want)
+	}
+	if gotCtx == nil || gotCtx.Value(dispatchKey{}) != "dispatch" {
+		t.Fatal("Compose did not run under the caller's context")
+	}
+	if _, ok := gotCtx.Deadline(); !ok {
+		t.Fatal("the 20 s bound is missing from the Compose context")
+	}
+
+	runDockerComposeConfig = func(ctx context.Context, _ []string) ([]byte, []byte, error) {
+		<-ctx.Done()
+		return nil, nil, errors.New("signal: killed")
+	}
+	cancel()
+	if _, err := DockerComposeResolvedConfigContext(parent, DockerConfig{WorkspaceDir: workspace}, "compose.yml", DockerComposeConfigOptions{}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("error after cancellation = %v, want context.Canceled", err)
+	}
+}
+
 func TestParseDockerComposeModelReadsResolvedShapes(t *testing.T) {
 	resolved := `{
   "name": "k4",

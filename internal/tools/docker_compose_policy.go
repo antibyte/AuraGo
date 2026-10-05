@@ -127,6 +127,27 @@ func ResolveDockerComposeFile(cfg DockerConfig, file string) (string, error) {
 	return validateDockerComposeFilePath(cfg, file)
 }
 
+// DockerComposeConfigOptions selects the `docker compose config` variant.
+type DockerComposeConfigOptions struct {
+	// AllProfiles resolves every service, including those of inactive profiles
+	// that `up <service>` would activate: `--profile * config --format json
+	// --no-env-resolution`. env_file entries stay paths instead of being inlined,
+	// so a missing env_file of an inactive profile does not fail the resolution.
+	AllProfiles bool
+}
+
+func dockerComposeConfigArgs(cfg DockerConfig, composeFile string, opts DockerComposeConfigOptions) []string {
+	args := []string{"compose", "-f", composeFile}
+	if opts.AllProfiles {
+		args = append(args, "--profile", "*")
+	}
+	args = append(args, "config", "--format", "json")
+	if opts.AllProfiles {
+		args = append(args, "--no-env-resolution")
+	}
+	return dockerCLIArgs(cfg, args...)
+}
+
 // runDockerComposeConfig runs one `docker compose ... config` invocation and
 // keeps stdout and stderr apart. Tests replace it.
 var runDockerComposeConfig = func(ctx context.Context, args []string) ([]byte, []byte, error) {

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,7 +38,7 @@ func TestManagedLocalLLMComposeProtectionIsFailClosed(t *testing.T) {
 	workspace := t.TempDir()
 	originalResolver := resolveDockerComposeConfig
 	t.Cleanup(func() { resolveDockerComposeConfig = originalResolver })
-	resolveDockerComposeConfig = func(_ tools.DockerConfig, file string) (string, error) {
+	resolveDockerComposeConfig = func(_ context.Context, _ tools.DockerConfig, file string, _ tools.DockerComposeConfigOptions) (string, error) {
 		if _, err := os.Stat(filepath.Join(workspace, filepath.Base(file))); err != nil {
 			return "", err
 		}
@@ -58,19 +59,19 @@ func TestManagedLocalLLMComposeProtectionIsFailClosed(t *testing.T) {
 	if dockerComposeReferencesProtectedLocalLLMVolume(cfg, filepath.Base(safe)) {
 		t.Fatal("safe Compose file was blocked")
 	}
-	resolveDockerComposeConfig = func(_ tools.DockerConfig, _ string) (string, error) {
+	resolveDockerComposeConfig = func(_ context.Context, _ tools.DockerConfig, _ string, _ tools.DockerComposeConfigOptions) (string, error) {
 		return `{"services":{"app":{"labels":{"aurago.managed": "local-llm"}}}}`, nil
 	}
 	if !dockerComposeReferencesProtectedLocalLLMVolume(cfg, filepath.Base(safe)) {
 		t.Fatal("interpolated canonical managed label was not blocked")
 	}
-	resolveDockerComposeConfig = func(_ tools.DockerConfig, _ string) (string, error) {
+	resolveDockerComposeConfig = func(_ context.Context, _ tools.DockerConfig, _ string, _ tools.DockerComposeConfigOptions) (string, error) {
 		return `{"services":{"app":{"volumes_from":["aurago-local-llm"]}}}`, nil
 	}
 	if !dockerComposeReferencesProtectedLocalLLMVolume(cfg, filepath.Base(safe)) {
 		t.Fatal("interpolated volumes_from was not blocked")
 	}
-	resolveDockerComposeConfig = func(_ tools.DockerConfig, file string) (string, error) {
+	resolveDockerComposeConfig = func(_ context.Context, _ tools.DockerConfig, file string, _ tools.DockerComposeConfigOptions) (string, error) {
 		if _, err := os.Stat(filepath.Join(workspace, filepath.Base(file))); err != nil {
 			return "", err
 		}

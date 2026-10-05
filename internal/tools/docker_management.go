@@ -853,6 +853,13 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 // only, so stderr warnings never corrupt the JSON. Errors carry stderr and are
 // returned so callers fail closed before executing any Compose action.
 func DockerComposeResolvedConfig(cfg DockerConfig, file string) (string, error) {
+	return DockerComposeResolvedConfigContext(context.Background(), cfg, file, DockerComposeConfigOptions{})
+}
+
+// DockerComposeResolvedConfigContext is DockerComposeResolvedConfig under the
+// caller's context (a stopped agent run cancels Compose) and with the selected
+// config variant. Compose is still bounded by 20 seconds.
+func DockerComposeResolvedConfigContext(ctx context.Context, cfg DockerConfig, file string, opts DockerComposeConfigOptions) (string, error) {
 	if err := requireDockerPermission(); err != nil {
 		return "", err
 	}
@@ -860,10 +867,15 @@ func DockerComposeResolvedConfig(cfg DockerConfig, file string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	runCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	args := dockerCLIArgs(cfg, "compose", "-f", composeFile, "config", "--format", "json")
-	stdout, stderr, err := runDockerComposeConfig(ctx, args)
+	stdout, stderr, err := runDockerComposeConfig(runCtx, dockerComposeConfigArgs(cfg, composeFile, opts))
+	if err != nil && ctx.Err() != nil {
+		return "", fmt.Errorf("resolve Compose config: %w", ctx.Err())
+	}
 	return dockerComposeConfigResult(stdout, stderr, err)
 }
 

@@ -21,7 +21,7 @@ var (
 	dispatchPreferredMCPVision        = tools.CallPreferredMCPVision
 	dispatchAnalyzeImageWithPrompt    = tools.AnalyzeImageWithPrompt
 	dispatchAnalyzeImageURLWithPrompt = tools.AnalyzeImageURLWithPrompt
-	resolveDockerComposeConfig        = tools.DockerComposeResolvedConfig
+	resolveDockerComposeConfig        = tools.DockerComposeResolvedConfigContext
 
 	meshCentralCachedClient    *meshcentral.CachedClient
 	meshCentralCachedConfig    meshCentralClientConfig

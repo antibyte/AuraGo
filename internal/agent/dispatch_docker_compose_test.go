@@ -12,15 +12,36 @@ import (
 	"aurago/internal/tools"
 )
 
+type dockerComposeResolverCall struct {
+	file        string
+	allProfiles bool
+}
+
+// stubDockerComposeResolverModes replaces both Compose resolutions (the default
+// validity gate and the all-profiles ownership model) and records every call.
+func stubDockerComposeResolverModes(t *testing.T, resolve func(ctx context.Context, file string, opts tools.DockerComposeConfigOptions) (string, error)) *[]dockerComposeResolverCall {
+	t.Helper()
+	var calls []dockerComposeResolverCall
+	original := resolveDockerComposeConfig
+	t.Cleanup(func() { resolveDockerComposeConfig = original })
+	resolveDockerComposeConfig = func(ctx context.Context, _ tools.DockerConfig, file string, opts tools.DockerComposeConfigOptions) (string, error) {
+		calls = append(calls, dockerComposeResolverCall{file: file, allProfiles: opts.AllProfiles})
+		return resolve(ctx, file, opts)
+	}
+	return &calls
+}
+
+// stubDockerComposeResolver answers both resolutions with the same model and
+// records the default (validity-gate) resolutions only.
 func stubDockerComposeResolver(t *testing.T, resolve func(file string) (string, error)) *[]string {
 	t.Helper()
 	var seen []string
-	original := resolveDockerComposeConfig
-	t.Cleanup(func() { resolveDockerComposeConfig = original })
-	resolveDockerComposeConfig = func(_ tools.DockerConfig, file string) (string, error) {
-		seen = append(seen, file)
+	stubDockerComposeResolverModes(t, func(_ context.Context, file string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if !opts.AllProfiles {
+			seen = append(seen, file)
+		}
 		return resolve(file)
-	}
+	})
 	return &seen
 }
 
@@ -173,6 +194,133 @@ func TestDockerComposePolicyWithoutWorkspaceJailsToWorkingDirectory(t *testing.T
 	}
 	if len(*seen) != allowedCalls {
 		t.Fatalf("resolver ran for a file outside the working directory: %q", *seen)
+	}
+}
+
+const profileComposeFixture = "services:\n  web:\n    image: alpine\n  hidden:\n    image: alpine\n    profiles: [later]\n    container_name: aurago-${G}\n"
+
+func TestDockerComposePolicyChecksProfileServicesOnTheAllProfilesModel(t *testing.T) {
+	// `docker compose config` omits services of inactive profiles, but
+	// `up -d hidden` activates them. The all-profiles model must see them.
+	workspace := t.TempDir()
+	file := writeComposeFixture(t, workspace, "prof/compose.yml", profileComposeFixture)
+	calls := stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return `{"services":{"web":{"image":"alpine"},"hidden":{"image":"alpine","profiles":["later"],"container_name":"aurago-boring-garage"}}}`, nil
+		}
+		return `{"services":{"web":{"image":"alpine"}}}`, nil
+	})
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	for _, command := range []string{"up -d hidden", "create hidden", "ps"} {
+		got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "prof/compose.yml", Command: command})
+		if !strings.Contains(got, "Boring Computers Garage") {
+			t.Fatalf("%s: profile-gated garage container was not blocked: %s", command, got)
+		}
+	}
+	var gate, allProfiles int
+	for _, call := range *calls {
+		if call.file != file {
+			t.Fatalf("resolver got %q, want the jailed file %q", call.file, file)
+		}
+		if call.allProfiles {
+			allProfiles++
+		} else {
+			gate++
+		}
+	}
+	if gate != 3 || allProfiles != 3 {
+		t.Fatalf("resolver calls: %d default, %d all-profiles; want one of each per policy call", gate, allProfiles)
+	}
+}
+
+func TestDockerComposePolicyBlocksProfileServiceTokensInTheAllProfilesText(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "include:\n  - inc.yml\nservices:\n  web:\n    image: alpine\n")
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return `{"services":{"web":{"image":"alpine"},"tool":{"image":"alpine","profiles":["ops"],"labels":{"com.aurago.owner":"local-llm"}}}}`, nil
+		}
+		return `{"services":{"web":{"image":"alpine"}}}`, nil
+	})
+	got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "up -d tool"})
+	if !strings.Contains(got, "managed local LLM volumes") {
+		t.Fatalf("local LLM token of a profile service was not blocked: %s", got)
+	}
+}
+
+func TestDockerComposePolicyAllowsHarmlessProfileServices(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n  cache:\n    image: redis:7\n    profiles: [debug]\n    container_name: dev-cache\n")
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return `{"services":{"web":{"image":"alpine"},"cache":{"image":"redis:7","profiles":["debug"],"container_name":"dev-cache"}}}`, nil
+		}
+		return `{"services":{"web":{"image":"alpine"}}}`, nil
+	})
+	for _, command := range []string{"up -d cache", "up -d", "create cache", "ps"} {
+		got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
+		if got != "" {
+			t.Fatalf("%s: harmless profile service was blocked: %s", command, got)
+		}
+	}
+}
+
+func TestDockerComposePolicyFallsBackWhenComposeCannotResolveAllProfiles(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", profileComposeFixture)
+	defaultModel := `{"services":{"web":{"image":"alpine"}}}`
+	stubDockerComposeResolverModes(t, func(_ context.Context, _ string, opts tools.DockerComposeConfigOptions) (string, error) {
+		if opts.AllProfiles {
+			return "", errors.New("resolve Compose config: exit status 1: unknown flag: --no-env-resolution")
+		}
+		return defaultModel, nil
+	})
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
+	}
+	for _, command := range []string{"up -d hidden", "up --timeout 10 -d hidden", "create hidden", "start hidden", "restart -t 5 hidden", "up -d web hidden"} {
+		got := policy(command)
+		if !strings.Contains(got, `"code":"docker_compose_profile_service_unverified"`) || !strings.Contains(got, "hidden") {
+			t.Fatalf("%s: got %s, want docker_compose_profile_service_unverified naming the service", command, got)
+		}
+		if classifyLegacyToolResult(got) != ToolResultFailed {
+			t.Fatalf("%s: classified as %v", command, classifyLegacyToolResult(got))
+		}
+	}
+	for _, command := range []string{"up -d", "up -d web", "up -d --timeout 10 web", "up --scale web=2 -d", "create --pull always web", "ps hidden", "logs hidden", "stop hidden", "down", "config"} {
+		if got := policy(command); got != "" {
+			t.Fatalf("%s: fallback blocked a call that names only default services: %s", command, got)
+		}
+	}
+
+	defaultModel = `{"services":{"web":{"image":"alpine","container_name":"aurago"}}}`
+	if got := policy("ps"); !strings.Contains(got, `"code":"docker_managed_aurago_resource"`) {
+		t.Fatalf("fallback skipped the default-model ownership check: %s", got)
+	}
+}
+
+func TestDockerComposePolicyRunsComposeUnderTheDispatchContext(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	type dispatchKey struct{}
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), dispatchKey{}, "dispatch"))
+	defer cancel()
+	var values []any
+	stubDockerComposeResolverModes(t, func(ctx context.Context, _ string, _ tools.DockerComposeConfigOptions) (string, error) {
+		values = append(values, ctx.Value(dispatchKey{}))
+		return `{"services":{"web":{"image":"alpine"}}}`, nil
+	})
+	req := dockerArgs{Operation: "compose", File: "compose.yml", Command: "ps"}
+	if got := dockerComposePolicy(ctx, &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, req); got != "" {
+		t.Fatalf("dockerComposePolicy() = %s", got)
+	}
+	if len(values) != 2 || values[0] != "dispatch" || values[1] != "dispatch" {
+		t.Fatalf("resolver contexts carried %v, want the dispatch context twice", values)
+	}
+	cancel()
+	if got := dockerComposePolicy(ctx, &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, req); !strings.Contains(got, `"code":"docker_compose_preflight_failed"`) || !strings.Contains(got, "context canceled") {
+		t.Fatalf("cancelled dispatch did not stop the preflight: %s", got)
 	}
 }
 
