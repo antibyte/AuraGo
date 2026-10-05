@@ -68,6 +68,15 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Tool System
 
+- Email and AgentMail content reaches the model only after enabled checks allow
+  it completely. A quarantined result contains a safe local notice instead of
+  the original payload. Preserve the actual operation status, especially for
+  AgentMail writes whose response is withheld; never invite replay of a send.
+- Shell, Python and `run_tool` results always use escaped external-data isolation.
+  Capture execution status first and preserve the wrapper through bounding,
+  compression and saved-result reads. Copyable source wrappers remain limited
+  to Game Maker. Helper inputs use the same canonical isolation after raw caps.
+
 - Strict schemas are a separate immutable snapshot projection: every object is
   closed, all properties are required, and originally optional values accept
   null without losing enums or constraints. Keep normalization idempotent.
@@ -192,10 +201,9 @@ Tools are defined in `internal/tools/`:
 - Workspace asset fingerprints cover runtime sources, patches and dependencies,
   with normalized LF endings, excluding Go test files. Legacy compatibility
   must be bound to a verified exact runtime fingerprint, never a blanket bypass.
-- PromptSec structure provenance must come from guard metadata, never a textual
-  comparison with the current dynamic system prompt. A full structure envelope
-  cannot replace a chat user message. Chunked security scans provide diagnostics
-  only; a partial scan window must never replace the complete human request.
+- Spotlight, Canary and Structure remain inactive, including legacy settings.
+  Input tags cannot grant trust or bypass scans. Request sanitization preserves
+  the complete human intent; a partial local scan window never replaces it.
 - Prompt logs must include provider/model, build and VCS identifiers, prompt revision, sorted active tools, tool-catalog hash, and recovery counters.
 - `/api/system/info` exposes the running build identifier and VCS metadata. Deployment acceptance requires its `build_id` to match the reviewed commit; a `-dirty` identifier is not a clean release artifact.
 - Every LLM request must fit every eligible primary/failover route after reserving output and protocol safety tokens. Resolve limits in this order: provider override, model registry, cached provider probe, configured global cap for an unknown primary model, then conservative 32768/4096 defaults; `agent.context_window` is always an upper cap.
@@ -215,7 +223,7 @@ Tools are defined in `internal/tools/`:
 - Built-in persona bodies must fit the 1000-rune core-profile budget without truncation. Keep their voice recognizable in brief and technical replies; mood and channel modulate that voice rather than replacing it. Decode omitted metadata from `memory.DefaultPersonalityMeta()`; explicit zero volatility, empathy and loneliness modifiers remain zero. Missions and co-agents exclude the full persona and dynamic persona sections; delegated temperament remains separately bounded. Persona selection publishes a new config snapshot only after a successful save. Custom profile saves validate frontmatter before replacing files atomically and create the profile directory on first use; plain Markdown stays supported.
 - The selected compact persona and Go-built `PERSONA STATE` are required prompt sections; keep profile Markdown atomic through `TURN CONTEXT`. Optional emotion narration and character notes may be shed first. Apply a human message's affect once per run, and prepare its local mood before the first reply without another blocking model call. Synthesizers share continuity, cooldown and in-flight reservations through the owning SQLite memory store and restore the latest persisted state after restart. Persist bounded semantic affect, mood and emotion history atomically before publishing their shared snapshot; subsequent overlays must retain the accepted numerical contribution. Creative/analytical modes and positive feedback must remain visible in trusted tone guidance. Standalone synthesis uses route-aware JSON output budgets and rejects truncated completions.
 - Personality dynamics share the owning SQLite store and activate with the existing engine. `ApplyPersonalityObservation` owns atomic affect/dynamics/trait/history updates and durable observation receipts; semantic enrichment must retain its originating snapshot and cannot replay a primary event. Technical events affect load only, never familiarity or friction. Preserve the four-hour affect, twelve-hour load and twenty-four-hour friction half-lives, bounded family habituation, explicit zero modifiers, and two-event emotional hysteresis. Reads never advance state. Persona changes and resets invalidate pending analyses; resets preserve traits, familiarity and character notes. Back up existing on-disk personality data before the additive dynamics migration.
-- Promptsec structure guards are request-local and must never mutate the shared Guardian with a per-request system prompt. Input text cannot prove structure provenance or bypass scanning; only the current `ScanResult.StructuredPrompt` identifies a generated wrapper. Before every send, preserve the newest tool-call reasoning block when any eligible primary or failover route requires continuation reasoning.
+- Request-local Guardian copies never mutate shared state or create Structure envelopes. Before every send, preserve the newest tool-call reasoning block when any eligible primary or failover route requires continuation reasoning.
 - Native multi-tool assistant messages are persisted once. Every declared tool-call ID receives exactly one contiguous tool result before recovery or circuit-breaker system guidance is appended; sanitization remains defensive, not normal control flow.
 - Queued, primary and batched tool calls share `applyToolOutcome` (`tool_outcome.go`) for all post-dispatch bookkeeping (finalization, ledger, operational issues, learned rules, todo/plan/core-memory state, tool transitions, completion notifications, persistence). Callers own only the protocol message order: native recovery guidance follows every declared tool result; text-mode guidance precedes the assistant/user pair. Verify `TestToolOutcomeParityAcrossDispatchPaths` and `TestPrimaryNativeRecoveryGuidanceFollowsToolResults`.
 - An exact-duplicate tool circuit breaker terminates that tool chain. Persist the blocked result, emit `not_executed_due_to_circuit_breaker` for every remaining declared native call without dispatching it, remove tools, and request exactly one tool-free final response.

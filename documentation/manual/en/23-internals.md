@@ -605,7 +605,7 @@ flowchart LR
 The [`Guardian`](../../../internal/security/guardian.go) uses pattern matching for fast pre-checks:
 
 - **ThreatLevel**: Classification of threat level
-- **PromptSec**: Prompt injection detection (Preset, Spotlight, Canary)
+- **PromptSec**: Prompt injection detection with configurable sanitization, policy, taint tracking, and optional embedding or LLM-judge checks
 - **MaxScanBytes**: Limit on scanned data volume
 
 ### 8.4 SSRF Protection

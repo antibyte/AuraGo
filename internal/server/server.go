@@ -1462,8 +1462,6 @@ func newServerFromOptions(opts StartOptions) *Server {
 		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
 		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
 		Preset:        cfg.Guardian.PromptSec.Preset,
-		Spotlight:     cfg.Guardian.PromptSec.Spotlight,
-		Canary:        cfg.Guardian.PromptSec.Canary,
 		Sanitizer: security.PromptSecSanitizerOptions{
 			Normalize:   cfg.Guardian.PromptSec.Sanitizer.Normalize,
 			Dehomoglyph: cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph,
@@ -1478,10 +1476,6 @@ func newServerFromOptions(opts StartOptions) *Server {
 		Taint: security.PromptSecTaintOptions{
 			Enabled:      cfg.Guardian.PromptSec.Taint.Enabled,
 			DefaultLevel: cfg.Guardian.PromptSec.Taint.DefaultLevel,
-		},
-		Structure: security.PromptSecStructureOptions{
-			Enabled: cfg.Guardian.PromptSec.Structure.Enabled,
-			Mode:    cfg.Guardian.PromptSec.Structure.Mode,
 		},
 		LLMJudge: security.PromptSecLLMJudgeOptions{
 			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,

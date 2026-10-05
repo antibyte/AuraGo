@@ -253,17 +253,15 @@ func TestGuardianSanitizeToolOutputIsolatesUnknownTools(t *testing.T) {
 	}
 }
 
-func TestGuardianSanitizeToolOutputKeepsBenignExecutionOutputReadable(t *testing.T) {
+func TestGuardianSanitizeToolOutputAlwaysIsolatesExecutionOutput(t *testing.T) {
 	g := NewGuardian(nil)
 	output := "exit_code=0\nstdout: ok"
 
-	got := g.SanitizeToolOutput("execute_shell", output)
-
-	if strings.Contains(got, "<external_data>") {
-		t.Fatalf("benign local execution output should remain readable, got %q", got)
-	}
-	if !strings.Contains(got, "exit_code=0") {
-		t.Fatalf("execution output lost useful content: %q", got)
+	for _, tool := range []string{"execute_shell", "execute_python", "run_tool"} {
+		got := g.SanitizeToolOutput(tool, output)
+		if !strings.Contains(got, "<external_data>") || !strings.Contains(got, "exit_code=0") {
+			t.Fatalf("%s must preserve output inside isolation, got %q", tool, got)
+		}
 	}
 }
 

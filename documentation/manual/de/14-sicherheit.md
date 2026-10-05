@@ -118,6 +118,8 @@ llm_guardian:
 
 > 💡 **Hinweis:** Der LLM Guardian nutzt das Provider-System. Erstelle einen eigenen Provider-Eintrag für den Guardian und referenziere ihn über die `provider`-ID.
 
+`scan_emails` und `scan_documents` sind optionale Prüfungen und standardmäßig deaktiviert. Sobald eine davon aktiviert ist, wird Inhalt nur bei ausdrücklicher Freigabe weitergegeben. Scannerfehler, unvollständige Abdeckung und überschrittene Größenlimits quarantänisieren das Original; ein berechtigtes Agentenziel erhält nur einen festen, sicheren Hinweis. Diese Regel für eingehende Inhalte ist unabhängig von `fail_safe` und kann daher nicht mit `allow` oder `quarantine` auf Freigabe umgestellt werden.
+
 ### Prüfstufen
 
 | Stufe | Beschreibung | Anwendungsfall |

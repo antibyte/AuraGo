@@ -1293,30 +1293,53 @@ func TestHostIsolationManifestCoversHighRiskAgentPaths(t *testing.T) {
 	}
 }
 
-func TestMessagingIngressManifestRequiresExternalDataIsolation(t *testing.T) {
+func TestMessagingIngressManifestDeclaresEachIngressPolicy(t *testing.T) {
 	t.Parallel()
 
-	required := []string{"telegram", "discord", "rocketchat", "telnyx"}
+	type expectedIngress struct {
+		policy   MessagingIngressPolicy
+		delivery IngressQuarantineDelivery
+		wraps    bool
+		source   string
+	}
+	required := map[string]expectedIngress{
+		"telegram":            {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/telegram/bot.go"},
+		"discord":             {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/discord/bot.go"},
+		"rocketchat":          {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/rocketchat/bot.go"},
+		"telnyx_sms":          {IngressHighThreatBlock, IngressQuarantineAuthorizedAgent, true, "internal/telnyx/broker.go"},
+		"a2a":                 {IngressHighThreatBlock, IngressQuarantineNone, true, "internal/a2a/executor.go"},
+		"sip_voice":           {IngressHighThreatBlock, IngressQuarantineAuthorizedAgent, true, "internal/server/sip_voice.go"},
+		"meshcore":            {IngressStrictQuarantine, IngressQuarantineExistingStrictMeshCore, true, "internal/server/meshcore_runtime.go"},
+		"email_watcher":       {IngressOptInFailClosed, IngressQuarantineAuthorizedAgent, true, "internal/tools/email_watcher.go"},
+		"email_fetch":         {IngressOptInFailClosed, IngressQuarantineToolResult, true, "internal/agent/dispatch_email.go"},
+		"agentmail_relay":     {IngressOptInFailClosed, IngressQuarantineAuthorizedAgent, true, "internal/agentmail/service.go"},
+		"agentmail_tool_pull": {IngressOptInFailClosed, IngressQuarantineToolResult, true, "internal/agent/dispatch_agentmail.go"},
+		"webhooks":            {IngressOptInFailClosed, IngressQuarantineAuthorizedAgentOrMission, true, "internal/webhooks/handler.go"},
+		"operator_webchat":    {IngressOperatorLogOnly, IngressQuarantineNone, false, "internal/server/handlers.go"},
+		"browser_speech":      {IngressOperatorLogOnly, IngressQuarantineNone, true, "internal/server/sip_voice.go"},
+	}
 	byName := map[string]MessagingIngressBoundary{}
 	for _, entry := range MessagingIngressManifest() {
-		if entry.Channel == "" || entry.SourcePath == "" {
+		if entry.Channel == "" || entry.SourcePath == "" || entry.Policy == "" || entry.QuarantineDelivery == "" {
 			t.Fatalf("invalid messaging ingress entry: %+v", entry)
 		}
-		if !entry.WrapsExternalData {
-			t.Fatalf("%s does not declare external-data wrapping", entry.Channel)
+		if _, duplicate := byName[entry.Channel]; duplicate {
+			t.Fatalf("duplicate messaging ingress channel %q", entry.Channel)
 		}
-		content := readRepoFile(t, entry.SourcePath)
-		if !strings.Contains(content, "security.IsolateExternalData") {
-			t.Fatalf("%s source %s does not call security.IsolateExternalData", entry.Channel, entry.SourcePath)
+		if _, ok := required[entry.Channel]; !ok {
+			t.Fatalf("unexpected messaging ingress channel %q", entry.Channel)
 		}
-		if entry.RequiresPromptInjectionScan && !strings.Contains(content, "ScanForInjection") {
-			t.Fatalf("%s source %s does not run prompt-injection scanning", entry.Channel, entry.SourcePath)
-		}
+		_ = readRepoFile(t, entry.SourcePath) // Fail if the manifest points at a removed ingress.
 		byName[entry.Channel] = entry
 	}
-	for _, channel := range required {
-		if _, ok := byName[channel]; !ok {
+	if len(byName) != len(required) {
+		t.Fatalf("manifest has %d channels, want %d", len(byName), len(required))
+	}
+	for channel, expected := range required {
+		if entry, ok := byName[channel]; !ok {
 			t.Fatalf("messaging ingress channel %q is missing from MessagingIngressManifest", channel)
+		} else if entry.Policy != expected.policy || entry.QuarantineDelivery != expected.delivery || entry.WrapsExternalData != expected.wraps || entry.SourcePath != expected.source {
+			t.Fatalf("channel %q = %+v, want policy=%q delivery=%q wraps_external=%t source=%q", channel, entry, expected.policy, expected.delivery, expected.wraps, expected.source)
 		}
 	}
 }

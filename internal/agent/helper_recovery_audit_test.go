@@ -91,7 +91,7 @@ func TestHelperRecoveryRebuildsEveryOperationWithSmallerSources(t *testing.T) {
 			}
 			if tc.name == "turn" {
 				for _, msg := range []string{first.Messages[1].Content, second.Messages[1].Content} {
-					if strings.Count(msg, "<external_data ") != strings.Count(msg, "</external_data>") {
+					if strings.Count(msg, "<external_data>") != strings.Count(msg, "</external_data>") {
 						t.Fatal("retry cut isolation wrapper")
 					}
 				}

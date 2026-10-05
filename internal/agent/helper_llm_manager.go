@@ -16,6 +16,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 )
 
 var helperTurnBatchPrompt = strings.ReplaceAll(`You are the shared helper LLM for support tasks.
@@ -524,7 +525,9 @@ func (m *helperLLMManager) GenerateCheatsheetAbstract(ctx context.Context, name,
 		return "", nil
 	}
 	buildPrompt := func(divisor int) string {
-		return fmt.Sprintf("Cheat sheet name:\n%s\n\nCheat sheet content:\n%s", name, helperSourceText(content, 2400, divisor))
+		return fmt.Sprintf("Cheat sheet name:\n%s\n\nCheat sheet content:\n%s",
+			helperExternalDataBlock("cheatsheet_name", name, 200),
+			helperExternalDataBlock("cheatsheet_content", helperSourceText(content, 2400, divisor), 2400))
 	}
 	userPrompt := buildPrompt(1)
 	cacheKey := m.helperCacheKey("cheatsheet_abstract", m.model, userPrompt)
@@ -760,9 +763,7 @@ func helperExternalDataBlock(dataType, content string, maxLen int) string {
 	if content == "" {
 		return ""
 	}
-	content = strings.ReplaceAll(content, "</external_data>", "&lt;/external_data&gt;")
-	content = strings.ReplaceAll(content, "<external_data>", "&lt;external_data&gt;")
-	return fmt.Sprintf("<external_data type=%q sanitize=\"true\">\n%s\n</external_data>", dataType, content)
+	return dataType + " (untrusted):\n" + security.IsolateExternalData(content)
 }
 
 func parseHelperTurnBatchResult(raw string) (helperTurnBatchResult, error) {
@@ -820,8 +821,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, diviso
 	}
 	personaName := strings.TrimSpace(input.PersonaName)
 	if personaName != "" && !strings.EqualFold(personaName, "neutral") {
-		b.WriteString("Active persona: ")
-		b.WriteString(truncateActivityDigestInput(personaName, 80))
+		b.WriteString(helperExternalDataBlock("active_persona", personaName, 80))
 		b.WriteString("\n")
 		if personaPrompt := helperExternalDataBlock("persona_prompt", helperSourceText(input.PersonaPrompt, 300, divisor), 300); personaPrompt != "" {
 			b.WriteString("Persona character:\n")
@@ -836,7 +836,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, diviso
 	}
 	if input.TriggerType != "" {
 		b.WriteString("Trigger type: ")
-		b.WriteString(string(input.TriggerType))
+		b.WriteString(helperExternalDataBlock("trigger_type", string(input.TriggerType), 80))
 		b.WriteString("\n")
 	}
 	if detail := helperExternalDataBlock("trigger_detail", helperSourceText(input.TriggerDetail, 180, divisor), 180); detail != "" {
@@ -853,7 +853,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, diviso
 		language = "English"
 	}
 	b.WriteString("Write emotion description and cause in: ")
-	b.WriteString(language)
+	b.WriteString(helperExternalDataBlock("language", language, 40))
 	b.WriteString("\n")
 	if input.InnerVoiceEnabled {
 		ivLang := strings.TrimSpace(input.InnerVoiceLanguage)
@@ -862,7 +862,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput, diviso
 		}
 		b.WriteString("\nINNER VOICE REQUESTED: Add an \"inner_voice\" key inside \"personality_analysis\" with this structure:\n")
 		b.WriteString(`{"inner_thought": "1-3 first-person sentences, e.g. I feel...", "nudge_category": "one of: ` + memory.InnerVoiceNudgeCategories + `", "confidence": 0.8}`)
-		b.WriteString("\nWrite inner_thought in: " + ivLang + "\n")
+		b.WriteString("\nWrite inner_thought in: " + helperExternalDataBlock("inner_voice_language", ivLang, 40) + "\n")
 		b.WriteString("Write as the agent's inner subconscious voice — genuine, subtle, not commanding.\n")
 		b.WriteString("Do not use profanity, panic wording, or self-escalating frustration.\n")
 		b.WriteString("Be forward-looking: anticipate what might happen next and prepare yourself mentally.\n")
@@ -891,9 +891,9 @@ func (m *helperLLMManager) AnalyzeMaintenanceSummaryAndKG(ctx context.Context, t
 		userPrompt := fmt.Sprintf(
 			"Today: %s\n\n=== EXISTING KG NODES ===\n%s\n\n=== JOURNAL ENTRIES ===\n%s\n\n=== RECENT CONVERSATION ===\n%s",
 			today,
-			existingNodes,
-			helperSourceText(journalEntries, 2600, divisor),
-			helperSourceText(conversationExcerpt, 4200, divisor),
+			helperExternalDataBlock("existing_kg_nodes", existingNodes, 5000),
+			helperExternalDataBlock("journal_entries", helperSourceText(journalEntries, 2600, divisor), 2600),
+			helperExternalDataBlock("recent_conversation", helperSourceText(conversationExcerpt, 4200, divisor), 4200),
 		)
 
 		return userPrompt
@@ -966,7 +966,7 @@ func (m *helperLLMManager) AnalyzeConsolidationBatches(ctx context.Context, batc
 			userPrompt.WriteString("=== ")
 			userPrompt.WriteString(batchID)
 			userPrompt.WriteString(" ===\n")
-			userPrompt.WriteString(conversation)
+			userPrompt.WriteString(helperExternalDataBlock("conversation", conversation, 4200))
 			userPrompt.WriteString("\n\n")
 		}
 
@@ -1057,7 +1057,7 @@ func (m *helperLLMManager) CompressMemoryBatches(ctx context.Context, memories [
 			userPrompt.WriteString("=== ")
 			userPrompt.WriteString(memoryID)
 			userPrompt.WriteString(" ===\n")
-			userPrompt.WriteString(content)
+			userPrompt.WriteString(helperExternalDataBlock("memory_content", content, 3200))
 			userPrompt.WriteString("\n\n")
 		}
 
@@ -1142,11 +1142,11 @@ func (m *helperLLMManager) SummarizeContentBatches(ctx context.Context, items []
 			userPrompt.WriteString(batchID)
 			userPrompt.WriteString(" ===\n")
 			userPrompt.WriteString("Source type: ")
-			userPrompt.WriteString(sourceName)
+			userPrompt.WriteString(helperExternalDataBlock("source_name", sourceName, 120))
 			userPrompt.WriteString("\nSearch query: ")
-			userPrompt.WriteString(searchQuery)
+			userPrompt.WriteString(helperExternalDataBlock("search_query", searchQuery, 700))
 			userPrompt.WriteString("\nContent:\n")
-			userPrompt.WriteString(content)
+			userPrompt.WriteString(helperExternalDataBlock("content", content, 2600))
 			userPrompt.WriteString("\n\n")
 		}
 
@@ -1221,7 +1221,7 @@ func (m *helperLLMManager) AnalyzeRAG(ctx context.Context, userQuery string, can
 	buildPrompt := func(divisor int) string {
 		var userPrompt strings.Builder
 		userPrompt.WriteString("User request:\n")
-		userPrompt.WriteString(helperSourceText(userQuery, 700, divisor))
+		userPrompt.WriteString(helperExternalDataBlock("user_request", helperSourceText(userQuery, 700, divisor), 700))
 		userPrompt.WriteString("\n\n")
 		if len(candidates) == 0 {
 			userPrompt.WriteString("Memory candidates:\nnone\n")
@@ -1234,8 +1234,8 @@ func (m *helperLLMManager) AnalyzeRAG(ctx context.Context, userQuery string, can
 				}
 				userPrompt.WriteString("- memory_id: ")
 				userPrompt.WriteString(memoryID)
-				userPrompt.WriteString("\n  content: ")
-				userPrompt.WriteString(helperSourceText(strings.TrimSpace(candidate.text), 260, divisor))
+				userPrompt.WriteString("\n  content:\n")
+				userPrompt.WriteString(helperExternalDataBlock("memory_candidate", helperSourceText(strings.TrimSpace(candidate.text), 260, divisor), 260))
 				userPrompt.WriteString("\n")
 			}
 		}

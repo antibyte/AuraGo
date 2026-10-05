@@ -127,6 +127,8 @@ Für Gmail musst du ein [App-Passwort](https://myaccount.google.com/apppasswords
 2. App-Passwörter → Andere (benutzerdefinierter Name).
 3. Das generierte Passwort im Vault speichern.
 
+Wenn `llm_guardian.scan_emails` aktiviert ist, prüft AuraGo E-Mail-Inhalte, bevor `fetch_email`, der Watcher oder das AgentMail-Relay sie weitergeben. Nur eine ausdrückliche Freigabe lässt den Inhalt passieren. Bei verdächtiger, unvollständiger oder zu großer Prüfung sowie bei nicht verfügbarem Scanner bleibt das Original zurück; der bereits autorisierte Zustellweg erhält stattdessen einen festen Quarantänehinweis. Dieser enthält weder Absender, Betreff, Header noch Nachrichtentext oder eine Scanner-Erklärung. Quarantänisierte AgentMail-Nachrichten bleiben ungelesen und unverändert beschriftet; bei fehlgeschlagener Hinweiszustellung bleibt eine Wiederholung möglich. E-Mail- und Dokumentprüfungen durch ein LLM sind optional und standardmäßig deaktiviert.
+
 ### Provider-Einstellungen
 
 | Provider | IMAP-Host | SMTP-Host |
@@ -205,6 +207,8 @@ agentmail:
 > 🔒 Der API-Key wird im Vault als `agentmail_api_key` gespeichert, nicht in der `config.yaml`.
 
 Nutze die fokussierten Tools `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads` und `agentmail_drafts` im Chat. Der alte Toolname `agentmail` bleibt als Kompatibilitätsalias akzeptiert.
+
+Bei aktivierter E-Mail-Prüfung ersetzt ein Quarantänehinweis den Inhalt einer AgentMail-Nachricht. Der Status eines Tool-Vorgangs bleibt erhalten, aber quarantänisierter Inhalt wird nicht zurückgegeben oder weitergeleitet. Lesestatus und Labels bleiben unverändert. Die Quarantäne erlaubt weder Antworten noch Änderungen an Labels.
 
 ## Home Assistant Integration
 
@@ -339,6 +343,8 @@ Webhooks ermöglichen es externen Diensten, AuraGo zu benachrichtigen.
 **Web-UI:** Config → Integrationen → Webhooks → aktivieren und Limits konfigurieren. Einzelne Webhooks werden über die API oder das Dashboard verwaltet.
 
 Nutze für eingehende Authentifizierung bevorzugt `Authorization: Bearer <Token>`. `?token=<Token>` bleibt für Provider ohne frei konfigurierbare Header kompatibel, kann aber in Zugriffslogs, Zwischenservern und im Browserverlauf erscheinen. Die Zustellung erfolgt asynchron. Das Rate-Limit arbeitet pro Token als Token-Bucket; der Wert pro Minute ist zugleich die Burst-Kapazität.
+
+Mit aktiviertem `llm_guardian.scan_documents` wird ein eingehender Webhook abgelehnt, wenn die Sicherheitsprüfung den Inhalt nicht ausdrücklich freigibt, unvollständig ist, das Prüf-Limit überschreitet oder nicht verfügbar ist. Der Payload wird weder an den Chat noch an rohe Missions-Callbacks übergeben. AuraGo sendet einen festen Quarantänehinweis, wenn die konfigurierte Zustellung oder ein berechtigtes lokales Missionsziel den Agenten erreicht hätte. UI-only- und stille Webhooks ohne Missionsziel wecken den Agenten nicht.
 
 URLs ausgehender Webhooks, sensible Header und benutzerdefinierte Body-Templates werden verschlüsselt im Vault gespeichert und in API sowie Web-UI nur maskiert angezeigt. Sie dürfen nicht in `config.yaml` eingetragen werden.
 

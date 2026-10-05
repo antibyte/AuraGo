@@ -698,10 +698,21 @@ func TestSanitizeFetchedEmailsBlocksWithLLMGuardian(t *testing.T) {
 	if llmGuardian.calls != 1 {
 		t.Fatalf("llm guardian calls = %d, want 1", llmGuardian.calls)
 	}
-	if got := sanitized[0].Subject; !strings.Contains(got, "llm guardian blocked") {
-		t.Fatalf("subject = %q, want blocked marker", got)
+	if got := sanitized[0].Subject; got != "Quarantined email" {
+		t.Fatalf("subject = %q, want neutral quarantine marker", got)
 	}
-	if got := sanitized[0].Body; !strings.Contains(got, "prompt injection") {
-		t.Fatalf("body = %q, want reason included", got)
+	if got := sanitized[0].Body; !strings.Contains(got, "[QUARANTINE NOTICE]") || strings.Contains(got, "prompt injection") {
+		t.Fatalf("body = %q, want fixed notice without model prose", got)
+	}
+	if sanitized[0].From != "" || sanitized[0].To != "" || sanitized[0].Date != "" || sanitized[0].Snippet != "" {
+		t.Fatalf("quarantined message retained raw metadata: %+v", sanitized[0])
+	}
+}
+
+func TestSanitizeFetchedEmailsFailsClosedWhenOptInScannerUnavailable(t *testing.T) {
+	messages := []tools.EmailMessage{{UID: 8, From: "attacker@example.com", Subject: "subject", Body: "original"}}
+	got := sanitizeFetchedEmails(context.Background(), nil, nil, nil, true, messages)[0]
+	if got.Subject != "Quarantined email" || !strings.Contains(got.Body, "[QUARANTINE NOTICE]") || got.From != "" || got.Body == "original" {
+		t.Fatalf("unavailable activated scan did not withhold the email: %+v", got)
 	}
 }

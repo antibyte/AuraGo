@@ -130,6 +130,8 @@ AuraGo can read emails via IMAP and send via SMTP.
 
 For Gmail, you must create an **App Password** (not your regular password) at [Google Account Security](https://myaccount.google.com/security) → 2-Step Verification → App passwords.
 
+If `llm_guardian.scan_emails` is enabled, AuraGo scans email content before exposing it through `fetch_email` or relaying it through the watcher or AgentMail. Only an explicit allow passes. A suspicious, incomplete, over-limit, or unavailable scan withholds the original and sends a fixed quarantine notice through the already-authorized delivery path. The notice omits the sender, subject, headers, body, and scanner explanation; quarantined AgentMail retains its existing read state and labels, and a failed notice remains eligible for retry. Email and document LLM scans remain opt-in and default to off.
+
 ### YAML Reference (Multiple Accounts)
 The modern configuration uses a **list** of email accounts under `email_accounts`. At startup, any existing `email:` section is automatically migrated to an `email_accounts` entry with `id: "default"` (see `internal/config/config_migrate.go:MigrateEmailAccounts`).
 
@@ -205,6 +207,8 @@ agentmail:
 > 🔒 The API key is stored in the Vault as `agentmail_api_key`, not in `config.yaml`.
 
 Use the focused `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads`, and `agentmail_drafts` tools in chat. The legacy `agentmail` name remains accepted as a compatibility alias.
+
+When email scanning is enabled, a quarantined AgentMail result contains a safe notice instead of message content. For tool operations, the operation status is preserved, but quarantined content is not returned or relayed; quarantine does not authorize replying or changing labels.
 
 ---
 
@@ -395,6 +399,8 @@ Receive HTTP events from external services.
 4. Paste the URL into the external service (e.g., GitHub repository settings).
 
 Prefer `Authorization: Bearer <token>` for incoming authentication. The `?token=<token>` query form remains compatible with providers that cannot set headers, but it can appear in access logs, intermediary logs, and browser history. Incoming delivery is asynchronous. The rate limit is enforced per token as a token bucket, so the configured requests-per-minute value is also the burst capacity.
+
+With `llm_guardian.scan_documents` enabled, an incoming webhook is rejected when its security scan does not explicitly allow the payload, is incomplete, exceeds the scan limit, or is unavailable. The payload is never sent to the chat or raw mission callback. AuraGo sends a fixed quarantine notice whenever the configured delivery or an eligible local mission target would have reached the agent; UI-only and silent webhooks without a mission target do not wake the agent.
 
 Outgoing webhook URLs, sensitive headers, and custom body templates are encrypted in the Vault and are only shown as masks in the API and Web UI. They must not be added to `config.yaml`.
 

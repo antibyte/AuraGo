@@ -217,6 +217,10 @@ type WebhookManagerInterface interface {
 	UnregisterMissionTrigger(key string)
 }
 
+type webhookMissionEligibilityRegistrar interface {
+	RegisterMissionTriggerForKeyWithEligibility(key, webhookID string, eligible func() bool, callback func([]byte))
+}
+
 // MQTTManagerInterface for MQTT trigger integration
 type MQTTManagerInterface interface {
 	RegisterMissionTrigger(topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string))
@@ -673,17 +677,22 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 			if !m.markTriggerRegistrationLocked(mission, "webhook|"+webhookID) {
 				return
 			}
-			m.webhookMgr.RegisterMissionTriggerForKey(
-				missionID+"|"+string(TriggerWebhook), webhookID,
-				func(payload []byte) {
-					if !m.triggerRegistrationIsCurrent(missionID, TriggerWebhook, func(current *TriggerConfig) bool {
-						return current.WebhookID == webhookID
-					}) {
-						return
-					}
-					m.TriggerMission(missionID, "webhook", string(payload))
-				},
-			)
+			matches := func(current *TriggerConfig) bool { return current.WebhookID == webhookID }
+			eligible := func() bool {
+				return m.triggerRegistrationEligible(missionID, TriggerWebhook, matches)
+			}
+			callback := func(payload []byte) {
+				if !m.triggerRegistrationIsCurrent(missionID, TriggerWebhook, matches) {
+					return
+				}
+				m.TriggerMission(missionID, "webhook", string(payload))
+			}
+			key := missionID + "|" + string(TriggerWebhook)
+			if registrar, ok := m.webhookMgr.(webhookMissionEligibilityRegistrar); ok {
+				registrar.RegisterMissionTriggerForKeyWithEligibility(key, webhookID, eligible, callback)
+			} else {
+				m.webhookMgr.RegisterMissionTriggerForKey(key, webhookID, callback)
+			}
 		}
 
 	case TriggerMQTTMessage:
@@ -794,6 +803,33 @@ func (m *MissionManagerV2) triggerRegistrationIsCurrent(missionID string, trigge
 		return true
 	}
 	return match(mission.TriggerConfig)
+}
+
+// triggerRegistrationEligible is a read-only check for whether this registered
+// trigger could currently reach its mission. Unlike shouldFireTriggerLocked it
+// never consumes the mission's cooldown.
+func (m *MissionManagerV2) triggerRegistrationEligible(missionID string, triggerType TriggerType, match func(*TriggerConfig) bool) bool {
+	if m == nil || m.ctx == nil || m.ctx.Err() != nil {
+		return false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	mission, ok := m.missions[missionID]
+	if !ok || !mission.Enabled || isRemoteMission(mission) || mission.ExecutionType != ExecutionTriggered || mission.TriggerType != triggerType || mission.TriggerConfig == nil {
+		return false
+	}
+	if match != nil && !match(mission.TriggerConfig) {
+		return false
+	}
+	interval := triggerMinIntervalSeconds(mission.TriggerConfig)
+	if interval <= 0 {
+		return true
+	}
+	if triggerType == "" {
+		triggerType = mission.TriggerType
+	}
+	last := m.lastTriggerFire[missionID+"|"+string(triggerType)]
+	return last.IsZero() || time.Since(last) >= time.Duration(interval)*time.Second
 }
 
 // processQueue runs the main queue processing loop

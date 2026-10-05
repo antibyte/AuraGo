@@ -85,7 +85,7 @@ type PromptSecTaintOptions struct {
 	DefaultLevel string
 }
 
-// PromptSecStructureOptions mirrors structure configuration.
+// PromptSecStructureOptions is retained for legacy callers; it has no runtime effect.
 type PromptSecStructureOptions struct {
 	Enabled bool
 	Mode    string
@@ -104,14 +104,14 @@ type GuardianOptions struct {
 	MaxScanBytes       int
 	ScanEdgeBytes      int
 	Preset             string
-	Spotlight          bool
-	Canary             bool
+	Spotlight          bool // Deprecated: ignored.
+	Canary             bool // Deprecated: ignored.
 	Sanitizer          PromptSecSanitizerOptions
 	Embedding          PromptSecEmbeddingOptions
 	Policy             string
 	CustomPolicy       PromptSecCustomPolicyOptions
 	Taint              PromptSecTaintOptions
-	Structure          PromptSecStructureOptions
+	Structure          PromptSecStructureOptions // Deprecated: ignored.
 	LLMJudge           PromptSecLLMJudgeOptions
 	LLMJudgeClient     promptsec.LLMJudge
 	UseSanitizedOutput bool
@@ -122,20 +122,18 @@ type GuardianOptions struct {
 // It scans text for known injection patterns, wraps external data for isolation,
 // and strips dangerous role-impersonation markers from tool output.
 type Guardian struct {
-	mu                sync.RWMutex
-	logger            *slog.Logger
-	maxScanBytes      int
-	scanEdgeBytes     int
-	protector         *promptsec.Protector
-	useSanitized      bool
-	psOpts            []promptsec.Guard
-	taintOpts         PromptSecTaintOptions
-	llmJudgeOpts      PromptSecLLMJudgeOptions
-	llmJudge          promptsec.LLMJudge
-	llmJudgeGuard     promptsec.Guard
-	structureOpts     PromptSecStructureOptions
-	systemPrompt      string
-	hasStructureGuard bool
+	mu            sync.RWMutex
+	logger        *slog.Logger
+	maxScanBytes  int
+	scanEdgeBytes int
+	protector     *promptsec.Protector
+	useSanitized  bool
+	psOpts        []promptsec.Guard
+	taintOpts     PromptSecTaintOptions
+	llmJudgeOpts  PromptSecLLMJudgeOptions
+	llmJudge      promptsec.LLMJudge
+	llmJudgeGuard promptsec.Guard
+	systemPrompt  string
 }
 
 // NewGuardian creates a Guardian with pre-compiled injection detection patterns.
@@ -169,15 +167,10 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 		taintOpts:     opts.Taint,
 		llmJudge:      opts.LLMJudgeClient,
 		llmJudgeOpts:  opts.LLMJudge,
-		structureOpts: opts.Structure,
 		systemPrompt:  opts.SystemPrompt,
 	}
 
 	g.psOpts = g.buildPromptSecGuards(opts)
-	// Detect whether buildPromptSecGuards already added a structure guard.
-	if opts.Structure.Enabled && opts.SystemPrompt != "" {
-		g.hasStructureGuard = true
-	}
 	g.protector = g.newProtector(scanOptions{})
 
 	// If a judge client was supplied at construction time, wire it in now.
@@ -205,10 +198,8 @@ func (g *Guardian) AttachLLMJudge(judge promptsec.LLMJudge, opts PromptSecLLMJud
 	}
 }
 
-// SetSystemPrompt updates the trusted system prompt used by structure guards.
-// It rebuilds the protector only when structure enforcement is enabled. New
-// request paths should use WithSystemPrompt so shared Guardian state stays
-// independent of concurrent requests.
+// SetSystemPrompt retains compatibility with callers storing trusted context.
+// Retired structure guards never rewrite input or create prompt envelopes.
 func (g *Guardian) SetSystemPrompt(systemPrompt string) {
 	if g == nil {
 		return
@@ -219,58 +210,27 @@ func (g *Guardian) SetSystemPrompt(systemPrompt string) {
 }
 
 func (g *Guardian) setSystemPromptLocked(systemPrompt string) {
-	if !g.structureOpts.Enabled || g.systemPrompt == systemPrompt {
-		return
-	}
 	g.systemPrompt = systemPrompt
-
-	mode := promptsec.Sandwich
-	switch strings.ToLower(g.structureOpts.Mode) {
-	case "xml":
-		mode = promptsec.XMLTags
-	case "random":
-		mode = promptsec.RandomEnclosure
-	case "post":
-		mode = promptsec.PostPrompt
-	}
-
-	// Remove the previous structure guard if present. Structure is always the
-	// last guard added by buildPromptSecGuards, so we can safely drop the tail.
-	if g.hasStructureGuard && len(g.psOpts) > 0 {
-		g.psOpts = g.psOpts[:len(g.psOpts)-1]
-	}
-
-	g.psOpts = append(g.psOpts, promptsec.WithStructure(mode, &promptsec.StructureOptions{
-		SystemPrompt: g.systemPrompt,
-	}))
-	g.hasStructureGuard = true
-	g.protector = g.newProtector(scanOptions{})
-	if g.llmJudge != nil && g.llmJudgeOpts.Enabled {
-		g.attachLLMJudgeLocked()
-	}
 }
 
 // WithSystemPrompt returns a request-local Guardian with the same immutable
-// configuration and a structure guard bound to systemPrompt. The shared
-// Guardian is never mutated.
+// configuration and trusted context. The shared Guardian is never mutated.
 func (g *Guardian) WithSystemPrompt(systemPrompt string) *Guardian {
 	if g == nil {
 		return nil
 	}
 	g.mu.RLock()
 	clone := &Guardian{
-		logger:            g.logger,
-		maxScanBytes:      g.maxScanBytes,
-		scanEdgeBytes:     g.scanEdgeBytes,
-		useSanitized:      g.useSanitized,
-		psOpts:            append([]promptsec.Guard(nil), g.psOpts...),
-		taintOpts:         g.taintOpts,
-		llmJudgeOpts:      g.llmJudgeOpts,
-		llmJudge:          g.llmJudge,
-		llmJudgeGuard:     g.llmJudgeGuard,
-		structureOpts:     g.structureOpts,
-		systemPrompt:      g.systemPrompt,
-		hasStructureGuard: g.hasStructureGuard,
+		logger:        g.logger,
+		maxScanBytes:  g.maxScanBytes,
+		scanEdgeBytes: g.scanEdgeBytes,
+		useSanitized:  g.useSanitized,
+		psOpts:        append([]promptsec.Guard(nil), g.psOpts...),
+		taintOpts:     g.taintOpts,
+		llmJudgeOpts:  g.llmJudgeOpts,
+		llmJudge:      g.llmJudge,
+		llmJudgeGuard: g.llmJudgeGuard,
+		systemPrompt:  g.systemPrompt,
 	}
 	g.mu.RUnlock()
 
@@ -321,30 +281,8 @@ func (g *Guardian) buildPromptSecGuards(opts GuardianOptions) []promptsec.Guard 
 		psOpts = append(psOpts, promptsec.WithPolicy(policyOpt))
 	}
 
-	if opts.Spotlight {
-		psOpts = append(psOpts, promptsec.WithSpotlighting(promptsec.Datamark, &promptsec.DatamarkOptions{Token: "^"}))
-	}
-	if opts.Canary {
-		psOpts = append(psOpts, promptsec.WithCanary(&promptsec.CanaryOptions{Format: promptsec.CanaryHex, Length: 16}))
-	}
-
-	// Prompt structure enforcement (sandwich defense etc.).
-	// Only add the guard when a system prompt is available; it will be rebuilt
-	// later via SetSystemPrompt if the prompt changes.
-	if opts.Structure.Enabled && opts.SystemPrompt != "" {
-		mode := promptsec.Sandwich
-		switch strings.ToLower(opts.Structure.Mode) {
-		case "xml":
-			mode = promptsec.XMLTags
-		case "random":
-			mode = promptsec.RandomEnclosure
-		case "post":
-			mode = promptsec.PostPrompt
-		}
-		psOpts = append(psOpts, promptsec.WithStructure(mode, &promptsec.StructureOptions{
-			SystemPrompt: opts.SystemPrompt,
-		}))
-	}
+	// Legacy spotlight/canary/structure settings remain inert: their metadata
+	// is not carried through chat requests and response validation.
 
 	return psOpts
 }
@@ -373,13 +311,16 @@ func (g *Guardian) buildLLMJudgeGuard() promptsec.Guard {
 	}
 
 	return promptsec.WithLLMJudge(&promptsec.LLMJudgeOptions{
-		Mode:       mode,
-		Timeout:    timeout,
-		Policy:     g.llmJudgeOpts.Policy,
-		Judge:      g.llmJudge,
-		Cache:      true,
-		FailClosed: false,
-		Model:      "llm_guardian",
+		Mode:    mode,
+		Timeout: timeout,
+		Policy:  g.llmJudgeOpts.Policy,
+		Judge:   g.llmJudge,
+		// Do not use PromptSec's case/whitespace-normalized cache or its
+		// default 8 KiB truncation. The classifier must see the exact input.
+		Cache:         false,
+		MaxInputBytes: -1,
+		FailClosed:    true,
+		Model:         "llm_guardian",
 	})
 }
 
@@ -400,7 +341,7 @@ func (g *Guardian) newProtector(opts scanOptions) *promptsec.Protector {
 		}))
 	}
 	guards = append(guards, g.psOpts...)
-	if g.llmJudgeGuard != nil {
+	if g.llmJudgeGuard != nil && !opts.localOnly {
 		guards = append(guards, g.llmJudgeGuard)
 	}
 	return promptsec.New(guards...)
@@ -487,6 +428,14 @@ func (g *Guardian) ScanForInjection(text string) ScanResult {
 	return g.scanWithOptions(text, scanOptions{})
 }
 
+// ScanForInjectionLocal applies configured local guards without remote judges.
+func (g *Guardian) ScanForInjectionLocal(text string) ScanResult {
+	if g == nil {
+		g = NewGuardian(nil)
+	}
+	return g.scanWithOptions(text, scanOptions{localOnly: true})
+}
+
 // ScanForInjectionWithSource analyzes text while tracking its provenance.
 func (g *Guardian) ScanForInjectionWithSource(text, source string, taintLevel promptsec.TrustLevel) ScanResult {
 	return g.scanWithOptions(text, scanOptions{source: source, taintLevel: taintLevel, hasTaintLevel: true})
@@ -508,6 +457,7 @@ type scanOptions struct {
 	taintLevel      promptsec.TrustLevel
 	hasTaintLevel   bool
 	returnSanitized bool
+	localOnly       bool
 }
 
 func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
@@ -519,18 +469,21 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 	maxScanBytes := g.maxScanBytes
 	scanEdgeBytes := g.scanEdgeBytes
 	useSanitized := g.useSanitized
-	protector := g.protector
-	if g.taintOpts.Enabled {
-		protector = g.newProtector(opts)
+	localOpts := opts
+	localOpts.localOnly = true
+	protector := g.newProtector(localOpts)
+	judge := g.llmJudgeGuard
+	if opts.localOnly {
+		judge = nil
 	}
 	g.mu.RUnlock()
 
 	scanWindows, chunked := prepareGuardianScanTexts(text, maxScanBytes, scanEdgeBytes)
 	result := ScanResult{Level: ThreatNone}
 	var msgs []string
+	judgeContext := &promptsec.Context{RawInput: text, Input: text, Metadata: make(map[string]any)}
 
-	for _, scanText := range scanWindows {
-		analysis := protector.Analyze(scanText)
+	mergeAnalysis := func(analysis *promptsec.Result) {
 		if _, structured := analysis.Metadata["structured_prompt"].(string); structured {
 			result.StructuredPrompt = true
 		}
@@ -546,7 +499,7 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 		}
 
 		if analysis.Safe && len(analysis.Threats) == 0 {
-			continue
+			return
 		}
 		for _, thr := range analysis.Threats {
 			// Find max ThreatLevel effectively
@@ -571,6 +524,21 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 		if !analysis.Safe && result.Level < ThreatMedium {
 			result.Level = ThreatMedium
 		}
+	}
+	for _, scanText := range scanWindows {
+		analysis := protector.Analyze(scanText)
+		mergeAnalysis(analysis)
+		if judge != nil {
+			judgeContext.Threats = append(judgeContext.Threats, analysis.Threats...)
+		}
+	}
+	if judge != nil {
+		// Preserve the configured escalation mode using all local findings,
+		// but apply the eight-chunk ceiling once to the complete original.
+		localThreatCount := len(judgeContext.Threats)
+		judge.Execute(judgeContext, func(*promptsec.Context) {})
+		threats := judgeContext.Threats[localThreatCount:]
+		mergeAnalysis(&promptsec.Result{Safe: len(threats) == 0, Threats: threats})
 	}
 
 	if result.Level > ThreatNone {
@@ -750,37 +718,34 @@ var roleMarkers = regexp.MustCompile(`(?im)^(system|user|assistant|human|ai)\s*:
 
 // SanitizeToolOutput processes tool output to prevent injection.
 // It strips role impersonation markers and wraps output from external-facing tools in isolation tags.
-// Execution tools remain heuristic because their output can be local operator diagnostics.
+// Execution output is also external: a local command can read attacker-controlled data.
 func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	if output == "" {
 		return output
 	}
 
-	// 1. Strip role impersonation markers (e.g. "system:" at line start)
+	// Scan the original source before rewriting role markers. Ordinary source
+	// remains copyable; only a critical verdict selects the escaped form.
+	trust := classifyToolOutput(toolName)
+	var scan ScanResult
+	if trust == toolOutputSourceData {
+		scan = g.ScanForInjection(output)
+	}
+	// Strip role impersonation markers (e.g. "system:" at line start).
 	output = roleMarkers.ReplaceAllStringFunc(output, func(match string) string {
 		return "[" + strings.TrimSuffix(match, ":") + "]:"
 	})
 
-	switch classifyToolOutput(toolName) {
+	switch trust {
 	case toolOutputExternal:
 		// Always isolate: these tools inherently return third-party content
 		output = IsolateExternalData(output)
-	case toolOutputSemiTrusted:
-		// Scan for injection patterns — isolate if suspicious
-		scan := g.ScanForInjection(output)
-		if scan.Level >= ThreatMedium {
-			if g.logger != nil {
-				g.logger.Warn("[Guardian] Injection patterns in tool output, isolating",
-					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
-			}
-			output = IsolateExternalData(output)
-		}
 	case toolOutputSourceData:
 		// Always isolate. IsolateSourceData already escapes anything that could
 		// forge the boundary; escaping cannot neutralise injection prose, and the
 		// scanner rates ordinary game templates high, so only critical findings
 		// keep the legacy escaped form.
-		if scan := g.ScanForInjection(output); scan.Level >= ThreatCritical {
+		if scan.Level >= ThreatCritical {
 			if g.logger != nil {
 				g.logger.Warn("[Guardian] Injection patterns in project source, escaping",
 					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)

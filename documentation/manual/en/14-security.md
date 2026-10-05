@@ -76,9 +76,11 @@ llm_guardian:
   model: ""
   default_level: medium   # low | medium | high | strict
   fail_safe: block        # block | quarantine | allow
+  scan_documents: false   # opt-in scan for incoming documents and webhooks
+  scan_emails: false      # opt-in scan for fetched and relayed email
 ```
 
-The German chapter has the full level table and document/email scan flags. This is the operational minimum.
+Document and email scans are opt-in to control cost. Once enabled, their ingress paths accept only an explicit allow; scanner errors, incomplete coverage, and size-limit overflow quarantine the original and deliver only a fixed safe notice where an authorized agent target exists. This ingress rule is independent of `fail_safe` and cannot be changed to allow by setting it to `allow` or `quarantine`.
 
 ## Sudo
 

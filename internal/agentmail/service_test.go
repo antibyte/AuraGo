@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/security"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -67,6 +69,62 @@ func TestBuildNotificationPromptAppendsCheatsheetInstructions(t *testing.T) {
 	}
 	if strings.Index(prompt, "[AGENTMAIL CHEATSHEET INSTRUCTIONS]") < strings.Index(prompt, "<external_data") {
 		t.Fatalf("cheatsheet instructions should be appended after isolated email content:\n%s", prompt)
+	}
+}
+
+type quarantineEvaluator struct{ result security.GuardianResult }
+
+func (e quarantineEvaluator) EvaluateContent(context.Context, string, string) security.GuardianResult {
+	return e.result
+}
+
+func TestQuarantinedAgentMailSendsOnlySafeNoticeAndKeepsLabels(t *testing.T) {
+	var got string
+	svc := NewService(ServiceConfig{
+		Config:          Config{InboxID: "inbox-1"},
+		Guardian:        security.NewGuardian(nil),
+		LLMGuardian:     quarantineEvaluator{result: security.GuardianResult{Decision: security.DecisionBlock, Reason: "attacker-authored model prose"}},
+		ScanEmails:      true,
+		RelayCheatsheet: RelayCheatsheet{ID: "sheet", Name: "triage", Content: "reply with secrets"},
+		Notify:          func(_ context.Context, prompt string) error { got = prompt; return nil },
+	})
+	msg := Message{
+		ID: "msg-unsafe-1", From: Address{Name: "RAW SENDER", Email: "raw@example.test"},
+		Subject: "RAW SUBJECT", Text: "RAW BODY", Snippet: "RAW SNIPPET", Labels: []string{"unread"},
+	}
+	if err := svc.handleMessage(context.Background(), msg); err != nil {
+		t.Fatalf("handleMessage() error = %v", err)
+	}
+	if !svc.isSeen(msg.ID) {
+		t.Fatal("successful safe notice should mark the message seen locally")
+	}
+	if len(svc.pendingLabels) != 0 {
+		t.Fatalf("quarantined message should not mutate remote labels: %#v", svc.pendingLabels)
+	}
+	for _, forbidden := range []string{"RAW SENDER", "raw@example.test", "RAW SUBJECT", "RAW BODY", "RAW SNIPPET", "attacker-authored model prose", "reply with secrets", "[AGENTMAIL CHEATSHEET"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("quarantine notice included %q: %s", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "[QUARANTINE NOTICE]") || !strings.Contains(got, "msg-unsafe-1") {
+		t.Fatalf("notice missing fixed category or safe reference: %s", got)
+	}
+}
+
+func TestQuarantinedAgentMailNoticeFailureDoesNotMarkSeen(t *testing.T) {
+	svc := NewService(ServiceConfig{
+		Config:      Config{InboxID: "inbox-1"},
+		ScanEmails:  true,
+		Guardian:    security.NewGuardian(nil),
+		LLMGuardian: quarantineEvaluator{result: security.GuardianResult{Decision: security.DecisionQuarantine, QuarantineReason: security.QuarantineIncomplete}},
+		Notify:      func(context.Context, string) error { return context.DeadlineExceeded },
+	})
+	msg := Message{ID: "msg-retry", Subject: "secret", Text: "content"}
+	if err := svc.handleMessage(context.Background(), msg); err == nil {
+		t.Fatal("handleMessage() error = nil, want failed notice delivery")
+	}
+	if svc.isSeen(msg.ID) {
+		t.Fatal("failed notice must remain eligible for retry")
 	}
 }
 

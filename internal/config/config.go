@@ -771,8 +771,8 @@ func Load(path string) (*Config, error) {
 	cfg.Guardian.MaxScanBytes = 16 * 1024
 	cfg.Guardian.ScanEdgeBytes = 6 * 1024
 	cfg.Guardian.PromptSec.Preset = "strict"
-	cfg.Guardian.PromptSec.Spotlight = true
-	cfg.Guardian.PromptSec.Canary = true
+	cfg.Guardian.PromptSec.Spotlight = false
+	cfg.Guardian.PromptSec.Canary = false
 	cfg.Guardian.PromptSec.Sanitizer.Normalize = true
 	cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph = true
 	cfg.Guardian.PromptSec.Sanitizer.Decode = true

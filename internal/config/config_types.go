@@ -1358,8 +1358,8 @@ type Config struct {
 		ScanEdgeBytes int `yaml:"scan_edge_bytes"` // bytes kept from start and end when windowing large inputs (default 6144)
 		PromptSec     struct {
 			Preset    string `yaml:"preset"`    // "strict", "moderate", "lenient" (default: strict)
-			Spotlight bool   `yaml:"spotlight"` // default: true
-			Canary    bool   `yaml:"canary"`    // default: true
+			Spotlight bool   `yaml:"spotlight"` // retired; retained for legacy YAML compatibility
+			Canary    bool   `yaml:"canary"`    // retired; retained for legacy YAML compatibility
 			Sanitizer struct {
 				Normalize   bool `yaml:"normalize"`   // unicode normalization (default: true)
 				Dehomoglyph bool `yaml:"dehomoglyph"` // replace homoglyphs (default: true)
@@ -1380,7 +1380,7 @@ type Config struct {
 			Structure struct {
 				Enabled bool   `yaml:"enabled"` // default: false
 				Mode    string `yaml:"mode"`    // "sandwich", "xml", "random"
-			} `yaml:"structure"`
+			} `yaml:"structure"` // retired; retained for legacy YAML compatibility
 			LLMJudge struct {
 				Enabled     bool   `yaml:"enabled"`      // default: false
 				Mode        string `yaml:"mode"`         // "uncertain", "always", "threat_detected", "no_threat"

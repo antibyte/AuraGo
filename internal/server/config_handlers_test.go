@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -1091,6 +1092,77 @@ tools:
 		toolSection, _ := toolsMap[toolKey].(map[string]interface{})
 		if _, ok := toolSection["summary_provider"]; ok {
 			t.Fatalf("expected %s.summary_provider to be removed from config response", toolKey)
+		}
+	}
+}
+
+func TestHandleGetConfigReportsRetiredPromptSecSettings(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	legacy := `guardian:
+  promptsec:
+    spotlight: true
+    canary: true
+    structure:
+      enabled: true
+      mode: xml
+`
+	if err := os.WriteFile(configPath, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.ConfigPath = configPath
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	rec := httptest.NewRecorder()
+	handleGetConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	guardian := body["guardian"].(map[string]interface{})
+	promptsec := guardian["promptsec"].(map[string]interface{})
+	for _, key := range []string{"spotlight", "canary", "structure"} {
+		if _, exists := promptsec[key]; exists {
+			t.Fatalf("retired guardian.promptsec.%s remained in config response: %#v", key, promptsec)
+		}
+	}
+	notices := body["_config_migrations"].([]interface{})
+	joined := fmt.Sprint(notices)
+	for _, path := range []string{"guardian.promptsec.spotlight", "guardian.promptsec.canary", "guardian.promptsec.structure"} {
+		if !strings.Contains(joined, path) || !strings.Contains(joined, "forced off") {
+			t.Fatalf("migration notice missing %s or forced-off detail: %v", path, notices)
+		}
+	}
+}
+
+func TestHandleUpdateConfigRejectsRetiredPromptSecReactivationBeforeWrite(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	original := []byte("agent:\n  read_only: true\n")
+	if err := os.WriteFile(configPath, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{Cfg: &config.Config{ConfigPath: configPath}, Logger: slog.Default()}
+	for _, payload := range []string{
+		`{"guardian":{"promptsec":{"spotlight":true}}}`,
+		`{"guardian":{"promptsec":{"canary":true}}}`,
+		`{"guardian":{"promptsec":{"structure":{"enabled":true}}}}`,
+	} {
+		rec := httptest.NewRecorder()
+		handleUpdateConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(payload)))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("payload %s returned %d, want 400; body=%s", payload, rec.Code, rec.Body.String())
+		}
+		stored, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(stored) != string(original) {
+			t.Fatalf("rejected payload %s modified config: %q", payload, stored)
 		}
 	}
 }

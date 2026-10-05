@@ -22,6 +22,12 @@ var disclosureRemovedSettings = []string{
 	"memory_analysis.llm_reranking", "memory_analysis.unified_memory_block", "memory_analysis.effectiveness_tracking", "memory_analysis.weekly_reflection",
 }
 
+var retiredPromptSecSettings = []string{
+	"guardian.promptsec.spotlight",
+	"guardian.promptsec.canary",
+	"guardian.promptsec.structure",
+}
+
 // NormalizeToolDisclosureConfig migrates obsolete template paths without
 // overriding explicit canonical values. Removed switches have no save path.
 // YAML nodes preserve comments; running the migration twice is a no-op.
@@ -57,6 +63,11 @@ func NormalizeToolDisclosureConfig(data []byte) ([]byte, error) {
 			changed = true
 		}
 	}
+	for _, path := range retiredPromptSecSettings {
+		if removeDisclosureYAML(root, strings.Split(path, ".")) {
+			changed = true
+		}
+	}
 	if !changed {
 		return data, nil
 	}
@@ -82,6 +93,11 @@ func ToolDisclosureMigrationNotices(data []byte) []string {
 	for _, path := range disclosureRemovedSettings {
 		if disclosureYAMLPath(doc.Content[0], strings.Split(path, "."), false) != nil {
 			result = append(result, path+" (removed: no runtime consumer)")
+		}
+	}
+	for _, path := range retiredPromptSecSettings {
+		if disclosureYAMLPath(doc.Content[0], strings.Split(path, "."), false) != nil {
+			result = append(result, path+" (retired; forced off)")
 		}
 	}
 	for _, path := range []string{"agent.output_compression.reversible.enabled", "agent.output_compression.smart_crusher.enabled", "agent.importance_scoring.enabled", "agent.auto_learning.enabled"} {
@@ -116,6 +132,17 @@ func ValidateToolDisclosurePatch(patch map[string]interface{}) error {
 	for _, path := range disclosureRemovedSettings {
 		if _, ok := has(path); ok {
 			return fmt.Errorf("setting %s was removed because it has no runtime effect; reload the configuration page", path)
+		}
+	}
+	for _, path := range []string{"guardian.promptsec.spotlight", "guardian.promptsec.canary", "guardian.promptsec.structure.enabled"} {
+		if value, exists := has(path); exists {
+			enabled, ok := value.(bool)
+			if !ok {
+				return fmt.Errorf("setting %s must be true or false", path)
+			}
+			if enabled {
+				return fmt.Errorf("setting %s is retired and cannot be re-enabled; reload the configuration page", path)
+			}
 		}
 	}
 	for _, path := range []string{"agent.output_compression.reversible.enabled", "agent.output_compression.smart_crusher.enabled", "agent.importance_scoring.enabled", "agent.auto_learning.enabled"} {

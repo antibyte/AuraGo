@@ -1671,8 +1671,6 @@ guardian:
     scan_edge_bytes: 6144                 # bytes kept from start and end when max_scan_bytes is exceeded
     promptsec:
         preset: strict                        # promptsec preset ("strict", "moderate", "lenient")
-        spotlight: true                       # use promptsec spotlighting for output isolation
-        canary: true                          # use promptsec canaries for manipulation detection
         sanitizer:
             normalize: true                   # unicode normalization
             dehomoglyph: true                 # replace homoglyphs with base characters
@@ -1686,9 +1684,6 @@ guardian:
         taint:
             enabled: false                  # track data provenance / trust levels
             default_level: untrusted        # untrusted, suspicious, trusted
-        structure:
-            enabled: false                  # enforce prompt structure (sandwich defense)
-            mode: sandwich                  # sandwich, xml, random
         llm_judge:
             enabled: false                  # escalate uncertain detections to LLM Guardian
             mode: uncertain                 # uncertain, always, threat_detected, no_threat

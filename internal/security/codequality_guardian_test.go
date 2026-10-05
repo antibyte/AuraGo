@@ -22,7 +22,7 @@ func TestGuardianProviderFailureDoesNotCacheFallback(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"choices":[{"message":{"role":"assistant","content":"dangerous 95 unsafe action"}}]}`)
+		io.WriteString(w, `{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"dangerous 95 unsafe action"}}]}`)
 	}))
 	defer server.Close()
 	cfg := &config.Config{}

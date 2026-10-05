@@ -404,37 +404,88 @@ func HostIsolationBoundaryManifest() []HostIsolationBoundary {
 	}
 }
 
+type MessagingIngressPolicy string
+
+type IngressQuarantineDelivery string
+
+const (
+	IngressHighThreatBlock  MessagingIngressPolicy = "high_threat_block"
+	IngressStrictQuarantine MessagingIngressPolicy = "strict_quarantine"
+	IngressOptInFailClosed  MessagingIngressPolicy = "opt_in_fail_closed"
+	IngressOperatorLogOnly  MessagingIngressPolicy = "operator_log_only"
+
+	IngressQuarantineNone                     IngressQuarantineDelivery = "none"
+	IngressQuarantineToolResult               IngressQuarantineDelivery = "tool_result"
+	IngressQuarantineAuthorizedAgent          IngressQuarantineDelivery = "authorized_agent"
+	IngressQuarantineAuthorizedAgentOrMission IngressQuarantineDelivery = "authorized_agent_or_mission"
+	IngressQuarantineExistingStrictMeshCore   IngressQuarantineDelivery = "existing_strict_meshcore"
+)
+
 type MessagingIngressBoundary struct {
-	Channel                     string
-	SourcePath                  string
-	WrapsExternalData           bool
-	RequiresPromptInjectionScan bool
+	Channel            string
+	SourcePath         string
+	Policy             MessagingIngressPolicy
+	QuarantineDelivery IngressQuarantineDelivery
+	WrapsExternalData  bool
 }
 
 func MessagingIngressManifest() []MessagingIngressBoundary {
 	return []MessagingIngressBoundary{
 		{
-			Channel:                     "telegram",
-			SourcePath:                  "internal/telegram/bot.go",
-			WrapsExternalData:           true,
-			RequiresPromptInjectionScan: true,
+			Channel: "telegram", SourcePath: "internal/telegram/bot.go",
+			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineNone, WrapsExternalData: true,
 		},
 		{
-			Channel:                     "discord",
-			SourcePath:                  "internal/discord/bot.go",
-			WrapsExternalData:           true,
-			RequiresPromptInjectionScan: true,
+			Channel: "discord", SourcePath: "internal/discord/bot.go",
+			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineNone, WrapsExternalData: true,
 		},
 		{
-			Channel:                     "rocketchat",
-			SourcePath:                  "internal/rocketchat/bot.go",
-			WrapsExternalData:           true,
-			RequiresPromptInjectionScan: true,
+			Channel: "rocketchat", SourcePath: "internal/rocketchat/bot.go",
+			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineNone, WrapsExternalData: true,
 		},
 		{
-			Channel:           "telnyx",
-			SourcePath:        "internal/telnyx/broker.go",
-			WrapsExternalData: true,
+			Channel: "telnyx_sms", SourcePath: "internal/telnyx/broker.go",
+			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineAuthorizedAgent, WrapsExternalData: true,
+		},
+		{
+			Channel: "a2a", SourcePath: "internal/a2a/executor.go",
+			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineNone, WrapsExternalData: true,
+		},
+		{
+			Channel: "meshcore", SourcePath: "internal/server/meshcore_runtime.go",
+			Policy: IngressStrictQuarantine, QuarantineDelivery: IngressQuarantineExistingStrictMeshCore, WrapsExternalData: true,
+		},
+		{
+			Channel: "email_watcher", SourcePath: "internal/tools/email_watcher.go",
+			Policy: IngressOptInFailClosed, QuarantineDelivery: IngressQuarantineAuthorizedAgent, WrapsExternalData: true,
+		},
+		{
+			Channel: "email_fetch", SourcePath: "internal/agent/dispatch_email.go",
+			Policy: IngressOptInFailClosed, QuarantineDelivery: IngressQuarantineToolResult, WrapsExternalData: true,
+		},
+		{
+			Channel: "agentmail_relay", SourcePath: "internal/agentmail/service.go",
+			Policy: IngressOptInFailClosed, QuarantineDelivery: IngressQuarantineAuthorizedAgent, WrapsExternalData: true,
+		},
+		{
+			Channel: "agentmail_tool_pull", SourcePath: "internal/agent/dispatch_agentmail.go",
+			Policy: IngressOptInFailClosed, QuarantineDelivery: IngressQuarantineToolResult, WrapsExternalData: true,
+		},
+		{
+			Channel: "webhooks", SourcePath: "internal/webhooks/handler.go",
+			Policy: IngressOptInFailClosed, QuarantineDelivery: IngressQuarantineAuthorizedAgentOrMission, WrapsExternalData: true,
+		},
+		{
+			Channel: "sip_voice", SourcePath: "internal/server/sip_voice.go",
+			Policy: IngressHighThreatBlock, QuarantineDelivery: IngressQuarantineAuthorizedAgent, WrapsExternalData: true,
+		},
+		{
+			Channel: "operator_webchat", SourcePath: "internal/server/handlers.go",
+			Policy: IngressOperatorLogOnly, QuarantineDelivery: IngressQuarantineNone,
+		},
+		{
+			Channel: "browser_speech", SourcePath: "internal/server/sip_voice.go",
+			Policy: IngressOperatorLogOnly, QuarantineDelivery: IngressQuarantineNone, WrapsExternalData: true,
 		},
 	}
 }

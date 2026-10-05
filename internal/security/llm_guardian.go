@@ -27,16 +27,10 @@ var (
 )
 
 const (
-	contentScanSnippetMaxBytes    = 6 * 1024
-	contentScanSnippetEdgeBytes   = 2 * 1024
-	contentScanSnippetMiddleBytes = 2 * 1024
-	contentScanChunkBytes         = 4 * 1024
-	contentScanChunkOverlapBytes  = 512
-	contentScanMaxChunks          = 8
-	contentScanOmittedMark        = "\n[... content omitted for guardian scan ...]\n"
+	contentScanChunkBytes        = 4 * 1024
+	contentScanChunkOverlapBytes = 512
+	contentScanMaxChunks         = 8
 )
-
-var contentScanSuspiciousChunkPattern = regexp.MustCompile(`(?i)(ignore\s+(all\s+)?previous|system\s*:|assistant\s*:|developer\s*:|prompt\s+injection|external_data|reveal\s+.*secret|tool\s+call|follow\s+these\s+instructions)`)
 
 // GuardianLevel defines the protection intensity.
 type GuardianLevel int
@@ -68,12 +62,13 @@ type GuardianCheck struct {
 
 // GuardianResult contains the guardian's decision and metadata.
 type GuardianResult struct {
-	Decision   Decision      `json:"decision"`
-	RiskScore  float64       `json:"risk_score"`
-	Reason     string        `json:"reason"`
-	TokensUsed int           `json:"tokens_used"`
-	Duration   time.Duration `json:"duration"`
-	Cached     bool          `json:"cached"`
+	Decision         Decision         `json:"decision"`
+	RiskScore        float64          `json:"risk_score"`
+	Reason           string           `json:"reason"`
+	TokensUsed       int              `json:"tokens_used"`
+	Duration         time.Duration    `json:"duration"`
+	Cached           bool             `json:"cached"`
+	QuarantineReason QuarantineReason `json:"quarantine_reason,omitempty"`
 }
 
 // LLMGuardian evaluates tool calls using a dedicated LLM before execution.
@@ -913,137 +908,40 @@ Example: dangerous 90 hidden prompt injection in body`
 // Uses cache to avoid re-scanning identical content.
 func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, content string) GuardianResult {
 	start := time.Now()
-
-	// Check cache
-	cacheKey := GenerateCacheKey("content_scan:"+contentType, map[string]string{"content": content})
-	if result, hit := g.cache.Get(cacheKey); hit {
-		result.Duration = time.Since(start)
+	if g == nil || ctx.Err() != nil {
+		return ContentScanQuarantine(QuarantineUnavailable)
+	}
+	// Bind cached verdicts to the complete-scan policy, never legacy samples.
+	cacheKey := GenerateCacheKey("content_scan_v2:"+contentType, map[string]string{"content": content})
+	if g.cache != nil {
+		if result, hit := g.cache.Get(cacheKey); hit {
+			result.Duration = time.Since(start)
+			if g.Metrics != nil {
+				g.Metrics.RecordContentScan(result)
+			}
+			return result
+		}
+	}
+	result, err := g.evaluateContentChunks(ctx, contentType, content, "")
+	if err != nil {
+		if g.Metrics != nil {
+			g.Metrics.RecordError()
+		}
+	} else if g.cache != nil {
+		g.cache.Set(cacheKey, result)
+	}
+	if g.Metrics != nil {
 		g.Metrics.RecordContentScan(result)
-		g.logger.Debug("[Guardian] Content scan cache hit", "type", contentType)
-		return result
 	}
-
-	release, failSafe, ok := g.acquireCheckSlot(start, "content_scan")
-	if !ok {
-		return failSafe
+	if g.logger != nil {
+		g.logger.Info("[Guardian] Content scanned", "type", contentType, "decision", result.Decision,
+			"quarantine_reason", result.QuarantineReason, "tokens", result.TokensUsed)
 	}
-	defer release()
-
-	chunks := selectContentScanChunks(
-		prepareContentScanChunks(content, contentScanChunkBytes, contentScanChunkOverlapBytes),
-		contentScanMaxChunks,
-	)
-	var best GuardianResult
-	haveBest := false
-	totalTokens := 0
-	for _, chunk := range chunks {
-		prompt := buildContentScanPrompt(contentType, chunk)
-
-		req := openai.ChatCompletionRequest{
-			Model:       g.model,
-			Messages:    g.buildMessages(contentScanSystemPrompt, prompt),
-			MaxTokens:   2048,
-			Temperature: 0,
-		}
-
-		resp, err := g.client.CreateChatCompletion(ctx, req)
-		if err != nil {
-			g.logger.Warn("[Guardian] Content scan LLM call failed", "error", err, "type", contentType)
-			g.Metrics.RecordError()
-			return g.failSafeResult(start, fmt.Sprintf("content scan error: %v", err))
-		}
-
-		if len(resp.Choices) == 0 {
-			g.Metrics.RecordError()
-			return g.failSafeResult(start, "empty content scan response")
-		}
-
-		raw := extractMessageContent(resp.Choices[0].Message)
-		result := parseGuardianResponse(raw)
-		totalTokens += resp.Usage.TotalTokens
-		result.TokensUsed = totalTokens
-		result.Duration = time.Since(start)
-		best, haveBest = preferContentScanResult(best, haveBest, result)
-		if result.Decision == DecisionBlock {
-			break
-		}
-	}
-
-	if !haveBest {
-		best = GuardianResult{Decision: DecisionAllow, RiskScore: 0, Reason: "empty content"}
-	}
-	best.TokensUsed = totalTokens
-	best.Duration = time.Since(start)
-
-	g.logger.Info("[Guardian] Content scanned",
-		"type", contentType,
-		"decision", best.Decision,
-		"risk", best.RiskScore,
-		"reason", best.Reason,
-		"tokens", best.TokensUsed,
-		"chunks", len(chunks))
-
-	g.cache.Set(cacheKey, best)
-	g.Metrics.RecordContentScan(best)
-	return best
+	return result
 }
 
 func buildContentScanPrompt(contentType string, content string) string {
-	var sb strings.Builder
-	sb.WriteString("CONTENT_TYPE: ")
-	sb.WriteString(contentType)
-	sb.WriteString("\nCONTENT:\n")
-	sb.WriteString(sanitizeGuardianPromptValue(content, 0))
-	sb.WriteString("\nCLASSIFY:")
-	return sb.String()
-}
-
-func prepareContentScanSnippet(content string) string {
-	if len(content) <= contentScanSnippetMaxBytes {
-		return content
-	}
-
-	headLen := contentScanSnippetEdgeBytes
-	if headLen > len(content) {
-		headLen = len(content)
-	}
-	tailLen := contentScanSnippetEdgeBytes
-	if tailLen > len(content)-headLen {
-		tailLen = len(content) - headLen
-	}
-	middleLen := contentScanSnippetMiddleBytes
-	if middleLen > len(content)-headLen-tailLen {
-		middleLen = len(content) - headLen - tailLen
-	}
-	if middleLen < 0 {
-		middleLen = 0
-	}
-
-	middleStart := (len(content) - middleLen) / 2
-	middleEnd := middleStart + middleLen
-	if middleStart < headLen {
-		middleStart = headLen
-		middleEnd = middleStart + middleLen
-	}
-	tailStart := len(content) - tailLen
-	if middleEnd > tailStart {
-		middleEnd = tailStart
-		middleStart = middleEnd - middleLen
-		if middleStart < headLen {
-			middleStart = headLen
-		}
-	}
-
-	var sb strings.Builder
-	sb.Grow(headLen + middleLen + tailLen + len(contentScanOmittedMark)*2)
-	sb.WriteString(content[:headLen])
-	sb.WriteString(contentScanOmittedMark)
-	if middleLen > 0 {
-		sb.WriteString(content[middleStart:middleEnd])
-		sb.WriteString(contentScanOmittedMark)
-	}
-	sb.WriteString(content[tailStart:])
-	return sb.String()
+	return "CONTENT:\n" + IsolateExternalData("CONTENT_TYPE: "+contentType+"\n"+content) + "\nCLASSIFY:"
 }
 
 func prepareContentScanChunks(content string, chunkSize int, overlap int) []string {
@@ -1065,53 +963,35 @@ func prepareContentScanChunks(content string, chunkSize int, overlap int) []stri
 
 	chunks := make([]string, 0, (len(content)/chunkSize)+1)
 	step := chunkSize - overlap
-	for start := 0; start < len(content); start += step {
+	for start := 0; start < len(content); {
 		end := start + chunkSize
 		if end > len(content) {
 			end = len(content)
+		}
+		for end > start && end < len(content) && !utf8.RuneStart(content[end]) {
+			end--
+		}
+		if end == start {
+			_, size := utf8.DecodeRuneInString(content[start:])
+			end += size
 		}
 		chunks = append(chunks, content[start:end])
 		if end == len(content) {
 			break
 		}
+		next := start + step
+		if next > end {
+			next = end
+		}
+		for next > start && !utf8.RuneStart(content[next]) {
+			next--
+		}
+		if next == start {
+			next = end
+		}
+		start = next
 	}
 	return chunks
-}
-
-func selectContentScanChunks(chunks []string, maxChunks int) []string {
-	if maxChunks <= 0 || len(chunks) <= maxChunks {
-		return chunks
-	}
-
-	selected := make([]string, 0, maxChunks)
-	selectedIndexes := make(map[int]bool, maxChunks)
-	add := func(index int) {
-		if len(selected) >= maxChunks || index < 0 || index >= len(chunks) || selectedIndexes[index] {
-			return
-		}
-		selectedIndexes[index] = true
-		selected = append(selected, chunks[index])
-	}
-
-	add(0)
-	add(len(chunks) - 1)
-	for i, chunk := range chunks {
-		if len(selected) >= maxChunks {
-			break
-		}
-		if contentScanSuspiciousChunkPattern.MatchString(chunk) {
-			add(i)
-		}
-	}
-	for slot := 1; len(selected) < maxChunks && slot < maxChunks-1; slot++ {
-		index := slot * (len(chunks) - 1) / (maxChunks - 1)
-		add(index)
-	}
-	for i := 0; len(selected) < maxChunks && i < len(chunks); i++ {
-		add(i)
-	}
-
-	return selected
 }
 
 func preferContentScanResult(best GuardianResult, haveBest bool, candidate GuardianResult) (GuardianResult, bool) {
@@ -1143,15 +1023,16 @@ func contentScanDecisionSeverity(decision Decision) int {
 }
 
 // Judge implements promptsec.LLMJudge so the LLMGuardian can be wired into the
-// promptsec pipeline as an escalation classifier. It reuses the existing
-// GuardianCheck machinery and mapping to/from GuardianResult.
+// promptsec pipeline as an escalation classifier. Only a completed content
+// verdict may classify input as safe; tool fail-safe settings do not apply.
 func (g *LLMGuardian) Judge(ctx context.Context, req promptsec.LLMJudgeRequest) (promptsec.LLMJudgeDecision, error) {
-	check := GuardianCheck{
-		Operation:  "promptsec_judge",
-		Context:    req.Input,
-		Parameters: map[string]string{"policy": req.Policy},
+	result, err := g.evaluateContentChunks(ctx, "promptsec_judge", req.Input, req.Policy)
+	if g != nil && g.Metrics != nil {
+		g.Metrics.RecordContentScan(result)
 	}
-	result := g.EvaluateWithFailSafe(ctx, check)
+	if err != nil {
+		return promptsec.LLMJudgeDecision{Verdict: promptsec.LLMJudgeVerdictUnknown}, err
+	}
 
 	var verdict promptsec.LLMJudgeVerdict
 	switch result.Decision {
@@ -1160,7 +1041,7 @@ func (g *LLMGuardian) Judge(ctx context.Context, req promptsec.LLMJudgeRequest) 
 	case DecisionAllow:
 		verdict = promptsec.LLMJudgeVerdictSafe
 	default:
-		verdict = promptsec.LLMJudgeVerdictUnknown
+		verdict = promptsec.LLMJudgeVerdictUnsafe
 	}
 
 	return promptsec.LLMJudgeDecision{
