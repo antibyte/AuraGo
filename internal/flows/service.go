@@ -13,6 +13,14 @@ import (
 
 // MissionBridge connects flows with Mission Control. Plan 1c implements it on top of
 // MissionManagerV2, the mission history, the planner and notifications.
+//
+// Implementations must not call back into the Service synchronously, from any method.
+// The Service calls the bridge while it holds the flow's lock (Publish, SetEnabled,
+// DeleteFlow) and from runner hooks, which can run inside such an operation (deleting a
+// flow ends its queued runs on the caller's goroutine); a synchronous call back into
+// one of these operations for the same flow would wait for itself. Work that must reach
+// the Service (a deleted mission, a dependent mission to start) goes through a
+// goroutine, as FlowHooks.FlowMissionDeleted does.
 type MissionBridge interface {
 	// CreateFlowMission creates the (disabled) mission that represents a flow.
 	CreateFlowMission(flowID, name string) (string, error)
@@ -23,6 +31,7 @@ type MissionBridge interface {
 	// FlowMissionEnabled reports the mission's enabled switch.
 	FlowMissionEnabled(missionID string) bool
 	// DeleteFlowMission removes the mission; it must not call back into Service.DeleteFlow.
+	// A mission that is already gone is not an error, so a failed delete can be retried.
 	DeleteFlowMission(missionID string) error
 	// FlowRunStarted records a live run in the mission history and returns the history id.
 	FlowRunStarted(missionID string, rec RunRecord) string
@@ -83,10 +92,14 @@ type Service struct {
 	engine   *Engine
 	runner   *Runner
 	timers   *TimerService
+	locks    flowLocks
 
+	// startMu serializes Start. It is not taken by Shutdown, which only needs mu.
+	startMu  sync.Mutex
 	mu       sync.Mutex
 	history  map[string]string
 	started  bool
+	closed   bool
 	bootTime time.Time
 	stop     chan struct{}
 	done     chan struct{}
@@ -117,6 +130,8 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 	s.runner = NewRunner(s.engine, store, RunnerHooks{OnRunStarted: s.onRunStarted, OnRunFinished: s.onRunFinished},
 		RunnerConfig{MaxParallelRuns: cfg.MaxParallelRuns, MaxQueuedPerFlow: cfg.MaxQueuedPerFlow}, logger)
 	s.timers = NewTimerService(store, services.clock(), s.onTimerFired, s.onTimerMissed, logger)
+	// Yearly timers recur at their local time of day, in the zone the triggers are bound in.
+	s.timers.SetLocation(services.Loc())
 	return s
 }
 
@@ -132,7 +147,25 @@ func (s *Service) Runner() *Runner { return s.runner }
 // Start marks runs interrupted by a restart, arms the timers and starts the retention loop.
 // Runs started after NewService (for example by Mission Control during startup) are kept,
 // so Start may be called after MissionManagerV2.Start.
+//
+// Start is idempotent: once it succeeded, further calls return nil and do nothing, so
+// there is never a second retention loop. Concurrent calls wait for each other. After a
+// failed Start nothing runs and Start may be called again. After Shutdown, Start returns
+// ErrRunnerClosed.
 func (s *Service) Start(ctx context.Context) error {
+	s.startMu.Lock()
+	defer s.startMu.Unlock()
+	s.mu.Lock()
+	closed, started := s.closed, s.started
+	s.mu.Unlock()
+	if closed {
+		return ErrRunnerClosed
+	}
+	if started {
+		return nil
+	}
+	// A failed earlier attempt may have marked the interrupted runs already; doing it
+	// again only touches runs from before the boot time, so it is harmless.
 	n, err := s.store.MarkInterruptedRuns(ctx, s.bootTime, s.now())
 	if err != nil {
 		return err
@@ -141,27 +174,50 @@ func (s *Service) Start(ctx context.Context) error {
 		s.logger.Warn("flow runs were interrupted by a restart", "count", n)
 	}
 	if err := s.timers.Start(ctx); err != nil {
+		if s.isClosed() { // Shutdown stopped the timers while they started
+			return ErrRunnerClosed
+		}
 		return err
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		// Shutdown ran meanwhile and stopped the timers; it does not wait for a loop
+		// that was not started, so none may start now.
+		return ErrRunnerClosed
+	}
 	s.started = true
-	s.mu.Unlock()
 	go s.retentionLoop()
 	return nil
 }
 
-// Shutdown stops timers, cancels runs and waits for them.
+// Shutdown stops the timers, cancels the runs and waits for them and for the retention
+// loop, or until ctx ends (then it returns ctx's error and the rest ends in the
+// background). It may be called more than once, and without Start.
 func (s *Service) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	s.closed = true
+	started := s.started
+	s.mu.Unlock()
 	s.stopOnce.Do(func() { close(s.stop) })
 	s.timers.Stop()
 	err := s.runner.Shutdown(ctx)
-	s.mu.Lock()
-	started := s.started
-	s.mu.Unlock()
 	if started {
-		<-s.done
+		select {
+		case <-s.done:
+		case <-ctx.Done():
+			if err == nil {
+				err = ctx.Err()
+			}
+		}
 	}
 	return err
+}
+
+func (s *Service) isClosed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
 }
 
 func (s *Service) retentionLoop() {
@@ -357,7 +413,7 @@ func (s *Service) PublishPreview(ctx context.Context, id string) (*PublishPrevie
 	if err != nil {
 		return nil, err
 	}
-	issues := Validate(rec.Draft, s.reg, s.vc(ModePublish))
+	issues := append(Validate(rec.Draft, s.reg, s.vc(ModePublish)), selfTriggerIssues(rec.Draft, rec.MissionID)...)
 	if issues == nil {
 		issues = []Issue{}
 	}
@@ -369,7 +425,17 @@ func (s *Service) PublishPreview(ctx context.Context, id string) (*PublishPrevie
 }
 
 // DiffFlows compares the live revision with the draft. Moving a node is not a change.
+//
+// A nil live revision is a first publish; a nil draft counts as every live node and
+// edge removed. Nodes are matched by id. Edges are compared as a set of their source
+// and target ports, without their ids: edges with the same ports collapse into one (the
+// validator rejects such duplicates anyway), and an edge whose ends changed counts
+// twice, once for the old and once for the new connection. The counts do not depend on
+// map order, so the result is deterministic.
 func DiffFlows(live, draft *Flow) DiffSummary {
+	if draft == nil {
+		draft = &Flow{}
+	}
 	if live == nil {
 		return DiffSummary{FirstPublish: true, AddedNodes: len(draft.Nodes)}
 	}
@@ -420,103 +486,4 @@ func DiffFlows(live, draft *Flow) DiffSummary {
 		}
 	}
 	return d
-}
-
-// Publish validates the draft (publish rules), publishes it and updates Mission Control and timers.
-func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*FlowRecord, []Issue, error) {
-	rec, err := s.store.GetFlow(ctx, id)
-	if err != nil {
-		return nil, nil, err
-	}
-	if rec.DraftRevision != baseRevision {
-		return nil, nil, ErrRevisionConflict
-	}
-	issues := Validate(rec.Draft, s.reg, s.vc(ModePublish))
-	if HasErrors(issues) {
-		return nil, issues, &ValidationError{Issues: issues}
-	}
-	bindings, err := BindTriggers(rec.Draft, s.reg, s.services.Loc(), s.now())
-	if err != nil {
-		issue := Issue{Code: IssueParamInvalid, Severity: SeverityError, Message: err.Error()}
-		return nil, append(issues, issue), &ValidationError{Issues: []Issue{issue}}
-	}
-	pub, err := s.store.Publish(ctx, id, baseRevision, s.now())
-	if err != nil {
-		return nil, issues, err
-	}
-	if err := s.bridge.SyncFlowMission(pub.MissionID, pub.Live.Name, bindings); err != nil {
-		return pub, issues, fmt.Errorf("update the flow mission: %w", err)
-	}
-	if err := s.armTimers(ctx, pub); err != nil {
-		return pub, issues, err
-	}
-	return pub, issues, nil
-}
-
-// SetEnabled activates or deactivates a published flow.
-func (s *Service) SetEnabled(ctx context.Context, id string, enabled bool) error {
-	rec, err := s.store.GetFlow(ctx, id)
-	if err != nil {
-		return err
-	}
-	if enabled && rec.Live == nil {
-		return ErrNotPublished
-	}
-	if err := s.bridge.SetFlowMissionEnabled(rec.MissionID, enabled); err != nil {
-		return err
-	}
-	return s.armTimers(ctx, rec)
-}
-
-// armTimers arms the Date/Time triggers of the live revision when the flow is enabled,
-// and clears them otherwise. One-off times in the past are skipped.
-func (s *Service) armTimers(ctx context.Context, rec *FlowRecord) error {
-	if rec.Live == nil || !s.bridge.FlowMissionEnabled(rec.MissionID) {
-		return s.timers.Replace(ctx, rec.ID, nil)
-	}
-	var timers []TimerRecord
-	for i := range rec.Live.Nodes {
-		n := &rec.Live.Nodes[i]
-		if n.Settings.Disabled || n.Type != TypeTriggerDateTime {
-			continue
-		}
-		b, err := bindDateTime(n, s.services.Loc(), s.now())
-		if err != nil {
-			continue
-		}
-		timers = append(timers, TimerRecord{FlowID: rec.ID, NodeID: n.ID, FireAt: b.FireAt, Repeat: b.Repeat})
-	}
-	return s.timers.Replace(ctx, rec.ID, timers)
-}
-
-// DeleteFlow deletes the flow and its mission.
-func (s *Service) DeleteFlow(ctx context.Context, id string) error {
-	rec, err := s.store.GetFlow(ctx, id)
-	if err != nil {
-		return err
-	}
-	if rec.MissionID != "" {
-		if err := s.bridge.DeleteFlowMission(rec.MissionID); err != nil {
-			return err
-		}
-	}
-	if err := s.timers.Replace(ctx, id, nil); err != nil {
-		return err
-	}
-	return s.store.DeleteFlow(ctx, id)
-}
-
-// DeleteFlowForMission is called when Mission Control deletes a flow mission.
-func (s *Service) DeleteFlowForMission(ctx context.Context, missionID string) error {
-	rec, err := s.store.GetFlowByMission(ctx, missionID)
-	if errors.Is(err, ErrNotFound) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if err := s.timers.Replace(ctx, rec.ID, nil); err != nil {
-		return err
-	}
-	return s.store.DeleteFlow(ctx, rec.ID)
 }
