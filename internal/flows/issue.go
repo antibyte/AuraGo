@@ -52,6 +52,7 @@ const (
 	IssueNodeTypeUnknown         = "NODE_TYPE_UNKNOWN"
 	IssueNodeUnavailable         = "NODE_UNAVAILABLE"
 	IssueNodeUnreachable         = "NODE_UNREACHABLE"
+	IssueNodeNotFound            = "FLOW_NODE_NOT_FOUND" // a test run's OnlyNode is not in the document; also a run error
 	IssueParamRequired           = "PARAM_REQUIRED"
 	IssueParamInvalid            = "PARAM_INVALID"
 	IssueEdgeIDDuplicate         = "EDGE_ID_DUPLICATE"

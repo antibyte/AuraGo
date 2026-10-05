@@ -113,7 +113,7 @@ func TestServiceRunFinishedUsesTheRunsOwnRevision(t *testing.T) {
 	tools.open()
 	info := bridge.waitInfo(t, old.RunID)
 	first, _ := info.Outputs["first"].(map[string]any)
-	if info.Result.Status != RunSuccess || info.Record.Revision != 1 || info.NotifyOnError != DefaultNotifyOnError ||
+	if !info.Started || info.Result.Status != RunSuccess || info.Record.Revision != 1 || info.NotifyOnError != DefaultNotifyOnError ||
 		len(info.Outputs) != 1 || first["v"] != "first" {
 		t.Fatalf("the run of revision 1 reported %s, revision %d, notify %q, outputs %v",
 			info.Result.Status, info.Record.Revision, info.NotifyOnError, info.Outputs)
@@ -129,7 +129,7 @@ func TestServiceRunFinishedUsesTheRunsOwnRevision(t *testing.T) {
 		len(info.Outputs) != 1 || second["v"] != "second" {
 		t.Fatalf("the run of revision 2 reported revision %d, notify %q, outputs %v", info.Record.Revision, info.NotifyOnError, info.Outputs)
 	}
-	if info.HistoryID != "hist_"+cur.RunID || info.MissionID != pub.MissionID || info.FlowName != "Version" {
+	if !info.Started || info.HistoryID != "hist_"+cur.RunID || info.MissionID != pub.MissionID || info.FlowName != "Version" {
 		t.Fatalf("history of the run of revision 2 = %q in %q (%q)", info.HistoryID, info.MissionID, info.FlowName)
 	}
 	bridge.probeMu.Lock()
@@ -193,15 +193,16 @@ func TestServiceRunFinishedReportsRunsOfADeletedFlow(t *testing.T) {
 	if len(queued) != 1 {
 		t.Fatalf("the queued run was reported %d times inside the delete", len(queued))
 	}
-	if q := queued[0]; q.HistoryID != "" || q.MissionID != fx.pub.MissionID || q.Result.Status != RunCancelled ||
-		q.Outputs == nil || len(q.Outputs) != 0 || q.FlowName != "Weg" || q.NotifyOnError != DefaultNotifyOnError {
+	if q := queued[0]; q.Started || q.HistoryID != "" || q.MissionID != fx.pub.MissionID || q.Result.Status != RunCancelled ||
+		q.Outputs == nil || len(q.Outputs) != 0 || q.FlowName != "Weg" || q.NotifyOnError != "" {
 		t.Fatalf("queued run report = %+v", q)
 	}
 
 	fx.tools.letGo()
 	info := fx.bridge.waitInfo(t, fx.running.RunID)
-	if info.MissionID != fx.pub.MissionID || info.HistoryID != "hist_"+fx.running.RunID || info.Result.Status != RunCancelled ||
-		info.Outputs == nil || len(info.Outputs) != 0 || info.FlowName != "" || info.NotifyOnError != "" {
+	if !info.Started || info.MissionID != fx.pub.MissionID || info.HistoryID != "hist_"+fx.running.RunID ||
+		info.Result.Status != RunCancelled || info.Outputs == nil || len(info.Outputs) != 0 || info.FlowName != "Weg" ||
+		info.NotifyOnError != "" {
 		t.Fatalf("report of the run whose flow is gone = %+v", info)
 	}
 	if n := svcRunHistoryLen(fx.s); n != 0 {
@@ -252,12 +253,86 @@ func TestServiceRunFinishedReportsARunThatNeverStartedOnAGoneFlow(t *testing.T) 
 	if len(reports) != 1 {
 		t.Fatalf("the late run was reported %d times when DeleteFlow returned", len(reports))
 	}
-	if r := reports[0]; r.MissionID != "" || r.HistoryID != "" || r.Result.Status != RunCancelled || r.Outputs == nil ||
+	if r := reports[0]; r.Started || r.MissionID != "" || r.HistoryID != "" || r.Result.Status != RunCancelled || r.Outputs == nil ||
 		len(r.Outputs) != 0 || r.FlowName != "" {
 		t.Fatalf("report of a never-started run on a gone flow = %+v", r)
 	}
 	if warned := fx.logs.messages(slog.LevelWarn, ""); len(warned) != 0 {
 		t.Fatalf("logged: %v", warned)
+	}
+}
+
+// svcRunNoHistoryBridge returns no history entry from FlowRunStarted, as a Mission
+// Control without a history database does after it marked the mission running.
+type svcRunNoHistoryBridge struct{ *svcRunBridge }
+
+func (b svcRunNoHistoryBridge) FlowRunStarted(missionID string, rec RunRecord) string {
+	b.svcRunBridge.FlowRunStarted(missionID, rec)
+	return ""
+}
+
+// Started tells a run that started from one that never did, also when FlowRunStarted
+// returned no history entry: both are then reported with an empty HistoryID.
+func TestServiceRunFinishedMarksStartedRuns(t *testing.T) {
+	tools := newSvcBlockingTools()
+	bridge := svcRunNoHistoryBridge{newSvcRunBridge()}
+	s := svcRunNewService(t, tools, bridge, nil, ServiceConfig{})
+	t.Cleanup(tools.letGo) // runs before the Shutdown
+	ctx := context.Background()
+	pub := svcRunPublish(t, s, svcRunSearchFlow("Markiert", "done"))
+	running, err := s.RunNow(ctx, pub.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-tools.called:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the run did not reach its tool")
+	}
+	queued, err := s.RunNow(ctx, pub.ID)
+	if err != nil || queued.Status != StartQueued {
+		t.Fatalf("second RunNow = %+v, %v", queued, err)
+	}
+	if !s.Cancel(queued.RunID) {
+		t.Fatal("the queued run was not cancelled")
+	}
+	never := bridge.waitInfo(t, queued.RunID)
+	s.Cancel(running.RunID)
+	tools.letGo()
+	started := bridge.waitInfo(t, running.RunID)
+	if never.Started || never.HistoryID != "" || never.MissionID != pub.MissionID || never.Result.Status != RunCancelled {
+		t.Fatalf("the run that never started = %+v", never)
+	}
+	if !started.Started || started.HistoryID != "" || started.MissionID != pub.MissionID || started.Result.Status != RunCancelled {
+		t.Fatalf("the run that started = %+v", started)
+	}
+	if n := len(bridge.startedRuns()); n != 1 {
+		t.Fatalf("FlowRunStarted was called %d times, want once", n)
+	}
+}
+
+// A run that never started reports without reading any document: it ends inside the
+// delete, Cancel or Shutdown, once per queued run. Damaged documents prove it, since
+// reading one would log a warning.
+func TestServiceRunThatNeverStartedReadsNoDocument(t *testing.T) {
+	fx := newSvcRunDeleteFixture(t)
+	ctx := context.Background()
+	for _, stmt := range []string{`UPDATE flows SET draft_json = 'x', live_json = 'x' WHERE id = ?`,
+		`UPDATE flow_versions SET json = 'x' WHERE flow_id = ?`} {
+		if _, err := fx.s.Store().db.ExecContext(ctx, stmt, fx.pub.ID); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	if !fx.s.Cancel(fx.queued.RunID) {
+		t.Fatal("the queued run was not cancelled")
+	}
+	got := fx.bridge.reports(fx.queued.RunID)
+	if len(got) != 1 || got[0].Started || got[0].MissionID != fx.pub.MissionID || got[0].FlowName != "Weg" ||
+		got[0].Outputs == nil || len(got[0].Outputs) != 0 {
+		t.Fatalf("report of the cancelled queued run = %+v", got)
+	}
+	if logged := fx.logs.messages(slog.LevelDebug, "could not"); len(logged) != 0 {
+		t.Fatalf("the report of a run that never started read a document: %v", logged)
 	}
 }
 
@@ -269,40 +344,67 @@ func TestServiceRunHooksLogLevels(t *testing.T) {
 	s := svcRunNewService(t, &fakeTools{}, bridge, slog.New(logs), ServiceConfig{})
 	ctx := context.Background()
 	at := time.Date(2026, 10, 3, 8, 0, 0, 0, time.UTC)
-	gone := RunRecord{ID: "run_aaaaaaaaagne", FlowID: "flow_gone", Mode: ModeLive, Status: RunCancelled}
+	exec := func(stmt string, args ...any) {
+		t.Helper()
+		if _, err := s.Store().db.ExecContext(ctx, stmt, args...); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	warnings := func(msg string, want int) {
+		t.Helper()
+		if got := logs.messages(slog.LevelWarn, msg); len(got) != want {
+			t.Fatalf("warnings %q = %v, want %d", msg, got, want)
+		}
+	}
 
+	// A gone flow: everything at Debug, the run still reported.
+	gone := RunRecord{ID: "run_aaaaaaaaagne", FlowID: "flow_gone", Mode: ModeLive, Status: RunCancelled}
+	queuedGone := RunRecord{ID: "run_aaaaaaaaagnq", FlowID: "flow_gone", Mode: ModeLive, Status: RunCancelled}
 	s.onTimerFired("flow_gone", testNodeID(1), at)
 	s.onRunStarted(gone)
 	s.onRunFinished(gone, RunResult{Status: RunCancelled})
-	if warned := logs.messages(slog.LevelWarn, ""); len(warned) != 0 {
-		t.Fatalf("a gone flow logged %v", warned)
-	}
-	if debug := logs.messages(slog.LevelDebug, "could not"); len(debug) != 4 {
+	s.onRunFinished(queuedGone, RunResult{Status: RunCancelled}) // never started
+	warnings("", 0)
+	if debug := logs.messages(slog.LevelDebug, "could not"); len(debug) != 5 {
 		t.Fatalf("debug records for a gone flow = %v", debug)
 	}
-	if got := bridge.reports(gone.ID); len(got) != 1 || got[0].MissionID != "" || got[0].Outputs == nil {
-		t.Fatalf("reports of a run of a gone flow = %+v", got)
+	for _, id := range []string{gone.ID, queuedGone.ID} {
+		if got := bridge.reports(id); len(got) != 1 || got[0].Started || got[0].MissionID != "" || got[0].Outputs == nil {
+			t.Fatalf("reports of run %s of a gone flow = %+v", id, got)
+		}
 	}
 	if n := len(bridge.startedRuns()); n != 0 {
 		t.Fatalf("FlowRunStarted was called %d times for a gone flow", n)
 	}
 
+	// Damaged documents: the timer cannot read the flow (Warn), the start needs only the
+	// mission and the name, the end falls back to the flow's documents (Warn).
 	pub := svcRunPublish(t, s, simpleFlow("Kaputt"))
-	if _, err := s.Store().db.ExecContext(ctx, `UPDATE flows SET draft_json = 'x' WHERE id = ?`, pub.ID); err != nil {
-		t.Fatal(err)
-	}
+	exec(`UPDATE flows SET draft_json = 'x' WHERE id = ?`, pub.ID)
 	damaged := RunRecord{ID: "run_aaaaaaaaadmg", FlowID: pub.ID, Mode: ModeLive, Status: RunSuccess}
 	s.onTimerFired(pub.ID, testNodeID(1), at)
 	s.onRunStarted(damaged)
 	s.onRunFinished(damaged, RunResult{Status: RunSuccess})
-	for _, msg := range []string{"a date and time trigger could not read its flow", "the flow of a started run could not be read",
-		"the flow of a finished run could not be read"} {
-		if got := logs.messages(slog.LevelWarn, msg); len(got) != 1 {
-			t.Fatalf("warnings %q = %v", msg, got)
-		}
+	warnings("a date and time trigger could not read its flow", 1)
+	warnings("the flow of a started run could not be read", 0)
+	warnings("the flow of a finished run could not be read", 1)
+	if got := bridge.reports(damaged.ID); len(got) != 1 || !got[0].Started || got[0].MissionID != pub.MissionID ||
+		got[0].HistoryID != "hist_"+damaged.ID || got[0].FlowName != "Kaputt" {
+		t.Fatalf("report of a run whose flow documents are damaged = %+v", got)
 	}
-	if got := bridge.reports(damaged.ID); len(got) != 1 {
-		t.Fatalf("a run whose flow cannot be read was reported %d times", len(got))
+
+	// A store error: Warn at the start, at the end and for a run that never started.
+	exec(`ALTER TABLE flows RENAME TO svc_flows_away`)
+	broken := RunRecord{ID: "run_aaaaaaaaabrk", FlowID: pub.ID, Mode: ModeLive, Status: RunSuccess}
+	s.onRunStarted(broken)
+	s.onRunFinished(broken, RunResult{Status: RunSuccess})
+	s.onRunFinished(RunRecord{ID: "run_aaaaaaaaabrq", FlowID: pub.ID, Mode: ModeLive, Status: RunCancelled}, RunResult{Status: RunCancelled})
+	exec(`ALTER TABLE svc_flows_away RENAME TO flows`)
+	warnings("the flow of a started run could not be read", 1)
+	warnings("the flow of a finished run could not be read", 2)
+	warnings("the flow of a run that never started could not be read", 1)
+	if got := bridge.reports(broken.ID); len(got) != 1 || got[0].Started || got[0].MissionID != "" {
+		t.Fatalf("report of a run whose flow cannot be read = %+v", got)
 	}
 
 	test := RunRecord{ID: "run_aaaaaaaaatst", FlowID: pub.ID, Mode: ModeTest}

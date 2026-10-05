@@ -2,6 +2,7 @@ package flows
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"math"
@@ -159,11 +160,11 @@ func svcRunSearchFlow(name, leafKey string) *Flow {
 	return b.build()
 }
 
-// svcRunSampleOf returns sample data whose compact JSON encoding is exactly size bytes.
+// svcRunSampleOf returns sample data whose stored JSON encoding is exactly size bytes.
 func svcRunSampleOf(t *testing.T, size int) map[string]any {
 	t.Helper()
 	data := map[string]any{"x": strings.Repeat("a", size-len(`{"x":""}`))}
-	if encoded, err := marshalCompact(data); err != nil || len(encoded) != size {
+	if encoded, err := marshalMap(data); err != nil || len(encoded) != size {
 		t.Fatalf("sample encodes to %d bytes, want %d (%v)", len(encoded), size, err)
 	}
 	return data
@@ -217,6 +218,119 @@ func TestServiceTestDataIsCapped(t *testing.T) {
 	}
 	if got, err := s.TriggerSampleData(ctx, rec.ID, start); err != nil || got["x"] != atCap["x"] {
 		t.Fatalf("the sample at the cap was not remembered (err %v)", err)
+	}
+}
+
+// The cap counts the bytes the store writes: json.Marshal escapes "<" as a six-byte
+// unicode escape, so a sample of "<" reaches the cap with a sixth of the characters.
+func TestServiceTestDataCapCountsTheStoredEncoding(t *testing.T) {
+	s := svcRunNewService(t, &fakeTools{}, newSvcRunBridge(), nil, ServiceConfig{})
+	ctx := context.Background()
+	rec, err := s.CreateFlow(ctx, CreateRequest{Name: "Spitz"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := simpleFlow("Spitz")
+	if _, _, err := s.SaveDraft(ctx, rec.ID, doc, rec.DraftRevision); err != nil {
+		t.Fatal(err)
+	}
+	start := doc.Nodes[0].ID
+	sample := func(n int) map[string]any { return map[string]any{"x": strings.Repeat("<", n)} }
+	one, err := marshalMap(sample(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	perChar := len(one) - len(`{"x":""}`)
+	if perChar != 6 {
+		t.Fatalf("one '<' encodes to %d bytes, want the six-byte escape", perChar)
+	}
+	under := (MaxStoredOutputBytes - len(`{"x":""}`)) / perChar
+	if err := s.SaveTriggerSample(ctx, rec.ID, start, sample(under+1)); !errors.Is(err, ErrTestDataTooLarge) {
+		t.Fatalf("SaveTriggerSample of %d '<' (%d bytes stored) = %v", under+1, len(`{"x":""}`)+perChar*(under+1), err)
+	}
+	if err := s.SaveTriggerSample(ctx, rec.ID, start, sample(under)); err != nil {
+		t.Fatalf("SaveTriggerSample of %d '<': %v", under, err)
+	}
+	var stored int
+	if err := s.Store().db.QueryRowContext(ctx, `SELECT length(json) FROM flow_test_data WHERE flow_id = ?`, rec.ID).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored > MaxStoredOutputBytes || stored < MaxStoredOutputBytes-6 {
+		t.Fatalf("stored %d bytes, want just under the cap of %d", stored, MaxStoredOutputBytes)
+	}
+}
+
+// svcRunSizeBridge records how large the trigger data is that FlowRunStarted receives.
+type svcRunSizeBridge struct {
+	*svcRunBridge
+	sizeMu  sync.Mutex
+	started []int
+}
+
+func (b *svcRunSizeBridge) FlowRunStarted(missionID string, rec RunRecord) string {
+	data, err := json.Marshal(rec.TriggerData)
+	if err != nil {
+		panic(err)
+	}
+	b.sizeMu.Lock()
+	b.started = append(b.started, len(data))
+	b.sizeMu.Unlock()
+	return b.svcRunBridge.FlowRunStarted(missionID, rec)
+}
+
+// Untrusted trigger data reaches the bridge bounded like the run header, at the start
+// and at the end, while the run itself sees all of it.
+func TestServiceBridgeRecordsAreBounded(t *testing.T) {
+	bridge := &svcRunSizeBridge{svcRunBridge: newSvcRunBridge()}
+	s := svcRunNewService(t, &fakeTools{}, bridge, nil, ServiceConfig{})
+	b := newFlow("Bote")
+	start := b.node("start", TypeTriggerManual, nil)
+	echo := b.node("echo", TypeSet, map[string]any{"fields": []any{map[string]any{"name": "raw", "value": "{{trigger.data.raw}}"}}})
+	b.edge(start, PortOut, echo)
+	pub := svcRunPublish(t, s, b.build())
+	raw := strings.Repeat("a", 2<<20)
+	res, err := s.TriggerFromMission(pub.MissionID, "", "webhook", map[string]any{"raw": raw})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := bridge.waitInfo(t, res.RunID)
+	if out, _ := info.Outputs["echo"].(map[string]any); out["raw"] != raw || !info.Started {
+		t.Fatalf("the run must see all of the data and be reported as started (%v)", info.Started)
+	}
+	finished, err := json.Marshal(info.Record.TriggerData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bridge.sizeMu.Lock()
+	started := append([]int(nil), bridge.started...)
+	bridge.sizeMu.Unlock()
+	if len(started) != 1 || started[0] > MaxStoredOutputBytes || len(finished) > MaxStoredOutputBytes {
+		t.Fatalf("trigger data to the bridge: %v bytes at the start, %d at the end; the cap is %d", started, len(finished), MaxStoredOutputBytes)
+	}
+	if _, ok := info.Record.TriggerData["_preview"].(string); !ok {
+		t.Fatalf("the finished record's trigger data has %d keys, want a preview", len(info.Record.TriggerData))
+	}
+}
+
+func TestBridgeRecord(t *testing.T) {
+	small := map[string]any{"name": "Welt"}
+	if got := bridgeRecord(RunRecord{ID: "r", TriggerData: small}); len(got.TriggerData) != 1 || got.TriggerData["name"] != "Welt" {
+		t.Fatalf("small data = %v", got.TriggerData)
+	}
+	big := map[string]any{"raw": strings.Repeat("ü", MaxStoredOutputBytes)}
+	got := bridgeRecord(RunRecord{ID: "r", TriggerData: big})
+	preview, ok := got.TriggerData["_preview"].(string)
+	if !ok || len(got.TriggerData) != 1 || len(preview) > storedPreviewBytes || got.ID != "r" {
+		t.Fatalf("large data = %d keys, preview of %d bytes", len(got.TriggerData), len(preview))
+	}
+	if len(big) != 1 || len(big["raw"].(string)) != 2*MaxStoredOutputBytes {
+		t.Fatal("bridgeRecord modified the run's trigger data")
+	}
+	if got := bridgeRecord(RunRecord{TriggerData: map[string]any{"n": math.Inf(1)}}); got.TriggerData == nil || len(got.TriggerData) != 0 {
+		t.Fatalf("data that is no JSON = %v", got.TriggerData)
+	}
+	if got := bridgeRecord(RunRecord{}); got.TriggerData != nil {
+		t.Fatalf("no data = %v", got.TriggerData)
 	}
 }
 
@@ -337,7 +451,7 @@ func TestServiceTestRunsValidateTheDraft(t *testing.T) {
 	}
 
 	if _, err := s.StartTestRun(ctx, rec.ID, TestRunRequest{OnlyNode: "n_zzzzzzzz"}); !errors.As(err, &ve) ||
-		findIssue(ve.Issues, issueTestNodeMissing, "") == nil {
+		findIssue(ve.Issues, IssueNodeNotFound, "") == nil {
 		t.Fatalf("a test run of a node that is not in the draft = %v", err)
 	}
 	res, err = s.StartTestRun(ctx, rec.ID, TestRunRequest{OnlyNode: warned.Nodes[1].ID})

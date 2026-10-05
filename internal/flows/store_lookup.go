@@ -2,6 +2,7 @@ package flows
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 )
@@ -53,4 +54,16 @@ func (s *Store) GetFlowByMission(ctx context.Context, missionID string) (*FlowRe
 		return nil, scanErr
 	}
 	return r, nil
+}
+
+// flowMissionAndName reads only the mission id and the name of a flow, without
+// parsing its documents: the run hooks need nothing more, and they run inside
+// DeleteFlow and Shutdown once per run. It returns ErrNotFound when the flow does not
+// exist.
+func (s *Store) flowMissionAndName(ctx context.Context, id string) (missionID, name string, err error) {
+	err = s.db.QueryRowContext(ctx, `SELECT mission_id, name FROM flows WHERE id = ?`, id).Scan(&missionID, &name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", ErrNotFound
+	}
+	return missionID, name, err
 }

@@ -168,7 +168,7 @@ func (s *runState) run(parent context.Context) RunResult {
 	}
 	if s.req.OnlyNode != "" {
 		if s.g.nodes[s.req.OnlyNode] == nil {
-			return s.finish(RunError, "FLOW_NODE_NOT_FOUND", "the node to test does not exist", "")
+			return s.finish(RunError, IssueNodeNotFound, "the node to test does not exist", "")
 		}
 		s.inScope = s.g.ancestors(s.req.OnlyNode)
 		s.inScope[s.req.OnlyNode] = true

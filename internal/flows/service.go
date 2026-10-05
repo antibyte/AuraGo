@@ -36,8 +36,13 @@ type MissionBridge interface {
 	// A mission that is already gone is not an error, so a failed delete can be retried.
 	DeleteFlowMission(missionID string) error
 	// FlowRunStarted records a live run in the mission history and returns the history id.
+	// rec.TriggerData is untrusted and bounded like the run header: above
+	// MaxStoredOutputBytes of JSON it is {"_preview": …}. Smaller data is the run's own
+	// map; treat it as read-only.
 	FlowRunStarted(missionID string, rec RunRecord) string
-	// FlowRunFinished records the result, fires dependent missions and sends failure notifications.
+	// FlowRunFinished records the result, fires dependent missions and sends failure
+	// notifications; info.Started tells whether FlowRunStarted was called for the run.
+	// info.Record.TriggerData is bounded and read-only like FlowRunStarted's.
 	FlowRunFinished(info RunFinishedInfo)
 }
 
@@ -46,22 +51,30 @@ type MissionBridge interface {
 // the fields hold what is still known.
 type RunFinishedInfo struct {
 	// MissionID is the mission the run was recorded in at its start, else the flow's
-	// mission. It is empty when the flow has no mission, or when the flow is gone and
-	// the run never started.
+	// mission. It is empty when the flow has no mission, or when the flow could not be
+	// read, neither at the start nor at the end (it is gone, or a store error).
 	MissionID string
+	// Started is true when FlowRunStarted was called for this run; HistoryID may still be
+	// empty. Only started runs release the running state, count as a run or fire
+	// dependent missions. A run that never started (cancelled while queued, or shut down)
+	// is reported with Started false.
+	Started bool
 	// HistoryID is the mission history entry FlowRunStarted returned. It is empty when
-	// FlowRunStarted was not called: the run never started (cancelled while queued, or
-	// shut down), its flow could not be read at the start, or the flow has no mission.
-	// The bridge then records the run without an entry to complete, or skips it.
+	// FlowRunStarted was not called (see Started: the run never started, its flow could
+	// not be read at the start, or the flow has no mission) or returned no entry. The
+	// bridge then records the run without an entry to complete, or skips it.
 	HistoryID string
-	// FlowName is the flow's current name, or the name in the run's document when the
-	// flow is gone; empty when neither can be read.
+	// FlowName is the flow's name when the run started (for a run that never started:
+	// when it ended), else the name in the run's document; empty when none can be read.
 	FlowName string
-	// NotifyOnError is the setting of the revision the run executed; empty when no
+	// NotifyOnError is the setting of the revision the run executed. It is empty for a
+	// run that never started (it ends cancelled, which is no failure) and when no
 	// document of the flow can be read.
 	NotifyOnError string
-	Record        RunRecord
-	Result        RunResult
+	// Record is the run; its TriggerData is bounded like the run header (see
+	// MissionBridge.FlowRunStarted).
+	Record RunRecord
+	Result RunResult
 	// Outputs holds the outputs of the final nodes (nodes without successors) of the
 	// revision the run executed, by key. It is empty, never nil, when the run produced
 	// none (it never started) or no document of the flow can be read.

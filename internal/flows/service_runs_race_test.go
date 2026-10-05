@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 )
@@ -204,16 +205,108 @@ func TestServiceStartsRacingADelete(t *testing.T) {
 				t.Fatalf("round %d: %s run %s was reported %d times", round, a.path, id, n)
 			}
 		}
+		// The timer path returns nothing, so its runs are found in the snapshot. It is
+		// protected mainly by the mission going first: once DeleteFlowMission ran,
+		// FlowMissionEnabled is false and onTimerFired starts nothing. A callback that
+		// passed that check before is covered like the API paths (CreateRun and the second
+		// CancelFlow), and its runs must have ended cancelled too.
+		timerRuns := 0
 		for id, rec := range runs.snapshot() {
-			if rec.FlowID == pub.ID && rec.Status != RunCancelled {
+			if rec.FlowID != pub.ID {
+				continue
+			}
+			if rec.Status != RunCancelled {
 				t.Fatalf("round %d: run %s of the deleted flow ended %s", round, id, rec.Status)
 			}
+			if rec.TriggerType == "datetime" {
+				timerRuns++
+			}
+		}
+		if timerRuns == 0 {
+			t.Fatalf("round %d: the timer path started no run before the delete", round)
 		}
 		t.Logf("round %d: %d runs started by the API paths and cancelled, %d starts failed during the delete", round, len(started), raced)
 	}
 	if warned := logs.messages(slog.LevelWarn, ""); len(warned) != 0 {
 		t.Fatalf("logged: %v", warned)
 	}
+}
+
+// svcRunCrossBridge starts a run of another flow's mission from FlowRunFinished, the way
+// Mission Control fires a dependent mission synchronously.
+type svcRunCrossBridge struct {
+	*svcRunBridge
+	crossMu sync.Mutex
+	s       *Service
+	next    map[string]string // flow id -> mission id to trigger when one of its runs ends
+	starts  int
+}
+
+func (b *svcRunCrossBridge) FlowRunFinished(info RunFinishedInfo) {
+	b.svcRunBridge.FlowRunFinished(info)
+	b.crossMu.Lock()
+	s, mission := b.s, b.next[info.Record.FlowID]
+	b.crossMu.Unlock()
+	if s == nil || mission == "" {
+		return
+	}
+	if _, err := s.TriggerFromMission(mission, "", "mission_completed", nil); err == nil {
+		b.crossMu.Lock()
+		b.starts++
+		b.crossMu.Unlock()
+	}
+}
+
+// Two flows whose ending runs start each other through Mission Control are deleted at
+// the same time. TriggerFromMission runs inside each delete (from FlowRunFinished, with
+// that flow's lock held) and takes no flow lock, so neither delete waits for the other,
+// and no run of either flow is left uncancelled.
+func TestServiceDeletesWithCrossFlowTriggers(t *testing.T) {
+	bridge := &svcRunCrossBridge{svcRunBridge: newSvcRunBridge(), next: map[string]string{}}
+	s := svcRunNewService(t, svcRunHoldTools{}, bridge, nil, ServiceConfig{})
+	ctx := context.Background()
+	a := svcRunPublish(t, s, svcRunSearchFlow("A", "done"))
+	b := svcRunPublish(t, s, svcRunSearchFlow("B", "done"))
+	for _, f := range []*FlowRecord{a, b} {
+		for i := 0; i < 5; i++ {
+			if _, err := s.RunNow(ctx, f.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	bridge.crossMu.Lock()
+	bridge.s = s
+	bridge.next[a.ID], bridge.next[b.ID] = b.MissionID, a.MissionID
+	bridge.crossMu.Unlock()
+	begin := make(chan struct{})
+	errs := make(chan error, 2)
+	for _, f := range []*FlowRecord{a, b} {
+		go func() {
+			<-begin
+			errs <- s.DeleteFlow(ctx, f.ID)
+		}()
+	}
+	close(begin)
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-errs:
+			if err != nil {
+				t.Fatalf("DeleteFlow: %v", err)
+			}
+		case <-time.After(30 * time.Second):
+			t.Fatal("the deletes wait for each other")
+		}
+	}
+	bridge.crossMu.Lock()
+	bridge.s = nil
+	starts := bridge.starts
+	bridge.crossMu.Unlock()
+	for _, f := range []*FlowRecord{a, b} {
+		if left := svcRunUncancelled(s, f.ID); len(left) != 0 {
+			t.Fatalf("runs of flow %s left uncancelled: %v", f.Name, left)
+		}
+	}
+	t.Logf("runs started from inside the deletes: %d", starts)
 }
 
 // svcRunWaitIdle waits until the runner knows no run of the flow; every run ends with
