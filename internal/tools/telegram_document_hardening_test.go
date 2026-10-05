@@ -274,6 +274,27 @@ func TestSendTelegramDocumentOnlySendsAttachmentFiles(t *testing.T) {
 	tg04NoRequest(t, requests, "a file outside the attachment folders")
 }
 
+// tg04BigOKReply is a Telegram success answer of at least size bytes, shaped like the reply
+// to a delivered message full of bot commands: every entity comes back.
+func tg04BigOKReply(t *testing.T, size int) string {
+	t.Helper()
+	var entities []map[string]any
+	reply := map[string]any{"ok": true}
+	for {
+		reply["result"] = map[string]any{"message_id": 7, "text": strings.Repeat("/a ", 1365), "entities": entities}
+		data, err := json.Marshal(reply)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(data) >= size {
+			return string(data)
+		}
+		for i := 0; i < 50; i++ {
+			entities = append(entities, map[string]any{"offset": 3 * len(entities), "length": 2, "type": "bot_command"})
+		}
+	}
+}
+
 // Only a 2xx answer with ok:true is a sent document; error texts echo a bounded, cleaned
 // part of the answer.
 func TestTelegramDocumentNeedsOKTrue(t *testing.T) {
@@ -307,7 +328,8 @@ func TestTelegramDocumentNeedsOKTrue(t *testing.T) {
 		{"200 with ok false", reply{status: 200, body: `{"ok":false,"error_code":400,"description":"Bad Request: chat not found"}`}, "telegram did not accept the document: Bad Request: chat not found"},
 		{"200 without ok", reply{status: 200, body: `{"result":{}}`}, "telegram did not accept the document"},
 		{"200 that is not JSON", reply{status: 200, body: `<html>proxy login</html>`}, "not a Bot API reply: <html>proxy login</html>"},
-		{"200 over 64 KiB", reply{status: 200, body: `{"ok":true,"pad":"` + strings.Repeat("x", 70<<10) + `"}`}, "could not be read"},
+		{"200 ok of about 70 KB", reply{status: 200, body: tg04BigOKReply(t, 70_000)}, ""},
+		{"200 over 1 MiB", reply{status: 200, body: `{"ok":true,"pad":"` + strings.Repeat("x", 1<<20) + `"}`}, "could not be read"},
 		{"502 with a description", reply{status: 502, body: `{"ok":false,"description":"Bad Gateway"}`}, "telegram returned HTTP 502: Bad Gateway"},
 		{"400 with control characters", reply{status: 400, body: `{"ok":false,"description":"line1\nline2\u001b[31m"}`}, "telegram returned HTTP 400: line1 line2 [31m"},
 		{"400 with a huge description", reply{status: 400, body: `{"ok":false,"description":"` + long + `"}`}, "telegram returned HTTP 400: yyy"},
@@ -331,6 +353,9 @@ func TestTelegramDocumentNeedsOKTrue(t *testing.T) {
 		}
 		if n := strings.Count(err.Error(), "y"); tc.reply.body != "" && strings.Contains(tc.reply.body, long) && n > telegramMaxEchoRunes {
 			t.Errorf("%s: the error echoes %d runes of the answer", tc.name, n)
+		}
+		if n := utf8.RuneCountInString(err.Error()); n > 400 {
+			t.Errorf("%s: the error has %d runes", tc.name, n)
 		}
 		if strings.ContainsAny(err.Error(), "\n\x1b") {
 			t.Errorf("%s: the error has control characters: %q", tc.name, err)
@@ -968,6 +993,8 @@ func TestTelegramMessageNeedsOKTrue(t *testing.T) {
 		want  string // "" means sent
 	}{
 		{"ok", reply{status: 200, body: `{"ok":true,"result":{"message_id":7}}`}, ""},
+		{"ok of about 70 KB", reply{status: 200, body: tg04BigOKReply(t, 70_000)}, ""},
+		{"200 over 1 MiB", reply{status: 200, body: `{"ok":true,"pad":"` + strings.Repeat("x", 1<<20) + `"}`}, "could not be read"},
 		{"200 with ok false", reply{status: 200, body: `{"ok":false,"description":"Forbidden: bot was blocked by the user"}`}, "telegram did not accept the message: Forbidden: bot was blocked by the user"},
 		{"200 that is not JSON", reply{status: 200, body: `<html>login</html>`}, "not a Bot API reply: <html>login</html>"},
 		{"400 with a description", reply{status: 400, body: `{"ok":false,"description":"Bad Request: can't parse entities"}`}, "telegram returned HTTP 400: Bad Request: can't parse entities"},

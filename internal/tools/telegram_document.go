@@ -50,8 +50,10 @@ const (
 	// telegramMaxMessageUnits is Telegram's limit for the text of a message, in UTF-16 code
 	// units after entity parsing.
 	telegramMaxMessageUnits = 4096
-	// telegramMaxReplyBytes bounds how much of Telegram's answer is read.
-	telegramMaxReplyBytes = 64 << 10
+	// telegramMaxReplyBytes bounds how much of Telegram's answer is read. A delivered message
+	// comes back whole, with its entities, which can pass 64 KiB for a 4096-unit text; an
+	// error repeats at most telegramMaxEchoRunes of it anyway.
+	telegramMaxReplyBytes = 1 << 20
 	// telegramMaxEchoRunes bounds how much of an answer or a transport error an error repeats.
 	telegramMaxEchoRunes = 300
 )
