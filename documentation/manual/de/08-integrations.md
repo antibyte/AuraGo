@@ -289,7 +289,7 @@ Beide Schalter müssen aktiv sein:
 1. `package_manager.enabled: true`
 2. `agent.allow_package_manager: true`
 
-Linux-Mutationen erfordern zusätzlich `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, das Vault-Secret `sudo_password` und eine Service-Umgebung ohne `NoNewPrivileges` oder `ProtectSystem=strict`. Leseoperationen bleiben verfügbar, wenn systemweite Schreibzugriffe gesperrt sind.
+Linux-Mutationen erfordern zusätzlich `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, das Vault-Secret `sudo_password` und eine Service-Umgebung ohne `NoNewPrivileges` oder `ProtectSystem=strict`. Der Host braucht außerdem sudo-Timestamp-Caching (`timestamp_timeout` ≠ 0) oder eine NOPASSWD-Regel für den AuraGo-Benutzer, weil das Passwort nur einen sudo-Timestamp validiert und die Paketverwaltung mit `sudo -n` läuft. Leseoperationen bleiben verfügbar, wenn systemweite Schreibzugriffe gesperrt sind.
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Gefahrenzone** und aktiviere **Paketverwaltung (package_manager)**.
@@ -2307,6 +2307,8 @@ network_shares:
     enabled: true
     allowed_clients: []
 ```
+
+Unter Linux ohne Root laufen Host-Änderungen über `sudo -n`, und ein gespeichertes `sudo_password` validiert nur einen sudo-Timestamp; der Host braucht daher sudo-Timestamp-Caching (`timestamp_timeout` ≠ 0) oder eine NOPASSWD-Regel für den AuraGo-Benutzer.
 
 Die Standard-Docker-Bereitstellung meldet Host-Mutationen als nicht verfügbar, kann aber weiterhin lesbaren Status anzeigen. Siehe [Lokale SMB- und NFS-Freigaben](../../network_shares.md) für Plattformvoraussetzungen, Drift-Behandlung, Rollback und stabile Fehlercodes.
 

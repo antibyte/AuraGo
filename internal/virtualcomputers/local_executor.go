@@ -3,6 +3,7 @@ package virtualcomputers
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,15 +117,13 @@ func (e LocalCommandExecutor) runScriptInTransientSystemdService(ctx context.Con
 	return out, lease.Explain(err)
 }
 
-// sudoTicket prepares one `sudo -n` run. Without a Vault password, or when
-// `sudo -n true` already succeeds, it returns a nil lease and the run relies
-// on root rules or NOPASSWD. Otherwise the password goes only to the shared
-// sudo ticket (package sudoticket), never to the command's stdin.
+// sudoTicket prepares one `sudo -n` run. Without a Vault password it returns
+// a nil lease and the run relies on root rules or NOPASSWD. Otherwise the run
+// holds the shared sudo ticket (package sudoticket), which validates the
+// password only when `sudo -n true` does not already work; the password never
+// reaches the command's stdin.
 func (e LocalCommandExecutor) sudoTicket(ctx context.Context) (*sudoticket.Lease, string, error) {
 	if e.SudoPassword == "" {
-		return nil, "", nil
-	}
-	if _, err := e.runner()(ctx, "sudo", "-n", "true"); err == nil {
 		return nil, "", nil
 	}
 	return sudoticket.Acquire(ctx, "", e.SudoPassword)
@@ -181,8 +180,7 @@ func (e LocalCommandExecutor) runner() CommandRunner {
 		return e.CommandRunner
 	}
 	return func(ctx context.Context, name string, args ...string) (string, error) {
-		cmd := exec.CommandContext(ctx, name, args...)
-		out, err := cmd.CombinedOutput()
+		out, err := newCommand(ctx, name, args...).CombinedOutput()
 		if err != nil {
 			return string(out), fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
 		}
@@ -203,10 +201,15 @@ func (e LocalCommandExecutor) inputRunner() InputCommandRunner {
 	}
 }
 
+// newCommand builds the process the default runner starts.
+func newCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, name, args...)
+}
+
 // newInputCommand builds the process the default input runner starts, with
 // input as its whole stdin.
 func newInputCommand(ctx context.Context, name, input string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := newCommand(ctx, name, args...)
 	cmd.Stdin = strings.NewReader(input)
 	return cmd
 }
@@ -272,11 +275,15 @@ func (e LocalCommandExecutor) hasSudoOrRoot(ctx context.Context) bool {
 	}
 	lease, _, err := sudoticket.Acquire(ctx, "", e.SudoPassword)
 	if err != nil {
+		slog.Warn("Virtual computer preflight: sudo with the Vault password is unavailable", "error", err)
 		return false
 	}
 	defer lease.Release()
-	_, err = e.runner()(ctx, "sudo", "-n", "true")
-	return err == nil
+	if _, err = e.runner()(ctx, "sudo", "-n", "true"); err != nil {
+		slog.Warn("Virtual computer preflight: sudo -n refused the command under the Vault password ticket", "error", lease.Explain(err))
+		return false
+	}
+	return true
 }
 
 func boolString(v bool) string {

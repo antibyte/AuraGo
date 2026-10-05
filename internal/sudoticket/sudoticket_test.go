@@ -46,14 +46,22 @@ func TestValidateCommandConsumesPasswordWithoutRunningACommand(t *testing.T) {
 	}
 }
 
-// fakeSudo stands in for the sudo processes behind the shared ticket.
+// fakeSudo stands in for the sudo processes behind the shared ticket. By
+// default the host needs a password and keeps a validated ticket.
 type fakeSudo struct {
-	mu          sync.Mutex
-	ticketValid bool
-	drops       int
-	validateOut string
-	validateErr error
-	probeErr    error
+	mu                sync.Mutex
+	ticketValid       bool
+	nopasswd          bool // a NOPASSWD rule: sudo -n runs without a ticket
+	timestampDisabled bool // timestamp_timeout=0: validation leaves no ticket
+	verifypwAlways    bool // Defaults verifypw=always: sudo -n -v always fails
+	validates         int
+	probes            int
+	drops             int
+	validateOut       string
+	validateErr       error
+	passwordlessErr   error // forces sudo -n true to fail
+	probeErr          error // forces sudo -n -v to fail
+	onProbe           func()
 }
 
 func (f *fakeSudo) state() (valid bool, drops int) {
@@ -62,32 +70,62 @@ func (f *fakeSudo) state() (valid bool, drops int) {
 	return f.ticketValid, f.drops
 }
 
-func installFakeSudo(t *testing.T, f *fakeSudo) {
-	t.Helper()
-	if n := holders(); n != 0 {
-		t.Fatalf("sudo ticket holders = %d before the test, want 0", n)
-	}
-	timeout := validateTimeout
-	restore := ReplaceProcessesForTesting(Processes{
+func (f *fakeSudo) calls() (validates, probes int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.validates, f.probes
+}
+
+func (f *fakeSudo) set(update func(*fakeSudo)) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	update(f)
+}
+
+func (f *fakeSudo) processes() Processes {
+	return Processes{
+		Passwordless: func(ctx context.Context, dir string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			switch {
+			case f.passwordlessErr != nil:
+				return f.passwordlessErr
+			case f.nopasswd || f.ticketValid:
+				return nil
+			}
+			return errors.New("sudo: a password is required")
+		},
 		Validate: func(ctx context.Context, dir, password string) ([]byte, error) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
+			f.validates++
 			if f.validateErr != nil {
 				return []byte(f.validateOut), f.validateErr
 			}
-			f.ticketValid = true
+			if !f.timestampDisabled {
+				f.ticketValid = true
+			}
 			return nil, nil
 		},
 		Probe: func(ctx context.Context, dir string) error {
 			f.mu.Lock()
+			f.probes++
+			onProbe := f.onProbe
+			f.mu.Unlock()
+			if onProbe != nil {
+				onProbe()
+			}
+			f.mu.Lock()
 			defer f.mu.Unlock()
-			if f.probeErr != nil {
+			switch {
+			case f.probeErr != nil:
 				return f.probeErr
+			case f.verifypwAlways:
+				return errors.New("sudo: a password is required")
+			case f.nopasswd || f.ticketValid:
+				return nil
 			}
-			if !f.ticketValid {
-				return errors.New("no ticket")
-			}
-			return nil
+			return errors.New("sudo: a password is required")
 		},
 		Drop: func() {
 			f.mu.Lock()
@@ -95,7 +133,16 @@ func installFakeSudo(t *testing.T, f *fakeSudo) {
 			f.drops++
 			f.ticketValid = false
 		},
-	})
+	}
+}
+
+func installFakeSudo(t *testing.T, f *fakeSudo) {
+	t.Helper()
+	if n := holders(); n != 0 {
+		t.Fatalf("sudo ticket holders = %d before the test, want 0", n)
+	}
+	timeout := validateTimeout
+	restore := ReplaceProcessesForTesting(f.processes())
 	t.Cleanup(func() {
 		restore()
 		validateTimeout = timeout
@@ -144,6 +191,65 @@ func TestSudoTicketRefcount(t *testing.T) {
 		}
 	})
 
+	t.Run("passwordless sudo skips the validation but counts as a holder", func(t *testing.T) {
+		// A NOPASSWD rule: no PAM call, and a stale Vault password is ignored.
+		f := &fakeSudo{nopasswd: true, validateErr: errors.New("exit status 1")}
+		installFakeSudo(t, f)
+		lease, _, err := Acquire(context.Background(), ".", "pw-stale")
+		if err != nil || lease == nil {
+			t.Fatalf("Acquire() = (lease %v, err %v), want a lease without validation", lease != nil, err)
+		}
+		if validates, probes := f.calls(); validates != 0 || probes != 0 || holders() != 1 {
+			t.Fatalf("validates=%d probes=%d holders=%d, want no validation, no probe and one holder", validates, probes, holders())
+		}
+		if got := lease.Explain(errors.New("exit status 1")); errors.Is(got, ErrTimestampDisabled) {
+			t.Fatalf("Explain() = %v, a passwordless lease carries no timestamp hint", got)
+		}
+		lease.Release()
+		if _, drops := f.state(); drops != 1 || holders() != 0 {
+			t.Fatalf("drops=%d holders=%d after release, want the last release to drop", drops, holders())
+		}
+	})
+
+	t.Run("password required validates as before", func(t *testing.T) {
+		f := &fakeSudo{}
+		installFakeSudo(t, f)
+		lease, _, err := Acquire(context.Background(), ".", "pw-required")
+		if err != nil {
+			t.Fatalf("Acquire() error = %v", err)
+		}
+		defer lease.Release()
+		if validates, probes := f.calls(); validates != 1 || probes != 1 {
+			t.Fatalf("validates=%d probes=%d, want one validation and one probe", validates, probes)
+		}
+	})
+
+	t.Run("fast-path holder keeps the ticket another caller validated", func(t *testing.T) {
+		f := &fakeSudo{}
+		installFakeSudo(t, f)
+		first, _, err := Acquire(context.Background(), ".", "pw-first")
+		if err != nil {
+			t.Fatalf("first Acquire() error = %v", err)
+		}
+		t.Cleanup(first.Release)
+		second, _, err := Acquire(context.Background(), ".", "pw-second")
+		if err != nil {
+			t.Fatalf("second Acquire() error = %v", err)
+		}
+		t.Cleanup(second.Release)
+		if validates, _ := f.calls(); validates != 1 || holders() != 2 {
+			t.Fatalf("validates=%d holders=%d, want the second caller on the fast path as a holder", validates, holders())
+		}
+		first.Release()
+		if valid, drops := f.state(); !valid || drops != 0 {
+			t.Fatalf("after the validating caller released: valid=%v drops=%d, the fast-path holder's ticket must survive", valid, drops)
+		}
+		second.Release()
+		if valid, drops := f.state(); valid || drops != 1 {
+			t.Fatalf("after the last release: valid=%v drops=%d, want 1 drop", valid, drops)
+		}
+	})
+
 	t.Run("failed validation keeps holders and returns sudo output", func(t *testing.T) {
 		f := &fakeSudo{}
 		installFakeSudo(t, f)
@@ -152,10 +258,12 @@ func TestSudoTicketRefcount(t *testing.T) {
 			t.Fatalf("acquire existing holder: %v", err)
 		}
 		defer holder.Release()
-		f.mu.Lock()
-		f.validateErr = errors.New("exit status 1")
-		f.validateOut = "Sorry, try again."
-		f.mu.Unlock()
+		// The holder's ticket expired (timestamp_timeout) while it still runs.
+		f.set(func(f *fakeSudo) {
+			f.ticketValid = false
+			f.validateErr = errors.New("exit status 1")
+			f.validateOut = "Sorry, try again."
+		})
 
 		lease, out, err := Acquire(context.Background(), ".", "pw-wrong")
 		if err == nil || lease != nil || !strings.Contains(err.Error(), "sudo authentication failed") {
@@ -176,15 +284,12 @@ func TestSudoTicketRefcount(t *testing.T) {
 		f := &fakeSudo{}
 		installFakeSudo(t, f)
 		validateTimeout = 20 * time.Millisecond
-		restore := ReplaceProcessesForTesting(Processes{
-			Validate: func(ctx context.Context, dir, password string) ([]byte, error) {
-				<-ctx.Done()
-				return nil, errors.New("signal: killed")
-			},
-			Probe: func(context.Context, string) error { return nil },
-			Drop:  func() { f.mu.Lock(); f.drops++; f.mu.Unlock() },
-		})
-		defer restore()
+		p := f.processes()
+		p.Validate = func(ctx context.Context, dir, password string) ([]byte, error) {
+			<-ctx.Done()
+			return nil, errors.New("signal: killed")
+		}
+		defer ReplaceProcessesForTesting(p)()
 		_, _, err := Acquire(context.Background(), ".", "pw-timeout")
 		if err == nil || !strings.Contains(err.Error(), "sudo authentication timed out") {
 			t.Fatalf("err = %v, want sudo authentication timed out", err)
@@ -197,15 +302,12 @@ func TestSudoTicketRefcount(t *testing.T) {
 	t.Run("caller cancellation stops the validation", func(t *testing.T) {
 		f := &fakeSudo{}
 		installFakeSudo(t, f)
-		restore := ReplaceProcessesForTesting(Processes{
-			Validate: func(ctx context.Context, dir, password string) ([]byte, error) {
-				<-ctx.Done()
-				return nil, errors.New("signal: killed")
-			},
-			Probe: func(context.Context, string) error { return nil },
-			Drop:  func() { f.mu.Lock(); f.drops++; f.mu.Unlock() },
-		})
-		defer restore()
+		p := f.processes()
+		p.Validate = func(ctx context.Context, dir, password string) ([]byte, error) {
+			<-ctx.Done()
+			return nil, errors.New("signal: killed")
+		}
+		defer ReplaceProcessesForTesting(p)()
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		_, _, err := Acquire(ctx, ".", "pw-canceled")
@@ -217,17 +319,15 @@ func TestSudoTicketRefcount(t *testing.T) {
 		}
 	})
 
-	t.Run("probe failure is advisory and explains only a failed run", func(t *testing.T) {
-		// Defaults verifypw=always refuses sudo -n -v even with a fresh
-		// ticket, while sudo -n <command> still runs under it.
-		f := &fakeSudo{probeErr: errors.New("exit status 1")}
+	t.Run("disabled timestamps explain only a failed run", func(t *testing.T) {
+		f := &fakeSudo{timestampDisabled: true}
 		installFakeSudo(t, f)
-		lease, _, err := Acquire(context.Background(), ".", "pw-verifypw-always")
+		lease, _, err := Acquire(context.Background(), ".", "pw-no-timestamp")
 		if err != nil || lease == nil {
 			t.Fatalf("Acquire() = (lease %v, err %v), want a lease despite the failed probe", lease != nil, err)
 		}
-		if valid, drops := f.state(); !valid || drops != 0 || holders() != 1 {
-			t.Fatalf("valid=%v drops=%d holders=%d, want the ticket kept for the run", valid, drops, holders())
+		if n := holders(); n != 1 {
+			t.Fatalf("holders = %d, want the lease counted", n)
 		}
 		if got := lease.Explain(nil); got != nil {
 			t.Fatalf("Explain(nil) = %v, want nil for a successful run", got)
@@ -243,6 +343,41 @@ func TestSudoTicketRefcount(t *testing.T) {
 		}
 	})
 
+	t.Run("verifypw=always probe failure is cleared by sudo -n true", func(t *testing.T) {
+		// sudo -n -v is refused although the ticket covers commands.
+		f := &fakeSudo{verifypwAlways: true}
+		installFakeSudo(t, f)
+		lease, _, err := Acquire(context.Background(), ".", "pw-verifypw-always")
+		if err != nil {
+			t.Fatalf("Acquire() error = %v", err)
+		}
+		defer lease.Release()
+		if _, probes := f.calls(); probes != 1 {
+			t.Fatalf("probes = %d, want the probe to have run", probes)
+		}
+		runErr := errors.New("exit status 2")
+		if got := lease.Explain(runErr); got != runErr {
+			t.Fatalf("Explain(runErr) = %v, want the run error unchanged", got)
+		}
+	})
+
+	t.Run("cancelled probe carries no hint", func(t *testing.T) {
+		f := &fakeSudo{timestampDisabled: true}
+		installFakeSudo(t, f)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		f.set(func(f *fakeSudo) { f.onProbe = cancel })
+		lease, _, err := Acquire(ctx, ".", "pw-cancelled-probe")
+		if err != nil {
+			t.Fatalf("Acquire() error = %v", err)
+		}
+		defer lease.Release()
+		runErr := context.Canceled
+		if got := lease.Explain(runErr); got != runErr {
+			t.Fatalf("Explain(runErr) = %v, a cancelled probe must not attach ErrTimestampDisabled", got)
+		}
+	})
+
 	t.Run("probe failure while another call holds the ticket must not drop it", func(t *testing.T) {
 		f := &fakeSudo{}
 		installFakeSudo(t, f)
@@ -251,13 +386,17 @@ func TestSudoTicketRefcount(t *testing.T) {
 			t.Fatalf("acquire holder: %v", err)
 		}
 		defer holder.Release()
-		f.mu.Lock()
-		f.probeErr = errors.New("exit status 1")
-		f.mu.Unlock()
+		f.set(func(f *fakeSudo) {
+			f.passwordlessErr = errors.New("exit status 1")
+			f.probeErr = errors.New("exit status 1")
+		})
 
 		lease, _, err := Acquire(context.Background(), ".", "pw-second")
 		if err != nil {
 			t.Fatalf("second Acquire() error = %v, want a lease despite the failed probe", err)
+		}
+		if !errors.Is(lease.Explain(errors.New("exit status 1")), ErrTimestampDisabled) {
+			t.Fatal("the confirmed probe failure must be explained on a failed run")
 		}
 		if valid, drops := f.state(); !valid || drops != 0 || holders() != 2 {
 			t.Fatalf("valid=%v drops=%d holders=%d, the holder's ticket must survive", valid, drops, holders())

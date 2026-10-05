@@ -27,17 +27,29 @@ func newSudoRunCommand(command, dir string) *exec.Cmd {
 }
 
 // sudoLease holds the shared sudo ticket and the scrubber registration of its
-// password. Explain comes from the embedded ticket lease.
+// password.
 type sudoLease struct {
 	*sudoticket.Lease
 	unregister func()
 }
 
 // Release drops the ticket before it unregisters the password, so everything
-// produced under the ticket is scrubbed first. It is idempotent.
+// produced under the ticket is scrubbed first. It is idempotent, and on a nil
+// sudoLease it does nothing.
 func (l *sudoLease) Release() {
+	if l == nil {
+		return
+	}
 	l.Lease.Release()
 	l.unregister()
+}
+
+// Explain is sudoticket.Lease.Explain; a nil sudoLease returns err unchanged.
+func (l *sudoLease) Explain(err error) error {
+	if l == nil {
+		return err
+	}
+	return l.Lease.Explain(err)
 }
 
 // withSudoTicket registers password with the scrubber and acquires the shared

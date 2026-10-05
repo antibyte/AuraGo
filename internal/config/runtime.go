@@ -125,7 +125,8 @@ func applyRuntimePrivilegeProbes(rt *Runtime, logger *slog.Logger, probes runtim
 // ComputeFeatureAvailability maps each config section to its runtime availability.
 // sudoEnabled should be cfg.Agent.SudoEnabled — when true, firewall access is
 // considered available even if passwordless sudo is not configured, because the
-// agent can supply the vault-stored password via sudo -S.
+// agent validates the vault-stored password into a sudo ticket with sudo -v and
+// then runs sudo -n.
 func ComputeFeatureAvailability(rt Runtime, sudoEnabled bool) map[string]FeatureAvailability {
 	avail := make(map[string]FeatureAvailability)
 

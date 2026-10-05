@@ -33,9 +33,9 @@ func skipWhenRoot(t *testing.T) {
 func TestRunnerSudoCommandKeepsPasswordOffStdin(t *testing.T) {
 	skipWhenRoot(t)
 	for _, payload := range [][]byte{nil, []byte("[share]\npath = /srv/share\n")} {
-		cmd, err := newRunnerCommand(context.Background(), sudoRunnerOptions(), true, "net", []string{"conf", "addshare", "--", "share", "/srv/share"}, payload)
-		if err != nil {
-			t.Fatalf("newRunnerCommand: %v", err)
+		cmd, viaSudo, err := newRunnerCommand(context.Background(), sudoRunnerOptions(), true, "net", []string{"conf", "addshare", "--", "share", "/srv/share"}, payload)
+		if err != nil || !viaSudo {
+			t.Fatalf("newRunnerCommand: viaSudo=%v err=%v, want a sudo command", viaSudo, err)
 		}
 		wantArgs := []string{"sudo", "-n", "--", "net", "conf", "addshare", "--", "share", "/srv/share"}
 		if !reflect.DeepEqual(cmd.Args, wantArgs) {
@@ -51,6 +51,9 @@ func TestRunnerSudoCommandKeepsPasswordOffStdin(t *testing.T) {
 			t.Fatalf("sudo stdin = %q, want only the command input %q", stdin, payload)
 		}
 	}
+	if _, viaSudo, err := newRunnerCommand(context.Background(), sudoRunnerOptions(), false, "getent", []string{"passwd", "root"}, nil); err != nil || viaSudo {
+		t.Fatalf("unprivileged command: viaSudo=%v err=%v, want a plain command", viaSudo, err)
+	}
 }
 
 // fakeRunnerSudo records the sudo processes behind the shared ticket and puts
@@ -62,6 +65,7 @@ type fakeRunnerSudo struct {
 	ranFirst  bool
 	argsFile  string
 	stdinFile string
+	nopasswd  bool
 	probeErr  error
 	authErr   error
 }
@@ -79,6 +83,16 @@ func installFakeRunnerSudo(t *testing.T, exitStatus int) *fakeRunnerSudo {
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Cleanup(sudoticket.ReplaceProcessesForTesting(sudoticket.Processes{
+		// The host needs a password unless nopasswd is set; Probe decides
+		// whether a validated ticket covers commands.
+		Passwordless: func(context.Context, string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			if f.nopasswd {
+				return nil
+			}
+			return errors.New("sudo: a password is required")
+		},
 		Validate: func(_ context.Context, _ string, password string) ([]byte, error) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
@@ -127,6 +141,24 @@ func TestExecCommandRunnerRunsSudoUnderTheSharedTicket(t *testing.T) {
 	defer f.mu.Unlock()
 	if !reflect.DeepEqual(f.passwords, []string{runnerSudoPassword}) || f.drops != 1 || !f.ranFirst {
 		t.Fatalf("validations=%d drops=%d dropAfterRun=%v, want one validation and a drop after the run", len(f.passwords), f.drops, f.ranFirst)
+	}
+}
+
+func TestExecCommandRunnerNopasswdHostSkipsTheValidation(t *testing.T) {
+	skipWhenRoot(t)
+	f := installFakeRunnerSudo(t, 0)
+	f.mu.Lock()
+	f.nopasswd = true
+	f.authErr = errors.New("stale Vault password")
+	f.mu.Unlock()
+
+	if _, err := (execCommandRunner{}).Run(context.Background(), sudoRunnerOptions(), true, "exportfs", []string{"-ra"}, nil); err != nil {
+		t.Fatalf("Run: %v, want a NOPASSWD host to ignore a stale Vault password", err)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.passwords) != 0 || f.drops != 1 || !f.ranFirst {
+		t.Fatalf("validations=%d drops=%d dropAfterRun=%v, want no PAM call and the held ticket released after the run", len(f.passwords), f.drops, f.ranFirst)
 	}
 }
 

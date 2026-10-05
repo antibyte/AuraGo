@@ -3,7 +3,7 @@ package networkshares
 import (
 	"bytes"
 	"context"
-	"os/exec"
+	"errors"
 	"testing"
 
 	"aurago/internal/sudoticket"
@@ -24,7 +24,14 @@ func TestCappedBufferLimitsCapturedOutput(t *testing.T) {
 func TestRunnerAcquiresSudoTicketOnlyForSudoWithPassword(t *testing.T) {
 	var validated []string
 	drops := 0
+	nopasswd := false
 	t.Cleanup(sudoticket.ReplaceProcessesForTesting(sudoticket.Processes{
+		Passwordless: func(context.Context, string) error {
+			if nopasswd {
+				return nil
+			}
+			return errors.New("sudo: a password is required")
+		},
 		Validate: func(_ context.Context, _ string, password string) ([]byte, error) {
 			validated = append(validated, password)
 			return nil, nil
@@ -33,23 +40,22 @@ func TestRunnerAcquiresSudoTicketOnlyForSudoWithPassword(t *testing.T) {
 		Drop:  func() { drops++ },
 	}))
 	withPassword := Options{SudoPassword: "vault-sudo-secret"}
-	sudoCmd := exec.Command("sudo", "-n", "--", "true")
 
 	for _, tc := range []struct {
 		name    string
 		options Options
-		cmd     *exec.Cmd
+		viaSudo bool
 	}{
-		{"command without sudo", withPassword, exec.Command("net", "conf", "list")},
-		{"sudo without password", Options{}, sudoCmd},
+		{"command without sudo", withPassword, false},
+		{"sudo without password", Options{}, true},
 	} {
-		lease, _, err := acquireSudoTicket(context.Background(), tc.options, tc.cmd)
+		lease, _, err := acquireSudoTicket(context.Background(), tc.options, tc.viaSudo)
 		if err != nil || lease != nil || len(validated) != 0 {
 			t.Fatalf("%s: lease=%v err=%v validations=%d, want no ticket", tc.name, lease != nil, err, len(validated))
 		}
 	}
 
-	lease, _, err := acquireSudoTicket(context.Background(), withPassword, sudoCmd)
+	lease, _, err := acquireSudoTicket(context.Background(), withPassword, true)
 	if err != nil || lease == nil {
 		t.Fatalf("sudo with password: lease=%v err=%v, want a ticket", lease != nil, err)
 	}
@@ -60,4 +66,13 @@ func TestRunnerAcquiresSudoTicketOnlyForSudoWithPassword(t *testing.T) {
 	if drops != 1 {
 		t.Fatalf("drops = %d after release, want 1", drops)
 	}
+
+	// A NOPASSWD host holds the ticket without a PAM call, so a stale Vault
+	// password does not matter.
+	nopasswd = true
+	lease, _, err = acquireSudoTicket(context.Background(), withPassword, true)
+	if err != nil || lease == nil || len(validated) != 1 {
+		t.Fatalf("NOPASSWD host: lease=%v err=%v validations=%d, want a lease without validation", lease != nil, err, len(validated))
+	}
+	lease.Release()
 }

@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-func platformCommand(_ Options, privileged bool, name string, args []string, stdin []byte) (string, []string, []byte, error) {
+func platformCommand(_ Options, privileged bool, name string, args []string, stdin []byte) (string, []string, []byte, bool, error) {
 	if privileged && !platformElevated() {
-		return "", nil, nil, codedError(ErrorPermissionDenied, "Network share changes require AuraGo to run in an elevated Windows process.", nil)
+		return "", nil, nil, false, codedError(ErrorPermissionDenied, "Network share changes require AuraGo to run in an elevated Windows process.", nil)
 	}
-	return name, args, stdin, nil
+	return name, args, stdin, false, nil
 }
 
 func platformElevated() bool {

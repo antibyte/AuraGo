@@ -330,7 +330,7 @@ Both toggles must be enabled:
 1. `package_manager.enabled: true`
 2. `agent.allow_package_manager: true`
 
-Linux mutations additionally require `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, the `sudo_password` Vault secret, and a service environment without `NoNewPrivileges` or `ProtectSystem=strict`. Read-only operations remain available when system-wide writes are blocked.
+Linux mutations additionally require `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, the `sudo_password` Vault secret, and a service environment without `NoNewPrivileges` or `ProtectSystem=strict`. The host also needs sudo timestamp caching (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user, because the password only validates a sudo timestamp and the package manager runs with `sudo -n`. Read-only operations remain available when system-wide writes are blocked.
 
 ### Web UI Setup
 1. Open **Config → Integrations → Package Manager**.
@@ -2691,6 +2691,8 @@ network_shares:
         enabled: true
         allowed_clients: []
 ```
+
+On Linux without root, host mutations run through `sudo -n`, and a stored `sudo_password` only validates a sudo timestamp, so the host needs sudo timestamp caching (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user.
 
 The standard Docker deployment reports host mutations as unavailable but can still show readable status. See [Local SMB and NFS shares](../../network_shares.md) for platform prerequisites, drift handling, rollback, and stable error codes.
 

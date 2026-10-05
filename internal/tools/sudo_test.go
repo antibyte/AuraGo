@@ -39,6 +39,7 @@ func TestSudoRunCommandNeverCarriesPasswordOnStdin(t *testing.T) {
 }
 
 // fakeTicketSudo stands in for the sudo processes behind the shared ticket.
+// The host needs a password (sudo -n true fails), so every acquire validates.
 // The refcount itself is tested in package sudoticket.
 type fakeTicketSudo struct {
 	mu          sync.Mutex
@@ -52,6 +53,9 @@ type fakeTicketSudo struct {
 func installFakeTicketSudo(t *testing.T, f *fakeTicketSudo) {
 	t.Helper()
 	t.Cleanup(sudoticket.ReplaceProcessesForTesting(sudoticket.Processes{
+		Passwordless: func(context.Context, string) error {
+			return errors.New("sudo: a password is required")
+		},
 		Validate: func(context.Context, string, string) ([]byte, error) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
@@ -138,6 +142,15 @@ func TestWithSudoTicket(t *testing.T) {
 		}
 		if got := lease.Explain(errors.New("exit status 1")); !errors.Is(got, sudoticket.ErrTimestampDisabled) {
 			t.Fatalf("Explain(runErr) = %v, want ErrTimestampDisabled attached", got)
+		}
+	})
+
+	t.Run("nil lease is safe", func(t *testing.T) {
+		var lease *sudoLease
+		lease.Release()
+		runErr := errors.New("exit status 1")
+		if got := lease.Explain(runErr); got != runErr {
+			t.Fatalf("nil lease Explain(runErr) = %v, want the run error unchanged", got)
 		}
 	})
 }

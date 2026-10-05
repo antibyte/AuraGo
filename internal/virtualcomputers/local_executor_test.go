@@ -1,9 +1,11 @@
 package virtualcomputers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"reflect"
@@ -17,19 +19,32 @@ import (
 const localExecutorSudoPassword = "vault-sudo-secret"
 
 // fakeSudoTicket stands in for the sudo processes behind the shared ticket.
+// By default the host needs a password and keeps a validated ticket.
 type fakeSudoTicket struct {
-	mu          sync.Mutex
-	passwords   []string
-	valid       bool
-	drops       int
-	validateErr error
-	probeErr    error
+	mu                sync.Mutex
+	passwords         []string
+	valid             bool
+	nopasswd          bool // a NOPASSWD rule: sudo -n runs without a ticket
+	timestampDisabled bool // timestamp_timeout=0: validation leaves no ticket
+	drops             int
+	validateErr       error
 }
 
 func installFakeSudoTicket(t *testing.T) *fakeSudoTicket {
 	t.Helper()
 	f := &fakeSudoTicket{}
+	covered := func() error {
+		if f.nopasswd || f.valid {
+			return nil
+		}
+		return errors.New("sudo: a password is required")
+	}
 	t.Cleanup(sudoticket.ReplaceProcessesForTesting(sudoticket.Processes{
+		Passwordless: func(context.Context, string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			return covered()
+		},
 		Validate: func(_ context.Context, _ string, password string) ([]byte, error) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
@@ -37,13 +52,15 @@ func installFakeSudoTicket(t *testing.T) *fakeSudoTicket {
 			if f.validateErr != nil {
 				return []byte("Sorry, try again."), f.validateErr
 			}
-			f.valid = true
+			if !f.timestampDisabled {
+				f.valid = true
+			}
 			return nil, nil
 		},
 		Probe: func(context.Context, string) error {
 			f.mu.Lock()
 			defer f.mu.Unlock()
-			return f.probeErr
+			return covered()
 		},
 		Drop: func() {
 			f.mu.Lock()
@@ -61,8 +78,14 @@ func (f *fakeSudoTicket) snapshot() (passwords []string, valid bool, drops int) 
 	return append([]string(nil), f.passwords...), f.valid, f.drops
 }
 
-// assertNoPasswordOnSudoCommand builds the process the way the default input
-// runner does and checks that only the caller's input reaches its stdin.
+func (f *fakeSudoTicket) set(update func(*fakeSudoTicket)) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	update(f)
+}
+
+// assertNoPasswordOnSudoCommand checks a process built the way the default
+// runners build it: only the caller's input reaches its stdin.
 func assertNoPasswordOnSudoCommand(t *testing.T, cmd *exec.Cmd, wantStdin string) {
 	t.Helper()
 	for _, arg := range cmd.Args {
@@ -88,6 +111,13 @@ func assertNoPasswordOnSudoCommand(t *testing.T, cmd *exec.Cmd, wantStdin string
 	}
 }
 
+func unexpectedCommand(t *testing.T) CommandRunner {
+	return func(_ context.Context, name string, args ...string) (string, error) {
+		t.Fatalf("unexpected direct command %s %v", name, args)
+		return "", nil
+	}
+}
+
 func TestLocalCommandExecutorRunScriptRunsSudoUnderTheSharedTicket(t *testing.T) {
 	ticket := installFakeSudoTicket(t)
 	var scriptPath string
@@ -98,12 +128,11 @@ func TestLocalCommandExecutorRunScriptRunsSudoUnderTheSharedTicket(t *testing.T)
 		EffectiveUID: func() int { return 1000 },
 		SudoPassword: localExecutorSudoPassword,
 		CommandRunner: func(ctx context.Context, name string, args ...string) (string, error) {
-			assertNoPasswordOnSudoCommand(t, exec.CommandContext(ctx, name, args...), "")
-			if reflect.DeepEqual(args, []string{"-n", "true"}) {
-				return "", errors.New("password required")
-			}
+			assertNoPasswordOnSudoCommand(t, newCommand(ctx, name, args...), "")
+			// The passwordless check belongs to the shared ticket, where it
+			// counts as a holder; a separate one here could race a release.
 			if len(args) != 3 || args[1] != "bash" {
-				t.Fatalf("sudo args = %v, want [-n bash script]", args)
+				t.Fatalf("sudo args = %v, want only [-n bash script]", args)
 			}
 			if _, valid, _ := ticket.snapshot(); !valid {
 				t.Fatal("sudo -n bash must run while the shared ticket is held")
@@ -136,16 +165,11 @@ func TestLocalCommandExecutorSystemdRunPipesOnlyTheScript(t *testing.T) {
 	const script = "echo local setup"
 	ticket := installFakeSudoTicket(t)
 	executor := LocalCommandExecutor{
-		RuntimeGOOS:  "linux",
-		PathExists:   func(path string) bool { return path == "/run/systemd/system" },
-		EffectiveUID: func() int { return 1000 },
-		SudoPassword: localExecutorSudoPassword,
-		CommandRunner: func(_ context.Context, name string, args ...string) (string, error) {
-			if name != "sudo" || !reflect.DeepEqual(args, []string{"-n", "true"}) {
-				t.Fatalf("passwordless probe command=%q args=%v", name, args)
-			}
-			return "", errors.New("password required")
-		},
+		RuntimeGOOS:   "linux",
+		PathExists:    func(path string) bool { return path == "/run/systemd/system" },
+		EffectiveUID:  func() int { return 1000 },
+		SudoPassword:  localExecutorSudoPassword,
+		CommandRunner: unexpectedCommand(t),
 		InputCommandRunner: func(ctx context.Context, name, input string, args ...string) (string, error) {
 			// bash -s reads the script from stdin: a password line in front of
 			// it would run as the first root command.
@@ -170,17 +194,16 @@ func TestLocalCommandExecutorSystemdRunPipesOnlyTheScript(t *testing.T) {
 	}
 }
 
-func TestLocalCommandExecutorPasswordlessSudoSkipsTheTicket(t *testing.T) {
+func TestLocalCommandExecutorPasswordlessSudoSkipsTheValidation(t *testing.T) {
 	const script = "echo local setup"
 	ticket := installFakeSudoTicket(t)
+	ticket.set(func(f *fakeSudoTicket) { f.nopasswd = true; f.validateErr = errors.New("stale password") })
 	executor := LocalCommandExecutor{
-		RuntimeGOOS:  "linux",
-		PathExists:   func(path string) bool { return path == "/run/systemd/system" },
-		EffectiveUID: func() int { return 1000 },
-		SudoPassword: localExecutorSudoPassword,
-		CommandRunner: func(context.Context, string, ...string) (string, error) {
-			return "", nil
-		},
+		RuntimeGOOS:   "linux",
+		PathExists:    func(path string) bool { return path == "/run/systemd/system" },
+		EffectiveUID:  func() int { return 1000 },
+		SudoPassword:  localExecutorSudoPassword,
+		CommandRunner: unexpectedCommand(t),
 		InputCommandRunner: func(ctx context.Context, name, input string, args ...string) (string, error) {
 			assertNoPasswordOnSudoCommand(t, newInputCommand(ctx, name, input, args...), script)
 			return "ok", nil
@@ -190,22 +213,20 @@ func TestLocalCommandExecutorPasswordlessSudoSkipsTheTicket(t *testing.T) {
 	if _, err := executor.RunScript(context.Background(), script); err != nil {
 		t.Fatalf("RunScript: %v", err)
 	}
-	if passwords, _, drops := ticket.snapshot(); len(passwords) != 0 || drops != 0 {
-		t.Fatalf("validations=%d drops=%d, want no ticket when sudo -n true already succeeds", len(passwords), drops)
+	if passwords, _, drops := ticket.snapshot(); len(passwords) != 0 || drops != 1 {
+		t.Fatalf("validations=%d drops=%d, want no validation on a NOPASSWD host and the held ticket released", len(passwords), drops)
 	}
 }
 
 func TestLocalCommandExecutorExplainsSudoRefusalAfterFailedProbe(t *testing.T) {
 	ticket := installFakeSudoTicket(t)
-	ticket.probeErr = errors.New("exit status 1")
+	ticket.set(func(f *fakeSudoTicket) { f.timestampDisabled = true })
 	executor := LocalCommandExecutor{
-		RuntimeGOOS:  "linux",
-		PathExists:   func(path string) bool { return path == "/run/systemd/system" },
-		EffectiveUID: func() int { return 1000 },
-		SudoPassword: localExecutorSudoPassword,
-		CommandRunner: func(context.Context, string, ...string) (string, error) {
-			return "", errors.New("password required")
-		},
+		RuntimeGOOS:   "linux",
+		PathExists:    func(path string) bool { return path == "/run/systemd/system" },
+		EffectiveUID:  func() int { return 1000 },
+		SudoPassword:  localExecutorSudoPassword,
+		CommandRunner: unexpectedCommand(t),
 		InputCommandRunner: func(context.Context, string, string, ...string) (string, error) {
 			return "sudo: a password is required", errors.New("exit status 1")
 		},
@@ -222,15 +243,13 @@ func TestLocalCommandExecutorExplainsSudoRefusalAfterFailedProbe(t *testing.T) {
 
 func TestLocalCommandExecutorReportsSudoAuthenticationFailure(t *testing.T) {
 	ticket := installFakeSudoTicket(t)
-	ticket.validateErr = errors.New("exit status 1")
+	ticket.set(func(f *fakeSudoTicket) { f.validateErr = errors.New("exit status 1") })
 	executor := LocalCommandExecutor{
-		RuntimeGOOS:  "linux",
-		PathExists:   func(path string) bool { return path == "/run/systemd/system" },
-		EffectiveUID: func() int { return 1000 },
-		SudoPassword: localExecutorSudoPassword,
-		CommandRunner: func(context.Context, string, ...string) (string, error) {
-			return "", errors.New("password required")
-		},
+		RuntimeGOOS:   "linux",
+		PathExists:    func(path string) bool { return path == "/run/systemd/system" },
+		EffectiveUID:  func() int { return 1000 },
+		SudoPassword:  localExecutorSudoPassword,
+		CommandRunner: unexpectedCommand(t),
 		InputCommandRunner: func(_ context.Context, name string, _ string, args ...string) (string, error) {
 			t.Fatalf("command must not run after a failed sudo authentication: %s %v", name, args)
 			return "", nil
@@ -251,7 +270,7 @@ func TestLocalCommandExecutorPreflightValidatesVaultSudoPasswordThroughTicket(t 
 		EffectiveUID: func() int { return 1000 },
 		SudoPassword: localExecutorSudoPassword,
 		CommandRunner: func(ctx context.Context, name string, args ...string) (string, error) {
-			assertNoPasswordOnSudoCommand(t, exec.CommandContext(ctx, name, args...), "")
+			assertNoPasswordOnSudoCommand(t, newCommand(ctx, name, args...), "")
 			if !reflect.DeepEqual(args, []string{"-n", "true"}) {
 				t.Fatalf("command=%q args=%v, want sudo -n true", name, args)
 			}
@@ -274,8 +293,35 @@ func TestLocalCommandExecutorPreflightValidatesVaultSudoPasswordThroughTicket(t 
 		t.Fatalf("validations=%d valid=%v drops=%d probes=%d, want one validation, two sudo -n true runs and a dropped ticket", len(passwords), valid, drops, probes)
 	}
 
-	ticket.validateErr = errors.New("exit status 1")
+	ticket.set(func(f *fakeSudoTicket) { f.validateErr = errors.New("exit status 1") })
 	if executor.hasSudoOrRoot(context.Background()) {
 		t.Fatal("a rejected Vault sudo password must not satisfy preflight")
+	}
+}
+
+func TestLocalCommandExecutorPreflightLogsWhySudoIsUnavailable(t *testing.T) {
+	ticket := installFakeSudoTicket(t)
+	ticket.set(func(f *fakeSudoTicket) { f.timestampDisabled = true })
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	executor := LocalCommandExecutor{
+		RuntimeGOOS:  "linux",
+		EffectiveUID: func() int { return 1000 },
+		SudoPassword: localExecutorSudoPassword,
+		CommandRunner: func(context.Context, string, ...string) (string, error) {
+			return "", errors.New("exit status 1")
+		},
+	}
+
+	if executor.hasSudoOrRoot(context.Background()) {
+		t.Fatal("sudo without timestamps must not satisfy preflight")
+	}
+	if !strings.Contains(logs.String(), "timestamp caching disabled") {
+		t.Fatalf("preflight log = %q, want the timestamp explanation for HAS_SUDO_OR_ROOT=0", logs.String())
+	}
+	if strings.Contains(logs.String(), localExecutorSudoPassword) {
+		t.Fatalf("preflight log leaked the password: %q", logs.String())
 	}
 }

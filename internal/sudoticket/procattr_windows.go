@@ -7,8 +7,8 @@ import (
 	"syscall"
 )
 
-// setProcessGroup matches tools.SetupCmd on Windows, where sudo does not
-// exist and Acquire always fails to start it.
+// setProcessGroup matches tools.SetupCmd on Windows. Nothing on Windows calls
+// Acquire; Windows 11 24H2 ships an optional sudo.exe with different flags.
 func setProcessGroup(cmd *exec.Cmd) {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}

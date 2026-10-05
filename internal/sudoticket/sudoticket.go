@@ -7,7 +7,9 @@
 // prompting. sudo keys the ticket by this process (its tty, or its pid when
 // there is none), so every privileged call shares one ticket. A reference count
 // keeps one call's cleanup from revoking a ticket that another call has
-// validated but not used yet.
+// validated but not used yet. When `sudo -n true` already works (a NOPASSWD
+// rule, or a ticket another holder validated), a call holds the ticket without
+// validating, so such hosts make no PAM call and ignore a stale Vault password.
 //
 // The package is a leaf (standard library and internal/sandbox only):
 // internal/tools imports internal/virtualcomputers and internal/networkshares,
@@ -34,8 +36,9 @@ import (
 var ErrTimestampDisabled = errors.New("sudo on this host requires a password for every command (timestamp caching disabled); enable a sudo timestamp or a NOPASSWD rule for the AuraGo user")
 
 const (
-	probeTimeout = 10 * time.Second
-	dropTimeout  = 10 * time.Second
+	passwordlessTimeout = 10 * time.Second
+	probeTimeout        = 10 * time.Second
+	dropTimeout         = 10 * time.Second
 )
 
 // validateTimeout bounds the password check; tests shorten it.
@@ -43,6 +46,9 @@ var validateTimeout = 30 * time.Second
 
 // Processes are the sudo invocations behind the ticket.
 type Processes struct {
+	// Passwordless reports whether `sudo -n true` runs without a password:
+	// a NOPASSWD rule or a ticket that is already valid.
+	Passwordless func(ctx context.Context, dir string) error
 	// Validate checks the password with `sudo -S -v`, leaving a ticket.
 	Validate func(ctx context.Context, dir, password string) ([]byte, error)
 	// Probe reports whether `sudo -n -v` accepts the current ticket.
@@ -57,7 +63,7 @@ var ticket = struct {
 	sync.Mutex
 	holders   int
 	processes Processes
-}{processes: Processes{Validate: runValidate, Probe: runProbe, Drop: runDrop}}
+}{processes: Processes{Passwordless: runPasswordless, Validate: runValidate, Probe: runProbe, Drop: runDrop}}
 
 // ReplaceProcessesForTesting swaps the sudo invocations so tests in any
 // package can exercise the ticket without running sudo. It returns a function
@@ -80,19 +86,25 @@ type Lease struct {
 	probeErr error
 }
 
-// Acquire validates password into the shared ticket and returns this call's
-// lease on it. On failure it returns sudo's output unscrubbed; callers that
-// show it must scrub it. ctx bounds the validation and the probe.
+// Acquire returns this call's lease on the shared ticket. When `sudo -n true`
+// already succeeds (a NOPASSWD rule, or a ticket another holder validated), the
+// lease needs no password; otherwise Acquire validates password into the
+// ticket. Either way the call counts as a holder, so no other call's release
+// drops the ticket under it. On failure it returns sudo's output unscrubbed;
+// callers that show it must scrub it. ctx bounds every sudo process.
 //
-// The `sudo -n -v` probe is advisory: hosts with `Defaults verifypw=always`
-// refuse it even with a fresh ticket, although `sudo -n <command>` runs under
-// that ticket. A failed probe therefore still returns a lease; the command runs
-// with sudo -n, which refuses before running anything when no ticket covers
-// it, and Lease.Explain attaches ErrTimestampDisabled if that run fails.
+// The probe after a validation is advisory: a failed probe still returns a
+// lease, the command runs with sudo -n, which refuses before running anything
+// when no ticket covers it, and Lease.Explain attaches ErrTimestampDisabled if
+// that run fails.
 func Acquire(ctx context.Context, dir, password string) (*Lease, string, error) {
 	ticket.Lock()
 	defer ticket.Unlock()
 
+	if passwordless(ctx, dir) == nil {
+		ticket.holders++
+		return &Lease{}, "", nil
+	}
 	validateCtx, cancel := context.WithTimeout(ctx, validateTimeout)
 	defer cancel()
 	if out, err := ticket.processes.Validate(validateCtx, dir, password); err != nil {
@@ -104,11 +116,35 @@ func Acquire(ctx context.Context, dir, password string) (*Lease, string, error) 
 		}
 		return nil, string(out), fmt.Errorf("sudo authentication failed: %w", err)
 	}
-	probeCtx, cancelProbe := context.WithTimeout(ctx, probeTimeout)
-	defer cancelProbe()
-	lease := &Lease{probeErr: ticket.processes.Probe(probeCtx, dir)}
+	lease := &Lease{probeErr: probeTimestamp(ctx, dir)}
 	ticket.holders++
 	return lease, "", nil
+}
+
+// passwordless runs the bounded `sudo -n true` check. Callers hold the ticket
+// lock.
+func passwordless(ctx context.Context, dir string) error {
+	checkCtx, cancel := context.WithTimeout(ctx, passwordlessTimeout)
+	defer cancel()
+	return ticket.processes.Passwordless(checkCtx, dir)
+}
+
+// probeTimestamp reports why a freshly validated ticket may not cover the next
+// sudo -n command, or nil. `sudo -n -v` fails without a timestamp
+// (timestamp_timeout=0), but also under `Defaults verifypw=always` although the
+// ticket covers commands; `sudo -n true` tells the two apart. A probe cut short
+// by ctx reports nothing. Callers hold the ticket lock.
+func probeTimestamp(ctx context.Context, dir string) error {
+	probeCtx, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	err := ticket.processes.Probe(probeCtx, dir)
+	if err == nil || probeCtx.Err() != nil {
+		return nil
+	}
+	if passwordless(probeCtx, dir) == nil || probeCtx.Err() != nil {
+		return nil
+	}
+	return err
 }
 
 // Release gives up the hold; the last holder drops the ticket. Release is
@@ -146,6 +182,16 @@ func newValidateCommand(ctx context.Context, dir, password string) *exec.Cmd {
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader(password + "\n")
 	return cmd
+}
+
+// runPasswordless succeeds when sudo runs a command without asking for a
+// password. It never prompts and reads no password.
+func runPasswordless(ctx context.Context, dir string) error {
+	cmd := exec.CommandContext(ctx, "sudo", "-n", "true")
+	cmd.Dir = dir
+	cmd.Stdin = nil
+	prepare(cmd)
+	return cmd.Run()
 }
 
 func runValidate(ctx context.Context, dir, password string) ([]byte, error) {
