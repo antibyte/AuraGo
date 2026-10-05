@@ -8,9 +8,11 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/sandbox"
+	"aurago/internal/security"
 )
 
 // shellKillWait is the time to wait after kill before giving up (for shell).
@@ -140,8 +142,74 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 	return pid, nil
 }
 
-// ExecuteSudo runs a command via `sudo -S` (reads password from stdin) on Unix,
-// returning stdout, stderr, and any execution or timeout error.
+// newSudoValidateCommand refreshes the sudo timestamp with the Vault password.
+// -v runs no command, so the password line on stdin can never reach a child
+// process. -k must not be added: combined with -v, sudo authenticates without
+// writing the timestamp and the following sudo -n is always refused.
+func newSudoValidateCommand(ctx context.Context, dir, password string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, "sudo", "-S", "-p", "", "-v")
+	cmd.Dir = dir
+	cmd.Stdin = strings.NewReader(password + "\n")
+	return cmd
+}
+
+// newSudoRunCommand runs command under the cached sudo timestamp. -n fails
+// instead of prompting and stdin stays closed, so the password is never on
+// the command's input.
+func newSudoRunCommand(command, dir string) *exec.Cmd {
+	cmd := exec.Command("sudo", "-n", "/bin/sh", "-c", command)
+	cmd.Dir = dir
+	cmd.Stdin = nil
+	return cmd
+}
+
+// dropSudoTimestamp invalidates the ticket created by newSudoValidateCommand.
+func dropSudoTimestamp() {
+	_ = exec.Command("sudo", "-k").Run()
+}
+
+// sudoTicket counts the calls that currently rely on the sudo timestamp. sudo
+// keys the ticket by this process (its tty, or its pid when there is none), so
+// every privileged call shares one ticket; only the last holder drops it, or
+// one call's cleanup could revoke a ticket another call has not used yet.
+var sudoTicket struct {
+	sync.Mutex
+	holders int
+}
+
+// acquireSudoTicket validates password into the shared sudo timestamp and
+// returns a release function that drops the timestamp once no other call
+// holds it. On failure it returns the scrubbed sudo output.
+func acquireSudoTicket(dir, password string) (func(), string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	sudoTicket.Lock()
+	defer sudoTicket.Unlock()
+
+	validate := newSudoValidateCommand(ctx, dir, password)
+	ensureFilteredEnv(validate)
+	SetupCmd(validate)
+	if out, err := validate.CombinedOutput(); err != nil {
+		return nil, security.Scrub(string(out)), fmt.Errorf("sudo authentication failed: %w", err)
+	}
+	sudoTicket.holders++
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			sudoTicket.Lock()
+			defer sudoTicket.Unlock()
+			sudoTicket.holders--
+			if sudoTicket.holders == 0 {
+				dropSudoTimestamp()
+			}
+		})
+	}, "", nil
+}
+
+// ExecuteSudo runs a command on Unix via a validated sudo timestamp; the Vault
+// password is only ever given to `sudo -v`, never to the command's stdin.
+// It returns stdout, stderr, and any execution or timeout error.
 // On Windows this is a no-op and returns an unsupported error.
 func ExecuteSudo(command, workspaceDir, password string) (string, string, error) {
 	if err := requireHostShellExecutionContext(context.Background()); err != nil {
@@ -160,11 +228,17 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 		return "", "", err
 	}
 
-	// sudo -S reads the password from stdin; -n would fail if a password is needed.
-	// We also suppress the interactive password prompt so stderr stays stable across locales.
-	cmd := exec.Command("sudo", "-S", "-p", "", "/bin/sh", "-c", command)
-	cmd.Dir = getAbsWorkspace(workspaceDir)
-	cmd.Stdin = strings.NewReader(password + "\n")
+	absWorkDir := getAbsWorkspace(workspaceDir)
+	release := security.RegisterScopedSensitiveExact(password)
+	defer release()
+
+	dropTicket, authOut, err := acquireSudoTicket(absWorkDir, password)
+	if err != nil {
+		return "", normalizeSudoStderr(authOut), err
+	}
+	defer dropTicket()
+
+	cmd := newSudoRunCommand(command, absWorkDir)
 	ensureFilteredEnv(cmd)
 	SetupCmd(cmd)
 
@@ -178,9 +252,13 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	})
 
 	stdout, stderr, err := runner.Run(context.Background())
+	stdout = security.Scrub(stdout)
+	stderr = security.Scrub(stderr)
 	if err != nil {
-		// Apply sudo-specific stderr normalization for password prompt
 		stderr = normalizeSudoStderr(stderr)
+		if strings.Contains(stderr, "a password is required") {
+			err = fmt.Errorf("sudo on this host requires a password for every command (timestamp caching disabled); enable a sudo timestamp or a NOPASSWD rule for the AuraGo user: %w", err)
+		}
 	}
 	return stdout, stderr, err
 }

@@ -11,22 +11,27 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
-// sudoRun runs a command with sudo, optionally supplying a password via stdin
-// (sudo -S) when sudoPassword is non-empty.  Falls back to passwordless sudo
-// (sudo -n) when no password is provided.
+// sudoRun runs a command with sudo. A non-empty password first refreshes the
+// sudo timestamp through `sudo -S -v` (the only process that ever reads the
+// password); the command itself always runs with `sudo -n` and a closed stdin.
 func sudoRun(sudoPassword string, args ...string) ([]byte, error) {
 	if sudoPassword != "" {
-		fullArgs := append([]string{"-S"}, args...)
-		cmd := exec.Command("sudo", fullArgs...)
-		cmd.Stdin = strings.NewReader(sudoPassword + "\n")
-		return cmd.CombinedOutput()
+		release := security.RegisterScopedSensitiveExact(sudoPassword)
+		defer release()
+		dropTicket, authOut, err := acquireSudoTicket(".", sudoPassword)
+		if err != nil {
+			return []byte(authOut), err
+		}
+		defer dropTicket()
 	}
-	// No password — try non-interactive (NOPASSWD sudoers or running as root).
 	fullArgs := append([]string{"-n"}, args...)
 	cmd := exec.Command("sudo", fullArgs...)
-	return cmd.CombinedOutput()
+	cmd.Stdin = nil
+	out, err := cmd.CombinedOutput()
+	return []byte(security.Scrub(string(out))), err
 }
 
 // FirewallGetRules returns the active firewall rules using iptables or ufw (Linux only).
