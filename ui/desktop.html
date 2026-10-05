@@ -102,7 +102,13 @@
             <div class="vd-start-search">
                 <input id="vd-start-search" type="search" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off" data-i18n-placeholder="desktop.search_placeholder">
             </div>
-            <div id="vd-start-apps" class="vd-start-apps vd-scroll"></div>
+            <div class="vd-start-body">
+                <nav id="vd-start-rail" class="vd-start-rail" role="tablist" aria-orientation="vertical" data-i18n-aria-label="desktop.start_categories"></nav>
+                <section class="vd-start-pane" role="tabpanel" id="vd-start-pane">
+                    <header id="vd-start-pane-head" class="vd-start-pane-head"></header>
+                    <div id="vd-start-apps" class="vd-start-apps vd-scroll"></div>
+                </section>
+            </div>
         </aside>
     </main>
 

@@ -1,7 +1,7 @@
     // Pointer light for launchers, menu entries and task buttons (desktop-polish.css): the
     // hovered item receives the pointer position as two custom properties, written at most
     // once per frame and only while a mouse moves over such an item. Touch never paints it.
-    const POINTER_LIGHT_TARGETS = '.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile';
+    const POINTER_LIGHT_TARGETS = '.vd-start-item, .vd-start-category, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile';
     let pointerLightItem = null;
     let pointerLightFrame = 0;
     let pointerLightX = 0;

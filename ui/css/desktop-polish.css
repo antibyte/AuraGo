@@ -156,11 +156,11 @@
 
 /* Pointer light: launchers, menu entries and task buttons glow where the pointer is
  * (position from polish-runtime.js; the fallback is the centre). */
-.desktop-body.desktop-body[data-theme] :is(.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
+.desktop-body.desktop-body[data-theme] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
     background-image: radial-gradient(circle at var(--vd-rx, 50%) var(--vd-ry, 50%), rgba(var(--vd-reveal), 0.16), transparent 72%);
 }
 
-.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] :is(.vd-start-item, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
+.desktop-body.desktop-body[data-theme="fruity"][data-fruity-mode="light"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-task-button, .vd-taskbar-pin, .vd-window-menu-item, .vd-settings-nav, .vd-launchpad-tile):hover {
     background-image: radial-gradient(circle at var(--vd-rx, 50%) var(--vd-ry, 50%), rgba(var(--vd-reveal), 0.14), transparent 72%);
 }
 

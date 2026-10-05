@@ -473,7 +473,7 @@
         $('vd-start-search').addEventListener('input', (event) => {
             state.startQuery = event.target.value;
             clearTimeout(startSearchTimer);
-            startSearchTimer = setTimeout(renderStartApps, 150);
+            startSearchTimer = setTimeout(() => renderStartApps({ switching: true }), 150);
         });
         $('vd-start-menu').addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
@@ -488,8 +488,13 @@
                 if (search && document.activeElement !== search) search.focus();
                 return;
             }
+            if (event.target.closest('.vd-start-rail')) return; // the category rail handles its own arrows
             const items = [...$('vd-start-menu').querySelectorAll('.vd-start-item')];
-            if (!items.length) return;
+            const activeCategory = $('vd-start-menu').querySelector('.vd-start-category[aria-selected="true"]');
+            if (!items.length) {
+                if (activeCategory && (event.key === 'ArrowLeft' || event.key === 'ArrowDown')) { event.preventDefault(); activeCategory.focus(); }
+                return;
+            }
             const idx = items.indexOf(document.activeElement);
             const firstTop = items[0].offsetTop;
             let columns = 1;
@@ -498,7 +503,12 @@
             if (event.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(items.length - 1, idx + columns);
             else if (event.key === 'ArrowUp') next = idx < 0 ? items.length - 1 : Math.max(0, idx - columns);
             else if (event.key === 'ArrowRight' && columns > 1) next = idx < 0 ? 0 : Math.min(items.length - 1, idx + 1);
-            else if (event.key === 'ArrowLeft' && columns > 1) next = idx < 0 ? 0 : Math.max(0, idx - 1);
+            else if (event.key === 'ArrowLeft') {
+                // Leftmost column (or a single column) hands focus back to the active category.
+                if (columns > 1 && idx > 0 && idx % columns !== 0) next = idx - 1;
+                else if (activeCategory) { event.preventDefault(); activeCategory.focus(); return; }
+                else return;
+            }
             else if (event.key === 'Home') next = 0;
             else if (event.key === 'End') next = items.length - 1;
             else return;

@@ -16,6 +16,7 @@
         ws: null,
         chatBusy: false,
         startQuery: '',
+        startCategory: '',
         desktopFiles: [],
         iconManifest: null,
         iconThemeManifests: {},
@@ -1259,7 +1260,11 @@
 
     function openStartMenu() {
         const menu = $('vd-start-menu'); if (!menu) return;
+        // Open clean: no stale search, and a fresh render so the recent group is current.
+        state.startQuery = ''; const search = $('vd-start-search'); if (search) search.value = '';
+        renderStartApps();
         menu.dataset.motionState = 'open'; menu.classList.remove('vd-start-menu-closing'); menu.hidden = false; menu.style.transform = '';
+        positionStartRailIndicator({ instant: true });
         runStartMenuMotion(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
         menu.classList.add('vd-start-menu-just-opened');
         window.clearTimeout(menu._justOpenedTimer);
