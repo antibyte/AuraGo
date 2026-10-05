@@ -1840,10 +1840,8 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 		return ErrFlowMissionManaged
 	}
 	if mission.ID == "" {
-		mission.ID = fmt.Sprintf("mission_%d", time.Now().UnixNano())
-	}
-	if existing, ok := m.missions[mission.ID]; ok && isFlowMission(existing) {
-		// Generated in the same clock tick as a flow mission's id.
+		// Never reuse an id: a coarse clock hands out the same nanosecond twice, and a reused id
+		// would replace the earlier mission.
 		mission.ID = m.newMissionIDLocked()
 	}
 	if mission.Priority == "" {

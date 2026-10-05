@@ -287,8 +287,6 @@ func TestManageMissionsCreateRefusesFlowType(t *testing.T) {
 		if !strings.Contains(out, `"status":"success"`) {
 			t.Fatalf("%v: %q", params, out)
 		}
-		// Create derives the id from the clock; a coarse Windows clock must tick between creates.
-		time.Sleep(20 * time.Millisecond)
 	}
 	flows := 0
 	for _, m := range f.mm.List() {
