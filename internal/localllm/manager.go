@@ -964,7 +964,7 @@ func (m *Manager) stop(ctx context.Context, force bool) error {
 		return fmt.Errorf("active_requests")
 	}
 	m.mu.Unlock()
-	_, stopErr := m.docker.DoJSON(ctx, http.MethodPost, "containers/"+managedContainerName+"/stop?t=15", nil, nil)
+	stopCode, stopErr := m.docker.DoJSON(ctx, http.MethodPost, "containers/"+managedContainerName+"/stop?t=15", nil, nil)
 	deleteErr := m.deleteContainer(ctx, managedContainerName)
 	seedErr := m.deleteContainer(ctx, runtimeKeySeedName)
 	volumeErr := m.deleteRuntimeKeyVolume(ctx)
@@ -977,7 +977,7 @@ func (m *Manager) stop(ctx context.Context, force bool) error {
 	}
 	m.appliedPlan = nil
 	m.mu.Unlock()
-	if stopErr != nil && !strings.Contains(stopErr.Error(), "404") && !strings.Contains(stopErr.Error(), "304") {
+	if stopErr != nil && !stopAlreadyDone(stopCode) {
 		return fmt.Errorf("container_stop_failed: %w", stopErr)
 	}
 	if deleteErr != nil || seedErr != nil || volumeErr != nil {
@@ -989,12 +989,12 @@ func (m *Manager) stop(ctx context.Context, force bool) error {
 // CleanupStaleRuntime removes the ephemeral key volume and any sidecar left by
 // a previous AuraGo process. Downloaded model artifacts are never removed.
 func (m *Manager) CleanupStaleRuntime(ctx context.Context) error {
-	_, stopErr := m.docker.DoJSON(ctx, http.MethodPost, "containers/"+managedContainerName+"/stop?t=5", nil, nil)
+	stopCode, stopErr := m.docker.DoJSON(ctx, http.MethodPost, "containers/"+managedContainerName+"/stop?t=5", nil, nil)
 	containerErr := m.deleteContainer(ctx, managedContainerName)
 	seedErr := m.deleteContainer(ctx, runtimeKeySeedName)
 	volumeErr := m.deleteRuntimeKeyVolume(ctx)
 	m.cleanupRuntimeKey()
-	if stopErr != nil && !strings.Contains(stopErr.Error(), "404") && !strings.Contains(stopErr.Error(), "304") {
+	if stopErr != nil && !stopAlreadyDone(stopCode) {
 		return fmt.Errorf("stale_runtime_stop_failed")
 	}
 	if containerErr != nil || seedErr != nil || volumeErr != nil {
