@@ -94,7 +94,7 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 // saveGotenbergOutput writes response bytes to the output directory and returns metadata.
 func saveGotenbergOutput(data []byte, outputDir, filename, ext string) (filePath, webPath string, err error) {
 	if filename == "" {
-		filename = fmt.Sprintf("doc_%d", time.Now().Unix())
+		filename = defaultDocumentName()
 	}
 	// Sanitise filename to prevent path traversal
 	filename = filepath.Base(filename)

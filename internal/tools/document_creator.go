@@ -2,6 +2,8 @@ package tools
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -42,7 +44,7 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 	}
 	// Ensure output directory exists
 	if err := os.MkdirAll(outputDir, 0750); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"create output dir: %v"}`, err)
+		return documentCreatorError(fmt.Sprintf("create output dir: %v", err))
 	}
 
 	backend := strings.ToLower(cfg.Backend)
@@ -115,9 +117,17 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 			return GotenbergHealth(ctx, &cfg.Gotenberg)
 		})
 	default:
-		return fmt.Sprintf(`{"status":"error","message":"unknown operation: %s. Valid: create_pdf, url_to_pdf, html_to_pdf, markdown_to_pdf, convert_document, merge_pdfs, screenshot_url, screenshot_html, health"}`, operation)
+		return documentCreatorError(fmt.Sprintf("unknown operation: %s. Valid: create_pdf, url_to_pdf, html_to_pdf, markdown_to_pdf, convert_document, merge_pdfs, screenshot_url, screenshot_html, health",
+			truncateStr(operation, maxEchoedDocumentOperationRunes)))
 	}
 }
+
+// Bounds for caller-supplied text that document_creator errors echo back.
+const (
+	maxEchoedDocumentOperationRunes = 64
+	maxEchoedDocumentPathRunes      = 256
+	maxEchoedDocumentErrorRunes     = 512
+)
 
 // ExecuteDocumentCreatorInWorkspace validates user-provided local source files
 // before invoking document conversion operations.
@@ -140,7 +150,8 @@ func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.Document
 			for index, p := range paths {
 				rp, err := resolveToolInputPath(p, tmpCfg)
 				if err != nil {
-					return fmt.Sprintf(`{"status":"error","message":"invalid source path %q: %v"}`, p, err)
+					return documentCreatorError(fmt.Sprintf("invalid source path %q: %s",
+						truncateStr(p, maxEchoedDocumentPathRunes), truncateStr(err.Error(), maxEchoedDocumentErrorRunes)))
 				}
 				input, err := rootedToolOpen(rp)
 				if err != nil {
@@ -192,7 +203,7 @@ func executeGotenbergOnly(ctx context.Context, cfg *config.DocumentCreatorConfig
 
 func createPDFMaroto(outputDir, title, content, filename, paperSize string, landscape bool, sectionsJSON string) string {
 	if filename == "" {
-		filename = fmt.Sprintf("doc_%d", time.Now().Unix())
+		filename = defaultDocumentName()
 	}
 	filename = filepath.Base(filename)
 	if !strings.HasSuffix(strings.ToLower(filename), ".pdf") {
@@ -203,7 +214,7 @@ func createPDFMaroto(outputDir, title, content, filename, paperSize string, land
 	var sections []PDFSection
 	if sectionsJSON != "" {
 		if err := json.Unmarshal([]byte(sectionsJSON), &sections); err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"invalid sections JSON: %v"}`, err)
+			return documentCreatorError(fmt.Sprintf("invalid sections JSON: %v", err))
 		}
 	}
 
@@ -212,12 +223,12 @@ func createPDFMaroto(outputDir, title, content, filename, paperSize string, land
 	m := maroto.New(cfg)
 	doc, err := buildMarotoDocument(m, title, content, sections)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"generate PDF: %v"}`, err)
+		return documentCreatorError(fmt.Sprintf("generate PDF: %v", err))
 	}
 
 	outPath := filepath.Join(outputDir, filename)
 	if err := doc.Save(outPath); err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"save PDF: %v"}`, err)
+		return documentCreatorError(fmt.Sprintf("save PDF: %v", err))
 	}
 
 	webPath := "/files/documents/" + filename
@@ -491,4 +502,13 @@ func documentCreatorError(message string) string {
 		"message": message,
 	})
 	return string(payload)
+}
+
+// defaultDocumentName names a document whose caller gave no filename:
+// doc_<unix seconds>_<6 random hex digits>. The random part keeps two documents made
+// in the same second (flows create them in quick succession) from overwriting each other.
+func defaultDocumentName() string {
+	var suffix [3]byte
+	_, _ = rand.Read(suffix[:]) // crypto/rand.Read never returns an error (Go 1.24+)
+	return fmt.Sprintf("doc_%d_%s", time.Now().Unix(), hex.EncodeToString(suffix[:]))
 }
