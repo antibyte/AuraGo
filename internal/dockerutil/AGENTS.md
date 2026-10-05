@@ -11,6 +11,7 @@ Agent and service authorization stays with each caller.
 - Bind negotiation state to one Engine transport. Honour cancellation while probing or waiting on another probe; failed probes must not poison future attempts. Forward idle-connection cleanup.
 - Never replay a mutation after network, body-read or server failure. Only safe reads may retry. Streaming exec uses its caller context; cancellation does not prove remote process termination.
 - Raw upgraded terminal streams and Invasion use the same negotiation policy. Preserve Unix sockets, Windows named pipes and explicitly configured TCP engines.
+- Drain Docker JSON-message streams (pull, build, push) with `DrainJSONMessages`: an `errorDetail`/`error` event fails the operation even after HTTP 200, a stream cut inside a message or a line over `MaxJSONMessageLine` is an error, and non-2xx bodies are read through `ReadErrorBody`.
 
 ## Verification
 

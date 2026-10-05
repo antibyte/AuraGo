@@ -695,7 +695,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListImages(dockerCfg)
 			case "pull_image", "pull":
 				logger.Info("LLM requested Docker pull", "image", req.Image)
-				return "Tool Output: " + tools.DockerPullImage(dockerCfg, req.Image)
+				return "Tool Output: " + tools.DockerPullImageContext(ctx, dockerCfg, req.Image)
 			case "remove_image", "rmi":
 				logger.Info("LLM requested Docker remove_image", "image", req.Image, "force", req.Force)
 				return "Tool Output: " + tools.DockerRemoveImage(dockerCfg, req.Image, req.Force)
