@@ -206,7 +206,7 @@ func FetchOpenRouterModelCapabilities(modelID string) (ProviderCapabilityResult,
 	if modelID == "" {
 		return ProviderCapabilityResult{}, false, nil
 	}
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := newProbeHTTPClient(15 * time.Second)
 	resp, err := client.Get("https://openrouter.ai/api/v1/models")
 	if err != nil {
 		return ProviderCapabilityResult{}, false, fmt.Errorf("fetch OpenRouter models: %w", err)

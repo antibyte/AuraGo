@@ -276,7 +276,7 @@ func detectContextWindowOllama(baseURL, model string, logger *slog.Logger) int {
 		logger.Debug("[ContextDetect/Ollama] Failed to marshal request payload", "error", err)
 		return 0
 	}
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := newProbeHTTPClient(10 * time.Second)
 	req, err := http.NewRequest("POST", showURL, bytes.NewReader(payloadBytes))
 	if err != nil {
 		logger.Debug("[ContextDetect/Ollama] Failed to create request", "error", err)
@@ -353,7 +353,7 @@ func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.L
 		candidates = append(candidates, base+"/models")
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := newProbeHTTPClient(10 * time.Second)
 
 	for _, modelsURL := range candidates {
 		ctxLen := queryModelsEndpoint(client, modelsURL, apiKey, model, logger)

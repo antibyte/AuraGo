@@ -228,7 +228,8 @@ func isNonRetryableByString(lowerErr string) bool {
 		strings.Contains(lowerErr, "not supported") ||
 		strings.Contains(lowerErr, "unauthorized") ||
 		strings.Contains(lowerErr, "permission denied") ||
-		strings.Contains(lowerErr, "access denied")
+		strings.Contains(lowerErr, "access denied") ||
+		strings.Contains(lowerErr, "redirect rejected")
 }
 
 func isQuotaExceededByString(lowerErr string) bool {

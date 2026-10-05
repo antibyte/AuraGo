@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
@@ -937,5 +938,38 @@ func TestNewClientFromProviderDetailsLocalProviders(t *testing.T) {
 		if got := configValue.FieldByName("BaseURL").String(); got != "http://localhost:8080/v1" {
 			t.Fatalf("BaseURL = %q, want http://localhost:8080/v1", got)
 		}
+	}
+}
+
+func TestLLMHTTPClientRejectsCrossOriginRedirect(t *testing.T) {
+	client := buildLLMHTTPClient(nil, "openai", "", "https://api.example.com/v1")
+	if client == nil || client.CheckRedirect == nil {
+		t.Fatal("chat client must install a redirect policy")
+	}
+	first, _ := http.NewRequest(http.MethodPost, "https://api.example.com/v1/chat/completions", nil)
+	sameOrigin, _ := http.NewRequest(http.MethodPost, "https://api.example.com/v1/chat/completions/", nil)
+	crossHost, _ := http.NewRequest(http.MethodPost, "https://evil.example.net/v1/chat/completions", nil)
+	otherPort, _ := http.NewRequest(http.MethodPost, "https://api.example.com:8443/v1/chat/completions", nil)
+
+	if err := client.CheckRedirect(sameOrigin, []*http.Request{first}); err != nil {
+		t.Fatalf("same-origin redirect must pass: %v", err)
+	}
+	if err := client.CheckRedirect(crossHost, []*http.Request{first}); err == nil {
+		t.Fatal("cross-host redirect must be rejected")
+	}
+	if err := client.CheckRedirect(otherPort, []*http.Request{first}); err == nil {
+		t.Fatal("other-port redirect must be rejected")
+	}
+}
+
+func TestProbeHTTPClientUsesSameOriginPolicy(t *testing.T) {
+	client := newProbeHTTPClient(5 * time.Second)
+	first, _ := http.NewRequest(http.MethodGet, "http://ollama.lan:11434/api/tags", nil)
+	cross, _ := http.NewRequest(http.MethodGet, "http://other.lan:11434/api/tags", nil)
+	if err := client.CheckRedirect(cross, []*http.Request{first}); err == nil {
+		t.Fatal("probe clients must not follow cross-origin redirects")
+	}
+	if client.Timeout != 5*time.Second {
+		t.Fatalf("timeout = %v, want 5s", client.Timeout)
 	}
 }

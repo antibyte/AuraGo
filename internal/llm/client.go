@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 	"aurago/internal/providerutil"
 
 	"github.com/sashabaranov/go-openai"
@@ -203,13 +204,7 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 		if providerType == "manifest" && cfg != nil {
 			transport = &manifestRoutingTransport{base: transport, routing: cfg.Manifest.Routing}
 		}
-		clientConfig.HTTPClient = &http.Client{Transport: transport}
-		clientConfig.HTTPClient.(*http.Client).CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 10 || req.URL.User != nil || req.URL.Scheme != via[0].URL.Scheme || req.URL.Host != via[0].URL.Host {
-				return fmt.Errorf("loopback provider redirect rejected")
-			}
-			return nil
-		}
+		clientConfig.HTTPClient = &http.Client{Transport: transport, CheckRedirect: httporigin.SameOriginRedirect}
 	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken, clientConfig.BaseURL); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}
@@ -242,7 +237,7 @@ func NewClientWithTransport(cfg *config.Config, transport http.RoundTripper) *op
 	}
 	clientConfig := buildOpenAIClientConfig(cfg, p)
 	if transport != nil {
-		client := &http.Client{}
+		client := &http.Client{CheckRedirect: httporigin.SameOriginRedirect}
 		if existing, ok := clientConfig.HTTPClient.(*http.Client); ok {
 			copy := *existing
 			client = &copy
@@ -393,7 +388,9 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 	// generic providers (crof.ai, openrouter, etc.) to fall back to the
 	// bare http.Client with no timeout, leading to invisible hangs until
 	// the context deadline killed the request.
-	client := &http.Client{Transport: transport}
+	// Credentialed chat requests (and their re-sent prompt bodies on 307/308)
+	// never follow a redirect off the configured provider origin.
+	client := &http.Client{Transport: transport, CheckRedirect: httporigin.SameOriginRedirect}
 
 	client.Transport = &rateLimitAwareTransport{base: client.Transport}
 

@@ -424,7 +424,7 @@ func probeOllamaModelLimits(ctx context.Context, route ModelRoute, logger *slog.
 		return providerModelLimitProbe{}
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := newProbeHTTPClient(15 * time.Second).Do(req)
 	if err != nil {
 		logger.Debug("[ModelLimits] Ollama metadata probe failed", "model", route.Model, "error", err)
 		return providerModelLimitProbe{}
@@ -482,7 +482,7 @@ func queryModelLimitsEndpoint(ctx context.Context, endpoint, apiKey, model strin
 	if apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := newProbeHTTPClient(15 * time.Second).Do(req)
 	if err != nil {
 		logger.Debug("[ModelLimits] Provider metadata probe failed", "model", model, "error", err)
 		return providerModelLimitProbe{}, false

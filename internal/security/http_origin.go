@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
+
+	"aurago/internal/httporigin"
 )
 
 // ValidateHTTPBaseURL validates an administrator-selected integration endpoint.
@@ -18,27 +19,15 @@ func ValidateHTTPBaseURL(raw string) error {
 	return nil
 }
 
+// SameHTTPOrigin reports whether a and b share scheme, host and effective
+// port. The policy lives in the leaf package httporigin so internal/llm can
+// share it without importing internal/security.
 func SameHTTPOrigin(a, b *url.URL) bool {
-	if a == nil || b == nil || a.User != nil || b.User != nil {
-		return false
-	}
-	port := func(u *url.URL) string {
-		if u.Port() != "" {
-			return u.Port()
-		}
-		if u.Scheme == "https" {
-			return "443"
-		}
-		return "80"
-	}
-	return a.Scheme == b.Scheme && strings.EqualFold(a.Hostname(), b.Hostname()) && port(a) == port(b)
+	return httporigin.SameOrigin(a, b)
 }
 
 // SameOriginRedirect binds all credentials, including custom headers, to the
 // original integration origin. It never permits an HTTPS downgrade.
 func SameOriginRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) == 0 || len(via) >= 10 || !SameHTTPOrigin(req.URL, via[0].URL) {
-		return fmt.Errorf("cross-origin integration redirect rejected")
-	}
-	return nil
+	return httporigin.SameOriginRedirect(req, via)
 }

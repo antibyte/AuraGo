@@ -18,8 +18,9 @@ type OpenRouterCredits struct {
 	RateLimited bool    `json:"rate_limited"` // whether currently rate-limited
 }
 
-// openRouterHTTPClient for credit queries.
-var openRouterHTTPClient = &http.Client{Timeout: 10 * time.Second}
+// openRouterHTTPClient for credit queries. It carries the API key, so it stays
+// on the configured origin.
+var openRouterHTTPClient = newProbeHTTPClient(10 * time.Second)
 
 // FetchOpenRouterCredits queries the OpenRouter API for the current credit balance.
 // The apiKey should be the OpenRouter API key.

@@ -54,7 +54,7 @@ func GetCopilotAuth() *CopilotAuth {
 // NewCopilotAuth creates a new CopilotAuth manager.
 func NewCopilotAuth() *CopilotAuth {
 	return &CopilotAuth{
-		client: &http.Client{Timeout: 15 * time.Second},
+		client: newProbeHTTPClient(15 * time.Second),
 	}
 }
 

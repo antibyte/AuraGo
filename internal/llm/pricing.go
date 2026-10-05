@@ -252,7 +252,7 @@ func getCachedOrFetchOpenRouterModels() ([]ModelPricing, error) {
 
 // doFetchOpenRouterModels calls the OpenRouter API and parses model pricing.
 func doFetchOpenRouterModels() ([]ModelPricing, error) {
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := newProbeHTTPClient(15 * time.Second)
 	resp, err := client.Get("https://openrouter.ai/api/v1/models")
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach OpenRouter: %w", err)
@@ -305,7 +305,7 @@ func fetchOllamaPricing(baseURL string) ([]ModelPricing, error) {
 	}
 	url := strings.TrimRight(baseURL, "/") + "/api/tags"
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := newProbeHTTPClient(10 * time.Second)
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach Ollama: %w", err)
@@ -379,7 +379,7 @@ func fetchWorkersAIModelsFromAPI(apiKey, baseURL string) ([]ModelPricing, error)
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := newProbeHTTPClient(15 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach Workers AI: %w", err)

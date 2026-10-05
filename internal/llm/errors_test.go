@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/sashabaranov/go-openai"
@@ -298,5 +299,12 @@ func TestClassifyError_NoFalsePositive401InOtherContext(t *testing.T) {
 	cat = ClassifyError(err)
 	if cat == ErrCategoryAuthError {
 		t.Errorf("ClassifyError('received 403 bytes') = %v, should NOT be ErrCategoryAuthError (false positive)", cat)
+	}
+}
+
+func TestCrossOriginRedirectRejectionIsNotRetryable(t *testing.T) {
+	err := &url.Error{Op: "Post", URL: "https://api.example.com/v1/chat/completions", Err: errors.New("cross-origin integration redirect rejected")}
+	if IsRetryable(err) {
+		t.Fatal("a rejected redirect must not be retried ten times")
 	}
 }
