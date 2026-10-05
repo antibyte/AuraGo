@@ -22,6 +22,28 @@ func TestReadRootedDesktopContentRegular(t *testing.T) {
 	}
 }
 
+func TestDesktopCustomHTMLAppEntryReceivesSDKBootstrap(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"Apps/demo/editor.html", "Widgets/clock.htm"} {
+		file := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(`<html><head><script>window.appReady=true</script></head></html>`), 0600); err != nil {
+			t.Fatal(err)
+		}
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/files/desktop/"+name, nil)
+		if !serveDesktopExactIndexFile(w, r, root, nil) || w.Code != http.StatusOK {
+			t.Fatalf("custom entry %s failed: %d", name, w.Code)
+		}
+		body := w.Body.String()
+		if marker := strings.Index(body, desktopSDKChannelMarker); marker < 0 || marker > strings.Index(body, "window.appReady") {
+			t.Fatalf("custom entry %s lacks an early SDK bootstrap", name)
+		}
+	}
+}
+
 func TestDesktopHTMLServingContainsSymlinks(t *testing.T) {
 	root, outside := t.TempDir(), t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "Apps", "safe"), 0755); err != nil {

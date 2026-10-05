@@ -2843,6 +2843,7 @@
   "desktop.store.uninstall": "Απεγκατάσταση",
   "desktop.store.uninstall_copy": "Αφαίρεση του container και των καταχωρήσεων desktop.",
   "desktop.store.update": "Ενημέρωση",
+  "desktop.store.update_required": "Απαιτείται ενημέρωση ασφαλείας. Ενημερώστε αυτήν την εφαρμογή για να χρησιμοποιεί η παρακολούθηση Docker διακομιστή μεσολάβησης μόνο για ανάγνωση.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
   "desktop.store_terminal_copy_command": "Αντιγραφή",
   "desktop.store_terminal_header_subtitle": "Κονσόλα πρώτα",

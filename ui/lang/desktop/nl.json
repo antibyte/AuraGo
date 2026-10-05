@@ -2843,6 +2843,7 @@
   "desktop.store.uninstall": "Verwijderen",
   "desktop.store.uninstall_copy": "Verwijder de container en desktop-items.",
   "desktop.store.update": "Bijwerken",
+  "desktop.store.update_required": "Beveiligingsupdate vereist. Werk deze app bij om Docker-bewaking over te zetten naar een alleen-lezenproxy.",
   "desktop.store_terminal_bootstrap_session": "CommandCode",
   "desktop.store_terminal_copy_command": "Kopiëren",
   "desktop.store_terminal_header_subtitle": "Console eerst",

@@ -262,7 +262,7 @@ func TestFileManagerDropsOntoNonDirectoryItemsFallBackToCurrentFolder(t *testing
 	dropBody := jsFunctionBodyInWindowMenuTest(t, source, "async function handleItemDrop(e)")
 	for _, marker := range []string{
 		"if (destType !== 'directory') {",
-		"if (payload) await moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);",
+		"if (payload) await moveDroppedDesktopFilesToFolder(payload.paths, instance.currentPath);",
 		"return;",
 	} {
 		if !strings.Contains(dropBody, marker) {

@@ -1,3 +1,11 @@
+    const SDK_CHANNEL_CHALLENGE_TYPE = 'aurago.desktop.channel.challenge';
+    const SDK_CHANNEL_HANDSHAKE_TYPE = 'aurago.desktop.channel.handshake';
+    const SDK_CHANNEL_FRAGMENT_KEY = '__aurago_sdk_channel';
+    const SDK_CHANNEL_ORIGINAL_HASH_KEY = '__aurago_sdk_original_hash';
+    const sdkFrameClients = new Map();
+    let sdkChallengeSequence = 0;
+    let sdkFrameObserver = null;
+
     function renderQuickConnect(id) {
         const host = contentEl(id);
         if (!host) return;
@@ -1322,19 +1330,16 @@
         const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;
         host.innerHTML = `<div class="vd-store-frame-loading">${esc(t('desktop.loading'))}</div>`;
         try {
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            const body = await api(desktopStoreOpenURL(storeAppId));
             if (!contentEl(id)) return;
             if (shouldOpenStoreAppExternally(app)) {
                 navigateExternalStoreWindow(pendingExternalWindow, body.url);
                 closeWindow(id);
                 return;
             }
-            const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');
+            const frameURL = storeFrameURL(body.url, storeAppId);
             const frame = makeSandboxedFrame(frameURL, app.id, '', id, 'vd-generated-frame vd-store-app-frame', appName(app), { allowSameOrigin: true, allowDownloads: true, allowStorageAccess: true, allowTopNavigationByUserActivation: true, allowPointerLock: true, allowFullscreen: true, allowGamepad: true });
             if (storeAppId === 'gods-eye-view') {
-                const localizedURL = new URL(frameURL, window.location.href);
-                localizedURL.searchParams.set('aurago_lang', document.documentElement.lang || 'en');
-                frame.src = localizedURL.toString();
                 frame.setAttribute('allow', frame.getAttribute('allow') + '; microphone');
             }
             host.replaceChildren(frame);
@@ -1488,7 +1493,7 @@
     async function openExternalStoreApp(storeAppId, title) {
         const pendingWindow = openPendingExternalStoreWindow();
         try {
-            const body = await api('/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url');
+            const body = await api(desktopStoreOpenURL(storeAppId));
             navigateExternalStoreWindow(pendingWindow, body.url);
         } catch (err) {
             closeExternalStoreWindow(pendingWindow);
@@ -1498,16 +1503,23 @@
 
     function storeFrameURL(src, storeAppId) {
         if (!src) return src;
-        if (storeAppId === 'uptime-kuma') {
-            try {
-                const url = new URL(src, window.location.origin);
+        try {
+            const url = new URL(src, window.location.origin);
+            if (url.pathname.startsWith('/_aurago/launch/')) return src;
+            if (storeAppId === 'uptime-kuma') {
                 url.pathname = '/dashboard';
                 return url.toString();
-            } catch (_) {
-                return String(src).replace(/\/?(\?.*)?$/, '/dashboard$1');
             }
-        }
+        } catch (_) {}
         return src;
+    }
+
+    function desktopStoreOpenURL(storeAppId, portId) {
+        const query = new URLSearchParams();
+        if (portId) query.set('port_id', portId);
+        if (storeAppId === 'gods-eye-view') query.set('lang', document.documentElement.lang || 'en');
+        const suffix = query.toString();
+        return '/api/desktop/store/apps/' + encodeURIComponent(storeAppId) + '/open-url' + (suffix ? '?' + suffix : '');
     }
 
     function cacheBustURL(src, paramName) {
@@ -1528,10 +1540,14 @@
         const iframe = document.createElement('iframe');
         iframe.className = className;
         iframe.title = title || appId || t('desktop.embed_frame_title');
-        iframe.src = src;
         iframe.dataset.appId = appId || '';
         iframe.dataset.widgetId = widgetId || '';
         iframe.dataset.windowId = windowId || '';
+        const sdkChannel = desktopSDKChannelFromURL(src);
+        if (sdkChannel) {
+            iframe.dataset.sdkChannel = sdkChannel;
+            iframe.addEventListener('load', () => beginSDKChannelHandshake(iframe));
+        }
         const sandboxFlags = ['allow-scripts', 'allow-forms', 'allow-modals'];
         if (options && options.allowSameOrigin) sandboxFlags.push('allow-same-origin');
         if (options && options.allowDownloads) sandboxFlags.push('allow-downloads');
@@ -1547,6 +1563,7 @@
         iframe.tabIndex = 0;
         iframe.addEventListener('pointerdown', () => focusDesktopFrame(iframe));
         if (!(options && options.disableAutoFocus)) iframe.addEventListener('load', () => focusDesktopFrame(iframe));
+        iframe.src = src;
         return iframe;
     }
 
@@ -1570,7 +1587,126 @@
         const query = new URLSearchParams(params || {});
         const suffix = query.toString();
         const ticketPath = body.token ? '/desktop-ticket/' + encodeURIComponent(body.token) : '';
-        return ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        const src = ticketPath + desktopFileURL(path) + (suffix ? '?' + suffix : '');
+        return /\.html?$/i.test(String(path || '')) ? addDesktopSDKChannelFragment(src) : src;
+    }
+
+    function newDesktopSDKChannel() {
+        if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') return '';
+        const bytes = new Uint8Array(32);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    function addDesktopSDKChannelFragment(src) {
+        const capability = newDesktopSDKChannel();
+        if (!capability) return src;
+        try {
+            const url = new URL(src, window.location.origin);
+            const originalHash = url.hash || '';
+            const params = new URLSearchParams();
+            params.set(SDK_CHANNEL_FRAGMENT_KEY, capability);
+            params.set(SDK_CHANNEL_ORIGINAL_HASH_KEY, originalHash);
+            url.hash = params.toString();
+            return url.pathname + url.search + url.hash;
+        } catch (_) {
+            return src;
+        }
+    }
+
+    function desktopSDKChannelFromURL(src) {
+        try {
+            const url = new URL(src, window.location.origin);
+            if (url.origin !== window.location.origin || !url.pathname.includes('/files/desktop/')) return '';
+            const params = new URLSearchParams(url.hash.slice(1));
+            const capability = params.get(SDK_CHANNEL_FRAGMENT_KEY) || '';
+            return /^[0-9a-f]{64}$/.test(capability) ? capability : '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function nextSDKChannelChallenge() {
+        sdkChallengeSequence = sdkChallengeSequence >= Number.MAX_SAFE_INTEGER ? 1 : sdkChallengeSequence + 1;
+        return sdkChallengeSequence;
+    }
+
+    function revokeSDKFrameClient(frame, remove = false) {
+        const client = sdkFrameClients.get(frame);
+        if (client) {
+            client.generation++;
+            client.challenge = 0;
+            const port = client.port;
+            client.port = null;
+            if (client.abortController) {
+                try { client.abortController.abort(); } catch (_) {}
+                client.abortController = null;
+            }
+            if (port) {
+                try { port.close(); } catch (_) {}
+            }
+            if (remove) sdkFrameClients.delete(frame);
+        }
+        if (frame) delete frame.dataset.sdkChallenge;
+    }
+
+    function sdkFrameClient(frame) {
+        let client = sdkFrameClients.get(frame);
+        if (client) return client;
+        client = {
+            frame,
+            app: null,
+            widget: null,
+            appId: frame.dataset.appId || '',
+            widgetId: frame.dataset.widgetId || '',
+            windowId: frame.dataset.windowId || '',
+            channel: frame.dataset.sdkChannel || '',
+            challenge: 0,
+            generation: 0,
+            port: null,
+            abortController: null,
+            fileVersions: new Map()
+        };
+        sdkFrameClients.set(frame, client);
+        return client;
+    }
+
+    function beginSDKChannelHandshake(frame) {
+        const channel = frame && frame.dataset.sdkChannel;
+        if (!channel || !/^[0-9a-f]{64}$/.test(channel) || !frame.contentWindow) return;
+        const client = sdkFrameClient(frame);
+        revokeSDKFrameClient(frame);
+        client.channel = channel;
+        client.generation++;
+        client.challenge = nextSDKChannelChallenge();
+        frame.dataset.sdkChallenge = String(client.challenge);
+        // This is a public, one-use sequence challenge. The capability and port
+        // travel from the verified child document, never to the WindowProxy.
+        frame.contentWindow.postMessage({ type: SDK_CHANNEL_CHALLENGE_TYPE, challenge: client.challenge }, '*');
+    }
+
+    function ensureSDKFrameLifecycleObserver() {
+        if (sdkFrameObserver || !document.body || typeof MutationObserver !== 'function') return;
+        sdkFrameObserver = new MutationObserver(() => {
+            for (const [frame] of sdkFrameClients) {
+                if (!frame.isConnected) revokeSDKFrameClient(frame, true);
+            }
+        });
+        sdkFrameObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    function findSDKFrame(source) {
+        if (!source) return null;
+        for (const frame of document.querySelectorAll('.vd-generated-frame, .vd-widget-frame')) {
+            if (frame.contentWindow === source) return frame;
+        }
+        return null;
+    }
+
+    function isCurrentSDKClient(client, port = client && client.port, generation = client && client.generation) {
+        return !!(client && port && client.frame && client.frame.isConnected &&
+            sdkFrameClients.get(client.frame) === client && client.port === port &&
+            client.generation === generation && client.challenge === 0);
     }
 
     async function ensureDesktopEmbedHasContent(src) {
@@ -1583,26 +1719,45 @@
     }
 
     function findSDKClient(source) {
-        const frames = document.querySelectorAll('.vd-generated-frame, .vd-widget-frame');
-        for (const frame of frames) {
-            if (frame.contentWindow !== source) continue;
-            const app = allApps().find(item => item.id === frame.dataset.appId);
-            const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
-            const widget = widgets.find(item => item.id === frame.dataset.widgetId);
-            return {
-                app,
-                widget,
-                appId: frame.dataset.appId || '',
-                widgetId: frame.dataset.widgetId || '',
-                windowId: frame.dataset.windowId || ''
-            };
-        }
-        return null;
+        const frame = findSDKFrame(source);
+        const client = frame && sdkFrameClients.get(frame);
+        return isCurrentSDKClient(client) ? client : null;
     }
 
-    function sendSDKResponse(source, id, ok, value) {
-        if (!source || !id) return;
-        source.postMessage(ok ? {
+    function handleSDKChannelHandshake(event) {
+        const message = event && event.data;
+        if (!message || message.type !== SDK_CHANNEL_HANDSHAKE_TYPE) return;
+        const frame = findSDKFrame(event.source);
+        const client = frame && sdkFrameClients.get(frame);
+        const challenge = client && client.challenge;
+        const port = event.ports && event.ports.length === 1 ? event.ports[0] : null;
+        if (!frame || !client || event.origin !== 'null' || !port ||
+            message.capability !== frame.dataset.sdkChannel ||
+            !challenge || message.challenge !== challenge ||
+            String(frame.dataset.sdkChallenge || '') !== String(challenge)) {
+            for (const rejectedPort of event.ports || []) {
+                try { rejectedPort.close(); } catch (_) {}
+            }
+            return;
+        }
+        client.app = allApps().find(item => item.id === frame.dataset.appId) || null;
+        const widgets = (state.bootstrap && state.bootstrap.widgets) || [];
+        client.widget = widgets.find(item => item.id === frame.dataset.widgetId) || null;
+        client.appId = frame.dataset.appId || '';
+        client.widgetId = frame.dataset.widgetId || '';
+        client.windowId = frame.dataset.windowId || '';
+        client.port = port;
+        client.abortController = new AbortController();
+        client.challenge = 0;
+        delete frame.dataset.sdkChallenge;
+        const generation = client.generation;
+        port.addEventListener('message', messageEvent => handleSDKMessage(client, messageEvent, port, generation));
+        port.start();
+    }
+
+    function sendSDKResponse(client, port, generation, id, ok, value) {
+        if (!id || !isCurrentSDKClient(client, port, generation)) return;
+        const response = ok ? {
             type: SDK_RESPONSE_TYPE,
             id,
             ok: true,
@@ -1611,26 +1766,26 @@
             type: SDK_RESPONSE_TYPE,
             id,
             ok: false,
-            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed'))
-        }, '*');
+            error: value && value.message ? value.message : String(value || t('desktop.embed_bridge_failed')),
+            status: Number(value && value.status) || 0
+        };
+        try { port.postMessage(response); } catch (_) {}
     }
 
     function postSDKMenuAction(windowId, actionId) {
         const frame = document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(windowId)}"]`);
-        if (!frame || !frame.contentWindow || !actionId) return;
-        frame.contentWindow.postMessage({
+        const client = frame && sdkFrameClients.get(frame);
+        if (!actionId || !isCurrentSDKClient(client)) return;
+        try { client.port.postMessage({
             type: 'aurago.desktop.menu-action',
             actionId: String(actionId)
-        }, '*');
+        }); } catch (_) {}
     }
 
     function postSDKContextMenuAction(client, actionId) {
-        const frame = client.windowId
-            ? document.querySelector(`.vd-generated-frame[data-window-id="${cssSel(client.windowId)}"]`)
-            : document.querySelector(`.vd-widget-frame[data-widget-id="${cssSel(client.widgetId)}"]`);
-        if (!frame || !frame.contentWindow || !actionId) return;
-        frame.contentWindow.postMessage({
+        if (!actionId || !isCurrentSDKClient(client)) return;
+        try { client.port.postMessage({
             type: 'aurago.desktop.context-menu-action',
             actionId: String(actionId)
-        }, '*');
+        }); } catch (_) {}
     }

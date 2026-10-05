@@ -27,6 +27,8 @@
             filteredFiles: null,
             selectedPaths: new Set(),
             clipboard: null,
+            dragSrcPath: null,
+            quickLookOverlay: null,
             viewMode: 'list',
             sortBy: 'name',
             sortAsc: true,
@@ -40,6 +42,11 @@
             dragOverPath: null,
             keyboardBound: false,
             activeKeyboardWindow: '',
+            navigationGeneration: 0,
+            disposed: false,
+            renameDraft: null,
+            undoStack: [],
+            redoStack: [],
             sidebarOpen: false,
             incrementalRenderToken: 0,
             tabs: null,
@@ -59,6 +66,21 @@
     function setActiveInstance(instance) {
         if (instance) fm = instance;
         return fm;
+    }
+
+    function withInstance(instance, callback) {
+        const previous = fm;
+        fm = instance;
+        try {
+            return callback();
+        } finally {
+            fm = previous;
+        }
+    }
+
+    function isLiveInstance(instance) {
+        return !!(instance && !instance.disposed && instance.host &&
+            instance.windowId && instances.get(instance.windowId) === instance);
     }
 
     function instanceForWindow(windowId) {
@@ -359,6 +381,8 @@
 
     async function navigate(path, addHistory = true) {
         if (!path && path !== '') path = '';
+        const instance = fm;
+        const generation = ++instance.navigationGeneration;
         fm.loading = true;
         fm.currentPath = path;
         fm.files = [];
@@ -366,6 +390,7 @@
         fm.selectedPaths.clear();
         fm.lastClickedPath = null;
         fm.renamePath = null;
+        fm.renameDraft = null;
         fm.searchQuery = '';
         if (addHistory) addToHistory(path);
         if (fm.callbacks && typeof fm.callbacks.onPathChange === 'function') {
@@ -374,14 +399,23 @@
         renderAll();
         try {
             const result = await api('/api/desktop/files?path=' + encodeURIComponent(path));
-            fm.files = Array.isArray(result.files) ? result.files : [];
+            if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
+            withInstance(instance, () => {
+                fm.files = Array.isArray(result.files) ? result.files : [];
+                fm.loading = false;
+                applyFilter();
+                renderAll();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + (err.message || String(err)) });
-            fm.files = [];
+            if (!isLiveInstance(instance) || instance.navigationGeneration !== generation) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'error', message: t('desktop.fm.error_load') + ': ' + (err.message || String(err)) });
+                fm.files = [];
+                fm.loading = false;
+                applyFilter();
+                renderAll();
+            });
         }
-        fm.loading = false;
-        applyFilter();
-        renderAll();
     }
 
     function applyFilter() {
@@ -417,6 +451,8 @@
 
     function renderAll() {
         if (!fm.host) return;
+        const renameInput = fm.renamePath && fm.host.querySelector('[data-rename-input]');
+        if (renameInput && renameInput.isConnected) fm.renameDraft = renameInput.value;
         if (typeof syncActiveTab === 'function') syncActiveTab();
         fm.incrementalRenderToken++;
         updateWindowMenus();
@@ -690,6 +726,7 @@
             searchQuery: '',
             lastClickedPath: null,
             renamePath: null,
+            renameDraft: null,
             dragOverPath: null,
             scrollPosition: 0
         };
@@ -724,6 +761,7 @@
                 fm.searchQuery = activeState.searchQuery;
                 fm.lastClickedPath = activeState.lastClickedPath;
                 fm.renamePath = activeState.renamePath;
+                fm.renameDraft = activeState.renameDraft;
             }
             fm.leftPane = null;
             fm.rightPane = null;
@@ -745,6 +783,7 @@
         pane.searchQuery = fm.searchQuery;
         pane.lastClickedPath = fm.lastClickedPath;
         pane.renamePath = fm.renamePath;
+        pane.renameDraft = fm.renameDraft;
 
         const main = fm.host ? fm.host.querySelector(`.fm-pane[data-pane="${fm.activePane}"] [data-fm-main]`) : null;
         pane.scrollPosition = main ? main.scrollTop : 0;
@@ -761,6 +800,7 @@
         fm.searchQuery = pane.searchQuery;
         fm.lastClickedPath = pane.lastClickedPath;
         fm.renamePath = pane.renamePath;
+        fm.renameDraft = pane.renameDraft;
 
         const searchInput = fm.host ? fm.host.querySelector('.fm-search-input') : null;
         if (searchInput) searchInput.value = pane.searchQuery || '';
@@ -1001,20 +1041,23 @@
 
     function scheduleIncrementalFileRender(root) {
         if (!root) return;
+        const instance = fm;
         const files = getDisplayFiles();
         if (files.length <= FILE_INCREMENTAL_THRESHOLD) return;
         const target = root.querySelector('[data-fm-incremental]');
         if (!target) return;
-        const token = ++fm.incrementalRenderToken;
+        const token = ++instance.incrementalRenderToken;
         let index = FILE_RENDER_BATCH_SIZE;
         const schedule = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
         function pump() {
-            if (token !== fm.incrementalRenderToken || !fm.host || !target.isConnected) return;
+            if (!isLiveInstance(instance) || token !== instance.incrementalRenderToken || instance.host !== root.parentElement || !target.isConnected) return;
             const chunk = files.slice(index, index + FILE_RENDER_BATCH_SIZE);
             if (chunk.length) {
-                const html = chunk.map(file => fm.viewMode === 'grid' ? renderGridItem(file) : renderListRow(file)).join('');
-                target.insertAdjacentHTML('beforeend', html);
-                attachFileItemEvents(root);
+                withInstance(instance, () => {
+                    const html = chunk.map(file => fm.viewMode === 'grid' ? renderGridItem(file) : renderListRow(file)).join('');
+                    target.insertAdjacentHTML('beforeend', html);
+                    attachFileItemEvents(root);
+                });
             }
             index += chunk.length;
             if (index < files.length) schedule(pump);
@@ -1030,7 +1073,7 @@
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const preview = !isDir && isPreviewableImage(file);
         const nameContent = fm.renamePath === file.path
-            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename'))}">`
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(fm.renameDraft == null ? file.name : fm.renameDraft)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-grid-item${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0" title="${esc(file.name)}">
             <div class="fm-grid-icon${preview ? ' has-preview' : ''}">${thumbnailMarkup(file, iconKey, isDir ? '\u25A0' : '\u25A1', 'grid')}</div>
@@ -1335,7 +1378,7 @@
         const cut = (fm.clipboard && fm.clipboard.mode === 'cut' && fm.clipboard.paths.includes(file.path)) ? ' cut-item' : '';
         const typeLabel = isDir ? t('desktop.fm.prop_folder') : (String(file.name || '').split('.').pop().toUpperCase() || t('desktop.fm.prop_file'));
         const nameContent = fm.renamePath === file.path
-            ? `<input class="fm-rename-input" data-rename-input value="${esc(file.name)}" aria-label="${esc(t('desktop.fm.rename'))}">`
+            ? `<input class="fm-rename-input" data-rename-input value="${esc(fm.renameDraft == null ? file.name : fm.renameDraft)}" aria-label="${esc(t('desktop.fm.rename'))}">`
             : esc(file.name);
         return `<div class="fm-list-row${selected}${cut}" data-path="${esc(file.path)}" data-type="${esc(file.type)}" role="button" tabindex="0">
             <div class="fm-list-cell fm-col-name">
@@ -1383,6 +1426,7 @@
 
     function attachEvents() {
         if (!fm.host) return;
+        const instance = fm;
         const root = fm.host.querySelector('.file-manager');
         if (!root) return;
 
@@ -1493,21 +1537,26 @@
         }
 
         attachFileItemEvents(root);
-        const renameInput = fm.host.querySelector('[data-rename-input]');
+        const renameInput = instance.host.querySelector('[data-rename-input]');
         if (renameInput) {
             renameInput.addEventListener('click', event => event.stopPropagation());
+            renameInput.addEventListener('input', () => withInstance(instance, () => { instance.renameDraft = renameInput.value; }));
             renameInput.addEventListener('keydown', event => {
-                event.stopPropagation();
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    finishRename(renameInput);
-                }
-                if (event.key === 'Escape') {
-                    event.preventDefault();
-                    cancelRename();
-                }
+                withInstance(instance, () => {
+                    event.stopPropagation();
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        finishRename(renameInput);
+                    }
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        cancelRename();
+                    }
+                });
             });
-            renameInput.addEventListener('blur', () => finishRename(renameInput));
+            renameInput.addEventListener('blur', () => {
+                if (renameInput.isConnected) withInstance(instance, () => finishRename(renameInput));
+            });
         }
         attachMainAreaEvents(root, true);
 
@@ -1985,23 +2034,21 @@
         };
     }
 
-    const undoStack = [];
-    const redoStack = [];
-
     function pushToUndo(action) {
-        undoStack.push(action);
-        if (undoStack.length > 20) {
-            undoStack.shift();
+        fm.undoStack.push(action);
+        if (fm.undoStack.length > 20) {
+            fm.undoStack.shift();
         }
-        redoStack.length = 0;
+        fm.redoStack.length = 0;
     }
 
     async function undo() {
-        if (!undoStack.length) {
+        const instance = fm;
+        if (!instance.undoStack.length) {
             showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo') });
             return;
         }
-        const action = undoStack.pop();
+        const action = instance.undoStack.pop();
         try {
             let progress = null;
             if (action.items.length > 1) {
@@ -2015,23 +2062,26 @@
                     method: 'PATCH',
                     body: JSON.stringify({ old_path: item.newPath, new_path: item.oldPath })
                 });
+                if (!isLiveInstance(instance)) return;
             }
             if (progress) progress.close();
-
-            redoStack.push(action);
-            showNotification({ type: 'success', message: t('desktop.fm.undone') });
-            refresh();
+            withInstance(instance, () => {
+                instance.redoStack.push(action);
+                showNotification({ type: 'success', message: t('desktop.fm.undone') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.undo_error', { error: err.message || String(err) }) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.undo_error', { error: err.message || String(err) }) }));
         }
     }
 
     async function redo() {
-        if (!redoStack.length) {
+        const instance = fm;
+        if (!instance.redoStack.length) {
             showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo') });
             return;
         }
-        const action = redoStack.pop();
+        const action = instance.redoStack.pop();
         try {
             let progress = null;
             if (action.items.length > 1) {
@@ -2045,23 +2095,24 @@
                     method: 'PATCH',
                     body: JSON.stringify({ old_path: item.oldPath, new_path: item.newPath })
                 });
+                if (!isLiveInstance(instance)) return;
             }
             if (progress) progress.close();
 
-            undoStack.push(action);
-            showNotification({ type: 'success', message: t('desktop.fm.redone') });
-            refresh();
+            withInstance(instance, () => {
+                instance.undoStack.push(action);
+                showNotification({ type: 'success', message: t('desktop.fm.redone') });
+                refresh();
+            });
         } catch (err) {
-            showNotification({ type: 'error', message: t('desktop.fm.redo_error', { error: err.message || String(err) }) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.redo_error', { error: err.message || String(err) }) }));
         }
     }
 
-    let quickLookOverlay = null;
-
     function toggleQuickLook() {
-        if (quickLookOverlay) {
-            quickLookOverlay.remove();
-            quickLookOverlay = null;
+        if (fm.quickLookOverlay) {
+            fm.quickLookOverlay.remove();
+            fm.quickLookOverlay = null;
             return;
         }
 
@@ -2117,16 +2168,17 @@
         `;
 
         document.body.appendChild(overlay);
-        quickLookOverlay = overlay;
+        const instance = fm;
+        instance.quickLookOverlay = overlay;
 
         overlay.querySelector('[data-close-ql]').addEventListener('click', () => {
             overlay.remove();
-            quickLookOverlay = null;
+            instance.quickLookOverlay = null;
         });
         overlay.addEventListener('click', e => {
             if (e.target === overlay) {
                 overlay.remove();
-                quickLookOverlay = null;
+                instance.quickLookOverlay = null;
             }
         });
 
@@ -2135,9 +2187,11 @@
                 const res = await fetch('/api/desktop/file-content?path=' + encodeURIComponent(path));
                 if (!res.ok) throw new Error();
                 const text = await res.text();
+                if (!isLiveInstance(instance)) return;
                 const el = overlay.querySelector('.fm-quick-look-text');
                 if (el) el.textContent = text;
             } catch (err) {
+                if (!isLiveInstance(instance)) return;
                 const el = overlay.querySelector('.fm-quick-look-text');
                 if (el) el.textContent = t('desktop.fm.quick_look_error');
             }
@@ -2279,42 +2333,47 @@
 /* ui/js/desktop/file-manager/actions-operations.js */
     // File operations
     async function createNewFile() {
+        const instance = fm;
+        const directory = instance.currentPath;
         if (isReadonly()) return;
         let res = null;
         if (typeof createNewFileWithTemplate === 'function') {
             res = await createNewFileWithTemplate();
         } else {
             const name = await promptDialog(t('desktop.fm.new_file_prompt'), t('desktop.new_file_default'));
+            if (!isLiveInstance(instance)) return;
             if (name) res = { name, content: '' };
         }
-        if (!res) return;
-        const path = joinPath(fm.currentPath, res.name);
+        if (!res || !isLiveInstance(instance)) return;
+        const path = joinPath(directory, res.name);
         try {
             await api('/api/desktop/file', {
                 method: 'PUT',
                 body: JSON.stringify({ path, content: res.content })
             });
-            refresh();
-            showNotification({ type: 'success', message: res.name });
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => { refresh(); showNotification({ type: 'success', message: res.name }); });
         } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
         }
     }
 
     async function createNewFolder() {
+        const instance = fm;
+        const directory = instance.currentPath;
         if (isReadonly()) return;
         const name = await promptDialog(t('desktop.fm.new_folder_prompt'), t('desktop.fm.new_folder'));
-        if (!name) return;
-        const path = joinPath(fm.currentPath, name);
+        if (!name || !isLiveInstance(instance)) return;
+        const path = joinPath(directory, name);
         try {
             await api('/api/desktop/directory', {
                 method: 'POST',
                 body: JSON.stringify({ path })
             });
-            refresh();
-            showNotification({ type: 'success', message: name });
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => { refresh(); showNotification({ type: 'success', message: name }); });
         } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
         }
     }
 
@@ -2323,6 +2382,7 @@
         const file = fm.files.find(f => f.path === path);
         if (!file) return;
         fm.renamePath = path;
+        fm.renameDraft = file.name;
         renderAll();
         const input = fm.host.querySelector('[data-rename-input]');
         if (input) {
@@ -2332,10 +2392,11 @@
     }
 
     function finishRename(input) {
-        if (!input || !fm.renamePath) return;
+        if (!input || !input.isConnected || !fm.renamePath) return;
         const nextName = String(input.value || '').trim();
         const path = fm.renamePath;
         fm.renamePath = '';
+        fm.renameDraft = null;
         if (!nextName) {
             renderAll();
             return;
@@ -2345,12 +2406,14 @@
 
     function cancelRename() {
         fm.renamePath = '';
+        fm.renameDraft = null;
         renderAll();
     }
 
     async function renamePath(path, newName) {
+        const instance = fm;
         if (isReadonly()) return;
-        const file = fm.files.find(f => f.path === path);
+        const file = instance.files.find(f => f.path === path);
         if (!file || newName === file.name || !newName.trim()) {
             renderAll();
             return;
@@ -2362,29 +2425,37 @@
                 method: 'PATCH',
                 body: JSON.stringify({ old_path: path, new_path: nextPath })
             });
-            pushToUndo({
-                type: 'rename',
-                items: [{ oldPath: path, newPath: renamed.path || nextPath }]
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                pushToUndo({
+                    type: 'rename',
+                    items: [{ oldPath: path, newPath: renamed.path || nextPath }]
+                });
+                refresh();
             });
-            refresh();
         } catch (err) {
-            showNotification({ type: 'error', message: (err.message || String(err)) });
-            renderAll();
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                showNotification({ type: 'error', message: (err.message || String(err)) });
+                renderAll();
+            });
         }
     }
 
     async function restoreSelected() {
+        const instance = fm;
         if (isReadonly()) return;
         const selected = getSelectedFiles().filter(file => isTrashItemPath(file && file.path));
         if (!selected.length) return;
-        if (fm.callbacks && typeof fm.callbacks.restoreFromTrash === 'function') {
-            await fm.callbacks.restoreFromTrash(selected.map(file => file.path));
-            clearSelection();
-            refresh();
+        const restoreFromTrash = instance.callbacks && instance.callbacks.restoreFromTrash;
+        if (typeof restoreFromTrash === 'function') {
+            await restoreFromTrash(selected.map(file => file.path));
+            if (isLiveInstance(instance)) withInstance(instance, () => { clearSelection(); refresh(); });
         }
     }
 
     async function deleteSelected() {
+        const instance = fm;
         if (isReadonly()) return;
         const selected = getSelectedFiles();
         if (!selected.length) return;
@@ -2394,16 +2465,15 @@
         } else {
             confirmed = await confirmDialog(t('desktop.fm.confirm_delete', { count: selected.length }), '');
         }
-        if (!confirmed) return;
+        if (!confirmed || !isLiveInstance(instance)) return;
         for (const file of selected) {
             try {
                 await api('/api/desktop/file?path=' + encodeURIComponent(file.path), { method: 'DELETE' });
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
-        clearSelection();
-        refresh();
+        if (isLiveInstance(instance)) withInstance(instance, () => { clearSelection(); refresh(); });
     }
 
     async function downloadFile(file) {
@@ -2430,18 +2500,21 @@
     }
 
     async function uploadFiles() {
+        const instance = fm;
+        const directory = instance.currentPath;
         if (isReadonly()) return;
-        if (fm.callbacks && typeof fm.callbacks.importFilesFromHost === 'function') {
-            const result = await fm.callbacks.importFilesFromHost({ path: fm.currentPath, multiple: true });
-            if (result && !result.canceled) refresh();
+        const importFilesFromHost = instance.callbacks && instance.callbacks.importFilesFromHost;
+        if (typeof importFilesFromHost === 'function') {
+            const result = await importFilesFromHost({ path: directory, multiple: true });
+            if (result && !result.canceled && isLiveInstance(instance)) withInstance(instance, () => refresh());
             return;
         }
         const input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;
         input.addEventListener('change', async () => {
-            if (!input.files || !input.files.length) return;
-            await uploadFileList(input.files);
+            if (!input.files || !input.files.length || !isLiveInstance(instance)) return;
+            await uploadFileList(input.files, instance, directory);
         }, { once: true });
         input.click();
     }
@@ -2478,7 +2551,8 @@
         });
     }
 
-    async function uploadFileList(files) {
+    async function uploadFileList(files, instance = fm, directory = instance.currentPath) {
+        const targetPath = directory;
         if (isReadonly()) return;
         const totalFiles = files.length;
         let completedFiles = 0;
@@ -2501,33 +2575,37 @@
 
         const limit = maxFileSize();
         for (const file of Array.from(files)) {
+            if (!isLiveInstance(instance)) break;
             completedFiles++;
             if (limit > 0 && file.size > limit) {
-                showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', { name: file.name }) });
+                withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.upload_too_large', { name: file.name }) }));
                 continue;
             }
             fileEl.textContent = `${esc(file.name)} (${completedFiles}/${totalFiles})`;
             try {
-                await uploadWithXHR(file, fm.currentPath, (pct) => {
+                await uploadWithXHR(file, targetPath, (pct) => {
+                    if (!isLiveInstance(instance)) return;
                     barFill.style.width = pct + '%';
                     percentEl.textContent = pct + '%';
                 });
             } catch (err) {
-                showNotification({ type: 'error', message: file.name + ': ' + (err.message || String(err)) });
+                if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: file.name + ': ' + (err.message || String(err)) }));
             }
         }
         overlay.remove();
-        refresh();
+        if (isLiveInstance(instance)) withInstance(instance, () => refresh());
     }
 
     // Properties dialog
     async function showProperties(file) {
+        const instance = fm;
         if (!file) return;
         const isDir = file.type === 'directory';
         let itemCount = '';
         if (isDir) {
             try {
                 const result = await api('/api/desktop/files?path=' + encodeURIComponent(file.path));
+                if (!isLiveInstance(instance)) return;
                 const count = Array.isArray(result.files) ? result.files.length : 0;
                 itemCount = `<div class="fm-prop-row"><span class="fm-prop-label">${esc(t('desktop.fm.prop_items'))}</span><span class="fm-prop-value">${esc(count)}</span></div>`;
             } catch (_) {}
@@ -2562,7 +2640,6 @@
     }
 
     // Drag and drop
-    let dragSrcPath = null;
 
     function fileManagerDragPayload(path) {
         const paths = fm.selectedPaths.has(path) ? Array.from(fm.selectedPaths) : [path];
@@ -2583,15 +2660,18 @@
     }
 
     async function moveDroppedDesktopFilesToFolder(paths, destPath) {
+        const instance = fm;
+        const targetPath = destPath;
+        const sourcePaths = Array.from(new Set((paths || []).filter(Boolean)));
         if (isReadonly()) return;
-        if (String(destPath).toLowerCase() === 'trash') {
-            if (fm.callbacks && fm.callbacks.moveToTrash) await fm.callbacks.moveToTrash(paths);
-            clearSelection();
-            refresh();
+        if (String(targetPath).toLowerCase() === 'trash') {
+            const moveToTrash = instance.callbacks && instance.callbacks.moveToTrash;
+            if (moveToTrash) await moveToTrash(sourcePaths);
+            if (isLiveInstance(instance)) withInstance(instance, () => { clearSelection(); refresh(); });
             return;
         }
         if (isReadonly()) return;
-        const cleanPaths = Array.from(new Set((paths || []).filter(Boolean)));
+        const cleanPaths = sourcePaths;
         if (!cleanPaths.length) return;
 
         let progress = null;
@@ -2618,9 +2698,11 @@
                     method: 'PATCH',
                     body: JSON.stringify({ old_path: src, new_path: newPath })
                 });
+                if (!isLiveInstance(instance)) { if (progress) progress.close(); return; }
                 undoItems.push({ oldPath: src, newPath: moved.path || newPath });
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (!isLiveInstance(instance)) { if (progress) progress.close(); return; }
+                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
 
@@ -2628,22 +2710,20 @@
             progress.close();
         }
 
-        if (undoItems.length > 0) {
-            pushToUndo({
-                type: 'move',
-                items: undoItems
-            });
-        }
-
-        if (fm.callbacks && typeof fm.callbacks.refreshDesktop === 'function') await fm.callbacks.refreshDesktop();
-        clearSelection();
-        dragSrcPath = null;
-        refresh();
+        if (!isLiveInstance(instance)) return;
+        withInstance(instance, () => {
+            if (undoItems.length > 0) pushToUndo({ type: 'move', items: undoItems });
+            clearSelection();
+            fm.dragSrcPath = null;
+        });
+        const refreshDesktop = instance.callbacks && instance.callbacks.refreshDesktop;
+        if (typeof refreshDesktop === 'function') await refreshDesktop();
+        if (isLiveInstance(instance)) withInstance(instance, () => refresh());
     }
 
     function handleDragStart(e) {
         const path = e.currentTarget.dataset.path;
-        dragSrcPath = path;
+        fm.dragSrcPath = path;
         if (!fm.selectedPaths.has(path)) {
             clearSelection();
             addSelection(path);
@@ -2683,11 +2763,12 @@
     }
 
     function handleDrop(e) {
+        const instance = fm;
         e.preventDefault();
         e.stopPropagation();
         hideDropOverlay();
         const payload = fileManagerDragPayloadFromEvent(e);
-        if (payload) moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);
+        if (payload) moveDroppedDesktopFilesToFolder(payload.paths, instance.currentPath);
     }
 
     function handleExternalDrop(e) {
@@ -2705,7 +2786,7 @@
         const target = e.currentTarget;
         const type = target.dataset.type;
         const payload = fileManagerDragPayloadFromEvent(e);
-        if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
+        if (type === 'directory' && target.dataset.path !== fm.dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
             target.classList.add('drag-over');
         }
     }
@@ -2723,7 +2804,7 @@
             e.dataTransfer.dropEffect = 'move';
             return;
         }
-        if (type === 'directory' && target.dataset.path !== dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
+        if (type === 'directory' && target.dataset.path !== fm.dragSrcPath && (!payload || !payload.paths.includes(target.dataset.path))) {
             e.dataTransfer.dropEffect = 'move';
         } else {
             e.dataTransfer.dropEffect = 'none';
@@ -2731,6 +2812,7 @@
     }
 
     async function handleItemDrop(e) {
+        const instance = fm;
         e.preventDefault();
         e.stopPropagation();
         if (isReadonly()) return;
@@ -2740,20 +2822,20 @@
         const destType = target.dataset.type;
         const payload = fileManagerDragPayloadFromEvent(e);
         if (destType !== 'directory') {
-            if (payload) await moveDroppedDesktopFilesToFolder(payload.paths, fm.currentPath);
+            if (payload) await moveDroppedDesktopFilesToFolder(payload.paths, instance.currentPath);
             return;
         }
         if (payload) {
             await moveDroppedDesktopFilesToFolder(payload.paths, destPath);
-            dragSrcPath = null;
+            instance.dragSrcPath = null;
             return;
         }
-        if (!dragSrcPath || dragSrcPath === destPath) return;
-        const srcFile = fm.files.find(f => f.path === dragSrcPath);
+        if (!instance.dragSrcPath || instance.dragSrcPath === destPath) return;
+        const srcFile = instance.files.find(f => f.path === instance.dragSrcPath);
         if (!srcFile) return;
-        const pathsToMove = fm.selectedPaths.has(dragSrcPath) ? Array.from(fm.selectedPaths) : [dragSrcPath];
+        const pathsToMove = instance.selectedPaths.has(instance.dragSrcPath) ? Array.from(instance.selectedPaths) : [instance.dragSrcPath];
         await moveDroppedDesktopFilesToFolder(pathsToMove, destPath);
-        dragSrcPath = null;
+        instance.dragSrcPath = null;
     }
 
     function handleBreadcrumbDragOver(e) {
@@ -2781,6 +2863,7 @@
     }
 
     async function handleBreadcrumbDrop(e) {
+        const instance = fm;
         e.preventDefault();
         e.stopPropagation();
         if (isReadonly()) return;
@@ -2792,14 +2875,14 @@
         const payload = fileManagerDragPayloadFromEvent(e);
         if (payload) {
             await moveDroppedDesktopFilesToFolder(payload.paths, destPath);
-            dragSrcPath = null;
+            instance.dragSrcPath = null;
             return;
         }
-        if (!dragSrcPath || dragSrcPath === destPath) return;
+        if (!instance.dragSrcPath || instance.dragSrcPath === destPath) return;
 
-        const pathsToMove = fm.selectedPaths.has(dragSrcPath) ? Array.from(fm.selectedPaths) : [dragSrcPath];
+        const pathsToMove = instance.selectedPaths.has(instance.dragSrcPath) ? Array.from(instance.selectedPaths) : [instance.dragSrcPath];
         await moveDroppedDesktopFilesToFolder(pathsToMove, destPath);
-        dragSrcPath = null;
+        instance.dragSrcPath = null;
     }
 
     function buildOpenWithSubmenu(file) {
@@ -2854,8 +2937,9 @@
     }
 
     async function duplicateSelected() {
+        const instance = fm;
         if (isReadonly()) return;
-        const selected = getSelectedFiles();
+        const selected = getSelectedFiles().map(file => Object.assign({}, file));
         if (!selected.length) return;
         for (const file of selected) {
             const parent = parentPath(file.path);
@@ -2872,7 +2956,7 @@
             let newName = base + copySuffix + ext;
             let destPath = joinPath(parent, newName);
             let index = 2;
-            while (fm.files.some(f => f.path === destPath)) {
+            while (instance.files.some(f => f.path === destPath)) {
                 newName = base + copySuffix + ` (${index})` + ext;
                 destPath = joinPath(parent, newName);
                 index++;
@@ -2882,11 +2966,12 @@
                     method: 'POST',
                     body: JSON.stringify({ source_path: file.path, dest_path: destPath })
                 });
+                if (!isLiveInstance(instance)) return;
             } catch (err) {
-                showNotification({ type: 'error', message: (err.message || String(err)) });
+                if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
-        refresh();
+        if (isLiveInstance(instance)) withInstance(instance, () => refresh());
     }
 
     async function copyPathToClipboard(path) {
@@ -2917,12 +3002,14 @@
     }
 
     async function createSymlink(file) {
+        const instance = fm;
+        const directory = instance.currentPath;
         if (isReadonly()) return;
         const defaultName = file.name + '_symlink';
         const linkName = await promptDialog(t('desktop.fm.create_symlink_prompt'), defaultName);
-        if (!linkName) return;
+        if (!linkName || !isLiveInstance(instance)) return;
 
-        const linkPath = joinPath(fm.currentPath, linkName);
+        const linkPath = joinPath(directory, linkName);
 
         try {
             await api('/api/desktop/symlink', {
@@ -2932,24 +3019,25 @@
                     link_path: linkPath
                 })
             });
-            showNotification({ type: 'success', message: t('desktop.fm.symlink_created') });
-            refresh();
+            if (isLiveInstance(instance)) withInstance(instance, () => { showNotification({ type: 'success', message: t('desktop.fm.symlink_created') }); refresh(); });
         } catch (err) {
-            showNotification({ type: 'error', message: err.message || String(err) });
+            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: err.message || String(err) }));
         }
     }
 
     async function calculateFolderSize(path) {
-        const span = fm.host ? fm.host.querySelector(`[data-preview-folder-size="${path.replace(/"/g, '\\"')}"]`) : null;
+        const instance = fm;
+        const span = instance.host ? instance.host.querySelector(`[data-preview-folder-size="${path.replace(/"/g, '\\"')}"]`) : null;
         if (!span) return;
 
         span.innerHTML = `<span style="color:var(--vd-muted);font-style:italic">${esc(t('desktop.fm.calculating'))}</span>`;
         try {
             const res = await api('/api/desktop/folder-size?path=' + encodeURIComponent(path));
+            if (!isLiveInstance(instance) || !span.isConnected) return;
             if (res && res.status === 'ok') {
-                span.textContent = fmtBytes(res.size || 0);
+                withInstance(instance, () => { span.textContent = fmtBytes(res.size || 0); });
 
-                const file = fm.files.find(f => f.path === path);
+                const file = instance.files.find(f => f.path === path);
                 if (file) {
                     file.size = res.size;
                 }
@@ -2957,7 +3045,7 @@
                 throw new Error();
             }
         } catch (err) {
-            span.innerHTML = `<span style="color:red">${esc(t('desktop.fm.error'))}</span>`;
+            if (isLiveInstance(instance) && span.isConnected) span.innerHTML = `<span style="color:red">${esc(t('desktop.fm.error'))}</span>`;
         }
     }
 
@@ -2968,8 +3056,16 @@
         document.addEventListener('keydown', handleGlobalKeyDown);
     }
 
-    function activateKeyboardWindow() {
-        fm.activeKeyboardWindow = fm.windowId;
+    function activateKeyboardWindow(event) {
+        const root = event && event.currentTarget;
+        if (!root) return;
+        for (const instance of instances.values()) {
+            if (instance.host && instance.host.contains(root) && !instance.disposed) {
+                setActiveInstance(instance);
+                instance.activeKeyboardWindow = instance.windowId;
+                return;
+            }
+        }
     }
 
     function handleGlobalKeyDown(e) {
@@ -4023,6 +4119,8 @@
     function dispose(windowId) {
         const instance = instanceForWindow(windowId);
         if (!instance) return;
+        instance.disposed = true;
+        instance.navigationGeneration++;
         if (instance.callbacks && typeof instance.callbacks.clearWindowMenus === 'function') {
             instance.callbacks.clearWindowMenus(windowId);
         }

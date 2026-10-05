@@ -122,7 +122,7 @@
 
     async function fileDialogList(path, options) {
         const endpoint = options.filesEndpoint || '/api/desktop/files';
-        const body = await api(endpoint + '?path=' + encodeURIComponent(normalizeFileDialogPath(path)));
+        const body = await api(endpoint + '?path=' + encodeURIComponent(normalizeFileDialogPath(path)), options.signal ? { signal: options.signal } : undefined);
         return fileDialogSortEntries(Array.isArray(body.files) ? body.files : []);
     }
 
@@ -395,9 +395,13 @@
                     setStatus(fileDialogText('desktop.loading', 'Loading...'));
                     try { const saved = await api(options.fileEndpoint || '/api/desktop/file', {
                         method: 'PUT',
+                        signal: options.signal,
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ path, content: options.content })
-                    }); path = saved.path || path; } finally {
+                    });
+                        if (options.signal && options.signal.aborted) return;
+                        path = saved.path || path;
+                    } finally {
                         saving = false;
                         confirmButton.disabled = false;
                         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => { btn.disabled = false; });
@@ -425,6 +429,7 @@
             if (settled) return;
             settled = true;
             document.removeEventListener('keydown', onKeydown);
+            if (options.signal) options.signal.removeEventListener('abort', onAbort);
             overlay.remove();
             resolveDialog(result);
         }
@@ -432,8 +437,13 @@
         let resolveDialog;
         const promise = new Promise(resolve => { resolveDialog = resolve; });
         const cancel = () => { if (!saving) finish({ canceled: true }); };
+        const onAbort = () => finish({ canceled: true });
         const onKeydown = event => { if (event.key === 'Escape') cancel(); };
         document.addEventListener('keydown', onKeydown);
+        if (options.signal) {
+            if (options.signal.aborted) onAbort();
+            else options.signal.addEventListener('abort', onAbort, { once: true });
+        }
         overlay.querySelectorAll('[data-file-dialog-cancel]').forEach(btn => btn.addEventListener('click', cancel));
         overlay.addEventListener('click', event => { if (event.target === overlay) cancel(); });
         form.addEventListener('submit', event => {
@@ -483,9 +493,11 @@
                 if (settled) return;
                 settled = true;
                 window.removeEventListener('focus', onFocus);
+                if (options.signal) options.signal.removeEventListener('abort', onAbort);
                 input.remove();
                 resolve(result);
             };
+            const onAbort = () => finish({ canceled: true });
             const onFocus = () => {
                 window.setTimeout(() => {
                     if (!settled && (!input.files || !input.files.length)) finish({ canceled: true });
@@ -500,13 +512,16 @@
                 try {
                     const uploaded = [];
                     for (const file of files) {
+                        if (options.signal && options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
                         const form = new FormData();
                         form.append('path', normalizeFileDialogPath(options.path || options.initialPath || state.filesPath || 'Documents'));
                         form.append('file', file);
-                        const saved = await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form });
+                        const saved = await api(options.uploadURL || options.uploadEndpoint || '/api/desktop/upload', { method: 'POST', body: form, signal: options.signal });
+                        if (options.signal && options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
                         const path = saved.path || fileDialogJoinPath(options.path || options.initialPath || state.filesPath || 'Documents', file.name);
                         uploaded.push({ name: fileDialogBaseName(path), path, version: saved.version, size: file.size, type: file.type });
                     }
+                    if (options.signal && options.signal.aborted) return finish({ canceled: true });
                     if (typeof loadBootstrap === 'function') loadBootstrap().catch(() => {});
                     finish({ canceled: false, files: uploaded, paths: uploaded.map(item => item.path) });
                 } catch (err) {
@@ -515,6 +530,10 @@
                 }
             }, { once: true });
             window.addEventListener('focus', onFocus);
+            if (options.signal) {
+                if (options.signal.aborted) onAbort();
+                else options.signal.addEventListener('abort', onAbort, { once: true });
+            }
             input.click();
         });
     }

@@ -2,6 +2,17 @@
     'use strict';
     const instances = new Map(), DIR = 'Documents/Notes', META = DIR + '/notes.meta.json';
     const basename = path => String(path || '').split('/').pop();
+    function resolveNoteLinkPath(href, from) {
+        if (!href || /^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('/') || href.startsWith('#')) return null;
+        if (from?.startsWith('Trash/Notes/')) from = DIR + '/' + from.split('/').slice(3).join('/');
+        if (!from) return null;
+        const parts = from.split('/').slice(0, -1);
+        let decoded;
+        try { decoded = decodeURIComponent(href.split(/[?#]/)[0]).replace(/\\/g, '/'); } catch (_) { return null; }
+        for (const part of decoded.split('/')) { if (part === '..') parts.pop(); else if (part && part !== '.') parts.push(part); }
+        const path = parts.join('/');
+        return path.startsWith(DIR + '/') ? path : null;
+    }
     const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     async function request(url, options = {}) {
         const response = await fetch(url, {credentials:'same-origin',cache:'no-store',...options});
@@ -201,13 +212,7 @@
             }finally{busy=false;syncChrome();}
         }
         function resolvePath(href,from=current?.path){
-            if(!href||/^[a-z][a-z\d+.-]*:/i.test(href)||href.startsWith('/')||href.startsWith('#'))return null;
-            if(from?.startsWith('Trash/Notes/'))from=DIR+'/'+from.split('/').slice(3).join('/');
-            if(!from)return null;
-            const parts=from.split('/').slice(0,-1);
-            let decoded;try{decoded=decodeURIComponent(href.split(/[?#]/)[0]);}catch(_){return null;}
-            for(const part of decoded.split('/')){if(part==='..')parts.pop();else if(part&&part!=='.')parts.push(part);}
-            const path=parts.join('/');return path.startsWith(DIR+'/')?path:null;
+            return resolveNoteLinkPath(href, from);
         }
         function resolveURL(href,from=current?.path){
             if(!from)return '';
@@ -393,5 +398,5 @@
         return instance;
     }
     function dispose(id){instances.get(id)?.dispose();}
-    window.NotesApp={render,dispose,instances};
+    window.NotesApp={render,dispose,instances,resolveLinkPath:resolveNoteLinkPath};
 })();

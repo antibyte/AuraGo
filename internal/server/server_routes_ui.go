@@ -352,9 +352,11 @@ func serveDesktopWidgetAutoResizeHTML(w http.ResponseWriter, r *http.Request, de
 		return true
 	}
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, desktopTicketFromRequest(r))
+	content = injectDesktopSDKChannelHTML(injectDesktopWidgetAutoResizeHTML(content))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Security-Policy", desktopWidgetWorkspaceCSP)
-	http.ServeContent(w, r, filepath.Base(relPath), info.ModTime(), bytes.NewReader(injectDesktopWidgetAutoResizeHTML(content)))
+	http.ServeContent(w, r, filepath.Base(relPath), info.ModTime(), bytes.NewReader(content))
 	return true
 }
 
@@ -447,7 +449,9 @@ func shouldServeDesktopFileInline(requestPath string) bool {
 
 func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopDir string, cfg *config.Config) bool {
 	relPath, err := normalizeDesktopEmbedPath(strings.TrimPrefix(r.URL.Path, "/files/desktop/"))
-	if err != nil || !strings.EqualFold(filepath.Base(relPath), "index.html") {
+	ext := strings.ToLower(filepath.Ext(relPath))
+	appHTML := (strings.HasPrefix(relPath, "Apps/") || strings.HasPrefix(relPath, "Widgets/")) && (ext == ".html" || ext == ".htm")
+	if err != nil || (!strings.EqualFold(filepath.Base(relPath), "index.html") && !appHTML) {
 		return false
 	}
 	content, info, err := readRootedDesktopContent(desktopDir, relPath)
@@ -458,10 +462,12 @@ func serveDesktopExactIndexFile(w http.ResponseWriter, r *http.Request, desktopD
 	content = inlineDesktopAppSiblingScripts(content, desktopDir, relPath)
 	embedToken := desktopTicketFromRequest(r)
 	content = prepareDesktopHTMLContentForEmbed(content, cfg, embedToken)
+	content = injectDesktopSDKChannelHTML(content)
 	content = rewriteDesktopAppResourceURLs(content, info.ModTime(), embedToken)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
 	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Security-Policy", desktopAppWorkspaceCSPForRequest(r))
 	http.ServeContent(w, r, filepath.Base(relPath), info.ModTime(), bytes.NewReader(injectDesktopAppKeyBridgeHTML(content)))
 	return true

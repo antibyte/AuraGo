@@ -45,8 +45,9 @@ func TestDesktopStoreAppFramesAllowInteractiveWebAppBrowserFeatures(t *testing.T
 
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, want := range []string{
-		`const frameURL = cacheBustURL(storeFrameURL(body.url, storeAppId), 'aurago_store_embed');`,
+		`const frameURL = storeFrameURL(body.url, storeAppId);`,
 		`function storeFrameURL(src, storeAppId)`,
+		`if (url.pathname.startsWith('/_aurago/launch/')) return src;`,
 		`if (storeAppId === 'uptime-kuma')`,
 		`const pendingExternalWindow = shouldOpenStoreAppExternally(app) ? openPendingExternalStoreWindow() : null;`,
 		`navigateExternalStoreWindow(pendingExternalWindow, body.url);`,

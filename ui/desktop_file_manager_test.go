@@ -33,6 +33,48 @@ func TestFileManagerInlineRenameMarkers(t *testing.T) {
 	}
 }
 
+func TestFileManagerAsyncStateIsWindowScoped(t *testing.T) {
+	t.Parallel()
+
+	core, err := Content.ReadFile("js/desktop/file-manager/core-render.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations, err := Content.ReadFile("js/desktop/file-manager/actions-operations.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	input, err := Content.ReadFile("js/desktop/file-manager/actions-input.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{
+		"navigationGeneration: 0",
+		"function withInstance(instance, callback)",
+		"function isLiveInstance(instance)",
+		"const generation = ++instance.navigationGeneration",
+		"instance.navigationGeneration !== generation",
+		"fm.renameDraft = renameInput.value",
+	} {
+		if !strings.Contains(string(core), marker) {
+			t.Fatalf("file manager source missing per-window lifecycle marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"setActiveInstance(instance)",
+		"withInstance(instance, () =>",
+		"if (!isLiveInstance(instance)) return;",
+		"fm.renameDraft = file.name",
+	} {
+		if !strings.Contains(string(operations), marker) {
+			t.Fatalf("file manager operations missing stale-window guard %q", marker)
+		}
+	}
+	if !strings.Contains(string(input), "if (renameInput.isConnected) withInstance(instance, () => finishRename(renameInput))") {
+		t.Fatal("detached rename input must not submit during a listing re-render")
+	}
+}
+
 func TestFileManagerKeyboardShortcutsAreInstanceScoped(t *testing.T) {
 	t.Parallel()
 
@@ -44,7 +86,7 @@ func TestFileManagerKeyboardShortcutsAreInstanceScoped(t *testing.T) {
 		"fm.activeKeyboardWindow",
 		"root.addEventListener('focusin'",
 		"root.addEventListener('pointerdown'",
-		"fm.activeKeyboardWindow = fm.windowId",
+		"instance.activeKeyboardWindow = instance.windowId",
 		"fm.activeKeyboardWindow !== fm.windowId",
 		"root.contains(document.activeElement)",
 		"function focusFileItem(path)",
