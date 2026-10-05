@@ -17,6 +17,26 @@ type emailContentEvaluator interface {
 
 const emailGuardianWorkerLimit = 4
 
+// emailLogRunes bounds the model-supplied account, recipient and subject that the send_email
+// log line and its account error repeat.
+const emailLogRunes = 200
+
+// boundedRunes returns s cut to at most maxRunes runes, with an ellipsis when it was cut.
+// It walks s once and allocates nothing for the cut, so a huge argument costs no copy.
+func boundedRunes(s string, maxRunes int) string {
+	if len(s) <= maxRunes {
+		return s
+	}
+	n := 0
+	for i := range s {
+		if n == maxRunes {
+			return s[:i] + "…"
+		}
+		n++
+	}
+	return s
+}
+
 func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *security.Guardian, llmGuardian emailContentEvaluator, scanEmails bool, messages []tools.EmailMessage) []tools.EmailMessage {
 	if guardian == nil || len(messages) == 0 {
 		return messages
@@ -135,7 +155,7 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if req.Account != "" {
 			acct = cfg.FindEmailAccount(req.Account)
 			if acct == nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' not found. Use list_email_accounts to see available accounts."}`, req.Account), true
+				return toolErrorf("Email account '%s' not found. Use list_email_accounts to see available accounts.", boundedRunes(req.Account, emailLogRunes)), true
 			}
 		} else {
 			acct = cfg.DefaultEmailAccount()
@@ -144,21 +164,27 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 			return `Tool Output: {"status": "error", "message": "No active email account configured. Enable an account in Settings > Email."}`, true
 		}
 		if acct.Disabled {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is disabled. Enable it in Settings > Email."}`, acct.ID), true
+			return toolErrorf("Email account '%s' is disabled. Enable it in Settings > Email.", acct.ID), true
 		}
 		if acct.ReadOnly {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is read-only. Enable sending in Settings > Email."}`, acct.ID), true
+			return toolErrorf("Email account '%s' is read-only. Enable sending in Settings > Email.", acct.ID), true
 		}
 		to := req.To
 		if to == "" {
 			return `Tool Output: {"status": "error", "message": "'to' (recipient address) is required"}`, true
+		}
+		// Every gate above has passed. Only now is an attachment argument judged and a file
+		// opened, so a refused call never touches the file system.
+		if req.AttachmentsErr != nil {
+			return toolErrorJSON(req.AttachmentsErr.Error()), true
 		}
 		subject := req.Subject
 		if subject == "" {
 			subject = "(no subject)"
 		}
 		body := req.Body
-		logger.Info("LLM requested email send", "account", acct.ID, "to", to, "subject", subject)
+		logger.Info("LLM requested email send", "account", acct.ID, "to", boundedRunes(to, emailLogRunes),
+			"subject", boundedRunes(subject, emailLogRunes), "attachments", len(req.Attachments))
 		var sendErr error
 		if len(req.Attachments) > 0 {
 			files, err := tools.LoadEmailAttachments(cfg, req.Attachments)
@@ -176,7 +202,7 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 			sendErr = tools.SendEmail(acct.SMTPHost, acct.SMTPPort, acct.Username, acct.Password, acct.FromAddress, to, subject, body, logger)
 		}
 		if sendErr != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "SMTP send failed (%s): %v"}`, acct.ID, sendErr), true
+			return toolErrorf("SMTP send failed (%s): %v", acct.ID, sendErr), true
 		}
 		result := tools.EmailResult{Status: "success", Message: fmt.Sprintf("Email sent to %s via account %s", to, acct.ID)}
 		return "Tool Output: " + tools.EncodeEmailResult(result), true

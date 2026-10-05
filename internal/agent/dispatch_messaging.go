@@ -26,6 +26,9 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		return dispatchMeshCore(ctx, tc, dc), true
 	case "send_telegram":
 		req := decodeSendTelegramArgs(tc)
+		if msg := telegramFilePathArgError(tc.Params); msg != "" {
+			return toolErrorJSON(msg), true
+		}
 		if strings.TrimSpace(req.FilePath) != "" {
 			logger.Info("LLM requested telegram document", "title", req.Title)
 			return "Tool Output: " + tools.SendTelegramFile(ctx, cfg, logger, req.FilePath, req.Title, req.Message), true
@@ -208,6 +211,19 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		return "Tool Output: " + telnyx.DispatchManage(ctx, req.Operation, req.Limit, req.Port, cfg, logger), true
 	}
 	return "", false
+}
+
+// telegramFilePathArgError refuses a file_path that is present but not a string, a list for
+// example. decodeSendTelegramArgs skips it, and the call would then send the message
+// without the file the model named. A missing, null or empty file_path is no file and no
+// error: such a call is a plain message, as before.
+func telegramFilePathArgError(params map[string]interface{}) string {
+	switch v := params["file_path"].(type) {
+	case nil, string:
+		return ""
+	default:
+		return "file_path must be one file path string, not " + toolArgJSONType(v)
+	}
 }
 
 func sendAgoDeskChatMessage(dc *DispatchContext, req agoDeskChatArgs) string {
