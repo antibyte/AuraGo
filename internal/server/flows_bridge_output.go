@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"math"
 	"sort"
@@ -37,6 +38,8 @@ const (
 	// flowTriggerDataScrubBudget bounds the copy of a run's trigger data for the mission
 	// history, which keeps 16 KiB of it (tools.flowHistoryTriggerDataMaxBytes).
 	flowTriggerDataScrubBudget = 16 << 10
+	// flowTriggerDataPreviewBytes is the preview of cut trigger data (boundFlowTriggerData).
+	flowTriggerDataPreviewBytes = 7 << 10
 	// flowScrubOverlapBytes is how much more of a text the bridge scrubs than it keeps when it
 	// cuts the text (scrubFlowPrefix), so that a registered secret of up to this size that
 	// crosses the cut is still found as a whole and no prefix of it stays.
@@ -103,19 +106,31 @@ func boundFlowOutputs(outputs map[string]any) flowRunOutputs {
 }
 
 // boundFlowTriggerData returns the JSON of a scrubbed copy of a run's trigger data for the
-// mission history, bounded by flowTriggerDataScrubBudget. A cut copy ends with
-// flowCutMarker (the history cuts text over 16 KiB once more, with its own marker). A nil
-// map gives "null".
+// mission history, bounded by flowTriggerDataScrubBudget, always valid JSON: the history
+// (tools.flowHistoryTriggerData) cuts text over 16 KiB as text, so a copy that was cut, or
+// whose encoding still exceeds that, becomes {"_truncated": true, "_preview": "<start of
+// the JSON>"}, the shape cut outputs have, sized to stay within the 16 KiB. A nil map gives
+// "null".
 func boundFlowTriggerData(data map[string]any) string {
 	copied, truncated := scrubFlowMapBounded(data, flowTriggerDataScrubBudget)
 	enc, err := json.Marshal(copied)
 	if err != nil {
 		return "{}"
 	}
-	if truncated {
-		return string(enc) + flowCutMarker
+	if !truncated && len(enc) <= flowTriggerDataScrubBudget {
+		return string(enc)
 	}
-	return string(enc)
+	// Inside the preview string JSON text at most doubles (quotes and backslashes; HTML
+	// escaping is off), so half the budget fits; the loop is a guard.
+	for preview := flowTriggerDataPreviewBytes; ; preview /= 2 {
+		var buf bytes.Buffer
+		e := json.NewEncoder(&buf)
+		e.SetEscapeHTML(false)
+		_ = e.Encode(map[string]any{"_truncated": true, "_preview": tools.CutAtRuneBoundary(string(enc), preview)})
+		if out := strings.TrimSuffix(buf.String(), "\n"); len(out) <= flowTriggerDataScrubBudget || preview < 64 {
+			return out
+		}
+	}
 }
 
 // flowRunOutcome maps a finished run to a Mission Control result and output text (see
@@ -150,17 +165,43 @@ func flowOutcome(info flows.RunFinishedInfo, outputs flowRunOutputs) (string, st
 }
 
 // flowBoundedText scrubs s and cuts it to flowMissionOutputMaxBytes, ending a cut text with
-// flowCutMarker. It scrubs at most flowScrubOverlapBytes more than it keeps.
+// flowCutMarker. It scrubs at most flowScrubOverlapBytes more than it keeps (scrubFlowWindow).
 func flowBoundedText(s string) string {
-	return tools.CutWithMarker(scrubFlowText(tools.CutAtRuneBoundary(s, flowMissionOutputMaxBytes+flowScrubOverlapBytes)),
-		flowMissionOutputMaxBytes, flowCutMarker)
+	text, cut := scrubFlowWindow(s, flowMissionOutputMaxBytes)
+	if cut {
+		text += flowCutMarker
+	}
+	return tools.CutWithMarker(text, flowMissionOutputMaxBytes, flowCutMarker)
 }
 
 // scrubFlowPrefix returns the first limit bytes (at most, cut at a rune boundary) of s
-// scrubbed. It scrubs limit+flowScrubOverlapBytes bytes before it cuts, so a registered
-// secret of up to flowScrubOverlapBytes that crosses the cut is replaced as a whole.
+// scrubbed (scrubFlowWindow).
 func scrubFlowPrefix(s string, limit int) string {
-	return tools.CutAtRuneBoundary(scrubFlowText(tools.CutAtRuneBoundary(s, limit+flowScrubOverlapBytes)), limit)
+	text, _ := scrubFlowWindow(s, limit)
+	return tools.CutAtRuneBoundary(text, limit)
+}
+
+// scrubFlowWindow scrubs s for a caller that keeps at most limit bytes of it, without
+// scrubbing much more than that. A text of up to limit+flowScrubOverlapBytes bytes is
+// scrubbed whole (cut is false). Of a longer one only that window is scrubbed, and the
+// window's cut can split a secret, whose prefix then stays unredacted at the very end of
+// the scrubbed window. Redactions shrink the text before it (a 64-byte secret becomes the
+// 10-byte placeholder), so that end can move into the first limit bytes. The last
+// flowScrubOverlapBytes bytes of the scrubbed window are therefore dropped (cut is true):
+// they hold any such prefix of a secret whose longest form (hex, twice the value) is at
+// most flowScrubOverlapBytes long. When redactions shrank the window by more than limit,
+// nothing is left; the caller keeps less rather than leak.
+func scrubFlowWindow(s string, limit int) (text string, cut bool) {
+	window := limit + flowScrubOverlapBytes
+	if len(s) <= window {
+		return scrubFlowText(s), false
+	}
+	scrubbed := scrubFlowText(tools.CutAtRuneBoundary(s, window))
+	keep := len(scrubbed) - flowScrubOverlapBytes
+	if keep <= 0 {
+		return "", true
+	}
+	return tools.CutAtRuneBoundary(scrubbed, keep), true
 }
 
 // scrubFlowMap is scrubFlowValue for a map; a nil map stays nil.

@@ -196,8 +196,12 @@ func TestC15ScrubCostIsBounded(t *testing.T) {
 	if n := scrubbed.Load(); n > flowTriggerDataScrubBudget+flowScrubOverlapBytes {
 		t.Fatalf("scrubbed %d bytes for the trigger data", n)
 	}
-	if td := e.c15Run(t, histID).TriggerData; !strings.HasSuffix(td, flowCutMarker) && !strings.HasSuffix(td, "...[truncated]") {
-		t.Fatalf("the cut trigger data is not marked: %q", td[max(len(td)-40, 0):])
+	td := e.c15Run(t, histID).TriggerData
+	var stored map[string]any
+	_ = json.Unmarshal([]byte(td), &stored)
+	if preview, _ := stored["_preview"].(string); len(td) > flowTriggerDataScrubBudget || stored["_truncated"] != true ||
+		!strings.HasPrefix(preview, `{"payload":{"node0":{"items":["00000000"`) {
+		t.Fatalf("the cut trigger data is not a valid preview: %d bytes, %q", len(td), td[max(len(td)-40, 0):])
 	}
 	scrubbed.Store(0)
 	e.bridge.FlowRunFinished(flows.RunFinishedInfo{MissionID: id, HistoryID: histID, FlowName: "Costly", Started: true,
@@ -260,5 +264,78 @@ func TestC15ScrubIgnoresShortValues(t *testing.T) {
 	t.Cleanup(security.RegisterScopedSensitiveExact(eight))
 	if len(eight) != flowScrubMinBytes || scrubFlowText(eight) != security.RedactedText("") {
 		t.Fatalf("an %d-byte value is not scrubbed", len(eight))
+	}
+}
+
+// c15Dense returns pad dots followed by secret+"--" repeated until n bytes are reached.
+func c15Dense(secret string, pad, n int) string {
+	var sb strings.Builder
+	sb.WriteString(strings.Repeat(".", pad))
+	for sb.Len() < n {
+		sb.WriteString(secret)
+		sb.WriteString("--")
+	}
+	return sb.String()
+}
+
+// A densely repeated secret shrinks the scrubbed window by far more than the overlap
+// (64 bytes become the 10-byte placeholder); the kept text must still end before the
+// unredacted prefix of the secret the window's end splits, at every alignment, in the
+// prefix cut, the error text, the trigger data and the outputs.
+func TestC15ScrubWindowNeverKeepsASecretPrefix(t *testing.T) {
+	secret := "C15-TOKEN-" + strings.Repeat("Z", 54) // 64 bytes
+	t.Cleanup(security.RegisterScopedSensitiveExact(secret))
+	prefix := secret[:8]
+	check := func(what string, pad int, text string) {
+		t.Helper()
+		if strings.Contains(text, prefix) {
+			i := strings.Index(text, prefix)
+			t.Fatalf("%s, pad %d: secret prefix at %d of %d: %q", what, pad, i, len(text), text[i:min(len(text), i+40)])
+		}
+	}
+	for pad := range 66 {
+		check("scrubFlowPrefix", pad, scrubFlowPrefix(c15Dense(secret, pad, 4096+flowScrubOverlapBytes+4096), 4096))
+		check("flowBoundedText", pad, flowBoundedText(c15Dense(secret, pad, flowMissionOutputMaxBytes+flowScrubOverlapBytes+4096)))
+		data := boundFlowTriggerData(map[string]any{"raw": c15Dense(secret, pad, 200<<10)})
+		check("boundFlowTriggerData", pad, data)
+		if !json.Valid([]byte(data)) || len(data) > flowTriggerDataScrubBudget {
+			t.Fatalf("trigger data, pad %d: %d bytes, valid JSON %v", pad, len(data), json.Valid([]byte(data)))
+		}
+		if pad%11 == 0 {
+			b := boundFlowOutputs(map[string]any{"doc": c15Dense(secret, pad, flowOutputsScrubBudget+flowScrubOverlapBytes+4096)})
+			enc, _ := json.Marshal(b.mission)
+			check("boundFlowOutputs text", pad, b.text)
+			check("boundFlowOutputs mission", pad, string(enc))
+		}
+	}
+	// Without redactions nothing more than the overlap is dropped: the full limit is kept.
+	plain := strings.Repeat("p", 4096+flowScrubOverlapBytes+100)
+	if got := scrubFlowPrefix(plain, 4096); len(got) != 4096 {
+		t.Fatalf("plain prefix = %d bytes", len(got))
+	}
+	if got := flowBoundedText(plain + strings.Repeat("p", flowMissionOutputMaxBytes)); len(got) != flowMissionOutputMaxBytes ||
+		!strings.HasSuffix(got, flowCutMarker) {
+		t.Fatalf("plain bounded text = %d bytes", len(got))
+	}
+}
+
+// Trigger data that fits stays the plain copy; a copy that was cut becomes the preview
+// object, valid JSON within what the history keeps, so the history stores it unchanged.
+func TestC15TriggerDataStaysValidJSON(t *testing.T) {
+	if got := boundFlowTriggerData(map[string]any{"a": "b"}); got != `{"a":"b"}` {
+		t.Fatalf("small = %s", got)
+	}
+	if got := boundFlowTriggerData(nil); got != "null" {
+		t.Fatalf("nil = %s", got)
+	}
+	// Quotes, backslashes and HTML characters double or worse when escaped in the preview.
+	heavy := strings.Repeat(`"\<>&`, 20000)
+	got := boundFlowTriggerData(map[string]any{"raw": heavy})
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(got), &obj); err != nil || obj["_truncated"] != true || len(got) > flowTriggerDataScrubBudget {
+		t.Fatalf("preview: %d bytes, %v, %v", len(got), err, obj["_truncated"])
+	}
+	if tools.CutWithMarker(got, flowTriggerDataScrubBudget, "...[truncated]") != got {
+		t.Fatal("the history would cut the preview")
 	}
 }
