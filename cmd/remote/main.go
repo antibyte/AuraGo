@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -324,6 +325,11 @@ type Client struct {
 // without executing them. It is nil in production.
 var handleMessageHook func(remote.RemoteMessage)
 
+// agentReplayCacheEntries caps the agent's fail-closed nonce cache. Once it is
+// full of live nonces, new frames are dropped until entries expire; supervisor
+// traffic to one agent stays far below this many frames per NonceReplayTTL.
+const agentReplayCacheEntries = 10000
+
 func (c *Client) nextSeq() uint64 {
 	c.seqMu.Lock()
 	defer c.seqMu.Unlock()
@@ -449,6 +455,12 @@ func (c *Client) connect() error {
 	if err != nil {
 		conn.Close()
 		return err
+	}
+	if signed {
+		if reason := c.rejectReplayedAuthResponse(resp); reason != "" {
+			conn.Close()
+			return errors.New(reason)
+		}
 	}
 
 	var authResp remote.AuthResponsePayload
@@ -579,31 +591,59 @@ func (c *Client) readMessages() {
 	}
 }
 
+// replayCache returns the agent's fail-closed nonce cache, created on first use
+// and kept across reconnects.
+func (c *Client) replayCache() *remote.NonceReplayCache {
+	c.replayOnce.Do(func() {
+		if c.replay == nil {
+			// ValidateTimestamp accepts ±MaxTimestampDrift, so a nonce must stay
+			// cached for the full window.
+			c.replay = remote.NewFailClosedNonceReplayCache(remote.NonceReplayTTL, agentReplayCacheEntries)
+		}
+	})
+	return c.replay
+}
+
 // rejectReplayedFrame mirrors the supervisor's checks for frames the agent
-// receives after HMAC verification: device binding, timestamp window and a
-// per-nonce replay cache kept across reconnects. It returns the rejection
-// reason or "" when the frame is fresh.
+// receives after HMAC verification, in the supervisor's order: device binding,
+// nonce format, timestamp window and a per-nonce replay cache kept across
+// reconnects. It returns the rejection reason or "" when the frame is fresh.
 func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
-	if msg.DeviceID != "" && c.cfg.DeviceID != "" && msg.DeviceID != c.cfg.DeviceID {
+	// Every supervisor frame carries the device id.
+	if msg.DeviceID != c.cfg.DeviceID {
 		return "device_id mismatch"
-	}
-	if err := remote.ValidateTimestamp(msg.Timestamp); err != nil {
-		return err.Error()
 	}
 	// hmacData has no field delimiters; a malformed nonce could be sequence
 	// digits shifted into it, which the cache would see as a fresh nonce.
 	if !remote.ValidNonce(msg.Nonce) {
 		return "invalid nonce format"
 	}
-	c.replayOnce.Do(func() {
-		if c.replay == nil {
-			// ValidateTimestamp accepts ±MaxTimestampDrift, so a nonce must stay
-			// cached for the full window.
-			c.replay = remote.NewNonceReplayCache(remote.NonceReplayTTL, 10000)
-		}
-	})
-	if c.replay.Seen(c.cfg.DeviceID, msg.Nonce, time.Now()) {
-		return "nonce missing or replayed"
+	if err := remote.ValidateTimestamp(msg.Timestamp); err != nil {
+		return err.Error()
+	}
+	if c.replayCache().Seen(c.cfg.DeviceID, msg.Nonce, time.Now()) {
+		return "nonce replayed or replay cache full"
+	}
+	return ""
+}
+
+// authResponseReplayNamespace keys auth-response nonces in the replay cache.
+// It cannot be the device id, which is empty while enrolling.
+const authResponseReplayNamespace = "auth"
+
+// rejectReplayedAuthResponse makes a signed auth response fresh and single-use
+// within this process. connect() applies its read-only flag, allowed paths and
+// file-size limit, so a captured reply must not restore stale, looser settings
+// on a forced reconnect.
+//
+// This is a wire-compatible stopgap. The proper fix is for the supervisor to
+// echo the agent's auth nonce in the response, a wire change scheduled with
+// task C12.
+func (c *Client) rejectReplayedAuthResponse(resp remote.RemoteMessage) string {
+	if !remote.ValidNonce(resp.Nonce) ||
+		remote.ValidateTimestamp(resp.Timestamp) != nil ||
+		c.replayCache().Seen(authResponseReplayNamespace, resp.Nonce, time.Now()) {
+		return "stale or replayed auth response"
 	}
 	return ""
 }

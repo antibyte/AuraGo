@@ -475,10 +475,36 @@ func (h *RemoteHub) SendRevoke(deviceID string) error {
 
 // ── Message handling ────────────────────────────────────────────────────────
 
+// maxConsecutiveBadFrames is how many frames in a row may fail authentication,
+// nonce-format, timestamp or replay checks before HandleMessages hangs up. Each
+// rejection is answered with a freshly signed error frame, which an on-path
+// attacker could relay to the agent, so the run must stay short.
+const maxConsecutiveBadFrames = 8
+
 // HandleMessages reads messages from a remote connection and dispatches them.
 // Blocks until the connection closes or an error occurs.
 func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 	defer h.unregisterConnection(conn.DeviceID, conn)
+
+	badFrames := 0
+	// rejectFrame answers a frame that failed a check with a signed error
+	// frame. Once maxConsecutiveBadFrames have arrived in a row it closes the
+	// connection without answering and reports false; the caller must return.
+	rejectFrame := func(code, message string) bool {
+		badFrames++
+		if badFrames >= maxConsecutiveBadFrames {
+			h.logger.Warn("Closing remote connection after repeated bad frames",
+				"device_id", conn.DeviceID, "count", badFrames)
+			_ = conn.Conn.Close()
+			return false
+		}
+		errMsg, _ := NewMessage(MsgError, conn.DeviceID, conn.SharedKey, conn.NextSeq(),
+			ErrorPayload{Code: code, Message: message})
+		if errMsg != nil {
+			_ = conn.Send(errMsg)
+		}
+		return true
+	}
 
 	for {
 		_, data, err := conn.Conn.ReadMessage()
@@ -503,10 +529,8 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 		ok, err := VerifyMessage(msg, conn.SharedKey)
 		if err != nil || !ok {
 			h.logger.Warn("HMAC verification failed", "device_id", conn.DeviceID)
-			errMsg, _ := NewMessage(MsgError, conn.DeviceID, conn.SharedKey, conn.NextSeq(),
-				ErrorPayload{Code: "invalid_hmac", Message: "HMAC verification failed"})
-			if errMsg != nil {
-				_ = conn.Send(errMsg)
+			if !rejectFrame("invalid_hmac", "HMAC verification failed") {
+				return
 			}
 			continue
 		}
@@ -515,10 +539,8 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 		// sequence digit shifted into it from minting a fresh replay-cache key.
 		if !ValidNonce(msg.Nonce) {
 			h.logger.Warn("Invalid nonce format", "device_id", conn.DeviceID)
-			errMsg, _ := NewMessage(MsgError, conn.DeviceID, conn.SharedKey, conn.NextSeq(),
-				ErrorPayload{Code: "replay", Message: "invalid nonce format"})
-			if errMsg != nil {
-				_ = conn.Send(errMsg)
+			if !rejectFrame("replay", "invalid nonce format") {
+				return
 			}
 			continue
 		}
@@ -526,22 +548,19 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 		// Validate timestamp (anti-replay)
 		if err := ValidateTimestamp(msg.Timestamp); err != nil {
 			h.logger.Warn("Replay detection", "device_id", conn.DeviceID, "error", err)
-			errMsg, _ := NewMessage(MsgError, conn.DeviceID, conn.SharedKey, conn.NextSeq(),
-				ErrorPayload{Code: "replay", Message: err.Error()})
-			if errMsg != nil {
-				_ = conn.Send(errMsg)
+			if !rejectFrame("replay", err.Error()) {
+				return
 			}
 			continue
 		}
 		if h.nonceCache != nil && h.nonceCache.Seen(conn.DeviceID, msg.Nonce, time.Now().UTC()) {
 			h.logger.Warn("Nonce replay detected", "device_id", conn.DeviceID, "nonce", msg.Nonce)
-			errMsg, _ := NewMessage(MsgError, conn.DeviceID, conn.SharedKey, conn.NextSeq(),
-				ErrorPayload{Code: "replay", Message: "nonce replay detected"})
-			if errMsg != nil {
-				_ = conn.Send(errMsg)
+			if !rejectFrame("replay", "nonce replay detected") {
+				return
 			}
 			continue
 		}
+		badFrames = 0
 
 		switch msg.Type {
 		case MsgHeartbeat:

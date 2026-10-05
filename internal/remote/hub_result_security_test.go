@@ -15,30 +15,92 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// handleMessagesFixture runs HandleMessages for a registered "dev-1"
+// connection and exposes the agent side of the socket plus the heartbeats that
+// reached the handler.
+type handleMessagesFixture struct {
+	hub        *RemoteHub
+	key        string
+	agent      *websocket.Conn
+	heartbeats chan HeartbeatPayload
+	handled    chan struct{}
+}
+
+func startHandleMessagesFixture(t *testing.T) *handleMessagesFixture {
+	t.Helper()
+	f := &handleMessagesFixture{
+		hub:        NewRemoteHub(nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil))),
+		key:        strings.Repeat("b", 64),
+		heartbeats: make(chan HeartbeatPayload, 32),
+		handled:    make(chan struct{}),
+	}
+	serverConn, clientConn, cleanup := newWebSocketPairForHubTest(t)
+	f.agent = clientConn
+	conn := &RemoteConnection{Conn: serverConn, DeviceID: "dev-1", SharedKey: f.key}
+	f.hub.Register("dev-1", conn)
+	f.hub.OnHeartbeat = func(_ string, hb HeartbeatPayload) { f.heartbeats <- hb }
+	go func() {
+		f.hub.HandleMessages(conn)
+		close(f.handled)
+	}()
+	t.Cleanup(func() {
+		cleanup()
+		select {
+		case <-f.handled:
+		case <-time.After(5 * time.Second):
+			t.Error("HandleMessages still running after the connection closed")
+		}
+	})
+	return f
+}
+
+func (f *handleMessagesFixture) send(t *testing.T, msg *RemoteMessage) {
+	t.Helper()
+	if err := f.agent.WriteJSON(msg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// expectError reads the hub's next reply and checks it is an error frame.
+func (f *handleMessagesFixture) expectError(t *testing.T, code, message string) {
+	t.Helper()
+	_ = f.agent.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var reply RemoteMessage
+	if err := f.agent.ReadJSON(&reply); err != nil {
+		t.Fatalf("expected an error frame (%s): %v", code, err)
+	}
+	var errPayload ErrorPayload
+	if reply.Type != MsgError || json.Unmarshal(reply.Payload, &errPayload) != nil ||
+		errPayload.Code != code || (message != "" && errPayload.Message != message) {
+		t.Fatalf("unexpected reply: type=%s payload=%s", reply.Type, reply.Payload)
+	}
+}
+
+func (f *handleMessagesFixture) expectHeartbeat(t *testing.T) {
+	t.Helper()
+	select {
+	case <-f.heartbeats:
+	case <-time.After(5 * time.Second):
+		t.Fatal("fresh heartbeat was not handled")
+	}
+}
+
+func (f *handleMessagesFixture) heartbeat(t *testing.T, key string) *RemoteMessage {
+	t.Helper()
+	msg, err := NewMessage(MsgHeartbeat, "dev-1", key, 1, HeartbeatPayload{Hostname: "agent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return msg
+}
+
 // hmacData joins Sequence and Nonce without a delimiter, so a captured frame
 // with seq=12 still verifies as seq=1 with nonce "2"+nonce. The supervisor
 // must reject that shifted copy instead of treating it as a fresh nonce.
 func TestHandleMessagesRejectsSequenceShiftedNonce(t *testing.T) {
-	hub := NewRemoteHub(nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	key := strings.Repeat("b", 64)
-	serverConn, clientConn, cleanup := newWebSocketPairForHubTest(t)
-	conn := &RemoteConnection{Conn: serverConn, DeviceID: "dev-1", SharedKey: key}
-	hub.Register("dev-1", conn)
-	heartbeats := make(chan HeartbeatPayload, 4)
-	hub.OnHeartbeat = func(_ string, hb HeartbeatPayload) { heartbeats <- hb }
-	handled := make(chan struct{})
-	go func() {
-		hub.HandleMessages(conn)
-		close(handled)
-	}()
-	defer func() {
-		cleanup()
-		select {
-		case <-handled:
-		case <-time.After(5 * time.Second):
-			t.Error("HandleMessages still running after the connection closed")
-		}
-	}()
+	f := startHandleMessagesFixture(t)
+	key := f.key
+	heartbeats := f.heartbeats
 
 	frame, err := NewMessage(MsgHeartbeat, "dev-1", key, 12, HeartbeatPayload{Hostname: "original"})
 	if err != nil {
@@ -51,33 +113,65 @@ func TestHandleMessagesRejectsSequenceShiftedNonce(t *testing.T) {
 		t.Fatalf("shifted frame is expected to keep a valid HMAC (delimiter-free encoding): ok=%v err=%v", ok, err)
 	}
 
-	if err := clientConn.WriteJSON(frame); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case <-heartbeats:
-	case <-time.After(5 * time.Second):
-		t.Fatal("fresh heartbeat was not handled")
-	}
+	f.send(t, frame)
+	f.expectHeartbeat(t)
 
-	if err := clientConn.WriteJSON(&shifted); err != nil {
-		t.Fatal(err)
-	}
-	_ = clientConn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	var reply RemoteMessage
-	if err := clientConn.ReadJSON(&reply); err != nil {
-		t.Fatalf("expected an error frame for the shifted nonce: %v", err)
-	}
-	var errPayload ErrorPayload
-	if reply.Type != MsgError || json.Unmarshal(reply.Payload, &errPayload) != nil ||
-		errPayload.Code != "replay" || errPayload.Message != "invalid nonce format" {
-		t.Fatalf("unexpected reply to shifted frame: type=%s payload=%s", reply.Type, reply.Payload)
-	}
+	f.send(t, &shifted)
+	f.expectError(t, "replay", "invalid nonce format")
 	select {
 	case hb := <-heartbeats:
 		t.Fatalf("shifted frame reached the heartbeat handler: %+v", hb)
 	default:
 	}
+}
+
+// Every rejected frame earns a freshly signed error reply, which an on-path
+// attacker could relay to the agent. The hub hangs up after a run of
+// maxConsecutiveBadFrames instead of answering them all.
+func TestHandleMessagesClosesConnectionAfterRepeatedBadFrames(t *testing.T) {
+	wrongKey := strings.Repeat("c", 64)
+
+	t.Run("consecutive bad frames close the connection", func(t *testing.T) {
+		f := startHandleMessagesFixture(t)
+		for i := 0; i < maxConsecutiveBadFrames; i++ {
+			f.send(t, f.heartbeat(t, wrongKey))
+		}
+		for i := 0; i < maxConsecutiveBadFrames-1; i++ {
+			f.expectError(t, "invalid_hmac", "")
+		}
+		select {
+		case <-f.handled:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("HandleMessages must stop after %d consecutive bad frames", maxConsecutiveBadFrames)
+		}
+		_ = f.agent.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if _, _, err := f.agent.ReadMessage(); err == nil {
+			t.Fatal("the hub must not answer the frame that exhausted the budget")
+		}
+		if f.hub.IsConnected("dev-1") {
+			t.Fatal("the closed connection must be unregistered")
+		}
+	})
+
+	t.Run("a good frame resets the run", func(t *testing.T) {
+		f := startHandleMessagesFixture(t)
+		for round := 0; round < 2; round++ {
+			for i := 0; i < maxConsecutiveBadFrames-1; i++ {
+				f.send(t, f.heartbeat(t, wrongKey))
+				f.expectError(t, "invalid_hmac", "")
+			}
+			f.send(t, f.heartbeat(t, f.key))
+			f.expectHeartbeat(t)
+		}
+		select {
+		case <-f.handled:
+			t.Fatal("bad frames separated by good ones must not close the connection")
+		default:
+		}
+		if !f.hub.IsConnected("dev-1") {
+			t.Fatal("the connection must stay registered")
+		}
+	})
 }
 
 func TestResultRequiresAuthenticatedDeviceAndConnection(t *testing.T) {

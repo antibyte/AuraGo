@@ -1350,6 +1350,12 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 	if !strings.Contains(executorTests, "TestExecutorDoesNotReplayDuplicateCommandID") {
 		t.Fatal("cmd/remote executor tests must cover duplicate command id replay")
 	}
+	agentSource := readRepoFile(t, "cmd/remote/main.go")
+	for _, needle := range []string{"rejectReplayedFrame(", "ValidNonce("} {
+		if !strings.Contains(agentSource, needle) {
+			t.Fatalf("remote agent source is missing frame replay guard %q", needle)
+		}
+	}
 	hubSource := readRepoFile(t, "internal/remote/hub.go")
 	for _, needle := range []string{`device.Status == "revoked"`, "MsgRevoke", "UpdateDeviceStatus(h.db, deviceID, \"revoked\")"} {
 		if !strings.Contains(hubSource, needle) {

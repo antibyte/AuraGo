@@ -1,6 +1,9 @@
 package remote
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 	"time"
 )
@@ -161,6 +164,31 @@ func TestVerifyMessageWrongKey(t *testing.T) {
 	ok, _ := VerifyMessage(*msg, key2)
 	if ok {
 		t.Error("VerifyMessage accepted message signed with different key")
+	}
+}
+
+// hex.DecodeString("") yields a zero-length key without error, and HMAC with an
+// empty key is computable by anyone, so both directions must refuse it.
+func TestSignAndVerifyRejectEmptyKey(t *testing.T) {
+	msg := &RemoteMessage{
+		Type:      MsgCommand,
+		DeviceID:  "dev-1",
+		MessageID: "msg-1",
+		Sequence:  1,
+		Nonce:     "0123456789abcdef0123456789abcdef",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Payload:   []byte(`{"cmd_id":"x"}`),
+	}
+	if err := SignMessage(msg, ""); err == nil {
+		t.Fatal("SignMessage must refuse an empty key")
+	}
+
+	mac := hmac.New(sha256.New, nil)
+	mac.Write([]byte(hmacData(msg)))
+	msg.HMAC = hex.EncodeToString(mac.Sum(nil))
+	ok, err := VerifyMessage(*msg, "")
+	if err == nil || ok {
+		t.Fatalf("VerifyMessage must refuse an empty key even for an empty-key HMAC: ok=%v err=%v", ok, err)
 	}
 }
 

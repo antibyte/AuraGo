@@ -1,13 +1,18 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -255,6 +260,73 @@ func TestConnectRejectsAuthenticatedWithoutSharedKey(t *testing.T) {
 	assertNoStoredConfig(t)
 }
 
+// looseAuthenticatedResponse is a signed "authenticated" reply that would lift
+// read-only mode and open every path if the agent applied it.
+func looseAuthenticatedResponse(t *testing.T, key string) *remote.RemoteMessage {
+	t.Helper()
+	readOnly := false
+	resp, err := remote.NewAuthResponseMessage("dev-1", key, remote.AuthResponsePayload{
+		Status: "authenticated", DeviceID: "dev-1", ReadOnly: &readOnly, AllowedPaths: []string{"/"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
+}
+
+func assertRestrictedSettingsKept(t *testing.T, client *Client) {
+	t.Helper()
+	client.stateMu.RLock()
+	defer client.stateMu.RUnlock()
+	if !client.readOnly || len(client.allowedPaths) != 1 || client.allowedPaths[0] != "/safe" {
+		t.Fatalf("rejected auth response must not change settings: read_only=%v allowed_paths=%v", client.readOnly, client.allowedPaths)
+	}
+}
+
+func TestConnectRejectsStaleSignedAuthResponse(t *testing.T) {
+	isolateRemoteHome(t)
+	key := strings.Repeat("ab", 32)
+	resp := looseAuthenticatedResponse(t, key)
+	resp.Timestamp = time.Now().Add(-remote.MaxTimestampDrift - time.Minute).UTC().Format(time.RFC3339)
+	if err := remote.SignMessage(resp, key); err != nil {
+		t.Fatal(err)
+	}
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), DeviceID: "dev-1", SharedKey: key})
+	client.readOnly = true
+	client.allowedPaths = []string{"/safe"}
+
+	err := client.connect()
+	if err == nil || err.Error() != "stale or replayed auth response" {
+		t.Fatalf("expected the stale auth response to be rejected, got %v", err)
+	}
+	assertRestrictedSettingsKept(t, client)
+}
+
+func TestConnectRejectsReplayedSignedAuthResponse(t *testing.T) {
+	isolateRemoteHome(t)
+	key := strings.Repeat("ab", 32)
+	// The fake supervisor answers every connection with this same captured reply.
+	client := newConnectTestClient(t, clientConfig{
+		SupervisorURL: startFakeSupervisor(t, looseAuthenticatedResponse(t, key)), DeviceID: "dev-1", SharedKey: key,
+	})
+	if err := client.connect(); err != nil {
+		t.Fatalf("first delivery of a fresh auth response must be accepted: %v", err)
+	}
+
+	// The admin then restricts the device; a forced reconnect must not let the
+	// captured reply undo that.
+	client.stateMu.Lock()
+	client.readOnly = true
+	client.allowedPaths = []string{"/safe"}
+	client.stateMu.Unlock()
+
+	err := client.connect()
+	if err == nil || err.Error() != "stale or replayed auth response" {
+		t.Fatalf("expected the replayed auth response to be rejected, got %v", err)
+	}
+	assertRestrictedSettingsKept(t, client)
+}
+
 func writeStoredConfig(t *testing.T, cfg clientConfig) {
 	t.Helper()
 	data, err := json.Marshal(cfg)
@@ -318,7 +390,7 @@ func TestRejectReplayedFrameChecksDeviceTimestampAndNonce(t *testing.T) {
 	if reason := client.rejectReplayedFrame(*fresh); reason != "" {
 		t.Fatalf("fresh frame must pass, got %q", reason)
 	}
-	if reason := client.rejectReplayedFrame(*fresh); reason != "nonce missing or replayed" {
+	if reason := client.rejectReplayedFrame(*fresh); reason != "nonce replayed or replay cache full" {
 		t.Fatalf("identical nonce must be rejected as a replay, got %q", reason)
 	}
 
@@ -327,6 +399,15 @@ func TestRejectReplayedFrameChecksDeviceTimestampAndNonce(t *testing.T) {
 	foreign.Nonce = "0123456789abcdef0123456789abcdef"
 	if reason := client.rejectReplayedFrame(foreign); reason != "device_id mismatch" {
 		t.Fatalf("frame for another device must be rejected, got %q", reason)
+	}
+
+	// Every supervisor frame carries the device id, so a frame without one is
+	// not bound to this agent.
+	unbound := *fresh
+	unbound.DeviceID = ""
+	unbound.Nonce = "00112233445566778899aabbccddeeff"
+	if reason := client.rejectReplayedFrame(unbound); reason != "device_id mismatch" {
+		t.Fatalf("frame without a device id must be rejected, got %q", reason)
 	}
 
 	stale := *fresh
@@ -360,6 +441,39 @@ func TestRejectReplayedFrameRejectsSequenceShiftedNonce(t *testing.T) {
 	}
 	if reason := client.rejectReplayedFrame(shifted); reason != "invalid nonce format" {
 		t.Fatalf("shifted frame must be rejected for its nonce format, got %q", reason)
+	}
+}
+
+// The agent's cache must never evict a live nonce to make room: an attacker who
+// can get enough fresh signed frames delivered (for example the supervisor's
+// error replies) would otherwise flush it and replay an older captured frame.
+func TestRejectReplayedFrameFailsClosedWhenCacheFull(t *testing.T) {
+	key := strings.Repeat("ab", 32)
+	client := &Client{cfg: clientConfig{DeviceID: "dev-1", SharedKey: key}, logger: slog.Default()}
+	captured, err := remote.NewMessage(remote.MsgConfigUpdate, "dev-1", key, 1, remote.ConfigUpdatePayload{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reason := client.rejectReplayedFrame(*captured); reason != "" {
+		t.Fatalf("fresh frame must pass, got %q", reason)
+	}
+
+	now := time.Now()
+	for i := 1; i < agentReplayCacheEntries; i++ {
+		if client.replay.Seen("dev-1", fmt.Sprintf("%032x", i), now) {
+			t.Fatalf("filler nonce %d unexpectedly reported as seen", i)
+		}
+	}
+
+	flood, err := remote.NewMessage(remote.MsgError, "dev-1", key, 2, remote.ErrorPayload{Code: "invalid_hmac"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reason := client.rejectReplayedFrame(*flood); reason != "nonce replayed or replay cache full" {
+		t.Fatalf("a new frame must be dropped while the cache is full, got %q", reason)
+	}
+	if reason := client.rejectReplayedFrame(*captured); reason != "nonce replayed or replay cache full" {
+		t.Fatalf("the captured frame must stay rejected after the cache filled up, got %q", reason)
 	}
 }
 
@@ -458,14 +572,37 @@ func readMessagesDispatched(t *testing.T, client *Client) []remote.RemoteMessage
 	return append([]remote.RemoteMessage(nil), dispatched...)
 }
 
+// hmacWithRawKey computes a frame's HMAC the way remote.SignMessage does, but
+// with a raw key, so tests can build the empty-key signature SignMessage now
+// refuses to produce.
+func hmacWithRawKey(frame remote.RemoteMessage, key []byte) string {
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(frame.Type + frame.DeviceID + frame.MessageID +
+		strconv.FormatUint(frame.Sequence, 10) + frame.Nonce + frame.Timestamp + string(frame.Payload)))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
 func TestReadMessagesFailsClosedWithoutSharedKey(t *testing.T) {
 	isolateRemoteHome(t)
-	unsigned, err := remote.NewMessage(remote.MsgCommand, "dev-1", "", 1, remote.CommandPayload{CommandID: "cmd-unsigned"})
+	realKey := strings.Repeat("ab", 32)
+	reference, err := remote.NewMessage(remote.MsgCommand, "dev-1", realKey, 1, remote.CommandPayload{CommandID: "cmd-reference"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	realKeyBytes, _ := hex.DecodeString(realKey)
+	if hmacWithRawKey(*reference, realKeyBytes) != reference.HMAC {
+		t.Fatal("hmacWithRawKey no longer matches remote.SignMessage; update it with the canonical HMAC form")
+	}
+
+	// An HMAC under the empty key is computable by anyone; it must not let a
+	// frame through to an agent that holds no device key.
+	emptyKeySigned, err := remote.NewMessage(remote.MsgCommand, "dev-1", "", 1, remote.CommandPayload{CommandID: "cmd-empty-key"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	emptyKeySigned.HMAC = hmacWithRawKey(*emptyKeySigned, nil)
 	client := newConnectTestClient(t, clientConfig{DeviceID: "dev-1"})
-	client.conn = dialFrameSupervisor(t, unsigned)
+	client.conn = dialFrameSupervisor(t, emptyKeySigned)
 
 	if dispatched := readMessagesDispatched(t, client); len(dispatched) != 0 {
 		t.Fatalf("frames must not be dispatched without a device shared key, got %d", len(dispatched))

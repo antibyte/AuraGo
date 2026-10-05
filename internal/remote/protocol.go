@@ -207,11 +207,25 @@ func hmacData(msg *RemoteMessage) string {
 		msg.Timestamp + string(msg.Payload)
 }
 
-// SignMessage computes and sets the HMAC field on a RemoteMessage.
-func SignMessage(msg *RemoteMessage, sharedKeyHex string) error {
+// decodeSharedKey decodes a hex HMAC key. hex.DecodeString("") succeeds with a
+// zero-length key, and an HMAC under the empty key is computable by anyone, so
+// that case is an error too.
+func decodeSharedKey(sharedKeyHex string) ([]byte, error) {
 	key, err := hex.DecodeString(sharedKeyHex)
 	if err != nil {
-		return fmt.Errorf("invalid shared key: %w", err)
+		return nil, fmt.Errorf("invalid shared key: %w", err)
+	}
+	if len(key) == 0 {
+		return nil, fmt.Errorf("invalid shared key: empty")
+	}
+	return key, nil
+}
+
+// SignMessage computes and sets the HMAC field on a RemoteMessage.
+func SignMessage(msg *RemoteMessage, sharedKeyHex string) error {
+	key, err := decodeSharedKey(sharedKeyHex)
+	if err != nil {
+		return err
 	}
 	msg.HMAC = "" // clear before signing
 	mac := hmac.New(sha256.New, key)
@@ -222,9 +236,9 @@ func SignMessage(msg *RemoteMessage, sharedKeyHex string) error {
 
 // VerifyMessage checks the HMAC signature of a RemoteMessage.
 func VerifyMessage(msg RemoteMessage, sharedKeyHex string) (bool, error) {
-	key, err := hex.DecodeString(sharedKeyHex)
+	key, err := decodeSharedKey(sharedKeyHex)
 	if err != nil {
-		return false, fmt.Errorf("invalid shared key: %w", err)
+		return false, err
 	}
 	expected := msg.HMAC
 	msg.HMAC = ""
