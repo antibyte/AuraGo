@@ -87,7 +87,7 @@ func TestRuntimePermissionsContextIsAuthoritativeWithoutServerSnapshot(t *testin
 // RuntimePermissions field that is not added there would silently be zeroed
 // for every context-aware gate, so this test pins the field count.
 func TestIntersectRuntimePermissionsCoversEveryField(t *testing.T) {
-	const handledFields = 21
+	const handledFields = 22
 	if got := reflect.TypeOf(RuntimePermissions{}).NumField(); got != handledFields {
 		t.Fatalf("RuntimePermissions has %d fields but intersectRuntimePermissions handles %d; add the new field there and update this count", got, handledFields)
 	}

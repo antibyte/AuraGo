@@ -180,3 +180,26 @@ func shellPrintSensitiveEnvAndSleepCommand() string {
 	}
 	return shellPrintSensitiveEnvCommand() + "; sleep 0.5"
 }
+
+func TestHostShellFallbackErrorRequiresUnsafeHostFlagOnLinux(t *testing.T) {
+	fallback := &sandbox.FallbackSandbox{}
+	perms := defaultRuntimePermissionsForTests()
+	perms.AllowUnsafeHostExecution = false
+	perms.AllowLegacyUnsandboxedShell = false
+
+	if err := hostShellFallbackError("linux", fallback, perms); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
+		t.Fatalf("expected unsafe-host gate error on linux without sandbox, got %v", err)
+	}
+	if err := hostShellFallbackError("windows", fallback, perms); err != nil {
+		t.Fatalf("windows has its own gate, got %v", err)
+	}
+	perms.AllowLegacyUnsandboxedShell = true
+	if err := hostShellFallbackError("linux", fallback, perms); err != nil {
+		t.Fatalf("legacy grandfather must keep the shell working, got %v", err)
+	}
+	perms.AllowLegacyUnsandboxedShell = false
+	perms.AllowUnsafeHostExecution = true
+	if err := hostShellFallbackError("linux", fallback, perms); err != nil {
+		t.Fatalf("explicit flag must allow the host shell, got %v", err)
+	}
+}

@@ -294,8 +294,8 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 			}
 			return "", fmt.Errorf(
 				"path '%s' is an absolute path outside the project root (%s). "+
-					"Use the execute_shell tool to access arbitrary host paths, "+
-					"or use the homepage/remote tools for container-scoped paths.",
+					"Native file tools only operate inside the project root; "+
+					"use the homepage/remote tools for container-scoped paths.",
 				userPath, projectRoot,
 			)
 		}

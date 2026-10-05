@@ -69,7 +69,7 @@ agent:
     # ── Danger Zone ── disabled by default for fresh installs
     allow_shell: false
     allow_python: false
-    allow_unsafe_host_execution: false # explicit unsafe exception for host Python and Windows shell
+    allow_unsafe_host_execution: false # explicit unsafe exception for host Python, Windows shell and unsandboxed Linux shell
     allow_filesystem_write: false
     allow_network_requests: false
     allow_remote_shell: false

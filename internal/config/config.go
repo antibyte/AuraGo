@@ -1600,6 +1600,13 @@ func Load(path string) (*Config, error) {
 		cfg.Tools.WebScraper.Enabled = *cfg.Agent.AllowWebScraper
 	}
 
+	// Legacy unsandboxed shell: configurations written before the Linux host
+	// shell required agent.allow_unsafe_host_execution keep working. Writing the
+	// key (true or false) ends the grandfather; security_check reports it.
+	if cfg.Agent.AllowShell && !yamlHasPath(data, "agent", "allow_unsafe_host_execution") {
+		cfg.Agent.LegacyUnsandboxedShell = true
+	}
+
 	// Migrate legacy agent.personality_* fields → new personality section.
 	cfg.MigrateAgentToPersonality()
 

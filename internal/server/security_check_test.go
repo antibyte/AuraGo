@@ -149,6 +149,36 @@ func TestCheckSecurityWarnsWhenShellSandboxFallsBackUnsandboxed(t *testing.T) {
 	}
 }
 
+func TestCheckSecurityReportsLegacyUnsandboxedHostShell(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
+	cfg.Agent.LegacyUnsandboxedShell = true
+	cfg.ShellSandbox.Enabled = false
+
+	oldGOOS := runtimeGOOS
+	runtimeGOOS = "linux"
+	t.Cleanup(func() { runtimeGOOS = oldGOOS })
+
+	hint := findSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy")
+	if hint == nil {
+		t.Fatal("expected shell_unsafe_host_legacy when the Linux host shell runs under the legacy default")
+	}
+	if hint.Severity != SevWarning {
+		t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
+	}
+
+	cfg.Agent.AllowUnsafeHostExecution = true
+	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
+		t.Fatal("did not expect shell_unsafe_host_legacy once allow_unsafe_host_execution is explicit")
+	}
+
+	cfg.Agent.AllowUnsafeHostExecution = false
+	runtimeGOOS = "windows"
+	if hasSecurityHint(CheckSecurity(cfg), "shell_unsafe_host_legacy") {
+		t.Fatal("did not expect shell_unsafe_host_legacy on Windows, which has its own shell gate")
+	}
+}
+
 func TestCheckSecuritySkipsShellNoSandboxWhenEffectiveSandboxActive(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AllowShell = true

@@ -318,7 +318,20 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 			Title: "Shell execution without effective sandbox",
 			Description: "Shell execution is enabled, but the Landlock shell sandbox is not effectively available. " +
 				"Unisolated commands run with the AuraGo process user's permissions and can bypass Desktop Notes protection in native file tools. " +
-				"Enable shell_sandbox on a supported Linux host, or disable shell execution for this environment.",
+				"Enable shell_sandbox on a supported Linux host, or disable shell execution for this environment. " +
+				"Without agent.allow_unsafe_host_execution the Linux host shell is refused.",
+			AutoFixable: false,
+		})
+	}
+
+	// 7c2. shell_unsafe_host_legacy — host shell permitted by the pre-flag default
+	if cfg.Agent.AllowShell && cfg.Agent.LegacyUnsandboxedShell && !cfg.Agent.AllowUnsafeHostExecution && !shellSandboxReady(cfg) && runtimeGOOS != "windows" {
+		hints = append(hints, SecurityHint{
+			ID: "shell_unsafe_host_legacy", Severity: SevWarning,
+			Title: "Host shell runs under a legacy default",
+			Description: "agent.allow_shell is enabled, no shell sandbox is active and agent.allow_unsafe_host_execution is not written in config.yaml. " +
+				"AuraGo keeps the host shell working for this existing configuration. Write agent.allow_unsafe_host_execution: true to make the decision explicit, " +
+				"or enable shell_sandbox on a supported Linux host. Writing the key as false stops the host shell.",
 			AutoFixable: false,
 		})
 	}

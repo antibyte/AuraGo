@@ -3885,3 +3885,31 @@ directories:
 		t.Fatal("expected explicit maintenance.enabled=false to be preserved")
 	}
 }
+
+func TestLoadGrandfathersUnsandboxedShellOnlyWhenFlagAbsent(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"shell on, flag absent", "agent:\n  allow_shell: true\n", true},
+		{"shell on, flag written false", "agent:\n  allow_shell: true\n  allow_unsafe_host_execution: false\n", false},
+		{"shell on, flag written true", "agent:\n  allow_shell: true\n  allow_unsafe_host_execution: true\n", false},
+		{"shell off", "agent:\n  allow_shell: false\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.Agent.LegacyUnsandboxedShell != tc.want {
+				t.Fatalf("LegacyUnsandboxedShell = %v, want %v", cfg.Agent.LegacyUnsandboxedShell, tc.want)
+			}
+		})
+	}
+}

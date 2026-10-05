@@ -2039,7 +2039,7 @@ Linux-Landlock-basierte Sandbox für Shell-Befehle. Sie schränkt Dateisystemzug
 
 **Web-UI:** **Config → Tools → Sandkasten** — Shell-Sandbox aktivieren und Limits konfigurieren (unterhalb der Docker-Sandbox-Einstellungen).
 
-> 💡 Nur auf Linux verfügbar. `shell_sandbox.enabled` bleibt aus Kompatibilitätsgründen standardmäßig `false`. Wenn Shell-Ausführung ohne wirksame Shell-Sandbox aktiviert ist, zeigt AuraGo einen Sicherheitshinweis. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`).
+> 💡 Nur auf Linux verfügbar. `shell_sandbox.enabled` bleibt aus Kompatibilitätsgründen standardmäßig `false`. Wenn Shell-Ausführung ohne wirksame Shell-Sandbox aktiviert ist, zeigt AuraGo einen Sicherheitshinweis. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`). Seit diesem Release benötigt die Host-Shell unter Linux ohne wirksame Sandbox zusätzlich `agent.allow_unsafe_host_execution: true`. Bestehende Konfigurationen, die den Schlüssel nie geschrieben haben, funktionieren weiter und zeigen den Hinweis `shell_unsafe_host_legacy`.
 
 Shell- und Python-Kindprozesse erhalten standardmäßig eine gefilterte Umgebung, damit Host-Secrets wie Master-Keys, API-Keys, Tokens und Passwörter nicht an agentengesteuerte Subprozesse vererbt werden.
 

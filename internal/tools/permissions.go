@@ -18,26 +18,27 @@ type RuntimePermissions struct {
 	ProtectedNotesRoots []string
 	// ProtectedDataDir and ProtectedSystemFiles feed secureResolve's denylist
 	// for AuraGo configuration, credential and database state.
-	ProtectedDataDir           string
-	ProtectedSystemFiles       []string
-	AllowShell                 bool
-	AllowPython                bool
-	AllowUnsafeHostExecution   bool
-	AllowFilesystemWrite       bool
-	AllowNetworkRequests       bool
-	DockerEnabled              bool
-	DockerReadOnly             bool
-	SchedulerEnabled           bool
-	SchedulerReadOnly          bool
-	MissionsEnabled            bool
-	MissionsReadOnly           bool
-	MQTTEnabled                bool
-	MQTTReadOnly               bool
-	PackageManagerEnabled      bool
-	PackageManagerReadOnly     bool
-	PackageManagerAllowInstall bool
-	PackageManagerAllowRemove  bool
-	PackageManagerAllowUpgrade bool
+	ProtectedDataDir            string
+	ProtectedSystemFiles        []string
+	AllowShell                  bool
+	AllowPython                 bool
+	AllowUnsafeHostExecution    bool
+	AllowLegacyUnsandboxedShell bool
+	AllowFilesystemWrite        bool
+	AllowNetworkRequests        bool
+	DockerEnabled               bool
+	DockerReadOnly              bool
+	SchedulerEnabled            bool
+	SchedulerReadOnly           bool
+	MissionsEnabled             bool
+	MissionsReadOnly            bool
+	MQTTEnabled                 bool
+	MQTTReadOnly                bool
+	PackageManagerEnabled       bool
+	PackageManagerReadOnly      bool
+	PackageManagerAllowInstall  bool
+	PackageManagerAllowRemove   bool
+	PackageManagerAllowUpgrade  bool
 }
 
 var runtimePermissions atomic.Pointer[RuntimePermissions]
@@ -119,27 +120,28 @@ func EffectiveRuntimePermissions(ctx context.Context) (RuntimePermissions, bool)
 // when a new RuntimePermissions field is not handled here.
 func intersectRuntimePermissions(a, b RuntimePermissions) RuntimePermissions {
 	return RuntimePermissions{
-		ProtectedNotesRoots:        unionRuntimePaths(a.ProtectedNotesRoots, b.ProtectedNotesRoots),
-		ProtectedDataDir:           firstNonEmptyRuntimePath(a.ProtectedDataDir, b.ProtectedDataDir),
-		ProtectedSystemFiles:       unionRuntimePaths(a.ProtectedSystemFiles, b.ProtectedSystemFiles),
-		AllowShell:                 a.AllowShell && b.AllowShell,
-		AllowPython:                a.AllowPython && b.AllowPython,
-		AllowUnsafeHostExecution:   a.AllowUnsafeHostExecution && b.AllowUnsafeHostExecution,
-		AllowFilesystemWrite:       a.AllowFilesystemWrite && b.AllowFilesystemWrite,
-		AllowNetworkRequests:       a.AllowNetworkRequests && b.AllowNetworkRequests,
-		DockerEnabled:              a.DockerEnabled && b.DockerEnabled,
-		DockerReadOnly:             a.DockerReadOnly || b.DockerReadOnly,
-		SchedulerEnabled:           a.SchedulerEnabled && b.SchedulerEnabled,
-		SchedulerReadOnly:          a.SchedulerReadOnly || b.SchedulerReadOnly,
-		MissionsEnabled:            a.MissionsEnabled && b.MissionsEnabled,
-		MissionsReadOnly:           a.MissionsReadOnly || b.MissionsReadOnly,
-		MQTTEnabled:                a.MQTTEnabled && b.MQTTEnabled,
-		MQTTReadOnly:               a.MQTTReadOnly || b.MQTTReadOnly,
-		PackageManagerEnabled:      a.PackageManagerEnabled && b.PackageManagerEnabled,
-		PackageManagerReadOnly:     a.PackageManagerReadOnly || b.PackageManagerReadOnly,
-		PackageManagerAllowInstall: a.PackageManagerAllowInstall && b.PackageManagerAllowInstall,
-		PackageManagerAllowRemove:  a.PackageManagerAllowRemove && b.PackageManagerAllowRemove,
-		PackageManagerAllowUpgrade: a.PackageManagerAllowUpgrade && b.PackageManagerAllowUpgrade,
+		ProtectedNotesRoots:         unionRuntimePaths(a.ProtectedNotesRoots, b.ProtectedNotesRoots),
+		ProtectedDataDir:            firstNonEmptyRuntimePath(a.ProtectedDataDir, b.ProtectedDataDir),
+		ProtectedSystemFiles:        unionRuntimePaths(a.ProtectedSystemFiles, b.ProtectedSystemFiles),
+		AllowShell:                  a.AllowShell && b.AllowShell,
+		AllowPython:                 a.AllowPython && b.AllowPython,
+		AllowUnsafeHostExecution:    a.AllowUnsafeHostExecution && b.AllowUnsafeHostExecution,
+		AllowLegacyUnsandboxedShell: a.AllowLegacyUnsandboxedShell && b.AllowLegacyUnsandboxedShell,
+		AllowFilesystemWrite:        a.AllowFilesystemWrite && b.AllowFilesystemWrite,
+		AllowNetworkRequests:        a.AllowNetworkRequests && b.AllowNetworkRequests,
+		DockerEnabled:               a.DockerEnabled && b.DockerEnabled,
+		DockerReadOnly:              a.DockerReadOnly || b.DockerReadOnly,
+		SchedulerEnabled:            a.SchedulerEnabled && b.SchedulerEnabled,
+		SchedulerReadOnly:           a.SchedulerReadOnly || b.SchedulerReadOnly,
+		MissionsEnabled:             a.MissionsEnabled && b.MissionsEnabled,
+		MissionsReadOnly:            a.MissionsReadOnly || b.MissionsReadOnly,
+		MQTTEnabled:                 a.MQTTEnabled && b.MQTTEnabled,
+		MQTTReadOnly:                a.MQTTReadOnly || b.MQTTReadOnly,
+		PackageManagerEnabled:       a.PackageManagerEnabled && b.PackageManagerEnabled,
+		PackageManagerReadOnly:      a.PackageManagerReadOnly || b.PackageManagerReadOnly,
+		PackageManagerAllowInstall:  a.PackageManagerAllowInstall && b.PackageManagerAllowInstall,
+		PackageManagerAllowRemove:   a.PackageManagerAllowRemove && b.PackageManagerAllowRemove,
+		PackageManagerAllowUpgrade:  a.PackageManagerAllowUpgrade && b.PackageManagerAllowUpgrade,
 	}
 }
 
@@ -182,27 +184,28 @@ func RuntimePermissionsFromConfig(cfg *config.Config) RuntimePermissions {
 		}
 	}
 	return RuntimePermissions{
-		ProtectedNotesRoots:        protectedNotes,
-		ProtectedDataDir:           cfg.Directories.DataDir,
-		ProtectedSystemFiles:       protectedSystemFilesFromConfig(cfg),
-		AllowShell:                 cfg.Agent.AllowShell,
-		AllowPython:                cfg.Agent.AllowPython,
-		AllowUnsafeHostExecution:   cfg.Agent.AllowUnsafeHostExecution,
-		AllowFilesystemWrite:       cfg.Agent.AllowFilesystemWrite,
-		AllowNetworkRequests:       cfg.Agent.AllowNetworkRequests,
-		DockerEnabled:              cfg.Docker.Enabled,
-		DockerReadOnly:             cfg.Docker.ReadOnly,
-		SchedulerEnabled:           cfg.Tools.Scheduler.Enabled,
-		SchedulerReadOnly:          cfg.Tools.Scheduler.ReadOnly,
-		MissionsEnabled:            cfg.Tools.Missions.Enabled,
-		MissionsReadOnly:           cfg.Tools.Missions.ReadOnly,
-		MQTTEnabled:                cfg.MQTT.Enabled,
-		MQTTReadOnly:               cfg.MQTT.ReadOnly,
-		PackageManagerEnabled:      packageManagerEnabled,
-		PackageManagerReadOnly:     cfg.PackageManager.ReadOnly,
-		PackageManagerAllowInstall: cfg.PackageManager.AllowInstall,
-		PackageManagerAllowRemove:  cfg.PackageManager.AllowRemove,
-		PackageManagerAllowUpgrade: cfg.PackageManager.AllowUpgrade,
+		ProtectedNotesRoots:         protectedNotes,
+		ProtectedDataDir:            cfg.Directories.DataDir,
+		ProtectedSystemFiles:        protectedSystemFilesFromConfig(cfg),
+		AllowShell:                  cfg.Agent.AllowShell,
+		AllowPython:                 cfg.Agent.AllowPython,
+		AllowUnsafeHostExecution:    cfg.Agent.AllowUnsafeHostExecution,
+		AllowLegacyUnsandboxedShell: cfg.Agent.LegacyUnsandboxedShell,
+		AllowFilesystemWrite:        cfg.Agent.AllowFilesystemWrite,
+		AllowNetworkRequests:        cfg.Agent.AllowNetworkRequests,
+		DockerEnabled:               cfg.Docker.Enabled,
+		DockerReadOnly:              cfg.Docker.ReadOnly,
+		SchedulerEnabled:            cfg.Tools.Scheduler.Enabled,
+		SchedulerReadOnly:           cfg.Tools.Scheduler.ReadOnly,
+		MissionsEnabled:             cfg.Tools.Missions.Enabled,
+		MissionsReadOnly:            cfg.Tools.Missions.ReadOnly,
+		MQTTEnabled:                 cfg.MQTT.Enabled,
+		MQTTReadOnly:                cfg.MQTT.ReadOnly,
+		PackageManagerEnabled:       packageManagerEnabled,
+		PackageManagerReadOnly:      cfg.PackageManager.ReadOnly,
+		PackageManagerAllowInstall:  cfg.PackageManager.AllowInstall,
+		PackageManagerAllowRemove:   cfg.PackageManager.AllowRemove,
+		PackageManagerAllowUpgrade:  cfg.PackageManager.AllowUpgrade,
 	}
 }
 
@@ -263,6 +266,37 @@ func requireShellPermissionContext(ctx context.Context) error {
 			return fmt.Errorf("Windows host shell requires agent.allow_unsafe_host_execution")
 		}
 		slog.Warn("Unsafe host execution authorized", "kind", "windows_shell")
+	}
+	return nil
+}
+
+// hostShellFallbackError is the gate for running a host shell outside any
+// sandbox. Windows has its own gate in requireShellPermissionContext; a blocked
+// sandbox reports its own error when the command runs.
+func hostShellFallbackError(goos string, sb sandbox.ShellSandbox, perms RuntimePermissions) error {
+	if goos == "windows" || sb == nil || sb.Available() || sb.Name() == "blocked" {
+		return nil
+	}
+	if perms.AllowUnsafeHostExecution || perms.AllowLegacyUnsandboxedShell {
+		return nil
+	}
+	return fmt.Errorf("host shell without an active shell sandbox requires agent.allow_unsafe_host_execution (or enable shell_sandbox on a supported Linux host)")
+}
+
+// requireHostShellExecutionContext gates execute_shell/execute_sudo: the shell
+// grant plus, when no sandbox is active, the same unsafe-host acknowledgement
+// that host Python and the Windows shell already require.
+func requireHostShellExecutionContext(ctx context.Context) error {
+	if err := requireShellPermissionContext(ctx); err != nil {
+		return err
+	}
+	perms, _ := EffectiveRuntimePermissions(ctx)
+	sb := sandbox.Get()
+	if err := hostShellFallbackError(runtime.GOOS, sb, perms); err != nil {
+		return err
+	}
+	if runtime.GOOS != "windows" && sb != nil && !sb.Available() && sb.Name() != "blocked" {
+		slog.Warn("Unsafe host execution authorized", "kind", "linux_shell", "legacy_default", !perms.AllowUnsafeHostExecution)
 	}
 	return nil
 }
