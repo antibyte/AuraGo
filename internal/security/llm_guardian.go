@@ -332,9 +332,12 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 	prompt := buildGuardianPrompt(check)
 
 	req := openai.ChatCompletionRequest{
-		Model:       g.model,
-		Messages:    g.buildMessages(guardianSystemPrompt, prompt),
-		MaxTokens:   512, // enough for a short reasoning block + "DECISION SCORE REASON" verdict
+		Model:    g.model,
+		Messages: g.buildMessages(guardianSystemPrompt, prompt),
+		// A ceiling, not a target: reasoning models spend much of it thinking
+		// before the "DECISION SCORE REASON" verdict, and a completion cut off
+		// here is treated as incomplete (fail-safe, never cached).
+		MaxTokens:   2048,
 		Temperature: 0,
 	}
 
@@ -357,10 +360,10 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 	}
 
 	tokensUsed := resp.Usage.TotalTokens
-	raw := extractMessageContent(resp.Choices[0].Message)
 	if truncatedChoice(resp) {
-		return g.truncatedVerdictResult(start, raw, tokensUsed, "operation", check.Operation)
+		return g.truncatedVerdictResult(start, resp, req.MaxTokens, "operation", check.Operation)
 	}
+	raw := extractMessageContent(resp.Choices[0].Message)
 	if strings.TrimSpace(raw) == "" {
 		g.logger.Warn("[Guardian] Empty content from LLM",
 			"operation", check.Operation,
@@ -405,26 +408,45 @@ func (g *LLMGuardian) failSafeResult(start time.Time, reason string) GuardianRes
 	}
 }
 
-// truncatedChoice reports whether the provider stopped the first choice at its
-// token limit, so any verdict in it may be incomplete.
+// truncatedChoice reports whether the provider cut the first choice short (token
+// limit or content filter), so any verdict in it may be incomplete.
 func truncatedChoice(resp openai.ChatCompletionResponse) bool {
-	return len(resp.Choices) > 0 && resp.Choices[0].FinishReason == openai.FinishReasonLength
+	if len(resp.Choices) == 0 {
+		return false
+	}
+	switch resp.Choices[0].FinishReason {
+	case openai.FinishReasonLength, openai.FinishReasonContentFilter:
+		return true
+	default:
+		return false
+	}
 }
 
-// truncatedVerdictResult turns a length-truncated completion into a result no
-// cache stores: a partial verdict that already blocks is kept, anything else
-// gets the configured fail-safe. Both reasons carry the "fail-safe: " prefix.
-func (g *LLMGuardian) truncatedVerdictResult(start time.Time, raw string, tokens int, logAttrs ...any) GuardianResult {
+// truncatedVerdictResult turns a completion for which truncatedChoice is true
+// into a result no cache stores: a partial verdict that already blocks is kept,
+// anything else gets the configured fail-safe. Both reasons carry the
+// "fail-safe: " prefix. maxTokens is the limit the request actually sent.
+func (g *LLMGuardian) truncatedVerdictResult(start time.Time, resp openai.ChatCompletionResponse, maxTokens int, logAttrs ...any) GuardianResult {
 	g.Metrics.RecordError()
+	choice := resp.Choices[0]
 	result := g.failSafeResult(start, "truncated guardian response")
-	if partial := parseGuardianResponse(raw); partial.Decision == DecisionBlock {
+	if partial := parseGuardianResponse(extractMessageContent(choice.Message)); partial.Decision == DecisionBlock {
 		result = partial
-		result.Reason = "fail-safe: truncated verdict, partial text blocked: " + partial.Reason
+		result.Reason = "fail-safe: truncated verdict, partial text blocked"
+		if partial.Reason != "" {
+			result.Reason += ": " + partial.Reason
+		}
 		result.Duration = time.Since(start)
 	}
-	result.TokensUsed = tokens
-	g.logger.Warn("[Guardian] Truncated verdict; applying fail-safe",
-		append(logAttrs, "tokens", tokens, "decision", result.Decision)...)
+	result.TokensUsed = resp.Usage.TotalTokens
+	fromReasoning := strings.TrimSpace(choice.Message.Content) == "" && strings.TrimSpace(choice.Message.ReasoningContent) != ""
+	g.logger.Warn("[Guardian] Truncated verdict; applying fail-safe", append(logAttrs,
+		"finish_reason", choice.FinishReason,
+		"completion_tokens", resp.Usage.CompletionTokens,
+		"max_tokens", maxTokens,
+		"model", g.model,
+		"from_reasoning_content", fromReasoning,
+		"decision", result.Decision)...)
 	return result
 }
 
@@ -879,10 +901,10 @@ func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianC
 		return g.failSafeResult(start, "empty clarification response")
 	}
 
-	raw := extractMessageContent(resp.Choices[0].Message)
 	if truncatedChoice(resp) {
-		return g.truncatedVerdictResult(start, raw, resp.Usage.TotalTokens, "operation", check.Operation, "phase", "clarification")
+		return g.truncatedVerdictResult(start, resp, req.MaxTokens, "operation", check.Operation, "phase", "clarification")
 	}
+	raw := extractMessageContent(resp.Choices[0].Message)
 	result := parseGuardianResponse(raw)
 	result.TokensUsed = resp.Usage.TotalTokens
 	result.Duration = time.Since(start)
@@ -975,31 +997,32 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 		}
 
 		resp, err := g.client.CreateChatCompletion(ctx, req)
-		if err != nil {
+		var result GuardianResult
+		switch {
+		case err != nil:
 			g.logger.Warn("[Guardian] Content scan LLM call failed", "error", err, "type", contentType)
 			g.Metrics.RecordError()
-			return g.failSafeResult(start, fmt.Sprintf("content scan error: %v", err))
-		}
-
-		if len(resp.Choices) == 0 {
+			result = g.failSafeResult(start, fmt.Sprintf("content scan error: %v", err))
+		case len(resp.Choices) == 0:
 			g.Metrics.RecordError()
-			return g.failSafeResult(start, "empty content scan response")
+			result = g.failSafeResult(start, "empty content scan response")
+		case truncatedChoice(resp):
+			result = g.truncatedVerdictResult(start, resp, req.MaxTokens, "type", contentType, "phase", "content_scan")
+		default:
+			result = parseGuardianResponse(extractMessageContent(resp.Choices[0].Message))
 		}
-
-		raw := extractMessageContent(resp.Choices[0].Message)
 		totalTokens += resp.Usage.TotalTokens
-		if truncatedChoice(resp) {
-			return g.truncatedVerdictResult(start, raw, totalTokens, "type", contentType, "phase", "content_scan")
-		}
-		result := parseGuardianResponse(raw)
-		// A chunk without a complete verdict makes the whole scan incomplete.
+		// A chunk without a complete verdict makes the whole scan incomplete: it
+		// is never cached, and the merge keeps any stricter earlier verdict.
 		if strings.HasPrefix(result.Reason, "fail-safe:") {
 			cacheable = false
 		}
 		result.TokensUsed = totalTokens
 		result.Duration = time.Since(start)
 		best, haveBest = preferContentScanResult(best, haveBest, result)
-		if result.Decision == DecisionBlock {
+		// After a transport error further chunks would wait on the same failing
+		// provider (per-attempt timeouts, no scan deadline), so the scan stops.
+		if result.Decision == DecisionBlock || err != nil {
 			break
 		}
 	}
