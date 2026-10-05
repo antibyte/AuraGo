@@ -1941,7 +1941,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"sections":     prop("string", "JSON array of sections for create_pdf. Each section: {\"type\":\"text|table|list\",\"header\":\"...\",\"body\":\"...\",\"rows\":[[...]]}"),
 				"source_files": prop("string", "JSON array of file paths for merge_pdfs or convert_document"),
 				"block_remote_content": map[string]interface{}{"type": "boolean",
-					"description": "Block all network access while rendering HTML or Markdown (recommended for untrusted HTML; default: false; url_to_pdf and screenshot_url are unaffected)"},
+					"description": "Blocks remote resources, scripts, meta refresh and connection hints while rendering HTML or Markdown; embed images and fonts as data: URLs, inline CSS works. Recommended for untrusted HTML (default: false). Refused for url_to_pdf, screenshot_url and convert_document"},
 			}, "operation"),
 		))
 	}

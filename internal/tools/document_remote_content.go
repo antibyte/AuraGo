@@ -14,15 +14,50 @@ import (
 const remoteContentCSPMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:">`
 
 const (
-	// metaScanWindow bounds the bytes read for one <meta> tag. A longer tag cannot be
-	// shown to be harmless and is neutralized.
-	metaScanWindow = 4096
-	// metaScanLimit bounds the <meta> tags examined one by one. Every later one is
-	// neutralized unexamined, so hostile input cannot make the pass quadratic.
-	metaScanLimit = 256
+	// tagScanWindow bounds the bytes read for one <meta> or <link> tag. A longer tag cannot
+	// be shown to be harmless and is neutralized.
+	tagScanWindow = 4096
+	// tagScanLimit bounds the <meta> and <link> tags examined one by one. Every later one
+	// is neutralized unexamined, so hostile input cannot make the pass quadratic.
+	tagScanLimit = 256
 	// utf8ByteOrderMark is U+FEFF encoded as UTF-8.
 	utf8ByteOrderMark = "\xef\xbb\xbf"
 )
+
+// riskyTag names a tag that the policy cannot stop, and the attribute that makes it risky.
+type riskyTag struct {
+	name string
+	// risky reports whether an attribute (lower-case key, entity-decoded value) makes the
+	// tag risky.
+	risky func(key string, val []byte) bool
+}
+
+// riskyTags are the tags neutralizeRiskyTags turns into bogus comments:
+//   - <meta http-equiv=refresh>: a CSP does not govern navigation, so a refresh could still
+//     load a LAN page into the render;
+//   - <link rel=preconnect|dns-prefetch>: connection hints resolve a name or open a
+//     connection outside the policy. prefetch, prerender and preload are governed by the
+//     policy already and are neutralized as well, since that costs nothing.
+//
+// Chromium compares these keywords ASCII case-insensitively; any value that contains one
+// counts here, which also covers multi-value rel lists.
+var riskyTags = []riskyTag{
+	{name: "meta", risky: func(key string, val []byte) bool {
+		return key == "http-equiv" && bytes.Contains(bytes.ToLower(val), []byte("refresh"))
+	}},
+	{name: "link", risky: func(key string, val []byte) bool {
+		if key != "rel" {
+			return false
+		}
+		rel := bytes.ToLower(val)
+		for _, hint := range []string{"preconnect", "dns-prefetch", "prefetch", "prerender", "preload"} {
+			if bytes.Contains(rel, []byte(hint)) {
+				return true
+			}
+		}
+		return false
+	}},
+}
 
 // renderTextCleaner drops NUL and ESC before any scan, so that dropping them cannot join a
 // tag afterwards. ESC is what switches ISO-2022-JP away from ASCII; without it, every
@@ -33,17 +68,16 @@ var renderTextCleaner = strings.NewReplacer("\x00", "", "\x1b", "")
 // reach the network (document_creator's block_remote_content):
 //   - the text becomes valid UTF-8 without NUL and ESC, so no byte order mark or
 //     ISO-2022-JP escape can make Chromium decode the inserted policy differently;
-//   - every <meta> tag that could be a refresh becomes a bogus comment (see
-//     neutralizeMetaRefresh), because a CSP does not govern navigation;
+//   - every meta refresh and connection-hint link becomes a bogus comment (see
+//     neutralizeRiskyTags), because the policy does not govern them;
 //   - remoteContentCSPMeta becomes the first element of <head>. A meta CSP only covers what
 //     follows it in the document, so it goes directly after an explicit <head> tag, or else
 //     in front of the first token that makes the parser create the head implicitly (see
 //     cspInsertionOffset). A doctype in front stays in front.
 //
-// Known limits: the policy does not cover DNS prefetch or preconnect hints, which resolve a
-// name or open a connection but fetch nothing. Markup that only appears after entity
-// decoding, such as an <iframe srcdoc> document, inherits the policy, and its navigation is
-// blocked by frame-src (default-src 'none').
+// Known limit: markup that only appears after entity decoding, such as an <iframe srcdoc>
+// document, is not rewritten. It inherits the policy, and its navigation is blocked by
+// frame-src (default-src 'none').
 func restrictRemoteContent(doc string) string {
 	doc = sanitizeRenderText(doc)
 	bom := ""
@@ -51,48 +85,50 @@ func restrictRemoteContent(doc string) string {
 		// Chromium consumes a leading byte order mark before parsing, so it stays first.
 		bom, doc = utf8ByteOrderMark, doc[len(utf8ByteOrderMark):]
 	}
-	doc = neutralizeMetaRefresh(doc)
+	doc = neutralizeRiskyTags(doc)
 	at := cspInsertionOffset(doc)
 	return bom + doc[:at] + remoteContentCSPMeta + doc[at:]
 }
 
 // restrictRemoteMarkdown prepares Markdown for Gotenberg's markdown route. Raw HTML in the
-// Markdown ends up in the rendered body, so refresh tags are neutralized here too; the
+// Markdown ends up in the rendered body, so risky tags are neutralized here too; the
 // policy itself goes into the head of the wrapper page.
 func restrictRemoteMarkdown(markdown string) string {
-	return neutralizeMetaRefresh(sanitizeRenderText(markdown))
+	return neutralizeRiskyTags(sanitizeRenderText(markdown))
 }
 
 func sanitizeRenderText(s string) string {
 	return renderTextCleaner.Replace(strings.ToValidUTF8(s, string(utf8.RuneError)))
 }
 
-// neutralizeMetaRefresh turns every <meta> tag that could carry http-equiv="refresh" into a
-// bogus comment by inserting "!" after its "<" ("<!meta ...>").
+// neutralizeRiskyTags turns every riskyTags tag that could carry its risky attribute into a
+// bogus comment by inserting "!" after its "<" ("<!meta ...>", "<!link ...>").
 //
-// Each "<meta" occurrence is examined on its own, as if the tokenizer were in the data state
-// there. A start tag only begins in the data state, and from there its extent and attributes
-// do not depend on what came before, so a refresh tag that Chromium sees in any context
-// (inside SVG, after a CDATA section, behind a confusing comment) is found. Look-alikes in
-// comments, scripts or attribute values are neutralized too, which is harmless. The
-// inserted "!" adds no "<" and changes no quote, ">" or whitespace, so it can neither
-// create a new tag nor change the attributes of a tag that was kept.
-func neutralizeMetaRefresh(doc string) string {
+// Each "<meta"/"<link" occurrence is examined on its own, as if the tokenizer were in the
+// data state there. A start tag only begins in the data state, and from there its extent
+// and attributes do not depend on what came before, so a risky tag that Chromium sees in any
+// context (inside SVG, after a CDATA section, behind a confusing comment) is found.
+// Look-alikes in comments, scripts or attribute values are neutralized too, which is
+// harmless. The inserted "!" adds no "<" and changes no quote, ">" or whitespace, so it can
+// neither create a new tag nor change the attributes of a tag that was kept.
+func neutralizeRiskyTags(doc string) string {
 	lower := asciiLower(doc)
 	var out strings.Builder
 	last, examined := 0, 0
-	for from := 0; ; {
-		i := strings.Index(lower[from:], "<meta")
+	for from := 0; from < len(lower); {
+		i := strings.IndexByte(lower[from:], '<')
 		if i < 0 {
 			break
 		}
 		i += from
-		from = i + len("<meta")
-		if from == len(lower) || !strings.ContainsRune("\t\n\f\r />", rune(lower[from])) {
-			continue // a longer tag name such as <metadata>, or "<meta" at the very end
+		from = i + 1
+		tag, ok := riskyTagAt(lower, i)
+		if !ok {
+			continue
 		}
+		from = i + 1 + len(tag.name)
 		examined++
-		if examined <= metaScanLimit && metaTagIsHarmless(doc[i:min(len(doc), i+metaScanWindow)]) {
+		if examined <= tagScanLimit && tagIsHarmless(doc[i:min(len(doc), i+tagScanWindow)], tag) {
 			continue
 		}
 		out.WriteString(doc[last : i+1])
@@ -106,22 +142,33 @@ func neutralizeMetaRefresh(doc string) string {
 	return out.String()
 }
 
-// metaTagIsHarmless reports whether fragment, which starts with a "<meta" tag, holds that
-// whole tag and no http-equiv attribute that mentions refresh. Chromium compares the value
-// with "refresh" ASCII case-insensitively; any value that contains it counts here.
-func metaTagIsHarmless(fragment string) bool {
+// riskyTagAt reports which riskyTags tag starts at lower[i] ("<" + name + a character that
+// ends a tag name). A longer name such as <metadata>, or a name at the very end, is none.
+func riskyTagAt(lower string, i int) (riskyTag, bool) {
+	for _, tag := range riskyTags {
+		end := i + 1 + len(tag.name)
+		if end < len(lower) && lower[i+1:end] == tag.name && strings.IndexByte("\t\n\f\r />", lower[end]) >= 0 {
+			return tag, true
+		}
+	}
+	return riskyTag{}, false
+}
+
+// tagIsHarmless reports whether fragment, which starts with tag, holds that whole tag and
+// no attribute that tag.risky flags.
+func tagIsHarmless(fragment string, tag riskyTag) bool {
 	z := html.NewTokenizer(strings.NewReader(fragment))
 	if tt := z.Next(); tt != html.StartTagToken && tt != html.SelfClosingTagToken {
 		return false // cut off by the scan window or by the end of the document
 	}
 	name, more := z.TagName()
-	if string(name) != "meta" {
+	if string(name) != tag.name {
 		return false
 	}
 	for more {
 		var key, val []byte
 		key, val, more = z.TagAttr()
-		if string(key) == "http-equiv" && bytes.Contains(bytes.ToLower(val), []byte("refresh")) {
+		if tag.risky(string(key), val) {
 			return false
 		}
 	}

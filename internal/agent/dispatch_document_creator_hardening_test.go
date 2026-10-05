@@ -43,8 +43,17 @@ func TestDocumentCreatorSchemaOffersBlockRemoteContent(t *testing.T) {
 		parameters, _ := schema.Function.Parameters.(map[string]interface{})
 		properties, _ := parameters["properties"].(map[string]interface{})
 		property, ok := properties["block_remote_content"].(map[string]interface{})
-		if !ok || property["type"] != "boolean" || !strings.Contains(property["description"].(string), "untrusted HTML") {
+		if !ok || property["type"] != "boolean" {
 			t.Fatalf("block_remote_content property = %#v", properties["block_remote_content"])
+		}
+		description, _ := property["description"].(string)
+		for _, want := range []string{"untrusted HTML", "data: URLs", "Refused for url_to_pdf, screenshot_url and convert_document"} {
+			if !strings.Contains(description, want) {
+				t.Fatalf("description %q lacks %q", description, want)
+			}
+		}
+		if strings.Contains(description, "all network access") {
+			t.Fatalf("description overclaims: %q", description)
 		}
 		return
 	}

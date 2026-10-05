@@ -195,13 +195,22 @@ func c102AssertPolicyFirstInHead(t *testing.T, out string) {
 	}
 }
 
-// c102AssertNoMetaRefresh checks that the parsed document holds no meta element with a refresh.
-func c102AssertNoMetaRefresh(t *testing.T, out string) {
+// c102AssertNoRiskyTags checks that the parsed document holds no meta refresh and no link
+// with a connection hint.
+func c102AssertNoRiskyTags(t *testing.T, out string) {
 	t.Helper()
 	var walk func(*html.Node)
 	walk = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "meta" && strings.Contains(strings.ToLower(c102Attr(n, "http-equiv")), "refresh") {
 			t.Fatalf("meta refresh survived in %q", out)
+		}
+		if n.Type == html.ElementNode && n.Data == "link" {
+			rel := strings.ToLower(c102Attr(n, "rel"))
+			for _, hint := range []string{"preconnect", "dns-prefetch", "prefetch", "prerender", "preload"} {
+				if strings.Contains(rel, hint) {
+					t.Fatalf("link rel=%q survived in %q", rel, out)
+				}
+			}
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			walk(c)
@@ -238,6 +247,8 @@ func TestRestrictRemoteContentPutsThePolicyFirstInHead(t *testing.T) {
 			c102CSP + `<img src="http://192.168.1.1/x.png"><head><title>T</title></head>`},
 		{"self-closing head", `<html><head/><title>T</title>`, `<html><head/>` + c102CSP + `<title>T</title>`},
 		{"abrupt empty comment", `<!--><head>`, `<!--><head>` + c102CSP},
+		{"bang comment", "<!-- --!><img src=x> -->", "<!-- --!>" + c102CSP + "<img src=x> -->"},
+		{"doctype with quoted >", "<!DOCTYPE html PUBLIC \"a>b\"><head>", "<!DOCTYPE html PUBLIC \"a>" + c102CSP + "b\"><head>"},
 		{"quoted > in the html tag", `<html data-x="a>b"><head>`, c102CSP + `<html data-x="a>b"><head>`},
 		{"byte order mark stays first", "\xef\xbb\xbf  \n<head>", "\xef\xbb\xbf  \n<head>" + c102CSP},
 		{"invalid UTF-8 cannot form a UTF-16 byte order mark", "\xff\xfe<p>x</p>", c102CSP + "\xef\xbf\xbd<p>x</p>"},
@@ -253,7 +264,7 @@ func TestRestrictRemoteContentPutsThePolicyFirstInHead(t *testing.T) {
 	}
 }
 
-func TestRestrictRemoteContentNeutralizesMetaRefresh(t *testing.T) {
+func TestRestrictRemoteContentNeutralizesRiskyTags(t *testing.T) {
 	for _, tc := range []struct{ name, in, want string }{
 		{"double quotes", `<meta http-equiv="refresh" content="0;url=http://192.168.1.1/">`,
 			`<!meta http-equiv="refresh" content="0;url=http://192.168.1.1/">`},
@@ -277,39 +288,90 @@ func TestRestrictRemoteContentNeutralizesMetaRefresh(t *testing.T) {
 			`<meta http-equiv="Content-Type" content="text/html; charset=utf-8">`},
 		{"refresh only in another attribute", `<meta name="description" content="refresh daily">`, `<meta name="description" content="refresh daily">`},
 		{"metadata is another tag", `<metadata http-equiv="refresh">`, `<metadata http-equiv="refresh">`},
+		// connection hints
+		{"preconnect repro", `<link rel=preconnect href="http://192.168.1.1:8080">`, `<!link rel=preconnect href="http://192.168.1.1:8080">`},
+		{"preconnect upper case and single quotes", `<LINK REL='PreConnect' HREF='http://10.0.0.1/'>`, `<!LINK REL='PreConnect' HREF='http://10.0.0.1/'>`},
+		{"dns-prefetch double quotes", `<link rel="dns-prefetch" href="//printer.lan">`, `<!link rel="dns-prefetch" href="//printer.lan">`},
+		{"multi-value rel", `<link href="http://lan/" rel="stylesheet preconnect">`, `<!link href="http://lan/" rel="stylesheet preconnect">`},
+		{"character reference in rel", `<link rel="&#112;reconnect" href="http://lan/">`, `<!link rel="&#112;reconnect" href="http://lan/">`},
+		{"self-closing with newlines", "<link\nrel\n=\nDNS-Prefetch\nhref=//lan/ />", "<!link\nrel\n=\nDNS-Prefetch\nhref=//lan/ />"},
+		{"prefetch", `<link rel=prefetch href="http://lan/a">`, `<!link rel=prefetch href="http://lan/a">`},
+		{"prerender", `<link rel=prerender href="http://lan/a">`, `<!link rel=prerender href="http://lan/a">`},
+		{"preload", `<link rel=preload as=image href="http://lan/a.png">`, `<!link rel=preload as=image href="http://lan/a.png">`},
+		{"hint inside an SVG style element", `<svg><style><link rel=preconnect href="http://lan/"></style></svg>`,
+			`<svg><style><!link rel=preconnect href="http://lan/"></style></svg>`},
+		{"stylesheet link kept", `<link rel="stylesheet" href="http://lan/a.css">`, `<link rel="stylesheet" href="http://lan/a.css">`},
+		{"icon link kept", `<link rel="icon" href="data:,">`, `<link rel="icon" href="data:,">`},
+		{"hint only in another attribute", `<link rel="stylesheet" title="preconnect">`, `<link rel="stylesheet" title="preconnect">`},
+		{"linkx is another tag", `<linkx rel=preconnect href="http://lan/">`, `<linkx rel=preconnect href="http://lan/">`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := neutralizeMetaRefresh(sanitizeRenderText(tc.in)); got != tc.want {
-				t.Fatalf("neutralizeMetaRefresh(%q)\n got %q\nwant %q", tc.in, got, tc.want)
+			if got := neutralizeRiskyTags(sanitizeRenderText(tc.in)); got != tc.want {
+				t.Fatalf("neutralizeRiskyTags(%q)\n got %q\nwant %q", tc.in, got, tc.want)
 			}
 			out := restrictRemoteContent("<html><head></head><body>" + tc.in + "</body></html>")
-			c102AssertNoMetaRefresh(t, out)
+			c102AssertNoRiskyTags(t, out)
 			c102AssertPolicyFirstInHead(t, out)
 		})
 	}
 }
 
-func TestNeutralizeMetaRefreshFailsClosed(t *testing.T) {
+func TestNeutralizeRiskyTagsFailsClosed(t *testing.T) {
 	t.Run("tag longer than the scan window", func(t *testing.T) {
-		in := `<meta data-pad="` + strings.Repeat("x", metaScanWindow) + `" http-equiv="refresh" content="0;url=http://lan/">`
-		if got := neutralizeMetaRefresh(in); got != "<!"+in[1:] {
-			t.Fatalf("oversized refresh tag kept: %.80q", got)
+		for _, in := range []string{
+			`<meta data-pad="` + strings.Repeat("x", tagScanWindow) + `" http-equiv="refresh" content="0;url=http://lan/">`,
+			`<link data-pad="` + strings.Repeat("x", tagScanWindow) + `" rel="preconnect" href="http://lan/">`,
+		} {
+			if got := neutralizeRiskyTags(in); got != "<!"+in[1:] {
+				t.Fatalf("oversized tag kept: %.80q", got)
+			}
 		}
 	})
 	t.Run("more tags than the scan limit", func(t *testing.T) {
-		harmless := `<meta charset="utf-8">`
-		in := strings.Repeat(harmless, metaScanLimit+1)
-		want := strings.Repeat(harmless, metaScanLimit) + "<!" + harmless[1:]
-		if got := neutralizeMetaRefresh(in); got != want {
+		meta, link := `<meta charset="utf-8">`, `<link rel="stylesheet" href="a.css">`
+		in := strings.Repeat(meta+link, tagScanLimit/2) + link + meta
+		want := strings.Repeat(meta+link, tagScanLimit/2) + "<!" + link[1:] + "<!" + meta[1:]
+		if got := neutralizeRiskyTags(in); got != want {
 			t.Fatalf("tags beyond the scan limit were kept")
 		}
 	})
 	t.Run("hostile input", func(t *testing.T) {
-		in := strings.Repeat(`<meta a="`, 200000)
-		if got := strings.Count(neutralizeMetaRefresh(in), `<!meta a="`); got != 200000 {
-			t.Fatalf("neutralized %d of 200000 unterminated tags", got)
+		in := strings.Repeat(`<meta a="<link a="`, 100000)
+		out := neutralizeRiskyTags(in)
+		if metas, links := strings.Count(out, `<!meta a="`), strings.Count(out, `<!link a="`); metas != 100000 || links != 100000 {
+			t.Fatalf("neutralized %d metas and %d links of 100000 each", metas, links)
 		}
 	})
+}
+
+func TestDocumentCreatorRefusesOperationsBlockRemoteContentCannotProtect(t *testing.T) {
+	cfg, calls := c102FakeGotenberg(t)
+	workspace := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspace, "a.docx"), []byte("docx"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, operation := range []string{"url_to_pdf", "screenshot_url", "convert_document"} {
+		t.Run(operation, func(t *testing.T) {
+			want := "block_remote_content is not supported for " + operation
+			direct := c102DecodeResult(t, ExecuteDocumentCreator(context.Background(), cfg, operation, "", "", "https://example.com", "", "", false, "", `["a.docx"]`,
+				DocumentCreatorOptions{BlockRemoteContent: true}))
+			inWorkspace := c102DecodeResult(t, ExecuteDocumentCreatorInWorkspace(context.Background(), cfg, workspace, operation, "", "", "https://example.com", "", "", false, "", `["a.docx"]`,
+				DocumentCreatorOptions{BlockRemoteContent: true}))
+			for _, out := range []map[string]any{direct, inWorkspace} {
+				if out["status"] != "error" || out["message"] != want {
+					t.Fatalf("result = %+v, want error %q", out, want)
+				}
+			}
+		})
+	}
+	if got := calls(); len(got) != 0 {
+		t.Fatalf("refused operations still reached Gotenberg: %+v", got)
+	}
+	// Without the flag the same convert_document call renders.
+	out := c102DecodeResult(t, ExecuteDocumentCreatorInWorkspace(context.Background(), cfg, workspace, "convert_document", "", "", "", "", "", false, "", `["a.docx"]`))
+	if out["status"] != "success" || len(calls()) != 1 {
+		t.Fatalf("unflagged convert_document = %+v, calls = %d", out, len(calls()))
+	}
 }
 
 func TestRestrictRemoteMarkdownNeutralizesRefreshWithoutAPolicy(t *testing.T) {
@@ -407,7 +469,7 @@ func TestDocumentCreatorBlockRemoteContentReachesEveryChromiumRender(t *testing.
 					continue
 				}
 				c102AssertPolicyFirstInHead(t, index)
-				c102AssertNoMetaRefresh(t, index)
+				c102AssertNoRiskyTags(t, index)
 				if tc.operation == "markdown_to_pdf" && !strings.Contains(got[0].files["content.md"], "<!meta http-equiv") {
 					t.Fatalf("markdown kept its refresh: %q", got[0].files["content.md"])
 				}
