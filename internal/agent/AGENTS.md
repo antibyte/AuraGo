@@ -66,6 +66,16 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Tool System
 
+- Strict schemas are a separate immutable snapshot projection: every object is
+  closed, all properties are required, and originally optional values accept
+  null without losing enums or constraints. Keep normalization idempotent.
+  Before dispatch, resolve synthetic null placeholders against the original
+  schema for native calls, shortcuts and invoke_tool alike. Preserve explicit
+  false/zero/empty values, open payloads, encoded JSON and domain-null values
+  such as Game Maker settings. Typed arguments and Params must agree; transport
+  identity and authorization remain intact. Verify TestStrict* and the schema,
+  prepared-profile and Game Maker settings tests.
+
 - treg exposes three schemas for the dynamic catalog, never a schema per endpoint.
   Trace calls by endpoint and stored action class; specialized roles only receive
   read grants. Preserve an explicitly unknown sent outcome through cancellation,

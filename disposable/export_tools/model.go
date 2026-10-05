@@ -53,15 +53,16 @@ type FunctionDefinition struct {
 }
 
 type ToolExport struct {
-	Name          string                 `json:"name"`
-	Description   string                 `json:"description"`
-	Parameters    map[string]interface{} `json:"parameters"`
-	Required      []string               `json:"required,omitempty"`
-	Properties    map[string]interface{} `json:"properties,omitempty"`
-	Tier          string                 `json:"tier"`
-	Operations    []OperationRef         `json:"operations,omitempty"`
-	ManualPath    string                 `json:"manual_path,omitempty"`
-	ManualSnippet string                 `json:"manual_snippet,omitempty"`
+	Name           string                 `json:"name"`
+	Description    string                 `json:"description"`
+	Parameters     map[string]interface{} `json:"parameters"`
+	ArgumentSchema map[string]interface{} `json:"argument_schema,omitempty"`
+	Required       []string               `json:"required,omitempty"`
+	Properties     map[string]interface{} `json:"properties,omitempty"`
+	Tier           string                 `json:"tier"`
+	Operations     []OperationRef         `json:"operations,omitempty"`
+	ManualPath     string                 `json:"manual_path,omitempty"`
+	ManualSnippet  string                 `json:"manual_snippet,omitempty"`
 }
 
 func (t ToolExport) Definition() ToolDefinition {
@@ -198,6 +199,12 @@ func loadStrictTools(root string) ([]ToolExport, error) {
 
 	snapshot := agent.BuildNativeToolSchemaSnapshot(tmpSkills, nil, allFlags(), nil)
 	schemas := snapshot.StrictSchemas()
+	originals := make(map[string]map[string]interface{}, len(schemas))
+	for _, schema := range snapshot.FullSchemas() {
+		if schema.Function != nil {
+			originals[schema.Function.Name] = normalizeParams(schema.Function.Parameters)
+		}
+	}
 	byName := make(map[string]openai.Tool, len(schemas))
 	for _, schema := range schemas {
 		if schema.Function == nil || strings.TrimSpace(schema.Function.Name) == "" {
@@ -223,13 +230,14 @@ func loadStrictTools(root string) ([]ToolExport, error) {
 		props, required := propsAndRequired(params)
 		manualPath, snippet := manualMetadata(root, name)
 		tools = append(tools, ToolExport{
-			Name:          name,
-			Description:   schema.Function.Description,
-			Parameters:    params,
-			Required:      required,
-			Properties:    props,
-			ManualPath:    manualPath,
-			ManualSnippet: snippet,
+			Name:           name,
+			Description:    schema.Function.Description,
+			Parameters:     params,
+			ArgumentSchema: originals[name],
+			Required:       required,
+			Properties:     props,
+			ManualPath:     manualPath,
+			ManualSnippet:  snippet,
 		})
 	}
 	return tools, nil
@@ -361,6 +369,9 @@ func extractOperations(schema map[string]interface{}) []OperationRef {
 	for _, selector := range []string{"operation", "action", "op"} {
 		property, _ := props[selector].(map[string]interface{})
 		for _, value := range enumValues(property["enum"]) {
+			if value == nil {
+				continue
+			} // Strict placeholders are not operations.
 			operations = append(operations, OperationRef{Selector: selector, Value: value})
 		}
 	}
@@ -416,7 +427,7 @@ func validateArguments(tool ToolExport, arguments map[string]interface{}) error 
 		}
 		compiledToolSchemas.Store(cacheKey, compiled)
 	}
-	result, err := compiled.Validate(gojsonschema.NewGoLoader(arguments))
+	result, err := compiled.Validate(gojsonschema.NewGoLoader(strictArguments(tool, arguments)))
 	if err != nil {
 		return fmt.Errorf("run JSON Schema validation: %w", err)
 	}

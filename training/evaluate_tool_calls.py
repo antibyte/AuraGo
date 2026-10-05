@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from validate_dataset import TOOL_TAG, ValidationFailure, canonical, iter_jsonl, load_catalog
+    from validate_dataset import TOOL_TAG, ValidationFailure, canonical, iter_jsonl, load_catalog, semantic_arguments
 except ImportError:  # pragma: no cover - package import used by unit tests
-    from training.validate_dataset import TOOL_TAG, ValidationFailure, canonical, iter_jsonl, load_catalog
+    from training.validate_dataset import TOOL_TAG, ValidationFailure, canonical, iter_jsonl, load_catalog, semantic_arguments
 
 
 @dataclass(frozen=True)
@@ -172,7 +172,11 @@ def contract_valid(
     arguments: dict[str, Any],
     expected_arguments: dict[str, Any] | None,
     contracts: dict[str, dict[str, Any]],
+    argument_schema: dict[str, Any] | None = None,
 ) -> bool:
+    arguments = semantic_arguments(arguments, argument_schema or {})
+    if expected_arguments is not None:
+        expected_arguments = semantic_arguments(expected_arguments, argument_schema or {})
     contract = contracts.get(name)
     if not isinstance(contract, dict):
         return False
@@ -196,7 +200,7 @@ def contract_valid(
             continue
         required_fields = set(fixture.get("required_fields") or fixture_arguments)
         excluded_fields = set(fixture.get("excluded_fields") or [])
-        if any(field not in arguments for field in required_fields):
+        if any(field not in arguments or arguments[field] is None for field in required_fields):
             continue
         if any(field in arguments for field in excluded_fields):
             continue
@@ -271,7 +275,7 @@ def evaluate(
                 if isinstance(candidate, dict):
                     expected_args = candidate
             schema_ok = validator is not None and not list(validator.iter_errors(call.arguments))
-            if schema_ok and contract_valid(call.name, call.arguments, expected_args, contracts):
+            if schema_ok and contract_valid(call.name, call.arguments, expected_args, contracts, tools[call.name].get("argument_schema")):
                 valid_calls += 1
                 case_valid_calls += 1
 

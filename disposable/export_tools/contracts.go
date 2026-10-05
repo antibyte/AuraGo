@@ -420,7 +420,7 @@ func validateOperationFields(tool ToolExport, fixture OperationFixture) error {
 		if _, known := tool.Properties[field]; !known {
 			return fmt.Errorf("required_fields contains unknown property %q", field)
 		}
-		if _, present := fixture.Arguments[field]; !present {
+		if value, present := fixture.Arguments[field]; !present || value == nil {
 			return fmt.Errorf("required field %q is missing from arguments", field)
 		}
 	}

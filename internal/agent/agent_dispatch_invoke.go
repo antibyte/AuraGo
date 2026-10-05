@@ -43,7 +43,7 @@ func toolCallFromInvokeArgs(action string, args map[string]interface{}) ToolCall
 	}
 	raw, err := json.Marshal(args)
 	if err == nil {
-		_ = json.Unmarshal(raw, &routed)
+		_ = json.Unmarshal([]byte(normalizeTagsInJSON(string(raw))), &routed)
 	}
 	routed.Action = action
 	routed.Params = args

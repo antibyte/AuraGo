@@ -306,6 +306,13 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
    with the exporter. `--check` is read-only for the committed training pack.
    Preserve paired German/English direct coverage for every operation and
    selector-free tool when the catalog changes.
+   Keep curated arguments sparse. The exporter uses the original argument schema
+   to add optional null placeholders to Strict wire calls on a copy; it never
+   invents required values. Catalogs retain both schemas for independent Python
+   validation and semantic evaluation. Operation required/excluded fields apply
+   to semantic arguments, not synthetic placeholders; domain-null values remain
+   meaningful. Preserve manifests when only the schema projection changes and
+   update their schema hash explicitly instead of bootstrapping them again.
 
 ### Adding a New Integration
 1. Create package in `internal/your_integration/`
