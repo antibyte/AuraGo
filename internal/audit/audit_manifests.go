@@ -458,7 +458,7 @@ func RemoteLifecycleManifest() []RemoteLifecycleBoundary {
 			Name:         "remote-agent-frame-replay-guard",
 			Subsystem:    "cmd/remote",
 			Scenario:     "the agent drops supervisor frames for another device, with a malformed nonce, outside the timestamp window or with a replayed nonce; its nonce cache fails closed when full instead of evicting live entries; signed auth responses must be fresh and unseen; and all frames are ignored without a device shared key",
-			TestCoverage: "cmd/remote/main_test.go:TestRejectReplayedFrameChecksDeviceTimestampAndNonce, TestRejectReplayedFrameRejectsSequenceShiftedNonce, TestRejectReplayedFrameFailsClosedWhenCacheFull, TestRejectReplayedFrameCacheCoversFullTimestampWindow, TestConnectRejectsStaleSignedAuthResponse, TestConnectRejectsReplayedSignedAuthResponse, TestReadMessagesFailsClosedWithoutSharedKey, TestReadMessagesDispatchesSignedFrameOnceAndDropsReplay",
+			TestCoverage: "cmd/remote/main_test.go:TestRejectReplayedFrameChecksDeviceTimestampAndNonce, TestRejectReplayedFrameRejectsSequenceShiftedNonce, TestRejectReplayedFrameFailsClosedWhenCacheFull, TestRejectReplayedFrameDoesNotCacheErrorFrames, TestRejectReplayedFrameCacheCoversFullTimestampWindow, TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne, TestConnectRejectsStaleSignedAuthResponse, TestConnectRejectsReplayedSignedAuthResponse, TestReadMessagesFailsClosedWithoutSharedKey, TestReadMessagesDispatchesSignedFrameOnceAndDropsReplay",
 		},
 		{
 			Name:         "remote-agent-duplicate-command-id",

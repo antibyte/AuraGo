@@ -327,6 +327,110 @@ func TestConnectRejectsReplayedSignedAuthResponse(t *testing.T) {
 	assertRestrictedSettingsKept(t, client)
 }
 
+// runEventLog records, in order, the fake supervisor's dials and the Run
+// loop's backoff waits.
+type runEventLog struct {
+	mu     sync.Mutex
+	events []string
+}
+
+func (l *runEventLog) add(event string) {
+	l.mu.Lock()
+	l.events = append(l.events, event)
+	l.mu.Unlock()
+}
+
+func (l *runEventLog) snapshot() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]string(nil), l.events...)
+}
+
+// An on-path attacker can hang up every session right after auth. Each dial
+// adds an auth-response nonce to the fail-closed cache, so Run must back off
+// after a short session and reset the backoff only after a stable one.
+func TestRunBacksOffAfterShortSessionsAndResetsAfterStableOne(t *testing.T) {
+	isolateRemoteHome(t)
+	key := strings.Repeat("ab", 32)
+	log := &runEventLog{}
+
+	// The fake supervisor authenticates every dial with a fresh signed reply
+	// and hangs up immediately.
+	upgrader := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		log.add("dial")
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
+		reply, err := remote.NewAuthResponseMessage("dev-1", key, remote.AuthResponsePayload{Status: "authenticated", DeviceID: "dev-1"})
+		if err != nil {
+			return
+		}
+		_ = conn.WriteJSON(reply)
+		_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	}))
+	t.Cleanup(srv.Close)
+
+	// Scripted session lengths: short, short, stable, short. Run reads the
+	// clock once when a session starts and once when it ends.
+	sessionLengths := []time.Duration{0, 0, minStableSession + time.Minute, 0}
+	clock := time.Unix(1_700_000_000, 0)
+	clockCalls := 0
+	prevNow, prevAfter := nowFn, afterFn
+	nowFn = func() time.Time {
+		if clockCalls%2 == 1 && clockCalls/2 < len(sessionLengths) {
+			clock = clock.Add(sessionLengths[clockCalls/2])
+		}
+		clockCalls++
+		return clock
+	}
+	waits := 0
+	afterFn = func(d time.Duration) <-chan time.Time {
+		log.add("wait " + d.String())
+		waits++
+		if waits >= 3 {
+			return nil // park Run here until Stop
+		}
+		fired := make(chan time.Time, 1)
+		fired <- time.Time{}
+		return fired
+	}
+	t.Cleanup(func() { nowFn, afterFn = prevNow, prevAfter })
+
+	client := &Client{
+		cfg:    clientConfig{SupervisorURL: "ws" + strings.TrimPrefix(srv.URL, "http"), DeviceID: "dev-1", SharedKey: key},
+		logger: slog.Default(),
+		done:   make(chan struct{}),
+	}
+	finished := make(chan struct{})
+	go func() {
+		client.Run()
+		close(finished)
+	}()
+
+	want := []string{"dial", "wait 5s", "dial", "wait 10s", "dial", "dial", "wait 5s"}
+	deadline := time.Now().Add(10 * time.Second)
+	for len(log.snapshot()) < len(want) && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	client.Stop()
+	select {
+	case <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not return after Stop")
+	}
+
+	got := log.snapshot()
+	if strings.Join(got, ", ") != strings.Join(want, ", ") {
+		t.Fatalf("reconnect sequence:\n got  %v\n want %v", got, want)
+	}
+}
+
 func writeStoredConfig(t *testing.T, cfg clientConfig) {
 	t.Helper()
 	data, err := json.Marshal(cfg)
@@ -465,7 +569,7 @@ func TestRejectReplayedFrameFailsClosedWhenCacheFull(t *testing.T) {
 		}
 	}
 
-	flood, err := remote.NewMessage(remote.MsgError, "dev-1", key, 2, remote.ErrorPayload{Code: "invalid_hmac"})
+	flood, err := remote.NewMessage(remote.MsgCommand, "dev-1", key, 2, remote.CommandPayload{CommandID: "cmd-flood"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -474,6 +578,48 @@ func TestRejectReplayedFrameFailsClosedWhenCacheFull(t *testing.T) {
 	}
 	if reason := client.rejectReplayedFrame(*captured); reason != "nonce replayed or replay cache full" {
 		t.Fatalf("the captured frame must stay rejected after the cache filled up, got %q", reason)
+	}
+}
+
+// The supervisor answers every injected bad frame with a signed error frame.
+// The agent only logs those, so it must not spend replay-cache entries on them,
+// but they still have to pass the device, nonce-format and timestamp checks.
+func TestRejectReplayedFrameDoesNotCacheErrorFrames(t *testing.T) {
+	key := strings.Repeat("ab", 32)
+	client := &Client{cfg: clientConfig{DeviceID: "dev-1", SharedKey: key}, logger: slog.Default()}
+	client.replay = remote.NewFailClosedNonceReplayCache(remote.NonceReplayTTL, 1)
+	errFrame, err := remote.NewMessage(remote.MsgError, "dev-1", key, 1, remote.ErrorPayload{Code: "invalid_hmac"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if reason := client.rejectReplayedFrame(*errFrame); reason != "" {
+			t.Fatalf("delivery %d: error frames are not replay-cached, got %q", i+1, reason)
+		}
+	}
+	// The single cache slot is still free for a real frame.
+	command, err := remote.NewMessage(remote.MsgCommand, "dev-1", key, 2, remote.CommandPayload{CommandID: "cmd-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reason := client.rejectReplayedFrame(*command); reason != "" {
+		t.Fatalf("error frames must not use up cache space, got %q", reason)
+	}
+
+	foreign := *errFrame
+	foreign.DeviceID = "dev-2"
+	if reason := client.rejectReplayedFrame(foreign); reason != "device_id mismatch" {
+		t.Fatalf("error frame for another device must be rejected, got %q", reason)
+	}
+	malformed := *errFrame
+	malformed.Nonce = "2" + errFrame.Nonce
+	if reason := client.rejectReplayedFrame(malformed); reason != "invalid nonce format" {
+		t.Fatalf("error frame with a malformed nonce must be rejected, got %q", reason)
+	}
+	stale := *errFrame
+	stale.Timestamp = time.Now().Add(-remote.MaxTimestampDrift - time.Minute).UTC().Format(time.RFC3339)
+	if reason := client.rejectReplayedFrame(stale); !strings.HasPrefix(reason, "timestamp drift ") {
+		t.Fatalf("stale error frame must be rejected, got %q", reason)
 	}
 }
 

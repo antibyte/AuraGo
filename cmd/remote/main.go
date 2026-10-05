@@ -326,8 +326,13 @@ type Client struct {
 var handleMessageHook func(remote.RemoteMessage)
 
 // agentReplayCacheEntries caps the agent's fail-closed nonce cache. Once it is
-// full of live nonces, new frames are dropped until entries expire; supervisor
-// traffic to one agent stays far below this many frames per NonceReplayTTL.
+// full of live nonces, new frames are dropped until entries expire.
+// Legitimate supervisor traffic stays far below it. An on-path attacker who
+// hangs up every session right after auth gets one dial per backoff wait (at
+// least initialBackoff, since Run resets the backoff only after a
+// minStableSession), and error frames are not cached. Even counting eight
+// cached frames per dial that is at most ~96 entries per minute, ~3000 per
+// NonceReplayTTL, well under the cap.
 const agentReplayCacheEntries = 10000
 
 func (c *Client) nextSeq() uint64 {
@@ -348,11 +353,40 @@ func (c *Client) send(msg *remote.RemoteMessage) error {
 	return c.conn.WriteJSON(msg)
 }
 
+// Reconnect backoff bounds.
+const (
+	initialBackoff = 5 * time.Second
+	maxBackoff     = 60 * time.Second
+)
+
+// minStableSession is how long a supervisor session must last before the
+// reconnect backoff resets to initialBackoff. Every dial adds an auth-response
+// nonce to the fail-closed replay cache, so a session that an on-path attacker
+// hangs up right after auth must cost a backoff wait, not an immediate redial.
+const minStableSession = 60 * time.Second
+
+// Clock seams for the reconnect loop; tests replace them.
+var (
+	nowFn   = time.Now
+	afterFn = time.After
+)
+
 // Run connects to the supervisor with auto-reconnect.
 func (c *Client) Run() {
 	c.executor = NewExecutor(c.logger, remote.DefaultMaxFileSizeMB)
-	backoff := 5 * time.Second
-	maxBackoff := 60 * time.Second
+	backoff := initialBackoff
+
+	// waitBackoff sleeps the current backoff and then grows it. It reports
+	// false when the client was stopped while waiting.
+	waitBackoff := func() bool {
+		select {
+		case <-afterFn(backoff):
+		case <-c.done:
+			return false
+		}
+		backoff = min(backoff*2, maxBackoff)
+		return true
+	}
 
 	for {
 		select {
@@ -364,18 +398,27 @@ func (c *Client) Run() {
 		err := c.connect()
 		if err != nil {
 			c.logger.Error("Connection failed", "error", err, "retry_in", backoff)
-			select {
-			case <-time.After(backoff):
-			case <-c.done:
+			if !waitBackoff() {
 				return
 			}
-			backoff = min(backoff*2, maxBackoff)
 			continue
 		}
 
-		// Connected — reset backoff
-		backoff = 5 * time.Second
+		started := nowFn()
 		c.readMessages()
+		select {
+		case <-c.done:
+			return
+		default:
+		}
+		if nowFn().Sub(started) >= minStableSession {
+			backoff = initialBackoff
+			continue
+		}
+		c.logger.Warn("Supervisor session ended early, backing off", "retry_in", backoff)
+		if !waitBackoff() {
+			return
+		}
 	}
 }
 
@@ -620,6 +663,12 @@ func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
 	}
 	if err := remote.ValidateTimestamp(msg.Timestamp); err != nil {
 		return err.Error()
+	}
+	// The agent only logs supervisor errors, so a replayed one is harmless.
+	// Not caching them stops the supervisor's error replies to injected bad
+	// frames from filling the fail-closed cache.
+	if msg.Type == remote.MsgError {
+		return ""
 	}
 	if c.replayCache().Seen(c.cfg.DeviceID, msg.Nonce, time.Now()) {
 		return "nonce replayed or replay cache full"
