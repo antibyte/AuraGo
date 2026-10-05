@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -14,23 +15,42 @@ import (
 	"aurago/internal/security"
 )
 
-// sudoRun runs a command with sudo. A non-empty password first refreshes the
-// sudo timestamp through `sudo -S -v` (the only process that ever reads the
-// password); the command itself always runs with `sudo -n` and a closed stdin.
+// sudoFirewallTimeout bounds one `sudo -n <firewall command>` run.
+const sudoFirewallTimeout = 60 * time.Second
+
+// sudoRun runs a firewall command with `sudo -n` and a closed stdin. It first
+// tries without a ticket (root, NOPASSWD rule), so those hosts never trigger
+// a sudo login. Only when that run exits non-zero and a password is given
+// does it validate a ticket through `sudo -S -v` (the only process that ever
+// reads the password) and retry the command once.
 func sudoRun(sudoPassword string, args ...string) ([]byte, error) {
-	if sudoPassword != "" {
-		release := security.RegisterScopedSensitiveExact(sudoPassword)
-		defer release()
-		dropTicket, authOut, err := acquireSudoTicket(".", sudoPassword)
-		if err != nil {
-			return []byte(authOut), err
-		}
-		defer dropTicket()
+	out, err := runSudoFirewallCommand(args...)
+	var exitErr *exec.ExitError
+	if err == nil || sudoPassword == "" || !errors.As(err, &exitErr) {
+		return out, err
 	}
-	fullArgs := append([]string{"-n"}, args...)
-	cmd := exec.Command("sudo", fullArgs...)
+	release, authOut, authErr := withSudoTicket(sudoPassword, ".")
+	if authErr != nil {
+		return []byte(authOut), authErr
+	}
+	defer release()
+	return runSudoFirewallCommand(args...)
+}
+
+// runSudoFirewallCommand runs `sudo -n args...` with a closed stdin, a filtered
+// environment and a bounded runtime. A timeout is not an *exec.ExitError, so
+// sudoRun does not retry it.
+func runSudoFirewallCommand(args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), sudoFirewallTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "sudo", append([]string{"-n"}, args...)...)
 	cmd.Stdin = nil
+	ensureFilteredEnv(cmd)
+	SetupCmd(cmd)
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		err = fmt.Errorf("sudo %s timed out after %s: %w", strings.Join(args, " "), sudoFirewallTimeout, ctx.Err())
+	}
 	return []byte(security.Scrub(string(out))), err
 }
 

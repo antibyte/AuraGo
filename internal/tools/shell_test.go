@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -11,22 +10,6 @@ import (
 
 	"aurago/internal/sandbox"
 )
-
-func TestNormalizeSudoStderrRemovesLocalizedPrompt(t *testing.T) {
-	stderr := "[sudo] Passwort fuer andi: permission denied"
-	got := normalizeSudoStderr(stderr)
-	if got != "permission denied" {
-		t.Fatalf("normalizeSudoStderr() = %q, want %q", got, "permission denied")
-	}
-}
-
-func TestNormalizeSudoStderrLeavesRegularErrors(t *testing.T) {
-	stderr := "permission denied"
-	got := normalizeSudoStderr(stderr)
-	if got != stderr {
-		t.Fatalf("normalizeSudoStderr() = %q, want %q", got, stderr)
-	}
-}
 
 func TestExecuteShell(t *testing.T) {
 	skipIfWindowsPowerShellUnavailable(t)
@@ -255,37 +238,5 @@ func TestHostShellEntryPointsRefuseWithoutFlagOrSandbox(t *testing.T) {
 	}
 	if _, _, err := ExecuteSudo("id", t.TempDir(), "password"); err == nil || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
 		t.Fatalf("ExecuteSudo() error = %v, want host shell gate", err)
-	}
-}
-
-func TestSudoRunCommandNeverCarriesPasswordOnStdin(t *testing.T) {
-	cmd := newSudoRunCommand("id", t.TempDir())
-	if cmd.Stdin != nil {
-		t.Fatal("sudo run command must not attach stdin")
-	}
-	args := strings.Join(cmd.Args, " ")
-	if !strings.Contains(args, " -n ") || strings.Contains(args, " -S") {
-		t.Fatalf("sudo run must be non-interactive without -S, got %q", args)
-	}
-}
-
-func TestSudoValidateCommandConsumesPasswordWithoutRunningACommand(t *testing.T) {
-	cmd := newSudoValidateCommand(context.Background(), t.TempDir(), "hunter2-secret")
-	if cmd.Stdin == nil {
-		t.Fatal("validate command must feed the password on stdin")
-	}
-	args := strings.Join(cmd.Args, " ")
-	for _, flag := range []string{" -S ", " -v"} {
-		if !strings.Contains(args, flag) {
-			t.Fatalf("validate command missing %q in %q", strings.TrimSpace(flag), args)
-		}
-	}
-	// sudo -k combined with -v authenticates but never writes the timestamp,
-	// so the following sudo -n would always fail with "a password is required".
-	if strings.Contains(args, " -k") {
-		t.Fatalf("validate command must not pass -k: %q", args)
-	}
-	if strings.Contains(args, "/bin/sh") {
-		t.Fatalf("validate command must not run a shell: %q", args)
 	}
 }

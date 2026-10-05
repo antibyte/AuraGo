@@ -511,6 +511,14 @@ type StartOptions struct {
 	InstallDir              string
 }
 
+// firewallGuardNeedsSudoPassword reports whether the Firewall Guard needs the
+// Vault sudo password. Root or a NOPASSWD rule (FirewallAccessOK) already gives
+// access, and handing the password over there would mean a sudo login on every
+// poll. This is the condition the firewall tool uses in dispatchNetwork.
+func firewallGuardNeedsSudoPassword(cfg *config.Config) bool {
+	return cfg.Agent.SudoEnabled && !cfg.Runtime.FirewallAccessOK
+}
+
 func Start(opts StartOptions) error {
 	cfg := opts.Cfg
 	if err := validateRemoteAuthExposure(cfg); err != nil {
@@ -1178,7 +1186,7 @@ func Start(opts StartOptions) error {
 	// Start Firewall Guard loop if enabled
 	if cfg.Firewall.Enabled && cfg.Firewall.Mode == "guard" {
 		firewallSudoPass := ""
-		if cfg.Agent.SudoEnabled {
+		if firewallGuardNeedsSudoPassword(cfg) {
 			firewallSudoPass, _ = vault.ReadSecret("sudo_password")
 		}
 		go tools.StartFirewallGuard(serverCtx, cfg, logger, firewallSudoPass, func(prompt string) {

@@ -18,7 +18,8 @@ Run a shell command with root privileges via `sudo`. The sudo password is stored
 ### Behavior
 
 - Reads `sudo_password` from the vault automatically — you do **not** need to fetch it yourself.
-- Executes the command via `sudo -S` with the password supplied via stdin.
+- The password only ever reaches `sudo -v`, which checks it and runs no command. The command itself then runs with `sudo -n` and a closed stdin, so it can never read the password.
+- Prerequisite: sudo timestamp caching enabled (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user. Without either, the tool returns an error before the command runs.
 - Returns combined stdout/stderr output.
 - Timeout: 30 seconds.
 

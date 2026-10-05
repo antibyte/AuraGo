@@ -84,6 +84,8 @@ The German chapter has the full level table and document/email scan flags. This 
 
 `/sudopwd` stores the password in the vault. `sudo_enabled` must be on. `sudo_unrestricted` is a second gate and needs a systemd unit without `ProtectSystem=strict`. Writes outside the install directory stay denied until both are true.
 
+The password only reaches `sudo -v`; commands run with `sudo -n` and a closed stdin. This needs sudo timestamp caching enabled (`timestamp_timeout` ≠ 0) or a NOPASSWD rule for the AuraGo user.
+
 ## Web UI Authentication
 
 AuraGo supports password protection with optional TOTP two-factor authentication.

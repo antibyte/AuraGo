@@ -203,6 +203,7 @@ Agent: 🛠️ Shell: sudo apt install nginx -y
 > ⚠️ **Wichtig:**
 > - Das Sudo-Passwort wird **niemals** im Chat angezeigt oder geloggt
 > - Es ist nur im verschlüsselten Vault gespeichert
+> - Das Passwort erreicht nur `sudo -v`; Befehle laufen mit `sudo -n` und geschlossenem stdin. Voraussetzung: sudo-Timestamp-Caching aktiv (`timestamp_timeout` ≠ 0) oder eine NOPASSWD-Regel für den AuraGo-Benutzer
 > - Der Sudo-Modus hat einen **automatischen Timeout**
 > - Jede Sudo-Ausführung wird im **Journal protokolliert**
 > - Kombiniere Sudo mit dem **LLM Guardian** für zusätzliche Sicherheit
