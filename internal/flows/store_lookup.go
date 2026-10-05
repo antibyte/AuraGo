@@ -13,6 +13,11 @@ import (
 // the flows, because Mission Control would then run the wrong one.
 var ErrMissionAmbiguous = errors.New("more than one flow is linked to this mission")
 
+// flowByMissionSQL reads at most two owners of a mission: enough to tell one from
+// several without loading them all. It is a constant so a test can check its
+// query plan (it must use idx_flows_mission).
+const flowByMissionSQL = `SELECT ` + flowColumns + ` FROM flows WHERE mission_id = ? LIMIT 2`
+
 // GetFlowByMission returns the flow that owns a Mission Control mission.
 //
 // It returns ErrNotFound when no flow holds the mission (an empty id is "not
@@ -24,8 +29,7 @@ func (s *Store) GetFlowByMission(ctx context.Context, missionID string) (*FlowRe
 	if missionID == "" {
 		return nil, ErrNotFound
 	}
-	// LIMIT 2 is enough to tell one owner from several without reading them all.
-	rows, err := s.db.QueryContext(ctx, `SELECT `+flowColumns+` FROM flows WHERE mission_id = ? LIMIT 2`, missionID)
+	rows, err := s.db.QueryContext(ctx, flowByMissionSQL, missionID)
 	if err != nil {
 		return nil, err
 	}

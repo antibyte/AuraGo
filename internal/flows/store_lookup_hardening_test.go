@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // mustCreateFlow stores a sample flow under a mission id and fails the test on error.
@@ -95,7 +96,7 @@ func TestGetFlowByMissionAmbiguousFailsClosed(t *testing.T) {
 	if errors.Is(err, ErrNotFound) {
 		t.Fatalf("an ambiguous mission must not look like a missing one: %v", err)
 	}
-	if !strings.Contains(err.Error(), `"mission_9"`) {
+	if !strings.Contains(err.Error(), "mission_9") {
 		t.Fatalf("the error should name the mission: %v", err)
 	}
 
@@ -146,8 +147,11 @@ func TestGetFlowByMissionAmbiguityEchoIsBounded(t *testing.T) {
 	if !errors.Is(err, ErrMissionAmbiguous) {
 		t.Fatalf("GetFlowByMission(huge id, two flows) = %v, want ErrMissionAmbiguous", err)
 	}
-	if len(err.Error()) > 200 {
-		t.Fatalf("the error echoes the mission id unbounded (%d bytes)", len(err.Error()))
+	// The sentinel, ": ", the quotes, the id cut to maxErrorEchoRunes and one ellipsis.
+	// The id is ASCII, so quoting adds no escapes.
+	limit := utf8.RuneCountInString(ErrMissionAmbiguous.Error()) + len(": ") + 2 + maxErrorEchoRunes + 1
+	if got := utf8.RuneCountInString(err.Error()); got > limit {
+		t.Fatalf("the error echoes the mission id unbounded (%d runes, limit %d): %.200q", got, limit, err)
 	}
 }
 
@@ -227,8 +231,9 @@ func TestGetFlowByMissionSurfacesDamagedRows(t *testing.T) {
 			if !errors.As(err, &syntax) {
 				t.Errorf("want the JSON syntax error wrapped, got %v", err)
 			}
-			if !strings.Contains(err.Error(), "live revision") {
-				t.Errorf("want the live revision named, got %v", err)
+			// Only the live revision is damaged, so the error must not blame the draft.
+			if strings.Contains(err.Error(), "draft") {
+				t.Errorf("the error blames the draft, but only the live revision is damaged: %v", err)
 			}
 		}},
 		{"draft has an unsupported schema", "draft_json", `{"schema":99}`, func(t *testing.T, err error) {
@@ -320,5 +325,79 @@ func TestGetFlowByMissionMatchesExactly(t *testing.T) {
 	}
 	if list, err := s.ListFlows(ctx, ""); err != nil || len(list) != 3 {
 		t.Fatalf("the injection attempts changed the store: %d flows, %v", len(list), err)
+	}
+}
+
+// Every path out of the lookup must release its connection. The pool is small,
+// so a leak shows up as a deadline error from the 5th call on instead of a hang.
+func TestGetFlowByMissionReleasesItsConnection(t *testing.T) {
+	s := openTestStore(t)
+	mustCreateFlow(t, s, "flow_aaaaaaaaev", "mission_60")
+	mustCreateFlow(t, s, "flow_aaaaaaaaew", "mission_61")
+	mustCreateFlow(t, s, "flow_aaaaaaaaex", "mission_61")
+	mustCreateFlow(t, s, "flow_aaaaaaaaey", "mission_62")
+	if _, err := s.db.Exec(`UPDATE flows SET draft_json = '{not json' WHERE id = ?`, "flow_aaaaaaaaey"); err != nil {
+		t.Fatal(err)
+	}
+
+	const calls = 20
+	if limit := s.db.Stats().MaxOpenConnections; limit <= 0 || limit >= calls {
+		t.Fatalf("the pool allows %d connections: %d calls could not exhaust it", limit, calls)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	paths := []struct {
+		name, mission string
+		check         func(err error) bool
+	}{
+		{"found", "mission_60", func(err error) bool { return err == nil }},
+		{"ambiguous", "mission_61", func(err error) bool { return errors.Is(err, ErrMissionAmbiguous) }},
+		{"damaged", "mission_62", func(err error) bool {
+			return err != nil && !errors.Is(err, ErrNotFound) && !errors.Is(err, ErrMissionAmbiguous) &&
+				!errors.Is(err, context.DeadlineExceeded)
+		}},
+		{"not found", "mission_63", func(err error) bool { return errors.Is(err, ErrNotFound) }},
+	}
+	for _, p := range paths {
+		for i := 0; i < calls; i++ {
+			_, err := s.GetFlowByMission(ctx, p.mission)
+			if !p.check(err) {
+				t.Fatalf("%s path, call %d: unexpected result %v (a connection leak would show as a deadline error)", p.name, i+1, err)
+			}
+		}
+		if inUse := s.db.Stats().InUse; inUse != 0 {
+			t.Fatalf("%s path left %d connections in use after %d calls", p.name, inUse, calls)
+		}
+	}
+}
+
+// The lookup must use the mission index. This runs EXPLAIN QUERY PLAN on the
+// real statement (the one with every column and LIMIT 2), not on a stand-in.
+func TestGetFlowByMissionQueryUsesTheMissionIndex(t *testing.T) {
+	s := openTestStore(t)
+	rows, err := s.db.Query(`EXPLAIN QUERY PLAN `+flowByMissionSQL, "mission_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var details []string
+	for rows.Next() {
+		var id, parent, notUsed int
+		var detail string
+		if err := rows.Scan(&id, &parent, &notUsed, &detail); err != nil {
+			t.Fatal(err)
+		}
+		details = append(details, detail)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	plan := strings.Join(details, "; ")
+	if !strings.Contains(plan, "idx_flows_mission") {
+		t.Fatalf("the mission lookup does not use idx_flows_mission: %s", plan)
+	}
+	if strings.Contains(plan, "SCAN") {
+		t.Fatalf("the mission lookup scans the table: %s", plan)
 	}
 }
