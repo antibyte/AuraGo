@@ -46,11 +46,17 @@ func main() {
 		*outputPath = *sourcePath
 	}
 
+	run(*sourcePath, *templatePath, *outputPath)
+}
+
+// run merges the config at sourcePath onto the template at templatePath and
+// writes the result to outputPath.
+func run(sourcePath, templatePath, outputPath string) {
 	ts := time.Now().Format("20060102_150405")
 
 	// ── Step 1: Parse template (must always succeed — this is our controlled default) ──
 
-	tmplData, err := readNormalized(*templatePath)
+	tmplData, err := readNormalized(templatePath)
 	if err != nil {
 		log.Fatalf("Cannot read template: %v", err)
 	}
@@ -64,28 +70,38 @@ func main() {
 
 	// ── Step 2: Parse user config ──
 
-	srcData, err := readNormalized(*sourcePath)
+	srcData, err := readNormalized(sourcePath)
 	if err != nil {
 		fmt.Printf("Source unreadable (%v), using template defaults\n", err)
-		atomicWriteYAML(*outputPath, tmplMap)
+		atomicWriteYAML(outputPath, tmplMap)
 		return
 	}
 
 	srcMap, parseErr := parseYAMLMap(srcData)
 
-	if parseErr == nil && srcMap != nil {
+	// An empty or comment-only file has no settings to keep. It is a fresh
+	// install (the Docker guide has users `touch config.yaml` before the first
+	// start), so it gets the template unchanged like an unreadable source;
+	// the corruption path would back it up and apply upgrade grandfathers.
+	if parseErr == nil && srcMap == nil {
+		fmt.Println("Source has no settings, using template defaults")
+		atomicWriteYAML(outputPath, tmplMap)
+		return
+	}
+
+	if parseErr == nil {
 		// ── Happy path: user config is valid YAML ──
 		result := mergeUserConfig(tmplMap, srcMap)
 
 		if !result.needsWrite() {
 			fmt.Println("Config is up to date")
-			if *outputPath != *sourcePath {
-				atomicWriteYAML(*outputPath, result.merged)
+			if outputPath != sourcePath {
+				atomicWriteYAML(outputPath, result.merged)
 			}
 			return
 		}
 
-		atomicWriteYAML(*outputPath, result.merged)
+		atomicWriteYAML(outputPath, result.merged)
 		if len(result.missing) > 0 {
 			sort.Strings(result.missing)
 			fmt.Printf("Added %d new section(s): %s\n", len(result.missing), strings.Join(result.missing, ", "))
@@ -102,7 +118,7 @@ func main() {
 	log.Printf("Attempting section-by-section recovery...")
 
 	// Backup corrupted file for manual inspection
-	backupPath := *sourcePath + "." + ts + ".corrupted"
+	backupPath := sourcePath + "." + ts + ".corrupted"
 	if wErr := os.WriteFile(backupPath, []byte(srcData), 0644); wErr == nil {
 		log.Printf("Corrupted config saved to: %s", backupPath)
 	}
@@ -116,7 +132,7 @@ func main() {
 		log.Printf("No sections could be recovered — using full template defaults")
 	}
 
-	atomicWriteYAML(*outputPath, merged)
+	atomicWriteYAML(outputPath, merged)
 	fmt.Println("Config repaired successfully")
 }
 

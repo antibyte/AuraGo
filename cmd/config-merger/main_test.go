@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestDeepMerge_BasicOverlay(t *testing.T) {
@@ -903,6 +905,76 @@ func TestRecoverCorruptedConfig_GrandfathersDockerHostAccess(t *testing.T) {
 			}
 			if got := templateDockerHostAccess(t, tmplMap); got != false {
 				t.Fatalf("recovery mutated the template: docker.allow_host_access = %#v", got)
+			}
+		})
+	}
+}
+
+// An empty or comment-only config.yaml (the Docker guide has users `touch` it
+// before the first start) is a fresh install: it gets the template unchanged,
+// without a .corrupted backup. A source with top-level keys that does not
+// parse is an existing installation and keeps the grandfather.
+func TestRun_EmptySourceIsFreshInstall(t *testing.T) {
+	templatePath := filepath.Join("..", "..", "config_template.yaml")
+	_, tmplMap := repositoryTemplateMap(t)
+	cases := []struct {
+		name         string
+		source       string
+		want         bool
+		wantTemplate bool
+		wantBackup   bool
+	}{
+		{"empty file", "", false, true, false},
+		{"comment-only file", "# my config\n", false, true, false},
+		{"comment-only file with CRLF", "# my config\r\n\r\n", false, true, false},
+		{"unparseable source with top-level keys", "server: [broken\n", true, false, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sourcePath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(sourcePath, []byte(tc.source), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			run(sourcePath, templatePath, sourcePath)
+
+			rawOut, err := os.ReadFile(sourcePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			templateOut, err := yaml.Marshal(tmplMap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(rawOut) == string(templateOut); got != tc.wantTemplate {
+				t.Fatalf("output is the unchanged template = %v, want %v", got, tc.wantTemplate)
+			}
+
+			outData, err := readNormalized(sourcePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			outMap, err := parseYAMLMap(outData)
+			if err != nil {
+				t.Fatalf("merger output is not valid YAML: %v", err)
+			}
+			docker, _ := asStringMap(outMap["docker"])
+			if docker["allow_host_access"] != tc.want {
+				t.Fatalf("output docker.allow_host_access = %#v, want %v", docker["allow_host_access"], tc.want)
+			}
+			cfg, err := config.Load(sourcePath)
+			if err != nil {
+				t.Fatalf("config.Load(output) error = %v", err)
+			}
+			if cfg.Docker.AllowHostAccess != tc.want {
+				t.Fatalf("loaded Docker.AllowHostAccess = %v, want %v", cfg.Docker.AllowHostAccess, tc.want)
+			}
+			backups, err := filepath.Glob(sourcePath + ".*.corrupted")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (len(backups) > 0) != tc.wantBackup {
+				t.Fatalf(".corrupted backups = %v, want present = %v", backups, tc.wantBackup)
 			}
 		})
 	}
