@@ -28,6 +28,9 @@ const (
 // can never leave AuraGo. A folder that holds AuraGo's data directory or its configuration
 // file is not accepted as root, and files that are protected system state (config, vault,
 // databases, .env, the master key, also under another name through a hard link) are refused.
+// A copy is not caught: a copy of the config or of a database under another name passes, and
+// only vault.bin, *.env and aurago_master.key are refused by name. Making a copy needs read
+// access to the original, which the file tools and Landlock deny.
 // Relative paths are tried against the working directory and against both roots; the
 // documents folder is resolved against the configuration directory when the config is
 // loaded, and document_creator reports absolute paths.
@@ -311,12 +314,20 @@ func openWithinOutgoingRoot(cfg *config.Config, root, resolved string) (*os.File
 	return file, nil
 }
 
+// isPlainOutgoingDirMode reports whether an Lstat mode names a real directory and not a
+// link. Symlinks and junctions (name-surrogate reparse points) never get ModeDir. A
+// directory with a reparse tag that is no link, such as a OneDrive or other cloud
+// placeholder folder, is ModeDir|ModeIrregular on Windows and stays acceptable.
+func isPlainOutgoingDirMode(mode fs.FileMode) bool {
+	return mode.IsDir() && mode&fs.ModeSymlink == 0
+}
+
 // requirePlainOutgoingRoot refuses a root that was swapped for a symlink or junction after
 // it was resolved: os.Root only keeps paths inside the directory it was opened on, and that
 // would be the link's target.
 func requirePlainOutgoingRoot(root string, dir *os.Root) error {
 	linkInfo, err := os.Lstat(root)
-	if err != nil || linkInfo.Mode().Type() != fs.ModeDir {
+	if err != nil || !isPlainOutgoingDirMode(linkInfo.Mode()) {
 		return fmt.Errorf("the attachment folder is not a plain directory")
 	}
 	openInfo, err := dir.Stat(".")

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -459,6 +460,55 @@ func TestOpenWithinOutgoingRootRefusesARootSwappedForALink(t *testing.T) {
 	}
 	if file != nil {
 		t.Error("a file was returned together with an error")
+	}
+}
+
+// Windows reports a directory with a reparse tag that is no link (a OneDrive Known Folder
+// Move placeholder, for example) as ModeDir|ModeIrregular. Such a folder must stay usable as
+// root, while links never are.
+func TestIsPlainOutgoingDirMode(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		mode fs.FileMode
+		want bool
+	}{
+		{"directory", fs.ModeDir | 0o755, true},
+		{"directory without permission bits", fs.ModeDir, true},
+		{"cloud placeholder directory", fs.ModeDir | fs.ModeIrregular | 0o755, true},
+		{"symlink", fs.ModeSymlink | 0o777, false},
+		{"symlink that also claims to be a directory", fs.ModeSymlink | fs.ModeDir, false},
+		{"irregular entry", fs.ModeIrregular, false},
+		{"regular file", 0o644, false},
+		{"named pipe", fs.ModeNamedPipe, false},
+		{"device", fs.ModeDevice, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isPlainOutgoingDirMode(tc.mode); got != tc.want {
+				t.Errorf("isPlainOutgoingDirMode(%v) = %v, want %v", tc.mode, got, tc.want)
+			}
+		})
+	}
+}
+
+// The predicate has to tell the real thing apart: what this OS reports for a plain folder is
+// accepted, and what it reports for a folder link (a symlink, on Windows a junction) is not.
+func TestIsPlainOutgoingDirModeOnRealDirectoriesAndLinks(t *testing.T) {
+	env := c103NewEnv(t)
+	plain, err := os.Lstat(env.workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !isPlainOutgoingDirMode(plain.Mode()) {
+		t.Errorf("a plain directory reports %v and was refused", plain.Mode())
+	}
+	link := filepath.Join(env.root, "link")
+	c103LinkDir(t, env.workspace, link)
+	info, err := os.Lstat(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if isPlainOutgoingDirMode(info.Mode()) {
+		t.Errorf("a folder link reports %v and was accepted", info.Mode())
 	}
 }
 
