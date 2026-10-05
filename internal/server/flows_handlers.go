@@ -39,7 +39,7 @@ const (
 // flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
 // handleFlows dispatches as a collection route, not as a flow id. Only routes that exist
 // are listed: 1c-18 and 1c-19 add theirs here when they add them to handleFlows.
-var flowsCollectionRoutes = map[string]bool{"secrets": true}
+var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true}
 
 // flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
 // characters); anything else is FLOW_NOT_FOUND before the store is asked.
@@ -48,7 +48,8 @@ var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // flowRouteSegments is the number of path segments after the flow id that each
 // /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
 // FLOW_NOT_FOUND (404); a new route adds its entry here.
-var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1}
+var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
+	"test": 1, "run": 1, "runs": 1, "test-data": 2}
 
 const (
 	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
@@ -356,6 +357,8 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		s.flowsCollection(w, r)
 	case parts[0] == "secrets":
 		s.flowsSecrets(w, r, parts[1:])
+	case parts[0] == "runs":
+		s.flowsRunRoute(w, r, parts[1:])
 	default:
 		s.flowRoute(w, r, parts[0], parts[1:])
 	}
@@ -547,7 +550,9 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		w.Header().Set("Content-Disposition", `attachment; filename="`+flowExportName(rec.Name)+`"`)
 		flowsJSON(w, http.StatusOK, rec.Draft)
 	default:
-		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
+		if !s.flowRunAction(w, r, id, action, rest[1:]) {
+			flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
+		}
 	}
 }
 
