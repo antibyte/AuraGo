@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"aurago/internal/flows"
 	"aurago/internal/i18n"
@@ -43,9 +45,56 @@ var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // FLOW_NOT_FOUND (404); a new route adds its entry here.
 var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1}
 
-// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API tokens
-// and passwords; the vault keeps all its secrets in one encrypted file.
-const flowSecretValueMaxBytes = 16 << 10
+const (
+	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
+	// tokens and passwords; the vault keeps all its secrets in one encrypted file, and a
+	// run registers the value with the global output scrubber (flowSecrets.ReadSecret).
+	flowSecretValueMaxBytes = 4 << 10
+	// flowSecretWritesPerWindow and flowSecretWriteWindow limit secret writes and deletes
+	// per client IP, as vaultAllowRequest limits the vault API: each one decrypts and
+	// rewrites the whole vault file.
+	flowSecretWritesPerWindow = 30
+	flowSecretWriteWindow     = time.Minute
+	// flowRateKeysSweep is the number of client keys above which allow drops idle ones.
+	flowRateKeysSweep = 256
+)
+
+// flowRateLimiter is a sliding-window limit per key (a client IP). The zero value is
+// ready to use; Server.flowSecretRate holds the one for flow secret writes.
+type flowRateLimiter struct {
+	mu      sync.Mutex
+	windows map[string][]time.Time
+}
+
+// allow records an event for key at now and reports whether it is within limit events per
+// window.
+func (l *flowRateLimiter) allow(key string, now time.Time, limit int, window time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.windows == nil {
+		l.windows = map[string][]time.Time{}
+	}
+	cutoff := now.Add(-window)
+	if len(l.windows) > flowRateKeysSweep {
+		for k, ts := range l.windows {
+			if len(ts) == 0 || !ts[len(ts)-1].After(cutoff) {
+				delete(l.windows, k)
+			}
+		}
+	}
+	ts := l.windows[key]
+	i := 0
+	for i < len(ts) && !ts[i].After(cutoff) {
+		i++
+	}
+	ts = ts[i:]
+	if len(ts) >= limit {
+		l.windows[key] = ts
+		return false
+	}
+	l.windows[key] = append(ts, now)
+	return true
+}
 
 func registerFlowsRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/desktop/flows", s.handleFlows)
@@ -101,23 +150,29 @@ func nonNilIssues(issues []flows.Issue) []flows.Issue {
 // 1c, "HTTP API contract"), extended by FLOW_TOO_LARGE (413: a document, test data or a
 // request body over its limit), FLOW_EXISTS (409) and FLOW_MISSION_AMBIGUOUS (409).
 //
-//   - A request whose client went away (r's context ended and err is that context's
-//     error) gets no answer; it is logged at Debug.
+//   - A request whose context was cancelled (r's context ended and err is that context's
+//     error: the client went away, or the server cancelled it while draining for a
+//     shutdown) gets 503 FLOWS_DISABLED "the request was cancelled", logged at Debug. A
+//     client that is gone does not read it; one that still waits must not see a 200.
 //   - A mapped error echoes its text scrubbed and cut to flowErrorRunes runes (the flow
 //     package already bounds the user data it quotes).
 //   - Anything else is FLOW_INTERNAL with flowsInternalMessage only: the error can hold
 //     file paths, SQL, driver or vault text, so it goes to the log at Warn, scrubbed and
-//     bounded, with the route and the flow id.
+//     bounded, with the route and the flow id. A typed-nil error (a nil *NodeError,
+//     *ValidationError or *http.MaxBytesError in an error interface) is a bug of its
+//     producer and lands here too; its text is built with fmt.Sprint, which survives a
+//     nil receiver.
 func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err error) {
 	if r.Context().Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
-		s.Logger.Debug("Flow API request ended by the client", "method", r.Method, "path", flowBoundRunes(r.URL.Path, flowsLogPathRunes))
+		s.Logger.Debug("Flow API request was cancelled", "method", r.Method, "path", flowBoundRunes(r.URL.Path, flowsLogPathRunes))
+		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", "the request was cancelled")
 		return
 	}
 	var ve *flows.ValidationError
 	var ne *flows.NodeError
 	var tooLarge *http.MaxBytesError
 	switch {
-	case errors.As(err, &ve):
+	case errors.As(err, &ve) && ve != nil:
 		flowsJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": flowsErrorText(err), "code": "FLOW_INVALID", "issues": nonNilIssues(ve.Issues)})
 	case errors.Is(err, flows.ErrNotFound):
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", flowsErrorText(err))
@@ -144,11 +199,11 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsDocumentTooLargeMessage())
 	case errors.Is(err, flows.ErrTestDataTooLarge):
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", flowsErrorText(err))
-	case errors.As(err, &tooLarge):
+	case errors.As(err, &tooLarge) && tooLarge != nil:
 		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", tooLarge.Limit>>10))
 	case errors.Is(err, flows.ErrUnsupportedSchema), errors.Is(err, flows.ErrUnknownTemplate):
 		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", flowsErrorText(err))
-	case errors.As(err, &ne):
+	case errors.As(err, &ne) && ne != nil:
 		code := ne.Code
 		if code == "" {
 			code = "FLOW_NODE_FAILED"
@@ -163,8 +218,9 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 
 // flowsErrorText is err's text for an answer or a log line: registered secrets and
 // credential-looking pairs redacted (as flowScrubbedError does), cut to flowErrorRunes.
+// fmt.Sprint recovers the panic of an Error method called on a nil receiver.
 func flowsErrorText(err error) string {
-	return flowBoundRunes(security.RedactSensitiveInfo(security.Scrub(err.Error())), flowErrorRunes)
+	return flowBoundRunes(security.RedactSensitiveInfo(security.Scrub(fmt.Sprint(err))), flowErrorRunes)
 }
 
 func flowsDocumentTooLargeMessage() string {
@@ -535,6 +591,15 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "secret names use a-z, 0-9 and _ (at most 40 characters)")
 		return
 	}
+	if r.Method == http.MethodPut || r.Method == http.MethodDelete {
+		cfg := s.ConfigSnapshot()
+		ip := ClientIP(r, cfg != nil && cfg.Server.HTTPS.BehindProxy)
+		if !s.flowSecretRate.allow(ip, time.Now(), flowSecretWritesPerWindow, flowSecretWriteWindow) {
+			w.Header().Set("Retry-After", "60")
+			flowsError(w, http.StatusTooManyRequests, "FLOW_RATE_LIMITED", "too many flow secret changes; try again in a minute")
+			return
+		}
+	}
 	switch r.Method {
 	case http.MethodPut:
 		var body struct {
@@ -543,8 +608,7 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 		if !flowsDecode(w, r, &body, flowsSmallBodyLimit) {
 			return
 		}
-		trimmed := strings.TrimSpace(body.Value)
-		if trimmed == "" {
+		if strings.TrimSpace(body.Value) == "" {
 			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the secret value is empty")
 			return
 		}
@@ -555,14 +619,16 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 		}
 		// WriteUserSecretContext stores the value as not agent-readable and gives up when
 		// the request ends while it waits for the vault lock.
+		//
+		// The value is deliberately not registered with the global output scrubber here.
+		// flowSecrets.ReadSecret registers it, as stored and trimmed, when a run reads it,
+		// before any node can send it or put it into an output; a secret no run reads never
+		// reaches an output. Registering on every write would grow the process-wide scrubber
+		// (each value adds its encoded forms) with every PUT.
 		if err := s.Vault.WriteUserSecretContext(r.Context(), flowSecretPrefix+name, body.Value, true); err != nil {
 			s.flowsErrorFrom(w, r, err)
 			return
 		}
-		// Scrub the value (as stored and as nodes send it) from outputs from the first run
-		// on, as flowSecrets.ReadSecret does when a run reads it.
-		security.RegisterSensitive(body.Value)
-		security.RegisterSensitive(trimmed)
 		s.recordFlowAudit("flow_secret_set", "", name, "Flow secret "+name+" saved")
 		flowsJSON(w, http.StatusOK, map[string]string{"status": "saved"})
 	case http.MethodDelete:

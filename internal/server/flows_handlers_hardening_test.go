@@ -128,6 +128,9 @@ func c17SwapBridge(t *testing.T, s *Server, bridge flows.MissionBridge) {
 
 func TestC17ErrorMapCoversEveryFlowSentinel(t *testing.T) {
 	s, _ := newFlowsTestServer(t)
+	var nilNode *flows.NodeError
+	var nilInvalid *flows.ValidationError
+	var nilTooLarge *http.MaxBytesError
 	cases := []struct {
 		err    error
 		status int
@@ -152,6 +155,11 @@ func TestC17ErrorMapCoversEveryFlowSentinel(t *testing.T) {
 		{&flows.ValidationError{}, http.StatusUnprocessableEntity, "FLOW_INVALID"},
 		{flows.NewNodeError("FLOW_PARAM_INVALID", "bad"), http.StatusBadRequest, "FLOW_PARAM_INVALID"},
 		{&flows.NodeError{Message: "no code"}, http.StatusBadRequest, "FLOW_NODE_FAILED"},
+		// Typed nils (a producer's bug) must not panic the mapper.
+		{nilNode, http.StatusInternalServerError, "FLOW_INTERNAL"},
+		{nilInvalid, http.StatusInternalServerError, "FLOW_INTERNAL"},
+		{nilTooLarge, http.StatusInternalServerError, "FLOW_INTERNAL"},
+		{fmt.Errorf("engine: %w", error(nilNode)), http.StatusInternalServerError, "FLOW_INTERNAL"},
 	}
 	for _, tc := range cases {
 		w := httptest.NewRecorder()
@@ -191,27 +199,35 @@ func TestC17InternalErrorsStayInTheLog(t *testing.T) {
 	}
 }
 
-func TestC17CancelledRequestGetsNoAnswer(t *testing.T) {
+// TestC17CancelledRequestGets503 covers a context the server cancels (the shutdown drain)
+// while the client still waits: the answer must not be an implicit 200.
+func TestC17CancelledRequestGets503(t *testing.T) {
 	s, token := newFlowsTestServer(t)
 	logs := c17CaptureLogs(s)
 	rec := createTestFlow(t, s, greetFlowJSON)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	r := httptest.NewRequest(http.MethodDelete, "/api/desktop/flows/"+rec.ID, nil).WithContext(ctx)
-	r.Header.Set("Authorization", "Bearer "+token)
-	w := httptest.NewRecorder()
-	s.handleFlows(w, r)
-	if w.Body.Len() != 0 || w.Header().Get("Content-Type") != "" {
-		t.Fatalf("a cancelled request was answered: %d %s", w.Code, w.Body.String())
+	for _, req := range []struct{ method, path, body string }{
+		{http.MethodDelete, "/api/desktop/flows/" + rec.ID, ""},
+		{http.MethodPut, "/api/desktop/flows/" + rec.ID, `{"doc":` + greetFlowJSON + `,"base_revision":1}`},
+	} {
+		r := httptest.NewRequest(req.method, req.path, strings.NewReader(req.body)).WithContext(ctx)
+		r.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		s.handleFlows(w, r)
+		if body := flowsBody(t, w); w.Code != http.StatusServiceUnavailable || body["code"] != "FLOWS_DISABLED" ||
+			body["error"] != "the request was cancelled" {
+			t.Fatalf("cancelled %s = %d %s", req.method, w.Code, w.Body.String())
+		}
 	}
-	if !strings.Contains(logs.String(), "ended by the client") {
+	if !strings.Contains(logs.String(), "was cancelled") || strings.Contains(logs.String(), "level=WARN") {
 		t.Fatalf("log = %s", logs.String())
 	}
-	if _, err := s.Flows.GetFlow(context.Background(), rec.ID); err != nil {
-		t.Fatalf("the cancelled delete changed the flow: %v", err)
+	if got, err := s.Flows.GetFlow(context.Background(), rec.ID); err != nil || got.DraftRevision != 1 {
+		t.Fatalf("the cancelled requests changed the flow: %+v %v", got, err)
 	}
-	// A real failure with an ended context still answers.
-	w = httptest.NewRecorder()
+	// A real failure with an ended context keeps its own answer.
+	w := httptest.NewRecorder()
 	s.flowsErrorFrom(w, httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx), flows.ErrNotFound)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("not found with an ended context = %d", w.Code)
@@ -466,7 +482,7 @@ func TestC17FlowSecretsStayOutOfTheAgent(t *testing.T) {
 	}
 }
 
-func TestC17SecretWritesAreBoundedScrubbedAndAuditedByName(t *testing.T) {
+func TestC17SecretWritesAreBoundedAuditedByNameAndScrubbedOnUse(t *testing.T) {
 	s, token := newFlowsTestServer(t)
 	stm := c17Audit(t, s)
 	tooLong := strings.Repeat("v", flowSecretValueMaxBytes+1)
@@ -486,12 +502,9 @@ func TestC17SecretWritesAreBoundedScrubbedAndAuditedByName(t *testing.T) {
 	if w := flowsCall(t, s, http.MethodPut, "/api/desktop/flows/secrets/c17_scrub", token, `{"value":"`+raw+`"}`); w.Code != http.StatusOK {
 		t.Fatalf("put secret = %d %s", w.Code, w.Body.String())
 	}
-	// Registered on write, before any run read it.
-	if out := security.Scrub("Authorization: Bearer " + trimmed); strings.Contains(out, trimmed) {
-		t.Fatalf("the trimmed value is not scrubbed: %q", out)
-	}
-	if out := security.Scrub("raw: " + "  " + trimmed + "\n"); strings.Contains(out, trimmed) {
-		t.Fatalf("the stored value is not scrubbed: %q", out)
+	// A write does not grow the global scrubber; the run that reads the secret registers it.
+	if out := security.Scrub("Authorization: Bearer " + trimmed); !strings.Contains(out, trimmed) {
+		t.Fatalf("the value was registered on write: %q", out)
 	}
 	audit := c17AuditEvents(t, stm, "flow_secret_set")
 	var entry *memory.AuditEvent
@@ -505,6 +518,75 @@ func TestC17SecretWritesAreBoundedScrubbedAndAuditedByName(t *testing.T) {
 	}
 	if blob, _ := json.Marshal(audit); strings.Contains(string(blob), trimmed) || strings.Contains(string(blob), security.RedactedText("")) {
 		t.Fatalf("the audit timeline holds the value: %s", blob)
+	}
+	if v, err := (flowSecrets{s: s}).ReadSecret("c17_scrub"); err != nil || v != "  "+trimmed+"\n" {
+		t.Fatalf("ReadSecret = %q %v", v, err)
+	}
+	if out := security.Scrub("Authorization: Bearer " + trimmed); strings.Contains(out, trimmed) {
+		t.Fatalf("the trimmed value is not scrubbed after use: %q", out)
+	}
+	if out := security.Scrub("raw: " + "  " + trimmed + "\n"); strings.Contains(out, trimmed) {
+		t.Fatalf("the stored value is not scrubbed after use: %q", out)
+	}
+}
+
+func TestC17SecretWritesAreRateLimitedPerClient(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	call := func(method, path, body, remote string) *httptest.ResponseRecorder {
+		var r *http.Request
+		if body == "" {
+			r = httptest.NewRequest(method, path, nil)
+		} else {
+			r = httptest.NewRequest(method, path, strings.NewReader(body))
+		}
+		r.RemoteAddr = remote
+		r.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		s.handleFlows(w, r)
+		return w
+	}
+	const first, second = "192.0.2.10:1000", "192.0.2.11:1000"
+	for i := 0; i < flowSecretWritesPerWindow; i++ {
+		method, body := http.MethodPut, `{"value":"c17-rate-value-123"}`
+		if i%2 == 1 {
+			method, body = http.MethodDelete, ""
+		}
+		if w := call(method, "/api/desktop/flows/secrets/c17_rate", body, first); w.Code != http.StatusOK {
+			t.Fatalf("write %d = %d %s", i, w.Code, w.Body.String())
+		}
+	}
+	for _, method := range []string{http.MethodPut, http.MethodDelete} {
+		w := call(method, "/api/desktop/flows/secrets/c17_rate", `{"value":"c17-rate-value-123"}`, first)
+		if w.Code != http.StatusTooManyRequests || flowsBody(t, w)["code"] != "FLOW_RATE_LIMITED" || w.Header().Get("Retry-After") == "" {
+			t.Fatalf("%s over the limit = %d %s", method, w.Code, w.Body.String())
+		}
+	}
+	if w := call(http.MethodGet, "/api/desktop/flows/secrets", "", first); w.Code != http.StatusOK {
+		t.Fatalf("listing is not limited: %d", w.Code)
+	}
+	if w := call(http.MethodPut, "/api/desktop/flows/secrets/c17_rate", `{"value":"c17-rate-value-123"}`, second); w.Code != http.StatusOK {
+		t.Fatalf("another client = %d %s", w.Code, w.Body.String())
+	}
+
+	var l flowRateLimiter
+	start := time.Now()
+	for i := 0; i < 3; i++ {
+		if !l.allow("a", start.Add(time.Duration(i)*time.Second), 3, time.Minute) {
+			t.Fatalf("event %d refused", i)
+		}
+	}
+	if l.allow("a", start.Add(59*time.Second), 3, time.Minute) {
+		t.Fatal("a fourth event within the window was allowed")
+	}
+	if !l.allow("a", start.Add(61*time.Second), 3, time.Minute) {
+		t.Fatal("the window does not slide")
+	}
+	for i := 0; i < 2*flowRateKeysSweep; i++ {
+		l.allow(fmt.Sprintf("k%d", i), start, 3, time.Minute)
+	}
+	l.allow("late", start.Add(2*time.Minute), 3, time.Minute)
+	if n := len(l.windows); n > flowRateKeysSweep+2 {
+		t.Fatalf("idle keys are kept: %d", n)
 	}
 }
 
