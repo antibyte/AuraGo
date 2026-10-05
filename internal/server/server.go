@@ -259,6 +259,7 @@ type Server struct {
 	Newspaper               *newspaper.Service
 	Flows                   *flows.Service
 	flowsCatalog            *flowCatalogEnv
+	flowNotify              flowFailureNotifier // flood rule and send slots of flow failure notifications
 	newspaperSkillReady     bool
 	PersonalRadio           *personalradio.Service
 	RTLSDR                  *rtlsdr.Service

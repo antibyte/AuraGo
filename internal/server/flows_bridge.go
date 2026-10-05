@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/flows"
 	"aurago/internal/i18n"
@@ -44,6 +45,15 @@ const (
 	// flowNotifyNameRunes bounds the flow name in the planner issue title and in failure
 	// notifications.
 	flowNotifyNameRunes = 80
+	// flowNotifyMessageRunes bounds the run error a failure notification carries. The engine
+	// caps error messages at 1000 runes, too long for a push or Telegram message.
+	flowNotifyMessageRunes = 300
+	// flowFailureNotifyInterval is how often a flow that keeps failing notifies again (see
+	// flowFailureNotifier).
+	flowFailureNotifyInterval = time.Hour
+	// flowNotifyMaxInFlight bounds the push and Telegram sends that have not returned (see
+	// sendFlowNotification).
+	flowNotifyMaxInFlight = 4
 	// flowHookTimeout bounds FlowMissionDeleted and FlowEnabledChanged. Both wait for the
 	// flow's lock; without a bound, a stuck lock holder would keep one goroutine per Mission
 	// Control delete or switch for ever. Once a hook holds the lock the Service finishes
@@ -196,9 +206,12 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 	output = security.Scrub(output)
 	mm.FlowRunFinished(info.MissionID, info.HistoryID, result, output, info.Outputs)
 	if info.Result.Status != flows.RunCancelled {
-		b.s.flowIssue(info, result != tools.MissionResultSuccess, output)
-		if result != tools.MissionResultSuccess {
+		failed := result != tools.MissionResultSuccess
+		b.s.flowIssue(info, failed, output)
+		if failed {
 			b.s.notifyFlowFailure(info, output)
+		} else {
+			b.s.flowNotify.recovered(info.Record.FlowID)
 		}
 	}
 	broadcastMissionState(b.s)
@@ -463,11 +476,19 @@ func (s *Server) flowIssue(info flows.RunFinishedInfo, failed bool, message stri
 	}
 }
 
-// flowFailureNotification builds the desktop notification for a failed live run.
+// flowFailureNotification builds the desktop notification for a failed live run; push and
+// Telegram send its title and message. The message names the flow (flowDisplayName, at
+// most 80 runes, the flow id when the name is unknown) and the run error, cut to
+// flowNotifyMessageRunes runes. Both are filled into the translation in one pass, so a
+// name that contains "{error}" (or an error that contains "{name}") is not filled in a
+// second time, as i18n.T's map parameters would in map order.
 func flowFailureNotification(lang string, info flows.RunFinishedInfo, message string) map[string]any {
+	name := flowDisplayName(info)
+	errText := flowBoundRunes(strings.TrimSpace(message), flowNotifyMessageRunes)
+	fill := strings.NewReplacer("{{name}}", name, "{{error}}", errText, "{name}", name, "{error}", errText)
 	return map[string]any{
 		"title":   i18n.T(lang, "easydrag.notify.run_failed_title"),
-		"message": i18n.T(lang, "easydrag.notify.run_failed_message", map[string]any{"name": info.FlowName, "error": message}),
+		"message": fill.Replace(i18n.T(lang, "easydrag.notify.run_failed_message")),
 		"type":    "error",
 		"appId":   "easydrag",
 		"context": map[string]any{"flow_id": info.Record.FlowID, "run_id": info.Record.ID},
@@ -475,10 +496,16 @@ func flowFailureNotification(lang string, info flows.RunFinishedInfo, message st
 }
 
 // notifyFlowFailure sends the failure notification chosen by settings.notify_on_error:
-// desktop (default), push, telegram or off.
+// desktop (default), push, telegram or off. The flood rule of flowFailureNotifier decides
+// whether this failure notifies at all.
 func (s *Server) notifyFlowFailure(info flows.RunFinishedInfo, message string) {
 	cfg := s.ConfigSnapshot()
 	if cfg == nil || info.NotifyOnError == "off" {
+		return
+	}
+	if !s.flowNotify.alert(info.Record.FlowID, time.Now()) {
+		s.Logger.Debug("Flow failure not notified; the flow notified that it is failing already",
+			"flow", info.Record.FlowID, "run", info.Record.ID)
 		return
 	}
 	payload := flowFailureNotification(cfg.Server.UILanguage, info, message)
@@ -486,10 +513,98 @@ func (s *Server) notifyFlowFailure(info flows.RunFinishedInfo, message string) {
 	case "push", "telegram":
 		title, _ := payload["title"].(string)
 		body, _ := payload["message"].(string)
-		go tools.SendNotification(cfg, s.Logger, info.NotifyOnError, title, body, "high", nil)
+		s.sendFlowNotification(cfg, info.NotifyOnError, title, body)
 	default:
 		broadcastDesktopEvent(s, s.DesktopHub, desktop.Event{Type: "notification", Payload: payload, CreatedAt: time.Now().UTC()})
 	}
+}
+
+// flowSendNotification is tools.SendNotification; tests replace it.
+var flowSendNotification = tools.SendNotification
+
+// sendFlowNotification hands a push or Telegram failure notification to
+// tools.SendNotification on a goroutine of its own. SendNotification takes no context. Its
+// Telegram channel has a 15 s client timeout (telegramMessageClient), but its web push
+// channel has none: push.Manager.SendPush calls webpush-go without an HTTP client, and
+// webpush-go then sends with a zero http.Client, so one stalled push endpoint can hold a
+// send for good. At most flowNotifyMaxInFlight sends run at a time; while all of them are
+// busy, a further notification is dropped with a Warn instead of adding a goroutine.
+func (s *Server) sendFlowNotification(cfg *config.Config, channel, title, body string) {
+	if !s.flowNotify.acquire() {
+		s.Logger.Warn("Flow failure notification dropped; earlier notifications are still being sent",
+			"channel", channel, "in_flight", flowNotifyMaxInFlight)
+		return
+	}
+	send, logger := flowSendNotification, s.Logger
+	go func() {
+		defer s.flowNotify.release()
+		send(cfg, logger, channel, title, body, "high", nil)
+	}()
+}
+
+// flowFailureNotifier holds the state of the flow failure notifications. The zero value
+// is ready to use.
+//
+// Flood rule: a failed live run notifies (desktop, push or Telegram, as the flow's
+// notify_on_error says) only when its flow was not failing before, or when the flow's last
+// failure notification is flowFailureNotifyInterval (one hour) or more ago. A successful
+// run ends the failing state, so the next failure notifies at once. A flow on a one-minute
+// schedule that keeps failing thus notifies once and then at most once an hour, instead of
+// 1440 times a day. Cancelled runs neither notify nor end the failing state, and a failure
+// of a flow set to "off" records nothing. The state lives in memory, so after a restart the
+// first failure notifies again. The planner issue is recorded for every failure; it is
+// deduplicated per flow (fingerprint "flow|<flow id>").
+type flowFailureNotifier struct {
+	mu       sync.Mutex
+	alerted  map[string]time.Time // flow id → last failure notification, while the flow keeps failing
+	inFlight int                  // push and Telegram sends that have not returned
+}
+
+// alert reports whether a failure of flowID at now may notify, and records the
+// notification when it may. Entries older than flowFailureNotifyInterval are dropped on
+// the way, so flows that stopped failing without a success (deleted, switched off) do not
+// stay in the map.
+func (n *flowFailureNotifier) alert(flowID string, now time.Time) bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	for id, at := range n.alerted {
+		if now.Sub(at) >= flowFailureNotifyInterval {
+			delete(n.alerted, id)
+		}
+	}
+	if _, failing := n.alerted[flowID]; failing {
+		return false
+	}
+	if n.alerted == nil {
+		n.alerted = map[string]time.Time{}
+	}
+	n.alerted[flowID] = now
+	return true
+}
+
+// recovered ends the failing state of flowID after a successful run.
+func (n *flowFailureNotifier) recovered(flowID string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	delete(n.alerted, flowID)
+}
+
+// acquire takes one of the flowNotifyMaxInFlight send slots; false when all are busy.
+func (n *flowFailureNotifier) acquire() bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.inFlight >= flowNotifyMaxInFlight {
+		return false
+	}
+	n.inFlight++
+	return true
+}
+
+// release gives back a slot that acquire took.
+func (n *flowFailureNotifier) release() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.inFlight--
 }
 
 // flowMissionHooks lets Mission Control start and manage flow runs (tools.FlowHooks).
