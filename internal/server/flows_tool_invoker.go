@@ -229,7 +229,7 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	if textSent {
 		i.rememberTextSent(sentKey, time.Now())
 	}
-	resp := flowToolOutcome(req.Tool, res)
+	resp := flowToolOutcome(req.Tool, res, i.s.Guardian != nil)
 	if err := ctx.Err(); err != nil && resp.Status != string(agent.ToolResultSuccess) {
 		return flows.ToolResponse{}, err
 	}

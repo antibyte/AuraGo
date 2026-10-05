@@ -103,6 +103,12 @@ func TestC13RefusalTextsBecomeNonRetryableStatuses(t *testing.T) {
 		{"telegram not configured", `Tool Output: {"status":"error","message":"telegram bot_token and telegram_user_id must be configured","results":[{"channel":"telegram","status":"error","detail":"telegram bot_token and telegram_user_id must be configured"}]}`, setup},
 		{"ntfy topic", `{"status":"error","message":"ntfy topic is not configured"}`, setup},
 		{"plain failure stays retried", `Tool Output: {"status":"error","message":"Request failed: dial tcp: connection refused"}`, string(agent.ToolResultFailed)},
+		{"api_request network gate", `{"status":"error","message":"network requests is disabled by runtime permissions"}`, denied},
+		{"pdf path traversal", `{"status":"error","message":"path traversal denied: path 'D:\\data\\x.pdf' is an absolute path outside the project root (D:\\ws). Use the execute_shell tool to access arbitrary host paths, or use the homepage/remote tools for container-scoped paths."}`, denied},
+		{"telnyx read-only", `Tool Output: {"status":"error","message":"Telnyx is in read-only mode"}`, denied},
+		{"brave not enabled", `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings > Brave Search."}`, setup},
+		{"ntfy not enabled", `{"status":"error","message":"ntfy is not enabled in config"}`, setup},
+		{"pushover keys", `{"status":"error","message":"pushover user_key and app_token must be configured"}`, setup},
 	}
 	for _, c := range cases {
 		inv, _, _ := c13Invoker(&config.Config{}, map[string]bool{"filesystem": true}, c13Answer(agent.ToolDispatchResult{Output: c.output, Status: agent.ToolResultFailed, IsError: true}))
@@ -115,10 +121,15 @@ func TestC13RefusalTextsBecomeNonRetryableStatuses(t *testing.T) {
 	for _, rule := range flowRefusalRules {
 		covered := false
 		for _, c := range cases {
-			covered = covered || strings.Contains(strings.ToLower(c.output), rule.text)
+			text, _ := flowToolText(c.output, false)
+			envelope, _ := flows.ParseToolOutput(text)
+			if _, onlyText := envelope["text"]; onlyText && len(envelope) == 1 {
+				envelope = nil
+			}
+			covered = covered || rule.pattern.MatchString(strings.ToLower(strings.TrimSpace(flowToolMessage(text, envelope))))
 		}
 		if !covered {
-			t.Errorf("refusal rule %q has no test with a real message", rule.text)
+			t.Errorf("refusal rule %q has no test with a real message", rule.pattern)
 		}
 	}
 }

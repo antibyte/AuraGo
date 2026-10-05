@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path"
@@ -35,8 +36,9 @@ import (
 // and the argument is rewritten to the copy. The copy exists only for the one dispatch:
 // it is removed when the call returns. Run folders are removed once they are older than
 // flowDocumentScratchRetention (the longest run plus an hour), which also clears what a
-// crash left behind. Folders are made and files written through an os.Root of the
-// workspace, so a symlink planted at .easydrag cannot send the copy elsewhere.
+// crash left behind. .easydrag must be a plain directory (no symlink, no junction); folders
+// are made, files written and old folders swept only through an os.Root of .easydrag
+// itself (openFlowScratch), so nothing outside it is touched.
 //
 // A path that names the documents folder but cannot be read through the jail (it climbs
 // out with "..", is a link that leads elsewhere, is missing or too large) is refused as
@@ -190,22 +192,25 @@ func bridgeDocument(cfg *config.Config, req flows.ToolRequest, args map[string]a
 	if err != nil {
 		return refuse(agent.ToolResultFailed, "the workspace cannot be opened")
 	}
-	defer root.Close()
-	sweepFlowScratch(root, time.Now())
+	scratch, err := openFlowScratch(root)
+	_ = root.Close()
+	if err != nil {
+		return refuse(agent.ToolResultDenied, err.Error())
+	}
+	sweepFlowScratch(scratch, time.Now())
 	var suffix [6]byte
 	_, _ = rand.Read(suffix[:])
-	dir := filepath.Join(flowScratchDir, flowScratchName(req.RunID, "run"), "doc-"+hex.EncodeToString(suffix[:]))
-	if err := root.MkdirAll(dir, 0o700); err != nil {
+	dir := filepath.Join(flowScratchName(req.RunID, "run"), "doc-"+hex.EncodeToString(suffix[:]))
+	if err := scratch.MkdirAll(dir, 0o700); err != nil {
+		_ = scratch.Close()
 		return refuse(agent.ToolResultFailed, "the scratch folder cannot be made")
 	}
 	removeDir := func() {
-		if r, err := os.OpenRoot(workspace); err == nil {
-			_ = r.RemoveAll(dir)
-			_ = r.Close()
-		}
+		_ = scratch.RemoveAll(dir)
+		_ = scratch.Close()
 	}
 	name := filepath.Join(dir, flowScratchName(filepath.Base(resolved), "document"))
-	dst, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	dst, err := scratch.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		removeDir()
 		return refuse(agent.ToolResultFailed, "the copy cannot be written")
@@ -216,13 +221,43 @@ func bridgeDocument(cfg *config.Config, req flows.ToolRequest, args map[string]a
 		removeDir()
 		return refuse(agent.ToolResultFailed, "the copy failed")
 	}
-	args[key] = filepath.Join(workspace, name)
+	args[key] = filepath.Join(workspace, flowScratchDir, name)
 	return removeDir, nil
 }
 
-// sweepFlowScratch removes run folders older than flowDocumentScratchRetention.
-func sweepFlowScratch(root *os.Root, now time.Time) {
-	dir, err := root.Open(flowScratchDir)
+// errFlowScratchNotPlain refuses a scratch folder that is not a plain directory.
+var errFlowScratchNotPlain = errors.New("the scratch folder " + flowScratchDir + " in the workspace is not a plain folder")
+
+// openFlowScratch opens <workspace>/.easydrag as a root of its own, making it when it is
+// missing. It must be a plain directory: os.Root follows links that stay inside the
+// workspace, so a symlink or junction at .easydrag pointing at "." or "projects" would let
+// the sweep remove old workspace folders and put the copies elsewhere. The folder is
+// checked with Lstat, then opened, and the opened folder must be the one Lstat saw.
+func openFlowScratch(root *os.Root) (*os.Root, error) {
+	if err := root.Mkdir(flowScratchDir, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
+		return nil, errors.New("the scratch folder cannot be made")
+	}
+	before, err := root.Lstat(flowScratchDir)
+	if err != nil || before.Mode().Type() != fs.ModeDir {
+		return nil, errFlowScratchNotPlain
+	}
+	scratch, err := root.OpenRoot(flowScratchDir)
+	if err != nil {
+		return nil, errFlowScratchNotPlain
+	}
+	opened, err := scratch.Stat(".")
+	if err != nil || !opened.IsDir() || !os.SameFile(before, opened) {
+		_ = scratch.Close()
+		return nil, errFlowScratchNotPlain
+	}
+	return scratch, nil
+}
+
+// sweepFlowScratch removes run folders older than flowDocumentScratchRetention. It works
+// inside the scratch root only and skips entries that are not plain directories
+// (DirEntry.IsDir does not follow links).
+func sweepFlowScratch(scratch *os.Root, now time.Time) {
+	dir, err := scratch.Open(".")
 	if err != nil {
 		return
 	}
@@ -236,6 +271,6 @@ func sweepFlowScratch(root *os.Root, now time.Time) {
 		if err != nil || !entry.IsDir() || now.Sub(info.ModTime()) <= flowDocumentScratchRetention {
 			continue
 		}
-		_ = root.RemoveAll(filepath.Join(flowScratchDir, entry.Name()))
+		_ = scratch.RemoveAll(entry.Name())
 	}
 }
