@@ -137,18 +137,27 @@ func resolveChannelID(ctx context.Context, cfg *config.Config, channel string) (
 	return channel, nil
 }
 
-// processMessage handles a single incoming Rocket.Chat message.
-func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
+// rocketChatSessionID keeps every room/sender pair in its own short-term
+// memory, like Discord, instead of the shared "default" web/Telegram session.
+func rocketChatSessionID(channelID, userID string) string {
+	return "rocketchat:" + channelID + ":" + userID
+}
+
+// processMessage handles a single incoming Rocket.Chat message. The shared
+// history manager belongs to the owner's "default" session and is
+// deliberately unused: each room/sender pair has its own session.
+func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, _ *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian) {
 	if ctx.Err() != nil || !cfg.RocketChat.Enabled || !isAllowedRocketChatUser(cfg, msg) {
 		return
 	}
 	inputText := msg.Msg
+	sessionID := rocketChatSessionID(channelID, msg.User.ID)
 
 	// Command interception
 	if strings.HasPrefix(inputText, "/") {
 		cmdCtx := commands.Context{
 			STM:           shortTermMem,
-			HM:            historyManager,
+			SessionID:     sessionID,
 			Vault:         vault,
 			InventoryDB:   inventoryDB,
 			Cfg:           cfg,
@@ -174,12 +183,12 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	inputText = security.IsolateExternalData(inputText)
 
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-	sessionID := "default"
 
-	// Add message to history
-	mid, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false)
-	if sessionID == "default" && historyManager != nil && agent.ShouldAppendHistoryMessage(mid, err) {
-		historyManager.Add(openai.ChatMessageRoleUser, inputText, mid, false, false)
+	// Add message to this room/sender session
+	if _, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, inputText, false, false); err != nil {
+		logger.Error("[RocketChat] Failed to store message", "error", err)
+		_ = sendMessageContext(ctx, cfg, channelID, "⚠️ Fehler beim Verarbeiten der Anfrage.")
+		return
 	}
 
 	// Build RunConfig first so it can be used for prompt flag derivation
@@ -188,7 +197,7 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		Logger:             logger,
 		LLMClient:          client,
 		ShortTermMem:       shortTermMem,
-		HistoryManager:     historyManager,
+		HistoryManager:     nil,
 		LongTermMem:        longTermMem,
 		KG:                 kg,
 		InventoryDB:        inventoryDB,
@@ -204,12 +213,20 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		MessageSource:      "rocketchat",
 		VoiceOutputActive:  agent.GetVoiceMode(),
 	}
-	finalMessages := historyManager.Get()
-	if currentSummary := historyManager.GetSummary(); currentSummary != "" {
-		finalMessages = append([]openai.ChatCompletionMessage{{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
-		}}, finalMessages...)
+
+	// Same assembly as Discord: a system placeholder the agent loop fills,
+	// then this session's own user/assistant turns from short-term memory.
+	finalMessages := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleSystem}}
+	recent, err := shortTermMem.GetRecentMessages(sessionID, 60)
+	if err != nil {
+		logger.Error("[RocketChat] Failed to load conversation", "error", err)
+		_ = sendMessageContext(ctx, cfg, channelID, "⚠️ Fehler beim Laden des Gesprächsverlaufs.")
+		return
+	}
+	for _, turn := range recent {
+		if turn.Role == openai.ChatMessageRoleUser || turn.Role == openai.ChatMessageRoleAssistant {
+			finalMessages = append(finalMessages, turn)
+		}
 	}
 
 	req := openai.ChatCompletionRequest{
