@@ -228,6 +228,24 @@ func TestParseDockerComposeModelDeviceForms(t *testing.T) {
 	}
 }
 
+func TestResolveDockerComposeFileMarksJailViolations(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ResolveDockerComposeFile(DockerConfig{WorkspaceDir: workspace}, filepath.Join(root, "outside.yml"))
+	if !errors.Is(err, ErrDockerComposeFileOutsideWorkspace) || !strings.Contains(err.Error(), "must stay within the configured workspace") {
+		t.Fatalf("outside file error = %v, want ErrDockerComposeFileOutsideWorkspace with the jail message", err)
+	}
+	if _, err := ResolveDockerComposeFile(DockerConfig{WorkspaceDir: workspace}, "compose.yml"); err != nil {
+		t.Fatalf("inside file error = %v", err)
+	}
+	if _, err := ResolveDockerComposeFile(DockerConfig{WorkspaceDir: workspace}, " "); err == nil || errors.Is(err, ErrDockerComposeFileOutsideWorkspace) {
+		t.Fatalf("empty file error = %v, want a plain required-file error", err)
+	}
+}
+
 func TestParseDockerComposeModelRejectsEmptyAndNonJSON(t *testing.T) {
 	for _, resolved := range []string{"", "   ", "services:\n  web:\n    image: alpine\n"} {
 		if _, err := ParseDockerComposeModel(resolved); err == nil {

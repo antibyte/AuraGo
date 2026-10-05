@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"unicode/utf8"
@@ -38,7 +40,8 @@ type dockerComposePreflight struct {
 // Without a configured workspace the process working directory is the jail,
 // exactly as the Compose checks before this preflight confined the file.
 func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, file string) (*dockerComposePreflight, error) {
-	if strings.TrimSpace(cfg.WorkspaceDir) == "" {
+	workspaceConfigured := strings.TrimSpace(cfg.WorkspaceDir) != ""
+	if !workspaceConfigured {
 		workdir, err := os.Getwd()
 		if err != nil {
 			return nil, fmt.Errorf("determine working directory for the compose file: %w", err)
@@ -47,11 +50,14 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 	}
 	composeFile, err := tools.ResolveDockerComposeFile(cfg, file)
 	if err != nil {
+		if errors.Is(err, tools.ErrDockerComposeFileOutsideWorkspace) {
+			return nil, &dockerComposeOutsideJailError{file: file, root: cfg.WorkspaceDir, workspaceConfigured: workspaceConfigured, err: err}
+		}
 		return nil, err
 	}
-	raw, err := os.ReadFile(composeFile)
+	raw, err := readDockerComposeFile(composeFile)
 	if err != nil {
-		return nil, fmt.Errorf("read compose file: %w", err)
+		return nil, err
 	}
 	resolved, err := resolveDockerComposeConfig(ctx, cfg, composeFile, tools.DockerComposeConfigOptions{})
 	if err != nil {
@@ -80,6 +86,53 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 		return nil, fmt.Errorf("resolve Compose config: %w", ctx.Err())
 	}
 	return preflight, nil
+}
+
+// dockerComposeOutsideJailError is a compose file outside the jail: the agent
+// workspace, or the process working directory when no workspace is configured.
+type dockerComposeOutsideJailError struct {
+	file                string
+	root                string
+	workspaceConfigured bool
+	err                 error
+}
+
+func (e *dockerComposeOutsideJailError) Error() string { return e.err.Error() }
+func (e *dockerComposeOutsideJailError) Unwrap() error { return e.err }
+
+// dockerComposeFileReadLimit bounds the raw compose file the policy reads.
+const dockerComposeFileReadLimit = 4 << 20
+
+// readDockerComposeFile reads the jailed compose file only when it is a
+// regular file of at most 4 MiB, so a FIFO or device cannot hang the call.
+// os.Stat follows a symlink, whose target the jail has already accepted.
+func readDockerComposeFile(path string) ([]byte, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("read compose file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("read compose file: %s is not a regular file", path)
+	}
+	if info.Size() > dockerComposeFileReadLimit {
+		return nil, fmt.Errorf("read compose file: %s is larger than 4 MiB", path)
+	}
+	handle, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("read compose file: %w", err)
+	}
+	defer handle.Close()
+	if opened, err := handle.Stat(); err != nil || !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
+		return nil, fmt.Errorf("read compose file: %s changed while it was opened", path)
+	}
+	raw, err := io.ReadAll(io.LimitReader(handle, dockerComposeFileReadLimit+1))
+	if err != nil {
+		return nil, fmt.Errorf("read compose file: %w", err)
+	}
+	if len(raw) > dockerComposeFileReadLimit {
+		return nil, fmt.Errorf("read compose file: %s is larger than 4 MiB", path)
+	}
+	return raw, nil
 }
 
 // protectedOwner keeps every text match that blocked a call before the model
@@ -184,6 +237,15 @@ func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file
 // Output envelope that blocks the call, or "" to continue.
 func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tools.DockerConfig, req dockerArgs) string {
 	preflight, err := loadDockerComposePreflight(ctx, dockerCfg, req.File)
+	var outside *dockerComposeOutsideJailError
+	if errors.As(err, &outside) {
+		if !outside.workspaceConfigured {
+			return dockerAgentError("docker_compose_file_outside_workspace", fmt.Sprintf(
+				"No agent workspace is configured, so compose files must stay inside AuraGo's working directory %s. The compose file %q is outside it (directly or through a symlink), so nothing was run.", outside.root, outside.file))
+		}
+		return dockerAgentError("docker_compose_file_outside_workspace", fmt.Sprintf(
+			"The compose file %q is outside the agent workspace %s (directly or through a symlink), so nothing was run. Use a compose file inside the workspace.", outside.file, outside.root))
+	}
 	if err != nil {
 		return dockerAgentError("docker_compose_preflight_failed",
 			"Docker Compose could not resolve this file, so nothing was run: "+dockerComposeErrorTail(err.Error(), 600)+

@@ -186,9 +186,10 @@ func TestDockerComposePolicyWithoutWorkspaceJailsToWorkingDirectory(t *testing.T
 		}
 	}
 	allowedCalls := len(*seen)
+	workdirText := strings.ReplaceAll(workdir, `\`, `\\`) // as it appears inside the JSON envelope
 	for _, file := range []string{filepath.Join("..", "outside.yml"), outside} {
 		got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{}, dockerArgs{Operation: "compose", File: file, Command: "ps"})
-		if !strings.Contains(got, `"code":"docker_compose_preflight_failed"`) || !strings.Contains(got, "must stay within the configured workspace") {
+		if !strings.Contains(got, `"code":"docker_compose_file_outside_workspace"`) || !strings.Contains(got, "working directory") || !strings.Contains(got, workdirText) {
 			t.Fatalf("%s: compose file outside the working directory was not jailed: %s", file, got)
 		}
 	}
@@ -346,7 +347,7 @@ func TestDockerComposePolicyReportsPreflightFailure(t *testing.T) {
 		return "", errors.New("resolve Compose config: exit status 1: env file missing.env not found")
 	})
 	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
-	for _, file := range []string{"compose.yml", "missing.yml", filepath.Join("..", "outside.yml")} {
+	for _, file := range []string{"compose.yml", "missing.yml"} {
 		got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: file, Command: "ps"})
 		if !strings.Contains(got, `"code":"docker_compose_preflight_failed"`) {
 			t.Fatalf("%s: got %s, want docker_compose_preflight_failed", file, got)
@@ -358,5 +359,81 @@ func TestDockerComposePolicyReportsPreflightFailure(t *testing.T) {
 	got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "compose.yml", Command: "ps"})
 	if !strings.Contains(got, "env file missing.env not found") {
 		t.Fatalf("Compose error detail missing: %s", got)
+	}
+}
+
+func TestDockerComposePolicyReportsFilesOutsideTheWorkspace(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	outside := writeComposeFixture(t, root, "outside.yml", "services:\n  web:\n    image: alpine\n")
+	seen := stubDockerComposeResolver(t, func(string) (string, error) { return `{"services":{"web":{"image":"alpine"}}}`, nil })
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	for _, file := range []string{filepath.Join("..", "outside.yml"), outside} {
+		got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: file, Command: "ps"})
+		if !strings.Contains(got, `"code":"docker_compose_file_outside_workspace"`) || !strings.Contains(got, "agent workspace") {
+			t.Fatalf("%s: got %s, want docker_compose_file_outside_workspace", file, got)
+		}
+		if strings.Contains(got, "install the Docker Compose plugin") {
+			t.Fatalf("%s: jail violation suggests installing Compose: %s", file, got)
+		}
+		if classifyLegacyToolResult(got) != ToolResultFailed {
+			t.Fatalf("%s: classified as %v", file, classifyLegacyToolResult(got))
+		}
+	}
+
+	if len(*seen) != 0 {
+		t.Fatalf("resolver ran for a file outside the workspace: %q", *seen)
+	}
+}
+
+func TestDockerComposePolicyRejectsSymlinksOutOfTheWorkspace(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := writeComposeFixture(t, root, "outside.yml", "services:\n  web:\n    image: alpine\n")
+	if err := os.Symlink(outside, filepath.Join(workspace, "linked.yml")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	seen := stubDockerComposeResolver(t, func(string) (string, error) { return `{"services":{"web":{"image":"alpine"}}}`, nil })
+	got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "linked.yml", Command: "ps"})
+	if !strings.Contains(got, `"code":"docker_compose_file_outside_workspace"`) {
+		t.Fatalf("symlink to a file outside the workspace: got %s", got)
+	}
+	if len(*seen) != 0 {
+		t.Fatalf("resolver ran for a symlink out of the workspace: %q", *seen)
+	}
+}
+
+func TestDockerComposePolicyFollowsSymlinksInsideTheWorkspace(t *testing.T) {
+	workspace := t.TempDir()
+	target := writeComposeFixture(t, workspace, "real/compose.yml", "services:\n  web:\n    image: alpine\n")
+	if err := os.Symlink(target, filepath.Join(workspace, "compose.yml")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	stubDockerComposeResolver(t, func(string) (string, error) { return `{"services":{"web":{"image":"alpine"}}}`, nil })
+	if got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "ps"}); got != "" {
+		t.Fatalf("symlinked compose file inside the workspace was blocked: %s", got)
+	}
+}
+
+func TestDockerComposePolicyReadsOnlyBoundedRegularFiles(t *testing.T) {
+	workspace := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(workspace, "dir.yml"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeComposeFixture(t, workspace, "huge.yml", "services:\n  web:\n    image: alpine\n"+strings.Repeat("# padding\n", (4<<20)/10+1))
+	seen := stubDockerComposeResolver(t, func(string) (string, error) { return `{"services":{"web":{"image":"alpine"}}}`, nil })
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	for file, want := range map[string]string{"dir.yml": "not a regular file", "huge.yml": "larger than 4 MiB"} {
+		got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: file, Command: "ps"})
+		if !strings.Contains(got, `"code":"docker_compose_preflight_failed"`) || !strings.Contains(got, want) {
+			t.Fatalf("%s: got %s, want docker_compose_preflight_failed with %q", file, got, want)
+		}
+	}
+	if len(*seen) != 0 {
+		t.Fatalf("resolver ran for an unreadable compose file: %q", *seen)
 	}
 }

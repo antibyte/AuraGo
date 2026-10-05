@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -130,8 +131,23 @@ func ParseDockerComposeModel(resolved string) (DockerComposeModel, error) {
 	return model, nil
 }
 
+// ErrDockerComposeFileOutsideWorkspace marks a compose file, or the target of a
+// compose file symlink, outside the workspace jail.
+var ErrDockerComposeFileOutsideWorkspace = errors.New("compose file is outside the workspace")
+
+type dockerComposeJailError struct{ message string }
+
+func (e *dockerComposeJailError) Error() string { return e.message }
+func (e *dockerComposeJailError) Unwrap() error { return ErrDockerComposeFileOutsideWorkspace }
+
 // ResolveDockerComposeFile applies the workspace jail DockerCompose uses and
-// returns the absolute file Compose will read.
+// returns the absolute file Compose will read. A file (or symlink target)
+// outside cfg.WorkspaceDir fails with ErrDockerComposeFileOutsideWorkspace. An
+// empty WorkspaceDir applies no jail, as in DockerCompose; the agent Compose
+// preflight therefore passes the process working directory as WorkspaceDir when
+// no workspace is configured, confining the file to it. The preflight resolves
+// the file twice: the default `config` (the validity gate) and the all-profiles
+// `--profile * config --no-env-resolution` model that the ownership checks read.
 func ResolveDockerComposeFile(cfg DockerConfig, file string) (string, error) {
 	if strings.TrimSpace(file) == "" {
 		return "", fmt.Errorf("compose file is required")
