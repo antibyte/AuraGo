@@ -27,7 +27,8 @@ func SameHTTPOrigin(a, b *url.URL) bool {
 }
 
 // SameOriginRedirect binds all credentials, including custom headers, to the
-// original integration origin. It never permits an HTTPS downgrade.
+// original integration origin. It never permits a scheme change (including
+// http→https). It wraps httporigin.SameOriginRedirect.
 func SameOriginRedirect(req *http.Request, via []*http.Request) error {
 	return httporigin.SameOriginRedirect(req, via)
 }

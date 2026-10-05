@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"aurago/internal/config"
 )
@@ -959,17 +958,5 @@ func TestLLMHTTPClientRejectsCrossOriginRedirect(t *testing.T) {
 	}
 	if err := client.CheckRedirect(otherPort, []*http.Request{first}); err == nil {
 		t.Fatal("other-port redirect must be rejected")
-	}
-}
-
-func TestProbeHTTPClientUsesSameOriginPolicy(t *testing.T) {
-	client := newProbeHTTPClient(5 * time.Second)
-	first, _ := http.NewRequest(http.MethodGet, "http://ollama.lan:11434/api/tags", nil)
-	cross, _ := http.NewRequest(http.MethodGet, "http://other.lan:11434/api/tags", nil)
-	if err := client.CheckRedirect(cross, []*http.Request{first}); err == nil {
-		t.Fatal("probe clients must not follow cross-origin redirects")
-	}
-	if client.Timeout != 5*time.Second {
-		t.Fatalf("timeout = %v, want 5s", client.Timeout)
 	}
 }

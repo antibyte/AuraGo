@@ -8,16 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"aurago/internal/httporigin"
-
 	"github.com/sashabaranov/go-openai"
 )
-
-// newProbeHTTPClient is the client for capability and health probes. Probes
-// carry the provider key, so they never leave the configured origin.
-func newProbeHTTPClient(timeout time.Duration) *http.Client {
-	return &http.Client{Timeout: timeout, CheckRedirect: httporigin.SameOriginRedirect}
-}
 
 func probePrimaryHealth(ctx context.Context, client *openai.Client, providerType, baseURL, apiKey string) error {
 	pt := strings.ToLower(strings.TrimSpace(providerType))

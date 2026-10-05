@@ -1,6 +1,7 @@
 package httporigin
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -50,8 +51,15 @@ func TestSameOriginRedirectErrorText(t *testing.T) {
 	original, _ := http.NewRequest(http.MethodGet, "https://example.com/api", nil)
 	target, _ := http.NewRequest(http.MethodGet, "https://evil.example.net/api", nil)
 	err := SameOriginRedirect(target, []*http.Request{original})
-	if err == nil || err.Error() != "cross-origin integration redirect rejected" {
-		t.Fatalf("error = %v, want the stable rejection text", err)
+	if !errors.Is(err, ErrCrossOriginRedirect) {
+		t.Fatalf("error = %v, want ErrCrossOriginRedirect", err)
+	}
+	if err.Error() != "cross-origin integration redirect rejected" {
+		t.Fatalf("error text = %q, want the stable rejection text", err.Error())
+	}
+	wrapped := &url.Error{Op: "Get", URL: target.URL.String(), Err: err}
+	if !errors.Is(wrapped, ErrCrossOriginRedirect) {
+		t.Fatal("ErrCrossOriginRedirect must survive net/http's *url.Error wrapping")
 	}
 }
 

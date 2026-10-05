@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"testing"
 
+	"aurago/internal/httporigin"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -306,5 +308,12 @@ func TestCrossOriginRedirectRejectionIsNotRetryable(t *testing.T) {
 	err := &url.Error{Op: "Post", URL: "https://api.example.com/v1/chat/completions", Err: errors.New("cross-origin integration redirect rejected")}
 	if IsRetryable(err) {
 		t.Fatal("a rejected redirect must not be retried ten times")
+	}
+}
+
+func TestClassifyErrorRecognisesCrossOriginRedirectSentinel(t *testing.T) {
+	err := &url.Error{Op: "Post", URL: "https://api.example.com/v1/chat/completions", Err: httporigin.ErrCrossOriginRedirect}
+	if got := ClassifyError(err); got != ErrCategoryNonRetryableConfig {
+		t.Fatalf("ClassifyError = %v, want %v", got, ErrCategoryNonRetryableConfig)
 	}
 }

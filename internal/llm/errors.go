@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/httporigin"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -60,6 +62,11 @@ func ClassifyError(err error) ErrorCategory {
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return ErrCategoryContextDeadline
+	}
+	// A provider that redirects off its origin answers the same way every
+	// time; retrying only repeats the rejection.
+	if errors.Is(err, httporigin.ErrCrossOriginRedirect) {
+		return ErrCategoryNonRetryableConfig
 	}
 
 	var apiErr *openai.APIError
@@ -229,6 +236,8 @@ func isNonRetryableByString(lowerErr string) bool {
 		strings.Contains(lowerErr, "unauthorized") ||
 		strings.Contains(lowerErr, "permission denied") ||
 		strings.Contains(lowerErr, "access denied") ||
+		// Text fallback for httporigin.ErrCrossOriginRedirect after the error
+		// chain was flattened (e.g. formatted with %v).
 		strings.Contains(lowerErr, "redirect rejected")
 }
 

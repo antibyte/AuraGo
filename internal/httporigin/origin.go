@@ -7,11 +7,15 @@
 package httporigin
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
 )
+
+// ErrCrossOriginRedirect is returned by SameOriginRedirect. net/http wraps it
+// in a *url.Error, so callers match it with errors.Is.
+var ErrCrossOriginRedirect = errors.New("cross-origin integration redirect rejected")
 
 // SameOrigin reports whether a and b share scheme, host (case-insensitive) and
 // effective port. URLs carrying userinfo never match.
@@ -33,10 +37,11 @@ func SameOrigin(a, b *url.URL) bool {
 
 // SameOriginRedirect is an http.Client CheckRedirect policy that binds all
 // credentials, including custom headers, to the original request's origin.
-// It never permits an HTTPS downgrade and stops after 10 redirects.
+// It never permits a scheme change (including http→https) and stops after 10
+// redirects. Rejections return ErrCrossOriginRedirect.
 func SameOriginRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) == 0 || len(via) >= 10 || !SameOrigin(req.URL, via[0].URL) {
-		return fmt.Errorf("cross-origin integration redirect rejected")
+		return ErrCrossOriginRedirect
 	}
 	return nil
 }
