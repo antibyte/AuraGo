@@ -2,6 +2,7 @@ package dockerutil
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -26,23 +27,38 @@ func TestDrainJSONMessages(t *testing.T) {
 		{name: "first error wins", stream: `{"error":"first"}` + "\n" + `{"error":"second"}` + "\n", wantMessage: "first"},
 		{name: "stream ends inside a message", stream: `{"status":"Downloading"}` + "\n" + `{"status":"Downlo`, wantCut: true},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := DrainJSONMessages(strings.NewReader(tc.stream))
-			var event *JSONMessageError
-			switch {
-			case tc.wantMessage != "":
-				if !errors.As(err, &event) || event.Message != tc.wantMessage {
-					t.Fatalf("DrainJSONMessages() = %v, want event %q", err, tc.wantMessage)
-				}
-			case tc.wantCut:
-				if err == nil || errors.As(err, &event) || !errors.Is(err, io.ErrUnexpectedEOF) {
-					t.Fatalf("DrainJSONMessages() = %v, want a cut-stream error wrapping io.ErrUnexpectedEOF", err)
-				}
-			default:
-				if err != nil {
-					t.Fatalf("DrainJSONMessages() = %v, want nil", err)
-				}
+	// The same table runs through readers that split the stream differently,
+	// so the data-with-EOF and partial-read paths of the scanner stay pinned.
+	readers := []struct {
+		name string
+		wrap func(io.Reader) io.Reader
+	}{
+		{name: "plain", wrap: func(r io.Reader) io.Reader { return r }},
+		{name: "one byte reads", wrap: iotest.OneByteReader},
+		{name: "data with EOF", wrap: iotest.DataErrReader},
+		{name: "half reads", wrap: iotest.HalfReader},
+	}
+	for _, rd := range readers {
+		t.Run(rd.name, func(t *testing.T) {
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					err := DrainJSONMessages(rd.wrap(strings.NewReader(tc.stream)))
+					var event *JSONMessageError
+					switch {
+					case tc.wantMessage != "":
+						if !errors.As(err, &event) || event.Message != tc.wantMessage {
+							t.Fatalf("DrainJSONMessages() = %v, want event %q", err, tc.wantMessage)
+						}
+					case tc.wantCut:
+						if err == nil || errors.As(err, &event) || !errors.Is(err, io.ErrUnexpectedEOF) {
+							t.Fatalf("DrainJSONMessages() = %v, want a cut-stream error wrapping io.ErrUnexpectedEOF", err)
+						}
+					default:
+						if err != nil {
+							t.Fatalf("DrainJSONMessages() = %v, want nil", err)
+						}
+					}
+				})
 			}
 		})
 	}
@@ -53,6 +69,19 @@ func TestDrainJSONMessagesReturnsReadError(t *testing.T) {
 	err := DrainJSONMessages(io.MultiReader(strings.NewReader(`{"status":"Downloading"}`+"\n"), iotest.ErrReader(cut)))
 	if !errors.Is(err, cut) {
 		t.Fatalf("DrainJSONMessages() = %v, want the read error", err)
+	}
+}
+
+func TestDrainJSONMessagesKeepsReadErrorInsideMessage(t *testing.T) {
+	// A deadline, reset or cancellation that arrives while a partial message is
+	// buffered must keep its cause instead of reporting a generic cut stream.
+	stream := io.MultiReader(strings.NewReader(`{"status":"a"}`+"\n"+`{"status":"Downlo`), iotest.ErrReader(context.DeadlineExceeded))
+	err := DrainJSONMessages(stream)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("DrainJSONMessages() = %v, want an error wrapping context.DeadlineExceeded", err)
+	}
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("DrainJSONMessages() = %v, must not report a cut stream when the read itself failed", err)
 	}
 }
 

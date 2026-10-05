@@ -32,7 +32,7 @@ func (e *JSONMessageError) Error() string {
 }
 
 // DrainJSONMessages reads a Docker JSON-message stream (pull/build/push) to
-// EOF. The first error event wins (errorDetail.message before error) and is
+// EOF or the first error event. The first error event wins (errorDetail.message before error) and is
 // returned as *JSONMessageError. Lines that are not JSON are skipped. A read
 // error, a stream that ends inside a message, or a line longer than
 // MaxJSONMessageLine is returned as an error. A clean EOF without an error
@@ -65,6 +65,11 @@ func DrainJSONMessages(r io.Reader) error {
 		}
 		if err := json.Unmarshal(line, &event); err != nil {
 			if unterminated {
+				// A failed read hands the scanner its last fragment as if the
+				// stream had ended; keep the cause (reset, deadline, cancel).
+				if readErr := scanner.Err(); readErr != nil {
+					return fmt.Errorf("read Docker message stream: %w", readErr)
+				}
 				return fmt.Errorf("Docker message stream ended inside a message: %w", io.ErrUnexpectedEOF)
 			}
 			continue

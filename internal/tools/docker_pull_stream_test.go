@@ -176,5 +176,8 @@ func TestDockerPullImageReportsStreamError(t *testing.T) {
 		if result["status"] != "error" || time.Since(started) > 5*time.Second {
 			t.Fatalf("DockerPullImageContext() = %#v after %s, want a prompt error on cancellation", result, time.Since(started))
 		}
+		if !strings.Contains(result["message"], "context deadline exceeded") {
+			t.Fatalf("DockerPullImageContext() = %#v, want the caller's deadline named in the error", result)
+		}
 	})
 }
