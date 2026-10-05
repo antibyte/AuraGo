@@ -93,7 +93,7 @@ func TestDesktopShortcutAppLogosStayInsideFixedGlyphBox(t *testing.T) {
 	iconRule := desktopStoreCSSRuleBody(t, css, ".vd-icon")
 	for _, want := range []string{
 		"grid-template-rows: var(--vd-icon-glyph-size) minmax(0, auto);",
-		"align-content: center;",
+		"align-content: start;",
 	} {
 		if !desktopStoreCSSRuleHasDeclaration(iconRule, want) {
 			t.Fatalf("desktop icon grid CSS missing fixed glyph box marker %q", want)

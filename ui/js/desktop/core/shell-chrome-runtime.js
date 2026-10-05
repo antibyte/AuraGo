@@ -103,9 +103,23 @@
         panel.focus();
         desktopSound('menu.open');
         markAllNotificationsRead();
-        if (anchor && anchor.getBoundingClientRect) {
-            const rect = anchor.getBoundingClientRect();
-            panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+        placeTrayPopover(panel, anchor);
+    }
+
+    // Tray popovers open away from their bar: below an anchor in the upper half of the viewport
+    // (the Fruity menubar), above it otherwise. The placement also steers the entrance motion in
+    // desktop-polish.css.
+    function placeTrayPopover(panel, anchor) {
+        if (!panel || !anchor || !anchor.getBoundingClientRect) return;
+        const rect = anchor.getBoundingClientRect();
+        const below = rect.top + rect.height / 2 < window.innerHeight / 2;
+        panel.dataset.placement = below ? 'below' : 'above';
+        panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+        if (below) {
+            panel.style.bottom = '';
+            panel.style.top = Math.round(rect.bottom + 8) + 'px';
+        } else {
+            panel.style.top = '';
             panel.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
         }
     }
@@ -146,11 +160,7 @@
         popup.hidden = false;
         popup.focus();
         popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
-        if (anchor && anchor.getBoundingClientRect) {
-            const rect = anchor.getBoundingClientRect();
-            popup.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
-            popup.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
-        }
+        placeTrayPopover(popup, anchor);
         let appointments = [];
         try {
             appointments = await api('/api/desktop/integrations/appointments?status=all');
@@ -160,7 +170,7 @@
         if (popup.hidden || popup._request !== request || !popup.isConnected) return;
         const now = new Date();
         const todayKey = now.toISOString().slice(0, 10);
-        const todayItems = (appointments || []).filter(item => String(item.date_time || '').startsWith(todayKey));
+        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => String(item.date_time || '').startsWith(todayKey));
         const events = todayItems.slice(0, 6).map(item => {
             const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;

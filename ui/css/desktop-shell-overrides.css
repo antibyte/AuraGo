@@ -448,8 +448,8 @@
 
 .desktop-body[data-theme="standard"] .vd-icon-label,
 .desktop-body[data-theme="fruity"] .vd-icon-label {
-    max-width: 86px;
-    padding: 1px 7px;
+    max-width: 100%;
+    padding: 1px 6px;
     border-radius: 7px;
     line-height: 1.15;
     -webkit-backdrop-filter: blur(10px) saturate(1.2);

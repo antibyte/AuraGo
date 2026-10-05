@@ -4652,8 +4652,11 @@
     display: grid;
     grid-template-rows: var(--vd-icon-glyph-size) minmax(0, auto);
     justify-items: center;
-    align-content: center;
+    align-content: start;
     gap: 7px;
+    /* Explicit padding: the button default (1px 6px) stole 12px of label width. The glyph sits at a
+       fixed height so a label that grows (see below) never moves it. */
+    padding: 7px 2px 0;
     cursor: pointer;
     font: inherit;
     pointer-events: auto;
@@ -4664,6 +4667,22 @@
         border-color 140ms var(--ds-motion-ease-standard),
         box-shadow 140ms var(--ds-motion-ease-standard),
         transform 140ms var(--ds-motion-ease-standard);
+}
+
+/* Hover, selection and keyboard focus reveal the whole name; the icon rises above its neighbours so
+   the longer label may overlap them, and its box grows with the label instead of clipping it. */
+.vd-icon:hover,
+.vd-icon.selected,
+.vd-icon:focus-visible {
+    z-index: 2;
+    height: auto;
+    min-height: 88px;
+}
+
+.vd-icon:hover .vd-icon-label,
+.vd-icon.selected .vd-icon-label,
+.vd-icon:focus-visible .vd-icon-label {
+    -webkit-line-clamp: 6;
 }
 
 .vd-icon:hover,
@@ -4877,11 +4896,21 @@
 }
 
 .vd-icon-label {
-    max-width: 78px;
+    /* Two lines at rest with an ellipsis; only words wider than the label break (hyphenated where
+       the browser knows the page language). The expanded states live next to .vd-icon above. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    align-self: start; /* keep the content height; a stretched item would clip the extra lines */
+    box-sizing: border-box;
+    max-width: 100%;
     font-size: 0.76rem;
     line-height: 1.2;
     text-align: center;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
     /* Halo in the theme's canvas tone so labels stay readable on any wallpaper */
     text-shadow:
         0 1px 3px color-mix(in srgb, var(--vd-bg) 78%, transparent),
@@ -8790,8 +8819,8 @@
 
 .desktop-body[data-theme="standard"] .vd-icon-label,
 .desktop-body[data-theme="fruity"] .vd-icon-label {
-    max-width: 86px;
-    padding: 1px 7px;
+    max-width: 100%;
+    padding: 1px 6px;
     border-radius: 7px;
     line-height: 1.15;
     -webkit-backdrop-filter: blur(10px) saturate(1.2);
@@ -9900,19 +9929,76 @@
 }
 
 .vd-notification-item {
+    position: relative;
     display: block;
     width: 100%;
     text-align: left;
-    padding: 10px 12px;
+    padding: 10px 12px 10px 26px;
     border: 0;
     border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
     background: transparent;
     color: var(--vd-text);
     cursor: pointer;
+    transition: background var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+}
+
+.vd-notification-item:hover,
+.vd-notification-item:focus-visible {
+    background: var(--vd-theme-control-hover, var(--ds-color-control-hover));
+}
+
+.vd-notification-item:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: -2px;
 }
 
 .vd-notification-item.unread {
     background: color-mix(in srgb, var(--vd-accent) 10%, transparent);
+}
+
+.vd-notification-item.unread:hover,
+.vd-notification-item.unread:focus-visible {
+    background: color-mix(in srgb, var(--vd-accent) 16%, transparent);
+}
+
+/* An unread entry carries a small accent light before its title. */
+.vd-notification-item.unread::before {
+    content: "";
+    position: absolute;
+    left: 11px;
+    top: 16px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--vd-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--vd-accent) 22%, transparent);
+}
+
+.vd-notification-item-title {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.vd-notification-item-message {
+    margin-top: 2px;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: 0.86rem;
+    line-height: 1.4;
+}
+
+.vd-notification-item-time {
+    margin-top: 4px;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    opacity: 0.85;
+}
+
+.vd-clock-popup-loading {
+    padding: 14px 12px;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: 0.86rem;
 }
 
 .vd-notification-empty,
@@ -10907,6 +10993,13 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .vd-toast {
     position: relative;
     overflow: hidden;
+    transition: translate 160ms var(--ds-motion-ease-standard, ease), border-color 160ms var(--ds-motion-ease-standard, ease);
+}
+
+/* Holding a toast (hover pauses its countdown) lifts it a little. */
+.vd-toast.vd-toast-paused {
+    translate: 0 -1px;
+    border-color: var(--vd-theme-border-strong, var(--vd-border-bright));
 }
 
 .vd-toast::after {
@@ -10939,6 +11032,69 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     to { transform: scaleX(0); }
 }
 
+/* Tray popovers rise out of their anchor: the clock popup and the notification centre open away from
+ * the bar (shell-chrome-runtime.js sets data-placement), the taskbar thumbnail above its button. The
+ * keyframes move without scaling so the runtimes can still measure the panel while it enters. */
+.desktop-body:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center, .vd-taskbar-thumbnail) {
+    animation: vd-popover-rise 140ms var(--ds-motion-ease-standard, ease-out) both;
+}
+
+.desktop-body:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center)[data-placement="below"] {
+    animation-name: vd-popover-drop;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center, .vd-taskbar-thumbnail) {
+    animation-duration: 200ms;
+    animation-timing-function: cubic-bezier(0.16, 1.18, 0.28, 1);
+}
+
+@keyframes vd-popover-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vd-popover-drop {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Keyboard focus: the tray controls, the clock and pinned launchers share the shell ring. */
+.desktop-body :is(.vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-clock, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn, .vd-taskbar-pin, .vd-notification-clear, .vd-clock-popup-open):focus-visible {
+    outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, var(--vd-accent));
+    outline-offset: 1px;
+}
+
+/* Hover and press: the bell, pinned launchers and the small tray buttons answer like the rest of the
+ * bar. */
+.desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
+    transition:
+        background-color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
+        color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
+        border-color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
+        box-shadow var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
+        transform 80ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.desktop-body .vd-notification-button:hover,
+.desktop-body .vd-taskbar-pin:hover {
+    background-color: var(--vd-theme-control-hover, var(--ds-color-control-hover));
+    border-color: var(--vd-theme-border-strong, var(--vd-border-bright));
+}
+
+.desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button):active {
+    transform: scale(0.94);
+}
+
+/* Desktop icons: the glyph lifts a touch under the pointer (the label reveals its full name in
+ * desktop-icons.css). */
+.vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) {
+    transition: transform 160ms var(--ds-motion-ease-standard, ease);
+}
+
+.desktop-body:not([data-animations="false"]) .vd-icon:hover > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) {
+    transform: translateY(-1px) scale(1.04);
+}
+
 /* Text selection takes the accent colour. */
 .desktop-body ::selection {
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.34);
@@ -10948,12 +11104,22 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     .vd-toast::after,
     .vd-window.active::before,
     .vd-notification-button.vd-bell-ring .vd-notification-icon,
-    .vd-notification-button.vd-bell-ring .vd-notification-badge {
+    .vd-notification-button.vd-bell-ring .vd-notification-badge,
+    .vd-clock-popup,
+    .vd-notification-center,
+    .vd-taskbar-thumbnail {
         animation: none !important;
     }
 
-    .desktop-body[data-theme="standard"] .vd-task-button::after {
+    .desktop-body[data-theme="standard"] .vd-task-button::after,
+    .vd-toast,
+    .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter),
+    .desktop-body :is(.vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
         transition: none;
+    }
+
+    .desktop-body .vd-icon:hover > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter) {
+        transform: none !important;
     }
 }
 

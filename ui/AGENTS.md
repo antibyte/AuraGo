@@ -475,8 +475,13 @@ worker. Keep packaging, recovery and offline instructions in
 - `ui/css/desktop-polish.css` is the Desktop's finishing layer and stays the
   last part of the shell CSS bundle: it only refines existing surfaces (ambient
   wallpaper light in taskbar, dock, menubar and menus, focus edge light and
-  glow, vignette, pointer light, taskbar indicators, toast countdown, bell
-  ring). Every wallpaper needs `--vd-ambient-top/-bottom/-glow`; photo values
+  glow, vignette, pointer light, taskbar indicators, toast countdown and hold,
+  bell ring, tray popover rise/drop, tray focus rings and press feedback, icon
+  glyph lift). Tray popovers (clock popup, notification centre) open away from
+  their bar through `placeTrayPopover` (`data-placement`), never off-screen
+  under the Fruity menubar. Desktop icon labels clamp to two lines and reveal
+  the full name on hover, selection and keyboard focus (`desktop-icons.css`).
+  Every wallpaper needs `--vd-ambient-top/-bottom/-glow`; photo values
   come from `python scripts/wallpaper-ambient.py`. Its selectors double
   `.desktop-body` where `desktop-base.css` has mode-specific glass rules.
   Motion is gated by `data-animations` and `prefers-reduced-motion`; the
