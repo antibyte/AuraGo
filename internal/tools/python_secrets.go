@@ -64,6 +64,7 @@ var blockedSecretPrefixes = []string{
 	"music_minimax_",
 	"music_google_lyria_",
 	"remote_shared_key_",
+	"remote_enroll_key_",
 	"__aurago_",
 }
 

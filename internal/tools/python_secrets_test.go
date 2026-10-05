@@ -165,6 +165,9 @@ func TestIsPythonAccessibleSecret_BlocksPrefixedKeys(t *testing.T) {
 		"omniroute_ws_bridge_secret",
 		"nest_refresh_token",
 		"huggingface_org_token",
+		"remote_shared_key_0123456789abcdef",
+		"remote_enroll_key_0123456789abcdef",
+		"REMOTE_ENROLL_KEY_ABC",
 	}
 	for _, k := range prefixed {
 		if IsPythonAccessibleSecret(k) {
