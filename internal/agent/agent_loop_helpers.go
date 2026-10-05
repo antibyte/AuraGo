@@ -906,7 +906,12 @@ func toolResultFollowUpContent(tc ToolCall, resultContent string, voiceModeActiv
 }
 
 // extractErrorMessage pulls the error message from a tool output for error learning.
+// Isolated output is read from its decoded payload, so error patterns, journal
+// entries and learned rules never start with the boundary tag.
 func extractErrorMessage(resultContent string) string {
+	if payload, isolated := toolResultPayload(resultContent); isolated {
+		resultContent = payload
+	}
 	// Try to extract from JSON "message" field
 	prefix := strings.TrimPrefix(resultContent, "Tool Output: ")
 	prefix = strings.TrimPrefix(prefix, "[Tool Output]\n")
