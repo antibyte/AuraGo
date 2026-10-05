@@ -12719,6 +12719,16 @@ pre,
 
 
 /* === chat-sandstorm.css === */
+/* Sandstorm — "Haboob at golden hour".
+   Scene stack (root stacking context, back to front):
+     body background       sky gradient, sun bloom, horizon haze
+     body::before          static SVG dune ridges (fades out while the engine is live)
+     #sandstorm-fog        WebGL sky / sun / rays / dust / dust wall / lightning tint   (z 0)
+     #sandstorm-scene      2D dune ridges, clouds, dust rolls, lightning bolt, 2D fallbacks (z 0)
+     #chat-box             haze sheet (::before), watermark (::after), messages          (z 1)
+     #sandstorm-overlay    flying grains, trails, ground pile, sand resting on bubbles  (z 2)
+   Weather state from the engine: html[data-sandstorm="calm"|"storm"] while live,
+   --sandstorm-flash (0..1) on .app-header / .app-footer during dry lightning. */
 [data-theme="sandstorm"] {
     color-scheme: dark;
     --accent: #f59e0b; /* Sahara Sunrise Gold */
@@ -12743,32 +12753,44 @@ pre,
     --input-border: rgba(245, 158, 11, 0.24);
     --text-primary: #fbf6ee; /* Soft Warm Silk */
     --text-secondary: #d9c3b0; /* Warm Sand Dust */
+    --text-muted: #b89a7e;
     --strong-color: #fffbeb; /* Radiant White Amber */
     --border-subtle: rgba(245, 158, 11, 0.12);
     --border-accent: rgba(245, 158, 11, 0.25);
-    --user-bubble: linear-gradient(135deg, #c2410c, #d97706, #f59e0b); /* Glowing Sunset */
+    --user-bubble: linear-gradient(135deg, #b8420c 0%, #d97706 52%, #f2a324 100%); /* Sunset Glass */
     --user-bubble-tail: #d97706;
-    --bot-bubble: linear-gradient(180deg, rgba(34, 23, 16, 0.85), rgba(20, 13, 9, 0.95)); /* Obsidian Basalt */
-    --bot-bubble-tail: rgba(20, 13, 9, 0.95);
-    --surface-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    --surface-shadow-strong: 0 30px 60px rgba(0, 0, 0, 0.65);
-    --surface-highlight: rgba(255, 255, 255, 0.04);
-    --chat-image-opacity: 0.05;
+    --user-bubble-shadow: rgba(140, 58, 8, 0.4);
+    --bot-bubble: linear-gradient(180deg, rgba(44, 30, 20, 0.94), rgba(24, 15, 10, 0.97)); /* Sandstone Slab */
+    --bot-bubble-tail: rgba(26, 17, 11, 0.97);
+    --surface-shadow: 0 20px 40px rgba(8, 4, 2, 0.5);
+    --surface-shadow-strong: 0 30px 60px rgba(8, 4, 2, 0.65);
+    --surface-highlight: rgba(255, 228, 180, 0.05);
+    --chat-image-opacity: 0.035;
     --bg-logo-filter: sepia(0.8) saturate(1.2) brightness(0.6) contrast(1.1);
     --sandstorm-panel: linear-gradient(180deg, rgba(46, 32, 22, 0.95), rgba(22, 15, 10, 0.98));
     --sandstorm-button: linear-gradient(180deg, rgba(58, 40, 27, 0.85), rgba(30, 20, 14, 0.95));
+    --sandstorm-flash: 0;
+    --sand-sun-core: #fff4d6;
+    --sand-sun: #ffd27a;
+    --sand-rim: rgba(214, 150, 70, 0.3);
+    --sand-rim-strong: rgba(255, 214, 122, 0.85);
+    --sand-ink: rgba(8, 4, 2, 0.5);
+    --sand-brass: linear-gradient(180deg, rgba(74, 50, 30, 0.72), rgba(36, 22, 13, 0.9));
+    --sand-brass-hover: linear-gradient(180deg, rgba(92, 62, 36, 0.82), rgba(44, 28, 16, 0.94));
+    --sand-font-journal: 'Special Elite', 'Geist', 'Inter', system-ui, serif;
+    --sand-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 0.86 0 0 0 0 0.6 0 0 0 0.2 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    --sand-ripple: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='24' viewBox='0 0 80 24'%3E%3Cpath d='M0 12 C20 18, 20 6, 40 12 C60 18, 60 6, 80 12' fill='none' stroke='%23f59e0b' stroke-width='0.8' opacity='0.07'/%3E%3Cpath d='M0 6 C20 12, 20 0, 40 6 C60 12, 60 0, 80 6' fill='none' stroke='%23f59e0b' stroke-width='0.4' opacity='0.035'/%3E%3C/svg%3E");
+    --sand-dune-far: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23805a38' stop-opacity='0.92'/%3E%3Cstop offset='1' stop-color='%233a2314' stop-opacity='0.96'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M0,214 C170,176 310,236 480,204 C660,170 770,252 960,218 C1140,188 1300,236 1440,198 L1440,320 L0,320 Z'/%3E%3Cpath fill='none' stroke='%23ffd9a0' stroke-opacity='0.3' stroke-width='1.5' d='M0,214 C170,176 310,236 480,204 C660,170 770,252 960,218 C1140,188 1300,236 1440,198'/%3E%3C/svg%3E");
+    --sand-dune-mid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%235c3b20' stop-opacity='0.96'/%3E%3Cstop offset='1' stop-color='%23281a0e' stop-opacity='0.98'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M0,252 C140,216 270,278 430,246 C600,212 710,292 890,260 C1060,230 1220,288 1440,242 L1440,320 L0,320 Z'/%3E%3Cpath fill='none' stroke='%23ffcf8a' stroke-opacity='0.26' stroke-width='1.5' d='M0,252 C140,216 270,278 430,246 C600,212 710,292 890,260 C1060,230 1220,288 1440,242'/%3E%3C/svg%3E");
+    --sand-dune-near: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%233b2514' stop-opacity='0.98'/%3E%3Cstop offset='1' stop-color='%23150d07'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M0,286 C200,250 340,308 530,282 C700,256 830,316 1010,290 C1190,266 1330,312 1440,276 L1440,320 L0,320 Z'/%3E%3Cpath fill='none' stroke='%23ffc77a' stroke-opacity='0.22' stroke-width='1.5' d='M0,286 C200,250 340,308 530,282 C700,256 830,316 1010,290 C1190,266 1330,312 1440,276'/%3E%3C/svg%3E");
 }
 
+/* ── Scene: sky, sun and dunes (works without JavaScript) ───────────────── */
 [data-theme="sandstorm"] body {
-    background-image:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320' preserveAspectRatio='none'%3E%3Cpath fill='%231f130b' fill-opacity='0.55' d='M0,224L120,208C240,192,480,160,720,176C960,192,1200,256,1320,288L1440,320L1440,320L1320,320C1200,320,960,320,720,320C480,320,240,320,120,320L0,320Z'%3E%3C/path%3E%3Cpath fill='%23140e09' fill-opacity='0.75' d='M0,160L80,181.3C160,203,320,245,480,240C640,235,800,181,960,165.3C1120,149,1280,171,1360,181.3L1440,192L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z'%3E%3C/path%3E%3C/svg%3E"),
-        radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.07), transparent 26%),
-        radial-gradient(circle at 85% 20%, rgba(217, 119, 6, 0.05), transparent 28%),
-        radial-gradient(circle at 50% 110%, rgba(146, 64, 14, 0.12), transparent 35%),
-        linear-gradient(180deg, #090604 0%, #120c08 40%, #1d140e 100%);
-    background-position: bottom center, top left, top right, center, center;
-    background-size: 100% 320px, auto, auto, auto, auto;
-    background-repeat: no-repeat;
+    background:
+        radial-gradient(ellipse 56% 38% at 82% 13%, rgba(255, 228, 165, 0.36) 0%, rgba(255, 178, 80, 0.2) 22%, rgba(206, 114, 38, 0.09) 46%, transparent 72%),
+        radial-gradient(ellipse 120% 46% at 50% 100%, rgba(226, 150, 62, 0.24) 0%, rgba(140, 78, 30, 0.12) 42%, transparent 74%),
+        linear-gradient(180deg, #0d0705 0%, #1a0f0a 28%, #3a2211 62%, #6a3f1f 90%, #78491f 100%);
     color: var(--text-primary);
 }
 
@@ -12777,16 +12799,40 @@ pre,
     display: none;
 }
 
+[data-theme="sandstorm"] body::before {
+    content: '';
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        var(--sand-dune-near) center bottom / 100% 200px no-repeat,
+        var(--sand-dune-mid) center bottom / 100% 250px no-repeat,
+        var(--sand-dune-far) center bottom / 100% 300px no-repeat,
+        linear-gradient(180deg, transparent 0%, transparent 58%, rgba(224, 150, 60, 0.1) 76%, rgba(226, 150, 62, 0.04) 100%);
+    opacity: 1;
+    transition: opacity 0.9s ease;
+}
+
+html[data-sandstorm][data-theme="sandstorm"] body::before {
+    opacity: 0;
+}
+
+/* ── Header: horizon glass with brass rim and sun glint ─────────────────── */
 [data-theme="sandstorm"] .app-header {
     position: relative;
     z-index: 120;
-    background: linear-gradient(180deg, rgba(28, 18, 12, 0.8), rgba(20, 13, 9, 0.92));
-    border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+    background: linear-gradient(180deg, rgba(34, 20, 12, 0.72), rgba(16, 10, 6, 0.86));
+    border-bottom: 1px solid rgba(214, 150, 70, 0.3);
     box-shadow:
-        0 10px 30px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+        0 12px 34px rgba(10, 5, 2, 0.45),
+        inset 0 1px 0 rgba(255, 220, 160, 0.08),
+        inset 0 -1px 0 rgba(255, 170, 70, 0.06);
+    backdrop-filter: blur(16px) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    transition: filter 0.18s ease, opacity 1.8s ease;
+    filter: brightness(calc(1 + 0.55 * var(--sandstorm-flash, 0)));
 }
 
 [data-theme="sandstorm"] .app-header::before,
@@ -12800,12 +12846,360 @@ pre,
     pointer-events: none;
     border-radius: inherit;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 16%, transparent 32%),
-        radial-gradient(circle at 12% 18%, rgba(245, 158, 11, 0.06) 0 1px, transparent 1.3px),
-        radial-gradient(circle at 74% 12%, rgba(245, 158, 11, 0.05) 0 1px, transparent 1.2px),
-        linear-gradient(180deg, transparent 72%, rgba(22, 14, 9, 0.1) 100%);
-    background-size: auto, 22px 22px, 28px 28px, auto;
+        linear-gradient(180deg, rgba(255, 236, 200, 0.05), rgba(255, 255, 255, 0) 18%, transparent 40%),
+        var(--sand-grain) 0 0 / 160px 160px repeat,
+        linear-gradient(180deg, transparent 72%, rgba(22, 14, 9, 0.12) 100%);
+    opacity: 0.55;
+}
+
+[data-theme="sandstorm"] .app-header::after {
+    height: 2px;
+    opacity: 0.95;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(214, 150, 70, 0.3) 18%,
+        rgba(245, 158, 11, 0.7) 42%,
+        rgba(255, 244, 214, 0.98) 50%,
+        rgba(245, 158, 11, 0.7) 58%,
+        rgba(214, 150, 70, 0.3) 82%,
+        transparent 100%);
+    background-size: 220% 100%;
+    background-position: 100% 0;
+    box-shadow: 0 0 calc(22px + 44px * var(--sandstorm-flash, 0)) rgba(255, 196, 110, calc(0.38 + 0.55 * var(--sandstorm-flash, 0)));
+    animation: sandstormSunGlint 14s ease-in-out infinite;
+    transition: opacity 1.8s ease;
+}
+
+[data-theme="sandstorm"] .logo .logo-wordmark-accent {
+    background: linear-gradient(110deg, #fff6dc 0%, #ffd27a 22%, #f59e0b 46%, #ffe6ad 58%, #b45309 78%, #ffd27a 100%);
+    background-size: 240% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.42));
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    animation: sandstormSheen 9s ease-in-out infinite;
+}
+
+[data-theme="sandstorm"] .logo .logo-wordmark-base {
+    color: #f1e3cd;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="sandstorm"] .logo-icon .chat-ui-icon {
+    filter: sepia(0.35) saturate(1.3) drop-shadow(0 0 10px rgba(255, 196, 110, 0.4));
+}
+
+[data-theme="sandstorm"] .chat-theme-btn,
+[data-theme="sandstorm"] .session-edge-tab,
+[data-theme="sandstorm"] .integrations-edge-tab,
+[data-theme="sandstorm"] .btn-speaker,
+[data-theme="sandstorm"] .btn-warnings,
+[data-theme="sandstorm"] .select-personality,
+[data-theme="sandstorm"] .personality-mobile-btn,
+[data-theme="sandstorm"] .mood-toggle,
+[data-theme="sandstorm"] .btn-header,
+[data-theme="sandstorm"] .btn-header-link,
+[data-theme="sandstorm"] #logout-btn {
+    background: var(--sand-brass);
+    border: 1px solid var(--sand-rim);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.08),
+        inset 0 -1px 0 rgba(8, 4, 2, 0.35),
+        0 6px 14px rgba(12, 6, 3, 0.35);
+    color: var(--text-primary);
+    backdrop-filter: blur(8px);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.28s ease, box-shadow 0.28s ease, background 0.28s ease, color 0.28s ease;
+}
+
+[data-theme="sandstorm"] .chat-theme-btn:hover,
+[data-theme="sandstorm"] .session-edge-tab:hover,
+[data-theme="sandstorm"] .integrations-edge-tab:hover,
+[data-theme="sandstorm"] .btn-speaker:hover,
+[data-theme="sandstorm"] .btn-warnings:hover,
+[data-theme="sandstorm"] .select-personality:hover,
+[data-theme="sandstorm"] .personality-mobile-btn:hover,
+[data-theme="sandstorm"] .mood-toggle:hover,
+[data-theme="sandstorm"] .btn-header:hover,
+[data-theme="sandstorm"] .btn-header-link:hover,
+[data-theme="sandstorm"] #logout-btn:hover {
+    background: var(--sand-brass-hover);
+    border-color: rgba(255, 196, 110, 0.65);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.14),
+        inset 0 -1px 0 rgba(8, 4, 2, 0.35),
+        0 10px 22px rgba(12, 6, 3, 0.4),
+        0 0 14px rgba(245, 158, 11, 0.18);
+    color: var(--strong-color);
+    transform: translateY(-1.5px);
+}
+
+[data-theme="sandstorm"] .chat-theme-btn:focus-visible,
+[data-theme="sandstorm"] .btn-speaker:focus-visible,
+[data-theme="sandstorm"] .btn-warnings:focus-visible,
+[data-theme="sandstorm"] .select-personality:focus-visible,
+[data-theme="sandstorm"] .personality-mobile-btn:focus-visible,
+[data-theme="sandstorm"] .mood-toggle:focus-visible,
+[data-theme="sandstorm"] .btn-header:focus-visible,
+[data-theme="sandstorm"] .btn-header-link:focus-visible,
+[data-theme="sandstorm"] .session-edge-tab:focus-visible,
+[data-theme="sandstorm"] .integrations-edge-tab:focus-visible,
+[data-theme="sandstorm"] .btn-send:focus-visible,
+[data-theme="sandstorm"] .btn-voice:focus-visible,
+[data-theme="sandstorm"] .btn-more:focus-visible,
+[data-theme="sandstorm"] .composer-tool-btn:focus-visible,
+[data-theme="sandstorm"] .mood-btn:focus-visible,
+[data-theme="sandstorm"] .session-new-btn:focus-visible,
+[data-theme="sandstorm"] .session-item:focus-visible,
+[data-theme="sandstorm"] .chat-theme-option:focus-visible,
+[data-theme="sandstorm"] .modal-btn:focus-visible,
+[data-theme="sandstorm"] .scroll-to-bottom-btn:focus-visible,
+[data-theme="sandstorm"] .input-wrap textarea:focus-visible {
+    outline: 2px solid var(--sand-rim-strong);
+    outline-offset: 2px;
+}
+
+[data-theme="sandstorm"] .chat-theme-dropdown,
+[data-theme="sandstorm"] .personality-dropdown,
+[data-theme="sandstorm"] .mood-panel {
+    --theme-option-color: #fbf6ee;
+    border: 1px solid rgba(214, 150, 70, 0.34);
+    background:
+        linear-gradient(180deg, rgba(255, 236, 200, 0.04), transparent 24%),
+        linear-gradient(180deg, rgba(38, 25, 16, 0.98), rgba(20, 13, 9, 0.98));
+    box-shadow:
+        0 22px 52px rgba(8, 4, 2, 0.55),
+        0 0 0 1px rgba(8, 4, 2, 0.4),
+        inset 0 1px 0 rgba(255, 228, 180, 0.06);
+    backdrop-filter: blur(16px);
+}
+
+[data-theme="sandstorm"] .chat-theme-dropdown:not([hidden]),
+[data-theme="sandstorm"] .personality-dropdown:not([hidden]),
+[data-theme="sandstorm"] .mood-panel.open {
+    animation: sandstormDustSweep 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+[data-theme="sandstorm"] .chat-theme-option:hover,
+[data-theme="sandstorm"] .personality-option:hover,
+[data-theme="sandstorm"] .chat-theme-option.active,
+[data-theme="sandstorm"] .personality-option.active {
+    background: linear-gradient(90deg, rgba(84, 56, 34, 0.95), rgba(46, 30, 19, 0.95));
+    border-left: 2px solid var(--accent);
+}
+
+[data-theme="sandstorm"] .app-header .pill {
+    background: var(--sand-brass);
+    border: 1px solid var(--sand-rim);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.06),
+        0 4px 12px rgba(12, 6, 3, 0.3);
+    color: #fde9c4;
+    font-variant-numeric: tabular-nums;
+}
+
+[data-theme="sandstorm"] .app-header .pill-active {
+    border-color: rgba(214, 150, 70, 0.45);
+    color: #ffe4b0;
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+}
+
+[data-theme="sandstorm"] .warnings-badge {
+    background: linear-gradient(135deg, #f59e0b, #c2410c);
+    color: #1a0e06;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+/* ── Chat area: transparent lane over the scene ─────────────────────────── */
+[data-theme="sandstorm"] #chat-box {
+    isolation: auto;
+    position: relative;
+    z-index: 1;
+    background: transparent;
+}
+
+[data-theme="sandstorm"] #chat-box::before {
+    display: block;
+    background-color: rgba(92, 52, 20, 0);
+    background-image:
+        linear-gradient(180deg, rgba(14, 8, 5, 0.5) 0%, rgba(14, 8, 5, 0.16) 12%, transparent 30%),
+        linear-gradient(110deg, rgba(245, 158, 11, 0.05), transparent 28%, transparent 72%, rgba(180, 83, 9, 0.05) 100%),
+        radial-gradient(circle, rgba(245, 158, 11, 0.05) 0 1px, transparent 1.2px),
+        radial-gradient(circle at 20% 12%, rgba(245, 158, 11, 0.1) 0, rgba(245, 158, 11, 0.05) 1px, transparent 2px, transparent 88px),
+        radial-gradient(circle at 74% 62%, rgba(217, 119, 6, 0.08) 0, rgba(217, 119, 6, 0.035) 1px, transparent 2px, transparent 96px);
+    background-size: auto, auto, 18px 18px, 220px 220px, 260px 260px;
     opacity: 0.9;
+    animation: sandstormDuneHaze 26s linear infinite;
+    transition: background-color 2.2s ease, opacity 2.2s ease;
+}
+
+html[data-sandstorm="storm"][data-theme="sandstorm"] #chat-box::before {
+    background-color: rgba(92, 52, 20, 0.12);
+    opacity: 1;
+}
+
+[data-theme="sandstorm"] #chat-box::after {
+    display: block;
+    opacity: var(--chat-image-opacity);
+    filter: var(--bg-logo-filter);
+}
+
+[data-theme="sandstorm"] #sandstorm-fog,
+[data-theme="sandstorm"] #sandstorm-scene {
+    z-index: 0 !important;
+    opacity: 1 !important;
+    mix-blend-mode: normal !important;
+    filter: none !important;
+    /* Canvas backing sizes must match their bounds immediately. */
+    transition-property: none !important;
+}
+
+[data-theme="sandstorm"] #sandstorm-overlay {
+    z-index: 2 !important;
+    opacity: 1 !important;
+    mix-blend-mode: normal !important;
+    filter: none !important;
+    transition-property: none !important;
+}
+
+[data-theme="sandstorm"] #chat-content,
+[data-theme="sandstorm"] .bubble,
+[data-theme="sandstorm"] .avatar,
+[data-theme="sandstorm"] #agentStatusContainer {
+    position: relative;
+    z-index: 3;
+    mix-blend-mode: normal !important;
+}
+
+[data-theme="sandstorm"] .msg-row {
+    position: relative;
+    z-index: 3;
+    mix-blend-mode: normal !important;
+}
+
+[data-theme="sandstorm"] #chat-content {
+    padding-top: 1.8rem;
+    padding-bottom: 2.35rem;
+}
+
+[data-theme="sandstorm"] .chat-robot-mascot {
+    filter: sepia(0.28) saturate(1.15) drop-shadow(0 16px 22px rgba(12, 6, 2, 0.45));
+}
+
+[data-theme="sandstorm"] .chat-robot-mascot::after {
+    background: radial-gradient(circle at center, rgba(20, 10, 3, 0.45) 0%, rgba(20, 10, 3, 0.12) 58%, transparent 100%);
+}
+
+[data-theme="sandstorm"] .tool-icon-stack {
+    filter: sepia(0.3) saturate(1.1);
+}
+
+/* ── Greeting ───────────────────────────────────────────────────────────── */
+[data-theme="sandstorm"] .greeting-icon,
+[data-theme="sandstorm"] .avatar.bot,
+[data-theme="sandstorm"] .avatar.human {
+    position: relative;
+    background:
+        radial-gradient(circle at 30% 24%, rgba(255, 228, 180, 0.16), transparent 55%),
+        linear-gradient(180deg, rgba(64, 44, 28, 0.96), rgba(30, 20, 14, 0.98));
+    border: 1px solid rgba(214, 150, 70, 0.36);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.1),
+        inset 0 -1px 0 rgba(8, 4, 2, 0.4),
+        0 8px 18px rgba(8, 4, 2, 0.4);
+}
+
+[data-theme="sandstorm"] .greeting-icon:not(.greeting-icon-robot)::after,
+[data-theme="sandstorm"] .avatar::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+        0 0 0 1px rgba(255, 214, 122, 0.16),
+        0 0 18px rgba(245, 158, 11, 0.26);
+    opacity: 0.75;
+    animation: sandstormHaloBreath 4.6s ease-in-out infinite alternate;
+}
+
+[data-theme="sandstorm"] .avatar.human::after {
+    box-shadow:
+        0 0 0 1px rgba(255, 170, 110, 0.14),
+        0 0 18px rgba(234, 88, 12, 0.28);
+    animation-delay: -2.1s;
+}
+
+[data-theme="sandstorm"] .greeting-icon:not(.greeting-icon-robot) {
+    width: 72px;
+    height: 72px;
+    border-radius: 22px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.12),
+        0 0 36px rgba(245, 158, 11, 0.28),
+        0 14px 30px rgba(8, 4, 2, 0.45);
+    animation: float 3.6s ease-in-out infinite;
+}
+
+[data-theme="sandstorm"] .greeting-icon:not(.greeting-icon-robot)::after {
+    inset: -8px;
+    box-shadow:
+        0 0 0 1px rgba(255, 214, 122, 0.18),
+        0 0 34px rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="sandstorm"] .greeting-text {
+    font-family: var(--sand-font-journal);
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: #ead6b8;
+    letter-spacing: 0.012em;
+    text-shadow: 0 1px 0 rgba(8, 4, 2, 0.55), 0 0 18px rgba(245, 158, 11, 0.12);
+    text-wrap: balance;
+}
+
+[data-theme="sandstorm"] .mood-emotion,
+[data-theme="sandstorm"] .zoom-level,
+[data-theme="sandstorm"] .session-item-meta,
+[data-theme="sandstorm"] .session-empty,
+[data-theme="sandstorm"] .integrations-empty {
+    color: var(--text-secondary);
+}
+
+/* ── Messages: materialize from blowing sand ────────────────────────────── */
+[data-theme="sandstorm"] .msg-row {
+    opacity: 1;
+    visibility: visible;
+    animation: sandstormMaterialize 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+[data-theme="sandstorm"] .message-stack {
+    position: relative;
+}
+
+[data-theme="sandstorm"] .message-stack::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent 20%, rgba(255, 220, 160, 0.3) 48%, rgba(255, 236, 200, 0.42) 52%, transparent 80%);
+    mix-blend-mode: screen;
+    opacity: 0;
+    animation: sandstormDustWipe 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+[data-theme="sandstorm"] .bubble {
+    opacity: 1;
+    visibility: visible;
+    border: 1px solid rgba(214, 150, 70, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.07),
+        inset -1px 0 0 rgba(255, 200, 120, 0.04),
+        0 18px 34px rgba(8, 4, 2, 0.42),
+        0 2px 6px rgba(8, 4, 2, 0.3);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, border-color 1.8s ease;
 }
 
 [data-theme="sandstorm"] .bubble::after {
@@ -12815,201 +13209,19 @@ pre,
     pointer-events: none;
     border-radius: inherit;
     background:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='24' viewBox='0 0 80 24'%3E%3Cpath d='M0 12 C20 18, 20 6, 40 12 C60 18, 60 6, 80 12' fill='none' stroke='%23f59e0b' stroke-width='0.8' opacity='0.08'/%3E%3Cpath d='M0 6 C20 12, 20 0, 40 6 C60 12, 60 0, 80 6' fill='none' stroke='%23f59e0b' stroke-width='0.4' opacity='0.04'/%3E%3C/svg%3E") repeat,
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01) 16%, transparent 32%),
-        radial-gradient(circle at 12% 18%, rgba(245, 158, 11, 0.06) 0 1px, transparent 1.3px),
-        radial-gradient(circle at 74% 12%, rgba(245, 158, 11, 0.05) 0 1px, transparent 1.2px),
-        linear-gradient(180deg, transparent 72%, rgba(20, 13, 9, 0.15) 100%);
-    background-size: 80px 24px, auto, 22px 22px, 28px 28px, auto;
-    opacity: 0.95;
-}
-
-[data-theme="sandstorm"] .app-header::after {
-    height: 3px;
-    opacity: 0.95;
-    background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(217, 119, 6, 0.3) 12%,
-        rgba(245, 158, 11, 0.75) 45%,
-        rgba(255, 253, 235, 0.95) 50%,
-        rgba(245, 158, 11, 0.75) 55%,
-        rgba(217, 119, 6, 0.3) 88%,
-        transparent 100%);
-    box-shadow: 0 0 24px rgba(245, 158, 11, 0.45);
-}
-
-[data-theme="sandstorm"] .logo .logo-wordmark-accent {
-    background: linear-gradient(135deg, #fffbeb 0%, #f59e0b 50%, #b45309 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.4));
-    font-weight: 800;
-}
-
-[data-theme="sandstorm"] .chat-theme-btn,
-[data-theme="sandstorm"] .session-edge-tab,
-[data-theme="sandstorm"] .integrations-edge-tab,
-[data-theme="sandstorm"] .btn-speaker,
-[data-theme="sandstorm"] .btn-warnings,
-[data-theme="sandstorm"] .select-personality,
-[data-theme="sandstorm"] .mood-toggle,
-[data-theme="sandstorm"] .btn-header,
-[data-theme="sandstorm"] .btn-header-link,
-[data-theme="sandstorm"] #logout-btn {
-    background: linear-gradient(180deg, rgba(58, 40, 27, 0.65), rgba(30, 20, 14, 0.85));
-    border: 1px solid rgba(245, 158, 11, 0.22);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        0 4px 12px rgba(0, 0, 0, 0.25);
-    color: var(--text-primary);
-    backdrop-filter: blur(8px);
-    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-[data-theme="sandstorm"] .chat-theme-btn:hover,
-[data-theme="sandstorm"] .session-edge-tab:hover,
-[data-theme="sandstorm"] .integrations-edge-tab:hover,
-[data-theme="sandstorm"] .btn-speaker:hover,
-[data-theme="sandstorm"] .btn-warnings:hover,
-[data-theme="sandstorm"] .select-personality:hover,
-[data-theme="sandstorm"] .mood-toggle:hover,
-[data-theme="sandstorm"] .btn-header:hover,
-[data-theme="sandstorm"] .btn-header-link:hover,
-[data-theme="sandstorm"] #logout-btn:hover {
-    border-color: rgba(245, 158, 11, 0.65);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        0 8px 20px rgba(245, 158, 11, 0.12),
-        0 0 10px rgba(245, 158, 11, 0.1);
-    color: var(--strong-color);
-    transform: translateY(-1.5px);
-}
-
-[data-theme="sandstorm"] .chat-theme-dropdown,
-[data-theme="sandstorm"] .personality-dropdown,
-[data-theme="sandstorm"] .mood-panel {
-    --theme-option-color: #fbf6ee;
-    border: 1px solid rgba(245, 158, 11, 0.28);
-    background: linear-gradient(180deg, rgba(34, 23, 16, 0.98), rgba(20, 13, 9, 0.98));
-    box-shadow:
-        0 20px 48px rgba(0, 0, 0, 0.5),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(16px);
-}
-
-[data-theme="sandstorm"] .chat-theme-option:hover,
-[data-theme="sandstorm"] .personality-option:hover,
-[data-theme="sandstorm"] .chat-theme-option.active,
-[data-theme="sandstorm"] .personality-option.active {
-    background: linear-gradient(90deg, rgba(75, 50, 32, 0.95), rgba(45, 30, 20, 0.95));
-    border-left: 2px solid var(--accent);
-}
-
-[data-theme="sandstorm"] .app-header .pill {
-    background: linear-gradient(180deg, rgba(46, 32, 22, 0.9), rgba(22, 15, 10, 0.9));
-    border: 1px solid rgba(245, 158, 11, 0.22);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        0 4px 12px rgba(0, 0, 0, 0.2);
-    color: #fef3c7;
-}
-
-[data-theme="sandstorm"] #chat-box {
-    isolation: auto;
-    position: relative;
-    z-index: 1;
-    background:
-        radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.08), transparent 30%),
-        radial-gradient(circle at 85% 20%, rgba(217, 119, 6, 0.05), transparent 30%),
-        radial-gradient(circle at 50% 100%, rgba(146, 64, 14, 0.12), transparent 45%),
-        linear-gradient(180deg, #0e0906 0%, #150f0b 50%, #1d140e 100%);
-    background-size: 112% 112%;
-    animation: sandstormBackdropDrift 20s ease-in-out infinite alternate;
-}
-
-[data-theme="sandstorm"] #chat-box::before {
-    display: block;
-    background:
-        linear-gradient(110deg, rgba(245, 158, 11, 0.07), transparent 26%, transparent 70%, rgba(180, 83, 9, 0.05) 100%),
-        radial-gradient(circle, rgba(245, 158, 11, 0.06) 0 1px, transparent 1.2px),
-        radial-gradient(circle at 20% 12%, rgba(245, 158, 11, 0.12) 0, rgba(245, 158, 11, 0.06) 1px, transparent 2px, transparent 88px),
-        radial-gradient(circle at 74% 62%, rgba(217, 119, 6, 0.1) 0, rgba(217, 119, 6, 0.04) 1px, transparent 2px, transparent 96px);
-    background-size: auto, 16px 16px, 220px 220px, 260px 260px;
-    opacity: 0.85;
-    animation: sandstormDustSheet 22s linear infinite;
-}
-
-[data-theme="sandstorm"] #chat-box::after {
-    display: block;
-    opacity: var(--chat-image-opacity);
-    filter: var(--bg-logo-filter);
-}
-
-[data-theme="sandstorm"] #sandstorm-overlay,
-[data-theme="sandstorm"] #sandstorm-fog {
-    z-index: 2 !important;
-    opacity: 1 !important;
-    mix-blend-mode: normal !important;
-    filter: none !important;
-    /* Canvas backing sizes must match their bounds immediately. */
-    transition-property: none !important;
-}
-
-[data-theme="sandstorm"] #chat-content,
-[data-theme="sandstorm"] .msg-row,
-[data-theme="sandstorm"] .bubble,
-[data-theme="sandstorm"] .avatar,
-[data-theme="sandstorm"] #agentStatusContainer {
-    position: relative;
-    z-index: 3;
-    mix-blend-mode: normal !important;
-    filter: none !important;
-}
-
-[data-theme="sandstorm"] #chat-content {
-    padding-top: 1.8rem;
-    padding-bottom: 2.35rem;
-}
-
-[data-theme="sandstorm"] .greeting-icon,
-[data-theme="sandstorm"] .avatar.bot,
-[data-theme="sandstorm"] .avatar.human {
-    background: linear-gradient(180deg, rgba(58, 40, 27, 0.95), rgba(30, 20, 14, 0.98));
-    border: 1px solid rgba(245, 158, 11, 0.28);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        0 8px 18px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="sandstorm"] .greeting-text,
-[data-theme="sandstorm"] .mood-emotion,
-[data-theme="sandstorm"] .zoom-level,
-[data-theme="sandstorm"] .session-item-meta,
-[data-theme="sandstorm"] .session-empty {
-    color: var(--text-secondary);
-}
-
-[data-theme="sandstorm"] .msg-row {
-    opacity: 1;
-    visibility: visible;
-    animation: sandstormMessageEnter 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-[data-theme="sandstorm"] .bubble {
-    opacity: 1;
-    visibility: visible;
-    border: 1px solid rgba(245, 158, 11, 0.2);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        0 14px 28px rgba(0, 0, 0, 0.3);
-    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s, border-color 0.25s;
+        linear-gradient(205deg, rgba(255, 228, 180, 0.11), transparent 42%),
+        var(--sand-ripple) 0 0 / 80px 24px repeat,
+        var(--sand-grain) 0 0 / 160px 160px repeat,
+        linear-gradient(180deg, transparent 70%, rgba(14, 8, 5, 0.16) 100%);
+    opacity: 0.8;
 }
 
 [data-theme="sandstorm"] .bubble.bot {
     background: var(--bot-bubble);
     color: var(--text-primary);
-    border-color: rgba(245, 158, 11, 0.16);
+    border-color: rgba(214, 150, 70, 0.2);
+    backdrop-filter: blur(14px) saturate(1.1);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
 }
 
 [data-theme="sandstorm"] .bubble.bot::before {
@@ -13018,49 +13230,157 @@ pre,
 
 [data-theme="sandstorm"] .bubble.user {
     background: var(--user-bubble);
-    color: #fffbeb;
-    border-color: rgba(255, 255, 255, 0.18);
+    color: #fffaf0;
+    border-color: rgba(255, 236, 200, 0.3);
+    text-shadow: 0 1px 0 rgba(90, 30, 5, 0.3);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.12),
-        0 16px 32px rgba(180, 83, 9, 0.25);
+        inset 0 1px 0 rgba(255, 240, 210, 0.38),
+        inset 0 -1px 0 rgba(90, 30, 5, 0.3),
+        0 18px 36px rgba(120, 50, 8, 0.4),
+        0 2px 6px rgba(60, 24, 4, 0.35);
+}
+
+[data-theme="sandstorm"] .bubble.user::after {
+    background:
+        radial-gradient(120% 90% at 100% 0%, rgba(255, 240, 200, 0.3), transparent 56%),
+        var(--sand-grain) 0 0 / 160px 160px repeat;
+    opacity: 0.7;
 }
 
 [data-theme="sandstorm"] .bubble.user::before {
     border-color: transparent transparent var(--user-bubble-tail) transparent;
 }
 
+[data-theme="sandstorm"] .bubble a {
+    color: #ffd27a;
+    text-decoration-color: rgba(255, 210, 122, 0.5);
+}
+
+[data-theme="sandstorm"] .bubble.user a {
+    color: #fff4d6;
+}
+
+[data-theme="sandstorm"] .message-timestamp {
+    color: rgba(217, 195, 172, 0.74);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+[data-theme="sandstorm"] .msg-row:hover .bubble {
+    transform: translateY(-2px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.09),
+        0 24px 40px rgba(8, 4, 2, 0.5),
+        0 0 14px rgba(245, 158, 11, 0.12);
+}
+
+[data-theme="sandstorm"] .msg-row:hover .bubble.user {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 240, 210, 0.42),
+        0 24px 44px rgba(120, 50, 8, 0.48),
+        0 0 16px rgba(245, 158, 11, 0.2);
+}
+
+[data-theme="sandstorm"] .msg-row:hover .avatar {
+    transform: scale(1.08) translateY(-1px);
+}
+
+/* ── Working state: mirage pill and grain typing dots ───────────────────── */
+[data-theme="sandstorm"] .status-pill {
+    position: relative;
+    overflow: hidden;
+    color: #ffe4b0;
+    background:
+        linear-gradient(100deg, transparent 30%, rgba(255, 214, 122, 0.22) 50%, transparent 70%),
+        var(--sand-brass);
+    background-size: 240% 100%, auto;
+    border: 1px solid rgba(214, 150, 70, 0.42);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.08),
+        0 8px 20px rgba(8, 4, 2, 0.4),
+        0 0 16px rgba(245, 158, 11, 0.14);
+    font-family: var(--sand-font-journal);
+    letter-spacing: 0.02em;
+    animation: statusIn 0.3s ease, sandstormMirage 3.2s linear 0.3s infinite;
+}
+
+[data-theme="sandstorm"] .pulsing-dot {
+    background: radial-gradient(circle at 40% 35%, #fff1c2 0%, #f59e0b 45%, #c2410c 100%);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.75), 0 0 20px rgba(194, 65, 12, 0.35);
+}
+
+[data-theme="sandstorm"] .typing-dots {
+    background: var(--bot-bubble);
+    border: 1px solid rgba(214, 150, 70, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 228, 180, 0.07),
+        0 12px 24px rgba(8, 4, 2, 0.35);
+}
+
+[data-theme="sandstorm"] .typing-dots span {
+    width: 8px;
+    height: 8px;
+    background: radial-gradient(circle at 35% 35%, #ffe7b3 0%, #d99a3a 58%, #8a4b14 100%);
+    box-shadow: 0 1px 2px rgba(8, 4, 2, 0.5);
+    animation: sandstormGrainBounce 1.3s cubic-bezier(0.36, 0, 0.3, 1) infinite;
+}
+
+[data-theme="sandstorm"] .typing-dots span:nth-child(2) {
+    animation-delay: 0.18s;
+}
+
+[data-theme="sandstorm"] .typing-dots span:nth-child(3) {
+    animation-delay: 0.36s;
+}
+
+/* ── Code, tool output and thinking: stone tablets ──────────────────────── */
 [data-theme="sandstorm"] .bubble.technical,
 [data-theme="sandstorm"] .tool-output-block .tool-output-content,
 [data-theme="sandstorm"] .code-block-wrapper,
 [data-theme="sandstorm"] .mermaid-container {
-    background: linear-gradient(180deg, rgba(34, 23, 16, 0.98), rgba(20, 13, 9, 0.99));
-    border-color: rgba(245, 158, 11, 0.25);
+    background:
+        linear-gradient(180deg, rgba(255, 228, 180, 0.03), transparent 22%),
+        linear-gradient(180deg, rgba(30, 20, 13, 0.98), rgba(16, 10, 7, 0.99));
+    border: 1px solid rgba(214, 150, 70, 0.26);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        0 16px 30px rgba(0, 0, 0, 0.4);
+        inset 0 1px 0 rgba(255, 228, 180, 0.05),
+        inset 0 0 0 1px rgba(8, 4, 2, 0.25),
+        0 16px 30px rgba(8, 4, 2, 0.45);
 }
 
 [data-theme="sandstorm"] .tool-output-block summary,
 [data-theme="sandstorm"] .copy-btn,
 [data-theme="sandstorm"] .mermaid-btn,
 [data-theme="sandstorm"] .session-item-count {
-    background: linear-gradient(180deg, rgba(58, 40, 27, 0.95), rgba(30, 20, 14, 0.95));
-    border: 1px solid rgba(245, 158, 11, 0.26);
+    background: var(--sand-brass);
+    border: 1px solid rgba(214, 150, 70, 0.3);
     color: var(--text-primary);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
 [data-theme="sandstorm"] .tool-output-block summary:hover,
 [data-theme="sandstorm"] .copy-btn:hover,
 [data-theme="sandstorm"] .mermaid-btn:hover {
-    background: linear-gradient(180deg, rgba(75, 52, 34, 0.95), rgba(40, 27, 18, 0.95));
-    border-color: rgba(245, 158, 11, 0.45);
-    box-shadow: 0 8px 18px rgba(245, 158, 11, 0.1);
+    background: var(--sand-brass-hover);
+    border-color: rgba(255, 196, 110, 0.5);
+    box-shadow: 0 8px 18px rgba(245, 158, 11, 0.12);
 }
 
-[data-theme="sandstorm"] .code-header,
+[data-theme="sandstorm"] .code-header {
+    background: linear-gradient(180deg, rgba(50, 34, 22, 0.9), rgba(28, 18, 12, 0.92));
+    border-color: rgba(214, 150, 70, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 228, 180, 0.05);
+}
+
+[data-theme="sandstorm"] .code-lang {
+    color: #ffd27a;
+    letter-spacing: 0.08em;
+}
+
 [data-theme="sandstorm"] .line-numbers {
-    background: rgba(24, 16, 11, 0.85);
-    border-color: rgba(245, 158, 11, 0.2);
+    background: rgba(24, 16, 11, 0.7);
+    border-color: rgba(214, 150, 70, 0.16);
+    color: rgba(217, 195, 172, 0.5);
 }
 
 [data-theme="sandstorm"] .hljs,
@@ -13078,33 +13398,66 @@ pre,
 
 [data-theme="sandstorm"] .hljs-string,
 [data-theme="sandstorm"] .hljs-attr {
-    color: #f59e0b; /* Soft Gold */
+    color: #f4c678; /* Soft Gold */
+}
+
+[data-theme="sandstorm"] .hljs-number,
+[data-theme="sandstorm"] .hljs-built_in {
+    color: #ffb45c;
+}
+
+[data-theme="sandstorm"] .hljs-comment {
+    color: #a88a6a;
+    font-style: italic;
 }
 
 [data-theme="sandstorm"] .hljs-title,
 [data-theme="sandstorm"] .hljs-function,
 [data-theme="sandstorm"] .hljs-section {
-    color: #fde8c5;
+    color: #ffe4b5;
 }
 
 [data-theme="sandstorm"] code:not(pre code) {
-    background: rgba(245, 158, 11, 0.08);
+    background: rgba(245, 158, 11, 0.09);
     color: #fff3c7;
-    border: 1px solid rgba(245, 158, 11, 0.16);
+    border: 1px solid rgba(245, 158, 11, 0.18);
     border-radius: 7px;
     padding: 0.1rem 0.4rem;
 }
 
+[data-theme="sandstorm"] .thinking-block {
+    border-left: 2px solid rgba(245, 158, 11, 0.5);
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.07), rgba(245, 158, 11, 0.02));
+    border-radius: 0 10px 10px 0;
+}
+
+[data-theme="sandstorm"] .thinking-block > summary {
+    color: #ffd27a;
+}
+
+[data-theme="sandstorm"] .thinking-content {
+    color: var(--text-secondary);
+}
+
+/* ── Composer: shelter on the near dune ─────────────────────────────────── */
 [data-theme="sandstorm"] .app-footer {
     position: relative;
-    z-index: 1;
-    background: linear-gradient(180deg, rgba(24, 16, 11, 0.85), rgba(15, 10, 7, 0.95));
-    border-top: 1px solid rgba(245, 158, 11, 0.22);
+    z-index: 30;
+    background: linear-gradient(180deg, rgba(40, 24, 13, 0.78), rgba(18, 11, 7, 0.94));
+    border-top: 1px solid rgba(214, 150, 70, 0.3);
     box-shadow:
-        0 -12px 30px rgba(0, 0, 0, 0.45),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+        0 -18px 40px rgba(8, 4, 2, 0.5),
+        inset 0 1px 0 rgba(255, 220, 160, 0.09),
+        inset 0 0 0 0 rgba(255, 196, 110, 0),
+        0 0 calc(40px * var(--sandstorm-flash, 0)) rgba(255, 196, 110, calc(0.6 * var(--sandstorm-flash, 0)));
+    backdrop-filter: blur(16px) saturate(1.1);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+    transition: box-shadow 0.18s ease, background 1.8s ease;
+}
+
+[data-theme="sandstorm"] .app-footer > * {
+    position: relative;
+    z-index: 1;
 }
 
 [data-theme="sandstorm"] .input-row:focus-within .input-wrap {
@@ -13116,28 +13469,39 @@ pre,
 [data-theme="sandstorm"] .mood-feedback-row,
 [data-theme="sandstorm"] .attachment-chip,
 [data-theme="sandstorm"] .attachments-panel {
-    background: linear-gradient(180deg, rgba(34, 23, 16, 0.75), rgba(20, 13, 9, 0.92));
-    border: 1px solid rgba(245, 158, 11, 0.24);
+    background:
+        linear-gradient(180deg, rgba(255, 228, 180, 0.03), transparent 30%),
+        linear-gradient(180deg, rgba(36, 24, 16, 0.78), rgba(20, 13, 9, 0.93));
+    border: 1px solid rgba(214, 150, 70, 0.3);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.03),
-        0 12px 24px rgba(0, 0, 0, 0.3);
+        inset 0 1px 0 rgba(255, 228, 180, 0.05),
+        inset 0 0 0 1px rgba(8, 4, 2, 0.2),
+        0 12px 24px rgba(8, 4, 2, 0.35);
     backdrop-filter: blur(8px);
 }
 
-[data-theme="sandstorm"] .input-wrap textarea:hover,
+[data-theme="sandstorm"] .input-wrap textarea {
+    caret-color: #ffd27a;
+    transition: border-color 0.25s ease, box-shadow 0.35s ease, background 0.25s ease;
+}
+
+[data-theme="sandstorm"] .input-wrap textarea:hover {
+    border-color: rgba(255, 196, 110, 0.42);
+}
+
 [data-theme="sandstorm"] .input-wrap textarea:focus {
-    border-color: rgba(245, 158, 11, 0.55);
+    border-color: rgba(255, 196, 110, 0.62);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        0 0 0 3px rgba(245, 158, 11, 0.08),
-        0 12px 26px rgba(0, 0, 0, 0.35);
+        inset 0 1px 0 rgba(255, 228, 180, 0.06),
+        0 0 0 3px rgba(245, 158, 11, 0.12),
+        0 0 30px rgba(245, 158, 11, 0.2),
+        0 14px 28px rgba(8, 4, 2, 0.4);
 }
 
 [data-theme="sandstorm"] .input-wrap textarea::placeholder {
-    color: rgba(217, 195, 172, 0.65);
+    color: rgba(217, 195, 172, 0.62);
 }
 
-[data-theme="sandstorm"] .btn-send,
 [data-theme="sandstorm"] .btn-voice,
 [data-theme="sandstorm"] .btn-more,
 [data-theme="sandstorm"] .composer-tool-btn,
@@ -13147,113 +13511,208 @@ pre,
 [data-theme="sandstorm"] .integrations-drawer-close,
 [data-theme="sandstorm"] #img-lightbox-close,
 [data-theme="sandstorm"] .modal-btn,
+[data-theme="sandstorm"] .chip-clear,
 [data-theme="sandstorm"] .scroll-to-bottom-btn {
-    background: linear-gradient(180deg, rgba(62, 42, 28, 0.7), rgba(34, 23, 15, 0.9));
-    border: 1px solid rgba(245, 158, 11, 0.25);
+    background: var(--sand-brass);
+    border: 1px solid rgba(214, 150, 70, 0.32);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-        0 8px 16px rgba(0, 0, 0, 0.25);
+        inset 0 1px 0 rgba(255, 228, 180, 0.07),
+        inset 0 -1px 0 rgba(8, 4, 2, 0.3),
+        0 8px 16px rgba(8, 4, 2, 0.3);
     color: var(--text-primary);
     backdrop-filter: blur(8px);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.28s ease, box-shadow 0.28s ease, background 0.28s ease;
 }
 
 [data-theme="sandstorm"] .btn-send {
-    background: linear-gradient(135deg, #d97706, #f59e0b, #fbbf24);
-    border-color: rgba(255, 255, 255, 0.25);
-    color: #120c08;
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+    border-radius: 50%;
+    background: radial-gradient(circle at 36% 30%, #fff1c2 0%, #fbbf24 30%, #f59e0b 58%, #c2410c 100%);
+    border: 1px solid rgba(255, 240, 200, 0.48);
+    color: #2a1407;
     font-weight: 700;
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.35),
-        0 12px 24px rgba(245, 158, 11, 0.26);
+        inset 0 1px 0 rgba(255, 255, 255, 0.42),
+        inset 0 -2px 4px rgba(120, 50, 8, 0.35),
+        0 0 0 2px rgba(255, 180, 80, 0.12),
+        0 10px 24px rgba(245, 158, 11, 0.32);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, filter 0.25s ease;
 }
 
-[data-theme="sandstorm"] .btn-send:hover,
+[data-theme="sandstorm"] .btn-send::before {
+    content: '';
+    position: absolute;
+    inset: -11px;
+    border-radius: 50%;
+    z-index: -1;
+    pointer-events: none;
+    background: repeating-conic-gradient(from 0deg, rgba(255, 230, 170, 0) 0deg 11deg, rgba(255, 230, 170, 0.5) 13deg 16deg, rgba(255, 230, 170, 0) 18deg 30deg);
+    -webkit-mask: radial-gradient(circle, transparent 46%, #000 52%, #000 72%, transparent 100%);
+    mask: radial-gradient(circle, transparent 46%, #000 52%, #000 72%, transparent 100%);
+    opacity: 0;
+    transform: rotate(0deg) scale(0.86);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    animation: sandstormSunRays 7s linear infinite;
+}
+
+[data-theme="sandstorm"] .btn-send:hover:not(:disabled)::before,
+[data-theme="sandstorm"] .btn-send:focus-visible::before,
+[data-theme="sandstorm"] .input-row:focus-within .btn-send:not(:disabled)::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+[data-theme="sandstorm"] .btn-send:hover:not(:disabled) {
+    transform: translateY(-1.5px);
+    filter: brightness(1.06) saturate(1.05);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        inset 0 -2px 4px rgba(120, 50, 8, 0.35),
+        0 0 0 3px rgba(255, 180, 80, 0.16),
+        0 14px 30px rgba(245, 158, 11, 0.42),
+        0 0 24px rgba(255, 196, 110, 0.3);
+}
+
+[data-theme="sandstorm"] .btn-send:disabled {
+    filter: saturate(0.6) brightness(0.85);
+}
+
 [data-theme="sandstorm"] .btn-voice:hover,
 [data-theme="sandstorm"] .btn-more:hover,
 [data-theme="sandstorm"] .btn-more.is-open,
-[data-theme="sandstorm"] .composer-tool-btn:hover,
+[data-theme="sandstorm"] .composer-tool-btn:hover:not(:disabled),
 [data-theme="sandstorm"] .mood-btn:hover,
 [data-theme="sandstorm"] .session-new-btn:hover,
 [data-theme="sandstorm"] .session-drawer-close:hover,
 [data-theme="sandstorm"] .integrations-drawer-close:hover,
 [data-theme="sandstorm"] #img-lightbox-close:hover,
 [data-theme="sandstorm"] .modal-btn:hover,
+[data-theme="sandstorm"] .chip-clear:hover,
 [data-theme="sandstorm"] .scroll-to-bottom-btn:hover {
     transform: translateY(-1.5px);
-    border-color: rgba(245, 158, 11, 0.55);
+    background: var(--sand-brass-hover);
+    border-color: rgba(255, 196, 110, 0.6);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        0 12px 24px rgba(245, 158, 11, 0.15);
+        inset 0 1px 0 rgba(255, 228, 180, 0.12),
+        inset 0 -1px 0 rgba(8, 4, 2, 0.3),
+        0 12px 24px rgba(8, 4, 2, 0.4),
+        0 0 14px rgba(245, 158, 11, 0.16);
 }
 
-[data-theme="sandstorm"] .btn-send:hover {
-    background: linear-gradient(135deg, #ea580c, #f59e0b, #fcd34d);
-    border-color: rgba(255, 255, 255, 0.35);
+[data-theme="sandstorm"] .btn-voice.recording,
+[data-theme="sandstorm"] .realtime-speech-launcher[aria-pressed="true"] {
+    border-color: rgba(255, 196, 110, 0.7);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.4),
-        0 14px 28px rgba(245, 158, 11, 0.35),
-        0 0 12px rgba(245, 158, 11, 0.15);
+        inset 0 1px 0 rgba(255, 228, 180, 0.12),
+        0 0 0 3px rgba(245, 158, 11, 0.14),
+        0 0 22px rgba(245, 158, 11, 0.35);
+}
+
+[data-theme="sandstorm"] .modal-btn.confirm {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    border-color: rgba(255, 236, 200, 0.4);
+    color: #1a0e06;
+    font-weight: 700;
+}
+
+[data-theme="sandstorm"] .modal-btn.confirm:hover {
+    background: linear-gradient(135deg, #ea580c, #fbbf24);
 }
 
 [data-theme="sandstorm"] .composer-tool-btn-danger,
 [data-theme="sandstorm"] .composer-tool-btn-danger:hover:not(:disabled) {
-    background: linear-gradient(180deg, rgba(80, 36, 25, 0.95), rgba(40, 18, 12, 0.95));
-    border-color: rgba(220, 95, 70, 0.4);
+    background: linear-gradient(180deg, rgba(88, 36, 24, 0.95), rgba(42, 18, 12, 0.95));
+    border-color: rgba(226, 100, 70, 0.42);
     color: #fee2e2;
 }
 
+[data-theme="sandstorm"] .attachment-chip {
+    color: #fde9c4;
+}
+
+[data-theme="sandstorm"] .mood-btn {
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.28s ease, box-shadow 0.28s ease, background 0.28s ease, filter 0.28s ease;
+}
+
+[data-theme="sandstorm"] .mood-btn:hover {
+    transform: translateY(-2px) scale(1.06);
+    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.35));
+}
+
+/* ── Drawers, modals and overlays: dust-sweep reveal ────────────────────── */
 [data-theme="sandstorm"] .session-backdrop,
 [data-theme="sandstorm"] .integrations-backdrop,
 [data-theme="sandstorm"] .mermaid-modal-overlay,
 [data-theme="sandstorm"] #img-lightbox,
 [data-theme="sandstorm"] .modal-overlay {
     background:
-        radial-gradient(circle at top, rgba(245, 158, 11, 0.08), transparent 32%),
+        radial-gradient(circle at 82% 10%, rgba(245, 158, 11, 0.12), transparent 34%),
         rgba(10, 6, 4, 0.82);
     backdrop-filter: blur(10px);
 }
 
 [data-theme="sandstorm"] .session-drawer,
+[data-theme="sandstorm"] .integrations-drawer,
 [data-theme="sandstorm"] .modal-card,
 [data-theme="sandstorm"] .mermaid-modal-content {
     overflow: hidden;
-    background: linear-gradient(180deg, rgba(30, 20, 14, 0.95), rgba(18, 12, 8, 0.98));
-    border: 1px solid rgba(245, 158, 11, 0.24);
+    background:
+        linear-gradient(180deg, rgba(255, 236, 200, 0.04), transparent 20%),
+        linear-gradient(180deg, rgba(32, 21, 14, 0.96), rgba(18, 12, 8, 0.98));
+    border: 1px solid rgba(214, 150, 70, 0.3);
     box-shadow:
-        0 24px 62px rgba(0, 0, 0, 0.55),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        0 26px 64px rgba(8, 4, 2, 0.6),
+        0 0 0 1px rgba(8, 4, 2, 0.4),
+        inset 0 1px 0 rgba(255, 228, 180, 0.06);
     backdrop-filter: blur(16px);
+}
+
+[data-theme="sandstorm"] .session-drawer.open,
+[data-theme="sandstorm"] .integrations-drawer.open {
+    animation: sandstormDrawerDust 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+[data-theme="sandstorm"] .modal-overlay.open .modal-card,
+[data-theme="sandstorm"] .modal-overlay.active .modal-card {
+    animation: sandstormDustSweep 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 [data-theme="sandstorm"] .session-drawer-header,
 [data-theme="sandstorm"] .integrations-drawer-header,
 [data-theme="sandstorm"] .modal-title {
-    border-bottom: 1px solid rgba(245, 158, 11, 0.18);
+    border-bottom: 1px solid rgba(214, 150, 70, 0.22);
+}
+
+[data-theme="sandstorm"] .session-drawer-title,
+[data-theme="sandstorm"] .integrations-drawer-title,
+[data-theme="sandstorm"] .modal-title {
+    font-family: var(--sand-font-journal);
+    letter-spacing: 0.03em;
+    color: #ffe4b0;
 }
 
 [data-theme="sandstorm"] .session-item {
     border: 1px solid transparent;
     border-radius: 12px;
-    transition: all 0.2s ease;
+    transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
 }
 
 [data-theme="sandstorm"] .session-item:hover {
-    background: linear-gradient(90deg, rgba(73, 53, 34, 0.35), rgba(41, 29, 18, 0.15));
-    border-color: rgba(245, 158, 11, 0.18);
+    background: linear-gradient(90deg, rgba(84, 58, 36, 0.4), rgba(46, 30, 19, 0.16));
+    border-color: rgba(214, 150, 70, 0.22);
+    transform: translateX(2px);
 }
 
 [data-theme="sandstorm"] .session-item.session-active {
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.02));
-    border-color: rgba(245, 158, 11, 0.35);
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0.02));
+    border-color: rgba(245, 158, 11, 0.36);
     border-left: 3px solid #f59e0b !important;
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 10px 22px rgba(8, 4, 2, 0.3), inset 0 1px 0 rgba(255, 228, 180, 0.06);
 }
 
 [data-theme="sandstorm"] .session-item-preview,
-[data-theme="sandstorm"] .session-drawer-title,
-[data-theme="sandstorm"] .integrations-drawer-title,
-[data-theme="sandstorm"] .modal-title,
 [data-theme="sandstorm"] .modal-body,
 [data-theme="sandstorm"] .mermaid-error .error-title,
 [data-theme="sandstorm"] .mermaid-error .error-message {
@@ -13261,15 +13720,16 @@ pre,
 }
 
 [data-theme="sandstorm"] .scroll-to-bottom-btn.has-new {
-    background: linear-gradient(135deg, #d97706, #f59e0b, #fbbf24);
-    color: #120c08;
+    background: radial-gradient(circle at 36% 30%, #fff1c2 0%, #fbbf24 30%, #f59e0b 58%, #c2410c 100%);
+    border-color: rgba(255, 240, 200, 0.45);
+    color: #1a0e06;
     font-weight: 700;
     animation: sandstormBeacon 2.2s ease-in-out infinite;
 }
 
 [data-theme="sandstorm"] #img-lightbox img {
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    box-shadow: 0 24px 62px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(214, 150, 70, 0.36);
+    box-shadow: 0 24px 62px rgba(8, 4, 2, 0.65);
 }
 
 [data-theme="sandstorm"] .drag-drop-overlay {
@@ -13280,38 +13740,157 @@ pre,
     filter: drop-shadow(0 0 16px rgba(245, 158, 11, 0.08));
 }
 
+[data-theme="sandstorm"] .toast {
+    background: linear-gradient(180deg, rgba(44, 30, 19, 0.97), rgba(22, 14, 9, 0.98));
+    border: 1px solid rgba(214, 150, 70, 0.32);
+    color: var(--text-primary);
+    box-shadow: 0 18px 40px rgba(8, 4, 2, 0.55);
+}
+
 [data-theme="sandstorm"] ::selection,
 [data-theme="sandstorm"] ::-moz-selection {
-    background: rgba(245, 158, 11, 0.22);
-    color: #ffffff;
+    background: rgba(245, 158, 11, 0.3);
+    color: #fffbeb;
 }
 
-@keyframes sandstormBackdropDrift {
+/* ── Weather reaction (set by the engine) ───────────────────────────────── */
+html[data-sandstorm="storm"][data-theme="sandstorm"] .app-header::after {
+    opacity: 0.5;
+}
+
+html[data-sandstorm="storm"][data-theme="sandstorm"] .app-header {
+    opacity: 0.97;
+}
+
+html[data-sandstorm="storm"][data-theme="sandstorm"] .bubble.bot {
+    border-color: rgba(214, 150, 70, 0.36);
+}
+
+html[data-sandstorm="storm"][data-theme="sandstorm"] .app-footer {
+    background: linear-gradient(180deg, rgba(48, 28, 14, 0.86), rgba(18, 11, 7, 0.97));
+}
+
+html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
+    filter: sepia(0.4) saturate(0.95) brightness(0.9) drop-shadow(0 16px 22px rgba(12, 6, 2, 0.5));
+}
+
+/* ── Keyframes ──────────────────────────────────────────────────────────── */
+@keyframes sandstormDuneHaze {
     from {
-        background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%;
+        background-position: 0 0, 0 0, 0 0, 12% 18%, 74% 62%;
     }
     to {
-        background-position: 3% -2%, -2% 3%, 1% 4%, 0% 0%;
+        background-position: 0 0, 0 0, 18px 8px, 16% 22%, 70% 58%;
     }
 }
 
-@keyframes sandstormDustSheet {
-    from {
-        background-position: 0 0, 0 0, 12% 18%, 74% 62%;
+@keyframes sandstormSunGlint {
+    0%, 12% {
+        background-position: 100% 0;
     }
-    to {
-        background-position: 0 0, 18px 8px, 16% 22%, 70% 58%;
+    58%, 100% {
+        background-position: 0% 0;
     }
 }
 
-@keyframes sandstormMessageEnter {
-    from {
+@keyframes sandstormSheen {
+    0%, 55% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 100% 50%;
+    }
+}
+
+@keyframes sandstormMaterialize {
+    0% {
         opacity: 0;
-        transform: translateY(12px) scale(0.98);
+        transform: translateY(14px) scale(0.985);
+        filter: blur(6px);
+    }
+    55% {
+        filter: blur(0);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes sandstormDustWipe {
+    0% {
+        opacity: 0;
+        transform: translateX(-30%);
+    }
+    25% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(32%);
+    }
+}
+
+@keyframes sandstormDustSweep {
+    0% {
+        opacity: 0;
+        transform: translateY(8px);
+        filter: blur(5px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
+@keyframes sandstormDrawerDust {
+    0% {
+        filter: blur(6px) brightness(1.15);
+    }
+    100% {
+        filter: blur(0) brightness(1);
+    }
+}
+
+@keyframes sandstormHaloBreath {
+    from {
+        opacity: 0.55;
+        transform: scale(0.97);
     }
     to {
         opacity: 1;
+        transform: scale(1.03);
+    }
+}
+
+@keyframes sandstormMirage {
+    from {
+        background-position: 120% 0, 0 0;
+    }
+    to {
+        background-position: -120% 0, 0 0;
+    }
+}
+
+@keyframes sandstormGrainBounce {
+    0%, 100% {
         transform: translateY(0) scale(1);
+        opacity: 0.55;
+    }
+    35% {
+        transform: translateY(-5px) scale(1.15);
+        opacity: 1;
+    }
+}
+
+@keyframes sandstormSunRays {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
     }
 }
 
@@ -13329,14 +13908,42 @@ pre,
     }
 }
 
+/* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
+    [data-theme="sandstorm"] body::before {
+        background-size: 100% 150px, 100% 190px, 100% 230px, auto;
+    }
+
     [data-theme="sandstorm"] #chat-box::before {
-        background-size: auto, 14px 14px, 180px 180px, 210px 210px;
+        background-size: auto, auto, 14px 14px, 180px 180px, 210px 210px;
         opacity: 0.74;
     }
 
     [data-theme="sandstorm"] .bubble {
         max-width: min(88%, 38rem);
+    }
+
+    [data-theme="sandstorm"] .bubble::after {
+        opacity: 0.55;
+    }
+
+    [data-theme="sandstorm"] .bubble.bot {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    [data-theme="sandstorm"] .app-header,
+    [data-theme="sandstorm"] .app-footer {
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    [data-theme="sandstorm"] .avatar::after {
+        display: none;
+    }
+
+    [data-theme="sandstorm"] .message-stack::after {
+        display: none;
     }
 }
 
@@ -13344,19 +13951,55 @@ pre,
     [data-theme="sandstorm"] #chat-box,
     [data-theme="sandstorm"] #chat-box::before,
     [data-theme="sandstorm"] .msg-row,
-    [data-theme="sandstorm"] .scroll-to-bottom-btn.has-new {
+    [data-theme="sandstorm"] .message-stack::after,
+    [data-theme="sandstorm"] .scroll-to-bottom-btn.has-new,
+    [data-theme="sandstorm"] .app-header::after,
+    [data-theme="sandstorm"] .logo .logo-wordmark-accent,
+    [data-theme="sandstorm"] .status-pill,
+    [data-theme="sandstorm"] .typing-dots span,
+    [data-theme="sandstorm"] .btn-send::before,
+    [data-theme="sandstorm"] .avatar::after,
+    [data-theme="sandstorm"] .greeting-icon,
+    [data-theme="sandstorm"] .greeting-icon::after,
+    [data-theme="sandstorm"] .session-drawer.open,
+    [data-theme="sandstorm"] .integrations-drawer.open,
+    [data-theme="sandstorm"] .modal-overlay.open .modal-card,
+    [data-theme="sandstorm"] .modal-overlay.active .modal-card,
+    [data-theme="sandstorm"] .chat-theme-dropdown:not([hidden]),
+    [data-theme="sandstorm"] .personality-dropdown:not([hidden]),
+    [data-theme="sandstorm"] .mood-panel.open {
         animation: none !important;
+    }
+
+    [data-theme="sandstorm"] .message-stack::after {
+        display: none;
+    }
+
+    [data-theme="sandstorm"] .typing-dots span {
+        opacity: 0.8;
+    }
+
+    [data-theme="sandstorm"] body::before,
+    [data-theme="sandstorm"] .bubble,
+    [data-theme="sandstorm"] .avatar,
+    [data-theme="sandstorm"] .app-header,
+    [data-theme="sandstorm"] .app-footer,
+    [data-theme="sandstorm"] .session-item,
+    [data-theme="sandstorm"] .btn-send {
+        transition-duration: 0.01s !important;
     }
 }
 
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
 [data-theme="sandstorm"] #chat-content::-webkit-scrollbar,
+[data-theme="sandstorm"] #chat-box::-webkit-scrollbar,
 [data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar,
 [data-theme="sandstorm"] .integrations-drawer ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 [data-theme="sandstorm"] #chat-content::-webkit-scrollbar-thumb,
+[data-theme="sandstorm"] #chat-box::-webkit-scrollbar-thumb,
 [data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar-thumb,
 [data-theme="sandstorm"] .integrations-drawer ::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, #f59e0b, #b45309);
@@ -13365,6 +14008,7 @@ pre,
     background-clip: padding-box;
 }
 [data-theme="sandstorm"] #chat-content::-webkit-scrollbar-track,
+[data-theme="sandstorm"] #chat-box::-webkit-scrollbar-track,
 [data-theme="sandstorm"] .session-drawer ::-webkit-scrollbar-track,
 [data-theme="sandstorm"] .integrations-drawer ::-webkit-scrollbar-track {
     background: rgba(18, 12, 8, 0.4);
@@ -13385,7 +14029,7 @@ pre,
     right: 12px;
     bottom: 6px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.5), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 196, 110, 0.55), transparent);
     transform: scaleX(0);
     transform-origin: left center;
     transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.4, 1);
@@ -13395,20 +14039,14 @@ pre,
 [data-theme="sandstorm"] .personality-option:hover::after,
 [data-theme="sandstorm"] .session-item:hover::after { transform: scaleX(1); }
 
-/* ── Polish: Bubble hover ──────────────────────────────────────────────── */
-[data-theme="sandstorm"] .msg-row:hover .bubble {
-    transform: translateY(-1.5px);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        0 18px 34px rgba(0, 0, 0, 0.4),
-        0 0 8px rgba(245, 158, 11, 0.1);
-}
-
 /* ── Polish: Button active press ───────────────────────────────────────── */
 [data-theme="sandstorm"] .btn-send:active:not(:disabled),
 [data-theme="sandstorm"] .btn-voice:active:not(:disabled),
 [data-theme="sandstorm"] .btn-more:active:not(:disabled),
-[data-theme="sandstorm"] .composer-tool-btn:active:not(:disabled) {
+[data-theme="sandstorm"] .composer-tool-btn:active:not(:disabled),
+[data-theme="sandstorm"] .mood-btn:active,
+[data-theme="sandstorm"] .session-new-btn:active,
+[data-theme="sandstorm"] .modal-btn:active {
     transform: scale(0.96) !important;
 }
 
