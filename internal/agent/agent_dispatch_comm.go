@@ -1326,6 +1326,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if !ok {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Mission %s not found"}`, req.ID)
 				}
+				if existing.ExecutionType == tools.ExecutionFlow {
+					return flowMissionManagedOutput(req.ID)
+				}
 
 				if req.Title != "" {
 					existing.Name = req.Title
@@ -1361,6 +1364,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			case "delete", "remove":
 				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "'id' is required for delete"}`
+				}
+				if existing, ok := missionManagerV2.Get(req.ID); ok && existing.ExecutionType == tools.ExecutionFlow {
+					return flowMissionManagedOutput(req.ID)
 				}
 				err := missionManagerV2.Delete(req.ID)
 				if err != nil {
@@ -2217,4 +2223,10 @@ func upnpParseLocation(location string) (ip string, port int) {
 		}
 	}
 	return ip, port
+}
+
+// flowMissionManagedOutput tells the agent that EasyDrag owns a flow mission.
+func flowMissionManagedOutput(id string) string {
+	msg, _ := json.Marshal(fmt.Sprintf("Mission %s is an EasyDrag flow. Open it in the EasyDrag app to change or delete it.", id))
+	return fmt.Sprintf(`Tool Output: {"status":"error","code":"flow_mission","message":%s}`, msg)
 }
