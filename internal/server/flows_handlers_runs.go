@@ -1,10 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +24,72 @@ type flowTestBody struct {
 	RememberData bool           `json:"remember_data"`
 }
 
+// flowsTestDataBodyLimit bounds the body of PUT {id}/test-data/{node}: the flows cap on
+// remembered sample data (flows.MaxStoredOutputBytes of its JSON encoding, else
+// flows.ErrTestDataTooLarge) plus room for the {"data": …} wrapper and formatting. Data near
+// the cap gets the flow service's answer; a far larger body is refused before it is decoded.
+const flowsTestDataBodyLimit = flows.MaxStoredOutputBytes + 32<<10
+
+// flowRunIDPattern accepts what can be a run id (flows.NewRunID gives "run_" and twelve
+// characters); anything else is FLOW_RUN_NOT_FOUND before the store or the bus is asked.
+var flowRunIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// flowRunModes and flowRunStatuses are the values GET {id}/runs accepts for ?mode= and
+// ?status=: the run modes and statuses of the flows package.
+var (
+	flowRunModes    = map[flows.RunMode]bool{flows.ModeTest: true, flows.ModeLive: true, flows.ModeAgent: true, flows.ModeCall: true}
+	flowRunStatuses = map[flows.RunStatus]bool{flows.RunQueued: true, flows.RunRunning: true, flows.RunWaiting: true,
+		flows.RunSuccess: true, flows.RunError: true, flows.RunCancelled: true}
+)
+
+// flowRunFilter reads ?mode=, ?status=, ?limit= and ?offset= of GET {id}/runs. An unknown
+// mode or status, or a limit or offset that is not a non-negative whole number, gives the
+// message of a FLOW_BAD_REQUEST answer (it does not echo the value); an absent or empty one is
+// left unset. The limit is not clamped here: Store.ListRuns applies its default (50) and its
+// cap (200).
+func flowRunFilter(q url.Values) (flows.RunFilter, string) {
+	f := flows.RunFilter{Mode: flows.RunMode(q.Get("mode")), Status: flows.RunStatus(q.Get("status"))}
+	if f.Mode != "" && !flowRunModes[f.Mode] {
+		return f, "mode must be test, live, agent or call"
+	}
+	if f.Status != "" && !flowRunStatuses[f.Status] {
+		return f, "status must be queued, running, waiting, success, error or cancelled"
+	}
+	for _, p := range []struct {
+		name string
+		dst  *int
+	}{{"limit", &f.Limit}, {"offset", &f.Offset}} {
+		text := q.Get(p.name)
+		if text == "" {
+			continue
+		}
+		n, err := strconv.Atoi(text)
+		if err != nil || n < 0 {
+			return f, p.name + " must be a non-negative whole number"
+		}
+		*p.dst = n
+	}
+	return f, ""
+}
+
+// flowsDecodeOptional is flowsDecode for a body that may be left out: an empty body,
+// whitespace only, is no error and leaves dst unchanged. It reads the body instead of
+// trusting ContentLength, which is -1 for a chunked request.
+func flowsDecodeOptional(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	err := json.NewDecoder(r.Body).Decode(dst)
+	var tooLarge *http.MaxBytesError
+	switch {
+	case err == nil, errors.Is(err, io.EOF):
+		return true
+	case errors.As(err, &tooLarge):
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", limit>>10))
+	default:
+		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the request body is not valid JSON")
+	}
+	return false
+}
+
 // flowRunAction serves the run routes below /api/desktop/flows/{id}/ and reports false for
 // unknown actions.
 func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, action string, rest []string) bool {
@@ -31,7 +101,7 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 			return true
 		}
 		var body flowTestBody
-		if r.ContentLength != 0 && !flowsDecode(w, r, &body, flowsDocBodyLimit) {
+		if !flowsDecodeOptional(w, r, &body, flowsDocBodyLimit) {
 			return true
 		}
 		res, err := s.Flows.StartTestRun(ctx, id, flows.TestRunRequest{TriggerNode: body.TriggerNode,
@@ -57,17 +127,20 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 			flowsMethodNotAllowed(w)
 			return true
 		}
-		q := r.URL.Query()
-		limit, _ := strconv.Atoi(q.Get("limit"))
-		offset, _ := strconv.Atoi(q.Get("offset"))
-		runs, err := s.Flows.Runs(ctx, id, flows.RunFilter{Mode: flows.RunMode(q.Get("mode")),
-			Status: flows.RunStatus(q.Get("status")), Limit: limit, Offset: offset})
+		filter, problem := flowRunFilter(r.URL.Query())
+		if problem != "" {
+			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", problem)
+			return true
+		}
+		runs, err := s.Flows.Runs(ctx, id, filter)
 		if err != nil {
 			s.flowsErrorFrom(w, r, err)
 			return true
 		}
 		s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"runs": runs})
 	case action == "test-data" && len(rest) == 1:
+		// Sample data can hold anything the user pasted, a secret included: both answers
+		// are scrubbed by value.
 		node := rest[0]
 		switch r.Method {
 		case http.MethodGet:
@@ -76,12 +149,12 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 				s.flowsErrorFrom(w, r, err)
 				return true
 			}
-			flowsJSON(w, http.StatusOK, map[string]any{"data": data})
+			s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"data": data})
 		case http.MethodPut:
 			var body struct {
 				Data map[string]any `json:"data"`
 			}
-			if !flowsDecode(w, r, &body, flowsDocBodyLimit) {
+			if !flowsDecode(w, r, &body, flowsTestDataBodyLimit) {
 				return true
 			}
 			if body.Data == nil {
@@ -91,7 +164,7 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 				s.flowsErrorFrom(w, r, err)
 				return true
 			}
-			flowsJSON(w, http.StatusOK, map[string]any{"data": body.Data})
+			s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"data": body.Data})
 		default:
 			flowsMethodNotAllowed(w)
 		}
@@ -108,6 +181,10 @@ func (s *Server) flowsRunRoute(w http.ResponseWriter, r *http.Request, rest []st
 		return
 	}
 	runID := rest[0]
+	if !flowRunIDPattern.MatchString(runID) {
+		flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", "run not found")
+		return
+	}
 	switch {
 	case len(rest) == 1:
 		if r.Method != http.MethodGet {
@@ -131,14 +208,40 @@ func (s *Server) flowsRunRoute(w http.ResponseWriter, r *http.Request, rest []st
 			flowsMethodNotAllowed(w)
 			return
 		}
-		if !s.Flows.Cancel(runID) {
-			flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", "the run is not active")
-			return
-		}
-		flowsJSON(w, http.StatusAccepted, map[string]bool{"cancelled": true})
+		s.cancelFlowRun(w, r, runID)
 	default:
 		flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", "unknown run route")
 	}
+}
+
+// cancelFlowRun answers POST runs/{run}/cancel: 202 {"cancelled": true} when the runner
+// stopped or dequeued the run, 404 FLOW_RUN_NOT_FOUND for a run the store does not know, and
+// 409 FLOW_RUN_FINISHED for a stored run that is no longer active (finished, or ending at
+// this moment). The runner forgets a run once it ended, so the run is read from the store
+// first; Service.Run takes no flow lock. A cancelled live run goes to the audit timeline
+// (flow_run_cancel); test runs belong to the editor and are not audited.
+func (s *Server) cancelFlowRun(w http.ResponseWriter, r *http.Request, runID string) {
+	ctx := r.Context()
+	detail, err := s.Flows.Run(ctx, runID, false)
+	if err != nil {
+		s.flowsErrorFrom(w, r, err)
+		return
+	}
+	run := detail.Run
+	if run == nil || run.Status.Terminal() || !s.Flows.Cancel(runID) {
+		flowsError(w, http.StatusConflict, "FLOW_RUN_FINISHED", "the run has already finished")
+		return
+	}
+	if run.Mode == flows.ModeLive {
+		// The run is cancelled; a client that went away must not leave the entry without
+		// the flow's name.
+		name, label := "", run.FlowID
+		if rec, err := s.Flows.GetFlow(context.WithoutCancel(ctx), run.FlowID); err == nil {
+			name, label = rec.Name, rec.Name
+		}
+		s.recordFlowAudit("flow_run_cancel", run.FlowID, name, "Flow "+label+": run "+runID+" cancelled")
+	}
+	flowsJSON(w, http.StatusAccepted, map[string]bool{"cancelled": true})
 }
 
 // Run event streams (GET /api/desktop/flows/runs/{run}/events, streamFlowRunEvents).

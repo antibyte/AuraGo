@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "フロー削除",
   "dashboard.audit_type_flow_secret_set": "フローシークレット保存",
   "dashboard.audit_type_flow_secret_delete": "フローシークレット削除",
+  "dashboard.audit_type_flow_run_cancel": "フロー実行キャンセル",
   "dashboard.audit_filter_from": "開始",
   "dashboard.audit_filter_to": "終了",
   "dashboard.audit_refresh": "更新",

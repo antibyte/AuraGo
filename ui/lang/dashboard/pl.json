@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "Usunięto przepływ",
   "dashboard.audit_type_flow_secret_set": "Zapisano sekret przepływu",
   "dashboard.audit_type_flow_secret_delete": "Usunięto sekret przepływu",
+  "dashboard.audit_type_flow_run_cancel": "Anulowano uruchomienie przepływu",
   "dashboard.audit_filter_from": "Od",
   "dashboard.audit_filter_to": "Do",
   "dashboard.audit_refresh": "Odswiez",

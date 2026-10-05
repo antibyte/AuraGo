@@ -6,8 +6,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -406,5 +409,242 @@ func TestC18StreamScrubsQuotedSecretsByValue(t *testing.T) {
 	// The snapshot (trigger data and the step outputs) and the step_finished events.
 	if redacted < 2 {
 		t.Fatalf("no redaction in the stream: %s", w.Body.String())
+	}
+}
+
+func TestC18RunListQueryIsValidated(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	waitFlowRunStatus(t, s, token, c18StartTestRun(t, s, token, rec, ""), "success")
+	base := "/api/desktop/flows/" + rec.ID + "/runs"
+	for _, q := range []string{"?mode=bogus_mode", "?mode=TEST", "?status=bogus_status", "?limit=-1", "?offset=-3",
+		"?limit=ten", "?offset=1.5", "?limit=99999999999999999999"} {
+		w := flowsCall(t, s, http.MethodGet, base+q, token, "")
+		if w.Code != http.StatusBadRequest || flowsBody(t, w)["code"] != "FLOW_BAD_REQUEST" || strings.Contains(w.Body.String(), "bogus") {
+			t.Errorf("%s = %d %s", q, w.Code, w.Body.String())
+		}
+	}
+	for q, want := range map[string]int{"": 1, "?mode=test": 1, "?mode=live": 0, "?status=success": 1, "?status=error": 0,
+		"?limit=0": 1, "?limit=100000": 1, "?offset=1": 0, "?mode=test&status=success&limit=1&offset=0": 1} {
+		w := flowsCall(t, s, http.MethodGet, base+q, token, "")
+		runs, _ := flowsBody(t, w)["runs"].([]any)
+		if w.Code != http.StatusOK || len(runs) != want {
+			t.Errorf("%q = %d, %d runs, want %d: %s", q, w.Code, len(runs), want, w.Body.String())
+		}
+	}
+}
+
+func TestC18TestRunAcceptsAnEmptyChunkedBody(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	post := func(body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "/api/desktop/flows/"+rec.ID+"/test", nil)
+		r.Body = io.NopCloser(strings.NewReader(body))
+		r.ContentLength = -1
+		r.TransferEncoding = []string{"chunked"}
+		r.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		s.handleFlows(w, r)
+		return w
+	}
+	for _, body := range []string{"", " \r\n\t"} {
+		if w := post(body); w.Code != http.StatusAccepted {
+			t.Fatalf("chunked body %q = %d %s", body, w.Code, w.Body.String())
+		}
+	}
+	if w := post(`{"trigger_data":`); w.Code != http.StatusBadRequest || flowsBody(t, w)["code"] != "FLOW_BAD_REQUEST" {
+		t.Fatalf("broken chunked body = %d %s", w.Code, w.Body.String())
+	}
+	w := post(`{"trigger_data":{"name":"Chunk"}}`)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("chunked body with data = %d %s", w.Code, w.Body.String())
+	}
+	detail := waitFlowRunStatus(t, s, token, flowsBody(t, w)["run_id"].(string), "success")
+	if data, _ := detail["run"].(map[string]any)["trigger_data"].(map[string]any); data["name"] != "Chunk" {
+		t.Fatalf("trigger data of the chunked test run = %+v", detail["run"])
+	}
+}
+
+func TestC18TestDataIsBoundedAndScrubbed(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	path := "/api/desktop/flows/" + rec.ID + "/test-data/n_aaaaaaaa"
+	// Just over the flows cap: the body is decoded and the flow service refuses the data.
+	over := flowsCall(t, s, http.MethodPut, path, token, `{"data":{"text":"`+strings.Repeat("a", flows.MaxStoredOutputBytes)+`"}}`)
+	if body := flowsBody(t, over); over.Code != http.StatusRequestEntityTooLarge || body["code"] != "FLOW_TOO_LARGE" ||
+		!strings.Contains(body["error"].(string), "test data") {
+		t.Fatalf("data over the cap = %d %s", over.Code, over.Body.String())
+	}
+	// Far over it: the body limit refuses it before decoding.
+	huge := flowsCall(t, s, http.MethodPut, path, token, `{"data":{"text":"`+strings.Repeat("a", 1<<20)+`"}}`)
+	if body := flowsBody(t, huge); huge.Code != http.StatusRequestEntityTooLarge || body["code"] != "FLOW_TOO_LARGE" ||
+		!strings.Contains(body["error"].(string), "request body") {
+		t.Fatalf("huge body = %d %s", huge.Code, huge.Body.String())
+	}
+
+	secret := fmt.Sprintf("c18 sample \"secret\" \\ %d", time.Now().UnixNano())
+	security.RegisterSensitive(secret)
+	escaped, _ := json.Marshal(secret)
+	inner := strings.Trim(string(escaped), `"`)
+	payload, _ := json.Marshal(map[string]any{"data": map[string]any{"token": secret, "n": 3}})
+	for _, w := range []*httptest.ResponseRecorder{
+		flowsCall(t, s, http.MethodPut, path, token, string(payload)),
+		flowsCall(t, s, http.MethodGet, path, token, ""),
+	} {
+		data, _ := flowsBody(t, w)["data"].(map[string]any)
+		if w.Code != http.StatusOK || strings.Contains(w.Body.String(), inner) || data["n"] != float64(3) ||
+			!strings.Contains(fmt.Sprint(data["token"]), security.RedactedText("")) {
+			t.Fatalf("sample answer = %d %s", w.Code, w.Body.String())
+		}
+	}
+	// Only the answers are scrubbed; the stored sample keeps what the user entered.
+	if stored, err := s.Flows.TriggerSampleData(context.Background(), rec.ID, "n_aaaaaaaa"); err != nil || stored["token"] != secret {
+		t.Fatalf("stored sample = %+v %v", stored, err)
+	}
+}
+
+func TestC18CancelTellsFinishedFromUnknownAndAuditsLiveRuns(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	stm := c17Audit(t, s)
+	rec := createTestFlow(t, s, waitFlowJSON)
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/publish", token, `{"base_revision":1}`); w.Code != http.StatusOK {
+		t.Fatalf("publish = %d %s", w.Code, w.Body.String())
+	}
+	cancel := func(runID string) *httptest.ResponseRecorder {
+		return flowsCall(t, s, http.MethodPost, "/api/desktop/flows/runs/"+runID+"/cancel", token, "")
+	}
+	if w := cancel("run_c18unknown01"); w.Code != http.StatusNotFound || flowsBody(t, w)["code"] != "FLOW_RUN_NOT_FOUND" {
+		t.Fatalf("cancel of an unknown run = %d %s", w.Code, w.Body.String())
+	}
+
+	w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/run", token, "")
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("run = %d %s", w.Code, w.Body.String())
+	}
+	live := flowsBody(t, w)["run_id"].(string)
+	waitFlowRunStatus(t, s, token, live, "running")
+	if w := cancel(live); w.Code != http.StatusAccepted || flowsBody(t, w)["cancelled"] != true {
+		t.Fatalf("cancel of the live run = %d %s", w.Code, w.Body.String())
+	}
+	waitFlowRunStatus(t, s, token, live, "cancelled")
+	if w := cancel(live); w.Code != http.StatusConflict || flowsBody(t, w)["code"] != "FLOW_RUN_FINISHED" {
+		t.Fatalf("second cancel = %d %s", w.Code, w.Body.String())
+	}
+	audit := c17AuditEvents(t, stm, "flow_run_cancel")
+	if len(audit) != 1 || audit[0].TargetID != rec.ID || audit[0].TargetName != "Pause" || !strings.Contains(audit[0].Summary, live) {
+		t.Fatalf("audit = %+v", audit)
+	}
+
+	test := c18StartTestRun(t, s, token, rec, "")
+	waitFlowRunStatus(t, s, token, test, "running")
+	if w := cancel(test); w.Code != http.StatusAccepted {
+		t.Fatalf("cancel of the test run = %d %s", w.Code, w.Body.String())
+	}
+	waitFlowRunStatus(t, s, token, test, "cancelled")
+	if audit := c17AuditEvents(t, stm, "flow_run_cancel"); len(audit) != 1 {
+		t.Fatalf("a test run cancel was audited: %+v", audit)
+	}
+}
+
+// TestC18RunCancelAuditTypeIsRegistered: flow_run_cancel is listed in the dashboard's audit
+// type filter and labelled in every dashboard locale (the rule of recordFlowAudit).
+func TestC18RunCancelAuditTypeIsRegistered(t *testing.T) {
+	ui := filepath.Join("..", "..", "ui")
+	html, err := os.ReadFile(filepath.Join(ui, "dashboard.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(html), `<option value="flow_run_cancel" data-i18n="dashboard.audit_type_flow_run_cancel">`) {
+		t.Error("the dashboard audit filter does not list flow_run_cancel")
+	}
+	locales, err := filepath.Glob(filepath.Join(ui, "lang", "dashboard", "*.json"))
+	if err != nil || len(locales) != 16 {
+		t.Fatalf("dashboard locales = %v %v", locales, err)
+	}
+	for _, path := range locales {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var labels map[string]string
+		if err := json.Unmarshal(data, &labels); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		if strings.TrimSpace(labels["dashboard.audit_type_flow_run_cancel"]) == "" {
+			t.Errorf("%s has no label for flow_run_cancel", filepath.Base(path))
+		}
+	}
+}
+
+func TestC18MalformedRunIDsAre404(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	ids := []string{strings.Repeat("r", 5000), "run%20x", strings.Repeat("%27", 30), "run_%00x", "run.x"}
+	for _, id := range ids {
+		for _, call := range []struct{ method, suffix string }{
+			{http.MethodGet, ""}, {http.MethodGet, "/events"}, {http.MethodPost, "/cancel"},
+		} {
+			w := flowsCall(t, s, call.method, "/api/desktop/flows/runs/"+id+call.suffix, token, "")
+			if w.Code != http.StatusNotFound || flowsBody(t, w)["code"] != "FLOW_RUN_NOT_FOUND" {
+				t.Errorf("%s %s%s = %d %s", call.method, flowBoundRunes(id, 40), call.suffix, w.Code, flowBoundRunes(w.Body.String(), 200))
+			}
+		}
+	}
+	for _, path := range []string{"/api/desktop/flows/runs/run_c18x/events/extra", "/api/desktop/flows/runs/run_c18x/nope", "/api/desktop/flows/runs/"} {
+		if w := flowsCall(t, s, http.MethodGet, path, token, ""); w.Code != http.StatusNotFound || flowsBody(t, w)["code"] != "FLOW_RUN_NOT_FOUND" {
+			t.Errorf("%s = %d %s", path, w.Code, w.Body.String())
+		}
+	}
+	if s.flowStreams.total != 0 || len(s.flowStreams.runs) != 0 {
+		t.Fatalf("junk run ids reached the stream limiter: %v", s.flowStreams.runs)
+	}
+}
+
+// c18SwapService replaces the server's flow service with one over the same store and
+// registry with the given runner limits. The test server's cleanup shuts it down.
+func c18SwapService(t *testing.T, s *Server, cfg flows.ServiceConfig) {
+	t.Helper()
+	ctx := context.Background()
+	if err := s.Flows.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown: %v", err)
+	}
+	svc := flows.NewService(s.Flows.Store(), s.Flows.Registry(), &flows.Services{Clock: flows.RealClock(), Location: time.Local},
+		flowMissionBridge{s: s}, cfg, s.Logger)
+	if err := svc.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	s.Flows = svc
+}
+
+// TestC18TestRunsShareTheGlobalLimits: test runs skip the flow's own policy but wait for a
+// global slot, and a flow's test runs waiting for one are capped (ErrQueueFull → 429).
+func TestC18TestRunsShareTheGlobalLimits(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	c18SwapService(t, s, flows.ServiceConfig{MaxParallelRuns: 1, MaxQueuedPerFlow: 2})
+	rec := createTestFlow(t, s, waitFlowJSON)
+	var ids []string
+	for i, want := range []string{"started", "queued", "queued"} {
+		w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/test", token, "")
+		body := flowsBody(t, w)
+		if w.Code != http.StatusAccepted || body["status"] != want {
+			t.Fatalf("test run %d = %d %s", i, w.Code, w.Body.String())
+		}
+		ids = append(ids, body["run_id"].(string))
+	}
+	t.Cleanup(func() {
+		for _, id := range ids {
+			s.Flows.Cancel(id)
+		}
+	})
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/test", token, ""); w.Code != http.StatusTooManyRequests ||
+		flowsBody(t, w)["code"] != "FLOW_RUN_LIMIT" {
+		t.Fatalf("test run beyond the queue = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/runs/"+ids[2]+"/cancel", token, ""); w.Code != http.StatusAccepted {
+		t.Fatalf("cancel of a queued test run = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/test", token, ""); w.Code != http.StatusAccepted {
+		t.Fatalf("test run after a cancel = %d %s", w.Code, w.Body.String())
+	} else {
+		ids = append(ids, flowsBody(t, w)["run_id"].(string))
 	}
 }

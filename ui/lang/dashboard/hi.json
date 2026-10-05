@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "फ़्लो हटाया गया",
   "dashboard.audit_type_flow_secret_set": "फ़्लो सीक्रेट सहेजा गया",
   "dashboard.audit_type_flow_secret_delete": "फ़्लो सीक्रेट हटाया गया",
+  "dashboard.audit_type_flow_run_cancel": "फ़्लो रन रद्द किया गया",
   "dashboard.audit_filter_from": "से",
   "dashboard.audit_filter_to": "तक",
   "dashboard.audit_refresh": "रीफ्रेश",

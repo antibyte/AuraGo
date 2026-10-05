@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "Flyt slettet",
   "dashboard.audit_type_flow_secret_set": "Flythemmelighet lagret",
   "dashboard.audit_type_flow_secret_delete": "Flythemmelighet slettet",
+  "dashboard.audit_type_flow_run_cancel": "Flytkjøring avbrutt",
   "dashboard.audit_filter_from": "Fra",
   "dashboard.audit_filter_to": "Til",
   "dashboard.audit_refresh": "Oppdater",

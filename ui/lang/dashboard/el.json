@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "Διαγραφή ροής",
   "dashboard.audit_type_flow_secret_set": "Αποθήκευση μυστικού ροής",
   "dashboard.audit_type_flow_secret_delete": "Διαγραφή μυστικού ροής",
+  "dashboard.audit_type_flow_run_cancel": "Ακύρωση εκτέλεσης ροής",
   "dashboard.audit_filter_from": "Απο",
   "dashboard.audit_filter_to": "Εως",
   "dashboard.audit_refresh": "Ανανέωση",

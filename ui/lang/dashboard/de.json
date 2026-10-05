@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "Flow gelöscht",
   "dashboard.audit_type_flow_secret_set": "Flow-Geheimnis gespeichert",
   "dashboard.audit_type_flow_secret_delete": "Flow-Geheimnis gelöscht",
+  "dashboard.audit_type_flow_run_cancel": "Flow-Lauf abgebrochen",
   "dashboard.audit_filter_from": "Von",
   "dashboard.audit_filter_to": "Bis",
   "dashboard.audit_refresh": "Aktualisieren",

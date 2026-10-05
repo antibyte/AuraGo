@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "Flujo eliminado",
   "dashboard.audit_type_flow_secret_set": "Secreto de flujo guardado",
   "dashboard.audit_type_flow_secret_delete": "Secreto de flujo eliminado",
+  "dashboard.audit_type_flow_run_cancel": "Ejecución de flujo cancelada",
   "dashboard.audit_filter_from": "Desde",
   "dashboard.audit_filter_to": "Hasta",
   "dashboard.audit_refresh": "Actualizar",

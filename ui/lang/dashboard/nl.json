@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "Flow verwijderd",
   "dashboard.audit_type_flow_secret_set": "Flowgeheim opgeslagen",
   "dashboard.audit_type_flow_secret_delete": "Flowgeheim verwijderd",
+  "dashboard.audit_type_flow_run_cancel": "Flowrun geannuleerd",
   "dashboard.audit_filter_from": "Van",
   "dashboard.audit_filter_to": "Tot",
   "dashboard.audit_refresh": "Vernieuwen",

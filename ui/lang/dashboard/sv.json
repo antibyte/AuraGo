@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "Flöde borttaget",
   "dashboard.audit_type_flow_secret_set": "Flödeshemlighet sparad",
   "dashboard.audit_type_flow_secret_delete": "Flödeshemlighet borttagen",
+  "dashboard.audit_type_flow_run_cancel": "Flödeskörning avbruten",
   "dashboard.audit_filter_from": "Fran",
   "dashboard.audit_filter_to": "Till",
   "dashboard.audit_refresh": "Uppdatera",

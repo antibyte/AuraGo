@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "Flow slettet",
   "dashboard.audit_type_flow_secret_set": "Flow-hemmelighed gemt",
   "dashboard.audit_type_flow_secret_delete": "Flow-hemmelighed slettet",
+  "dashboard.audit_type_flow_run_cancel": "Flow-kørsel annulleret",
   "dashboard.audit_filter_from": "Fra",
   "dashboard.audit_filter_to": "Til",
   "dashboard.audit_refresh": "Opdater",

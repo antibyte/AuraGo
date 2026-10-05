@@ -763,6 +763,7 @@
   "dashboard.audit_type_flow_delete": "流程已删除",
   "dashboard.audit_type_flow_secret_set": "流程密钥已保存",
   "dashboard.audit_type_flow_secret_delete": "流程密钥已删除",
+  "dashboard.audit_type_flow_run_cancel": "流程运行已取消",
   "dashboard.audit_filter_from": "从",
   "dashboard.audit_filter_to": "到",
   "dashboard.audit_refresh": "刷新",
