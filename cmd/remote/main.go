@@ -660,8 +660,8 @@ func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
 	if msg.DeviceID != c.cfg.DeviceID {
 		return "device_id mismatch"
 	}
-	// hmacData has no field delimiters; a malformed nonce could be sequence
-	// digits shifted into it, which the cache would see as a fresh nonce.
+	// A cheap sanity check before the cache; the canonical HMAC form already
+	// keeps sequence digits out of the nonce.
 	if !remote.ValidNonce(msg.Nonce) {
 		return "invalid nonce format"
 	}

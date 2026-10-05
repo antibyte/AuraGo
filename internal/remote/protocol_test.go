@@ -1,9 +1,13 @@
 package remote
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -189,6 +193,128 @@ func TestSignAndVerifyRejectEmptyKey(t *testing.T) {
 	ok, err := VerifyMessage(*msg, "")
 	if err == nil || ok {
 		t.Fatalf("VerifyMessage must refuse an empty key even for an empty-key HMAC: ok=%v err=%v", ok, err)
+	}
+}
+
+// ── Canonical HMAC form ─────────────────────────────────────────────────────
+
+func signedTestFrame(t *testing.T, key string, seq uint64) *RemoteMessage {
+	t.Helper()
+	msg, err := NewMessage(MsgCommand, "dev-1", key, seq, CommandPayload{CommandID: "cmd-1", Operation: OpSysinfo})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return msg
+}
+
+// Under the undelimited form a frame signed with sequence 12 and nonce N also
+// verified as sequence 1 with nonce "2"+N; bytes could move across any field
+// boundary. The version 2 form length-prefixes every field, so no shift
+// verifies.
+func TestCanonicalHMACRejectsFieldBoundaryShifts(t *testing.T) {
+	key, _ := GenerateSharedKey()
+	frame := signedTestFrame(t, key, 12)
+	if frame.Version != FrameVersion {
+		t.Fatalf("NewMessage version = %d, want %d", frame.Version, FrameVersion)
+	}
+
+	shifts := map[string]func(m *RemoteMessage){
+		"sequence digit into nonce": func(m *RemoteMessage) { m.Sequence = 1; m.Nonce = "2" + m.Nonce },
+		"nonce char into sequence": func(m *RemoteMessage) {
+			m.Sequence = 120
+			m.Nonce = m.Nonce[1:]
+		},
+		"type into device id":   func(m *RemoteMessage) { m.Type = "comman"; m.DeviceID = "d" + m.DeviceID },
+		"device id into msg id": func(m *RemoteMessage) { m.DeviceID = "dev-"; m.MessageID = "1" + m.MessageID },
+		"timestamp into payload": func(m *RemoteMessage) {
+			m.Payload = append([]byte(m.Timestamp[len(m.Timestamp)-1:]), m.Payload...)
+			m.Timestamp = m.Timestamp[:len(m.Timestamp)-1]
+		},
+		"version into type": func(m *RemoteMessage) { m.Version = 0; m.Type = "2" + m.Type },
+	}
+	for name, shift := range shifts {
+		shifted := *frame
+		shift(&shifted)
+		if bytes.Equal(hmacData(&shifted), hmacData(frame)) {
+			t.Fatalf("%s: canonical form is not injective", name)
+		}
+		if ok, _ := VerifyMessage(shifted, key); ok {
+			t.Fatalf("%s: shifted frame still verifies", name)
+		}
+	}
+	if ok, err := VerifyMessage(*frame, key); err != nil || !ok {
+		t.Fatalf("original frame must verify: ok=%v err=%v", ok, err)
+	}
+}
+
+// The encoding is part of the wire contract between agent and supervisor.
+func TestCanonicalHMACEncoding(t *testing.T) {
+	msg := &RemoteMessage{
+		Version:   2,
+		Type:      MsgAck,
+		DeviceID:  "dev",
+		MessageID: "m1",
+		Sequence:  12,
+		Nonce:     "0123456789abcdef0123456789abcdef",
+		Timestamp: "2026-10-05T12:00:00Z",
+		Payload:   []byte(`{"a":1}`),
+	}
+	want := "1:2" + "3:ack" + "3:dev" + "2:m1" + "2:12" + "32:0123456789abcdef0123456789abcdef" + "20:2026-10-05T12:00:00Z" + `7:{"a":1}`
+	if got := string(hmacData(msg)); got != want {
+		t.Fatalf("hmacData = %q\nwant      %q", got, want)
+	}
+}
+
+func TestVersion2FramesRoundTrip(t *testing.T) {
+	key, _ := GenerateSharedKey()
+	frame := signedTestFrame(t, key, 7)
+	raw, err := json.Marshal(frame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"v":2`) {
+		t.Fatalf("wire frame must carry its version: %s", raw)
+	}
+	var decoded RemoteMessage
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := VerifyMessage(decoded, key); err != nil || !ok {
+		t.Fatalf("decoded v2 frame must verify: ok=%v err=%v", ok, err)
+	}
+	unsigned, err := NewMessage(MsgAuth, "", "", 1, AuthPayload{Hostname: "h"})
+	if err != nil || unsigned.Version != FrameVersion {
+		t.Fatalf("unsigned frames carry the version too: %+v, %v", unsigned, err)
+	}
+}
+
+// Frames without the current version are refused outright, including ones
+// carrying a valid HMAC in the old undelimited form.
+func TestVerifyMessageRejectsUnsupportedFrameVersions(t *testing.T) {
+	key, _ := GenerateSharedKey()
+	keyBytes, _ := hex.DecodeString(key)
+
+	legacy := *signedTestFrame(t, key, 3)
+	legacy.Version = 0
+	mac := hmac.New(sha256.New, keyBytes)
+	mac.Write(legacyHMACData(&legacy))
+	legacy.HMAC = hex.EncodeToString(mac.Sum(nil))
+	if ok, err := VerifyMessage(legacy, key); ok || !errors.Is(err, ErrUnsupportedFrameVersion) {
+		t.Fatalf("unversioned frame: ok=%v err=%v", ok, err)
+	}
+
+	future := *signedTestFrame(t, key, 4)
+	future.Version = FrameVersion + 1
+	if ok, err := VerifyMessage(future, key); ok || !errors.Is(err, ErrUnsupportedFrameVersion) {
+		t.Fatalf("relabelled frame: ok=%v err=%v", ok, err)
+	}
+
+	if err := SignMessage(&RemoteMessage{Version: 1, Type: MsgAck}, key); !errors.Is(err, ErrUnsupportedFrameVersion) {
+		t.Fatalf("SignMessage must refuse other versions, got %v", err)
+	}
+	unversioned := &RemoteMessage{Type: MsgAck, DeviceID: "d", Nonce: "0123456789abcdef0123456789abcdef"}
+	if err := SignMessage(unversioned, key); err != nil || unversioned.Version != FrameVersion {
+		t.Fatalf("SignMessage signs an unversioned frame as version %d: version=%d err=%v", FrameVersion, unversioned.Version, err)
 	}
 }
 

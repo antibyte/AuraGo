@@ -94,9 +94,9 @@ func (f *handleMessagesFixture) heartbeat(t *testing.T, key string) *RemoteMessa
 	return msg
 }
 
-// hmacData joins Sequence and Nonce without a delimiter, so a captured frame
-// with seq=12 still verifies as seq=1 with nonce "2"+nonce. The supervisor
-// must reject that shifted copy instead of treating it as a fresh nonce.
+// Under the old undelimited HMAC form a captured frame with seq=12 still
+// verified as seq=1 with nonce "2"+nonce. The canonical form makes that copy
+// fail authentication, and unversioned frames are refused outright.
 func TestHandleMessagesRejectsSequenceShiftedNonce(t *testing.T) {
 	f := startHandleMessagesFixture(t)
 	key := f.key
@@ -109,18 +109,21 @@ func TestHandleMessagesRejectsSequenceShiftedNonce(t *testing.T) {
 	shifted := *frame
 	shifted.Sequence = 1
 	shifted.Nonce = "2" + frame.Nonce
-	if ok, err := VerifyMessage(shifted, key); err != nil || !ok {
-		t.Fatalf("shifted frame is expected to keep a valid HMAC (delimiter-free encoding): ok=%v err=%v", ok, err)
+	unversioned, err := NewMessage(MsgHeartbeat, "dev-1", key, 13, HeartbeatPayload{Hostname: "old-agent"})
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	f.send(t, frame)
 	f.expectHeartbeat(t)
 
 	f.send(t, &shifted)
-	f.expectError(t, "replay", "invalid nonce format")
+	f.expectError(t, "invalid_hmac", "")
+	f.send(t, legacySigned(t, unversioned, key))
+	f.expectError(t, "invalid_hmac", "")
 	select {
 	case hb := <-heartbeats:
-		t.Fatalf("shifted frame reached the heartbeat handler: %+v", hb)
+		t.Fatalf("shifted or unversioned frame reached the heartbeat handler: %+v", hb)
 	default:
 	}
 }

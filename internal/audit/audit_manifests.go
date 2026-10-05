@@ -473,6 +473,12 @@ func RemoteLifecycleManifest() []RemoteLifecycleBoundary {
 			TestCoverage: "internal/remote/protocol_test.go:TestEnrollmentLookupHashDoesNotRevealAuthKey; internal/remote/hub_enrollment_security_test.go:TestEnrollmentRequiresAuthKeyNotLookupHash, TestEnrollmentRejectsTokenWithoutVaultKey, TestEnrollmentRejectsFrameWithoutKDF, TestFinalizeEnrollmentRemovesVaultKey, TestCleanExpiredEnrollmentsRemovesOrphanedVaultKeys, TestApproveDeviceVaultFailureCreatesNoToken, TestIssueEnrollmentTokenVaultFailureCreatesNoToken; internal/server/remote_control_handlers_test.go:TestRemoteEnrollmentCreateReturnsOneTimeToken, TestRemoteDownloadTrailerCarriesRawTokenAndStoresLookupHash, TestRemoteEnrollmentCreateFailsWhenMACKeyCannotBeStored; cmd/remote/main_test.go:TestConnectSendsLookupHashAndSignsWithAuthKey",
 		},
 		{
+			Name:         "remote-frame-canonical-hmac",
+			Subsystem:    "internal/remote",
+			Scenario:     "frames carry a version and are signed over a length-prefixed canonical form, so no bytes move across field boundaries (sequence digits into the nonce); agent and supervisor refuse unversioned frames, except that a pre-upgrade agent's enrollment frame is answered with a refusal in the old form it can verify",
+			TestCoverage: "internal/remote/protocol_test.go:TestCanonicalHMACRejectsFieldBoundaryShifts, TestCanonicalHMACEncoding, TestVersion2FramesRoundTrip, TestVerifyMessageRejectsUnsupportedFrameVersions; internal/remote/hub_enrollment_security_test.go:TestHandleEnrollmentRefusesPreUpgradeFrames, TestHandleEnrollmentRejectsSequenceShiftedNonce; internal/remote/hub_result_security_test.go:TestHandleMessagesRejectsSequenceShiftedNonce; cmd/remote/main_test.go:TestReadMessagesDropsUnversionedFrames, TestConnectRejectsUnversionedAuthResponse, TestRejectReplayedFrameRejectsSequenceShiftedNonce",
+		},
+		{
 			Name:         "remote-agent-duplicate-command-id",
 			Subsystem:    "cmd/remote",
 			Scenario:     "a replayed command id returns the cached first result and does not execute side effects twice",

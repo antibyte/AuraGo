@@ -4,6 +4,7 @@ package remote
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -12,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -542,8 +544,8 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 			continue
 		}
 
-		// hmacData has no field delimiters, so only a well-formed nonce stops a
-		// sequence digit shifted into it from minting a fresh replay-cache key.
+		// A cheap sanity check before the replay cache; the canonical HMAC
+		// form already keeps sequence digits out of the nonce.
 		if !ValidNonce(msg.Nonce) {
 			h.logger.Warn("Invalid nonce format", "device_id", conn.DeviceID)
 			if !rejectFrame("replay", "invalid nonce format") {
@@ -688,6 +690,20 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		return fmt.Errorf("invalid auth payload: %w", err)
 	}
 
+	// Unversioned frames come from agents built before the canonical HMAC
+	// form. Nothing in them is verified or accepted. A pre-upgrade enrollment
+	// frame gets a refusal that agent can read; every other one is refused
+	// unsigned and the agent binary must be replaced (an enrolled device keeps
+	// its device key, so the new binary reconnects without re-enrolling).
+	if msg.Version != FrameVersion {
+		if msg.Version < FrameVersion && auth.DeviceID == "" && auth.TokenHash != "" {
+			return h.rejectPreUpgradeEnrollment(wsConn, msg, auth)
+		}
+		h.logger.Warn("Refusing remote auth frame with an unsupported frame version; replace the agent binary",
+			"version", msg.Version, "device_id", auth.DeviceID, "hostname", auth.Hostname)
+		return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "unsupported frame version", nil, nil)
+	}
+
 	// ── Case 1: Reconnection (existing device) ──
 	if auth.DeviceID != "" {
 		device, err := GetDevice(h.db, auth.DeviceID)
@@ -743,7 +759,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 	// signed answer it could not have made itself.
 	if auth.TokenHash != "" {
 		if auth.KDF != EnrollmentKDFVersion {
-			return h.rejectPreUpgradeEnrollment(wsConn, msg.Nonce, auth)
+			return h.rejectPreUpgradeEnrollment(wsConn, msg, auth)
 		}
 		enrollment, err := GetEnrollmentByTokenHash(h.db, auth.TokenHash)
 		if err != nil {
@@ -985,18 +1001,67 @@ func (h *RemoteHub) issueEnrollment(token, deviceName, expiresAt string, alsoInT
 // the lookup-hash/MAC-key split.
 const preUpgradeEnrollmentMessage = "enrollment token predates the upgrade; create a new one"
 
-// rejectPreUpgradeEnrollment answers an enrollment frame without the current
-// KDF. Such an agent sent the plain token hash, which was also its HMAC key,
-// so signing the refusal with that hash is what lets it show the reason. The
-// value is the requester's own and the refusal changes nothing, so the
-// signature proves nothing to anyone; no frame is ever accepted on it.
-func (h *RemoteHub) rejectPreUpgradeEnrollment(wsConn *websocket.Conn, requestNonce string, auth AuthPayload) error {
-	h.logger.Warn("Refusing enrollment from an agent or token that predates the key split", "kdf", auth.KDF)
-	signingKey := auth.TokenHash
-	if _, err := decodeSharedKey(signingKey); err != nil {
-		signingKey = "" // not a usable key: refuse unsigned
+// rejectPreUpgradeEnrollment refuses an enrollment frame from an agent that
+// predates the key split (no kdf 2) or the canonical HMAC form (no version).
+// Nothing in the frame is verified. A pre-upgrade agent sends an unversioned
+// frame and checks the answer in the old form with the plain token hash it
+// sent, so it gets a refusal built that way (legacyEnrollmentRefusal) and can
+// show the reason. A current-version frame without kdf 2 is refused unsigned.
+func (h *RemoteHub) rejectPreUpgradeEnrollment(wsConn *websocket.Conn, msg RemoteMessage, auth AuthPayload) error {
+	h.logger.Warn("Refusing enrollment from an agent or token that predates the upgrade; create a new token and download the agent again",
+		"frame_version", msg.Version, "kdf", auth.KDF, "hostname", auth.Hostname)
+	if msg.Version < FrameVersion {
+		if refusal, err := legacyEnrollmentRefusal(msg.Nonce, auth.TokenHash, h.effectiveMaxFileSizeMB()); err == nil {
+			return wsConn.WriteJSON(refusal)
+		}
 	}
-	return h.sendAuthResponse(wsConn, requestNonce, signingKey, "", "", "rejected", preUpgradeEnrollmentMessage, nil, nil)
+	return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", preUpgradeEnrollmentMessage, nil, nil)
+}
+
+// legacyEnrollmentRefusal is the only frame still signed in the undelimited
+// pre-version-2 form (see hmacData): the refusal for a pre-upgrade agent's
+// enrollment, signed with the plain token hash that agent sent and verifies
+// with. The key is the requester's own value and the frame grants nothing, so
+// the signature proves nothing to anyone; current agents reject unversioned
+// frames outright. It fails if tokenHash is not a usable key.
+func legacyEnrollmentRefusal(requestNonce, tokenHash string, maxFileSizeMB int) (*RemoteMessage, error) {
+	key, err := decodeSharedKey(tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(AuthResponsePayload{
+		Status:        "rejected",
+		Message:       preUpgradeEnrollmentMessage,
+		AllowedPaths:  []string{},
+		MaxFileSizeMB: maxFileSizeMB,
+		RequestNonce:  requestNonce,
+	})
+	if err != nil {
+		return nil, err
+	}
+	nonce, err := GenerateNonce()
+	if err != nil {
+		return nil, err
+	}
+	msg := &RemoteMessage{
+		Type:      MsgAuthResponse,
+		MessageID: fmt.Sprintf("%d", time.Now().UnixNano()),
+		Nonce:     nonce,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Payload:   payload,
+	}
+	mac := hmac.New(sha256.New, key)
+	mac.Write(legacyHMACData(msg))
+	msg.HMAC = hex.EncodeToString(mac.Sum(nil))
+	return msg, nil
+}
+
+// legacyHMACData is the undelimited pre-version-2 HMAC input. It is ambiguous
+// across field boundaries and is used only by legacyEnrollmentRefusal.
+func legacyHMACData(msg *RemoteMessage) []byte {
+	return []byte(msg.Type + msg.DeviceID + msg.MessageID +
+		strconv.FormatUint(msg.Sequence, 10) + msg.Nonce +
+		msg.Timestamp + string(msg.Payload))
 }
 
 // RejectDevice rejects a pending device.

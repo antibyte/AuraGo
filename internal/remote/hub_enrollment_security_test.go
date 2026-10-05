@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -329,8 +330,9 @@ func TestEnrollmentRejectsTokenWithoutVaultKey(t *testing.T) {
 }
 
 // Agents that predate the key split send no kdf field and the plain token hash,
-// signed with that same hash. They get a clear refusal and the token is left
-// alone.
+// signed with that same hash (TestHandleEnrollmentRefusesPreUpgradeFrames
+// covers their unversioned frames). Any enrollment frame without kdf 2 gets a
+// clear refusal and the token is left alone.
 func TestEnrollmentRejectsFrameWithoutKDF(t *testing.T) {
 	hub, db, _ := newEnrollmentTestHub(t)
 	exchange := enrollmentTestSocket(t, hub)
@@ -345,7 +347,7 @@ func TestEnrollmentRejectsFrameWithoutKDF(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, frame := range map[string]*RemoteMessage{"pre-upgrade agent": preUpgrade, "lookup hash without kdf": withoutKDF} {
+	for name, frame := range map[string]*RemoteMessage{"plain token hash without kdf": preUpgrade, "lookup hash without kdf": withoutKDF} {
 		got := exchange(frame)
 		if got.Status != "rejected" || got.Message != "enrollment token predates the upgrade; create a new one" {
 			t.Fatalf("%s: %+v", name, got)
@@ -456,8 +458,9 @@ func TestAuthResponsesEchoRequestNonce(t *testing.T) {
 	}
 }
 
-// shiftSequenceIntoNonce moves the last sequence digit into the nonce. The HMAC
-// still verifies because hmacData joins the two fields without a delimiter.
+// shiftSequenceIntoNonce moves the last sequence digit into the nonce. Under
+// the old undelimited HMAC form the copy still verified; under the canonical
+// form it must not.
 func shiftSequenceIntoNonce(t *testing.T, msg *RemoteMessage, key string) *RemoteMessage {
 	t.Helper()
 	if msg.Sequence != 12 {
@@ -466,10 +469,100 @@ func shiftSequenceIntoNonce(t *testing.T, msg *RemoteMessage, key string) *Remot
 	shifted := *msg
 	shifted.Sequence = 1
 	shifted.Nonce = "2" + msg.Nonce
-	if ok, err := VerifyMessage(shifted, key); err != nil || !ok {
-		t.Fatalf("shifted frame is expected to keep a valid HMAC (delimiter-free encoding): ok=%v err=%v", ok, err)
+	if ok, _ := VerifyMessage(shifted, key); ok {
+		t.Fatal("a sequence digit shifted into the nonce must not keep a valid HMAC")
 	}
 	return &shifted
+}
+
+// legacySigned re-signs msg in the pre-version-2 form, as an agent built before
+// the canonical HMAC form would.
+func legacySigned(t *testing.T, msg *RemoteMessage, key string) *RemoteMessage {
+	t.Helper()
+	keyBytes, err := hex.DecodeString(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := *msg
+	legacy.Version = 0
+	legacy.HMAC = ""
+	mac := hmac.New(sha256.New, keyBytes)
+	mac.Write(legacyHMACData(&legacy))
+	legacy.HMAC = hex.EncodeToString(mac.Sum(nil))
+	return &legacy
+}
+
+func verifiesLegacy(msg RemoteMessage, key string) bool {
+	keyBytes, err := hex.DecodeString(key)
+	if err != nil || msg.HMAC == "" {
+		return false
+	}
+	expected := msg.HMAC
+	msg.HMAC = ""
+	mac := hmac.New(sha256.New, keyBytes)
+	mac.Write(legacyHMACData(&msg))
+	return hmac.Equal([]byte(expected), []byte(hex.EncodeToString(mac.Sum(nil))))
+}
+
+// Agents built before the canonical HMAC form send unversioned frames. Only
+// their enrollment frame is still answered specifically: with a refusal in the
+// old form, signed with the plain token hash that agent verifies with, so it can
+// show the reason. Every other unversioned frame is refused unsigned.
+func TestHandleEnrollmentRefusesPreUpgradeFrames(t *testing.T) {
+	hub, db, _ := newEnrollmentTestHub(t)
+	exchange := enrollmentExchange(t, hub)
+	token := "fresh-admin-token"
+	id := issueTestEnrollment(t, hub, token)
+
+	plainHash := plainSHA256Hex(token)
+	oldEnroll, err := NewMessage(MsgAuth, "", plainHash, 1, AuthPayload{TokenHash: plainHash, Hostname: "old-agent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldEnroll = legacySigned(t, oldEnroll, plainHash)
+	response, refused := exchange(oldEnroll)
+	if refused.Status != "rejected" || refused.Message != preUpgradeEnrollmentMessage || refused.RequestNonce != oldEnroll.Nonce {
+		t.Fatalf("pre-upgrade enrollment = %+v", refused)
+	}
+	if response.Version != 0 || !verifiesLegacy(response, plainHash) || !ValidNonce(response.Nonce) || ValidateTimestamp(response.Timestamp) != nil {
+		t.Fatalf("the refusal must be a fresh frame an old agent can verify: %+v", response)
+	}
+	if ok, _ := VerifyMessage(response, plainHash); ok {
+		t.Fatal("the legacy refusal must not pass current verification")
+	}
+	assertEnrollmentUnused(t, db, token, id)
+	assertNoDevices(t, db)
+
+	// A current frame enrolls; its device then reconnects with an old frame.
+	_, enrolled := exchange(enrollmentFrame(t, token, 2))
+	if enrolled.Status != "enrolled" {
+		t.Fatalf("current enrollment = %+v", enrolled)
+	}
+	hub.Unregister(enrolled.DeviceID)
+	oldReconnect, err := NewMessage(MsgAuth, enrolled.DeviceID, enrolled.SharedKey, 3, AuthPayload{DeviceID: enrolled.DeviceID, Hostname: "old-agent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, refused = exchange(legacySigned(t, oldReconnect, enrolled.SharedKey))
+	if refused.Status != "rejected" || refused.Message != "unsupported frame version" || response.HMAC != "" {
+		t.Fatalf("unversioned reconnect = %+v (hmac %q)", refused, response.HMAC)
+	}
+	if hub.IsConnected(enrolled.DeviceID) {
+		t.Fatal("an unversioned reconnect must not register a connection")
+	}
+
+	oldKnock, err := NewMessage(MsgAuth, "", "", 4, AuthPayload{Hostname: "old-knock"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldKnock.Version = 0
+	if _, refused = exchange(oldKnock); refused.Status != "rejected" || refused.Message != "unsupported frame version" {
+		t.Fatalf("unversioned tokenless knock = %+v", refused)
+	}
+	var pending int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM remote_devices WHERE status='pending'`).Scan(&pending); err != nil || pending != 0 {
+		t.Fatalf("an unversioned knock must not create a pending device: %d, %v", pending, err)
+	}
 }
 
 func TestHandleEnrollmentRejectsSequenceShiftedNonce(t *testing.T) {

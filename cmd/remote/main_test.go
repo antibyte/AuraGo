@@ -693,9 +693,9 @@ func TestRejectReplayedFrameChecksDeviceTimestampAndNonce(t *testing.T) {
 	}
 }
 
-// hmacData joins Sequence and Nonce without a delimiter, so a captured frame
-// with seq=12 still verifies as seq=1 with nonce "2"+nonce. The fixed nonce
-// format is what keeps that shifted copy out of the replay cache.
+// Under the old undelimited HMAC form a captured frame with seq=12 still
+// verified as seq=1 with nonce "2"+nonce. The canonical form makes that copy
+// fail verification; the nonce format check stays as a second line.
 func TestRejectReplayedFrameRejectsSequenceShiftedNonce(t *testing.T) {
 	key := strings.Repeat("ab", 32)
 	client := &Client{cfg: clientConfig{DeviceID: "dev-1", SharedKey: key}, logger: slog.Default()}
@@ -710,8 +710,8 @@ func TestRejectReplayedFrameRejectsSequenceShiftedNonce(t *testing.T) {
 	shifted := *frame
 	shifted.Sequence = 1
 	shifted.Nonce = "2" + frame.Nonce
-	if ok, err := remote.VerifyMessage(shifted, key); err != nil || !ok {
-		t.Fatalf("shifted frame is expected to keep a valid HMAC (delimiter-free encoding): ok=%v err=%v", ok, err)
+	if ok, _ := remote.VerifyMessage(shifted, key); ok {
+		t.Fatal("a sequence digit shifted into the nonce must not keep a valid HMAC")
 	}
 	if reason := client.rejectReplayedFrame(shifted); reason != "invalid nonce format" {
 		t.Fatalf("shifted frame must be rejected for its nonce format, got %q", reason)
@@ -890,12 +890,76 @@ func readMessagesDispatched(t *testing.T, client *Client) []remote.RemoteMessage
 
 // hmacWithRawKey computes a frame's HMAC the way remote.SignMessage does, but
 // with a raw key, so tests can build the empty-key signature SignMessage now
-// refuses to produce.
+// refuses to produce. It mirrors the version 2 canonical form: every field as
+// <decimal length>:<bytes>.
 func hmacWithRawKey(frame remote.RemoteMessage, key []byte) string {
+	var data strings.Builder
+	for _, field := range []string{
+		strconv.Itoa(frame.Version), frame.Type, frame.DeviceID, frame.MessageID,
+		strconv.FormatUint(frame.Sequence, 10), frame.Nonce, frame.Timestamp, string(frame.Payload),
+	} {
+		data.WriteString(strconv.Itoa(len(field)) + ":" + field)
+	}
 	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte(frame.Type + frame.DeviceID + frame.MessageID +
-		strconv.FormatUint(frame.Sequence, 10) + frame.Nonce + frame.Timestamp + string(frame.Payload)))
+	mac.Write([]byte(data.String()))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// legacySignedFrame re-signs frame in the pre-version-2 undelimited form, as a
+// supervisor built before the canonical HMAC form would.
+func legacySignedFrame(t *testing.T, frame *remote.RemoteMessage, keyHex string) *remote.RemoteMessage {
+	t.Helper()
+	key, err := hex.DecodeString(keyHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := *frame
+	legacy.Version = 0
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(legacy.Type + legacy.DeviceID + legacy.MessageID +
+		strconv.FormatUint(legacy.Sequence, 10) + legacy.Nonce + legacy.Timestamp + string(legacy.Payload)))
+	legacy.HMAC = hex.EncodeToString(mac.Sum(nil))
+	return &legacy
+}
+
+// A frame correctly signed in the old undelimited form is not trusted: the
+// agent only verifies the current frame version.
+func TestReadMessagesDropsUnversionedFrames(t *testing.T) {
+	isolateRemoteHome(t)
+	sharedKey := strings.Repeat("ab", 32)
+	current, err := remote.NewMessage(remote.MsgCommand, "dev-1", sharedKey, 1, remote.CommandPayload{CommandID: "cmd-current"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, err := remote.NewMessage(remote.MsgCommand, "dev-1", sharedKey, 2, remote.CommandPayload{CommandID: "cmd-old"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newConnectTestClient(t, clientConfig{DeviceID: "dev-1", SharedKey: sharedKey})
+	client.conn = dialFrameSupervisor(t, legacySignedFrame(t, old, sharedKey), current)
+
+	dispatched := readMessagesDispatched(t, client)
+	if len(dispatched) != 1 || dispatched[0].Nonce != current.Nonce {
+		t.Fatalf("only the current-version frame may be dispatched, got %d frames", len(dispatched))
+	}
+}
+
+// An agent talking to a supervisor that predates the canonical form fails to
+// connect instead of trusting an answer in the old form.
+func TestConnectRejectsUnversionedAuthResponse(t *testing.T) {
+	isolateRemoteHome(t)
+	key := strings.Repeat("ab", 32)
+	bound := boundAuthResponse(t, key, looseAuthenticatedPayload())
+	url, _ := startScriptedSupervisor(t, func(auth remote.RemoteMessage) *remote.RemoteMessage {
+		return legacySignedFrame(t, bound(auth), key)
+	})
+	client := newRestrictedReconnectClient(t, url, key)
+
+	err := client.connect()
+	if err == nil || !strings.Contains(err.Error(), "unsupported frame version") {
+		t.Fatalf("expected the unversioned auth response to be rejected, got %v", err)
+	}
+	assertRestrictedSettingsKept(t, client)
 }
 
 func TestReadMessagesFailsClosedWithoutSharedKey(t *testing.T) {

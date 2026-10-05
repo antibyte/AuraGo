@@ -1329,6 +1329,7 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 		"remote-agent-frame-replay-guard",
 		"remote-enrollment-key-split",
 		"remote-auth-response-binding",
+		"remote-frame-canonical-hmac",
 		"remote-agent-duplicate-command-id",
 		"remote-file-allowed-paths",
 		"invasion-artifact-integrity",
@@ -1380,9 +1381,14 @@ func TestRemoteLifecycleManifestCoversReplayAndArtifactScenarios(t *testing.T) {
 	if !strings.Contains(agentSource, "auth response not bound to this request") {
 		t.Fatal("remote agent must refuse auth responses not bound to its auth frame")
 	}
+	// Only the current frame version verifies.
+	protocolSource := readRepoFile(t, "internal/remote/protocol.go")
+	if !strings.Contains(protocolSource, "msg.Version != FrameVersion") {
+		t.Fatal("remote protocol must refuse frames of other versions")
+	}
 	for _, entry := range RemoteLifecycleManifest() {
 		switch entry.Name {
-		case "remote-enrollment-key-split", "remote-auth-response-binding":
+		case "remote-enrollment-key-split", "remote-auth-response-binding", "remote-frame-canonical-hmac":
 			assertRemoteManifestTestsExist(t, entry)
 		}
 	}

@@ -9,7 +9,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -85,8 +87,16 @@ func ReadOnlySafe(op string) bool {
 
 // ── Wire message ────────────────────────────────────────────────────────────
 
+// FrameVersion is the RemoteMessage wire version NewMessage emits and the only
+// one SignMessage and VerifyMessage accept; see hmacData.
+const FrameVersion = 2
+
+// ErrUnsupportedFrameVersion reports a frame whose Version is not FrameVersion.
+var ErrUnsupportedFrameVersion = errors.New("unsupported frame version")
+
 // RemoteMessage is the wire format for all supervisor↔remote communication.
 type RemoteMessage struct {
+	Version   int             `json:"v,omitempty"` // FrameVersion; selects the HMAC form
 	Type      string          `json:"type"`
 	DeviceID  string          `json:"device_id"`
 	MessageID string          `json:"msg_id"`            // UUID for dedup/ack correlation
@@ -197,21 +207,39 @@ type ErrorPayload struct {
 
 // ── HMAC signing ────────────────────────────────────────────────────────────
 
-// hmacData builds the canonical string for HMAC computation.
+// hmacData builds the canonical byte string the HMAC covers (FrameVersion 2).
 //
-// The fields are concatenated without delimiters, so on its own the encoding is
-// ambiguous: a frame signed with sequence 12 and nonce N also verifies as
-// sequence 1 with nonce "2"+N. What keeps it unambiguous today are the
-// receivers' checks: ValidNonce pins the nonce to exactly 32 hex characters, so
-// nothing moves across either nonce boundary; the RFC3339 timestamp parse and
-// the JSON payload reject characters moved across the timestamp boundary; any
-// other shift leaves the nonce unchanged for the replay cache to catch. The
-// long-term fix is a delimited canonical form; that is a wire change and must
-// ship on the agent and the supervisor together.
-func hmacData(msg *RemoteMessage) string {
-	return msg.Type + msg.DeviceID + msg.MessageID +
-		fmt.Sprintf("%d", msg.Sequence) + msg.Nonce +
-		msg.Timestamp + string(msg.Payload)
+// Each field is written as <decimal byte length>:<bytes>, with no separator
+// between fields, in this order: version (decimal), type, device_id, msg_id,
+// seq (decimal), nonce, ts, payload (raw JSON bytes). A reader takes digits up
+// to the colon and then exactly that many bytes, so every byte string decodes
+// to one field list: nothing can move across a field boundary. The version is
+// covered too, so a frame cannot be relabelled.
+//
+// Frames without a version used the undelimited concatenation of the same
+// fields minus the version. That form was ambiguous (sequence 12 with nonce N
+// also verified as sequence 1 with nonce "2"+N) and is no longer verified
+// anywhere. Its only remaining use is legacyEnrollmentRefusal in hub.go: the
+// supervisor answers a pre-upgrade agent's enrollment frame, which it never
+// verifies, with a refusal that agent can check. Agent and supervisor ship
+// together (agents are downloaded from the supervisor), so that is the whole
+// compatibility window.
+func hmacData(msg *RemoteMessage) []byte {
+	var b []byte
+	field := func(s string) {
+		b = strconv.AppendInt(b, int64(len(s)), 10)
+		b = append(b, ':')
+		b = append(b, s...)
+	}
+	field(strconv.Itoa(msg.Version))
+	field(msg.Type)
+	field(msg.DeviceID)
+	field(msg.MessageID)
+	field(strconv.FormatUint(msg.Sequence, 10))
+	field(msg.Nonce)
+	field(msg.Timestamp)
+	field(string(msg.Payload))
+	return b
 }
 
 // decodeSharedKey decodes a hex HMAC key. hex.DecodeString("") succeeds with a
@@ -228,29 +256,40 @@ func decodeSharedKey(sharedKeyHex string) ([]byte, error) {
 	return key, nil
 }
 
-// SignMessage computes and sets the HMAC field on a RemoteMessage.
+// SignMessage computes and sets the HMAC field on a RemoteMessage. A frame
+// without a version is signed as FrameVersion; any other version is refused.
 func SignMessage(msg *RemoteMessage, sharedKeyHex string) error {
 	key, err := decodeSharedKey(sharedKeyHex)
 	if err != nil {
 		return err
 	}
+	if msg.Version == 0 {
+		msg.Version = FrameVersion
+	}
+	if msg.Version != FrameVersion {
+		return fmt.Errorf("%w %d", ErrUnsupportedFrameVersion, msg.Version)
+	}
 	msg.HMAC = "" // clear before signing
 	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte(hmacData(msg)))
+	mac.Write(hmacData(msg))
 	msg.HMAC = hex.EncodeToString(mac.Sum(nil))
 	return nil
 }
 
-// VerifyMessage checks the HMAC signature of a RemoteMessage.
+// VerifyMessage checks the HMAC signature of a RemoteMessage. Only FrameVersion
+// frames can verify; others return ErrUnsupportedFrameVersion.
 func VerifyMessage(msg RemoteMessage, sharedKeyHex string) (bool, error) {
 	key, err := decodeSharedKey(sharedKeyHex)
 	if err != nil {
 		return false, err
 	}
+	if msg.Version != FrameVersion {
+		return false, fmt.Errorf("%w %d", ErrUnsupportedFrameVersion, msg.Version)
+	}
 	expected := msg.HMAC
 	msg.HMAC = ""
 	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte(hmacData(&msg)))
+	mac.Write(hmacData(&msg))
 	computed := hex.EncodeToString(mac.Sum(nil))
 	return hmac.Equal([]byte(expected), []byte(computed)), nil
 }
@@ -270,8 +309,9 @@ func GenerateNonce() (string, error) {
 const nonceHexLen = 32
 
 // ValidNonce reports whether nonce has the exact GenerateNonce format: 32
-// lowercase hex characters. Receivers must check it before consulting the
-// replay cache, because hmacData lets sequence digits shift into the nonce.
+// lowercase hex characters. Receivers check it before consulting the replay
+// cache. The canonical HMAC form already keeps sequence digits out of the
+// nonce; this cheap check keeps odd values out of the cache regardless.
 func ValidNonce(nonce string) bool {
 	if len(nonce) != nonceHexLen {
 		return false
@@ -303,6 +343,7 @@ func NewMessage(msgType, deviceID, sharedKeyHex string, seq uint64, payload inte
 	}
 
 	msg := &RemoteMessage{
+		Version:   FrameVersion,
 		Type:      msgType,
 		DeviceID:  deviceID,
 		MessageID: fmt.Sprintf("%d", time.Now().UnixNano()),
