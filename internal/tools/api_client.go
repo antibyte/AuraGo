@@ -145,18 +145,23 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 	})
 }
 
-// apiRedirectKeptHeaders are the caller's headers api_request keeps on a redirect to another
-// origin. Every other header the caller set (Authorization, API keys, cookies, custom auth
-// headers) is dropped there, so a redirect cannot carry credentials to a host they were not
-// meant for.
+// apiRedirectKeptHeaders are the caller's headers api_request keeps on a redirect that
+// apiRedirectKeepsHeaders refuses. Every other header the caller set (Authorization, API
+// keys, cookies, custom auth headers) is dropped there, so a redirect cannot carry
+// credentials to a host they were not meant for.
 var apiRedirectKeptHeaders = map[string]bool{"Accept": true, "Content-Type": true, "User-Agent": true}
 
 // apiRequestClient returns base with a redirect policy that strips the caller's headers
-// (except apiRedirectKeptHeaders) as soon as a redirect leaves the origin (scheme, host and
-// port) of the first request, and keeps them stripped for the rest of the chain. net/http
-// copies the first request's headers to every redirect and drops only Authorization and
-// cookies, and only for another domain; a custom header such as X-API-Key would follow.
-// base's own redirect policy (the SSRF checks) still runs for every hop.
+// (except apiRedirectKeptHeaders) as soon as a hop fails apiRedirectKeepsHeaders against the
+// first request, and keeps them stripped for the rest of the chain. net/http copies the
+// first request's headers to every redirect and drops only Authorization and cookies, and
+// only for another domain; a custom header such as X-API-Key would follow, and Authorization
+// follows a port change or an https→http downgrade on the same host. base's own redirect
+// policy (the SSRF checks) still runs for every hop.
+//
+// A 307 or 308 redirect re-sends the request body to the new location, also when the headers
+// are stripped; a body that carries a credential goes with it. That is net/http's behaviour
+// and is left as it is.
 func apiRequestClient(base *http.Client, headers map[string]string) *http.Client {
 	if len(headers) == 0 {
 		return base
@@ -165,7 +170,7 @@ func apiRequestClient(base *http.Client, headers map[string]string) *http.Client
 	next := base.CheckRedirect
 	left := false
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if len(via) > 0 && !sameAPIOrigin(via[0].URL, req.URL) {
+		if len(via) > 0 && !apiRedirectKeepsHeaders(via[0].URL, req.URL) {
 			left = true
 		}
 		if left {
@@ -189,10 +194,23 @@ func apiRequestClient(base *http.Client, headers map[string]string) *http.Client
 	return &client
 }
 
-// sameAPIOrigin reports whether a and b have the same scheme, host and port.
-func sameAPIOrigin(a, b *url.URL) bool {
-	return a != nil && b != nil && strings.EqualFold(a.Scheme, b.Scheme) &&
-		strings.EqualFold(a.Hostname(), b.Hostname()) && normalizedURLPort(a) == normalizedURLPort(b)
+// apiRedirectKeepsHeaders reports whether a redirect from the first request's URL to next
+// may keep the caller's headers. The hostname must be equal (case-insensitive; a subdomain
+// is another host), and either scheme and effective port stay the same, or the redirect is
+// the upgrade from http on port 80 to https on port 443. The upgrade is safe to allow: the
+// headers already crossed the network in clear text on the first hop, and the upgraded hop
+// sends them to the same host encrypted. Every other change (a downgrade to http, another
+// port, another host) strips them.
+func apiRedirectKeepsHeaders(first, next *url.URL) bool {
+	if first == nil || next == nil || !strings.EqualFold(first.Hostname(), next.Hostname()) {
+		return false
+	}
+	fromScheme, toScheme := strings.ToLower(first.Scheme), strings.ToLower(next.Scheme)
+	fromPort, toPort := normalizedURLPort(first), normalizedURLPort(next)
+	if fromScheme == toScheme && fromPort == toPort {
+		return true
+	}
+	return fromScheme == "http" && fromPort == "80" && toScheme == "https" && toPort == "443"
 }
 
 func isAllowedLocalOllamaRequest(rawURL, baseURL string) bool {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"testing"
 )
@@ -94,6 +95,46 @@ func TestAPIRequestRedirectToAnotherOriginDropsCallerHeaders(t *testing.T) {
 	}
 	if same := origin.last(t); same.Get("Authorization") != "Bearer c13-secret" || same.Get("X-Api-Key") != "c13-key" || same.Get("X-Custom-Auth") != "c13-custom" {
 		t.Errorf("a same-origin redirect lost the caller's headers: %v", same)
+	}
+}
+
+// 1c-13 review I3: which redirects keep the caller's headers.
+func TestAPIRedirectKeepsHeadersRule(t *testing.T) {
+	cases := []struct {
+		from, to string
+		keep     bool
+	}{
+		{"https://api.example.com/a", "https://api.example.com/b", true},
+		{"https://API.example.com/a", "https://api.EXAMPLE.com:443/b", true},
+		{"http://api.example.com/a", "http://api.example.com:80/b", true},
+		{"http://api.example.com:8080/a", "http://api.example.com:8080/b", true},
+		{"http://api.example.com/a", "https://api.example.com/b", true},        // upgrade 80 → 443
+		{"http://api.example.com:80/a", "https://api.example.com:443/b", true}, // upgrade, ports written out
+		{"https://api.example.com/a", "http://api.example.com/b", false},       // downgrade
+		{"http://api.example.com:8080/a", "https://api.example.com/b", false},  // upgrade from another port
+		{"http://api.example.com/a", "https://api.example.com:8443/b", false},  // upgrade to another port
+		{"https://api.example.com/a", "https://api.example.com:8443/b", false},
+		{"http://127.0.0.1:1000/a", "http://127.0.0.1:2000/b", false},
+		{"https://example.com/a", "https://api.example.com/b", false}, // subdomain
+		{"https://api.example.com/a", "https://example.com/b", false}, // parent domain
+		{"https://api.example.com/a", "https://evil.example/b", false},
+		{"https://api.example.com/a", "ftp://api.example.com/b", false},
+	}
+	for _, c := range cases {
+		from, err := url.Parse(c.from)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := url.Parse(c.to)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := apiRedirectKeepsHeaders(from, to); got != c.keep {
+			t.Errorf("%s → %s: keep = %v, want %v", c.from, c.to, got, c.keep)
+		}
+	}
+	if apiRedirectKeepsHeaders(nil, &url.URL{}) || apiRedirectKeepsHeaders(&url.URL{}, nil) {
+		t.Error("a missing URL keeps the headers")
 	}
 }
 
