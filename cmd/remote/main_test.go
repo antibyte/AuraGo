@@ -308,6 +308,128 @@ func TestLoadConfigKeepsStoredDeviceWithSharedKey(t *testing.T) {
 	}
 }
 
+func TestRejectReplayedFrameChecksDeviceTimestampAndNonce(t *testing.T) {
+	client := &Client{cfg: clientConfig{DeviceID: "dev-1", SharedKey: strings.Repeat("ab", 32)}, logger: slog.Default()}
+	fresh, _ := remote.NewMessage(remote.MsgCommand, "dev-1", client.cfg.SharedKey, 1, map[string]string{"cmd_id": "x"})
+
+	if reason := client.rejectReplayedFrame(*fresh); reason != "" {
+		t.Fatalf("fresh frame must pass, got %q", reason)
+	}
+	if reason := client.rejectReplayedFrame(*fresh); reason == "" {
+		t.Fatal("identical nonce must be rejected as a replay")
+	}
+
+	foreign := *fresh
+	foreign.DeviceID = "dev-2"
+	foreign.Nonce = "0123456789abcdef0123456789abcdef"
+	if reason := client.rejectReplayedFrame(foreign); reason == "" {
+		t.Fatal("frame for another device must be rejected")
+	}
+
+	stale := *fresh
+	stale.Nonce = "fedcba9876543210fedcba9876543210"
+	stale.Timestamp = time.Now().Add(-remote.MaxTimestampDrift - time.Minute).UTC().Format(time.RFC3339)
+	if reason := client.rejectReplayedFrame(stale); reason == "" {
+		t.Fatal("stale frame must be rejected")
+	}
+}
+
+// dialFrameSupervisor returns an agent-side connection to a fake supervisor
+// that writes frames as soon as the agent connects and then closes normally.
+func dialFrameSupervisor(t *testing.T, frames ...*remote.RemoteMessage) *websocket.Conn {
+	t.Helper()
+	upgrader := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for _, frame := range frames {
+			if err := conn.WriteJSON(frame); err != nil {
+				return
+			}
+		}
+		_ = conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		_, _, _ = conn.ReadMessage()
+	}))
+	t.Cleanup(srv.Close)
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	if err != nil {
+		t.Fatalf("dial fake supervisor: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	return conn
+}
+
+// readMessagesDispatched runs the client's read loop until the fake supervisor
+// hangs up and returns the frames that reached handleMessage. The hook keeps
+// the frames from executing, so no command, config update or revoke runs.
+func readMessagesDispatched(t *testing.T, client *Client) []remote.RemoteMessage {
+	t.Helper()
+	var mu sync.Mutex
+	var dispatched []remote.RemoteMessage
+	prev := handleMessageHook
+	handleMessageHook = func(msg remote.RemoteMessage) {
+		mu.Lock()
+		dispatched = append(dispatched, msg)
+		mu.Unlock()
+	}
+	t.Cleanup(func() { handleMessageHook = prev })
+
+	finished := make(chan struct{})
+	go func() {
+		client.readMessages()
+		close(finished)
+	}()
+	select {
+	case <-finished:
+	case <-time.After(10 * time.Second):
+		t.Fatal("readMessages did not return after the supervisor closed the connection")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	return append([]remote.RemoteMessage(nil), dispatched...)
+}
+
+func TestReadMessagesFailsClosedWithoutSharedKey(t *testing.T) {
+	isolateRemoteHome(t)
+	unsigned, err := remote.NewMessage(remote.MsgCommand, "dev-1", "", 1, remote.CommandPayload{CommandID: "cmd-unsigned"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newConnectTestClient(t, clientConfig{DeviceID: "dev-1"})
+	client.conn = dialFrameSupervisor(t, unsigned)
+
+	if dispatched := readMessagesDispatched(t, client); len(dispatched) != 0 {
+		t.Fatalf("frames must not be dispatched without a device shared key, got %d", len(dispatched))
+	}
+}
+
+func TestReadMessagesDispatchesSignedFrameOnceAndDropsReplay(t *testing.T) {
+	isolateRemoteHome(t)
+	sharedKey := strings.Repeat("ab", 32)
+	signed, err := remote.NewMessage(remote.MsgCommand, "dev-1", sharedKey, 1, remote.CommandPayload{CommandID: "cmd-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	forged, err := remote.NewMessage(remote.MsgCommand, "dev-1", strings.Repeat("cd", 32), 2, remote.CommandPayload{CommandID: "cmd-forged"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newConnectTestClient(t, clientConfig{DeviceID: "dev-1", SharedKey: sharedKey})
+	client.conn = dialFrameSupervisor(t, signed, forged, signed)
+
+	dispatched := readMessagesDispatched(t, client)
+	if len(dispatched) != 1 {
+		t.Fatalf("expected exactly one dispatched frame (fresh signed), got %d", len(dispatched))
+	}
+	if dispatched[0].Nonce != signed.Nonce {
+		t.Fatalf("dispatched the wrong frame: %+v", dispatched[0])
+	}
+}
+
 func TestStatusOutput(t *testing.T) {
 	tests := []struct {
 		name    string

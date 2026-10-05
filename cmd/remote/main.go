@@ -309,11 +309,20 @@ type Client struct {
 	// executor handles command execution
 	executor *Executor
 
+	// replay holds supervisor frame nonces across reconnects; see rejectReplayedFrame.
+	replay       *remote.NonceReplayCache
+	replayOnce   sync.Once
+	logNoKeyOnce sync.Once
+
 	// State
 	readOnly     bool
 	allowedPaths []string
 	stateMu      sync.RWMutex
 }
+
+// handleMessageHook lets tests observe which frames pass the read-loop checks
+// without executing them. It is nil in production.
+var handleMessageHook func(remote.RemoteMessage)
 
 func (c *Client) nextSeq() uint64 {
 	c.seqMu.Lock()
@@ -548,17 +557,48 @@ func (c *Client) readMessages() {
 			continue
 		}
 
-		// Verify HMAC if we have a shared key
-		if c.cfg.SharedKey != "" {
-			ok, err := remote.VerifyMessage(msg, c.cfg.SharedKey)
-			if err != nil || !ok {
-				c.logger.Warn("HMAC verification failed, ignoring message")
-				continue
-			}
+		if c.cfg.SharedKey == "" {
+			// Fail closed: without a device key nothing from the supervisor can be
+			// trusted. C8 guarantees connect() never reaches this loop without one.
+			c.logNoKeyOnce.Do(func() {
+				c.logger.Warn("no device shared key; ignoring supervisor frames until enrolled")
+			})
+			continue
+		}
+		ok, err := remote.VerifyMessage(msg, c.cfg.SharedKey)
+		if err != nil || !ok {
+			c.logger.Warn("HMAC verification failed, ignoring message")
+			continue
+		}
+		if reason := c.rejectReplayedFrame(msg); reason != "" {
+			c.logger.Warn("Discarding frame", "type", msg.Type, "reason", reason)
+			continue
 		}
 
 		c.handleMessage(msg)
 	}
+}
+
+// rejectReplayedFrame mirrors the supervisor's checks for frames the agent
+// receives after HMAC verification: device binding, timestamp window and a
+// per-nonce replay cache kept across reconnects. It returns the rejection
+// reason or "" when the frame is fresh.
+func (c *Client) rejectReplayedFrame(msg remote.RemoteMessage) string {
+	if msg.DeviceID != "" && c.cfg.DeviceID != "" && msg.DeviceID != c.cfg.DeviceID {
+		return "device_id mismatch"
+	}
+	if err := remote.ValidateTimestamp(msg.Timestamp); err != nil {
+		return err.Error()
+	}
+	c.replayOnce.Do(func() {
+		if c.replay == nil {
+			c.replay = remote.NewNonceReplayCache(remote.MaxTimestampDrift, 10000)
+		}
+	})
+	if c.replay.Seen(c.cfg.DeviceID, msg.Nonce, time.Now()) {
+		return "nonce missing or replayed"
+	}
+	return ""
 }
 
 func (c *Client) currentConn() *websocket.Conn {
@@ -577,6 +617,10 @@ func (c *Client) clearConnection(conn *websocket.Conn) {
 }
 
 func (c *Client) handleMessage(msg remote.RemoteMessage) {
+	if hook := handleMessageHook; hook != nil {
+		hook(msg)
+		return
+	}
 	switch msg.Type {
 	case remote.MsgCommand:
 		go c.handleCommand(msg)

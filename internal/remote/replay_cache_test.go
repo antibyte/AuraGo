@@ -30,6 +30,24 @@ func TestNonceReplayCacheAllowsReuseAfterExpiry(t *testing.T) {
 	}
 }
 
+func TestNonceReplayCacheExportedWrapperMatchesSupervisorCache(t *testing.T) {
+	cache := NewNonceReplayCache(2*time.Minute, 10)
+	now := time.Now().UTC()
+
+	if cache.Seen("dev-1", "nonce-1", now) {
+		t.Fatal("first nonce use should not be treated as replay")
+	}
+	if !cache.Seen("dev-1", "nonce-1", now.Add(time.Minute)) {
+		t.Fatal("second nonce use within ttl should be treated as replay")
+	}
+	if cache.Seen("dev-1", "nonce-1", now.Add(3*time.Minute)) {
+		t.Fatal("nonce should be accepted again after expiry")
+	}
+	if !cache.Seen("", "nonce-2", now) || !cache.Seen("dev-1", "", now) {
+		t.Fatal("empty device id or nonce must always be treated as seen")
+	}
+}
+
 func TestIsTrustedAutoApproveRemoteAddr(t *testing.T) {
 	tests := []struct {
 		name string

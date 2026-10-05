@@ -455,6 +455,12 @@ func RemoteLifecycleManifest() []RemoteLifecycleBoundary {
 			TestCoverage: "internal/remote/replay_cache_test.go",
 		},
 		{
+			Name:         "remote-agent-frame-replay-guard",
+			Subsystem:    "cmd/remote",
+			Scenario:     "the agent drops supervisor frames for another device, outside the timestamp window or with a replayed nonce, and ignores all frames without a device shared key",
+			TestCoverage: "cmd/remote/main_test.go:TestRejectReplayedFrameChecksDeviceTimestampAndNonce, TestReadMessagesFailsClosedWithoutSharedKey, TestReadMessagesDispatchesSignedFrameOnceAndDropsReplay",
+		},
+		{
 			Name:         "remote-agent-duplicate-command-id",
 			Subsystem:    "cmd/remote",
 			Scenario:     "a replayed command id returns the cached first result and does not execute side effects twice",

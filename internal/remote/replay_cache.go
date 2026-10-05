@@ -1,5 +1,3 @@
-//go:build !remote_minimal
-
 package remote
 
 import (
@@ -78,4 +76,18 @@ func (c *nonceReplayCache) evictOldestLocked() {
 
 func replayCacheKey(deviceID, nonce string) string {
 	return fmt.Sprintf("%s:%s", deviceID, nonce)
+}
+
+// NonceReplayCache is the exported form for the remote agent, which must apply
+// the same per-connection replay window as the supervisor.
+type NonceReplayCache struct{ inner *nonceReplayCache }
+
+func NewNonceReplayCache(ttl time.Duration, maxEntries int) *NonceReplayCache {
+	return &NonceReplayCache{inner: newNonceReplayCache(ttl, maxEntries)}
+}
+
+// Seen records the nonce and reports whether it was already seen within the TTL.
+// Empty device IDs or nonces are always reported as seen.
+func (c *NonceReplayCache) Seen(deviceID, nonce string, now time.Time) bool {
+	return c.inner.Seen(deviceID, nonce, now)
 }
