@@ -309,6 +309,22 @@ func c07FlowCronJobs(cronMgr *CronManager, missionID string) int {
 	return n
 }
 
+// c07StopAndDrain ends a test that runs prompt missions through the queue, so no callback
+// writes into the test directory while t.TempDir removes it. It closes the cron manager (no
+// new triggers), waits until the queue has no item and no running mission (every dispatched
+// callback has then called callbacks.Add before OnMissionComplete released the queue), stops
+// the manager and waits for the callbacks to return. CronManager.Close is idempotent.
+func c07StopAndDrain(t *testing.T, cronMgr *CronManager, mm *MissionManagerV2, callbacks *sync.WaitGroup) {
+	t.Helper()
+	_ = cronMgr.Close()
+	c07Await(t, "the mission queue to drain", func() bool {
+		queue, running := mm.GetQueue()
+		return len(queue.List()) == 0 && running == ""
+	})
+	mm.Stop()
+	callbacks.Wait()
+}
+
 func c07CronJob(cronMgr *CronManager, id string) (CronJob, bool) {
 	for _, job := range cronMgr.GetJobs() {
 		if job.ID == id {
@@ -331,15 +347,18 @@ func c07CronEntry(cronMgr *CronManager, id string) int {
 func TestFlowCronJobsNeverCapturePromptMissionJobs(t *testing.T) {
 	dir := tempSystemTaskDir(t)
 	cronMgr := NewCronManager(dir)
-	t.Cleanup(func() { _ = cronMgr.Close() })
 	mm := NewMissionManagerV2(dir, cronMgr)
 	hooks := newFakeFlowHooks()
 	mm.SetFlowHooks(hooks)
 	prompts := make(chan string, 8)
+	var callbacks sync.WaitGroup
 	mm.SetCallback(func(_ string, missionID string) {
+		callbacks.Add(1)
+		defer callbacks.Done()
 		prompts <- missionID
 		mm.OnMissionComplete(missionID, MissionResultSuccess, "ok")
 	})
+	t.Cleanup(func() { c07StopAndDrain(t, cronMgr, mm, &callbacks) })
 	flowID := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"})
 	// An ordinary id, one with "__" whose head is no mission, one whose head is the flow mission.
 	promptIDs := []string{"mission_plain", "mission_a__b", flowID + flowCronSeparator + "n_bbbbbbbb"}
@@ -351,7 +370,6 @@ func TestFlowCronJobsNeverCapturePromptMissionJobs(t *testing.T) {
 	if err := mm.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	t.Cleanup(mm.Stop)
 	if job, ok := c07CronJob(cronMgr, flowCronJobID(flowID, "n_aaaaaaaa")); !ok || job.Source != flowCronSource {
 		t.Fatalf("flow cron job = %+v (found %v), want source %q", job, ok, flowCronSource)
 	}
@@ -433,17 +451,20 @@ func TestFlowCronJobNeverReachesTheAgentFallback(t *testing.T) {
 	hooks := newFakeFlowHooks()
 	mm.SetFlowHooks(hooks)
 	prompts := make(chan string, 64)
+	var callbacks sync.WaitGroup
 	mm.SetCallback(func(_ string, missionID string) {
+		callbacks.Add(1)
+		defer callbacks.Done()
 		select {
 		case prompts <- missionID:
 		default:
 		}
 		mm.OnMissionComplete(missionID, MissionResultSuccess, "ok")
 	})
+	t.Cleanup(func() { c07StopAndDrain(t, cronMgr, mm, &callbacks) })
 	if err := mm.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	t.Cleanup(mm.Stop)
 	if c := c07WaitStart(t, hooks); c.missionID != flowID || c.nodeID != "n_aaaaaaaa" || c.triggerType != "cron" {
 		t.Fatalf("flow start after Start = %+v", c)
 	}
@@ -1276,6 +1297,38 @@ func TestFlowNotifyQueueIsBounded(t *testing.T) {
 	}
 }
 
+// Review item 3 (re-review): after Stop the dispatcher starts no queued run. The dispatcher's
+// select picks Stop or a queued event at random, so a dispatcher without the context check
+// would start a queued run in about half of the rounds.
+func TestFlowDispatcherStartsNoRunAfterStop(t *testing.T) {
+	for round := 0; round < 20; round++ {
+		mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+		hooks := &c07GateHooks{started: make(chan struct{}, 8), release: make(chan struct{})}
+		mm.SetFlowHooks(hooks)
+		publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerDeviceConnected, TriggerConfig: &TriggerConfig{}})
+		mm.NotifyDeviceEvent("device_connected", "dev-0", "Laptop")
+		select {
+		case <-hooks.started: // the dispatcher now blocks in the first run
+		case <-time.After(c07DeadlockGuard):
+			close(hooks.release)
+			t.Fatal("the first run did not start")
+		}
+		for i := 1; i <= 5; i++ {
+			mm.NotifyDeviceEvent("device_connected", fmt.Sprintf("dev-%d", i), "Laptop")
+		}
+		mm.Stop()
+		close(hooks.release)
+		select {
+		case <-hooks.started:
+			t.Fatalf("round %d: a queued run started after Stop (%d runs)", round, hooks.count.Load())
+		case <-time.After(50 * time.Millisecond):
+		}
+		if got := hooks.count.Load(); got != 1 {
+			t.Fatalf("round %d: %d runs, want 1", round, got)
+		}
+	}
+}
+
 // Review item 5: the manager setters only register missing flow triggers; they neither
 // rewrite flow cron jobs nor re-register keyed MQTT triggers.
 func TestFlowManagerSettersOnlyRegisterMissingTriggers(t *testing.T) {
@@ -1339,6 +1392,14 @@ func TestStartPrunesStaleFlowCronJobs(t *testing.T) {
 	if _, err := cronMgr.ManageScheduleWithSource("add", changed, "0 5 * * *", "EasyDrag flow trigger", "", flowCronSource); err != nil {
 		t.Fatal(err)
 	}
+	// Jobs of other sources are never pruned: an agent or dashboard job (source "") and a
+	// prompt mission job whose id has the flow shape.
+	others := map[string]string{"c07_agent_job": "", "mission_mission_other__n_aaaaaaaa": "mission"}
+	for jobID, source := range others {
+		if _, err := cronMgr.ManageScheduleWithSource("add", jobID, "0 10 * * *", "c07 other job", "", source); err != nil {
+			t.Fatal(err)
+		}
+	}
 	entry := c07CronEntry(cronMgr, keep)
 
 	restarted := NewMissionManagerV2(dir, cronMgr)
@@ -1356,6 +1417,11 @@ func TestStartPrunesStaleFlowCronJobs(t *testing.T) {
 	}
 	if got := c07CronEntry(cronMgr, keep); got == 0 || got != entry {
 		t.Fatalf("Start rewrote a current flow cron job (entry %d -> %d)", entry, got)
+	}
+	for jobID, source := range others {
+		if job, ok := c07CronJob(cronMgr, jobID); !ok || job.Source != source || job.TaskPrompt != "c07 other job" {
+			t.Fatalf("Start pruned or changed the %q job %s: %+v (found %v)", source, jobID, job, ok)
+		}
 	}
 }
 

@@ -706,13 +706,17 @@ func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, 
 
 // dispatchFlowEvents starts the flow runs of Notify* events one at a time, in event order.
 // notifyFlowsLocked starts it with the first matching event; it ends when Stop cancels the
-// manager context.
+// manager context, and starts no queued run after that.
 func (m *MissionManagerV2) dispatchFlowEvents(events <-chan flowRunRequest) {
 	for {
 		select {
 		case <-m.ctx.Done():
 			return
 		case req := <-events:
+			// select picks at random when both are ready.
+			if m.ctx.Err() != nil {
+				return
+			}
 			m.startFlowRun(req.hooks, req.missionID, req.nodeID, req.triggerType, req.data)
 		}
 	}
