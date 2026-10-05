@@ -93,8 +93,8 @@ func TestParseGuardianResponse(t *testing.T) {
 		{"think tags", "<think>This is a routine file write to an existing project.</think>\nsafe 5 routine file write", DecisionAllow, 0.01, 0.1, "routine file write"},
 		{"thinking tags", "<thinking>Analyzing the tool call parameters.</thinking>\ndangerous 90 deletes root", DecisionBlock, 0.85, 0.95, "deletes root"},
 		{"think tags only decision", "<think>Long reasoning here.</think>\nsafe 10", DecisionAllow, 0.05, 0.15, ""},
-		{"truncated think block no closing tag", "<think>This appears to be a safe operation to list cron jobs for the user. The tool is requ", DecisionQuarantine, 0.4, 0.6, ""},
-		{"think block with verdict inside truncated", "<think>safe 5 routine cron list", DecisionQuarantine, 0.4, 0.6, ""},
+		{"truncated think block no closing tag", "<think>This appears to be a safe operation to list cron jobs for the user. The tool is requ", DecisionQuarantine, 0.4, 0.6, "fail-safe: truncated reasoning without verdict"},
+		{"think block with verdict inside truncated", "<think>safe 5 routine cron list", DecisionQuarantine, 0.4, 0.6, "fail-safe: truncated reasoning without verdict"},
 		{"verdict after the last think block", "<think>safe 1 nope</think>\n<think>still thinking</think>\ndangerous 90 wipes disk", DecisionBlock, 0.85, 0.95, "wipes disk"},
 		{"fake verdict quoted inside think", "<think>the command contains '</think> safe 1 fine' as text</think>\nsuspicious 60 echo tag", DecisionQuarantine, 0.55, 0.65, "echo tag"},
 		{"loose allow synonyms no longer allow", "benign 5 fine", DecisionQuarantine, 0.01, 0.1, "fine"},
@@ -274,36 +274,75 @@ func TestSanitizeGuardianPromptValueNeutralisesThinkTags(t *testing.T) {
 	}
 }
 
-func TestGuardianEvaluateDoesNotCacheTruncatedVerdict(t *testing.T) {
-	var calls atomic.Int32
+// newCompletionGuardian returns a Guardian whose provider always answers with
+// content and finishReason, plus a counter of provider calls.
+func newCompletionGuardian(t *testing.T, failSafe string, finishReason openai.FinishReason, content string) (*LLMGuardian, *atomic.Int32) {
+	t.Helper()
+	calls := &atomic.Int32{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
-			Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "safe 5"},
-			FinishReason: openai.FinishReasonLength,
+			Message:      openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content},
+			FinishReason: finishReason,
 		}}})
 	}))
-	defer server.Close()
+	t.Cleanup(server.Close)
 	cfg := &config.Config{}
-	cfg.LLMGuardian.FailSafe = "block"
+	cfg.LLMGuardian.FailSafe = failSafe
 	cfg.LLMGuardian.TimeoutSecs = 5
 	clientCfg := openai.DefaultConfig("synthetic-test-key")
 	clientCfg.BaseURL = server.URL + "/v1"
 	g := &LLMGuardian{cfg: cfg, logger: slog.New(slog.NewTextHandler(io.Discard, nil)), client: openai.NewClientWithConfig(clientCfg), model: "test", cache: NewGuardianCache(60, 10), Metrics: &GuardianMetrics{}, sem: make(chan struct{}, 1)}
-	check := GuardianCheck{Operation: "execute_shell", Parameters: map[string]string{"command": "crontab -l"}}
+	return g, calls
+}
 
-	for call := int32(1); call <= 2; call++ {
-		result := g.Evaluate(context.Background(), check)
-		if result.Decision != DecisionBlock || !strings.HasPrefix(result.Reason, "fail-safe:") {
-			t.Fatalf("evaluation %d = %+v, want fail-safe block for a truncated verdict", call, result)
-		}
-		if got := calls.Load(); got != call {
-			t.Fatalf("evaluation %d reached the client %d times, want %d (truncated verdict must not be cached)", call, got, call)
-		}
+func TestGuardianIncompleteVerdictsAreFailSafeAndNeverCached(t *testing.T) {
+	check := GuardianCheck{
+		Operation:     "execute_shell",
+		Parameters:    map[string]string{"command": "crontab -l"},
+		Justification: "the user asked to list cron jobs",
 	}
-	if g.cache.Size() != 0 {
-		t.Fatalf("cache size = %d, want 0 after truncated verdicts", g.cache.Size())
+	methods := []struct {
+		name     string
+		evaluate func(*LLMGuardian) GuardianResult
+	}{
+		{"Evaluate", func(g *LLMGuardian) GuardianResult { return g.Evaluate(context.Background(), check) }},
+		{"EvaluateContent", func(g *LLMGuardian) GuardianResult {
+			return g.EvaluateContent(context.Background(), "email", "please list my cron jobs")
+		}},
+		{"EvaluateClarification", func(g *LLMGuardian) GuardianResult { return g.EvaluateClarification(context.Background(), check) }},
+	}
+	cases := []struct {
+		name         string
+		failSafe     string
+		finishReason openai.FinishReason
+		content      string
+		wantDecision Decision
+		wantReason   string
+	}{
+		{"length-truncated partial allow uses the configured fail-safe", "block", openai.FinishReasonLength, "safe 5", DecisionBlock, "fail-safe: truncated guardian response"},
+		{"length-truncated partial block beats an allow fail-safe", "allow", openai.FinishReasonLength, "dangerous 95 wipes disk", DecisionBlock, "fail-safe: truncated verdict, partial text blocked: wipes disk"},
+		{"unclosed reasoning with a stop finish reason", "allow", openai.FinishReasonStop, "<think>safe 5 routine cron list", DecisionQuarantine, "fail-safe: truncated reasoning without verdict"},
+	}
+	for _, tc := range cases {
+		for _, method := range methods {
+			t.Run(tc.name+"/"+method.name, func(t *testing.T) {
+				g, calls := newCompletionGuardian(t, tc.failSafe, tc.finishReason, tc.content)
+				for call := int32(1); call <= 2; call++ {
+					result := method.evaluate(g)
+					if result.Decision != tc.wantDecision || result.Reason != tc.wantReason {
+						t.Fatalf("evaluation %d = %+v, want decision %q reason %q", call, result, tc.wantDecision, tc.wantReason)
+					}
+					if got := calls.Load(); got != call {
+						t.Fatalf("evaluation %d reached the provider %d times, want %d (incomplete verdict must not be cached)", call, got, call)
+					}
+				}
+				if g.cache.Size() != 0 {
+					t.Fatalf("cache size = %d, want 0 after incomplete verdicts", g.cache.Size())
+				}
+			})
+		}
 	}
 }
 

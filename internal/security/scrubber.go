@@ -32,6 +32,9 @@ var (
 	// Matches <thinking>…</thinking> and <think>…</think> blocks (reasoning traces from some LLMs).
 	thinkingTagRe = regexp.MustCompile(`(?is)<(thinking|think)>[\s\S]*?</(thinking|think)>`)
 	// Some providers omit the opening tag because it is already in the chat template.
+	// parseGuardianResponse also depends on this greedy match ending at the LAST
+	// closing tag, so a tag quoted inside reasoning cannot forge a Guardian
+	// verdict; TestParseGuardianResponse "fake verdict quoted inside think" pins it.
 	orphanThinkingCloseRe = regexp.MustCompile(`(?is)^.*</(?:thinking|think)>`)
 
 	// Matches <external_data>…</external_data> blocks.

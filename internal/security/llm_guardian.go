@@ -358,11 +358,8 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 
 	tokensUsed := resp.Usage.TotalTokens
 	raw := extractMessageContent(resp.Choices[0].Message)
-	if resp.Choices[0].FinishReason == openai.FinishReasonLength {
-		g.logger.Warn("[Guardian] Truncated verdict; applying fail-safe",
-			"operation", check.Operation, "tokens", tokensUsed)
-		g.Metrics.RecordError()
-		return g.failSafeResult(start, "truncated guardian response")
+	if truncatedChoice(resp) {
+		return g.truncatedVerdictResult(start, raw, tokensUsed, "operation", check.Operation)
 	}
 	if strings.TrimSpace(raw) == "" {
 		g.logger.Warn("[Guardian] Empty content from LLM",
@@ -406,6 +403,29 @@ func (g *LLMGuardian) failSafeResult(start time.Time, reason string) GuardianRes
 		Reason:    "fail-safe: " + reason,
 		Duration:  time.Since(start),
 	}
+}
+
+// truncatedChoice reports whether the provider stopped the first choice at its
+// token limit, so any verdict in it may be incomplete.
+func truncatedChoice(resp openai.ChatCompletionResponse) bool {
+	return len(resp.Choices) > 0 && resp.Choices[0].FinishReason == openai.FinishReasonLength
+}
+
+// truncatedVerdictResult turns a length-truncated completion into a result no
+// cache stores: a partial verdict that already blocks is kept, anything else
+// gets the configured fail-safe. Both reasons carry the "fail-safe: " prefix.
+func (g *LLMGuardian) truncatedVerdictResult(start time.Time, raw string, tokens int, logAttrs ...any) GuardianResult {
+	g.Metrics.RecordError()
+	result := g.failSafeResult(start, "truncated guardian response")
+	if partial := parseGuardianResponse(raw); partial.Decision == DecisionBlock {
+		result = partial
+		result.Reason = "fail-safe: truncated verdict, partial text blocked: " + partial.Reason
+		result.Duration = time.Since(start)
+	}
+	result.TokensUsed = tokens
+	g.logger.Warn("[Guardian] Truncated verdict; applying fail-safe",
+		append(logAttrs, "tokens", tokens, "decision", result.Decision)...)
+	return result
 }
 
 func (g *LLMGuardian) resolveLevel(toolName string) GuardianLevel {
@@ -633,8 +653,9 @@ func parseGuardianResponse(raw string) GuardianResult {
 	if loc := orphanThinkingCloseRe.FindStringIndex(raw); loc != nil {
 		raw = strings.TrimSpace(raw[loc[1]:])
 	} else if lower := strings.ToLower(raw); strings.HasPrefix(lower, "<think>") || strings.HasPrefix(lower, "<thinking>") {
-		// Truncated reasoning: the verdict was never written.
-		return GuardianResult{Decision: DecisionQuarantine, RiskScore: 0.5, Reason: "truncated reasoning without verdict"}
+		// Truncated reasoning: the verdict was never written. The fail-safe
+		// prefix keeps every cache gate from storing it.
+		return GuardianResult{Decision: DecisionQuarantine, RiskScore: 0.5, Reason: "fail-safe: truncated reasoning without verdict"}
 	}
 	// Expected: "safe 10 routine file listing" or "dangerous 95 deletes system files"
 	// Some reasoning models may wrap the answer in extra text; scan all words for a known decision keyword.
@@ -859,6 +880,9 @@ func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianC
 	}
 
 	raw := extractMessageContent(resp.Choices[0].Message)
+	if truncatedChoice(resp) {
+		return g.truncatedVerdictResult(start, raw, resp.Usage.TotalTokens, "operation", check.Operation, "phase", "clarification")
+	}
 	result := parseGuardianResponse(raw)
 	result.TokensUsed = resp.Usage.TotalTokens
 	result.Duration = time.Since(start)
@@ -938,6 +962,7 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 	)
 	var best GuardianResult
 	haveBest := false
+	cacheable := true
 	totalTokens := 0
 	for _, chunk := range chunks {
 		prompt := buildContentScanPrompt(contentType, chunk)
@@ -962,8 +987,15 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 		}
 
 		raw := extractMessageContent(resp.Choices[0].Message)
-		result := parseGuardianResponse(raw)
 		totalTokens += resp.Usage.TotalTokens
+		if truncatedChoice(resp) {
+			return g.truncatedVerdictResult(start, raw, totalTokens, "type", contentType, "phase", "content_scan")
+		}
+		result := parseGuardianResponse(raw)
+		// A chunk without a complete verdict makes the whole scan incomplete.
+		if strings.HasPrefix(result.Reason, "fail-safe:") {
+			cacheable = false
+		}
 		result.TokensUsed = totalTokens
 		result.Duration = time.Since(start)
 		best, haveBest = preferContentScanResult(best, haveBest, result)
@@ -986,7 +1018,9 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 		"tokens", best.TokensUsed,
 		"chunks", len(chunks))
 
-	g.cache.Set(cacheKey, best)
+	if cacheable {
+		g.cache.Set(cacheKey, best)
+	}
 	g.Metrics.RecordContentScan(best)
 	return best
 }
