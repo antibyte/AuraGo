@@ -29,7 +29,7 @@ async function renderSecurityProxySection(section) {
 
     html += `<div class="field-group" id="proxy-status-area">
         <div class="field-group-title">${t('config.security_proxy.status_title')}</div>
-        <div id="proxy-status-info" class="sp-status-info">
+        <div id="proxy-status-info" class="sp-status-info" role="status" aria-live="polite">
             ${t('config.security_proxy.status_loading')}
         </div>
         <div class="cfg-actions-row">
@@ -74,6 +74,8 @@ async function renderSecurityProxySection(section) {
         <span class="cfg-label">${t('config.security_proxy.rate_limit_enabled_label')}</span>
         <div class="toggle ${rl.enabled ? 'on' : ''}" data-path="security_proxy.rate_limiting.enabled" onclick="toggleBool(this)"></div>
     </div>`;
+
+    html += `<div class="field-help">${t('config.security_proxy.rate_limit_build_hint')}</div>`;
 
     html += `<div class="field-grid two-cols">
         <div class="field-group">
@@ -209,6 +211,14 @@ function _updateProxyRoute(index, field, value) {
 }
 
 async function _proxyAction(action) {
+    // Start and reload can build the rate-limit image first; keep the actions
+    // locked and say so until the request finishes.
+    const buttons = Array.from(document.querySelectorAll('#proxy-status-area .cfg-actions-row button'));
+    buttons.forEach(btn => { btn.disabled = true; });
+    const statusEl = document.getElementById('proxy-status-info');
+    if (statusEl && (action === 'start' || action === 'reload')) {
+        statusEl.textContent = t('config.security_proxy.action_pending');
+    }
     try {
         const res = await fetch(`/api/proxy/${action}`, { method: 'POST' });
         const data = await res.json();
@@ -220,6 +230,9 @@ async function _proxyAction(action) {
         setTimeout(_proxyFetchStatus, 1500);
     } catch(e) {
         showToast('Error: ' + e.message, 'error');
+        _proxyFetchStatus();
+    } finally {
+        buttons.forEach(btn => { btn.disabled = false; });
     }
 }
 

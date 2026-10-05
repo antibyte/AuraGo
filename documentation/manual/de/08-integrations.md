@@ -1522,30 +1522,46 @@ tools:
 
 ## Security Proxy
 
-Schutzschicht für öffentlich erreichbare AuraGo-Instanzen mit Rate-Limiting, IP-Filter und Geo-Blocking. AuraGo verwaltet den Proxy als Caddy-basierten Docker-Container, lädt die generierte Konfiguration neu und stellt Lifecycle-Aktionen sowie Logs per API bereit.
+Schutzschicht für öffentlich erreichbare AuraGo-Instanzen: TLS (Let's Encrypt für eine Domain), Ratenbegrenzung, IP-Filter und Basic Auth vor AuraGo. AuraGo verwaltet den Proxy als Caddy-Docker-Container (`aurago-security-proxy`), schreibt sein Caddyfile nach `data/proxy/` und stellt Lifecycle-Aktionen sowie Logs per API bereit. Geo-Blocking ist geplant, aber noch nicht umgesetzt.
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → Security Proxy**.
-2. Aktiviere den Proxy.
-3. Konfiguriere Rate-Limiting (Requests pro Minute).
-4. Optional: Definiere erlaubte/blockierte IPs oder Länder.
-5. Speichere und starte neu.
+2. Aktiviere den Proxy und trage Domain, ACME-E-Mail und Ports ein.
+3. Aktiviere bei Bedarf Ratenbegrenzung, IP-Filter oder Basic Auth.
+4. Speichere. Das Aktivieren startet den Proxy. Nach späteren Änderungen drückst du **Neu laden** (oder **Starten**): Einstellungen aus der Config-UI oder dem Vault gelten beim nächsten Start oder Neuladen, ohne AuraGo neu zu starten.
+
+### Basic Auth
+Hinterlege das Konto im Vault als `proxy_basic_auth_user` und `proxy_basic_auth_pass`. AuraGo schreibt nur einen bcrypt-Hash des Passworts ins Caddyfile (Dateimodus 0600). Ist Basic Auth aktiv, fehlt aber eines der Secrets, startet der Proxy nicht und die UI nennt die fehlenden Secrets. Benutzernamen dürfen weder `:`, Anführungszeichen, Backslashes noch geschweifte Klammern enthalten; Passwörter dürfen höchstens 72 Byte lang sein.
+
+### Ratenbegrenzung
+Das offizielle Caddy-Image kennt keine Ratenbegrenzung. Ist sie aktiv, baut AuraGo einmalig das Image `aurago-proxy:ratelimit-<Version>` aus einem festen Caddy-Release und einem festen Modul `caddy-ratelimit` (Go-Modul-Prüfsummen werden verifiziert). Der Build braucht Docker-Build-Rechte und Internetzugang und dauert ein paar Minuten; spätere Starts verwenden das Image wieder. Jede Client-IP darf `burst` Anfragen innerhalb von `burst / requests_per_second` Sekunden senden (gleitendes Fenster): kurze Spitzen gehen durch, im Mittel bleibt es bei `requests_per_second`. Die Ratenbegrenzung greift vor Basic Auth und bremst so auch Passwortraten aus. Scheitert der Build, startet der Proxy nicht, ein laufender Proxy läuft weiter, und die UI erklärt, was fehlt.
+
+### AuraGo in Docker (Compose)
+Läuft AuraGo selbst in einem Container, existieren seine Pfade und sein Containername nur innerhalb von Docker. Der Proxy bindet dann das Datenvolume von AuraGo ein (Docker Engine 26 oder neuer, für Volume-Unterpfade) oder dessen Bind-Mount-Datenverzeichnis, tritt dem nicht-internen Netzwerk von AuraGo bei (bei Compose das `default`-Netzwerk des Projekts) und erreicht AuraGo über den Containernamen. Ohne ein solches Netzwerk nutzt er `host.docker.internal` und den veröffentlichten Port von AuraGo. Der Socket-Proxy aus der Standard-Compose-Datei behält `BUILD=0`; für die Ratenbegrenzung setzt du dort `BUILD=1` beim Dienst `docker-proxy`. Da der Proxy-Container am Compose-Netzwerk hängt, drückst du **Entfernen**, bevor `docker compose down` dieses Netzwerk löscht.
+
+### Neu laden
+**Neu laden** schreibt das Caddyfile neu und führt `caddy reload` im Container aus. Lehnt Caddy die neue Konfiguration ab, arbeitet es mit der bisherigen weiter, AuraGo stellt das vorherige Caddyfile wieder her, und die UI verweist auf die Proxy-Logs. Das Ein- oder Ausschalten der Ratenbegrenzung wechselt das Image; Neu laden erstellt den Container dann neu.
 
 ### YAML-Referenz
 ```yaml
 security_proxy:
   enabled: true
   domain: "aurago.example.com"
+  email: "admin@example.com"     # ACME-Kontakt
+  https_port: 443
+  http_port: 80
+  docker_host: ""                # leer = docker.host
   rate_limiting:
     enabled: true
-    requests_per_minute: 60
+    requests_per_second: 10
+    burst: 50
   ip_filter:
     enabled: false
-    allowed_ips: []
-    blocked_ips: []
-  geo_blocking:
-    enabled: false
-    blocked_countries: []
+    mode: "blocklist"            # oder "allowlist"
+    addresses: []                # IP-Adressen oder CIDR-Bereiche
+  basic_auth:
+    enabled: false               # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
+  additional_routes: []          # Einträge mit name, domain und upstream
 ```
 
 ### Runtime API

@@ -242,5 +242,12 @@
   "backend.budget_mode_full_en": "(超過すると全てブロックされます)",
   "backend.speech_lab_audio_warning": "Speech Lab の音声を生成できませんでした。テキスト応答は引き続き利用できます。",
   "backend.auth_current_password_required": "この変更には現在のパスワードが必要です。",
-  "backend.auth_current_totp_required": "この変更には認証アプリの現在のコードが必要です。"
+  "backend.auth_current_totp_required": "この変更には認証アプリの現在のコードが必要です。",
+  "backend.proxy_basic_auth_credentials_invalid": "Vault 内の Basic Auth 資格情報は使用できません。ユーザー名に ':'、引用符、バックスラッシュ、波かっこは使えません。パスワードは 72 バイト以内にしてください。",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth が有効ですが、Vault に 'proxy_basic_auth_user' と 'proxy_basic_auth_pass' がありません。両方のシークレットを保存するか Basic Auth をオフにしてから、プロキシを再度起動してください。",
+  "backend.proxy_caddy_exited": "プロキシは起動直後に停止しました。通常はドメイン、IP フィルターの項目、またはポートが無効なことが原因です。正確な理由はプロキシのログで確認できます。",
+  "backend.proxy_config_rejected": "プロキシは新しい設定を拒否し、以前の設定のまま動作しています。理由はプロキシのログで確認できます。",
+  "backend.proxy_docker_placement_failed": "AuraGo は Docker 上で動作していますが、プロキシは AuraGo のデータボリュームを使用できません。Docker Engine 26 以降が必要で、AuraGo のデータディレクトリは Docker ボリュームまたはバインドマウント上にある必要があります。詳細は AuraGo のログにあります。",
+  "backend.proxy_not_running": "セキュリティプロキシは実行されていません。先に起動してください。",
+  "backend.proxy_rate_limit_image_unavailable": "レート制限には caddy-ratelimit モジュール入りの Caddy イメージが必要ですが、AuraGo はビルドできませんでした。Docker でイメージのビルドを許可し (Docker Compose では docker-proxy サービスに BUILD=1)、インターネットに接続できるようにしてください。またはレート制限をオフにしてください。詳細は AuraGo のログにあります。"
 }

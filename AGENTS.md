@@ -279,6 +279,7 @@ Before changing any listed feature, read its canonical child `AGENTS.md` in addi
 | Local Network Share Integration Contract | `internal/networkshares/AGENTS.md` |
 | Desktop Workbook Contract; Desktop Office Document Contract | `internal/office/AGENTS.md` |
 | Operational Issue Notification Contract | `internal/planner/AGENTS.md` |
+| Security proxy Caddyfile, images and container placement | `internal/proxy/AGENTS.md` |
 | Default Speech Output Contract | `internal/sanotts/AGENTS.md` |
 | System World Tower Voice; 3D Printer Integration Contract; go2rtc Integration Contract; AI Gateway Contract; here.now Integration Contract; GitHub Integration Contract; Homepage Managed Website Ledger; Configuration UI Integration Test Contract | `internal/server/AGENTS.md` |
 | Workspace Search System | `internal/services/AGENTS.md` |
@@ -607,6 +608,7 @@ Current child AGENTS.md files:
 - `internal/office/AGENTS.md` — Workbook and document preservation, editing, and assist.
 - `internal/personalradio/AGENTS.md` — Personal stations, durable audio library, rotation, news, provider quotas and desktop playback contracts.
 - `internal/planner/AGENTS.md` — Issue lifecycle, notification, and background retry policy.
+- `internal/proxy/AGENTS.md` — Managed Caddy security proxy: Vault Basic Auth, rate-limit image, Docker placement and reload.
 - `internal/rtlsdr/AGENTS.md` — Optional receive-only RTL-SDR runtime, schedules, leases, recordings and ASR.
 - `internal/remote/AGENTS.md` — Remote enrollment, socket ownership and command/result lifecycle.
 - `internal/sanotts/AGENTS.md` — Pinned local CPU speech runtime, voice selection, licenses and synthesis checks.

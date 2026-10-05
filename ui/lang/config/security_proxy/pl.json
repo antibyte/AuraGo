@@ -95,5 +95,7 @@
   "config.updates.installing": "Instalowanie…",
   "config.updates.running": "Uruchomiono…",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
-  "config.webdav.secret_empty": "Wartość jest pusta"
+  "config.webdav.secret_empty": "Wartość jest pusta",
+  "config.security_proxy.action_pending": "Trwa… Pierwsze uruchomienie z ograniczaniem szybkości buduje obraz Caddy i może potrwać kilka minut.",
+  "config.security_proxy.rate_limit_build_hint": "Oficjalny obraz Caddy nie obsługuje ograniczania szybkości. Przy następnym uruchomieniu AuraGo jednorazowo zbuduje własny obraz Caddy z modułem caddy-ratelimit. Docker musi zezwalać na budowanie obrazów i mieć dostęp do internetu; trwa to kilka minut."
 }

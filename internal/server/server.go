@@ -417,6 +417,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s.MaintenanceScheduler != nil {
 		s.MaintenanceScheduler.UpdateConfig(cfg)
 	}
+	if s.ProxyManager != nil {
+		// The next proxy Start/Reload uses the saved domain, ports, filters and
+		// Vault credentials instead of the startup config.
+		s.ProxyManager.UpdateConfig(cfg)
+	}
 	if s.LocalMusic != nil {
 		s.LocalMusic.Configure(cfg)
 	}

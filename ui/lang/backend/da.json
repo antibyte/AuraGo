@@ -242,5 +242,12 @@
   "backend.budget_mode_full_de": "(alles gesperrt ved Überschreitung)",
   "backend.speech_lab_audio_warning": "Speech Lab-lyden kunne ikke genereres. Tekstsvaret er stadig tilgængeligt.",
   "backend.auth_current_password_required": "Denne ændring kræver din nuværende adgangskode.",
-  "backend.auth_current_totp_required": "Denne ændring kræver den aktuelle kode fra din godkendelsesapp."
+  "backend.auth_current_totp_required": "Denne ændring kræver den aktuelle kode fra din godkendelsesapp.",
+  "backend.proxy_basic_auth_credentials_invalid": "Basic Auth-loginoplysningerne i Vault kan ikke bruges. Brugernavnet må ikke indeholde ':', anførselstegn, omvendte skråstreger eller krøllede parenteser, og adgangskoden må højst være 72 byte lang.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth er slået til, men Vault mangler 'proxy_basic_auth_user' og 'proxy_basic_auth_pass'. Gem begge hemmeligheder, eller slå Basic Auth fra, og start derefter proxyen igen.",
+  "backend.proxy_caddy_exited": "Proxyen stoppede lige efter start, som regel på grund af et ugyldigt domæne, en ugyldig IP-filterpost eller port. Proxy-loggene viser den præcise årsag.",
+  "backend.proxy_config_rejected": "Proxyen afviste de nye indstillinger og kører videre med de tidligere. Proxy-loggene viser årsagen.",
+  "backend.proxy_docker_placement_failed": "AuraGo kører i Docker, men proxyen kan ikke bruge AuraGos datavolumen. Det kræver Docker Engine 26 eller nyere, og AuraGos datamappe skal ligge på et Docker-volumen eller et bind mount. Detaljerne står i AuraGo-loggen.",
+  "backend.proxy_not_running": "Sikkerhedsproxyen kører ikke. Start den først.",
+  "backend.proxy_rate_limit_image_unavailable": "Ratebegrænsning kræver et Caddy-image med modulet caddy-ratelimit, og AuraGo kunne ikke bygge det. Docker skal tillade image-builds (med Docker Compose: BUILD=1 på tjenesten docker-proxy) og have internetadgang. Eller slå ratebegrænsning fra. Detaljerne står i AuraGo-loggen."
 }

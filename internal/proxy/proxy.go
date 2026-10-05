@@ -1,72 +1,112 @@
 package proxy
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"sync"
+	"time"
 
 	"aurago/internal/config"
-	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
 
-const (
-	containerName = "aurago-security-proxy"
-	imageName     = "aurago-proxy:latest"
-)
+const containerName = "aurago-security-proxy"
+
+// engine is the Docker Engine API surface the manager uses.
+type engine struct {
+	ping           func(host string) error
+	request        func(cfg tools.DockerConfig, method, endpoint, body string) ([]byte, int, error)
+	requestContext func(ctx context.Context, cfg tools.DockerConfig, method, endpoint, body string) ([]byte, int, error)
+	build          func(ctx context.Context, cfg tools.DockerConfig, image, dockerfileName string, dockerfile []byte, buildArgs map[string]string, logger *slog.Logger) error
+}
+
+var dockerEngine = engine{
+	ping:           tools.DockerPing,
+	request:        tools.DockerRequest,
+	requestContext: tools.DockerRequestContext,
+	build:          tools.BuildImageWait,
+}
 
 // Manager manages the Caddy reverse proxy Docker container lifecycle.
 type Manager struct {
+	mu     sync.RWMutex
 	cfg    *config.Config
 	logger *slog.Logger
+
+	// lifecycle serializes Start, Reload, Stop and Destroy.
+	lifecycle sync.Mutex
+	engine    engine
+	// settle is how long Start waits before checking that Caddy kept running.
+	settle time.Duration
+	// inDocker and selfIDs replace the container probes in tests.
+	inDocker func() bool
+	selfIDs  func() []string
 }
 
 // NewManager creates a new proxy manager.
 func NewManager(cfg *config.Config, logger *slog.Logger) *Manager {
-	return &Manager{cfg: cfg, logger: logger}
+	return &Manager{cfg: cfg, logger: logger, engine: dockerEngine, settle: 2 * time.Second}
 }
 
-// UpdateConfig updates the config reference (e.g. after hot-reload).
+// UpdateConfig replaces the config the next Start or Reload uses. The server
+// calls it whenever it publishes a new config snapshot.
 func (m *Manager) UpdateConfig(cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	m.mu.Lock()
 	m.cfg = cfg
+	m.mu.Unlock()
 }
 
-// dockerCfg returns the Docker config for API calls.
-func (m *Manager) dockerCfg() tools.DockerConfig {
-	host := m.cfg.SecurityProxy.DockerHost
+// Config returns the config the manager currently uses.
+func (m *Manager) Config() *config.Config {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.cfg
+}
+
+func (m *Manager) log() *slog.Logger {
+	if m.logger != nil {
+		return m.logger
+	}
+	return slog.Default()
+}
+
+// dockerConfigFor returns the Docker config for API calls.
+func dockerConfigFor(cfg *config.Config) tools.DockerConfig {
+	host := cfg.SecurityProxy.DockerHost
 	if host == "" {
-		host = m.cfg.Docker.Host
+		host = cfg.Docker.Host
 	}
 	return tools.DockerConfig{Host: host}
 }
 
+// dockerCfg returns the Docker config of the current config.
+func (m *Manager) dockerCfg() tools.DockerConfig {
+	return dockerConfigFor(m.Config())
+}
+
 // dataDir returns the proxy data directory, creating it if needed.
-func (m *Manager) dataDir() string {
-	dir := filepath.Join(m.cfg.Directories.DataDir, "proxy")
+func dataDir(cfg *config.Config) string {
+	dir := filepath.Join(cfg.Directories.DataDir, "proxy")
 	os.MkdirAll(dir, 0o750)
 	return dir
 }
 
-// upstreamAddr returns the address Caddy should proxy to for the AuraGo backend.
-func (m *Manager) upstreamAddr() string {
-	port := m.cfg.Server.Port
-	if port <= 0 {
-		port = 8088
+// runsInDocker reports whether AuraGo itself runs in a container.
+func (m *Manager) runsInDocker() bool {
+	if m.inDocker != nil {
+		return m.inDocker()
 	}
-	// When running inside Docker (compose), use the service name
-	if isRunningInDocker() {
-		return fmt.Sprintf("aurago:%d", port)
-	}
-	// Otherwise use host.docker.internal on Mac/Windows, 172.17.0.1 on Linux
-	if runtime.GOOS == "linux" {
-		return fmt.Sprintf("172.17.0.1:%d", port)
-	}
-	return fmt.Sprintf("host.docker.internal:%d", port)
+	return isRunningInDocker()
 }
 
 func isRunningInDocker() bool {
@@ -74,71 +114,88 @@ func isRunningInDocker() bool {
 	return err == nil
 }
 
+// writeCaddyfile rewrites the Caddyfile in place with mode 0600: it can hold
+// the Basic Auth hash. It must keep the inode, because a native install
+// bind-mounts the single file and a renamed replacement would stay invisible
+// to Caddy.
+func writeCaddyfile(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0o600)
+	if err != nil {
+		return err
+	}
+	// Tighten files written by earlier versions with 0644 before they receive
+	// the hash.
+	if err := f.Chmod(0o600); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Truncate(0); err != nil {
+		f.Close()
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
 // Start builds the image (if needed), generates the Caddyfile, and starts the container.
 func (m *Manager) Start() error {
-	cfg := m.dockerCfg()
+	m.lifecycle.Lock()
+	defer m.lifecycle.Unlock()
+	return m.startLocked(m.Config())
+}
+
+func (m *Manager) startLocked(cfg *config.Config) error {
+	dockerCfg := dockerConfigFor(cfg)
 
 	// Verify Docker is available
-	if err := tools.DockerPing(cfg.Host); err != nil {
+	if err := m.engine.ping(dockerCfg.Host); err != nil {
 		return fmt.Errorf("docker not available: %w", err)
 	}
 
-	proxyCfg := m.cfg.SecurityProxy
+	proxyCfg := cfg.SecurityProxy
 
 	// Ensure data directories
-	dataDir := m.dataDir()
+	dir := dataDir(cfg)
 	for _, sub := range []string{"caddy_data", "caddy_config"} {
-		os.MkdirAll(filepath.Join(dataDir, sub), 0o750)
+		os.MkdirAll(filepath.Join(dir, sub), 0o750)
+	}
+
+	place, err := m.resolvePlacement(cfg, dir)
+	if err != nil {
+		return err
 	}
 
 	// Generate and write Caddyfile
-	caddyfile := GenerateCaddyfile(m.cfg, m.upstreamAddr())
-	caddyfilePath := filepath.Join(dataDir, "Caddyfile")
-	if err := os.WriteFile(caddyfilePath, []byte(caddyfile), 0o644); err != nil {
+	caddyfile, err := GenerateCaddyfile(cfg, place.upstream)
+	if err != nil {
+		return err
+	}
+	caddyfilePath := filepath.Join(dir, "Caddyfile")
+	if err := writeCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return fmt.Errorf("write Caddyfile: %w", err)
 	}
-	m.logger.Info("Security proxy Caddyfile written", "path", caddyfilePath)
+	m.log().Info("Security proxy Caddyfile written", "path", caddyfilePath)
 
 	// Build or pull image
-	if err := m.ensureImage(); err != nil {
+	image, err := m.ensureImage(cfg)
+	if err != nil {
 		return fmt.Errorf("ensure proxy image: %w", err)
 	}
 
 	// Stop existing container if any
-	m.stopAndRemove()
+	m.stopAndRemove(dockerCfg)
 
 	// Create container
-	absCaddyfile, _ := filepath.Abs(caddyfilePath)
-	absCaddyData, _ := filepath.Abs(filepath.Join(dataDir, "caddy_data"))
-	absCaddyConfig, _ := filepath.Abs(filepath.Join(dataDir, "caddy_config"))
-
-	payload := map[string]interface{}{
-		"Image": imageName,
-		"ExposedPorts": map[string]interface{}{
-			"443/tcp": struct{}{},
-			"80/tcp":  struct{}{},
-		},
-		"HostConfig": map[string]interface{}{
-			"Binds": []string{
-				dockerutil.FormatBindMount(absCaddyfile, "/etc/caddy/Caddyfile"),
-				dockerutil.FormatBindMount(absCaddyData, "/data"),
-				dockerutil.FormatBindMount(absCaddyConfig, "/config"),
-			},
-			"PortBindings": map[string]interface{}{
-				"443/tcp": []map[string]string{
-					{"HostIp": "0.0.0.0", "HostPort": fmt.Sprintf("%d", proxyCfg.HTTPSPort)},
-				},
-				"80/tcp": []map[string]string{
-					{"HostIp": "0.0.0.0", "HostPort": fmt.Sprintf("%d", proxyCfg.HTTPPort)},
-				},
-			},
-			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
-			"ExtraHosts":    []string{"host.docker.internal:host-gateway"},
-		},
-	}
-
+	payload := securityProxyCreatePayload(image, place, proxyCfg.HTTPSPort, proxyCfg.HTTPPort)
 	body, _ := json.Marshal(payload)
-	data, code, err := tools.DockerRequest(cfg, "POST", "/containers/create?name="+url.QueryEscape(containerName), string(body))
+	data, code, err := m.engine.request(dockerCfg, "POST", "/containers/create?name="+url.QueryEscape(containerName), string(body))
 	if err != nil {
 		return fmt.Errorf("create container: %w", err)
 	}
@@ -147,7 +204,7 @@ func (m *Manager) Start() error {
 	}
 
 	// Start container
-	_, startCode, startErr := tools.DockerRequest(cfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/start", "")
+	_, startCode, startErr := m.engine.request(dockerCfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/start", "")
 	if startErr != nil {
 		return fmt.Errorf("start container: %w", startErr)
 	}
@@ -155,78 +212,299 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("start container: HTTP %d", startCode)
 	}
 
-	m.logger.Info("Security proxy started",
+	if err := m.verifyRunning(dockerCfg); err != nil {
+		return err
+	}
+
+	m.log().Info("Security proxy started",
 		"container", containerName,
+		"image", image,
 		"https_port", proxyCfg.HTTPSPort,
 		"http_port", proxyCfg.HTTPPort,
 		"domain", proxyCfg.Domain)
 	return nil
 }
 
+// securityProxyCreatePayload is the Docker create body for the Caddy proxy.
+// A native install bind-mounts host paths. When AuraGo runs in Docker the
+// proxy mounts AuraGo's own data volume or bind source and joins AuraGo's
+// network, because AuraGo's paths and container name mean nothing outside it.
+func securityProxyCreatePayload(image string, place placement, httpsPort, httpPort int) map[string]interface{} {
+	hostConfig := map[string]interface{}{
+		"PortBindings": map[string]interface{}{
+			"443/tcp": []map[string]string{
+				{"HostIp": "0.0.0.0", "HostPort": fmt.Sprintf("%d", httpsPort)},
+			},
+			"80/tcp": []map[string]string{
+				{"HostIp": "0.0.0.0", "HostPort": fmt.Sprintf("%d", httpPort)},
+			},
+		},
+		"RestartPolicy": map[string]string{"Name": "unless-stopped"},
+		"ExtraHosts":    []string{"host.docker.internal:host-gateway"},
+	}
+	payload := map[string]interface{}{
+		"Image": image,
+		"ExposedPorts": map[string]interface{}{
+			"443/tcp": struct{}{},
+			"80/tcp":  struct{}{},
+		},
+		"HostConfig": hostConfig,
+	}
+	if place.binds != nil {
+		hostConfig["Binds"] = place.binds
+	}
+	if place.mounts != nil {
+		hostConfig["Mounts"] = place.mounts
+	}
+	if place.network != "" {
+		hostConfig["NetworkMode"] = place.network
+		payload["NetworkingConfig"] = map[string]interface{}{
+			"EndpointsConfig": map[string]interface{}{place.network: map[string]interface{}{}},
+		}
+	}
+	return payload
+}
+
+// containerState is the part of the proxy container inspection Start and
+// Reload use.
+type containerState struct {
+	RestartCount int `json:"RestartCount"`
+	State        struct {
+		Status     string `json:"Status"`
+		Running    bool   `json:"Running"`
+		Restarting bool   `json:"Restarting"`
+	} `json:"State"`
+	Config struct {
+		Image string `json:"Image"`
+	} `json:"Config"`
+}
+
+func (m *Manager) inspectContainer(dockerCfg tools.DockerConfig) (containerState, bool, error) {
+	data, code, err := m.engine.request(dockerCfg, "GET", "/containers/"+url.QueryEscape(containerName)+"/json", "")
+	if err != nil {
+		return containerState{}, false, fmt.Errorf("inspect container: %w", err)
+	}
+	if code == 404 {
+		return containerState{}, false, nil
+	}
+	if code != 200 {
+		return containerState{}, false, fmt.Errorf("inspect container: HTTP %d", code)
+	}
+	var state containerState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return containerState{}, false, fmt.Errorf("parse inspect: %w", err)
+	}
+	return state, true, nil
+}
+
+// verifyRunning reports a Caddy that exits right after the start, e.g. on a
+// Caddyfile it cannot load. The restart policy would otherwise hide the
+// failure behind a restart loop.
+func (m *Manager) verifyRunning(dockerCfg tools.DockerConfig) error {
+	if m.settle > 0 {
+		time.Sleep(m.settle)
+	}
+	state, found, err := m.inspectContainer(dockerCfg)
+	if err != nil {
+		m.log().Warn("Security proxy started but its state could not be checked", "error", err)
+		return nil
+	}
+	if found && state.State.Running && !state.State.Restarting && state.RestartCount == 0 {
+		return nil
+	}
+	return fmt.Errorf("%w: %s", ErrCaddyExited, m.recentCaddyError(dockerCfg))
+}
+
+// recentCaddyError returns the last error Caddy logged.
+func (m *Manager) recentCaddyError(dockerCfg tools.DockerConfig) string {
+	data, code, err := m.engine.request(dockerCfg, "GET", "/containers/"+url.QueryEscape(containerName)+"/logs?stdout=true&stderr=true&tail=20", "")
+	if err != nil || code != 200 {
+		return "see the proxy logs"
+	}
+	if reason := lastCaddyError(stripDockerLogHeaders(data)); reason != "" {
+		return reason
+	}
+	return "see the proxy logs"
+}
+
+// lastCaddyError picks the last error line of Caddy output (JSON log lines or
+// plain "Error: ..." lines).
+func lastCaddyError(output string) string {
+	lines := strings.Split(output, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		var entry struct {
+			Level string `json:"level"`
+			Msg   string `json:"msg"`
+			Error string `json:"error"`
+		}
+		if json.Unmarshal([]byte(line), &entry) == nil && entry.Level != "" {
+			if entry.Level != "error" && entry.Level != "fatal" && entry.Level != "panic" {
+				continue
+			}
+			line = strings.TrimSpace(strings.TrimSuffix(entry.Msg+": "+entry.Error, ": "))
+		} else if !strings.Contains(strings.ToLower(line), "error") {
+			continue
+		}
+		if len(line) > 400 {
+			line = line[:400] + "..."
+		}
+		return line
+	}
+	return ""
+}
+
 // Stop stops the running proxy container without removing it.
 func (m *Manager) Stop() error {
+	m.lifecycle.Lock()
+	defer m.lifecycle.Unlock()
 	cfg := m.dockerCfg()
-	_, code, err := tools.DockerRequest(cfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/stop?t=10", "")
+	_, code, err := m.engine.request(cfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/stop?t=10", "")
 	if err != nil {
 		return fmt.Errorf("stop container: %w", err)
 	}
 	if code != 204 && code != 304 && code != 404 {
 		return fmt.Errorf("stop container: HTTP %d", code)
 	}
-	m.logger.Info("Security proxy stopped")
+	m.log().Info("Security proxy stopped")
 	return nil
 }
 
 // Destroy stops and removes the container.
 func (m *Manager) Destroy() error {
-	m.stopAndRemove()
-	m.logger.Info("Security proxy destroyed")
+	m.lifecycle.Lock()
+	defer m.lifecycle.Unlock()
+	m.stopAndRemove(m.dockerCfg())
+	m.log().Info("Security proxy destroyed")
 	return nil
 }
 
-func (m *Manager) stopAndRemove() {
-	cfg := m.dockerCfg()
-	tools.DockerRequest(cfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/stop?t=5", "")
-	tools.DockerRequest(cfg, "DELETE", "/containers/"+url.QueryEscape(containerName)+"?force=true&v=true", "")
+func (m *Manager) stopAndRemove(cfg tools.DockerConfig) {
+	m.engine.request(cfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/stop?t=5", "")
+	m.engine.request(cfg, "DELETE", "/containers/"+url.QueryEscape(containerName)+"?force=true&v=true", "")
 }
 
 // Reload writes a new Caddyfile and reloads Caddy's config via the admin API.
+// A container whose image no longer fits the config (rate limiting toggled)
+// is recreated instead. When Caddy rejects the new Caddyfile it keeps the old
+// configuration, and the previous file is restored so a container restart
+// loads the configuration that is actually running.
 func (m *Manager) Reload() error {
-	dataDir := m.dataDir()
+	m.lifecycle.Lock()
+	defer m.lifecycle.Unlock()
+	cfg := m.Config()
+	dockerCfg := dockerConfigFor(cfg)
 
-	caddyfile := GenerateCaddyfile(m.cfg, m.upstreamAddr())
-	caddyfilePath := filepath.Join(dataDir, "Caddyfile")
-	if err := os.WriteFile(caddyfilePath, []byte(caddyfile), 0o644); err != nil {
+	state, found, err := m.inspectContainer(dockerCfg)
+	if err != nil {
+		return err
+	}
+	if !found || !state.State.Running {
+		return ErrNotRunning
+	}
+	if want := proxyImage(cfg); state.Config.Image != want {
+		m.log().Info("Security proxy image changed; recreating the container", "from", state.Config.Image, "to", want)
+		return m.startLocked(cfg)
+	}
+
+	dir := dataDir(cfg)
+	place, err := m.resolvePlacement(cfg, dir)
+	if err != nil {
+		return err
+	}
+	caddyfile, err := GenerateCaddyfile(cfg, place.upstream)
+	if err != nil {
+		return err
+	}
+	caddyfilePath := filepath.Join(dir, "Caddyfile")
+	previous, previousErr := os.ReadFile(caddyfilePath)
+	restore := func() {
+		if previousErr != nil {
+			return
+		}
+		if err := writeCaddyfile(caddyfilePath, previous); err != nil {
+			m.log().Warn("Failed to restore the previous security proxy Caddyfile", "error", err)
+		}
+	}
+	if err := writeCaddyfile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return fmt.Errorf("write Caddyfile: %w", err)
 	}
 
-	// Exec caddy reload inside the container
-	cfg := m.dockerCfg()
+	// Exec caddy reload inside the container and wait for its exit code.
+	exitCode, output, started, err := m.execReload(dockerCfg)
+	if err != nil {
+		if !started {
+			restore()
+		}
+		return err
+	}
+	if exitCode != 0 {
+		restore()
+		reason := lastCaddyError(output)
+		if reason == "" {
+			reason = fmt.Sprintf("caddy reload exited with code %d", exitCode)
+		}
+		return fmt.Errorf("%w: %s", ErrConfigRejected, reason)
+	}
+	m.log().Info("Security proxy configuration reloaded")
+	return nil
+}
+
+// execReload runs `caddy reload` attached. started reports whether the
+// command may have run; after that point a transport error leaves its outcome
+// unknown.
+func (m *Manager) execReload(dockerCfg tools.DockerConfig) (exitCode int, output string, started bool, err error) {
 	execPayload := map[string]interface{}{
 		"AttachStdout": true,
 		"AttachStderr": true,
+		"Tty":          false,
 		"Cmd":          []string{"caddy", "reload", "--config", "/etc/caddy/Caddyfile"},
 	}
 	body, _ := json.Marshal(execPayload)
-	data, code, err := tools.DockerRequest(cfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/exec", string(body))
+	data, code, err := m.engine.request(dockerCfg, "POST", "/containers/"+url.QueryEscape(containerName)+"/exec", string(body))
 	if err != nil {
-		return fmt.Errorf("exec create: %w", err)
+		return -1, "", false, fmt.Errorf("exec create: %w", err)
+	}
+	if code == 404 || code == 409 {
+		return -1, "", false, ErrNotRunning
 	}
 	if code != 201 {
-		return fmt.Errorf("exec create: HTTP %d: %s", code, string(data))
+		return -1, "", false, fmt.Errorf("exec create: HTTP %d: %s", code, string(data))
 	}
 
 	var execResp struct {
 		ID string `json:"Id"`
 	}
-	if err := json.Unmarshal(data, &execResp); err != nil {
-		return fmt.Errorf("parse exec response: %w", err)
+	if err := json.Unmarshal(data, &execResp); err != nil || execResp.ID == "" {
+		return -1, "", false, errors.New("parse exec response: no exec ID")
 	}
 
-	startPayload, _ := json.Marshal(map[string]bool{"Detach": true})
-	_, _, _ = tools.DockerRequest(cfg, "POST", "/exec/"+execResp.ID+"/start", string(startPayload))
-	m.logger.Info("Security proxy configuration reloaded")
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	startPayload, _ := json.Marshal(map[string]bool{"Detach": false, "Tty": false})
+	out, startCode, err := m.engine.requestContext(ctx, dockerCfg, "POST", "/exec/"+url.PathEscape(execResp.ID)+"/start", string(startPayload))
+	if err != nil {
+		return -1, "", true, fmt.Errorf("exec start (outcome unknown, check the proxy logs): %w", err)
+	}
+	if startCode != 200 {
+		return -1, "", false, fmt.Errorf("exec start: HTTP %d", startCode)
+	}
+	output = stripDockerLogHeaders(out)
+
+	inspect, inspectCode, err := m.engine.requestContext(ctx, dockerCfg, "GET", "/exec/"+url.PathEscape(execResp.ID)+"/json", "")
+	if err != nil || inspectCode != 200 {
+		return -1, output, true, fmt.Errorf("exec inspect (outcome unknown, check the proxy logs): HTTP %d %v", inspectCode, err)
+	}
+	var result struct {
+		ExitCode int `json:"ExitCode"`
+	}
+	if err := json.Unmarshal(inspect, &result); err != nil {
+		return -1, output, true, fmt.Errorf("parse exec inspect: %w", err)
+	}
+	return result.ExitCode, output, true, nil
 }
 
 // Status returns the container status.
@@ -239,7 +517,7 @@ type ContainerStatus struct {
 
 func (m *Manager) Status() (*ContainerStatus, error) {
 	cfg := m.dockerCfg()
-	data, code, err := tools.DockerRequest(cfg, "GET", "/containers/"+url.QueryEscape(containerName)+"/json", "")
+	data, code, err := m.engine.request(cfg, "GET", "/containers/"+url.QueryEscape(containerName)+"/json", "")
 	if err != nil {
 		return nil, fmt.Errorf("inspect container: %w", err)
 	}
@@ -278,7 +556,7 @@ func (m *Manager) Logs(tail int) (string, error) {
 	}
 	cfg := m.dockerCfg()
 	endpoint := fmt.Sprintf("/containers/%s/logs?stdout=true&stderr=true&tail=%d&timestamps=true", url.QueryEscape(containerName), tail)
-	data, code, err := tools.DockerRequest(cfg, "GET", endpoint, "")
+	data, code, err := m.engine.request(cfg, "GET", endpoint, "")
 	if err != nil {
 		return "", fmt.Errorf("get logs: %w", err)
 	}
@@ -306,37 +584,4 @@ func stripDockerLogHeaders(raw []byte) string {
 		raw = raw[size:]
 	}
 	return sb.String()
-}
-
-// ensureImage checks if the proxy image exists; if not, pulls caddy:latest.
-// For V1, we use the official Caddy image. Rate limiting uses Caddy's built-in
-// reverse_proxy load balancing. Custom plugins (xcaddy) can be added in V2.
-func (m *Manager) ensureImage() error {
-	cfg := m.dockerCfg()
-	_, code, _ := tools.DockerRequest(cfg, "GET", "/images/"+url.QueryEscape(imageName)+"/json", "")
-	if code == 200 {
-		return nil // image already exists
-	}
-
-	m.logger.Info("Pulling Caddy image for security proxy...")
-	// Pull official caddy image and tag it as our image
-	_, pullCode, pullErr := tools.DockerRequest(cfg, "POST", "/images/create?fromImage=caddy&tag=latest", "")
-	if pullErr != nil {
-		return fmt.Errorf("pull caddy image: %w", pullErr)
-	}
-	if pullCode != 200 {
-		return fmt.Errorf("pull caddy image: HTTP %d", pullCode)
-	}
-
-	// Tag as our image name
-	_, tagCode, tagErr := tools.DockerRequest(cfg, "POST", "/images/caddy:latest/tag?repo=aurago-proxy&tag=latest", "")
-	if tagErr != nil {
-		return fmt.Errorf("tag image: %w", tagErr)
-	}
-	if tagCode != 201 {
-		return fmt.Errorf("tag image: HTTP %d", tagCode)
-	}
-
-	m.logger.Info("Security proxy image ready", "image", imageName)
-	return nil
 }

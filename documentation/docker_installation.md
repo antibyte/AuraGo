@@ -157,7 +157,7 @@ By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/
 | Risk if compromised | Limited to allowed operations | Complete host takeover |
 | Container management | Start, stop, inspect, exec | Everything (including privilege escalation) |
 
-The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. `IMAGES=1` and `POST=1` allow AuraGo to pull published managed sidecar images such as Code Studio, while `BUILD=0` keeps Docker build API access disabled by default. `EXEC=1` is enabled for DockerExec, Code Studio terminals, and security-proxy reloads. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
+The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. `IMAGES=1` and `POST=1` allow AuraGo to pull published managed sidecar images such as Code Studio, while `BUILD=0` keeps Docker build API access disabled by default. The only managed feature that needs `BUILD=1` is the security proxy's optional rate limiting: it builds a Caddy image with the `caddy-ratelimit` module once (see the Security Proxy section of the integrations manual). `EXEC=1` is enabled for DockerExec, Code Studio terminals, and security-proxy reloads. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
 
 ### Switching to Direct Socket Access (NOT recommended)
 

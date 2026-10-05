@@ -95,5 +95,7 @@
   "config.updates.installing": "Instaluji…",
   "config.updates.running": "Běží…",
   "config.web_scraper.summary_mode": "Režim shrnutí",
-  "config.webdav.secret_empty": "Hodnota je prázdná"
+  "config.webdav.secret_empty": "Hodnota je prázdná",
+  "config.security_proxy.action_pending": "Probíhá… První spuštění s omezením rychlosti sestavuje image Caddy a může trvat několik minut.",
+  "config.security_proxy.rate_limit_build_hint": "Oficiální image Caddy omezení rychlosti nepodporuje. Při příštím spuštění AuraGo jednou sestaví vlastní image Caddy s modulem caddy-ratelimit. Docker k tomu musí povolit sestavování imagů a mít přístup k internetu; trvá to několik minut."
 }

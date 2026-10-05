@@ -95,5 +95,7 @@
   "config.updates.installing": "Installerar…",
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
-  "config.webdav.secret_empty": "Värdet är tomt"
+  "config.webdav.secret_empty": "Värdet är tomt",
+  "config.security_proxy.action_pending": "Arbetar… Första starten med hastighetsbegränsning bygger en Caddy-image och kan ta några minuter.",
+  "config.security_proxy.rate_limit_build_hint": "Den officiella Caddy-imagen saknar hastighetsbegränsning. Vid nästa start bygger AuraGo en gång en egen Caddy-image med modulen caddy-ratelimit. Docker måste då tillåta image-byggen och nå internet, och det tar några minuter."
 }

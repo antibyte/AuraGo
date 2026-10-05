@@ -242,5 +242,12 @@
   "tools.dns_partial_results": "Teilergebnisse",
   "backend.speech_lab_audio_warning": "Das Speech-Lab-Audio konnte nicht erzeugt werden. Die Textantwort bleibt verfügbar.",
   "backend.auth_current_password_required": "Für diese Änderung ist dein aktuelles Passwort erforderlich.",
-  "backend.auth_current_totp_required": "Für diese Änderung ist der aktuelle Code aus deiner Authenticator-App erforderlich."
+  "backend.auth_current_totp_required": "Für diese Änderung ist der aktuelle Code aus deiner Authenticator-App erforderlich.",
+  "backend.proxy_basic_auth_credentials_invalid": "Die Basic-Auth-Zugangsdaten im Vault sind nicht verwendbar. Der Benutzername darf weder ':', Anführungszeichen, Backslashes noch geschweifte Klammern enthalten, und das Passwort darf höchstens 72 Byte lang sein.",
+  "backend.proxy_basic_auth_credentials_missing": "Basic Auth ist aktiv, aber im Vault fehlen 'proxy_basic_auth_user' und 'proxy_basic_auth_pass'. Hinterlege beide Secrets oder schalte Basic Auth aus und starte den Proxy danach erneut.",
+  "backend.proxy_caddy_exited": "Der Proxy hat sich direkt nach dem Start beendet, meist wegen einer ungültigen Domain, eines ungültigen IP-Filter-Eintrags oder Ports. Den genauen Grund zeigen die Proxy-Logs.",
+  "backend.proxy_config_rejected": "Der Proxy hat die neuen Einstellungen abgelehnt und läuft mit den bisherigen weiter. Den Grund zeigen die Proxy-Logs.",
+  "backend.proxy_docker_placement_failed": "AuraGo läuft in Docker, aber der Proxy kann das Datenvolume von AuraGo nicht nutzen. Dafür ist Docker Engine 26 oder neuer nötig, und das Datenverzeichnis von AuraGo muss auf einem Docker-Volume oder Bind-Mount liegen. Details stehen im AuraGo-Log.",
+  "backend.proxy_not_running": "Der Security Proxy läuft nicht. Starte ihn zuerst.",
+  "backend.proxy_rate_limit_image_unavailable": "Für die Ratenbegrenzung braucht der Proxy ein Caddy-Image mit dem Modul caddy-ratelimit, das AuraGo nicht bauen konnte. Docker muss Image-Builds erlauben (bei Docker Compose: BUILD=1 beim Dienst docker-proxy) und das Internet erreichen. Alternativ schaltest du die Ratenbegrenzung aus. Details stehen im AuraGo-Log."
 }

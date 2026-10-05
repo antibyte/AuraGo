@@ -95,5 +95,7 @@
   "config.updates.installing": "Installiere…",
   "config.updates.running": "Läuft…",
   "config.web_scraper.summary_mode": "Zusammenfassungsmodus",
-  "config.webdav.secret_empty": "Wert ist leer"
+  "config.webdav.secret_empty": "Wert ist leer",
+  "config.security_proxy.action_pending": "Wird ausgeführt… Der erste Start mit Ratenbegrenzung baut ein Caddy-Image und kann ein paar Minuten dauern.",
+  "config.security_proxy.rate_limit_build_hint": "Das offizielle Caddy-Image kennt keine Ratenbegrenzung. Beim nächsten Start baut AuraGo einmalig ein eigenes Caddy-Image mit dem Modul caddy-ratelimit. Dafür muss Docker Image-Builds erlauben und das Internet erreichen; das dauert ein paar Minuten."
 }
