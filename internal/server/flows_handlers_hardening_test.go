@@ -637,8 +637,9 @@ func TestC17ScrubbedJSONWalksTheValues(t *testing.T) {
 		"run":  map[string]any{"output": "token=" + secret + " end", "list": []any{secret, 42, true, nil}},
 		secret: "as a key",
 	}
+	s := &Server{Logger: slog.New(slog.NewTextHandler(&c17LogBuffer{}, nil))}
 	w := httptest.NewRecorder()
-	flowsJSONScrubbed(w, http.StatusOK, payload)
+	s.flowsJSONScrubbed(w, http.StatusOK, payload)
 	if !json.Valid(w.Body.Bytes()) {
 		t.Fatalf("not JSON: %s", w.Body.String())
 	}
@@ -664,6 +665,99 @@ func TestC17ScrubbedJSONWalksTheValues(t *testing.T) {
 	}
 	if w.Header().Get("Cache-Control") != "no-store" {
 		t.Fatal("scrubbed answers must not be cached")
+	}
+}
+
+func TestC17UnencodableAnswersAre500(t *testing.T) {
+	logs := &c17LogBuffer{}
+	s := &Server{Logger: slog.New(slog.NewTextHandler(logs, nil))}
+	for name, write := range map[string]func(http.ResponseWriter){
+		"flowsJSON":         func(w http.ResponseWriter) { flowsJSON(w, http.StatusOK, map[string]any{"bad": make(chan int)}) },
+		"flowsJSONScrubbed": func(w http.ResponseWriter) { s.flowsJSONScrubbed(w, http.StatusOK, map[string]any{"bad": func() {}}) },
+	} {
+		w := httptest.NewRecorder()
+		write(w)
+		if body := flowsBody(t, w); w.Code != http.StatusInternalServerError || body["code"] != "FLOW_INTERNAL" {
+			t.Fatalf("%s with an unencodable value = %d %s", name, w.Code, w.Body.String())
+		}
+	}
+	if !strings.Contains(logs.String(), "could not be encoded") {
+		t.Fatalf("the scrubbed encode failure is not logged: %s", logs.String())
+	}
+}
+
+func TestC17MissingMissionIsReportedNotHealed(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	stm := c17Audit(t, s)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	// Mission Control lost the flow's mission (DeleteFlowMission does not call back).
+	if err := s.MissionManagerV2.DeleteFlowMission(rec.MissionID); err != nil {
+		t.Fatal(err)
+	}
+	w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/publish", token, `{"base_revision":1}`)
+	body := flowsBody(t, w)
+	if w.Code != http.StatusOK || body["partial"] != true || body["code"] != "FLOW_MISSION_MISSING" ||
+		body["error"] != flowPublishMissionMissingMessage {
+		t.Fatalf("publish without a mission = %d %s", w.Code, w.Body.String())
+	}
+	if audit := c17AuditEvents(t, stm, "flow_publish"); len(audit) != 1 || !strings.Contains(audit[0].Summary, "entry is missing") {
+		t.Fatalf("audit = %+v", audit)
+	}
+	w = flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/enabled", token, `{"enabled":true}`)
+	if w.Code != http.StatusConflict || flowsBody(t, w)["code"] != "FLOW_MISSION_MISSING" {
+		t.Fatalf("enable without a mission = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodDelete, "/api/desktop/flows/"+rec.ID, token, ""); w.Code != http.StatusOK {
+		t.Fatalf("delete without a mission = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestC17DeletingAFlowWithALockedMissionIs409(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	// Mission Control may change only the enabled switch and the lock of a flow mission.
+	if err := s.MissionManagerV2.Update(rec.MissionID, &tools.MissionV2{Locked: true}); err != nil {
+		t.Fatalf("lock: %v", err)
+	}
+	w := flowsCall(t, s, http.MethodDelete, "/api/desktop/flows/"+rec.ID, token, "")
+	if w.Code != http.StatusConflict || flowsBody(t, w)["code"] != "FLOW_LOCKED" {
+		t.Fatalf("delete of a locked flow = %d %s", w.Code, w.Body.String())
+	}
+	if _, err := s.Flows.GetFlow(context.Background(), rec.ID); err != nil {
+		t.Fatalf("the locked flow was deleted: %v", err)
+	}
+	if m, ok := s.MissionManagerV2.Get(rec.MissionID); !ok || !m.Locked {
+		t.Fatalf("the locked mission = %+v %v", m, ok)
+	}
+}
+
+func TestC17SecretDeleteAuditsOnlyRealDeletes(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	stm := c17Audit(t, s)
+	if w := flowsCall(t, s, http.MethodDelete, "/api/desktop/flows/secrets/c17_never", token, ""); w.Code != http.StatusOK {
+		t.Fatalf("delete of a missing secret = %d %s", w.Code, w.Body.String())
+	}
+	if audit := c17AuditEvents(t, stm, "flow_secret_delete"); len(audit) != 0 {
+		t.Fatalf("a delete that removed nothing was audited: %+v", audit)
+	}
+	if w := flowsCall(t, s, http.MethodPut, "/api/desktop/flows/secrets/c17_real", token, `{"value":"c17-real-value-123"}`); w.Code != http.StatusOK {
+		t.Fatalf("put = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodDelete, "/api/desktop/flows/secrets/c17_real", token, ""); w.Code != http.StatusOK {
+		t.Fatalf("delete = %d %s", w.Code, w.Body.String())
+	}
+	if audit := c17AuditEvents(t, stm, "flow_secret_delete"); len(audit) != 1 || audit[0].TargetName != "c17_real" {
+		t.Fatalf("audit = %+v", audit)
+	}
+	// A cancelled request leaves used_by out; the vault delete itself has no context.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	r := httptest.NewRequest(http.MethodDelete, "/api/desktop/flows/secrets/c17_real", nil).WithContext(ctx)
+	r.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	s.handleFlows(w, r)
+	if body := flowsBody(t, w); w.Code != http.StatusOK || body["status"] != "deleted" || body["used_by"] != nil {
+		t.Fatalf("cancelled delete = %d %s", w.Code, w.Body.String())
 	}
 }
 

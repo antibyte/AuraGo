@@ -227,10 +227,16 @@ func (m *MissionManagerV2) DeleteFlowMission(missionID string) error {
 	return m.save()
 }
 
+// ErrFlowMissionNotFound is returned (wrapped, with the mission id; the text stays "flow
+// mission not found: <id>") by SyncFlowMission and SetFlowMissionEnabled when Mission
+// Control holds no flow mission of that id. The flow API tells the user to re-create the
+// flow, since a publish never recreates a missing mission.
+var ErrFlowMissionNotFound = errors.New("flow mission not found")
+
 func (m *MissionManagerV2) flowMissionLocked(missionID string) (*MissionV2, error) {
 	mission, ok := m.missions[missionID]
 	if !ok || !isFlowMission(mission) {
-		return nil, fmt.Errorf("flow mission not found: %s", missionID)
+		return nil, fmt.Errorf("%w: %s", ErrFlowMissionNotFound, missionID)
 	}
 	return mission, nil
 }

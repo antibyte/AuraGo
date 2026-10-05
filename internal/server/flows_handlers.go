@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -29,12 +30,16 @@ const (
 	flowsInternalMessage = "the flow service failed; see the server log"
 	// flowPublishIncompleteMessage answers a publish that made the revision live but could
 	// not update Mission Control or the timers (see flowPublishIncomplete).
-	flowPublishIncompleteMessage = "Published, but Mission Control could not be updated: publish again to finish."
+	flowPublishIncompleteMessage = "Published, but not every part could be updated (Mission Control or timers). Publish again to finish."
+	// flowPublishMissionMissingMessage answers such a publish when the flow's mission is gone
+	// from Mission Control: publishing again cannot recreate it.
+	flowPublishMissionMissingMessage = "Published, but the flow's Mission Control entry is missing. Export the flow, delete it and import it again."
 )
 
-// flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that name
-// a collection route of the API contract, not a flow id.
-var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true}
+// flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
+// handleFlows dispatches as a collection route, not as a flow id. Only routes that exist
+// are listed: 1c-18 and 1c-19 add theirs here when they add them to handleFlows.
+var flowsCollectionRoutes = map[string]bool{"secrets": true}
 
 // flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
 // characters); anything else is FLOW_NOT_FOUND before the store is asked.
@@ -101,11 +106,34 @@ func registerFlowsRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/desktop/flows/", s.handleFlows)
 }
 
+// flowsEncodeFailure is the whole answer when a response cannot be encoded.
+const flowsEncodeFailure = `{"error":"the response cannot be encoded","code":"FLOW_INTERNAL"}` + "\n"
+
+// flowsJSON writes value as JSON with status. It encodes before it writes the status, so
+// a value that cannot be encoded gives 500 FLOW_INTERNAL, not a 200 with an empty body.
 func flowsJSON(w http.ResponseWriter, status int, value any) {
+	_ = flowsWriteJSON(w, status, value)
+}
+
+// flowsWriteJSON is flowsJSON that returns the encoding error (after answering 500).
+func flowsWriteJSON(w http.ResponseWriter, status int, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		flowsWriteEncodeFailure(w)
+		return err
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
+	_, _ = w.Write(append(data, '\n'))
+	return nil
+}
+
+func flowsWriteEncodeFailure(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusInternalServerError)
+	_, _ = w.Write([]byte(flowsEncodeFailure))
 }
 
 // flowsJSONScrubbed writes run data with registered secret values redacted.
@@ -116,19 +144,22 @@ func flowsJSON(w http.ResponseWriter, status int, value any) {
 // JSON text, where a text scrub misses it, and a redaction inside the text could break
 // the JSON; the walk avoids both, so the answer is always valid JSON. The walk is not
 // budgeted (the payloads are bounded by the stored outputs, at most
-// flows.MaxStoredOutputBytes per step); numbers come back as float64.
-func flowsJSONScrubbed(w http.ResponseWriter, status int, value any) {
+// flows.MaxStoredOutputBytes per step); numbers come back as float64. A value that cannot
+// be encoded gives 500 FLOW_INTERNAL and a Warn log.
+func (s *Server) flowsJSONScrubbed(w http.ResponseWriter, status int, value any) {
 	data, err := json.Marshal(value)
-	if err != nil {
-		flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", "the response cannot be encoded")
-		return
-	}
 	var plain any
-	if err := json.Unmarshal(data, &plain); err != nil {
-		flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", "the response cannot be encoded")
-		return
+	if err == nil {
+		err = json.Unmarshal(data, &plain)
 	}
-	flowsJSON(w, status, scrubFlowValue(plain))
+	if err == nil {
+		err = flowsWriteJSON(w, status, scrubFlowValue(plain))
+	} else {
+		flowsWriteEncodeFailure(w)
+	}
+	if err != nil {
+		s.Logger.Warn("A flow API response could not be encoded", "type", fmt.Sprintf("%T", value), "error", flowsErrorText(err))
+	}
 }
 
 func flowsError(w http.ResponseWriter, status int, code, msg string) {
@@ -191,6 +222,9 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 			"more than one flow is linked to the same Mission Control mission, so it is not clear which one is meant; delete the extra flow")
 	case errors.Is(err, tools.ErrMissionLocked):
 		flowsError(w, http.StatusConflict, "FLOW_LOCKED", "the flow's mission is locked in Mission Control; unlock it there first")
+	case errors.Is(err, tools.ErrFlowMissionNotFound):
+		flowsError(w, http.StatusConflict, "FLOW_MISSION_MISSING",
+			"the flow's Mission Control entry is missing; export the flow, delete it and import it again")
 	case errors.Is(err, flows.ErrQueueFull):
 		flowsError(w, http.StatusTooManyRequests, "FLOW_RUN_LIMIT", flowsErrorText(err))
 	case errors.Is(err, flows.ErrRunnerClosed):
@@ -529,13 +563,20 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 // so the editor can tell it from a failure (an error status) and from a full publish (no
 // "partial"). Publishing the same draft revision again repeats the update (the heal path
 // of Service.Publish), so the editor keeps its Publish button. The cause stays in the log.
+//
+// Exception: when the flow's mission is gone from Mission Control
+// (tools.ErrFlowMissionNotFound), publishing again fails the same way, because a publish
+// never recreates the mission. The code is then FLOW_MISSION_MISSING and the message
+// (flowPublishMissionMissingMessage) says to export, delete and import the flow.
 func (s *Server) flowPublishIncomplete(w http.ResponseWriter, rec *flows.FlowRecord, issues []flows.Issue, err error) {
-	s.Logger.Warn("Flow published, but Mission Control could not be updated", "flow_id", rec.ID, "error", flowsErrorText(err))
-	s.recordFlowAuditStatus("flow_publish", rec.ID, rec.Name, memory.AuditStatusWarning,
-		"Flow "+rec.Name+" published; Mission Control update failed")
+	code, msg, summary := "FLOW_PUBLISH_INCOMPLETE", flowPublishIncompleteMessage, "Flow "+rec.Name+" published; Mission Control update failed"
+	if errors.Is(err, tools.ErrFlowMissionNotFound) {
+		code, msg, summary = "FLOW_MISSION_MISSING", flowPublishMissionMissingMessage, "Flow "+rec.Name+" published; its Mission Control entry is missing"
+	}
+	s.Logger.Warn("Flow published, but Mission Control could not be updated", "flow_id", rec.ID, "code", code, "error", flowsErrorText(err))
+	s.recordFlowAuditStatus("flow_publish", rec.ID, rec.Name, memory.AuditStatusWarning, summary)
 	s.broadcastFlowsChanged(rec.ID, "published")
-	flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "issues": nonNilIssues(issues), "partial": true,
-		"code": "FLOW_PUBLISH_INCOMPLETE", "error": flowPublishIncompleteMessage})
+	flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "issues": nonNilIssues(issues), "partial": true, "code": code, "error": msg})
 }
 
 // flowExportName turns a flow name into "<slug>.easydrag.json".
@@ -632,11 +673,20 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 		s.recordFlowAudit("flow_secret_set", "", name, "Flow secret "+name+" saved")
 		flowsJSON(w, http.StatusOK, map[string]string{"status": "saved"})
 	case http.MethodDelete:
-		if err := s.Vault.DeleteSecret(flowSecretPrefix + name); err != nil && !errors.Is(err, security.ErrSecretNotFound) {
+		key := flowSecretPrefix + name
+		keys, err := s.Vault.ListKeys()
+		if err != nil {
 			s.flowsErrorFrom(w, r, err)
 			return
 		}
-		s.recordFlowAudit("flow_secret_delete", "", name, "Flow secret "+name+" deleted")
+		if err := s.Vault.DeleteSecret(key); err != nil && !errors.Is(err, security.ErrSecretNotFound) {
+			s.flowsErrorFrom(w, r, err)
+			return
+		}
+		// Only a delete that removed something goes to the audit timeline.
+		if slices.Contains(keys, key) {
+			s.recordFlowAudit("flow_secret_delete", "", name, "Flow secret "+name+" deleted")
+		}
 		answer := map[string]any{"status": "deleted"}
 		if users := s.flowSecretUsers(r.Context(), name); users != nil {
 			answer["used_by"] = users
@@ -651,11 +701,17 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 // passes the flow secret name to a secret_ref parameter of an enabled node: their live
 // runs now fail with FLOW_SECRET_UNAVAILABLE, so the editor can warn after a delete. A
 // template in the parameter is not resolved, so a name chosen at run time is not found.
-// It reads the store without a flow lock. nil means the flows could not be read.
+// It reads the store without a flow lock, under the request's context. nil means the
+// flows could not be read (or the request was cancelled), and the answer leaves out
+// used_by.
 func (s *Server) flowSecretUsers(ctx context.Context, name string) []string {
-	records, err := s.Flows.Store().ListFlows(context.WithoutCancel(ctx), flows.KindFlow)
+	records, err := s.Flows.Store().ListFlows(ctx, flows.KindFlow)
 	if err != nil {
-		s.Logger.Warn("The flows using a deleted flow secret could not be listed", "error", flowsErrorText(err))
+		if ctx.Err() != nil {
+			s.Logger.Debug("The flows using a deleted flow secret were not listed: the request was cancelled")
+		} else {
+			s.Logger.Warn("The flows using a deleted flow secret could not be listed", "error", flowsErrorText(err))
+		}
 		return nil
 	}
 	reg := s.Flows.Registry()
