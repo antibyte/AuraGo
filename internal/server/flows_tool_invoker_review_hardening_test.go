@@ -40,6 +40,9 @@ func TestC13RemoteTextPicksNoStatus(t *testing.T) {
 		{"broker error", `Tool Output: {"status":"error","message":"MQTT publish failed: broker says MQTT is in read-only mode"}`, agent.ToolResultFailed, "failed"},
 		{"Home Assistant echo", `Tool Output: {"status":"error","message":"Home Assistant API error (HTTP 403): Home Assistant integration is not enabled"}`, agent.ToolResultFailed, "failed"},
 		{"service call echo", `Tool Output: {"status":"error","message":"Service call failed: planner is disabled. x"}`, agent.ToolResultFailed, "failed"},
+		{"message field holding only wrapped text", `Tool Output: {"status":"error","message":"<external_data>MQTT is in read-only mode</external_data>"}`, agent.ToolResultFailed, "failed"},
+		{"error field holding wrapped text", `Tool Output: {"status":"error","error":"<external_data>\nHome Assistant integration is not enabled\n</external_data>"}`, agent.ToolResultFailed, "failed"},
+		{"channel detail holding wrapped text", `Tool Output: {"results":[{"channel":"ntfy","status":"error","detail":"<external_data>ntfy topic is not configured</external_data>"}],"status":"success"}`, agent.ToolResultSuccess, "success"},
 		{"notification channel echo", `Tool Output: {"results":[{"channel":"ntfy","status":"error","detail":"ntfy returned HTTP 403: ntfy topic is not configured"}],"status":"success"}`, agent.ToolResultSuccess, "success"},
 	}
 	for _, c := range cases {
@@ -81,6 +84,22 @@ func TestC13RefusalsMapThroughTheGuardiansWrapper(t *testing.T) {
 	resp, err = inv.InvokeTool(context.Background(), c13Request("home_assistant", map[string]any{"operation": "get_state", "entity_id": "light.a"}))
 	if err != nil || resp.Status != "failed" {
 		t.Fatalf("tool-marked remote text behind the Guardian: %+v, %v", resp, err)
+	}
+}
+
+// Re-review (c): the Guardian of the dispatch that ran decides, not a second read of the
+// server's field.
+func TestC13GuardianLayerFollowsTheDispatchedContext(t *testing.T) {
+	wrapped := "[Tool Output]\n" + security.IsolateExternalData(`Tool Output: {"status":"error","message":"Home Assistant is in read-only mode"}`)
+	inv, s, _ := c13Invoker(&config.Config{}, map[string]bool{"home_assistant": true},
+		func(_ context.Context, _ *agent.ToolCall, dc *agent.DispatchContext) agent.ToolDispatchResult {
+			dc.Guardian = nil // this dispatch ran without a Guardian: the one layer is the tool's
+			return agent.ToolDispatchResult{Output: wrapped, Status: agent.ToolResultFailed, IsError: true}
+		})
+	s.Guardian = security.NewGuardian(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	resp, err := inv.InvokeTool(context.Background(), c13Request("home_assistant", map[string]any{"operation": "get_state", "entity_id": "light.a"}))
+	if err != nil || resp.Status != "failed" {
+		t.Fatalf("%+v, %v", resp, err)
 	}
 }
 

@@ -129,11 +129,7 @@ func TestC13RefusalTextsBecomeNonRetryableStatuses(t *testing.T) {
 		covered := false
 		for _, c := range cases {
 			text, _ := flowToolText(c.output, false)
-			envelope, _ := flows.ParseToolOutput(text)
-			if _, onlyText := envelope["text"]; onlyText && len(envelope) == 1 {
-				envelope = nil
-			}
-			covered = covered || rule.pattern.MatchString(strings.ToLower(strings.TrimSpace(flowToolMessage(text, envelope))))
+			covered = covered || rule.pattern.MatchString(strings.ToLower(strings.TrimSpace(flowToolMessage(text, flowEnvelope(text)))))
 		}
 		if !covered {
 			t.Errorf("refusal rule %q has no test with a real message", rule.pattern)

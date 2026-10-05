@@ -193,17 +193,38 @@ func flowToolText(output string, guardian bool) (text string, remote bool) {
 }
 
 // flowToolMessage is the tool's own description of a failure: the message or error field of
-// a JSON envelope, else the text itself.
+// a JSON envelope, else the text itself. A field that holds <external_data> is third-party
+// text the tool marked as such and gives "" (no rule is tried on it).
+//
+// Accepted: some tools put a configured service's raw HTTP body into "message" without a
+// marker, for example adgHTTPError (internal/tools/adguard.go:89) and the Ollama tool
+// (internal/tools/ollama.go:68, :111, :127, :174, :193, :212). The services are configured
+// by the user, and the worst case is a misleading final code (a non-retried denied or
+// needs_setup) when such a body happens to start with a refusal sentence.
 func flowToolMessage(text string, envelope map[string]any) string {
 	if envelope == nil {
 		return text
 	}
 	for _, key := range []string{"message", "error"} {
 		if s, ok := envelope[key].(string); ok && strings.TrimSpace(s) != "" {
+			if strings.HasPrefix(strings.TrimSpace(s), flowExternalOpen) {
+				return ""
+			}
 			return s
 		}
 	}
 	return ""
+}
+
+// flowEnvelope decodes text as a JSON object with a plain json.Unmarshal. Unlike
+// flows.ParseToolOutput it keeps <external_data> wrappers inside string fields, so a
+// refusal rule never sees third-party text as the tool's own message.
+func flowEnvelope(text string) map[string]any {
+	var envelope map[string]any
+	if json.Unmarshal([]byte(text), &envelope) != nil {
+		return nil
+	}
+	return envelope
 }
 
 // flowNotifyRefusal handles an answer of send_notification or send_telegram whose top-level
@@ -264,12 +285,7 @@ func flowToolOutcome(tool string, res agent.ToolDispatchResult, guardian bool) f
 	if remote {
 		return out
 	}
-	var envelope map[string]any
-	if parsed, _ := flows.ParseToolOutput(text); parsed != nil {
-		if _, onlyText := parsed["text"]; !(onlyText && len(parsed) == 1) {
-			envelope = parsed
-		}
-	}
+	envelope := flowEnvelope(text)
 	if status == "" || status == agent.ToolResultUnknown {
 		// The dispatcher's own classifier (exit_code, pending and deferred answers, the
 		// plain-text failure markers), applied to the text behind the Guardian's layer.

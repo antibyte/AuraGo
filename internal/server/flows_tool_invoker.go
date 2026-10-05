@@ -229,13 +229,15 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	}
 	secrets, release := flowRegisterSecrets(cfg, req.Tool)
 	defer release()
-	res := i.dispatch(ctx, &tc, i.dispatchContext(flowDispatchConfig(cfg), req.FlowID, action))
+	dc := i.dispatchContext(flowDispatchConfig(cfg), req.FlowID, action)
+	res := i.dispatch(ctx, &tc, dc)
 	res.Output = flowRedactSecrets(res.Output, secrets)
 	textSent := sentKey != "" && flowTelegramTextSent(res.Output)
 	if textSent {
 		i.rememberTextSent(sentKey, time.Now())
 	}
-	resp := flowToolOutcome(req.Tool, res, i.s.Guardian != nil)
+	// The Guardian that actually ran decides how many <external_data> layers are its own.
+	resp := flowToolOutcome(req.Tool, res, dc.Guardian != nil)
 	if err := ctx.Err(); err != nil && resp.Status != string(agent.ToolResultSuccess) {
 		return flows.ToolResponse{}, err
 	}
