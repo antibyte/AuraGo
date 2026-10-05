@@ -120,6 +120,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		}
 		injectDefaultToolPermissions(rawCfg, s.Cfg)
 		injectRuntimeDockerDefaults(rawCfg, s.Cfg)
+		injectDockerHostAccessDefault(rawCfg, s.Cfg)
 		injectAIGatewayDefaults(rawCfg, s.Cfg)
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
@@ -293,6 +294,22 @@ func injectRuntimeDockerDefaults(rawCfg map[string]interface{}, cfg *config.Conf
 	if _, ok := dockerSection["enabled"]; !ok {
 		dockerSection["enabled"] = cfg.Docker.Enabled
 	}
+}
+
+// injectDockerHostAccessDefault shows the loaded docker.allow_host_access when
+// config.yaml does not carry the key yet (grandfathered at load). The Danger
+// Zone toggle then renders the real state and an untouched toggle is never
+// dirty, so a save cannot write the template's false over the grandfather.
+func injectDockerHostAccessDefault(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	dockerSection, ok := rawCfg["docker"].(map[string]interface{})
+	if !ok {
+		dockerSection = make(map[string]interface{})
+		rawCfg["docker"] = dockerSection
+	}
+	setDefaultBool(dockerSection, "allow_host_access", cfg.Docker.AllowHostAccess)
 }
 
 func injectAIGatewayDefaults(rawCfg map[string]interface{}, cfg *config.Config) {

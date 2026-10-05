@@ -27,6 +27,7 @@ type RuntimePermissions struct {
 	AllowNetworkRequests       bool
 	DockerEnabled              bool
 	DockerReadOnly             bool
+	AllowDockerHostAccess      bool
 	SchedulerEnabled           bool
 	SchedulerReadOnly          bool
 	MissionsEnabled            bool
@@ -129,6 +130,7 @@ func intersectRuntimePermissions(a, b RuntimePermissions) RuntimePermissions {
 		AllowNetworkRequests:       a.AllowNetworkRequests && b.AllowNetworkRequests,
 		DockerEnabled:              a.DockerEnabled && b.DockerEnabled,
 		DockerReadOnly:             a.DockerReadOnly || b.DockerReadOnly,
+		AllowDockerHostAccess:      a.AllowDockerHostAccess && b.AllowDockerHostAccess,
 		SchedulerEnabled:           a.SchedulerEnabled && b.SchedulerEnabled,
 		SchedulerReadOnly:          a.SchedulerReadOnly || b.SchedulerReadOnly,
 		MissionsEnabled:            a.MissionsEnabled && b.MissionsEnabled,
@@ -192,6 +194,7 @@ func RuntimePermissionsFromConfig(cfg *config.Config) RuntimePermissions {
 		AllowNetworkRequests:       cfg.Agent.AllowNetworkRequests,
 		DockerEnabled:              cfg.Docker.Enabled,
 		DockerReadOnly:             cfg.Docker.ReadOnly,
+		AllowDockerHostAccess:      cfg.Docker.AllowHostAccess,
 		SchedulerEnabled:           cfg.Tools.Scheduler.Enabled,
 		SchedulerReadOnly:          cfg.Tools.Scheduler.ReadOnly,
 		MissionsEnabled:            cfg.Tools.Missions.Enabled,

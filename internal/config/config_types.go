@@ -1548,9 +1548,10 @@ type Config struct {
 		Insecure          bool     `yaml:"insecure"`                       // skip TLS certificate verification (default: false)
 	} `yaml:"meshcentral"`
 	Docker struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
-		Host     string `yaml:"host"`     // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
+		Enabled         bool   `yaml:"enabled"`
+		ReadOnly        bool   `yaml:"readonly"`          // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
+		Host            string `yaml:"host"`              // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
+		AllowHostAccess bool   `yaml:"allow_host_access"` // agent docker compose up/create/build may use host paths outside the workspace, docker.sock, devices, privileged mode, host namespaces, cap_add and unconfined security_opt; configs written before this key existed load as true, fresh installs get false
 	} `yaml:"docker"`
 	PackageManager PackageManagerConfig `yaml:"package_manager"`
 	CoAgents       struct {

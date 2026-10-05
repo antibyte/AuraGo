@@ -1600,6 +1600,15 @@ func Load(path string) (*Config, error) {
 		cfg.Tools.WebScraper.Enabled = *cfg.Agent.AllowWebScraper
 	}
 
+	// docker.allow_host_access gates host access for agent Compose stacks
+	// (up/create/build). Configurations written before the key existed keep
+	// working: an absent key loads as true. config-merger writes the key on
+	// upgrade and the Config UI shows the loaded value, so neither switches it
+	// off silently; writing the key (true or false) ends the grandfather.
+	if !yamlHasPath(data, "docker", "allow_host_access") {
+		cfg.Docker.AllowHostAccess = true
+	}
+
 	// Migrate legacy agent.personality_* fields → new personality section.
 	cfg.MigrateAgentToPersonality()
 

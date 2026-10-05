@@ -273,11 +273,25 @@ Verwalte Docker-Container über AuraGo.
 
 > ⚠️ **Sicherheit:** Der Docker-Zugriff ermöglicht volle Host-Kontrolle. Aktiviere `readonly` für mehr Sicherheit.
 
+### Compose-Stacks des Agenten und Hostzugriff
+
+Der Agent kann `docker compose` für Dateien in seinem Workspace ausführen. Vor `up`, `create` oder `build` löst AuraGo die Datei mit `docker compose config` auf und prüft das Ergebnis:
+
+- **Immer gesperrt:** von AuraGo verwaltete Container, Labels, Images und Volumes (lokales LLM, ACE-Step, Garage, Homepage, der AuraGo-App-Container) sowie Binds, env-Dateien, Secrets, Configs oder Build-Kontexte, die in AuraGos Datenverzeichnis, `config.yaml`, die `.env` daneben, `/etc/aurago` oder das Master-Key-Secret zeigen.
+- **Braucht `docker.allow_host_access: true`:** Binds außerhalb des Agenten-Workspace (z. B. `/srv/media`), sensible Host-Pfade wie `/var/run/docker.sock`, `/etc/localtime` oder `/`, Windows-Named-Pipes, `devices`, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unbeschränkte `security_opt`, lokale Volumes, die ein Host-Verzeichnis einbinden, sowie env-Dateien, Secrets, Configs oder Build-Kontexte außerhalb des Workspace.
+- `down`, `stop`, `start`, `restart`, `pull`, `ps`, `logs` und die übrigen lesenden Befehle prüft AuraGo dabei nie – Stacks, die schon laufen, kannst Du also weiter verwalten.
+
+Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter oder Medienserver mit Host-Ordnern brauchen den Hostzugriff. Konfigurationen, die es vor dieser Einstellung schon gab, haben ihn automatisch eingeschaltet (das Update schreibt `allow_host_access: true`); neue Installationen starten mit `false`. Du schaltest ihn unter **Config → Gefahrenzone → Docker-Hostzugriff für Compose-Stacks des Agenten** um. Der Sicherheitscheck warnt, solange er eingeschaltet ist.
+
+> ⚠️ Mit eingeschaltetem Hostzugriff legt ein Bind eines übergeordneten Verzeichnisses wie `/` (node-exporter) AuraGos Vault, `config.yaml` und Master-Key trotzdem für diesen Container offen. Gesperrt sind nur AuraGos eigene Pfade selbst.
+
 ### YAML-Referenz
 ```yaml
 docker:
   enabled: true
   host: "unix:///var/run/docker.sock"
+  readonly: false
+  allow_host_access: false   # Compose up/create/build des Agenten darf Host-Pfade, Geräte, Privilegien und Host-Namespaces nutzen
 ```
 
 ## Package Manager Integration

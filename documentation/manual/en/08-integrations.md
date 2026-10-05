@@ -312,11 +312,25 @@ Manage Docker containers, images, and networks.
 
 > ⚠️ **Warning:** Docker integration grants significant system access. Use `readonly` for restricted environments.
 
+### Agent Compose stacks and host access
+
+The agent can run `docker compose` for files inside its workspace. Before `up`, `create` or `build`, AuraGo resolves the file with `docker compose config` and checks the result:
+
+- **Always blocked:** AuraGo-managed containers, labels, images and volumes (local LLM, ACE-Step, Garage, homepage, the AuraGo app container) and binds, env files, secrets, configs or build contexts that point into AuraGo's own data directory, `config.yaml`, the `.env` next to it, `/etc/aurago` or the master key secret.
+- **Needs `docker.allow_host_access: true`:** binds outside the agent workspace (for example `/srv/media`), sensitive host paths such as `/var/run/docker.sock`, `/etc/localtime` or `/`, Windows named pipes, `devices`, `privileged`, `network_mode`/`pid`/`ipc`/`userns_mode`/`uts`/`cgroup: host`, `cap_add`, unconfined `security_opt`, local volumes that bind a host directory, and env files, secrets, configs or build contexts outside the workspace.
+- `down`, `stop`, `start`, `restart`, `pull`, `ps`, `logs` and the other read-only commands are never blocked by this check, so stacks you already run stay manageable.
+
+Traefik, Portainer, Watchtower, Home Assistant, Frigate, node-exporter or media servers with host folders need host access. Configurations created before this setting existed have it switched on automatically (the updater writes `allow_host_access: true`); fresh installs start with `false`. Toggle it in **Config → Danger Zone → Docker host access for agent Compose stacks**. The security check warns while it is on.
+
+> ⚠️ With host access on, a bind of a parent directory such as `/` (node-exporter) still exposes AuraGo's vault, `config.yaml` and master key to that container. Only AuraGo's own paths themselves are blocked.
+
 ### YAML Reference
 ```yaml
 docker:
     enabled: true
     host: "unix:///var/run/docker.sock"
+    readonly: false
+    allow_host_access: false   # agent Compose up/create/build may use host paths, devices, privileges and host namespaces
 ```
 
 ---

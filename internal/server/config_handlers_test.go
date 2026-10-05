@@ -1517,3 +1517,67 @@ func TestConfigSchemaConsistency(t *testing.T) {
 	_ = rootLevelSections // silence unused warning (kept for documentation)
 	_ = nestedUnderTools
 }
+
+func TestInjectDockerHostAccessDefaultShowsEffectiveValue(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.AllowHostAccess = true
+	raw := map[string]interface{}{}
+	injectDockerHostAccessDefault(raw, cfg)
+	docker, _ := raw["docker"].(map[string]interface{})
+	if docker["allow_host_access"] != true {
+		t.Fatalf("absent key not shown with its loaded value: %#v", raw)
+	}
+	explicit := map[string]interface{}{"docker": map[string]interface{}{"allow_host_access": false}}
+	injectDockerHostAccessDefault(explicit, cfg)
+	if explicit["docker"].(map[string]interface{})["allow_host_access"] != false {
+		t.Fatalf("explicit value overwritten: %#v", explicit)
+	}
+}
+
+func TestConfigSaveKeepsGrandfatheredDockerHostAccess(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "config.yaml")
+	if err := os.WriteFile(path, []byte("docker:\n  enabled: true\n  readonly: false\nbudget: {enabled: false, daily_limit_usd: 5}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.ConfigPath = path
+	if !cfg.Docker.AllowHostAccess {
+		t.Fatal("absent key must load as true")
+	}
+	vault, err := security.NewVault(strings.Repeat("12", 32), filepath.Join(root, "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{Cfg: cfg, Vault: vault, Logger: slog.Default()}
+
+	get := httptest.NewRecorder()
+	handleGetConfig(s).ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+	var loaded map[string]interface{}
+	if err := json.Unmarshal(get.Body.Bytes(), &loaded); err != nil {
+		t.Fatal(err)
+	}
+	if docker, _ := loaded["docker"].(map[string]interface{}); docker["allow_host_access"] != true {
+		t.Fatalf("GET shows docker.allow_host_access = %#v, want true", loaded["docker"])
+	}
+
+	put := httptest.NewRecorder()
+	handleUpdateConfig(s).ServeHTTP(put, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(`{"budget":{"daily_limit_usd":7}}`)))
+	if put.Code != http.StatusOK {
+		t.Fatalf("save: %d %s", put.Code, put.Body.String())
+	}
+	after, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !after.Docker.AllowHostAccess || after.Budget.DailyLimitUSD != 7 {
+		t.Fatalf("after save: allow_host_access=%v daily_limit=%v", after.Docker.AllowHostAccess, after.Budget.DailyLimitUSD)
+	}
+	data, _ := os.ReadFile(path)
+	if strings.Contains(string(data), "allow_host_access: false") {
+		t.Fatalf("an unrelated save wrote the template value:\n%s", data)
+	}
+}

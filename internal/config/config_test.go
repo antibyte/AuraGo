@@ -3885,3 +3885,31 @@ directories:
 		t.Fatal("expected explicit maintenance.enabled=false to be preserved")
 	}
 }
+
+func TestLoadGrandfathersDockerHostAccessOnlyWhenKeyAbsent(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"docker enabled, key absent", "docker:\n  enabled: true\n  readonly: false\n", true},
+		{"no docker section", "server:\n  port: 8088\n", true},
+		{"key written false", "docker:\n  enabled: true\n  allow_host_access: false\n", false},
+		{"key written true", "docker:\n  enabled: true\n  allow_host_access: true\n", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if cfg.Docker.AllowHostAccess != tc.want {
+				t.Fatalf("Docker.AllowHostAccess = %v, want %v", cfg.Docker.AllowHostAccess, tc.want)
+			}
+		})
+	}
+}

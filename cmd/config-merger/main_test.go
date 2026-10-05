@@ -724,3 +724,45 @@ func keys(m map[string]string) []string {
 	}
 	return out
 }
+
+func TestApplyUpgradeSafetyDefaults_MaterialisesDockerHostAccess(t *testing.T) {
+	template := map[string]interface{}{
+		"docker": map[string]interface{}{
+			"enabled":           false,
+			"host":              "",
+			"readonly":          false,
+			"allow_host_access": false,
+		},
+	}
+	cases := []struct {
+		name        string
+		userDocker  map[string]interface{}
+		want        bool
+		wantChanged bool
+	}{
+		{"docker on, key absent", map[string]interface{}{"enabled": true}, true, true},
+		{"docker off, key absent", map[string]interface{}{"enabled": false}, true, true},
+		{"no docker section", nil, true, true},
+		{"key written false", map[string]interface{}{"enabled": true, "allow_host_access": false}, false, false},
+		{"key written true", map[string]interface{}{"enabled": true, "allow_host_access": true}, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			user := map[string]interface{}{}
+			if tc.userDocker != nil {
+				user["docker"] = tc.userDocker
+			}
+			merged := deepMerge(template, user)
+
+			changed := applyUpgradeSafetyDefaults(merged, user)
+
+			if changed != tc.wantChanged {
+				t.Fatalf("changed = %v, want %v", changed, tc.wantChanged)
+			}
+			docker, _ := asStringMap(merged["docker"])
+			if docker["allow_host_access"] != tc.want {
+				t.Fatalf("docker.allow_host_access = %v, want %v", docker["allow_host_access"], tc.want)
+			}
+		})
+	}
+}

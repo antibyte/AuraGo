@@ -45,6 +45,14 @@
                     badge: 'host Python / Windows shell'
                 },
                 {
+                    path: 'docker.allow_host_access',
+                    val: (configData.docker || {}).allow_host_access === true,
+                    icon: '🐳',
+                    title: t('config.danger.docker_host_access.title'),
+                    desc: t('config.danger.docker_host_access.desc'),
+                    badge: 'docker compose up/create/build'
+                },
+                {
                     path: 'agent.allow_filesystem_write',
                     val: agentCfg.allow_filesystem_write === true,
                     icon: '💾',

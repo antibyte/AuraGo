@@ -210,6 +210,18 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		}
 	}
 
+	// docker.allow_host_access is new. Configurations that predate it keep the
+	// unrestricted agent Compose behaviour: materialise true so the template's
+	// false (meant for fresh installs) never reaches an upgraded config.
+	userDocker, _ := asStringMap(user["docker"])
+	if _, userSetHostAccess := userDocker["allow_host_access"]; !userSetHostAccess {
+		if dockerMap, ok := asStringMap(merged["docker"]); ok {
+			dockerMap["allow_host_access"] = true
+			merged["docker"] = dockerMap
+			changed = true
+		}
+	}
+
 	return changed
 }
 

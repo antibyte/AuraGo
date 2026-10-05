@@ -167,6 +167,8 @@ tools:
     enabled: true    # replaces deprecated agent.allow_web_scraper
 ```
 
+`docker.allow_host_access` is the Docker counterpart of a Danger Zone gate: it decides whether agent `docker compose up/create/build` may use the host (binds outside the workspace, `/var/run/docker.sock`, devices, privileged mode, host namespaces). Existing configurations keep it `true`, fresh installs start with `false`; the security check warns while it is on. Details: [Docker Integration](08-integrations.md#docker-integration).
+
 ### Integration Capabilities
 
 | Integration | Read-Only Mode | Effect |

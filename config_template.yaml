@@ -396,6 +396,7 @@ docker:
     enabled: false
     host: ""
     readonly: false
+    allow_host_access: false # agent docker compose up/create/build may use host paths outside the workspace, docker.sock, devices, privileged mode and host namespaces; updates set it true for configs written before this key existed
 package_manager:
     enabled: false        # master toggle; Linux mutations additionally require sudo_enabled, sudo_unrestricted and writable system paths
     readonly: false       # allow only detect/search/list_installed/info when true
