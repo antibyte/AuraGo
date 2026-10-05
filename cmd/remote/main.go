@@ -73,6 +73,25 @@ func main() {
 		os.Exit(0)
 	}
 
+	// The logger depends only on flags. Build it before loadConfig so config
+	// warnings reach the --log-file instead of stderr.
+	logWriter := io.Writer(os.Stderr)
+	if strings.TrimSpace(*logFileFlag) != "" {
+		maxBytes := int64(*logMaxMBFlag) * 1024 * 1024
+		writer, err := newRotatingFileWriter(*logFileFlag, maxBytes, defaultRemoteLogBackups)
+		if err != nil {
+			log.Fatalf("Failed to open log file: %v", err)
+		}
+		defer writer.Close()
+		logWriter = writer
+	}
+	logger := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+	// slog.SetDefault also redirects the log package into the handler; keep
+	// log.Fatal start-up errors on stderr as before.
+	log.SetOutput(os.Stderr)
+	log.SetFlags(log.LstdFlags)
+
 	// Load configuration: CLI flags > trailer config > stored config
 	cfg := loadConfig(*supervisorFlag, *tokenFlag, *nameFlag)
 
@@ -100,18 +119,6 @@ func main() {
 	if cfg.SupervisorURL == "" {
 		log.Fatal("No supervisor URL configured. Use --supervisor or download a personalized binary.")
 	}
-
-	logWriter := io.Writer(os.Stderr)
-	if strings.TrimSpace(*logFileFlag) != "" {
-		maxBytes := int64(*logMaxMBFlag) * 1024 * 1024
-		writer, err := newRotatingFileWriter(*logFileFlag, maxBytes, defaultRemoteLogBackups)
-		if err != nil {
-			log.Fatalf("Failed to open log file: %v", err)
-		}
-		defer writer.Close()
-		logWriter = writer
-	}
-	logger := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	if !*foregroundFlag && !isRunningAsService() {
 		fmt.Println("Running in foreground. Use --install to install as a service, or --foreground to suppress this message.")
@@ -451,6 +458,10 @@ func (c *Client) connect() error {
 			conn.Close()
 			return fmt.Errorf("enrolled response carries an invalid shared key")
 		}
+		if authResp.DeviceID == "" {
+			conn.Close()
+			return fmt.Errorf("enrolled response carries no device id")
+		}
 		c.applyBootstrapSettings(authResp)
 		c.logger.Info("Enrolled successfully", "device_id", authResp.DeviceID)
 		c.cfg.DeviceID = authResp.DeviceID
@@ -753,18 +764,30 @@ func (c *Client) heartbeatLoopForConn(interval time.Duration, trackedConn *webso
 }
 
 func printStatus() {
-	cfg := loadStoredConfig()
+	writeStatus(os.Stdout, loadStoredConfig())
+}
+
+func writeStatus(w io.Writer, cfg *clientConfig) {
 	if cfg == nil {
-		fmt.Println("Not configured. Run with --supervisor URL or download a personalized binary.")
+		fmt.Fprintln(w, "Not configured. Run with --supervisor URL or download a personalized binary.")
 		return
 	}
-	fmt.Printf("Device ID:      %s\n", cfg.DeviceID)
-	fmt.Printf("Supervisor:     %s\n", cfg.SupervisorURL)
-	fmt.Printf("Device Name:    %s\n", cfg.DeviceName)
+	// Same rule as loadConfig: a device id without a shared key is a stale
+	// pending observation, not an enrollment.
+	deviceID := ""
 	if cfg.SharedKey != "" {
-		fmt.Println("Status:         Enrolled (shared key present)")
-	} else {
-		fmt.Println("Status:         Not yet enrolled")
+		deviceID = cfg.DeviceID
+	}
+	fmt.Fprintf(w, "Device ID:      %s\n", deviceID)
+	fmt.Fprintf(w, "Supervisor:     %s\n", cfg.SupervisorURL)
+	fmt.Fprintf(w, "Device Name:    %s\n", cfg.DeviceName)
+	switch {
+	case cfg.SharedKey != "":
+		fmt.Fprintln(w, "Status:         Enrolled (shared key present)")
+	case cfg.DeviceID != "":
+		fmt.Fprintln(w, "Status:         Not yet enrolled (stale pending id, ignored)")
+	default:
+		fmt.Fprintln(w, "Status:         Not yet enrolled")
 	}
 }
 

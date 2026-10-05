@@ -145,7 +145,7 @@ func TestConnectRejectsUnsignedEnrolledResponse(t *testing.T) {
 	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp)})
 
 	err = client.connect()
-	if err == nil || !strings.Contains(err.Error(), "unsigned") {
+	if err == nil || !strings.Contains(err.Error(), "no bootstrap secret") {
 		t.Fatalf("expected unsigned enrolled response to be rejected, got %v", err)
 	}
 	if client.cfg.SharedKey != "" || client.cfg.DeviceID != "" {
@@ -159,7 +159,7 @@ func TestConnectAcceptsUnsignedPendingWithoutPersisting(t *testing.T) {
 	readOnly := false
 	resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-pending", "", 1, remote.AuthResponsePayload{
 		Status: "pending", DeviceID: "dev-pending", Message: "awaiting approval in AuraGo UI",
-		ReadOnly: &readOnly, AllowedPaths: []string{"/"},
+		ReadOnly: &readOnly, AllowedPaths: []string{"/"}, MaxFileSizeMB: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -177,13 +177,43 @@ func TestConnectAcceptsUnsignedPendingWithoutPersisting(t *testing.T) {
 	if !client.readOnly || client.allowedPaths != nil {
 		t.Fatalf("pending answer must not change bootstrap settings: read_only=%v allowed_paths=%v", client.readOnly, client.allowedPaths)
 	}
+	if got, want := client.executor.maxFileSizeBytesSnapshot(), int64(remote.DefaultMaxFileSizeMB)*1024*1024; got != want {
+		t.Fatalf("pending answer must not change the file size limit: got %d bytes, want %d", got, want)
+	}
 	assertNoStoredConfig(t)
 }
 
 func TestConnectRejectsEnrolledWithInvalidSharedKey(t *testing.T) {
+	for name, sharedKey := range map[string]string{
+		"short non-hex":   "nothex",
+		"64-char non-hex": strings.Repeat("zz", 32),
+	} {
+		t.Run(name, func(t *testing.T) {
+			isolateRemoteHome(t)
+			resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-1", remote.DeriveEnrollmentAuthKey("tok"), 1, remote.AuthResponsePayload{
+				Status: "enrolled", DeviceID: "dev-1", SharedKey: sharedKey,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), EnrollToken: "tok"})
+
+			err = client.connect()
+			if err == nil || !strings.Contains(err.Error(), "invalid shared key") {
+				t.Fatalf("expected enrolled response with invalid shared key to be rejected, got %v", err)
+			}
+			if client.cfg.SharedKey != "" || client.cfg.DeviceID != "" || client.cfg.EnrollToken != "tok" {
+				t.Fatalf("invalid enrolled response must not change config: %+v", client.cfg)
+			}
+			assertNoStoredConfig(t)
+		})
+	}
+}
+
+func TestConnectRejectsEnrolledWithoutDeviceID(t *testing.T) {
 	isolateRemoteHome(t)
-	resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-1", remote.DeriveEnrollmentAuthKey("tok"), 1, remote.AuthResponsePayload{
-		Status: "enrolled", DeviceID: "dev-1", SharedKey: "nothex",
+	resp, err := remote.NewMessage(remote.MsgAuthResponse, "", remote.DeriveEnrollmentAuthKey("tok"), 1, remote.AuthResponsePayload{
+		Status: "enrolled", SharedKey: strings.Repeat("ab", 32),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -191,11 +221,11 @@ func TestConnectRejectsEnrolledWithInvalidSharedKey(t *testing.T) {
 	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), EnrollToken: "tok"})
 
 	err = client.connect()
-	if err == nil || !strings.Contains(err.Error(), "invalid shared key") {
-		t.Fatalf("expected enrolled response with invalid shared key to be rejected, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "carries no device id") {
+		t.Fatalf("expected enrolled response without device id to be rejected, got %v", err)
 	}
 	if client.cfg.SharedKey != "" || client.cfg.DeviceID != "" || client.cfg.EnrollToken != "tok" {
-		t.Fatalf("invalid enrolled response must not change config: %+v", client.cfg)
+		t.Fatalf("enrolled response without device id must not change config: %+v", client.cfg)
 	}
 	assertNoStoredConfig(t)
 }
@@ -275,5 +305,54 @@ func TestLoadConfigKeepsStoredDeviceWithSharedKey(t *testing.T) {
 	cfg := loadConfig("", "", "")
 	if cfg.DeviceID != "dev-1" || cfg.SharedKey != sharedKey {
 		t.Fatalf("enrolled device identity must be restored: %+v", cfg)
+	}
+}
+
+func TestStatusOutput(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     *clientConfig
+		want    []string
+		notWant []string
+	}{
+		{
+			name: "not configured",
+			cfg:  nil,
+			want: []string{"Not configured."},
+		},
+		{
+			name:    "enrolled",
+			cfg:     &clientConfig{SupervisorURL: "ws://sup", DeviceID: "dev-1", SharedKey: strings.Repeat("ab", 32)},
+			want:    []string{"Device ID:      dev-1\n", "Status:         Enrolled (shared key present)\n"},
+			notWant: []string{"stale pending id"},
+		},
+		{
+			name:    "stale pending id",
+			cfg:     &clientConfig{SupervisorURL: "ws://sup", DeviceID: "dev-pending"},
+			want:    []string{"Device ID:      \n", "Status:         Not yet enrolled (stale pending id, ignored)\n"},
+			notWant: []string{"dev-pending"},
+		},
+		{
+			name:    "never enrolled",
+			cfg:     &clientConfig{SupervisorURL: "ws://sup"},
+			want:    []string{"Status:         Not yet enrolled\n"},
+			notWant: []string{"stale pending id"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var out strings.Builder
+			writeStatus(&out, tc.cfg)
+			for _, want := range tc.want {
+				if !strings.Contains(out.String(), want) {
+					t.Errorf("status output missing %q:\n%s", want, out.String())
+				}
+			}
+			for _, notWant := range tc.notWant {
+				if strings.Contains(out.String(), notWant) {
+					t.Errorf("status output must not contain %q:\n%s", notWant, out.String())
+				}
+			}
+		})
 	}
 }
