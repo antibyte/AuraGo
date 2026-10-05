@@ -65,11 +65,6 @@ type flowToolInvoker struct {
 	names    func(cfg *config.Config) map[string]bool
 	dispatch func(ctx context.Context, tc *agent.ToolCall, dc *agent.DispatchContext) agent.ToolDispatchResult
 
-	// cfgMu guards the flow configuration derived from the last snapshot.
-	cfgMu   sync.Mutex
-	cfgSrc  *config.Config
-	cfgFlow *config.Config
-
 	// sentMu guards textSent: the run and node of each send_telegram whose text went out
 	// while its document failed (see InvokeTool).
 	sentMu   sync.Mutex
@@ -121,20 +116,16 @@ func flowToolRefusal(status agent.ToolResultStatus, message string) flows.ToolRe
 // pointers are shared with cfg and, like the snapshot itself, never written by the
 // dispatcher. AuthorizationSnapshots is copied with them, so agent.DispatchToolCallResult
 // still intersects the copy's gates with the server's current snapshot; the summary and
-// MCP fields are no gates and keep the copy's values. The copy is cached per snapshot.
-func (i *flowToolInvoker) flowDispatchConfig(cfg *config.Config) *config.Config {
-	i.cfgMu.Lock()
-	defer i.cfgMu.Unlock()
-	if i.cfgSrc == cfg && i.cfgFlow != nil {
-		return i.cfgFlow
-	}
+// MCP fields are no gates and keep the copy's values. The copy is made for every call and
+// not cached: some handlers write into the live snapshot in place (the Ansible token, MCP
+// secrets, the indexing folders), and a cached copy would keep the old values.
+func flowDispatchConfig(cfg *config.Config) *config.Config {
 	flowCfg := *cfg
 	flowCfg.Tools.WebScraper.SummaryMode = false
 	flowCfg.Tools.Wikipedia.SummaryMode = false
 	flowCfg.Tools.DDGSearch.SummaryMode = false
 	flowCfg.Tools.PDFExtractor.SummaryMode = false
 	flowCfg.MCP.PreferredCapabilities.WebSearch = config.MCPPreferredToolSelection{}
-	i.cfgSrc, i.cfgFlow = cfg, &flowCfg
 	return &flowCfg
 }
 
@@ -143,16 +134,29 @@ func (i *flowToolInvoker) flowDispatchConfig(cfg *config.Config) *config.Config 
 // the service itself.
 var flowHAScriptDomains = map[string]bool{"shell_command": true, "python_script": true, "script": true, "hassio": true}
 
-// flowHAServiceRefusal returns why a home_assistant call of a flow is refused, or "".
-func flowHAServiceRefusal(cfg *config.Config, args map[string]any) string {
-	text := func(key string) string {
-		s, _ := args[key].(string)
-		return strings.ToLower(strings.TrimSpace(s))
+// flowFirstArg mirrors the agent decoders' firstNonEmptyToolString(typed,
+// toolArgString(params, key)): the typed ToolCall field (which JSON fills from a key of any
+// case, "Domain" included), else the exact key in Params.
+func flowFirstArg(typed string, params map[string]any, key string) string {
+	if typed != "" {
+		return typed
 	}
-	if op := text("operation"); op != "call_service" && op != "service" {
+	s, _ := params[key].(string)
+	return s
+}
+
+// flowHAServiceRefusal returns why a home_assistant call of a flow is refused, or "". It
+// reads operation, domain and service from the built tool call the way
+// decodeHomeAssistantArgs does, so a key in another case ("Domain", "OPERATION") cannot
+// slip past it.
+func flowHAServiceRefusal(cfg *config.Config, tc agent.ToolCall) string {
+	text := func(typed, key string) string {
+		return strings.ToLower(strings.TrimSpace(flowFirstArg(typed, tc.Params, key)))
+	}
+	if op := text(tc.Operation, "operation"); op != "call_service" && op != "service" {
 		return ""
 	}
-	domain, service := text("domain"), text("service")
+	domain, service := text(tc.Domain, "domain"), text(tc.Service, "service")
 	if d, s, ok := strings.Cut(service, "."); ok && (domain == "" || domain == d) {
 		domain, service = d, s
 	}
@@ -203,10 +207,6 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 		payload[k] = v
 	}
 	switch req.Tool {
-	case "home_assistant":
-		if msg := flowHAServiceRefusal(cfg, payload); msg != "" {
-			return flowToolRefusal(agent.ToolResultDenied, msg), nil
-		}
 	case "document_creator":
 		// A JSON bool: the tool reads the flag with toolArgBool, which ignores text.
 		payload["block_remote_content"] = true
@@ -222,8 +222,14 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	if err != nil {
 		return flows.ToolResponse{}, err
 	}
-	secrets := flowRegisterSecrets(cfg, req.Tool)
-	res := i.dispatch(ctx, &tc, i.dispatchContext(i.flowDispatchConfig(cfg), req.FlowID, action))
+	if req.Tool == "home_assistant" {
+		if msg := flowHAServiceRefusal(cfg, tc); msg != "" {
+			return flowToolRefusal(agent.ToolResultDenied, msg), nil
+		}
+	}
+	secrets, release := flowRegisterSecrets(cfg, req.Tool)
+	defer release()
+	res := i.dispatch(ctx, &tc, i.dispatchContext(flowDispatchConfig(cfg), req.FlowID, action))
 	res.Output = flowRedactSecrets(res.Output, secrets)
 	textSent := sentKey != "" && flowTelegramTextSent(res.Output)
 	if textSent {
@@ -239,37 +245,61 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	return resp, nil
 }
 
-// flowToolCall builds the dispatcher's tool call. Typed ToolCall fields are filled from
-// the arguments where they fit; Params keeps the arguments with their Go types (the
-// invoker's copy), and the tools read them from there. An argument that does not fit its
-// typed field (send_notification's priority "normal" against ToolCall.Priority, an int)
-// leaves the typed fields empty, as on the agent's own invoke path
-// (toolCallFromInvokeArgs), instead of failing the node.
+// flowMaxTypeErrors bounds how many arguments flowToolCall leaves out of the typed decode.
+const flowMaxTypeErrors = 16
+
+// flowToolCall builds the dispatcher's tool call. Typed ToolCall fields are filled from the
+// arguments where they fit; Params keeps all arguments with their Go types (the invoker's
+// copy) and stays authoritative, and the tools read them from there. ToolCall's decoder
+// keeps nothing when one argument does not fit its typed field (send_notification's
+// priority "normal" against ToolCall.Priority, an int), which is what the agent's own
+// invoke path (toolCallFromInvokeArgs) ends up with; here such an argument is left out of
+// the typed decode only, and the decode is repeated, so every other typed field is filled.
 func flowToolCall(action, skill string, payload map[string]any) (agent.ToolCall, error) {
-	encoded := any(payload)
-	if skill != "" {
-		encoded = map[string]any{"skill": skill, "skill_args": payload}
-	}
-	raw, err := json.Marshal(encoded)
-	if err != nil {
-		return agent.ToolCall{}, flows.NewNodeError("FLOW_PARAM_INVALID", "the tool arguments cannot be encoded: %v", err)
+	typed := make(map[string]any, len(payload))
+	for k, v := range payload {
+		typed[k] = v
 	}
 	var tc agent.ToolCall
-	if err := json.Unmarshal(raw, &tc); err != nil {
+	for attempt := 0; ; attempt++ {
+		encoded := any(typed)
+		if skill != "" {
+			encoded = map[string]any{"skill": skill, "skill_args": typed}
+		}
+		raw, err := json.Marshal(encoded)
+		if err != nil {
+			return agent.ToolCall{}, flows.NewNodeError("FLOW_PARAM_INVALID", "the tool arguments cannot be encoded: %v", err)
+		}
+		tc = agent.ToolCall{}
+		err = json.Unmarshal(raw, &tc)
+		if err == nil {
+			break
+		}
 		var typeErr *json.UnmarshalTypeError
 		if !errors.As(err, &typeErr) {
 			return agent.ToolCall{}, flows.NewNodeError("FLOW_PARAM_INVALID", "the tool arguments are invalid: %v", err)
 		}
-		tc = agent.ToolCall{}
-		if skill != "" {
-			tc.Skill, tc.SkillArgs, tc.Params = skill, payload, map[string]any{"skill": skill, "skill_args": payload}
-		} else if op, ok := payload["operation"].(string); ok {
-			tc.Operation = op
+		field, _, _ := strings.Cut(typeErr.Field, ".")
+		removed := false
+		for k := range typed {
+			if strings.EqualFold(k, field) {
+				delete(typed, k)
+				removed = true
+			}
+		}
+		if !removed || attempt == flowMaxTypeErrors {
+			tc = agent.ToolCall{}
+			break
 		}
 	}
 	tc.Action, tc.IsTool = action, true
-	if skill == "" {
+	if skill != "" {
+		tc.Skill, tc.SkillArgs, tc.Params = skill, payload, map[string]any{"skill": skill, "skill_args": payload}
+	} else {
 		tc.Params = payload
+		if tc.Operation == "" {
+			tc.Operation, _ = payload["operation"].(string)
+		}
 	}
 	return tc, nil
 }

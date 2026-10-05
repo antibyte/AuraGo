@@ -18,9 +18,9 @@ import (
 // the retried FLOW_TOOL_ERROR. agent.DispatchToolCallResult already classifies the raw tool
 // result (classifyLegacyToolResult: JSON envelopes, "[PERMISSION DENIED]", "[TOOL BLOCKED]",
 // "ERROR …" and friends). flowToolOutcome adds what a flow needs on top:
-//   - the same plain-text shapes again when the status came back empty or unclassified
-//     (generic nodes do not check for success themselves, so a refusal in plain text must
-//     not pass as output);
+//   - the dispatcher's classification again (agent.ClassifyToolResult) when the status came
+//     back empty or unclassified (generic nodes do not check for success themselves, so a
+//     refusal in plain text must not pass as output);
 //   - refusals that the tools report as an ordinary error turned into denied or
 //     needs_setup (flowRefusalRules), so a retry does not pay for the same refusal again;
 //   - a notification answer whose channels all failed for such a reason, although the
@@ -87,12 +87,17 @@ var flowRefusalRules = []flowRefusalRule{
 	// Home Assistant's service lists (internal/agent/home_assistant_policy.go:12 and :23).
 	flowRule(`home assistant service \S+ is blocked by home_assistant\.blocked_services$`, agent.ToolResultDenied),
 	flowRule(`home assistant service \S+ is not allowed by home_assistant\.allowed_services$`, agent.ToolResultDenied),
+	// An email account that may not send (internal/agent/dispatch_email.go:199).
+	flowRule(`email account '.*' is read-only\. enable sending in settings > email\.$`, agent.ToolResultDenied),
 	// Integrations that are switched off: Home Assistant
 	// (internal/agent/agent_dispatch_services.go:1379), MQTT (internal/agent/dispatch_network.go:171),
 	// Discord (internal/agent/dispatch_messaging.go:104), email (internal/agent/dispatch_email.go:180),
 	// Brave (internal/agent/tool_builtin_handlers.go:124) and the notification channels
 	// (internal/tools/notification.go:163, :221, :304, :319, :360).
 	flowRule(`(?:home assistant integration|mqtt|discord|email|brave search integration|ntfy|pushover|telnyx|cyd) is not enabled`, agent.ToolResultNeedsSetup),
+	// Email without a usable account (internal/agent/dispatch_email.go:193 and :196).
+	flowRule(`no active email account configured\.`, agent.ToolResultNeedsSetup),
+	flowRule(`email account '.*' is disabled\. enable it in settings > email\.$`, agent.ToolResultNeedsSetup),
 	// The planner (internal/agent/agent_dispatch_comm.go:1939, :1942, :1948, :1951 and
 	// internal/agent/tool_runtime_availability.go:22).
 	flowRule(`planner is disabled\.`, agent.ToolResultNeedsSetup),
@@ -187,44 +192,6 @@ func flowToolText(output string, guardian bool) (text string, remote bool) {
 	return inner, strings.HasPrefix(inner, flowExternalOpen)
 }
 
-// flowShapeStatus classifies an answer whose status came back empty or unclassified, like
-// the dispatcher classifies raw results: a JSON envelope by its status, code or success
-// field, plain text by the markers AuraGo's tools start their failures with. It returns ""
-// when the answer says nothing about its outcome.
-func flowShapeStatus(text string, envelope map[string]any) agent.ToolResultStatus {
-	if envelope != nil {
-		for _, key := range []string{"code", "status"} {
-			value, _ := envelope[key].(string)
-			switch strings.ToLower(strings.TrimSpace(value)) {
-			case "policy_denied", "tool_scope_denied", "permission_denied", "denied", "blocked":
-				return agent.ToolResultDenied
-			case "connect_required", "needs_setup", "not_configured", "disconnected":
-				return agent.ToolResultNeedsSetup
-			case "cancelled", "canceled":
-				return agent.ToolResultCancelled
-			case "error", "failed", "failure":
-				return agent.ToolResultFailed
-			}
-		}
-		if ok, isBool := envelope["success"].(bool); isBool && !ok {
-			return agent.ToolResultFailed
-		}
-		return ""
-	}
-	lower := strings.ToLower(text)
-	for _, prefix := range []string{"[permission denied]", "[tool blocked]"} {
-		if strings.HasPrefix(lower, prefix) {
-			return agent.ToolResultDenied
-		}
-	}
-	for _, prefix := range []string{"[error]", "[execution error]", "error:", "error ", "timeout:"} {
-		if strings.HasPrefix(lower, prefix) {
-			return agent.ToolResultFailed
-		}
-	}
-	return ""
-}
-
 // flowToolMessage is the tool's own description of a failure: the message or error field of
 // a JSON envelope, else the text itself.
 func flowToolMessage(text string, envelope map[string]any) string {
@@ -304,7 +271,9 @@ func flowToolOutcome(tool string, res agent.ToolDispatchResult, guardian bool) f
 		}
 	}
 	if status == "" || status == agent.ToolResultUnknown {
-		if shape := flowShapeStatus(text, envelope); shape != "" {
+		// The dispatcher's own classifier (exit_code, pending and deferred answers, the
+		// plain-text failure markers), applied to the text behind the Guardian's layer.
+		if shape := agent.ClassifyToolResult(text); shape != agent.ToolResultUnknown {
 			status = shape
 		}
 	}

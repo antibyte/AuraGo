@@ -43,23 +43,26 @@ func c13Request(tool string, args map[string]any) flows.ToolRequest {
 	return flows.ToolRequest{FlowID: "flow_aaaaaaaaaa", RunID: "run_c13", NodeID: "n_aaaaaaaa", Tool: tool, Args: args, AllowedTools: []string{tool}}
 }
 
-// A1: the invoker reads the server's published snapshot, like the catalog env, and caches
-// one flow configuration per snapshot.
+// A1: the invoker reads the server's published snapshot, like the catalog env. Review M5: it
+// copies it for every call, so an in-place write to the live snapshot reaches the next call.
 func TestC13InvokerUsesTheConfigSnapshot(t *testing.T) {
 	stale := &config.Config{}
 	stale.Directories.WorkspaceDir = "stale"
 	published := &config.Config{}
 	published.Directories.WorkspaceDir = "published"
+	published.Indexing.Enabled = true
 	inv, s, calls := c13Invoker(stale, map[string]bool{"filesystem": true}, nil)
 	s.cfgSnapshot.Store(published)
 	for range 2 {
 		if _, err := inv.InvokeTool(context.Background(), c13Request("filesystem", map[string]any{"operation": "stat", "file_path": "a"})); err != nil {
 			t.Fatal(err)
 		}
+		published.Indexing.Enabled = false // an in-place write, like indexing_handlers.go does
 	}
 	first, second := (*calls)[0].dc.Cfg, (*calls)[1].dc.Cfg
-	if first.Directories.WorkspaceDir != "published" || first != second {
-		t.Fatalf("dispatched config = %q (same copy: %v), want the published snapshot, cached", first.Directories.WorkspaceDir, first == second)
+	if first.Directories.WorkspaceDir != "published" || !first.Indexing.Enabled || second.Indexing.Enabled {
+		t.Fatalf("dispatched config = %q, indexing %v then %v; want the published snapshot as it is at each call",
+			first.Directories.WorkspaceDir, first.Indexing.Enabled, second.Indexing.Enabled)
 	}
 	next := &config.Config{}
 	next.Directories.WorkspaceDir = "next"
@@ -109,6 +112,10 @@ func TestC13RefusalTextsBecomeNonRetryableStatuses(t *testing.T) {
 		{"brave not enabled", `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings > Brave Search."}`, setup},
 		{"ntfy not enabled", `{"status":"error","message":"ntfy is not enabled in config"}`, setup},
 		{"pushover keys", `{"status":"error","message":"pushover user_key and app_token must be configured"}`, setup},
+		{"no email account", `Tool Output: {"status": "error", "message": "No active email account configured. Enable an account in Settings > Email."}`, setup},
+		{"email account disabled", `Tool Output: {"status":"error","message":"Email account 'work' is disabled. Enable it in Settings > Email."}`, setup},
+		{"email account read-only", `Tool Output: {"status":"error","message":"Email account 'work' is read-only. Enable sending in Settings > Email."}`, denied},
+		{"email account echo is no refusal", `Tool Output: {"status":"error","message":"Email account 'x' is read-only. Enable sending in Settings > Email. and more"}`, string(agent.ToolResultFailed)},
 	}
 	for _, c := range cases {
 		inv, _, _ := c13Invoker(&config.Config{}, map[string]bool{"filesystem": true}, c13Answer(agent.ToolDispatchResult{Output: c.output, Status: agent.ToolResultFailed, IsError: true}))

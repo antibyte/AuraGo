@@ -248,7 +248,8 @@ func TestC13TextSentMemoryForgetsOldRuns(t *testing.T) {
 }
 
 // B11: the secrets a call reads are registered with the scrubber and redacted from its
-// output.
+// output. Review M8: credentials are registered for good; the ntfy topic, a private value
+// but no credential, only for the call. The values are unique to this test.
 func TestC13CallSecretsAreRedacted(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Telegram.BotToken = "123456789:C13-telegram-bot-token"
@@ -257,8 +258,12 @@ func TestC13CallSecretsAreRedacted(t *testing.T) {
 	cfg.HomeAssistant.AccessToken = "c13-home-assistant-token"
 	output := `Tool Output: {"status":"error","message":"POST https://api.telegram.org/bot123456789:C13-telegram-bot-token/sendDocument failed; ` +
 		`https://ntfy.sh/c13-private-ntfy-topic unreachable; short stays"}`
+	scrubbedDuringCall := false
 	inv, _, _ := c13Invoker(cfg, map[string]bool{"send_notification": true, "home_assistant": true},
-		c13Answer(agent.ToolDispatchResult{Output: output, Status: agent.ToolResultFailed, IsError: true}))
+		func(context.Context, *agent.ToolCall, *agent.DispatchContext) agent.ToolDispatchResult {
+			scrubbedDuringCall = !strings.Contains(security.Scrub(cfg.Notifications.Ntfy.Topic), cfg.Notifications.Ntfy.Topic)
+			return agent.ToolDispatchResult{Output: output, Status: agent.ToolResultFailed, IsError: true}
+		})
 	resp, err := inv.InvokeTool(context.Background(), c13Request("send_notification", map[string]any{"message": "x"}))
 	if err != nil {
 		t.Fatal(err)
@@ -267,9 +272,15 @@ func TestC13CallSecretsAreRedacted(t *testing.T) {
 		if strings.Contains(resp.Output, secret) {
 			t.Errorf("the output holds %q: %s", secret, resp.Output)
 		}
-		if strings.Contains(security.Scrub("x "+secret+" y"), secret) {
-			t.Errorf("%q is not registered with the global scrubber", secret)
-		}
+	}
+	if strings.Contains(security.Scrub("x "+cfg.Telegram.BotToken+" y"), cfg.Telegram.BotToken) {
+		t.Error("the bot token is not registered with the global scrubber")
+	}
+	if !scrubbedDuringCall {
+		t.Error("the ntfy topic was not scrubbed while the tool ran")
+	}
+	if !strings.Contains(security.Scrub("x "+cfg.Notifications.Ntfy.Topic+" y"), cfg.Notifications.Ntfy.Topic) {
+		t.Error("the ntfy topic stayed in the process-wide scrubber after the call")
 	}
 	if !strings.Contains(resp.Output, "short stays") {
 		t.Errorf("a value under %d bytes was redacted: %s", flowSecretMinBytes, resp.Output)

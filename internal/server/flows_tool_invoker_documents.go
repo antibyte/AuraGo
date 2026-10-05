@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -66,11 +64,11 @@ func flowDocumentArg(tool string, args map[string]any) string {
 		op, _ := args["operation"].(string)
 		switch strings.ToLower(strings.TrimSpace(op)) {
 		case "read_file", "read":
-			if _, ok := args["file_path"].(string); ok {
-				return "file_path"
-			}
-			if _, ok := args["path"].(string); ok {
-				return "path"
+			// The first non-empty of file_path and path, as decodeFilesystemArgs reads them.
+			for _, key := range []string{"file_path", "path"} {
+				if s, _ := args[key].(string); s != "" {
+					return key
+				}
 			}
 		}
 	}
@@ -109,17 +107,13 @@ func flowDocumentPath(cfg *config.Config, p string) (string, bool, error) {
 		return "", false, nil
 	}
 	if strings.HasPrefix(p, flowServedDocumentsPrefix) {
-		rel, err := url.PathUnescape(strings.TrimPrefix(p, flowServedDocumentsPrefix))
-		if err != nil || rel == "" || strings.ContainsAny(rel, "\\\x00") {
-			return "", true, errors.New("the document path is not valid")
+		// The agent's own resolver (send_document uses it): it drops a ?query, refuses a
+		// backslash and any ".." segment, and joins the rest to the documents folder.
+		local, _, matched, err := agent.ResolveServedFilePath(p, cfg)
+		if !matched || err != nil {
+			return "", true, errors.New("the document path is not valid or leaves the documents folder")
 		}
-		parts := strings.Split(rel, "/")
-		for _, part := range parts {
-			if part == ".." || part == "" || part == "." {
-				return "", true, errors.New("the document path leaves the documents folder")
-			}
-		}
-		return filepath.Join(docs, filepath.FromSlash(path.Join(parts...))), true, nil
+		return local, true, nil
 	}
 	if !filepath.IsAbs(p) {
 		return "", false, nil

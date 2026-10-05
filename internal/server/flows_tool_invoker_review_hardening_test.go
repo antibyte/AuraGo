@@ -150,6 +150,101 @@ func TestC13ScratchFolderMustBeAPlainFolder(t *testing.T) {
 	}
 }
 
+// M3: URLs in any value lose query and user info, header maps under any key are left out,
+// and registered secrets are scrubbed.
+func TestC13FlowLogHandlerCleansEveryValue(t *testing.T) {
+	logs := &c13LogBuffer{}
+	logger := flowDispatchLogger(slog.New(slog.NewTextHandler(logs, nil)))
+	security.RegisterSensitive("c13-log-registered-secret")
+	urlErr := &os.PathError{Op: "Get", Path: "https://api.example.com/v1?api_key=C13SECRET1", Err: os.ErrDeadlineExceeded}
+	logger.Warn("fetch https://u:C13SECRET5@h.example/p?x=1 failed", "source", "https://cam.example.com/snap?token=C13SECRET2", "error", urlErr,
+		"request_headers", map[string]string{"Authorization": "Bearer C13SECRET3"}, "note", "uses c13-log-registered-secret")
+	logger.WithGroup("g").With("Upstream_Header", "C13SECRET6").Info("y", "anything", []string{"https://h/?k=C13SECRET4"})
+	out := logs.String()
+	for _, leak := range []string{"C13SECRET1", "C13SECRET2", "C13SECRET3", "C13SECRET4", "C13SECRET5", "C13SECRET6", "c13-log-registered-secret"} {
+		if strings.Contains(out, leak) {
+			t.Errorf("the log holds %s: %s", leak, out)
+		}
+	}
+	for _, want := range []string{"https://cam.example.com/snap?[redacted]", "https://api.example.com/v1?[redacted]", "request_headers=[omitted]"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the log lacks %q: %s", want, out)
+		}
+	}
+}
+
+// M4: the Home Assistant default-deny reads the call as decodeHomeAssistantArgs does, so keys
+// in another case do not slip past it.
+func TestC13HomeAssistantDenyReadsCaseVariantKeys(t *testing.T) {
+	for _, args := range []map[string]any{
+		{"operation": "call_service", "Domain": "script", "service": "turn_on"},
+		{"OPERATION": "call_service", "domain": "shell_command", "service": "backup"},
+		{"Operation": "service", "DOMAIN": "Hassio", "Service": "host_reboot"},
+	} {
+		inv, _, calls := c13Invoker(&config.Config{}, map[string]bool{"home_assistant": true}, nil)
+		resp, err := inv.InvokeTool(context.Background(), c13Request("home_assistant", args))
+		if err != nil || resp.Status != "denied" || len(*calls) != 0 {
+			t.Errorf("%v: %+v, %v, dispatched %d", args, resp, err, len(*calls))
+		}
+	}
+}
+
+// M6: an argument that does not fit its typed field is left out of the typed decode only;
+// every other typed field is filled and Params keeps everything.
+func TestC13PartialTypedDecode(t *testing.T) {
+	inv, _, calls := c13Invoker(&config.Config{}, map[string]bool{"send_notification": true}, nil)
+	if _, err := inv.InvokeTool(context.Background(), c13Request("send_notification", map[string]any{"message": "hello", "title": "T", "priority": "high", "channel": "ntfy"})); err != nil {
+		t.Fatal(err)
+	}
+	tc := (*calls)[0].tc
+	if tc.Message != "hello" || tc.Title != "T" || tc.Priority != 0 || tc.Params["priority"] != "high" || tc.Params["channel"] != "ntfy" {
+		t.Fatalf("tool call = %+v", tc)
+	}
+}
+
+// M7: the dispatcher's classifier: exit codes and pending answers.
+func TestC13AgentClassifierCases(t *testing.T) {
+	cases := []struct {
+		output, want string
+		isError      bool
+	}{
+		{`Tool Output: {"exit_code":2,"output":"boom"}`, "failed", true},
+		{`Tool Output: {"exit_code":0,"output":"ok"}`, "success", false},
+		{`Tool Output: {"status":"pending","message":"queued"}`, "deferred", false},
+	}
+	for _, c := range cases {
+		inv, _, _ := c13Invoker(&config.Config{}, map[string]bool{"filesystem": true}, c13Answer(agent.ToolDispatchResult{Output: c.output}))
+		resp, err := inv.InvokeTool(context.Background(), c13Request("filesystem", map[string]any{"operation": "stat", "file_path": "a"}))
+		if err != nil || resp.Status != c.want || resp.IsError != c.isError {
+			t.Errorf("%s: %+v, %v", c.output, resp, err)
+		}
+	}
+}
+
+// M7/M9: a served documents path with a query is bridged, and file_path that is empty gives
+// way to path, as the filesystem decoder reads them.
+func TestC13BridgeServedQueryAndEmptyFilePath(t *testing.T) {
+	cfg, workspace, docs := c13DocsConfig(t)
+	if err := os.WriteFile(filepath.Join(docs, "notes.txt"), []byte("c13 notes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range []map[string]any{
+		{"operation": "read_file", "file_path": "/files/documents/notes.txt?inline=1"},
+		{"operation": "read_file", "file_path": "", "path": "/files/documents/notes.txt"},
+	} {
+		var seen []string
+		key := "file_path"
+		if args["path"] != nil {
+			key = "path"
+		}
+		inv, _, calls := c13Invoker(cfg, map[string]bool{"filesystem": true}, c13CopyCheck(key, &seen))
+		resp, err := inv.InvokeTool(context.Background(), c13Request("filesystem", args))
+		if err != nil || resp.IsError || len(*calls) != 1 || !strings.HasPrefix(seen[0], filepath.Join(workspace, flowScratchDir)) || seen[1] != "c13 notes" {
+			t.Errorf("%v: %+v, %v, seen %v", args, resp, err, seen)
+		}
+	}
+}
+
 // I4: the production binding. initConfigSnapshot binds AuthorizationSnapshots, the runtime
 // gates follow the snapshot; the flow copy keeps its summary switch-off under the
 // intersection, and a snapshot that revokes network access reaches the next flow call.
