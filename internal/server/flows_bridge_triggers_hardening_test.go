@@ -180,3 +180,29 @@ func TestC15CatalogTriggerConfigsDecode(t *testing.T) {
 		t.Fatalf("the catalog uses %v; the bridge accepts %v", seen, flowMissionTriggerTypes)
 	}
 }
+
+// flowTriggerConfigFields reads the json names of tools.TriggerConfig's own fields. That is
+// complete only while the struct embeds nothing (encoding/json would accept the promoted
+// fields of an embedded struct) and every exported field has a json name (encoding/json
+// would accept the Go name).
+func TestC15TriggerConfigFieldsAreFlat(t *testing.T) {
+	typ := reflect.TypeFor[tools.TriggerConfig]()
+	known := flowTriggerConfigFields()
+	for i := range typ.NumField() {
+		f := typ.Field(i)
+		if f.Anonymous {
+			t.Errorf("TriggerConfig embeds %s; flowTriggerConfigFields does not see its fields", f.Name)
+			continue
+		}
+		if !f.IsExported() {
+			continue
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "" || name == "-" || !known[name] {
+			t.Errorf("TriggerConfig.%s has no json name (%q)", f.Name, f.Tag.Get("json"))
+		}
+	}
+	if len(known) == 0 {
+		t.Fatal("no TriggerConfig fields")
+	}
+}
