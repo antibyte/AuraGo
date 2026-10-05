@@ -297,6 +297,7 @@ Er startet nicht, solange der Browser-Tab ausgeblendet ist, ein Fenster im Vollb
 ### Themes
 
 - **Chat:** 13 Themes, darunter Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee und das **Galaxy**-Theme im Orbit-Glass-Stil (violettes/cyan/goldenes Layout mit eigenem Willkommens-Orb).
+  - **Sandstorm** zeigt eine lebendige Wüste: eine tiefstehende Sonne mit Strahlen durch treibenden Staub, drei Dünenkämme über dem Eingabefeld, regelmäßige Staubwände mit Trockengewittern, Sandkörner, die sich auf Nachrichten ablegen, und eine Böe, die dem Zeiger folgt. Bei reduzierter Bewegung, schmalen Bildschirmen oder ohne WebGL bleibt eine statische Szene.
 - **Virtual Desktop:** **Fruity** (Apple-inspiriert mit Dock und Topbar) und **Standard** (Windows-/Ubuntu-artige Produktivitätsoberfläche mit Taskbar).
 
 ## Mission Control

@@ -509,14 +509,27 @@ worker. Keep packaging, recovery and offline instructions in
   Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
   cleanup and respect the existing 18-projectile limit. EMP must not interrupt
   a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
-- Sandstorm dust, grains and ground lift share a smooth wind/gust envelope.
-  Three moving counter-rotating eddies drive the fog and particle velocity
-  field; grains must visibly turn, rise and recirculate. Wind changes direction
-  gradually. Soft dust rolls preserve visible circulation in the 2D fallback.
-  Keep the fixed particle pools and the fog buffer at most 960x540 pixels;
-  soft dust does not need device-pixel resolution. Canvas bounds must not
-  transition. Preserve the 2D fallback, hidden-tab pause and reduced-motion
-  and narrow-screen gates.
+- Sandstorm is a layered desert scene. `body` paints sky, sun bloom and static
+  SVG dunes (the no-JS, reduced-motion and narrow-screen baseline). The engine
+  adds `#sandstorm-fog` (WebGL sky, sun, crepuscular rays, dust, the dust wall
+  of a storm and the lightning tint) and `#sandstorm-scene` (three cached dune
+  ridges with parallax, clouds, dust rolls, the lightning bolt and the 2D sky
+  fallback) behind the chat, and `#sandstorm-overlay` (grains, trails, ground
+  pile, sand resting on bubbles) above it. Dust, grains and ground lift share
+  a smooth wind/gust envelope; three moving counter-rotating eddies drive the
+  fog and particle velocity field; grains must visibly turn, rise and
+  recirculate, and wind changes direction gradually. Each 9 s storm sends a
+  dust wall across the scene from the windward side (`u_front`), dims the sun,
+  schedules one to three dry-lightning strikes (the first always shortly after
+  the attack) and sweeps the sand off bubbles. While live the engine publishes
+  `html[data-sandstorm="calm"|"storm"]` and sets `--sandstorm-flash` on
+  `.app-header`/`.app-footer` during strikes; `css/chat-themes.css` reacts to
+  both and `stop()` clears them. A `pointermove` gust pushes nearby grains
+  without extra loops or pointer capture. Keep the fixed particle pools and
+  the fog buffer at most 960x540 pixels; soft dust does not need device-pixel
+  resolution. Canvas bounds must not transition. Preserve the 2D fallback,
+  hidden-tab pause and reduced-motion and narrow-screen gates. Static
+  contract: `TestChatFrontend_SandstormSceneStaysPolished`.
 - Galaxy uses the shared Three.js 0.186.1 and a single lazy renderer/RAF loop.
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
