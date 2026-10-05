@@ -275,8 +275,8 @@ func TestOutgoingAttachmentDefaultsToTheDocumentsFolderOfTheWorkingDirectory(t *
 	c103Write(t, filepath.Join(root, "config.yaml"), "api_key: hunter2")
 	t.Chdir(root)
 
-	// document_creator reports "data/documents/…" relative to the working directory, and
-	// an unset output folder means that same default.
+	// An unset output folder means data/documents below the working directory, and a relative
+	// path is tried against the working directory first.
 	cfg := &config.Config{}
 	cfg.Directories.WorkspaceDir = workspace
 	for _, ok := range []string{filepath.Join("data", "documents", "news.pdf"), "news.pdf"} {
@@ -346,9 +346,9 @@ func TestOpenWithinOutgoingRootRefusesAPathSwappedAfterTheCheck(t *testing.T) {
 			t.Fatalf("test setup: after the swap a plain read of %q gives %q, %v; the test would prove nothing", resolved, data, err)
 		}
 	}
-	requireRefused := func(t *testing.T, root, resolved string) {
+	requireRefused := func(t *testing.T, cfg *config.Config, root, resolved string) {
 		t.Helper()
-		file, err := openWithinOutgoingRoot(root, resolved)
+		file, err := openWithinOutgoingRoot(cfg, root, resolved)
 		if err == nil {
 			data, _ := io.ReadAll(file)
 			file.Close()
@@ -372,7 +372,7 @@ func TestOpenWithinOutgoingRootRefusesAPathSwappedAfterTheCheck(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		file, err := openWithinOutgoingRoot(root, resolved)
+		file, err := openWithinOutgoingRoot(env.cfg, root, resolved)
 		if err != nil {
 			t.Fatalf("before the swap the file must open: %v", err)
 		}
@@ -386,7 +386,7 @@ func TestOpenWithinOutgoingRootRefusesAPathSwappedAfterTheCheck(t *testing.T) {
 		}
 		c103LinkDir(t, outside, filepath.Join(env.workspace, "sub"))
 		requireSwapRedirects(t, resolved)
-		requireRefused(t, root, resolved)
+		requireRefused(t, env.cfg, root, resolved)
 	})
 
 	t.Run("file swapped for a symlink", func(t *testing.T) {
@@ -405,7 +405,7 @@ func TestOpenWithinOutgoingRootRefusesAPathSwappedAfterTheCheck(t *testing.T) {
 		}
 		c103LinkFile(t, outside, target)
 		requireSwapRedirects(t, resolved)
-		requireRefused(t, root, resolved)
+		requireRefused(t, env.cfg, root, resolved)
 	})
 }
 
@@ -419,7 +419,7 @@ func TestOpenWithinOutgoingRootRefusesPathsOutsideItsRoot(t *testing.T) {
 
 	root := canonicalExistingRoot(env.workspace)
 	for _, path := range []string{secret, sibling, filepath.Join(root, "sub", "x")} {
-		if file, err := openWithinOutgoingRoot(root, path); err == nil {
+		if file, err := openWithinOutgoingRoot(env.cfg, root, path); err == nil {
 			file.Close()
 			t.Errorf("%q must not open inside %q", path, root)
 		}
@@ -432,7 +432,7 @@ func TestOpenWithinOutgoingRootRequiresARegularFile(t *testing.T) {
 	root := canonicalExistingRoot(env.workspace)
 
 	for _, dir := range []string{root, filepath.Join(root, "sub")} {
-		if file, err := openWithinOutgoingRoot(root, dir); err == nil {
+		if file, err := openWithinOutgoingRoot(env.cfg, root, dir); err == nil {
 			file.Close()
 			t.Errorf("the directory %q must not be handed out as an attachment", dir)
 		}
