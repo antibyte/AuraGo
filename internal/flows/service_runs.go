@@ -119,6 +119,10 @@ func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 // the run executes, the data is held in memory in full, so the caller bounds it at the
 // source (NormalizeTriggerData caps raw text at 8 MiB). The runner's ErrQueueFull and
 // ErrRunnerClosed are returned unchanged.
+//
+// It takes no flow lock (see startLive), so Mission Control may call it synchronously,
+// also from inside MissionBridge.FlowRunFinished when a finished run fires dependent
+// missions.
 func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data map[string]any) (StartResult, error) {
 	rec, err := s.store.GetFlowByMission(context.Background(), missionID)
 	if err != nil {
@@ -127,6 +131,18 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 	return s.startLive(rec, nodeID, triggerType, data)
 }
 
+// startLive starts a run of rec's live revision.
+//
+// Starting versus deleting the flow: no start path (RunNow, TriggerFromMission,
+// StartTestRun, onTimerFired) takes the flow's lock, and none needs it. Runner.Start
+// records the run with Store.CreateRun, which inserts only while the flow row exists,
+// and admits it, all under the runner's start lock; DeleteFlow calls Runner.CancelFlow,
+// which waits for that lock, before and after the store delete. So a start either
+// records its run before the store delete, and the delete has cancelled it when
+// DeleteFlow returns, or it fails with ErrNotFound (the flow read, or "record run").
+// The flow lock must stay out of these paths: TriggerFromMission can run inside
+// MissionBridge.FlowRunFinished, which runs inside the delete of another flow while that
+// flow's lock is held, and two flows deleted at once could then wait for each other.
 func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data map[string]any) (StartResult, error) {
 	if rec.Live == nil {
 		return StartResult{}, ErrNotPublished
