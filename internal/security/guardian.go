@@ -786,7 +786,7 @@ var roleMarkers = regexp.MustCompile(`(?im)^(system|user|assistant|human|ai)\s*:
 
 // SanitizeToolOutput processes tool output to prevent injection.
 // It strips role impersonation markers and wraps output from external-facing tools in isolation tags.
-// Execution tools remain heuristic because their output can be local operator diagnostics.
+// Execution tools always get a boundary; it stays unescaped unless the content looks hostile.
 func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	if output == "" {
 		return output
@@ -802,7 +802,9 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		// Always isolate: these tools inherently return third-party content
 		output = IsolateExternalData(output)
 	case toolOutputSemiTrusted:
-		// Scan for injection patterns — isolate if suspicious
+		// Execution output is local diagnostics the model must be able to read
+		// and copy, but it can also be whatever `curl` or `cat` fetched. Always
+		// draw the boundary; escape only when the scanner flags the content.
 		scan := g.ScanForInjection(output)
 		if scan.Level >= ThreatMedium {
 			if g.logger != nil {
@@ -810,6 +812,8 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
 			}
 			output = IsolateExternalData(output)
+		} else {
+			output = IsolateSourceData(output)
 		}
 	case toolOutputSourceData:
 		// Always isolate. IsolateSourceData already escapes anything that could
