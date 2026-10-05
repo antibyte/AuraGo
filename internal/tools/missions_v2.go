@@ -1031,8 +1031,9 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		delete(m.missionGuards, missionID)
 	}
 
-	// Guard against double completion (e.g. timeout + normal completion race)
-	if mission, ok := m.missions[missionID]; ok && mission.Status != MissionStatusRunning {
+	// Guard against double completion (e.g. timeout + normal completion race). Flow missions
+	// never occupy the agent queue; their runs finish through FlowRunFinished.
+	if mission, ok := m.missions[missionID]; ok && (mission.Status != MissionStatusRunning || isFlowMission(mission)) {
 		return
 	}
 
@@ -1075,32 +1076,8 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		slog.Error("[MissionV2] Failed to persist queue after mission completion", "mission_id", missionID, "error", err)
 	}
 
-	// Check for missions triggered by this completion
-	for _, mission := range m.missions {
-		if !mission.Enabled ||
-			mission.ExecutionType != ExecutionTriggered ||
-			mission.TriggerType != TriggerMissionCompleted {
-			continue
-		}
-
-		cfg := mission.TriggerConfig
-		if cfg == nil || cfg.SourceMissionID != missionID {
-			continue
-		}
-
-		// Check if success is required
-		if cfg.RequireSuccess && result != MissionResultSuccess {
-			continue
-		}
-		if !m.shouldFireTriggerLocked(mission, string(TriggerMissionCompleted), time.Now()) {
-			continue
-		}
-
-		// Queue the triggered mission
-		m.queue.Enqueue(mission.ID, mission.Priority, "mission_completed",
-			fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result))
-		mission.Status = MissionStatusQueued
-	}
+	// Queue prompt missions and start flows that wait for this completion.
+	m.enqueueCompletionDependentsLocked(missionID, result, output, nil)
 	completeCB := m.onMissionComplete
 	m.save() // Second save: persist queued status of triggered dependents
 	if err := m.saveQueueLocked(); err != nil {
@@ -1122,6 +1099,12 @@ func (m *MissionManagerV2) TriggerMission(missionID, triggerType, triggerData st
 func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, triggerData string, extraCheatsheetIDs []string, extraPromptSuffix string) error {
 	if err := requireMissionMutationPermission(); err != nil {
 		return err
+	}
+	if hooks, isFlow, err := m.flowMissionRoute(missionID); isFlow {
+		if err != nil {
+			return err
+		}
+		return hooks.StartFlowRun(missionID, "", triggerType, triggerData)
 	}
 
 	m.mu.Lock()
@@ -1791,6 +1774,12 @@ func (m *MissionManagerV2) RunNow(id string) error {
 	if err := requireMissionMutationPermission(); err != nil {
 		return err
 	}
+	if hooks, isFlow, err := m.flowMissionRoute(id); isFlow {
+		if err != nil {
+			return err
+		}
+		return hooks.StartFlowRun(id, "", "manual", "")
+	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -1967,6 +1956,9 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	if !ok {
 		return fmt.Errorf("mission not found")
 	}
+	if isFlowMission(mission) {
+		return m.updateFlowMissionLocked(mission, updated)
+	}
 	updated.RunnerType = normalizeMissionRunner(updated.RunnerType)
 	updated.Prompt = StripMissionExecutionPlanAdvisory(updated.Prompt)
 	if err := validateRemoteMission(*updated); err != nil {
@@ -2098,6 +2090,13 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 	if mission.Locked {
 		return fmt.Errorf("mission is locked")
 	}
+	if isFlowMission(mission) {
+		m.unregisterFlowTriggersLocked(mission)
+		delete(m.flowActive, id)
+		if hooks := m.flowHooks; hooks != nil {
+			go hooks.FlowMissionDeleted(id)
+		}
+	}
 
 	// Unregister triggers
 	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
@@ -2151,8 +2150,12 @@ func (m *MissionManagerV2) Get(id string) (*MissionV2, bool) {
 
 // NextRun returns the next scheduled execution for an enabled scheduled
 // mission. Manual, triggered, disabled and unknown missions report false, as
-// does a manager without a cron engine.
+// does a manager without a cron engine. Flow missions report their earliest
+// schedule or Date/Time trigger.
 func (m *MissionManagerV2) NextRun(id string) (time.Time, bool) {
+	if next, ok, isFlow := m.nextFlowRun(id); isFlow {
+		return next, ok
+	}
 	if m.cron == nil {
 		return time.Time{}, false
 	}
