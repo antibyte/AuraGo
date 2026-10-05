@@ -206,6 +206,8 @@ type MissionManagerV2 struct {
 	lastTriggerFire    map[string]time.Time
 	flowHooks          FlowHooks      // EasyDrag flow service; nil until wired
 	flowActive         map[string]int // flow missionID → live runs in progress
+	// permanent flow webhook/email/plain-MQTT registrations by slot and key
+	flowRegistered map[string]bool
 }
 
 // EmailWatcherInterface for email trigger integration
@@ -421,7 +423,7 @@ func (m *MissionManagerV2) Start() error {
 	// Setup cron schedules for enabled scheduled missions (ensures they survive restarts)
 	if m.cron != nil {
 		m.cron.RegisterRunner("mission", func(jobID, prompt string) {
-			if flowMission, nodeID, ok := splitFlowCronJobID(jobID); ok && m.fireFlowSchedule(flowMission, nodeID) {
+			if m.fireFlowCronJob(jobID) {
 				return
 			}
 			missionID := strings.TrimPrefix(jobID, "mission_")
