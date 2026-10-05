@@ -1,6 +1,7 @@
 package security
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -19,7 +20,30 @@ func TestGuardianPromptKeepsTheWholeAttachmentList(t *testing.T) {
 		t.Fatalf("the prompt cuts the attachment list: %s", prompt)
 	}
 	// Other parameters keep their default limit.
-	if got := guardianPromptParamLimit("to"); got != 200 {
-		t.Fatalf("limit for to = %d, want the default 200", got)
+	if got := guardianPromptParamLimit("subject"); got != 200 {
+		t.Fatalf("limit for subject = %d, want the default 200", got)
+	}
+}
+
+// A recipient in the middle of a long list must reach the prompt: with the default limit of
+// 200 bytes only the head and the tail of the list would be shown.
+func TestGuardianPromptShowsEveryRecipientOfALongList(t *testing.T) {
+	if got := guardianPromptParamLimit("to"); got != 600 {
+		t.Fatalf("limit for to = %d, want 600", got)
+	}
+	recipients := make([]string, 12)
+	for i := range recipients {
+		recipients[i] = fmt.Sprintf("recipient-%02d@example.org", i+1)
+	}
+	recipients[6] = "attacker@evil.example" // seventh place
+	to := strings.Join(recipients, ", ")
+	if len(to) <= 200 {
+		t.Fatalf("the list must be longer than the default limit, got %d bytes", len(to))
+	}
+	prompt := buildGuardianPrompt(GuardianCheck{Operation: "send_email", Parameters: map[string]string{
+		"to": to, "recipient_count": "12",
+	}})
+	if !strings.Contains(prompt, "attacker@evil.example") || !strings.Contains(prompt, to) || strings.Contains(prompt, "omitted") {
+		t.Fatalf("a recipient is cut out of the prompt: %s", prompt)
 	}
 }

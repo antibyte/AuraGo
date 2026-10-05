@@ -2126,7 +2126,7 @@ func toolCallParams(tc ToolCall) map[string]string {
 // The values are also part of its cache key, so calls that differ in one of them are judged
 // and cached apart; each cut keeps the head and the tail (truncateUTF8HeadTail).
 const (
-	guardianRecipientBytes = 300
+	guardianRecipientBytes = 600
 	guardianSubjectBytes   = 200
 	guardianBodyBytes      = 300
 	// guardianAttachmentBytes bounds each attachment path and guardianAttachmentsBytes the whole
@@ -2146,6 +2146,9 @@ func addGuardianEmailParams(m map[string]string, tc ToolCall) {
 	req := decodeEmailSendArgs(tc)
 	if req.To != "" {
 		m["to"] = truncateUTF8HeadTail(req.To, guardianRecipientBytes)
+		if n := guardianRecipientCount(req.To); n > 0 {
+			m["recipient_count"] = strconv.Itoa(n)
+		}
 	}
 	if req.Subject != "" {
 		m["subject"] = truncateUTF8HeadTail(req.Subject, guardianSubjectBytes)
@@ -2157,6 +2160,17 @@ func addGuardianEmailParams(m map[string]string, tc ToolCall) {
 		m["attachment_count"] = strconv.Itoa(n)
 		m["attachments"] = guardianAttachmentList(tc, req.Attachments)
 	}
+}
+
+// guardianRecipientCount is the number of non-empty comma-separated entries of a recipient list.
+func guardianRecipientCount(to string) int {
+	n := 0
+	for _, rcpt := range strings.Split(to, ",") {
+		if strings.TrimSpace(rcpt) != "" {
+			n++
+		}
+	}
+	return n
 }
 
 // addGuardianTelegramParams adds the text, the title and the file of a send_telegram. The file

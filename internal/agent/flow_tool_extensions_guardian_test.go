@@ -93,7 +93,7 @@ func TestC06GuardianEmailParamsAreBounded(t *testing.T) {
 	filler := strings.Repeat("x", 10<<10)
 	to := "first@example.com," + filler + ",attacker@evil.example"
 	params := c06GuardianParams(t, "send_email", mustJSON(t, map[string]any{"to": to, "subject": strings.Repeat("ü", 5000), "body": strings.Repeat("ä", 5000)}))
-	if len(params["to"]) > 300 || !strings.Contains(params["to"], "first@example.com") || !strings.HasSuffix(params["to"], "attacker@evil.example") {
+	if len(params["to"]) > 600 || !strings.Contains(params["to"], "first@example.com") || !strings.HasSuffix(params["to"], "attacker@evil.example") {
 		t.Errorf("to: %d bytes, %.60q … %.40q", len(params["to"]), params["to"], params["to"][max(0, len(params["to"])-40):])
 	}
 	if len(params["subject"]) > 200 || len(params["body"]) > 300 {
@@ -129,6 +129,35 @@ func TestC06GuardianEmailParamsAreBounded(t *testing.T) {
 	params = c06GuardianParams(t, "send_email", mustJSON(t, map[string]any{"to": "a@example.com", "attachments": many}))
 	if params["attachment_count"] != "12" || !strings.Contains(params["attachments"], "f09.txt") || strings.Contains(params["attachments"], "f10.txt") {
 		t.Errorf("12 attachments: %#v", params)
+	}
+}
+
+func TestC06GuardianSeesEveryRecipientOfALongList(t *testing.T) {
+	recipients := make([]string, 12)
+	for i := range recipients {
+		recipients[i] = fmt.Sprintf("recipient-%02d@example.org", i+1)
+	}
+	harmless := strings.Join(recipients, ", ")
+	recipients[6] = "attacker@evil.example" // seventh place
+	attacked := strings.Join(recipients, ", ")
+
+	params := c06GuardianParams(t, "send_email", mustJSON(t, map[string]any{"to": attacked}))
+	if params["to"] != attacked || params["recipient_count"] != "12" {
+		t.Fatalf("to = %q, recipient_count = %q", params["to"], params["recipient_count"])
+	}
+	other := c06GuardianParams(t, "send_email", mustJSON(t, map[string]any{"to": harmless}))
+	if c06GuardianKey("send_email", params) == c06GuardianKey("send_email", other) {
+		t.Error("two lists that differ in the seventh recipient share a cache key")
+	}
+
+	for to, want := range map[string]string{"a@example.com": "1", "a@example.com, ,b@example.com,": "2", " , ": ""} {
+		got := c06GuardianParams(t, "send_email", mustJSON(t, map[string]any{"to": to}))["recipient_count"]
+		if got != want {
+			t.Errorf("recipient_count for %q = %q, want %q", to, got, want)
+		}
+	}
+	if _, ok := c06GuardianParams(t, "send_email", `{"body":"x"}`)["recipient_count"]; ok {
+		t.Error("a mail without recipients has a recipient_count")
 	}
 }
 
