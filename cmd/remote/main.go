@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -420,7 +421,8 @@ func (c *Client) connect() error {
 		conn.Close()
 		return fmt.Errorf("invalid auth response: %w", err)
 	}
-	if err := c.verifyAuthResponse(resp); err != nil {
+	signed, err := c.verifyAuthResponse(resp)
+	if err != nil {
 		conn.Close()
 		return err
 	}
@@ -430,10 +432,18 @@ func (c *Client) connect() error {
 		conn.Close()
 		return fmt.Errorf("invalid auth response payload: %w", err)
 	}
-	c.applyBootstrapSettings(authResp)
+	if !signed && authResp.Status != "pending" && authResp.Status != "rejected" {
+		conn.Close()
+		return fmt.Errorf("unsigned %q auth response rejected: no bootstrap secret to verify it", authResp.Status)
+	}
 
 	switch authResp.Status {
 	case "enrolled":
+		if !validSharedKeyHex(authResp.SharedKey) {
+			conn.Close()
+			return fmt.Errorf("enrolled response carries an invalid shared key")
+		}
+		c.applyBootstrapSettings(authResp)
 		c.logger.Info("Enrolled successfully", "device_id", authResp.DeviceID)
 		c.cfg.DeviceID = authResp.DeviceID
 		c.cfg.SharedKey = authResp.SharedKey
@@ -442,13 +452,13 @@ func (c *Client) connect() error {
 			c.logger.Error("Failed to save config after enrollment", "error", err)
 		}
 	case "authenticated":
+		c.applyBootstrapSettings(authResp)
 		c.logger.Info("Authenticated", "device_id", authResp.DeviceID)
 	case "pending":
-		c.logger.Info("Awaiting approval in AuraGo UI", "device_id", authResp.DeviceID)
-		c.cfg.DeviceID = authResp.DeviceID
-		if err := saveConfig(c.cfg); err != nil {
-			c.logger.Error("Failed to save config", "error", err)
-		}
+		// Unsigned by design; nothing from it is persisted. The supervisor keys
+		// pending rows by hostname and peer address, and a later --token run
+		// must start with an empty DeviceID.
+		c.logger.Info("Awaiting approval in AuraGo UI", "observed_device_id", authResp.DeviceID)
 		conn.Close()
 		return fmt.Errorf("pending approval")
 	case "rejected":
@@ -623,28 +633,38 @@ func (c *Client) handleConfigUpdate(msg remote.RemoteMessage) {
 	c.logger.Info("Config updated", "read_only", c.readOnly, "max_file_size_mb", maxFileSizeFromUpdate(update.MaxFileSizeMB))
 }
 
-func (c *Client) verifyAuthResponse(resp remote.RemoteMessage) error {
+// verifyAuthResponse verifies the auth response with the bootstrap secret.
+// It returns signed=false when the agent holds no secret at all (tokenless
+// knock); the caller must then accept only pending/rejected.
+func (c *Client) verifyAuthResponse(resp remote.RemoteMessage) (signed bool, err error) {
 	verifyKey := ""
 	if c.cfg.SharedKey != "" {
 		verifyKey = c.cfg.SharedKey
 	} else if c.cfg.EnrollToken != "" {
 		verifyKey = remote.DeriveEnrollmentAuthKey(c.cfg.EnrollToken)
 	}
-
 	if verifyKey == "" {
-		return nil
+		return false, nil
 	}
 	if resp.HMAC == "" {
-		return fmt.Errorf("received unsigned auth response despite bootstrap key")
+		return false, fmt.Errorf("received unsigned auth response despite bootstrap key")
 	}
 	ok, err := remote.VerifyMessage(resp, verifyKey)
 	if err != nil {
-		return fmt.Errorf("failed to verify auth response: %w", err)
+		return false, fmt.Errorf("failed to verify auth response: %w", err)
 	}
 	if !ok {
-		return fmt.Errorf("auth response signature verification failed")
+		return false, fmt.Errorf("auth response signature verification failed")
 	}
-	return nil
+	return true, nil
+}
+
+func validSharedKeyHex(key string) bool {
+	if len(key) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(key)
+	return err == nil
 }
 
 func (c *Client) applyBootstrapSettings(authResp remote.AuthResponsePayload) {

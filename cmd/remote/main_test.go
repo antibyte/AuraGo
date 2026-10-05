@@ -1,12 +1,20 @@
 package main
 
 import (
+	"errors"
+	"io/fs"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"aurago/internal/remote"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestClientStopIsIdempotentUnderConcurrentCalls(t *testing.T) {
@@ -74,4 +82,119 @@ func TestHeartbeatLoopContinuesAfterTransientSendFailure(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("heartbeat loop did not exit after Stop")
 	}
+}
+
+// isolateRemoteHome points the user home directory at a temp dir so that a
+// regression reaching saveConfig cannot write to the real ~/.aurago-remote.
+func isolateRemoteHome(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+}
+
+func assertNoStoredConfig(t *testing.T) {
+	t.Helper()
+	if _, err := os.Stat(configPath()); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("auth response must not be persisted, stat %s: %v", configPath(), err)
+	}
+}
+
+// startFakeSupervisor answers the agent's auth frame with reply and then waits
+// for the agent to hang up.
+func startFakeSupervisor(t *testing.T, reply *remote.RemoteMessage) string {
+	t.Helper()
+	upgrader := websocket.Upgrader{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
+		_ = conn.WriteJSON(reply)
+		_, _, _ = conn.ReadMessage()
+	}))
+	t.Cleanup(srv.Close)
+	return "ws" + strings.TrimPrefix(srv.URL, "http")
+}
+
+func newConnectTestClient(t *testing.T, cfg clientConfig) *Client {
+	t.Helper()
+	client := &Client{
+		cfg:      cfg,
+		logger:   slog.Default(),
+		done:     make(chan struct{}),
+		executor: NewExecutor(slog.Default(), remote.DefaultMaxFileSizeMB),
+	}
+	t.Cleanup(client.Stop)
+	return client
+}
+
+func TestConnectRejectsUnsignedEnrolledResponse(t *testing.T) {
+	isolateRemoteHome(t)
+	resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-attacker", "", 1, remote.AuthResponsePayload{
+		Status: "enrolled", DeviceID: "dev-attacker", SharedKey: strings.Repeat("ab", 32),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp)})
+
+	err = client.connect()
+	if err == nil || !strings.Contains(err.Error(), "unsigned") {
+		t.Fatalf("expected unsigned enrolled response to be rejected, got %v", err)
+	}
+	if client.cfg.SharedKey != "" || client.cfg.DeviceID != "" {
+		t.Fatalf("attacker key must not be adopted: %+v", client.cfg)
+	}
+	assertNoStoredConfig(t)
+}
+
+func TestConnectAcceptsUnsignedPendingWithoutPersisting(t *testing.T) {
+	isolateRemoteHome(t)
+	readOnly := false
+	resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-pending", "", 1, remote.AuthResponsePayload{
+		Status: "pending", DeviceID: "dev-pending", Message: "awaiting approval in AuraGo UI",
+		ReadOnly: &readOnly, AllowedPaths: []string{"/"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp)})
+	client.readOnly = true
+
+	err = client.connect()
+	if err == nil || !strings.Contains(err.Error(), "pending") {
+		t.Fatalf("expected pending approval error, got %v", err)
+	}
+	if client.cfg.DeviceID != "" || client.cfg.SharedKey != "" {
+		t.Fatalf("pending answer must not set device identity: %+v", client.cfg)
+	}
+	if !client.readOnly || client.allowedPaths != nil {
+		t.Fatalf("pending answer must not change bootstrap settings: read_only=%v allowed_paths=%v", client.readOnly, client.allowedPaths)
+	}
+	assertNoStoredConfig(t)
+}
+
+func TestConnectRejectsEnrolledWithInvalidSharedKey(t *testing.T) {
+	isolateRemoteHome(t)
+	resp, err := remote.NewMessage(remote.MsgAuthResponse, "dev-1", remote.DeriveEnrollmentAuthKey("tok"), 1, remote.AuthResponsePayload{
+		Status: "enrolled", DeviceID: "dev-1", SharedKey: "nothex",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newConnectTestClient(t, clientConfig{SupervisorURL: startFakeSupervisor(t, resp), EnrollToken: "tok"})
+
+	err = client.connect()
+	if err == nil || !strings.Contains(err.Error(), "invalid shared key") {
+		t.Fatalf("expected enrolled response with invalid shared key to be rejected, got %v", err)
+	}
+	if client.cfg.SharedKey != "" || client.cfg.DeviceID != "" || client.cfg.EnrollToken != "tok" {
+		t.Fatalf("invalid enrolled response must not change config: %+v", client.cfg)
+	}
+	assertNoStoredConfig(t)
 }
