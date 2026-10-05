@@ -54,7 +54,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 setHidden(resultDiv, false);
 
                 if (!resp.ok || json.available === false) {
-                    errorDiv.textContent = json.reason || t('config.ollama.fetch_error');
+                    errorDiv.textContent = json.reason || json.error || t('config.ollama.fetch_error');
                     setHidden(errorDiv, false);
                 } else if (!json.models || json.models.length === 0) {
                     errorDiv.textContent = t('config.ollama.no_models');

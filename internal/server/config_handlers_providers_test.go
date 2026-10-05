@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	neturl "net/url"
@@ -315,6 +316,38 @@ func TestHandleOllamaModelsDoesNotFollowRedirects(t *testing.T) {
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("status = %d, want %d for a redirecting Ollama host", rec.Code, http.StatusBadGateway)
 	}
+	var errResp struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("decode error response %q: %v", rec.Body.String(), err)
+	}
+	if !strings.Contains(errResp.Error, "redirect to") || !strings.Contains(errResp.Error, target.URL+"/api/tags") {
+		t.Fatalf("error %q should name the redirect target %q", errResp.Error, target.URL+"/api/tags")
+	}
+}
+
+func TestHandleOllamaModelsRejectsOversizedBody(t *testing.T) {
+	t.Parallel()
+
+	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"models":[{"name":"`))
+		_, _ = w.Write([]byte(strings.Repeat("a", 1<<20)))
+		_, _ = w.Write([]byte(`"}]}`))
+	}))
+	defer ollama.Close()
+
+	s := &Server{}
+	req := httptest.NewRequest(http.MethodGet, "/api/ollama/models?url="+neturl.QueryEscape(ollama.URL), nil)
+	rec := httptest.NewRecorder()
+	handleOllamaModels(s)(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d for an oversized Ollama body", rec.Code, http.StatusBadGateway)
+	}
+	if strings.Contains(rec.Body.String(), "aaaaaaaa") {
+		t.Fatalf("oversized model name must not be returned (len %d)", rec.Body.Len())
+	}
 }
 
 func TestHandleOllamaModelsRejectsNonOKStatus(t *testing.T) {
@@ -359,9 +392,13 @@ func TestHandleOllamaModelsListsModelsOnOK(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	for _, want := range []string{"llama3:latest", "qwen3:8b"} {
-		if !strings.Contains(rec.Body.String(), want) {
-			t.Fatalf("response %q does not list %q", rec.Body.String(), want)
-		}
+	var listed struct {
+		Models []string `json:"models"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &listed); err != nil {
+		t.Fatalf("decode response %q: %v", rec.Body.String(), err)
+	}
+	if want := []string{"llama3:latest", "qwen3:8b"}; !reflect.DeepEqual(listed.Models, want) {
+		t.Fatalf("models = %v, want %v", listed.Models, want)
 	}
 }

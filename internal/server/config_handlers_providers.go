@@ -418,7 +418,12 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			},
 		}
 		defer client.CloseIdleConnections()
-		resp, err := client.Get(ollamaHost + "/api/tags")
+		req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, ollamaHost+"/api/tags", nil)
+		if err != nil {
+			jsonError(w, "Failed to build Ollama request", http.StatusBadGateway)
+			return
+		}
+		resp, err := client.Do(req)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadGateway)
@@ -430,7 +435,14 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			jsonError(w, fmt.Sprintf("Ollama answered with status %d", resp.StatusCode), http.StatusBadGateway)
+			msg := fmt.Sprintf("Ollama answered with status %d", resp.StatusCode)
+			if loc := resp.Header.Get("Location"); resp.StatusCode/100 == 3 && loc != "" {
+				if len(loc) > 200 {
+					loc = loc[:200]
+				}
+				msg += fmt.Sprintf(" (redirect to %s; enter that URL instead)", loc)
+			}
+			jsonError(w, msg, http.StatusBadGateway)
 			return
 		}
 
