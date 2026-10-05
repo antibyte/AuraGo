@@ -29,7 +29,11 @@ const (
 
 // notifyHTTPClient is shared across notification calls with a bounded timeout.
 var notifyHTTPClient = &http.Client{Timeout: 15 * time.Second}
+
+// markdownV2Replacer escapes text for Telegram MarkdownV2. The backslash is escaped too,
+// otherwise a "\" before a reserved character, or at the end, makes Telegram answer 400.
 var markdownV2Replacer = strings.NewReplacer(
+	"\\", "\\\\",
 	"_", "\\_", "*", "\\*", "[", "\\[", "]", "\\]",
 	"(", "\\(", ")", "\\)", "~", "\\~", "`", "\\`",
 	">", "\\>", "#", "\\#", "+", "\\+", "-", "\\-",
@@ -271,10 +275,11 @@ func sendTelegramNotification(cfg *config.Config, title, message string) error {
 		"parse_mode": "MarkdownV2",
 	})
 
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken)
+	url := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPIBase, botToken)
 	resp, err := notifyHTTPClient.Post(url, "application/json", bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("telegram request failed: %w", err)
+		// The error repeats the request URL, and with it the bot token.
+		return fmt.Errorf("telegram request failed: %s", telegramErrorText(err.Error(), botToken))
 	}
 	defer resp.Body.Close()
 
@@ -283,7 +288,7 @@ func sendTelegramNotification(cfg *config.Config, title, message string) error {
 		if err != nil {
 			return fmt.Errorf("telegram returned HTTP %d and response body could not be read safely: %w", resp.StatusCode, err)
 		}
-		return fmt.Errorf("telegram returned HTTP %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("telegram returned HTTP %d: %s", resp.StatusCode, telegramErrorText(string(body), botToken))
 	}
 	return nil
 }
