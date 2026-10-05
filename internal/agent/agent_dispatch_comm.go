@@ -1281,6 +1281,14 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if missionManagerV2 == nil {
 				return `Tool Output: {"status": "error", "message": "Mission control storage not available"}`
 			}
+			// EasyDrag owns flow missions. Every operation outside the allowlist that names
+			// one is refused here, before the switch, so an operation added later cannot
+			// reach a flow mission by accident.
+			if req.ID != "" && !flowMissionOperationAllowed(req.Operation) {
+				if existing, ok := missionManagerV2.Get(req.ID); ok && existing.ExecutionType == tools.ExecutionFlow {
+					return flowMissionManagedOutput(req.ID)
+				}
+			}
 
 			switch req.Operation {
 			case "list":
@@ -1289,6 +1297,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(b)
 
 			case "create", "add":
+				// The agent cannot create flows; this path only builds manual and scheduled
+				// missions and would otherwise ignore the requested type.
+				if strings.EqualFold(strings.TrimSpace(toolArgString(tc.Params, "execution_type")), string(tools.ExecutionFlow)) {
+					return flowMissionManagedOutput("")
+				}
 				if req.Title == "" || req.Command == "" {
 					return `Tool Output: {"status": "error", "message": "'title' (name) and 'command' (prompt) are required for create"}`
 				}
@@ -1326,9 +1339,6 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if !ok {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Mission %s not found"}`, req.ID)
 				}
-				if existing.ExecutionType == tools.ExecutionFlow {
-					return flowMissionManagedOutput(req.ID)
-				}
 
 				if req.Title != "" {
 					existing.Name = req.Title
@@ -1364,9 +1374,6 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			case "delete", "remove":
 				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "'id' is required for delete"}`
-				}
-				if existing, ok := missionManagerV2.Get(req.ID); ok && existing.ExecutionType == tools.ExecutionFlow {
-					return flowMissionManagedOutput(req.ID)
 				}
 				err := missionManagerV2.Delete(req.ID)
 				if err != nil {
@@ -2225,8 +2232,34 @@ func upnpParseLocation(location string) (ip string, port int) {
 	return ip, port
 }
 
-// flowMissionManagedOutput tells the agent that EasyDrag owns a flow mission.
+// flowMissionIDEchoRunes bounds the model-supplied mission id that flowMissionManagedOutput echoes.
+const flowMissionIDEchoRunes = 100
+
+// flowMissionOperationAllowed reports whether manage_missions may apply an operation to a
+// flow mission: the agent may read flows (list, history) and start a run, nothing else.
+func flowMissionOperationAllowed(operation string) bool {
+	switch operation {
+	case "list", "history", "run", "run_now":
+		return true
+	}
+	return false
+}
+
+// flowMissionManagedOutput tells the agent that EasyDrag owns a flow mission. An empty id
+// answers a request to create one. The echoed id is cut to flowMissionIDEchoRunes runes.
 func flowMissionManagedOutput(id string) string {
-	msg, _ := json.Marshal(fmt.Sprintf("Mission %s is an EasyDrag flow. Open it in the EasyDrag app to change or delete it.", id))
+	text := "EasyDrag flows are created and edited in the EasyDrag app. manage_missions cannot create them."
+	if id != "" {
+		count := 0
+		for i := range id {
+			if count == flowMissionIDEchoRunes {
+				id = id[:i] + "…"
+				break
+			}
+			count++
+		}
+		text = fmt.Sprintf("Mission %s is an EasyDrag flow. Open it in the EasyDrag app to change or delete it.", id)
+	}
+	msg, _ := json.Marshal(text)
 	return fmt.Sprintf(`Tool Output: {"status":"error","code":"flow_mission","message":%s}`, msg)
 }
