@@ -25,11 +25,10 @@ const (
 //
 // Like every MissionBridge it never calls a Service method that takes a flow lock
 // (Publish, SetEnabled, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged,
-// ReconcileMissions): the
-// Service calls it while it holds one. broadcastMissionState, which most methods call,
-// reads the missions and the queue under the manager's own lock and asks each flow
-// mission's next run through FlowHooks.NextFlowRun, which ends in the lock-free
-// Service.NextTimer.
+// ReconcileMissions): the Service calls it while it holds one. broadcastMissionState,
+// which most methods call, reads the missions and the queue under the manager's own lock
+// and asks each flow mission's next run through FlowHooks.NextFlowRun, which ends in the
+// lock-free Service.NextTimer.
 type flowMissionBridge struct{ s *Server }
 
 func (b flowMissionBridge) missions() (*tools.MissionManagerV2, error) {
@@ -220,7 +219,7 @@ type flowMissionHooks struct{ s *Server }
 // StartFlowRun implements tools.FlowHooks.
 func (h flowMissionHooks) StartFlowRun(missionID, nodeID, triggerType, triggerData string) error {
 	if h.s.Flows == nil {
-		return errors.New("flows are not available")
+		return tools.ErrFlowsUnavailable
 	}
 	_, err := h.s.Flows.TriggerFromMission(missionID, nodeID, triggerType, flows.NormalizeTriggerData(triggerType, triggerData))
 	return err

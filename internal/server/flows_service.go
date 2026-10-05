@@ -73,25 +73,51 @@ func (s *Server) startFlows(ctx context.Context) {
 	}
 	svc, logger := s.Flows, s.Logger
 	go func() {
-		if err := svc.ReconcileMissions(ctx); err != nil && !errors.Is(err, flows.ErrRunnerClosed) && ctx.Err() == nil {
+		err := svc.ReconcileMissions(ctx)
+		if err != nil && !errors.Is(err, flows.ErrRunnerClosed) && ctx.Err() == nil {
 			logger.Warn("EasyDrag flows could not be checked against Mission Control", "error", err)
 		}
 	}()
 }
 
-// flowsShutdownTimeout is how long shutdownFlows waits for the flow runs to stop. It is a
-// budget of its own: the server's shutdown context is shared with the HTTP drain, which
-// may have used it up.
-const flowsShutdownTimeout = 15 * time.Second
+// The shutdown budget of the flow service: what is left of the server's shutdown context,
+// within [flowsShutdownMinimum, flowsShutdownTimeout] (see flowsShutdownBudget).
+const (
+	flowsShutdownTimeout = 15 * time.Second
+	flowsShutdownMinimum = 5 * time.Second
+)
+
+// flowsShutdownBudget returns how long Service.Shutdown may take: the time left before
+// ctx's deadline, at most flowsShutdownTimeout and at least flowsShutdownMinimum. The
+// server's context (45 s) is shared with the HTTP drain; taking only what is left keeps
+// the drain and the flows within 50 s together, under systemd's TimeoutStopSec=60s
+// (install.sh), while the minimum still lets cancelled runs record their end after a
+// drain that used up its time. Without a deadline the budget is flowsShutdownTimeout.
+func flowsShutdownBudget(ctx context.Context) time.Duration {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return flowsShutdownTimeout
+	}
+	// The server package shadows the builtins with int max (and its tests with int min).
+	budget := time.Until(deadline)
+	if budget > flowsShutdownTimeout {
+		budget = flowsShutdownTimeout
+	}
+	if budget < flowsShutdownMinimum {
+		budget = flowsShutdownMinimum
+	}
+	return budget
+}
 
 // shutdownFlows stops timers and runs and closes the store before the databases close.
 //
 // The server calls it once the HTTP API is drained, so no flow API request is in flight,
 // and before MQTT, mail, MCP, the sandbox, the mission history and the planner stop: flow
 // runs use all of them. The order is Service.Shutdown (timers, runs, the retention loop,
-// a startup reconciliation still in progress), then the store. Shutdown gets flowsShutdownTimeout whatever is left of ctx (ctx's
-// cancellation is ignored); runs that do not stop in time end in the background, and
-// their last writes then fail on the closed store and are logged.
+// a startup reconciliation still in progress), then the store. Shutdown gets
+// flowsShutdownBudget(ctx) on a context of its own (ctx's cancellation is ignored); runs
+// that do not stop in time end in the background, and their last writes then fail on the
+// closed store and are logged.
 //
 // Service.Shutdown does not wait for flow operations that Mission Control starts through
 // the hooks: until the process ends a cron job, an MQTT or mail trigger or a mission
@@ -104,7 +130,7 @@ func (s *Server) shutdownFlows(ctx context.Context) {
 	if s.Flows == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), flowsShutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), flowsShutdownBudget(ctx))
 	defer cancel()
 	if err := s.Flows.Shutdown(ctx); err != nil {
 		s.Logger.Warn("EasyDrag flows did not stop in time", "error", err)

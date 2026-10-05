@@ -28,21 +28,12 @@ type dashboardCronjob struct {
 }
 
 // A flow's schedule jobs belong to EasyDrag: the dashboard lists them but neither edits,
-// toggles nor deletes them, and adds none under an id a flow mission claims.
+// toggles nor deletes them (tools.IsFlowCronJob), and adds none under an id a flow mission
+// claims (tools.FlowOwnsCronJob, the check the agent's cron tools use).
 const (
 	flowCronManagedMessage = "This schedule is managed by EasyDrag; edit the flow instead."
 	flowCronManagedBy      = "easydrag"
 )
-
-// dashboardFlowCronJob reports whether EasyDrag owns the cron job id: an existing job of the
-// flow source, or, with claims, an id of the flow form ("mission_<mission>__<node>") that a
-// flow mission claims while the job is absent, so none can be planted under it.
-func dashboardFlowCronJob(s *Server, jobs []tools.CronJob, id string, claims bool) bool {
-	if job, ok := findDashboardCronjob(jobs, id); ok && job.IsFlowJob() {
-		return true
-	}
-	return claims && s.MissionManagerV2 != nil && s.MissionManagerV2.OwnsFlowCronJob(id)
-}
 
 type dashboardCronjobUpdateRequest struct {
 	ID         string `json:"id"`
@@ -91,12 +82,11 @@ func handleDashboardCronjobByID(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid cron job id", http.StatusBadRequest)
 			return
 		}
-		jobs := s.CronManager.GetJobs()
-		if !dashboardCronjobExists(jobs, id) {
+		if !dashboardCronjobExists(s.CronManager.GetJobs(), id) {
 			jsonError(w, "Cron job not found", http.StatusNotFound)
 			return
 		}
-		if dashboardFlowCronJob(s, jobs, id, false) {
+		if tools.IsFlowCronJob(s.CronManager, id) {
 			jsonError(w, flowCronManagedMessage, http.StatusConflict)
 			return
 		}

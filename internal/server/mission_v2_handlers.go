@@ -75,6 +75,15 @@ func missionErrorStatus(err error) int {
 	if err == nil {
 		return http.StatusInternalServerError
 	}
+	// Flow missions (run now, trigger) pass the flow service's errors through.
+	switch {
+	case errors.Is(err, tools.ErrFlowsUnavailable), errors.Is(err, flows.ErrRunnerClosed):
+		return http.StatusServiceUnavailable
+	case errors.Is(err, flows.ErrNoTrigger), errors.Is(err, flows.ErrNotPublished):
+		return http.StatusConflict
+	case errors.Is(err, flows.ErrQueueFull):
+		return http.StatusTooManyRequests
+	}
 	msg := err.Error()
 	switch {
 	case strings.Contains(msg, "not found"):
@@ -400,12 +409,14 @@ func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id
 	// goroutine, and that takes the manager's lock.
 	if mission, ok := s.MissionManagerV2.Get(id); ok && mission.ExecutionType == tools.ExecutionFlow {
 		if s.Flows == nil {
-			jsonError(w, "flows are not available", http.StatusServiceUnavailable)
+			jsonError(w, tools.ErrFlowsUnavailable.Error(), http.StatusServiceUnavailable)
 			return
 		}
 		// Detached: a client that goes away must not end the lookup half-way and get a
-		// cancel reported as failed.
-		n, err := s.Flows.CancelMissionRuns(context.WithoutCancel(r.Context()), id)
+		// cancel reported as failed. Bounded: the lookup is one indexed query.
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
+		defer cancel()
+		n, err := s.Flows.CancelMissionRuns(ctx, id)
 		switch {
 		case errors.Is(err, flows.ErrNotFound):
 			jsonError(w, "the flow of this mission does not exist", http.StatusNotFound)

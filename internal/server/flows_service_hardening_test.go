@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -37,6 +39,7 @@ func c16Server(t *testing.T, enabled bool, logger *slog.Logger) *Server {
 	s.Cfg.Directories.SkillsDir = filepath.Join(dir, "skills")
 	s.Cfg.SQLite.GameMakerPath = filepath.Join(dir, "game_maker.db")
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(s.Cfg))
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
 	s.MissionManagerV2 = tools.NewMissionManagerV2(dir, nil)
 	t.Cleanup(s.MissionManagerV2.Stop)
 	return s
@@ -234,8 +237,8 @@ func TestC16DisabledFlowsLeaveFlowMissionsInert(t *testing.T) {
 			}
 			w := httptest.NewRecorder()
 			handleMissionRunV2(s, w, httptest.NewRequest(http.MethodPost, "/api/missions/v2/"+missionID+"/run", nil), missionID)
-			if w.Code < 400 || !strings.Contains(w.Body.String(), "flows are not available") {
-				t.Fatalf("run now = %d %s, want a clear refusal", w.Code, w.Body.String())
+			if w.Code != http.StatusServiceUnavailable || !strings.Contains(w.Body.String(), "flows are not available") {
+				t.Fatalf("run now = %d %s, want 503 with a clear refusal", w.Code, w.Body.String())
 			}
 			select {
 			case id := <-agent:
@@ -542,6 +545,66 @@ func TestC16FlowsDatabaseIsBackedUpAndProtected(t *testing.T) {
 	for _, path := range config.SQLiteDatabasePaths(bare.Cfg) {
 		if filepath.Base(path) == config.FlowsDBFilename {
 			t.Fatalf("a relative flows.db is listed: %v", config.SQLiteDatabasePaths(bare.Cfg))
+		}
+	}
+}
+
+func TestC16MissionErrorStatusMapsFlowErrors(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want int
+	}{
+		{tools.ErrFlowsUnavailable, http.StatusServiceUnavailable},
+		{flows.ErrRunnerClosed, http.StatusServiceUnavailable},
+		{fmt.Errorf("start: %w", flows.ErrNoTrigger), http.StatusConflict},
+		{flows.ErrNotPublished, http.StatusConflict},
+		{flows.ErrQueueFull, http.StatusTooManyRequests},
+		// The string rules stay as they were.
+		{errors.New("mission not found"), http.StatusNotFound},
+		{errors.New("mission is disabled"), http.StatusBadRequest},
+		{errors.New("boom"), http.StatusInternalServerError},
+	} {
+		if got := missionErrorStatus(tc.err); got != tc.want {
+			t.Fatalf("missionErrorStatus(%v) = %d, want %d", tc.err, got, tc.want)
+		}
+	}
+}
+
+func TestC16RunNowAfterShutdownAnswers503(t *testing.T) {
+	s := c16StartedServer(t, nil)
+	ctx := context.Background()
+	rec := c16PublishedFlow(t, s, greetFlowJSON)
+	if err := s.Flows.SetEnabled(ctx, rec.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Flows.Shutdown(ctx); err != nil { // the runner is closed, the store still open
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	handleMissionRunV2(s, w, httptest.NewRequest(http.MethodPost, "/api/missions/v2/"+rec.MissionID+"/run", nil), rec.MissionID)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("run now after shutdown = %d %s, want 503", w.Code, w.Body.String())
+	}
+}
+
+func TestC16FlowsShutdownBudget(t *testing.T) {
+	if got := flowsShutdownBudget(context.Background()); got != flowsShutdownTimeout {
+		t.Fatalf("budget without a deadline = %s", got)
+	}
+	for _, tc := range []struct {
+		left     time.Duration
+		min, max time.Duration
+	}{
+		{40 * time.Second, flowsShutdownTimeout, flowsShutdownTimeout},
+		{8 * time.Second, 7 * time.Second, 8 * time.Second},
+		{time.Second, flowsShutdownMinimum, flowsShutdownMinimum},
+		{-time.Second, flowsShutdownMinimum, flowsShutdownMinimum},
+	} {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(tc.left))
+		got := flowsShutdownBudget(ctx)
+		cancel()
+		if got < tc.min || got > tc.max {
+			t.Fatalf("budget with %s left = %s, want %s..%s", tc.left, got, tc.min, tc.max)
 		}
 	}
 }
