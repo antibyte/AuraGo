@@ -17,9 +17,11 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/desktop"
 	"aurago/internal/flows"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -404,5 +406,210 @@ func TestC17ListCarriesNoDocuments(t *testing.T) {
 		if _, ok := card[key]; ok {
 			t.Errorf("the list card carries %q", key)
 		}
+	}
+}
+
+// c17AgentVault runs the agent's secrets_vault tool through the real dispatcher.
+func c17AgentVault(t *testing.T, s *Server, operation, key, value string) string {
+	t.Helper()
+	cfg := *s.Cfg
+	cfg.Tools.SecretsVault.Enabled = true
+	dc := &agent.DispatchContext{Cfg: &cfg, Logger: s.Logger, Vault: s.Vault, SessionID: "c17-agent"}
+	tc := &agent.ToolCall{Action: "secrets_vault", Operation: operation, Key: key, Value: value}
+	return agent.DispatchToolCallResult(context.Background(), tc, dc, "").Output
+}
+
+func TestC17FlowSecretsStayOutOfTheAgent(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	const value = "c17-agent-secret-value-0123"
+	if w := flowsCall(t, s, http.MethodPut, "/api/desktop/flows/secrets/c17_agent", token, `{"value":"`+value+`"}`); w.Code != http.StatusOK {
+		t.Fatalf("put secret = %d %s", w.Code, w.Body.String())
+	}
+	key := flowSecretPrefix + "c17_agent"
+	if _, err := s.Vault.ReadSecretForAgent(key); !errors.Is(err, security.ErrSecretAgentAccessDenied) {
+		t.Fatalf("ReadSecretForAgent = %v, want access denied", err)
+	}
+	if ok, err := s.Vault.AgentCanReadSecret(key); ok || err != nil {
+		t.Fatalf("AgentCanReadSecret = %v %v", ok, err)
+	}
+	if tools.IsPythonAccessibleSecret(key) || tools.IsPythonAccessibleSecret("EASYDRAG_C17_AGENT") {
+		t.Fatal("flow secrets must be blocked for Python, skills and the agent's vault tool")
+	}
+	if resolved, rejected, err := tools.ResolveVaultSecrets(s.Vault, []string{key}); err != nil || len(resolved) != 0 || len(rejected) != 1 {
+		t.Fatalf("ResolveVaultSecrets = %v %v %v", resolved, rejected, err)
+	}
+
+	list := c17AgentVault(t, s, "", "", "")
+	if !strings.Contains(list, `"status":"success"`) || strings.Contains(list, "easydrag_") {
+		t.Fatalf("the agent's key list = %s", list)
+	}
+	if out := c17AgentVault(t, s, "get", key, ""); strings.Contains(out, value) || !strings.Contains(out, "Access denied") {
+		t.Fatalf("the agent read a flow secret: %s", out)
+	}
+	if out := c17AgentVault(t, s, "delete", key, ""); !strings.Contains(out, "Access denied") {
+		t.Fatalf("the agent deleted a flow secret: %s", out)
+	}
+	if out := c17AgentVault(t, s, "store", flowSecretPrefix+"c17_planted", "agent-chosen-value-123"); !strings.Contains(out, "Access denied") {
+		t.Fatalf("the agent created a flow secret: %s", out)
+	}
+	if _, err := s.Vault.ReadSecret(flowSecretPrefix + "c17_planted"); !errors.Is(err, security.ErrSecretNotFound) {
+		t.Fatalf("the planted flow secret exists: %v", err)
+	}
+	if v, err := (flowSecrets{s: s}).ReadSecret("c17_agent"); err != nil || v != value {
+		t.Fatalf("flows lost the secret: %q %v", v, err)
+	}
+	// The vault's own user list (the skills dialog) hides flow secrets as well.
+	w := httptest.NewRecorder()
+	handleListVaultSecrets(s, w, httptest.NewRequest(http.MethodGet, "/api/vault/secrets?filter=user", nil))
+	if w.Code != http.StatusOK || strings.Contains(w.Body.String(), "easydrag_") {
+		t.Fatalf("vault user list = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestC17SecretWritesAreBoundedScrubbedAndAuditedByName(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	stm := c17Audit(t, s)
+	tooLong := strings.Repeat("v", flowSecretValueMaxBytes+1)
+	if w := flowsCall(t, s, http.MethodPut, "/api/desktop/flows/secrets/c17_big", token, `{"value":"`+tooLong+`"}`); w.Code != http.StatusRequestEntityTooLarge ||
+		flowsBody(t, w)["code"] != "FLOW_TOO_LARGE" {
+		t.Fatalf("oversized secret = %d %s", w.Code, flowBoundRunes(w.Body.String(), 200))
+	}
+	if _, err := s.Vault.ReadSecret(flowSecretPrefix + "c17_big"); !errors.Is(err, security.ErrSecretNotFound) {
+		t.Fatalf("the oversized secret was stored: %v", err)
+	}
+	if w := flowsCall(t, s, http.MethodPut, "/api/desktop/flows/secrets/c17_max", token, `{"value":"`+tooLong[1:]+`"}`); w.Code != http.StatusOK {
+		t.Fatalf("secret at the limit = %d %s", w.Code, flowBoundRunes(w.Body.String(), 200))
+	}
+
+	trimmed := fmt.Sprintf("c17-scrub-%d", time.Now().UnixNano())
+	raw := "  " + trimmed + "\\n"
+	if w := flowsCall(t, s, http.MethodPut, "/api/desktop/flows/secrets/c17_scrub", token, `{"value":"`+raw+`"}`); w.Code != http.StatusOK {
+		t.Fatalf("put secret = %d %s", w.Code, w.Body.String())
+	}
+	// Registered on write, before any run read it.
+	if out := security.Scrub("Authorization: Bearer " + trimmed); strings.Contains(out, trimmed) {
+		t.Fatalf("the trimmed value is not scrubbed: %q", out)
+	}
+	if out := security.Scrub("raw: " + "  " + trimmed + "\n"); strings.Contains(out, trimmed) {
+		t.Fatalf("the stored value is not scrubbed: %q", out)
+	}
+	audit := c17AuditEvents(t, stm, "flow_secret_set")
+	var entry *memory.AuditEvent
+	for i := range audit {
+		if audit[i].TargetName == "c17_scrub" {
+			entry = &audit[i]
+		}
+	}
+	if entry == nil || entry.Summary != "Flow secret c17_scrub saved" || entry.Detail != "" {
+		t.Fatalf("audit = %+v", audit)
+	}
+	if blob, _ := json.Marshal(audit); strings.Contains(string(blob), trimmed) || strings.Contains(string(blob), security.RedactedText("")) {
+		t.Fatalf("the audit timeline holds the value: %s", blob)
+	}
+}
+
+// c17SecretFlowJSON is a flow whose http.request node uses the flow secret named in it.
+func c17SecretFlowJSON(name, secret string, disabled bool) string {
+	return `{"schema":1,"name":"` + name + `","nodes":[
+ {"id":"n_aaaaaaaa","key":"start","type":"trigger.manual","type_version":1,"label":"Start","position":{"x":0,"y":0},"params":{}},
+ {"id":"n_bbbbbbbb","key":"call","type":"http.request","type_version":1,"label":"Call","position":{"x":300,"y":0},
+  "settings":{"disabled":` + fmt.Sprint(disabled) + `},"params":{"url":"https://example.com/api","auth_secret":" ` + secret + ` "}}],
+ "edges":[{"id":"e_aaaaaaaa","source":{"node":"n_aaaaaaaa","port":"out"},"target":{"node":"n_bbbbbbbb","port":"in"}}]}`
+}
+
+func TestC17SecretDeleteNamesThePublishedFlowsUsingIt(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	ctx := context.Background()
+	publish := func(rec *flows.FlowRecord) {
+		t.Helper()
+		// The store publish skips the availability rules; only the live document matters here.
+		if _, err := s.Flows.Store().Publish(ctx, rec.ID, rec.DraftRevision, time.Now()); err != nil {
+			t.Fatalf("store publish: %v", err)
+		}
+	}
+	publish(createTestFlow(t, s, c17SecretFlowJSON("Zeta uses it", "c17_used", false)))
+	publish(createTestFlow(t, s, c17SecretFlowJSON("Alpha uses it", "c17_used", false)))
+	publish(createTestFlow(t, s, c17SecretFlowJSON("Disabled node", "c17_used", true)))
+	publish(createTestFlow(t, s, c17SecretFlowJSON("Other secret", "c17_other", false)))
+	createTestFlow(t, s, c17SecretFlowJSON("Draft only", "c17_used", false))
+
+	if w := flowsCall(t, s, http.MethodPut, "/api/desktop/flows/secrets/c17_used", token, `{"value":"c17-used-value-123"}`); w.Code != http.StatusOK {
+		t.Fatalf("put secret = %d %s", w.Code, w.Body.String())
+	}
+	w := flowsCall(t, s, http.MethodDelete, "/api/desktop/flows/secrets/c17_used", token, "")
+	body := flowsBody(t, w)
+	users, _ := body["used_by"].([]any)
+	if w.Code != http.StatusOK || body["status"] != "deleted" || len(users) != 2 || users[0] != "Alpha uses it" || users[1] != "Zeta uses it" {
+		t.Fatalf("delete = %d %s", w.Code, w.Body.String())
+	}
+	w = flowsCall(t, s, http.MethodDelete, "/api/desktop/flows/secrets/c17_unused", token, "")
+	if users, ok := flowsBody(t, w)["used_by"].([]any); w.Code != http.StatusOK || !ok || len(users) != 0 {
+		t.Fatalf("delete of an unused secret = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestC17ScrubbedJSONWalksTheValues(t *testing.T) {
+	secret := fmt.Sprintf("c17 \"quoted\" \\ secret\n\t<%d>", time.Now().UnixNano())
+	security.RegisterSensitive(secret)
+	payload := map[string]any{
+		"run":  map[string]any{"output": "token=" + secret + " end", "list": []any{secret, 42, true, nil}},
+		secret: "as a key",
+	}
+	w := httptest.NewRecorder()
+	flowsJSONScrubbed(w, http.StatusOK, payload)
+	if !json.Valid(w.Body.Bytes()) {
+		t.Fatalf("not JSON: %s", w.Body.String())
+	}
+	escaped, _ := json.Marshal(secret)
+	if strings.Contains(w.Body.String(), strings.Trim(string(escaped), `"`)) {
+		t.Fatalf("the escaped secret is in the answer: %s", w.Body.String())
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	run := decoded["run"].(map[string]any)
+	if out := run["output"].(string); strings.Contains(out, secret) || !strings.Contains(out, security.RedactedText("")) || !strings.HasSuffix(out, " end") {
+		t.Fatalf("output = %q", out)
+	}
+	if list := run["list"].([]any); len(list) != 4 || list[1] != float64(42) || list[2] != true || list[3] != nil {
+		t.Fatalf("list = %+v", list)
+	}
+	for key := range decoded {
+		if strings.Contains(key, secret) {
+			t.Fatalf("the secret is a key: %q", key)
+		}
+	}
+	if w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("scrubbed answers must not be cached")
+	}
+}
+
+func TestC17MalformedFlowPathsAre404(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	paths := []string{
+		"/api/desktop/flows/" + strings.Repeat("a", 5000),
+		"/api/desktop/flows/a/b/c/d",
+		"/api/desktop/flows/" + rec.ID + "/publish/extra",
+		"/api/desktop/flows/" + rec.ID + "/export/x",
+		"/api/desktop/flows/" + rec.ID + "/nope",
+		"/api/desktop/flows/" + rec.ID + "//publish",
+		"/api/desktop/flows/flow%20x",
+		"/api/desktop/flows/" + strings.Repeat("%27", 30),
+	}
+	for _, path := range paths {
+		for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodDelete} {
+			w := flowsCall(t, s, method, path, token, `{}`)
+			if w.Code != http.StatusNotFound || flowsBody(t, w)["code"] != "FLOW_NOT_FOUND" {
+				t.Errorf("%s %s = %d %s", method, flowBoundRunes(path, 60), w.Code, flowBoundRunes(w.Body.String(), 200))
+			}
+		}
+	}
+	if w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/flow_missing0", token, ""); w.Code != http.StatusNotFound {
+		t.Fatalf("an unknown well-formed id = %d", w.Code)
+	}
+	if w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/"+rec.ID+"/", token, ""); w.Code != http.StatusOK {
+		t.Fatalf("a trailing slash = %d", w.Code)
 	}
 }

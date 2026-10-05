@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -33,6 +34,19 @@ const (
 // a collection route of the API contract, not a flow id.
 var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true}
 
+// flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
+// characters); anything else is FLOW_NOT_FOUND before the store is asked.
+var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// flowRouteSegments is the number of path segments after the flow id that each
+// /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
+// FLOW_NOT_FOUND (404); a new route adds its entry here.
+var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1}
+
+// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API tokens
+// and passwords; the vault keeps all its secrets in one encrypted file.
+const flowSecretValueMaxBytes = 16 << 10
+
 func registerFlowsRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/desktop/flows", s.handleFlows)
 	mux.HandleFunc("/api/desktop/flows/", s.handleFlows)
@@ -46,16 +60,26 @@ func flowsJSON(w http.ResponseWriter, status int, value any) {
 }
 
 // flowsJSONScrubbed writes run data with registered secret values redacted.
+//
+// It scrubs the values, not the JSON text: value is encoded and decoded once into plain
+// JSON values, which scrubFlowValue copies with every string, map key and number
+// scrubbed. A secret holding a quote, a backslash or a control character is escaped in
+// JSON text, where a text scrub misses it, and a redaction inside the text could break
+// the JSON; the walk avoids both, so the answer is always valid JSON. The walk is not
+// budgeted (the payloads are bounded by the stored outputs, at most
+// flows.MaxStoredOutputBytes per step); numbers come back as float64.
 func flowsJSONScrubbed(w http.ResponseWriter, status int, value any) {
 	data, err := json.Marshal(value)
 	if err != nil {
 		flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", "the response cannot be encoded")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
-	_, _ = w.Write([]byte(security.Scrub(string(data))))
+	var plain any
+	if err := json.Unmarshal(data, &plain); err != nil {
+		flowsError(w, http.StatusInternalServerError, "FLOW_INTERNAL", "the response cannot be encoded")
+		return
+	}
+	flowsJSON(w, status, scrubFlowValue(plain))
 }
 
 func flowsError(w http.ResponseWriter, status int, code, msg string) {
@@ -299,9 +323,17 @@ func (s *Server) flowEnabled(rec *flows.FlowRecord) bool {
 
 func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, rest []string) {
 	ctx := r.Context()
+	if !flowIDPattern.MatchString(id) {
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "flow not found")
+		return
+	}
 	action := ""
 	if len(rest) > 0 {
 		action = rest[0]
+	}
+	if n, ok := flowRouteSegments[action]; !ok || len(rest) != n {
+		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "unknown flow route")
+		return
 	}
 	switch action {
 	case "":
@@ -511,14 +543,26 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 		if !flowsDecode(w, r, &body, flowsSmallBodyLimit) {
 			return
 		}
-		if strings.TrimSpace(body.Value) == "" {
+		trimmed := strings.TrimSpace(body.Value)
+		if trimmed == "" {
 			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the secret value is empty")
 			return
 		}
-		if err := s.Vault.WriteUserSecret(flowSecretPrefix+name, body.Value, true); err != nil {
+		if len(body.Value) > flowSecretValueMaxBytes {
+			flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE",
+				fmt.Sprintf("the secret value is larger than %d KiB", flowSecretValueMaxBytes>>10))
+			return
+		}
+		// WriteUserSecretContext stores the value as not agent-readable and gives up when
+		// the request ends while it waits for the vault lock.
+		if err := s.Vault.WriteUserSecretContext(r.Context(), flowSecretPrefix+name, body.Value, true); err != nil {
 			s.flowsErrorFrom(w, r, err)
 			return
 		}
+		// Scrub the value (as stored and as nodes send it) from outputs from the first run
+		// on, as flowSecrets.ReadSecret does when a run reads it.
+		security.RegisterSensitive(body.Value)
+		security.RegisterSensitive(trimmed)
 		s.recordFlowAudit("flow_secret_set", "", name, "Flow secret "+name+" saved")
 		flowsJSON(w, http.StatusOK, map[string]string{"status": "saved"})
 	case http.MethodDelete:
@@ -527,8 +571,55 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 			return
 		}
 		s.recordFlowAudit("flow_secret_delete", "", name, "Flow secret "+name+" deleted")
-		flowsJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+		answer := map[string]any{"status": "deleted"}
+		if users := s.flowSecretUsers(r.Context(), name); users != nil {
+			answer["used_by"] = users
+		}
+		flowsJSON(w, http.StatusOK, answer)
 	default:
 		flowsMethodNotAllowed(w)
 	}
+}
+
+// flowSecretUsers returns the names of the published flows (sorted) whose live revision
+// passes the flow secret name to a secret_ref parameter of an enabled node: their live
+// runs now fail with FLOW_SECRET_UNAVAILABLE, so the editor can warn after a delete. A
+// template in the parameter is not resolved, so a name chosen at run time is not found.
+// It reads the store without a flow lock. nil means the flows could not be read.
+func (s *Server) flowSecretUsers(ctx context.Context, name string) []string {
+	records, err := s.Flows.Store().ListFlows(context.WithoutCancel(ctx), flows.KindFlow)
+	if err != nil {
+		s.Logger.Warn("The flows using a deleted flow secret could not be listed", "error", flowsErrorText(err))
+		return nil
+	}
+	reg := s.Flows.Registry()
+	users := []string{}
+	for _, rec := range records {
+		if rec.Live != nil && flowUsesSecret(rec.Live, reg, name) {
+			users = append(users, rec.Name)
+		}
+	}
+	sort.Strings(users)
+	return users
+}
+
+// flowUsesSecret reports whether an enabled node of doc names the flow secret in a
+// secret_ref parameter of its type.
+func flowUsesSecret(doc *flows.Flow, reg *flows.Registry, name string) bool {
+	for i := range doc.Nodes {
+		n := &doc.Nodes[i]
+		if n.Settings.Disabled {
+			continue
+		}
+		def, ok := reg.Lookup(n.Type)
+		if !ok {
+			continue
+		}
+		for _, p := range def.Params {
+			if v, isText := n.Params[p.Name].(string); p.Kind == flows.ParamSecretRef && isText && strings.TrimSpace(v) == name {
+				return true
+			}
+		}
+	}
+	return false
 }
