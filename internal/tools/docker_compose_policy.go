@@ -49,6 +49,130 @@ type DockerComposeService struct {
 	SecurityOpt   []string              `json:"security_opt"`
 	Devices       []DockerComposeDevice `json:"devices"`
 	Build         *DockerComposeBuild   `json:"build"`
+	// EnvFile is present only in the `--no-env-resolution` (all-profiles)
+	// model; the default model inlines env files into Environment.
+	EnvFile  []DockerComposeEnvFileRef `json:"env_file"`
+	Provider *DockerComposeProvider    `json:"provider"`
+	Develop  *DockerComposeDevelop     `json:"develop"`
+}
+
+// DockerComposeEnvFileRef is one env_file entry: the {path, required} object
+// of current Compose releases or a plain path string.
+type DockerComposeEnvFileRef struct {
+	Path string
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (r *DockerComposeEnvFileRef) UnmarshalJSON(data []byte) error {
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		r.Path = text
+		return nil
+	}
+	var value struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	r.Path = value.Path
+	return nil
+}
+
+// DockerComposeProvider is a service provider section: Compose runs Type as
+// an executable on the host instead of creating a container.
+type DockerComposeProvider struct {
+	Type string `json:"type"`
+}
+
+// DockerComposeDevelop is a service develop section.
+type DockerComposeDevelop struct {
+	Watch []DockerComposeWatch `json:"watch"`
+}
+
+// DockerComposeWatch is one develop.watch rule; Path is a host path that
+// `up --watch` syncs into the container or rebuilds from.
+type DockerComposeWatch struct {
+	Path   string `json:"path"`
+	Action string `json:"action"`
+}
+
+// DockerComposeList is a resolved list attribute such as build.ssh or
+// build.entitlements. It accepts a list, a map, a single value or null and
+// never fails, so an unexpected Compose shape cannot break the preflight:
+// strings are kept as they are, other entries as their JSON text and map
+// entries as "key=value" (or "key").
+type DockerComposeList []string
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (l *DockerComposeList) UnmarshalJSON(data []byte) error {
+	*l = nil
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+	var items []json.RawMessage
+	if json.Unmarshal(trimmed, &items) == nil {
+		for _, item := range items {
+			*l = append(*l, dockerComposeJSONText(item))
+		}
+		return nil
+	}
+	var byKey map[string]json.RawMessage
+	if json.Unmarshal(trimmed, &byKey) == nil {
+		for _, key := range sortedDockerComposeKeys(byKey) {
+			entry := key
+			if value := dockerComposeJSONText(byKey[key]); value != "" && value != "null" {
+				entry += "=" + value
+			}
+			*l = append(*l, entry)
+		}
+		return nil
+	}
+	*l = DockerComposeList{dockerComposeJSONText(trimmed)}
+	return nil
+}
+
+// DockerComposeRefs are the names a reference list names, such as the
+// top-level secrets of build.secrets: entries of a list of strings or of
+// {"source": …} objects, or the keys of a map. It never fails.
+type DockerComposeRefs []string
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (r *DockerComposeRefs) UnmarshalJSON(data []byte) error {
+	*r = nil
+	var byName map[string]json.RawMessage
+	if json.Unmarshal(data, &byName) == nil {
+		*r = append(*r, sortedDockerComposeKeys(byName)...)
+		return nil
+	}
+	var items []json.RawMessage
+	if json.Unmarshal(data, &items) != nil {
+		return nil
+	}
+	for _, item := range items {
+		var name string
+		if json.Unmarshal(item, &name) == nil {
+			*r = append(*r, name)
+			continue
+		}
+		var ref struct {
+			Source string `json:"source"`
+		}
+		if json.Unmarshal(item, &ref) == nil && ref.Source != "" {
+			*r = append(*r, ref.Source)
+		}
+	}
+	return nil
+}
+
+// dockerComposeJSONText returns a JSON string's value, or other JSON as text.
+func dockerComposeJSONText(raw json.RawMessage) string {
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		return text
+	}
+	return string(bytes.TrimSpace(raw))
 }
 
 // DockerComposeMount is a resolved service volume in long syntax.
@@ -94,6 +218,12 @@ type DockerComposeBuild struct {
 	Dockerfile         string             `json:"dockerfile"`
 	AdditionalContexts map[string]string  `json:"additional_contexts"`
 	Args               map[string]*string `json:"args"`
+	// SSH forwards the host's SSH agent or key files into the build.
+	SSH DockerComposeList `json:"ssh"`
+	// Secrets names the top-level secrets the build reads.
+	Secrets      DockerComposeRefs `json:"secrets"`
+	Privileged   bool              `json:"privileged"`
+	Entitlements DockerComposeList `json:"entitlements"`
 }
 
 // DockerComposeNamedVolume is a resolved top-level volume.
@@ -111,10 +241,14 @@ type DockerComposeNetwork struct {
 	Labels map[string]string `json:"labels"`
 }
 
-// DockerComposeFileResource is a resolved top-level secret or config.
+// DockerComposeFileResource is a resolved top-level secret or config. Its
+// source is a host File, a variable of the Compose process Environment or
+// inline Content (configs).
 type DockerComposeFileResource struct {
-	Name string `json:"name"`
-	File string `json:"file"`
+	Name        string `json:"name"`
+	File        string `json:"file"`
+	Environment string `json:"environment"`
+	Content     string `json:"content"`
 }
 
 // ParseDockerComposeModel decodes the stdout of `docker compose config
