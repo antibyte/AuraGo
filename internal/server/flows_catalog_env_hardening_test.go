@@ -249,7 +249,7 @@ func TestC12SpendingToolsNeverBecomeGenericNodes(t *testing.T) {
 		if !names[name] {
 			t.Errorf("%s is no tool of the full configuration", name)
 		}
-		if !flowToolSpends(cfg, name) {
+		if !flowToolSpends(name) {
 			t.Errorf("%s is not on the spend list", name)
 		}
 		if _, isNode := reg.Lookup(flows.GenericTypePrefix + name); isNode {
@@ -258,7 +258,7 @@ func TestC12SpendingToolsNeverBecomeGenericNodes(t *testing.T) {
 	}
 	for name := range names {
 		_, isNode := reg.Lookup(flows.GenericTypePrefix + name)
-		if flowToolSpends(cfg, name) && isNode {
+		if flowToolSpends(name) && isNode {
 			t.Errorf("tool.%s spends outside the flow budget but is a generic node", name)
 		}
 	}
@@ -279,15 +279,17 @@ func TestC12SpendingToolsNeverBecomeGenericNodes(t *testing.T) {
 		}
 	}
 
+	// Flow tool calls run with every summary mode off (1c-13, flowDispatchConfig), so the
+	// node stays while the agent's wikipedia_search summarises.
 	summarising := c12FullToolConfig(t)
 	summarising.Tools.Wikipedia.SummaryMode = true
 	cur.Store(summarising)
 	env.refreshRegistry(reg, summarising)
-	if _, ok := reg.Lookup(flows.GenericTypePrefix + "wikipedia_search"); ok {
-		t.Fatal("tool.wikipedia_search must not be a node while its summary mode is on")
+	if _, ok := reg.Lookup(flows.GenericTypePrefix + "wikipedia_search"); !ok {
+		t.Fatal("tool.wikipedia_search must stay a node while its summary mode is on: flows dispatch with it off")
 	}
 	if a := env.ToolAvailability("wikipedia_search"); a.State != flows.AvailableState {
-		t.Fatalf("wikipedia_search = %+v: leaving the node out must not change the tool's availability", a)
+		t.Fatalf("wikipedia_search = %+v", a)
 	}
 }
 

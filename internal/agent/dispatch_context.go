@@ -16,6 +16,11 @@ import (
 	"aurago/internal/vaultprompt"
 )
 
+// MessageSourceFlow is the MessageSource of a tool call made by an EasyDrag flow node
+// (internal/server/flows_tool_invoker.go). Such calls never get the local Ollama exception
+// of api_request.
+const MessageSourceFlow = "flow"
+
 // DispatchContext bundles the shared dependencies passed through the tool-dispatch chain.
 // It replaces the 30+ individual function parameters that were previously threaded
 // from DispatchToolCall → dispatchInner → dispatchExec/Comm/Services/Infra.

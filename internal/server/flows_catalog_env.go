@@ -82,7 +82,7 @@ func (e *flowCatalogEnv) snapshot(cfg *config.Config) (map[string]bool, []flows.
 		}
 		name := tool.Function.Name
 		names[name] = true
-		if flowToolSpends(cfg, name) {
+		if flowToolSpends(name) {
 			continue
 		}
 		generic = append(generic, flows.GenericTool{Name: name, Description: tool.Function.Description,
@@ -123,8 +123,9 @@ func (e *flowCatalogEnv) refreshRegistry(reg *flows.Registry, cfg *config.Config
 // the flow budget does not see; in phase 1 they never become generic flow nodes (the
 // value says why). flowSpendingToolPrefixes do the same for tool families. Tools with
 // cheap operations next to spending ones keep their node without the spending ones
-// (genericDroppedOperations in internal/flows). The curated nodes decide for their own
-// tools; ddg_search and web_scraper, whose summary modes spend as well, are curated.
+// (genericDroppedOperations in internal/flows). The summary modes of web_scraper,
+// ddg_search, wikipedia_search and pdf_extractor would spend as well, but flow tool calls
+// always run with them off (flowToolInvoker.flowDispatchConfig).
 //
 // Accepted on purpose: tts and the bluetooth/chromecast speak operations (no model
 // tokens; the agent's budget does not track them either).
@@ -158,10 +159,11 @@ var (
 	}
 )
 
-// flowToolSpends reports whether a tool spends outside the flow budget with cfg: a
-// flowSpendingTools entry, a flowSpendingToolPrefixes family, or wikipedia_search while
-// its summary mode is on (every search is then summarised by a model).
-func flowToolSpends(cfg *config.Config, name string) bool {
+// flowToolSpends reports whether a tool spends outside the flow budget: a
+// flowSpendingTools entry or a flowSpendingToolPrefixes family. The summary modes of
+// web_scraper, ddg_search, wikipedia_search and pdf_extractor do not count: flow tool
+// calls always run with them off (flowToolInvoker.flowDispatchConfig).
+func flowToolSpends(name string) bool {
 	if _, ok := flowSpendingTools[name]; ok {
 		return true
 	}
@@ -170,7 +172,7 @@ func flowToolSpends(cfg *config.Config, name string) bool {
 			return true
 		}
 	}
-	return name == "wikipedia_search" && cfg != nil && cfg.Tools.Wikipedia.SummaryMode
+	return false
 }
 
 // ToolAvailability implements flows.CatalogEnv.
