@@ -3,8 +3,10 @@ package tools
 import (
 	"bufio"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -548,7 +550,7 @@ func SendEmail(smtpHost string, smtpPort int, username, password, from, to, subj
 	if err := deliverSMTP(smtpHost, smtpPort, username, password, from, to, msg, false); err != nil {
 		return err
 	}
-	logger.Info("[Email] Message sent", "from", from, "to", to, "subject", subject)
+	logger.Info("[Email] Message sent", "from", from, "to", truncateStr(to, smtpMaxEchoRunes), "subject", truncateStr(subject, smtpMaxEchoRunes))
 	return nil
 }
 
@@ -563,7 +565,7 @@ func SendEmailTLS(smtpHost string, smtpPort int, username, password, from, to, s
 	if err := deliverSMTP(smtpHost, smtpPort, username, password, from, to, msg, true); err != nil {
 		return err
 	}
-	logger.Info("[Email] Message sent via TLS", "from", from, "to", to, "subject", subject)
+	logger.Info("[Email] Message sent via TLS", "from", from, "to", truncateStr(to, smtpMaxEchoRunes), "subject", truncateStr(subject, smtpMaxEchoRunes))
 	return nil
 }
 
@@ -590,9 +592,10 @@ func buildEmailMessage(from, to, subject, body string, now time.Time, attachment
 	msg.WriteString(body)
 	msg.WriteString("\r\n")
 	for _, a := range attachments {
+		contentType, disposition := emailAttachmentHeaders(a)
 		msg.WriteString("--" + boundary + "\r\n")
-		msg.WriteString("Content-Type: " + mime.FormatMediaType(a.ContentType, map[string]string{"name": a.Name}) + "\r\n")
-		msg.WriteString("Content-Disposition: " + mime.FormatMediaType("attachment", map[string]string{"filename": a.Name}) + "\r\n")
+		msg.WriteString("Content-Type: " + contentType + "\r\n")
+		msg.WriteString("Content-Disposition: " + disposition + "\r\n")
 		msg.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
 		writeBase64Lines(&msg, a.Data)
 	}
@@ -600,18 +603,79 @@ func buildEmailMessage(from, to, subject, body string, now time.Time, attachment
 	return msg.String()
 }
 
+// smtpRootCAs are the roots deliverSMTP verifies the server certificate against. nil, the
+// production value, means the system roots; tests set the certificate of their fake server.
+var smtpRootCAs *x509.CertPool
+
+// smtpMaxEchoRunes bounds how much of a recipient or subject an error or log line repeats.
+const smtpMaxEchoRunes = 200
+
+// The deadline of one SMTP session (see smtpSessionTimeout). Variables, so tests can lower
+// them.
+var (
+	smtpSessionBaseTimeout     = 2 * time.Minute
+	smtpSessionTimeoutPerChunk = time.Minute
+)
+
+// smtpSessionTimeoutChunkBytes is the message size that earns one more smtpSessionTimeoutPerChunk.
+const smtpSessionTimeoutChunkBytes = 5 << 20
+
+// smtpSessionTimeout is how long a whole SMTP session may take after the dial, from the
+// greeting to QUIT, for a message of messageBytes: two minutes plus one minute for every
+// full 5 MiB. A server that stops answering mid-session then fails the send instead of
+// blocking it for ever. A plain message gets two minutes; a message at the attachment limit
+// (20 MiB, about 27 MiB in base64) gets seven, which still lets a link of about 65 KB/s
+// deliver it.
+func smtpSessionTimeout(messageBytes int) time.Duration {
+	return smtpSessionBaseTimeout + time.Duration(messageBytes/smtpSessionTimeoutChunkBytes)*smtpSessionTimeoutPerChunk
+}
+
+// checkEmailEnvelope refuses a sender or recipient value that would change the message
+// headers: buildEmailMessage writes from and to raw into "From:" and "To:", so a CR or LF
+// adds header lines or ends the header block, and a NUL is not allowed in a message. A
+// recipient list with an empty entry is refused as well. Nothing is stripped: a value
+// changed by stripping could reach another address than the caller named. It returns the
+// trimmed recipients. The messages never repeat the values.
+func checkEmailEnvelope(from, to string) ([]string, error) {
+	if strings.ContainsAny(from, "\r\n\x00") {
+		return nil, errors.New("the sender address contains a line break or a NUL character")
+	}
+	if strings.ContainsAny(to, "\r\n\x00") {
+		return nil, errors.New("the recipient address contains a line break or a NUL character")
+	}
+	parts := strings.Split(to, ",")
+	recipients := make([]string, 0, len(parts))
+	for _, rcpt := range parts {
+		rcpt = strings.TrimSpace(rcpt)
+		if rcpt == "" {
+			return nil, errors.New("the recipient list has an empty entry")
+		}
+		recipients = append(recipients, rcpt)
+	}
+	return recipients, nil
+}
+
 // deliverSMTP sends a rendered message over STARTTLS (implicitTLS=false) or implicit TLS.
-// The error texts are the ones SendEmail and SendEmailTLS always returned.
+// It first checks from and to with checkEmailEnvelope, before any connection, so every send
+// path refuses header injection. The whole session after the dial is bounded by
+// smtpSessionTimeout. The SMTP error texts are the ones SendEmail and SendEmailTLS always
+// returned, except that a refused recipient is repeated with at most smtpMaxEchoRunes runes.
 func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, message string, implicitTLS bool) error {
+	recipients, err := checkEmailEnvelope(from, to)
+	if err != nil {
+		return err
+	}
 	addr := net.JoinHostPort(smtpHost, fmt.Sprintf("%d", smtpPort))
+	timeout := smtpSessionTimeout(len(message))
 	label := "SMTP"
 	var client *smtp.Client
 	if implicitTLS {
 		label = "SMTPS"
-		tlsConn, err := tls.DialWithDialer(&net.Dialer{Timeout: 15 * time.Second}, "tcp", addr, &tls.Config{ServerName: smtpHost})
+		tlsConn, err := tls.DialWithDialer(&net.Dialer{Timeout: 15 * time.Second}, "tcp", addr, &tls.Config{ServerName: smtpHost, RootCAs: smtpRootCAs})
 		if err != nil {
 			return fmt.Errorf("SMTPS TLS dial failed: %w", err)
 		}
+		_ = tlsConn.SetDeadline(time.Now().Add(timeout))
 		c, err := smtp.NewClient(tlsConn, smtpHost)
 		if err != nil {
 			tlsConn.Close()
@@ -623,6 +687,9 @@ func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, me
 		if err != nil {
 			return fmt.Errorf("SMTP connection failed: %w", err)
 		}
+		// Set on the plain connection, the deadline also bounds the session after STARTTLS:
+		// the TLS layer reads and writes through this connection.
+		_ = conn.SetDeadline(time.Now().Add(timeout))
 		c, err := smtp.NewClient(conn, smtpHost)
 		if err != nil {
 			conn.Close()
@@ -634,7 +701,7 @@ func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, me
 	if !implicitTLS {
 		// STARTTLS — required. Credentials must not be sent over unencrypted connections.
 		if ok, _ := client.Extension("STARTTLS"); ok {
-			if err := client.StartTLS(&tls.Config{ServerName: smtpHost}); err != nil {
+			if err := client.StartTLS(&tls.Config{ServerName: smtpHost, RootCAs: smtpRootCAs}); err != nil {
 				return fmt.Errorf("STARTTLS failed: %w", err)
 			}
 		} else {
@@ -647,10 +714,9 @@ func deliverSMTP(smtpHost string, smtpPort int, username, password, from, to, me
 	if err := client.Mail(from); err != nil {
 		return fmt.Errorf("%s MAIL FROM failed: %w", label, err)
 	}
-	for _, rcpt := range strings.Split(to, ",") {
-		rcpt = strings.TrimSpace(rcpt)
+	for _, rcpt := range recipients {
 		if err := client.Rcpt(rcpt); err != nil {
-			return fmt.Errorf("%s RCPT TO <%s> failed: %w", label, rcpt, err)
+			return fmt.Errorf("%s RCPT TO <%s> failed: %w", label, truncateStr(rcpt, smtpMaxEchoRunes), err)
 		}
 	}
 	w, err := client.Data()
