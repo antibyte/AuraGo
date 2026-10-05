@@ -139,13 +139,16 @@ func registerDocNodes(reg *Registry, env CatalogEnv) error {
 // sensitive sink: turning scraped or generated text into a PDF is the node's main
 // job, and a lint warning for it would be noise. The output name is one: it picks
 // which stored document gets replaced. (The document tool keeps only the base name,
-// so the name cannot leave its directory.) Known limit: with format "html" the
-// content is rendered by Gotenberg, which fetches whatever the HTML points to.
+// so the name cannot leave its directory.) With format "markdown" or "html" the content is
+// rendered by Gotenberg; the flow tool invoker (internal/server/flows_tool_invoker.go)
+// sends every document_creator call with block_remote_content, so the page gets a
+// Content-Security-Policy that keeps scripts and remote resources out (data: images and
+// fonts and inline CSS still work) and loses its meta refresh.
 //
 // Title and content are OutputIndependent: the output names the file the tool made,
-// and that name comes from filename or the tool's own default (doc_<time>), never from
-// the title or the content. Untrusted text inside a document therefore does not taint
-// the document's path.
+// and that name comes from filename or the tool's own default (doc_<unix seconds>_<6 hex
+// digits>), never from the title or the content. Untrusted text inside a document
+// therefore does not taint the document's path.
 func pdfCreateDef(env CatalogEnv) *NodeDef {
 	def := actionDef(TypePDFCreate, "documents", "file-type-pdf", "document_creator", env)
 	def.PrimaryInput = "content"

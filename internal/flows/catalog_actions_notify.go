@@ -91,8 +91,10 @@ func notifyDef(typ, icon, tool string, env CatalogEnv) *NodeDef {
 // workspace or the documents folder, at most 50 MB, and Telegram must be configured. The
 // send_document tool is no substitute: it copies a file into data/documents for the chat UI
 // and sends nothing to Telegram. A call whose text went out as a message of its own and
-// whose document then failed answers with "text_sent": true next to the error, so a retry
-// sends that text again.
+// whose document then failed answers with "text_sent": true next to the error. The flow
+// tool invoker (internal/server/flows_tool_invoker.go) reports that as denied
+// (FLOW_TOOL_DENIED, not retried) and refuses any later attempt of the same node in the
+// same run, so a retry never sends the text twice; the document is then not sent either.
 func telegramDef(env CatalogEnv) *NodeDef {
 	def := notifyDef(TypeTelegram, "brand-telegram", "send_telegram", env)
 	def.PrimaryInput = "message"

@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"aurago/internal/agent"
@@ -32,6 +34,17 @@ import (
 //     denied or needs_setup, which the engine does not retry. A call whose context ended
 //     without success returns the context's error, so the engine sees a cancel or a timeout
 //     instead of a tool error.
+//   - Arguments: mqtt_publish gets qos as an int and retain as a bool; a typed ToolCall field
+//     an argument does not fit is left empty, as on the agent's own invoke path, and the
+//     tool reads the argument from Params. The invoker never logs arguments; the dispatcher's
+//     own log lines go through flowLogHandler (bounded values, no URL query, no headers or
+//     bodies). The secrets a call reads (bot tokens, the ntfy topic, passwords, keys) are
+//     registered with the output scrubber before it runs and redacted from its output.
+//   - send_telegram with a file: when the text went out as a message of its own and the
+//     document then failed ("text_sent": true), the call is denied, which the engine does
+//     not retry, and a later attempt of the same node in the same run is refused without a
+//     dispatch. The engine retries a node whose attempt timed out whatever the code says,
+//     so the memory is what keeps the text from being sent twice.
 type flowToolInvoker struct {
 	s        *Server
 	names    func(cfg *config.Config) map[string]bool
@@ -41,6 +54,11 @@ type flowToolInvoker struct {
 	cfgMu   sync.Mutex
 	cfgSrc  *config.Config
 	cfgFlow *config.Config
+
+	// sentMu guards textSent: the run and node of each send_telegram whose text went out
+	// while its document failed (see InvokeTool).
+	sentMu   sync.Mutex
+	textSent map[string]time.Time
 }
 
 func newFlowToolInvoker(s *Server, env *flowCatalogEnv) *flowToolInvoker {
@@ -156,6 +174,14 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	if err := ctx.Err(); err != nil {
 		return flows.ToolResponse{}, err
 	}
+	sentKey := ""
+	if req.Tool == "send_telegram" {
+		sentKey = flowTextSentKey(req)
+		if i.textAlreadySent(sentKey) {
+			return flowToolRefusal(agent.ToolResultDenied, "the text of this Telegram message went out in an earlier attempt of the node "+
+				"and its document failed; the node is not tried again, so the text is not sent twice"), nil
+		}
+	}
 	action, skill := flowToolRoute(req.Tool)
 	payload := make(map[string]any, len(req.Args))
 	for k, v := range req.Args {
@@ -169,36 +195,70 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	case "document_creator":
 		// A JSON bool: the tool reads the flag with toolArgBool, which ignores text.
 		payload["block_remote_content"] = true
+	case "mqtt_publish":
+		flowNormalizeMQTTArgs(payload)
 	}
+	tc, err := flowToolCall(action, skill, payload)
+	if err != nil {
+		return flows.ToolResponse{}, err
+	}
+	secrets := flowRegisterSecrets(cfg, req.Tool)
+	res := i.dispatch(ctx, &tc, i.dispatchContext(i.flowDispatchConfig(cfg), req.FlowID, action))
+	res.Output = flowRedactSecrets(res.Output, secrets)
+	textSent := sentKey != "" && flowTelegramTextSent(res.Output)
+	if textSent {
+		i.rememberTextSent(sentKey, time.Now())
+	}
+	resp := flowToolOutcome(req.Tool, res)
+	if err := ctx.Err(); err != nil && resp.Status != string(agent.ToolResultSuccess) {
+		return flows.ToolResponse{}, err
+	}
+	if textSent {
+		resp.Status, resp.IsError = string(agent.ToolResultDenied), true
+	}
+	return resp, nil
+}
+
+// flowToolCall builds the dispatcher's tool call. Typed ToolCall fields are filled from
+// the arguments where they fit; Params keeps the arguments with their Go types (the
+// invoker's copy), and the tools read them from there. An argument that does not fit its
+// typed field (send_notification's priority "normal" against ToolCall.Priority, an int)
+// leaves the typed fields empty, as on the agent's own invoke path
+// (toolCallFromInvokeArgs), instead of failing the node.
+func flowToolCall(action, skill string, payload map[string]any) (agent.ToolCall, error) {
 	encoded := any(payload)
 	if skill != "" {
 		encoded = map[string]any{"skill": skill, "skill_args": payload}
 	}
 	raw, err := json.Marshal(encoded)
 	if err != nil {
-		return flows.ToolResponse{}, flows.NewNodeError("FLOW_PARAM_INVALID", "the tool arguments cannot be encoded: %v", err)
+		return agent.ToolCall{}, flows.NewNodeError("FLOW_PARAM_INVALID", "the tool arguments cannot be encoded: %v", err)
 	}
 	var tc agent.ToolCall
 	if err := json.Unmarshal(raw, &tc); err != nil {
-		return flows.ToolResponse{}, flows.NewNodeError("FLOW_PARAM_INVALID", "the tool arguments are invalid: %v", err)
+		var typeErr *json.UnmarshalTypeError
+		if !errors.As(err, &typeErr) {
+			return agent.ToolCall{}, flows.NewNodeError("FLOW_PARAM_INVALID", "the tool arguments are invalid: %v", err)
+		}
+		tc = agent.ToolCall{}
+		if skill != "" {
+			tc.Skill, tc.SkillArgs, tc.Params = skill, payload, map[string]any{"skill": skill, "skill_args": payload}
+		} else if op, ok := payload["operation"].(string); ok {
+			tc.Operation = op
+		}
 	}
 	tc.Action, tc.IsTool = action, true
 	if skill == "" {
 		tc.Params = payload
 	}
-	res := i.dispatch(ctx, &tc, i.dispatchContext(i.flowDispatchConfig(cfg), req.FlowID, action))
-	resp := flowToolOutcome(req.Tool, res)
-	if err := ctx.Err(); err != nil && resp.Status != string(agent.ToolResultSuccess) {
-		return flows.ToolResponse{}, err
-	}
-	return resp, nil
+	return tc, nil
 }
 
 // dispatchContext mirrors buildLooperRuntime with a scope of exactly one tool.
 func (i *flowToolInvoker) dispatchContext(cfg *config.Config, flowID, action string) *agent.DispatchContext {
 	s := i.s
 	return &agent.DispatchContext{
-		Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault, Registry: s.Registry,
+		Cfg: cfg, Logger: flowDispatchLogger(s.Logger), LLMClient: s.LLMClient, Vault: s.Vault, Registry: s.Registry,
 		Manifest: tools.NewManifest(cfg.Directories.ToolsDir), CronManager: s.CronManager, MissionManagerV2: s.MissionManagerV2,
 		LongTermMem: s.LongTermMem, ShortTermMem: s.ShortTermMem, KG: s.KG,
 		InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB, CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,

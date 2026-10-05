@@ -104,7 +104,7 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 	}
 	req.Header.Set("User-Agent", "AuraGo-Agent/1.0")
 
-	client := apiHTTPClient
+	client := apiRequestClient(apiHTTPClient, headers)
 	if allowLocalOllama {
 		client = apiLocalOllamaHTTPClient
 	}
@@ -143,6 +143,56 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 		Headers:    respHeaders,
 		Body:       bodyStr,
 	})
+}
+
+// apiRedirectKeptHeaders are the caller's headers api_request keeps on a redirect to another
+// origin. Every other header the caller set (Authorization, API keys, cookies, custom auth
+// headers) is dropped there, so a redirect cannot carry credentials to a host they were not
+// meant for.
+var apiRedirectKeptHeaders = map[string]bool{"Accept": true, "Content-Type": true, "User-Agent": true}
+
+// apiRequestClient returns base with a redirect policy that strips the caller's headers
+// (except apiRedirectKeptHeaders) as soon as a redirect leaves the origin (scheme, host and
+// port) of the first request, and keeps them stripped for the rest of the chain. net/http
+// copies the first request's headers to every redirect and drops only Authorization and
+// cookies, and only for another domain; a custom header such as X-API-Key would follow.
+// base's own redirect policy (the SSRF checks) still runs for every hop.
+func apiRequestClient(base *http.Client, headers map[string]string) *http.Client {
+	if len(headers) == 0 {
+		return base
+	}
+	client := *base
+	next := base.CheckRedirect
+	left := false
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) > 0 && !sameAPIOrigin(via[0].URL, req.URL) {
+			left = true
+		}
+		if left {
+			for name := range headers {
+				if canonical := http.CanonicalHeaderKey(name); !apiRedirectKeptHeaders[canonical] {
+					req.Header.Del(canonical)
+				}
+			}
+			for _, name := range []string{"Authorization", "Proxy-Authorization", "Cookie"} {
+				req.Header.Del(name)
+			}
+		}
+		if next != nil {
+			return next(req, via)
+		}
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		return nil
+	}
+	return &client
+}
+
+// sameAPIOrigin reports whether a and b have the same scheme, host and port.
+func sameAPIOrigin(a, b *url.URL) bool {
+	return a != nil && b != nil && strings.EqualFold(a.Scheme, b.Scheme) &&
+		strings.EqualFold(a.Hostname(), b.Hostname()) && normalizedURLPort(a) == normalizedURLPort(b)
 }
 
 func isAllowedLocalOllamaRequest(rawURL, baseURL string) bool {
