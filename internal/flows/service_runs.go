@@ -2,7 +2,9 @@ package flows
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -237,40 +239,95 @@ func (s *Service) SaveTriggerSample(ctx context.Context, flowID, nodeID string, 
 	return s.store.PutTestData(ctx, flowID, nodeID, TestDataTriggerSample, data, s.now())
 }
 
+// runHistory is what onRunStarted learned for onRunFinished: the mission the live run
+// was recorded in and the history entry Mission Control returned for it. Keeping the
+// mission here lets onRunFinished complete the entry when the flow is gone by then.
+type runHistory struct {
+	missionID string
+	historyID string
+}
+
+// The run hooks and the timer callbacks below run on the runner's and the timer
+// service's goroutines, and the run hooks also inside Runner.CancelFlow, Cancel and
+// Shutdown, so inside a DeleteFlow that holds the flow's lock. They never take a flow
+// lock (that would deadlock against the delete), call the bridge only without s.mu, and
+// treat a flow that is gone as normal: it was deleted meanwhile, which is logged at
+// Debug; other store errors are logged at Warn.
+
+// onRunStarted records a live run in the mission history.
 func (s *Service) onRunStarted(rec RunRecord) {
 	if rec.Mode == ModeTest {
 		return
 	}
 	fr, err := s.store.GetFlow(context.Background(), rec.FlowID)
-	if err != nil || fr.MissionID == "" {
+	if err != nil {
+		s.logLookup("the flow of a started run could not be read; Mission Control does not record the run", rec.ID, err)
+		return
+	}
+	if fr.MissionID == "" {
 		return
 	}
 	historyID := s.bridge.FlowRunStarted(fr.MissionID, rec)
 	s.mu.Lock()
-	s.history[rec.ID] = historyID
+	s.history[rec.ID] = runHistory{missionID: fr.MissionID, historyID: historyID}
 	s.mu.Unlock()
 }
 
+// onRunFinished tells Mission Control that a live run ended. It reports every live run,
+// also when the flow or the run's document is gone, so no history entry stays
+// "running": the outputs and the notify setting come from the document the run
+// executed (it may differ from the live revision by now), else from the live revision,
+// else from the draft; without any document the outputs are empty.
 func (s *Service) onRunFinished(rec RunRecord, res RunResult) {
 	if rec.Mode == ModeTest {
 		return
 	}
 	s.mu.Lock()
-	historyID := s.history[rec.ID]
+	h, recorded := s.history[rec.ID]
 	delete(s.history, rec.ID)
 	s.mu.Unlock()
-	fr, err := s.store.GetFlow(context.Background(), rec.FlowID)
+	ctx := context.Background()
+	info := RunFinishedInfo{MissionID: h.missionID, HistoryID: h.historyID, Record: rec, Result: res, Outputs: map[string]any{}}
+	doc, err := s.store.GetRunDoc(ctx, rec.ID)
 	if err != nil {
-		return
+		s.logLookup("the document of a finished run could not be read", rec.ID, err)
+		doc = nil
 	}
-	doc := fr.Live
-	if doc == nil {
-		doc = fr.Draft
+	if fr, err := s.store.GetFlow(ctx, rec.FlowID); err != nil {
+		s.logLookup("the flow of a finished run could not be read", rec.ID, err)
+	} else {
+		info.FlowName = fr.Name
+		if !recorded {
+			info.MissionID = fr.MissionID
+		}
+		if doc == nil {
+			doc = fr.Live
+		}
+		if doc == nil {
+			doc = fr.Draft
+		}
 	}
-	s.bridge.FlowRunFinished(RunFinishedInfo{
-		MissionID: fr.MissionID, HistoryID: historyID, FlowName: fr.Name,
-		NotifyOnError: doc.Settings.NotifyOnError, Record: rec, Result: res, Outputs: leafOutputs(doc, res),
-	})
+	if doc != nil {
+		if info.FlowName == "" {
+			info.FlowName = doc.Name
+		}
+		info.NotifyOnError = doc.Settings.NotifyOnError
+		info.Outputs = leafOutputs(doc, res)
+	}
+	s.bridge.FlowRunFinished(info)
+}
+
+// logLookup logs a failed read in a run hook or timer callback: at Debug when the flow
+// or run is gone (deleted meanwhile, or a pruned version), else at Warn.
+func (s *Service) logLookup(msg, runID string, err error, attrs ...any) {
+	level := slog.LevelWarn
+	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrRunNotFound) {
+		level = slog.LevelDebug
+	}
+	if runID != "" {
+		attrs = append([]any{"run", runID}, attrs...)
+	}
+	s.logger.Log(context.Background(), level, msg, append(attrs, "error", err)...)
 }
 
 // leafOutputs returns the outputs of nodes without successors, keyed by node key.
@@ -289,14 +346,20 @@ func leafOutputs(f *Flow, res RunResult) map[string]any {
 	return out
 }
 
+// onTimerFired starts a live run for a due Date/Time trigger of an enabled flow.
 func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) {
 	rec, err := s.store.GetFlow(context.Background(), flowID)
-	if err != nil || rec.Live == nil || !s.bridge.FlowMissionEnabled(rec.MissionID) {
+	if err != nil {
+		s.logLookup("a date and time trigger could not read its flow", "", err, "flow", flowID, "node", nodeID)
+		return
+	}
+	if rec.Live == nil || !s.bridge.FlowMissionEnabled(rec.MissionID) {
 		return
 	}
 	data := map[string]any{"scheduled_for": scheduledFor.UTC().Format(time.RFC3339)}
 	if _, err := s.startLive(rec, nodeID, "datetime", data); err != nil {
-		s.logger.Warn("a date and time trigger could not start its flow", "flow", flowID, "node", nodeID, "error", err)
+		// ErrNotFound: the flow was deleted after the read, before the run was recorded.
+		s.logLookup("a date and time trigger could not start its flow", "", err, "flow", flowID, "node", nodeID)
 	}
 }
 

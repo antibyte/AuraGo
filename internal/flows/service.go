@@ -41,15 +41,29 @@ type MissionBridge interface {
 	FlowRunFinished(info RunFinishedInfo)
 }
 
-// RunFinishedInfo describes a finished live run for Mission Control.
+// RunFinishedInfo describes a finished live run for Mission Control. Every live run is
+// reported, also one whose flow was deleted while the run was queued or active; then
+// the fields hold what is still known.
 type RunFinishedInfo struct {
-	MissionID     string
-	HistoryID     string
-	FlowName      string
+	// MissionID is the mission the run was recorded in at its start, else the flow's
+	// mission. It is empty only when the flow is gone and the run never started.
+	MissionID string
+	// HistoryID is the mission history entry FlowRunStarted returned. It is empty when
+	// FlowRunStarted was not called: the run never started (cancelled while queued, or
+	// shut down), or its flow could not be read at the start. The bridge then records
+	// the run without an entry to complete, or skips it.
+	HistoryID string
+	// FlowName is the flow's current name, or the name in the run's document when the
+	// flow is gone; empty when neither can be read.
+	FlowName string
+	// NotifyOnError is the setting of the revision the run executed; empty when no
+	// document of the flow can be read.
 	NotifyOnError string
 	Record        RunRecord
 	Result        RunResult
-	// Outputs holds the outputs of the flow's final nodes (nodes without successors) by key.
+	// Outputs holds the outputs of the final nodes (nodes without successors) of the
+	// revision the run executed, by key. It is empty, never nil, when the run produced
+	// none (it never started) or no document of the flow can be read.
 	Outputs map[string]any
 }
 
@@ -97,9 +111,11 @@ type Service struct {
 	locks    flowLocks
 
 	// startMu serializes Start. It is not taken by Shutdown, which only needs mu.
-	startMu  sync.Mutex
+	startMu sync.Mutex
+	// mu guards the fields below. It is held only briefly and never across a call into
+	// the bridge, the runner or the store.
 	mu       sync.Mutex
-	history  map[string]string
+	history  map[string]runHistory // live runs that started, by run id
 	started  bool
 	closed   bool
 	bootTime time.Time
@@ -126,7 +142,7 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 		cfg.RetentionInterval = time.Hour
 	}
 	s := &Service{store: store, reg: reg, services: services, bridge: bridge, cfg: cfg, logger: logger,
-		history: map[string]string{}, stop: make(chan struct{}), done: make(chan struct{})}
+		history: map[string]runHistory{}, stop: make(chan struct{}), done: make(chan struct{})}
 	s.bootTime = services.Now()
 	s.engine = NewEngine(reg, services, logger, cfg.MaxParallelNodes)
 	s.runner = NewRunner(s.engine, store, RunnerHooks{OnRunStarted: s.onRunStarted, OnRunFinished: s.onRunFinished},
