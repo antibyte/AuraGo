@@ -25,8 +25,8 @@ const (
 	// flowFailureNotifyInterval is how often a flow that keeps failing notifies again (see
 	// flowFailureNotifier).
 	flowFailureNotifyInterval = time.Hour
-	// flowNotifyMaxInFlight bounds the push and Telegram sends that have not returned (see
-	// sendFlowNotification).
+	// flowNotifyMaxInFlight bounds the sends that have not returned, per channel (push and
+	// Telegram each; see sendFlowNotification).
 	flowNotifyMaxInFlight = 4
 )
 
@@ -63,6 +63,11 @@ func (s *Server) flowIssue(info flows.RunFinishedInfo, failed bool, message stri
 		s.Logger.Warn("Flow operational issue could not be recorded", "flow", info.Record.FlowID, "error", err)
 		return
 	}
+	// Every recorded failure fires the planner_operational_issue trigger, not only the first
+	// one: the flood rule (flowFailureNotifier) applies to notifications, not here. That is
+	// what agent missions do (recordMissionIssue in Start, server.go), and a prompt
+	// mission on this trigger is bounded on its own side: by its min_interval_seconds, and by
+	// the mission queue, which holds at most one entry per mission.
 	if s.MissionManagerV2 != nil {
 		s.MissionManagerV2.NotifyPlannerOperationalIssue(issueID, issue.Source, issue.Severity, issue.Title)
 	}
@@ -90,46 +95,60 @@ func flowFailureNotification(lang string, info flows.RunFinishedInfo, message st
 // notifyFlowFailure sends the failure notification chosen by settings.notify_on_error:
 // desktop (default), push, telegram or off. The flood rule of flowFailureNotifier decides
 // whether this failure notifies at all.
+//
+// A push or Telegram notification takes its channel's send slot before the flood rule is
+// consulted: a notification dropped because every slot is busy leaves the flow's failing
+// state as it was, so the flow's next failure can notify. When the flood rule then
+// suppresses the notification, the slot is given back. A send that was accepted counts as
+// a notification even when it fails later on its goroutine. Desktop notifications are
+// always accepted.
 func (s *Server) notifyFlowFailure(info flows.RunFinishedInfo, message string) {
 	cfg := s.ConfigSnapshot()
 	if cfg == nil || info.NotifyOnError == "off" {
 		return
 	}
+	channel := info.NotifyOnError
+	remote := channel == "push" || channel == "telegram"
+	if remote && !s.flowNotify.acquire(channel) {
+		s.Logger.Warn("Flow failure notification dropped; earlier notifications are still being sent",
+			"channel", channel, "in_flight", flowNotifyMaxInFlight, "flow", info.Record.FlowID)
+		return
+	}
 	if !s.flowNotify.alert(info.Record.FlowID, time.Now()) {
+		if remote {
+			s.flowNotify.release(channel)
+		}
 		s.Logger.Debug("Flow failure not notified; the flow notified that it is failing already",
 			"flow", info.Record.FlowID, "run", info.Record.ID)
 		return
 	}
 	payload := flowFailureNotification(cfg.Server.UILanguage, info, message)
-	switch info.NotifyOnError {
-	case "push", "telegram":
+	if remote {
 		title, _ := payload["title"].(string)
 		body, _ := payload["message"].(string)
-		s.sendFlowNotification(cfg, info.NotifyOnError, title, body)
-	default:
-		broadcastDesktopEvent(s, s.DesktopHub, desktop.Event{Type: "notification", Payload: payload, CreatedAt: time.Now().UTC()})
+		s.sendFlowNotification(cfg, channel, title, body)
+		return
 	}
+	broadcastDesktopEvent(s, s.DesktopHub, desktop.Event{Type: "notification", Payload: payload, CreatedAt: time.Now().UTC()})
 }
 
 // flowSendNotification is tools.SendNotification; tests replace it.
 var flowSendNotification = tools.SendNotification
 
 // sendFlowNotification hands a push or Telegram failure notification to
-// tools.SendNotification on a goroutine of its own. SendNotification takes no context. Its
-// Telegram channel has a 15 s client timeout (telegramMessageClient), but its web push
-// channel has none: push.Manager.SendPush calls webpush-go without an HTTP client, and
-// webpush-go then sends with a zero http.Client, so one stalled push endpoint can hold a
-// send for good. At most flowNotifyMaxInFlight sends run at a time; while all of them are
-// busy, a further notification is dropped with a Warn instead of adding a goroutine.
+// tools.SendNotification on a goroutine of its own, which gives back the channel's send
+// slot when it returns; the caller has taken that slot (flowFailureNotifier.acquire).
+//
+// SendNotification takes no context. Its Telegram channel has a 15 s client timeout
+// (telegramMessageClient), but its web push channel has none: push.Manager.SendPush calls
+// webpush-go without an HTTP client, and webpush-go then sends with a zero http.Client, so
+// one stalled push endpoint can hold a send for good. Each channel therefore has its own
+// flowNotifyMaxInFlight slots: stalled push sends cannot silence Telegram, and a channel
+// whose slots are all busy drops further notifications instead of adding goroutines.
 func (s *Server) sendFlowNotification(cfg *config.Config, channel, title, body string) {
-	if !s.flowNotify.acquire() {
-		s.Logger.Warn("Flow failure notification dropped; earlier notifications are still being sent",
-			"channel", channel, "in_flight", flowNotifyMaxInFlight)
-		return
-	}
 	send, logger := flowSendNotification, s.Logger
 	go func() {
-		defer s.flowNotify.release()
+		defer s.flowNotify.release(channel)
 		send(cfg, logger, channel, title, body, "high", nil)
 	}()
 }
@@ -143,13 +162,14 @@ func (s *Server) sendFlowNotification(cfg *config.Config, channel, title, body s
 // run ends the failing state, so the next failure notifies at once. A flow on a one-minute
 // schedule that keeps failing thus notifies once and then at most once an hour, instead of
 // 1440 times a day. Cancelled runs neither notify nor end the failing state, and a failure
-// of a flow set to "off" records nothing. The state lives in memory, so after a restart the
-// first failure notifies again. The planner issue is recorded for every failure; it is
-// deduplicated per flow (fingerprint "flow|<flow id>").
+// of a flow set to "off" records nothing, nor does a push or Telegram notification dropped
+// for want of a send slot. The state lives in memory, so after a restart the first failure
+// notifies again. The planner issue is recorded for every failure; it is deduplicated per
+// flow (fingerprint "flow|<flow id>").
 type flowFailureNotifier struct {
 	mu       sync.Mutex
 	alerted  map[string]time.Time // flow id → last failure notification, while the flow keeps failing
-	inFlight int                  // push and Telegram sends that have not returned
+	inFlight map[string]int       // channel → sends that have not returned
 }
 
 // alert reports whether a failure of flowID at now may notify, and records the
@@ -181,20 +201,28 @@ func (n *flowFailureNotifier) recovered(flowID string) {
 	delete(n.alerted, flowID)
 }
 
-// acquire takes one of the flowNotifyMaxInFlight send slots; false when all are busy.
-func (n *flowFailureNotifier) acquire() bool {
+// acquire takes one of the flowNotifyMaxInFlight send slots of channel; false when all of
+// them are busy.
+func (n *flowFailureNotifier) acquire(channel string) bool {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	if n.inFlight >= flowNotifyMaxInFlight {
+	if n.inFlight[channel] >= flowNotifyMaxInFlight {
 		return false
 	}
-	n.inFlight++
+	if n.inFlight == nil {
+		n.inFlight = map[string]int{}
+	}
+	n.inFlight[channel]++
 	return true
 }
 
-// release gives back a slot that acquire took.
-func (n *flowFailureNotifier) release() {
+// release gives back a slot of channel that acquire took.
+func (n *flowFailureNotifier) release(channel string) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.inFlight--
+	if n.inFlight[channel] <= 1 {
+		delete(n.inFlight, channel)
+		return
+	}
+	n.inFlight[channel]--
 }

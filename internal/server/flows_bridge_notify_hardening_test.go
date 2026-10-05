@@ -125,14 +125,12 @@ func TestC15FailureNotificationFlood(t *testing.T) {
 	}
 }
 
-// Push and Telegram sends run on their own goroutines, at most flowNotifyMaxInFlight at a
-// time; a send that never returns cannot pile up goroutines.
-func TestC15NotificationSendsAreBounded(t *testing.T) {
-	e := c15NewEnv(t)
-	logs := &c15LogBuffer{}
-	e.s.Logger = c15Logger(logs)
-	started := make(chan string, 16)
-	unblock := make(chan struct{})
+// c15BlockingSender replaces flowSendNotification with a sender that reports each send on
+// started ("channel|title|message|priority") and returns once unblock is closed. The
+// original sender comes back when the test ends.
+func c15BlockingSender(t *testing.T) (started chan string, unblock chan struct{}) {
+	t.Helper()
+	started, unblock = make(chan string, 64), make(chan struct{})
 	old := flowSendNotification
 	t.Cleanup(func() { flowSendNotification = old })
 	flowSendNotification = func(_ *config.Config, _ *slog.Logger, channel, title, message, priority string, _ tools.DiscordSendFunc, _ ...tools.TelnyxSendFunc) string {
@@ -140,48 +138,102 @@ func TestC15NotificationSendsAreBounded(t *testing.T) {
 		<-unblock
 		return `{"status":"success"}`
 	}
-	for i := range flowNotifyMaxInFlight + 2 {
-		e.bridge.FlowRunFinished(c15Failure(fmt.Sprintf("flow_c15slots%03d", i), fmt.Sprintf("run_c15slots%03d", i), "push"))
-	}
-	for range flowNotifyMaxInFlight {
+	return started, unblock
+}
+
+// c15Started waits for n sends of channel.
+func c15Started(t *testing.T, started <-chan string, channel string, n int) {
+	t.Helper()
+	for range n {
 		select {
 		case got := <-started:
-			if !strings.HasPrefix(got, "push|") || !strings.HasSuffix(got, "|high") {
-				t.Fatalf("send = %q", got)
+			if !strings.HasPrefix(got, channel+"|") || !strings.HasSuffix(got, "|high") {
+				t.Fatalf("send = %q, want a %s send", got, channel)
 			}
 		case <-time.After(5 * time.Second):
-			t.Fatal("the sends did not start")
+			t.Fatalf("the %s sends did not start", channel)
 		}
 	}
+}
+
+// c15NoSend fails when a send starts within a short while.
+func c15NoSend(t *testing.T, started <-chan string) {
+	t.Helper()
 	select {
 	case got := <-started:
-		t.Fatalf("more than %d sends at once: %q", flowNotifyMaxInFlight, got)
+		t.Fatalf("unexpected send %q", got)
 	case <-time.After(50 * time.Millisecond):
 	}
-	if n := strings.Count(logs.String(), "Flow failure notification dropped"); n != 2 {
-		t.Fatalf("dropped warnings = %d\n%s", n, logs.String())
-	}
-	close(unblock)
+}
+
+// c15Busy returns how many sends of channel hold a slot.
+func c15Busy(e *c15Env, channel string) int {
+	e.s.flowNotify.mu.Lock()
+	defer e.s.flowNotify.mu.Unlock()
+	return e.s.flowNotify.inFlight[channel]
+}
+
+// c15WaitIdle waits until no send of channel holds a slot.
+func c15WaitIdle(t *testing.T, e *c15Env, channel string) {
+	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
-	for {
-		e.s.flowNotify.mu.Lock()
-		busy := e.s.flowNotify.inFlight
-		e.s.flowNotify.mu.Unlock()
-		if busy == 0 {
-			break
-		}
+	for c15Busy(e, channel) != 0 {
 		if time.Now().After(deadline) {
-			t.Fatalf("%d sends still hold their slots", busy)
+			t.Fatalf("%d %s sends still hold their slots", c15Busy(e, channel), channel)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	e.bridge.FlowRunFinished(c15Failure("flow_c15slotsnew", "run_c15slotsnew", "telegram"))
-	select {
-	case got := <-started:
-		if !strings.HasPrefix(got, "telegram|") {
-			t.Fatalf("send = %q", got)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("a freed slot was not reused")
+}
+
+// Push and Telegram sends run on their own goroutines, at most flowNotifyMaxInFlight at a
+// time per channel; a send that never returns cannot pile up goroutines, and stalled push
+// sends do not silence Telegram.
+func TestC15NotificationSendsAreBounded(t *testing.T) {
+	e := c15NewEnv(t)
+	logs := &c15LogBuffer{}
+	e.s.Logger = c15Logger(logs)
+	started, unblock := c15BlockingSender(t)
+	for i := range flowNotifyMaxInFlight + 2 {
+		e.bridge.FlowRunFinished(c15Failure(fmt.Sprintf("flow_c15slots%03d", i), fmt.Sprintf("run_c15slots%03d", i), "push"))
+	}
+	c15Started(t, started, "push", flowNotifyMaxInFlight)
+	c15NoSend(t, started)
+	if n := strings.Count(logs.String(), "Flow failure notification dropped"); n != 2 {
+		t.Fatalf("dropped warnings = %d\n%s", n, logs.String())
+	}
+	// Telegram has slots of its own.
+	e.bridge.FlowRunFinished(c15Failure("flow_c15slotstg1", "run_c15slotstg1", "telegram"))
+	c15Started(t, started, "telegram", 1)
+	close(unblock)
+	c15WaitIdle(t, e, "push")
+	c15WaitIdle(t, e, "telegram")
+	e.bridge.FlowRunFinished(c15Failure("flow_c15slotsnew", "run_c15slotsnew", "push"))
+	c15Started(t, started, "push", 1)
+}
+
+// A notification dropped for want of a send slot does not count for the flood rule: the
+// flow's next failure notifies once a slot is free. A notification the flood rule
+// suppresses gives its slot back.
+func TestC15DroppedNotificationKeepsTheFloodStateOpen(t *testing.T) {
+	e := c15NewEnv(t)
+	started, unblock := c15BlockingSender(t)
+	for i := range flowNotifyMaxInFlight {
+		e.bridge.FlowRunFinished(c15Failure(fmt.Sprintf("flow_c15busy%03d", i), fmt.Sprintf("run_c15busy%03d", i), "telegram"))
+	}
+	c15Started(t, started, "telegram", flowNotifyMaxInFlight)
+	// Flow X fails while every slot is busy: dropped.
+	e.bridge.FlowRunFinished(c15Failure("flow_c15victim01", "run_c15victim01", "telegram"))
+	c15NoSend(t, started)
+	close(unblock)
+	c15WaitIdle(t, e, "telegram")
+	// Flow X fails again with free slots: it notifies.
+	e.bridge.FlowRunFinished(c15Failure("flow_c15victim01", "run_c15victim02", "telegram"))
+	c15Started(t, started, "telegram", 1)
+	c15WaitIdle(t, e, "telegram")
+	// A busy flow fails again: the flood rule suppresses it, and its slot is free again.
+	e.bridge.FlowRunFinished(c15Failure("flow_c15busy000", "run_c15busy100", "telegram"))
+	c15NoSend(t, started)
+	if n := c15Busy(e, "telegram"); n != 0 {
+		t.Fatalf("a suppressed notification holds %d slots", n)
 	}
 }
