@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,18 +150,42 @@ func TestC14JSONHoldsOnlyObjectsAndTextKeepsTheRawAnswer(t *testing.T) {
 }
 
 func TestC14MaxTokensAreBounded(t *testing.T) {
+	// A custom provider whose output override is far above the cap.
+	big := config.ProviderEntry{ID: "big", Type: "custom", Model: "c14-big-model", MaxOutputTokens: 1 << 20}
 	for requested, want := range map[int]int{0: flowAIMaxTokens, -5: flowAIMaxTokens, 7: 7, flowAIMaxTokensCap: flowAIMaxTokensCap, 1 << 30: flowAIMaxTokensCap} {
-		main := &c14ChatClient{}
-		f, _, _, _ := c14FlowLLM(main)
-		if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", MaxTokens: requested}); err != nil {
+		f, cfg, clients, _ := c14FlowLLM(&c14ChatClient{})
+		cfg.Providers = []config.ProviderEntry{big}
+		if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: "big", MaxTokens: requested}); err != nil {
 			t.Fatal(err)
 		}
-		if got := main.requests[0].MaxTokens; got != want {
+		if got := clients["big"].requests[0].MaxTokens; got != want {
 			t.Errorf("MaxTokens %d: sent %d, want %d", requested, got, want)
 		}
 	}
-	if flowAIMaxTokensFor(0, true) != llm.ReasoningOutputTokens || flowAIMaxTokensFor(100, true) != 100 {
-		t.Fatal("a reasoning route defaults to llm.ReasoningOutputTokens and keeps an explicit request")
+
+	// Every budget is clamped to the route's max output: a provider override, and the
+	// conservative 4096 of a main model with unknown limits.
+	f, cfg, clients, _ := c14FlowLLM(&c14ChatClient{})
+	cfg.Providers = []config.ProviderEntry{{ID: "small", Type: "custom", Model: "c14-small-model", MaxOutputTokens: 1000}}
+	for _, requested := range []int{0, 10000} {
+		if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: "small", MaxTokens: requested}); err != nil {
+			t.Fatal(err)
+		}
+		// Each step builds a new provider client.
+		if got := clients["small"].requests[0].MaxTokens; got != 1000 {
+			t.Errorf("small provider, MaxTokens %d: sent %d, want 1000", requested, got)
+		}
+	}
+	main := &c14ChatClient{}
+	f, _, _, _ = c14FlowLLM(main)
+	if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", MaxTokens: 10000}); err != nil || main.requests[0].MaxTokens != llm.ConservativeOutputTokens {
+		t.Fatalf("unknown main model: sent %d, %v", main.requests[0].MaxTokens, err)
+	}
+
+	if flowAIMaxTokensFor(0, llm.ModelLimits{Reasoning: true}) != llm.ReasoningOutputTokens ||
+		flowAIMaxTokensFor(100, llm.ModelLimits{Reasoning: true}) != 100 ||
+		flowAIMaxTokensFor(0, llm.ModelLimits{Reasoning: true, MaxOutputTokens: 4096}) != 4096 {
+		t.Fatal("a reasoning route defaults to llm.ReasoningOutputTokens within its max output and keeps an explicit request")
 	}
 }
 
@@ -244,50 +270,132 @@ func TestC14StructuredOutputsFollowTheRoute(t *testing.T) {
 
 func TestC14RejectedJSONSchemaFallsBackToJSONObject(t *testing.T) {
 	schema := map[string]any{"type": "object"}
-	reject := func(status int) func(int, openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
-		return func(_ int, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	param := func(s string) *string { return &s }
+	cases := []struct {
+		name  string
+		err   *openai.APIError
+		retry bool
+	}{
+		{"format named in the message", &openai.APIError{HTTPStatusCode: 400, Message: "response_format json_schema is unavailable"}, true},
+		{"format named as the parameter", &openai.APIError{HTTPStatusCode: 400, Message: "unsupported value", Param: param("response_format")}, true},
+		{"schema refused, 422", &openai.APIError{HTTPStatusCode: 422, Message: "Invalid schema for function 'flow_step_answer'"}, true},
+		{"context length", &openai.APIError{HTTPStatusCode: 400, Message: "This model's maximum context length is 8192 tokens; your schema and messages are too long",
+			Param: param("messages"), Code: "context_length_exceeded"}, false},
+		{"another bad request", &openai.APIError{HTTPStatusCode: 400, Message: "the model does not exist"}, false},
+		{"not a bad request", &openai.APIError{HTTPStatusCode: 401, Message: "response_format needs a paid plan"}, false},
+	}
+	for _, tc := range cases {
+		main := &c14ChatClient{answer: func(_ int, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 			if req.ResponseFormat != nil && req.ResponseFormat.Type == openai.ChatCompletionResponseFormatTypeJSONSchema {
-				return openai.ChatCompletionResponse{}, &openai.APIError{HTTPStatusCode: status, Message: "response_format json_schema is unavailable"}
+				return openai.ChatCompletionResponse{}, tc.err
 			}
 			return c14Answer(`{"title":"A"}`, openai.FinishReasonStop), nil
+		}}
+		f, cfg, _, _ := c14FlowLLM(main)
+		cfg.LLM.StructuredOutputs = true
+		resp, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", JSONSchema: schema})
+		if !tc.retry {
+			if err == nil || len(main.requests) != 1 {
+				t.Errorf("%s: must not be retried: %v, %d requests", tc.name, err, len(main.requests))
+			}
+			continue
 		}
-	}
-	main := &c14ChatClient{answer: reject(400)}
-	f, cfg, _, _ := c14FlowLLM(main)
-	cfg.LLM.StructuredOutputs = true
-	resp, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", JSONSchema: schema})
-	if err != nil || resp.JSON["title"] != "A" || len(main.requests) != 2 ||
-		main.requests[1].ResponseFormat == nil || main.requests[1].ResponseFormat.Type != openai.ChatCompletionResponseFormatTypeJSONObject {
-		t.Fatalf("a rejected schema must be retried as json_object once: %+v, %v, %d requests", resp, err, len(main.requests))
-	}
-
-	main = &c14ChatClient{answer: reject(401)}
-	f, cfg, _, _ = c14FlowLLM(main)
-	cfg.LLM.StructuredOutputs = true
-	if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", JSONSchema: schema}); err == nil || len(main.requests) != 1 {
-		t.Fatalf("only a malformed-request refusal is retried: %v, %d requests", err, len(main.requests))
+		if err != nil || resp.JSON["title"] != "A" || len(main.requests) != 2 ||
+			main.requests[1].ResponseFormat == nil || main.requests[1].ResponseFormat.Type != openai.ChatCompletionResponseFormatTypeJSONObject {
+			t.Errorf("%s: must be retried as json_object once: %+v, %v, %d requests", tc.name, resp, err, len(main.requests))
+		}
 	}
 }
 
 func TestC14ReasoningModelsGetMaxCompletionTokens(t *testing.T) {
 	main := &c14ChatClient{}
 	f, cfg, clients, _ := c14FlowLLM(main)
-	cfg.Providers = []config.ProviderEntry{{ID: "reason", Type: "openai", Model: "gpt-5-mini"}, {ID: "classic", Type: "openai", Model: "gpt-4o-mini"}}
-	if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: "reason"}); err != nil {
-		t.Fatal(err)
+	key := "sk-c14-reasoning-key-0123456789"
+	cfg.Providers = []config.ProviderEntry{
+		{ID: "reason", Type: "openai", Model: "gpt-5-mini", APIKey: key},
+		// Every provider saved in the UI has stored capabilities, which carry no reasoning
+		// flag: the budget must come from the model limits.
+		{ID: "stored", Type: "openai", Model: "gpt-5-mini", APIKey: key, Capabilities: config.ProviderCapabilities{Source: "auto", DetectedModel: "gpt-5-mini"}},
+		{ID: "classic", Type: "openai", Model: "gpt-4o-mini", APIKey: key},
 	}
-	req := clients["reason"].requests[0]
-	if req.MaxTokens != 0 || req.MaxCompletionTokens <= 0 || req.Temperature != 0 {
-		t.Fatalf("reasoning request = max_tokens %d, max_completion_tokens %d, temperature %v", req.MaxTokens, req.MaxCompletionTokens, req.Temperature)
-	}
-	if err := openai.NewReasoningValidator().Validate(req); err != nil {
-		t.Fatalf("go-openai would refuse the request: %v", err)
+	for _, id := range []string{"reason", "stored"} {
+		if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: id}); err != nil {
+			t.Fatal(err)
+		}
+		req := clients[id].requests[0]
+		if req.MaxTokens != 0 || req.MaxCompletionTokens != llm.ReasoningOutputTokens || req.Temperature != 0 {
+			t.Fatalf("%s: reasoning request = max_tokens %d, max_completion_tokens %d, temperature %v", id, req.MaxTokens, req.MaxCompletionTokens, req.Temperature)
+		}
+		if err := openai.NewReasoningValidator().Validate(req); err != nil {
+			t.Fatalf("%s: go-openai would refuse the request: %v", id, err)
+		}
 	}
 	if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: "classic"}); err != nil {
 		t.Fatal(err)
 	}
 	if req := clients["classic"].requests[0]; req.MaxTokens != flowAIMaxTokens || req.MaxCompletionTokens != 0 || req.Temperature != 0.2 {
 		t.Fatalf("classic request = %+v", req)
+	}
+}
+
+func TestC14ProvidersMustBeUsableChatProviders(t *testing.T) {
+	f, cfg, clients, _ := c14FlowLLM(&c14ChatClient{})
+	key := "sk-c14-eligibility-key-0123456789"
+	cfg.Providers = []config.ProviderEntry{
+		{ID: "images", Type: "stability", Model: "sd3-large", APIKey: key},
+		{ID: "nomodel", Type: "openai", APIKey: key},
+		{ID: "nokey", Type: "openai", Model: "gpt-4o-mini"},
+		{ID: config.LocalLLMProviderID, Type: "openai", Model: "gpt-4o-mini", APIKey: key},
+		{ID: "untyped-nomodel"},
+		{ID: "keyless", Type: "custom", Model: "local-model"},
+		{ID: "LM", Type: "LM-Studio", Model: "local-model"},
+	}
+	for id, reason := range map[string]string{"images": "media_provider", "nomodel": "missing_model", "nokey": "missing_credentials",
+		config.LocalLLMProviderID: "not configured", "untyped-nomodel": "missing_model"} {
+		_, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: id})
+		if ne := c14NodeError(t, err, "FLOW_AI_UNAVAILABLE"); !strings.Contains(ne.Message, reason) {
+			t.Errorf("%s: message = %q, want %q", id, ne.Message, reason)
+		}
+		if clients[id] != nil {
+			t.Errorf("%s: a client was built", id)
+		}
+	}
+	for _, id := range []string{"keyless", "LM"} {
+		if _, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: id}); err != nil || clients[id] == nil {
+			t.Errorf("%s: %v", id, err)
+		}
+	}
+}
+
+// A real provider that echoes the credential it was sent, in a JSON error and in plain text.
+func TestC14ProviderCredentialEchoesAreRedacted(t *testing.T) {
+	const key = "sk-c14-echoed-provider-key-0123456789abcdef"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sent := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if strings.Contains(r.URL.Path, "/text/") {
+			w.WriteHeader(http.StatusBadGateway)
+			fmt.Fprintf(w, "upstream refused key %s", sent)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintf(w, `{"error":{"message":"Incorrect API key provided: %s","type":"invalid_request_error"}}`, sent)
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{}
+	cfg.LLM.Model, cfg.LLM.APIKey = "c14-main-model", key
+	cfg.Providers = []config.ProviderEntry{
+		{ID: "json", Type: "custom", BaseURL: srv.URL + "/json/v1", APIKey: key, Model: "c14-model"},
+		{ID: "text", Type: "custom", BaseURL: srv.URL + "/text/v1", APIKey: "  " + key + " ", Model: "c14-model"},
+	}
+	s := &Server{Cfg: cfg, LLMClient: llm.NewClientFromProviderWithConfig(cfg, "custom", srv.URL+"/json/v1", key, "")}
+	f := newFlowLLM(s)
+	for _, model := range []string{"json", "text", ""} {
+		_, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", Model: model})
+		if err == nil || strings.Contains(err.Error(), key) || !strings.Contains(err.Error(), "[redacted]") {
+			t.Errorf("route %q: error = %v", model, err)
+		}
 	}
 }
 

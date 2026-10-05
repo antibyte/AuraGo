@@ -15,19 +15,24 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/flows"
 	"aurago/internal/llm"
+	"aurago/internal/llm/catalog"
 	"aurago/internal/security"
 )
 
 // Limits and names of one AI step call.
 const (
 	// flowAIMaxTokens is the completion budget when the node asks for none (ai.step never
-	// does). A route the model registry marks as reasoning gets llm.ReasoningOutputTokens
-	// instead, as the agent's auxiliary JSON requests do (llm.JSONCompletionOutputBudget):
-	// its reasoning is paid from the same budget.
+	// does). A route whose model limits mark it as reasoning (llm.ResolveModelLimitsCached,
+	// resolved like the agent's auxiliary requests) gets llm.ReasoningOutputTokens instead,
+	// as llm.JSONCompletionOutputBudget does: its reasoning is paid from the same budget.
+	// Every budget, a requested one included, is then clamped to the route's max output.
 	flowAIMaxTokens = 4096
 	// flowAIMaxTokensCap bounds a requested completion, so a node can never ask for an
 	// unbounded answer.
 	flowAIMaxTokensCap = 16384
+	// flowCredentialMinBytes is the shortest provider credential replaced in error text, the
+	// bound security.RegisterSensitive uses: a shorter literal would corrupt unrelated text.
+	flowCredentialMinBytes = 8
 	// flowAIMaxAnswerBytes bounds the answer content a step accepts, checked before it is
 	// stripped or parsed. flowAIMaxTokensCap tokens stay far below it, and a longer answer
 	// is refused rather than stored.
@@ -93,7 +98,7 @@ func (f *flowLLM) Step(ctx context.Context, req flows.LLMRequest) (flows.LLMResp
 	request := flowAIRequest(rt, req)
 	resp, err := f.complete(ctx, rt.client, request)
 	if err != nil {
-		return flows.LLMResponse{}, flowAIFailure(ctx, err)
+		return flows.LLMResponse{}, flowAIFailure(ctx, err, rt.credentials)
 	}
 	return flowAIAnswer(resp, rt.model, req.JSONSchema != nil, max(request.MaxTokens, request.MaxCompletionTokens))
 }
@@ -108,7 +113,7 @@ func flowAIRequest(rt flowAIRoute, req flows.LLMRequest) openai.ChatCompletionRe
 		system += "\n\n" + own
 	}
 	request := openai.ChatCompletionRequest{Model: rt.model, Temperature: 0.2,
-		MaxTokens: flowAIMaxTokensFor(req.MaxTokens, rt.caps.Reasoning),
+		MaxTokens: flowAIMaxTokensFor(req.MaxTokens, rt.limits),
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: system},
 			{Role: openai.ChatMessageRoleUser, Content: req.Prompt},
@@ -117,8 +122,9 @@ func flowAIRequest(rt flowAIRoute, req flows.LLMRequest) openai.ChatCompletionRe
 		request.ResponseFormat = flowAIResponseFormat(req.JSONSchema, rt.caps.StructuredOutputs)
 	}
 	// go-openai refuses max_tokens and a temperature other than 1 for the o1, o3, o4 and
-	// gpt-5 families before sending. The agent's memory analysis moves the budget to
-	// max_completion_tokens and drops the temperature for them; a flow step does the same.
+	// gpt-5 families before sending. These lines copy the agent's memory analysis
+	// (internal/agent/memory_analysis.go:271), which moves the budget to
+	// max_completion_tokens and drops the temperature for them.
 	if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
 		request.MaxTokens, request.MaxCompletionTokens, request.Temperature = 0, request.MaxTokens, 0
 	}
@@ -126,17 +132,20 @@ func flowAIRequest(rt flowAIRoute, req flows.LLMRequest) openai.ChatCompletionRe
 }
 
 // flowAIMaxTokensFor clamps the node's request to [1, flowAIMaxTokensCap]; none (zero or
-// less) means the default.
-func flowAIMaxTokensFor(requested int, reasoning bool) int {
+// less) means the default, llm.ReasoningOutputTokens on a reasoning route. The result never
+// exceeds the route's max output tokens.
+func flowAIMaxTokensFor(requested int, limits llm.ModelLimits) int {
+	n := flowAIMaxTokens
 	switch {
-	case requested > flowAIMaxTokensCap:
-		return flowAIMaxTokensCap
 	case requested > 0:
-		return requested
-	case reasoning:
-		return llm.ReasoningOutputTokens
+		n = min(requested, flowAIMaxTokensCap)
+	case limits.Reasoning:
+		n = llm.ReasoningOutputTokens
 	}
-	return flowAIMaxTokens
+	if limits.MaxOutputTokens > 0 {
+		n = min(n, limits.MaxOutputTokens)
+	}
+	return n
 }
 
 // flowAIResponseFormat asks for the node's schema as a strict json_schema when the route
@@ -160,8 +169,8 @@ func flowAIResponseFormat(schema map[string]any, structured bool) *openai.ChatCo
 // complete sends the request and charges what the provider reports to the flows budget, a
 // failed call included when it reports usage. Capability metadata does not tell json_schema
 // from json_object support, and some OpenAI-compatible providers accept only json_object,
-// so a json_schema request rejected as malformed (HTTP 400 or 422) is sent once more with
-// json_object. A rejected request reports no usage.
+// so a json_schema request whose response format the provider refuses (flowAIFormatRejected)
+// is sent once more with json_object. A rejected request reports no usage.
 func (f *flowLLM) complete(ctx context.Context, client llm.ChatClient, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	resp, err := client.CreateChatCompletion(ctx, request)
 	f.charge(request.Model, resp, err)
@@ -186,22 +195,33 @@ func (f *flowLLM) charge(model string, resp openai.ChatCompletionResponse, err e
 	tracker.RecordForCategory(flowAIBudgetCategory, model, resp.Usage.PromptTokens, resp.Usage.CompletionTokens)
 }
 
-// flowAIFormatRejected reports whether err is a provider's refusal of a json_schema request
-// as malformed.
+// flowAIFormatRejected reports whether err is a provider's refusal of a json_schema
+// request's response format: HTTP 400 or 422 that names the response_format parameter or
+// mentions response_format or a schema ("schema" covers json_schema). A context-length
+// refusal is never one, whatever it mentions: the same prompt would fail again.
 func flowAIFormatRejected(request openai.ChatCompletionRequest, err error) bool {
-	if request.ResponseFormat == nil || request.ResponseFormat.Type != openai.ChatCompletionResponseFormatTypeJSONSchema {
+	if request.ResponseFormat == nil || request.ResponseFormat.Type != openai.ChatCompletionResponseFormatTypeJSONSchema ||
+		llm.IsContextLimitError(err) {
 		return false
 	}
-	status := 0
+	status, param, message := 0, "", err.Error()
 	var apiErr *openai.APIError
 	var reqErr *openai.RequestError
 	switch {
 	case errors.As(err, &apiErr):
-		status = apiErr.HTTPStatusCode
+		status, message = apiErr.HTTPStatusCode, apiErr.Message
+		if apiErr.Param != nil {
+			param = *apiErr.Param
+		}
 	case errors.As(err, &reqErr):
 		status = reqErr.HTTPStatusCode
 	}
-	return status == http.StatusBadRequest || status == http.StatusUnprocessableEntity
+	if status != http.StatusBadRequest && status != http.StatusUnprocessableEntity {
+		return false
+	}
+	lower := strings.ToLower(message)
+	return strings.EqualFold(strings.TrimSpace(param), "response_format") ||
+		strings.Contains(lower, "response_format") || strings.Contains(lower, "schema")
 }
 
 // flowAIAnswer turns the completion into the step's response.
@@ -249,8 +269,8 @@ func flowAIAnswer(resp openai.ChatCompletionResponse, model string, structured b
 	return out, nil
 }
 
-// flowBoundedError is an error whose text is scrubbed of registered secrets and bounded,
-// with the cause kept for errors.Is and errors.As (a timeout stays a timeout for the engine).
+// flowBoundedError is an error whose text is redacted and bounded, with the cause kept for
+// errors.Is and errors.As (a timeout stays a timeout for the engine).
 type flowBoundedError struct {
 	msg   string
 	cause error
@@ -259,20 +279,35 @@ type flowBoundedError struct {
 func (e *flowBoundedError) Error() string { return e.msg }
 func (e *flowBoundedError) Unwrap() error { return e.cause }
 
-// flowScrubbedError returns prefix plus err's text, scrubbed and cut to flowErrorRunes.
-func flowScrubbedError(prefix string, err error) error {
-	return &flowBoundedError{msg: prefix + flowBoundRunes(security.Scrub(err.Error()), flowErrorRunes), cause: err}
+// flowScrubbedError returns prefix plus err's text, cut to flowErrorRunes runes after the
+// redaction. Every literal of at least flowCredentialMinBytes (as given and trimmed) is
+// replaced first; then the text goes through security.Scrub (registered secrets) and
+// security.RedactSensitiveInfo (key=value pairs, bearer tokens, URL credentials), as the
+// agent sanitizes tool output (agent_parse.go) and retry text (controlled_retry.go).
+func flowScrubbedError(prefix string, err error, literals ...string) error {
+	text := err.Error()
+	for _, literal := range literals {
+		for _, form := range []string{literal, strings.TrimSpace(literal)} {
+			if len(form) >= flowCredentialMinBytes {
+				text = strings.ReplaceAll(text, form, security.RedactedText(""))
+			}
+		}
+	}
+	text = security.RedactSensitiveInfo(security.Scrub(text))
+	return &flowBoundedError{msg: prefix + flowBoundRunes(text, flowErrorRunes), cause: err}
 }
 
 // flowAIFailure reports the error of a request made under ctx. A cancelled or expired ctx
 // comes back as ctx's own error, so the engine sees a cancel or a timeout and not an AI
-// failure. Any other error can carry a provider's response body, so its text is scrubbed
-// and bounded.
-func flowAIFailure(ctx context.Context, err error) error {
+// failure. Any other error can carry a provider's response body, and a provider may echo
+// the credential it was sent (an "invalid API key …" answer). The route's credentials are
+// not registered with the global scrubber (the agent does not register provider keys
+// either), so they are replaced in this text only.
+func flowAIFailure(ctx context.Context, err error, credentials []string) error {
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
 	}
-	return flowScrubbedError("the AI request failed: ", err)
+	return flowScrubbedError("the AI request failed: ", err, credentials...)
 }
 
 // flowQuoteName quotes a name for an error message, cut to flowNameEchoRunes runes.
@@ -280,63 +315,92 @@ func flowQuoteName(name string) string {
 	return strconv.Quote(flowBoundRunes(name, flowNameEchoRunes))
 }
 
-// flowAIRoute is the client, model and capabilities a step runs with.
+// flowAIRoute is what a step runs with: the client and model, the capabilities (only
+// StructuredOutputs is used), the model limits (reasoning, max output) and the credentials
+// the client may send, which a failure text must not echo.
 type flowAIRoute struct {
-	client llm.ChatClient
-	model  string
-	caps   llm.ProviderCapabilityResult
+	client      llm.ChatClient
+	model       string
+	caps        llm.ProviderCapabilityResult
+	limits      llm.ModelLimits
+	credentials []string
 }
 
 // route picks client and model: the node's provider id, else flows.ai_provider, else the
-// main model. The capabilities are those of the route that answers: the main
-// configuration's for the main client, the provider entry's own for a provider, with the
-// global structured_outputs flag as the fallback only for the main provider (as in Game
-// Maker's visual review).
+// main model. Capabilities and limits are those of the route that answers. The main route
+// uses the main configuration's capabilities and gameMakerRouteLimits (the primary route
+// with the matching provider's overrides, as the agent fits requests); its credentials are
+// the main and the fallback key, since the main client can fail over. A provider route uses
+// the entry's own capabilities, with the global structured_outputs flag as the fallback only
+// for the main provider (as in Game Maker's visual review), and the entry's limits with its
+// context and output overrides.
 func (f *flowLLM) route(cfg *config.Config, providerID string) (flowAIRoute, error) {
 	providerID = strings.TrimSpace(providerID)
 	if providerID == "" {
 		providerID = strings.TrimSpace(cfg.Flows.AIProvider)
 	}
 	if providerID != "" {
-		for _, p := range cfg.Providers {
-			if p.ID != providerID {
-				continue
-			}
-			entry, err := flowProviderCredential(p, secretReaderForServer(f.s))
-			if err != nil {
-				return flowAIRoute{}, err
-			}
-			fallback := llm.CapabilityFallback{}
-			if entry.ID == cfg.LLM.Provider {
-				fallback.StructuredOutputs = cfg.LLM.StructuredOutputs
-			}
-			return flowAIRoute{client: f.newClient(cfg, entry), model: entry.Model, caps: llm.ResolveProviderCapabilities(entry, fallback)}, nil
+		entry, err := flowProviderEntry(cfg, providerID, secretReaderForServer(f.s))
+		if err != nil {
+			return flowAIRoute{}, err
 		}
-		return flowAIRoute{}, flows.NewNodeError("FLOW_AI_UNAVAILABLE", "the AI model %s is not configured", flowQuoteName(providerID))
+		fallback := llm.CapabilityFallback{}
+		if entry.ID == cfg.LLM.Provider {
+			fallback.StructuredOutputs = cfg.LLM.StructuredOutputs
+		}
+		limits := llm.ResolveModelLimitsCached(llm.ModelRoute{ProviderID: entry.ID, ProviderType: entry.Type, BaseURL: entry.BaseURL,
+			Model: entry.Model, ContextWindowOverride: entry.ContextWindow, MaxOutputTokensOverride: entry.MaxOutputTokens}, cfg.Agent.ContextWindow)
+		return flowAIRoute{client: f.newClient(cfg, entry), model: entry.Model, caps: llm.ResolveProviderCapabilities(entry, fallback),
+			limits: limits, credentials: []string{entry.APIKey}}, nil
 	}
 	if f.s.LLMClient == nil {
 		return flowAIRoute{}, flows.NewNodeError("FLOW_AI_UNAVAILABLE", "no AI model is configured")
 	}
-	return flowAIRoute{client: f.s.LLMClient, model: cfg.LLM.Model, caps: llm.ResolveConfigProviderCapabilities(cfg)}, nil
+	return flowAIRoute{client: f.s.LLMClient, model: cfg.LLM.Model, caps: llm.ResolveConfigProviderCapabilities(cfg),
+		limits: gameMakerRouteLimits(cfg), credentials: []string{cfg.LLM.APIKey, cfg.FallbackLLM.APIKey}}, nil
 }
 
-// flowProviderCredential returns p with the credential its client needs. An API key is a
-// vault entry (provider_<id>_api_key) that loading the configuration (ApplyVaultSecrets)
-// copies into ProviderEntry.APIKey, so the snapshot holds it already, which Game Maker,
-// Detective and the desktop chat rely on as well. An OAuth2 provider's access token is not
-// copied there (ApplyOAuthTokens fills only the configured slots), so it is read from the
-// vault through speechLabRuntimeChatProvider, the server's resolver for chat providers
-// chosen by id, which refuses a missing or expired token.
-func flowProviderCredential(p config.ProviderEntry, vault config.SecretReader) (config.ProviderEntry, error) {
-	if normalizeProviderAuthType(p.AuthType) != "oauth2" {
-		return p, nil
+// flowProviderEntry returns the provider id names, with the credential its client needs,
+// or FLOW_AI_UNAVAILABLE. cfg.FindProvider refuses the reserved managed local provider.
+//
+// Every auth type goes through speechLabRuntimeChatProvider, the resolver for chat providers
+// chosen by id that the telephone agent shares (resolveTelephoneProvider,
+// sip_agent_provider.go). It refuses media providers and an empty model, reads an OAuth2
+// access token from the vault (refusing a missing or expired one, as ApplyOAuthTokens does
+// not copy it into the entry) and returns the API key, which loading the configuration
+// (ApplyVaultSecrets) copies from the vault entry provider_<id>_api_key. Two cases the
+// resolver refuses stay usable, as they are for the agent's own requests:
+//   - an entry without a type, a generic OpenAI-compatible endpoint for the llm client, which
+//     the resolver only knows by type; it needs a model and uses the entry's key;
+//   - a "custom" endpoint without a key (missing_credentials), which the agent's task router
+//     accepts as keyless as well.
+func flowProviderEntry(cfg *config.Config, id string, vault config.SecretReader) (config.ProviderEntry, error) {
+	found := cfg.FindProvider(id)
+	if found == nil {
+		return config.ProviderEntry{}, flows.NewNodeError("FLOW_AI_UNAVAILABLE", "the AI model %s is not configured", flowQuoteName(id))
 	}
-	status, token := speechLabRuntimeChatProvider(&p, vault)
-	if !status.Eligible || !status.Configured {
-		return config.ProviderEntry{}, flows.NewNodeError("FLOW_AI_UNAVAILABLE", "the AI model %s cannot be used (%s)", flowQuoteName(p.ID), status.Reason)
+	entry := *found
+	unavailable := func(reason string) (config.ProviderEntry, error) {
+		return config.ProviderEntry{}, flows.NewNodeError("FLOW_AI_UNAVAILABLE", "the AI model %s cannot be used (%s)", flowQuoteName(entry.ID), reason)
 	}
-	p.APIKey = token
-	return p, nil
+	if strings.TrimSpace(entry.Type) == "" {
+		if strings.TrimSpace(entry.Model) == "" {
+			return unavailable("missing_model")
+		}
+		return entry, nil
+	}
+	status, key := speechLabRuntimeChatProvider(&entry, vault)
+	entry.Type = catalog.NormalizeProviderID(entry.Type)
+	switch {
+	case status.Eligible && status.Configured:
+		entry.APIKey = key
+	case status.Eligible && status.Reason == "missing_credentials" && entry.Type == "custom" &&
+		normalizeProviderAuthType(entry.AuthType) != "oauth2":
+		// A keyless custom endpoint keeps its empty key.
+	default:
+		return unavailable(status.Reason)
+	}
+	return entry, nil
 }
 
 // Flow secrets live in the vault as "easydrag_<name>". The editor manages them through
