@@ -146,6 +146,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `CancelFlowMode(flowID, mode)` is `CancelFlow` for one mode (same queue, slot and `startMu` handling, counts
   only new cancels). Runs of other modes keep their places; a cancelled waiting run frees its flow slot, which
   admits the flow's next queued run of another mode. Mission Control's cancel uses it with `ModeLive`.
+- `CancelRun(runID)` is `Cancel` that also reports whether this call cancelled the run first (`activeRun.cancelled`);
+  a caller that records a cancel (the API's audit entry) does so only then. `Store.GetRunHeader` /
+  `Service.RunHeader` read a run's header without trigger data and steps.
 - A closed subscriber channel means the run finished, the subscriber was dropped for falling more than
   256 events behind, or it was cancelled. A consumer that did not see `run_finished` resubscribes with
   its last `Seq`. Events are shared by all subscribers and the run result: read-only.
@@ -406,6 +409,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   early for `ModeTest`). They validate with draft rules first (errors give a `*ValidationError`, an unknown
   `OnlyNode` gives `IssueNodeNotFound`); remembered sample data over `MaxStoredOutputBytes` is refused with
   `ErrTestDataTooLarge` before anything is stored. Without data the remembered or built-in sample is used.
+  `SaveTriggerSample` and `TriggerSampleData` accept only an enabled trigger of the draft (else `ErrNoTrigger`,
+  wrapped with the bounded node id), so made-up node ids never get a stored row.
 - Live runs (`RunNow`, `TriggerFromMission`, timer callbacks, all through `startLive`) execute the published
   revision (`ErrNotPublished` without one, `ErrNoTrigger` without a matching enabled trigger) and report start and
   finish: `FlowRunStarted` returns the history id, and `FlowRunFinished(RunFinishedInfo)` carries the leaf

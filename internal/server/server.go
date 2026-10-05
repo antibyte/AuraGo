@@ -262,6 +262,7 @@ type Server struct {
 	flowNotify              flowFailureNotifier // flood rule and send slots of flow failure notifications
 	flowSecretRate          flowRateLimiter     // per-IP limit of flow secret writes and deletes
 	flowStreams             flowStreamLimiter   // open flow run event streams, per run and in total
+	flowStreamBeat          time.Duration       // heartbeat of flow run streams; 0 means flowStreamHeartbeat (tests shorten it)
 	newspaperSkillReady     bool
 	PersonalRadio           *personalradio.Service
 	RTLSDR                  *rtlsdr.Service

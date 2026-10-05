@@ -95,13 +95,36 @@ func c18EventSeqs(t *testing.T, events []c18SSEEvent) []int {
 	return seqs
 }
 
-// c18SetHeartbeat shortens the stream heartbeat for one test. Set it before a test server
-// starts serving: the handler goroutines then see the value.
-func c18SetHeartbeat(t *testing.T, d time.Duration) {
+// c18Secret registers value with the scrubber for the test only.
+func c18Secret(t *testing.T, value string) {
 	t.Helper()
-	old := flowStreamHeartbeat
-	flowStreamHeartbeat = d
-	t.Cleanup(func() { flowStreamHeartbeat = old })
+	t.Cleanup(security.RegisterScopedSensitiveExact(value))
+}
+
+// c18StreamLimits returns the stream limiter's counters under its lock.
+func c18StreamLimits(s *Server) (total, runs int) {
+	s.flowStreams.mu.Lock()
+	defer s.flowStreams.mu.Unlock()
+	return s.flowStreams.total, len(s.flowStreams.runs)
+}
+
+// c18WaitBacklog waits until the bus log of runID holds an event of type typ for node.
+func c18WaitBacklog(t *testing.T, s *Server, runID, typ, node string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		backlog, _, cancel, _ := s.Flows.Subscribe(runID, 0)
+		cancel()
+		for _, ev := range backlog {
+			if ev.Type == typ && ev.NodeID == node {
+				return
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the bus log of %s has no %s of %s: %+v", runID, typ, node, backlog)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 func TestC18FinishedRunStreamEndsAtOnceAndHonoursLastEventID(t *testing.T) {
@@ -161,14 +184,73 @@ func TestC18FinishedRunStreamEndsAtOnceAndHonoursLastEventID(t *testing.T) {
 	if len(events) != 2 || events[0].name != "snapshot" || events[1].name != "end" {
 		t.Fatalf("stream of a run the bus forgot = %+v", events)
 	}
-	if s.flowStreams.total != 0 || len(s.flowStreams.runs) != 0 {
-		t.Fatalf("finished streams were not released: %+v", s.flowStreams.runs)
+	if total, runs := c18StreamLimits(s); total != 0 || runs != 0 {
+		t.Fatalf("finished streams were not released: %d %d", total, runs)
+	}
+}
+
+// TestC18StaleStoredStatusStillEnds: a stream whose channel closes before it delivered an
+// event ends with "end" even when the stored status is not final (a failed FinishRun), so
+// a client cannot loop on "resync".
+func TestC18StaleStoredStatusStillEnds(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	runID := c18StartTestRun(t, s, token, rec, "")
+	waitFlowRunStatus(t, s, token, runID, "success")
+	path := "/api/desktop/flows/runs/" + runID + "/events"
+	all := c18EventSeqs(t, func() []c18SSEEvent { ev, _ := c18ParseSSE(c18Get(t, s, token, path, nil).Body.String()); return ev }())
+	if err := s.Flows.Store().SetRunStatus(context.Background(), runID, flows.RunRunning); err != nil {
+		t.Fatal(err)
+	}
+	events, _ := c18ParseSSE(c18Get(t, s, token, path+"?after="+strconv.Itoa(all[len(all)-1]), nil).Body.String())
+	if len(events) != 2 || events[0].name != "snapshot" || events[1].name != "end" {
+		t.Fatalf("stream of a finished run with a stale status = %+v", events)
+	}
+}
+
+// TestC18LiveStreamEndsWithRunFinishedAndEnd: the main path. A stream open on an active run
+// delivers run_finished when the run is cancelled, then "end".
+func TestC18LiveStreamEndsWithRunFinishedAndEnd(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	rec := createTestFlow(t, s, waitFlowJSON)
+	runID := c18StartTestRun(t, s, token, rec, "")
+	c18WaitBacklog(t, s, runID, flows.EventStepStarted, "n_bbbbbbbb")
+	w := newC18BlockingWriter()
+	close(w.release) // a writer that never blocks
+	r := httptest.NewRequest(http.MethodGet, "/api/desktop/flows/runs/"+runID+"/events", nil)
+	r.Header.Set("Authorization", "Bearer "+token)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.handleFlows(w, r)
+	}()
+	select {
+	case <-w.blocked: // the snapshot is written: the stream is subscribed
+	case <-time.After(5 * time.Second):
+		t.Fatal("the stream never wrote")
+	}
+	if !s.Flows.Cancel(runID) {
+		t.Fatal("the run is not active")
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the stream did not end with the run")
+	}
+	events, _ := c18ParseSSE(w.String())
+	if len(events) < 3 || events[len(events)-1].name != "end" || events[len(events)-2].name != "event" {
+		t.Fatalf("live stream = %+v", events)
+	}
+	var last flows.RunEvent
+	if err := json.Unmarshal([]byte(events[len(events)-2].data), &last); err != nil || last.Type != flows.EventRunFinished ||
+		last.Run == nil || last.Run.Status != flows.RunCancelled {
+		t.Fatalf("the event before end = %s (%v)", events[len(events)-2].data, err)
 	}
 }
 
 func TestC18StreamOutlivesTheWriteTimeoutAndEndsOnDrain(t *testing.T) {
-	c18SetHeartbeat(t, 40*time.Millisecond)
 	s, token := newFlowsTestServer(t)
+	s.flowStreamBeat = 40 * time.Millisecond // before the test server starts serving
 	rec := createTestFlow(t, s, waitFlowJSON)
 	runID := c18StartTestRun(t, s, token, rec, "")
 	t.Cleanup(func() { s.Flows.Cancel(runID) })
@@ -219,7 +301,7 @@ func TestC18StreamOutlivesTheWriteTimeoutAndEndsOnDrain(t *testing.T) {
 		switch {
 		case line == "event: snapshot":
 			snapshot = true
-		case line == ":heartbeat":
+		case line == ": heartbeat":
 			heartbeats++
 		case line == "event: end" || line == "event: resync":
 			t.Fatalf("the stream of a running run sent %q", line)
@@ -245,8 +327,8 @@ func TestC18StreamOutlivesTheWriteTimeoutAndEndsOnDrain(t *testing.T) {
 			break
 		}
 	}
-	if s.flowStreams.total != 0 {
-		t.Fatalf("the drained stream was not released: %d", s.flowStreams.total)
+	if total, _ := c18StreamLimits(s); total != 0 {
+		t.Fatalf("the drained stream was not released: %d", total)
 	}
 }
 
@@ -285,6 +367,25 @@ func (w *c18BlockingWriter) String() string {
 	return w.buf.String()
 }
 
+// c18CancelWriter is a recorder that cancels the request once a write carries marker
+// (writeFlowSSE writes an event's id line in one write and finishes the event afterwards).
+type c18CancelWriter struct {
+	*httptest.ResponseRecorder
+	marker string
+	cancel context.CancelFunc
+}
+
+func (w *c18CancelWriter) Write(p []byte) (int, error) {
+	n, err := w.ResponseRecorder.Write(p)
+	if strings.Contains(string(p), w.marker) {
+		w.cancel()
+	}
+	return n, err
+}
+
+// WriteString hides the recorder's own, which io.WriteString would call instead of Write.
+func (w *c18CancelWriter) WriteString(s string) (int, error) { return w.Write([]byte(s)) }
+
 // TestC18SlowClientGetsResyncNotEnd: the bus drops a subscriber that falls more than 256
 // events behind. The stream must then tell the client to reconnect, not that the run ended,
 // and the reconnect continues without a gap.
@@ -293,7 +394,9 @@ func TestC18SlowClientGetsResyncNotEnd(t *testing.T) {
 	rec := createTestFlow(t, s, waitFlowJSON)
 	runID := c18StartTestRun(t, s, token, rec, "")
 	t.Cleanup(func() { s.Flows.Cancel(runID) })
-	waitFlowRunStatus(t, s, token, runID, "running")
+	// The engine's own events (run_started, the trigger's two, the wait's step_started) are in
+	// the log before the test adds its own, so the seqs stay in order.
+	c18WaitBacklog(t, s, runID, flows.EventStepStarted, "n_bbbbbbbb")
 	path := "/api/desktop/flows/runs/" + runID + "/events"
 
 	w := newC18BlockingWriter()
@@ -334,13 +437,17 @@ func TestC18SlowClientGetsResyncNotEnd(t *testing.T) {
 		t.Fatalf("resync = %q (%v), last seq sent %d", last.data, err, seqs[len(seqs)-1])
 	}
 
-	// The reconnect with ?after= continues with the next event.
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	// The reconnect with ?after= continues with the next event; the request ends once the
+	// last injected event is written (the run itself goes on).
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	again := httptest.NewRequest(http.MethodGet, path+"?after="+strconv.Itoa(resync.After), nil).WithContext(ctx)
 	again.Header.Set("Authorization", "Bearer "+token)
-	rw := httptest.NewRecorder()
+	rw := &c18CancelWriter{ResponseRecorder: httptest.NewRecorder(), marker: "id: " + strconv.Itoa(first+count-1) + "\n", cancel: cancel}
 	s.handleFlows(rw, again)
+	if ctx.Err() != context.Canceled {
+		t.Fatalf("the reconnect did not reach the last event: %v", ctx.Err())
+	}
 	events, _ = c18ParseSSE(rw.Body.String())
 	more := c18EventSeqs(t, events)
 	if len(more) != first+count-1-resync.After || more[0] != resync.After+1 || more[len(more)-1] != first+count-1 {
@@ -377,14 +484,14 @@ func TestC18StreamsAreLimitedPerRunAndInTotal(t *testing.T) {
 	for i := flowStreamsPerRun - 1; i < flowStreamsTotal; i++ {
 		s.flowStreams.release(fmt.Sprintf("run_c18other%04d", i))
 	}
-	if s.flowStreams.total != 0 || len(s.flowStreams.runs) != 0 {
-		t.Fatalf("limiter after all releases = %d %v", s.flowStreams.total, s.flowStreams.runs)
+	if total, runs := c18StreamLimits(s); total != 0 || runs != 0 {
+		t.Fatalf("limiter after all releases = %d %d", total, runs)
 	}
 }
 
 func TestC18StreamScrubsQuotedSecretsByValue(t *testing.T) {
 	secret := fmt.Sprintf("c18 \"quoted\" \\ secret\t<%d>", time.Now().UnixNano())
-	security.RegisterSensitive(secret)
+	c18Secret(t, secret)
 	s, token := newFlowsTestServer(t)
 	rec := createTestFlow(t, s, greetFlowJSON)
 	body, _ := json.Marshal(map[string]any{"trigger_data": map[string]any{"name": secret}})
@@ -431,6 +538,10 @@ func TestC18RunListQueryIsValidated(t *testing.T) {
 		if w.Code != http.StatusOK || len(runs) != want {
 			t.Errorf("%q = %d, %d runs, want %d: %s", q, w.Code, len(runs), want, w.Body.String())
 		}
+	}
+	if w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/flow_c18missing/runs", token, ""); w.Code != http.StatusNotFound ||
+		flowsBody(t, w)["code"] != "FLOW_NOT_FOUND" {
+		t.Fatalf("runs of an unknown flow = %d %s", w.Code, w.Body.String())
 	}
 }
 
@@ -483,7 +594,7 @@ func TestC18TestDataIsBoundedAndScrubbed(t *testing.T) {
 	}
 
 	secret := fmt.Sprintf("c18 sample \"secret\" \\ %d", time.Now().UnixNano())
-	security.RegisterSensitive(secret)
+	c18Secret(t, secret)
 	escaped, _ := json.Marshal(secret)
 	inner := strings.Trim(string(escaped), `"`)
 	payload, _ := json.Marshal(map[string]any{"data": map[string]any{"token": secret, "n": 3}})
@@ -500,6 +611,84 @@ func TestC18TestDataIsBoundedAndScrubbed(t *testing.T) {
 	// Only the answers are scrubbed; the stored sample keeps what the user entered.
 	if stored, err := s.Flows.TriggerSampleData(context.Background(), rec.ID, "n_aaaaaaaa"); err != nil || stored["token"] != secret {
 		t.Fatalf("stored sample = %+v %v", stored, err)
+	}
+}
+
+// TestC18TestDataOnlyForTriggers: sample data belongs to the enabled triggers of the draft.
+// An id that cannot be a node id is 400; a node id that is no enabled trigger (unknown, or
+// the greet node) is 409 FLOW_NO_TRIGGER for GET and PUT, and nothing is stored.
+func TestC18TestDataOnlyForTriggers(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	rec := createTestFlow(t, s, greetFlowJSON)
+	base := "/api/desktop/flows/" + rec.ID + "/test-data/"
+	for _, node := range []string{"bogus", strings.Repeat("n", 4000), "%E2%9C%93", "n_AAAAAAAA", "n_aaaaaaa1"} {
+		for _, method := range []string{http.MethodGet, http.MethodPut} {
+			w := flowsCall(t, s, method, base+node, token, `{"data":{"x":1}}`)
+			if w.Code != http.StatusBadRequest || flowsBody(t, w)["code"] != "FLOW_BAD_REQUEST" {
+				t.Errorf("%s %s = %d %s", method, flowBoundRunes(node, 20), w.Code, flowBoundRunes(w.Body.String(), 200))
+			}
+		}
+	}
+	for _, node := range []string{"n_zzzzzzzz", "n_bbbbbbbb"} {
+		for _, method := range []string{http.MethodGet, http.MethodPut} {
+			w := flowsCall(t, s, method, base+node, token, `{"data":{"x":1}}`)
+			if w.Code != http.StatusConflict || flowsBody(t, w)["code"] != "FLOW_NO_TRIGGER" || !strings.Contains(w.Body.String(), node) {
+				t.Errorf("%s %s = %d %s", method, node, w.Code, w.Body.String())
+			}
+		}
+	}
+	if w := flowsCall(t, s, http.MethodGet, "/api/desktop/flows/flow_c18missing/test-data/n_aaaaaaaa", token, ""); w.Code != http.StatusNotFound {
+		t.Fatalf("test data of an unknown flow = %d %s", w.Code, w.Body.String())
+	}
+	if w := flowsCall(t, s, http.MethodGet, base+"n_aaaaaaaa", token, ""); w.Code != http.StatusOK {
+		t.Fatalf("test data of the trigger = %d %s", w.Code, w.Body.String())
+	}
+}
+
+// TestC18DoubleCancelIsAuditedOnce: cancels that reach a live run before it is cancelled all
+// answer 202 (or 409 once it ended), and only the first is audited.
+func TestC18DoubleCancelIsAuditedOnce(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	stm := c17Audit(t, s)
+	rec := createTestFlow(t, s, waitFlowJSON)
+	if w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/publish", token, `{"base_revision":1}`); w.Code != http.StatusOK {
+		t.Fatalf("publish = %d %s", w.Code, w.Body.String())
+	}
+	const rounds = 3
+	for round := 1; round <= rounds; round++ {
+		w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/run", token, "")
+		if w.Code != http.StatusAccepted {
+			t.Fatalf("run = %d %s", w.Code, w.Body.String())
+		}
+		runID := flowsBody(t, w)["run_id"].(string)
+		waitFlowRunStatus(t, s, token, runID, "running")
+		codes := make([]int, 4)
+		var wg sync.WaitGroup
+		for i := range codes {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				codes[i] = flowsCall(t, s, http.MethodPost, "/api/desktop/flows/runs/"+runID+"/cancel", token, "").Code
+			}(i)
+		}
+		wg.Wait()
+		accepted := 0
+		for _, code := range codes {
+			switch code {
+			case http.StatusAccepted:
+				accepted++
+			case http.StatusConflict:
+			default:
+				t.Fatalf("cancel answers = %v", codes)
+			}
+		}
+		if accepted == 0 {
+			t.Fatalf("no cancel was accepted: %v", codes)
+		}
+		waitFlowRunStatus(t, s, token, runID, "cancelled")
+		if audit := c17AuditEvents(t, stm, "flow_run_cancel"); len(audit) != round {
+			t.Fatalf("round %d: %d audit entries for answers %v", round, len(audit), codes)
+		}
 	}
 }
 

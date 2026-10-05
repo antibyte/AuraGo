@@ -2,9 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -34,25 +31,18 @@ const flowsTestDataBodyLimit = flows.MaxStoredOutputBytes + 32<<10
 // characters); anything else is FLOW_RUN_NOT_FOUND before the store or the bus is asked.
 var flowRunIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
-// flowRunModes and flowRunStatuses are the values GET {id}/runs accepts for ?mode= and
-// ?status=: the run modes and statuses of the flows package.
-var (
-	flowRunModes    = map[flows.RunMode]bool{flows.ModeTest: true, flows.ModeLive: true, flows.ModeAgent: true, flows.ModeCall: true}
-	flowRunStatuses = map[flows.RunStatus]bool{flows.RunQueued: true, flows.RunRunning: true, flows.RunWaiting: true,
-		flows.RunSuccess: true, flows.RunError: true, flows.RunCancelled: true}
-)
-
-// flowRunFilter reads ?mode=, ?status=, ?limit= and ?offset= of GET {id}/runs. An unknown
-// mode or status, or a limit or offset that is not a non-negative whole number, gives the
-// message of a FLOW_BAD_REQUEST answer (it does not echo the value); an absent or empty one is
-// left unset. The limit is not clamped here: Store.ListRuns applies its default (50) and its
-// cap (200).
+// flowRunFilter reads ?mode=, ?status=, ?limit= and ?offset= of GET {id}/runs. A mode or
+// status that is not one of the flows package's (RunMode.Valid, RunStatus.Valid), or a
+// limit or offset that is not a non-negative whole number, gives the message of a
+// FLOW_BAD_REQUEST answer (it does not echo the value); an absent or empty one is left
+// unset. The limit is not clamped here: Store.ListRuns applies its default (50) and its cap
+// (200).
 func flowRunFilter(q url.Values) (flows.RunFilter, string) {
 	f := flows.RunFilter{Mode: flows.RunMode(q.Get("mode")), Status: flows.RunStatus(q.Get("status"))}
-	if f.Mode != "" && !flowRunModes[f.Mode] {
+	if f.Mode != "" && !f.Mode.Valid() {
 		return f, "mode must be test, live, agent or call"
 	}
-	if f.Status != "" && !flowRunStatuses[f.Status] {
+	if f.Status != "" && !f.Status.Valid() {
 		return f, "status must be queued, running, waiting, success, error or cancelled"
 	}
 	for _, p := range []struct {
@@ -72,24 +62,6 @@ func flowRunFilter(q url.Values) (flows.RunFilter, string) {
 	return f, ""
 }
 
-// flowsDecodeOptional is flowsDecode for a body that may be left out: an empty body,
-// whitespace only, is no error and leaves dst unchanged. It reads the body instead of
-// trusting ContentLength, which is -1 for a chunked request.
-func flowsDecodeOptional(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, limit)
-	err := json.NewDecoder(r.Body).Decode(dst)
-	var tooLarge *http.MaxBytesError
-	switch {
-	case err == nil, errors.Is(err, io.EOF):
-		return true
-	case errors.As(err, &tooLarge):
-		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", limit>>10))
-	default:
-		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the request body is not valid JSON")
-	}
-	return false
-}
-
 // flowRunAction serves the run routes below /api/desktop/flows/{id}/ and reports false for
 // unknown actions.
 func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, action string, rest []string) bool {
@@ -101,7 +73,7 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 			return true
 		}
 		var body flowTestBody
-		if !flowsDecodeOptional(w, r, &body, flowsDocBodyLimit) {
+		if !flowsDecode(w, r, &body, flowsDocBodyLimit, true) {
 			return true
 		}
 		res, err := s.Flows.StartTestRun(ctx, id, flows.TestRunRequest{TriggerNode: body.TriggerNode,
@@ -166,7 +138,7 @@ func (s *Server) flowRunAction(w http.ResponseWriter, r *http.Request, id, actio
 			var body struct {
 				Data map[string]any `json:"data"`
 			}
-			if !flowsDecode(w, r, &body, flowsTestDataBodyLimit) {
+			if !flowsDecode(w, r, &body, flowsTestDataBodyLimit, false) {
 				return true
 			}
 			if body.Data == nil {
@@ -271,11 +243,10 @@ const (
 	// flowStreamMaxSeq bounds the start point a client gives (?after=, Last-Event-ID). A run
 	// has about 2*flows.MaxNodes+2 events, so a larger value is garbage and ignored.
 	flowStreamMaxSeq = 1 << 20
+	// flowStreamHeartbeat is the interval of the ": heartbeat" comment on an open stream;
+	// Server.flowStreamBeat overrides it when set (tests shorten it).
+	flowStreamHeartbeat = 15 * time.Second
 )
-
-// flowStreamHeartbeat is the interval of the ":heartbeat" comment on an open stream. It is
-// a variable so that tests can shorten it.
-var flowStreamHeartbeat = 15 * time.Second
 
 // flowStreamLimiter counts the open run event streams, per run and in total. The zero value
 // is ready to use; Server.flowStreams holds the one of the API.
@@ -338,7 +309,7 @@ func flowStreamAfter(r *http.Request) int {
 //   - "event: end", data {}: the run is over; the stream closes;
 //   - "event: resync", data {"after": <seq>}: the stream closes before the run ended, see
 //     below; the client reconnects with ?after=<the last seq it applied>;
-//   - ":heartbeat" comments every flowStreamHeartbeat.
+//   - ": heartbeat" comments every flowStreamHeartbeat (writeSSEComment).
 //
 // Order: it subscribes first and reads the snapshot second. The bus keeps the whole log of
 // a run (not a ring) until its retention after the run ended, so the backlog holds every
@@ -419,7 +390,11 @@ func (s *Server) streamFlowRunEvents(w http.ResponseWriter, r *http.Request, run
 		_ = writeFlowSSE(w, flusher, "end", 0, map[string]any{})
 		return
 	}
-	heartbeat := time.NewTicker(flowStreamHeartbeat)
+	beat := flowStreamHeartbeat
+	if s.flowStreamBeat > 0 {
+		beat = s.flowStreamBeat
+	}
+	heartbeat := time.NewTicker(beat)
 	defer heartbeat.Stop()
 	received := 0 // events read from the channel
 	for {
@@ -427,10 +402,9 @@ func (s *Server) streamFlowRunEvents(w http.ResponseWriter, r *http.Request, run
 		case <-ctx.Done():
 			return
 		case <-heartbeat.C:
-			if _, err := io.WriteString(w, ":heartbeat\n\n"); err != nil {
+			if writeSSEComment(w, flusher, "heartbeat") != nil {
 				return
 			}
-			flusher.Flush()
 		case ev, open := <-events:
 			if open {
 				received++
@@ -456,32 +430,19 @@ func writeFlowSSE(w http.ResponseWriter, flusher http.Flusher, event string, id 
 	if err != nil {
 		return err
 	}
-	var b strings.Builder
+	prefix := "event: " + event + "\ndata: "
 	if id > 0 {
-		fmt.Fprintf(&b, "id: %d\n", id)
+		prefix = "id: " + strconv.Itoa(id) + "\n" + prefix
 	}
-	fmt.Fprintf(&b, "event: %s\ndata: %s\n\n", event, data)
-	if _, err := io.WriteString(w, b.String()); err != nil {
+	if _, err := io.WriteString(w, prefix); err != nil {
+		return err
+	}
+	if _, err := w.Write(data); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, "\n\n"); err != nil {
 		return err
 	}
 	flusher.Flush()
 	return nil
-}
-
-// flowScrubbedJSON encodes value with the registered secrets redacted in its values, as
-// flowsJSONScrubbed does: value is encoded and decoded once into plain JSON values, which
-// scrubFlowValue copies with every string, map key and number scrubbed. Scrubbing the
-// encoded text instead would miss a secret holding a quote, a backslash or a control
-// character (JSON escapes them) and could break the JSON. The result holds no line break
-// (json.Marshal escapes them), so it fits one "data:" line.
-func flowScrubbedJSON(value any) ([]byte, error) {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return nil, err
-	}
-	var plain any
-	if err := json.Unmarshal(data, &plain); err != nil {
-		return nil, err
-	}
-	return json.Marshal(scrubFlowValue(plain))
 }

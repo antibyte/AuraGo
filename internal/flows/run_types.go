@@ -12,6 +12,15 @@ const (
 	ModeCall  RunMode = "call"
 )
 
+// Valid reports whether m is one of the run modes above.
+func (m RunMode) Valid() bool {
+	switch m {
+	case ModeTest, ModeLive, ModeAgent, ModeCall:
+		return true
+	}
+	return false
+}
+
 // RunStatus is the status of a whole run.
 type RunStatus string
 
@@ -27,6 +36,15 @@ const (
 // Terminal reports whether the run is finished.
 func (s RunStatus) Terminal() bool {
 	return s == RunSuccess || s == RunError || s == RunCancelled
+}
+
+// Valid reports whether s is one of the run statuses above.
+func (s RunStatus) Valid() bool {
+	switch s {
+	case RunQueued, RunRunning, RunWaiting, RunSuccess, RunError, RunCancelled:
+		return true
+	}
+	return false
 }
 
 // StepStatus is the status of one node within a run.

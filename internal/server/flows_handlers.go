@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"slices"
@@ -123,11 +124,16 @@ func flowsWriteJSON(w http.ResponseWriter, status int, value any) error {
 		flowsWriteEncodeFailure(w)
 		return err
 	}
+	flowsWriteBody(w, status, data)
+	return nil
+}
+
+// flowsWriteBody writes encoded JSON as the answer with status.
+func flowsWriteBody(w http.ResponseWriter, status int, data []byte) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_, _ = w.Write(append(data, '\n'))
-	return nil
 }
 
 func flowsWriteEncodeFailure(w http.ResponseWriter) {
@@ -137,30 +143,36 @@ func flowsWriteEncodeFailure(w http.ResponseWriter) {
 	_, _ = w.Write([]byte(flowsEncodeFailure))
 }
 
-// flowsJSONScrubbed writes run data with registered secret values redacted.
-//
-// It scrubs the values, not the JSON text: value is encoded and decoded once into plain
-// JSON values, which scrubFlowValue copies with every string, map key and number
-// scrubbed. A secret holding a quote, a backslash or a control character is escaped in
-// JSON text, where a text scrub misses it, and a redaction inside the text could break
-// the JSON; the walk avoids both, so the answer is always valid JSON. The walk is not
-// budgeted (the payloads are bounded by the stored outputs, at most
-// flows.MaxStoredOutputBytes per step); numbers come back as float64. A value that cannot
-// be encoded gives 500 FLOW_INTERNAL and a Warn log.
+// flowsJSONScrubbed writes run data with registered secret values redacted
+// (flowScrubbedJSON). The walk is not budgeted (the payloads are bounded by the stored
+// outputs, at most flows.MaxStoredOutputBytes per step); numbers come back as float64. A
+// value that cannot be encoded gives 500 FLOW_INTERNAL and a Warn log.
 func (s *Server) flowsJSONScrubbed(w http.ResponseWriter, status int, value any) {
-	data, err := json.Marshal(value)
-	var plain any
-	if err == nil {
-		err = json.Unmarshal(data, &plain)
-	}
-	if err == nil {
-		err = flowsWriteJSON(w, status, scrubFlowValue(plain))
-	} else {
-		flowsWriteEncodeFailure(w)
-	}
+	data, err := flowScrubbedJSON(value)
 	if err != nil {
+		flowsWriteEncodeFailure(w)
 		s.Logger.Warn("A flow API response could not be encoded", "type", fmt.Sprintf("%T", value), "error", flowsErrorText(err))
+		return
 	}
+	flowsWriteBody(w, status, data)
+}
+
+// flowScrubbedJSON encodes value with the registered secrets redacted in its values: value
+// is encoded and decoded once into plain JSON values, which scrubFlowValue copies with every
+// string, map key and number scrubbed. Scrubbing the encoded text instead would miss a
+// secret holding a quote, a backslash or a control character (JSON escapes them) and could
+// break the JSON; the walk avoids both, so the result is always valid JSON. It holds no line
+// break (json.Marshal escapes them), so it also fits one SSE "data:" line.
+func flowScrubbedJSON(value any) ([]byte, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var plain any
+	if err := json.Unmarshal(data, &plain); err != nil {
+		return nil, err
+	}
+	return json.Marshal(scrubFlowValue(plain))
 }
 
 func flowsError(w http.ResponseWriter, status int, code, msg string) {
@@ -284,19 +296,22 @@ func flowsLogFlowID(r *http.Request) string {
 }
 
 // flowsDecode reads a JSON body of at most limit bytes into dst. A larger body is
-// FLOW_TOO_LARGE (413), anything that does not decode FLOW_BAD_REQUEST (400).
-func flowsDecode(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
+// FLOW_TOO_LARGE (413), anything that does not decode FLOW_BAD_REQUEST (400). With
+// optional, an empty body (or whitespace only) is no error and leaves dst unchanged; the
+// body is read rather than ContentLength trusted, which is -1 for a chunked request.
+func flowsDecode(w http.ResponseWriter, r *http.Request, dst any, limit int64, optional bool) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
-	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", limit>>10))
-			return false
-		}
-		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the request body is not valid JSON")
+	err := json.NewDecoder(r.Body).Decode(dst)
+	if err == nil || optional && errors.Is(err, io.EOF) {
+		return true
+	}
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		flowsError(w, http.StatusRequestEntityTooLarge, "FLOW_TOO_LARGE", fmt.Sprintf("the request body is larger than %d KiB", limit>>10))
 		return false
 	}
-	return true
+	flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "the request body is not valid JSON")
+	return false
 }
 
 // flowsOriginOK requires a same-origin request for session-authenticated writes.
@@ -381,7 +396,7 @@ func (s *Server) flowsCollection(w http.ResponseWriter, r *http.Request) {
 		flowsJSON(w, http.StatusOK, map[string]any{"flows": list})
 	case http.MethodPost:
 		var body flowCreateBody
-		if !flowsDecode(w, r, &body, flowsDocBodyLimit) {
+		if !flowsDecode(w, r, &body, flowsDocBodyLimit, false) {
 			return
 		}
 		req := flows.CreateRequest{Name: body.Name, Template: body.Template, Translate: flowsTranslator(s.flowsLang(r))}
@@ -444,7 +459,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 				Doc          json.RawMessage `json:"doc"`
 				BaseRevision int             `json:"base_revision"`
 			}
-			if !flowsDecode(w, r, &body, flowsDocBodyLimit) {
+			if !flowsDecode(w, r, &body, flowsDocBodyLimit, false) {
 				return
 			}
 			doc, err := flows.ParseFlow(body.Doc)
@@ -494,7 +509,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		var body struct {
 			BaseRevision int `json:"base_revision"`
 		}
-		if !flowsDecode(w, r, &body, flowsSmallBodyLimit) {
+		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
 			return
 		}
 		rec, issues, err := s.Flows.Publish(ctx, id, body.BaseRevision)
@@ -517,7 +532,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		var body struct {
 			Enabled bool `json:"enabled"`
 		}
-		if !flowsDecode(w, r, &body, flowsSmallBodyLimit) {
+		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
 			return
 		}
 		if err := s.Flows.SetEnabled(ctx, id, body.Enabled); err != nil {
@@ -651,7 +666,7 @@ func (s *Server) flowsSecrets(w http.ResponseWriter, r *http.Request, rest []str
 		var body struct {
 			Value string `json:"value"`
 		}
-		if !flowsDecode(w, r, &body, flowsSmallBodyLimit) {
+		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
 			return
 		}
 		if strings.TrimSpace(body.Value) == "" {
