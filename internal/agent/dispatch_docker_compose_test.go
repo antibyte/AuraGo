@@ -113,6 +113,41 @@ func TestDockerComposePolicyResolvesAbsoluteWorkspaceFileOnce(t *testing.T) {
 	}
 }
 
+func TestDockerComposePolicyWithoutWorkspaceResolvesAgainstWorkingDirectory(t *testing.T) {
+	// An empty directories.workspace_dir stays empty after config loading. Before
+	// the shared preflight such a config resolved the compose file against the
+	// process working directory and ran; it must keep doing so.
+	dir := t.TempDir()
+	fixture := writeComposeFixture(t, dir, "stack/compose.yml", "services:\n  web:\n    image: alpine\n")
+	t.Chdir(dir)
+	resolved := `{"services":{"web":{"image":"alpine"}}}`
+	seen := stubDockerComposeResolver(t, func(string) (string, error) { return resolved, nil })
+	req := dockerArgs{Operation: "compose", File: "stack/compose.yml", Command: "ps"}
+
+	if got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{}, req); got != "" {
+		t.Fatalf("relative compose file without a workspace was blocked: %s", got)
+	}
+	if len(*seen) != 1 || !filepath.IsAbs((*seen)[0]) {
+		t.Fatalf("resolver calls = %q, want one absolute path", *seen)
+	}
+	resolvedInfo, err := os.Stat((*seen)[0])
+	if err != nil {
+		t.Fatalf("resolver got a path that does not exist: %v", err)
+	}
+	fixtureInfo, err := os.Stat(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(resolvedInfo, fixtureInfo) {
+		t.Fatalf("resolver got %q, want the working-directory file %q", (*seen)[0], fixture)
+	}
+
+	resolved = `{"services":{"web":{"image":"alpine","container_name":"aurago"}}}`
+	if got := dockerComposePolicy(context.Background(), &config.Config{}, tools.DockerConfig{}, req); !strings.Contains(got, `"code":"docker_managed_aurago_resource"`) {
+		t.Fatalf("AuraGo-owned container without a workspace was not blocked: %s", got)
+	}
+}
+
 func TestDockerComposePolicyReportsPreflightFailure(t *testing.T) {
 	workspace := t.TempDir()
 	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n    env_file: [missing.env]\n")
