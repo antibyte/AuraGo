@@ -24,6 +24,7 @@ var (
 	decisionPattern   = regexp.MustCompile(`(?i)DECISION:`)
 	classifyPattern   = regexp.MustCompile(`(?i)CLASSIFY:`)
 	reClassifyPattern = regexp.MustCompile(`(?i)RE-CLASSIFY:`)
+	thinkTagPattern   = regexp.MustCompile(`(?i)</?think(ing)?>`)
 )
 
 const (
@@ -357,6 +358,12 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 
 	tokensUsed := resp.Usage.TotalTokens
 	raw := extractMessageContent(resp.Choices[0].Message)
+	if resp.Choices[0].FinishReason == openai.FinishReasonLength {
+		g.logger.Warn("[Guardian] Truncated verdict; applying fail-safe",
+			"operation", check.Operation, "tokens", tokensUsed)
+		g.Metrics.RecordError()
+		return g.failSafeResult(start, "truncated guardian response")
+	}
 	if strings.TrimSpace(raw) == "" {
 		g.logger.Warn("[Guardian] Empty content from LLM",
 			"operation", check.Operation,
@@ -618,21 +625,16 @@ func buildGuardianPrompt(check GuardianCheck) string {
 
 func parseGuardianResponse(raw string) GuardianResult {
 	raw = strings.TrimSpace(raw)
-	// Strip <think>...</think> or <thinking>...</thinking> tags from reasoning models
-	// that embed chain-of-thought in Content instead of ReasoningContent.
-	if idx := strings.Index(raw, "</think>"); idx >= 0 {
-		raw = strings.TrimSpace(raw[idx+len("</think>"):])
-	} else if idx := strings.Index(raw, "</thinking>"); idx >= 0 {
-		raw = strings.TrimSpace(raw[idx+len("</thinking>"):])
-	} else {
-		// Handle truncated <think> block: response was cut before </think> was written.
-		// Strip the opening tag and scan remaining text for verdict keywords.
-		for _, openTag := range []string{"<think>", "<thinking>"} {
-			if strings.HasPrefix(strings.ToLower(raw), openTag) {
-				raw = strings.TrimSpace(raw[len(openTag):])
-				break
-			}
-		}
+	// Reasoning models embed chain-of-thought in Content. Only text after the
+	// LAST closing tag is the verdict; a tag quoted inside the reasoning must
+	// not promote reasoning text to a verdict. The match runs on raw itself:
+	// offsets taken from a lowercased copy drift (or overrun) when lowercasing
+	// changes a rune's byte length.
+	if loc := orphanThinkingCloseRe.FindStringIndex(raw); loc != nil {
+		raw = strings.TrimSpace(raw[loc[1]:])
+	} else if lower := strings.ToLower(raw); strings.HasPrefix(lower, "<think>") || strings.HasPrefix(lower, "<thinking>") {
+		// Truncated reasoning: the verdict was never written.
+		return GuardianResult{Decision: DecisionQuarantine, RiskScore: 0.5, Reason: "truncated reasoning without verdict"}
 	}
 	// Expected: "safe 10 routine file listing" or "dangerous 95 deletes system files"
 	// Some reasoning models may wrap the answer in extra text; scan all words for a known decision keyword.
@@ -696,7 +698,7 @@ func mapDecision(word string) Decision {
 
 func mapDecisionWord(lower string) Decision {
 	switch lower {
-	case "safe", "allow", "ok", "benign", "permitted", "harmless":
+	case "safe", "allow":
 		return DecisionAllow
 	case "dangerous", "block", "deny", "reject", "critical", "malicious", "harmful":
 		return DecisionBlock
@@ -740,6 +742,7 @@ func sanitizeGuardianPromptValue(value string, maxLen int) string {
 	}
 	value = strings.ReplaceAll(value, "\r", " ")
 	value = strings.ReplaceAll(value, "\n", " ")
+	value = thinkTagPattern.ReplaceAllString(value, "THINK_TAG")
 	value = reClassifyPattern.ReplaceAllString(value, "RE-CLASSIFY_")
 	value = decisionPattern.ReplaceAllString(value, "DECISION_")
 	value = classifyPattern.ReplaceAllString(value, "CLASSIFY_")
