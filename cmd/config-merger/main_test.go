@@ -368,6 +368,43 @@ func TestApplyUpgradeSafetyDefaults_PreservesExplicitAuthEnabled(t *testing.T) {
 	}
 }
 
+func TestApplyUpgradeSafetyDefaults_PreservesUnsandboxedShellForEnabledShell(t *testing.T) {
+	template := map[string]interface{}{
+		"agent": map[string]interface{}{
+			"allow_shell":                 false,
+			"allow_unsafe_host_execution": false,
+			"allow_unsandboxed_shell":     false,
+		},
+	}
+	cases := []struct {
+		name        string
+		userAgent   map[string]interface{}
+		want        bool
+		wantChanged bool
+	}{
+		{"shell on, key absent", map[string]interface{}{"allow_shell": true}, true, true},
+		{"shell on, key written false", map[string]interface{}{"allow_shell": true, "allow_unsandboxed_shell": false}, false, false},
+		{"shell absent", map[string]interface{}{"debug_mode": true}, false, false},
+		{"shell off", map[string]interface{}{"allow_shell": false}, false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			user := map[string]interface{}{"agent": tc.userAgent}
+			merged := deepMerge(template, user)
+
+			changed := applyUpgradeSafetyDefaults(merged, user)
+
+			if changed != tc.wantChanged {
+				t.Fatalf("changed = %v, want %v", changed, tc.wantChanged)
+			}
+			agent, _ := asStringMap(merged["agent"])
+			if agent["allow_unsandboxed_shell"] != tc.want {
+				t.Fatalf("agent.allow_unsandboxed_shell = %v, want %v", agent["allow_unsandboxed_shell"], tc.want)
+			}
+		})
+	}
+}
+
 func TestConfigTemplateBudgetBlockUsesCanonicalRoot(t *testing.T) {
 	templatePath := filepath.Join("..", "..", "config_template.yaml")
 	content, err := readNormalized(templatePath)

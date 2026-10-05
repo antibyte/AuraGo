@@ -2436,7 +2436,7 @@ Linux Landlock-based sandbox for shell commands. Restricts filesystem access, CP
 
 **Web UI:** Config → Integrations → Shell Sandbox → Enable and configure limits.
 
-> 💡 Linux only. `shell_sandbox.enabled` defaults to `false` for compatibility. If shell execution is enabled without an effective shell sandbox, AuraGo warns in the security hints. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`. Since this release the host shell on Linux without an effective sandbox also requires `agent.allow_unsafe_host_execution: true`. Existing configurations that never wrote the key keep working and show the `shell_unsafe_host_legacy` hint.
+> 💡 Linux only. `shell_sandbox.enabled` defaults to `false` for compatibility. If shell execution is enabled without an effective shell sandbox, AuraGo warns in the security hints. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`. Since this release the host shell on Linux without an effective sandbox also requires `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`. Updates via `update.sh` and Docker set `agent.allow_unsandboxed_shell: true` for configurations that already had the shell enabled; configurations that never wrote the key keep working and show the `shell_unsafe_host_legacy` hint.
 
 Shell and Python child processes receive a filtered environment by default, so host secrets such as master keys, API keys, tokens, and passwords are not inherited by agent-controlled subprocesses.
 

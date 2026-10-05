@@ -1601,9 +1601,11 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Legacy unsandboxed shell: configurations written before the Linux host
-	// shell required agent.allow_unsafe_host_execution keep working. Writing the
-	// key (true or false) ends the grandfather; security_check reports it.
-	if cfg.Agent.AllowShell && !yamlHasPath(data, "agent", "allow_unsafe_host_execution") {
+	// shell gate keep working until agent.allow_unsandboxed_shell is written
+	// (true or false); security_check reports it. allow_unsafe_host_execution
+	// does not count: config-merger has copied the template's false into every
+	// merged config since 2026-09-24.
+	if cfg.Agent.AllowShell && !yamlHasPath(data, "agent", "allow_unsandboxed_shell") {
 		cfg.Agent.LegacyUnsandboxedShell = true
 	}
 

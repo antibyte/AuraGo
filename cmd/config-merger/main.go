@@ -194,9 +194,10 @@ func deepMerge(base, overlay map[string]interface{}) map[string]interface{} {
 	return result
 }
 
-// applyUpgradeSafetyDefaults prevents dangerous template defaults from silently
-// activating features on existing installations when the user config lacks an
-// explicit value.
+// applyUpgradeSafetyDefaults keeps template defaults from silently changing
+// behaviour on existing installations when the user config lacks an explicit
+// value: dangerous defaults must not activate features, and new gates must not
+// switch off what the installation already used.
 func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 	changed := false
 
@@ -206,6 +207,18 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 		if (!userHasAuth || !userSetEnabled) && authMap["enabled"] == true {
 			authMap["enabled"] = false
 			merged["auth"] = authMap
+			changed = true
+		}
+	}
+
+	// The Linux host shell without a sandbox now needs agent.allow_unsandboxed_shell
+	// (or allow_unsafe_host_execution). Configurations that already had the shell
+	// enabled keep it: write the explicit opt-in instead of the template's false.
+	if userAgent, ok := asStringMap(user["agent"]); ok && userAgent["allow_shell"] == true {
+		_, userSetUnsandboxed := userAgent["allow_unsandboxed_shell"]
+		if agentMap, ok := asStringMap(merged["agent"]); ok && !userSetUnsandboxed && agentMap["allow_unsandboxed_shell"] != true {
+			agentMap["allow_unsandboxed_shell"] = true
+			merged["agent"] = agentMap
 			changed = true
 		}
 	}

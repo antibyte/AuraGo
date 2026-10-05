@@ -185,19 +185,20 @@ func TestHostShellFallbackErrorRequiresUnsafeHostFlagOnLinux(t *testing.T) {
 	fallback := &sandbox.FallbackSandbox{}
 	perms := defaultRuntimePermissionsForTests()
 	perms.AllowUnsafeHostExecution = false
-	perms.AllowLegacyUnsandboxedShell = false
+	perms.AllowUnsandboxedShell = false
 
-	if err := hostShellFallbackError("linux", fallback, perms); err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") {
-		t.Fatalf("expected unsafe-host gate error on linux without sandbox, got %v", err)
+	err := hostShellFallbackError("linux", fallback, perms)
+	if err == nil || !strings.Contains(err.Error(), "allow_unsafe_host_execution") || !strings.Contains(err.Error(), "allow_unsandboxed_shell") {
+		t.Fatalf("expected unsafe-host gate error naming both flags on linux without sandbox, got %v", err)
 	}
 	if err := hostShellFallbackError("windows", fallback, perms); err != nil {
 		t.Fatalf("windows has its own gate, got %v", err)
 	}
-	perms.AllowLegacyUnsandboxedShell = true
+	perms.AllowUnsandboxedShell = true
 	if err := hostShellFallbackError("linux", fallback, perms); err != nil {
-		t.Fatalf("legacy grandfather must keep the shell working, got %v", err)
+		t.Fatalf("allow_unsandboxed_shell must keep the shell working, got %v", err)
 	}
-	perms.AllowLegacyUnsandboxedShell = false
+	perms.AllowUnsandboxedShell = false
 	perms.AllowUnsafeHostExecution = true
 	if err := hostShellFallbackError("linux", fallback, perms); err != nil {
 		t.Fatalf("explicit flag must allow the host shell, got %v", err)

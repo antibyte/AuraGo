@@ -269,7 +269,7 @@ browser_automation:
 
 ### Host execution without isolation
 
-Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. Linux shell keeps following the sandbox policy; Desktop Notes protection and file jails apply regardless.
+Windows shell and every host Python path — including Agent Skill scripts and background Python jobs — need `agent.allow_unsafe_host_execution: true` in addition to the existing tool gate. Every allowed execution emits an audit warning in the log. The Linux shell without an effective sandbox needs `agent.allow_unsandboxed_shell: true` or `agent.allow_unsafe_host_execution: true`; updates via `update.sh` and Docker set `allow_unsandboxed_shell: true` for configurations that already had the shell enabled. Desktop Notes protection and file jails apply regardless.
 
 ```yaml
 agent:

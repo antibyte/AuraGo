@@ -3888,14 +3888,18 @@ directories:
 
 func TestLoadGrandfathersUnsandboxedShellOnlyWhenFlagAbsent(t *testing.T) {
 	cases := []struct {
-		name string
-		yaml string
-		want bool
+		name            string
+		yaml            string
+		wantLegacy      bool
+		wantUnsandboxed bool
 	}{
-		{"shell on, flag absent", "agent:\n  allow_shell: true\n", true},
-		{"shell on, flag written false", "agent:\n  allow_shell: true\n  allow_unsafe_host_execution: false\n", false},
-		{"shell on, flag written true", "agent:\n  allow_shell: true\n  allow_unsafe_host_execution: true\n", false},
-		{"shell off", "agent:\n  allow_shell: false\n", false},
+		{"shell on, key absent", "agent:\n  allow_shell: true\n", true, false},
+		{"shell on, allow_unsandboxed_shell: false", "agent:\n  allow_shell: true\n  allow_unsandboxed_shell: false\n", false, false},
+		{"shell on, allow_unsandboxed_shell: true", "agent:\n  allow_shell: true\n  allow_unsandboxed_shell: true\n", false, true},
+		// config-merger has written the template's allow_unsafe_host_execution: false
+		// into every merged config (Docker, update.sh); that alone is no decision.
+		{"shell on, only allow_unsafe_host_execution: false written", "agent:\n  allow_shell: true\n  allow_unsafe_host_execution: false\n", true, false},
+		{"shell off", "agent:\n  allow_shell: false\n", false, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -3907,8 +3911,11 @@ func TestLoadGrandfathersUnsandboxedShellOnlyWhenFlagAbsent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Load() error = %v", err)
 			}
-			if cfg.Agent.LegacyUnsandboxedShell != tc.want {
-				t.Fatalf("LegacyUnsandboxedShell = %v, want %v", cfg.Agent.LegacyUnsandboxedShell, tc.want)
+			if cfg.Agent.LegacyUnsandboxedShell != tc.wantLegacy {
+				t.Fatalf("LegacyUnsandboxedShell = %v, want %v", cfg.Agent.LegacyUnsandboxedShell, tc.wantLegacy)
+			}
+			if cfg.Agent.AllowUnsandboxedShell != tc.wantUnsandboxed {
+				t.Fatalf("AllowUnsandboxedShell = %v, want %v", cfg.Agent.AllowUnsandboxedShell, tc.wantUnsandboxed)
 			}
 		})
 	}

@@ -70,6 +70,7 @@ agent:
     allow_shell: false
     allow_python: false
     allow_unsafe_host_execution: false # explicit unsafe exception for host Python, Windows shell and unsandboxed Linux shell
+    allow_unsandboxed_shell: false # Linux shell without sandbox needs this or allow_unsafe_host_execution; updates set it true for configs that already had allow_shell: true
     allow_filesystem_write: false
     allow_network_requests: false
     allow_remote_shell: false

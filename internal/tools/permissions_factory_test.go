@@ -48,6 +48,26 @@ func TestRuntimePermissionsFromConfigMapsAllRuntimeGates(t *testing.T) {
 	}
 }
 
+func TestRuntimePermissionsFromConfigMapsUnsandboxedShell(t *testing.T) {
+	cases := []struct {
+		name               string
+		explicit, legacy   bool
+		wantUnsandboxedRun bool
+	}{
+		{"explicit key", true, false, true},
+		{"legacy grandfather", false, true, true},
+		{"neither", false, false, false},
+	}
+	for _, tc := range cases {
+		cfg := &config.Config{}
+		cfg.Agent.AllowUnsandboxedShell = tc.explicit
+		cfg.Agent.LegacyUnsandboxedShell = tc.legacy
+		if got := RuntimePermissionsFromConfig(cfg).AllowUnsandboxedShell; got != tc.wantUnsandboxedRun {
+			t.Fatalf("%s: AllowUnsandboxedShell = %v, want %v", tc.name, got, tc.wantUnsandboxedRun)
+		}
+	}
+}
+
 func TestMQTTPermissionResolverOverridesScopedRuntimeSnapshot(t *testing.T) {
 	ConfigureRuntimePermissions(RuntimePermissions{MQTTEnabled: true})
 	SetMQTTPermissionResolver(func() (bool, bool) { return false, true })
