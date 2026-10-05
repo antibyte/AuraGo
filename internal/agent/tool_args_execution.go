@@ -126,15 +126,16 @@ type cronScheduleArgs struct {
 }
 
 type documentCreatorArgs struct {
-	Operation   string
-	Title       string
-	Content     string
-	URL         string
-	Filename    string
-	PaperSize   string
-	Landscape   bool
-	Sections    string
-	SourceFiles string
+	Operation          string
+	Title              string
+	Content            string
+	URL                string
+	Filename           string
+	PaperSize          string
+	Landscape          bool
+	Sections           string
+	SourceFiles        string
+	BlockRemoteContent bool
 }
 
 type archiveArgs struct {
@@ -765,6 +766,7 @@ func decodeDocumentCreatorArgs(tc ToolCall) documentCreatorArgs {
 	if landscape, ok := toolArgBool(tc.Params, "landscape"); ok {
 		req.Landscape = landscape
 	}
+	req.BlockRemoteContent, _ = toolArgBool(tc.Params, "block_remote_content")
 	return req
 }
 

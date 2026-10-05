@@ -1726,8 +1726,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.DocumentCreator.Enabled {
 				return `Tool Output: {"status":"error","message":"Document Creator is disabled. Set tools.document_creator.enabled=true in config.yaml."}`
 			}
-			logger.Info("LLM requested document creation", "operation", req.Operation, "backend", cfg.Tools.DocumentCreator.Backend)
-			docResult := tools.ExecuteDocumentCreatorInWorkspace(ctx, &cfg.Tools.DocumentCreator, cfg.Directories.WorkspaceDir, req.Operation, req.Title, req.Content, req.URL, req.Filename, req.PaperSize, req.Landscape, req.Sections, req.SourceFiles)
+			logger.Info("LLM requested document creation", "operation", req.Operation, "backend", cfg.Tools.DocumentCreator.Backend, "block_remote_content", req.BlockRemoteContent)
+			docResult := tools.ExecuteDocumentCreatorInWorkspace(ctx, &cfg.Tools.DocumentCreator, cfg.Directories.WorkspaceDir, req.Operation, req.Title, req.Content, req.URL, req.Filename, req.PaperSize, req.Landscape, req.Sections, req.SourceFiles,
+				tools.DocumentCreatorOptions{BlockRemoteContent: req.BlockRemoteContent})
 			// Auto-register every successfully created document in the media registry
 			if mediaRegistryDB != nil {
 				var parsed struct {

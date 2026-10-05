@@ -36,8 +36,29 @@ type PDFSection struct {
 	Rows   [][]string `json:"rows"`   // table rows (first row = header if type=="table")
 }
 
-// ExecuteDocumentCreator is the unified entry point called from agent dispatch.
-func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConfig, operation, title, content, url, filename, paperSize string, landscape bool, sectionsJSON, sourceFilesJSON string) string {
+// DocumentCreatorOptions holds optional document_creator behaviour. The zero value keeps
+// the default behaviour.
+type DocumentCreatorOptions struct {
+	// BlockRemoteContent (tool argument block_remote_content) blocks network access while
+	// Chromium renders caller-supplied HTML: html_to_pdf, markdown_to_pdf, screenshot_html
+	// and create_pdf on the gotenberg backend. The HTML gets a Content-Security-Policy meta
+	// as the first head element and loses its meta refresh tags (restrictRemoteContent).
+	// url_to_pdf and screenshot_url load their URL as before.
+	BlockRemoteContent bool
+}
+
+func mergeDocumentCreatorOptions(opts []DocumentCreatorOptions) DocumentCreatorOptions {
+	var merged DocumentCreatorOptions
+	for _, opt := range opts {
+		merged.BlockRemoteContent = merged.BlockRemoteContent || opt.BlockRemoteContent
+	}
+	return merged
+}
+
+// ExecuteDocumentCreator is the unified entry point called from agent dispatch. opts is
+// optional; when several are given, any one that blocks remote content does.
+func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConfig, operation, title, content, url, filename, paperSize string, landscape bool, sectionsJSON, sourceFilesJSON string, opts ...DocumentCreatorOptions) string {
+	blockRemote := mergeDocumentCreatorOptions(opts).BlockRemoteContent
 	outputDir := cfg.OutputDir
 	if outputDir == "" {
 		outputDir = "data/documents"
@@ -54,7 +75,7 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 
 	switch operation {
 	case "create_pdf":
-		return executeCreatePDF(ctx, cfg, backend, outputDir, title, content, filename, paperSize, landscape, sectionsJSON)
+		return executeCreatePDF(ctx, cfg, backend, outputDir, title, content, filename, paperSize, landscape, sectionsJSON, blockRemote)
 	case "url_to_pdf":
 		return executeGotenbergOnly(ctx, cfg, backend, func() string {
 			if url == "" {
@@ -67,14 +88,14 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 			if content == "" {
 				return `{"status":"error","message":"content (HTML) is required for html_to_pdf"}`
 			}
-			return GotenbergHTMLToPDF(ctx, &cfg.Gotenberg, outputDir, content, filename, paperSize, landscape)
+			return GotenbergHTMLToPDF(ctx, &cfg.Gotenberg, outputDir, content, filename, paperSize, landscape, blockRemote)
 		})
 	case "markdown_to_pdf":
 		return executeGotenbergOnly(ctx, cfg, backend, func() string {
 			if content == "" {
 				return `{"status":"error","message":"content (Markdown) is required for markdown_to_pdf"}`
 			}
-			return GotenbergMarkdownToPDF(ctx, &cfg.Gotenberg, outputDir, content, filename, paperSize, landscape)
+			return GotenbergMarkdownToPDF(ctx, &cfg.Gotenberg, outputDir, content, filename, paperSize, landscape, blockRemote)
 		})
 	case "convert_document":
 		return executeGotenbergOnly(ctx, cfg, backend, func() string {
@@ -110,7 +131,7 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 			if content == "" {
 				return `{"status":"error","message":"content (HTML) is required for screenshot_html"}`
 			}
-			return GotenbergScreenshotHTML(ctx, &cfg.Gotenberg, outputDir, content, filename)
+			return GotenbergScreenshotHTML(ctx, &cfg.Gotenberg, outputDir, content, filename, blockRemote)
 		})
 	case "health":
 		return executeGotenbergOnly(ctx, cfg, backend, func() string {
@@ -130,8 +151,8 @@ const (
 )
 
 // ExecuteDocumentCreatorInWorkspace validates user-provided local source files
-// before invoking document conversion operations.
-func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.DocumentCreatorConfig, workspaceDir, operation, title, content, url, filename, paperSize string, landscape bool, sectionsJSON, sourceFilesJSON string) string {
+// before invoking document conversion operations. opts is passed on to ExecuteDocumentCreator.
+func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.DocumentCreatorConfig, workspaceDir, operation, title, content, url, filename, paperSize string, landscape bool, sectionsJSON, sourceFilesJSON string, opts ...DocumentCreatorOptions) string {
 	switch operation {
 	case "convert_document", "merge_pdfs":
 		paths, err := parseSourceFiles(sourceFilesJSON)
@@ -175,16 +196,17 @@ func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.Document
 			sourceFilesJSON = string(data)
 		}
 	}
-	return ExecuteDocumentCreator(ctx, cfg, operation, title, content, url, filename, paperSize, landscape, sectionsJSON, sourceFilesJSON)
+	return ExecuteDocumentCreator(ctx, cfg, operation, title, content, url, filename, paperSize, landscape, sectionsJSON, sourceFilesJSON, opts...)
 }
 
 // executeCreatePDF handles the create_pdf operation which supports both backends.
-func executeCreatePDF(ctx context.Context, cfg *config.DocumentCreatorConfig, backend, outputDir, title, content, filename, paperSize string, landscape bool, sectionsJSON string) string {
+// blockRemoteContent only affects the gotenberg backend; Maroto renders no HTML.
+func executeCreatePDF(ctx context.Context, cfg *config.DocumentCreatorConfig, backend, outputDir, title, content, filename, paperSize string, landscape bool, sectionsJSON string, blockRemoteContent bool) string {
 	switch backend {
 	case "gotenberg":
 		// For Gotenberg, convert content/sections to HTML and use html_to_pdf
 		html := buildHTMLFromSections(title, content, sectionsJSON)
-		return GotenbergHTMLToPDF(ctx, &cfg.Gotenberg, outputDir, html, filename, paperSize, landscape)
+		return GotenbergHTMLToPDF(ctx, &cfg.Gotenberg, outputDir, html, filename, paperSize, landscape, blockRemoteContent)
 	default:
 		// Maroto backend
 		return createPDFMaroto(outputDir, title, content, filename, paperSize, landscape, sectionsJSON)

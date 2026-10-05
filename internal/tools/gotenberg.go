@@ -329,8 +329,12 @@ func GotenbergURLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputD
 	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
-// GotenbergHTMLToPDF converts HTML content to PDF via Chromium.
-func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, htmlContent, filename, paperSize string, landscape bool) string {
+// GotenbergHTMLToPDF converts HTML content to PDF via Chromium. With blockRemoteContent the
+// HTML goes through restrictRemoteContent first, so the render cannot reach the network.
+func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, htmlContent, filename, paperSize string, landscape, blockRemoteContent bool) string {
+	if blockRemoteContent {
+		htmlContent = restrictRemoteContent(htmlContent)
+	}
 	fields := paperSizeFields(paperSize)
 	fields["printBackground"] = "true"
 	if landscape {
@@ -355,7 +359,9 @@ func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, output
 
 // GotenbergMarkdownToPDF converts Markdown content to PDF via Chromium.
 // Gotenberg expects an index.html with {{ toHTML "file.md" }} and the .md file.
-func GotenbergMarkdownToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, markdownContent, filename, paperSize string, landscape bool) string {
+// With blockRemoteContent the wrapper page gets the restrictRemoteContent policy and the
+// Markdown loses its refresh tags, so the render cannot reach the network.
+func GotenbergMarkdownToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputDir, markdownContent, filename, paperSize string, landscape, blockRemoteContent bool) string {
 	fields := paperSizeFields(paperSize)
 	fields["printBackground"] = "true"
 	if landscape {
@@ -373,6 +379,10 @@ table { border-collapse: collapse; width: 100%; }
 th,td { border: 1px solid #ddd; padding: 8px; text-align: left; }
 th { background: #f2f2f2; }
 </style></head><body>{{ toHTML "content.md" }}</body></html>`
+	if blockRemoteContent {
+		indexHTML = restrictRemoteContent(indexHTML)
+		markdownContent = restrictRemoteMarkdown(markdownContent)
+	}
 
 	files := map[string][]byte{
 		"index.html": []byte(indexHTML),
@@ -490,8 +500,13 @@ func GotenbergScreenshotURL(ctx context.Context, cfg *config.GotenbergConfig, ou
 	return gotenbergOKJSON(filePath, webPath, filepath.Base(filePath))
 }
 
-// GotenbergScreenshotHTML takes a screenshot of HTML content via Chromium.
-func GotenbergScreenshotHTML(ctx context.Context, cfg *config.GotenbergConfig, outputDir, htmlContent, filename string) string {
+// GotenbergScreenshotHTML takes a screenshot of HTML content via Chromium. With
+// blockRemoteContent the HTML goes through restrictRemoteContent first, so the render
+// cannot reach the network.
+func GotenbergScreenshotHTML(ctx context.Context, cfg *config.GotenbergConfig, outputDir, htmlContent, filename string, blockRemoteContent bool) string {
+	if blockRemoteContent {
+		htmlContent = restrictRemoteContent(htmlContent)
+	}
 	fields := map[string]string{
 		"format": "png",
 	}

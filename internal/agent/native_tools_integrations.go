@@ -1940,6 +1940,8 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"landscape":    map[string]interface{}{"type": "boolean", "description": "Landscape orientation (default: false)"},
 				"sections":     prop("string", "JSON array of sections for create_pdf. Each section: {\"type\":\"text|table|list\",\"header\":\"...\",\"body\":\"...\",\"rows\":[[...]]}"),
 				"source_files": prop("string", "JSON array of file paths for merge_pdfs or convert_document"),
+				"block_remote_content": map[string]interface{}{"type": "boolean",
+					"description": "Block all network access while rendering HTML or Markdown (recommended for untrusted HTML; default: false; url_to_pdf and screenshot_url are unaffected)"},
 			}, "operation"),
 		))
 	}

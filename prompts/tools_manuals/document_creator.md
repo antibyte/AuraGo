@@ -29,6 +29,7 @@ Create PDF documents, convert files to PDF, merge PDFs, and take screenshots. Ba
 | `landscape` | boolean | no | Landscape orientation (default: false) |
 | `sections` | string | for create_pdf | JSON array of sections |
 | `source_files` | string | for merge_pdfs, convert_document | JSON array of file paths |
+| `block_remote_content` | boolean | no | Block all network access while rendering HTML or Markdown (html_to_pdf, markdown_to_pdf, screenshot_html, create_pdf on Gotenberg). Recommended for untrusted HTML. Default: false; url_to_pdf and screenshot_url are unaffected |
 
 ## Sections Format (create_pdf)
 
