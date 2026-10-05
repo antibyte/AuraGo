@@ -79,6 +79,12 @@ type pendingRun struct {
 	counted bool
 }
 
+// activeRun is a launched run: its flow, for CancelFlow, and how to cancel it.
+type activeRun struct {
+	flowID string
+	cancel context.CancelFunc
+}
+
 // Runner admits, executes and persists runs. Test runs bypass the per-flow policy
 // but count against the global limit. Runs waiting for a global slot start in
 // arrival order.
@@ -108,7 +114,7 @@ type Runner struct {
 	live      map[string]int
 	flowQueue map[string][]*pendingRun
 	waiting   []*pendingRun
-	cancels   map[string]context.CancelFunc
+	cancels   map[string]activeRun
 	baseCtx   context.Context
 	baseStop  context.CancelFunc
 	wg        sync.WaitGroup
@@ -136,7 +142,7 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 		now:       engine.services.Now,
 		live:      map[string]int{},
 		flowQueue: map[string][]*pendingRun{},
-		cancels:   map[string]context.CancelFunc{},
+		cancels:   map[string]activeRun{},
 		baseCtx:   ctx,
 		baseStop:  cancel,
 	}
@@ -239,7 +245,7 @@ func (r *Runner) admitLocked(p *pendingRun) bool {
 func (r *Runner) launchLocked(p *pendingRun) {
 	r.slots++
 	ctx, cancel := context.WithCancel(r.baseCtx)
-	r.cancels[p.rec.ID] = cancel
+	r.cancels[p.rec.ID] = activeRun{flowID: p.rec.FlowID, cancel: cancel}
 	r.wg.Add(1)
 	go r.execute(ctx, cancel, p)
 }
@@ -420,9 +426,9 @@ func (r *Runner) callHook(rec RunRecord, res RunResult) {
 // A run whose Start has not returned yet is not known to Cancel.
 func (r *Runner) Cancel(runID string) bool {
 	r.mu.Lock()
-	if cancel, ok := r.cancels[runID]; ok {
+	if run, ok := r.cancels[runID]; ok {
 		r.mu.Unlock()
-		cancel()
+		run.cancel()
 		return true
 	}
 	p := r.removeQueuedLocked(runID)
@@ -460,6 +466,57 @@ func (r *Runner) removeQueuedLocked(runID string) *pendingRun {
 		return p
 	}
 	return nil
+}
+
+// CancelFlow cancels every run of the flow that the runner knows, test runs included,
+// and returns how many it cancelled. Running runs are cancelled through their context,
+// like Cancel does, and end in the background. Runs queued behind the flow's active run
+// or waiting for a global slot end at once with FLOW_CANCELLED; OnRunFinished is called
+// for them before CancelFlow returns, outside all locks.
+//
+// CancelFlow first waits for a Start that is writing its run record, like Shutdown, so
+// every run whose Start returned before CancelFlow was called is cancelled. A Start that
+// begins later is not affected. A caller that deletes the flow therefore calls CancelFlow
+// again once the flow row is gone: from then on Start cannot record a run of the flow.
+func (r *Runner) CancelFlow(flowID string) int {
+	r.startMu.Lock()
+	r.mu.Lock()
+	pending := append([]*pendingRun(nil), r.flowQueue[flowID]...)
+	delete(r.flowQueue, flowID)
+	released := 0
+	kept := r.waiting[:0]
+	for _, p := range r.waiting {
+		if p.rec.FlowID != flowID {
+			kept = append(kept, p)
+			continue
+		}
+		pending = append(pending, p)
+		if p.counted {
+			released++
+		}
+	}
+	clear(r.waiting[len(kept):]) // the backing array must not keep the runs' trigger data
+	r.waiting = kept
+	// The flow's queue is gone, so freeing the flow slots of its waiting runs admits nothing.
+	for ; released > 0; released-- {
+		r.releaseFlowLocked(flowID)
+	}
+	var cancels []context.CancelFunc
+	for _, run := range r.cancels {
+		if run.flowID == flowID {
+			cancels = append(cancels, run.cancel)
+		}
+	}
+	r.mu.Unlock()
+	r.startMu.Unlock()
+
+	for _, cancel := range cancels {
+		cancel()
+	}
+	for _, p := range pending {
+		r.finishUnstarted(p, "FLOW_CANCELLED", "the run was cancelled before it started")
+	}
+	return len(cancels) + len(pending)
 }
 
 func (r *Runner) finishUnstarted(p *pendingRun, code, msg string) {

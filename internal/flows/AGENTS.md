@@ -139,6 +139,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `Start` writes the run row outside `mu`, serialized by `startMu`. A missing run row (flow deleted
   mid-run) is logged at Debug. `Cancel` does not know a run before `Start` returns; after `Shutdown`,
   `IsBusy` can stay true (stale `live` counts).
+- `CancelFlow(flowID)` cancels all runs of a flow: running ones through their context, queued and
+  waiting ones at once (`FLOW_CANCELLED`, `OnRunFinished` before it returns). It waits for a `Start` in
+  progress; a Start that begins later is not affected, so deleting a flow calls it before and after the
+  store delete (after it, Start can no longer record a run of the flow).
 - A closed subscriber channel means the run finished, the subscriber was dropped for falling more than
   256 events behind, or it was cancelled. A consumer that did not see `run_finished` resubscribes with
   its last `Seq`. Events are shared by all subscribers and the run result: read-only.
