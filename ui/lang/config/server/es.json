@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Vistas previas de aplicaciones aisladas",
+  "config.server.preview_domain": "Dominio de vista previa",
+  "config.server.preview_enabled": "Activar tras la validación",
+  "config.server.preview_hint": "Desactivado de forma predeterminada. Usa un sitio separado con DNS comodín y TLS. Prueba los inicios de sesión, archivos y WebSockets en los hosts preparados antes de activarlo.",
   "config.fritzbox.status_ok": "🟢 Conectado",
   "config.fritzbox.test_fail": "Conexión fallida",
   "config.fritzbox.test_ok": "Conexión exitosa",

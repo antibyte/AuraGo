@@ -233,10 +233,14 @@ func handleMissionV2ByID(s *Server) http.HandlerFunc {
 			jsonError(w, "mission ID required", http.StatusBadRequest)
 			return
 		}
+		if len(parts) > 2 || (len(parts) == 2 && parts[1] == "") {
+			http.NotFound(w, r)
+			return
+		}
 		id := parts[0]
 
 		// Handle sub-routes
-		if len(parts) >= 2 {
+		if len(parts) == 2 {
 			switch parts[1] {
 			case "run":
 				handleMissionRunV2(s, w, r, id)
@@ -249,6 +253,8 @@ func handleMissionV2ByID(s *Server) http.HandlerFunc {
 					handleMissionRemoveFromQueue(s, w, r, id)
 					return
 				}
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
 			case "cancel":
 				handleMissionCancelV2(s, w, r, id)
 				return
@@ -257,6 +263,9 @@ func handleMissionV2ByID(s *Server) http.HandlerFunc {
 				return
 			case "prepared":
 				handleMissionPrepared(s, w, r, id)
+				return
+			default:
+				http.NotFound(w, r)
 				return
 			}
 		}

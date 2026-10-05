@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Geïsoleerde appvoorbeelden",
+  "config.server.preview_domain": "Domein voor voorbeelden",
+  "config.server.preview_enabled": "Inschakelen na controle",
+  "config.server.preview_hint": "Standaard uit. Gebruik een aparte site met wildcard-DNS en TLS. Test appaanmeldingen, bestanden en WebSockets op de voorbereide hosts voordat je dit inschakelt.",
   "config.fritzbox.status_ok": "🟢 Verbonden",
   "config.fritzbox.test_fail": "Verbinding mislukt",
   "config.fritzbox.test_ok": "Verbinding succesvol",

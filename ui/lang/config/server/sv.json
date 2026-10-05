@@ -1,4 +1,8 @@
 {
+  "config.server.preview_title": "Isolerade appförhandsvisningar",
+  "config.server.preview_domain": "Domän för förhandsvisning",
+  "config.server.preview_enabled": "Aktivera efter godkännande",
+  "config.server.preview_hint": "Av som standard. Använd en separat webbplats med jokertecken-DNS och TLS. Testa appinloggningar, filer och WebSockets på de förberedda värdarna före aktivering.",
   "config.fritzbox.status_ok": "🟢 Ansluten",
   "config.fritzbox.test_fail": "Anslutning misslyckades",
   "config.fritzbox.test_ok": "Anslutning lyckades",

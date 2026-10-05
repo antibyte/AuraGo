@@ -973,7 +973,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Build a dynamic loopback handler: routes requests to either the Homepage caddy
 	// server or the Web UI depending on the current expose-target config, without
 	// requiring a cloudflared restart or port change.
-	webUILoopbackHandler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false), false))))
+	webUILoopbackHandler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, false), false)))))
 	homepageProxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			s.CfgMu.RLock()
@@ -988,7 +988,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			req.Header.Set("X-Forwarded-Host", req.Host)
 		},
 	}
-	s.loopbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.loopbackHandler = trustedProxyMiddleware(s, previewHostMiddleware(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.CfgMu.RLock()
 		exposeHomepage := s.Cfg.CloudflareTunnel.ExposeHomepage
 		exposeWebUI := s.Cfg.CloudflareTunnel.ExposeWebUI
@@ -1002,7 +1002,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		} else {
 			webUILoopbackHandler.ServeHTTP(w, r)
 		}
-	})
+	})))
 	if loopbackPort > 0 {
 		bindAddr := fmt.Sprintf("127.0.0.1:%d", loopbackPort)
 		ln, err := net.Listen("tcp4", bindAddr)
@@ -1024,7 +1024,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Always build and store the tsnet handler so it is available even when tsnet
 	// is enabled later via the config UI without a restart.
 	if s.TsNetManager != nil {
-		tsHandler := trustedProxyMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, false), false))))
+		tsHandler := trustedProxyMiddleware(s, previewHostMiddleware(s, desktopTicketMiddleware(panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, false), false)))))
 		tsHandler = s.trackHTTP(tsHandler)
 		s.tsNetHandler = tsHandler // stored for /api/tsnet/start (runtime start after hot-reload)
 		if s.Cfg.Tailscale.TsNet.Enabled {

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -134,6 +135,62 @@ func TestContainerTerminalResizeControlCallsBackend(t *testing.T) {
 	}
 }
 
+func TestContainerTerminalClosesBackendAndBrowserOnContextCancellation(t *testing.T) {
+	s := testContainerServer(true, false)
+	session := newFakeContainerTerminalSession()
+	fake := &fakeContainerTerminalBackend{running: true, session: session}
+	restore := replaceContainerTerminalBackend(fake)
+	defer restore()
+
+	cancelRequest := make(chan context.CancelFunc, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithCancel(r.Context())
+		cancelRequest <- cancel
+		handleContainerTerminal(s, tools.DockerConfig{}, "demo", w, r.WithContext(ctx))
+	}))
+	defer ts.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(ts.URL, "http")+"/terminal", nil)
+	if err != nil {
+		t.Fatalf("dial terminal websocket: %v", err)
+	}
+	defer conn.Close()
+
+	cancel := <-cancelRequest
+	cancel()
+	select {
+	case <-session.closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("request cancellation did not close the backend session")
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, _, err := conn.ReadMessage(); err == nil {
+		t.Fatal("browser websocket remained open after request cancellation")
+	}
+}
+
+func TestContainerTerminalClosesSessionCreatedAfterContextCancellation(t *testing.T) {
+	s := testContainerServer(true, false)
+	ctx, cancel := context.WithCancel(context.Background())
+	session := newFakeContainerTerminalSession()
+	fake := &fakeContainerTerminalBackend{running: true, session: session, cancelOnCreate: cancel}
+	restore := replaceContainerTerminalBackend(fake)
+	defer restore()
+
+	rec := httptest.NewRecorder()
+	req := newContainerTerminalUpgradeRequest("/api/containers/demo/terminal").WithContext(ctx)
+	handleContainerTerminal(s, tools.DockerConfig{}, "demo", rec, req)
+
+	if rec.Code != http.StatusRequestTimeout {
+		t.Fatalf("status=%d, want %d", rec.Code, http.StatusRequestTimeout)
+	}
+	select {
+	case <-session.closed:
+	default:
+		t.Fatal("session created after cancellation was not closed")
+	}
+}
+
 func testContainerServer(dockerEnabled, dockerReadOnly bool) *Server {
 	cfg := &config.Config{}
 	cfg.Docker.Enabled = dockerEnabled
@@ -161,6 +218,7 @@ func replaceContainerTerminalBackend(next containerTerminalBackend) func() {
 type fakeContainerTerminalBackend struct {
 	running         bool
 	session         *fakeContainerTerminalSession
+	cancelOnCreate  context.CancelFunc
 	createCalls     int
 	lastContainerID string
 	lastExecCmd     []string
@@ -176,6 +234,9 @@ func (f *fakeContainerTerminalBackend) CreateSession(ctx context.Context, cfg to
 	f.lastExecCmd = append([]string(nil), execCmd...)
 	if f.session == nil {
 		f.session = newFakeContainerTerminalSession()
+	}
+	if f.cancelOnCreate != nil {
+		f.cancelOnCreate()
 	}
 	return f.session, nil
 }
