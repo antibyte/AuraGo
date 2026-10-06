@@ -882,8 +882,8 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	}
 	// `config -o`: Compose renders into a private staging directory and the file
 	// is published into the workspace afterwards (like docker cp), so Compose
-	// itself never opens a path chosen by the agent. config stays a read-only
-	// command, so this also works under docker.read_only.
+	// itself never opens a path chosen by the agent. config and convert stay
+	// read-only commands, so this also works under docker.read_only.
 	stagingDir, err := os.MkdirTemp("", "aurago-docker-compose-*")
 	if err != nil {
 		return errJSON("cannot stage the Compose output: %v", err)
@@ -981,7 +981,7 @@ func validateDockerComposeFilePath(cfg DockerConfig, file string) (string, error
 
 func dockerComposeReadOnlySubcommand(subcommand string) bool {
 	switch subcommand {
-	case "ps", "logs", "config", "images", "version", "events", "port", "ls", "top":
+	case "ps", "logs", "config", "convert", "images", "version", "events", "port", "ls", "top":
 		return true
 	default:
 		return false

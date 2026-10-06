@@ -818,3 +818,16 @@ func TestDockerComposeConfigOutputIsStagedAndPublished(t *testing.T) {
 		}
 	})
 }
+
+func TestDockerComposeConvertIsReadOnlyLikeConfig(t *testing.T) {
+	for _, command := range []string{"convert", "convert --format json", "convert -o rendered/stack.yml"} {
+		if DockerComposeCommandMutates(command) {
+			t.Fatalf("%s must be a read-only Compose command, like config", command)
+		}
+	}
+	for _, command := range []string{"up -d", "down", "build", "pull", "create"} {
+		if !DockerComposeCommandMutates(command) {
+			t.Fatalf("%s must stay mutating", command)
+		}
+	}
+}
