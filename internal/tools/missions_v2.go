@@ -1037,9 +1037,13 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		delete(m.missionGuards, missionID)
 	}
 
-	// Guard against double completion (e.g. timeout + normal completion race). Flow missions
-	// never occupy the agent queue; their runs finish through FlowRunFinishedAtDepth.
-	if mission, ok := m.missions[missionID]; ok && (mission.Status != MissionStatusRunning || isFlowMission(mission)) {
+	// Guard against double completion (e.g. timeout + normal completion race). A run that
+	// still holds the agent queue completes even when the mission was queued again while it
+	// ran (RunNow, a trigger or a completion dependent set it to queued); refusing it would
+	// keep the queue occupied for good. Flow missions never occupy the agent queue; their
+	// runs finish through FlowRunFinishedAtDepth.
+	if mission, ok := m.missions[missionID]; ok && (isFlowMission(mission) ||
+		(mission.Status != MissionStatusRunning && m.queue.GetRunning() != missionID)) {
 		return
 	}
 	chainDepth := m.activeChainDepth[missionID]
@@ -1073,6 +1077,12 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	// Update mission status
 	if mission, ok := m.missions[missionID]; ok {
 		mission.Status = MissionStatusIdle
+		for _, item := range m.queue.List() {
+			if item.MissionID == missionID { // queued again while it ran; the queue runs it next
+				mission.Status = MissionStatusQueued
+				break
+			}
+		}
 		mission.LastResult = result
 		mission.LastOutput = truncateString(output, 500)
 		mission.RunCount++
