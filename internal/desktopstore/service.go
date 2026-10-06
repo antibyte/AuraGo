@@ -366,6 +366,11 @@ func (s *Service) backupBeforeMigrationLocked(ctx context.Context) {
 		return
 	}
 	if err := storeMigrationBackup(ctx, s.db, backup); err != nil {
+		// The file did not exist before this call, so anything there now is a
+		// partial copy; it must never count as an existing backup.
+		if removeErr := os.Remove(backup); removeErr != nil && !os.IsNotExist(removeErr) {
+			s.logger().Warn("Desktop store could not remove a partial migration backup", "backup", backup, "error", removeErr)
+		}
 		s.logger().Warn("Desktop store migration backup failed; migrating anyway", "backup", backup, "steps", pending, "error", err)
 		return
 	}

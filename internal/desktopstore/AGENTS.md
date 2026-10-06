@@ -230,6 +230,13 @@ Store app configuration, runtime, assets, and publication.
   `delete_data` keeps them) are reused and never removed by a failed install; do
   not turn them into a blocker, the reinstall that reuses them is a feature
   (`TestUninstallRemovesVolumesOnlyWhenRequested`).
+- Before a schema migration step runs on an existing database (a table or a
+  column from `storeColumnMigrations` is missing), `backupBeforeMigrationLocked`
+  writes a `VACUUM INTO` copy to `<db>.before-install-journal.bak` (mode 0600).
+  A fresh or up-to-date database takes none, an existing file (even an empty
+  one) is never overwritten, a failed copy is removed and the migration goes
+  on. A future schema migration needs its own backup suffix, otherwise this
+  file blocks its backup. Verify `TestStoreMigration*`.
 - Installing records without an attempt marker (written before the journal)
   keep the old remove-by-record cleanup (`TestInstallReplacesFailedInstallingRecord`,
   `TestInitRecoversInterruptedInstallingOperation`). The interrupted-install

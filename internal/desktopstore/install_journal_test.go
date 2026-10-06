@@ -818,12 +818,33 @@ func TestStoreMigrationBackupRules(t *testing.T) {
 		dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
 		createPreJournalStoreDB(t, dbPath)
 		backup := dbPath + storeMigrationBackupSuffix
-		if err := os.WriteFile(backup, []byte("earlier backup"), 0o600); err != nil {
+		// An empty file: VACUUM INTO would happily write into it, so only the
+		// existence guard keeps it unchanged.
+		if err := os.WriteFile(backup, nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
 		svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19945), nil)
-		if data, err := os.ReadFile(backup); err != nil || string(data) != "earlier backup" {
-			t.Fatalf("existing backup = %q (%v), want it unchanged", data, err)
+		if info, err := os.Stat(backup); err != nil || info.Size() != 0 {
+			t.Fatalf("existing backup = %v (%v), want it unchanged and empty", info, err)
+		}
+		if _, err := svc.Operation(context.Background(), "op-old-failed"); err != nil {
+			t.Fatalf("migration did not run: %v", err)
+		}
+	})
+	t.Run("a partial backup of a failed copy is removed", func(t *testing.T) {
+		dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
+		createPreJournalStoreDB(t, dbPath)
+		original := storeMigrationBackup
+		t.Cleanup(func() { storeMigrationBackup = original })
+		storeMigrationBackup = func(_ context.Context, _ *sql.DB, path string) error {
+			if err := os.WriteFile(path, []byte("partial"), 0o600); err != nil {
+				return err
+			}
+			return errors.New("disk full")
+		}
+		svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19947), nil)
+		if _, err := os.Stat(dbPath + storeMigrationBackupSuffix); !os.IsNotExist(err) {
+			t.Fatalf("the partial backup is still there: %v", err)
 		}
 		if _, err := svc.Operation(context.Background(), "op-old-failed"); err != nil {
 			t.Fatalf("migration did not run: %v", err)
