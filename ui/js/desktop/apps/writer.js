@@ -201,6 +201,13 @@
                 if(restore) {
                     loading=true;editor.load(draft.bytes);loading=false;etag=draft.etag || null;queue.changed();notice(tr('recovered'));refresh();
                 }
+                if(editor.snapshot().isOpening)await editor.save();
+                if(disposed || token!==generation || editor!==mounted)return;
+                const start={paragraphId:editor.surface.session.paragraphIds()[0],offset:0};
+                if(start.paragraphId)editor.exec({type:'setSelection',range:{anchor:start,head:start}});
+                const owner=host.closest('.vd-window');
+                if(!ctx.readonly && (!owner || owner.classList.contains('active')))editor.focus();
+                find('[data-scroll]').scrollTop=0;
                 const warnings=[];
                 if(resources.substitutions.length)warnings.push(tr('font_substitution')+' '+resources.substitutions.join(', '));
                 if(resources.unsupported.length)warnings.push(tr('preserved_parts')+' '+resources.unsupported.join(', '));

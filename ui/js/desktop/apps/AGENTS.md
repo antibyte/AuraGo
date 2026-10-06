@@ -1334,6 +1334,9 @@ registration lives in `internal/desktop/types.go`.
   edges after toolbar focus. Core 2.23.0 supplies this behavior upstream; keep
   keyboard/programmatic reveal and drag edge autoscroll enabled. Retain the
   browser regressions when rebuilding or upgrading the core.
+- Writer opens new, loaded and recovered documents at the first paragraph with
+  the viewport at the top. Restore typing focus only in the active editable
+  window. Verify `TestDesktopWriterAppBrowser` and the Writer shell matrix.
 - Writer font-size controls display points and convert to integer half-points at
   the command boundary, including command availability checks. Reject invalid
   inputs before editing. Map app actions to existing shared icon keys; action IDs
