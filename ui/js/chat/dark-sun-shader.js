@@ -129,10 +129,15 @@
             float low = exp(-(uv.y + shimmer * 0.04) * 6.5);
             over(col, a, vec3(0.92, 0.36, 0.1), low * (0.36 + u_flare * 0.3));
 
-            // Corona: breathing streamers around the eclipsed disc.
+            // Corona: breathing streamers around the eclipsed disc. The angular noise is
+            // sampled on the unit circle (not on atan) so it has no seam at ±π.
             float rot = t * 0.02;
-            float streak = fbm(vec2(ang * 4.0 + rot, d * 3.0 - t * 0.03));
-            float streak2 = fbm(vec2(ang * 9.0 - rot * 1.7 + 3.1, d * 6.0));
+            vec2 dir = q / max(d, 0.0001);
+            vec2 dirA = vec2(dir.x * cos(rot) - dir.y * sin(rot), dir.x * sin(rot) + dir.y * cos(rot));
+            float rotB = -rot * 1.7;
+            vec2 dirB = vec2(dir.x * cos(rotB) - dir.y * sin(rotB), dir.x * sin(rotB) + dir.y * cos(rotB));
+            float streak = fbm(dirA * 2.8 + vec2(d * 3.0 - t * 0.03));
+            float streak2 = fbm(dirB * 6.0 + vec2(d * 6.0, 3.1));
             float breath = 0.9 + 0.1 * sin(t * 0.35);
             float radial = exp(-max(0.0, d - R) * (5.5 / breath));
             float corona = radial * (0.25 + 0.75 * pow(streak, 1.6)) * (0.6 + 0.4 * streak2);
