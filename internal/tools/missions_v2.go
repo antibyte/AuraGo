@@ -199,6 +199,7 @@ type MissionManagerV2 struct {
 	auditRecorder      func(memory.AuditEvent) error            // central dashboard audit sink
 	activeRunID        map[string]string                        // missionID → history run ID for in-progress tracking
 	activeChainDepth   map[string]int                           // missionID → mission_completed chain depth of the running prompt mission (missing = 0)
+	chainStopWarned    map[string]time.Time                     // source missionID → last warning about a stopped completion chain
 	onMissionComplete  func(completedID, result, output string) // callback for mission completion
 	missionGuards      map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
 	remoteRunGuards    map[string]context.CancelFunc            // remote mission result timeout cancel functions
@@ -1037,7 +1038,7 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	}
 
 	// Guard against double completion (e.g. timeout + normal completion race). Flow missions
-	// never occupy the agent queue; their runs finish through FlowRunFinished.
+	// never occupy the agent queue; their runs finish through FlowRunFinishedAtDepth.
 	if mission, ok := m.missions[missionID]; ok && (mission.Status != MissionStatusRunning || isFlowMission(mission)) {
 		return
 	}

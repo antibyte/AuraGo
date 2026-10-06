@@ -108,7 +108,8 @@ func (l *flowLocks) drop(id string, fl *flowLock) {
 // error); ReconcileMissions reports such flows.
 //
 // A trigger.mission_completed that waits for the flow's own mission is refused: every
-// run would start the next one. Loops across several flows are not detected.
+// run would start the next one. Longer loops are stopped at run time by Mission Control's
+// chain depth (maxCompletionChainDepth in internal/tools).
 func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*FlowRecord, []Issue, error) {
 	unlock, err := s.locks.lock(ctx, id)
 	if err != nil {

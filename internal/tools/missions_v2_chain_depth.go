@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"time"
 )
 
 // maxCompletionChainDepth bounds chains of missions that start each other on completion,
@@ -25,16 +26,28 @@ const completionChainDepthKey = "chain_depth"
 // maxCompletionChainDepth.
 const completionChainStoppedNote = "Stopped a chain of missions triggered by completions after %d steps; check for a loop between missions"
 
+// completionChainPreviewKey marks trigger data that a size bound replaced by a preview (the
+// flow run record keeps {"_preview": …} beyond flows.MaxStoredOutputBytes).
+const completionChainPreviewKey = "_preview"
+
 // CompletionChainDepth returns the chain depth of a run that a trigger of triggerType started
 // with data: 0 for every trigger other than mission_completed; else the chain_depth number
-// of data, clamped to 1…maxCompletionChainDepth; 1 when data has no such number
-// (mission_completed data written before chain depths existed, such as a persisted queue
-// item). The flow bridge (internal/server) passes a finished run's record.
+// of data, clamped to 1…maxCompletionChainDepth. Data without chain_depth is 1 (data written
+// before chain depths existed, such as a persisted queue item), unless it is a cut record
+// (a _preview key): that is maxCompletionChainDepth, so a size bound that ever cuts
+// mission_completed data stops the chain with the visible note instead of restarting it.
+// The flow bridge (internal/server) passes a finished run's record.
 func CompletionChainDepth(triggerType string, data map[string]any) int {
 	if triggerType != string(TriggerMissionCompleted) {
 		return 0
 	}
-	return clampCompletionChainDepth(data[completionChainDepthKey])
+	depth, ok := data[completionChainDepthKey]
+	if !ok {
+		if _, cut := data[completionChainPreviewKey]; cut {
+			return maxCompletionChainDepth
+		}
+	}
+	return clampCompletionChainDepth(depth)
 }
 
 // completionChainDepthRaw is CompletionChainDepth for trigger data held as JSON text, as
@@ -44,12 +57,23 @@ func completionChainDepthRaw(triggerType, data string) int {
 		return 0
 	}
 	var fields struct {
-		ChainDepth any `json:"chain_depth"`
+		ChainDepth json.RawMessage `json:"chain_depth"`
+		Preview    json.RawMessage `json:"_preview"`
 	}
 	if err := json.Unmarshal([]byte(data), &fields); err != nil {
 		return 1
 	}
-	return clampCompletionChainDepth(fields.ChainDepth)
+	if fields.ChainDepth == nil {
+		if fields.Preview != nil {
+			return maxCompletionChainDepth
+		}
+		return 1
+	}
+	var depth any
+	if err := json.Unmarshal(fields.ChainDepth, &depth); err != nil {
+		return 1
+	}
+	return clampCompletionChainDepth(depth)
 }
 
 // clampCompletionChainDepth reads a chain_depth value: a JSON number (float64, or int as
@@ -87,13 +111,25 @@ func (m *MissionManagerV2) setActiveChainDepthLocked(missionID string, depth int
 	m.activeChainDepth[missionID] = depth
 }
 
+// completionChainWarnInterval is how often a stopped chain warns per source mission: the
+// first stop warns, further stops of the same source within the interval log at Debug (a
+// loop that fans out stops many branches at once, 2^5 of them per start at depth 10).
+const completionChainWarnInterval = 10 * time.Minute
+
 // stopCompletionChainLocked ends a chain at sourceID, whose finished run had depth: it logs
-// a warning and puts completionChainStoppedNote in front of the mission's LastOutput, which
-// Mission Control shows (the run's history entry keeps its own output). Caller holds m.mu
-// and saves the missions.
+// (completionChainWarnInterval) and puts completionChainStoppedNote in front of the
+// mission's LastOutput, which Mission Control shows. The run's output follows the note, cut
+// at a rune boundary so that LastOutput keeps its cap of flowLastOutputMaxBytes (500 bytes,
+// as prompt missions keep it too); the run's history entry keeps the whole output. Caller
+// holds m.mu and saves the missions.
 func (m *MissionManagerV2) stopCompletionChainLocked(sourceID string, depth int) {
 	note := fmt.Sprintf(completionChainStoppedNote, depth)
-	slog.Warn("[MissionV2] "+note, "mission_id", sourceID, "depth", depth, "max_depth", maxCompletionChainDepth)
+	args := []any{"mission_id", sourceID, "depth", depth, "max_depth", maxCompletionChainDepth}
+	if m.warnCompletionChainStopLocked(sourceID, time.Now()) {
+		slog.Warn("[MissionV2] "+note, args...)
+	} else {
+		slog.Debug("[MissionV2] "+note, args...)
+	}
 	mission, ok := m.missions[sourceID]
 	if !ok {
 		return
@@ -102,5 +138,24 @@ func (m *MissionManagerV2) stopCompletionChainLocked(sourceID string, depth int)
 		mission.LastOutput = note
 		return
 	}
-	mission.LastOutput = note + "\n\n" + mission.LastOutput
+	mission.LastOutput = cutWithMarker(note+"\n\n"+mission.LastOutput, flowLastOutputMaxBytes, completionTruncatedMarker)
+}
+
+// warnCompletionChainStopLocked reports whether a stop of sourceID's chain at now warns,
+// and records the warning when it does. Entries older than completionChainWarnInterval are
+// dropped on the way. Caller holds m.mu for writing.
+func (m *MissionManagerV2) warnCompletionChainStopLocked(sourceID string, now time.Time) bool {
+	for id, at := range m.chainStopWarned {
+		if now.Sub(at) >= completionChainWarnInterval {
+			delete(m.chainStopWarned, id)
+		}
+	}
+	if _, recent := m.chainStopWarned[sourceID]; recent {
+		return false
+	}
+	if m.chainStopWarned == nil {
+		m.chainStopWarned = make(map[string]time.Time)
+	}
+	m.chainStopWarned[sourceID] = now
+	return true
 }

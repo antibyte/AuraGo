@@ -3,12 +3,14 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // Task 1c-19b: mission_completed chains are bounded by a chain depth that the trigger data
@@ -176,6 +178,9 @@ func TestC19bCompletionChainDepthReadsTheTriggerData(t *testing.T) {
 		{"NaN", mc, map[string]any{"chain_depth": math.NaN()}, 1},
 		{"huge", mc, map[string]any{"chain_depth": 1e300}, maxCompletionChainDepth},
 		{"text", mc, map[string]any{"chain_depth": "3"}, 1},
+		{"cut record", mc, map[string]any{"_preview": `{"chain_depth":3,"output":"…`}, maxCompletionChainDepth},
+		{"preview beside a depth", mc, map[string]any{"_preview": "x", "chain_depth": float64(3)}, 3},
+		{"preview of another trigger", "webhook", map[string]any{"_preview": "x"}, 0},
 	} {
 		if got := CompletionChainDepth(c.triggerType, c.data); got != c.want {
 			t.Errorf("%s: CompletionChainDepth = %d, want %d", c.name, got, c.want)
@@ -193,7 +198,11 @@ func TestC19bCompletionChainDepthReadsTheTriggerData(t *testing.T) {
 		{"not JSON", mc, "kaputt", 1},
 		{"not an object", mc, `[1,2]`, 1},
 		{"null", mc, `null`, 1},
+		{"null depth", mc, `{"chain_depth":null}`, 1},
 		{"huge", mc, `{"chain_depth":1e9}`, maxCompletionChainDepth},
+		{"cut record", mc, `{"_preview":"{\"chain_depth\":3,\"output\":\"…"}`, maxCompletionChainDepth},
+		{"preview beside a depth", mc, `{"_preview":"x","chain_depth":3}`, 3},
+		{"preview of another trigger", "manual", `{"_preview":"x"}`, 0},
 	} {
 		if got := completionChainDepthRaw(c.triggerType, c.data); got != c.want {
 			t.Errorf("%s: completionChainDepthRaw = %d, want %d", c.name, got, c.want)
@@ -382,5 +391,81 @@ func TestC19bOldQueueItemCountsAsDepthOne(t *testing.T) {
 	callbacks.Wait()
 	if got := completionChainDepthRaw(next.TriggerType, next.TriggerData); got != 2 || !strings.Contains(next.TriggerData, `"chain_depth":2`) {
 		t.Fatalf("dependent of the old item: depth %d, data %s", got, next.TriggerData)
+	}
+}
+
+// The stop note keeps LastOutput within its 500-byte cap: the run's output after the note
+// is cut at a rune boundary and marked, for flow and prompt sources.
+func TestC19bStopNoteKeepsTheLastOutputCap(t *testing.T) {
+	long := strings.Repeat("€", 700) // 2100 bytes
+	mm, _, _ := newFlowTestManager(t)
+	flow := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	c08AddPromptDependent(mm, "c19b_flow_dependent", flow)
+	run := mm.FlowRunStarted(flow, "manual", "")
+	mm.FlowRunFinishedAtDepth(flow, run, MissionResultSuccess, long, nil, maxCompletionChainDepth)
+
+	mm.mu.Lock()
+	mm.missions["c19b_prompt"] = &MissionV2{ID: "c19b_prompt", Name: "P", Prompt: "p", ExecutionType: ExecutionManual,
+		Enabled: true, Priority: "medium", Status: MissionStatusRunning}
+	mm.setActiveChainDepthLocked("c19b_prompt", maxCompletionChainDepth)
+	mm.mu.Unlock()
+	c08AddPromptDependent(mm, "c19b_prompt_dependent", "c19b_prompt")
+	mm.OnMissionComplete("c19b_prompt", MissionResultSuccess, long)
+
+	for _, id := range []string{flow, "c19b_prompt"} {
+		m, _ := mm.Get(id)
+		got := m.LastOutput
+		if len(got) > flowLastOutputMaxBytes || !strings.HasPrefix(got, c19bStopNote+"\n\n€") ||
+			!strings.HasSuffix(got, "€"+completionTruncatedMarker) || !utf8.ValidString(got) {
+			t.Fatalf("%s: LastOutput has %d bytes (cap %d), valid %v, tail %q", id, len(got), flowLastOutputMaxBytes,
+				utf8.ValidString(got), got[max(0, len(got)-8):])
+		}
+	}
+	if items := mm.queue.List(); len(items) != 0 {
+		t.Fatalf("dependents were queued beyond the limit: %+v", items)
+	}
+}
+
+// Repeated stops of one source warn once per completionChainWarnInterval and log at Debug
+// in between; another source warns on its own, and an expired window warns again.
+func TestC19bRepeatedStopsWarnOncePerWindow(t *testing.T) {
+	logs := c07CaptureLogs(t, slog.LevelDebug)
+	mm, _, _ := newFlowTestManager(t)
+	first := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	second := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	c08AddPromptDependent(mm, "c19b_first_dependent", first)
+	c08AddPromptDependent(mm, "c19b_second_dependent", second)
+	stopAt := func(id string) {
+		run := mm.FlowRunStarted(id, "manual", "")
+		mm.FlowRunFinishedAtDepth(id, run, MissionResultSuccess, "ok", nil, maxCompletionChainDepth)
+	}
+	count := func(level, id string) int {
+		n := 0
+		for _, line := range strings.Split(logs.String(), "\n") {
+			if strings.Contains(line, "Stopped a chain of missions") && strings.Contains(line, "level="+level) &&
+				strings.Contains(line, "mission_id="+id) {
+				n++
+			}
+		}
+		return n
+	}
+
+	for i := 0; i < 3; i++ {
+		stopAt(first)
+	}
+	stopAt(second)
+	if w, d := count("WARN", first), count("DEBUG", first); w != 1 || d != 2 {
+		t.Fatalf("first source: %d warnings, %d debug lines\n%s", w, d, logs.String())
+	}
+	if w := count("WARN", second); w != 1 {
+		t.Fatalf("second source: %d warnings", w)
+	}
+
+	mm.mu.Lock()
+	mm.chainStopWarned[first] = time.Now().Add(-completionChainWarnInterval)
+	mm.mu.Unlock()
+	stopAt(first)
+	if w := count("WARN", first); w != 2 {
+		t.Fatalf("first source after the window: %d warnings", w)
 	}
 }

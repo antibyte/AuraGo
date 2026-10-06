@@ -172,8 +172,8 @@ func TestC19bFanOutLoopStops(t *testing.T) {
 	}
 }
 
-// The size-bound pin: mission_completed trigger data at its largest (outputs at the 64 KiB
-// bound, an output text that JSON escapes six-fold) stays below flows.MaxStoredOutputBytes,
+// The size-bound pin: mission_completed trigger data at its largest (outputs at the bridge's
+// budget, an output text that JSON escapes six-fold) stays below flows.MaxStoredOutputBytes,
 // so the follower's run record keeps chain_depth whole and the bridge reads it there, not
 // from the 16 KiB history copy. The follower B, started at the maximum depth, fires no
 // dependent and notes the stop. Were the record a {"_preview"}, B would count as depth 1
@@ -190,13 +190,15 @@ func TestC19bChainDepthSurvivesTheRunRecord(t *testing.T) {
 	c19bPublish(t, s, c, c19bDoc(t, "C", false, b.MissionID))
 	max := c19bMaxDepth()
 
-	// The source's last completion that may fire, with the largest data Mission Control
-	// hands on: "<" is escaped to six bytes, in the outputs and in the output text.
+	// The source's last completion that may fire, with the largest data the bridge hands on:
+	// outputs that fill flowOutputsScrubBudget and an output text of
+	// flowMissionOutputMaxBytes, both of "<", which JSON escapes to six bytes. A raised
+	// budget on the bridge side grows the data here, so the pin follows it.
 	lt, _ := json.Marshal("<")
-	report := strings.Repeat("<", (64<<10-len(`{"report":""}`))/(len(lt)-len(`""`)))
+	report := strings.Repeat("<", (flowOutputsScrubBudget-len(`{"report":""}`))/(len(lt)-len(`""`)))
 	mm := s.MissionManagerV2
 	run := mm.FlowRunStarted(src.MissionID, "manual", "")
-	mm.FlowRunFinishedAtDepth(src.MissionID, run, tools.MissionResultSuccess, strings.Repeat("<", 4000),
+	mm.FlowRunFinishedAtDepth(src.MissionID, run, tools.MissionResultSuccess, strings.Repeat("<", flowMissionOutputMaxBytes),
 		map[string]any{"report": report}, max-1)
 	c19bAwaitStop(t, s, 1, b.MissionID, c.MissionID)
 

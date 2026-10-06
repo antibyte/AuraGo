@@ -70,7 +70,7 @@ var flowScrub = security.Scrub
 // flowRunOutputs is what a finished run hands to Mission Control, built by boundFlowOutputs
 // from one bounded, scrubbed copy of the run's final outputs that is encoded once.
 type flowRunOutputs struct {
-	// mission goes to MissionManagerV2.FlowRunFinished for mission_completed dependents. It
+	// mission goes to MissionManagerV2.FlowRunFinishedAtDepth for mission_completed dependents. It
 	// is the copy, or, when the outputs did not fit in flowOutputsScrubBudget, the shape
 	// tools.boundedCompletionOutputs gives larger outputs, {"_truncated": true, "_preview":
 	// "<first flowOutputsPreviewBytes of the JSON>"}. That map is far below the tools limit,
