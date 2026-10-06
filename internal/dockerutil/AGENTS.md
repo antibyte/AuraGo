@@ -8,6 +8,7 @@ Agent and service authorization stays with each caller.
 ## Contracts
 
 - Negotiate `GET /version` before a versioned operation, selecting the supported intersection (minimum 1.25 for managed-container Init, maximum `APIVersion`). Reject malformed, inaccessible or incompatible version metadata before mutation. Socket proxies need `VERSION=1`.
+- `NewVersionTransportWithProbeTimeout` gives transports with slow connection setup (an Engine socket reached through SSH) a longer `/version` probe budget; `NewVersionTransport` keeps 5 s.
 - Bind negotiation state to one Engine transport. Honour cancellation while probing or waiting on another probe; failed probes must not poison future attempts. Forward idle-connection cleanup.
 - A transport failure the caller did not cancel, or an HTTP 400 answer, clears the negotiated version so the next request probes again; the failed request itself is returned unchanged and never resent.
 - Never replay a mutation after network, body-read or server failure. Only safe reads may retry. Streaming exec uses its caller context; cancellation does not prove remote process termination.

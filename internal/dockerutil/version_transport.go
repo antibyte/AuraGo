@@ -14,15 +14,20 @@ import (
 	"time"
 )
 
+// defaultVersionProbeTimeout bounds one /version probe of a VersionTransport
+// built by NewVersionTransport.
+const defaultVersionProbeTimeout = 5 * time.Second
+
 // VersionTransport negotiates before sending any versioned request. It never
 // replays the requested operation, including after an uncertain mutation. It
 // forgets the negotiated version after an HTTP 400 or a transport error the
 // caller did not cancel or time out, so the next request probes again.
 type VersionTransport struct {
-	base    http.RoundTripper
-	mu      sync.Mutex
-	version string
-	loading chan struct{}
+	base         http.RoundTripper
+	probeTimeout time.Duration // 0: defaultVersionProbeTimeout
+	mu           sync.Mutex
+	version      string
+	loading      chan struct{}
 }
 
 func NewVersionTransport(base http.RoundTripper) *VersionTransport {
@@ -30,6 +35,20 @@ func NewVersionTransport(base http.RoundTripper) *VersionTransport {
 		base = http.DefaultTransport
 	}
 	return &VersionTransport{base: base}
+}
+
+// NewVersionTransportWithProbeTimeout is NewVersionTransport with a different
+// budget for the /version probe that precedes the first versioned request.
+// Use it for transports whose connection setup is slow, such as an Engine
+// socket reached through SSH, where the 5-second default would cut off the
+// login. probeTimeout <= 0 keeps the default; a shorter caller deadline still
+// wins.
+func NewVersionTransportWithProbeTimeout(base http.RoundTripper, probeTimeout time.Duration) *VersionTransport {
+	t := NewVersionTransport(base)
+	if probeTimeout > 0 {
+		t.probeTimeout = probeTimeout
+	}
+	return t
 }
 
 func (t *VersionTransport) CloseIdleConnections() {
@@ -80,7 +99,11 @@ func (t *VersionTransport) versionFor(ctx context.Context, origin *url.URL) (str
 }
 
 func (t *VersionTransport) probeVersion(ctx context.Context, origin *url.URL) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeout := t.probeTimeout
+	if timeout <= 0 {
+		timeout = defaultVersionProbeTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	u := *origin
 	u.Path, u.RawPath, u.RawQuery, u.Fragment = "/version", "", "", ""
