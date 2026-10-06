@@ -708,6 +708,66 @@ func TestService_UpdateValidatesChangedSSLModeOnly(t *testing.T) {
 	}
 }
 
+func TestService_UpdateValidatesModeWhenDriverBecomesNetwork(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	svc := NewService(ServiceConfig{DB: db, Vault: &mockVault{}, Logger: slogDefault()})
+	seed := func(name, driver, mode string) string {
+		t.Helper()
+		id, err := Create(db, name, driver, "db.example.lan", 0, "app", "", true, false, false, false, "", mode)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+
+	for _, tc := range []struct {
+		name, driver, stored string
+		req                  UpdateRequest
+		want                 error
+	}{
+		// The admin API echoes the stored mode, so a driver switch arrives with it.
+		{"pg-prefer-to-mysql", "postgres", "prefer", UpdateRequest{Driver: "mysql", SSLMode: "prefer"}, ErrSSLModeInvalid},
+		{"pg-prefer-to-mysql-no-mode", "postgres", "prefer", UpdateRequest{Driver: "mysql"}, ErrSSLModeInvalid},
+		{"sqlite-empty-to-mysql", "sqlite", "", UpdateRequest{Driver: "mysql"}, ErrSSLModeRequired},
+		// First step of the sqlite smuggle: a changed mode is checked for every driver.
+		{"sqlite-mode-smuggle", "sqlite", "disable", UpdateRequest{SSLMode: "whatever"}, ErrSSLModeInvalid},
+		// Second step against a row that already holds such a value.
+		{"sqlite-whatever-to-mysql", "sqlite", "whatever", UpdateRequest{Driver: "mysql", SSLMode: "whatever"}, ErrSSLModeInvalid},
+	} {
+		id := seed(tc.name, tc.driver, tc.stored)
+		before, err := GetByID(db, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := tc.req
+		req.ID, req.Name, req.AllowRead = id, tc.name, true
+		if err := svc.Update(req); !errors.Is(err, tc.want) {
+			t.Fatalf("%s: Update() error = %v, want %v", tc.name, err, tc.want)
+		}
+		if after, err := GetByID(db, id); err != nil || after != before {
+			t.Fatalf("%s: row changed by rejected update:\nbefore=%+v\nafter =%+v (%v)", tc.name, before, after, err)
+		}
+	}
+
+	switched := seed("pg-prefer-explicit", "postgres", "prefer")
+	if err := svc.Update(UpdateRequest{ID: switched, Name: "pg-prefer-explicit", Driver: "mysql", SSLMode: "require", AllowRead: true}); err != nil {
+		t.Fatalf("driver switch with an explicit valid mode: %v", err)
+	}
+	if stored, err := GetByID(db, switched); err != nil || stored.Driver != "mysql" || stored.SSLMode != "require" {
+		t.Fatalf("switched row = %+v (%v), want mysql/require", stored, err)
+	}
+
+	// A padded legacy value is echoed back unchanged and must not block edits.
+	padded := seed("padded", "mysql", "prefer ")
+	if err := svc.Update(UpdateRequest{ID: padded, Name: "padded", Description: "edited", SSLMode: "prefer ", AllowRead: true}); err != nil {
+		t.Fatalf("description edit of padded legacy row: %v", err)
+	}
+	if stored, err := GetByID(db, padded); err != nil || stored.SSLMode != "prefer " || stored.Description != "edited" {
+		t.Fatalf("padded row = %+v (%v), want ssl_mode %q kept", stored, err, "prefer ")
+	}
+}
+
 // slogDefault returns a logger for tests
 func slogDefault() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))

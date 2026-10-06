@@ -1157,7 +1157,7 @@ Content-Type: application/json
 }
 ```
 
-Für `postgres` und `mysql` ist `ssl_mode` Pflicht und muss einer der Werte `disable`, `require`, `verify-ca`, `verify-full` sein; ein fehlender oder anderer Wert wird mit `400` abgelehnt. Ein `PUT`, der `ssl_mode` ändert, wird gegen dieselben vier Werte geprüft.
+Für `postgres` und `mysql` ist `ssl_mode` Pflicht und muss einer der kleingeschriebenen Werte `disable`, `require`, `verify-ca`, `verify-full` sein; ein fehlender oder anderer Wert wird mit `400` abgelehnt. Ein `PUT`, der `ssl_mode` ändert oder `driver` auf `postgres`/`mysql` umstellt, wird gegen dieselben vier Werte geprüft.
 
 **Antwort:** `201 Created`
 ```json

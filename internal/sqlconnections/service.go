@@ -204,6 +204,7 @@ func (s *Service) Update(req UpdateRequest) error {
 	var newVaultSecretID string
 
 	// Apply field updates
+	originalDriver := existing.Driver
 	if req.Name != "" {
 		existing.Name = req.Name
 	}
@@ -222,12 +223,31 @@ func (s *Service) Update(req UpdateRequest) error {
 	if req.Description != "" {
 		existing.Description = req.Description
 	}
-	// Only a changed TLS mode is validated: callers echo the stored value on
-	// every edit, and stored rows must stay editable and untouched.
-	if mode := strings.TrimSpace(req.SSLMode); mode != "" && mode != existing.SSLMode {
-		if networkDriver(existing.Driver) && !validSSLMode(mode) {
-			return fmt.Errorf("%w (got %q)", ErrSSLModeInvalid, mode)
+	// Callers echo the stored TLS mode on every edit, so an unchanged mode on an
+	// unchanged driver is left alone (stored rows stay editable and untouched).
+	// A changed mode must be supported whatever the driver, so it cannot be
+	// parked on SQLite first; switching to PostgreSQL/MySQL validates the
+	// resulting mode, so a legacy or empty value cannot ride along.
+	storedMode := strings.TrimSpace(existing.SSLMode)
+	mode := strings.TrimSpace(req.SSLMode)
+	modeChanged := mode != "" && mode != storedMode
+	if modeChanged && !validSSLMode(mode) {
+		return fmt.Errorf("%w (got %q)", ErrSSLModeInvalid, mode)
+	}
+	if existing.Driver != originalDriver && networkDriver(existing.Driver) {
+		resulting := storedMode
+		if modeChanged {
+			resulting = mode
 		}
+		if resulting == "" {
+			return fmt.Errorf("%w for %s connections (use disable only for local containers)", ErrSSLModeRequired, existing.Driver)
+		}
+		if !validSSLMode(resulting) {
+			return fmt.Errorf("%w (got %q)", ErrSSLModeInvalid, resulting)
+		}
+		existing.SSLMode = resulting
+	}
+	if modeChanged {
 		existing.SSLMode = mode
 	}
 	// Permission flags - only update if explicitly set (allow false to be intentional)

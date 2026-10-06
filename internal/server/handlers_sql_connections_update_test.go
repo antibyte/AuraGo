@@ -336,6 +336,64 @@ func TestHandleSQLConnectionUpdateValidatesChangedSSLMode(t *testing.T) {
 	}
 }
 
+func TestHandleSQLConnectionUpdateChecksModeOnDriverSwitch(t *testing.T) {
+	t.Parallel()
+
+	metaDB, err := sqlconnections.InitDB(filepath.Join(t.TempDir(), "sqlconnections.db"))
+	if err != nil {
+		t.Fatalf("InitDB() error = %v", err)
+	}
+	defer metaDB.Close()
+	s := &Server{SQLConnectionsDB: metaDB}
+	seed := func(name, driver, mode string) string {
+		t.Helper()
+		id, err := sqlconnections.Create(metaDB, name, driver, "db.example.lan", 0, "app", "", true, false, false, false, "", mode)
+		if err != nil {
+			t.Fatalf("Create(%s) error = %v", name, err)
+		}
+		return id
+	}
+	put := func(id string, payload map[string]interface{}) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(payload)
+		rec := httptest.NewRecorder()
+		handleSQLConnectionByID(s)(rec, httptest.NewRequest(http.MethodPut, "/api/sql-connections/"+id, bytes.NewReader(body)))
+		return rec
+	}
+
+	for _, tc := range []struct {
+		name, driver, stored, wantMessage string
+		payload                           map[string]interface{}
+	}{
+		{"Postgres prefer", "postgres", "prefer", "ssl_mode must be one of", map[string]interface{}{"driver": "mysql"}},
+		{"SQLite empty", "sqlite", "", "ssl_mode is required for mysql connections", map[string]interface{}{"driver": "mysql"}},
+		{"SQLite smuggle", "sqlite", "disable", "ssl_mode must be one of", map[string]interface{}{"ssl_mode": "whatever"}},
+	} {
+		id := seed(tc.name, tc.driver, tc.stored)
+		before, err := sqlconnections.GetByID(metaDB, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := put(id, tc.payload)
+		if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), tc.wantMessage) {
+			t.Fatalf("%s: status = %d, body = %s; want 400 with %q", tc.name, rec.Code, rec.Body.String(), tc.wantMessage)
+		}
+		if after, err := sqlconnections.GetByID(metaDB, id); err != nil || after != before {
+			t.Fatalf("%s: row changed by rejected update:\nbefore=%+v\nafter =%+v (%v)", tc.name, before, after, err)
+		}
+	}
+
+	for _, mode := range []string{"prefer", "prefer "} {
+		id := seed("Legacy "+mode+"|", "postgres", mode)
+		if rec := put(id, map[string]interface{}{"description": "edited"}); rec.Code != http.StatusOK {
+			t.Fatalf("description edit of legacy %q row: status = %d, body = %s", mode, rec.Code, rec.Body.String())
+		}
+		stored, err := sqlconnections.GetByID(metaDB, id)
+		if err != nil || stored.SSLMode != mode || stored.Description != "edited" {
+			t.Fatalf("legacy %q row after edit = %+v (%v)", mode, stored, err)
+		}
+	}
+}
+
 func TestHandleSQLConnectionCreateUsesPermissionDefaults(t *testing.T) {
 	t.Parallel()
 
