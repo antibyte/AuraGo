@@ -25,15 +25,19 @@ type newspaperCandidate struct {
 
 // Dependencies are per run, so fixtures do not replace global network clients.
 type newspaperResearchIO struct {
-	Capabilities func() newspaperResearchCapabilities
-	Limits       func() (int, int)
-	Spending     func() *newspaperSpendingBudget
-	Search       func(context.Context, string, newspaperQuery, string) (newspaperSearchBatch, error)
-	Feed         func(context.Context, string) ([]newspaperHit, error)
-	Fetch        func(context.Context, string) (*scraper.ScrapeResult, error)
-	Complete     newspaperCompletionFunc
-	Wait         func(context.Context, time.Duration) error
-	Recent       []newspaper.Edition
+	Capabilities        func() newspaperResearchCapabilities
+	Limits              func() (int, int)
+	Budget              *newspaper.Budget
+	LiveBudget          func() newspaper.Budget
+	OverviewSources     []string
+	LiveOverviewSources func() []string
+	Spending            func() *newspaperSpendingBudget
+	Search              func(context.Context, string, newspaperQuery, string) (newspaperSearchBatch, error)
+	Feed                func(context.Context, string) ([]newspaperHit, error)
+	Fetch               func(context.Context, string) (*scraper.ScrapeResult, error)
+	Complete            newspaperCompletionFunc
+	Wait                func(context.Context, time.Duration) error
+	Recent              []newspaper.Edition
 }
 
 type newspaperResearchRun struct {
@@ -56,6 +60,13 @@ type newspaperResearchRun struct {
 	domains                           map[string]int
 	cursor                            int
 	complete                          newspaperCompletionFunc
+	budget                            newspaper.Budget
+	round                             int
+	firstDeadline                     time.Time
+	deferred                          []newspaperArticle
+	associations                      map[string][]newspaperQuery
+	overviewLeads                     []newspaperOverviewLead
+	overviewSeen                      map[string]bool
 }
 
 func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cutoff time.Time, progress func(newspaper.Progress)) (newspaper.Draft, error) {
@@ -65,16 +76,28 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 		return newspaper.Draft{}, fmt.Errorf("newspaper research unavailable: %s", caps.Reason)
 	}
 	client := s.LLMClient
+	budget := newspaperBudget(cfg, p)
+	if snapshot, ok := newspaper.BudgetFromContext(ctx); ok {
+		budget = snapshot
+	}
 	deps := newspaperResearchIO{
+		Budget: &budget, OverviewSources: append([]string(nil), cfg.Newspaper.OverviewSources...),
+		LiveOverviewSources: func() []string {
+			live := s.ConfigSnapshot()
+			if live == nil {
+				return nil
+			}
+			return live.Newspaper.OverviewSources
+		},
 		Capabilities: func() newspaperResearchCapabilities {
 			return resolveNewspaperCapabilities(s.ConfigSnapshot(), p, s.newspaperSkillReady, client != nil)
 		},
-		Limits: func() (int, int) {
+		LiveBudget: func() newspaper.Budget {
 			live := s.ConfigSnapshot()
 			if live == nil {
-				return 0, 0
+				return newspaper.Budget{}
 			}
-			return newspaperPageLimit(live.Newspaper.MaxPages), live.Newspaper.EffectiveMaxSearches()
+			return newspaperBudget(live, p)
 		},
 		Feed: fetchNewspaperFeed,
 		Fetch: func(ctx context.Context, raw string) (*scraper.ScrapeResult, error) {
@@ -116,34 +139,56 @@ func (s *Server) newspaperResearch(ctx context.Context, p newspaper.Profile, cut
 	if s.Newspaper != nil {
 		deps.Recent, _ = s.Newspaper.List(ctx, 7)
 	}
-	minutes := cfg.Newspaper.MaxMinutes
-	if minutes < 1 || minutes > 60 {
-		minutes = 30
-	}
-	work, cancel := context.WithTimeout(ctx, time.Duration(minutes)*time.Minute)
+	work, cancel := context.WithTimeout(ctx, time.Duration(budget.Minutes)*time.Minute)
 	defer cancel()
-	return runNewspaperResearch(work, p, cutoff, newspaperPageLimit(cfg.Newspaper.MaxPages), cfg.Newspaper.EffectiveMaxSearches(), deps, progress)
-}
-
-func newspaperPageLimit(limit int) int {
-	if limit < 1 || limit > 60 {
-		return 60
-	}
-	return limit
+	return runNewspaperResearch(work, p, cutoff, budget.Pages, budget.Searches, deps, progress)
 }
 
 func runNewspaperResearch(ctx context.Context, p newspaper.Profile, cutoff time.Time, maxPages, maxSearches int, deps newspaperResearchIO, progress func(newspaper.Progress)) (newspaper.Draft, error) {
+	budget := newspaper.ResolveBudget(p, newspaper.BudgetConfig{MaxPages: maxPages, MaxSearches: maxSearches})
+	if deps.Budget != nil {
+		budget = *deps.Budget
+	}
+	ctx, stopDeadline := context.WithTimeout(ctx, time.Duration(budget.Minutes)*time.Minute)
+	defer stopDeadline()
+	// A live time-limit reduction may stop research, but it is not an explicit
+	// user cancellation of the service's publication context.
+	if deps.LiveBudget != nil {
+		liveCtx, stop := context.WithCancelCause(ctx)
+		defer stop(nil)
+		ctx = liveCtx
+		started := time.Now()
+		go func() {
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+			minutes := budget.Minutes
+			for {
+				select {
+				case <-liveCtx.Done():
+					return
+				case <-ticker.C:
+					minutes = min(minutes, deps.LiveBudget().Minutes)
+					if time.Since(started) >= time.Duration(minutes)*time.Minute {
+						stop(context.DeadlineExceeded)
+						return
+					}
+				}
+			}
+		}()
+	}
 	r := &newspaperResearchRun{
 		profile: p, topics: newspaperTopics(p), cutoff: cutoff, initial: deps.Capabilities(), io: deps, progress: progress,
-		maxPages: maxPages, maxSearches: maxSearches, maxStories: map[string]int{"brief": 6, "standard": 12, "in_depth": 16}[p.Length],
 		stats: newspaper.ResearchStats{Rejected: map[string]int{}, Coverage: map[string]int{}, Tools: map[string]string{}},
 		draft: newspaper.Draft{Stories: []newspaper.Story{}, Sources: []newspaper.Source{}},
 		seen:  map[[32]byte]bool{}, recent: map[string]bool{}, titles: map[string]bool{}, contents: map[[32]byte]bool{},
 		searched: map[string]bool{}, unavailable: map[string]bool{}, nextSearch: map[string]time.Time{}, domains: map[string]int{},
+		budget: budget, associations: map[string][]newspaperQuery{}, overviewSeen: map[string]bool{},
 	}
-	if r.maxStories == 0 {
-		r.maxStories = 12
-	}
+	r.maxPages, r.maxSearches, r.maxStories = budget.Pages, budget.Searches, budget.Stories
+	r.stats.Budget = &budget
+	r.stats.Rounds = make([]newspaper.ResearchCounts, 2)
+	r.stats.Rounds[0].Round, r.stats.Rounds[1].Round = 1, 2
+	r.stats.Topics = map[string]newspaper.ResearchCounts{}
 	if deps.Wait == nil {
 		r.io.Wait = newspaperWait
 	}
@@ -175,25 +220,16 @@ func runNewspaperResearch(ctx context.Context, p newspaper.Profile, cutoff time.
 	now := time.Now()
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = now.Add(30 * time.Minute)
+		deadline = now.Add(time.Duration(budget.Minutes) * time.Minute)
 	}
 	discovery, stopDiscovery := context.WithDeadline(ctx, now.Add(deadline.Sub(now)*4/5))
 	defer stopDiscovery()
-	r.feeds(discovery)
-	for round := 0; round < 2; round++ {
-		missing := r.missingTopics()
-		if len(missing) == 0 && len(r.draft.Stories) >= r.maxStories {
-			break
-		}
-		if len(missing) == 0 {
-			missing = r.topics
-		}
-		r.discover(discovery, missing, round)
-		r.readAndWrite(ctx, discovery, round)
-		if ctx.Err() != nil || !r.io.Capabilities().Ready {
-			break
-		}
-	}
+	r.firstDeadline = now.Add(deadline.Sub(now) / 2)
+	first, stopFirst := context.WithDeadline(discovery, r.firstDeadline)
+	r.overviews(first, 0)
+	r.discover(first, r.topics, 0)
+	stopFirst()
+	r.readAndWrite(ctx, discovery, 0)
 	r.stats.Gaps = []string{}
 	for _, topic := range r.missingTopics() {
 		label := topic.ID
@@ -208,13 +244,13 @@ func runNewspaperResearch(ctx context.Context, p newspaper.Profile, cutoff time.
 		return r.draft, errors.New("research permission revoked")
 	}
 	if ctx.Err() != nil {
-		return r.draft, ctx.Err()
+		return r.draft, context.Cause(ctx)
 	}
 	if len(r.draft.Stories) == 0 {
 		if r.spendingBlocked() {
 			return r.draft, errors.New("provider spending policy blocks research")
 		}
-		return r.draft, fmt.Errorf("no verified articles (%d candidates, %d pages read; model errors: %d, invalid JSON: %d, evidence or draft rejections: %d)", r.stats.Candidates, r.stats.Read, r.stats.Rejected["model_error"], r.stats.Rejected["invalid_json"], r.stats.Rejected["invalid_draft"])
+		return r.draft, fmt.Errorf("no verified articles (%d candidates, %d pages read; model errors: %d, invalid JSON: %d, evidence or draft rejections: %d)", r.stats.Candidates, r.stats.Read, r.stats.Rejected["model_error"], r.stats.Rejected["json_invalid"]+r.stats.Rejected["json_empty"]+r.stats.Rejected["json_truncated"], r.stats.Rejected["invalid_structure"]+r.stats.Rejected["quote_missing"]+r.stats.Rejected["quote_mismatch"])
 	}
 	return r.draft, newspaper.ValidateDraft(r.draft, p, time.Now().UTC())
 }
@@ -228,16 +264,50 @@ func (r *newspaperResearchRun) limits() {
 		pages, searches := r.io.Limits()
 		r.maxPages, r.maxSearches = min(r.maxPages, pages), min(r.maxSearches, searches)
 	}
+	if r.io.LiveBudget != nil {
+		live := r.io.LiveBudget()
+		if live.SharedPages && !r.budget.SharedPages {
+			r.stats.Pages += r.stats.Overviews
+			r.budget.SharedPages = true
+		}
+		r.maxPages, r.maxSearches = min(r.maxPages, live.Pages), min(r.maxSearches, live.Searches)
+		r.maxStories = min(r.maxStories, live.Stories)
+		r.budget.Overviews = min(r.budget.Overviews, live.Overviews)
+		r.budget.Candidates = min(r.budget.Candidates, live.Candidates)
+		r.budget.EditorCalls = min(r.budget.EditorCalls, live.EditorCalls)
+	}
 }
 
 func (r *newspaperResearchRun) canSearch(ctx context.Context) bool {
 	r.limits()
-	return ctx.Err() == nil && !r.spendingBlocked() && r.io.Capabilities().Ready && r.stats.Searches < r.maxSearches
+	limit := r.maxSearches
+	if r.round == 0 {
+		limit -= (2*limit + 4) / 5
+	}
+	return r.canRead(ctx) && r.io.Capabilities().Ready && r.stats.Searches < limit
 }
 
 func (r *newspaperResearchRun) canRead(ctx context.Context) bool {
 	r.limits()
-	return ctx.Err() == nil && !r.spendingBlocked() && r.allowed("web_scraper") && r.stats.Pages < r.maxPages
+	if r.budget.EditorCalls > 0 && r.stats.EditorCalls >= r.budget.EditorCalls-max(0, min(r.budget.Topics, r.budget.Stories)-r.stats.Repairs) {
+		return false
+	}
+	limit := r.maxPages
+	if r.round == 0 {
+		limit -= (2*limit + 4) / 5
+	}
+	return ctx.Err() == nil && !r.spendingBlocked() && r.allowed("web_scraper") && r.stats.Pages < limit
+}
+
+func (r *newspaperResearchRun) canOverview(ctx context.Context) bool {
+	return r.canRead(ctx) && r.allowed("rss") && r.stats.Overviews < r.budget.Overviews
+}
+
+func (r *newspaperResearchRun) recordOverview() {
+	r.stats.Overviews++
+	if r.budget.SharedPages {
+		r.stats.Pages++
+	}
 }
 
 func (r *newspaperResearchRun) spendingBlocked() bool {
@@ -271,7 +341,23 @@ func (r *newspaperResearchRun) admit(candidate newspaperCandidate) {
 		r.reject("unsafe_url")
 		return
 	}
+	if newspaperAggregatorURL(canonical) {
+		r.reject("overview")
+		return
+	}
 	fingerprint := sha256.Sum256([]byte(canonical))
+	if r.associations == nil {
+		r.associations = map[string][]newspaperQuery{}
+	}
+	associated := false
+	for _, q := range r.associations[canonical] {
+		if q.Topic == candidate.Query.Topic {
+			associated = true
+		}
+	}
+	if !associated && len(r.associations[canonical]) < len(r.topics) {
+		r.associations[canonical] = append(r.associations[canonical], candidate.Query)
+	}
 	if r.seen[fingerprint] || r.recent[canonical] {
 		r.reject("duplicate")
 		return
@@ -285,14 +371,18 @@ func (r *newspaperResearchRun) admit(candidate newspaperCandidate) {
 		return
 	}
 	// A broad feed or query must leave space for every other selected topic.
-	perTopic := max(1, newspaperCandidateLimit/max(1, len(r.topics)))
+	limit := r.budget.Candidates
+	if limit == 0 {
+		limit = newspaperCandidateLimit
+	}
+	perTopic := max(1, limit/max(1, len(r.topics)))
 	count := 0
 	for _, item := range r.pending {
 		if item.Query.Topic == candidate.Query.Topic {
 			count++
 		}
 	}
-	if len(r.pending) >= newspaperCandidateLimit || count >= perTopic {
+	if len(r.pending) >= limit || count >= perTopic {
 		r.reject("candidate_limit")
 		return
 	}

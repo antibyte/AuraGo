@@ -64,7 +64,7 @@ func TestNewspaperForeignOriginalsRetainSelectedInterests(t *testing.T) {
 	}
 	var stats *newspaper.ResearchStats
 	draft, err := runNewspaperResearch(context.Background(), p, time.Now(), 15, 8, deps, func(v newspaper.Progress) { stats = v.Research })
-	if err != nil || len(draft.Stories) != 4 || stats.Coverage["interest:0"] != 2 || stats.Coverage["interest:1"] != 2 || stats.Rejected["invalid_draft"] != 2 || len(seenTopics) != 2 {
+	if err != nil || len(draft.Stories) != 4 || stats.Coverage["interest:0"] != 2 || stats.Coverage["interest:1"] != 2 || stats.Rejected["editorial_decline"] != 2 || len(seenTopics) != 2 {
 		t.Fatalf("foreign interest research: stories=%d stats=%+v topics=%v err=%v", len(draft.Stories), stats, seenTopics, err)
 	}
 }

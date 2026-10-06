@@ -8,7 +8,7 @@ import (
 )
 
 // Search and feed metadata are leads until an original page is read.
-type newspaperHit struct{ Title, URL, Published, Description string }
+type newspaperHit struct{ Title, URL, Published, Description, Publisher string }
 type newspaperQuery struct {
 	Section  string `json:"-"`
 	Topic    string `json:"topic"`
