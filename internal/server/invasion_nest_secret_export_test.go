@@ -104,3 +104,36 @@ func TestNestReadsReturnTheExportSetting(t *testing.T) {
 		t.Fatalf("list = %s, want export_nest_secret true (the UI edits from the list)", rec.Body.String())
 	}
 }
+
+func TestListNestsReturnsTheRealExportSettingPerNest(t *testing.T) {
+	s := newInvasionTLSTestServer(t)
+	// A nest migrated from before the option (export_nest_secret = 1) and a
+	// nest created through the API without the field.
+	grandfathered, err := invasion.CreateNest(s.InvasionDB, invasion.NestRecord{Name: "grandfathered", AccessType: "ssh", Host: "10.0.0.5", Port: 22,
+		Active: true, DeployMethod: "ssh", VaultSecretID: "nest_old", ExportNestSecret: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := createNestForExport(t, s, nil)
+	rec := httptest.NewRecorder()
+	handleInvasionNests(s)(rec, httptest.NewRequest(http.MethodGet, "/api/invasion/nests", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var nests []struct {
+		ID               string `json:"id"`
+		ExportNestSecret *bool  `json:"export_nest_secret"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &nests); err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]*bool{}
+	for _, n := range nests {
+		got[n.ID] = n.ExportNestSecret
+	}
+	for id, want := range map[string]bool{grandfathered: true, fresh: false} {
+		if v := got[id]; v == nil || *v != want {
+			t.Fatalf("nest %s: export_nest_secret missing or not %v in the list (body %s)", id, want, rec.Body.String())
+		}
+	}
+}
