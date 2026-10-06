@@ -586,6 +586,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if dockerRequestTargetsAuraGoApp(req) {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
 			}
+			if dockerRequestCreatesReservedGarageName(req) {
+				return dockerAgentError("docker_managed_garage_resource", "The container name is reserved for AuraGo's managed Boring Computers Garage. Choose another name.")
+			}
 			var createCommand []string
 			var createRestart string
 			var createOptions tools.ContainerCreateOptions
@@ -1570,6 +1573,13 @@ func dockerRequestTargetsAuraGoApp(req dockerArgs) bool {
 	return false
 }
 
+// dockerRequestCreatesReservedGarageName blocks create/run of the managed
+// Garage container name. The ownership check matches reserved names only for
+// targetContainerID, which prefers container_id; this covers req.Name.
+func dockerRequestCreatesReservedGarageName(req dockerArgs) bool {
+	return dockerCreateRunOperation(req.Operation) && dockerutil.IsBoringGarageContainerName(req.Name)
+}
+
 func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {
 	operation := strings.ToLower(strings.TrimSpace(req.Operation))
 	switch operation {
@@ -1577,6 +1587,11 @@ func dockerRequestTargetsManagedHomepage(req dockerArgs) bool {
 		"remove", "rm", "logs", "exec", "stats", "top", "port", "cp", "copy",
 		"connect", "disconnect", "create", "create_container", "run":
 		if dockerutil.IsHomepageContainerName(req.targetContainerID()) {
+			return true
+		}
+		// create/run name the new container in req.Name; a container_id next
+		// to it must not hide a reserved name.
+		if dockerCreateRunOperation(operation) && dockerutil.IsHomepageContainerName(req.Name) {
 			return true
 		}
 	}

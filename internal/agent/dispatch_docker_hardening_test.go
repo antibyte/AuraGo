@@ -51,6 +51,21 @@ func TestDispatchDockerCreateRunHardeningBlocksBeforeDocker(t *testing.T) {
 			code: "docker_managed_homepage_resource",
 		},
 		{
+			name: "reserved homepage create name behind decoy container_id",
+			call: ToolCall{Action: "docker", Operation: "create", ContainerID: "decoy", Name: "aurago-homepage", Image: "alpine:latest"},
+			code: "docker_managed_homepage_resource",
+		},
+		{
+			name: "reserved garage run name behind decoy container_id",
+			call: ToolCall{Action: "docker", Operation: "run", ContainerID: "decoy", Name: "aurago-boring-garage", Image: "alpine:latest"},
+			code: "docker_managed_garage_resource",
+		},
+		{
+			name: "reserved garage create name",
+			call: ToolCall{Action: "docker", Operation: "create", Name: "aurago-boring-garage", Image: "alpine:latest"},
+			code: "docker_managed_garage_resource",
+		},
+		{
 			name: "reserved homepage image",
 			call: ToolCall{Action: "docker", Operation: "run", Name: "test-homepage", Image: "registry.test/team/aurago-homepage:v1"},
 			code: "docker_managed_homepage_resource",

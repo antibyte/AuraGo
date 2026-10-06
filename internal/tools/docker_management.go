@@ -51,6 +51,9 @@ func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env 
 	if acestep.IsResourceName(name) || dockerutil.IsLocalLLMContainerName(name) {
 		return errJSON("reserved AuraGo local LLM container name")
 	}
+	if dockerutil.IsBoringGarageContainerName(name) || dockerutil.IsHomepageContainerName(name) || dockerutil.IsAuraGoAppContainerName(name) {
+		return errJSON("reserved AuraGo managed container name")
+	}
 
 	for _, bind := range volumes {
 		if err := validateDockerBindMount(cfg, bind); err != nil {

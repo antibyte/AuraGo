@@ -292,3 +292,37 @@ func prependFakeCommandsToPath(t *testing.T, names ...string) string {
 func shellQuoteDockerSecurityTest(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
+
+func TestDockerCreateContainerRejectsReservedManagedNames(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	var created []string
+	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create") {
+			created = append(created, r.URL.Query().Get("name"))
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"created-id"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+	cfg := DockerConfig{Host: host}
+	for _, name := range []string{"aurago-boring-garage", "aurago-homepage", "aurago-homepage-web", "aurago", "stack-aurago-1"} {
+		result := DockerCreateContainerWithOptions(cfg, name, "alpine:latest", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
+		if !strings.Contains(result, "reserved AuraGo managed container name") {
+			t.Fatalf("%s: result = %s, want reserved-name denial", name, result)
+		}
+	}
+	if len(created) != 0 {
+		t.Fatalf("reserved names reached Docker: %v", created)
+	}
+	// Code Studio and OpenSCAD create through this function and must keep working.
+	for _, name := range []string{"aurago-code-studio", "aurago-openscad"} {
+		result := DockerCreateContainerWithOptions(cfg, name, "alpine:latest", nil, nil, nil, nil, "no", nil, ContainerCreateOptions{})
+		if !strings.Contains(result, `"status":"ok"`) {
+			t.Fatalf("%s: result = %s, want ok", name, result)
+		}
+	}
+	if len(created) != 2 {
+		t.Fatalf("created = %v, want the two desktop containers", created)
+	}
+}
