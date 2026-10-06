@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"mime"
 	"net"
@@ -1295,15 +1296,15 @@ func handleAgodeskTTSAsset(s *Server) http.HandlerFunc {
 			dataDir = s.Cfg.Directories.DataDir
 			s.CfgMu.RUnlock()
 		}
-		ttsDir := tools.TTSAudioDir(dataDir)
-		target := filepath.Join(ttsDir, filename)
-		if !pathStaysWithinDir(ttsDir, target) {
+		f, info, err := openRegularFileInRoot(tools.TTSAudioDir(dataDir), filename)
+		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
+		defer f.Close()
 		w.Header().Set("Content-Type", chatVoiceAudioMIMEType(filename))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		http.ServeFile(w, r, target)
+		http.ServeContent(w, r, filename, info.ModTime(), f)
 	}
 }
 
@@ -1328,26 +1329,54 @@ func handleAgodeskMediaAsset(s *Server) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		target := filepath.Join(root, relPath)
-		if !pathStaysWithinDir(root, target) {
+		rel := filepath.ToSlash(relPath)
+		f, info, err := openRegularFileInRoot(root, rel)
+		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
-		if contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(target))); contentType != "" {
-			w.Header().Set("Content-Type", contentType)
+		defer f.Close()
+		filename := pathpkg.Base(rel)
+		contentType, err := agodeskMediaAssetContentType(filename, f)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
 		}
+		w.Header().Set("Content-Type", contentType)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "private, max-age=900")
 		if bucket == "documents" {
-			filename := filepath.Base(target)
 			disposition := "attachment"
 			if r.URL.Query().Get("inline") == "1" {
 				disposition = "inline"
 			}
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="%s"`, disposition, filename))
 		}
-		http.ServeFile(w, r, target)
+		http.ServeContent(w, r, filename, info.ModTime(), f)
 	}
+}
+
+// agodeskMediaAssetContentType returns the extension's type, else the type
+// sniffed from the first 512 bytes when it is passive media, PDF or plain text
+// (minimal Linux images ship no mime.types, so .mp3 or .mp4 have no extension
+// type there), else application/octet-stream: a signed URL never serves a file
+// without a known extension as HTML or XML. content is rewound afterwards.
+func agodeskMediaAssetContentType(filename string, content io.ReadSeeker) (string, error) {
+	if contentType := mime.TypeByExtension(strings.ToLower(pathpkg.Ext(filename))); contentType != "" {
+		return contentType, nil
+	}
+	var head [512]byte
+	n, _ := io.ReadFull(content, head[:])
+	if _, err := content.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	sniffed := http.DetectContentType(head[:n])
+	for _, prefix := range []string{"image/", "audio/", "video/", "text/plain;", "application/pdf", "application/ogg"} {
+		if strings.HasPrefix(sniffed, prefix) {
+			return sniffed, nil
+		}
+	}
+	return "application/octet-stream", nil
 }
 
 func verifyAgodeskMediaAssetSignature(s *Server, r *http.Request, now time.Time) bool {

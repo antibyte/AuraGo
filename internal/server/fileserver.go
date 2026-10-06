@@ -141,6 +141,47 @@ type requestNamedInfo struct {
 
 func (i requestNamedInfo) Name() string { return i.name }
 
+// openRegularFileInRoot opens the slash-separated relative path rel under dir
+// without following any link, even one that stays inside dir: every component
+// is checked with Lstat through an os.Root. Symlinks are refused, intermediate
+// components must be directories (Windows junctions report as irregular files,
+// not directories) and the last component must pass isServableMode BEFORE it
+// is opened, so a FIFO is never opened (that would block). The opened file is
+// checked again with Stat. Names filepath.Localize rejects (NUL; on Windows
+// also backslashes, colons and reserved names such as CON) are refused too.
+// Every failure is os.ErrNotExist, so callers answer 404 without revealing
+// what exists. The root is closed on return; the caller closes the file.
+func openRegularFileInRoot(dir, rel string) (*os.File, fs.FileInfo, error) {
+	if _, err := filepath.Localize(rel); err != nil {
+		return nil, nil, os.ErrNotExist
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, nil, os.ErrNotExist
+	}
+	defer root.Close()
+	parts := strings.Split(rel, "/")
+	for i := range parts {
+		info, err := root.Lstat(strings.Join(parts[:i+1], "/"))
+		if err != nil || info.Mode()&fs.ModeSymlink != 0 {
+			return nil, nil, os.ErrNotExist
+		}
+		if last := i == len(parts)-1; (!last && !info.IsDir()) || (last && !isServableMode(info.Mode())) {
+			return nil, nil, os.ErrNotExist
+		}
+	}
+	f, err := root.Open(rel)
+	if err != nil {
+		return nil, nil, os.ErrNotExist
+	}
+	info, err := f.Stat()
+	if err != nil || !isServableMode(info.Mode()) {
+		f.Close()
+		return nil, nil, os.ErrNotExist
+	}
+	return f, info, nil
+}
+
 // readRootBoundFile reads the regular file at the slash-separated rel path
 // inside dir with the same rules as the /files/ mounts.
 func readRootBoundFile(dir, rel string) ([]byte, fs.FileInfo, error) {
