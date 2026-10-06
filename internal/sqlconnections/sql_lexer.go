@@ -150,3 +150,60 @@ func validateReadStructure(s string) error {
 	}
 	return nil
 }
+
+// sqlWriteDeniedFunctions name functions that reach the database server's file
+// system, dynamic loader, large-object store or operating system. The read path
+// refuses every non-allowlisted function; writes keep all ordinary functions but
+// never these. Grouped by the engine they belong to and retained for defence in
+// depth even on dialects where a given name is not callable.
+var sqlWriteDeniedFunctions = map[string]bool{
+	// PostgreSQL: server-side file reads, large-object import/export, server
+	// program execution and configuration reload.
+	"PG_READ_FILE": true, "PG_READ_BINARY_FILE": true, "PG_LS_DIR": true, "PG_STAT_FILE": true,
+	"PG_EXECUTE_SERVER_PROGRAM": true, "LO_IMPORT": true, "LO_EXPORT": true, "PG_RELOAD_CONF": true,
+	// MySQL/MariaDB file read, and SQLite extension loading, file read/write,
+	// directory listing and the external-editor hook.
+	"LOAD_FILE": true, "LOAD_EXTENSION": true, "READFILE": true, "WRITEFILE": true, "FSDIR": true, "EDIT": true,
+	// MSSQL / Oracle defence in depth: shell-out and OS job scheduling.
+	"XP_CMDSHELL": true, "SYS_EXEC": true, "SYS_EVAL": true, "DBMS_SCHEDULER.CREATE_JOB": true,
+}
+
+// sqlWriteDeniedPhrases name statement forms that export data off the server,
+// bulk-import into it, or extend/administer the engine. Matched as whole,
+// space-delimited words against the normalised, literal-stripped upper text so
+// identifiers such as OUTFILE_COUNT or a COPY_JOBS table never trigger.
+var sqlWriteDeniedPhrases = []string{
+	// MySQL/MariaDB file export and bulk import.
+	"OUTFILE", "DUMPFILE", "LOAD DATA", "LOAD XML",
+	// PostgreSQL bulk copy (also refused as a leading keyword by the classifier).
+	"COPY",
+	// Extension / procedural-language / aggregate / foreign-data / server and
+	// system administration.
+	"CREATE EXTENSION", "ALTER EXTENSION", "CREATE FUNCTION", "CREATE OR REPLACE FUNCTION",
+	"CREATE PROCEDURE", "CREATE OR REPLACE PROCEDURE", "CREATE LANGUAGE", "CREATE AGGREGATE",
+	"CREATE SERVER", "CREATE FOREIGN DATA WRAPPER", "ALTER SYSTEM",
+	// MySQL/MariaDB plugin and component loading.
+	"INSTALL PLUGIN", "INSTALL COMPONENT",
+}
+
+// validateWriteStructure rejects file, loader and administrative SQL in write
+// and DDL statements without constraining ordinary functions. Unlike the read
+// path it is a denylist: every ordinary write function and statement form keeps
+// working; only server-reaching names and forms are refused. It receives the
+// dialect-normalised, literal-stripped text, so function names and phrases that
+// appear only inside string literals do not match.
+func validateWriteStructure(s string) error {
+	upper := " " + strings.Join(strings.Fields(strings.ToUpper(s)), " ") + " "
+	for _, phrase := range sqlWriteDeniedPhrases {
+		if strings.Contains(upper, " "+phrase+" ") {
+			return fmt.Errorf("file, loader or administrative SQL is not allowed: %s", phrase)
+		}
+	}
+	for _, match := range sqlFunctionPattern.FindAllStringSubmatch(s, -1) {
+		name := strings.TrimPrefix(strings.ToUpper(match[1]), "PG_CATALOG.")
+		if sqlWriteDeniedFunctions[name] {
+			return fmt.Errorf("function %q is not allowed in write statements", match[1])
+		}
+	}
+	return nil
+}
