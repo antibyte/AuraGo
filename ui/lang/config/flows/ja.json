@@ -1,5 +1,5 @@
 {
-  "config.flows.agent_allow_publish": "エージェントはフローを公開できる",
+  "config.flows.agent_allow_publish": "エージェントによるフローの公開を許可",
   "config.flows.agent_note": "エージェントのオプションは、エージェントがフローを扱えるようになると有効になります。",
   "config.flows.agent_read_only": "エージェントはフローの読み取りのみ可能",
   "config.flows.ai_provider": "AI ステップ用の AI プロバイダー",
