@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -70,7 +71,16 @@ func dockerComposeConfigArgs(cfg DockerConfig, composeFile string, opts DockerCo
 // runDockerComposeConfig runs one `docker compose ... config` invocation and
 // keeps stdout and stderr apart. Tests replace it.
 var runDockerComposeConfig = func(ctx context.Context, args []string) ([]byte, []byte, error) {
-	cmd := dockerCLICommand(ctx, args...)
+	return runDockerComposeConfigCommand(dockerCLICommand(ctx, args...))
+}
+
+// runDockerComposeConfigMinimal is runDockerComposeConfig with the minimal
+// environment (DockerConfig.MinimalCLIEnvironment). Tests replace it.
+var runDockerComposeConfigMinimal = func(ctx context.Context, args []string) ([]byte, []byte, error) {
+	return runDockerComposeConfigCommand(dockerCLICommandFor(ctx, DockerConfig{MinimalCLIEnvironment: true}, args...))
+}
+
+func runDockerComposeConfigCommand(cmd *exec.Cmd) ([]byte, []byte, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

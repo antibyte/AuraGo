@@ -357,7 +357,7 @@ agent:
 
 `allow_unsafe_host_execution` ist eine bewusste Ausnahme: Ohne sie läuft Windows-Shell und Host-Python (auch Skills und Hintergrund-Jobs) nicht, unabhängig von `allow_shell`/`allow_python`. Details unter [Ausgehende Verbindungen und Host-Ausführung](#ausgehende-verbindungen-und-host-ausführung).
 
-`docker.allow_host_access` ist das Docker-Gegenstück zu diesen Gates: Es entscheidet, ob `docker compose up/create/build` des Agenten den Host nutzen darf (Binds außerhalb des Workspace, `/var/run/docker.sock`, Geräte, privilegierter Modus, Host-Namespaces). Bestehende Konfigurationen behalten `true`, neue Installationen starten mit `false`; der Sicherheitscheck warnt, solange es eingeschaltet ist. Details: [Docker Integration](08-integrations.md#docker-integration).
+`docker.allow_host_access` ist das Docker-Gegenstück zu diesen Gates: Es entscheidet, ob `docker compose up/create/build` des Agenten den Host nutzen darf (Binds außerhalb des Workspace, `/var/run/docker.sock`, Geräte, privilegierter Modus, Host-Namespaces). Bestehende Konfigurationen behalten `true`, neue Installationen starten mit `false`; der Sicherheitscheck warnt, solange es eingeschaltet ist. Ohne ihn läuft Compose des Agenten außerdem mit einer minimalen Umgebung ohne AuraGos Variablen. Details: [Docker Integration](08-integrations.md#docker-integration).
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Tools → Tool-Berechtigungen**.

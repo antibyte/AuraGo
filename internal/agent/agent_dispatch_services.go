@@ -659,6 +659,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
 			}
 			if req.Operation == "compose" {
+				// Without host access Compose and its preflight see only the
+				// variables they need, never AuraGo's environment (user decision
+				// 2026-10-06); grandfathered installs keep today's environment.
+				dockerCfg.MinimalCLIEnvironment = !dockerComposeHostAccessAllowed(ctx, cfg)
 				// A refused `config -o` target is cheap to find; check it before
 				// the preflight resolves the Compose file (up to three resolutions).
 				if denied := tools.DockerComposeOutputDenial(dockerCfg, req.Command); denied != "" {

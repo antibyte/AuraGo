@@ -28,6 +28,10 @@ import (
 type DockerConfig struct {
 	Host         string // e.g. "unix:///var/run/docker.sock", "npipe:////./pipe/docker_engine", or "tcp://localhost:2375"
 	WorkspaceDir string // workspace root for validating host-side file paths used by docker cp
+	// MinimalCLIEnvironment runs `docker compose` and its preflight resolution
+	// with dockerCLIMinimalEnvironment instead of AuraGo's whole environment.
+	// Agent dispatch sets it for compose while docker.allow_host_access is off.
+	MinimalCLIEnvironment bool
 }
 
 // dockerHTTPClient is a lazily-initialized shared Docker API client (60s timeout).

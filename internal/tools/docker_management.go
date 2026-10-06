@@ -676,7 +676,7 @@ func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
 		return errJSON("%v", err)
 	}
 	cmdArgs := dockerCLIArgs(cfg, args...)
-	cmd := dockerCLICommand(context.Background(), cmdArgs...)
+	cmd := dockerCLICommandFor(context.Background(), cfg, cmdArgs...)
 	out, err := cmd.CombinedOutput()
 
 	msg := string(out)
@@ -715,6 +715,58 @@ func dockerCLIEnvironment(env []string) []string {
 		out = append(out, entry)
 	}
 	return out
+}
+
+// dockerCLIMinimalVariables are the variables `docker compose` needs to find
+// the CLI, its plugins and credential helpers, the engine, a proxy, temporary
+// space and the locale. Names compare upper-case. DOCKER_* is not a blanket
+// prefix: other tools keep credentials there.
+var dockerCLIMinimalVariables = map[string]bool{
+	"PATH": true, "HOME": true, "USER": true, "LOGNAME": true,
+	"XDG_RUNTIME_DIR": true, "XDG_CONFIG_HOME": true, "DBUS_SESSION_BUS_ADDRESS": true, "SSH_AUTH_SOCK": true,
+	"TMPDIR": true, "TEMP": true, "TMP": true, "LANG": true, "LANGUAGE": true, "TZ": true, "TERM": true, "NO_COLOR": true,
+	"HTTP_PROXY": true, "HTTPS_PROXY": true, "NO_PROXY": true, "ALL_PROXY": true,
+	"DOCKER_HOST": true, "DOCKER_CONTEXT": true, "DOCKER_CONFIG": true, "DOCKER_CERT_PATH": true,
+	"DOCKER_TLS": true, "DOCKER_TLS_VERIFY": true, "DOCKER_API_VERSION": true, "DOCKER_DEFAULT_PLATFORM": true,
+	"DOCKER_BUILDKIT": true, "DOCKER_CLI_HINTS": true, "DOCKER_CLI_EXPERIMENTAL": true,
+	"DOCKER_CONTENT_TRUST": true, "DOCKER_CONTENT_TRUST_SERVER": true, "DOCKER_HIDE_LEGACY_COMMANDS": true,
+	"USERPROFILE": true, "HOMEDRIVE": true, "HOMEPATH": true, "APPDATA": true, "LOCALAPPDATA": true,
+	"PROGRAMDATA": true, "PROGRAMFILES": true, "PROGRAMFILES(X86)": true, "PROGRAMW6432": true,
+	"COMMONPROGRAMFILES": true, "COMMONPROGRAMFILES(X86)": true, "COMMONPROGRAMW6432": true,
+	"SYSTEMROOT": true, "SYSTEMDRIVE": true, "WINDIR": true, "COMSPEC": true, "PATHEXT": true, "OS": true,
+	"PROCESSOR_ARCHITECTURE": true, "NUMBER_OF_PROCESSORS": true, "USERNAME": true, "USERDOMAIN": true,
+	"COMPUTERNAME": true, "ALLUSERSPROFILE": true, "PUBLIC": true,
+}
+
+// dockerCLIMinimalPrefixes are the locale and Compose/BuildKit/Buildx settings.
+var dockerCLIMinimalPrefixes = []string{"LC_", "COMPOSE_", "BUILDKIT_", "BUILDX_"}
+
+// dockerCLIMinimalEnvironment keeps only the variables Compose needs; the
+// master key never passes (dockerCLIEnvironment runs first).
+func dockerCLIMinimalEnvironment(env []string) []string {
+	out := make([]string, 0, 24)
+	for _, entry := range dockerCLIEnvironment(env) {
+		name, _, _ := strings.Cut(entry, "=")
+		upper := strings.ToUpper(strings.TrimSpace(name))
+		keep := dockerCLIMinimalVariables[upper]
+		for _, prefix := range dockerCLIMinimalPrefixes {
+			keep = keep || strings.HasPrefix(upper, prefix)
+		}
+		if keep {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+// dockerCLICommandFor is dockerCLICommand with the environment cfg selects.
+// Without MinimalCLIEnvironment it is dockerCLICommand unchanged.
+func dockerCLICommandFor(ctx context.Context, cfg DockerConfig, args ...string) *exec.Cmd {
+	cmd := dockerCLICommand(ctx, args...)
+	if cfg.MinimalCLIEnvironment {
+		cmd.Env = dockerCLIMinimalEnvironment(os.Environ())
+	}
+	return cmd
 }
 
 func dockerCLIArgs(cfg DockerConfig, args ...string) []string {
@@ -931,7 +983,11 @@ func DockerComposeResolvedConfigContext(ctx context.Context, cfg DockerConfig, f
 	}
 	runCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	stdout, stderr, err := runDockerComposeConfig(runCtx, dockerComposeConfigArgs(cfg, composeFile, opts))
+	runner := runDockerComposeConfig
+	if cfg.MinimalCLIEnvironment {
+		runner = runDockerComposeConfigMinimal
+	}
+	stdout, stderr, err := runner(runCtx, dockerComposeConfigArgs(cfg, composeFile, opts))
 	if err != nil && ctx.Err() != nil {
 		return "", fmt.Errorf("resolve Compose config: %w", ctx.Err())
 	}

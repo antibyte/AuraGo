@@ -24,5 +24,5 @@
   "config.danger.unsafe_host_execution.title": "Unsafe host execution",
   "config.danger.unsafe_host_execution.desc": "Allows host Python and Windows shell without isolation. Every use is logged as a security warning. Enable only deliberately.",
   "config.danger.docker_host_access.title": "Docker host access for agent Compose stacks",
-  "config.danger.docker_host_access.desc": "Lets the agent use host paths outside its workspace (for example /var/run/docker.sock, /srv/media or /), devices, privileged mode, host network/PID/IPC/UTS/user/cgroup namespaces, cap_add and unconfined security options in docker compose up/create/build. AuraGo's own data, config, .env and master key stay blocked, but binding a parent such as / still exposes them."
+  "config.danger.docker_host_access.desc": "Lets the agent use host paths outside its workspace (for example /var/run/docker.sock, /srv/media or /), devices, privileged mode, host network/PID/IPC/UTS/user/cgroup namespaces, cap_add and unconfined security options in docker compose up/create/build. AuraGo's own data, config, .env and master key stay blocked, but binding a parent such as / still exposes them. With it, docker compose also sees AuraGo's environment variables; without it, Compose gets only PATH, HOME and the Docker, proxy and locale settings."
 }

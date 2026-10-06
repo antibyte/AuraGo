@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -627,5 +628,39 @@ func TestDockerComposePolicyWithoutWorkspaceRejectsParentsOfAuraGoState(t *testi
 	cfg.Docker.AllowHostAccess = true
 	if got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{}, req); got != "" {
 		t.Fatalf("parent bind blocked with host access: %s", got)
+	}
+}
+
+func TestDispatchDockerComposeUsesTheMinimalEnvironmentOnlyWithoutHostAccess(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  web:\n    image: alpine\n")
+	var minimal []bool
+	original := resolveDockerComposeConfig
+	t.Cleanup(func() { resolveDockerComposeConfig = original })
+	resolveDockerComposeConfig = func(_ context.Context, dockerCfg tools.DockerConfig, _ string, _ tools.DockerComposeConfigOptions) (string, error) {
+		minimal = append(minimal, dockerCfg.MinimalCLIEnvironment)
+		// The app container name stops the call after the preflight, before any CLI run.
+		return `{"services":{"web":{"image":"alpine","container_name":"aurago"}}}`, nil
+	}
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = workspace
+	useRuntimePermissionsForTest(t, cfg)
+	call := func() string {
+		output, _ := dispatchServices(context.Background(), ToolCall{Action: "docker", Operation: "compose", File: "compose.yml", Command: "up -d"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+		return output
+	}
+	if got := call(); !strings.Contains(got, "docker_managed_aurago_resource") {
+		t.Fatalf("dispatch output = %s", got)
+	}
+	if len(minimal) == 0 || slices.Contains(minimal, false) {
+		t.Fatalf("without host access every resolution must use the minimal environment: %v", minimal)
+	}
+	minimal = nil
+	cfg.Docker.AllowHostAccess = true
+	call()
+	if len(minimal) == 0 || slices.Contains(minimal, true) {
+		t.Fatalf("with host access (grandfathered) Compose must keep AuraGo's environment: %v", minimal)
 	}
 }
