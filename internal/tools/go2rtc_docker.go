@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -189,14 +190,8 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 		return fmt.Errorf("inspect go2rtc container returned HTTP %d", code)
 	}
 
-	if _, imageCode, imageErr := dockerRequest(dockerCfg, http.MethodGet, "/images/"+url.PathEscape(cfg.Image)+"/json", ""); imageErr != nil || imageCode != http.StatusOK {
-		_, pullCode, pullErr := dockerRequest(dockerCfg, http.MethodPost, "/images/create?fromImage="+url.QueryEscape(cfg.Image), "")
-		if pullErr != nil {
-			return fmt.Errorf("pull go2rtc image: %w", pullErr)
-		}
-		if pullCode != http.StatusOK && pullCode != http.StatusCreated {
-			return fmt.Errorf("pull go2rtc image returned HTTP %d", pullCode)
-		}
+	if err := ensureGo2RTCImage(ctx, dockerCfg, cfg.Image); err != nil {
+		return err
 	}
 
 	payload, err := m.go2RTCContainerPayload(cfg, configPath, password, fingerprint)
@@ -225,6 +220,34 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 	}
 	m.logger.Info("[go2rtc] Managed sidecar started", "container", cfg.ContainerName, "image", cfg.Image)
 	return m.waitForAPI(ctx)
+}
+
+// ensureGo2RTCImage pulls image unless the Engine already has it, reading the
+// progress stream to its end. The pull keeps the caller's context values but
+// not its deadline or cancellation: it ran on the 60-second request client
+// before and never honoured them, so a start request that ends early must not
+// abort a pull that works today. dockerPullFallbackTimeout bounds it.
+func ensureGo2RTCImage(ctx context.Context, dockerCfg DockerConfig, image string) error {
+	if _, imageCode, imageErr := dockerRequest(dockerCfg, http.MethodGet, "/images/"+url.PathEscape(image)+"/json", ""); imageErr == nil && imageCode == http.StatusOK {
+		return nil
+	}
+	if err := requireDockerMutationPermission(); err != nil {
+		return fmt.Errorf("pull go2rtc image: %w", err)
+	}
+	err := pullDockerImageStream(detachedPullContext(ctx), dockerCfg, image)
+	var pullErr *dockerPullError
+	switch {
+	case err == nil:
+		return nil
+	case !errors.As(err, &pullErr):
+		return fmt.Errorf("pull go2rtc image: %w", err)
+	case pullErr.StatusCode != 0 && pullErr.Message != "":
+		return fmt.Errorf("pull go2rtc image returned HTTP %d: %s", pullErr.StatusCode, pullErr.Message)
+	case pullErr.StatusCode != 0:
+		return fmt.Errorf("pull go2rtc image returned HTTP %d", pullErr.StatusCode)
+	default:
+		return fmt.Errorf("pull go2rtc image: %w", pullErr.Err)
+	}
 }
 
 func (m *Go2RTCManager) waitForAPI(ctx context.Context) error {

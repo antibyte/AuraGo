@@ -474,8 +474,15 @@ func ensureManifestContainerWithRecreate(ctx context.Context, dockerCfg DockerCo
 	} else if code != http.StatusNotFound {
 		return fmt.Errorf("inspect container %q returned HTTP %d", containerName, code)
 	}
+	// The pull keeps today's independence from the caller's deadline (it ran on
+	// the request client) and today's "create anyway": the image check may have
+	// failed for an image that exists. Its error explains a failed create.
+	var pullErr error
 	if _, imgCode, imgErr := dockerRequest(dockerCfg, http.MethodGet, "/images/"+url.PathEscape(image)+"/json", ""); imgErr != nil || imgCode != http.StatusOK {
-		_, _, _ = dockerRequest(dockerCfg, http.MethodPost, "/images/create?fromImage="+url.QueryEscape(image), "")
+		pullErr = requireDockerMutationPermission()
+		if pullErr == nil {
+			pullErr = pullDockerImageStream(detachedPullContext(ctx), dockerCfg, image)
+		}
 	}
 	body, err := payload()
 	if err != nil {
@@ -486,6 +493,9 @@ func ensureManifestContainerWithRecreate(ctx context.Context, dockerCfg DockerCo
 		return createErr
 	}
 	if createCode != http.StatusCreated {
+		if pullErr != nil {
+			return fmt.Errorf("create container %q returned HTTP %d (image pull failed: %v)", containerName, createCode, pullErr)
+		}
 		return fmt.Errorf("create container %q returned HTTP %d", containerName, createCode)
 	}
 	_, startCode, startErr := dockerRequest(dockerCfg, http.MethodPost, "/containers/"+url.PathEscape(containerName)+"/start", "")
