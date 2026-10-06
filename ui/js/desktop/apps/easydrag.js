@@ -82,7 +82,9 @@
             const grid = inst.screen.el.querySelector('.ed-template-grid');
             if (grid) requestAnimationFrame(() => grid.parentElement.scrollIntoView({ block: 'start' }));
         }
-        if (typeof inst.ctx.updateWindowContext === 'function') inst.ctx.updateWindowContext(inst.windowId, { flowId: null });
+        // A notification's flow_id/run_id are cleared too: a later render from the window context
+        // must not route back to them (updateWindowContext merges, so null clears a key).
+        if (typeof inst.ctx.updateWindowContext === 'function') inst.ctx.updateWindowContext(inst.windowId, { flowId: null, flow_id: null, run_id: null });
         setHomeMenus(inst);
     }
 
@@ -98,8 +100,11 @@
             loaded = res;
         } catch (err) {
             if (nav !== inst.nav || !alive(inst)) return;
-            if (ED.core.errorCode(err) === 'FLOW_NOT_FOUND') {
-                inst.ctx.notify({ title: 'EasyDrag', message: ED.core.errorText(inst.t, err), type: 'error' });
+            // An unknown or malformed id (a stale route, a hand-edited session) goes to the start
+            // page; for the user both mean that the flow does not exist.
+            const code = ED.core.errorCode(err);
+            if (code === 'FLOW_NOT_FOUND' || code === 'FLOW_BAD_REQUEST') {
+                inst.ctx.notify({ title: 'EasyDrag', message: inst.t('easydrag.ui.error_flow_not_found'), type: 'error' });
                 showHome(inst);
             } else {
                 showError(inst, err);

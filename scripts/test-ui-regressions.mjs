@@ -2465,6 +2465,119 @@ function testWindowMenuShortcutHintIsDrawnButNotDispatched() {
   assert.deepEqual(ran, ['save', 'undo'], 'a real shortcut runs its item, and a click runs the hinted item');
 }
 
+// easyDragIds builds flow and run ids of the server's shape (flows.NewFlowID / NewRunID: a prefix
+// and 10 or 12 characters of a-z2-7); offset walks every character through every position.
+function easyDragIds(offset) {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
+  const suffix = n => Array.from({ length: n }, (_, i) => alphabet[(offset + i * 7) % alphabet.length]).join('');
+  return { flow: 'flow_' + suffix(10), run: 'run_' + suffix(12) };
+}
+
+// A clicked EasyDrag notification opens its flow and run; the shell keeps only ids of the server's
+// shape, and an invalid run id alone still opens the flow.
+function testEasyDragNotificationContextKeepsOnlyServerIds() {
+  const source = sourceBetween(read('ui/js/desktop/core/shell-chrome-runtime.js'), 'function notificationContext(', 'function pushNotificationRecord(');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${source}; globalThis.notificationContext = notificationContext;`, context);
+  // JSON copies the vm realm's objects into this one (deepEqual compares prototypes).
+  const keep = (appId, ctx) => JSON.parse(JSON.stringify(context.notificationContext({ appId, context: ctx }) ?? null));
+
+  for (let offset = 0; offset < 32; offset++) {
+    const { flow, run } = easyDragIds(offset);
+    assert.deepEqual(keep('easydrag', { flow_id: flow, run_id: run }), { flow_id: flow, run_id: run }, `server ids ${flow} ${run}`);
+  }
+  const { flow, run } = easyDragIds(3);
+  assert.deepEqual(keep('easydrag', { flow_id: flow }), { flow_id: flow }, 'a flow without a run');
+  assert.deepEqual(keep('easydrag', { flow_id: flow, run_id: run, extra: 'x', path: '/etc' }), { flow_id: flow, run_id: run }, 'other keys are dropped');
+  for (const badRun of ['run_short', run + 'a', run.toUpperCase(), 'run_' + 'a'.repeat(11) + '_', 42, { id: run }]) {
+    assert.deepEqual(keep('easydrag', { flow_id: flow, run_id: badRun }), { flow_id: flow }, `an invalid run id ${JSON.stringify(badRun)} keeps the flow`);
+  }
+  for (const badFlow of ['flow_abc', flow + 'a', flow.toUpperCase(), 'flow_ABCDEFGHIJ', 'flw_' + 'a'.repeat(10), '../flow_aaaaaaaaaa', '', 7, null]) {
+    assert.equal(keep('easydrag', { flow_id: badFlow, run_id: run }), null, `an invalid flow id ${JSON.stringify(badFlow)} opens nothing`);
+  }
+  assert.equal(keep('easydrag', { run_id: run }), null, 'a run without a flow opens nothing');
+  assert.equal(keep('easydrag', undefined), null, 'no context');
+  assert.equal(keep('mission-control', { flow_id: flow, run_id: run }), null, 'another app keeps no flow ids');
+  const conversation = 'ab'.repeat(32);
+  assert.deepEqual(keep('meshcore', { conversation_id: conversation, flow_id: flow }), { conversation_id: conversation }, 'MeshCore keeps its conversation only');
+}
+
+// The session keeps an EasyDrag window's flow: a valid flowId survives save and restore; any
+// other value is neither saved nor restored, so the window opens the start page.
+async function testEasyDragSessionKeepsOnlyValidFlowIds() {
+  const source = read('ui/js/desktop/core/session-runtime.js');
+  const helperSource = [
+    sourceBetween(source, 'const SESSION_SKIP_APP_IDS', 'let sessionPersistTimer'),
+    sourceBetween(source, 'function sanitizeSessionContext(', 'function scheduleSessionPersist('),
+    sourceBetween(source, 'function parseSessionSnapshot(', 'function parseDefaultAppsMap(')
+  ].join('\n');
+  const { flow, run } = easyDragIds(5);
+  const settings = {};
+  const opened = [];
+  const windowOf = (appId, z, ctx) => ({ appId, element: { style: { left: '10px', top: '20px', width: '900px', height: '600px', zIndex: String(z), display: '' } }, context: ctx });
+  const context = {
+    state: {
+      activeSpaceId: 0,
+      windows: new Map([
+        ['w1', windowOf('easydrag', 1, { flowId: flow, flow_id: flow, run_id: run })],
+        ['w2', windowOf('easydrag', 2, { flowId: '..' })],
+        ['w3', windowOf('easydrag', 3, { flowId: flow.toUpperCase() })],
+        ['w4', windowOf('easydrag', 4, { flowId: 42 })],
+        ['w5', windowOf('easydrag', 5, { flowId: null })],
+        ['w6', windowOf('files', 6, { path: 'Documents' })]
+      ])
+    },
+    window: { setTimeout: fn => fn() },
+    windowSpaceId: () => 0,
+    normalizeSpaceId: id => id,
+    settingValue: key => settings[key],
+    sessionRestoreEnabled: () => true,
+    restoreActiveSpaceFromSnapshot() {},
+    renderSpacePager() {},
+    appById: id => ({ id }),
+    openApp: (appId, ctx) => opened.push([appId, ctx.flowId === undefined ? '(none)' : ctx.flowId]),
+    applySpaceVisibility() {},
+    taskbarWindows: () => [],
+    focusWindow() {},
+    scheduleSessionPersist() {}
+  };
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.capture = captureSessionSnapshot; globalThis.restore = restoreDesktopSession;`, context);
+
+  const snapshot = JSON.parse(JSON.stringify(context.capture()));
+  assert.deepEqual(snapshot.windows.map(w => [w.appId, w.context]), [
+    ['easydrag', { flowId: flow }], ['easydrag', {}], ['easydrag', {}], ['easydrag', {}], ['easydrag', {}], ['files', { path: 'Documents' }]
+  ], 'only a valid flowId is saved, and a notification\'s flow_id/run_id are not');
+
+  // A stored session written before the check (or by hand) is checked again on restore.
+  snapshot.windows[1].context = { flowId: '..' };
+  snapshot.windows[2].context = { flowId: 'flow_' + 'a'.repeat(11) };
+  settings['session.windows'] = JSON.stringify(snapshot);
+  await context.restore();
+  assert.deepEqual(opened, [
+    ['easydrag', flow], ['easydrag', '(none)'], ['easydrag', '(none)'], ['easydrag', '(none)'], ['easydrag', '(none)'], ['files', '(none)']
+  ], 'only a valid flowId is restored');
+}
+
+// flows_changed from the desktop event stream reaches EasyDrag as the DOM event aurago:flows-changed.
+async function testEasyDragFlowsChangedIsForwarded() {
+  const source = sourceBetween(read('ui/js/desktop/core/sdk-events-bootstrap.js'), 'async function handleDesktopEvent(', 'function showDesktopNotification(');
+  const dispatched = [];
+  const context = {
+    CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
+    document: { dispatchEvent: event => { dispatched.push([event.type, JSON.parse(JSON.stringify(event.detail))]); return true; } }
+  };
+  vm.createContext(context);
+  vm.runInContext(`${source}; globalThis.handle = handleDesktopEvent;`, context);
+  await context.handle({ type: 'flows_changed', payload: { flow_id: 'flow_aaaaaaaaaa', reason: 'saved' } });
+  await context.handle({ type: 'flows_changed' });
+  assert.deepEqual(dispatched, [
+    ['aurago:flows-changed', { flow_id: 'flow_aaaaaaaaaa', reason: 'saved' }],
+    ['aurago:flows-changed', {}]
+  ]);
+}
+
 const tests = [
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
@@ -2512,6 +2625,9 @@ const tests = [
   ['Dashboard cronjob search ignores late responses', testDashboardCronjobsIgnoreLateResponses],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['Window menu shortcut hints are drawn but not dispatched', testWindowMenuShortcutHintIsDrawnButNotDispatched],
+  ['EasyDrag notifications keep only server-shaped flow and run ids', testEasyDragNotificationContextKeepsOnlyServerIds],
+  ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
+  ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

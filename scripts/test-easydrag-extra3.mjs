@@ -52,7 +52,8 @@ export async function run(env) {
     // answers with answer(req); undefined falls back to "no runs" and "no issues". ctx records
     // notifications (h.notes), confirmations (h.confirms, answered with h.confirmAnswer), window
     // menus (h.menus), cleared menus (h.cleared) and console.error lines (h.logged).
-    function sandbox(answer) {
+    // platform is navigator.platform (default Linux; 'MacIntel' makes core.isMod read metaKey).
+    function sandbox(answer, platform) {
         const dom = miniDom();
         const proto = dom.El.prototype;
         const setHTML = Object.getOwnPropertyDescriptor(proto, 'innerHTML').set;
@@ -112,7 +113,7 @@ export async function run(env) {
             close() { this.closed = true; }
         }
         const box = vm.createContext({
-            window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {} }, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document,
+            window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {} }, navigator: { platform: platform || 'Linux' }, crypto: webcrypto, document: dom.document,
             EventSource, URLSearchParams, URL,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: {
@@ -855,5 +856,100 @@ export async function run(env) {
         eq('c1d10 the picker shows a case by its label or number, the same text as the canvas port',
             [chips, ['case_1', 'case_2', 'default'].map(p => h.ED.canvas.portLabel(t, node, p)), h.logged],
             [[A + '=port_case:2', B + '=Big'], ['Big', 'port_case:2', 'port_default'], []]);
+    });
+
+    // ── 1d-10 review: real menu shortcuts on macOS and Windows ──
+
+    // desktopMenus loads the desktop's window-menu dispatch (menus-and-routing.js and
+    // shortcut-runtime.js) for window w1 with the editor's menus; every dispatched action is
+    // recorded by item id in `dispatched`.
+    function desktopMenus(menus, dispatched) {
+        const coreDir = path.join(apps, '..', 'core');
+        const routing = fs.readFileSync(path.join(coreDir, 'menus-and-routing.js'), 'utf8').replace(/\r\n?/g, '\n');
+        const between = (a, b) => {
+            const i = routing.indexOf(a);
+            const j = routing.indexOf(b, i);
+            if (i < 0 || j < 0) throw new Error('menus-and-routing.js misses ' + a);
+            return routing.slice(i, j);
+        };
+        const box = vm.createContext({ closeWindowMenu() {}, state: { activeWindowId: 'w1', windowMenus: new Map() } });
+        vm.runInContext([fs.readFileSync(path.join(coreDir, 'shortcut-runtime.js'), 'utf8'), between('function normalizeWindowMenuItems(', 'function normalizeWindowMenus('),
+            between('function runWindowMenuAction(', 'function renderAppContent(')].join('\n') + '\nglobalThis.desktop = { normalizeWindowMenuItems, handleWindowMenuShortcut };', box);
+        const actions = new Map();
+        const rendered = menus.map(m => ({
+            id: m.id,
+            items: box.desktop.normalizeWindowMenuItems(m.items.map(i => (typeof i.action === 'function'
+                ? Object.assign({}, i, { action: () => { dispatched.push(i.id); return i.action(); } }) : i)), m.id, actions, ['w1', m.id])
+        }));
+        box.state.windowMenus.set('w1', { renderedMenus: rendered, actions });
+        return box.desktop;
+    }
+
+    await guardAsync('c1d10 the desktop runs Ctrl+S, Ctrl+Enter and Ctrl+K once on macOS (⌘) and on Windows (Ctrl)', async () => {
+        const outcomes = [];
+        for (const [platform, modifier] of [['MacIntel', 'metaKey'], ['Win32', 'ctrlKey']]) {
+            const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [] } : undefined), platform);
+            const editor = openEditor(h);
+            await settle();
+            const shortcuts = h.menus.flatMap(m => m.items).filter(i => i.shortcut).map(i => i.id + '=' + i.shortcut);
+            const dispatched = [];
+            const desktop = desktopMenus(h.menus, dispatched);
+            // The editor's own handler: core.isMod is consulted only once onKeyDown got past its guards.
+            let editorKeys = 0;
+            const isMod = h.ED.core.isMod;
+            h.ED.core.isMod = event => { editorKeys++; return isMod(event); };
+            let saves = 0;
+            const save = editor.ed.saver.save;
+            editor.ed.saver.save = (...args) => { saves++; return save.apply(editor.ed.saver, args); };
+            const search = editor.el.querySelector('.ed-palette-search');
+            let focuses = 0;
+            const focus = search.focus.bind(search);
+            search.focus = () => { focuses++; focus(); };
+            const canvasEl = editor.el.querySelector('.ed-canvas');
+            // Ctrl+K first: Ctrl+Enter opens the test dialog, under which Ctrl+K waits.
+            for (const key of ['k', 's', 'Enter']) {
+                const event = {
+                    type: 'keydown', key, code: key === 'Enter' ? 'Enter' : 'Key' + key.toUpperCase(), target: canvasEl, repeat: false,
+                    ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, defaultPrevented: false,
+                    preventDefault() { this.defaultPrevented = true; }, stopPropagation() {}
+                };
+                event[modifier] = true;
+                desktop.handleWindowMenuShortcut(event); // the desktop's keydown listener runs first
+                h.fireDoc('keydown', event); // then the editor's
+            }
+            await settle();
+            outcomes.push([platform, shortcuts, dispatched, editorKeys, saves, focuses, h.logged]);
+            h.ED.core.isMod = isMod;
+            editor.dispose();
+        }
+        eq('c1d10 the menu keys are canonical, the desktop dispatches each one once and the editor does not run it again',
+            outcomes, ['MacIntel', 'Win32'].map(p => [p, ['save=Ctrl+S', 'test=Ctrl+Enter', 'search=Ctrl+K'], ['search', 'save', 'test'], 0, 1, 1, []]));
+    });
+
+    await guardAsync('c1d10 a malformed or unknown route opens the start page and the window context drops the notification ids', async () => {
+        const h = sandbox(req => {
+            if (req.url.startsWith('/api/desktop/flows/node-types')) return { node_types: Array.from(types.values()), categories: [] };
+            if (req.url === '/api/desktop/flows') return { flows: [] };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            return undefined; // anything else: FLOW_NOT_FOUND
+        });
+        const patches = [];
+        h.ctx.updateWindowContext = (id, patch) => { patches.push(JSON.stringify(patch)); };
+        const screens = [];
+        // ".." is refused by the client (FLOW_BAD_REQUEST); the notification's flow is unknown (FLOW_NOT_FOUND).
+        for (const route of [{ flowId: '..' }, { flow_id: 'flow_aaaaaaaaaa', run_id: 'run_aaaaaaaaaaaa' }]) {
+            const container = h.body.appendChild(new h.dom.El('div', {}));
+            h.win.EasyDragApp.render(container, 'w1', Object.assign({}, h.ctx, { api: h.transport }, route));
+            await settle();
+            screens.push([!!container.querySelector('.ed-home'), !!container.querySelector('.ed-shell-error')]);
+            h.win.EasyDragApp.dispose('w1');
+        }
+        openEditor(h);
+        await settle();
+        const cleared = JSON.stringify({ flowId: null, flow_id: null, run_id: null });
+        eq('c1d10 both routes show the start page with a not-found notice; the start page and the editor clear flow_id and run_id',
+            [screens, h.notes.map(n => n.message), patches.slice(0, 2), patches[patches.length - 1], h.logged],
+            [[[true, false], [true, false]], ['error_flow_not_found', 'error_flow_not_found'], [cleared, cleared],
+                JSON.stringify({ flowId: 'f1', flow_id: null, run_id: null }), []]);
     });
 }

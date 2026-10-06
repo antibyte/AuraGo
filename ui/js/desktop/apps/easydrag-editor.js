@@ -116,7 +116,9 @@
             sw.disabled = !!ed.readonly || !!ed.runView;
             btn('runs').setAttribute('aria-pressed', String(runs.drawerOpen()));
             btn('palette').setAttribute('aria-pressed', String(palette.isOpen()));
-            ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, { flowId: ed.flow.id });
+            // flow_id/run_id from a notification are cleared, so a later render does not reopen
+            // that run, or a run of another flow after openFlow switched flows.
+            ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, { flowId: ed.flow.id, flow_id: null, run_id: null });
         }
 
         // renderSaveState shows the saver's state. A failed or offline save names its error (an
@@ -292,13 +294,16 @@
 
         // ── window menus ────────────────────────────────────────────────────────
 
+        // Menu keys are canonical strings ("Ctrl+S"), as in every desktop app: the desktop draws
+        // them as given and matches Ctrl as Ctrl or ⌘, so core.shortcut's "⌘S" would never match.
         // The desktop runs a menu item's shortcut before the editor sees the key, past onKeyDown's
-        // guards (detail view, quick-add, dialogs). Keys the canvas handles itself (interact, "?")
-        // are therefore a shortcutHint, which the desktop draws but does not dispatch. Ctrl+S,
-        // Ctrl+Enter and Ctrl+K stay real shortcuts (Ctrl+K so that the desktop's search does not
-        // take it), and their actions check for an open dialog themselves. Edits wait while a
-        // dialog, the detail view or quick-add covers the canvas, and while the restore offer
-        // waits for its answer.
+        // guards (dialogs, context menus, detail view, quick-add), and prevents it, so onKeyDown
+        // does not run it a second time. Keys the canvas handles itself (interact, "?") are
+        // therefore a shortcutHint, which the desktop draws but does not dispatch. Ctrl+S,
+        // Ctrl+Enter and Ctrl+K are real shortcuts (Ctrl+K so that the desktop's search does not
+        // take it): Ctrl+S saves even under a dialog, Ctrl+Enter and Ctrl+K wait until no dialog
+        // is open. Edits wait while a dialog, the detail view or quick-add covers the canvas, and
+        // while the restore offer waits for its answer.
         function modalOpen() { return !!el.querySelector('.ed-modal-backdrop:not(.is-closing)'); }
         function overlayOpen() { return !!(ed.detail || ed.quickAdd || modalOpen()); }
         const unlessModal = fn => () => { if (!modalOpen()) fn(); };
@@ -309,14 +314,13 @@
             const ro = !!(ed.readonly || ed.runView || restoring);
             const busy = overlayOpen();
             const sel = ed.selection.size > 0;
-            const k = core.shortcut;
             ctx.setWindowMenus(ed.windowId, [
                 {
                     id: 'flow', labelKey: 'easydrag.ui.menu_flow', items: [
                         { id: 'home', labelKey: 'easydrag.ui.back_home', icon: 'list', action: goHome },
                         { type: 'separator' },
-                        { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: k('Ctrl+S'), disabled: ro, action: saveNow },
-                        { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: k('Ctrl+Enter'), disabled: ro, action: unlessModal(test) },
+                        { id: 'save', labelKey: 'easydrag.ui.save_now', icon: 'save', shortcut: 'Ctrl+S', disabled: ro, action: saveNow },
+                        { id: 'test', labelKey: 'easydrag.ui.test', icon: 'run', shortcut: 'Ctrl+Enter', disabled: ro, action: unlessModal(test) },
                         { id: 'run', labelKey: 'easydrag.ui.run_now', icon: 'play', disabled: ro || !ed.flow.live, action: unlessModal(() => runs.runLive()) },
                         { id: 'publish', labelKey: 'easydrag.ui.publish', icon: 'upload', disabled: ro, action: unlessModal(() => publish.openDialog()) },
                         { type: 'separator' },
@@ -327,25 +331,25 @@
                 },
                 {
                     id: 'edit', labelKey: 'easydrag.ui.menu_edit', items: [
-                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcutHint: k('Ctrl+Z'), disabled: ro || busy || !ed.model.canUndo(), action: unlessOverlay(() => ed.model.undo()) },
-                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcutHint: k('Ctrl+Shift+Z'), disabled: ro || busy || !ed.model.canRedo(), action: unlessOverlay(() => ed.model.redo()) },
+                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcutHint: 'Ctrl+Z', disabled: ro || busy || !ed.model.canUndo(), action: unlessOverlay(() => ed.model.undo()) },
+                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcutHint: 'Ctrl+Shift+Z', disabled: ro || busy || !ed.model.canRedo(), action: unlessOverlay(() => ed.model.redo()) },
                         { type: 'separator' },
-                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcutHint: k('Ctrl+X'), disabled: ro || busy || !sel, action: unlessOverlay(() => { if (interact.copySelection()) interact.removeSelection(); }) },
-                        { id: 'copy', labelKey: 'easydrag.ui.copy', icon: 'copy', shortcutHint: k('Ctrl+C'), disabled: busy || !sel, action: unlessOverlay(() => interact.copySelection()) },
-                        { id: 'paste', labelKey: 'easydrag.ui.paste', icon: 'clipboard', shortcutHint: k('Ctrl+V'), disabled: ro || busy, action: unlessOverlay(() => interact.pasteAt(null)) },
-                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: k('Ctrl+D'), disabled: ro || busy || !sel, action: unlessOverlay(() => interact.select(ed.model.duplicate(Array.from(ed.selection)))) },
+                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcutHint: 'Ctrl+X', disabled: ro || busy || !sel, action: unlessOverlay(() => { if (interact.copySelection()) interact.removeSelection(); }) },
+                        { id: 'copy', labelKey: 'easydrag.ui.copy', icon: 'copy', shortcutHint: 'Ctrl+C', disabled: busy || !sel, action: unlessOverlay(() => interact.copySelection()) },
+                        { id: 'paste', labelKey: 'easydrag.ui.paste', icon: 'clipboard', shortcutHint: 'Ctrl+V', disabled: ro || busy, action: unlessOverlay(() => interact.pasteAt(null)) },
+                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: 'Ctrl+D', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.select(ed.model.duplicate(Array.from(ed.selection)))) },
                         { id: 'delete-sel', labelKey: 'easydrag.ui.delete', icon: 'trash', shortcutHint: 'Del', disabled: ro || busy || (!sel && !ed.selectedEdge), action: unlessOverlay(() => interact.removeSelection()) },
                         { type: 'separator' },
-                        { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcutHint: k('Ctrl+A'), disabled: busy, action: unlessOverlay(() => interact.selectAll()) }
+                        { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcutHint: 'Ctrl+A', disabled: busy, action: unlessOverlay(() => interact.selectAll()) }
                     ]
                 },
                 {
                     id: 'view', labelKey: 'easydrag.ui.menu_view', items: [
                         { id: 'zoom-in', labelKey: 'easydrag.ui.zoom_in', icon: 'zoom-in', shortcutHint: '+', action: () => canvas.zoomBy(1.2) },
                         { id: 'zoom-out', labelKey: 'easydrag.ui.zoom_out', icon: 'zoom-out', shortcutHint: '−', action: () => canvas.zoomBy(1 / 1.2) },
-                        { id: 'zoom-fit', labelKey: 'easydrag.ui.zoom_fit', icon: 'maximize', shortcutHint: k('Shift+1'), action: () => canvas.fit({ animate: true }) },
+                        { id: 'zoom-fit', labelKey: 'easydrag.ui.zoom_fit', icon: 'maximize', shortcutHint: 'Shift+1', action: () => canvas.fit({ animate: true }) },
                         { type: 'separator' },
-                        { id: 'search', labelKey: 'easydrag.ui.keys_search', icon: 'search', shortcut: k('Ctrl+K'), action: unlessModal(() => palette.focusSearch()) },
+                        { id: 'search', labelKey: 'easydrag.ui.keys_search', icon: 'search', shortcut: 'Ctrl+K', action: unlessModal(() => palette.focusSearch()) },
                         { id: 'palette', labelKey: 'easydrag.ui.palette_title', icon: 'sidebar', checked: palette.isOpen(), action: () => palette.setOpen(!palette.isOpen()) },
                         { id: 'runs', labelKey: 'easydrag.ui.runs_title', icon: 'list', checked: runs.drawerOpen(), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
                         { type: 'separator' },

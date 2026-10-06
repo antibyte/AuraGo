@@ -8421,6 +8421,8 @@ function wireWindow(win, id) {
 /* ui/js/desktop/core/session-runtime.js */
     const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'music-player']);
     const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId'];
+    // Keys with a fixed id shape are only saved and restored when they match it.
+    const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };
     let sessionPersistTimer = 0;
 
     function saveSetting(key, value, keepalive = false) {
@@ -8482,7 +8484,11 @@ function wireWindow(win, id) {
         if (!context || typeof context !== 'object') return {};
         const out = {};
         SESSION_CONTEXT_KEYS.forEach(key => {
-            if (context[key] != null && context[key] !== '') out[key] = context[key];
+            const value = context[key];
+            if (value == null || value === '') return;
+            const pattern = SESSION_CONTEXT_PATTERNS[key];
+            if (pattern && (typeof value !== 'string' || !pattern.test(value))) return;
+            out[key] = value;
         });
         if (/^[a-f0-9]{64}$/.test(context.conversation_id || '')) out.conversation_id = context.conversation_id;
         return out;

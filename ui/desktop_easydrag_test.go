@@ -63,8 +63,16 @@ func TestEasyDragShellIntegration(t *testing.T) {
 		}
 	}
 	routing := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
-	mc := routing[strings.Index(routing, "if (appId === 'mission-control' && window.MissionControlApp"):]
-	if !strings.Contains(mc[:strings.Index(mc, "}));")], "openApp") {
+	start := strings.Index(routing, "if (appId === 'mission-control' && window.MissionControlApp")
+	if start < 0 {
+		t.Fatal("menus-and-routing.js has no Mission Control render branch")
+	}
+	mc := routing[start:]
+	end := strings.Index(mc, "}));")
+	if end < 0 {
+		t.Fatal("the Mission Control render branch has no end (\"}));\")")
+	}
+	if !strings.Contains(mc[:end], "openApp") {
 		t.Error("Mission Control needs openApp in its render context to open flows in EasyDrag")
 	}
 }
