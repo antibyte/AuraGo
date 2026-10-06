@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
@@ -49,6 +50,20 @@ type containerTerminalSession interface {
 }
 
 var activeContainerTerminalBackend containerTerminalBackend = dockerContainerTerminalBackend{}
+
+// containerTerminalWriteTimeout bounds one write of browser input to the exec
+// stream. A stalled Docker daemon would otherwise block the WebSocket read
+// loop for good, and the handler would never notice that the browser left.
+// It is long on purpose: a write also waits while a busy program in the
+// container does not read its input (a large paste), and that must never end
+// the session.
+var containerTerminalWriteTimeout = 5 * time.Minute
+
+// containerTerminalWriteDeadliner is implemented by sessions whose stream can
+// time out a write (the Docker exec stream is a net.Conn).
+type containerTerminalWriteDeadliner interface {
+	SetWriteDeadline(time.Time) error
+}
 
 var containerTerminalUpgrader = websocket.Upgrader{
 	CheckOrigin: sameOriginOrNoOrigin,
@@ -152,6 +167,9 @@ func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, se
 		switch messageType {
 		case websocket.BinaryMessage:
 			if len(payload) > 0 {
+				if deadliner, ok := session.(containerTerminalWriteDeadliner); ok {
+					_ = deadliner.SetWriteDeadline(time.Now().Add(containerTerminalWriteTimeout))
+				}
 				if _, err := session.Write(payload); err != nil {
 					closeBoth()
 					return
@@ -259,6 +277,14 @@ func (s *dockerContainerTerminalSession) Read(p []byte) (int, error) {
 
 func (s *dockerContainerTerminalSession) Write(p []byte) (int, error) {
 	return s.stream.Write(p)
+}
+
+// SetWriteDeadline bounds the next writes to the exec stream.
+func (s *dockerContainerTerminalSession) SetWriteDeadline(t time.Time) error {
+	if deadliner, ok := s.stream.(containerTerminalWriteDeadliner); ok {
+		return deadliner.SetWriteDeadline(t)
+	}
+	return nil
 }
 
 func (s *dockerContainerTerminalSession) Close() error {
