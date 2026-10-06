@@ -100,7 +100,7 @@
   "cheater.create_submit": "Create & open",
   "cheater.create_title": "New cheat sheet",
   "cheater.creating": "Creating…",
-  "cheater.days_ago": "{{n}} days ago",
+  "cheater.days_ago": "{{n}} day(s) ago",
   "cheater.days_ago_short": "{{n}}d",
   "cheater.delete": "Delete",
   "cheater.deleted": "Sheet deleted",
@@ -5151,5 +5151,18 @@
   "tresor.note_title": "Note title",
   "tresor.unsaved_changes": "Save your note before switching entries.",
   "tresor.title_required": "Enter a note title.",
-  "tresor.admin_required": "Enable AuraGo authentication and sign in as an administrator in your browser to use the vault."
+  "tresor.admin_required": "Enable AuraGo authentication and sign in as an administrator in your browser to use the vault.",
+  "newspaper.budget_title": "Research allowance",
+  "newspaper.budget_intro": "Preview based on your current topics. The server calculates these limits; changing topics updates the preview.",
+  "newspaper.budget_mode": "Mode",
+  "newspaper.budget_auto": "Automatic (per topic)",
+  "newspaper.budget_fixed": "Fixed shared limits",
+  "newspaper.budget_preview_loading": "Updating preview…",
+  "newspaper.budget_preview_failed": "Could not load the allowance preview.",
+  "newspaper.effective_budget_summary": "Topics {topics} · pages {pages} · searches {searches} · overviews {overviews} · minutes {minutes} · candidates {candidates} · stories {stories} · editor calls {editor_calls}",
+  "newspaper.monetary_budget_enabled": "The monetary budget still applies.",
+  "newspaper.monetary_budget_disabled": "No monetary budget is configured; research limits still apply.",
+  "newspaper.fixed_budget_note": "Fixed limits share {pages} pages across the issue.",
+  "newspaper.research_progress": "Accepted {accepted} of {stories} stories · topics covered {covered} of {topics}.",
+  "newspaper.research_activity": "Overviews {overviews} · searches {searches} · page attempts {pages} · pages read {read} · candidates {candidates}"
 }

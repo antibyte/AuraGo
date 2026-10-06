@@ -64,7 +64,7 @@
   "help.virtual_computers.allow_persistent": "Tillader persistente maskiner. Hold slået fra, medmindre værten er betroet.",
   "help.virtual_computers.allow_publish": "Tillader publicer/gem-handlinger, som boringd eksponerer.",
   "help.virtual_computers.allow_volumes": "Tillader oprettelse og tilknytning af volumer.",
-  "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
+  "help.virtual_computers.allow_agent_tasks": "Aktiverer kun de forældede boringd-agentkanaler. AuraGos hovedagent bruger Agent Workspaces og behøver ingen ekstra udbyder her.",
   "help.virtual_computers.boring_token": "Lad feltet være tomt, når AuraGo installerer boringd; AuraGo opretter tokenet automatisk og gemmer det i Vault. Angiv kun en værdi, når du forbinder til en eksisterende boringd; den skal matche BORING_TOKEN på den host.",
   "config.virtual_computers.mode_local_host": "Lokalt på denne vært",
   "config.virtual_computers.local_host_note": "Lokal installation kræver Ubuntu/Linux med /dev/kvm, systemd og root eller adgangskodefri sudo. boringd forbliver på 127.0.0.1:18082.",

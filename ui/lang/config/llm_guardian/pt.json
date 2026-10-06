@@ -3,7 +3,7 @@
   "config.llm_guardian.disabled_notice": "LLM Guardian está desativado",
   "config.llm_guardian.disabled_desc": "Habilite a adição de uma camada de segurança baseada em LLM que avalia chamadas de ferramenta antes da execução. Usa um modelo rápido e barato para detectar operações suspeitas. Volta para o LLM principal se nenhum provedor for selecionado.",
   "config.llm_guardian.provider_title": "Provedor",
-  "config.llm_guardian.provider_desc": "Selecione um provedor para o Guardian LLM. Um modelo rápido e barato (por exemplo, Gemini Flash, GPT -4o-mini, 3B local) é recomendado para decisões em menos de um segundo.",
+  "config.llm_guardian.provider_desc": "Selecione um provedor para o Guardian LLM. Um modelo rápido e barato (por exemplo, Gemini Flash, GPT-4o-mini, 3B local) é recomendado para decisões em menos de um segundo.",
   "config.llm_guardian.provider_label": "Provedor",
   "config.llm_guardian.select_provider": "— LLM principal (padrão) —",
   "config.llm_guardian.model_label": "Modelo",
@@ -15,7 +15,7 @@
   "config.llm_guardian.level_low": "Baixo — Apenas ferramentas de alto risco (shell, sudo, python)",
   "config.llm_guardian.level_medium": "Médio — Todas as ferramentas + APIs externas",
   "config.llm_guardian.level_high": "Alto — Cada chamada de ferramenta verificada",
-  "config.llm_guardian.failsafe_title": "Comportamento de segurança",
+  "config.llm_guardian.failsafe_title": "Comportamento fail-safe",
   "config.llm_guardian.failsafe_desc": "O que acontece quando o Guardian LLM está indisponível ou retorna um erro (tempo limite, limite de taxa, etc.).",
   "config.llm_guardian.failsafe_label": "Em caso de erro",
   "config.llm_guardian.failsafe_block": "Bloquear — Negar a operação (mais seguro)",
@@ -33,7 +33,7 @@
   "config.llm_guardian.clarification_desc": "Quando ativado, o agente pode fornecer uma justificação se uma chamada de ferramenta for bloqueada. O Guardian reavalia a solicitação uma vez com a justificação antes de tomar uma decisão final.",
   "config.llm_guardian.clarification_label": "Permitir esclarecimento do agente",
   "config.llm_guardian.scan_title": "Varredura de conteúdo",
-  "config.llm_guardian.scan_desc": "Use o Guardian LLM para verificar o conteúdo recebido (e-mails, webhooks) em busca de injeção imediata, phishing e ataques de engenharia social – além dos padrões regex integrados.",
+  "config.llm_guardian.scan_desc": "Use o Guardian LLM para verificar o conteúdo recebido (e-mails, webhooks) em busca de injeção de prompt, phishing e ataques de engenharia social – além dos padrões regex integrados.",
   "config.llm_guardian.scan_emails_label": "Verificar e-mails recebidos",
   "config.llm_guardian.scan_documents_label": "Verificar payloads de webhook"
 }

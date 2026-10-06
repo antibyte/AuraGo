@@ -6,7 +6,7 @@
   "config.bluetooth.enabled": "Aktivert",
   "config.bluetooth.readonly": "Skrivebeskyttet modus",
   "config.bluetooth.allow_playback": "Tillat lydavspilling",
-  "config.bluetooth.audio_backend": "Lydmotor",
+  "config.bluetooth.audio_backend": "Lydbackend",
   "config.bluetooth.backend_auto": "Automatisk",
   "config.bluetooth.scan_timeout": "Søkevarighet",
   "config.bluetooth.default_device": "Standardenhet",
@@ -24,7 +24,7 @@
   "config.bluetooth.pair": "Par",
   "config.bluetooth.connect": "Koble til",
   "config.bluetooth.disconnect": "Koble fra",
-  "config.bluetooth.save_first": "Lagre konfigurasjonen før Du utfører denne handlingen.",
+  "config.bluetooth.save_first": "Lagre konfigurasjonen før du utfører denne handlingen.",
   "config.bluetooth.status_ready": "Klar: {adapter} · Lyd: {backend}",
   "config.bluetooth.audio_unavailable": "Lyd er ikke tilgjengelig",
   "config.bluetooth.status_unavailable": "Bluetooth er ikke tilgjengelig.",
@@ -51,7 +51,7 @@
   "help.bluetooth.enabled": "Bluetooth-enheter og målrettet lydutgang via Linux BlueZ.",
   "help.bluetooth.readonly": "Hindrer agenten i å sammenkoble eller endre tilkoblinger. Administratorer kan fortsatt administrere enheter i Bluetooth-appen på skrivebordet og på denne siden.",
   "help.bluetooth.allow_playback": "Lar agenten spille av lyd på Bluetooth-enheter. Administratorens testtone fungerer også uten.",
-  "help.bluetooth.audio_backend": "Lydmotor: PipeWire / PulseAudio.",
+  "help.bluetooth.audio_backend": "Lydbackend: PipeWire / PulseAudio.",
   "help.bluetooth.scan_timeout": "Søkevarighet: 1–60.",
   "help.bluetooth.default_device": "Standardenhet"
 }

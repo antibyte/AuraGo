@@ -79,7 +79,7 @@
   "knowledge.credentials_host_optional_hint": "Opcional para este tipo de credencial",
   "knowledge.credentials_host_placeholder": "192.168.1.50",
   "knowledge.credentials_host_required": "Host / IP é obrigatório.",
-  "knowledge.credentials_name_placeholder": "e.g. Proxmox SSH",
+  "knowledge.credentials_name_placeholder": "ex. Proxmox SSH",
   "knowledge.credentials_name_required": "Nome é obrigatório.",
   "knowledge.credentials_password_label": "Senha",
   "knowledge.credentials_password_placeholder": "Opcional – armazenado apenas no vault",

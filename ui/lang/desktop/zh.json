@@ -5151,5 +5151,18 @@
   "tresor.note_title": "笔记标题",
   "tresor.unsaved_changes": "切换项目之前请先保存笔记。",
   "tresor.title_required": "请输入笔记标题。",
-  "tresor.admin_required": "启用 AuraGo 身份验证，并在浏览器中以管理员身份登录，即可使用保险库。"
+  "tresor.admin_required": "启用 AuraGo 身份验证，并在浏览器中以管理员身份登录，即可使用保险库。",
+  "newspaper.budget_title": "研究额度",
+  "newspaper.budget_intro": "根据当前主题生成预览。限制由服务器计算；更改主题后会更新预览。",
+  "newspaper.budget_mode": "模式",
+  "newspaper.budget_auto": "自动（按主题）",
+  "newspaper.budget_fixed": "固定共享限制",
+  "newspaper.budget_preview_loading": "正在更新预览…",
+  "newspaper.budget_preview_failed": "无法加载额度预览。",
+  "newspaper.effective_budget_summary": "主题 {topics} · 页面 {pages} · 搜索 {searches} · 概览 {overviews} · 分钟 {minutes} · 候选 {candidates} · 故事 {stories} · 编辑调用 {editor_calls}",
+  "newspaper.monetary_budget_enabled": "金额预算仍然适用。",
+  "newspaper.monetary_budget_disabled": "未配置金额预算；研究限制仍然适用。",
+  "newspaper.fixed_budget_note": "固定限制由整期内容共享 {pages} 个页面。",
+  "newspaper.research_progress": "已采用 {accepted}/{stories} 篇故事 · 已覆盖 {covered}/{topics} 个主题。",
+  "newspaper.research_activity": "概览 {overviews} · 搜索 {searches} · 页面获取尝试 {pages} · 已读页面 {read} · 候选 {candidates}"
 }

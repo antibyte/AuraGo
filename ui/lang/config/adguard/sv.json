@@ -27,6 +27,6 @@
   "help.adguard.enabled": "Aktiverar AdGuard Home-integrationen. Agenten kan sedan fråga DNS-statistik, hantera filter, omskrivningar, blockerade tjänster och mer.",
   "help.adguard.password": "Lösenord för autentisering. Lagras säkert i det krypterade valvet.",
   "help.adguard.readonly": "I skrivskyddat läge kan agenten bara läsa data. Alla skrivoperationer blockeras.",
-  "help.adguard.url": "Basera URL av din AdGuard Home-instans (t.ex. http://192.168.1.1:3000 ).",
+  "help.adguard.url": "Bas-URL för din AdGuard Home-instans (t.ex. http://192.168.1.1:3000).",
   "help.adguard.username": "Användarnamn för autentisering. Lämna tomt om autentisering är inaktiverad."
 }

@@ -10,7 +10,7 @@
   "config.google_workspace.client_id_hint": "Fra Google Cloud Console → API'er & Tjenester → Legitimationsoplysninger",
   "config.google_workspace.client_secret_label": "OAuth2 Klient-hemmelighed",
   "config.google_workspace.client_secret_hint": "Gemt krypteret i vault. Indsæt hemmeligheden og klik på Gem.",
-  "config.google_workspace.save_vault": "Gem i vault",
+  "config.google_workspace.save_vault": "Gem i Vault",
   "config.google_workspace.connection_label": "OAuth2-forbindelse",
   "config.google_workspace.connect_btn": "Tilslut",
   "config.google_workspace.disconnect_btn": "Afbryd",

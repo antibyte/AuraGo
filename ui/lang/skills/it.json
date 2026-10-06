@@ -27,7 +27,7 @@
   "skills.agent_file_script": "File script",
   "skills.agent_file_text": "File di testo",
   "skills.agent_import_folder": "Percorso cartella locale",
-  "skills.agent_import_folder_placeholder": "C:\\percorso\\a\\csv-helper",
+  "skills.agent_import_folder_placeholder": "C:\\path\\to\\csv-helper",
   "skills.agent_import_title": "Importa Agent Skill",
   "skills.agent_import_warning": "I pacchetti vengono analizzati prima dell'attivazione. Gli Agent Skill nuovi o modificati restano disattivati finché lo stato di sicurezza non è approvato.",
   "skills.agent_import_zip": "Pacchetto ZIP",

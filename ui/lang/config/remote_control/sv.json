@@ -32,7 +32,7 @@
   "config.remote_control.devices_title": "Anslutna enheter",
   "config.remote_control.disabled_desc": "Aktivera för att hantera fjärrenheter via enkla agentbinärer som ansluter till denna AuraGo-instans.",
   "config.remote_control.disabled_notice": "Fjärrstyrning är inaktiverad",
-  "config.remote_control.discovery_port_label": "Discovery Port ( UDP )",
+  "config.remote_control.discovery_port_label": "Upptäcktsport (UDP)",
   "config.remote_control.connection_mode_label": "Anslutningsväg för fjärrklienter",
   "config.remote_control.connection_mode_auto": "Upptäck automatiskt",
   "config.remote_control.connection_mode_tailscale": "Använd Tailscale-nätverk",

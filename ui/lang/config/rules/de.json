@@ -33,7 +33,7 @@
   "config.rules.load_failed": "Regeln konnten nicht geladen werden",
   "config.rules.save_failed": "Regel konnte nicht gespeichert werden",
   "config.rules.restored": "Regel wiederhergestellt",
-  "config.rules.design_title": "Startseite DESIGN.md",
+  "config.rules.design_title": "Homepage DESIGN.md",
   "config.rules.enabled": "Aktiviert",
   "config.rules.rule_title": "Titel",
   "config.rules.inactive": "Inaktiv",
@@ -42,6 +42,6 @@
   "config.rules.total": "Gesamt",
   "config.rules.rule_list": "Regelbibliothek",
   "config.rules.disabled": "Deaktiviert",
-  "config.rules.targeting": "Zuordnung",
+  "config.rules.targeting": "Passende Ziele",
   "config.rules.system_status": "Regelsystem"
 }

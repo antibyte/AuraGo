@@ -32,7 +32,7 @@
   "config.email.field_name": "Jméno",
   "config.email.imap_host": "Hostitel IMAP",
   "config.email.smtp_host": "Hostitel SMTP",
-  "config.email.password_set": "nastavit",
+  "config.email.password_set": "nastaveno",
   "config.email.password_unchanged": "beze změny",
   "config.email.enabled": "Aktivní",
   "config.email.disabled": "Deaktivováno",

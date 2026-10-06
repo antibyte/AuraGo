@@ -16,7 +16,7 @@
   "config.jellyfin.connection_failed": "Conexión fallida",
   "config.jellyfin.test_ok": "Conexión exitosa",
   "config.jellyfin.test_fail": "Conexión fallida",
-  "config.jellyfin.apikey_empty": "Por favor, introduzca primero una clave API.",
+  "config.jellyfin.apikey_empty": "Por favor, introduce primero una clave API.",
   "config.jellyfin.apikey_saved": "Clave API guardada en el vault.",
   "config.jellyfin.apikey_save_failed": "Error al guardar la clave API en el vault.",
   "help.jellyfin.enabled": "Activa la integración de Jellyfin. El agente puede explorar bibliotecas, buscar medios, controlar la reproducción y gestionar el servidor de medios.",
@@ -24,7 +24,7 @@
   "help.jellyfin.allow_destructive": "Permite eliminar elementos multimedia del servidor Jellyfin.",
   "help.jellyfin.use_https": "Usa HTTPS para la conexión al servidor Jellyfin.",
   "help.jellyfin.insecure_ssl": "Acepta certificados autofirmados o inválidos (solo para entornos de prueba).",
-  "help.jellyfin.host": "Nombre de host o dirección IP de su servidor Jellyfin (p.ej. jellyfin.local o 192.168.1.100).",
+  "help.jellyfin.host": "Nombre de host o dirección IP de tu servidor Jellyfin (p.ej. jellyfin.local o 192.168.1.100).",
   "help.jellyfin.port": "Puerto del servidor Jellyfin (predeterminado: 8096).",
-  "help.jellyfin.api_key": "Clave API para la API de Jellyfin. Cree una en Dashboard → Claves API en Jellyfin."
+  "help.jellyfin.api_key": "Clave API para la API de Jellyfin. Crea una en Dashboard → Claves API en Jellyfin."
 }

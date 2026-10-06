@@ -4846,7 +4846,7 @@
   "newspaper.send_code": "Enviar código de confirmação",
   "newspaper.send_email": "Enviar por e-mail",
   "newspaper.send_telegram": "Enviar para Telegram",
-  "newspaper.send_telegram_test": "Enviar teste de telegrama",
+  "newspaper.send_telegram_test": "Enviar teste de Telegram",
   "newspaper.sending_account": "Envio de conta",
   "newspaper.set_preferences": "Definir preferências",
   "newspaper.share_edition": "Receba esta edição",
@@ -5151,5 +5151,18 @@
   "tresor.note_title": "Título da nota",
   "tresor.unsaved_changes": "Guarde a nota antes de mudar de item.",
   "tresor.title_required": "Introduza um título para a nota.",
-  "tresor.admin_required": "Ativa a autenticação do AuraGo e entra como administrador no navegador para usar o cofre."
+  "tresor.admin_required": "Ativa a autenticação do AuraGo e entra como administrador no navegador para usar o cofre.",
+  "newspaper.budget_title": "Limite de pesquisa",
+  "newspaper.budget_intro": "Prévia com base nos temas atuais. O servidor calcula os limites; ao alterar os temas, a prévia é atualizada.",
+  "newspaper.budget_mode": "Modo",
+  "newspaper.budget_auto": "Automático (por tema)",
+  "newspaper.budget_fixed": "Limites fixos compartilhados",
+  "newspaper.budget_preview_loading": "Atualizando prévia…",
+  "newspaper.budget_preview_failed": "Não foi possível carregar a prévia do limite.",
+  "newspaper.effective_budget_summary": "Temas {topics} · páginas {pages} · buscas {searches} · visões gerais {overviews} · minutos {minutes} · candidatos {candidates} · artigos {stories} · chamadas editoriais {editor_calls}",
+  "newspaper.monetary_budget_enabled": "O orçamento monetário continua valendo.",
+  "newspaper.monetary_budget_disabled": "Nenhum orçamento monetário está configurado; os limites de pesquisa continuam valendo.",
+  "newspaper.fixed_budget_note": "Os limites fixos compartilham {pages} páginas em toda a edição.",
+  "newspaper.research_progress": "{accepted} de {stories} artigos aceitos · temas cobertos: {covered} de {topics}.",
+  "newspaper.research_activity": "Visões gerais {overviews} · buscas {searches} · tentativas de carregamento de página {pages} · páginas lidas {read} · candidatos {candidates}"
 }

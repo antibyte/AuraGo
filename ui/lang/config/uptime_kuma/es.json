@@ -1,7 +1,7 @@
 {
-  "config.uptime_kuma.api_key_empty": "Introduzca primero una clave API.",
+  "config.uptime_kuma.api_key_empty": "Introduce primero una clave API.",
   "config.uptime_kuma.api_key_label": "Clave API (Vault)",
-  "config.uptime_kuma.api_key_placeholder": "Introduzca la clave API…",
+  "config.uptime_kuma.api_key_placeholder": "Introduce la clave API…",
   "config.uptime_kuma.api_key_save_failed": "Error al guardar la clave API en el vault.",
   "config.uptime_kuma.api_key_saved": "Clave API guardada en el vault.",
   "config.uptime_kuma.base_url_label": "URL de Uptime Kuma",
@@ -34,7 +34,7 @@
   "config.uptime_kuma.test_fail": "Conexión fallida",
   "config.uptime_kuma.test_ok": "Conexión exitosa",
   "help.uptime_kuma.api_key": "Clave API de métricas de Uptime Kuma. Almacenada de forma segura en el vault cifrado.",
-  "help.uptime_kuma.base_url": "URL base de su instancia de Uptime Kuma (por ejemplo, https://uptime-kuma.local:3001). AuraGo solicita automáticamente /metrics.",
+  "help.uptime_kuma.base_url": "URL base de tu instancia de Uptime Kuma (por ejemplo, https://uptime-kuma.local:3001). AuraGo solicita automáticamente /metrics.",
   "help.uptime_kuma.enabled": "Habilita la integración de solo lectura de Uptime Kuma. El agente puede inspeccionar estados de monitores y opcionalmente activarse cuando un monitor cambia entre operativo y caído.",
   "help.uptime_kuma.insecure_ssl": "Omitir la verificación de certificados TLS para certificados autofirmados. Usar solo en redes locales de confianza.",
   "help.uptime_kuma.poll_interval_seconds": "Intervalo de sondeo en segundo plano en segundos para detección de caídas y eventos de transición. Predeterminado: 30.",

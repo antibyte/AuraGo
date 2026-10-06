@@ -5151,5 +5151,18 @@
   "tresor.note_title": "Notiztitel",
   "tresor.unsaved_changes": "Speichere Deine Notiz, bevor Du den Eintrag wechselst.",
   "tresor.title_required": "Gib einen Notiztitel ein.",
-  "tresor.admin_required": "Aktiviere die AuraGo-Anmeldung und melde Dich im Browser als Administrator an, um den Tresor zu nutzen."
+  "tresor.admin_required": "Aktiviere die AuraGo-Anmeldung und melde Dich im Browser als Administrator an, um den Tresor zu nutzen.",
+  "newspaper.budget_title": "Recherchebudget",
+  "newspaper.budget_intro": "Vorschau für die aktuell gewählten Themen. Der Server berechnet die Limits; bei einer Themenänderung wird die Vorschau aktualisiert.",
+  "newspaper.budget_mode": "Modus",
+  "newspaper.budget_auto": "Automatisch (je Thema)",
+  "newspaper.budget_fixed": "Feste gemeinsame Limits",
+  "newspaper.budget_preview_loading": "Vorschau wird aktualisiert…",
+  "newspaper.budget_preview_failed": "Budgetvorschau konnte nicht geladen werden.",
+  "newspaper.effective_budget_summary": "Themen {topics} · Seiten {pages} · Suchen {searches} · Übersichten {overviews} · Minuten {minutes} · Kandidaten {candidates} · Artikel {stories} · Redaktionsaufrufe {editor_calls}",
+  "newspaper.monetary_budget_enabled": "Das Kostenlimit gilt weiterhin.",
+  "newspaper.monetary_budget_disabled": "Kein Kostenlimit konfiguriert; die Recherche-Limits gelten trotzdem.",
+  "newspaper.fixed_budget_note": "Feste Limits teilen {pages} Seiten auf die Ausgabe auf.",
+  "newspaper.research_progress": "{accepted} von {stories} Artikeln übernommen · Themen abgedeckt: {covered} von {topics}.",
+  "newspaper.research_activity": "Übersichten {overviews} · Suchen {searches} · Ladeversuche {pages} · Seiten gelesen {read} · Kandidaten {candidates}"
 }

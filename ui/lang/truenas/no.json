@@ -106,6 +106,6 @@
   "truenas.status_disabled": "Deaktivert",
   "truenas.status_error_prefix": "Feil:",
   "truenas.status_offline": "Frakoblet",
-  "truenas.status_online": "Tilkoblet",
+  "truenas.status_online": "Online",
   "truenas.subtitle": "TrueNAS-lagring"
 }

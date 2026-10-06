@@ -5151,5 +5151,18 @@
   "tresor.note_title": "Título de la nota",
   "tresor.unsaved_changes": "Guarda la nota antes de cambiar de entrada.",
   "tresor.title_required": "Escribe un título para la nota.",
-  "tresor.admin_required": "Activa la autenticación de AuraGo e inicia sesión como administrador en el navegador para usar la caja fuerte."
+  "tresor.admin_required": "Activa la autenticación de AuraGo e inicia sesión como administrador en el navegador para usar la caja fuerte.",
+  "newspaper.budget_title": "Límite de investigación",
+  "newspaper.budget_intro": "Vista previa según tus temas actuales. El servidor calcula estos límites; al cambiar los temas se actualiza la vista previa.",
+  "newspaper.budget_mode": "Modo",
+  "newspaper.budget_auto": "Automático (por tema)",
+  "newspaper.budget_fixed": "Límites fijos compartidos",
+  "newspaper.budget_preview_loading": "Actualizando vista previa…",
+  "newspaper.budget_preview_failed": "No se pudo cargar la vista previa del límite.",
+  "newspaper.effective_budget_summary": "Temas {topics} · páginas {pages} · búsquedas {searches} · resúmenes {overviews} · minutos {minutes} · candidatos {candidates} · artículos {stories} · llamadas editoriales {editor_calls}",
+  "newspaper.monetary_budget_enabled": "El presupuesto monetario sigue aplicándose.",
+  "newspaper.monetary_budget_disabled": "No hay un presupuesto monetario configurado; los límites de investigación siguen vigentes.",
+  "newspaper.fixed_budget_note": "Los límites fijos comparten {pages} páginas en toda la edición.",
+  "newspaper.research_progress": "Se aceptaron {accepted} de {stories} artículos · temas cubiertos: {covered} de {topics}.",
+  "newspaper.research_activity": "Resúmenes {overviews} · búsquedas {searches} · intentos de carga de páginas {pages} · páginas leídas {read} · candidatos {candidates}"
 }

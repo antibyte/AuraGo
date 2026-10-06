@@ -280,7 +280,7 @@
   "missions.trigger_info_webhook_prefix": "Webhook:",
   "missions.trigger_info_webhook_unknown": "Nieznany",
   "missions.trigger_info_when_completed": "Gdy \"{{name}}\" ukończona",
-  "missions.trigger_min_interval_hint": "Liczba sekund oczekiwania, zanim ten wyzwalacz moze ponownie uruchomic misje. Uzyj 0, aby wylaczyc limit.",
+  "missions.trigger_min_interval_hint": "Liczba sekund oczekiwania, zanim ten wyzwalacz może ponownie uruchomić misję. Użyj 0, aby wyłączyć limit.",
   "missions.trigger_min_interval_label": "Minimalny odstep",
   "missions.trigger_min_interval_placeholder": "np. 60",
   "missions.trigger_mission_completed": "✅ Misja ukończona",

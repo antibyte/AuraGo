@@ -15,7 +15,7 @@
   "config.mqtt.enabled_label": "Aktiverad",
   "config.mqtt.insecure_skip_verify_label": "Hoppa över certifikatverifiering",
   "config.mqtt.key_file_label": "Klientnyckelfil",
-  "config.mqtt.messages_empty": "Inga meddelanden i buffer",
+  "config.mqtt.messages_empty": "Inga meddelanden i bufferten",
   "config.mqtt.messages_error": "Kunde inte ladda meddelanden",
   "config.mqtt.messages_loading": "Laddar meddelanden…",
   "config.mqtt.messages_title": "Senaste meddelanden",

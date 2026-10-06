@@ -44,7 +44,7 @@
   "config.security_proxy.disabled_desc": "Ενεργοποιήστε την ανάπτυξη ενός διαχειριζόμενου αντιστροφικού διακομιστή μεσολάβησης Caddy στο Docker με αυτόματο TLS, περιορισμό ρυθμού, IP φιλτράρισμα και άλλα.",
   "config.security_proxy.disabled_notice": "Ο διακομιστής μεσολάβησης ασφαλείας είναι απενεργοποιημένος",
   "config.security_proxy.docker_host_hint": "αφήστε κενό για αυτόματη ανίχνευση",
-  "config.security_proxy.docker_host_label": "Κεντρικός Docker",
+  "config.security_proxy.docker_host_label": "Κεντρικός υπολογιστής Docker",
   "config.security_proxy.docker_title": "Docker",
   "config.security_proxy.domain_label": "Τομέας",
   "config.security_proxy.email_label": "ACME Email (Ας κρυπτογραφήσουμε)",
