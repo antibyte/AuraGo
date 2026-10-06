@@ -752,12 +752,8 @@
                     const safePrompt = esc(job.task_prompt || '');
                     const safeSource = esc(job.source || 'agent');
                     const safeDisabled = job.disabled ? 'true' : 'false';
-                    details += `<div class="activity-item">
-                <span class="activity-item-name">${safeId}</span>
-                <div class="activity-item-row">
-                    <span class="activity-item-detail">${safeExpr} — ${esc(truncate(job.task_prompt || '', 60))}</span>
-                    <span class="activity-item-actions-inline">
-                        <button class="cf-fact-btn"
+                    // A flow's schedule (source "flow") is managed in EasyDrag; the server refuses edits.
+                    const actions = job.source === 'flow' ? cronjobManagedLabel() : `<button class="cf-fact-btn"
                             data-cron-id="${safeId}"
                             data-cron-expr="${safeExpr}"
                             data-cron-prompt="${safePrompt}"
@@ -768,7 +764,13 @@
                         <button class="cf-fact-btn danger"
                             data-cron-id="${safeId}"
                             onclick="deleteCronJob(this.dataset.cronId)"
-                            title="${t('dashboard.cron_btn_delete')}">${t('dashboard.btn_delete')}</button>
+                            title="${t('dashboard.cron_btn_delete')}">${t('dashboard.btn_delete')}</button>`;
+                    details += `<div class="activity-item">
+                <span class="activity-item-name">${safeId}</span>
+                <div class="activity-item-row">
+                    <span class="activity-item-detail">${safeExpr} — ${esc(truncate(job.task_prompt || '', 60))}</span>
+                    <span class="activity-item-actions-inline">
+                        ${actions}
                     </span>
                 </div>
             </div>`;
@@ -1990,16 +1992,8 @@
                 const lastError = job.last_error || '';
                 const promptTitle = lastError ? `${lastError}\n\n${job.task_prompt || ''}` : job.task_prompt || '';
                 const statusTitle = lastError || cronjobStatusLabel(status);
-                tr.innerHTML = `
-                    <td data-label="${esc(t('dashboard.cronjobs_col_id'))}"><span class="cronjobs-id">${esc(job.id || '—')}</span></td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_source'))}"><span class="cronjobs-source cronjobs-source-${esc(job.source || 'agent')}">${esc(cronjobSourceLabel(job.source))}</span></td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_schedule'))}"><code class="cronjobs-expr">${esc(job.cron_expr || '—')}</code></td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_next_run'))}">${esc(nextRun)}</td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_status'))}"><span class="cronjobs-status cronjobs-status-${status}" title="${esc(statusTitle)}">${esc(cronjobStatusLabel(status))}</span></td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_prompt'))}" title="${esc(promptTitle)}">${esc(truncate(job.task_prompt || '', 120) || '—')}</td>
-                    <td data-label="${esc(t('dashboard.cronjobs_col_actions'))}">
-                        <div class="cronjobs-row-actions">
-                        <button type="button" class="cronjobs-row-btn"
+                // A flow's schedule is managed in EasyDrag: the server refuses edit, toggle and delete (409).
+                const actions = job.managed_by === 'easydrag' ? cronjobManagedLabel() : `<button type="button" class="cronjobs-row-btn"
                             data-cron-id="${esc(job.id || '')}"
                             data-cron-expr="${esc(job.cron_expr || '')}"
                             data-cron-prompt="${esc(job.task_prompt || '')}"
@@ -2010,11 +2004,26 @@
                         <button type="button" class="cronjobs-row-btn danger"
                             data-cron-id="${esc(job.id || '')}"
                             onclick="deleteCronJob(this.dataset.cronId)"
-                            title="${esc(t('dashboard.cron_btn_delete'))}">${esc(t('dashboard.btn_delete'))}</button>
+                            title="${esc(t('dashboard.cron_btn_delete'))}">${esc(t('dashboard.btn_delete'))}</button>`;
+                tr.innerHTML = `
+                    <td data-label="${esc(t('dashboard.cronjobs_col_id'))}"><span class="cronjobs-id">${esc(job.id || '—')}</span></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_source'))}"><span class="cronjobs-source cronjobs-source-${esc(job.source || 'agent')}">${esc(cronjobSourceLabel(job.source))}</span></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_schedule'))}"><code class="cronjobs-expr">${esc(job.cron_expr || '—')}</code></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_next_run'))}">${esc(nextRun)}</td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_status'))}"><span class="cronjobs-status cronjobs-status-${status}" title="${esc(statusTitle)}">${esc(cronjobStatusLabel(status))}</span></td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_prompt'))}" title="${esc(promptTitle)}">${esc(truncate(job.task_prompt || '', 120) || '—')}</td>
+                    <td data-label="${esc(t('dashboard.cronjobs_col_actions'))}">
+                        <div class="cronjobs-row-actions">
+                        ${actions}
                         </div>
                     </td>`;
                 tbody.appendChild(tr);
             });
+        }
+
+        // cronjobManagedLabel replaces Edit and Delete of a job that EasyDrag owns (a flow's schedule).
+        function cronjobManagedLabel() {
+            return `<span class="cronjobs-managed" title="${esc(t('dashboard.cronjobs_managed_easydrag_hint'))}">${esc(t('dashboard.cronjobs_managed_easydrag'))}</span>`;
         }
 
         function cronjobSourceLabel(source) {
