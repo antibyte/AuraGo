@@ -551,6 +551,7 @@ func Start(opts StartOptions) error {
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
 	s.bindRuntimePermissions()
+	s.bindDockerSelfIdentity()
 	s.configureMQTTRelay()
 	defer s.MQTTController.Stop(context.Background())
 	s.localLLMLifecycleCtx = serverCtx

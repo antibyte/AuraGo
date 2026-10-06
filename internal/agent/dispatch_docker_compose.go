@@ -47,6 +47,9 @@ type dockerComposePreflight struct {
 	allProfilesModel *tools.DockerComposeModel
 	allProfilesRaw   dockerComposeRawModel
 	allProfilesErr   error
+	// self is AuraGo's own container (zero on native installs), read once per
+	// call by dockerComposePolicy.
+	self tools.DockerSelfIdentity
 }
 
 // dockerComposeRawModel is a resolved Compose model as raw JSON per entry.
@@ -681,6 +684,10 @@ func dockerComposePolicy(ctx context.Context, cfg *config.Config, dockerCfg tool
 		logDockerComposeAllProfilesFailure(preflight.file, preflight.allProfilesErr)
 	}
 	subcommand := dockerComposeCommandName(req.Command)
+	preflight.self = tools.DockerSelfIdentityFor(ctx, dockerCfg)
+	if denied := dockerComposeSelfProjectDenial(preflight.model.Name, subcommand, preflight.self); denied != "" {
+		return denied
+	}
 	effective := preflight.effectiveModel(req.Command)
 	if preflight.allProfilesModel == nil && len(effective.unverified) > 0 {
 		// Compose < v2.35 resolves the named profile services by name instead.
