@@ -66,6 +66,16 @@ Personality changes the tone, not the permissions. Shell, Python, writes, networ
 
 > **Still a work in progress.** One maintainer, uneven tests, occasional rough edges. Linux comes first; Windows and macOS are less tested. Features depend on permissions, providers, hardware and often Docker.
 
+**Verified install (recommended):**
+
+```bash
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+```
+
+**Quick install (runs the script from the main branch):**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 ```

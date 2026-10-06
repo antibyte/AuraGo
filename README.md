@@ -100,6 +100,16 @@ Messages and mission triggers reach the **agent loop**. It builds context, calls
 
 ### Linux
 
+**Verified install (recommended).** Download the installer and its checksum list from the latest release, and run the script only if the checksum matches:
+
+```bash
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+```
+
+**Quick install (runs the script from the main branch):**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 ```

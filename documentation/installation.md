@@ -2,10 +2,22 @@
 
 ## Quick Install (Linux / macOS)
 
+### Verified install (recommended)
+
+Download the installer and its checksum list from the latest release, and run the script only if the checksum matches:
+
+```bash
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+```
+
+### Quick install (runs the script from the main branch)
+
 Paste this into your terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USER/AuraGo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 ```
 
 This will:
@@ -17,13 +29,13 @@ This will:
 ### Custom install directory
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USER/AuraGo/main/install.sh | AURAGO_INSTALL_DIR=/opt/aurago bash
+curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_INSTALL_DIR=/opt/aurago bash
 ```
 
 ### Specific version
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USER/AuraGo/main/install.sh | AURAGO_VERSION=v1.0.0 bash
+curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | AURAGO_VERSION=v1.0.0 bash
 ```
 
 ---
@@ -38,7 +50,7 @@ curl -fsSL https://raw.githubusercontent.com/YOUR_USER/AuraGo/main/install.sh | 
 
 ### Step 1: Download
 
-Download two files from the [GitHub Releases](https://github.com/YOUR_USER/AuraGo/releases) page:
+Download two files from the [GitHub Releases](https://github.com/antibyte/AuraGo/releases) page:
 
 | File | Description |
 |---|---|
@@ -192,7 +204,7 @@ To update AuraGo, simply replace the executable:
 
 ```bash
 cd ~/aurago
-curl -fSL -o aurago https://github.com/YOUR_USER/AuraGo/releases/latest/download/aurago_linux_amd64
+curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux_amd64
 chmod +x aurago
 # Restart
 sudo systemctl restart aurago   # or just ./aurago
@@ -242,7 +254,7 @@ rm -rf ~/aurago
 If you want to build deployment artifacts yourself:
 
 ```bash
-git clone https://github.com/YOUR_USER/AuraGo.git
+git clone https://github.com/antibyte/AuraGo.git
 cd AuraGo
 
 # Build for all platforms

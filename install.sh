@@ -3,7 +3,13 @@
 #  AuraGo Quick Installer  (Linux x86_64 + arm64)
 #
 #  Usage:
-#    curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
+#    Verified install (recommended):
+#      curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
+#      curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
+#      sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+#
+#    Quick install (runs the script from the main branch):
+#      curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 #
 #  Two installation modes:
 #    A) Source build  — clones repo, requires Go 1.27.1+, builds from source
@@ -1533,7 +1539,19 @@ install_ffmpeg() {
                 local fedora_release
                 fedora_release="$(rpm -E %fedora 2>/dev/null || true)"
                 if printf '%s' "$fedora_release" | grep -Eq '^[0-9]+$'; then
-                    $SUDO dnf install -y "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${fedora_release}.noarch.rpm" 2>/dev/null || return 1
+                    # Import the RPM Fusion signing key first, then let dnf check the
+                    # downloaded release RPM against it instead of trusting the bare URL.
+                    # A failure returns 1; ensure_ffmpeg turns that into the "install
+                    # manually" warning, so the warnings here only name the cause.
+                    local rpmfusion_key="https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-free-fedora-${fedora_release}"
+                    if ! $SUDO rpm --import "$rpmfusion_key" 2>/dev/null; then
+                        warn "Could not import the RPM Fusion signing key; skipping RPM Fusion (ffmpeg may be unavailable)"
+                        return 1
+                    fi
+                    if ! $SUDO dnf install -y --setopt=localpkg_gpgcheck=1 "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${fedora_release}.noarch.rpm" 2>/dev/null; then
+                        warn "RPM Fusion release package failed its signature check or install; skipping RPM Fusion (ffmpeg may be unavailable)"
+                        return 1
+                    fi
                     $SUDO dnf install -y ffmpeg
                     return $?
                 fi

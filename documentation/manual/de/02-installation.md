@@ -29,9 +29,17 @@ Drei Wege, derselbe Gopher: Installer, Docker oder selbst bauen. Die volle UI ko
 
 ## Installationsmethoden
 
-### Option A: One-Liner (empfohlen für Linux/macOS)
+### Option A: Installer-Skript (empfohlen für Linux/macOS)
 
-Die schnellste Methode – ein einziger Befehl:
+**Geprüfte Installation (empfohlen).** Lade den Installer und die Prüfsummenliste aus dem neuesten Release herunter und führe das Skript nur aus, wenn die Prüfsumme stimmt:
+
+```bash
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+```
+
+**Schnellinstallation (führt das Skript aus dem main-Branch aus).** Die schnellste Methode – ein einziger Befehl:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash

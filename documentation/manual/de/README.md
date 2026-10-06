@@ -66,6 +66,16 @@ Persönlichkeit ändert den Ton, nicht die Rechte. Shell, Python, Schreiben, Net
 
 > **Immer noch Work in Progress.** Ein Maintainer, ungleichmäßige Tests, manchmal raue Kanten. Linux zuerst; Windows und macOS sind weniger erprobt. Features hängen von Rechten, Providern, Hardware und oft Docker ab.
 
+**Geprüfte Installation (empfohlen):**
+
+```bash
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
+curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+```
+
+**Schnellinstallation (führt das Skript aus dem main-Branch aus):**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 ```
