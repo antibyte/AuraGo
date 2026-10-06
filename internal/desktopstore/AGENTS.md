@@ -154,13 +154,14 @@ Store app configuration, runtime, assets, and publication.
 - Most catalog images use floating tags such as `:latest`, so a probe verifies
   the digest it ran against, not the tag. Re-verify an opted-in image when its
   upstream changes and update the recorded digest.
-- Only `arcane/socket-proxy` is opted in. The Dozzle and Beszel `socket-proxy`
-  companions use the same Tecnativa image with the read-only monitoring
-  profile and their own network setup; they keep `no-new-privileges` and
-  Docker's default capabilities until each is probed with `CapDrop: ALL` in
-  its own configuration.
-- Verify `TestCatalogHardening*`, `TestDockerCreatePayload*Hardening*` and
-  `TestInstallArcaneAppliesOnlyVerifiedHardening`.
+- `arcane/socket-proxy`, `dozzle/socket-proxy` and `beszel/socket-proxy` are
+  opted in (`CapDrop: ALL`). Each was probed in its own setup: Arcane's and
+  Dozzle's on their private networks, Beszel's on its loopback host port (F-S3
+  probe; the digests are in the catalog comments). Every other image keeps
+  Docker's default capabilities.
+- Verify `TestCatalogHardening*`, `TestDockerCreatePayload*Hardening*`,
+  `TestInstallArcaneAppliesOnlyVerifiedHardening` and
+  `TestInstallMonitoringProxiesApplyOnlyVerifiedHardening`.
 
 ### Store Update Rollback
 
