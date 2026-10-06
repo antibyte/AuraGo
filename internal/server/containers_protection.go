@@ -468,13 +468,64 @@ func containersAtAddresses(entries []tools.DockerContainerListEntry, addrs []str
 	return out
 }
 
-// sameComposeService reports whether two containers are replicas of one
-// compose service, which answer under one DNS name.
-func sameComposeService(a, b map[string]string) bool {
-	const projectLabel, serviceLabel = "com.docker.compose.project", "com.docker.compose.service"
-	project, service := strings.TrimSpace(a[projectLabel]), strings.TrimSpace(a[serviceLabel])
-	return project != "" && service != "" &&
-		project == strings.TrimSpace(b[projectLabel]) && service == strings.TrimSpace(b[serviceLabel])
+const composeServiceLabel = "com.docker.compose.service"
+
+// sameComposeServiceName reports whether two containers carry the same
+// compose service name, in any project: replicas of one service and
+// same-named services of other projects on a shared network answer under one
+// DNS alias.
+func sameComposeServiceName(a, b map[string]string) bool {
+	service := strings.TrimSpace(a[composeServiceLabel])
+	return service != "" && service == strings.TrimSpace(b[composeServiceLabel])
+}
+
+// dockerHostName returns the lower-case host name of a TCP docker.host, or ""
+// for sockets, named pipes, IP addresses and localhost.
+func dockerHostName(dockerHost string) string {
+	host := strings.TrimSpace(dockerHost)
+	if host == "" || strings.HasPrefix(host, "unix://") || strings.HasPrefix(host, "npipe://") {
+		return ""
+	}
+	if !strings.Contains(host, "://") {
+		host = "tcp://" + host
+	}
+	parsed, err := url.Parse(host)
+	if err != nil {
+		return ""
+	}
+	name := strings.ToLower(strings.TrimSuffix(parsed.Hostname(), "."))
+	if name == "" || name == "localhost" || net.ParseIP(name) != nil {
+		return ""
+	}
+	return name
+}
+
+// containerAnswersDockerHostName reports whether one of a container's names
+// (container name, compose service, network alias or DNS name) equals the host
+// name of docker.host or its first label, so the container may answer it.
+func containerAnswersDockerHostName(dockerHost string, names []string) bool {
+	host := dockerHostName(dockerHost)
+	if host == "" {
+		return false
+	}
+	first, _, _ := strings.Cut(host, ".")
+	for _, name := range names {
+		name = strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(name), "/"), "."))
+		if name != "" && (name == host || name == first) {
+			return true
+		}
+	}
+	return false
+}
+
+// endpointFallbackTarget is what dockerEndpointByConnection knows about the
+// target from its inspect.
+type endpointFallbackTarget struct {
+	ID          string
+	IPs         []string
+	Labels      map[string]string
+	NetworkMode string // HostConfig.NetworkMode, e.g. "container:<id>"
+	AnswersHost bool   // a name, compose service, alias or DNS name equals the docker.host name
 }
 
 // dockerEndpointByConnection classifies a target against the Docker endpoint
@@ -483,15 +534,20 @@ func sameComposeService(a, b map[string]string) bool {
 // or a listed container has that address. verified is false in every other
 // case, so the target stays unverified exactly as without this fallback: no
 // TCP connection observed, a loopback or host address (a proxy behind a
-// published port stays unknown), a failed list, or another replica of the
-// connected container's compose service (it may answer the name too).
-func dockerEndpointByConnection(connIP, targetID string, targetIPs []string, targetLabels map[string]string, list func() ([]tools.DockerContainerListEntry, bool)) (endpoint, verified bool) {
+// published port stays unknown), a failed list, a target that answers the
+// docker.host name, a target in the connected container's network namespace
+// (it may be the process serving the port), or a target with the connected
+// container's compose service name in any project (it may answer the name too).
+func dockerEndpointByConnection(connIP string, target endpointFallbackTarget, list func() ([]tools.DockerContainerListEntry, bool)) (endpoint, verified bool) {
 	observed, ok := dockerEndpointFromConnection(connIP)
 	if !ok || len(observed) == 0 {
 		return false, false
 	}
-	if containerServesDockerEndpoint(observed, targetIPs) {
+	if containerServesDockerEndpoint(observed, target.IPs) {
 		return true, true
+	}
+	if target.AnswersHost {
+		return false, false
 	}
 	entries, ok := list()
 	if !ok {
@@ -502,10 +558,11 @@ func dockerEndpointByConnection(connIP, targetID string, targetIPs []string, tar
 		return false, false
 	}
 	for _, entry := range connected {
-		if targetID != "" && strings.EqualFold(entry.FullID, targetID) {
+		if target.ID != "" && strings.EqualFold(entry.FullID, target.ID) {
 			return true, true
 		}
-		if sameComposeService(entry.Labels, targetLabels) {
+		if containerNetworkModeJoins(target.NetworkMode, entry.FullID, entry.Names) ||
+			sameComposeServiceName(entry.Labels, target.Labels) {
 			return false, false
 		}
 	}
@@ -576,8 +633,10 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 		} `json:"HostConfig"`
 		NetworkSettings struct {
 			Networks map[string]struct {
-				IPAddress         string `json:"IPAddress"`
-				GlobalIPv6Address string `json:"GlobalIPv6Address"`
+				IPAddress         string   `json:"IPAddress"`
+				GlobalIPv6Address string   `json:"GlobalIPv6Address"`
+				Aliases           []string `json:"Aliases"`
+				DNSNames          []string `json:"DNSNames"`
 			} `json:"Networks"`
 		} `json:"NetworkSettings"`
 	}
@@ -589,8 +648,11 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 	p := containerProtection{Owner: firstContainerOwner([]string{info.Name, containerID}, info.Config.Labels)}
 
 	ips := make([]string, 0, 2*len(info.NetworkSettings.Networks))
+	hostNames := []string{info.Name, containerID, info.Config.Labels[composeServiceLabel]}
 	for _, network := range info.NetworkSettings.Networks {
 		ips = append(ips, network.IPAddress, network.GlobalIPv6Address)
+		hostNames = append(hostNames, network.Aliases...)
+		hostNames = append(hostNames, network.DNSNames...)
 	}
 	// At most one container list per request: the endpoint fallback and the
 	// self check share it.
@@ -607,7 +669,13 @@ func classifyContainerForAction(ctx context.Context, s *Server, cfg tools.Docker
 
 	if endpoint, err := containerDockerEndpointAddresses(ctx, cfg.Host); err == nil {
 		p.DockerEndpoint = containerServesDockerEndpoint(endpoint, ips)
-	} else if isEndpoint, verified := dockerEndpointByConnection(connIP(), info.ID, ips, info.Config.Labels, listContainers); verified {
+	} else if isEndpoint, verified := dockerEndpointByConnection(connIP(), endpointFallbackTarget{
+		ID:          info.ID,
+		IPs:         ips,
+		Labels:      info.Config.Labels,
+		NetworkMode: info.HostConfig.NetworkMode,
+		AnswersHost: containerAnswersDockerHostName(cfg.Host, hostNames),
+	}, listContainers); verified {
 		// docker.host did not resolve, but AuraGo's own Docker connection
 		// names the endpoint container.
 		p.DockerEndpoint = isEndpoint
