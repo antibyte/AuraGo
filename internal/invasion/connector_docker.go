@@ -367,12 +367,8 @@ func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Clien
 	if isLocal {
 		dockerHost := dockerLocalHost()
 		return &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: dockerutil.NewVersionTransport(&http.Transport{
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					return dockerutil.DialContext(ctx, dockerHost)
-				},
-			}),
+			Timeout:   30 * time.Second,
+			Transport: dockerutil.NewVersionTransport(dockerLocalTransport(dockerHost)),
 		}
 	}
 	if nest.DeployMethod == "docker_ssh" {
@@ -489,6 +485,20 @@ func dockerLocalHost() string {
 		return dh
 	}
 	return dockerutil.DefaultHost()
+}
+
+// dockerLocalIdleConnTimeout bounds idle connections of the docker_local
+// transport. httpClient builds a new transport for every operation, so
+// nothing reuses them; without a timeout they were never reaped.
+const dockerLocalIdleConnTimeout = 5 * time.Second
+
+func dockerLocalTransport(dockerHost string) *http.Transport {
+	return &http.Transport{
+		IdleConnTimeout: dockerLocalIdleConnTimeout,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return dockerutil.DialContext(ctx, dockerHost)
+		},
+	}
 }
 
 func (c *DockerConnector) apiURL(nest NestRecord, path string) string {

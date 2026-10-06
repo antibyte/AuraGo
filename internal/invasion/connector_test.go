@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/testutil"
 )
@@ -485,5 +486,24 @@ func TestDockerConnector_Deploy_PullFails(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "pull") {
 		t.Errorf("error should mention pull: %v", err)
+	}
+}
+
+func TestDockerLocalTransportReleasesIdleConnections(t *testing.T) {
+	tr := dockerLocalTransport("unix:///var/run/docker.sock")
+	if tr.IdleConnTimeout != dockerLocalIdleConnTimeout || dockerLocalIdleConnTimeout != 5*time.Second || tr.DialContext == nil {
+		t.Fatalf("docker_local transport: IdleConnTimeout %v, dialer set %v; want 5s and the Engine dialer", tr.IdleConnTimeout, tr.DialContext != nil)
+	}
+}
+
+func TestDockerLocalClientStillDialsTheConfiguredEngine(t *testing.T) {
+	ts := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]string{"ApiVersion": "1.45", "MinAPIVersion": "1.25"})
+	}))
+	defer ts.Close()
+	t.Setenv("DOCKER_HOST", "tcp://"+strings.TrimPrefix(ts.URL, "http://"))
+	nest := NestRecord{ID: "12345678-abcd-ef12-3456-7890abcdef12", DeployMethod: "docker_local"}
+	if err := (&DockerConnector{}).Validate(context.Background(), nest, nil); err != nil {
+		t.Fatalf("Validate through DOCKER_HOST: %v", err)
 	}
 }
