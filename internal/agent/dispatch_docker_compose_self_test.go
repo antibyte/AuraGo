@@ -157,3 +157,28 @@ func TestDockerComposePolicyProtectsTheHostPathOfAuraGosDataVolume(t *testing.T)
 		t.Fatalf("bind of the host path behind AuraGo's data volume allowed with host access: %s", got)
 	}
 }
+
+// Without a proven identity the shipped names can match another stack's
+// volume, so both denials say how to get out of the way.
+func TestAuraGoDataVolumeDenialsSuggestRenamingAnotherStacksVolume(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	cfg.Directories.WorkspaceDir = t.TempDir()
+	cfg.Runtime.IsDocker = true
+	useRuntimePermissionsForTest(t, cfg)
+	output, _ := dispatchServices(context.Background(), ToolCall{Action: "docker", Operation: "remove_volume", Name: "media_aurago_data"}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !strings.Contains(output, "give it another name") {
+		t.Fatalf("create/run/volume denial lacks the rename hint: %s", output)
+	}
+	workspace := cfg.Directories.WorkspaceDir
+	writeComposeFixture(t, workspace, "media/compose.yml", "services:\n  app:\n    image: alpine\n")
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return `{"services":{"app":{"image":"alpine","volumes":[{"type":"volume","source":"aurago_data","target":"/d"}]}},"volumes":{"aurago_data":{"name":"media_aurago_data"}}}`, nil
+	})
+	cfg.Docker.AllowHostAccess = true
+	got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "media/compose.yml", Command: "up -d"})
+	if !strings.Contains(got, `"code":"docker_managed_aurago_resource"`) || !strings.Contains(got, "give it another name") {
+		t.Fatalf("Compose denial lacks the rename hint: %s", got)
+	}
+}

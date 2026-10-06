@@ -652,7 +652,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					refused = refused || tools.DockerBindTouchesAuraGoState(volume, true, self)
 				}
 				if refused {
-					return dockerAgentError("docker_managed_aurago_resource", "AuraGo's own data volume and data directory cannot be mounted, created or removed through the Docker agent tool.")
+					return dockerAgentError("docker_managed_aurago_resource", "AuraGo's own data volume and data directory cannot be mounted, created or removed through the Docker agent tool. If this volume belongs to another stack, give it another name.")
 				}
 			}
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
