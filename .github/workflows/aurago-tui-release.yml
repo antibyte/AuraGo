@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -28,34 +28,30 @@ jobs:
       run:
         working-directory: tools/aurago-tui
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable 2026-10-05
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
-
-      - name: Install cross-compilation tools (Linux)
-        if: matrix.target == 'x86_64-unknown-linux-gnu' && runner.os == 'Windows'
-        run: |
-          cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Check formatting
         run: cargo fmt -- --check
 
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --locked -- -D warnings
 
       - name: Test
-        run: cargo test
+        run: cargo test --locked
 
       - name: Build (Windows / macOS)
         if: runner.os != 'Linux' || matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Build (Linux from Ubuntu)
         if: runner.os == 'Linux'
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Package
         shell: bash
@@ -64,7 +60,7 @@ jobs:
           cp target/${{ matrix.target }}/release/aurago-tui${{ matrix.suffix }} ../../dist/aurago-tui-${{ matrix.target }}${{ matrix.suffix }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: aurago-tui-${{ matrix.target }}
           path: dist/aurago-tui-${{ matrix.target }}${{ matrix.suffix }}
@@ -73,11 +69,13 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist
           pattern: aurago-tui-*
@@ -88,7 +86,7 @@ jobs:
         run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Upload to GitHub Releases (rolling)
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: aurago-tui-rolling
           name: aurago-tui Rolling Build (${{ steps.sha.outputs.sha }})

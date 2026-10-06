@@ -375,6 +375,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - **docker-publish.yml**: Builds and publishes Docker images to GHCR
 - Triggered by `v*` tags or manual dispatch (`image=all` or `image=gods-eye-view`)
 - Multi-arch builds: linux/amd64, linux/arm64
+- Every workflow `uses:` ref is pinned to a full commit SHA with a ` # <version>` comment, refreshed monthly by Dependabot (`.github/dependabot.yml`); `internal/audit` tests reject floating tags. Workflows default to `permissions: contents: read` and grant write scopes per job.
 
 ### Release Process
 1. `./make_deploy.sh` builds cross-platform artifacts; by default it may commit/push `main` (`--no-publish` suppresses that). It does not create a tag or GitHub Release.

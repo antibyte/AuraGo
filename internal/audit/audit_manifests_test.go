@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -837,14 +838,20 @@ func TestUpdateScriptSkipsMissingModifiedPromptsDuringBackup(t *testing.T) {
 	}
 }
 
-func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
-	t.Parallel()
+type githubWorkflowFile struct {
+	path string
+	text string
+}
 
-	var combined strings.Builder
+// githubWorkflowFiles returns every workflow under .github/workflows in
+// directory order.
+func githubWorkflowFiles(t *testing.T) []githubWorkflowFile {
+	t.Helper()
 	entries, err := os.ReadDir(repoPath(".github", "workflows"))
 	if err != nil {
 		t.Fatalf("read workflows: %v", err)
 	}
+	var files []githubWorkflowFile
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -853,15 +860,34 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 		if ext != ".yml" && ext != ".yaml" {
 			continue
 		}
-		combined.WriteString(readRepoFile(t, filepath.ToSlash(filepath.Join(".github", "workflows", entry.Name()))))
+		path := filepath.ToSlash(filepath.Join(".github", "workflows", entry.Name()))
+		files = append(files, githubWorkflowFile{path: path, text: readRepoFile(t, path)})
+	}
+	if len(files) == 0 {
+		t.Fatal("no GitHub workflows found under .github/workflows")
+	}
+	return files
+}
+
+func combinedGitHubWorkflowText(t *testing.T) string {
+	t.Helper()
+	var combined strings.Builder
+	for _, file := range githubWorkflowFiles(t) {
+		combined.WriteString(file.text)
 		combined.WriteByte('\n')
 	}
-	workflowText := combined.String()
+	return combined.String()
+}
+
+func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
+	t.Parallel()
+
+	workflowText := combinedGitHubWorkflowText(t)
 	for _, needle := range []string{
 		"actions/setup-go",
 		"go test ./...",
 		"go test -race ./internal/llm ./internal/server ./internal/memory",
-		"go install golang.org/x/vuln/cmd/govulncheck@latest",
+		"go install golang.org/x/vuln/cmd/govulncheck@v",
 		"govulncheck -json ./...",
 		"python3 -m unittest discover -s scripts -p test_check_govulncheck.py",
 		"python3 scripts/check_govulncheck.py",
@@ -870,66 +896,91 @@ func TestCIGatesRunGoTestsAndGovulncheck(t *testing.T) {
 			t.Fatalf("CI workflows must include %q", needle)
 		}
 	}
+	if strings.Contains(workflowText, "govulncheck@latest") {
+		t.Fatal("CI workflows must install a pinned govulncheck release, not @latest")
+	}
 }
 
 func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 	t.Parallel()
 
-	var combined strings.Builder
-	entries, err := os.ReadDir(repoPath(".github", "workflows"))
-	if err != nil {
-		t.Fatalf("read workflows: %v", err)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		ext := filepath.Ext(entry.Name())
-		if ext != ".yml" && ext != ".yaml" {
-			continue
-		}
-		combined.WriteString(readRepoFile(t, filepath.ToSlash(filepath.Join(".github", "workflows", entry.Name()))))
-		combined.WriteByte('\n')
-	}
-	workflowText := combined.String()
+	workflowText := combinedGitHubWorkflowText(t)
 	if strings.Contains(workflowText, "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24") {
 		t.Fatal("workflows should use Node 24 action majors directly instead of forcing Node 24 runtime")
 	}
-	for _, forbidden := range []string{
-		"actions/checkout@v4",
-		"actions/checkout@v6",
-		"actions/setup-go@v5",
-		"actions/setup-go@v6",
-		"actions/setup-node@v4",
-		"actions/setup-node@v6",
-		"actions/upload-artifact@v4",
-		"actions/download-artifact@v4",
-		"golang/govulncheck-action",
-		"docker/setup-qemu-action@v3",
-		"docker/setup-buildx-action@v3",
-		"docker/login-action@v3",
-		"docker/metadata-action@v5",
-		"docker/build-push-action@v6",
+	if strings.Contains(workflowText, "golang/govulncheck-action") {
+		t.Fatal("workflows must install govulncheck directly instead of using golang/govulncheck-action")
+	}
+	// Every reference is pinned to a commit SHA whose version comment names
+	// the first major that runs natively on Node 24, or a newer one.
+	for _, action := range []struct {
+		name     string
+		minMajor int
+	}{
+		{"actions/checkout", 7},
+		{"actions/setup-go", 7},
+		{"actions/setup-node", 7},
+		{"actions/upload-artifact", 7},
+		{"actions/download-artifact", 8},
+		{"docker/setup-qemu-action", 4},
+		{"docker/setup-buildx-action", 4},
+		{"docker/login-action", 4},
+		{"docker/metadata-action", 6},
+		{"docker/build-push-action", 7},
 	} {
-		if strings.Contains(workflowText, forbidden) {
-			t.Fatalf("workflow still uses outdated action %q", forbidden)
+		quoted := regexp.QuoteMeta(action.name)
+		if regexp.MustCompile(`uses: ` + quoted + `@v`).MatchString(workflowText) {
+			t.Fatalf("workflow references %s by a floating version tag; pin it to a commit SHA with a `# vN` comment", action.name)
+		}
+		pinned := regexp.MustCompile(`uses: ` + quoted + `@[0-9a-f]{40} # v([0-9]+)`)
+		matches := pinned.FindAllStringSubmatch(workflowText, -1)
+		if len(matches) == 0 {
+			t.Fatalf("workflow missing SHA-pinned Node 24 action %s (want `uses: %s@<40-hex sha> # v%d`)", action.name, action.name, action.minMajor)
+		}
+		if refs := strings.Count(workflowText, "uses: "+action.name+"@"); refs != len(matches) {
+			t.Fatalf("%d of %d references to %s are not pinned as `@<40-hex sha> # vN`", refs-len(matches), refs, action.name)
+		}
+		for _, match := range matches {
+			major, err := strconv.Atoi(match[1])
+			if err != nil || major < action.minMajor {
+				t.Fatalf("%s is pinned to v%s; native Node 24 requires v%d or newer", action.name, match[1], action.minMajor)
+			}
 		}
 	}
-	for _, required := range []string{
-		"actions/checkout@v7",
-		"actions/setup-go@v7",
-		"actions/setup-node@v7",
-		"actions/upload-artifact@v7",
-		"actions/download-artifact@v8",
-		"docker/setup-qemu-action@v4",
-		"docker/setup-buildx-action@v4",
-		"docker/login-action@v4",
-		"docker/metadata-action@v6",
-		"docker/build-push-action@v7",
-	} {
-		if !strings.Contains(workflowText, required) {
-			t.Fatalf("workflow missing Node 24 action %q", required)
+}
+
+func TestGitHubWorkflowsHaveNoFloatingActionRefs(t *testing.T) {
+	t.Parallel()
+
+	floating := regexp.MustCompile(`uses: [^@\n]+@(v[0-9]+(\.[0-9]+)*|main|master|stable|latest)\s*$`)
+	usesLine := regexp.MustCompile(`^\s*(?:-\s+)?uses:\s*["']?([^"'\s]+)["']?(.*)$`)
+	pinnedRef := regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[^@\s]+)?@[0-9a-f]{40}$`)
+	versionComment := regexp.MustCompile(`^ # \S`)
+	remoteRefs := 0
+	for _, file := range githubWorkflowFiles(t) {
+		for index, line := range strings.Split(file.text, "\n") {
+			line = strings.TrimRight(line, "\r")
+			location := fmt.Sprintf("%s:%d", file.path, index+1)
+			isFloating := floating.MatchString(line)
+			if isFloating {
+				t.Errorf("%s uses a floating action ref: %s", location, strings.TrimSpace(line))
+			}
+			match := usesLine.FindStringSubmatch(line)
+			if match == nil {
+				continue
+			}
+			ref, rest := match[1], match[2]
+			if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "docker://") {
+				continue
+			}
+			remoteRefs++
+			if !isFloating && (!pinnedRef.MatchString(ref) || !versionComment.MatchString(rest)) {
+				t.Errorf("%s must pin the action to a 40-hex commit SHA followed by ` # <version>`: %s", location, strings.TrimSpace(line))
+			}
 		}
+	}
+	if remoteRefs == 0 {
+		t.Fatal("found no remote action references; the workflow parser no longer matches `uses:` lines")
 	}
 }
 

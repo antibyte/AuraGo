@@ -27,6 +27,9 @@ on:
       - ".github/workflows/training-dataset.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Regeneration, contracts, privacy, and loaders
@@ -36,20 +39,26 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.13"
           cache: pip
           cache-dependency-path: training/requirements.txt
+
+      - name: Verify uv lockfiles
+        run: |
+          python -m pip install uv==0.11.15
+          (cd training && uv lock --check)
+          (cd training/needle3 && uv lock --check)
 
       - name: Install CPU validation dependencies
         run: python -m pip install jsonschema==4.26.0

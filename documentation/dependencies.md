@@ -55,8 +55,11 @@ Tailwind and the replaced xterm canvas addon are not shipped.
 ## Verification
 
 - Run the Go test wrapper from root `AGENTS.md`, `go vet` and `govulncheck`.
-- Run `npm audit` in both npm projects, all vendor `--check` commands, UI bundle
-  checks and focused real-browser tests for consumers of changed libraries.
+- CI (`security-gates.yml`) runs `npm audit --omit=dev --audit-level=moderate`
+  in the root and `browser_automation_sidecar` projects. Before a release, run a
+  full `npm audit` (dev dependencies included) in both locally, plus all vendor
+  `--check` commands, UI bundle checks and focused real-browser tests for
+  consumers of changed libraries.
 - Run `uv lock --check` in `training` and `training/needle3`; run the training
   workflow's exporter, canonical catalog, dataset and Python tests.
 - Run `cargo test --locked` in `tools/aurago-tui`.
