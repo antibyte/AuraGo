@@ -179,3 +179,30 @@ func TestPullImageForceReturnsDockerStreamError(t *testing.T) {
 		t.Fatalf("error = %v, want Docker stream error", err)
 	}
 }
+
+func TestDockerBodyMessageOutputs(t *testing.T) {
+	long := strings.Repeat("y", 700)
+	cases := []struct {
+		name string
+		body []byte
+		want string
+	}{
+		// Pins: today's output.
+		{"engine message", []byte(`{"message":"driver failed programming external connectivity"}`), "driver failed programming external connectivity"},
+		{"plain text trimmed", []byte("  bad gateway \n"), "bad gateway"},
+		{"long plain text cut at 500 with ellipsis", []byte(long), strings.Repeat("y", 500) + "..."},
+		{"empty", nil, ""},
+		{"whitespace", []byte(" \n "), ""},
+		// New: one printable line, bounded, never a split rune.
+		{"engine message on one line", []byte(`{"message":"line one\nline two\u001b[31m"}`), "line one line two [31m"},
+		{"long engine message bounded", []byte(`{"message":"` + long + `"}`), strings.Repeat("y", 500) + "..."},
+		{"rune at the cut is not split", []byte(strings.Repeat("y", 499) + "é" + "zz"), strings.Repeat("y", 499) + "..."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := dockerBodyMessage(500, tc.body); got != tc.want {
+				t.Fatalf("dockerBodyMessage() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

@@ -371,21 +371,21 @@ func dockerBodyErr(code int, body []byte) string {
 	return errJSON("Docker error (HTTP %d)", code)
 }
 
+// dockerBodyMessageMaxBytes bounds the Engine text that tool results, errors
+// and logs carry from one non-2xx answer.
+const dockerBodyMessageMaxBytes = 500
+
+// dockerBodyMessage returns the Engine's text for a non-2xx answer (the JSON
+// "message", otherwise the body) as one printable line of at most
+// dockerBodyMessageMaxBytes bytes, plus "..." when it was cut. code is kept
+// for the existing call sites.
 func dockerBodyMessage(code int, body []byte) string {
-	var dockerMsg struct {
-		Message string `json:"message"`
+	text := dockerutil.EngineErrorMessage(body)
+	line := dockerutil.SanitizeOneLine(text, 0)
+	if len(line) <= dockerBodyMessageMaxBytes {
+		return line
 	}
-	if json.Unmarshal(body, &dockerMsg) == nil && dockerMsg.Message != "" {
-		return dockerMsg.Message
-	}
-	trimmed := strings.TrimSpace(string(body))
-	if trimmed != "" {
-		if len(trimmed) > 500 {
-			trimmed = trimmed[:500] + "..."
-		}
-		return trimmed
-	}
-	return ""
+	return dockerutil.SanitizeOneLine(text, dockerBodyMessageMaxBytes) + "..."
 }
 
 // ---------- Operations ----------
