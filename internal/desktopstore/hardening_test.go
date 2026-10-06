@@ -372,9 +372,12 @@ func TestCatalogHardeningReachesAppsInstalledBeforeTheOptIn(t *testing.T) {
 	assertSpecHardening(t, "update after opt-in", docker.created[2], ContainerName("hardened-demo"), demoAppHardening())
 }
 
-// Rollback recreates the previous record's image with the current catalog's
-// hardening (the record stores none). The first three specs are the failed
-// update, the last three are restorePreviousCompanions and rollbackPrevious.
+// On an engine that cannot rename, the update falls back to removing the
+// previous containers, and the rollback recreates the previous record's images
+// with the current catalog's hardening (the record stores none). The first
+// three specs are the failed update, the last three the recreated previous
+// containers. The parked path restores the previous containers instead, see
+// TestRollbackRestoresParkedContainersWithoutReapplyingHardening.
 func TestCatalogHardeningAppliesOnRollbackWithCurrentCatalog(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
@@ -391,6 +394,7 @@ func TestCatalogHardeningAppliesOnRollbackWithCurrentCatalog(t *testing.T) {
 	// Starts: sidecar, plain, then the updated app fails; the rollback starts
 	// sidecar, plain and the previous app again.
 	docker.startErrors = []error{nil, nil, errors.New("updated app start failed")}
+	docker.renameErr = errRenameUnsupported // engines without rename keep remove-and-recreate
 	svc = newTestServiceAtPath(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19604), hardenedDemoCatalog("new", true))
 	op, err := svc.StartAppOperation(ctx, "hardened-demo", OperationUpdate, OperationRequest{})
 	if err != nil {

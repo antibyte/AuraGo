@@ -550,7 +550,10 @@ func (f *serverStoreDockerAdapter) RestartContainer(context.Context, string) err
 	return nil
 }
 func (f *serverStoreDockerAdapter) RemoveContainer(context.Context, string, bool) error { return nil }
-func (f *serverStoreDockerAdapter) RemoveVolume(context.Context, string, bool) error    { return nil }
+func (f *serverStoreDockerAdapter) RenameContainer(context.Context, string, string) error {
+	return nil
+}
+func (f *serverStoreDockerAdapter) RemoveVolume(context.Context, string, bool) error { return nil }
 func (f *serverStoreDockerAdapter) CreateNetwork(_ context.Context, name string) error {
 	f.createdNetworks = append(f.createdNetworks, name)
 	return nil

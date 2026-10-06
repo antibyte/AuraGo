@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -922,6 +923,7 @@ func TestUpdateRestoresPreviousAutoCompanionWhenMainStartFails(t *testing.T) {
 	docker.created = nil
 	docker.events = nil
 	docker.startErrors = []error{nil, errors.New("updated app start failed")}
+	docker.renameErr = errRenameUnsupported // engines without rename keep remove-and-recreate
 	svc = newTestServiceAtPathWithSecrets(t, dbPath, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17676), newCatalog, secrets)
 
 	updateOp, err := svc.StartAppOperation(ctx, "romm", OperationUpdate, OperationRequest{})
@@ -1809,6 +1811,7 @@ func TestUpdateOperationRecreatesContainerAndKeepsVolumesPorts(t *testing.T) {
 	if err := svc.RunOperation(ctx, installOp.ID); err != nil {
 		t.Fatalf("run install: %v", err)
 	}
+	docker.renameErr = errRenameUnsupported // engines without rename keep remove-and-recreate
 	updateOp, err := svc.StartAppOperation(ctx, "uptime-kuma", OperationUpdate, OperationRequest{})
 	if err != nil {
 		t.Fatalf("start update: %v", err)
@@ -1988,6 +1991,7 @@ func TestUpdateStartFailureRollsBackPreviousRunningContainer(t *testing.T) {
 		t.Fatalf("run install: %v", err)
 	}
 	docker.startErrors = []error{errors.New("updated container failed to start"), nil}
+	docker.renameErr = errRenameUnsupported // engines without rename keep remove-and-recreate
 	updateOp, err := svc.StartAppOperation(ctx, "uptime-kuma", OperationUpdate, OperationRequest{})
 	if err != nil {
 		t.Fatalf("start update: %v", err)
@@ -2426,6 +2430,15 @@ type fakeDockerAdapter struct {
 	inspectErr             error
 	removeContainerStarted chan string
 	removeContainerBlock   <-chan struct{}
+	// The fields below are off by default, so older tests keep treating every
+	// name as an existing, running container.
+	trackContainers         bool                     // model existence: create adds, remove deletes, rename moves
+	containers              map[string]bool          // existing names while trackContainers is set
+	containerSpecs          map[string]ContainerSpec // the spec each tracked container was created with
+	traceLifecycle          bool                     // also record "stop:" and "remove:" events
+	renamed                 []string                 // "old->new" for every successful rename
+	renameErr               error                    // every rename fails, like an engine without rename support
+	enforceCatalogBindTrust bool                     // refuse untrusted docker.sock binds like the real create path (K10)
 }
 
 type fakeNativeManagedRuntime struct {
@@ -2545,8 +2558,20 @@ func (f *fakeDockerAdapter) CreateContainer(_ context.Context, spec ContainerSpe
 	if f.createErr != nil {
 		return "", f.createErr
 	}
+	if f.enforceCatalogBindTrust {
+		trusted := catalogTrustedBinds(spec)
+		for _, bind := range spec.HostBinds {
+			if hasDockerSocketBind([]HostBinding{bind}) && !containsString(trusted, dockerHostBindString(bind)) {
+				return "", fmt.Errorf("create container %s: mounting sensitive host path %s is not allowed", spec.Name, bind.HostPath)
+			}
+		}
+	}
+	if f.trackContainers && f.hasContainer(spec.Name) {
+		return "", fmt.Errorf("create container %s: name already in use", spec.Name)
+	}
 	f.created = append(f.created, spec)
 	f.events = append(f.events, "create:"+spec.Name)
+	f.trackCreated(spec)
 	return "container-" + spec.Name, nil
 }
 
@@ -2569,13 +2594,24 @@ func (f *fakeDockerAdapter) StartContainer(_ context.Context, name string) error
 	if len(f.startErrors) > 0 {
 		err := f.startErrors[0]
 		f.startErrors = f.startErrors[1:]
-		return err
+		if err != nil {
+			return err
+		}
+	}
+	if !f.hasContainer(name) {
+		return fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
 	return nil
 }
 
 func (f *fakeDockerAdapter) StopContainer(_ context.Context, name string) error {
 	f.stopped = append(f.stopped, name)
+	if f.traceLifecycle {
+		f.events = append(f.events, "stop:"+name)
+	}
+	if !f.hasContainer(name) {
+		return fmt.Errorf("container %s %w", name, errContainerNotFound)
+	}
 	return nil
 }
 
@@ -2600,6 +2636,36 @@ func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bo
 		f.removedContainers = map[string]int{}
 	}
 	f.removedContainers[name]++
+	delete(f.containers, name)
+	delete(f.containerSpecs, name)
+	if f.traceLifecycle {
+		f.events = append(f.events, "remove:"+name)
+	}
+	return nil
+}
+
+func (f *fakeDockerAdapter) RenameContainer(_ context.Context, name, newName string) error {
+	if f.renameErr != nil {
+		return f.renameErr
+	}
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	if f.trackContainers {
+		if !f.containers[name] {
+			return fmt.Errorf("container %s %w", name, errContainerNotFound)
+		}
+		if f.containers[newName] {
+			return fmt.Errorf("rename container %s to %s: %w", name, newName, errContainerNameConflict)
+		}
+		delete(f.containers, name)
+		f.containers[newName] = true
+		if spec, ok := f.containerSpecs[name]; ok {
+			delete(f.containerSpecs, name)
+			f.containerSpecs[newName] = spec
+		}
+	}
+	f.renamed = append(f.renamed, name+"->"+newName)
+	f.events = append(f.events, "rename:"+name+"->"+newName)
 	return nil
 }
 
@@ -2626,6 +2692,9 @@ func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (Co
 	if f.inspectErr != nil {
 		return ContainerState{}, f.inspectErr
 	}
+	if !f.hasContainer(name) {
+		return ContainerState{}, fmt.Errorf("container %s %w", name, errContainerNotFound)
+	}
 	if f.inspectState.Name != "" || f.inspectState.Status != "" || f.inspectState.Health != "" {
 		if f.inspectState.Name == "" {
 			f.inspectState.Name = name
@@ -2633,6 +2702,65 @@ func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (Co
 		return f.inspectState, nil
 	}
 	return ContainerState{Name: name, Running: true, Status: "running"}, nil
+}
+
+func (f *fakeDockerAdapter) hasContainer(name string) bool {
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	return !f.trackContainers || f.containers[name]
+}
+
+func (f *fakeDockerAdapter) setContainer(name string, present bool) {
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	if !f.trackContainers {
+		return
+	}
+	if f.containers == nil {
+		f.containers = map[string]bool{}
+	}
+	if present {
+		f.containers[name] = true
+	} else {
+		delete(f.containers, name)
+	}
+}
+
+func (f *fakeDockerAdapter) addContainer(name string) { f.setContainer(name, true) }
+
+// trackCreated records a created container and the spec it was created with.
+func (f *fakeDockerAdapter) trackCreated(spec ContainerSpec) {
+	f.setContainer(spec.Name, true)
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	if !f.trackContainers {
+		return
+	}
+	if f.containerSpecs == nil {
+		f.containerSpecs = map[string]ContainerSpec{}
+	}
+	f.containerSpecs[spec.Name] = spec
+}
+
+// containerSpec returns the spec of the tracked container now called name; a
+// rename carries the spec along.
+func (f *fakeDockerAdapter) containerSpec(name string) (ContainerSpec, bool) {
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	spec, ok := f.containerSpecs[name]
+	return spec, ok
+}
+
+// containerNames lists the tracked containers in sorted order.
+func (f *fakeDockerAdapter) containerNames() []string {
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	names := make([]string, 0, len(f.containers))
+	for name := range f.containers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 type fakeDesktopAdapter struct {

@@ -87,6 +87,7 @@ func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Serv
 		Launchpad:     launchpadAdapter,
 		Secrets:       s.Vault,
 		NativeManaged: newDesktopStoreNativeRuntime(desktopSvc),
+		Logger:        s.Logger,
 	})
 	if err != nil {
 		return nil, err

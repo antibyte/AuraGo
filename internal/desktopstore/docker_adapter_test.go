@@ -3,6 +3,7 @@ package desktopstore
 import (
 	"archive/tar"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -201,5 +202,81 @@ func TestToolsDockerAdapterTrustsOnlyCatalogHostBinds(t *testing.T) {
 	}
 	if len(created) != len(catalogSpecs) {
 		t.Fatalf("created = %v, want only the %d catalog containers", created, len(catalogSpecs))
+	}
+}
+
+func TestToolsDockerAdapterRenameContainerMapsEngineAnswers(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+
+	status := map[string]int{
+		"aurago-store-ok":       http.StatusNoContent,
+		"aurago-store-missing":  http.StatusNotFound,
+		"aurago-store-conflict": http.StatusConflict,
+		"aurago-store-broken":   http.StatusInternalServerError,
+	}
+	var renames []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
+		name := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1.45/containers/"), "/rename")
+		code, ok := status[name]
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/rename") || !ok {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		renames = append(renames, name+"->"+r.URL.Query().Get("name"))
+		w.WriteHeader(code)
+		if code >= 400 {
+			_, _ = io.WriteString(w, `{"message":"engine says no"}`)
+		}
+	}))
+	defer server.Close()
+	adapter := NewToolsDockerAdapter("tcp://"+strings.TrimPrefix(server.URL, "http://"), "", nil)
+	ctx := context.Background()
+
+	if err := adapter.RenameContainer(ctx, "aurago-store-ok", parkedContainerName("aurago-store-ok")); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if err := adapter.RenameContainer(ctx, "aurago-store-missing", "x"); !errors.Is(err, errContainerNotFound) {
+		t.Fatalf("404 rename error = %v, want errContainerNotFound", err)
+	}
+	if err := adapter.RenameContainer(ctx, "aurago-store-conflict", "x"); !errors.Is(err, errContainerNameConflict) {
+		t.Fatalf("409 rename error = %v, want errContainerNameConflict", err)
+	}
+	err := adapter.RenameContainer(ctx, "aurago-store-broken", "x")
+	if err == nil || errors.Is(err, errContainerNotFound) || errors.Is(err, errContainerNameConflict) || !strings.Contains(err.Error(), "engine says no") {
+		t.Fatalf("500 rename error = %v, want a plain engine error", err)
+	}
+	if len(renames) == 0 || renames[0] != "aurago-store-ok->aurago-store-ok.prev" {
+		t.Fatalf("renames = %#v", renames)
+	}
+}
+
+func TestToolsDockerAdapterMarksMissingContainers(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"message":"No such container: aurago-store-gone"}`)
+	}))
+	defer server.Close()
+	adapter := NewToolsDockerAdapter("tcp://"+strings.TrimPrefix(server.URL, "http://"), "", nil)
+	ctx := context.Background()
+
+	if _, err := adapter.InspectContainer(ctx, "aurago-store-gone"); !errors.Is(err, errContainerNotFound) || err.Error() != "container aurago-store-gone not found" {
+		t.Fatalf("inspect error = %v, want errContainerNotFound with the historical message", err)
+	}
+	if err := adapter.StartContainer(ctx, "aurago-store-gone"); !errors.Is(err, errContainerNotFound) || err.Error() != "container aurago-store-gone not found" {
+		t.Fatalf("start error = %v, want errContainerNotFound with the historical message", err)
 	}
 }

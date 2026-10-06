@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	pathpkg "path"
@@ -61,6 +62,8 @@ type Config struct {
 	NativeManaged NativeManagedRuntime
 	PortAllocator PortAllocator
 	PortProbe     PortProbe
+	// Logger receives Store warnings; nil uses slog.Default().
+	Logger *slog.Logger
 }
 
 // Service owns the software store catalog, persistent install records and
@@ -1164,31 +1167,12 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if err := s.saveInstalled(ctx, progress); err != nil {
 		return err
 	}
-	companionsTouched := false
-	restorePreviousCompanions := func() error {
-		if len(record.Companions) == 0 && len(previous.Companions) == 0 {
-			return nil
-		}
-		for _, companion := range record.Companions {
-			if strings.TrimSpace(companion.ContainerName) == "" {
-				continue
-			}
-			_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
-			_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
-		}
-		restored := previous
-		for i := range restored.Companions {
-			if err := s.createCompanionAt(ctx, &restored, i); err != nil {
-				return err
-			}
-			if !previousWasRunning {
-				_ = s.requireDocker().StopContainer(ctx, restored.Companions[i].ContainerName)
-				restored.Companions[i].Status = AppStatusStopped
-			}
-		}
-		previous.Companions = restored.Companions
-		return nil
-	}
+	// Each previous container is parked (stopped and renamed) before its
+	// replacement is created, and removed only after the replacements run and
+	// the record is saved. A failed update restores the parked containers as
+	// they are; only containers that could not be parked are recreated from
+	// the previous record, as every rollback did before.
+	var replaced []replacedContainer
 	restorePrevious := func(runErr error) error {
 		previous.LastOperationID = op.ID
 		previous.LastOperationType = op.Type
@@ -1196,38 +1180,15 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		_ = s.saveInstalled(ctx, previous)
 		return runErr
 	}
-	restorePreviousWithCompanions := func(runErr error) error {
-		if companionsTouched {
-			if companionErr := restorePreviousCompanions(); companionErr != nil {
-				previous.Status = AppStatusError
-				previous.Error = fmt.Sprintf("%v; companion rollback failed: %v", runErr, companionErr)
-			}
-		}
-		return restorePrevious(runErr)
-	}
-	rollbackPrevious := func(runErr error) error {
-		if companionsTouched {
-			if companionErr := restorePreviousCompanions(); companionErr != nil {
-				previous.Status = AppStatusError
-				previous.Error = fmt.Sprintf("%v; companion rollback failed: %v", runErr, companionErr)
-				return restorePrevious(runErr)
-			}
-		}
-		rollbackID, rollbackErr := s.requireDocker().CreateContainer(ctx, previousSpec)
-		if rollbackErr != nil {
+	rollback := func(runErr error) error {
+		rollbackErr := s.restoreReplaced(ctx, &previous, previousSpec, previousWasRunning, replaced)
+		switch {
+		case rollbackErr != nil:
 			previous.Status = AppStatusError
 			previous.Error = fmt.Sprintf("%v; rollback failed: %v", runErr, rollbackErr)
-			return restorePrevious(runErr)
+		case appWasReplaced(replaced):
+			previous.Error = ""
 		}
-		previous.ContainerID = rollbackID
-		if previousWasRunning {
-			if rollbackErr := s.requireDocker().StartContainer(ctx, previous.ContainerName); rollbackErr != nil {
-				previous.Status = AppStatusError
-				previous.Error = fmt.Sprintf("%v; rollback start failed: %v", runErr, rollbackErr)
-				return restorePrevious(runErr)
-			}
-		}
-		previous.Error = ""
 		return restorePrevious(runErr)
 	}
 	if op.Type != OperationConfigure {
@@ -1244,46 +1205,36 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 			return restorePrevious(err)
 		}
 	}
-	companionsTouched = len(autoCompanions) > 0
-	if err := s.recreateAutoCompanions(ctx, &record, autoCompanions); err != nil {
-		return restorePreviousWithCompanions(err)
+	if err := s.replaceAutoCompanions(ctx, &record, autoCompanions, &replaced); err != nil {
+		return rollback(err)
 	}
-	_ = s.requireDocker().StopContainer(ctx, record.ContainerName)
-	if err := s.requireDocker().RemoveContainer(ctx, record.ContainerName, true); err != nil {
-		if previousWasRunning {
-			if restartErr := s.requireDocker().StartContainer(ctx, previous.ContainerName); restartErr != nil {
-				previous.Status = AppStatusError
-				previous.Error = fmt.Sprintf("restart previous container: %v", restartErr)
-			}
-		}
-		return restorePreviousWithCompanions(fmt.Errorf("remove old container: %w", err))
+	if err := s.parkForReplacement(ctx, &replaced, record.ContainerName, ""); err != nil {
+		return rollback(err)
 	}
 	containerID, err := s.requireDocker().CreateContainer(ctx, nextSpec)
 	if err != nil {
-		return rollbackPrevious(fmt.Errorf("create updated container: %w", err))
+		return rollback(fmt.Errorf("create updated container: %w", err))
 	}
+	replaced[len(replaced)-1].created = true
 	record.ContainerID = containerID
 	if err := s.seedContainerFiles(ctx, entry, record); err != nil {
-		_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
-		return rollbackPrevious(fmt.Errorf("seed updated container files: %w", err))
+		return rollback(fmt.Errorf("seed updated container files: %w", err))
 	}
 	if previousWasRunning {
 		if err := s.requireDocker().StartContainer(ctx, record.ContainerName); err != nil {
-			_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
-			return rollbackPrevious(fmt.Errorf("start updated container: %w", err))
+			return rollback(fmt.Errorf("start updated container: %w", err))
 		}
 		if err := s.waitContainerReady(ctx, record, appReadinessTimeout); err != nil {
-			_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
-			return rollbackPrevious(fmt.Errorf("updated container readiness: %w", err))
+			return rollback(fmt.Errorf("updated container readiness: %w", err))
 		}
 	}
 	record.Status = previous.Status
 	record.Error = ""
 	record.LastOperationState = OperationSucceeded
 	if err := s.saveInstalled(ctx, record); err != nil {
-		_ = s.requireDocker().RemoveContainer(ctx, record.ContainerName, true)
-		return rollbackPrevious(fmt.Errorf("save updated container: %w", err))
+		return rollback(fmt.Errorf("save updated container: %w", err))
 	}
+	s.removeParked(ctx, replaced)
 	return nil
 }
 
@@ -1453,11 +1404,14 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		if err := s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true); err != nil {
 			return fmt.Errorf("remove companion container %s: %w", companion.ContainerName, err)
 		}
+		// A parked container left by an interrupted update.
+		_ = s.requireDocker().RemoveContainer(ctx, parkedContainerName(companion.ContainerName), true)
 	}
 	_ = s.requireDocker().StopContainer(ctx, app.ContainerName)
 	if err := s.requireDocker().RemoveContainer(ctx, app.ContainerName, true); err != nil {
 		return fmt.Errorf("remove container: %w", err)
 	}
+	_ = s.requireDocker().RemoveContainer(ctx, parkedContainerName(app.ContainerName), true)
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
 	}
@@ -2251,24 +2205,6 @@ func (s *Service) createAutoCompanions(ctx context.Context, app *InstalledApp) e
 	return nil
 }
 
-func (s *Service) recreateAutoCompanions(ctx context.Context, app *InstalledApp, companions []CompanionApp) error {
-	for _, companion := range companions {
-		index := companionIndex(app.Companions, companion.ID)
-		if index < 0 {
-			app.Companions = append(app.Companions, companion)
-			index = len(app.Companions) - 1
-		} else {
-			app.Companions[index] = companion
-		}
-		_ = s.requireDocker().StopContainer(ctx, companion.ContainerName)
-		_ = s.requireDocker().RemoveContainer(ctx, companion.ContainerName, true)
-		if err := s.createCompanionAt(ctx, app, index); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Service) createCompanionAt(ctx context.Context, app *InstalledApp, index int) error {
 	companion := &app.Companions[index]
 	if err := s.requireDocker().PullImage(ctx, companion.Image); err != nil {
@@ -2770,6 +2706,14 @@ func (s *Service) requireDocker() DockerAdapter {
 		return missingDockerAdapter{}
 	}
 	return s.cfg.Docker
+}
+
+// logger returns the configured logger or slog's default.
+func (s *Service) logger() *slog.Logger {
+	if s.cfg.Logger != nil {
+		return s.cfg.Logger
+	}
+	return slog.Default()
 }
 
 func (s *Service) ensureReady(ctx context.Context) error {

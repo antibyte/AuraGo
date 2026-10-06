@@ -42,6 +42,13 @@ func CompanionContainerName(appID, companionID string) string {
 	return ContainerName(appID) + "-" + normalizeAppID(companionID)
 }
 
+// parkedContainerName is the name a Store update gives a container it replaces
+// until the replacement runs (see parkContainer). Store app and companion names
+// use only [a-z0-9-], so the dot cannot collide with them.
+func parkedContainerName(name string) string {
+	return strings.TrimSpace(name) + ".prev"
+}
+
 // ManagedLaunchpadLinkID returns the stable Launchpad link ID for a store app.
 func ManagedLaunchpadLinkID(appID string) string {
 	return "store-" + normalizeAppID(appID)
@@ -145,6 +152,9 @@ func (missingDockerAdapter) RestartContainer(context.Context, string) error {
 	return fmt.Errorf("Docker adapter is not configured")
 }
 func (missingDockerAdapter) RemoveContainer(context.Context, string, bool) error {
+	return fmt.Errorf("Docker adapter is not configured")
+}
+func (missingDockerAdapter) RenameContainer(context.Context, string, string) error {
 	return fmt.Errorf("Docker adapter is not configured")
 }
 func (missingDockerAdapter) RemoveVolume(context.Context, string, bool) error {

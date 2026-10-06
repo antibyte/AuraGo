@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -15,6 +16,13 @@ import (
 
 	"aurago/internal/tools"
 )
+
+// errContainerNotFound marks an Engine 404 for a container. Wrapped as
+// "container <name> not found", the historical message stays unchanged.
+var errContainerNotFound = errors.New("not found")
+
+// errContainerNameConflict marks an Engine 409 for a container name in use.
+var errContainerNameConflict = errors.New("name already in use")
 
 // ToolsDockerAdapter implements DockerAdapter through AuraGo's Docker Engine
 // API helpers.
@@ -143,6 +151,24 @@ func (a ToolsDockerAdapter) RemoveContainer(ctx context.Context, name string, fo
 	return dockerHTTPError("remove container", code, data)
 }
 
+// RenameContainer renames a container through POST /containers/{name}/rename.
+func (a ToolsDockerAdapter) RenameContainer(ctx context.Context, name, newName string) error {
+	endpoint := "/containers/" + url.PathEscape(name) + "/rename?name=" + url.QueryEscape(newName)
+	data, code, err := tools.DockerRequestContext(ctx, a.Config, http.MethodPost, endpoint, "")
+	if err != nil {
+		return err
+	}
+	switch code {
+	case http.StatusNoContent, http.StatusOK:
+		return nil
+	case http.StatusNotFound:
+		return fmt.Errorf("container %s %w", name, errContainerNotFound)
+	case http.StatusConflict:
+		return fmt.Errorf("rename container %s to %s: %w", name, newName, errContainerNameConflict)
+	}
+	return dockerHTTPError("rename container", code, data)
+}
+
 func (a ToolsDockerAdapter) RemoveVolume(ctx context.Context, name string, force bool) error {
 	endpoint := "/volumes/" + url.PathEscape(name)
 	if force {
@@ -202,7 +228,7 @@ func (a ToolsDockerAdapter) InspectContainer(ctx context.Context, name string) (
 		return ContainerState{}, err
 	}
 	if code == http.StatusNotFound {
-		return ContainerState{}, fmt.Errorf("container %s not found", name)
+		return ContainerState{}, fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
 	if code != http.StatusOK {
 		return ContainerState{}, dockerHTTPError("inspect container", code, data)
@@ -241,7 +267,7 @@ func (a ToolsDockerAdapter) containerAction(ctx context.Context, name, method, a
 		return nil
 	}
 	if code == http.StatusNotFound {
-		return fmt.Errorf("container %s not found", name)
+		return fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
 	return dockerHTTPError("container action", code, data)
 }

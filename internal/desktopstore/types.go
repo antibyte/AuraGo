@@ -318,6 +318,9 @@ type DockerAdapter interface {
 	StopContainer(ctx context.Context, name string) error
 	RestartContainer(ctx context.Context, name string) error
 	RemoveContainer(ctx context.Context, name string, force bool) error
+	// RenameContainer renames a container. A missing container wraps
+	// errContainerNotFound and a name in use wraps errContainerNameConflict.
+	RenameContainer(ctx context.Context, name, newName string) error
 	RemoveVolume(ctx context.Context, name string, force bool) error
 	CreateNetwork(ctx context.Context, name string) error
 	RemoveNetwork(ctx context.Context, name string) error
