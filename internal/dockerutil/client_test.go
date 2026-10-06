@@ -3,6 +3,7 @@ package dockerutil
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -87,4 +88,39 @@ func TestDoJSONStatusCodeContract(t *testing.T) {
 			t.Fatalf("DoJSON() = (%d, %v), want (204, nil)", code, err)
 		}
 	})
+}
+
+func TestDoJSONErrorTextIsOneBoundedLine(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		// Pins: printable Engine bodies keep today's exact text.
+		{"engine JSON body", `{"message":"No such container: x"}` + "\n", `Docker API returned 404: {"message":"No such container: x"}`},
+		{"long ASCII body cut at 512 bytes", strings.Repeat("x", 600), "Docker API returned 404: " + strings.Repeat("x", 512)},
+		{"empty body", "", "Docker API returned 404: "},
+		// New: one printable line, never a split rune.
+		{"line breaks become spaces", "<html>\n403 Forbidden\n</html>", "Docker API returned 404: <html> 403 Forbidden </html>"},
+		{"rune at the cut is not split", strings.Repeat("x", 511) + "é", "Docker API returned 404: " + strings.Repeat("x", 511)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/version" {
+					fmt.Fprint(w, `{"ApiVersion":"1.45","MinAPIVersion":"1.25"}`)
+					return
+				}
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = io.WriteString(w, tc.body)
+			}))
+			defer server.Close()
+			client := NewClient("tcp://"+strings.TrimPrefix(server.URL, "http://"), time.Second)
+			defer client.CloseIdleConnections()
+			code, err := client.DoJSON(context.Background(), http.MethodGet, "containers/x/json", nil, nil)
+			if code != http.StatusNotFound || err == nil || err.Error() != tc.want {
+				t.Fatalf("DoJSON() = (%d, %v), want (404, %q)", code, err, tc.want)
+			}
+		})
+	}
 }
