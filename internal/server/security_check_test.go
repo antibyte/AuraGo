@@ -475,6 +475,90 @@ func TestCheckSecuritySIPHintsRequireAnAnsweringEndpoint(t *testing.T) {
 	}
 }
 
+// fritzBoxReadOnlyConfig returns an enabled Fritz!Box over HTTP whose enabled
+// feature groups are all read-only.
+func fritzBoxReadOnlyConfig() *config.Config {
+	cfg := &config.Config{}
+	cfg.FritzBox.Enabled = true
+	cfg.FritzBox.HTTPS = false
+	cfg.FritzBox.System.Enabled = true
+	cfg.FritzBox.System.ReadOnly = true
+	cfg.FritzBox.Network.Enabled = true
+	cfg.FritzBox.Network.ReadOnly = true
+	cfg.FritzBox.Telephony.Enabled = true
+	cfg.FritzBox.Telephony.ReadOnly = true
+	cfg.FritzBox.SmartHome.Enabled = true
+	cfg.FritzBox.SmartHome.ReadOnly = true
+	cfg.FritzBox.Storage.Enabled = true
+	cfg.FritzBox.Storage.ReadOnly = true
+	cfg.FritzBox.TV.Enabled = true
+	cfg.FritzBox.TV.ReadOnly = true
+	return cfg
+}
+
+func TestCheckSecurityWarnsOnWritableFritzBoxGroupsOverHTTP(t *testing.T) {
+	t.Parallel()
+
+	for name, mutate := range map[string]func(*config.Config){
+		"system":     func(cfg *config.Config) { cfg.FritzBox.System.ReadOnly = false },
+		"network":    func(cfg *config.Config) { cfg.FritzBox.Network.ReadOnly = false },
+		"telephony":  func(cfg *config.Config) { cfg.FritzBox.Telephony.ReadOnly = false },
+		"smart home": func(cfg *config.Config) { cfg.FritzBox.SmartHome.ReadOnly = false },
+		"storage":    func(cfg *config.Config) { cfg.FritzBox.Storage.ReadOnly = false },
+	} {
+		cfg := fritzBoxReadOnlyConfig()
+		mutate(cfg)
+		hint := findSecurityHint(CheckSecurity(cfg), "fritzbox_plaintext_sessions")
+		if hint == nil {
+			t.Fatalf("%s writable over HTTP: expected fritzbox_plaintext_sessions", name)
+		}
+		if hint.Severity != SevWarning {
+			t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
+		}
+		if hint.AutoFixable || len(hint.FixPatch) != 0 {
+			t.Fatalf("fritzbox_plaintext_sessions must stay a manual hint, got %#v", hint)
+		}
+		for _, want := range []string{"fritzbox.https: true", "49443", "insecure_skip_verify"} {
+			if !strings.Contains(hint.Description, want) {
+				t.Fatalf("description must mention %q: %s", want, hint.Description)
+			}
+		}
+
+		cfg.FritzBox.HTTPS = true
+		if hasSecurityHint(CheckSecurity(cfg), "fritzbox_plaintext_sessions") {
+			t.Fatalf("%s writable over HTTPS: did not expect fritzbox_plaintext_sessions", name)
+		}
+	}
+}
+
+func TestCheckSecuritySkipsFritzBoxPlaintextHintWithoutWritableGroup(t *testing.T) {
+	t.Parallel()
+
+	if hasSecurityHint(CheckSecurity(fritzBoxReadOnlyConfig()), "fritzbox_plaintext_sessions") {
+		t.Fatal("did not expect fritzbox_plaintext_sessions when every group is read-only")
+	}
+
+	disabledGroup := fritzBoxReadOnlyConfig()
+	disabledGroup.FritzBox.Network.Enabled = false
+	disabledGroup.FritzBox.Network.ReadOnly = false
+	if hasSecurityHint(CheckSecurity(disabledGroup), "fritzbox_plaintext_sessions") {
+		t.Fatal("did not expect fritzbox_plaintext_sessions for a disabled group without readonly")
+	}
+
+	tvOnly := fritzBoxReadOnlyConfig()
+	tvOnly.FritzBox.TV.ReadOnly = false
+	if hasSecurityHint(CheckSecurity(tvOnly), "fritzbox_plaintext_sessions") {
+		t.Fatal("did not expect fritzbox_plaintext_sessions for the TV group, which has no write actions")
+	}
+
+	integrationOff := fritzBoxReadOnlyConfig()
+	integrationOff.FritzBox.System.ReadOnly = false
+	integrationOff.FritzBox.Enabled = false
+	if hasSecurityHint(CheckSecurity(integrationOff), "fritzbox_plaintext_sessions") {
+		t.Fatal("did not expect fritzbox_plaintext_sessions while the integration is disabled")
+	}
+}
+
 func hasSecurityHint(hints []SecurityHint, id string) bool {
 	return findSecurityHint(hints, id) != nil
 }

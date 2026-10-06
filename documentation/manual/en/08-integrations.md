@@ -578,6 +578,8 @@ fritzbox:
     username: "admin"
 ```
 
+With `https: true` the default TR-064 port 49000 is remapped to AVM's TLS port 49443 (set `insecure_skip_verify: true` for the box's self-signed certificate), and the security check warns with `fritzbox_plaintext_sessions` while an enabled feature group with `readonly: false` runs over plain HTTP.
+
 ### Virtual Desktop Widget
 The Virtual Desktop ships a hidden **Fritz!Box** widget that you can add from the widget drawer. It is read-only and shows the most important router facts on pages you can flip through (dots, arrows, arrow keys, a horizontal trackpad gesture, or swiping on touch devices; with a mouse you keep dragging the widget itself):
 

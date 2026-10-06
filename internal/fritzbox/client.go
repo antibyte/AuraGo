@@ -147,6 +147,10 @@ func buildBaseURL(host string, port int, useHTTPS bool) string {
 	scheme := "http"
 	if useHTTPS {
 		scheme = "https"
+		// AVM serves TR-064 over TLS on 49443; the template default port is the plain one.
+		if port == 49000 {
+			port = 49443
+		}
 	}
 	return fmt.Sprintf("%s://%s:%d", scheme, host, port)
 }

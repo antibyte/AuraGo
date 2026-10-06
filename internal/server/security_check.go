@@ -624,6 +624,21 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		}
 	}
 
+	// 24c. fritzbox_plaintext_sessions — Fritz!Box session IDs travel in clear text
+	// over HTTP; harmless for reads, but a writable feature group lets a LAN sniffer
+	// replay the SID.
+	if cfg.FritzBox.Enabled && !cfg.FritzBox.HTTPS && fritzBoxAnyGroupWritable(cfg) {
+		hints = append(hints, SecurityHint{
+			ID: "fritzbox_plaintext_sessions", Severity: SevWarning,
+			Title: "Fritz!Box control over plain HTTP",
+			Description: "fritzbox.https is false while at least one feature group allows writes. " +
+				"Session IDs and digest exchanges cross the LAN unencrypted. " +
+				"Set fritzbox.https: true (TR-064 moves from port 49000 to 49443; set fritzbox.insecure_skip_verify for the box's self-signed certificate) " +
+				"or keep the writable groups read-only.",
+			AutoFixable: false,
+		})
+	}
+
 	// 25. telnyx_no_allowed_numbers — Telnyx has no permitted inbound/outbound numbers
 	if cfg.Telnyx.Enabled && len(cfg.Telnyx.AllowedNumbers) == 0 {
 		hints = append(hints, SecurityHint{
@@ -791,6 +806,18 @@ func sipPeersIncludeSubnet(peers []string) bool {
 		}
 	}
 	return false
+}
+
+// fritzBoxAnyGroupWritable reports whether an enabled Fritz!Box feature group may
+// change router state. The agent gates every write on the group being enabled
+// first; the TV group has no write actions.
+func fritzBoxAnyGroupWritable(cfg *config.Config) bool {
+	fb := cfg.FritzBox
+	return (fb.System.Enabled && !fb.System.ReadOnly) ||
+		(fb.Network.Enabled && !fb.Network.ReadOnly) ||
+		(fb.Telephony.Enabled && !fb.Telephony.ReadOnly) ||
+		(fb.SmartHome.Enabled && !fb.SmartHome.ReadOnly) ||
+		(fb.Storage.Enabled && !fb.Storage.ReadOnly)
 }
 
 func pythonSandboxReady(cfg *config.Config) bool {

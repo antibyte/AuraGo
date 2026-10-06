@@ -22,6 +22,23 @@ func TestBuildWebURLHonorsConfiguredWebPort(t *testing.T) {
 	}
 }
 
+func TestBuildBaseURLRemapsDefaultTR064PortForHTTPS(t *testing.T) {
+	for _, tc := range []struct {
+		port     int
+		useHTTPS bool
+		want     string
+	}{
+		{port: 49000, useHTTPS: true, want: "https://fritz.box:49443"},
+		{port: 49000, useHTTPS: false, want: "http://fritz.box:49000"},
+		{port: 49001, useHTTPS: true, want: "https://fritz.box:49001"},
+		{port: 49443, useHTTPS: true, want: "https://fritz.box:49443"},
+	} {
+		if got := buildBaseURL("fritz.box", tc.port, tc.useHTTPS); got != tc.want {
+			t.Fatalf("buildBaseURL(fritz.box, %d, %v) = %q, want %q", tc.port, tc.useHTTPS, got, tc.want)
+		}
+	}
+}
+
 func TestTR064ClientAllowsSelfSignedTLSWhenConfigured(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

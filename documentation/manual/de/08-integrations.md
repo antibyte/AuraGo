@@ -666,6 +666,8 @@ fritzbox:
   username: "admin"
 ```
 
+Mit `https: true` wird der Standard-TR-064-Port 49000 automatisch auf AVMs TLS-Port 49443 umgestellt (für das selbstsignierte Zertifikat der Box `insecure_skip_verify: true` setzen), und die Sicherheitsprüfung warnt mit `fritzbox_plaintext_sessions`, solange eine aktivierte Funktionsgruppe `readonly: false` über unverschlüsseltes HTTP nutzt.
+
 ### Widget im Virtuellen Desktop
 Der Virtuelle Desktop bringt ein standardmäßig ausgeblendetes **Fritz!Box**-Widget mit, das du über die Widget-Leiste hinzufügst. Es ist rein lesend und zeigt die wichtigsten Router-Daten auf blätterbaren Seiten (Punkte, Pfeile, Pfeiltasten, horizontale Trackpad-Geste oder Wischen auf Touch-Geräten; mit der Maus verschiebst du wie gewohnt das Widget):
 

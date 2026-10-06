@@ -1354,7 +1354,7 @@ fritzbox:
     enabled: false
     host: "fritz.box"                       # Fritz!Box hostname or IP (default: fritz.box)
     port: 49000                             # TR-064 SOAP port (default: 49000)
-    https: false                            # use HTTPS for TR-064 (often port 49443)
+    https: false                            # use HTTPS for TR-064; port 49000 is then remapped to AVM's TLS port 49443
     web_port: 0                             # optional web UI/SID/AHA port; 0 = default 80/443
     insecure_skip_verify: false             # allow self-signed HTTPS certs on trusted LANs
     username: "admin"                       # Fritz!Box login username
