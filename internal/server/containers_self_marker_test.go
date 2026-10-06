@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -26,6 +27,18 @@ func replaceContainerSelfMarker(marker string) func() {
 		setContainerSelfMarker(old)
 		resetContainerSelfProofCache()
 	}
+}
+
+// writtenSelfMarker creates a marker file the way initContainerSelfMarker
+// does and returns its slash path: a marker proves something only while it
+// exists in AuraGo's own layer.
+func writtenSelfMarker(t *testing.T) string {
+	t.Helper()
+	marker, err := writeContainerSelfMarker(t.TempDir())
+	if err != nil {
+		t.Fatalf("write marker: %v", err)
+	}
+	return filepath.ToSlash(marker)
 }
 
 // containerdSidecarMountinfo is selfMountinfoFixture on the containerd image
@@ -98,7 +111,7 @@ func markerSidecarServer(t *testing.T, host string) *Server {
 // compose hint, and the provider keeps the confirmation (F-A15).
 func TestContainerSelfMarkerProvesSelfBehindASidecar(t *testing.T) {
 	const providerID, appID = selfContainerID, otherContainerID
-	const marker = "/tmp/.aurago-self-0123456789abcdef0123456789abcdef"
+	marker := writtenSelfMarker(t)
 	var heads []string
 	host := markerSidecarAPI(t, providerID, appID, marker, map[string]int{appID: http.StatusOK, providerID: http.StatusNotFound}, &heads)
 	s := markerSidecarServer(t, host)
@@ -135,7 +148,7 @@ func TestContainerSelfMarkerProvesSelfBehindASidecar(t *testing.T) {
 // (for example a committed copy of AuraGo's container) proves nothing.
 func TestContainerSelfMarkerWithoutProofKeepsTheConfirmation(t *testing.T) {
 	const providerID, appID = selfContainerID, otherContainerID
-	const marker = "/tmp/.aurago-self-0123456789abcdef0123456789abcdef"
+	marker := writtenSelfMarker(t)
 	for name, tc := range map[string]struct {
 		marker  string
 		archive map[string]int
@@ -255,5 +268,58 @@ func TestInitContainerSelfMarkerOnlyInTheDockerRuntime(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatalf("marker file: %v", err)
+	}
+}
+
+// TestContainerSelfMarkerProvesNothingOnceItIsGone: a marker that vanished
+// from AuraGo's own layer (removed by hand, or a container whose layer was
+// replaced) proves nothing, even when an earlier proof is cached; the
+// confirmation comes back.
+func TestContainerSelfMarkerProvesNothingOnceItIsGone(t *testing.T) {
+	const providerID, appID = selfContainerID, otherContainerID
+	marker := writtenSelfMarker(t)
+	var heads []string
+	host := markerSidecarAPI(t, providerID, appID, marker, map[string]int{appID: http.StatusOK, providerID: http.StatusNotFound}, &heads)
+	s := markerSidecarServer(t, host)
+	t.Cleanup(replaceContainerSelfMarker(marker))
+	cfg := tools.DockerConfig{Host: host}
+	ctx := context.Background()
+
+	if got := classifyContainerForAction(ctx, s, cfg, "aurago"); !got.Self {
+		t.Fatalf("app with its marker = %+v, want self", got)
+	}
+	if err := os.Remove(filepath.FromSlash(marker)); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := classifyContainerForAction(ctx, s, cfg, "aurago"), (containerProtection{Owner: dockerutil.AppOwner, SharedNetwork: true}); got != want {
+		t.Fatalf("app after its marker vanished = %+v, want %+v", got, want)
+	}
+	if c := listFlags(t, s)[appID[:12]]; c["self"] != nil || c["shared_network"] != true {
+		t.Fatalf("list app entry after the marker vanished = %v, want shared_network", c)
+	}
+}
+
+// TestInitContainerSelfMarkerLogsOnlyTheDirectory: the random name is the
+// secret part of the proof, so the debug log names only its directory.
+func TestInitContainerSelfMarkerLogsOnlyTheDirectory(t *testing.T) {
+	dir := t.TempDir()
+	oldDirs, oldCheck := containerSelfMarkerDirs, containerSelfMarkerDirCheck
+	containerSelfMarkerDirs = func() []string { return []string{dir} }
+	containerSelfMarkerDirCheck = func(string, string) bool { return true }
+	t.Cleanup(func() { containerSelfMarkerDirs, containerSelfMarkerDirCheck = oldDirs, oldCheck })
+	t.Cleanup(replaceContainerSelfProcFiles(map[string]string{"/proc/self/mountinfo": selfMountinfoFixture}))
+	t.Cleanup(replaceContainerSelfMarker(""))
+	var logs strings.Builder
+	initContainerSelfMarker(true, slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	marker := currentContainerSelfMarker()
+	if marker == "" {
+		t.Fatal("no marker written")
+	}
+	out := logs.String()
+	if !strings.Contains(out, "Self marker written") || !strings.Contains(out, filepath.ToSlash(dir)) {
+		t.Fatalf("log = %q, want the marker's directory", out)
+	}
+	if strings.Contains(out, path.Base(marker)) {
+		t.Fatalf("log = %q names the marker file", out)
 	}
 }

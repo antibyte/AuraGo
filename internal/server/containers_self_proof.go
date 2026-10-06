@@ -281,7 +281,8 @@ func initContainerSelfMarker(isDocker bool, logger *slog.Logger) {
 		setContainerSelfMarker(filepath.ToSlash(marker))
 		resetContainerSelfProofCache()
 		if logger != nil {
-			logger.Debug("[Containers] Self marker written", "path", filepath.ToSlash(marker))
+			// The random name is the secret part of the proof: log only its directory.
+			logger.Debug("[Containers] Self marker written", "dir", filepath.ToSlash(filepath.Dir(marker)))
 		}
 		return
 	}
@@ -380,6 +381,12 @@ func proveSelfInSharedGroup(ctx context.Context, cfg tools.DockerConfig, isDocke
 	}
 	ownUpper := containerOwnUpperDir(isDocker)
 	marker := currentContainerSelfMarker()
+	if marker != "" {
+		// A marker that vanished from AuraGo's own layer proves nothing.
+		if _, err := os.Stat(filepath.FromSlash(marker)); err != nil {
+			marker = ""
+		}
+	}
 	if ownUpper == "" && marker == "" {
 		return ""
 	}
