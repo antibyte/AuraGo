@@ -1254,6 +1254,84 @@ func TestInjectVaultIndicatorsAddsVirtualComputerSecrets(t *testing.T) {
 	}
 }
 
+// The config UI must show the effective mqtt.allow_unauthenticated_relay: a
+// config the merger has not touched yet lacks the key while Load grandfathers
+// it, and a UI save of the MQTT section would otherwise write false.
+func TestInjectMQTTRelayDefaultsExposesEffectiveRelayPermission(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"absent key, enabled anonymous broker", "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n", true},
+		{"absent key, mqtt disabled", "mqtt:\n  enabled: false\n  relay_to_agent: true\n", false},
+		{"explicit false", "mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n  allow_unauthenticated_relay: false\n", false},
+		{"missing mqtt section", "server:\n  port: 8088\n", false},
+		{"null mqtt section", "mqtt:\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.Load(path)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			var raw map[string]interface{}
+			if err := yaml.Unmarshal([]byte(tc.yaml), &raw); err != nil {
+				t.Fatal(err)
+			}
+			injectMQTTRelayDefaults(raw, cfg)
+			section, ok := raw["mqtt"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("mqtt section = %#v", raw["mqtt"])
+			}
+			if got, ok := section["allow_unauthenticated_relay"].(bool); !ok || got != tc.want {
+				t.Fatalf("mqtt.allow_unauthenticated_relay = %#v, want %v", section["allow_unauthenticated_relay"], tc.want)
+			}
+			if strings.Contains(tc.yaml, "relay_to_agent: true") && section["relay_to_agent"] != true {
+				t.Fatalf("inject dropped existing mqtt keys: %#v", section)
+			}
+		})
+	}
+}
+
+func TestHandleGetConfigShowsGrandfatheredMQTTRelayPermission(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte("mqtt:\n  enabled: true\n  broker: tcp://broker.lan:1883\n  relay_to_agent: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.ConfigPath = path
+	vault, err := security.NewVault(strings.Repeat("31", 32), filepath.Join(dir, "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{Cfg: cfg, Vault: vault, Logger: slog.Default()}
+	s.initConfigSnapshot()
+
+	rec := httptest.NewRecorder()
+	handleGetConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		MQTT map[string]interface{} `json:"mqtt"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.MQTT["allow_unauthenticated_relay"] != true {
+		t.Fatalf("GET /api/config mqtt.allow_unauthenticated_relay = %#v, want true (grandfathered)", body.MQTT["allow_unauthenticated_relay"])
+	}
+}
+
 // TestConfigSaveLoadNoDuplicateKeys verifies that saving and loading a config
 // does not produce duplicate YAML keys (which would cause parse errors).
 func TestConfigSaveLoadNoDuplicateKeys(t *testing.T) {

@@ -124,6 +124,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 		injectGameMakerDefaults(rawCfg, s.Cfg)
 		injectHereNowDefaults(rawCfg, s.Cfg)
+		injectMQTTRelayDefaults(rawCfg, s.Cfg)
 		injectTregDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
@@ -159,6 +160,24 @@ func injectHereNowDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
 	section["allow_access_management"] = cfg.HereNow.AllowAccessManagement
 	section["allow_delete"] = cfg.HereNow.AllowDelete
 	section["default_account"] = cfg.HereNow.DefaultAccount
+}
+
+// injectMQTTRelayDefaults exposes the effective mqtt.allow_unauthenticated_relay.
+// A config the merger has not rewritten yet lacks the key while config.Load
+// grandfathers it to true for an enabled anonymous broker; showing the raw
+// absence as "off" would make the next MQTT save write false and refuse
+// relays that were running. The effective value equals an explicit key and
+// otherwise matches what config-merger writes.
+func injectMQTTRelayDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	section, ok := rawCfg["mqtt"].(map[string]interface{})
+	if !ok {
+		section = make(map[string]interface{})
+		rawCfg["mqtt"] = section
+	}
+	section["allow_unauthenticated_relay"] = cfg.MQTT.AllowUnauthenticatedRelay
 }
 
 func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault *security.Vault) {

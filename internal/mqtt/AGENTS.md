@@ -45,7 +45,9 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   owners from current configuration and reject traffic outside desired filters.
 - Mission dispatch uses one worker and at most 256 waiting jobs. Drop new work
   on overload and recheck registration/generation before execution; dropped or
-  stale jobs never consume a trigger interval.
+  stale jobs never consume a trigger interval. A delivery refused by the
+  server's relay-auth gate does, because the interval is claimed before the
+  callback runs.
 - MQTT and Frigate relays use separate internal autonomous sessions, exclude
   global chat history and suppress derived conversation, memory, personality
   and planner-reminder effects. Keep explicit authorized tools and operational
