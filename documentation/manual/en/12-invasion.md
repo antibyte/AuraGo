@@ -463,7 +463,7 @@ Rotate the master↔egg shared key on a connected nest:
 curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/rotate-key
 ```
 
-The Egg stores the new key in its vault and confirms it before the master commits the rotation. If the Egg rejects or does not confirm in time, the call returns `502` and the previous key stays active; an Egg that stored the key anyway is accepted on its next reconnect. Update the master and all Eggs together for this release.
+The Egg stores the new key in its vault and confirms it before the master commits the rotation. If the Egg rejects or does not confirm in time, the call returns `502` and the Egg is reconciled at its next connection (an Egg that stored the key anyway is accepted with it). The call returns `409` while a rotation is already in progress or still unresolved for this nest. After a rotation the old key stays valid once for up to an hour, so an Egg running the previous binary can reconnect after a restart. Re-hatching a nest revokes every stored key, including pending and previous rotation keys. Update the master and all Eggs together for this release.
 
 If a health check fails after deploy, the system attempts **automatic rollback**.
 

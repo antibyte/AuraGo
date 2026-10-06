@@ -36,11 +36,17 @@ the Egg runtime in `cmd/aurago`.
   timed-out rotation stays unresolved (no new rotation) until the Egg's
   rejection arrives or the socket ends. The handshake tries current, `_next`,
   `_prev`; a `_next`/`_prev` match is promoted and the others removed, and a
-  current-key match retires `_prev`. The `egg_shared_` vault prefix is
-  reserved. Tests: `TestSendRekey*`, `TestEggRejectsRekeyWithUnexpectedVersion`,
+  current-key match retires `_prev`. `_prev` is dated by `_prev_at` (written
+  in the commit) and honoured only within `eggPrevKeyGrace` (one hour); an
+  undated, expired or future-dated `_prev` is deleted at the next handshake.
+  Re-hatching (`storeEggSharedKey`) replaces the key and drops every
+  candidate atomically. The `egg_shared_` and `egg_master_key_` vault
+  prefixes are reserved. Tests: `TestSendRekey*`,
+  `TestEggRejectsRekeyWithUnexpectedVersion`,
   `TestBeginKeyRotationSerializesRotationsPerNest`,
   `TestHeartbeatAndRekeyRemainOrderedUnderConcurrentTraffic` (bridge) and
-  `TestInvasionHandshake*`, `TestInvasionRotateKey*` (server).
+  `TestInvasionHandshake*`, `TestInvasionRehatchRevokesRotationCandidates`,
+  `TestInvasionRotateKey*` (server).
 - SSH deployment and reconfiguration transmit secret-bearing file content over
   encrypted stdin with a fixed exec command. Publish private mode-0600 temporary
   files atomically as the configured SSH user; keep the last valid file on error.

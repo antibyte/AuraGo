@@ -65,8 +65,10 @@ var blockedSecretPrefixes = []string{
 	"music_google_lyria_",
 	"remote_shared_key_",
 	"remote_enroll_key_",
-	// egg_shared_<nest>[_next|_prev]: the egg handshake trusts every entry.
+	// egg_shared_<nest>[_next|_prev|_prev_at]: the egg handshake trusts every
+	// entry; egg_master_key_<nest> is shipped to the egg on reconfiguration.
 	"egg_shared_",
+	"egg_master_key_",
 	"__aurago_",
 }
 

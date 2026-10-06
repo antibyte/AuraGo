@@ -589,9 +589,18 @@ func waitForBridge(t *testing.T, what string, cond func() bool) {
 func TestSendRekeyWaitsForAckAndPersistsOnEgg(t *testing.T) {
 	persisted := make(chan string, 1)
 	f := newRekeyFixture(t, func(_ *EggHub, c *EggClient) {
+		oldKey := c.SharedKey
 		c.OnRekey = func(newKey string, version int) error {
 			if version != 1 {
 				t.Errorf("version = %d, want 1", version)
+			}
+			// Persist runs before the switch and before any frame (the ack)
+			// leaves the egg: the fixture's egg has sent nothing yet.
+			c.mu.Lock()
+			current, sent := c.SharedKey, c.session.sent
+			c.mu.Unlock()
+			if current != oldKey || sent != 0 {
+				t.Errorf("OnRekey must run on the old key with no ack sent: key switched=%v, frames sent=%d", current != oldKey, sent)
 			}
 			persisted <- newKey
 			return nil
@@ -635,7 +644,7 @@ func TestSendRekeyRollsBackWhenEggCannotPersist(t *testing.T) {
 	if current != f.oldKey || previous != "" || version != 0 || f.client.SharedKeySnapshot() != f.oldKey {
 		t.Fatal("rejected rotation must leave both sides on the old key")
 	}
-	if f.hub.RekeyUnresolved("nest") {
+	if f.hub.rekeyUnresolved("nest") {
 		t.Fatal("an explicit rejection resolves the rotation")
 	}
 	if err := f.client.send(MsgHeartbeat, HeartbeatPayload{Status: "idle"}); err != nil {
@@ -688,7 +697,7 @@ func TestSendRekeyTimeoutRollsBackAndKeepsOldKeyUsable(t *testing.T) {
 		t.Fatal("unconfirmed rotation must roll the hub back to the old key")
 	}
 	// The egg may still adopt the key, so a second rotation must not start.
-	if !f.hub.RekeyUnresolved("nest") {
+	if !f.hub.rekeyUnresolved("nest") {
 		close(release)
 		t.Fatal("a timed-out rotation stays unresolved until the egg answers")
 	}
@@ -702,7 +711,7 @@ func TestSendRekeyTimeoutRollsBackAndKeepsOldKeyUsable(t *testing.T) {
 	}
 
 	release <- errors.New("late persist failure")
-	waitForBridge(t, "late rejection to resolve the rotation", func() bool { return !f.hub.RekeyUnresolved("nest") })
+	waitForBridge(t, "late rejection to resolve the rotation", func() bool { return !f.hub.rekeyUnresolved("nest") })
 	sendAsEgg(t, f.client, f.oldKey, MsgHeartbeat, HeartbeatPayload{Status: "idle"})
 	select {
 	case <-heartbeats:

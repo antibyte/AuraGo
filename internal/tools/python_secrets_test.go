@@ -171,6 +171,9 @@ func TestIsPythonAccessibleSecret_BlocksPrefixedKeys(t *testing.T) {
 		"egg_shared_0f8e3c2a-1b2c-4d5e-8f90-123456789abc",
 		"egg_shared_0f8e3c2a-1b2c-4d5e-8f90-123456789abc_next",
 		"EGG_SHARED_NEST_PREV",
+		"egg_shared_0f8e3c2a-1b2c-4d5e-8f90-123456789abc_prev_at",
+		"egg_master_key_0f8e3c2a-1b2c-4d5e-8f90-123456789abc",
+		"EGG_MASTER_KEY_NEST",
 	}
 	for _, k := range prefixed {
 		if IsPythonAccessibleSecret(k) {

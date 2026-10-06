@@ -273,33 +273,97 @@ func TestInvasionHandshakeAcceptsAndPromotesNextKeyCandidate(t *testing.T) {
 	}
 }
 
+func rotatedAt(ago time.Duration) string {
+	return time.Now().Add(-ago).UTC().Format(time.RFC3339)
+}
+
 func TestInvasionHandshakeAcceptsPreviousKeyOnceAndBoundsIt(t *testing.T) {
 	oldKey, newKey := strings.Repeat("1", 64), strings.Repeat("2", 64)
 
-	t.Run("previous key reconnects and is promoted", func(t *testing.T) {
-		f := newInvasionKeyFixture(t, map[string]string{"": newKey, "_prev": oldKey})
+	t.Run("previous key reconnects once within the window and is promoted", func(t *testing.T) {
+		f := newInvasionKeyFixture(t, map[string]string{"": newKey, "_prev": oldKey, "_prev_at": rotatedAt(10 * time.Minute)})
 		if err := f.handshake(t, oldKey); err != nil {
 			t.Fatalf("egg that missed the rotation must reconnect once: %v", err)
 		}
 		f.waitConnected(t)
-		if f.secret(t, "") != oldKey || f.secret(t, "_prev") != "" {
-			t.Fatal("the matching previous key must become current and leave _prev empty")
+		if f.secret(t, "") != oldKey || f.secret(t, "_prev") != "" || f.secret(t, "_prev_at") != "" {
+			t.Fatal("the matching previous key must become current and consume _prev")
+		}
+		if err := f.handshake(t, newKey); err == nil {
+			t.Fatal("the slot is single-use: the replaced key must not authenticate afterwards")
 		}
 	})
 
 	t.Run("current-key handshake retires the previous key", func(t *testing.T) {
-		f := newInvasionKeyFixture(t, map[string]string{"": newKey, "_prev": oldKey})
+		f := newInvasionKeyFixture(t, map[string]string{"": newKey, "_prev": oldKey, "_prev_at": rotatedAt(time.Minute)})
 		if err := f.handshake(t, newKey); err != nil {
 			t.Fatal(err)
 		}
 		f.waitConnected(t)
-		if f.secret(t, "") != newKey || f.secret(t, "_prev") != "" {
+		if f.secret(t, "") != newKey || f.secret(t, "_prev") != "" || f.secret(t, "_prev_at") != "" {
 			t.Fatal("a handshake under the current key must delete _prev")
 		}
 		if err := f.handshake(t, oldKey); err == nil {
 			t.Fatal("the previous key must not authenticate after the egg proved the current key")
 		}
 	})
+
+	for name, prevAt := range map[string]string{
+		"expired after the grace window": rotatedAt(eggPrevKeyGrace + time.Minute),
+		"undated":                        "",
+		"unparseable":                    "yesterday",
+		"dated in the future":            rotatedAt(-2 * time.Hour),
+	} {
+		t.Run(name, func(t *testing.T) {
+			secrets := map[string]string{"": newKey, "_prev": oldKey}
+			if prevAt != "" {
+				secrets["_prev_at"] = prevAt
+			}
+			f := newInvasionKeyFixture(t, secrets)
+			if err := f.handshake(t, oldKey); err == nil {
+				t.Fatal("a previous key outside the window must not authenticate")
+			}
+			if f.secret(t, "") != newKey || f.secret(t, "_prev") != "" || f.secret(t, "_prev_at") != "" {
+				t.Fatal("an expired previous key must be deleted and the current key kept")
+			}
+			if err := f.handshake(t, newKey); err != nil {
+				t.Fatalf("the current key keeps working: %v", err)
+			}
+		})
+	}
+}
+
+// Re-hatching is the operator's revocation path: it must drop every rotation
+// candidate, not only replace the current key.
+func TestInvasionRehatchRevokesRotationCandidates(t *testing.T) {
+	oldKey, prevKey := strings.Repeat("1", 64), strings.Repeat("4", 64)
+	f := newInvasionKeyFixture(t, map[string]string{"": oldKey, "_prev": prevKey, "_prev_at": rotatedAt(time.Minute)})
+	f.startEgg(t, oldKey, func(string, int) error { return errors.New("read-only vault") })
+	if rec := f.rotate(t, context.Background()); rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502; body %s", rec.Code, rec.Body.String())
+	}
+	stale := f.secret(t, "_next")
+	if stale == "" {
+		t.Fatal("the rejected rotation should have left a staged key")
+	}
+	fresh := strings.Repeat("3", 64)
+	if err := f.s.storeEggSharedKey(f.nestID, fresh); err != nil {
+		t.Fatal(err)
+	}
+	if f.secret(t, "") != fresh || f.secret(t, "_next") != "" || f.secret(t, "_prev") != "" || f.secret(t, "_prev_at") != "" {
+		t.Fatal("re-hatch must store only the fresh key")
+	}
+	for _, revoked := range []string{stale, prevKey, oldKey} {
+		if err := f.handshake(t, revoked); err == nil {
+			t.Fatal("a key revoked by re-hatch must not authenticate")
+		}
+	}
+	if f.secret(t, "") != fresh {
+		t.Fatal("failed handshakes must not displace the hatched key")
+	}
+	if err := f.handshake(t, fresh); err != nil {
+		t.Fatalf("the freshly hatched key must authenticate: %v", err)
+	}
 }
 
 func TestInvasionRotateKeyCommitsAfterEggPersistedAndAcked(t *testing.T) {
@@ -326,6 +390,10 @@ func TestInvasionRotateKeyCommitsAfterEggPersistedAndAcked(t *testing.T) {
 	if f.secret(t, "_prev") != oldKey || f.secret(t, "_next") != "" {
 		t.Fatal("commit must keep the old key as _prev and drop the staged _next")
 	}
+	at, err := time.Parse(time.RFC3339, f.secret(t, "_prev_at"))
+	if err != nil || time.Since(at) > time.Minute || time.Since(at) < -time.Minute {
+		t.Fatalf("commit must date _prev in the same write: %q, %v", f.secret(t, "_prev_at"), err)
+	}
 	if got := f.hub.GetConnection(f.nestID).SharedKey; got != newKey {
 		t.Fatal("the live connection must use the committed key")
 	}
@@ -336,8 +404,8 @@ func TestInvasionRotateKeyKeepsPreviousKeyWhenEggRejects(t *testing.T) {
 	f := newInvasionKeyFixture(t, map[string]string{"": oldKey})
 	client := f.startEgg(t, oldKey, func(string, int) error { return errors.New("read-only vault") })
 	rec := f.rotate(t, context.Background())
-	if rec.Code != http.StatusBadGateway {
-		t.Fatalf("status = %d, want 502; body %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "reconciled at its next connection") {
+		t.Fatalf("status = %d, want 502 with the reconcile notice; body %s", rec.Code, rec.Body.String())
 	}
 	if f.secret(t, "") != oldKey || client.SharedKeySnapshot() != oldKey || f.hub.GetConnection(f.nestID).SharedKey != oldKey {
 		t.Fatal("a rejected rotation must leave the previous key active on both sides")

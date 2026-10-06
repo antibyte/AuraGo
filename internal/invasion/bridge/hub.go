@@ -420,13 +420,8 @@ func (h *EggHub) BeginKeyRotation(nestID string) (func(), error) {
 	if _, busy := h.rotatingNests[nestID]; busy {
 		return nil, fmt.Errorf("a key rotation for nest %s is already in progress", nestID)
 	}
-	if conn := h.connections[nestID]; conn != nil {
-		conn.mu.Lock()
-		unresolved := conn.rekeyInFlight || conn.rekeyOutstanding != ""
-		conn.mu.Unlock()
-		if unresolved {
-			return nil, fmt.Errorf("an earlier key rotation for nest %s is still unconfirmed", nestID)
-		}
+	if conn := h.connections[nestID]; conn != nil && conn.rekeyUnresolved() {
+		return nil, fmt.Errorf("an earlier key rotation for nest %s is still unconfirmed", nestID)
 	}
 	h.rotatingNests[nestID] = struct{}{}
 	var once sync.Once
@@ -439,16 +434,23 @@ func (h *EggHub) BeginKeyRotation(nestID string) (func(), error) {
 	}, nil
 }
 
-// RekeyUnresolved reports whether the nest's connection awaits the outcome of
+// rekeyUnresolved reports whether the nest's connection awaits the outcome of
 // a rotation (in flight, or timed out without the egg's answer).
-func (h *EggHub) RekeyUnresolved(nestID string) bool {
+func (h *EggHub) rekeyUnresolved(nestID string) bool {
 	conn := h.GetConnection(nestID)
-	if conn == nil {
-		return false
-	}
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	return conn.rekeyInFlight || conn.rekeyOutstanding != ""
+	return conn != nil && conn.rekeyUnresolved()
+}
+
+// rekeyUnresolved takes conn.mu; callers may hold the hub lock (hub before
+// connection) but not conn.mu.
+func (ec *EggConnection) rekeyUnresolved() bool {
+	ec.mu.Lock()
+	defer ec.mu.Unlock()
+	return ec.rekeyPendingLocked()
+}
+
+func (ec *EggConnection) rekeyPendingLocked() bool {
+	return ec.rekeyInFlight || ec.rekeyOutstanding != ""
 }
 
 // SendRekey rotates the shared key in two phases: the frame leaves under the
@@ -475,7 +477,7 @@ func (h *EggHub) SendRekey(ctx context.Context, nestID, newKeyHex string) error 
 	}
 
 	conn.mu.Lock()
-	if conn.rekeyInFlight || conn.rekeyOutstanding != "" {
+	if conn.rekeyPendingLocked() {
 		conn.mu.Unlock()
 		return fmt.Errorf("an earlier key rotation for nest %s is still unconfirmed", nestID)
 	}

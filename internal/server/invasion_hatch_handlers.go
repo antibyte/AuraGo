@@ -15,7 +15,6 @@ import (
 
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
-	"aurago/internal/security"
 
 	"github.com/gorilla/websocket"
 )
@@ -252,24 +251,56 @@ func (s *Server) storeEggSharedKey(nestID, sharedKey string) error {
 	if s.Vault == nil {
 		return fmt.Errorf("failed to store egg shared key: vault is unavailable")
 	}
-	if err := s.Vault.WriteSecret("egg_shared_"+nestID, sharedKey); err != nil {
+	// Re-hatching is the operator's revocation path: the fresh key replaces
+	// every rotation candidate in one atomic write.
+	if err := s.Vault.WriteSecrets(map[string]string{eggSharedKeyName(nestID, ""): sharedKey}, eggSharedKeyCandidateNames(nestID)); err != nil {
 		return fmt.Errorf("failed to store egg shared key in vault: %w", err)
 	}
 	return nil
 }
 
-// Key rotation keeps up to three vault entries per nest: the current key, a
-// staged _next written before the egg is asked to rotate, and _prev, the key
-// replaced by the last committed rotation. The egg_shared_ prefix is reserved
-// (tools.IsPythonAccessibleSecret, vaultprompt.NormalizeVaultKey) so only the
-// master writes these candidates.
+// Key rotation keeps up to three keys per nest: the current key, a staged
+// _next written before the egg is asked to rotate, and _prev, the key replaced
+// by the last committed rotation, dated by _prev_at (RFC 3339, UTC). The
+// egg_shared_ prefix is reserved (tools.IsPythonAccessibleSecret,
+// vaultprompt.NormalizeVaultKey) so only the master writes these entries.
 const (
-	eggSharedKeyNextSuffix = "_next"
-	eggSharedKeyPrevSuffix = "_prev"
+	eggSharedKeyNextSuffix   = "_next"
+	eggSharedKeyPrevSuffix   = "_prev"
+	eggSharedKeyPrevAtSuffix = "_prev_at"
+
+	// eggPrevKeyGrace bounds how long the replaced key may still authenticate,
+	// once, so an egg on the previous binary (which rotated only in memory)
+	// can reconnect after a restart.
+	eggPrevKeyGrace = time.Hour
 )
 
 func eggSharedKeyName(nestID, suffix string) string {
 	return "egg_shared_" + nestID + suffix
+}
+
+// eggSharedKeyCandidateNames lists every rotation entry besides the current key.
+func eggSharedKeyCandidateNames(nestID string) []string {
+	return []string{
+		eggSharedKeyName(nestID, eggSharedKeyNextSuffix),
+		eggSharedKeyName(nestID, eggSharedKeyPrevSuffix),
+		eggSharedKeyName(nestID, eggSharedKeyPrevAtSuffix),
+	}
+}
+
+func eggPreviousKeyNames(nestID string) []string {
+	return []string{eggSharedKeyName(nestID, eggSharedKeyPrevSuffix), eggSharedKeyName(nestID, eggSharedKeyPrevAtSuffix)}
+}
+
+// eggPrevKeyFresh fails closed: an undated, unparseable or future-dated
+// (beyond a small clock-step tolerance) _prev is treated as expired.
+func eggPrevKeyFresh(rotatedAt string, now time.Time) bool {
+	at, err := time.Parse(time.RFC3339, strings.TrimSpace(rotatedAt))
+	if err != nil {
+		return false
+	}
+	age := now.Sub(at)
+	return age >= -time.Minute && age <= eggPrevKeyGrace
 }
 
 type eggKeyCandidate struct {
@@ -278,12 +309,30 @@ type eggKeyCandidate struct {
 }
 
 // eggHandshakeKeyCandidates returns the stored keys an egg may present, in the
-// order current, _next, _prev, skipping empty and duplicate values.
-func eggHandshakeKeyCandidates(vault *security.Vault, nestID string) []eggKeyCandidate {
+// order current, _next, _prev, skipping empty and duplicate values. _prev is
+// offered only within eggPrevKeyGrace of the rotation that replaced it; an
+// expired _prev is deleted here, whatever the handshake's outcome.
+func (s *Server) eggHandshakeKeyCandidates(nestID string, now time.Time) []eggKeyCandidate {
+	read := func(suffix string) string {
+		value, err := s.Vault.ReadSecret(eggSharedKeyName(nestID, suffix))
+		if err != nil {
+			return ""
+		}
+		return value
+	}
+	keys := map[string]string{"": read(""), eggSharedKeyNextSuffix: read(eggSharedKeyNextSuffix), eggSharedKeyPrevSuffix: read(eggSharedKeyPrevSuffix)}
+	if keys[eggSharedKeyPrevSuffix] != "" && !eggPrevKeyFresh(read(eggSharedKeyPrevAtSuffix), now) {
+		keys[eggSharedKeyPrevSuffix] = ""
+		if err := s.Vault.WriteSecrets(nil, eggPreviousKeyNames(nestID)); err != nil {
+			s.Logger.Warn("Failed to delete expired previous egg key", "nest_id", nestID, "error", err)
+		} else {
+			s.Logger.Info("Expired previous egg key deleted", "nest_id", nestID)
+		}
+	}
 	candidates := make([]eggKeyCandidate, 0, 3)
 	for _, suffix := range []string{"", eggSharedKeyNextSuffix, eggSharedKeyPrevSuffix} {
-		key, err := vault.ReadSecret(eggSharedKeyName(nestID, suffix))
-		if err != nil || key == "" {
+		key := keys[suffix]
+		if key == "" {
 			continue
 		}
 		duplicate := false
@@ -299,14 +348,15 @@ func eggHandshakeKeyCandidates(vault *security.Vault, nestID string) []eggKeyCan
 
 // reconcileEggSharedKeys records what a successful handshake proved. A staged
 // or previous key the egg authenticated with becomes current and the other
-// candidates are dropped. A handshake under the current key retires _prev,
-// which bounds the old key to the egg's next connection; _next stays, because
-// a rotation may have staged it and be waiting for this egg's ack.
+// candidates are dropped, so _prev is single-use. A handshake under the
+// current key retires _prev as well; _next stays, because a rotation may have
+// staged it and be waiting for this egg's ack. The vault offers no
+// compare-and-swap, so these writes are unconditional.
 func (s *Server) reconcileEggSharedKeys(nestID string, matched eggKeyCandidate, candidates []eggKeyCandidate) {
 	if matched.suffix == "" {
 		for _, candidate := range candidates {
 			if candidate.suffix == eggSharedKeyPrevSuffix {
-				if err := s.Vault.DeleteSecret(eggSharedKeyName(nestID, eggSharedKeyPrevSuffix)); err != nil {
+				if err := s.Vault.WriteSecrets(nil, eggPreviousKeyNames(nestID)); err != nil {
 					s.Logger.Warn("Failed to retire previous egg key", "nest_id", nestID, "error", err)
 				}
 				break
@@ -314,10 +364,7 @@ func (s *Server) reconcileEggSharedKeys(nestID string, matched eggKeyCandidate, 
 		}
 		return
 	}
-	err := s.Vault.WriteSecrets(
-		map[string]string{eggSharedKeyName(nestID, ""): matched.key},
-		[]string{eggSharedKeyName(nestID, eggSharedKeyNextSuffix), eggSharedKeyName(nestID, eggSharedKeyPrevSuffix)},
-	)
+	err := s.Vault.WriteSecrets(map[string]string{eggSharedKeyName(nestID, ""): matched.key}, eggSharedKeyCandidateNames(nestID))
 	if err != nil {
 		s.Logger.Error("Failed to promote egg key candidate; the connection uses it until the next handshake", "nest_id", nestID, "candidate", matched.suffix, "error", err)
 		return
@@ -672,7 +719,7 @@ func handleInvasionWebSocket(s *Server) http.HandlerFunc {
 			return
 		}
 
-		candidates := eggHandshakeKeyCandidates(s.Vault, nest.ID)
+		candidates := s.eggHandshakeKeyCandidates(nest.ID, time.Now())
 		if len(candidates) == 0 {
 			s.Logger.Warn("Auth failed: shared key not found", "nest_id", nest.ID)
 			conn.Close()
@@ -853,17 +900,19 @@ func handleInvasionNestRotateKey(s *Server) http.HandlerFunc {
 		if err := s.EggHub.SendRekey(r.Context(), id, newKey); err != nil {
 			// The egg may still have persisted the key (ack lost); the handshake
 			// accepts the _next candidate and promotes it on first success.
-			jsonLoggedError(w, s.Logger, http.StatusBadGateway, "Egg did not confirm the rotation; previous key remains active", "Rekey not confirmed", err, "nest_id", id)
+			jsonLoggedError(w, s.Logger, http.StatusBadGateway, "Key rotation not confirmed; the egg will be reconciled at its next connection", "Rekey not confirmed", err, "nest_id", id)
 			return
 		}
 
-		// Commit atomically: new key current, replaced key kept as _prev.
+		// Commit atomically: new key current, replaced key kept as _prev and
+		// dated so the handshake honours it only within eggPrevKeyGrace.
 		commit := map[string]string{eggSharedKeyName(id, ""): newKey}
 		remove := []string{eggSharedKeyName(id, eggSharedKeyNextSuffix)}
 		if currentKey != "" {
 			commit[eggSharedKeyName(id, eggSharedKeyPrevSuffix)] = currentKey
+			commit[eggSharedKeyName(id, eggSharedKeyPrevAtSuffix)] = time.Now().UTC().Format(time.RFC3339)
 		} else {
-			remove = append(remove, eggSharedKeyName(id, eggSharedKeyPrevSuffix))
+			remove = append(remove, eggPreviousKeyNames(id)...)
 		}
 		if err := s.Vault.WriteSecrets(commit, remove); err != nil {
 			s.Logger.Error("Failed to commit rotated key; _next candidate remains", "nest_id", id, "error", err)
