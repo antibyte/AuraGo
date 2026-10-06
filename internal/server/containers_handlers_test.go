@@ -220,8 +220,8 @@ func (s *fakeContainerTerminalSession) Resize(ctx context.Context, cols, rows in
 	return nil
 }
 
-// newContainerAuthChain builds the production route table behind the real
-// authMiddleware with session auth enabled.
+// newContainerAuthChain registers the tool API routes (which include the
+// container routes) behind authMiddleware with session auth enabled.
 func newContainerAuthChain(t *testing.T) (s *Server, chain http.Handler, adminToken, desktopToken, readToken string) {
 	t.Helper()
 	s, adminToken, desktopToken, readToken = newBearerSchemeTestServer(t)
@@ -252,7 +252,7 @@ func TestContainerRoutesKeepAdminScopeThroughAuthMiddleware(t *testing.T) {
 			{"read scope", readToken, http.StatusForbidden},
 			{"desktop admin scope", desktopToken, http.StatusForbidden},
 			// Docker is disabled in this fixture: an admitted request reaches
-			// the handler's own 503.
+			// the handler's own 503 "Docker is not enabled".
 			{"admin scope", adminToken, http.StatusServiceUnavailable},
 		} {
 			req := build()
@@ -265,6 +265,9 @@ func TestContainerRoutesKeepAdminScopeThroughAuthMiddleware(t *testing.T) {
 			if tc.want == http.StatusForbidden && !strings.Contains(rec.Body.String(), "invalid_bearer_scope") {
 				t.Fatalf("%s %s with %s: body = %s, want invalid_bearer_scope", req.Method, req.URL.Path, tc.name, rec.Body.String())
 			}
+			if tc.want == http.StatusServiceUnavailable && !strings.Contains(rec.Body.String(), "Docker is not enabled") {
+				t.Fatalf("%s %s with %s: body = %s, want the handler's Docker is not enabled", req.Method, req.URL.Path, tc.name, rec.Body.String())
+			}
 		}
 
 		session := &http.Cookie{Name: sessionCookieName, Value: createSessionValue(bearerSchemeTestSessionSecret, time.Now().Add(time.Hour))}
@@ -275,8 +278,8 @@ func TestContainerRoutesKeepAdminScopeThroughAuthMiddleware(t *testing.T) {
 		}
 		rec := httptest.NewRecorder()
 		chain.ServeHTTP(rec, req)
-		if rec.Code != http.StatusServiceUnavailable {
-			t.Fatalf("%s %s with a browser session: status = %d, want 503 from the handler; body=%s", req.Method, req.URL.Path, rec.Code, rec.Body.String())
+		if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "Docker is not enabled") {
+			t.Fatalf("%s %s with a browser session: status = %d, want 503 Docker is not enabled from the handler; body=%s", req.Method, req.URL.Path, rec.Code, rec.Body.String())
 		}
 
 		req = build()
@@ -337,13 +340,35 @@ func TestContainerRoutesStayOpenWhenAuthIsDisabled(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	authMiddleware(s, mux).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/containers", nil))
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("auth-disabled status = %d, want 503 from the handler; body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "Docker is not enabled") {
+		t.Fatalf("auth-disabled status = %d, want 503 Docker is not enabled from the handler; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestContainerRoutesAuthDisabledIgnoreBearerScope pins that, with
+// auth.enabled=false, a Bearer token of any scope still reaches the container
+// handlers. A requireAdmin-style wrapper on the routes would refuse the
+// non-admin tokens here and change that behaviour.
+func TestContainerRoutesAuthDisabledIgnoreBearerScope(t *testing.T) {
+	s, chain, _, desktopToken, readToken := newContainerAuthChain(t)
+	s.Cfg.Auth.Enabled = false // authMiddleware reads cfg per request
+	for _, tok := range []string{readToken, desktopToken} {
+		for _, req := range []*http.Request{
+			httptest.NewRequest(http.MethodGet, "/api/containers", nil),
+			httptest.NewRequest(http.MethodPost, "/api/containers/demo/restart", nil),
+		} {
+			req.Header.Set("Authorization", "Bearer "+tok)
+			rec := httptest.NewRecorder()
+			chain.ServeHTTP(rec, req)
+			if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "Docker is not enabled") {
+				t.Fatalf("%s %s: status=%d body=%s", req.Method, req.URL.Path, rec.Code, rec.Body.String())
+			}
+		}
 	}
 }
 
 // TestContainerTerminalWebSocketWorksThroughAuthChain pins that a browser
-// session opens the terminal WebSocket through the production chain.
+// session opens the terminal WebSocket through authMiddleware.
 func TestContainerTerminalWebSocketWorksThroughAuthChain(t *testing.T) {
 	s, chain, _, _, _ := newContainerAuthChain(t)
 	s.Cfg.Docker.Enabled = true
@@ -361,7 +386,7 @@ func TestContainerTerminalWebSocketWorksThroughAuthChain(t *testing.T) {
 		if resp != nil {
 			status = resp.StatusCode
 		}
-		t.Fatalf("session terminal through the auth chain: %v (HTTP %d)", err, status)
+		t.Fatalf("session terminal through authMiddleware: %v (HTTP %d)", err, status)
 	}
 	_ = conn.Close()
 	if fake.createCalls != 1 {

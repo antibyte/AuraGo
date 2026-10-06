@@ -26,7 +26,8 @@ Server-owned HTTP and cross-component integration contracts.
 - Verify codequality boundary/lifecycle tests, Remote handshake tests and the existing Desktop token/proxy matrix. A local fixture does not establish external delivery or device acceptance.
 
 ### Administrator container API
-- `/api/containers` and `/api/containers/` stay in `validRouteBearer`'s admin catch-all: browser sessions or Bearer tokens with the `admin` scope; every other scope gets 403 `invalid_bearer_scope`. Do not add the paths to desktop, go2rtc, bypass or lockdown lists, and do not wrap them in `requireAdmin` (it would refuse non-admin tokens on auth-disabled installs, which reach the handler today). System World calls `handleContainerAction` directly for start/stop/restart under its own `desktop:admin` gate. Verify `TestContainerRoutesKeepAdminScopeThroughAuthMiddleware`, `TestContainerRoutesStayInTheAdminBearerCatchAll` and `TestContainerRoutesStayOpenWhenAuthIsDisabled`.
+
+- `/api/containers` and `/api/containers/` stay in `validRouteBearer`'s admin catch-all: browser sessions or Bearer tokens with the `admin` scope; every other scope gets 403 `invalid_bearer_scope`. Do not add the paths to desktop, go2rtc, bypass or lockdown lists, and do not wrap them in `requireAdmin` (it would refuse non-admin tokens on auth-disabled installs, which reach the handler today). System World calls `handleContainerAction` directly for start/stop/restart under its own `desktop:admin` gate. Verify `TestContainerRoutesKeepAdminScopeThroughAuthMiddleware`, `TestContainerRoutesStayInTheAdminBearerCatchAll`, `TestContainerRoutesStayOpenWhenAuthIsDisabled` and `TestContainerRoutesAuthDisabledIgnoreBearerScope`.
 
 ### Code Studio
 
