@@ -60,12 +60,20 @@ func nativePlacement(cfg *config.Config, proxyDir string) placement {
 	}
 }
 
+// nativePlacement returns nativePlacement, or its test replacement.
+func (m *Manager) nativePlacement(cfg *config.Config, proxyDir string) placement {
+	if m.native != nil {
+		return m.native(cfg, proxyDir)
+	}
+	return nativePlacement(cfg, proxyDir)
+}
+
 // resolvePlacement picks the placement for this process. When AuraGo runs in a
 // container, its paths only exist inside that container: the proxy then
 // mounts the same Docker volume or host directory and joins AuraGo's network.
 func (m *Manager) resolvePlacement(cfg *config.Config, proxyDir string) (placement, error) {
 	if !m.runsInDocker() {
-		return nativePlacement(cfg, proxyDir), nil
+		return m.nativePlacement(cfg, proxyDir), nil
 	}
 	dockerCfg := dockerConfigFor(cfg)
 	self, found, err := m.inspectSelf(dockerCfg)
@@ -76,7 +84,7 @@ func (m *Manager) resolvePlacement(cfg *config.Config, proxyDir string) (placeme
 		// /.dockerenv without a container on this engine, e.g. a Proxmox LXC
 		// guest: AuraGo's paths are host paths for the engine.
 		m.log().Warn("Security proxy: this Docker engine does not know the AuraGo container; mounting the data directory as host paths")
-		return nativePlacement(cfg, proxyDir), nil
+		return m.nativePlacement(cfg, proxyDir), nil
 	}
 	apiVersion, err := m.engineAPIVersion(dockerCfg)
 	if err != nil {

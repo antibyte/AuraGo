@@ -49,6 +49,12 @@ section. Operator guidance lives in the Security Proxy section of
   name; otherwise it uses `host.docker.internal` and the published port. An
   engine that does not know the container (stray `/.dockerenv`) gets the
   native placement.
+- Create: the container is created through `engine.createTrusted`
+  (`tools.DockerCreateRequestContextWithTrustedBinds`) with exactly the
+  placement's own `binds` trusted, so a native install under `/root`, `/mnt`,
+  `/etc` or `/hostfs` passes the create bind policy. Never trust any other
+  bind; the Docker placement has only `Mounts`, so it trusts nothing. Every
+  other proxy request stays on `engine.request` (`tools.DockerRequest`).
 - Lifecycle: `startLocked` generates the Caddyfile in memory first (credential
   errors come before any build or pull), then runs `ensureImage`, and only
   after that writes the Caddyfile and removes the old container. A failed

@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -26,11 +28,13 @@ type fakeEngine struct {
 	mu     sync.Mutex
 	calls  []string
 	bodies map[string]string
-	builds []string
-	pulls  []string
-	handle func(method, endpoint, body string) ([]byte, int, error)
-	build  func(image string, dockerfile []byte) error
-	pull   func(image string) error
+	// trusted holds the trusted binds of each createTrusted call.
+	trusted map[string][]string
+	builds  []string
+	pulls   []string
+	handle  func(method, endpoint, body string) ([]byte, int, error)
+	build   func(image string, dockerfile []byte) error
+	pull    func(image string) error
 }
 
 func (f *fakeEngine) record(method, endpoint, body string) ([]byte, int, error) {
@@ -56,6 +60,15 @@ func (f *fakeEngine) engine() engine {
 		},
 		requestContext: func(_ context.Context, _ tools.DockerConfig, method, endpoint, body string) ([]byte, int, error) {
 			return f.record(method, endpoint, body)
+		},
+		createTrusted: func(_ context.Context, _ tools.DockerConfig, endpoint, body string, trusted []string) ([]byte, int, error) {
+			f.mu.Lock()
+			if f.trusted == nil {
+				f.trusted = map[string][]string{}
+			}
+			f.trusted["POST "+endpoint] = trusted
+			f.mu.Unlock()
+			return f.record("POST", endpoint, body)
 		},
 		build: func(_ context.Context, _ tools.DockerConfig, image, _ string, dockerfile []byte, _ map[string]string, _ *slog.Logger) error {
 			f.mu.Lock()
@@ -789,5 +802,262 @@ func TestManagerReloadKeepsRunningProxyWhenNewImageUnavailable(t *testing.T) {
 			}
 			assertRunningProxyUntouched(t, fake, path, previous)
 		})
+	}
+}
+
+// rootInstallBinds are the binds nativePlacement builds on Linux for the
+// default install.sh directory ($HOME/aurago) of an install run as root.
+var rootInstallBinds = []string{
+	"/root/aurago/data/proxy/Caddyfile:/etc/caddy/Caddyfile",
+	"/root/aurago/data/proxy/caddy_data:/data",
+	"/root/aurago/data/proxy/caddy_config:/config",
+}
+
+// homeInstallBinds are the binds of an install outside the sensitive host
+// paths, which could always start the proxy.
+var homeInstallBinds = []string{
+	"/home/user/aurago/data/proxy/Caddyfile:/etc/caddy/Caddyfile",
+	"/home/user/aurago/data/proxy/caddy_data:/data",
+	"/home/user/aurago/data/proxy/caddy_config:/config",
+}
+
+// nativeHomeCreateBody is the create body the proxy has always sent for the
+// /home/user/aurago install.
+const nativeHomeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"Binds":["/home/user/aurago/data/proxy/Caddyfile:/etc/caddy/Caddyfile","/home/user/aurago/data/proxy/caddy_data:/data","/home/user/aurago/data/proxy/caddy_config:/config"],"ExtraHosts":["host.docker.internal:host-gateway"],"PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"}},"Image":"aurago-proxy:latest"}`
+
+// composeCreateBody is the create body the proxy has always sent for the
+// default docker-compose.yml deployment.
+const composeCreateBody = `{"ExposedPorts":{"443/tcp":{},"80/tcp":{}},"HostConfig":{"ExtraHosts":["host.docker.internal:host-gateway"],"Mounts":[{"ReadOnly":true,"Source":"aurago_aurago_data","Target":"/etc/caddy","Type":"volume","VolumeOptions":{"Subpath":"proxy"}},{"Source":"aurago_aurago_data","Target":"/data","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_data"}},{"Source":"aurago_aurago_data","Target":"/config","Type":"volume","VolumeOptions":{"Subpath":"proxy/caddy_config"}}],"NetworkMode":"aurago_default","PortBindings":{"443/tcp":[{"HostIp":"0.0.0.0","HostPort":"443"}],"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"80"}]},"RestartPolicy":{"Name":"unless-stopped"}},"Image":"aurago-proxy:latest","NetworkingConfig":{"EndpointsConfig":{"aurago_default":{}}}}`
+
+func TestInstallBindFixturesMatchNativePlacement(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("nativePlacement makes these directories drive-absolute on Windows")
+	}
+	for dir, want := range map[string][]string{
+		"/root/aurago/data/proxy":      rootInstallBinds,
+		"/home/user/aurago/data/proxy": homeInstallBinds,
+	} {
+		if got := nativePlacement(proxyConfig(), dir).binds; !reflect.DeepEqual(got, want) {
+			t.Fatalf("nativePlacement(%q).binds = %#v, want %#v", dir, got, want)
+		}
+	}
+}
+
+// proxyDaemon is a fake Docker daemon behind the production engine wiring:
+// the proxy image exists, no proxy container exists yet, and the created one
+// starts and keeps running. It records every create request.
+type proxyDaemon struct {
+	host    string
+	mu      sync.Mutex
+	creates []daemonCreate
+}
+
+type daemonCreate struct {
+	query       string
+	contentType string
+	body        string
+}
+
+func newProxyDaemon(t *testing.T, image string) *proxyDaemon {
+	t.Helper()
+	d := &proxyDaemon{}
+	proxyPath := "/containers/" + containerName
+	d.host = fakeDockerDaemon(t, func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(path, "/_ping"):
+			_, _ = w.Write([]byte("OK"))
+		case r.Method == http.MethodGet && strings.HasSuffix(path, "/images/"+image+"/json"):
+			_, _ = w.Write([]byte(`{}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(path, "/containers/create"):
+			body, _ := io.ReadAll(r.Body)
+			d.mu.Lock()
+			d.creates = append(d.creates, daemonCreate{query: r.URL.RawQuery, contentType: r.Header.Get("Content-Type"), body: string(body)})
+			d.mu.Unlock()
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"Id":"c1"}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(path, proxyPath+"/start"):
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodGet && strings.HasSuffix(path, proxyPath+"/json"):
+			_, _ = fmt.Fprintf(w, `{"RestartCount":0,"State":{"Status":"running","Running":true},"Config":{"Image":%q}}`, image)
+		case r.Method == http.MethodPost && strings.HasSuffix(path, proxyPath+"/stop"),
+			r.Method == http.MethodDelete && strings.HasSuffix(path, proxyPath),
+			r.Method == http.MethodGet && strings.HasSuffix(path, "/containers/lxc-host/json"):
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message":"No such container"}`))
+		default:
+			t.Errorf("unexpected Docker request: %s %s", r.Method, r.URL.String())
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	})
+	return d
+}
+
+func (d *proxyDaemon) createRequests() []daemonCreate {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]daemonCreate(nil), d.creates...)
+}
+
+// realEngineManager returns a manager on the production engine wiring, so the
+// tools Docker gates and the create bind policy apply. Its native placement
+// carries binds; the Caddyfile still goes to the test's data directory. The
+// returned func lists the trusted binds of every trusted create.
+func realEngineManager(t *testing.T, cfg *config.Config, binds []string) (*Manager, func() [][]string) {
+	t.Helper()
+	m := testManager(t, cfg, &fakeEngine{})
+	m.engine = dockerEngine
+	var mu sync.Mutex
+	var trusted [][]string
+	create := dockerEngine.createTrusted
+	m.engine.createTrusted = func(ctx context.Context, dockerCfg tools.DockerConfig, endpoint, body string, list []string) ([]byte, int, error) {
+		mu.Lock()
+		trusted = append(trusted, append([]string(nil), list...))
+		mu.Unlock()
+		return create(ctx, dockerCfg, endpoint, body, list)
+	}
+	m.native = func(cfg *config.Config, proxyDir string) placement {
+		place := nativePlacement(cfg, proxyDir)
+		place.binds = append([]string(nil), binds...)
+		return place
+	}
+	return m, func() [][]string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([][]string(nil), trusted...)
+	}
+}
+
+func TestManagerStartNativeInstallUnderRootTrustsItsOwnBinds(t *testing.T) {
+	for name, lxcGuest := range map[string]bool{
+		"native install": false,
+		// /.dockerenv, but the engine does not know AuraGo: host paths too.
+		"LXC guest": true,
+	} {
+		t.Run(name, func(t *testing.T) {
+			allowDockerForTest(t, false)
+			daemon := newProxyDaemon(t, imageName)
+			cfg := proxyConfig()
+			cfg.SecurityProxy.DockerHost = daemon.host
+			m, trusted := realEngineManager(t, cfg, rootInstallBinds)
+			if lxcGuest {
+				m.inDocker = func() bool { return true }
+				m.selfIDs = func() []string { return []string{"lxc-host"} }
+			}
+
+			if err := m.Start(); err != nil {
+				t.Fatalf("Start() error = %v, want the proxy of an install under /root to start", err)
+			}
+			creates := daemon.createRequests()
+			if len(creates) != 1 {
+				t.Fatalf("create requests = %d, want 1", len(creates))
+			}
+			payload := decodeCreatePayload(t, creates[0].body)
+			hostConfig := payload["HostConfig"].(map[string]interface{})
+			binds, _ := hostConfig["Binds"].([]interface{})
+			got := make([]string, 0, len(binds))
+			for _, bind := range binds {
+				got = append(got, fmt.Sprint(bind))
+			}
+			if !reflect.DeepEqual(got, rootInstallBinds) {
+				t.Fatalf("Binds = %#v, want the native binds %#v", got, rootInstallBinds)
+			}
+			if want := [][]string{rootInstallBinds}; !reflect.DeepEqual(trusted(), want) {
+				t.Fatalf("trusted binds = %#v, want exactly the native binds %#v", trusted(), want)
+			}
+		})
+	}
+}
+
+func TestSecurityProxyCreateStillRejectsForeignBinds(t *testing.T) {
+	allowDockerForTest(t, false)
+	daemon := newProxyDaemon(t, imageName)
+	dockerCfg := tools.DockerConfig{Host: daemon.host}
+	endpoint := "/containers/create?name=" + url.QueryEscape(containerName)
+	body := func(binds ...string) string {
+		data, err := json.Marshal(securityProxyCreatePayload(imageName, placement{binds: binds}, 443, 80))
+		if err != nil {
+			t.Fatalf("marshal create payload: %v", err)
+		}
+		return string(data)
+	}
+	withExtra := func(extra string) []string {
+		return append(append([]string(nil), rootInstallBinds...), extra)
+	}
+
+	for name, binds := range map[string][]string{
+		"extra bind under /root": withExtra("/root/.ssh:/ssh:ro"),
+		"extra host /etc":        withExtra("/etc:/host-etc:ro"),
+		"altered proxy bind":     {rootInstallBinds[0] + ":rw", rootInstallBinds[1], rootInstallBinds[2]},
+	} {
+		_, _, err := dockerEngine.createTrusted(context.Background(), dockerCfg, endpoint, body(binds...), rootInstallBinds)
+		if err == nil || !strings.Contains(err.Error(), "mounting sensitive host path") {
+			t.Fatalf("%s: error = %v, want the sensitive-path denial", name, err)
+		}
+	}
+	// Without the trust list the proxy's binds meet the policy like any others.
+	if _, _, err := dockerEngine.request(dockerCfg, http.MethodPost, endpoint, body(rootInstallBinds...)); err == nil || !strings.Contains(err.Error(), "mounting sensitive host path") {
+		t.Fatalf("untrusted create error = %v, want the sensitive-path denial", err)
+	}
+	if creates := daemon.createRequests(); len(creates) != 0 {
+		t.Fatalf("rejected creates reached Docker: %#v", creates)
+	}
+}
+
+func TestManagerStartNativeHomeInstallCreateIsByteIdentical(t *testing.T) {
+	allowDockerForTest(t, false)
+	daemon := newProxyDaemon(t, imageName)
+	cfg := proxyConfig()
+	cfg.SecurityProxy.DockerHost = daemon.host
+	m, _ := realEngineManager(t, cfg, homeInstallBinds)
+
+	if err := m.Start(); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	creates := daemon.createRequests()
+	if len(creates) != 1 {
+		t.Fatalf("create requests = %d, want 1", len(creates))
+	}
+	create := creates[0]
+	if create.query != "name="+containerName || create.contentType != "application/json" {
+		t.Fatalf("create query = %q, content type = %q", create.query, create.contentType)
+	}
+	if create.body != nativeHomeCreateBody {
+		t.Fatalf("create body changed:\n got %s\nwant %s", create.body, nativeHomeCreateBody)
+	}
+}
+
+func TestManagerStartComposeCreateIsUnchanged(t *testing.T) {
+	cfg := proxyConfig()
+	cfg.Directories.DataDir = t.TempDir()
+	inspection := strings.ReplaceAll(composeSelfInspection, `"/app/data"`, strconvQuote(filepath.ToSlash(cfg.Directories.DataDir)))
+	running := runningEngine(imageName)
+	fake := &fakeEngine{handle: func(method, endpoint, body string) ([]byte, int, error) {
+		switch {
+		case method == "GET" && endpoint == "/containers/4f1c0ffee/json":
+			return []byte(inspection), 200, nil
+		case method == "GET" && endpoint == "/version":
+			return []byte(`{"ApiVersion":"1.47"}`), 200, nil
+		case method == "GET" && strings.HasPrefix(endpoint, "/networks/"):
+			return []byte(fmt.Sprintf(`{"Internal":%t}`, endpoint != "/networks/net-default")), 200, nil
+		}
+		return running(method, endpoint, body)
+	}}
+	m := testManager(t, cfg, fake)
+	m.inDocker = func() bool { return true }
+	m.selfIDs = func() []string { return []string{"4f1c0ffee"} }
+
+	if err := m.Start(); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	call := "POST /containers/create?name=" + containerName
+	if got := fake.body(call); got != composeCreateBody {
+		t.Fatalf("compose create body changed:\n got %s\nwant %s", got, composeCreateBody)
+	}
+	fake.mu.Lock()
+	trusted := fake.trusted[call]
+	fake.mu.Unlock()
+	if len(trusted) != 0 {
+		t.Fatalf("compose create trusted binds = %#v, want none", trusted)
 	}
 }

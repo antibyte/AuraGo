@@ -19,12 +19,20 @@ import (
 
 const containerName = "aurago-security-proxy"
 
+// createTimeout bounds the container create like the 60 s client timeout of
+// tools.DockerRequest, which created the container before.
+const createTimeout = 60 * time.Second
+
 // engine is the Docker Engine API surface the manager uses.
 type engine struct {
 	ping           func(host string) error
 	request        func(cfg tools.DockerConfig, method, endpoint, body string) ([]byte, int, error)
 	requestContext func(ctx context.Context, cfg tools.DockerConfig, method, endpoint, body string) ([]byte, int, error)
-	build          func(ctx context.Context, cfg tools.DockerConfig, image, dockerfileName string, dockerfile []byte, buildArgs map[string]string, logger *slog.Logger) error
+	// createTrusted posts a /containers/create body whose HostConfig.Binds
+	// listed exactly in trusted skip the create bind policy; every other bind
+	// is still checked.
+	createTrusted func(ctx context.Context, cfg tools.DockerConfig, endpoint, body string, trusted []string) ([]byte, int, error)
+	build         func(ctx context.Context, cfg tools.DockerConfig, image, dockerfileName string, dockerfile []byte, buildArgs map[string]string, logger *slog.Logger) error
 	// pull always pulls the image and fails on an error event in the Engine's
 	// progress stream.
 	pull func(ctx context.Context, cfg tools.DockerConfig, image string, logger *slog.Logger) error
@@ -34,6 +42,7 @@ var dockerEngine = engine{
 	ping:           tools.DockerPing,
 	request:        tools.DockerRequest,
 	requestContext: tools.DockerRequestContext,
+	createTrusted:  tools.DockerCreateRequestContextWithTrustedBinds,
 	build:          tools.BuildImageWait,
 	pull:           tools.PullImageForce,
 }
@@ -54,6 +63,9 @@ type Manager struct {
 	// inDocker and selfIDs replace the container probes in tests.
 	inDocker func() bool
 	selfIDs  func() []string
+	// native replaces nativePlacement in tests, e.g. with host paths under
+	// /root that a test can neither write nor produce on Windows.
+	native func(cfg *config.Config, proxyDir string) placement
 }
 
 // NewManager creates a new proxy manager.
@@ -203,10 +215,16 @@ func (m *Manager) startLocked(cfg *config.Config) error {
 	// Stop existing container if any
 	m.stopAndRemove(dockerCfg)
 
-	// Create container
+	// Create container. The binds of a native placement are the proxy's own
+	// directory, so they are trusted: an install under /root, /mnt, /etc or
+	// /hostfs (install.sh run as root uses /root/aurago) would fail the create
+	// bind policy otherwise. Nothing else is trusted; the Docker placement uses
+	// Mounts and has no binds.
 	payload := securityProxyCreatePayload(image, place, proxyCfg.HTTPSPort, proxyCfg.HTTPPort)
 	body, _ := json.Marshal(payload)
-	data, code, err := m.engine.request(dockerCfg, "POST", "/containers/create?name="+url.QueryEscape(containerName), string(body))
+	createCtx, cancelCreate := context.WithTimeout(context.Background(), createTimeout)
+	data, code, err := m.engine.createTrusted(createCtx, dockerCfg, "/containers/create?name="+url.QueryEscape(containerName), string(body), place.binds)
+	cancelCreate()
 	if err != nil {
 		return fmt.Errorf("create container: %w", err)
 	}
