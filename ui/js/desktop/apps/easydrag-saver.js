@@ -6,15 +6,22 @@
     const ED = window.EasyDrag = window.EasyDrag || {};
     const DELAY_MS = 1000;
     const RETRY_MS = 5000;
+    const RETRY_MAX_MS = 60000;
+    // Answers a retry cannot fix; every other error counts as transient.
+    const PERMANENT_CODES = new Set(['FLOW_TOO_LARGE', 'FLOW_NOT_FOUND', 'FLOW_PERMISSION_DENIED', 'FLOW_LOCKED', 'FLOW_BAD_REQUEST']);
 
     function emergencyKey(flowId) { return 'aurago.easydrag.draft.' + flowId; }
 
     // create returns a saver. options:
     //   api, flowId, model, revision,
-    //   onState(state)                       saved | dirty | saving | invalid | offline | conflict
+    //   onState(state)                       saved | dirty | saving | invalid | offline | failed | conflict
     //   onSaved({revision, issues})
     //   onInvalid(issues)
     //   onConflict() → Promise<"reload" | "keep">
+    // A transient error (network, FLOWS_DISABLED, FLOW_INTERNAL, 5xx, 429) sets "offline" and retries
+    // after 5 s, doubling up to 60 s until a save succeeds. A PERMANENT_CODES error sets "failed" with
+    // no automatic retry; the emergency copy stays and the next change or save() tries again.
+    // saver.error holds the error of the last offline or failed save until the draft is saved.
     function create(options) {
         const core = ED.core;
         const o = options;
@@ -25,9 +32,12 @@
         let pending = false;
         let timer = 0;
         let retryTimer = 0;
+        let retryDelay = RETRY_MS;
+        let error = null;
         let disposed = false;
 
         function setState(next) {
+            if (next === 'saved') error = null;
             if (state === next) return;
             state = next;
             if (o.onState) o.onState(next);
@@ -60,6 +70,8 @@
                     const res = await o.api.save(o.flowId, doc, revision);
                     revision = res.draft_revision;
                     savedVersion = version;
+                    error = null;
+                    retryDelay = RETRY_MS;
                     if (o.onSaved) o.onSaved({ revision, issues: res.issues || [] });
                     if (o.model.version === savedVersion) {
                         core.storage.remove(emergencyKey(o.flowId));
@@ -77,9 +89,14 @@
                         savedVersion = version;
                         setState('invalid');
                         if (o.onInvalid) o.onInvalid((err.body && err.body.issues) || []);
+                    } else if (PERMANENT_CODES.has(code)) {
+                        error = err;
+                        setState('failed');
                     } else {
+                        error = err;
                         setState('offline');
-                        retryTimer = setTimeout(() => { save(); }, RETRY_MS);
+                        if (!disposed) retryTimer = setTimeout(() => { save(); }, retryDelay);
+                        retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
                     }
                 } finally {
                     inFlight = null;
@@ -124,6 +141,7 @@
             get revision() { return revision; },
             set revision(value) { revision = value; },
             get state() { return state; },
+            get error() { return error; },
             isDirty: () => o.model.version !== savedVersion,
             markSaved() { savedVersion = o.model.version; setState('saved'); },
             dispose() { disposed = true; clearTimeout(timer); clearTimeout(retryTimer); }

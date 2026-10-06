@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Runs the pure EasyDrag modules (template, model, geometry) in Node and checks their behaviour.
+// The c1d03 checks also run core and saver with fake timers, and the desktop shell's api() with a stub fetch.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -363,6 +364,135 @@ guard('c1d02 model review fixes', () => {
     eq('c1d02 malformed nodes and edges are dropped on load', [loaded.doc.nodes.length, loaded.doc.edges.map(e => e.id), loaded.incoming('n1').length,
         replaced.doc.nodes.length, replaced.incoming('n1').length, emptied.doc.nodes.length], [1, ['ok'], 1, 1, 1, 0]);
     eq('c1d02 clampZoom maps non-finite values to 1', [G.clampZoom(NaN), G.clampZoom(Infinity), G.clampZoom(undefined), G.zoomAt({ x: 0, y: 0, zoom: 1 }, NaN, { x: 10, y: 10 }).zoom], [1, 1, 1, 1]);
+});
+
+// ── c1d03 extras: autosave errors and the shell's api() errors ──
+async function guardAsync(name, fn) {
+    try { await fn(); } catch (err) { failures++; console.log('FAIL ' + name + ' threw: ' + (err && err.message)); }
+}
+const tick = () => new Promise(resolve => setImmediate(resolve));
+const apiError = code => Object.assign(new Error('text ' + code), { body: { error: 'text ' + code, code } });
+// saverHarness runs core and saver with fake timers (recorded, fired by hand), a stub localStorage and a
+// stub api whose save() answers with the next entry of responses (an Error is thrown; the last one repeats).
+function saverHarness(responses) {
+    const timers = new Map();
+    let nextTimer = 1;
+    const store = new Map();
+    const box = vm.createContext({
+        window: {}, navigator: { platform: 'Linux' }, crypto: webcrypto, console,
+        localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
+        setTimeout: (fn, ms) => { const id = nextTimer++; timers.set(id, { fn, ms }); return id; },
+        clearTimeout: id => { timers.delete(id); }
+    });
+    for (const file of ['easydrag-core.js', 'easydrag-saver.js']) {
+        const full = path.join(apps, file);
+        vm.runInContext(fs.readFileSync(full, 'utf8'), box, { filename: full });
+    }
+    let version = 1;
+    const model = { get version() { return version; }, toJSON: () => ({ schema: 1, name: 'Flow', nodes: [], edges: [] }), replaceDoc() { version++; } };
+    const api = {
+        calls: 0,
+        async save() {
+            api.calls++;
+            const next = responses.length > 1 ? responses.shift() : responses[0];
+            if (next instanceof Error) throw next;
+            return next;
+        }
+    };
+    const saver = box.window.EasyDrag.saver.create({ api, flowId: 'f1', model, revision: 1 });
+    return {
+        saver, api, store, timers, core: box.window.EasyDrag.core,
+        change() { version++; saver.schedule(); },
+        delays: () => Array.from(timers.values()).map(entry => entry.ms),
+        async fire(ms) {
+            for (const [id, entry] of timers) {
+                if (entry.ms === ms) { timers.delete(id); entry.fn(); await tick(); return; }
+            }
+            throw new Error('no timer of ' + ms + ' ms');
+        }
+    };
+}
+const DRAFT_KEY = 'aurago.easydrag.draft.f1';
+await guardAsync('c1d03 permanent save errors', async () => {
+    for (const code of ['FLOW_TOO_LARGE', 'FLOW_NOT_FOUND', 'FLOW_PERMISSION_DENIED', 'FLOW_LOCKED', 'FLOW_BAD_REQUEST']) {
+        const h = saverHarness([apiError(code)]);
+        h.change();
+        await h.saver.save();
+        eq('c1d03 ' + code + ' fails without a retry and keeps the emergency copy', [h.saver.state, h.saver.error && h.saver.error.body.code, h.timers.size, h.api.calls, h.store.has(DRAFT_KEY)], ['failed', code, 0, 1, true]);
+    }
+    const h = saverHarness([apiError('FLOW_LOCKED'), apiError('FLOW_LOCKED'), { draft_revision: 2, issues: [] }]);
+    h.change();
+    await h.saver.save();
+    check('c1d03 saver.error is read-only', !Object.getOwnPropertyDescriptor(h.saver, 'error').set);
+    h.change();
+    eq('c1d03 a later change schedules a new attempt', [h.saver.state, h.delays()], ['dirty', [1000]]);
+    await h.fire(1000);
+    eq('c1d03 the new attempt fails again without a retry', [h.saver.state, h.api.calls, h.timers.size], ['failed', 2, 0]);
+    await h.saver.save();
+    eq('c1d03 an explicit save tries again and clears the error', [h.saver.state, h.saver.error, h.api.calls, h.store.has(DRAFT_KEY)], ['saved', null, 3, false]);
+});
+await guardAsync('c1d03 transient save errors', async () => {
+    for (const code of ['FLOWS_DISABLED', 'FLOW_INTERNAL', 'FLOW_RATE_LIMITED', 'FLOW_RUN_LIMIT']) {
+        const h = saverHarness([apiError(code)]);
+        h.change();
+        await h.saver.save();
+        eq('c1d03 ' + code + ' goes offline and retries', [h.saver.state, h.saver.error && h.saver.error.body.code, h.delays(), h.store.has(DRAFT_KEY)], ['offline', code, [5000], true]);
+    }
+    const h = saverHarness([new TypeError('Failed to fetch')]);
+    h.change();
+    await h.saver.save();
+    const seen = [];
+    for (let i = 0; i < 6; i++) {
+        seen.push(h.delays()[0]);
+        await h.fire(seen[i]);
+    }
+    eq('c1d03 network errors retry after 5 s, doubling up to 60 s', [seen, h.api.calls, h.saver.state], [[5000, 10000, 20000, 40000, 60000, 60000], 7, 'offline']);
+    const r = saverHarness([new TypeError('x'), new TypeError('x'), { draft_revision: 2, issues: [] }, new TypeError('x')]);
+    r.change();
+    await r.saver.save();
+    await r.fire(5000);
+    await r.fire(10000);
+    eq('c1d03 a success clears the error and the retry', [r.saver.state, r.saver.error, r.timers.size, r.saver.revision], ['saved', null, 0, 2]);
+    r.change();
+    await r.saver.save();
+    eq('c1d03 a success resets the backoff', [r.saver.state, r.delays()], ['offline', [5000]]);
+    const d = saverHarness([new TypeError('x')]);
+    d.change();
+    const attempt = d.saver.save();
+    d.saver.dispose();
+    await attempt;
+    eq('c1d03 a disposed saver schedules no retry', d.timers.size, 0);
+});
+await guardAsync('c1d03 shell api errors', async () => {
+    // api() of desktop-foundation.js is the ctx.api that createApi wraps; it runs here with a stub fetch.
+    const foundation = fs.readFileSync(path.join(here, '..', 'ui', 'js', 'desktop', 'core', 'desktop-foundation.js'), 'utf8').replace(/\r\n/g, '\n');
+    const start = foundation.indexOf('    async function api(url, options) {');
+    const end = foundation.indexOf('\n    }\n', start);
+    if (start < 0 || end < 0) throw new Error('api() not found in desktop-foundation.js');
+    let response = null;
+    const shellApi = vm.runInContext('(' + foundation.slice(start, end + 6).trim() + ')', vm.createContext({ fetch: async () => response }));
+    const respond = (status, text, headers) => {
+        const h = Object.assign({}, headers);
+        response = { ok: status >= 200 && status < 300, status, headers: { get: name => (name.toLowerCase() in h ? h[name.toLowerCase()] : null) }, json: async () => JSON.parse(text) };
+    };
+    const fail = async () => { try { await shellApi('/api/desktop/flows/f1', {}); return null; } catch (err) { return err; } };
+    const JSON_TYPE = { 'content-type': 'application/json; charset=utf-8' };
+    for (const [status, code] of [[413, 'FLOW_TOO_LARGE'], [429, 'FLOW_RATE_LIMITED'], [503, 'FLOWS_DISABLED']]) {
+        respond(status, JSON.stringify({ error: 'text ' + code, code }), JSON_TYPE);
+        const err = await fail();
+        eq('c1d03 api keeps the JSON body of a ' + status, [err && err.message, err && err.body && err.body.code], ['text ' + code, code]);
+    }
+    respond(429, '{"error":"slow","code":"FLOW_RATE_LIMITED"}', Object.assign({ 'retry-after': '60' }, JSON_TYPE));
+    const limited = await fail();
+    respond(503, '{"error":"off","code":"FLOWS_DISABLED"}', Object.assign({ 'retry-after': '60' }, JSON_TYPE));
+    const unavailable = await fail();
+    respond(429, '{"error":"slow","code":"FLOW_RATE_LIMITED"}', JSON_TYPE);
+    const noHeader = await fail();
+    eq('c1d03 api exposes Retry-After seconds on 429 only', [limited.retryAfter, unavailable.retryAfter, noHeader.retryAfter], [60, undefined, undefined]);
+    respond(502, '<html>Bad Gateway</html>', { 'content-type': 'text/html' });
+    const proxy = await fail();
+    const core = saverHarness([{}]).core;
+    eq('c1d03 a non-JSON error body still gives a usable error', [proxy && proxy.message, JSON.stringify(proxy && proxy.body), core.errorText(t, proxy), core.errorText(t, limited)], ['HTTP 502', '{}', 'error_network', 'error_flow_rate_limited']);
 });
 
 if (failures) {
