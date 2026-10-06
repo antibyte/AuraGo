@@ -21,12 +21,13 @@ entries downloaded from the official ZIP URLs:
 Keep these IDs stable because desktop settings can reference them as active pet
 IDs.
 
-## AuraGo personas
+## AuraGo pets
 
-Twelve additional `aurago-*` pets are original Imagegen-generated sprite sheets
-created from AuraGo persona references. The vampire has two tentacle arms.
-They are selectable through the same catalog and missing-pet installation path.
-Each sheet is lossless WebP with alpha: 1536x1872, 8x9 cells of 192x208 pixels.
+The twelve original `aurago-*` personas are joined by three Imagegen-generated creature mascots:
+Glibbi the slime, Webbi the spider, and Zorbit the alien. They are selectable
+through the same catalog and missing-pet installation path. Each sheet is
+lossless WebP with alpha: 1536x1872, 8x9 cells of 192x208 pixels. The vampire
+has two tentacle arms.
 
 Source art, prompts, reproducible exports and importable ZIPs are retained in the
 sibling `personas/openpets/` project. These new sheets are not upstream OpenPets
