@@ -107,6 +107,12 @@ type RemoteHub struct {
 	AutoApprove     bool // auto-approve devices with no enrollment token
 	MaxFileSizeMB   int
 	AuditLogEnabled bool
+	// DefaultAllowedPaths returns the global remote_control.allowed_paths,
+	// which a device whose own list is empty uses instead (see
+	// effectiveAllowedPaths). It is called per authentication, command and
+	// config push, so a config reload applies without a restart. Nil means no
+	// default.
+	DefaultAllowedPaths func() []string
 
 	nonceCache *nonceReplayCache
 
@@ -421,26 +427,50 @@ func (h *RemoteHub) commandBlockedByReadOnly(deviceID string, conn *RemoteConnec
 }
 
 // commandBlockedByMissingAllowedPaths reports whether a shell operation must be
-// refused because the device has no allowed paths. An empty list, including
-// the explicit revocation of a full config snapshot, means no shell. A device
-// without a RemoteConnection is judged by its stored record, except when a
-// command transport (AgoDesk) carries the command: that client never receives
-// allowed_paths and gates shell access by its own advertised capability and
-// locally configured working directories.
+// refused because the device has no effective allowed paths: its connection's
+// list, or without a connection its stored list, falling back to
+// DefaultAllowedPaths when that is empty. A command transport (AgoDesk) is
+// exempt: that client never receives allowed_paths and gates shell access by
+// its own advertised capability and locally configured working directories.
 func (h *RemoteHub) commandBlockedByMissingAllowedPaths(deviceID string, conn *RemoteConnection, operation string) bool {
 	if !IsShellOperation(operation) {
 		return false
 	}
 	if conn != nil {
 		conn.mu.Lock()
-		defer conn.mu.Unlock()
-		return len(conn.AllowedPaths) == 0
+		paths := conn.AllowedPaths
+		conn.mu.Unlock()
+		return len(h.effectiveAllowedPaths(paths)) == 0
 	}
 	if h == nil || h.db == nil || h.hasConnectedCommandTransport(deviceID) {
 		return false
 	}
 	device, err := GetDevice(h.db, deviceID)
-	return err == nil && len(device.AllowedPaths) == 0
+	return err == nil && len(h.effectiveAllowedPaths(device.AllowedPaths)) == 0
+}
+
+// effectiveAllowedPaths returns the paths a device may use: a copy of its own
+// list when that names any path, else a copy of DefaultAllowedPaths. Blank
+// entries are dropped and the rest trimmed. The result is never nil, so an
+// empty one still reaches the agent as an explicit revocation.
+func (h *RemoteHub) effectiveAllowedPaths(devicePaths []string) []string {
+	if paths := cleanAllowedPaths(devicePaths); len(paths) > 0 {
+		return paths
+	}
+	if h == nil || h.DefaultAllowedPaths == nil {
+		return []string{}
+	}
+	return cleanAllowedPaths(h.DefaultAllowedPaths())
+}
+
+func cleanAllowedPaths(paths []string) []string {
+	cleaned := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if path = strings.TrimSpace(path); path != "" {
+			cleaned = append(cleaned, path)
+		}
+	}
+	return cleaned
 }
 
 func (h *RemoteHub) hasConnectedCommandTransport(deviceID string) bool {
@@ -469,10 +499,16 @@ func (h *RemoteHub) connectedCommandTransport(deviceID string) CommandTransport 
 
 // SendConfigUpdate pushes config changes to a remote device and updates the
 // in-memory connection state so server-side enforcement reflects the new values.
+// A full snapshot's allowed_paths (non-nil) is replaced by the effective list,
+// so a cleared device list falls back to DefaultAllowedPaths and only an empty
+// result revokes.
 func (h *RemoteHub) SendConfigUpdate(deviceID string, update ConfigUpdatePayload) error {
 	conn := h.GetConnection(deviceID)
 	if conn == nil {
 		return fmt.Errorf("no active connection for device %s", deviceID)
+	}
+	if update.AllowedPaths != nil {
+		update.AllowedPaths = h.effectiveAllowedPaths(update.AllowedPaths)
 	}
 	msg, err := NewMessage(MsgConfigUpdate, deviceID, conn.SharedKey, conn.NextSeq(), update)
 	if err != nil {
@@ -770,6 +806,8 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		}
 
 		// Authenticated — register connection
+		allowedPaths := h.effectiveAllowedPaths(device.AllowedPaths)
+		readOnly := device.ReadOnly
 		conn := &RemoteConnection{
 			Conn:          wsConn,
 			DeviceID:      device.ID,
@@ -777,15 +815,15 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			SharedKey:     storedKey,
 			LastHeartbeat: time.Now(),
 			Status:        "connected",
-			ReadOnly:      device.ReadOnly,
-			AllowedPaths:  device.AllowedPaths,
+			ReadOnly:      readOnly,
+			AllowedPaths:  allowedPaths,
 			Version:       auth.Version,
 		}
 		h.Register(device.ID, conn)
 
 		// Do NOT echo back the shared key — the client already has it (it just used it to sign
 		// the auth message). Sending it here would transmit the key over the wire unnecessarily.
-		return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", device.ID, "authenticated", "", &conn.ReadOnly, conn.AllowedPaths)
+		return h.sendAuthResponse(wsConn, msg.Nonce, storedKey, "", device.ID, "authenticated", "", &readOnly, allowedPaths)
 	}
 
 	// ── Case 2: Token-based enrollment ──
@@ -934,7 +972,9 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
 	}
 
-	// Register connection
+	// Register connection. A new device has no list of its own yet.
+	allowedPaths := h.effectiveAllowedPaths(nil)
+	readOnly := h.DefaultReadOnly
 	conn := &RemoteConnection{
 		Conn:          wsConn,
 		DeviceID:      deviceID,
@@ -942,12 +982,13 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce stri
 		SharedKey:     sharedKey,
 		LastHeartbeat: time.Now(),
 		Status:        "connected",
-		ReadOnly:      h.DefaultReadOnly,
+		ReadOnly:      readOnly,
+		AllowedPaths:  allowedPaths,
 		Version:       auth.Version,
 	}
 	h.Register(deviceID, conn)
 
-	return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &conn.ReadOnly, conn.AllowedPaths)
+	return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &readOnly, allowedPaths)
 }
 
 // ApproveDevice replaces a pending observation with a fresh, single-use token.

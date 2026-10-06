@@ -382,6 +382,25 @@ func (s *Server) ConfigSnapshot() *config.Config {
 	return s.Cfg
 }
 
+// newRemoteHub builds the Remote Control hub with its config-driven defaults.
+// The global remote_control.allowed_paths is read from the config snapshot on
+// every call, so a reload needs no restart; a connected agent gets the new
+// default at its next reconnect or config push.
+func (s *Server) newRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Logger, cfg *config.Config) *remote.RemoteHub {
+	hub := remote.NewRemoteHub(db, vault, logger)
+	hub.DefaultReadOnly = cfg.RemoteControl.ReadOnly
+	hub.AutoApprove = cfg.RemoteControl.AutoApprove
+	hub.MaxFileSizeMB = cfg.RemoteControl.MaxFileSizeMB
+	hub.AuditLogEnabled = cfg.RemoteControl.AuditLog
+	hub.DefaultAllowedPaths = func() []string {
+		if snapshot := s.ConfigSnapshot(); snapshot != nil {
+			return snapshot.RemoteControl.AllowedPaths
+		}
+		return nil
+	}
+	return hub
+}
+
 func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
@@ -747,11 +766,7 @@ func Start(opts StartOptions) error {
 	// Initialize Remote Control Hub
 	remote.InsecureHostKey = cfg.RemoteControl.SSHInsecureHostKey
 	if remoteControlDB != nil {
-		s.RemoteHub = remote.NewRemoteHub(remoteControlDB, vault, logger)
-		s.RemoteHub.DefaultReadOnly = cfg.RemoteControl.ReadOnly
-		s.RemoteHub.AutoApprove = cfg.RemoteControl.AutoApprove
-		s.RemoteHub.MaxFileSizeMB = cfg.RemoteControl.MaxFileSizeMB
-		s.RemoteHub.AuditLogEnabled = cfg.RemoteControl.AuditLog
+		s.RemoteHub = s.newRemoteHub(remoteControlDB, vault, logger, cfg)
 		s.RemoteHub.OnConnect = func(deviceID, name string) {
 			s.MissionManagerV2.NotifyDeviceEvent("device_connected", deviceID, name)
 		}

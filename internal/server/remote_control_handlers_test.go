@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -186,12 +187,14 @@ func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
 	cases := []struct {
 		name           string
 		httpsEnabled   bool
+		tlsRequest     bool
 		forwardedProto string
 		want           string
 	}{
-		// The TLS listener binds server.https.https_port; server.port is only
-		// the loopback listener then.
+		// The TLS listener binds server.https.https_port (8443 here, not
+		// server.port 8090); server.port is only the loopback listener then.
 		{name: "server TLS, plain request", httpsEnabled: true, want: "wss://aurago.lan:8443/api/remote/ws"},
+		{name: "server TLS, TLS request uses https_port", httpsEnabled: true, tlsRequest: true, want: "wss://aurago.lan:8443/api/remote/ws"},
 		{name: "no server TLS, plain request", want: "ws://aurago.lan:8090/api/remote/ws"},
 		{name: "no server TLS, forwarded https", forwardedProto: "https", want: "wss://aurago.lan:8090/api/remote/ws"},
 	}
@@ -205,7 +208,14 @@ func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
 			defer cleanup()
 
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/api/remote/download/linux/amd64?name=nas", nil)
+			target := "/api/remote/download/linux/amd64?name=nas"
+			if tc.tlsRequest {
+				target = "https://aurago.lan:8443" + target
+			}
+			req := httptest.NewRequest(http.MethodGet, target, nil)
+			if tc.tlsRequest && req.TLS == nil {
+				t.Fatal("fixture request is not a TLS request")
+			}
 			req.Host = "aurago.lan:8090"
 			if tc.forwardedProto != "" {
 				req.Header.Set("X-Forwarded-Proto", tc.forwardedProto)
@@ -233,6 +243,35 @@ func TestRemoteDownloadPrefersWSSWhenServerTLSEnabled(t *testing.T) {
 	req.Host = ""
 	if got := autoRemoteDownloadSupervisorURL(&Server{Cfg: cfg}, req); got != "wss://localhost:443/api/remote/ws" {
 		t.Fatalf("fallback supervisor_url = %q, want wss://localhost:443/api/remote/ws", got)
+	}
+}
+
+// The global remote_control.allowed_paths is the default for devices without
+// their own list; the hub reads it from the config snapshot on every call.
+func TestRemoteHubDefaultAllowedPathsFollowsConfigSnapshot(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.RemoteControl.AllowedPaths = []string{"/srv"}
+	cfg.RemoteControl.ReadOnly = true
+	cfg.RemoteControl.MaxFileSizeMB = 7
+	s := &Server{Cfg: cfg}
+	s.initConfigSnapshot()
+
+	hub := s.newRemoteHub(nil, nil, slog.Default(), cfg)
+	if hub.DefaultAllowedPaths == nil {
+		t.Fatal("DefaultAllowedPaths is not wired")
+	}
+	if got := hub.DefaultAllowedPaths(); !reflect.DeepEqual(got, []string{"/srv"}) {
+		t.Fatalf("DefaultAllowedPaths() = %q, want [/srv]", got)
+	}
+	if !hub.DefaultReadOnly || hub.MaxFileSizeMB != 7 {
+		t.Fatalf("hub defaults = read-only %v, max file size %d; want true, 7", hub.DefaultReadOnly, hub.MaxFileSizeMB)
+	}
+
+	next := &config.Config{}
+	next.RemoteControl.AllowedPaths = []string{"/data"}
+	s.replaceConfigSnapshot(next)
+	if got := hub.DefaultAllowedPaths(); !reflect.DeepEqual(got, []string{"/data"}) {
+		t.Fatalf("DefaultAllowedPaths() after reload = %q, want [/data]", got)
 	}
 }
 
