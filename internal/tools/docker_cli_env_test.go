@@ -85,3 +85,20 @@ func TestDockerComposePassesTheEnvironmentChoiceToTheCLI(t *testing.T) {
 		t.Fatalf("runner saw MinimalCLIEnvironment %v, want [false true]", seen)
 	}
 }
+
+// Certificate and credential-helper pointers name files or profiles, not
+// secrets, and registry logins or TLS to a private registry need them; the
+// secret values themselves stay out.
+func TestDockerCLIMinimalEnvironmentKeepsCertificateAndCredentialHelperPointers(t *testing.T) {
+	pointers := []string{
+		"SSL_CERT_FILE=/etc/ssl/custom.pem", "SSL_CERT_DIR=/etc/ssl/certs", "GNUPGHOME=/home/aurago/.gnupg",
+		"PASSWORD_STORE_DIR=/home/aurago/.password-store", "AWS_PROFILE=registry", "AWS_REGION=eu-central-1",
+		"AWS_DEFAULT_REGION=eu-central-1", "AWS_CONFIG_FILE=/home/aurago/.aws/config",
+		"AWS_SHARED_CREDENTIALS_FILE=/home/aurago/.aws/credentials", "CLOUDSDK_CONFIG=/home/aurago/.config/gcloud",
+	}
+	secrets := []string{"AWS_ACCESS_KEY_ID=AKIA", "AWS_SECRET_ACCESS_KEY=s", "AWS_SESSION_TOKEN=t", "DOCKER_AUTH_CONFIG={}"}
+	got := dockerCLIMinimalEnvironment(append(append([]string(nil), pointers...), secrets...))
+	if !reflect.DeepEqual(got, pointers) {
+		t.Fatalf("dockerCLIMinimalEnvironment() = %q, want exactly the pointers %q", got, pointers)
+	}
+}

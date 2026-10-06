@@ -736,6 +736,13 @@ var dockerCLIMinimalVariables = map[string]bool{
 	"SYSTEMROOT": true, "SYSTEMDRIVE": true, "WINDIR": true, "COMSPEC": true, "PATHEXT": true, "OS": true,
 	"PROCESSOR_ARCHITECTURE": true, "NUMBER_OF_PROCESSORS": true, "USERNAME": true, "USERDOMAIN": true,
 	"COMPUTERNAME": true, "ALLUSERSPROFILE": true, "PUBLIC": true,
+	// Pointers to certificates and credential-helper stores, never secrets
+	// themselves (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and
+	// DOCKER_AUTH_CONFIG stay out): TLS to a private registry and credential
+	// helpers such as pass, ecr-login or gcloud find their files through them.
+	"SSL_CERT_FILE": true, "SSL_CERT_DIR": true, "GNUPGHOME": true, "PASSWORD_STORE_DIR": true,
+	"AWS_PROFILE": true, "AWS_REGION": true, "AWS_DEFAULT_REGION": true, "AWS_CONFIG_FILE": true,
+	"AWS_SHARED_CREDENTIALS_FILE": true, "CLOUDSDK_CONFIG": true,
 }
 
 // dockerCLIMinimalPrefixes are the locale and Compose/BuildKit/Buildx settings.
