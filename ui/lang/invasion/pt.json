@@ -48,6 +48,7 @@
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Descrição",
   "invasion.docker_local_hint": "Em implantações Docker locais, o URL mestre é resolvido automaticamente para host.docker.internal — sem configuração manual do host.",
+  "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Remoto) usa HTTP não criptografado: a configuração do egg, com a chave compartilhada, a chave do cofre e a chave de API herdada, trafega pela rede em texto simples, e a API remota do Docker aceita comandos sem autenticação. Use-o apenas em uma rede isolada.",
   "invasion.edit": "Editar",
   "invasion.edit_egg": "Editar Egg",
   "invasion.edit_nest": "Editar Nest",

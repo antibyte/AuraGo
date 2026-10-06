@@ -48,6 +48,7 @@
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Beschrijving",
   "invasion.docker_local_hint": "Bij lokale Docker-deployments wordt de master-URL automatisch opgelost naar host.docker.internal — handmatige hostconfiguratie is niet nodig.",
+  "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Extern) gebruikt onversleutelde HTTP: de egg-configuratie, inclusief gedeelde sleutel, vault-sleutel en overgenomen API-sleutel, gaat als platte tekst over het netwerk, en de externe Docker-API accepteert opdrachten zonder authenticatie. Gebruik dit alleen op een geïsoleerd netwerk.",
   "invasion.edit": "Bewerken",
   "invasion.edit_egg": "Egg Bewerken",
   "invasion.edit_nest": "Nest Bewerken",

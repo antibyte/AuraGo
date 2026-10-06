@@ -48,6 +48,7 @@
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Beskrivelse",
   "invasion.docker_local_hint": "For lokale Docker-distribusjoner løses master-URL-en automatisk til host.docker.internal — ingen manuell verts konfigurasjon kreves.",
+  "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Ekstern) bruker ukryptert HTTP: egg-konfigurasjonen med delt nøkkel, vault-nøkkel og arvet API-nøkkel sendes i klartekst over nettverket, og det eksterne Docker-API-et godtar kommandoer uten autentisering. Bruk det bare på et isolert nettverk.",
   "invasion.edit": "Rediger",
   "invasion.edit_egg": "Rediger Egg",
   "invasion.edit_nest": "Rediger Nest",

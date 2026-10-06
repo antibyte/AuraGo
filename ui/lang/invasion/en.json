@@ -48,6 +48,7 @@
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Description",
   "invasion.docker_local_hint": "For local Docker deployments, the master URL is automatically resolved to host.docker.internal — no manual host configuration required.",
+  "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Remote) uses unencrypted HTTP: the egg configuration, including its shared key, vault key and inherited API key, crosses the network in plain text, and the remote Docker API accepts commands without authentication. Use it only on an isolated network.",
   "invasion.edit": "Edit",
   "invasion.edit_egg": "Edit Egg",
   "invasion.edit_nest": "Edit Nest",

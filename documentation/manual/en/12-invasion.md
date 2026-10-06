@@ -184,6 +184,17 @@ Response:
 
 > 💡 **Tip:** Store SSH keys and passwords in the vault via the UI/API at creation time. Secrets are never included in list/get responses (`has_secret: true` indicates a stored credential).
 
+### Transport security for Docker nests
+
+`Docker (Remote)` (`docker_remote`) talks to the Docker Engine API of the target over **plain HTTP** (default port `2375`). Every hatch and reconfigure copies the Egg's `config.yaml` into the container over that connection. The file contains the Egg shared key, the Egg vault key and, with `inherit_llm`, the master's LLM API key. Anyone who can read the traffic gets those secrets. Anyone who can reach the Engine port controls the remote Docker daemon, because an Engine without TLS does not authenticate callers.
+
+Existing nests keep working. AuraGo warns about it in three places:
+- in the nest form
+- in the **Security Audit** panel of the configuration, as hint `invasion_docker_remote_plaintext`
+- in the log, on every hatch and reconfigure
+
+Use `Docker (Remote)` only on an isolated network, or deploy with the `SSH` method, which sends every file through the encrypted SSH connection.
+
 ---
 
 ## Creating an Egg
@@ -597,6 +608,7 @@ and reconfiguration send private files over encrypted stdin and publish them ato
 > - `inherit_llm` copies the master's API key into the Egg config — the Egg host must be trusted
 > - Use `invasion_control.readonly: true` for monitoring-only setups
 > - Rotate shared keys with `/rotate-key` if compromise is suspected
+> - `Docker (Remote)` over plain HTTP sends Egg secrets in clear text; use it only on isolated networks
 
 ---
 

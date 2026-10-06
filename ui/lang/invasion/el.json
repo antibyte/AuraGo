@@ -48,6 +48,7 @@
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Περιγραφή",
   "invasion.docker_local_hint": "Για τοπικές εγκαταστάσεις Docker, το κύριο URL αντιστοιχίζεται αυτόματα σε host.docker.internal — δεν απαιτείται χειροκίνητη ρύθμιση host.",
+  "invasion.docker_remote_plaintext_hint": "⚠️ Το Docker (Απομακρυσμένο) χρησιμοποιεί μη κρυπτογραφημένο HTTP: η διαμόρφωση του egg, μαζί με το κοινόχρηστο κλειδί, το κλειδί vault και το κληρονομημένο κλειδί API, διασχίζει το δίκτυο ως απλό κείμενο, και το απομακρυσμένο Docker API δέχεται εντολές χωρίς έλεγχο ταυτότητας. Χρησιμοποιήστε το μόνο σε απομονωμένο δίκτυο.",
   "invasion.edit": "Επεξεργασία",
   "invasion.edit_egg": "Επεξεργασία Egg",
   "invasion.edit_nest": "Επεξεργασία Nest",

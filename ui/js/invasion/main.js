@@ -372,6 +372,8 @@ function onDeployMethodChange() {
     const method = document.getElementById('nest-deploy-method').value;
     const hint = document.getElementById('deploy-docker-local-hint');
     if (hint) hint.classList.toggle('is-hidden', method !== 'docker_local');
+    const plaintextHint = document.getElementById('deploy-docker-remote-plaintext-hint');
+    if (plaintextHint) plaintextHint.classList.toggle('is-hidden', method !== 'docker_remote');
 }
 
 function onAccessTypeChange() {

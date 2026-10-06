@@ -48,6 +48,7 @@
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "描述",
   "invasion.docker_local_hint": "对于本地Docker部署，主URL会自动解析为host.docker.internal — 无需手动配置主机。",
+  "invasion.docker_remote_plaintext_hint": "⚠️ Docker (远程) 使用未加密的 HTTP：egg 配置（包括共享密钥、保险库密钥和继承的 API 密钥）以明文在网络上传输，远程 Docker API 无需身份验证即可接受命令。请仅在隔离网络中使用。",
   "invasion.edit": "编辑",
   "invasion.edit_egg": "编辑 Egg",
   "invasion.edit_nest": "编辑 Nest",

@@ -683,3 +683,10 @@ func GetConnector(nest NestRecord) NestConnector {
 		return &SSHConnector{}
 	}
 }
+
+// DockerRemotePlaintext reports whether a nest deploys through the remote
+// Docker Engine API over unencrypted HTTP. Hatch and reconfigure then send
+// the egg configuration, including its secrets, in clear text.
+func DockerRemotePlaintext(nest NestRecord) bool {
+	return nest.DeployMethod == "docker_remote"
+}

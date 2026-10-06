@@ -194,6 +194,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		deployID, _ = invasion.CreateDeployment(s.InvasionDB, nest.ID, egg.ID, nest.DeployMethod, binaryHash, configHash)
 	}
 
+	warnPlaintextDockerRemote(s.Logger, nest, "hatch")
 	// 10. Get connector and deploy
 	connector := invasion.GetConnector(nest)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -1024,6 +1025,7 @@ func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
 			secretBytes = []byte(secretStr)
 		}
 
+		warnPlaintextDockerRemote(s.Logger, nest, "safe_reconfigure")
 		// Execute reconfigure via connector
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -1209,6 +1211,7 @@ func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
 			secretBytes = []byte(secretStr)
 		}
 
+		warnPlaintextDockerRemote(s.Logger, nest, "config_rollback")
 		// Execute reconfigure via connector
 		connector := invasion.GetConnector(nest)
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

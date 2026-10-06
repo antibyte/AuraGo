@@ -48,6 +48,7 @@
   "invasion.deploy_ssh": "SSH",
   "invasion.description": "Popis",
   "invasion.docker_local_hint": "Pro lokální Docker nasazení je URL mastera automaticky přeložena na host.docker.internal — není potřeba ruční konfigurace hostitele.",
+  "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Vzdálený) používá nešifrované HTTP: konfigurace eggu včetně sdíleného klíče, klíče trezoru a zděděného API klíče putuje sítí jako prostý text a vzdálené Docker API přijímá příkazy bez ověření. Používejte jej pouze v izolované síti.",
   "invasion.edit": "Upravit",
   "invasion.edit_egg": "Upravit Egg",
   "invasion.edit_nest": "Upravit Nest",

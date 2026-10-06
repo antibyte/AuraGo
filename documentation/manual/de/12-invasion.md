@@ -174,6 +174,17 @@ curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/validate
 
 > 💡 **Tipp:** SSH-Keys und Passwörter beim Erstellen über UI/API im Vault speichern. Secrets werden in API-Antworten nie zurückgegeben (`has_secret: true` zeigt ein gespeichertes Credential an).
 
+### Transportsicherheit für Docker-Nests
+
+`Docker (Entfernt)` (`docker_remote`) spricht die Docker-Engine-API des Ziels über **unverschlüsseltes HTTP** an (Standardport `2375`). Jeder Hatch und jedes Reconfigure kopiert die `config.yaml` des Eggs über diese Verbindung in den Container. Die Datei enthält den Egg-Shared-Key, den Egg-Vault-Schlüssel und mit `inherit_llm` den LLM-API-Key des Masters. Wer den Verkehr mitlesen kann, erhält diese Secrets. Wer den Engine-Port erreicht, steuert den entfernten Docker-Daemon, weil eine Engine ohne TLS Aufrufer nicht authentifiziert.
+
+Bestehende Nests funktionieren weiter. AuraGo warnt an drei Stellen:
+- im Nest-Formular
+- im Bereich **Sicherheitsaudit** der Konfiguration, als Hinweis `invasion_docker_remote_plaintext`
+- im Log, bei jedem Hatch und Reconfigure
+
+Nutze `Docker (Entfernt)` nur in einem isolierten Netz oder deploye mit der Methode `SSH`, die alle Dateien über die verschlüsselte SSH-Verbindung überträgt.
+
 ---
 
 ## Egg erstellen
@@ -535,6 +546,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 > - `inherit_llm` kopiert den Master-API-Key in die Egg-Config — Egg-Host muss vertrauenswürdig sein
 > - `invasion_control.readonly: true` für reine Monitoring-Setups
 > - Bei Verdacht auf Kompromittierung Shared Keys mit `/rotate-key` rotieren
+> - `Docker (Entfernt)` über unverschlüsseltes HTTP sendet Egg-Secrets im Klartext; nutze es nur in isolierten Netzen
 
 ---
 
