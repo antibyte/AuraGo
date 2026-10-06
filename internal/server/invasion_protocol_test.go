@@ -188,6 +188,14 @@ func (f invasionKeyFixture) secret(t *testing.T, suffix string) string {
 // acknowledged it under key.
 func (f invasionKeyFixture) handshake(t *testing.T, key string) error {
 	t.Helper()
+	_, _, err := f.dialEgg(t, key)
+	return err
+}
+
+// dialEgg authenticates a raw egg socket under key; the socket stays open
+// until the test ends.
+func (f invasionKeyFixture) dialEgg(t *testing.T, key string) (*websocket.Conn, *bridge.Session, error) {
+	t.Helper()
 	conn, _, err := websocket.DefaultDialer.Dial(f.wsURL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -214,9 +222,52 @@ func (f invasionKeyFixture) handshake(t *testing.T, key string) error {
 	}
 	var ack bridge.Message
 	if err := conn.ReadJSON(&ack); err != nil {
-		return err
+		return nil, nil, err
 	}
-	return session.Accept(ack, key, "")
+	if err := session.Accept(ack, key, ""); err != nil {
+		return nil, nil, err
+	}
+	return conn, session, nil
+}
+
+// startLegacyEgg authenticates an egg that behaves like the binary before the
+// persisted flag: it switches keys in memory and acks without the flag.
+func (f invasionKeyFixture) startLegacyEgg(t *testing.T, key string) <-chan string {
+	t.Helper()
+	conn, session, err := f.dialEgg(t, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.waitConnected(t)
+	conn.SetReadDeadline(time.Time{})
+	rotated := make(chan string, 1)
+	go func() {
+		current := key
+		for {
+			var msg bridge.Message
+			if err := conn.ReadJSON(&msg); err != nil {
+				return
+			}
+			if session.Accept(msg, current, "") != nil || msg.Type != bridge.MsgRekey {
+				continue
+			}
+			var rekey bridge.RekeyPayload
+			if json.Unmarshal(msg.Payload, &rekey) != nil {
+				continue
+			}
+			newKey, err := bridge.DecryptWithSharedKey(rekey.NewKeyEncrypted, current)
+			if err != nil {
+				continue
+			}
+			current = string(newKey)
+			ack, err := bridge.NewMessage(bridge.MsgAck, f.eggID, f.nestID, current, map[string]interface{}{"ref_id": msg.ID, "success": true, "detail": "key rotated to v1"})
+			if err != nil || session.Prepare(ack, current) != nil || conn.WriteJSON(ack) != nil {
+				return
+			}
+			rotated <- current
+		}
+	}()
+	return rotated
 }
 
 func (f invasionKeyFixture) waitConnected(t *testing.T) {
@@ -387,15 +438,51 @@ func TestInvasionRotateKeyCommitsAfterEggPersistedAndAcked(t *testing.T) {
 	if newKey == oldKey || f.secret(t, "") != newKey || client.SharedKeySnapshot() != newKey {
 		t.Fatal("master vault and egg must both hold the rotated key")
 	}
-	if f.secret(t, "_prev") != oldKey || f.secret(t, "_next") != "" {
-		t.Fatal("commit must keep the old key as _prev and drop the staged _next")
+	// The egg confirmed persistence, so the old key dies at commit.
+	if f.secret(t, "_next") != "" || f.secret(t, "_prev") != "" || f.secret(t, "_prev_at") != "" {
+		t.Fatal("a persisted rotation commits only the new key: no _next, _prev or _prev_at")
+	}
+	if got := f.hub.GetConnection(f.nestID).SharedKey; got != newKey {
+		t.Fatal("the live connection must use the committed key")
+	}
+	if err := f.handshake(t, oldKey); err == nil {
+		t.Fatal("the old key must be rejected right after a persisted rotation")
+	}
+	if f.secret(t, "") != newKey {
+		t.Fatal("a rejected old-key handshake must not displace the new key")
+	}
+}
+
+// An egg on the previous binary acks without the persisted flag: the master
+// keeps the old key as _prev for one reconnect within the grace window.
+func TestInvasionRotateKeyKeepsDatedPreviousKeyForLegacyAck(t *testing.T) {
+	oldKey := strings.Repeat("1", 64)
+	f := newInvasionKeyFixture(t, map[string]string{"": oldKey})
+	rotated := f.startLegacyEgg(t, oldKey)
+	rec := f.rotate(t, context.Background())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var newKey string
+	select {
+	case newKey = <-rotated:
+	case <-time.After(2 * time.Second):
+		t.Fatal("legacy egg never rotated")
+	}
+	if f.secret(t, "") != newKey || f.secret(t, "_next") != "" || f.secret(t, "_prev") != oldKey {
+		t.Fatal("a legacy ack commits the new key and keeps the old one as _prev")
 	}
 	at, err := time.Parse(time.RFC3339, f.secret(t, "_prev_at"))
 	if err != nil || time.Since(at) > time.Minute || time.Since(at) < -time.Minute {
 		t.Fatalf("commit must date _prev in the same write: %q, %v", f.secret(t, "_prev_at"), err)
 	}
-	if got := f.hub.GetConnection(f.nestID).SharedKey; got != newKey {
-		t.Fatal("the live connection must use the committed key")
+	// The legacy egg restarts with the key still in its vault: it reconnects
+	// once and the rotation is reverted.
+	if err := f.handshake(t, oldKey); err != nil {
+		t.Fatalf("a legacy egg must reconnect with the old key within the window: %v", err)
+	}
+	if f.secret(t, "") != oldKey || f.secret(t, "_prev") != "" || f.secret(t, "_prev_at") != "" {
+		t.Fatal("the reconnect consumes _prev and makes the old key current again")
 	}
 }
 

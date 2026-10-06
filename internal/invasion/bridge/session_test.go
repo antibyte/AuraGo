@@ -158,7 +158,7 @@ func TestHeartbeatAndRekeyRemainOrderedUnderConcurrentTraffic(t *testing.T) {
 		}
 	}()
 	for i := 0; i < 10; i++ {
-		if err := hub.SendRekey(context.Background(), "nest", validKey(t)); err != nil {
+		if _, err := hub.SendRekey(context.Background(), "nest", validKey(t)); err != nil {
 			t.Fatal(err)
 		}
 		if err := hub.SendTask("nest", TaskPayload{TaskID: fmt.Sprint(i)}); err != nil {

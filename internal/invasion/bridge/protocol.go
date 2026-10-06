@@ -145,6 +145,12 @@ type AckPayload struct {
 	RefID   string `json:"ref_id"` // ID of the acknowledged message
 	Success bool   `json:"success"`
 	Detail  string `json:"detail,omitempty"`
+	// Persisted is set only on a successful rekey ack, after the egg stored the
+	// new key durably (EggClient.OnRekey returned nil). Eggs predating it never
+	// send the field, so absent means the key may live only in the egg's memory
+	// and the master keeps the replaced key as a bounded fallback. Masters
+	// predating it ignore the field.
+	Persisted bool `json:"persisted,omitempty"`
 }
 
 // ErrorPayload reports protocol-level errors.

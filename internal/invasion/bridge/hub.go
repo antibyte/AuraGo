@@ -281,7 +281,8 @@ func (h *EggHub) sendWithAckContext(ctx context.Context, conn *EggConnection, ms
 	if err := conn.Send(msg); err != nil {
 		return err
 	}
-	return h.awaitAck(ctx, ackCh, conn.NestID)
+	_, err := h.awaitAck(ctx, ackCh, conn.NestID)
+	return err
 }
 
 // registerPendingAck routes the ack for msgID from conn to the returned channel.
@@ -316,7 +317,8 @@ func ackResult(ack AckPayload) error {
 	return &ackRejectedError{detail: ack.Detail}
 }
 
-func (h *EggHub) awaitAck(ctx context.Context, ackCh <-chan AckPayload, nestID string) error {
+// awaitAck returns the egg's ack (zero when none arrived) and its outcome.
+func (h *EggHub) awaitAck(ctx context.Context, ackCh <-chan AckPayload, nestID string) (AckPayload, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -328,11 +330,11 @@ func (h *EggHub) awaitAck(ctx context.Context, ackCh <-chan AckPayload, nestID s
 	}
 	select {
 	case ack := <-ackCh:
-		return ackResult(ack)
+		return ack, ackResult(ack)
 	case <-time.After(timeout):
-		return fmt.Errorf("timed out waiting for ack from nest %s", nestID)
+		return AckPayload{}, fmt.Errorf("timed out waiting for ack from nest %s", nestID)
 	case <-ctx.Done():
-		return ctx.Err()
+		return AckPayload{}, ctx.Err()
 	}
 }
 
@@ -466,20 +468,24 @@ func (ec *EggConnection) rekeyPendingLocked() bool {
 // rejection arrives or the socket ends; an egg that adopted the key fails
 // verification under the rolled-back key, reconnects, and authenticates with
 // the master's staged candidate.
-func (h *EggHub) SendRekey(ctx context.Context, nestID, newKeyHex string) error {
+//
+// persisted reports the ack's Persisted flag: true means the egg stored the
+// key durably, so the caller may retire the old key at commit; false on a
+// successful rotation means a legacy egg that may hold the key only in memory.
+func (h *EggHub) SendRekey(ctx context.Context, nestID, newKeyHex string) (persisted bool, err error) {
 	conn := h.GetConnection(nestID)
 	if conn == nil {
-		return fmt.Errorf("no active connection for nest %s", nestID)
+		return false, fmt.Errorf("no active connection for nest %s", nestID)
 	}
 	key, err := hex.DecodeString(newKeyHex)
 	if err != nil || len(key) != 32 {
-		return fmt.Errorf("invalid new shared key")
+		return false, fmt.Errorf("invalid new shared key")
 	}
 
 	conn.mu.Lock()
 	if conn.rekeyPendingLocked() {
 		conn.mu.Unlock()
-		return fmt.Errorf("an earlier key rotation for nest %s is still unconfirmed", nestID)
+		return false, fmt.Errorf("an earlier key rotation for nest %s is still unconfirmed", nestID)
 	}
 	oldKey, oldVersion := conn.SharedKey, conn.KeyVersion
 	conn.rekeyInFlight = true
@@ -494,12 +500,12 @@ func (h *EggHub) SendRekey(ctx context.Context, nestID, newKeyHex string) error 
 	encrypted, err := EncryptWithSharedKey([]byte(newKeyHex), oldKey)
 	if err != nil {
 		finish()
-		return fmt.Errorf("encrypt new shared key: %w", err)
+		return false, fmt.Errorf("encrypt new shared key: %w", err)
 	}
 	msg, err := NewMessage(MsgRekey, conn.EggID, nestID, oldKey, RekeyPayload{NewKeyEncrypted: encrypted, KeyVersion: version})
 	if err != nil {
 		finish()
-		return err
+		return false, err
 	}
 	// Register before taking conn.mu: the hub lock is always taken first.
 	ackCh := h.registerPendingAck(msg.ID, conn)
@@ -509,7 +515,7 @@ func (h *EggHub) SendRekey(ctx context.Context, nestID, newKeyHex string) error 
 	if err := conn.sendLocked(msg); err != nil {
 		conn.rekeyInFlight = false
 		conn.mu.Unlock()
-		return err
+		return false, err
 	}
 	// Frames sent after the rekey use the new key; the egg reads them only
 	// after it has processed (and persisted) the rotation.
@@ -518,12 +524,12 @@ func (h *EggHub) SendRekey(ctx context.Context, nestID, newKeyHex string) error 
 	conn.SharedKey, conn.KeyVersion = newKeyHex, version
 	conn.mu.Unlock()
 
-	err = h.awaitAck(ctx, ackCh, nestID)
+	ack, err := h.awaitAck(ctx, ackCh, nestID)
 	var rejected *ackRejectedError
 	if err != nil && !errors.As(err, &rejected) {
 		// The answer may have arrived just as the wait gave up.
 		select {
-		case ack := <-ackCh:
+		case ack = <-ackCh:
 			err = ackResult(ack)
 		default:
 		}
@@ -537,8 +543,8 @@ func (h *EggHub) SendRekey(ctx context.Context, nestID, newKeyHex string) error 
 			conn.rekeyOutstanding = ""
 		}
 		conn.mu.Unlock()
-		h.logger.Info("Key rotated for egg", "nest_id", nestID, "version", version)
-		return nil
+		h.logger.Info("Key rotated for egg", "nest_id", nestID, "version", version, "persisted", ack.Persisted)
+		return ack.Persisted, nil
 	}
 	conn.SharedKey, conn.KeyVersion = oldKey, oldVersion
 	if errors.As(err, &rejected) && conn.rekeyOutstanding == msg.ID {
@@ -546,7 +552,7 @@ func (h *EggHub) SendRekey(ctx context.Context, nestID, newKeyHex string) error 
 	}
 	conn.mu.Unlock()
 	h.logger.Warn("Key rotation rolled back", "nest_id", nestID, "error", err)
-	return fmt.Errorf("egg did not confirm key rotation: %w", err)
+	return ack.Persisted, fmt.Errorf("egg did not confirm key rotation: %w", err)
 }
 
 // HandleMessages reads messages from an egg connection and dispatches them.

@@ -581,7 +581,8 @@ func (c *EggClient) readLoop() {
 			c.keyVersion = rekey.KeyVersion
 			c.mu.Unlock()
 			c.logger.Info("Shared key rotated", "version", rekey.KeyVersion)
-			c.sendAck(msg.ID, true, fmt.Sprintf("key rotated to v%d", rekey.KeyVersion))
+			// Persisted tells the master the old key can be retired at commit.
+			c.sendAckPayload(AckPayload{RefID: msg.ID, Success: true, Detail: fmt.Sprintf("key rotated to v%d", rekey.KeyVersion), Persisted: true})
 		case MsgSafeReconfigure:
 			var reconfigPayload ReconfigurePayload
 			if err := json.Unmarshal(msg.Payload, &reconfigPayload); err != nil {
@@ -674,7 +675,11 @@ func (c *EggClient) heartbeatLoop(done chan struct{}) {
 }
 
 func (c *EggClient) sendAck(refID string, success bool, detail string) {
-	if err := c.send(MsgAck, AckPayload{RefID: refID, Success: success, Detail: detail}); err != nil {
-		c.logger.Warn("Failed to send ack", "ref_id", refID, "error", err)
+	c.sendAckPayload(AckPayload{RefID: refID, Success: success, Detail: detail})
+}
+
+func (c *EggClient) sendAckPayload(ack AckPayload) {
+	if err := c.send(MsgAck, ack); err != nil {
+		c.logger.Warn("Failed to send ack", "ref_id", ack.RefID, "error", err)
 	}
 }

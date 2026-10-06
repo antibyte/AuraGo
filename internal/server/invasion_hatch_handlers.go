@@ -897,20 +897,24 @@ func handleInvasionNestRotateKey(s *Server) http.HandlerFunc {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to stage key", "Vault write failed", err, "nest_id", id)
 			return
 		}
-		if err := s.EggHub.SendRekey(r.Context(), id, newKey); err != nil {
+		persisted, err := s.EggHub.SendRekey(r.Context(), id, newKey)
+		if err != nil {
 			// The egg may still have persisted the key (ack lost); the handshake
 			// accepts the _next candidate and promotes it on first success.
 			jsonLoggedError(w, s.Logger, http.StatusBadGateway, "Key rotation not confirmed; the egg will be reconciled at its next connection", "Rekey not confirmed", err, "nest_id", id)
 			return
 		}
 
-		// Commit atomically: new key current, replaced key kept as _prev and
-		// dated so the handshake honours it only within eggPrevKeyGrace.
+		// Commit atomically. An egg that confirmed persistence retires the old
+		// key here. A legacy ack (no persisted flag) may mean the key lives only
+		// in the egg's memory, so the old key is kept as _prev, dated so the
+		// handshake honours it once and only within eggPrevKeyGrace.
 		commit := map[string]string{eggSharedKeyName(id, ""): newKey}
 		remove := []string{eggSharedKeyName(id, eggSharedKeyNextSuffix)}
-		if currentKey != "" {
+		if !persisted && currentKey != "" {
 			commit[eggSharedKeyName(id, eggSharedKeyPrevSuffix)] = currentKey
 			commit[eggSharedKeyName(id, eggSharedKeyPrevAtSuffix)] = time.Now().UTC().Format(time.RFC3339)
+			s.Logger.Warn("Egg acked the rotation without confirming persistence; keeping the old key for one reconnect", "nest_id", id, "grace", eggPrevKeyGrace)
 		} else {
 			remove = append(remove, eggPreviousKeyNames(id)...)
 		}

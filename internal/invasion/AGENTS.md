@@ -30,9 +30,12 @@ the Egg runtime in `cmd/aurago`.
   (`EggHub.BeginKeyRotation`), stages `egg_shared_<nest>_next`, and
   `SendRekey` sends under the current key. The Egg persists the key
   (`EggClient.OnRekey` → vault `egg_shared_key`) before switching and acking
-  under the new key; no handler, a version other than current+1, or a persist
-  error is a signed rejection under the old key. The Master commits current +
-  `_prev` and drops `_next` only after the ack and rolls back otherwise; a
+  under the new key with `AckPayload.Persisted` set; no handler, a version
+  other than current+1, or a persist error is a signed rejection under the old
+  key. The Master commits only after the ack and rolls back otherwise. With
+  `Persisted` the commit is the new key alone (the old key dies at commit);
+  an ack without it (an Egg predating the flag, key possibly only in memory)
+  also keeps the old key as dated `_prev`. `_next` is dropped either way. A
   timed-out rotation stays unresolved (no new rotation) until the Egg's
   rejection arrives or the socket ends. The handshake tries current, `_next`,
   `_prev`; a `_next`/`_prev` match is promoted and the others removed, and a

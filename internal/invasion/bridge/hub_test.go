@@ -607,8 +607,12 @@ func TestSendRekeyWaitsForAckAndPersistsOnEgg(t *testing.T) {
 		}
 	})
 	newKey := validKey(t)
-	if err := f.hub.SendRekey(context.Background(), "nest", newKey); err != nil {
+	confirmed, err := f.hub.SendRekey(context.Background(), "nest", newKey)
+	if err != nil {
 		t.Fatalf("SendRekey: %v", err)
+	}
+	if !confirmed {
+		t.Fatal("the egg's success ack must carry persisted:true")
 	}
 	select {
 	case got := <-persisted:
@@ -633,9 +637,12 @@ func TestSendRekeyRollsBackWhenEggCannotPersist(t *testing.T) {
 		c.OnRekey = func(string, int) error { return errors.New("disk full at /secret/path") }
 		h.OnHeartbeat = func(string, HeartbeatPayload) { heartbeats <- struct{}{} }
 	})
-	err := f.hub.SendRekey(context.Background(), "nest", validKey(t))
+	confirmed, err := f.hub.SendRekey(context.Background(), "nest", validKey(t))
 	if err == nil {
 		t.Fatal("SendRekey must fail when the egg rejects")
+	}
+	if confirmed {
+		t.Fatal("a rejection must not carry persisted:true")
 	}
 	if strings.Contains(err.Error(), "/secret/path") {
 		t.Fatalf("egg rejection leaked its local error: %v", err)
@@ -665,7 +672,7 @@ func TestEggRejectsRekeyWithUnexpectedVersion(t *testing.T) {
 	f.conn.mu.Lock()
 	f.conn.KeyVersion = 5 // the egg expects version 1 on this session
 	f.conn.mu.Unlock()
-	if err := f.hub.SendRekey(context.Background(), "nest", validKey(t)); err == nil {
+	if _, err := f.hub.SendRekey(context.Background(), "nest", validKey(t)); err == nil {
 		t.Fatal("egg must reject a rekey that skips versions")
 	}
 	if called.Load() {
@@ -687,7 +694,7 @@ func TestSendRekeyTimeoutRollsBackAndKeepsOldKeyUsable(t *testing.T) {
 	newKey := validKey(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
-	if err := f.hub.SendRekey(ctx, "nest", newKey); err == nil {
+	if _, err := f.hub.SendRekey(ctx, "nest", newKey); err == nil {
 		close(release)
 		t.Fatal("SendRekey must fail when the egg never acks")
 	}
@@ -705,7 +712,7 @@ func TestSendRekeyTimeoutRollsBackAndKeepsOldKeyUsable(t *testing.T) {
 		close(release)
 		t.Fatal("a new rotation must wait for the unresolved one")
 	}
-	if err := f.hub.SendRekey(context.Background(), "nest", validKey(t)); err == nil {
+	if _, err := f.hub.SendRekey(context.Background(), "nest", validKey(t)); err == nil {
 		close(release)
 		t.Fatal("SendRekey must refuse while an earlier rotation is unresolved")
 	}
@@ -742,7 +749,7 @@ func TestSendRekeyLostAckLeavesEggOnPersistedKey(t *testing.T) {
 	newKey := validKey(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
-	if err := f.hub.SendRekey(ctx, "nest", newKey); err == nil {
+	if _, err := f.hub.SendRekey(ctx, "nest", newKey); err == nil {
 		t.Fatal("SendRekey must fail without an ack")
 	}
 	if current, previous, _ := f.hubKeys(); current != f.oldKey || previous != "" {
@@ -759,6 +766,70 @@ func TestSendRekeyLostAckLeavesEggOnPersistedKey(t *testing.T) {
 	// The egg switches after persisting; its reconnect presents the new key,
 	// which the master's handshake accepts from the staged _next candidate.
 	waitForBridge(t, "egg to hold the persisted key", func() bool { return f.client.SharedKeySnapshot() == newKey })
+}
+
+// An egg predating the persisted flag switches in memory and acks without it;
+// the hub still commits but reports the key as unconfirmed on disk.
+func TestSendRekeyReportsLegacyAckWithoutPersistence(t *testing.T) {
+	hub := NewEggHub(testLogger())
+	s, c, cleanup := wsPair(t)
+	defer cleanup()
+	oldKey := validKey(t)
+	conn := &EggConnection{Conn: s, EggID: "egg", NestID: "nest", SharedKey: oldKey}
+	if err := registerTestConnection(t, hub, "nest", conn); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() { defer close(done); hub.HandleMessages(conn) }()
+	defer func() { c.Close(); <-done }()
+
+	legacy := make(chan error, 1)
+	go func() {
+		egg := testSession(t, "egg", "nest", "egg")
+		var msg Message
+		if err := c.ReadJSON(&msg); err != nil {
+			legacy <- err
+			return
+		}
+		if err := egg.Accept(msg, oldKey, ""); err != nil {
+			legacy <- err
+			return
+		}
+		var rekey RekeyPayload
+		if err := json.Unmarshal(msg.Payload, &rekey); err != nil {
+			legacy <- err
+			return
+		}
+		newKey, err := DecryptWithSharedKey(rekey.NewKeyEncrypted, oldKey)
+		if err != nil {
+			legacy <- err
+			return
+		}
+		// The pre-D12 wire format: no persisted field at all.
+		ack, err := NewMessage(MsgAck, "egg", "nest", string(newKey), map[string]interface{}{"ref_id": msg.ID, "success": true, "detail": "key rotated to v1"})
+		if err == nil {
+			err = egg.Prepare(ack, string(newKey))
+		}
+		if err == nil {
+			err = c.WriteJSON(ack)
+		}
+		legacy <- err
+	}()
+
+	newKey := validKey(t)
+	confirmed, err := hub.SendRekey(context.Background(), "nest", newKey)
+	if legacyErr := <-legacy; legacyErr != nil {
+		t.Fatal(legacyErr)
+	}
+	if err != nil {
+		t.Fatalf("a legacy success ack still commits the rotation: %v", err)
+	}
+	if confirmed {
+		t.Fatal("an ack without the persisted field must not count as persisted")
+	}
+	if current, previous, _ := (rekeyFixture{conn: conn}).hubKeys(); current != newKey || previous != "" {
+		t.Fatal("hub must commit the new key")
+	}
 }
 
 func TestBeginKeyRotationSerializesRotationsPerNest(t *testing.T) {
