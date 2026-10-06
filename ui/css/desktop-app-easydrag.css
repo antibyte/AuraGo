@@ -28,6 +28,8 @@
     --ed-accent-ink: color-mix(in srgb, var(--ed-accent) 30%, var(--ed-text));
     /* the primary button is white text on the accent: its gradient starts from a darkened accent, so white reaches 4.5:1 on every accent */
     --ed-accent-deep: color-mix(in srgb, var(--ed-accent) 55%, black);
+    /* focus rings and the keyboard-selected option: the accent drawn as a 2px line must reach 3:1 on every surface, the raw accent does not */
+    --ed-focus: color-mix(in srgb, var(--ed-accent) 50%, var(--ed-text));
     --ed-radius: var(--ds-radius-md);
     --ed-radius-lg: var(--ds-radius-lg);
     --ed-ease: var(--ds-motion-ease-standard);
@@ -85,7 +87,7 @@
 .ed-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
 .ed-code { font-family: var(--ds-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace); font-size: 12px; }
 /* the second selector out-ranks the shell's .vd-shell button:focus-visible rings, so the ring uses the user's accent */
-.ed-app :focus-visible, .vd-shell .ed-app :focus-visible { outline: 2px solid var(--ed-accent); outline-offset: 2px; }
+.ed-app :focus-visible, .vd-shell .ed-app :focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 .ed-app ::placeholder { color: var(--ed-muted); opacity: 1; }
 
 /* ── controls ───────────────────────────────────────────────────────────────── */
@@ -134,7 +136,7 @@
     background: var(--vd-theme-input-bg, var(--ed-control)); color: var(--ed-text); font: inherit;
     transition: border-color var(--ed-fast) var(--ed-ease), box-shadow var(--ed-fast) var(--ed-ease);
 }
-.ed-input:focus { outline: none; border-color: var(--ed-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 22%, transparent); }
+.ed-input:focus { outline: none; border-color: var(--ed-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 22%, transparent); }
 .ed-input:disabled { opacity: 0.65; }
 textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-input--small { min-height: 26px; padding: 3px 8px; font-size: 12px; width: auto; }
@@ -148,7 +150,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
     border: 1px solid var(--ed-border); border-radius: var(--ds-radius-full);
     background: var(--ed-control); color: var(--ed-text); font: inherit;
 }
-.ed-search input:focus { outline: none; border-color: var(--ed-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 20%, transparent); }
+.ed-search input:focus { outline: none; border-color: var(--ed-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 20%, transparent); }
 
 .ed-seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--ds-radius-full); background: var(--ed-control); border: 1px solid var(--ed-border); }
 .ed-seg button {
@@ -318,7 +320,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
     color: var(--ed-text); font: 700 16px/1.3 inherit; letter-spacing: -0.01em; text-overflow: ellipsis;
 }
 .ed-title-input:hover:not(:read-only) { border-color: var(--ed-border); }
-.ed-title-input:focus { outline: none; border-color: var(--ed-accent); background: var(--ed-control); }
+.ed-title-input:focus { outline: none; border-color: var(--ed-focus); background: var(--ed-control); }
 .ed-state { display: flex; gap: 6px; flex: none; }
 .ed-head-actions { display: flex; align-items: center; gap: 6px; flex: none; }
 .ed-body { position: relative; flex: 1; display: flex; min-height: 0; }
@@ -408,7 +410,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 
 /* ── canvas ─────────────────────────────────────────────────────────────────── */
 .ed-canvas { position: relative; flex: 1; min-width: 0; overflow: hidden; outline: none; touch-action: none; background: var(--ed-bg); cursor: default; user-select: none; }
-.ed-app .ed-canvas:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ed-accent); }
+.ed-app .ed-canvas:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ed-focus); }
 .ed-canvas.is-space, .ed-canvas.is-space * { cursor: grab !important; }
 .ed-canvas.is-panning, .ed-canvas.is-panning * { cursor: grabbing !important; }
 .ed-grid {
@@ -584,7 +586,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-quick-group { padding: 8px 8px 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ed-muted); list-style: none; }
 .ed-quick-empty { padding: 18px; text-align: center; color: var(--ed-muted); list-style: none; }
 .ed-quick .ed-palette-item { cursor: pointer; }
-.ed-quick .ed-palette-item[aria-selected="true"] { background: color-mix(in srgb, var(--ed-accent) 16%, transparent); box-shadow: inset 0 0 0 2px var(--ed-accent); }
+.ed-quick .ed-palette-item[aria-selected="true"] { background: color-mix(in srgb, var(--ed-accent) 16%, transparent); box-shadow: inset 0 0 0 2px var(--ed-focus); }
 
 /* ── detail overlay ─────────────────────────────────────────────────────────── */
 .ed-detail-backdrop {
@@ -606,7 +608,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-detail-title { flex: 1; min-width: 0; display: grid; }
 .ed-detail-label { border: 1px solid transparent; border-radius: 6px; padding: 2px 6px; margin-left: -6px; background: transparent; color: var(--ed-text); font: 700 15px/1.3 inherit; }
 .ed-detail-label:hover { border-color: var(--ed-border); }
-.ed-detail-label:focus { outline: none; border-color: var(--ed-accent); background: var(--ed-control); }
+.ed-detail-label:focus { outline: none; border-color: var(--ed-focus); background: var(--ed-control); }
 .ed-detail-type { font-size: 11px; color: var(--ed-muted); }
 .ed-detail-actions { display: flex; gap: 6px; align-items: center; }
 .ed-detail-tabs { display: none; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--ed-border); }
@@ -711,7 +713,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 
 /* template field */
 .ed-tpl { position: relative; border: 1px solid var(--ed-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-input-bg, var(--ed-control)); }
-.ed-tpl.is-editing { border-color: var(--ed-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 22%, transparent); }
+.ed-tpl.is-editing { border-color: var(--ed-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 22%, transparent); }
 .ed-tpl-view { min-height: 32px; padding: 6px 10px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; cursor: text; }
 .ed-tpl--multi .ed-tpl-view { min-height: 84px; }
 .ed-tpl.is-editing .ed-tpl-view { display: none; }
@@ -740,7 +742,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 .ed-suggest li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
 .ed-suggest li.is-active, .ed-suggest li:hover { background: color-mix(in srgb, var(--ed-accent) 15%, transparent); }
-.ed-suggest li[aria-selected="true"] { box-shadow: inset 0 0 0 2px var(--ed-accent); }
+.ed-suggest li[aria-selected="true"] { box-shadow: inset 0 0 0 2px var(--ed-focus); }
 .ed-suggest-kind { width: 8px; height: 8px; border-radius: 2px; background: var(--ed-accent); flex: none; }
 .ed-suggest-kind[data-kind="field"] { background: var(--ed-info); }
 .ed-suggest-kind[data-kind="filter"] { background: var(--ed-cat-ai); border-radius: 50%; }
