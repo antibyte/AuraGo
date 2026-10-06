@@ -2119,6 +2119,12 @@ div.toggle.toggle-sm.on::before {
     transform-origin: right top;
 }
 
+/* .is-hidden (shared-utilities.css) loads earlier with the same specificity,
+   so hidden radial items need their own rule: the logout item without auth. */
+.radial-item.is-hidden {
+    display: none;
+}
+
 .radial-item-button {
     border: none;
     background: transparent;
