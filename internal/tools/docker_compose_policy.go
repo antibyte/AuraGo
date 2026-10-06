@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strconv"
@@ -54,15 +53,24 @@ type DockerComposeService struct {
 	EnvFile  []DockerComposeEnvFileRef `json:"env_file"`
 	Provider *DockerComposeProvider    `json:"provider"`
 	Develop  *DockerComposeDevelop     `json:"develop"`
+	// UseAPISocket mounts the Docker API socket into the container.
+	UseAPISocket      bool                `json:"use_api_socket"`
+	PostStart         DockerComposeHooks  `json:"post_start"`
+	PreStop           DockerComposeHooks  `json:"pre_stop"`
+	DeviceCgroupRules DockerComposeList   `json:"device_cgroup_rules"`
+	Gpus              DockerComposeList   `json:"gpus"`
+	Deploy            DockerComposeDeploy `json:"deploy"`
 }
 
 // DockerComposeEnvFileRef is one env_file entry: the {path, required} object
-// of current Compose releases or a plain path string.
+// of current Compose releases or a plain path string. Any other shape is kept
+// as Unknown instead of failing the parse.
 type DockerComposeEnvFileRef struct {
-	Path string
+	Path    string
+	Unknown bool
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements json.Unmarshaler. It never fails.
 func (r *DockerComposeEnvFileRef) UnmarshalJSON(data []byte) error {
 	var text string
 	if err := json.Unmarshal(data, &text); err == nil {
@@ -72,10 +80,79 @@ func (r *DockerComposeEnvFileRef) UnmarshalJSON(data []byte) error {
 	var value struct {
 		Path string `json:"path"`
 	}
-	if err := json.Unmarshal(data, &value); err != nil {
-		return err
+	if err := json.Unmarshal(data, &value); err != nil || strings.TrimSpace(value.Path) == "" {
+		r.Unknown = true
+		return nil
 	}
 	r.Path = value.Path
+	return nil
+}
+
+// DockerComposeHook is one post_start or pre_stop hook; Compose runs it in
+// the container, with full host privileges when Privileged is set.
+type DockerComposeHook struct {
+	Privileged bool
+}
+
+// DockerComposeHooks is a hook list. It never fails: a hook whose shape is
+// unknown counts as privileged.
+type DockerComposeHooks []DockerComposeHook
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (h *DockerComposeHooks) UnmarshalJSON(data []byte) error {
+	*h = nil
+	var items []json.RawMessage
+	if json.Unmarshal(data, &items) != nil {
+		if trimmed := bytes.TrimSpace(data); len(trimmed) > 0 && !bytes.Equal(trimmed, []byte("null")) {
+			*h = DockerComposeHooks{{Privileged: true}}
+		}
+		return nil
+	}
+	for _, item := range items {
+		var hook struct {
+			Privileged bool `json:"privileged"`
+		}
+		if json.Unmarshal(item, &hook) != nil {
+			hook.Privileged = true
+		}
+		*h = append(*h, DockerComposeHook{Privileged: hook.Privileged})
+	}
+	return nil
+}
+
+// DockerComposeDeploy is the part of a deploy section the policy reads: the
+// devices reserved under resources.reservations. It never fails to decode.
+type DockerComposeDeploy struct {
+	ReservedDevices DockerComposeList
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (d *DockerComposeDeploy) UnmarshalJSON(data []byte) error {
+	var deploy struct {
+		Resources struct {
+			Reservations struct {
+				Devices json.RawMessage `json:"devices"`
+			} `json:"reservations"`
+		} `json:"resources"`
+	}
+	d.ReservedDevices = nil
+	if json.Unmarshal(data, &deploy) == nil && len(deploy.Resources.Reservations.Devices) > 0 {
+		_ = d.ReservedDevices.UnmarshalJSON(deploy.Resources.Reservations.Devices)
+	}
+	return nil
+}
+
+// DockerComposeString is a resolved string attribute that never fails to
+// decode; other JSON is kept as its text.
+type DockerComposeString string
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (s *DockerComposeString) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		*s = ""
+		return nil
+	}
+	*s = DockerComposeString(dockerComposeJSONText(data))
 	return nil
 }
 
@@ -224,6 +301,11 @@ type DockerComposeBuild struct {
 	Secrets      DockerComposeRefs `json:"secrets"`
 	Privileged   bool              `json:"privileged"`
 	Entitlements DockerComposeList `json:"entitlements"`
+	// Labels are the image labels as "key=value" entries.
+	Labels DockerComposeList `json:"labels"`
+	// Network is the network mode of the build's RUN steps ("host" shares
+	// the host network).
+	Network DockerComposeString `json:"network"`
 }
 
 // DockerComposeNamedVolume is a resolved top-level volume.
@@ -296,6 +378,11 @@ type DockerComposeConfigOptions struct {
 	// --no-env-resolution`. env_file entries stay paths instead of being inlined,
 	// so a missing env_file of an inactive profile does not fail the resolution.
 	AllProfiles bool
+	// Services resolves only the named services, activating their profiles:
+	// `config --format json -- <services>` (Compose v2.0+). The result holds
+	// them and their depends_on closure with env files inlined; an unknown
+	// name fails the call.
+	Services []string
 }
 
 func dockerComposeConfigArgs(cfg DockerConfig, composeFile string, opts DockerComposeConfigOptions) []string {
@@ -307,13 +394,16 @@ func dockerComposeConfigArgs(cfg DockerConfig, composeFile string, opts DockerCo
 	if opts.AllProfiles {
 		args = append(args, "--no-env-resolution")
 	}
+	if len(opts.Services) > 0 {
+		args = append(append(args, "--"), opts.Services...)
+	}
 	return dockerCLIArgs(cfg, args...)
 }
 
 // runDockerComposeConfig runs one `docker compose ... config` invocation and
 // keeps stdout and stderr apart. Tests replace it.
 var runDockerComposeConfig = func(ctx context.Context, args []string) ([]byte, []byte, error) {
-	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd := dockerCLICommand(ctx, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

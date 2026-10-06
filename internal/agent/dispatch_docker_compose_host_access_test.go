@@ -184,14 +184,15 @@ func TestDockerComposePolicyRejectsTheMasterKeyValue(t *testing.T) {
 	cfg.Server.MasterKey = masterKey
 	cfg.Docker.AllowHostAccess = true
 	useRuntimePermissionsForTest(t, cfg)
-	for _, command := range []string{"up -d", "create", "config", "convert"} {
+	// build and pull resolve the same file: an included env file can put the
+	// key into an image name, a label or a build argument.
+	for _, command := range []string{"up -d", "create", "config", "convert", "build", "pull"} {
 		got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "mk/compose.yml", Command: command})
 		if !strings.Contains(got, `"code":"docker_compose_protected_path_denied"`) || strings.Contains(strings.ToLower(got), masterKey) {
 			t.Fatalf("%s: master key value allowed or echoed: %s", command, got)
 		}
 	}
-	// build reads only build sections; environment never reaches an image.
-	for _, command := range []string{"ps", "down", "logs", "build"} {
+	for _, command := range []string{"ps", "down", "logs", "rm -f"} {
 		if got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "mk/compose.yml", Command: command}); got != "" {
 			t.Fatalf("%s: blocked by the master key check: %s", command, got)
 		}
@@ -412,12 +413,20 @@ func TestDockerComposePolicyFlagOffAdditions(t *testing.T) {
 		extra   string
 		field   string
 	}{
-		"provider":          {service: `{"provider":{"type":"awesomecloud","options":{"type":["mysql"]}}}`, field: "provider"},
-		"watch outside":     {service: `{"image":"alpine","develop":{"watch":[{"path":"/srv/src","action":"sync","target":"/app"}]}}`, field: "develop.watch"},
-		"build ssh":         {service: `{"image":"alpine","build":{"context":` + inside + `,"ssh":["default"]}}`, field: "build.ssh"},
-		"build secret":      {service: `{"image":"alpine","build":{"context":` + inside + `,"secrets":[{"source":"tok"}]}}`, extra: `,"secrets":{"tok":{"name":"x_tok","file":"/srv/secrets/tok"}}`, field: "secrets.tok.file"},
-		"build privileged":  {service: `{"image":"alpine","build":{"context":` + inside + `,"privileged":true}}`, field: "build.privileged"},
-		"build entitlement": {service: `{"image":"alpine","build":{"context":` + inside + `,"entitlements":["network.host"]}}`, field: "build.entitlements"},
+		"provider":           {service: `{"provider":{"type":"awesomecloud","options":{"type":["mysql"]}}}`, field: "provider"},
+		"watch outside":      {service: `{"image":"alpine","develop":{"watch":[{"path":"/srv/src","action":"sync","target":"/app"}]}}`, field: "develop.watch"},
+		"build ssh":          {service: `{"image":"alpine","build":{"context":` + inside + `,"ssh":["default"]}}`, field: "build.ssh"},
+		"build secret":       {service: `{"image":"alpine","build":{"context":` + inside + `,"secrets":[{"source":"tok"}]}}`, extra: `,"secrets":{"tok":{"name":"x_tok","file":"/srv/secrets/tok"}}`, field: "secrets.tok.file"},
+		"build privileged":   {service: `{"image":"alpine","build":{"context":` + inside + `,"privileged":true}}`, field: "build.privileged"},
+		"build entitlement":  {service: `{"image":"alpine","build":{"context":` + inside + `,"entitlements":["network.host"]}}`, field: "build.entitlements"},
+		"docker api socket":  {service: `{"image":"alpine","use_api_socket":true}`, field: "use_api_socket"},
+		"privileged hook":    {service: `{"image":"alpine","post_start":[{"command":["true"],"user":"root","privileged":true}]}`, field: "post_start"},
+		"cgroup rules":       {service: `{"image":"alpine","device_cgroup_rules":["b *:* rwm"]}`, field: "device_cgroup_rules"},
+		"gpus":               {service: `{"image":"alpine","gpus":[{"count":-1}]}`, field: "gpus"},
+		"reserved devices":   {service: `{"image":"alpine","deploy":{"resources":{"reservations":{"devices":[{"driver":"nvidia","capabilities":[["gpu"]]}]}}}}`, field: "deploy.resources.reservations.devices"},
+		"host network build": {service: `{"image":"alpine","build":{"context":` + inside + `,"network":"host"}}`, field: "build.network"},
+		"raw disk volume": {service: `{"image":"alpine","volumes":[{"type":"volume","source":"rawdisk","target":"/mnt"}]}`,
+			extra: `,"volumes":{"rawdisk":{"name":"p2_rawdisk","driver":"local","driver_opts":{"device":"/dev/sda1","type":"ext4"}}}`, field: "volumes.rawdisk.driver_opts.device"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -475,5 +484,148 @@ func TestDispatchDockerComposeUpDeniedBeforeDockerCLI(t *testing.T) {
 	}
 	if !strings.Contains(output, `"code":"docker_compose_host_access_denied"`) {
 		t.Fatalf("dispatch output = %s, want host-access denial before the CLI", output)
+	}
+}
+
+func TestDockerComposePolicyRejectsTheMasterKeyInBuildsAndPulls(t *testing.T) {
+	workspace := t.TempDir()
+	masterKey := strings.Repeat("9f", 32)
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  app:\n    build: .\n")
+	inside := jsonPath(t, filepath.Join(workspace, "app"))
+	cases := map[string]struct{ model, command string }{
+		"build label":          {`{"services":{"app":{"image":"x","build":{"context":` + inside + `,"labels":{"leak":"` + masterKey + `"}}}}}`, "build"},
+		"build arg name":       {`{"services":{"app":{"image":"x","build":{"context":` + inside + `,"args":{"` + masterKey + `":"1"}}}}}`, "build"},
+		"build secret env":     {`{"services":{"app":{"image":"x","build":{"context":` + inside + `,"secrets":[{"source":"mk"}]}}},"secrets":{"mk":{"name":"x_mk","environment":"AURAGO_MASTER_KEY"}}}`, "build"},
+		"image tag for pull":   {`{"services":{"app":{"image":"registry.invalid/app:` + masterKey + `"}}}`, "pull"},
+		"image tag for build":  {`{"services":{"app":{"image":"registry.invalid/app:` + masterKey + `","build":{"context":` + inside + `}}}}`, "build --push"},
+		"key in another field": {`{"services":{"app":{"image":"x","command":["echo","` + masterKey + `"]}}}`, "pull"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			stubDockerComposeResolver(t, func(string) (string, error) { return tc.model, nil })
+			cfg := &config.Config{}
+			cfg.Server.MasterKey = masterKey
+			cfg.Docker.AllowHostAccess = true
+			useRuntimePermissionsForTest(t, cfg)
+			got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: tc.command})
+			if !strings.Contains(got, `"code":"docker_compose_protected_path_denied"`) || strings.Contains(got, masterKey) {
+				t.Fatalf("%s: got %s, want an always-tier denial without the key", tc.command, got)
+			}
+		})
+	}
+}
+
+func TestDockerComposePolicyChecksHostProgramsOnLifecycleCommands(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  db:\n    provider:\n      type: awesomecloud\n")
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return `{"services":{"db":{"provider":{"type":"awesomecloud","options":{"type":["mysql"]}}},"app":{"image":"alpine","privileged":true}}}`, nil
+	})
+	cfg := &config.Config{}
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(command string) string {
+		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: command})
+	}
+	for _, command := range []string{"up -d", "create", "down", "start", "stop", "restart", "pull"} {
+		got := policy(command)
+		if !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) || !strings.Contains(got, `"field":"provider"`) {
+			t.Fatalf("%s: provider allowed without host access: %s", command, got)
+		}
+		if command != "up -d" && command != "create" && strings.Contains(got, `"field":"privileged"`) {
+			t.Fatalf("%s: lifecycle command checked container attributes: %s", command, got)
+		}
+	}
+	for _, command := range []string{"ps", "logs", "rm -f", "kill", "pause", "unpause", "config", "build", "top", "images"} {
+		if got := policy(command); got != "" {
+			t.Fatalf("%s: blocked by a provider: %s", command, got)
+		}
+	}
+	cfg.Docker.AllowHostAccess = true
+	for _, command := range []string{"up -d", "down", "start", "stop", "restart", "pull"} {
+		if got := policy(command); got != "" {
+			t.Fatalf("%s: blocked with host access: %s", command, got)
+		}
+	}
+}
+
+func TestDockerComposePolicyEnvFilesUnknownShapesAndIncludes(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "odd/compose.yml", "services:\n  app:\n    image: alpine\n")
+	writeComposeFixture(t, workspace, "inc/compose.yml", "include:\n  - other.yml\nservices:\n  app:\n    image: alpine\n")
+	writeComposeFixture(t, workspace, "ext/compose.yml", "services:\n  app:\n    extends:\n      file: base.yml\n      service: base\n")
+	cfg := &config.Config{}
+	useRuntimePermissionsForTest(t, cfg)
+	policy := func(file string) string {
+		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: file, Command: "up -d"})
+	}
+	// An env_file entry the parser cannot read (M1).
+	stubDockerComposeResolverByMode(t, `{"services":{"app":{"image":"alpine"}}}`, `{"services":{"app":{"image":"alpine","env_file":[42]}}}`)
+	if got := policy("odd/compose.yml"); !strings.Contains(got, "cannot list env_file paths") {
+		t.Fatalf("unreadable env_file entry accepted without host access: %s", got)
+	}
+	// Old Compose: include and extends may bring env files in (M3).
+	stubDockerComposeResolverByMode(t, `{"services":{"app":{"image":"alpine"}}}`, "")
+	for _, file := range []string{"inc/compose.yml", "ext/compose.yml"} {
+		if got := policy(file); !strings.Contains(got, "cannot list env_file paths") {
+			t.Fatalf("%s: possible env files accepted on old Compose without host access: %s", file, got)
+		}
+	}
+	cfg.Docker.AllowHostAccess = true
+	for _, file := range []string{"odd/compose.yml", "inc/compose.yml", "ext/compose.yml"} {
+		if got := policy(file); got != "" {
+			t.Fatalf("%s: blocked with host access: %s", file, got)
+		}
+	}
+}
+
+func TestDockerComposePolicyListsAtMostSixViolations(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "agent_workspace", "workdir")
+	writeComposeFixture(t, workspace, "compose.yml", "services:\n  app:\n    image: alpine\n")
+	dataDir := filepath.Join(root, "data")
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return `{"services":{"app":{"image":"alpine","privileged":true,"cap_add":["A","B","C","D","E","F","G"],` +
+			`"volumes":[{"type":"bind","source":` + jsonPath(t, dataDir) + `,"target":"/d"}]}}}`, nil
+	})
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = dataDir
+	useRuntimePermissionsForTest(t, cfg)
+	got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "up -d"})
+	var envelope struct {
+		Code       string                         `json:"code"`
+		Message    string                         `json:"message"`
+		Violations []tools.DockerComposeViolation `json:"violations"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(got, "Tool Output: ")), &envelope); err != nil {
+		t.Fatalf("envelope %s: %v", got, err)
+	}
+	if envelope.Code != "docker_compose_protected_path_denied" || len(envelope.Violations) != 6 || !envelope.Violations[0].Always {
+		t.Fatalf("envelope = %+v", envelope)
+	}
+	if !strings.Contains(envelope.Message, "and 3 more") || !strings.Contains(envelope.Message, "even with docker.allow_host_access") ||
+		!strings.Contains(envelope.Message, "every service of the file's default profiles is checked") {
+		t.Fatalf("message does not cover both tiers: %s", envelope.Message)
+	}
+}
+
+func TestDockerComposePolicyWithoutWorkspaceRejectsParentsOfAuraGoState(t *testing.T) {
+	// Without a workspace the jail root is AuraGo's working directory, which
+	// holds data/: a bind of the whole directory needs host access.
+	dir := t.TempDir()
+	writeComposeFixture(t, dir, "stack/compose.yml", "services:\n  web:\n    image: alpine\n")
+	t.Chdir(dir)
+	stubDockerComposeResolver(t, func(string) (string, error) {
+		return `{"services":{"web":{"image":"alpine","volumes":[{"type":"bind","source":` + jsonPath(t, dir) + `,"target":"/app"}]}}}`, nil
+	})
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = filepath.Join(dir, "data")
+	useRuntimePermissionsForTest(t, cfg)
+	req := dockerArgs{Operation: "compose", File: "stack/compose.yml", Command: "up -d"}
+	if got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{}, req); !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) || !strings.Contains(got, "contains AuraGo") {
+		t.Fatalf("bind of AuraGo's working directory allowed without host access: %s", got)
+	}
+	cfg.Docker.AllowHostAccess = true
+	if got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{}, req); got != "" {
+		t.Fatalf("parent bind blocked with host access: %s", got)
 	}
 }

@@ -65,8 +65,27 @@ func homeLabComposeFixtures() map[string]homeLabComposeFixture {
 			}}},
 			Secrets: map[string]DockerComposeFileResource{"npmrc": {File: "/srv/secrets/npmrc"}},
 		}, []string{"build.context", "build.ssh", "build.privileged", "build.entitlements", "secrets.npmrc.file"}},
+		"docker api socket": {composeServices(map[string]DockerComposeService{"dind-client": {Image: "docker:27-cli", UseAPISocket: true}}), []string{"use_api_socket"}},
+		"privileged hooks": {composeServices(map[string]DockerComposeService{"app": {Image: "alpine",
+			PostStart: DockerComposeHooks{{Privileged: false}, {Privileged: true}}, PreStop: DockerComposeHooks{{Privileged: true}}}}), []string{"post_start", "pre_stop"}},
+		"device cgroup rules": {composeServices(map[string]DockerComposeService{"zigbee": {Image: "koenkk/zigbee2mqtt", DeviceCgroupRules: DockerComposeList{"c 188:* rmw"}}}), []string{"device_cgroup_rules"}},
+		"gpu workloads": {composeServices(map[string]DockerComposeService{
+			"ollama":  {Image: "ollama/ollama", Gpus: DockerComposeList{`{"count":-1}`}},
+			"whisper": {Image: "example.invalid/whisper", Deploy: DockerComposeDeploy{ReservedDevices: DockerComposeList{`{"capabilities":[["gpu"]]}`}}},
+		}), []string{"gpus", "deploy.resources.reservations.devices"}},
+		"host network build": {composeServices(map[string]DockerComposeService{"app": {Image: "example.invalid/app",
+			Build: &DockerComposeBuild{Context: "/srv/src/app", Network: "host"}}}), []string{"build.network"}},
+		"raw disk volumes": {DockerComposeModel{
+			Services: map[string]DockerComposeService{"backup": {Image: "alpine", Volumes: []DockerComposeMount{{Type: "volume", Source: "disk", Target: "/mnt"}}}},
+			Volumes: map[string]DockerComposeNamedVolume{
+				"disk":  {Name: "b_disk", Driver: "local", DriverOpts: map[string]string{"type": "ext4", "device": "/dev/sda1"}},
+				"image": {Name: "b_image", DriverOpts: map[string]string{"type": "btrfs", "device": "/srv/disk.img"}},
+			},
+		}, []string{"volumes.disk.driver_opts.device", "volumes.image.driver_opts.type"}},
 	}
 }
+
+var dockerComposeAllScopes = []DockerComposeHostAccessScope{DockerComposeScopeRun, DockerComposeScopeBuild, DockerComposeScopeRender, DockerComposeScopePull, DockerComposeScopeLifecycle}
 
 func composeTestPolicy(t *testing.T, allow bool) DockerComposeHostPolicy {
 	t.Helper()
@@ -83,7 +102,7 @@ func composeTestPolicy(t *testing.T, allow bool) DockerComposeHostPolicy {
 func TestEvaluateDockerComposeHostAccessAllowsHomeLabStacksWithHostAccess(t *testing.T) {
 	policy := composeTestPolicy(t, true)
 	for name, fixture := range homeLabComposeFixtures() {
-		for _, scope := range []DockerComposeHostAccessScope{DockerComposeScopeRun, DockerComposeScopeBuild, DockerComposeScopeRender} {
+		for _, scope := range dockerComposeAllScopes {
 			if violations := EvaluateDockerComposeHostAccess(fixture.model, nil, scope, policy); len(violations) != 0 {
 				t.Fatalf("%s (scope %d): violations = %+v, want none with docker.allow_host_access", name, scope, violations)
 			}
@@ -109,6 +128,14 @@ func TestEvaluateDockerComposeHostAccessRejectsHostAttributesWithoutHostAccess(t
 		// config/convert render the model; the host-access tier never applies.
 		if violations := EvaluateDockerComposeHostAccess(fixture.model, nil, DockerComposeScopeRender, policy); len(violations) != 0 {
 			t.Fatalf("%s: config/convert rejected host attributes: %+v", name, violations)
+		}
+		// pull and down/start/stop/restart only check what runs on the host.
+		for _, scope := range []DockerComposeHostAccessScope{DockerComposeScopePull, DockerComposeScopeLifecycle} {
+			for _, violation := range EvaluateDockerComposeHostAccess(fixture.model, nil, scope, policy) {
+				if violation.Field != "provider" && violation.Field != "post_start" && violation.Field != "pre_stop" {
+					t.Fatalf("%s (scope %d): non host-execution violation %+v", name, scope, violation)
+				}
+			}
 		}
 	}
 	outside := DockerComposeModel{
@@ -143,10 +170,19 @@ func TestEvaluateDockerComposeHostAccessAllowsWorkspaceStacksWithoutHostAccess(t
 			Develop: &DockerComposeDevelop{Watch: []DockerComposeWatch{{Path: filepath.Join(workspace, "stack", "app", "src"), Action: "sync"}}},
 		}},
 		Secrets: map[string]DockerComposeFileResource{"token": {File: filepath.Join(workspace, "stack", "token.txt")}},
-		Volumes: map[string]DockerComposeNamedVolume{"appdata": {Name: "stack_appdata", Driver: "local"}},
+		Volumes: map[string]DockerComposeNamedVolume{
+			"appdata": {Name: "stack_appdata", Driver: "local"},
+			"media":   {Name: "stack_media", Driver: "local", DriverOpts: map[string]string{"type": "nfs", "o": "addr=10.0.0.5,ro", "device": ":/export/media"}},
+			"share":   {Name: "stack_share", DriverOpts: map[string]string{"type": "cifs", "o": "username=u", "device": "//nas/share"}},
+			"scratch": {Name: "stack_scratch", Driver: "local", DriverOpts: map[string]string{"type": "tmpfs", "device": "tmpfs", "o": "size=64m"}},
+		},
 	}
+	model.Services["app"] = func(service DockerComposeService) DockerComposeService {
+		service.PostStart = DockerComposeHooks{{Privileged: false}}
+		return service
+	}(model.Services["app"])
 	envFiles := []DockerComposeEnvFile{{Service: "app", Path: filepath.Join(workspace, "stack", "app.env")}}
-	for _, scope := range []DockerComposeHostAccessScope{DockerComposeScopeRun, DockerComposeScopeBuild, DockerComposeScopeRender} {
+	for _, scope := range dockerComposeAllScopes {
 		if violations := EvaluateDockerComposeHostAccess(model, envFiles, scope, policy); len(violations) != 0 {
 			t.Fatalf("workspace stack rejected (scope %d): %+v", scope, violations)
 		}
@@ -251,9 +287,9 @@ func TestEvaluateDockerComposeHostAccessBuildChecksBuildSectionsOnly(t *testing.
 		t.Fatalf("build context outside workspace: fields = %v, want only build.context", fields)
 	}
 	model.Services["app"] = DockerComposeService{Image: "x", Build: &DockerComposeBuild{Context: filepath.Join(policy.WorkspaceDir, "app"),
-		SSH: DockerComposeList{"default"}, Secrets: DockerComposeRefs{"unused"}, Privileged: true, Entitlements: DockerComposeList{"security.insecure"}}}
+		SSH: DockerComposeList{"default"}, Secrets: DockerComposeRefs{"unused"}, Privileged: true, Entitlements: DockerComposeList{"security.insecure"}, Network: "host"}}
 	fields = composeViolationFields(EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeBuild, policy))
-	for _, field := range []string{"build.ssh", "build.secrets.unused", "build.privileged", "build.entitlements"} {
+	for _, field := range []string{"build.ssh", "build.secrets.unused.file", "build.privileged", "build.entitlements", "build.network"} {
 		if !fields[field] {
 			t.Fatalf("build: missing %s violation, got %v", field, fields)
 		}
@@ -261,6 +297,165 @@ func TestEvaluateDockerComposeHostAccessBuildChecksBuildSectionsOnly(t *testing.
 	policy.AllowHostAccess = true
 	if violations := EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeBuild, policy); len(violations) != 0 {
 		t.Fatalf("build with host access: %+v", violations)
+	}
+}
+
+func TestEvaluateDockerComposeHostAccessRejectsTheMasterKeyInBuildsAndPulls(t *testing.T) {
+	policy := composeTestPolicy(t, true)
+	key := policy.MasterKey
+	one := "1"
+	inside := filepath.Join(policy.WorkspaceDir, "app")
+	cases := map[string]struct {
+		model  DockerComposeModel
+		scopes []DockerComposeHostAccessScope
+		field  string
+	}{
+		"build label": {composeServices(map[string]DockerComposeService{"app": {Image: "x", Build: &DockerComposeBuild{Context: inside, Labels: DockerComposeList{"leak=" + key}}}}),
+			[]DockerComposeHostAccessScope{DockerComposeScopeRun, DockerComposeScopeBuild, DockerComposeScopeRender}, "build.labels"},
+		"build arg name": {composeServices(map[string]DockerComposeService{"app": {Image: "x", Build: &DockerComposeBuild{Context: inside, Args: map[string]*string{key: &one}}}}),
+			[]DockerComposeHostAccessScope{DockerComposeScopeRun, DockerComposeScopeBuild, DockerComposeScopeRender}, "build.args"},
+		"build secret from the key variable": {DockerComposeModel{
+			Services: map[string]DockerComposeService{"app": {Image: "x", Build: &DockerComposeBuild{Context: inside, Secrets: DockerComposeRefs{"mk"}}}},
+			Secrets:  map[string]DockerComposeFileResource{"mk": {Environment: "AURAGO_MASTER_KEY"}},
+		}, []DockerComposeHostAccessScope{DockerComposeScopeBuild}, "build.secrets.mk.environment"},
+		"image tag": {composeServices(map[string]DockerComposeService{"app": {Image: "registry.invalid/app:" + key}}),
+			[]DockerComposeHostAccessScope{DockerComposeScopeRun, DockerComposeScopeBuild, DockerComposeScopeRender, DockerComposeScopePull}, "image"},
+	}
+	for name, tc := range cases {
+		for _, scope := range tc.scopes {
+			violations := EvaluateDockerComposeHostAccess(tc.model, nil, scope, policy)
+			if len(violations) == 0 || !violations[0].Always || violations[0].Field != tc.field || strings.Contains(violations[0].String(), key) {
+				t.Fatalf("%s (scope %d): violations = %+v, want an always-tier %s violation without the key", name, scope, violations, tc.field)
+			}
+		}
+	}
+}
+
+func TestEvaluateDockerComposeHostAccessChecksHostProgramsForLifecycleCommands(t *testing.T) {
+	model := composeServices(map[string]DockerComposeService{
+		"db":   {Provider: &DockerComposeProvider{Type: "awesomecloud"}},
+		"app":  {Image: "alpine", Privileged: true, PreStop: DockerComposeHooks{{Privileged: true}}, Volumes: []DockerComposeMount{composeBind("/srv/data", "/data", false)}},
+		"tool": {Image: "alpine", PostStart: DockerComposeHooks{{Privileged: false}}},
+	})
+	for _, scope := range []DockerComposeHostAccessScope{DockerComposeScopePull, DockerComposeScopeLifecycle} {
+		fields := composeViolationFields(EvaluateDockerComposeHostAccess(model, nil, scope, composeTestPolicy(t, false)))
+		if !fields["provider"] || !fields["pre_stop"] || len(fields) != 2 {
+			t.Fatalf("scope %d: fields = %v, want only provider and pre_stop", scope, fields)
+		}
+		if violations := EvaluateDockerComposeHostAccess(model, nil, scope, composeTestPolicy(t, true)); len(violations) != 0 {
+			t.Fatalf("scope %d with host access: %+v", scope, violations)
+		}
+	}
+}
+
+func TestEvaluateDockerComposeHostAccessJoinsRelativeDockerfiles(t *testing.T) {
+	policy := composeTestPolicy(t, false)
+	root := filepath.Dir(policy.ProtectedFiles[0])
+	contextDir := filepath.Join(policy.WorkspaceDir, "stack", "app")
+	escaping := composeServices(map[string]DockerComposeService{"app": {Image: "x", Build: &DockerComposeBuild{Context: contextDir,
+		Dockerfile: filepath.Join("..", "..", "..", "..", "outside", "probe.Dockerfile")}}})
+	if fields := composeViolationFields(EvaluateDockerComposeHostAccess(escaping, nil, DockerComposeScopeBuild, policy)); !fields["build.dockerfile"] || len(fields) != 1 {
+		t.Fatalf("relative Dockerfile outside the workspace: fields = %v", fields)
+	}
+	// ../../../../.env from the context is AuraGo's .env next to config.yaml.
+	state := composeServices(map[string]DockerComposeService{"app": {Image: "x", Build: &DockerComposeBuild{Context: contextDir,
+		Dockerfile: filepath.Join("..", "..", "..", "..", ".env")}}})
+	if got := filepath.Clean(filepath.Join(contextDir, "..", "..", "..", "..", ".env")); got != filepath.Join(root, ".env") {
+		t.Fatalf("fixture resolves to %s", got)
+	}
+	policy.AllowHostAccess = true
+	violations := EvaluateDockerComposeHostAccess(state, nil, DockerComposeScopeBuild, policy)
+	if len(violations) != 1 || !violations[0].Always || violations[0].Field != "build.dockerfile" {
+		t.Fatalf("AuraGo .env as Dockerfile: violations = %+v", violations)
+	}
+	inside := composeServices(map[string]DockerComposeService{"app": {Image: "x", Build: &DockerComposeBuild{Context: contextDir, Dockerfile: filepath.Join("..", "Dockerfile.app")}}})
+	policy.AllowHostAccess = false
+	if violations := EvaluateDockerComposeHostAccess(inside, nil, DockerComposeScopeBuild, policy); len(violations) != 0 {
+		t.Fatalf("Dockerfile inside the workspace rejected: %+v", violations)
+	}
+}
+
+func TestEvaluateDockerComposeHostAccessRejectsParentsOfAuraGoStateWithoutHostAccess(t *testing.T) {
+	// Without a workspace the jail root is AuraGo's working directory, which
+	// holds data/ and config.yaml.
+	root := t.TempDir()
+	policy := DockerComposeHostPolicy{
+		WorkspaceDir:   root,
+		ProtectedRoots: []string{filepath.Join(root, "data")},
+		ProtectedFiles: []string{filepath.Join(root, "config.yaml")},
+	}
+	parent := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind(root, "/app", true)}}})
+	violations := EvaluateDockerComposeHostAccess(parent, nil, DockerComposeScopeRun, policy)
+	if len(violations) != 1 || violations[0].Always || violations[0].Field != "volumes" {
+		t.Fatalf("parent of AuraGo state inside the root: violations = %+v", violations)
+	}
+	sibling := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind(filepath.Join(root, "stacks", "web"), "/app", true)}}})
+	if violations := EvaluateDockerComposeHostAccess(sibling, nil, DockerComposeScopeRun, policy); len(violations) != 0 {
+		t.Fatalf("stack directory beside AuraGo state rejected: %+v", violations)
+	}
+	policy.AllowHostAccess = true
+	if violations := EvaluateDockerComposeHostAccess(parent, nil, DockerComposeScopeRun, policy); len(violations) != 0 {
+		t.Fatalf("parent bind rejected with host access: %+v", violations)
+	}
+}
+
+func TestEvaluateDockerComposeHostAccessAcceptsWorkspacesUnderSensitiveLocations(t *testing.T) {
+	// Unraid keeps app data under /mnt/user, root installs under /root: binds
+	// inside such a workspace stay allowed without host access.
+	for _, workspace := range []string{"/mnt/user/appdata/aurago/workdir", "/root/aurago/agent_workspace/workdir"} {
+		policy := DockerComposeHostPolicy{WorkspaceDir: workspace}
+		model := DockerComposeModel{
+			Services: map[string]DockerComposeService{"app": {Image: "x",
+				Volumes: []DockerComposeMount{composeBind(workspace+"/stack/data", "/data", false)},
+				Build:   &DockerComposeBuild{Context: workspace + "/stack/app", Dockerfile: "Dockerfile"}}},
+			Secrets: map[string]DockerComposeFileResource{"token": {File: workspace + "/stack/token"}},
+		}
+		envFiles := []DockerComposeEnvFile{{Service: "app", Path: workspace + "/stack/app.env"}}
+		if violations := EvaluateDockerComposeHostAccess(model, envFiles, DockerComposeScopeRun, policy); len(violations) != 0 {
+			t.Fatalf("%s: in-workspace paths rejected: %+v", workspace, violations)
+		}
+		outside := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind("/mnt/user/other", "/o", false)}}})
+		if fields := composeViolationFields(EvaluateDockerComposeHostAccess(outside, nil, DockerComposeScopeRun, policy)); !fields["volumes"] {
+			t.Fatalf("%s: bind outside the workspace allowed", workspace)
+		}
+	}
+	// A sensitive location below the root still counts.
+	policy := DockerComposeHostPolicy{WorkspaceDir: "/var/lib"}
+	model := composeServices(map[string]DockerComposeService{"app": {Image: "x", Volumes: []DockerComposeMount{composeBind("/var/lib/docker/volumes", "/v", false)}}})
+	if fields := composeViolationFields(EvaluateDockerComposeHostAccess(model, nil, DockerComposeScopeRun, policy)); !fields["volumes"] {
+		t.Fatal("/var/lib/docker inside the root allowed")
+	}
+}
+
+func TestDockerCLICommandDropsOnlyTheMasterKey(t *testing.T) {
+	t.Setenv("AURAGO_MASTER_KEY", strings.Repeat("ab", 32))
+	t.Setenv("K6_PROBE_KEEP", "kept")
+	cmd := dockerCLICommand(nil, "compose", "version")
+	if cmd.Path == "" || len(cmd.Args) != 3 {
+		t.Fatalf("command = %+v", cmd)
+	}
+	kept := false
+	for _, entry := range cmd.Env {
+		name, _, _ := strings.Cut(entry, "=")
+		if strings.EqualFold(name, "AURAGO_MASTER_KEY") {
+			t.Fatalf("docker CLI environment carries the master key: %s", name)
+		}
+		kept = kept || entry == "K6_PROBE_KEEP=kept"
+	}
+	if !kept || len(cmd.Env) == 0 {
+		t.Fatal("docker CLI environment lost other variables")
+	}
+	env := dockerCLIEnvironment([]string{"PATH=/bin", "aurago_master_key=x", "AURAGO_MASTER_KEY=y", "AURAGO_MASTER_KEY_FILE=/k", "A=AURAGO_MASTER_KEY"})
+	if strings.Join(env, ";") != "PATH=/bin;AURAGO_MASTER_KEY_FILE=/k;A=AURAGO_MASTER_KEY" {
+		t.Fatalf("dockerCLIEnvironment() = %q", env)
+	}
+}
+
+func TestDockerComposeConfigArgsNamesServicesAfterSeparator(t *testing.T) {
+	got := dockerComposeConfigArgs(DockerConfig{}, "/ws/compose.yml", DockerComposeConfigOptions{Services: []string{"hidden", "--weird"}})
+	want := []string{"compose", "-f", "/ws/compose.yml", "config", "--format", "json", "--", "hidden", "--weird"}
+	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("args = %q, want %q", got, want)
 	}
 }
 
@@ -305,10 +500,37 @@ func TestParseDockerComposeModelReadsHostAccessFields(t *testing.T) {
 		t.Fatalf("secret/config sources = %+v %+v", model.Secrets, model.Configs)
 	}
 	// Shapes no Compose release prints must not break the preflight.
-	for _, build := range []string{`{"ssh": 42}`, `{"entitlements": [1, {"a": true}]}`, `{"secrets": [7]}`} {
+	for _, build := range []string{`{"ssh": 42}`, `{"entitlements": [1, {"a": true}]}`, `{"secrets": [7]}`, `{"network": {"x": 1}}`, `{"labels": "a"}`} {
 		if _, err := ParseDockerComposeModel(`{"services":{"w":{"build":` + build + `}}}`); err != nil {
 			t.Fatalf("build %s broke the parse: %v", build, err)
 		}
+	}
+	for _, service := range []string{`{"post_start": "x"}`, `{"pre_stop": [1]}`, `{"deploy": "x"}`, `{"deploy": {"resources": 3}}`, `{"gpus": "all"}`} {
+		if _, err := ParseDockerComposeModel(`{"services":{"w":` + service + `}}`); err != nil {
+			t.Fatalf("service %s broke the parse: %v", service, err)
+		}
+	}
+
+	// Shapes of Docker Compose v5.4.0 (k6rev/p2).
+	model, err = ParseDockerComposeModel(`{"services":{
+		"sock":{"image":"alpine","use_api_socket":true},
+		"hook":{"image":"alpine","post_start":[{"command":["true"],"user":"root","privileged":true}],"pre_stop":[{"command":["true"]}]},
+		"cgroup":{"image":"alpine","device_cgroup_rules":["b *:* rwm"]},
+		"gpu":{"image":"alpine","gpus":[{"count":-1}],"deploy":{"resources":{"reservations":{"devices":[{"driver":"nvidia","count":1,"capabilities":[["gpu"]]}]}}}},
+		"buildlabel":{"image":"x","build":{"context":"/ws","labels":{"leak":"v"},"network":"host","secrets":[{"source":"envsecret"}]}}},
+		"secrets":{"envsecret":{"name":"p2_envsecret","environment":"FAKE"}}}`)
+	if err != nil {
+		t.Fatalf("ParseDockerComposeModel(p2) error = %v", err)
+	}
+	services := model.Services
+	if !services["sock"].UseAPISocket || len(services["cgroup"].DeviceCgroupRules) != 1 || len(services["gpu"].Gpus) != 1 || len(services["gpu"].Deploy.ReservedDevices) != 1 {
+		t.Fatalf("p2 services = %+v", services)
+	}
+	if hook := services["hook"]; len(hook.PostStart) != 1 || !hook.PostStart[0].Privileged || len(hook.PreStop) != 1 || hook.PreStop[0].Privileged {
+		t.Fatalf("hooks = %+v %+v", hook.PostStart, hook.PreStop)
+	}
+	if build := services["buildlabel"].Build; build == nil || strings.Join(build.Labels, ",") != "leak=v" || build.Network != "host" || strings.Join(build.Secrets, ",") != "envsecret" {
+		t.Fatalf("build = %+v", build)
 	}
 }
 
@@ -319,10 +541,19 @@ func TestDockerComposeServiceEnvFilesListsBothShapes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseDockerComposeModel() error = %v", err)
 	}
-	files := DockerComposeServiceEnvFiles(model, workspace)
+	files, known := DockerComposeServiceEnvFiles(model, workspace)
 	want := []DockerComposeEnvFile{{Service: "a", Path: filepath.Join(workspace, "app.env")}, {Service: "b", Path: filepath.Join(workspace, "rel.env")}}
-	if len(files) != len(want) || files[0] != want[0] || files[1] != want[1] {
-		t.Fatalf("env files = %+v, want %+v", files, want)
+	if !known || len(files) != len(want) || files[0] != want[0] || files[1] != want[1] {
+		t.Fatalf("env files = %+v (known %v), want %+v", files, known, want)
+	}
+	// An entry the parser cannot read marks the env files unknown instead of
+	// failing the model.
+	odd, err := ParseDockerComposeModel(`{"services":{"a":{"env_file":[42,{"required":true},"ok.env"]}}}`)
+	if err != nil {
+		t.Fatalf("unexpected env_file shapes broke the parse: %v", err)
+	}
+	if files, known := DockerComposeServiceEnvFiles(odd, workspace); known || len(files) != 1 {
+		t.Fatalf("odd env files = %+v (known %v), want one file and unknown", files, known)
 	}
 }
 

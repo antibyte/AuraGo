@@ -25,8 +25,8 @@ func dockerComposeHostAccessAllowed(ctx context.Context, cfg *config.Config) boo
 }
 
 // dockerComposeHostAccessScope maps a Compose subcommand to the scope of the
-// host-access policy. Every other subcommand (down, stop, start, restart, rm,
-// kill, pause, unpause, pull, ps, logs, …) is never checked by it.
+// host-access policy. rm, kill, pause, unpause, ps, logs and the other
+// inspection commands are never checked by it.
 func dockerComposeHostAccessScope(subcommand string) (tools.DockerComposeHostAccessScope, bool) {
 	switch subcommand {
 	case "up", "create":
@@ -35,12 +35,16 @@ func dockerComposeHostAccessScope(subcommand string) (tools.DockerComposeHostAcc
 		return tools.DockerComposeScopeBuild, true
 	case "config", "convert":
 		return tools.DockerComposeScopeRender, true
+	case "pull":
+		return tools.DockerComposeScopePull, true
+	case "down", "start", "stop", "restart":
+		return tools.DockerComposeScopeLifecycle, true
 	}
 	return 0, false
 }
 
 // dockerComposeMasterKey is the master key the policy protects: the run
-// config's value, or the process environment Compose inherits.
+// config's value, or AuraGo's process environment.
 func dockerComposeMasterKey(cfg *config.Config) string {
 	if cfg != nil {
 		if key := strings.TrimSpace(cfg.Server.MasterKey); key != "" {
@@ -50,10 +54,11 @@ func dockerComposeMasterKey(cfg *config.Config) string {
 	return strings.TrimSpace(os.Getenv(tools.DockerComposeMasterKeyVariable))
 }
 
-// dockerComposeHostAccessPolicy checks up/create (everything), build (build
-// sections) and config/convert (AuraGo state only) on the command's effective
-// model, with the preflight's jail root as the workspace. It runs after the
-// ownership checks and the unverified-profile denial.
+// dockerComposeHostAccessPolicy checks the command's effective model with the
+// preflight's jail root as the workspace: up/create everything, build the
+// build sections, config/convert AuraGo state only, pull the master key and
+// host programs, down/start/stop/restart host programs only. It runs after
+// the ownership checks and the unverified-profile denial.
 func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req dockerArgs, preflight *dockerComposePreflight, effective dockerComposeEffectiveModel) string {
 	scope, checked := dockerComposeHostAccessScope(tools.DockerComposeSubcommand(req.Command))
 	if !checked {
@@ -67,26 +72,29 @@ func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req 
 		ProtectedFiles:  files,
 		MasterKey:       dockerComposeMasterKey(cfg),
 	}
+	envFilesKnown := false
 	var envFiles []tools.DockerComposeEnvFile
-	envFilesUnknown := false
 	if effective.fromAllProfiles {
-		envFiles = tools.DockerComposeServiceEnvFiles(effective.model, filepath.Dir(preflight.file))
+		envFiles, envFilesKnown = tools.DockerComposeServiceEnvFiles(effective.model, filepath.Dir(preflight.file))
 	} else {
 		// Compose without the all-profiles model (< v2.35) inlines env files and
-		// drops their paths. Only the main file's text can tell they exist.
-		envFilesUnknown = scope == tools.DockerComposeScopeRun && !policy.AllowHostAccess && strings.Contains(preflight.raw, "env_file")
+		// drops their paths; only the main file's text can tell they may exist,
+		// directly or through an included or extended file.
+		envFilesKnown = !dockerComposeMayUseEnvFiles(preflight.raw)
 	}
+	envFilesUnknown := !envFilesKnown && scope == tools.DockerComposeScopeRun && !policy.AllowHostAccess
 	violations := dockerComposeCommandViolations(req.Command, scope, policy)
 	violations = append(violations, tools.EvaluateDockerComposeHostAccess(effective.model, envFiles, scope, policy)...)
-	if scope != tools.DockerComposeScopeBuild && !dockerComposeHasAlwaysViolation(violations) &&
-		(tools.DockerComposeTextCarriesMasterKey(preflight.resolved, policy.MasterKey) ||
-			tools.DockerComposeTextCarriesMasterKey(effective.profileText, policy.MasterKey)) {
-		// The default model inlines env files into environment, so a copy of
+	if scope != tools.DockerComposeScopeLifecycle && !dockerComposeHasAlwaysViolation(violations) &&
+		(tools.DockerComposeLowerTextCarriesMasterKey(preflight.resolved, policy.MasterKey) ||
+			tools.DockerComposeLowerTextCarriesMasterKey(effective.profileText, policy.MasterKey)) {
+		// The default and the named resolutions inline env files, so a copy of
 		// the key in any env file or interpolated field shows up here.
 		violations = append(violations, tools.DockerComposeViolation{Field: "resolved model",
 			Reason: "AuraGo's master key value appears in the resolved Compose file (for example through an env_file or an interpolated variable)", Always: true})
 	}
 	sort.SliceStable(violations, func(i, j int) bool { return violations[i].Always && !violations[j].Always })
+	violations = tools.RedactDockerComposeMasterKey(violations, policy.MasterKey)
 	if len(violations) > 0 {
 		return dockerComposeViolationOutput(violations)
 	}
@@ -97,10 +105,16 @@ func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req 
 	return ""
 }
 
+// dockerComposeMayUseEnvFiles reports a lower-cased main Compose file that
+// names env_file or pulls in other files (include, extends) that may.
+func dockerComposeMayUseEnvFiles(lowerRaw string) bool {
+	return strings.Contains(lowerRaw, "env_file") || strings.Contains(lowerRaw, "include:") || strings.Contains(lowerRaw, "extends:")
+}
+
 // dockerComposeCommandViolations checks the build flags that reach the host
 // directly: `--ssh` forwards the host's SSH agent or keys (host-access tier)
-// and `--build-arg NAME` without a value copies NAME from AuraGo's process
-// environment, so it must never name the master key (always tier).
+// and `--build-arg NAME` without a value copies NAME from the environment, so
+// it must never name the master key (always tier).
 func dockerComposeCommandViolations(command string, scope tools.DockerComposeHostAccessScope, policy tools.DockerComposeHostPolicy) []tools.DockerComposeViolation {
 	if scope != tools.DockerComposeScopeBuild {
 		return nil
@@ -157,16 +171,32 @@ func dockerComposeDenied(code, message string, violations []tools.DockerComposeV
 	return "Tool Output: " + string(data)
 }
 
+// dockerComposeShownViolations bounds the violations a denial lists.
+const dockerComposeShownViolations = 6
+
+const (
+	dockerComposeHostAccessHint = "Without Config → Danger Zone → \"Docker host access for agent Compose stacks\" (docker.allow_host_access) agent Compose stacks cannot use host paths outside the agent workspace, devices, privileged mode, host namespaces or other host access; every service of the file's default profiles is checked, not only the ones named in the command. Enable that setting or keep the stack inside the workspace. Do not retry unchanged."
+	dockerComposeStateHint      = "AuraGo's own data directory, configuration, .env and master key can never be used by agent Compose stacks, even with docker.allow_host_access. Do not retry unchanged."
+)
+
 func dockerComposeViolationOutput(violations []tools.DockerComposeViolation) string {
+	always, host := false, false
+	for _, violation := range violations {
+		always = always || violation.Always
+		host = host || !violation.Always
+	}
 	code := "docker_compose_host_access_denied"
-	hint := "Enable Config → Danger Zone → \"Docker host access for agent Compose stacks\" (docker.allow_host_access) for stacks that need host paths, devices, privileged mode, host namespaces or other host access, or keep the stack's files inside the agent workspace. Do not retry unchanged."
-	if violations[0].Always {
+	hint := dockerComposeHostAccessHint
+	if always {
 		code = "docker_compose_protected_path_denied"
-		hint = "AuraGo's own data directory, configuration, .env and master key can never be used by agent Compose stacks, even with docker.allow_host_access. Do not retry unchanged."
+		hint = dockerComposeStateHint
+		if host {
+			hint = dockerComposeStateHint + " " + dockerComposeHostAccessHint
+		}
 	}
 	shown := violations
-	if len(shown) > 6 {
-		shown = shown[:6]
+	if len(shown) > dockerComposeShownViolations {
+		shown = shown[:dockerComposeShownViolations]
 	}
 	parts := make([]string, 0, len(shown))
 	for _, violation := range shown {
@@ -176,5 +206,5 @@ func dockerComposeViolationOutput(violations []tools.DockerComposeViolation) str
 	if len(violations) > len(shown) {
 		message += fmt.Sprintf("; and %d more", len(violations)-len(shown))
 	}
-	return dockerComposeDenied(code, message+". "+hint, violations)
+	return dockerComposeDenied(code, message+". "+hint, shown)
 }

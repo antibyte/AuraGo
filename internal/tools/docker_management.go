@@ -673,7 +673,7 @@ func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
 		return errJSON("%v", err)
 	}
 	cmdArgs := dockerCLIArgs(cfg, args...)
-	cmd := exec.Command("docker", cmdArgs...)
+	cmd := dockerCLICommand(context.Background(), cmdArgs...)
 	out, err := cmd.CombinedOutput()
 
 	msg := string(out)
@@ -686,6 +686,32 @@ func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
 		"output": msg,
 	})
 	return string(res)
+}
+
+// dockerCLICommand prepares a docker CLI child process whose environment is
+// AuraGo's without the master key: Compose interpolates ${VAR}, bare
+// `environment: [VAR]` entries and `--build-arg VAR` from its own
+// environment, so the key must never reach it. Every other variable is kept.
+func dockerCLICommand(ctx context.Context, args ...string) *exec.Cmd {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Env = dockerCLIEnvironment(os.Environ())
+	return cmd
+}
+
+// dockerCLIEnvironment returns env without AURAGO_MASTER_KEY (any case).
+func dockerCLIEnvironment(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, entry := range env {
+		name, _, _ := strings.Cut(entry, "=")
+		if strings.EqualFold(strings.TrimSpace(name), DockerComposeMasterKeyVariable) {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
 }
 
 func dockerCLIArgs(cfg DockerConfig, args ...string) []string {
@@ -1034,11 +1060,23 @@ func cleanDockerHostPath(hostPath string) string {
 	return pathpkg.Clean(normalized)
 }
 
+// sensitiveDockerHostPaths are host locations a bind may not be equal to or
+// inside ("/" matches only itself).
+var sensitiveDockerHostPaths = []string{
+	"/", "/mnt", "/hostfs", "/etc", "/root", "/proc", "/sys", "/dev",
+	"/var/run/docker.sock", "/run/docker.sock", "/var/lib/docker", "/boot",
+}
+
+// sensitiveWindowsDrivePaths are the same for every Windows drive.
+var sensitiveWindowsDrivePaths = []string{
+	"/windows",
+	"/program files",
+	"/program files (x86)",
+	"/programdata",
+}
+
 func isSensitiveDockerHostPath(hostPath string) bool {
-	for _, sensitive := range []string{
-		"/", "/mnt", "/hostfs", "/etc", "/root", "/proc", "/sys", "/dev",
-		"/var/run/docker.sock", "/run/docker.sock", "/var/lib/docker", "/boot",
-	} {
+	for _, sensitive := range sensitiveDockerHostPaths {
 		if dockerPathEqualOrWithin(hostPath, sensitive) {
 			return true
 		}
@@ -1047,25 +1085,26 @@ func isSensitiveDockerHostPath(hostPath string) bool {
 }
 
 func isSensitiveWindowsHostPath(hostPath string) bool {
+	return sensitiveWindowsHostLocation(hostPath) != ""
+}
+
+// sensitiveWindowsHostLocation returns the sensitive Windows location that
+// hostPath is equal to or inside ("drive root" for a bare drive), or "".
+func sensitiveWindowsHostLocation(hostPath string) string {
 	normalized := strings.ToLower(strings.TrimRight(dockerutil.NormalizeHostPathForBind(hostPath), "/"))
 	if len(normalized) == 2 && normalized[1] == ':' {
-		return true
+		return "drive root"
 	}
 	if !isWindowsAbsolutePath(normalized) {
-		return false
+		return ""
 	}
 	drivePath := normalized[2:]
-	for _, sensitive := range []string{
-		"/windows",
-		"/program files",
-		"/program files (x86)",
-		"/programdata",
-	} {
+	for _, sensitive := range sensitiveWindowsDrivePaths {
 		if drivePath == sensitive || strings.HasPrefix(drivePath, sensitive+"/") {
-			return true
+			return sensitive
 		}
 	}
-	return false
+	return ""
 }
 
 func dockerPathEqualOrWithin(path, root string) bool {
