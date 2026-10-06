@@ -400,7 +400,8 @@
         });
 
         function onKeyDown(event) {
-            if (disposed || event.defaultPrevented || !el.isConnected) return;
+            // Some keydown events carry no key (Chrome's autofill): there is nothing to handle.
+            if (disposed || event.defaultPrevented || !el.isConnected || typeof event.key !== 'string') return;
             if (typeof ctx.isActive === 'function' && !ctx.isActive()) return;
             if (el.querySelector('.ed-modal-backdrop') || document.querySelector('.vd-context-menu')) return;
             const mod = core.isMod(event);

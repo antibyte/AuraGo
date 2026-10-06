@@ -38,8 +38,11 @@
         ]]
     ];
 
+    // kbd draws one key per part of keys: "+" joins keys ("Ctrl+S"), but a leading "+" is a key
+    // itself ("+ / −" must not become an empty key and " / −").
     function kbd(esc, keys) {
-        return ED.core.shortcut(keys).split('+').map(k => '<kbd>' + esc(k) + '</kbd>').join('<span class="ed-kbd-plus">+</span>');
+        const text = ED.core.shortcut(keys);
+        return (text.startsWith('+') ? [text] : text.split('+')).map(k => '<kbd>' + esc(k) + '</kbd>').join('<span class="ed-kbd-plus">+</span>');
     }
 
     function shortcuts(ed) {

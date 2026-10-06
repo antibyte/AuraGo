@@ -358,6 +358,21 @@ export async function run(env) {
         eq('c1d07 a refused paste is shown, not only announced', [editor.ed.model.doc.nodes.length, h.notes, h.logged], [3, [{ title: 'paste', message: 'paste_refused' }], []]);
     });
 
+    await guardAsync('c1d07 shortcuts dialog and keys without a key', async () => {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h);
+        await settle();
+        const dialog = h.ED.dialogs.shortcuts(editor.ed);
+        const html = dialog.el.parentNode.html;
+        const kbds = html.match(/<kbd>[^<]*<\/kbd>/g) || [];
+        eq('c1d07 the shortcuts dialog draws "+ / −" as one key and no empty key',
+            [kbds.includes('<kbd>+ / −</kbd>'), kbds.includes('<kbd></kbd>'), kbds.includes('<kbd>Ctrl</kbd>'), kbds.includes('<kbd>S</kbd>')], [true, false, true, true]);
+        dialog.close(null);
+        h.runTimers(140);
+        const event = h.fireDoc('keydown', { target: editor.el.querySelector('.ed-canvas'), key: undefined, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false });
+        eq('c1d07 a keydown without a key (autofill) is ignored without an error', [event.defaultPrevented, h.logged], [false, []]);
+    });
+
     await guardAsync('c1d07 publish state', async () => {
         let liveRevision = 3;
         const record = rev => ({ id: 'f1', name: 'Flow', draft: flowDoc(), draft_revision: 3, published_draft_revision: 3, live: flowDoc(), live_revision: rev });
