@@ -1270,15 +1270,24 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	// they are; only containers that could not be parked are recreated from
 	// the previous record, as every rollback did before.
 	var replaced []replacedContainer
+	// The rollback and the save of the previous record must finish even when
+	// the operation is cancelled (shutdown, operation deadline).
+	detached := func() (context.Context, context.CancelFunc) {
+		return context.WithTimeout(context.WithoutCancel(ctx), updateRollbackTimeout)
+	}
 	restorePrevious := func(runErr error) error {
+		saveCtx, cancel := detached()
+		defer cancel()
 		previous.LastOperationID = op.ID
 		previous.LastOperationType = op.Type
 		previous.LastOperationState = OperationFailed
-		_ = s.saveInstalled(ctx, previous)
+		_ = s.saveInstalled(saveCtx, previous)
 		return runErr
 	}
 	rollback := func(runErr error) error {
-		rollbackErr := s.restoreReplaced(ctx, &previous, previousSpec, previousWasRunning, replaced)
+		rollbackCtx, cancel := detached()
+		defer cancel()
+		rollbackErr := s.restoreReplaced(rollbackCtx, &previous, previousSpec, previousWasRunning, replaced)
 		switch {
 		case rollbackErr != nil:
 			previous.Status = AppStatusError
@@ -1306,7 +1315,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 		return rollback(err)
 	}
 	companionsStarted := time.Now()
-	if err := s.parkForReplacement(ctx, &replaced, record.ContainerName, ""); err != nil {
+	if err := s.parkForReplacement(ctx, record.AppID, &replaced, record.ContainerName, ""); err != nil {
 		return rollback(err)
 	}
 	containerID, err := s.requireDocker().CreateContainer(ctx, nextSpec)
@@ -1335,7 +1344,7 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	if err := s.saveInstalled(ctx, record); err != nil {
 		return rollback(fmt.Errorf("save updated container: %w", err))
 	}
-	s.removeParked(ctx, replaced)
+	s.removeParked(ctx, record.AppID, replaced)
 	return nil
 }
 
@@ -1506,13 +1515,17 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 			return fmt.Errorf("remove companion container %s: %w", companion.ContainerName, err)
 		}
 		// A parked container left by an interrupted update.
-		_ = s.requireDocker().RemoveContainer(ctx, parkedContainerName(companion.ContainerName), true)
+		if err := s.removeParkedContainer(ctx, app.AppID, companion.ContainerName); err != nil {
+			s.logger().Warn("Store uninstall left a parked container in place", "app_id", app.AppID, "error", err)
+		}
 	}
 	_ = s.requireDocker().StopContainer(ctx, app.ContainerName)
 	if err := s.requireDocker().RemoveContainer(ctx, app.ContainerName, true); err != nil {
 		return fmt.Errorf("remove container: %w", err)
 	}
-	_ = s.requireDocker().RemoveContainer(ctx, parkedContainerName(app.ContainerName), true)
+	if err := s.removeParkedContainer(ctx, app.AppID, app.ContainerName); err != nil {
+		s.logger().Warn("Store uninstall left a parked container in place", "app_id", app.AppID, "error", err)
+	}
 	if err := s.deleteStoreArtifacts(ctx, app); err != nil {
 		return err
 	}

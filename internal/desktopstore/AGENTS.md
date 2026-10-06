@@ -176,8 +176,18 @@ Store app configuration, runtime, assets, and publication.
   recreate would lose it; `TestFailedUpdateRestoresPreviousCompanionsWithTheirEnv`).
 - A rename conflict means a stale `.prev` from an earlier update; it is
   removed (the container under the original name wins). A missing container
-  whose `.prev` exists (interrupted update) is adopted. Engines that cannot
-  rename fall back to the old remove-and-recreate path with a warning.
+  whose `.prev` exists (interrupted update) is adopted and stopped. A `.prev`
+  is removed or adopted only when its `aurago.desktop_store.app_id` label is
+  the app's (`isAppStoreContainer`); uninstall and the success path check the
+  label too and skip an empty container name. A container that does not stop,
+  and engines that cannot rename, fall back to the old remove-and-recreate path
+  with a warning.
+- The rollback starts a restored container when the app was running or the
+  container itself was running before the update. It runs, with the save of the
+  previous record, on a context detached from the operation
+  (`updateRollbackTimeout`), so a shutdown or the operation deadline cannot cut
+  it short. Rollback errors are joined with "; " because the Store window shows
+  them.
 - Companions the update does not recreate (the Beszel agent without its
   Vault secrets) are left alone by the update and its rollback.
 - Startup never touches parked containers. The next Update adopts or replaces

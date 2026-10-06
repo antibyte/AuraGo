@@ -2449,6 +2449,50 @@ type fakeDockerAdapter struct {
 	findErrors         map[string]error // per-name FindContainer error
 	removeErrors       map[string]error // per-name RemoveContainer error
 	removeVolumeErrors map[string]error // per-name RemoveVolume error
+	// F-S1b: engine failures and timing the update parking must survive.
+	stopErrors     map[string]error // per-name StopContainer error
+	renameErrors   map[string]error // per-source-name RenameContainer error
+	removeFailOnce map[string]error // per-name RemoveContainer error, returned once
+	honourContext  bool             // container calls fail with ctx.Err() once ctx is done
+	startHook      func(name string)
+	stoppedNames   map[string]bool // tracked containers that are not running
+}
+
+// ctxErr returns ctx.Err() when honourContext is set, like a real engine call
+// on a cancelled context.
+func (f *fakeDockerAdapter) ctxErr(ctx context.Context) error {
+	if f.honourContext && ctx != nil {
+		return ctx.Err()
+	}
+	return nil
+}
+
+func (f *fakeDockerAdapter) setRunning(name string, running bool) {
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	if !f.trackContainers {
+		return
+	}
+	if f.stoppedNames == nil {
+		f.stoppedNames = map[string]bool{}
+	}
+	if running {
+		delete(f.stoppedNames, name)
+	} else {
+		f.stoppedNames[name] = true
+	}
+}
+
+// addStoreContainer adds a tracked container that carries the Store labels of
+// appID, like one the Store created.
+func (f *fakeDockerAdapter) addStoreContainer(name, appID string) {
+	f.setContainer(name, true)
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	if f.containerSpecs == nil {
+		f.containerSpecs = map[string]ContainerSpec{}
+	}
+	f.containerSpecs[name] = ContainerSpec{Name: name, Labels: map[string]string{"aurago.desktop_store": "true", "aurago.desktop_store.app_id": appID}}
 }
 
 type fakeNativeManagedRuntime struct {
@@ -2557,7 +2601,10 @@ func (f *fakeDockerAdapter) BuildImage(_ context.Context, image, dockerfileName 
 	return nil
 }
 
-func (f *fakeDockerAdapter) CreateContainer(_ context.Context, spec ContainerSpec) (string, error) {
+func (f *fakeDockerAdapter) CreateContainer(ctx context.Context, spec ContainerSpec) (string, error) {
+	if err := f.ctxErr(ctx); err != nil {
+		return "", err
+	}
 	if len(f.createErrors) > 0 {
 		err := f.createErrors[0]
 		f.createErrors = f.createErrors[1:]
@@ -2582,6 +2629,7 @@ func (f *fakeDockerAdapter) CreateContainer(_ context.Context, spec ContainerSpe
 	f.created = append(f.created, spec)
 	f.events = append(f.events, "create:"+spec.Name)
 	f.trackCreated(spec)
+	f.setRunning(spec.Name, false)
 	return "container-" + spec.Name, nil
 }
 
@@ -2598,9 +2646,15 @@ func (f *fakeDockerAdapter) CopyToContainer(_ context.Context, containerName, de
 	return nil
 }
 
-func (f *fakeDockerAdapter) StartContainer(_ context.Context, name string) error {
+func (f *fakeDockerAdapter) StartContainer(ctx context.Context, name string) error {
 	f.started = append(f.started, name)
 	f.events = append(f.events, "start:"+name)
+	if f.startHook != nil {
+		f.startHook(name)
+	}
+	if err := f.ctxErr(ctx); err != nil {
+		return err
+	}
 	if len(f.startErrors) > 0 {
 		err := f.startErrors[0]
 		f.startErrors = f.startErrors[1:]
@@ -2611,17 +2665,25 @@ func (f *fakeDockerAdapter) StartContainer(_ context.Context, name string) error
 	if !f.hasContainer(name) {
 		return fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
+	f.setRunning(name, true)
 	return nil
 }
 
-func (f *fakeDockerAdapter) StopContainer(_ context.Context, name string) error {
+func (f *fakeDockerAdapter) StopContainer(ctx context.Context, name string) error {
 	f.stopped = append(f.stopped, name)
 	if f.traceLifecycle {
 		f.events = append(f.events, "stop:"+name)
 	}
+	if err := f.ctxErr(ctx); err != nil {
+		return err
+	}
+	if err := f.stopErrors[name]; err != nil {
+		return err
+	}
 	if !f.hasContainer(name) {
 		return fmt.Errorf("container %s %w", name, errContainerNotFound)
 	}
+	f.setRunning(name, false)
 	return nil
 }
 
@@ -2630,7 +2692,10 @@ func (f *fakeDockerAdapter) RestartContainer(_ context.Context, name string) err
 	return nil
 }
 
-func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bool) error {
+func (f *fakeDockerAdapter) RemoveContainer(ctx context.Context, name string, _ bool) error {
+	if err := f.ctxErr(ctx); err != nil {
+		return err
+	}
 	if f.removeContainerStarted != nil {
 		select {
 		case f.removeContainerStarted <- name:
@@ -2645,6 +2710,10 @@ func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bo
 	if err := f.removeErrors[name]; err != nil {
 		return err
 	}
+	if err := f.removeFailOnce[name]; err != nil {
+		delete(f.removeFailOnce, name)
+		return err
+	}
 	if f.removedContainers == nil {
 		f.removedContainers = map[string]int{}
 	}
@@ -2652,15 +2721,22 @@ func (f *fakeDockerAdapter) RemoveContainer(_ context.Context, name string, _ bo
 	delete(f.containers, name)
 	delete(f.containerSpecs, name)
 	delete(f.existingContainers, name)
+	delete(f.stoppedNames, name)
 	if f.traceLifecycle {
 		f.events = append(f.events, "remove:"+name)
 	}
 	return nil
 }
 
-func (f *fakeDockerAdapter) RenameContainer(_ context.Context, name, newName string) error {
+func (f *fakeDockerAdapter) RenameContainer(ctx context.Context, name, newName string) error {
+	if err := f.ctxErr(ctx); err != nil {
+		return err
+	}
 	if f.renameErr != nil {
 		return f.renameErr
+	}
+	if err := f.renameErrors[name]; err != nil {
+		return err
 	}
 	f.cleanupMu.Lock()
 	defer f.cleanupMu.Unlock()
@@ -2676,6 +2752,10 @@ func (f *fakeDockerAdapter) RenameContainer(_ context.Context, name, newName str
 		if spec, ok := f.containerSpecs[name]; ok {
 			delete(f.containerSpecs, name)
 			f.containerSpecs[newName] = spec
+		}
+		if f.stoppedNames[name] {
+			delete(f.stoppedNames, name)
+			f.stoppedNames[newName] = true
 		}
 	}
 	f.renamed = append(f.renamed, name+"->"+newName)
@@ -2751,8 +2831,11 @@ func (f *fakeDockerAdapter) NetworkExists(_ context.Context, name string) (bool,
 	return f.networks[name], nil
 }
 
-func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (ContainerState, error) {
+func (f *fakeDockerAdapter) InspectContainer(ctx context.Context, name string) (ContainerState, error) {
 	f.inspectCalls++
+	if err := f.ctxErr(ctx); err != nil {
+		return ContainerState{}, err
+	}
 	if f.inspectErr != nil {
 		return ContainerState{}, f.inspectErr
 	}
@@ -2772,7 +2855,19 @@ func (f *fakeDockerAdapter) InspectContainer(_ context.Context, name string) (Co
 		}
 		return f.inspectState, nil
 	}
-	return ContainerState{Name: name, Running: true, Status: "running"}, nil
+	state := ContainerState{Name: name, Running: true, Status: "running"}
+	f.cleanupMu.Lock()
+	defer f.cleanupMu.Unlock()
+	if f.trackContainers {
+		if spec, ok := f.containerSpecs[name]; ok {
+			state.Labels = spec.Labels
+		}
+		if f.stoppedNames[name] {
+			state.Running = false
+			state.Status = "exited"
+		}
+	}
+	return state, nil
 }
 
 func (f *fakeDockerAdapter) hasContainer(name string) bool {

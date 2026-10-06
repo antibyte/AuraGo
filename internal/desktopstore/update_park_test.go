@@ -100,38 +100,57 @@ func TestParkedContainerNamesCannotCollideWithCatalogContainers(t *testing.T) {
 }
 
 func TestParkContainerHandlesEveryEngineAnswer(t *testing.T) {
+	const appID = "demo"
 	const name = "aurago-store-demo"
 	parked := parkedContainerName(name)
 	for _, tc := range []struct {
 		label       string
-		existing    []string
+		existing    []string // Store containers of appID
+		foreign     []string // containers without the Store labels of appID
 		renameErr   error
+		stopErr     error
 		wantParked  bool
 		wantRemoved bool
 		wantNames   []string
+		wantStopped string
 	}{
 		{label: "existing container is parked", existing: []string{name}, wantParked: true, wantNames: []string{parked}},
 		{label: "stale parked leftover is replaced", existing: []string{name, parked}, wantParked: true, wantNames: []string{parked}},
-		{label: "container parked by an interrupted update is adopted", existing: []string{parked}, wantParked: true, wantNames: []string{parked}},
+		{label: "container parked by an interrupted update is adopted and stopped", existing: []string{parked}, wantParked: true, wantNames: []string{parked}, wantStopped: parked},
 		{label: "missing container leaves nothing to park", wantNames: []string{}},
 		{label: "engine without rename falls back to removal", existing: []string{name}, renameErr: errRenameUnsupported, wantRemoved: true, wantNames: []string{}},
 		{label: "rename 404 for an existing container falls back to removal", existing: []string{name}, renameErr: fmt.Errorf("container %s %w", name, errContainerNotFound), wantRemoved: true, wantNames: []string{}},
+		// F-S1b Minor 1: a running container keeps its host ports; the old
+		// code force-removed it and the update could go on.
+		{label: "a container that does not stop is removed as before", existing: []string{name}, stopErr: errors.New("stop timed out"), wantRemoved: true, wantNames: []string{}},
+		// F-S1b Minor 4: only the app's own parked container is removed or adopted.
+		{label: "a foreign parked name is never removed", existing: []string{name}, foreign: []string{parked}, wantRemoved: true, wantNames: []string{parked}},
+		{label: "a foreign parked container is never adopted", foreign: []string{parked}, wantNames: []string{parked}},
 	} {
 		t.Run(tc.label, func(t *testing.T) {
 			docker := &fakeDockerAdapter{trackContainers: true, renameErr: tc.renameErr}
+			if tc.stopErr != nil {
+				docker.stopErrors = map[string]error{name: tc.stopErr}
+			}
 			for _, existing := range tc.existing {
-				docker.addContainer(existing)
+				docker.addStoreContainer(existing, appID)
+			}
+			for _, foreign := range tc.foreign {
+				docker.addContainer(foreign)
 			}
 			svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19700))
-			gotParked, gotRemoved, err := svc.parkContainer(context.Background(), name)
+			got, err := svc.parkContainer(context.Background(), appID, name)
 			if err != nil {
 				t.Fatalf("parkContainer: %v", err)
 			}
-			if gotParked != tc.wantParked || gotRemoved != tc.wantRemoved {
-				t.Fatalf("parked=%v removed=%v, want parked=%v removed=%v", gotParked, gotRemoved, tc.wantParked, tc.wantRemoved)
+			if got.parked != tc.wantParked || got.removed != tc.wantRemoved {
+				t.Fatalf("parked=%v removed=%v, want parked=%v removed=%v", got.parked, got.removed, tc.wantParked, tc.wantRemoved)
 			}
 			if got := docker.containerNames(); !reflect.DeepEqual(got, tc.wantNames) {
 				t.Fatalf("containers afterwards = %v, want %v", got, tc.wantNames)
+			}
+			if tc.wantStopped != "" && !containsString(docker.stopped, tc.wantStopped) {
+				t.Fatalf("stopped = %v, want %s stopped", docker.stopped, tc.wantStopped)
 			}
 		})
 	}
@@ -488,13 +507,181 @@ func TestUninstallRemovesParkedLeftovers(t *testing.T) {
 	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17678), secrets)
 	runStoreInstall(t, svc, "romm")
 	// What an update interrupted by a restart can leave behind.
-	docker.addContainer(parkedContainerName("aurago-store-romm"))
-	docker.addContainer(parkedContainerName("aurago-store-romm-db"))
+	docker.addStoreContainer(parkedContainerName("aurago-store-romm"), "romm")
+	docker.addStoreContainer(parkedContainerName("aurago-store-romm-db"), "romm")
 
 	if err := runStoreOperation(t, svc, "romm", OperationUninstall); err != nil {
 		t.Fatalf("uninstall: %v", err)
 	}
 	if got := docker.containerNames(); len(got) != 0 {
 		t.Fatalf("containers after uninstall = %v, want none", got)
+	}
+}
+
+// F-S1b Minor 4: a parked name that is not the app's own container is never
+// removed, and an empty container name never becomes ".prev".
+func TestParkedContainersAreRemovedOnlyWhenTheyAreTheApps(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{trackContainers: true}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19701))
+	runStoreInstall(t, svc, "uptime-kuma")
+	foreign := parkedContainerName("aurago-store-uptime-kuma")
+	docker.addContainer(foreign)
+	docker.addStoreContainer("aurago-store-other.prev", "excalidraw")
+
+	if err := svc.removeParkedContainer(ctx, "uptime-kuma", "aurago-store-other"); err == nil {
+		t.Fatal("removed the parked container of another app")
+	}
+	calls := docker.inspectCalls
+	if err := svc.removeParkedContainer(ctx, "uptime-kuma", " "); err != nil || docker.inspectCalls != calls {
+		t.Fatalf("empty name: err=%v inspect calls %d -> %d, want no Docker call", err, calls, docker.inspectCalls)
+	}
+	if err := runStoreOperation(t, svc, "uptime-kuma", OperationUninstall); err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+	if got, want := docker.containerNames(), []string{"aurago-store-other.prev", foreign}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("containers after uninstall = %v, want the foreign ones %v", got, want)
+	}
+	if docker.removedContainers[".prev"] != 0 {
+		t.Fatal("uninstall removed a container called .prev")
+	}
+}
+
+// F-S1b Minor 2: a companion whose start failed and whose own removal failed
+// is removed by the rollback before the parked one gets its name back.
+func TestRollbackRemovesACompanionThatFailedToStart(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{trackContainers: true, traceLifecycle: true}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17692), secrets)
+	runStoreInstall(t, svc, "romm")
+	installed, _ := docker.containerSpec("aurago-store-romm-db")
+	docker.events = nil
+	docker.startErrors = []error{errors.New("database start failed")}
+	docker.removeFailOnce = map[string]error{"aurago-store-romm-db": errors.New("engine busy")}
+
+	if err := runStoreOperation(t, svc, "romm", OperationUpdate); err == nil {
+		t.Fatal("update succeeded, want the companion start failure")
+	}
+	assertEventOrder(t, docker.events,
+		"rename:aurago-store-romm-db->aurago-store-romm-db.prev",
+		"create:aurago-store-romm-db",
+		"start:aurago-store-romm-db",
+		"remove:aurago-store-romm-db",
+		"rename:aurago-store-romm-db.prev->aurago-store-romm-db",
+	)
+	restored, _ := docker.containerSpec("aurago-store-romm-db")
+	if !reflect.DeepEqual(restored.Env, installed.Env) {
+		t.Fatal("the rollback did not restore the previous database container")
+	}
+	stored, _, err := svc.GetInstalled(ctx, "romm")
+	if err != nil || stored.Status != AppStatusRunning || stored.Error != "" {
+		t.Fatalf("stored state = %q error %q (%v), want running without a rollback error", stored.Status, stored.Error, err)
+	}
+}
+
+// F-S1b Minor 3: the rollback and the save of the previous record survive the
+// cancellation of the operation (shutdown, operation deadline).
+func TestUpdateRollbackSurvivesACancelledOperation(t *testing.T) {
+	docker := &fakeDockerAdapter{trackContainers: true, traceLifecycle: true, honourContext: true}
+	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19702))
+	runStoreInstall(t, svc, "uptime-kuma")
+	op, err := svc.StartAppOperation(context.Background(), "uptime-kuma", OperationUpdate, OperationRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	armed := true
+	docker.startHook = func(name string) {
+		if armed && name == "aurago-store-uptime-kuma" {
+			armed = false
+			cancel()
+		}
+	}
+	docker.events = nil
+	if err := svc.RunOperation(ctx, op.ID); err == nil {
+		t.Fatal("update succeeded, want the cancellation")
+	}
+	assertEventOrder(t, docker.events,
+		"rename:aurago-store-uptime-kuma->aurago-store-uptime-kuma.prev",
+		"create:aurago-store-uptime-kuma",
+		"remove:aurago-store-uptime-kuma",
+		"rename:aurago-store-uptime-kuma.prev->aurago-store-uptime-kuma",
+		"start:aurago-store-uptime-kuma",
+	)
+	if got, want := docker.containerNames(), []string{"aurago-store-uptime-kuma"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("containers after the cancelled update = %v, want %v", got, want)
+	}
+	stored, _, err := svc.GetInstalled(context.Background(), "uptime-kuma")
+	if err != nil || stored.Status != AppStatusRunning || stored.LastOperationState != OperationFailed || stored.Error != "" {
+		t.Fatalf("stored state = %q/%q error %q (%v), want running/failed without error", stored.Status, stored.LastOperationState, stored.Error, err)
+	}
+}
+
+// F-S1b Minor 5: the rollback restarts each restored container as it was, not
+// only as the app's recorded status says.
+func TestRollbackRestartsEachContainerAsItWas(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{trackContainers: true, traceLifecycle: true}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17693), secrets)
+	runStoreInstall(t, svc, "romm")
+	if err := runStoreOperation(t, svc, "romm", OperationStop); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	// The database runs again, started outside the Store; the app stays stopped.
+	if err := docker.StartContainer(ctx, "aurago-store-romm-db"); err != nil {
+		t.Fatal(err)
+	}
+	docker.events = nil
+	// Update creates: the new database succeeds, the new app fails.
+	docker.createErrors = []error{nil, errors.New("create failed")}
+
+	if err := runStoreOperation(t, svc, "romm", OperationUpdate); err == nil {
+		t.Fatal("update succeeded, want the create failure")
+	}
+	assertEventOrder(t, docker.events,
+		"rename:aurago-store-romm-db.prev->aurago-store-romm-db",
+		"start:aurago-store-romm-db",
+		"rename:aurago-store-romm.prev->aurago-store-romm",
+	)
+	restoredApp := false
+	for _, event := range docker.events {
+		if event == "rename:aurago-store-romm.prev->aurago-store-romm" {
+			restoredApp = true
+		}
+		if restoredApp && event == "start:aurago-store-romm" {
+			t.Fatalf("the stopped app container was started: %v", docker.events)
+		}
+	}
+	stored, _, err := svc.GetInstalled(ctx, "romm")
+	if err != nil || stored.Status != AppStatusStopped {
+		t.Fatalf("stored status = %q (%v), want stopped", stored.Status, err)
+	}
+}
+
+// F-S1b nit: previous.Error is shown in the UI, so rollback errors are joined
+// on one line.
+func TestRollbackErrorsAreJoinedOnOneLine(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{trackContainers: true}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17694), secrets)
+	runStoreInstall(t, svc, "romm")
+	docker.createErrors = []error{nil, errors.New("create failed")}
+	docker.renameErrors = map[string]error{
+		"aurago-store-romm-db.prev": errors.New("engine busy"),
+		"aurago-store-romm.prev":    errors.New("engine busy"),
+	}
+	if err := runStoreOperation(t, svc, "romm", OperationUpdate); err == nil {
+		t.Fatal("update succeeded, want the create failure")
+	}
+	stored, _, err := svc.GetInstalled(ctx, "romm")
+	if err != nil || stored.Status != AppStatusError {
+		t.Fatalf("stored status = %q (%v), want error", stored.Status, err)
+	}
+	if strings.Contains(stored.Error, "\n") || strings.Count(stored.Error, "engine busy") != 2 || !strings.Contains(stored.Error, "; rename aurago-store-romm.prev") {
+		t.Fatalf("stored error = %q, want both rename failures on one line", stored.Error)
 	}
 }
