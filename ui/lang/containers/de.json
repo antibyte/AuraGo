@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Gestoppt",
   "containers.heading": "Container",
   "containers.inspect_title": "Container-Details",
+  "containers.list_error_title": "Docker nicht erreichbar",
   "containers.logs_refresh": "Aktualisieren",
   "containers.logs_title": "Container-Logs",
   "containers.page_description": "Überwache und verwalte Docker-Container.",

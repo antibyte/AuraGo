@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Stoppet",
   "containers.heading": "Containere",
   "containers.inspect_title": "Container-detaljer",
+  "containers.list_error_title": "Docker er ikke tilgjengelig",
   "containers.logs_refresh": "Oppdater",
   "containers.logs_title": "Container-logger",
   "containers.page_description": "Overvåk og administrer Docker-containere.",

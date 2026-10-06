@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Zastavené",
   "containers.heading": "Kontejnery",
   "containers.inspect_title": "Podrobnosti kontejneru",
+  "containers.list_error_title": "Docker není dostupný",
   "containers.logs_refresh": "Obnovit",
   "containers.logs_title": "Logy kontejneru",
   "containers.page_description": "Sleduj a spravuj Docker kontejnery.",

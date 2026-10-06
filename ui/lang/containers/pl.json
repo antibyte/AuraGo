@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Zatrzymane",
   "containers.heading": "Kontenery",
   "containers.inspect_title": "Szczegóły kontenera",
+  "containers.list_error_title": "Docker jest niedostępny",
   "containers.logs_refresh": "Odśwież",
   "containers.logs_title": "Logi kontenera",
   "containers.page_description": "Monitoruj i zarządzaj kontenerami Docker.",

@@ -743,6 +743,8 @@ DELETE /api/containers/{id}
 
 Für diese Container antworten `GET /api/containers/{id}/terminal` (WebSocket), `POST /api/containers/{id}/update` und `DELETE /api/containers/{id}` mit HTTP 409 und `code: "container_protected_confirmation_required"`, solange die Anfrage nicht `confirm=protected` enthält. Das Feld `owner` nennt den Grund (`self`, `docker-endpoint`, `shared-network`, den verwaltenden Besitzer oder `unverified`). Das gilt auch, wenn Docker die Eigentümerprüfung nicht beantwortet oder der Host des Docker-Endpunkts nicht aufgelöst werden kann (`owner: "unverified"`). `POST /api/containers/{id}/update` auf den AuraGo-Container selbst oder den Docker-Endpunkt-Container antwortet immer mit HTTP 409 und `code: "container_self_update_unsupported"`: Das Update würde AuraGo oder seine Docker-Verbindung stoppen, bevor der Ersatz existiert. Aktualisiere diese Container mit `docker compose pull && docker compose up -d` auf dem Docker-Host. Unter Podman kann AuraGo den eigenen Container nicht erkennen; der App-Container braucht dann nur die Bestätigung (über seinen reservierten Namen oder sein Owner-Label). Start, Stopp, Neustart, Logs, Inspect und Statistiken brauchen keine Bestätigung.
 
+Ein Fehler von Docker oder der Docker-Werkzeugschicht antwortet mit HTTP 502 und unverändertem JSON-Body (`status: "error"`, `message`). `503` bedeutet weiterhin, dass Docker deaktiviert ist, `403`, dass Docker schreibgeschützt ist.
+
 ### Runtime-Informationen
 ```http
 GET /api/runtime

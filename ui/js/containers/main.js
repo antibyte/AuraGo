@@ -68,7 +68,9 @@ async function loadContainers() {
         }
         const data = await resp.json();
         if (data.status !== 'ok') {
-            showDisabledState();
+            // Docker is enabled but the list failed (HTTP 502): show Docker's
+            // message instead of the "Docker not enabled" state.
+            showListErrorState(dockerErrMsg(data.message));
             return;
         }
 
@@ -89,9 +91,19 @@ async function loadContainers() {
 function showDisabledState() {
     document.getElementById('ct-grid').style.display = 'none';
     document.getElementById('ct-empty').style.display = 'none';
+    document.getElementById('ct-list-error').classList.add('is-hidden');
     document.getElementById('ct-disabled').classList.remove('is-hidden');
     document.getElementById('ct-status-bar').style.display = 'none';
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function showListErrorState(message) {
+    document.getElementById('ct-grid').style.display = 'none';
+    document.getElementById('ct-empty').style.display = 'none';
+    document.getElementById('ct-disabled').classList.add('is-hidden');
+    document.getElementById('ct-list-error-message').textContent = message;
+    document.getElementById('ct-list-error').classList.remove('is-hidden');
+    document.getElementById('ct-status-bar').style.display = 'none';
 }
 
 // ── Stats ───────────────────────────────────────────────────────────────────
@@ -154,6 +166,7 @@ function renderContainers() {
     const empty = document.getElementById('ct-empty');
     const disabled = document.getElementById('ct-disabled');
     disabled.classList.add('is-hidden');
+    document.getElementById('ct-list-error').classList.add('is-hidden');
     document.getElementById('ct-status-bar').style.display = '';
 
     const filtered = getFilteredContainers();

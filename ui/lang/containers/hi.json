@@ -22,6 +22,7 @@
   "containers.filter_stopped": "रुका हुआ",
   "containers.heading": "कंटेनर",
   "containers.inspect_title": "कंटेनर विवरण",
+  "containers.list_error_title": "Docker उपलब्ध नहीं है",
   "containers.logs_refresh": "रीफ़्रेश",
   "containers.logs_title": "कंटेनर लॉग",
   "containers.page_description": "Docker कंटेनरों की निगरानी और प्रबंधन करो।",

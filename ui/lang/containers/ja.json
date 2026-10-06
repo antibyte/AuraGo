@@ -22,6 +22,7 @@
   "containers.filter_stopped": "停止中",
   "containers.heading": "コンテナ",
   "containers.inspect_title": "コンテナの詳細",
+  "containers.list_error_title": "Dockerを利用できません",
   "containers.logs_refresh": "更新",
   "containers.logs_title": "コンテナログ",
   "containers.page_description": "Dockerコンテナを監視・管理します。",

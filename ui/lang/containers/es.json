@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Detenidos",
   "containers.heading": "Contenedores",
   "containers.inspect_title": "Detalles del contenedor",
+  "containers.list_error_title": "Docker no disponible",
   "containers.logs_refresh": "Actualizar",
   "containers.logs_title": "Registros del contenedor",
   "containers.page_description": "Supervisa y gestiona contenedores Docker.",

@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Arrêtés",
   "containers.heading": "Conteneurs",
   "containers.inspect_title": "Détails du conteneur",
+  "containers.list_error_title": "Docker indisponible",
   "containers.logs_refresh": "Actualiser",
   "containers.logs_title": "Journaux du conteneur",
   "containers.page_description": "Surveille et gère les conteneurs Docker.",

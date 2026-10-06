@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Stopped",
   "containers.heading": "Containers",
   "containers.inspect_title": "Container Details",
+  "containers.list_error_title": "Docker unavailable",
   "containers.logs_refresh": "Refresh",
   "containers.logs_title": "Container Logs",
   "containers.page_description": "Monitor and manage Docker containers.",

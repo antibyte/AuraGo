@@ -22,6 +22,7 @@
   "containers.filter_stopped": "已停止",
   "containers.heading": "容器",
   "containers.inspect_title": "容器详情",
+  "containers.list_error_title": "Docker不可用",
   "containers.logs_refresh": "刷新",
   "containers.logs_title": "容器日志",
   "containers.page_description": "监控并管理 Docker 容器。",

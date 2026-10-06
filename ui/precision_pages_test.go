@@ -1493,7 +1493,7 @@ func TestPrecisionWorkspaceOperationsIntegration(t *testing.T) {
 		{
 			name: "Containers", template: "containers.html", stylesheet: "/css/containers.css", page: "containers", mainScript: "/js/containers/main.js",
 			hooks:       []string{`id="ct-status-bar"`, `id="ct-search"`, `id="ct-grid"`, `id="terminal-output"`, `id="terminal-status"`},
-			hiddenHooks: []string{`id="ct-empty"`, `id="ct-disabled"`},
+			hiddenHooks: []string{`id="ct-empty"`, `id="ct-disabled"`, `id="ct-list-error"`},
 		},
 		{
 			name: "Media", template: "media.html", stylesheet: "/css/media.css", page: "media", mainScript: "/js/media/main.js",

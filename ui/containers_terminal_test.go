@@ -310,3 +310,27 @@ func TestContainersScriptConfirmsProtectedContainersBeforeSendingTheFlag(t *test
 		}
 	}
 }
+
+func TestContainersListFailureShowsDockerMessageNotDisabledState(t *testing.T) {
+	t.Parallel()
+
+	source := rawDesktopAssetText(t, "js/containers/main.js")
+	for _, marker := range []string{
+		"if (resp.status === 503) {",
+		"showListErrorState(dockerErrMsg(data.message));",
+		"function showListErrorState(message)",
+		"document.getElementById('ct-list-error-message').textContent = message;",
+		"document.getElementById('ct-list-error').classList.add('is-hidden');",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("containers script missing list-error marker %q", marker)
+		}
+	}
+	html := rawDesktopAssetText(t, "containers.html")
+	for _, marker := range []string{`id="ct-list-error"`, `id="ct-list-error-message"`, `data-i18n="containers.list_error_title"`} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("containers page missing list-error marker %q", marker)
+		}
+	}
+	requireContainersTranslations(t, []string{"containers.list_error_title"})
+}

@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Σταματημένα",
   "containers.heading": "Κοντέινερ",
   "containers.inspect_title": "Λεπτομέρειες κοντέινερ",
+  "containers.list_error_title": "Το Docker δεν είναι διαθέσιμο",
   "containers.logs_refresh": "Ανανέωση",
   "containers.logs_title": "Αρχεία καταγραφής κοντέινερ",
   "containers.page_description": "Παρακολούθησε και διαχειρίσου Docker containers.",

@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Parados",
   "containers.heading": "Contêineres",
   "containers.inspect_title": "Detalhes do contentor",
+  "containers.list_error_title": "Docker indisponível",
   "containers.logs_refresh": "Atualizar",
   "containers.logs_title": "Registos do contentor",
   "containers.page_description": "Monitoriza e gere contentores Docker.",

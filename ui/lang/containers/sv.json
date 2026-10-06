@@ -22,6 +22,7 @@
   "containers.filter_stopped": "Stoppade",
   "containers.heading": "Behållare",
   "containers.inspect_title": "Container-detaljer",
+  "containers.list_error_title": "Docker är inte tillgängligt",
   "containers.logs_refresh": "Uppdatera",
   "containers.logs_title": "Container-loggar",
   "containers.page_description": "Övervaka och hantera Docker-containrar.",
