@@ -2292,7 +2292,7 @@ function cfgChoiceLoaded(source) {
     return source === 'personalities' ? personalitiesLoaded : providersLoaded;
 }
 
-/** Fixed and loaded options of a dynamic dropdown, in display order. */
+/** Fixed and loaded options of a dynamic dropdown, in display order. help.empty_label_key names the empty provider option. */
 function cfgChoiceOptions(source, help) {
     const options = [];
     if (source === 'personalities') {
@@ -2300,7 +2300,7 @@ function cfgChoiceOptions(source, help) {
         personalitiesCache.forEach(p => options.push({ value: String(p.name), label: String(p.name) }));
         return options;
     }
-    if (!help.allow_disabled) options.push({ value: '', label: t('config.field.no_provider') });
+    if (!help.allow_disabled) options.push({ value: '', label: help.empty_label_key ? t(help.empty_label_key) : t('config.field.no_provider') });
     if (Array.isArray(help.builtin_options)) {
         help.builtin_options.forEach(option => options.push({
             value: String(option),

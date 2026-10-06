@@ -2578,52 +2578,128 @@ async function testEasyDragFlowsChangedIsForwarded() {
   ]);
 }
 
-function renderConfigFlowsSection({ flows, tools = {}, providers = [], loaded = true }) {
+// Loads cfg/flows.js with the real config helpers it uses: escaping (utils.js), the provider choice helpers
+// and toggleBool (main.js), the validation rules (catalog.js) and the field metadata (lang/meta.json).
+function configFlowsContext({ flows, tools = {}, providers = [], loaded = true }) {
   const strings = { ...JSON.parse(read('ui/lang/config/common/en.json')), ...JSON.parse(read('ui/lang/config/flows/en.json')) };
-  const content = { innerHTML: '' };
+  const meta = JSON.parse(read('ui/lang/meta.json'));
+  const main = read('ui/js/config/main.js');
   const context = {
+    window: {},
+    content: { innerHTML: '' },
     configData: { flows, tools },
     providersCache: providers,
     providersLoaded: loaded,
+    personalitiesCache: [],
+    personalitiesLoaded: true,
+    helpTexts: { 'flows.ai_provider': meta['help.flows.ai_provider'] },
+    dirtyMarks: 0,
+    markDirty() { context.dirtyMarks += 1; },
     t(key, params) {
       assert.ok(Object.prototype.hasOwnProperty.call(strings, key), `missing English string ${key}`);
       return strings[key].replace(/\{\{(\w+)\}\}/g, (_, name) => params[name]);
     },
-    document: { getElementById: id => (id === 'content' ? content : null) },
+    document: { getElementById: id => (id === 'content' ? context.content : null), querySelectorAll: () => [] },
     attachChangeListeners() {}
   };
   vm.createContext(context);
+  vm.runInContext(read('ui/js/config/catalog.js'), context);
   vm.runInContext(sourceBetween(read('ui/js/config/utils.js'), 'function escapeAttr(', 'function formatKey('), context);
+  vm.runInContext(sourceBetween(main, 'function cfgChoiceSource(', 'async function retryConfigChoiceLists('), context);
+  vm.runInContext(sourceBetween(main, 'function syncToggleA11y(', 'function enhanceConfigControls('), context);
+  vm.runInContext(sourceBetween(main, 'function toggleBool(', 'function togglePassword('), context);
   vm.runInContext(read('ui/cfg/flows.js'), context);
-  context.renderFlowsSection({ label: 'EasyDrag flows', desc: 'Visual automations' });
-  return content.innerHTML;
+  return context;
 }
 
-// Config section "EasyDrag flows": provider picker keeps unknown ids, numbers stay numbers,
-// the link opens EasyDrag, and the agent options (not enforced yet) cannot be switched.
+const configFlowsSectionMeta = { label: 'EasyDrag flows', desc: 'Visual automations' };
+
+function renderConfigFlowsSection(options) {
+  const context = configFlowsContext(options);
+  context.renderFlowsSection(configFlowsSectionMeta);
+  return context.content.innerHTML;
+}
+
+function configStateForTest(rules) {
+  const context = { window: {}, document: { dispatchEvent() {} }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } } };
+  vm.createContext(context);
+  vm.runInContext(read('ui/js/config/state.js'), context);
+  const state = context.window.AuraConfigState;
+  if (rules) state.setRules(rules);
+  return state;
+}
+
+// A minimal element for a rendered .toggle, enough for toggleBool, syncToggleA11y and state.js.
+function fakeConfigToggle(markup) {
+  const attributes = Object.fromEntries([...markup.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
+  const classes = new Set(attributes.class.split(/\s+/));
+  return {
+    dataset: { path: attributes['data-path'] },
+    nextElementSibling: null,
+    classList: {
+      contains: name => classes.has(name),
+      toggle(name) { if (classes.has(name)) { classes.delete(name); return false; } classes.add(name); return true; }
+    },
+    getAttribute: name => (Object.prototype.hasOwnProperty.call(attributes, name) ? attributes[name] : null),
+    setAttribute(name, value) { attributes[name] = String(value); },
+    removeAttribute(name) { delete attributes[name]; }
+  };
+}
+
+// Config section "EasyDrag flows": the provider picker uses the shared choice helpers (unknown ids kept,
+// hint and retry on a failed list), the limits are validated numbers, the link opens EasyDrag, and the
+// agent options (not enforced yet) cannot be switched.
 function testConfigFlowsSection() {
   const providers = [
     { id: 'main', name: 'Main', type: 'openai', model: 'gpt-x' },
     { id: 'p<2>', name: 'Odd "name"', type: '', model: '' }
   ];
   const flows = { enabled: true, max_parallel_runs: 12, max_parallel_nodes_per_run: 3, run_retention_days: 60, max_runs_per_flow: 500, ai_provider: 'gone', agent: { read_only: true, allow_publish: false } };
-  let html = renderConfigFlowsSection({ flows, providers });
-  assert.match(html, /<select class="field-select" data-path="flows\.ai_provider"[^>]*><option value="">Main model<\/option><option value="gone" selected>gone \(missing\)<\/option><option value="main">Main \[openai\] — gpt-x<\/option><option value="p&lt;2&gt;">Odd &quot;name&quot;<\/option><\/select>/);
-  assert.match(renderConfigFlowsSection({ flows, providers: [], loaded: false }), /<option value="gone" selected>gone \(list unavailable\)<\/option>/);
+  const html = renderConfigFlowsSection({ flows, providers });
+  assert.match(html, /<select class="field-select" data-path="flows\.ai_provider" data-config-choice="providers"[^>]*><option value="gone" selected data-config-choice-preserved>gone \(missing\)<\/option><option value="">Main model<\/option><option value="main">Main \[openai\] — gpt-x<\/option><option value="p&lt;2&gt;">Odd &quot;name&quot;<\/option><\/select><\/div>/);
   assert.match(renderConfigFlowsSection({ flows: { ...flows, ai_provider: 'main' }, providers }), /<option value="">Main model<\/option><option value="main" selected>/);
   assert.match(renderConfigFlowsSection({ flows: { ...flows, ai_provider: '' }, providers }), /<option value="" selected>Main model<\/option><option value="main">/);
+  const shared = configFlowsContext({ flows, providers });
+  assert.match(shared.cfgChoiceOptionsHTML('providers', { provider_ref: true }, ''), /^<option value="" selected>— no provider —<\/option><option value="main">/, 'other provider fields keep their empty label');
 
-  const numberInputs = [...html.matchAll(/<input class="field-input" type="number"[^>]*value="(\d+)" data-path="(flows\.[a-z_]+)"/g)];
-  assert.deepEqual(numberInputs.map(match => match[2]), ['flows.max_parallel_runs', 'flows.max_parallel_nodes_per_run', 'flows.run_retention_days', 'flows.max_runs_per_flow']);
-  const stateContext = { window: {}, document: { dispatchEvent() {} }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } } };
-  vm.createContext(stateContext);
-  vm.runInContext(read('ui/js/config/state.js'), stateContext);
-  const state = stateContext.window.AuraConfigState;
+  const failed = configFlowsContext({ flows, providers: [], loaded: false });
+  failed.renderFlowsSection(configFlowsSectionMeta);
+  assert.match(failed.content.innerHTML, /<select class="field-select" data-path="flows\.ai_provider" data-config-choice="providers"[^>]*><option value="gone" selected data-config-choice-preserved>gone \(list unavailable\)<\/option><option value="">Main model<\/option><\/select><div class="field-help cfg-choice-unavailable" role="status" data-config-choice-hint="providers">[^<]+<button type="button" class="cfg-btn cfg-btn-sm" data-config-choice-retry="providers">[^<]+<\/button><\/div>/);
+  const select = { value: 'gone', innerHTML: '', dataset: { path: 'flows.ai_provider' } };
+  let hintsRemoved = 0;
+  failed.document.querySelectorAll = selector => (selector === 'select[data-config-choice="providers"]' ? [select]
+    : selector === '[data-config-choice-hint="providers"]' ? [{ remove() { hintsRemoved += 1; } }] : []);
+  failed.providersCache = providers;
+  failed.providersLoaded = true;
+  failed.refreshConfigChoiceSelects('providers');
+  assert.match(select.innerHTML, /^<option value="gone" selected data-config-choice-preserved>gone \(missing\)<\/option><option value="">Main model<\/option><option value="main">/, 'a retry rebuilds the select with the flows empty label');
+  assert.equal(select.value, 'gone');
+  assert.equal(hintsRemoved, 1);
+
+  const numberInputs = [...html.matchAll(/<input class="field-input" type="number" min="(\d+)" max="(\d+)" value="(\d+)" data-path="(flows\.[a-z_]+)"/g)];
+  assert.equal(JSON.stringify(numberInputs.map(match => [match[4], Number(match[1]), Number(match[2])])),
+    JSON.stringify([['flows.max_parallel_runs', 1, 32], ['flows.max_parallel_nodes_per_run', 1, 16], ['flows.run_retention_days', 1, 365], ['flows.max_runs_per_flow', 10, 5000]]));
+  const numberElements = values => numberInputs.map(([, , , value, dataPath]) => ({ type: 'number', step: '', value: values[dataPath] || value, dataset: { path: dataPath }, classList: { contains: () => false } }));
+  const flowRules = Object.fromEntries(Object.entries(shared.window.AuraConfigCatalog.validationRules).filter(([path]) => path.startsWith('flows.')));
+  let state = configStateForTest(flowRules);
   state.init({ flows });
-  const edited = { 'flows.max_parallel_runs': '16', 'flows.run_retention_days': '90' };
-  const elements = numberInputs.map(([, value, dataPath]) => ({ type: 'number', step: '', value: edited[dataPath] || value, dataset: { path: dataPath }, classList: { contains: () => false } }));
-  state.syncFromDOM({ querySelectorAll: () => elements });
+  state.syncFromDOM({ querySelectorAll: () => numberElements({ 'flows.max_parallel_runs': '16', 'flows.run_retention_days': '90' }) });
   assert.equal(JSON.stringify(state.buildPatch()), JSON.stringify({ flows: { max_parallel_runs: 16, run_retention_days: 90 } }), 'number inputs reach the patch as numbers');
+  assert.equal(state.validate().valid, true);
+  state.syncFromDOM({ querySelectorAll: () => numberElements({ 'flows.max_parallel_runs': '40', 'flows.max_parallel_nodes_per_run': '0', 'flows.max_runs_per_flow': '9' }) });
+  const validation = state.validate();
+  assert.equal(validation.valid, false, 'an edit beyond the range blocks the save');
+  assert.equal(JSON.stringify(Array.from(validation.errors, error => [error.path, error.code])),
+    JSON.stringify([['flows.max_parallel_runs', 'max'], ['flows.max_parallel_nodes_per_run', 'min'], ['flows.max_runs_per_flow', 'min']]));
+  for (const language of ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh']) {
+    const common = JSON.parse(read(`ui/lang/config/common/${language}.json`));
+    for (const code of ['min', 'max']) assert.ok(common[`config.precision.validation_${code}`], `${language} translates validation_${code}`);
+  }
+  state = configStateForTest(flowRules);
+  state.init({ flows: { ...flows, max_parallel_runs: 100, max_runs_per_flow: 5 } });
+  assert.equal(state.validate().valid, true, 'a saved value beyond the range (the server clamps it) does not block other saves');
+  state.syncFromDOM({ querySelectorAll: () => numberElements({ 'flows.max_parallel_runs': '100', 'flows.max_runs_per_flow': '5' }) });
+  assert.equal(state.validate().valid, true, 'an unchanged saved value stays out of the patch and the check');
 
   assert.match(html, /<a class="btn-save dc-test-btn" href="\/desktop\?app=easydrag">Open EasyDrag<\/a>/);
   assert.doesNotMatch(renderConfigFlowsSection({ flows: { ...flows, enabled: false }, providers }), /href="\/desktop/, 'no link while flows are off');
@@ -2638,8 +2714,27 @@ function testConfigFlowsSection() {
     assert.match(markup, /cfg-toggle-disabled/, `${dataPath} looks disabled`);
     assert.match(markup, /aria-disabled="true"/, `${dataPath} is announced as disabled`);
     assert.match(markup, /aria-describedby="flows-agent-note"/);
-    assert.doesNotMatch(markup, /onclick/, `${dataPath} cannot be switched`);
+    assert.doesNotMatch(markup, /onclick/, `${dataPath} has no click handler`);
+    const context = configFlowsContext({ flows, providers });
+    const element = fakeConfigToggle(markup);
+    const wasOn = element.classList.contains('on');
+    context.toggleBool(element);
+    assert.equal(element.classList.contains('on'), wasOn, `toggleBool leaves ${dataPath} unchanged`);
+    assert.equal(context.dirtyMarks, 0, `toggleBool does not mark ${dataPath} dirty`);
+    state = configStateForTest();
+    state.init({ flows });
+    state.syncFromDOM({ querySelectorAll: () => [element] });
+    assert.equal(state.isDirty(), false, `${dataPath} leaves the draft clean`);
   }
+  const control = configFlowsContext({ flows, providers });
+  const enabled = fakeConfigToggle(toggle('flows.enabled'));
+  control.toggleBool(enabled);
+  assert.equal(enabled.classList.contains('on'), false, 'the unlocked switch does change');
+  assert.equal(control.dirtyMarks, 1);
+  state = configStateForTest();
+  state.init({ flows });
+  state.syncFromDOM({ querySelectorAll: () => [enabled] });
+  assert.equal(JSON.stringify(state.dirtyPaths()), JSON.stringify(['flows.enabled']));
   assert.match(toggle('flows.agent.read_only'), /class="toggle on cfg-toggle-disabled"/, 'the saved value stays visible');
   assert.match(html, /id="flows-agent-note">The agent options take effect once the agent can work with flows\.</);
 }

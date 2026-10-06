@@ -62,7 +62,13 @@
         'auth.session_timeout_hours': { type: 'number', min: 1, max: 8760 },
         'agent.context_window': { type: 'number', min: 0 },
         'circuit_breaker.max_tool_calls': { type: 'number', min: 1 },
-        'circuit_breaker.llm_timeout_seconds': { type: 'number', min: 1 }
+        'circuit_breaker.llm_timeout_seconds': { type: 'number', min: 1 },
+        // EasyDrag flows limits (cfg/flows.js reads the ranges from here). The server clamps saved
+        // values, so changedOnly checks edits only and a hand-written value never blocks other saves.
+        'flows.max_parallel_runs': { type: 'number', min: 1, max: 32, changedOnly: true },
+        'flows.max_parallel_nodes_per_run': { type: 'number', min: 1, max: 16, changedOnly: true },
+        'flows.run_retention_days': { type: 'number', min: 1, max: 365, changedOnly: true },
+        'flows.max_runs_per_flow': { type: 'number', min: 10, max: 5000, changedOnly: true }
     });
 
     window.AuraConfigCatalog = Object.freeze({
