@@ -338,7 +338,7 @@ Webhooks ermöglichen es externen Diensten, AuraGo zu benachrichtigen.
 
 **Web-UI:** Config → Integrationen → Webhooks → aktivieren und Limits konfigurieren. Einzelne Webhooks werden über die API oder das Dashboard verwaltet.
 
-Eingehende Authentifizierung nutzt `Authorization: Bearer <Token>`; ein Query-Parameter `?token=<Token>` wird mit 401 abgelehnt, weil er in Zugriffslogs, Zwischenservern und im Browserverlauf landen würde. Provider ohne frei konfigurierbare Header können stattdessen einen nur signierten Webhook (Signatur-Header und Secret) nutzen. Die Zustellung erfolgt asynchron. Das Rate-Limit arbeitet pro Token als Token-Bucket; der Wert pro Minute ist zugleich die Burst-Kapazität. Neue Installationen starten mit 60 Anfragen pro Minute; bestehende Konfigurationen behalten ihren `rate_limit`-Wert (`0` = unbegrenzt), und fehlt der Schlüssel, schreibt ein Update `0`, das bisherige Verhalten. Die Webhooks-Seite zeigt den aktuellen Wert, und der Sicherheitscheck warnt bei aus dem Internet erreichbaren Instanzen vor einem unbegrenzten Limit.
+Eingehende Authentifizierung nutzt `Authorization: Bearer <Token>`; ein Query-Parameter `?token=<Token>` wird mit 401 abgelehnt, weil er in Zugriffslogs, Zwischenservern und im Browserverlauf landen würde. Provider ohne frei konfigurierbare Header können stattdessen einen nur signierten Webhook (Signatur-Header und Secret) nutzen. Die Zustellung erfolgt asynchron. Das Rate-Limit arbeitet als Token-Bucket pro Webhook-Token (bei nur signierten Webhooks pro Webhook und Quell-IP); der Wert pro Minute ist zugleich die Burst-Kapazität. Neue Installationen starten mit 60 Anfragen pro Minute; bestehende Konfigurationen behalten ihren `rate_limit`-Wert (`0` = unbegrenzt), und fehlt der Schlüssel, schreibt ein Update `0`, das bisherige Verhalten. Die Webhooks-Seite zeigt den aktuellen Wert, und der Sicherheitscheck warnt bei aus dem Internet erreichbaren Instanzen vor einem unbegrenzten Limit.
 
 URLs ausgehender Webhooks, sensible Header und benutzerdefinierte Body-Templates werden verschlüsselt im Vault gespeichert und in API sowie Web-UI nur maskiert angezeigt. Sie dürfen nicht in `config.yaml` eingetragen werden.
 
@@ -347,7 +347,7 @@ URLs ausgehender Webhooks, sensible Header und benutzerdefinierte Body-Templates
 webhooks:
   enabled: true
   max_payload_size: 65536
-  rate_limit: 60 # Token-Bucket pro Token: Auffüllung/Minute und Burst-Kapazität
+  rate_limit: 60 # Token-Bucket pro Webhook-Token (nur signiert: pro Webhook und Quell-IP): Auffüllung/Minute und Burst-Kapazität; 0 = unbegrenzt
 ```
 
 ## Budget Tracking

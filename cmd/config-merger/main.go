@@ -75,22 +75,22 @@ func main() {
 	if parseErr == nil && srcMap != nil {
 		// ── Happy path: user config is valid YAML ──
 		missing := findMissingTopKeys(tmplMap, srcMap)
-		merged, typeFixed, safetyAdjusted, sanitized := mergeWithTemplate(tmplMap, srcMap)
+		res := mergeWithTemplate(tmplMap, srcMap)
 
-		if len(missing) == 0 && !sanitized && !typeFixed && !safetyAdjusted {
+		if len(missing) == 0 && !res.Sanitized && !res.TypeFixed && !res.SafetyAdjusted {
 			fmt.Println("Config is up to date")
 			if *outputPath != *sourcePath {
-				atomicWriteYAML(*outputPath, merged)
+				atomicWriteYAML(*outputPath, res.Config)
 			}
 			return
 		}
 
-		atomicWriteYAML(*outputPath, merged)
+		atomicWriteYAML(*outputPath, res.Config)
 		if len(missing) > 0 {
 			sort.Strings(missing)
 			fmt.Printf("Added %d new section(s): %s\n", len(missing), strings.Join(missing, ", "))
 		}
-		if sanitized || typeFixed {
+		if res.Sanitized || res.TypeFixed {
 			fmt.Println("Applied data shape fixes")
 		}
 		return
@@ -111,7 +111,7 @@ func main() {
 
 	var merged map[string]interface{}
 	if len(salvaged) > 0 {
-		merged, _, _, _ = mergeWithTemplate(tmplMap, salvaged)
+		merged = mergeWithTemplate(tmplMap, salvaged).Config
 		total := countTopLevelKeys(srcData)
 		log.Printf("Recovered %d/%d section(s); template defaults used for the rest", len(salvaged), total)
 	} else {
@@ -153,17 +153,49 @@ func parseYAMLMap(content string) (map[string]interface{}, error) {
 
 // ── Deep Merge ───────────────────────────────────────────────────────────────
 
-// mergeWithTemplate overlays user onto tmpl and applies the fixes in order:
-// enforceTemplateTypes first, so a null or mistyped user value or section
-// falls back to the template's shape; then applyUpgradeSafetyDefaults, which
-// decides from the raw user config and can therefore still see such a null
-// and keep the pre-upgrade behaviour; then sanitizeMergedConfig.
-func mergeWithTemplate(tmpl, user map[string]interface{}) (merged map[string]interface{}, typeFixed, safetyAdjusted, sanitized bool) {
-	merged = deepMerge(tmpl, user)
-	typeFixed = enforceTemplateTypes(merged, tmpl)
-	safetyAdjusted = applyUpgradeSafetyDefaults(merged, user)
-	sanitized = sanitizeMergedConfig(merged)
-	return merged, typeFixed, safetyAdjusted, sanitized
+// mergeResult is the merged config and which fix-up passes changed it.
+type mergeResult struct {
+	Config         map[string]interface{}
+	TypeFixed      bool
+	SafetyAdjusted bool
+	Sanitized      bool
+}
+
+// mergeWithTemplate overlays user onto a deep copy of tmpl and applies the
+// fixes in order: enforceTemplateTypes first, so a null or mistyped user value
+// or section falls back to the template's shape; then
+// applyUpgradeSafetyDefaults, which decides from the raw user config and can
+// therefore still see such a null and keep the pre-upgrade behaviour; then
+// sanitizeMergedConfig. deepMerge and the fix-ups share and mutate nested
+// template maps, so the copy keeps tmpl itself unmodified.
+func mergeWithTemplate(tmpl, user map[string]interface{}) mergeResult {
+	base, _ := deepCopyYAML(tmpl).(map[string]interface{})
+	merged := deepMerge(base, user)
+	res := mergeResult{Config: merged}
+	res.TypeFixed = enforceTemplateTypes(merged, base)
+	res.SafetyAdjusted = applyUpgradeSafetyDefaults(merged, user)
+	res.Sanitized = sanitizeMergedConfig(merged)
+	return res
+}
+
+// deepCopyYAML copies the maps and slices of a parsed YAML value.
+func deepCopyYAML(v interface{}) interface{} {
+	switch v := v.(type) {
+	case map[string]interface{}:
+		out := make(map[string]interface{}, len(v))
+		for k, e := range v {
+			out[k] = deepCopyYAML(e)
+		}
+		return out
+	case []interface{}:
+		out := make([]interface{}, len(v))
+		for i, e := range v {
+			out[i] = deepCopyYAML(e)
+		}
+		return out
+	default:
+		return v
+	}
 }
 
 // deepMerge recursively merges overlay into base and returns a new map.
@@ -202,19 +234,27 @@ func deepMerge(base, overlay map[string]interface{}) map[string]interface{} {
 }
 
 // applyUpgradeSafetyDefaults keeps template defaults from silently changing
-// behaviour on existing installations when the user config lacks an explicit
-// value: dangerous defaults must not activate features, and new gates must not
-// switch off what the installation already used. Like the
-// allow_unsandboxed_shell rule, the web scraper and webhook rate-limit rules
-// fire only for a missing key; fresh installs copy the template, which writes
+// behaviour on existing installations when the user config has no value for
+// a key: dangerous defaults must not activate features, and new gates must not
+// switch off what the installation already used. Each rule fires for a
+// missing key, a null value or a null parent section, all of which
+// config.Load treats as unset; fresh installs copy the template, which writes
 // every key, so they keep the template's safer defaults.
+//
+// Contract: the rules read the owner's intent only from the raw user map
+// (never from merged, where enforceTemplateTypes has already replaced nulls
+// and mistyped values with template defaults) and write only typed literals
+// into merged, because type enforcement has already run (see
+// mergeWithTemplate).
 func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 	changed := false
 
+	// config.Load has no auth.enabled default: a config without a value there
+	// runs without login, so the template's true must not lock the owner out.
+	// Indexing a nil map covers a missing or null auth section too.
 	if authMap, ok := asStringMap(merged["auth"]); ok {
-		userAuth, userHasAuth := asStringMap(user["auth"])
-		_, userSetEnabled := userAuth["enabled"]
-		if (!userHasAuth || !userSetEnabled) && authMap["enabled"] == true {
+		userAuth, _ := asStringMap(user["auth"])
+		if userAuth["enabled"] == nil && authMap["enabled"] == true {
 			authMap["enabled"] = false
 			merged["auth"] = authMap
 			changed = true
@@ -224,11 +264,13 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 	// The non-Windows host shell without a sandbox now needs
 	// agent.allow_unsandboxed_shell (or allow_unsafe_host_execution). Materialise
 	// the key on every upgrade so a merged config never relies on the load-time
-	// grandfather: true where the shell was already enabled, false otherwise.
+	// grandfather: true where the shell was already enabled (in any yaml.v3
+	// bool spelling, as Load reads allow_shell), false otherwise.
 	userAgent, _ := asStringMap(user["agent"])
 	if _, userSetUnsandboxed := userAgent["allow_unsandboxed_shell"]; !userSetUnsandboxed {
 		if agentMap, ok := asStringMap(merged["agent"]); ok {
-			agentMap["allow_unsandboxed_shell"] = userAgent["allow_shell"] == true
+			shellOn, _ := yamlBoolValue(userAgent["allow_shell"])
+			agentMap["allow_unsandboxed_shell"] = shellOn
 			merged["agent"] = agentMap
 			changed = true
 		}
@@ -272,25 +314,49 @@ func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
 
 // legacyWebScraperEnabled returns the scraper state config.Load derived for a
 // config without tools.web_scraper.enabled: the code default true when the
-// legacy agent.allow_web_scraper is absent or null, else its value. Strings
-// follow yaml.v3's typed-bool spellings (the YAML 1.1 y/yes/on and n/no/off
-// forms the generic map keeps as strings) plus quoted true/false; any other
-// value counts as false, the safe side, as enforceTemplateTypes falls back to
-// the template's false for it.
+// legacy agent.allow_web_scraper is absent or null, else its value in any
+// yaml.v3 bool spelling. Any other value counts as false, the safe side, as
+// enforceTemplateTypes falls back to the template's false for it.
 func legacyWebScraperEnabled(userAgent map[string]interface{}) bool {
-	switch v := userAgent["allow_web_scraper"].(type) {
-	case nil:
+	v := userAgent["allow_web_scraper"]
+	if v == nil {
 		return true
+	}
+	enabled, ok := yamlBoolValue(v)
+	return ok && enabled
+}
+
+// yamlBoolSpelling interprets s the way yaml.v3 does when it decodes a scalar
+// into a typed bool (config.Load): the YAML 1.1 forms y/yes/on and n/no/off in
+// the three spellings yaml.v3 lists, which a generic map keeps as strings,
+// and true/false, accepted here in any case as enforceTemplateTypes always
+// did for quoted values.
+func yamlBoolSpelling(s string) (value, ok bool) {
+	switch s {
+	case "y", "Y", "yes", "Yes", "YES", "on", "On", "ON":
+		return true, true
+	case "n", "N", "no", "No", "NO", "off", "Off", "OFF":
+		return false, true
+	}
+	switch strings.ToLower(s) {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	}
+	return false, false
+}
+
+// yamlBoolValue reports the bool a parsed user-config value stands for: a
+// bool, or a string yamlBoolSpelling accepts.
+func yamlBoolValue(v interface{}) (value, ok bool) {
+	switch v := v.(type) {
 	case bool:
-		return v
+		return v, true
 	case string:
-		switch v {
-		case "y", "Y", "yes", "Yes", "YES", "on", "On", "ON", "true", "True", "TRUE":
-			return true
-		}
-		return false
+		return yamlBoolSpelling(v)
 	default:
-		return false
+		return false, false
 	}
 }
 
@@ -427,7 +493,8 @@ func truncate(s string, maxLen int) string {
 // enforceTemplateTypes recursively walks merged and compares leaf value types
 // against the template. When the template defines a specific type (array, map,
 // bool, int) but the merged value has a different type (typically a string from
-// a corrupted or old-format config), the template default is used instead.
+// a corrupted or old-format config), the template default is used instead;
+// bool slots keep strings in a yaml.v3 bool spelling (yamlBoolSpelling).
 // This prevents type mismatches from causing config.Load() unmarshal errors.
 func enforceTemplateTypes(merged, tmpl map[string]interface{}) bool {
 	fixed := false
@@ -466,16 +533,11 @@ func enforceTemplateTypes(merged, tmpl map[string]interface{}) bool {
 			}
 		case bool:
 			if _, ok := mergedVal.(bool); !ok {
-				// Try to parse string "true"/"false"
-				if s, ok := mergedVal.(string); ok {
-					switch strings.ToLower(s) {
-					case "true":
-						merged[key] = true
-					case "false":
-						merged[key] = false
-					default:
-						merged[key] = tmplVal
-					}
+				// A string in a yaml.v3 bool spelling (yes/on/no/off/...,
+				// true/false) keeps the owner's value, as config.Load would
+				// read it; anything else falls back to the template.
+				if b, ok := yamlBoolValue(mergedVal); ok {
+					merged[key] = b
 				} else {
 					merged[key] = tmplVal
 				}

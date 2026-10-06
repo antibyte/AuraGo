@@ -394,7 +394,7 @@ Receive HTTP events from external services.
 3. Create a new webhook in the Web UI, choose a preset (generic, GitHub, GitLab, etc.), and copy the generated URL.
 4. Paste the URL into the external service (e.g., GitHub repository settings).
 
-Incoming authentication uses `Authorization: Bearer <token>`; a `?token=<token>` query parameter is rejected with 401 because it would leak into access logs, intermediary logs, and browser history. Providers that cannot set headers can use a signed-only webhook (signature header and secret) instead. Incoming delivery is asynchronous. The rate limit is enforced per token as a token bucket, so the configured requests-per-minute value is also the burst capacity. New installations start with a limit of 60 requests per minute; existing configurations keep their `rate_limit` value (`0` = unlimited), and where a configuration never set the key, an upgrade writes `0`, the previous behaviour. The Webhooks page shows the current value, and the security check warns about an unlimited rate on internet-facing instances.
+Incoming authentication uses `Authorization: Bearer <token>`; a `?token=<token>` query parameter is rejected with 401 because it would leak into access logs, intermediary logs, and browser history. Providers that cannot set headers can use a signed-only webhook (signature header and secret) instead. Incoming delivery is asynchronous. The rate limit is a token bucket per webhook token (for signed-only webhooks, per webhook and source IP), so the configured requests-per-minute value is also the burst capacity. New installations start with a limit of 60 requests per minute; existing configurations keep their `rate_limit` value (`0` = unlimited), and where a configuration never set the key, an upgrade writes `0`, the previous behaviour. The Webhooks page shows the current value, and the security check warns about an unlimited rate on internet-facing instances.
 
 Outgoing webhook URLs, sensitive headers, and custom body templates are encrypted in the Vault and are only shown as masks in the API and Web UI. They must not be added to `config.yaml`.
 
@@ -403,7 +403,7 @@ Outgoing webhook URLs, sensitive headers, and custom body templates are encrypte
 webhooks:
     enabled: true
     max_payload_size: 65536
-    rate_limit: 60 # per-token token bucket: refill/minute and burst capacity
+    rate_limit: 60 # token bucket per webhook token (signed-only: per webhook and source IP): refill/minute and burst capacity; 0 = unlimited
 ```
 
 ---
