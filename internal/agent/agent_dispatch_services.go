@@ -628,7 +628,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed local LLM container is blocked. Use the administrator Local LLM API."}`
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.BoringGarageOwner] {
-				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API."}`
+				return dockerAgentError("docker_managed_garage_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's managed Boring Computers Garage container is blocked. Use the Virtual Computers administrator API.")
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.AppOwner] {
 				return dockerAgentError("docker_managed_aurago_resource", "Direct inspection, lifecycle, log, file, or process access to AuraGo's application container is blocked.")
@@ -641,7 +641,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM model and runtime-key volumes cannot be mounted through the Docker agent tool."}`
 			}
 			if dockerRequestMountsProtectedGaragePath(req.Volumes) {
-				return `Tool Output: {"status":"error","message":"AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool."}`
+				return dockerAgentError("docker_managed_garage_resource", "AuraGo's managed Boring Computers Garage data paths cannot be mounted through the Docker agent tool.")
 			}
 			if dockerProtectedLocalLLMVolumeName(req.Name) {
 				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`

@@ -810,7 +810,7 @@ func dockerComposeOwnerDenial(owner string) string {
 	case dockerutil.LocalLLMOwner, acestep.Owner:
 		return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed local LLM volumes is blocked."}`
 	case dockerutil.BoringGarageOwner:
-		return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed Boring Computers Garage is blocked."}`
+		return dockerAgentError("docker_managed_garage_resource", "Docker Compose access to AuraGo's managed Boring Computers Garage is blocked.")
 	case dockerutil.HomepageOwner:
 		return dockerAgentError("docker_managed_homepage_resource", "Docker Compose access to AuraGo-managed homepage resources is blocked. Use homepage_project, homepage_file, or homepage_deploy.")
 	case dockerutil.AppOwner:

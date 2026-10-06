@@ -194,6 +194,7 @@ Use `direction: "from_container"` or `"to_container"`. Path maps to the host's a
 - `run` = `create` + auto-`start` in a single call
 - `auto_remove` defaults to `false`, is valid only for `run`, and conflicts with every restart policy other than `no`
 - `aurago-homepage`, `aurago-homepage-web`, and the `aurago-homepage` image repository cannot be managed with this tool
+- The names `aurago` (and compose replicas such as `stack-aurago-1`) and `aurago-boring-garage` are reserved the same way: they cannot be used as `name` for `create`/`run`, even next to a different `container_id`, and those containers cannot be inspected, controlled or read through this tool
 - Logs are truncated to ~8000 chars to avoid flooding the context
 - `force: true` on remove will kill a running container before removing it
 - Port mapping format: `{"container_port": "host_port"}` — both as strings
