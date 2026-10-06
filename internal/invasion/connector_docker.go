@@ -379,14 +379,16 @@ func (c *DockerConnector) httpClient(nest NestRecord, secret []byte) *http.Clien
 	if nest.DeployMethod == "docker_ssh" {
 		// One SSH connection per Engine connection. Keep-alives are off so every
 		// connection, and with it its SSH client, closes after its response.
+		// The version probe's first dial includes the SSH login, so it gets
+		// dockerSSHProbeTimeout instead of the default probe budget.
 		return &http.Client{
 			Timeout: 30 * time.Second,
-			Transport: dockerutil.NewVersionTransport(&http.Transport{
+			Transport: dockerutil.NewVersionTransportWithProbeTimeout(&http.Transport{
 				DisableKeepAlives: true,
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 					return dialDockerEngineOverSSH(ctx, nest, secret)
 				},
-			}),
+			}, dockerSSHProbeTimeout),
 		}
 	}
 	if DockerRemoteUsesTLS(nest) {
@@ -437,6 +439,15 @@ func (t failingDockerTransport) RoundTrip(req *http.Request) (*http.Response, er
 	return nil, t.err
 }
 
+// dockerSSHDialBudget is remote.DialSSH's dial and handshake budget
+// (GetSSHConfig's ClientConfig.Timeout); a test keeps both equal.
+const dockerSSHDialBudget = 10 * time.Second
+
+// dockerSSHProbeTimeout bounds the Engine version probe for docker_ssh. Its
+// first dial includes a full SSH login, so it covers the SSH dial budget and
+// leaves 10 s for the socket open and /version (other transports: 5 s total).
+const dockerSSHProbeTimeout = 20 * time.Second
+
 // dockerSSHEngineSocket is the Engine socket a docker_ssh nest reaches through SSH.
 const dockerSSHEngineSocket = "/var/run/docker.sock"
 
@@ -444,7 +455,8 @@ const dockerSSHEngineSocket = "/var/run/docker.sock"
 // socket when no version probe precedes it, and after the probe gave up:
 // net/http detaches the dial from the request, so without it an authenticated
 // sshd that never answers the open would keep the SSH client and its
-// goroutines alive forever. Operators see the probe's 5 s timeout first.
+// goroutines alive forever. The 20 s version probe (dockerSSHProbeTimeout)
+// usually ends first.
 const dockerSSHSocketOpenBudget = 10 * time.Second
 
 // dockerSSHSocketOpenTimeout is the budget in use; tests shorten it.
