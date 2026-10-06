@@ -52,7 +52,7 @@
   "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Remoto) usa HTTP non cifrato: la configurazione dell'egg, con chiave condivisa, chiave del vault e chiave API ereditata, attraversa la rete in chiaro, e l'API Docker remota accetta comandi senza autenticazione. Usalo solo in una rete isolata.",
   "invasion.docker_ssh_hint": "Esegue il container dell'egg sul Docker Engine della destinazione tramite una connessione SSH cifrata (socket /var/run/docker.sock). Usa host, porta, nome utente e secret di questo nest; l'utente SSH deve poter accedere al socket di Docker e la chiave host deve essere in known_hosts.",
   "invasion.docker_tls": "TLS Docker",
-  "invasion.docker_tls_ca": "Certificato CA (PEM, facoltativo; vuoto usa i certificati di sistema)",
+  "invasion.docker_tls_ca": "Certificato CA (PEM, facoltativo; vuoto mantiene una CA salvata, altrimenti usa i certificati di sistema)",
   "invasion.docker_tls_cert": "Certificato client (PEM)",
   "invasion.docker_tls_key": "Chiave privata del client (PEM)",
   "invasion.docker_tls_mtls": "TLS reciproco (con certificato client)",

@@ -141,8 +141,8 @@ Es gibt **keinen Deployments-Tab**. Deployment-Historie ist nur über die REST A
 | Host / Port / Username | Für SSH und Docker; bei Local ausgeblendet, außer mit der Deploy-Methode `Docker (über SSH)` |
 | Secret | SSH-Key oder Passwort; wird im Vault gespeichert |
 | Assign Egg | Egg auswählen oder leer lassen |
-| Deploy Method | `SSH`, `Docker (Remote)`, `Docker (über SSH)` oder `Docker (Local)` |
-| Docker TLS | Nur `Docker (Remote)`: `Aus`, `TLS` oder `Mutual TLS`, dazu CA / Client-Zertifikat / Schlüssel |
+| Deploy Method | `SSH`, `Docker (Entfernt)`, `Docker (über SSH)` oder `Docker (Lokal)` |
+| Docker-TLS | Nur `Docker (Entfernt)`: `Aus`, `TLS` oder `Mutual TLS`, dazu CA / Client-Zertifikat / Schlüssel |
 | Target Architecture | `linux/amd64` oder `linux/arm64` |
 | Route | Wie das Egg den Master-WebSocket erreicht |
 | Route Config | JSON, z. B. `{"tunnel_port":8443}` oder volle WebSocket-URL bei `custom` |

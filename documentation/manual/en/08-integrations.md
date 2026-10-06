@@ -2166,6 +2166,8 @@ Headless browser automation for forms, screenshots, and web interactions.
 
 The Browser Automation sidecar requires `AURAGO_BROWSER_AUTOMATION_TOKEN` by default. AuraGo injects it automatically for managed sidecars; set it explicitly when running the sidecar manually. Use `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` only for isolated local development.
 
+If the sidecar image is missing and `browser_automation.auto_build` is on (the default), AuraGo builds `Dockerfile.browser_automation` from `browser_automation.dockerfile_dir` with the Docker CLI on the engine in `docker.host`, the engine that also runs the sidecar. An inherited `DOCKER_HOST` or `DOCKER_CONTEXT` does not redirect the build. If that engine refuses the build with a 403-style answer (a socket proxy with `BUILD=0`), AuraGo retries once on the Docker CLI's default engine (`DOCKER_HOST` from AuraGo's environment, else the local socket) when that is a different engine; if `docker.host` still has no image afterwards, the build fails with a hint. Release installs ship neither the Dockerfile nor the sidecar sources: set `browser_automation.dockerfile_dir` to an AuraGo source checkout (relative paths start at AuraGo's working directory), or build `aurago-browser-automation:latest` yourself.
+
 ### YAML Reference
 ```yaml
 browser_automation:

@@ -1665,6 +1665,8 @@ Headless-Browser-Automatisierung für Formulare, Screenshots und Web-Interaktion
 
 Der Browser-Automation-Sidecar verlangt standardmäßig `AURAGO_BROWSER_AUTOMATION_TOKEN`. AuraGo setzt es bei verwalteten Sidecars automatisch; bei manuell gestarteten Sidecars muss es explizit gesetzt werden. Nutze `AURAGO_BROWSER_AUTOMATION_ALLOW_UNAUTH=1` nur für isolierte lokale Entwicklung.
 
+Fehlt das Sidecar-Image und ist `browser_automation.auto_build` aktiv (Standard), baut AuraGo `Dockerfile.browser_automation` aus `browser_automation.dockerfile_dir` mit der Docker-CLI auf der Engine in `docker.host`, die auch den Sidecar startet. Ein geerbtes `DOCKER_HOST` oder `DOCKER_CONTEXT` lenkt den Build nicht um. Lehnt diese Engine den Build mit einer 403-Antwort ab (Socket-Proxy mit `BUILD=0`), versucht AuraGo es einmal auf der Standard-Engine der Docker-CLI (`DOCKER_HOST` aus der Umgebung von AuraGo, sonst der lokale Socket), sofern das eine andere Engine ist; findet `docker.host` das Image danach immer noch nicht, schlägt der Build mit einem Hinweis fehl. Release-Installationen enthalten weder das Dockerfile noch die Sidecar-Quellen: Setze `browser_automation.dockerfile_dir` auf einen AuraGo-Quellcode-Checkout (relative Pfade gelten ab dem Arbeitsverzeichnis von AuraGo) oder baue `aurago-browser-automation:latest` selbst.
+
 ### YAML-Referenz
 ```yaml
 browser_automation:

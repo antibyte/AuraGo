@@ -52,7 +52,7 @@
   "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Remote) uses unencrypted HTTP: the egg configuration, including its shared key, vault key and inherited API key, crosses the network in plain text, and the remote Docker API accepts commands without authentication. Use it only on an isolated network.",
   "invasion.docker_ssh_hint": "Runs the egg container on the target's Docker Engine through an encrypted SSH connection (socket /var/run/docker.sock). Uses this nest's host, port, username and secret; the SSH user needs access to the Docker socket, and the host key must be in known_hosts.",
   "invasion.docker_tls": "Docker TLS",
-  "invasion.docker_tls_ca": "CA certificate (PEM, optional; empty uses the system certificates)",
+  "invasion.docker_tls_ca": "CA certificate (PEM, optional; empty keeps a stored CA, otherwise the system certificates are used)",
   "invasion.docker_tls_cert": "Client certificate (PEM)",
   "invasion.docker_tls_key": "Client private key (PEM)",
   "invasion.docker_tls_mtls": "Mutual TLS (with client certificate)",

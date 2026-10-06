@@ -52,7 +52,7 @@
   "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Zdalny) używa nieszyfrowanego HTTP: konfiguracja egga wraz z kluczem współdzielonym, kluczem sejfu i odziedziczonym kluczem API przechodzi przez sieć otwartym tekstem, a zdalne API Dockera przyjmuje polecenia bez uwierzytelnienia. Używaj go tylko w odizolowanej sieci.",
   "invasion.docker_ssh_hint": "Uruchamia kontener egga na Docker Engine celu przez szyfrowane połączenie SSH (gniazdo /var/run/docker.sock). Używa hosta, portu, nazwy użytkownika i sekretu tego nestu; użytkownik SSH potrzebuje dostępu do gniazda Dockera, a klucz hosta musi być w known_hosts.",
   "invasion.docker_tls": "TLS Dockera",
-  "invasion.docker_tls_ca": "Certyfikat CA (PEM, opcjonalny; puste pole używa certyfikatów systemowych)",
+  "invasion.docker_tls_ca": "Certyfikat CA (PEM, opcjonalny; puste pole zachowuje zapisany certyfikat CA, w przeciwnym razie używane są certyfikaty systemowe)",
   "invasion.docker_tls_cert": "Certyfikat klienta (PEM)",
   "invasion.docker_tls_key": "Klucz prywatny klienta (PEM)",
   "invasion.docker_tls_mtls": "Wzajemne TLS (z certyfikatem klienta)",

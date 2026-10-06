@@ -52,7 +52,7 @@
   "invasion.docker_remote_plaintext_hint": "⚠️ Docker (Fjärr) använder okrypterad HTTP: egg-konfigurationen med delad nyckel, valvnyckel och ärvd API-nyckel skickas i klartext över nätverket, och det fjärranslutna Docker-API:t tar emot kommandon utan autentisering. Använd det bara i ett isolerat nätverk.",
   "invasion.docker_ssh_hint": "Kör egg-containern på målets Docker Engine över en krypterad SSH-anslutning (socket /var/run/docker.sock). Använder värd, port, användarnamn och secret för detta nest; SSH-användaren behöver åtkomst till Docker-socketen och värdnyckeln måste finnas i known_hosts.",
   "invasion.docker_tls": "Docker-TLS",
-  "invasion.docker_tls_ca": "CA-certifikat (PEM, valfritt; tomt använder systemets certifikat)",
+  "invasion.docker_tls_ca": "CA-certifikat (PEM, valfritt; tomt behåller en sparad CA, annars används systemets certifikat)",
   "invasion.docker_tls_cert": "Klientcertifikat (PEM)",
   "invasion.docker_tls_key": "Klientens privata nyckel (PEM)",
   "invasion.docker_tls_mtls": "Ömsesidig TLS (med klientcertifikat)",

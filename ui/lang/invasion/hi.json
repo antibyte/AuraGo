@@ -52,7 +52,7 @@
   "invasion.docker_remote_plaintext_hint": "⚠️ Docker (रिमोट) बिना एन्क्रिप्शन वाला HTTP उपयोग करता है: egg कॉन्फ़िगरेशन, उसकी साझा कुंजी, vault कुंजी और विरासत में मिली API कुंजी सहित, नेटवर्क पर सादे टेक्स्ट में जाता है, और रिमोट Docker API बिना प्रमाणीकरण के कमांड स्वीकार करता है। इसे केवल अलग-थलग नेटवर्क पर उपयोग करें।",
   "invasion.docker_ssh_hint": "egg कंटेनर को लक्ष्य के Docker Engine पर एन्क्रिप्टेड SSH कनेक्शन के ज़रिए चलाता है (socket /var/run/docker.sock)। इस nest का होस्ट, पोर्ट, उपयोगकर्ता नाम और secret उपयोग होता है; SSH उपयोगकर्ता को Docker socket तक पहुंच चाहिए, और होस्ट कुंजी known_hosts में होनी चाहिए।",
   "invasion.docker_tls": "Docker TLS",
-  "invasion.docker_tls_ca": "CA प्रमाणपत्र (PEM, वैकल्पिक; खाली होने पर सिस्टम प्रमाणपत्र उपयोग होते हैं)",
+  "invasion.docker_tls_ca": "CA प्रमाणपत्र (PEM, वैकल्पिक; खाली होने पर संग्रहीत CA बना रहता है, अन्यथा सिस्टम प्रमाणपत्र उपयोग होते हैं)",
   "invasion.docker_tls_cert": "क्लाइंट प्रमाणपत्र (PEM)",
   "invasion.docker_tls_key": "क्लाइंट निजी कुंजी (PEM)",
   "invasion.docker_tls_mtls": "म्यूचुअल TLS (क्लाइंट प्रमाणपत्र के साथ)",

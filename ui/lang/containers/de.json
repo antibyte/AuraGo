@@ -30,7 +30,7 @@
   "containers.protected_badge": "Von AuraGo verwaltet",
   "containers.protected_endpoint_warning": "AuraGo erreicht Docker über diesen Container. Änderungen können AuraGo von Docker trennen.",
   "containers.protected_network_warning": "AuraGo läuft in diesem Container oder teilt sich das Netzwerk mit ihm. Änderungen können diese AuraGo-Instanz beenden oder ihr Netzwerk trennen.",
-  "containers.protected_self_warning": "AuraGo läuft in diesem Container. Wenn du ihn entfernst oder änderst, kann diese AuraGo-Instanz enden.",
+  "containers.protected_self_warning": "AuraGo läuft in diesem Container. Wenn Du ihn entfernst oder änderst, kann diese AuraGo-Instanz enden.",
   "containers.protected_terminal_confirm": "Diese Shell kann AuraGos Daten und Geheimnisse in diesem Container lesen. Trotzdem öffnen?",
   "containers.protected_terminal_confirm_btn": "Shell öffnen",
   "containers.protected_terminal_title": "Shell in geschütztem Container öffnen",

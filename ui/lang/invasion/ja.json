@@ -52,7 +52,7 @@
   "invasion.docker_remote_plaintext_hint": "⚠️ Docker (リモート) は暗号化されていない HTTP を使用します。共有キー、Vault キー、継承された API キーを含む egg の設定が平文でネットワークを通過し、リモートの Docker API は認証なしでコマンドを受け付けます。分離されたネットワークでのみ使用してください。",
   "invasion.docker_ssh_hint": "暗号化された SSH 接続を介して、ターゲットの Docker Engine 上で egg コンテナを実行します（ソケット /var/run/docker.sock）。この nest のホスト、ポート、ユーザー名、シークレットを使用します。SSH ユーザーには Docker ソケットへのアクセス権が必要で、ホストキーが known_hosts に登録されている必要があります。",
   "invasion.docker_tls": "Docker TLS",
-  "invasion.docker_tls_ca": "CA 証明書（PEM、任意。空の場合はシステム証明書を使用）",
+  "invasion.docker_tls_ca": "CA 証明書（PEM、任意。空の場合は保存済みの CA を保持し、ない場合はシステム証明書を使用）",
   "invasion.docker_tls_cert": "クライアント証明書（PEM）",
   "invasion.docker_tls_key": "クライアント秘密鍵（PEM）",
   "invasion.docker_tls_mtls": "相互 TLS（クライアント証明書あり）",

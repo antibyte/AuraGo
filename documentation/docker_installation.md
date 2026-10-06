@@ -171,7 +171,7 @@ The default proxy is attached to an internal `docker-control` network that is sh
   - the bundled CommandCode Store image, built only when its pull fails;
   - local Code Studio runtime images, used instead of the default published image.
 
-  The optional browser automation auto-build calls the Docker CLI, which the AuraGo image does not include, so in this setup it never reaches the build API. Build that image on the host if you need it (`docker compose --profile browser-automation build browser-automation`).
+  The optional browser automation auto-build calls the Docker CLI, which the AuraGo image does not include, so in this setup it never reaches the build API. Build that image on the host if you need it (`docker compose --profile browser-automation build browser-automation`). The Ansible sidecar auto-build (`ansible.auto_build`) also calls the Docker CLI and fails the same way; build `aurago-ansible:latest` on the host from a source checkout (`docker build -f Dockerfile.ansible -t aurago-ansible:latest .`).
 
 `EXEC=1` can be set to `0` only if you use none of these features: the agent's Docker `exec` operation, the Homepage tool, Code Studio terminals, the built-in OpenSCAD compiler container, container terminals (including the CommandCode Store terminal) and the security proxy reload stop working without it.
 
