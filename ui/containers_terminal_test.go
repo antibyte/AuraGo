@@ -398,3 +398,19 @@ func containersJSFunctionBody(t *testing.T, source, name string) string {
 	t.Fatalf("function %s has an unbalanced body", name)
 	return ""
 }
+
+func TestContainersTerminalEndSessionTranslationsExist(t *testing.T) {
+	t.Parallel()
+	requireContainersTranslations(t, []string{
+		"containers.terminal_end_btn",
+		"containers.terminal_end_failed",
+		"containers.terminal_end_hint",
+		"containers.terminal_ending",
+	})
+	html := rawDesktopAssetText(t, "containers.html")
+	for _, marker := range []string{`id="terminal-end-btn"`, `onclick="endTerminalSession()"`, `data-i18n="containers.terminal_end_btn"`, `data-i18n-title="containers.terminal_end_hint"`} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("terminal modal missing End session marker %q", marker)
+		}
+	}
+}

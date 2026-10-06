@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,6 +65,61 @@ var containerTerminalWriteTimeout = 5 * time.Minute
 // time out a write (the Docker exec stream is a net.Conn).
 type containerTerminalWriteDeadliner interface {
 	SetWriteDeadline(time.Time) error
+}
+
+// containerTerminalSessionEnv tags the exec of one terminal session, so End
+// can find exactly that shell.
+const containerTerminalSessionEnv = "AURAGO_TERMINAL_SESSION"
+
+// containerTerminalEndTimeout bounds the two Docker requests of End.
+const containerTerminalEndTimeout = 10 * time.Second
+
+// containerTerminalEndScript sends SIGHUP to the root process of one terminal
+// exec: a process whose parent is outside the container's PID namespace (PPid
+// 0, as every docker exec process starts) and whose environment carries the
+// session tag passed as $1. Daemons started from the shell, such as a tmux or
+// screen server, have another parent and keep running. It needs sed, tr and
+// grep, which busybox and Debian-based images provide.
+const containerTerminalEndScript = `for d in /proc/[0-9]*; do
+  [ "$(sed -n 's/^PPid:[[:space:]]*//p' "$d/status" 2>/dev/null)" = 0 ] || continue
+  tr '\000' '\n' 2>/dev/null < "$d/environ" | grep -qxF "` + containerTerminalSessionEnv + `=$1" || continue
+  kill -HUP "${d#/proc/}" 2>/dev/null
+done`
+
+// containerTerminalEnder ends a session's shell on request. Closing the
+// WebSocket never ends it, so tmux and screen sessions survive a close.
+type containerTerminalEnder interface {
+	End(ctx context.Context) error
+}
+
+func newContainerTerminalNonce() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b[:]), nil
+}
+
+// containerTerminalExecPayload is the exec create body of a terminal session.
+func containerTerminalExecPayload(cmd []string, nonce string) map[string]interface{} {
+	return map[string]interface{}{
+		"AttachStdin":  true,
+		"AttachStdout": true,
+		"AttachStderr": true,
+		"Cmd":          cmd,
+		"Env":          []string{"TERM=xterm-256color", containerTerminalSessionEnv + "=" + nonce},
+		"Tty":          true,
+	}
+}
+
+// containerTerminalEndRequested reports whether a text message asks to end the
+// shell ({"type":"end"}, the Containers page's End session button). Typed and
+// pasted input arrives as binary frames and never matches.
+func containerTerminalEndRequested(payload []byte) bool {
+	var msg struct {
+		Type string `json:"type"`
+	}
+	return json.Unmarshal(payload, &msg) == nil && msg.Type == "end"
 }
 
 var containerTerminalUpgrader = websocket.Upgrader{
@@ -181,6 +238,12 @@ func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, se
 					closeBoth()
 					return
 				}
+			} else if containerTerminalEndRequested(payload) {
+				if ender, ok := session.(containerTerminalEnder); ok {
+					endCtx, cancelEnd := context.WithTimeout(ctx, containerTerminalEndTimeout)
+					_ = ender.End(endCtx) // on failure the page reports that the shell kept running
+					cancelEnd()
+				}
 			}
 		}
 	}
@@ -231,15 +294,11 @@ func (dockerContainerTerminalBackend) CreateSession(ctx context.Context, cfg too
 	if len(cmd) == 0 {
 		cmd = defaultContainerTerminalCommand()
 	}
-	payload := map[string]interface{}{
-		"AttachStdin":  true,
-		"AttachStdout": true,
-		"AttachStderr": true,
-		"Cmd":          cmd,
-		"Env":          []string{"TERM=xterm-256color"},
-		"Tty":          true,
+	nonce, err := newContainerTerminalNonce()
+	if err != nil {
+		return nil, fmt.Errorf("create terminal session tag: %w", err)
 	}
-	body, _ := json.Marshal(payload)
+	body, _ := json.Marshal(containerTerminalExecPayload(cmd, nonce))
 	data, code, err := tools.DockerRequestContext(ctx, cfg, http.MethodPost, "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
 	if err != nil {
 		return nil, err
@@ -260,15 +319,17 @@ func (dockerContainerTerminalBackend) CreateSession(ctx context.Context, cfg too
 		return nil, err
 	}
 
-	session := &dockerContainerTerminalSession{cfg: cfg, execID: created.ID, stream: stream}
+	session := &dockerContainerTerminalSession{cfg: cfg, execID: created.ID, stream: stream, containerID: containerID, nonce: nonce}
 	_ = session.Resize(ctx, cols, rows)
 	return session, nil
 }
 
 type dockerContainerTerminalSession struct {
-	cfg    tools.DockerConfig
-	execID string
-	stream io.ReadWriteCloser
+	cfg         tools.DockerConfig
+	execID      string
+	stream      io.ReadWriteCloser
+	containerID string // the container the exec runs in
+	nonce       string // the AURAGO_TERMINAL_SESSION value of this exec
 }
 
 func (s *dockerContainerTerminalSession) Read(p []byte) (int, error) {
@@ -289,6 +350,41 @@ func (s *dockerContainerTerminalSession) SetWriteDeadline(t time.Time) error {
 
 func (s *dockerContainerTerminalSession) Close() error {
 	return s.stream.Close()
+}
+
+// End sends SIGHUP to this session's shell through a detached helper exec; it
+// types nothing into the terminal. The stream ends when the shell exits.
+func (s *dockerContainerTerminalSession) End(ctx context.Context) error {
+	if s.containerID == "" || s.nonce == "" {
+		return errors.New("terminal session has no end tag")
+	}
+	body, _ := json.Marshal(map[string]interface{}{
+		"AttachStdout": false,
+		"AttachStderr": false,
+		"Cmd":          []string{"/bin/sh", "-c", containerTerminalEndScript, "aurago-end-session", s.nonce},
+		"Tty":          false,
+	})
+	data, code, err := tools.DockerRequestContext(ctx, s.cfg, http.MethodPost, "/containers/"+url.PathEscape(s.containerID)+"/exec", string(body))
+	if err != nil {
+		return err
+	}
+	if code != http.StatusCreated {
+		return fmt.Errorf("docker terminal end failed: %s", strings.TrimSpace(string(data)))
+	}
+	var created struct {
+		ID string `json:"Id"`
+	}
+	if err := json.Unmarshal(data, &created); err != nil || created.ID == "" {
+		return fmt.Errorf("parse docker terminal end exec id: %v", err)
+	}
+	data, code, err = tools.DockerRequestContext(ctx, s.cfg, http.MethodPost, "/exec/"+url.PathEscape(created.ID)+"/start", `{"Detach":true,"Tty":false}`)
+	if err != nil {
+		return err
+	}
+	if code != http.StatusOK && code != http.StatusCreated && code != http.StatusNoContent {
+		return fmt.Errorf("docker terminal end start failed: %s", strings.TrimSpace(string(data)))
+	}
+	return nil
 }
 
 func (s *dockerContainerTerminalSession) Resize(ctx context.Context, cols, rows int) error {

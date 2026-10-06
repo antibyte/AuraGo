@@ -13,6 +13,8 @@ let terminalSocket = null;
 let terminalResizeObserver = null;
 let terminalSessionToken = 0;
 let terminalFitScheduled = false;
+const TERMINAL_END_FALLBACK_MS = 5000;
+let terminalEndTimer = null;
 
 // Per-card render cache: id -> { html, el }.
 // Used by renderContainers() to update the grid in place instead of rebuilding
@@ -649,6 +651,7 @@ function openTerminal(id, name, confirmed) {
     terminalSocket.onopen = () => {
         if (token !== terminalSessionToken) return;
         opened = true;
+        setTerminalEndAvailable(true);
         setTerminalStatus('containers.terminal_connected');
         writeTerminalNotice('containers.terminal_connected');
         scheduleTerminalFit();
@@ -672,6 +675,12 @@ function openTerminal(id, name, confirmed) {
         if (token !== terminalSessionToken) return;
         if (!opened) {
             explainTerminalHandshakeFailure(id, name, confirmed, token);
+            return;
+        }
+        setTerminalEndAvailable(false);
+        if (terminalEndTimer) {
+            // The shell ended on request: close the window.
+            closeTerminalModal();
             return;
         }
         setTerminalStatus('containers.terminal_closed');
@@ -716,6 +725,8 @@ function closeTerminalModal() {
 
 function closeTerminalSession() {
     terminalSessionToken += 1;
+    clearTerminalEndTimer();
+    setTerminalEndAvailable(false);
     terminalFitScheduled = false;
     window.removeEventListener('resize', scheduleTerminalFit);
     if (terminalResizeObserver) {
@@ -737,6 +748,37 @@ function closeTerminalSession() {
         terminal = null;
     }
     terminalFitAddon = null;
+}
+
+function setTerminalEndAvailable(available) {
+    const btn = document.getElementById('terminal-end-btn');
+    if (btn) btn.disabled = !available;
+}
+
+function clearTerminalEndTimer() {
+    if (terminalEndTimer) {
+        clearTimeout(terminalEndTimer);
+        terminalEndTimer = null;
+    }
+}
+
+// endTerminalSession asks the server to end the shell (SIGHUP to the exec's
+// own process). Closing the window keeps the shell, so tmux and screen
+// sessions survive; only this button ends it.
+// eslint-disable-next-line no-unused-vars
+function endTerminalSession() {
+    if (terminalEndTimer || !terminalSocket || terminalSocket.readyState !== WebSocket.OPEN) return;
+    const token = terminalSessionToken;
+    setTerminalEndAvailable(false);
+    setTerminalStatus('containers.terminal_ending');
+    terminalSocket.send(JSON.stringify({ type: 'end' }));
+    terminalEndTimer = setTimeout(() => {
+        terminalEndTimer = null;
+        if (token !== terminalSessionToken) return;
+        setTerminalStatus('containers.terminal_end_failed');
+        writeTerminalNotice('containers.terminal_end_failed');
+        setTerminalEndAvailable(true);
+    }, TERMINAL_END_FALLBACK_MS);
 }
 
 function fitTerminal() {

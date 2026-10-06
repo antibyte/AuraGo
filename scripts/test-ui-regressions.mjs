@@ -2925,6 +2925,42 @@ async function testContainersTerminalOffersConfirmationAfterARefusedHandshake() 
   assert.equal(page.node('terminal-status').textContent, 'containers.terminal_closed');
 }
 
+async function testContainersEndSessionAsksTheServerAndCloseKeepsTheShell() {
+  const listed = [{ id: 'web1', names: ['/web'], image: 'nginx:1', state: 'running', status: 'Up' }];
+  const page = containersPage(request => request.url === '/api/containers'
+    ? { status: 200, body: { status: 'ok', containers: listed } }
+    : { status: 200, body: { status: 'ok' } });
+  await page.start();
+  const endMessages = socket => socket.sent.filter(m => m === JSON.stringify({ type: 'end' })).length;
+
+  // Close sends nothing to the shell (tmux and screen survive).
+  page.run("showTerminal('web1', 'web')");
+  assert.equal(page.node('terminal-end-btn').disabled, true, 'End session waits for the connection');
+  page.sockets[0].open();
+  assert.equal(page.node('terminal-end-btn').disabled, false);
+  page.run('closeTerminalModal()');
+  assert.equal(endMessages(page.sockets[0]), 0);
+
+  // End session sends one control message and closes the window once the shell exited.
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[1].open();
+  page.run('endTerminalSession()');
+  page.run('endTerminalSession()');
+  assert.equal(endMessages(page.sockets[1]), 1);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_ending');
+  page.sockets[1].closeFromServer();
+  assert.equal(page.active('terminal-modal'), false);
+
+  // A shell that does not end in time is reported; the session stays usable.
+  page.run("showTerminal('web1', 'web')");
+  page.sockets[2].open();
+  page.run('endTerminalSession()');
+  page.fireTimer(5000);
+  assert.equal(page.node('terminal-status').textContent, 'containers.terminal_end_failed');
+  assert.equal(page.node('terminal-end-btn').disabled, false);
+  assert.equal(page.active('terminal-modal'), true);
+}
+
 function listDesktopMainBundleParts() {
   const script = read('scripts/build-ui-bundles.js');
   const start = script.indexOf('const desktopMainParts = [');
@@ -3044,6 +3080,7 @@ const tests = [
   ['Containers empty state follows the list', testContainersEmptyStateFollowsTheList],
   ['Containers Resume unpauses a paused container', testContainersResumeUnpausesAPausedContainer],
   ['Containers terminal offers the confirmation after a refused handshake', testContainersTerminalOffersConfirmationAfterARefusedHandshake],
+  ['Containers End session asks the server; Close keeps the shell', testContainersEndSessionAsksTheServerAndCloseKeepsTheShell],
   ['Desktop main bundle parts end at function boundaries', testDesktopMainBundlePartsEndAtFunctionBoundaries],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
