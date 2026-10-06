@@ -696,20 +696,28 @@ func TestSMTPSessionTimeoutGrowsWithTheMessage(t *testing.T) {
 
 func TestDeliverSMTPGivesUpOnAServerThatStopsAnswering(t *testing.T) {
 	previous := smtpSessionBaseTimeout
-	smtpSessionBaseTimeout = time.Second
 	t.Cleanup(func() { smtpSessionBaseTimeout = previous })
+	// The session deadline runs from the connection on, so the work before the silent point
+	// must fit into it: a TLS upgrade and a few round trips, about 10 ms on loopback. Those
+	// cases get 5 s (500 times that, and enough under load or the race detector). Without
+	// work under the deadline (no greeting, or the implicit TLS handshake, which the dial
+	// does before the deadline is set) 1 s is enough. The subtests run one after another:
+	// c05StartFakeSMTP swaps the package's smtpRootCAs.
+	const roomy = 5 * time.Second
 	cases := []struct {
 		label       string
 		implicitTLS bool
 		hangAt      string
+		session     time.Duration
 	}{
-		{"STARTTLS, no greeting", false, "greeting"},
-		{"STARTTLS, silent after the TLS upgrade", false, "MAIL"},
-		{"implicit TLS, silent after the handshake", true, "greeting"},
-		{"implicit TLS, silent at DATA", true, "DATA"},
+		{"STARTTLS, no greeting", false, "greeting", time.Second},
+		{"STARTTLS, silent after the TLS upgrade", false, "MAIL", roomy},
+		{"implicit TLS, silent after the handshake", true, "greeting", time.Second},
+		{"implicit TLS, silent at DATA", true, "DATA", roomy},
 	}
 	for _, c := range cases {
 		t.Run(c.label, func(t *testing.T) {
+			smtpSessionBaseTimeout = c.session
 			srv := c05StartFakeSMTP(t, c.implicitTLS, func(s *c05FakeSMTP) { s.hangAt = c.hangAt })
 			send := SendEmail
 			if c.implicitTLS {
@@ -721,7 +729,9 @@ func TestDeliverSMTPGivesUpOnAServerThatStopsAnswering(t *testing.T) {
 			if !errors.Is(err, os.ErrDeadlineExceeded) {
 				t.Fatalf("error = %v, want a deadline error", err)
 			}
-			if elapsed > 10*time.Second {
+			// A negative check: the call did not hang (the production session deadline is
+			// 2 minutes).
+			if elapsed > 30*time.Second {
 				t.Fatalf("the call took %v", elapsed)
 			}
 			if _, hung, _ := srv.snapshot(); hung != 1 {
@@ -949,8 +959,11 @@ func TestDeliverSMTPWaitsForTheFinalReplyOnItsOwnDeadline(t *testing.T) {
 	t.Cleanup(func() { smtpSessionBaseTimeout, smtpFinalReplyTimeout = base, final })
 
 	// A server that takes longer than the session deadline to accept the message is waited for.
-	smtpSessionBaseTimeout, smtpFinalReplyTimeout = 500*time.Millisecond, 10*time.Second
-	srv := c05StartFakeSMTP(t, true, func(s *c05FakeSMTP) { s.finalReplyDelay = time.Second })
+	// The session up to the final dot (a TLS handshake and a few round trips, about 10 ms on
+	// loopback) must fit into the session deadline: 5 s leaves 500 times that. The final reply
+	// comes after it, and its own deadline is far beyond that.
+	smtpSessionBaseTimeout, smtpFinalReplyTimeout = 5*time.Second, time.Minute
+	srv := c05StartFakeSMTP(t, true, func(s *c05FakeSMTP) { s.finalReplyDelay = 6 * time.Second })
 	if err := SendEmailTLS(srv.host, srv.port, "user", "pass", "a@example.com", "b@example.com", "Betreff", "Text", c05Logger()); err != nil {
 		t.Fatalf("a slow final reply failed the send: %v", err)
 	}
