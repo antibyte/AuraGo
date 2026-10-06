@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 var expectedBundledDefaultPetIDs = []string{"openpets-default", "snoopy", "clippit", "tux", "wall-e", "dobby", "aurago-neutral", "aurago-servant", "aurago-professional", "aurago-mistress", "aurago-thinker", "aurago-evil", "aurago-secretary", "aurago-psycho", "aurago-punk", "aurago-friend", "aurago-mcp", "aurago-terminator"}
@@ -433,6 +435,217 @@ func TestGetPetResolvesValidSpritesheetInsidePetDir(t *testing.T) {
 		_, err := svc.GetPet(ctx, "no-manifest")
 		assertPetErrorHidesHostPaths(t, err, ws)
 	})
+}
+
+func TestGetPetRejectsOddIDsThatResolveToValidPets(t *testing.T) {
+	svc := testService(t)
+	ctx := context.Background()
+	ws := svc.Config().WorkspaceDir
+
+	// A complete, otherwise valid pet behind each odd id.
+	upperDir := writePetFixture(t, ws, "Upper", "spritesheet.webp")
+	writePetSheetFixture(t, filepath.Join(upperDir, "spritesheet.webp"))
+	outsideDir := filepath.Join(ws, "outside")
+	if err := os.MkdirAll(outsideDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := json.Marshal(PetJSON{DisplayName: "Outside", SpritesheetPath: "spritesheet.webp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outsideDir, "pet.json"), manifest, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writePetSheetFixture(t, filepath.Join(outsideDir, "spritesheet.webp"))
+
+	for _, id := range []string{"Upper", "../outside"} {
+		_, err := svc.GetPet(ctx, id)
+		if err == nil {
+			t.Fatalf("pet id %q resolves to a valid pet but must be rejected", id)
+		}
+		assertPetErrorHidesHostPaths(t, err, ws)
+	}
+}
+
+func TestListPetsInDirSkipsOddDirectoryNames(t *testing.T) {
+	ws := t.TempDir()
+	for _, id := range []string{"Odd_Upper", ".hidden", "valid-one"} {
+		petDir := writePetFixture(t, ws, id, "spritesheet.webp")
+		writePetSheetFixture(t, filepath.Join(petDir, "spritesheet.webp"))
+	}
+	pets, err := listPetsInDir(ws)
+	if err != nil {
+		t.Fatalf("listPetsInDir: %v", err)
+	}
+	if len(pets) != 1 || pets[0].ID != "valid-one" {
+		t.Fatalf("listPetsInDir = %+v, want only valid-one", pets)
+	}
+}
+
+// petFileSnapshot records a file's bytes and pins its mtime to a fixed past
+// time, so any later write is visible in either.
+type petFileSnapshot struct {
+	path string
+	data []byte
+}
+
+var petSnapshotTime = time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+
+func snapshotPetFile(t *testing.T, path string) petFileSnapshot {
+	t.Helper()
+	if err := os.Chtimes(path, petSnapshotTime, petSnapshotTime); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return petFileSnapshot{path: path, data: data}
+}
+
+func (s petFileSnapshot) assertUnchanged(t *testing.T) {
+	t.Helper()
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		t.Fatalf("read %s: %v", filepath.Base(s.path), err)
+	}
+	if !bytes.Equal(data, s.data) {
+		t.Fatalf("%s was overwritten through a link", filepath.Base(s.path))
+	}
+	info, err := os.Stat(s.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ModTime().Equal(petSnapshotTime) {
+		t.Fatalf("%s was rewritten (mtime %v)", filepath.Base(s.path), info.ModTime())
+	}
+}
+
+func listPetsTwice(t *testing.T, svc *Service) []PetManifest {
+	t.Helper()
+	var pets []PetManifest
+	for i := 0; i < 2; i++ {
+		var err error
+		pets, err = svc.ListPets(context.Background())
+		if err != nil {
+			t.Fatalf("ListPets call %d: %v", i+1, err)
+		}
+	}
+	return pets
+}
+
+func TestBundledPetRepairNeverWritesThroughLinks(t *testing.T) {
+	t.Run("linked pet directory", func(t *testing.T) {
+		svc := testService(t)
+		ws := svc.Config().WorkspaceDir
+		target := t.TempDir()
+		writeFile := func(name, content string) petFileSnapshot {
+			path := filepath.Join(target, name)
+			if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			return snapshotPetFile(t, path)
+		}
+		manifest := writeFile("pet.json", `{"displayName":"My own files"}`)
+		sheet := writeFile("spritesheet.webp", "user-owned sheet")
+		petDir := filepath.Join(ws, petsDirName, "tux")
+		if err := os.RemoveAll(petDir); err != nil {
+			t.Fatal(err)
+		}
+		linkPetDirForTest(t, target, petDir)
+
+		pets := listPetsTwice(t, svc)
+		manifest.assertUnchanged(t)
+		sheet.assertUnchanged(t)
+		if bundledPetNeedsRepair(ws, "tux", false) {
+			t.Fatal("a linked bundled pet directory must not trigger the repair")
+		}
+		for _, pet := range pets {
+			if pet.ID == "tux" {
+				t.Fatal("a linked bundled pet directory must not be listed")
+			}
+		}
+	})
+
+	t.Run("linked spritesheet", func(t *testing.T) {
+		svc := testService(t)
+		ws := svc.Config().WorkspaceDir
+		targetPath := filepath.Join(t.TempDir(), "elsewhere.webp")
+		if err := os.WriteFile(targetPath, []byte("user-owned sheet"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		sheetPath := filepath.Join(ws, petsDirName, "snoopy", "spritesheet.webp")
+		if err := os.Remove(sheetPath); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(targetPath, sheetPath); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		target := snapshotPetFile(t, targetPath)
+		manifest := snapshotPetFile(t, filepath.Join(ws, petsDirName, "snoopy", "pet.json"))
+
+		listPetsTwice(t, svc)
+		target.assertUnchanged(t)
+		manifest.assertUnchanged(t)
+		if bundledPetNeedsRepair(ws, "snoopy", false) {
+			t.Fatal("a linked bundled spritesheet must not trigger the repair")
+		}
+		if info, err := os.Lstat(sheetPath); err != nil || info.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("spritesheet link was replaced: %v", err)
+		}
+	})
+
+	t.Run("missing bundled pet is repaired once", func(t *testing.T) {
+		svc := testService(t)
+		ws := svc.Config().WorkspaceDir
+		petDir := filepath.Join(ws, petsDirName, "clippit")
+		if err := os.RemoveAll(petDir); err != nil {
+			t.Fatal(err)
+		}
+		pets, err := svc.ListPets(context.Background())
+		if err != nil {
+			t.Fatalf("ListPets: %v", err)
+		}
+		found := false
+		for _, pet := range pets {
+			found = found || pet.ID == "clippit"
+		}
+		if !found {
+			t.Fatalf("missing bundled pet was not repaired: %+v", pets)
+		}
+		if bundledPetNeedsRepair(ws, "clippit", false) {
+			t.Fatal("a repaired bundled pet must not need another repair")
+		}
+		manifest := snapshotPetFile(t, filepath.Join(petDir, "pet.json"))
+		sheet := snapshotPetFile(t, filepath.Join(petDir, "spritesheet.webp"))
+		listPetsTwice(t, svc)
+		manifest.assertUnchanged(t)
+		sheet.assertUnchanged(t)
+	})
+}
+
+func TestInstallBundledPetRefusesLinkedEntries(t *testing.T) {
+	ws := t.TempDir()
+	target := t.TempDir()
+	targetSheet := filepath.Join(target, "spritesheet.webp")
+	if err := os.WriteFile(targetSheet, []byte("user-owned sheet"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	snap := snapshotPetFile(t, targetSheet)
+	if err := os.MkdirAll(filepath.Join(ws, petsDirName), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	linkPetDirForTest(t, target, filepath.Join(ws, petsDirName, "openpets-default"))
+
+	err := InstallBundledDefaultPet(ws, []byte("bundled sheet"))
+	if err == nil {
+		t.Fatal("installing a bundled pet into a linked directory must be refused")
+	}
+	assertPetErrorHidesHostPaths(t, err, ws, target)
+	snap.assertUnchanged(t)
+	if _, err := os.Lstat(filepath.Join(target, "pet.json")); !os.IsNotExist(err) {
+		t.Fatalf("pet.json was written through the link: %v", err)
+	}
 }
 
 func TestBundledPetIDsMatchPetIDPattern(t *testing.T) {
