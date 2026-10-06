@@ -406,7 +406,7 @@ func pairingInteractionDBusError() *dbus.Error {
 }
 
 // pairingDeviceMismatchDBusError rejects a request for a device other than the
-// one the per-call agent pairs.
+// one being paired. The per-call and the interactive agent both send it.
 func pairingDeviceMismatchDBusError() *dbus.Error {
 	return &dbus.Error{
 		Name: "org.bluez.Error.Rejected",

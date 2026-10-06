@@ -237,13 +237,18 @@ func (m *Manager) pairInteractive(ctx context.Context, address string) error {
 		return mapBlueZError("pair", err)
 	}
 	defer release()
-	defer m.broker.cancel()
 	path, err := m.live.devicePath(address)
 	if err != nil {
 		return err
 	}
-	if err := mapBlueZError("pair", host.Pair(ctx, path)); err != nil {
-		return err
+	pairErr := mapBlueZError("pair", host.Pair(ctx, path))
+	// A busy Pair never opened a question; the open one belongs to the
+	// pairing that is already running and must stay answerable.
+	if ErrorCode(pairErr) != ErrorOperationBusy {
+		m.broker.cancel()
+	}
+	if pairErr != nil {
+		return pairErr
 	}
 	if bus, busErr := m.live.currentBus(); busErr == nil {
 		if trustErr := bus.SetProperty(ctx, path, bluezDeviceInterface, "Trusted", true); trustErr != nil {

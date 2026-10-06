@@ -201,7 +201,6 @@ func TestBlueZPairBindsTheAgentToTheResolvedDevice(t *testing.T) {
 }
 
 func TestPairingAgentAnswersOnlyForTheBoundDevice(t *testing.T) {
-	const foreignDevice = dbus.ObjectPath("/org/bluez/hci0/dev_11_22_33_44_55_66")
 	agent := &pairingAgent{pin: "1234", devicePath: dbus.ObjectPath(testDevicePath)}
 	tests := []struct {
 		name string
@@ -217,8 +216,7 @@ func TestPairingAgentAnswersOnlyForTheBoundDevice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := tt.call(foreignDevice); err == nil || err.Name != "org.bluez.Error.Rejected" ||
-				len(err.Body) != 1 || err.Body[0] != "PAIRING_DEVICE_MISMATCH" {
+			if _, err := tt.call(foreignDevicePath); !isDeviceMismatch(err) {
 				t.Fatalf("foreign device: err = %#v, want org.bluez.Error.Rejected PAIRING_DEVICE_MISMATCH", err)
 			}
 			got, err := tt.call(dbus.ObjectPath(testDevicePath))

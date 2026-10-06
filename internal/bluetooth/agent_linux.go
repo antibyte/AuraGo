@@ -155,7 +155,8 @@ func (a *interactiveAgent) bind(device dbus.ObjectPath) (func(), error) {
 }
 
 // foreign reports whether device is not the device of the running outgoing
-// pairing. Such requests are rejected without asking the operator.
+// pairing. Such requests are rejected with pairingDeviceMismatchDBusError, or
+// dropped for display-only requests, without reaching the operator.
 func (a *interactiveAgent) foreign(device dbus.ObjectPath) bool {
 	a.mu.Lock()
 	foreign := a.binds > 0 && a.bound != device
@@ -200,7 +201,7 @@ func (a *interactiveAgent) Cancel() *dbus.Error {
 
 func (a *interactiveAgent) RequestPinCode(device dbus.ObjectPath) (string, *dbus.Error) {
 	if a.foreign(device) {
-		return "", agentRejected()
+		return "", pairingDeviceMismatchDBusError()
 	}
 	answer, ok := a.ask(a.view(InteractionEnterPIN, device))
 	if !ok {
@@ -209,7 +210,13 @@ func (a *interactiveAgent) RequestPinCode(device dbus.ObjectPath) (string, *dbus
 	return answer.value, nil
 }
 
+// DisplayPinCode shows a PIN the remote device must enter. BlueZ waits for
+// this reply, so a foreign device's PIN is rejected rather than shown, which
+// would also replace the bound device's open question.
 func (a *interactiveAgent) DisplayPinCode(device dbus.ObjectPath, pin string) *dbus.Error {
+	if a.foreign(device) {
+		return pairingDeviceMismatchDBusError()
+	}
 	view := a.view(InteractionDisplayPIN, device)
 	view.PIN = pin
 	a.broker.show(view)
@@ -218,7 +225,7 @@ func (a *interactiveAgent) DisplayPinCode(device dbus.ObjectPath, pin string) *d
 
 func (a *interactiveAgent) RequestPasskey(device dbus.ObjectPath) (uint32, *dbus.Error) {
 	if a.foreign(device) {
-		return 0, agentRejected()
+		return 0, pairingDeviceMismatchDBusError()
 	}
 	answer, ok := a.ask(a.view(InteractionEnterPasskey, device))
 	if !ok {
@@ -231,7 +238,13 @@ func (a *interactiveAgent) RequestPasskey(device dbus.ObjectPath) (uint32, *dbus
 	return uint32(value), nil
 }
 
+// DisplayPasskey shows a passkey and its typing progress. A foreign device's
+// passkey is dropped so it neither reaches the operator nor replaces the bound
+// device's open question.
 func (a *interactiveAgent) DisplayPasskey(device dbus.ObjectPath, passkey uint32, entered uint16) *dbus.Error {
+	if a.foreign(device) {
+		return nil
+	}
 	view := a.view(InteractionDisplayPasskey, device)
 	view.Passkey = fmt.Sprintf("%06d", passkey)
 	view.Entered = int(entered)
@@ -241,7 +254,7 @@ func (a *interactiveAgent) DisplayPasskey(device dbus.ObjectPath, passkey uint32
 
 func (a *interactiveAgent) RequestConfirmation(device dbus.ObjectPath, passkey uint32) *dbus.Error {
 	if a.foreign(device) {
-		return agentRejected()
+		return pairingDeviceMismatchDBusError()
 	}
 	view := a.view(InteractionConfirmPasskey, device)
 	view.Passkey = fmt.Sprintf("%06d", passkey)
@@ -253,7 +266,7 @@ func (a *interactiveAgent) RequestConfirmation(device dbus.ObjectPath, passkey u
 
 func (a *interactiveAgent) RequestAuthorization(device dbus.ObjectPath) *dbus.Error {
 	if a.foreign(device) {
-		return agentRejected()
+		return pairingDeviceMismatchDBusError()
 	}
 	if _, ok := a.ask(a.view(InteractionAuthorizePairing, device)); !ok {
 		return agentRejected()
@@ -263,7 +276,7 @@ func (a *interactiveAgent) RequestAuthorization(device dbus.ObjectPath) *dbus.Er
 
 func (a *interactiveAgent) AuthorizeService(device dbus.ObjectPath, uuid string) *dbus.Error {
 	if a.foreign(device) {
-		return agentRejected()
+		return pairingDeviceMismatchDBusError()
 	}
 	view := a.view(InteractionAuthorizeService, device)
 	view.Service = serviceName(uuid)
