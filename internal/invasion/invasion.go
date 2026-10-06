@@ -36,7 +36,7 @@ type NestRecord struct {
 	Route       string `json:"route"`        // "direct" | "ssh_tunnel" | "tailscale" | "wireguard" | "custom"
 	RouteConfig string `json:"route_config"` // JSON with route-specific params
 	// ── Deployment settings ──
-	DeployMethod string `json:"deploy_method"` // "ssh" | "docker_remote" | "docker_local"
+	DeployMethod string `json:"deploy_method"` // "ssh" | "docker_remote" | "docker_ssh" | "docker_local"
 	TargetArch   string `json:"target_arch"`   // "linux/amd64" | "linux/arm64" | etc.
 	DockerTLS    string `json:"docker_tls"`    // docker_remote only: "" (plain HTTP, default) | "tls" | "mtls"
 

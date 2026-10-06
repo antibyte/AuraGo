@@ -150,8 +150,12 @@ func TestDialSSHHonoursCancellationDuringHandshake(t *testing.T) {
 	InsecureHostKey = true
 	defer func() { InsecureHostKey = prior }()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
+	// A plain cancellation without a deadline: the connection deadline stays at
+	// the 10 s SSH timeout, so only the AfterFunc close can end the handshake.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	timer := time.AfterFunc(80*time.Millisecond, cancel)
+	defer timer.Stop()
 	start := time.Now()
 	client, err := DialSSH(ctx, host, port, "fixture", []byte("fixture"))
 	if err == nil {

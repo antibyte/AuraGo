@@ -133,6 +133,22 @@ func TestUpdateTLSDockerRemoteNestToDockerSSHEndsTLS(t *testing.T) {
 	}
 }
 
+func TestInvasionSecurityHintsPlaintextAdviceNamesBothSSHMethodsAndTheListener(t *testing.T) {
+	db := setupInvasionTestDB(t)
+	if _, err := invasion.CreateNest(db, invasion.NestRecord{Name: "plain", Active: true, DeployMethod: "docker_remote", Host: "10.0.0.5", Port: 2375}); err != nil {
+		t.Fatal(err)
+	}
+	hints := invasionSecurityHints(db, nil)
+	if len(hints) != 1 {
+		t.Fatalf("hints = %#v, want the plaintext hint", hints)
+	}
+	for _, want := range []string{"Docker TLS", "Docker (via SSH)", "or SSH", "-H tcp://", "remove that listener on the target host"} {
+		if !strings.Contains(hints[0].Description, want) {
+			t.Fatalf("hint description %q lacks %q", hints[0].Description, want)
+		}
+	}
+}
+
 func TestInvasionSecurityHintsSkipDockerSSHNests(t *testing.T) {
 	db := setupInvasionTestDB(t)
 	if _, err := invasion.CreateNest(db, invasion.NestRecord{Name: "ssh-docker", Active: true, DeployMethod: "docker_ssh", Host: "10.0.0.5", Port: 22}); err != nil {

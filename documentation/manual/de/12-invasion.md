@@ -185,7 +185,9 @@ Bestehende Nests funktionieren weiter. AuraGo warnt an drei Stellen:
 - im Bereich **Sicherheitsaudit** der Konfiguration, als Hinweis `invasion_docker_remote_plaintext`
 - im Log, bei jedem Hatch und Reconfigure
 
-Nutze `Docker (Entfernt)` ohne TLS nur in einem isolierten Netz, setze **Docker-TLS** am Nest oder deploye mit der Methode `SSH`, die alle Dateien über die verschlüsselte SSH-Verbindung überträgt.
+Nutze `Docker (Entfernt)` ohne TLS nur in einem isolierten Netz, setze **Docker-TLS** am Nest oder stelle das Nest auf `Docker (über SSH)` (derselbe Container, siehe unten) oder auf `SSH` (das Binary) um. Beide übertragen alle Dateien über die verschlüsselte SSH-Verbindung.
+
+Das Umstellen eines Nests schließt den unverschlüsselten TCP-Listener der Engine nicht. Solange `dockerd` mit `-H tcp://…:2375` läuft, steuert jeder, der diesen Port erreicht, den Docker-Daemon. Entferne diesen Listener auf dem Zielhost.
 
 **Verschlüsseltes Docker (Entfernt).** Setze **Docker-TLS** am Nest:
 
@@ -206,10 +208,19 @@ Bevor Du auf ein Release ohne Docker-TLS zurückgehst, schalte TLS bei den Nests
 **Docker über SSH.** Die Deploy-Methode `Docker (über SSH)` (`docker_ssh`) startet denselben Egg-Container wie `Docker (Entfernt)`. Sie erreicht den Engine-Socket `/var/run/docker.sock` über eine SSH-Verbindung mit Host, Port (Standard `22`), Benutzername und Secret des Nests. Jede Anfrage, auch die Kopie der Konfiguration, ist verschlüsselt, und Host-Keys werden wie bei SSH-Deploys gegen `known_hosts` geprüft.
 
 Voraussetzungen auf dem Ziel:
-- der SSH-Benutzer darf den Docker-Socket nutzen (zum Beispiel als Mitglied der Gruppe `docker`)
-- `sshd` erlaubt Stream-Local-Forwarding (`AllowStreamLocalForwarding`, Standard `yes`)
+- der SSH-Benutzer darf den Docker-Socket nutzen, zum Beispiel als Mitglied der Gruppe `docker`. Die Mitgliedschaft in `docker` kommt Root-Rechten auf diesem Host gleich.
+- `sshd` erlaubt Stream-Local-Forwarding (`AllowStreamLocalForwarding`, Standard `yes`). Auch `DisableForwarding yes` in der `sshd_config` verhindert es, ebenso `restrict` oder `no-port-forwarding` in der Zeile des Schlüssels in `authorized_keys`.
+- der Engine-Socket ist `/var/run/docker.sock`. Der Pfad ist fest, deshalb wird Rootless Docker (Socket unter `$XDG_RUNTIME_DIR`) nicht unterstützt.
+- der Host-Key steht in `~/.ssh/known_hosts` des Benutzers, unter dem der AuraGo-Dienst läuft, nicht in dem Deines eigenen Logins. Für einen anderen Port als `22` lautet der Eintrag `[host]:port`, zum Beispiel mit `ssh-keyscan -p 2222 host >> ~/.ssh/known_hosts`.
 
-Wähle für solche Nests den Zugriffstyp `SSH`.
+Wähle für solche Nests den Zugriffstyp `SSH`. `Docker (über SSH)` ignoriert `HTTP_PROXY`, `HTTPS_PROXY` und `NO_PROXY`: Die SSH-Verbindung geht direkt zum Host.
+
+| Fehler bei Test Connection oder in `hatch_error` | Ursache |
+|--------------------------------------------------|---------|
+| `open /var/run/docker.sock: ssh: rejected: administratively prohibited` | Eine Forwarding-Richtlinie hat den Socket abgelehnt: `AllowStreamLocalForwarding no`, `DisableForwarding yes` oder `restrict` / `no-port-forwarding` in `authorized_keys` |
+| `open /var/run/docker.sock: ssh: rejected: connect failed` | Der Socket fehlt (Docker läuft nicht, Rootless Docker) oder der SSH-Benutzer darf ihn nicht nutzen |
+| `open /var/run/docker.sock: context deadline exceeded` | `sshd` hat die Anmeldung angenommen, aber die Socket-Anfrage nicht innerhalb von 10 Sekunden beantwortet |
+| `negotiate Docker API: context deadline exceeded` | Die SSH-Anmeldung hat länger als 5 Sekunden gedauert, siehe [Troubleshooting](#verbindung-verweigert--timeout) |
 
 > ⚠️ Ältere AuraGo-Versionen behandeln unbekannte Deploy-Methoden als `SSH`. Nach einem Downgrade würde ein `docker_ssh`-Nest das Binary per SSH statt des Containers deployen. Stelle solche Nests vor einem Downgrade auf eine andere Methode um.
 
@@ -522,6 +533,7 @@ Details: [Kapitel 22: Interne Tools](./22-interne-tools.md)
 2. Firewall und Port prüfen (22 für SSH und Docker über SSH, 2375 für Docker API, 2376 für Docker API mit TLS)
 3. **Test Connection** oder `POST .../validate` ausführen
 4. Bei SSH-Nests: Secret muss konfiguriert sein
+5. `Docker (über SSH)` scheitert mit `negotiate Docker API: context deadline exceeded`: Die Prüfung der Docker-API-Version zu Beginn jeder Operation muss innerhalb von 5 Sekunden fertig sein, und das schließt die SSH-Anmeldung ein. Reverse-DNS-Abfragen (`UseDNS yes`), Verzögerungen durch PAM oder LDAP oder eine Verbindung mit hoher Latenz können die Anmeldung verlangsamen. Beschleunige die Anmeldung auf dem Ziel, zum Beispiel mit `UseDNS no`, oder nutze eine andere Deploy-Methode.
 
 ### Authentifizierung fehlgeschlagen
 
@@ -574,7 +586,7 @@ Dateien über verschlüsselte Standardeingabe und veröffentlichen sie atomar.
 > - `inherit_llm` kopiert den Master-API-Key in die Egg-Config — Egg-Host muss vertrauenswürdig sein
 > - `invasion_control.readonly: true` für reine Monitoring-Setups
 > - Bei Verdacht auf Kompromittierung Shared Keys mit `/rotate-key` rotieren
-> - `Docker (Entfernt)` über unverschlüsseltes HTTP sendet Egg-Secrets im Klartext; nutze es nur in isolierten Netzen oder setze Docker-TLS
+> - `Docker (Entfernt)` über unverschlüsseltes HTTP sendet Egg-Secrets im Klartext; nutze es nur in isolierten Netzen, setze Docker-TLS oder stelle auf `Docker (über SSH)` oder `SSH` um
 
 ---
 

@@ -195,7 +195,9 @@ Existing nests keep working. AuraGo warns about it in three places:
 - in the **Security Audit** panel of the configuration, as hint `invasion_docker_remote_plaintext`
 - in the log, on every hatch and reconfigure
 
-Use `Docker (Remote)` without TLS only on an isolated network, set **Docker TLS** on the nest, or deploy with the `SSH` method, which sends every file through the encrypted SSH connection.
+Use `Docker (Remote)` without TLS only on an isolated network, set **Docker TLS** on the nest, or switch the nest to `Docker (via SSH)` (the same container, see below) or to `SSH` (the binary). Both send every file through the encrypted SSH connection.
+
+Switching a nest does not close the Engine's plain TCP listener. As long as `dockerd` runs with `-H tcp://…:2375`, anyone who reaches that port controls the Docker daemon. Remove that listener on the target host.
 
 **Encrypted Docker (Remote).** Set **Docker TLS** on the nest:
 
@@ -216,10 +218,19 @@ Before downgrading to a release without Docker TLS, switch TLS nests off or dele
 **Docker over SSH.** The deploy method `Docker (via SSH)` (`docker_ssh`) runs the same Egg container as `Docker (Remote)`. It reaches the Engine socket `/var/run/docker.sock` through an SSH connection built from the nest's host, port (default `22`), username and secret. Every request, including the config copy, is encrypted, and host keys are verified against `known_hosts` exactly as for SSH deploys.
 
 Requirements on the target:
-- the SSH user may use the Docker socket (for example as a member of the `docker` group)
-- `sshd` allows stream-local forwarding (`AllowStreamLocalForwarding`, default `yes`)
+- the SSH user may use the Docker socket, for example as a member of the `docker` group. Membership in `docker` is equivalent to root on that host.
+- `sshd` allows stream-local forwarding (`AllowStreamLocalForwarding`, default `yes`). `DisableForwarding yes` in `sshd_config` also refuses it, and so do `restrict` or `no-port-forwarding` on the key's line in `authorized_keys`.
+- the Engine socket is `/var/run/docker.sock`. The path is fixed, so rootless Docker (socket under `$XDG_RUNTIME_DIR`) is not supported.
+- the host key is in `~/.ssh/known_hosts` of the user that runs the AuraGo service, not of your own login. For a port other than `22` the entry is written as `[host]:port`, for example with `ssh-keyscan -p 2222 host >> ~/.ssh/known_hosts`.
 
-Choose access type `SSH` for such nests.
+Choose access type `SSH` for such nests. `Docker (via SSH)` ignores `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`: the SSH connection goes straight to the host.
+
+| Error in Test Connection or `hatch_error` | Cause |
+|-------------------------------------------|-------|
+| `open /var/run/docker.sock: ssh: rejected: administratively prohibited` | A forwarding policy refused the socket: `AllowStreamLocalForwarding no`, `DisableForwarding yes`, or `restrict` / `no-port-forwarding` in `authorized_keys` |
+| `open /var/run/docker.sock: ssh: rejected: connect failed` | The socket is missing (Docker not running, rootless Docker) or the SSH user may not use it |
+| `open /var/run/docker.sock: context deadline exceeded` | `sshd` accepted the login but did not answer the socket request within 10 seconds |
+| `negotiate Docker API: context deadline exceeded` | The SSH login took longer than 5 seconds, see [Troubleshooting](#connection-refused--timeout) |
 
 > ⚠️ Older AuraGo versions treat unknown deploy methods as `SSH`. After a downgrade, a `docker_ssh` nest would deploy the binary over SSH instead of the container. Switch these nests to another method before downgrading.
 
@@ -584,6 +595,7 @@ See [Chapter 22: Internal Tools](22-internal-tools.md) for full parameter detail
 2. Check firewall rules and correct port (22 for SSH and Docker via SSH, 2375 for Docker API, 2376 for Docker API with TLS)
 3. Run **Test Connection** or `POST .../validate`
 4. For SSH nests, ensure a secret is configured
+5. `Docker (via SSH)` fails with `negotiate Docker API: context deadline exceeded`: the Docker API version check at the start of every operation must finish within 5 seconds, and that includes the SSH login. Reverse DNS lookups (`UseDNS yes`), PAM or LDAP delays or a high-latency link can make the login slower. Speed up the login on the target, for example with `UseDNS no`, or use another deploy method.
 
 ### Authentication failed
 
@@ -636,7 +648,7 @@ and reconfiguration send private files over encrypted stdin and publish them ato
 > - `inherit_llm` copies the master's API key into the Egg config — the Egg host must be trusted
 > - Use `invasion_control.readonly: true` for monitoring-only setups
 > - Rotate shared keys with `/rotate-key` if compromise is suspected
-> - `Docker (Remote)` over plain HTTP sends Egg secrets in clear text; use it only on isolated networks or set Docker TLS
+> - `Docker (Remote)` over plain HTTP sends Egg secrets in clear text; use it only on isolated networks, set Docker TLS, or switch to `Docker (via SSH)` or `SSH`
 
 ---
 

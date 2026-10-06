@@ -10,7 +10,8 @@ import (
 )
 
 // invasionDockerRemotePlaintextAdvice ends the plaintext hint.
-const invasionDockerRemotePlaintextAdvice = "Use these nests only on an isolated network, set Docker TLS (tls or mtls) on the nest, or switch to the docker_ssh deploy method (Docker via SSH)."
+const invasionDockerRemotePlaintextAdvice = "Use these nests only on an isolated network, set Docker TLS (tls or mtls) on the nest, or switch them to the deploy method Docker (via SSH) or SSH. " +
+	"Switching a nest does not close the Engine's plain TCP listener (dockerd -H tcp://...:2375); remove that listener on the target host."
 
 // invasionSecurityHints reports nest settings that expose deployment secrets.
 // CheckSecurity only sees config.yaml; nests live in the invasion database,

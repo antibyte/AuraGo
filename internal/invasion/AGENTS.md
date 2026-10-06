@@ -34,6 +34,11 @@ the Egg runtime in `cmd/aurago`.
   instead of falling back to HTTP. PEMs live only in the vault under
   `nest_docker_tls_<id>` (never DB, API responses or logs) and are removed with
   the nest or when TLS is switched off. Updates without `docker_tls` keep the mode.
+- `docker_ssh` reaches `/var/run/docker.sock` via direct-streamlocal through
+  `remote.DialSSH` (known_hosts unless the global opt-in); one SSH client per
+  Engine connection, closed with it (`DisableKeepAlives` must stay on); the
+  credential is the nest's SSH secret, never TLS material; older binaries map it
+  to the SSH binary deploy.
 
 ## Verification
 

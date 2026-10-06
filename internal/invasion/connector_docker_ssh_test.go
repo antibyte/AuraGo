@@ -31,16 +31,24 @@ type streamLocalOpenPayload struct {
 // dockerSSHFixture is an SSH server (user "fixture", password "fixture") that
 // forwards direct-streamlocal channels for /var/run/docker.sock to a backend
 // TCP address, standing in for sshd plus the Docker socket. open counts the
-// authenticated SSH connections that are still open, accepted all of them.
+// authenticated SSH connections that are still open; accepted counts all of
+// them. With holdChannels the server never answers a channel open, like an
+// sshd that stalls on the socket.
 type dockerSSHFixture struct {
-	host     string
-	port     int
-	open     atomic.Int64
-	accepted atomic.Int64
-	sockets  chan string
+	host         string
+	port         int
+	holdChannels bool
+	open         atomic.Int64
+	accepted     atomic.Int64
+	sockets      chan string
 }
 
 func startDockerSSHFixture(t *testing.T, backend string) *dockerSSHFixture {
+	t.Helper()
+	return startDockerSSHFixtureWith(t, backend, false)
+}
+
+func startDockerSSHFixtureWith(t *testing.T, backend string, holdChannels bool) *dockerSSHFixture {
 	t.Helper()
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -64,7 +72,7 @@ func startDockerSSHFixture(t *testing.T, backend string) *dockerSSHFixture {
 		t.Skipf("IPv4 loopback listener unavailable in this test environment: %v", err)
 	}
 	t.Cleanup(func() { _ = listener.Close() })
-	fixture := &dockerSSHFixture{sockets: make(chan string, 256)}
+	fixture := &dockerSSHFixture{holdChannels: holdChannels, sockets: make(chan string, 256)}
 	addr := listener.Addr().(*net.TCPAddr)
 	fixture.host, fixture.port = addr.IP.String(), addr.Port
 	go func() {
@@ -89,7 +97,12 @@ func (f *dockerSSHFixture) serve(raw net.Conn, config *ssh.ServerConfig, backend
 	f.open.Add(1)
 	defer f.open.Add(-1)
 	go ssh.DiscardRequests(requests)
+	var held []ssh.NewChannel
 	for newChannel := range channels {
+		if f.holdChannels {
+			held = append(held, newChannel) // neither accepted nor rejected
+			continue
+		}
 		if newChannel.ChannelType() != "direct-streamlocal@openssh.com" {
 			_ = newChannel.Reject(ssh.UnknownChannelType, "only stream-local forwarding")
 			continue
@@ -289,6 +302,55 @@ func TestDockerConnectorSSHClosesClientWhenSocketForwardFails(t *testing.T) {
 	}
 	if fixture.accepted.Load() == 0 {
 		t.Fatal("the SSH handshake never happened")
+	}
+	fixture.waitForClosedSSHConnections(t)
+}
+
+// shortDockerSSHSocketOpenTimeout shrinks the socket-open budget for one test.
+func shortDockerSSHSocketOpenTimeout(t *testing.T, budget time.Duration) {
+	t.Helper()
+	prior := dockerSSHSocketOpenTimeout
+	dockerSSHSocketOpenTimeout = budget
+	t.Cleanup(func() { dockerSSHSocketOpenTimeout = prior })
+}
+
+func TestDialDockerEngineOverSSHBoundsAStalledSocketOpen(t *testing.T) {
+	fixture := startDockerSSHFixtureWith(t, "127.0.0.1:1", true)
+	useInsecureHostKeyForTest(t)
+	shortDockerSSHSocketOpenTimeout(t, 200*time.Millisecond)
+
+	nest := NestRecord{ID: "12345678-abcd-ef12-3456-7890abcdef12", Host: fixture.host, Port: fixture.port, Username: "fixture", DeployMethod: "docker_ssh"}
+	// net/http dials with a context that never ends; Background stands in for it.
+	start := time.Now()
+	conn, err := dialDockerEngineOverSSH(context.Background(), nest, []byte("fixture"))
+	if err == nil {
+		_ = conn.Close()
+		t.Fatal("a socket open the server never answers succeeded")
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("the stalled socket open took %v, want it bounded by the open budget", elapsed)
+	}
+	if !strings.Contains(err.Error(), "open /var/run/docker.sock") {
+		t.Fatalf("error = %v, want the socket open failure", err)
+	}
+	if fixture.accepted.Load() != 1 {
+		t.Fatalf("SSH connections = %d, want 1", fixture.accepted.Load())
+	}
+	fixture.waitForClosedSSHConnections(t)
+}
+
+func TestDockerConnectorSSHClosesClientAfterAStalledSocketOpenThroughHTTP(t *testing.T) {
+	fixture := startDockerSSHFixtureWith(t, "127.0.0.1:1", true)
+	useInsecureHostKeyForTest(t)
+	shortDockerSSHSocketOpenTimeout(t, 300*time.Millisecond)
+
+	nest := NestRecord{ID: "12345678-abcd-ef12-3456-7890abcdef12", Host: fixture.host, Port: fixture.port, Username: "fixture", DeployMethod: "docker_ssh"}
+	// The request gives up first; the dial it started must still end within
+	// the open budget and close its SSH client.
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if err := (&DockerConnector{}).Validate(ctx, nest, []byte("fixture")); err == nil {
+		t.Fatal("Validate against a stalled socket open succeeded")
 	}
 	fixture.waitForClosedSSHConnections(t)
 }

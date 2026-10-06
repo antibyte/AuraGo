@@ -220,7 +220,7 @@ function renderNests() {
                 </div>
                 <div class="card-meta">
                     <span><span class="badge badge-${n.access_type}">${n.access_type.toUpperCase()}</span>
-                          ${n.access_type !== 'local' ? esc(n.host) + ':' + n.port : 'localhost'}</span>
+                          ${(n.access_type !== 'local' || n.deploy_method === 'docker_ssh') ? esc(n.host) + ':' + n.port : 'localhost'}</span>
                     ${n.username ? '<span>👤 ' + esc(n.username) + '</span>' : ''}
                     <span>🥚 ${esc(eggName)}</span>
                     ${n.deploy_method ? '<span>🚀 ' + esc(n.deploy_method) + '</span>' : ''}
@@ -319,6 +319,9 @@ function openNestModal(nest = null) {
         }
 
         setVal('nest-deploy-method', nest?.deploy_method || 'ssh');
+        // onDeployMethodSelect compares against the method selected before.
+        const methodSelect = document.getElementById('nest-deploy-method');
+        if (methodSelect) methodSelect.dataset.previous = methodSelect.value;
         setVal('nest-target-arch', nest?.target_arch || 'linux/amd64');
         setVal('nest-route', nest?.route || 'direct');
         setVal('nest-route-config', nest?.route_config || '');
@@ -398,12 +401,17 @@ function onDeployMethodChange() {
 }
 
 // User changed the deploy method: move the port between the SSH default and
-// the Docker API defaults, then refresh the dependent fields.
+// the Docker API defaults, then refresh the dependent fields. Port 22 goes
+// back to a Docker API port only when docker_ssh was selected before, so a
+// port typed by hand for another method is never touched.
 function onDeployMethodSelect() {
-    const method = document.getElementById('nest-deploy-method').value;
+    const select = document.getElementById('nest-deploy-method');
+    const method = select.value;
+    const previous = select.dataset.previous || '';
+    select.dataset.previous = method;
     const port = document.getElementById('nest-port');
     if (method === 'docker_ssh' && (port.value == 2375 || port.value == 2376)) port.value = 22;
-    if (method === 'docker_remote' && port.value == 22 && document.getElementById('nest-access-type').value === 'docker') {
+    if (method === 'docker_remote' && previous === 'docker_ssh' && port.value == 22 && document.getElementById('nest-access-type').value === 'docker') {
         port.value = document.getElementById('nest-docker-tls')?.value ? 2376 : 2375;
     }
     onDeployMethodChange();

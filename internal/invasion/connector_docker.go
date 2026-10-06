@@ -433,6 +433,15 @@ func (t failingDockerTransport) RoundTrip(req *http.Request) (*http.Response, er
 // dockerSSHEngineSocket is the Engine socket a docker_ssh nest reaches through SSH.
 const dockerSSHEngineSocket = "/var/run/docker.sock"
 
+// dockerSSHSocketOpenBudget bounds the direct-streamlocal open of the Engine
+// socket. net/http dials with a context that never ends, so without it an
+// authenticated sshd that never answers the open would keep the SSH client
+// and its goroutines alive forever.
+const dockerSSHSocketOpenBudget = 10 * time.Second
+
+// dockerSSHSocketOpenTimeout is the budget in use; tests shorten it.
+var dockerSSHSocketOpenTimeout = dockerSSHSocketOpenBudget
+
 // dialDockerEngineOverSSH opens one SSH connection (known_hosts verification
 // and finite dial/handshake budget via remote.DialSSH) and forwards a stream
 // to the remote Engine socket. Closing the returned conn closes the SSH client.
@@ -445,7 +454,9 @@ func dialDockerEngineOverSSH(ctx context.Context, nest NestRecord, secret []byte
 	if err != nil {
 		return nil, fmt.Errorf("docker over SSH: %w", err)
 	}
-	conn, err := client.DialContext(ctx, "unix", dockerSSHEngineSocket)
+	openCtx, cancel := context.WithTimeout(ctx, dockerSSHSocketOpenTimeout)
+	defer cancel()
+	conn, err := client.DialContext(openCtx, "unix", dockerSSHEngineSocket)
 	if err != nil {
 		_ = client.Close()
 		return nil, fmt.Errorf("docker over SSH: open %s: %w", dockerSSHEngineSocket, err)
