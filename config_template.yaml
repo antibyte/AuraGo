@@ -2043,7 +2043,7 @@ security_proxy:
         addresses: []
     basic_auth:
         enabled: false                      # Vault: proxy_basic_auth_user / proxy_basic_auth_pass
-    geo_blocking:
+    geo_blocking:                           # not implemented yet: the security proxy ignores these keys
         enabled: false
         allowed_countries: []               # ISO 3166-1 alpha-2 codes
     additional_routes: []
