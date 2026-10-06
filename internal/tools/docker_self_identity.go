@@ -10,8 +10,15 @@ import (
 // The zero value means "not in a container, or not proven": callers then apply
 // no self-specific rule.
 type DockerSelfIdentity struct {
-	// ComposeProject is the container's com.docker.compose.project label.
+	// ComposeProject is the container's com.docker.compose.project label. When
+	// AuraGo shares another container's network namespace it is set only when
+	// every container of that namespace carries the same project.
 	ComposeProject string
+	// Proven reports that Docker named exactly AuraGo's own container: the
+	// self signals name a container nobody else joins. Only then are the
+	// mounts below known; otherwise IsAuraGoStateVolume falls back to the
+	// shipped volume names.
+	Proven bool
 	// StateVolumes are the named volumes mounted at or below AuraGo's data
 	// directory (vault, databases, master key).
 	StateVolumes []string
@@ -62,7 +69,7 @@ const auraGoDataVolumeKey = "aurago_data"
 // IsAuraGoStateVolume reports a named volume that holds AuraGo's data
 // directory. Native installs (inContainer false) keep it in a host directory,
 // so no volume is. In a container it is one of self.StateVolumes when Docker
-// proved the mounts of the data directory, otherwise the shipped name
+// proved AuraGo's own container (self.Proven), otherwise the shipped name
 // (aurago_data, <project>_aurago_data). The workdir volume is the agent
 // workspace itself and never matches.
 func IsAuraGoStateVolume(name string, inContainer bool, self DockerSelfIdentity) bool {
@@ -70,7 +77,7 @@ func IsAuraGoStateVolume(name string, inContainer bool, self DockerSelfIdentity)
 	if !inContainer || name == "" {
 		return false
 	}
-	if len(self.StateVolumes) > 0 || len(self.StateBindSources) > 0 {
+	if self.Proven {
 		for _, volume := range self.StateVolumes {
 			if strings.EqualFold(strings.TrimSpace(volume), name) {
 				return true

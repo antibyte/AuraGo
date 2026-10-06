@@ -107,7 +107,7 @@ func TestDockerComposePolicyRefusesAuraGosDataVolumeInContainers(t *testing.T) {
 		}
 	}
 	// A proven identity names the exact volume; another stack's aurago_data stays usable.
-	stubDockerSelfIdentity(t, tools.DockerSelfIdentity{StateVolumes: []string{"prod_aurago_data"}})
+	stubDockerSelfIdentity(t, tools.DockerSelfIdentity{Proven: true, StateVolumes: []string{"prod_aurago_data"}})
 	if got := policy("up -d"); got != "" {
 		t.Fatalf("another stack's volume refused with a proven identity: %s", got)
 	}

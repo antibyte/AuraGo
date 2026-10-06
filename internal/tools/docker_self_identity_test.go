@@ -32,7 +32,7 @@ func TestDockerSelfIdentityForUsesTheBoundResolver(t *testing.T) {
 }
 
 func TestDockerBindTouchesAuraGoStateOnlyInContainers(t *testing.T) {
-	proven := DockerSelfIdentity{StateVolumes: []string{"prod_aurago_data"}, StateBindSources: []string{"/srv/aurago/data"}}
+	proven := DockerSelfIdentity{Proven: true, StateVolumes: []string{"prod_aurago_data"}, StateBindSources: []string{"/srv/aurago/data"}}
 	cases := []struct {
 		name        string
 		bind        string
@@ -50,6 +50,8 @@ func TestDockerBindTouchesAuraGoStateOnlyInContainers(t *testing.T) {
 		{"proven: bind of the data directory", "/srv/aurago/data/vault.bin:/v:ro", true, proven, true},
 		{"proven: unrelated bind", "/srv/media:/m", true, proven, false},
 		{"anonymous volume", "/data", true, DockerSelfIdentity{}, false},
+		{"proven without a data volume: shipped names are not AuraGo's", "aurago_aurago_data:/d", true, DockerSelfIdentity{Proven: true, ComposeProject: "aurago"}, false},
+		{"shared namespace: unproven, shipped names stay protected", "x_aurago_data:/d", true, DockerSelfIdentity{ComposeProject: "aurago"}, true},
 	}
 	for _, tc := range cases {
 		if got := DockerBindTouchesAuraGoState(tc.bind, tc.inContainer, tc.self); got != tc.want {

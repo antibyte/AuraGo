@@ -92,9 +92,12 @@ func containerDataDir(s *Server) string {
 
 // resolveDockerSelfIdentity inspects the container the self signals name (the
 // /proc container ID, else the default hostname, which Docker accepts as an ID
-// prefix). With a network-namespace sidecar the signals name the provider; its
-// project is normally AuraGo's, and it mounts nothing at the data directory,
-// so StateVolumes stay empty and callers fall back to the shipped names.
+// prefix) and lists all containers to apply K12's containerSelfInList. With a
+// network-namespace sidecar (network_mode container:/service:, e.g. Gluetun or
+// Tailscale) the signals name the provider, so the identity is not proven: it
+// keeps the project only when the provider and every container joining it
+// carry the same project label, and no mounts (callers fall back to the
+// shipped volume names). A failed list counts as a failed inspect.
 func resolveDockerSelfIdentity(ctx context.Context, cfg tools.DockerConfig, signals containerSelfSignals, dataDir string) (tools.DockerSelfIdentity, error) {
 	id := signals.ownID
 	if id == "" {
@@ -116,6 +119,7 @@ func resolveDockerSelfIdentity(ctx context.Context, cfg tools.DockerConfig, sign
 		return tools.DockerSelfIdentity{}, fmt.Errorf("inspect container %s: HTTP %d", id, code)
 	}
 	var info struct {
+		ID     string `json:"Id"`
 		Config struct {
 			Labels map[string]string `json:"Labels"`
 		} `json:"Config"`
@@ -129,7 +133,26 @@ func resolveDockerSelfIdentity(ctx context.Context, cfg tools.DockerConfig, sign
 	if err := json.Unmarshal(data, &info); err != nil {
 		return tools.DockerSelfIdentity{}, fmt.Errorf("decode container %s: %w", id, err)
 	}
-	identity := tools.DockerSelfIdentity{ComposeProject: strings.TrimSpace(info.Config.Labels[dockerComposeProjectLabel])}
+	project := strings.TrimSpace(info.Config.Labels[dockerComposeProjectLabel])
+	entries, failure := tools.DockerListContainerEntries(cfg, true)
+	if failure != "" {
+		return tools.DockerSelfIdentity{}, fmt.Errorf("list containers: %s", failure)
+	}
+	fullID := strings.ToLower(strings.TrimSpace(info.ID))
+	self, shared := containerSelfInList(entries, signals)
+	switch {
+	case fullID != "" && self[fullID]:
+	case fullID != "" && shared[fullID]:
+		for _, entry := range entries {
+			if shared[strings.ToLower(entry.FullID)] && strings.TrimSpace(entry.Labels[dockerComposeProjectLabel]) != project {
+				return tools.DockerSelfIdentity{}, nil
+			}
+		}
+		return tools.DockerSelfIdentity{ComposeProject: project}, nil
+	default:
+		return tools.DockerSelfIdentity{}, fmt.Errorf("container %s is not in the container list", id)
+	}
+	identity := tools.DockerSelfIdentity{ComposeProject: project, Proven: true}
 	if dataDir == "" {
 		return identity, nil
 	}
