@@ -86,7 +86,8 @@
         function rowMarkup(m, state) {
             const summary = triggers.summary(m, t, { schedule, lang });
             const busy = state === 'running' || state === 'queued';
-            // An unpublished flow cannot run (the server refuses it).
+            // An unpublished flow cannot run (the server refuses it). It gets no Paused badge: its summary line
+            // already reads "Not published yet".
             const unpublished = triggers.isUnpublishedFlow(m);
             return `
                 <span class="vd-mc-row-state" data-state="${esc(state)}" aria-hidden="true"></span>
@@ -95,7 +96,7 @@
                         <span class="vd-mc-row-name">${esc(m.name || '')}</span>
                         ${m.locked ? `<span class="vd-mc-row-badge" title="${esc(t('desktop.mc_state_locked'))}">${ic('lock')}</span>` : ''}
                         ${m.runner_type === 'remote' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_remote'))}</span>` : ''}
-                        ${m.enabled === false ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(unpublished ? t('desktop.mc_flow_unpublished') : t('desktop.mc_state_paused'))}</span>` : ''}
+                        ${m.enabled === false && !unpublished ? `<span class="vd-mc-row-badge vd-mc-row-badge--text">${esc(t('desktop.mc_state_paused'))}</span>` : ''}
                         ${m.execution_type === 'flow' ? `<span class="vd-mc-row-badge vd-mc-row-badge--text vd-mc-row-badge--flow">${esc(t('desktop.mc_badge_flow'))}</span>` : ''}
                     </span>
                     <span class="vd-mc-row-sub">${esc(summary)}</span>

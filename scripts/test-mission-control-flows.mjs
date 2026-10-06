@@ -138,7 +138,8 @@ check('list: flow row has the flow badge', rowHtml('flow-1').includes('vd-mc-row
 check('list: agent row has no flow badge', !rowHtml('agent-1').includes('vd-mc-row-badge--flow'));
 check('list: quick run disabled for an unpublished flow', /data-mc-quick="run"[^>]*disabled/.test(rowHtml('flow-2')));
 check('list: quick run enabled for a published flow', !/data-mc-quick="run"[^>]*disabled/.test(rowHtml('flow-1')));
-check('list: an unpublished flow reads "Not published yet", not Paused', rowHtml('flow-2').includes('data-state="unpublished"') && rowHtml('flow-2').includes('vd-mc-row-badge--text">desktop.mc_flow_unpublished<') && !rowHtml('flow-2').includes('desktop.mc_state_paused'));
+check('list: an unpublished flow reads "Not published yet" once (summary line), no Paused badge', rowHtml('flow-2').includes('data-state="unpublished"') &&
+    rowHtml('flow-2').split('desktop.mc_flow_unpublished').length === 2 && rowHtml('flow-2').includes('vd-mc-row-sub">desktop.mc_flow_unpublished<') && !rowHtml('flow-2').includes('desktop.mc_state_paused'));
 check('list: a paused agent mission still reads Paused', rowHtml('agent-2').includes('data-state="paused"') && rowHtml('agent-2').includes('desktop.mc_state_paused'));
 check('list: a flow row shows its next run', rowHtml('flow-1').includes('desktop.mc_next_run_in {&quot;when&quot;:&quot;rel&quot;}'));
 check('list: a scheduled row still shows its next run', rowHtml('sched-1').includes('desktop.mc_next_run_in {&quot;when&quot;:&quot;rel&quot;}'));
