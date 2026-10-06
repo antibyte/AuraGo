@@ -125,7 +125,18 @@ func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req 
 		model = dockerComposeLifecycleModel(model, preflight, req.Command)
 	}
 	violations := dockerComposeCommandViolations(req.Command, scope, policy)
-	violations = append(violations, tools.EvaluateDockerComposeHostAccess(model, envFiles, scope, policy)...)
+	evaluated := tools.EvaluateDockerComposeHostAccess(model, envFiles, scope, policy)
+	narrowed := false
+	if !policy.AllowHostAccess && scope != tools.DockerComposeScopeRender {
+		// A command that names services runs only them and what they need
+		// (and, but for build and pull, what depends on them); host-tier
+		// findings of other services are not what it runs.
+		if closure, ok := preflight.namedServiceClosure(model, req.Command); ok {
+			evaluated = dockerComposeKeepClosureViolations(evaluated, closure)
+			narrowed = true
+		}
+	}
+	violations = append(violations, evaluated...)
 	if scope != tools.DockerComposeScopeLifecycle && !dockerComposeHasAlwaysViolation(violations) &&
 		(tools.DockerComposeLowerTextCarriesMasterKey(preflight.resolved, policy.MasterKey) ||
 			tools.DockerComposeLowerTextCarriesMasterKey(effective.profileText, policy.MasterKey)) {
@@ -137,7 +148,7 @@ func dockerComposeHostAccessPolicy(ctx context.Context, cfg *config.Config, req 
 	sort.SliceStable(violations, func(i, j int) bool { return violations[i].Always && !violations[j].Always })
 	violations = tools.RedactDockerComposeMasterKey(violations, policy.MasterKey)
 	if len(violations) > 0 {
-		return dockerComposeViolationOutput(violations)
+		return dockerComposeViolationOutputFor(violations, narrowed)
 	}
 	if envFilesUnknown {
 		return dockerComposeDenied("docker_compose_host_access_denied",
@@ -274,21 +285,34 @@ const dockerComposeShownViolations = 6
 const (
 	dockerComposeHostAccessHint = "Without Config → Danger Zone → \"Docker host access for agent Compose stacks\" (docker.allow_host_access) agent Compose stacks cannot use host paths outside the agent workspace, devices, privileged mode, host namespaces or other host access; every service of the file's default profiles is checked, not only the ones named in the command. Enable that setting or keep the stack inside the workspace. Do not retry unchanged."
 	dockerComposeStateHint      = "AuraGo's own data directory, configuration, .env and master key can never be used by agent Compose stacks, even with docker.allow_host_access. Do not retry unchanged."
+	// dockerComposeNarrowedHostAccessHint replaces dockerComposeHostAccessHint
+	// when the check was limited to the named services (namedServiceClosure).
+	dockerComposeNarrowedHostAccessHint = "Without Config → Danger Zone → \"Docker host access for agent Compose stacks\" (docker.allow_host_access) agent Compose stacks cannot use host paths outside the agent workspace, devices, privileged mode, host namespaces or other host access; the named services and the services they need were checked. Enable that setting or keep the stack inside the workspace. Do not retry unchanged."
 )
 
 func dockerComposeViolationOutput(violations []tools.DockerComposeViolation) string {
+	return dockerComposeViolationOutputFor(violations, false)
+}
+
+// dockerComposeViolationOutputFor is dockerComposeViolationOutput; narrowed
+// selects the hint for a check limited to the named services.
+func dockerComposeViolationOutputFor(violations []tools.DockerComposeViolation, narrowed bool) string {
+	hostHint := dockerComposeHostAccessHint
+	if narrowed {
+		hostHint = dockerComposeNarrowedHostAccessHint
+	}
 	always, host := false, false
 	for _, violation := range violations {
 		always = always || violation.Always
 		host = host || !violation.Always
 	}
 	code := "docker_compose_host_access_denied"
-	hint := dockerComposeHostAccessHint
+	hint := hostHint
 	if always {
 		code = "docker_compose_protected_path_denied"
 		hint = dockerComposeStateHint
 		if host {
-			hint = dockerComposeStateHint + " " + dockerComposeHostAccessHint
+			hint = dockerComposeStateHint + " " + hostHint
 		}
 	}
 	shown := violations

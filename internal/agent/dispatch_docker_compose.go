@@ -38,6 +38,11 @@ type dockerComposePreflight struct {
 	raw       string
 	resolved  string
 	model     tools.DockerComposeModel
+	// defaultRaw is the default resolution as raw JSON per entry; the
+	// named-service narrowing reads service references from it when the
+	// all-profiles model is missing. Empty when it does not decode, which
+	// disables that narrowing.
+	defaultRaw dockerComposeRawModel
 	// allProfilesModel is `--profile * config --no-env-resolution`: every
 	// service, including inactive profiles that `up <service>` activates, with
 	// env_file entries kept as paths; allProfilesRaw holds the same resolution
@@ -133,6 +138,9 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 		raw:       strings.ToLower(string(raw)),
 		resolved:  strings.ToLower(resolved),
 		model:     model,
+	}
+	if json.Unmarshal([]byte(resolved), &preflight.defaultRaw) != nil {
+		preflight.defaultRaw = dockerComposeRawModel{}
 	}
 	allResolved, err := resolveDockerComposeConfig(ctx, cfg, composeFile, tools.DockerComposeConfigOptions{AllProfiles: true})
 	if err == nil {
