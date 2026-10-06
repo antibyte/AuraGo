@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -48,6 +50,9 @@ func (s *Service) ListPets(ctx context.Context) ([]PetManifest, error) {
 
 // GetPet returns a single pet by ID.
 func (s *Service) GetPet(ctx context.Context, id string) (PetManifest, error) {
+	if !petIDPattern.MatchString(id) {
+		return PetManifest{}, fmt.Errorf("invalid pet id %q", id)
+	}
 	if err := s.ensureReady(ctx); err != nil {
 		return PetManifest{}, err
 	}
@@ -240,11 +245,61 @@ func (s *Service) listPetsWithDefaultRepair(workspaceDir string) ([]PetManifest,
 	return listPetsInDir(workspaceDir)
 }
 
+// cleanPetRelPath cleans a manifest-supplied file path inside a pet directory.
+// Pet packages are portable, so on every OS the path must be relative and
+// slash-separated: absolute paths, ".." escapes, backslashes, colons (drive
+// letters, NTFS streams) and names filepath.Localize refuses are rejected.
+func cleanPetRelPath(raw string) (string, bool) {
+	if strings.ContainsAny(raw, `:\`) {
+		return "", false
+	}
+	clean := path.Clean(raw)
+	if clean == "." || !fs.ValidPath(clean) {
+		return "", false
+	}
+	if _, err := filepath.Localize(clean); err != nil {
+		return "", false
+	}
+	return clean, true
+}
+
+// petRegularFile reports whether the slash-separated rel names a regular file
+// inside the pet directory id under root (the Pets directory). Every
+// component, the pet directory included, is checked with Lstat: intermediate
+// ones must be real directories (symlinks and Windows junctions are not), the
+// last one a regular file, so links never redirect a pet lookup.
+func petRegularFile(root *os.Root, id, rel string) bool {
+	parts := strings.Split(id+"/"+rel, "/")
+	for i := range parts {
+		info, err := root.Lstat(strings.Join(parts[:i+1], "/"))
+		if err != nil {
+			return false
+		}
+		if last := i == len(parts)-1; (!last && !info.IsDir()) || (last && !info.Mode().IsRegular()) {
+			return false
+		}
+	}
+	return true
+}
+
+// getPetInDir loads Pets/<id>/pet.json and checks its spritesheet. Errors
+// name the pet id only, never a resolved host path, because they reach HTTP
+// and agent tool responses.
 func getPetInDir(workspaceDir, id string) (PetManifest, error) {
-	petDir := filepath.Join(workspaceDir, petsDirName, id)
-	data, err := os.ReadFile(filepath.Join(petDir, "pet.json"))
+	if !petIDPattern.MatchString(id) {
+		return PetManifest{}, fmt.Errorf("invalid pet id %q", id)
+	}
+	root, err := os.OpenRoot(filepath.Join(workspaceDir, petsDirName))
 	if err != nil {
-		return PetManifest{}, fmt.Errorf("read pet %q: %w", id, err)
+		return PetManifest{}, fmt.Errorf("pet %q not found", id)
+	}
+	defer root.Close()
+	if !petRegularFile(root, id, "pet.json") {
+		return PetManifest{}, fmt.Errorf("pet %q not found", id)
+	}
+	data, err := root.ReadFile(id + "/pet.json")
+	if err != nil {
+		return PetManifest{}, fmt.Errorf("pet %q is not readable", id)
 	}
 	var pet PetJSON
 	if err := json.Unmarshal(data, &pet); err != nil {
@@ -254,9 +309,12 @@ func getPetInDir(workspaceDir, id string) (PetManifest, error) {
 	if spritesheet == "" {
 		spritesheet = "spritesheet.webp"
 	}
-	spritesheetPath := filepath.Join(petDir, filepath.ToSlash(filepath.Clean(spritesheet)))
-	if _, err := os.Stat(spritesheetPath); err != nil {
-		return PetManifest{}, fmt.Errorf("pet %q spritesheet missing: %w", id, err)
+	spritesheet, ok := cleanPetRelPath(spritesheet)
+	if !ok {
+		return PetManifest{}, fmt.Errorf("pet %q has an invalid spritesheet path", id)
+	}
+	if !petRegularFile(root, id, spritesheet) {
+		return PetManifest{}, fmt.Errorf("pet %q spritesheet missing", id)
 	}
 	displayName := strings.TrimSpace(pet.DisplayName)
 	if displayName == "" {
