@@ -159,8 +159,12 @@ eq('rect normalize', G.normalizeRect({ x: 10, y: 10 }, { x: 0, y: 5 }), { x: 0, 
 eq('free spot avoids overlap', G.freeSpot({ x: 0, y: 0 }, [{ x: 0, y: 0, w: 232, h: 72 }]).y > 72, true);
 
 // ── c1d02 extras (controller requirements beyond the plan) ──
-{
-    // Merge node fields follow the mode (dynamic_fields "mode"), see internal/flows/nodes_logic.go mergeNodeDef.
+// Each block runs in guard(): a check that throws counts as one failure and the other blocks still run.
+function guard(name, fn) {
+    try { fn(); } catch (err) { failures++; console.log('FAIL ' + name + ' threw: ' + (err && err.message)); }
+}
+guard('c1d02 merge fields', () => {
+    // Merge node fields follow the mode (dynamic_fields "mode"), see mergeNodeDef in internal/flows/nodes_logic.go.
     const mergeTypes = new Map(types);
     mergeTypes.set('logic.merge', { type: 'logic.merge', label: 'Zusammenführen', inputs: ['in'], outputs: ['out'], dynamic_fields: 'mode', params: [{ name: 'mode', kind: 'segmented', default: 'wait_all' }, { name: 'field', kind: 'text', default: 'items' }], output_fields: [] });
     const mm = M.create({ schema: 1, name: 'Merge', nodes: [], edges: [] }, { types: mergeTypes });
@@ -181,8 +185,8 @@ eq('free spot avoids overlap', G.freeSpot({ x: 0, y: 0 }, [{ x: 0, y: 0, w: 232,
     mm.connect(branch, 'true', merge2, 'in');
     mm.connect(branch, 'false', merge2, 'in');
     eq('c1d02 merge skips duplicate upstream nodes', mm.fieldsOf(mm.node(merge2)).map(f => f.name), ['wenn']);
-}
-{
+});
+guard('c1d02 filters', () => {
     // Preview filters follow the Go engine (internal/flows/filters.go); the expectations are Go's results.
     eq('c1d02 round halves away from zero', [T.applyFilter('round', -2.5, []), T.applyFilter('round', 2.5, []), T.applyFilter('round', -0.125, [2])], [-3, 3, -0.13]);
     check('c1d02 round has no negative zero', Object.is(T.applyFilter('round', -0.4, []), 0));
@@ -197,37 +201,89 @@ eq('free spot avoids overlap', G.freeSpot({ x: 0, y: 0 }, [{ x: 0, y: 0, w: 232,
     eq('c1d02 strip_html decodes numeric entities', T.applyFilter('strip_html', '&#228;&#x263A; &lt;b&gt;', []), 'ä☺ <b>');
     eq('c1d02 upper keeps sharp s', T.applyFilter('upper', 'straße', []), 'STRAßE');
     eq('c1d02 lower maps one letter at a time', [T.applyFilter('lower', 'ΟΔΟΣ', []), T.applyFilter('lower', 'İstanbul', [])], ['οδοσ', 'istanbul']);
-}
-{
+});
+guard('c1d02 template syntax', () => {
     // Template syntax follows ParseTemplate and parseExpr (internal/flows/template.go); each check states Go's behaviour.
     const data = { v: { s: 'a-b-c', list: [1, 2, 3], obj: { b: 1, a: { d: 2, c: 3 } }, ik: { a: 3, 9: 2, 10: 1 } } };
-    // template.go:282-291 accepts a negative index; template_eval.go:101-107 counts it from the end.
+    // parseExpr (template.go) accepts a negative index; stepInto (template_eval.go) counts it from the end.
     eq('c1d02 negative index counts from the end', [T.evaluate('{{v.list[-1]}}', data), T.evaluate('{{v.list[-4]}}', data)], [3, null]);
     check('c1d02 negative index is no syntax error', !T.refs('{{v.list[-1]}}')[0].error);
-    // template.go:114-137 (findExprEnd) skips quoted strings when it looks for "}}".
+    // findExprEnd (template.go) skips quoted strings when it looks for "}}".
     eq('c1d02 quoted }} does not end the expression', T.evaluate('a {{v.nope | default("}}")}} b', data), 'a }} b');
-    // template.go:136: a "{{" without its "}}" fails the template.
+    // findExprEnd (template.go): a "{{" without its "}}" fails the template.
     let unclosedThrew = false;
     try { T.evaluate('x {{v.s', data); } catch (err) { unclosedThrew = true; }
     check('c1d02 unclosed braces are an error', unclosedThrew && T.refs('x {{v.s')[0].error === 'unclosed {{' && T.refs('{{v.s | default("x}}')[0].error === 'unclosed {{');
-    // template.go:167-169: the lexer skips blanks between tokens.
+    // exprLexer.next (template.go) skips blanks between tokens.
     eq('c1d02 blanks inside paths are allowed', [T.evaluate('{{ v . s }}', data), T.parseExpr('v [ 0 ] . x').path], ['a-b-c', [0, 'x']]);
-    // template.go:264-270: the step after "." must be a name.
+    // parseExpr (template.go): the step after "." must be a name.
     check('c1d02 a number or dash after a dot is an error', !!T.refs('{{v.0}}')[0].error && !!T.refs('{{v.content-type}}')[0].error);
-    // template.go:327-329 runs checkFilterCall (filters.go:67-79) while parsing.
+    // parseExpr (template.go) runs checkFilterCall (filters.go) while parsing.
     check('c1d02 refs flags unknown filters and argument counts', ['{{v | nope}}', '{{v | truncate}}', '{{v | upper(1)}}', '{{v | toString}}'].every(s => !!T.refs(s)[0].error));
-    // values.go:57-66 and filters.go:285-291 use encoding/json, which sorts object keys by their bytes.
+    // Stringify (values.go) and filterJSON (filters.go) use encoding/json, which sorts object keys by their bytes.
     eq('c1d02 json and text sort object keys', [T.applyFilter('json', data.v.obj, []), T.evaluate('x {{v.ik}}', data)], ['{"a":{"c":3,"d":2},"b":1}', 'x {"10":1,"9":2,"a":3}']);
-    // values.go:138-146 parses with time.ParseInLocation, which rejects impossible fields (filters.go:337-340 "not a date").
+    // toTime (values.go) parses with time.ParseInLocation, which rejects impossible fields; filterDate (filters.go) says "not a date".
     const notDate = s => { try { T.applyFilter('date', s, ['DD.MM.YYYY', 'UTC']); return false; } catch (err) { return /not a date/.test(err.message); } };
     check('c1d02 date rejects impossible calendar fields', ['2026-02-30', '2026-02-29T07:30:00Z', '2026-04-31 10:00', '2026-01-01T24:00:00Z', '2026-13-01'].every(notDate));
     eq('c1d02 date keeps real leap days', T.applyFilter('date', '2028-02-29T07:30:00Z', ['DD.MM.YYYY', 'UTC']), '29.02.2028');
-    // values.go:72-85 (encoding/json) escapes U+2028 and U+2029 even without HTML escaping.
+    // marshalCompact (values.go) uses encoding/json, which escapes U+2028 and U+2029 even without HTML escaping.
     const LS = String.fromCharCode(0x2028);
     const PS = String.fromCharCode(0x2029);
     const BS = String.fromCharCode(92);
     eq('c1d02 json escapes line and paragraph separators', [T.applyFilter('json', { ['k' + LS]: 'a' + PS + 'b' }, []), T.evaluate('x {{v.o}}', { v: { o: ['a' + LS] } })], ['{"k' + BS + 'u2028":"a' + BS + 'u2029b"}', 'x ["a' + BS + 'u2028"]']);
-}
+});
+guard('c1d02 template review fixes', () => {
+    const throwsWith = (fn, pattern) => { try { fn(); return false; } catch (err) { return pattern.test(err.message); } };
+    // renameRoots replaces each expression root at most once, so a rename chain cannot apply twice.
+    eq('c1d02 renameRoots renames each root once', T.renameRoots('{{a.r}} + {{ a_2 | json}} {{ab}}', new Map([['a', 'a_2'], ['a_2', 'a_2_2']])), '{{a_2.r}} + {{ a_2_2 | json}} {{ab}}');
+    // filterStripHTML (filters.go): the preview scanner stays linear on hostile input and keeps Go's output.
+    for (const unit of ['<a ', '<?', '<!D', '<script ', '<!--']) {
+        const s = unit.repeat(Math.ceil(200000 / unit.length));
+        const t0 = performance.now();
+        T.applyFilter('strip_html', s, []);
+        const ms = performance.now() - t0;
+        check('c1d02 strip_html takes under 100 ms for 200 KB of ' + JSON.stringify(unit), ms < 100, ms.toFixed(1) + ' ms');
+    }
+    eq('c1d02 strip_html keeps Go results', ['<SCRIPT type="x">bad()</SCRIPT >ok', 'a<b and c>d', '<!DOCTYPE html><p>x', '<?xml v?>z', '<a href="x>y">link</a>'].map(s => T.applyFilter('strip_html', s, [])), ['ok', 'a d', 'x', 'z', 'y">link']);
+    // toTime (values.go) accepts only Go's layouts; filterDate (filters.go) says "not a date" for the rest.
+    const notDate = s => throwsWith(() => T.applyFilter('date', s, ['YYYY', 'UTC']), /not a date/);
+    check('c1d02 date rejects forms Go does not parse', ['Sun, 04 Oct 2026 07:30:00 GMT', '10/04/2026', '2026-10', '2026-10-04t07:30:00z', '2026-10-04T07:30:00z', '2026-10-04 07:30:00Z', '2026-10-04T07:30Z', '1759563000'].every(notDate));
+    eq('c1d02 date reads the Go layouts', ['2026-10-04T07:30:00,5+02:00', '2026-10-04T7:30:00Z', '2026-10-04T07:30:00+24:00', '0099-05-06T00:00:00Z'].map(s => T.applyFilter('date', s, ['YYYY-MM-DD HH:mm', 'UTC'])), ['2026-10-04 05:30', '2026-10-04 07:30', '2026-10-03 07:30', '0099-05-06 00:00']);
+    const local = T.toDate('2026-10-04  7:30:00,25');
+    check('c1d02 date reads zone-less forms in local time', !!local && local.getFullYear() === 2026 && local.getHours() === 7 && local.getMinutes() === 30 && local.getMilliseconds() === 250);
+    // filterPluck (filters.go) reads map entries only, never inherited members.
+    eq('c1d02 pluck reads own fields only', T.evaluate('{{a | pluck("constructor") | json}}', { a: [{ x: 1 }, { x: 2 }] }), '[null,null]');
+    // An own "__proto__" key from JSON stays data in evaluate and renameInValue.
+    const hostile = JSON.parse('{"__proto__": {"polluted": "yes"}, "b": "{{a.s}}"}');
+    const evaluated = T.evaluate(hostile, { a: { s: 'x' } });
+    const renamed = T.renameInValue(hostile, 'a', 'z');
+    eq('c1d02 own __proto__ keys stay data', [Object.keys(evaluated), evaluated.polluted, JSON.stringify(evaluated), JSON.stringify(renamed), ({}).polluted], [['__proto__', 'b'], undefined, '{"__proto__":{"polluted":"yes"},"b":"x"}', '{"__proto__":{"polluted":"yes"},"b":"{{z.s}}"}', undefined]);
+    // quoteForError (filters.go) echoes at most 40 characters of user input.
+    check('c1d02 errors quote at most 40 characters', T.refs('{{a "' + 'x'.repeat(5000) + '"}}')[0].error.length < 60 && T.refs('{{a | ' + 'y'.repeat(5000) + '}}')[0].error.length < 60);
+    // intArg (filters.go) refuses whole numbers beyond MaxInt32.
+    check('c1d02 truncate refuses arguments beyond 2^31', throwsWith(() => T.applyFilter('truncate', 'abc', [2 ** 31]), /argument too large/));
+    // filterJoin, filterReplace and filterSplit (filters.go), Evaluate and resolveValue (template_eval.go) cap their output.
+    check('c1d02 join result is capped at 8 MiB', throwsWith(() => T.applyFilter('join', new Array(9000).fill('y'.repeat(1000)), [',']), /join result would exceed 8388608 bytes/));
+    check('c1d02 replace result is capped at 8 MiB', throwsWith(() => T.applyFilter('replace', 'x'.repeat(100000), ['x', 'y'.repeat(100)]), /replace result would exceed 8388608 bytes/));
+    check('c1d02 split stops at 100000 parts', T.applyFilter('split', 'x'.repeat(100000), ['']).length === 100000 && throwsWith(() => T.applyFilter('split', 'x'.repeat(100001), ['']), /more than 100000 parts/));
+    check('c1d02 template text is capped at 8 MiB', throwsWith(() => T.evaluate('{{a}}{{a}}', { a: 'x'.repeat(5 << 20) }), /template output exceeds 8 MiB/));
+    const nested = k => { let v = 'x'; for (let i = 0; i < k; i++) v = [v]; return v; };
+    check('c1d02 parameter values nest at most 32 levels', !throwsWith(() => T.evaluate(nested(31), {}), /./) && throwsWith(() => T.evaluate(nested(32), {}), /nested deeper than 32 levels/));
+    // resolvePath shares the engine's path rules (stepInto in template_eval.go).
+    eq('c1d02 resolvePath follows the engine', [T.resolvePath({ a: [{ b: 1 }, { b: 2 }] }, ['a', -1, 'b']), T.resolvePath({}, ['constructor']), T.resolvePath('str', [0])], [2, null, null]);
+});
+guard('c1d02 bare vm context', () => {
+    // The modules need no host intrinsics: they run in a context that only has window and crypto.
+    const bare = vm.createContext({ window: {}, crypto: webcrypto });
+    for (const file of ['easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js']) {
+        const full = path.join(apps, file);
+        vm.runInContext(fs.readFileSync(full, 'utf8'), bare, { filename: full });
+    }
+    const BED = bare.window.EasyDrag;
+    const bm = BED.model.create({ nodes: [], edges: [] }, { types });
+    const id = bm.addNode('web.search', { x: 0, y: 0 });
+    eq('c1d02 modules run without host intrinsics', [BED.template.evaluate('{{a.b | upper}}', { a: { b: 'x' } }), bm.node(id).key, BED.geometry.nodeHeight(1)], ['X', 'websuche', 72]);
+});
 
 if (failures) {
     console.log(failures + ' failure(s)');
