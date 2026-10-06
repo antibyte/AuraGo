@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Docker-integration krävs",
   "config.homepage.docker_required_desc": "Hemsideverktyget kräver att Docker är aktiverat. Vänligen aktivera Docker-integrationen först.",
   "config.homepage.enabled_label": "Hemsideverktyget aktiverat:",
+  "config.homepage.image_build_refused": "Docker vägrade bygga Homepage-imagen",
+  "config.homepage.image_build_refused_desc": "AuraGo kunde inte bygga Homepage-utvecklingsimagen eftersom Docker svarade med 403. Standard-socketproxyn blockerar image-byggen (BUILD=0). Bygg imagen en gång på Docker-värden med kommandot nedan, eller sätt BUILD=1 för tjänsten docker-proxy. Be sedan agenten köra homepage init eller starta om AuraGo.",
   "config.homepage.optional": "valfritt",
   "config.homepage.permissions_desc": "Styr vilka hemsideoperationer agenten får utföra.",
   "config.homepage.permissions_title": "Behörigheter",

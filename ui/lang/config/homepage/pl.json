@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Wymagana integracja Docker",
   "config.homepage.docker_required_desc": "Narzędzie Homepage wymaga włączonego Dockera. Najpierw aktywuj integrację Docker.",
   "config.homepage.enabled_label": "Narzędzie Homepage włączone:",
+  "config.homepage.image_build_refused": "Docker odmówił zbudowania obrazu Homepage",
+  "config.homepage.image_build_refused_desc": "AuraGo nie mógł zbudować obrazu deweloperskiego Homepage, ponieważ Docker odpowiedział kodem 403. Domyślne proxy gniazda blokuje budowanie obrazów (BUILD=0). Zbuduj obraz jeden raz na hoście Dockera poniższym poleceniem albo ustaw BUILD=1 dla usługi docker-proxy. Następnie poproś agenta o uruchomienie homepage init lub uruchom ponownie AuraGo.",
   "config.homepage.optional": "opcjonalne",
   "config.homepage.permissions_desc": "Kontroluj, które operacje Homepage agent może wykonywać.",
   "config.homepage.permissions_title": "Uprawnienia",

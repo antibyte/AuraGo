@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Docker-integrasjon påkrevd",
   "config.homepage.docker_required_desc": "Hjemmesideverktøyet krever at Docker er aktivert. Vennligst aktiver Docker-integrasjonen først.",
   "config.homepage.enabled_label": "Hjemmesideverktøy aktivert:",
+  "config.homepage.image_build_refused": "Docker nektet å bygge Homepage-imaget",
+  "config.homepage.image_build_refused_desc": "AuraGo kunne ikke bygge Homepage-utviklingsimaget fordi Docker svarte med 403. Standard socket-proxyen blokkerer image-bygging (BUILD=0). Bygg imaget én gang på Docker-verten med kommandoen nedenfor, eller sett BUILD=1 for tjenesten docker-proxy. Be deretter agenten kjøre homepage init, eller start AuraGo på nytt.",
   "config.homepage.optional": "valgfritt",
   "config.homepage.permissions_desc": "Kontroller hvilke hjemmesideoperasjoner agenten har lov til å utføre.",
   "config.homepage.permissions_title": "Tillatelser",

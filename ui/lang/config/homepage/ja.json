@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Docker統合が必要です",
   "config.homepage.docker_required_desc": "ホームページツールにはDockerの有効化が必要です。先にDocker統合を有効にしてください。",
   "config.homepage.enabled_label": "ホームページツール有効:",
+  "config.homepage.image_build_refused": "Docker が Homepage イメージのビルドを拒否しました",
+  "config.homepage.image_build_refused_desc": "Docker が 403 を返したため、AuraGo は Homepage 開発イメージをビルドできませんでした。既定のソケットプロキシはイメージのビルドをブロックします (BUILD=0)。下のコマンドで Docker ホスト上にイメージを一度ビルドするか、docker-proxy サービスに BUILD=1 を設定してください。その後、エージェントに homepage init の実行を依頼するか、AuraGo を再起動してください。",
   "config.homepage.optional": "任意",
   "config.homepage.permissions_desc": "エージェントが実行できるホームページ操作を制御します。",
   "config.homepage.permissions_title": "権限",

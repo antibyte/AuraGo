@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Integração Docker necessária",
   "config.homepage.docker_required_desc": "A ferramenta Homepage requer que o Docker esteja ativado. Por favor, ative a integração Docker primeiro.",
   "config.homepage.enabled_label": "Ferramenta Homepage habilitada:",
+  "config.homepage.image_build_refused": "O Docker recusou compilar a imagem Homepage",
+  "config.homepage.image_build_refused_desc": "O AuraGo não conseguiu compilar a imagem de desenvolvimento Homepage porque o Docker respondeu 403. O proxy de socket predefinido bloqueia a compilação de imagens (BUILD=0). Compile a imagem uma vez no host Docker com o comando abaixo ou defina BUILD=1 no serviço docker-proxy. Depois peça ao agente para executar homepage init ou reinicie o AuraGo.",
   "config.homepage.optional": "opcional",
   "config.homepage.permissions_desc": "Controle quais operações de Homepage o agente pode realizar.",
   "config.homepage.permissions_title": "Permissões",

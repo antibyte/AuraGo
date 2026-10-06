@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Απαιτείται ενσωμάτωση Docker",
   "config.homepage.docker_required_desc": "Το εργαλείο Ιστοσελίδας απαιτεί ενεργοποιημένο Docker. Παρακαλώ ενεργοποιήστε πρώτα την ενσωμάτωση Docker.",
   "config.homepage.enabled_label": "Εργαλείο ιστοσελίδας ενεργοποιημένο:",
+  "config.homepage.image_build_refused": "Το Docker αρνήθηκε να δημιουργήσει το image της Homepage",
+  "config.homepage.image_build_refused_desc": "Το AuraGo δεν μπόρεσε να δημιουργήσει το image ανάπτυξης της Homepage, επειδή το Docker απάντησε με 403. Ο προεπιλεγμένος socket proxy μπλοκάρει τη δημιουργία images (BUILD=0). Δημιουργήστε το image μία φορά στον host του Docker με την παρακάτω εντολή ή ορίστε BUILD=1 για την υπηρεσία docker-proxy. Έπειτα ζητήστε από τον agent να εκτελέσει homepage init ή επανεκκινήστε το AuraGo.",
   "config.homepage.optional": "προαιρετικό",
   "config.homepage.permissions_desc": "Ελέγξτε ποιες λειτουργίες ιστοσελίδας επιτρέπεται να εκτελεί ο πράκτορας.",
   "config.homepage.permissions_title": "Δικαιώματα",

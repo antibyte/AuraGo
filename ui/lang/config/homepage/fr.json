@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Intégration Docker requise",
   "config.homepage.docker_required_desc": "L'outil Page web nécessite l'activation de Docker. Veuillez d'abord activer l'intégration Docker.",
   "config.homepage.enabled_label": "Outil page web activé :",
+  "config.homepage.image_build_refused": "Docker a refusé de construire l'image Homepage",
+  "config.homepage.image_build_refused_desc": "AuraGo n'a pas pu construire l'image de développement Homepage, car Docker a répondu 403. Le proxy de socket par défaut bloque la construction d'images (BUILD=0). Construisez l'image une fois sur l'hôte Docker avec la commande ci-dessous, ou définissez BUILD=1 pour le service docker-proxy. Demandez ensuite à l'agent d'exécuter homepage init ou redémarrez AuraGo.",
   "config.homepage.optional": "optionnel",
   "config.homepage.permissions_desc": "Contrôlez les opérations de page web que l'agent est autorisé à effectuer.",
   "config.homepage.permissions_title": "Permissions",

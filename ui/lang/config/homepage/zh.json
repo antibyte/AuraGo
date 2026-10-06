@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "需要Docker集成",
   "config.homepage.docker_required_desc": "主页工具需要Docker已启用。请先激活Docker集成。",
   "config.homepage.enabled_label": "主页工具已启用：",
+  "config.homepage.image_build_refused": "Docker 拒绝构建 Homepage 镜像",
+  "config.homepage.image_build_refused_desc": "Docker 返回了 403，因此 AuraGo 无法构建 Homepage 开发镜像。默认的套接字代理会阻止镜像构建（BUILD=0）。请使用下方命令在 Docker 主机上构建一次该镜像，或为 docker-proxy 服务设置 BUILD=1。然后让 Agent 执行 homepage init，或重启 AuraGo。",
   "config.homepage.optional": "可选",
   "config.homepage.permissions_desc": "控制代理可以执行的主页操作。",
   "config.homepage.permissions_title": "权限",

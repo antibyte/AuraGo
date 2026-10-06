@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Docker integration required",
   "config.homepage.docker_required_desc": "The Homepage tool requires Docker to be enabled. Please activate Docker integration first.",
   "config.homepage.enabled_label": "Homepage tool enabled:",
+  "config.homepage.image_build_refused": "Docker refused to build the Homepage image",
+  "config.homepage.image_build_refused_desc": "AuraGo could not build the Homepage dev image because Docker answered 403. The default socket proxy blocks image builds (BUILD=0). Build the image once on the Docker host with the command below, or set BUILD=1 for the docker-proxy service. Then ask the agent to run homepage init or restart AuraGo.",
   "config.homepage.optional": "optional",
   "config.homepage.permissions_desc": "Control which homepage operations the agent is allowed to perform.",
   "config.homepage.permissions_title": "Permissions",

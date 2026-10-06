@@ -133,6 +133,16 @@ async function renderHomepageSection(section) {
                 </div>`;
             }
         } else {
+            if (st.image_build_refused) {
+                html += `<div class="wh-notice hp-notice-warning">
+                    <span>⚠️</span>
+                    <div>
+                        <strong>${t('config.homepage.image_build_refused')}</strong><br>
+                        <small>${t('config.homepage.image_build_refused_desc')}</small>
+                        <code class="hp-build-command">${escapeHtml(st.image_build_command || '')}</code>
+                    </div>
+                </div>`;
+            }
             const devCtr = st.dev_container;
             const webCtr = st.web_container;
             const devExists = devCtr && devCtr.exists;

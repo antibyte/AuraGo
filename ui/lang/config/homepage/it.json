@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Integrazione Docker richiesta",
   "config.homepage.docker_required_desc": "Lo strumento Homepage richiede Docker abilitato. Attiva prima l'integrazione Docker.",
   "config.homepage.enabled_label": "Strumento Homepage abilitato:",
+  "config.homepage.image_build_refused": "Docker ha rifiutato di creare l'immagine Homepage",
+  "config.homepage.image_build_refused_desc": "AuraGo non è riuscito a creare l'immagine di sviluppo Homepage perché Docker ha risposto 403. Il proxy del socket predefinito blocca la creazione di immagini (BUILD=0). Crea l'immagine una volta sull'host Docker con il comando qui sotto oppure imposta BUILD=1 per il servizio docker-proxy. Poi chiedi all'agente di eseguire homepage init o riavvia AuraGo.",
   "config.homepage.optional": "opzionale",
   "config.homepage.permissions_desc": "Controlla quali operazioni Homepage l'agente può eseguire.",
   "config.homepage.permissions_title": "Permessi",

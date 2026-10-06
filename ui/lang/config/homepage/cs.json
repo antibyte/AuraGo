@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Vyžadována integrace Dockeru",
   "config.homepage.docker_required_desc": "Nástroj Homepage vyžaduje aktivní Docker. Nejprve prosím aktivujte integraci Dockeru.",
   "config.homepage.enabled_label": "Nástroj Homepage povolen:",
+  "config.homepage.image_build_refused": "Docker odmítl sestavit image Homepage",
+  "config.homepage.image_build_refused_desc": "AuraGo nemohl sestavit vývojový image Homepage, protože Docker odpověděl kódem 403. Výchozí socket proxy blokuje sestavování imagů (BUILD=0). Sestavte image jednou na hostiteli Dockeru příkazem níže, nebo nastavte BUILD=1 pro službu docker-proxy. Poté požádejte agenta o spuštění homepage init, nebo restartujte AuraGo.",
   "config.homepage.optional": "volitelné",
   "config.homepage.permissions_desc": "Určete, které operace s Homepage smí agent provádět.",
   "config.homepage.permissions_title": "Oprávnění",

@@ -29,6 +29,8 @@
   "config.homepage.docker_required": "Docker-Integration erforderlich",
   "config.homepage.docker_required_desc": "Das Homepage-Tool benötigt eine aktive Docker-Integration. Bitte aktiviere zuerst Docker.",
   "config.homepage.enabled_label": "Homepage-Tool aktiviert:",
+  "config.homepage.image_build_refused": "Docker hat den Build des Homepage-Images abgelehnt",
+  "config.homepage.image_build_refused_desc": "AuraGo konnte das Homepage-Dev-Image nicht bauen, weil Docker mit 403 geantwortet hat. Der Standard-Socket-Proxy blockiert Image-Builds (BUILD=0). Baue das Image einmal auf dem Docker-Host mit dem Befehl unten oder setze BUILD=1 für den Dienst docker-proxy. Lass danach den Agenten homepage init ausführen oder starte AuraGo neu.",
   "config.homepage.optional": "optional",
   "config.homepage.permissions_desc": "Steuere, welche Homepage-Operationen der Agent ausführen darf.",
   "config.homepage.permissions_title": "Berechtigungen",
