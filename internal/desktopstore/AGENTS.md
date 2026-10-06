@@ -77,6 +77,36 @@ Store app configuration, runtime, assets, and publication.
   automatically, so review it like a policy exemption. Verify
   `TestToolsDockerAdapterTrustsOnlyCatalogHostBinds`.
 
+### Store Container Hardening
+
+- Hardening beyond Docker's defaults plus `no-new-privileges` (`CapDrop`,
+  `CapAdd`, `ReadonlyRootfs`, `Tmpfs`, `PidsLimit`) is opt-in per catalog image:
+  `CatalogEntry.Hardening` for an app, `CompanionTemplate.Hardening` for a
+  companion. There is no global default; many Store images start as root and
+  switch users (`PUID`/`PGID`, s6-overlay) or run many threads, so a blanket
+  setting breaks them. Both fields are `json:"-"`, so the catalog API is
+  unchanged.
+- An opt-in needs live evidence first: run the image with exactly that
+  hardening on a real Docker host and record the date, host and image digest in
+  the catalog comment and the commit body, then add the `app` or
+  `app/companion` key to `verifiedCatalogHardening` in `hardening_test.go`.
+  `TestCatalogHardeningOptInsAreVerifiedOnly` fails for any unverified opt-in.
+- Hardening is resolved by app/companion ID from the current catalog every time
+  a container is created (`runtimeContainerSpec`, `companionRuntimeSpec`);
+  installed records do not store it and are not migrated. An opt-in therefore
+  applies on the next create (install, update, rollback or companion
+  recreation), not retroactively to running containers.
+- A rollback recreates the previous record's image with the current catalog
+  hardening. Keep image swaps and hardening changes in separate catalog
+  changes, so a rollback never combines an old image with hardening that was
+  verified only for the new one
+  (`TestCatalogHardeningAppliesOnRollbackWithCurrentCatalog`).
+- Most catalog images use floating tags such as `:latest`, so a probe verifies
+  the digest it ran against, not the tag. Re-verify an opted-in image when its
+  upstream changes and update the recorded digest.
+- Verify `TestCatalogHardening*`, `TestDockerCreatePayload*Hardening*` and
+  `TestInstallArcaneAppliesOnlyVerifiedHardening`.
+
 ## Verification
 
 - Desktop Store jobs inherit the Desktop revocation context. Stop remains an
