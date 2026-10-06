@@ -53,11 +53,14 @@ section. Operator guidance lives in the Security Proxy section of
   engine that does not know the container (stray `/.dockerenv`) gets the
   native placement.
 - Create: the container is created through `engine.createTrusted`
-  (`tools.DockerCreateRequestContextWithTrustedBinds`) with exactly the
-  placement's own `binds` trusted, so a native install under `/root`, `/mnt`,
-  `/etc` or `/hostfs` passes the create bind policy. Never trust any other
-  bind; the Docker placement has only `Mounts`, so it trusts nothing. Every
-  other proxy request stays on `engine.request` (`tools.DockerRequest`).
+  (`tools.DockerCreateRequestContextWithTrustedBinds`) with the placement's
+  own `binds` trusted (`trustedNativeBinds`), so a native install under
+  `/root`, `/mnt`, `/etc` or `/hostfs` passes the create bind policy. A bind
+  is trusted only when its host-side leaf (`placement.sources`) exists and is
+  no symlink, checked after `writeCaddyfile`; a symlinked leaf meets the full
+  policy, which resolves the link. Never trust any other bind; the Docker
+  placement has only `Mounts`, so it trusts nothing. No other proxy request
+  passes trusted binds; the others keep their existing tools calls.
 - Hardening (K20): `securityProxyCreatePayload` keeps root, a writable root
   filesystem and no `User` (earlier root containers left root-owned 0600
   certificates), and sets `no-new-privileges:true`, `CapDrop: ALL` and

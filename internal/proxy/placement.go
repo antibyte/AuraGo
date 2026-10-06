@@ -21,6 +21,7 @@ import (
 // reaches the AuraGo backend.
 type placement struct {
 	binds    []string                 // native install: host paths
+	sources  []string                 // native install: the host path of each bind, in the same order
 	mounts   []map[string]interface{} // AuraGo in Docker: AuraGo's own data mount
 	network  string                   // AuraGo in Docker: user-defined network shared with AuraGo
 	upstream string                   // host:port of the AuraGo backend
@@ -55,16 +56,35 @@ func nativePlacement(cfg *config.Config, proxyDir string) placement {
 			dockerutil.FormatBindMount(absCaddyData, "/data"),
 			dockerutil.FormatBindMount(absCaddyConfig, "/config"),
 		},
+		sources:  []string{absCaddyfile, absCaddyData, absCaddyConfig},
 		upstream: fmt.Sprintf("%s:%d", host, upstreamPort(cfg)),
 	}
 }
 
-// nativePlacement returns nativePlacement, or its test replacement.
-func (m *Manager) nativePlacement(cfg *config.Config, proxyDir string) placement {
+// placeNative returns nativePlacement, or its test replacement.
+func (m *Manager) placeNative(cfg *config.Config, proxyDir string) placement {
 	if m.native != nil {
 		return m.native(cfg, proxyDir)
 	}
 	return nativePlacement(cfg, proxyDir)
+}
+
+// trustedNativeBinds lists the binds the container create may trust: a native
+// bind whose host-side leaf exists and is no symlink. A symlinked or missing
+// leaf is left to the full create bind policy (tools.validateDockerBindMount),
+// which resolves the link, exactly as before binds were trusted. Without
+// sources (the Docker placement) nothing is trusted.
+func trustedNativeBinds(place placement) []string {
+	var trusted []string
+	for i, bind := range place.binds {
+		if i >= len(place.sources) {
+			break
+		}
+		if info, err := os.Lstat(place.sources[i]); err == nil && info.Mode()&os.ModeSymlink == 0 {
+			trusted = append(trusted, bind)
+		}
+	}
+	return trusted
 }
 
 // resolvePlacement picks the placement for this process. When AuraGo runs in a
@@ -72,7 +92,7 @@ func (m *Manager) nativePlacement(cfg *config.Config, proxyDir string) placement
 // mounts the same Docker volume or host directory and joins AuraGo's network.
 func (m *Manager) resolvePlacement(cfg *config.Config, proxyDir string) (placement, error) {
 	if !m.runsInDocker() {
-		return m.nativePlacement(cfg, proxyDir), nil
+		return m.placeNative(cfg, proxyDir), nil
 	}
 	dockerCfg := dockerConfigFor(cfg)
 	self, found, err := m.inspectSelf(dockerCfg)
@@ -83,7 +103,7 @@ func (m *Manager) resolvePlacement(cfg *config.Config, proxyDir string) (placeme
 		// /.dockerenv without a container on this engine, e.g. a Proxmox LXC
 		// guest: AuraGo's paths are host paths for the engine.
 		m.log().Warn("Security proxy: this Docker engine does not know the AuraGo container; mounting the data directory as host paths")
-		return m.nativePlacement(cfg, proxyDir), nil
+		return m.placeNative(cfg, proxyDir), nil
 	}
 	apiVersion, err := m.engineAPIVersion(dockerCfg)
 	if err != nil {

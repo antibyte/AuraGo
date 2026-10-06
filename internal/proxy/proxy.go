@@ -227,12 +227,14 @@ func (m *Manager) startLocked(cfg *config.Config) error {
 	// Create container. The binds of a native placement are the proxy's own
 	// directory, so they are trusted: an install under /root, /mnt, /etc or
 	// /hostfs (install.sh run as root uses /root/aurago) would fail the create
-	// bind policy otherwise. Nothing else is trusted; the Docker placement uses
-	// Mounts and has no binds.
+	// bind policy otherwise. A bind whose host-side leaf is a symlink is not
+	// trusted and meets the full policy, which resolves the link. Nothing else
+	// is trusted; the Docker placement uses Mounts and has no binds. The
+	// Caddyfile leaf exists only from writeCaddyfile on, so this runs after it.
 	payload := securityProxyCreatePayload(image, place, proxyCfg.HTTPSPort, proxyCfg.HTTPPort)
 	body, _ := json.Marshal(payload)
 	createCtx, cancelCreate := context.WithTimeout(context.Background(), createTimeout)
-	data, code, err := m.engine.createTrusted(createCtx, dockerCfg, "/containers/create?name="+url.QueryEscape(containerName), string(body), place.binds)
+	data, code, err := m.engine.createTrusted(createCtx, dockerCfg, "/containers/create?name="+url.QueryEscape(containerName), string(body), trustedNativeBinds(place))
 	cancelCreate()
 	if err != nil {
 		restore()

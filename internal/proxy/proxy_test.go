@@ -1379,3 +1379,65 @@ func TestManagerManagesUnlabeledProxyContainerByName(t *testing.T) {
 		t.Fatalf("recreated container Labels = %#v, want the managed labels", payload["Labels"])
 	}
 }
+
+// TestTrustedNativeBindsSkipSymlinkedLeaves: a native bind is trusted only
+// while its host-side leaf exists and is no symlink. Anything else meets the
+// full create bind policy, as before PX3.
+func TestTrustedNativeBindsSkipSymlinkedLeaves(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Caddyfile"), []byte("{\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "caddy_data"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(t.TempDir(), filepath.Join(dir, "caddy_config")); err != nil {
+		t.Skipf("symlinks are not available here: %v", err)
+	}
+	place := nativePlacement(proxyConfig(), dir)
+	if got, want := trustedNativeBinds(place), place.binds[:2]; !reflect.DeepEqual(got, want) {
+		t.Fatalf("trusted = %#v, want the two binds without the symlinked caddy_config %#v", got, want)
+	}
+	if err := os.Remove(filepath.Join(dir, "Caddyfile")); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := trustedNativeBinds(place), place.binds[1:2]; !reflect.DeepEqual(got, want) {
+		t.Fatalf("trusted = %#v, want only caddy_data while the Caddyfile is missing", got)
+	}
+	if got := trustedNativeBinds(placement{mounts: []map[string]interface{}{{"Type": "volume"}}, network: "aurago_default"}); got != nil {
+		t.Fatalf("Docker placement trusted = %#v, want nothing", got)
+	}
+	if got := trustedNativeBinds(placement{binds: place.binds}); got != nil {
+		t.Fatalf("binds without sources trusted = %#v, want nothing", got)
+	}
+}
+
+// TestManagerStartDoesNotTrustASymlinkedNativeBind: on an install under an
+// always-allowed path, a caddy_config that links to /etc must not be mounted
+// read-write through the trust list (PX3 review).
+func TestManagerStartDoesNotTrustASymlinkedNativeBind(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("needs Linux host paths and a symlink to /etc")
+	}
+	allowDockerForTest(t, false)
+	daemon := newProxyDaemon(t, imageName)
+	cfg := proxyConfig()
+	cfg.SecurityProxy.DockerHost = daemon.host
+	m := testManager(t, cfg, &fakeEngine{})
+	m.engine = dockerEngine
+	dir := filepath.Join(cfg.Directories.DataDir, "proxy")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/etc", filepath.Join(dir, "caddy_config")); err != nil {
+		t.Fatal(err)
+	}
+
+	err := m.Start()
+	if err == nil || !strings.Contains(err.Error(), `mounting sensitive host path "/etc"`) {
+		t.Fatalf("Start() error = %v, want the sensitive-path denial for the symlinked caddy_config", err)
+	}
+	if creates := daemon.createRequests(); len(creates) != 0 {
+		t.Fatalf("the create reached Docker: %#v", creates)
+	}
+}
